@@ -34,6 +34,8 @@ export default defineOps({
         { name: "code", type: "string", doc: "code that makes the document (limited, all), with language", optional: true },
         { name: "language", type: "string", doc: "the code's language: ts", optional: true },
         { name: "piece", type: "string", doc: "a piece kept for reuse (generate.pieces), drafted again for this surface", optional: true },
+        { name: "background", type: "bool", doc: "run it as a task: answered at once with its handle (task.status, task.cancel); the interface runs on meanwhile", optional: true },
+        { name: "commit", type: "bool", doc: "with background: commit the draft as soon as it is prepared (decided as generate.commit is, then)", optional: true },
       ],
       result: "json",
       cost: "bounded",

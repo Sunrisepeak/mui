@@ -258,16 +258,27 @@ struct TearDown {
     }
 };
 
-// What is kept while the application runs: its generation (its verbs), when it has one.
-std::unique_ptr<agent::Generation> prepare(Runtime& rt, AppSpec& app, const std::shared_ptr<AgentAccess>& access) {
+// What is kept while the application runs: its background tasks (task.*, W8) and its
+// generation (generate.*), when it has one — the generation goes first.
+struct Prepared {
+    std::unique_ptr<agent::TaskBroker> tasks;
+    std::unique_ptr<agent::Generation> generation;
+};
+
+Prepared prepare(Runtime& rt, AppSpec& app, const std::shared_ptr<AgentAccess>& access) {
     rt.set_agent_access(access);
     rt.set_agent_players(app.agent_players);
     for (VerbSpec& v : app.verbs)
         if (auto r = rt.verbs().add(std::move(v.desc), std::move(v.fn)); !r) warn("verb not added: {}", r.error());
     if (app.setup) app.setup(rt);
     if (app.view) rt.mount("main", app.view());
-    if (!app.generation) return nullptr;
-    return std::make_unique<agent::Generation>(rt, std::move(*app.generation));
+    Prepared kept;
+    kept.tasks = std::make_unique<agent::TaskBroker>(rt);
+    if (app.generation) {
+        if (!app.generation->tasks) app.generation->tasks = kept.tasks.get();
+        kept.generation = std::make_unique<agent::Generation>(rt, std::move(*app.generation));
+    }
+    return kept;
 }
 
 // A recording (the protocol's `record`, W12) played again: each frame at its
@@ -348,7 +359,7 @@ int headless(AppSpec app, const RunOptions& o, const std::shared_ptr<AgentAccess
             if (attached) window().detach();
         }
     } detach{mode != "native"};
-    const auto generation = prepare(host.runtime(), app, access);
+    const auto prepared = prepare(host.runtime(), app, access);
     const TearDown teardown(app, host.runtime());
     const auto framed = frame_of(host.runtime(), app, mode);
     if (!o.replay.empty()) return replay(host, app, o.replay);
@@ -427,16 +438,15 @@ int run(AppSpec app, const RunOptions& o) {
     // A window on the desktop, the page's canvas on the Web (src/host/<where>/shown.cpp).
     const std::string mode = window_mode(app, o);
     return detail::shown(app, o, [&](Runtime& rt) -> std::shared_ptr<void> {
-        auto generation = prepare(rt, app, access);
-        // Kept as long as the window: the frame, the generation, and the teardown before them.
+        auto prepared = prepare(rt, app, access);
+        // Kept as long as the window: the frame, the tasks and generation, and the teardown before them.
         struct Kept {
-            std::unique_ptr<FramedWindow>      frame;
-            std::unique_ptr<agent::Generation> generation;
-            TearDown                           teardown;  // declared last: it goes first
-            Kept(AppSpec& a, Runtime& r, std::unique_ptr<FramedWindow> f, std::unique_ptr<agent::Generation> g)
-                : frame(std::move(f)), generation(std::move(g)), teardown(a, r) {}
+            std::unique_ptr<FramedWindow> frame;
+            Prepared                      prepared;
+            TearDown                      teardown;  // declared last: it goes first
+            Kept(AppSpec& a, Runtime& r, std::unique_ptr<FramedWindow> f, Prepared p) : frame(std::move(f)), prepared(std::move(p)), teardown(a, r) {}
         };
-        return std::make_shared<Kept>(app, rt, frame_of(rt, app, mode), std::move(generation));
+        return std::make_shared<Kept>(app, rt, frame_of(rt, app, mode), std::move(prepared));
     });
 }
 

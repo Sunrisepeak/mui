@@ -7,12 +7,14 @@ import mlibs.control;
 
 export namespace omui::agent::generate {
 
-inline constexpr std::array<mlibs::control::Parameter, 5> parameters_generate_draft{{
+inline constexpr std::array<mlibs::control::Parameter, 7> parameters_generate_draft{{
     {"surface", "string", "a surface generate.surfaces names", false},
     {"document", "json", "a view document ({\"omui\": \"0.1\", \"view\": {…}})", true},
     {"code", "string", "code that makes the document (limited, all), with language", true},
     {"language", "string", "the code's language: ts", true},
     {"piece", "string", "a piece kept for reuse (generate.pieces), drafted again for this surface", true},
+    {"background", "bool", "run it as a task: answered at once with its handle (task.status, task.cancel); the interface runs on meanwhile", true},
+    {"commit", "bool", "with background: commit the draft as soon as it is prepared (decided as generate.commit is, then)", true},
 }};
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_generate_preview{{
     {"draft", "string", "a draft generate.draft answered", false},
@@ -76,7 +78,7 @@ inline constexpr std::string_view listing = R"listing({
     {"name": "generate.surfaces", "description": "Where generated interface may go and how far: each surface the application declares (its name, what it is for, its version now), how open generation is (off, data, limited, all), the limits a draft is held to, and in limited the components and verbs it may use", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {}, "required": []}},
     {"name": "generate.draft", "description": "A draft for a surface, taken through the stages it can reach at once: validated (a view document checked against the registered components, the limits and how open generation is — every problem at its JSON pointer) and prepared (built, nothing shown). Code (limited, all) is first evaluated, sandboxed, into its document", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "generate.discard", "undoable": false, "cancellable": false, "result": "json",
-     "inputSchema": {"type": "object", "properties": {"surface": {"type": "string", "description": "a surface generate.surfaces names"}, "document": {"description": "a view document ({\"omui\": \"0.1\", \"view\": {…}})"}, "code": {"type": "string", "description": "code that makes the document (limited, all), with language"}, "language": {"type": "string", "description": "the code's language: ts"}, "piece": {"type": "string", "description": "a piece kept for reuse (generate.pieces), drafted again for this surface"}}, "required": ["surface"]}},
+     "inputSchema": {"type": "object", "properties": {"surface": {"type": "string", "description": "a surface generate.surfaces names"}, "document": {"description": "a view document ({\"omui\": \"0.1\", \"view\": {…}})"}, "code": {"type": "string", "description": "code that makes the document (limited, all), with language"}, "language": {"type": "string", "description": "the code's language: ts"}, "piece": {"type": "string", "description": "a piece kept for reuse (generate.pieces), drafted again for this surface"}, "background": {"type": "boolean", "description": "run it as a task: answered at once with its handle (task.status, task.cancel); the interface runs on meanwhile"}, "commit": {"type": "boolean", "description": "with background: commit the draft as soon as it is prepared (decided as generate.commit is, then)"}}, "required": ["surface"]}},
     {"name": "generate.preview", "description": "A prepared draft shown without being kept: mounted at its surface unseen, the window's picture before and after (PNG) and the semantic changes it would bring, then the surface as it was", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"draft": {"type": "string", "description": "a draft generate.draft answered"}}, "required": ["draft"]}},
     {"name": "generate.commit", "description": "A prepared draft made the surface's next version: mounted, its version kept with who made it, and in the history so undo takes it back to the version before. A draft made on a version the surface has moved on from is refused (its read set: what it was made over) unless `over` says to replace what is there", "effect": "reversible", "person": false, "delegated": false, "cost": "frame", "undo": "ui.undo (the version before), or generate.restore", "undoable": true, "cancellable": false, "result": "json",

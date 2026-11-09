@@ -332,6 +332,56 @@ UTest cases{"generation", [] {
         expect(eq(invoke(protocol, "generate.draft", Value{}.set("surface", "extras").set("piece", "pro_card")).exit, 1));
     };
 
+    "a draft in the background (W8): its handle at once; frames, input and requests go on; a cancel is taken at once and its draft never shows; the next one commits"_test = [] {
+        Page page;
+        agent::TaskBroker tasks(page.rt);
+        // The code's evaluation waits until the test lets it go: the work is in flight for as long as the test says.
+        std::atomic<int> released{0};
+        agent::Generation generation(page.rt, {.openness = agent::Openness::all,
+                                              .surfaces = {{"extras", ""}},
+                                              .evaluate = [&](std::string_view, std::string_view code) -> std::expected<std::string, std::string> {
+                                                  const int mine = code.contains("first") ? 1 : 2;
+                                                  for (int wait = 0; wait < 4000 && released.load() < mine; ++wait) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                                                  return card(code.contains("first") ? "First idea" : "Second idea").json();
+                                              },
+                                              .tasks = &tasks});
+        agent::Protocol protocol(page.rt, {});
+        const auto asked = std::chrono::steady_clock::now();
+        const Answer first = invoke(protocol, "generate.draft",
+                                    Value{}.set("surface", "extras").set("code", "first").set("language", "ts").set("background", true).set("commit", true));
+        expect(eq(first.exit, 0) && first.data.get("task")) << first.error;
+        expect(std::chrono::steady_clock::now() - asked < std::chrono::milliseconds(500)) << "answered without waiting for the work";
+        const std::string first_task(first.data.get("task")->as_string());
+        // Meanwhile: frames, a person's press, another request — all at once.
+        for (int frame = 0; frame < 10; ++frame) (void)page.rt.frame({page.rt.now() + seconds(1.0 / 60), {}});
+        expect(eq(invoke(protocol, "generate.surfaces").exit, 0));
+        const Answer running = invoke(protocol, "task.status", Value{}.set("task", first_task));
+        expect(running.data.get("state")->as_string() == "running") << running.data.json();
+        // The person changes their mind: the first cancelled at once (its work still stuck), the second asked for.
+        const Answer cancelled = invoke(protocol, "task.cancel", Value{}.set("task", first_task));
+        expect(eq(cancelled.exit, 0) && cancelled.data.get("state")->as_string() == "cancelled") << cancelled.error << cancelled.data.json();
+        const Answer second = invoke(protocol, "generate.draft",
+                                     Value{}.set("surface", "extras").set("code", "second").set("language", "ts").set("background", true).set("commit", true));
+        released = 2;  // both works go on now
+        for (int frame = 0; frame < 600 && invoke(protocol, "task.status", Value{}.set("task", second.data.get("task")->as_string())).data.get("state")->as_string() == "running"; ++frame) {
+            (void)page.rt.frame({page.rt.now() + seconds(1.0 / 60), {}});
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        }
+        // The first's work ended too; let its end arrive: still nothing of it.
+        for (int frame = 0; frame < 30; ++frame) {
+            (void)page.rt.frame({page.rt.now() + seconds(1.0 / 60), {}});
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        }
+        const Answer done = invoke(protocol, "task.status", Value{}.set("task", second.data.get("task")->as_string()));
+        expect(done.data.get("state")->as_string() == "done" && eq(done.data.get("result")->get("version")->as_int(), std::int64_t{1})) << done.data.json();
+        expect(page.shows("Second idea") && !page.shows("First idea")) << "the cancelled draft never shows";
+        expect(invoke(protocol, "task.status", Value{}.set("task", first_task)).data.get("state")->as_string() == "cancelled");
+        expect(eq(invoke(protocol, "task.list").data.get("tasks")->list()->size(), std::size_t{2}));
+        // Committed in the name of who asked, as a step of the history.
+        expect(eq(talk(protocol, Value{}.set("op", "undo")).exit, 0));
+        expect(!page.shows("Second idea")) << "undo takes a background commit back";
+    };
+
     "limits and places: a document over the limits is refused; a surface nothing shows takes no commit"_test = [] {
         Page page;
         agent::Generation generation(page.rt, {.openness = agent::Openness::all, .surfaces = {{"extras", ""}, {"footer", "not on this page"}}, .max_nodes = 2});

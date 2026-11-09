@@ -303,10 +303,13 @@ struct Generation::Impl {
         if (auto known = surface_of(surface); !known) return std::unexpected(known.error());
         std::string document;
         const std::string code = text_arg(args, "code");
+        const bool background = args.get("background") && args.get("background")->as_bool();
+        if (background && !options.tasks) return std::unexpected(std::string("this host runs no background tasks: draft without `background`"));
         if (!code.empty()) {
             if (options.openness == Openness::data) return std::unexpected(std::string("generation here takes data only: a view document, not code"));
             if (!options.evaluate) return std::unexpected(std::string("this host runs no generated code: send a view document"));
             const std::string language = text_arg(args, "language").empty() ? std::string("ts") : text_arg(args, "language");
+            if (background) return in_background(surface, code, args, self, language);
             auto made = options.evaluate(language, code);
             if (!made) return std::unexpected(std::format("the code did not make a document: {}", made.error()));
             document = std::move(*made);
@@ -321,6 +324,7 @@ struct Generation::Impl {
         } else {
             return std::unexpected(std::string("a draft is a `document` (a view document) or, where code is allowed, `code`"));
         }
+        if (args.get("background") && args.get("background")->as_bool()) return in_background(surface, std::move(document), args, self);
         const std::string id = std::format("d{}", next_draft);
         auto valid = validate(document, id);
         if (!valid) return std::unexpected(valid.error());
@@ -346,6 +350,47 @@ struct Generation::Impl {
                            .set("set", read_write_set(view->document(), surface));
         drafts.insert_or_assign(id, Draft{id, surface, document, actor_now(runtime), Stage::prepared, std::move(*view), base});
         return answer;
+    }
+
+    // A draft made as a task (W8): answered at once with its handle; the code evaluated on the pool,
+    // then — on the UI thread, at a frame's boundary — drafted, and committed when asked, as the
+    // verbs are, in the name of who asked (decided again then). A cancelled task commits nothing.
+    VerbResult in_background(const std::string& surface, std::string text, const Value& args, const std::shared_ptr<Impl>& self,
+                             std::string language = {}) {
+        const bool commit_now = args.get("commit") && args.get("commit")->as_bool();
+        Invocation asked = runtime.current_invocation().value_or(Invocation{});
+        const std::weak_ptr<Impl> alive = self;
+        EvaluateFn evaluate = language.empty() ? EvaluateFn{} : options.evaluate;
+        const std::string id = options.tasks->submit(
+            {.name = std::format("a draft for {}{}", surface, commit_now ? ", committed" : ""),
+             .work = [alive, surface, text = std::move(text), language, evaluate, commit_now, asked](std::stop_token stop, Progress& progress) -> TaskWork {
+                 std::string document = text;
+                 if (evaluate) {
+                     progress.set(0.1, "evaluating the code");
+                     auto made = evaluate(language, text);
+                     if (!made) return std::unexpected(std::format("the code did not make a document: {}", made.error()));
+                     document = std::move(*made);
+                 }
+                 if (stop.stop_requested()) return std::unexpected(std::string("cancelled"));
+                 progress.set(0.8, "checking and preparing");
+                 return TaskCommit([alive, surface, document = std::move(document), commit_now, asked]() -> VerbResult {
+                     const auto impl = alive.lock();
+                     if (!impl) return std::unexpected(std::string("the application's generation is gone"));
+                     Invocation call = asked;
+                     call.args = Value{}.set("surface", surface).set("document", document);
+                     const Envelope drafted = impl->runtime.invoke("generate.draft", call);
+                     const Value* made = drafted.data_value();
+                     if (drafted.exit_code().value_or(1) != 0 || !made) return std::unexpected(std::format("the draft: {}", drafted.ndjson()));
+                     Value out = *made;
+                     if (!commit_now) return out;
+                     call.args = Value{}.set("draft", *made->get("draft"));
+                     const Envelope committed = impl->runtime.invoke("generate.commit", call);
+                     if (committed.exit_code().value_or(1) != 0 || !committed.data_value())
+                         return std::unexpected(std::format("the commit: {}", committed.ndjson()));
+                     return out.set("version", *committed.data_value()->get("version"));
+                 });
+             }});
+        return Value{}.set("task", id).set("surface", surface).set("stage", "submitted");
     }
 
     VerbResult preview(const Value& args) {

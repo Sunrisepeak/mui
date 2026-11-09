@@ -235,6 +235,8 @@ struct Server::Impl {
             if (auto design = parse_json(agent::design::listing)) listings.push_back(std::move(*design));
         if (options.generate)
             if (auto generate = parse_json(agent::generate::listing)) listings.push_back(std::move(*generate));
+        // Background tasks (task.*, W8): what a background draft (or any task) is doing, and its cancel.
+        if (auto tasks = parse_json(agent::tasks::listing)) listings.push_back(std::move(*tasks));
         listings.insert(listings.end(), options.listings.begin(), options.listings.end());
         for (const Value& listing : listings) {
             const Value* tools = listing.get("tools");

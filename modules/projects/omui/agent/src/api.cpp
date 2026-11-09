@@ -52,7 +52,8 @@ Value api_of(Runtime& runtime) {
     out.set("operations", Value{}
                               .set("ui", operations_of(catalog))
                               .set("design", operations_of(design::catalog))
-                              .set("generate", operations_of(generate::catalog)));
+                              .set("generate", operations_of(generate::catalog))
+                              .set("task", operations_of(tasks::catalog)));
     return out;
 }
 

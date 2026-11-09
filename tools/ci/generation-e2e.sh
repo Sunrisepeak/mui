@@ -76,6 +76,17 @@ grep -q '"nodes":\[\]' <<< "$last"
 expect 0 '{"op":"redo"}'
 expect 0 '{"op":"invoke","verb":"generate.versions","args":{"surface":"extras"}}'
 grep -q '"shown":1' <<< "$last"
+# In the background (W8): the handle at once, the task done a moment later, its version shown.
+code2='import { defineView } from \"openmui/define\";\nexport default defineView({ omui: \"0.1\", view: { root: { type: \"text\", id: \"later\", props: { text: \"Made in the background\" } } } });'
+expect 0 "{\"op\":\"invoke\",\"verb\":\"generate.draft\",\"args\":{\"surface\":\"extras\",\"language\":\"ts\",\"code\":\"$code2\",\"background\":true,\"commit\":true}}"
+task=$(grep -o '"task":"t[0-9]*"' <<< "$last" | head -1 | cut -d'"' -f4)
+[ -n "$task" ] || { echo "FAIL: no task handle: $last"; exit 1; }
+expect 0 '{"op":"wait","q":{"name":"Made in the background"},"timeout":10}'
+expect 0 "{\"op\":\"invoke\",\"verb\":\"task.status\",\"args\":{\"task\":\"$task\"}}"
+grep -q '"state":"done"' <<< "$last"
+expect 0 '{"op":"undo"}'
+expect 0 '{"op":"wait","settled":true,"timeout":5}'
+
 # Kept: started again, the version shown is shown again.
 kill "$pid"; wait "$pid" 2> /dev/null || true
 "$player" --manifest "$dir/app" --serve --agent-dir "$dir/endpoints" > "$dir/app.log" 2>&1 &

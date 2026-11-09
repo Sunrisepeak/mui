@@ -28,6 +28,7 @@ import omui.view;
 import omui.viewdoc;
 import :protocol;
 import :a2ui;
+import :broker;
 
 export namespace omui::agent {
 
@@ -75,6 +76,9 @@ struct GenerationOptions {
     // that no longer passes is not shown, and generate.surfaces says why.
     // Empty: kept only while it runs.
     std::filesystem::path directory;
+    // Where a draft asked for in the background runs (generate.draft
+    // {background}): the application's task broker. None: drafts are made at once.
+    TaskBroker* tasks = nullptr;
 };
 
 // Registers the generate.* verbs with the runtime for as long as it lives.

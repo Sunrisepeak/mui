@@ -1,0 +1,15 @@
+{
+  "kind": "omui.ops",
+  "version": 1,
+  "product": "task",
+  "doc": "Background tasks: started with a handle at once, their progress and end readable, cancelled without waiting, the interface running all along.",
+  "tools": [
+    {"name": "task.list", "description": "The background tasks, newest first: each one's id, what it is, who started it, its state (running, done, failed, cancelled), its progress and how long it has run", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"all": {"type": "boolean", "description": "the ended ones too (default: running and the last ten ended)"}}, "required": []}},
+    {"name": "task.status", "description": "One task: its state, progress (0…1, and what it is doing), and once ended its result or why it failed", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"task": {"type": "string", "description": "a task's id"}}, "required": ["task"]}},
+    {"name": "task.cancel", "description": "Cancels a task: taken at once (it answers without waiting for the work to stop), nothing the task would have committed is, and the work is asked to stop", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "none needed: nothing it would have made was kept; start it again", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"task": {"type": "string", "description": "a task's id"}}, "required": ["task"]}}
+  ],
+  "tiers": []
+}

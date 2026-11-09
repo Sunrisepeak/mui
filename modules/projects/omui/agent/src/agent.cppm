@@ -9,6 +9,8 @@ export import :catalog;
 export import :design;
 export import :generate;
 export import :a2ui;
+export import :broker;
+export import :tasks;
 export import :generation;
 export import :protocol;
 export import :endpoint;

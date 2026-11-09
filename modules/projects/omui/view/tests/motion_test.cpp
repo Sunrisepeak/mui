@@ -473,4 +473,116 @@ UTest cases{"view.motion", [] {
         expect(!whole(true, MotionLevel::full)) << "presented as a design edit, it is still being written in";
         expect(whole(true, MotionLevel::off)) << "the person's motion off holds: at once";
     };
+
+    "design steps presented by kind (W14 step 4): an edit grows in from its top and a removal dissolves; an undo plays back, the last first; the pace scales the time"_test = [] {
+        using Kind = Runtime::DesignPresentation::Kind;
+        const xrender::raster::Rgba8 white{255, 255, 255, 255};
+        // The rows drawn (anything not the white behind) in a column of the picture: the first and the last (-1: none).
+        const auto rows = [&](const xrender::raster::Surface& s, int x) {
+            int first = -1, last = -1;
+            for (int y = 0; y < s.height(); ++y)
+                if (!(s.at(x, y) == white)) {
+                    if (first < 0) first = y;
+                    last = y;
+                }
+            return std::pair{first, last};
+        };
+        // Anything drawn inside a rectangle.
+        const auto drawn = [&](const xrender::raster::Surface& s, Rect r) {
+            int n = 0;
+            for (int y = static_cast<int>(r.y); y < static_cast<int>(r.y + r.height); ++y)
+                for (int x = static_cast<int>(r.x); x < static_cast<int>(r.x + r.width); ++x) n += !(s.at(x, y) == white);
+            return n;
+        };
+        // A list whose items come and go by key (b: a panel holding a red box), none of its own motion: only the design's.
+        struct Scene {
+            Runtime                         rt{options({200, 120})};
+            Signal<std::vector<std::string>> items;
+            explicit Scene(std::vector<std::string> shown) : items(signal(std::move(shown))) {
+                rt.mount("main", column({.id = "list", .gap = 4}, {dynamic([items = items] {
+                                            std::vector<Element> made;
+                                            for (const std::string& k : items()) {
+                                                Element panel = column({.id = k, .width = 90, .padding = 6, .background = "#cbd5e1"},
+                                                                       {box({.id = "fill", .width = 78, .height = 34, .background = "#c83c28"})});
+                                                panel.key = k;
+                                                made.push_back(std::move(panel));
+                                            }
+                                            return made;
+                                        })}));
+                (void)rt.frame({seconds(0), {}});
+                (void)rt.frame({seconds(0.01), {}});  // shown, drawn: what goes now leaves by its motion
+            }
+        };
+        Rect rest;
+        {
+            Scene at_rest({"b"});
+            rest = at_rest.rt.screen_bounds(at_rest.rt.find("main/b"));
+        }
+        const int column_x = static_cast<int>(rest.x + 3);  // the panel's own edge, beside what it holds
+        const int top = static_cast<int>(rest.y), bottom = static_cast<int>(rest.y + rest.height) - 1;
+        // Growth: the panel unfolds from its top edge — its top where it rests, its bottom coming down.
+        const auto grown = [&](double pace, double at) {
+            Scene scene({});
+            scene.rt.set_design_presentation({Kind::edit, pace});
+            scene.rt.present_design();
+            scene.items.set({"b"});
+            for (double t = 1.0 / 60; t < at; t += 1.0 / 60) (void)scene.rt.frame({seconds(t), {}});
+            (void)scene.rt.frame({seconds(at), {}});
+            return rows(draw(scene.rt), column_x);
+        };
+        const auto early = grown(1, 0.12), middle = grown(1, 0.3), done = grown(1, 1.5);
+        expect(early.first >= 0 && std::abs(early.first - top) <= 1 && early.second < bottom - 8)
+            << std::format("early: rows {}…{} of {}…{}: its top where it rests, its bottom still coming", early.first, early.second, top, bottom);
+        expect(middle.second > early.second) << std::format("growing: {} then {}", early.second, middle.second);
+        expect(done.first == top && done.second == bottom) << std::format("at rest: {}…{} of {}…{}", done.first, done.second, top, bottom);
+        // The pace: twice as fast is there sooner.
+        const auto quick = grown(2, 0.3), slow = grown(1, 0.3);
+        expect(quick.second == bottom && slow.second < bottom) << std::format("at 0.3 s: pace 2 at {}, pace 1 at {} (rest {})", quick.second, slow.second, bottom);
+        // Removal: it dissolves — a dissolve layer over it on its way — and is gone.
+        {
+            Scene scene({"b"});
+            scene.rt.set_design_presentation({Kind::edit, 1});
+            scene.rt.present_design();
+            scene.items.set({});
+            bool dissolving = false;
+            const auto ref = xrender::effects().find("dissolve");
+            for (double t = 1.0 / 60; t < 0.5; t += 1.0 / 60) {
+                (void)scene.rt.frame({seconds(t), {}});
+                for (const auto& c : scene.rt.display_list().commands())
+                    if (const auto* l = std::get_if<xrender::PushLayer>(&c); l && ref && l->effect.id == ref->id) dissolving = true;
+            }
+            expect(dissolving) << "a dissolve layer while it goes";
+            for (double t = 0.5; t < 1.5; t += 1.0 / 60) (void)scene.rt.frame({seconds(t), {}});
+            expect(eq(drawn(draw(scene.rt), rest), 0)) << "gone";
+        }
+        // An undo played back: what goes unwrites the last made first — the panel's box (drawn after the panel) starts before the panel.
+        {
+            Scene scene({"b"});
+            const Rect fill = scene.rt.screen_bounds(scene.rt.find("main/b/fill"));
+            const Rect strip{rest.x, rest.y, rest.width, fill.y - rest.y};  // the panel's own, above its box
+            const auto ink = [&](const xrender::raster::Surface& surface, Rect region) {
+                long sum = 0;
+                for (int y = static_cast<int>(region.y); y < static_cast<int>(region.y + region.height); ++y)
+                    for (int x = static_cast<int>(region.x); x < static_cast<int>(region.x + region.width); ++x) {
+                        const auto pixel = surface.at(x, y);
+                        sum += 765 - pixel.r - pixel.g - pixel.b;
+                    }
+                return sum;
+            };
+            const auto before = draw(scene.rt);
+            const long fill_ink = ink(before, fill), strip_ink = ink(before, strip);
+            scene.rt.set_design_presentation({Kind::undo, 1});
+            scene.rt.present_design();
+            scene.items.set({});
+            double fill_began = -1, strip_began = -1;
+            for (double t = 1.0 / 120; t < 1.2 && (fill_began < 0 || strip_began < 0); t += 1.0 / 120) {
+                (void)scene.rt.frame({seconds(t), {}});
+                const auto picture = draw(scene.rt);
+                if (fill_began < 0 && ink(picture, fill) < fill_ink * 8 / 10) fill_began = t;
+                if (strip_began < 0 && ink(picture, strip) < strip_ink * 8 / 10) strip_began = t;
+            }
+            expect(fill_began >= 0 && strip_began >= 0 && fill_began < strip_began)
+                << std::format("the last made goes first: its box at {:.3f} s, the panel at {:.3f} s", fill_began, strip_began);
+        }
+    };
 }};

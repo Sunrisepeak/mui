@@ -155,7 +155,7 @@ UTest cases{"mcp", [] {
             expect(eq(std::string(r.get("serverInfo")->get("name")->as_string()), std::string("openmui")));
         }
         const Value* tools = c.reply(2) ? c.reply(2)->get("result")->get("tools") : nullptr;
-        expect(tools && tools->list() && tools->list()->size() == 50) << "nineteen ui_* tools and Live Design's thirty-one";
+        expect(tools && tools->list() && tools->list()->size() == 51) << "nineteen ui_* tools and Live Design's thirty-two";
         if (tools && tools->list()) {
             std::set<std::string> names;
             for (const Value& t : *tools->list()) {
@@ -168,7 +168,7 @@ UTest cases{"mcp", [] {
                                                   "design_locate", "design_edit", "design_set", "design_insert", "design_remove", "design_preview", "design_preview_accept", "design_preview_reject", "design_variants",
                                                   "design_variants_pick", "design_variants_close", "design_film", "design_timeline", "design_history", "design_history_commit", "design_history_branch",
                                                   "design_history_switch", "design_history_revert", "design_history_diff", "design_history_merge", "design_history_tag", "design_expect", "design_check", "design_handover", "design_save_scenario",
-                                                  "design_replay", "design_discard", "design_commit"}));
+                                                  "design_replay", "design_discard", "design_commit", "design_pace"}));
             // The hints are the catalog's effects (omui.ops.omui.ts): reads, changes, and what runs what it names.
             const auto hint = [&](std::string_view tool, std::string_view key) {
                 for (const Value& t : *tools->list())

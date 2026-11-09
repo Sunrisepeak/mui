@@ -870,8 +870,6 @@ Rect stretched(Rect r, const Rect& a, const Rect& b, double u, float stretch) no
 
 // The presence options as the arithmetic has always read them: the pose's
 // rise and grow, and a drop's height, in floats.
-float rise_of(const Options& o) noexcept { return static_cast<float>(o.appear.away.offset.y); }
-float grow_of(const Options& o) noexcept { return static_cast<float>(o.appear.away.scale.x); }
 float drop_of(const Options& o) noexcept { return static_cast<float>(o.appear.drop); }
 double fade_out(double u, double by) noexcept { return 1 - clamp01(by <= 0 ? 1 : u / by); }
 double fade_in(double u, double from) noexcept { return clamp01(from >= 1 ? (u >= 1 ? 1 : 0) : (u - from) / (1 - from)); }
@@ -1187,6 +1185,8 @@ Morph::Morph(Matter from, Matter to, Options options, double start)
                 d[k] = (q.x - c.x) * (q.x - c.x) + (q.y - c.y) * (q.y - c.y);
             }
             std::ranges::stable_sort(rank, [&](std::size_t x, std::size_t y) { return d[x] < d[y]; });
+        } else if (options_.order == Order::reverse) {
+            std::ranges::reverse(rank);
         }
         for (std::size_t r = 0; r < rank.size(); ++r) pairs_[rank[r]].delay = static_cast<double>(r) * options_.stagger;
     }
@@ -1334,7 +1334,8 @@ Morph::Morph(Matter from, Matter to, Options options, double start)
 
 double Morph::travel(double t) const noexcept {
     if (!options_.travel || t <= start_) return 0;
-    return det::sin(std::numbers::pi * clamp01(options_.curve.at(t - start_)));
+    const double progress = clamp01(options_.curve.at(t - start_));
+    return options_.travel->rises ? progress : det::sin(std::numbers::pi * progress);
 }
 
 void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, const PushLayer* live) const {
@@ -1435,14 +1436,22 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
     const double since = t - start_;
     auto marker_a = [&](const Piece& pa) -> std::uint32_t { return snapshot ? (0x80000000u | pa.node) : 0; };
     auto marker_b = [&](const Piece& pb) -> std::uint32_t { return to_.nodes()[pb.node].marker; };
-    // Appearing and vanishing: `away` 1 is all the way (lower by rise, scaled by grow about the middle), 0 in place.
-    const Point middle = (to_.empty() ? from_.bounds() : to_.bounds()).center();
-    auto shaped = [&](double away, const Rect& bounds) -> Affine {
-        if (away <= 0 || (rise_of(options_) == 0 && grow_of(options_) == 1)) return Affine{};
-        const float g = mixf(1, grow_of(options_), away);
-        const Point origin = options_.local_presence ? bounds.center() : middle;
-        return Affine::translate(origin.x, origin.y + mixf(0, rise_of(options_), away)) * Affine::scale(g, g) * Affine::translate(-origin.x, -origin.y);
+    // Appearing and vanishing: `away` 1 is all the way — the course's pose (its offset, its scale on each
+    // axis, its turn) about its anchor in what it moves (the whole drawing, or each part with local
+    // presence) — 0 in place. An entrance takes `appear`'s pose, an exit `vanish`'s.
+    const Rect whole = to_.empty() ? from_.bounds() : to_.bounds();
+    const Point middle = whole.center();
+    auto posed = [&](const hanim::Presence& course, double away, const Rect& bounds) -> Affine {
+        const hanim::PresencePose& pose = course.away;
+        if (away <= 0 || (pose.offset.x == 0 && pose.offset.y == 0 && pose.scale.x == 1 && pose.scale.y == 1 && pose.rotation == 0)) return Affine{};
+        const Rect& about = options_.local_presence ? bounds : whole;
+        const Point origin{about.x + about.width * static_cast<float>(course.anchor.x), about.y + about.height * static_cast<float>(course.anchor.y)};
+        const float sx = mixf(1, static_cast<float>(pose.scale.x), away), sy = mixf(1, static_cast<float>(pose.scale.y), away);
+        const Affine turn = pose.rotation == 0 ? Affine{} : xrender::rotate(static_cast<float>(pose.rotation * away));
+        return Affine::translate(origin.x + mixf(0, static_cast<float>(pose.offset.x), away), origin.y + mixf(0, static_cast<float>(pose.offset.y), away)) * turn *
+               Affine::scale(sx, sy) * Affine::translate(-origin.x, -origin.y);
     };
+    auto shaped = [&](double away, const Rect& bounds) { return posed(options_.appear, away, bounds); };
     // Dropping in: from above along the fall, pressed flat about the bottom of what appears as it lands.
     const float landing = (to_.empty() ? from_.bounds() : to_.bounds()).bottom();
     auto dropped = [&](double k) -> Affine {
@@ -1579,12 +1588,14 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
         if (p.b < 0) {  // only in the first: fading away where it was (vanishing, when it is asked to)
             const Piece& pa = A[static_cast<std::size_t>(p.a)];
             const double gone = fade_out(u, options_.vanish.fade_to);
-            const bool unwritten = options_.appear.writes && gone < 1 && stroked(from_, pa);
-            const float o = static_cast<float>(unwritten ? (gone > 0 ? pa.opacity : 0) : pa.opacity * gone);
+            // Unwritten by its own course (a vanish that writes), and posed by it as it goes.
+            const bool unwritten = options_.vanish.writes && u > 0 && stroked(from_, pa);
+            const double left = unwritten ? 1 - clamp01(u) : gone;
+            const float o = static_cast<float>(unwritten ? (left > 0 ? pa.opacity : 0) : pa.opacity * gone);
             if (o <= 0) continue;
             e.begin(marker_a(pa));
-            if (unwritten) e.trim = std::array<float, 2>{0, static_cast<float>(gone)};
-            e.piece(from_, pa, shaped(1 - gone, pa.bounds) * pa.transform, o, false);
+            if (unwritten) e.trim = std::array<float, 2>{0, static_cast<float>(left)};
+            e.piece(from_, pa, posed(options_.vanish, clamp01(u), pa.bounds) * pa.transform, o, false);
             e.trim.reset();
             e.end();
             continue;

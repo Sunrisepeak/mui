@@ -385,7 +385,10 @@ void Runtime::Impl::start_removal(NodeId id) {
     Node& n = at(id);
     auto exit = n.transitions.find("exit");
     // Its exit slot's motion (universal motion, D-93): it leaves as the motion draws it, then goes.
-    const bool by_motion = n.shown && n.drawn && !reduce_motion && motion_now() != MotionLevel::off && slot_motion(id, 2);
+    // A design step being shown (present_design) takes what it removes out by its motion too, though nothing moved it
+    // before: the last frame's drawing of it is what leaves.
+    const bool presenting = clock.now().count() < design_until;
+    const bool by_motion = n.shown && (n.drawn || presenting) && !reduce_motion && motion_now() != MotionLevel::off && slot_motion(id, 2);
     if ((exit == n.transitions.end() && !by_motion) || !n.shown || reduce_motion) {
         destroy(id);
         return;

@@ -460,6 +460,8 @@ struct Runtime::Impl {
     // Live Design's presentation: until when, and its recipes by slot (update, enter, exit).
     double                      design_until = -1;
     std::array<MotionSpec, 3>   design_slots;
+    MotionSpec                  design_grow;  // what a design step adds that holds others: it grows (W14 step 4)
+    Runtime::DesignPresentation design_presentation;
     RecordLevel                 record_level = RecordLevel::errors;
     std::deque<InteractionRecord> recorded;
     std::size_t                 record_capacity = 4096;

@@ -188,8 +188,17 @@ private:
     }
 
     // A state of the design put into the running application: each source
-    // whose text differs edited as design.edit edits it (and presented so).
-    std::expected<Value, std::string> apply_texts(const std::map<std::string, std::string>& texts) {
+    // whose text differs edited as design.edit edits it, presented as `kind`
+    // says (an edit grows in; an undo plays back; a switch carries what both
+    // share), at the design's pace.
+    std::expected<Value, std::string> apply_texts(const std::map<std::string, std::string>& texts,
+                                                  Runtime::DesignPresentation::Kind kind = Runtime::DesignPresentation::Kind::edit) {
+        rt.set_design_presentation({kind, pace});
+        struct Back {
+            Runtime& rt;
+            double   pace;
+            ~Back() { rt.set_design_presentation({Runtime::DesignPresentation::Kind::edit, pace}); }
+        } back{rt, pace};
         Value::List changed;
         for (const auto& [path, text] : texts) {
             const auto now = player.text(path);
@@ -198,7 +207,10 @@ private:
             if (!done) return std::unexpected(std::format("{}: {}", path, done.error()));
             changed.push_back(done->set("path", path));
         }
-        return Value{}.set("edits", Value(std::move(changed)));
+        return Value{}.set("edits", Value(std::move(changed)))
+            .set("presented", kind == Runtime::DesignPresentation::Kind::undo        ? "undo"
+                              : kind == Runtime::DesignPresentation::Kind::switch_to ? "switch"
+                                                                                      : "edit");
     }
 
     static Value commit_value(const DesignCommit& commit) {
@@ -267,8 +279,9 @@ private:
         return Shown{std::move(*picture), semantic::changes_between(here.snapshot(), there.snapshot())};
     }
 
-    void show_preview(const std::filesystem::path& picture) {
-        rt.mount("design-preview", preview_view(rt.size(), picture, [this](const Value&) { (void)accept_preview(); }, [this](const Value&) { reject_preview(); }));
+    void show_preview(const std::filesystem::path& picture, const std::filesystem::path& now = {}) {
+        rt.mount("design-preview",
+                 preview_view(rt.size(), picture, [this](const Value&) { (void)accept_preview(); }, [this](const Value&) { reject_preview(); }, now));
     }
     VerbResult accept_preview() {
         if (!previewing) return std::unexpected(std::string("no preview is shown (design.preview shows one)"));
@@ -282,17 +295,32 @@ private:
         rt.unmount("design-preview");
     }
 
-    void show_board(const std::vector<Card>& cards, std::string_view brief) {
-        rt.mount("design-variants", board_view(rt.size(), brief, cards, [this](const std::string& name) { (void)pick_variant(name); }));
+    // The board as it is shown (its cards and brief), to fly a picked card back from.
+    std::vector<Card> board_cards;
+    std::string       board_brief;
+    std::uint64_t     board_leaving = 0;  // the timer that takes the board away once a card has flown
+
+    void show_board(const std::vector<Card>& cards, std::string_view brief, std::string_view flying = {}) {
+        board_cards = cards;
+        board_brief = std::string(brief);
+        rt.mount("design-variants", board_view(rt.size(), brief, cards, [this](const std::string& name) { (void)pick_variant(name); }, flying));
     }
+    // The picked card flies from the board to fill the window (the same
+    // nodes, springing to their new places) while the application becomes it,
+    // a switch carrying what the two share; then the board goes.
     VerbResult pick_variant(const std::string& name) {
         const auto branch = variants.find(name);
         if (branch == variants.end()) return std::unexpected(std::format("no variant `{}` on the board", name));
         auto texts = history.texts_of(branch->second);
         if (!texts) return std::unexpected(texts.error());
         variants.clear();
-        rt.unmount("design-variants");
-        return step(apply_texts(*texts), std::format("variant {} picked", name));
+        show_board(board_cards, board_brief, name);
+        board_leaving = rt.after(seconds(0.7 / pace), [this] {
+            board_leaving = 0;
+            if (variants.empty()) rt.unmount("design-variants");
+        });
+        return step(apply_texts(*texts, Runtime::DesignPresentation::Kind::switch_to), std::format("variant {} picked", name))
+            .transform([&](Value done) { return done.set("flying", name); });
     }
 
     // The timeline (D-151 §2.14): shown or not, two commits being compared,
@@ -300,6 +328,7 @@ private:
     bool                     timeline_open = false, comparing = false;
     std::vector<std::string> compared;
     std::string              timeline_note, shown_commit;
+    double                   pace = 1;  // the design steps' presentation: its time scaled (design.pace)
 
     // Every commit the branches reach, oldest first.
     std::vector<DesignCommit> commits_in_time() const {
@@ -384,7 +413,7 @@ private:
             refresh_timeline();
             return std::unexpected(timeline_note);
         }
-        auto applied = apply_texts(*texts);
+        auto applied = apply_texts(*texts, Runtime::DesignPresentation::Kind::switch_to);
         if (!applied) return std::unexpected(applied.error());
         shown_commit = id;
         if (const auto commit = history.commit_of(id)) timeline_note = std::format("{} — {}", id.substr(0, 8), commit->message);
@@ -830,6 +859,16 @@ private:
                 .set("lanes", Value(std::move(lanes)))
                 .set("pictured", static_cast<double>(pictured));
         });
+        // How fast the steps are seen (W14 step 4): every presentation's time, scaled.
+        add("design.pace", [this](const Value& args) -> VerbResult {
+            const Value* given = args.get("pace");
+            if (!given || !given->is_number() || !std::isfinite(given->as_double()) || given->as_double() < 0.25 || given->as_double() > 4)
+                return std::unexpected(std::string("pace is a number from 0.25 to 4 (1 as made; 2 twice as fast)"));
+            const double before = pace;
+            pace = given->as_double();
+            rt.set_design_presentation({Runtime::DesignPresentation::Kind::edit, pace});
+            return Value{}.set("pace", pace).set("before", before);
+        });
         // Live Design's history (D-151): states of the design as commits on branches, under .omui/design/.
         add("design.history", [this](const Value& args) -> VerbResult {
             const std::string branch(args.get("branch") ? args.get("branch")->as_string() : history.head_branch());
@@ -874,7 +913,7 @@ private:
             if (!at) return std::unexpected(std::format("{} (design.history lists the branches and tags)", at.error()));
             auto texts = history.texts_of(*at);
             if (!texts) return std::unexpected(texts.error());
-            auto applied = apply_texts(*texts);
+            auto applied = apply_texts(*texts, Runtime::DesignPresentation::Kind::switch_to);
             if (!applied) return std::unexpected(applied.error());
             if (!branches.contains(to)) {  // a commit, seen: the branch stays; a commit keeps it there, design.history.branch makes it one
                 shown_commit = *at;
@@ -890,7 +929,7 @@ private:
             if (!id) return std::unexpected(id.error());
             auto texts = history.texts_of(*id);
             if (!texts) return std::unexpected(texts.error());
-            auto applied = apply_texts(*texts);
+            auto applied = apply_texts(*texts, Runtime::DesignPresentation::Kind::undo);
             if (!applied) return std::unexpected(applied.error());
             semantic::Tree tree(rt);
             const auto by = rt.current_invocation();
@@ -974,9 +1013,18 @@ private:
             if (!texts) return std::unexpected(texts.error());
             auto shown = stand_in(*texts);
             if (!shown) return std::unexpected(shown.error());
+            // Split: what is there now beside it (the design's own texts, in a stand-in too).
+            std::filesystem::path now;
+            if (args.get("split") && args.get("split")->as_bool()) {
+                auto current = stand_in(design_texts());
+                if (!current) return std::unexpected(current.error());
+                now = current->picture;
+            }
             previewing = std::move(*texts);
-            show_preview(shown->picture);
-            return Value{}.set("picture", generic_utf8(shown->picture)).set("changes", shown->changes);
+            show_preview(shown->picture, now);
+            Value answer = Value{}.set("picture", generic_utf8(shown->picture)).set("changes", shown->changes);
+            if (!now.empty()) answer.set("now", generic_utf8(now));
+            return answer;
         });
         add("design.preview.accept", [this](const Value&) -> VerbResult { return accept_preview(); });
         add("design.preview.reject", [this](const Value&) -> VerbResult {

@@ -445,12 +445,28 @@ public:
 
     // The interaction recorder (D-148): development mode keeps everything
     // (full); otherwise errors, unless the application says otherwise.
-    // Live Design's presentation (D-149): for `duration` from now, what an
-    // edit adds is written in and settles and what it removes is unwritten,
-    // over the application's own motion; what it changes moves as the
-    // application's motion says (what did not change does not move). The
+    // Live Design's presentation (D-149): for `duration` from now, a design
+    // step is seen over the application's own motion, as its kind says
+    // (design_presentation); what did not change does not move, and the
     // person's motion level still holds.
     void present_design(seconds duration = seconds(0.9));
+    // How the next design steps are presented (W14 step 4, designer-set):
+    //   edit       what it adds grows in — written and unfolded from its top,
+    //              a parent before what it holds; what it removes dissolves;
+    //              what it changes springs, the nearest the change first;
+    //   undo       played back: what the undone step made unwrites and what it
+    //              took writes back, each the last first;
+    //   switch_to  the shared elements (the same id, or found again by role
+    //              and name) carried from where they were to where they are;
+    //              the rest fades in and out.
+    // `pace` scales its time (0.25 … 4; 2 is twice as fast).
+    struct DesignPresentation {
+        enum class Kind : std::uint8_t { edit, undo, switch_to };
+        Kind   kind = Kind::edit;
+        double pace = 1;
+    };
+    void set_design_presentation(DesignPresentation presentation);
+    [[nodiscard]] DesignPresentation design_presentation() const noexcept;
     void set_record_level(RecordLevel level);
     [[nodiscard]] RecordLevel record_level() const noexcept;
     // What was recorded of the input events after `since` (a cause; 0: all

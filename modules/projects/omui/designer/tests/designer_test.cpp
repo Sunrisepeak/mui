@@ -333,9 +333,16 @@ UTest cases{"designer", [] {
         // A commit seen, the branch staying where it is; then back to the beginning, kept as a new commit.
         const auto [seen, seen_answer] = invoke("design.history.switch", Value{}.set("to", "HEAD~1"));
         expect(eq(seen, 0) && seen_answer.get("detached") && seen_answer.get("detached")->as_bool()) << seen_answer.json();
+        expect(seen_answer.get("presented") && seen_answer.get("presented")->as_string() == "switch") << "a switch carries what both share";
         expect(eq(name_of(h, "side/bye"), std::string("bye")));
         const auto [reverted, revert_answer] = invoke("design.history.revert", Value{}.set("to", "HEAD~2"));
         expect(eq(reverted, 0)) << revert_answer.json();
+        expect(revert_answer.get("presented") && revert_answer.get("presented")->as_string() == "undo") << "back: played back";
+        // The pace of what is seen: refused out of its range, answered with the one before.
+        expect(invoke("design.pace", Value{}.set("pace", 9)).first != 0);
+        const auto [paced, pace_answer] = invoke("design.pace", Value{}.set("pace", 0.5));
+        expect(eq(paced, 0) && pace_answer.get("before")->as_double() == 1 && h.runtime().design_presentation().pace == 0.5) << pace_answer.json();
+        expect(eq(invoke("design.pace", Value{}.set("pace", 1)).first, 0));
         expect(eq(name_of(h, "side/hello"), std::string("first")) && eq(name_of(h, "side/bye"), std::string("bye")));
         const auto history = invoke("design.history").second;
         expect(eq(history.get("log")->list()->size(), std::size_t{4})) << history.json();
@@ -416,6 +423,42 @@ UTest cases{"designer", [] {
         expect(eq(picked, 0)) << pick_answer.json();
         expect(eq(name_of(h, "side/hello"), std::string("bold")) && !h.tree().node("design-variants/cards/variant-bold").has_value());
         expect(eq(stand_ins, 5)) << "two previews, three variants: a twin each";
+        expect(pick_answer.get("flying") && pick_answer.get("flying")->as_string() == "bold" && pick_answer.get("presented") &&
+               pick_answer.get("presented")->as_string() == "switch") << pick_answer.json();
+
+        // A preview split: the design now beside it, each its half (W14 step 4).
+        const auto [split, split_answer] = invoke("design.preview", Value{}.set("path", "logic/side.stub").set("text", saying("split")).set("split", true));
+        expect(eq(split, 0) && split_answer.get("now")) << split_answer.json();
+        expect(h.tree().node("design-preview/split/now").has_value() && h.tree().node("design-preview/split/after").has_value())
+            << h.tree().snapshot({.root = "design-preview"}).to_value().json();
+        expect(eq(invoke("design.preview.reject").first, 0));
+        expect(eq(stand_ins, 7)) << "the preview and the design now: a twin each";
+
+        // Picked, a card flies from the board to fill the window — the same picture springing to its new place — and the board goes.
+        Value::List again;
+        for (const std::string_view name : {"cool", "loud"})
+            again.push_back(Value{}.set("name", name).set("edits", Value(Value::List{Value{}.set("path", "logic/side.stub").set("text", saying(name))})));
+        expect(eq(invoke("design.variants", Value{}.set("brief", "once more").set("variants", Value(again))).first, 0));
+        const NodeId card = h.runtime().find("design-variants/cards/variant-loud/picture");
+        const float card_width = card ? h.runtime().drawn_bounds(card).width : 0;
+        Invocation pick_call;
+        pick_call.args = Value{}.set("name", "loud");
+        pick_call.actor = {"agent", "designer", {}};
+        const seconds began = h.runtime().now();
+        (void)h.runtime().verbs().invoke("design.variants.pick", pick_call);
+        std::vector<float> widths;
+        for (int k = 1; k <= 12; ++k) {
+            (void)h.step({}, began + seconds(0.05 * k));
+            if (const NodeId flying = h.runtime().find("design-variants/cards/variant-loud/picture")) widths.push_back(h.runtime().drawn_bounds(flying).width);
+        }
+        expect(card_width > 0 && card_width < 200) << std::format("on the board, {} wide", card_width);
+        expect(widths.size() >= 6 && widths.front() < 300 && *std::ranges::max_element(widths) >= 310)
+            << std::format("flying to fill the window: {}", widths);
+        expect(widths.size() >= 3 && widths[1] > widths[0]) << std::format("growing as it flies: {}", widths);
+        (void)h.step({}, began + seconds(1.2));
+        h.settle();
+        expect(!h.tree().node("design-variants").has_value()) << "the board gone once it has flown";
+        expect(eq(name_of(h, "side/hello"), std::string("loud")));
         // Without twins, they say so.
         Headless plain(HeadlessOptions{.size = {320, 240}});
         player::Player without(plain.runtime(), m, {stub()}, {.design = true});

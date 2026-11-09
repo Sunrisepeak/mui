@@ -466,6 +466,7 @@ std::optional<MotionSpec> parse_motion(const Value& v, const Theme& theme) {
         if (order == "together") m.order = MotionSpec::Order::together;
         else if (order == "document") m.order = MotionSpec::Order::document;
         else if (order == "distance") m.order = MotionSpec::Order::distance;
+        else if (order == "reverse") m.order = MotionSpec::Order::reverse;
         else return std::nullopt;
     }
     if (const Value* p = v.get("placement")) {
@@ -537,8 +538,9 @@ std::optional<MotionSpec> parse_motion(const Value& v, const Theme& theme) {
             if (const Value* p = tr->get("param")) t.param = std::string(p->as_string());
             if (const Value* p = tr->get("peak")) t.peak = static_cast<float>(p->as_double());
             if (const Value* c = tr->get("color")) t.color = std::string(c->as_string());
+            if (const Value* r = tr->get("rises")) t.rises = r->as_bool();
             for (const auto& [k, x] : *fields)
-                if (k != "effect" && k != "param" && k != "peak" && k != "color" && x.is_number()) t.params.emplace_back(k, static_cast<float>(x.as_double()));
+                if (k != "effect" && k != "param" && k != "peak" && k != "color" && k != "rises" && x.is_number()) t.params.emplace_back(k, static_cast<float>(x.as_double()));
             m.travel = std::move(t);
         }
     }

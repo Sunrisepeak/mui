@@ -58,7 +58,7 @@ enum class MotionPrimitive : std::uint16_t {
 // moves whatever they draw.
 struct MotionSpec {
     enum class Kind : std::uint8_t { none, morph };
-    enum class Order : std::uint8_t { together, document, distance };
+    enum class Order : std::uint8_t { together, document, distance, reverse };
     enum class TextTransition : std::uint8_t { glyphs, replace, automatic };
     // External placement belongs to layout; state/content still morphs. An
     // explicit morph animates model layout, except in a constraints_changed
@@ -94,6 +94,7 @@ struct MotionSpec {
         std::string                                param;
         float                                      peak = 0;
         std::string                                color;  // the theme's colour by name for the effect's (its _r, _g, _b)
+        bool                                       rises = false;  // to `peak` and stays (an exit dissolving), not there and back
         friend bool operator==(const Travel&, const Travel&) = default;
     };
     std::optional<Travel> travel;

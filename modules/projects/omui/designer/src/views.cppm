@@ -29,15 +29,44 @@ inline Element chip(std::string id, std::string label, std::string_view fill, st
                {text({.text = label, .style = "label", .color = Fill(std::string(text_colour))})});
 }
 
-// The preview: its picture over the application, half seen, with how to take it or let it go.
-inline Element preview_view(Size window, const std::filesystem::path& picture, Handler accept, Handler reject) {
-    return stack({.width = window.width, .height = window.height, .label = "A preview of a design change"},
-                 {image({.id = "ghost", .source = utf8_of(picture), .alt = "the design as it would be", .fit = "fill", .width = window.width,
-                         .height = window.height, .opacity = 0.55f}),
-                  row({.id = "choice", .padding = Edges(6.0f, 10.0f), .gap = 8, .align = "center", .background = Fill(std::string(glass)), .radius = 8},
-                      {text({.text = "Preview", .style = "label", .color = Fill(std::string(ink))}),
-                       chip("accept", "Accept", "#22c55e", "#052e16", std::move(accept)),
-                       chip("reject", "Reject", "#e2e8f0", "#0f172a", std::move(reject))})});
+// How the overlays move (W14 step 4), as any node's `motion` slots say: the
+// board opens out from the middle, a card rises in, and what goes fades; a
+// change of place springs — a picked card flies from the board to fill the
+// window, its picture carried with it.
+inline Value board_motion() {
+    return Value{}
+        .set("update", "spring")
+        .set("enter", Value{}.set("use", "spring").set("appear", Value{}.set("presence", "pop_in").set("scale", 0.6)))
+        .set("exit", Value{}.set("use", "simple").set("vanish", "fade_out"));
+}
+inline Value card_motion() {
+    return Value{}
+        .set("update", "spring")
+        .set("enter", Value{}.set("use", "spring").set("appear", Value{}.set("presence", "rise_in").set("distance", 16)))
+        .set("exit", Value{}.set("use", "simple").set("vanish", "fade_out"));
+}
+
+// The preview: its picture over the application, half seen, with how to take
+// it or let it go; or, split, what is there now beside what it would be.
+inline Element preview_view(Size window, const std::filesystem::path& picture, Handler accept, Handler reject,
+                            const std::filesystem::path& now = {}) {
+    Element choice = row({.id = "choice", .padding = Edges(6.0f, 10.0f), .gap = 8, .align = "center", .background = Fill(std::string(glass)), .radius = 8},
+                         {text({.text = now.empty() ? "Preview" : "Now | Preview", .style = "label", .color = Fill(std::string(ink))}),
+                          chip("accept", "Accept", "#22c55e", "#052e16", std::move(accept)),
+                          chip("reject", "Reject", "#e2e8f0", "#0f172a", std::move(reject))});
+    if (now.empty())
+        return stack({.width = window.width, .height = window.height, .label = "A preview of a design change"},
+                     {image({.id = "ghost", .source = utf8_of(picture), .alt = "the design as it would be", .fit = "fill", .width = window.width,
+                             .height = window.height, .opacity = 0.55f}),
+                      std::move(choice)});
+    // Split: the two side by side, each its half of the window, the line between them.
+    const float half = (window.width - 2) / 2;
+    return stack({.width = window.width, .height = window.height, .background = "#0f172a", .label = "A preview of a design change, beside the design now"},
+                 {row({.id = "split", .width = window.width, .height = window.height, .gap = 2, .align = "center"},
+                      {image({.id = "now", .source = utf8_of(now), .alt = "the design now", .fit = "contain", .width = half, .height = window.height}),
+                       image({.id = "after", .source = utf8_of(picture), .alt = "the design as it would be", .fit = "contain", .width = half,
+                              .height = window.height})}),
+                  std::move(choice)});
 }
 
 // A variant on the board.
@@ -47,30 +76,39 @@ struct Card {
 };
 
 // The board: each variant's picture on a card, side by side, to pick one.
-inline Element board_view(Size window, std::string_view brief, const std::vector<Card>& cards, const std::function<void(const std::string&)>& pick) {
+// `flying`: the card picked, filling the window on its way back into the
+// application (the rest gone); the same nodes, so it is seen to fly.
+inline Element board_view(Size window, std::string_view brief, const std::vector<Card>& cards, const std::function<void(const std::string&)>& pick,
+                          std::string_view flying = {}) {
     const float columns = static_cast<float>(std::max<std::size_t>(cards.size(), 1));
     const float card_width = std::max(80.0f, (window.width - 24.0f - 12.0f * (columns - 1)) / columns);
     const float picture_height = (card_width - 12.0f) * window.height / std::max(window.width, 1.0f);
     std::vector<Element> shown;
     for (const Card& card : cards) {
+        const bool picked = card.name == flying;
+        if (!flying.empty() && !picked) continue;
         const std::string chosen = card.name;
-        shown.push_back(column({.id = std::format("variant-{}", card.name),
-                                .width = card_width,
-                                .padding = 6,
-                                .gap = 6,
-                                .background = Fill(std::string(paper)),
-                                .radius = 10,
-                                .shadow = "md",
-                                .label = std::format("Variant {}", card.name),
-                                .on = {{"press", [pick, chosen](const Value&) { pick(chosen); }}}},
-                               {image({.source = utf8_of(card.picture), .alt = std::format("variant {}", card.name), .fit = "contain",
-                                       .width = card_width - 12.0f, .height = picture_height}),
-                                text({.text = card.name, .style = "label", .color = "#0f172a"})}));
+        Element made = column({.id = std::format("variant-{}", card.name),
+                               .width = picked ? window.width : card_width,
+                               .padding = picked ? 0.0f : 6.0f,
+                               .gap = picked ? 0.0f : 6.0f,
+                               .background = Fill(std::string(paper)),
+                               .radius = picked ? 0.0f : 10.0f,
+                               .shadow = picked ? "" : "md",
+                               .label = std::format("Variant {}", card.name),
+                               .on = {{"press", [pick, chosen](const Value&) { pick(chosen); }}}},
+                              {image({.id = "picture", .source = utf8_of(card.picture), .alt = std::format("variant {}", card.name), .fit = picked ? "fill" : "contain",
+                                      .width = picked ? window.width : card_width - 12.0f, .height = picked ? window.height : picture_height}),
+                               text({.id = "name", .text = card.name, .style = "label", .color = "#0f172a", .opacity = picked ? 0.0f : 1.0f})});
+        made.prop("motion", Source(card_motion()));
+        shown.push_back(std::move(made));
     }
-    return column({.width = window.width, .height = window.height, .padding = 12, .gap = 10, .justify = "center", .background = "#0f172ac0",
-                   .label = std::format("Variants: {}", brief)},
-                  {text({.id = "brief", .text = std::string(brief), .style = "title", .color = Fill(std::string(ink))}),
-                   row({.id = "cards", .gap = 12, .align = "start"}, std::move(shown))});
+    Element board = column({.width = window.width, .height = window.height, .padding = flying.empty() ? 12.0f : 0.0f, .gap = flying.empty() ? 10.0f : 0.0f,
+                            .justify = "center", .background = flying.empty() ? "#0f172ac0" : "#0f172a00", .label = std::format("Variants: {}", brief)},
+                           {text({.id = "brief", .text = std::string(brief), .style = "title", .color = Fill(std::string(ink)), .opacity = flying.empty() ? 1.0f : 0.0f}),
+                            row({.id = "cards", .gap = 12, .align = "start"}, std::move(shown))});
+    board.prop("motion", Source(board_motion()));
+    return board;
 }
 
 // The code beside what it changed (§2.12.2, 代码与画面的联系): the lines an

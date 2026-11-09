@@ -10,6 +10,9 @@ export namespace omui::agent::design {
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_begin{{
     {"intent", "string", "what the session is doing: \"a subscription settings page\"", false},
 }};
+inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_pace{{
+    {"pace", "number", "1 as made; 0.25 to 4", false},
+}};
 inline constexpr std::array<mlibs::control::Parameter, 3> parameters_design_locate{{
     {"node", "node", "a node's id: where it was built", true},
     {"path", "string", "a script or module, as design.sources names it", true},
@@ -31,10 +34,11 @@ inline constexpr std::array<mlibs::control::Parameter, 3> parameters_design_inse
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_remove{{
     {"node", "node", "a node a script built", false},
 }};
-inline constexpr std::array<mlibs::control::Parameter, 3> parameters_design_preview{{
+inline constexpr std::array<mlibs::control::Parameter, 4> parameters_design_preview{{
     {"edits", "json", "[{path, text}]: sources and their whole new texts", true},
     {"path", "string", "one source (with text)", true},
     {"text", "string", "its whole new text", true},
+    {"split", "bool", "the design now beside the preview, each half the window, rather than the preview half seen over it", true},
 }};
 inline constexpr std::array<mlibs::control::Parameter, 2> parameters_design_variants{{
     {"brief", "string", "what the variants answer: \"how the plan cards look\"", false},
@@ -98,8 +102,9 @@ inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_repl
 }};
 
 // Design a running application live: its sources and API, edits run at once with their state kept, expectations checked, the person's turn kept as a test, edits written back to the TypeScript sources.
-inline constexpr std::array<mlibs::control::CatalogEntry, 31> catalog{{
+inline constexpr std::array<mlibs::control::CatalogEntry, 32> catalog{{
     {{"design.begin", openas::Effect::reversible, false}, "Begins a design session with what it is for: the intent shown by your presence, the state it begins from kept as a commit, and every step after (each edit, set, insert, remove is a commit of its own) saying it", parameters_design_begin, "json", mlibs::control::Cost::bounded, "none: it only names what follows; design.history.revert takes the steps back", false, false, false},
+    {{"design.pace", openas::Effect::reversible, false}, "How fast the design steps are seen: their presentation's time scaled (0.25 … 4; 2 is twice as fast, 0.5 slower for a person to follow); the person's own motion level still holds", parameters_design_pace, "json", mlibs::control::Cost::instant, "design.pace with the pace it answered before", false, false, false},
     {{"design.sources", openas::Effect::read, false}, "The scripts the application is made of: each one's path, language and the text it runs now (edited, or its file's), and the modules they import", {}, "json", mlibs::control::Cost::bounded, "", false, false, false},
     {{"design.api", openas::Effect::read, false}, "How the scripts are written here: each language's API over this application's components — every builder with its properties (types, choices), handlers and actions, and the functions of the module — read before writing an edit", {}, "json", mlibs::control::Cost::bounded, "", false, false, false},
     {{"design.locate", openas::Effect::read, false}, "Between a node and its source, either way: given `node`, the line of the script that built it (its path as design.sources names it, line, column, the line's text); given `path` and `line`, the nodes built on that line", parameters_design_locate, "json", mlibs::control::Cost::bounded, "", false, false, false},
@@ -141,6 +146,8 @@ inline constexpr std::string_view listing = R"listing({
   "tools": [
     {"name": "design.begin", "description": "Begins a design session with what it is for: the intent shown by your presence, the state it begins from kept as a commit, and every step after (each edit, set, insert, remove is a commit of its own) saying it", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "none: it only names what follows; design.history.revert takes the steps back", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"intent": {"type": "string", "description": "what the session is doing: \"a subscription settings page\""}}, "required": ["intent"]}},
+    {"name": "design.pace", "description": "How fast the design steps are seen: their presentation's time scaled (0.25 … 4; 2 is twice as fast, 0.5 slower for a person to follow); the person's own motion level still holds", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "design.pace with the pace it answered before", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"pace": {"type": "number", "description": "1 as made; 0.25 to 4"}}, "required": ["pace"]}},
     {"name": "design.sources", "description": "The scripts the application is made of: each one's path, language and the text it runs now (edited, or its file's), and the modules they import", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {}, "required": []}},
     {"name": "design.api", "description": "How the scripts are written here: each language's API over this application's components — every builder with its properties (types, choices), handlers and actions, and the functions of the module — read before writing an edit", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
@@ -156,7 +163,7 @@ inline constexpr std::string_view listing = R"listing({
     {"name": "design.remove", "description": "Takes a node's builder call out of the list of children it is in (with its comma, and its line when it had one); run as design.edit runs an edit. A node built outside a list (a function's result, a condition) is refused: edit the code around it", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "design.insert its code again, or design.discard", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"node": {"type": "string", "description": "a node (its id): a node a script built"}}, "required": ["node"]}},
     {"name": "design.preview", "description": "Shows what edits would make, without making them: the application again in an unseen stand-in running the new texts, its picture laid half seen over what the person sees, with the semantic changes it would bring; design.preview.accept makes it a step, design.preview.reject lets it go", "effect": "reversible", "person": false, "delegated": false, "cost": "heavy", "undo": "design.preview.reject", "undoable": false, "cancellable": false, "result": "json",
-     "inputSchema": {"type": "object", "properties": {"edits": {"description": "[{path, text}]: sources and their whole new texts"}, "path": {"type": "string", "description": "one source (with text)"}, "text": {"type": "string", "description": "its whole new text"}}, "required": []}},
+     "inputSchema": {"type": "object", "properties": {"edits": {"description": "[{path, text}]: sources and their whole new texts"}, "path": {"type": "string", "description": "one source (with text)"}, "text": {"type": "string", "description": "its whole new text"}, "split": {"type": "boolean", "description": "the design now beside the preview, each half the window, rather than the preview half seen over it"}}, "required": []}},
     {"name": "design.preview.accept", "description": "The preview shown made real: its texts run at once, as a step of the design (a commit)", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "design.history.revert to HEAD~1", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {}, "required": []}},
     {"name": "design.preview.reject", "description": "The preview shown let go: nothing changed", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "design.preview again", "undoable": false, "cancellable": false, "result": "json",

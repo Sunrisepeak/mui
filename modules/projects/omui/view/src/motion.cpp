@@ -58,6 +58,7 @@ hanim::visual::Options options_of(const MotionSpec& spec, MotionLevel level, con
     o.curve.spring = spec.curve.spring;
     o.order = spec.order == MotionSpec::Order::document   ? hanim::visual::Order::document
               : spec.order == MotionSpec::Order::distance ? hanim::visual::Order::distance
+              : spec.order == MotionSpec::Order::reverse  ? hanim::visual::Order::reverse
                                                           : hanim::visual::Order::together;
     o.stagger = spec.stagger;
     o.appear = spec.appear;
@@ -85,6 +86,7 @@ hanim::visual::Options options_of(const MotionSpec& spec, MotionLevel level, con
                 }
             }
             t.peak = spec.travel->peak;
+            t.rises = spec.travel->rises;
             o.travel = std::move(t);
         }
     return o;
@@ -96,7 +98,8 @@ const MotionSpec* Runtime::Impl::slot_motion(NodeId id, std::size_t slot, bool f
     // A design edit being shown (Runtime::present_design): what comes is written in and what goes
     // unwritten, over the layers below. Its updates keep the application's own motion — what did not
     // change must not move — and the window's root is never one (it would move the whole window).
-    if ((slot == 1 || slot == 2) && id != root && clock.now().count() < design_until) return &design_slots[slot];
+    if ((slot == 1 || slot == 2) && id != root && clock.now().count() < design_until)
+        return slot == 1 && !at(id).children.empty() ? &design_grow : &design_slots[slot];
     Node& n = at(id);
     if (n.motion_gen != motion_gen) {
         // Its slots resolved again (a property, a theme, a level, a tier, a choice changed), the layers over each
@@ -691,22 +694,72 @@ std::vector<MotionState> Runtime::motions() const {
     return out;
 }
 
+void Runtime::set_design_presentation(DesignPresentation presentation) {
+    presentation.pace = std::isfinite(presentation.pace) ? std::clamp(presentation.pace, 0.25, 4.0) : 1.0;
+    impl_->design_presentation = presentation;
+}
+
+Runtime::DesignPresentation Runtime::design_presentation() const noexcept { return impl_->design_presentation; }
+
 void Runtime::present_design(seconds duration) {
     Impl& d = *impl_;
-    // What it adds writes itself in, then settles; what it removes is unwritten; what it changes
-    // springs, the nearest the change first.
+    const DesignPresentation how = d.design_presentation;
+    const double pace = how.pace;
+    const auto timed = [&](double s) { return seconds(s / pace); };
+    // What it changes springs, the nearest the change first: the spring's time scaled as the pace says.
+    hanim::SpringParams spring = hanim::springs::standard;
+    spring.stiffness *= static_cast<float>(pace * pace);
+    spring.damping *= static_cast<float>(pace);
     MotionSpec update;
-    update.curve = Transition::spring_with(hanim::springs::standard);
+    update.curve = Transition::spring_with(spring);
     update.order = MotionSpec::Order::distance;
-    update.stagger = 0.03;
+    update.stagger = 0.03 / pace;
     MotionSpec enter = update;
-    enter.curve = Transition::tween(seconds(0.7), hanim::ease::standard);
-    enter.appear = *hanim::together(*hanim::presence("write_in"), *hanim::presence("settle_in", {.scale = 0.92}));
     MotionSpec exit = update;
-    exit.curve = Transition::tween(seconds(0.45), hanim::ease::standard);
-    exit.vanish = *hanim::presence("unwrite");
+    switch (how.kind) {
+        case DesignPresentation::Kind::edit: {
+            // What it adds: a leaf written in, its line then its fill, settling.
+            enter.curve = Transition::tween(timed(0.7), hanim::ease::standard);
+            enter.order = MotionSpec::Order::document;
+            enter.stagger = 0.05 / pace;
+            enter.appear = *hanim::together(*hanim::presence("write_in"), *hanim::presence("settle_in", {.scale = 0.92}));
+            // Growth: what holds others unfolds from its top edge, what it holds written in as it opens.
+            MotionSpec grow = enter;
+            grow.curve = Transition::tween(timed(0.55), hanim::ease::standard);
+            hanim::Presence unfold = *hanim::presence("unfold_in", {.fade = 0.4});
+            unfold.anchor = {0.5, 0};
+            grow.appear = unfold;
+            d.design_grow = std::move(grow);
+            // Removal: it dissolves, a grain at a time, as it fades.
+            exit.curve = Transition::tween(timed(0.6), hanim::ease::standard);
+            exit.vanish = *hanim::presence("fade_out", {.fade = 1});
+            exit.travel = MotionSpec::Travel{.effect = "dissolve", .params = {{"progress", 0}, {"grain", 2}}, .param = "progress", .peak = 1, .rises = true};
+            break;
+        }
+        case DesignPresentation::Kind::undo:
+            // Played back: the last made goes first, the last taken comes back first.
+            enter.curve = Transition::tween(timed(0.6), hanim::ease::standard);
+            enter.order = MotionSpec::Order::reverse;
+            enter.stagger = 0.05 / pace;
+            enter.appear = *hanim::presence("write_in");
+            exit.curve = Transition::tween(timed(0.5), hanim::ease::standard);
+            exit.order = MotionSpec::Order::reverse;
+            exit.stagger = 0.05 / pace;
+            exit.vanish = *hanim::presence("unwrite");
+            d.design_grow = enter;
+            break;
+        case DesignPresentation::Kind::switch_to:
+            // Shared elements: what is in both is carried by the update's spring (matched by id, or by role and name).
+            update.meaning = true;
+            enter.curve = Transition::tween(timed(0.35), hanim::ease::standard);
+            enter.appear = *hanim::together(*hanim::presence("fade_in"), *hanim::presence("settle_in"));
+            exit.curve = Transition::tween(timed(0.3), hanim::ease::standard);
+            exit.vanish = *hanim::presence("fade_out");
+            d.design_grow = enter;
+            break;
+    }
     d.design_slots = {update, enter, exit};
-    d.design_until = d.clock.now().count() + duration.count();
+    d.design_until = d.clock.now().count() + duration.count() / pace;
     ++d.motion_gen;  // the slots resolved again as the presentation begins (and once it ends)
     d.touch(dirty_paint);
 }

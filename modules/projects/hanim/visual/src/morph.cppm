@@ -36,8 +36,10 @@ struct Curve {
     [[nodiscard]] double length() const noexcept;  // until it rests at 1
 };
 
-// In which order pieces start when they are staggered.
-enum class Order : std::uint8_t { together, document, distance };
+// In which order pieces start when they are staggered: all at once, in the
+// drawing's order, nearest the centre first, or the drawing's order backwards
+// (the last piece first: what an undone edit made goes as it came, played back).
+enum class Order : std::uint8_t { together, document, distance, reverse };
 
 // Explicit glyph choreography remains the compatible default. Automatic
 // keeps a substantial contiguous edit (Save -> Saved), otherwise replaces
@@ -103,6 +105,10 @@ struct Options {
         std::vector<float> params;
         int                param = -1;
         float              peak = 0;
+        // false: the parameter rises to `peak` half-way and falls back (a
+        // move's); true: it rises to `peak` with the motion and stays (an
+        // exit dissolving away).
+        bool               rises = false;
         friend bool operator==(const Travel&, const Travel&) = default;
     };
     std::optional<Travel> travel;

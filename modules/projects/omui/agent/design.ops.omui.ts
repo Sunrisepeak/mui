@@ -28,6 +28,15 @@ export default defineOps({
       undo: "none: it only names what follows; design.history.revert takes the steps back",
     },
     {
+      name: "design.pace",
+      effect: "reversible",
+      summary: "How fast the design steps are seen: their presentation's time scaled (0.25 … 4; 2 is twice as fast, 0.5 slower for a person to follow); the person's own motion level still holds",
+      params: [{ name: "pace", type: "number", doc: "1 as made; 0.25 to 4" }],
+      result: "json",
+      cost: "instant",
+      undo: "design.pace with the pace it answered before",
+    },
+    {
       name: "design.sources",
       effect: "read",
       summary: "The scripts the application is made of: each one's path, language and the text it runs now (edited, or its file's), and the modules they import",
@@ -109,6 +118,7 @@ export default defineOps({
         { name: "edits", type: "json", doc: "[{path, text}]: sources and their whole new texts", optional: true },
         { name: "path", type: "string", doc: "one source (with text)", optional: true },
         { name: "text", type: "string", doc: "its whole new text", optional: true },
+        { name: "split", type: "bool", doc: "the design now beside the preview, each half the window, rather than the preview half seen over it", optional: true },
       ],
       result: "json",
       cost: "heavy",

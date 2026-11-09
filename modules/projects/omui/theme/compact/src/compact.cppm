@@ -8,7 +8,7 @@ import omui.theme;
 
 export namespace omui::themes {
 
-// Adds what compact.theme.omui.toml declares to the program's theme library, once
+// Adds what compact.theme.omui.ts declares to the program's theme library, once
 // (again: the same, a no-op).
 std::expected<void, theme::Diagnostics> add_compact();
 

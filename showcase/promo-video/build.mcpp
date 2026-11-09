@@ -13,7 +13,7 @@ int main() {
     };
     constexpr std::array<Set, 8> sets{{{".", ".timeline.omui.toml", "timeline"},
                                         {".", ".subtitles.omui.toml", "subtitles"},
-                                        {".", ".style.omui.toml", "style"},
+                                        {".", ".style.omui.ts", "style"},
                                         {"music", ".music.omui.toml", "music"},
                                         {"sounds", ".sound.omui.toml", "sound"},
                                         {"script", ".md", "page"},

@@ -26,4 +26,14 @@ export namespace omui::gen {
 // The data module `file` as the TOML document of `kind` ("contract", "native", "ops").
 [[nodiscard]] std::expected<toml::table, std::string> data_document(const std::filesystem::path& file, std::string_view kind);
 
+// What a data module stands for, as the JSON snapshot a reader takes
+// (`{"<kind>": <its value>}`, D-139/D-159) and that snapshot's name
+// (`brand.theme.omui.ts` → `brand.theme.omui.json`): what `omui-gen embed`
+// carries in a program for a theme or a style.
+struct Snapshot {
+    std::string name;
+    std::string json;
+};
+[[nodiscard]] std::expected<Snapshot, std::string> snapshot(const std::filesystem::path& file);
+
 }  // namespace omui::gen

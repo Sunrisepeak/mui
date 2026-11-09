@@ -1,6 +1,6 @@
 # S2 — the style workshop
 
-`omui-styles` is where a style pack is made and tried: one real interface — a settings panel (a name, switches, a checkbox, a volume with its value, a select; Save keeps the settings, Cancel puts back the last saved, and the panel says which) and a dashboard (stat cards, a chart) over a wallpaper — shown in each of openmui's style packs (`modules/ui/theme/styles`: glass, neon, retro, ink, liquid), with an editor for the pack shown and an export that writes it as a `*.style.omui.toml` another program loads.
+`omui-styles` is where a style pack is made and tried: one real interface — a settings panel (a name, switches, a checkbox, a volume with its value, a select; Save keeps the settings, Cancel puts back the last saved, and the panel says which) and a dashboard (stat cards, a chart) over a wallpaper — shown in each of openmui's style packs (`modules/ui/theme/styles`: glass, neon, retro, ink, liquid), with an editor for the pack shown and an export that writes it as a `*.style.omui.json` another program loads.
 
 ![One interface in the five style packs: glass, neon, retro, ink, liquid — the same semantic tree in each](media/five-packs.png)
 

@@ -891,12 +891,13 @@ def check_lead(root: Path) -> list[Problem]:
     return [Problem("lead", where, what) for where, what in lead.problems(root)]
 
 
-DATA_IN_TS = (".contract.omui.toml", ".native.omui.toml", ".ops.omui.toml")
+DATA_IN_TS = (".contract.omui.toml", ".native.omui.toml", ".ops.omui.toml", ".theme.omui.toml", ".style.omui.toml")
 
 
 def check_typescript_data(root: Path) -> list[Problem]:
-    """Contracts, native modules and operation catalogs are TypeScript data
-    modules (D-138, D-139: defineContract, defineNative, defineOps); the
+    """Contracts, native modules, operation catalogs, themes and style packs
+    are TypeScript data modules (D-138, D-139: defineContract, defineNative,
+    defineOps, defineTheme, defineStyle); the
     spec's registry is JSON snapshots (D-159), and omui-gen's tests of its TOML
     reader are the TOML left. tools/dev/toml_to_ts.py converts one."""
     problems = []

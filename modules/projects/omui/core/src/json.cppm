@@ -28,6 +28,11 @@ struct JsonError {
 // value. `message` is empty.
 [[nodiscard]] std::optional<JsonError> json_location(std::string_view text, std::string_view pointer);
 
+// A value as JSON a person reads: two spaces a level, one member a line; a
+// list or map holding no list or map stays on its line. Value::json is the
+// same text without the white space.
+[[nodiscard]] std::string indented_json(const Value& value);
+
 // The values of newline-delimited JSON (envelopes, the agent protocol, event
 // recordings); blank lines are skipped.
 [[nodiscard]] std::expected<std::vector<Value>, JsonError> parse_ndjson(std::string_view text);

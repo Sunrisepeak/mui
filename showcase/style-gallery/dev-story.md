@@ -12,7 +12,7 @@ A tool a designer would actually use to make a style pack, and, in using it, the
 
 | Layer | Package | What it is |
 |---|---|---|
-| Theme engine | `omui.theme` | themes, overlays and style packs as data (`*.style.omui.toml`), composed; `apply_style` with a cross-fade |
+| Theme engine | `omui.theme` | themes, overlays and style packs as data (`*.style.omui.ts`), composed; `apply_style` with a cross-fade |
 | The five packs | `omui.theme.styles` | glass, neon, retro, ink, liquid: data embedded in the program |
 | Effects | `openmui.render.effect`, Slang shaders | `liquid_glass`, `neon`, `wobble`, `metaball`, and the window's `crt` and `paper` |
 | Components | `omui.ui.base` | each says which surfaces it paints (`effect_shapes`: a switch's track and thumb), so a pack's effect reaches the right shapes |
@@ -22,7 +22,7 @@ A pack never names an application's widget. It targets component types (`button`
 
 ## 3. How each part was built
 
-- **Packs are data.** A pack is the theme it starts from, the tokens it changes, and the effects it puts on types and roles. The five ship embedded, and an exported pack is a `*.style.omui.toml` that reads back as itself.
+- **Packs are data.** A pack is the theme it starts from, the tokens it changes, and the effects it puts on types and roles. The five ship embedded, and an exported pack is a `*.style.omui.json` that reads back as itself.
 - **Switching is a cross-fade** from the frame before (`Runtime::crossfade`); editing applies at once, with no fade.
 - **Agents** switch packs with `styles.show`. Exporting is `styles.export`, an external effect for which the agent must state its answer (S-1), because it writes a file.
 - **Tests** pin the pixels of all five packs on every platform and assert one semantic tree under all of them.

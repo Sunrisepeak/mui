@@ -47,7 +47,7 @@ std::string_view embedded(std::span<const std::pair<std::string_view, std::strin
 
 Theme site_theme() {
     if (auto r = themes::add_styles(); !r) site_log.warn("the style packs: {}", r.error().empty() ? std::string() : r.error().front().text());
-    if (auto r = theme::library().add(embedded(files::theme_files, "site.theme.omui.toml"), "site.theme.omui.toml"); !r)
+    if (auto r = theme::library().add(embedded(files::theme_files, "site.theme.omui.json"), "site.theme.omui.json"); !r)
         site_log.warn("the site's theme: {}", r.error().empty() ? std::string() : r.error().front().text());
     if (auto t = theme::library().compose(std::vector<std::string>{"site"}); t) return std::move(*t);
     site_log.warn("the site's theme could not be composed");
@@ -1969,7 +1969,7 @@ std::optional<std::string> inject(std::string_view page, std::string_view fragme
         faces += std::format("@font-face{{font-family:'{}';src:url({});font-display:swap{}}}", family, source,
                              family == std::string_view("Inter") ? ";font-weight:100 900" : "");
     }
-    // In the site's own colours (site.theme.omui.toml's light tokens).
+    // In the site's own colours (site.theme.omui.ts's light tokens).
     out.insert(head,
                "<script id=\"omui-static-fonts\" type=\"application/json\">" + Value(std::move(static_fonts)).json() + "</script>"
                    "<noscript><style>" + faces + "</style></noscript><style>"

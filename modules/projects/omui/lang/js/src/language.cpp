@@ -89,7 +89,11 @@ player::Language javascript() { return {"js", {".js", ".mjs"}, make, {}, {}, des
 player::Language typescript() {
     return {"ts", {".ts", ".mts"}, make, [](const std::filesystem::path& file) { return ts::compile(file); },
             [](std::string_view text, const std::filesystem::path& file) { return ts::compile_source(text, std::string(reinterpret_cast<const char*>(file.generic_u8string().c_str()))); },
-            describe_typescript, declare_typescript, source_editor()};
+            describe_typescript, declare_typescript, source_editor(), [](const std::filesystem::path& file) -> std::expected<std::string, std::string> {
+                auto data = ts::evaluate(file);
+                if (!data) return std::unexpected(data.error());
+                return std::format("{{\"{}\":{}}}", data->kind, data->json);
+            }};
 }
 
 }  // namespace omui::lang::js

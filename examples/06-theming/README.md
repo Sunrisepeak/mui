@@ -10,12 +10,12 @@ It is written in TypeScript ([`logic/main.ts`](logic/main.ts)), run by the playe
 
 Themes are data (omui.theme):
 - openmui's packages give light, dark, compact and reduced_motion;
-- [`themes/brand.theme.omui.toml`](themes/brand.theme.omui.toml) is this application's, a teal accent and rounder corners over light.
+- [`themes/brand.theme.omui.ts`](themes/brand.theme.omui.ts) is this application's, a teal accent and rounder corners over light.
 
-The manifest lists the brand file (`themes = ["themes/*.theme.omui.toml"]`), and the player reloads it when it is saved. Edit a colour and every component follows at once. A mistake is reported with its line and column, and the preview stays as it was.
+The manifest lists the brand file (`themes = ["themes/*.theme.omui.ts"]`), and the player reloads it when it is saved. Edit a colour and every component follows at once. A mistake is reported at its place (`/theme/brand/colors/accent`), and the preview stays as it was.
 
 ```sh
-mcpp run -p omui.example.theming          # then edit examples/06-theming/themes/brand.theme.omui.toml
+mcpp run -p omui.example.theming          # then edit examples/06-theming/themes/brand.theme.omui.ts
 mcpp run -p omui.example.theming -- --headless --png preview.png
 ```
 

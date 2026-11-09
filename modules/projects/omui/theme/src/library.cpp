@@ -235,119 +235,96 @@ std::expected<Theme, std::string> Library::compose_style(std::string_view name) 
 
 namespace {
 
-// A TOML key: bare when it can be, quoted when not ("role:region").
-std::string key_of(std::string_view k) {
-    const bool bare = !k.empty() && std::ranges::all_of(k, [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-'; });
-    if (bare) return std::string(k);
-    std::string out = "\"";
-    for (char c : k) out += c == '"' || c == '\\' ? std::string("\\") + c : std::string(1, c);
-    return out + "\"";
+// A float as the number it was written as (0.1f is 0.1, not 0.10000000149011612).
+Value number(float v) {
+    double out = 0;
+    const std::string text = std::format("{}", v);
+    std::from_chars(text.data(), text.data() + text.size(), out);
+    return Value(out);
 }
 
-std::string toml_string(std::string_view v) { return key_of(v).starts_with('"') ? key_of(v) : std::format("\"{}\"", v); }
-
-std::string colour(Color c) {
+Value colour(Color c) {
     auto b = [](float v) { return static_cast<int>(std::lround(std::clamp(v, 0.0f, 1.0f) * 255)); };
     std::string out = std::format("#{:02x}{:02x}{:02x}", b(c.r), b(c.g), b(c.b));
     if (c.a < 1) out += std::format(" / {}", c.a);
-    return std::format("\"{}\"", out);
+    return Value(out);
 }
 
-std::string value_of(const Value& v) {
-    if (v.type() == Value::Type::text) return toml_string(v.as_string());
-    if (v.type() == Value::Type::boolean) return v.as_bool() ? "true" : "false";
-    if (v.type() == Value::Type::integer) return std::format("{}", v.as_int());
-    return std::format("{}", static_cast<float>(v.as_double()));
-}
-
-// Any value inline (a motion: a name, candidates, a table with a travel table in it).
-std::string inline_value(const Value& v) {
-    if (const Value::List* l = v.list()) {
-        std::string out;
-        for (const Value& x : *l) out += std::format("{}{}", out.empty() ? "" : ", ", inline_value(x));
-        return std::format("[{}]", out);
-    }
-    if (const Value::Map* m = v.map()) {
-        std::string out;
-        for (const auto& [k, x] : *m) out += std::format("{}{} = {}", out.empty() ? "" : ", ", key_of(k), inline_value(x));
-        return std::format("{{ {} }}", out);
-    }
-    return value_of(v);
+Value shadow_layer(Point offset, float blur, float spread, Color color) {
+    return Value(Value::Map{}).set("x", number(offset.x)).set("y", number(offset.y)).set("blur", number(blur)).set("spread", number(spread)).set("color", colour(color));
 }
 
 }  // namespace
 
 std::string write_style(const Style& st) {
-    const std::string at = std::format("style.{}", key_of(st.name));
-    std::string out = std::format("[{}]\n", at);
-    if (!st.doc.empty()) out += std::format("doc       = {}\n", toml_string(st.doc));
+    Value style(Value::Map{});
+    if (!st.doc.empty()) style.set("doc", Value(st.doc));
     std::string layers;
     for (const std::string& l : st.layers) layers += (layers.empty() ? "" : "+") + l;
-    out += std::format("theme     = \"{}\"\n", layers);
-    out += std::format("crossfade = {}\n", st.crossfade);
+    style.set("theme", Value(layers));
+    style.set("crossfade", Value(st.crossfade));
     const Layer& t = st.tokens;
-    if (t.corner_smoothing) out += std::format("corner_smoothing = {}\n", *t.corner_smoothing);
+    if (t.corner_smoothing) style.set("corner_smoothing", number(*t.corner_smoothing));
     auto section = [&](std::string_view name, const auto& map, auto&& write) {
         if (map.empty()) return;
-        out += std::format("\n[{}.{}]\n", at, name);
-        for (const auto& [k, v] : map) out += std::format("{} = {}\n", key_of(k), write(v));
+        Value out(Value::Map{});
+        for (const auto& [key, v] : map) out.set(key, write(v));
+        style.set(name, std::move(out));
     };
     section("colors", t.colors, [](Color c) { return colour(c); });
     section("text", t.text, [](const TextPatch& p) {
-        std::string f;
-        auto put = [&](std::string_view k, std::string v) { f += std::format("{}{} = {}", f.empty() ? "" : ", ", k, v); };
-        if (p.size) put("size", std::format("{}", *p.size));
-        if (p.weight) put("weight", std::format("{}", *p.weight));
-        if (p.line_height) put("line_height", std::format("{}", *p.line_height));
-        if (p.letter_spacing) put("letter_spacing", std::format("{}", *p.letter_spacing));
+        Value out(Value::Map{});
+        if (p.size) out.set("size", number(*p.size));
+        if (p.weight) out.set("weight", number(*p.weight));
+        if (p.line_height) out.set("line_height", number(*p.line_height));
+        if (p.letter_spacing) out.set("letter_spacing", number(*p.letter_spacing));
         if (p.families) {
-            std::string fams;
-            for (const std::string& fam : *p.families) fams += std::format("{}{}", fams.empty() ? "" : ", ", toml_string(fam));
-            put("families", std::format("[{}]", fams));
+            Value::List families;
+            for (const std::string& family : *p.families) families.emplace_back(family);
+            out.set("families", Value(std::move(families)));
         }
-        return std::format("{{ {} }}", f);
+        return out;
     });
-    section("spacing", t.spacing, [](float v) { return std::format("{}", v); });
-    section("radius", t.radius, [](float v) { return std::format("{}", v); });
+    section("spacing", t.spacing, [](float v) { return number(v); });
+    section("radius", t.radius, [](float v) { return number(v); });
     section("shadows", t.shadows, [](const ShadowToken& sh) {
-        std::string ambient;
-        if (const auto& a = sh.ambient)
-            ambient = std::format(", ambient = {{ x = {}, y = {}, blur = {}, spread = {}, color = {} }}", a->offset.x, a->offset.y, a->blur, a->spread, colour(a->color));
-        const std::string tint = sh.tint != 0 ? std::format(", tint = {}", sh.tint) : std::string{};
-        return std::format("{{ x = {}, y = {}, blur = {}, spread = {}, color = {}{}{} }}", sh.offset.x, sh.offset.y, sh.blur, sh.spread, colour(sh.color), tint, ambient);
+        Value out = shadow_layer(sh.offset, sh.blur, sh.spread, sh.color);
+        if (sh.tint != 0) out.set("tint", number(sh.tint));
+        if (const auto& a = sh.ambient) out.set("ambient", shadow_layer(a->offset, a->blur, a->spread, a->color));
+        return out;
     });
     section("motion", t.motion, [](const Transition& m) {
-        std::string f = m.kind == Transition::Kind::spring
-                            ? std::format("stiffness = {}, damping = {}, mass = {}", m.spring.stiffness, m.spring.damping, m.spring.mass)
-                            : std::format("duration = {}, easing = \"{}\"", m.duration.count() * 1000, hanim::to_string(m.ease));
-        if (m.delay.count() > 0) f += std::format(", delay = {}", m.delay.count() * 1000);
-        return std::format("{{ {} }}", f);
+        Value out(Value::Map{});
+        if (m.kind == Transition::Kind::spring)
+            out.set("stiffness", number(m.spring.stiffness)).set("damping", number(m.spring.damping)).set("mass", number(m.spring.mass));
+        else
+            out.set("duration", Value(m.duration.count() * 1000)).set("easing", Value(hanim::to_string(m.ease)));
+        if (m.delay.count() > 0) out.set("delay", Value(m.delay.count() * 1000));
+        return out;
     });
     if (!st.effects.empty()) {
-        out += std::format("\n[{}.effects]\n", at);
+        Value effects(Value::Map{});
         for (const EffectRule& r : st.effects) {
-            std::string f = std::format("effect = {}", r.effect.get("name") ? toml_string(r.effect.get("name")->as_string()) : std::string("\"\""));
+            Value rule = Value(Value::Map{}).set("effect", r.effect.get("name") ? *r.effect.get("name") : Value(""));
             if (const Value::Map* m = r.effect.map())
                 for (const auto& [k, v] : *m)
-                    if (k != "name") f += std::format(", {} = {}", key_of(k), inline_value(v));
-            out += std::format("{} = {{ {} }}\n", key_of(r.selector), f);
+                    if (k != "name") rule.set(k, v);
+            effects.set(r.selector, std::move(rule));
         }
+        style.set("effects", std::move(effects));
     }
     if (!st.motions.empty()) {
-        out += std::format("\n[{}.motions]\n", at);
+        Value motions(Value::Map{});
         for (const StyleMotion& m : st.motions)
-            if (m.target.empty()) out += std::format("{} = {}\n", m.slot, inline_value(m.motion));
-        std::vector<std::string> targets;
-        for (const StyleMotion& m : st.motions)
-            if (!m.target.empty() && std::ranges::find(targets, m.target) == targets.end()) targets.push_back(m.target);
-        for (const std::string& target : targets) {
-            std::string f;
-            for (const StyleMotion& m : st.motions)
-                if (m.target == target) f += std::format("{}{} = {}", f.empty() ? "" : ", ", m.slot, inline_value(m.motion));
-            out += std::format("{} = {{ {} }}\n", key_of(target), f);
+            if (m.target.empty()) motions.set(m.slot, m.motion);
+        for (const StyleMotion& m : st.motions) {
+            if (m.target.empty()) continue;
+            Value slots = motions.get(m.target) ? *motions.get(m.target) : Value(Value::Map{});
+            motions.set(m.target, std::move(slots.set(m.slot, m.motion)));
         }
+        style.set("motions", std::move(motions));
     }
-    return out;
+    return indented_json(Value(Value::Map{}).set("style", Value(Value::Map{}).set(st.name, std::move(style))));
 }
 
 Library& library() {

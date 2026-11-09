@@ -136,13 +136,25 @@ struct Player::Impl {
 
     // A theme file into the program's library (again: a saved edit, which
     // replaces what it declared); the runtime's composition is made again.
+    // A TypeScript one (`*.theme.omui.ts`) is what it evaluates to, by the
+    // language of its extension; a `.json` one is read as it is.
     bool add_theme(File& f, bool again) {
-        auto text = read_file(full(f.path));
+        std::expected<std::string, std::string> text = std::unexpected(std::string("cannot be read"));
+        std::string named = name(f.path);
+        if (named.ends_with(".omui.json")) {
+            if (auto read = read_file(full(f.path))) text = std::move(*read);
+        } else {
+            const std::string extension = generic_utf8(f.path.extension());
+            const auto language = std::ranges::find_if(languages, [&](const Language& l) { return l.data && std::ranges::contains(l.extensions, extension); });
+            if (language == languages.end()) text = std::unexpected(std::string("no language registered with the player evaluates it"));
+            else text = language->data(full(f.path));
+            named = named.substr(0, named.size() - extension.size()) + ".json";  // what is read: its snapshot
+        }
         if (!text) {
-            problem(std::format("{}: cannot be read", name(f.path)));
+            problem(std::format("{}: {}", name(f.path), text.error()));
             return false;
         }
-        if (auto r = theme::library().add(*text, name(f.path)); !r) {
+        if (auto r = theme::library().add(*text, named); !r) {
             std::string all;
             for (const auto& x : r.error()) all += x.text() + "\n";
             problem(all);

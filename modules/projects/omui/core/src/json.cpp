@@ -294,6 +294,67 @@ std::expected<Value, JsonError> parse_json(std::string_view text) {
     return std::move(b.root);
 }
 
+namespace {
+
+bool flat(const Value& value) {
+    if (const Value::List* list = value.list())
+        return std::ranges::none_of(*list, [](const Value& item) { return item.list() || item.map(); });
+    if (const Value::Map* map = value.map())
+        return std::ranges::none_of(*map, [](const auto& member) { return member.second.list() || member.second.map(); });
+    return true;
+}
+
+void indent(std::string& out, const Value& value, std::size_t depth) {
+    if (flat(value)) {
+        // One line, with a space after each comma and colon.
+        if (const Value::List* list = value.list()) {
+            out += '[';
+            for (std::size_t index = 0; index < list->size(); ++index) out += (index ? ", " : "") + (*list)[index].json();
+            out += ']';
+        } else if (const Value::Map* map = value.map()) {
+            out += map->empty() ? "{" : "{ ";
+            for (std::size_t index = 0; index < map->size(); ++index) {
+                if (index) out += ", ";
+                spec::append_json_string(out, (*map)[index].first);
+                out += ": " + (*map)[index].second.json();
+            }
+            out += map->empty() ? "}" : " }";
+        } else {
+            out += value.json();
+        }
+        return;
+    }
+    const std::string inner((depth + 1) * 2, ' ');
+    if (const Value::List* list = value.list()) {
+        out += "[\n";
+        for (std::size_t index = 0; index < list->size(); ++index) {
+            out += inner;
+            indent(out, (*list)[index], depth + 1);
+            out += index + 1 < list->size() ? ",\n" : "\n";
+        }
+        out += std::string(depth * 2, ' ') + ']';
+        return;
+    }
+    const Value::Map& map = *value.map();
+    out += "{\n";
+    for (std::size_t index = 0; index < map.size(); ++index) {
+        out += inner;
+        spec::append_json_string(out, map[index].first);
+        out += ": ";
+        indent(out, map[index].second, depth + 1);
+        out += index + 1 < map.size() ? ",\n" : "\n";
+    }
+    out += std::string(depth * 2, ' ') + '}';
+}
+
+}  // namespace
+
+std::string indented_json(const Value& value) {
+    std::string out;
+    indent(out, value, 0);
+    return out + '\n';
+}
+
 std::expected<std::vector<Value>, JsonError> parse_ndjson(std::string_view text) {
     std::vector<Value> out;
     std::size_t line_no = 0;

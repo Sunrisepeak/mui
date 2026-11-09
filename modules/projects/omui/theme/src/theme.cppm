@@ -1,15 +1,15 @@
 // openmui.theme — themes as data (view-data-files §3; component-binding §11).
 //
-//     # default.theme.omui.toml
-//     [theme.dark]
-//     extends = "light"
-//     dark    = true
-//     [theme.dark.colors]
-//     background = "#0b1120"
+//     // default.theme.omui.ts
+//     export default defineTheme({
+//       dark: { extends: "light", dark: true, colors: { background: "#0b1120" } },
+//     });
 //
 //     theme::apply(rt, {"dark", "compact", "reduced_motion"});
 //
-// A file declares themes and overlays. A theme is a whole set of design
+// A file declares themes and overlays; the library reads the JSON its
+// module evaluates to (`{ "theme": { "dark": … } }`, D-139: omui-gen embeds
+// it in a package, the player evaluates an application's). A theme is a whole set of design
 // tokens — colours, text styles, spacing, radii, shadows, motion — possibly
 // as the changes it makes to the theme it `extends`. An overlay is a layer
 // over any theme that changes only what it names: a density (compact), the
@@ -17,8 +17,9 @@
 // runtime's Theme; components read only tokens, so the semantic tree is the
 // same under every composition (S2's promise).
 //
-// Every mistake in a file is reported with its line and column, a message
-// and, where there is one, the fix — all of them in one reading.
+// Every mistake in a file is reported at its JSON pointer (and the line and
+// column of the JSON), a message and, where there is one, the fix — all of
+// them in one reading.
 export module omui.theme;
 
 import std;
@@ -33,8 +34,9 @@ struct Diagnostic {
     int         column = 0;
     std::string message;
     std::string hint;
+    std::string at;  // the JSON pointer of what it is about: "/theme/dark/colors/accent"
 
-    // file:line:column: message (hint)
+    // file:line:column: at: message (hint)
     [[nodiscard]] std::string text() const;
 };
 
@@ -67,7 +69,7 @@ struct Layer {
     std::map<std::string, Transition, std::less<>>  motion;
 };
 
-// The themes and overlays a file declares (its text; `file` names it in the
+// The themes and overlays a file declares (its JSON; `file` names it in the
 // diagnostics), or everything wrong with it.
 [[nodiscard]] std::expected<std::vector<Layer>, Diagnostics> read(std::string_view source, std::string_view file);
 
@@ -76,18 +78,22 @@ struct Layer {
 // glass, neon, CRT, ink on paper, liquid — the semantic tree the same under
 // every one (S2's promise: only pixels change).
 //
-//     # neon.style.omui.toml
-//     [style.neon]
-//     theme = "dark"
-//     [style.neon.colors]
-//     accent = "#22d3ee"
-//     [style.neon.effects]
-//     button        = { effect = "neon", radius = 12 }
-//     "role:switch" = { effect = "metaball", smoothness = 14 }
-//     window        = { effect = "crt", curvature = 0.06 }
-//     [style.neon.motions]
-//     update        = ["liquid", "simple"]   # what its controls' update slots hold (candidates)
-//     "role:dialog" = { enter = "spring" }   # a type's or a role's slots
+//     // neon.style.omui.ts
+//     export default defineStyle({
+//       neon: {
+//         theme: "dark",
+//         colors: { accent: "#22d3ee" },
+//         effects: {
+//           button: { effect: "neon", radius: 12 },
+//           "role:switch": { effect: "metaball", smoothness: 14 },
+//           window: { effect: "crt", curvature: 0.06 },
+//         },
+//         motions: {
+//           update: ["liquid", "simple"],          // what its controls' update slots hold (candidates)
+//           "role:dialog": { enter: "spring" },    // a type's or a role's slots
+//         },
+//       },
+//     });
 //
 // Its motions (universal motion §5.2, the style's layer over the
 // framework's): a slot's name for every node the rules move (each rule of
@@ -113,8 +119,9 @@ struct Style {
 // The styles a file declares, or everything wrong with it (unknown effects
 // and parameters with their nearest names).
 [[nodiscard]] std::expected<std::vector<Style>, Diagnostics> read_styles(std::string_view source, std::string_view file);
-// A style as its file is written: read_styles of it gives it back (an editor
-// exports what was changed; numbers shortest, keys in order).
+// A style as its JSON (`{ "style": { <name>: … } }`, indented): read_styles of
+// it gives it back (an editor exports what was changed; numbers shortest,
+// keys in order).
 [[nodiscard]] std::string write_style(const Style& style);
 
 class Library {

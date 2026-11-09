@@ -492,7 +492,7 @@ UTest cases{"site", [] {
             a.h.settle(seconds(1));
         };
         const Color light = a.h.runtime().theme().color("background");
-        expect(std::abs(light.r - 0xfb / 255.0f) < 0.002f && std::abs(light.b - 0xfa / 255.0f) < 0.002f) << "the site's own theme (site.theme.omui.toml), not the default it extends";
+        expect(std::abs(light.r - 0xfb / 255.0f) < 0.002f && std::abs(light.b - 0xfa / 255.0f) < 0.002f) << "the site's own theme (site.theme.omui.ts), not the default it extends";
         choose("theme", "dark");
         const Color dark = a.h.runtime().theme().color("background");
         expect(dark.r + dark.g + dark.b < light.r + light.g + light.b - 1) << "dark";

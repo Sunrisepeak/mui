@@ -2,7 +2,7 @@
 // (promo-video design §3.2): an engineering drawing at night. Navy paper and
 // its grid, fine cyan lines, one accent; Inter, Noto Sans SC and JetBrains
 // Mono. Its scenes are shown in the blueprint style pack
-// (blueprint.style.omui.toml); what the film draws by hand reads the same
+// (blueprint.style.omui.ts); what the film draws by hand reads the same
 // palette here.
 export module omui.showcase.promo_video:look;
 

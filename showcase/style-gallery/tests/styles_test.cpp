@@ -177,10 +177,10 @@ UTest cases{"showcase.styles", [] {
         expect(refused.exit_code() == std::optional<std::int64_t>(2)) << "external: an agent states its answer";
         const auto done = a.h.runtime().verbs().invoke("styles.export", as_agent({}, "yes"));
         expect(eq(done.exit_code().value_or(-1), std::int64_t{0}));
-        const auto file = a.studio.export_dir / "neon.style.omui.toml";
+        const auto file = a.studio.export_dir / "neon.style.omui.json";
         std::ifstream in(file, std::ios::binary);
         const std::string text{std::istreambuf_iterator<char>(in), {}};
-        auto back = theme::read_styles(text, "neon.style.omui.toml");
+        auto back = theme::read_styles(text, "neon.style.omui.json");
         expect(back.has_value()) << (back ? text : back.error().front().text());
         if (back) {
             expect(eq(theme::write_style(back->front()), theme::write_style(a.studio.draft())));

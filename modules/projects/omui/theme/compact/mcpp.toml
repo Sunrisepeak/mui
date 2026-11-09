@@ -1,4 +1,4 @@
-# omui.theme.compact — the compact theme file (compact.theme.omui.toml), embedded:
+# omui.theme.compact — the compact theme file (compact.theme.omui.ts), embedded:
 # add_compact() adds what it declares to the program's theme library
 # (omui.theme). The partition holding the text is generated
 # (`omui-gen embed`; tools/gen's test keeps it current).
@@ -12,7 +12,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 kind   = "theme"
-themes = ["compact.theme.omui.toml"]
+themes = ["compact.theme.omui.ts"]
 
 [targets.openmui-theme-compact]
 kind = "lib"

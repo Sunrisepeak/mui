@@ -2,11 +2,11 @@
 # preview, written in TypeScript and run by the player. The components and the
 # tokens under any composition — light, dark or the application's own brand,
 # compact or not, with reduced motion or not — switched from the script
-# (omui.theme). Themes are data (*.theme.omui.toml): openmui's default and
-# compact packages, and themes/brand.theme.omui.toml, which the player
+# (omui.theme). Themes are data (*.theme.omui.ts): openmui's default and
+# compact packages, and themes/brand.theme.omui.ts, which the player
 # reloads when it is saved. The semantic tree is the same under all of them.
 #
-#   mcpp run                       a window; edit themes/brand.theme.omui.toml
+#   mcpp run                       a window; edit themes/brand.theme.omui.ts
 #   mcpp run -- --headless --png preview.png
 [package]
 namespace   = "omui.example"
@@ -20,7 +20,7 @@ kind   = "app"
 id     = "org.openmui.theme-preview"
 title  = "Theme preview"
 size   = "640x560"
-themes = ["themes/*.theme.omui.toml"]
+themes = ["themes/*.theme.omui.ts"]
 theme  = ["light"]
 
 [package.metadata.openmui.scripts]

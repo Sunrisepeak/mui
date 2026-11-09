@@ -5,6 +5,7 @@ import omui.gen.model;
 import omui.gen.read;
 import omui.gen.emit;
 import omui.gen.ops;
+import omui.gen.data;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
@@ -199,15 +200,17 @@ UTest cases{"gen", [] {
         int seen = 0;
         for (const auto& pkg : std::filesystem::directory_iterator(root, ec)) {
             const std::string name = gen::generic_utf8(pkg.path().filename());
-            const auto file = pkg.path() / (name + ".theme.omui.toml");
+            const auto file = pkg.path() / (name + ".theme.omui.ts");
             if (!std::filesystem::exists(file)) continue;
             ++seen;
-            std::ifstream in(file, std::ios::binary);
-            const std::string text{std::istreambuf_iterator<char>(in), {}};
+            // What the module evaluates to, as the package carries it.
+            const auto snapshot = gen::snapshot(file);
+            expect(snapshot.has_value()) << (snapshot ? "" : snapshot.error());
+            if (!snapshot) continue;
             // A module name is identifiers: `default` (a keyword) is `default_theme`.
             const std::string module = name == "default" ? "omui.theme.default_theme" : "omui.theme." + name;
-            const std::string want = gen::emit_embed(text, name + ".theme.omui.toml", module, "omui::themes", name + "_theme");
-            expect(read(pkg.path() / "src" / "generated" / (name + "_theme.cppm")) == want) << std::format("modules/projects/omui/theme/{0}: run omui-gen embed modules/projects/omui/theme/{0}/{0}.theme.omui.toml --module {1} --namespace omui::themes "
+            const std::string want = gen::emit_embed(snapshot->json, snapshot->name, module, "omui::themes", name + "_theme");
+            expect(read(pkg.path() / "src" / "generated" / (name + "_theme.cppm")) == want) << std::format("modules/projects/omui/theme/{0}: run omui-gen embed modules/projects/omui/theme/{0}/{0}.theme.omui.ts --module {1} --namespace omui::themes "
                               "--name {0}_theme --out modules/projects/omui/theme/{0}/src/generated",
                               name, module);
         }

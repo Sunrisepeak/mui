@@ -12,6 +12,7 @@ import std;
 import omui;
 import omui.theme;
 import omui.theme.styles;
+import omui.lang.ts;
 import mlibs.image;
 import mlibs.testing;
 import mcpplibs.mtest;
@@ -132,8 +133,11 @@ UTest cases{"site.quality_lab", [] {
         expect(themes::add_styles().has_value()) << "the default themes and the packs";
         // The staged overlay, from its own file: never in the default library.
         const auto staged = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path().parent_path() /
-                            "modules/projects/omui/theme/default/staged/refined.theme.omui.toml";
-        const auto added = theme::library().add_file(staged);
+                            "modules/projects/omui/theme/default/staged/refined.theme.omui.ts";
+        const auto data = lang::ts::evaluate(staged);
+        expect(data.has_value()) << (data ? "" : data.error());
+        const auto added = data ? theme::library().add(std::format("{{\"theme\":{}}}", data->json), "refined.theme.omui.json")
+                                : std::expected<void, theme::Diagnostics>{};
         expect(added.has_value()) << staged.string();
         const auto list = controls();
         const int cell_w = static_cast<int>(cell.width * scale), cell_h = static_cast<int>(cell.height * scale);

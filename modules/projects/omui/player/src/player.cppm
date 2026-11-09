@@ -34,7 +34,7 @@ struct Manifest {
     std::filesystem::path              base;        // the paths below are relative to it
     std::vector<std::filesystem::path> components;  // component documents, defined first
     std::vector<std::filesystem::path> views;       // view documents, mounted at their files' stems
-    std::vector<std::filesystem::path> themes;      // theme files (*.theme.omui.toml), added to the program's library
+    std::vector<std::filesystem::path> themes;      // theme files (*.theme.omui.ts), added to the program's library
     std::vector<std::string>           theme;       // the composition to start with: a theme, then overlays
     std::filesystem::path              effects;     // a directory of the application's effects (*.effect.omui.toml)
     std::vector<Script>                scripts;
@@ -115,6 +115,10 @@ struct Language {
     // Structured operations as source edits (design.set, design.insert,
     // design.remove). Empty: the language's text is edited whole (design.edit).
     SourceEditor edit;
+    // A data module of the language (`brand.theme.omui.ts`, D-139) as the
+    // JSON snapshot it stands for, `{"theme": …}`: how the player reads an
+    // application's themes. Empty: the language writes no data.
+    std::function<std::expected<std::string, std::string>(const std::filesystem::path&)> data;
 };
 
 class Player;

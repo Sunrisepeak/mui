@@ -1,6 +1,8 @@
 // openmui.build.embed — the build plugin for data files a program carries
 // (D-73's embed plugin): each file becomes a partition holding its text
-// (`omui-gen embed`), so a shipped program reads no file to have them. Theme
+// (`omui-gen embed`), so a shipped program reads no file to have them; a
+// TypeScript data module (`*.theme.omui.ts`) is carried as the JSON it
+// evaluates to, named `*.theme.omui.json`. Theme
 // packages and canvas programs use it for their own files: themes() and
 // behaviors() are embed() with their directory, suffix and tag.
 export module omui.build.embed;
@@ -15,7 +17,7 @@ struct embed_options {
     std::string module;                                   // the package's module
     std::string ns;                                       // the namespace of the texts (default: the module's)
     std::string dir;                                      // where the files are
-    std::string suffix;                                   // which: ".style.omui.toml"
+    std::string suffix;                                   // which: ".style.omui.ts"
     std::string tag;                                      // the partitions' and constants' suffix: <stem>_<tag>
     bool        index = false;                            // and <tag>_files, a table of them all (the module exports it)
     // The files left out (a feature the build does not have): no partition
@@ -38,13 +40,13 @@ bool embed(embed_options opt);
 struct theme_options {
     std::string module;                                   // the package's module (acme.themes)
     std::string ns;                                       // the namespace of the embedded texts (default: the module's)
-    std::string themes = "themes";                        // the directory of *.theme.omui.toml
+    std::string themes = "themes";                        // the directory of *.theme.omui.ts
     std::string out_dir = std::string(mcpp::out_dir());
 };
 
 // Each theme file as a partition `<module>:<stem>_theme` holding its text:
 // the package adds it to the program's library with
-// omui::theme::library().add(<stem>_theme, "<stem>.theme.omui.toml").
+// omui::theme::library().add(<stem>_theme, "<stem>.theme.omui.json").
 bool themes(theme_options opt);
 
 // ── declarative behaviours (canvas-kit) ─────────────────────────────────────

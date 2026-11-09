@@ -15,7 +15,7 @@ int main() {
     // The reference run's frames as CI hashed them (the footer compares a browser's own with them).
     const bool frames = omui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "reference", .suffix = ".frames.omui.json", .tag = "frames"});
     // Its own theme: the design language's tokens, light and dark.
-    const bool theme = omui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "theme", .suffix = ".theme.omui.toml", .tag = "theme", .index = true});
+    const bool theme = omui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "theme", .suffix = ".theme.omui.ts", .tag = "theme", .index = true});
     // Mui's frames and palettes (the brand's data, drawn by the framework).
     const bool sprites = omui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "brand", .suffix = ".sprite.omui.json", .tag = "sprites"});
     const bool bootstrap = omui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "src", .suffix = ".bootstrap.js", .tag = "bootstrap"});

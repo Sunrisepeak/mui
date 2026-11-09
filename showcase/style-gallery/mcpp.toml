@@ -1,7 +1,7 @@
 # S2 — the style workshop (implementation plan §13): a real settings panel
 # and dashboard shown in each of the style packs — glass, neon, retro CRT,
 # ink on paper, liquid — switched with a cross-fade; the pack's tokens and
-# its effects' parameters edited live, and exported as a *.style.omui.toml a
+# its effects' parameters edited live, and exported as a *.style.omui.json a
 # real program loads. The semantic tree is the same under every style: only
 # pixels change, and agents act the same.
 #

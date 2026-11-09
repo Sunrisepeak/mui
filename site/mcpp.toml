@@ -68,5 +68,6 @@ omui.build.toy       = { path = "../mcpp/toy", host-module = true }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.5.0"
+omui.lang.ts = { path = "../modules/projects/omui/lang/ts" }  # the staged theme module, evaluated (quality_lab_test)
 xrender.text = { path = "../modules/projects/xrender/text" }
 mlibs.math = { path = "../modules/base/math" }

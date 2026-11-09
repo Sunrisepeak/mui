@@ -91,6 +91,13 @@ std::expected<toml::table, std::string> json_document(const std::filesystem::pat
     return std::move(*document);
 }
 
+std::expected<Snapshot, std::string> snapshot(const std::filesystem::path& file) {
+    auto data = lang::ts::evaluate(file);
+    if (!data) return std::unexpected(data.error());
+    const auto name = generic_utf8(file.filename());
+    return Snapshot{name.substr(0, name.size() - std::string_view(".ts").size()) + ".json", std::format("{{\"{}\":{}}}\n", data->kind, data->json)};
+}
+
 std::expected<toml::table, std::string> data_document(const std::filesystem::path& file, std::string_view kind) {
     auto data = lang::ts::evaluate(file);
     if (!data) return std::unexpected(data.error());

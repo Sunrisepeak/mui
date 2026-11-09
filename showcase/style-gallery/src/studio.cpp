@@ -71,7 +71,7 @@ std::expected<void, std::string> Studio::show(std::string_view name, bool crossf
 // The draft back into the library (as its own file) and onto the runtime: an
 // edit is seen at once, without a cross-fade.
 std::expected<void, std::string> Studio::apply_draft() {
-    const std::string file = std::format("{}.style.omui.toml", draft_.name);
+    const std::string file = std::format("{}.style.omui.json", draft_.name);
     draft_.file = file;
     if (auto r = theme::library().add_styles(theme::write_style(draft_), file); !r) {
         std::string why;
@@ -228,7 +228,7 @@ std::expected<std::filesystem::path, std::string> Studio::export_style() {
     std::error_code ec;
     const auto dir = export_dir.empty() ? std::filesystem::current_path(ec) : export_dir;
     std::filesystem::create_directories(dir, ec);
-    const auto file = dir / std::format("{}.style.omui.toml", draft_.name);
+    const auto file = dir / std::format("{}.style.omui.json", draft_.name);
     // Whole or not at all (a reader never sees half a file).
     if (auto w = mcpplibs::os::fs::write_atomic(file, theme::write_style(draft_)); !w)
         return std::unexpected(std::format("`{}` was not written: {}", utf8(file), w.error().message()));
@@ -645,7 +645,7 @@ void add_verbs(AppSpec& a, Studio& s) {
                                return Value(s.edited());
                            }});
     if (!s.can_export) return;  // a page: nowhere to write
-    a.verbs.push_back({{"styles.export", "Writes the edited style pack as a *.style.omui.toml.", Effect::external, "yes", {}},
+    a.verbs.push_back({{"styles.export", "Writes the edited style pack as a *.style.omui.json.", Effect::external, "yes", {}},
                        [&s](const Value&) -> VerbResult {
                            auto r = s.export_style();
                            if (!r) return std::unexpected(r.error());

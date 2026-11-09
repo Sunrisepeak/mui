@@ -14,7 +14,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 kind   = "theme"
-styles = ["styles/*.style.omui.toml"]
+styles = ["styles/*.style.omui.ts"]
 
 [targets.openmui-theme-styles]
 kind = "lib"

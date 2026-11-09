@@ -42,7 +42,10 @@ std::vector<edge> plan_embed(const embed_options& opt) {
         index.imports = {"std"};
         for (const edge& e : edges) {
             const std::string part = e.provides.front().substr(opt.module.size() + 1);
-            index.command.push_back(utf8(std::filesystem::path(e.inputs.front()).filename()) + "=" + part);
+            // A data module is carried as its JSON, and found by that name.
+            std::string file = utf8(std::filesystem::path(e.inputs.front()).filename());
+            if (file.ends_with(".omui.ts")) file = file.substr(0, file.size() - 3) + ".json";
+            index.command.push_back(file + "=" + part);
             index.inputs.push_back(e.inputs.front());
             index.imports.push_back(e.provides.front());
         }
@@ -65,7 +68,7 @@ bool embed(embed_options opt) {
 }
 
 bool themes(theme_options opt) {
-    return embed({.module = std::move(opt.module), .ns = std::move(opt.ns), .dir = std::move(opt.themes), .suffix = ".theme.omui.toml",
+    return embed({.module = std::move(opt.module), .ns = std::move(opt.ns), .dir = std::move(opt.themes), .suffix = ".theme.omui.ts",
                   .tag = "theme", .out_dir = std::move(opt.out_dir)});
 }
 

@@ -31,7 +31,7 @@ The reference implementation of the [openmui](../../../spec) specification: a vi
 | [accessibility](accessibility) | The tree served to the platform's assistive technology: UIA, NSAccessibility, AT-SPI (AccessKit) |
 | [agent](agent) | The agent endpoint: `openmui.tree` over local IPC, JSON lines, envelopes |
 | [viewdoc](viewdoc) | View documents: checking, loading, reloading, component documents, the schema |
-| [theme](theme) | Themes as data (`*.theme.omui.toml`); the default, compact and style packs inside it |
+| [theme](theme) | Themes as data (`*.theme.omui.ts`); the default, compact and style packs inside it |
 | [native](native) | The native-module registry: contract-typed C++ functions scripts call; the official modules inside it |
 | [abi](abi) | The C ABI (`openmui.h`) |
 | [player](player) | The player: an application's views, components and scripts, run and reloaded in place |

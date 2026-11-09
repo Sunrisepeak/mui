@@ -4,7 +4,7 @@ version = "0.1.0"
 
 [package.metadata.openmui]
 kind   = "theme"
-themes = ["themes/*.theme.omui.toml"]
+themes = ["themes/*.theme.omui.ts"]
 
 [targets.{{project.name}}]
 kind = "lib"

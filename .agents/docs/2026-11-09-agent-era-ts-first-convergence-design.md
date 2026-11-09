@@ -698,6 +698,12 @@ my-app/
     - 注释保留：动作公式、ABI 规则、各段说明分别成为文档的 `doc`、`<段>_doc`，条目之间的版本标记成为 `note`；键前的注释成为 `<键>_doc`；条目表（如契约的 commands）的说明放到上一级的 `<表>_doc`。
     - omui-gen 读 JSON，用的是读 TS 数据模块的同一条路径（`json_document`）。读取器把 `doc`、`note`、`*_doc` 当作说明跳过。
     - 生成物除了源文件名，逐字节不变。
+  - C 完成：13 个主题和风格包改为 TS 数据模块（`defineTheme`、`defineStyle`，`tools/dev/toml_to_ts.py` 转写，注释原样保留为 `//` 注释）。
+    - `omui.theme` 的读取器改为读 JSON 快照（`{"theme": {…}}`），每个问题带 JSON 指针和快照里的行列，严格键和 did-you-mean 不变；toml++ 依赖去掉。`write_style` 写缩进的 JSON（`omui.core` 新增 `indented_json`）。
+    - 构建期：`omui-gen embed` 遇到 `*.omui.ts` 就求值并嵌入 JSON 快照，名字是 `*.omui.json`；embed 插件的 `themes()` 和各包的 `embed()` 改用 `.theme.omui.ts`、`.style.omui.ts`。
+    - 运行期：`player::Language` 新增 `data`，TS 语言用它求值应用自己的主题文件；保存后的热重载走同一条路径，出错时报 JSON 指针（`/theme/brand/colors/accent`）。
+    - `omui/define` 里 `defineTheme`、`defineStyle` 有完整类型（Theme、Style、Tokens、Shadow、MotionToken、EffectRule）。风格工坊导出 `*.style.omui.json`。lint `typescript` 拦截新的 `.theme.omui.toml`、`.style.omui.toml`。
+    - 默认主题与运行时内建令牌逐项相等的测试不变并通过。
 
 **W2 热重载（C2）**
 1. 热重载 ≤ 100 ms，按语义 ID 保留状态。**验收**：基准测试 p95 ≤ 100 ms。

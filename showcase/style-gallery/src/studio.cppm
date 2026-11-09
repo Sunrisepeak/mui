@@ -4,7 +4,7 @@
 // shown in a style pack (openmui.theme.styles); a sidebar to switch packs
 // (a cross-fade), an editor for the pack shown: its accent, its corners, each
 // of its effects' parameters, applied as they change; and an export that
-// writes the edited pack as a *.style.omui.toml. Agents get the same as the
+// writes the edited pack as a *.style.omui.json. Agents get the same as the
 // person: `styles.show`, `styles.export`, every control by its id.
 //
 // In a window of its own (app()) a pack styles the whole runtime; inside

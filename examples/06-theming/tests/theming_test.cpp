@@ -125,7 +125,7 @@ UTest cases{"example.theming", [] {
         expect(p.start().has_value());
         settle(h, p);
         expect(h.runtime().theme().color("accent").r == Color::hex(0x0f766e).r);
-        const auto brand = app / "themes" / "brand.theme.omui.toml";
+        const auto brand = app / "themes" / "brand.theme.omui.ts";
         // Each save a later time than the last, whatever the clock's grain
         // (Windows': about 15 ms, so two quick saves would read the same).
         const auto start = std::filesystem::last_write_time(brand);
@@ -138,16 +138,17 @@ UTest cases{"example.theming", [] {
             std::ofstream(brand, std::ios::binary) << text;
             std::filesystem::last_write_time(brand, start + std::chrono::seconds(2 * ++saves));
         };
-        save("accent         = \"#0f766e\"", "accent         = \"#be123c\"");
+        save("accent: \"#0f766e\"", "accent: \"#be123c\"");
         const auto reloaded = p.poll();
         settle(h, p);
         expect(reloaded.size() == 1) << std::format("{} reloaded", reloaded.size());
         expect(h.runtime().theme().color("accent").r == Color::hex(0xbe123c).r) << "the edit shows";
         expect(eq(h.runtime().theme().name, std::string("brand")));
-        save("accent         = \"#be123c\"", "accent         = \"crimson\"");
+        save("accent: \"#be123c\"", "accent: \"crimson\"");
         (void)p.poll();
         settle(h, p);
-        expect(!p.problems().empty() && p.problems().back().find("brand.theme.omui.toml:10:18:") != std::string::npos &&
+        expect(!p.problems().empty() && p.problems().back().find("brand.theme.omui.json:1:") != std::string::npos &&
+                  p.problems().back().find("/theme/brand/colors/accent: colour `accent` must be a colour") != std::string::npos &&
                   p.problems().back().find("colour `accent` must be a colour") != std::string::npos) << (p.problems().empty() ? "" : p.problems().back());
         expect(h.runtime().theme().color("accent").r == Color::hex(0xbe123c).r) << "a broken edit changes nothing";
     };

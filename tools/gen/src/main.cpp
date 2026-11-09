@@ -16,6 +16,7 @@
 //       a native module's C++ (records, the functions to implement, define())
 //       and its TypeScript stubs (component-binding §8)
 //   omui-gen embed <file> --module <m> --name <partition> --out <dir> [--namespace ns] [--check]
+//       (a data module, <name>.<kind>.omui.ts, is carried as its JSON, <name>.<kind>.omui.json)
 //   omui-gen embed-index <file>=<partition>… --module <m> --name <partition> --out <dir> [--namespace ns] [--check]
 //       a data file (a theme) as a partition holding its text
 //   omui-gen check <file.contract.omui.toml or .native.omui.toml>... --registry <dir> [--json]
@@ -51,6 +52,7 @@ import omui.gen.cldr;
 import omui.gen.dist_toy;
 import omui.gen.wasm_size;
 import omui.gen.ops;
+import omui.gen.data;
 
 using namespace omui::gen;
 
@@ -343,19 +345,31 @@ int run_embed_index(const Options& o) {
 // package carries, a document).
 int run_embed(const Options& o) {
     if (o.inputs.size() != 1 || o.module.empty() || o.name.empty() || o.out.empty()) return usage();
-    std::ifstream in(o.inputs[0], std::ios::binary);
-    if (!in) {
-        std::println(std::cerr, "omui-gen: cannot read {}", generic_utf8(o.inputs[0]));
-        return 1;
+    // A data module (a theme, a style) is carried as the JSON it evaluates to.
+    std::string text, source = generic_utf8(o.inputs[0].filename());
+    if (is_data_module(o.inputs[0])) {
+        auto evaluated = snapshot(o.inputs[0]);
+        if (!evaluated) {
+            std::println(std::cerr, "omui-gen: {}", evaluated.error());
+            return 1;
+        }
+        text = std::move(evaluated->json);
+        source = std::move(evaluated->name);
+    } else {
+        std::ifstream in(o.inputs[0], std::ios::binary);
+        if (!in) {
+            std::println(std::cerr, "omui-gen: cannot read {}", generic_utf8(o.inputs[0]));
+            return 1;
+        }
+        text.assign(std::istreambuf_iterator<char>(in), {});
     }
-    const std::string text{std::istreambuf_iterator<char>(in), {}};
     std::string ns = o.ns;
     if (ns == "omui::ui") {
         ns.clear();
         for (char c : o.module) ns += c == '.' ? std::string("::") : std::string(1, c);
     }
     Writer w{o.check};
-    w.put(o.out / (o.name + ".cppm"), emit_embed(text, generic_utf8(o.inputs[0].filename()), o.module, ns, o.name));
+    w.put(o.out / (o.name + ".cppm"), emit_embed(text, source, o.module, ns, o.name));
     if (o.check) {
         if (w.stale) return 1;
         std::println("omui-gen: generated files are current");

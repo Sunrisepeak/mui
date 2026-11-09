@@ -49,7 +49,7 @@ The data, every file carried in the program (`omui.build.embed`) and read from `
 - `promo.timeline.omui.toml`, `short.timeline.omui.toml` — the cuts (`xengine.timeline`): a picture track of `shot:<name>` and `film` clips whose keyed properties are each scene's camera and choreography; the lines' track (`line:<id>`); the music's clips; the sound cues; `chapter:` and `hit:` markers.
 - `promo.subtitles.omui.toml` — every line in Chinese and English.
 - `music/promo.music.omui.toml` — the score (`xengine.audio`), 120 beats a minute, a section a chapter; `sounds/promo.sound.omui.toml` — the picture's sounds.
-- `blueprint.style.omui.toml` — the film's look, a style pack; `script/*.md` — the storyboard, a page a chapter, shown on the wall; `code/tally.*` — the counter's two versions.
+- `blueprint.style.omui.ts` — the film's look, a style pack; `script/*.md` — the storyboard, a page a chapter, shown on the wall; `code/tally.*` — the counter's two versions.
 
 ## How it works
 

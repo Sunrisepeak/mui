@@ -1,7 +1,7 @@
 // The theme preview: choose a theme, a density and the motion, and see every
 // common component, the colour tokens and the text styles under them. The
 // themes are data — openmui's light, dark, compact and reduced_motion, and
-// this application's own brand (themes/brand.theme.omui.toml), which the
+// this application's own brand (themes/brand.theme.omui.ts), which the
 // player reloads when it is saved.
 import {
   signal, fmt, ne, when, theme, themes, mount,

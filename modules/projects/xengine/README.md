@@ -16,7 +16,7 @@ It also holds the domain subsystems that have not graduated into projects of the
 |---|---|---|
 | [dynamics](dynamics) | base | Every solved simulation (D-133): collision and queries (swept circles against boxes, half-planes, one-way ledges), XPBD soft bodies, physical materials; on [mlibs.simulation](../../base/simulation)'s timeline; rigid, articulation, fluids later |
 | [simulation](simulation) | base (its GPU adapter gfx) | [cellular](simulation/cellular) integer field rules, with an optional compute kernel on `mlibs.rhi` ([rhi](cellular/rhi)), and a field on screen as one image ([present](cellular/present)) |
-| [audio](audio) | media | Sounds and music as data (`*.sound.omui.toml`, `*.music.omui.toml`), voices mixed into buses a block at a time with nothing allocated; offline renders the same bits everywhere; the `omui-music` tool |
+| [audio](audio) | media | Sounds and music as data (`*.sound.omui.ts`, `*.music.omui.ts`), voices mixed into buses a block at a time with nothing allocated; offline renders the same bits everywhere; the `omui-music` tool |
 | [video](video) | media | Frames and a sound track encoded on exact frame and sample counts: sources, encoders as plugins, `*.video.omui.toml`; the same bytes everywhere |
 | [timeline](timeline) | media | Tracks of clips in exact time (flicks), properties keyed with hanim's curves, edits that give back their exact inverse; `*.timeline.omui.toml` |
 | [tool](tool) | game | The `xengine` command: timelines checked, read at a moment, edited and edits taken back, headless (xengine's operations' catalog and skill) |

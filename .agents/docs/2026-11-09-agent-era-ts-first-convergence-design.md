@@ -704,6 +704,11 @@ my-app/
     - 运行期：`player::Language` 新增 `data`，TS 语言用它求值应用自己的主题文件；保存后的热重载走同一条路径，出错时报 JSON 指针（`/theme/brand/colors/accent`）。
     - `omui/define` 里 `defineTheme`、`defineStyle` 有完整类型（Theme、Style、Tokens、Shadow、MotionToken、EffectRule）。风格工坊导出 `*.style.omui.json`。lint `typescript` 拦截新的 `.theme.omui.toml`、`.style.omui.toml`。
     - 默认主题与运行时内建令牌逐项相等的测试不变并通过。
+  - D 完成：9 首曲子、6 个音效文件改为 TS 数据模块（`defineMusic`、`defineSound`），注释原样保留。
+    - 新包 `mlibs.json`（base 层）：带位置的 JSON 文档——每个值是带 JSON 指针的节点，问题定位到指针的行列，未知键给出最近的正确名字。媒体、游戏层的读取器都经由它读 JSON 快照；它是“带位置读 JSON”和 did-you-mean 的唯一归属，`omui.core` 的 `json_location` 与 `omui.theme` 的近似名改用它。单独成包是因为它依赖 nlohmann.json，而 `mlibs.utils` 只依赖标准库。
+    - `xengine.audio` 读 JSON：`{"sound": {<名字>: {layers: […]}}}`、`{"music": {name, tempo, meter, patches, instruments, buses, patterns, sections, arrangement}}`。TS 形状顺手理顺：`[music]` 的字段提到顶层，各类表用复数名，音效的层叫 `layers`。有名字的条目按名字顺序读，与原来一致，文件里的书写顺序不影响播放出的每个采样；音符文本里的错误仍定位到具体记号（JSON 转义计入）。`write_sounds`、`write_music` 写 JSON，读回不变。内置音色改为 JSON 写在代码里，分组注释保留为 C++ 注释。
+    - `omui-gen snapshot FILE` 输出数据模块的 JSON 快照；`omui-music` 读快照。
+    - 顺带修复 B 的回归：omui-gen 把名字到类型的映射（命令参数）里叫 `note` 的参数当成说明跳过了（widget-breakout 的 `intend` 丢了 `note` 参数）。现在只在值是文本时才当说明，参数表里的键一律是名字。
 
 **W2 热重载（C2）**
 1. 热重载 ≤ 100 ms，按语义 ID 保留状态。**验收**：基准测试 p95 ≤ 100 ms。

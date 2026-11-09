@@ -43,16 +43,16 @@ Sounds::Sounds() : mixer_(std::make_unique<xengine::audio::Mixer>()) {
     for (const auto& [file, data] : files::voice_files)  // the announcer's recordings, by their files' names, before the sounds that play them
         if (auto r = xengine::audio::read_wav(std::as_bytes(std::span(data.data(), data.size()))))
             mixer_->add_recording(file.substr(0, file.find('.')), r->samples, r->rate);
-    for (const auto& [text, file] : {std::pair{files::fight_sound, "fight.sound.omui.toml"}, std::pair{files::menu_sound, "menu.sound.omui.toml"},
-                                     std::pair{files::voice_sound, "voice.sound.omui.toml"}, std::pair{files::fighters_sound, "fighters.sound.omui.toml"}})
-        if (std::string_view(file) == "voice.sound.omui.toml" && files::voice_files.empty()) continue;  // no announcer without the arenas
+    for (const auto& [text, file] : {std::pair{files::fight_sound, "fight.sound.omui.json"}, std::pair{files::menu_sound, "menu.sound.omui.json"},
+                                     std::pair{files::voice_sound, "voice.sound.omui.json"}, std::pair{files::fighters_sound, "fighters.sound.omui.json"}})
+        if (std::string_view(file) == "voice.sound.omui.json" && files::voice_files.empty()) continue;  // no announcer without the arenas
         else if (auto sounds = xengine::audio::read_sounds(text, file))
             for (const auto& s : *sounds) {
                 const std::int32_t id = mixer_->add(s);
                 // A fighter's voice by its name: <fighter>_hurt_<n>, <fighter>_ko, <fighter>_effort_<n>.
                 const std::string_view n = s.name;
                 const auto cut = n.find('_');
-                if (std::string_view(file) != "fighters.sound.omui.toml" || cut == std::string_view::npos) continue;
+                if (std::string_view(file) != "fighters.sound.omui.json" || cut == std::string_view::npos) continue;
                 Voice& v = voices_[std::string(n.substr(0, cut))];
                 const std::string_view kind = n.substr(cut + 1);
                 if (kind == "ko") v.ko = id;

@@ -5,7 +5,7 @@ Sound for openmui and its games (D-86). Sounds are data, and so is music. Voices
 ```cpp
 import xengine.audio;
 
-auto sounds = xengine::audio::read_sounds(text, "fight.sound.omui.toml");   // every problem at its line and column
+auto sounds = xengine::audio::read_sounds(json, "fight.sound.omui.json");   // every problem at its JSON pointer, line and column
 xengine::audio::Mixer mixer;                                                 // 48 kHz, 48 voices
 const auto punch = mixer.add((*sounds)[0]);
 mixer.add_effect("sfx", xengine::audio::echo(0.09f, 0.3f, 0.25f, mixer.rate()));
@@ -14,13 +14,13 @@ mixer.play(punch, /*at sample*/ 4800, /*gain*/ 0.9f, /*pan*/ -0.4f);    // from 
 mixer.render(block);                                                      // on the audio thread, or offline
 ```
 
-- **Sounds** (`*.sound.omui.toml`): `[sound.<name>]` tables, each with layers.
+- **Sounds** (`*.sound.omui.ts`, `defineSound({ <name>: { layers: [ … ] } })`): the library reads the JSON the module evaluates to, `{"sound": { … }}` (D-139; `omui-gen embed` carries it in a program, `omui-gen snapshot` writes it out). Sounds are numbered in name order, whatever order the file writes them in.
   - A layer is a source: a sine (a table made with shared `openmui.math`), a triangle, a band-limited square or saw (polyBLEP), or seeded noise.
   - Its pitch glides exponentially from one value to another over its length. Its filter (low, high or band pass) has a cutoff that glides too.
   - An envelope (attack, hold, decay, sustain, release) shapes it, then soft clipping, gain and an equal-power pan.
   - A punch is a burst of low-passed noise over a falling sine; a bell is a sine and its overtone.
-  - A layer can also play a recording (`wave = "recording"`, `recording = "<name>"`): a voice or a foley take that the program adds with `Mixer::add_recording` (mono samples at their rate; `read_wav` reads 8-, 16- and 24-bit PCM or 32-bit float, mixing the channels down). It is read between its samples at its `speed` (2: twice as fast, an octave up; a glide too), held for its length unless the file gives an envelope, and filtered, driven and panned like any layer. A fighting game's announcer is the pack's takes, a touch lower, darker and doubled.
-  - `write_sounds` writes them so they read back as themselves.
+  - A layer can also play a recording (`wave: "recording"`, `recording: "<name>"`): a voice or a foley take that the program adds with `Mixer::add_recording` (mono samples at their rate; `read_wav` reads 8-, 16- and 24-bit PCM or 32-bit float, mixing the channels down). It is read between its samples at its `speed` (2: twice as fast, an octave up; a glide too), held for its length unless the file gives an envelope, and filtered, driven and panned like any layer. A fighting game's announcer is the pack's takes, a touch lower, darker and doubled.
+  - `write_sounds` writes them as JSON that reads back as themselves.
 - **The mix** (`Mixer`):
   - Voices start on their exact sample. Past the most at once, the oldest gives way.
   - Buses ("sfx", "music", or any name) have a gain and effects, in order. A bus can be routed into another (`route`) and ducked under another (`duck`: a peak follower on the key, the sidechain).
@@ -31,63 +31,59 @@ mixer.render(block);                                                      // on 
   - `play` may be called from one thread while another renders: a lock-free queue sits between them.
   - Nothing is allocated while rendering; a sound's tables are made when it is added. Buses, effects and sources are set up before another thread renders.
 - **Offline** (`render`, `wav`, `hash`, `levels`): a video's track, or a test's pinned bits.
-  - The DSP uses `-ffp-contract=off` and no fast-math. Every transcendental comes directly from `omui::math::det`, so no platform's libm enters a sample; denormals are flushed by hand, the same everywhere. The historical hanim math alias is no longer a dependency. JSON still belongs to the existing `omui-music` CLI dependency set; it has not yet been split into a separate package.
+  - The DSP uses `-ffp-contract=off` and no fast-math. Every transcendental comes directly from `omui::math::det`, so no platform's libm enters a sample; denormals are flushed by hand, the same everywhere. The historical hanim math alias is no longer a dependency. The files are read through `mlibs.json`; the `omui-music` tool's reports use nlohmann.json.
   - `levels` measures a mix: peak, RMS, integrated loudness (ITU-R BS.1770: K-weighted, gated), the energy of five bands and the channels' correlation.
   - The test scene's hash is the same on GCC, LLVM and wasm.
 
 ## Music
 
 ```cpp
-auto music = xengine::audio::read_music(text, "study.music.omui.toml");     // every problem at its line and column, a wrong note at its token
+auto music = xengine::audio::read_music(json, "study.music.omui.json");     // every problem at its place, a wrong note at its very token
 auto song = xengine::audio::Sequencer::attach(*music, mixer);                // its instruments made, its buses under "music"
 (*song)->start(mixer.clock());                                            // from any thread: the intro, then the loop
 (*song)->set_intensity(0.8f);                                             // from any thread: which layers play, from the next bar
 (*song)->finish();                                                        // its outro from the next bar
 ```
 
-A piece (`*.music.omui.toml`) is written for people and agents to read:
+A piece (`*.music.omui.ts`) is a TypeScript data module, written for people and agents to read. The library reads the JSON it evaluates to, `{"music": { … }}`. Named entries are read in name order, so a file's order changes nothing that is played.
 
-```toml
-[music]
-name = "study"
-tempo = 128
-meter = [4, 4]
+```ts
+import { defineMusic } from "omui/define";
 
-[patch.zheng]                          # how an instrument sounds: a built-in, shaded
-base = "guzheng"
-pluck = { decay = 3.6 }
+export default defineMusic({
+  name: "study",
+  tempo: 128,
+  meter: [4, 4],
 
-[instrument.lead]
-patch = "zheng"
-sends = { hall = 0.25 }
-
-[bus.hall]
-effects = [{ kind = "reverb", size = 0.82, wet = 1, dry = 0 }]
-
-[pattern.hook]                         # a token a step: a note, `.` a rest, `:n` steps long,
-instrument = "lead"                    # `+` a chord, `>` a slide, `!` an accent, `?` a soft one
-step = "1/16"
-notes = "D5:3! F5? G5:2 A5:6 G5? F5? D5:2 | A5>C6:6! A5? G5? E5:4 D5:2 E5:2"
-
-[pattern.drums]
-[pattern.drums.lanes]                  # a lane an instrument, a character a sixteenth
-taiko = "X.....x.x...X..."
-kick  = "x.......x.....x."
-
-[section.a]
-bars = 8
-layers = [
-    { pattern = "hook" },
-    { pattern = "drums", intensity = [0.6, 1] },     # plays while the intensity is in [0.6, 1]
-]
-
-[arrangement]
-intro = ["intro"]
-loop = ["a", "b"]
-outro = ["end"]
+  patches: {
+    zheng: { base: "guzheng", pluck: { decay: 3.6 } },   // how an instrument sounds: a built-in, shaded
+  },
+  instruments: {
+    lead: { patch: "zheng", sends: { hall: 0.25 } },
+  },
+  buses: {
+    hall: { effects: [{ kind: "reverb", size: 0.82, wet: 1, dry: 0 }] },
+  },
+  patterns: {
+    // A token a step: a note, `.` a rest, `:n` steps long, `+` a chord, `>` a slide, `!` an accent, `?` a soft one.
+    hook: { instrument: "lead", step: "1/16", notes: "D5:3! F5? G5:2 A5:6 G5? F5? D5:2 | A5>C6:6! A5? G5? E5:4 D5:2 E5:2" },
+    // A lane an instrument, a character a sixteenth.
+    drums: { lanes: { taiko: "X.....x.x...X...", kick: "x.......x.....x." } },
+  },
+  sections: {
+    a: {
+      bars: 8,
+      layers: [
+        { pattern: "hook" },
+        { pattern: "drums", intensity: [0.6, 1] },   // plays while the intensity is in [0.6, 1]
+      ],
+    },
+  },
+  arrangement: { intro: ["intro"], loop: ["a", "b"], outro: ["end"] },
+});
 ```
 
-- **Patches** (`[patch.<name>]`, or one of the 28 built-ins by name — `builtin_patches()`), each an engine:
+- **Patches** (`patches: { <name>: … }`, or one of the 28 built-ins by name — `builtin_patches()`), each an engine:
   - `analog`: band-limited saws, pulses (with PWM) or triangles, up to seven in unison, detuned and spread across the stereo field, with a sub an octave down and noise (pads, supersaws, leads, reese and pulse basses).
   - `fm`: two operators, the modulator's index falling from its attack to its sustain, with feedback (e-pianos, bells, plucks, basses).
   - `pluck`: a Karplus–Strong string, its delay tuned to its loop filter's phase delay and read with Hermite interpolation, so it is in tune from A2 to the top and can slide and wobble (koto, guzheng, harp).
@@ -107,15 +103,16 @@ The command line for people, agents and CI (D-61): JSON out and an exit code.
 
 ```sh
 cd modules/projects/xengine/audio
-mcpp run --release omui-music -- check piece.music.omui.toml           # problems, or its bars and seconds
-mcpp run --release omui-music -- render piece.music.omui.toml --out piece.wav --seconds 60 --intensity 0.3@0,0.9@30 [--solo lead,bass] [--float]
-mcpp run --release omui-music -- stats piece.music.omui.toml --seconds 60   # the mix and each instrument alone: loudness, bands, the limiter
-mcpp run --release omui-music -- fmt piece.music.omui.toml             # the one way it is written
+omui-gen snapshot piece.music.omui.ts --out piece.music.omui.json      # the JSON the tool reads (the module evaluated)
+mcpp run --release omui-music -- check piece.music.omui.json           # problems, or its bars and seconds
+mcpp run --release omui-music -- render piece.music.omui.json --out piece.wav --seconds 60 --intensity 0.3@0,0.9@30 [--solo lead,bass] [--float]
+mcpp run --release omui-music -- stats piece.music.omui.json --seconds 60   # the mix and each instrument alone: loudness, bands, the limiter
+mcpp run --release omui-music -- fmt piece.music.omui.json             # the one way it is written (JSON)
 ```
 
 `render` answers the WAV's hash, its levels, how hard the limiter worked and how many times faster than real time it rendered.
 
-The fighting game's stage themes are written this way: [study](../../../../showcase/fighting/music/study.music.omui.toml) (墨's) and [street](../../../../showcase/fighting/music/street.music.omui.toml) (霓's).
+The fighting game's stage themes are written this way: [study](../../../../showcase/fighting/music/study.music.omui.ts) (墨's) and [street](../../../../showcase/fighting/music/street.music.omui.ts) (霓's).
 
 ## Observability
 

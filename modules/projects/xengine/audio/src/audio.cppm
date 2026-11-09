@@ -5,9 +5,9 @@
 // every platform (a match's audio pinned like its pixels). Devices and
 // codecs are plugins (`xengine.audio.device`).
 //
-//   :mix    sounds (`*.sound.omui.toml`), effects, the mixer and its buses,
+//   :mix    sounds (`*.sound.omui.ts`), effects, the mixer and its buses,
 //           offline rendering, levels
-//   :music  instruments (patches), pieces (`*.music.omui.toml`) and the
+//   :music  instruments (patches), pieces (`*.music.omui.ts`) and the
 //           sequencer that plays them, adaptive by intensity
 export module xengine.audio;
 

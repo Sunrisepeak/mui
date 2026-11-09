@@ -26,7 +26,7 @@ struct DataOptions {
 };
 
 // What a data module evaluated to: the define function's kind ("contract",
-// "native", "ops", "theme", "style", "motion", "view", "config") and the value
+// "native", "ops", "theme", "sound", "music" …) and the value
 // as JSON text (keys in the module's order).
 struct Data {
     std::string kind;
@@ -36,8 +36,10 @@ struct Data {
 // The kinds the define functions make (D-157): the spec's formats from
 // "openmui/define", the implementation's from "omui/define".
 inline constexpr std::array<std::string_view, 3> spec_kinds{"contract", "native", "view"};
-inline constexpr std::array<std::string_view, 5> omui_kinds{"config", "ops", "theme", "style", "motion"};
-inline constexpr std::array<std::string_view, 8> data_kinds{"contract", "native", "view", "config", "ops", "theme", "style", "motion"};
+inline constexpr std::array<std::string_view, 12> omui_kinds{"config", "ops",      "theme",     "style", "motion", "sound",
+                                                              "music",  "timeline", "subtitles", "video", "effect", "behavior"};
+inline constexpr std::array<std::string_view, 15> data_kinds{"contract", "native", "view",     "config",    "ops",   "theme",  "style",   "motion",
+                                                             "sound",    "music",  "timeline", "subtitles", "video", "effect", "behavior"};
 
 // A data module's file (TypeScript, or JavaScript); a problem as `file:line:column: text` where it has a place.
 [[nodiscard]] std::expected<Data, std::string> evaluate(const std::filesystem::path& file, const DataOptions& options = {});

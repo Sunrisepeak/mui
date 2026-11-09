@@ -39,7 +39,7 @@ The simulation knows nothing of openmui. The field knows the simulation only thr
 
 Everything is made by code and data in this directory; there are no image files in the game.
 
-- **Sounds:** `sounds/breakout.sound.omui.toml`, synthesised by `xengine.audio` from layers of waves, envelopes and filters. A switch snaps, a capacitor charges a step higher each hit and its beam roars, the core knocks and powers down. A chain's pops climb a major pentatonic scale (exact ratios), a banked chain is a chord, a lost one slides down. They play on the step that made them, panned by where across the field.
+- **Sounds:** `sounds/breakout.sound.omui.ts`, synthesised by `xengine.audio` from layers of waves, envelopes and filters. A switch snaps, a capacitor charges a step higher each hit and its beam roars, the core knocks and powers down. A chain's pops climb a major pentatonic scale (exact ratios), a banked chain is a chord, a lost one slides down. They play on the step that made them, panned by where across the field.
 - **Pictures:** drawn each frame into the display list: plates, hatched shutters, wires, arrows, beams, sparks, rings. The components themselves are openmui's, in each room's style pack (glass, neon, ink, retro, liquid).
 - **Rooms:** `src/rooms.cpp`, tuned with the bots (§4).
 - **README media:** rendered headlessly by the tests. The loop is an animated WebP of room 1 played by the planner (`Headless::save_recording`, 640 × 360, 15 frames a second, about 220 KB). The stills are PNGs of a beam, the breakthrough, the X-ray and a casing open.

@@ -68,44 +68,18 @@ public:
     }
 };
 
-constexpr std::string_view file = R"(doc = "Two sounds: a punch and a bell."
-
-[sound.punch]
-gain = 0.9
-
-[[sound.punch.layer]]
-wave = "noise"
-length = 0.09
-envelope = { attack = 0.001, decay = 0.08, sustain = 0, release = 0.01 }
-filter = { kind = "lowpass", cutoff = [4000, 500], q = 0.8 }
-gain = 0.7
-seed = 7
-
-[[sound.punch.layer]]
-wave = "sine"
-length = 0.16
-pitch = [170, 55]
-envelope = { attack = 0.002, decay = 0.14, sustain = 0, release = 0.02 }
-drive = 0.3
-
-[sound.bell]
-bus = "music"
-
-[[sound.bell.layer]]
-wave = "sine"
-length = 1.2
-pitch = 660
-envelope = { attack = 0.003, decay = 1.1, sustain = 0, release = 0.05 }
-
-[[sound.bell.layer]]
-wave = "triangle"
-at = 0.01
-length = 0.8
-pitch = 1650
-envelope = { attack = 0.003, decay = 0.7, sustain = 0, release = 0.05 }
-gain = 0.3
-pan = 0.4
-)";
+// Two sounds, a punch and a bell, as their module evaluates to.
+constexpr std::string_view file = R"({"sound": {
+  "punch": {"gain": 0.9, "layers": [
+    {"wave": "noise", "length": 0.09, "envelope": {"attack": 0.001, "decay": 0.08, "sustain": 0, "release": 0.01},
+     "filter": {"kind": "lowpass", "cutoff": [4000, 500], "q": 0.8}, "gain": 0.7, "seed": 7},
+    {"wave": "sine", "length": 0.16, "pitch": [170, 55], "envelope": {"attack": 0.002, "decay": 0.14, "sustain": 0, "release": 0.02}, "drive": 0.3}
+  ]},
+  "bell": {"bus": "music", "layers": [
+    {"wave": "sine", "length": 1.2, "pitch": 660, "envelope": {"attack": 0.003, "decay": 1.1, "sustain": 0, "release": 0.05}},
+    {"wave": "triangle", "at": 0.01, "length": 0.8, "pitch": 1650, "envelope": {"attack": 0.003, "decay": 0.7, "sustain": 0, "release": 0.05}, "gain": 0.3, "pan": 0.4}
+  ]}
+}})";
 
 audio::Sound tone(float hz, float seconds, audio::Wave wave = audio::Wave::sine) {
     audio::Sound s{.name = std::format("tone{}", hz)};
@@ -190,8 +164,8 @@ UTest cases{"audio", [] {
         expect(ducked(true)==ducked(false)) << "gain automation and static gain leave the same pre-gain sidechain signal";
     };
 
-    "a sound file reads, and what is written reads back as itself; its problems at their line and column"_test = [] {
-        auto sounds = audio::read_sounds(file, "test.sound.omui.toml");
+    "a sound file reads, and what is written reads back as itself; its problems at their place"_test = [] {
+        auto sounds = audio::read_sounds(file, "test.sound.omui.json");
         expect(sounds.has_value()) << (sounds ? "" : sounds.error().front().text());
         if (!sounds) return;
         auto named = [&](std::string_view n) { return *std::ranges::find(*sounds, n, &audio::Sound::name); };  // by name: a file's sounds come in name order
@@ -201,17 +175,17 @@ UTest cases{"audio", [] {
         expect(thump.pitch[0] == 170 && thump.pitch[1] == 55 && thump.drive == 0.3f) << "the thump falls from 170 to 55 Hz";
         expect(near(named("punch").length(), 0.16, 1e-6));
         const std::string written = audio::write_sounds(*sounds);
-        auto again = audio::read_sounds(written, "written.sound.omui.toml");
+        auto again = audio::read_sounds(written, "written.sound.omui.json");
         expect(again && audio::write_sounds(*again) == written) << "written back as itself";
-        auto bad = audio::read_sounds("[sound.x]\n[[sound.x.layer]]\nwave = \"sqaure\"\nptich = 3\nlength = -1\n", "bad.sound.omui.toml");
+        auto bad = audio::read_sounds("{\"sound\": {\"x\": {\"layers\": [\n  {\"wave\": \"sqaure\", \"ptich\": 3, \"length\": -1}\n]}}}", "bad.sound.omui.json");
         expect(!bad.has_value());
         if (bad) return;
         std::vector<std::string> texts;
         for (const auto& p : bad.error()) texts.push_back(p.text());
         auto has = [&](std::string_view t) { return std::ranges::any_of(texts, [&](const std::string& x) { return x == t; }); };
-        expect(has("bad.sound.omui.toml:3:8: `sqaure` is not a wave (sine, triangle, square, saw, noise, recording) (did you mean `square`?)")) << std::format("{}", texts);
-        expect(has("bad.sound.omui.toml:4:1: sound `x`'s layer has no key `ptich` (did you mean `pitch`?)")) << std::format("{}", texts);
-        expect(has("bad.sound.omui.toml:5:10: a layer's `length` (seconds) is 0.001–60, not -1")) << std::format("{}", texts);
+        expect(has("bad.sound.omui.json:2:12: /sound/x/layers/0/wave: `sqaure` is not a wave (sine, triangle, square, saw, noise, recording) (did you mean `square`?)")) << std::format("{}", texts);
+        expect(has("bad.sound.omui.json:2:31: /sound/x/layers/0/ptich: sound `x`'s layer has no key `ptich` (did you mean `pitch`?)")) << std::format("{}", texts);
+        expect(has("bad.sound.omui.json:2:44: /sound/x/layers/0/length: a layer's `length` (seconds) is 0.001–60, not -1")) << std::format("{}", texts);
     };
 
     "a recording plays as recorded, faster and slower, at another rate; a WAV read back; a recording's layer read and written back"_test = [] {
@@ -255,14 +229,14 @@ UTest cases{"audio", [] {
         expect(f_err < 1e-7 && i_err < 1.0 / 32768) << std::format("float off by {}, 16-bit by {}", f_err, i_err);
         expect(!audio::read_wav(std::as_bytes(std::span(std::string_view("not a wave file at all")))).has_value()) << "not a WAV";
         // The file's words for it.
-        const std::string_view text = "[sound.voice]\n[[sound.voice.layer]]\nwave = \"recording\"\nrecording = \"fight\"\nspeed = [1, 0.9]\nfilter = { kind = \"highpass\", cutoff = 120 }\n";
-        auto voice = audio::read_sounds(text, "voice.sound.omui.toml");
+        const std::string_view text = R"({"sound": {"voice": {"layers": [{"wave": "recording", "recording": "fight", "speed": [1, 0.9], "filter": {"kind": "highpass", "cutoff": 120}}]}}})";
+        auto voice = audio::read_sounds(text, "voice.sound.omui.json");
         expect(voice && voice->front().layers[0].recording == "fight" && voice->front().layers[0].speed[1] == 0.9f && voice->front().layers[0].length == 0) << "read";
         if (!voice) return;
         const std::string written = audio::write_sounds(*voice);
-        auto again = audio::read_sounds(written, "written.sound.omui.toml");
+        auto again = audio::read_sounds(written, "written.sound.omui.json");
         expect(again && audio::write_sounds(*again) == written) << written;
-        auto bad = audio::read_sounds("[sound.x]\n[[sound.x.layer]]\nwave = \"recording\"\n[[sound.x.layer]]\nwave = \"sine\"\nspeed = 2\n", "bad.sound.omui.toml");
+        auto bad = audio::read_sounds(R"({"sound": {"x": {"layers": [{"wave": "recording"}, {"wave": "sine", "speed": 2}]}}})", "bad.sound.omui.json");
         expect(!bad.has_value() && bad.error().size() == 2) << "a recording's layer without its recording; speed on a sine";
     };
 
@@ -354,7 +328,7 @@ UTest cases{"audio", [] {
     };
 
     "nothing is allocated while playing and rendering"_test = [] {
-        auto sounds = *audio::read_sounds(file, "test.sound.omui.toml");
+        auto sounds = *audio::read_sounds(file, "test.sound.omui.json");
         audio::Mixer m;
         std::vector<std::int32_t> ids;
         for (const auto& snd : sounds) ids.push_back(m.add(snd));
@@ -388,7 +362,7 @@ UTest cases{"audio", [] {
     };
 
     "a scene rendered offline — punches, a bell, an echo on the effects — is the same bits everywhere; a WAV of it"_test = [] {
-        auto sounds = *audio::read_sounds(file, "test.sound.omui.toml");  // the bell, then the punch (name order)
+        auto sounds = *audio::read_sounds(file, "test.sound.omui.json");  // the bell, then the punch (name order)
         audio::Mixer m;
         const auto bell = m.add(sounds[0]), punch = m.add(sounds[1]);
         m.add_effect("sfx", audio::echo(0.09f, 0.3f, 0.25f, 48000));

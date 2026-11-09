@@ -1,5 +1,5 @@
 // openmui.showcase.widget_breakout:sound — what the breakout sounds like
-// (sounds/breakout.sound.omui.toml). Each brick sounds as the component it
+// (sounds/breakout.sound.omui.ts). Each brick sounds as the component it
 // is — a button's click, a switch's snap, a capacitor charging a step higher
 // each hit and its beam's roar; a broken brick pops a note further up a
 // pentatonic scale the longer the chain, so a chain is a run of notes; a
@@ -10,7 +10,7 @@
 // offline (tests, a video's track) on the step's very sample, live a block
 // ahead of the device. Seeking back is silent; played on from there, the new
 // branch is heard after what was (the sound's time only goes forward). Under
-// them, the panel's theme (music/haunt.music.omui.toml): a music box in F#
+// them, the panel's theme (music/haunt.music.omui.ts): a music box in F#
 // minor, the chain's pentatonic notes its own; its intensity rises with the
 // chain, the last ball and several in the air, from the next bar.
 export module omui.showcase.widget_breakout:sound;

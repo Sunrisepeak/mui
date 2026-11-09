@@ -63,6 +63,9 @@ std::string Diagnostics::json() const {
 namespace {
 
 // Words about the data, not data (D-159: a JSON snapshot keeps its comments as doc, note and <key>_doc).
+// The words a JSON snapshot keeps beside a map's entries (D-159): `doc`,
+// `note`, `<entry>_doc`, as text. Where an entry is a table, a name is never
+// taken for words; in a map of arguments to types only `<entry>_doc` is.
 bool documentation(std::string_view key) { return key == "doc" || key == "note" || key.ends_with("_doc"); }
 
 struct Reader {
@@ -145,7 +148,7 @@ struct Reader {
             return out;
         }
         for (auto&& [k, v] : *m) {
-            if (documentation(k.str())) continue;
+            if (k.str().ends_with("_doc")) continue;  // `doc` and `note` are arguments' names here
             if (auto s = v.value<std::string>()) out.push_back({std::string(k.str()), *s});
             else diags.error(loc(&v), "an argument type must be a string");
         }
@@ -521,7 +524,7 @@ std::vector<Contract> read_contracts(const std::filesystem::path& file, const Re
         return out;
     }
     for (auto&& [key, node] : *contracts) {
-        if (documentation(key.str())) continue;
+        if (documentation(key.str()) && node.is_string()) continue;
         const toml::table* t = node.as_table();
         if (!t) continue;
         Contract c;
@@ -541,7 +544,7 @@ std::vector<Contract> read_contracts(const std::filesystem::path& file, const Re
 
         if (const toml::table* props = (*t)["props"].as_table()) {
             for (auto&& [pk, pv] : *props) {
-                if (documentation(pk.str())) continue;
+                if (documentation(pk.str()) && pv.is_string()) continue;
                 const toml::table* pt = pv.as_table();
                 Prop p;
                 p.name = std::string(pk.str());
@@ -594,7 +597,7 @@ std::vector<Contract> read_contracts(const std::filesystem::path& file, const Re
 
         if (const toml::table* events = (*t)["events"].as_table()) {
             for (auto&& [ek, ev] : *events) {
-                if (documentation(ek.str())) continue;
+                if (documentation(ek.str()) && ev.is_string()) continue;
                 Event e;
                 e.name = std::string(ek.str());
                 e.loc = r.loc(&ev);
@@ -614,7 +617,7 @@ std::vector<Contract> read_contracts(const std::filesystem::path& file, const Re
 
         if (const toml::table* actions = (*t)["actions"].as_table()) {
             for (auto&& [ak, av] : *actions) {
-                if (documentation(ak.str())) continue;
+                if (documentation(ak.str()) && av.is_string()) continue;
                 ContractAction a;
                 a.name = std::string(ak.str());
                 a.loc = r.loc(&av);
@@ -654,7 +657,7 @@ std::vector<Contract> read_contracts(const std::filesystem::path& file, const Re
 
         if (const toml::table* commands = (*t)["commands"].as_table()) {
             for (auto&& [ck, cv] : *commands) {
-                if (documentation(ck.str())) continue;
+                if (documentation(ck.str()) && cv.is_string()) continue;
                 Command cmd;
                 cmd.name = std::string(ck.str());
                 cmd.loc = r.loc(&cv);
@@ -665,7 +668,7 @@ std::vector<Contract> read_contracts(const std::filesystem::path& file, const Re
 
         if (const toml::table* keys = (*t)["keys"].as_table()) {
             for (auto&& [kk, kv] : *keys) {
-                if (documentation(kk.str())) continue;
+                if (documentation(kk.str()) && kv.is_string()) continue;
                 Key k{std::string(kk.str()), kv.value<std::string>().value_or(""), r.loc(&kv)};
                 std::string base = base_target(k.target);
                 bool known = std::ranges::any_of(c.actions, [&](const ContractAction& a) { return a.name == base; }) ||
@@ -680,7 +683,7 @@ std::vector<Contract> read_contracts(const std::filesystem::path& file, const Re
 
         if (const toml::table* parts = (*t)["parts"].as_table()) {
             for (auto&& [pk, pv] : *parts) {
-                if (documentation(pk.str())) continue;
+                if (documentation(pk.str()) && pv.is_string()) continue;
                 Part p;
                 p.name = std::string(pk.str());
                 p.loc = r.loc(&pv);
@@ -690,7 +693,7 @@ std::vector<Contract> read_contracts(const std::filesystem::path& file, const Re
 
         if (const toml::table* motion = (*t)["motion"].as_table()) {
             for (auto&& [mk, mv] : *motion) {
-                if (documentation(mk.str())) continue;
+                if (documentation(mk.str()) && mv.is_string()) continue;
                 Motion m{std::string(mk.str()), mv.value<std::string>().value_or(""), r.loc(&mv)};
                 if (m.token != "decay" && !Registry::find(reg.motion_tokens, m.token))
                     diags.error(m.loc, std::format("motion of `{}` names unknown token `{}`", m.part, m.token),
@@ -743,7 +746,7 @@ std::vector<NativeParam> native_params(const Reader& r, const toml::table& t, st
         return out;
     }
     for (auto&& [k, v] : *m) {
-        if (documentation(k.str())) continue;
+        if (documentation(k.str()) && v.is_string()) continue;
         NativeParam p;
         p.name = std::string(k.str());
         p.loc = r.loc(&v);
@@ -778,7 +781,7 @@ std::vector<NativeModule> read_natives(const std::filesystem::path& file, const 
         return out;
     }
     for (auto&& [key, node] : *natives) {
-        if (documentation(key.str())) continue;
+        if (documentation(key.str()) && node.is_string()) continue;
         const toml::table* t = node.as_table();
         if (!t) continue;
         NativeModule m;
@@ -794,7 +797,7 @@ std::vector<NativeModule> read_natives(const std::filesystem::path& file, const 
             for (auto&& [tk, tv] : *types) records.emplace(tk.str());
         if (const toml::table* types = (*t)["types"].as_table()) {
             for (auto&& [tk, tv] : *types) {
-                if (documentation(tk.str())) continue;
+                if (documentation(tk.str()) && tv.is_string()) continue;
                 NativeType ty;
                 ty.name = std::string(tk.str());
                 ty.loc = r.loc(&tv);
@@ -815,7 +818,7 @@ std::vector<NativeModule> read_natives(const std::filesystem::path& file, const 
         }
         if (const toml::table* functions = (*t)["functions"].as_table()) {
             for (auto&& [fk, fv] : *functions) {
-                if (documentation(fk.str())) continue;
+                if (documentation(fk.str()) && fv.is_string()) continue;
                 NativeFunction f;
                 f.name = std::string(fk.str());
                 f.loc = r.loc(&fv);

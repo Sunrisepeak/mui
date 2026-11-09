@@ -25,6 +25,7 @@ omui.core   = { path = "../core" }
 omui.view   = { path = "../view" }
 hanim.core          = { path = "../../hanim/core" }
 xrender.vector = { path = "../../xrender/vector" }
+mlibs.json     = { path = "../../../base/json" }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.5.0"

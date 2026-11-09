@@ -4,6 +4,7 @@
 module omui.theme;
 
 import std;
+import mlibs.json;
 import omui.core;
 import omui.view;
 import xrender.vector;
@@ -22,36 +23,11 @@ constexpr std::array<std::string_view, 12> style_keys{"doc",    "theme",   "cros
                                                       "text",   "spacing", "radius",    "shadows", "motion", "corner_smoothing"};
 constexpr std::array<std::string_view, 5> effect_control_keys{"effect", "duration", "delay", "ease", "transition"};
 
-std::size_t distance(std::string_view a, std::string_view b) {
-    std::vector<std::size_t> row(b.size() + 1);
-    std::iota(row.begin(), row.end(), std::size_t{0});
-    for (std::size_t i = 1; i <= a.size(); ++i) {
-        std::size_t prev = row[0];
-        row[0] = i;
-        for (std::size_t j = 1; j <= b.size(); ++j) {
-            const std::size_t cur = row[j];
-            row[j] = std::min({row[j] + 1, row[j - 1] + 1, prev + (a[i - 1] == b[j - 1] ? 0 : 1)});
-            prev = cur;
-        }
-    }
-    return row[b.size()];
-}
+using mlibs::json::distance;
 
 template <std::size_t N>
 std::string did_you_mean(std::string_view name, const std::array<std::string_view, N>& options) {
-    std::string_view best;
-    // Within a third of the name, and never a whole one-letter name: `l` is
-    // not a typo of `s`.
-    std::size_t d = std::min(std::max<std::size_t>(1, name.size() / 3) + 1, name.size());
-    for (std::string_view o : options)
-        if (const std::size_t x = distance(name, o); x < d) {
-            d = x;
-            best = o;
-        }
-    if (!best.empty()) return std::format("did you mean `{}`?", best);
-    std::string all;
-    for (std::string_view o : options) all += std::format("{}{}", all.empty() ? "" : " ", o);
-    return std::format("the keys are: {}", all);
+    return mlibs::json::nearest(name, options);
 }
 
 // A place in the document: its value and its JSON pointer.
@@ -87,6 +63,12 @@ struct At {
         std::vector<std::pair<std::string, At>> out;
         if (const Value::Map* m = map())
             for (const auto& [key, _] : *m) out.emplace_back(key, (*this)[key]);
+        return out;
+    }
+    // By key: a style's rules and motions do not depend on the order a file writes them in.
+    [[nodiscard]] std::vector<std::pair<std::string, At>> members_by_key() const {
+        auto out = members();
+        std::ranges::stable_sort(out, {}, &std::pair<std::string, At>::first);
         return out;
     }
 };
@@ -392,7 +374,7 @@ std::expected<std::vector<Style>, Diagnostics> read_styles(std::string_view sour
         if (auto e = t["effects"]) {
             if (!e.map()) r.error(e, "`effects` must be an object", R"(window: { effect: "crt", curvature: 0.08 })");
             else
-                for (const auto& [selector, rule] : e.members()) {
+                for (const auto& [selector, rule] : e.members_by_key()) {
                     if (!rule.map()) {
                         r.error(rule, std::format("the effect for `{}` must be an object", selector), R"({ effect: "neon", radius: 12 })");
                         continue;
@@ -414,7 +396,7 @@ std::expected<std::vector<Style>, Diagnostics> read_styles(std::string_view sour
                     }
                     const xrender::EffectInfo* info = xrender::effects().info(*ref);
                     Value effect = Value{}.set("name", Value(*effect_name));
-                    for (const auto& [param, pv] : rule.members()) {
+                    for (const auto& [param, pv] : rule.members_by_key()) {
                         if (param == "effect") continue;
                         if (param == "ease" || param == "usage") {
                             if (auto text = pv.text()) effect.set(param, Value(*text));
@@ -481,7 +463,7 @@ std::expected<std::vector<Style>, Diagnostics> read_styles(std::string_view sour
                 r.error(m, "`motions` must be an object", R"(update: "liquid" (a slot's motion), "role:dialog": { enter: "spring" })");
             } else {
                 auto slot_name = [](std::string_view k) { return std::ranges::find(motion_slots, k) != motion_slots.end(); };
-                for (const auto& [key, v] : m.members()) {
+                for (const auto& [key, v] : m.members_by_key()) {
                     if (slot_name(key)) {
                         st.motions.push_back({"", key, *v.value});
                         continue;
@@ -491,7 +473,7 @@ std::expected<std::vector<Style>, Diagnostics> read_styles(std::string_view sour
                                 "update, enter, exit, state, reorder, replace");
                         continue;
                     }
-                    for (const auto& [slot, sv] : v.members()) {
+                    for (const auto& [slot, sv] : v.members_by_key()) {
                         if (!slot_name(slot)) {
                             r.error(sv, std::format("`{}` is not a slot", slot), "update, enter, exit, state, reorder, replace");
                             continue;

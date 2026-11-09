@@ -123,7 +123,7 @@ kind = "audio"
 
 [[track.clip]]
 name = "score"
-source = "music/promo.music.omui.toml"
+source = "music/promo.music.omui.json"
 at = "0f"
 length = "15s"
 in = "19s"

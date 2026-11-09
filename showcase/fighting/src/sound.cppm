@@ -1,13 +1,13 @@
 // openmui.showcase.fighting:sound — what the fight sounds like. Each contact's
 // impact profile (in the attacker's look; a pane's in its owner's) names up
-// to three sounds — attack, body, tail — from sounds/fight.sound.omui.toml;
+// to three sounds — attack, body, tail — from sounds/fight.sound.omui.ts;
 // they play on the frame the simulation made them, panned by where on the
 // stage, louder for more damage, and a super's flash has its sweep. Kinds a
 // look leaves silent have their own (a clash's clang, a deflect's ping, glass
 // for panes). Offline (no device: tests, a video's track) a sound starts on
 // its frame's very sample, so a match's sound is as determined as its pixels;
 // heard live it starts a block ahead of the device. The menus use it too:
-// their cues (sounds/menu.sound.omui.toml) and the main theme.
+// their cues (sounds/menu.sound.omui.ts) and the main theme.
 export module omui.showcase.fighting:sound;
 
 import std;
@@ -46,7 +46,7 @@ public:
 private:
     void play(std::string_view name, std::int64_t at, float gain, float pan);
 
-    // A fighter's voice (sounds/fighters.sound.omui.toml, by its look's name): what it says hurt, falling, striking.
+    // A fighter's voice (sounds/fighters.sound.omui.ts, by its look's name): what it says hurt, falling, striking.
     struct Voice {
         std::vector<std::int32_t> hurt, effort;
         std::int32_t              ko = -1;

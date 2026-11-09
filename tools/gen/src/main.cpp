@@ -17,6 +17,8 @@
 //       and its TypeScript stubs (component-binding §8)
 //   omui-gen embed <file> --module <m> --name <partition> --out <dir> [--namespace ns] [--check]
 //       (a data module, <name>.<kind>.omui.ts, is carried as its JSON, <name>.<kind>.omui.json)
+//   omui-gen snapshot <file.omui.ts> [--out file.omui.json]
+//       what a data module stands for: its JSON snapshot
 //   omui-gen embed-index <file>=<partition>… --module <m> --name <partition> --out <dir> [--namespace ns] [--check]
 //       a data file (a theme) as a partition holding its text
 //   omui-gen check <file.contract.omui.toml or .native.omui.toml>... --registry <dir> [--json]
@@ -403,6 +405,27 @@ int run_contracts(const Options& o, bool emit) {
 
 }  // namespace
 
+// omui-gen snapshot: a data module's JSON, to standard output or a file.
+int snapshot_main(const mcpplibs::cmdline::ParsedArgs& args) {
+    auto evaluated = snapshot(std::filesystem::path(args.positional(0)));
+    if (!evaluated) {
+        std::println(std::cerr, "omui-gen snapshot: {}", evaluated.error());
+        return 1;
+    }
+    const auto out = args.value("out");
+    if (!out) {
+        std::print("{}", evaluated->json);
+        return 0;
+    }
+    std::ofstream file(std::filesystem::path(*out), std::ios::binary);
+    file << evaluated->json;
+    if (!file) {
+        std::println(std::cerr, "omui-gen snapshot: cannot write {}", *out);
+        return 1;
+    }
+    return 0;
+}
+
 // omui-gen wasm-size: the report on stdout (Markdown), and as files when asked.
 int wasm_size_main(const mcpplibs::cmdline::ParsedArgs& args) {
     const std::string file = args.positional(0), json = args.value("json").value_or(""), markdown = args.value("markdown").value_or("");
@@ -495,6 +518,10 @@ mcpplibs::cmdline::App command_line() {
         .subcommand(App("embed")
                         .description("a data file as a partition holding its text")
                         .arg(Arg("file").required()).option(module).option(name).option(out).option(space).option(check))
+        .subcommand(App("snapshot")
+                        .description("what a data module (*.omui.ts) stands for: its JSON snapshot, the form the readers read (D-139)")
+                        .arg(Arg("file").required().help("<name>.<kind>.omui.ts"))
+                        .option(Option("out").takes_value().value_name("FILE").help("write it there (default: standard output; <name>.<kind>.omui.json is its name)")))
         .subcommand(App("embed-index")
                         .description("a table of embedded files, by name")
                         .arg(Arg("file=partition").help("FILE=PARTITION… (none: an empty table)")).option(module).option(name).option(out).option(space).option(check))
@@ -560,6 +587,7 @@ int main(int argc, char** argv) {
     const std::string command(parsed->subcommand_name());
     const mcpplibs::cmdline::ParsedArgs& args = parsed->subcommand()->get();
     if (command == "ops") return ops_main(args);
+    if (command == "snapshot") return snapshot_main(args);
     if (command == "dist-toy") return dist_toy_main(args);
     if (command == "dist-toy-split") return dist_toy_split_main(args);
     if (command == "wasm-size") return wasm_size_main(args);

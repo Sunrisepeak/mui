@@ -5,6 +5,7 @@
 module xengine.audio:detail;
 
 import std;
+import mlibs.json;
 import :mix;
 import :music;
 
@@ -14,6 +15,9 @@ namespace xengine::audio::detail {
 [[nodiscard]] std::size_t distance(std::string_view a, std::string_view b);
 // "did you mean `x`?" when one is close, else "one of `a`, `b`, …".
 [[nodiscard]] std::string nearest(std::string_view name, std::span<const std::string_view> options);
+
+// A problem with a file's JSON as this library reports it.
+[[nodiscard]] Problem problem_of(const mlibs::json::Problem& problem);
 
 // A problem at `offset` in a pattern's text.
 struct TextProblem {

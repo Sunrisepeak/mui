@@ -190,6 +190,177 @@ export interface Style extends Tokens {
 /** `export default defineStyle({ neon: { theme: "dark", effects: { button: { effect: "neon", radius: 12 } } } })`. */
 export declare function defineStyle(styles: { [name: string]: Style }): Defined<"style">;
 
+// ── sound and music (xengine.audio) ─────────────────────────────────────
+
+/** A number, or [from, to] over the layer's length. */
+export type Glide = number | [number, number];
+/** One source of a sound: an oscillator, noise or a recording, shaped. */
+export interface SoundLayer {
+    wave?: "sine" | "triangle" | "square" | "saw" | "noise" | "recording";
+    /** Seconds after the sound starts. */
+    at?: number;
+    /** Seconds. */
+    length?: number;
+    /** Hz. */
+    pitch?: Glide;
+    envelope?: { attack?: number; hold?: number; decay?: number; sustain?: number; release?: number };
+    filter?: { kind?: "lowpass" | "highpass" | "bandpass"; cutoff?: Glide; q?: number };
+    gain?: number;
+    pan?: number;
+    drive?: number;
+    seed?: number;
+    /** A recording's layer: its name, and its speed (1: as recorded). */
+    recording?: string;
+    speed?: Glide;
+    doc?: string;
+    name?: string;
+}
+export interface Sound {
+    gain?: number;
+    bus?: string;
+    layers: SoundLayer[];
+    doc?: string;
+}
+/** `export default defineSound({ hit: { layers: [{ wave: "noise", length: 0.1 }] } })`. */
+export declare function defineSound(sounds: { [name: string]: Sound }): Defined<"sound">;
+
+export interface Adsr {
+    attack?: number;
+    decay?: number;
+    sustain?: number;
+    release?: number;
+}
+/** How an instrument sounds: a built-in patch shaded (`base`), or an engine's own. */
+export interface Patch {
+    base?: string;
+    engine?: "analog" | "fm" | "pluck" | "drum";
+    gain?: number;
+    glide?: number;
+    drive?: number;
+    amp?: Adsr;
+    osc?: { wave?: "sine" | "triangle" | "square" | "saw" | "noise"; unison?: number; detune?: number; spread?: number; width?: number; pwm?: number; pwm_rate?: number; sub?: number; noise?: number };
+    fm?: { ratio?: number; index?: number; sustain?: number; decay?: number; feedback?: number };
+    pluck?: { brightness?: number; decay?: number; pick?: number };
+    drum?: { tone?: number; pitch?: number; from?: number; sweep?: number; decay?: number; modes?: number; noise?: number; noise_decay?: number; metal?: number; click?: number; bursts?: number };
+    filter?: Adsr & { kind?: "none" | "lowpass" | "highpass" | "bandpass"; cutoff?: number; q?: number; envelope?: number; keytrack?: number };
+    vibrato?: { depth?: number; rate?: number; delay?: number };
+    doc?: string;
+}
+export interface Instrument {
+    patch: string;
+    bus?: string;
+    gain?: number;
+    pan?: number;
+    legato?: number;
+    humanize?: number;
+    transpose?: number;
+    voices?: number;
+    /** A level for each bus it sends to. */
+    sends?: { [bus: string]: number };
+    /** Open (`x`) and shut (`.`) sixteenths. */
+    gate?: string;
+    choke?: string;
+    doc?: string;
+}
+export type MusicEffect =
+    | { kind: "lowpass" | "highpass" | "bandpass"; cutoff?: number; q?: number; wet?: number; dry?: number }
+    | { kind: "echo"; time?: number; beats?: number; feedback?: number; pingpong?: boolean; wet?: number; dry?: number }
+    | { kind: "reverb"; size?: number; damping?: number; width?: number; predelay?: number; wet?: number; dry?: number }
+    | { kind: "chorus"; delay?: number; depth?: number; rate?: number; voices?: number; wet?: number; dry?: number };
+export interface Bus {
+    to?: string;
+    gain?: number;
+    effects?: MusicEffect[];
+    /** Ducked under another bus (a kick under the bass). */
+    duck?: { key: string; depth?: number; threshold?: number; attack?: number; release?: number };
+    doc?: string;
+}
+/** Notes as text ("D5 . F5 G5 | A5:2"), or a lane of steps an instrument ("x...x..."). */
+export interface Pattern {
+    instrument?: string;
+    notes?: string;
+    lanes?: { [instrument: string]: string };
+    /** A note: "1/16", "1/12" (triplets) … */
+    step?: string;
+    swing?: number;
+    doc?: string;
+}
+export interface MusicLayer {
+    pattern: string;
+    instrument?: string;
+    /** It plays while the intensity is in [from, to). */
+    intensity?: [number, number];
+    at?: number;
+    times?: number;
+    transpose?: number;
+    gain?: number;
+}
+export interface Section {
+    bars: number;
+    layers?: MusicLayer[];
+    doc?: string;
+}
+export interface Music {
+    doc?: string;
+    name?: string;
+    /** Beats a minute. */
+    tempo?: number;
+    /** [beats in a bar, the beat's note]. */
+    meter?: [number, number];
+    gain?: number;
+    patches?: { [name: string]: Patch };
+    instruments?: { [name: string]: Instrument };
+    buses?: { [name: string]: Bus };
+    patterns?: { [name: string]: Pattern };
+    sections?: { [name: string]: Section };
+    arrangement: { intro?: string[]; loop: string[]; outro?: string[] };
+}
+/** `export default defineMusic({ name: "study", tempo: 128, instruments: {…}, …, arrangement: { loop: ["a"] } })`. */
+export declare function defineMusic(piece: Music): Defined<"music">;
+
+// ── timelines and subtitles (xengine.timeline) ──────────────────────────
+
+/** A time: "90f" (frames), "1.5s", "250ms", "123fl" (flicks), or a number of seconds. */
+export type Time = string | number;
+/** A key of a property: [time, value], or [time, value, ease] ("out_cubic", "cubic-bezier(…)", "hold"). */
+export type Key = [Time, number] | [Time, number, string];
+export interface Clip {
+    name?: string;
+    /** What it shows or plays: a file, "shot:<name>", "line:<id>" … */
+    source?: string;
+    at?: Time;
+    length: Time;
+    /** Where in its source it begins. */
+    in?: Time;
+    speed?: number;
+    level?: number;
+    fade?: { in?: Time; out?: Time; ease?: string };
+    properties?: { name: string; keys: Key[] }[];
+    doc?: string;
+}
+export interface Track {
+    name?: string;
+    kind?: "video" | "audio" | "animation" | "events";
+    muted?: boolean;
+    clips?: Clip[];
+    doc?: string;
+}
+export interface Timeline {
+    doc?: string;
+    name?: string;
+    /** Frames a second, or "30000/1001". */
+    rate?: number | string;
+    sample_rate?: number;
+    /** [width, height]. */
+    size?: [number, number];
+    markers?: { at: Time; name: string }[];
+    tracks?: Track[];
+}
+/** `export default defineTimeline({ name: "promo", rate: 60, tracks: [{ name: "picture", kind: "video", clips: […] }] })`. */
+export declare function defineTimeline(timeline: Timeline): Defined<"timeline">;
+/** A film's lines, each in both languages. */
+export declare function defineSubtitles(subtitles: { doc?: string; lines: { [id: string]: { zh: string; en: string } } }): Defined<"subtitles">;
+
 // ── motion recipes ───────────────────────────────────────────────────────
 
 export declare function defineMotion(motion: { [field: string]: unknown }): Defined<"motion">;

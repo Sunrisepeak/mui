@@ -40,11 +40,11 @@ void hear_with(std::function<std::shared_ptr<void>(Sounds&)> open) { hook() = st
 const std::function<std::shared_ptr<void>(Sounds&)>& hearing() { return hook(); }
 
 Sounds::Sounds() : mixer_(std::make_unique<xengine::audio::Mixer>()) {
-    auto sounds = xengine::audio::read_sounds(files::breakout_sound, "breakout.sound.omui.toml");
+    auto sounds = xengine::audio::read_sounds(files::breakout_sound, "breakout.sound.omui.json");
     if (sounds)
         for (const auto& s : *sounds) mixer_->add(s);
     mixer_->add_effect("sfx", xengine::audio::echo(0.08f, 0.18f, 0.15f, mixer_->rate()));  // a small room
-    if (auto music = xengine::audio::read_music(files::haunt_music, "haunt.music.omui.toml"))
+    if (auto music = xengine::audio::read_music(files::haunt_music, "haunt.music.omui.json"))
         if (auto seq = xengine::audio::Sequencer::attach(*music, *mixer_)) theme_ = std::move(*seq);
 }
 

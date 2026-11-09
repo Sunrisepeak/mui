@@ -18,7 +18,7 @@ int main() {
     const bool fighters = gongfu::rules::fighters({.module = "omui.showcase.fighting", .ns = "omui::fighting::files"});
     // What the fight sounds like (xengine.audio).
     const bool sounds = omui::build::embed({.module = "omui.showcase.fighting", .ns = "omui::fighting::files", .dir = "sounds",
-                                               .suffix = ".sound.omui.toml", .tag = "sound"});
+                                               .suffix = ".sound.omui.ts", .tag = "sound"});
     // The stages' art (gongfu.present2d's stage files).
     const bool stages = omui::build::embed({.module = "omui.showcase.fighting", .ns = "omui::fighting::files", .dir = "stages",
                                                .suffix = ".stage.gongfu.toml", .tag = "stage", .index = true, .left_out = !arenas});
@@ -35,7 +35,7 @@ int main() {
                                             .suffix = ".webp", .tag = "hud", .index = true});
     // The stages' music (xengine.audio's pieces).
     const bool music = omui::build::embed({.module = "omui.showcase.fighting", .ns = "omui::fighting::files", .dir = "music",
-                                              .suffix = ".music.omui.toml", .tag = "music", .index = true, .left_out = !arenas});
+                                              .suffix = ".music.omui.ts", .tag = "music", .index = true, .left_out = !arenas});
     // The announcer's recordings (voice/*.wav, Kenney's CC0 Voiceover Pack: Fighter).
     const bool voice = omui::build::embed({.module = "omui.showcase.fighting", .ns = "omui::fighting::files", .dir = "voice",
                                               .suffix = ".wav", .tag = "voice", .index = true, .left_out = !arenas});

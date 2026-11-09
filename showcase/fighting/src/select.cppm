@@ -71,7 +71,7 @@ private:
     std::map<std::string, gongfu::present2d::Stage, std::less<>> stages_;  // the homes' art, bound
     std::array<std::optional<std::uint32_t>, 2> pads_{};     // the gamepad in each seat
     std::array<float, 2>              stick_{};               // each pad's left stick across (a move on a push past half)
-    Sounds                            sounds_;                // the main theme and the cues (sounds/menu.sound.omui.toml)
+    Sounds                            sounds_;                // the main theme and the cues (sounds/menu.sound.omui.ts)
     std::shared_ptr<void>             heard_;                 // the program's device on sounds_ (let go first)
     std::int32_t                      heard_from_ = 0;        // the frame the theme was last started on (the cues' frame 0)
     mutable gongfu::present2d::Painter painter_;

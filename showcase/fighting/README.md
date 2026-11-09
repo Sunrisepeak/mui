@@ -43,7 +43,7 @@ The feature `art-later` (off by default) matters only on the Web. There the figh
   - `fighters/<name>.boxes.gongfu.toml` holds its hurtboxes, baked from the look's animation by `gongfu-studio bake`. The build (`gongfu.rules`) refuses a stale one, and training draws them: a jab's arm can be hit.
 
   A file that does not read appears in the stage's semantic value with the problem's line and column; the program doesn't crash.
-- **The fight is heard** (`xengine.audio`). Each impact profile in a look names its sounds — attack, body, tail — from `sounds/fight.sound.omui.toml`.
+- **The fight is heard** (`xengine.audio`). Each impact profile in a look names its sounds — attack, body, tail — from `sounds/fight.sound.omui.ts`.
   - The library has shared thuds, cracks, blocks and booms, and each fighter's own: ink for 墨, neon for 霓, glass for 璃, the mountain for 岳, the clock for 刻.
   - Sounds play on the frame the simulation made them, panned by where on the stage and louder for more damage. A super's flash has its sweep.
   - `omui-fight` hears them through the system's output (`xengine.audio.device`); headless or with `--quiet`, nothing is heard.

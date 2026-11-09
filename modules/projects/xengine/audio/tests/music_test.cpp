@@ -46,140 +46,46 @@ namespace {
 // chord, an FM bell, a pad pumping under its kick, drum lanes with a choke,
 // a gated pad, a reverb and a ping-pong echo, an intro, a loop of two
 // sections with layers by intensity, and an outro.
-constexpr std::string_view piece = R"(doc = """A test piece: every part of the format once."""
-
-[music]
-name = "test"
-tempo = 140
-meter = [4, 4]
-gain = 0.4
-
-[patch.lead]
-base = "koto"
-pluck = { decay = 1.5 }
-gain = 0.9
-
-[patch.warm]
-engine = "analog"
-osc = { wave = "saw", unison = 3, detune = 15, spread = 0.7 }
-amp = { attack = 0.05, decay = 0.5, sustain = 0.8, release = 0.4 }
-filter = { kind = "lowpass", cutoff = 1200, q = 0.7, envelope = 1, attack = 0.1, decay = 0.5, sustain = 0.3, release = 0.4 }
-
-[instrument.lead]
-patch = "lead"
-gain = 0.7
-pan = -0.2
-sends = { echo = 0.2, room = 0.3 }
-
-[instrument.bell]
-patch = "bell"
-gain = 0.3
-pan = 0.3
-sends = { room = 0.4 }
-
-[instrument.pad]
-patch = "warm"
-bus = "pads"
-gain = 0.35
-voices = 6
-sends = { room = 0.3 }
-
-[instrument.gated]
-patch = "warm"
-gain = 0.2
-gate = "x.x.xx.x x.x.xx.x"
-
-[instrument.kick]
-patch = "kick"
-bus = "kick"
-gain = 0.8
-
-[instrument.hat]
-patch = "hat"
-gain = 0.25
-humanize = 0.4
-choke = "hats"
-
-[instrument.open]
-patch = "open_hat"
-gain = 0.2
-choke = "hats"
-
-[bus.room]
-effects = [{ kind = "reverb", size = 0.8, wet = 1, dry = 0 }, { kind = "highpass", cutoff = 200 }]
-
-[bus.echo]
-effects = [{ kind = "echo", beats = 0.75, feedback = 0.35, pingpong = true, wet = 1, dry = 0 }]
-
-[bus.pads]
-effects = [{ kind = "chorus", rate = 0.4 }]
-duck = { key = "kick", depth = 0.6, release = 0.15 }
-
-[bus.kick]
-
-[pattern.hook]
-instrument = "lead"
-notes = """
-D5:2 . F5 G5:2 A5>C6:2 | A5:3 G5 F5:2 D5:2? |
-"""
-
-[pattern.chords]
-instrument = "pad"
-step = "1/1"
-notes = "D3+A3+F4 | C3+G3+E4"
-
-[pattern.ring]
-instrument = "bell"
-notes = "D6:8 | A5:8"
-
-[pattern.chop]
-instrument = "gated"
-step = "1/2"
-notes = "D4+F4+A4:2 | C4+E4+G4:2"
-
-[pattern.beat]
-step = "1/16"
-
-[pattern.beat.lanes]
-kick = "x...x...x...x..."
-hat  = "x.x.x.x.x.x.x..."
-open = "..............x."
-
-[section.intro]
-bars = 2
-layers = [{ pattern = "ring" }, { pattern = "chords" }]
-
-[section.a]
-bars = 4
-layers = [
-    { pattern = "hook" },
-    { pattern = "chords" },
-    { pattern = "beat", intensity = [0.5, 1] },
-    { pattern = "chop", intensity = [0.8, 1] },
-]
-
-[section.b]
-bars = 4
-layers = [
-    { pattern = "hook", transpose = 5, gain = 0.9 },
-    { pattern = "hook", instrument = "bell", transpose = 17, gain = 0.5, intensity = [0.8, 1] },
-    { pattern = "ring", at = 2, times = 1 },
-    { pattern = "chords", transpose = 5 },
-    { pattern = "beat" },
-]
-
-[section.end]
-bars = 1
-layers = [{ pattern = "ring" }]
-
-[arrangement]
-intro = ["intro"]
-loop = ["a", "b"]
-outro = ["end"]
-)";
+constexpr std::string_view piece = R"({"music": {
+  "doc": "A test piece: every part of the format once.",
+  "name": "test", "tempo": 140, "meter": [4, 4], "gain": 0.4,
+  "patches": {
+    "lead": {"base": "koto", "pluck": {"decay": 1.5}, "gain": 0.9},
+    "warm": {"engine": "analog", "osc": {"wave": "saw", "unison": 3, "detune": 15, "spread": 0.7}, "amp": {"attack": 0.05, "decay": 0.5, "sustain": 0.8, "release": 0.4}, "filter": {"kind": "lowpass", "cutoff": 1200, "q": 0.7, "envelope": 1, "attack": 0.1, "decay": 0.5, "sustain": 0.3, "release": 0.4}}
+  },
+  "instruments": {
+    "lead": {"patch": "lead", "gain": 0.7, "pan": -0.2, "sends": {"echo": 0.2, "room": 0.3}},
+    "bell": {"patch": "bell", "gain": 0.3, "pan": 0.3, "sends": {"room": 0.4}},
+    "pad": {"patch": "warm", "bus": "pads", "gain": 0.35, "voices": 6, "sends": {"room": 0.3}},
+    "gated": {"patch": "warm", "gain": 0.2, "gate": "x.x.xx.x x.x.xx.x"},
+    "kick": {"patch": "kick", "bus": "kick", "gain": 0.8},
+    "hat": {"patch": "hat", "gain": 0.25, "humanize": 0.4, "choke": "hats"},
+    "open": {"patch": "open_hat", "gain": 0.2, "choke": "hats"}
+  },
+  "buses": {
+    "room": {"effects": [{"kind": "reverb", "size": 0.8, "wet": 1, "dry": 0}, {"kind": "highpass", "cutoff": 200}]},
+    "echo": {"effects": [{"kind": "echo", "beats": 0.75, "feedback": 0.35, "pingpong": true, "wet": 1, "dry": 0}]},
+    "pads": {"effects": [{"kind": "chorus", "rate": 0.4}], "duck": {"key": "kick", "depth": 0.6, "release": 0.15}},
+    "kick": {}
+  },
+  "patterns": {
+    "hook": {"instrument": "lead", "notes": "D5:2 . F5 G5:2 A5>C6:2 | A5:3 G5 F5:2 D5:2? |\n"},
+    "chords": {"instrument": "pad", "step": "1/1", "notes": "D3+A3+F4 | C3+G3+E4"},
+    "ring": {"instrument": "bell", "notes": "D6:8 | A5:8"},
+    "chop": {"instrument": "gated", "step": "1/2", "notes": "D4+F4+A4:2 | C4+E4+G4:2"},
+    "beat": {"step": "1/16", "lanes": {"kick": "x...x...x...x...", "hat": "x.x.x.x.x.x.x...", "open": "..............x."}}
+  },
+  "sections": {
+    "intro": {"bars": 2, "layers": [{"pattern": "ring"}, {"pattern": "chords"}]},
+    "a": {"bars": 4, "layers": [{"pattern": "hook"}, {"pattern": "chords"}, {"pattern": "beat", "intensity": [0.5, 1]}, {"pattern": "chop", "intensity": [0.8, 1]}]},
+    "b": {"bars": 4, "layers": [{"pattern": "hook", "transpose": 5, "gain": 0.9}, {"pattern": "hook", "instrument": "bell", "transpose": 17, "gain": 0.5, "intensity": [0.8, 1]}, {"pattern": "ring", "at": 2, "times": 1}, {"pattern": "chords", "transpose": 5}, {"pattern": "beat"}]},
+    "end": {"bars": 1, "layers": [{"pattern": "ring"}]}
+  },
+  "arrangement": {"intro": ["intro"], "loop": ["a", "b"], "outro": ["end"]}
+}})";
 
 audio::Music read_piece(std::string_view text = piece) {
-    auto m = audio::read_music(text, "test.music.omui.toml");
+    auto m = audio::read_music(text, "test.music.omui.json");
     if (!m) {
         for (const auto& p : m.error()) expect(false) << p.text();
         return {};
@@ -189,33 +95,21 @@ audio::Music read_piece(std::string_view text = piece) {
 
 std::vector<std::string> problems_of(std::string_view text) {
     std::vector<std::string> v;
-    if (auto m = audio::read_music(text, "bad.music.omui.toml"); !m)
+    if (auto m = audio::read_music(text, "bad.music.omui.json"); !m)
         for (const auto& p : m.error()) v.push_back(p.text());
     return v;
 }
 
 // A one-instrument piece around `notes` (`patch`, `tempo`).
-std::string solo_piece(std::string_view patch, std::string_view notes, std::string_view extra = {}, int tempo = 120) {
-    return std::format(R"([music]
-name = "solo"
-tempo = {}
-meter = [4, 4]
-
-[instrument.x]
-patch = "{}"
-{}
-[pattern.p]
-instrument = "x"
-notes = "{}"
-
-[section.s]
-bars = 1
-layers = [{{ pattern = "p" }}]
-
-[arrangement]
-loop = ["s"]
-)",
-                       tempo, patch, extra, notes);
+std::string solo_piece(std::string_view patch, std::string_view notes, int tempo = 120) {
+    return std::format(R"({{"music": {{
+  "name": "solo", "tempo": {}, "meter": [4, 4],
+  "instruments": {{"x": {{"patch": "{}"}}}},
+  "patterns": {{"p": {{"instrument": "x", "notes": "{}"}}}},
+  "sections": {{"s": {{"bars": 1, "layers": [{{"pattern": "p"}}]}}}},
+  "arrangement": {{"loop": ["s"]}}
+}}}})",
+                       tempo, patch, notes);
 }
 
 std::vector<float> render(const audio::Music& m, double seconds, std::span<const audio::Cue> cues = {}) {
@@ -277,7 +171,7 @@ UTest cases{"music", [] {
         expect(lead != m.patches.end() && lead->base == "koto" && lead->engine == audio::Engine::pluck && lead->pluck.decay == 1.5f &&
                   lead->pluck.brightness == koto->pluck.brightness && lead->amp == koto->amp) << "a patch on a base: the base's, and what it changes";
         const std::string written = audio::write_music(m);
-        auto again = audio::read_music(written, "written.music.omui.toml");
+        auto again = audio::read_music(written, "written.music.omui.json");
         expect(again.has_value()) << (again ? "" : again.error().front().text());
         if (!again) return;
         expect(*again == m) << "the same piece";
@@ -305,61 +199,50 @@ UTest cases{"music", [] {
         expect(b && b->bars == 1 && std::ranges::count(b->hits, kick, &audio::Hit::lane) == 4) << "four kicks in the bar";
     };
 
-    "every problem at its line and column, with the nearest right word; a wrong note at its very token"_test = [] {
-        const auto bad = problems_of(R"([music]
-name = "bad"
-tempp = 120
-
-[instrument.lead]
-patch = "kotto"
-sends = { rooom = 0.3 }
-
-[bus.room]
-effects = [{ kind = "reverb", sise = 0.8 }]
-
-[pattern.hook]
-instrument = "leed"
-notes = "D5 F5 H5 G5 A5 C6 D6 E6 | D5:9"
-
-[pattern.multi]
-instrument = "lead"
-notes = """
-D5 F5 G5 A5 C6 D6 E6 G6 |
-D5 F5 G5 A5 C6 D6 E6 Q6 |
-"""
-
-[pattern.drums]
-[pattern.drums.lanes]
-lead = "x...x...x..z...."
-
-[section.a]
-bars = 4
-layers = [{ pattern = "hok", intensity = [0.8, 0.2] }]
-
-[arrangement]
-loop = ["b"]
-)");
+    "every problem at its place (pointer, line, column), with the nearest right word; a wrong note at its very token"_test = [] {
+        const auto bad = problems_of(R"({"music": {
+  "name": "bad", "tempp": 120,
+  "instruments": {
+    "lead": {"patch": "kotto", "sends": {"rooom": 0.3}}
+  },
+  "buses": {
+    "room": {"effects": [{"kind": "reverb", "sise": 0.8}]}
+  },
+  "patterns": {
+    "hook": {"instrument": "leed", "notes": "D5 F5 H5 G5 A5 C6 D6 E6 | D5:9"},
+    "multi": {"instrument": "lead", "notes": "D5 F5 G5 A5 C6 D6 E6 G6 |\nD5 F5 G5 A5 C6 D6 E6 Q6 |\n"},
+    "drums": {"lanes": {"lead": "x...x...x..z...."}}
+  },
+  "sections": {
+    "a": {"bars": 4, "layers": [{"pattern": "hok", "intensity": [0.8, 0.2]}]}
+  },
+  "arrangement": {"loop": ["b"]}
+}})");
         auto has = [&](std::string_view t) { return std::ranges::any_of(bad, [&](const std::string& x) { return x == t; }); };
         const std::string all = std::format("{}", bad);
-        expect(has("bad.music.omui.toml:3:1: [music] has no key `tempp` (did you mean `tempo`?)")) << all;
-        expect(has("bad.music.omui.toml:6:9: instrument `lead`'s patch `kotto` is not a patch of the piece's or a built-in (did you mean `koto`?)")) << all;
-        expect(has("bad.music.omui.toml:7:11: instrument `lead` sends to `rooom` is not one of the piece's buses (did you mean `room`?)")) << all;
-        expect(has("bad.music.omui.toml:10:31: a reverb has no key `sise` (did you mean `size`?)")) << all;
-        expect(has("bad.music.omui.toml:13:14: pattern `hook`'s instrument `leed` is not one of the piece's instruments (did you mean `lead`?)")) << all;
-        expect(has("bad.music.omui.toml:14:16: `H5` is not a note (a note is a letter A–G, maybe # or b, and an octave: `C4`, `F#3`, `Bb5`; `.` is a rest)")) << all;
-        expect(has("bad.music.omui.toml:14:40: the last stretch is 9 steps, not whole bars (a bar is 8 1/8 steps)")) << all;
-        expect(has("bad.music.omui.toml:20:22: `Q6` is not a note (a note is a letter A–G, maybe # or b, and an octave: `C4`, `F#3`, `Bb5`; `.` is a rest)")) << all;
-        expect(has("bad.music.omui.toml:25:20: `z` is not a step (`x` a hit, `X` an accent, `o` a ghost, `.` none, `|` a bar line)")) << all;
-        expect(has("bad.music.omui.toml:29:42: an intensity's range [0.8, 0.2] holds nothing (from below to: [0.5, 1])")) << all;
-        expect(has("bad.music.omui.toml:29:23: section `a` plays `hok` is not one of the piece's patterns (did you mean `hook`?)")) << all;
-        expect(has("bad.music.omui.toml:32:9: the loop plays `b` is not one of the piece's sections (one of `a`)")) << all;
+        expect(has("bad.music.omui.json:2:27: /music/tempp: a piece has no key `tempp` (did you mean `tempo`?)")) << all;
+        auto has_at = [&](std::string_view at, std::string_view text) {
+            return std::ranges::any_of(bad, [&](const std::string& x) { return x.starts_with("bad.music.omui.json:") && x.ends_with(std::format("{}: {}", at, text)); });
+        };
+        expect(has_at("/music/instruments/lead/patch", "instrument `lead`'s patch `kotto` is not a patch of the piece's or a built-in (did you mean `koto`?)")) << all;
+        expect(has_at("/music/instruments/lead/sends/rooom", "instrument `lead` sends to `rooom` is not one of the piece's buses (did you mean `room`?)")) << all;
+        expect(has_at("/music/buses/room/effects/0/sise", "a reverb has no key `sise` (did you mean `size`?)")) << all;
+        expect(has_at("/music/patterns/hook/instrument", "pattern `hook`'s instrument `leed` is not one of the piece's instruments (did you mean `lead`?)")) << all;
+        // A note's problem at its very token in the text, its escapes counted.
+        expect(has("bad.music.omui.json:10:52: /music/patterns/hook/notes: `H5` is not a note (a note is a letter A–G, maybe # or b, and an octave: `C4`, `F#3`, `Bb5`; `.` is a rest)")) << all;
+        expect(has("bad.music.omui.json:10:76: /music/patterns/hook/notes: the last stretch is 9 steps, not whole bars (a bar is 8 1/8 steps)")) << all;
+        expect(has("bad.music.omui.json:11:95: /music/patterns/multi/notes: `Q6` is not a note (a note is a letter A–G, maybe # or b, and an octave: `C4`, `F#3`, `Bb5`; `.` is a rest)")) << all;
+        expect(has("bad.music.omui.json:12:45: /music/patterns/drums/lanes/lead: `z` is not a step (`x` a hit, `X` an accent, `o` a ghost, `.` none, `|` a bar line)")) << all;
+        expect(has_at("/music/sections/a/layers/0/intensity", "an intensity's range [0.8, 0.2] holds nothing (from below to: [0.5, 1])")) << all;
+        expect(has_at("/music/sections/a/layers/0/pattern", "section `a` plays `hok` is not one of the piece's patterns (did you mean `hook`?)")) << all;
+        expect(has_at("/music/arrangement/loop/0", "the loop plays `b` is not one of the piece's sections (one of `a`)")) << all;
         // Problems come in the file's order.
         expect(std::ranges::is_sorted(bad, {}, [](const std::string& t) {
                   const auto a = t.find(':') + 1, b = t.find(':', a);
                   return std::stoi(t.substr(a, b - a));
               })) << all;
-        const auto malformed = problems_of("[music]\ntempo = \n");
-        expect(malformed.size() == 1 && malformed[0].starts_with("bad.music.omui.toml:2:")) << std::format("{}", malformed);
+        const auto malformed = problems_of("{\"music\": {\n  \"tempo\": \n}}");
+        expect(malformed.size() == 1 && malformed[0].starts_with("bad.music.omui.json:3:")) << std::format("{}", malformed);
     };
 
     "a plucked string plays in tune (from low to high) and rings down; a slide reaches its note"_test = [] {
@@ -397,21 +280,19 @@ loop = ["b"]
 
     "drums: a kick falls in pitch and dies; a closed hat is short and bright, a taiko long and low; an open hat is choked by a closed one"_test = [] {
         auto hit = [](std::string_view patch) {  // a lane: the drum at its own pitch
-            const auto m = read_piece(std::format(R"([music]
-name = "drum"
-tempo = 120
-meter = [4, 4]
-[instrument.x]
-patch = "{}"
-[pattern.p]
-[pattern.p.lanes]
-x = "x..............."
-[section.s]
-bars = 1
-layers = [{{ pattern = "p" }}]
-[arrangement]
-loop = ["s"]
-)",
+            const auto m = read_piece(std::format(R"({{"music": {{
+  "name": "drum", "tempo": 120, "meter": [4, 4],
+  "instruments": {{
+    "x": {{"patch": "{}"}}
+  }},
+  "patterns": {{
+    "p": {{"lanes": {{"x": "x..............."}}}}
+  }},
+  "sections": {{
+    "s": {{"bars": 1, "layers": [{{"pattern": "p"}}]}}
+  }},
+  "arrangement": {{"loop": ["s"]}}
+}}}})",
                                                   patch));
             return render(m, 1.0);
         };
@@ -432,27 +313,20 @@ loop = ["s"]
         expect(rms(hat, 9600, 14400) < 0.01 * rms(hat, 0, 2400) && rms(taiko, 14400, 19200) > 0.05 * rms(taiko, 0, 2400)) << "the hat short, the taiko long";
         // An open hat alone rings; followed by a closed one it is cut.
         auto lanes = [](std::string_view open, std::string_view closed) {
-            return read_piece(std::format(R"([music]
-name = "hats"
-tempo = 120
-meter = [4, 4]
-[instrument.open]
-patch = "open_hat"
-choke = "hats"
-[instrument.closed]
-patch = "hat"
-gain = 0
-choke = "hats"
-[pattern.p]
-[pattern.p.lanes]
-open = "{}"
-closed = "{}"
-[section.s]
-bars = 1
-layers = [{{ pattern = "p" }}]
-[arrangement]
-loop = ["s"]
-)",
+            return read_piece(std::format(R"({{"music": {{
+  "name": "hats", "tempo": 120, "meter": [4, 4],
+  "instruments": {{
+    "open": {{"patch": "open_hat", "choke": "hats"}},
+    "closed": {{"patch": "hat", "gain": 0, "choke": "hats"}}
+  }},
+  "patterns": {{
+    "p": {{"lanes": {{"open": "{}", "closed": "{}"}}}}
+  }},
+  "sections": {{
+    "s": {{"bars": 1, "layers": [{{"pattern": "p"}}]}}
+  }},
+  "arrangement": {{"loop": ["s"]}}
+}}}})",
                                           open, closed));
         };
         const auto alone = render(lanes("x...............", "................"), 0.4);
@@ -500,27 +374,21 @@ loop = ["s"]
     };
 
     "intensity: a layer comes in at the next bar after it is asked for, and goes at the next bar after"_test = [] {
-        const auto m = read_piece(R"([music]
-name = "layers"
-tempo = 120
-meter = [4, 4]
-[instrument.kick]
-patch = "woodblock"
-[instrument.pad]
-patch = "sub_bass"
-gain = 0.2
-[pattern.k]
-[pattern.k.lanes]
-kick = "x...x...x...x..."
-[pattern.p]
-instrument = "pad"
-notes = "A2:8"
-[section.s]
-bars = 4
-layers = [{ pattern = "p" }, { pattern = "k", intensity = [0.5, 1] }]
-[arrangement]
-loop = ["s"]
-)");
+        const auto m = read_piece(R"({"music": {
+  "name": "layers", "tempo": 120, "meter": [4, 4],
+  "instruments": {
+    "kick": {"patch": "woodblock"},
+    "pad": {"patch": "sub_bass", "gain": 0.2}
+  },
+  "patterns": {
+    "k": {"lanes": {"kick": "x...x...x...x..."}},
+    "p": {"instrument": "pad", "notes": "A2:8"}
+  },
+  "sections": {
+    "s": {"bars": 4, "layers": [{"pattern": "p"}, {"pattern": "k", "intensity": [0.5, 1]}]}
+  },
+  "arrangement": {"loop": ["s"]}
+}})");
         // Played twice: once asked for more in the middle of bar 1 and for none early in bar 3, once never.
         // The difference is the layer alone (the rest is the same bits).
         auto play = [&](bool asked, std::int64_t& bar, std::int64_t& bars) {
@@ -565,27 +433,22 @@ loop = ["s"]
         expect(eq(loop_point, std::size_t{822857}));
         // A tone held to the end of a one-bar loop and struck again as it goes round: the curve of the sound (its second
         // difference) is as smooth across the loop point as in the middle of the bar; no step, no gap.
-        const auto tone = read_piece(R"([music]
-name = "round"
-tempo = 120
-meter = [4, 4]
-[patch.sine]
-engine = "analog"
-osc = { wave = "sine" }
-amp = { attack = 0.02, decay = 1, sustain = 1, release = 0.3 }
-[instrument.x]
-patch = "sine"
-legato = 1
-voices = 2
-[pattern.p]
-instrument = "x"
-notes = "A3:4 C4:4"
-[section.s]
-bars = 1
-layers = [{ pattern = "p" }]
-[arrangement]
-loop = ["s"]
-)");
+        const auto tone = read_piece(R"({"music": {
+  "name": "round", "tempo": 120, "meter": [4, 4],
+  "patches": {
+    "sine": {"engine": "analog", "osc": {"wave": "sine"}, "amp": {"attack": 0.02, "decay": 1, "sustain": 1, "release": 0.3}}
+  },
+  "instruments": {
+    "x": {"patch": "sine", "legato": 1, "voices": 2}
+  },
+  "patterns": {
+    "p": {"instrument": "x", "notes": "A3:4 C4:4"}
+  },
+  "sections": {
+    "s": {"bars": 1, "layers": [{"pattern": "p"}]}
+  },
+  "arrangement": {"loop": ["s"]}
+}})");
         const auto round = render(tone, 7.0);
         if (round.empty()) return;
         auto bend = [&](std::size_t from, std::size_t to) {

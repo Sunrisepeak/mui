@@ -58,9 +58,9 @@ std::expected<Soundtrack, std::string> soundtrack(const Film& film, const Cut& c
     const std::int64_t total = timing.sample_of(frames);
     const auto sample_at = [&](mlibs::time::Flicks f) { return mlibs::time::sample_at(t.sample_rate, f); };
     // What may sound: the film's sounds.
-    auto sound_text = film.files.read("sounds/promo.sound.omui.toml");
+    auto sound_text = film.files.read("sounds/promo.sound.omui.json");
     if (!sound_text) return std::unexpected(sound_text.error());
-    auto sounds = xengine::audio::read_sounds(*sound_text, "promo.sound.omui.toml");
+    auto sounds = xengine::audio::read_sounds(*sound_text, "promo.sound.omui.json");
     if (!sounds) return std::unexpected(sounds.error().front().text());
     // The cues: the sfx track's, and each shot's of what it does.
     if (cut.sfx >= 0)
@@ -114,7 +114,7 @@ std::expected<Soundtrack, std::string> soundtrack(const Film& film, const Cut& c
     mixer.add_source(std::make_shared<Score>(std::move(parts), mixer.bus("music"), t.sample_rate));
     for (const Placed& q : out.cues) {
         const auto it = index.find(q.sound);
-        if (it == index.end()) return std::unexpected(std::format("clip `{}`: no sound `{}` in promo.sound.omui.toml", q.from, q.sound));
+        if (it == index.end()) return std::unexpected(std::format("clip `{}`: no sound `{}` in promo.sound.omui.ts", q.from, q.sound));
         if (!mixer.play(it->second, timing.sample_of(q.frame), q.gain, q.pan, q.pitch))
             return std::unexpected("the mixer's queue is full");
     }

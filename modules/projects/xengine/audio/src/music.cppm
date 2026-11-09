@@ -1,6 +1,6 @@
 // xengine.audio:music — music as data, played sample-accurately.
 //
-// A piece (`*.music.omui.toml`) is a tempo and a metre; patches (how an
+// A piece (`*.music.omui.ts`) is a tempo and a metre; patches (how an
 // instrument sounds: an analog-style oscillator stack, two-operator FM, a
 // plucked string, a drum); instruments (a patch with a level, a pan, sends
 // to the piece's buses, a voice count); buses with effects and ducking;
@@ -231,10 +231,13 @@ struct Hits {
 };
 [[nodiscard]] std::expected<Hits, std::vector<Problem>> hits(const Pattern& pattern, const Music& music);
 
-// A `*.music.omui.toml`, every problem at once, at its line and column with
-// the nearest right word (its notes' problems too, at their very token).
+// A piece's JSON — what a `*.music.omui.ts` evaluates to, `{"music": {name,
+// tempo, meter, patches, instruments, buses, patterns, sections,
+// arrangement}}` — every problem at once, at its JSON pointer, line and
+// column with the nearest right word (its notes' problems too, at their very
+// token). Named entries are read in name order.
 [[nodiscard]] std::expected<Music, std::vector<Problem>> read_music(std::string_view text, std::string_view file);
-// Written so that it reads back as the same piece.
+// As JSON that reads back as the same piece, an entry a line.
 [[nodiscard]] std::string write_music(const Music& music);
 
 // ── Playing ─────────────────────────────────────────────────────────────

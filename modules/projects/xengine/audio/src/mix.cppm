@@ -3,7 +3,7 @@
 // master, a block at a time with nothing allocated; sources (a sequencer's
 // music) add their own voices into the buses on the same clock.
 //
-// A sound (`*.sound.omui.toml`) is layers, each a source — a sine, triangle,
+// A sound (`*.sound.omui.ts`) is layers, each a source — a sine, triangle,
 // square or saw oscillator, or noise — gliding in pitch, through a filter
 // whose cutoff glides too, shaped by an envelope, driven, gained and panned.
 // A punch is a burst of low-passed noise over a falling thump; a bell is a
@@ -64,11 +64,14 @@ struct Problem {
     std::string file;
     int         line = 0, column = 0;
     std::string message, hint;
+    std::string at;  // the JSON pointer of what it is about: "/sound/hit/layers/0/pitch"
+    // file:line:column: at: message (hint)
     [[nodiscard]] std::string text() const;
 };
-// The sounds of a `*.sound.omui.toml` (`[sound.<name>]` tables), every problem at once.
+// The sounds of a sound file's JSON — what a `*.sound.omui.ts` evaluates to,
+// `{"sound": {<name>: {layers: […]}}}` — in name order, every problem at once.
 [[nodiscard]] std::expected<std::vector<Sound>, std::vector<Problem>> read_sounds(std::string_view text, std::string_view file);
-// Written so that it reads back as the same sounds.
+// As JSON that reads back as the same sounds.
 [[nodiscard]] std::string write_sounds(std::span<const Sound> sounds);
 
 // What a bus does to what reaches it, a block at a time (a plugin: the

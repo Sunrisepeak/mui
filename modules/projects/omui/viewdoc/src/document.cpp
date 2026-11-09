@@ -682,8 +682,8 @@ private:
         Node n;
         n.pointer = p;
         n.kind = Node::Kind::element;
-        unknown_fields(v, p, std::array<std::string_view, 8>{"type", "id", "props", "on", "animate", "children", "notes", "origin"});
-        if (const Value* origin = v.get("origin"); origin && origin->type() == Value::Type::text) n.origin = std::string(origin->as_string());
+        unknown_fields(v, p, std::array<std::string_view, 8>{"type", "id", "props", "on", "animate", "children", "notes", "built_at"});
+        if (const Value* built_at = v.get("built_at"); built_at && built_at->type() == Value::Type::text) n.built_at = std::string(built_at->as_string());
         const Value& type = *v.get("type");
         n.type = type.type() == Value::Type::text ? std::string(type.as_string()) : "";
         n.component = type_named(n.type);

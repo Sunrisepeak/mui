@@ -49,7 +49,7 @@ NodeId Runtime::Impl::create(Element& e, NodeId parent) {
     n.parent = parent;
     n.scope = alive(parent) ? at(parent).scope : 0;  // its parent's theme scope, until its own theme_scope says otherwise
     n.where = e.where;
-    n.origin = intern_origin(e.origin);
+    n.built_at = intern_built_at(e.built_at);
     if (!e.id.empty()) {
         if (e.generated_id ? !spec::valid_segment(e.id) : !spec::valid_explicit_segment(e.id))
             warn("invalid explicit id '{}' (spec S-8: 1-128 of [A-Za-z0-9_.-]); at {}:{}", e.id, e.where.file_name(),
@@ -275,7 +275,7 @@ void Runtime::Impl::update_from(NodeId id, Element& e) {
         paths_dirty = true;
     }
     n.where = e.where;
-    n.origin = intern_origin(e.origin);  // an edit moves it
+    n.built_at = intern_built_at(e.built_at);  // an edit moves it
     n.handlers = std::move(e.handlers);
     n.transitions.clear();
     for (auto& [k, t] : e.transitions) n.transitions[k] = t;

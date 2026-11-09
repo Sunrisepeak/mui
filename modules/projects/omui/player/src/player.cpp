@@ -218,7 +218,7 @@ struct Player::Impl {
         }
         if (!f.engine) {
             f.engine = f.lang->make(handle);
-            if (f.engine && options.design) f.engine->keep_origins(true);
+            if (f.engine && options.design) f.engine->keep_built_at(true);
         }
         if (!f.engine) {
             problem(std::format("{}: the {} language could not start", name(f.path), f.lang->name));
@@ -467,13 +467,13 @@ struct Player::Impl {
         const NodeId id = rt.reveal(node);
         if (!rt.valid(id)) return std::unexpected(std::format("no node `{}`", node));
         // file:line:column, the file as the script ran it
-        const std::string_view origin = rt.script_origin(id);
-        const auto column_at = origin.rfind(':'), line_at = column_at == std::string_view::npos ? column_at : origin.rfind(':', column_at - 1);
+        const std::string_view built = rt.built_at(id);
+        const auto column_at = built.rfind(':'), line_at = column_at == std::string_view::npos ? column_at : built.rfind(':', column_at - 1);
         if (line_at == std::string_view::npos) return std::unexpected(std::format("`{}` was not built by a script (or not in development mode)", node));
-        const std::string_view file = origin.substr(0, line_at);
+        const std::string_view file = built.substr(0, line_at);
         Place place{module_name(std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(file.data()), file.size())))};
-        (void)std::from_chars(origin.data() + line_at + 1, origin.data() + column_at, place.line);
-        (void)std::from_chars(origin.data() + column_at + 1, origin.data() + origin.size(), place.column);
+        (void)std::from_chars(built.data() + line_at + 1, built.data() + column_at, place.line);
+        (void)std::from_chars(built.data() + column_at + 1, built.data() + built.size(), place.column);
         return place;
     }
 
@@ -610,10 +610,10 @@ struct Player::Impl {
                 return std::unexpected(std::string("design.locate takes a `node`, or a `path` and a `line` (from 1)"));
             if (!script_named(path) && !owner_of(path)) return std::unexpected(std::format("no script or module `{}` (design.sources lists them)", path));
             const auto wanted = static_cast<std::uint32_t>(line->as_double());
-            std::vector<NodeId> built = rt.built_at(generic_utf8(full(path)), wanted);
-            if (built.empty()) built = rt.built_at(generic_utf8(full(path).lexically_normal()), wanted);
+            std::vector<NodeId> built = rt.built_on(generic_utf8(full(path)), wanted);
+            if (built.empty()) built = rt.built_on(generic_utf8(full(path).lexically_normal()), wanted);
             Value::List nodes;
-            for (const NodeId id : built) nodes.push_back(Value{}.set("node", rt.path(id)).set("origin", std::string(rt.script_origin(id))));
+            for (const NodeId id : built) nodes.push_back(Value{}.set("node", rt.path(id)).set("built_at", std::string(rt.built_at(id))));
             return Value{}.set("path", path).set("line", static_cast<double>(wanted)).set("nodes", Value(std::move(nodes)));
         });
         add("design.edit", [this](const Value& args) -> VerbResult {

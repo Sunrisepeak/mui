@@ -67,7 +67,7 @@ public:
     // Development mode: the elements its scripts build carry where they were
     // built, so a node maps to its source and back (design.locate). Default:
     // a language that cannot keeps none.
-    virtual void keep_origins(bool on) { (void)on; }
+    virtual void keep_built_at(bool on) { (void)on; }
     // The files of the modules it has imported by path: watched as its own file is.
     [[nodiscard]] virtual std::vector<std::filesystem::path> modules() const { return {}; }
     // Nothing left to do on its thread, and nothing in flight to the runtime.
@@ -75,7 +75,7 @@ public:
 };
 
 // Live Design's structured operations as edits of a script's text, at the
-// builder call an element's origin names (1-based line and column): each
+// builder call where an element was built (built_at: 1-based line and column): each
 // answers the whole new text, or why it cannot (not a builder call there).
 struct SourceEditor {
     // A property (as its contract names it) set to `value`, code (a JSON

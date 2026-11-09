@@ -179,7 +179,7 @@ struct Element {
     std::source_location                             where = std::source_location::current();
     // Where a script built it, `file:line:column` (development mode: Live
     // Design maps a node to its source and back). Empty: built in C++, or not kept.
-    std::string                                      origin;
+    std::string                                      built_at;
 
     Element& prop(std::string name, Source s);
     template <PropertyType T>

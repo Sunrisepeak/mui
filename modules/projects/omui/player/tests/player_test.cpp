@@ -279,12 +279,12 @@ UTest cases{"player", [] {
 
     "design.locate: a node to the line of the script that built it, and a line to the nodes built there"_test = [] {
         const auto dir = scratch_dir("player-locate");
-        // The origins a script engine gives its elements in development mode (file:line:column).
+        // Where a script engine says its elements were built, in development mode (built_at: file:line:column).
         const std::string file = generic_utf8(dir / "logic" / "side.stub");
-        const std::string doc = std::format(R"j({{"omui": "0.1", "view": {{"root": {{"type": "column", "origin": "{0}:1:30", "children": [
-  {{"type": "text", "id": "hello", "origin": "{0}:2:3", "props": {{"text": "hi"}}}},
-  {{"type": "text", "id": "bye", "origin": "{0}:3:3", "props": {{"text": "bye"}}}},
-  {{"type": "text", "id": "later", "origin": "{0}:3:60", "props": {{"text": "later"}}}}]}}}}}})j",
+        const std::string doc = std::format(R"j({{"omui": "0.1", "view": {{"root": {{"type": "column", "built_at": "{0}:1:30", "children": [
+  {{"type": "text", "id": "hello", "built_at": "{0}:2:3", "props": {{"text": "hi"}}}},
+  {{"type": "text", "id": "bye", "built_at": "{0}:3:3", "props": {{"text": "bye"}}}},
+  {{"type": "text", "id": "later", "built_at": "{0}:3:60", "props": {{"text": "later"}}}}]}}}}}})j",
                                             file);
         write(dir / "logic" / "side.stub", doc);
         player::Manifest m;

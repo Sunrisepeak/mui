@@ -82,7 +82,7 @@ struct Node {
     std::string                                     model;      // each: in
     std::string                                     slot;       // slot
     std::string                                     pointer;
-    std::string                                     origin;     // element: where a script built it (file:line:column)
+    std::string                                     built_at;   // element: where a script built it (file:line:column)
 };
 
 struct SignalDecl {

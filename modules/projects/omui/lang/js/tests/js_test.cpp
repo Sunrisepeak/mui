@@ -449,7 +449,7 @@ export const label = (n: number): string => `${n} taps`;
     };
 
     "development mode: each element knows the line and column of the script that built it, and a line its nodes (Live Design's map)"_test = [] {
-        const auto dir = scratch_dir("lang-js-origins");
+        const auto dir = scratch_dir("lang-js-built-at");
         std::ofstream(dir / "parts.ts", std::ios::binary) << R"ts(import { text } from "openmui";
 export const caption = (words: string) =>
   text({ id: "caption", text: words });
@@ -468,19 +468,19 @@ mount("main", column({ gap: 8 }, [
         if (!js) return;
         Runtime r;
         Js script(r);
-        script.script.keep_origins(true);
+        script.script.keep_built_at(true);
         auto ran = script.run(*js, mcpplibs::os::fs::utf8(file));
         expect(ran.has_value()) << (ran ? "" : ran.error().text());
         omui::Runtime& view = *omui::abi::runtime_of(r.rt);
-        const auto origin = [&](std::string_view id) { return std::string(view.script_origin(view.reveal(id))); };
+        const auto built_at = [&](std::string_view id) { return std::string(view.built_at(view.reveal(id))); };
         const std::string main_file = mcpplibs::os::fs::utf8(file), parts_file = mcpplibs::os::fs::utf8((dir / "parts.ts").lexically_normal());
         // Where the builder call is written: its callee's first character — a call over several lines too
         // (QuickJS places a call at the last position its arguments recorded: inside the last child).
-        expect(eq(origin("main/title"), main_file + ":5:3"));
-        expect(eq(origin("main/caption"), parts_file + ":3:3")) << " — in the module that built it";
+        expect(eq(built_at("main/title"), main_file + ":5:3"));
+        expect(eq(built_at("main/caption"), parts_file + ":3:3")) << " — in the module that built it";
         const auto at = [&](const std::string& in, std::uint32_t line) {
             std::vector<std::string> ids;
-            for (const omui::NodeId node : view.built_at(in, line)) ids.push_back(view.path(node));
+            for (const omui::NodeId node : view.built_on(in, line)) ids.push_back(view.path(node));
             return ids;
         };
         expect(at(main_file, 5) == std::vector<std::string>{"main/title"});
@@ -492,7 +492,7 @@ mount("main", column({ gap: 8 }, [
         Js quiet(plain);
         expect(quiet.run(*js, mcpplibs::os::fs::utf8(file)).has_value());
         omui::Runtime& plain_view = *omui::abi::runtime_of(plain.rt);
-        expect(plain_view.script_origin(plain_view.reveal("main/title")).empty());
+        expect(plain_view.built_at(plain_view.reveal("main/title")).empty());
     };
 
     "Live Design's structured operations edit the TypeScript where each node was built: set, insert, remove — then commit writes it"_test = [] {

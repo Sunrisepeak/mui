@@ -340,7 +340,7 @@ Element build(const Node& n, const Env& env) {
     Element e;
     e.type = n.component;
     e.id = n.id;
-    e.origin = n.origin;
+    e.built_at = n.built_at;
     const spec::ContractInfo* contract = e.type ? e.type->contract : nullptr;
     for (const auto& [name, b] : n.props) e.prop(name, source(env, name, b, contract ? contract->prop(name) : nullptr));
     for (const Reaction& h : n.on) {

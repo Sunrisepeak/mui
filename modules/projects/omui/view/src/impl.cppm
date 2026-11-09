@@ -277,7 +277,7 @@ struct Node {
     } presentation;
     bool projected_anchor=false,live_anchor_placement=false;
     std::source_location where;
-    std::uint32_t        origin = 0;    // where a script built it: an index of Impl::origins; 0 is none
+    std::uint32_t        built_at = 0;  // where a script built it: an index of Impl::built_places; 0 is none
     std::uint32_t        index = 0;     // display-list node marker; 0 is none
     std::uint32_t        scope = 0;     // its theme scope (Impl::scopes); 0: the runtime's theme
     std::shared_ptr<RegionState> composed;  // a composite component's own children
@@ -474,12 +474,12 @@ struct Runtime::Impl {
     std::deque<RecordedFrame>   input_log;
     // Where scripts built nodes (`file:line:column`), each written once; a
     // node holds its index (0: none).
-    std::vector<std::string>                       origins{std::string()};
-    std::unordered_map<std::string, std::uint32_t> origin_index;
-    [[nodiscard]] std::uint32_t intern_origin(const std::string& origin) {
-        if (origin.empty()) return 0;
-        const auto [it, added] = origin_index.try_emplace(origin, static_cast<std::uint32_t>(origins.size()));
-        if (added) origins.push_back(origin);
+    std::vector<std::string>                       built_places{std::string()};
+    std::unordered_map<std::string, std::uint32_t> built_index;
+    [[nodiscard]] std::uint32_t intern_built_at(const std::string& place) {
+        if (place.empty()) return 0;
+        const auto [it, added] = built_index.try_emplace(place, static_cast<std::uint32_t>(built_places.size()));
+        if (added) built_places.push_back(place);
         return it->second;
     }
     int                         previews = 0;        // begin_preview depth: journal off, motion off

@@ -67,7 +67,7 @@ struct Element {
     std::shared_ptr<Region>                    region;   // set: this is a region, not a component
     // Where the script built it, `file:line:column` (development mode: Live
     // Design maps a node to its source and back). Empty: not kept.
-    std::string                                origin;
+    std::string                                built_at;
 };
 
 // An element tree as the binding's own layer (the JavaScript prelude)
@@ -75,7 +75,7 @@ struct Element {
 //   {"type", "id", "props": {name: {"c": constant} | {"e": cel, "s": [signals]}
 //                                  | {"b": signal} | {"t": key, "a": [{"e", "s"}]}},
 //    "on": {event: handler index}, "animate": {prop: transition}, "children": […],
-//    "origin": "file:line:column"}
+//    "built_at": "file:line:column"}
 //   {"region": {"kind": "when", "cond": {"e", "s"}, "then": […], "else": […]}
 //              | {"kind": "each", "model", "variable", "where": {"e", "s"} | null, "body": {…}}
 //              | {"kind": "slot", "name"}}

@@ -295,20 +295,20 @@ std::vector<NodeId> Runtime::children(NodeId node) const { return valid(node) ? 
 const ComponentType& Runtime::type(NodeId node) const { return valid(node) ? *impl_->at(node).type : root_type(); }
 std::source_location Runtime::origin(NodeId node) const { return valid(node) ? impl_->at(node).where : std::source_location{}; }
 
-std::string_view Runtime::script_origin(NodeId node) const { return valid(node) ? std::string_view(impl_->origins[impl_->at(node).origin]) : std::string_view(); }
+std::string_view Runtime::built_at(NodeId node) const { return valid(node) ? std::string_view(impl_->built_places[impl_->at(node).built_at]) : std::string_view(); }
 
-std::vector<NodeId> Runtime::built_at(std::string_view file, std::uint32_t line) const {
-    // The origins on that line (file:line:column), then the nodes holding one of them.
+std::vector<NodeId> Runtime::built_on(std::string_view file, std::uint32_t line) const {
+    // The places on that line (file:line:column), then the nodes built at one of them.
     const std::string prefix = std::format("{}:{}:", file, line);
-    std::vector<bool> wanted(impl_->origins.size(), false);
+    std::vector<bool> wanted(impl_->built_places.size(), false);
     bool any = false;
-    for (std::size_t index = 1; index < impl_->origins.size(); ++index)
-        if (impl_->origins[index].starts_with(prefix)) wanted[index] = any = true;
+    for (std::size_t index = 1; index < impl_->built_places.size(); ++index)
+        if (impl_->built_places[index].starts_with(prefix)) wanted[index] = any = true;
     std::vector<NodeId> out;
     if (!any) return out;
     const auto visit = [&](this const auto& self, NodeId node) -> void {
         if (!valid(node)) return;
-        if (wanted[impl_->at(node).origin]) out.push_back(node);
+        if (wanted[impl_->at(node).built_at]) out.push_back(node);
         for (NodeId child : children(node)) self(child);
     };
     visit(root());

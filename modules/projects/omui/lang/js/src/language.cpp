@@ -19,7 +19,7 @@ public:
     std::future<player::Status> run(std::string code, std::string name) override { return status(script_.run(std::move(code), name)); }
     std::future<player::Status> reload(std::string code, std::string name) override { return status(script_.reload(std::move(code), name)); }
     void module_changed(const std::filesystem::path& file, std::optional<std::string> text) override { script_.module_changed(file, std::move(text)); }
-    void keep_origins(bool on) override { script_.keep_origins(on); }
+    void keep_built_at(bool on) override { script_.keep_built_at(on); }
     [[nodiscard]] std::vector<std::filesystem::path> modules() const override { return script_.modules(); }
     player::Status reload_now(std::string code, std::string name) override {
         Result<void> done = script_.reload_now(std::move(code), std::move(name));

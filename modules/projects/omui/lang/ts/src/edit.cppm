@@ -1,6 +1,6 @@
 // omui.lang.ts:edit — structured design operations as edits of a script's
-// source (Live Design, W14): the builder call a node was built by (its origin,
-// `file:line:column`, development mode) found in the text, and a property set
+// source (Live Design, W14): the builder call a node was built by (where it was
+// built, `built_at`: `file:line:column`, development mode) found in the text, and a property set
 // or removed in its object of properties, a child inserted into its list of
 // children, the call itself removed — the rest of the text as it was, so the
 // TypeScript stays the one source and reads as a person wrote it. What is not
@@ -22,7 +22,7 @@ struct BuilderCall {
     std::optional<std::pair<std::size_t, std::size_t>> properties, children;
 };
 
-// The builder call at a 1-based line and column (an element's origin): the
+// The builder call at a 1-based line and column (where an element was built): the
 // call whose callee or `(` is there.
 [[nodiscard]] std::expected<BuilderCall, std::string> builder_call_at(std::string_view source, std::size_t line, std::size_t column);
 
@@ -46,7 +46,7 @@ struct BuilderCall {
 // A source's calls, lexed once: where an element was built, from the
 // position QuickJS gives its call (the last its arguments recorded — inside
 // them, often in a nested call) to the call itself (development mode places
-// every element's origin with it).
+// where every element was built with it).
 class CallIndex {
 public:
     [[nodiscard]] static std::expected<CallIndex, std::string> of(std::string_view source);

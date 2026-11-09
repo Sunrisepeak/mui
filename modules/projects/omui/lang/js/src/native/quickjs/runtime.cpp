@@ -404,19 +404,6 @@ JSValue n_log(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
     return JS_UNDEFINED;
 }
 
-std::string camel(std::string_view snake) {
-    std::string out;
-    bool up = false;
-    for (char c : snake) {
-        if (c == '_') {
-            up = true;
-            continue;
-        }
-        out += up ? static_cast<char>(std::toupper(static_cast<unsigned char>(c))) : c;
-        up = false;
-    }
-    return out;
-}
 
 // openmui:native/<name>: a native module's functions, made from the
 // catalogue (component-binding §8): `import { fuzzy } from "openmui:native/fuzzy"`.

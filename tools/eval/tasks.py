@@ -122,10 +122,17 @@ def pointed(value: object, pointer: str) -> object:
 
 
 def program_args(spec: dict, scratch: Path) -> list[str]:
-    """The set's arguments for its program, each {copy:PATH} a fresh copy in `scratch`."""
+    """The set's arguments for its program, each {copy:PATH} (a file) or
+    {copydir:PATH} (a directory: an application's manifest and its files) a
+    fresh copy in `scratch`."""
     out = []
     for arg in spec.get("args", []):
-        if arg.startswith("{copy:") and arg.endswith("}"):
+        if arg.startswith("{copydir:") and arg.endswith("}"):
+            source = ROOT / arg[len("{copydir:"):-1]
+            target = scratch / source.name
+            shutil.copytree(source, target, ignore=shutil.ignore_patterns("target", "tests", "src", "*.md"))
+            out.append(str(target))
+        elif arg.startswith("{copy:") and arg.endswith("}"):
             source = ROOT / arg[len("{copy:"):-1]
             target = scratch / source.name
             shutil.copyfile(source, target)
@@ -202,7 +209,7 @@ def run_task(spec: dict, task: dict, via: str, agent: str, omui: Path, program: 
             time.sleep(0.1)
         else:
             return {**record, "outcome": "unavailable", "why": f"{program.name} did not start"}
-        session = agent_session(agent, task["goal"], omui, endpoints, via)
+        session = agent_session(agent, task["goal"], omui, endpoints, via, spec.get("max_turns", 30))
         if "unavailable" in session:
             return {**record, "outcome": "unavailable", "why": session["unavailable"]}
         check = Mcp(omui, endpoints, "service:tasks-check")

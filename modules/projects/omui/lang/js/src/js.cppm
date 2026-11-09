@@ -65,3 +65,8 @@ private:
 [[nodiscard]] player::Language typescript();
 
 }  // namespace omui::lang::js
+
+// The module's own, for its units: a snake_case name as JavaScript writes it (max_width → maxWidth).
+namespace omui::lang::js {
+[[nodiscard]] std::string camel(std::string_view snake);
+}

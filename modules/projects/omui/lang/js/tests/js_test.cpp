@@ -524,4 +524,14 @@ verb("gift.wide", { effect: "read" }, (): { half: number } => ({ half }));
         std::print("{}", report->text());
         expect(report->ok() && report->count(mlibs::cts::Status::passed) == report->outcomes.size()) << (report->text());
     };
+
+    "the TypeScript API over the registered components (design.api, D-145): the module's functions and every builder with its props and handlers"_test = [] {
+        Runtime r;
+        std::string catalog;
+        (void)omuiCatalog(r.rt, collect, &catalog);
+        const auto api = lang::js::typescript().describe(catalog);
+        expect(api.contains("signal(initial, key?)") && api.contains("mount(slot, element)")) << api.substr(0, 400);
+        expect(api.contains("\n  button({ id?: string;") && api.contains("onActivated?: (args) => void")) << api;
+        expect(api.contains("textBox(")) << "builders in camel case";
+    };
 }};

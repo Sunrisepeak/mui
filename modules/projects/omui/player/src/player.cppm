@@ -78,6 +78,10 @@ struct Language {
     // The same from text not yet in the file (Live Design's edits), named as
     // the file. Empty: the text as it is.
     std::function<std::expected<std::string, std::string>(std::string_view text, const std::filesystem::path& file)> load_text;
+    // The language's API over the running application's components (their
+    // catalogue, as omuiCatalog gives it), as its code writes it — what an
+    // agent needs to write a script (design.api, D-145). Empty: none.
+    std::function<std::string(std::string_view catalog_json)> describe;
 };
 
 struct PlayerOptions {

@@ -331,6 +331,20 @@ struct Player::Impl {
                 }
                 return Value{}.set("scripts", Value(std::move(scripts))).set("modules", Value(std::move(modules)));
             });
+        add({.name = "design.api",
+             .summary = "How the scripts are written here: each language's API over this application's components — every builder with its "
+                        "properties (types, choices), handlers and actions, and the functions of the module — read before writing an edit",
+             .effect = Effect::read},
+            [this](const Value&) -> VerbResult {
+                std::string catalog;
+                (void)abi::omuiCatalog(handle, collect, &catalog);
+                Value languages(Value::Map{});
+                for (const auto& f : files)
+                    if (f.kind == File::Kind::script && f.lang->describe && !languages.get(f.lang->name))
+                        languages.set(f.lang->name, f.lang->describe(catalog));
+                if (languages.map()->empty()) return std::unexpected(std::string("no script language here describes its API"));
+                return Value{}.set("languages", std::move(languages));
+            });
         add({.name = "design.edit",
              .summary = "Runs new text as a script, at once, its state kept: the semantic changes it made and how long it took — or its problems, with "
                         "their lines, and nothing changed. The edit stays until design.commit writes it to the file or design.discard drops it",

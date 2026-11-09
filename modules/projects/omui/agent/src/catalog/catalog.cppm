@@ -58,6 +58,9 @@ inline constexpr std::array<mlibs::control::Parameter, 2> parameters_ui_preview{
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_ui_history{{
     {"scope", "node", "", true},
 }};
+inline constexpr std::array<mlibs::control::Parameter, 1> parameters_ui_restore{{
+    {"state", "json", "what ui.state answered", false},
+}};
 inline constexpr std::array<mlibs::control::Parameter, 4> parameters_ui_wait{{
     {"q", "json", "a query that must match", true},
     {"absent", "json", "a query that must not match", true},
@@ -125,7 +128,7 @@ inline constexpr std::array<mlibs::control::Parameter, 3> parameters_ui_clock{{
 }};
 
 // Read, find, act on, wait for, capture and inspect a running application's semantic tree.
-inline constexpr std::array<mlibs::control::CatalogEntry, 27> catalog{{
+inline constexpr std::array<mlibs::control::CatalogEntry, 29> catalog{{
     {{"ui.describe", openas::Effect::read, false}, "What this endpoint is: the protocol, the application, its operations, the session's policy and the application's verbs", parameters_ui_describe, "json", mlibs::control::Cost::instant, "", false, false, false},
     {{"ui.record", openas::Effect::read, false}, "Development: every frame since the recorder kept everything — its time and input — and what it ended as (the tree's hash, the pixels'), as a scenario a fresh instance replays to the same bytes (`--replay`, `omui replay`); the person's input, outside development, once they say yes (answer)", {}, "json", mlibs::control::Cost::bounded, "", false, false, false},
     {{"ui.reload", openas::Effect::reversible, false}, "Development: reloads the saved sources (or those named) at once and says what came of it — the semantic changes, where the pixels changed (that region before and after) and the motion it started, sampled over time", parameters_ui_reload, "json", mlibs::control::Cost::bounded, "edit the file back and reload; design.discard drops edits not saved", false, false, false},
@@ -139,6 +142,8 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 27> catalog{{
     {{"ui.transaction", openas::Effect::reversible, false}, "Steps performed as one: all done, or all taken back", parameters_ui_transaction, "json", mlibs::control::Cost::bounded, "ui.undo takes the whole transaction back", false, false, false},
     {{"ui.preview", openas::Effect::read, false}, "What steps would make, shown before it is allowed: pictures before and after, the semantic changes; nothing stays", parameters_ui_preview, "json", mlibs::control::Cost::bounded, "", false, false, false},
     {{"ui.history", openas::Effect::read, false}, "A history scope's changes, what can be undone and redone", parameters_ui_history, "json", mlibs::control::Cost::instant, "", false, false, false},
+    {{"ui.state", openas::Effect::read, false}, "What a person has set in the interface, by semantic id: the values of what takes one, what is checked, where the focus is (not a password) — for another instance to take back (ui.restore)", {}, "json", mlibs::control::Cost::instant, "", false, false, false},
+    {{"ui.restore", openas::Effect::reversible, false}, "ui.state's values put back where the same id with the same role takes them (a new build, a restart): what was restored, what is not there any more, what could not be; not a step of the history", parameters_ui_restore, "json", mlibs::control::Cost::instant, "ui.restore with the state before", false, false, false},
     {{"ui.wait", openas::Effect::read, false}, "Answer when a condition holds: a node present or absent, the tree settled", parameters_ui_wait, "json", mlibs::control::Cost::heavy, "", false, false, false},
     {{"ui.capture", openas::Effect::read, false}, "The picture as drawn: the window, a node, or a region of it, as PNG pixels or as SVG with every node's drawing marked", parameters_ui_capture, "image", mlibs::control::Cost::frame, "", false, false, false},
     {{"ui.input", openas::Effect::reversible, false}, "A person's input as their devices give it (pointer, keys, text), delivered a frame at a time; answers what each press hit", parameters_ui_input, "json", mlibs::control::Cost::heavy, "what the input performed is the actions' own (ui.undo for reversible ones)", false, false, false},
@@ -188,6 +193,10 @@ inline constexpr std::string_view listing = R"listing({
      "inputSchema": {"type": "object", "properties": {"steps": {"description": "a list of {node, action, args}"}, "pictures": {"type": "boolean", "description": "with the pictures (default: when the host renders)"}}, "required": ["steps"]}},
     {"name": "ui.history", "description": "A history scope's changes, what can be undone and redone", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"scope": {"type": "string", "description": "a node (its id)"}}, "required": []}},
+    {"name": "ui.state", "description": "What a person has set in the interface, by semantic id: the values of what takes one, what is checked, where the focus is (not a password) — for another instance to take back (ui.restore)", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "ui.restore", "description": "ui.state's values put back where the same id with the same role takes them (a new build, a restart): what was restored, what is not there any more, what could not be; not a step of the history", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "ui.restore with the state before", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"state": {"description": "what ui.state answered"}}, "required": ["state"]}},
     {"name": "ui.wait", "description": "Answer when a condition holds: a node present or absent, the tree settled", "effect": "read", "person": false, "delegated": false, "cost": "heavy", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"q": {"description": "a query that must match"}, "absent": {"description": "a query that must not match"}, "settled": {"type": "boolean", "description": "no animation or layout pending"}, "timeout": {"type": "number", "description": "seconds"}}, "required": []}},
     {"name": "ui.capture", "description": "The picture as drawn: the window, a node, or a region of it, as PNG pixels or as SVG with every node's drawing marked", "effect": "read", "person": false, "delegated": false, "cost": "frame", "undo": "", "undoable": false, "cancellable": false, "result": "image",

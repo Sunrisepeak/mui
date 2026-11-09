@@ -205,6 +205,79 @@ std::optional<spec::SemanticNode> Tree::node(std::string_view id) {
     return std::nullopt;
 }
 
+namespace {
+
+// A value that only shows dots (a password field's): never kept.
+bool masked(const Value& value) {
+    if (value.type() != Value::Type::text) return false;
+    const std::string_view text = value.as_string();
+    if (text.empty()) return false;
+    constexpr std::string_view dot = "\u2022";
+    for (std::size_t at = 0; at < text.size(); at += dot.size())
+        if (text.substr(at, dot.size()) != dot) return false;
+    return true;
+}
+
+}  // namespace
+
+Value Tree::state() {
+    refresh();
+    Value::List kept;
+    std::string focused;
+    for (const spec::SemanticNode& node : nodes_) {
+        if (node.states.has(State::focused)) focused = node.id;
+        if (node.states.has(State::disabled) || node.states.has(State::readonly)) continue;
+        Value entry = Value{}.set("id", node.id).set("role", std::string(spec::name(node.role)));
+        bool any = false;
+        if (node.action("set_value") && !node.value.is_null() && !masked(node.value)) {
+            // A slider's {value, min, max, step}: its value; a text's or a choice's: itself.
+            const Value* inner = node.value.map() ? node.value.get("value") : nullptr;
+            entry.set("value", inner ? *inner : node.value);
+            any = true;
+        }
+        if (node.action("toggle")) {
+            entry.set("checked", node.states.has(State::checked));
+            any = true;
+        }
+        if (any) kept.push_back(std::move(entry));
+    }
+    Value out = Value{}.set("nodes", Value(std::move(kept)));
+    if (!focused.empty()) out.set("focused", focused);
+    return out;
+}
+
+Value Tree::restore(const Value& state, const Invocation& call) {
+    refresh();
+    Value::List restored, missing, refused;
+    const NodeId scope = runtime_.root();
+    const auto history = runtime_.history(runtime_.undo_scope(scope));
+    if (const Value* nodes = state.get("nodes"); nodes && nodes->list())
+        for (const Value& entry : *nodes->list()) {
+            const std::string id(entry.get("id") ? entry.get("id")->as_string() : std::string_view{});
+            const auto now = node(id);
+            if (!now || std::string_view(spec::name(now->role)) != (entry.get("role") ? entry.get("role")->as_string() : std::string_view{})) {
+                missing.push_back(Value(id));
+                continue;
+            }
+            bool done = true;
+            if (const Value* value = entry.get("value"); value && now->action("set_value")) {
+                const Value* inner = now->value.map() ? now->value.get("value") : nullptr;
+                if (!(inner ? *inner == *value : now->value == *value)) {
+                    Invocation given = call;
+                    given.args = Value{}.set("value", *value);
+                    done = act(id, "set_value", given).exit_code().value_or(1) == 0 && done;
+                }
+            }
+            if (const Value* checked = entry.get("checked"); checked && now->action("toggle") && now->states.has(State::checked) != checked->as_bool())
+                done = act(id, "toggle", call).exit_code().value_or(1) == 0 && done;
+            (done ? restored : refused).push_back(Value(id));
+        }
+    if (const Value* focused = state.get("focused"); focused && node(focused->as_string())) (void)act(focused->as_string(), "focus", call);
+    // Putting back is no one's step to take back: the history as it was.
+    if (history.undo.empty() && history.redo.empty()) runtime_.clear_history(runtime_.undo_scope(scope));
+    return Value{}.set("restored", Value(std::move(restored))).set("missing", Value(std::move(missing))).set("refused", Value(std::move(refused)));
+}
+
 Envelope Tree::act(std::string_view id, std::string_view action, const Invocation& call) {
     // An item a list holds unmaterialised is materialised first (S-7).
     // An item its holder acts on without a node (a canvas's), for the actions

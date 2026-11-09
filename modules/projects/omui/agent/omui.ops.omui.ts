@@ -147,6 +147,20 @@ export default defineOps({
       result: "json",
     },
     {
+      name: "ui.state",
+      effect: "read",
+      summary: "What a person has set in the interface, by semantic id: the values of what takes one, what is checked, where the focus is (not a password) — for another instance to take back (ui.restore)",
+      result: "json",
+    },
+    {
+      name: "ui.restore",
+      effect: "reversible",
+      summary: "ui.state's values put back where the same id with the same role takes them (a new build, a restart): what was restored, what is not there any more, what could not be; not a step of the history",
+      params: [{ name: "state", type: "json", doc: "what ui.state answered" }],
+      result: "json",
+      undo: "ui.restore with the state before",
+    },
+    {
       name: "ui.wait",
       effect: "read",
       summary: "Answer when a condition holds: a node present or absent, the tree settled",

@@ -553,6 +553,14 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         call->args = {};
         return tree_.act(scope.empty() ? std::string_view("app") : scope, op, *call);
     }
+    if (op == "state") return e.data(tree_.state()).result(spec::exit_code::success);
+    if (op == "restore") {
+        const Value* state = req.get("state");
+        if (!state || !state->map()) return invalid("`restore` needs `state`: what `state` answered", R"({"op":"restore","state":{"nodes":[{"id":"main/name","role":"text_box","value":"Ada"}]}})");
+        auto call = invocation(req);
+        if (!call) return call.error();
+        return e.data(tree_.restore(*state, *call)).result(spec::exit_code::success);
+    }
     if (op == "history") {
         const std::string_view scope = text_of(req, "scope");
         NodeId n = scope.empty() ? runtime_.root() : runtime_.find(scope);

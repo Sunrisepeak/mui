@@ -87,6 +87,17 @@ public:
     // removed, changed: name, value, state, role, description), what `look`
     // gave, and whether the tree is, after, as it was before (`restored`).
     Envelope preview(std::span<const Step> steps, const Invocation& call = {}, const std::function<Value()>& look = {});
+    // What a person has set in the interface, by semantic id (W16, D-154):
+    // the values of what takes one (set_value), what is checked (toggle),
+    // and where the focus is — to be put back in another instance of the
+    // application (a new build, a restart) by `restore`. A masked value (a
+    // password) is not kept.
+    [[nodiscard]] Value state();
+    // `state`'s values put back where the same id, with the same role, takes
+    // them: the answer says what was restored, what is not there any more
+    // and what could not be. The history is left as it was before: putting
+    // back is not a step anyone takes back.
+    Value restore(const Value& state, const Invocation& call = {});
     [[nodiscard]] WaitState check(const Condition& condition);
     // Every node against the spec's clauses.
     [[nodiscard]] std::vector<spec::Violation> violations();

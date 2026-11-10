@@ -533,7 +533,7 @@ UTest cases{"viewdoc", [] {
 
     "a component document: every language and document can use it"_test = [] {
         constexpr std::string_view search = R"j({"omui": "0.1", "component": {
-            "name": "search_box",
+            "name": "find_box",
             "interface": {
               "props": {"placeholder": {"type": "string", "default": ""},
                         "query": {"type": "string", "default": "", "bindable": true}},
@@ -554,13 +554,13 @@ UTest cases{"viewdoc", [] {
         auto query = signal(std::string("first"));
         std::vector<std::string> searched;
         auto page = load(h, view_of(R"j({"type": "column", "children": [
-            {"type": "search_box", "id": "find", "props": {"placeholder": "Find…", "query": {"bind": "q"}},
+            {"type": "find_box", "id": "find", "props": {"placeholder": "Find…", "query": {"bind": "q"}},
              "on": {"searched": [{"set": "last", "expr": "event.text"}]}},
             {"type": "text", "id": "last", "props": {"text": {"expr": "last"}}}]})j",
                                     R"j("signals": {"q": {"type": "string", "value": "a"}, "last": {"type": "string"}}, )j"));
         page.mount(h.runtime(), "main");
         // And from C++, by name, with a signal bound two-way.
-        h.mount("side", vd::make("search_box", {{"query", Prop<std::string>(query).source()}},
+        h.mount("side", vd::make("find_box", {{"query", Prop<std::string>(query).source()}},
                                  {{"searched", [&](const Value& a) { searched.emplace_back(a.get("text")->as_string()); }}}, "side"));
         h.step();
         expect(h.tree().node("main/find/row:0/input") && h.tree().node("main/find/row:0/input")->value == Value("a"));

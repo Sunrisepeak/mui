@@ -50,6 +50,7 @@ export default defineView({ omui: "0.1", view: { root: { type: "text", id: "late
 struct Running {
     std::optional<os::process::process> process;
     std::optional<omui::agent::Client>  client;
+    std::string                         why;  // no endpoint: what the program did instead
 
     Running(const std::filesystem::path& app, const std::filesystem::path& endpoints) {
         os::process::spawn_options options;
@@ -58,10 +59,31 @@ struct Running {
         options.out = options.err = os::process::stdio::null;
         options.bound_lifetime = true;
         if (auto spawned = os::process::process::spawn(options)) process.emplace(std::move(*spawned));
+        else why = std::format("{} did not start", os::fs::utf8(options.program));
         for (int tries = 0; process && tries < 200 && !client; ++tries) {
             if (auto connected = omui::agent::Client::connect("org.openmui.plan", endpoints)) client.emplace(std::move(*connected));
             else std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
+        if (process && !client) {
+            process->kill();
+            process.reset();
+            why = rerun_for_errors(options);
+        }
+    }
+
+    // Run once more, its errors read this time (not in the run itself: a full pipe would stop it), to say
+    // why no endpoint came: how it ended, or that it still ran, and the last of what it wrote.
+    static std::string rerun_for_errors(os::process::spawn_options options) {
+        options.err = os::process::stdio::pipe;
+        auto spawned = os::process::process::spawn(options);
+        if (!spawned) return "it did not start a second time";
+        const auto ended = spawned->wait_for(std::chrono::seconds(10));
+        const bool running = !ended || !*ended;
+        if (running) spawned->kill();
+        const auto said = spawned->read_error_for(std::chrono::seconds(2));
+        std::string text = said && *said ? **said : std::string();
+        if (text.size() > 1500) text = "…" + text.substr(text.size() - 1500);
+        return std::format("{}; it wrote: {}", running ? "it ran 10 s without an endpoint" : "it ended", text.empty() ? "nothing" : text);
     }
     ~Running() {
         if (process) process->kill();
@@ -96,7 +118,7 @@ E2E generation{"generation", timeout{std::chrono::minutes{5}}, [] {
         std::filesystem::create_directories(endpoints);
         {
             Running plan(app, endpoints);
-            expect(plan.client.has_value()) << "the application's endpoint";
+            expect(plan.client.has_value()) << "the application's endpoint: " << plan.why;
             if (!plan.client) return;
             const auto [surfaces, surfaces_code] = plan.invoke("generate.surfaces");
             expect(eq(surfaces_code, 0) && surfaces.get("openness")->as_string() == "limited") << surfaces.json();
@@ -126,7 +148,7 @@ E2E generation{"generation", timeout{std::chrono::minutes{5}}, [] {
         }
         // Started again: the version shown is shown again.
         Running again(app, endpoints);
-        expect(again.client.has_value());
+        expect(again.client.has_value()) << "the application's endpoint, restarted: " << again.why;
         if (!again.client) return;
         (void)again.ask(Value{}.set("op", "wait").set("q", Value{}.set("name", "Team, 29 a month")).set("timeout", 10));
         expect(again.finds("Team, 29 a month")) << "kept across a restart";

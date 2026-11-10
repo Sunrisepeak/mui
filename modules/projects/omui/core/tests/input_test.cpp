@@ -17,10 +17,19 @@ UTest cases{"core.input", [] {
         expect(alt && alt->size() == 2 && (*alt)[1].key == omui::Key::up);
         expect(!omui::parse_chord("Hyper+K").has_value());
         expect(!omui::parse_chords("Right|").has_value());
-        omui::set_primary_modifier(omui::Modifier::meta);
-        expect(omui::parse_chord("Mod+S")->mods == omui::Modifiers(omui::Modifier::meta));
-        omui::set_primary_modifier(omui::Modifier::ctrl);
-        expect(omui::parse_chord("Mod+S")->mods == omui::Modifiers(omui::Modifier::ctrl));
+        // `Mod` is the platform's: Command on Apple's, Control elsewhere.
+        for (const auto platform : {omui::Platform::macos, omui::Platform::ios}) {
+            omui::set_platform(platform);
+            expect(omui::parse_chord("Mod+S")->mods == omui::Modifiers(omui::Modifier::meta)) << std::string(omui::name(platform));
+        }
+        for (const auto platform : {omui::Platform::windows, omui::Platform::android, omui::Platform::freedesktop}) {
+            omui::set_platform(platform);
+            expect(omui::parse_chord("Mod+S")->mods == omui::Modifiers(omui::Modifier::ctrl)) << std::string(omui::name(platform));
+        }
+        expect(omui::parse_platform("macOS") == omui::Platform::macos && omui::parse_platform("linux") == omui::Platform::freedesktop &&
+               !omui::parse_platform("beos").has_value());
+        expect(omui::conventions(omui::Platform::windows).context_on_release && omui::conventions(omui::Platform::macos).overscroll_bounce &&
+               !omui::conventions(omui::Platform::android).overscroll_bounce);
     };
 
     "events round-trip through their JSON form"_test = [] {

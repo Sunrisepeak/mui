@@ -78,8 +78,8 @@ bool is_pointer_kind(const InputEvent& e, PointerKind k) {
 
 std::span<const std::string_view> runtime_events() noexcept {
     // handler_name's events, the root's close request, and the activation handlers.
-    static constexpr std::array<std::string_view, 24> events{
-        "activate", "blur", "close_request", "file_drop", "file_leave", "file_over", "focus", "gamepad_axis", "gamepad_connect",
+    static constexpr std::array<std::string_view, 25> events{
+        "activate", "blur", "close_request", "context", "file_drop", "file_leave", "file_over", "focus", "gamepad_axis", "gamepad_connect",
         "gamepad_disconnect", "gamepad_down", "gamepad_up", "key_down", "key_up", "pointer_cancel", "pointer_down", "pointer_enter",
         "pointer_leave", "pointer_move", "pointer_up", "preedit", "press", "text_input", "wheel"};
     return events;
@@ -233,6 +233,11 @@ void Runtime::Impl::pointer_event(const PointerEvent& e) {
     for (const NodeId watcher : pointer_watchers) self.invalidate_paint(watcher);
     switch (e.kind) {
         case PointerKind::move: {
+            if (long_press && e.type == PointerType::touch) {
+                const float slop = platform_conventions().touch_slop;
+                const float dx = e.position.x - pressed_at.x, dy = e.position.y - pressed_at.y;
+                if (dx * dx + dy * dy > slop * slop) self.cancel(std::exchange(long_press, 0));  // a drag, not a press held
+            }
             // A selection being dragged reaches the words under the pointer (between them, where it reached).
             if (selection.dragging && held)
                 if (const NodeId over = self.hit_test(e.position); alive(over))
@@ -245,6 +250,11 @@ void Runtime::Impl::pointer_event(const PointerEvent& e) {
         case PointerKind::down: {
             ++presses;
             held = true;
+            const PlatformConventions conventions = platform_conventions();
+            // Control and a click is a right click where the platform says so (macOS): it asks, it does not press.
+            const bool control_click = e.type == PointerType::mouse && e.button == MouseButton::left && conventions.control_click_context &&
+                                       e.mods == Modifiers(Modifier::ctrl);
+            const bool primary_press = (e.button == MouseButton::left && !control_click) || e.type != PointerType::mouse;
             NodeId target = self.hit_test(e.position);
             record(RecordLevel::interactions, "hit", target, "the press landed on it", e.position);
             // A press outside an overlay dismisses it (light dismiss), top first;
@@ -291,7 +301,7 @@ void Runtime::Impl::pointer_event(const PointerEvent& e) {
             NodeId f = focusable_ancestor(target);
             if (f) set_focus(f, false);
             else if (alive(focus)) set_focus({}, false);
-            if (e.button == MouseButton::left || e.type != PointerType::mouse) {
+            if (primary_press) {
                 pressed = activatable_ancestor(target);
                 pressed_at = e.position;
                 if (alive(pressed)) {
@@ -301,7 +311,25 @@ void Runtime::Impl::pointer_event(const PointerEvent& e) {
             }
             capture = target;  // implicit capture: the drag stays with the node it began on
             const bool took = deliver(target, e, e.position, true);
-            if ((e.button == MouseButton::left || e.type != PointerType::mouse) && !alive(pressed) && !took && !(alive(target) && at(target).state.disabled))
+            if (e.type == PointerType::mouse && ((e.button == MouseButton::right && !conventions.context_on_release) || control_click))
+                context_event(target, e.position, "mouse");
+            // A touch held still asks for the context menu (the press then activates nothing).
+            if (e.type == PointerType::touch) {
+                if (long_press) self.cancel(long_press);
+                long_press = self.after(seconds(conventions.long_press), [this, target, where = e.position, actor = input_actor] {
+                    long_press = 0;
+                    if (!held || !alive(target)) return;
+                    if (alive(pressed)) {
+                        at(pressed).state.pressed = false;
+                        touch(dirty_paint | dirty_semantics);
+                    }
+                    pressed = {};
+                    const auto before = std::exchange(input_actor, actor);  // whose touch it was
+                    context_event(target, where, "touch");
+                    input_actor = before;
+                });
+            }
+            if (primary_press && !alive(pressed) && !took && !(alive(target) && at(target).state.disabled))
                 record(RecordLevel::interactions, "missed", target, "nothing here takes a press: no button or other control under the pointer", e.position);
             // Text a person selects, as on any page: a press on words no control
             // or handler took begins a selection (a double press a word, a triple
@@ -324,9 +352,12 @@ void Runtime::Impl::pointer_event(const PointerEvent& e) {
         }
         case PointerKind::up: {
             selection.dragging = false;
+            if (long_press) self.cancel(std::exchange(long_press, 0));
             NodeId target = alive(capture) ? capture : self.hit_test(e.position);
             NodeId by{};
             const bool handled = deliver(target, e, e.position, true, &by);
+            if (e.type == PointerType::mouse && e.button == MouseButton::right && platform_conventions().context_on_release)
+                context_event(target, e.position, "mouse");
             capture = {};
             held = false;
             NodeId p = pressed;
@@ -372,6 +403,7 @@ void Runtime::Impl::pointer_event(const PointerEvent& e) {
             break;
         }
         case PointerKind::cancel:
+            if (long_press) self.cancel(std::exchange(long_press, 0));
             if (alive(pressed)) at(pressed).state.pressed = false;
             pressed = capture = {};
             held = false;
@@ -382,6 +414,17 @@ void Runtime::Impl::pointer_event(const PointerEvent& e) {
             break;
         case PointerKind::enter:
             break;
+    }
+}
+
+void Runtime::Impl::context_event(NodeId target, Point window, std::string_view source) {
+    for (NodeId cur = target; alive(cur); cur = at(cur).parent) {
+        if (at(cur).state.disabled) return;
+        if (!has_handler(cur, "context")) continue;
+        const Point local = local_point(at(cur), window);
+        record(RecordLevel::interactions, "context", cur, std::format("asked for its context menu ({})", source), window);
+        call_handlers(cur, "context", Value{}.set("x", local.x).set("y", local.y).set("source", std::string(source)));
+        return;
     }
 }
 
@@ -422,6 +465,12 @@ void Runtime::Impl::key_event(const KeyEvent& e) {
             cur = at(cur).parent;
         }
         if (handled) break;
+    }
+    // The menu key, or Shift+F10: the context menu of what has focus, at its lower left.
+    if (!handled && e.kind == KeyKind::down && (e.key == Key::menu || (e.key == Key::f10 && e.mods == Modifiers(Modifier::shift)))) {
+        const Rect at_focus = alive(focus) ? self.bounds(focus) : Rect{};
+        context_event(target, {at_focus.x + 8, at_focus.bottom()}, "key");
+        handled = true;
     }
     if (!handled && e.kind == KeyKind::down && e.key == Key::tab && !e.mods.has(Modifier::ctrl) &&
         !e.mods.has(Modifier::alt) && !e.mods.has(Modifier::meta))

@@ -329,8 +329,11 @@ struct Desktop::Impl final : WindowHost {
 Desktop::Desktop(DesktopOptions options) : impl_(std::make_unique<Impl>()) {
     Impl& d = *impl_;
     d.options = std::move(options);
-    // Shortcuts use Command where the platform does.
-    if constexpr (mcpplibs::os::is_macos) set_primary_modifier(Modifier::meta);
+    // The interface answers as the platform it runs on does (D6): Command for shortcuts, a scroll's
+    // edges, when a right button asks for a context menu.
+    if constexpr (mcpplibs::os::is_macos) set_platform(Platform::macos);
+    else if constexpr (mcpplibs::os::is_windows) set_platform(Platform::windows);
+    else set_platform(Platform::freedesktop);
     if (d.options.runtime) {
         // A runtime the caller made (a script binding's, which existed first):
         // the window shows it, on the interactive clock.

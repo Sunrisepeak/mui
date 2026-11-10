@@ -44,8 +44,7 @@ struct Modifiers {
 [[nodiscard]] std::string_view name(Key k) noexcept;      // "A", "PageUp", "F5"
 [[nodiscard]] std::optional<Key> parse_key(std::string_view text) noexcept;
 
-// What `Mod` means on this platform; the host sets it (Ctrl by default).
-void set_primary_modifier(Modifier m) noexcept;
+// What `Mod` means on the platform the interface follows (set_platform): Command on Apple's, else Control.
 [[nodiscard]] Modifier primary_modifier() noexcept;
 
 struct Chord {

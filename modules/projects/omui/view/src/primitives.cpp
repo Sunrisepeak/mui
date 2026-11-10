@@ -427,12 +427,15 @@ struct ScrollNode {
     Point     target;  // where the offset is going
     Services* services = nullptr;
     NodeId    node;
-    std::optional<hanim::Drive<double>> cx, cy;  // the offset's lanes on the host's Engine
+    // The offset's lanes on the host's Engine; a glide past an edge is turned
+    // back (or stopped) as it is drawn, so they change while painting.
+    mutable std::optional<hanim::Drive<double>> cx, cy;
     // touch drags
     bool      dragging = false;
     Point     last;
     seconds   last_time{0};
     Point     velocity;
+    Point     pull;  // where the finger would have the offset, past the edges too (a stretch shows less)
 
     void mount(Services& s, NodeId n) {
         services = &s;
@@ -462,6 +465,40 @@ struct ScrollNode {
     [[nodiscard]] Point clamp(Point p) const {
         const Point m = max_offset();
         return {std::clamp(p.x, 0.0f, m.x), std::clamp(p.y, 0.0f, m.y)};
+    }
+
+    // Past an edge, where the platform stretches (Apple's): the content follows
+    // the finger less the further it is pulled, never more than the viewport
+    // (UIScrollView's rubber band: d·(1 − 1/(x·0.55/d + 1))). `unstretch` is
+    // its inverse: grabbed while springing back, the finger takes it where it is.
+    static constexpr float resistance = 0.55f;
+    [[nodiscard]] static float stretch(float past, float extent) {
+        return extent <= 0 ? 0 : (1 - 1 / (past * resistance / extent + 1)) * extent;
+    }
+    [[nodiscard]] static float unstretch(float shown, float extent) {
+        if (extent <= 0) return 0;
+        const float part = std::min(shown / extent, 0.999f);
+        return (1 / (1 - part) - 1) * extent / resistance;
+    }
+    [[nodiscard]] Point stretched(Point raw) const {
+        const Point m = max_offset();
+        const Size v = viewport();
+        auto axis = [](float value, float end, float extent) {
+            if (value < 0) return -stretch(-value, extent);
+            if (value > end) return end + stretch(value - end, extent);
+            return value;
+        };
+        return {horizontal ? axis(raw.x, m.x, v.width) : 0.0f, vertical ? axis(raw.y, m.y, v.height) : 0.0f};
+    }
+    [[nodiscard]] Point unstretched(Point shown) const {
+        const Point m = max_offset();
+        const Size v = viewport();
+        auto axis = [](float value, float end, float extent) {
+            if (value < 0) return -unstretch(-value, extent);
+            if (value > end) return end + unstretch(value - end, extent);
+            return value;
+        };
+        return {axis(shown.x, m.x, v.width), axis(shown.y, m.y, v.height)};
     }
 
     // Laid out again: content that shrank (a shorter page shown) leaves no
@@ -517,7 +554,28 @@ struct ScrollNode {
         const seconds now = services->now();
         if (!cx || !cy) return target;
         Point p{static_cast<float>(cx->value(now).value_or(target.x)), static_cast<float>(cy->value(now).value_or(target.y))};
-        return clamp(p);
+        // Where the platform stretches, the offset may be past an edge for a while (pulled, or bouncing back).
+        return platform_conventions().overscroll_bounce ? p : clamp(p);
+    }
+
+    // A glide that reaches an edge: turned back by a spring that keeps its
+    // speed (it runs on past the edge a little and returns: Apple's bounce), or
+    // stopped there. And a stretch let go: back to the edge.
+    void at_edges(seconds now) const {
+        const bool bounce = platform_conventions().overscroll_bounce;
+        const Point m = max_offset();
+        auto axis = [&](std::optional<hanim::Drive<double>>& lane, float end) {
+            if (!lane) return;
+            const double at = lane->value(now).value_or(0);
+            const double going = lane->target().value_or(at);
+            const double edge = at < 0 ? 0 : end;
+            if (at >= 0 && at <= end) return;          // inside
+            if (going == edge) return;                 // already on its way back
+            if (bounce) static_cast<void>(lane->spring_to(edge, hanim::SpringParams::response(0.4), now));
+            else static_cast<void>(lane->jump(edge));
+        };
+        axis(cx, m.x);
+        axis(cy, m.y);
     }
 
     bool on_event(EventContext& ctx, const InputEvent& e) {
@@ -535,13 +593,21 @@ struct ScrollNode {
         if (const auto* p = std::get_if<PointerEvent>(&e); p && p->type == PointerType::touch) {
             const seconds now = services->now();
             switch (p->kind) {
-                case PointerKind::down:
+                case PointerKind::down: {
                     dragging = true;
                     last = p->position;
                     last_time = now;
                     velocity = {};
+                    // Caught mid-glide or mid-bounce: it stays where it is shown, under the finger.
+                    const Point shown = scroll_offset();
+                    pull = platform_conventions().overscroll_bounce ? unstretched(shown) : clamp(shown);
+                    if (cx && cy) {
+                        static_cast<void>(cx->jump(stretched(pull).x));
+                        static_cast<void>(cy->jump(stretched(pull).y));
+                    }
                     services->capture_pointer(ctx.node);
                     return false;
+                }
                 case PointerKind::move:
                     if (!dragging) return false;
                     {
@@ -550,22 +616,46 @@ struct ScrollNode {
                         if (dt > 0) velocity = {static_cast<float>(d.x / dt), static_cast<float>(d.y / dt)};
                         last = p->position;
                         last_time = now;
-                        scroll({target.x + d.x, target.y + d.y}, false);
+                        if (!platform_conventions().overscroll_bounce) {
+                            scroll({target.x + d.x, target.y + d.y}, false);
+                            return true;
+                        }
+                        // Past an edge it stretches; what the tree states stays inside.
+                        pull = {horizontal ? pull.x + d.x : 0.0f, vertical ? pull.y + d.y : 0.0f};
+                        const Point shown = stretched(pull);
+                        if (cx && cy) {
+                            static_cast<void>(cx->jump(shown.x));
+                            static_cast<void>(cy->jump(shown.y));
+                        }
+                        if (const Point inside = clamp(pull); inside.x != target.x || inside.y != target.y) {
+                            target = inside;
+                            services->write_back(node, "x", Value(static_cast<double>(target.x)));
+                            services->write_back(node, "y", Value(static_cast<double>(target.y)));
+                            services->emit(node, "scrolled", Value{}.set("x", static_cast<double>(target.x)).set("y", static_cast<double>(target.y)));
+                            services->invalidate_semantics(node);
+                        }
+                        services->invalidate_paint(node);
+                        services->request_frame();
                     }
                     return true;
                 case PointerKind::up:
                 case PointerKind::cancel:
                     if (!dragging) return false;
                     dragging = false;
+                    // A finger that stopped before it lifted throws nothing (the last move too long ago).
+                    if ((now - last_time).count() > 0.05) velocity = {};
                     {
-                        // Momentum: the offset decays from the release velocity.
+                        // Momentum: the offset decays from the release velocity (from where it is
+                        // shown: a stretch let go springs back to its edge, at_edges).
+                        const Point shown = platform_conventions().overscroll_bounce ? stretched(pull) : target;
                         auto glide = [&](std::optional<hanim::Drive<double>>& c, float from, float v) {
-                            if (v == 0 || !c) return;
+                            if (!c) return;
                             static_cast<void>(c->jump(from));
-                            static_cast<void>(c->glide(v, {}, now));
+                            if (v != 0) static_cast<void>(c->glide(v, {}, now));
                         };
-                        glide(cx, target.x, horizontal ? velocity.x : 0);
-                        glide(cy, target.y, vertical ? velocity.y : 0);
+                        glide(cx, shown.x, horizontal ? velocity.x : 0);
+                        glide(cy, shown.y, vertical ? velocity.y : 0);
+                        at_edges(now);
                         target = clamp({cx ? static_cast<float>(cx->target().value_or(target.x)) : target.x,
                                         cy ? static_cast<float>(cy->target().value_or(target.y)) : target.y});
                         services->write_back(node, "x", Value(static_cast<double>(target.x)));
@@ -620,6 +710,7 @@ struct ScrollNode {
 
     void paint_over(PaintContext& ctx) const {
         const seconds now = services->now();
+        if (!dragging) at_edges(now);
         if ((cx && !cx->settled(now).value_or(true)) || (cy && !cy->settled(now).value_or(true))) {
             services->invalidate_paint(node);
             services->request_frame();

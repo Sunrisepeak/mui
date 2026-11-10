@@ -386,14 +386,16 @@ bool TextBox::key(const KeyEvent& e) {
     const Modifiers word = Modifiers(word_modifier());
     const bool editable = !props.readonly && !props.disabled;
     const mlibs::text::Unit unit = only(e.mods, word) ? mlibs::text::Unit::word : mlibs::text::Unit::grapheme;
+    // Command with an arrow or Backspace reaches the line's or the text's end (Apple's).
+    const bool command = only(e.mods, primary) && primary_modifier() == Modifier::meta;
     switch (e.key) {
         case Key::left:
-            if (only(e.mods, primary) && primary_modifier() == Modifier::meta) editor_.move_left(mlibs::text::Unit::line, shift);
+            if (command) editor_.move_left(mlibs::text::Unit::line, shift);
             else editor_.move_left(unit, shift);
             caret_moved();
             return true;
         case Key::right:
-            if (only(e.mods, primary) && primary_modifier() == Modifier::meta) editor_.move_right(mlibs::text::Unit::line, shift);
+            if (command) editor_.move_right(mlibs::text::Unit::line, shift);
             else editor_.move_right(unit, shift);
             caret_moved();
             return true;
@@ -407,6 +409,12 @@ bool TextBox::key(const KeyEvent& e) {
             return true;
         case Key::up:
         case Key::down: {
+            if (command) {
+                if (e.key == Key::up) editor_.move_left(mlibs::text::Unit::document, shift);
+                else editor_.move_right(mlibs::text::Unit::document, shift);
+                caret_moved();
+                return true;
+            }
             if (!props.multiline) return false;
             mlibs::text::Paragraph& p = paragraph(services(), content_.width);
             const std::size_t at = to_shown(editor_.selection().focus);
@@ -418,7 +426,7 @@ bool TextBox::key(const KeyEvent& e) {
         }
         case Key::backspace:
             if (!editable) return true;
-            editor_.delete_backward(unit);
+            editor_.delete_backward(command ? mlibs::text::Unit::line : unit);
             edited();
             return true;
         case Key::delete_:

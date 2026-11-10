@@ -23,7 +23,7 @@ constexpr std::array<std::string_view, static_cast<std::size_t>(Key::count_)> ke
 
 static_assert(!key_names.back().empty(), "a name for every key");
 
-std::atomic<std::uint8_t> primary{static_cast<std::uint8_t>(Modifier::ctrl)};
+std::atomic<std::uint8_t> followed{static_cast<std::uint8_t>(Platform::freedesktop)};  // the platform whose conventions hold
 
 bool iequal(std::string_view a, std::string_view b) {
     return a.size() == b.size() && std::ranges::equal(a, b, [](char x, char y) {
@@ -54,8 +54,15 @@ std::optional<Key> parse_key(std::string_view text) noexcept {
     return std::nullopt;
 }
 
-void set_primary_modifier(Modifier m) noexcept { primary.store(static_cast<std::uint8_t>(m)); }
-Modifier primary_modifier() noexcept { return static_cast<Modifier>(primary.load()); }
+void set_platform(Platform platform) noexcept { followed.store(static_cast<std::uint8_t>(platform)); }
+Platform current_platform() noexcept { return static_cast<Platform>(followed.load()); }
+std::optional<Platform> parse_platform(std::string_view text) noexcept {
+    for (const Platform platform : {Platform::freedesktop, Platform::windows, Platform::macos, Platform::ios, Platform::android})
+        if (iequal(name(platform), text)) return platform;
+    if (iequal(text, "linux")) return Platform::freedesktop;
+    return std::nullopt;
+}
+Modifier primary_modifier() noexcept { return platform_conventions().primary; }
 
 std::string Chord::text() const {
     std::string out;

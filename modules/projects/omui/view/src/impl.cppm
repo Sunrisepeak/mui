@@ -403,6 +403,7 @@ struct Runtime::Impl {
     std::uint64_t        presses = 0;  // pointer presses so far (pointer_gesture)
     bool                 held = false;  // a pointer is held
     Point                pressed_at;  // where the press began: moved further than a click's slop, it was a drag
+    std::uint64_t        long_press = 0;  // the timer by which a touch held still asks for a context menu
     std::vector<NodeId>  hover_chain;   // the hovered node and its ancestors
     NodeId               focus;
     bool                 focus_visible = false;
@@ -746,6 +747,10 @@ struct Runtime::Impl {
     void   pointer_event(const PointerEvent& e);
     void   wheel_event(const WheelEvent& e);
     void   key_event(const KeyEvent& e);
+    // A person asks for a context menu at `window` — each platform's gesture for it (a right
+    // button, Control and a click on macOS, a touch held, the menu key or Shift+F10); `source`:
+    // mouse, touch or key. The event `context` goes to the first that listens, from `target` up.
+    void   context_event(NodeId target, Point window, std::string_view source);
     // To the target, then (bubbling) its ancestors until one handles it; `by`
     // is told which did.
     bool   deliver(NodeId target, const InputEvent& e, Point window, bool bubble, NodeId* by = nullptr);

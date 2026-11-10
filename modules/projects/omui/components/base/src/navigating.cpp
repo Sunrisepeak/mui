@@ -65,15 +65,11 @@ void ContextMenu::mounted() {
     timer_ = services().after(seconds(0), [this] {
         timer_ = 0;
         target_ = element_before(services(), node());
-        listening_.push_back(services().on(target_, "pointer_down", [this](const Value& args) {
-            if (!args.get("button") || args.get("button")->as_string() != "right") return;
+        // Each platform's way of asking (a right button, pressed or released; Control and a click; a touch
+        // held; the menu key or Shift+F10): the runtime's one event.
+        listening_.push_back(services().on(target_, "context", [this](const Value& args) {
             const Rect bounds = services().bounds(target_);
             open_at({bounds.x + static_cast<float>(args.get("x")->as_double()), bounds.y + static_cast<float>(args.get("y")->as_double())});
-        }));
-        listening_.push_back(services().on(target_, "key_down", [this](const Value& args) {
-            if (!args.get("key") || args.get("key")->as_string() != "ContextMenu") return;
-            const Rect bounds = services().bounds(target_);
-            open_at({bounds.x + 8, bounds.bottom()});
         }));
     });
 }

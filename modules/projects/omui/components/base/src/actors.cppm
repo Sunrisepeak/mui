@@ -72,12 +72,21 @@ struct AgentPresenceState {
     bool                        asking = false;  // its last request waits for the person's answer
     bool                        taken_over = false;  // the person has taken over from every agent (S-14)
     std::optional<AgentNote>    note;  // what it says it is about to do, or hands back with (openas §4.4, §5.3)
+    std::vector<Claim>          claims;  // the parts it holds while it designs them (D-160)
+    std::size_t                 hue = 0;  // its colour: the order it came in (0: the theme's `agent`)
 };
 // From the journal: the actors whose names begin with `actors`, the newest
 // action theirs and up to `trail` before it on other nodes; what was done
 // inside `except` (the presence's own subtree, a log's records) left out.
 [[nodiscard]] AgentPresenceState agent_presence_state(const Services& services, std::string_view actors, std::size_t trail = 3,
                                                       std::string_view except = {});
+// Every actor at work here at once (D-160: several agents designing together), each with its
+// own steps, note and claims, in the order they came in (each one's `hue` that order, kept as
+// others come and go); at most `limit`, the latest at work.
+[[nodiscard]] std::vector<AgentPresenceState> agent_presence_states(const Services& services, std::string_view actors, std::size_t trail = 3,
+                                                                    std::string_view except = {}, std::size_t limit = 6);
+// An actor's colour: the theme's `agent` for the first, then hues apart from it, each readable on light and dark.
+[[nodiscard]] Color agent_ink(const Theme& theme, std::size_t hue);
 
 class AgentPresence : public AgentPresenceContract<AgentPresence> {
 public:
@@ -88,11 +97,15 @@ public:
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
 
     [[nodiscard]] AgentPresenceState state() const;
+    // Each actor at work now (D-160), as drawn.
+    [[nodiscard]] std::vector<AgentPresenceState> states() const;
     // What it says now: "guide activate …/save", "guide asks you", or nothing.
     [[nodiscard]] std::string said() const;
 
 private:
     [[nodiscard]] std::string phrase(std::string_view key) const;
+    [[nodiscard]] std::string said_of(const AgentPresenceState& now) const;
+    void paint_one(PaintContext& ctx, const AgentPresenceState& now, std::vector<Rect>& placed) const;
     mutable parts::Label tag_, card_;
 };
 

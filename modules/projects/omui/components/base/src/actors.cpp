@@ -321,8 +321,12 @@ ActResult ActorLog::previous(ActContext&) {
 
 // ── Another actor at work, seen ──
 
-AgentPresenceState agent_presence_state(const Services& services, std::string_view actors, std::size_t trail, std::string_view except) {
+namespace {
+
+// One actor's presence (`exact`), or the newest at work of those whose names begin with `actors`.
+AgentPresenceState presence_of(const Services& services, std::string_view actors, bool exact, std::size_t trail, std::string_view except) {
     AgentPresenceState out;
+    const auto matches = [&](std::string_view actor) { return exact ? actor == actors : actor.starts_with(actors); };
     const auto step_of = [&](const ActionEntry& e) {
         PresenceStep step{e.path, e.action, {}, e.at};
         if (const NodeId n = services.find(e.path); n) step.bounds = services.bounds(n);
@@ -330,7 +334,7 @@ AgentPresenceState agent_presence_state(const Services& services, std::string_vi
     };
     const auto journal = services.action_journal();
     for (auto it = journal.rbegin(); it != journal.rend(); ++it) {
-        if (!it->actor.starts_with(actors) || (!except.empty() && it->path.starts_with(except))) continue;
+        if (!matches(it->actor) || (!except.empty() && it->path.starts_with(except))) continue;
         if (!out.now) {
             out.actor = it->actor;
             out.now = step_of(*it);
@@ -347,9 +351,55 @@ AgentPresenceState agent_presence_state(const Services& services, std::string_vi
     out.taken_over = services.taken_over();
     // Its note: what the agent it shows said; with none acting yet, the newest any of these actors said.
     for (const AgentNote& note : services.agent_notes())
-        if (out.actor.empty() ? note.actor.starts_with(actors) : note.actor == out.actor) out.note = note;
+        if (out.actor.empty() ? matches(note.actor) : note.actor == out.actor) out.note = note;
     if (out.actor.empty() && out.note) out.actor = out.note->actor;
+    for (const Claim& held : services.claims())
+        if (out.actor.empty() ? matches(held.actor) : held.actor == out.actor) {
+            if (out.actor.empty()) out.actor = held.actor;
+            if (held.actor == out.actor) out.claims.push_back(held);
+        }
     return out;
+}
+
+}  // namespace
+
+AgentPresenceState agent_presence_state(const Services& services, std::string_view actors, std::size_t trail, std::string_view except) {
+    return presence_of(services, actors, false, trail, except);
+}
+
+std::vector<AgentPresenceState> agent_presence_states(const Services& services, std::string_view actors, std::size_t trail, std::string_view except,
+                                                      std::size_t limit) {
+    // The actors in the order they came in — acting, saying, holding — and when each was last at work.
+    std::vector<std::string> order;
+    std::map<std::string, double> latest;
+    const auto seen = [&](const std::string& actor, double at) {
+        if (!actor.starts_with(actors)) return;
+        if (std::ranges::find(order, actor) == order.end()) order.push_back(actor);
+        latest[actor] = std::max(latest[actor], at);
+    };
+    for (const ActionEntry& e : services.action_journal())
+        if (except.empty() || !e.path.starts_with(except)) seen(e.actor, e.at);
+    for (const AgentNote& note : services.agent_notes()) seen(note.actor, note.at);
+    for (const Claim& held : services.claims()) seen(held.actor, held.since);
+    std::vector<AgentPresenceState> out;
+    for (std::size_t index = 0; index < order.size(); ++index) {
+        AgentPresenceState one = presence_of(services, order[index], true, trail, except);
+        one.hue = index;
+        out.push_back(std::move(one));
+    }
+    // At most `limit`: the latest at work, kept in the order they came in.
+    while (out.size() > limit) {
+        const auto oldest = std::ranges::min_element(out, {}, [&](const AgentPresenceState& one) { return latest[one.actor]; });
+        out.erase(oldest);
+    }
+    return out;
+}
+
+Color agent_ink(const Theme& theme, std::size_t hue) {
+    // Apart from cyan (the theme's agent) and from one another; mid-tones, read on light and dark alike.
+    static constexpr std::array<std::uint32_t, 7> others{0x7c3aed, 0xd97706, 0xe11d48, 0x059669, 0x2563eb, 0xc026d3, 0xea580c};
+    if (hue == 0) return theme.color("agent", Color::hex(0x0891b2));
+    return Color::hex(others[(hue - 1) % others.size()]);
 }
 
 void AgentPresence::mounted() {
@@ -388,8 +438,14 @@ std::string AgentPresence::phrase(std::string_view key) const {
     return std::string(key);
 }
 
-std::string AgentPresence::said() const {
-    const AgentPresenceState now = state();
+std::string AgentPresence::said() const { return said_of(state()); }
+
+std::vector<AgentPresenceState> AgentPresence::states() const {
+    if (!attached()) return {};
+    return agent_presence_states(services(), props.actors, static_cast<std::size_t>(std::max<std::int64_t>(0, props.trail)), services().path(node()) + "/");
+}
+
+std::string AgentPresence::said_of(const AgentPresenceState& now) const {
     if (!now.now && !now.note) return {};
     const std::string agent(who(now.actor));
     const auto filled = [&](std::string text, std::string_view say = {}) {
@@ -409,12 +465,54 @@ std::string AgentPresence::said() const {
 
 void AgentPresence::paint(PaintContext& ctx) const {
     if (props.skin == AgentPresenceSkin::none) return;
-    const AgentPresenceState now = state();
-    if (!now.now || now.now->bounds.empty()) return;
+    // Each actor at work, in the order they came in; their tags and cards kept apart.
+    std::vector<Rect> placed;
+    for (const AgentPresenceState& now : states()) paint_one(ctx, now, placed);
+}
+
+void AgentPresence::paint_one(PaintContext& ctx, const AgentPresenceState& now, std::vector<Rect>& placed) const {
     const Theme& th = ctx.theme;
-    const Color ink = th.color("agent", Color::hex(0x0891b2));
+    const Color ink = agent_ink(th, now.hue);
     const Rect self = services().bounds(node());
     const auto local = [&](const Rect& r) { return Rect{r.x - self.x, r.y - self.y, r.width, r.height}; };
+    const std::size_t others = placed.size();  // what the actors before it took
+    // Moved down past what another's tag or card already took.
+    const auto apart = [&](Rect place) {
+        for (int tries = 0; tries < 8 && std::ranges::any_of(placed, [&](const Rect& other) { return overlap(place, other) > 0; }); ++tries)
+            place.y += place.height + 4;
+        placed.push_back(place);
+        return place;
+    };
+
+    // What it holds (D-160): a dashed outline round each part, its name and what for.
+    for (const Claim& held : now.claims) {
+        const NodeId part = services().find(held.node);
+        if (!part) continue;
+        const Rect at = local(services().bounds(part));
+        if (at.empty()) continue;
+        const Rect box{at.x - 3, at.y - 3, at.width + 6, at.height + 6};
+        ctx.part({.role = "claim", .allocation = box, .kind = xrender::PartKind::box}, [&] {
+            ctx.list.fill_rect(box, xrender::Paint::solid(ink.with_alpha(0.06f)));
+            constexpr float dash = 6, gap = 4, line = 1.5f;
+            for (float x = box.x; x < box.right(); x += dash + gap) {
+                const float length = std::min(dash, box.right() - x);
+                ctx.list.fill_rect({x, box.y, length, line}, xrender::Paint::solid(ink));
+                ctx.list.fill_rect({x, box.bottom() - line, length, line}, xrender::Paint::solid(ink));
+            }
+            for (float y = box.y; y < box.bottom(); y += dash + gap) {
+                const float length = std::min(dash, box.bottom() - y);
+                ctx.list.fill_rect({box.x, y, line, length}, xrender::Paint::solid(ink));
+                ctx.list.fill_rect({box.right() - line, y, line, length}, xrender::Paint::solid(ink));
+            }
+            tag_.set_text(std::format("{} holds{}{}", who(now.actor), held.property.empty() ? std::string() : " " + held.property,
+                                      held.intent.empty() ? std::string() : " · " + held.intent));
+            const Size t = tag_.measure(ctx.services, ink);
+            const Rect label = apart({box.x, box.bottom() + 2, t.width + 8, t.height + 2});
+            ctx.list.fill_round_rect(label, th.radii(3), xrender::Paint::solid(th.color("surface").with_alpha(0.92f)));
+            tag_.paint(ctx, {label.x + 4, label.y + 1}, ink);
+        });
+    }
+    if (!now.now || now.now->bounds.empty()) return;
 
     // The steps before: a dot at each, joined by a dotted line to the next, fainter the older.
     std::vector<Point> stops;
@@ -444,14 +542,14 @@ void AgentPresence::paint(PaintContext& ctx) const {
         const Size t = tag_.measure(ctx.services, th.color("on_accent", Color::white()));
         // Above the frame, or under it where the page's top leaves no room.
         const float above = box.y - t.height - 8;
-        const Rect pill{box.x, above >= 0 ? above : box.bottom() + 4, t.width + 12, t.height + 4};
+        const Rect pill = apart({box.x, above >= 0 ? above : box.bottom() + 4, t.width + 12, t.height + 4});
         ctx.list.fill_round_rect(pill, th.radii(pill.height / 2), xrender::Paint::solid(ink));
         tag_.paint(ctx, {pill.x + 6, pill.y + 2}, th.color("on_accent", Color::white()));
     });
 
     // Waiting for the person, held by them, or saying what it is about to do: a card beside the node. Nothing on it answers (S-10).
     if (now.asking || now.taken_over || now.note) {
-        card_.set_text(said());
+        card_.set_text(said_of(now));
         const Size t = card_.measure(ctx.services, th.color("text"), 260);
         // Beside the node, else under or over it — the first place on the page that hides nothing of it
         // (what it acts on least of all); where every place hides something, the one that hides least.
@@ -462,6 +560,7 @@ void AgentPresence::paint(PaintContext& ctx) const {
                                          Rect{across, box.bottom() + 30, width, height}, Rect{across, box.y - 12 - height, width, height}};
         std::vector<Rect> leaves = page_leaves(services(), node(), now.now->bounds);
         for (Rect& leaf : leaves) leaf = local(leaf);
+        leaves.insert(leaves.end(), placed.begin(), placed.begin() + static_cast<std::ptrdiff_t>(others));  // what another's marker took
         Rect card = places[2];
         float least = std::numeric_limits<float>::infinity();
         for (const Rect& place : places) {
@@ -471,6 +570,7 @@ void AgentPresence::paint(PaintContext& ctx) const {
             if (hidden < least) least = hidden, card = place;
             if (hidden == 0) break;
         }
+        placed.push_back(card);
         ctx.part({.role = "card", .allocation = card, .kind = xrender::PartKind::box}, [&] {
             if (auto it = th.shadows.find("md"); it != th.shadows.end()) paint_shadow(ctx.list, card, th.radii(10), it->second);
             ctx.list.fill_round_rect(card, th.radii(10), xrender::Paint::solid(th.color("surface")));
@@ -490,6 +590,17 @@ void AgentPresence::semantics(SemanticsContext&, spec::SemanticNode& node) const
     Value::List steps;
     for (const PresenceStep& step : now.trail) steps.emplace_back(step.path);
     value.set("trail", Value(std::move(steps)));
+    // Every actor at work (D-160): where, what, what it said, what it holds.
+    Value::List agents;
+    for (const AgentPresenceState& one : states()) {
+        Value::List held;
+        for (const Claim& claim : one.claims) held.push_back(Value{}.set("node", claim.node).set("property", claim.property).set("intent", claim.intent));
+        Value agent = Value{}.set("actor", one.actor).set("hue", static_cast<std::int64_t>(one.hue)).set("claims", Value(std::move(held)));
+        if (one.now) agent.set("node", one.now->path).set("action", one.now->action);
+        if (one.note) agent.set("says", one.note->text);
+        agents.push_back(std::move(agent));
+    }
+    value.set("agents", Value(std::move(agents)));
     node.value = std::move(value);
 }
 

@@ -35,6 +35,12 @@ std::int64_t act(Headless& h, std::string_view id, std::string_view action, Valu
     return e.exit_code().value_or(-1);
 }
 
+std::uint64_t hash_of(const xrender::raster::Surface& pixels) {
+    Hash hash;
+    for (int y = 0; y < pixels.height(); ++y) hash.bytes(std::as_bytes(std::span(pixels.row(y), static_cast<std::size_t>(pixels.width()))));
+    return hash.value();
+}
+
 }  // namespace
 
 UTest cases{"ui.base.agent_presence", [] {
@@ -125,5 +131,47 @@ UTest cases{"ui.base.agent_presence", [] {
         rt.note({.actor = "agent:guide"});
         h.settle();
         expect(eq(h.tree().node("main/presence")->name, std::string("guide activate …/actions/save")));
+    };
+
+    "several agents at once (D-160): each its own colour in the order they came, its steps and what it holds — a dashed outline with its name and what for — said in the tree"_test = [] {
+        Headless h(HeadlessOptions{.size = {520, 300}, .fonts = &fonts()});
+        h.mount("main", stack({.id = "page", .width = 520.0f, .height = 300.0f},
+                              {column({.id = "body", .padding = 24, .gap = 18},
+                                      {row({.id = "actions", .gap = 12},
+                                           {button({.id = "save", .text = "Save", .variant = ButtonVariant::primary}), button({.id = "share", .text = "Share"})}),
+                                       column({.id = "appearance", .width = 260, .gap = 8},
+                                              {toggle({.id = "dark", .label = "Dark"}), slider({.id = "contrast", .label = "Contrast", .value = 50.0, .width = 220})})}),
+                               agent_presence({.id = "presence"})}));
+        h.settle();
+        Runtime& rt = h.runtime();
+        const auto as = [&](std::string_view name, std::string_view node, std::string_view action) {
+            Invocation call;
+            call.actor = {"agent", std::string(name), {}};
+            (void)h.tree().act(node, action, call);
+            h.settle();
+        };
+        as("guide", "main/body/actions/save", "focus");
+        as("scout", "main/body/appearance/dark", "toggle");
+        expect(rt.claim({.node = "main/body/appearance", .subtree = true, .intent = "a dark look"}, {"agent", "scout", {}}).has_value());
+        h.settle();
+        const auto node = h.tree().node("main/presence");
+        expect(fatal(node.has_value()));
+        const Value* agents = node->value.get("agents");
+        expect(fatal(agents && agents->list() && agents->list()->size() == 2)) << node->value.json();
+        const Value& first = agents->list()->at(0);
+        const Value& second = agents->list()->at(1);
+        expect(first.get("actor")->as_string() == "agent:guide" && first.get("hue")->as_int() == 0 && first.get("node")->as_string() == "main/body/actions/save");
+        expect(second.get("actor")->as_string() == "agent:scout" && second.get("hue")->as_int() == 1 && second.get("claims")->list()->size() == 1 &&
+               second.get("claims")->list()->at(0).get("intent")->as_string() == "a dark look")
+            << second.json();
+        expect(agent_ink(rt.theme(), 0) != agent_ink(rt.theme(), 1)) << "a colour each";
+        // Drawn: the claim's outline in scout's colour, the two frames in theirs.
+        const std::uint64_t both = hash_of(h.pixels());
+        (void)h.save_png(scratch_dir("agent-presence") / "several.png");
+        expect(rt.release_claim("main/body/appearance", "", {"agent", "scout", {}}));
+        h.settle();
+        const std::uint64_t released = hash_of(h.pixels());
+        expect(both != released) << "the outline goes with the claim";
+        expect(h.tree().node("main/presence")->value.get("agents")->list()->at(1).get("claims")->list()->empty());
     };
 }};

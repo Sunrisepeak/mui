@@ -3,7 +3,10 @@
 // name and the action — the few steps before it, and, when its request waits
 // for the person's answer — or the person has taken over from it — a card saying so. The model under it
 // (agent_presence_state) is the one every skin draws: this reticle, the
-// site's Mui. It only shows: it answers nothing for the person (S-10).
+// site's Mui. Several agents at once (D-160) each have their colour, in the
+// order they came, and what each holds is outlined with its name and what
+// for (agent_presence_states). It only shows: it answers nothing for the
+// person (S-10).
 import { defineContract } from "openmui/define";
 
 export default defineContract({

@@ -392,6 +392,7 @@ struct Runtime::Impl {
     // hold with the pointer, and the one they last typed into and when.
     bool                 taken_over = false;  // the person has taken over from every agent (S-14)
     std::vector<AgentNote> agent_notes;      // one an actor (Runtime::note), oldest first
+    std::vector<Claim>     held_claims;      // D-160: the claims made, oldest first (expired ones dropped as they are met)
     NodeId               person_holds;
     NodeId               person_typed;
     double               person_typed_at = -1e9;
@@ -400,6 +401,8 @@ struct Runtime::Impl {
     // While the person has taken over (S-14): an agent's (or any remote)
     // change refused, `conflict` without retry_after; reading stays open.
     [[nodiscard]] std::optional<Envelope> held_by_person(const Invocation& call, Effect effect, std::string_view what) const;
+    // An agent's change to a node another holds (D-160): refused, `conflict`, with the claim.
+    [[nodiscard]] std::optional<Envelope> held_by_claim(const Invocation& call, Effect effect, NodeId node, std::string_view what) const;
     std::uint64_t        presses = 0;  // pointer presses so far (pointer_gesture)
     bool                 held = false;  // a pointer is held
     Point                pressed_at;  // where the press began: moved further than a click's slop, it was a drag

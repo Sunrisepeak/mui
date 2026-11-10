@@ -80,6 +80,17 @@ inline constexpr std::array<mlibs::control::Parameter, 3> parameters_ui_intend{{
     {"node", "string", "the node it is about", true},
     {"hands_back", "bool", "a handoff to the person, not an intent", true},
 }};
+inline constexpr std::array<mlibs::control::Parameter, 5> parameters_ui_claim{{
+    {"node", "string", "the node's path", false},
+    {"property", "string", "only this property of it", true},
+    {"subtree", "bool", "and everything inside it", true},
+    {"intent", "string", "what you are doing there (others are told it)", true},
+    {"seconds", "seconds", "the lease (30; 1 to 600): claim again before it ends", true},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 2> parameters_ui_release{{
+    {"node", "string", "the node's path, as claimed", false},
+    {"property", "string", "the property, as claimed", true},
+}};
 inline constexpr std::array<mlibs::control::Parameter, 2> parameters_ui_timeline{{
     {"since", "integer", "only after this cause (an input event's number)", true},
     {"limit", "integer", "the last this many records (200)", true},
@@ -128,7 +139,7 @@ inline constexpr std::array<mlibs::control::Parameter, 3> parameters_ui_clock{{
 }};
 
 // Read, find, act on, wait for, capture and inspect a running application's semantic tree.
-inline constexpr std::array<mlibs::control::CatalogEntry, 29> catalog{{
+inline constexpr std::array<mlibs::control::CatalogEntry, 32> catalog{{
     {{"ui.describe", openas::Effect::read, false}, "What this endpoint is: the protocol, the application, its operations, the session's policy and the application's verbs", parameters_ui_describe, "json", mlibs::control::Cost::instant, "", false, false, false},
     {{"ui.record", openas::Effect::read, false}, "Development: every frame since the recorder kept everything — its time and input — and what it ended as (the tree's hash, the pixels'), as a scenario a fresh instance replays to the same bytes (`--replay`, `omui replay`); the person's input, outside development, once they say yes (answer)", {}, "json", mlibs::control::Cost::bounded, "", false, false, false},
     {{"ui.reload", openas::Effect::reversible, false}, "Development: reloads the saved sources (or those named) at once and says what came of it — the semantic changes, where the pixels changed (that region before and after) and the motion it started, sampled over time", parameters_ui_reload, "json", mlibs::control::Cost::bounded, "edit the file back and reload; design.discard drops edits not saved", false, false, false},
@@ -148,6 +159,9 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 29> catalog{{
     {{"ui.capture", openas::Effect::read, false}, "The picture as drawn: the window, a node, or a region of it, as PNG pixels or as SVG with every node's drawing marked", parameters_ui_capture, "image", mlibs::control::Cost::frame, "", false, false, false},
     {{"ui.input", openas::Effect::reversible, false}, "A person's input as their devices give it (pointer, keys, text), delivered a frame at a time; answers what each press hit", parameters_ui_input, "json", mlibs::control::Cost::heavy, "what the input performed is the actions' own (ui.undo for reversible ones)", false, false, false},
     {{"ui.intend", openas::Effect::read, false}, "Say to the person what you are about to do (the steps, or a note) — or, handing the task back, what you did, what is left, what you were unsure of: shown by your presence until you say another; nothing in the application changes", parameters_ui_intend, "json", mlibs::control::Cost::instant, "", false, false, false},
+    {{"ui.claim", openas::Effect::reversible, false}, "Hold a part of the interface while you design it (D-160), so another agent's change there is refused (conflict: who holds it, what for, retry_after) — a node itself, one of its properties, or the node and everything inside it; as small as the work. Shown with your presence; claiming it again renews it; the person is never held, and taking over releases every claim", parameters_ui_claim, "json", mlibs::control::Cost::instant, "ui.release", false, false, false},
+    {{"ui.release", openas::Effect::reversible, false}, "Let go of a part you hold (ui.claim): another may claim and change it", parameters_ui_release, "json", mlibs::control::Cost::instant, "ui.claim", false, false, false},
+    {{"ui.claims", openas::Effect::read, false}, "Every part held now (D-160): the node, the property, whether inside it too, who holds it, what for, and for how long", {}, "json", mlibs::control::Cost::instant, "", false, false, false},
     {{"ui.timeline", openas::Effect::read, false}, "What input did, oldest first: each input event's records — what it hit, what stopped it (disabled, outside, nothing to press, refused), what it activated — at the recorder's level. The person's own input, outside development, once they say yes (answer)", parameters_ui_timeline, "json", mlibs::control::Cost::instant, "", false, false, false},
     {{"ui.explain", openas::Effect::read, false}, "A press and what came of it, from press to release: what it hit, what stopped it, the actions it led to, and a sentence saying what happened. A press of the person's, outside development, once they say yes (answer)", parameters_ui_explain, "json", mlibs::control::Cost::instant, "", false, false, false},
     {{"ui.drew", openas::Effect::read, false}, "What drew a pixel: the node its colour came from, the nodes it sits in, and where in the program each was built", parameters_ui_drew, "json", mlibs::control::Cost::instant, "", false, false, false},
@@ -205,6 +219,12 @@ inline constexpr std::string_view listing = R"listing({
      "inputSchema": {"type": "object", "properties": {"events": {"description": "a list of {type: move, click, drag, wheel, key, keys, text, wait, …}"}}, "required": ["events"]}},
     {"name": "ui.intend", "description": "Say to the person what you are about to do (the steps, or a note) — or, handing the task back, what you did, what is left, what you were unsure of: shown by your presence until you say another; nothing in the application changes", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"text": {"type": "string", "description": "the intent or the handoff's summary (\"\" withdraws it)"}, "node": {"type": "string", "description": "the node it is about"}, "hands_back": {"type": "boolean", "description": "a handoff to the person, not an intent"}}, "required": ["text"]}},
+    {"name": "ui.claim", "description": "Hold a part of the interface while you design it (D-160), so another agent's change there is refused (conflict: who holds it, what for, retry_after) — a node itself, one of its properties, or the node and everything inside it; as small as the work. Shown with your presence; claiming it again renews it; the person is never held, and taking over releases every claim", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "ui.release", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"node": {"type": "string", "description": "the node's path"}, "property": {"type": "string", "description": "only this property of it"}, "subtree": {"type": "boolean", "description": "and everything inside it"}, "intent": {"type": "string", "description": "what you are doing there (others are told it)"}, "seconds": {"type": "number", "description": "seconds: the lease (30; 1 to 600): claim again before it ends"}}, "required": ["node"]}},
+    {"name": "ui.release", "description": "Let go of a part you hold (ui.claim): another may claim and change it", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "ui.claim", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"node": {"type": "string", "description": "the node's path, as claimed"}, "property": {"type": "string", "description": "the property, as claimed"}}, "required": ["node"]}},
+    {"name": "ui.claims", "description": "Every part held now (D-160): the node, the property, whether inside it too, who holds it, what for, and for how long", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
     {"name": "ui.timeline", "description": "What input did, oldest first: each input event's records — what it hit, what stopped it (disabled, outside, nothing to press, refused), what it activated — at the recorder's level. The person's own input, outside development, once they say yes (answer)", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"since": {"type": "integer", "description": "only after this cause (an input event's number)"}, "limit": {"type": "integer", "description": "the last this many records (200)"}}, "required": []}},
     {"name": "ui.explain", "description": "A press and what came of it, from press to release: what it hit, what stopped it, the actions it led to, and a sentence saying what happened. A press of the person's, outside development, once they say yes (answer)", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",

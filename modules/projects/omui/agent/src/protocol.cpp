@@ -792,6 +792,48 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
                        .hands_back = hands_back});
         return e.data(Value{}.set("said", !text->as_string().empty()).set("hands_back", hands_back)).result(spec::exit_code::success);
     }
+    if (op == "claim" || op == "release" || op == "claims") {
+        // Claims (D-160): a part held while an actor designs it.
+        const auto claim_value = [&](const Claim& held) {
+            return Value{}
+                .set("node", held.node)
+                .set("property", held.property)
+                .set("subtree", held.subtree)
+                .set("actor", held.actor)
+                .set("intent", held.intent)
+                .set("seconds_left", std::max(0.0, held.until - runtime_.now().count()));
+        };
+        if (op == "claims") {
+            Value::List held;
+            for (const Claim& one : runtime_.claims()) held.push_back(claim_value(one));
+            return e.data(Value{}.set("claims", Value(std::move(held)))).result(spec::exit_code::success);
+        }
+        const std::string_view node = text_of(req, "node");
+        if (node.empty())
+            return invalid(std::format("`{}` needs `node`: the part's path (with `property` for one of its properties, `subtree` for all inside it)", op),
+                           R"({"op":"claim","node":"main/settings/notifications","subtree":true,"intent":"redesigning the notifications","seconds":60})");
+        if (op == "release") {
+            const bool let_go = runtime_.release_claim(node, text_of(req, "property"), current->actor);
+            return e.data(Value{}.set("released", let_go)).result(let_go ? spec::exit_code::success : spec::exit_code::failure);
+        }
+        if (!runtime_.valid(runtime_.find(node))) {
+            e.error(spec::error_code::not_found, std::format("no node '{}' to claim", node)).result(spec::exit_code::failure);
+            return e;
+        }
+        ClaimRequest request{.node = std::string(node), .property = std::string(text_of(req, "property")),
+                             .subtree = req.get("subtree") && req.get("subtree")->as_bool(), .intent = std::string(text_of(req, "intent"))};
+        if (const Value* seconds = req.get("seconds"); seconds && seconds->is_number()) request.seconds = seconds->as_double();
+        auto made = runtime_.claim(request, current->actor);
+        if (!made) {
+            e.error(spec::error_code::conflict,
+                    std::format("{} holds '{}'{} ({}): claim another part, or after it", made.error().actor, made.error().node,
+                                made.error().property.empty() ? "" : "." + made.error().property, made.error().intent.empty() ? "it said nothing" : made.error().intent),
+                    claim_value(made.error()).set("retry_after", std::max(0.0, made.error().until - runtime_.now().count())))
+                .result(spec::exit_code::failure);
+            return e;
+        }
+        return e.data(claim_value(*made)).result(spec::exit_code::success);
+    }
     if (op == "timeline" || op == "explain") {
         // What input did (D-148): the interaction recorder's records, and a press explained — the facts
         // of "I clicked and nothing happened", not the person's account of them.

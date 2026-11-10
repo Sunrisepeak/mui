@@ -113,6 +113,7 @@ void Runtime::take_over() {
     Impl& d = *impl_;
     if (d.taken_over) return;
     d.taken_over = true;
+    d.held_claims.clear();  // what the agents held is the person's now (D-160)
     d.actions_changed();  // what shows the agents (their presence) shows it
 }
 

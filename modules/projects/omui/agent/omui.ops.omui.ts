@@ -211,6 +211,37 @@ export default defineOps({
       result: "json",
     },
     {
+      name: "ui.claim",
+      effect: "reversible",
+      summary: "Hold a part of the interface while you design it (D-160), so another agent's change there is refused (conflict: who holds it, what for, retry_after) — a node itself, one of its properties, or the node and everything inside it; as small as the work. Shown with your presence; claiming it again renews it; the person is never held, and taking over releases every claim",
+      params: [
+        { name: "node", type: "string", doc: "the node's path" },
+        { name: "property", type: "string", doc: "only this property of it", optional: true },
+        { name: "subtree", type: "bool", doc: "and everything inside it", optional: true },
+        { name: "intent", type: "string", doc: "what you are doing there (others are told it)", optional: true },
+        { name: "seconds", type: "seconds", doc: "the lease (30; 1 to 600): claim again before it ends", optional: true },
+      ],
+      result: "json",
+      undo: "ui.release",
+    },
+    {
+      name: "ui.release",
+      effect: "reversible",
+      summary: "Let go of a part you hold (ui.claim): another may claim and change it",
+      params: [
+        { name: "node", type: "string", doc: "the node's path, as claimed" },
+        { name: "property", type: "string", doc: "the property, as claimed", optional: true },
+      ],
+      result: "json",
+      undo: "ui.claim",
+    },
+    {
+      name: "ui.claims",
+      effect: "read",
+      summary: "Every part held now (D-160): the node, the property, whether inside it too, who holds it, what for, and for how long",
+      result: "json",
+    },
+    {
       name: "ui.timeline",
       effect: "read",
       summary: "What input did, oldest first: each input event's records — what it hit, what stopped it (disabled, outside, nothing to press, refused), what it activated — at the recorder's level. The person's own input, outside development, once they say yes (answer)",

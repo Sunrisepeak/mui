@@ -4,7 +4,9 @@
 // a change builds again and the new build takes over; a build that fails shows
 // its problems and the one running stays; fixed, it takes over again. Read as an
 // agent reads it: the host's verb dev.status over its endpoint; a failure's
-// problem is pinned beside the element built nearest above its line. It runs `mcpp build` in this
+// problem is pinned beside the element built nearest above its line. The design's history is the
+// host's: a commit, a change, a revert written back to the source and built — the history going on
+// across the builds. It runs `mcpp build` in this
 // workspace, so it runs outside `mcpp test` (built with --no-run; mcpp#915).
 import std;
 import omui.agent;
@@ -57,6 +59,17 @@ E2E devhost{"devhost", resource{"serial:examples/01-hello-im"}, timeout{std::chr
                 if (record.get("kind") && record.get("kind")->as_string() == "data") last = *record.get("data");
             return last;
         };
+        // A design verb's data and exit code.
+        const auto invoke = [&](std::string_view verb, omui::Value args) {
+            omui::Value data;
+            std::int64_t code = -1;
+            for (const omui::Value& record : client->call(omui::Value{}.set("op", "invoke").set("verb", verb).set("args", std::move(args)))) {
+                const std::string_view kind = record.get("kind") ? record.get("kind")->as_string() : std::string_view{};
+                if (kind == "data") data = *record.get("data");
+                if (kind == "result") code = record.get("exitCode")->as_int();
+            }
+            return std::pair{data, code};
+        };
         const auto number = [](const omui::Value& value, std::string_view key) { return value.get(key) && value.get(key)->is_number() ? value.get(key)->as_int() : -1; };
         const auto wait_for = [&](auto holds) {
             for (int tries = 0; tries < 900; ++tries) {
@@ -79,6 +92,30 @@ E2E devhost{"devhost", resource{"serial:examples/01-hello-im"}, timeout{std::chr
         })) << "a failure shown beside its element, the one running kept: " << last.json();
         source.write(source.text);
         expect(wait_for([&](const omui::Value& s) { return number(s, "shown") == 3 && number(s, "problems") == 0; })) << "fixed, taken over: " << last.json();
+        // The design's history, the host's: kept, changed, put back — written and built, the history going on.
+        const std::filesystem::path design = project / ".omui" / "design";
+        std::filesystem::remove_all(design);
+        const auto [kept, kept_code] = invoke("design.history.commit", omui::Value{}.set("message", "hello again"));
+        expect(eq(kept_code, std::int64_t{0}) && kept.get("id")) << kept.json();
+        std::string once_more = source.text;
+        once_more.replace(once_more.find("\"Hello, openmui\", {.style"), 16, "\"Hello once more, openmui\"");
+        source.write(once_more);
+        expect(wait_for([&](const omui::Value& s) { return number(s, "shown") == 4 && !s.get("fading")->as_bool(); })) << "the change built: " << last.json();
+        const auto [before, before_code] = invoke("design.history", omui::Value(omui::Value::Map{}));
+        expect(eq(before_code, std::int64_t{0}) && before.get("uncommitted") && before.get("uncommitted")->as_bool() &&
+               before.get("log")->list()->size() == 1)
+            << "one commit, and a change not committed: " << before.json();
+        const auto [second, second_code] = invoke("design.history.commit", omui::Value{}.set("message", "once more"));
+        expect(eq(second_code, std::int64_t{0})) << second.json();
+        // Back a step: the first commit's text written and built, kept as a new commit (nothing lost).
+        const auto [reverted, reverted_code] = invoke("design.history.revert", omui::Value{}.set("to", "HEAD~1"));
+        expect(eq(reverted_code, std::int64_t{0}) && reverted.get("commit")) << reverted.json();
+        expect(eq(os::fs::read(source.file).value_or(""), source.text)) << "the commit's text written back";
+        expect(wait_for([&](const omui::Value& s) { return number(s, "shown") == 5 && !s.get("fading")->as_bool(); })) << "and built, taken over: " << last.json();
+        const auto [after, after_code] = invoke("design.history", omui::Value(omui::Value::Map{}));
+        expect(eq(after_code, std::int64_t{0}) && after.get("log")->list()->size() == 3 && !after.get("uncommitted")->as_bool())
+            << "the history went on across the builds: " << after.json();
+        std::filesystem::remove_all(design);
         host->kill();
         std::filesystem::remove_all(dir);
     };

@@ -8,3 +8,4 @@
 export module omui.designer;
 
 export import :history;
+export import :history_verbs;

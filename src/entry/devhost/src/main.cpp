@@ -4,9 +4,14 @@
 // its own, presenting to the host (--present-to), and takes over from the one
 // before with what the person set, faded in; a build that fails leaves the one
 // running and shows its problems over it. Agents read and drive it through
-// the verbs dev.status and dev.rebuild.
+// the verbs dev.status and dev.rebuild. The design's history is the host's
+// (design.history and its verbs, as Live Design's catalog declares them): it
+// goes on while builds come and go, and a state of it put back is written to
+// the sources, which build again.
 import std;
 import omui;
+import omui.designer;
+import omui.agent;
 import mcpplibs.os;
 import mcpplibs.cmdline;
 
@@ -15,7 +20,12 @@ namespace {
 using namespace omui;
 namespace os = mcpplibs::os;
 
-// The project's sources: what a change of rebuilds (C++, its manifest, its build program).
+// A source: what a change of rebuilds (C++, its manifest, its build program, the data modules it embeds).
+bool is_source(std::string_view name) {
+    return name.ends_with(".cpp") || name.ends_with(".cppm") || name == "mcpp.toml" || name == "build.mcpp" || name.ends_with(".omui.ts");
+}
+
+// The project's sources and when each last changed.
 std::map<std::filesystem::path, std::filesystem::file_time_type> stamps_of(const std::filesystem::path& project) {
     std::map<std::filesystem::path, std::filesystem::file_time_type> out;
     std::error_code error;
@@ -27,11 +37,47 @@ std::map<std::filesystem::path, std::filesystem::file_time_type> stamps_of(const
             it.disable_recursion_pending();
             continue;
         }
-        if (name.ends_with(".cpp") || name.ends_with(".cppm") || name == "mcpp.toml" || name == "build.mcpp")
+        if (is_source(name))
             out.emplace(it->path(), std::filesystem::last_write_time(it->path(), error));
     }
     return out;
 }
+
+// The design as the project's files (designer::DesignSources): a state put back is written,
+// and the watcher builds it.
+struct ProjectSources final : designer::DesignSources {
+    std::filesystem::path project;
+
+    std::map<std::string, std::string> texts() override {
+        std::map<std::string, std::string> out;
+        for (const auto& [file, stamp] : stamps_of(project))
+            if (auto text = os::fs::read(file)) out.emplace(os::fs::generic_utf8(file.lexically_relative(project)), std::move(*text));
+        return out;
+    }
+    std::expected<Value, std::string> apply(const std::map<std::string, std::string>& texts, Runtime::DesignPresentation::Kind) override {
+        Value::List changed;
+        const auto now = this->texts();
+        for (const auto& [path, text] : texts) {
+            if (const auto it = now.find(path); it != now.end() && it->second == text) continue;
+            const std::filesystem::path file = project / os::fs::from_utf8(path);
+            std::error_code error;
+            std::filesystem::create_directories(file.parent_path(), error);
+            if (auto written = os::fs::write_atomic(file, text); !written) return std::unexpected(std::format("{}: {}", path, written.error().message()));
+            changed.push_back(Value{}.set("path", path).set("written", true));
+        }
+        // A source the state does not have is not part of it.
+        for (const auto& [path, text] : now)
+            if (!texts.contains(path)) {
+                std::error_code error;
+                std::filesystem::remove(project / os::fs::from_utf8(path), error);
+                changed.push_back(Value{}.set("path", path).set("removed", true));
+            }
+        // Its build takes over from the one running, with what the person set, faded in.
+        return Value{}.set("edits", Value(std::move(changed))).set("presented", "build");
+    }
+    // The tree is the application's, in its own process.
+    std::string tree_hash() override { return {}; }
+};
 
 struct Builder {
     std::filesystem::path project;
@@ -82,6 +128,11 @@ int main(int argc, char** argv) {
     const std::filesystem::path project = std::filesystem::absolute(os::fs::from_utf8(command->args.value("project").value_or(".")));
     auto builder = std::make_shared<Builder>();
     builder->project = project;
+    // The design's history beside the application, held here: it goes on as builds come and go.
+    designer::DesignHistory history(project / ".omui" / "design");
+    ProjectSources sources;
+    sources.project = project;
+    std::unique_ptr<designer::HistoryVerbs> held;
     std::unique_ptr<DevHost> dev;
     std::uint64_t watch = 0;
     AppSpec app;
@@ -141,6 +192,11 @@ int main(int argc, char** argv) {
                                      .set("last", builder->last)
                                      .set("project", os::fs::generic_utf8(builder->project));
                              });
+        held = std::make_unique<designer::HistoryVerbs>(rt, history, sources);
+        held->add_to([&rt](std::string_view name, VerbFn fn) {
+            const auto entry = std::ranges::find(agent::design::catalog, name, [](const auto& op) { return op.operation.name; });
+            if (entry != agent::design::catalog.end()) (void)rt.verbs().add(agent::verb_of(*entry), std::move(fn));
+        });
         (void)rt.verbs().add({"dev.rebuild", "Builds the application again now, its sources changed or not", Effect::reversible, "", {}},
                              [builder](const Value&) -> VerbResult {
                                  if (builder->building) return std::unexpected(std::string("a build is running"));

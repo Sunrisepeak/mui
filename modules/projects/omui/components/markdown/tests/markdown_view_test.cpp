@@ -6,6 +6,7 @@ import std;
 
 import omui.ui.markdown;
 import omui.host.headless;
+import mlibs.markdown;
 import mlibs.testing;
 import mcpplibs.mtest;
 
@@ -304,5 +305,41 @@ UTest cases{"ui.markdown", [] {
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
         // Re-pinned with M1 ⑤b: the sample's code block reads `import omui;` (was `import openmui;`).
         expect(eq(hash.hex(), std::string("ab03efbf649fa262")));
+    };
+
+    "HTML as the source (format html, D-141): the same document as its Markdown — the same tree, the same pixels; appended to; its tasks as written"_test = [] {
+        const auto picture = [](Headless& h) {
+            Hash hash;
+            const auto& px = h.pixels();
+            for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
+            return hash.hex();
+        };
+        const auto tree = [](Headless& h) {
+            std::string out;
+            for (const auto& n : h.tree().snapshot({}).nodes) out += std::format("{} {} {} {}\n", n.id, spec::name(n.role), n.name, n.value.json());
+            return out;
+        };
+        const std::string html = mlibs::markdown::to_html(mlibs::markdown::parse(readme));
+        Headless as_markdown({.size = {640, 820}}), as_html({.size = {640, 820}});
+        as_markdown.mount("main", column({.padding = 16, .background = "background"}, {markdown({.id = "doc", .source = std::string(readme)})}));
+        as_html.mount("main", column({.padding = 16, .background = "background"}, {markdown({.id = "doc", .format = MarkdownFormat::html, .source = html})}));
+        as_markdown.settle();
+        as_html.settle();
+        expect(eq(tree(as_html), tree(as_markdown))) << "the same semantic tree";
+        expect(eq(picture(as_html), picture(as_markdown))) << "the same pixels";
+        expect(as_html.save_png(scratch_dir("ui-markdown") / "from-html.png").has_value());
+        // Appended to: read again whole.
+        expect(eq(act(as_html, "main/doc", "append", Value{}.set("chunk", "<p>More <em>after</em>.</p>")), 0));
+        as_html.settle();
+        expect(find_role(as_html, Role::paragraph, "More after.").has_value()) << "the appended paragraph";
+        // Its task boxes are as written (no Markdown mark to rewrite).
+        expect(act(as_html, "main/doc", "toggle_task", Value(std::int64_t{0})) != 0);
+        // What is not content: gone.
+        Headless page({.size = {480, 300}});
+        page.mount("main", markdown({.id = "doc", .format = MarkdownFormat::html,
+                                     .source = std::string(R"html(<h1>Hi</h1><script>alert(1)</script><p onclick="x()">Body <span>text</span></p>)html")}));
+        page.settle();
+        expect(find_role(page, Role::heading, "Hi") && find_role(page, Role::paragraph, "Body text")) << tree(page);
+        expect(!tree(page).contains("alert")) << "a script is not content";
     };
 }};

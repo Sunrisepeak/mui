@@ -17,6 +17,12 @@ export default defineContract({
         bindable: true,
         doc: "The Markdown text. A value that extends the current one is appended (streaming).",
       },
+      format: {
+        type: "enum",
+        values: ["markdown", "html"],
+        default: "markdown",
+        doc: "What `source` is: Markdown, or HTML (a subset, D-141: the blocks and spans Markdown has; scripts, styles and other tags dropped, their text kept).",
+      },
       base_url: { type: "string", default: "", doc: "Where relative image sources and links resolve from (a directory or a URL)." },
       origin: {
         type: "enum",

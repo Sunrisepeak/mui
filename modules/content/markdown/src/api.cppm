@@ -164,6 +164,19 @@ struct Document {
 // what only a renderer keeps (the blocks' hashes, the headings' anchors).
 [[nodiscard]] std::string to_html(std::string_view source, Extension extensions = gfm);
 
+// A document from HTML (D-141: HTML as content input, a subset): the blocks
+// and spans Markdown has — headings, paragraphs, quotes, lists and task
+// items, code with its language, rules, tables with their alignment;
+// emphasis, strong, code, strikethrough, underline, links, images, line
+// breaks — read as a browser would (whitespace with a line break is a soft
+// break, entities decoded, unclosed tags closed). Containers (div, section,
+// article …) pass their children through; what is neither is dropped but its
+// text kept; scripts, styles and embedded objects are dropped whole, and no
+// attribute but href, src, alt, title, start, align, class (a code block's
+// language), type and checked is read. Markdown's own HTML is read back as it
+// was written: to_html(from_html(to_html(doc))) == to_html(doc).
+[[nodiscard]] Document from_html(std::string_view html, Extension extensions = gfm);
+
 // The visible text of a block: inline text as it reads, blocks on their own
 // lines, table cells separated by tabs.
 [[nodiscard]] std::string plain_text(const Block& block);
@@ -257,6 +270,8 @@ std::uint64_t hash_of(const Block& b, std::span<const Link> links);
 std::uint64_t hash_fields(const Block& b, std::span<const Link> links);
 std::uint64_t hash_child(std::uint64_t h, std::uint64_t child);
 using Anchors = std::map<std::string, int, std::less<>>;  // slug → times used
+// An entity ("&amp;", "&#x41;") as md4c-html decodes it; an unknown name stays as written.
+std::string decode_entity(std::string_view entity);
 // Heading anchors unique across `base` and `used` together; only `used` is
 // updated (a stream's tail counts on top of its frozen part, without a copy).
 void assign_anchors(Block& b, const Anchors& base, Anchors& used);

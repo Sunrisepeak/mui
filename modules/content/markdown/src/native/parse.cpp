@@ -39,34 +39,6 @@ unsigned flags_of(Extension e) {
 
 constexpr std::string_view replacement = "\xEF\xBF\xBD";  // U+FFFD for NUL (CommonMark §2.3)
 
-// An entity's text as md4c-html decodes it — upstream's own table and rules
-// (named, decimal, hexadecimal; unknown names stay as written), so the
-// document and md4c-html cannot disagree about one. Decoding renders the
-// entity alone as a paragraph and reads it back; each distinct entity is
-// decoded once per thread.
-std::string decode_entity(std::string_view entity) {
-    thread_local std::unordered_map<std::string, std::string> cache;
-    if (auto it = cache.find(std::string(entity)); it != cache.end()) return it->second;
-    std::string html;
-    (void)md_html(
-        entity.data(), static_cast<MD_SIZE>(entity.size()),
-        [](const MD_CHAR* s, MD_SIZE n, void* out) { static_cast<std::string*>(out)->append(s, n); }, &html, 0, 0);
-    std::string_view v = html;
-    if (v.starts_with("<p>")) v.remove_prefix(3);
-    if (v.ends_with("</p>\n")) v.remove_suffix(5);
-    std::string out;
-    for (std::size_t i = 0; i < v.size();) {
-        if (v[i] == '&') {
-            if (v.substr(i).starts_with("&amp;")) { out += '&'; i += 5; continue; }
-            if (v.substr(i).starts_with("&lt;")) { out += '<'; i += 4; continue; }
-            if (v.substr(i).starts_with("&gt;")) { out += '>'; i += 4; continue; }
-            if (v.substr(i).starts_with("&quot;")) { out += '"'; i += 6; continue; }
-        }
-        out += v[i++];
-    }
-    cache.emplace(std::string(entity), out);
-    return out;
-}
 
 std::string attribute(const MD_ATTRIBUTE& a) {
     std::string out;
@@ -126,6 +98,35 @@ std::uint64_t fnv_value(std::uint64_t h, T v) {
 }
 
 }  // namespace
+
+// An entity's text as md4c-html decodes it — upstream's own table and rules
+// (named, decimal, hexadecimal; unknown names stay as written), so the
+// document and md4c-html cannot disagree about one. Decoding renders the
+// entity alone as a paragraph and reads it back; each distinct entity is
+// decoded once per thread.
+std::string decode_entity(std::string_view entity) {
+    thread_local std::unordered_map<std::string, std::string> cache;
+    if (auto it = cache.find(std::string(entity)); it != cache.end()) return it->second;
+    std::string html;
+    (void)md_html(
+        entity.data(), static_cast<MD_SIZE>(entity.size()),
+        [](const MD_CHAR* s, MD_SIZE n, void* out) { static_cast<std::string*>(out)->append(s, n); }, &html, 0, 0);
+    std::string_view v = html;
+    if (v.starts_with("<p>")) v.remove_prefix(3);
+    if (v.ends_with("</p>\n")) v.remove_suffix(5);
+    std::string out;
+    for (std::size_t i = 0; i < v.size();) {
+        if (v[i] == '&') {
+            if (v.substr(i).starts_with("&amp;")) { out += '&'; i += 5; continue; }
+            if (v.substr(i).starts_with("&lt;")) { out += '<'; i += 4; continue; }
+            if (v.substr(i).starts_with("&gt;")) { out += '>'; i += 4; continue; }
+            if (v.substr(i).starts_with("&quot;")) { out += '"'; i += 6; continue; }
+        }
+        out += v[i++];
+    }
+    cache.emplace(std::string(entity), out);
+    return out;
+}
 
 std::uint64_t hash_fields(const Block& b, std::span<const Link> links) {
     std::uint64_t h = hash::Fnv1a::offset;

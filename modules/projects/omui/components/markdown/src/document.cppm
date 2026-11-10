@@ -42,9 +42,9 @@ public:
     ActResult copy(ActContext& ctx);
     ActResult find(ActContext& ctx, const Value& query);
 
-    // The document as parsed, and its source.
-    [[nodiscard]] const mlibs::markdown::Document& document() const noexcept { return stream_.document(); }
-    [[nodiscard]] std::string_view source() const noexcept { return stream_.source(); }
+    // The document as parsed, and its source (Markdown's, or HTML's).
+    [[nodiscard]] const mlibs::markdown::Document& document() const noexcept { return html_ ? html_document_ : stream_.document(); }
+    [[nodiscard]] std::string_view source() const noexcept { return html_ ? std::string_view(html_source_) : stream_.source(); }
     // Bytes the last change parsed (streaming re-parses only the tail).
     [[nodiscard]] std::size_t last_parsed() const noexcept { return stream_.last_parsed(); }
 
@@ -56,6 +56,10 @@ private:
 
     std::shared_ptr<mdview::Hub> hub_;
     mlibs::markdown::Stream                   stream_;
+    // HTML as the source (format html, D-141): read whole each time it changes.
+    bool                                      html_ = false;
+    std::string                               html_source_;
+    mlibs::markdown::Document                 html_document_;
     mlibs::markdown::Extension                ext_ = mlibs::markdown::gfm;
     std::uint64_t                generation_ = 0;  // bumped when every block must be built again (theme, base, origin)
     std::map<std::string, Element, std::less<>> built_;  // the last blocks' elements, by key

@@ -473,4 +473,79 @@ UTest cases{"markdown.conformance", [] {
         expect(eq(identical, examples));
         expect(conforming * 100 >= examples * 95);
     };
+
+    "HTML as content input (D-141): every example's HTML, read back into a document, writes the same HTML — but raw HTML, and whitespace an entity made (a browser does not show it as written)"_test = [] {
+        int read = 0, same = 0, raw = 0;
+        std::vector<std::string> different;
+        for (const auto& entry : std::filesystem::directory_iterator(data_dir())) {
+            if (entry.path().extension() != ".txt") continue;
+            for (const Example& example : examples(entry.path())) {
+                const Dialect d = dialect(example.options);
+                if (!d.known) continue;
+                const md::Document doc = md::parse(example.markdown, d.ext);
+                // Raw HTML is written verbatim, and HTML read is not kept verbatim: those are another reading.
+                bool has_raw = false;
+                md::walk(doc.root, [&](const md::Block& b) {
+                    has_raw = has_raw || b.kind == md::Kind::html ||
+                              std::ranges::any_of(b.content.marks, [](const md::Mark& m) { return m.span == md::Span::html; });
+                });
+                // Whitespace an entity made — at a paragraph's edge (&#9;foo), or a line break (&#10;): a browser shows neither as written.
+                bool edged = false;
+                md::walk(doc.root, [&](const md::Block& b) {
+                    const std::string& text = b.content.text;
+                    if (b.kind == md::Kind::code || text.empty()) return;
+                    edged = edged || std::isspace(static_cast<unsigned char>(text.front())) || std::isspace(static_cast<unsigned char>(text.back()));
+                    // A line break that is no break mark (&#10;): a browser shows it as a space.
+                    for (std::size_t at = text.find('\n'); at != std::string::npos && !edged; at = text.find('\n', at + 1))
+                        edged = std::ranges::none_of(b.content.marks, [&](const md::Mark& m) { return m.op == md::Op::hard_break && m.at == at; });
+                });
+                if (has_raw || edged) {
+                    ++raw;
+                    continue;
+                }
+                ++read;
+                const std::string written = md::to_html(doc);
+                const std::string again = md::to_html(md::from_html(written, d.ext));
+                if (again == written) ++same;
+                else if (different.size() < 8)
+                    different.push_back(std::format("{} #{}:\n{}---\n{}", entry.path().filename().string(), example.number, written, again));
+            }
+        }
+        std::println("    HTML read back: {} examples, {} the same ({} left out: raw HTML, or whitespace an entity made)", read, same, raw);
+        for (const auto& one : different) std::println("{}", one);
+        expect(read > 700);
+        expect(eq(same, read));
+    };
+
+    "HTML as people write it: whitespace, containers, unclosed tags, task boxes, attributes not read, scripts dropped"_test = [] {
+        const md::Document doc = md::from_html(R"html(<!doctype html><html><head><title>t</title><style>p{}</style></head><body>
+<div class="post">
+  <h2 onclick="steal()">Release   notes</h2>
+  <p>Fast <b>and</b> <i>light</i>,
+     with <a href="https://example.org/a?b=1&amp;c=2" title="more">links</a> &amp; <code>code</code>.
+  <p>Second paragraph<br>after a break
+  <ul><li>one<li>two <s>old</s></ul>
+  <ul><li><input type="checkbox" checked> done</li><li><input type="checkbox"> open</li></ul>
+  <script>alert(1)</script>
+  <pre><code class="language-cpp">int main() {}
+</code></pre>
+  <table><tr><th align="right">n</th></tr><tr><td>1</td></tr></table>
+  <img src="logo.png" alt="Logo">
+</div>)html");
+        const std::string html = md::to_html(doc);
+        expect(eq(html, std::string("<h2>Release   notes</h2>\n"
+                                    "<p>Fast <strong>and</strong> <em>light</em>,\nwith <a href=\"https://example.org/a?b=1&amp;c=2\" title=\"more\">links</a> &amp; <code>code</code>.</p>\n"
+                                    "<p>Second paragraph<br>\nafter a break</p>\n"
+                                    "<ul>\n<li>one</li>\n<li>two <del>old</del></li>\n</ul>\n"
+                                    "<ul>\n<li class=\"task-list-item\"><input type=\"checkbox\" class=\"task-list-item-checkbox\" disabled checked>done</li>\n"
+                                    "<li class=\"task-list-item\"><input type=\"checkbox\" class=\"task-list-item-checkbox\" disabled>open</li>\n</ul>\n"
+                                    "<pre><code class=\"language-cpp\">int main() {}\n</code></pre>\n"
+                                    "<table>\n<tbody>\n<tr>\n<th align=\"right\">n</th>\n</tr>\n<tr>\n<td>1</td>\n</tr>\n</tbody>\n</table>\n"
+                                    "<p><img src=\"logo.png\" alt=\"Logo\"></p>\n")))
+            << html;
+        expect(!html.contains("alert") && !html.contains("steal") && !html.contains("p{}")) << "scripts, styles and handlers dropped";
+        // Headings get their anchors, blocks their hashes: the document a renderer takes.
+        expect(eq(doc.root.children.front().anchor, std::string("release---notes")));
+        expect(doc.root.hash != 0 && doc.root.children.front().hash != 0);
+    };
 }};

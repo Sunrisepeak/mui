@@ -57,11 +57,23 @@ void Markdown::mounted() {
 
 void Markdown::reset_stream() {
     ext_ = extensions_of(props.extensions);
+    html_ = props.format == MarkdownFormat::html;
     stream_ = mlibs::markdown::Stream(ext_);
-    stream_.assign(props.source);
+    if (html_) {
+        html_source_ = props.source;
+        html_document_ = mlibs::markdown::from_html(html_source_, ext_);
+    } else {
+        stream_.assign(props.source);
+    }
 }
 
 void Markdown::take(std::string_view source) {
+    if (html_) {
+        if (source == html_source_) return;
+        html_source_ = std::string(source);
+        html_document_ = mlibs::markdown::from_html(html_source_, ext_);
+        return;
+    }
     if (source.size() >= stream_.source().size() && source.starts_with(stream_.source())) {
         if (source.size() == stream_.source().size()) return;
         stream_.append(source.substr(stream_.source().size()));
@@ -78,6 +90,10 @@ void Markdown::prop_changed(MarkdownProp p) {
             if (extensions_of(props.extensions) == ext_) return;
             reset_stream();
             break;
+        case MarkdownProp::format:
+            if ((props.format == MarkdownFormat::html) == html_) return;
+            reset_stream();
+            break;
         case MarkdownProp::base_url:
         case MarkdownProp::origin:
             hub_->base_url = props.base_url;
@@ -91,8 +107,8 @@ void Markdown::prop_changed(MarkdownProp p) {
 }
 
 void Markdown::changed() {
-    write_source(std::string(stream_.source()));
-    emit_changed(std::string(stream_.source()));
+    write_source(std::string(source()));
+    emit_changed(std::string(source()));
     services().recompose(node());
     services().invalidate_semantics(node());
 }
@@ -109,7 +125,7 @@ void Markdown::restyle() {
 }
 
 std::vector<Element> Markdown::compose() {
-    const mlibs::markdown::Document& doc = stream_.document();
+    const mlibs::markdown::Document& doc = document();
     std::vector<Element> out;
     std::map<std::string, Element, std::less<>> built;
     std::int32_t task = 0;
@@ -165,7 +181,7 @@ void Markdown::laid_out() {
 void Markdown::semantics(SemanticsContext&, spec::SemanticNode& node) const {
     if (!props.label.empty()) node.name = props.label;
     else
-        for (const mlibs::markdown::Block& b : stream_.document().root.children)
+        for (const mlibs::markdown::Block& b : document().root.children)
             if (b.kind == mlibs::markdown::Kind::heading) {
                 node.name = mlibs::markdown::plain_text(b);
                 break;
@@ -176,9 +192,10 @@ void Markdown::semantics(SemanticsContext&, spec::SemanticNode& node) const {
 }
 
 ActResult Markdown::append(ActContext&, const Value& chunk) {
-    stream_.append(chunk.as_string());
+    if (html_) take(html_source_ + std::string(chunk.as_string()));
+    else stream_.append(chunk.as_string());
     changed();
-    return ActResult::done(Value(static_cast<std::int64_t>(stream_.source().size())));
+    return ActResult::done(Value(static_cast<std::int64_t>(source().size())));
 }
 
 ActResult Markdown::scroll_to_anchor(ActContext&, const Value& anchor) {
@@ -194,7 +211,7 @@ ActResult Markdown::open_link(ActContext&, const Value& href) {
     // Only what the document links to: an agent cannot use the document to
     // reach an address of its own choosing.
     const std::string_view h = href.as_string();
-    for (const mlibs::markdown::Link& l : stream_.document().links)
+    for (const mlibs::markdown::Link& l : document().links)
         if (l.href == h) {
             hub_->activate_link(l);
             return ActResult::done(Value(l.href));
@@ -204,15 +221,17 @@ ActResult Markdown::open_link(ActContext&, const Value& href) {
 
 ActResult Markdown::toggle_task(ActContext&, const Value& index) {
     const auto i = static_cast<std::int32_t>(index.as_int(-1));
+    if (html_) return ActResult::fail("an HTML document's task boxes are as written: its source is HTML, not Markdown's marks");
     if (!toggle(i)) return ActResult::fail(std::format("the document has no task {}", i));
     std::vector<const mlibs::markdown::Block*> all;
-    tasks(stream_.document().root, all);
+    tasks(document().root, all);
     return ActResult::done(Value(all[static_cast<std::size_t>(i)]->task == mlibs::markdown::Task::done));
 }
 
 bool Markdown::toggle(std::int32_t index) {
+    if (html_) return false;  // HTML's task boxes are as written
     std::vector<const mlibs::markdown::Block*> all;
-    tasks(stream_.document().root, all);
+    tasks(document().root, all);
     if (index < 0 || static_cast<std::size_t>(index) >= all.size()) return false;
     const std::size_t at = all[static_cast<std::size_t>(index)]->task_offset;
     std::string source(stream_.source());
@@ -226,7 +245,7 @@ bool Markdown::toggle(std::int32_t index) {
 }
 
 ActResult Markdown::copy(ActContext&) {
-    const std::string text = mlibs::markdown::plain_text(stream_.document().root);
+    const std::string text = mlibs::markdown::plain_text(document().root);
     services().set_clipboard_text(text);
     return ActResult::done(Value(static_cast<std::int64_t>(text.size())));
 }
@@ -236,7 +255,7 @@ ActResult Markdown::find(ActContext&, const Value& query) {
     Value::List hits;
     if (q.empty()) return ActResult::done(Value(std::move(hits)));
     const auto kids = services().children(node());
-    const auto& blocks = stream_.document().root.children;
+    const auto& blocks = document().root.children;
     for (std::size_t i = 0; i < blocks.size() && i < kids.size(); ++i)
         if (lower(mlibs::markdown::plain_text(blocks[i])).contains(q)) hits.emplace_back(services().path(kids[i]));
     return ActResult::done(Value(std::move(hits)));

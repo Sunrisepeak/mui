@@ -17,6 +17,7 @@ omui::markdown({.id = "answer", .origin = omui::MarkdownOrigin::remote, .source 
   - links (`value` is the address) and images (named by their alt text).
 
   `origin` marks every node: text from an LLM is `remote` all the way down.
+- **HTML as the source** (`format: html`, D-141): the same component over a subset of HTML read into the same document (`mlibs::markdown::from_html`): the same semantic tree and the same pixels as the Markdown it was made from. Scripts, styles and handlers are not content; an append reads the whole source again; its task boxes are as written (`toggle_task` refuses).
 - **Links reach outside** (effect `external`, answer `yes`). An agent states the answer or gets `needs-answer`; a person's own click or Enter is the answer (spec S-2a). The document's `open_link` follows only addresses the document links to. A `#anchor` link also scrolls to its heading.
 - **Tasks**: toggling (a click, the checkbox's `toggle`, the document's `toggle_task`) rewrites the mark in the source. A bound `source` signal learns it, and `task_toggled` reports it.
 - **Streaming**: a new `source` that extends the current one, or the `append` action, re-parses only after the last stable block boundary. Blocks are keyed by their content, so an unchanged block keeps its node, shaped text and layout.

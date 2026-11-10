@@ -97,6 +97,52 @@ jobs:
       - name: The games packaged for Toy, checked by Toy's doctor
         run: tools/ci/toy.sh
 
+  # omui on Android (W10): example 01 packed into an APK and checked inside,
+  # then run on Android 7.0's emulator (KVM): started, a tap, Back.
+  android:
+    name: test android x86_64 (emulator)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install xlings
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/openxlings/xlings/main/tools/other/quick_install.sh \
+            | bash -s "$XLINGS_VERSION"
+          echo "$HOME/.xlings/subos/current/bin" >> "$GITHUB_PATH"
+      - name: Install mcpp
+        run: |
+          # The mcpp every row builds with is the project's (.xlings.json), the one
+          # the work is checked with locally; in the project, xlings runs that one.
+          MCPP_VERSION="$(sed -n 's/.*"mcpp": *"\([^"]*\)".*/\1/p' .xlings.json)"
+          for attempt in 1 2 3 4 5 6; do
+            xlings update > /dev/null 2>&1 || true
+            if xlings install "mcpp@$MCPP_VERSION" -y -g; then break; fi
+            [ "$attempt" = 6 ] && { echo "::error::mcpp could not be installed"; exit 1; }
+            sleep 60
+          done
+          version="$(mcpp --version)"
+          echo "$version"
+          case "$version" in *"$MCPP_VERSION"*) ;; *) echo "::error::not mcpp $MCPP_VERSION"; exit 1 ;; esac
+          mcpp self config --mirror GLOBAL
+      - name: KVM for the emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Example 01 as an APK, on the emulator
+        run: tools/ci/android.sh
+        env:
+          OMUI_ANDROID_OUT: ${{ runner.temp }}/omui-android
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-screens
+          path: ${{ runner.temp }}/omui-android/*.png
+          if-no-files-found: ignore
+
   # The rows a run tests: every one nightly and on demand, the GCC rows left
   # out of a pull request's run.
   rows:

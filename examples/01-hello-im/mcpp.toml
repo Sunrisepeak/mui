@@ -5,6 +5,8 @@
 #   mcpp run                      a window
 #   mcpp run -- --headless --png hello.png
 #   mcpp run -- --serve           headless, for agents (omui agent ls)
+#   mcpp run --target x86_64-linux-android --pkg-format apk
+#                                 on Android (W10): an APK, run on the emulator or a phone
 [package]
 namespace   = "omui.example"
 name        = "hello-im"
@@ -20,8 +22,10 @@ kind = "example"
 [targets.openmui-example-hello-im]
 kind = "lib"
 
+# An application (`app`): a program on the desktop, the library the platform
+# loads on Android (its NativeActivity, packed into an APK by dist-apk).
 [targets.hello-im]
-kind = "bin"
+kind = "app"
 main = "src/main.cpp"
 
 [build]
@@ -34,6 +38,20 @@ omui.sdk = { path = "../../modules/projects/omui/sdk" }
 
 [build-dependencies]
 omui.build.embed = { path = "../../mcpp/embed", host-module = true }
+# The APK (Android's package: NativeActivity, no Java; signed with the published debug key).
+mcpp.plugins = { version = "0.20.0", features = ["dist-apk"], host-module = true }
+
+# Android, from API level 24 (7.0); run through adb on the emulator or a phone.
+[target.x86_64-linux-android]
+min_api_level = 24
+runner = ["adb-run"]
+
+[target.aarch64-linux-android]
+min_api_level = 24
+runner = ["adb-run"]
+
+[target.'cfg(env = "android")'.runtime]
+libraries = ["android", "log"]
 
 [dev-dependencies]
 mcpplibs.mtest = "0.5.2"

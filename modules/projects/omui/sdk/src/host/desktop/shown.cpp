@@ -12,7 +12,7 @@ namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::error;
 }
 
-namespace omui::detail {
+namespace omui::hosting {
 
 int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
     DesktopOptions d;
@@ -44,7 +44,7 @@ int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
 
 std::vector<std::string> host_locales() { return preferred_locales(); }
 
-}  // namespace omui::detail
+}  // namespace omui::hosting
 
 namespace omui {
 

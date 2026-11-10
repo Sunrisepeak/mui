@@ -68,6 +68,7 @@ members = [
     "modules/projects/omui/sdk",
     "modules/projects/omui/expr",
     "modules/projects/omui/host/headless",
+    "modules/projects/omui/host/android",
     "modules/projects/omui/host/sdl3",
     "modules/projects/omui/host/web",
     "modules/projects/omui/host/web/toy",

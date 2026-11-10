@@ -5,6 +5,7 @@
 module xrender.vector.api;
 
 import std;
+import mlibs.rhi;
 import mlibs.math;
 import mlibs.geom;
 import xrender.raster;

@@ -9,9 +9,27 @@ import :shaped;
 import mcpplibs.mwrap.harfbuzz;
 import mcpplibs.mwrap.sheenbidi;
 using namespace mcpplibs::mwrap::harfbuzz::macros;
-using namespace mcpplibs::mwrap::sheenbidi::macros;
 
 namespace mlibs::text {
+
+// SheenBidi's constants by name, inside this namespace: where a compiler also sees the C header's enumerators
+// (NDK clang, through the wrap's global module fragment), these are the ones found, not an ambiguity.
+using mcpplibs::mwrap::sheenbidi::macros::SBBidiTypeB;
+using mcpplibs::mwrap::sheenbidi::macros::SBBidiTypeBN;
+using mcpplibs::mwrap::sheenbidi::macros::SBBidiTypeFSI;
+using mcpplibs::mwrap::sheenbidi::macros::SBBidiTypeLRE;
+using mcpplibs::mwrap::sheenbidi::macros::SBBidiTypeLRI;
+using mcpplibs::mwrap::sheenbidi::macros::SBBidiTypeLRO;
+using mcpplibs::mwrap::sheenbidi::macros::SBBidiTypePDF;
+using mcpplibs::mwrap::sheenbidi::macros::SBBidiTypePDI;
+using mcpplibs::mwrap::sheenbidi::macros::SBBidiTypeRLE;
+using mcpplibs::mwrap::sheenbidi::macros::SBBidiTypeRLI;
+using mcpplibs::mwrap::sheenbidi::macros::SBBidiTypeRLO;
+using mcpplibs::mwrap::sheenbidi::macros::SBBidiTypeS;
+using mcpplibs::mwrap::sheenbidi::macros::SBBidiTypeWS;
+using mcpplibs::mwrap::sheenbidi::macros::SBStringEncodingUTF8;
+using mcpplibs::mwrap::sheenbidi::macros::SBLevelDefaultLTR;
+
 
 namespace {
 

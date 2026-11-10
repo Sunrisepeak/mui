@@ -1,6 +1,8 @@
 module xrender.vector.api;
 
 import std;
+import mlibs.memory;
+import mlibs.geom;
 import mlibs.hash;
 import hanim.core;
 

@@ -1,0 +1,45 @@
+# omui.host.android — omui on Android (W10, G1): the framework draws every
+# pixel (D-140) into the window Android's NativeActivity gives it, the
+# person's touches and keys are its input, and an application is the shared
+# library the platform loads (mcpp's `kind = "app"` on an Android row,
+# packed into an APK by mcpp.plugins' dist-apk; no Java). A package of its
+# own: it is built for Android alone, and only Android's applications reach it
+# (the SDK's `cfg(env = "android")` branch).
+[package]
+namespace   = "omui.host"
+name        = "android"
+version     = "0.1.0"
+description = "omui on Android: a self-drawn host in the platform's NativeActivity"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[targets.openmui-host-android]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+# The platform's native activity, its window and its input (the NDK's own
+# headers, in this unit alone).
+[target.'cfg(env = "android")'.build]
+sources = ["src/native/*.cpp"]
+
+# libandroid (the native activity, the window, input, the looper) and liblog:
+# the NDK's stable stubs, in every system image.
+[target.'cfg(env = "android")'.runtime]
+libraries = ["android", "log"]
+# An empty libpthread.a: bionic carries pthreads in libc, yet compat.harfbuzz
+# and compat.libwebp ask `-lpthread` in the `linux` block an Android row reads
+# (mcpplibs/mcpp-index#750). Gone when their descriptors say -pthread.
+link_library_dirs = ["link"]
+
+[dependencies]
+omui.core      = { path = "../../core" }
+omui.view      = { path = "../../view" }
+omui.semantic  = { path = "../../semantic" }
+omui.agent     = { path = "../../agent" }
+xrender.raster = { path = "../../../xrender/raster" }
+xrender.vector = { path = "../../../xrender/vector" }
+xrender.text   = { path = "../../../xrender/text" }
+mlibs.text     = { path = "../../../../content/text" }
+mcpplibs.os    = "0.4.4"

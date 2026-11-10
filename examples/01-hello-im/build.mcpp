@@ -1,9 +1,18 @@
 // Example 01's build program: its own source carried in the program
-// (`hello::hello_source`), so whoever shows it running can show it written.
+// (`hello::hello_source`), so whoever shows it running can show it written;
+// and, packed for Android (W10), the APK — the platform's NativeActivity
+// loading the application's library, no Java (mcpp.plugins' dist-apk; a
+// build that packs no APK does nothing here).
 import std;
 import mcpp;
+import mcpp.dist.apk;
 import omui.build.embed;
 
 int main() {
-    return omui::build::embed({.module = "hello", .ns = "hello", .dir = "src", .suffix = ".cppm", .tag = "source"}) ? 0 : 1;
+    if (!omui::build::embed({.module = "hello", .ns = "hello", .dir = "src", .suffix = ".cppm", .tag = "source"})) return 1;
+    mcpp::dist::apk::options apk;
+    apk.target = "hello-im";
+    apk.application_id = "org.openmui.hello";
+    apk.label = "omui hello";
+    return mcpp::dist::apk::generate(apk) ? 0 : 1;
 }

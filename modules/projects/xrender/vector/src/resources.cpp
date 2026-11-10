@@ -1,6 +1,8 @@
 module xrender.vector.api;
 
 import std;
+import xrender.raster;
+import mlibs.geom;
 
 namespace xrender {
 

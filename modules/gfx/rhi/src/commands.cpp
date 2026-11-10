@@ -1,6 +1,7 @@
 module mlibs.rhi.api;
 
 import std;
+import mlibs.memory;
 import mlibs.hash;
 
 namespace mlibs::rhi {

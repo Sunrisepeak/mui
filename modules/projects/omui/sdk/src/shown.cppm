@@ -8,7 +8,9 @@ import omui.core;
 import omui.view;
 import :app;
 
-namespace omui::detail {
+// Not `detail`: omui.core exports a namespace of that name, and a partition's own declarations in it
+// are not found by every compiler (NDK clang 30) once the exported one is imported.
+namespace omui::hosting {
 
 // Mounts the application on the host's runtime; what it answers lives as
 // long as the application is shown (the framework's frame).
@@ -20,4 +22,4 @@ int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare);
 // The person's languages as the host states them.
 [[nodiscard]] std::vector<std::string> host_locales();
 
-}  // namespace omui::detail
+}  // namespace omui::hosting

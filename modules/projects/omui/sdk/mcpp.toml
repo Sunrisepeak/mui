@@ -40,17 +40,23 @@ xrender.raster        = { path = "../../xrender/raster" }
 xrender.text          = { path = "../../xrender/text" }
 mcpplibs.cmdline      = "0.0.3"
 
-# Where `omui::run` shows an application (D-84): a desktop window, or on the
-# Web the page's canvas — the host, and the partition (openmui:host) and unit
+# Where `omui::run` shows an application (D-84): a desktop window, on the
+# Web the page's canvas, on Android the NativeActivity's window (W10) — the host, and the partition (openmui:host) and unit
 # (src/host/<where>/shown.cpp) that name it.
-[target.'cfg(not(os = "emscripten"))'.dependencies]
+[target.'cfg(all(not(os = "emscripten"), not(env = "android")))'.dependencies]
 omui.host.sdl3 = { path = "../host/sdl3" }
+
+[target.'cfg(env = "android")'.dependencies]
+omui.host.android = { path = "../host/android" }
 
 [target.'cfg(os = "emscripten")'.dependencies]
 omui.host.web = { path = "../host/web" }
 
-[target.'cfg(not(os = "emscripten"))'.build]
+[target.'cfg(all(not(os = "emscripten"), not(env = "android")))'.build]
 sources = ["src/host/desktop/*.cppm", "src/host/desktop/*.cpp"]
+
+[target.'cfg(env = "android")'.build]
+sources = ["src/host/android/*.cppm", "src/host/android/*.cpp"]
 
 [target.'cfg(os = "emscripten")'.build]
 sources = ["src/host/web/*.cppm", "src/host/web/*.cpp"]

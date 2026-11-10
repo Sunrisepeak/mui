@@ -1,6 +1,7 @@
 module xrender.raster.api;
 
 import std;
+import mlibs.geom;
 
 namespace xrender::raster {
 

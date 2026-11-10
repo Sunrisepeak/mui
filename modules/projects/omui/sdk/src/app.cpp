@@ -457,13 +457,13 @@ int run(AppSpec app, const RunOptions& o) {
             else std::print(std::cerr, "{}", t.table());
         }
     } profile{o.profile};
-    languages_of(app, o, o.headless ? std::vector<std::string>{} : detail::host_locales());
+    languages_of(app, o, o.headless ? std::vector<std::string>{} : hosting::host_locales());
     auto access = agent_access_of(app, o);
     if (!access) return 2;
     if (o.headless) return headless(std::move(app), o, access);
     // A window on the desktop, the page's canvas on the Web (src/host/<where>/shown.cpp).
     const std::string mode = window_mode(app, o);
-    return detail::shown(app, o, [&](Runtime& rt) -> std::shared_ptr<void> {
+    return hosting::shown(app, o, [&](Runtime& rt) -> std::shared_ptr<void> {
         auto prepared = prepare(rt, app, access);
         // Kept as long as the window: the frame, the tasks and generation, and the teardown before them.
         struct Kept {

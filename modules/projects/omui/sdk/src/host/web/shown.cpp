@@ -9,7 +9,7 @@ import omui.host.web;
 import :app;
 import :shown;
 
-namespace omui::detail {
+namespace omui::hosting {
 
 int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
     WebOptions w;
@@ -42,7 +42,7 @@ int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
 
 std::vector<std::string> host_locales() { return browser_locales(); }
 
-}  // namespace omui::detail
+}  // namespace omui::hosting
 
 namespace omui {
 

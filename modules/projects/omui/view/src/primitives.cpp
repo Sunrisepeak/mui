@@ -1,6 +1,7 @@
 module omui.view;
 
 import std;
+import hanim.engine;
 import omui.core;
 import mlibs.layout;
 import xrender.vector;

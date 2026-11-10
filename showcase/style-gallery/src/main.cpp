@@ -8,7 +8,7 @@ import omui.showcase.style_gallery;
 int main(int argc, char** argv) {
     using mcpplibs::cmdline::App, mcpplibs::cmdline::Arg, mcpplibs::cmdline::Option;
     auto line = App("omui-styles")
-        .description("A settings panel and a dashboard in five style packs")
+        .description("A settings panel and a dashboard in eight style packs")
         .option(Option("style").takes_value().value_name("NAME").help("the pack shown first (default: glass)"))
         .option(Option("export-dir").takes_value().value_name("DIR").help("where the workshop exports a pack"));
     auto command = omui::command_line(std::move(line), argc, argv);

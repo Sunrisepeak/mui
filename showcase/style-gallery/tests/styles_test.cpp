@@ -1,4 +1,4 @@
-// S2 as a designer and an agent use it: five packs over one interface — the
+// S2 as a designer and an agent use it: eight packs over one interface — the
 // same semantic tree under each, different pixels (pinned); switching is a
 // cross-fade; an edit is seen at once; an export writes a pack that reads
 // back as the one edited (and asks its answer of an agent); the interface
@@ -58,7 +58,7 @@ Invocation as_agent(Value args = {}, std::string answer = {}) {
 
 UTest cases{"showcase.styles", [] {
 
-    "five packs, one semantic tree; their pixels pinned on every platform"_test = [] {
+    "eight packs — five creative, three platforms' — one semantic tree; their pixels pinned on every platform"_test = [] {
         App a;
         const auto tree = a.tree();
         expect(tree.size() > 20) << std::format("the interface: {} nodes", tree.size());
@@ -74,19 +74,19 @@ UTest cases{"showcase.styles", [] {
             expect(a.h.save_png(scratch_dir(std::format("styles-{}", n)) / std::format("{}.png", n)).has_value());
             std::println("    {:<7} {:016x}", n, px);
         }
-        expect(eq(looks.size(), std::size_t{5}));
+        expect(eq(looks.size(), themes::style_names.size()));
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        expect(eq(all.hex(), std::string("5e113fceedf09a16")));
+        expect(eq(all.hex(), std::string("664d6eec05142c36")));
     };
 
-    "the README's loop: the five packs in turn — an animated PNG under 1 MB"_test = [] {
+    "the README's loop: the packs in turn — an animated PNG under 1 MB"_test = [] {
         App a("glass", 0.4f);  // 576 × 360
         for (std::string_view n : themes::style_names) {  // each pack held a second and a half (a cross-fade changes every pixel: too heavy for a loop)
             expect(a.studio.show(n, false).has_value()) << std::string(n);
             a.h.settle();
             a.h.record();
         }
-        const auto file = scratch_dir("readme-style-gallery") / "five-packs.png";
+        const auto file = scratch_dir("readme-style-gallery") / "style-packs.png";
         expect(a.h.save_recording(file, {.delay_num = 3, .delay_den = 2}).has_value());
         const auto size = std::filesystem::file_size(file);
         std::println("    the loop: {} KB", size / 1024);

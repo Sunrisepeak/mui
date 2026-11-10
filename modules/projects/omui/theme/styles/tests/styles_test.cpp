@@ -24,7 +24,10 @@ UTest cases{"theme.styles", [] {
             auto t = theme::library().compose_style(n);
             expect(t.has_value()) << (t ? std::string{} : t.error());
             const auto st = theme::library().find_style(n);
-            expect(st && !st->effects.empty()) << std::format("{} has effects", n);
+            // A creative pack is known by its effects; a platform's (fluent, cupertino, material) by its tokens —
+            // colours, corners, type, motion — where the platform has no material of its own to imitate.
+            expect(st && (!st->effects.empty() || (!st->tokens.colors.empty() && !st->tokens.radius.empty() && !st->tokens.motion.empty())))
+                << std::format("{} has effects, or a platform's tokens", n);
         }
     };
 
@@ -82,6 +85,6 @@ UTest cases{"theme.styles", [] {
             std::uint64_t h = f.value() ^ (static_cast<std::uint64_t>(rt.display_list().commands().size()) << 32);
             looks.insert(h ^ std::hash<std::string>{}(rt.theme().name));
         }
-        expect(eq(looks.size(), std::size_t{5}));
+        expect(eq(looks.size(), themes::style_names.size())) << "every pack looks its own";
     };
 }};

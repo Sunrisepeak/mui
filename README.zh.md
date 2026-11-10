@@ -25,7 +25,7 @@ omui 是用 C++ Modules 实现 [openmui 开放规范](https://github.com/openlif
 | | 是什么 | 展示了什么 |
 |---|---|---|
 | **[文档墙](showcase/markdown-wall)** | 无限画布上的文档墙：一次看完整个文件夹的 Markdown | 缩放 1000 个窗口时一帧的 CPU 开销 p95 0.12 ms（[基准](docs/zh/benchmarks/README.md)）；近处是实时文档，远处是缓存的纹理；交互用数据描述 |
-| **[风格工坊](showcase/style-gallery)** | 五种风格包下的设置面板和仪表盘 | 用 Slang 写的着色器效果；切换风格时交叉淡化，语义树不变 |
+| **[风格工坊](showcase/style-gallery)** | 八种风格包（五种创意风格，加 Fluent、Cupertino、Material）下的设置面板和仪表盘 | 用 Slang 写的着色器效果；切换风格时交叉淡化，语义树不变 |
 | **[Markdown](examples/08-markdown-viewer)** | 阅读文档；把模型的输出[管道进来](examples/09-markdown-stream)，边收边排版 | CommonMark 652/652、增量解析、逐字淡入 |
 | **[空间地图](examples/10-canvas-basics)** | 一个文件夹的空间去了哪里，一张能缩放的地图 | 画布、treemap、agent 按名字查找 |
 | **[笔记](examples/12-notes)** | 用 TypeScript、视图文档和 C++ 一起写成的笔记 | 一个应用里三种写法，共享状态和命令 |

@@ -25,7 +25,7 @@ Each one is a tool you can use, and each one shows what the framework does.
 | | What it is | What it demonstrates |
 |---|---|---|
 | **[Wall](showcase/markdown-wall)** | A wall of documents on an infinite canvas: a whole folder of Markdown at once | A frame of zooming 1000 windows costs 0.12 ms of CPU at p95 ([benchmarks](docs/en/benchmarks/README.md)); live documents up close, cached textures far away; interactions written as data |
-| **[Styles](showcase/style-gallery)** | A settings panel and dashboard in five style packs | Shader effects written in Slang; switching style cross-fades and leaves the semantic tree unchanged |
+| **[Styles](showcase/style-gallery)** | A settings panel and dashboard in eight style packs (five creative, and Fluent, Cupertino, Material) | Shader effects written in Slang; switching style cross-fades and leaves the semantic tree unchanged |
 | **[Markdown](examples/08-markdown-viewer)** | Read documents; [pipe a model's output in](examples/09-markdown-stream) and watch it set as it arrives | CommonMark 652/652, incremental parsing, glyphs fading in |
 | **[Space](examples/10-canvas-basics)** | Where a folder's space went, as a map you can zoom | The canvas, a treemap, agents that find by name |
 | **[Notes](examples/12-notes)** | Notes written in TypeScript, a view document and C++ at once | Three ways of writing in one application, sharing state and commands |

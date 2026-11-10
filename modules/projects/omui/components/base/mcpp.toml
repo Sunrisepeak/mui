@@ -39,3 +39,6 @@ omui.build.contracts = { path = "../../../../../mcpp/contracts", host-module = t
 mcpplibs.mtest = "0.5.2"
 xrender.text = { path = "../../../xrender/text" }
 omui.host.headless = { path = "../../host/headless" }
+# platform_styles_test: the platform packs (fluent, cupertino, material) over the components.
+omui.theme = { path = "../../theme" }
+"omui.theme.styles" = { path = "../../theme/styles" }

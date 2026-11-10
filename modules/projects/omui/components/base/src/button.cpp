@@ -83,7 +83,8 @@ void Button::paint(PaintContext& ctx) const {
     const float p = static_cast<float>(std::clamp(press_, -0.5, 1.5));
 
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
-    corner_ = ctx.theme.corner("medium", 8);
+    // A pack may round its buttons apart from other controls (`radius.button`; Material: a pill).
+    corner_ = ctx.theme.corner("button", ctx.theme.corner("medium", 8));
     const CornerRadii radii = CornerRadii::all(corner_).fitted(ctx.size);
     const float s = 1 - press_scale * p;
     const bool scaled = s != 1;
@@ -114,7 +115,7 @@ void Button::paint(PaintContext& ctx) const {
 
 void Button::paint_over(PaintContext& ctx) const {
     if (ctx.state.focused && ctx.state.focus_visible)
-        focus_ring(ctx, {0, 0, ctx.size.width, ctx.size.height}, CornerRadii::all(ctx.theme.corner("medium", 8)).fitted(ctx.size));
+        focus_ring(ctx, {0, 0, ctx.size.width, ctx.size.height}, CornerRadii::all(corner_).fitted(ctx.size));
 }
 
 void Button::semantics(SemanticsContext&, spec::SemanticNode& node) const {

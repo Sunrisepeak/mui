@@ -41,7 +41,7 @@ private:
 
     mutable parts::Label  label_;
     mutable double hover_ = 0, press_ = 0;
-    mutable float         corner_ = 8;  // the corners as last painted (the theme's medium)
+    mutable float         corner_ = 8;  // the corners as last painted (the theme's button radius, else its medium)
 };
 
 }  // namespace omui

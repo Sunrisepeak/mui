@@ -46,14 +46,20 @@ std::string closest(std::string_view name, const Map& m) {
     return best.empty() ? std::string() : std::format(" (did you mean `{}`?)", best);
 }
 
+// Radii a theme need not have: where it has none, the component falls back
+// to another (a button's corners are the theme's `medium` unless a pack gives
+// buttons their own: Material's pill).
+inline constexpr std::array<std::string_view, 1> optional_radii{"button"};
+
 // Applies a layer's tokens. A layer over another (a theme that extends, an
-// overlay) changes only tokens the theme already has: a name it does not is
-// a typo, not a new token.
+// overlay) changes only tokens the theme already has, or the optional ones: a
+// name it does not is a typo, not a new token.
 std::expected<void, std::string> layer_onto(const Layer& l, Theme& t, bool over) {
     auto set = [&](auto& into, std::string_view kind, const auto& from, auto&& assign) -> std::expected<void, std::string> {
         for (const auto& [k, v] : from) {
             auto it = into.find(k);
-            if (over && it == into.end())
+            const bool optional = kind == "radius" && std::ranges::contains(optional_radii, std::string_view(k));
+            if (over && it == into.end() && !optional)
                 return std::unexpected(std::format("{}: `{}` sets the {} `{}`, which the theme under it does not have{}", l.file, l.name, kind, k,
                                                    closest(k, into)));
             assign(into[k], v);

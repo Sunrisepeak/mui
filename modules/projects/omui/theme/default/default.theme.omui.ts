@@ -70,6 +70,7 @@ export default defineTheme({
       large: 12,
       xl: 16,
       full: 9999,
+      // A pack may add `button`: buttons' corners apart from other controls' (Material's pill); without it, `medium`.
     },
 
     shadows: {

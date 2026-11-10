@@ -11,7 +11,7 @@
 namespace   = "omui.showcase"
 name        = "style_gallery"
 version     = "0.1.0"
-description = "S2, the style workshop: one interface in five style packs, edited live and exported"
+description = "S2, the style workshop: one interface in eight style packs, edited live and exported"
 license     = "Apache-2.0"
 
 [package.metadata.openmui]

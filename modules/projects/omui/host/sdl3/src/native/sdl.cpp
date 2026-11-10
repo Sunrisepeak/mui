@@ -406,6 +406,10 @@ float pixel_scale(Window& w) {
     return s > 0 ? s : 1.0f;
 }
 
+// A drop of files being gathered (SDL tells each file, then that the drop is complete).
+std::vector<std::string> dropping;
+Point                    dropped_at;
+
 Polled poll(Window& w, bool wait, std::optional<std::chrono::milliseconds> timeout) {
     Polled out;
     SDL_Event e;
@@ -509,6 +513,27 @@ Polled poll(Window& w, bool wait, std::optional<std::chrono::milliseconds> timeo
             case SDL_EVENT_TEXT_INPUT:
                 if (e.text.text && *e.text.text) out.events.push_back(TextEvent{e.text.text});
                 break;
+            // Files dragged from the system: where they are while dragged, then all of them at once when let go.
+            case SDL_EVENT_DROP_BEGIN: dropping.clear(); break;
+            case SDL_EVENT_DROP_POSITION: {
+                FileDropEvent f;
+                f.kind = FileDropEvent::Kind::over;
+                f.position = point(e.drop.x, e.drop.y);
+                out.events.push_back(std::move(f));
+                break;
+            }
+            case SDL_EVENT_DROP_FILE:
+                if (e.drop.data) dropping.emplace_back(e.drop.data);
+                dropped_at = point(e.drop.x, e.drop.y);
+                break;
+            case SDL_EVENT_DROP_COMPLETE: {
+                FileDropEvent f;
+                f.kind = dropping.empty() ? FileDropEvent::Kind::leave : FileDropEvent::Kind::drop;
+                f.position = dropping.empty() ? point(e.drop.x, e.drop.y) : dropped_at;
+                f.files = std::exchange(dropping, {});
+                out.events.push_back(std::move(f));
+                break;
+            }
             case SDL_EVENT_TEXT_EDITING: {
                 PreeditEvent pe;
                 pe.text = e.edit.text ? e.edit.text : "";

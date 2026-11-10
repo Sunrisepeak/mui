@@ -97,8 +97,18 @@ struct GamepadEvent {
     std::string   name;            // connected: what the device calls itself
 };
 
+// Files the person drags from the system over the window: where they are while dragged
+// (`over`, where the host's system says), let go over it (`drop`, with their paths), or
+// taken away (`leave`). A host whose system tells it nothing sends only the drop.
+struct FileDropEvent {
+    enum class Kind : std::uint8_t { over, drop, leave };
+    Kind                     kind = Kind::drop;
+    Point                    position;
+    std::vector<std::string> files;  // drop: their paths, UTF-8
+};
+
 using InputEvent = std::variant<PointerEvent, WheelEvent, KeyEvent, TextEvent, PreeditEvent, FocusEvent, ResizeEvent,
-                                CloseRequestEvent, GamepadEvent>;
+                                CloseRequestEvent, GamepadEvent, FileDropEvent>;
 
 [[nodiscard]] std::string_view name(GamepadButton b) noexcept;  // "south", "leftShoulder", "dpadUp"
 [[nodiscard]] std::string_view name(GamepadAxis a) noexcept;    // "leftX", "rightTrigger"

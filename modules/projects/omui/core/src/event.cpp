@@ -90,6 +90,14 @@ Value to_value(const InputEvent& e) {
                 if (ev.kind == GamepadKind::down || ev.kind == GamepadKind::up) v.set("button", name(ev.button));
                 if (ev.kind == GamepadKind::axis) v.set("axis", name(ev.axis)).set("value", ev.value);
                 if (ev.kind == GamepadKind::connected && !ev.name.empty()) v.set("name", ev.name);
+            } else if constexpr (std::same_as<T, FileDropEvent>) {
+                v.set("type", "files").set("kind", ev.kind == FileDropEvent::Kind::over ? "over" : ev.kind == FileDropEvent::Kind::drop ? "drop" : "leave");
+                v.set("x", ev.position.x).set("y", ev.position.y);
+                if (!ev.files.empty()) {
+                    Value::List files;
+                    for (const std::string& file : ev.files) files.emplace_back(file);
+                    v.set("files", Value(std::move(files)));
+                }
             }
         },
         e);
@@ -133,6 +141,15 @@ std::optional<InputEvent> event_from_value(const Value& v) {
         k.mods = mods_from(v.get("mods"));
         if (const Value* x = v.get("repeat")) k.repeat = x->as_bool();
         return k;
+    }
+    if (t == "files") {
+        FileDropEvent f;
+        const std::string_view kind = v.get("kind") ? v.get("kind")->as_string() : "drop";
+        f.kind = kind == "over" ? FileDropEvent::Kind::over : kind == "leave" ? FileDropEvent::Kind::leave : FileDropEvent::Kind::drop;
+        f.position = {num(v, "x"), num(v, "y")};
+        if (const Value* files = v.get("files"); files && files->list())
+            for (const Value& file : *files->list()) f.files.emplace_back(file.as_string());
+        return f;
     }
     if (t == "text") return TextEvent{std::string(v.get("text") ? v.get("text")->as_string() : "")};
     if (t == "preedit") {

@@ -198,6 +198,42 @@ UTest cases{"ui.base.inputs", [] {
         expect(act(h, "main/style", "set_selected", Value{}.set("selected", Value(Value::List{Value("strike")}))) != 0) << "not one of its options";
     };
 
+    "file drop: files dragged over it lit, let go given (what it takes; the rest said), given by an agent, the chooser asked for by a press or Enter"_test = [] {
+        Headless h(options());
+        std::vector<std::vector<std::string>> given;
+        int asked = 0;
+        h.mount("main", column({.padding = 12, .gap = 12},
+                               {file_drop({.id = "zone", .accept = std::vector<std::string>{"png", "jpg"},
+                                           .on_dropped = [&](std::vector<std::string> files) { given.push_back(files); }, .on_requested = [&] { ++asked; }}),
+                                text({.id = "below", .text = "Elsewhere"})}));
+        h.step();
+        expect(h.tree().node("main/zone") && h.tree().node("main/zone")->role == Role::button);
+        const Rect zone = h.runtime().drawn_bounds(h.runtime().find("main/zone"));
+        const Rect below = h.runtime().drawn_bounds(h.runtime().find("main/below"));
+        const Point middle{zone.x + zone.width / 2, zone.y + zone.height / 2};
+        const auto files = [](FileDropEvent::Kind kind, Point at, std::vector<std::string> paths = {}) {
+            FileDropEvent event;
+            event.kind = kind;
+            event.position = at;
+            event.files = std::move(paths);
+            return InputEvent{std::move(event)};
+        };
+        const std::uint64_t rest = hash_of(h.pixels());
+        h.step({files(FileDropEvent::Kind::over, middle)});
+        expect(hash_of(h.pixels()) != rest) << "lit while files are over it";
+        h.step({files(FileDropEvent::Kind::over, {below.x + 4, below.y + 4})});
+        expect(hash_of(h.pixels()) == rest) << "and not once they move off it";
+        h.step({files(FileDropEvent::Kind::drop, middle, {"/home/ada/cat.PNG", "/home/ada/notes.txt"})});
+        expect(given == std::vector<std::vector<std::string>>{{"/home/ada/cat.PNG"}}) << "what it takes";
+        expect(h.tree().node("main/zone")->description == "Not taken: notes.txt") << "the rest, said";
+        expect(eq(act(h, "main/zone", "drop", Value{}.set("files", Value(Value::List{Value("/b/dog.jpg")}))), 0) && given.size() == 2) << "an agent gives files";
+        expect(act(h, "main/zone", "drop", Value{}.set("files", Value(Value::List{Value("/b/a.txt")}))) != 0) << "none it takes: refused";
+        expect(h.click("main/zone") && eq(asked, 1)) << "a press asks for the chooser";
+        h.runtime().focus(h.runtime().find("main/zone"));
+        h.key(Key::enter);
+        expect(eq(asked, 2)) << "and Enter";
+    };
+
     "the gallery: ratings, a code, a field with its help and one with its error, a search box and a toggle group — the same pixels on every platform"_test = [] {
         mlibs::text::FontCollection own;
         expect(own.add_defaults().has_value());

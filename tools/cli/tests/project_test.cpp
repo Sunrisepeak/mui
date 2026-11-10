@@ -214,7 +214,8 @@ UTest cases{"cli.project", [] {
     "the designer is linked as omui.config.ts says: in development by default, in a release when the application ships it"_test = [] {
         const auto root = temp_dir() / "designer";
         std::filesystem::create_directories(root);
-        std::ofstream(root / "mcpp.toml") << "[package\n";  // mcpp stops at once: the commands are what is looked at
+        // A project the player runs (it names the player's entry); mcpp stops at once: the commands are what is looked at.
+        std::ofstream(root / "mcpp.toml") << "[package\nomui.entry.player = { path = \"player\" }\n";
         const auto here = std::filesystem::current_path();
         std::filesystem::current_path(root);
         const auto command_of = [](std::vector<std::string> line) {
@@ -239,6 +240,13 @@ UTest cases{"cli.project", [] {
         expect(!plain.contains("omui.entry.player/design") && plain.contains("run -- --dev")) << plain;
         expect(tool.contains("build --release --features omui.entry.player/design")) << tool;
         expect(eq(refused.code, 1) && refused.err.contains("designer.release is true or false")) << refused.err;
+        // A C++ application (its own main): omui dev is the development host, which builds it and draws it in its window (W16).
+        std::filesystem::current_path(root);
+        std::ofstream(root / "mcpp.toml") << "[package\n";
+        std::filesystem::remove(root / "omui.config.ts");
+        const std::string hosted = command_of({"omui", "dev", "--json"});
+        std::filesystem::current_path(here);
+        expect(hosted.contains("omui-devhost --project .")) << hosted;
     };
 }};
 

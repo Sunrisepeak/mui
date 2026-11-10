@@ -39,6 +39,9 @@ UTest cases{"core.input", [] {
             omui::GamepadEvent{.kind = omui::GamepadKind::up, .device = 3, .button = omui::GamepadButton::dpad_left},
             omui::GamepadEvent{.kind = omui::GamepadKind::axis, .device = 3, .axis = omui::GamepadAxis::left_y, .value = -0.5f},
             omui::GamepadEvent{.kind = omui::GamepadKind::disconnected, .device = 3},
+            omui::FileDropEvent{.kind = omui::FileDropEvent::Kind::over, .position = {40, 60}, .files = {}},
+            omui::FileDropEvent{.kind = omui::FileDropEvent::Kind::drop, .position = {40, 60}, .files = {"/home/ada/猫.png", "C:\\notes.txt"}},
+            omui::FileDropEvent{.kind = omui::FileDropEvent::Kind::leave, .position = {0, 0}, .files = {}},
         };
         for (const auto& e : events) {
             auto v = omui::to_value(e);

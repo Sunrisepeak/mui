@@ -572,4 +572,111 @@ ActResult ToggleGroup::act_item(ActContext& ctx, std::string_view key, std::stri
     return choose(std::move(now));
 }
 
+// ── file drop ──
+
+void FileDrop::mounted() {
+    label_.set_style("label");
+    note_.set_style("caption");
+    prop_changed(FileDropProp::label);
+}
+
+void FileDrop::prop_changed(FileDropProp) {
+    label_.set_text(props.label);
+    std::string kinds;
+    for (const std::string& extension : props.accept) kinds += kinds.empty() ? extension : ", " + extension;
+    note_.set_text(!refused_.empty() ? refused_ : kinds.empty() ? std::string() : std::format("Takes {}", kinds));
+    if (!attached()) return;
+    services().invalidate_layout(node());
+    services().invalidate_semantics(node());
+}
+
+bool FileDrop::accepts(std::string_view file) const {
+    if (props.accept.empty()) return true;
+    const auto dot = file.rfind('.');
+    if (dot == std::string_view::npos) return false;
+    const std::string extension = [&] {
+        std::string out(file.substr(dot + 1));
+        for (char& c : out) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        return out;
+    }();
+    return std::ranges::any_of(props.accept, [&](const std::string& one) { return one == extension; });
+}
+
+Size FileDrop::measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available) {
+    const Size text = label_.measure(m.services, m.services.theme().color("text"));
+    const Size note = note_.text().empty() ? Size{} : note_.measure(m.services, m.services.theme().color("text_muted"));
+    const float wide = aw.kind == mlibs::layout::Available::Kind::definite ? aw.value : std::max(text.width, note.width) + 48;
+    return {width.value_or(wide), height.value_or(std::max(96.0f, text.height + note.height + 48))};
+}
+
+void FileDrop::paint(PaintContext& ctx) const {
+    const Theme& theme = ctx.theme;
+    const bool off = props.disabled || ctx.state.disabled;
+    const bool lit = over_ && !off;
+    const Rect box{0, 0, ctx.size.width, ctx.size.height};
+    const CornerRadii corners = CornerRadii::all(theme.corner("large", 12)).fitted(ctx.size);
+    ctx.list.fill_round_rect(box, corners, xrender::Paint::solid(lit ? theme.color("accent").with_alpha(0.08f) : theme.color("surface_variant").with_alpha(0.5f)));
+    // A dashed edge: where to let files go; solid in the accent while they are over it.
+    static constexpr std::array<float, 2> dashes{6, 4};
+    xrender::Path edge;
+    edge.add_rounded_rect({0.75f, 0.75f, box.width - 1.5f, box.height - 1.5f}, corners);
+    xrender::StrokeStyle line{.width = 1.5f};
+    if (!lit) line.dashes = dashes;
+    ctx.list.stroke_path(edge, line, xrender::Paint::solid(lit ? theme.color("accent") : theme.color(ctx.state.hovered && !off ? "border_strong" : "border")));
+    const Color ink = theme.color(off ? "text_muted" : lit ? "accent" : "text");
+    const Size text = label_.measure(ctx.services, ink);
+    const Size note = note_.text().empty() ? Size{} : note_.measure(ctx.services, theme.color("text_muted"));
+    const float top = (box.height - text.height - (note.height > 0 ? note.height + 4 : 0)) / 2;
+    label_.paint(ctx, {(box.width - text.width) / 2, top}, ink);
+    if (note.height > 0) note_.paint(ctx, {(box.width - note.width) / 2, top + text.height + 4}, theme.color(refused_.empty() ? "text_muted" : "danger"));
+    if (ctx.state.focused && ctx.state.focus_visible) parts::focus_ring(ctx, box, corners);
+}
+
+bool FileDrop::on_event(EventContext& ctx, const InputEvent& e) {
+    const auto* files = std::get_if<FileDropEvent>(&e);
+    if (!files || props.disabled) return false;
+    if (files->kind != FileDropEvent::Kind::drop) {
+        const bool over = files->kind == FileDropEvent::Kind::over;
+        if (over != over_) over_ = over, ctx.repaint();
+        return true;
+    }
+    over_ = false;
+    ctx.repaint();
+    // As the person's giving (journaled), what it accepts.
+    (void)services().perform(node(), "drop", Value{}.set("files", ValueOf<std::vector<std::string>>::to(files->files)));
+    return true;
+}
+
+ActResult FileDrop::drop(ActContext&, const Value& files) {
+    if (props.disabled) return ActResult::fail("it is disabled");
+    std::vector<std::string> taken;
+    std::vector<std::string> left;
+    for (const std::string& file : ValueOf<std::vector<std::string>>::from(files)) (accepts(file) ? taken : left).push_back(file);
+    if (!props.multiple && taken.size() > 1) left.insert(left.end(), taken.begin() + 1, taken.end()), taken.resize(1);
+    refused_ = left.empty() ? std::string() : std::format("Not taken: {}", [&] {
+        std::string names;
+        for (const std::string& file : left) {
+            const auto slash = file.find_last_of("/\\");
+            names += (names.empty() ? "" : ", ") + file.substr(slash == std::string::npos ? 0 : slash + 1);
+        }
+        return names;
+    }());
+    prop_changed(FileDropProp::label);
+    if (taken.empty()) return ActResult::fail(refused_.empty() ? std::string("no files") : refused_);
+    emit_dropped(taken);
+    return ActResult::done(ValueOf<std::vector<std::string>>::to(taken));
+}
+
+ActResult FileDrop::activate(ActContext&) {
+    if (props.disabled) return ActResult::fail("it is disabled");
+    emit_requested();
+    return ActResult::done();
+}
+
+void FileDrop::semantics(SemanticsContext&, spec::SemanticNode& node) const {
+    if (node.name.empty()) node.name = props.label;
+    if (!refused_.empty()) node.description = refused_;
+    if (props.disabled) node.states.set(State::disabled, true);
+}
+
 }  // namespace omui

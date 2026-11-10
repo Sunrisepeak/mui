@@ -387,6 +387,7 @@ struct Runtime::Impl {
     // input
     NodeId               capture;
     NodeId               pressed;
+    NodeId               file_over;  // what files dragged from the system are over now
     // What a person (not an agent's input) operates now (S-14): the node they
     // hold with the pointer, and the one they last typed into and when.
     bool                 taken_over = false;  // the person has taken over from every agent (S-14)

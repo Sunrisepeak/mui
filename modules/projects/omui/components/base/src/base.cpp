@@ -74,6 +74,7 @@ void register_base_components() {
     // W9: what is shown to be looked at — chart, carousel.
     register_type(component_type<Chart>());
     register_type(component_type<Carousel>());
+    register_type(component_type<FileDrop>());
 }
 
 }  // namespace omui

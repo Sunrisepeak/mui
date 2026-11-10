@@ -14,6 +14,7 @@ import :otp_input_contract;
 import :form_field_contract;
 import :search_box_contract;
 import :toggle_group_contract;
+import :file_drop_contract;
 
 export namespace omui {
 
@@ -122,6 +123,29 @@ private:
     mutable std::vector<Rect>         at_;
     int                               hover_ = -1;
     std::size_t                       focus_ = 0;  // the option the keys move between
+};
+
+class FileDrop : public FileDropContract<FileDrop> {
+public:
+    static constexpr bool focusable = true;
+
+    void mounted();
+    void prop_changed(FileDropProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+
+    ActResult drop(ActContext& ctx, const Value& files);
+    ActResult activate(ActContext& ctx);
+
+    // Whether it takes a file by its extension (`accept`; none: any).
+    [[nodiscard]] bool accepts(std::string_view file) const;
+
+private:
+    mutable parts::Label label_, note_;
+    bool                 over_ = false;  // files are over it now
+    std::string          refused_;      // what the last drop left out, said
 };
 
 }  // namespace omui

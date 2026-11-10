@@ -78,6 +78,7 @@ export import :sidebar_contract;
 export import :toolbar_contract;
 export import :chart_contract;
 export import :carousel_contract;
+export import :file_drop_contract;
 export import :button;
 export import :toggle;
 export import :slider;

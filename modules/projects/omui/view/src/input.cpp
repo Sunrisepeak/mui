@@ -62,6 +62,8 @@ std::string_view handler_name(const InputEvent& e) {
                     case GamepadKind::axis:         return "gamepad_axis";
                 }
                 return "gamepad_axis";
+            } else if constexpr (std::same_as<T, FileDropEvent>) {
+                return x.kind == FileDropEvent::Kind::over ? "file_over" : x.kind == FileDropEvent::Kind::drop ? "file_drop" : "file_leave";
             } else return {};
         },
         e);
@@ -76,9 +78,9 @@ bool is_pointer_kind(const InputEvent& e, PointerKind k) {
 
 std::span<const std::string_view> runtime_events() noexcept {
     // handler_name's events, the root's close request, and the activation handlers.
-    static constexpr std::array<std::string_view, 21> events{
-        "activate", "blur", "close_request", "focus", "gamepad_axis", "gamepad_connect", "gamepad_disconnect", "gamepad_down",
-        "gamepad_up", "key_down", "key_up", "pointer_cancel", "pointer_down", "pointer_enter",
+    static constexpr std::array<std::string_view, 24> events{
+        "activate", "blur", "close_request", "file_drop", "file_leave", "file_over", "focus", "gamepad_axis", "gamepad_connect",
+        "gamepad_disconnect", "gamepad_down", "gamepad_up", "key_down", "key_up", "pointer_cancel", "pointer_down", "pointer_enter",
         "pointer_leave", "pointer_move", "pointer_up", "preedit", "press", "text_input", "wheel"};
     return events;
 }
@@ -178,6 +180,17 @@ void Runtime::Impl::dispatch(const InputEvent& e) {
                     pressed = capture = {};
                     touch(dirty_paint);
                 }
+            } else if constexpr (std::same_as<T, FileDropEvent>) {
+                // To what they are over, bubbling; what they left told so.
+                const NodeId over = x.kind == FileDropEvent::Kind::leave ? NodeId{} : self.hit_test(x.position);
+                if (alive(file_over) && file_over != over) {
+                    FileDropEvent left = x;
+                    left.kind = FileDropEvent::Kind::leave;
+                    left.files.clear();
+                    deliver(file_over, left, x.position, true);
+                }
+                file_over = x.kind == FileDropEvent::Kind::over ? over : NodeId{};
+                if (alive(over)) deliver(over, e, x.position, true);
             } else if constexpr (std::same_as<T, ResizeEvent>) self.resize(x.size, x.scale);
             else if constexpr (std::same_as<T, CloseRequestEvent>) call_handlers(root, "close_request", {});
         },

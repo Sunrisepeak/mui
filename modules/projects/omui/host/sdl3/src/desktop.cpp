@@ -17,6 +17,7 @@ import xrender.rhi.sdl;
 import xrender.effect;
 import mcpplibs.os;
 import :platform;
+import :web;
 import xrender.text;
 
 namespace omui {  // names this file uses unqualified, from their owner
@@ -126,6 +127,8 @@ struct Desktop::Impl final : WindowHost {
     // The system's notifications, opened when the first is shown (none: drawn instead).
     std::optional<std::unique_ptr<NativeNotices>> notices;
     platform::WindowPtr                      window;
+    // Web pages in the system's own view over the window (D-141; macOS's WKWebView), gone before it.
+    std::unique_ptr<web::Pages, void (*)(web::Pages*)> web_pages{nullptr, [](web::Pages*) {}};
     xrender::CpuRenderer                      renderer;
     xrender::DamageTracker                    damage;     // what the next list changes
     xrender::raster::Surface                          frame;
@@ -452,6 +455,22 @@ std::expected<void, std::string> Desktop::open() {
                                     },
                                     .tray = [](const std::vector<Runtime::MenuEntry>& entries, std::string_view tooltip,
                                                std::function<void(std::string_view)> chosen) { return platform::tray(entries, tooltip, std::move(chosen)); }});
+    // Web pages in the system's own view (D-141), where it has one: macOS's WKWebView.
+    if constexpr (mcpplibs::os::is_macos) {
+        if (d.window) d.web_pages = web::open_pages(platform::native_window(*d.window));
+        if (d.web_pages) {
+            Runtime::NativeSurfaces surfaces = d.runtime->native_surfaces();
+            surfaces.web_open = [&d](std::string_view url, std::function<void(const WebPage&)> changed) {
+                return web::open(*d.web_pages, url, std::move(changed));
+            };
+            surfaces.web_place = [&d](std::uint64_t page, Rect bounds, bool shown) { web::place(*d.web_pages, page, bounds, shown, d.runtime->size().height); };
+            surfaces.web_command = [&d](std::uint64_t page, std::string_view what, std::string_view argument) {
+                return web::command(*d.web_pages, page, what, argument);
+            };
+            surfaces.web_close = [&d](std::uint64_t page) { web::close(*d.web_pages, page); };
+            d.runtime->set_native_surfaces(std::move(surfaces));
+        }
+    }
     d.runtime->set_svg_capture([&d](Rect region) -> std::expected<std::string, std::string> {
         const xrender::Resources resources{&d.runtime->images(), d.glyphs.get()};
         auto capture = agent::vector_capture(*d.runtime, resources, region, d.runtime->scale(), std::nullopt);
@@ -582,6 +601,9 @@ bool Desktop::step(bool wait) {
         if (given) polled.events.insert(polled.events.end(), std::make_move_iterator(given->events.begin()), std::make_move_iterator(given->events.end()));
     }
     d.reload_effects();
+    // What the system's web views show now, told where it changed (posted to the runtime).
+    if constexpr (mcpplibs::os::is_macos)
+        if (d.web_pages) web::poll(*d.web_pages);
     FrameInput in;
     in.events = std::move(polled.events);
     // Evaluated where it will be seen: the next refresh (D-70).

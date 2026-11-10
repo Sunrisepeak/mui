@@ -908,6 +908,7 @@ bool Runtime::perform(NodeId node, std::string_view action, const Value& args) {
     Invocation call;
     call.actor = {"person", "user", {}};  // the input being handled is a person's (openas §2.7)
     call.args = args;
+    call.answer = impl_->own_answer(node, action);  // their own press is their answer to what reaches outside (S-2a), as a click is
     return act(node, action, call).exit_code() == std::optional<int>(0);
 }
 
@@ -968,6 +969,34 @@ bool Runtime::open_url(std::string_view url) {
     if (!allowed) return false;
     impl_->opened.emplace_back(url);
     return impl_->url_opener && impl_->url_opener(url);
+}
+
+std::uint64_t Runtime::open_web(std::string_view url, std::function<void(const WebPage&)> changed) {
+    Impl& d = *impl_;
+    if (!d.native_surfaces.web_open) return 0;
+    // The host may tell of a change on its own thread: posted, and heard only while the page is open.
+    auto heard = std::make_shared<std::uint64_t>(0);
+    const std::uint64_t page = d.native_surfaces.web_open(url, [this, heard](const WebPage& now) {
+        queue().post([this, heard, now] {
+            if (const auto it = impl_->web_pages.find(*heard); it != impl_->web_pages.end() && it->second) it->second(now);
+        });
+    });
+    if (page == 0) return 0;
+    *heard = page;
+    d.web_pages[page] = std::move(changed);
+    return page;
+}
+
+void Runtime::place_web(std::uint64_t page, Rect bounds, bool shown) {
+    if (impl_->web_pages.contains(page) && impl_->native_surfaces.web_place) impl_->native_surfaces.web_place(page, bounds, shown);
+}
+
+bool Runtime::command_web(std::uint64_t page, std::string_view command, std::string_view argument) {
+    return impl_->web_pages.contains(page) && impl_->native_surfaces.web_command && impl_->native_surfaces.web_command(page, command, argument);
+}
+
+void Runtime::close_web(std::uint64_t page) {
+    if (impl_->web_pages.erase(page) && impl_->native_surfaces.web_close) impl_->native_surfaces.web_close(page);
 }
 
 bool Runtime::focusable(NodeId node) const { return valid(node) && impl_->is_focusable(node); }

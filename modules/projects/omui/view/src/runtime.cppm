@@ -762,6 +762,10 @@ public:
     // https and mailto; false when refused or nothing opens it. Every
     // address asked for is kept, in order (`opened`: what a test reads).
     bool open_url(std::string_view url) override;
+    std::uint64_t open_web(std::string_view url, std::function<void(const WebPage&)> changed) override;
+    void place_web(std::uint64_t page, Rect bounds, bool shown) override;
+    bool command_web(std::uint64_t page, std::string_view command, std::string_view argument) override;
+    void close_web(std::uint64_t page) override;
     [[nodiscard]] bool focusable(NodeId node) const override;
     void set_url_opener(std::function<bool(std::string_view)> open);
     [[nodiscard]] const std::vector<std::string>& opened() const noexcept;
@@ -809,6 +813,12 @@ public:
         // `pressed`: the person chose the notice (its verb's to run); may be called on another thread.
         std::function<bool(const Notice&, std::function<void()> pressed)> notify;
         std::function<bool(const std::vector<MenuEntry>&, std::string_view tooltip, std::function<void(std::string_view verb)> chosen)> tray;
+        // Web pages in the system's own view (D-141), placed over a node: open answers the page's
+        // number (0: none here), `changed` may be called on another thread (the runtime posts it).
+        std::function<std::uint64_t(std::string_view url, std::function<void(const WebPage&)> changed)> web_open;
+        std::function<void(std::uint64_t page, Rect bounds, bool shown)>                             web_place;
+        std::function<bool(std::uint64_t page, std::string_view command, std::string_view argument)> web_command;
+        std::function<void(std::uint64_t page)>                                                      web_close;
     };
     void set_native_surfaces(NativeSurfaces surfaces);
     [[nodiscard]] const NativeSurfaces& native_surfaces() const noexcept;

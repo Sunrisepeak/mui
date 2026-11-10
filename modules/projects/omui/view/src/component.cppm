@@ -200,6 +200,15 @@ struct ClaimRequest {
     double      seconds = 30;
 };
 
+// A web page in a view the system draws (D-141: an external surface), placed
+// by the host over a node: what the framework knows of it — where it is, its
+// title, whether it is loading, whether it can go back or forward.
+struct WebPage {
+    std::string url, title;
+    bool        loading = false;
+    bool        can_go_back = false, can_go_forward = false;
+};
+
 // The person's own agent, linked through a bridge on their machine (agent
 // connect, D-95): unavailable (the host cannot: off the Web, or turned off),
 // idle, waiting (for a bridge with `code`), paired (with `agent`), lost (the
@@ -356,6 +365,21 @@ public:
         (void)url;
         return false;
     }
+    // A web page in the system's own view, which the host places over a node (D-141): opened at
+    // `url`, `changed` told each change of it (on the UI thread); 0 where the host has no web view
+    // (headless, a host without one) — the component then draws its own and opens the system's browser.
+    virtual std::uint64_t open_web(std::string_view url, std::function<void(const WebPage&)> changed) {
+        (void)url, (void)changed;
+        return 0;
+    }
+    // Where it is in the window (logical pixels) and whether it is shown; a command to it
+    // ("navigate" with an address, "back", "forward", "reload"); and closed.
+    virtual void place_web(std::uint64_t page, Rect bounds, bool shown) { (void)page, (void)bounds, (void)shown; }
+    virtual bool command_web(std::uint64_t page, std::string_view command, std::string_view argument) {
+        (void)page, (void)command, (void)argument;
+        return false;
+    }
+    virtual void close_web(std::uint64_t page) { (void)page; }
     virtual void scroll_into_view(NodeId node) = 0;
     // So that the node starts at the top of its view, as far as the view
     // scrolls (a document's anchor followed: its section read from the top).

@@ -393,6 +393,8 @@ struct Runtime::Impl {
     bool                 taken_over = false;  // the person has taken over from every agent (S-14)
     std::vector<AgentNote> agent_notes;      // one an actor (Runtime::note), oldest first
     std::vector<Claim>     held_claims;      // D-160: the claims made, oldest first (expired ones dropped as they are met)
+    // The web pages open (D-141), by the host's number: whom to tell of a change (gone once closed).
+    std::map<std::uint64_t, std::function<void(const WebPage&)>> web_pages;
     NodeId               person_holds;
     NodeId               person_typed;
     double               person_typed_at = -1e9;

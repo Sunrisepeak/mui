@@ -9,6 +9,7 @@ import std;
 import mcpplibs.os;
 import mcpplibs.mwrap.sdl3;  // a virtual gamepad (the gamepad test)
 import omui.host.sdl3;
+import omui.ui.base;  // web_view (the system's web view, macOS)
 import mlibs.testing;
 import mcpplibs.mtest;
 
@@ -413,5 +414,36 @@ float4 invert_fs(EffectPixel px) : SV_Target {
         at.join();
         expect(pressed.peek() == 1) << "performed";
         expect(std::chrono::steady_clock::now() - start < std::chrono::seconds(5)) << "woken by the request";
+    };
+
+    "the system's web view (D-141, macOS's WKWebView): a web page placed in the window over its node, what it shows read back from the view"_test = [] {
+        if constexpr (!mcpplibs::os::is_macos) {
+            skip("the system's web view is macOS's here (WKWebView); elsewhere the component draws its card");
+            return;
+        }
+        // A window AppKit makes (the offscreen driver makes none): CI's macOS row runs under cocoa.
+        if (mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER") != "cocoa") {
+            skip("no cocoa window here (OMUI_GPU_VIDEO_DRIVER=cocoa, as macOS CI runs)");
+            return;
+        }
+        register_base_components();
+        DesktopOptions o = offscreen("sdl3-web");
+        o.video_driver = "cocoa";
+        o.size = {360, 240};
+        Desktop d(o);
+        auto opened = d.open();
+        expect(fatal(opened.has_value())) << (opened ? "" : opened.error());
+        d.mount("main", column({.padding = 20}, {web_view({.id = "page", .label = "Example", .url = std::string("https://example.org/"), .width = 300, .height = 160})}));
+        Runtime& rt = d.runtime();
+        // Its address, as the view reads it back (the view sets it as the load starts; no network needed).
+        bool read_back = false;
+        for (int turn = 0; turn < 200 && !read_back; ++turn) {
+            (void)d.step();
+            const auto node = rt.semantic_node(rt.find("main/page"));
+            read_back = node.description.empty() && node.value.as_string().starts_with("https://example.org");
+        }
+        const auto node = rt.semantic_node(rt.find("main/page"));
+        expect(node.description.empty()) << "in the system's view, not the card: " << node.description;
+        expect(read_back) << "its address read back from the view: " << node.value.json();
     };
 }};

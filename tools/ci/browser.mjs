@@ -4,7 +4,7 @@
 // as WebGPU asks), the page sends back what the program prints, line by
 // line and in order, and its exit code. Under Asyncify a main() that
 // suspended returns its code to nobody, so a mlibs.testing suite's own
-// summary line (`<suite>: N passed, M failed`) is read too. Exit: 1 when
+// summary line (mtest's `N passed, M failed, K skipped`, or `<suite>: N passed, M failed`) is read too. Exit: 1 when
 // the program exits non-zero, a suite failed or said nothing, the page
 // failed to load it, or the time ran out; else 0.
 //
@@ -95,7 +95,8 @@ const server = createServer((req, res) => {
     req.on('end', () => {
       if (url.pathname === '/out') {
         process.stdout.write(body + '\n');
-        const m = /^\S+: (\d+) passed, (\d+) failed$/.exec(body);
+        // A suite's summary: mtest's (`8 passed, 0 failed, 0 skipped`) or the older `<suite>: N passed, M failed`.
+        const m = /^(?:\S+: )?(\d+) passed, (\d+) failed(?:, \d+ skipped)?$/.exec(body);
         if (m) summaries.push(Number(m[2]));
       }
       else if (url.pathname === '/err') process.stderr.write(body + '\n');

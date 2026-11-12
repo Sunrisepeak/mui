@@ -373,6 +373,8 @@ int headless(AppSpec app, const RunOptions& o, const std::shared_ptr<AgentAccess
     h.agent_input = o.agent_input.value_or(app.agent_input);
     h.endpoint_name = o.agent_name;
     Headless host(h);
+    // Its endpoint is found from here on; what an agent asks before the application is ready waits for it.
+    host.hold_requests(static_cast<bool>(app.ready));
     host.runtime().set_debug(o.debug);
     host.runtime().set_reduce_transparency(o.reduce_transparency);
     const std::string mode = window_mode(app, o);
@@ -388,6 +390,7 @@ int headless(AppSpec app, const RunOptions& o, const std::shared_ptr<AgentAccess
     const auto prepared = prepare(host.runtime(), app, access);
     const TearDown teardown(app, host.runtime());
     const auto framed = frame_of(host.runtime(), app, mode);
+    if (!o.replay.empty() || o.frames) host.hold_requests(false);  // a run of given frames is as it was told
     if (!o.replay.empty()) return replay(host, app, o.replay);
     if (o.frames) {
         for (int i = 0; i < *o.frames; ++i) host.step();
@@ -399,6 +402,7 @@ int headless(AppSpec app, const RunOptions& o, const std::shared_ptr<AgentAccess
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
         host.settle();
+        host.hold_requests(false);
     }
     if (!o.present_to.empty()) return present(host, o.present_to);
     if (o.serve) {

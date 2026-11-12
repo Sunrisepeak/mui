@@ -95,6 +95,9 @@ public:
     using Reply = std::function<void(std::string_view line)>;
 
     Protocol(Runtime& runtime, ProtocolOptions options = {});
+    // In the protocol's own source: what it holds (its waits, deliveries, reloads) is destroyed there, not
+    // in every source that holds a protocol.
+    ~Protocol();
 
     // Handles one request line; replies now, or (for `wait`) when the
     // condition holds or times out — see `poll`.

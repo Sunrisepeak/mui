@@ -127,6 +127,10 @@ public:
 
     // ── H3 ──
     [[nodiscard]] agent::Endpoint* endpoint() noexcept;
+    // Held, no agent's request is served: one that came while the application was not ready (its scripts
+    // still loading) waits, and is answered from the application as it stands once released — never from
+    // a window with nothing in it yet.
+    void hold_requests(bool held) noexcept;
 
     struct Impl;
 

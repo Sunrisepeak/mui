@@ -150,6 +150,43 @@ UTest cases{"lang", [] {
         expect(seen.size() == 2 && seen[0]["a"] == 2 && seen[1]["a"] == 3) << std::to_string(seen.size());
     };
 
+    "a handler's echo of what it was told is no write: it never puts back a value the runtime has moved on from"_test = [] {
+        Runtime r;
+        lang::Host host(r.rt);
+        lang::Session session(host);
+        std::atomic<OmuiSignal> sig{0};
+        // `onChanged: (e) => body.set(e.text)`: the script sets the signal to what it is told it now is.
+        host.post([&] {
+            sig = *session.signal(Json("one"));
+            session.watch(sig, [&](const Json& told) { session.set(sig, told); });
+        });
+        r.settle(host);
+        // Every value the runtime's signal takes, in order.
+        std::vector<std::string> taken;
+        OmuiSubscription watching = 0;
+        expect(eq(omuiSignalWatch(r.rt, sig, [](void* user, OmuiSignal, OmuiString value) { static_cast<std::vector<std::string>*>(user)->emplace_back(value.data, value.size); },
+                                  &taken, &watching),
+                  OMUI_SUCCESS));
+        // The script's thread is busy while a component changes the value twice (a task ticked, then ticked back).
+        std::promise<void> busy;
+        host.post([&] { busy.get_future().wait(); });
+        for (const std::string_view next : {R"j("two")j", R"j("three")j"}) {
+            OmuiValue v{};
+            v.type = OMUI_VALUE_TYPE_JSON;
+            v.s = str(next);
+            expect(eq(omuiSignalSet(r.rt, sig, &v), OMUI_SUCCESS));
+            r.frame();
+        }
+        busy.set_value();
+        r.settle(host);
+        std::string out;
+        expect(eq(omuiSignalGet(r.rt, sig, collect, &out), OMUI_SUCCESS));
+        expect(eq(out, std::string(R"j("three")j")));
+        std::string history;
+        for (const std::string& value : taken) history += value + " ";
+        expect(taken == std::vector<std::string>{R"j("two")j", R"j("three")j"}) << "the runtime's value never went back: " << history;
+    };
+
     "a loop's handlers receive their row; a verb the script implements answers through the runtime"_test = [] {
         Runtime r;
         lang::Host host(r.rt);

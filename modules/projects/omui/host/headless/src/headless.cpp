@@ -51,6 +51,7 @@ struct Headless::Impl {
     bool                                        have_pixels = false;
     xrender::DamageTracker                       damage;         // what the next list changes
     std::unique_ptr<agent::Endpoint>            endpoint;
+    bool                                        requests_held = false;  // the application is not ready yet
     std::int64_t                                frame = -1;
 
     void render_now() {
@@ -141,6 +142,7 @@ Runtime& Headless::runtime() noexcept { return *impl_->runtime; }
 semantic::Tree& Headless::tree() noexcept { return *impl_->tree; }
 const HeadlessOptions& Headless::options() const noexcept { return impl_->options; }
 agent::Endpoint* Headless::endpoint() noexcept { return impl_->endpoint.get(); }
+void Headless::hold_requests(bool held) noexcept { impl_->requests_held = held; }
 
 NodeId Headless::mount(std::string_view slot, View view) { return impl_->runtime->mount(slot, std::move(view)); }
 
@@ -151,7 +153,7 @@ FrameOutput Headless::step(std::vector<InputEvent> events, std::optional<seconds
     Impl& d = *impl_;
     std::optional<agent::AgentInput> given;
     const auto agent_begin = events.size();
-    if (d.endpoint) {
+    if (d.endpoint && !d.requests_held) {
         d.endpoint->pump();
         // An agent's input (--agent-input), a frame's worth, after the host's own.
         given = d.endpoint->take_input();

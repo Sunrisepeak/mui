@@ -366,6 +366,8 @@ Envelope with_changes(Runtime& runtime, semantic::Tree& tree, const Value& req, 
 Protocol::Protocol(Runtime& runtime, ProtocolOptions options)
     : runtime_(runtime), tree_(runtime), options_(std::move(options)) {}
 
+Protocol::~Protocol() = default;
+
 void Protocol::ensure_session() {
     if (!options_.remote || options_.session) {
         session_ = options_.session;

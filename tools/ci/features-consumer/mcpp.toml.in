@@ -19,5 +19,5 @@ sources = []
 omui.features = { path = "{{repo}}/tests/features", default-features = false, features = ["sink-memory"] }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.5.0"
+mcpplibs.mtest = "0.5.2"
 mlibs.utils = { path = "{{repo}}/modules/base/utils" }

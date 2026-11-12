@@ -417,14 +417,18 @@ void Session::changed(abi::OmuiSignal s, Json value) {
 }
 
 void Session::set(abi::OmuiSignal s, Json value) {
-    const std::string text = dump(value);
     Mirror& m = signals_[s];
+    // A write of what the script already sees is no write: in the script's world nothing changes, and nothing is
+    // sent. Sent, it would put back a value the runtime has since moved on from — a component's own change (a
+    // task ticked, a key typed) echoed by its handler (`onChanged: (e) => body.set(e.text)`), which runs on the
+    // script's thread after the component may have changed again: the older text over the newer, until the
+    // next echo.
+    if (m.value == value) return;
+    const std::string text = dump(value);
     m.inflight.push_back(value);
-    if (m.value != value) {
-        m.value = std::move(value);
-        const Json now = m.value;
-        for (std::size_t i = 0; i < m.watchers.size(); ++i) m.watchers[i].second(now);
-    }
+    m.value = std::move(value);
+    const Json now = m.value;
+    for (std::size_t i = 0; i < m.watchers.size(); ++i) m.watchers[i].second(now);
     auto rt = host_.runtime();
     Host* host = &host_;
     std::weak_ptr<bool> alive = alive_;

@@ -33,6 +33,7 @@ public:
     // Both outlive the subject. The protocol is the one the application's endpoint serves, or one of the
     // subject's own session.
     InterfaceSubject(Runtime& runtime, Protocol& protocol, InterfaceOptions options = {});
+    ~InterfaceSubject() override;
 
     [[nodiscard]] std::string_view name() const noexcept override { return "ui"; }
     [[nodiscard]] std::string_view interface_name() const noexcept override { return "openmui.tree@0.1"; }
@@ -67,6 +68,7 @@ private:
 class ProcessSession final : public mlibs::agent::Session {
 public:
     ProcessSession(Runtime& runtime, ProtocolOptions options);
+    ~ProcessSession() override;
     void request(std::string_view line, const mlibs::agent::Reply& reply) override;
     void poll() override { protocol_.poll(); }
     [[nodiscard]] Protocol& protocol() noexcept { return protocol_; }

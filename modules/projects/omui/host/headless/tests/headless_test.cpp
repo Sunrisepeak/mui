@@ -211,6 +211,41 @@ UTest cases{"headless", [] {
         expect(mlibs::image::load_png(dir / "counter.png").has_value()) << "any other name: an animated PNG";
     };
 
+    "H3: what an agent asks before the application is ready waits, and is answered from the application as it stands"_test = [] {
+        auto dir = scratch_dir("headless-held");
+        HeadlessOptions o = at(HeadlessLevel::session);
+        o.app = "counter-held";
+        o.endpoint_directory = dir;
+        Headless h(o);
+        if (!h.endpoint()) {
+            std::println("    skipped: local endpoints are not supported here");
+            return;
+        }
+        h.hold_requests(true);  // its view is not mounted yet: scripts still load
+        std::atomic<bool> done{false};
+        std::vector<Value> seen;
+        std::jthread agent_thread([&] {
+            if (auto client = agent::Client::connect("counter-held", dir)) seen = client->call(parse_json(R"({"op":"snapshot","interactive":true})").value());
+            done = true;
+        });
+        for (int i = 0; i < 200; ++i) {
+            h.step();
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        expect(!done) << "held: a window with nothing in it yet is not what it is told";
+        Counter c;
+        h.mount("main", c.view());
+        h.step();
+        h.hold_requests(false);
+        for (int i = 0; i < 3000 && !done; ++i) {
+            h.step();
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        agent_thread.join();
+        expect(fatal(!seen.empty() && seen.back().get("exitCode")->as_int() == 0));
+        expect(seen.front().json().contains("main/inc")) << "the counter's button, mounted before the release";
+    };
+
     "H3: an agent drives the session over the endpoint"_test = [] {
         auto dir = scratch_dir("headless-h3");
         HeadlessOptions o = at(HeadlessLevel::session);

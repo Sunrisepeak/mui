@@ -8,6 +8,9 @@ import mlibs.json;
 
 namespace omui::agent {
 
+InterfaceSubject::~InterfaceSubject() = default;
+ProcessSession::~ProcessSession() = default;
+
 InterfaceSubject::InterfaceSubject(Runtime& runtime, Protocol& protocol, InterfaceOptions options)
     : runtime_(runtime), protocol_(protocol), options_(options), tree_(runtime) {}
 

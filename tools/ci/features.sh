@@ -19,7 +19,7 @@ mkdir -p "$consumer/tests"
 sed "s|{{repo}}|$PWD|g" tools/ci/features-consumer/mcpp.toml.in > "$consumer/mcpp.toml"
 cp tools/ci/features-consumer/tests/memory_test.cpp "$consumer/tests/"
 (cd "$consumer" && mcpp test) > /tmp/omui-features.log 2>&1 || { cat /tmp/omui-features.log; exit 1; }
-grep -q 'features.memory: 1 passed' /tmp/omui-features.log
+grep -q '^  ok   features.memory$' /tmp/omui-features.log  # mtest's line for the suite: every case of it passed
 echo "ok   sink-memory (an application's choice on its dependency edge) builds and passes"
 
 set +e

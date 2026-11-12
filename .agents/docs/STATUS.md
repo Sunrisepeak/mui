@@ -18,13 +18,14 @@ Tasks, their dependencies and the milestone nodes: the plan's §9.5. Verified lo
 |---|---|---|
 | N0 | the known local red first: example 13's twin lacked `framed_png` (since eba28d5e) | fixed |
 | T0.1 | `xrender.vector` without `hanim.core` | done (30e7270d): it names mlibs.math's det; hanim's shape-morph consumer test is hanim.visual's; 23 programs passed, pins unchanged |
-| T0.2 | conformance suites run from their owners' side | SDL done: hanim.rhi, xengine.cellular.rhi.cts and cellular.present run their own suites on xrender.rhi.sdl (lavapipe: 4, 18 and 2 cases); the backend depends on no consumer. Left (T0.2b): the same two suites still run from xrender.rhi.webgpu's browser test — the browser harness builds the backend's test pages only |
-| T0.3 | `xengine.timeline` → `hanim.timeline` | — |
+| T0.2 | conformance suites run from their owners' side | SDL done: hanim.rhi, xengine.cellular.rhi.cts and cellular.present run their own suites on xrender.rhi.sdl (lavapipe: 4, 18 and 2 cases); the backend depends on no consumer. The SDL runs live in native-only packages (hanim.studio; `xengine.cellular.sdl`, new), since their owners run on the Web too. WebGPU (T0.2b): the two suites are the owners' tests now (`shape_webgpu_test`, `cellular_webgpu_test`), built and passing natively (no page: said, vacuous); `tools/ci/browser.sh` builds and runs them in a browser — to be run at the M6.0-A node |
+| T0.3 | `xengine.timeline` → `hanim.timeline` | done: the model, its file and its edits are hanim's (base); the gain automation is `xengine.audio.timeline` (`xengine::audio::GainAutomation`); omui depends on no xengine package directly. Locally: hanim.timeline, xengine.audio.timeline, omui.ui.timeline, xengine.tool, omui.cli (3 programs), the promo film (its pinned frames and sound) pass. Left with T0.8: the `xengine` command's four timeline operations move to hanim's catalog |
 | T0.4 | xengine as `kernel/` and `game/`; lint `project-dag` | — |
 | T0.5 | `mlibs.agent` (the agent kernel); `omui.agent` keeps the UI subject | — |
 | T0.6 | xrender's frame entry (targets, layers, composition, capture) | — |
 | T0.7 | `xengine.runtime`; breakout headless without omui | — |
 | T0.8 | the agent contract's CTS, README template, lint `agent-surface` | — |
+| T0.9 | `mlibs.cts` onto mtest (the maintainer, 2026-11-12): mtest 0.6.0 has the CTS kind, clauses, known gaps, coverage, skips and produced files; it lacks an `unsupported` outcome from declared needs and a subject's identity — to be proposed upstream, then the six suites move and the framework part of mlibs.cts goes | — |
 
 ## Convergence plan (2026-11-09, [W0–W16](2026-11-09-agent-era-ts-first-convergence-design.md)) — in progress
 

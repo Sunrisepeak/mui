@@ -11,8 +11,6 @@ import std;
 import mlibs.rhi;
 import xrender.rhi.webgpu;
 import mlibs.rhi.cts;
-import xengine.cellular.rhi.cts;
-import hanim.rhi.cts;
 import mcpplibs.os;
 import mlibs.testing;
 import mcpplibs.mtest;
@@ -147,43 +145,6 @@ int main(int argc, char** argv) {
         std::print("{}", report.text());
         expect(report.ok() && report.count(mlibs::cts::Status::passed) == cts::cases().size()) << report.text();
         std::ofstream(scratch_dir("rhi") / "webgpu.cts.omui.json") << report.json();  // the evidence, for a reviewer
-    };
-
-    "cellular: CPU/GPU equality throughout reactions, resident batches and checkpoint replay"_test = [] {
-        auto d = open_device();
-        if (!d) return;
-        if (!webgpu::can_wait()) {
-            expect(!required()) << "cellular CTS requires actual WebGPU readback";
-            std::println("cellular CTS not run: this link cannot wait for WebGPU");
-            return;
-        }
-        namespace gpu = xengine::cellular::gpu;
-        gpu::cts::Totals totals;
-        const auto report = gpu::cts::run(*d, {.subject = d->caps().device, .platform = "webgpu"}, {.required = {"compute"}}, &totals);
-        std::print("{}", report.text());
-        expect(report.ok() && report.count(mlibs::cts::Status::passed) == report.outcomes.size()) << report.text();
-        expect(eq(totals.scenarios, 17u));
-        expect(eq(totals.validation_checks, 130u));
-        std::println("cellular: {} scenarios, {} steps, {} comparisons / {} values, {} validation checks, process {:016x}",
-            totals.scenarios, totals.steps, totals.comparisons, totals.compared_values, totals.validation_checks, totals.process_hash);
-        std::ofstream(scratch_dir("rhi") / "webgpu-cellular.cts.omui.json") << report.json();
-    };
-
-    "hanim shape batches: every control point equal to the CPU sampler's within float error"_test = [] {
-        auto d = open_device();
-        if (!d) return;
-        if (!webgpu::can_wait()) {
-            expect(!required()) << "shape batch CTS requires actual WebGPU readback";
-            std::println("shape batch CTS not run: this link cannot wait for WebGPU");
-            return;
-        }
-        hanim::gpu::cts::Totals totals;
-        const auto report = hanim::gpu::cts::run(*d, {.subject = d->caps().device, .platform = "webgpu"}, {.required = {"compute"}}, &totals);
-        std::print("{}", report.text());
-        expect(report.ok() && report.count(mlibs::cts::Status::passed) == report.outcomes.size()) << report.text();
-        expect(eq(totals.scenarios, 4u));
-        std::println("shape batches: {} samples, {} points, largest difference {}", totals.samples, totals.compared_points, totals.largest_difference);
-        std::ofstream(scratch_dir("rhi") / "webgpu-shape.cts.omui.json") << report.json();
     };
 
     return mcpplibs::mtest::run(static_cast<int>(args.size()), args.data());

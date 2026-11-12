@@ -749,14 +749,26 @@ export default defineMatter({
 | T0.5 | `mlibs.agent`：端点、信封、主体登记、目录运行时、记录、后台任务；`omui.agent` 只留 UI 主体；`omui.generate`；`present` 归开发宿主 | 工作区里未提交的端点改动先落定 | omui.agent、player、designer、mcp、命令行、端到端 |
 | T0.6 | xrender 的帧入口（目标、图层、合成、呈现、截图）；宿主经它提交 UI 图层 | T0.1 | 三个宿主的像素基线；一个不链接 omui 的离屏出图 |
 | T0.7 | `xengine.runtime` 与桥；打砖块无头、不链接 omui | T0.4、T0.5 | 打砖块、xengine.ui、xengine.input |
-| T0.8 | 契约 CTS 骨架、README 的“Agent 面”模板、lint `agent-surface`；cellular、dynamics 各自的操作目录 | T0.5 | mlibs.agent、omui、hanim、cellular、dynamics |
+| T0.8 | 契约 CTS 骨架、README 的“Agent 面”模板、lint `agent-surface`；cellular、dynamics 各自的操作目录 | T0.5、T0.9 | mlibs.agent、omui、hanim、cellular、dynamics |
+| T0.9 | **`mlibs.cts` 迁到 mtest**（维护者，2026-11-12）：框架部分交给 mtest 的 CTS 种类；缺的通用能力给 mtest 提 PR；见下 | — | 六套一致性套件各自的运行方 |
 
 ```
 T0.1 ─────────────► T0.6 ─────────────────────────┐
 T0.2                                               │
 T0.3 ─► T0.4 ───────────────────► T0.7 ───────────┼─► M6.0
-              T0.5 ─► T0.8 ───────► (T0.7) ────────┘
+              T0.5 ─┬► T0.8 ──────► (T0.7) ────────┘
+              T0.9 ─┘
 ```
+
+**T0.9 的拆分**（mtest 0.6.0 已有：`CTS` 种类、`clause` 属性、`known_gap`、条款覆盖检查、`skip`、`near`、`produced` 产物、指标）
+
+| 步 | 内容 |
+|---|---|
+| T0.9a | 逐项对照 `mlibs.cts` 与 mtest。mtest 目前缺两样通用的：**第三种结论“不支持”**（用例声明所需能力，被测对象的能力查询加运行方的“必需”策略决定：缺能力是不支持，不算通过；必需的能力缺失是失败）；**被测对象的身份**（同一个套件对不同实现各跑一遍，结果里写明是谁、什么平台）。分级（S、A、B）用标签表达；套件作为可复用的库，用一个声明用例的函数即可 |
+| T0.9b | 给 mtest 提 PR 补上这两样，发布后把本仓的 mtest 从 0.5.2 升上去 |
+| T0.9c | 六套套件（RHI、渲染、元胞、hanim 形变、动力学、规范 S 级）迁到 mtest 的 CTS 种类，每套迁移前后的用例数与结果一致；`mlibs.cts` 只留带证据的比较工具（逐位、带预算的容差、图像差异、钉住的哈希），框架部分删除 |
+
+T0.8 的契约 CTS 直接写在迁移后的形态上，不再经过旧框架。
 
 **M6.1 的任务**
 

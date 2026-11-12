@@ -3,7 +3,8 @@
 # headless Chromium (tools/ci/browser.mjs serves the program on localhost
 # and reads back what it prints):
 #
-#   1. xrender.rhi.webgpu's and xrender.rhi.webgl's tests — the mlibs.rhi
+#   1. xrender.rhi.webgpu's and xrender.rhi.webgl's tests (and, by their owners, the suites of
+#      what runs on the page's WebGPU: hanim.rhi, the cellular kernel) — the mlibs.rhi
 #      conformance suite among them — on the page's WebGPU and WebGL2, built
 #      with the wasm-browser profile (linked to suspend, so the suite can
 #      read WebGPU back);
@@ -50,6 +51,17 @@ for backend in webgpu webgl; do
   [ -n "$program" ] || { echo "::error::${backend}_test.js was not built"; exit 1; }
   "$node_bin" tools/ci/browser.mjs --chrome "$chrome" "$program" --require-$backend \
     || { echo "::error::rhi.$backend failed in the browser"; exit 1; }
+done
+
+# 1b. The suites of the backends' consumers, run by their owners (D-161): hanim.rhi's shape
+# batches and the cellular kernel's CPU/GPU equality, on the page's WebGPU.
+"$mcpp" test --target wasm32-emscripten --profile wasm-browser -p hanim.rhi -p xengine.cellular.rhi.cts --no-run \
+  || { echo "::error::the owners' WebGPU suites did not build for the browser"; exit 1; }
+for suite in rhi/shape_webgpu_test cts/cellular_webgpu_test; do
+  program=$(ls -t target/wasm32-emscripten/*/bin/$suite.js 2>/dev/null | head -1)
+  [ -n "$program" ] || { echo "::error::$suite.js was not built"; exit 1; }
+  "$node_bin" tools/ci/browser.mjs --chrome "$chrome" "$program" --require-webgpu \
+    || { echo "::error::$suite failed in the browser"; exit 1; }
 done
 
 # 2. host.web drawing on the page's WebGPU, then its WebGL2 (a canvas keeps

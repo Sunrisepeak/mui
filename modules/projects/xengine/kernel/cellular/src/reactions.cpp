@@ -184,7 +184,7 @@ std::uint32_t Program::react(Shape shape, std::uint32_t x, std::uint32_t y, std:
     const auto read = [&](std::uint32_t channel, std::int32_t at_x, std::int32_t at_y) {
         const auto width = static_cast<std::int32_t>(shape.width), height = static_cast<std::int32_t>(shape.height);
         if (at_x < 0 || at_x >= width || at_y < 0 || at_y >= height) {
-            if (boundary.edge == Edge::constant) return boundary.value;
+            if (boundary.edge == Edge::constant) return boundary.values.empty() ? boundary.value : boundary.values[channel];
             if (boundary.edge == Edge::clamp) {
                 at_x = std::clamp(at_x, 0, width - 1);
                 at_y = std::clamp(at_y, 0, height - 1);

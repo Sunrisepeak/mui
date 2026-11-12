@@ -33,3 +33,6 @@ mcpplibs.mtest = "0.6.3"
 # tests/lattice_test.cpp: the lattice as a carrier (xengine.cellular's feature `matter`) — through the suite,
 # then with cells that move.
 xengine.cellular = { path = "../../cellular", features = ["matter"] }
+# tests/emergence_test.cpp: the emergence set on the lattice; a body of a material of the same table stands in
+# one of its scenes (an explosion's pressure pushes it).
+xengine.dynamics = { path = "../../dynamics", features = ["matter"] }

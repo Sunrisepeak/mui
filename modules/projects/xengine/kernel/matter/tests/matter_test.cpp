@@ -137,7 +137,7 @@ UTest cases{"xengine.matter", [] {
             << "a new instance: its material's own start, or the channel's";
         expect(eq(plan.initial(*plan.material("water"), *plan.channel("wetness")), 64u));
         const auto kinds = [&](matter::LawKind kind) { return std::ranges::count_if(plan.laws(), [&](const matter::Law& law) { return law.kind == kind; }); };
-        expect(eq(plan.laws().size(), std::size_t{14}) && eq(plan.materials().size(), std::size_t{16}) && kinds(matter::LawKind::transfer) == 3 && kinds(matter::LawKind::adjust) == 1 && kinds(matter::LawKind::reaction) == 5 &&
+        expect(eq(plan.laws().size(), std::size_t{19}) && eq(plan.materials().size(), std::size_t{17}) && kinds(matter::LawKind::transfer) == 4 && kinds(matter::LawKind::adjust) == 1 && kinds(matter::LawKind::reaction) == 9 &&
                kinds(matter::LawKind::conversion) == 5);
         expect(eq(plan.recipes(), std::size_t{0})) << "no law names a material";
         const std::string said = plan.describe();
@@ -145,7 +145,7 @@ UTest cases{"xengine.matter", [] {
         expect(said.contains(R"({"name":"wood","id":4,"tags":["plant"],"density":600,"friction":0.45,"restitution":0.35,"shape_stiffness":1,"ignition":570,"fuel":400,"heat":80,"porous":2,"burnt":"ash"})")) << said;
         expect(said.contains(R"({"name":"burns","kind":"reaction","when":"temperature >= ignition && burned < fuel && near.oxygen > 0","changes":["burned"],"flag":"burning"})")) << said;
         expect(said.contains(R"({"name":"heat flows","kind":"transfer","transfer":"temperature","share":"1 / 64","by":"thermal"})")) << said;
-        expect(said.contains(R"({"name":"boils","kind":"conversion","when":"phase == liquid && boiling > 0 && temperature >= boiling","become":"boiled","event":"boil"})")) << said;
+        expect(said.contains(R"({"name":"boils","kind":"conversion","when":"phase == liquid && boiling > 0 && temperature >= boiling && phase_heat >= latent","become":"boiled","event":"boil"})")) << said;
     };
 
     "heat flows along a row and what there is of it stays: iron carries it further than stone in the same time"_test = [] {
@@ -221,19 +221,31 @@ UTest cases{"xengine.matter", [] {
         expect(eq(hot.at("wetness", 0), 0u));
     };
 
-    "water boils to steam, steam condenses, water freezes, ice melts: each material says what it becomes, the laws only when"_test = [] {
+    "water boils to steam, steam condenses, water freezes, ice melts: each material says what it becomes, the laws only when — and boiling takes heat"_test = [] {
         World world(standard(), 4, {}, "water");
-        world.heat(0, 400);
         world.heat(1, 250);
         world.put(2, "steam");
-        world.heat(2, 300);
         world.put(3, "ice");
         world.heat(3, 300);
-        world.step();
-        expect(world.material(0) == "steam" && world.material(1) == "ice" && world.material(2) == "water" && world.material(3) == "water") << world.picture(4);
+        // A change of phase takes heat: water kept at 400 K stays water at its boiling point while it takes up
+        // the 27 K a step, 540 in all; steam kept at 300 K gives the same back, 73 a step.
+        int boiled_at = -1, condensed_at = -1;
+        for (int step = 1; step <= 40; ++step) {
+            if (world.material(0) == "water") world.heat(0, 400);
+            if (world.material(2) == "steam") world.heat(2, 300);
+            world.step();
+            if (boiled_at < 0 && world.material(0) == "steam") boiled_at = step;
+            if (condensed_at < 0 && world.material(2) == "water") condensed_at = step;
+            if (step == 1) {
+                expect(world.material(1) == "ice" && world.material(3) == "water") << "freezing and melting are at once\n" << world.picture(4);
+                expect(world.material(0) == "water" && eq(world.kelvin(0), 373.0) && eq(world.at("phase_heat", 0), 27u * 256u)) << "at its boiling point, 27 K taken up";
+                expect(world.material(2) == "steam" && eq(world.kelvin(2), 373.0) && eq(world.at("phase_heat", 2), 73u * 256u)) << "at its boiling point, 73 K given back";
+            }
+        }
+        expect(eq(boiled_at, 21)) << "540 K at 27 a step: 20 steps, and the next it is steam";
+        expect(eq(condensed_at, 9)) << "540 K at 73 a step: 8 steps, and the next it is water";
         expect(world.happened_to("boil", 0) && world.happened_to("freeze", 1) && world.happened_to("condense", 2) && world.happened_to("melt", 3));
-        expect(eq(world.kelvin(0), 400.0)) << "it is as hot as it was";
-        expect(eq(world.last.became, std::uint64_t{4}));
+        expect(eq(world.kelvin(0), 373.0) && eq(world.at("phase_heat", 0), 0u)) << "steam at the boiling point, its count begun again";
         world.events.clear();
         world.step(3);
         expect(world.events.empty()) << "and stays what it became";
@@ -251,7 +263,7 @@ UTest cases{"xengine.matter", [] {
             const auto found = std::ranges::find_if(world.events, [&](const matter::Event& each) { return each.name < names.size() && names[each.name] == event; });
             return found - world.events.begin();
         };
-        expect(when("boil") < when("freeze")) << "the water boils first";
+        expect(when("freeze") < when("boil")) << "the lava sets first: the water is at its boiling point taking up heat meanwhile";
         std::println("lava beside water after 60 steps: {} at {:.0f} K, {} at {:.0f} K", world.material(0), world.kelvin(0), world.material(1), world.kelvin(1));
     };
 
@@ -407,9 +419,9 @@ UTest cases{"xengine.matter", [] {
         expect(eq(refusal(standard_definition()), std::string("accepted")));
         // Laws read properties.
         const std::string named = refusal(with([](matter::Definition& d) { d.laws.push_back({.when = "material == wood && temperature >= 500", .add = {{"temperature", "5"}}}); }));
-        expect(named.starts_with("matter.names-material at /laws/14/when: ") && named.contains("recipe")) << named;
-        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.when = "near.oxygen > water", .add = {{"temperature", "5"}}}); })).starts_with("matter.names-material at /laws/14/when: `water` is a material"));
-        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.when = "temperature >= 400", .become = "steam"}); })).starts_with("matter.names-material at /laws/14/become: `steam` is a material"));
+        expect(named.starts_with("matter.names-material at /laws/19/when: ") && named.contains("recipe")) << named;
+        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.when = "near.oxygen > water", .add = {{"temperature", "5"}}}); })).starts_with("matter.names-material at /laws/19/when: `water` is a material"));
+        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.when = "temperature >= 400", .become = "steam"}); })).starts_with("matter.names-material at /laws/19/become: `steam` is a material"));
         // A special case says so, and is counted.
         const auto special = matter::Program::prepare(with([](matter::Definition& d) {
             d.laws.push_back({.name = "rust", .when = "material == iron && wetness > 20", .add = {{"damage", "1"}}, .recipe = true});
@@ -417,28 +429,28 @@ UTest cases{"xengine.matter", [] {
         expect(special.has_value() && eq(special->recipes(), std::size_t{1}) && special->describe().contains(R"("recipe":true)"));
         // Names.
         expect(eq(refusal(with([](matter::Definition& d) { d.laws.push_back({.when = "temprature >= 400", .add = {{"temperature", "1"}}}); })),
-                  std::string("matter.name at /laws/14/when: `temprature` is no channel, property or phase (did you mean `temperature`?) — at column 11 of `temprature >= 400`")));
+                  std::string("matter.name at /laws/19/when: `temprature` is no channel, property or phase (did you mean `temperature`?) — at column 11 of `temprature >= 400`")));
         expect(refusal(with([](matter::Definition& d) { d.materials[0].properties.push_back(P{"densty", 3.0}); })).starts_with("matter.name at /materials/air/densty: material `air`: no property `densty` (did you mean `density`?)"));
         expect(refusal(with([](matter::Definition& d) { d.materials[1].properties.push_back(P{"melted", "larva"}); })).starts_with("matter.name at /materials/stone/melted: material `stone` says `melted` twice"));
         expect(refusal(with([](matter::Definition& d) { d.materials.push_back({"mud", {P{"frozen", "drymud"}}, {}}); })).starts_with("matter.name at /materials/mud/frozen: `frozen` of `mud` is a material's name"));
         expect(refusal(with([](matter::Definition& d) { d.materials.push_back({"gas", {}, {}}); })).starts_with("matter.name at /materials/gas: `gas` is already"));
-        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.add = {{"heat", "1"}}}); })).starts_with("matter.name at /laws/14/add/heat: `heat` is no channel"));
-        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.transfer = "temperature", .by = "phase"}); })).starts_with("matter.name at /laws/14/by: "));
+        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.add = {{"heat", "1"}}}); })).starts_with("matter.name at /laws/19/add/heat: `heat` is no channel"));
+        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.transfer = "temperature", .by = "phase"}); })).starts_with("matter.name at /laws/19/by: "));
         // Values.
         expect(refusal(with([](matter::Definition& d) { d.materials.push_back({"mud", {P{"thermal", 9.0}}, {}}); })).starts_with("matter.value at /materials/mud/thermal: `thermal` of `mud` is a number 0 … 8"));
         expect(refusal(with([](matter::Definition& d) { d.materials.push_back({"mud", {P{"phase", "plasma"}}, {}}); })).starts_with("matter.value at /materials/mud/phase: `phase` of `mud` is a phase"));
         // Laws.
-        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.transfer = "charge", .by = "conduct", .add = {{"temperature", "1"}}}); })).starts_with("matter.law at /laws/14: a law is one kind"));
-        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.when = "wetness > 0"}); })).starts_with("matter.law at /laws/14: a law does something"));
-        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.transfer = "temperature", .by = "conduct"}); })).starts_with("matter.law at /laws/14/transfer: `temperature` already flows by law 0"));
+        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.transfer = "charge", .by = "conduct", .add = {{"temperature", "1"}}}); })).starts_with("matter.law at /laws/19: a law is one kind"));
+        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.when = "wetness > 0"}); })).starts_with("matter.law at /laws/19: a law does something"));
+        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.transfer = "temperature", .by = "conduct"}); })).starts_with("matter.law at /laws/19/transfer: `temperature` already flows by law 0"));
         expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.add = {{"burning", "1"}}}); })).starts_with("matter.law at /laws: `burning` is a flag"));
-        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.when = "near.oxygen > 0", .raise = {{"ignition", "5"}}}); })).starts_with("matter.law at /laws/14: an adjustment reads the instance alone"));
-        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.set = {{"material", "3"}}}); })).starts_with("matter.law at /laws/14/set/material: what a thing is changes by `become`"));
+        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.when = "near.oxygen > 0", .raise = {{"ignition", "5"}}}); })).starts_with("matter.law at /laws/19: an adjustment reads the instance alone"));
+        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.set = {{"material", "3"}}}); })).starts_with("matter.law at /laws/19/set/material: what a thing is changes by `become`"));
         // Conditions and amounts.
-        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.when = "temperature >= ", .add = {{"temperature", "1"}}}); })).starts_with("matter.expression at /laws/14/when: a name or a whole number is expected here"));
-        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.when = "temperature 400", .add = {{"temperature", "1"}}}); })).starts_with("matter.expression at /laws/14/when: a comparison is expected here"));
-        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.add = {{"temperature", "heat / 3"}}}); })).starts_with("matter.expression at /laws/14/add/temperature: a term is divided by a power of two"));
-        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.add = {{"temperature", "heat > 3"}}}); })).starts_with("matter.expression at /laws/14/add/temperature: an amount is a sum of terms"));
+        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.when = "temperature >= ", .add = {{"temperature", "1"}}}); })).starts_with("matter.expression at /laws/19/when: a name or a whole number is expected here"));
+        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.when = "temperature 400", .add = {{"temperature", "1"}}}); })).starts_with("matter.expression at /laws/19/when: a comparison is expected here"));
+        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.add = {{"temperature", "heat / 3"}}}); })).starts_with("matter.expression at /laws/19/add/temperature: a term is divided by a power of two"));
+        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.add = {{"temperature", "heat > 3"}}}); })).starts_with("matter.expression at /laws/19/add/temperature: an amount is a sum of terms"));
         // Limits: refused as such.
         const auto over = matter::Program::prepare(standard_definition(), {.max_laws = 4});
         expect(!over && over.error().kind() == mlibs::error::Kind::refused && eq(over.error().where, std::string("/laws")));
@@ -475,9 +487,9 @@ UTest cases{"xengine.matter", [] {
     "a definition is read from JSON, and its problems are said by pointer at their place in the text — reading's and preparing's alike"_test = [] {
         const std::string text = R"({"matter": {
   "columns": {"sticky": {"unit": "", "most": 10, "defualt": 1}},
-  "channels": {"pressure": {"initial": 5, "resets": "yes"}},
+  "channels": {"tautness": {"initial": 5, "resets": "yes"}},
   "materials": {"mud": {"phase": "liquid", "density": 1500, "sticky": 3, "tags": ["earth"]}, "clay": {"density": true}},
-  "laws": [{"transfer": "pressure", "by": "sticky"}, {"when": "pressure > 3", "add": {"pressure": []}, "becomes": "frozen"}],
+  "laws": [{"transfer": "tautness", "by": "sticky"}, {"when": "tautness > 3", "add": {"tautness": []}, "becomes": "frozen"}],
   "law": []
 }})";
         const auto read = matter::read(text, "bad.matter.omui.json");
@@ -487,9 +499,9 @@ UTest cases{"xengine.matter", [] {
         const auto has = [&](std::string_view line) { return std::ranges::find(said, line) != said.end(); };
         expect(has("bad.matter.omui.json:6:10: /matter/law: a matter definition has no key `law` (did you mean `laws`?)")) << said;
         expect(has("bad.matter.omui.json:2:61: /matter/columns/sticky/defualt: column `sticky` has no key `defualt` (did you mean `default`?)")) << said;
-        expect(has("bad.matter.omui.json:3:53: /matter/channels/pressure/resets: `resets` is true or false")) << said;
+        expect(has("bad.matter.omui.json:3:53: /matter/channels/tautness/resets: `resets` is true or false")) << said;
         expect(has("bad.matter.omui.json:4:114: /matter/materials/clay/density: `density` of `clay` is a number, or the name of a phase or a material")) << said;
-        expect(has("bad.matter.omui.json:5:99: /matter/laws/1/add/pressure: the amount `pressure` changes by is a sum as text (\"wetness * 40\") or a whole number")) << said;
+        expect(has("bad.matter.omui.json:5:99: /matter/laws/1/add/tautness: the amount `tautness` changes by is a sum as text (\"wetness * 40\") or a whole number")) << said;
         expect(has("bad.matter.omui.json:5:115: /matter/laws/1/becomes: a law has no key `becomes` (did you mean `become`?)")) << said;
         expect(eq(said.size(), std::size_t{6})) << said;
 
@@ -505,9 +517,9 @@ UTest cases{"xengine.matter", [] {
         // What is written reads; on the standard columns and channels.
         const std::string good = R"({"matter": {
   "columns": {"sticky": {"unit": "", "most": 8, "default": 1}},
-  "channels": {"pressure": {"initial": 5, "rise": "pressed"}},
+  "channels": {"tautness": {"initial": 5, "rise": "pressed"}},
   "materials": {"mud": {"phase": "liquid", "density": 1500, "sticky": 3, "tags": ["earth"]}},
-  "laws": [{"transfer": "pressure", "by": "sticky"}, {"when": "pressure > 3", "take": {"pressure": 1}}]
+  "laws": [{"transfer": "tautness", "by": "sticky"}, {"when": "tautness > 3", "take": {"tautness": 1}}]
 }})";
         const auto made = matter::prepare_document(good, "good.matter.omui.json");
         expect(fatal(made.has_value())) << (made ? "" : made.error().front().text());

@@ -16,11 +16,14 @@ export default defineMatter({
     ash: { phase: "granular", density: 400, thermal: 1 },
     iron: { density: 7800, thermal: 8, conduct: 8, melting: 1800, melted: "molten_iron", tags: ["metal"] },
     molten_iron: { phase: "liquid", density: 7000, thermal: 8, conduct: 8, melting: 1800, frozen: "iron", starts_at: 1900, tags: ["metal"] },
-    water: { phase: "liquid", density: 1000, friction: 0.02, restitution: 0, shape_stiffness: 0, thermal: 2, conduct: 2, moist: 64, porous: 8, melting: 273, boiling: 373, boiled: "steam", frozen: "ice" },
-    steam: { phase: "gas", density: 0.6, thermal: 1, boiling: 373, condensed: "water", starts_at: 380 },
+    water: { phase: "liquid", density: 1000, friction: 0.02, restitution: 0, shape_stiffness: 0, thermal: 2, conduct: 2, moist: 64, porous: 8, melting: 273, boiling: 373, latent: 540, boiled: "steam", frozen: "ice" },
+    steam: { phase: "gas", density: 0.6, thermal: 1, boiling: 373, latent: 540, condensed: "water", starts_at: 380 },
     ice: { density: 917, thermal: 2, melting: 273, melted: "water", starts_at: 260 },
     oil: { phase: "liquid", density: 900, thermal: 1, ignition: 500, fuel: 200, heat: 100, burnt: "smoke" },
     smoke: { phase: "gas", density: 0.9, thermal: 1 },
+    // It burns in three steps where wood takes four hundred, hot, with its own oxygen (a grain beside a grain
+    // burns buried), and what it releases is pressure: an explosion is these numbers, not a law of its own.
+    gunpowder: { phase: "granular", density: 1700, thermal: 8, ignition: 480, fuel: 3, heat: 900, flame: 2700, oxygen: 1, blast: 4000, burnt: "smoke" },
     // What a soft body is made of (xengine.dynamics reads the mechanics; density over water's is a body's mass an area).
     rubber: { phase: "soft", density: 1100, friction: 0.8, restitution: 0.75, compliance: 0.0001, shape_stiffness: 0.2, ignition: 620, fuel: 300, heat: 90, burnt: "smoke" },
     jelly: { phase: "soft", density: 1000, friction: 0.4, restitution: 0.2, compliance: 0.0005, shape_stiffness: 0.012, moist: 32, porous: 4 },
@@ -31,6 +34,7 @@ export default defineMatter({
     { name: "heat flows", transfer: "temperature", by: "thermal" },
     { name: "charge flows", transfer: "charge", by: "conduct" },
     { name: "wetness seeps", transfer: "wetness", by: "porous" },
+    { name: "pressure spreads", transfer: "pressure", shift: 3 },
 
     // Properties as state leaves them.
     { name: "wet is harder to light", when: "wetness > 0", raise: { ignition: "wetness * 40" } },
@@ -43,11 +47,20 @@ export default defineMatter({
     // What is burning gives off its heat — up to its flame's temperature and no further: a fire is as hot as a
     // fire is, however long it burns and however closed the room (a wood fire does not melt the stone under it).
     { name: "a flame heats", when: "burning > 0 && temperature < flame", add: { temperature: "heat" } },
+    // What burns fast pushes: its blast is pressure, which spreads (above) and eases — there for whatever stands
+    // in it to take as a push (a body does; xengine.cellular's push_on reads it for one).
+    { name: "a blast is pressure", when: "burning > 0 && blast > 0", add: { pressure: "blast" } },
+    { name: "pressure eases", when: "pressure > 0", take: { pressure: "pressure / 64 + 1" } },
 
     // What a thing becomes: each material says what, the law only when.
     { name: "burns out", when: "fuel > 0 && burned >= fuel", become: "burnt", event: "burn_out" },
-    { name: "boils", when: "phase == liquid && boiling > 0 && temperature >= boiling", become: "boiled", event: "boil" },
-    { name: "condenses", when: "phase == gas && temperature < boiling", become: "condensed", event: "condense" },
+    // A change of phase takes heat. A liquid that says a latent heat stays at its boiling point while the heat that
+    // reaches it is taken up; with all of it, it is its gas. Its gas, cooled, stays at that point too and gives the
+    // same heat back before it is the liquid again: water is slow to boil away, and steam warms what it meets.
+    { name: "takes up heat to boil", when: "phase == liquid && boiling > 0 && latent > 0 && temperature > boiling", add: { phase_heat: "temperature - boiling" }, set: { temperature: "boiling" } },
+    { name: "gives heat back to condense", when: "phase == gas && latent > 0 && temperature < boiling", add: { phase_heat: "boiling - temperature" }, set: { temperature: "boiling" } },
+    { name: "boils", when: "phase == liquid && boiling > 0 && temperature >= boiling && phase_heat >= latent", become: "boiled", event: "boil" },
+    { name: "condenses", when: "phase == gas && temperature < boiling && phase_heat >= latent", become: "condensed", event: "condense" },
     { name: "freezes", when: "phase == liquid && temperature < melting", become: "frozen", event: "freeze" },
     { name: "melts", when: "melting > 0 && temperature >= melting", become: "melted", event: "melt" },
   ],

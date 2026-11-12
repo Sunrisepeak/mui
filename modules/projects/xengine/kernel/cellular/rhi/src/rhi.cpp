@@ -32,6 +32,7 @@ r::Result<void> Kernel::record(r::CommandList& list,Field input,Field output,Bou
         return invalid("cellular field shape/channels do not match");
     auto count=program_.values(input.shape);if(!count)return invalid(count.error().text());
     if(boundary.edge>Edge::wrap)return invalid("invalid cellular boundary");
+    if(!boundary.values.empty())return std::unexpected(r::Error{r::Errc::unsupported,"a boundary with a value a channel is the CPU step's: the device's kernel has one value for the outside"});
     if(input.buffer==output.buffer)return invalid("cellular input/output must be disjoint");
     const auto in=device_.describe(input.buffer),out=device_.describe(output.buffer);
     if(!in || !out || !device_.describe(rules_) || !device_.describe(pipeline_))return invalid("stale cellular resource");

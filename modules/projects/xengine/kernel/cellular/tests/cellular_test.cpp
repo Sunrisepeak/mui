@@ -723,6 +723,61 @@ UTest cases{"simulation.cellular", [] {
         }
     };
 
+    "a boundary with a value a channel is a bath beyond every edge: heat flows out to it by the conductance it has, and what is near sees its row"_test = [] {
+        // Channel 0 heat, channel 1 how well a cell conducts. Every cell at 1000; a sixteenth of a difference × the
+        // conductance flows to each neighbour.
+        const std::array<ca::Transfer, 1> heat{{{.channel = 0, .offsets = {ca::cardinal.begin(), ca::cardinal.end()}, .multiply = 1, .shift = 4, .by = 1, .by_limit = 4}}};
+        const auto program = ca::Program::prepare(2, ca::Stages{.transfers = heat});
+        expect(fatal(program.has_value()));
+        const ca::Shape shape{5, 3};
+        std::vector<std::uint32_t> field(15 * 2, 1000), next(field.size());
+        std::fill_n(field.begin() + 15, 15, 4u);
+        const auto after = [&](ca::Boundary boundary) {
+            expect(fatal(program->step(shape, field, next, {.boundary = boundary}).has_value()));
+            return std::array{next[0], next[2], next[7]};  // a corner, an edge, the middle
+        };
+        const std::array<std::uint32_t, 2> cold{0, 4}, sealed{0, 0}, warm{1000, 4};
+        expect(after({ca::Edge::constant, 0, cold}) == std::array{500u, 750u, 1000u}) << "a quarter of 1000 to each side that is outside";
+        expect(after({ca::Edge::constant, 0, sealed}) == std::array{1000u, 1000u, 1000u}) << "an outside that conducts nothing takes nothing";
+        expect(after({ca::Edge::constant, 0, warm}) == std::array{1000u, 1000u, 1000u}) << "nor one as warm";
+        expect(after({ca::Edge::constant, 7}) == std::array{504u, 752u, 1000u}) << "one value for every channel, as before: an outside at 7 that conducts 7 (bounded by 4)";
+        const std::array<std::uint32_t, 3> three{0, 4, 9};
+        const auto wrong = program->step(shape, field, next, {.boundary = {ca::Edge::constant, 0, three}});
+        expect(!wrong && wrong.error().code == ca::Errc::shape) << "a value a channel, no more and no fewer";
+        // With a table: the bath is a row like any other to what is near it.
+        const ca::Reactions staged = embers();
+        const auto reacting = ca::Program::prepare(5, ca::Stages{.reactions = &staged});
+        expect(fatal(reacting.has_value()));
+        const std::vector<std::uint32_t> lone{calm, 4, 0, 0, 0};
+        std::vector<std::uint32_t> made(5);
+        const std::array<std::uint32_t, 5> among_embers{ember, 8, 0, 0, 0};
+        expect(fatal(reacting->step({1, 1}, lone, made, {.boundary = {ca::Edge::constant, 0, among_embers}}).has_value()));
+        expect(eq(made[2], 32u)) << "four embers beside it, each of level 8: its heat is their levels";
+        expect(fatal(reacting->step({1, 1}, lone, made, {.boundary = {ca::Edge::constant, no_row}}).has_value()));
+        expect(eq(made[2], 0u)) << "and with nothing beyond, nothing";
+    };
+
+    "what a quantity does to a rectangle of cells from outside: the sides' sums, left less right and above less below"_test = [] {
+        // One channel's cells, 6 x 4; the rectangle is the 2 x 2 at (2, 1).
+        const ca::Shape shape{6, 4};
+        const std::vector<std::uint32_t> pressure{
+            0, 0, 5,  7,  0, 0,
+            0, 9, 0,  0,  2, 0,
+            0, 4, 0,  0,  1, 0,
+            0, 0, 30, 10, 0, 0,
+        };
+        const ca::Push push = ca::push_on(shape, pressure, {2, 1, 2, 2});
+        expect(eq(push.x, std::int64_t{9 + 4 - 2 - 1}) && eq(push.y, std::int64_t{5 + 7 - 30 - 10})) << "toward +x, and upward (less y)";
+        // At the field's edge the side beyond it is nothing; a rectangle outside it, or values of another size, push nothing.
+        const ca::Push corner = ca::push_on(shape, pressure, {0, 0, 2, 2});
+        expect(eq(corner.x, std::int64_t{-5 - 0}) && eq(corner.y, std::int64_t{-0 - 4}));
+        const ca::Push whole = ca::push_on(shape, pressure, {0, 0, 6, 4});
+        expect(eq(whole.x, std::int64_t{0}) && eq(whole.y, std::int64_t{0}));
+        const ca::Push beyond = ca::push_on(shape, pressure, {4, 2, 9, 9});
+        expect(eq(beyond.x, std::int64_t{0 + 10}) && eq(beyond.y, std::int64_t{2 + 0})) << "clipped to the field: its right and its bottom are the field's, with nothing beyond";
+        expect(eq(ca::push_on(shape, pressure, {6, 0, 1, 1}).x, std::int64_t{0}) && eq(ca::push_on(shape, std::span(pressure).first(5), {1, 1, 1, 1}).x, std::int64_t{0}));
+    };
+
     "encoding 3 — a table and reactions: every reaction that holds acts, against numbers worked by hand"_test = [] {
         const ca::Reactions staged = embers();
         const auto program = ca::Program::prepare(5, ca::Stages{.reactions = &staged});

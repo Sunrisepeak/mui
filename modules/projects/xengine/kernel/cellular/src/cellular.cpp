@@ -222,6 +222,23 @@ std::expected<Program,Failure> Program::prepare(std::uint32_t channels, Stages s
     return p;
 }
 
+Push push_on(Shape shape, std::span<const std::uint32_t> values, Tile region) noexcept {
+    Push push;
+    if (values.size() != static_cast<std::size_t>(shape.width) * shape.height || !region.width || !region.height || region.x >= shape.width || region.y >= shape.height)
+        return push;
+    const std::uint32_t right = std::min(region.x + region.width, shape.width), bottom = std::min(region.y + region.height, shape.height);
+    const auto at = [&](std::uint32_t x, std::uint32_t y) { return static_cast<std::int64_t>(values[static_cast<std::size_t>(y) * shape.width + x]); };
+    for (std::uint32_t y = region.y; y < bottom; ++y) {
+        if (region.x > 0) push.x += at(region.x - 1, y);
+        if (right < shape.width) push.x -= at(right, y);
+    }
+    for (std::uint32_t x = region.x; x < right; ++x) {
+        if (region.y > 0) push.y += at(x, region.y - 1);
+        if (bottom < shape.height) push.y -= at(x, bottom);
+    }
+    return push;
+}
+
 std::expected<std::size_t,Failure> Program::values(Shape shape) const noexcept {
     if(!channels_)return std::unexpected(Failure{Errc::unprepared});
     // Coordinates plus the declared halo always fit signed 32-bit arithmetic.
@@ -234,7 +251,7 @@ std::expected<std::size_t,Failure> Program::values(Shape shape) const noexcept {
 std::expected<void,Failure> Program::validate(Shape shape, std::span<const std::uint32_t> in,
         std::span<std::uint32_t> out, Boundary boundary) const noexcept {
     auto n=values(shape);if(!n)return std::unexpected(n.error());
-    if(in.size()!=*n || out.size()!=*n || boundary.edge>Edge::wrap)return std::unexpected(Failure{Errc::shape});
+    if(in.size()!=*n || out.size()!=*n || boundary.edge>Edge::wrap || (!boundary.values.empty() && boundary.values.size()!=channels_))return std::unexpected(Failure{Errc::shape});
     std::less<const std::uint32_t*> less;
     if(less(in.data(),out.data()+out.size()) && less(out.data(),in.data()+in.size()))return std::unexpected(Failure{Errc::alias});
     return {};
@@ -245,7 +262,7 @@ Statistics Program::run_tile(Shape shape, Tile tile, std::span<const std::uint32
     const auto read=[&](std::uint32_t channel,std::int32_t x,std::int32_t y) {
         const auto w=static_cast<std::int32_t>(shape.width),h=static_cast<std::int32_t>(shape.height);
         if(x<0 || x>=w || y<0 || y>=h) {
-            if(boundary.edge==Edge::constant)return boundary.value;
+            if(boundary.edge==Edge::constant)return boundary.values.empty() ? boundary.value : boundary.values[channel];
             if(boundary.edge==Edge::clamp) {x=std::clamp(x,0,w-1);y=std::clamp(y,0,h-1);}
             else {x%=w;y%=h;if(x<0)x+=w;if(y<0)y+=h;}
         }

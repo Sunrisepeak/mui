@@ -173,7 +173,9 @@ jobs:
     name: test ${{ matrix.os }} ${{ matrix.toolchain }} ${{ matrix.profile }}
     needs: rows
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 150
+    # Every member's tests, then the scripts: 2 h 06 min on Linux x64 at e1749f83, more on macOS (each member's
+    # tests rebuild what it reaches: mcpp#874). 150 minutes cancelled both rows with nothing failing (red list 67).
+    timeout-minutes: 240
     strategy:
       fail-fast: false
       matrix:

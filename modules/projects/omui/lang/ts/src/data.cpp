@@ -471,6 +471,8 @@ export interface MatterMaterial {
     warmth?: number;
     /** K: the temperature a new instance of it has (the surroundings' unless said). */
     starts_at?: number;
+    /** K: the heat its boiling takes and its condensing gives back (water: 540). */
+    latent?: number;
     /** The wetness it holds by its nature (water's own). */
     moist?: number;
     /** 0–8: how well wetness passes through it. */
@@ -481,6 +483,8 @@ export interface MatterMaterial {
     heat?: number;
     /** K: as hot as its own burning makes it (1100 unless it says). */
     flame?: number;
+    /** The pressure a step its burning releases (gunpowder: an explosion is a high burn rate, heat and this). */
+    blast?: number;
     /** What it gives a fire beside it (air: 1). */
     oxygen?: number;
     /** 0–8: how well it conducts charge. */

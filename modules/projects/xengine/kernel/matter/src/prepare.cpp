@@ -304,12 +304,14 @@ Definition Definition::standard() {
     number("boiling", "K", "above it a liquid boils, below it a gas condenses", 0, 100000, 0, 8);
     number("warmth", "K a step", "the heat it gives off by itself", 0, 100000, 0, 8);
     number("starts_at", "K", "the temperature a new instance of it has (0: the surroundings')", 0, 100000, 0, 8);
+    number("latent", "K", "the heat its boiling takes and its condensing gives back, as the kelvin it would have warmed by", 0, 100000, 0, 8);
     // burning
     number("fuel", "", "how much of it there is to burn", 0, 1000000000, 0);
     number("burn_rate", "a step", "how fast its fuel burns", 0, 1000000, 1);
     number("heat", "K a step", "the heat its burning gives off", 0, 100000, 0, 8);
     number("flame", "K", "as hot as its own burning makes it: above this its burning adds no heat", 0, 100000, 1100, 8);
     number("oxygen", "", "what it gives a fire beside it", 0, 1000, 0);
+    number("blast", "a step", "the pressure its burning releases: what burns fast and says this pushes", 0, 1000000, 0);
     // water
     number("moist", "", "the wetness it holds by its nature (water's own)", 0, 1000000, 0);
     number("porous", "64ths", "how well wetness passes through it", 0, 8, 0);
@@ -331,6 +333,8 @@ Definition Definition::standard() {
         {"burned", "", "how much of its fuel has burned", 0, 0, "", true, "", ""},
         {"burning", "0 or 1", "whether it is burning", 0, 0, "", true, "ignite", "go_out"},
         {"damage", "", "how much of its strength is gone", 0, 0, "", true, "", ""},
+        {"pressure", "", "how hard what is here pushes on what is beside it", 0, 0, "", false, "", ""},
+        {"phase_heat", "K", "the heat of a change of phase under way: taken up by a liquid at its boiling point, given back by a gas at it", 0, 8, "", true, "", ""},
     };
     return out;
 }

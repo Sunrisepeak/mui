@@ -244,7 +244,14 @@ using Failure = mlibs::error::Error<Errc, Location>;
 struct Shape { std::uint32_t width = 0, height = 0; };
 struct Tile { std::uint32_t x = 0, y = 0, width = 0, height = 0; };
 enum class Edge : std::uint32_t { constant, clamp, wrap };
-struct Boundary { Edge edge = Edge::constant; std::uint32_t value = 0; };
+// What is beyond the field's edge. `constant`: one value for every channel — or, with `values` (one a channel;
+// the caller's, alive for the step), a cell of its own: a bath the flows reach and the conditions see, the same
+// at every edge (an open sky is air at its temperature). Cells do not leave the field either way.
+struct Boundary {
+    Edge edge = Edge::constant;
+    std::uint32_t value = 0;
+    std::span<const std::uint32_t> values;
+};
 struct Execution {
     Shape tile{32,32};
     Boundary boundary;
@@ -276,6 +283,15 @@ struct Execution {
 // What a step did: the cells it ran (all of them, but for tiles asleep), those a rule matched, those that
 // changed, and the tiles it left asleep.
 struct Statistics { std::uint64_t cells = 0, matched = 0, changed = 0, asleep = 0; };
+// What a quantity does from outside to a rectangle of cells: over the cells just beyond its left side less those
+// just beyond its right (x), and those above less those below (y), the sum of `values` — one channel's cells. A
+// pressure's net push on what is inside, in the channel's units: positive x is toward greater x, positive y
+// toward greater y. Cells beyond the field are nothing. An observation: what stands in the field (a body, which
+// the kernel does not know) takes it as it will.
+struct Push {
+    std::int64_t x = 0, y = 0;
+};
+[[nodiscard]] Push push_on(Shape shape, std::span<const std::uint32_t> values, Tile region) noexcept;
 
 // A field's colours (D-132): the first swatch whose tests a cell passes gives
 // its pixel — 32 bits as a renderer stores them (premultiplied RGBA8, red in

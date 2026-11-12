@@ -31,7 +31,7 @@
     {"name": "simulation/matter-lattice-256-sparse", "metric": "max_allocations", "max": 0,
      "why": "D-167: a sparse step of matter allocates nothing"},
     {"name": "simulation/matter-lattice-256-sparse", "metric": "p95_ms", "max": 20,
-     "why": "T1.7: 256x256 of the standard matter with cells that move — a basin of water that does not rest and a fire along wood keep 19 of 64 tiles awake: 11.8 ms p95 in a debug build locally (600 ns a cell run, 19456 of 65536); a first bound, the device's kernel is the path for a world this size all awake"},
+     "why": "T1.7: 256x256 of the standard matter with cells that move — a basin of water that does not rest and a fire along wood keep 19 of 64 tiles awake: 15.7 ms p95 in a debug build locally with the standard definition's 9 channels and 19 laws (790 ns a cell run, 19456 of 65536; 11.8 ms with its 7 channels and 14 laws at T1.7); a first bound, the device's kernel is the path for a world this size all awake"},
     {"name": "dynamics/softbody-24", "metric": "max_allocations", "max": 0,
      "why": "D-133: a soft body's step reuses its working space (a UI's figure, Mui, steps it every frame it moves)"},
     {"name": "dynamics/softbody-24", "metric": "p95_ms", "max": 0.25,

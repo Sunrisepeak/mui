@@ -20,6 +20,12 @@ export namespace xengine::cellular {
 // The edge of a world of matter: beyond it is no material — nothing burns there, conducts or gives oxygen.
 inline constexpr Boundary nothing_beyond{Edge::constant, xengine::matter::none};
 
+// The edge of a world open to its surroundings: beyond it is `outside` (one instance's channels, as
+// `Program::fresh(1, material)` gives them — air at its temperature): heat, wetness, charge and pressure flow out
+// to it and in from it by how well it conducts, and what is beside the edge has it for a neighbour (its oxygen).
+// It is a bath: it does not change. `outside` is the caller's, alive for the step.
+[[nodiscard]] constexpr Boundary open_to(std::span<const std::uint32_t> outside) noexcept { return {Edge::constant, 0, outside}; }
+
 struct Lowering {
     std::vector<Offset> neighbourhood{cardinal.begin(), cardinal.end()};  // who is beside whom, each with weight 1
     bool moves = true;       // cells change places by density and phase (the exchange stage)

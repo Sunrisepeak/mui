@@ -5,6 +5,7 @@ import omui.agent;
 import mlibs.image;
 import mlibs.testing;
 import mcpplibs.mtest;
+import mcpplibs.os;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::Log;
@@ -576,6 +577,42 @@ UTest cases{"agent", [] {
         expect(agent::list(dir).empty()) << "the descriptor goes with the endpoint";
         auto gone = agent::Client::connect("notes-test", dir);
         expect(!gone.has_value());
+    };
+    "on the loopback too (a device's endpoint, forwarded by adb): the secret first, else the connection goes"_test = [] {
+        Notes app;
+        auto dir = scratch_dir("agent-loopback");
+        agent::Endpoint ep(app.rt, {.name = "notes-loopback", .directory = dir, .protocol = {.app = "org.example.notes"}, .loopback = 0});
+        auto started = ep.start();
+        if (!started && started.error().find("not supported") != std::string::npos) {
+            std::println("    skipped: local endpoints are not supported here ({})", started.error());
+            return;
+        }
+        expect(fatal(started.has_value())) << (started ? "" : started.error());
+        const auto descriptor = parse_json(mcpplibs::os::fs::read(dir / "notes-loopback.endpoint.omui.json").value_or("{}"));
+        expect(fatal(descriptor && descriptor->get("port") && descriptor->get("port")->as_int() > 0)) << "its port in the descriptor";
+        const auto port = static_cast<std::uint16_t>(descriptor->get("port")->as_int());
+        const std::string secret = mcpplibs::os::fs::read(dir / "notes-loopback.secret").value_or("");
+        expect(secret.size() == 32) << "a secret beside it";
+        std::atomic<bool> done{false};
+        std::vector<Value> found, refused;
+        std::jthread client([&] {
+            if (auto c = agent::Client::connect_loopback(port, secret)) found = c->call(parse_json(R"({"op":"find","q":{"name":"Save"}})").value());
+            if (auto c = agent::Client::connect_loopback(port, "not the secret"))
+                refused = c->call(parse_json(R"({"op":"find","q":{"name":"Save"}})").value(), std::chrono::seconds(2));
+            done = true;
+        });
+        double t = 0;
+        for (int i = 0; i < 4000 && !done; ++i) {
+            ep.pump();
+            app.rt.frame({seconds(t), {}});
+            t += 1.0 / 60;
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        client.join();
+        expect(exit_of(found) == 0 && found[0].get("data")->get("nodes")->list()->size() == 1) << "answered with the secret";
+        expect(exit_of(refused) != 0) << "a connection without it is closed, unanswered";
+        ep.stop();
+        expect(!std::filesystem::exists(dir / "notes-loopback.secret")) << "the secret goes with the endpoint";
     };
 
     "listing endpoints in a directory with names that are not ASCII"_test = [] {

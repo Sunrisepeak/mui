@@ -1,11 +1,12 @@
-// openmui.agent:endpoint — where agents find an application, and talk to it.
+// omui.agent:endpoint — where agents find an application, and talk to it.
 //
-// Every application listens on a local endpoint (a Unix socket, a named pipe:
-// mcpplibs.os.ipc) named after it, in one directory per user, and leaves a
-// small descriptor beside it (`<name>.endpoint.omui.json`) so `omui agent ls`
-// can list what runs. Connections are read on background threads; requests
-// are served on the UI thread by `pump`, between frames, where the runtime
-// may be touched.
+// The endpoint itself is the agent kernel's (mlibs.agent, D-173): a local
+// connection named after the application, a descriptor beside it
+// (`<name>.endpoint.omui.json`) so `omui agent ls` can list what runs, lines
+// read on background threads and served by `pump`. This is the interface's
+// use of it: each connection's session speaks openmui.tree@0.1 (the
+// protocol) to this application's runtime, on the UI thread, between frames,
+// where the runtime may be touched.
 export module omui.agent:endpoint;
 
 import std;
@@ -22,6 +23,11 @@ struct EndpointOptions {
     // Called from a reading thread when a request arrives: a host whose loop
     // sleeps until an event wakes it here (it must be thread-safe).
     std::function<void()> wake;
+    // Also on this machine's loopback (a device's endpoint reached through `adb forward`;
+    // 0: a port the system chooses), where every program on the machine reaches it: a
+    // connection's first line must then be the secret written beside the descriptor
+    // (<name>.secret, readable by this program's user alone), else it is closed.
+    std::optional<std::uint16_t> loopback;
 };
 
 // The per-user directory endpoints live in: the runtime directory (XDG),
@@ -51,6 +57,9 @@ public:
     [[nodiscard]] bool listening() const noexcept;
     [[nodiscard]] const std::string& name() const noexcept;
     [[nodiscard]] const std::filesystem::path& directory() const noexcept;
+    // On the loopback (EndpointOptions::loopback): its port and the secret a connection gives first.
+    [[nodiscard]] std::optional<std::uint16_t> loopback_port() const noexcept;
+    [[nodiscard]] const std::string& secret() const noexcept;
 
     // Serves what arrived and checks pending waits; call once per frame on
     // the UI thread. Answers how many requests it served.
@@ -72,6 +81,9 @@ class Client {
 public:
     [[nodiscard]] static std::expected<Client, std::string> connect(std::string_view name,
                                                                     const std::filesystem::path& directory = default_directory());
+    // An endpoint on this machine's loopback (EndpointOptions::loopback; a device's, forwarded
+    // by adb): its secret given first.
+    [[nodiscard]] static std::expected<Client, std::string> connect_loopback(std::uint16_t port, std::string_view secret);
     Client(Client&&) noexcept;
     Client& operator=(Client&&) noexcept;
     ~Client();

@@ -11,6 +11,7 @@ What belongs here: general-purpose libraries with no domain semantics. Small too
 | [cts](cts) | `mlibs.cts`: the conformance framework — suites with stable ids, levels S/A/B, passed/failed/unsupported (from capabilities only), comparisons, `*.cts.omui.json` reports; suites live with their contract's owner |
 | [simulation](simulation) | `mlibs.simulation`: the stepping substrate — fixed-step clocks, timelines of checkpoints and inputs (seek, replay, rollback), simulation tiers; no solver (D-133) |
 | [control](control) | Independent openas policy, trusted sessions and invocation authority; shared by UI and standalone engines |
+| [agent](agent) | `mlibs.agent`: the agent kernel (D-173) — where agents find a program and talk to it (a named local endpoint, lines in and out, sessions served at the owner's safe point), for any subject: an interface, a world, a renderer's frame. Authority is `control`'s |
 | [geom](geom) | 2D geometry: points, rectangles, colours, affine transforms, pixel snapping |
 | [memory](memory) | Frame arena, generational handles, slot maps, `FunctionRef` |
 | [unicode](unicode) | Line breaking (UAX #14) and segmentation (UAX #29) without ICU |

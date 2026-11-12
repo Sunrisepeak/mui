@@ -85,8 +85,8 @@ grep -q '"controlled":false' <<< "$last"
 # The frame's pipeline, read and changed in the running process (D-66).
 expect 0 agent pipeline $app_id
 grep -q '"openmui.view.layout"' <<< "$last"
-expect 0 agent pipeline $app_id --toml
-grep -q '^\[\[stage\]\]' <<< "$last"
+expect 0 agent pipeline $app_id --description   # the description alone, as JSON (a3e2927b: no TOML left)
+grep -q '"pipeline"' <<< "$last" && grep -q '"stages"\|"stage"' <<< "$last"
 expect 0 agent pipeline $app_id remove --stage debug
 expect 0 agent pipeline $app_id insert --stage debug --plugin openmui.view.debug --after paint
 expect 1 agent pipeline $app_id replace --stage paint --plugin nonesuch

@@ -83,7 +83,9 @@ jobs:
               return esbuild == 0 && tsc == 0 ? 0 : 1;
           }
           CPP
-          cat mcpp.toml
+          # As this repository has it: the project names its mcpp to xlings, which gives the project a tool directory of its own.
+          printf '{\n  "workspace": {\n    "mcpp": "%s"\n  }\n}\n' '${{ matrix.mcpp }}' > .xlings.json
+          cat mcpp.toml .xlings.json
       - name: mcpp run — the tools are provisioned for it, and the program finds them
         working-directory: probe
         run: |
@@ -97,6 +99,7 @@ jobs:
           for home in "$HOME/.xlings" "$HOME/.mcpp" "$PWD"; do
             [ -d "$home" ] && find "$home" -maxdepth 9 \( -iname '*esbuild*' -o -iname 'tsc' -o -iname 'tsc.*' -o -iname '*typescript*' \) 2>/dev/null | grep -v 'xim-pkgindex' | head -40
           done
-          echo "--- mcpp's own bin directory of provisioned tools"
-          ls -la "$HOME/.mcpp/registry/subos/default/bin" 2>/dev/null | head -40
+          echo "--- the two tools in mcpp's own bin directory, and the project's"
+          ls -la "$HOME/.mcpp/registry/subos/default/bin" 2>/dev/null | grep -i 'esbuild\|tsc'
+          find "$PWD/.xlings" -maxdepth 4 2>/dev/null | head -60
           exit "$status"

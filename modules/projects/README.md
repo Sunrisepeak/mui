@@ -53,4 +53,6 @@ A **subject**'s package has a catalog of its own (`<product>.ops.omui.ts`; `omui
 | Not here | each capability it says it has not, and why or what brings it |
 ```
 
+Where a package's consumers must not all link the agent kernel (a solver family, an engine's core), the subject is the package's feature `agent` (`src/agent/`, its dependencies under `[feature-deps.agent]`), and its contract test lives in a member that turns the feature on — lint `closure` keeps the package's default closure free of the kernel.
+
 What a subject cannot do it says (`capabilities()`), and its README says under "Not here": a capability is never pretended. [xengine.runtime](xengine/game/runtime) is the first written this way.

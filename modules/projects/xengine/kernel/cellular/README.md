@@ -33,10 +33,11 @@ separate manifest makes that omission real. Individual rules, conditions,
 channel operators and tile helpers stay inside this package.
 
 The kernel's module is `xengine.cellular` (no forwarding names): it imports
-no clock, no RHI and no renderer. The field as an agent's subject is a second
-module of the package, `xengine.cellular.agent` (below), which takes the
-clock and history library and the agent kernel — both mlibs, neither a
-renderer nor an interface.
+no clock, no RHI and no renderer, and taken alone the package depends on the
+small tools only. The field as an agent's subject is a second module,
+`xengine.cellular.agent` (below), behind the package's feature `agent`: it
+takes the clock and history library and the agent kernel — both mlibs,
+neither a renderer nor an interface — and only for a consumer that asks.
 
 Ownership around it (convergence plan §6.10, D-132): material and reaction
 presets are an optional data package beside this kernel, not rules inside it;
@@ -48,7 +49,7 @@ says a tile changed, drawn by one command (the GPU kernel's output as one
 
 ## Agent surface
 
-A field is a `Subject` of the agent kernel ([mlibs.agent](../../../../base/agent)), module `xengine.cellular.agent`; every operation is decided there first (openas). Its operations are a catalog, [field.ops.omui.ts](field.ops.omui.ts) (the table `src/agent/catalog.cppm` and the listings `src/agent/field.ops.json`, `.md` are `omui-gen ops`'s); how to use them, in order, is [skill.omui.md](skill.omui.md).
+A field is a `Subject` of the agent kernel ([mlibs.agent](../../../../base/agent)), module `xengine.cellular.agent` (the package's feature `agent`: `xengine.cellular = { path = …, features = ["agent"] }`); every operation is decided there first (openas). Its operations are a catalog, [field.ops.omui.ts](field.ops.omui.ts) (the table `src/agent/catalog.cppm` and the listings `src/agent/field.ops.json`, `.md` are `omui-gen ops`'s); how to use them, in order, is [skill.omui.md](skill.omui.md).
 
 | | |
 |---|---|
@@ -62,5 +63,7 @@ A field is a `Subject` of the agent kernel ([mlibs.agent](../../../../base/agent
 | Not here | **Causes** (why a cell holds what it holds, who placed it) and **source** (which rule wrote a cell): `capabilities` says so, and the contract suite reports them unsupported. They come with the matter kernel's record of causes (the plan's T1.11). **History** as commits and branches is the kernel's, when a design adapter needs it |
 
 ```sh
-mcpp test -p xengine.cellular     # agent_test: the agent contract's suite on a field of falling sand, then regions, seeks and branches
+mcpp test -p xengine.cellular.present     # agent_test: the agent contract's suite on a field of falling sand, then regions, seeks and branches
 ```
+
+The subject's tests are [present](present)'s, which turns the feature on: a feature is tested where it is on.

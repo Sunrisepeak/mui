@@ -55,7 +55,7 @@ Run `mcpp test -p xengine.dynamics -p xengine.dynamics.cts`: swept collision to 
 
 ## Agent surface
 
-A soft body is a `Subject` of the agent kernel ([mlibs.agent](../../../../base/agent)), module `xengine.dynamics.agent`; every operation is decided there first (openas). Its operations are a catalog, [body.ops.omui.ts](body.ops.omui.ts) (the table `src/agent/catalog.cppm` and the listings `src/agent/body.ops.json`, `.md` are `omui-gen ops`'s); how to use them, in order, is [skill.omui.md](skill.omui.md).
+A soft body is a `Subject` of the agent kernel ([mlibs.agent](../../../../base/agent)), module `xengine.dynamics.agent` — the package's feature `agent` (`xengine.dynamics = { path = …, features = ["agent"] }`), so that the solver families taken alone stay the small tools and nothing more (hanim's engine takes them so); every operation is decided there first (openas). Its operations are a catalog, [body.ops.omui.ts](body.ops.omui.ts) (the table `src/agent/catalog.cppm` and the listings `src/agent/body.ops.json`, `.md` are `omui-gen ops`'s); how to use them, in order, is [skill.omui.md](skill.omui.md).
 
 | | |
 |---|---|
@@ -69,5 +69,7 @@ A soft body is a `Subject` of the agent kernel ([mlibs.agent](../../../../base/a
 | Not here | **Causes** as a record — who pushed it, which contact turned it — and **source** (from a particle's place back to what moved it): `capabilities` says so, and the contract suite reports them unsupported; `body.contacts` says what the last step touched, which is not that. They come with the kernels' record of causes (the plan's T1.11). The rigid families get their own subject when they land (M6.2) |
 
 ```sh
-mcpp test -p xengine.dynamics     # agent_test: the agent contract's suite on a resting body, then kicks, seeks and branches
+mcpp test -p xengine.dynamics.cts     # agent_test: the agent contract's suite on a resting body, then kicks, seeks and branches
 ```
+
+The subject's tests are [cts](cts)'s, which turns the feature on: a feature is tested where it is on.

@@ -538,7 +538,7 @@ this Node-only test profile is separate from the site's publishing profile.
 
 ## Agent surface
 
-The stage is a `Subject` of the agent kernel ([mlibs.agent](../../base/agent)): `hanim::agent::Stage`, module `hanim.agent` (feature `agent`, among the defaults); every operation is decided there first (openas). Its operations are hanim.control's catalog, [hanim.ops.omui.ts](hanim.ops.omui.ts) (the table and the listings in `src/control/` are `omui-gen ops`'s); how to use them, in order, is [skill.omui.md](skill.omui.md). The typed entrance for a native host is `hanim::control::Controller`, with the same catalog.
+The stage is a `Subject` of the agent kernel ([mlibs.agent](../../base/agent)): `hanim::agent::Stage`, module `hanim.agent` — the feature `agent`, asked for like `control` (what a consumer of the engine alone links stays what it was); every operation is decided there first (openas). Its operations are hanim.control's catalog, [hanim.ops.omui.ts](hanim.ops.omui.ts) (the table and the listings in `src/control/` are `omui-gen ops`'s); how to use them, in order, is [skill.omui.md](skill.omui.md). The typed entrance for a native host is `hanim::control::Controller`, with the same catalog.
 
 | | |
 |---|---|
@@ -551,5 +551,7 @@ The stage is a `Subject` of the agent kernel ([mlibs.agent](../../base/agent)): 
 | Not here | **Preview** (a pose asked for without touching the playback: a branch), **causes** (which layers and blends a value came from: the plan's §3.4 lists it missing) and **source** (from a drawn part back to its animation): `capabilities` says so, and the contract suite reports them unsupported. **A program as a request's own data**: programs are C++ builders or the documents [hanim.studio](studio) reads; a stage offers them by name |
 
 ```sh
-mcpp test -p hanim     # tests/agent: the agent contract's suite on a stage, then a program played by name, sought, paused, released
+mcpp test -p hanim.studio     # stage_test: the agent contract's suite on a stage, then a program played by name, sought, paused, released
 ```
+
+The subject's tests are [studio](studio)'s, which turns the feature on (as it does `control`): a feature is tested where it is on.

@@ -22,13 +22,19 @@ agent = "subject"
 kind = "lib"
 
 [build]
-sources  = ["src/*.cppm", "src/collision/*.cppm", "src/collision/*.cpp", "src/material/*.cppm", "src/material/*.cpp", "src/xpbd/*.cppm", "src/xpbd/*.cpp", "src/inspect/*.cppm", "src/inspect/*.cpp", "src/agent/*.cppm", "src/agent/*.cpp"]
+sources  = ["src/*.cppm", "src/collision/*.cppm", "src/collision/*.cpp", "src/material/*.cppm", "src/material/*.cpp", "src/xpbd/*.cppm", "src/xpbd/*.cpp", "src/inspect/*.cppm", "src/inspect/*.cpp"]
 cxxflags = ["-fno-fast-math", "-ffp-contract=off"]
 
 [dependencies]
 mlibs.utils = { path = "../../../../base/utils" }
+
 # A body as an agent's subject (src/agent/, module xengine.dynamics.agent; D-174): its steps on the clock
-# and history library, its operations through the agent kernel. The solver families take neither.
+# and history library, its operations through the agent kernel. A feature, so that the solver families
+# alone stay what they were — the small tools and nothing more (hanim's engine takes them so).
+[features]
+agent = { sources = ["src/agent/*.cppm", "src/agent/*.cpp"] }
+
+[feature-deps.agent]
 mlibs.simulation = { path = "../../../../base/simulation" }
 mlibs.agent      = { path = "../../../../base/agent" }
 mlibs.control    = { path = "../../../../base/control" }
@@ -37,4 +43,3 @@ openlifa.openas  = "0.2.0"
 
 [dev-dependencies]
 mcpplibs.mtest = "0.5.2"
-mlibs.agent.cts = { path = "../../../../base/agent/cts" }

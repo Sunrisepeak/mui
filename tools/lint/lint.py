@@ -788,8 +788,15 @@ CLOSURES: dict[str, dict[str, set[str]]] = {
     # simulation knows no UI, game or renderer; its CPU packages no GPU or
     # compiler; the cellular rules do not make the clock and history mandatory
     # every solved simulation: no UI, game, renderer, GPU or compiler in its CPU core (D-133)
-    "xengine.dynamics": {"not": {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "xrender", "mlibs.rhi", "mlibs.shader", "xengine.cellular"}},
-    "xengine.cellular": {"not": {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "xrender", "mlibs.rhi", "mlibs.shader"}},
+    # … and, taken alone, no agent kernel either: a body or a field as an agent's subject is their feature `agent`,
+    # so what hanim's engine and every other consumer of the kernels links stays the small tools (the out-of-tree
+    # probes tools/ci/hanim-features and hanim-play-consumer hold hanim to that).
+    "xengine.dynamics": {"not": {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "xrender", "mlibs.rhi", "mlibs.shader", "xengine.cellular",
+                                 "mlibs.agent", "mlibs.json", "mlibs.control"}},
+    "xengine.cellular": {"not": {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "xrender", "mlibs.rhi", "mlibs.shader",
+                                 "mlibs.agent", "mlibs.json", "mlibs.control"}},
+    # hanim by default is its engine: control and the stage as an agent's subject are features a consumer asks for
+    "hanim": {"not": {"omui", "mlibs.agent", "mlibs.json", "mlibs.control", "xrender"}},
     "xengine.cellular.rhi": {"not": {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "xrender"}},
     # the field on screen (its tests draw it through the frame's entry, read by an agent): the renderer's resources
     # (and what they reach), no UI, game, animation, effect loader or shader compiler
@@ -1034,6 +1041,25 @@ AGENT_SURFACE_HEADING = re.compile(r"^#{2,3} Agent surface\b", re.MULTILINE)
 AGENT_CONTRACT_SUITE = re.compile(r"^\s*import\s+mlibs\.agent\.cts\s*;", re.MULTILINE)
 
 
+def path_dependencies(root: Path, member: str) -> set[str]:
+    """The members `member` takes by path, tests' too."""
+    import tomllib
+    try:
+        data = tomllib.loads((root / member / "mcpp.toml").read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return set()
+    out = set()
+    tables = [data.get(t, {}) for t in ("dependencies", "dev-dependencies")] + [deps for deps in data.get("feature-deps", {}).values()]
+    for table in tables:
+        for _, spec in flatten_deps(table):
+            if isinstance(spec, dict) and "path" in spec:
+                try:
+                    out.add((root / member / spec["path"]).resolve().relative_to(root.resolve()).as_posix())
+                except ValueError:
+                    pass
+    return out
+
+
 def check_agent_surface(root: Path) -> list[Problem]:
     import tomllib
     problems = []
@@ -1066,9 +1092,13 @@ def check_agent_surface(root: Path) -> list[Problem]:
             if not readme.exists() or not AGENT_SURFACE_HEADING.search(readme.read_text(encoding="utf-8")):
                 problems.append(Problem("agent-surface", f"{member}/README.md", 'is a subject\'s and has no "Agent surface" section (subject and addresses, observation, '
                                                                                   "operations and effects, causes, preview and time, budgets and tiers, what it cannot do)"))
-            tests = base / "tests"
-            if not tests.is_dir() or not any(AGENT_CONTRACT_SUITE.search(f.read_text(encoding="utf-8")) for f in tests.rglob("*.cpp")):
-                problems.append(Problem("agent-surface", where, "is a subject no test runs the contract suite on (import mlibs.agent.cts; contract::run(probe))"))
+            # Its own tests, or — where the subject is a feature of the package (its dependencies kept out of what
+            # every consumer links) — the tests of a member that takes the package: a feature is tested where it is on.
+            holders = [base] + [root / other for other in members if other != member and member in path_dependencies(root, other)]
+            if not any(AGENT_CONTRACT_SUITE.search(f.read_text(encoding="utf-8")) for holder in holders if (holder / "tests").is_dir()
+                       for f in (holder / "tests").rglob("*.cpp")):
+                problems.append(Problem("agent-surface", where, "is a subject no test runs the contract suite on (import mlibs.agent.cts; contract::run(probe)): "
+                                                                "in its own tests, or in those of a member that takes it"))
         elif said == "tool":
             if not list(base.glob("*.ops.omui.ts")):
                 problems.append(Problem("agent-surface", where, "is a tool without a catalog (<product>.ops.omui.ts)"))

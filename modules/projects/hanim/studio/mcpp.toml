@@ -28,7 +28,8 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 mcpplibs.cmdline = "0.0.3"
-hanim          = { path = "..", features = ["render-vector", "control"] }
+# `agent`: the stage as an agent's subject — this package's tests hold it to the agent contract (stage_test).
+hanim          = { path = "..", features = ["render-vector", "control", "agent"] }
 # The hanim command writes frames as SVG (xrender.vector.svg).
 xrender.vector = { path = "../../xrender/vector" }
 xrender.raster = { path = "../../xrender/raster" }
@@ -42,6 +43,9 @@ nlohmann.json  = "3.12.0"
 [dev-dependencies]
 # Tests are mtest's (D-147).
 mcpplibs.mtest = "0.5.2"
+# stage_test: the agent contract's suite on hanim's stage.
+mlibs.agent.cts = { path = "../../../base/agent/cts" }
+mlibs.json      = { path = "../../../base/json" }
 mlibs.utils = { path = "../../../base/utils" }
 mlibs.rhi = { path = "../../../gfx/rhi" }
 xrender.rhi.sdl = { path = "../../xrender/rhi/sdl" }

@@ -20,7 +20,7 @@ xrender.raster = { path = {{raster_path}} }
 mlibs.image = { path = {{image_path}} }
 mlibs.utils = { path = {{utils_path}} }
 xrender.text = { path = {{xrender_text_path}} }
-mcpplibs.os = "0.2.2"
+mcpplibs.os = "0.4.4"
 
 [target.'cfg(os = "emscripten")'.abi]
 exceptions = true

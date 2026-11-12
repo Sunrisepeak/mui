@@ -20,9 +20,9 @@ mlibs.image = { path = {{image_path}} }
 mlibs.utils = { path = {{utils_path}} }
 mlibs.control = { path = {{control_path}} }
 openlifa.openas = "0.2.0"
-mcpplibs.os = "0.2.2"
+mcpplibs.os = "0.4.4"
 nlohmann.json = "3.12.0"
 mcpplibs.cmdline = "0.0.3"
 
 [dev-dependencies]
-mcpplibs.mtest = "0.5.0"
+mcpplibs.mtest = "0.5.2"

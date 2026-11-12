@@ -23,10 +23,14 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-fno-fast-math", "-ffp-contract=off"]
 
 [dependencies]
-xengine.dynamics = { path = ".." }
+# With the body as an agent's subject: this package's tests hold it to the agent contract too.
+xengine.dynamics = { path = "..", features = ["agent"] }
 mlibs.simulation = { path = "../../../../../base/simulation" }
 mlibs.cts        = { path = "../../../../../base/cts" }
 mlibs.utils      = { path = "../../../../../base/utils" }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.5.2"
+# tests/agent_test.cpp: the agent contract's suite on a body (mlibs.agent.cts), then kicks, seeks and branches.
+mlibs.agent.cts = { path = "../../../../../base/agent/cts" }
+mlibs.json      = { path = "../../../../../base/json" }

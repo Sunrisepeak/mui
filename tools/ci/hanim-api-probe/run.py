@@ -96,7 +96,7 @@ def main() -> int:
                 rel=p.relative_to(repo).parts if p.is_relative_to(repo) else None
                 # xengine.dynamics' CPU core is base layer (lint), the solver hanim shares with games (D-131, D-133).
                 if rel and rel[:2] not in {('modules','base'),('modules','gfx')} and rel[:3] not in {('modules','projects','hanim'),('modules','projects','xrender')} \
-                        and rel[:4]!=('modules','projects','xengine','dynamics'):
+                        and rel[:5]!=('modules','projects','xengine','kernel','dynamics'):
                     raise RuntimeError(f'non-independent repository source: {p}')
                 if p.is_relative_to(repo):source_hashes[str(p.relative_to(repo))]=digest(p)
                 if p.is_relative_to(project/'src') and '-std=c++23' not in item.get('arguments',[]):

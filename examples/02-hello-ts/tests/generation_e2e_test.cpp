@@ -114,8 +114,18 @@ struct Running {
 E2E generation{"generation", timeout{std::chrono::minutes{5}}, [] {
     "drafted from TypeScript, previewed, committed, undone and redone, in the background, refused where it must be, kept across a restart"_test[artifact{"target:text-stats"}] = [] {
         const auto app = e2e::tree({{"mcpp.toml", manifest}, {"logic/main.ts", script}, {"omui.config.ts", config}});
-        const auto endpoints = app / "endpoints";
+        // The endpoint's directory is a short one of its own, not beneath the case's: a local socket's address holds
+        // the directory's whole path with the name in 108 bytes on Windows, and the case's directory there — the
+        // target directory, the test's and the case's names — is 190 before it (red list 66).
+        const auto endpoints = std::filesystem::temp_directory_path() / std::format("omui-plan-{}", os::random::hex(4).value_or("0"));
         std::filesystem::create_directories(endpoints);
+        struct Removed {
+            std::filesystem::path directory;
+            ~Removed() {
+                std::error_code ignored;
+                std::filesystem::remove_all(directory, ignored);
+            }
+        } removed{endpoints};
         {
             Running plan(app, endpoints);
             expect(plan.client.has_value()) << "the application's endpoint: " << plan.why;

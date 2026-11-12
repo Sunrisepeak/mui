@@ -151,7 +151,15 @@ std::expected<void, std::string> Endpoint::start() {
     std::error_code ec;
     std::filesystem::create_directories(d.directory, ec);
     auto listening = ipc::listener::listen(d.directory, d.options.name);
-    if (!listening) return std::unexpected(std::format("listening as '{}' in {}: {}", d.options.name, utf8(d.directory), listening.error().message()));
+    if (!listening) {
+        // A local socket's address is the directory's whole path with the name on a system that binds by path
+        // (Windows): 108 bytes, and beyond them the system's refusal says nothing of why.
+        const std::size_t length = utf8(std::filesystem::absolute(d.directory, ec)).size() + 1 + d.options.name.size();
+        const std::string why = length + 1 > 108 ? std::format(" (the directory's path and the name are {} bytes; where a local socket is bound by its path, its address holds 108: "
+                                                               "give a shorter directory)", length)
+                                                 : std::string();
+        return std::unexpected(std::format("listening as '{}' in {}: {}{}", d.options.name, utf8(d.directory), listening.error().message(), why));
+    }
     d.listener = std::move(*listening);
     std::string descriptor = std::format("{{\"name\":{},\"app\":{},\"interface\":{},\"spec\":{}", json_text(d.options.name), json_text(d.options.app),
                                          json_text(d.options.interface_name), json_text(d.options.spec));

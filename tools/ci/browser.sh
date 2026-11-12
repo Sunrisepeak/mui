@@ -57,8 +57,9 @@ done
 # batches and the cellular kernel's CPU/GPU equality, on the page's WebGPU.
 "$mcpp" test --target wasm32-emscripten --profile wasm-browser -p hanim.rhi -p xengine.cellular.rhi.cts --no-run \
   || { echo "::error::the owners' WebGPU suites did not build for the browser"; exit 1; }
-for suite in rhi/shape_webgpu_test cts/cellular_webgpu_test; do
-  program=$(ls -t target/wasm32-emscripten/*/bin/$suite.js 2>/dev/null | head -1)
+for suite in shape_webgpu_test cellular_webgpu_test; do
+  # By the program's name: where mcpp puts it under bin/ is its business (a package's last name, or its whole name where two share one).
+  program=$(find target/wasm32-emscripten -path '*/bin/*' -name "$suite.js" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2 || true)
   [ -n "$program" ] || { echo "::error::$suite.js was not built"; exit 1; }
   "$node_bin" tools/ci/browser.mjs --chrome "$chrome" "$program" --require-webgpu \
     || { echo "::error::$suite failed in the browser"; exit 1; }

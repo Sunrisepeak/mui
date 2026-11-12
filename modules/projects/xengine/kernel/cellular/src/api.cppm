@@ -178,13 +178,27 @@ struct Execution {
     std::span<std::uint8_t> changed_tiles = {};
     // Which step this is, for a program that moves cells: where the blocks are cut, and its choices.
     std::uint64_t tick = 0;
+    // Optional — sparse execution (D-167): one byte a tile, as changed_tiles, that the caller keeps between the
+    // steps of one field (zeroed: every tile awake). The step reads it and writes it: a tile at rest — nothing
+    // in it or within the program's reach of it changed, and nothing in it could have moved — is asleep
+    // (asleep(byte)) and is not run; its cells are the input's. What changes within reach of it wakes it for the
+    // next step. The output is the same bits as without. Whoever writes cells from outside wakes them
+    // (Program::wake); a field begun anew, another program, tile or edge: zero it.
+    std::span<std::uint8_t> activity = {};
+    // With `activity`: the output is the buffer this field's input of one step ago was in (two buffers taking
+    // turns), so a sleeping tile's cells are already there and are not copied — a step costs what is awake.
+    bool alternate = false;
 };
+// Whether a tile's byte of Execution::activity says it sleeps.
+[[nodiscard]] constexpr bool asleep(std::uint8_t activity) noexcept { return (activity & 0x0f) == 0x0f; }
 // How many tiles of `tile` cover `shape`: columns, rows.
 [[nodiscard]] constexpr Shape tiles(Shape shape, Shape tile) noexcept {
     if (!tile.width || !tile.height || !shape.width || !shape.height) return {};
     return {1 + (shape.width - 1) / tile.width, 1 + (shape.height - 1) / tile.height};
 }
-struct Statistics { std::uint64_t cells = 0, matched = 0, changed = 0; };
+// What a step did: the cells it ran (all of them, but for tiles asleep), those a rule matched, those that
+// changed, and the tiles it left asleep.
+struct Statistics { std::uint64_t cells = 0, matched = 0, changed = 0, asleep = 0; };
 
 // A field's colours (D-132): the first swatch whose tests a cell passes gives
 // its pixel — 32 bits as a renderer stores them (premultiplied RGBA8, red in
@@ -233,6 +247,8 @@ public:
     [[nodiscard]] bool moves() const noexcept { return moves_; }
     [[nodiscard]] std::uint32_t channels() const noexcept { return channels_; }
     [[nodiscard]] std::uint32_t halo() const noexcept { return halo_; }
+    // How far a cell's next value reads, in cells: the halo, and one cell where cells move.
+    [[nodiscard]] std::uint32_t reach() const noexcept { return std::max(halo_, moves_ ? 1u : 0u); }
     [[nodiscard]] std::uint32_t rule_count() const noexcept { return rules_; }
     [[nodiscard]] Limits limits() const noexcept { return limits_; }
     // Read-only, versioned uint32 operator encoding consumed by optional
@@ -252,12 +268,15 @@ public:
     // untouched. This is not streamed/sparse physical halo exchange.
     [[nodiscard]] std::expected<Statistics,Failure> step_tile(Shape shape, Tile tile,
         std::span<const std::uint32_t> input, std::span<std::uint32_t> output, Boundary = {}) const noexcept;
+    // Cells of `edited` were written from outside a step: the tiles of `activity` (Execution::activity, tiles of
+    // `tile`) they are in or within reach of are awake again. Nothing where the region is not in the field.
+    void wake(Shape shape, Shape tile, Tile edited, std::span<std::uint8_t> activity, Edge edge = Edge::constant) const noexcept;
 private:
     [[nodiscard]] std::expected<void,Failure> validate(Shape, std::span<const std::uint32_t>,
         std::span<std::uint32_t>, Boundary) const noexcept;
     [[nodiscard]] Statistics run_tile(Shape, Tile, std::span<const std::uint32_t>,
         std::span<std::uint32_t>, Boundary) const noexcept;
-    void exchange(Shape, std::span<const std::uint32_t>, std::span<std::uint32_t>, Boundary, std::uint64_t tick) const noexcept;
+    void exchange(Shape, std::span<const std::uint32_t>, std::span<std::uint32_t>, const Execution&) const noexcept;
     std::uint32_t channels_ = 0, halo_ = 0, rules_ = 0, transfers_ = 0;
     bool moves_ = false;
     Limits limits_;

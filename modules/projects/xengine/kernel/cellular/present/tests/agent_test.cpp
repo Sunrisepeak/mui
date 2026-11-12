@@ -102,6 +102,66 @@ UTest cases{"cellular.agent", [] {
         expect(ask(other, R"({"op":"field.cells","channel":0,"region":[0,0,128,64]})").error == "invalid-argument") << "more cells than a request reads";
     };
 
+    "a field runs what is awake: a grain falls by the field's own ticks, the field at rest sleeps, a placement wakes its tiles — the cells those of every tile run"_test = [] {
+        // Cells that move (the kernel's exchange): channel 0 how heavy a cell is, channel 1 how it may move.
+        const std::array<cellular::Exchange, 1> moving{{{.weight = 0, .mobility = 1}}};
+        const auto program = cellular::Program::prepare(2, cellular::Stages{.exchanges = moving});
+        expect(fatal(program.has_value()));
+        const cellular::Shape shape{16, 16};
+        std::vector<std::uint32_t> air(2 * 256);
+        std::fill_n(air.begin(), 256, 10u);
+        std::fill_n(air.begin() + 256, 256, cellular::falls);
+        auto made = cellular::agent::Field::make(*program, shape, air, {.boundary = {cellular::Edge::clamp, 0}, .tile = {4, 4}});
+        expect(fatal(made.has_value())) << (made ? "" : made.error());
+        agent::SubjectSession session({&*made});
+
+        // The same by hand, every tile run each step: what the field's cells must be.
+        std::vector<std::uint32_t> cells = air, next(air.size());
+        std::uint64_t tick = 0;
+        const auto run = [&](int steps) {
+            for (int step = 0; step < steps; ++step, ++tick) {
+                expect(fatal(program->step(shape, cells, next, {.boundary = {cellular::Edge::clamp, 0}, .tick = tick}).has_value()));
+                cells.swap(next);
+            }
+        };
+        const auto same = [&] { return std::ranges::equal(made->state().cells, cells); };
+
+        // A grain of sand at the top: heavier than air, falling and sliding.
+        (void)ask(session, R"({"op":"field.place","channel":0,"value":100,"region":[5,0,1,1]})");
+        (void)ask(session, R"({"op":"field.place","channel":1,"value":3,"region":[5,0,1,1]})");
+        cells[5] = 100;
+        cells[256 + 5] = 3;
+        const auto falling = ask(session, R"({"op":"field.step","steps":6})");
+        run(6);
+        expect(same()) << "six steps on";
+        expect(falling["tiles"].integer() == 16 && falling["asleep"].integer().value_or(0) >= 8 && falling["asleep"].integer().value_or(16) < 16)
+            << std::format("{} of 16 tiles asleep while the grain falls", falling["asleep"].integer().value_or(-1));
+        const auto fallen = ask(session, R"({"op":"field.step","steps":40})");
+        run(40);
+        expect(same());
+        expect(ask(session, R"({"op":"field.cells","channel":0,"region":[5,15,1,1]})")["rows"][0].dump() == "[100]") << "on the floor: the cut moved with the field's steps";
+        expect(fallen["asleep"].integer() == 16) << "nothing can move: every tile sleeps";
+
+        // Asleep, a step is the same field; a frame kept is reached again, and played again the same.
+        const auto resting = ask(session, R"({"op":"field.step","steps":3})");
+        run(3);
+        expect(same() && resting["asleep"].integer() == 16);
+        (void)ask(session, R"({"op":"field.place","channel":0,"value":100,"region":[12,2,1,1]})");
+        (void)ask(session, R"({"op":"field.place","channel":1,"value":3,"region":[12,2,1,1]})");
+        cells[2 * 16 + 12] = 100;
+        cells[256 + 2 * 16 + 12] = 3;
+        const auto woken = ask(session, R"({"op":"field.step"})");
+        run(1);
+        expect(same() && woken["asleep"].integer().value_or(16) < 16) << "a placement wakes the tiles it is in and beside";
+        const std::int64_t here = woken["frame"].integer().value_or(0);
+        const auto later = ask(session, R"({"op":"field.step","steps":30})");
+        run(30);
+        expect(same() && later["asleep"].integer() == 16);
+        const auto back = ask(session, std::format(R"({{"op":"field.seek","frame":{}}})", here));
+        expect(back["hash"].text() == woken["hash"].text() && back["asleep"].integer() == woken["asleep"].integer()) << "what sleeps is the frame's, with its cells";
+        expect(ask(session, R"({"op":"field.step","steps":30})")["hash"].text() == later["hash"].text()) << "played again from there";
+    };
+
     "time is the field's: a frame kept is reached again exactly; what would be is asked without touching it"_test = [] {
         auto sandbox = field();
         agent::SubjectSession session({sandbox.get()});

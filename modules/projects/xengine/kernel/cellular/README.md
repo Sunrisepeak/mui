@@ -54,7 +54,19 @@ The field is cut into blocks of 2 × 2, and the cut shifts each tick through its
                                                        ~~~~~~~~~~~~
 ```
 
-Preparation owns a validated descriptor, infers halo reach and enforces resource/offset limits. `step` accepts a tile size/order; `step_tile` writes only the requested rectangle and reads its logical halo from the full immutable field. Hosts may schedule disjoint rectangles through their existing task executor. This is not streamed/sparse halo exchange, multi-cell movement arbitration or a new task pool.
+Preparation owns a validated descriptor, infers halo reach and enforces resource/offset limits. `step` accepts a tile size/order; `step_tile` writes only the requested rectangle and reads its logical halo from the full immutable field. Hosts may schedule disjoint rectangles through their existing task executor. This is not streamed halo exchange, multi-cell movement arbitration or a new task pool.
+
+**Sparse execution** (D-167): a field pays for what is happening in it. Give `step` a byte a tile that you keep between the steps of one field, and a tile at rest is not run:
+
+```cpp
+const ca::Shape grid = ca::tiles(shape, {32, 32});
+std::vector<std::uint8_t> activity(grid.width * grid.height, 0);          // every tile awake
+auto stepped = program->step(shape, before, after, {.tick = tick, .activity = activity, .alternate = true});
+// stepped->asleep tiles were not run; stepped->cells is what was
+program->wake(shape, {32, 32}, {x, y, 1, 1}, activity);                    // a cell written from outside
+```
+
+A tile sleeps when nothing in it changed and nothing within the program's reach of it did (`Program::reach()`: the halo, and a cell where cells move); what changes wakes every tile that reads it, for the next step. Where cells move, rest is more than a step without change — the cut shifts and a spread is a coin's choice — so a tile sleeps only after it was seen under all four cuts with no block in it that *could* move, whether the coin moved it or not. That makes the rule exact: the output is the same bits as with every tile run (the tests step both side by side, on rules, a reach beyond the next tile, wrapped edges and cells that move). With `alternate` (two buffers taking turns, as a host swaps them) a tile asleep is not even copied: its cells are already in the output. On a 1024 × 1024 field with a fire's front crossing 32 of 1024 tiles a step is 1.9 ms where every tile run is 67 ms, and a field wholly at rest is 0.011 ms (a debug build, this machine; `omui-bench --filter simulation/cellular-1024`). `Statistics::cells` and `matched` count what was run. The bytes are the caller's state: keep them with the cells (a checkpoint, a branch), and zero them for a field begun anew or another program, tile size or edge. `step_tile` is not sparse (a host that schedules tiles itself decides what to run), and neither is the device's kernel yet (the plan's T1.8).
 
 Use [the optional RHI kernel](rhi) for GPU execution (its suite and the field's device picture run on a native device in [sdl](sdl)). It consumes the same prepared word descriptor; choosing this CPU package does not import RHI, shaders, renderer, UI or games. [CONTRACT.md](CONTRACT.md) records the encoding, boundaries and error semantics.
 
@@ -91,10 +103,10 @@ A field is a `Subject` of the agent kernel ([mlibs.agent](../../../../base/agent
 | | |
 |---|---|
 | Subject and addresses | `field`, interface `xengine.cellular.field@0.1`. A cell is `[x, y]` from the top left, a region `[x, y, width, height]`, a channel its index; a frame is one thing done to the field — a step of the program, or a value placed |
-| State | The cells (channel-major `uint32`), the steps run and the prepared program, on `mlibs.simulation`'s timeline, copied whole; the hash covers the shape, the steps and every cell |
+| State | The cells (channel-major `uint32`), the steps run, which tiles sleep and the prepared program, on `mlibs.simulation`'s timeline, copied whole; the hash covers the shape, the steps and every cell |
 | Observation | `field.observe`: each channel of a region as numbers — least, most, sum, cells not zero — never the cells dumped; `field.cells`: one channel of a small region, row by row (at most 4096 cells a request) |
 | Control | `field.place`: one channel set to a value over a region; a frame of its own, recorded like a step, so it is taken back by seeking |
-| Time | `field.step`, `field.seek` back within the frames kept (what is run from there is a new branch); the same requests, the same bits |
+| Time | `field.step`, `field.seek` back within the frames kept (what is run from there is a new branch); the same requests, the same bits. A step runs the tiles awake (sparse execution, above; `Options::tile`), by the field's own count of steps as the tick; every answer that says where the field is (`step`, `place`, `seek`) says `tiles` and how many are `asleep` — all of them: nothing is happening and nothing can |
 | Preview | `field.branch`: the field some steps ahead, a value placed first when one is given — observed as `field.observe` does, the field itself untouched (a copy is run) |
 | Budgets and tiers | `field.observe` within a `budget` of bytes (channels left out from the last, `more` says how many; a budget below the least answer is refused with that size); `Options`: `most_steps` and `most_cells` a request, `keep` frames of history |
 | Not here | **Causes** (why a cell holds what it holds, who placed it) and **source** (which rule wrote a cell): `capabilities` says so, and the contract suite reports them unsupported. They come with the matter kernel's record of causes (the plan's T1.11). **History** as commits and branches is the kernel's, when a design adapter needs it |

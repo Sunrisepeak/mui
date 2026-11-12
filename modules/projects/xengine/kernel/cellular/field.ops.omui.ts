@@ -51,7 +51,7 @@ export default defineOps({
     {
       name: "field.step",
       effect: "reversible",
-      summary: "Runs the program a number of steps over the whole field",
+      summary: "Runs the program a number of steps over the field: the tiles awake (what is at rest sleeps, the result the same); answers where the field is and how many of its tiles sleep",
       params: [{ name: "steps", type: "integer", doc: "how many (1 when none is given)", optional: true }],
       result: "json",
       cost: "bounded",

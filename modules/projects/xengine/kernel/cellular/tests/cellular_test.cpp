@@ -101,6 +101,49 @@ struct World {
     }
 };
 
+// One field stepped two ways from the same cells: every tile run, and sparsely (Execution::activity) — which
+// must be the same bits, step after step, whatever sleeps.
+struct Twice {
+    const ca::Program& program;
+    ca::Shape shape, tile;
+    ca::Boundary boundary;
+    bool alternate = false;
+    std::vector<std::uint32_t> dense, sparse, dense_next, sparse_next;
+    std::vector<std::uint8_t> activity, dense_changed, sparse_changed;
+    std::uint64_t tick = 0, cells_run = 0, tiles_slept = 0;
+    ca::Statistics last;
+    Twice(const ca::Program& of, ca::Shape size, ca::Shape tiles_of, ca::Boundary edge, std::vector<std::uint32_t> cells, bool in_turn = false)
+        : program(of), shape(size), tile(tiles_of), boundary(edge), alternate(in_turn), dense(cells), sparse(std::move(cells)),
+          dense_next(dense.size()), sparse_next(dense.size(), 0xdeadbeefu) {
+        const auto grid = ca::tiles(shape, tile);
+        activity.assign(static_cast<std::size_t>(grid.width) * grid.height, 0);
+        dense_changed.assign(activity.size(), 0);
+        sparse_changed.assign(activity.size(), 0);
+    }
+    [[nodiscard]] std::size_t asleep() const { return static_cast<std::size_t>(std::ranges::count_if(activity, [](std::uint8_t byte) { return ca::asleep(byte); })); }
+    // A cell written from outside, in both; the sparse one is told.
+    void write(std::uint32_t channel, std::uint32_t x, std::uint32_t y, std::uint32_t value) {
+        const std::size_t index = static_cast<std::size_t>(channel) * shape.width * shape.height + static_cast<std::size_t>(y) * shape.width + x;
+        dense[index] = sparse[index] = value;
+        program.wake(shape, tile, {x, y, 1, 1}, activity, boundary.edge);
+    }
+    // One step of both; whether they agree: the cells, how many changed, and the tiles that did.
+    bool step(bool reverse = false) {
+        const auto one = program.step(shape, dense, dense_next, {.tile = tile, .boundary = boundary, .reverse_tiles = reverse, .changed_tiles = dense_changed, .tick = tick});
+        const auto other = program.step(shape, sparse, sparse_next,
+            {.tile = tile, .boundary = boundary, .reverse_tiles = reverse, .changed_tiles = sparse_changed, .tick = tick, .activity = activity, .alternate = alternate});
+        ++tick;
+        if (!one || !other) return false;
+        dense.swap(dense_next);
+        sparse.swap(sparse_next);
+        last = *other;
+        cells_run += other->cells;
+        tiles_slept += other->asleep;
+        return dense == sparse && one->changed == other->changed && dense_changed == sparse_changed &&
+               other->cells <= one->cells && std::ranges::none_of(activity, [](std::uint8_t byte) { return byte & 0xf0; });
+    }
+};
+
 UTest cases{"simulation.cellular", [] {
     "state/threshold/neighborhood rules agree with a scalar oracle across tile sizes and both orders"_test = [] {
         const ca::Shape shape{19,11};auto rules=reaction_rules();auto prepared=ca::Program::prepare(3,rules);
@@ -521,6 +564,127 @@ UTest cases{"simulation.cellular", [] {
         expect(eq(refused({{.weight = 0, .mobility = 1, .carried = {0, 2}}}), std::string("cellular.exchange at exchange 0"))) << "what decides a move goes with the cell";
         expect(eq(refused({{.weight = 0, .mobility = 1}, {.weight = 0, .mobility = 1}}), std::string("cellular.limit at exchange 1"))) << "one exchange a program";
         expect(eq(refused({{.weight = 0, .mobility = 1}}), std::string("accepted")));
+    };
+
+    "sparse — a fire burns out and the field sleeps: only the tiles the front is in are run, and the cells are the same bits as running all"_test = [] {
+        const ca::Shape shape{40, 24};
+        const auto rules = reaction_rules();
+        const auto program = ca::Program::prepare(3, rules);
+        expect(fatal(program.has_value()));
+        expect(eq(program->reach(), 1u));
+        for (const ca::Shape tile : {ca::Shape{4, 4}, ca::Shape{7, 5}, ca::Shape{16, 16}})
+            for (const ca::Edge edge : {ca::Edge::constant, ca::Edge::clamp, ca::Edge::wrap})
+                for (const bool in_turn : {false, true}) {
+                    Twice both(*program, shape, tile, {edge, 0}, initial(shape), in_turn);
+                    const std::size_t all = both.activity.size();
+                    int steps = 0;
+                    for (; steps < 400 && both.asleep() != all; ++steps)
+                        expect(fatal(both.step(steps % 3 == 1))) << std::format("step {} of tiles {}x{}, edge {}, in turn {}", steps, tile.width, tile.height, static_cast<int>(edge), in_turn);
+                    expect(fatal(both.asleep() == all)) << "the fire is out and every tile sleeps";
+                    // A fire's front is a line: with tiles small beside the field, much of it was not run. (A tile that
+                    // changed wakes those beside it: six tiles of 16 round a wrapped edge are all beside the fire.)
+                    const std::uint64_t dense_cells = static_cast<std::uint64_t>(steps) * shape.width * shape.height;
+                    expect(both.cells_run <= dense_cells);
+                    if (tile.width < 16) expect(both.tiles_slept > 0u && both.cells_run < dense_cells) << std::format("{} of {} cells run", both.cells_run, dense_cells);
+                    if (tile.width == 4 && edge == ca::Edge::constant && in_turn)
+                        std::println("a fire on 40 x 24 in tiles of 4 x 4: out and asleep after {} steps, {} of {} cells run", steps, both.cells_run, dense_cells);
+                    // Asleep, a step runs nothing and changes nothing — and with two buffers in turn writes nothing.
+                    for (int rest = 0; rest < 3; ++rest) {
+                        expect(both.step());
+                        expect(eq(both.last.cells, std::uint64_t{0}) && eq(both.last.changed, std::uint64_t{0}) && eq(both.last.asleep, std::uint64_t{all}));
+                    }
+                    // Lit again from outside: the tile and those that read it wake, the rest sleep on.
+                    both.write(1, 1, 1, 0);
+                    both.write(0, 1, 1, 1);
+                    both.write(1, 2, 1, 1);
+                    const std::size_t woken = all - both.asleep();
+                    expect(woken >= 1u && woken < all) << std::format("{} of {} tiles woken by a cell", woken, all);
+                    for (int after = 0; after < 60; ++after) expect(fatal(both.step())) << std::format("step {} after the edit", after);
+                }
+    };
+
+    "sparse — a tile wakes for what changes within the program's reach of it, further than the next tile and round a wrapped edge"_test = [] {
+        // A signal that jumps three cells to the right each step: a cell is lit when the cell three to its left is.
+        using C = ca::Condition;
+        const std::array<ca::Offset, 1> three_left{{{-3, 0}}};
+        const std::vector<ca::Rule> rules{
+            {{C::self({0, {1, 1}})}, {{0, ca::WriteKind::set, 0}}},
+            {{C::neighbors({0, {1, 1}}, three_left, {1, 1})}, {{0, ca::WriteKind::set, 1}}},
+        };
+        const auto program = ca::Program::prepare(1, rules);
+        expect(fatal(program.has_value()));
+        expect(eq(program->reach(), 3u));
+        for (const ca::Shape shape : {ca::Shape{17, 3}, ca::Shape{16, 2}})
+            for (const ca::Shape tile : {ca::Shape{2, 2}, ca::Shape{3, 1}, ca::Shape{5, 3}})
+                for (const ca::Edge edge : {ca::Edge::wrap, ca::Edge::constant}) {
+                    std::vector<std::uint32_t> cells(static_cast<std::size_t>(shape.width) * shape.height, 0);
+                    cells[shape.width + 1] = 1;
+                    Twice both(*program, shape, tile, {edge, 0}, cells, true);
+                    for (int steps = 0; steps < 40; ++steps)
+                        expect(fatal(both.step())) << std::format("step {} on {}x{}, tiles {}x{}, edge {}", steps, shape.width, shape.height, tile.width, tile.height, static_cast<int>(edge));
+                    // Round a wrapped edge it never ends; off a constant one it is gone and the field sleeps.
+                    if (edge == ca::Edge::constant) expect(eq(both.asleep(), both.activity.size()));
+                    else expect(both.asleep() < both.activity.size() && both.tiles_slept > 0u);
+                }
+        // An edit wakes what reads it: in a row of tiles of 2, a cell and reach 3 are the two tiles either side.
+        std::vector<std::uint8_t> activity(8, 0x0f);
+        program->wake({16, 1}, {2, 1}, {7, 0, 1, 1}, activity);
+        expect(activity == std::vector<std::uint8_t>{0x0f, 0x0f, 0, 0, 0, 0, 0x0f, 0x0f}) << "cells 4 to 10";
+        std::ranges::fill(activity, std::uint8_t{0x0f});
+        program->wake({16, 1}, {2, 1}, {0, 0, 1, 1}, activity, ca::Edge::wrap);
+        expect(activity == std::vector<std::uint8_t>{0, 0, 0x0f, 0x0f, 0x0f, 0x0f, 0, 0}) << "round the edge: cells 13 to 3";
+        std::ranges::fill(activity, std::uint8_t{0x0f});
+        program->wake({16, 1}, {2, 1}, {0, 0, 1, 1}, activity, ca::Edge::clamp);
+        expect(activity == std::vector<std::uint8_t>{0, 0, 0x0f, 0x0f, 0x0f, 0x0f, 0x0f, 0x0f});
+        program->wake({16, 1}, {2, 1}, {16, 0, 4, 1}, activity);  // not in the field
+        program->wake({16, 1}, {2, 1}, {3, 0, 0, 1}, activity);   // no cells
+        expect(eq(std::ranges::count(activity, std::uint8_t{0}), std::ptrdiff_t{2}));
+        std::vector<std::uint32_t> field(16), next(16);
+        std::vector<std::uint8_t> wrong(7);
+        const auto refused = program->step({16, 1}, field, next, {.tile = {2, 1}, .activity = wrong});
+        expect(!refused && refused.error().code == ca::Errc::tile) << "a byte a tile, no more and no fewer";
+    };
+
+    "sparse — cells that move: a pile at rest sleeps, a liquid that could still move does not, a grain dropped in wakes its way down; the same bits throughout"_test = [] {
+        for (const ca::Shape tile : {ca::Shape{2, 2}, ca::Shape{3, 3}, ca::Shape{4, 4}, ca::Shape{5, 3}})
+            for (const ca::Edge edge : {ca::Edge::clamp, ca::Edge::wrap})
+                for (const bool in_turn : {false, true}) {
+                    // Sand on a floor of stone, on the left; nothing on the right.
+                    World world({16, 12});
+                    for (std::uint32_t x = 0; x < 16; ++x) world.put(x, 11, stone);
+                    for (std::uint32_t y = 2; y < 8; ++y) world.put(3, y, sand);
+                    Twice both(world.program, world.shape, tile, {edge, 0}, world.cells, in_turn);
+                    const std::size_t all = both.activity.size();
+                    const auto where = [&](int step) { return std::format("step {}, tiles {}x{}, edge {}, in turn {}", step, tile.width, tile.height, static_cast<int>(edge), in_turn); };
+                    for (int steps = 0; steps < 120; ++steps) expect(fatal(both.step(steps % 2 == 1))) << where(steps);
+                    expect(fatal(eq(both.asleep(), all))) << "the pile is at rest: every tile sleeps — " + where(120);
+                    expect(both.step() && eq(both.last.cells, std::uint64_t{0}));
+                    // A grain let go at the top right: its tiles wake as it falls, the pile's sleep on.
+                    both.write(0, 13, 0, sand.weight);
+                    both.write(1, 13, 0, sand.mobility);
+                    std::uint64_t most_awake = 0;
+                    for (int steps = 0; steps < 60; ++steps) {
+                        expect(fatal(both.step())) << "the grain — " + where(steps);
+                        most_awake = std::max<std::uint64_t>(most_awake, all - both.last.asleep);
+                    }
+                    expect(most_awake < all) << std::format("{} of {} tiles awake at the most", most_awake, all);
+                    expect(eq(both.asleep(), all)) << "and it lies on the floor";
+                    expect(eq(both.sparse[10 * 16 + 13], sand.weight)) << "where it fell";
+                }
+        // Water with a surface it cannot fill never rests: where it is stays awake, and the cells stay the same
+        // bits as every tile run — a tile that slept on a coin's refusal would part from them.
+        for (const ca::Shape tile : {ca::Shape{2, 2}, ca::Shape{4, 4}, ca::Shape{8, 4}}) {
+            World world({16, 12});
+            for (std::uint32_t y = 6; y < 12; ++y)
+                for (std::uint32_t x = 0; x < 3; ++x) world.put(x, y, water);  // 18 of water: one row of 16 and two over
+            for (std::uint32_t y = 0; y < 3; ++y) world.put(12, y, sand);
+            for (std::uint32_t x = 5; x < 8; ++x) world.put(x, 11, smoke);
+            Twice both(world.program, world.shape, tile, {ca::Edge::clamp, 0}, world.cells, true);
+            for (int steps = 0; steps < 600; ++steps) expect(fatal(both.step())) << std::format("step {} of the water, tiles {}x{}", steps, tile.width, tile.height);
+            expect(both.asleep() < both.activity.size()) << "the water's surface is awake";
+            expect(both.tiles_slept > 0u) << "and the air above it is not";
+            if (tile.width == 4) std::println("water, sand and smoke on 16 x 12 in tiles of 4 x 4: {} of {} tiles asleep after 600 ticks, {} cells run of {}", both.asleep(), both.activity.size(), both.cells_run, 600 * 192);
+        }
     };
 
     "the shared owned-state history rebuilds cellular states and inputs without a second checkpoint engine"_test = [] {

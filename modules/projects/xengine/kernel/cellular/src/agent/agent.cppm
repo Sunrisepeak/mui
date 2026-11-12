@@ -10,7 +10,9 @@
 //
 // A frame is one thing done to the field: a step of the program, or a value
 // placed. Both are recorded (mlibs.simulation's timeline), so any frame kept
-// is reached again exactly.
+// is reached again exactly. A step runs the tiles that are awake (the
+// kernel's sparse execution: the same bits as running all); every answer
+// that says where the field is says how many tiles sleep.
 //
 // What it cannot do yet it says: why a cell holds what it holds (causes) and
 // which rule wrote it (the source of what it puts out) come with the matter
@@ -34,8 +36,10 @@ struct FieldState {
     Shape                          shape;
     Boundary                       boundary;
     std::vector<std::uint32_t>     cells;     // channel-major: [channel][y][x]
-    std::vector<std::uint32_t>     next;      // a step's output, swapped in (never read between frames)
+    std::vector<std::uint32_t>     next;      // a step's output, swapped in: the cells of a step ago, which a tile asleep keeps
     std::int64_t                   steps = 0; // how many steps the program ran (a placement is a frame, not a step)
+    Shape                          tile{32, 32};
+    std::vector<std::uint8_t>      activity;  // a byte a tile (Execution::activity): what is at rest is not run
 };
 
 // What one frame does: the program runs a step, or a value is placed.
@@ -53,6 +57,7 @@ struct FieldModel {
 
 struct Options {
     Boundary     boundary;
+    Shape        tile{32, 32};      // the tiles a step runs or leaves asleep
     std::int64_t keep = 240;        // frames of history kept
     std::int64_t most_steps = 4096; // a request's most
     std::size_t  most_cells = 4096; // field.cells' most a request

@@ -90,6 +90,46 @@ void add_simulation_benchmarks() {
         }
         s.note("scope",std::format("one DrawImage for the whole field; {} of 1024 rows redrawn; the step excluded",rows));
     });
+    // D-167: a step of the same 1024 × 1024 field with every tile run, with only the tiles awake, and with none awake.
+    add("simulation/cellular-1024-step","1024x1024 cells, one step of a spreading fire with every tile run: 3 channels, first-match reaction rules",[](State& s) {
+        auto f=spreading(1024,60);if(!f){s.fail("rule preparation failed");return;}
+        s.items(1024*1024);
+        while(s.next()) (void)f->state.program.step(f->state.shape,f->state.current,f->state.next);
+        s.note("scope","the scalar CPU step alone, every tile; presenting and drawing excluded");
+    });
+    add("simulation/cellular-1024-step-sparse","1024x1024 cells, the same step with only the tiles awake run (D-167): what is at rest sleeps, the cells the same bits",[](State& s) {
+        auto fixture=setup(1024);if(!fixture){s.fail("rule preparation failed");return;}
+        auto& field=*fixture;
+        const auto cells=1024u*1024u;
+        std::ranges::fill(field.current,0u);
+        std::fill_n(field.current.begin(),cells,1u);
+        field.current[cells+512*1024+512]=1;
+        const auto grid=ca::tiles(field.shape,{32,32});
+        std::vector<std::uint8_t> activity(grid.width*grid.height,0);
+        // Sixty steps in, as the dense one; `next` then holds the cells of a step ago, which a tile asleep keeps.
+        for(int k=0;k<60;++k){(void)field.program.step(field.shape,field.current,field.next,{.activity=activity,.alternate=true});field.current.swap(field.next);}
+        const auto resting=activity;
+        const auto awake=activity.size()-static_cast<std::size_t>(std::ranges::count_if(activity,[](std::uint8_t byte){return ca::asleep(byte);}));
+        s.items(awake*32*32);
+        while(s.next()) {
+            activity=resting;
+            (void)field.program.step(field.shape,field.current,field.next,{.activity=activity,.alternate=true});
+        }
+        s.note("scope",std::format("{} of {} tiles awake (the fire's front and the tiles beside it); two buffers in turn, so a tile asleep is not copied",awake,activity.size()));
+    });
+    add("simulation/cellular-1024-rest","1024x1024 cells with nothing happening: a step of a field wholly asleep (D-167)",[](State& s) {
+        auto fixture=setup(1024);if(!fixture){s.fail("rule preparation failed");return;}
+        auto& field=*fixture;
+        std::ranges::fill(field.current,0u);
+        std::fill_n(field.current.begin(),1024u*1024u,1u);
+        const auto grid=ca::tiles(field.shape,{32,32});
+        std::vector<std::uint8_t> activity(grid.width*grid.height,0);
+        for(int k=0;k<2;++k){(void)field.program.step(field.shape,field.current,field.next,{.activity=activity,.alternate=true});field.current.swap(field.next);}
+        if(!std::ranges::all_of(activity,[](std::uint8_t byte){return ca::asleep(byte);})){s.fail("the field is not asleep");return;}
+        s.items(activity.size());
+        while(s.next()) (void)field.program.step(field.shape,field.current,field.next,{.activity=activity,.alternate=true});
+        s.note("scope","1024 tiles looked at, none run, no cell read or written");
+    });
     add("simulation/cellular-256","256x256 integer cells: 3 channels, first-match reaction rules, 32x32 tiles",[](State& s) {
         auto fixture=setup(256);if(!fixture){s.fail("rule preparation failed");return;}
         const auto initial=fixture->current;

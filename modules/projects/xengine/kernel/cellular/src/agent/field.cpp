@@ -14,10 +14,12 @@ void FieldModel::step(State& state, const Input& input) noexcept {
         std::uint32_t* channel = state.cells.data() + static_cast<std::size_t>(input.channel) * area;
         for (std::uint32_t y = input.region.y; y < input.region.y + input.region.height; ++y)
             std::fill_n(channel + static_cast<std::size_t>(y) * state.shape.width + input.region.x, input.region.width, input.value);
+        state.program->wake(state.shape, state.tile, input.region, state.activity, state.boundary.edge);
         return;
     }
-    // Shaped when the field was made: a step cannot fail here.
-    if (state.program->step(state.shape, state.cells, state.next, {.boundary = state.boundary})) {
+    // Shaped when the field was made: a step cannot fail here. The two buffers take turns, so a tile asleep costs nothing.
+    if (state.program->step(state.shape, state.cells, state.next,
+                            {.tile = state.tile, .boundary = state.boundary, .tick = static_cast<std::uint64_t>(state.steps), .activity = state.activity, .alternate = true})) {
         state.cells.swap(state.next);
         ++state.steps;
     }
@@ -30,8 +32,11 @@ std::expected<Field, std::string> Field::make(Program program, Shape shape, std:
     if (cells.size() != *values)
         return std::unexpected(std::format("{} values for a field of {} × {} cells and {} channels ({} values)", cells.size(), shape.width, shape.height,
                                            program.channels(), *values));
-    FieldState state{std::make_shared<const Program>(std::move(program)), shape, options.boundary, std::move(cells), {}, 0};
+    if (!options.tile.width || !options.tile.height) return std::unexpected(std::string("a field's tiles are at least a cell each way"));
+    FieldState state{std::make_shared<const Program>(std::move(program)), shape, options.boundary, std::move(cells), {}, 0, options.tile, {}};
     state.next.assign(state.cells.size(), 0);
+    const Shape grid = tiles(shape, options.tile);
+    state.activity.assign(static_cast<std::size_t>(grid.width) * grid.height, 0);
     // A step on a copy, to say now what a step would say later.
     FieldState trial = state;
     if (const auto stepped = trial.program->step(trial.shape, trial.cells, trial.next, {.boundary = trial.boundary}); !stepped)
@@ -65,8 +70,10 @@ std::expected<Tile, std::string> Field::region_of(mlibs::json::Node node, std::s
 }
 
 std::string Field::status() const {
-    return std::format("{{\"frame\":{},\"steps\":{},\"hash\":\"{:016x}\",\"earliest\":{},\"latest\":{}}}", timeline_.frame(), timeline_.state().steps,
-                       hash_of(timeline_.state()), timeline_.earliest(), timeline_.latest());
+    const FieldState& state = timeline_.state();
+    return std::format("{{\"frame\":{},\"steps\":{},\"hash\":\"{:016x}\",\"earliest\":{},\"latest\":{},\"tiles\":{},\"asleep\":{}}}", timeline_.frame(), state.steps,
+                       hash_of(state), timeline_.earliest(), timeline_.latest(), state.activity.size(),
+                       std::ranges::count_if(state.activity, [](std::uint8_t byte) { return asleep(byte); }));
 }
 
 std::string Field::observed(const FieldState& state, std::int64_t frame, Tile region, std::optional<std::int64_t> budget) const {

@@ -34,6 +34,35 @@ std::optional<Errc> check_offsets(std::span<const Offset> offsets, std::uint32_t
     return std::nullopt;
 }
 
+// A tile's byte of Execution::activity: the low four bits are the block cuts it was seen at rest under (all
+// four: asleep; a program that moves nothing shows all four at once); the others are a step's own marks, gone
+// when it returns.
+inline constexpr std::uint8_t rested = 0x0f, mark_sleeping = 0x10, mark_restless = 0x20, mark_altered = 0x40;
+struct TileRun { std::uint32_t first = 0, count = 0; };
+// The tiles along one axis that hold the cells `first` to `last` and `reach` cells either side — round a
+// wrapped edge, where the count goes on past the last tile to the first.
+[[nodiscard]] TileRun tiles_within(std::uint32_t first, std::uint32_t last, std::uint32_t reach, std::uint32_t size, std::uint32_t tile, bool wraps) noexcept {
+    const std::uint32_t all = 1 + (size - 1) / tile;
+    if (!wraps) {
+        const std::uint32_t low = first - std::min(first, reach);
+        const std::uint32_t high = static_cast<std::uint32_t>(std::min<std::uint64_t>(std::uint64_t{last} + reach, size - 1));
+        return {low / tile, high / tile - low / tile + 1};
+    }
+    if (std::uint64_t{last} - first + 1 + 2 * std::uint64_t{reach} >= size) return {0, all};
+    const std::uint32_t low = (first + size - reach) % size, high = (last + reach) % size;
+    if (low <= high) return {low / tile, high / tile - low / tile + 1};
+    return {low / tile, std::min(all, all - low / tile + high / tile + 1)};
+}
+// Awake again: every tile within `reach` cells of the cells given.
+void rouse(std::span<std::uint8_t> activity, Shape shape, Shape tile, std::uint32_t first_x, std::uint32_t last_x,
+           std::uint32_t first_y, std::uint32_t last_y, std::uint32_t reach, bool wraps) noexcept {
+    const std::uint32_t columns = 1 + (shape.width - 1) / tile.width, rows = 1 + (shape.height - 1) / tile.height;
+    const TileRun across = tiles_within(first_x, last_x, reach, shape.width, tile.width, wraps);
+    const TileRun down = tiles_within(first_y, last_y, reach, shape.height, tile.height, wraps);
+    for (std::uint32_t row = 0; row < down.count; ++row)
+        for (std::uint32_t column = 0; column < across.count; ++column)
+            activity[static_cast<std::size_t>((down.first + row) % rows) * columns + (across.first + column) % columns] &= static_cast<std::uint8_t>(~rested);
+}
 }  // namespace
 
 std::expected<Program,Failure> Program::prepare(std::uint32_t channels, std::span<const Rule> rules, Limits limits) {
@@ -289,7 +318,15 @@ Statistics Program::run_tile(Shape shape, Tile tile, std::span<const std::uint32
     return stats;
 }
 // Cells change places within blocks of 2 × 2, decided from the input, moving what the stages before made of them.
-void Program::exchange(Shape shape, std::span<const std::uint32_t> in, std::span<std::uint32_t> out, Boundary boundary, std::uint64_t tick) const noexcept {
+void Program::exchange(Shape shape, std::span<const std::uint32_t> in, std::span<std::uint32_t> out, const Execution& execution) const noexcept {
+    const Boundary boundary = execution.boundary;
+    const std::uint64_t tick = execution.tick;
+    // Sparse: a block whose first cell is in a sleeping tile is not looked at (it could not move: it touches the
+    // tile); one that could move, whether it does or not, keeps the tiles it touches from resting this step.
+    const std::span<std::uint8_t> activity = execution.activity;
+    const bool sparse = !activity.empty();
+    const Shape tile = execution.tile;
+    const std::uint32_t columns = 1 + (shape.width - 1) / tile.width;
     // The exchange's words: after the transfers.
     std::size_t pos = words_[4 + rules_];
     for (std::uint32_t transfers = words_[pos++], t = 0; t < transfers; ++t) pos += 6 + 2 * words_[pos + 5];
@@ -305,10 +342,19 @@ void Program::exchange(Shape shape, std::span<const std::uint32_t> in, std::span
     for (std::uint32_t top = cut_y; top < shape.height; top += 2) {
         const bool over_y = top + 1 >= shape.height;
         if (over_y && !round_y) continue;
+        const std::uint32_t bottom = over_y ? 0 : top + 1;
+        const std::size_t top_tiles = static_cast<std::size_t>(top / tile.height) * columns, bottom_tiles = static_cast<std::size_t>(bottom / tile.height) * columns;
         for (std::uint32_t left = cut_x; left < shape.width; left += 2) {
             const bool over_x = left + 1 >= shape.width;
             if (over_x && !round_x) continue;
-            const std::uint32_t right = over_x ? 0 : left + 1, bottom = over_y ? 0 : top + 1;
+            const std::uint32_t right = over_x ? 0 : left + 1;
+            if (sparse && (activity[top_tiles + left / tile.width] & mark_sleeping)) {
+                // On to the first block past this tile.
+                const std::uint64_t end = (std::uint64_t{left / tile.width} + 1) * tile.width;
+                if (end >= shape.width) break;
+                left = static_cast<std::uint32_t>(end) + ((static_cast<std::uint32_t>(end) ^ cut_x) & 1) - 2;
+                continue;
+            }
             // The block's places: above left, above right, below left, below right.
             const std::array<std::size_t, 4> place{static_cast<std::size_t>(top) * shape.width + left, static_cast<std::size_t>(top) * shape.width + right,
                                                    static_cast<std::size_t>(bottom) * shape.width + left, static_cast<std::size_t>(bottom) * shape.width + right};
@@ -319,7 +365,9 @@ void Program::exchange(Shape shape, std::span<const std::uint32_t> in, std::span
             }
             std::array<std::uint8_t, 4> at{0, 1, 2, 3};  // which of the four cells is at each place
             std::array<bool, 4> moved{};
+            bool could_move = false;
             const auto swap = [&](std::size_t one, std::size_t other) {
+                could_move = true;
                 moved[at[one]] = moved[at[other]] = true;
                 std::swap(at[one], at[other]);
             };
@@ -344,8 +392,14 @@ void Program::exchange(Shape shape, std::span<const std::uint32_t> in, std::span
                 if (moved[one] || moved[other] || heavy[one] == heavy[other]) continue;
                 const std::uint8_t heavier = heavy[one] > heavy[other] ? one : other, lighter = heavier == one ? other : one;
                 if (!(moves[heavier] & spreads) || !(moves[lighter] & falls)) continue;
+                could_move = true;
                 const std::uint32_t chance = mlibs::math::mix32(tick_key ^ (left * 0x9e3779b1u) ^ mlibs::math::mix32(top * 2 + static_cast<std::uint32_t>(row)));
                 if (chance & 1) swap(row * 2, row * 2 + 1);
+            }
+            if (sparse && could_move) {
+                const std::size_t left_tile = left / tile.width, right_tile = right / tile.width;
+                for (const std::size_t touched : {top_tiles + left_tile, top_tiles + right_tile, bottom_tiles + left_tile, bottom_tiles + right_tile})
+                    activity[touched] |= mark_restless;
             }
             if (at == std::array<std::uint8_t, 4>{0, 1, 2, 3}) continue;
             for (const std::uint32_t channel : channels) {
@@ -374,29 +428,83 @@ std::expected<Statistics,Failure> Program::step(Shape shape, std::span<const std
     const auto columns=1+(shape.width-1)/execution.tile.width,rows=1+(shape.height-1)/execution.tile.height;
     const auto total=columns*rows;Statistics stats;
     if(!execution.changed_tiles.empty() && execution.changed_tiles.size()!=total)return std::unexpected(Failure{Errc::tile});
+    const std::span<std::uint8_t> activity = execution.activity;
+    const bool sparse = !activity.empty();
+    if (sparse && activity.size() != total) return std::unexpected(Failure{Errc::tile});
+    const std::size_t cells = static_cast<std::size_t>(shape.width) * shape.height;
+    const auto tile_at = [&](std::uint32_t index) {
+        const auto x = (index % columns) * execution.tile.width, y = (index / columns) * execution.tile.height;
+        return Tile{x, y, std::min(execution.tile.width, shape.width - x), std::min(execution.tile.height, shape.height - y)};
+    };
     for(std::uint32_t i=0;i<total;++i) {
         const auto k=execution.reverse_tiles ? total-1-i : i;
-        const auto x=(k%columns)*execution.tile.width,y=(k/columns)*execution.tile.height;
-        const auto s=run_tile(shape,{x,y,std::min(execution.tile.width,shape.width-x),std::min(execution.tile.height,shape.height-y)},in,out,execution.boundary);
+        const Tile tile = tile_at(k);
+        if (sparse) {
+            activity[k] &= rested;
+            if (asleep(activity[k])) {
+                // At rest: its cells are the input's — copied, or already there where two buffers take turns.
+                activity[k] |= mark_sleeping;
+                ++stats.asleep;
+                if (!execution.alternate)
+                    for (std::uint32_t channel = 0; channel < channels_; ++channel)
+                        for (std::uint32_t y = tile.y; y < tile.y + tile.height; ++y) {
+                            const std::size_t row = static_cast<std::size_t>(channel) * cells + static_cast<std::size_t>(y) * shape.width + tile.x;
+                            std::copy_n(in.begin() + static_cast<std::ptrdiff_t>(row), tile.width, out.begin() + static_cast<std::ptrdiff_t>(row));
+                        }
+                if (!execution.changed_tiles.empty()) execution.changed_tiles[k] = 0;
+                continue;
+            }
+        }
+        const auto s=run_tile(shape,tile,in,out,execution.boundary);
         stats.cells+=s.cells;stats.matched+=s.matched;stats.changed+=s.changed;
         if(!execution.changed_tiles.empty())execution.changed_tiles[k]=s.changed?1:0;
+        if (sparse && s.changed) activity[k] |= mark_altered;
     }
     if(moves_) {
-        // Cells moved after the tiles were done: what changed is counted again, cell by cell.
-        exchange(shape,in,out,execution.boundary,execution.tick);
-        const std::size_t cells=static_cast<std::size_t>(shape.width)*shape.height;
+        // Cells moved after the tiles were done: what changed is counted again, cell by cell, where it was run.
+        exchange(shape,in,out,execution);
         stats.changed=0;
-        if(!execution.changed_tiles.empty())std::ranges::fill(execution.changed_tiles,std::uint8_t{0});
-        for(std::uint32_t y=0;y<shape.height;++y)for(std::uint32_t x=0;x<shape.width;++x) {
-            const std::size_t cell=static_cast<std::size_t>(y)*shape.width+x;
-            bool changed=false;
-            for(std::uint32_t ch=0;ch<channels_ && !changed;++ch)changed=out[ch*cells+cell]!=in[ch*cells+cell];
-            if(!changed)continue;
-            ++stats.changed;
-            if(!execution.changed_tiles.empty())execution.changed_tiles[(y/execution.tile.height)*columns+x/execution.tile.width]=1;
+        for (std::uint32_t k = 0; k < total; ++k) {
+            if (sparse && (activity[k] & mark_sleeping)) continue;
+            const Tile tile = tile_at(k);
+            std::uint64_t changed_here = 0;
+            for (std::uint32_t y = tile.y; y < tile.y + tile.height; ++y)
+                for (std::uint32_t x = tile.x; x < tile.x + tile.width; ++x) {
+                    const std::size_t cell = static_cast<std::size_t>(y) * shape.width + x;
+                    bool changed = false;
+                    for (std::uint32_t ch = 0; ch < channels_ && !changed; ++ch) changed = out[ch * cells + cell] != in[ch * cells + cell];
+                    changed_here += changed;
+                }
+            stats.changed += changed_here;
+            if (!execution.changed_tiles.empty()) execution.changed_tiles[k] = changed_here ? 1 : 0;
+            if (sparse) activity[k] = static_cast<std::uint8_t>(changed_here ? activity[k] | mark_altered : activity[k] & ~mark_altered);
         }
     }
+    if (sparse) {
+        // What this step showed of each tile that was run: nothing changed in it and nothing in it could have
+        // moved — at rest as far as this step tells (where cells move, for this tick's cut: all four make a rest).
+        const std::uint8_t shown = moves_ ? static_cast<std::uint8_t>(1u << ((execution.tick & 1) | ((execution.tick >> 1 & 1) << 1))) : rested;
+        for (std::uint32_t k = 0; k < total; ++k)
+            if (!(activity[k] & (mark_sleeping | mark_restless | mark_altered))) activity[k] |= shown;
+        // What changed wakes every tile that reads it, itself the first.
+        for (std::uint32_t k = 0; k < total; ++k) {
+            if (!(activity[k] & mark_altered)) continue;
+            const Tile tile = tile_at(k);
+            rouse(activity, shape, execution.tile, tile.x, tile.x + tile.width - 1, tile.y, tile.y + tile.height - 1, reach(), execution.boundary.edge == Edge::wrap);
+        }
+        for (std::uint32_t k = 0; k < total; ++k) activity[k] &= rested;
+    }
     mlibs::trace::count("simulation.cellular.changed",static_cast<double>(stats.changed),"simulation");
+    if (sparse) mlibs::trace::count("simulation.cellular.asleep", static_cast<double>(stats.asleep), "simulation");
     return stats;
+}
+void Program::wake(Shape shape, Shape tile, Tile edited, std::span<std::uint8_t> activity, Edge edge) const noexcept {
+    if (!tile.width || !tile.height || !shape.width || !shape.height) return;
+    const Shape count = tiles(shape, tile);
+    if (activity.size() != static_cast<std::size_t>(count.width) * count.height) return;
+    if (!edited.width || !edited.height || edited.x >= shape.width || edited.y >= shape.height) return;
+    const std::uint32_t last_x = static_cast<std::uint32_t>(std::min<std::uint64_t>(std::uint64_t{edited.x} + edited.width, shape.width) - 1);
+    const std::uint32_t last_y = static_cast<std::uint32_t>(std::min<std::uint64_t>(std::uint64_t{edited.y} + edited.height, shape.height) - 1);
+    rouse(activity, shape, tile, edited.x, last_x, edited.y, last_y, reach(), edge == Edge::wrap);
 }
 }

@@ -36,6 +36,12 @@ std::optional<Errc> check_offsets(std::span<const Offset> offsets, std::uint32_t
 }  // namespace
 
 std::expected<Program,Failure> Program::prepare(std::uint32_t channels, std::span<const Rule> rules, Limits limits) {
+    return prepare(channels, Stages{.rules = rules}, limits);
+}
+
+std::expected<Program,Failure> Program::prepare(std::uint32_t channels, Stages stages, Limits limits) {
+    const std::span<const Rule> rules = stages.rules;
+    const std::span<const Transfer> transfers = stages.transfers;
     mlibs::trace::Span span("simulation.cellular.prepare", "simulation");
     // Limits that cannot hold a program are the caller's error; a program beyond sound limits is refused.
     if (limits.max_words<4 || limits.max_values==0 || limits.max_values>std::numeric_limits<std::uint32_t>::max()/4 ||
@@ -43,12 +49,12 @@ std::expected<Program,Failure> Program::prepare(std::uint32_t channels, std::spa
     if (!channels) return std::unexpected(Failure{Errc::channels});
     if (channels > limits.max_channels || channels > limits.max_values || rules.size()>limits.max_rules) return std::unexpected(Failure{Errc::limit});
     // Encoding 2 where a rule aggregates or a write has terms; otherwise the encoding every backend runs.
-    bool aggregates = false;
+    bool aggregates = !transfers.empty();
     for (const Rule& rule : rules) {
         for (const Condition& condition : rule.when) aggregates |= condition.kind > ConditionKind::neighbors;
         for (const Write& write : rule.writes) aggregates |= !write.terms.empty();
     }
-    std::uint64_t size=4+static_cast<std::uint64_t>(rules.size());
+    std::uint64_t size=4+static_cast<std::uint64_t>(rules.size())+(aggregates ? 2 : 0);
     std::uint32_t halo=0;
     for(std::size_t r=0;r<rules.size();++r) {
         const auto& rule=rules[r];
@@ -83,9 +89,28 @@ std::expected<Program,Failure> Program::prepare(std::uint32_t channels, std::spa
         }
         if(size>limits.max_words) return std::unexpected(Failure{Errc::limit, {}, {r}});
     }
+    if (transfers.size() > 16) return std::unexpected(Failure{Errc::limit});
+    for (std::size_t t = 0; t < transfers.size(); ++t) {
+        const Transfer& transfer = transfers[t];
+        const auto fail = [&](Errc e) { return std::unexpected(Failure{e, {}, {.transfer = t}}); };
+        if (transfer.channel >= channels || (transfer.by && *transfer.by >= channels)) return fail(Errc::channels);
+        if (transfer.shift > 31 || transfer.offsets.empty()) return fail(Errc::transfer);
+        if (const auto wrong = check_offsets(transfer.offsets, halo)) return fail(*wrong);
+        // Seen from both ends: with each offset its opposite, and no cell its own neighbour.
+        for (const Offset offset : transfer.offsets)
+            if ((offset.x == 0 && offset.y == 0) || std::ranges::find(transfer.offsets, Offset{-offset.x, -offset.y}) == transfer.offsets.end())
+                return fail(Errc::transfer);
+        // No cell gives more than it has: the whole neighbourhood together takes at most all of a difference.
+        const std::uint64_t most = static_cast<std::uint64_t>(transfer.by ? transfer.by_limit : 1) * transfer.multiply * transfer.offsets.size();
+        if (most > (std::uint64_t{1} << transfer.shift)) return fail(Errc::transfer);
+        for (std::size_t earlier = 0; earlier < t; ++earlier)
+            if (transfers[earlier].channel == transfer.channel) return fail(Errc::transfer);  // one flow a quantity: two could together take too much
+        size += 6 + transfer.offsets.size() * 2;
+    }
     if(size>limits.max_words) return std::unexpected(Failure{Errc::limit});
     Program p;p.channels_=channels;p.rules_=static_cast<std::uint32_t>(rules.size());p.halo_=halo;p.limits_=limits;
-    p.words_.reserve(static_cast<std::size_t>(size));p.words_={aggregates ? 2u : 1u,channels,p.rules_,halo};p.words_.resize(4+rules.size());
+    p.words_.reserve(static_cast<std::size_t>(size));p.transfers_=static_cast<std::uint32_t>(transfers.size());
+    p.words_={aggregates ? 2u : 1u,channels,p.rules_,halo};p.words_.resize(4+rules.size()+(aggregates ? 1 : 0));
     for(std::size_t r=0;r<rules.size();++r) {
         const auto& rule=rules[r];const auto start=p.words_.size();p.words_[4+r]=static_cast<std::uint32_t>(start);
         p.words_.insert(p.words_.end(),{0,static_cast<std::uint32_t>(rule.when.size()),static_cast<std::uint32_t>(rule.writes.size()),0});
@@ -106,6 +131,17 @@ std::expected<Program,Failure> Program::prepare(std::uint32_t channels, std::spa
             }
         }
         p.words_[start]=static_cast<std::uint32_t>(p.words_.size());
+    }
+    if (aggregates) {
+        // Encoding 2: after the rules, the stages that follow them — the table's last entry says where. The transfers:
+        // how many, then each as channel, the conductance's channel (the largest number: none) and its limit,
+        // multiply, shift, neighbourhood.
+        p.words_[4 + rules.size()] = static_cast<std::uint32_t>(p.words_.size());
+        p.words_.push_back(p.transfers_);
+        for (const Transfer& transfer : transfers) {
+            p.words_.insert(p.words_.end(), {transfer.channel, transfer.by.value_or(largest), transfer.by ? transfer.by_limit : 1u, transfer.multiply, transfer.shift});
+            put_offsets(p.words_, transfer.offsets);
+        }
     }
     mlibs::log::Log{"simulation"}.debug("cellular plan prepared: encoding {}, {} channels, {} rules, halo {}, {} words",p.words_[0],channels,p.rules_,halo,p.words_.size());
     return p;
@@ -171,7 +207,7 @@ Statistics Program::run_tile(Shape shape, Tile tile, std::span<const std::uint32
                 pos+=7+2*count;
             }
             if(!matches)continue;
-            ++stats.matched;bool changed=false;pos=words_[start+3];
+            ++stats.matched;pos=words_[start+3];
             for(std::uint32_t w=0;w<words_[start+2];++w) {
                 const auto index=static_cast<std::size_t>(words_[pos])*cells+cell;
                 const auto old=in[index],kind=words_[pos+1];
@@ -190,10 +226,36 @@ Statistics Program::run_tile(Shape shape, Tile tile, std::span<const std::uint32
                 std::uint32_t next=plus-std::min(plus,minus);
                 if(kind==1) {next=saturating_add(old,plus);next-=std::min(next,minus);}
                 else if(kind==2) {next=old-std::min(old,plus);next=saturating_add(next,minus);}
-                out[index]=next;changed|=next!=old;
+                out[index]=next;
             }
-            stats.changed+=changed;break;
+            break;
         }
+        if(with_terms) {
+            // What flows: for each neighbour, the same amount both ends compute from the same two values.
+            std::size_t pos=words_[4+rules_];
+            const std::uint32_t transfers=words_[pos++];
+            for(std::uint32_t t=0;t<transfers;++t) {
+                const auto channel=words_[pos],by=words_[pos+1],by_limit=words_[pos+2],multiply=words_[pos+3],shift=words_[pos+4],count=words_[pos+5];
+                const auto index=static_cast<std::size_t>(channel)*cells+cell;
+                const auto mine=in[index];
+                const auto conducts=by==largest ? 1u : std::min(in[static_cast<std::size_t>(by)*cells+cell],by_limit);
+                std::uint32_t gained=0,lost=0;
+                for(std::uint32_t o=0;o<count;++o) {
+                    const auto nx=static_cast<std::int32_t>(x)+static_cast<std::int32_t>(words_[pos+6+2*o])-32,ny=static_cast<std::int32_t>(y)+static_cast<std::int32_t>(words_[pos+7+2*o])-32;
+                    const auto theirs=read(channel,nx,ny);
+                    if(theirs==mine)continue;
+                    const auto conductance=by==largest ? 1u : std::min(conducts,read(by,nx,ny));
+                    const auto difference=theirs>mine ? theirs-mine : mine-theirs;
+                    const auto flow=saturating_multiply(saturating_multiply(difference,conductance),multiply)>>shift;
+                    if(theirs>mine)gained=saturating_add(gained,flow);else lost=saturating_add(lost,flow);
+                }
+                out[index]=saturating_add(out[index]-std::min(out[index],lost),gained);
+                pos+=6+2*count;
+            }
+        }
+        bool changed=false;
+        for(std::uint32_t ch=0;ch<channels_ && !changed;++ch)changed=out[static_cast<std::size_t>(ch)*cells+cell]!=in[static_cast<std::size_t>(ch)*cells+cell];
+        stats.changed+=changed;
     }
     return stats;
 }

@@ -233,6 +233,127 @@ UTest cases{"simulation.cellular", [] {
         expect(eq(refused({{{}, {{0, W::set, 0, std::vector<ca::Term>(33, T::self(0))}}}}), std::string("cellular.limit at rule 0, item 0"))) << "33 terms";
     };
 
+    "a transfer conserves: heat spreads from a hot cell, what the field holds is what it held, step after step"_test = [] {
+        // One quantity, flowing to the four neighbours: an eighth of each difference a step.
+        const std::array<ca::Transfer, 1> heat{{{.channel = 0, .offsets = {ca::cardinal.begin(), ca::cardinal.end()}, .multiply = 1, .shift = 3}}};
+        const auto program = ca::Program::prepare(1, ca::Stages{.transfers = heat});
+        expect(fatal(program.has_value()));
+        expect(eq(program->encoding(), 2u) && eq(program->halo(), 1u) && eq(program->transfer_count(), 1u));
+        const ca::Shape shape{16, 9};
+        const auto total = [](const std::vector<std::uint32_t>& field) { return std::accumulate(field.begin(), field.end(), std::uint64_t{0}); };
+        for (const ca::Edge edge : {ca::Edge::wrap, ca::Edge::clamp}) {  // round the edge, or nothing across it
+            std::vector<std::uint32_t> field(16 * 9, 0), next(field.size());
+            field[4 * 16 + 5] = 4'000'000'000u;  // nearly all a cell can hold
+            field[2 * 16 + 14] = 123'457u;
+            const std::uint64_t held = total(field);
+            std::uint32_t hottest = 4'000'000'000u;
+            for (int step = 0; step < 300; ++step) {
+                const auto stepped = program->step(shape, field, next, {.tile = {5, 4}, .boundary = {edge, 0}, .reverse_tiles = step % 2 == 1});
+                expect(fatal(stepped.has_value()));
+                field.swap(next);
+                if (total(field) != held) {
+                    expect(false) << std::format("edge {}, step {}: {} is not {}", static_cast<int>(edge), step, total(field), held);
+                    break;
+                }
+                const std::uint32_t now = std::ranges::max(field);
+                expect(now <= hottest) << "the hottest cell never gets hotter";
+                hottest = now;
+            }
+            // 300 steps is about six times the slowest mode's time on this field: spread, not yet at rest.
+            expect(std::ranges::max(field) < 40'000'000u && std::ranges::min(field) > 0u)
+                << std::format("the hottest is under a hundredth of where it began ({}), and every cell has some ({})", std::ranges::max(field), std::ranges::min(field));
+        }
+        // To rest: on a ring of six, half of each difference a step to each of two neighbours. It stops when no pair
+        // differs by 2 or more — whole numbers, so what is left over stays where it is — and still holds what it held.
+        {
+            const std::array<ca::Transfer, 1> ring{{{.channel = 0, .offsets = {{-1, 0}, {1, 0}}, .multiply = 1, .shift = 1}}};
+            const auto small = ca::Program::prepare(1, ca::Stages{.transfers = ring});
+            expect(fatal(small.has_value()));
+            std::vector<std::uint32_t> field{1000, 0, 0, 7, 0, 0}, next(6);
+            int steps = 0;
+            for (; steps < 10'000; ++steps) {
+                const auto stepped = small->step({6, 1}, field, next, {.boundary = {ca::Edge::wrap, 0}});
+                expect(fatal(stepped.has_value()));
+                field.swap(next);
+                if (!stepped->changed) break;
+            }
+            expect(steps < 10'000) << "it comes to rest";
+            expect(eq(total(field), std::uint64_t{1007}));
+            for (std::size_t cell = 0; cell < 6; ++cell) {
+                const std::uint32_t here = field[cell], beside = field[(cell + 1) % 6];
+                expect((here > beside ? here - beside : beside - here) < 2u) << std::format("cells {} and its neighbour: {} and {}", cell, here, beside);
+            }
+        }
+        // A constant edge is a bath: at 0 the heat leaves through it.
+        std::vector<std::uint32_t> field(16 * 9, 1000), next(field.size());
+        for (int step = 0; step < 50; ++step) {
+            expect(fatal(program->step(shape, field, next, {.boundary = {ca::Edge::constant, 0}}).has_value()));
+            field.swap(next);
+        }
+        expect(total(field) < 16u * 9u * 1000u && field[4 * 16 + 8] > field[0]) << "cooler at the edge than in the middle";
+    };
+
+    "a transfer by a conductance: a wall that conducts nothing keeps each side's heat; a poor conductor slows it"_test = [] {
+        // Channel 0 heat, channel 1 how well a cell conducts (0 … 4). The pair's conductance is the lesser of the two.
+        const std::array<ca::Transfer, 1> heat{{{.channel = 0, .offsets = {ca::cardinal.begin(), ca::cardinal.end()}, .multiply = 1, .shift = 4, .by = 1, .by_limit = 4}}};
+        const auto program = ca::Program::prepare(2, ca::Stages{.transfers = heat});
+        expect(fatal(program.has_value()));
+        const ca::Shape shape{9, 3};
+        const auto run = [&](std::uint32_t wall) {
+            std::vector<std::uint32_t> field(27 * 2, 0), next(field.size());
+            for (std::size_t cell = 0; cell < 27; ++cell) field[27 + cell] = cell % 9 == 4 ? wall : 4;  // a wall down the middle column
+            for (std::uint32_t y = 0; y < 3; ++y) field[y * 9 + 1] = 90'000;                            // heat on the left
+            for (int step = 0; step < 60; ++step) {
+                expect(fatal(program->step(shape, field, next, {.boundary = {ca::Edge::clamp, 0}}).has_value()));
+                field.swap(next);
+            }
+            std::uint64_t left = 0, right = 0;
+            for (std::uint32_t y = 0; y < 3; ++y)
+                for (std::uint32_t x = 0; x < 9; ++x) (x < 4 ? left : x > 4 ? right : left) += field[y * 9 + x];
+            expect(eq(left + right, std::uint64_t{270'000})) << "conserved, whatever conducts";
+            for (std::size_t cell = 0; cell < 27; ++cell) expect(eq(field[27 + cell], cell % 9 == 4 ? wall : 4u)) << "the conductance is no one's to change";
+            return right;
+        };
+        const std::uint64_t through_nothing = run(0), through_poor = run(1), through_good = run(4);
+        expect(eq(through_nothing, std::uint64_t{0})) << "nothing crosses a cell that conducts nothing";
+        expect(through_poor > 0 && through_poor < through_good) << std::format("{} < {}", through_poor, through_good);
+    };
+
+    "rules and transfers in one step read the same input; a transfer that could take more than a cell has is refused"_test = [] {
+        using C = ca::Condition;
+        using W = ca::WriteKind;
+        // Channel 1 marks a cell that was hot (≥ 500) in the input — the rule sees the heat before it flowed.
+        const std::array<ca::Rule, 1> rules{{{{C::self({0, {500, 0xffffffffu}})}, {{1, W::set, 1}}}}};
+        const std::array<ca::Transfer, 1> heat{{{.channel = 0, .offsets = {ca::cardinal.begin(), ca::cardinal.end()}, .shift = 2}}};
+        const auto program = ca::Program::prepare(2, ca::Stages{.rules = rules, .transfers = heat});
+        expect(fatal(program.has_value()));
+        std::vector<std::uint32_t> field(9 * 2, 0), next(field.size());
+        field[4] = 800;
+        const auto stepped = program->step({3, 3}, field, next, {.boundary = {ca::Edge::clamp, 0}});
+        expect(fatal(stepped.has_value()));
+        expect(eq(next[4], 0u) && eq(next[1], 200u) && eq(next[3], 200u) && eq(next[5], 200u) && eq(next[7], 200u)) << "a quarter to each of four: all of it";
+        expect(eq(next[9 + 4], 1u) && eq(next[9 + 1], 0u)) << "marked from the input's heat";
+        expect(eq(stepped->matched, std::uint64_t{1}) && eq(stepped->changed, std::uint64_t{5})) << "a cell a flow changed is changed";
+
+        const auto refused = [](ca::Transfer transfer, std::uint32_t channels = 2) {
+            const std::array<ca::Transfer, 1> one{{std::move(transfer)}};
+            const auto program = ca::Program::prepare(channels, ca::Stages{.transfers = one});
+            return program ? std::string("accepted") : std::format("{} at {}", program.error().description().name, ca::describe_where(program.error().where));
+        };
+        const std::vector<ca::Offset> four{ca::cardinal.begin(), ca::cardinal.end()};
+        expect(eq(refused({.channel = 0, .offsets = four, .shift = 1}), std::string("cellular.transfer at transfer 0"))) << "four neighbours each taking half";
+        expect(eq(refused({.channel = 0, .offsets = four, .multiply = 3, .shift = 3}), std::string("cellular.transfer at transfer 0"))) << "4 × 3 above 8";
+        expect(eq(refused({.channel = 0, .offsets = four, .shift = 4, .by = 1, .by_limit = 5}), std::string("cellular.transfer at transfer 0"))) << "5 × 4 above 16";
+        expect(eq(refused({.channel = 0, .offsets = {{1, 0}}, .shift = 3}), std::string("cellular.transfer at transfer 0"))) << "an offset without its opposite";
+        expect(eq(refused({.channel = 0, .offsets = {{0, 0}}, .shift = 3}), std::string("cellular.transfer at transfer 0"))) << "a cell is not its own neighbour";
+        expect(eq(refused({.channel = 0, .offsets = {}, .shift = 3}), std::string("cellular.transfer at transfer 0")));
+        expect(eq(refused({.channel = 2, .offsets = four}), std::string("cellular.channels at transfer 0")));
+        expect(eq(refused({.channel = 0, .offsets = four, .by = 7}), std::string("cellular.channels at transfer 0")));
+        const std::array<ca::Transfer, 2> twice{{{.channel = 0, .offsets = four}, {.channel = 0, .offsets = four}}};
+        const auto both = ca::Program::prepare(1, ca::Stages{.transfers = twice});
+        expect(!both && both.error().code == ca::Errc::transfer && both.error().where.transfer == std::size_t{1}) << "one flow a quantity";
+    };
+
     "the shared owned-state history rebuilds cellular states and inputs without a second checkpoint engine"_test = [] {
         const ca::Shape shape{19,11};const auto p=ca::Program::prepare(3,reaction_rules());expect(p.has_value());if(!p)return;
         auto state=initial(shape);

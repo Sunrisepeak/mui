@@ -83,11 +83,35 @@ struct Rule {
     std::vector<Condition> when; // all must match; empty is unconditional
     std::vector<Write> writes;  // unique channels; empty is a first-match barrier
 };
+// A transfer (encoding 2): a quantity that flows between a cell and each cell of its neighbourhood, from the one
+// that has more to the one that has less — and the amount that leaves one is the amount that arrives at the other,
+// because both compute it from the same two values. Between two cells it is
+//   (their difference × the pair's conductance × multiply) >> shift
+// where the conductance is 1, or with `by` the lesser of the two cells' values of that channel, at most `by_limit`
+// (a cell that conducts nothing takes and gives nothing). Preparation holds `by_limit × multiply × neighbours` to
+// at most 2^shift: no cell can give more than it has or take more than it can hold, so nothing saturates and what
+// the field holds of the quantity is what it held — exactly, where no rule writes the channel in the same step
+// (a rule's write comes first; the flows, of the input's values, are added to it and saturate).
+// The neighbourhood has with each offset its opposite. At a wrapped edge the quantity goes round; at a clamped one
+// nothing crosses (the cell beyond is the cell itself); at a constant one the outside is a bath at that value.
+struct Transfer {
+    std::uint32_t channel = 0;
+    std::vector<Offset> offsets;
+    std::uint32_t multiply = 1, shift = 3;
+    std::optional<std::uint32_t> by;
+    std::uint32_t by_limit = 1;
+};
+// A program's stages, each reading the same immutable input: the rules (a cell's own transitions), then the
+// transfers (what flows between cells).
+struct Stages {
+    std::span<const Rule> rules;
+    std::span<const Transfer> transfers;
+};
 struct Limits {
     std::uint32_t max_channels = 16, max_rules = 128, max_words = 65536;
     std::uint32_t max_values = 64 * 1024 * 1024; // per input/output field, uint32 values
 };
-enum class Errc : std::uint8_t { unprepared, channels, condition, range, offset, duplicate_write, limit, shape, alias, tile, invalid_limits };
+enum class Errc : std::uint8_t { unprepared, channels, condition, range, offset, duplicate_write, limit, shape, alias, tile, invalid_limits, transfer };
 // The codes as the error contract describes them (mlibs.error).
 [[nodiscard]] constexpr mlibs::error::Description describe(Errc e) noexcept {
     using Kind = mlibs::error::Kind;  // not `using mlibs::error::Kind;`: that is an ICE in GCC 16 (import_entity_module)
@@ -103,14 +127,18 @@ enum class Errc : std::uint8_t { unprepared, channels, condition, range, offset,
         case Errc::shape: return {"cellular.shape", Kind::invalid_argument, "fields that do not match the shape"};
         case Errc::alias: return {"cellular.alias", Kind::invalid_argument, "input and output overlap"};
         case Errc::tile: return {"cellular.tile", Kind::invalid_argument, "a tile outside the field or empty"};
+        case Errc::transfer: return {"cellular.transfer", Kind::invalid_argument, "a transfer that is not symmetric, or that could take more than a cell has"};
     }
     return {"cellular.?", Kind::internal};
 }
-// Where in a program a failure is: the rule, and the item (a condition or a write) in it.
+// Where in a program a failure is: the rule, and the item (a condition or a write) in it — or the transfer.
 struct Location {
     std::size_t rule = 0, item = 0;
+    std::optional<std::size_t> transfer;
 };
-[[nodiscard]] inline std::string describe_where(const Location& l) { return std::format("rule {}, item {}", l.rule, l.item); }
+[[nodiscard]] inline std::string describe_where(const Location& l) {
+    return l.transfer ? std::format("transfer {}", *l.transfer) : std::format("rule {}, item {}", l.rule, l.item);
+}
 using Failure = mlibs::error::Error<Errc, Location>;
 struct Shape { std::uint32_t width = 0, height = 0; };
 struct Tile { std::uint32_t x = 0, y = 0, width = 0, height = 0; };
@@ -162,7 +190,7 @@ public:
     Program(Program&& other) noexcept { *this=std::move(other); }
     Program& operator=(Program&& other) noexcept {
         if(this!=&other) {
-            channels_=std::exchange(other.channels_,0);halo_=std::exchange(other.halo_,0);rules_=std::exchange(other.rules_,0);
+            channels_=std::exchange(other.channels_,0);halo_=std::exchange(other.halo_,0);rules_=std::exchange(other.rules_,0);transfers_=std::exchange(other.transfers_,0);
             limits_=other.limits_;words_=std::move(other.words_);
         }
         return *this;
@@ -172,6 +200,9 @@ public:
     // Every unmentioned channel is copied. Publication/swap belongs to host.
     [[nodiscard]] static std::expected<Program,Failure> prepare(std::uint32_t channels,
         std::span<const Rule> rules, Limits limits = {});
+    // The same with the stages after the rules (a program with a transfer is of encoding 2).
+    [[nodiscard]] static std::expected<Program,Failure> prepare(std::uint32_t channels, Stages stages, Limits limits = {});
+    [[nodiscard]] std::uint32_t transfer_count() const noexcept { return transfers_; }
     [[nodiscard]] std::uint32_t channels() const noexcept { return channels_; }
     [[nodiscard]] std::uint32_t halo() const noexcept { return halo_; }
     [[nodiscard]] std::uint32_t rule_count() const noexcept { return rules_; }
@@ -180,7 +211,7 @@ public:
     // backends. No arbitrary bytecode constructor; prepare validates it once.
     // Its first word is the encoding: 1 for rules of states, thresholds and
     // counted neighbourhoods with constant writes — what every backend runs —
-    // and 2 when a rule aggregates (sum, minimum, maximum) or a write has terms.
+    // and 2 when a rule aggregates (sum, minimum, maximum), a write has terms, or there is a transfer.
     [[nodiscard]] std::span<const std::uint32_t> words() const noexcept { return words_; }
     [[nodiscard]] std::uint32_t encoding() const noexcept { return words_.empty() ? 0 : words_[0]; }
     [[nodiscard]] std::expected<std::size_t,Failure> values(Shape shape) const noexcept;
@@ -198,7 +229,7 @@ private:
         std::span<std::uint32_t>, Boundary) const noexcept;
     [[nodiscard]] Statistics run_tile(Shape, Tile, std::span<const std::uint32_t>,
         std::span<std::uint32_t>, Boundary) const noexcept;
-    std::uint32_t channels_ = 0, halo_ = 0, rules_ = 0;
+    std::uint32_t channels_ = 0, halo_ = 0, rules_ = 0, transfers_ = 0;
     Limits limits_;
     std::vector<std::uint32_t> words_;
 };

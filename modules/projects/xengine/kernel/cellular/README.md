@@ -24,7 +24,17 @@ Fields are contiguous channel-major `uint32_t` values: `[channel][y][x]`. All pr
 const std::vector<ca::Rule> diffuse{{{}, {{0, ca::WriteKind::set, 0, {ca::Term::self(0, 4, 3), ca::Term::sum(0, ca::cardinal, 1, 3)}}}}};
 ```
 
-Every step of it is 32-bit unsigned and saturating — a product stops at the largest number before its shift, sums stop there, a difference stops at 0 — so it is the same bits wherever it runs, and a device's shader needs no wider integer. A program that uses none of this keeps encoding 1, word for word what it was, which is what the device's kernel runs today; one that does is encoding 2 and runs on this CPU reference (the device's kernel refuses it as unsupported until it has the same stages). Flows between cells that conserve a quantity, and cells that move, are the next stages (transfer, exchange), not these.
+Every step of it is 32-bit unsigned and saturating — a product stops at the largest number before its shift, sums stop there, a difference stops at 0 — so it is the same bits wherever it runs, and a device's shader needs no wider integer. A program that uses none of this keeps encoding 1, word for word what it was, which is what the device's kernel runs today; one that does is encoding 2 and runs on this CPU reference (the device's kernel refuses it as unsupported until it has the same stages). Cells that move are the next stage (exchange), not these.
+
+**Transfers** (encoding 2; the stage after the rules). A quantity that flows between a cell and each of its neighbours, from the one that has more to the one that has less — heat, moisture, charge:
+
+```cpp
+// An eighth of each difference a step, to each of four neighbours; a cell conducts as channel 1 says (0: not at all).
+const std::array<ca::Transfer, 1> heat{{{.channel = 0, .offsets = {ca::cardinal.begin(), ca::cardinal.end()}, .multiply = 1, .shift = 5, .by = 1, .by_limit = 4}}};
+auto program = ca::Program::prepare(2, ca::Stages{.rules = rules, .transfers = heat});
+```
+
+Both ends of a pair compute the flow from the same two values, so what leaves one cell is what arrives at the other; and preparation refuses a transfer whose neighbourhood could together take more than a difference (`by_limit × multiply × neighbours` above `2^shift`), so nothing saturates. What the field holds of the quantity is then what it held, exactly, step after step — at a wrapped edge it goes round, at a clamped one nothing crosses, at a constant one the outside is a bath at that value. Rules and transfers read the same input; where a rule writes the channel in the same step its write comes first and the flows are added to it. Flows are whole numbers: a pair whose difference is too small to move anything stays as it is.
 
 Preparation owns a validated descriptor, infers halo reach and enforces resource/offset limits. `step` accepts a tile size/order; `step_tile` writes only the requested rectangle and reads its logical halo from the full immutable field. Hosts may schedule disjoint rectangles through their existing task executor. This is not streamed/sparse halo exchange, multi-cell movement arbitration or a new task pool.
 

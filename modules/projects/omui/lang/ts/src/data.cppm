@@ -36,10 +36,10 @@ struct Data {
 // The kinds the define functions make (D-157): the spec's formats from
 // "openmui/define", the implementation's from "omui/define".
 inline constexpr std::array<std::string_view, 3> spec_kinds{"contract", "native", "view"};
-inline constexpr std::array<std::string_view, 13> omui_kinds{"config", "ops",      "theme",     "style", "motion", "sound",   "music",
-                                                              "timeline", "subtitles", "video", "effect", "behavior", "messages"};
-inline constexpr std::array<std::string_view, 16> data_kinds{"contract", "native", "view",     "config",    "ops",   "theme",  "style",    "motion",
-                                                             "sound",    "music",  "timeline", "subtitles", "video", "effect", "behavior", "messages"};
+inline constexpr std::array<std::string_view, 14> omui_kinds{"config",   "ops",       "theme", "style",  "motion",   "sound",    "music",
+                                                             "timeline", "subtitles", "video", "effect", "behavior", "messages", "matter"};
+inline constexpr std::array<std::string_view, 17> data_kinds{"contract", "native",   "view",      "config", "ops",    "theme",    "style",    "motion", "sound",
+                                                             "music",    "timeline", "subtitles", "video",  "effect", "behavior", "messages", "matter"};
 
 // A data module's file (TypeScript, or JavaScript); a problem as `file:line:column: text` where it has a place.
 [[nodiscard]] std::expected<Data, std::string> evaluate(const std::filesystem::path& file, const DataOptions& options = {});

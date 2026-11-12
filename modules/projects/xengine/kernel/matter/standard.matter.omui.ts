@@ -1,0 +1,47 @@
+// What a world starts from (xengine.matter, D-165): the laws every world shares and a first table of
+// materials. No law names a material — fire does not know wood. A new material says its properties
+// and takes part in all of it: copy this file, add a row.
+//
+// Its JSON snapshot, standard.matter.omui.json, is what the kernel reads:
+//   omui-gen snapshot modules/projects/xengine/kernel/matter/standard.matter.omui.ts --out …/standard.matter.omui.json
+import { defineMatter } from "omui/define";
+
+export default defineMatter({
+  materials: {
+    air: { phase: "gas", density: 1.2, oxygen: 1, thermal: 1 },
+    stone: { density: 2600, thermal: 2, melting: 1300, melted: "lava" },
+    lava: { phase: "liquid", density: 2600, thermal: 4, melting: 1300, frozen: "stone", starts_at: 1600 },
+    sand: { phase: "granular", density: 1600, thermal: 1, porous: 4 },
+    wood: { density: 600, thermal: 1, porous: 2, ignition: 570, fuel: 400, heat: 80, burnt: "ash", tags: ["plant"] },
+    ash: { phase: "granular", density: 400, thermal: 1 },
+    iron: { density: 7800, thermal: 8, conduct: 8, melting: 1800, melted: "molten_iron", tags: ["metal"] },
+    molten_iron: { phase: "liquid", density: 7000, thermal: 8, conduct: 8, melting: 1800, frozen: "iron", starts_at: 1900, tags: ["metal"] },
+    water: { phase: "liquid", density: 1000, thermal: 2, conduct: 2, moist: 64, porous: 8, melting: 273, boiling: 373, boiled: "steam", frozen: "ice" },
+    steam: { phase: "gas", density: 0.6, thermal: 1, boiling: 373, condensed: "water", starts_at: 380 },
+    ice: { density: 917, thermal: 2, melting: 273, melted: "water", starts_at: 260 },
+    oil: { phase: "liquid", density: 900, thermal: 1, ignition: 500, fuel: 200, heat: 100, burnt: "smoke" },
+    smoke: { phase: "gas", density: 0.9, thermal: 1 },
+  },
+  laws: [
+    // What is carried: from where there is more to where there is less, by how well both ends pass it.
+    { name: "heat flows", transfer: "temperature", by: "thermal" },
+    { name: "charge flows", transfer: "charge", by: "conduct" },
+    { name: "wetness seeps", transfer: "wetness", by: "porous" },
+
+    // Properties as state leaves them.
+    { name: "wet is harder to light", when: "wetness > 0", raise: { ignition: "wetness * 40" } },
+
+    // What happens to a thing where it is.
+    { name: "holds its water", when: "moist > 0", set: { wetness: "moist" } },
+    { name: "dries in the heat", when: "moist == 0 && wetness > 0 && temperature >= 373", take: { wetness: 1 } },
+    { name: "gives off heat", when: "warmth > 0", add: { temperature: "warmth" } },
+    { name: "burns", when: "temperature >= ignition && burned < fuel && near.oxygen > 0", add: { burned: "burn_rate", temperature: "heat" }, flag: "burning" },
+
+    // What a thing becomes: each material says what, the law only when.
+    { name: "burns out", when: "fuel > 0 && burned >= fuel", become: "burnt", event: "burn_out" },
+    { name: "boils", when: "phase == liquid && boiling > 0 && temperature >= boiling", become: "boiled", event: "boil" },
+    { name: "condenses", when: "phase == gas && temperature < boiling", become: "condensed", event: "condense" },
+    { name: "freezes", when: "phase == liquid && temperature < melting", become: "frozen", event: "freeze" },
+    { name: "melts", when: "melting > 0 && temperature >= melting", become: "melted", event: "melt" },
+  ],
+});

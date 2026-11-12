@@ -443,6 +443,122 @@ export declare function defineMessages(messages: Messages): Defined<"messages">;
 // ── motion recipes ───────────────────────────────────────────────────────
 
 export declare function defineMotion(motion: { [field: string]: unknown }): Defined<"motion">;
+// ── what a world is made of (xengine.matter) ─────────────────────────────
+
+/** How a material is held together: what moves it, and what `phase == liquid` in a law compares. */
+export type MatterPhase = "solid" | "soft" | "granular" | "liquid" | "gas";
+/**
+ * A material: a row of properties. What it does not say is the column's default.
+ * A number is in the column's unit; what it becomes (`boiled`, `frozen`, `burnt` …) is another material's name.
+ */
+export interface MatterMaterial {
+    phase?: MatterPhase;
+    /** kg/m³: what sinks below what. */
+    density?: number;
+    friction?: number;
+    restitution?: number;
+    compliance?: number;
+    shape_stiffness?: number;
+    /** 0–8: how well it conducts heat (64ths of a difference a step, to each neighbour). */
+    thermal?: number;
+    /** K: it catches fire at this temperature, with fuel left and oxygen beside it. */
+    ignition?: number;
+    /** K */
+    melting?: number;
+    /** K */
+    boiling?: number;
+    /** K a step it gives off by itself. */
+    warmth?: number;
+    /** K: the temperature a new instance of it has (the surroundings' unless said). */
+    starts_at?: number;
+    /** The wetness it holds by its nature (water's own). */
+    moist?: number;
+    /** 0–8: how well wetness passes through it. */
+    porous?: number;
+    fuel?: number;
+    burn_rate?: number;
+    /** K a step its burning gives off. */
+    heat?: number;
+    /** What it gives a fire beside it (air: 1). */
+    oxygen?: number;
+    /** 0–8: how well it conducts charge. */
+    conduct?: number;
+    frozen?: string;
+    melted?: string;
+    boiled?: string;
+    condensed?: string;
+    burnt?: string;
+    tags?: string[];
+    /** A column the definition adds. */
+    [column: string]: number | string | string[] | undefined;
+}
+/** A property the definition adds to the standard ones. */
+export interface MatterColumn {
+    kind?: "number" | "material";
+    unit?: string;
+    doc?: string;
+    least?: number;
+    most?: number;
+    default?: number;
+    /** Bits after the point in the whole number a law reads (0: the number itself). */
+    fraction?: number;
+}
+/** A state channel the definition adds: a whole number every instance carries. */
+export interface MatterChannel {
+    unit?: string;
+    doc?: string;
+    /** What a new instance has, in the channel's unit. */
+    initial?: number;
+    /** Bits after the point in the whole number stored (temperature: 8, so that a 256th of a kelvin flows). */
+    fraction?: number;
+    /** A property: a new instance has its material's value of it instead, where that is not 0. */
+    from?: string;
+    /** Back to its start when the instance becomes another material. */
+    resets?: boolean;
+    /** Events when it leaves 0 and when it returns to it. */
+    rise?: string;
+    fall?: string;
+}
+/** What changes and by how much: `{ temperature: "heat", burned: "burn_rate" }` — a sum as text, or a whole number. */
+export type MatterAmounts = { [target: string]: string | number };
+/**
+ * A law reads properties and state, never a material by name — whatever has the properties takes part.
+ * One kind each: a transfer (`transfer`, `by`), an adjustment of properties (`raise`, `lower`),
+ * or a reaction (`add`, `take`, `set`, `flag`; with `become` the instance turns into what its own property names).
+ */
+export interface MatterLaw {
+    name?: string;
+    /** Comparisons joined by `&&`, in units: `temperature >= ignition && burned < fuel && near.oxygen > 0`, `temperature >= 373`. */
+    when?: string;
+    /** A channel that flows between neighbours, from more to less … */
+    transfer?: string;
+    /** … by the lesser of their two values of this property (0: not at all). */
+    by?: string;
+    /** A transfer's share of a difference: `by` × `multiply` / 2^`shift` (1 and 6 unless said). */
+    multiply?: number;
+    shift?: number;
+    add?: MatterAmounts;
+    take?: MatterAmounts;
+    set?: MatterAmounts;
+    raise?: MatterAmounts;
+    lower?: MatterAmounts;
+    /** A channel that is 1 while the law holds for an instance, 0 while it does not. */
+    flag?: string;
+    /** A property that names a material: `boiled`, `frozen`, `burnt` … */
+    become?: string;
+    /** What the conversion is called, for whoever listens. */
+    event?: string;
+    /** A special case that may name materials; counted, and said as such. */
+    recipe?: boolean;
+}
+export interface Matter {
+    columns?: { [name: string]: MatterColumn };
+    channels?: { [name: string]: MatterChannel };
+    materials: { [name: string]: MatterMaterial };
+    laws: MatterLaw[];
+}
+/** `export default defineMatter({ materials: { wood: { ignition: 570, fuel: 15, burnt: "ash" } }, laws: [{ transfer: "temperature", by: "thermal" }] })`. */
+export declare function defineMatter(matter: Matter): Defined<"matter">;
 )ts";
 }
 

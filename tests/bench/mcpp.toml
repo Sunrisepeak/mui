@@ -31,6 +31,7 @@ xrender.text = { path = "../../modules/projects/xrender/text" }
 mlibs.simulation = { path = "../../modules/base/simulation" }
 xengine.dynamics = { path = "../../modules/projects/xengine/kernel/dynamics" }
 xengine.cellular = { path = "../../modules/projects/xengine/kernel/cellular" }
+xengine.matter = { path = "../../modules/projects/xengine/kernel/matter" }
 "xengine.cellular.present" = { path = "../../modules/projects/xengine/kernel/cellular/present" }
 "hanim.core" = { path = "../../modules/projects/hanim/core" }
 "hanim" = { path = "../../modules/projects/hanim", features = ["render-vector"] }

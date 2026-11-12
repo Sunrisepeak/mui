@@ -269,6 +269,28 @@ UTest cases{"gen", [] {
         expect(catalogs >= 1) << "hanim's catalog at least";
     };
 
+    "every matter definition's committed snapshot is what its data module stands for (D-139)"_test = [] {
+        // The kernel reads the JSON (xengine.matter is below the scripts): the two must not part.
+        const auto repo = spec_dir().parent_path();
+        std::size_t definitions = 0;
+        std::vector<std::filesystem::path> files;
+        for (const auto* place : {"modules", "showcase", "examples"})
+            if (std::filesystem::exists(repo / place))
+                for (const auto& entry : std::filesystem::recursive_directory_iterator(repo / place)) files.push_back(entry.path());
+        for (const auto& path : files) {
+            const auto name = path.filename().generic_string();
+            if (!name.ends_with(".matter.omui.ts") || path.generic_string().find("/target/") != std::string::npos) continue;
+            ++definitions;
+            const auto made = gen::snapshot(path);
+            expect(made.has_value()) << (made ? std::string() : made.error());
+            if (!made) continue;
+            const auto committed = path.parent_path() / made->name;
+            expect(read(committed) == made->json) << std::format("{} is out of date: run omui-gen snapshot {} --out {}", committed.generic_string(), path.generic_string(),
+                                                                 committed.generic_string());
+        }
+        expect(definitions >= 1) << "the standard definition at least";
+    };
+
     "a malformed catalog is reported line by line"_test = [] {
         const auto broken = gen::read_catalog(R"({"ops": {
   "product": "x",

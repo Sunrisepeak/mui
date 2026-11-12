@@ -1,0 +1,31 @@
+[package]
+namespace = "xengine"
+name = "matter"
+version = "0.1.0"
+description = "Materials as rows of properties, their states as channels, and laws that read properties only — prepared once, stepped on any set of instances and their neighbours"
+license = "Apache-2.0"
+platforms = ["linux", "macos", "windows", "emscripten"]
+repo = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "module"
+# To an agent: a definition and its plan hold no state of their own — the state is the carrier's, reached through
+# the carrier's subject (the lattice's `field`); what a plan holds it says as JSON (Program::describe). Its own
+# catalog (materials by region, a quantity applied, why a state is what it is) comes with the record of causes
+# (the plan's T1.11), and this line changes to "subject" then.
+agent = { library = "a definition and its plan: the state it steps is the carrier's, reached through the carrier's subject; Program::describe says what the plan holds" }
+
+[targets.xengine-matter]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+mlibs.utils = { path = "../../../../base/utils" }
+# A definition is read from its JSON snapshot (*.matter.omui.json), problems by pointer.
+mlibs.json  = { path = "../../../../base/json" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.6.3"
+mlibs.cts      = { path = "../../../../base/cts" }

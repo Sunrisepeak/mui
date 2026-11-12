@@ -30,11 +30,11 @@ omui.viewdoc     = { path = "../../modules/projects/omui/viewdoc" }
 omui.lang.ts     = { path = "../../modules/projects/omui/lang/ts" }
 omui.ui.base     = { path = "../../modules/projects/omui/components/base" }
 omui.ui.markdown = { path = "../../modules/projects/omui/components/markdown" }
-xengine.video      = { path = "../../modules/projects/xengine/video" }
-"xengine.video.webm" = { path = "../../modules/projects/xengine/video/webm" }
-xengine.audio       = { path = "../../modules/projects/xengine/audio" }
+xengine.video      = { path = "../../modules/projects/xengine/kernel/video" }
+"xengine.video.webm" = { path = "../../modules/projects/xengine/kernel/video/webm" }
+xengine.audio       = { path = "../../modules/projects/xengine/kernel/audio" }
 hanim.timeline = { path = "../../modules/projects/hanim/timeline" }
-"xengine.audio.timeline" = { path = "../../modules/projects/xengine/audio/timeline" }
+"xengine.audio.timeline" = { path = "../../modules/projects/xengine/kernel/audio/timeline" }
 xrender.vector = { path = "../../modules/projects/xrender/vector" }
 mlibs.image = { path = "../../modules/base/image" }
 omui.host.headless = { path = "../../modules/projects/omui/host/headless" }

@@ -12,7 +12,7 @@
 | `omui` | 用一棵语义树同时驱动像素、强动画、无障碍、Agent 和测试的 UI 框架（动画由 hanim 提供） | `modules/projects/omui`（含 `components/`、`lang/`、`sdk/`、`templates/`） |
 | `hanim` | 可组合、Agent 原生的高级动画引擎，同一套能力支撑 UI 动画、视频和游戏动画；**唯一的通用动画能力归属** | `modules/projects/hanim` |
 | `xrender` | CPU 与 GPU 同源、Web 优先、像素可供 Agent 审查的渲染引擎（内部代号） | `modules/projects/xrender` |
-| `xengine` | 人和 Agent 地位对等地开发与游玩的 Agent 原生游戏引擎系统（内部代号）；也容纳暂时不好分类、还不够独立的领域能力 | `modules/projects/xengine` |
+| `xengine` | 人和 Agent 地位对等地开发与游玩的 Agent 原生游戏引擎系统（内部代号）；也容纳暂时不好分类、还不够独立的领域能力 | `modules/projects/xengine`：`kernel/`（UI 之下的引擎内核：模拟、媒体）与 `game/`（UI 之上的游戏层） |
 | `gongfu` | 确定性、可回滚、角色即数据的格斗游戏框架 | `modules/projects/gongfu` |
 | `mlibs` | 与领域无关的通用库、**纯抽象接口**（如 `mlibs.rhi`）和通用工具链（如 `mlibs.shader`） | `modules/{base,gfx,content}` |
 | `mlibs.utils` | 还不够独立成库的小工具，按目录放在 `src/<工具>/`，复杂到一定程度再拆成独立库 | `modules/base/utils` |
@@ -62,7 +62,7 @@
 
 ## 3. 架构与依赖
 
-- **依赖只能向下**（lint `layering`）：`base`（含 `hanim.core`：只依赖标准库和 `mlibs` 的 math、utils、memory、geom）← `gfx`（含 `hanim`、`xrender`）← `content` ← `media` ← `spec` ← `ui`（omui）← `components` ← xengine 游戏层 ← 作品。UI 永远不依赖游戏层；`spec/` 只依赖标准库；除 omui 及其上层外，引擎和库都不依赖 UI；`projects/` 中的项目随时可以拆成独立仓库（D-55）。
+- **依赖只能向下**（lint `layering`）：`base`（含 `hanim.core`：只依赖标准库和 `mlibs` 的 math、utils、memory、geom）← `gfx`（含 `hanim`、`xrender`）← `content` ← `media` ← `spec` ← `ui`（omui）← `components` ← xengine 游戏层（`xengine/game`）← 作品。UI 永远不依赖游戏层；`spec/` 只依赖标准库；除 omui 及其上层外，引擎和库都不依赖 UI；`projects/` 中的项目随时可以拆成独立仓库（D-55），所以项目之间也不成环，测试依赖也算（lint `project-dag`：xrender ← `xengine/kernel` 的模拟内核 ← hanim ← `xengine/kernel` 的媒体内核 ← omui ← `xengine/game`）。
 - **名字表示归属，目录表示分组，层级由 lint 的“路径 → 层”映射表判定**：一个项目的包可以跨层（例如 `hanim.core` 在 base 层，`hanim` 在 gfx 层）。
 - **动画**：组件不写动画（D-93，lint `motion`），只画状态和可选的部件名；变化怎么动由节点的 motion 槽和风格包配方决定，由 hanim 统一求值。UI 框架负责身份、语义、呈现和命中一致性。每个宿主只有一个 hanim Engine。表示与选择策略见[多表示方案](.agents/docs/2026-11-05-hanim-representations-selection-policy-design.md)。画布相机飞行这类导航运动是例外，需在行内写 `MOTION-OK:` 和理由。
 - **界面全平台自绘**（D-140）：窗口和系统集成面（边框、菜单栏、托盘、通知、文件对话框）可选原生或自绘，界面内容一律自绘；webview 只作可选的外部表面组件，不做 Web 前端模式（D-141）。

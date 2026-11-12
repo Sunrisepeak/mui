@@ -29,18 +29,18 @@ sources = ["src/*.cppm", "src/*.cpp"]
 mcpplibs.cmdline = "0.0.3"
 xrender.text = { path = "../../modules/projects/xrender/text" }
 mlibs.simulation = { path = "../../modules/base/simulation" }
-xengine.dynamics = { path = "../../modules/projects/xengine/dynamics" }
-xengine.cellular = { path = "../../modules/projects/xengine/cellular" }
-"xengine.cellular.present" = { path = "../../modules/projects/xengine/cellular/present" }
+xengine.dynamics = { path = "../../modules/projects/xengine/kernel/dynamics" }
+xengine.cellular = { path = "../../modules/projects/xengine/kernel/cellular" }
+"xengine.cellular.present" = { path = "../../modules/projects/xengine/kernel/cellular/present" }
 "hanim.core" = { path = "../../modules/projects/hanim/core" }
 "hanim" = { path = "../../modules/projects/hanim", features = ["render-vector"] }
 omui.sdk             = { path = "../../modules/projects/omui/sdk" }
 omui.view            = { path = "../../modules/projects/omui/view", features = ["hanim"] }
 mlibs.utils           = { path = "../../modules/base/utils" }
 mlibs.markdown        = { path = "../../modules/content/markdown" }
-xengine.audio           = { path = "../../modules/projects/xengine/audio" }
+xengine.audio           = { path = "../../modules/projects/xengine/kernel/audio" }
 "hanim.timeline"       = { path = "../../modules/projects/hanim/timeline" }
-"xengine.audio.timeline" = { path = "../../modules/projects/xengine/audio/timeline" }
+"xengine.audio.timeline" = { path = "../../modules/projects/xengine/kernel/audio/timeline" }
 omui.ui.canvas       = { path = "../../modules/projects/omui/components/canvas" }
 "omui.ui.canvas.kit"   = { path = "../../modules/projects/omui/components/canvas/kit" }
 omui.showcase.markdown_wall   = { path = "../../showcase/markdown-wall" }

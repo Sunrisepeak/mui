@@ -1,0 +1,31 @@
+# xengine.dynamics.cts — the solver families' conformance (mlibs.cts; D-133):
+# a subject (the CPU reference today; a SIMD or GPU tier later) is run
+# through each family's cases, every result passed, failed or unsupported.
+# A package of its own so the dynamics core carries no test framework.
+[package]
+namespace   = "xengine.dynamics"
+name        = "cts"
+version     = "0.1.0"
+description = "Conformance of xengine.dynamics' solver families (collision, xpbd, materials) on mlibs.cts"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "module"
+
+[targets.xengine-dynamics-cts]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-fno-fast-math", "-ffp-contract=off"]
+
+[dependencies]
+xengine.dynamics = { path = ".." }
+mlibs.simulation = { path = "../../../../../base/simulation" }
+mlibs.cts        = { path = "../../../../../base/cts" }
+mlibs.utils      = { path = "../../../../../base/utils" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.5.2"

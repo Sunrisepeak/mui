@@ -40,16 +40,16 @@ mlibs.math = { path = "../../modules/base/math" }
 mlibs.utils = { path = "../../modules/base/utils" }
 omui.sdk = { path = "../../modules/projects/omui/sdk" }
 omui.showcase.widget_breakout.sim = { path = "sim" }
-xengine.input = { path = "../../modules/projects/xengine/input" }
-xengine.ui    = { path = "../../modules/projects/xengine/ui" }
+xengine.input = { path = "../../modules/projects/xengine/game/input" }
+xengine.ui    = { path = "../../modules/projects/xengine/game/ui" }
 omui.theme = { path = "../../modules/projects/omui/theme" }
 "omui.theme.styles" = { path = "../../modules/projects/omui/theme/styles" }
 omui.ui.canvas = { path = "../../modules/projects/omui/components/canvas" }
-xengine.audio = { path = "../../modules/projects/xengine/audio" }
+xengine.audio = { path = "../../modules/projects/xengine/kernel/audio" }
 omui.abi = { path = "../../modules/projects/omui/abi" }
 omui.lang = { path = "../../modules/projects/omui/lang" }
 "omui.lang.js" = { path = "../../modules/projects/omui/lang/js" }
-"xengine.audio.device" = { path = "../../modules/projects/xengine/audio/device" }
+"xengine.audio.device" = { path = "../../modules/projects/xengine/kernel/audio/device" }
 
 [build-dependencies]
 omui.build.contracts = { path = "../../mcpp/contracts", host-module = true }

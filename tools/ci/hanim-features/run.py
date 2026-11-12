@@ -234,7 +234,7 @@ threads=false
                     '[targets.consumer]\nkind="bin"\nmain="src/main.cpp"\n[build]\nsources=["src/*.cpp"]\n'
                     '[dependencies]\n"hanim" = { path = '+json.dumps(str(installed))+' }\n')
         for identity, relative in {'hanim.core':'projects/hanim/core', 'mlibs.geom':'base/geom', 'mlibs.memory':'base/memory', 'mlibs.utils':'base/utils',
-                                   'xengine.dynamics':'projects/xengine/dynamics', 'mlibs.simulation':'base/simulation'}.items():
+                                   'xengine.dynamics':'projects/xengine/kernel/dynamics', 'mlibs.simulation':'base/simulation'}.items():
             manifest += json.dumps(identity)+' = { path = '+json.dumps(str(repo/'modules'/relative))+' }\n'
         (project/'mcpp.toml').write_text(manifest)
         shutil.copyfile(repo/'tools/ci/hanim-api-probe/src/main.cpp',project/'src/main.cpp')

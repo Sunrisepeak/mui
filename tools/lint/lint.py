@@ -81,8 +81,9 @@ SKIP_DIRS = {"target", ".git", ".cache", "build", "node_modules", "fixtures", ".
 # dependencies). The table holds today's directories and the ones M1 moves
 # them to (modules/projects/…), so a move changes no rule.
 #
-# The independent components (mlibs, hanim, xrender, xengine below the UI)
-# know nothing of omui (D-55); omui never depends on the game layer; the
+# The independent components (mlibs, hanim, xrender, xengine's kernels below
+# the UI) know nothing of omui (D-55); omui never depends on the game layer
+# (xengine/game, D-161); the
 # fighting framework's core depends on the standard library alone, so that it
 # can leave the repository unchanged, and the rest of gongfu on no UI.
 PATH_LAYERS: dict[str, str] = {
@@ -99,14 +100,15 @@ PATH_LAYERS: dict[str, str] = {
     "modules/projects/hanim": "gfx",
     "modules/projects/xrender": "gfx",
     "modules/projects/xrender/text": "content",  # text as the renderer draws it: above mlibs.text
-    "modules/projects/xengine/dynamics": "base",  # the CPU core (hanim and omui use it, D-133)
-    "modules/projects/xengine/cellular": "base",  # its CPU part
-    "modules/projects/xengine/cellular/rhi": "gfx",
-    "modules/projects/xengine/cellular/present": "gfx",  # cells to an xrender image
-    "modules/projects/xengine/cellular/sdl": "gfx",  # the kernel's suite and field on a native device
-    "modules/projects/xengine/audio": "media",
-    "modules/projects/xengine/video": "media",
-    "modules/projects/xengine": "game",  # world, input, physics, net, ui
+    "modules/projects/xengine/kernel/dynamics": "base",  # the CPU core (hanim and omui use it, D-133)
+    "modules/projects/xengine/kernel/cellular": "base",  # its CPU part
+    "modules/projects/xengine/kernel/cellular/rhi": "gfx",
+    "modules/projects/xengine/kernel/cellular/present": "gfx",  # cells to an xrender image
+    "modules/projects/xengine/kernel/cellular/sdl": "gfx",  # the kernel's suite and field on a native device
+    "modules/projects/xengine/kernel/audio": "media",
+    "modules/projects/xengine/kernel/video": "media",
+    "modules/projects/xengine/kernel/matter": "base",  # materials, their states and laws (D-165)
+    "modules/projects/xengine/game": "game",  # above the interface: world, input, net, ui (the bridge), tool
     "modules/projects/gongfu": "gongfu",
     "modules/projects/omui": "ui",
     "modules/projects/omui/host": "host",
@@ -155,8 +157,46 @@ LAYERS: dict[str, set[str]] = {
     "app": {"*"},
 }
 
+# Projects (D-161): the units that may each be a repository of its own one day,
+# and the projects each may depend on. Test dependencies count: a project whose
+# tests need a project above it could not be built alone. The layers above say
+# which package may reach which; this says that no two projects need each
+# other. The longest path prefix that holds a member names its project;
+# consumers (tools, the site, showcases, examples, tests, entries) are free.
+PROJECT_PATHS: dict[str, str] = {
+    "modules": "mlibs",  # base, gfx, content, mpal
+    "spec": "spec",
+    "modules/projects/xrender": "xrender",
+    "modules/projects/xengine/kernel/dynamics": "xengine.sim",
+    "modules/projects/xengine/kernel/cellular": "xengine.sim",
+    "modules/projects/xengine/kernel/matter": "xengine.sim",
+    "modules/projects/hanim": "hanim",
+    "modules/projects/xengine/kernel/audio": "xengine.media",
+    "modules/projects/xengine/kernel/video": "xengine.media",
+    "modules/projects/omui": "omui",
+    "modules/projects/xengine/game": "xengine.game",
+    "modules/projects/gongfu": "gongfu",
+}
+# gongfu's core alone (the standard library): a fixture the game layer's tests may take.
+EXACT_PROJECTS: dict[str, str] = {"modules/projects/gongfu": "gongfu.core"}
+_KERNELS = {"mlibs", "xrender", "xengine.sim", "hanim", "xengine.media"}
+PROJECT_DEPS: dict[str, set[str]] = {
+    "mlibs": set(),
+    "spec": set(),
+    "xrender": {"mlibs"},
+    "xengine.sim": {"mlibs", "xrender"},
+    "hanim": {"mlibs", "xrender", "xengine.sim"},
+    "xengine.media": {"mlibs", "xrender", "xengine.sim", "hanim"},
+    "omui": _KERNELS | {"spec"},
+    "gongfu.core": {"mlibs"},  # for its tests; what it is built from is the standard library alone (layering)
+    "gongfu": _KERNELS | {"gongfu.core"},
+    "xengine.game": _KERNELS | {"spec", "omui", "gongfu.core"},
+}
+# In the game layer, the one package that knows omui (D-162).
+OMUI_BRIDGE = "modules/projects/xengine/game/ui"
+
 # Members whose results are part of A-level conformance (identical bits).
-DETERMINISTIC = ["modules/base/math", "modules/base/utils", "modules/projects/omui/native/fuzzy", "modules/projects/xengine/audio", "modules/projects/xengine/video", "modules/projects/xengine/dynamics", "showcase/widget-breakout/sim", "modules/projects/hanim/core", "modules/projects/hanim", "modules/projects/xrender/raster", "modules/content/layout", "modules/base/geom", "modules/projects/xrender/graph", "modules/projects/xrender/vector", "modules/projects/xrender/text", "modules/content/text",
+DETERMINISTIC = ["modules/base/math", "modules/base/utils", "modules/projects/omui/native/fuzzy", "modules/projects/xengine/kernel/audio", "modules/projects/xengine/kernel/video", "modules/projects/xengine/kernel/dynamics", "showcase/widget-breakout/sim", "modules/projects/hanim/core", "modules/projects/hanim", "modules/projects/xrender/raster", "modules/content/layout", "modules/base/geom", "modules/projects/xrender/graph", "modules/projects/xrender/vector", "modules/projects/xrender/text", "modules/content/text",
                  "modules/content/i18n", "modules/projects/omui/view", "showcase/promo-video"]
 
 # The forwarders M1 removed (D-106): the old module names and the omui::
@@ -438,6 +478,54 @@ def check_manifests(root: Path) -> list[Problem]:
             flags = " ".join(data.get("build", {}).get("cxxflags", []))
             if "-ffp-contract=off" not in flags:
                 problems.append(Problem("determinism", f"{member}/mcpp.toml", "missing -ffp-contract=off in [build] cxxflags"))
+    return problems
+
+
+def project_of(member: str) -> str | None:
+    """The project of a member's directory (None: a consumer, free to depend on any)."""
+    if member in EXACT_PROJECTS:
+        return EXACT_PROJECTS[member]
+    best = None
+    for prefix in PROJECT_PATHS:
+        if member == prefix or member.startswith(prefix + "/"):
+            if best is None or len(prefix) > len(best):
+                best = prefix
+    return PROJECT_PATHS[best] if best is not None else None
+
+
+def check_projects(root: Path) -> list[Problem]:
+    """No project depends on one that is not below it, its tests included (D-161)."""
+    problems = []
+    for member in workspace_members(root):
+        own = project_of(member)
+        if own is None:
+            continue
+        try:
+            data = tomllib.loads((root / member / "mcpp.toml").read_text(encoding="utf-8"))
+        except (OSError, tomllib.TOMLDecodeError):
+            continue
+        tables = [(data.get("dependencies", {}), ""), (data.get("dev-dependencies", {}), " for its tests")]
+        tables += [(t, "") for t in data.get("feature-deps", {}).values()]
+        for target in data.get("target", {}).values():
+            if isinstance(target, dict):
+                tables += [(target.get("dependencies", {}), ""), (target.get("dev-dependencies", {}), " for its tests")]
+        for table, what in tables:
+            for name, spec in flatten_deps(table):
+                if not isinstance(spec, dict) or "path" not in spec:
+                    continue
+                try:
+                    dep = (root / member / spec["path"]).resolve().relative_to(root.resolve()).as_posix()
+                except ValueError:
+                    continue
+                other = project_of(dep)
+                if other is None:
+                    problems.append(Problem("project-dag", member, f"depends on {dep} ({name}){what}: a consumer, which no project depends on"))
+                elif other != own and other not in PROJECT_DEPS.get(own, set()):
+                    problems.append(Problem("project-dag", member, f"depends on {dep} ({name}){what}: {own} may depend on "
+                                                                   f"{sorted(PROJECT_DEPS.get(own, set())) or 'no project'}, not on {other}"))
+                elif other == "omui" and own == "xengine.game" and member != OMUI_BRIDGE:
+                    problems.append(Problem("project-dag", member, f"depends on {dep} ({name}){what}: in the game layer only "
+                                                                   f"{OMUI_BRIDGE} knows omui (D-162)"))
     return problems
 
 
@@ -945,7 +1033,7 @@ def check_typescript_data(root: Path) -> list[Problem]:
 
 
 def run(root: Path) -> list[Problem]:
-    return (check_sources(root) + check_manifests(root) + check_layout(root) + check_licences(root) + check_platforms(root) + check_pins(root)
+    return (check_sources(root) + check_manifests(root) + check_projects(root) + check_layout(root) + check_licences(root) + check_platforms(root) + check_pins(root)
             + check_documents(root) + check_media(root) + check_closures(root) + check_operations(root) + check_skills(root)
             + check_lead(root) + check_typescript_data(root))
 
@@ -971,6 +1059,7 @@ def self_test() -> int:
         "thirdparty": ("modules/base/hanim/core/src/w.cpp", "module x;\nimport mcpplibs.mwrap.md4c;\n"),
         "media": ("docs/huge.png", "x" * (1024 * 1024 + 1)),
         "manifest": None,
+        "project-dag": None,
         "pins": None,
         "closure": None,
         "typescript": ("modules/ui/core/contract/x.contract.omui.toml", "[contract.x]\nrole = \"button\"\n"),
@@ -1019,6 +1108,8 @@ def self_test() -> int:
                     deps = '[dependencies]\ncore = { path = "../../ui/core" }\n'
                 if rule == "closure" and m == "modules/gfx/hanim":
                     deps = '[dependencies]\nhanim.core = { path = "../../base/hanim/core" }\n'
+                if rule == "project-dag" and m == "modules/base/hanim/core":  # mlibs, with a test dependency on the specification
+                    deps = '[dev-dependencies]\nopenlifa.openmui = { path = "../../../../spec" }\n'
                 if rule == "manifest" and m == "modules/ui/core":
                     deps = '[dependencies.compat]\nsdl3 = "3.4.18"\n'
                 if rule == "pins" and m == "modules/ui/core":
@@ -1048,7 +1139,8 @@ def self_test() -> int:
                 CLOSURES = {"hanim": {"not": {"hanim.core"}}}  # planted: hanim may not reach its core
             kind, _, capability = rule.partition(":")
             found = [p for p in run(root) if p.rule == kind and (not capability or p.message.startswith(capability + ":"))]
-            clean = [p for p in run(root) if p.rule != kind]
+            # A specification that depends on a library (the layering case) breaks the projects' order too.
+            clean = [p for p in run(root) if p.rule != kind and not (rule == "layering" and p.rule == "project-dag")]
             CLOSURES = saved
             ok = bool(found) and not clean
             print(f"  {'ok  ' if ok else 'FAIL'}  {rule}: {found[0] if found else 'not caught'}")

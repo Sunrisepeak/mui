@@ -1,0 +1,32 @@
+[package]
+namespace = "xengine.cellular.rhi"
+name = "cts"
+version = "0.1.0"
+description = "Integer cellular CPU/GPU conformance on a caller-provided RHI device"
+license = "Apache-2.0"
+platforms = ["linux", "macos", "windows", "emscripten"]
+repo = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "backend"
+
+[targets.xengine-cellular-rhi-cts]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+xengine.cellular = { path = "../.." }
+"xengine.cellular.rhi" = { path = ".." }
+mlibs.rhi = { path = "../../../../../../gfx/rhi" }
+mlibs.utils = { path = "../../../../../../base/utils" }
+mlibs.cts = { path = "../../../../../../base/cts" }
+
+# The suite on the page's WebGPU (tests/*_webgpu_test.cpp; tools/ci/browser.sh runs it in a
+# browser): the owner takes a backend for its tests, never a backend its consumers (D-161).
+# Its run on SDL_GPU is in a native-only package: this one runs on the Web too.
+[dev-dependencies]
+mcpplibs.mtest     = "0.5.2"
+xrender.rhi.webgpu = { path = "../../../../../xrender/rhi/webgpu" }
+mcpplibs.os        = "0.4.4"

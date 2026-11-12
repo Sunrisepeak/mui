@@ -1,0 +1,12 @@
+# xengine/kernel
+
+The engine kernels below the interface (D-161): what the game layer, hanim and omui may all use. A package here depends on `mlibs`, on [xrender](../../xrender) where it draws or runs on a device, and on its neighbours here; never on [the game layer](../game), never on omui. The day the projects part, this directory is not in the game layer's repository.
+
+| Kernel | Layer | |
+|---|---|---|
+| [dynamics](dynamics) | base | Every solved simulation (D-133): collision and its queries, the solver families (XPBD soft bodies; rigid bodies next), the physical materials they share; on `mlibs.simulation`'s timeline |
+| [cellular](cellular) | base (its device parts gfx) | Integer rules over dense fields, stepped on the CPU or by one compute kernel ([rhi](cellular/rhi)), the same bits; a field on screen as one image ([present](cellular/present)); its suite on a native device ([sdl](cellular/sdl)) |
+| [audio](audio) | media | Sounds and music as data, voices mixed into buses a block at a time with nothing allocated; a device ([device](audio/device)); a bus's gain automated by a timeline's clip ([timeline](audio/timeline)) |
+| [video](video) | media | Frames and a sound track encoded on exact frame and sample counts; encoders as plugins ([webm](video/webm)) |
+
+For lint, two projects live here (`project-dag`): the simulation kernels (dynamics, cellular; matter next), which hanim may use, and the media kernels (audio, video), which may use hanim. Each kernel gives agents its state, its observation, its operations, its time, its causes and its authority from its own data model on (D-173, D-174): its README's "Agent surface" says how.

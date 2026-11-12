@@ -32,8 +32,8 @@ mlibs.utils = { path = "../../modules/base/utils" }
 mlibs.control = { path = "../../modules/base/control" }
 omui.sdk = { path = "../../modules/projects/omui/sdk" }
 mlibs.simulation = { path = "../../modules/base/simulation" }
-xengine.cellular = { path = "../../modules/projects/xengine/cellular" }
-"xengine.cellular.present" = { path = "../../modules/projects/xengine/cellular/present" }
+xengine.cellular = { path = "../../modules/projects/xengine/kernel/cellular" }
+"xengine.cellular.present" = { path = "../../modules/projects/xengine/kernel/cellular/present" }
 # The motion workbench reads, draws and tunes hanim's animation documents.
 hanim.studio = { path = "../../modules/projects/hanim/studio" }
 mcpplibs.os = "0.4.4"

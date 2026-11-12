@@ -180,7 +180,7 @@ Throwaway scripts were used once — to turn world-angle key poses into tracks b
 | `gongfu-studio versus` | Every pair played by bots: win rates and where damage comes from | same |
 | `gongfu-studio stage` | A stage file's painted layers as a frame, with two fighters for scale, framed as the game frames them | same |
 | `omui.build.embed` `embed(.index = true)` | Every embedded file of a tag in one generated table by name (`<tag>_files`), so a program finds its art without a list kept by hand | `mcpp/rules`, `tools/gen` |
-| `omui-music check / render / stats / fmt` | A piece checked, rendered to WAV at an intensity, measured (loudness, bands, per instrument) | `modules/projects/xengine/audio` |
+| `omui-music check / render / stats / fmt` | A piece checked, rendered to WAV at an intensity, measured (loudness, bands, per instrument) | `modules/projects/xengine/kernel/audio` |
 | `tools/ci/readme-media.sh` | Copies what the tests drew into each showcase's `media/`; in CI, checks they match | `tools/ci` |
 | `openmui.image` | PNG, WebP (still and animated), key out, pieces, pack, crop, scale, principal axis | `modules/base/image` |
 

@@ -32,7 +32,7 @@ control = { implies = ["engine"], sources = ["src/control/*.cppm", "src/control/
 
 # The engine steps simulated bodies with xengine.dynamics' xpbd solver on mlibs.simulation's timeline (D-131, D-133).
 [feature-deps.engine]
-xengine.dynamics = { path = "../xengine/dynamics" }
+xengine.dynamics = { path = "../xengine/kernel/dynamics" }
 mlibs.simulation = { path = "../../base/simulation" }
 
 [feature-deps.object]

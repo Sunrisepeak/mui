@@ -25,9 +25,9 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 mlibs.math = { path = "../../../modules/base/math" }
 mlibs.utils = { path = "../../../modules/base/utils" }
-xengine.world   = { path = "../../../modules/projects/xengine/world" }
-xengine.input   = { path = "../../../modules/projects/xengine/input" }
-xengine.dynamics = { path = "../../../modules/projects/xengine/dynamics" }
+xengine.world   = { path = "../../../modules/projects/xengine/game/world" }
+xengine.input   = { path = "../../../modules/projects/xengine/game/input" }
+xengine.dynamics = { path = "../../../modules/projects/xengine/kernel/dynamics" }
 mlibs.simulation = { path = "../../../modules/base/simulation" }
 
 [dev-dependencies]

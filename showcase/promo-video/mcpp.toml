@@ -38,9 +38,9 @@ omui.sdk                         = { path = "../../modules/projects/omui/sdk" }
 omui.theme                     = { path = "../../modules/projects/omui/theme" }
 "omui.theme.styles"                = { path = "../../modules/projects/omui/theme/styles" }
 hanim.timeline                    = { path = "../../modules/projects/hanim/timeline" }
-xengine.video                     = { path = "../../modules/projects/xengine/video" }
-"xengine.video.webm"                = { path = "../../modules/projects/xengine/video/webm" }
-xengine.audio                       = { path = "../../modules/projects/xengine/audio" }
+xengine.video                     = { path = "../../modules/projects/xengine/kernel/video" }
+"xengine.video.webm"                = { path = "../../modules/projects/xengine/kernel/video/webm" }
+xengine.audio                       = { path = "../../modules/projects/xengine/kernel/audio" }
 omui.ui.canvas                 = { path = "../../modules/projects/omui/components/canvas" }
 omui.ui.timeline                 = { path = "../../modules/projects/omui/components/timeline" }
 omui.abi                         = { path = "../../modules/projects/omui/abi" }

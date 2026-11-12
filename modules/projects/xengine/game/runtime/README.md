@@ -38,7 +38,7 @@ The game is a `Subject` of the agent kernel ([mlibs.agent](../../../../base/agen
 | History | Not here: `capabilities.history` is false (commits and branches are the kernel's, when a design adapter needs them) |
 | Budgets and tiers | `Options::tier` (reaction, actions a second, full view), `most_steps` a request, `keep` steps of history |
 
-The same requests at the same frames give the same bits: an agent's actions are recorded in the timeline as a person's are.
+The same requests at the same frames give the same bits: an agent's actions are recorded in the timeline as a person's are. The agent contract's suite ([mlibs.agent.cts](../../../../base/agent/cts)) runs on it in `tests/runtime_test.cpp`: what it has passes; causes, the source of what it puts out and a budget are reported unsupported.
 
 ```sh
 mcpp test -p xengine.runtime      # a small chase of its own: tiers, branch, seek, the same bits, an endpoint

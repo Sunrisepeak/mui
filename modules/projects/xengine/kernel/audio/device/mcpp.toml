@@ -15,6 +15,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 kind = "runtime"
+agent = { part = "xengine.audio" }
 
 [targets.openmui-audio-device]
 kind = "lib"

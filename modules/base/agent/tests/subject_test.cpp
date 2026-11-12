@@ -31,6 +31,7 @@ public:
     std::uint64_t state_hash() const override { return static_cast<std::uint64_t>(count) + 1; }
     void operate(std::string_view operation, const agent::Request& request, agent::Answer& answer) override {
         ++operated;
+        by = request.actor.name;
         if (operation == "counter.add") count += request["by"].integer().value_or(1);
         if (operation == "counter.reset") count = 0;
         answer.data(std::format("{{\"count\":{}}}", count));
@@ -39,6 +40,7 @@ public:
 
     std::int64_t count = 0;
     int          operated = 0, polled = 0;
+    std::string  by;  // who asked last, as the session said
 };
 
 // What a session answers to one request: its records, parsed.
@@ -76,20 +78,23 @@ UTest cases{"agent.subject", [] {
         expect(subject["name"].text() == "counter" && subject["interface"].text() == "example.counter@1");
         expect(subject["capabilities"]["observation"].boolean() == true && subject["capabilities"]["time"].boolean() == false)
             << "what it cannot do it says";
+        expect(eq(subject["capabilities"].size(), std::size_t{8})) << "observation, budget, control, time, causes, provenance, preview, history";
         expect(subject["hash"].text() == "0000000000000001");
         expect(who.records[0].root()["re"].integer() == 1) << "every record echoes the request's re";
 
-        const auto described = ask(session, R"({"op":"counter.describe"})");
+        const auto described = ask(session, R"({"op":"describe","subject":"counter"})");
         const auto operations = described.records[0].root()["data"]["operations"];
         expect(eq(operations.size(), std::size_t{3}));
         expect(operations[1]["name"].text() == "counter.add" && operations[1]["effect"].text() == "reversible");
         expect(!operations[1]["parameters"]) << "briefly: a name, its effect, a line";
         expect(!described.records[0].root()["re"]) << "no re asked, none echoed";
-        const auto one = ask(session, R"({"op":"counter.describe","operation":"counter.add"})");
+        const auto one = ask(session, R"({"op":"describe","operation":"counter.add"})");
         const auto entry = one.records[0].root()["data"];
         expect(entry["parameters"][0]["name"].text() == "by" && entry["parameters"][0]["optional"].boolean() == true) << "one operation whole";
         expect(entry["undo"].text() == "counter.add with the opposite" && entry["cost"].text() == "instant");
-        expect(ask(session, R"({"op":"counter.describe","operation":"counter.fly"})").error() == "not-found");
+        expect(ask(session, R"({"op":"describe","operation":"counter.fly"})").error() == "not-found");
+        expect(ask(session, R"({"op":"describe","subject":"clock"})").error() == "not-found") << "a subject that is not here";
+        expect(eq(ask(session, R"({"op":"describe"})").records[0].root()["data"]["operations"].size(), std::size_t{3})) << "the only subject here, when none is named";
     };
 
     "an operation runs and answers its data; what is not here is not-found; a line that is no request is said so"_test = [] {
@@ -117,7 +122,8 @@ UTest cases{"agent.subject", [] {
         auto access = std::make_shared<control::Access>(control::Policy{});
         agent::SubjectSession session({&counter}, {.access = access, .actor = {openas::Kind::agent, "reviewer", {}}});
 
-        expect(eq(ask(session, R"({"op":"counter.read"})").exit_code(), std::int64_t{0})) << "a reading runs";
+        expect(eq(ask(session, R"({"op":"counter.read","actor":"person:mallory"})").exit_code(), std::int64_t{0})) << "a reading runs";
+        expect(counter.by == "reviewer") << "who asks is the session's to say, not the line's";
 
         const auto asked = ask(session, R"({"op":"counter.reset"})");
         expect(asked.error() == "needs-answer");

@@ -11,6 +11,9 @@ description = "A game inside openmui: its steps paced on the runtime's clock, op
 license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 
+[package.metadata.openmui]
+agent = { part = "xengine.runtime" }
+
 [targets.mgame-ui]
 kind = "lib"
 

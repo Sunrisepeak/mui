@@ -15,6 +15,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 kind = "backend"
+agent = { part = "xengine.cellular" }
 
 [targets.xengine-cellular-sdl]
 kind = "lib"

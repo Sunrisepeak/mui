@@ -13,6 +13,9 @@ description = "gongfu matches drawn in 2D: skeletons with vector parts posed by 
 license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 
+[package.metadata.openmui]
+agent = { part = "gongfu" }
+
 [targets.gongfu-present2d]
 kind = "lib"
 

@@ -12,6 +12,9 @@ version     = "0.1.0"
 description = "The CTS level S harness: language-neutral scenarios and their pinned traces"
 license     = "Apache-2.0"
 
+[package.metadata.openmui]
+agent = { library = "conformance suites of the specification: for tests only" }
+
 [targets.omui-cts]
 kind = "lib"
 

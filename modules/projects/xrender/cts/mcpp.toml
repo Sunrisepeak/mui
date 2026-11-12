@@ -13,6 +13,7 @@ repo = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 kind = "backend"
+agent = { library = "conformance suites of the renderer contracts: for tests only" }
 
 [targets.xrender-cts]
 kind = "lib"

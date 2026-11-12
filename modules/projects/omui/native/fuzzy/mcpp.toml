@@ -16,6 +16,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 kind      = "native"
 contracts = ["native/*.native.omui.toml"]
+agent = { library = "fuzzy matching: a function of the query and the candidates" }
 
 [targets.openmui-native-fuzzy]
 kind = "lib"

@@ -10,10 +10,10 @@ namespace {
 
 std::string described(const Subject& subject) {
     const Capabilities can = subject.capabilities();
-    return std::format("{{\"name\":{},\"interface\":{},\"capabilities\":{{\"observation\":{},\"control\":{},\"time\":{},\"causes\":{},\"preview\":{},"
-                       "\"history\":{}}},\"hash\":\"{:016x}\"}}",
-                       json_text(subject.name()), json_text(subject.interface_name()), can.observation, can.control, can.time, can.causes,
-                       can.preview, can.history, subject.state_hash());
+    return std::format("{{\"name\":{},\"interface\":{},\"capabilities\":{{\"observation\":{},\"budget\":{},\"control\":{},\"time\":{},\"causes\":{},"
+                       "\"provenance\":{},\"preview\":{},\"history\":{}}},\"hash\":\"{:016x}\"}}",
+                       json_text(subject.name()), json_text(subject.interface_name()), can.observation, can.budget, can.control, can.time, can.causes,
+                       can.provenance, can.preview, can.history, subject.state_hash());
 }
 
 constexpr std::string_view cost_name(mlibs::control::Cost cost) noexcept {
@@ -83,13 +83,24 @@ void SubjectSession::request(std::string_view line, const Reply& reply) {
         answer.result();
         return;
     }
-    // "<subject>.describe": what one of ours can do, in tiers.
-    for (Subject* candidate : subjects_) {
-        if (request.op.size() != candidate->name().size() + 9 || !request.op.starts_with(candidate->name()) || !request.op.ends_with(".describe")) continue;
-        if (const auto one = request["operation"].text()) {
+    // `describe`: what one of ours can do, in tiers — a subject briefly, one operation whole, the whole listing.
+    if (request.op == "describe") {
+        const auto operation = request["operation"].text();
+        const auto named = request["subject"].text();
+        Subject* candidate = nullptr;
+        for (Subject* each : subjects_) {
+            if (named ? each->name() == *named : (operation ? operation->starts_with(std::string(each->name()) + ".") : subjects_.size() == 1)) candidate = each;
+            if (candidate) break;
+        }
+        if (!candidate) {
+            if (named) return answer.fail(openas::error_code::not_found, std::format("no subject here is named `{}` (ask `subjects`)", *named));
+            if (operation) return answer.fail(openas::error_code::not_found, std::format("no subject here has an operation `{}` (ask `subjects`)", *operation));
+            return answer.fail(openas::error_code::invalid_argument, "`describe` says which: a `subject`, or an `operation` by its whole name");
+        }
+        if (operation) {
             const auto entries = candidate->operations();
-            const auto entry = std::ranges::find_if(entries, [&](const auto& listed) { return listed.operation.name == *one; });
-            if (entry == entries.end()) return answer.fail(openas::error_code::not_found, std::format("`{}` has no operation `{}`", candidate->name(), *one));
+            const auto entry = std::ranges::find_if(entries, [&](const auto& listed) { return listed.operation.name == *operation; });
+            if (entry == entries.end()) return answer.fail(openas::error_code::not_found, std::format("`{}` has no operation `{}`", candidate->name(), *operation));
             answer.data(whole(*entry));
         } else if (request["detail"].text() == "full" && !candidate->listing().empty()) {
             answer.data(candidate->listing());
@@ -111,7 +122,7 @@ void SubjectSession::request(std::string_view line, const Reply& reply) {
         if (found) break;
     }
     if (!found) {
-        answer.fail(openas::error_code::not_found, std::format("no subject here has an operation `{}` (ask `subjects`, then `<subject>.describe`)", request.op));
+        answer.fail(openas::error_code::not_found, std::format("no subject here has an operation `{}` (ask `subjects`, then `describe` one)", request.op));
         return;
     }
     // Authority first: nothing reaches a subject undecided.
@@ -129,7 +140,10 @@ void SubjectSession::request(std::string_view line, const Reply& reply) {
             return;
         }
     }
-    subject->operate(request.op, request, answer);
+    // Who asks is the session's to say: its owner when it has one, never the line's own claim.
+    Request decided = request;
+    decided.actor = options_.session ? options_.session->attribute(options_.actor) : options_.actor;
+    subject->operate(decided.op, decided, answer);
     if (!answer.finished()) answer.result();
 }
 

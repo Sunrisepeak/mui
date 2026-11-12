@@ -5,6 +5,7 @@
 import std;
 import openas;
 import mlibs.agent;
+import mlibs.agent.cts;
 import mlibs.json;
 import mlibs.testing;
 import mlibs.hash;
@@ -102,6 +103,27 @@ std::string play_out(agent::SubjectSession& session, int turns, int stride) {
 }  // namespace
 
 UTest cases{"runtime", [] {
+    "the agent contract on a game: what it has passes, what it says it has not is unsupported"_test = [] {
+        namespace contract = mlibs::agent::cts;
+        const contract::Probe probe{
+            .make = []() -> std::unique_ptr<agent::Subject> { return std::make_unique<Game>(Chase::State{}, runtime::Options{.tier = assist}); },
+            .read = R"({"op":"world.observe"})",
+            .change = R"({"op":"world.step","steps":3})",
+            .undo = R"({"op":"world.seek","frame":0})",
+            .preview = R"({"op":"world.branch","steps":30,"axis":[1]})",
+            .script = {R"({"op":"world.act","axis":[1]})", R"({"op":"world.step","steps":45})", R"({"op":"world.observe"})", R"({"op":"world.act","axis":[-1]})",
+                       R"({"op":"world.step","steps":20})", R"({"op":"world.state"})"},
+        };
+        const auto report = contract::run(probe, {.subject = "xengine.runtime"});
+        std::println("{}", report.text());
+        expect(report.ok()) << report.text();
+        std::vector<std::string> unsupported;
+        for (const auto& outcome : report.outcomes)
+            if (outcome.status == mlibs::cts::Status::unsupported) unsupported.push_back(outcome.id);
+        expect(unsupported == std::vector<std::string>{"agent.source.chain", "agent.actor.recorded", "agent.observe.budget", "agent.causes.explained"})
+            << "causes, the source of what it puts out, a budget: not yet, and said so";
+    };
+
     "a game is a subject: what it can do, its operations, what a player on its tier is shown"_test = [] {
         Game game(Chase::State{});
         agent::SubjectSession session({&game});
@@ -110,7 +132,7 @@ UTest cases{"runtime", [] {
         expect(who["name"].text() == "world" && who["interface"].text() == "xengine.world@0.1");
         expect(who["capabilities"]["time"].boolean() == true && who["capabilities"]["preview"].boolean() == true);
         expect(who["capabilities"]["causes"].boolean() == false) << "what it cannot do yet it says";
-        expect(eq(ask(session, R"({"op":"world.describe"})").data()["operations"].size(), std::size_t{6}));
+        expect(eq(ask(session, R"({"op":"describe","subject":"world"})").data()["operations"].size(), std::size_t{6}));
 
         const auto seen = ask(session, R"({"op":"world.observe"})");
         expect(seen.data()["frame"].integer() == 0 && seen.data()["tier"].text() == "human");

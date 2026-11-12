@@ -7,11 +7,15 @@
 // A session over a process's subjects speaks one small protocol, whatever the
 // subjects are:
 //
-//   → {"op":"subjects"}                       who is here, what each can do, its state's hash
-//   → {"op":"world.describe"}                 a subject's operations, briefly: name, effect, what it does
-//   → {"op":"world.describe","operation":"world.act"}   one of them whole: its parameters, cost, how it is undone
-//   → {"op":"world.describe","detail":"full"} the whole catalog (its listing: <product>.ops.json)
-//   → {"op":"world.observe","re":7, …}        one of them — decided first (mlibs.control, openas)
+//   → {"op":"subjects"}                               who is here, what each can do, its state's hash
+//   → {"op":"describe","subject":"world"}             a subject's operations, briefly: name, effect, what it does
+//   → {"op":"describe","operation":"world.act"}       one of them whole: its parameters, cost, how it is undone
+//   → {"op":"describe","subject":"world","detail":"full"}   the whole catalog (its listing: <product>.ops.json)
+//   → {"op":"world.observe","re":7, …}                one of them — decided first (mlibs.control, openas)
+//
+// The session's own two requests have no dot in their names; a subject's
+// operations are addressed under it (`world.…`), so neither can take the
+// other's name.
 //
 // What a subject can do is disclosed in tiers, so that finding out costs an
 // agent as little as it needs: who is here; then names and a line each; then
@@ -35,10 +39,12 @@ export namespace mlibs::agent {
 
 // What a subject gives beyond its state (which it has by being one).
 struct Capabilities {
-    bool observation = false;  // a designed projection of its state, within a budget
+    bool observation = false;  // a designed projection of its state
+    bool budget = false;       // … answered within a budget of bytes the request gives
     bool control = false;      // operations that change it
     bool time = false;         // steps, seeks, replays
-    bool causes = false;       // why its state is what it is
+    bool causes = false;       // why its state is what it is, and who made each change
+    bool provenance = false;   // from what it puts out (a pixel, a sound, a value) back to what made it
     bool preview = false;      // a branch run ahead and compared, the state untouched
     bool history = false;      // commits, branches, what was undone
 };

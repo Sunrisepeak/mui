@@ -13,6 +13,7 @@ standard    = "c++26"
 
 [package.metadata.openmui]
 kind = "runtime"
+agent = { library = "compile-time reflection of contracts: no run-time state" }
 
 [targets.openmui-reflect]
 kind = "lib"

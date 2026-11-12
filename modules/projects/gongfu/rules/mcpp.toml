@@ -21,6 +21,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 kind = "rules"
+agent = { part = "gongfu" }
 
 # The studio's command line, built for the build machine, runs the edge.
 [dependencies]

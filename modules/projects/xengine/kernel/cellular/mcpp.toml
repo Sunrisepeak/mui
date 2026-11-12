@@ -9,17 +9,25 @@ repo = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 kind = "module"
+agent = "subject"
 
 [targets.xengine-cellular]
 kind = "lib"
 
 [build]
-sources = ["src/*.cppm", "src/*.cpp"]
+sources = ["src/*.cppm", "src/*.cpp", "src/agent/*.cppm", "src/agent/*.cpp"]
 
 [dependencies]
 mlibs.utils = { path = "../../../../base/utils" }
+# The field as an agent's subject (src/agent/, module xengine.cellular.agent; D-174): its frames on the
+# clock and history library, its operations through the agent kernel. The kernel's own module takes neither.
+mlibs.simulation = { path = "../../../../base/simulation" }
+mlibs.agent      = { path = "../../../../base/agent" }
+mlibs.control    = { path = "../../../../base/control" }
+mlibs.json       = { path = "../../../../base/json" }
+openlifa.openas  = "0.2.0"
 
 [dev-dependencies]
 mcpplibs.mtest = "0.5.2"
-mlibs.simulation   = { path = "../../../../base/simulation" }
 mlibs.cts          = { path = "../../../../base/cts" }
+mlibs.agent.cts  = { path = "../../../../base/agent/cts" }

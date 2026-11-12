@@ -1,0 +1,34 @@
+# mlibs.agent.cts — the agent contract's conformance (mlibs.cts; D-174): the
+# eight native properties as cases any subject of the agent kernel is run
+# through — an interface, a game, an animation stage, a field — every result
+# passed, failed or unsupported, the last only from what the subject itself
+# says it cannot do. A package of its own so the kernel carries no test
+# framework.
+[package]
+namespace   = "mlibs.agent"
+name        = "cts"
+version     = "0.1.0"
+description = "Conformance of the agent contract (the eight native properties) for any subject of mlibs.agent, on mlibs.cts"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "module"
+
+[targets.mlibs-agent-cts]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+mlibs.agent   = { path = ".." }
+mlibs.cts     = { path = "../../cts" }
+mlibs.control = { path = "../../control" }
+mlibs.json    = { path = "../../json" }
+mlibs.utils   = { path = "../../utils" }
+openlifa.openas = "0.2.0"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.5.2"

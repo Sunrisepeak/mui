@@ -16,17 +16,25 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 kind = "module"
+agent = "subject"
 
 [targets.xengine-dynamics]
 kind = "lib"
 
 [build]
-sources  = ["src/*.cppm", "src/collision/*.cppm", "src/collision/*.cpp", "src/material/*.cppm", "src/material/*.cpp", "src/xpbd/*.cppm", "src/xpbd/*.cpp", "src/inspect/*.cppm", "src/inspect/*.cpp"]
+sources  = ["src/*.cppm", "src/collision/*.cppm", "src/collision/*.cpp", "src/material/*.cppm", "src/material/*.cpp", "src/xpbd/*.cppm", "src/xpbd/*.cpp", "src/inspect/*.cppm", "src/inspect/*.cpp", "src/agent/*.cppm", "src/agent/*.cpp"]
 cxxflags = ["-fno-fast-math", "-ffp-contract=off"]
 
 [dependencies]
 mlibs.utils = { path = "../../../../base/utils" }
+# A body as an agent's subject (src/agent/, module xengine.dynamics.agent; D-174): its steps on the clock
+# and history library, its operations through the agent kernel. The solver families take neither.
+mlibs.simulation = { path = "../../../../base/simulation" }
+mlibs.agent      = { path = "../../../../base/agent" }
+mlibs.control    = { path = "../../../../base/control" }
+mlibs.json       = { path = "../../../../base/json" }
+openlifa.openas  = "0.2.0"
 
 [dev-dependencies]
 mcpplibs.mtest = "0.5.2"
-mlibs.simulation = { path = "../../../../base/simulation" }
+mlibs.agent.cts = { path = "../../../../base/agent/cts" }

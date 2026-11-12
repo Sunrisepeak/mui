@@ -1,0 +1,193 @@
+module xengine.cellular.agent;
+
+import std;
+import openas;
+import mlibs.agent;
+import mlibs.hash;
+import mlibs.json;
+
+namespace xengine::cellular::agent {
+
+void FieldModel::step(State& state, const Input& input) noexcept {
+    const std::size_t area = static_cast<std::size_t>(state.shape.width) * state.shape.height;
+    if (input.place) {
+        std::uint32_t* channel = state.cells.data() + static_cast<std::size_t>(input.channel) * area;
+        for (std::uint32_t y = input.region.y; y < input.region.y + input.region.height; ++y)
+            std::fill_n(channel + static_cast<std::size_t>(y) * state.shape.width + input.region.x, input.region.width, input.value);
+        return;
+    }
+    // Shaped when the field was made: a step cannot fail here.
+    if (state.program->step(state.shape, state.cells, state.next, {.boundary = state.boundary})) {
+        state.cells.swap(state.next);
+        ++state.steps;
+    }
+}
+
+std::expected<Field, std::string> Field::make(Program program, Shape shape, std::vector<std::uint32_t> cells, Options options) {
+    const auto values = program.values(shape);
+    if (!values) return std::unexpected(std::format("a field of {} × {} cells: {}", shape.width, shape.height, values.error().description().text));
+    if (cells.empty()) cells.assign(*values, 0);
+    if (cells.size() != *values)
+        return std::unexpected(std::format("{} values for a field of {} × {} cells and {} channels ({} values)", cells.size(), shape.width, shape.height,
+                                           program.channels(), *values));
+    FieldState state{std::make_shared<const Program>(std::move(program)), shape, options.boundary, std::move(cells), {}, 0};
+    state.next.assign(state.cells.size(), 0);
+    // A step on a copy, to say now what a step would say later.
+    FieldState trial = state;
+    if (const auto stepped = trial.program->step(trial.shape, trial.cells, trial.next, {.boundary = trial.boundary}); !stepped)
+        return std::unexpected(std::string(stepped.error().description().text));
+    return Field(state, options);
+}
+
+std::uint64_t Field::hash_of(const FieldState& state) noexcept {
+    mlibs::hash::Fnv1a hash;
+    hash.u64(state.shape.width).u64(state.shape.height).u64(state.program->channels()).i64(state.steps);
+    for (const std::uint32_t cell : state.cells) hash.word(cell);
+    return hash.value();
+}
+
+std::expected<Tile, std::string> Field::region_of(mlibs::json::Node node, std::string_view name, bool required) const {
+    const Shape shape = timeline_.state().shape;
+    if (!node) {
+        if (required) return std::unexpected(std::format("`{}`: [x, y, width, height] in cells", name));
+        return Tile{0, 0, shape.width, shape.height};
+    }
+    const auto parts = node.items();
+    std::array<std::int64_t, 4> at{};
+    for (std::size_t index = 0; index < 4; ++index) {
+        const auto value = parts.size() == 4 ? parts[index].integer() : std::nullopt;
+        if (!value || *value < 0 || *value > std::numeric_limits<std::uint32_t>::max()) return std::unexpected(std::format("`{}` is [x, y, width, height], whole cells", name));
+        at[index] = *value;
+    }
+    if (at[2] < 1 || at[3] < 1 || at[0] + at[2] > shape.width || at[1] + at[3] > shape.height)
+        return std::unexpected(std::format("`{}` [{}, {}, {}, {}] is not within the field ({} × {})", name, at[0], at[1], at[2], at[3], shape.width, shape.height));
+    return Tile{static_cast<std::uint32_t>(at[0]), static_cast<std::uint32_t>(at[1]), static_cast<std::uint32_t>(at[2]), static_cast<std::uint32_t>(at[3])};
+}
+
+std::string Field::status() const {
+    return std::format("{{\"frame\":{},\"steps\":{},\"hash\":\"{:016x}\",\"earliest\":{},\"latest\":{}}}", timeline_.frame(), timeline_.state().steps,
+                       hash_of(timeline_.state()), timeline_.earliest(), timeline_.latest());
+}
+
+std::string Field::observed(const FieldState& state, std::int64_t frame, Tile region, std::optional<std::int64_t> budget) const {
+    const std::size_t area = static_cast<std::size_t>(state.shape.width) * state.shape.height;
+    const std::uint32_t channels = state.program->channels();
+    std::string out = std::format("{{\"frame\":{},\"steps\":{},\"hash\":\"{:016x}\",\"shape\":[{},{}],\"region\":[{},{},{},{}],\"channels\":[", frame, state.steps,
+                                  hash_of(state), state.shape.width, state.shape.height, region.x, region.y, region.width, region.height);
+    std::uint32_t shown = 0;
+    for (; shown < channels; ++shown) {
+        std::uint32_t least = std::numeric_limits<std::uint32_t>::max(), most = 0;
+        std::uint64_t sum = 0, filled = 0;
+        const std::uint32_t* channel = state.cells.data() + static_cast<std::size_t>(shown) * area;
+        for (std::uint32_t y = region.y; y < region.y + region.height; ++y) {
+            const std::uint32_t* row = channel + static_cast<std::size_t>(y) * state.shape.width + region.x;
+            for (std::uint32_t x = 0; x < region.width; ++x) {
+                least = std::min(least, row[x]);
+                most = std::max(most, row[x]);
+                sum += row[x];
+                filled += row[x] != 0;
+            }
+        }
+        const std::string next = std::format("{}{{\"channel\":{},\"least\":{},\"most\":{},\"sum\":{},\"filled\":{}}}", shown ? "," : "", shown, least, most, sum, filled);
+        // What closes the answer (`],"more":N}`) still has to fit.
+        if (budget && out.size() + next.size() + 22 > static_cast<std::size_t>(std::max<std::int64_t>(0, *budget))) break;
+        out += next;
+    }
+    return out + std::format("],\"more\":{}}}", channels - shown);
+}
+
+void Field::operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) {
+    const auto invalid = [&](std::string_view why) { answer.fail(openas::error_code::invalid_argument, why); };
+    const FieldState& state = timeline_.state();
+    const auto channel_of = [&]() -> std::optional<std::uint32_t> {
+        const auto channel = request["channel"].integer();
+        if (!channel || *channel < 0 || *channel >= state.program->channels()) return std::nullopt;
+        return static_cast<std::uint32_t>(*channel);
+    };
+    const auto value_of = [&]() -> std::optional<std::uint32_t> {
+        const auto value = request["value"].integer();
+        if (!value || *value < 0 || *value > std::numeric_limits<std::uint32_t>::max()) return std::nullopt;
+        return static_cast<std::uint32_t>(*value);
+    };
+    const auto steps_of = [&]() -> std::optional<std::int64_t> {
+        const std::int64_t steps = request["steps"].integer().value_or(1);
+        if (steps < 1 || steps > options_.most_steps) return std::nullopt;
+        return steps;
+    };
+    const std::string no_channel = std::format("`channel` is 0 … {}", state.program->channels() - 1);
+    const std::string no_steps = std::format("`steps` is 1 … {}", options_.most_steps);
+
+    if (operation == "field.observe") {
+        const auto region = region_of(request["region"], "region", false);
+        if (!region) return invalid(region.error());
+        const auto budget = request["budget"].integer();
+        const std::string seen = observed(state, timeline_.frame(), *region, budget);
+        if (budget && seen.size() > static_cast<std::size_t>(std::max<std::int64_t>(0, *budget)))
+            return invalid(std::format("`budget` {}: the least this answers, with every channel left out, is {} bytes", *budget, seen.size()));
+        return answer.data(seen);
+    }
+    if (operation == "field.cells") {
+        const auto channel = channel_of();
+        if (!channel) return invalid(no_channel);
+        const auto region = region_of(request["region"], "region", true);
+        if (!region) return invalid(region.error());
+        const std::size_t count = static_cast<std::size_t>(region->width) * region->height;
+        if (count > options_.most_cells)
+            return invalid(std::format("{} cells asked, and a request reads at most {}: ask for a smaller region, or field.observe for its numbers", count, options_.most_cells));
+        const std::size_t area = static_cast<std::size_t>(state.shape.width) * state.shape.height;
+        std::string out = std::format("{{\"channel\":{},\"region\":[{},{},{},{}],\"rows\":[", *channel, region->x, region->y, region->width, region->height);
+        for (std::uint32_t y = 0; y < region->height; ++y) {
+            out += y ? ",[" : "[";
+            const std::uint32_t* row = state.cells.data() + *channel * area + static_cast<std::size_t>(region->y + y) * state.shape.width + region->x;
+            for (std::uint32_t x = 0; x < region->width; ++x) out += std::format("{}{}", x ? "," : "", row[x]);
+            out += "]";
+        }
+        return answer.data(out + "]}");
+    }
+    if (operation == "field.place") {
+        const auto channel = channel_of();
+        if (!channel) return invalid(no_channel);
+        const auto value = value_of();
+        if (!value) return invalid("`value` is 0 … 4294967295");
+        const auto region = region_of(request["region"], "region", true);
+        if (!region) return invalid(region.error());
+        place(*channel, *value, *region);
+        return answer.data(status());
+    }
+    if (operation == "field.step") {
+        const auto steps = steps_of();
+        if (!steps) return invalid(no_steps);
+        for (std::int64_t played = 0; played < *steps; ++played) step();
+        return answer.data(status());
+    }
+    if (operation == "field.seek") {
+        const auto frame = request["frame"].integer();
+        if (!frame) return invalid("`frame`: the frame to return to");
+        if (!timeline_.seek(*frame))
+            return answer.fail(openas::error_code::stale, std::format("frame {} is outside the history kept ({} … {})", *frame, timeline_.earliest(), timeline_.latest()));
+        timeline_.branch();
+        return answer.data(status());
+    }
+    if (operation == "field.branch") {
+        const auto steps = steps_of();
+        if (!steps) return invalid(no_steps);
+        const auto region = region_of(request["region"], "region", false);
+        if (!region) return invalid(region.error());
+        FieldState future = state;  // a copy: the field is not touched
+        std::int64_t frames = 0;
+        if (request["place"] || request["value"] || request["channel"]) {
+            const auto channel = channel_of();
+            if (!channel) return invalid(no_channel);
+            const auto value = value_of();
+            if (!value) return invalid("`value` is 0 … 4294967295");
+            const auto placed = region_of(request["place"], "place", true);
+            if (!placed) return invalid(placed.error());
+            FieldModel::step(future, {1, *channel, *value, *placed});
+            ++frames;
+        }
+        for (std::int64_t played = 0; played < *steps; ++played, ++frames) FieldModel::step(future, {});
+        return answer.data(observed(future, timeline_.frame() + frames, *region, std::nullopt));
+    }
+}
+
+}  // namespace xengine::cellular::agent

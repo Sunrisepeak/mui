@@ -32,9 +32,11 @@ clock/history library; caller-owned ticks and buffers are sufficient. Its
 separate manifest makes that omission real. Individual rules, conditions,
 channel operators and tile helpers stay inside this package.
 
-The package's one module is `xengine.cellular` (no forwarding
-names). It does not import `xengine.simulation`, so CPU-only consumers keep
-their no-clock/no-RHI/no-renderer dependency boundary.
+The kernel's module is `xengine.cellular` (no forwarding names): it imports
+no clock, no RHI and no renderer. The field as an agent's subject is a second
+module of the package, `xengine.cellular.agent` (below), which takes the
+clock and history library and the agent kernel — both mlibs, neither a
+renderer nor an interface.
 
 Ownership around it (convergence plan §6.10, D-132): material and reaction
 presets are an optional data package beside this kernel, not rules inside it;
@@ -43,3 +45,22 @@ xrender's resources, [present](present): one `ImageStore` image a pixel a
 cell, recoloured, re-uploaded and redrawn only where `Execution::changed_tiles`
 says a tile changed, drawn by one command (the GPU kernel's output as one
 `ExternalTexture` is next).
+
+## Agent surface
+
+A field is a `Subject` of the agent kernel ([mlibs.agent](../../../../base/agent)), module `xengine.cellular.agent`; every operation is decided there first (openas). Its operations are a catalog, [field.ops.omui.ts](field.ops.omui.ts) (the table `src/agent/catalog.cppm` and the listings `src/agent/field.ops.json`, `.md` are `omui-gen ops`'s); how to use them, in order, is [skill.omui.md](skill.omui.md).
+
+| | |
+|---|---|
+| Subject and addresses | `field`, interface `xengine.cellular.field@0.1`. A cell is `[x, y]` from the top left, a region `[x, y, width, height]`, a channel its index; a frame is one thing done to the field — a step of the program, or a value placed |
+| State | The cells (channel-major `uint32`), the steps run and the prepared program, on `mlibs.simulation`'s timeline, copied whole; the hash covers the shape, the steps and every cell |
+| Observation | `field.observe`: each channel of a region as numbers — least, most, sum, cells not zero — never the cells dumped; `field.cells`: one channel of a small region, row by row (at most 4096 cells a request) |
+| Control | `field.place`: one channel set to a value over a region; a frame of its own, recorded like a step, so it is taken back by seeking |
+| Time | `field.step`, `field.seek` back within the frames kept (what is run from there is a new branch); the same requests, the same bits |
+| Preview | `field.branch`: the field some steps ahead, a value placed first when one is given — observed as `field.observe` does, the field itself untouched (a copy is run) |
+| Budgets and tiers | `field.observe` within a `budget` of bytes (channels left out from the last, `more` says how many; a budget below the least answer is refused with that size); `Options`: `most_steps` and `most_cells` a request, `keep` frames of history |
+| Not here | **Causes** (why a cell holds what it holds, who placed it) and **source** (which rule wrote a cell): `capabilities` says so, and the contract suite reports them unsupported. They come with the matter kernel's record of causes (the plan's T1.11). **History** as commits and branches is the kernel's, when a design adapter needs it |
+
+```sh
+mcpp test -p xengine.cellular     # agent_test: the agent contract's suite on a field of falling sand, then regions, seeks and branches
+```

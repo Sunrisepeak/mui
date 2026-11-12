@@ -12,6 +12,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 kind = "lang"
+agent = { part = "omui.agent" }
 
 [targets.openmui-lang-js]
 kind = "lib"

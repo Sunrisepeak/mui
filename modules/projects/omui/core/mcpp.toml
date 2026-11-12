@@ -11,6 +11,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 kind = "runtime"
+agent = { part = "omui.agent" }
 
 [targets.openmui-core]
 kind = "lib"

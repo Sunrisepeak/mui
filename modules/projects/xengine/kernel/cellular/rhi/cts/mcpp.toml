@@ -9,6 +9,7 @@ repo = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 kind = "backend"
+agent = { library = "conformance suite of the GPU field: for tests only" }
 
 [targets.xengine-cellular-rhi-cts]
 kind = "lib"

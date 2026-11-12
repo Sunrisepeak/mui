@@ -15,6 +15,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 kind      = "native"
 contracts = ["native/*.native.omui.toml"]
+agent = { part = "omui.agent" }
 
 [targets.openmui-native-store]
 kind = "lib"

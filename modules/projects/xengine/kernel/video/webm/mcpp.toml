@@ -16,6 +16,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 kind = "runtime"
+agent = { library = "a container reader and writer: a function of the bytes given" }
 
 [targets.openmui-video-webm]
 kind = "lib"

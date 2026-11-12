@@ -16,6 +16,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 kind   = "theme"
 styles = ["styles/*.style.omui.ts"]
+agent = { library = "theme data: style packs" }
 
 [targets.openmui-theme-styles]
 kind = "lib"

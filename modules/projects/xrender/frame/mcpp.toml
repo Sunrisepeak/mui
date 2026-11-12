@@ -1,0 +1,45 @@
+# xrender.frame — the frame's entry (D-162; the plan's §5.6): a target and the
+# layers drawn into it in order — an interface's display list, a world's, an
+# overlay — composed here, captured here, and traced from a pixel back to the
+# layer and the object that drew it. Every producer of content (omui's hosts,
+# a game with no interface, a batch that exports pictures) hands its layers
+# to this one entry; none composes on its own.
+#
+# A package of its own rather than part of xrender.vector: the frame is what
+# every rendering feature's layers meet in (vector today, mesh and particles
+# later), and it carries the frame's agent surface — the vector renderer
+# takes neither the agent kernel nor JSON.
+[package]
+namespace   = "xrender"
+name        = "frame"
+version     = "0.1.0"
+description = "The frame's entry: layers composed into a target, captured, and traced from a pixel to what drew it"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+
+[package.metadata.openmui]
+kind  = "module"
+agent = "subject"
+
+[targets.xrender-frame]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+xrender.vector  = { path = "../vector" }
+xrender.raster  = { path = "../raster" }
+mlibs.geom      = { path = "../../../base/geom" }
+mlibs.image     = { path = "../../../base/image" }
+mlibs.utils     = { path = "../../../base/utils" }
+mlibs.json      = { path = "../../../base/json" }
+mlibs.agent     = { path = "../../../base/agent" }
+mlibs.control   = { path = "../../../base/control" }
+openlifa.openas = "0.2.0"
+
+[dev-dependencies]
+mcpplibs.mtest  = "0.5.2"
+mlibs.agent.cts = { path = "../../../base/agent/cts" }

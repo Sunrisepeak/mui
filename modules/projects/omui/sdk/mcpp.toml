@@ -12,6 +12,8 @@ description = "openmui: an open UI specification and its reference implementatio
 license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 
+[package.metadata.openmui]
+agent = { library = "the umbrella: it re-exports the packages of omui and holds nothing itself" }
 
 [targets.openmui]
 kind = "lib"

@@ -14,6 +14,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 kind   = "theme"
 themes = ["default.theme.omui.ts"]
+agent = { library = "theme data: tokens and recipes" }
 
 [targets.openmui-theme-default]
 kind = "lib"

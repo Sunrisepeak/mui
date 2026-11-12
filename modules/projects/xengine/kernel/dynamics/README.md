@@ -52,3 +52,22 @@ A `SoftBody` is a ring of particles held by its edges' lengths, its enclosed are
 - Benchmarks: `dynamics/softbody-24` and `-96` in `tests/bench` (zero allocations a step; a frame's budget for a figure's softness).
 
 Run `mcpp test -p xengine.dynamics -p xengine.dynamics.cts`: swept collision to the same bits, soft bodies dropped, landed on ledges, walked, kept upright and replayed bit for bit, the material table.
+
+## Agent surface
+
+A soft body is a `Subject` of the agent kernel ([mlibs.agent](../../../../base/agent)), module `xengine.dynamics.agent`; every operation is decided there first (openas). Its operations are a catalog, [body.ops.omui.ts](body.ops.omui.ts) (the table `src/agent/catalog.cppm` and the listings `src/agent/body.ops.json`, `.md` are `omui-gen ops`'s); how to use them, in order, is [skill.omui.md](skill.omui.md).
+
+| | |
+|---|---|
+| Subject and addresses | `body`, interface `xengine.dynamics.body@0.1`. A particle is its index around the ring; a frame is a step played |
+| State | The `SoftBody` (each particle's place and velocity), on `mlibs.simulation`'s timeline, copied whole; the hash covers every particle's place and velocity, bit for bit |
+| Observation | `body.observe`: centre, bounds, area against its rest area, its fastest particle's speed, and what the last step touched (a particle on a plane or a ledge); `body.particles` when each one is needed; `body.contacts`: the same in words, with the stages a step goes through |
+| Control | `body.push`: a force and a walk held from the next step on, a kick once — what a person's hand or a game's rule gives it; taken back by seeking |
+| Time | `body.step`, `body.seek` back within the steps kept (what is stepped from there is a new branch); the same requests, the same bits |
+| Preview | `body.branch`: the body some steps ahead under a given push, observed as `body.observe` does; the body itself untouched (a copy is stepped) |
+| Budgets and tiers | `body.observe` within a `budget` of bytes (contacts left out from the last, `more` says how many; a budget below the least answer is refused with that size); `Options`: `most_steps` a request, `keep` steps of history |
+| Not here | **Causes** as a record — who pushed it, which contact turned it — and **source** (from a particle's place back to what moved it): `capabilities` says so, and the contract suite reports them unsupported; `body.contacts` says what the last step touched, which is not that. They come with the kernels' record of causes (the plan's T1.11). The rigid families get their own subject when they land (M6.2) |
+
+```sh
+mcpp test -p xengine.dynamics     # agent_test: the agent contract's suite on a resting body, then kicks, seeks and branches
+```

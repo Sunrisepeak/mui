@@ -16,6 +16,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 kind = "lang"
+agent = { library = "TypeScript erased to JavaScript: a function of the source" }
 
 [targets.openmui-lang-ts]
 kind = "lib"

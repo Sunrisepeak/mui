@@ -12,6 +12,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 kind = "backend"
+agent = { part = "xrender.frame" }
 
 [targets.xrender-raster]
 kind = "lib"

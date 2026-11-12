@@ -16,6 +16,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 kind = "tool"
+agent = "tool"
 
 [targets.xengine]
 kind = "bin"

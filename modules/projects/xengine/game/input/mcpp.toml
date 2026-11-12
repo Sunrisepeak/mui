@@ -12,6 +12,9 @@ license     = "Apache-2.0"
 platforms   = ["linux", "macos", "windows", "emscripten"]
 repo        = "https://github.com/Sunrisepeak/mui"
 
+[package.metadata.openmui]
+agent = { part = "xengine.runtime" }
+
 [targets.mgame-input]
 kind = "lib"
 

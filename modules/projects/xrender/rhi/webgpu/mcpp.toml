@@ -14,6 +14,7 @@ platforms   = ["linux", "macos", "windows", "emscripten"]
 
 [package.metadata.openmui]
 kind = "backend"
+agent = { part = "xrender.frame" }
 
 [targets.xrender-rhi-webgpu]
 kind = "lib"

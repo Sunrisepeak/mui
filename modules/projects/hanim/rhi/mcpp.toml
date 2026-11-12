@@ -13,6 +13,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 kind = "backend"
+agent = { part = "hanim" }
 
 [targets.hanim-rhi]
 kind = "lib"

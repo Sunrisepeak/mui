@@ -15,6 +15,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 kind = "host"
+agent = { part = "omui.agent" }
 
 [targets.openmui-host-web-toy]
 kind = "lib"

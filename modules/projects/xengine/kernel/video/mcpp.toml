@@ -22,6 +22,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 kind = "runtime"
+agent = { library = "encodes and decodes: a function of the frames and bytes given; what plays is its consumer state" }
 
 [targets.openmui-video]
 kind = "lib"

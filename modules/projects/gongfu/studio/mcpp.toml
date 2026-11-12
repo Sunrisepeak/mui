@@ -13,6 +13,9 @@ description = "Making gongfu fighters: hurtboxes baked from the animation, check
 license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 
+[package.metadata.openmui]
+agent = "tool"
+
 [targets.gongfu-studio-core]
 kind = "lib"
 

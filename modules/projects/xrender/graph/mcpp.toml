@@ -14,6 +14,7 @@ platforms   = ["linux", "macos", "windows", "emscripten"]
 
 [package.metadata.openmui]
 kind = "module"
+agent = { part = "xrender.frame" }
 
 [targets.xrender-graph]
 kind = "lib"

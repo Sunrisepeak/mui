@@ -22,6 +22,8 @@ struct Request {
     std::string op;
     std::string re;      // its `re` as JSON text; empty: it gave none
     std::string answer;  // a person's answer to the question this operation asks ("yes"); empty: none
+    // Who asks, as the session knows them — never what the line claims. A subject records it with what it changes.
+    openas::Actor actor{openas::Kind::agent, {}, {}};
     std::shared_ptr<const mlibs::json::Document> document;
     // The request's own members, to read its arguments (an absent one is a node that is false).
     [[nodiscard]] mlibs::json::Node operator[](std::string_view key) const { return document->root()[key]; }

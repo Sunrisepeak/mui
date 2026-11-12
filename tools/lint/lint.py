@@ -1010,6 +1010,78 @@ def check_skills(root: Path) -> list[Problem]:
     return problems
 
 
+# The agent surface (D-174): every package of a project says how an agent
+# reaches what it holds, in its manifest — [package.metadata.openmui] `agent`:
+#   "subject"                it serves a subject of the agent kernel: its own catalog (<product>.ops.omui.ts), a
+#                            README section "Agent surface", and a test that runs the contract suite on it
+#                            (mlibs.agent.cts)
+#   "tool"                   a command line an agent runs: its catalog (and, by rule `ops`, its skill)
+#   { part = "<package>" }   what it holds is reached through that package's subject
+#   { library = "<why>" }    it holds nothing an agent could reach, and says why
+# A new package declares before its code is reviewed. What existed before the
+# rule and still owes its surface is listed here with what brings it; a
+# package listed may not also declare, so the list only shrinks.
+AGENT_SURFACE_OWED: dict[str, str] = {
+    "modules/projects/omui/agent": "T0.8: the interface as a subject of the kernel (`ui.*` through a SubjectSession) under the contract suite; its own protocol unchanged",
+    "modules/projects/hanim": "T0.8: the stage as a subject (`animation.*` through the agent kernel) under the contract suite",
+    "modules/projects/xengine/kernel/audio": "M6.4: what is sounding, each bus's loudness, a sound back to its event (the plan's §3.4: a structured way to listen)",
+    "modules/projects/xengine/game/world": "M6.2: entities and scenes as the game subject's addresses and observation by region and kind (§3.4)",
+    "modules/projects/xengine/game/net": "M6.2: a match's rollbacks as branches, a desync located to its step and channel (§3.4)",
+    "modules/projects/gongfu": "after M6.2: a match on xengine.runtime as a subject (its studio's tool is declared)",
+}
+AGENT_SURFACE_HEADING = re.compile(r"^#{2,3} Agent surface\b", re.MULTILINE)
+AGENT_CONTRACT_SUITE = re.compile(r"^\s*import\s+mlibs\.agent\.cts\s*;", re.MULTILINE)
+
+
+def check_agent_surface(root: Path) -> list[Problem]:
+    import tomllib
+    problems = []
+    declared: dict[str, tuple[str, object]] = {}  # package name → (member, its declaration)
+    members = [m for m in workspace_members(root) if m.startswith("modules/projects/")]
+    for member in members:
+        try:
+            data = tomllib.loads((root / member / "mcpp.toml").read_text(encoding="utf-8"))
+        except (OSError, tomllib.TOMLDecodeError):
+            continue  # rule `manifest` says so
+        declared[package_name(data)] = (member, data.get("package", {}).get("metadata", {}).get("openmui", {}).get("agent"))
+    owed_packages = {name for name, (member, _) in declared.items() if member in AGENT_SURFACE_OWED}
+    subjects = {name for name, (_, said) in declared.items() if said == "subject"}
+    for owed in sorted(set(AGENT_SURFACE_OWED) - set(members)):
+        problems.append(Problem("agent-surface", "tools/lint/lint.py", f"AGENT_SURFACE_OWED lists {owed}, which is no member under modules/projects/"))
+    for name, (member, said) in sorted(declared.items(), key=lambda item: item[1][0]):
+        where = f"{member}/mcpp.toml"
+        base = root / member
+        if member in AGENT_SURFACE_OWED:
+            if said is not None:
+                problems.append(Problem("agent-surface", where, "declares its agent surface and is still in AGENT_SURFACE_OWED: take it off the list"))
+            continue
+        if said is None:
+            problems.append(Problem("agent-surface", where, 'says nothing of its agent surface: [package.metadata.openmui] agent = "subject", "tool", '
+                                                            '{ part = "<package>" } or { library = "<why>" } (D-174: the surface is designed first)'))
+        elif said == "subject":
+            if not list(base.glob("*.ops.omui.ts")):
+                problems.append(Problem("agent-surface", where, "is a subject without a catalog of its own (<product>.ops.omui.ts)"))
+            readme = base / "README.md"
+            if not readme.exists() or not AGENT_SURFACE_HEADING.search(readme.read_text(encoding="utf-8")):
+                problems.append(Problem("agent-surface", f"{member}/README.md", 'is a subject\'s and has no "Agent surface" section (subject and addresses, observation, '
+                                                                                  "operations and effects, causes, preview and time, budgets and tiers, what it cannot do)"))
+            tests = base / "tests"
+            if not tests.is_dir() or not any(AGENT_CONTRACT_SUITE.search(f.read_text(encoding="utf-8")) for f in tests.glob("*.cpp")):
+                problems.append(Problem("agent-surface", where, "is a subject no test runs the contract suite on (import mlibs.agent.cts; contract::run(probe))"))
+        elif said == "tool":
+            if not list(base.glob("*.ops.omui.ts")):
+                problems.append(Problem("agent-surface", where, "is a tool without a catalog (<product>.ops.omui.ts)"))
+        elif isinstance(said, dict) and set(said) == {"part"} and isinstance(said["part"], str):
+            if said["part"] == name or (said["part"] not in subjects and said["part"] not in owed_packages):
+                problems.append(Problem("agent-surface", where, f"is part of `{said['part']}`, which is no subject among the projects' packages (nor one still owed)"))
+        elif isinstance(said, dict) and set(said) == {"library"} and isinstance(said["library"], str):
+            if len(said["library"].split()) < 3:
+                problems.append(Problem("agent-surface", where, "is a library and does not say why it holds nothing an agent could reach"))
+        else:
+            problems.append(Problem("agent-surface", where, f'`agent = {said!r}` is none of "subject", "tool", {{ part = "<package>" }}, {{ library = "<why>" }}'))
+    return problems
+
+
 LEAD_FEATURES = ".agents/docs/evaluation/lead.features.omui.json"
 
 
@@ -1041,7 +1113,7 @@ def check_typescript_data(root: Path) -> list[Problem]:
 
 def run(root: Path) -> list[Problem]:
     return (check_sources(root) + check_manifests(root) + check_projects(root) + check_layout(root) + check_licences(root) + check_platforms(root) + check_pins(root)
-            + check_documents(root) + check_media(root) + check_closures(root) + check_operations(root) + check_skills(root)
+            + check_documents(root) + check_media(root) + check_closures(root) + check_operations(root) + check_skills(root) + check_agent_surface(root)
             + check_lead(root) + check_typescript_data(root))
 
 
@@ -1067,6 +1139,7 @@ def self_test() -> int:
         "media": ("docs/huge.png", "x" * (1024 * 1024 + 1)),
         "manifest": None,
         "project-dag": None,
+        "agent-surface": None,
         "pins": None,
         "closure": None,
         "typescript": ("modules/ui/core/contract/x.contract.omui.toml", "[contract.x]\nrole = \"button\"\n"),
@@ -1091,6 +1164,9 @@ def self_test() -> int:
                      "spec": 'namespace = "openlifa"\nname = "openmui"'}
             if rule == "layout":
                 names["modules/gfx/hanim"] = 'name = "anim"'
+            if rule == "agent-surface":  # a project's package that says nothing of its agent surface
+                members.append("modules/projects/thing")
+                names["modules/projects/thing"] = 'name = "thing"'
             if rule == "platforms":
                 names["modules/ui/core"] += '\nplatforms = ["linux", "emscripten"]'
             pin = ""
@@ -1103,6 +1179,9 @@ def self_test() -> int:
             (root / "tools" / "lint" / "licenses.toml").write_text(
                 '[packages]\n"ns.kernel" = ["MIT"]\n"ns.os" = ["MIT"]\n"compat.sdl3" = ["Zlib"]\n', encoding="utf-8")
             readmes = {"modules": "[base](base) [gfx](gfx) [ui](ui)", "modules/base": "[hanim](hanim)", "modules/base/hanim": "[core](core)", "modules/gfx": "[hanim](hanim)", "modules/ui": "[core](core)"}
+            if rule == "agent-surface":
+                readmes["modules"] += " [projects](projects)"
+                readmes["modules/projects"] = "[thing](thing)"
             for d, text in readmes.items():
                 (root / d).mkdir(parents=True, exist_ok=True)
                 (root / d / "README.md").write_text(text + "\n", encoding="utf-8")
@@ -1140,15 +1219,16 @@ def self_test() -> int:
                 path, text = planted
                 (root / path).parent.mkdir(parents=True, exist_ok=True)
                 (root / path).write_text(text, encoding="utf-8")
-            global CLOSURES
-            saved = CLOSURES
+            global CLOSURES, AGENT_SURFACE_OWED
+            saved, saved_owed = CLOSURES, AGENT_SURFACE_OWED
+            AGENT_SURFACE_OWED = {}  # the list is this repository's: the planted tree has none of its packages
             if rule == "closure":
                 CLOSURES = {"hanim": {"not": {"hanim.core"}}}  # planted: hanim may not reach its core
             kind, _, capability = rule.partition(":")
             found = [p for p in run(root) if p.rule == kind and (not capability or p.message.startswith(capability + ":"))]
             # A specification that depends on a library (the layering case) breaks the projects' order too.
             clean = [p for p in run(root) if p.rule != kind and not (rule == "layering" and p.rule == "project-dag")]
-            CLOSURES = saved
+            CLOSURES, AGENT_SURFACE_OWED = saved, saved_owed
             ok = bool(found) and not clean
             print(f"  {'ok  ' if ok else 'FAIL'}  {rule}: {found[0] if found else 'not caught'}")
             if clean:

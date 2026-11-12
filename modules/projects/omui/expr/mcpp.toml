@@ -13,6 +13,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 kind = "runtime"
+agent = { library = "expressions evaluated: a function of the expression and its scope" }
 
 [targets.openmui-expr]
 kind = "lib"

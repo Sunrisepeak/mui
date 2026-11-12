@@ -8,9 +8,11 @@ Six things every engine gives an agent from its data model on — state, observa
 |---|---|
 | `:endpoint` | Where agents find a program and talk to it: a local connection named after the program (a Unix socket, a named pipe), a descriptor beside it (`<name>.endpoint.omui.json`: its application, the interface its sessions speak), optionally this machine's loopback behind a secret (a device's endpoint, forwarded). Lines in, lines out; one `Session` a connection, made by the owner; served by `pump()` at the owner's safe point — a frame's boundary, a step's |
 | `:envelope` | A request and its answer as records (openas §6): one JSON object a line with its `op`, a `re` echoed in every record, a person's `answer`; `data`, `notice`, `error` records and last a `result` with the exit code. The framing is the same for every subject |
-| `:subject` | What an agent finds, observes and operates: a `Subject` says its name, the interface its operations speak, what it can do of the six (and what it cannot), its catalog (`mlibs.control`'s entries, from `<product>.ops.omui.ts`), its state's hash. `SubjectSession` is a connection's conversation with a process's subjects, disclosed in tiers — `subjects` (who is here), `<subject>.describe` (names and a line each), `…describe` with an `operation` (one whole) or `"detail":"full"` (the catalog's listing) — and decides every operation first (`mlibs.control`): what a person must agree to ends in `needs-answer` until the request carries the answer, what is refused does not run |
+| `:subject` | What an agent finds, observes and operates: a `Subject` says its name, the interface its operations speak, what it can do — observation (and within a budget), control, time, causes, the source of what it puts out, preview, history — and what it cannot, its catalog (`mlibs.control`'s entries, from `<product>.ops.omui.ts`), its state's hash. `SubjectSession` is a connection's conversation with a process's subjects, disclosed in tiers — `subjects` (who is here), `describe` a `subject` (names and a line each), an `operation` (one whole) or with `"detail":"full"` (the catalog's listing) — and decides every operation first (`mlibs.control`): what a person must agree to ends in `needs-answer` until the request carries the answer, what is refused does not run. A request reaches its subject with who asks (`Request::actor`), as the session knows them, never as the line claims |
 
-Next, each when its second consumer is there (the plan's §3.2): observation with a budget, previews and transactions, the record of causes, real-time sessions, presence and claims, history, background tasks.
+The contract every subject is held to — the eight native properties, as cases — is [cts](cts) (`mlibs.agent.cts`): each subject's package runs it in its own tests.
+
+Next, each when its second consumer is there (the plan's §3.2): previews and transactions, the record of causes, real-time sessions, presence and claims, history, background tasks.
 
 ```cpp
 import mlibs.agent;
@@ -38,7 +40,7 @@ while (running) {
 class World final : public agent::Subject { /* name, interface, capabilities, operations, state_hash, operate */ };
 World world;
 agent::Endpoint endpoint({.name = "sandbox", .session = [&] { return std::make_unique<agent::SubjectSession>(std::vector<agent::Subject*>{&world}, options); }});
-// → {"op":"subjects"}   → {"op":"world.describe"}   → {"op":"world.observe","re":1}
+// → {"op":"subjects"}   → {"op":"describe","subject":"world"}   → {"op":"world.observe","re":1}
 ```
 
 Its own package rather than part of `mlibs.control`: control takes openas, logging and tracing alone and has no transport; this takes `mcpplibs.os`'s connections and `mlibs.json`, and control for its decisions.

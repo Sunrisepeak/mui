@@ -48,7 +48,7 @@ loop. Endpoints, correspondence and exact contour connectivity are preserved;
 seek order never changes results. It does not guarantee simple topology or
 constant-speed travel. See [typed effect semantics](../src/effect/README.md).
 
-The graphics consumer in [render/vector's CTS](../../xrender/vector/tests/shape_morph_test.cpp)
+The graphics consumer in [hanim.visual's tests](../visual/tests/shape_morph_test.cpp)
 uses this public plan without a UI Runtime or site dependency. It renders a
 single changing contour, varies a real material's lighting parameters, and
 composes the existing tone and blur effects. The original and subdivided

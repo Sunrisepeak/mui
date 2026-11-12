@@ -9,7 +9,6 @@ import mlibs.rhi;
 import mlibs.math;
 import mlibs.geom;
 import xrender.raster;
-import hanim.core;
 import :display;
 import :effects;
 import :cpu;
@@ -99,8 +98,8 @@ struct WipeFrame {
     float c, sn, lo, span;
 };
 WipeFrame wipe_frame(std::span<const float> params, mlibs::geom::Rect r) {
-    const double a = static_cast<double>(params[1]) * hanim::dm::pi / 180.0;
-    const auto c = static_cast<float>(hanim::dm::cos(a)), sn = static_cast<float>(hanim::dm::sin(a));
+    const double a = static_cast<double>(params[1]) * mlibs::math::det::pi / 180.0;
+    const auto c = static_cast<float>(mlibs::math::det::cos(a)), sn = static_cast<float>(mlibs::math::det::sin(a));
     float lo = std::numeric_limits<float>::max(), hi = -lo;
     for (mlibs::geom::Point q : {mlibs::geom::Point{r.x, r.y}, {r.right(), r.y}, {r.x, r.bottom()}, {r.right(), r.bottom()}}) {
         lo = std::min(lo, q.x * c + q.y * sn);
@@ -146,8 +145,8 @@ void reveal(const EffectInput& in) {
 // Row y's shift.
 float displace_row(std::span<const float> params, float scale, int y) {
     const float amount = params[0] * scale, wavelength = std::max(1.0f, params[1] * scale), phase = params[2];
-    const double arg = 2 * hanim::dm::pi * ((static_cast<double>(y) + 0.5) / wavelength + phase);
-    return amount * static_cast<float>(hanim::dm::sin(arg));
+    const double arg = 2 * mlibs::math::det::pi * ((static_cast<double>(y) + 0.5) / wavelength + phase);
+    return amount * static_cast<float>(mlibs::math::det::sin(arg));
 }
 
 void displace(const EffectInput& in) {
@@ -172,8 +171,8 @@ void noise(const EffectInput& in) {
 }
 
 mlibs::geom::Point chromatic_offset(std::span<const float> params, float scale) {
-    const double a = static_cast<double>(params[1]) * hanim::dm::pi / 180.0;
-    return {params[0] * scale * static_cast<float>(hanim::dm::cos(a)), params[0] * scale * static_cast<float>(hanim::dm::sin(a))};
+    const double a = static_cast<double>(params[1]) * mlibs::math::det::pi / 180.0;
+    return {params[0] * scale * static_cast<float>(mlibs::math::det::cos(a)), params[0] * scale * static_cast<float>(mlibs::math::det::sin(a))};
 }
 
 void chromatic(const EffectInput& in) {
@@ -505,7 +504,7 @@ float crt_row(std::span<const float> params, float scale, int y) {
     const float strength = clamp01(params[1]);
     const double period = std::max(2.0, 3.0 * static_cast<double>(scale));
     const double phase = (static_cast<double>(y) + 0.5) / period;
-    const double wave = 0.5 - 0.5 * hanim::dm::cos(2 * hanim::dm::pi * phase);
+    const double wave = 0.5 - 0.5 * mlibs::math::det::cos(2 * mlibs::math::det::pi * phase);
     return static_cast<float>(1.0 - static_cast<double>(strength) * 0.6 * wave);
 }
 void rows_crt(std::span<const float> p, float scale, std::span<float> out) {

@@ -31,7 +31,6 @@ xrender.graph = { path = "../graph" }
 mlibs.rhi    = { path = "../../../gfx/rhi" }
 mlibs.geom   = { path = "../../../base/geom" }
 mlibs.memory = { path = "../../../base/memory" }
-hanim.core          = { path = "../../hanim/core" }
 xrender.raster = { path = "../raster" }
 
 [dev-dependencies]

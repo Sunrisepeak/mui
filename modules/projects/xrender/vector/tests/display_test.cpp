@@ -2,7 +2,7 @@ import std;
 import xrender.vector;
 import mlibs.geom;
 import mlibs.memory;
-import hanim.core;
+import mlibs.math;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
@@ -21,7 +21,7 @@ UTest cases{"render.display", [] {
         expect(near(back.x, 1, 1e-6));
         expect(near(back.y, 1, 1e-6));
         expect(!geom::Affine::scale(0, 1).inverse().has_value());
-        auto r = render::rotate(hanim::dm::half_pi).apply({1, 0});
+        auto r = render::rotate(mlibs::math::det::half_pi).apply({1, 0});
         expect(near(r.x, 0, 1e-6));
         expect(near(r.y, 1, 1e-6));
         expect(geom::Affine{}.identity());

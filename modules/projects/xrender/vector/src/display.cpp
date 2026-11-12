@@ -4,13 +4,13 @@ import std;
 import mlibs.memory;
 import mlibs.geom;
 import mlibs.hash;
-import hanim.core;
+import mlibs.math;
 
 namespace xrender {
 
 Affine rotate(float radians) noexcept {
-    auto co = static_cast<float>(hanim::dm::cos(radians));
-    auto si = static_cast<float>(hanim::dm::sin(radians));
+    auto co = static_cast<float>(mlibs::math::det::cos(radians));
+    auto si = static_cast<float>(mlibs::math::det::sin(radians));
     return Affine::rotation(co, si);
 }
 
@@ -58,7 +58,7 @@ Path& Path::close() {
 
 namespace {
 
-namespace dm = hanim::dm;
+namespace dm = mlibs::math::det;
 
 // Appends cubics approximating the elliptical arc of centre c, radii (rx, ry),
 // rotation phi, from angle t0 sweeping dt (radians), at most 90° per cubic.

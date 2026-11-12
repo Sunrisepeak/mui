@@ -24,7 +24,7 @@ using mlibs::geom::Point;
 using mlibs::geom::Rect;
 using mlibs::geom::Size;
 
-// A rotation with the deterministic sine and cosine of hanim: the same
+// A rotation with the deterministic sine and cosine (mlibs.math): the same
 // matrix on every platform.
 [[nodiscard]] Affine rotate(float radians) noexcept;
 

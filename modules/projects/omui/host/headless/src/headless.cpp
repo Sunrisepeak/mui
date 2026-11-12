@@ -66,12 +66,12 @@ struct Headless::Impl {
         // Only the rows the new list can change: the same bytes as a full render.
         const auto rows = damage.update(list, w, hgt, options.scale, resources);
         if (!rows.empty()) {
-            const xrender::FrameLayer interface{.name = "ui", .list = &list, .resources = resources, .scale = options.scale, .object_ids = true};
+            const xrender::FrameLayer ui_layer{.name = "ui", .list = &list, .resources = resources, .scale = options.scale, .object_ids = true};
             xrender::FrameOptions how;
             how.background = options.background;
             how.rows = rows;
             if (options.parallel_raster) how.parallel = &raster_parallel();
-            (void)window.render({&interface, 1}, surface, how);
+            (void)window.render({&ui_layer, 1}, surface, how);
         }
         rendered = h;
         have_pixels = true;

@@ -32,6 +32,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 xrender.vector  = { path = "../vector" }
 xrender.raster  = { path = "../raster" }
+mlibs.rhi       = { path = "../../../gfx/rhi" }
 mlibs.geom      = { path = "../../../base/geom" }
 mlibs.image     = { path = "../../../base/image" }
 mlibs.utils     = { path = "../../../base/utils" }

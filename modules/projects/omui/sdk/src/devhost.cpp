@@ -7,6 +7,7 @@ import omui.view;
 import omui.agent;
 import omui.semantic;
 import xrender.vector;
+import xrender.frame;
 import xrender.raster;
 import xrender.text;
 import mlibs.text;
@@ -47,7 +48,7 @@ struct DevHost::Impl {
         return loaded;
     }();
     xrender::text::GlyphCache glyphs;
-    xrender::CpuRenderer      renderer;
+    xrender::CpuFrame         composed;  // the frame's entry (xrender.frame)
 
     // An application shown: its presentation, the last frame drawn as the host's image.
     struct Shown {
@@ -81,7 +82,8 @@ struct DevHost::Impl {
         const Size size = runtime.size();
         const float scale = runtime.scale();
         auto surface = std::make_shared<xrender::raster::Surface>(static_cast<int>(std::ceil(size.width * scale)), static_cast<int>(std::ceil(size.height * scale)));
-        (void)renderer.render(shown.presentation->list(), *surface, {&shown.presentation->images(), &glyphs}, {.scale = scale});
+        const xrender::FrameLayer application{.name = "application", .list = &shown.presentation->list(), .resources = {&shown.presentation->images(), &glyphs}, .scale = scale};
+        (void)composed.render({&application, 1}, *surface);
         if (shown.image.id == 0) shown.image = runtime.images().add(std::move(surface));
         else if (!runtime.images().update(shown.image, surface)) shown.image = runtime.images().add(std::move(surface));
     }

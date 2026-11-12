@@ -30,7 +30,7 @@ void world(xrender::DisplayList& list) {
     list.end_node();
 }
 // An interface in front: a panel (object 7) with a button in it (object 9); the rest of it draws nothing.
-void interface(xrender::DisplayList& list) {
+void front_layer(xrender::DisplayList& list) {
     list.begin_node(7);
     list.fill_round_rect({8, 56, 96, 32}, geom::CornerRadii::all(6), xrender::Paint::solid(geom::Color::hex(0xf8fafc)));
     list.begin_node(9);
@@ -47,7 +47,7 @@ struct Picture final : xrender::FrameSubject {
 
     explicit Picture(bool world_ids = true) {
         world(behind);
-        interface(front);
+        front_layer(front);
         const std::array layers{xrender::FrameLayer{.name = "world", .list = &behind, .object_ids = world_ids},
                                 xrender::FrameLayer{.name = "ui", .list = &front, .object_ids = true}};
         frame.render(layers, surface, {.background = geom::Color::black()});

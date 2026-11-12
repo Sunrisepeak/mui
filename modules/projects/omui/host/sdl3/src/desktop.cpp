@@ -9,6 +9,7 @@ import omui.accessibility;
 import mpal;
 import xrender.raster;
 import xrender.vector;
+import xrender.frame;
 import mlibs.text;
 import mlibs.image;
 import mlibs.trace;
@@ -129,7 +130,7 @@ struct Desktop::Impl final : WindowHost {
     platform::WindowPtr                      window;
     // Web pages in the system's own view over the window (D-141; macOS's WKWebView), gone before it.
     std::unique_ptr<web::Pages, void (*)(web::Pages*)> web_pages{nullptr, [](web::Pages*) {}};
-    xrender::CpuRenderer                      renderer;
+    xrender::CpuFrame                         composed;  // the frame's entry (xrender.frame): the host composes nothing itself
     xrender::DamageTracker                    damage;     // what the next list changes
     xrender::raster::Surface                          frame;
     std::uint64_t                            shown = 0;   // the list hash on screen
@@ -144,7 +145,7 @@ struct Desktop::Impl final : WindowHost {
     // The GPU path: a device that claimed the window, the renderer, and the
     // frame texture the swapchain shows.
     std::unique_ptr<mlibs::rhi::Device>             device;
-    std::optional<xrender::GpuRenderer>       gpu;
+    std::optional<xrender::GpuFrame>          gpu;
     mlibs::rhi::Texture                             gpu_frame;
     std::uint32_t                            gpu_w = 0, gpu_h = 0;
     std::optional<xrender::effect::Library>           effects;
@@ -229,7 +230,7 @@ struct Desktop::Impl final : WindowHost {
             return {};
         }
         if ((*made)->caps().software && options.renderer == R::automatic) return {};  // the CPU renderer is faster
-        auto r = xrender::GpuRenderer::create(**made);
+        auto r = xrender::GpuFrame::create(**made);
         if (!r) {
             if (options.renderer == R::gpu) return std::unexpected(std::format("the GPU renderer: {}", r.error().message));
             return {};
@@ -270,12 +271,12 @@ struct Desktop::Impl final : WindowHost {
             const xrender::Resources resources{&runtime->images(), glyphs.get()};
             // Only the rows the new list can change: the same bytes as a full render.
             const auto rows = damage.update(list, w, hgt, scale, resources);
-            xrender::CpuOptions o;
-            o.scale = scale;
-            o.background = options.background;
-            o.rows = rows;
-            if (options.parallel_raster) o.parallel = &raster_parallel();
-            if (!rows.empty()) (void)renderer.render(list, frame, resources, o);
+            const xrender::FrameLayer ui_layer{.name = "ui", .list = &list, .resources = resources, .scale = scale};
+            xrender::FrameOptions how;
+            how.background = options.background;
+            how.rows = rows;
+            if (options.parallel_raster) how.parallel = &raster_parallel();
+            if (!rows.empty()) (void)composed.render({&ui_layer, 1}, frame, how);
         }
         mlibs::trace::Span span("present", "host");
         platform::present(*window, frame);
@@ -302,7 +303,8 @@ struct Desktop::Impl final : WindowHost {
         {
             mlibs::trace::Span span("render", "host");
             const xrender::Resources resources{&runtime->images(), glyphs.get()};
-            auto r = gpu->render(list, gpu_frame, resources, {.scale = scale, .clear = true, .background = options.background});
+            const xrender::FrameLayer ui_layer{.name = "ui", .list = &list, .resources = resources, .scale = scale};
+            auto r = gpu->render({&ui_layer, 1}, gpu_frame, uw, uh, {.background = options.background});
             if (!r) {
                 warn("the GPU renderer: {}", r.error().message);
                 return;

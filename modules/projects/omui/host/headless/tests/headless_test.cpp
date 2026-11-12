@@ -262,10 +262,10 @@ UTest cases{"headless", [] {
         // The process's subjects, found at the same endpoint: the interface, and the frame the host draws it into.
         const Value* subjects = who.empty() || !who.front().get("data") ? nullptr : who.front().get("data")->get("subjects");
         expect(fatal(subjects && subjects->list() && subjects->list()->size() == 2u)) << (who.empty() ? std::string("no answer") : who.front().json());
-        const Value& interface = (*subjects->list())[0];
+        const Value& ui = (*subjects->list())[0];
         const Value& frame = (*subjects->list())[1];
-        expect(interface.get("name")->as_string() == "ui" && interface.get("interface")->as_string() == "openmui.tree@0.1");
-        expect(interface.get("capabilities")->get("provenance")->as_bool()) << "this host draws: a pixel is traced";
+        expect(ui.get("name")->as_string() == "ui" && ui.get("interface")->as_string() == "openmui.tree@0.1");
+        expect(ui.get("capabilities")->get("provenance")->as_bool()) << "this host draws: a pixel is traced";
         expect(frame.get("name")->as_string() == "frame" && frame.get("interface")->as_string() == "xrender.frame@0.1");
         expect(!layers.empty() && layers.front().get("data") && layers.front().get("data")->get("layers")->list()->front().get("name")->as_string() == "ui")
             << "the frame's one layer is the interface";
@@ -282,7 +282,7 @@ UTest cases{"headless", [] {
         struct Shown final : mlibs::agent::Subject {
             Headless                               h{at(HeadlessLevel::pixels)};
             std::optional<agent::Protocol>         protocol;
-            std::optional<agent::InterfaceSubject> interface;
+            std::optional<agent::InterfaceSubject> subject;
             Shown() {
                 auto access = std::make_shared<AgentAccess>();
                 access->set_policy({.mode = AgentMode::development, .source = "contract-test"});
@@ -294,16 +294,16 @@ UTest cases{"headless", [] {
                 options.capture = h.capture();
                 options.pixel_owner = [this](Point at) { return h.node_at_pixel(at); };
                 protocol.emplace(h.runtime(), std::move(options));
-                interface.emplace(h.runtime(), *protocol, agent::InterfaceOptions{.traces_pixels = true});
+                subject.emplace(h.runtime(), *protocol, agent::InterfaceOptions{.traces_pixels = true});
             }
-            std::string_view name() const noexcept override { return interface->name(); }
-            std::string_view interface_name() const noexcept override { return interface->interface_name(); }
-            mlibs::agent::Capabilities capabilities() const noexcept override { return interface->capabilities(); }
-            std::span<const mlibs::control::CatalogEntry> operations() const noexcept override { return interface->operations(); }
-            std::string_view listing() const noexcept override { return interface->listing(); }
-            std::uint64_t state_hash() const override { return interface->state_hash(); }
+            std::string_view name() const noexcept override { return subject->name(); }
+            std::string_view interface_name() const noexcept override { return subject->interface_name(); }
+            mlibs::agent::Capabilities capabilities() const noexcept override { return subject->capabilities(); }
+            std::span<const mlibs::control::CatalogEntry> operations() const noexcept override { return subject->operations(); }
+            std::string_view listing() const noexcept override { return subject->listing(); }
+            std::uint64_t state_hash() const override { return subject->state_hash(); }
             void operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) override {
-                interface->operate(operation, request, answer);
+                subject->operate(operation, request, answer);
             }
         };
         register_base_components();

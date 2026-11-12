@@ -6,6 +6,7 @@ import omui.view;
 import omui.semantic;
 import xrender.raster;
 import xrender.vector;
+import xrender.frame;
 import mlibs.rhi;
 import xrender.rhi.webgpu;
 import xrender.rhi.webgl;
@@ -73,11 +74,11 @@ struct Web::Impl {
     Runtime*                                 runtime = nullptr;
     std::unique_ptr<semantic::Tree>          tree;
     std::unique_ptr<xrender::text::GlyphCache>     glyphs;
-    xrender::CpuRenderer                      renderer;
+    xrender::CpuFrame                         composed;  // the frame's entry (xrender.frame): the host composes nothing itself
     // The GPU, when one draws (WebOptions::renderer): its device (before the
     // renderer, which holds it), the renderer, the texture each frame is drawn in.
     std::unique_ptr<mlibs::rhi::Device>             device;
-    std::optional<xrender::GpuRenderer>       gpu;
+    std::optional<xrender::GpuFrame>          gpu;
     mlibs::rhi::Texture                             target{};
     int                                      target_w = 0, target_h = 0;
     std::string_view                         drawn_by = "cpu";
@@ -260,7 +261,7 @@ struct Web::Impl {
                 if (want == kind) warn("host.web: {} was asked for and the page has none ({}): the CPU draws", name, made.error().message);
                 return false;
             }
-            auto renderer = xrender::GpuRenderer::create(**made);
+            auto renderer = xrender::GpuFrame::create(**made);
             if (!renderer) {
                 warn("host.web: {} cannot draw ({}): the CPU does", name, renderer.error().message);
                 return false;
@@ -289,7 +290,9 @@ struct Web::Impl {
         {
             mlibs::trace::Span span("render", "host");
             const xrender::Resources resources{&runtime->images(), glyphs.get()};
-            if (auto r = gpu->render(list, target, resources, {.scale = scale, .clear = true, .background = options.background}); !r) return gpu_failed(r.error().message);
+            const xrender::FrameLayer ui_layer{.name = "ui", .list = &list, .resources = resources, .scale = scale};
+            if (auto r = gpu->render({&ui_layer, 1}, target, static_cast<std::uint32_t>(w), static_cast<std::uint32_t>(hgt), {.background = options.background}); !r)
+                return gpu_failed(r.error().message);
         }
         if (!options.present) return true;
         mlibs::trace::Span span("present", "host");
@@ -324,11 +327,11 @@ struct Web::Impl {
             mlibs::trace::Span span("render", "host");
             const xrender::Resources resources{&runtime->images(), glyphs.get()};
             const auto rows = damage.update(list, w, hgt, scale, resources);
-            xrender::CpuOptions o;
-            o.scale = scale;
-            o.background = options.background;
-            o.rows = rows;
-            if (!rows.empty()) (void)renderer.render(list, frame, resources, o);
+            const xrender::FrameLayer ui_layer{.name = "ui", .list = &list, .resources = resources, .scale = scale};
+            xrender::FrameOptions how;
+            how.background = options.background;
+            how.rows = rows;
+            if (!rows.empty()) (void)composed.render({&ui_layer, 1}, frame, how);
         }
         mlibs::trace::Span span("present", "host");
         if (opened) page::present(options.canvas, frame);

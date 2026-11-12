@@ -11,6 +11,9 @@
 //     frame.render(layers, surface, {.background = black});
 //     frame.at(120, 80);   // {layer 1 "ui", object 17}
 //
+// On a device the same layers go through `GpuFrame` into a colour target the
+// host made and presents.
+//
 // The frame is a subject of the agent kernel too (`FrameSubject`): which
 // layers it is made of, its pixels, what drew a pixel — whatever made the
 // content, an agent reviews the same picture a person sees.
@@ -20,6 +23,7 @@ import std;
 import openas;
 import mlibs.agent;
 import mlibs.control;
+import mlibs.rhi;
 export import xrender.vector;
 export import xrender.raster;
 export import :catalog;
@@ -79,6 +83,34 @@ public:
 private:
     std::vector<CpuRenderer> renderers_;  // one a layer: each keeps its ids and its scratch from frame to frame
     FrameReport              report_;
+};
+
+struct GpuFrameOptions {
+    Color background = Color::transparent();  // what the first layer is drawn over
+    bool  clear = true;
+    // The textures a layer's external_texture() commands name, made on the same device (a video frame, an
+    // engine's view); none for an id: skipped and counted.
+    std::function<std::optional<mlibs::rhi::Texture>(std::uint64_t id)> external;
+};
+
+// Layers composed by the device's renderer into a colour target the host made (and presents, or reads back).
+// One renderer for every layer: they share its pipelines and its atlas of masks.
+class GpuFrame {
+public:
+    // The renderer's pipelines and textures on `device`; why not, when the device cannot take them.
+    [[nodiscard]] static mlibs::rhi::Result<GpuFrame> create(mlibs::rhi::Device& device);
+    // The layers drawn into `target` (an rgba8_unorm colour target of `width` × `height`) in order, the work
+    // submitted: the first over the background, each next over what is there. A layer's `scale` is taken; a
+    // transform of its own and its objects' ids are the reference renderer's (CpuFrame).
+    [[nodiscard]] mlibs::rhi::Result<const FrameReport*> render(std::span<const FrameLayer> layers, mlibs::rhi::Texture target, std::uint32_t width, std::uint32_t height,
+                                                                const GpuFrameOptions& options = {});
+    [[nodiscard]] const FrameReport& report() const noexcept { return report_; }
+    [[nodiscard]] mlibs::rhi::Device& device() const noexcept;
+
+private:
+    explicit GpuFrame(GpuRenderer renderer) : renderer_(std::move(renderer)) {}
+    GpuRenderer renderer_;
+    FrameReport report_;
 };
 
 // The frame as a subject of the agent kernel: the last frame a compositor rendered and the pixels it left.

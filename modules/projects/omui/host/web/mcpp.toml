@@ -47,6 +47,8 @@ omui.native       = { path = "../../native" }
 "omui.native.store" = { path = "../../native/store" }
 xrender.raster   = { path = "../../../xrender/raster" }
 xrender.vector = { path = "../../../xrender/vector" }
+# The frame's entry: the host hands its layers to the renderer, which composes (D-162).
+xrender.frame = { path = "../../../xrender/frame" }
 mlibs.rhi         = { path = "../../../../gfx/rhi" }
 xrender.rhi.webgpu  = { path = "../../../xrender/rhi/webgpu" }
 xrender.rhi.webgl   = { path = "../../../xrender/rhi/webgl" }

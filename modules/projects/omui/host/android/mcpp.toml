@@ -43,6 +43,8 @@ omui.semantic  = { path = "../../semantic" }
 omui.agent     = { path = "../../agent" }
 xrender.raster = { path = "../../../xrender/raster" }
 xrender.vector = { path = "../../../xrender/vector" }
+# The frame's entry: the host hands its layers to the renderer, which composes (D-162).
+xrender.frame = { path = "../../../xrender/frame" }
 xrender.text   = { path = "../../../xrender/text" }
 mlibs.text     = { path = "../../../../content/text" }
 mcpplibs.os    = "0.4.4"

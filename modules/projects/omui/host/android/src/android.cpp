@@ -8,6 +8,7 @@ import omui.core;
 import omui.view;
 import xrender.raster;
 import xrender.vector;
+import xrender.frame;
 import xrender.text;
 import mlibs.text;
 import :native;
@@ -59,7 +60,7 @@ struct AndroidHost::Impl {
     std::unique_ptr<mlibs::text::FontCollection> own_fonts;
     std::unique_ptr<Runtime>                     runtime;
     std::unique_ptr<xrender::text::GlyphCache>   glyphs;
-    xrender::CpuRenderer                         renderer;
+    xrender::CpuFrame                            composed;  // the frame's entry (xrender.frame)
     xrender::raster::Surface                     frame;
     std::uint64_t                                shown = 0;
     std::size_t                                  frames_shown = 0;
@@ -81,10 +82,8 @@ struct AndroidHost::Impl {
         if (width <= 0 || height <= 0) return;
         if (list.hash() == shown && frame.width() == width && frame.height() == height) return;
         if (frame.width() != width || frame.height() != height) frame = xrender::raster::Surface(width, height);
-        xrender::CpuOptions o;
-        o.scale = scale;
-        o.background = options.background;
-        (void)renderer.render(list, frame, {&runtime->images(), glyphs.get()}, o);
+        const xrender::FrameLayer ui_layer{.name = "ui", .list = &list, .resources = {&runtime->images(), glyphs.get()}, .scale = scale};
+        (void)composed.render({&ui_layer, 1}, frame, {.background = options.background});
         const auto* first = reinterpret_cast<const std::uint8_t*>(frame.row(0));
         const std::size_t stride = height > 1 ? static_cast<std::size_t>(reinterpret_cast<const std::uint8_t*>(frame.row(1)) - first)
                                               : static_cast<std::size_t>(width) * 4;

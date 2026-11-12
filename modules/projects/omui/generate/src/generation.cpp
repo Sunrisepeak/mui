@@ -1,16 +1,20 @@
-// Runtime generation's stages and verbs (omui.agent:generation).
-module omui.agent;
+// Runtime generation's stages and verbs (omui.generate:generation).
+module omui.generate;
 
 import std;
 import omui.core;
 import omui.view;
 import omui.semantic;
 import omui.viewdoc;
+import omui.agent;
 import mlibs.base64;
 import mlibs.control;
 import mcpplibs.os;
 
-namespace omui::agent {
+namespace omui::generate {
+
+using namespace omui::agent;  // the protocol's and the catalogs' names
+
 
 namespace {
 
@@ -620,9 +624,9 @@ Generation::Generation(Runtime& runtime, GenerationOptions options) : impl_(std:
     impl_->restart(impl_);
     impl_->read_pieces();
     const auto add = [&](std::string_view name, VerbFn fn) {
-        const auto entry = std::ranges::find(generate::catalog, name, [](const auto& op) { return op.operation.name; });
-        if (entry == generate::catalog.end()) return;
-        if (runtime.verbs().add(verb_of(*entry), std::move(fn))) impl_->added.emplace_back(name);
+        const auto entry = std::ranges::find(agent::generate::catalog, name, [](const auto& op) { return op.operation.name; });
+        if (entry == agent::generate::catalog.end()) return;
+        if (runtime.verbs().add(agent::verb_of(*entry), std::move(fn))) impl_->added.emplace_back(name);
     };
     add("generate.surfaces", [this](const Value&) { return surfaces(); });
     add("generate.draft", [this](const Value& args) { return draft(args); });
@@ -664,4 +668,4 @@ VerbResult Generation::discard(const Value& args) {
     return Value{}.set("draft", id).set("surface", surface).set("discarded", true);
 }
 
-}  // namespace omui::agent
+}  // namespace omui::generate

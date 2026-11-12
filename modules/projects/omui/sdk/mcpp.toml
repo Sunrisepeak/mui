@@ -25,6 +25,7 @@ omui.view          = { path = "../view" }
 omui.semantic      = { path = "../semantic" }
 hanim.visual      = { path = "../../hanim/visual" }
 omui.agent         = { path = "../agent" }
+omui.generate      = { path = "../generate" }
 omui.expr          = { path = "../expr" }
 omui.viewdoc       = { path = "../viewdoc" }
 mlibs.utils         = { path = "../../../base/utils" }

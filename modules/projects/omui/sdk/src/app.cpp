@@ -5,6 +5,7 @@ import mcpplibs.cmdline;
 import omui.core;
 import omui.view;
 import omui.agent;
+import omui.generate;
 import omui.ui.base;
 import omui.ui.window;
 import omui.host.headless;
@@ -267,7 +268,7 @@ struct TearDown {
 // generation (generate.*), when it has one — the generation goes first.
 struct Prepared {
     std::unique_ptr<agent::TaskBroker> tasks;
-    std::unique_ptr<agent::Generation> generation;
+    std::unique_ptr<generate::Generation> generation;
 };
 
 Prepared prepare(Runtime& rt, AppSpec& app, const std::shared_ptr<AgentAccess>& access) {
@@ -281,7 +282,7 @@ Prepared prepare(Runtime& rt, AppSpec& app, const std::shared_ptr<AgentAccess>& 
     kept.tasks = std::make_unique<agent::TaskBroker>(rt);
     if (app.generation) {
         if (!app.generation->tasks) app.generation->tasks = kept.tasks.get();
-        kept.generation = std::make_unique<agent::Generation>(rt, std::move(*app.generation));
+        kept.generation = std::make_unique<generate::Generation>(rt, std::move(*app.generation));
     }
     return kept;
 }

@@ -1,4 +1,4 @@
-// omui.agent:a2ui — A2UI as an input format of runtime generation (W5 step
+// omui.generate:a2ui — A2UI as an input format of runtime generation (W5 step
 // 3, D-137: the model of agent interaction is openas's, A2UI one adapter).
 // An agent that speaks A2UI streams its messages; each surface that has
 // begun rendering becomes a view document, again after every change, which
@@ -15,12 +15,12 @@
 // `remote` (S-3). What is not read yet (Tabs, Modal, MultipleChoice,
 // DateTimeInput, Video, AudioPlayer, Icon, templates) is named as a problem
 // with where it is; nothing is guessed.
-export module omui.agent:a2ui;
+export module omui.generate:a2ui;
 
 import std;
 import omui.core;
 
-export namespace omui::agent {
+export namespace omui::generate {
 
 class A2uiReader {
 public:
@@ -52,4 +52,4 @@ private:
     [[nodiscard]] std::expected<std::string, std::vector<std::string>> document(std::string_view name, const Surface& surface) const;
 };
 
-}  // namespace omui::agent
+}  // namespace omui::generate

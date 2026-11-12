@@ -24,8 +24,6 @@ sources = ["src/*.cppm", "src/*.cpp", "src/catalog/*.cppm"]
 omui.core     = { path = "../core" }
 omui.view     = { path = "../view" }
 omui.semantic = { path = "../semantic" }
-# Runtime generation (:generation): drafts are view documents.
-omui.viewdoc  = { path = "../viewdoc" }
 # The native modules' catalogue, for the API an application describes (:api).
 omui.native   = { path = "../native" }
 mlibs.utils    = { path = "../../../base/utils" }

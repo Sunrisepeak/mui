@@ -8,6 +8,7 @@ import mcpplibs.cmdline;
 import omui.core;
 import omui.view;
 import omui.agent;
+import omui.generate;
 import omui.ui.window;
 
 export namespace omui {
@@ -100,7 +101,7 @@ struct AppSpec {
     // Runtime generation (D-144, omui.config.ts's `generation`): the
     // surfaces generated interface may go into and how open it is — the
     // generate.* verbs, for as long as the application runs. None: none.
-    std::optional<agent::GenerationOptions> generation;
+    std::optional<generate::GenerationOptions> generation;
 };
 
 // How to run, from the command line:

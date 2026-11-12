@@ -17,6 +17,7 @@ export import omui.view;
 export import omui.semantic;
 export import hanim.visual;
 export import omui.agent;
+export import omui.generate;
 export import omui.expr;
 export import omui.viewdoc;
 export import omui.ui.base;

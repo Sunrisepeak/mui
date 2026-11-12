@@ -66,6 +66,7 @@ members = [
     "modules/projects/omui/abi",
     "modules/projects/omui/accessibility",
     "modules/projects/omui/agent",
+    "modules/projects/omui/generate",
     "modules/projects/omui/core",
     "modules/projects/omui/sdk",
     "modules/projects/omui/expr",

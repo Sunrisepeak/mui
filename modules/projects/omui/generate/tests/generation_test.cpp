@@ -4,6 +4,7 @@
 // committed as versions undo takes back.
 import std;
 import omui.agent;
+import omui.generate;
 import omui.viewdoc;
 import omui.ui.base;
 import mcpplibs.mtest;
@@ -90,7 +91,7 @@ Value card(std::string_view words) {
 UTest cases{"generation", [] {
     "data: a view document drafted and prepared, previewed with nothing left of it, committed as versions undo takes back"_test = [] {
         Page page;
-        agent::Generation generation(page.rt, {.openness = agent::Openness::data, .surfaces = {{"extras", "cards an agent adds under the plan"}},
+        generate::Generation generation(page.rt, {.openness = generate::Openness::data, .surfaces = {{"extras", "cards an agent adds under the plan"}},
                                               .capture = page.capture()});
         agent::Protocol protocol(page.rt, {.capture = page.capture()});
         const Answer surfaces = invoke(protocol, "generate.surfaces");
@@ -162,7 +163,7 @@ UTest cases{"generation", [] {
     "limited: code makes the document, sandboxed by the host; only the components and verbs listed; off takes nothing"_test = [] {
         Page page;
         int evaluated = 0;
-        agent::Generation generation(page.rt, {.openness = agent::Openness::limited,
+        generate::Generation generation(page.rt, {.openness = generate::Openness::limited,
                                               .surfaces = {{"extras", ""}},
                                               .components = {"text", "column"},
                                               .verbs = {},
@@ -183,7 +184,7 @@ UTest cases{"generation", [] {
         expect(page.shows("From code"));
 
         Page closed;
-        agent::Generation off(closed.rt, {.openness = agent::Openness::off, .surfaces = {{"extras", ""}}});
+        generate::Generation off(closed.rt, {.openness = generate::Openness::off, .surfaces = {{"extras", ""}}});
         agent::Protocol asking(closed.rt, {});
         const Answer refused = invoke(asking, "generate.draft", Value{}.set("surface", "extras").set("document", card("x")));
         expect(eq(refused.exit, 1) && refused.error.contains("off")) << refused.error;
@@ -191,7 +192,7 @@ UTest cases{"generation", [] {
 
     "a version of several nodes undone: each one leaves and is gone (none lingers in the tree)"_test = [] {
         Page page;
-        agent::Generation generation(page.rt, {.openness = agent::Openness::data, .surfaces = {{"extras", ""}}});
+        generate::Generation generation(page.rt, {.openness = generate::Openness::data, .surfaces = {{"extras", ""}}});
         agent::Protocol protocol(page.rt, {});
         const Answer drafted = invoke(protocol, "generate.draft", Value{}.set("surface", "extras").set("document", parse_json(R"({"omui": "0.1", "view": {"root": {"type": "column", "children": [
             {"type": "text", "id": "pro", "props": {"text": "Pro"}}, {"type": "text", "id": "team", "props": {"text": "Team"}}]}}})").value()));
@@ -208,7 +209,7 @@ UTest cases{"generation", [] {
         std::filesystem::remove_all(dir);
         {
             Page page;
-            agent::Generation generation(page.rt, {.openness = agent::Openness::all, .surfaces = {{"extras", ""}}, .directory = dir});
+            generate::Generation generation(page.rt, {.openness = generate::Openness::all, .surfaces = {{"extras", ""}}, .directory = dir});
             agent::Protocol protocol(page.rt, {});
             for (const std::string_view words : {"Pro", "Team"}) {
                 const Answer drafted = invoke(protocol, "generate.draft", Value{}.set("surface", "extras").set("document", card(words)));
@@ -219,7 +220,7 @@ UTest cases{"generation", [] {
         expect(std::filesystem::exists(dir / "index.json") && std::filesystem::exists(dir / "extras-2.view.omui.json"));
         {
             Page again;
-            agent::Generation generation(again.rt, {.openness = agent::Openness::all, .surfaces = {{"extras", ""}}, .directory = dir});
+            generate::Generation generation(again.rt, {.openness = generate::Openness::all, .surfaces = {{"extras", ""}}, .directory = dir});
             agent::Protocol protocol(again.rt, {});
             expect(again.shows("Pro") && !again.shows("Team")) << "the version shown, shown again";
             const Answer versions = invoke(protocol, "generate.versions", Value{}.set("surface", "extras"));
@@ -230,7 +231,7 @@ UTest cases{"generation", [] {
             std::ofstream(dir / "extras-1.view.omui.json")
                 << R"j({"omui": "0.1", "view": {"root": {"type": "box", "id": "go", "label": "Pro", "on": {"press": [{"verb": "plan.upgrade"}]}}}})j";
             Page closed;
-            agent::Generation generation(closed.rt, {.openness = agent::Openness::data, .surfaces = {{"extras", ""}}, .directory = dir});
+            generate::Generation generation(closed.rt, {.openness = generate::Openness::data, .surfaces = {{"extras", ""}}, .directory = dir});
             agent::Protocol protocol(closed.rt, {});
             expect(!closed.shows("Pro"));
             const Answer surfaces = invoke(protocol, "generate.surfaces");
@@ -243,7 +244,7 @@ UTest cases{"generation", [] {
     "A2UI: a stream's messages kept between calls, each rendering surface drafted and committed as it comes; a button's action handed back; what is not read is named"_test = [] {
         register_base_components();
         Page page;
-        agent::Generation generation(page.rt, {.openness = agent::Openness::data, .surfaces = {{"extras", ""}}});
+        generate::Generation generation(page.rt, {.openness = generate::Openness::data, .surfaces = {{"extras", ""}}});
         agent::Protocol protocol(page.rt, {});
         // The first chunk (JSON lines, a message a line): the components and the data, not yet rendering — nothing drafted.
         const std::string first = parse_json(
@@ -309,7 +310,7 @@ UTest cases{"generation", [] {
 
     "two drafts over the same version: the second to commit is a conflict unless it says `over`; a version kept as a piece is drafted again elsewhere"_test = [] {
         Page page;
-        agent::Generation generation(page.rt, {.openness = agent::Openness::data, .surfaces = {{"extras", ""}}});
+        generate::Generation generation(page.rt, {.openness = generate::Openness::data, .surfaces = {{"extras", ""}}});
         agent::Protocol protocol(page.rt, {});
         const Answer one = invoke(protocol, "generate.draft", Value{}.set("surface", "extras").set("document", card("Pro")));
         const Answer two = invoke(protocol, "generate.draft", Value{}.set("surface", "extras").set("document", card("Team")));
@@ -337,7 +338,7 @@ UTest cases{"generation", [] {
         agent::TaskBroker tasks(page.rt);
         // The code's evaluation waits until the test lets it go: the work is in flight for as long as the test says.
         std::atomic<int> released{0};
-        agent::Generation generation(page.rt, {.openness = agent::Openness::all,
+        generate::Generation generation(page.rt, {.openness = generate::Openness::all,
                                               .surfaces = {{"extras", ""}},
                                               .evaluate = [&](std::string_view, std::string_view code) -> std::expected<std::string, std::string> {
                                                   const int mine = code.contains("first") ? 1 : 2;
@@ -384,7 +385,7 @@ UTest cases{"generation", [] {
 
     "limits and places: a document over the limits is refused; a surface nothing shows takes no commit"_test = [] {
         Page page;
-        agent::Generation generation(page.rt, {.openness = agent::Openness::all, .surfaces = {{"extras", ""}, {"footer", "not on this page"}}, .max_nodes = 2});
+        generate::Generation generation(page.rt, {.openness = generate::Openness::all, .surfaces = {{"extras", ""}, {"footer", "not on this page"}}, .max_nodes = 2});
         agent::Protocol protocol(page.rt, {});
         const Answer many = invoke(protocol, "generate.draft",
                                    Value{}.set("surface", "extras").set("document", parse_json(R"({"omui": "0.1", "view": {"root": {"type": "column", "children": [

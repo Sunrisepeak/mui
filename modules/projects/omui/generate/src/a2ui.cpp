@@ -1,10 +1,10 @@
-// A2UI's messages read as view documents (omui.agent:a2ui).
-module omui.agent;
+// A2UI's messages read as view documents (omui.generate:a2ui).
+module omui.generate;
 
 import std;
 import omui.core;
 
-namespace omui::agent {
+namespace omui::generate {
 
 namespace {
 
@@ -307,4 +307,4 @@ std::expected<std::string, std::vector<std::string>> A2uiReader::document(std::s
     return Value{}.set("omui", "0.1").set("view", std::move(view)).json();
 }
 
-}  // namespace omui::agent
+}  // namespace omui::generate

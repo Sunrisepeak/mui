@@ -1,4 +1,4 @@
-// omui.agent:generation — runtime generation as an application ships (D-144,
+// omui.generate:generation — runtime generation as an application ships (D-144,
 // convergence plan W5): interface an Agent makes while the application runs,
 // put into the surfaces the application declares, through stages each asked
 // for and each readable —
@@ -12,25 +12,29 @@
 // version, which undo takes back. Nothing a draft says runs before it is
 // validated, and a draft that fails changes nothing.
 //
-//     omui::agent::Generation generation(runtime, {
-//         .openness = omui::agent::Openness::data,
+//     omui::generate::Generation generation(runtime, {
+//         .openness = omui::generate::Openness::data,
 //         .surfaces = {{"extras", "cards the user's agent adds under the plan"}},
 //     });
 //
 // The operations are generate.ops.omui.ts's (the application's verbs, served
 // over the protocol and MCP); the class's functions are the same steps for a
 // host's own code.
-export module omui.agent:generation;
+export module omui.generate:generation;
 
 import std;
 import omui.core;
 import omui.view;
 import omui.viewdoc;
-import :protocol;
+import omui.agent;  // the protocol's types, background tasks
 import :a2ui;
-import :broker;
 
-export namespace omui::agent {
+export namespace omui::generate {
+
+// Names of omui.agent this interface uses unqualified.
+using agent::CaptureFn;
+using agent::TaskBroker;
+
 
 // How open runtime generation is (the convergence plan §2.8): the developer
 // sets it in omui.config.ts for development and a release, the user's
@@ -110,4 +114,4 @@ private:
     std::shared_ptr<Impl> impl_;  // shared with what the history keeps to undo a commit
 };
 
-}  // namespace omui::agent
+}  // namespace omui::generate

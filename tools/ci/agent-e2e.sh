@@ -105,7 +105,7 @@ mcp_out=$("$omui" mcp --dir "$dir" <<'JSON'
 {"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"ui_snapshot","arguments":{"root":"main/compose"}}}
 JSON
 )
-echo "$mcp_out" | head -c 2000; echo
+head -c 2000 <<< "$mcp_out"; echo  # not `echo | head`: a listing longer than a pipe holds ends echo with SIGPIPE
 [ "$(grep -c '"jsonrpc":"2.0"' <<< "$mcp_out")" = 6 ] || { echo "FAIL: six responses from omui mcp"; exit 1; }
 grep -q '"protocolVersion":"2025-06-18"' <<< "$mcp_out"
 grep -q '"name":"ui_capture"' <<< "$mcp_out"
@@ -131,7 +131,7 @@ lab_out=$("$omui" mcp --dir "$dir" --app $lab --ops tools/inspector/src/catalog/
 {"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"cellular_paint","arguments":{"x":10,"y":10,"radius":99,"brush":"spark"}}}
 JSON
 )
-echo "$lab_out" | head -c 2000; echo
+head -c 2000 <<< "$lab_out"; echo
 [ "$(grep -c '"jsonrpc":"2.0"' <<< "$lab_out")" = 6 ] || { echo "FAIL: six responses from omui mcp --ops"; exit 1; }
 grep -q '"name":"cellular_paint","title":"cellular.paint"' <<< "$lab_out"
 grep -q '"name":"cellular_snapshot"[^}]*"inputSchema".*"readOnlyHint":true' <<< "$lab_out"

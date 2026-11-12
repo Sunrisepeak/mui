@@ -143,8 +143,8 @@ std::expected<player::Manifest, std::string> read_manifest(const std::filesystem
 struct Config {
     std::optional<std::string> development_agent, release_agent;
     std::optional<RecordLevel> development_record, release_record;
-    std::optional<agent::Openness> development_generation, release_generation;
-    std::vector<agent::Surface>    surfaces;
+    std::optional<generate::Openness> development_generation, release_generation;
+    std::vector<generate::Surface>    surfaces;
     std::vector<std::string>       components, verbs;
 };
 
@@ -180,7 +180,7 @@ std::expected<Config, std::string> read_config(const std::filesystem::path& base
     if (const Value* generation = value->get("generation"); generation && generation->map()) {
         if (const Value* open = generation->get("open"); open && open->map())
             for (const auto& [key, level] : *open->map()) {
-                const auto openness = agent::parse_openness(level.as_string());
+                const auto openness = generate::parse_openness(level.as_string());
                 if (!openness) return std::unexpected(std::format("{}: generation.open.{} is off, data, limited or all, not `{}`", utf8(file), key, level.as_string()));
                 (key == "development" ? out.development_generation : out.release_generation) = *openness;
             }
@@ -197,7 +197,7 @@ std::expected<Config, std::string> read_config(const std::filesystem::path& base
 // data module, `export default defineView({…})`, evaluated as data modules are — no I/O, no
 // real time, no randomness, a bounded heap and time — and imports by path only inside an empty
 // directory.
-agent::EvaluateFn generated_views(const std::filesystem::path& base) {
+generate::EvaluateFn generated_views(const std::filesystem::path& base) {
     return [scratch = base / ".omui" / "generated"](std::string_view language, std::string_view code) -> std::expected<std::string, std::string> {
         if (language != "ts" && language != "js") return std::unexpected(std::format("generated code is TypeScript (ts) here, not {}", language));
         std::error_code error;
@@ -333,9 +333,9 @@ int player_main(int argc, char** argv) {
     // Interface generated while it runs (D-144): where omui.config.ts lets it in, as open as it says
     // — everything in development, nothing in a release unless said.
     if (!config->surfaces.empty()) {
-        const agent::Openness open = design ? config->development_generation.value_or(agent::Openness::all)
-                                            : config->release_generation.value_or(agent::Openness::off);
-        app.generation = agent::GenerationOptions{.openness = open,
+        const generate::Openness open = design ? config->development_generation.value_or(generate::Openness::all)
+                                            : config->release_generation.value_or(generate::Openness::off);
+        app.generation = generate::GenerationOptions{.openness = open,
                                                   .surfaces = config->surfaces,
                                                   .components = config->components,
                                                   .verbs = config->verbs,

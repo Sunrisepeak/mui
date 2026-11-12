@@ -64,6 +64,7 @@
 | **开发宿主（第十轮，D-154）** | 开发宿主持有窗口、输入、设计器和设计历史，应用是渲染输出目标；C++ 改动自动增量构建，新进程按语义 ID 接回状态，离屏首帧后交叉淡化切换 | Agent 时代方案 §2.16 |
 | **开发模式的授权（D-155）** | 开发模式下 Agent 默认拥有全部控制权，是否询问由它结合人的指示判断；发布按授权管理；人在 `omui.config.ts` 或用 `--agent-mode` 为两种模式分别设定 | Agent 时代方案 §1 |
 | **脚本导入按层面分（D-157）** | `openmui` 只放规范定义的内容（脚本绑定 API、`openmui:native/*`、`openmui/define` 的契约、native、视图格式），`omui` 放实现层的内容（`omui/define` 的配置、ops、风格、动效等）；组件都从 `openmui` 导入，可移植性按组件来源由工具检查；扩展先进规范再改导入 | Agent 时代方案 §2.18 |
+| **体系与引擎（第十一轮，D-161–D-177，2026-11-12）** | omui 是五层体系中的一层，项目之间无环，xengine 目录分 `kernel/` 与 `game/`，时间线模型归 hanim；游戏归引擎、渲染归 xrender、窗口输入与 UI 归 omui；Agent 内核 `mlibs.agent` 在所有引擎之下，六个原语、契约 CTS、设计门；物理管运动、化学管状态（`xengine.matter`，规律只引用性质，一套规则四种载体，元胞内核 v2，表现配方，`world.explain` 与 `world.branch`）；每项低线与该项最强者持平、交叉特性超过；顶尖的独立中间件优先复用；暂缓不等于不做。M6 细化为 M6.0–M6.5 | [底层架构综合方案](2026-11-12-foundation-omui-xengine-emergent-world-design.md) |
 
 ### 0.2 总体判断
 

@@ -10,6 +10,22 @@ The single progress entry (plan §12, at most 200 lines). Updated by every check
 
 **M0 and M2 exits met on CI:** run 42336690239 on 46b3cdfd (an M2 checkpoint: the render suite on mlibs.cts) is green on every row — lint, Linux x64 and arm, macOS, Windows (lavapipe), Web, the site; Pages had deployed before (red list 10). The GCC rows and their gated steps run in the nightly lane.
 
+## Engine foundation (2026-11-12, [M6.0–M6.5](2026-11-12-foundation-omui-xengine-emergent-world-design.md), D-161–D-177) — started
+
+Tasks, their dependencies and the milestone nodes: the plan's §9.5. Verified locally by what each task touches; one full run in the background and one look at CI per milestone node.
+
+| Task | What | State |
+|---|---|---|
+| N0 | the known local red first: example 13's twin lacked `framed_png` (since eba28d5e) | fixed |
+| T0.1 | `xrender.vector` without `hanim.core` | — |
+| T0.2 | conformance suites run from their owners' side | — |
+| T0.3 | `xengine.timeline` → `hanim.timeline` | — |
+| T0.4 | xengine as `kernel/` and `game/`; lint `project-dag` | — |
+| T0.5 | `mlibs.agent` (the agent kernel); `omui.agent` keeps the UI subject | — |
+| T0.6 | xrender's frame entry (targets, layers, composition, capture) | — |
+| T0.7 | `xengine.runtime`; breakout headless without omui | — |
+| T0.8 | the agent contract's CTS, README template, lint `agent-surface` | — |
+
 ## Convergence plan (2026-11-09, [W0–W16](2026-11-09-agent-era-ts-first-convergence-design.md)) — in progress
 
 - **W14 Live Design**: parts 1–18 done. The designer is its own package (`omui.designer`, left out of a release). It has design.* (32 operations, MCP), built_at maps both ways, structured edits, history (commit, branch, switch, merge, timeline, sync), stand-ins (previews, variants), motion expectations, a film, and a code card. Design steps are presented by kind (edit grows and dissolves, undo plays back, switch cross-fades; pace; preview split; variant fly-back), `omui.config.ts` says whether the designer is linked per mode, and the timeline has a drag scrubber. The signature scene is example 13 (`tests/live_design_test.cpp`).

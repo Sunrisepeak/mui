@@ -1,0 +1,54 @@
+// mlibs.agent:envelope — a request and its answer as records (openas §6).
+//
+// A request is one JSON object a line: `op` names what is asked, `re` (any
+// JSON value) is echoed in every record of its answer, `answer` is what a
+// person answered when the operation was asked for before. An answer is
+// records, one a line — `data`, `notice`, `error` — and last a `result` with
+// the exit code. A subject writes what its data means; the framing is here,
+// the same for every subject.
+export module mlibs.agent:envelope;
+
+import std;
+import openas;
+import mlibs.json;
+import :endpoint;
+
+export namespace mlibs::agent {
+
+// A JSON string literal.
+[[nodiscard]] std::string json_text(std::string_view text);
+
+struct Request {
+    std::string op;
+    std::string re;      // its `re` as JSON text; empty: it gave none
+    std::string answer;  // a person's answer to the question this operation asks ("yes"); empty: none
+    std::shared_ptr<const mlibs::json::Document> document;
+    // The request's own members, to read its arguments (an absent one is a node that is false).
+    [[nodiscard]] mlibs::json::Node operator[](std::string_view key) const { return document->root()[key]; }
+};
+
+// The request a line holds, or why it is none.
+[[nodiscard]] std::expected<Request, std::string> parse_request(std::string_view line);
+
+class Answer {
+public:
+    Answer(Reply reply, std::string re);
+
+    // A `data` record carrying one JSON value (its text).
+    void data(std::string_view json);
+    void notice(std::string_view text);
+    void error(std::string_view code, std::string_view text);
+    // The last record; once.
+    void result(int exit_code = openas::exit_code::done);
+    // An error and the result that ends the answer.
+    void fail(std::string_view code, std::string_view text, int exit_code = openas::exit_code::failed);
+    [[nodiscard]] bool finished() const noexcept { return finished_; }
+
+private:
+    void record(std::string_view kind, std::string_view members);
+    Reply       reply_;
+    std::string re_;
+    bool        finished_ = false;
+};
+
+}  // namespace mlibs::agent

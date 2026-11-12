@@ -26,9 +26,12 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-mlibs.utils = { path = "../utils" }
-mlibs.json  = { path = "../json" }
-mcpplibs.os = "0.4.4"
+mlibs.utils   = { path = "../utils" }
+mlibs.json    = { path = "../json" }
+# Authority: every request of a subject is decided there first (openas).
+mlibs.control = { path = "../control" }
+openlifa.openas = "0.2.0"
+mcpplibs.os   = "0.4.4"
 
 [dev-dependencies]
 mcpplibs.mtest = "0.5.2"

@@ -5,3 +5,5 @@
 export module mlibs.agent;
 
 export import :endpoint;
+export import :envelope;
+export import :subject;

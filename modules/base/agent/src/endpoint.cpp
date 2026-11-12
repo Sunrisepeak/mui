@@ -19,26 +19,6 @@ std::string utf8(const std::filesystem::path& path) {
     return std::string(reinterpret_cast<const char*>(text.data()), text.size());
 }
 
-// A JSON string literal.
-std::string json_text(std::string_view text) {
-    std::string out = "\"";
-    for (const char raw : text) {
-        const auto ch = static_cast<unsigned char>(raw);
-        switch (ch) {
-            case '"': out += "\\\""; break;
-            case '\\': out += "\\\\"; break;
-            case '\n': out += "\\n"; break;
-            case '\r': out += "\\r"; break;
-            case '\t': out += "\\t"; break;
-            default:
-                if (ch < 0x20) out += std::format("\\u{:04x}", static_cast<unsigned>(ch));
-                else out += raw;
-        }
-    }
-    out += '"';
-    return out;
-}
-
 // A shared connection: its reader thread and the replies of the serving thread both use it.
 struct Link {
     ipc::connection   conn;

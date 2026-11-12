@@ -1,5 +1,6 @@
 module xengine.cellular.api;
 import std;
+import mlibs.math;
 import mlibs.trace;
 import mlibs.log;
 
@@ -42,6 +43,7 @@ std::expected<Program,Failure> Program::prepare(std::uint32_t channels, std::spa
 std::expected<Program,Failure> Program::prepare(std::uint32_t channels, Stages stages, Limits limits) {
     const std::span<const Rule> rules = stages.rules;
     const std::span<const Transfer> transfers = stages.transfers;
+    const std::span<const Exchange> exchanges = stages.exchanges;
     mlibs::trace::Span span("simulation.cellular.prepare", "simulation");
     // Limits that cannot hold a program are the caller's error; a program beyond sound limits is refused.
     if (limits.max_words<4 || limits.max_values==0 || limits.max_values>std::numeric_limits<std::uint32_t>::max()/4 ||
@@ -49,12 +51,12 @@ std::expected<Program,Failure> Program::prepare(std::uint32_t channels, Stages s
     if (!channels) return std::unexpected(Failure{Errc::channels});
     if (channels > limits.max_channels || channels > limits.max_values || rules.size()>limits.max_rules) return std::unexpected(Failure{Errc::limit});
     // Encoding 2 where a rule aggregates or a write has terms; otherwise the encoding every backend runs.
-    bool aggregates = !transfers.empty();
+    bool aggregates = !transfers.empty() || !exchanges.empty();
     for (const Rule& rule : rules) {
         for (const Condition& condition : rule.when) aggregates |= condition.kind > ConditionKind::neighbors;
         for (const Write& write : rule.writes) aggregates |= !write.terms.empty();
     }
-    std::uint64_t size=4+static_cast<std::uint64_t>(rules.size())+(aggregates ? 2 : 0);
+    std::uint64_t size=4+static_cast<std::uint64_t>(rules.size())+(aggregates ? 3 : 0);
     std::uint32_t halo=0;
     for(std::size_t r=0;r<rules.size();++r) {
         const auto& rule=rules[r];
@@ -107,9 +109,26 @@ std::expected<Program,Failure> Program::prepare(std::uint32_t channels, Stages s
             if (transfers[earlier].channel == transfer.channel) return fail(Errc::transfer);  // one flow a quantity: two could together take too much
         size += 6 + transfer.offsets.size() * 2;
     }
+    if (exchanges.size() > 1) return std::unexpected(Failure{Errc::limit, {}, {.exchange = std::size_t{1}}});
+    for (std::size_t e = 0; e < exchanges.size(); ++e) {
+        const Exchange& exchange = exchanges[e];
+        const auto fail = [&](Errc code) { return std::unexpected(Failure{code, {}, {.exchange = e}}); };
+        if (exchange.weight >= channels || exchange.mobility >= channels) return fail(Errc::channels);
+        for (std::size_t index = 0; index < exchange.carried.size(); ++index) {
+            if (exchange.carried[index] >= channels) return fail(Errc::channels);
+            for (std::size_t earlier = 0; earlier < index; ++earlier)
+                if (exchange.carried[earlier] == exchange.carried[index]) return fail(Errc::exchange);
+        }
+        // What decides a move goes with the cell that moves, or the next step would judge a place by what left it.
+        if (!exchange.carried.empty() && (std::ranges::find(exchange.carried, exchange.weight) == exchange.carried.end() ||
+                                          std::ranges::find(exchange.carried, exchange.mobility) == exchange.carried.end()))
+            return fail(Errc::exchange);
+        size += 4 + (exchange.carried.empty() ? channels : exchange.carried.size());
+    }
     if(size>limits.max_words) return std::unexpected(Failure{Errc::limit});
     Program p;p.channels_=channels;p.rules_=static_cast<std::uint32_t>(rules.size());p.halo_=halo;p.limits_=limits;
     p.words_.reserve(static_cast<std::size_t>(size));p.transfers_=static_cast<std::uint32_t>(transfers.size());
+    p.moves_=!exchanges.empty();
     p.words_={aggregates ? 2u : 1u,channels,p.rules_,halo};p.words_.resize(4+rules.size()+(aggregates ? 1 : 0));
     for(std::size_t r=0;r<rules.size();++r) {
         const auto& rule=rules[r];const auto start=p.words_.size();p.words_[4+r]=static_cast<std::uint32_t>(start);
@@ -141,6 +160,16 @@ std::expected<Program,Failure> Program::prepare(std::uint32_t channels, Stages s
         for (const Transfer& transfer : transfers) {
             p.words_.insert(p.words_.end(), {transfer.channel, transfer.by.value_or(largest), transfer.by ? transfer.by_limit : 1u, transfer.multiply, transfer.shift});
             put_offsets(p.words_, transfer.offsets);
+        }
+        // Then the exchanges: how many (one at most), then weight, mobility, seed and the channels that go with a cell.
+        p.words_.push_back(static_cast<std::uint32_t>(exchanges.size()));
+        for (const Exchange& exchange : exchanges) {
+            p.words_.insert(p.words_.end(), {exchange.weight, exchange.mobility, exchange.seed,
+                                             static_cast<std::uint32_t>(exchange.carried.empty() ? channels : exchange.carried.size())});
+            if (exchange.carried.empty())
+                for (std::uint32_t channel = 0; channel < channels; ++channel) p.words_.push_back(channel);
+            else
+                p.words_.insert(p.words_.end(), exchange.carried.begin(), exchange.carried.end());
         }
     }
     mlibs::log::Log{"simulation"}.debug("cellular plan prepared: encoding {}, {} channels, {} rules, halo {}, {} words",p.words_[0],channels,p.rules_,halo,p.words_.size());
@@ -259,10 +288,80 @@ Statistics Program::run_tile(Shape shape, Tile tile, std::span<const std::uint32
     }
     return stats;
 }
+// Cells change places within blocks of 2 × 2, decided from the input, moving what the stages before made of them.
+void Program::exchange(Shape shape, std::span<const std::uint32_t> in, std::span<std::uint32_t> out, Boundary boundary, std::uint64_t tick) const noexcept {
+    // The exchange's words: after the transfers.
+    std::size_t pos = words_[4 + rules_];
+    for (std::uint32_t transfers = words_[pos++], t = 0; t < transfers; ++t) pos += 6 + 2 * words_[pos + 5];
+    if (!words_[pos++]) return;
+    const std::uint32_t weight = words_[pos], mobility = words_[pos + 1], seed = words_[pos + 2], carried = words_[pos + 3];
+    const std::span<const std::uint32_t> channels(words_.data() + pos + 4, carried);
+    const std::size_t cells = static_cast<std::size_t>(shape.width) * shape.height;
+    // Where the cut is this tick: its four positions in turn.
+    const std::uint32_t cut_x = static_cast<std::uint32_t>(tick & 1), cut_y = static_cast<std::uint32_t>((tick >> 1) & 1);
+    // A block that reaches over an edge goes round a wrapped edge of an even size, and otherwise sits the tick out.
+    const bool round_x = boundary.edge == Edge::wrap && shape.width % 2 == 0, round_y = boundary.edge == Edge::wrap && shape.height % 2 == 0;
+    const std::uint32_t tick_key = mlibs::math::mix32(seed ^ mlibs::math::mix32(mlibs::math::fold32(tick)));
+    for (std::uint32_t top = cut_y; top < shape.height; top += 2) {
+        const bool over_y = top + 1 >= shape.height;
+        if (over_y && !round_y) continue;
+        for (std::uint32_t left = cut_x; left < shape.width; left += 2) {
+            const bool over_x = left + 1 >= shape.width;
+            if (over_x && !round_x) continue;
+            const std::uint32_t right = over_x ? 0 : left + 1, bottom = over_y ? 0 : top + 1;
+            // The block's places: above left, above right, below left, below right.
+            const std::array<std::size_t, 4> place{static_cast<std::size_t>(top) * shape.width + left, static_cast<std::size_t>(top) * shape.width + right,
+                                                   static_cast<std::size_t>(bottom) * shape.width + left, static_cast<std::size_t>(bottom) * shape.width + right};
+            std::array<std::uint32_t, 4> heavy{}, moves{};
+            for (std::size_t corner = 0; corner < 4; ++corner) {
+                heavy[corner] = in[static_cast<std::size_t>(weight) * cells + place[corner]];
+                moves[corner] = in[static_cast<std::size_t>(mobility) * cells + place[corner]];
+            }
+            std::array<std::uint8_t, 4> at{0, 1, 2, 3};  // which of the four cells is at each place
+            std::array<bool, 4> moved{};
+            const auto swap = [&](std::size_t one, std::size_t other) {
+                moved[at[one]] = moved[at[other]] = true;
+                std::swap(at[one], at[other]);
+            };
+            // 1 a cell that falls sinks below a lighter one that falls.
+            for (const std::size_t column : {std::size_t{0}, std::size_t{1}}) {
+                const std::uint8_t above = at[column], below = at[column + 2];
+                if ((moves[above] & falls) && (moves[below] & falls) && heavy[above] > heavy[below]) swap(column, column + 2);
+            }
+            // 2 a cell that slides, resting, goes diagonally down past a lighter neighbour.
+            for (const std::size_t from : {std::size_t{0}, std::size_t{1}}) {
+                const std::size_t beside = 1 - from, diagonal = 3 - from;
+                const std::uint8_t cell = at[from], other = at[beside], under = at[diagonal];
+                if (moved[cell] || moved[other] || moved[under]) continue;
+                if ((moves[cell] & slides) && (moves[under] & falls) && heavy[cell] > heavy[under] && (moves[other] & falls) && heavy[other] < heavy[cell]) {
+                    swap(from, diagonal);
+                    break;
+                }
+            }
+            // 3 a cell that spreads changes places with a lighter one beside it, or not, with equal chance.
+            for (const std::size_t row : {std::size_t{0}, std::size_t{1}}) {
+                const std::uint8_t one = at[row * 2], other = at[row * 2 + 1];
+                if (moved[one] || moved[other] || heavy[one] == heavy[other]) continue;
+                const std::uint8_t heavier = heavy[one] > heavy[other] ? one : other, lighter = heavier == one ? other : one;
+                if (!(moves[heavier] & spreads) || !(moves[lighter] & falls)) continue;
+                const std::uint32_t chance = mlibs::math::mix32(tick_key ^ (left * 0x9e3779b1u) ^ mlibs::math::mix32(top * 2 + static_cast<std::uint32_t>(row)));
+                if (chance & 1) swap(row * 2, row * 2 + 1);
+            }
+            if (at == std::array<std::uint8_t, 4>{0, 1, 2, 3}) continue;
+            for (const std::uint32_t channel : channels) {
+                const std::size_t base = static_cast<std::size_t>(channel) * cells;
+                const std::array<std::uint32_t, 4> made{out[base + place[0]], out[base + place[1]], out[base + place[2]], out[base + place[3]]};
+                for (std::size_t corner = 0; corner < 4; ++corner) out[base + place[corner]] = made[at[corner]];
+            }
+        }
+    }
+}
+
 std::expected<Statistics,Failure> Program::step_tile(Shape shape, Tile tile, std::span<const std::uint32_t> in,
         std::span<std::uint32_t> out, Boundary boundary) const noexcept {
     mlibs::trace::Span span("simulation.cellular.tile", "simulation");
     auto v=validate(shape,in,out,boundary);if(!v)return std::unexpected(v.error());
+    if(moves_)return std::unexpected(Failure{Errc::whole_field});
     if(!tile.width || !tile.height || tile.x>=shape.width || tile.y>=shape.height ||
         tile.width>shape.width-tile.x || tile.height>shape.height-tile.y)return std::unexpected(Failure{Errc::tile});
     return run_tile(shape,tile,in,out,boundary);
@@ -281,6 +380,21 @@ std::expected<Statistics,Failure> Program::step(Shape shape, std::span<const std
         const auto s=run_tile(shape,{x,y,std::min(execution.tile.width,shape.width-x),std::min(execution.tile.height,shape.height-y)},in,out,execution.boundary);
         stats.cells+=s.cells;stats.matched+=s.matched;stats.changed+=s.changed;
         if(!execution.changed_tiles.empty())execution.changed_tiles[k]=s.changed?1:0;
+    }
+    if(moves_) {
+        // Cells moved after the tiles were done: what changed is counted again, cell by cell.
+        exchange(shape,in,out,execution.boundary,execution.tick);
+        const std::size_t cells=static_cast<std::size_t>(shape.width)*shape.height;
+        stats.changed=0;
+        if(!execution.changed_tiles.empty())std::ranges::fill(execution.changed_tiles,std::uint8_t{0});
+        for(std::uint32_t y=0;y<shape.height;++y)for(std::uint32_t x=0;x<shape.width;++x) {
+            const std::size_t cell=static_cast<std::size_t>(y)*shape.width+x;
+            bool changed=false;
+            for(std::uint32_t ch=0;ch<channels_ && !changed;++ch)changed=out[ch*cells+cell]!=in[ch*cells+cell];
+            if(!changed)continue;
+            ++stats.changed;
+            if(!execution.changed_tiles.empty())execution.changed_tiles[(y/execution.tile.height)*columns+x/execution.tile.width]=1;
+        }
     }
     mlibs::trace::count("simulation.cellular.changed",static_cast<double>(stats.changed),"simulation");
     return stats;

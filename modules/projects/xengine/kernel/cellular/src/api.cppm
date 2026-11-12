@@ -101,17 +101,38 @@ struct Transfer {
     std::optional<std::uint32_t> by;
     std::uint32_t by_limit = 1;
 };
-// A program's stages, each reading the same immutable input: the rules (a cell's own transitions), then the
-// transfers (what flows between cells).
+// How a cell may move (the values of an exchange's mobility channel): bits.
+inline constexpr std::uint32_t falls = 1;    // it sinks below a lighter cell that may move too — and so rises above a heavier one
+inline constexpr std::uint32_t slides = 2;   // resting, it goes diagonally down past a lighter neighbour (a powder's slope)
+inline constexpr std::uint32_t spreads = 4;  // resting, it changes places sideways with a lighter neighbour (a liquid's level)
+// An exchange (encoding 2): cells that move. The field is cut into blocks of 2 × 2, and the cut shifts each tick
+// through its four positions (Execution::tick); within a block cells change places — whole cells: every carried
+// channel goes with its cell — by how heavy they are and how they may move, as the input says:
+//   1  in each column, a cell that falls sinks below a lighter one that falls;
+//   2  a cell that slides, resting, changes places with the lighter cell diagonally below, past a lighter one beside it;
+//   3  in each row, a cell that spreads changes places with a lighter one that falls — or not, with equal chance,
+//      by a number of (seed, tick, block, row) alone, so the same field at the same tick moves the same way.
+// A cell moves once a tick. Each cell is in one block, so no two contend for a place and blocks may be done in
+// any order or at once; what moves is conserved by construction. A block that reaches over the edge sits the
+// tick out (at a wrapped edge of an even size it goes round). The kernel knows weights and mobilities, no
+// material: sand, water, oil and smoke are an application's values of the two channels.
+struct Exchange {
+    std::uint32_t weight = 0, mobility = 0;  // the channels
+    std::vector<std::uint32_t> carried;      // the channels that go with a cell; none given: every channel
+    std::uint32_t seed = 0;
+};
+// A program's stages: the rules (a cell's own transitions) and the transfers (what flows between cells) read the
+// same immutable input; then an exchange, decided from that input too, moves what they made of each cell.
 struct Stages {
     std::span<const Rule> rules;
     std::span<const Transfer> transfers;
+    std::span<const Exchange> exchanges;  // one at most
 };
 struct Limits {
     std::uint32_t max_channels = 16, max_rules = 128, max_words = 65536;
     std::uint32_t max_values = 64 * 1024 * 1024; // per input/output field, uint32 values
 };
-enum class Errc : std::uint8_t { unprepared, channels, condition, range, offset, duplicate_write, limit, shape, alias, tile, invalid_limits, transfer };
+enum class Errc : std::uint8_t { unprepared, channels, condition, range, offset, duplicate_write, limit, shape, alias, tile, invalid_limits, transfer, exchange, whole_field };
 // The codes as the error contract describes them (mlibs.error).
 [[nodiscard]] constexpr mlibs::error::Description describe(Errc e) noexcept {
     using Kind = mlibs::error::Kind;  // not `using mlibs::error::Kind;`: that is an ICE in GCC 16 (import_entity_module)
@@ -128,15 +149,18 @@ enum class Errc : std::uint8_t { unprepared, channels, condition, range, offset,
         case Errc::alias: return {"cellular.alias", Kind::invalid_argument, "input and output overlap"};
         case Errc::tile: return {"cellular.tile", Kind::invalid_argument, "a tile outside the field or empty"};
         case Errc::transfer: return {"cellular.transfer", Kind::invalid_argument, "a transfer that is not symmetric, or that could take more than a cell has"};
+        case Errc::exchange: return {"cellular.exchange", Kind::invalid_argument, "an exchange that carries a channel twice, or not its own weight and mobility"};
+        case Errc::whole_field: return {"cellular.whole-field", Kind::invalid_argument, "a program that moves cells steps the whole field, not a tile of it"};
     }
     return {"cellular.?", Kind::internal};
 }
 // Where in a program a failure is: the rule, and the item (a condition or a write) in it — or the transfer.
 struct Location {
     std::size_t rule = 0, item = 0;
-    std::optional<std::size_t> transfer;
+    std::optional<std::size_t> transfer, exchange;
 };
 [[nodiscard]] inline std::string describe_where(const Location& l) {
+    if (l.exchange) return std::format("exchange {}", *l.exchange);
     return l.transfer ? std::format("transfer {}", *l.transfer) : std::format("rule {}, item {}", l.rule, l.item);
 }
 using Failure = mlibs::error::Error<Errc, Location>;
@@ -152,6 +176,8 @@ struct Execution {
     // to 1 where a cell of the tile changed this step and 0 where none did —
     // what a presenter re-uploads and a renderer redraws (D-132).
     std::span<std::uint8_t> changed_tiles = {};
+    // Which step this is, for a program that moves cells: where the blocks are cut, and its choices.
+    std::uint64_t tick = 0;
 };
 // How many tiles of `tile` cover `shape`: columns, rows.
 [[nodiscard]] constexpr Shape tiles(Shape shape, Shape tile) noexcept {
@@ -190,7 +216,7 @@ public:
     Program(Program&& other) noexcept { *this=std::move(other); }
     Program& operator=(Program&& other) noexcept {
         if(this!=&other) {
-            channels_=std::exchange(other.channels_,0);halo_=std::exchange(other.halo_,0);rules_=std::exchange(other.rules_,0);transfers_=std::exchange(other.transfers_,0);
+            channels_=std::exchange(other.channels_,0);halo_=std::exchange(other.halo_,0);rules_=std::exchange(other.rules_,0);transfers_=std::exchange(other.transfers_,0);moves_=std::exchange(other.moves_,false);
             limits_=other.limits_;words_=std::move(other.words_);
         }
         return *this;
@@ -203,6 +229,8 @@ public:
     // The same with the stages after the rules (a program with a transfer is of encoding 2).
     [[nodiscard]] static std::expected<Program,Failure> prepare(std::uint32_t channels, Stages stages, Limits limits = {});
     [[nodiscard]] std::uint32_t transfer_count() const noexcept { return transfers_; }
+    // Whether cells move (an exchange): such a program steps the whole field, by Execution::tick.
+    [[nodiscard]] bool moves() const noexcept { return moves_; }
     [[nodiscard]] std::uint32_t channels() const noexcept { return channels_; }
     [[nodiscard]] std::uint32_t halo() const noexcept { return halo_; }
     [[nodiscard]] std::uint32_t rule_count() const noexcept { return rules_; }
@@ -211,7 +239,7 @@ public:
     // backends. No arbitrary bytecode constructor; prepare validates it once.
     // Its first word is the encoding: 1 for rules of states, thresholds and
     // counted neighbourhoods with constant writes — what every backend runs —
-    // and 2 when a rule aggregates (sum, minimum, maximum), a write has terms, or there is a transfer.
+    // and 2 when a rule aggregates (sum, minimum, maximum), a write has terms, or there is a transfer or an exchange.
     [[nodiscard]] std::span<const std::uint32_t> words() const noexcept { return words_; }
     [[nodiscard]] std::uint32_t encoding() const noexcept { return words_.empty() ? 0 : words_[0]; }
     [[nodiscard]] std::expected<std::size_t,Failure> values(Shape shape) const noexcept;
@@ -229,7 +257,9 @@ private:
         std::span<std::uint32_t>, Boundary) const noexcept;
     [[nodiscard]] Statistics run_tile(Shape, Tile, std::span<const std::uint32_t>,
         std::span<std::uint32_t>, Boundary) const noexcept;
+    void exchange(Shape, std::span<const std::uint32_t>, std::span<std::uint32_t>, Boundary, std::uint64_t tick) const noexcept;
     std::uint32_t channels_ = 0, halo_ = 0, rules_ = 0, transfers_ = 0;
+    bool moves_ = false;
     Limits limits_;
     std::vector<std::uint32_t> words_;
 };

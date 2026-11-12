@@ -47,6 +47,60 @@ struct Model {
     }
 };
 }
+// A world of cells that move, for the exchange's cases: channel 0 how heavy a cell is, 1 how it may move, 2 a
+// number of its own (it goes with it), 3 a mark on the place (it stays). The kinds are this test's, not the
+// kernel's: it knows weights and mobilities only.
+struct Kind {
+    std::uint32_t weight, mobility;
+};
+constexpr Kind air{10, ca::falls}, sand{100, ca::falls | ca::slides}, water{50, ca::falls | ca::slides | ca::spreads},
+    oil{40, ca::falls | ca::slides | ca::spreads}, smoke{2, ca::falls | ca::spreads}, stone{1000, 0};
+struct World {
+    ca::Shape shape;
+    std::vector<std::uint32_t> cells, next;
+    ca::Program program;
+    std::uint64_t tick = 0;
+    World(ca::Shape size, std::uint32_t seed = 7) : shape(size), cells(static_cast<std::size_t>(size.width) * size.height * 4), next(cells.size()) {
+        const std::array<ca::Exchange, 1> moving{{{.weight = 0, .mobility = 1, .carried = {0, 1, 2}, .seed = seed}}};
+        program = *ca::Program::prepare(4, ca::Stages{.exchanges = moving});
+        for (std::uint32_t y = 0; y < size.height; ++y)
+            for (std::uint32_t x = 0; x < size.width; ++x) put(x, y, air);
+    }
+    [[nodiscard]] std::size_t area() const { return static_cast<std::size_t>(shape.width) * shape.height; }
+    [[nodiscard]] std::size_t at(std::uint32_t x, std::uint32_t y) const { return static_cast<std::size_t>(y) * shape.width + x; }
+    void put(std::uint32_t x, std::uint32_t y, Kind kind) {
+        cells[at(x, y)] = kind.weight;
+        cells[area() + at(x, y)] = kind.mobility;
+        cells[2 * area() + at(x, y)] = static_cast<std::uint32_t>(at(x, y)) + 1000;  // whose cell it was at the start
+        cells[3 * area() + at(x, y)] = x * 3 + y;                                    // of the place
+    }
+    [[nodiscard]] std::uint32_t weight(std::uint32_t x, std::uint32_t y) const { return cells[at(x, y)]; }
+    [[nodiscard]] bool is(std::uint32_t x, std::uint32_t y, Kind kind) const { return weight(x, y) == kind.weight; }
+    // One step; how many cells changed.
+    std::uint64_t step(ca::Edge edge = ca::Edge::clamp, ca::Shape tile = {32, 32}, bool reverse = false) {
+        const auto stepped = program.step(shape, cells, next, {.tile = tile, .boundary = {edge, 0}, .reverse_tiles = reverse, .tick = tick++});
+        expect(fatal(stepped.has_value()));
+        cells.swap(next);
+        return stepped->changed;
+    }
+    // The whole cells there are, whatever their places: what an exchange must keep.
+    [[nodiscard]] std::vector<std::array<std::uint32_t, 3>> census() const {
+        std::vector<std::array<std::uint32_t, 3>> all;
+        for (std::size_t cell = 0; cell < area(); ++cell) all.push_back({cells[cell], cells[area() + cell], cells[2 * area() + cell]});
+        std::ranges::sort(all);
+        return all;
+    }
+    [[nodiscard]] std::string picture() const {
+        std::string out;
+        for (std::uint32_t y = 0; y < shape.height; ++y) {
+            for (std::uint32_t x = 0; x < shape.width; ++x)
+                out += is(x, y, air) ? '.' : is(x, y, sand) ? 's' : is(x, y, water) ? '~' : is(x, y, oil) ? 'o' : is(x, y, smoke) ? '^' : '#';
+            out += '\n';
+        }
+        return out;
+    }
+};
+
 UTest cases{"simulation.cellular", [] {
     "state/threshold/neighborhood rules agree with a scalar oracle across tile sizes and both orders"_test = [] {
         const ca::Shape shape{19,11};auto rules=reaction_rules();auto prepared=ca::Program::prepare(3,rules);
@@ -352,6 +406,121 @@ UTest cases{"simulation.cellular", [] {
         const std::array<ca::Transfer, 2> twice{{{.channel = 0, .offsets = four}, {.channel = 0, .offsets = four}}};
         const auto both = ca::Program::prepare(1, ca::Stages{.transfers = twice});
         expect(!both && both.error().code == ca::Errc::transfer && both.error().where.transfer == std::size_t{1}) << "one flow a quantity";
+    };
+
+    "an exchange: a column of sand falls and comes to rest as a pile — every grain kept, none hanging, none on a slope it would slide down"_test = [] {
+        World world({11, 8});
+        for (std::uint32_t y = 0; y < 6; ++y) world.put(5, y, sand);
+        const auto before = world.census();
+        int quiet = 0, ticks = 0;
+        for (; ticks < 400 && quiet < 8; ++ticks) quiet = world.step() ? 0 : quiet + 1;  // at rest: nothing moved through the cut's four places, twice
+        expect(quiet == 8) << "it comes to rest\n" + world.picture();
+        expect(world.census() == before) << "every cell that was there is there";
+        std::uint32_t grains = 0, tallest = 0;
+        for (std::uint32_t y = 0; y < 8; ++y)
+            for (std::uint32_t x = 0; x < 11; ++x) {
+                if (!world.is(x, y, sand)) continue;
+                ++grains;
+                tallest = std::max(tallest, 8 - y);
+                if (y == 7) continue;
+                expect(!world.is(x, y + 1, air)) << std::format("a grain hangs at {},{}\n{}", x, y, world.picture());
+                for (const int side : {-1, 1}) {
+                    const std::uint32_t beside = x + static_cast<std::uint32_t>(side);
+                    if (beside >= 11) continue;
+                    expect(!(world.is(beside, y, air) && world.is(beside, y + 1, air))) << std::format("a grain at {},{} would slide\n{}", x, y, world.picture());
+                }
+            }
+        expect(eq(grains, 6u));
+        expect(tallest <= 3u) << "a pile, not the column it was\n" + world.picture();
+        std::println("{} ticks to rest:\n{}", ticks, world.picture());
+    };
+
+    "an exchange keeps every cell: a soup of sand, water, oil, smoke and stone, tick after tick — and what is of the place stays"_test = [] {
+        World world({13, 9});
+        const std::array<Kind, 6> kinds{air, sand, water, oil, smoke, stone};
+        for (std::uint32_t y = 0; y < 9; ++y)
+            for (std::uint32_t x = 0; x < 13; ++x) world.put(x, y, kinds[(x * 7 + y * 13 + x * y) % 6]);
+        const auto before = world.census();
+        std::vector<std::pair<std::uint32_t, std::uint32_t>> stones;
+        for (std::uint32_t y = 0; y < 9; ++y)
+            for (std::uint32_t x = 0; x < 13; ++x)
+                if (world.is(x, y, stone)) stones.emplace_back(x, y);
+        std::uint64_t moved = 0;
+        for (int tick = 0; tick < 200; ++tick) {
+            moved += world.step(tick % 3 == 0 ? ca::Edge::wrap : ca::Edge::clamp);  // an odd size: a block over the edge sits out, wrapped or not
+            if (world.census() != before) {
+                expect(false) << std::format("tick {}: a cell was lost or made", tick);
+                break;
+            }
+        }
+        expect(moved > 100u) << "and they did move";
+        for (const auto [x, y] : stones) expect(world.is(x, y, stone)) << "what may not move did not";
+        for (std::uint32_t y = 0; y < 9; ++y)
+            for (std::uint32_t x = 0; x < 13; ++x) expect(eq(world.cells[3 * world.area() + world.at(x, y)], x * 3 + y)) << "a channel that is not carried stays";
+    };
+
+    "an exchange: water finds its level, oil lies on it, smoke goes up — by weight and mobility alone"_test = [] {
+        World world({12, 8});
+        for (std::uint32_t y = 2; y < 8; ++y)
+            for (std::uint32_t x = 0; x < 4; ++x) world.put(x, y, water);  // 24 of water, a block on the left
+        for (std::uint32_t y = 6; y < 8; ++y)
+            for (std::uint32_t x = 8; x < 12; ++x) world.put(x, y, oil);    // 8 of oil at the bottom right
+        for (std::uint32_t x = 5; x < 8; ++x) world.put(x, 7, smoke);       // 3 of smoke on the floor
+        const auto before = world.census();
+        for (int tick = 0; tick < 1500; ++tick) world.step();
+        expect(world.census() == before);
+        // Water: 24 cells in a tank 12 wide are two full rows. Its surface moves (a liquid never quite rests), so
+        // the measure is where it is: nearly all of it in the two lowest rows, none above the fourth.
+        std::uint32_t water_low = 0, water_high = 0, oil_above_water = 0, oil_cells = 0, smoke_top = 0;
+        for (std::uint32_t y = 0; y < 8; ++y)
+            for (std::uint32_t x = 0; x < 12; ++x) {
+                if (world.is(x, y, water)) (y >= 6 ? water_low : water_high) += 1, expect(y >= 4u) << "water above the fourth row\n" + world.picture();
+                if (world.is(x, y, oil)) ++oil_cells, oil_above_water += y <= 5 ? 1 : 0;
+                if (world.is(x, y, smoke)) smoke_top += y <= 1 ? 1 : 0;
+            }
+        expect(water_low >= 22u) << std::format("{} of 24 in the two lowest rows\n{}", water_low, world.picture());
+        expect(eq(oil_cells, 8u) && oil_above_water >= 7u) << std::format("{} of 8 of oil above the water's two rows\n{}", oil_above_water, world.picture());
+        expect(eq(smoke_top, 3u)) << "the smoke is under the ceiling\n" + world.picture();
+        std::println("after 1500 ticks:\n{}", world.picture());
+    };
+
+    "an exchange is the same field at the same tick: whatever the tiles, their order, and run again; another seed spreads another way"_test = [] {
+        const auto run = [](std::uint32_t seed, ca::Shape tile, bool reverse) {
+            World world({12, 8}, seed);
+            for (std::uint32_t y = 2; y < 8; ++y)
+                for (std::uint32_t x = 0; x < 4; ++x) world.put(x, y, water);
+            for (std::uint32_t y = 0; y < 3; ++y) world.put(9, y, sand);
+            for (int tick = 0; tick < 120; ++tick) world.step(ca::Edge::clamp, tile, reverse);
+            return world.cells;
+        };
+        const auto first = run(7, {32, 32}, false);
+        expect(run(7, {32, 32}, false) == first) << "run again";
+        expect(run(7, {5, 3}, true) == first) << "tiles and their order are the rules' matter, not the result's";
+        expect(run(8, {32, 32}, false) != first) << "another seed";
+    };
+
+    "a program that moves cells steps the whole field; its changed tiles are where cells changed; a malformed exchange is refused"_test = [] {
+        World world({8, 8});
+        world.put(3, 0, sand);
+        std::vector<std::uint8_t> changed(4, 9);
+        const auto stepped = world.program.step(world.shape, world.cells, world.next, {.tile = {4, 4}, .boundary = {ca::Edge::clamp, 0}, .changed_tiles = changed, .tick = 0});
+        expect(fatal(stepped.has_value()));
+        expect(eq(stepped->changed, std::uint64_t{2})) << "the grain and the air it changed places with";
+        expect(changed == std::vector<std::uint8_t>{1, 0, 0, 0}) << "the tile they are in";
+        expect(world.program.moves());
+        const auto tile = world.program.step_tile(world.shape, {0, 0, 4, 4}, world.cells, world.next);
+        expect(!tile && tile.error().code == ca::Errc::whole_field) << "a tile of it alone is refused";
+
+        const auto refused = [](std::vector<ca::Exchange> exchanges, std::uint32_t channels = 3) {
+            const auto program = ca::Program::prepare(channels, ca::Stages{.exchanges = exchanges});
+            return program ? std::string("accepted") : std::format("{} at {}", program.error().description().name, ca::describe_where(program.error().where));
+        };
+        expect(eq(refused({{.weight = 3}}), std::string("cellular.channels at exchange 0")));
+        expect(eq(refused({{.weight = 0, .mobility = 1, .carried = {0, 1, 5}}}), std::string("cellular.channels at exchange 0")));
+        expect(eq(refused({{.weight = 0, .mobility = 1, .carried = {0, 1, 1}}}), std::string("cellular.exchange at exchange 0"))) << "a channel carried twice";
+        expect(eq(refused({{.weight = 0, .mobility = 1, .carried = {0, 2}}}), std::string("cellular.exchange at exchange 0"))) << "what decides a move goes with the cell";
+        expect(eq(refused({{.weight = 0, .mobility = 1}, {.weight = 0, .mobility = 1}}), std::string("cellular.limit at exchange 1"))) << "one exchange a program";
+        expect(eq(refused({{.weight = 0, .mobility = 1}}), std::string("accepted")));
     };
 
     "the shared owned-state history rebuilds cellular states and inputs without a second checkpoint engine"_test = [] {

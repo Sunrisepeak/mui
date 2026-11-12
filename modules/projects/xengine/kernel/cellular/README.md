@@ -24,8 +24,7 @@ Fields are contiguous channel-major `uint32_t` values: `[channel][y][x]`. All pr
 const std::vector<ca::Rule> diffuse{{{}, {{0, ca::WriteKind::set, 0, {ca::Term::self(0, 4, 3), ca::Term::sum(0, ca::cardinal, 1, 3)}}}}};
 ```
 
-Every step of it is 32-bit unsigned and saturating — a product stops at the largest number before its shift, sums stop there, a difference stops at 0 — so it is the same bits wherever it runs, and a device's shader needs no wider integer. A program that uses none of this keeps encoding 1, word for word what it was, which is what the device's kernel runs today; one that does is encoding 2 and runs on this CPU reference (the device's kernel refuses it as unsupported until it has the same stages). Cells that move are the next stage (exchange), not these.
-
+Every step of it is 32-bit unsigned and saturating — a product stops at the largest number before its shift, sums stop there, a difference stops at 0 — so it is the same bits wherever it runs, and a device's shader needs no wider integer. A program that uses none of this keeps encoding 1, word for word what it was, which is what the device's kernel runs today; one that does is encoding 2 and runs on this CPU reference (the device's kernel refuses it as unsupported until it has the same stages). 
 **Transfers** (encoding 2; the stage after the rules). A quantity that flows between a cell and each of its neighbours, from the one that has more to the one that has less — heat, moisture, charge:
 
 ```cpp
@@ -35,6 +34,25 @@ auto program = ca::Program::prepare(2, ca::Stages{.rules = rules, .transfers = h
 ```
 
 Both ends of a pair compute the flow from the same two values, so what leaves one cell is what arrives at the other; and preparation refuses a transfer whose neighbourhood could together take more than a difference (`by_limit × multiply × neighbours` above `2^shift`), so nothing saturates. What the field holds of the quantity is then what it held, exactly, step after step — at a wrapped edge it goes round, at a clamped one nothing crosses, at a constant one the outside is a bath at that value. Rules and transfers read the same input; where a rule writes the channel in the same step its write comes first and the flows are added to it. Flows are whole numbers: a pair whose difference is too small to move anything stays as it is.
+
+**An exchange** (encoding 2; the stage after the transfers): cells that move — sand that falls and piles, a liquid that finds its level, a lighter liquid lying on a heavier, a gas going up. The kernel knows two channels, how heavy a cell is and how it may move (`falls`, `slides`, `spreads`); sand, water, oil and smoke are an application's values of them:
+
+```cpp
+// channel 0 the weight, 1 the mobility; every channel goes with its cell
+const std::array<ca::Exchange, 1> moving{{{.weight = 0, .mobility = 1}}};
+auto program = ca::Program::prepare(channels, ca::Stages{.rules = rules, .transfers = heat, .exchanges = moving});
+auto stepped = program->step(shape, before, after, {.tick = tick});   // the tick says where the blocks are cut
+```
+
+The field is cut into blocks of 2 × 2, and the cut shifts each tick through its four positions. Within a block: a cell that falls sinks below a lighter one that falls; a cell that slides, resting, goes diagonally down past a lighter neighbour; a cell that spreads changes places with a lighter one beside it, or not, with equal chance — a number of (seed, tick, block, row) alone, `mlibs.math`'s `mix32`, so the same field at the same tick moves the same way, here and in a shader. A cell moves once a tick. Each cell is in one block, so no two cells contend for a place, blocks may be done in any order or at once, and what moves is kept by construction: whole cells change places, nothing is made or lost. Moves are decided from the step's input, as the rules and transfers are, and carry what those made of each cell. A program that moves cells steps the whole field (`step_tile` refuses it). A cell moves at most one place a tick and waits for the cut to come round: speed is ticks a frame, an application's choice.
+
+```
+ a column of six grains, at rest after 19 ticks        water, oil and smoke after 1500
+ ...........                                           .....^^^....
+ ....ss.....                                           .ooooo..oo.o
+ ...ssss....                                           ~~~~~~~~~~~~
+                                                       ~~~~~~~~~~~~
+```
 
 Preparation owns a validated descriptor, infers halo reach and enforces resource/offset limits. `step` accepts a tile size/order; `step_tile` writes only the requested rectangle and reads its logical halo from the full immutable field. Hosts may schedule disjoint rectangles through their existing task executor. This is not streamed/sparse halo exchange, multi-cell movement arbitration or a new task pool.
 

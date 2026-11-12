@@ -1253,8 +1253,8 @@ def self_test() -> int:
             global CLOSURES, AGENT_SURFACE_OWED
             saved, saved_owed = CLOSURES, AGENT_SURFACE_OWED
             AGENT_SURFACE_OWED = {}  # the list is this repository's: the planted tree has none of its packages
-            if rule == "closure":
-                CLOSURES = {"hanim": {"not": {"hanim.core"}}}  # planted: hanim may not reach its core
+            # The rules are this repository's packages'; the planted tree has its own (one of them named hanim).
+            CLOSURES = {"hanim": {"not": {"hanim.core"}}} if rule == "closure" else {}  # planted: hanim may not reach its core
             kind, _, capability = rule.partition(":")
             found = [p for p in run(root) if p.rule == kind and (not capability or p.message.startswith(capability + ":"))]
             # A specification that depends on a library (the layering case) breaks the projects' order too.

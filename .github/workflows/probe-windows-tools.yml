@@ -26,7 +26,7 @@ jobs:
       - name: Install xlings (Unix)
         if: runner.os != 'Windows'
         run: |
-          curl -fsSL https://raw.githubusercontent.com/openxlings/xlings/main/tools/other/quick_install.sh | bash
+          curl -fsSL https://raw.githubusercontent.com/openxlings/xlings/main/tools/other/quick_install.sh | bash -s v2026.10.26.1
           echo "$HOME/.xlings/subos/current/bin" >> "$GITHUB_PATH"
       - name: Install xlings (Windows)
         if: runner.os == 'Windows'
@@ -90,8 +90,8 @@ jobs:
           echo "mcpp run: exit $status"
           echo "--- what was provisioned"
           grep -n "Provisioning\|Source \|Downloading\|esbuild\|typescript" run.log
-          echo "--- esbuild and tsc beneath the xlings homes"
-          for home in "$HOME/.xlings" "$PWD/.xlings" "$USERPROFILE/.xlings"; do
-            [ -d "$home" ] && find "$home" -maxdepth 6 \( -iname 'esbuild*' -o -iname 'tsc*' \) 2>/dev/null | head -20
+          echo "--- esbuild and tsc beneath the xlings and mcpp homes, and the project"
+          for home in "$HOME/.xlings" "$HOME/.mcpp" "$PWD"; do
+            [ -d "$home" ] && find "$home" -maxdepth 9 \( -iname '*esbuild*' -o -iname 'tsc' -o -iname 'tsc.*' -o -iname '*typescript*' \) 2>/dev/null | head -30
           done
           exit "$status"

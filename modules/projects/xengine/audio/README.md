@@ -125,6 +125,7 @@ Devices and codecs are plugins in their own packages:
 | Package | |
 |---|---|
 | [device](device) | The system's default output through miniaudio, or its null backend for headless runs and tests |
+| [timeline](timeline) | A bus's gain automated by a clip of a timeline ([hanim.timeline](../../hanim/timeline)): one frozen signal on the mixer's sample clock, the same one a view or an Agent reads at any time |
 
 Codecs (WAV, FLAC, Opus) and the Web's output (Web Audio) come next.
 

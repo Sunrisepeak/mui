@@ -1,4 +1,4 @@
-# xengine.timeline — the timeline every editor shares (D-86): tracks of clips
+# hanim.timeline — the timeline every editor shares (D-86): tracks of clips
 # (a video, a view, a sound, an animation) placed in exact time, each with
 # where in its source it begins, its speed, its level and fades, and
 # properties keyed with hanim's curves; markers; what plays at any moment;
@@ -8,7 +8,7 @@
 # library, hanim.core (its eases and keyed tracks), mlibs.time (flicks and
 # rates) and mlibs.json.
 [package]
-namespace   = "xengine"
+namespace   = "hanim"
 name        = "timeline"
 version     = "0.1.0"
 description = "Tracks of clips in exact time, keyed properties, edits that undo exactly, and a readable file"
@@ -19,7 +19,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 kind = "runtime"
 
-[targets.openmui-timeline]
+[targets.hanim-timeline]
 kind = "lib"
 
 [build]
@@ -27,7 +27,7 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-hanim.core          = { path = "../../hanim/core" }
+hanim.core          = { path = "../core" }
 mlibs.utils         = { path = "../../../base/utils" }
 mlibs.json          = { path = "../../../base/json" }
 

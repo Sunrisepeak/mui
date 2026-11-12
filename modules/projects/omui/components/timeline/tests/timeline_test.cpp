@@ -6,7 +6,7 @@
 import std;
 
 import omui.ui.timeline;
-import xengine.timeline;
+import hanim.timeline;
 import omui.host.headless;
 import mlibs.testing;
 import mcpplibs.mtest;
@@ -14,7 +14,7 @@ import mcpplibs.mtest;
 using namespace mlibs::testing;
 using namespace mcpplibs::mtest;
 using namespace omui;
-namespace tl = xengine::timeline;
+namespace tl = hanim::timeline;
 
 namespace {
 

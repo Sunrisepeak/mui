@@ -333,7 +333,7 @@ export interface Music {
 /** `export default defineMusic({ name: "study", tempo: 128, instruments: {…}, …, arrangement: { loop: ["a"] } })`. */
 export declare function defineMusic(piece: Music): Defined<"music">;
 
-// ── timelines and subtitles (xengine.timeline) ──────────────────────────
+// ── timelines and subtitles (hanim.timeline) ──────────────────────────
 
 /** A time: "90f" (frames), "1.5s", "250ms", "123fl" (flicks), or a number of seconds. */
 export type Time = string | number;

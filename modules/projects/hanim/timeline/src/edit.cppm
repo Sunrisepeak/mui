@@ -1,13 +1,13 @@
-// xengine.timeline:edit — changes made of three steps (insert a clip, remove
+// hanim.timeline:edit — changes made of three steps (insert a clip, remove
 // one, replace one), so that applying a change gives back its exact inverse:
 // undo and redo are just more changes, and a change that cannot be made is
 // not made at all.
-export module xengine.timeline:edit;
+export module hanim.timeline:edit;
 
 import std;
 import :model;
 
-export namespace xengine::timeline {
+export namespace hanim::timeline {
 
 struct Step {
     enum class Kind : std::uint8_t { insert, remove, replace };
@@ -41,4 +41,4 @@ struct Change {
 // a clip cut in two at `at`: the second half goes on from where the first stopped.
 [[nodiscard]] std::expected<Change, std::string> split(const Timeline& timeline, std::size_t track, std::size_t index, Flicks at);
 
-}  // namespace xengine::timeline
+}  // namespace hanim::timeline

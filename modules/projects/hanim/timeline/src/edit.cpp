@@ -1,9 +1,9 @@
-module xengine.timeline;
+module hanim.timeline;
 
 import std;
 import hanim.core;
 
-namespace xengine::timeline {
+namespace hanim::timeline {
 
 namespace {
 
@@ -184,4 +184,4 @@ std::expected<Change, std::string> split(const Timeline& timeline, std::size_t t
                   {{Step::Kind::replace, track, index, std::move(first)}, {Step::Kind::insert, track, index + 1, std::move(second)}}};
 }
 
-}  // namespace xengine::timeline
+}  // namespace hanim::timeline

@@ -1,22 +1,24 @@
 // Optional adapter: the audio engine is an ordinary consumer of a prepared
 // control signal, and observers query that same immutable signal without
 // advancing an audio device, mixer, sequencer or any live event cursor.
-export module xengine.timeline.audio;
+export module xengine.audio.timeline;
 
 import std;
-import xengine.timeline;
+import hanim.timeline;
 import xengine.audio;
 import hanim.core;
 import mlibs.time;
 
-namespace xengine::timeline {
+namespace xengine::audio {
+using hanim::timeline::Clip;
+using hanim::timeline::Property;
 using mlibs::time::Flicks;
 using mlibs::time::flicks_per_second;
 using mlibs::time::to_seconds;
 using mlibs::time::exact_samples;
-}  // namespace xengine::timeline
+}  // namespace xengine::audio
 
-export namespace xengine::timeline {
+export namespace xengine::audio {
 
 enum class GainError : std::uint8_t { sample_rate, clip_time, value, property, keys, easing };
 [[nodiscard]] std::string_view gain_error_name(GainError error) noexcept;

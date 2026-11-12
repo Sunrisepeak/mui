@@ -95,6 +95,7 @@ PATH_LAYERS: dict[str, str] = {
     "modules/mpal": "base",  # the OS's services above mcpplibs.os: no UI, used by omui's hosts
     # the projects (plan §9.2)
     "modules/projects/hanim/core": "base",
+    "modules/projects/hanim/timeline": "base",  # tracks of clips, their file and edits: hanim.core and mlibs alone
     "modules/projects/hanim": "gfx",
     "modules/projects/xrender": "gfx",
     "modules/projects/xrender/text": "content",  # text as the renderer draws it: above mlibs.text
@@ -102,10 +103,9 @@ PATH_LAYERS: dict[str, str] = {
     "modules/projects/xengine/cellular": "base",  # its CPU part
     "modules/projects/xengine/cellular/rhi": "gfx",
     "modules/projects/xengine/cellular/present": "gfx",  # cells to an xrender image
-    "modules/projects/xengine/audio": "media",
     "modules/projects/xengine/cellular/sdl": "gfx",  # the kernel's suite and field on a native device
+    "modules/projects/xengine/audio": "media",
     "modules/projects/xengine/video": "media",
-    "modules/projects/xengine/timeline": "media",
     "modules/projects/xengine": "game",  # world, input, physics, net, ui
     "modules/projects/gongfu": "gongfu",
     "modules/projects/omui": "ui",

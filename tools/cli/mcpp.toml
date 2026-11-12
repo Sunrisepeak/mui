@@ -33,8 +33,8 @@ omui.ui.markdown = { path = "../../modules/projects/omui/components/markdown" }
 xengine.video      = { path = "../../modules/projects/xengine/video" }
 "xengine.video.webm" = { path = "../../modules/projects/xengine/video/webm" }
 xengine.audio       = { path = "../../modules/projects/xengine/audio" }
-xengine.timeline = { path = "../../modules/projects/xengine/timeline" }
-"xengine.timeline.audio" = { path = "../../modules/projects/xengine/timeline/audio" }
+hanim.timeline = { path = "../../modules/projects/hanim/timeline" }
+"xengine.audio.timeline" = { path = "../../modules/projects/xengine/audio/timeline" }
 xrender.vector = { path = "../../modules/projects/xrender/vector" }
 mlibs.image = { path = "../../modules/base/image" }
 omui.host.headless = { path = "../../modules/projects/omui/host/headless" }

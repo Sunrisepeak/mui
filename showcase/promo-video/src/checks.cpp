@@ -6,7 +6,7 @@ import hanim.core;
 import omui;
 import xengine.audio;
 import xengine.video;
-import xengine.timeline;
+import hanim.timeline;
 
 namespace omui::promo {
 

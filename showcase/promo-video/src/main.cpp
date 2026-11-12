@@ -23,7 +23,7 @@ import omui;
 import xengine.video;
 import xengine.video.webm;
 import xengine.audio;
-import xengine.timeline;
+import hanim.timeline;
 import omui.showcase.promo_video;
 
 namespace {
@@ -31,7 +31,7 @@ namespace {
 namespace cmd = mcpplibs::cmdline;
 namespace promo = omui::promo;
 namespace vid = xengine::video;
-namespace tl = xengine::timeline;
+namespace tl = hanim::timeline;
 using omui::Value;
 
 int print(const Value& report, int code) {

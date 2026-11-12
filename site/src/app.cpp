@@ -12,7 +12,7 @@ import omui;
 import mlibs.hash;
 import omui.ui.markdown;
 import omui.ui.timeline;
-import xengine.timeline;
+import hanim.timeline;
 import omui.theme;
 import omui.theme.styles;
 import hello;
@@ -117,11 +117,11 @@ struct Site {
     Signal<bool>        timeline_playing = signal(false);
     // The timeline read again only when its text changed: what the monitor shows at the playhead.
     std::string                      timeline_read_from;
-    std::optional<xengine::timeline::Timeline> timeline_model;
-    const xengine::timeline::Timeline* timeline_now(const std::string& text) {
+    std::optional<hanim::timeline::Timeline> timeline_model;
+    const hanim::timeline::Timeline* timeline_now(const std::string& text) {
         if (text != timeline_read_from || !timeline_model) {
             timeline_read_from = text;
-            auto t = xengine::timeline::read_timeline(text, "site.timeline.omui.json");
+            auto t = hanim::timeline::read_timeline(text, "site.timeline.omui.json");
             timeline_model = t ? std::optional(std::move(*t)) : std::nullopt;
         }
         return timeline_model ? &*timeline_model : nullptr;
@@ -130,7 +130,7 @@ struct Site {
     void play_timeline() {
         (void)runtime->after(seconds(1.0 / 30), [this] {
             if (!timeline_playing.peek()) return;
-            const xengine::timeline::Timeline* t = timeline_now(timeline.peek());
+            const hanim::timeline::Timeline* t = timeline_now(timeline.peek());
             const std::int64_t end = t ? t->rate.frame_at(t->duration()) : 270;
             const std::int32_t next = timeline_frame.peek() + 1;
             if (next > end) {
@@ -144,10 +144,10 @@ struct Site {
     }
     // The level (0–1, its fades) the picture clip named `name` plays at the frame shown; 0 when it does not.
     float clip_level(std::string_view name, std::int32_t frame) {
-        const xengine::timeline::Timeline* t = timeline_now(timeline.get());
+        const hanim::timeline::Timeline* t = timeline_now(timeline.get());
         if (!t) return 0;
-        std::vector<xengine::timeline::Playing> now;
-        xengine::timeline::playing(*t, t->rate.frame_time(frame), now);
+        std::vector<hanim::timeline::Playing> now;
+        hanim::timeline::playing(*t, t->rate.frame_time(frame), now);
         for (const auto& p : now)
             if (t->tracks[p.track].clips[p.clip].name == name) return p.level;
         return 0;

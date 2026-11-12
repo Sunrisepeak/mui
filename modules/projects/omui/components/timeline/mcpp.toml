@@ -1,5 +1,5 @@
 # omui.ui.timeline — the timeline every editor shares, as a component
-# (D-86): tracks of clips in exact time (xengine.timeline), a ruler, markers
+# (D-86): tracks of clips in exact time (hanim.timeline), a ruler, markers
 # and a playhead; clips selected, moved, trimmed, split and removed by the
 # pointer, the keys or an agent's actions, every edit undone exactly.
 # Contract-first: contract/timeline.contract.omui.toml becomes the base,
@@ -27,7 +27,7 @@ omui.core          = { path = "../../core" }
 omui.view          = { path = "../../view" }
 xrender.vector = { path = "../../../xrender/vector" }
 omui.ui.base       = { path = "../base" }
-xengine.timeline      = { path = "../../../xengine/timeline" }
+hanim.timeline      = { path = "../../../hanim/timeline" }
 
 [build-dependencies]
 omui.build.contracts = { path = "../../../../../mcpp/contracts", host-module = true }

@@ -10,7 +10,7 @@
 // afford: pinned frames, short stretches, sampled frames at a quarter scale.
 import std;
 import omui;
-import xengine.timeline;
+import hanim.timeline;
 import xengine.audio;
 import mlibs.testing;
 import mcpplibs.mtest;
@@ -23,7 +23,7 @@ using mlibs::log::fatal;
 using namespace mlibs::testing;
 using namespace mcpplibs::mtest;
 using namespace omui;
-namespace tl = xengine::timeline;
+namespace tl = hanim::timeline;
 
 namespace {
 

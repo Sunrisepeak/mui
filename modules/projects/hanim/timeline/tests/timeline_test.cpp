@@ -1,13 +1,13 @@
-// xengine.timeline: exact time, what plays when, edits and their inverses, the file.
+// hanim.timeline: exact time, what plays when, edits and their inverses, the file.
 import std;
 import hanim.core;
-import xengine.timeline;
+import hanim.timeline;
 import mlibs.testing;
 import mcpplibs.mtest;
 
 using namespace mlibs::testing;
 using namespace mcpplibs::mtest;
-namespace tl = xengine::timeline;
+namespace tl = hanim::timeline;
 
 namespace {
 

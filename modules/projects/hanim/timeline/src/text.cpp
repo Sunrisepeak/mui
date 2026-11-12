@@ -1,9 +1,9 @@
 // Times as text, and a problem's text.
-module xengine.timeline;
+module hanim.timeline;
 
 import std;
 
-namespace xengine::timeline {
+namespace hanim::timeline {
 
 std::string Problem::text() const {
     return std::format("{}:{}:{}: {}{}{}", file, line, column, at.empty() ? "" : std::format("{}: ", at), message, hint.empty() ? "" : std::format(" ({})", hint));
@@ -78,4 +78,4 @@ std::string time_text(Flicks t, Rate rate) {
     return std::format("{}{}fl", sign, a);
 }
 
-}  // namespace xengine::timeline
+}  // namespace hanim::timeline

@@ -18,11 +18,10 @@ It also holds the domain subsystems that have not graduated into projects of the
 | [simulation](simulation) | base (its GPU adapter gfx) | [cellular](simulation/cellular) integer field rules, with an optional compute kernel on `mlibs.rhi` ([rhi](cellular/rhi)), and a field on screen as one image ([present](cellular/present)) |
 | [audio](audio) | media | Sounds and music as data (`*.sound.omui.ts`, `*.music.omui.ts`), voices mixed into buses a block at a time with nothing allocated; offline renders the same bits everywhere; the `omui-music` tool |
 | [video](video) | media | Frames and a sound track encoded on exact frame and sample counts: sources, encoders as plugins, `*.video.omui.ts`; the same bytes everywhere |
-| [timeline](timeline) | media | Tracks of clips in exact time (flicks), properties keyed with hanim's curves, edits that give back their exact inverse; `*.timeline.omui.ts` |
 | [tool](tool) | game | The `xengine` command: timelines checked, read at a moment, edited and edits taken back, headless (xengine's operations' catalog and skill) |
 | [world](world) | game | Entities and components in fixed columns of plain data: deterministic order, a snapshot is one copy |
 | [input](input) | game | Keys, gamepads and the pointer bound to a game's actions, sampled once a frame as plain data |
 | [net](net) | game | Rollback netcode for two peers, independent of the transport: input delay, prediction, rollback, desync detection |
 | [ui](ui) | game | A game inside omui: its steps paced on the runtime's clock, omui's keys and pointer given to its actions |
 
-The other engines of the system are projects of their own: [hanim](../hanim) (animation), [xrender](../xrender) (rendering) and [gongfu](../gongfu) (fighting games, built on the game layer's ideas but with a core that needs only the standard library). Convergence moves the timeline's animation tracks and audio gain automation onto hanim's channels (plan §6.5).
+The other engines of the system are projects of their own: [hanim](../hanim) (animation, and the timeline every editor shares: [hanim.timeline](../hanim/timeline)), [xrender](../xrender) (rendering) and [gongfu](../gongfu) (fighting games, built on the game layer's ideas but with a core that needs only the standard library). Convergence moves the timeline's animation tracks and audio gain automation onto hanim's channels (plan §6.5).

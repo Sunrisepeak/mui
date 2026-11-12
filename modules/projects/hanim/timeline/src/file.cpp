@@ -1,12 +1,12 @@
 // Reading and writing timelines: the JSON a `*.timeline.omui.ts` evaluates
 // to (D-139), every problem at its JSON pointer and its line and column.
-module xengine.timeline;
+module hanim.timeline;
 
 import std;
 import hanim.core;
 import mlibs.json;
 
-namespace xengine::timeline {
+namespace hanim::timeline {
 
 namespace {
 
@@ -279,4 +279,4 @@ std::string write_timeline(const Timeline& tl) {
     return s;
 }
 
-}  // namespace xengine::timeline
+}  // namespace hanim::timeline

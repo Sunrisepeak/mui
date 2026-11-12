@@ -1,9 +1,9 @@
-module xengine.timeline;
+module hanim.timeline;
 
 import std;
 import hanim.core;
 
-namespace xengine::timeline {
+namespace hanim::timeline {
 
 Flicks Clip::source_at(Flicks t) const noexcept {
     const Flicks local = t - at;
@@ -74,4 +74,4 @@ void playing(const Timeline& timeline, Flicks t, std::vector<Playing>& out) {
     }
 }
 
-}  // namespace xengine::timeline
+}  // namespace hanim::timeline

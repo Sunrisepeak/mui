@@ -5,8 +5,8 @@ import std;
 import mcpplibs.cmdline;
 import mcpplibs.os;
 import omui.core;
-import xengine.timeline;
-import xengine.timeline.audio;
+import hanim.timeline;
+import xengine.audio.timeline;
 import xengine.audio;
 import xrender.vector;
 import mlibs.image;
@@ -15,7 +15,7 @@ import omui.ui.base;
 
 namespace omui::cli {
 namespace cmd=mcpplibs::cmdline;
-namespace tl=xengine::timeline;
+namespace tl=hanim::timeline;
 namespace au=xengine::audio;
 
 cmd::App audio_command() {
@@ -60,8 +60,8 @@ int audio(const cmd::ParsedArgs& p, std::ostream& out, std::ostream&) {
     for(const auto& c:chosen_track->clips)if(c.name==*clip) {if(chosen)return fail("ambiguous clip name");chosen=&c;}
     if(!chosen)return fail("clip not found");
     const auto property=a.value("property");
-    const auto gain=tl::GainAutomation::prepare(*chosen,{.sample_rate=timeline->sample_rate,.property=property?*property:"gain",.outside=0});
-    if(!gain)return fail(std::string(tl::gain_error_name(gain.error())));
+    const auto gain=xengine::audio::GainAutomation::prepare(*chosen,{.sample_rate=timeline->sample_rate,.property=property?*property:"gain",.outside=0});
+    if(!gain)return fail(std::string(xengine::audio::gain_error_name(gain.error())));
     au::Mixer mixer({.rate=timeline->sample_rate});
     au::Sound tone{.name="reference-tone",.gain=.1f,.bus="music"};
     tone.layers.push_back({.length=static_cast<float>(duration),.pitch={220,220},

@@ -1,6 +1,6 @@
 # xengine.tool
 
-The `xengine` command: xengine's shared editing pieces without a GUI, for people, agents and CI. Now the timeline every editor shares ([xengine.timeline](../timeline)).
+The `xengine` command: xengine's shared editing pieces without a GUI, for people, agents and CI. Now the timeline every editor shares ([hanim.timeline](../timeline)).
 
 ```sh
 omui-gen snapshot showcase/promo-video/short.timeline.omui.ts --out short.timeline.omui.json   # the JSON it works on

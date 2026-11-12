@@ -1,13 +1,13 @@
-# xengine.timeline.audio
+# xengine.audio.timeline
 
 An optional adapter from timeline keys and clip fades to the audio engine's sample clock. It owns a frozen, immutable curve; audio and visual/Agent queries read the same values. Neither parent package depends on this adapter.
 
 ```cpp
 import xengine.audio;
-import xengine.timeline.audio;
+import xengine.audio.timeline;
 
-auto gain = xengine::timeline::GainAutomation::prepare(clip, {.sample_rate = mixer.rate()});
-if (!gain) { report(xengine::timeline::gain_error_name(gain.error())); return; }
+auto gain = xengine::audio::GainAutomation::prepare(clip, {.sample_rate = mixer.rate()});
+if (!gain) { report(xengine::audio::gain_error_name(gain.error())); return; }
 auto bound = mixer.automate_gain("music", *gain);
 if (!bound) { report(bound.error()); return; }
 // At a visual timestamp; no audio render or live event is triggered.
@@ -33,4 +33,4 @@ Preparation validates exact flick/sample conversion, clip/fade bounds, finite va
 3. Compare the WAV at different visual sample rates, inspect transitions and cuts, and listen to the file. Image/hash checks alone do not establish sound quality or realtime latency. Filesystem errors report already-created outputs; export is not an atomic multi-file transaction.
 4. Apply the same prepared source to an application's real bus. Signal sampling is read-only; edits require a new prepared owner and an explicit safe bind boundary. Cancellation/undo of the editing task and device transport remain the host's responsibility. The CLI is a local headless tool, not a claim that an independent openas engine provider has shipped.
 
-CTS: `mcpp test --locked -p xengine.timeline.audio` checks exact samples, frozen input, cuts, errors and 30/60/120 fps observers without PCM changes or repeated voices. `xengine.audio` covers signal lifetime/rate binding and block/routing semantics. `omui.cli` generates and verifies the actual files. The existing benchmark suite adds `audio/automated-mix` and a zero-allocation budget. Trace categories remain `audio`, with `timeline.audio.prepare` and `timeline.audio.sample` spans and `audio.automation.invalid` diagnostics for non-finite plugin values.
+CTS: `mcpp test --locked -p xengine.audio.timeline` checks exact samples, frozen input, cuts, errors and 30/60/120 fps observers without PCM changes or repeated voices. `xengine.audio` covers signal lifetime/rate binding and block/routing semantics. `omui.cli` generates and verifies the actual files. The existing benchmark suite adds `audio/automated-mix` and a zero-allocation budget. Trace categories remain `audio`, with `timeline.audio.prepare` and `timeline.audio.sample` spans and `audio.automation.invalid` diagnostics for non-finite plugin values.

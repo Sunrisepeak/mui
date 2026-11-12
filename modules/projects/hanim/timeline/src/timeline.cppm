@@ -1,4 +1,4 @@
-// xengine.timeline — the timeline every editor shares (D-86): a video
+// hanim.timeline — the timeline every editor shares (D-86): a video
 // editor's, a sequencer's, an animation editor's, gongfu.studio's.
 //
 // Time is exact: flicks, 1/705,600,000 of a second, which every common frame
@@ -10,7 +10,7 @@
 //   :edit   changes made of three steps, each change giving back its inverse
 //   :file   a timeline's JSON read (every problem at its place), written back
 //           and written back as itself
-export module xengine.timeline;
+export module hanim.timeline;
 
 export import :model;
 export import :edit;

@@ -1,6 +1,6 @@
 # xengine.tool — the `xengine` command: what an Agent (or a person at a
 # terminal) does with xengine's shared editing pieces without a GUI. Now the
-# timeline every editor shares (xengine.timeline): check a file (every
+# timeline every editor shares (hanim.timeline): check a file (every
 # problem at its line and column), ask what plays at a moment, make the usual
 # edits (split, trim, move, remove, ripple remove) and take them back. JSON
 # out, exit codes. Its own package: a tool's dependencies stay out of the
@@ -26,7 +26,7 @@ sources = ["src/*.cpp"]
 
 [dependencies]
 mcpplibs.cmdline = "0.0.3"
-xengine.timeline = { path = "../timeline" }
+hanim.timeline = { path = "../../hanim/timeline" }
 mlibs.utils      = { path = "../../../base/utils" }
 mcpplibs.os      = "0.4.4"
 nlohmann.json    = "3.12.0"

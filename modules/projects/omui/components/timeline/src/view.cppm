@@ -6,7 +6,7 @@ import omui.core;
 import omui.view;
 import xrender.vector;
 import omui.ui.base;
-import xengine.timeline;
+import hanim.timeline;
 import :timeline_editor_contract;
 
 export namespace omui {
@@ -31,7 +31,7 @@ public:
     ActResult revert(ActContext& ctx, const Value& change);
 
     // The timeline as it is now (after the edits), and what its document said was wrong (empty: nothing).
-    [[nodiscard]] const xengine::timeline::Timeline& model() const noexcept { return model_; }
+    [[nodiscard]] const hanim::timeline::Timeline& model() const noexcept { return model_; }
     [[nodiscard]] const std::vector<std::string>& problems() const noexcept { return problems_; }
     [[nodiscard]] std::optional<std::pair<std::size_t, std::size_t>> selection() const noexcept { return selected_; }
 
@@ -40,7 +40,7 @@ public:
 
 private:
     void read();
-    ActResult edit(std::expected<xengine::timeline::Change, std::string> change);
+    ActResult edit(std::expected<hanim::timeline::Change, std::string> change);
     void changed();
     [[nodiscard]] float x_of(mlibs::time::Flicks t) const noexcept;
     [[nodiscard]] mlibs::time::Flicks time_at(float x) const noexcept;
@@ -58,11 +58,11 @@ private:
         std::size_t       to_track = 0;
     };
 
-    xengine::timeline::Timeline                 model_;
+    hanim::timeline::Timeline                 model_;
     std::vector<std::string>           problems_;
     // The inverses of the edits made, by the id the window's history holds (S-12): each made once, then
     // replaced by its own inverse; a document read again clears them (and the window's history).
-    std::map<std::int64_t, xengine::timeline::Change> kept_;
+    std::map<std::int64_t, hanim::timeline::Change> kept_;
     std::int64_t                       next_ = 1;
     std::string                        last_;  // the last edit made, undone or redone
     std::optional<std::pair<std::size_t, std::size_t>> selected_;

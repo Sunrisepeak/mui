@@ -39,8 +39,8 @@ omui.view            = { path = "../../modules/projects/omui/view", features = [
 mlibs.utils           = { path = "../../modules/base/utils" }
 mlibs.markdown        = { path = "../../modules/content/markdown" }
 xengine.audio           = { path = "../../modules/projects/xengine/audio" }
-xengine.timeline       = { path = "../../modules/projects/xengine/timeline" }
-"xengine.timeline.audio" = { path = "../../modules/projects/xengine/timeline/audio" }
+"hanim.timeline"       = { path = "../../modules/projects/hanim/timeline" }
+"xengine.audio.timeline" = { path = "../../modules/projects/xengine/audio/timeline" }
 omui.ui.canvas       = { path = "../../modules/projects/omui/components/canvas" }
 "omui.ui.canvas.kit"   = { path = "../../modules/projects/omui/components/canvas/kit" }
 omui.showcase.markdown_wall   = { path = "../../showcase/markdown-wall" }

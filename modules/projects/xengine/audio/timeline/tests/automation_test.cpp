@@ -1,13 +1,13 @@
 import std;
-import xengine.timeline.audio;
-import xengine.timeline;
+import xengine.audio.timeline;
+import hanim.timeline;
 import xengine.audio;
 import hanim.core;
 import mcpplibs.mtest;
 import mlibs.trace;
 
 using namespace mcpplibs::mtest;
-namespace tl = xengine::timeline;
+namespace tl = hanim::timeline;
 namespace audio = xengine::audio;
 
 namespace {
@@ -32,7 +32,7 @@ void setup(audio::Mixer& mixer, audio::GainSource gain) {
 UTest cases{"timeline.audio", [] {
     "frozen curves use exact sample timestamps with clip-local keys and fades"_test = [] {
         auto clip=fixture();
-        const auto made=tl::GainAutomation::prepare(clip, {.outside=0}); expect(made.has_value()); if (!made) return;
+        const auto made=audio::GainAutomation::prepare(clip, {.outside=0}); expect(made.has_value()); if (!made) return;
         const auto& gain=**made;
         expect(gain.rate()==48000 && gain.begin()==clip.at && gain.end()==clip.end());
         for (std::int64_t sample=0; sample<96000; ++sample) {
@@ -48,7 +48,7 @@ UTest cases{"timeline.audio", [] {
         expect(std::ranges::all_of(over, [](float v) { return v==0; }));
     };
     "block and random-access reads are equal including cuts and the exclusive clip end"_test = [] {
-        const auto made=tl::GainAutomation::prepare(fixture(), {.sample_rate=44100,.outside=.3f});expect(made.has_value()); if(!made)return;
+        const auto made=audio::GainAutomation::prepare(fixture(), {.sample_rate=44100,.outside=.3f});expect(made.has_value()); if(!made)return;
         const auto& gain=**made;
         std::array<float,257> values{};
         for (const std::int64_t first : {59530, 0, 77000, 10900, -31, 59000}) {
@@ -60,22 +60,22 @@ UTest cases{"timeline.audio", [] {
         expect(gain.at(gain.end())==.3f && gain.at(gain.begin()-1)==.3f);
     };
     "invalid preparation is diagnosed before any mixer is changed"_test = [] {
-        const auto refused=[](tl::Clip clip, tl::GainOptions options, tl::GainError expected) {
-            const auto result=tl::GainAutomation::prepare(clip,options);expect(!result && result.error()==expected);
+        const auto refused=[](tl::Clip clip, audio::GainOptions options, audio::GainError expected) {
+            const auto result=audio::GainAutomation::prepare(clip,options);expect(!result && result.error()==expected);
         };
-        refused(fixture(),{.sample_rate=12345},tl::GainError::sample_rate);
-        refused(fixture(),{.property="missing"},tl::GainError::property);
-        auto c=fixture(); c.length=0;refused(c,{},tl::GainError::clip_time);
-        c=fixture(); c.at=std::numeric_limits<mlibs::time::Flicks>::max();refused(c,{},tl::GainError::clip_time);
-        c=fixture(); c.fade.in=c.length;c.fade.out=1;refused(c,{},tl::GainError::clip_time);
-        c=fixture();c.properties.push_back(c.properties[0]);refused(c,{},tl::GainError::property);
-        c=fixture();c.properties[0].keys.key(hanim::seconds(-1),1);refused(c,{},tl::GainError::keys);
-        c=fixture();c.properties[0].keys.key(hanim::seconds(1),std::numeric_limits<double>::quiet_NaN());refused(c,{},tl::GainError::value);
-        c=fixture();c.fade.ease={static_cast<hanim::EaseKind>(255)};refused(c,{},tl::GainError::easing);
-        c=fixture();c.properties[0].keys.key(hanim::seconds(1),1,{hanim::EaseKind::steps,{2.5,1}});refused(c,{},tl::GainError::easing);
+        refused(fixture(),{.sample_rate=12345},audio::GainError::sample_rate);
+        refused(fixture(),{.property="missing"},audio::GainError::property);
+        auto c=fixture(); c.length=0;refused(c,{},audio::GainError::clip_time);
+        c=fixture(); c.at=std::numeric_limits<mlibs::time::Flicks>::max();refused(c,{},audio::GainError::clip_time);
+        c=fixture(); c.fade.in=c.length;c.fade.out=1;refused(c,{},audio::GainError::clip_time);
+        c=fixture();c.properties.push_back(c.properties[0]);refused(c,{},audio::GainError::property);
+        c=fixture();c.properties[0].keys.key(hanim::seconds(-1),1);refused(c,{},audio::GainError::keys);
+        c=fixture();c.properties[0].keys.key(hanim::seconds(1),std::numeric_limits<double>::quiet_NaN());refused(c,{},audio::GainError::value);
+        c=fixture();c.fade.ease={static_cast<hanim::EaseKind>(255)};refused(c,{},audio::GainError::easing);
+        c=fixture();c.properties[0].keys.key(hanim::seconds(1),1,{hanim::EaseKind::steps,{2.5,1}});refused(c,{},audio::GainError::easing);
     };
     "30 60 and 120 fps observers and reverse seeks never change PCM or emit another voice"_test = [] {
-        const auto made=tl::GainAutomation::prepare(fixture(),{.outside=0});expect(made.has_value());if(!made)return;
+        const auto made=audio::GainAutomation::prepare(fixture(),{.outside=0});expect(made.has_value());if(!made)return;
         audio::Mixer reference;setup(reference,*made);
         const auto expected=audio::render(reference,96000);
         expect(audio::peak(expected)>.04f) << "the comparison contains actual automated sound";

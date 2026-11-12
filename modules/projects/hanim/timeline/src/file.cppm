@@ -1,4 +1,4 @@
-// xengine.timeline:file — a timeline as people and agents read it, a
+// hanim.timeline:file — a timeline as people and agents read it, a
 // TypeScript data module (D-139) read as the JSON it evaluates to:
 //
 //     export default defineTimeline({
@@ -28,12 +28,12 @@
 //
 // Every problem at its JSON pointer, line and column, the nearest right word
 // with it; what write_timeline writes (JSON) reads back as the same timeline.
-export module xengine.timeline:file;
+export module hanim.timeline:file;
 
 import std;
 import :model;
 
-export namespace xengine::timeline {
+export namespace hanim::timeline {
 
 struct Problem {
     std::string file;
@@ -53,4 +53,4 @@ struct Problem {
 // The time as written: frames when it is on one, else seconds when they are exact, else flicks.
 [[nodiscard]] std::string time_text(Flicks t, Rate rate);
 
-}  // namespace xengine::timeline
+}  // namespace hanim::timeline

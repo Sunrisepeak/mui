@@ -37,7 +37,7 @@ mlibs.utils = { path = "../../modules/base/utils" }
 omui.sdk                         = { path = "../../modules/projects/omui/sdk" }
 omui.theme                     = { path = "../../modules/projects/omui/theme" }
 "omui.theme.styles"                = { path = "../../modules/projects/omui/theme/styles" }
-xengine.timeline                    = { path = "../../modules/projects/xengine/timeline" }
+hanim.timeline                    = { path = "../../modules/projects/hanim/timeline" }
 xengine.video                     = { path = "../../modules/projects/xengine/video" }
 "xengine.video.webm"                = { path = "../../modules/projects/xengine/video/webm" }
 xengine.audio                       = { path = "../../modules/projects/xengine/audio" }

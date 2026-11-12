@@ -2,11 +2,11 @@ module omui.showcase.promo_video;
 
 import std;
 import mlibs.hash;
-import xengine.timeline;
+import hanim.timeline;
 
 namespace omui::promo {
 
-namespace tl = xengine::timeline;
+namespace tl = hanim::timeline;
 
 namespace {
 

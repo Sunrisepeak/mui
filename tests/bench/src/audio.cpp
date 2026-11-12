@@ -2,8 +2,8 @@ module omui.bench;
 
 import std;
 import xengine.audio;
-import xengine.timeline;
-import xengine.timeline.audio;
+import hanim.timeline;
+import xengine.audio.timeline;
 import hanim.core;
 
 namespace omui::bench {
@@ -31,11 +31,11 @@ void add_audio_benchmarks() {
             std::vector<std::int32_t> ids;
             for (const auto& sound : list) ids.push_back(mixer.add(sound));
             mixer.add_effect("sfx", xengine::audio::echo(.09f, .3f, .25f, mixer.rate()));
-            xengine::timeline::Clip clip{.length=mlibs::time::from_seconds(3600)};
-            xengine::timeline::Property gain{.name="gain"};
+            hanim::timeline::Clip clip{.length=mlibs::time::from_seconds(3600)};
+            hanim::timeline::Property gain{.name="gain"};
             for(int i=0;i<64;++i) gain.keys.key(hanim::seconds(i * 3600. / 63), i%2 ? .9 : .2, hanim::ease::in_out_cubic);
             clip.properties.push_back(std::move(gain));
-            const auto automation=xengine::timeline::GainAutomation::prepare(clip);
+            const auto automation=xengine::audio::GainAutomation::prepare(clip);
             if(!automation || !mixer.automate_gain("sfx",*automation)) { s.fail("gain preparation/bind failed"); return; }
             std::array<float,2*xengine::audio::block_frames> block{};
             std::int64_t played=0;

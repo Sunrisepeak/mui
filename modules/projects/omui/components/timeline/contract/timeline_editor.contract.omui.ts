@@ -1,5 +1,5 @@
 // The timeline every editor shares, to look at and edit (D-86): tracks of
-// clips in exact time (xengine.timeline), a ruler, markers and a playhead.
+// clips in exact time (hanim.timeline), a ruler, markers and a playhead.
 // A person selects, drags, trims and splits with the pointer and the keys;
 // an agent does the same through the actions; every edit undoes exactly,
 // through the window's history (or the editor's, as an undo_scope).

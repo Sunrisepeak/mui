@@ -1,9 +1,9 @@
-module xengine.timeline.audio;
+module xengine.audio.timeline;
 
 import std;
 import mlibs.trace;
 
-namespace xengine::timeline {
+namespace xengine::audio {
 std::string_view gain_error_name(GainError error) noexcept {
     switch (error) {
         case GainError::sample_rate: return "sample-rate";

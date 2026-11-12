@@ -14,7 +14,7 @@ The rule for every shot: it is a real openmui scene showing a real capability, n
 
 | Layer | Package | What it gives the film |
 |---|---|---|
-| The timeline | `xengine.timeline` | the cuts: clips in exact time (flicks), keyed properties (hanim curves), markers, a readable file |
+| The timeline | `hanim.timeline` | the cuts: clips in exact time (flicks), keyed properties (hanim curves), markers, a readable file |
 | Video and sound | `xengine.video`, `xengine.video.webm`, `xengine.audio` | encoding on exact frame and sample counts; the score's sequencer and synthesis; the mixer, ducking, limiter |
 | The runtime | `omui.view`, `omui.host.headless` | frames at any time on a virtual clock; glyph motion; pixel effects; the semantic tree; actions, effects, undo |
 | Scenes reused | `openmui.showcase.{style_gallery, markdown_wall, widget_breakout}`, `omui.ui.canvas`, `omui.ui.timeline`, `omui.lang.*` | the panel, the wall, the styles, the game, the editor on the end card, the script hosts |

@@ -1,5 +1,5 @@
-// xengine.timeline:model — tracks of clips in exact time, and what plays when.
-export module xengine.timeline:model;
+// hanim.timeline:model — tracks of clips in exact time, and what plays when.
+export module hanim.timeline:model;
 
 import std;
 import hanim.core;
@@ -7,7 +7,7 @@ export import mlibs.time;
 
 // Time is mlibs.time's (flicks, rates, exact conversions); the package says it
 // unqualified.
-namespace xengine::timeline {
+namespace hanim::timeline {
 using mlibs::time::Flicks;
 using mlibs::time::flicks_per_second;
 using mlibs::time::Rate;
@@ -16,9 +16,9 @@ using mlibs::time::from_seconds;
 using mlibs::time::exact_samples;
 using mlibs::time::sample_time;
 using mlibs::time::sample_at;
-}  // namespace xengine::timeline
+}  // namespace hanim::timeline
 
-export namespace xengine::timeline {
+export namespace hanim::timeline {
 
 // ── What a timeline holds ───────────────────────────────────────────────
 
@@ -105,4 +105,4 @@ struct Playing {
 };
 void playing(const Timeline& timeline, Flicks t, std::vector<Playing>& out);
 
-}  // namespace xengine::timeline
+}  // namespace hanim::timeline

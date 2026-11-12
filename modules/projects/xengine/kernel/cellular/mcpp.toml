@@ -31,6 +31,10 @@ agent = { sources = ["src/agent/*.cppm", "src/agent/*.cpp"] }
 # lowered to a lattice program — its table, its transfers and reactions, cells moving by density and phase.
 # A feature: the kernel knows a key and numbers, and that a row is a material only here.
 matter = { sources = ["src/matter/*.cppm", "src/matter/*.cpp"] }
+# A field of matter as an agent's subject (src/matter/agent/, module xengine.cellular.matter.agent; D-169):
+# materials by name, channels in units, a quantity applied, and why a cell is what it is — the record of causes
+# made at each frame's commit from the matter kernel's `why`. Both of the above, and nothing more.
+matter-agent = { implies = ["agent", "matter"], sources = ["src/matter/agent/*.cppm", "src/matter/agent/*.cpp"] }
 
 [feature-deps.agent]
 mlibs.simulation = { path = "../../../../base/simulation" }

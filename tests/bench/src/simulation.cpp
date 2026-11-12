@@ -6,6 +6,7 @@ import xengine.cellular.present;
 import xengine.dynamics;
 import xengine.matter.json;
 import xengine.cellular.matter;
+import xengine.cellular.matter.agent;
 import xengine.cellular.present.matter;
 
 namespace omui::bench {
@@ -290,6 +291,44 @@ void add_simulation_benchmarks() {
             }
             s.note("scope", std::format("{} cells run a step of {} on average ({} of {} tiles asleep at the first); laws, flows and moves; two buffers in turn; drawing excluded",
                                         steps ? run / steps : 0, area, last.asleep, activity.size()));
+        });
+    add("simulation/matter-256-causes", "the same 256x256 of matter as an agent's subject: a step with the record of causes made at its commit (D-169) — what watching a field costs",
+        [](State& s) {
+            const auto program = xengine::matter::standard();
+            if (!program) { s.fail("the standard definition was refused"); return; }
+            const std::uint32_t side = 256;
+            // Two worlds alike; the second is not watched: what a step costs with no record.
+            const auto make = [&]() -> std::optional<ca::matter_agent::World> {
+                auto world = ca::matter_agent::World::make(*program, {side, side}, "air");
+                if (!world) return std::nullopt;
+                const auto fill = [&](std::uint32_t x0, std::uint32_t y0, std::uint32_t x1, std::uint32_t y1, std::string_view material) {
+                    return world->matter->place(*program->material(material), {x0, y0, x1 - x0 + 1, y1 - y0 + 1});
+                };
+                const bool placed = fill(0, 250, 255, 255, "stone") && fill(20, 200, 22, 249, "stone") && fill(100, 200, 102, 249, "stone") && fill(23, 215, 99, 249, "water") &&
+                                    fill(50, 150, 70, 170, "sand") && fill(150, 249, 230, 249, "wood") &&
+                                    world->matter->apply(*program->channel("temperature"), ca::agent::EditKind::set, 700 * 256, {150, 249, 1, 1});
+                if (!placed) return std::nullopt;
+                return std::move(*world);
+            };
+            auto watched = make(), alone = make();
+            if (!watched || !alone) { s.fail("the world was not made"); return; }
+            alone->field->watch(nullptr);
+            for (int warm = 0; warm < 400; ++warm) watched->field->step(), alone->field->step();
+            if (watched->field->state_hash() != alone->field->state_hash()) { s.fail("watching a field changed it"); return; }
+            const auto began = std::chrono::steady_clock::now();
+            const int unwatched_steps = 40;
+            for (int step = 0; step < unwatched_steps; ++step) alone->field->step();
+            const double unwatched = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - began).count() / unwatched_steps;
+            const std::size_t before = watched->matter->records().size();
+            s.items(static_cast<std::size_t>(side) * side);
+            std::uint64_t steps = 0;
+            while (s.next()) {
+                watched->field->step();
+                ++steps;
+            }
+            s.note("scope", std::format("a step and its commit's record: where each cell of the tiles awake came from (the kernel's `origins`), each against itself a step ago, and those whose "
+                                        "material or named state changed judged again by the kernel's `why`; {} records of {} steps here ({} kept in all); the same field unwatched: {:.2f} ms a step (mean of {})",
+                                        watched->matter->records().size() - before, steps, watched->matter->records().size(), unwatched, unwatched_steps));
         });
     add("simulation/matter-256-shade", "256x256 of the standard matter on screen by the standard appearance, every tile: each cell's shade and its light (D-168; the worst case)",
         [](State& s) {

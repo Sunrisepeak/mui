@@ -62,9 +62,10 @@ const openas::Actor& Field::owner() noexcept {
 }
 
 void Field::step() {
+    if (witness_) activity_before_ = timeline_.state().activity;  // the same size every step: no allocation after the first
     timeline_.step({});
     const FieldState& state = timeline_.state();
-    if (witness_) witness_->stepped(state, state.next, timeline_.frame());
+    if (witness_) witness_->stepped(state, state.next, activity_before_, timeline_.frame());
 }
 
 bool Field::edit(const Edit& edit, const openas::Actor& actor) {

@@ -182,3 +182,57 @@ mcpp test -p xengine.cellular.present     # agent_test: the agent contract's sui
 ```
 
 The subject's tests are [present](present)'s, which turns the feature on: a feature is tested where it is on.
+
+### A field of matter: the `matter` subject
+
+Where the cells are matter, a second subject stands beside `field` in the same session — module `xengine.cellular.matter.agent`, the package's feature `matter-agent` (it implies `agent` and `matter`) — and speaks of the field in matter's own words (D-169): materials by name, channels in their units, laws by name. Its catalog is [matter.ops.omui.ts](matter.ops.omui.ts) (`src/matter/agent/catalog.cppm`, `matter.ops.json`, `.md` generated); the procedure is the second part of [skill.omui.md](skill.omui.md).
+
+```cpp
+auto world = cellular::matter_agent::World::make(*matter::standard(), {64, 48}, "air");   // a field and its matter subject
+mlibs::agent::SubjectSession session({world->field.get(), world->matter.get()});
+world->matter->place(*program.material("wood"), {10, 40, 12, 1}, game);                   // the same edits from code, on record under the host's name
+```
+
+| | |
+|---|---|
+| Subject and addresses | `matter`, interface `xengine.matter.lattice@0.1`. A cell `[x, y]`, a region `[x, y, width, height]`; a material, a channel and a law by name; a law's place in the definition as a JSON pointer (`/laws/8`); amounts in the channel's unit (kelvins, not the stored integer) |
+| State | The field's — it has none of its own but the record of causes; its hash is the field's |
+| Observation | `matter.describe`: materials, channels with units, laws; one material's properties or one law as written. `matter.observe`: a region's cells by material, each channel's least, most and mean in its unit, cells in each named state. `matter.at`: one cell, and its properties where its state changes them (wet wood: `ignition` written 570, now 970) |
+| Control | `matter.place` (a region of a material, every channel as a new instance has) and `matter.apply` (a channel `set`, `add`, `take`): each one frame of the field, taken back by `field.seek`. From code: `Matter::place`, `Matter::apply` |
+| Time | The field's: `field.step`, `field.seek`. `capabilities` says the matter subject has none, and the contract suite reports those two cases unsupported for it — one clock, said once |
+| Causes | The record, made at each frame's commit by the field's `Witness`: after a step, every cell is compared with the cell it was a step ago — where it was then, by the kernel's `Program::origins`, since a cell may change and change places in one step — and each whose material or named state changed is judged again by the matter kernel's `Program::why` on the step's input (the cell and what is beside it as a carrier of their own; the bath or the edge as the field has it), and what happened is kept: *became* (the law of the conversion), a named state *begun* or *ended* (the law whose flag it is; for an end, the comparison that stopped holding), with up to 8 values the law read and up to 4 neighbours' parts in it, by what the law's comparisons wanted: who **gave** (the greatest flows toward the cell of a channel the law needed more of — heat to ignite — and the parts of the near sums it needed), who **took** (the greatest flows away, where less made it so: what lava gave its heat to as it set; what cooled a fire below its ignition point), and what was **beside** it where a near sum fell short (the water over a fire that has no air) — each with what it was and which named states it was in. Edits are on record with their actor. The last 16384 are kept (`Options::records_kept`); a seek drops what came after |
+| Why, and why not | `matter.explain {cell}`: what is on record of the cell, the latest first, each neighbour with a part (`gave`, `took`, `beside`) followed to its own latest record (`because`), `depth` deep (2; 0 … 6), and the edit that set what the law read (`applied`, with `by`). With `law`: that law judged for the cell as it is now — `holds`, or the comparison that `fails`, and every value read |
+| What happened | `matter.events`: the record as a stream, oldest first — `since` a frame, of a `name` (`ignite`, `go_out`, `melt`, `boil`, `freeze`, `condense`, `burn_out`, `placed`, `applied`), in a `region`; within a `budget` the latest are kept and `more` counts the rest |
+| Preview | `matter.branch`: a copy some steps ahead, a material placed or a quantity applied first — a region's materials now and then, what would happen counted by name, and the first six events in full. The same judgement a commit makes, on a state that is not the field's |
+| Budgets | `budget` in bytes on `observe` (channels left out from the last, then materials from the fewest), `explain` (fewer records) and `events` (the latest); below the least answer a request is refused with that size. `Options::most_steps` a branch |
+| Not here | A record older than the last kept; a cause further than a cell's neighbours in one step (it is followed giver by giver instead). Other carriers of matter (bodies, particles) get their subjects where they hold their state; what is shared is the kernel's `why` |
+
+The chain as an agent reads it (the test's scene: a strip of wood on stone, its left end set to 700 K by the session's actor, 120 steps; shortened):
+
+```json
+{"op":"matter.explain","cell":[4,3],"depth":3}
+{"cell":[4,3],"frame":123,"now":{"material":"wood","temperature":874.023,"burned":5,"burning":1},
+ "records":[
+  {"frame":119,"step":116,"cell":[4,3],"what":"ignite","channel":"burning",
+   "law":{"name":"burns","at":"/laws/8","when":"temperature >= ignition && burned < fuel && near.oxygen > 0"},
+   "read":{"temperature":570.754,"ignition":570,"burned":0,"fuel":400,"near.oxygen":1},
+   "gave":[
+    {"cell":[3,3],"what":"temperature","amount":8.62891,"was":"wood","states":["burning"],
+     "because":{"frame":74,"step":71,"cell":[3,3],"what":"ignite", …,
+      "gave":[{"cell":[2,3],"what":"temperature","amount":8.5625,"was":"wood","states":["burning"],
+        "because":{"frame":4,"step":1,"cell":[2,3],"what":"ignite", …, "read":{"temperature":700, …},
+         "applied":{"frame":3,"what":"applied","channel":"temperature","set":700,"region":[2,3,1,1],
+                    "by":{"kind":"agent","name":"the one who lit it"}}}}]}},
+    {"cell":[4,2],"what":"near.oxygen","amount":1,"was":"air"}]},
+  {"frame":2,"what":"placed","material":"wood","region":[2,3,8,1],"by":{"kind":"agent","name":"the one who lit it"}}]}
+```
+
+What holds the record to the kernel ([matter's CTS](../matter/cts), `tests/agent_test.cpp`): a cell's slice steps to the field's own bits — 564 480 values over 160 steps of a busy scene, closed and open to a bath; and what is on record of a step is exactly what the reference step says happened in it (`xengine.matter`'s `step` with its events, on the whole grid) — with cells at rest and with cells moving. A branch's events are the events of the same frames when they are stepped.
+
+What it costs to be watched (`simulation/matter-256-causes`, a debug build): a 256×256 field with water that does not rest and a fire along wood steps in 18.3 ms with its record against 17.8 ms without — the commit looks only at the tiles that were awake, asks the kernel where each of their cells came from, and calls `why` only where something happened. A field no one watches costs what it did.
+
+And the emergence set (the plan's §9.3) asked why, each phenomenon through the session an agent has: a fire that went out under water reads `near.oxygen` 0 with water `beside` it, placed by the actor who poured it; lava that set had its heat `took` by the water; ice melted by what burning wood `gave`; water frozen by a cold an actor `applied`; oil caught from oil alight, and the water under it boiled by its heat; wood at the far end of an iron bar lit by what the iron `gave`; a trail of gunpowder, grain from grain; and alcohol — two rows of properties, no law of its own — boiled by the law water boils by.
+
+```sh
+mcpp test -p xengine.matter.cts agent_test   # the agent contract's suite on a field of matter; the chain of causes, why not, events, branches; the record against the kernel
+```

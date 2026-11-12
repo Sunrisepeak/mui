@@ -377,6 +377,16 @@ public:
     [[nodiscard]] std::uint32_t transfer_count() const noexcept { return transfers_; }
     // Whether cells move (an exchange): such a program steps the whole field, by Execution::tick.
     [[nodiscard]] bool moves() const noexcept { return moves_; }
+    // Where each cell of a step's output was in its input: after a step of `input` at `execution.tick` (and its
+    // boundary), the cell at `index` is the one that was at `from[index]` — itself where it did not move, and
+    // everywhere for a program whose cells do not. Decided from the input alone, as the step's exchange is, so it
+    // can be asked before the step or after; `execution.activity` is neither read nor written. `asleep_before`,
+    // when given, is the field's activity bytes as they were before that step (tiles of `execution.tile`): a
+    // tile asleep then is not looked at — no block in it could move, at any cut — so asking costs what was
+    // awake. What a cause is traced along: a cell that changed and went on in one step. `from` holds a number
+    // a cell (shape.width × shape.height); nothing is written where it does not.
+    void origins(Shape shape, std::span<const std::uint32_t> input, const Execution& execution, std::span<std::uint32_t> from,
+                 std::span<const std::uint8_t> asleep_before = {}) const noexcept;
     // Whether it has a table and reactions (encoding 3), and how many rows the table has.
     [[nodiscard]] bool reacts() const noexcept { return staged_.at != 0; }
     [[nodiscard]] std::uint32_t rows() const noexcept { return staged_.rows; }
@@ -412,7 +422,10 @@ private:
         std::span<std::uint32_t>, Boundary) const noexcept;
     [[nodiscard]] Statistics run_tile(Shape, Tile, std::span<const std::uint32_t>,
         std::span<std::uint32_t>, Boundary) const noexcept;
-    void exchange(Shape, std::span<const std::uint32_t>, std::span<std::uint32_t>, const Execution&) const noexcept;
+    // With `origins`: nothing is moved and no tile marked; where each block's cells came from is written there,
+    // but for the tiles `asleep_before` says slept.
+    void exchange(Shape, std::span<const std::uint32_t>, std::span<std::uint32_t>, const Execution&, std::span<std::uint32_t> origins = {},
+                  std::span<const std::uint8_t> asleep_before = {}) const noexcept;
     // Encoding 3: where the reactions' parts are in the words (`at` 0: none).
     struct Staged {
         std::uint32_t at = 0, key = 0, rows = 0, columns = 0, table = 0, near = 0, slots = 0, slot_count = 0, derived = 0, derived_count = 0, adjustments = 0, reactions = 0,

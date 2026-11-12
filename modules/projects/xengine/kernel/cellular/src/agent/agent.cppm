@@ -92,8 +92,9 @@ struct Edited {
 class Witness {
 public:
     virtual ~Witness() = default;
-    // A step ran: the field after it, and its cells of a step ago (the step's input, channel-major).
-    virtual void stepped(const FieldState& now, std::span<const std::uint32_t> before, std::int64_t frame) = 0;
+    // A step ran: the field after it, its cells of a step ago (the step's input, channel-major), and its
+    // activity bytes as they were before the step (a tile asleep then was not run: its cells are the input's).
+    virtual void stepped(const FieldState& now, std::span<const std::uint32_t> before, std::span<const std::uint8_t> activity_before, std::int64_t frame) = 0;
     virtual void edited(const FieldState& now, const Edited& edit) = 0;
     // The field returned to `frame`: what happened after it is another branch's.
     virtual void rewound(std::int64_t frame) = 0;
@@ -152,6 +153,7 @@ private:
     mlibs::simulation::Timeline<FieldModel> timeline_;
     std::vector<Edited>                     edits_;
     Witness*                                witness_ = nullptr;
+    std::vector<std::uint8_t>               activity_before_;  // for a witness: the tiles' bytes a step began with
 };
 
 }  // namespace xengine::cellular::agent

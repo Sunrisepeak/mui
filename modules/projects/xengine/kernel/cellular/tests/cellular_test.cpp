@@ -113,6 +113,7 @@ struct Twice {
     std::vector<std::uint8_t> activity, dense_changed, sparse_changed;
     std::uint64_t tick = 0, cells_run = 0, tiles_slept = 0;
     ca::Statistics last;
+    std::vector<std::uint32_t> from_all, from_awake;  // where each cell will have come from: every tile looked at, and those awake only
     Twice(const ca::Program& of, ca::Shape size, ca::Shape tiles_of, ca::Boundary edge, std::vector<std::uint32_t> cells, bool in_turn = false)
         : program(of), shape(size), tile(tiles_of), boundary(edge), alternate(in_turn), dense(cells), sparse(std::move(cells)),
           dense_next(dense.size()), sparse_next(dense.size(), 0xdeadbeefu) {
@@ -128,8 +129,13 @@ struct Twice {
         dense[index] = sparse[index] = value;
         program.wake(shape, tile, {x, y, 1, 1}, activity, boundary.edge);
     }
-    // One step of both; whether they agree: the cells, how many changed, and the tiles that did.
+    // One step of both; whether they agree: the cells, how many changed, and the tiles that did — and where each
+    // cell came from, asked with the tiles' bytes as they are before the step and without them.
     bool step(bool reverse = false) {
+        from_all.assign(static_cast<std::size_t>(shape.width) * shape.height, 0xdeadbeefu);
+        from_awake = from_all;
+        program.origins(shape, sparse, {.tile = tile, .boundary = boundary, .tick = tick}, from_all);
+        program.origins(shape, sparse, {.tile = tile, .boundary = boundary, .tick = tick}, from_awake, activity);
         const auto one = program.step(shape, dense, dense_next, {.tile = tile, .boundary = boundary, .reverse_tiles = reverse, .changed_tiles = dense_changed, .tick = tick});
         const auto other = program.step(shape, sparse, sparse_next,
             {.tile = tile, .boundary = boundary, .reverse_tiles = reverse, .changed_tiles = sparse_changed, .tick = tick, .activity = activity, .alternate = alternate});
@@ -140,7 +146,7 @@ struct Twice {
         last = *other;
         cells_run += other->cells;
         tiles_slept += other->asleep;
-        return dense == sparse && one->changed == other->changed && dense_changed == sparse_changed &&
+        return dense == sparse && one->changed == other->changed && dense_changed == sparse_changed && from_all == from_awake &&
                other->cells <= one->cells && std::ranges::none_of(activity, [](std::uint8_t byte) { return byte & 0xf0; });
     }
 };
@@ -525,15 +531,30 @@ UTest cases{"simulation.cellular", [] {
         for (std::uint32_t y = 0; y < 9; ++y)
             for (std::uint32_t x = 0; x < 13; ++x)
                 if (world.is(x, y, stone)) stones.emplace_back(x, y);
-        std::uint64_t moved = 0;
+        std::uint64_t moved = 0, traced = 0;
+        std::vector<std::uint32_t> from(world.area()), input;
         for (int tick = 0; tick < 200; ++tick) {
-            moved += world.step(tick % 3 == 0 ? ca::Edge::wrap : ca::Edge::clamp);  // an odd size: a block over the edge sits out, wrapped or not
+            // Where each cell will have come from, asked of the input: every carried channel of it is there after the step.
+            const ca::Edge edge = tick % 3 == 0 ? ca::Edge::wrap : ca::Edge::clamp;
+            input = world.cells;
+            world.program.origins(world.shape, input, {.boundary = {edge, 0}, .tick = world.tick}, from);
+            moved += world.step(edge);  // an odd size: a block over the edge sits out, wrapped or not
             if (world.census() != before) {
                 expect(false) << std::format("tick {}: a cell was lost or made", tick);
                 break;
             }
+            bool same = true;
+            for (std::size_t cell = 0; cell < world.area() && same; ++cell) {
+                for (std::size_t channel = 0; channel < 3 && same; ++channel) same = world.cells[channel * world.area() + cell] == input[channel * world.area() + from[cell]];
+                traced += from[cell] != cell;
+            }
+            if (!same) {
+                expect(false) << std::format("tick {}: a cell is not the one `origins` says came there", tick);
+                break;
+            }
         }
         expect(moved > 100u) << "and they did move";
+        expect(eq(traced, moved)) << "every cell that moved is traced to where it was, and no other";
         for (const auto [x, y] : stones) expect(world.is(x, y, stone)) << "what may not move did not";
         for (std::uint32_t y = 0; y < 9; ++y)
             for (std::uint32_t x = 0; x < 13; ++x) expect(eq(world.cells[3 * world.area() + world.at(x, y)], x * 3 + y)) << "a channel that is not carried stays";

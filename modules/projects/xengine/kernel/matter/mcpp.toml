@@ -10,10 +10,10 @@ repo = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 kind = "module"
 # To an agent: a definition and its plan hold no state of their own — the state is the carrier's, reached through
-# the carrier's subject (the lattice's `field`); what a plan holds it says as JSON (Program::describe). Its own
-# catalog (materials by region, a quantity applied, why a state is what it is) comes with the record of causes
-# (the plan's T1.11), and this line changes to "subject" then.
-agent = { library = "a definition and its plan: the state it steps is the carrier's, reached through the carrier's subject; Program::describe says what the plan holds" }
+# the carrier's subject; what a plan holds it says as JSON (Program::describe), and one instance's step it says
+# aloud (Program::why). The catalog of a world of matter — materials by region, a quantity applied, why a cell
+# is what it is — is the carrier's that holds the state: on the lattice, xengine.cellular's subject `matter`.
+agent = { library = "a definition and its plan: the state it steps is the carrier's, reached through the carrier's subject (the lattice's `matter`); Program::describe says what the plan holds, Program::why one instance's step" }
 
 [targets.xengine-matter]
 kind = "lib"

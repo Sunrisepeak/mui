@@ -28,6 +28,8 @@
      "why": "D-167: the lattice's step allocates nothing, with a table and reactions as with rules"},
     {"name": "simulation/matter-lattice-4096", "metric": "p95_ms", "max": 4,
      "why": "T1.7: the same world as simulation/matter-reference-4096 by the lattice's own path, the same bits — 2.3 ms p95 in a debug build locally (550 ns a cell, the reference's cost: the scalar step reads the program's words a cell at a time); what a large world pays is the tiles awake (below) and the device's kernel (T1.8)"},
+    {"name": "simulation/matter-256-causes", "metric": "p95_ms", "max": 24,
+     "why": "D-169: what watching a field of matter costs — the same world as simulation/matter-lattice-256-sparse stepped as an agent's subject, its record of causes made at each commit: 18.6 ms p95 in a debug build locally against 17.8 ms a step unwatched (0.6 ms: where each cell of the tiles awake came from, each against itself a step ago; the kernel's `why` only where something happened — 3 allocations a step on average, none where nothing did). A first bound: the sparse step's and a fifth"},
     {"name": "simulation/matter-256-shade", "metric": "p95_ms", "max": 8,
      "why": "D-168 worst case: every cell of 256x256 of the standard matter shaded by the standard appearance — a row's base, its grain, nine tints, the light — and both images updated: 4.9 ms p95 in a debug build locally (71 ns a cell); a step changes far fewer tiles, and a pack change or a load is bounded by this"},
     {"name": "simulation/matter-lattice-256-sparse", "metric": "max_allocations", "max": 0,

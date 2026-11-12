@@ -373,12 +373,25 @@ Statistics Program::run_tile(Shape shape, Tile tile, std::span<const std::uint32
     return stats;
 }
 // Cells change places within blocks of 2 × 2, decided from the input, moving what the stages before made of them.
-void Program::exchange(Shape shape, std::span<const std::uint32_t> in, std::span<std::uint32_t> out, const Execution& execution) const noexcept {
+void Program::origins(Shape shape, std::span<const std::uint32_t> input, const Execution& execution, std::span<std::uint32_t> from,
+                      std::span<const std::uint8_t> asleep_before) const noexcept {
+    const std::size_t cells = static_cast<std::size_t>(shape.width) * shape.height;
+    if (from.size() != cells || input.size() != cells * channels_ || !execution.tile.width || !execution.tile.height) return;
+    std::iota(from.begin(), from.end(), std::uint32_t{0});
+    const Shape count = tiles(shape, execution.tile);
+    if (asleep_before.size() != static_cast<std::size_t>(count.width) * count.height) asleep_before = {};
+    if (moves_) exchange(shape, input, {}, execution, from, asleep_before);
+}
+
+void Program::exchange(Shape shape, std::span<const std::uint32_t> in, std::span<std::uint32_t> out, const Execution& execution, std::span<std::uint32_t> origins,
+                       std::span<const std::uint8_t> asleep_before) const noexcept {
     const Boundary boundary = execution.boundary;
     const std::uint64_t tick = execution.tick;
     // Sparse: a block whose first cell is in a sleeping tile is not looked at (it could not move: it touches the
     // tile); one that could move, whether it does or not, keeps the tiles it touches from resting this step.
-    const std::span<std::uint8_t> activity = execution.activity;
+    // Asked where cells came from, every block is looked at and no tile is marked.
+    const bool tracing = !origins.empty();
+    const std::span<std::uint8_t> activity = tracing ? std::span<std::uint8_t>{} : execution.activity;
     const bool sparse = !activity.empty();
     const Shape tile = execution.tile;
     const std::uint32_t columns = 1 + (shape.width - 1) / tile.width;
@@ -403,7 +416,7 @@ void Program::exchange(Shape shape, std::span<const std::uint32_t> in, std::span
             const bool over_x = left + 1 >= shape.width;
             if (over_x && !round_x) continue;
             const std::uint32_t right = over_x ? 0 : left + 1;
-            if (sparse && (activity[top_tiles + left / tile.width] & mark_sleeping)) {
+            if ((sparse && (activity[top_tiles + left / tile.width] & mark_sleeping)) || (!asleep_before.empty() && asleep(asleep_before[top_tiles + left / tile.width]))) {
                 // On to the first block past this tile.
                 const std::uint64_t end = (std::uint64_t{left / tile.width} + 1) * tile.width;
                 if (end >= shape.width) break;
@@ -465,6 +478,10 @@ void Program::exchange(Shape shape, std::span<const std::uint32_t> in, std::span
                     activity[touched] |= mark_restless;
             }
             if (at == std::array<std::uint8_t, 4>{0, 1, 2, 3}) continue;
+            if (tracing) {
+                for (std::size_t corner = 0; corner < 4; ++corner) origins[place[corner]] = static_cast<std::uint32_t>(place[at[corner]]);
+                continue;
+            }
             for (const std::uint32_t channel : channels) {
                 const std::size_t base = static_cast<std::size_t>(channel) * cells;
                 const std::array<std::uint32_t, 4> made{out[base + place[0]], out[base + place[1]], out[base + place[2]], out[base + place[3]]};

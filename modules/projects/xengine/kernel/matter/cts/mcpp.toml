@@ -32,7 +32,13 @@ mlibs.math     = { path = "../../../../../base/math" }
 mcpplibs.mtest = "0.6.3"
 # tests/lattice_test.cpp: the lattice as a carrier (xengine.cellular's feature `matter`) — through the suite,
 # then with cells that move.
-xengine.cellular = { path = "../../cellular", features = ["matter"] }
+# tests/agent_test.cpp: a field of matter as an agent's subject (the feature `matter-agent`, which implies the
+# two it joins) — under the agent contract's suite, and the emergence scenes asked why through a session.
+xengine.cellular = { path = "../../cellular", features = ["matter-agent"] }
+"mlibs.agent.cts" = { path = "../../../../../base/agent/cts" }
+mlibs.agent     = { path = "../../../../../base/agent" }
+mlibs.json      = { path = "../../../../../base/json" }
+openlifa.openas = "0.2.0"
 # tests/emergence_test.cpp: the emergence set on the lattice; a body of a material of the same table stands in
 # one of its scenes (an explosion's pressure pushes it).
 xengine.dynamics = { path = "../../dynamics", features = ["matter"] }

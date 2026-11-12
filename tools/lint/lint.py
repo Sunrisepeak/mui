@@ -797,6 +797,9 @@ CLOSURES: dict[str, dict[str, set[str]]] = {
     "mlibs.agent": {"not": {"omui", "xengine", "hanim", "xrender", "gongfu"}},
     # a game on its own: no interface, no bridge to one (D-162)
     "xengine.runtime": {"not": {"omui", "xengine.ui"}},
+    # the frame's entry and a field drawn through it: the renderer and a kernel, no interface (D-162; the plan's T0.6)
+    "xrender.frame": {"not": {"omui", "xengine", "hanim"}},
+    "xengine.cellular.present": {"not": {"omui", "xengine.runtime", "xengine.ui", "hanim"}},
     # the breakout on its own: its simulation and the runtime, nothing of omui's interface
     "omui.showcase.widget_breakout.headless": {"not": {"omui.core", "omui.view", "omui.semantic", "omui.agent", "omui.viewdoc", "omui.player", "omui.designer",
                                                         "omui.sdk", "omui.host", "omui.ui", "omui.theme", "omui.lang", "xengine.ui"}},

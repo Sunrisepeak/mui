@@ -32,3 +32,8 @@ mlibs.utils    = { path = "../../../../../base/utils" }
 [dev-dependencies]
 mcpplibs.mtest = "0.5.2"
 mlibs.utils = { path = "../../../../../base/utils" }
+# offscreen_test: a field an agent operates, drawn through the frame's entry and read back — no interface in the program.
+xrender.frame = { path = "../../../../xrender/frame" }
+mlibs.agent   = { path = "../../../../../base/agent" }
+mlibs.json    = { path = "../../../../../base/json" }
+mlibs.image   = { path = "../../../../../base/image" }

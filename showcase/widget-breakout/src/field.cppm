@@ -18,6 +18,7 @@ import omui.view;
 import xengine.input;
 import xengine.ui;
 import omui.showcase.widget_breakout.sim;
+import omui.showcase.widget_breakout.headless;
 import :field_contract;
 import :rooms;
 import :sound;
@@ -77,7 +78,10 @@ public:
     // What it sounds like (tests render it offline).
     [[nodiscard]] Sounds& sounds() noexcept { return *sounds_; }
     // The simulation as it stands (tests and tools read it); none before its first step.
-    [[nodiscard]] const State* state() const noexcept { return timeline_ ? &timeline_->state() : nullptr; }
+    [[nodiscard]] const State* state() const noexcept { return game_ ? &game_->state() : nullptr; }
+    // The game the window shows: the one that runs with no interface (xengine.runtime), stepped here by the
+    // interface's clock and played by the person's input; none before its first step.
+    [[nodiscard]] const Standalone* game() const noexcept { return game_ ? &*game_ : nullptr; }
     // The room as the simulation began it (its bricks where layout put them): what bots play.
     [[nodiscard]] const Level& level() const noexcept { return level_; }
     [[nodiscard]] const Run& run_so_far() const noexcept { return run_; }
@@ -111,7 +115,7 @@ private:
 
     static constexpr std::size_t log_size = 8;
 
-    std::optional<mlibs::simulation::Timeline<Game>> timeline_;
+    std::optional<Standalone>            game_;                 // the game on its own; this component is its window
     Level                                level_;
     xengine::Sampler                       sampler_;
     xengine::ui::Pacer                     pacer_;
@@ -120,7 +124,7 @@ private:
     std::optional<Rules>                 pending_rules_;        // to the simulation at the next step's start
     std::int32_t                         pending_pay_ = 0;      // a rewind's cost, on the next step
     std::optional<double>                agent_x_, agent_aim_;  // an agent's paddle (0 … 1) while it holds it; its aim, once
-    std::optional<xengine::AgentLane>    player_lane_;          // an agent player's actions, held to its tier (agent_player)
+    std::optional<xengine::PlayTier>     player_tier_;          // an agent player's tier (agent_player): its actions go through the game's lane
     struct PlayRecord {
         std::int64_t          now = 0, seen = 0, at = 0;
         double                axis = 0;

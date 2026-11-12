@@ -646,8 +646,8 @@ void Field::paint_over(PaintContext& ctx) const {
         xrender::text::paint(label(s.finisher ? std::string("DUET — return it now") : std::format("duet · copilot: {}", order_), 11, cue(ink::live, 0.85f)), out, {24, 98});
     }
     // The X-ray: on, or how soon again.
-    if (def.dark || scan || (timeline_ && timeline_->frame() < scan_ready_)) {
-        const std::int64_t now = timeline_->frame();
+    if (def.dark || scan || (game_ && game_->frame() < scan_ready_)) {
+        const std::int64_t now = game_->frame();
         const std::string what = scan ? std::string("X-RAY") : now < scan_ready_ ? std::format("X-ray in {:.1f} s", static_cast<double>(scan_ready_ - now) / steps_per_second)
                                                                                 : std::string("X  X-ray ready");
         xrender::text::paint(label(what, 12, hex(ink::cache, scan ? 1.0f : 0.7f)), out, {24, H - 28});

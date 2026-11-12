@@ -8,6 +8,7 @@
 import std;
 import omui;
 import omui.showcase.widget_breakout;
+import omui.showcase.widget_breakout.headless;
 import mlibs.testing;
 import mcpplibs.mtest;
 
@@ -159,6 +160,26 @@ UTest cases{"breakout.agent-player", [] {
                   expect(again.checksum == first.checksum && again.frames == first.frames &&
                             again.log == first.log) << "the same agent plays the same game to the same bytes (its inputs replay)";
               };
+
+    "what the window played is the game with no window: each step's input on a game begun the same, bit for bit"_test = [] {
+        Session session("human");
+        Player player;
+        // Twenty seconds of play: within what the game's timeline keeps, so every step's input is still there.
+        while (!session.state().over && session.state().frame < 120 * 20) {
+            player.turn(session);
+            session.h.advance(seconds(6.0 / 120));
+        }
+        const bo::Field&    field = *session.h.runtime().component<bo::Field>(session.h.runtime().find("main/field"));
+        const bo::Standalone* shown = field.game();
+        expect(fatal(shown != nullptr)) << "the window shows a game of xengine.runtime";
+        expect(eq(shown->timeline().earliest(), std::int64_t{0}));
+        // The same game with no interface: the runtime alone, the owner's seat, each step given what the window gave it.
+        bo::Standalone alone(bo::start(field.level()), {.stepping = xengine::runtime::Stepping::owner, .seat = xengine::runtime::Seat::owner});
+        for (std::int64_t frame = 0; frame < shown->frame(); ++frame) alone.step(shown->timeline().input(frame));
+        std::println("    {} steps in the window, played again with none: score {}, state {:016x}", shown->frame(), alone.state().score, alone.state_hash());
+        expect(eq(alone.frame(), shown->frame()) && eq(alone.state_hash(), shown->state_hash())) << "the same bits";
+        expect(alone.state().score > 0 && eq(alone.state().score, session.state().score)) << "bricks were broken, and broken again";
+    };
 
     "the record of a game, exported headless, replays alone to the same bytes"_test = [] {
         Session session("human");

@@ -29,6 +29,8 @@ omui.semantic = { path = "../../semantic" }
 omui.agent    = { path = "../../agent" }
 xrender.raster   = { path = "../../../xrender/raster" }
 xrender.vector   = { path = "../../../xrender/vector" }
+# The frame's entry: the host hands its layers to the renderer, which composes, captures and traces (D-162).
+xrender.frame    = { path = "../../../xrender/frame" }
 mlibs.text     = { path = "../../../../content/text" }
 mlibs.image    = { path = "../../../../base/image" }
 mlibs.utils    = { path = "../../../../base/utils" }

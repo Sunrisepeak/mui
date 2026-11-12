@@ -7,6 +7,7 @@ import omui.semantic;
 import omui.agent;
 import xrender.raster;
 import xrender.vector;
+import xrender.frame;
 import mlibs.text;
 import mlibs.image;
 import mlibs.trace;
@@ -40,7 +41,9 @@ struct Headless::Impl {
     std::unique_ptr<Runtime>                    runtime;
     std::unique_ptr<semantic::Tree>             tree;
     std::unique_ptr<xrender::text::GlyphCache>        glyphs;
-    xrender::CpuRenderer                         renderer;
+    // The frame's entry (xrender.frame): the host hands its layers over and composes nothing itself.
+    xrender::CpuFrame                            window;  // the window's: one layer, the interface's
+    xrender::CpuFrame                            camera;  // framed_png's: the scene under the camera, then what stays fixed
     xrender::raster::Surface                             surface;
     std::uint64_t                               rendered = 0;   // the list hash the surface shows
     std::uint64_t                               shown_list = 0; // the list hash of the last frame shown (frame_shown)
@@ -62,13 +65,12 @@ struct Headless::Impl {
         // Only the rows the new list can change: the same bytes as a full render.
         const auto rows = damage.update(list, w, hgt, options.scale, resources);
         if (!rows.empty()) {
-            xrender::CpuOptions o;
-            o.scale = options.scale;
-            o.background = options.background;
-            o.object_ids = true;
-            o.rows = rows;
-            if (options.parallel_raster) o.parallel = &raster_parallel();
-            (void)renderer.render(list, surface, resources, o);
+            const xrender::FrameLayer interface{.name = "ui", .list = &list, .resources = resources, .scale = options.scale, .object_ids = true};
+            xrender::FrameOptions how;
+            how.background = options.background;
+            how.rows = rows;
+            if (options.parallel_raster) how.parallel = &raster_parallel();
+            (void)window.render({&interface, 1}, surface, how);
         }
         rendered = h;
         have_pixels = true;
@@ -312,18 +314,16 @@ std::expected<std::vector<std::uint8_t>, std::string> Headless::framed_png(Rect 
     const int width = static_cast<int>(std::lround(window.width * d.options.scale)), height = static_cast<int>(std::lround(window.height * d.options.scale));
     xrender::raster::Surface framed(width, height);
     const xrender::Resources resources{&d.runtime->images(), d.glyphs.get()};
-    xrender::CpuOptions through;
-    through.scale = d.options.scale * fit;
-    through.background = d.options.background;
-    through.transform = xrender::Affine::scale(d.options.scale, d.options.scale) * xrender::Affine::translate(left, top) * xrender::Affine::scale(fit, fit);
-    through.effect_scale = d.options.scale;
-    (void)d.renderer.render(scene, framed, resources, through);
-    if (!over.commands().empty()) {
-        xrender::CpuOptions as_is;
-        as_is.scale = d.options.scale;
-        as_is.clear = false;
-        (void)d.renderer.render(over, framed, resources, as_is);
-    }
+    // Two layers: the scene through the camera, then the fixed slot as it is.
+    const std::array layers{
+        xrender::FrameLayer{.name = "scene",
+                            .list = &scene,
+                            .resources = resources,
+                            .scale = d.options.scale * fit,
+                            .transform = xrender::Affine::scale(d.options.scale, d.options.scale) * xrender::Affine::translate(left, top) * xrender::Affine::scale(fit, fit),
+                            .effect_scale = d.options.scale},
+        xrender::FrameLayer{.name = "fixed", .list = &over, .resources = resources, .scale = d.options.scale}};
+    (void)d.camera.render(std::span(layers).first(over.commands().empty() ? 1 : 2), framed, {.background = d.options.background});
     auto v = view_of(framed, d.options.scale, std::nullopt);
     if (!v) return std::unexpected(v.error());
     return mlibs::image::encode_png(*v);
@@ -377,7 +377,7 @@ NodeId Headless::node_at_pixel(Point p) {
     d.render_now();
     const int x = static_cast<int>(p.x * d.options.scale), y = static_cast<int>(p.y * d.options.scale);
     if (x < 0 || y < 0 || x >= d.surface.width() || y >= d.surface.height()) return {};
-    return d.runtime->node_at_index(d.renderer.object_at(x, y, d.surface.width()));
+    return d.runtime->node_at_index(d.window.at(x, y).object);
 }
 
 agent::CaptureFn Headless::capture() {

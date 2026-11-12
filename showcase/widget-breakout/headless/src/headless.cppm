@@ -26,6 +26,7 @@ struct Play {
     [[nodiscard]] static std::string observe(const State& state, bool full);
 };
 
-using Headless = xengine::runtime::Runtime<Play>;
+// Not `Headless`: in an application that is omui's host without a window (omui::Headless), which the showcase's own tests use.
+using Standalone = xengine::runtime::Runtime<Play>;
 
 }  // namespace omui::breakout

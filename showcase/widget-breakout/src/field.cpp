@@ -5,6 +5,7 @@ import omui;
 import xengine.input;
 import xengine.ui;
 import omui.showcase.widget_breakout.sim;
+import omui.showcase.widget_breakout.headless;
 import omui.ui.canvas;
 
 namespace omui::breakout {
@@ -80,7 +81,7 @@ std::optional<xengine::PlayTier> tier_named(std::string_view name) {
 }  // namespace
 
 void Field::mounted() {
-    if (const auto tier = tier_named(props.agent_player)) player_lane_.emplace(*tier, steps_per_second);  // as mounted, not only as changed
+    player_tier_ = tier_named(props.agent_player);  // as mounted, not only as changed
     services().focus(node());
     if (hearing()) device_ = hearing()(*sounds_);
     pacer_.start(services(), steps_per_second, [this](std::int32_t n) { run(n); });
@@ -89,9 +90,8 @@ void Field::mounted() {
 
 void Field::prop_changed(FieldProp p) {
     if (p == FieldProp::agent_player) {
-        const auto tier = tier_named(props.agent_player);
-        if (tier) player_lane_.emplace(*tier, steps_per_second);
-        else player_lane_.reset();
+        player_tier_ = tier_named(props.agent_player);
+        if (player_tier_ && game_) game_->lane() = xengine::AgentLane(*player_tier_, steps_per_second);
     }
     if (!attached()) return;
     if (p == FieldProp::room) {
@@ -107,9 +107,9 @@ std::vector<Element> Field::compose() {
     // change (the event comes first), what the simulation holds, again.
     return room_bricks(room(props.room), [this](std::size_t i) {
         (void)services().after(seconds(0), [this, i] {
-            if (!timeline_) return;
+            if (!game_) return;
             const Brick* found = nullptr;
-            timeline_->state().world.each<Brick>([&](xengine::Entity, const Brick& b) {
+            game_->state().world.each<Brick>([&](xengine::Entity, const Brick& b) {
                 if (b.id == i) found = &b;
             });
             if (found) show_brick(i, found);
@@ -137,12 +137,11 @@ void Field::new_run() {
 }
 
 void Field::restart_room() {
-    timeline_.reset();
-    // An agent player's lane and record start again with the room.
+    game_.reset();
+    // An agent player's lane (the game's) and record start again with the room.
     player_record_.clear();
     replaying_.clear();
     intent_next_ = {};
-    if (player_lane_) player_lane_.emplace(player_lane_->tier(), steps_per_second);
     log_.clear();
     guard_x_.reset();
     agent_log_.clear();
@@ -227,7 +226,11 @@ bool Field::begin() {
     }
     if (def.canvas) fill_scene(def);
     level_ = l;
-    timeline_.emplace(start(l), keep, 60);
+    // The game on its own (xengine.runtime), stepped by this component's pacer and played by what input() gathers:
+    // the owner's seat. An agent player's actions go through the game's lane, at its tier.
+    xengine::runtime::Options how{.stepping = xengine::runtime::Stepping::owner, .seat = xengine::runtime::Seat::owner, .keep = keep};
+    if (player_tier_) how.tier = *player_tier_;
+    game_.emplace(start(l), how);
     sounds_->restart();
     run_at_start_ = run_;
     emit_room_began(props.room, services().path(node()));  // whoever plays along (room 5's copilot) knows where
@@ -238,9 +241,9 @@ Input Field::input() {
     Input in;
     in.player = sampler_.sample();
     // An agent player plays the paddle as a person would, its actions due at this step.
-    if (player_lane_ && timeline_ && services().agent_players()) {
+    if (player_tier_ && game_ && services().agent_players()) {
         // A record played again: each play given at the step it was, then the lane as ever.
-        const std::int64_t now = timeline_->state().frame;
+        const std::int64_t now = game_->state().frame;
         while (!replaying_.empty() && replaying_.front().now <= now) {
             const PlayRecord play = replaying_.front();
             replaying_.erase(replaying_.begin());
@@ -248,13 +251,13 @@ Input Field::input() {
             actions.axes[0] = static_cast<std::int16_t>(std::lround(play.axis * 32767));
             if (play.launch) actions.held |= 1u << launch_button;
             if (play.look) actions.held |= 1u << look_button;
-            if (player_lane_->submit(play.now, play.seen, actions)) player_record_.push_back(play);
+            if (game_->lane().submit(play.now, play.seen, actions)) player_record_.push_back(play);
         }
-        in.player = player_lane_->take(now);
+        in.player = game_->lane().take(now);
     }
-    if (timeline_ && in.player.pointer_x >= 0 && timeline_->state().zoom != 1) {
+    if (game_ && in.player.pointer_x >= 0 && game_->state().zoom != 1) {
         // The pointer across the screen, to across the field: zoomed out, the field is the screen's middle.
-        const double z = timeline_->state().zoom, across = 0.5 + (in.player.pointer_x / 32767.0 - 0.5) / z;
+        const double z = game_->state().zoom, across = 0.5 + (in.player.pointer_x / 32767.0 - 0.5) / z;
         in.player.pointer_x = static_cast<std::int16_t>(std::lround(std::clamp(across, 0.0, 1.0) * 32767));
     }
     if (agent_x_) in.player.pointer_x = static_cast<std::int16_t>(std::lround(std::clamp(*agent_x_, 0.0, 1.0) * 32767));
@@ -282,8 +285,8 @@ Input Field::input() {
 }
 
 void Field::play(const Input& in) {
-    timeline_->step(in);
-    const State& s = timeline_->state();
+    game_->step(in);
+    const State& s = game_->state();
     const RoomDef& def = room(props.room);
     sounds_->heard(s, def);
     fx_.react(s, def);
@@ -373,8 +376,8 @@ void Field::show_brick(std::size_t i, const Brick* b) {
 }
 
 void Field::show_bricks() {
-    if (!timeline_) return;
-    const State& s = timeline_->state();
+    if (!game_) return;
+    const State& s = game_->state();
     const RoomDef& def = room(props.room);
     std::vector<const Brick*> by_id(def.bricks.size(), nullptr);
     s.world.each<Brick>([&](xengine::Entity, const Brick& b) {
@@ -386,8 +389,8 @@ void Field::show_bricks() {
 }
 
 void Field::show_gates() {
-    if (!timeline_) return;
-    const State& s = timeline_->state();
+    if (!game_) return;
+    const State& s = game_->state();
     const RoomDef& def = room(props.room);
     if (def.gate_period <= 0) return;
     const auto nodes = bricks();
@@ -409,11 +412,11 @@ void Field::show_gates() {
 }
 
 void Field::show_camera() {
-    if (!timeline_ || !room(props.room).canvas) return;
+    if (!game_ || !room(props.room).canvas) return;
     const auto kids = services().children(node());
     if (kids.empty()) return;
     // The camera: the field's bottom on the screen's, at the simulation's zoom (in screen pixels a unit).
-    const State& s = timeline_->state();
+    const State& s = game_->state();
     const Rect me = services().bounds(node());
     services().set(kids[0], "zoom", Value(s.zoom * me.width / field_w));
     services().set(kids[0], "x", Value(field_w / 2));
@@ -434,19 +437,19 @@ bool Field::dark() const {
     return lights_off;
 }
 
-bool Field::scanning() const { return timeline_ && timeline_->frame() < scan_until_; }
+bool Field::scanning() const { return game_ && game_->frame() < scan_until_; }
 
 std::optional<std::int64_t> Field::reach() const {
-    if (!timeline_) return std::nullopt;
-    const State& s = timeline_->state();
+    if (!game_) return std::nullopt;
+    const State& s = game_->state();
     if (s.over || s.sparks - pending_pay_ < rewind_cost) return std::nullopt;
-    const std::int64_t back = std::max({timeline_->earliest(), landing_, timeline_->frame() - rewind_reach});
-    if (back >= timeline_->frame()) return std::nullopt;
+    const std::int64_t back = std::max({game_->timeline().earliest(), landing_, game_->frame() - rewind_reach});
+    if (back >= game_->frame()) return std::nullopt;
     return back;
 }
 
 bool Field::seek_back(std::int64_t to) {
-    if (!timeline_->seek(to)) return false;
+    if (!game_->seek(to)) return false;
     show_bricks();
     fx_.clear();
     scan_until_ = std::min(scan_until_, to);
@@ -456,16 +459,16 @@ bool Field::seek_back(std::int64_t to) {
 
 void Field::end_rewind() {
     rewinding_ = false;
-    if (!timeline_ || timeline_->frame() >= rewind_from_) return;
+    if (!game_ || game_->frame() >= rewind_from_) return;
     pending_pay_ += rewind_cost;
-    landing_ = timeline_->frame();
+    landing_ = game_->frame();
     fx_.ghost_from(landing_, rewind_from_);
-    timeline_->branch();
+    game_->branch();
     note(std::format("rewound to frame {} · −{} sparks", landing_, rewind_cost));
 }
 
 void Field::over_step() {
-    const State& s = timeline_->state();
+    const State& s = game_->state();
     fx_.age();
     ++over_steps_;
     show_style();
@@ -482,14 +485,14 @@ void Field::over_step() {
 }
 
 void Field::run(std::int32_t steps) {
-    if (!timeline_) {
+    if (!game_) {
         if (!begin()) return;  // waiting for layout to place the bricks
         show_bricks();
         show_style();
         refresh();
     }
     if (props.paused || props.inspector) return;  // looking inside: the game waits
-    const State& s = timeline_->state();
+    const State& s = game_->state();
     if (s.over) {
         for (std::int32_t k = 0; k < steps; ++k) over_step();
         refresh();
@@ -497,11 +500,11 @@ void Field::run(std::int32_t steps) {
     }
     if (rewinding_) {
         // Back through time at twice its pace, as far as it reaches.
-        const std::int64_t floor = std::max({timeline_->earliest(), landing_, rewind_from_ - rewind_reach});
-        const std::int64_t to = std::max(floor, timeline_->frame() - 2 * static_cast<std::int64_t>(steps));
-        if (to != timeline_->frame()) (void)seek_back(to);
+        const std::int64_t floor = std::max({game_->timeline().earliest(), landing_, rewind_from_ - rewind_reach});
+        const std::int64_t to = std::max(floor, game_->frame() - 2 * static_cast<std::int64_t>(steps));
+        if (to != game_->frame()) (void)seek_back(to);
     } else {
-        for (std::int32_t k = 0; k < steps && !timeline_->state().over; ++k) play(input());
+        for (std::int32_t k = 0; k < steps && !game_->state().over; ++k) play(input());
     }
     // A hint, once, when it is needed.
     const RoomDef& def = room(props.room);
@@ -569,7 +572,7 @@ bool Field::on_event(EventContext& ctx, const InputEvent& e) {
         if (!k->repeat && k->kind == KeyKind::down) {
             if (const auto back = reach(); back && !rewinding_) {
                 rewinding_ = true;
-                rewind_from_ = timeline_->frame();
+                rewind_from_ = game_->frame();
                 sounds_->cue("rewind");
             } else if (!rewinding_) {
                 sounds_->cue("denied");
@@ -612,10 +615,10 @@ void Field::semantics(SemanticsContext&, spec::SemanticNode& node) const {
     node.name = std::format("{} {}", def.name, def.title);
     // What it can do now: a frame at a time while paused; on to the next room once this one is over.
     std::erase_if(node.actions, [&](const spec::ActionDesc& a) {
-        return (a.name == "step" && !props.paused) || (a.name == "next" && !(timeline_ && timeline_->state().over));
+        return (a.name == "step" && !props.paused) || (a.name == "next" && !(game_ && game_->state().over));
     });
-    if (!timeline_) return;
-    const State& s = timeline_->state();
+    if (!game_) return;
+    const State& s = game_->state();
     Value v;
     v.set("room", props.room).set("hash", std::format("{:016x}", checksum(s)));
     v.set("frame", s.frame).set("score", s.score).set("lives", s.lives).set("sparks", s.sparks).set("chain", s.combo).set("best", s.best);
@@ -695,11 +698,11 @@ ActResult Field::resume(ActContext&) {
 
 ActResult Field::step(ActContext&) {
     if (!props.paused) return ActResult::fail("`step` plays one frame of a paused field: pause first");
-    if (!timeline_ && !begin()) return ActResult::fail("the bricks are not laid out yet");
-    if (timeline_->state().over) over_step();
+    if (!game_ && !begin()) return ActResult::fail("the bricks are not laid out yet");
+    if (game_->state().over) over_step();
     else play(input());
     refresh();
-    return ActResult::done(Value(timeline_->frame()));
+    return ActResult::done(Value(game_->frame()));
 }
 
 ActResult Field::restart(ActContext&) {
@@ -715,23 +718,23 @@ ActResult Field::again(ActContext&) {
 }
 
 ActResult Field::rewind(ActContext&, const Value& frames) {
-    if (!timeline_) return ActResult::fail("nothing played yet");
+    if (!game_) return ActResult::fail("nothing played yet");
     const std::int64_t n = std::max<std::int64_t>(0, frames.as_int(0));
     if (n > rewind_reach) return ActResult::fail(std::format("at most {} frames (2 s) a rewind", rewind_reach));
     const auto back = reach();
-    if (!back) return ActResult::fail(std::format("a rewind needs {} sparks ({} now), and somewhere to go back to", rewind_cost, timeline_->state().sparks - pending_pay_));
-    const std::int64_t to = timeline_->frame() - n;
+    if (!back) return ActResult::fail(std::format("a rewind needs {} sparks ({} now), and somewhere to go back to", rewind_cost, game_->state().sparks - pending_pay_));
+    const std::int64_t to = game_->frame() - n;
     if (to < *back) return ActResult::fail(std::format("not that far back: frame {} at the earliest", *back));
-    rewind_from_ = timeline_->frame();
+    rewind_from_ = game_->frame();
     if (n > 0 && !seek_back(to)) return ActResult::fail("not kept");
     end_rewind();
     refresh();
-    return ActResult::done(Value(timeline_->frame()));
+    return ActResult::done(Value(game_->frame()));
 }
 
 ActResult Field::scan(ActContext&) {
-    if (!timeline_) return ActResult::fail("nothing playing yet");
-    const std::int64_t now = timeline_->frame();
+    if (!game_) return ActResult::fail("nothing playing yet");
+    const std::int64_t now = game_->frame();
     if (now < scan_ready_) return ActResult::fail(std::format("recharging: {:.1f} s", static_cast<double>(scan_ready_ - now) / steps_per_second));
     scan_until_ = now + scan_steps;
     scan_ready_ = now + scan_steps + scan_cooldown;
@@ -758,7 +761,7 @@ ActResult Field::guard_to(ActContext&, const GuardToArgs& args) {
     const std::string_view says = args.says.as_string("");
     if (!says.empty() && says != says_) {
         says_ = std::string(says);
-        says_until_ = (timeline_ ? timeline_->frame() : 0) + 150;
+        says_until_ = (game_ ? game_->frame() : 0) + 150;
     }
     if (args.aim.is_number()) intent_ = std::clamp(args.aim.as_double(), 0.0, 1.0) * field_w;
     agent_log_.push_back(std::format("guard_to({:.3f}) · {}", *guard_x_, args.seen.as_string("—")));
@@ -782,7 +785,7 @@ ActResult Field::set_rules(ActContext&, const SetRulesArgs& args) {
     r.gift_mask = mask_of(run_.kit);
     if (!(bounded(r) == r)) return ActResult::fail("a rule is outside its bounds: none changed");
     rules_ = r;
-    if (timeline_) pending_rules_ = r;
+    if (game_) pending_rules_ = r;
     note("rules → from the next step");
     return ActResult::done();
 }
@@ -803,8 +806,8 @@ ActResult Field::choose(ActContext&, const Value& gift) {
 }
 
 ActResult Field::next(ActContext& ctx) {
-    if (!timeline_ || !timeline_->state().over) return ActResult::fail("the room is not over yet");
-    const State& s = timeline_->state();
+    if (!game_ || !game_->state().over) return ActResult::fail("the room is not over yet");
+    const State& s = game_->state();
     if (s.over == 1 && props.room < room_count) {  // cleared: straight to the choice
         while (over_steps_ < celebrate_steps) over_step();
         return ActResult::done(Value(static_cast<std::int64_t>(props.room)));
@@ -814,18 +817,18 @@ ActResult Field::next(ActContext& ctx) {
 
 ActResult Field::observe(ActContext&) {
     if (!services().agent_players()) return ActResult::fail("agent players are off for this run (the application or the person)");
-    if (!player_lane_) return ActResult::fail("agent players are off (agent_player)");
-    if (!timeline_) return ActResult::fail("the room has not begun");
-    const State& s = timeline_->state();
+    if (!player_tier_) return ActResult::fail("agent players are off (agent_player)");
+    if (!game_) return ActResult::fail("the room has not begun");
+    const State& s = game_->state();
     Value v;
-    v.set("tier", std::string(player_lane_->tier().name)).set("step", s.frame).set("room", props.room);
+    v.set("tier", std::string(player_tier_->name)).set("step", s.frame).set("room", props.room);
     v.set("paddle", s.paddles[0].x / field_w).set("score", s.score).set("lives", s.lives).set("bricks", s.bricks).set("over", static_cast<std::int32_t>(s.over));
     Value::List balls;
     s.world.each<Ball>([&](xengine::Entity, const Ball& b) {
         balls.push_back(Value{}.set("x", b.at.x / field_w).set("y", b.at.y / field_h).set("vx", b.velocity.x).set("vy", b.velocity.y).set("on_paddle", b.on != 0));
     });
     v.set("balls", Value(std::move(balls)));
-    if (player_lane_->tier().full_view) {
+    if (player_tier_->full_view) {
         // What is not drawn: the contraptions' rules and the hidden bricks.
         v.set("rules", Value{}.set("wide_steps", s.rules.wide_steps).set("multi_balls", s.rules.multi_balls).set("drop_one_in", s.rules.drop_one_in));
         Value::List hidden;
@@ -842,17 +845,17 @@ ActResult Field::observe(ActContext&) {
 
 ActResult Field::play(ActContext&, const PlayArgs& args) {
     if (!services().agent_players()) return ActResult::fail("agent players are off for this run (the application or the person)");
-    if (!player_lane_) return ActResult::fail("agent players are off (agent_player)");
-    if (!timeline_) return ActResult::fail("the room has not begun");
+    if (!player_tier_) return ActResult::fail("agent players are off (agent_player)");
+    if (!game_) return ActResult::fail("the room has not begun");
     const double axis = args.axis.as_double();
     if (!std::isfinite(axis) || axis < -1 || axis > 1) return ActResult::fail("axis is −1 … 1");
     xengine::Actions actions;
     actions.axes[0] = static_cast<std::int16_t>(std::lround(axis * 32767));
     if (args.launch.as_bool()) actions.held |= 1u << launch_button;
     if (args.look.as_bool()) actions.held |= 1u << look_button;
-    const auto due = player_lane_->submit(timeline_->state().frame, args.seen.as_int(), actions);
+    const auto due = game_->lane().submit(game_->state().frame, args.seen.as_int(), actions);
     if (!due) return ActResult::fail(due.error() == xengine::AgentLane::Refusal::too_often ? "more often than the tier allows" : "a step not yet played");
-    PlayRecord kept{timeline_->state().frame, args.seen.as_int(), *due, axis, args.launch.as_bool(), args.look.as_bool()};
+    PlayRecord kept{game_->state().frame, args.seen.as_int(), *due, axis, args.launch.as_bool(), args.look.as_bool()};
     kept.target = std::exchange(intent_next_.target, std::nullopt);
     kept.note = std::exchange(intent_next_.note, std::string());
     player_record_.push_back(std::move(kept));
@@ -860,7 +863,7 @@ ActResult Field::play(ActContext&, const PlayArgs& args) {
 }
 
 ActResult Field::intend(ActContext&, const IntendArgs& args) {
-    if (!services().agent_players() || !player_lane_) return ActResult::fail("agent players are off");
+    if (!services().agent_players() || !player_tier_) return ActResult::fail("agent players are off");
     const double target = args.target.as_double();
     if (!std::isfinite(target) || target > 1) return ActResult::fail("target is 0 … 1 (below 0: nowhere in particular)");
     intent_next_.target = target < 0 ? std::nullopt : std::optional<double>(target);
@@ -869,8 +872,8 @@ ActResult Field::intend(ActContext&, const IntendArgs& args) {
 }
 
 ActResult Field::record(ActContext&) {
-    if (!player_lane_) return ActResult::fail("agent players are off (agent_player)");
-    if (!timeline_) return ActResult::fail("the room has not begun");
+    if (!player_tier_) return ActResult::fail("agent players are off (agent_player)");
+    if (!game_) return ActResult::fail("the room has not begun");
     Value::List plays;
     for (const auto& play : player_record_)
     {
@@ -879,10 +882,10 @@ ActResult Field::record(ActContext&) {
         if (!play.note.empty()) one.set("note", play.note);
         plays.push_back(std::move(one));
     }
-    const State& s = timeline_->state();
+    const State& s = game_->state();
     return ActResult::done(Value{}
                                .set("kind", "breakout.agent-record")
-                               .set("tier", std::string(player_lane_->tier().name))
+                               .set("tier", std::string(player_tier_->name))
                                .set("room", props.room)
                                .set("step", s.frame)
                                .set("checksum", std::format("{:016x}", checksum(s)))
@@ -890,7 +893,7 @@ ActResult Field::record(ActContext&) {
 }
 
 ActResult Field::replay(ActContext&, const Value& plays) {
-    if (!services().agent_players() || !player_lane_) return ActResult::fail("agent players are off");
+    if (!services().agent_players() || !player_tier_) return ActResult::fail("agent players are off");
     const auto* list = plays.list();
     if (!list) return ActResult::fail("plays is a record's list of plays");
     std::vector<PlayRecord> loaded;

@@ -30,7 +30,7 @@ bo::Level wall_of_bricks() {
 
 // A game at an endpoint, and a connection to it: requests answered while this loop — the owner's — pumps.
 struct Table {
-    bo::Headless      game;
+    bo::Standalone      game;
     agent::Endpoint   endpoint;
     std::optional<agent::Connection> connection;
 

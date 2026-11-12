@@ -8,7 +8,7 @@ name        = "headless"
 version     = "0.1.0"
 description = "The breakout on its own: the simulation as a game the runtime steps and an agent plays, no interface"
 license     = "Apache-2.0"
-platforms   = ["linux", "macos", "windows"]
+platforms   = ["linux", "macos", "windows", "emscripten"]
 repo        = "https://github.com/Sunrisepeak/mui"
 
 [targets.widget-breakout-headless]

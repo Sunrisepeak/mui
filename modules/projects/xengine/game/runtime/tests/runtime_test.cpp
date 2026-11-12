@@ -203,6 +203,28 @@ UTest cases{"runtime", [] {
         expect(ask(session, R"({"op":"world.state"})").data()["frame"].integer() == 1) << "its owner's loop steps it";
     };
 
+    "a play recorded is the play again: every step's input, on a game begun the same, the same bits — a seek back forgotten"_test = [] {
+        Game played(Chase::State{}, {.record = true});
+        agent::SubjectSession session({&played});
+        (void)play_out(session, 30, 12);
+        // A change of mind: back to step 120, then another way.
+        (void)ask(session, R"({"op":"world.seek","frame":120})");
+        expect(eq(played.recorded().size(), std::size_t{120})) << "what followed step 120 is another branch's";
+        (void)ask(session, R"({"op":"world.act","axis":[-1]})");
+        (void)ask(session, R"({"op":"world.step","steps":90})");
+        expect(eq(played.recorded().size(), static_cast<std::size_t>(played.frame())));
+
+        // The owner's seat: each step's input as it was given, no lane between.
+        Game again(Chase::State{}, {.seat = runtime::Seat::owner});
+        for (const Chase::Input& input : played.recorded()) again.step(input);
+        expect(eq(again.frame(), played.frame()) && eq(again.state_hash(), played.state_hash())) << "the same bits";
+
+        // The owner's own time: sought and branched as a game's rules need (a rewind).
+        expect(again.seek(100) && eq(again.frame(), std::int64_t{100}) && eq(again.timeline().latest(), played.frame()));
+        again.branch();
+        expect(eq(again.timeline().latest(), std::int64_t{100}) && !again.seek(150)) << "after a branch, what followed is gone";
+    };
+
     "found and played through an endpoint, by name, with no interface in the program"_test = [] {
         Game game(Chase::State{});
         const auto directory = scratch_dir("runtime-endpoint");

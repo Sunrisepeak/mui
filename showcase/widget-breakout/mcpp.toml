@@ -40,6 +40,8 @@ mlibs.math = { path = "../../modules/base/math" }
 mlibs.utils = { path = "../../modules/base/utils" }
 omui.sdk = { path = "../../modules/projects/omui/sdk" }
 omui.showcase.widget_breakout.sim = { path = "sim" }
+# The game itself, as it runs with no interface (xengine.runtime): the window shows that same game (D-162).
+omui.showcase.widget_breakout.headless = { path = "headless" }
 xengine.input = { path = "../../modules/projects/xengine/game/input" }
 xengine.ui    = { path = "../../modules/projects/xengine/game/ui" }
 omui.theme = { path = "../../modules/projects/omui/theme" }

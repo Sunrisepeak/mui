@@ -49,11 +49,21 @@ concept Playable = mlibs::simulation::Model<G> &&
 // agent that plays it (nothing moves between its requests: a playtest, a test).
 enum class Stepping : std::uint8_t { owner, agent };
 
+// Who plays the first seat: the agent's lane gives each step its actions, or
+// the step's input is played as its owner gives it — a person at a window, a
+// recording played again, an owner that lets an agent in through `lane()` by
+// its own rules.
+enum class Seat : std::uint8_t { agent, owner };
+
 struct Options {
     xengine::PlayTier tier{.name = "human", .reaction_steps = 12, .actions_per_second = 10, .full_view = false};
     Stepping          stepping = Stepping::agent;
+    Seat              seat = Seat::agent;
     std::int64_t      keep = 3600;        // steps of history kept, to seek within
     std::int64_t      most_steps = 3600;  // the most one request steps or branches ahead
+    // Keep every step's input since the first: what plays this game again anywhere, bit for bit
+    // (`recorded()`). Off: only the `keep` steps a seek needs.
+    bool              record = false;
 };
 
 template <Playable G>
@@ -65,15 +75,36 @@ public:
     explicit Runtime(const State& initial, Options options = {})
         : options_(std::move(options)), timeline_(initial, options_.keep), lane_(options_.tier, G::steps_per_second) {}
 
-    // One step: the owner's input for it, the agent player's actions of this step added.
+    // One step: the owner's input for it; where the agent has the seat, its actions of this step put in.
     void step(Input input = {}) {
-        G::play(input, lane_.take(timeline_.frame()));
+        if (options_.seat == Seat::agent) G::play(input, lane_.take(timeline_.frame()));
+        if (options_.record) {
+            recorded_.resize(static_cast<std::size_t>(timeline_.frame()));  // a step after a seek back: what followed is another branch's
+            recorded_.push_back(input);
+        }
         timeline_.step(input);
     }
     [[nodiscard]] const State& state() const noexcept { return timeline_.state(); }
     [[nodiscard]] std::int64_t frame() const noexcept { return timeline_.frame(); }
     [[nodiscard]] bool over() const { return G::over(timeline_.state()); }
     [[nodiscard]] const xengine::PlayTier& tier() const noexcept { return lane_.tier(); }
+
+    // ── the owner's own way in (a host's loop, a game's rules for rewinding) ──
+    // The history: its frames kept (`earliest()` … `latest()`), each step's input while kept.
+    [[nodiscard]] const mlibs::simulation::Timeline<G>& timeline() const noexcept { return timeline_; }
+    // Back to a frame kept (false, and nothing changes, outside it). What was played after it stays reachable
+    // until `branch()` or the next step.
+    bool seek(std::int64_t frame) { return timeline_.seek(frame); }
+    // From here on is a new branch: what was played after this frame is forgotten.
+    void branch() noexcept {
+        timeline_.branch();
+        if (options_.record) recorded_.resize(static_cast<std::size_t>(timeline_.frame()));
+    }
+    // The agent player's lane: an owner that seats the agent by its own rules submits and takes here.
+    [[nodiscard]] xengine::AgentLane& lane() noexcept { return lane_; }
+    // Every step's input since the first, on this branch (with `Options::record`): played on a game begun
+    // from the same state with `Seat::owner`, the same bits.
+    [[nodiscard]] std::span<const Input> recorded() const noexcept { return recorded_; }
 
     // ── the game as a subject ─────────────────────────────────────────────
     [[nodiscard]] std::string_view name() const noexcept override { return "world"; }
@@ -163,7 +194,7 @@ private:
         if (!frame) return answer.fail(openas::error_code::invalid_argument, "`frame`: the step to return to");
         if (!timeline_.seek(*frame))
             return answer.fail(openas::error_code::stale, std::format("step {} is outside the history kept ({} … {})", *frame, timeline_.earliest(), timeline_.latest()));
-        timeline_.branch();
+        branch();
         // What the player held belonged to the steps left behind.
         lane_ = xengine::AgentLane(options_.tier, G::steps_per_second);
         answer.data(status());
@@ -190,6 +221,7 @@ private:
     Options                        options_;
     mlibs::simulation::Timeline<G> timeline_;
     xengine::AgentLane             lane_;
+    std::vector<Input>             recorded_;
 };
 
 }  // namespace xengine::runtime

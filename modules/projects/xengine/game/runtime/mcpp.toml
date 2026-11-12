@@ -9,7 +9,7 @@ name        = "runtime"
 version     = "0.1.0"
 description = "A game on its own: its steps, an agent player's lane and the game as a subject of the agent kernel — no interface needed"
 license     = "Apache-2.0"
-platforms   = ["linux", "macos", "windows"]
+platforms   = ["linux", "macos", "windows", "emscripten"]
 repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]

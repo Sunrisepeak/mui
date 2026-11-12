@@ -123,10 +123,11 @@ std::expected<Report, Failure> Program::step(Carrier carrier, std::span<const st
     workspace.near_.assign(near_.size() * instances, 0);
     for (std::size_t slot = 0; slot < near_.size(); ++slot) {
         const Near& what = near_[slot];
+        // What is not a material of this definition is nothing to its neighbours: neither its row nor its state.
         const auto of = [&](std::uint32_t instance) -> std::uint32_t {
-            if (what.source == Source::near_channel) return input[what.index * instances + instance];
             const std::uint32_t material = material_of(instance);
-            return material < materials_.size() ? values_[material * width + what.index] : 0;
+            if (material >= materials_.size()) return 0;
+            return what.source == Source::near_channel ? input[what.index * instances + instance] : values_[material * width + what.index];
         };
         std::uint32_t* sums = workspace.near_.data() + slot * instances;
         for (const Pair& pair : carrier.pairs) {

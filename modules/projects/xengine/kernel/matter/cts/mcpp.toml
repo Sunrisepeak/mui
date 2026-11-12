@@ -1,0 +1,35 @@
+# xengine.matter.cts — a carrier held to the reference step (mlibs.cts; D-165):
+# a subject (the lattice's program today; a device's kernel later) steps the
+# same instances as the reference, and every bit of every step is compared.
+# A package of its own so the matter kernel carries no test framework.
+[package]
+namespace   = "xengine.matter"
+name        = "cts"
+version     = "0.1.0"
+description = "Conformance of a carrier of matter: the same bits as xengine.matter's reference step, step after step (mlibs.cts)"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "module"
+agent = { library = "conformance suite of matter's carriers: for tests only" }
+
+[targets.xengine-matter-cts]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+# With the standard definition (the feature `json`, by default): the cases' worlds are made of it.
+xengine.matter = { path = ".." }
+mlibs.cts      = { path = "../../../../../base/cts" }
+mlibs.utils    = { path = "../../../../../base/utils" }
+mlibs.math     = { path = "../../../../../base/math" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.6.3"
+# tests/lattice_test.cpp: the lattice as a carrier (xengine.cellular's feature `matter`) — through the suite,
+# then with cells that move.
+xengine.cellular = { path = "../../cellular", features = ["matter"] }

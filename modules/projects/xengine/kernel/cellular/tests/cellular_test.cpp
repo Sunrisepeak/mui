@@ -144,6 +144,42 @@ struct Twice {
     }
 };
 
+// Encoding 3's world for the cases below: a key (channel 0) into a table of three rows, and what the rows' cells
+// carry — a level (1), heat (2), a flag (3), an age no reaction touches (4). The columns: what a cell gains a
+// step, the limit it grows to, the row it becomes, where its level starts again, how much it glows to its
+// neighbours. The names are this test's: the kernel knows a key and numbers.
+constexpr std::uint32_t ember = 0, ash = 1, calm = 2, no_row = 77;
+ca::Amount number(std::uint32_t value) { return {{ca::Read::constant, value}}; }
+ca::Amount value_of(ca::Read read, std::uint32_t index) { return {{read, index}}; }
+ca::Reactions embers(std::uint32_t ash_starts_at = 0) {
+    using R = ca::Read;
+    using C = ca::Compare;
+    ca::Reactions staged;
+    staged.table = {.key = 0, .columns = 5, .values = {5, 20, ash, 7, 3, /* ash */ 0, 0, ash, ash_starts_at, 0, /* calm */ 0, 0, calm, 0, 1}};
+    staged.near = {ca::cardinal.begin(), ca::cardinal.end()};
+    staged.derived = {1};  // the limit, as heat leaves it
+    staged.adjustments = {{.when = {{value_of(R::channel, 2), number(50), C::greater}}, .derived = 0, .raise = false, .amount = number(5)}};
+    staged.reactions = {
+        // It grows while under its limit, and is flagged while it does.
+        {.when = {{value_of(R::channel, 1), value_of(R::derived, 0), C::less}}, .changes = {{1, ca::ChangeKind::add, value_of(R::lookup, 0)}}, .flag = 3},
+        // From 10 on it also cools, and grows one more: added to what the first adds.
+        {.when = {{value_of(R::channel, 1), number(10), C::greater_equal}}, .changes = {{2, ca::ChangeKind::take, number(2)}, {1, ca::ChangeKind::add, number(1)}}},
+        // Beside enough glow, its heat is the levels beside it.
+        {.when = {{value_of(R::near_lookup, 4), number(4), C::greater_equal}}, .changes = {{2, ca::ChangeKind::set, value_of(R::near_channel, 1)}}},
+        // At its limit it becomes what its row says.
+        {.when = {{value_of(R::channel, 1), value_of(R::derived, 0), C::greater_equal}, {value_of(R::lookup, 1), number(0), C::greater}}, .become = 2},
+        // A second set of the same channel: the first stands.
+        {.when = {{value_of(R::near_lookup, 4), number(4), C::greater_equal}}, .changes = {{2, ca::ChangeKind::set, number(99)}}},
+    };
+    staged.resets = {{.channel = 1, .initial = 1, .from = 3}};
+    return staged;
+}
+// What preparing says of a staged program: accepted, or its code and where.
+std::string staged_refusal(const ca::Reactions& staged, std::uint32_t channels = 5, std::vector<ca::Transfer> transfers = {}, std::vector<ca::Exchange> exchanges = {}) {
+    const auto program = ca::Program::prepare(channels, ca::Stages{.transfers = transfers, .exchanges = exchanges, .reactions = &staged});
+    return program ? std::string("accepted") : std::format("{} at {}", program.error().description().name, ca::describe_where(program.error().where));
+}
+
 UTest cases{"simulation.cellular", [] {
     "state/threshold/neighborhood rules agree with a scalar oracle across tile sizes and both orders"_test = [] {
         const ca::Shape shape{19,11};auto rules=reaction_rules();auto prepared=ca::Program::prepare(3,rules);
@@ -684,6 +720,247 @@ UTest cases{"simulation.cellular", [] {
             expect(both.asleep() < both.activity.size()) << "the water's surface is awake";
             expect(both.tiles_slept > 0u) << "and the air above it is not";
             if (tile.width == 4) std::println("water, sand and smoke on 16 x 12 in tiles of 4 x 4: {} of {} tiles asleep after 600 ticks, {} cells run of {}", both.asleep(), both.activity.size(), both.cells_run, 600 * 192);
+        }
+    };
+
+    "encoding 3 — a table and reactions: every reaction that holds acts, against numbers worked by hand"_test = [] {
+        const ca::Reactions staged = embers();
+        const auto program = ca::Program::prepare(5, ca::Stages{.reactions = &staged});
+        expect(fatal(program.has_value())) << (program ? "" : ca::describe_where(program.error().where));
+        expect(eq(program->encoding(), 3u));
+        expect(program->reacts() && eq(program->rows(), 3u) && eq(program->halo(), 1u) && !program->moves());
+        // A row of an ember, a calm cell and an ember; under them three cells of no row.
+        const ca::Shape shape{3, 2};
+        const std::vector<std::uint32_t> start{
+            ember, calm, ember, no_row, no_row, no_row,  // what each is
+            8,     4,    19,    1000,   1000,   1000,    // level
+            60,    0,    10,    5,      5,      5,       // heat
+            0,     1,    0,     1,      1,      1,       // flag
+            5,     6,    7,     9,      9,      9,       // age
+        };
+        const ca::Boundary edge{ca::Edge::constant, 99};  // beyond the edge: no row either
+        const auto after = [&](int steps, ca::Shape tile, bool reverse, const ca::Program& of, std::uint64_t* matched = nullptr) {
+            std::vector<std::uint32_t> cells = start, next(cells.size());
+            for (int step = 0; step < steps; ++step) {
+                const auto stepped = of.step(shape, cells, next, {.tile = tile, .boundary = edge, .reverse_tiles = reverse});
+                expect(fatal(stepped.has_value()));
+                if (matched) *matched = stepped->matched;
+                cells.swap(next);
+            }
+            return cells;
+        };
+        std::uint64_t matched = 0;
+        // 1: the hot ember's limit is 15 (20 less 5): 8 < 15, it gains 5 and is flagged. The calm cell has a glow of
+        //    3 + 3 beside it: its heat is the levels beside it, 8 + 19 — the cell below is no row and adds nothing —
+        //    and the second set (99) does not stand; nothing flags it, so its flag falls. The other ember: 19 < 20
+        //    gains 5, and 19 ≥ 10 cools by 2 and gains 1 more.
+        expect(after(1, {3, 2}, false, *program, &matched) == std::vector<std::uint32_t>{
+            ember, calm, ember, no_row, no_row, no_row,
+            13,    4,    25,    1000,   1000,   1000,
+            60,    27,   8,     5,      5,      5,
+            1,     0,    1,     1,      1,      1,
+            5,     6,    7,     9,      9,      9});
+        expect(eq(matched, std::uint64_t{5})) << "the reactions that held: 1, 2 and 2";
+        // 2: the first ember gains 5 + 1 and cools; the other, at 25 ≥ 20, becomes ash — its level starts again
+        //    (ash says no start: the reset's own, 1) after what the reactions made of it, its heat does not.
+        expect(after(2, {3, 2}, false, *program) == std::vector<std::uint32_t>{
+            ember, calm, ash, no_row, no_row, no_row,
+            19,    4,    1,   1000,   1000,   1000,
+            58,    38,   6,   5,      5,      5,
+            1,     0,    0,   1,      1,      1,
+            5,     6,    7,   9,      9,      9});
+        // 3: the first ember is at 19 ≥ 15 and becomes ash; the calm cell has a glow of 3 beside it now: its heat stays.
+        const std::vector<std::uint32_t> rest{
+            ash, calm, ash, no_row, no_row, no_row,
+            1,   4,    1,   1000,   1000,   1000,
+            56,  38,   6,   5,      5,      5,
+            0,   0,    0,   1,      1,      1,
+            5,   6,    7,   9,      9,      9};
+        expect(after(3, {3, 2}, false, *program) == rest);
+        expect(after(9, {3, 2}, false, *program) == rest) << "and there it rests";
+        // Whatever the tiles and their order.
+        for (const ca::Shape tile : {ca::Shape{1, 1}, ca::Shape{2, 1}, ca::Shape{2, 2}})
+            for (const bool reverse : {false, true})
+                for (int steps = 1; steps <= 3; ++steps) expect(after(steps, tile, reverse, *program) == after(steps, {3, 2}, false, *program));
+        // A row that says where its level starts: there, not at the reset's own.
+        const ca::Reactions other = embers(9);
+        const auto restarted = ca::Program::prepare(5, ca::Stages{.reactions = &other});
+        expect(fatal(restarted.has_value()));
+        expect(eq(after(2, {3, 2}, false, *restarted)[6 + 2], 9u));
+    };
+
+    "encoding 3 — a column as a transfer's conductance is the channel it would be; a cell of no row conducts nothing"_test = [] {
+        // The same wall as the transfer by a channel above — there the conductance is a channel's value, here a
+        // column of the row each cell's key names. The two are the same bits, step after step.
+        const std::vector<ca::Offset> beside{ca::cardinal.begin(), ca::cardinal.end()};
+        const std::array<ca::Transfer, 1> by_channel{{{.channel = 0, .offsets = beside, .multiply = 1, .shift = 4, .by = 1, .by_limit = 4}}};
+        const std::array<ca::Transfer, 1> by_column{{{.channel = 0, .offsets = beside, .multiply = 1, .shift = 4, .by_limit = 4, .by_column = 0}}};
+        const ca::Shape shape{9, 3};
+        for (const std::uint32_t wall : {0u, 1u, 4u}) {
+            ca::Reactions staged;
+            staged.table = {.key = 1, .columns = 1, .values = {4, wall}};  // row 0 conducts well, row 1 is the wall
+            const auto plain = ca::Program::prepare(2, ca::Stages{.transfers = by_channel});
+            const auto tabled = ca::Program::prepare(2, ca::Stages{.transfers = by_column, .reactions = &staged});
+            expect(fatal(plain.has_value() && tabled.has_value()));
+            std::vector<std::uint32_t> one(27 * 2, 0), other(27 * 2, 0), next(27 * 2);
+            for (std::size_t cell = 0; cell < 27; ++cell) {
+                one[27 + cell] = cell % 9 == 4 ? wall : 4;
+                other[27 + cell] = cell % 9 == 4 ? 1 : 0;
+            }
+            for (std::uint32_t y = 0; y < 3; ++y) one[y * 9 + 1] = other[y * 9 + 1] = 90'000;
+            // And a cell that is no row, full of heat: to the plain program a cell that conducts nothing.
+            one[27 + 7] = 0;
+            other[27 + 7] = no_row;
+            one[7] = other[7] = 1'000'000;
+            for (int step = 0; step < 60; ++step) {
+                expect(fatal(plain->step(shape, one, next, {.boundary = {ca::Edge::clamp, 0}}).has_value()));
+                one.swap(next);
+                expect(fatal(tabled->step(shape, other, next, {.boundary = {ca::Edge::clamp, 0}}).has_value()));
+                other.swap(next);
+                if (!std::ranges::equal(std::span(one).first(27), std::span(other).first(27))) {
+                    expect(false) << std::format("wall {}: the heat differs at step {}", wall, step);
+                    break;
+                }
+            }
+            expect(eq(other[7], 1'000'000u)) << "what is no row kept its own";
+            expect(eq(std::accumulate(other.begin(), other.begin() + 27, std::uint64_t{0}), std::uint64_t{1'270'000})) << "and the field what it held";
+        }
+    };
+
+    "encoding 3 — cells that move by their rows' weight and mobility move as cells that carry the two"_test = [] {
+        // The soup above, twice: each cell carrying its weight and mobility, and each carrying a key into a table
+        // of the six kinds. Tick after tick the same cell is in the same place.
+        World world({13, 9});
+        const std::array<Kind, 6> kinds{air, sand, water, oil, smoke, stone};
+        ca::Reactions staged;
+        staged.table = {.key = 0, .columns = 2, .values = {}};
+        for (const Kind kind : kinds) staged.table.values.insert(staged.table.values.end(), {kind.weight, kind.mobility});
+        const std::array<ca::Exchange, 1> moving{{{.weight = 0, .mobility = 1, .carried = {0, 1}, .seed = 7, .by_table = true}}};
+        const auto tabled = ca::Program::prepare(3, ca::Stages{.exchanges = moving, .reactions = &staged});
+        expect(fatal(tabled.has_value()));
+        expect(tabled->moves() && eq(tabled->reach(), 1u));
+        const std::size_t area = world.area();
+        std::vector<std::uint32_t> cells(area * 3), next(cells.size());
+        for (std::uint32_t y = 0; y < 9; ++y)
+            for (std::uint32_t x = 0; x < 13; ++x) {
+                const std::uint32_t kind = (x * 7 + y * 13 + x * y) % 7;  // the seventh: no row — it stays, as a cell of no weight that may not move
+                world.put(x, y, kind < 6 ? kinds[kind] : Kind{0, 0});
+                cells[world.at(x, y)] = kind < 6 ? kind : no_row;
+                cells[area + world.at(x, y)] = world.cells[2 * area + world.at(x, y)];
+                cells[2 * area + world.at(x, y)] = world.cells[3 * area + world.at(x, y)];
+            }
+        std::uint64_t moved = 0;
+        for (std::uint64_t tick = 0; tick < 200; ++tick) {
+            const ca::Edge edge = tick % 3 == 0 ? ca::Edge::wrap : ca::Edge::clamp;
+            const auto stepped = tabled->step(world.shape, cells, next, {.boundary = {edge, 0}, .tick = tick});
+            expect(fatal(stepped.has_value()));
+            cells.swap(next);
+            const std::uint64_t changed = world.step(edge);
+            moved += stepped->changed;
+            bool same = stepped->changed == changed;
+            for (std::size_t cell = 0; cell < area && same; ++cell) {
+                const std::uint32_t key = cells[cell];
+                same = (key == no_row ? 0u : kinds[key].weight) == world.cells[cell] && cells[area + cell] == world.cells[2 * area + cell] && cells[2 * area + cell] == world.cells[3 * area + cell];
+            }
+            if (!same) {
+                expect(false) << std::format("tick {}: the two fields part", tick);
+                break;
+            }
+        }
+        expect(moved > 100u) << "and they did move";
+    };
+
+    "encoding 3 — a malformed table or reaction is refused where it is"_test = [] {
+        using R = ca::Read;
+        const auto with = [](auto change) {
+            ca::Reactions staged = embers();
+            change(staged);
+            return staged;
+        };
+        expect(eq(staged_refusal(embers()), std::string("accepted")));
+        const auto code = [](const ca::Reactions& staged, std::uint32_t channels = 5) {
+            const auto program = ca::Program::prepare(channels, ca::Stages{.reactions = &staged});
+            return program ? std::string("accepted") : std::string(program.error().description().name);
+        };
+        expect(eq(code(with([](ca::Reactions& staged) { staged.table.values.pop_back(); })), std::string("cellular.table"))) << "not rows of its columns";
+        expect(eq(code(with([](ca::Reactions& staged) { staged.table.columns = 0; })), std::string("cellular.table")));
+        expect(eq(code(with([](ca::Reactions& staged) { staged.table.key = 5; })), std::string("cellular.channels"))) << "a key that is no channel";
+        expect(eq(code(with([](ca::Reactions& staged) { staged.near = {{1, 0}, {0, 1}}; })), std::string("cellular.offset"))) << "what is near is near from both ends";
+        expect(eq(code(with([](ca::Reactions& staged) { staged.derived = {5}; })), std::string("cellular.table")));
+        expect(eq(code(with([](ca::Reactions& staged) { staged.resets[0].channel = 0; })), std::string("cellular.channels"))) << "the key does not start again: it is what changed";
+        expect(eq(code(with([](ca::Reactions& staged) { staged.resets[0].from = 5; })), std::string("cellular.table")));
+        expect(eq(code(embers(), 40), std::string("cellular.limit"))) << "32 channels at most with reactions";
+        expect(eq(staged_refusal(with([](ca::Reactions& staged) { staged.reactions[0].changes[0].amount = value_of(R::lookup, 5); })), std::string("cellular.table at reaction 0")));
+        expect(eq(staged_refusal(with([](ca::Reactions& staged) { staged.reactions[1].changes[0].channel = 0; })), std::string("cellular.reaction at reaction 1"))) << "what a cell is changes by becoming";
+        expect(eq(staged_refusal(with([](ca::Reactions& staged) { staged.reactions[1].changes[1].channel = 2; })), std::string("cellular.reaction at reaction 1"))) << "a channel changed twice by one reaction";
+        expect(eq(staged_refusal(with([](ca::Reactions& staged) { staged.reactions[1].changes[0].channel = 3; })), std::string("cellular.reaction at rule 0, item 0"))) << "a flag is no one's to add to";
+        expect(eq(staged_refusal(with([](ca::Reactions& staged) { staged.reactions[3].become = 5; })), std::string("cellular.table at reaction 3")));
+        expect(eq(staged_refusal(with([](ca::Reactions& staged) { staged.reactions[0].flag = 0; })), std::string("cellular.channels at reaction 0")));
+        expect(eq(staged_refusal(with([](ca::Reactions& staged) { staged.reactions[2].when[0].left = value_of(R::near_channel, 5); })), std::string("cellular.channels at reaction 2")));
+        expect(eq(staged_refusal(with([](ca::Reactions& staged) { staged.reactions[0].when[0].right = value_of(R::derived, 1); })), std::string("cellular.reaction at reaction 0"))) << "a derived value that is not there";
+        expect(eq(staged_refusal(with([](ca::Reactions& staged) { staged.near.clear(); })), std::string("cellular.reaction at reaction 2"))) << "what is near, with no neighbourhood";
+        expect(eq(staged_refusal(with([](ca::Reactions& staged) { staged.adjustments[0].amount = value_of(R::near_lookup, 4); })), std::string("cellular.reaction at adjustment 0")))
+            << "an adjustment reads the cell alone";
+        expect(eq(staged_refusal(with([](ca::Reactions& staged) { staged.adjustments[0].when[0].left = value_of(R::derived, 0); })), std::string("cellular.reaction at adjustment 0")))
+            << "and its row as written";
+        expect(eq(staged_refusal(with([](ca::Reactions& staged) { staged.adjustments[0].derived = 1; })), std::string("cellular.reaction at adjustment 0")));
+        // The other stages with a table.
+        const std::vector<ca::Offset> beside{ca::cardinal.begin(), ca::cardinal.end()};
+        expect(eq(staged_refusal(embers(), 5, {{.channel = 2, .offsets = beside, .shift = 4, .by_limit = 4, .by_column = 4}}), std::string("accepted")));
+        expect(eq(staged_refusal(embers(), 5, {{.channel = 2, .offsets = beside, .shift = 4, .by_limit = 4, .by_column = 5}}), std::string("cellular.table at transfer 0")));
+        expect(eq(staged_refusal(embers(), 5, {{.channel = 2, .offsets = beside, .shift = 4, .by = 1, .by_limit = 4, .by_column = 4}}), std::string("cellular.table at transfer 0")))
+            << "by a channel or by a column";
+        expect(eq(staged_refusal(embers(), 5, {{.channel = 0, .offsets = beside, .shift = 4}}), std::string("cellular.transfer at transfer 0"))) << "what a cell is does not flow";
+        expect(eq(staged_refusal(embers(), 5, {}, {{.weight = 1, .mobility = 4, .by_table = true}}), std::string("accepted")));
+        expect(eq(staged_refusal(embers(), 5, {}, {{.weight = 1, .mobility = 5, .by_table = true}}), std::string("cellular.table at exchange 0")));
+        expect(eq(staged_refusal(embers(), 5, {}, {{.weight = 1, .mobility = 4, .carried = {1, 2}, .by_table = true}}), std::string("cellular.exchange at exchange 0")))
+            << "the key goes with the cell";
+        const std::array<ca::Transfer, 1> without{{{.channel = 0, .offsets = beside, .shift = 4, .by_column = 0}}};
+        const auto no_table = ca::Program::prepare(2, ca::Stages{.transfers = without});
+        expect(!no_table && no_table.error().code == ca::Errc::table) << "a column, and no table";
+        const std::array<ca::Exchange, 1> lookup{{{.weight = 0, .mobility = 1, .by_table = true}}};
+        const auto no_rows = ca::Program::prepare(2, ca::Stages{.exchanges = lookup});
+        expect(!no_rows && no_rows.error().code == ca::Errc::table);
+    };
+
+    "encoding 3, sparse — embers burn out and the field sleeps; one put back wakes its tile; the same bits as running all"_test = [] {
+        const ca::Reactions staged = embers();
+        const auto program = ca::Program::prepare(5, ca::Stages{.reactions = &staged});
+        expect(fatal(program.has_value()));
+        const ca::Shape shape{24, 16};
+        const std::size_t area = 24 * 16;
+        std::vector<std::uint32_t> start(area * 5, 0);
+        for (std::uint32_t y = 0; y < 16; ++y)
+            for (std::uint32_t x = 0; x < 24; ++x) {
+                const std::size_t cell = y * 24 + x;
+                // Embers on the left half, at every level; the right half is calm from the start (and under 10:
+                // a calm cell at 10 would grow for ever, by the second reaction).
+                start[cell] = x < 12 && (x * 7 + y * 13 + x * y) % 3 == 0 ? ember : calm;
+                start[area + cell] = start[cell] == ember ? (x * 5 + y * 3) % 20 : (x * 5 + y * 3) % 10;
+                start[2 * area + cell] = (x * 11 + y) % 70;
+            }
+        for (const ca::Shape tile : {ca::Shape{4, 4}, ca::Shape{8, 8}, ca::Shape{5, 3}}) {
+            for (const bool alternate : {false, true}) {
+                Twice both(*program, shape, tile, {ca::Edge::constant, 99}, start, alternate);
+                int steps = 0;
+                for (; steps < 40 && both.asleep() < both.activity.size(); ++steps) expect(fatal(both.step(steps % 2 == 1))) << std::format("step {}, tiles {}x{}", steps, tile.width, tile.height);
+                expect(eq(both.asleep(), both.activity.size())) << "every ember ash: the field is asleep";
+                expect(std::ranges::none_of(std::span(both.sparse).first(area), [](std::uint32_t key) { return key == ember; }));
+                // A tile is roused by the tile beside it, not by the cell: in tiles of 8 every tile is beside one
+                // that burns, and all are run to the end.
+                if (tile.width < 8) expect(both.cells_run < static_cast<std::uint64_t>(steps) * area) << "the calm half was not run while the embers burnt";
+                if (tile.width == 4 && !alternate)
+                    std::println("embers on 24 x 16 in tiles of 4 x 4: asleep after {} steps, {} cells run of {}", steps, both.cells_run, static_cast<std::uint64_t>(steps) * area);
+                expect(fatal(both.step() && both.step()));
+                expect(eq(both.last.cells, std::uint64_t{0})) << "asleep, nothing is run";
+                // An ember put back among the calm: its tile and those within reach run again, until it is ash too.
+                both.write(0, 20, 9, ember);
+                both.write(1, 20, 9, 3);
+                expect(both.asleep() < both.activity.size());
+                for (int more = 0; more < 12; ++more) expect(fatal(both.step())) << std::format("after the ember, step {}", more);
+                expect(eq(both.sparse[9 * 24 + 20], ash));
+                expect(eq(both.asleep(), both.activity.size())) << "and asleep again";
+            }
         }
     };
 

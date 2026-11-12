@@ -5,8 +5,8 @@ The engine kernels below the interface (D-161): what the game layer, hanim and o
 | Kernel | Layer | |
 |---|---|---|
 | [dynamics](dynamics) | base | Every solved simulation (D-133): collision and its queries, the solver families (XPBD soft bodies; rigid bodies next), the physical materials they share; on `mlibs.simulation`'s timeline |
-| [cellular](cellular) | base (its device parts gfx) | Integer rules over dense fields, stepped on the CPU or by one compute kernel ([rhi](cellular/rhi)), the same bits; a field on screen as one image ([present](cellular/present)); its suite on a native device ([sdl](cellular/sdl)) |
-| [matter](matter) | base | What things are made of (D-165): materials as rows of properties, each instance's state as channels, and laws that read properties and never a material's name — prepared once, stepped on any set of instances and their neighbours, the same bits everywhere; definitions as data (`*.matter.omui.ts`) |
+| [cellular](cellular) | base (its device parts gfx) | Integer rules over dense fields — transitions, flows that conserve, cells that move, a table and reactions; matter's programs lowered to it (the feature `matter`) — stepped on the CPU, sparsely where the field is at rest, or by one compute kernel ([rhi](cellular/rhi)), the same bits; a field on screen as one image ([present](cellular/present)); its suite on a native device ([sdl](cellular/sdl)) |
+| [matter](matter) | base | What things are made of (D-165): materials as rows of properties, each instance's state as channels, and laws that read properties and never a material's name — prepared once, stepped on any set of instances and their neighbours, the same bits everywhere; definitions as data (`*.matter.omui.ts`); a carrier held to the reference step ([cts](matter/cts)) |
 | [audio](audio) | media | Sounds and music as data, voices mixed into buses a block at a time with nothing allocated; a device ([device](audio/device)); a bus's gain automated by a timeline's clip ([timeline](audio/timeline)) |
 | [video](video) | media | Frames and a sound track encoded on exact frame and sample counts; encoders as plugins ([webm](video/webm)) |
 

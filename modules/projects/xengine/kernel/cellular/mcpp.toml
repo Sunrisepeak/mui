@@ -27,6 +27,10 @@ mlibs.math  = { path = "../../../../base/math" }
 # stays what it was — no clock, no transport, the small tools and nothing more.
 [features]
 agent = { sources = ["src/agent/*.cppm", "src/agent/*.cpp"] }
+# The lattice as a carrier of matter (src/matter/, module xengine.cellular.matter; D-165): a matter program
+# lowered to a lattice program — its table, its transfers and reactions, cells moving by density and phase.
+# A feature: the kernel knows a key and numbers, and that a row is a material only here.
+matter = { sources = ["src/matter/*.cppm", "src/matter/*.cpp"] }
 
 [feature-deps.agent]
 mlibs.simulation = { path = "../../../../base/simulation" }
@@ -34,6 +38,9 @@ mlibs.agent      = { path = "../../../../base/agent" }
 mlibs.control    = { path = "../../../../base/control" }
 mlibs.json       = { path = "../../../../base/json" }
 openlifa.openas  = "0.2.0"
+
+[feature-deps.matter]
+xengine.matter = { path = "../matter", default-features = false }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.6.3"

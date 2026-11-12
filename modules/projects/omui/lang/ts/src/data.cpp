@@ -479,6 +479,8 @@ export interface MatterMaterial {
     burn_rate?: number;
     /** K a step its burning gives off. */
     heat?: number;
+    /** K: as hot as its own burning makes it (1100 unless it says). */
+    flame?: number;
     /** What it gives a fire beside it (air: 1). */
     oxygen?: number;
     /** 0–8: how well it conducts charge. */

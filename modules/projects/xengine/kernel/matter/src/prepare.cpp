@@ -308,6 +308,7 @@ Definition Definition::standard() {
     number("fuel", "", "how much of it there is to burn", 0, 1000000000, 0);
     number("burn_rate", "a step", "how fast its fuel burns", 0, 1000000, 1);
     number("heat", "K a step", "the heat its burning gives off", 0, 100000, 0, 8);
+    number("flame", "K", "as hot as its own burning makes it: above this its burning adds no heat", 0, 100000, 1100, 8);
     number("oxygen", "", "what it gives a fire beside it", 0, 1000, 0);
     // water
     number("moist", "", "the wetness it holds by its nature (water's own)", 0, 1000000, 0);

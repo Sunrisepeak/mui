@@ -25,8 +25,8 @@ sources = ["src/*.cppm", "src/*.cpp"]
 mlibs.utils = { path = "../../../../base/utils" }
 
 # A definition from its JSON snapshot (src/json/, module xengine.matter.json), and the standard one carried
-# in the program. A feature, on by default: the kernel alone — what xengine.dynamics takes, and through it
-# hanim's engine — stays the small tools, no JSON.
+# in the program. A feature, on by default: the kernel alone — what a carrier's adapter takes (the lattice's,
+# dynamics') — stays the small tools, no JSON.
 [features]
 default = ["json"]
 json = { sources = ["src/json/*.cppm", "src/json/*.cpp", "src/json/generated/*.cppm"] }

@@ -54,6 +54,43 @@ The field is cut into blocks of 2 × 2, and the cut shifts each tick through its
                                                        ~~~~~~~~~~~~
 ```
 
+**A table and reactions** (encoding 3; D-167): what a cell *is*, looked up. One channel is a key into a table of rows × columns, and a value may be a column of the cell's row — or of its neighbours' rows, summed. Where the rules are tried in order and the first that matches writes, every reaction that holds acts: what they add and take accumulates, the first to set a channel gives its base, a flag's channel is 1 while one that flags it holds, and a cell becomes the row its own column names. So a kind of thing is a row of numbers and adding one adds no rule:
+
+```cpp
+ca::Reactions staged;
+staged.table = {.key = 0, .columns = 3, .values = {/* row 0 */ 5, 20, 1,  /* row 1 */ 0, 0, 1}};   // gain, limit, what it becomes
+staged.near = {ca::cardinal.begin(), ca::cardinal.end()};
+staged.reactions = {
+    {.when = {{{{ca::Read::channel, 1}}, {{ca::Read::lookup, 1}}, ca::Compare::less}},          // level < its row's limit
+     .changes = {{1, ca::ChangeKind::add, {{ca::Read::lookup, 0}}}}, .flag = 2},                  // level += its row's gain; flagged
+    {.when = {{{{ca::Read::channel, 1}}, {{ca::Read::lookup, 1}}, ca::Compare::greater_equal}}, .become = 2},
+};
+const std::array<ca::Transfer, 1> heat{{{.channel = 3, .offsets = beside, .shift = 4, .by_limit = 4, .by_column = 0}}};   // conducted by a column
+auto program = ca::Program::prepare(channels, ca::Stages{.transfers = heat, .reactions = &staged});
+```
+
+An amount is a sum of terms — a number, a channel of the cell, a column of its row as written (`lookup`) or as the adjustments left it (`derived`: a column raised or lowered by the cell's state before the reactions read it), the neighbourhood's sum of a channel or of a column — each × a number, >> a shift, added or taken; a condition compares two amounts. A transfer may be conducted by a column (`by_column`), an exchange may take how heavy a cell is and how it may move from two columns (`by_table`), and a channel may start again when a cell becomes another row (`Reset`: at the new row's own value where it has one). A cell whose key is no row takes no part: no reaction acts on it, nothing flows to or from it, it does not move, and it is nothing to its neighbours — the outside of a world is `Edge::constant` with a value that is no row. One step is then: the rules, the reactions of the same input onto what the rules made, the flows, the resets, and the moves. The kernel knows a key and numbers; that a row is a material is whoever wrote the table's.
+
+**As a carrier of matter** (the package's feature `matter`, module `xengine.cellular.matter`; D-165): `lower(program)` makes of an [xengine.matter](../matter) program a lattice program — its materials' properties are the table (and one column more: how each phase may move), its transfer laws transfers by a column, its adjustments, reactions and conversions the reactions stage, its channels the lattice's in the same order. Without movement a step is the reference step's bits: [xengine.matter.cts](../matter/cts) holds the lattice to it, every tile run and sparsely, in eleven worlds (heat, fire, wet and dry, the changes of phase, charge, soups of every material with and without wrapped edges, what is no material, values at the ends of 32 bits, a material added as rows, a definition using every kind of read and write). With it, cells change places by `density` and `phase` — a powder falls and slides, a liquid also levels, a gas changes places up and sideways, a solid stays (it is dynamics' to move):
+
+```cpp
+import xengine.cellular.matter;
+auto lattice = ca::lower(*matter::standard());                                  // channel c of a cell is matter's channel c
+auto stepped = lattice->step(shape, cells, next, {.boundary = ca::nothing_beyond, .tick = tick, .activity = activity});
+```
+
+What its tests show ([matter/cts/tests/lattice_test.cpp](../matter/cts/tests/lattice_test.cpp), the standard definition, no rule naming a material): sand sinks through water and piles, oil comes up and lies on it, smoke goes to the top, stone and wood stay; water over lava boils, the steam rises and condenses where the air is still cool, the lava sets as stone; wood burns piece by piece and oil to smoke that rises, the stone under the fire stays stone, and sealed from air nothing burns; alcohol — two rows added, no law — comes up through water, boils over a hot stone, its vapour rises. And one that no one wrote: nine grains of sand dropped into a basin full to the brim push water over its wall, the water runs along the floor to a strip of wood, and that wood will not light at 700 K where the same wood in the same world without the sand burns to ash.
+
+```
+ after 300 ticks: the sand is in, the water is over the wall      the flame at 700 K: with the sand, 8 of wood left;
+ ~#~~~s~~~~#.....................                                  without it, 8 of ash
+ ~#~~sss~~~#.....................
+ ~#~sssss~~#.~.~~~~~.wwwwwwww....
+ ################################
+```
+
+Sparse execution holds with reactions as with rules (a tile sleeps when nothing in it or within reach changed; the same bits): 32 × 16 of matter at rest has 26 of its 32 tiles of 4 × 4 asleep, and the suite's eleven worlds are the reference's bits run sparsely too. `events_between(program, cells, input, output, events)` says what happened in a step as the reference does — what became another material, which channels left 0 or returned — from the two states (which law made a thing another is the record of causes', the plan's T1.11). What it costs on the CPU (`omui-bench --filter simulation/matter`, a debug build): the reference's 64 × 64 world is 2.3 ms a step on the lattice, 550 ns a cell — what the reference costs; the scalar step reads the program's words a cell at a time. 256 × 256 with movement, a basin and a fire is 11.8 ms a step with 19 of 64 tiles awake. A world pays for what is awake; all of a large one awake is the device's kernel's to run. Not here yet: an open edge (a bath of a material at a temperature needs a boundary value a channel — a world of matter is closed and keeps its heat), the device's kernel for encoding 3 (T1.8), and impulses into dynamics (an explosion pushing bodies).
+
 Preparation owns a validated descriptor, infers halo reach and enforces resource/offset limits. `step` accepts a tile size/order; `step_tile` writes only the requested rectangle and reads its logical halo from the full immutable field. Hosts may schedule disjoint rectangles through their existing task executor. This is not streamed halo exchange, multi-cell movement arbitration or a new task pool.
 
 **Sparse execution** (D-167): a field pays for what is happening in it. Give `step` a byte a tile that you keep between the steps of one field, and a tile at rest is not run:
@@ -83,13 +120,16 @@ channel operators and tile helpers stay inside this package.
 
 The kernel's module is `xengine.cellular` (no forwarding names): it imports
 no clock, no RHI and no renderer, and taken alone the package depends on the
-small tools only. The field as an agent's subject is a second module,
+small tools only. The lattice as a carrier of matter is a third module,
+`xengine.cellular.matter`, behind the feature `matter`: it takes the matter
+kernel (no JSON) and nothing else. The field as an agent's subject is a second module,
 `xengine.cellular.agent` (below), behind the package's feature `agent`: it
 takes the clock and history library and the agent kernel — both mlibs,
 neither a renderer nor an interface — and only for a consumer that asks.
 
-Ownership around it (convergence plan §6.10, D-132): material and reaction
-presets are an optional data package beside this kernel, not rules inside it;
+Ownership around it (convergence plan §6.10, D-132; D-165): materials and
+what they do are [xengine.matter](../matter)'s definitions — data — lowered to
+this kernel's table and reactions, not rules inside it;
 putting a field on screen is a small adapter between this package and
 xrender's resources, [present](present): one `ImageStore` image a pixel a
 cell, recoloured, re-uploaded and redrawn only where `Execution::changed_tiles`

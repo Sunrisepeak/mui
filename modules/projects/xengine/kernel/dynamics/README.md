@@ -10,7 +10,7 @@ if (auto hit = dyn::sweep(ball.at, ball.radius, ball.velocity * left, brick)) { 
     ball.at += ball.velocity * (left * hit->t);
     ball.velocity = dyn::reflect(ball.velocity, hit->normal);
 }
-auto table = xengine::matter::standard();                                        // what things are made of: xengine.matter
+auto table = xengine::matter::standard();                                        // what things are made of: xengine.matter (import xengine.dynamics.matter;)
 auto body = dyn::SoftBody::ring(outline, dyn::params_of(*table, *table->material("jelly"), area), ground);   // xpbd
 mlibs::simulation::Timeline<dyn::SoftBodyModel> history(*body, 1200, 60);       // replayable
 history.step({});
@@ -19,7 +19,7 @@ history.step({});
 | Part | What | State |
 |---|---|---|
 | `collision` | Half-planes, one-way ledges, boxes; swept collision (a moving circle against a box, exact); `depth`, `lands` | from the former `xengine.physics`; planes and ledges from the soft bodies |
-| materials | Not here: what a body is made of is [xengine.matter](../matter)'s table (D-165 — the one table physics, chemistry and the lattice share). `params_of(table, material, area)` reads its mechanical columns (`density` over water's × the area as the mass, `friction`, `restitution`, `compliance`, `shape_stiffness`); the package takes the matter kernel alone, no JSON | moved from `xengine.dynamics.material` (2026-11-13); the standard table has its rows (rubber, wood, stone, jelly, cloth, sand, water), the same numbers |
+| materials | Not here: what a body is made of is [xengine.matter](../matter)'s table (D-165 — the one table physics, chemistry and the lattice share). `params_of(table, material, area)` reads its mechanical columns (`density` over water's × the area as the mass, `friction`, `restitution`, `compliance`, `shape_stiffness`); it is the package's feature `matter` (module `xengine.dynamics.matter`, taking the matter kernel alone, no JSON): a solver takes numbers, and only a consumer that has materials takes the table — hanim's engine does not | moved from `xengine.dynamics.material` (2026-11-13); the standard table has its rows (rubber, wood, stone, jelly, cloth, sand, water), the same numbers |
 | `xpbd` | Soft bodies: rings of particles held by edges, area and shape matching (optionally upright); gravity, push, walk, hop, a dragging hand; half-planes and ledges with restitution and friction; `stages()` says a step's stages in order | from the former `xengine.simulation.bodies` |
 | `rigid`, `articulation`, fluids, FEM, MPM | Later solver families (each its own feature) | P1–P3 of the design |
 

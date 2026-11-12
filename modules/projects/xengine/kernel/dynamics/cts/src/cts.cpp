@@ -4,6 +4,7 @@ import std;
 import mlibs.simulation;
 import mlibs.hash;
 import xengine.dynamics;
+import xengine.dynamics.matter;
 import xengine.matter.json;
 
 namespace xengine::dynamics::cts {

@@ -4,7 +4,8 @@ import mlibs.simulation;
 import xengine.cellular;
 import xengine.cellular.present;
 import xengine.dynamics;
-import xengine.matter;
+import xengine.matter.json;
+import xengine.cellular.matter;
 
 namespace omui::bench {
 namespace {
@@ -162,49 +163,132 @@ void add_simulation_benchmarks() {
                 s.note("scope", "the solver's step alone, at rest on a ledge; the cage carrying a figure (hanim) and drawing excluded");
             });
     }
-    // D-165: the matter kernel's reference step — the laws on any carrier, before a carrier's own path (the lattice's, T1.7).
-    add("simulation/matter-reference-4096", "64x64 instances of matter, each beside four: a strip of wood alight under air — the standard laws' shape (3 transfers, 1 adjustment, 9 reactions and conversions), the reference step",
-        [](State& s) {
-            namespace matter = xengine::matter;
-            using P = matter::Property;
-            matter::Definition definition = matter::Definition::standard();
-            definition.materials = {{"air", {P{"phase", "gas"}, P{"density", 1.2}, P{"oxygen", 1.0}}, {}},
-                                    {"wood", {P{"ignition", 570.0}, P{"fuel", 400.0}, P{"heat", 80.0}, P{"porous", 2.0}, P{"burnt", "ash"}}, {}},
-                                    {"ash", {P{"phase", "granular"}}, {}},
-                                    {"water", {P{"phase", "liquid"}, P{"thermal", 2.0}, P{"conduct", 2.0}, P{"moist", 64.0}, P{"porous", 8.0}, P{"melting", 273.0}, P{"boiling", 373.0}, P{"boiled", "steam"}}, {}},
-                                    {"steam", {P{"phase", "gas"}, P{"boiling", 373.0}, P{"condensed", "water"}, P{"starts_at", 380.0}}, {}}};
-            definition.laws = {{.transfer = "temperature", .by = "thermal"},
-                               {.transfer = "charge", .by = "conduct"},
-                               {.transfer = "wetness", .by = "porous"},
-                               {.when = "wetness > 0", .raise = {{"ignition", "wetness * 40"}}},
-                               {.when = "moist > 0", .set = {{"wetness", "moist"}}},
-                               {.when = "moist == 0 && wetness > 0 && temperature >= 373", .take = {{"wetness", "1"}}},
-                               {.when = "warmth > 0", .add = {{"temperature", "warmth"}}},
-                               {.when = "temperature >= ignition && burned < fuel && near.oxygen > 0", .add = {{"burned", "burn_rate"}, {"temperature", "heat"}}, .flag = "burning"},
-                               {.when = "fuel > 0 && burned >= fuel", .become = "burnt"},
-                               {.when = "phase == liquid && boiling > 0 && temperature >= boiling", .become = "boiled"},
-                               {.when = "phase == gas && temperature < boiling", .become = "condensed"},
-                               {.when = "phase == liquid && temperature < melting", .become = "frozen"},
-                               {.when = "melting > 0 && temperature >= melting", .become = "melted"}};
-            auto program = matter::Program::prepare(definition);
-            if (!program) { s.fail(program.error().message); return; }
-            const std::uint32_t side = 64;
-            std::vector<matter::Pair> pairs;
-            for (std::uint32_t y = 0; y < side; ++y)
-                for (std::uint32_t x = 0; x < side; ++x) {
-                    if (x + 1 < side) pairs.push_back({y * side + x, y * side + x + 1, 1});
-                    if (y + 1 < side) pairs.push_back({y * side + x, (y + 1) * side + x, 1});
-                }
-            std::vector<std::uint32_t> state = program->fresh(side * side, *program->material("air")), next(state.size());
-            for (std::uint32_t y = 16; y < 48; y += 2)
-                for (std::uint32_t x = 4; x < 60; ++x) program->place(state, side * side, y * side + x, *program->material(y == 32 ? "water" : "wood"));
-            for (std::uint32_t y = 16; y < 48; y += 2) state[*program->channel("temperature") * side * side + y * side + 4] = 700 * 256;
-            matter::Workspace workspace;
-            for (int warm = 0; warm < 40; ++warm) { (void)program->step({side * side, pairs}, state, next, workspace); state.swap(next); }
-            const auto burning = std::ranges::count_if(std::span(state).subspan(*program->channel("burning") * side * side, side * side), [](std::uint32_t value) { return value != 0; });
+    // D-165: the matter kernel's reference step — the laws on any carrier — and the same world on the lattice
+    // (the program lowered, T1.7): the same bits, by the carrier's own path.
+    struct MatterWorld {
+        xengine::matter::Program program;
+        std::uint32_t side = 64;
+        std::vector<std::uint32_t> state, next;
+    };
+    // 64x64 of air with strips of wood alight at one end and one of water — the standard laws' shape
+    // (3 transfers, 1 adjustment, 10 reactions and conversions), stepped 40 times by the reference.
+    const auto matter_world = []() -> std::optional<MatterWorld> {
+        namespace matter = xengine::matter;
+        using P = matter::Property;
+        matter::Definition definition = matter::Definition::standard();
+        definition.materials = {{"air", {P{"phase", "gas"}, P{"density", 1.2}, P{"oxygen", 1.0}}, {}},
+                                {"wood", {P{"ignition", 570.0}, P{"fuel", 400.0}, P{"heat", 80.0}, P{"porous", 2.0}, P{"burnt", "ash"}}, {}},
+                                {"ash", {P{"phase", "granular"}}, {}},
+                                {"water", {P{"phase", "liquid"}, P{"thermal", 2.0}, P{"conduct", 2.0}, P{"moist", 64.0}, P{"porous", 8.0}, P{"melting", 273.0}, P{"boiling", 373.0}, P{"boiled", "steam"}}, {}},
+                                {"steam", {P{"phase", "gas"}, P{"boiling", 373.0}, P{"condensed", "water"}, P{"starts_at", 380.0}}, {}}};
+        definition.laws = {{.transfer = "temperature", .by = "thermal"},
+                           {.transfer = "charge", .by = "conduct"},
+                           {.transfer = "wetness", .by = "porous"},
+                           {.when = "wetness > 0", .raise = {{"ignition", "wetness * 40"}}},
+                           {.when = "moist > 0", .set = {{"wetness", "moist"}}},
+                           {.when = "moist == 0 && wetness > 0 && temperature >= 373", .take = {{"wetness", "1"}}},
+                           {.when = "warmth > 0", .add = {{"temperature", "warmth"}}},
+                           {.when = "temperature >= ignition && burned < fuel && near.oxygen > 0", .add = {{"burned", "burn_rate"}}, .flag = "burning"},
+                           {.when = "burning > 0 && temperature < flame", .add = {{"temperature", "heat"}}},
+                           {.when = "fuel > 0 && burned >= fuel", .become = "burnt"},
+                           {.when = "phase == liquid && boiling > 0 && temperature >= boiling", .become = "boiled"},
+                           {.when = "phase == gas && temperature < boiling", .become = "condensed"},
+                           {.when = "phase == liquid && temperature < melting", .become = "frozen"},
+                           {.when = "melting > 0 && temperature >= melting", .become = "melted"}};
+        auto program = matter::Program::prepare(definition);
+        if (!program) return std::nullopt;
+        MatterWorld world{.program = std::move(*program)};
+        const std::uint32_t side = world.side;
+        world.state = world.program.fresh(side * side, *world.program.material("air"));
+        world.next.resize(world.state.size());
+        for (std::uint32_t y = 16; y < 48; y += 2)
+            for (std::uint32_t x = 4; x < 60; ++x) world.program.place(world.state, side * side, y * side + x, *world.program.material(y == 32 ? "water" : "wood"));
+        for (std::uint32_t y = 16; y < 48; y += 2) world.state[*world.program.channel("temperature") * side * side + y * side + 4] = 700 * 256;
+        return world;
+    };
+    const auto pairs_of = [](std::uint32_t side) {
+        std::vector<xengine::matter::Pair> pairs;
+        for (std::uint32_t y = 0; y < side; ++y)
+            for (std::uint32_t x = 0; x < side; ++x) {
+                if (x + 1 < side) pairs.push_back({y * side + x, y * side + x + 1, 1});
+                if (y + 1 < side) pairs.push_back({y * side + x, (y + 1) * side + x, 1});
+            }
+        return pairs;
+    };
+    add("simulation/matter-reference-4096", "64x64 instances of matter, each beside four: strips of wood alight under air — the standard laws' shape (3 transfers, 1 adjustment, 10 reactions and conversions), the reference step",
+        [matter_world, pairs_of](State& s) {
+            auto world = matter_world();
+            if (!world) { s.fail("the definition was refused"); return; }
+            const std::uint32_t side = world->side;
+            const auto pairs = pairs_of(side);
+            xengine::matter::Workspace workspace;
+            for (int warm = 0; warm < 40; ++warm) { (void)world->program.step({side * side, pairs}, world->state, world->next, workspace); world->state.swap(world->next); }
+            const auto burning = std::ranges::count_if(std::span(world->state).subspan(*world->program.channel("burning") * side * side, side * side), [](std::uint32_t value) { return value != 0; });
             s.items(side * side);
-            while (s.next()) (void)program->step({side * side, pairs}, state, next, workspace);
+            while (s.next()) (void)world->program.step({side * side, pairs}, world->state, world->next, workspace);
             s.note("scope", std::format("{} instances alight; the reference step alone (near sums, flows, laws, commit), no events kept; a carrier's own path and drawing excluded", burning));
+        });
+    add("simulation/matter-lattice-4096", "the same 64x64 of matter on the lattice: the program lowered to a table, transfers and reactions (T1.7), every tile run — the reference's bits",
+        [matter_world, pairs_of](State& s) {
+            auto world = matter_world();
+            if (!world) { s.fail("the definition was refused"); return; }
+            const std::uint32_t side = world->side;
+            const auto lattice = ca::lower(world->program, {.moves = false});
+            if (!lattice) { s.fail("the program was not lowered"); return; }
+            const auto pairs = pairs_of(side);
+            xengine::matter::Workspace workspace;
+            std::vector<std::uint32_t> cells = world->state, cells_next(cells.size());
+            for (int warm = 0; warm < 40; ++warm) {
+                (void)world->program.step({side * side, pairs}, world->state, world->next, workspace);
+                world->state.swap(world->next);
+                (void)lattice->step({side, side}, cells, cells_next, {.boundary = ca::nothing_beyond});
+                cells.swap(cells_next);
+            }
+            if (cells != world->state) { s.fail("the lattice parted from the reference"); return; }
+            s.items(side * side);
+            while (s.next()) (void)lattice->step({side, side}, cells, cells_next, {.boundary = ca::nothing_beyond});
+            s.note("scope", std::format("{} words; the same state as the reference after 40 steps; the scalar CPU step, every tile; cells do not move here", lattice->words().size()));
+        });
+    add("simulation/matter-lattice-256-sparse", "256x256 of the standard matter with cells that move: a basin of water, sand, and a strip of wood alight — only the tiles awake run (D-167)",
+        [](State& s) {
+            const auto program = xengine::matter::standard();
+            if (!program) { s.fail("the standard definition was refused"); return; }
+            const auto lattice = ca::lower(*program);
+            if (!lattice) { s.fail("the program was not lowered"); return; }
+            const std::uint32_t side = 256;
+            const ca::Shape shape{side, side}, tile{32, 32};
+            const std::size_t area = static_cast<std::size_t>(side) * side;
+            std::vector<std::uint32_t> cells = program->fresh(area, *program->material("air")), cells_next(cells.size());
+            const auto fill = [&](std::uint32_t x0, std::uint32_t y0, std::uint32_t x1, std::uint32_t y1, std::string_view material) {
+                for (std::uint32_t y = y0; y <= y1; ++y)
+                    for (std::uint32_t x = x0; x <= x1; ++x) program->place(cells, area, static_cast<std::size_t>(y) * side + x, *program->material(material));
+            };
+            fill(0, 250, 255, 255, "stone");
+            fill(20, 200, 22, 249, "stone");
+            fill(100, 200, 102, 249, "stone");
+            fill(23, 215, 99, 249, "water");
+            fill(50, 150, 70, 170, "sand");
+            fill(150, 249, 230, 249, "wood");
+            cells[*program->channel("temperature") * area + 249 * side + 150] = 700 * 256;
+            const ca::Shape grid = ca::tiles(shape, tile);
+            std::vector<std::uint8_t> activity(static_cast<std::size_t>(grid.width) * grid.height, 0);
+            std::uint64_t tick = 0;
+            const auto step = [&] {
+                const auto stepped = lattice->step(shape, cells, cells_next, {.tile = tile, .boundary = ca::nothing_beyond, .tick = tick++, .activity = activity, .alternate = true});
+                cells.swap(cells_next);
+                return stepped ? *stepped : ca::Statistics{};
+            };
+            // The sand has fallen and the water found its level; the fire is on its way along the wood.
+            ca::Statistics last;
+            for (int warm = 0; warm < 400; ++warm) last = step();
+            s.items(last.cells ? last.cells : 1);
+            std::uint64_t run = 0, steps = 0;
+            while (s.next()) {
+                run += step().cells;
+                ++steps;
+            }
+            s.note("scope", std::format("{} cells run a step of {} on average ({} of {} tiles asleep at the first); laws, flows and moves; two buffers in turn; drawing excluded",
+                                        steps ? run / steps : 0, area, last.asleep, activity.size()));
         });
     add("simulation/checkpoint-64","64x64 cells: one reaction step and one deep snapshot in the shared timeline",[](State& s) {
         auto fixture=setup(64);if(!fixture){s.fail("rule preparation failed");return;}

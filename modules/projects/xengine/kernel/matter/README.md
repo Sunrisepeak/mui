@@ -19,7 +19,8 @@ export default defineMatter({
     { transfer: "temperature", by: "thermal" },                                             // heat flows, by how well both ends conduct
     { when: "wetness > 0", raise: { ignition: "wetness * 40" } },                           // wet is harder to light
     { when: "temperature >= ignition && burned < fuel && near.oxygen > 0",
-      add: { burned: "burn_rate", temperature: "heat" }, flag: "burning" },                 // burning
+      add: { burned: "burn_rate" }, flag: "burning" },                                      // burning
+    { when: "burning > 0 && temperature < flame", add: { temperature: "heat" } },           // as hot as its flame, no hotter
     { when: "phase == liquid && boiling > 0 && temperature >= boiling", become: "boiled" }, // it becomes *its* gas
   ],
 });
@@ -42,7 +43,7 @@ if (auto stepped = program->step({instances, pairs}, state, next, workspace, &ev
 
 | | |
 |---|---|
-| **Columns** | A property every material has a value of: a number with a unit and a range, a phase, or another material (what this one becomes). The standard ones: mechanics (`density`, `friction`, `restitution`, `compliance`, `shape_stiffness`), heat (`thermal`, `ignition`, `melting`, `boiling`, `warmth`, `starts_at`), burning (`fuel`, `burn_rate`, `heat`, `oxygen`), water (`moist`, `porous`), electricity (`conduct`), `phase`, and what it becomes (`frozen`, `melted`, `boiled`, `condensed`, `burnt`). A definition adds its own |
+| **Columns** | A property every material has a value of: a number with a unit and a range, a phase, or another material (what this one becomes). The standard ones: mechanics (`density`, `friction`, `restitution`, `compliance`, `shape_stiffness`), heat (`thermal`, `ignition`, `melting`, `boiling`, `warmth`, `starts_at`), burning (`fuel`, `burn_rate`, `heat`, `flame`, `oxygen`), water (`moist`, `porous`), electricity (`conduct`), `phase`, and what it becomes (`frozen`, `melted`, `boiled`, `condensed`, `burnt`). A definition adds its own |
 | **Materials** | A row: what it does not say is the column's default. `Program::value` is what the laws read, `number` what was written |
 | **Channels** | What each instance carries, unsigned 32-bit: `material`, `temperature`, `wetness`, `charge`, `burned`, `burning`, `damage`; a definition adds its own. A channel may start from a property (`temperature` from `starts_at`: lava is placed hot), reset when the instance becomes something else, and name the events of leaving 0 and returning to it (`burning`: `ignite`, `go_out`) |
 | **Laws** | Three kinds. A **transfer**: a channel flows between neighbours, from more to less, by the lesser of their two values of a property — the same amount counted at both ends, so what there is of it stays. A **reaction**: where a condition holds, channels are added to, taken from or set, a flag is raised; with `become`, a **conversion** — the instance turns into the material *its own* property names (`boiled`, `frozen`, `burnt`). And an **adjustment**: a property as the other laws read it, raised or lowered by state |
@@ -68,22 +69,24 @@ A transfer whose neighbours could together take more than an instance has is ref
 
 ## What the tests show
 
-`mcpp test -p xengine.matter` — the standard laws ([standard.matter.omui.ts](standard.matter.omui.ts): 13 laws, 16 materials, no law naming one) on rows and small grids of instances:
+`mcpp test -p xengine.matter` — the standard laws ([standard.matter.omui.ts](standard.matter.omui.ts): 14 laws, 16 materials, no law naming one) on rows and small grids of instances:
 
 - heat flows along a row and its total stays, step after step; iron carries it further than stone;
-- a strip of wood lit at one end burns piece by piece (caught at steps 1, 31, 56, 80, 103, 126, 149, 170 — each from the last), every piece ash after 570; sealed from air nothing burns;
+- a strip of wood lit at one end burns piece by piece (caught at steps 1, 61, 103, 142, 181, 220, 256, 281 — each from the last), every piece ash after 681; sealed from air nothing burns. What burns heats up to its flame's temperature (`flame`, 1100 K unless a material says) and no further: a fire is as hot as a fire is however closed the room, and the stone under a wood fire stays stone;
 - wet wood does not light at 600 K and dry wood does; wood beside water becomes wet, the nearest wettest; in the heat it dries;
 - water boils to steam, steam condenses, water freezes, ice melts — each material saying what it becomes;
 - lava beside water: the water boils first, then the lava sets as stone;
 - wood at the far end of an iron bar from a heat source catches at step 144, of a stone bar at 421; charge goes through iron and water and stops at wood;
-- **alcohol and its vapour are added as two rows of properties and no law is changed**: it boils at its own point, its vapour condenses, catches beside a fire at step 13 where wood catches at 26, and burns out to smoke — 6 interactions for 2 rows;
+- **alcohol and its vapour are added as two rows of properties and no law is changed**: it boils at its own point, its vapour condenses, catches beside a fire at step 14 where wood catches at 47, and burns out to smoke — 6 interactions for 2 rows;
 - the same state whatever the order of the pairs; the arithmetic of one step against numbers worked by hand, saturating at both ends; a definition refused 23 ways, each by its code, pointer and message; JSON problems at their line and column.
+
+**A carrier is held to this step.** [cts](cts) (`xengine.matter.cts`, contract `xengine.matter.carrier@1`) steps eleven small worlds by the reference and by a carrier from the same state and compares every value after every step — heat, fire, wet and dry, the changes of phase, charge, soups of every material (wrapped edges too, and a grid two wide), instances that are no material, values at the ends of 32 bits, a material added as rows, and a definition of its own using every kind of read and write. A carrier one pair wrong fails it; the pairs in another order do not. The lattice passes it whole, in small tiles and run sparsely (`mcpp test -p xengine.matter.cts`), and the same file has what the lattice adds — cells that move — on the standard definition.
 
 `tests/prepare_test.cpp` is the preparation contract on it (12 cases). The reference step on 4096 instances each beside four is 2.3 ms in a debug build with nothing allocated (`omui-bench --filter simulation/matter`); it is the reference, not the path a large world runs.
 
 ## Where it sits
 
-Base layer. The kernel — module `xengine.matter`: definitions, the plan, the reference step — takes the standard library and `mlibs.utils` (errors, names, trace) and nothing else: `xengine.matter = { path = …, default-features = false }` is what `xengine.dynamics` takes, and through it hanim's engine. The feature `json` (on by default; module `xengine.matter.json`) adds a definition from its JSON snapshot with `mlibs.json`, and `standard()`: the standard definition carried in the module (`standard_snapshot`, the committed JSON embedded; the generator's test keeps the three — data module, snapshot, embedded text — the same). It knows no lattice, no body and no renderer. A carrier adapts on its own side: `xengine.cellular`'s `matter` feature lowers a program to the lattice's (the plan's T1.7), where cells also move by `density` and `phase`; `xengine.dynamics` reads the mechanical columns (`params_of(table, material, area)`: a soft body's mass, friction, restitution, compliance and shape stiffness — the table it had of its own is this one now) and will give contacts as pairs. What a state looks and sounds like is a recipe's, above (D-168).
+Base layer. The kernel — module `xengine.matter`: definitions, the plan, the reference step — takes the standard library and `mlibs.utils` (errors, names, trace) and nothing else: `xengine.matter = { path = …, default-features = false }` is what a carrier's adapter takes (`xengine.cellular`'s and `xengine.dynamics`' feature `matter`). The feature `json` (on by default; module `xengine.matter.json`) adds a definition from its JSON snapshot with `mlibs.json`, and `standard()`: the standard definition carried in the module (`standard_snapshot`, the committed JSON embedded; the generator's test keeps the three — data module, snapshot, embedded text — the same). It knows no lattice, no body and no renderer. A carrier adapts on its own side: `xengine.cellular`'s feature `matter` lowers a program to the lattice's (`cellular::lower`: the materials' table, transfers by a column, reactions), where cells also move by `density` and `phase`; `xengine.dynamics`' feature `matter` reads the mechanical columns (`params_of(table, material, area)`: a soft body's mass, friction, restitution, compliance and shape stiffness — the table it had of its own is this one now) and will give contacts as pairs. What a state looks and sounds like is a recipe's, above (D-168).
 
 Trace: category `simulation`, spans `simulation.matter.prepare` and `simulation.matter.step`, counters `simulation.matter.held` and `.became`.
 

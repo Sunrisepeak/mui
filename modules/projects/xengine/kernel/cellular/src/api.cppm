@@ -100,6 +100,9 @@ struct Transfer {
     std::uint32_t multiply = 1, shift = 3;
     std::optional<std::uint32_t> by;
     std::uint32_t by_limit = 1;
+    // With a table (encoding 3): the conductance is a column of it, looked up by each cell's key — and a cell
+    // whose key is no row conducts nothing, with or without a column.
+    std::optional<std::uint32_t> by_column;
 };
 // How a cell may move (the values of an exchange's mobility channel): bits.
 inline constexpr std::uint32_t falls = 1;    // it sinks below a lighter cell that may move too — and so rises above a heavier one
@@ -117,9 +120,77 @@ inline constexpr std::uint32_t spreads = 4;  // resting, it changes places sidew
 // tick out (at a wrapped edge of an even size it goes round). The kernel knows weights and mobilities, no
 // material: sand, water, oil and smoke are an application's values of the two channels.
 struct Exchange {
-    std::uint32_t weight = 0, mobility = 0;  // the channels
+    std::uint32_t weight = 0, mobility = 0;  // the channels — or, `by_table`, the table's columns
     std::vector<std::uint32_t> carried;      // the channels that go with a cell; none given: every channel
     std::uint32_t seed = 0;
+    bool by_table = false;  // encoding 3: how heavy a cell is and how it may move are looked up by its key (no row: it stays)
+};
+// ── encoding 3: a table, and reactions (D-167) ───────────────────────────
+// What a cell is, looked up: one channel is a key into a table of rows × columns, and a value a reaction reads
+// may be a column of the cell's row — or of its neighbours' rows, summed. A cell whose key is no row takes no
+// part: no reaction acts on it, nothing flows to or from it, and it reads as nothing to its neighbours. The
+// kernel knows a key and numbers; that a row is a material is whoever wrote the table's.
+struct Table {
+    std::uint32_t key = 0;      // the channel
+    std::uint32_t columns = 0;
+    std::vector<std::uint32_t> values;  // [row][column]; rows = values.size() / columns
+};
+// What a term of an amount reads: a number, a channel of the cell, a column of its row as written (`lookup`) or
+// as the adjustments leave it (`derived`: an index into Reactions::derived), or the neighbourhood's sum of a
+// channel or of a column.
+enum class Read : std::uint32_t { constant, channel, lookup, derived, near_channel, near_lookup };
+// One term: the value read, × multiply, >> shift; added or taken.
+struct Operand {
+    Read read = Read::constant;
+    std::uint32_t index = 0;  // a constant: its value
+    std::uint32_t multiply = 1, shift = 0;
+    bool negative = false;
+};
+// A sum: what is added less what is taken, each side saturating, the difference stopping at 0.
+using Amount = std::vector<Operand>;
+enum class Compare : std::uint32_t { greater_equal, less_equal, greater, less, equal, not_equal };
+struct Comparison {
+    Amount left, right;
+    Compare compare = Compare::greater_equal;
+};
+enum class ChangeKind : std::uint32_t { add, take, set };
+struct Change {
+    std::uint32_t channel = 0;
+    ChangeKind kind = ChangeKind::add;
+    Amount amount;
+};
+// A derived value changed where a condition holds — judged, like its amount, on the row as written.
+struct Adjustment {
+    std::vector<Comparison> when;
+    std::uint32_t derived = 0;
+    bool raise = true;
+    Amount amount;
+};
+// Every reaction whose condition holds acts (not the first only): what they add and take accumulates, the first
+// to set a channel gives its base, a flag's channel is 1 while one that flags it holds and 0 while none does,
+// and the first with `become` whose column names another row makes the cell that row.
+struct Reaction {
+    std::vector<Comparison> when;
+    std::vector<Change> changes;
+    std::optional<std::uint32_t> flag;    // a channel
+    std::optional<std::uint32_t> become;  // a column holding a row
+};
+// A channel that starts again when a cell becomes another row: at the new row's value of a column where that
+// is not 0, else at `initial`.
+struct Reset {
+    std::uint32_t channel = 0, initial = 0;
+    std::optional<std::uint32_t> from;
+};
+// The reactions stage: after the rules, of the same input. A cell's channel is then
+//   base (the first set; else what the rules made of it) + added − taken, then what flowed out and in;
+// and a cell that becomes another row has its key changed and its resets applied.
+struct Reactions {
+    Table table;
+    std::vector<Offset> near;            // the neighbourhood the near_* sums are over; with each offset its opposite
+    std::vector<std::uint32_t> derived;  // each a column: the value looked up, then adjusted
+    std::vector<Adjustment> adjustments;
+    std::vector<Reaction> reactions;
+    std::vector<Reset> resets;
 };
 // A program's stages: the rules (a cell's own transitions) and the transfers (what flows between cells) read the
 // same immutable input; then an exchange, decided from that input too, moves what they made of each cell.
@@ -127,12 +198,13 @@ struct Stages {
     std::span<const Rule> rules;
     std::span<const Transfer> transfers;
     std::span<const Exchange> exchanges;  // one at most
+    const Reactions* reactions = nullptr;  // encoding 3
 };
 struct Limits {
     std::uint32_t max_channels = 16, max_rules = 128, max_words = 65536;
     std::uint32_t max_values = 64 * 1024 * 1024; // per input/output field, uint32 values
 };
-enum class Errc : std::uint8_t { unprepared, channels, condition, range, offset, duplicate_write, limit, shape, alias, tile, invalid_limits, transfer, exchange, whole_field };
+enum class Errc : std::uint8_t { unprepared, channels, condition, range, offset, duplicate_write, limit, shape, alias, tile, invalid_limits, transfer, exchange, whole_field, table, reaction };
 // The codes as the error contract describes them (mlibs.error).
 [[nodiscard]] constexpr mlibs::error::Description describe(Errc e) noexcept {
     using Kind = mlibs::error::Kind;  // not `using mlibs::error::Kind;`: that is an ICE in GCC 16 (import_entity_module)
@@ -151,6 +223,8 @@ enum class Errc : std::uint8_t { unprepared, channels, condition, range, offset,
         case Errc::transfer: return {"cellular.transfer", Kind::invalid_argument, "a transfer that is not symmetric, or that could take more than a cell has"};
         case Errc::exchange: return {"cellular.exchange", Kind::invalid_argument, "an exchange that carries a channel twice, or not its own weight and mobility"};
         case Errc::whole_field: return {"cellular.whole-field", Kind::invalid_argument, "a program that moves cells steps the whole field, not a tile of it"};
+        case Errc::table: return {"cellular.table", Kind::invalid_argument, "a table that is not rows of its columns, or a column or key that is not there"};
+        case Errc::reaction: return {"cellular.reaction", Kind::invalid_argument, "a reaction that reads or changes what is not there, or changes a channel twice"};
     }
     return {"cellular.?", Kind::internal};
 }
@@ -158,8 +232,11 @@ enum class Errc : std::uint8_t { unprepared, channels, condition, range, offset,
 struct Location {
     std::size_t rule = 0, item = 0;
     std::optional<std::size_t> transfer, exchange;
+    std::optional<std::size_t> reaction, adjustment;
 };
 [[nodiscard]] inline std::string describe_where(const Location& l) {
+    if (l.reaction) return std::format("reaction {}", *l.reaction);
+    if (l.adjustment) return std::format("adjustment {}", *l.adjustment);
     if (l.exchange) return std::format("exchange {}", *l.exchange);
     return l.transfer ? std::format("transfer {}", *l.transfer) : std::format("rule {}, item {}", l.rule, l.item);
 }
@@ -231,6 +308,7 @@ public:
     Program& operator=(Program&& other) noexcept {
         if(this!=&other) {
             channels_=std::exchange(other.channels_,0);halo_=std::exchange(other.halo_,0);rules_=std::exchange(other.rules_,0);transfers_=std::exchange(other.transfers_,0);moves_=std::exchange(other.moves_,false);
+            staged_=std::exchange(other.staged_,{});
             limits_=other.limits_;words_=std::move(other.words_);
         }
         return *this;
@@ -245,6 +323,9 @@ public:
     [[nodiscard]] std::uint32_t transfer_count() const noexcept { return transfers_; }
     // Whether cells move (an exchange): such a program steps the whole field, by Execution::tick.
     [[nodiscard]] bool moves() const noexcept { return moves_; }
+    // Whether it has a table and reactions (encoding 3), and how many rows the table has.
+    [[nodiscard]] bool reacts() const noexcept { return staged_.at != 0; }
+    [[nodiscard]] std::uint32_t rows() const noexcept { return staged_.rows; }
     [[nodiscard]] std::uint32_t channels() const noexcept { return channels_; }
     [[nodiscard]] std::uint32_t halo() const noexcept { return halo_; }
     // How far a cell's next value reads, in cells: the halo, and one cell where cells move.
@@ -255,7 +336,8 @@ public:
     // backends. No arbitrary bytecode constructor; prepare validates it once.
     // Its first word is the encoding: 1 for rules of states, thresholds and
     // counted neighbourhoods with constant writes — what every backend runs —
-    // and 2 when a rule aggregates (sum, minimum, maximum), a write has terms, or there is a transfer or an exchange.
+    // 2 when a rule aggregates (sum, minimum, maximum), a write has terms, or there is a transfer or an exchange,
+    // and 3 with a table and reactions.
     [[nodiscard]] std::span<const std::uint32_t> words() const noexcept { return words_; }
     [[nodiscard]] std::uint32_t encoding() const noexcept { return words_.empty() ? 0 : words_[0]; }
     [[nodiscard]] std::expected<std::size_t,Failure> values(Shape shape) const noexcept;
@@ -277,6 +359,17 @@ private:
     [[nodiscard]] Statistics run_tile(Shape, Tile, std::span<const std::uint32_t>,
         std::span<std::uint32_t>, Boundary) const noexcept;
     void exchange(Shape, std::span<const std::uint32_t>, std::span<std::uint32_t>, const Execution&) const noexcept;
+    // Encoding 3: where the reactions' parts are in the words (`at` 0: none).
+    struct Staged {
+        std::uint32_t at = 0, key = 0, rows = 0, columns = 0, table = 0, near = 0, slots = 0, slot_count = 0, derived = 0, derived_count = 0, adjustments = 0, reactions = 0,
+                      flags = 0, resets = 0;
+    };
+    // The reactions checked and written into the words; `halo` grows to their neighbourhood.
+    [[nodiscard]] std::expected<void, Failure> encode(const Reactions& reactions, std::uint32_t& halo);
+    // One cell's reactions, onto what the rules made of it in `out`: the row it becomes, or the largest number.
+    [[nodiscard]] std::uint32_t react(Shape, std::uint32_t x, std::uint32_t y, std::span<const std::uint32_t> in, std::span<std::uint32_t> out, Boundary,
+                                      Statistics&) const noexcept;
+    Staged staged_;
     std::uint32_t channels_ = 0, halo_ = 0, rules_ = 0, transfers_ = 0;
     bool moves_ = false;
     Limits limits_;
@@ -284,3 +377,16 @@ private:
 };
 }
 
+// The implementation's own, shared by its units (not exported).
+namespace xengine::cellular::detail {
+inline constexpr std::uint32_t largest = std::numeric_limits<std::uint32_t>::max();
+// A table's column in a word that is otherwise a channel: this bit.
+inline constexpr std::uint32_t of_table = 0x80000000u;
+[[nodiscard]] constexpr std::uint32_t saturating_add(std::uint32_t a, std::uint32_t b) noexcept { return a + std::min(b, largest - a); }
+[[nodiscard]] constexpr std::uint32_t saturating_multiply(std::uint32_t a, std::uint32_t by) noexcept { return by && a > largest / by ? largest : a * by; }
+// The words of a neighbourhood: its size, then each offset as two words (x + 32, y + 32).
+void put_offsets(std::vector<std::uint32_t>& words, std::span<const Offset> offsets);
+// A neighbourhood as a program takes it: at most 128 offsets, each within ±32, none twice. What is wrong with it,
+// and how far it reaches.
+[[nodiscard]] std::optional<Errc> check_offsets(std::span<const Offset> offsets, std::uint32_t& halo);
+}  // namespace xengine::cellular::detail

@@ -39,7 +39,10 @@ export default defineMatter({
     { name: "holds its water", when: "moist > 0", set: { wetness: "moist" } },
     { name: "dries in the heat", when: "moist == 0 && wetness > 0 && temperature >= 373", take: { wetness: 1 } },
     { name: "gives off heat", when: "warmth > 0", add: { temperature: "warmth" } },
-    { name: "burns", when: "temperature >= ignition && burned < fuel && near.oxygen > 0", add: { burned: "burn_rate", temperature: "heat" }, flag: "burning" },
+    { name: "burns", when: "temperature >= ignition && burned < fuel && near.oxygen > 0", add: { burned: "burn_rate" }, flag: "burning" },
+    // What is burning gives off its heat — up to its flame's temperature and no further: a fire is as hot as a
+    // fire is, however long it burns and however closed the room (a wood fire does not melt the stone under it).
+    { name: "a flame heats", when: "burning > 0 && temperature < flame", add: { temperature: "heat" } },
 
     // What a thing becomes: each material says what, the law only when.
     { name: "burns out", when: "fuel > 0 && burned >= fuel", become: "burnt", event: "burn_out" },

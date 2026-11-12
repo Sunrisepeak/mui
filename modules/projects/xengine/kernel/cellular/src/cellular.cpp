@@ -5,13 +5,8 @@ import mlibs.trace;
 import mlibs.log;
 
 namespace xengine::cellular {
-namespace {
+namespace detail {
 
-constexpr std::uint32_t largest = std::numeric_limits<std::uint32_t>::max();
-constexpr std::uint32_t saturating_add(std::uint32_t a, std::uint32_t b) noexcept { return a + std::min(b, largest - a); }
-constexpr std::uint32_t saturating_multiply(std::uint32_t a, std::uint32_t by) noexcept { return by && a > largest / by ? largest : a * by; }
-
-// The words of a neighbourhood: its size, then each offset as two words (x + 32, y + 32).
 void put_offsets(std::vector<std::uint32_t>& words, std::span<const Offset> offsets) {
     words.push_back(static_cast<std::uint32_t>(offsets.size()));
     for (const Offset offset : offsets) {
@@ -20,8 +15,6 @@ void put_offsets(std::vector<std::uint32_t>& words, std::span<const Offset> offs
     }
 }
 
-// A neighbourhood as a program takes it: at most 128 offsets, each within ±32, none twice. What is wrong with it,
-// and how far it reaches.
 std::optional<Errc> check_offsets(std::span<const Offset> offsets, std::uint32_t& halo) {
     if (offsets.size() > 128) return Errc::limit;
     for (std::size_t index = 0; index < offsets.size(); ++index) {
@@ -33,6 +26,10 @@ std::optional<Errc> check_offsets(std::span<const Offset> offsets, std::uint32_t
     }
     return std::nullopt;
 }
+
+}  // namespace detail
+using namespace detail;
+namespace {
 
 // A tile's byte of Execution::activity: the low four bits are the block cuts it was seen at rest under (all
 // four: asleep; a program that moves nothing shows all four at once); the others are a step's own marks, gone
@@ -80,7 +77,10 @@ std::expected<Program,Failure> Program::prepare(std::uint32_t channels, Stages s
     if (!channels) return std::unexpected(Failure{Errc::channels});
     if (channels > limits.max_channels || channels > limits.max_values || rules.size()>limits.max_rules) return std::unexpected(Failure{Errc::limit});
     // Encoding 2 where a rule aggregates or a write has terms; otherwise the encoding every backend runs.
-    bool aggregates = !transfers.empty() || !exchanges.empty();
+    bool aggregates = !transfers.empty() || !exchanges.empty() || stages.reactions;
+    const Reactions* const reactions = stages.reactions;
+    const std::uint32_t table_columns = reactions ? reactions->table.columns : 0;
+    if (reactions && channels > 32) return std::unexpected(Failure{Errc::limit});
     for (const Rule& rule : rules) {
         for (const Condition& condition : rule.when) aggregates |= condition.kind > ConditionKind::neighbors;
         for (const Write& write : rule.writes) aggregates |= !write.terms.empty();
@@ -125,6 +125,9 @@ std::expected<Program,Failure> Program::prepare(std::uint32_t channels, Stages s
         const Transfer& transfer = transfers[t];
         const auto fail = [&](Errc e) { return std::unexpected(Failure{e, {}, {.transfer = t}}); };
         if (transfer.channel >= channels || (transfer.by && *transfer.by >= channels)) return fail(Errc::channels);
+        // By a column of the table: with a table only, and not by a channel too; and what a cell is does not flow.
+        if (transfer.by_column && (!reactions || *transfer.by_column >= table_columns || transfer.by)) return fail(Errc::table);
+        if (reactions && transfer.channel == reactions->table.key) return fail(Errc::transfer);
         if (transfer.shift > 31 || transfer.offsets.empty()) return fail(Errc::transfer);
         if (const auto wrong = check_offsets(transfer.offsets, halo)) return fail(*wrong);
         // Seen from both ends: with each offset its opposite, and no cell its own neighbour.
@@ -132,7 +135,7 @@ std::expected<Program,Failure> Program::prepare(std::uint32_t channels, Stages s
             if ((offset.x == 0 && offset.y == 0) || std::ranges::find(transfer.offsets, Offset{-offset.x, -offset.y}) == transfer.offsets.end())
                 return fail(Errc::transfer);
         // No cell gives more than it has: the whole neighbourhood together takes at most all of a difference.
-        const std::uint64_t most = static_cast<std::uint64_t>(transfer.by ? transfer.by_limit : 1) * transfer.multiply * transfer.offsets.size();
+        const std::uint64_t most = static_cast<std::uint64_t>(transfer.by || transfer.by_column ? transfer.by_limit : 1) * transfer.multiply * transfer.offsets.size();
         if (most > (std::uint64_t{1} << transfer.shift)) return fail(Errc::transfer);
         for (std::size_t earlier = 0; earlier < t; ++earlier)
             if (transfers[earlier].channel == transfer.channel) return fail(Errc::transfer);  // one flow a quantity: two could together take too much
@@ -142,15 +145,21 @@ std::expected<Program,Failure> Program::prepare(std::uint32_t channels, Stages s
     for (std::size_t e = 0; e < exchanges.size(); ++e) {
         const Exchange& exchange = exchanges[e];
         const auto fail = [&](Errc code) { return std::unexpected(Failure{code, {}, {.exchange = e}}); };
-        if (exchange.weight >= channels || exchange.mobility >= channels) return fail(Errc::channels);
+        if (exchange.by_table) {
+            if (!reactions || exchange.weight >= table_columns || exchange.mobility >= table_columns) return fail(Errc::table);
+        } else if (exchange.weight >= channels || exchange.mobility >= channels) {
+            return fail(Errc::channels);
+        }
         for (std::size_t index = 0; index < exchange.carried.size(); ++index) {
             if (exchange.carried[index] >= channels) return fail(Errc::channels);
             for (std::size_t earlier = 0; earlier < index; ++earlier)
                 if (exchange.carried[earlier] == exchange.carried[index]) return fail(Errc::exchange);
         }
         // What decides a move goes with the cell that moves, or the next step would judge a place by what left it.
-        if (!exchange.carried.empty() && (std::ranges::find(exchange.carried, exchange.weight) == exchange.carried.end() ||
-                                          std::ranges::find(exchange.carried, exchange.mobility) == exchange.carried.end()))
+        // (Looked up by its key, it is the key that goes with it.)
+        const std::uint32_t decides = exchange.by_table ? reactions->table.key : exchange.weight, also = exchange.by_table ? reactions->table.key : exchange.mobility;
+        if (!exchange.carried.empty() &&
+            (std::ranges::find(exchange.carried, decides) == exchange.carried.end() || std::ranges::find(exchange.carried, also) == exchange.carried.end()))
             return fail(Errc::exchange);
         size += 4 + (exchange.carried.empty() ? channels : exchange.carried.size());
     }
@@ -158,7 +167,7 @@ std::expected<Program,Failure> Program::prepare(std::uint32_t channels, Stages s
     Program p;p.channels_=channels;p.rules_=static_cast<std::uint32_t>(rules.size());p.halo_=halo;p.limits_=limits;
     p.words_.reserve(static_cast<std::size_t>(size));p.transfers_=static_cast<std::uint32_t>(transfers.size());
     p.moves_=!exchanges.empty();
-    p.words_={aggregates ? 2u : 1u,channels,p.rules_,halo};p.words_.resize(4+rules.size()+(aggregates ? 1 : 0));
+    p.words_={reactions ? 3u : aggregates ? 2u : 1u,channels,p.rules_,halo};p.words_.resize(4+rules.size()+(aggregates ? 1 : 0));
     for(std::size_t r=0;r<rules.size();++r) {
         const auto& rule=rules[r];const auto start=p.words_.size();p.words_[4+r]=static_cast<std::uint32_t>(start);
         p.words_.insert(p.words_.end(),{0,static_cast<std::uint32_t>(rule.when.size()),static_cast<std::uint32_t>(rule.writes.size()),0});
@@ -187,18 +196,26 @@ std::expected<Program,Failure> Program::prepare(std::uint32_t channels, Stages s
         p.words_[4 + rules.size()] = static_cast<std::uint32_t>(p.words_.size());
         p.words_.push_back(p.transfers_);
         for (const Transfer& transfer : transfers) {
-            p.words_.insert(p.words_.end(), {transfer.channel, transfer.by.value_or(largest), transfer.by ? transfer.by_limit : 1u, transfer.multiply, transfer.shift});
+            p.words_.insert(p.words_.end(), {transfer.channel, transfer.by_column ? of_table | *transfer.by_column : transfer.by.value_or(largest),
+                                             transfer.by || transfer.by_column ? transfer.by_limit : 1u, transfer.multiply, transfer.shift});
             put_offsets(p.words_, transfer.offsets);
         }
         // Then the exchanges: how many (one at most), then weight, mobility, seed and the channels that go with a cell.
         p.words_.push_back(static_cast<std::uint32_t>(exchanges.size()));
         for (const Exchange& exchange : exchanges) {
-            p.words_.insert(p.words_.end(), {exchange.weight, exchange.mobility, exchange.seed,
-                                             static_cast<std::uint32_t>(exchange.carried.empty() ? channels : exchange.carried.size())});
+            p.words_.insert(p.words_.end(), {exchange.by_table ? of_table | exchange.weight : exchange.weight, exchange.by_table ? of_table | exchange.mobility : exchange.mobility,
+                                             exchange.seed, static_cast<std::uint32_t>(exchange.carried.empty() ? channels : exchange.carried.size())});
             if (exchange.carried.empty())
                 for (std::uint32_t channel = 0; channel < channels; ++channel) p.words_.push_back(channel);
             else
                 p.words_.insert(p.words_.end(), exchange.carried.begin(), exchange.carried.end());
+        }
+        // Encoding 3: then the table and the reactions.
+        if (reactions) {
+            if (auto encoded = p.encode(*reactions, halo); !encoded) return std::unexpected(encoded.error());
+            p.halo_ = halo;
+            p.words_[3] = halo;
+            if (p.words_.size() > limits.max_words) return std::unexpected(Failure{Errc::limit});
         }
     }
     mlibs::log::Log{"simulation"}.debug("cellular plan prepared: encoding {}, {} channels, {} rules, halo {}, {} words",p.words_[0],channels,p.rules_,halo,p.words_.size());
@@ -247,7 +264,10 @@ Statistics Program::run_tile(Shape shape, Tile tile, std::span<const std::uint32
         }
         return kind==1 ? found : kind==2 ? sum : kind==3 ? least : greatest;
     };
-    const bool with_terms=words_[0]==2;
+    const bool with_terms=words_[0]>=2;
+    const bool tabled=staged_.at!=0;
+    // With a table: a cell's row, or none; and how well it conducts by a transfer's `by` word.
+    const auto row_of=[&](std::uint32_t key) { return key<staged_.rows ? words_.data()+staged_.table+static_cast<std::size_t>(key)*staged_.columns : nullptr; };
     Statistics stats;
     for(auto y=tile.y;y<tile.y+tile.height;++y)for(auto x=tile.x;x<tile.x+tile.width;++x) {
         const auto cell=y*shape.width+x;++stats.cells;
@@ -288,6 +308,8 @@ Statistics Program::run_tile(Shape shape, Tile tile, std::span<const std::uint32
             }
             break;
         }
+        // Encoding 3: every reaction that holds, onto what the rules made of the cell.
+        const std::uint32_t becomes=tabled ? react(shape,x,y,in,out,boundary,stats) : largest;
         if(with_terms) {
             // What flows: for each neighbour, the same amount both ends compute from the same two values.
             std::size_t pos=words_[4+rules_];
@@ -296,19 +318,35 @@ Statistics Program::run_tile(Shape shape, Tile tile, std::span<const std::uint32
                 const auto channel=words_[pos],by=words_[pos+1],by_limit=words_[pos+2],multiply=words_[pos+3],shift=words_[pos+4],count=words_[pos+5];
                 const auto index=static_cast<std::size_t>(channel)*cells+cell;
                 const auto mine=in[index];
-                const auto conducts=by==largest ? 1u : std::min(in[static_cast<std::size_t>(by)*cells+cell],by_limit);
+                // A cell conducts by the channel, by its row's column, or 1 — and with a table, nothing where it is no row.
+                const auto conductance_at=[&](std::int32_t cx,std::int32_t cy) -> std::uint32_t {
+                    if(!tabled)return by==largest ? 1u : std::min(read(by,cx,cy),by_limit);
+                    const std::uint32_t* row=row_of(read(staged_.key,cx,cy));
+                    if(!row)return 0;
+                    return by==largest ? 1u : std::min(by&of_table ? row[by&~of_table] : read(by,cx,cy),by_limit);
+                };
+                const auto conducts=conductance_at(static_cast<std::int32_t>(x),static_cast<std::int32_t>(y));
                 std::uint32_t gained=0,lost=0;
                 for(std::uint32_t o=0;o<count;++o) {
                     const auto nx=static_cast<std::int32_t>(x)+static_cast<std::int32_t>(words_[pos+6+2*o])-32,ny=static_cast<std::int32_t>(y)+static_cast<std::int32_t>(words_[pos+7+2*o])-32;
                     const auto theirs=read(channel,nx,ny);
                     if(theirs==mine)continue;
-                    const auto conductance=by==largest ? 1u : std::min(conducts,read(by,nx,ny));
+                    const auto conductance=std::min(conducts,conductance_at(nx,ny));
                     const auto difference=theirs>mine ? theirs-mine : mine-theirs;
                     const auto flow=saturating_multiply(saturating_multiply(difference,conductance),multiply)>>shift;
                     if(theirs>mine)gained=saturating_add(gained,flow);else lost=saturating_add(lost,flow);
                 }
                 out[index]=saturating_add(out[index]-std::min(out[index],lost),gained);
                 pos+=6+2*count;
+            }
+        }
+        if(becomes!=largest) {
+            // It became another row: the channels that start again do, at the new row's own start where it has one.
+            const std::uint32_t* row=row_of(becomes);
+            std::size_t pos=staged_.resets;
+            for(std::uint32_t count=words_[pos++],index=0;index<count;++index,pos+=3) {
+                const std::uint32_t own=words_[pos+2]==largest ? 0u : row[words_[pos+2]];
+                out[static_cast<std::size_t>(words_[pos])*cells+cell]=own ? own : words_[pos+1];
             }
         }
         bool changed=false;
@@ -360,8 +398,16 @@ void Program::exchange(Shape shape, std::span<const std::uint32_t> in, std::span
                                                    static_cast<std::size_t>(bottom) * shape.width + left, static_cast<std::size_t>(bottom) * shape.width + right};
             std::array<std::uint32_t, 4> heavy{}, moves{};
             for (std::size_t corner = 0; corner < 4; ++corner) {
-                heavy[corner] = in[static_cast<std::size_t>(weight) * cells + place[corner]];
-                moves[corner] = in[static_cast<std::size_t>(mobility) * cells + place[corner]];
+                if (weight & of_table) {
+                    // Looked up by the cell's key; what is no row neither weighs nor moves.
+                    const std::uint32_t key = in[static_cast<std::size_t>(staged_.key) * cells + place[corner]];
+                    const std::uint32_t* row = key < staged_.rows ? words_.data() + staged_.table + static_cast<std::size_t>(key) * staged_.columns : nullptr;
+                    heavy[corner] = row ? row[weight & ~of_table] : 0;
+                    moves[corner] = row ? row[mobility & ~of_table] : 0;
+                } else {
+                    heavy[corner] = in[static_cast<std::size_t>(weight) * cells + place[corner]];
+                    moves[corner] = in[static_cast<std::size_t>(mobility) * cells + place[corner]];
+                }
             }
             std::array<std::uint8_t, 4> at{0, 1, 2, 3};  // which of the four cells is at each place
             std::array<bool, 4> moved{};

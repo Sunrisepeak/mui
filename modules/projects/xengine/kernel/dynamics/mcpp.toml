@@ -1,7 +1,7 @@
 # xengine.dynamics — every solved simulation (D-133): collision and queries,
 # the solver families (src/<family>/: xpbd today; rigid, articulation,
 # fluids, FEM, MPM later, each its own feature when it comes). What a body is
-# made of is xengine.matter's table. The CPU core is base layer (hanim and
+# made of is xengine.matter's table, through the feature `matter`. The CPU core is base layer (hanim and
 # omui use it); a GPU part will be a gfx-layer rhi/ subpackage, as cellular's.
 # Doubles with + − × ÷ and √ only, without contraction or fast math: the same
 # bits everywhere.
@@ -27,14 +27,16 @@ cxxflags = ["-fno-fast-math", "-ffp-contract=off"]
 
 [dependencies]
 mlibs.utils = { path = "../../../../base/utils" }
-# What a body is made of (D-165): the kernel alone — the table and its plan, no JSON.
-xengine.matter = { path = "../matter", default-features = false }
 
 # A body as an agent's subject (src/agent/, module xengine.dynamics.agent; D-174): its steps on the clock
 # and history library, its operations through the agent kernel. A feature, so that the solver families
 # alone stay what they were — the small tools and nothing more (hanim's engine takes them so).
 [features]
 agent = { sources = ["src/agent/*.cppm", "src/agent/*.cpp"] }
+# What a body is made of, from xengine.matter's table (src/matter/, module xengine.dynamics.matter; D-165):
+# params_of(table, material, area). A feature: a solver takes numbers, and only a consumer that has
+# materials takes the table — hanim's engine does not.
+matter = { sources = ["src/matter/*.cppm", "src/matter/*.cpp"] }
 
 [feature-deps.agent]
 mlibs.simulation = { path = "../../../../base/simulation" }
@@ -43,9 +45,11 @@ mlibs.control    = { path = "../../../../base/control" }
 mlibs.json       = { path = "../../../../base/json" }
 openlifa.openas  = "0.2.0"
 
+[feature-deps.matter]
+# The kernel alone — the table and its plan, no JSON.
+xengine.matter = { path = "../matter", default-features = false }
+
 [dev-dependencies]
 mcpplibs.mtest   = "0.6.3"
 # The solver stepped at the clock library's fixed steps (xpbd_test).
 mlibs.simulation = { path = "../../../../base/simulation" }
-# The standard table (matter's feature `json`, on by default): a body of jelly from it (xpbd_test).
-xengine.matter   = { path = "../matter" }

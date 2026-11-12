@@ -111,7 +111,7 @@ struct Definition {
 
     // The columns and channels every definition starts from, no material and no law: mechanics (density,
     // friction, restitution, compliance, shape_stiffness), heat (thermal, ignition, melting, boiling,
-    // warmth, starts_at), burning (fuel, burn_rate, heat, oxygen), water (moist, porous), electricity
+    // warmth, starts_at), burning (fuel, burn_rate, heat, flame, oxygen), water (moist, porous), electricity
     // (conduct), phase and what a material becomes (frozen, melted, boiled, condensed, burnt); channels
     // material, temperature, wetness, charge, burned, burning, damage.
     [[nodiscard]] static Definition standard();

@@ -37,6 +37,9 @@ Rules:
   imports       a source imports only modules of packages its manifest reaches (its tests: its
                 dev-dependencies too; a feature's sources: that feature's) — one build directory
                 holds every member's modules, and hides what is not declared
+  matter        no law of a matter definition (*.matter.omui.json) names a material — in a condition,
+                an amount or a `become` — unless it says `recipe: true` and MATTER_RECIPES allows it;
+                and no source of the simulation kernels names one (D-165: a material is a row)
   thirdparty   a wrapped C library (`import mcpplibs.mwrap.*`) only in a native/ unit (D-83)
   exceptions    no `throw` / `try` in runtime and modules sources (errors are std::expected); a
                 native/ unit may catch what a third-party library throws, to answer std::expected
@@ -794,12 +797,14 @@ CLOSURES: dict[str, dict[str, set[str]]] = {
     # … and, taken alone, no agent kernel either: a body or a field as an agent's subject is their feature `agent`,
     # so what hanim's engine and every other consumer of the kernels links stays the small tools (the out-of-tree
     # probes tools/ci/hanim-features and hanim-play-consumer hold hanim to that).
+    # (what a body is made of — xengine.matter's table — is a feature too: with it in the core, every consumer of
+    # dynamics had the matter kernel's interface in its module graph, and showcase/fighting stopped compiling)
     "xengine.dynamics": {"not": {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "xrender", "mlibs.rhi", "mlibs.shader", "xengine.cellular",
-                                 "mlibs.agent", "mlibs.json", "mlibs.control"}},
+                                 "mlibs.agent", "mlibs.json", "mlibs.control", "xengine.matter"}},
     "xengine.cellular": {"not": {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "xrender", "mlibs.rhi", "mlibs.shader",
-                                 "mlibs.agent", "mlibs.json", "mlibs.control"}},
+                                 "mlibs.agent", "mlibs.json", "mlibs.control", "xengine.matter"}},
     # hanim by default is its engine: control and the stage as an agent's subject are features a consumer asks for
-    "hanim": {"not": {"omui", "mlibs.agent", "mlibs.json", "mlibs.control", "xrender"}},
+    "hanim": {"not": {"omui", "mlibs.agent", "mlibs.json", "mlibs.control", "xrender", "xengine.matter", "xengine.cellular"}},
     "xengine.cellular.rhi": {"not": {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "xrender"}},
     # the field on screen (its tests draw it through the frame's entry, read by an agent): the renderer's resources
     # (and what they reach), no UI, game, animation, effect loader or shader compiler
@@ -1221,10 +1226,100 @@ def check_typescript_data(root: Path) -> list[Problem]:
     return problems
 
 
+# No law names a material (D-165, lint `matter`). A matter definition's laws read properties: what a thing is
+# made of is never in a condition, an amount or a `become` — fire does not know wood, and a material added as a
+# row takes part in everything. The kernel refuses such a law when it prepares a definition; this holds the
+# committed snapshots to it without a build, counts the special cases a definition marks (`recipe: true`: each
+# allowed here with its reason, and the number should stay near none), and keeps the kernels' own sources free
+# of any material's name — a kernel knows columns, channels and numbers.
+MATTER_STANDARD = "modules/projects/xengine/kernel/matter/standard.matter.omui.json"
+MATTER_KERNELS = ("modules/projects/xengine/kernel/matter/src", "modules/projects/xengine/kernel/cellular/src",
+                  "modules/projects/xengine/kernel/dynamics/src")
+MATTER_RECIPES: dict[str, int] = {}  # a snapshot's path → the laws it may mark `recipe: true`
+MATTER_LAW_TEXTS = ("add", "take", "set", "raise", "lower")
+
+
+def string_literals(text: str):
+    """The ordinary string literals of a C++ source with their lines; comments and raw strings skipped."""
+    i, n, line = 0, len(text), 1
+    while i < n:
+        c = text[i]
+        if text.startswith("//", i):
+            j = text.find("\n", i)
+            i = n if j < 0 else j
+        elif text.startswith("/*", i):
+            j = text.find("*/", i + 2)
+            j = n if j < 0 else j + 2
+            line += text.count("\n", i, j)
+            i = j
+        elif c == 'R' and text.startswith('R"', i) and (i == 0 or not (text[i - 1].isalnum() or text[i - 1] == '_')):
+            open_paren = text.find("(", i + 2)
+            close = text.find(")" + text[i + 2:open_paren] + '"', open_paren + 1)
+            j = n if close < 0 or open_paren < 0 else close + (open_paren - i - 2) + 2
+            line += text.count("\n", i, j)
+            i = j
+        elif c == '"':
+            j = i + 1
+            while j < n and text[j] != '"' and text[j] != "\n":
+                j += 2 if text[j] == "\\" else 1
+            yield line, text[i + 1:j]
+            i = j + 1
+        elif c == "'" and not (i > 0 and text[i - 1].isalnum()):
+            j = i + 1
+            while j < n and text[j] != "'" and text[j] != "\n":
+                j += 2 if text[j] == "\\" else 1
+            i = j + 1
+        else:
+            line += c == "\n"
+            i += 1
+
+
+def check_matter(root: Path) -> list[Problem]:
+    problems = []
+    standard: set[str] = set()
+    for path in sorted(root.rglob("*.matter.omui.json")):
+        rel = path.relative_to(root).as_posix()
+        if any(part in SKIP_DIRS for part in path.relative_to(root).parts):
+            continue
+        try:
+            data = json.loads(path.read_text(encoding="utf-8")).get("matter", {})
+        except (OSError, json.JSONDecodeError, AttributeError):
+            problems.append(Problem("matter", rel, "is not a matter definition's snapshot (omui-gen snapshot writes it)"))
+            continue
+        materials = set(data.get("materials") or {})
+        if rel == MATTER_STANDARD:
+            standard = materials
+        recipes = 0
+        for index, law in enumerate(data.get("laws") or []):
+            if law.get("recipe"):
+                recipes += 1
+                continue
+            texts = [("when", str(law.get("when", ""))), ("become", str(law.get("become", "")))]
+            texts += [(f"{kind}/{target}", str(amount)) for kind in MATTER_LAW_TEXTS for target, amount in (law.get(kind) or {}).items()]
+            for where, text in texts:
+                for token in re.findall(r"[A-Za-z_]\w*", text):
+                    if token in materials:
+                        problems.append(Problem("matter", rel, f"/laws/{index}/{where}: `{token}` is a material — a law reads properties, and a thing becomes what "
+                                                               f"its own column says; a special case says `recipe: true` and is counted (D-165)"))
+        if recipes > MATTER_RECIPES.get(rel, 0):
+            problems.append(Problem("matter", rel, f"{recipes} law(s) marked `recipe: true`, {MATTER_RECIPES.get(rel, 0)} allowed: say each one's reason in "
+                                                   f"tools/lint MATTER_RECIPES, or write it as properties"))
+    for base in MATTER_KERNELS if standard else ():
+        for path in sorted((root / base).rglob("*.cpp*")):
+            rel = path.relative_to(root).as_posix()
+            if "/generated/" in rel:
+                continue  # the standard definition's text, embedded: data
+            for line, literal in string_literals(path.read_text(encoding="utf-8", errors="replace")):
+                if literal in standard:
+                    problems.append(Problem("matter", f"{rel}:{line}", f"names the material `{literal}`: a kernel knows columns, channels and numbers — "
+                                                                       f"what a material does is its row's and the laws' to say (D-165)"))
+    return problems
+
+
 def run(root: Path) -> list[Problem]:
     return (check_sources(root) + check_manifests(root) + check_projects(root) + check_layout(root) + check_licences(root) + check_platforms(root) + check_pins(root)
             + check_documents(root) + check_media(root) + check_closures(root) + check_operations(root) + check_skills(root) + check_agent_surface(root)
-            + check_lead(root) + check_typescript_data(root) + check_imports(root))
+            + check_lead(root) + check_typescript_data(root) + check_imports(root) + check_matter(root))
 
 
 def self_test() -> int:
@@ -1257,6 +1352,7 @@ def self_test() -> int:
         "ops": ("modules/ui/core/src/o.cpp", "module x;\nconstexpr auto op = mlibs::control::Operation{\"ui.wipe\", openas::Effect::irreversible};\n"),
         "documents": ("examples/x/ui/bad.view.omui.json", '{"omui": "0.1", "view": {"root": {"typ": "text"}}}'),
         "skills": ("modules/ui/core/skill.omui.md", "# x\n\nSee [x.ops.omui.ts](x.ops.omui.ts); then `ui.wipe`.\n"),
+        "matter": ("modules/ui/core/x.matter.omui.json", '{"matter": {"materials": {"wood": {}, "ash": {}}, "laws": [{"when": "material == wood && temperature >= 500", "become": "burnt"}]}}'),
         "lead": (LEAD_FEATURES, '{"feature": [{"id": "A", "project": "omui", "line": "use-safely", "title": "x", "status": "claimed"}]}\n'),
     }
     try:

@@ -15,7 +15,6 @@ export module xengine.dynamics.xpbd;
 
 import std;
 export import xengine.dynamics.collision;
-export import xengine.matter;
 
 export namespace xengine::dynamics {
 
@@ -97,12 +96,6 @@ struct SoftBodyModel {
     using Input = BodyInput;
     static void step(State& body, const Input& input) noexcept;
 };
-
-// A soft body's parameters from a material of xengine.matter (D-165: the one table physics, chemistry and
-// the lattice share): its mechanical columns — friction, restitution, compliance, shape_stiffness — and its
-// mass, its density over water's (1000 kg/m³) times `area`. What the table does not say keeps `base`'s; a
-// material that is not the plan's leaves `base` as it is.
-[[nodiscard]] BodyParams params_of(const xengine::matter::Program& matter, xengine::matter::MaterialId material, double area = 1, BodyParams base = {}) noexcept;
 
 // The stages of a step, in order (the pipeline every solver family states:
 // D-133 contract 2): what an agent or a trace reads to say what happened.

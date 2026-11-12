@@ -19,19 +19,20 @@ public:
     std::string_view name() const noexcept override { return "counter"; }
     std::string_view interface_name() const noexcept override { return "example.counter@1"; }
     agent::Capabilities capabilities() const noexcept override { return {.observation = true, .control = true}; }
-    std::span<const agent::Operation> operations() const noexcept override {
-        static constexpr std::array<agent::Operation, 3> all{{
-            {"read", openas::Effect::read, "the count"},
-            {"add", openas::Effect::reversible, "adds `by` (1 when none is given)"},
-            {"reset", openas::Effect::irreversible, "forgets the count"},
+    std::span<const control::CatalogEntry> operations() const noexcept override {
+        static constexpr std::array<control::Parameter, 1> add_parameters{{{"by", "integer", "how much (1 when none is given)", true}}};
+        static constexpr std::array<control::CatalogEntry, 3> all{{
+            {{"counter.read", openas::Effect::read, false}, "The count", {}, "json", control::Cost::instant, "", false, false, false},
+            {{"counter.add", openas::Effect::reversible, false}, "Adds to the count", add_parameters, "json", control::Cost::instant, "counter.add with the opposite", false, false, false},
+            {{"counter.reset", openas::Effect::irreversible, false}, "Forgets the count", {}, "json", control::Cost::instant, "", false, false, false},
         }};
         return all;
     }
     std::uint64_t state_hash() const override { return static_cast<std::uint64_t>(count) + 1; }
     void operate(std::string_view operation, const agent::Request& request, agent::Answer& answer) override {
         ++operated;
-        if (operation == "add") count += request["by"].integer().value_or(1);
-        if (operation == "reset") count = 0;
+        if (operation == "counter.add") count += request["by"].integer().value_or(1);
+        if (operation == "counter.reset") count = 0;
         answer.data(std::format("{{\"count\":{}}}", count));
     }
     void poll() override { ++polled; }
@@ -82,7 +83,13 @@ UTest cases{"agent.subject", [] {
         const auto operations = described.records[0].root()["data"]["operations"];
         expect(eq(operations.size(), std::size_t{3}));
         expect(operations[1]["name"].text() == "counter.add" && operations[1]["effect"].text() == "reversible");
+        expect(!operations[1]["parameters"]) << "briefly: a name, its effect, a line";
         expect(!described.records[0].root()["re"]) << "no re asked, none echoed";
+        const auto one = ask(session, R"({"op":"counter.describe","operation":"counter.add"})");
+        const auto entry = one.records[0].root()["data"];
+        expect(entry["parameters"][0]["name"].text() == "by" && entry["parameters"][0]["optional"].boolean() == true) << "one operation whole";
+        expect(entry["undo"].text() == "counter.add with the opposite" && entry["cost"].text() == "instant");
+        expect(ask(session, R"({"op":"counter.describe","operation":"counter.fly"})").error() == "not-found");
     };
 
     "an operation runs and answers its data; what is not here is not-found; a line that is no request is said so"_test = [] {

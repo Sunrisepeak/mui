@@ -8,8 +8,15 @@
 // subjects are:
 //
 //   → {"op":"subjects"}                       who is here, what each can do, its state's hash
-//   → {"op":"world.describe"}                 a subject's operations: name, effect, what it does
+//   → {"op":"world.describe"}                 a subject's operations, briefly: name, effect, what it does
+//   → {"op":"world.describe","operation":"world.act"}   one of them whole: its parameters, cost, how it is undone
+//   → {"op":"world.describe","detail":"full"} the whole catalog (its listing: <product>.ops.json)
 //   → {"op":"world.observe","re":7, …}        one of them — decided first (mlibs.control, openas)
+//
+// What a subject can do is disclosed in tiers, so that finding out costs an
+// agent as little as it needs: who is here; then names and a line each; then
+// one operation, or all of them, whole. The operations are a catalog's
+// (`<product>.ops.omui.ts`, omui-gen ops): mlibs.control's entries.
 //   ← {"kind":"data","re":7,"data":{…}}
 //   ← {"kind":"result","re":7,"exitCode":0}
 //
@@ -36,23 +43,21 @@ struct Capabilities {
     bool history = false;      // commits, branches, what was undone
 };
 
-struct Operation {
-    std::string_view name;    // within its subject: "observe"
-    openas::Effect   effect = openas::Effect::read;
-    std::string_view doc;
-};
-
 class Subject {
 public:
     virtual ~Subject() = default;
     [[nodiscard]] virtual std::string_view name() const noexcept = 0;            // "world"
     [[nodiscard]] virtual std::string_view interface_name() const noexcept = 0;  // what its operations speak: "xengine.world@0.1"
     [[nodiscard]] virtual Capabilities capabilities() const noexcept = 0;
-    [[nodiscard]] virtual std::span<const Operation> operations() const noexcept = 0;
+    // Its catalog (omui-gen ops's table): each operation by its whole name ("world.observe"), with its effect,
+    // parameters, cost and how it is undone.
+    [[nodiscard]] virtual std::span<const mlibs::control::CatalogEntry> operations() const noexcept = 0;
+    // The catalog's listing (<product>.ops.json: every operation with its input schema, the tiers), when it has one.
+    [[nodiscard]] virtual std::string_view listing() const noexcept { return {}; }
     // A hash of its whole state: the same state, the same hash. 0: it has none to give.
     [[nodiscard]] virtual std::uint64_t state_hash() const { return 0; }
-    // One of its operations, already decided: its data, then its result (a
-    // result it does not give is `done`).
+    // One of its operations (its whole name), already decided: its data, then
+    // its result (a result it does not give is `done`).
     virtual void operate(std::string_view operation, const Request& request, Answer& answer) = 0;
     // Once a pump, at the owner's safe point.
     virtual void poll() {}

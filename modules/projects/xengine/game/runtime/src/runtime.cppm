@@ -26,10 +26,12 @@ export module xengine.runtime;
 
 import std;
 import openas;
+import mlibs.control;
 import mlibs.agent;
 import mlibs.json;
 import mlibs.simulation;
 import xengine.input;
+export import :catalog;  // the game's operations (world.ops.omui.ts, omui-gen ops)
 
 export namespace xengine::runtime {
 
@@ -48,7 +50,6 @@ concept Playable = mlibs::simulation::Model<G> &&
 enum class Stepping : std::uint8_t { owner, agent };
 
 struct Options {
-    std::string       name = "world";
     xengine::PlayTier tier{.name = "human", .reaction_steps = 12, .actions_per_second = 10, .full_view = false};
     Stepping          stepping = Stepping::agent;
     std::int64_t      keep = 3600;        // steps of history kept, to seek within
@@ -75,34 +76,22 @@ public:
     [[nodiscard]] const xengine::PlayTier& tier() const noexcept { return lane_.tier(); }
 
     // ── the game as a subject ─────────────────────────────────────────────
-    [[nodiscard]] std::string_view name() const noexcept override { return options_.name; }
+    [[nodiscard]] std::string_view name() const noexcept override { return "world"; }
     [[nodiscard]] std::string_view interface_name() const noexcept override { return "xengine.world@0.1"; }
     [[nodiscard]] mlibs::agent::Capabilities capabilities() const noexcept override {
         return {.observation = true, .control = true, .time = true, .causes = false, .preview = true, .history = false};
     }
-    [[nodiscard]] std::span<const mlibs::agent::Operation> operations() const noexcept override {
-        static constexpr std::array<mlibs::agent::Operation, 6> all{{
-            {"observe", openas::Effect::read, "what a player on this tier is shown at this step, with the step and the state's hash"},
-            {"state", openas::Effect::read, "the step, the state's hash, whether it is over, the steps it can be sought within"},
-            {"act", openas::Effect::reversible,
-             "a player's actions, as a person's: `seen` (the frame they were decided on), `buttons` held, `axis`, `pointer`; the state shows "
-             "them from `effective` — no sooner than the tier's reaction after `seen` — and they hold until the next"},
-            {"step", openas::Effect::reversible, "plays `steps` steps (1 when none is given); only where the agent steps the game"},
-            {"seek", openas::Effect::reversible, "returns to step `frame` within the history kept; what is played from there is a new branch"},
-            {"branch", openas::Effect::read,
-             "what would be: `steps` ahead from here holding `buttons`, `axis`, `pointer` — the future's view and hash; the game itself untouched"},
-        }};
-        return all;
-    }
+    [[nodiscard]] std::span<const mlibs::control::CatalogEntry> operations() const noexcept override { return catalog; }
+    [[nodiscard]] std::string_view listing() const noexcept override { return xengine::runtime::listing; }
     [[nodiscard]] std::uint64_t state_hash() const override { return G::checksum(timeline_.state()); }
 
     void operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) override {
-        if (operation == "observe") return answer.data(view(timeline_.state(), timeline_.frame()));
-        if (operation == "state") return answer.data(status());
-        if (operation == "act") return act(request, answer);
-        if (operation == "step") return play(request, answer);
-        if (operation == "seek") return seek(request, answer);
-        if (operation == "branch") return branch(request, answer);
+        if (operation == "world.observe") return answer.data(view(timeline_.state(), timeline_.frame()));
+        if (operation == "world.state") return answer.data(status());
+        if (operation == "world.act") return act(request, answer);
+        if (operation == "world.step") return play(request, answer);
+        if (operation == "world.seek") return seek(request, answer);
+        if (operation == "world.branch") return branch(request, answer);
     }
 
 private:

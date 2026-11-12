@@ -24,11 +24,11 @@ while (!game.over()) endpoint.pump();            // or: game.step(input); endpoi
 
 ## Agent surface
 
-The game is a `Subject` of the agent kernel ([mlibs.agent](../../../../base/agent)); every operation is decided there first (openas).
+The game is a `Subject` of the agent kernel ([mlibs.agent](../../../../base/agent)); every operation is decided there first (openas). Its operations are a catalog, [world.ops.omui.ts](world.ops.omui.ts) (the table `src/catalog.cppm` and the listings `src/world.ops.json`, `.md` are `omui-gen ops`'s); how to use them, in order, is [skill.omui.md](skill.omui.md).
 
 | | |
 |---|---|
-| Subject and addresses | `world` (the name can be given), interface `xengine.world@0.1`. Steps are numbered from 0; `frame` is how many were played |
+| Subject and addresses | `world`, interface `xengine.world@0.1`. Steps are numbered from 0; `frame` is how many were played |
 | State | The game's `State`: plain data on `mlibs.simulation`'s timeline, copied whole; `world.state` gives the frame, the hash (`checksum`), whether it is over, and the frames it can be sought within |
 | Observation | `world.observe`: what a player on the runtime's tier is shown — the game's own projection (`observe(state, full)`), with the frame and the hash. The `human` tier is shown what a person is; a tier with `full_view` also what is hidden |
 | Control | `world.act`: the same actions a person has (`buttons` held, `axis`, `pointer`), decided on a frame `seen`; the state shows them from `effective` — no sooner than the tier's reaction after `seen`, no more often than the tier allows — and they hold, like keys, until the next |

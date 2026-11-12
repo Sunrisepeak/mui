@@ -16,16 +16,43 @@ std::string described(const Subject& subject) {
                        can.preview, can.history, subject.state_hash());
 }
 
-std::string catalog(const Subject& subject) {
+constexpr std::string_view cost_name(mlibs::control::Cost cost) noexcept {
+    switch (cost) {
+        case mlibs::control::Cost::instant: return "instant";
+        case mlibs::control::Cost::frame: return "frame";
+        case mlibs::control::Cost::bounded: return "bounded";
+        case mlibs::control::Cost::heavy: return "heavy";
+    }
+    return "?";
+}
+
+// Briefly: a name, its effect and a line each.
+std::string brief(const Subject& subject) {
     std::string out = "{\"operations\":[";
     bool first = true;
-    for (const Operation& operation : subject.operations()) {
+    for (const mlibs::control::CatalogEntry& entry : subject.operations()) {
         if (!first) out += ',';
         first = false;
-        out += std::format("{{\"name\":{},\"effect\":{},\"doc\":{}}}", json_text(std::format("{}.{}", subject.name(), operation.name)),
-                           json_text(openas::name(operation.effect)), json_text(operation.doc));
+        out += std::format("{{\"name\":{},\"effect\":{},\"summary\":{}}}", json_text(entry.operation.name), json_text(openas::name(entry.operation.effect)),
+                           json_text(entry.summary));
     }
     out += "]}";
+    return out;
+}
+
+// One operation whole: its parameters, what it answers, its cost, how it is undone.
+std::string whole(const mlibs::control::CatalogEntry& entry) {
+    std::string out = std::format("{{\"name\":{},\"effect\":{},\"summary\":{},\"parameters\":[", json_text(entry.operation.name),
+                                  json_text(openas::name(entry.operation.effect)), json_text(entry.summary));
+    bool first = true;
+    for (const mlibs::control::Parameter& parameter : entry.parameters) {
+        if (!first) out += ',';
+        first = false;
+        out += std::format("{{\"name\":{},\"type\":{},\"doc\":{},\"optional\":{}}}", json_text(parameter.name), json_text(parameter.type), json_text(parameter.doc),
+                           parameter.optional);
+    }
+    out += std::format("],\"result\":{},\"cost\":{},\"undo\":{},\"undoable\":{},\"cancellable\":{}}}", json_text(entry.result), json_text(cost_name(entry.cost)),
+                       json_text(entry.undo), entry.undoable, entry.cancellable);
     return out;
 }
 
@@ -56,48 +83,53 @@ void SubjectSession::request(std::string_view line, const Reply& reply) {
         answer.result();
         return;
     }
-    // "<subject>.<operation>": the subject is the longest of ours the name begins with.
-    Subject* subject = nullptr;
-    std::string_view operation_name;
+    // "<subject>.describe": what one of ours can do, in tiers.
     for (Subject* candidate : subjects_) {
-        const std::string_view name = candidate->name();
-        if (request.op.size() > name.size() + 1 && request.op.starts_with(name) && request.op[name.size()] == '.' &&
-            (!subject || name.size() > subject->name().size())) {
-            subject = candidate;
-            operation_name = std::string_view(request.op).substr(name.size() + 1);
+        if (request.op.size() != candidate->name().size() + 9 || !request.op.starts_with(candidate->name()) || !request.op.ends_with(".describe")) continue;
+        if (const auto one = request["operation"].text()) {
+            const auto entries = candidate->operations();
+            const auto entry = std::ranges::find_if(entries, [&](const auto& listed) { return listed.operation.name == *one; });
+            if (entry == entries.end()) return answer.fail(openas::error_code::not_found, std::format("`{}` has no operation `{}`", candidate->name(), *one));
+            answer.data(whole(*entry));
+        } else if (request["detail"].text() == "full" && !candidate->listing().empty()) {
+            answer.data(candidate->listing());
+        } else {
+            answer.data(brief(*candidate));
         }
-    }
-    if (!subject) {
-        answer.fail(openas::error_code::not_found, std::format("no subject here answers `{}` (ask `subjects`)", request.op));
-        return;
-    }
-    if (operation_name == "describe") {
-        answer.data(catalog(*subject));
         answer.result();
         return;
     }
-    const auto operations = subject->operations();
-    const auto found = std::ranges::find(operations, operation_name, &Operation::name);
-    if (found == operations.end()) {
-        answer.fail(openas::error_code::not_found, std::format("`{}` has no operation `{}` (ask `{}.describe`)", subject->name(), operation_name, subject->name()));
+    // An operation, by its whole name in a subject's catalog.
+    Subject* subject = nullptr;
+    const mlibs::control::CatalogEntry* found = nullptr;
+    for (Subject* candidate : subjects_) {
+        for (const mlibs::control::CatalogEntry& entry : candidate->operations())
+            if (entry.operation.name == request.op) {
+                subject = candidate;
+                found = &entry;
+            }
+        if (found) break;
+    }
+    if (!found) {
+        answer.fail(openas::error_code::not_found, std::format("no subject here has an operation `{}` (ask `subjects`, then `<subject>.describe`)", request.op));
         return;
     }
     // Authority first: nothing reaches a subject undecided.
     if (options_.access) {
         const openas::Decision decision =
-            options_.access->decide(request.op, found->effect, false, options_.actor, options_.session.get(), request.op);
+            options_.access->decide(request.op, found->operation.effect, found->operation.person, options_.actor, options_.session.get(), request.op);
         if (decision == openas::Decision::refuse) {
             answer.fail(openas::error_code::refused, std::format("`{}` is not allowed here", request.op));
             return;
         }
         if (decision == openas::Decision::ask && request.answer != "yes") {
             answer.fail(openas::error_code::needs_answer, std::format("`{}` ({}) asks its person first: send it again with \"answer\":\"yes\" once they agree",
-                                                                      request.op, openas::name(found->effect)),
+                                                                      request.op, openas::name(found->operation.effect)),
                         openas::exit_code::needs_answer);
             return;
         }
     }
-    subject->operate(operation_name, request, answer);
+    subject->operate(request.op, request, answer);
     if (!answer.finished()) answer.result();
 }
 

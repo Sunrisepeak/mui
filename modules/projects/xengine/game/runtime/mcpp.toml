@@ -23,6 +23,7 @@ sources = ["src/*.cppm"]
 
 [dependencies]
 mlibs.agent      = { path = "../../../../base/agent" }
+mlibs.control    = { path = "../../../../base/control" }
 mlibs.simulation = { path = "../../../../base/simulation" }
 mlibs.json       = { path = "../../../../base/json" }
 xengine.input    = { path = "../input" }

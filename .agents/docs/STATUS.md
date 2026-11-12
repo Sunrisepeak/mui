@@ -14,7 +14,7 @@ The single progress entry (plan §12, at most 200 lines). Updated by every check
 
 Tasks, their dependencies and the milestone nodes: the plan's §9.5. Verified locally by what each task touches; one full run in the background and one look at CI per milestone node.
 
-**Node M6.0-A reached (2026-11-12, 847ad9cf pushed):** T0.1–T0.4 and the first part of T0.5. The node's check: every member's tests by name in the one build configuration (`mcpp test -p …` for all but the site and the competitor benchmarks: `--workspace` builds a second configuration, 25 GB this disk has not), and CI on the pushed head.
+**Node M6.0-A reached (2026-11-12, 847ad9cf pushed):** T0.1–T0.4 and the first part of T0.5. The node's check is CI on the pushed head: a local run of every member (`--workspace`, or `-p` for each) builds a second configuration of about 25 GB, which this disk does not hold beside the first; locally each task ran its own packages and their direct consumers (the commits say which).
 
 | Task | What | State |
 |---|---|---|

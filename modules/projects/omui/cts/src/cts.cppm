@@ -45,10 +45,10 @@ struct Scenario {
 // trace is written instead of compared.
 [[nodiscard]] std::vector<std::string> check(const Scenario& scenario, const Json& trace);
 
-// The suite of level S (mlibs.cts): one case a scenario (`openmui.S.<name>`,
-// contract openmui.conformance.S@0.1), whose body is `trace_of(scenario)`
-// checked against the pinned trace. Every scenario, or why there are none.
-[[nodiscard]] std::expected<mlibs::cts::Report, std::string> conform(const std::function<Json(const Scenario&)>& trace_of,
-                                                                     mlibs::cts::Environment environment = {});
+// The suite of level S (mlibs.cts), against a language's runner: one case a scenario (`openmui.S.<name>`,
+// contract openmui.conformance.S@0.1) — mtest's conformance cases `<subject>/openmui.S.<name>` — whose body is
+// `trace_of(scenario)` checked against the pinned trace. How many scenarios there are, or why there are none.
+std::expected<std::size_t, std::string> conform(const std::function<Json(const Scenario&)>& trace_of, mlibs::cts::Against who = {},
+                                                std::source_location at = std::source_location::current());
 
 }  // namespace omui::cts

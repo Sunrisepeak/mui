@@ -15,7 +15,8 @@ struct Totals {
     std::uint32_t scenarios = 0, steps = 0, comparisons = 0, validation_checks = 0;
     std::uint64_t compared_values = 0, process_hash = 0;
 };
-// Every case on `device` (ids `cellular.*`, contract xengine.cellular.gpu@1).
-[[nodiscard]] mlibs::cts::Report run(mlibs::rhi::Device& device, mlibs::cts::Environment environment = {},
-                                     const mlibs::cts::Policy& policy = {}, Totals* totals = nullptr);
+// Every case against `device` (ids `cellular.*`, contract xengine.cellular.gpu@1): mtest's conformance cases
+// `<device>/cellular.*` (in a tally, counted). What it has is what its capabilities say.
+void declare(mlibs::rhi::Device& device, mlibs::cts::Against who = {}, Totals* totals = nullptr,
+             std::source_location at = std::source_location::current());
 }

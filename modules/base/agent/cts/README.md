@@ -15,8 +15,8 @@ const contract::Probe probe{
     .preview = R"({"op":"world.branch","steps":30})",
     .script = {R"({"op":"world.act","axis":[1]})", R"({"op":"world.step","steps":40})"},
 };
-const auto report = contract::run(probe, {.subject = "xengine.runtime"});
-expect(report.ok()) << report.text();   // and report.json(): *.cts.omui.json
+contract::declare(probe, {.subject = "xengine.runtime"});   // mtest's cases: xengine.runtime/agent.read.pure, …
+expect(contract::unsupported(game.capabilities()) == std::vector<std::string>{"agent.source.chain"});   // what it lacks, pinned
 ```
 
 | # | Property | Case | Needs | Checks |

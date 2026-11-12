@@ -356,14 +356,9 @@ UTest cases{"headless", [] {
             .explain = R"({"op":"ui.timeline"})",
             .source = std::format(R"({{"op":"ui.drew","at":[{},{}]}})", static_cast<int>(button.x), static_cast<int>(button.y)),
         };
-        const auto report = contract::run(probe, {.subject = "omui.agent on omui.host.headless"});
-        std::println("{}", report.text());
-        expect(report.ok()) << report.text();
-        const auto status = [&](std::string_view id) { return std::ranges::find(report.outcomes, id, &mlibs::cts::Outcome::id)->status; };
-        expect(status("agent.source.chain") == mlibs::cts::Status::passed) << "a pixel traced to its node";
-        std::vector<std::string> unsupported;
-        for (const auto& outcome : report.outcomes)
-            if (outcome.status == mlibs::cts::Status::unsupported) unsupported.push_back(outcome.id);
+        contract::declare(probe, {.subject = "omui.agent on omui.host.headless"});
+        const std::vector<std::string> unsupported = contract::unsupported(probe.make()->capabilities());
+        expect(std::ranges::find(unsupported, "agent.source.chain") == unsupported.end()) << "a pixel traced to its node: run, and judged above";
         expect(unsupported == std::vector<std::string>{"agent.time.replays", "agent.observe.budget"}) << "replayed time and a budget of bytes are not the interface's";
     };
 

@@ -87,15 +87,17 @@ struct Bench {
 };
 }  // namespace
 
-mlibs::cts::Report run(r::Device& device, mlibs::cts::Environment environment, const mlibs::cts::Policy& policy, Totals* totals) {
-    if (environment.subject.empty()) environment.subject = device.caps().device;
-    mlibs::cts::Suite<Bench> suite{"xengine.cellular.gpu", "1"};
+void declare(r::Device& device, mlibs::cts::Against who, Totals* totals, std::source_location at) {
+    if (who.subject.empty()) who.subject = device.caps().device;
+    if (!who.has) who.has = [&device](std::string_view cap) { return cap == "compute" && device.caps().compute; };
+    Bench bench{device, {}, {}};
+    std::vector<mlibs::cts::Case> all;
     auto scenario = [&](std::string id, auto body) {
-        suite.add({.id = std::move(id), .contract = "xengine.cellular.gpu@1", .level = mlibs::cts::Level::exact, .needs = {"compute"},
-                   .body = [body](Bench& b, mlibs::cts::Check& c) {
-                       const r::Result<void> result = body(b);
-                       c.that(result.has_value(), result ? std::string() : result.error().message);
-                   }});
+        all.push_back({.id = std::move(id), .contract = "xengine.cellular.gpu@1", .level = mlibs::cts::Level::exact, .needs = {"compute"},
+                       .body = [body, &bench](mlibs::cts::Check& c) {
+                           const r::Result<void> result = body(bench);
+                           c.that(result.has_value(), result ? std::string() : result.error().message);
+                       }});
     };
     const std::vector<Rule> reaction{
         {{C::self({1,{1,1}}),C::self({2,{3,0xffffffffu}})},{{1,W::set,2}}},
@@ -183,11 +185,13 @@ mlibs::cts::Report run(r::Device& device, mlibs::cts::Environment environment, c
         if (Kernel::prepare(b.device, Program{})) return r::fail(r::Errc::invalid, "an unprepared plan was accepted");
         return {};
     });
-    Bench bench{device, {}, {}};
-    const auto has = [&](std::string_view cap) { return cap == "compute" && device.caps().compute; };
-    auto report = suite.run(bench, has, policy, std::move(environment));
+    mlibs::cts::against(
+        std::move(who),
+        [&all, at] {
+            for (mlibs::cts::Case& one : all) mlibs::cts::declare(std::move(one), at);
+        },
+        at);
     bench.totals.process_hash = bench.hash.value();
     if (totals) *totals = bench.totals;
-    return report;
 }
 }

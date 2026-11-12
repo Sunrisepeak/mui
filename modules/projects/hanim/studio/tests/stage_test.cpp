@@ -11,7 +11,6 @@ import mcpplibs.mtest;
 using namespace hanim;
 using namespace mcpplibs::mtest;
 namespace contract = mlibs::agent::cts;
-using mlibs::cts::Status;
 
 namespace {
 
@@ -78,12 +77,8 @@ UTest cases{"hanim.agent", [] {
                        std::format(R"({{"op":"animation.seek",{},"position":0.25}})", playback), R"({"op":"animation.play","program":"rise"})", R"({"op":"animation.list"})",
                        std::format(R"({{"op":"animation.reverse",{}}})", playback), R"({"op":"animation.list"})"},
         };
-        const auto report = contract::run(probe, {.subject = "hanim.agent"});
-        std::println("{}", report.text());
-        expect(report.ok()) << report.text();
-        std::vector<std::string> unsupported;
-        for (const auto& outcome : report.outcomes)
-            if (outcome.status == Status::unsupported) unsupported.push_back(outcome.id);
+        contract::declare(probe, {.subject = "hanim.agent"});
+        const std::vector<std::string> unsupported = contract::unsupported(probe.make()->capabilities());
         expect(unsupported == std::vector<std::string>{"agent.preview.untouched", "agent.source.chain", "agent.actor.recorded", "agent.observe.budget", "agent.causes.explained"})
             << "a preview, causes, the source of a value, a budget: not yet, and said so";
     };

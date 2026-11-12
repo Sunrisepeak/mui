@@ -27,7 +27,7 @@ omui.core = { path = "../core" }
 omui.view = { path = "../view" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.5.2"
+mcpplibs.mtest = "0.6.3"
 mlibs.utils       = { path = "../../../base/utils" }
 omui.ui.base       = { path = "../components/base" }
 omui.host.headless = { path = "../host/headless" }

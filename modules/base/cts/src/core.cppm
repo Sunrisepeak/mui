@@ -1,16 +1,26 @@
-// mlibs.cts:core — suites, cases, the three results, the report.
+// mlibs.cts:core — a suite's cases declared as mtest's conformance cases, what
+// a case records, and the cases counted in a process that is not a test.
 //
-//     mlibs::cts::Suite<Device> suite{"mlibs.rhi", "1"};
-//     suite.add({.id = "rhi.copy", .contract = "mlibs.rhi@1", .level = Level::exact, .needs = {"copy"},
-//                .body = [](Device& d, Check& c) { c.equal(read(d), want, "the bytes"); }});
-//     auto report = suite.run(device, [&](std::string_view cap) { return has(device, cap); },
-//                             {.required = {"compute"}}, {.subject = "lavapipe"});
-//     check(report.ok(), report.text());
+// A suite is a library of its contract's owner: a function that declares its
+// cases against the subject it is given.
 //
-// A case's result is passed or failed; "unsupported" is the suite's verdict,
-// from the capabilities alone: a case whose needs the subject lacks does not
-// run. A capability the runner's policy requires is never unsupported: its
-// absence fails the case. Unsupported never counts as passed.
+//     void declare(Device& device, mlibs::cts::Against who) {
+//         who.has = [&](std::string_view capability) { return has(device, capability); };
+//         mlibs::cts::against(std::move(who), [&] {
+//             mlibs::cts::declare({.id = "rhi.copy", .contract = "mlibs.rhi@1", .level = Level::exact, .needs = {"copy"},
+//                                  .body = [&](Check& c) { c.equal(read(device), want, "the bytes"); }});
+//         });
+//     }
+//
+// In a test program each is a case of mtest (mcpplibs.mtest.cts): named
+// `<subject>/<id>`, of the kind `cts`, covering its contract as its clause,
+// tagged `level:S|A|B`, and — where the subject lacks what it needs — skipped as
+// `unsupported: <capability>`, never passed. What the runner requires and the
+// subject lacks fails once (`<subject>/requires <capability>`). The runner, the
+// selection and the reports are mtest's.
+//
+// A program that is not a test (a tool answering which cases hold on this
+// device) counts the same cases itself: `tally`.
 export module mlibs.cts:core;
 
 import std;
@@ -47,9 +57,13 @@ struct Failure {
 };
 
 // What a case's body records: its failures, and the evidence a reviewer (a
-// person or an agent) needs — a hash, a picture's path, a measured value.
+// person or an agent) needs — a hash, a picture's path, a measured value. In a
+// test program a failure is mtest's, at the check's place, and evidence is a
+// line of the case's output (`evidence <kind>: <value>`); both are also kept
+// here, for the body to ask and for a tally.
 class Check {
 public:
+    Check() = default;
     // Records a failure unless `ok`.
     bool that(bool ok, std::string_view why, std::source_location at = std::source_location::current());
     // Equal values; the failure says both.
@@ -65,112 +79,69 @@ public:
     [[nodiscard]] const std::vector<Failure>& failures() const noexcept { return failures_; }
     [[nodiscard]] const std::vector<std::pair<std::string, std::string>>& evidence() const noexcept { return evidence_; }
 
+    // A check whose failures and evidence are also the running case's (mtest's).
+    [[nodiscard]] static Check reported() {
+        Check check;
+        check.reported_ = true;
+        return check;
+    }
+
 private:
+    bool                                             reported_ = false;
     std::vector<Failure>                             failures_;
     std::vector<std::pair<std::string, std::string>> evidence_;
 };
 
-// One case's result.
-struct Outcome {
-    std::string              id;
-    std::string              contract;
-    Level                    level = Level::exact;
-    Status                   status = Status::passed;
-    std::vector<Failure>     failures;
-    std::vector<std::string> missing;  // unsupported, or failed for a required capability: what the subject lacked
-    std::vector<std::pair<std::string, std::string>> evidence;
-    double                   seconds = 0;
+// A case: a stable id, the contract and its version it checks, its level,
+// the capabilities it needs of the subject, its body.
+struct Case {
+    std::string                 id;
+    std::string                 contract;
+    Level                       level = Level::exact;
+    std::vector<std::string>    needs;
+    std::function<void(Check&)> body;
 };
 
-// What ran the suite, for the report: the subject (a backend, a device, an
-// implementation), the platform and the toolchain.
-struct Environment {
-    std::string subject;
-    std::string platform;
-    std::string toolchain;
+// What a suite is run against: the subject (a backend, a device, an
+// implementation) as the runner names it, whether it has a capability (none
+// given: it has every one — a suite that knows its subject fills this in), and
+// the capabilities this run requires of it.
+struct Against {
+    std::string                           subject;
+    std::function<bool(std::string_view)> has;
+    std::vector<std::string>              required;
 };
 
-// The runner's policy: the capabilities it requires of the subject.
-struct Policy {
-    std::vector<std::string> required;
-};
+// Runs a suite against `who`: `cases` declares them (`declare`).
+void against(Against who, const std::function<void()>& cases, std::source_location at = std::source_location::current());
+// One case of the suite being run.
+void declare(Case c, std::source_location at = std::source_location::current());
 
-struct Report {
-    std::string          suite;
-    std::string          version;
-    Environment          environment;
-    std::vector<Outcome> outcomes;
+// The cases counted in this process, for a program that is not a test.
+struct Tally {
+    struct Entry {
+        std::string              subject;
+        std::string              id;
+        std::string              contract;
+        Level                    level = Level::exact;
+        Status                   status = Status::passed;
+        std::vector<Failure>     failures;
+        std::vector<std::string> missing;  // unsupported: what the subject lacked
+        std::vector<std::pair<std::string, std::string>> evidence;
+    };
+    std::vector<Entry> cases;
 
     [[nodiscard]] std::size_t count(Status s) const noexcept;
     // No case failed. (Unsupported cases are listed, never counted as passed.)
     [[nodiscard]] bool ok() const noexcept { return count(Status::failed) == 0; }
+    // The ids of the cases that ended so, in order.
+    [[nodiscard]] std::vector<std::string> ids(Status s) const;
+    [[nodiscard]] const Entry* find(std::string_view id) const noexcept;
     // One line a case, then the totals.
     [[nodiscard]] std::string text() const;
-    // The machine-readable report (format mlibs.cts@0.1; a file is named
-    // *.cts.omui.json).
-    [[nodiscard]] std::string json() const;
 };
-
-// A case: a stable id, the contract and its version it checks, its level,
-// the capabilities it needs, its body.
-template <class Subject>
-struct Case {
-    std::string                                id;
-    std::string                                contract;
-    Level                                      level = Level::exact;
-    std::vector<std::string>                   needs;
-    std::function<void(Subject&, Check&)>      body;
-};
-
-// The capabilities a subject has: answers whether it has one.
-using Capabilities = std::function<bool(std::string_view)>;
-
-template <class Subject>
-class Suite {
-public:
-    Suite(std::string id, std::string version) : id_(std::move(id)), version_(std::move(version)) {}
-
-    Suite& add(Case<Subject> c) {
-        cases_.push_back(std::move(c));
-        return *this;
-    }
-    [[nodiscard]] std::span<const Case<Subject>> cases() const noexcept { return cases_; }
-    [[nodiscard]] const std::string& id() const noexcept { return id_; }
-    [[nodiscard]] const std::string& version() const noexcept { return version_; }
-
-    // Every case on `subject`, in order (ids filter: only those listed, all
-    // when empty).
-    [[nodiscard]] Report run(Subject& subject, const Capabilities& has = {}, const Policy& policy = {}, Environment environment = {},
-                             std::span<const std::string> only = {}) const {
-        Report r{id_, version_, std::move(environment), {}};
-        for (const auto& c : cases_) {
-            if (!only.empty() && std::ranges::find(only, c.id) == only.end()) continue;
-            Outcome o{c.id, c.contract, c.level};
-            for (const auto& need : c.needs)
-                if (!has || !has(need)) o.missing.push_back(need);
-            const bool required_missing = std::ranges::any_of(o.missing, [&](const std::string& m) { return std::ranges::find(policy.required, m) != policy.required.end(); });
-            if (!o.missing.empty()) {
-                o.status = required_missing ? Status::failed : Status::unsupported;
-                if (required_missing) o.failures.push_back({"", "a capability the runner requires is missing"});
-                r.outcomes.push_back(std::move(o));
-                continue;
-            }
-            Check check;
-            const auto start = std::chrono::steady_clock::now();
-            c.body(subject, check);
-            o.seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
-            o.status = check.failed() ? Status::failed : Status::passed;
-            o.failures = check.failures();
-            o.evidence = check.evidence();
-            r.outcomes.push_back(std::move(o));
-        }
-        return r;
-    }
-
-private:
-    std::string                 id_;
-    std::string                 version_;
-    std::vector<Case<Subject>>  cases_;
-};
+// Every case `suites` declares (through `against`), run here and counted: no
+// case of mtest is declared, nothing is reported but what is returned.
+[[nodiscard]] Tally tally(const std::function<void()>& suites);
 
 }  // namespace mlibs::cts

@@ -22,4 +22,4 @@ openlifa.openas = "0.2.0"
 mlibs.utils = { path = "../utils" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.5.2"
+mcpplibs.mtest = "0.6.3"

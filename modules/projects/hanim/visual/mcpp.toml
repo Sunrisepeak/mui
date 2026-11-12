@@ -35,7 +35,7 @@ mlibs.geom          = { path = "../../../base/geom" }
 xrender.vector = { path = "../../xrender/vector" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.5.2"
+mcpplibs.mtest = "0.6.3"
 xrender.raster  = { path = "../../xrender/raster" }
 # shape_morph_test: a prepared morph drawn by the renderer, written out as pictures.
 mlibs.image     = { path = "../../../base/image" }

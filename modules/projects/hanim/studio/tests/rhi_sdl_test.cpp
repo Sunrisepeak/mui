@@ -32,11 +32,9 @@ UTest cases{"hanim.rhi.sdl", [] {
         const auto& caps = (*device)->caps();
         std::println("device: {} on {}{}", caps.device, name(caps.backend), caps.software ? " (software)" : "");
         hanim::gpu::cts::Totals totals;
-        const auto report = hanim::gpu::cts::run(**device, {.subject = caps.device, .platform = "sdl"}, {.required = {"compute"}}, &totals);
-        std::print("{}", report.text());
-        expect(report.ok() && report.count(mlibs::cts::Status::passed) == report.outcomes.size()) << report.text();
+        // The suite's cases, this program's own: <device>/shape.batch.straight, …
+        hanim::gpu::cts::declare(**device, {.subject = caps.device, .required = {"compute"}}, &totals);
         expect(eq(totals.scenarios, 4u));
         std::println("shape batches: {} samples, {} points, largest difference {}", totals.samples, totals.compared_points, totals.largest_difference);
-        std::ofstream(scratch_dir("rhi") / "sdl-shape.cts.omui.json") << report.json();  // the evidence, for a reviewer
     };
 }};

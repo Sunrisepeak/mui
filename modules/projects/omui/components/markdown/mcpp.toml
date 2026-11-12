@@ -34,5 +34,5 @@ mlibs.markdown = { path = "../../../../content/markdown" }
 omui.build.contracts = { path = "../../../../../mcpp/contracts", host-module = true }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.5.2"
+mcpplibs.mtest = "0.6.3"
 omui.host.headless = { path = "../../host/headless" }

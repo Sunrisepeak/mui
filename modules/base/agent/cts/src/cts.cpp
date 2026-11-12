@@ -257,30 +257,38 @@ void causes_explained(const Probe& probe, Check& check) {
     check.equal(hex(subject->state_hash()), hex(after), "explaining leaves the state as it was");
 }
 
-mlibs::cts::Suite<const Probe> build() {
-    const std::string checked(contract);
-    mlibs::cts::Suite<const Probe> out{"mlibs.agent.contract", "1"};
-    // 1 one source: what it can do is its catalog; what can be named has a stable address.
-    out.add({"agent.catalog.complete", checked, Level::semantic, {}, catalog_complete});
-    out.add({"agent.catalog.stable", checked, Level::exact, {}, catalog_stable});
-    // 2 transactional: a preview leaves the state; what is taken back is back.
-    out.add({"agent.preview.untouched", checked, Level::exact, {"preview"}, preview_untouched});
-    out.add({"agent.undo.returns", checked, Level::exact, {"control", "undo"}, undo_returns});
-    // 3 deterministic: time is its own; the same requests are the same bits.
-    out.add({"agent.time.replays", checked, Level::exact, {"time"}, time_replays});
-    // 4 what it puts out is traced to what made it.
-    out.add({"agent.source.chain", checked, Level::semantic, {"provenance"}, source_chain});
-    // 5 who acted is in the model.
-    out.add({"agent.actor.recorded", checked, Level::semantic, {"control", "causes"}, actor_recorded});
-    // 6 authority at the core: nothing runs undecided.
-    out.add({"agent.authority.first", checked, Level::exact, {}, authority_first});
-    // 7 observation made for an agent: a reading is pure, and within the budget asked.
-    out.add({"agent.read.pure", checked, Level::exact, {"observation"}, read_pure});
-    out.add({"agent.observe.budget", checked, Level::semantic, {"observation", "budget"}, observe_budget});
-    // 8 the working details: errors with a code, requests answered in records, a change explained.
-    out.add({"agent.errors.structured", checked, Level::semantic, {}, errors_structured});
-    out.add({"agent.causes.explained", checked, Level::semantic, {"control", "causes"}, causes_explained});
-    return out;
+struct Entry {
+    std::string_view              id;
+    Level                         level;
+    std::vector<std::string_view> needs;
+    void (*body)(const Probe&, Check&);
+};
+
+// The eight properties, as cases.
+const std::vector<Entry>& entries() {
+    static const std::vector<Entry> all{
+        // 1 one source: what it can do is its catalog; what can be named has a stable address.
+        {"agent.catalog.complete", Level::semantic, {}, catalog_complete},
+        {"agent.catalog.stable", Level::exact, {}, catalog_stable},
+        // 2 transactional: a preview leaves the state; what is taken back is back.
+        {"agent.preview.untouched", Level::exact, {"preview"}, preview_untouched},
+        {"agent.undo.returns", Level::exact, {"control", "undo"}, undo_returns},
+        // 3 deterministic: time is its own; the same requests are the same bits.
+        {"agent.time.replays", Level::exact, {"time"}, time_replays},
+        // 4 what it puts out is traced to what made it.
+        {"agent.source.chain", Level::semantic, {"provenance"}, source_chain},
+        // 5 who acted is in the model.
+        {"agent.actor.recorded", Level::semantic, {"control", "causes"}, actor_recorded},
+        // 6 authority at the core: nothing runs undecided.
+        {"agent.authority.first", Level::exact, {}, authority_first},
+        // 7 observation made for an agent: a reading is pure, and within the budget asked.
+        {"agent.read.pure", Level::exact, {"observation"}, read_pure},
+        {"agent.observe.budget", Level::semantic, {"observation", "budget"}, observe_budget},
+        // 8 the working details: errors with a code, requests answered in records, a change explained.
+        {"agent.errors.structured", Level::semantic, {}, errors_structured},
+        {"agent.causes.explained", Level::semantic, {"control", "causes"}, causes_explained},
+    };
+    return all;
 }
 
 }  // namespace
@@ -299,16 +307,30 @@ bool has(const Capabilities& capabilities, std::string_view capability) noexcept
     return false;
 }
 
-const mlibs::cts::Suite<const Probe>& suite() {
-    static const mlibs::cts::Suite<const Probe> all = build();
-    return all;
+std::vector<std::string> unsupported(const Capabilities& capabilities) {
+    std::vector<std::string> out;
+    for (const Entry& entry : entries())
+        if (std::ranges::any_of(entry.needs, [&](std::string_view need) { return !has(capabilities, need); })) out.emplace_back(entry.id);
+    return out;
 }
 
-mlibs::cts::Report run(const Probe& probe, mlibs::cts::Environment environment, const mlibs::cts::Policy& policy) {
+std::size_t case_count() noexcept { return entries().size(); }
+
+void declare(const Probe& probe, mlibs::cts::Against who, std::source_location at) {
     // What it cannot do is what it says it cannot: its own capabilities, asked once.
     const Capabilities capabilities = probe.make()->capabilities();
-    if (environment.subject.empty()) environment.subject = std::string(probe.make()->name());
-    return suite().run(probe, [&](std::string_view capability) { return has(capabilities, capability); }, policy, std::move(environment));
+    if (who.subject.empty()) who.subject = std::string(probe.make()->name());
+    if (!who.has) who.has = [capabilities](std::string_view capability) { return has(capabilities, capability); };
+    mlibs::cts::against(
+        std::move(who),
+        [&probe, at] {
+            for (const Entry& entry : entries())
+                mlibs::cts::declare({.id = std::string(entry.id), .contract = std::string(contract), .level = entry.level,
+                                     .needs = {entry.needs.begin(), entry.needs.end()},
+                                     .body = [&probe, body = entry.body](Check& check) { body(probe, check); }},
+                                    at);
+        },
+        at);
 }
 
 }  // namespace mlibs::agent::cts

@@ -526,26 +526,27 @@ std::vector<std::string_view> cases() {
 
 ShaderFormats shader_formats() noexcept { return shaders::fill::fill_vs.formats(); }
 
-mlibs::cts::Report run(Device& device, mlibs::cts::Environment environment) {
-    if (environment.subject.empty()) environment.subject = device.caps().device;
-    mlibs::cts::Suite<Bench> suite{"mlibs.rhi", "1"};
-    for (const Case& c : all)
-        suite.add({.id = std::format("rhi.{}", c.name), .contract = "mlibs.rhi@1", .level = c.level, .needs = {},
-                   .body = [run = c.run](Bench& b, mlibs::cts::Check& check) {
-                       b.failure.clear();
-                       b.note.clear();
-                       run(b);
-                       check.that(!b.failed(), b.failure);
-                       if (!b.failed() && !b.note.empty()) check.evidence("note", b.note);
-                   }});
+void declare(Device& device, mlibs::cts::Against who, std::source_location at) {
+    if (who.subject.empty()) who.subject = device.caps().device;
     Bench bench(device);
-    if (bench.failed()) {  // the suite's own resources: every case fails with why
-        mlibs::cts::Report r{suite.id(), suite.version(), std::move(environment), {}};
-        for (const auto& c : suite.cases())
-            r.outcomes.push_back({c.id, c.contract, c.level, mlibs::cts::Status::failed, {{"", "the suite's resources: " + bench.failure}}});
-        return r;
-    }
-    return suite.run(bench, {}, {}, std::move(environment));
+    // The suite's own resources, when they could not be made: every case fails with why.
+    const std::string broken = bench.failed() ? bench.failure : std::string();
+    mlibs::cts::against(
+        std::move(who),
+        [&bench, &broken, at] {
+            for (const Case& c : all)
+                mlibs::cts::declare({.id = std::format("rhi.{}", c.name), .contract = "mlibs.rhi@1", .level = c.level, .needs = {},
+                                     .body = [&bench, &broken, run = c.run](mlibs::cts::Check& check) {
+                                         if (!check.that(broken.empty(), "the suite's resources: " + broken)) return;
+                                         bench.failure.clear();
+                                         bench.note.clear();
+                                         run(bench);
+                                         check.that(!bench.failed(), bench.failure);
+                                         if (!bench.failed() && !bench.note.empty()) check.evidence("note", bench.note);
+                                     }},
+                                    at);
+        },
+        at);
 }
 
 }  // namespace mlibs::rhi::cts

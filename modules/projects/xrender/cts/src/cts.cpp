@@ -51,15 +51,15 @@ std::filesystem::path scratch_dir(std::string_view what) {
     std::filesystem::create_directories(dir, ec);
     return dir;
 }
-void add_case(mlibs::cts::Suite<Bench>& suite, std::string id, mlibs::cts::Level level, std::function<void(Bench&)> body) {
-    suite.add({.id = std::move(id), .contract = "xrender@1", .level = level, .needs = {},
-               .body = [body = std::move(body)](Bench& bench, mlibs::cts::Check& c) {
-                   current = &c;
-                   running = &bench;
-                   body(bench);
-                   current = nullptr;
-                   running = nullptr;
-               }});
+// A case as the suite lists it: declared against a device when the suite is.
+struct Listed {
+    std::string                 id;
+    mlibs::cts::Level           level = mlibs::cts::Level::exact;
+    std::function<void(Bench&)> body;
+};
+using Cases = std::vector<Listed>;
+void add_case(Cases& suite, std::string id, mlibs::cts::Level level, std::function<void(Bench&)> body) {
+    suite.push_back({std::move(id), level, std::move(body)});
 }
 
 namespace graph_cases {
@@ -69,7 +69,7 @@ constexpr auto target_usage = mlibs::rhi::TextureUsage::color_target | mlibs::rh
 
 
 } // namespace
-void add(mlibs::cts::Suite<Bench>& suite) {
+void add(Cases& suite) {
     add_case(suite, "render.graph.layers-and-culling", mlibs::cts::Level::semantic, [](Bench& bench) {  // on a device: a layer made, copied to the target; what nothing reads never runs
         rhi::Device* device = &bench.device;
         xrender::TexturePool pool(*device);
@@ -629,7 +629,7 @@ const std::vector<Case>& cases() {
 
 }  // namespace
 
-void add(mlibs::cts::Suite<Bench>& suite) {
+void add(Cases& suite) {
 
     add_case(suite, "render.vector.pixelate-dpi", mlibs::cts::Level::tolerance, [](Bench& bench) {  // pixel grid units strength and identity on the real compute backend at multiple DPI
         rhi::Device* device = &bench.device;
@@ -922,7 +922,7 @@ void compare(rhi::Device& device, render::GpuRenderer& gpu, rhi::Texture target,
     check(worst <= 2); check_eq(off, 0u);
 }
 }
-void add(mlibs::cts::Suite<Bench>& suite) {
+void add(Cases& suite) {
     add_case(suite, "render.paint-mix.lit-fields", mlibs::cts::Level::tolerance, [](Bench& bench) {  // gradient and differently lit image fields mix before a shared path and clip mask
         rhi::Device* device = &bench.device;
         auto gpu = render::GpuRenderer::create(*device); check(gpu.has_value()); if (!gpu) return;
@@ -1066,7 +1066,7 @@ void scene(render::DisplayList& dl, render::EffectRef ref, const Case& c, bool e
 
 }  // namespace
 
-void add(mlibs::cts::Suite<Bench>& suite) {
+void add(Cases& suite) {
     add_case(suite, "render.effect.content-scopes", mlibs::cts::Level::tolerance, [](Bench& bench) {  // nested content scopes and scaled objects agree on actual CPU and GPU filter sizes
         rhi::Device* device = &bench.device;
         auto gpu=render::GpuRenderer::create(*device);check(gpu.has_value());if(!gpu)return;
@@ -1144,8 +1144,8 @@ void add(mlibs::cts::Suite<Bench>& suite) {
 
 }  // namespace bounds_cases
 
-mlibs::cts::Suite<Bench> suite() {
-    mlibs::cts::Suite<Bench> s{"xrender", "1"};
+Cases suite() {
+    Cases s;
     graph_cases::add(s);
     vector_cases::add(s);
     mix_cases::add(s);
@@ -1159,14 +1159,29 @@ rhi::ShaderFormats shader_formats() { return render::gpu_shader_formats(); }
 
 std::vector<std::string> cases() {
     std::vector<std::string> out;
-    for (const auto& c : suite().cases()) out.push_back(c.id);
+    for (const Listed& one : suite()) out.push_back(one.id);
     return out;
 }
 
-mlibs::cts::Report run(rhi::Device& device, mlibs::cts::Environment environment, const mlibs::cts::Policy& policy, Options options) {
-    if (environment.subject.empty()) environment.subject = device.caps().device;
+void declare(rhi::Device& device, mlibs::cts::Against who, Options options, std::source_location at) {
+    if (who.subject.empty()) who.subject = device.caps().device;
     Bench bench{device, std::move(options)};
-    return suite().run(bench, {}, policy, std::move(environment));
+    Cases all = suite();
+    mlibs::cts::against(
+        std::move(who),
+        [&bench, &all, at] {
+            for (Listed& one : all)
+                mlibs::cts::declare({.id = std::move(one.id), .contract = "xrender@1", .level = one.level, .needs = {},
+                                     .body = [&bench, body = std::move(one.body)](mlibs::cts::Check& c) {
+                                         current = &c;
+                                         running = &bench;
+                                         body(bench);
+                                         current = nullptr;
+                                         running = nullptr;
+                                     }},
+                                    at);
+        },
+        at);
 }
 
 }  // namespace xrender::cts

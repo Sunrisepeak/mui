@@ -54,5 +54,5 @@ runner = ["adb-run"]
 libraries = ["android", "log"]
 
 [dev-dependencies]
-mcpplibs.mtest = "0.5.2"
+mcpplibs.mtest = "0.6.3"
 mlibs.utils = { path = "../../modules/base/utils" }

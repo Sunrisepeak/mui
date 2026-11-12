@@ -29,9 +29,7 @@ UTest cases{"xrender.cts.sdl", [] {
             return;
         }
         const auto dir = scratch_dir("xrender-cts");
-        const auto report = xrender::cts::run(**device, {.subject = (*device)->caps().device, .platform = "sdl"}, {}, {.scratch = dir});
-        std::ofstream(dir / "sdl.render.cts.omui.json") << report.json();  // the evidence, for a reviewer
-        expect(eq(report.outcomes.size(), xrender::cts::cases().size()));
-        expect(report.ok() && report.count(mlibs::cts::Status::passed) == xrender::cts::cases().size()) << report.text();
+        // The suite's cases, this program's own: <device>/render.graph.layers-and-culling, …
+        xrender::cts::declare(**device, {.subject = (*device)->caps().device}, {.scratch = dir});
     };
 }};

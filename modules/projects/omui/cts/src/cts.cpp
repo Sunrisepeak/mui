@@ -161,22 +161,22 @@ std::vector<std::string> check(const Scenario& scenario, const Json& raw) {
     return out;
 }
 
-std::expected<mlibs::cts::Report, std::string> conform(const std::function<Json(const Scenario&)>& trace_of,
-                                                     mlibs::cts::Environment environment) {
+std::expected<std::size_t, std::string> conform(const std::function<Json(const Scenario&)>& trace_of, mlibs::cts::Against who, std::source_location at) {
     auto all = scenarios();
     if (!all) return std::unexpected(all.error());
     if (all->empty()) return std::unexpected(std::format("no scenario in {}", os::fs::utf8(directory())));
-    struct Language {
-        const std::function<Json(const Scenario&)>& trace_of;
-    };
-    mlibs::cts::Suite<Language> suite{"openmui.S", "0.1"};
-    for (const Scenario& scenario : *all)
-        suite.add({.id = "openmui.S." + scenario.name, .contract = "openmui.conformance.S@0.1", .level = mlibs::cts::Level::semantic, .needs = {},
-                   .body = [scenario](Language& l, mlibs::cts::Check& c) {
-                       for (const std::string& d : check(scenario, l.trace_of(scenario))) c.that(false, d);
-                   }});
-    Language language{trace_of};
-    return suite.run(language, {}, {}, std::move(environment));
+    mlibs::cts::against(
+        std::move(who),
+        [&] {
+            for (const Scenario& scenario : *all)
+                mlibs::cts::declare({.id = "openmui.S." + scenario.name, .contract = "openmui.conformance.S@0.1", .level = mlibs::cts::Level::semantic, .needs = {},
+                                     .body = [&scenario, &trace_of](mlibs::cts::Check& c) {
+                                         for (const std::string& d : check(scenario, trace_of(scenario))) c.that(false, d);
+                                     }},
+                                    at);
+        },
+        at);
+    return all->size();
 }
 
 }  // namespace omui::cts

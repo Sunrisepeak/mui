@@ -114,12 +114,8 @@ UTest cases{"runtime", [] {
             .script = {R"({"op":"world.act","axis":[1]})", R"({"op":"world.step","steps":45})", R"({"op":"world.observe"})", R"({"op":"world.act","axis":[-1]})",
                        R"({"op":"world.step","steps":20})", R"({"op":"world.state"})"},
         };
-        const auto report = contract::run(probe, {.subject = "xengine.runtime"});
-        std::println("{}", report.text());
-        expect(report.ok()) << report.text();
-        std::vector<std::string> unsupported;
-        for (const auto& outcome : report.outcomes)
-            if (outcome.status == mlibs::cts::Status::unsupported) unsupported.push_back(outcome.id);
+        contract::declare(probe, {.subject = "xengine.runtime"});
+        const std::vector<std::string> unsupported = contract::unsupported(probe.make()->capabilities());
         expect(unsupported == std::vector<std::string>{"agent.source.chain", "agent.actor.recorded", "agent.observe.budget", "agent.causes.explained"})
             << "causes, the source of what it puts out, a budget: not yet, and said so";
     };

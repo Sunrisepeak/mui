@@ -102,19 +102,18 @@ UTest cases{"hanim.cts.prepare", [] {
         p.b = *p.engine.create_object(shape(true, 40));
         std::vector<Program> many;
         for (int i = 0; i < 12; ++i) many.push_back(anim::move_to(p.a, {static_cast<double>(i), 0}));
-        cts::Suite<Programs> suite{"hanim.program.prepare", "1"};
-        cts::prepare::add(suite, "hanim.program@1",
-                          {.valid = {{"morph", {anim::morph(p.a, p.b).duration(seconds(2))}},
-                                     {"sequence", {sequence(anim::move_to(p.a, {4, 0}), anim::rotate_to(p.a, 1))}},
-                                     {"scoped-effect", {composite(anim::morph(p.a, p.b)).with_effect(fx::blur(0, 8))}}},
-                           .invalid = {{"empty", {Program{}}},
-                                       {"negative-time", {anim::move_through(p.a, {{seconds(-1), {1, 0}}})}}},
-                           .over_budget = {{"nodes", {sequence(std::span<const Program>(many)), {.max_nodes = 4}}},
-                                           {"effects", {composite(anim::morph(p.a, p.b)).with_effect(fx::blur(0, 1)).with_effect(fx::blur(0, 2)),
-                                                        {.effects = {.max_effects = 1}}}}}});
-        const auto report = suite.run(p, {}, {}, {.subject = "hanim.engine"});
-        expect(report.ok()) << report.text();
-        expect(eq(report.count(cts::Status::passed), std::size_t{7}));
+        // The contract's cases, this program's own (7 of them): hanim.engine/prepare.<name>.accepted, .refused, .over-budget
+        cts::against({.subject = "hanim.engine"}, [&] {
+            cts::prepare::declare(p, "hanim.program@1",
+                              {.valid = {{"morph", {anim::morph(p.a, p.b).duration(seconds(2))}},
+                                         {"sequence", {sequence(anim::move_to(p.a, {4, 0}), anim::rotate_to(p.a, 1))}},
+                                         {"scoped-effect", {composite(anim::morph(p.a, p.b)).with_effect(fx::blur(0, 8))}}},
+                               .invalid = {{"empty", {Program{}}},
+                                           {"negative-time", {anim::move_through(p.a, {{seconds(-1), {1, 0}}})}}},
+                               .over_budget = {{"nodes", {sequence(std::span<const Program>(many)), {.max_nodes = 4}}},
+                                               {"effects", {composite(anim::morph(p.a, p.b)).with_effect(fx::blur(0, 1)).with_effect(fx::blur(0, 2)),
+                                                            {.effects = {.max_effects = 1}}}}}});
+        });
     };
 
     "an engine refusing a program beyond its totals publishes none of it"_test = [] {
@@ -129,13 +128,12 @@ UTest cases{"hanim.cts.prepare", [] {
         expect(first && second && p.engine.advance(seconds(.25)).has_value());
         std::vector<Program> all;
         for (std::size_t i = 3; i < 40; ++i) all.push_back(anim::morph(p.from[i], p.to[i]));
-        cts::Suite<Plays> suite{"hanim.engine.play", "1"};
-        cts::prepare::add(suite, "hanim.engine@1",
-                          {.invalid = {{"negative-time", anim::move_through(p.from[3], {{seconds(-1), {1, 0}}})}, {"empty", Program{}}},
-                           .over_budget = {{"parts", parallel(std::span<const Program>(all))}}});
-        const auto report = suite.run(p, {}, {}, {.subject = "hanim.engine"});
-        expect(report.ok()) << report.text();
-        expect(eq(report.count(cts::Status::passed), std::size_t{3}));
+        // The contract's cases, this program's own (3 of them): hanim.engine/prepare.<name>.accepted, .refused, .over-budget
+        cts::against({.subject = "hanim.engine"}, [&] {
+            cts::prepare::declare(p, "hanim.engine@1",
+                              {.invalid = {{"negative-time", anim::move_through(p.from[3], {{seconds(-1), {1, 0}}})}, {"empty", Program{}}},
+                               .over_budget = {{"parts", parallel(std::span<const Program>(all))}}});
+        });
         expect(eq(p.engine.size(), std::size_t{2}));
     };
 }};

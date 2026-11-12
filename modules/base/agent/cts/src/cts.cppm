@@ -13,11 +13,12 @@
 //         .preview = R"({"op":"world.branch","steps":30})",
 //         .script = {R"({"op":"world.act","axis":[1]})", R"({"op":"world.step","steps":40})"},
 //     };
-//     const auto report = contract::run(probe, {.subject = "xengine.runtime"});
-//     expect(report.ok()) << report.text();
+//     contract::declare(probe, {.subject = "xengine.runtime"});   // mtest's cases: xengine.runtime/agent.read.pure, …
+//     expect(contract::unsupported(game.capabilities()) == std::vector<std::string>{"agent.source.chain"});
 //
-// What a subject says it cannot do (its capabilities) is unsupported, never
-// passed; what it says it can and its probe does not show fails.
+// What a subject says it cannot do (its capabilities) is unsupported — skipped
+// with the capability it lacks — never passed; what it says it can and its
+// probe does not show fails.
 export module mlibs.agent.cts;
 
 import std;
@@ -48,8 +49,14 @@ struct Probe {
 // The capabilities a case may need, as Capabilities names them.
 [[nodiscard]] bool has(const Capabilities& capabilities, std::string_view capability) noexcept;
 
-[[nodiscard]] const mlibs::cts::Suite<const Probe>& suite();
-// Every case on the probe's subject. `environment.subject` names it in the report.
-[[nodiscard]] mlibs::cts::Report run(const Probe& probe, mlibs::cts::Environment environment = {}, const mlibs::cts::Policy& policy = {});
+// Every case against the probe's subject: mtest's conformance cases `<subject>/agent.<case>` (in a tally,
+// counted). `who.subject` names it (its own name when none is given); what it has is its own capabilities.
+void declare(const Probe& probe, mlibs::cts::Against who = {}, std::source_location at = std::source_location::current());
+
+// The cases a subject with these capabilities leaves unsupported, in the suite's order: what a subject's
+// tests pin, so that a capability given up is seen.
+[[nodiscard]] std::vector<std::string> unsupported(const Capabilities& capabilities);
+// How many cases the contract has.
+[[nodiscard]] std::size_t case_count() noexcept;
 
 }  // namespace mlibs::agent::cts

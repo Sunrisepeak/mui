@@ -39,4 +39,4 @@ hanim.studio = { path = "../../modules/projects/hanim/studio" }
 mcpplibs.os = "0.4.4"
 
 [dev-dependencies]
-mcpplibs.mtest = "0.5.2"
+mcpplibs.mtest = "0.6.3"

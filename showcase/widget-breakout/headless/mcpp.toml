@@ -25,7 +25,7 @@ xengine.input   = { path = "../../../modules/projects/xengine/game/input" }
 xengine.world   = { path = "../../../modules/projects/xengine/game/world" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.5.2"
+mcpplibs.mtest = "0.6.3"
 mlibs.agent    = { path = "../../../modules/base/agent" }
 mlibs.json     = { path = "../../../modules/base/json" }
 mlibs.utils    = { path = "../../../modules/base/utils" }

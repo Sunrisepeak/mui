@@ -29,6 +29,6 @@ xrender.vector = { path = "../../xrender/vector" }
 mlibs.json     = { path = "../../../base/json" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.5.2"
+mcpplibs.mtest = "0.6.3"
 omui.lang.ts = { path = "../lang/ts" }  # the theme packages' modules, evaluated as the build does
 mlibs.utils = { path = "../../../base/utils" }

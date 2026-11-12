@@ -140,11 +140,8 @@ int main(int argc, char** argv) {
             return;
         }
         expect(cts::shader_formats().has(ShaderFormat::wgsl)) << "the suite's shaders were compiled to WGSL";
-        const auto report = cts::run(*d, {.subject = d->caps().device, .platform = "webgpu"});
-        expect(eq(report.outcomes.size(), cts::cases().size()));
-        std::print("{}", report.text());
-        expect(report.ok() && report.count(mlibs::cts::Status::passed) == cts::cases().size()) << report.text();
-        std::ofstream(scratch_dir("rhi") / "webgpu.cts.omui.json") << report.json();  // the evidence, for a reviewer
+        // The suite's cases, this program's own: <device>/rhi.clear, …
+        cts::declare(*d, {.subject = d->caps().device});
     };
 
     return mcpplibs::mtest::run(static_cast<int>(args.size()), args.data());

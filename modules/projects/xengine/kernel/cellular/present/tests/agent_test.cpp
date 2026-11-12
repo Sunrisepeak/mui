@@ -13,7 +13,6 @@ using namespace mcpplibs::mtest;
 namespace agent = mlibs::agent;
 namespace contract = mlibs::agent::cts;
 namespace cellular = xengine::cellular;
-using mlibs::cts::Status;
 
 namespace {
 
@@ -70,15 +69,10 @@ UTest cases{"cellular.agent", [] {
             .budgeted = R"({"op":"field.observe","budget":180})",
             .budget = 180,
         };
-        const auto report = contract::run(probe, {.subject = "xengine.cellular.agent"});
-        std::println("{}", report.text());
-        expect(report.ok()) << report.text();
-        std::vector<std::string> unsupported;
-        for (const auto& outcome : report.outcomes)
-            if (outcome.status == Status::unsupported) unsupported.push_back(outcome.id);
+        contract::declare(probe, {.subject = "xengine.cellular.agent"});
+        const std::vector<std::string> unsupported = contract::unsupported(probe.make()->capabilities());
         expect(unsupported == std::vector<std::string>{"agent.source.chain", "agent.actor.recorded", "agent.causes.explained"})
             << "causes and the source of what it puts out: not yet, and said so";
-        expect(eq(report.count(Status::passed), report.outcomes.size() - 3));
     };
 
     "sand placed falls and settles: read as numbers by region, cell by cell when asked, within the budget asked"_test = [] {

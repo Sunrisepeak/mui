@@ -18,5 +18,5 @@ sources = ["src/*.cppm"]
 omui.build.embed = { path = "../../../mcpp/embed", host-module = true }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.5.2"
+mcpplibs.mtest = "0.6.3"
 mlibs.utils = { path = "../../../modules/base/utils" }

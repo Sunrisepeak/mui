@@ -51,18 +51,17 @@ UTest cases{"cellular.cts.prepare", [] {
                                          {{C::self({1, {5, 9}})}, {{0, W::set, 0}, {1, W::subtract_saturating, 3}}}};
         const std::vector<ca::Rule> copy{{{}, {{0, W::set, 4}}}};
         std::vector<ca::Rule> many(5, copy[0]);
-        cts::Suite<Rules> suite{"xengine.cellular.prepare", "1"};
-        cts::prepare::add(suite, "xengine.cellular@1",
-                          {.valid = {{"grow", {2, grow}}, {"copy", {1, copy}}, {"identity", {3, {}}}},
-                           .invalid = {{"no-channels", {0, copy}},
-                                       {"channel-out-of-range", {1, {{{}, {{3, W::set, 1}}}}}},
-                                       {"empty-range", {1, {{{C::self({0, {5, 1}})}, {{0, W::set, 1}}}}}},
-                                       {"duplicate-write", {1, {{{}, {{0, W::set, 1}, {0, W::set, 2}}}}}},
-                                       {"unsound-limits", {1, copy, {.max_words = 2}}}},
-                           .over_budget = {{"rules", {1, many, {.max_rules = 4}}}, {"channels", {20, copy}}}});
         Rules rules;
-        const auto report = suite.run(rules, {}, {}, {.subject = "cpu"});
-        expect(report.ok()) << report.text();
-        expect(eq(report.count(cts::Status::passed), std::size_t{10}));
+        // The contract's cases, this program's own (10 of them): cpu/prepare.<name>.accepted, .refused, .over-budget
+        cts::against({.subject = "cpu"}, [&] {
+            cts::prepare::declare(rules, "xengine.cellular@1",
+                              {.valid = {{"grow", {2, grow}}, {"copy", {1, copy}}, {"identity", {3, {}}}},
+                               .invalid = {{"no-channels", {0, copy}},
+                                           {"channel-out-of-range", {1, {{{}, {{3, W::set, 1}}}}}},
+                                           {"empty-range", {1, {{{C::self({0, {5, 1}})}, {{0, W::set, 1}}}}}},
+                                           {"duplicate-write", {1, {{{}, {{0, W::set, 1}, {0, W::set, 2}}}}}},
+                                           {"unsound-limits", {1, copy, {.max_words = 2}}}},
+                               .over_budget = {{"rules", {1, many, {.max_rules = 4}}}, {"channels", {20, copy}}}});
+        });
     };
 }};

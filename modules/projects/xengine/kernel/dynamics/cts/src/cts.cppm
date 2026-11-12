@@ -16,6 +16,10 @@ struct Subject {
     std::vector<std::string> families{"collision", "xpbd", "material"};
 };
 
-[[nodiscard]] mlibs::cts::Report run(Subject subject = {}, mlibs::cts::Environment environment = {}, const mlibs::cts::Policy& policy = {});
+// Every case against `subject`: mtest's conformance cases `<subject>/<family>.<case>` (in a tally, counted). What
+// it has is its families; `who` may name it otherwise and say what the run requires.
+void declare(Subject subject = {}, mlibs::cts::Against who = {}, std::source_location at = std::source_location::current());
+// How many cases the suite has.
+[[nodiscard]] std::size_t case_count() noexcept;
 
 }  // namespace xengine::dynamics::cts

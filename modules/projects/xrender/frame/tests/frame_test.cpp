@@ -16,7 +16,6 @@ namespace agent = mlibs::agent;
 namespace contract = mlibs::agent::cts;
 namespace geom = mlibs::geom;
 namespace raster = xrender::raster;
-using mlibs::cts::Status;
 
 namespace {
 
@@ -107,12 +106,11 @@ UTest cases{"frame", [] {
             .read = R"({"op":"frame.layers"})",
             .source = R"({"op":"frame.at","at":[30,70]})",
         };
-        const auto report = contract::run(probe, {.subject = "xrender.frame"});
-        std::println("{}", report.text());
-        expect(report.ok()) << report.text();
-        const auto status = [&](std::string_view id) { return std::ranges::find(report.outcomes, id, &mlibs::cts::Outcome::id)->status; };
-        expect(status("agent.source.chain") == Status::passed && status("agent.read.pure") == Status::passed && status("agent.authority.first") == Status::passed);
-        expect(status("agent.time.replays") == Status::unsupported && status("agent.preview.untouched") == Status::unsupported)
+        contract::declare(probe, {.subject = "xrender.frame"});
+        const std::vector<std::string> unsupported = contract::unsupported(probe.make()->capabilities());
+        const auto lacks = [&](std::string_view id) { return std::ranges::find(unsupported, id) != unsupported.end(); };
+        expect(!lacks("agent.source.chain") && !lacks("agent.read.pure") && !lacks("agent.authority.first")) << "run, and judged above";
+        expect(lacks("agent.time.replays") && lacks("agent.preview.untouched"))
             << "a frame is a function of what it was given: it has no time of its own";
     };
 

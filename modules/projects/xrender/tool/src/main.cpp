@@ -221,21 +221,39 @@ int cts(const cmdline::ParsedArgs& args) {
     auto device = open_device();
     if (!device) return failed(device.error());
     const auto scratch = std::filesystem::temp_directory_path() / "xrender-cts";
-    const auto report = xrender::cts::run(**device, {.subject = (*device)->caps().device, .platform = "sdl"}, {}, {.scratch = scratch});
-    if (report_file && !mcpplibs::os::fs::write_atomic(*report_file, report.json() + "\n")) return failed(std::format("cannot write {}", utf8(*report_file)));
-    Json failures = Json::array(), unsupported = Json::array();
-    for (const auto& outcome : report.outcomes) {
-        if (outcome.status == mlibs::cts::Status::failed) failures.push_back(outcome.id);
-        if (outcome.status == mlibs::cts::Status::unsupported) unsupported.push_back(outcome.id);
+    // Counted here: this is no test program, and its answer is the cases by how they ended.
+    const std::string subject = (*device)->caps().device;
+    const mlibs::cts::Tally tally = mlibs::cts::tally([&] { xrender::cts::declare(**device, {.subject = subject}, {.scratch = scratch}); });
+    Json failures = Json::array(), unsupported = Json::array(), cases = Json::array();
+    for (const auto& entry : tally.cases) {
+        if (entry.status == mlibs::cts::Status::failed) failures.push_back(entry.id);
+        if (entry.status == mlibs::cts::Status::unsupported) unsupported.push_back(entry.id);
+        Json one{{"id", entry.id}, {"contract", entry.contract}, {"level", std::string(mlibs::cts::name(entry.level))}, {"status", std::string(mlibs::cts::name(entry.status))}};
+        if (!entry.missing.empty()) one["missing"] = entry.missing;
+        for (const auto& failure : entry.failures) one["failures"].push_back({{"where", failure.where}, {"why", failure.why}});
+        for (const auto& [kind, value] : entry.evidence) one["evidence"].push_back({{"kind", kind}, {"value", value}});
+        cases.push_back(std::move(one));
     }
-    return answer(Json{{"ok", report.ok()},
-                       {"device", (*device)->caps().device},
-                       {"passed", report.count(mlibs::cts::Status::passed)},
+    if (report_file) {
+        // The whole of it, for a reviewer: every case with its failures and evidence.
+        const Json report{{"format", "xrender.cts@1"},
+                          {"suite", "xrender"},
+                          {"environment", {{"subject", subject}, {"platform", "sdl"}}},
+                          {"totals",
+                           {{"passed", tally.count(mlibs::cts::Status::passed)},
+                            {"failed", tally.count(mlibs::cts::Status::failed)},
+                            {"unsupported", tally.count(mlibs::cts::Status::unsupported)}}},
+                          {"cases", std::move(cases)}};
+        if (!mcpplibs::os::fs::write_atomic(*report_file, report.dump(2) + "\n")) return failed(std::format("cannot write {}", utf8(*report_file)));
+    }
+    return answer(Json{{"ok", tally.ok()},
+                       {"device", subject},
+                       {"passed", tally.count(mlibs::cts::Status::passed)},
                        {"failed", std::move(failures)},
                        {"unsupported", std::move(unsupported)},
                        {"pictures", utf8(scratch)},
                        {"report", report_file ? Json(utf8(*report_file)) : Json(nullptr)}},
-                  report.ok() ? 0 : 1);
+                  tally.ok() ? 0 : 1);
 }
 
 int device_info() {

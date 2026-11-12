@@ -8,7 +8,6 @@ import xengine.dynamics;
 namespace xengine::dynamics::cts {
 namespace {
 
-using mlibs::cts::Case;
 using mlibs::cts::Check;
 
 SoftBody disc(BodyParams params = {}, std::span<const Plane> planes = {}) {
@@ -26,9 +25,9 @@ std::string bits(const SoftBody& body) {
     return std::format("{:016x}", hash.value());
 }
 
-mlibs::cts::Suite<Subject> suite() {
-    mlibs::cts::Suite<Subject> s("xengine.dynamics", "0.1");
-    s.add(Case<Subject>{"collision.sweep.face", "xengine.dynamics.collision@1", mlibs::cts::Level::exact, {"collision"}, [](Subject&, Check& check) {
+// Every family's cases, in order.
+void cases() {
+    mlibs::cts::declare({"collision.sweep.face", "xengine.dynamics.collision@1", mlibs::cts::Level::exact, {"collision"}, [](Check& check) {
         const auto hit = sweep({0, 50}, 10, {100, 0}, Box{50, 40, 20, 20});
         check.that(hit.has_value(), "a circle moving right meets the box's left face");
         if (hit) {
@@ -36,10 +35,10 @@ mlibs::cts::Suite<Subject> suite() {
             check.that(hit->normal == V2{-1, 0}, "the left face's normal");
         }
     }});
-    s.add(Case<Subject>{"collision.sweep.miss", "xengine.dynamics.collision@1", mlibs::cts::Level::exact, {"collision"}, [](Subject&, Check& check) {
+    mlibs::cts::declare({"collision.sweep.miss", "xengine.dynamics.collision@1", mlibs::cts::Level::exact, {"collision"}, [](Check& check) {
         check.that(!sweep({0, 0}, 5, {100, 0}, Box{50, 40, 20, 20}).has_value(), "a circle passing above meets nothing");
     }});
-    s.add(Case<Subject>{"xpbd.rests-on-ground", "xengine.dynamics.xpbd@1", mlibs::cts::Level::exact, {"xpbd"}, [](Subject&, Check& check) {
+    mlibs::cts::declare({"xpbd.rests-on-ground", "xengine.dynamics.xpbd@1", mlibs::cts::Level::exact, {"xpbd"}, [](Check& check) {
         const std::array ground{Plane{.normal_x = 0, .normal_y = -1, .offset = -300}};
         auto body = disc({.shape_stiffness = 0.3}, ground);
         for (int step = 0; step < 120 * 4; ++step) SoftBodyModel::step(body, {});
@@ -48,7 +47,7 @@ mlibs::cts::Suite<Subject> suite() {
         check.that(r.area > 0.95 * r.rest_area, "its area held within 5 %");
         check.evidence("state", bits(body));
     }});
-    s.add(Case<Subject>{"xpbd.stands-on-ledge", "xengine.dynamics.xpbd@1", mlibs::cts::Level::exact, {"xpbd"}, [](Subject&, Check& check) {
+    mlibs::cts::declare({"xpbd.stands-on-ledge", "xengine.dynamics.xpbd@1", mlibs::cts::Level::exact, {"xpbd"}, [](Check& check) {
         auto body = disc({.shape_stiffness = 0.3});
         BodyInput input;
         input.ledges[0] = {40, 160, 200};
@@ -57,7 +56,7 @@ mlibs::cts::Suite<Subject> suite() {
         const auto r = report(body);
         check.that(std::abs(r.bottom - 200) < 0.5 && !r.contacts.empty(), std::format("on the ledge (bottom {})", r.bottom));
     }});
-    s.add(Case<Subject>{"xpbd.replays-bit-for-bit", "xengine.dynamics.xpbd@1", mlibs::cts::Level::exact, {"xpbd"}, [](Subject&, Check& check) {
+    mlibs::cts::declare({"xpbd.replays-bit-for-bit", "xengine.dynamics.xpbd@1", mlibs::cts::Level::exact, {"xpbd"}, [](Check& check) {
         const std::array ground{Plane{.normal_x = 0, .normal_y = -1, .offset = -300}};
         mlibs::simulation::Timeline<SoftBodyModel> history(disc({}, ground), 600, 30);
         BodyInput input;
@@ -69,23 +68,23 @@ mlibs::cts::Suite<Subject> suite() {
         check.equal(bits(history.state()), first, "the same inputs again, the same bits");
         check.evidence("state", first);
     }});
-    s.add(Case<Subject>{"material.defaults", "xengine.dynamics.material@1", mlibs::cts::Level::exact, {"material"}, [](Subject&, Check& check) {
+    mlibs::cts::declare({"material.defaults", "xengine.dynamics.material@1", mlibs::cts::Level::exact, {"material"}, [](Check& check) {
         const auto table = MaterialTable::defaults();
         for (const char* name : {"rubber", "wood", "stone", "jelly", "cloth", "sand", "water"})
             check.that(table.find(name) != nullptr, std::format("{} in the defaults", name));
         const auto params = params_of(*table.find("stone"), 3);
         check.equal(params.mass, 7.5, "stone's mass over an area of 3");
     }});
-    return s;
 }
 
 }  // namespace
 
-mlibs::cts::Report run(Subject subject, mlibs::cts::Environment environment, const mlibs::cts::Policy& policy) {
-    if (environment.subject.empty()) environment.subject = subject.name;
-    const auto families = subject.families;
-    return suite().run(subject, [families](std::string_view family) { return std::ranges::find(families, family) != families.end(); }, policy,
-                       std::move(environment));
+std::size_t case_count() noexcept { return 6; }
+
+void declare(Subject subject, mlibs::cts::Against who, std::source_location at) {
+    if (who.subject.empty()) who.subject = subject.name;
+    if (!who.has) who.has = [families = subject.families](std::string_view family) { return std::ranges::find(families, family) != families.end(); };
+    mlibs::cts::against(std::move(who), cases, at);
 }
 
 }  // namespace xengine::dynamics::cts

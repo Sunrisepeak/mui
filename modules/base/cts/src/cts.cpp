@@ -1,10 +1,13 @@
 module mlibs.cts;
 
 import std;
-import nlohmann.json;
 import mlibs.hash;
+import mcpplibs.mtest;
+import mcpplibs.mtest.cts;
 
 namespace mlibs::cts {
+
+namespace mtest = mcpplibs::mtest;
 
 namespace {
 
@@ -14,57 +17,107 @@ std::string where(const std::source_location& at) {
     return std::format("{}:{}", file, at.line());
 }
 
+// What `tally` counts into, and the subject of the suite being run there; none: the cases are mtest's.
+struct Counting {
+    Tally*         tally = nullptr;
+    const Against* who = nullptr;
+};
+thread_local Counting counting;
+
+bool lacks(const Against& who, std::string_view capability) { return who.has && !who.has(capability); }
+
 }  // namespace
 
 bool Check::that(bool ok, std::string_view why, std::source_location at) {
     if (!ok) failures_.push_back({where(at), std::string(why)});
+    if (reported_) mtest::expect(ok, at) << why;
     return ok;
 }
 
-void Check::evidence(std::string_view kind, std::string_view value) { evidence_.emplace_back(std::string(kind), std::string(value)); }
-
-std::size_t Report::count(Status s) const noexcept {
-    return static_cast<std::size_t>(std::ranges::count(outcomes, s, &Outcome::status));
+void Check::evidence(std::string_view kind, std::string_view value) {
+    evidence_.emplace_back(std::string(kind), std::string(value));
+    if (reported_) std::println("evidence {}: {}", kind, value);
 }
 
-std::string Report::text() const {
-    std::string out;
-    for (const auto& o : outcomes) {
-        out += std::format("  {:<11} {} [{}] {}", name(o.status), o.id, name(o.level), o.contract);
-        if (!o.missing.empty()) {
-            out += " — lacks";
-            for (const auto& m : o.missing) out += " " + m;
-        }
-        out += "\n";
-        for (const auto& f : o.failures) out += std::format("      {}{}{}\n", f.where, f.where.empty() ? "" : ": ", f.why);
+void against(Against who, const std::function<void()>& cases, std::source_location at) {
+    if (!counting.tally) {
+        mtest::cts::against({.name = who.subject, .has = who.has, .required = who.required}, cases, at);
+        return;
     }
-    out += std::format("{} {} on {}: {} passed, {} failed, {} unsupported\n", suite, version, environment.subject.empty() ? "?" : environment.subject,
-                       count(Status::passed), count(Status::failed), count(Status::unsupported));
+    const Against* outer = std::exchange(counting.who, &who);
+    // What this run requires and the subject lacks: a failure, stated once each.
+    for (const std::string& capability : who.required)
+        if (lacks(who, capability))
+            counting.tally->cases.push_back({.subject = who.subject, .id = "requires " + capability, .status = Status::failed,
+                                             .failures = {{"", std::format("{} lacks `{}`, which this run requires", who.subject, capability)}},
+                                             .missing = {capability}});
+    if (cases) cases();
+    counting.who = outer;
+}
+
+void declare(Case c, std::source_location at) {
+    if (!counting.tally) {
+        mtest::test(c.id)[mtest::kind::cts][mtest::clause{c.contract}][mtest::tag{std::format("level:{}", name(c.level))}][mtest::cts::needs{c.needs}] =
+            mtest::body(
+                [body = std::move(c.body)] {
+                    Check check = Check::reported();
+                    body(check);
+                },
+                at);
+        return;
+    }
+    Tally::Entry entry{.subject = counting.who ? counting.who->subject : std::string{}, .id = std::move(c.id), .contract = std::move(c.contract), .level = c.level};
+    if (counting.who)
+        for (const std::string& need : c.needs)
+            if (lacks(*counting.who, need)) entry.missing.push_back(need);
+    if (!entry.missing.empty()) {
+        entry.status = Status::unsupported;
+    } else {
+        Check check;
+        c.body(check);
+        entry.status = check.failed() ? Status::failed : Status::passed;
+        entry.failures = check.failures();
+        entry.evidence = check.evidence();
+    }
+    counting.tally->cases.push_back(std::move(entry));
+}
+
+Tally tally(const std::function<void()>& suites) {
+    Tally out;
+    const Counting outer = std::exchange(counting, Counting{&out, nullptr});
+    if (suites) suites();
+    counting = outer;
     return out;
 }
 
-std::string Report::json() const {
-    nlohmann::json j;
-    j["format"] = "mlibs.cts@0.1";
-    j["suite"] = suite;
-    j["version"] = version;
-    j["environment"] = {{"subject", environment.subject}, {"platform", environment.platform}, {"toolchain", environment.toolchain}};
-    j["totals"] = {{"passed", count(Status::passed)}, {"failed", count(Status::failed)}, {"unsupported", count(Status::unsupported)}};
-    j["cases"] = nlohmann::json::array();
-    for (const auto& o : outcomes) {
-        nlohmann::json c{{"id", o.id}, {"contract", o.contract}, {"level", name(o.level)}, {"status", name(o.status)}, {"seconds", o.seconds}};
-        if (!o.missing.empty()) c["missing"] = o.missing;
-        if (!o.failures.empty()) {
-            c["failures"] = nlohmann::json::array();
-            for (const auto& f : o.failures) c["failures"].push_back({{"where", f.where}, {"why", f.why}});
+std::size_t Tally::count(Status s) const noexcept { return static_cast<std::size_t>(std::ranges::count(cases, s, &Entry::status)); }
+
+std::vector<std::string> Tally::ids(Status s) const {
+    std::vector<std::string> out;
+    for (const Entry& entry : cases)
+        if (entry.status == s) out.push_back(entry.id);
+    return out;
+}
+
+const Tally::Entry* Tally::find(std::string_view id) const noexcept {
+    const auto found = std::ranges::find(cases, id, &Entry::id);
+    return found == cases.end() ? nullptr : &*found;
+}
+
+std::string Tally::text() const {
+    std::string out;
+    for (const Entry& entry : cases) {
+        out += std::format("  {:<11} {} [{}] {}", name(entry.status), entry.id, name(entry.level), entry.contract);
+        if (!entry.missing.empty()) {
+            out += " — lacks";
+            for (const std::string& missing : entry.missing) out += " " + missing;
         }
-        if (!o.evidence.empty()) {
-            c["evidence"] = nlohmann::json::array();
-            for (const auto& [kind, value] : o.evidence) c["evidence"].push_back({{"kind", kind}, {"value", value}});
-        }
-        j["cases"].push_back(std::move(c));
+        out += "\n";
+        for (const Failure& failure : entry.failures) out += std::format("      {}{}{}\n", failure.where, failure.where.empty() ? "" : ": ", failure.why);
     }
-    return j.dump(2);
+    out += std::format("{}: {} passed, {} failed, {} unsupported\n", cases.empty() || cases.front().subject.empty() ? "?" : cases.front().subject,
+                       count(Status::passed), count(Status::failed), count(Status::unsupported));
+    return out;
 }
 
 // ── comparisons ──

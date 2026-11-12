@@ -30,7 +30,7 @@ mlibs.geom     = { path = "../../../../../base/geom" }
 mlibs.utils    = { path = "../../../../../base/utils" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.5.2"
+mcpplibs.mtest = "0.6.3"
 mlibs.utils = { path = "../../../../../base/utils" }
 # offscreen_test, agent_test: a field an agent operates (the kernel's `agent` feature) — under the agent contract's
 # suite, and drawn through the frame's entry and read back with no interface in the program.

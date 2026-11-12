@@ -13,7 +13,6 @@ import mcpplibs.mtest;
 using namespace mcpplibs::mtest;
 using namespace omui;
 namespace contract = mlibs::agent::cts;
-using mlibs::cts::Status;
 
 namespace {
 
@@ -88,12 +87,8 @@ UTest cases{"agent.interface-subject", [] {
             .preview = R"({"op":"ui.preview","steps":[{"node":"main/dark","action":"toggle"}],"pictures":false})",
             .explain = R"({"op":"ui.timeline"})",
         };
-        const auto report = contract::run(probe, {.subject = "omui.agent"});
-        std::println("{}", report.text());
-        expect(report.ok()) << report.text();
-        std::vector<std::string> unsupported;
-        for (const auto& outcome : report.outcomes)
-            if (outcome.status == Status::unsupported) unsupported.push_back(outcome.id);
+        contract::declare(probe, {.subject = "omui.agent"});
+        const std::vector<std::string> unsupported = contract::unsupported(probe.make()->capabilities());
         expect(unsupported == std::vector<std::string>{"agent.time.replays", "agent.source.chain", "agent.observe.budget"})
             << "no host draws here (a pixel's source is the host's); a budget of bytes and replayed time are not its";
     };

@@ -1,18 +1,19 @@
-# mlibs.cts — the conformance framework every contract's suite runs on
-# (convergence plan §5.5): suites and cases with stable ids, the contract and
-# the level they check (S semantic, A exact, B within a declared tolerance);
-# three results — passed, failed, unsupported — where "unsupported" comes only
-# from the subject's capabilities and never counts as passed; comparisons
-# (bytes, tolerances with a budget, pinned hashes, images, sampled processes);
-# a machine-readable report (*.cts.omui.json). The suites themselves live with
-# their contract's owner (`src/cts/`, feature `cts`). For tests only: no
-# artifact depends on it. Its own package, not a tool of mlibs.utils, because
-# the report needs a JSON library.
+# mlibs.cts — what a contract's conformance suite is written with, on mtest
+# (mcpplibs.mtest.cts): a suite's cases with stable ids, the contract and the
+# level they check (S semantic, A exact, B within a declared tolerance),
+# declared against a subject as mtest's conformance cases — passed, failed, or
+# unsupported, which comes only from the subject's capabilities and never
+# counts as passed; comparisons that say what differs where (bytes, tolerances
+# with a budget, pinned hashes, images, sampled processes); the preparation
+# contract's cases. The runner and the reports are mtest's. The suites
+# themselves live with their contract's owner. For tests and for tools that run
+# a suite: no application depends on it. Its own package, not a tool of
+# mlibs.utils, because it takes the test library.
 [package]
 namespace   = "mlibs"
 name        = "cts"
 version     = "0.1.0"
-description = "Conformance framework: suites, levels, passed/failed/unsupported, comparisons, machine-readable reports"
+description = "Conformance suites on mtest: cases with levels against a subject (passed, failed, unsupported), comparisons with evidence, the preparation contract"
 license     = "Apache-2.0"
 platforms   = ["linux", "macos", "windows", "emscripten"]
 repo        = "https://github.com/Sunrisepeak/mui"
@@ -27,8 +28,6 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-mlibs.utils   = { path = "../utils" }
-nlohmann.json = "3.12.0"
-
-[dev-dependencies]
-mcpplibs.mtest = "0.5.2"
+mlibs.utils    = { path = "../utils" }
+# A suite's cases are mtest's conformance cases: the library, not only its tests.
+mcpplibs.mtest = "0.6.3"

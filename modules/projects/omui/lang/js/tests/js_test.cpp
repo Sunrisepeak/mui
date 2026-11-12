@@ -694,7 +694,7 @@ verb("gift.wide", { effect: "read" }, (): { half: number } => ({ half }));
         if (!omui::native::find("fuzzy")) expect(omui::natives::fuzzy::define().has_value()) << "the official native module";
         expect(omui::themes::add_default().has_value() && omui::themes::add_compact().has_value()) << "the official themes";
         const std::string runner = file_text(std::filesystem::path(std::source_location::current().file_name()).parent_path() / "cts.js");
-        const auto report = omui::cts::conform([&](const omui::cts::Scenario& scenario) -> Json {
+        const auto declared = omui::cts::conform([&](const omui::cts::Scenario& scenario) -> Json {
             Runtime r;
             r.height = 480;  // the scenarios' viewport: 320 × 480
             Js js(r);
@@ -716,10 +716,7 @@ verb("gift.wide", { effect: "read" }, (): { half: number } => ({ half }));
             expect(js.errors.empty()) << (js.errors.empty() ? "" : scenario.name + ": " + js.errors[0]);
             return trace;
         }, {.subject = "javascript"});
-        expect(report.has_value() && report->outcomes.size() >= 3) << (report ? "fewer than three scenarios" : report.error());
-        if (!report) return;
-        std::print("{}", report->text());
-        expect(report->ok() && report->count(mlibs::cts::Status::passed) == report->outcomes.size()) << (report->text());
+        expect(declared.has_value() && *declared >= 3u) << (declared ? "fewer than three scenarios" : declared.error());
     };
 
     "the TypeScript API over the registered components (design.api, D-145): the module's functions and every builder with its props and handlers"_test = [] {

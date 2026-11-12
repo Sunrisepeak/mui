@@ -1,14 +1,13 @@
 // mlibs.cts on a toy subject: passed, failed, unsupported from the
-// capabilities alone, a required capability failing, the report and the
-// comparisons.
+// capabilities alone, a required capability failing — counted in the process
+// and as mtest's own cases — and the comparisons.
 import std;
-import nlohmann.json;
 import mlibs.cts;
 import mlibs.error;
 import mcpplibs.mtest;
 
-// mtest by name: its `suite` would hide the CTS's own.
-using mcpplibs::mtest::UTest, mcpplibs::mtest::expect, mcpplibs::mtest::eq, mcpplibs::mtest::contains, mcpplibs::mtest::operator""_test;
+// mtest by name: its `cts` is not this one.
+using mcpplibs::mtest::UTest, mcpplibs::mtest::expect, mcpplibs::mtest::eq, mcpplibs::mtest::fatal, mcpplibs::mtest::operator""_test;
 namespace cts = mlibs::cts;
 
 namespace {
@@ -16,19 +15,19 @@ namespace {
 struct Toy {
     std::vector<std::byte> bytes{std::byte{1}, std::byte{2}, std::byte{3}};
     int                    runs = 0;
+    int                    expected_runs = 2;  // what toy.runs holds the count to
 };
 
-cts::Suite<Toy> suite() {
-    cts::Suite<Toy> s{"toy", "1"};
-    s.add({.id = "toy.bytes", .contract = "toy@1", .level = cts::Level::exact, .needs = {},
-           .body = [](Toy& t, cts::Check& c) { ++t.runs; c.that(cts::exact(t.bytes, t.bytes).same, "the same bytes"); }});
-    s.add({.id = "toy.wrong", .contract = "toy@1", .level = cts::Level::semantic, .needs = {},
-           .body = [](Toy& t, cts::Check& c) { ++t.runs; c.equal(t.runs, 100, "runs"); }});
-    s.add({.id = "toy.gpu", .contract = "toy@1", .level = cts::Level::tolerance, .needs = {"gpu"},
-           .body = [](Toy& t, cts::Check&) { ++t.runs; }});
-    s.add({.id = "toy.compute", .contract = "toy@1", .level = cts::Level::exact, .needs = {"compute"},
-           .body = [](Toy& t, cts::Check&) { ++t.runs; }});
-    return s;
+// The toy's suite, against a toy that has what `has` says.
+void declare(Toy& toy, cts::Against who) {
+    cts::against(std::move(who), [&toy] {
+        cts::declare({.id = "toy.bytes", .contract = "toy@1", .level = cts::Level::exact, .needs = {},
+                      .body = [&toy](cts::Check& c) { ++toy.runs; c.that(cts::exact(toy.bytes, toy.bytes).same, "the same bytes"); }});
+        cts::declare({.id = "toy.runs", .contract = "toy@1", .level = cts::Level::semantic, .needs = {},
+                      .body = [&toy](cts::Check& c) { ++toy.runs; c.equal(toy.runs, toy.expected_runs, "runs"); }});
+        cts::declare({.id = "toy.gpu", .contract = "toy@1", .level = cts::Level::tolerance, .needs = {"gpu"}, .body = [&toy](cts::Check&) { ++toy.runs; }});
+        cts::declare({.id = "toy.compute", .contract = "toy@1", .level = cts::Level::exact, .needs = {"compute"}, .body = [&toy](cts::Check&) { ++toy.runs; }});
+    });
 }
 
 // A toy engine for the preparation contract: a description is a count; a
@@ -62,41 +61,39 @@ struct Counts {
 
 UTest cases{"cts", [] {
 
-    "a case passes or fails by its checks; unsupported comes from capabilities and never runs"_test = [] {
-        Toy toy;
-        const auto has = [](std::string_view cap) { return cap == "copy"; };
-        const auto r = suite().run(toy, has, {.required = {"compute"}}, {.subject = "toy", .platform = "test"});
-        expect(eq(r.outcomes.size(), std::size_t{4}));
-        expect(r.outcomes[0].status == cts::Status::passed) << "toy.bytes passed";
-        expect(r.outcomes[1].status == cts::Status::failed && !r.outcomes[1].failures.empty()) << "toy.wrong failed with its failure";
-        expect(r.outcomes[1].failures[0].why == "runs: expected 100, got 2") << r.outcomes[1].failures[0].why;
-        expect(r.outcomes[2].status == cts::Status::unsupported && r.outcomes[2].missing == std::vector<std::string>{"gpu"}) << "toy.gpu unsupported";
-        expect(r.outcomes[3].status == cts::Status::failed) << "a required capability missing fails";
-        expect(eq(toy.runs, 2));  // the unsupported and the failed-for-a-capability cases never ran
+    "counted in the process: a case passes or fails by its checks; unsupported comes from capabilities and never runs"_test = [] {
+        Toy toy{.expected_runs = 100};
+        const auto r = cts::tally([&] { declare(toy, {.subject = "toy", .has = [](std::string_view capability) { return capability == "copy"; }, .required = {"compute"}}); });
+        expect(fatal(eq(r.cases.size(), std::size_t{5})));
+        expect(r.cases[0].id == "requires compute" && r.cases[0].status == cts::Status::failed) << "what the run requires and the subject lacks fails, once";
+        expect(r.cases[1].status == cts::Status::passed) << "toy.bytes passed";
+        expect(r.cases[2].status == cts::Status::failed && !r.cases[2].failures.empty()) << "toy.runs failed with its failure";
+        expect(r.cases[2].failures[0].why == "runs: expected 100, got 2") << r.cases[2].failures[0].why;
+        expect(r.cases[3].status == cts::Status::unsupported && r.cases[3].missing == std::vector<std::string>{"gpu"}) << "toy.gpu unsupported";
+        expect(r.cases[4].status == cts::Status::unsupported) << "toy.compute did not run either";
+        expect(eq(toy.runs, 2));  // the unsupported cases never ran
         expect(eq(r.count(cts::Status::passed), std::size_t{1}));
-        expect(eq(r.count(cts::Status::unsupported), std::size_t{1}));
+        expect(eq(r.count(cts::Status::unsupported), std::size_t{2}));
         expect(!r.ok()) << "a failed case: not ok";
-        std::print("{}", r.text());
+        expect(r.ids(cts::Status::failed) == std::vector<std::string>{"requires compute", "toy.runs"});
+        expect(r.find("toy.gpu") && r.find("toy.gpu")->level == cts::Level::tolerance && r.find("toy.gpu")->subject == "toy");
+        expect(r.text().contains("toy: 1 passed, 2 failed, 2 unsupported")) << r.text();
     };
 
-    "no capability query: every case with needs is unsupported, none counted as passed"_test = [] {
-        Toy toy;
-        const std::vector<std::string> only{"toy.gpu"};
-        const auto r = suite().run(toy, {}, {}, {}, only);
-        expect(eq(r.outcomes.size(), std::size_t{1}));
-        expect(r.outcomes[0].status == cts::Status::unsupported) << "unsupported";
-        expect(r.ok() && r.count(cts::Status::passed) == 0) << "ok, and nothing passed";
+    "a subject that says nothing of what it has is taken to have everything; one that has nothing passes nothing it needs"_test = [] {
+        Toy toy{.expected_runs = 2};
+        const auto all = cts::tally([&] { declare(toy, {.subject = "toy"}); });
+        expect(all.ok() && eq(all.count(cts::Status::passed), std::size_t{4})) << all.text();
+        Toy bare{.expected_runs = 2};
+        const auto none = cts::tally([&] { declare(bare, {.subject = "bare", .has = [](std::string_view) { return false; }}); });
+        expect(none.ok() && eq(none.count(cts::Status::passed), std::size_t{2}) && eq(none.count(cts::Status::unsupported), std::size_t{2})) << none.text();
     };
 
-    "the report: format, environment, totals, failures, missing capabilities"_test = [] {
-        Toy toy;
-        const auto r = suite().run(toy, [](std::string_view) { return false; }, {}, {.subject = "toy", .platform = "test", .toolchain = "t"});
-        const auto j = nlohmann::json::parse(r.json());
-        expect(j["format"] == "mlibs.cts@0.1" && j["suite"] == "toy" && j["environment"]["subject"] == "toy") << "header";
-        expect(j["totals"]["passed"] == 1 && j["totals"]["failed"] == 1 && j["totals"]["unsupported"] == 2) << j["totals"].dump();
-        expect(j["cases"][1]["failures"].size() == 1 && j["cases"][2]["missing"][0] == "gpu") << "failures and missing capabilities";
-        expect(j["cases"][0]["level"] == "A" && j["cases"][1]["level"] == "S" && j["cases"][2]["level"] == "B") << "levels";
-    };
+    // The same suite as this program's own cases (mtest's): toy/toy.bytes and toy/toy.runs pass, toy/toy.gpu is
+    // skipped as `unsupported: gpu` — the runner's report says so, and the count of cases with it.
+    Toy toy{.expected_runs = 2};
+    declare(toy, {.subject = "toy", .has = [](std::string_view capability) { return capability != "gpu"; }});
+    "declared as cases of mtest, a suite's cases ran where they were declared"_test = [&toy] { expect(eq(toy.runs, 3)) << "bytes, runs and compute; gpu did not"; };
 
     "comparisons say what differs where"_test = [] {
         const std::array<std::byte, 4> a{std::byte{10}, std::byte{20}, std::byte{30}, std::byte{40}};
@@ -137,17 +134,16 @@ UTest cases{"cts", [] {
     };
 
     "the preparation contract: accepted twice alike, refused by kind, nothing partly published"_test = [] {
-        cts::Suite<Counts> suite{"toy.prepare", "1"};
-        cts::prepare::add(suite, "toy@1", {.valid = {{"three", 3}, {"none", 0}}, .invalid = {{"negative", -1}}, .over_budget = {{"eleven", 11}}});
-        expect(eq(suite.cases().size(), std::size_t{4}));
+        const cts::prepare::Samples<int> samples{.valid = {{"three", 3}, {"none", 0}}, .invalid = {{"negative", -1}}, .over_budget = {{"eleven", 11}}};
         Counts sound;
-        const auto r = suite.run(sound);
+        const auto r = cts::tally([&] { cts::against({.subject = "sound"}, [&] { cts::prepare::declare(sound, "toy@1", samples); }); });
+        expect(fatal(eq(r.cases.size(), std::size_t{4})));
         expect(r.ok()) << r.text();
-        expect(eq(r.outcomes[0].id, std::string("prepare.three.accepted")));
-        expect(eq(r.outcomes[3].id, std::string("prepare.eleven.over-budget")));
+        expect(eq(r.cases[0].id, std::string("prepare.three.accepted")));
+        expect(eq(r.cases[3].id, std::string("prepare.eleven.over-budget")));
         Counts leaky{.leaky = true};
-        const auto l = suite.run(leaky);
-        expect(!l.ok() && l.outcomes[3].status == cts::Status::failed) << "a refusal that publishes part fails";
-        expect(l.outcomes[3].failures[0].why.contains("the state after the refusal")) << l.text();
+        const auto l = cts::tally([&] { cts::against({.subject = "leaky"}, [&] { cts::prepare::declare(leaky, "toy@1", samples); }); });
+        expect(!l.ok() && l.cases[3].status == cts::Status::failed) << "a refusal that publishes part fails";
+        expect(l.cases[3].failures[0].why.contains("the state after the refusal")) << l.text();
     };
 }};

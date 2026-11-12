@@ -17,9 +17,8 @@ struct Totals {
     std::uint64_t compared_points = 0;
     double largest_difference = 0;
 };
-// Every case on `device` (ids `shape.*`, contract hanim.shape.gpu@1).
-[[nodiscard]] mlibs::cts::Report run(mlibs::rhi::Device& device,
-                                     mlibs::cts::Environment environment = {},
-                                     const mlibs::cts::Policy& policy = {},
-                                     Totals* totals = nullptr);
+// Every case against `device` (ids `shape.*`, contract hanim.shape.gpu@1): mtest's conformance cases
+// `<device>/shape.batch.*` (in a tally, counted). What it has is what its capabilities say.
+void declare(mlibs::rhi::Device& device, mlibs::cts::Against who = {}, Totals* totals = nullptr,
+             std::source_location at = std::source_location::current());
 }  // namespace hanim::gpu::cts

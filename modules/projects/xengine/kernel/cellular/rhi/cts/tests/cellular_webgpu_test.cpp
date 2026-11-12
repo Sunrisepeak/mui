@@ -43,14 +43,12 @@ int main(int argc, char** argv) {
         const auto& caps = (*device)->caps();
         std::println("device: {} on {}{}", caps.device, name(caps.backend), caps.software ? " (software)" : "");
         gpu::cts::Totals totals;
-        const auto report = gpu::cts::run(**device, {.subject = caps.device, .platform = "webgpu"}, {.required = {"compute"}}, &totals);
-        std::print("{}", report.text());
-        expect(report.ok() && report.count(mlibs::cts::Status::passed) == report.outcomes.size()) << report.text();
+        // The suite's cases, this program's own: <device>/cellular.identity, …
+        gpu::cts::declare(**device, {.subject = caps.device, .required = {"compute"}}, &totals);
         expect(eq(totals.scenarios, 17u));
         expect(eq(totals.validation_checks, 130u));
         std::println("cellular: {} scenarios, {} steps, {} comparisons / {} values, {} validation checks, process {:016x}",
             totals.scenarios, totals.steps, totals.comparisons, totals.compared_values, totals.validation_checks, totals.process_hash);
-        std::ofstream(scratch_dir("rhi") / "webgpu-cellular.cts.omui.json") << report.json();  // the evidence, for a reviewer
     };
 
     return mcpplibs::mtest::run(static_cast<int>(args.size()), args.data());

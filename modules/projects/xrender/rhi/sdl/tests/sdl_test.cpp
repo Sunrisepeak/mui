@@ -96,11 +96,8 @@ UTest cases{"rhi.sdl", [] {
     "the omui.rhi conformance suite (level B): every case, exactly"_test = [] {
         auto d = open_device();
         if (!d) return;
-        const auto report = cts::run(*d, {.subject = d->caps().device, .platform = "sdl"});
-        expect(eq(report.outcomes.size(), cts::cases().size()));
-        std::print("{}", report.text());
-        expect(report.ok() && report.count(mlibs::cts::Status::passed) == cts::cases().size()) << report.text();
-        std::ofstream(scratch_dir("rhi") / "sdl.cts.omui.json") << report.json();  // the evidence, for a reviewer
+        // The suite's cases, this program's own: <device>/rhi.clear, …
+        cts::declare(*d, {.subject = d->caps().device});
     };
 
     "an invalid list never reaches SDL"_test = [] {

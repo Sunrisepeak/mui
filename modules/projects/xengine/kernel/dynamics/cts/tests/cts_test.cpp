@@ -1,24 +1,28 @@
 // The dynamics conformance on the CPU reference: every case passes; a
 // subject without a family has that family's cases unsupported (never
-// passed), and failed when the runner requires it; the report as JSON.
+// passed), and the run fails when it requires the family.
 import std;
 import xengine.dynamics.cts;
 import mcpplibs.mtest;
 
-using namespace mcpplibs::mtest;
-namespace cts = xengine::dynamics::cts;
+using mcpplibs::mtest::UTest, mcpplibs::mtest::expect, mcpplibs::mtest::operator""_test;
+namespace suite = xengine::dynamics::cts;
+using mlibs::cts::Status;
 
 UTest cases{"dynamics.cts", [] {
+    // The CPU reference: every case, as this program's own (cpu-reference/collision.sweep.face, …).
+    suite::declare();
+    // One that has collision alone: the other families' cases are skipped, `unsupported: xpbd`.
+    suite::declare({.name = "collision-only", .families = {"collision"}});
+
     "the CPU reference passes every case"_test = [] {
-        const auto report = cts::run();
-        std::println("{}", report.text());
-        expect(report.ok() && report.count(mlibs::cts::Status::passed) == report.outcomes.size() && report.outcomes.size() >= 6) << report.text();
-        expect(report.json().contains("\"suite\"")) << "a machine-readable report";
+        const auto tally = mlibs::cts::tally([] { suite::declare(); });
+        expect(tally.ok() && tally.count(Status::passed) == suite::case_count() && suite::case_count() >= 6) << tally.text();
     };
     "a subject without a family: its cases unsupported, failed when required"_test = [] {
-        const auto partial = cts::run({.name = "collision-only", .families = {"collision"}});
-        expect(partial.ok() && partial.count(mlibs::cts::Status::unsupported) > 0) << "unsupported is not passed, nor failed";
-        const auto required = cts::run({.name = "collision-only", .families = {"collision"}}, {}, {.required = {"xpbd"}});
-        expect(!required.ok()) << "a required family missing fails";
+        const auto partial = mlibs::cts::tally([] { suite::declare({.name = "collision-only", .families = {"collision"}}); });
+        expect(partial.ok() && partial.count(Status::unsupported) > 0) << "unsupported is not passed, nor failed";
+        const auto required = mlibs::cts::tally([] { suite::declare({.name = "collision-only", .families = {"collision"}}, {.required = {"xpbd"}}); });
+        expect(!required.ok() && required.ids(Status::failed) == std::vector<std::string>{"requires xpbd"}) << "a required family missing fails";
     };
 }};

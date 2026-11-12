@@ -6,9 +6,8 @@
 // effect output bounds at several pixel densities. The owner's suite: every
 // backend's tests run it on their device (xrender.rhi.sdl's on SDL_GPU).
 //
-//     auto report = xrender::cts::run(device, {.subject = device.caps().device, .platform = "sdl"},
-//                                     {}, {.scratch = dir});
-//     check(report.ok(), report.text());
+//     xrender::cts::declare(device, {.subject = device.caps().device}, {.scratch = dir});
+//     // mtest's conformance cases: <device>/render.graph.layers-and-culling, …
 export module xrender.cts;
 
 import std;
@@ -29,7 +28,9 @@ struct Options {
 // Every case's id, in order.
 [[nodiscard]] std::vector<std::string> cases();
 
-[[nodiscard]] mlibs::cts::Report run(mlibs::rhi::Device& device, mlibs::cts::Environment environment = {},
-                                     const mlibs::cts::Policy& policy = {}, Options options = {});
+// Every case against `device` (contract xrender@1): mtest's conformance cases `<device>/render.*` (in a
+// tally, counted).
+void declare(mlibs::rhi::Device& device, mlibs::cts::Against who = {}, Options options = {},
+             std::source_location at = std::source_location::current());
 
 }  // namespace xrender::cts

@@ -124,57 +124,65 @@ contract::Probe probe_of(agent::Capabilities can, Fault fault = Fault::none) {
             .budget = 40};
 }
 
-// The one case that failed, when exactly one did ("" otherwise).
-std::string only_failure(const mlibs::cts::Report& report) {
+// The suite counted in this process on a probe: what failed, by name.
+mlibs::cts::Tally counted(const contract::Probe& probe, mlibs::cts::Against who = {}) {
+    return mlibs::cts::tally([&] { contract::declare(probe, std::move(who)); });
+}
+std::string failures(const mlibs::cts::Tally& tally) {
     std::string failed;
-    for (const auto& outcome : report.outcomes)
-        if (outcome.status == Status::failed) failed += (failed.empty() ? "" : " ") + outcome.id;
+    for (const std::string& id : tally.ids(Status::failed)) failed += (failed.empty() ? "" : " ") + id;
     return failed;
 }
 
 }  // namespace
 
 UTest cases{"agent.contract", [] {
-    "a subject that keeps the contract passes every case"_test = [] {
-        const auto report = contract::run(probe_of(everything), {.subject = "ledger"});
-        std::println("{}", report.text());
-        expect(report.ok()) << report.text();
-        expect(eq(report.count(Status::passed), report.outcomes.size()) && report.outcomes.size() >= 12u) << "all eight properties, none skipped";
-        expect(report.json().contains("\"mlibs.agent.contract\"")) << "a machine-readable report";
+    // A subject that keeps the contract: every case, as this program's own (ledger/agent.catalog.complete, …).
+    const contract::Probe whole = probe_of(everything);
+    contract::declare(whole, {.subject = "ledger"});
+    "a subject that keeps the contract passes every case"_test = [&whole] {
+        const auto tally = counted(whole);
+        expect(tally.ok()) << tally.text();
+        expect(eq(tally.count(Status::passed), contract::case_count()) && contract::case_count() >= 12u) << "all eight properties, none skipped";
+        expect(contract::unsupported(everything).empty());
     };
 
     "what a subject says it cannot do is unsupported — not passed, not failed — and fails where the runner requires it"_test = [] {
         const agent::Capabilities reads_only{.observation = true};
-        const auto report = contract::run(probe_of(reads_only));
-        expect(report.ok()) << report.text();
+        const auto tally = counted(probe_of(reads_only));
+        expect(tally.ok()) << tally.text();
         const auto status = [&](std::string_view id) {
-            const auto found = std::ranges::find(report.outcomes, id, &mlibs::cts::Outcome::id);
-            return found == report.outcomes.end() ? Status::failed : found->status;
+            const auto* found = tally.find(id);
+            return found ? found->status : Status::failed;
         };
         expect(status("agent.catalog.complete") == Status::passed && status("agent.read.pure") == Status::passed);
         expect(status("agent.authority.first") == Status::passed) << "a reading is decided too";
-        for (const std::string_view id : {"agent.preview.untouched", "agent.undo.returns", "agent.time.replays", "agent.source.chain", "agent.actor.recorded",
-                                          "agent.observe.budget", "agent.causes.explained"})
-            expect(status(id) == Status::unsupported) << id;
-        expect(eq(report.count(Status::unsupported), std::size_t{7}));
+        const std::vector<std::string> lacking{"agent.preview.untouched", "agent.undo.returns", "agent.time.replays", "agent.source.chain", "agent.actor.recorded",
+                                               "agent.observe.budget", "agent.causes.explained"};
+        expect(tally.ids(Status::unsupported) == lacking) << tally.text();
+        expect(contract::unsupported(reads_only) == lacking) << "known from its capabilities alone";
 
-        const auto required = contract::run(probe_of(reads_only), {}, {.required = {"time"}});
-        expect(!required.ok()) << "a capability the runner requires, missing, fails";
+        const auto required = counted(probe_of(reads_only), {.required = {"time"}});
+        expect(!required.ok() && failures(required) == "requires time") << "a capability the runner requires, missing, fails — once";
     };
 
+    // The same, as mtest reports it: reader/agent.time.replays is skipped, "unsupported: time".
+    const contract::Probe reader = probe_of({.observation = true});
+    contract::declare(reader, {.subject = "reader"});
+
     "a subject that says it can and does not fails that case by name"_test = [] {
-        expect(only_failure(contract::run(probe_of(everything, Fault::reading_writes))) == "agent.read.pure");
-        expect(only_failure(contract::run(probe_of(everything, Fault::preview_moves))) == "agent.preview.untouched");
-        expect(only_failure(contract::run(probe_of(everything, Fault::undo_keeps))) == "agent.undo.returns");
-        expect(only_failure(contract::run(probe_of(everything, Fault::forgets_actor))) == "agent.actor.recorded");
-        expect(only_failure(contract::run(probe_of(everything, Fault::over_budget))) == "agent.observe.budget");
-        const auto unstable = contract::run(probe_of(everything, Fault::unstable));
-        expect(only_failure(unstable).contains("agent.catalog.stable") && only_failure(unstable).contains("agent.time.replays")) << only_failure(unstable);
+        expect(failures(counted(probe_of(everything, Fault::reading_writes))) == "agent.read.pure");
+        expect(failures(counted(probe_of(everything, Fault::preview_moves))) == "agent.preview.untouched");
+        expect(failures(counted(probe_of(everything, Fault::undo_keeps))) == "agent.undo.returns");
+        expect(failures(counted(probe_of(everything, Fault::forgets_actor))) == "agent.actor.recorded");
+        expect(failures(counted(probe_of(everything, Fault::over_budget))) == "agent.observe.budget");
+        const std::string unstable = failures(counted(probe_of(everything, Fault::unstable)));
+        expect(unstable.contains("agent.catalog.stable") && unstable.contains("agent.time.replays")) << unstable;
 
         // It says it has time and a preview; its probe shows neither.
         contract::Probe silent = probe_of(everything);
         silent.script.clear();
         silent.preview.clear();
-        expect(only_failure(contract::run(silent)) == "agent.preview.untouched agent.time.replays") << "a claim not shown is not passed";
+        expect(failures(counted(silent)) == "agent.preview.untouched agent.time.replays") << "a claim not shown is not passed";
     };
 }};

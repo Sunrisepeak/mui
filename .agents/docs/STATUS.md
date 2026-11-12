@@ -14,6 +14,8 @@ The single progress entry (plan §12, at most 200 lines). Updated by every check
 
 Tasks, their dependencies and the milestone nodes: the plan's §9.5. Verified locally by what each task touches; one full run in the background and one look at CI per milestone node.
 
+**Node M6.0-A reached (2026-11-12, 847ad9cf pushed):** T0.1–T0.4 and the first part of T0.5. The node's check: every member's tests by name in the one build configuration (`mcpp test -p …` for all but the site and the competitor benchmarks: `--workspace` builds a second configuration, 25 GB this disk has not), and CI on the pushed head.
+
 | Task | What | State |
 |---|---|---|
 | N0 | the known local red first: example 13's twin lacked `framed_png` (since eba28d5e) | fixed |
@@ -25,7 +27,7 @@ Tasks, their dependencies and the milestone nodes: the plan's §9.5. Verified lo
 | T0.6 | xrender's frame entry (targets, layers, composition, capture) | — |
 | T0.7 | `xengine.runtime`; breakout headless without omui | — |
 | T0.8 | the agent contract's CTS, README template, lint `agent-surface` | — |
-| T0.9 | `mlibs.cts` onto mtest (the maintainer, 2026-11-12): mtest 0.6.0 has the CTS kind, clauses, known gaps, coverage, skips and produced files; it lacks an `unsupported` outcome from declared needs and a subject's identity — to be proposed upstream, then the six suites move and the framework part of mlibs.cts goes | — |
+| T0.9 | `mlibs.cts` onto mtest (the maintainer, 2026-11-12) | T0.9a done: mtest 0.6.2 has the CTS kind, clauses, known gaps, coverage, skips and produced files; it lacked a subject (the implementation a suite is run against) and a case's needs of it. T0.9b: [mcpp-community/mtest#13](https://github.com/mcpp-community/mtest/pull/13) (0.6.3: `cts::against`, `cts::needs` — what a subject lacks is `skip`, "unsupported: <capability>", never a pass; what a run requires and it lacks fails; the protocol unchanged), its CI green (8 of 8), awaiting merge and release. Then T0.9c: the six suites move, the framework part of mlibs.cts goes |
 
 ## Convergence plan (2026-11-09, [W0–W16](2026-11-09-agent-era-ts-first-convergence-design.md)) — in progress
 

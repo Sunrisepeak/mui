@@ -51,16 +51,21 @@ UTest cases{"cellular.cts.prepare", [] {
                                          {{C::self({1, {5, 9}})}, {{0, W::set, 0}, {1, W::subtract_saturating, 3}}}};
         const std::vector<ca::Rule> copy{{{}, {{0, W::set, 4}}}};
         std::vector<ca::Rule> many(5, copy[0]);
+        // Encoding 2: heat that spreads, and a mark where the neighbourhood's least value is high.
+        const std::vector<ca::Rule> diffuse{{{C::minimum(0, ca::cardinal, {1, 0xffffffffu})}, {{1, W::set, 1}}},
+                                            {{}, {{0, W::set, 0, {ca::Term::self(0, 4, 3), ca::Term::sum(0, ca::cardinal, 1, 3)}}}}};
         Rules rules;
-        // The contract's cases, this program's own (10 of them): cpu/prepare.<name>.accepted, .refused, .over-budget
+        // The contract's cases, this program's own (13 of them): cpu/prepare.<name>.accepted, .refused, .over-budget
         cts::against({.subject = "cpu"}, [&] {
             cts::prepare::declare(rules, "xengine.cellular@1",
-                              {.valid = {{"grow", {2, grow}}, {"copy", {1, copy}}, {"identity", {3, {}}}},
+                              {.valid = {{"grow", {2, grow}}, {"copy", {1, copy}}, {"identity", {3, {}}}, {"diffuse", {2, diffuse}}},
                                .invalid = {{"no-channels", {0, copy}},
                                            {"channel-out-of-range", {1, {{{}, {{3, W::set, 1}}}}}},
                                            {"empty-range", {1, {{{C::self({0, {5, 1}})}, {{0, W::set, 1}}}}}},
                                            {"duplicate-write", {1, {{{}, {{0, W::set, 1}, {0, W::set, 2}}}}}},
-                                           {"unsound-limits", {1, copy, {.max_words = 2}}}},
+                                           {"unsound-limits", {1, copy, {.max_words = 2}}},
+                                               {"term-shift", {1, {{{}, {{0, W::set, 0, {ca::Term::self(0, 1, 40)}}}}}}},
+                                               {"term-channel", {1, {{{}, {{0, W::set, 0, {ca::Term::sum(1, ca::cardinal)}}}}}}}},
                                .over_budget = {{"rules", {1, many, {.max_rules = 4}}}, {"channels", {20, copy}}}});
         });
     };

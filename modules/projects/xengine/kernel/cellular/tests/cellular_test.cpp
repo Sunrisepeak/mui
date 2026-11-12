@@ -116,6 +116,123 @@ UTest cases{"simulation.cellular", [] {
         bad=reaction_rules();bad[2].when[2].offsets[0].x=33;expect(!ca::Program::prepare(3,bad));
         expect(!ca::Program::prepare(0,rules));expect(!ca::Program::prepare(2,rules,{.max_words=5}));
     };
+    "encoding 2 — aggregates: a neighbourhood's sum, least and greatest in a condition, against a scalar oracle"_test = [] {
+        using C = ca::Condition;
+        using W = ca::WriteKind;
+        // Channel 0 is a height. A cell that is the least of its four neighbours and itself (a pit) is marked 1 in
+        // channel 1; one whose neighbours sum to 12 or more, 2; one beside a 9, 3. First match wins.
+        const std::vector<ca::Rule> rules{
+            {{C::minimum(0, ca::cardinal, {4, 0xffffffffu}), C::self({0, {0, 3}})}, {{1, W::set, 1}}},
+            {{C::sum(0, ca::cardinal, {12, 0xffffffffu})}, {{1, W::set, 2}}},
+            {{C::maximum(0, ca::cardinal, {9, 9})}, {{1, W::set, 3}}},
+            {{}, {{1, W::set, 0}}},
+        };
+        const auto program = ca::Program::prepare(2, rules);
+        expect(fatal(program.has_value()));
+        expect(eq(program->encoding(), 2u)) << "a rule aggregates: encoding 2";
+        const ca::Shape shape{5, 4};
+        const std::vector<std::uint32_t> heights{4, 4, 4, 4, 4,
+                                                 4, 1, 4, 9, 4,
+                                                 4, 4, 2, 4, 4,
+                                                 4, 4, 4, 4, 0};
+        std::vector<std::uint32_t> field(heights.size() * 2, 7), next(field.size());
+        std::ranges::copy(heights, field.begin());
+        for (const ca::Edge edge : {ca::Edge::constant, ca::Edge::clamp, ca::Edge::wrap}) {
+            const ca::Boundary boundary{edge, 5};
+            expect(fatal(program->step(shape, field, next, {.tile = {2, 3}, .boundary = boundary}).has_value()));
+            const auto at = [&](int x, int y) -> std::uint32_t {
+                if (x < 0 || x >= 5 || y < 0 || y >= 4) {
+                    if (edge == ca::Edge::constant) return 5;
+                    if (edge == ca::Edge::clamp) x = std::clamp(x, 0, 4), y = std::clamp(y, 0, 3);
+                    else x = (x + 5) % 5, y = (y + 4) % 4;
+                }
+                return heights[static_cast<std::size_t>(y * 5 + x)];
+            };
+            for (int y = 0; y < 4; ++y)
+                for (int x = 0; x < 5; ++x) {
+                    const std::array<std::uint32_t, 4> around{at(x - 1, y), at(x + 1, y), at(x, y - 1), at(x, y + 1)};
+                    const std::uint32_t least = std::ranges::min(around), greatest = std::ranges::max(around);
+                    const std::uint32_t sum = around[0] + around[1] + around[2] + around[3];
+                    const std::uint32_t want = least >= 4 && at(x, y) <= 3 ? 1 : sum >= 12 ? 2 : greatest == 9 ? 3 : 0;
+                    expect(eq(next[20 + static_cast<std::size_t>(y * 5 + x)], want)) << std::format("edge {}, cell {},{}", static_cast<int>(edge), x, y);
+                    expect(eq(next[static_cast<std::size_t>(y * 5 + x)], heights[static_cast<std::size_t>(y * 5 + x)])) << "the channel no rule writes is copied";
+                }
+        }
+    };
+
+    "encoding 2 — a write's terms: heat spreads as the average of a cell and its neighbours, and what it loses is taken"_test = [] {
+        using T = ca::Term;
+        using W = ca::WriteKind;
+        // Channel 0: next = (4 × self + the four neighbours) / 8. Channel 1: old + 2 × how many neighbours are hot (≥ 100),
+        // less a quarter of itself.
+        const std::vector<ca::Rule> rules{{{},
+                                           {{0, W::set, 0, {T::self(0, 4, 3), T::sum(0, ca::cardinal, 1, 3)}},
+                                            {1, W::add_saturating, 0, {T::count({0, {100, 0xffffffffu}}, ca::cardinal, 2), T::self(1, 1, 2).taken()}}}}};
+        const auto program = ca::Program::prepare(2, rules);
+        expect(fatal(program.has_value()));
+        expect(eq(program->encoding(), 2u) && eq(program->halo(), 1u));
+        const ca::Shape shape{4, 3};
+        std::vector<std::uint32_t> field(24, 0), next(24);
+        field[5] = 800;                      // one hot cell at (1, 1)
+        for (std::size_t i = 12; i < 24; ++i) field[i] = 10;
+        expect(fatal(program->step(shape, field, next).has_value()));
+        const auto heat = [&](int x, int y) { return next[static_cast<std::size_t>(y * 4 + x)]; };
+        const auto mark = [&](int x, int y) { return next[12 + static_cast<std::size_t>(y * 4 + x)]; };
+        expect(eq(heat(1, 1), 400u)) << "(4 × 800) >> 3, and nothing from its cold neighbours";
+        expect(eq(heat(0, 1), 100u) && eq(heat(2, 1), 100u) && eq(heat(1, 0), 100u) && eq(heat(1, 2), 100u)) << "800 >> 3 from the one hot neighbour";
+        expect(eq(heat(3, 1), 0u) && eq(heat(0, 0), 0u)) << "a step reaches its neighbourhood, no further";
+        expect(eq(mark(0, 1), 10u + 2u - 2u) && eq(mark(1, 1), 10u - 2u)) << "plus is added, minus (10 >> 2) taken";
+        // The heat is the same whatever the tiles and their order: one immutable input, one output.
+        std::vector<std::uint32_t> other(24);
+        expect(fatal(program->step(shape, field, other, {.tile = {1, 2}, .reverse_tiles = true}).has_value()));
+        expect(other == next);
+    };
+
+    "encoding 2 — every step saturates in 32 bits, so a device computes the same: products, sums, both ends"_test = [] {
+        using T = ca::Term;
+        using W = ca::WriteKind;
+        const std::uint32_t most = 0xffffffffu;
+        const std::vector<ca::Rule> rules{{{},
+                                           {{0, W::set, 5, {T::self(0, 3)}},                             // 5 + 3 × self: stops at the largest number
+                                            {1, W::set, 1, {T::self(1).taken()}},                         // 1 − self: not below 0
+                                            {2, W::subtract_saturating, 7, {T::self(0, 1, 31).taken()}},  // old − 7, then + (self₀ >> 31)
+                                            {3, W::add_saturating, most, {T::self(3, 2, 1).taken()}}}}};  // old + most stops; then − ((2 × self₃, stopped) >> 1)
+        const auto program = ca::Program::prepare(4, rules);
+        expect(fatal(program.has_value()));
+        const ca::Shape shape{2, 1};
+        //                                   channel 0        1     2      3
+        std::vector<std::uint32_t> field{0x60000000u, most,  9, 0,  3, 4,  100, most}, next(8);
+        expect(fatal(program->step(shape, field, next).has_value()));
+        expect(eq(next[0], most) && eq(next[1], most)) << "3 × 0x60000000 and 3 × most stop at the largest number";
+        expect(eq(next[2], 0u) && eq(next[3], 1u)) << "1 − 9 is 0; 1 − 0 is 1";
+        expect(eq(next[4], 0u) && eq(next[5], 0u + 1u)) << "3 − 7 is 0, plus 0x60000000 >> 31 = 0; 4 − 7 is 0, plus most >> 31 = 1";
+        expect(eq(next[6], most - 100u) && eq(next[7], most - 0x7fffffffu)) << "the sum stops, then (2 × 100) >> 1 and (2 × most, stopped) >> 1 are taken";
+    };
+
+    "the encoding is 1 unless a rule aggregates or a write has terms; malformed terms are refused where they are"_test = [] {
+        using C = ca::Condition;
+        using T = ca::Term;
+        using W = ca::WriteKind;
+        const std::vector<ca::Rule> plain{{{C::neighbors({0, {1, 1}}, ca::surrounding, {3, 3})}, {{0, W::set, 1}}}};
+        const auto first = ca::Program::prepare(1, plain);
+        expect(fatal(first.has_value()));
+        expect(eq(first->encoding(), 1u)) << "what every backend runs";
+        expect(eq(first->words().size(), std::size_t{4 + 1 + 4 + 7 + 16 + 3})) << "the words of encoding 1 are what they were";
+        const auto refused = [](std::vector<ca::Rule> rules, std::uint32_t channels = 2) {
+            const auto program = ca::Program::prepare(channels, rules);
+            return program ? std::string("accepted") : std::format("{} at {}", program.error().description().name, ca::describe_where(program.error().where));
+        };
+        expect(eq(refused({{{}, {{0, W::set, 0, {T::self(0, 1, 32)}}}}}), std::string("cellular.condition at rule 0, item 0"))) << "a shift beyond 31";
+        expect(eq(refused({{{}, {{0, W::set, 0}, {1, W::set, 0, {T::sum(2, ca::cardinal)}}}}}), std::string("cellular.channels at rule 0, item 1")));
+        const std::array<ca::Offset, 1> far{{{33, 0}}};
+        expect(eq(refused({{{}, {{0, W::set, 0, {T::maximum(0, far)}}}}}), std::string("cellular.offset at rule 0, item 0")));
+        ca::Term both = T::self(0);
+        both.offsets = {{1, 0}};
+        expect(eq(refused({{{}, {{0, W::set, 0, {both}}}}}), std::string("cellular.condition at rule 0, item 0"))) << "the cell's own value has no neighbourhood";
+        expect(eq(refused({{{C::sum(0, ca::cardinal, {5, 1})}, {}}}), std::string("cellular.range at rule 0, item 0")));
+        expect(eq(refused({{{}, {{0, W::set, 0, std::vector<ca::Term>(33, T::self(0))}}}}), std::string("cellular.limit at rule 0, item 0"))) << "33 terms";
+    };
+
     "the shared owned-state history rebuilds cellular states and inputs without a second checkpoint engine"_test = [] {
         const ca::Shape shape{19,11};const auto p=ca::Program::prepare(3,reaction_rules());expect(p.has_value());if(!p)return;
         auto state=initial(shape);

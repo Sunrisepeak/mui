@@ -4,6 +4,37 @@ import mlibs.trace;
 import mlibs.log;
 
 namespace xengine::cellular {
+namespace {
+
+constexpr std::uint32_t largest = std::numeric_limits<std::uint32_t>::max();
+constexpr std::uint32_t saturating_add(std::uint32_t a, std::uint32_t b) noexcept { return a + std::min(b, largest - a); }
+constexpr std::uint32_t saturating_multiply(std::uint32_t a, std::uint32_t by) noexcept { return by && a > largest / by ? largest : a * by; }
+
+// The words of a neighbourhood: its size, then each offset as two words (x + 32, y + 32).
+void put_offsets(std::vector<std::uint32_t>& words, std::span<const Offset> offsets) {
+    words.push_back(static_cast<std::uint32_t>(offsets.size()));
+    for (const Offset offset : offsets) {
+        words.push_back(static_cast<std::uint32_t>(offset.x + 32));
+        words.push_back(static_cast<std::uint32_t>(offset.y + 32));
+    }
+}
+
+// A neighbourhood as a program takes it: at most 128 offsets, each within ±32, none twice. What is wrong with it,
+// and how far it reaches.
+std::optional<Errc> check_offsets(std::span<const Offset> offsets, std::uint32_t& halo) {
+    if (offsets.size() > 128) return Errc::limit;
+    for (std::size_t index = 0; index < offsets.size(); ++index) {
+        const Offset offset = offsets[index];
+        if (offset.x < -32 || offset.x > 32 || offset.y < -32 || offset.y > 32) return Errc::offset;
+        for (std::size_t earlier = 0; earlier < index; ++earlier)
+            if (offsets[earlier] == offset) return Errc::offset;
+        halo = std::max(halo, static_cast<std::uint32_t>(std::max(std::abs(offset.x), std::abs(offset.y))));
+    }
+    return std::nullopt;
+}
+
+}  // namespace
+
 std::expected<Program,Failure> Program::prepare(std::uint32_t channels, std::span<const Rule> rules, Limits limits) {
     mlibs::trace::Span span("simulation.cellular.prepare", "simulation");
     // Limits that cannot hold a program are the caller's error; a program beyond sound limits is refused.
@@ -11,52 +42,72 @@ std::expected<Program,Failure> Program::prepare(std::uint32_t channels, std::spa
         limits.max_words>std::numeric_limits<std::uint32_t>::max()/4) return std::unexpected(Failure{Errc::invalid_limits});
     if (!channels) return std::unexpected(Failure{Errc::channels});
     if (channels > limits.max_channels || channels > limits.max_values || rules.size()>limits.max_rules) return std::unexpected(Failure{Errc::limit});
+    // Encoding 2 where a rule aggregates or a write has terms; otherwise the encoding every backend runs.
+    bool aggregates = false;
+    for (const Rule& rule : rules) {
+        for (const Condition& condition : rule.when) aggregates |= condition.kind > ConditionKind::neighbors;
+        for (const Write& write : rule.writes) aggregates |= !write.terms.empty();
+    }
     std::uint64_t size=4+static_cast<std::uint64_t>(rules.size());
     std::uint32_t halo=0;
     for(std::size_t r=0;r<rules.size();++r) {
         const auto& rule=rules[r];
-        if(rule.when.size()>limits.max_words) return std::unexpected(Failure{Errc::limit, {}, {r}});
-        size+=4+rule.writes.size()*3;
+        if(rule.when.size()>limits.max_words || rule.writes.size()>limits.max_words) return std::unexpected(Failure{Errc::limit, {}, {r}});
+        size+=4;
         for(std::size_t c=0;c<rule.when.size();++c) {
             const auto& test=rule.when[c];
             const auto fail=[&](Errc e){return std::unexpected(Failure{e, {}, {r, c}});};
-            if(test.kind>ConditionKind::neighbors || (test.kind==ConditionKind::self && !test.offsets.empty())) return fail(Errc::condition);
+            if(test.kind>ConditionKind::maximum || (test.kind==ConditionKind::self && !test.offsets.empty())) return fail(Errc::condition);
             if(test.test.channel>=channels) return fail(Errc::channels);
             if(test.test.value.low>test.test.value.high || test.count.low>test.count.high) return fail(Errc::range);
-            if(test.offsets.size()>128) return fail(Errc::limit);
-            for(std::size_t i=0;i<test.offsets.size();++i) {
-                const auto o=test.offsets[i];
-                if(o.x < -32 || o.x>32 || o.y < -32 || o.y>32) return fail(Errc::offset);
-                for(std::size_t j=0;j<i;++j)if(test.offsets[j]==o)return fail(Errc::offset);
-                halo=std::max(halo,static_cast<std::uint32_t>(std::max(std::abs(o.x),std::abs(o.y))));
-            }
+            if(const auto wrong=check_offsets(test.offsets,halo)) return fail(*wrong);
             size+=7+test.offsets.size()*2;
             if(size>limits.max_words) return fail(Errc::limit);
         }
         for(std::size_t w=0;w<rule.writes.size();++w) {
-            const auto write=rule.writes[w];
-            if(write.channel>=channels) return std::unexpected(Failure{Errc::channels, {}, {r, w}});
-            if(write.kind>WriteKind::subtract_saturating) return std::unexpected(Failure{Errc::condition, {}, {r, w}});
-            for(std::size_t k=0;k<w;++k)if(rule.writes[k].channel==write.channel) return std::unexpected(Failure{Errc::duplicate_write, {}, {r, w}});
+            const Write& write=rule.writes[w];
+            const auto fail=[&](Errc e){return std::unexpected(Failure{e, {}, {r, w}});};
+            if(write.channel>=channels) return fail(Errc::channels);
+            if(write.kind>WriteKind::subtract_saturating) return fail(Errc::condition);
+            for(std::size_t k=0;k<w;++k)if(rule.writes[k].channel==write.channel) return fail(Errc::duplicate_write);
+            if(write.terms.size()>32) return fail(Errc::limit);
+            size+=aggregates ? 4 : 3;
+            for(const Term& term:write.terms) {
+                if(term.kind>SourceKind::maximum || (term.kind==SourceKind::self && !term.offsets.empty()) || term.shift>31) return fail(Errc::condition);
+                if(term.test.channel>=channels) return fail(Errc::channels);
+                if(term.test.value.low>term.test.value.high) return fail(Errc::range);
+                if(const auto wrong=check_offsets(term.offsets,halo)) return fail(*wrong);
+                size+=8+term.offsets.size()*2;
+            }
+            if(size>limits.max_words) return fail(Errc::limit);
         }
         if(size>limits.max_words) return std::unexpected(Failure{Errc::limit, {}, {r}});
     }
     if(size>limits.max_words) return std::unexpected(Failure{Errc::limit});
     Program p;p.channels_=channels;p.rules_=static_cast<std::uint32_t>(rules.size());p.halo_=halo;p.limits_=limits;
-    p.words_.reserve(static_cast<std::size_t>(size));p.words_={1,channels,p.rules_,halo};p.words_.resize(4+rules.size());
+    p.words_.reserve(static_cast<std::size_t>(size));p.words_={aggregates ? 2u : 1u,channels,p.rules_,halo};p.words_.resize(4+rules.size());
     for(std::size_t r=0;r<rules.size();++r) {
         const auto& rule=rules[r];const auto start=p.words_.size();p.words_[4+r]=static_cast<std::uint32_t>(start);
         p.words_.insert(p.words_.end(),{0,static_cast<std::uint32_t>(rule.when.size()),static_cast<std::uint32_t>(rule.writes.size()),0});
         for(const auto& c:rule.when) {
-            p.words_.insert(p.words_.end(),{static_cast<std::uint32_t>(c.kind),c.test.channel,c.test.value.low,c.test.value.high,
-                c.count.low,c.count.high,static_cast<std::uint32_t>(c.offsets.size())});
-            for(const auto o:c.offsets) {p.words_.push_back(static_cast<std::uint32_t>(o.x+32));p.words_.push_back(static_cast<std::uint32_t>(o.y+32));}
+            p.words_.insert(p.words_.end(),{static_cast<std::uint32_t>(c.kind),c.test.channel,c.test.value.low,c.test.value.high,c.count.low,c.count.high});
+            put_offsets(p.words_,c.offsets);
         }
         p.words_[start+3]=static_cast<std::uint32_t>(p.words_.size());
-        for(const auto w:rule.writes)p.words_.insert(p.words_.end(),{w.channel,static_cast<std::uint32_t>(w.kind),w.value});
+        for(const Write& w:rule.writes) {
+            p.words_.insert(p.words_.end(),{w.channel,static_cast<std::uint32_t>(w.kind),w.value});
+            if(!aggregates)continue;
+            // Encoding 2: a write's terms follow it — source, channel, the values that take part, multiply, shift, sign, neighbourhood.
+            p.words_.push_back(static_cast<std::uint32_t>(w.terms.size()));
+            for(const Term& term:w.terms) {
+                p.words_.insert(p.words_.end(),{static_cast<std::uint32_t>(term.kind),term.test.channel,term.test.value.low,term.test.value.high,
+                    term.multiply,term.shift,term.negative ? 1u : 0u});
+                put_offsets(p.words_,term.offsets);
+            }
+        }
         p.words_[start]=static_cast<std::uint32_t>(p.words_.size());
     }
-    mlibs::log::Log{"simulation"}.debug("cellular plan prepared: {} channels, {} rules, halo {}, {} words",channels,p.rules_,halo,p.words_.size());
+    mlibs::log::Log{"simulation"}.debug("cellular plan prepared: encoding {}, {} channels, {} rules, halo {}, {} words",p.words_[0],channels,p.rules_,halo,p.words_.size());
     return p;
 }
 
@@ -89,6 +140,20 @@ Statistics Program::run_tile(Shape shape, Tile tile, std::span<const std::uint32
         }
         return in[static_cast<std::size_t>(channel)*cells+static_cast<std::uint32_t>(y)*shape.width+static_cast<std::uint32_t>(x)];
     };
+    // An aggregate of a channel over the neighbourhood at `position` (its size, then its offsets): how many of the
+    // values are within [low, high] (1), or their sum (2), the least (3) or the greatest (4) of those that are.
+    const auto aggregate=[&](std::uint32_t kind,std::uint32_t channel,std::uint32_t low,std::uint32_t high,std::size_t position,std::uint32_t x,std::uint32_t y) {
+        const std::uint32_t count=words_[position];
+        std::uint32_t found=0,sum=0,least=largest,greatest=0;
+        for(std::uint32_t o=0;o<count;++o) {
+            const auto value=read(channel,static_cast<std::int32_t>(x)+static_cast<std::int32_t>(words_[position+1+2*o])-32,
+                static_cast<std::int32_t>(y)+static_cast<std::int32_t>(words_[position+2+2*o])-32);
+            if(value<low || value>high)continue;
+            ++found;sum=saturating_add(sum,value);least=std::min(least,value);greatest=std::max(greatest,value);
+        }
+        return kind==1 ? found : kind==2 ? sum : kind==3 ? least : greatest;
+    };
+    const bool with_terms=words_[0]==2;
     Statistics stats;
     for(auto y=tile.y;y<tile.y+tile.height;++y)for(auto x=tile.x;x<tile.x+tile.width;++x) {
         const auto cell=y*shape.width+x;++stats.cells;
@@ -99,12 +164,7 @@ Statistics Program::run_tile(Shape shape, Tile tile, std::span<const std::uint32
                 const auto kind=words_[pos],channel=words_[pos+1],low=words_[pos+2],high=words_[pos+3],count=words_[pos+6];
                 if(kind==0) {const auto value=in[static_cast<std::size_t>(channel)*cells+cell];matches=value>=low && value<=high;}
                 else {
-                    std::uint32_t found=0;
-                    for(std::uint32_t o=0;o<count;++o) {
-                        const auto value=read(channel,static_cast<std::int32_t>(x)+static_cast<std::int32_t>(words_[pos+7+2*o])-32,
-                            static_cast<std::int32_t>(y)+static_cast<std::int32_t>(words_[pos+8+2*o])-32);
-                        found+=value>=low && value<=high;
-                    }
+                    const auto found=aggregate(kind,channel,low,high,pos+6,x,y);
                     matches=found>=words_[pos+4] && found<=words_[pos+5];
                 }
                 if(!matches)break;
@@ -112,11 +172,24 @@ Statistics Program::run_tile(Shape shape, Tile tile, std::span<const std::uint32
             }
             if(!matches)continue;
             ++stats.matched;bool changed=false;pos=words_[start+3];
-            for(std::uint32_t w=0;w<words_[start+2];++w,pos+=3) {
+            for(std::uint32_t w=0;w<words_[start+2];++w) {
                 const auto index=static_cast<std::size_t>(words_[pos])*cells+cell;
-                const auto old=in[index],value=words_[pos+2],kind=words_[pos+1];std::uint32_t next=value;
-                if(kind==1)next=old+std::min(value,std::numeric_limits<std::uint32_t>::max()-old);
-                else if(kind==2)next=old-std::min(old,value);
+                const auto old=in[index],kind=words_[pos+1];
+                std::uint32_t plus=words_[pos+2],minus=0;
+                pos+=3;
+                if(with_terms) {
+                    const std::uint32_t terms=words_[pos++];
+                    for(std::uint32_t t=0;t<terms;++t) {
+                        const auto source=words_[pos],channel=words_[pos+1];
+                        const auto value=source==0 ? in[static_cast<std::size_t>(channel)*cells+cell] : aggregate(source,channel,words_[pos+2],words_[pos+3],pos+7,x,y);
+                        const auto amount=saturating_multiply(value,words_[pos+4])>>words_[pos+5];
+                        if(words_[pos+6])minus=saturating_add(minus,amount);else plus=saturating_add(plus,amount);
+                        pos+=8+2*words_[pos+7];
+                    }
+                }
+                std::uint32_t next=plus-std::min(plus,minus);
+                if(kind==1) {next=saturating_add(old,plus);next-=std::min(next,minus);}
+                else if(kind==2) {next=old-std::min(old,plus);next=saturating_add(next,minus);}
                 out[index]=next;changed|=next!=old;
             }
             stats.changed+=changed;break;

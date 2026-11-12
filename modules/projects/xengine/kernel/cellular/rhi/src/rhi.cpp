@@ -10,8 +10,10 @@ r::ShaderFormats shader_formats() {return shaders::rules::evolve.formats();}
 Kernel::~Kernel() {if(rules_)device_.destroy(rules_);if(pipeline_)device_.destroy(pipeline_);}
 r::Result<std::unique_ptr<Kernel>> Kernel::prepare(r::Device& device,const Program& program) {
     mlibs::trace::Span span("simulation.cellular.gpu.prepare","simulation");
-    if(!program.channels() || program.words().empty() || program.words()[0]!=1)
-        return std::unexpected(r::Error{r::Errc::invalid,"unprepared cellular program or unsupported encoding"});
+    if(!program.channels() || program.words().empty())return std::unexpected(r::Error{r::Errc::invalid,"unprepared cellular program"});
+    // Aggregates and writes with terms (encoding 2) run on the CPU reference until the device's kernel has them.
+    if(program.encoding()!=1)
+        return std::unexpected(r::Error{r::Errc::unsupported,std::format("a cellular program of encoding {} is not run on a device yet",program.encoding())});
     if(!device.caps().compute)return std::unexpected(r::Error{r::Errc::unsupported,"cellular execution requires compute"});
     auto result=std::unique_ptr<Kernel>(new Kernel(device,program));
     auto pipeline=device.create(r::ComputePipelineDesc{&shaders::rules::evolve,"simulation.cellular"});

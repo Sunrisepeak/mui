@@ -13,7 +13,11 @@ struct Offset {
 };
 inline constexpr std::array<Offset,4> cardinal{{{-1,0},{1,0},{0,-1},{0,1}}};
 inline constexpr std::array<Offset,8> surrounding{{{-1,-1},{0,-1},{1,-1},{-1,0},{1,0},{-1,1},{0,1},{1,1}}};
-enum class ConditionKind : std::uint32_t { self, neighbors };
+// What a condition asks of a cell: its own value (`self`), or an aggregate over a neighbourhood of one channel —
+// how many of the neighbours' values are in `test.value` (`neighbors`), or the sum, the least or the greatest of
+// those that are (`sum`, `minimum`, `maximum`; every value by default). The aggregate is in `count` or the
+// condition does not hold. A sum saturates; of no value the least is the largest number and the greatest is 0.
+enum class ConditionKind : std::uint32_t { self, neighbors, sum, minimum, maximum };
 struct Condition {
     ConditionKind kind = ConditionKind::self;
     Test test;
@@ -23,9 +27,58 @@ struct Condition {
     [[nodiscard]] static Condition neighbors(Test test, std::span<const Offset> offsets, Range count) {
         return {.kind=ConditionKind::neighbors,.test=test,.offsets={offsets.begin(),offsets.end()},.count=count};
     }
+    // An aggregate of `channel` over `offsets` within `result`.
+    [[nodiscard]] static Condition sum(std::uint32_t channel, std::span<const Offset> offsets, Range result) {
+        return {.kind=ConditionKind::sum,.test={channel,{}},.offsets={offsets.begin(),offsets.end()},.count=result};
+    }
+    [[nodiscard]] static Condition minimum(std::uint32_t channel, std::span<const Offset> offsets, Range result) {
+        return {.kind=ConditionKind::minimum,.test={channel,{}},.offsets={offsets.begin(),offsets.end()},.count=result};
+    }
+    [[nodiscard]] static Condition maximum(std::uint32_t channel, std::span<const Offset> offsets, Range result) {
+        return {.kind=ConditionKind::maximum,.test={channel,{}},.offsets={offsets.begin(),offsets.end()},.count=result};
+    }
 };
+// A term of a write's amount (encoding 2): a source — the cell's own value of a channel, or an aggregate of a
+// channel over a neighbourhood, as a condition's — times `multiply`, shifted right by `shift`, added to the amount
+// or (`negative`) taken from it. 32-bit unsigned arithmetic throughout, every step saturating, so a device computes
+// the same bits: source × multiply stops at the largest number before the shift.
+enum class SourceKind : std::uint32_t { self, count, sum, minimum, maximum };
+struct Term {
+    SourceKind kind = SourceKind::self;
+    Test test;                    // the channel; and, for an aggregate, the values that take part (all by default)
+    std::vector<Offset> offsets;  // an aggregate's neighbourhood; none for `self`
+    std::uint32_t multiply = 1, shift = 0;
+    bool negative = false;
+    [[nodiscard]] static Term self(std::uint32_t channel, std::uint32_t multiply = 1, std::uint32_t shift = 0) {
+        return {.kind=SourceKind::self,.test={channel,{}},.multiply=multiply,.shift=shift};
+    }
+    [[nodiscard]] static Term sum(std::uint32_t channel, std::span<const Offset> offsets, std::uint32_t multiply = 1, std::uint32_t shift = 0) {
+        return {.kind=SourceKind::sum,.test={channel,{}},.offsets={offsets.begin(),offsets.end()},.multiply=multiply,.shift=shift};
+    }
+    [[nodiscard]] static Term minimum(std::uint32_t channel, std::span<const Offset> offsets, std::uint32_t multiply = 1, std::uint32_t shift = 0) {
+        return {.kind=SourceKind::minimum,.test={channel,{}},.offsets={offsets.begin(),offsets.end()},.multiply=multiply,.shift=shift};
+    }
+    [[nodiscard]] static Term maximum(std::uint32_t channel, std::span<const Offset> offsets, std::uint32_t multiply = 1, std::uint32_t shift = 0) {
+        return {.kind=SourceKind::maximum,.test={channel,{}},.offsets={offsets.begin(),offsets.end()},.multiply=multiply,.shift=shift};
+    }
+    [[nodiscard]] static Term count(Test test, std::span<const Offset> offsets, std::uint32_t multiply = 1, std::uint32_t shift = 0) {
+        return {.kind=SourceKind::count,.test=test,.offsets={offsets.begin(),offsets.end()},.multiply=multiply,.shift=shift};
+    }
+    // The same term, taken from the amount.
+    [[nodiscard]] Term taken() const { Term out=*this;out.negative=true;return out; }
+};
+// A write: the channel's next value from an amount — `value`, and with terms a linear expression of the cell and
+// its neighbourhood: plus = value + the positive terms, minus = the negative terms (each sum saturating).
+//   set                  next = plus − minus, not below 0
+//   add_saturating       next = old + plus (not above the largest number), then − minus (not below 0)
+//   subtract_saturating  next = old − plus (not below 0), then + minus (not above the largest number)
 enum class WriteKind : std::uint32_t { set, add_saturating, subtract_saturating };
-struct Write { std::uint32_t channel = 0; WriteKind kind = WriteKind::set; std::uint32_t value = 0; };
+struct Write {
+    std::uint32_t channel = 0;
+    WriteKind kind = WriteKind::set;
+    std::uint32_t value = 0;
+    std::vector<Term> terms;
+};
 struct Rule {
     std::vector<Condition> when; // all must match; empty is unconditional
     std::vector<Write> writes;  // unique channels; empty is a first-match barrier
@@ -125,7 +178,11 @@ public:
     [[nodiscard]] Limits limits() const noexcept { return limits_; }
     // Read-only, versioned uint32 operator encoding consumed by optional
     // backends. No arbitrary bytecode constructor; prepare validates it once.
+    // Its first word is the encoding: 1 for rules of states, thresholds and
+    // counted neighbourhoods with constant writes — what every backend runs —
+    // and 2 when a rule aggregates (sum, minimum, maximum) or a write has terms.
     [[nodiscard]] std::span<const std::uint32_t> words() const noexcept { return words_; }
+    [[nodiscard]] std::uint32_t encoding() const noexcept { return words_.empty() ? 0 : words_[0]; }
     [[nodiscard]] std::expected<std::size_t,Failure> values(Shape shape) const noexcept;
     // Channel-major uint32 fields: [channel][y][x]. Input/output must be
     // disjoint and exactly shaped; failures never touch output. No allocations.

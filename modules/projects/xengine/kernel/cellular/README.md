@@ -17,6 +17,15 @@ if (result) before.swap(after); // host publishes one complete step
 
 Fields are contiguous channel-major `uint32_t` values: `[channel][y][x]`. All predicates and writes read the same immutable input. Rules are ordered; the first match wins. Conditions are ANDed; neighborhood counts use explicit offsets. Writes set, saturating-add or saturating-subtract; untouched channels copy through. Empty writes form a barrier. These are discrete, exact integer transitions, not a continuous physical/chemical solver.
 
+**Aggregates and linear writes** (encoding 2; the first of the staged program's stages, D-167). A condition may also ask for a neighbourhood's *sum*, *least* or *greatest* value of a channel (`Condition::sum`, `minimum`, `maximum`), not only how many of its values are in a range; and a write's amount may be a linear expression of the cell and its neighbourhood — `value` plus terms, each a source (the cell's own value, or a count, sum, least or greatest over a neighbourhood) times a factor, shifted right, added or taken:
+
+```cpp
+// Heat spreads: next = (4 × self + the four neighbours) / 8.
+const std::vector<ca::Rule> diffuse{{{}, {{0, ca::WriteKind::set, 0, {ca::Term::self(0, 4, 3), ca::Term::sum(0, ca::cardinal, 1, 3)}}}}};
+```
+
+Every step of it is 32-bit unsigned and saturating — a product stops at the largest number before its shift, sums stop there, a difference stops at 0 — so it is the same bits wherever it runs, and a device's shader needs no wider integer. A program that uses none of this keeps encoding 1, word for word what it was, which is what the device's kernel runs today; one that does is encoding 2 and runs on this CPU reference (the device's kernel refuses it as unsupported until it has the same stages). Flows between cells that conserve a quantity, and cells that move, are the next stages (transfer, exchange), not these.
+
 Preparation owns a validated descriptor, infers halo reach and enforces resource/offset limits. `step` accepts a tile size/order; `step_tile` writes only the requested rectangle and reads its logical halo from the full immutable field. Hosts may schedule disjoint rectangles through their existing task executor. This is not streamed/sparse halo exchange, multi-cell movement arbitration or a new task pool.
 
 Use [the optional RHI kernel](rhi) for GPU execution (its suite and the field's device picture run on a native device in [sdl](sdl)). It consumes the same prepared word descriptor; choosing this CPU package does not import RHI, shaders, renderer, UI or games. [CONTRACT.md](CONTRACT.md) records the encoding, boundaries and error semantics.

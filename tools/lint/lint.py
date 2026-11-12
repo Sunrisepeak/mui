@@ -34,7 +34,10 @@ Rules:
                 (`== "--x"`, `argv[i]`): what a library already does is depended on (D-56, AGENTS §5)
   closure       the dependency closures CLOSURES names stay small (the render graph; simulation
                 without UI, game, renderer or, for its CPU packages, GPU)
-  thirdparty    a wrapped C library (`import mcpplibs.mwrap.*`) only in a native/ unit (D-83)
+  imports       a source imports only modules of packages its manifest reaches (its tests: its
+                dev-dependencies too; a feature's sources: that feature's) — one build directory
+                holds every member's modules, and hides what is not declared
+  thirdparty   a wrapped C library (`import mcpplibs.mwrap.*`) only in a native/ unit (D-83)
   exceptions    no `throw` / `try` in runtime and modules sources (errors are std::expected); a
                 native/ unit may catch what a third-party library throws, to answer std::expected
   paths         no std::filesystem::path::string() / generic_string() outside tests: on Windows
@@ -66,7 +69,7 @@ import sys
 import tempfile
 import tomllib
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 SOURCE_SUFFIXES = {".cppm", ".cpp", ".ixx", ".cc", ".cxx", ".h", ".hpp", ".hh", ".hxx", ".inl"}
 HEADER_SUFFIXES = {".h", ".hpp", ".hh", ".hxx", ".inl"}
@@ -827,11 +830,11 @@ def _features(data: dict, asked: set[str], defaults: bool) -> set[str]:
     return active
 
 
-def closure_of(root: Path, member: str) -> set[str]:
+def closure_of(root: Path, member: str | Path, asked: frozenset[str] = frozenset(), defaults: bool = True) -> set[str]:
     """The identities a member reaches through path dependencies (see CLOSURES)."""
     seen: set[tuple[str, frozenset[str], bool]] = set()
     names: set[str] = set()
-    pending = [(root / member, frozenset(), True)]
+    pending = [(root / member, asked, defaults)]
     while pending:
         directory, asked, defaults = pending.pop()
         key = (directory.resolve().as_posix(), asked, defaults)
@@ -869,6 +872,82 @@ def check_closures(root: Path) -> list[Problem]:
             sorted(n for n in reached if any(n == p or n.startswith(p + ".") for p in rule["not"]))
         for n in extra:
             problems.append(Problem("closure", by_name[name], f"reaches {n}, which its closure must not (tools/lint CLOSURES)"))
+    return problems
+
+
+# What a source imports, its package declares (lint `imports`). One build directory holds every member's
+# modules, so here a test that imports a module no dependency of its package gives still builds — and fails
+# where the member is built on its own (CI's rows, a consumer outside the tree). A member's sources may import
+# what its dependencies, its target dependencies and its features' dependencies reach; its tests, also what its
+# dev-dependencies reach.
+EXPORTED_MODULE = re.compile(r"^[ \t]*export\s+module\s+([\w.]+)\s*;", re.M)
+IMPORTED_MODULE = re.compile(r"^[ \t]*(?:export\s+)?import\s+([\w.]+)\s*;", re.M)
+
+
+def _member_sources(root: Path, members: list[str]):
+    """(member, file) for every C++ source, each with the deepest member that holds it."""
+    by_depth = sorted(members, key=len, reverse=True)
+    for path in source_files(root):
+        if path.suffix not in (".cpp", ".cppm"):
+            continue
+        rel = path.relative_to(root).as_posix()
+        for member in by_depth:
+            if rel.startswith(member + "/"):
+                yield member, path
+                break
+
+
+def check_imports(root: Path) -> list[Problem]:
+    problems = []
+    members = [m for m in workspace_members(root) if (root / m / "mcpp.toml").is_file()]
+    manifests = {}
+    for m in members:
+        try:
+            manifests[m] = tomllib.loads((root / m / "mcpp.toml").read_text(encoding="utf-8"))
+        except tomllib.TOMLDecodeError:
+            continue
+    sources = [(m, path) for m, path in _member_sources(root, members) if m in manifests]
+    texts = {path: strip_comments(path.read_text(encoding="utf-8", errors="replace")) for _m, path in sources}
+    owner: dict[str, str] = {}  # module -> the package that exports it
+    for m, path in sources:
+        if "/tests/" in path.relative_to(root).as_posix():
+            continue
+        for module in EXPORTED_MODULE.findall(texts[path]):
+            owner.setdefault(module, package_name(manifests[m]))
+
+    def reach(m: str, tests: bool, features: frozenset[str]) -> set[str]:
+        data = manifests[m]
+        tables = [data.get("dependencies", {})]
+        tables += [t.get("dependencies", {}) for t in data.get("target", {}).values() if isinstance(t, dict)]
+        tables += [data.get("feature-deps", {}).get(f, {}) for f in _features(data, set(features), True)]
+        if tests:
+            tables.append(data.get("dev-dependencies", {}))
+        names = {package_name(data)}
+        for table in tables:
+            for _name, spec in flatten_deps(table):
+                if isinstance(spec, dict) and "path" in spec and (root / m / spec["path"] / "mcpp.toml").is_file():
+                    names |= closure_of(root, Path(m) / spec["path"], frozenset(spec.get("features", [])), spec.get("default-features", True))
+        return names
+
+    def features_of(m: str, path: Path) -> frozenset[str]:
+        """The features whose sources the file is among (it is built with them, and may import what they take)."""
+        within = PurePosixPath(path.relative_to(root / m).as_posix())
+        table = manifests[m].get("features", {})
+        return frozenset(name for name, spec in table.items()
+                         if isinstance(spec, dict) and any(within.match(pattern) for pattern in spec.get("sources", [])))
+
+    reached: dict[tuple[str, bool, frozenset[str]], set[str]] = {}
+    for m, path in sources:
+        rel = path.relative_to(root).as_posix()
+        tests = rel.startswith(m + "/tests/")
+        key = (m, tests, frozenset() if tests else features_of(m, path))  # a package's own tests are built with its defaults
+        if key not in reached:
+            reached[key] = reach(*key)
+        for module in sorted(set(IMPORTED_MODULE.findall(texts[path]))):
+            package = owner.get(module)
+            if package and package not in reached[key]:
+                table = "[dev-dependencies]" if tests else "[dependencies]"
+                problems.append(Problem("imports", rel, f"imports {module} of {package}, which {m}/mcpp.toml does not reach; declare it in {table}"))
     return problems
 
 
@@ -1145,7 +1224,7 @@ def check_typescript_data(root: Path) -> list[Problem]:
 def run(root: Path) -> list[Problem]:
     return (check_sources(root) + check_manifests(root) + check_projects(root) + check_layout(root) + check_licences(root) + check_platforms(root) + check_pins(root)
             + check_documents(root) + check_media(root) + check_closures(root) + check_operations(root) + check_skills(root) + check_agent_surface(root)
-            + check_lead(root) + check_typescript_data(root))
+            + check_lead(root) + check_typescript_data(root) + check_imports(root))
 
 
 def self_test() -> int:
@@ -1173,6 +1252,7 @@ def self_test() -> int:
         "agent-surface": None,
         "pins": None,
         "closure": None,
+        "imports": ("modules/ui/core/tests/i_test.cpp", "import std;\nimport hanim.core;\n"),  # a module of a package its manifest does not reach
         "typescript": ("modules/ui/core/contract/x.contract.omui.toml", "[contract.x]\nrole = \"button\"\n"),
         "ops": ("modules/ui/core/src/o.cpp", "module x;\nconstexpr auto op = mlibs::control::Operation{\"ui.wipe\", openas::Effect::irreversible};\n"),
         "documents": ("examples/x/ui/bad.view.omui.json", '{"omui": "0.1", "view": {"root": {"typ": "text"}}}'),
@@ -1244,6 +1324,8 @@ def self_test() -> int:
                 (root / "spec" / "schema").mkdir(parents=True, exist_ok=True)
                 shutil.copy(Path(__file__).resolve().parents[2] / "spec" / "schema" / "view.schema.json",
                             root / "spec" / "schema" / "view.schema.json")
+            if rule == "imports":  # the module the planted test imports, exported by a package it does not declare
+                (root / "modules/base/hanim/core/src/core.cppm").write_text("export module hanim.core;\n", encoding="utf-8")
             if rule == "skills":  # the catalog its skill reads beside it, without the operation the skill names
                 (root / "modules/ui/core/x.ops.omui.ts").write_text('export default defineOps({ operations: [{ name: "ui.snapshot" }] });\n', encoding="utf-8")
             if planted:

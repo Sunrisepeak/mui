@@ -42,4 +42,6 @@ mlibs.json       = { path = "../../../../base/json" }
 openlifa.openas  = "0.2.0"
 
 [dev-dependencies]
-mcpplibs.mtest = "0.6.3"
+mcpplibs.mtest   = "0.6.3"
+# The solver stepped at the clock library's fixed steps (xpbd_test).
+mlibs.simulation = { path = "../../../../base/simulation" }

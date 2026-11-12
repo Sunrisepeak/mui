@@ -6,13 +6,12 @@
 import std;
 import mlibs.rhi;
 import mlibs.geom;
-import xrender.rhi.sdl;
+import xengine.cellular.sdl;
 import xrender.raster;
 import xrender.vector;
 import xengine.cellular;
 import xengine.cellular.present;
 import xengine.cellular.rhi;
-import mcpplibs.os;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
@@ -22,13 +21,9 @@ namespace geom = mlibs::geom;
 
 UTest cases{"cellular.present.device", [] {
     "the field drawn by the GPU from the device's own cells is the CPU's picture, one command each"_test = [] {
-        xrender::rhi::sdl::Options o;
-        o.formats = xrender::gpu_shader_formats() & ca::gpu::shader_formats();
-        if (auto lib = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) o.vulkan_library = *lib;
-        if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) o.video_driver = *video;
-        auto created = xrender::rhi::sdl::create(o);
+        auto created = xengine::cellular::sdl::open(xrender::gpu_shader_formats() & ca::gpu::shader_formats());
         if (!created) {
-            if (mcpplibs::os::env::get("OMUI_REQUIRE_GPU") == "1") expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", created.error().message);
+            if (xengine::cellular::sdl::required()) expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", created.error());
             return;
         }
         rhi::Device& device = **created;

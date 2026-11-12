@@ -103,6 +103,7 @@ PATH_LAYERS: dict[str, str] = {
     "modules/projects/xengine/cellular/rhi": "gfx",
     "modules/projects/xengine/cellular/present": "gfx",  # cells to an xrender image
     "modules/projects/xengine/audio": "media",
+    "modules/projects/xengine/cellular/sdl": "gfx",  # the kernel's suite and field on a native device
     "modules/projects/xengine/video": "media",
     "modules/projects/xengine/timeline": "media",
     "modules/projects/xengine": "game",  # world, input, physics, net, ui

@@ -44,3 +44,8 @@ mcpplibs.mtest = "0.5.2"
 mlibs.utils = { path = "../../../base/utils" }
 mlibs.rhi = { path = "../../../gfx/rhi" }
 xrender.rhi.sdl = { path = "../../xrender/rhi/sdl" }
+# rhi_sdl_test: hanim.rhi's suite on SDL_GPU. The owner runs its suite against a backend (D-161);
+# here, because hanim.rhi runs on the Web too and this backend does not.
+hanim.rhi = { path = "../rhi" }
+mlibs.cts = { path = "../../../base/cts" }
+mcpplibs.os = "0.4.4"

@@ -31,9 +31,3 @@ mlibs.utils    = { path = "../../../../base/utils" }
 [dev-dependencies]
 mcpplibs.mtest = "0.5.2"
 mlibs.utils = { path = "../../../../base/utils" }
-# field_present_test: the field stepped and painted on a device, drawn by the GPU
-# renderer (the owner's test takes a backend, D-161).
-xengine.cellular.rhi = { path = "../rhi" }
-xrender.rhi.sdl      = { path = "../../../xrender/rhi/sdl" }
-mlibs.rhi            = { path = "../../../../gfx/rhi" }
-mcpplibs.os          = "0.4.4"

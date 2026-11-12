@@ -1,0 +1,40 @@
+# xengine.cellular.sdl — the cellular kernel on a native device (SDL_GPU): its
+# conformance suite run there and its field on screen from the device's own
+# cells. The owner of a suite runs it against a backend (D-161), never a
+# backend against its consumers; it is a package of its own because the
+# kernel, its suite and its presenter run on the Web too and this backend
+# does not (platform isolation, D-99).
+[package]
+namespace   = "xengine.cellular"
+name        = "sdl"
+version     = "0.1.0"
+description = "The cellular kernel on SDL_GPU: its suite and its field on screen, on a native device"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "backend"
+
+[targets.xengine-cellular-sdl]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm"]
+
+[dependencies]
+mlibs.rhi       = { path = "../../../../gfx/rhi" }
+xrender.rhi.sdl = { path = "../../../xrender/rhi/sdl" }
+mcpplibs.os     = "0.4.4"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.5.2"
+xengine.cellular = { path = ".." }
+"xengine.cellular.rhi" = { path = "../rhi" }
+"xengine.cellular.rhi.cts" = { path = "../rhi/cts" }
+"xengine.cellular.present" = { path = "../present" }
+xrender.vector = { path = "../../../xrender/vector" }
+xrender.raster = { path = "../../../xrender/raster" }
+mlibs.geom     = { path = "../../../../base/geom" }
+mlibs.utils    = { path = "../../../../base/utils" }
+mlibs.cts      = { path = "../../../../base/cts" }

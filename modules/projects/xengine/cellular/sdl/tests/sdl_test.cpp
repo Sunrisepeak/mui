@@ -1,15 +1,12 @@
 // The cellular kernel's conformance suite on SDL_GPU, on whatever device this
-// machine has (lavapipe in Linux CI): the owner of a suite runs it against a
-// backend (D-161), never a backend against its consumers. With
-// OMUI_REQUIRE_GPU=1 (CI) a missing device fails; otherwise it is said and
-// the case passes vacuously.
+// machine has (lavapipe in Linux CI). With OMUI_REQUIRE_GPU=1 (CI) a missing
+// device fails; otherwise it is said and the case passes vacuously.
 import std;
 import mlibs.rhi;
 import mlibs.cts;
-import xrender.rhi.sdl;
+import xengine.cellular.sdl;
 import xengine.cellular.rhi;
 import xengine.cellular.rhi.cts;
-import mcpplibs.os;
 import mlibs.testing;
 import mcpplibs.mtest;
 
@@ -19,14 +16,10 @@ namespace gpu = xengine::cellular::gpu;
 
 UTest cases{"cellular.rhi.sdl", [] {
     "CPU/GPU equality throughout reactions, resident batches and checkpoint replay"_test = [] {
-        xrender::rhi::sdl::Options options;
-        options.formats = gpu::shader_formats();
-        if (auto lib = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) options.vulkan_library = *lib;
-        if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) options.video_driver = *video;
-        auto device = xrender::rhi::sdl::create(options);
+        auto device = xengine::cellular::sdl::open(gpu::shader_formats());
         if (!device) {
-            if (mcpplibs::os::env::get("OMUI_REQUIRE_GPU") == "1") expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", device.error().message);
-            else std::println("no GPU device here ({}); set OMUI_REQUIRE_GPU=1 to make that a failure", device.error().message);
+            if (xengine::cellular::sdl::required()) expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", device.error());
+            else std::println("no GPU device here ({}); set OMUI_REQUIRE_GPU=1 to make that a failure", device.error());
             return;
         }
         const auto& caps = (*device)->caps();

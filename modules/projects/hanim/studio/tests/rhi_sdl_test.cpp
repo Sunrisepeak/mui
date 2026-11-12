@@ -1,8 +1,9 @@
 // hanim.rhi's conformance suite on SDL_GPU, on whatever device this machine
 // has (lavapipe in Linux CI): the owner of a suite runs it against a backend
-// (D-161), never a backend against its consumers. With OMUI_REQUIRE_GPU=1
-// (CI) a missing device fails; otherwise it is said and the case passes
-// vacuously.
+// (D-161), never a backend against its consumers. It is hanim.studio's test
+// because hanim.rhi runs on the Web too and this backend does not. With
+// OMUI_REQUIRE_GPU=1 (CI) a missing device fails; otherwise it is said and the
+// case passes vacuously.
 import std;
 import mlibs.rhi;
 import mlibs.cts;

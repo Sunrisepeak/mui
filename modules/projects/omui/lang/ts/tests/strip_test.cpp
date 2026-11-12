@@ -276,45 +276,10 @@ UTest cases{"lang.ts strip", [] {
         const auto program = chosen && !chosen->empty() ? std::optional(mcpplibs::os::fs::from_utf8(*chosen)) : mcpplibs::os::env::find_executable("esbuild");
         if (!program) {
             // The workspace declares it ([xlings.workspace], when = "run"): on CI its absence is a failure, not a skip.
-            if (mcpplibs::os::env::get("CI")) {
-                // What the run's PATH holds of esbuild, to see where a provisioned one went (red list 39).
-                const char separator = std::filesystem::path::preferred_separator == '\\' ? ';' : ':';
-                std::string seen;
-                for (const auto part : std::views::split(mcpplibs::os::env::get("PATH").value_or(""), separator)) {
-                    const std::filesystem::path dir = mcpplibs::os::fs::from_utf8(std::string_view(part.begin(), part.end()));
-                    std::error_code error;
-                    for (const auto& entry : std::filesystem::directory_iterator(dir, error))
-                        if (mcpplibs::os::fs::utf8(entry.path().filename()).starts_with("esbuild")) seen += std::format(" {}", mcpplibs::os::fs::generic_utf8(entry.path()));
-                    if (mcpplibs::os::fs::generic_utf8(dir).contains("xlings")) seen += std::format(" [dir {}]", mcpplibs::os::fs::generic_utf8(dir));
-                }
-                // And whether a payload was installed at all, beneath the xlings and mcpp homes those directories
-                // are in: no payload is a provisioning that never ran, a payload without a shim a shim not written.
-                std::set<std::filesystem::path> homes;
-                for (const auto part : std::views::split(mcpplibs::os::env::get("PATH").value_or(""), separator)) {
-                    std::filesystem::path dir = mcpplibs::os::fs::from_utf8(std::string_view(part.begin(), part.end()));
-                    for (; !dir.empty() && dir != dir.root_path(); dir = dir.parent_path())
-                        if (dir.filename() == ".xlings" || mcpplibs::os::fs::utf8(dir.filename()).starts_with("xim-x-mcpp")) {
-                            homes.insert(dir);
-                            break;
-                        }
-                }
-                std::string payloads;
-                for (const auto& home : homes) {
-                    std::error_code error;
-                    int found = 0;
-                    for (auto it = std::filesystem::recursive_directory_iterator(home, std::filesystem::directory_options::skip_permission_denied, error);
-                         it != std::filesystem::recursive_directory_iterator() && found < 12; it.increment(error)) {
-                        if (error) break;
-                        if (it.depth() > 6) it.disable_recursion_pending();
-                        if (mcpplibs::os::fs::utf8(it->path().filename()).contains("esbuild")) {
-                            payloads += std::format(" {}", mcpplibs::os::fs::generic_utf8(it->path()));
-                            ++found;
-                        }
-                    }
-                }
-                fail(std::format("no esbuild, though the workspace declares it for test runs ([xlings.workspace]); on PATH:{}; beneath {} home(s):{}",
-                                 seen.empty() ? " nothing like it" : seen, homes.size(), payloads.empty() ? " nothing like it" : payloads));
-            }
+            if (mcpplibs::os::env::get("CI"))
+                // mcpp installs it for a test run and gives a test its directory on PATH on Linux and macOS, not
+                // on Windows (mcpp#926): that row names the installed program by OMUI_ESBUILD.
+                fail("no esbuild on PATH and none named by OMUI_ESBUILD, though the workspace declares it for test runs ([xlings.workspace], when = \"run\")");
             skip("no esbuild (the workspace declares it: mcpp test installs it; or OMUI_ESBUILD)");
         }
         std::vector<std::pair<std::string, std::string>> sources;

@@ -251,6 +251,13 @@ jobs:
 
       - name: Test every member
         run: |
+          # The workspace declares esbuild for test runs and mcpp installs it; on Windows a test is not
+          # given the directory it is installed in (mcpp#926), so there the test is told where it is.
+          if [ "$RUNNER_OS" = Windows ]; then
+            version="$(sed -n 's/^"xim:esbuild" *= *{ *version *= *"\([^"]*\)".*/\1/p' mcpp.toml)"
+            export OMUI_ESBUILD="$(cygpath -m "$HOME/.mcpp/registry/data/xpkgs/xim-x-esbuild/$version/bin/esbuild.exe")"
+            echo "OMUI_ESBUILD=$OMUI_ESBUILD"
+          fi
           # The site is a validation line with hundreds of rendered frames: it
           # has a job of its own (`site`), so this row stays within its time.
           mcpp test --workspace --profile '${{ matrix.profile }}' --exclude omui.reflect --exclude omui.site --exclude omui.entry.devhost 2>&1 | tee tests.log

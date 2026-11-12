@@ -1,14 +1,13 @@
-// xengine's operations (convergence plan §10.3): what an Agent does with
-// xengine's shared editing pieces through the `xengine` command (JSON out;
-// exit 0 done, 1 refused or failed with why, 2 a wrong command). Now the
-// timeline every editor shares (its JSON, *.timeline.omui.json); a game's agent player
-// is its own catalog (breakout's), the cellular workspace the Inspector's.
-// omui-gen ops makes the listing (media/ops/xengine.ops.json) and the
-// reference (media/ops/xengine.ops.md); effects are openas's.
+// The timeline's operations (convergence plan §10.3): what an Agent does with
+// the timeline every editor shares (hanim.timeline; its JSON,
+// *.timeline.omui.json) through the `hanim-timeline` command (JSON out; exit 0
+// done, 1 refused or failed with why, 2 a wrong command). omui-gen ops makes
+// the listing (media/ops/timeline.ops.json) and the reference
+// (media/ops/timeline.ops.md); effects are openas's.
 import { defineOps } from "omui/define";
 
 export default defineOps({
-  product: "xengine",
+  product: "timeline",
   doc: "Check timelines, read what plays at a moment, make the usual edits and take them back.",
   generated: "media/ops",
   operations: [

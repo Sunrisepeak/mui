@@ -2,7 +2,7 @@
 // the same display lists (the same hash, the same pixels), the images they
 // use once per revision, and the person's input travels back and is handled.
 import std;
-import omui.agent;
+import omui;
 import xrender.vector;
 import xrender.raster;
 import xrender.text;
@@ -63,8 +63,8 @@ UTest cases{"present", [] {
         rt.mount("main", column({.padding = 8, .gap = 8}, {box({.id = "go", .width = 60, .height = 30, .background = Fill(std::string("accent")), .radius = 6,
                                                                  .label = "Go", .on = {{"press", [&](const Value&) { ++pressed; on.set(true); }}}}),
                                                             when([on] { return on.get(); }, [] { return box({.id = "done", .width = 40, .height = 20, .background = Fill(std::string("success"))}); })}));
-        agent::Presenter presenter(rt, std::move(ends.application));
-        agent::Presentation host(std::move(ends.host));
+        Presenter presenter(rt, std::move(ends.application));
+        Presentation host(std::move(ends.host));
         FrameOutput first = rt.frame({seconds(0), {}});
         const auto first_hash = first.list->hash();  // the runtime's list is the next frame's after it
         expect(presenter.send(first));
@@ -118,8 +118,8 @@ UTest cases{"present", [] {
         new_build.mount("main", column({}, {text({.id = "t", .text = "x"})}));
         (void)old_build.frame({seconds(0), {}});
         (void)new_build.frame({seconds(0), {}});
-        agent::Presenter old_presenter(old_build, std::move(old_ends.application)), new_presenter(new_build, std::move(new_ends.application));
-        agent::Presentation old_host(std::move(old_ends.host)), new_host(std::move(new_ends.host));
+        Presenter old_presenter(old_build, std::move(old_ends.application)), new_presenter(new_build, std::move(new_ends.application));
+        Presentation old_host(std::move(old_ends.host)), new_host(std::move(new_ends.host));
         expect(old_host.ask_state());
         for (int tries = 0; tries < 200 && !old_host.state(); ++tries) {
             (void)old_presenter.input();  // the application reads what the host sent between frames
@@ -145,12 +145,12 @@ UTest cases{"present", [] {
         (void)rt.frame({seconds(0), {}});
         // The compiler names the file relative to the package, the element's place may be absolute: their trailing components match.
         const std::string file = std::format("tests/{}", std::filesystem::path(std::source_location::current().file_name()).filename().string());
-        expect(rt.path(agent::built_near(rt, file, field_line)).ends_with("field")) << "a problem on the element's own line";
-        expect(rt.path(agent::built_near(rt, file, title_line + 1)).ends_with("title")) << "a problem below it, before the next";
-        expect(!agent::built_near(rt, file, title_line - 1)) << "none built above it in that file";
-        expect(!agent::built_near(rt, "other/thing.cpp", field_line)) << "another file";
-        agent::Presenter presenter(rt, std::move(ends.application));
-        agent::Presentation host(std::move(ends.host));
+        expect(rt.path(built_near(rt, file, field_line)).ends_with("field")) << "a problem on the element's own line";
+        expect(rt.path(built_near(rt, file, title_line + 1)).ends_with("title")) << "a problem below it, before the next";
+        expect(!built_near(rt, file, title_line - 1)) << "none built above it in that file";
+        expect(!built_near(rt, "other/thing.cpp", field_line)) << "another file";
+        Presenter presenter(rt, std::move(ends.application));
+        Presentation host(std::move(ends.host));
         expect(host.ask_places(Value(Value::List{Value{}.set("file", file).set("line", field_line), Value{}.set("file", "nope.cpp").set("line", 1)})));
         for (int tries = 0; tries < 200 && !host.places(); ++tries) {
             (void)presenter.input();
@@ -177,8 +177,8 @@ UTest cases{"present", [] {
         // The host has Inter only: the monospace face is the application's to give.
         mlibs::text::FontCollection host_fonts;
         expect(fatal(host_fonts.add_file(mlibs::text::FontCollection::default_directory() / "Inter.ttf").has_value()));
-        agent::Presentation host(std::move(ends.host), &host_fonts);
-        agent::Presenter presenter(rt, std::move(ends.application));
+        Presentation host(std::move(ends.host), &host_fonts);
+        Presenter presenter(rt, std::move(ends.application));
         expect(presenter.send(first));
         const xrender::DisplayList* got = nullptr;
         for (int tries = 0; tries < 200 && !got; ++tries) got = host.receive(std::chrono::milliseconds(5));
@@ -217,8 +217,8 @@ UTest cases{"present", [] {
         const xrender::ImageRef picture = rt.images().add(4, 4, pixels);
         xrender::DisplayList list;
         list.draw_image(picture, {0, 0, 4, 4}, {10, 10, 40, 40}, xrender::Sampling::nearest);
-        agent::Presenter presenter(rt, std::move(ends.application));
-        agent::Presentation host(std::move(ends.host));
+        Presenter presenter(rt, std::move(ends.application));
+        Presentation host(std::move(ends.host));
         expect(presenter.send({.list = &list}));
         const auto* shown = host.receive(std::chrono::milliseconds(2000));
         expect(shown && host.images().get(picture) && std::ranges::equal(host.images().get(picture)->bytes(), rt.images().get(picture)->bytes()));

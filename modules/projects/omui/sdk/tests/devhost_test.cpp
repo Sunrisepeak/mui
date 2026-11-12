@@ -19,7 +19,7 @@ namespace {
 struct Application {
     Runtime                              rt;
     Signal<bool>                         on{false};
-    std::optional<agent::Presenter>      presenter;
+    std::optional<Presenter>      presenter;
     bool                                 done = false;
     int                                  frame = 0;
     static inline int                    switch_line = 0;  // where its switch is built (a problem's place)

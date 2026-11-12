@@ -27,5 +27,6 @@ export import :host;  // the desktop's window (openmui.host.sdl3), or the page's
 export import mlibs.i18n;
 export import :app;
 export import :system;
+export import :present;  // an application drawn in another process's window: the development host's transport (D-154)
 export import :devhost;  // the development host: the application drawn in its window, new builds faded in (W16)  // files chosen, notices, a tray, a menu bar: native or drawn (W7)
 export import :agent_guide;  // agent.md for every application (--agent-guide)

@@ -1,4 +1,4 @@
-// omui.agent:present — an application drawn in another process's window
+// omui:present — an application drawn in another process's window
 // (W16, D-154: in development the host owns the window, the input, the
 // designer and its history; the application is a render target). The
 // application sends each frame's display list (xrender.vector:wire) and the
@@ -15,11 +15,17 @@
 // asks the one running where the elements built there are (W16: a problem
 // shown beside its element).
 //
+// The development host's transport (D-161's T0.5): it carries display lists
+// and input between two processes, and is neither the agent endpoint nor the
+// interface's subject — so it lives with the two ends that use it, the
+// application's `run` and the development host (omui:devhost), not in
+// omui.agent.
+//
 //     // the application                         // the host
-//     agent::Presenter out(rt, std::move(c));    agent::Presentation in(std::move(c));
+//     omui::Presenter out(rt, std::move(c));     omui::Presentation in(std::move(c));
 //     out.send(rt.frame(…));                     while (auto list = in.receive(wait)) draw(*list, in.images());
 //     rt.frame({t, out.input()});                in.send_input(events);
-export module omui.agent:present;
+export module omui:present;
 
 import std;
 import mcpplibs.os;
@@ -28,7 +34,7 @@ import omui.view;
 import xrender.vector;
 import mlibs.text;
 
-export namespace omui::agent {
+export namespace omui {
 
 // The element built nearest above `line` in `file` (matched by its trailing
 // components: a compiler and std::source_location may name it from different
@@ -103,4 +109,4 @@ private:
     std::unordered_map<std::uint64_t, std::uint32_t> faces_;     // a face's identity → this side's face
 };
 
-}  // namespace omui::agent
+}  // namespace omui

@@ -52,7 +52,7 @@ struct DevHost::Impl {
     // An application shown: its presentation, the last frame drawn as the host's image.
     struct Shown {
         int                                 number = 0;
-        std::unique_ptr<agent::Presentation> presentation;
+        std::unique_ptr<Presentation> presentation;
         xrender::ImageRef                   image;
         std::uint64_t                       frames_drawn = 0;
     };
@@ -89,7 +89,7 @@ struct DevHost::Impl {
     void step() {
         if (listener)
             if (auto accepted = listener->accept_for(std::chrono::milliseconds(0)); accepted && *accepted) {
-                Shown shown{.number = ++started, .presentation = std::make_unique<agent::Presentation>(std::move(**accepted), &fonts), .image = {}, .frames_drawn = 0};
+                Shown shown{.number = ++started, .presentation = std::make_unique<Presentation>(std::move(**accepted), &fonts), .image = {}, .frames_drawn = 0};
                 (void)shown.presentation->resize(runtime.size(), runtime.scale());
                 if (!current) {
                     current = std::move(shown);

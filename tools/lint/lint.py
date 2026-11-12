@@ -108,7 +108,7 @@ PATH_LAYERS: dict[str, str] = {
     "modules/projects/xengine/kernel/audio": "media",
     "modules/projects/xengine/kernel/video": "media",
     "modules/projects/xengine/kernel/matter": "base",  # materials, their states and laws (D-165)
-    "modules/projects/xengine/game": "game",  # above the interface: world, input, net, ui (the bridge), tool
+    "modules/projects/xengine/game": "game",  # above the interface: world, input, net, ui (the bridge), runtime
     "modules/projects/gongfu": "gongfu",
     "modules/projects/omui": "ui",
     "modules/projects/omui/host": "host",
@@ -1025,7 +1025,6 @@ def check_skills(root: Path) -> list[Problem]:
 # rule and still owes its surface is listed here with what brings it; a
 # package listed may not also declare, so the list only shrinks.
 AGENT_SURFACE_OWED: dict[str, str] = {
-    "modules/projects/hanim": "T0.8: the stage as a subject (`animation.*` through the agent kernel) under the contract suite",
     "modules/projects/xengine/kernel/audio": "M6.4: what is sounding, each bus's loudness, a sound back to its event (the plan's §3.4: a structured way to listen)",
     "modules/projects/xengine/game/world": "M6.2: entities and scenes as the game subject's addresses and observation by region and kind (§3.4)",
     "modules/projects/xengine/game/net": "M6.2: a match's rollbacks as branches, a desync located to its step and channel (§3.4)",
@@ -1068,7 +1067,7 @@ def check_agent_surface(root: Path) -> list[Problem]:
                 problems.append(Problem("agent-surface", f"{member}/README.md", 'is a subject\'s and has no "Agent surface" section (subject and addresses, observation, '
                                                                                   "operations and effects, causes, preview and time, budgets and tiers, what it cannot do)"))
             tests = base / "tests"
-            if not tests.is_dir() or not any(AGENT_CONTRACT_SUITE.search(f.read_text(encoding="utf-8")) for f in tests.glob("*.cpp")):
+            if not tests.is_dir() or not any(AGENT_CONTRACT_SUITE.search(f.read_text(encoding="utf-8")) for f in tests.rglob("*.cpp")):
                 problems.append(Problem("agent-surface", where, "is a subject no test runs the contract suite on (import mlibs.agent.cts; contract::run(probe))"))
         elif said == "tool":
             if not list(base.glob("*.ops.omui.ts")):

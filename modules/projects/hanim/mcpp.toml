@@ -9,6 +9,7 @@ repo = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 kind = "runtime"
+agent = "subject"
 
 [targets.hanim]
 kind = "lib"
@@ -21,7 +22,9 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 hanim.core = { path = "core" }
 
 [features]
-default = ["engine"]
+# The stage as an agent's subject is part of what hanim is (D-174): among the defaults. A consumer that takes
+# the engine alone says so (default-features = false), as omui.view does.
+default = ["engine", "agent"]
 object = { sources = ["src/object/*.cppm", "src/object/*.cpp"] }
 effect = { sources = ["src/effect/*.cppm", "src/effect/*.cpp"] }
 library = { implies = ["object"], sources = ["src/library/*.cppm", "src/library/*.cpp"] }
@@ -29,6 +32,7 @@ program = { implies = ["library", "effect"], sources = ["src/program/*.cppm", "s
 engine = { implies = ["program"], sources = ["src/engine/*.cppm", "src/engine/*.cpp"] }
 render-vector = { implies = ["program"], sources = ["src/render/vector/*.cppm", "src/render/vector/*.cpp"] }
 control = { implies = ["engine"], sources = ["src/control/*.cppm", "src/control/*.cpp"] }
+agent = { implies = ["control"], sources = ["src/agent/*.cppm", "src/agent/*.cpp"] }
 
 # The engine steps simulated bodies with xengine.dynamics' xpbd solver on mlibs.simulation's timeline (D-131, D-133).
 [feature-deps.engine]
@@ -50,8 +54,17 @@ mlibs.geom = { path = "../../base/geom" }
 [feature-deps.control]
 mlibs.control = { path = "../../base/control" }
 
+# The stage among a process's subjects (src/agent/, module hanim.agent): the kernel's requests read, its records written.
+[feature-deps.agent]
+mlibs.agent     = { path = "../../base/agent" }
+mlibs.json      = { path = "../../base/json" }
+mlibs.utils     = { path = "../../base/utils" }
+openlifa.openas = "0.2.0"
+
 [dev-dependencies]
 mcpplibs.mtest = "0.5.2"
 mlibs.utils = { path = "../../base/utils" }
 mlibs.cts   = { path = "../../base/cts" }
+# tests/agent: the agent contract's suite on the stage.
+mlibs.agent.cts = { path = "../../base/agent/cts" }
 mcpplibs.os = "0.4.4"

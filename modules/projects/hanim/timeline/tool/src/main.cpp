@@ -1,12 +1,12 @@
-// xengine — xengine's shared editing pieces without a GUI, for people, agents and CI.
+// hanim-timeline — the timeline every editor shares (hanim.timeline) without a GUI, for people, agents and CI.
 //
-//   xengine timeline check FILE                 the timeline (rate, size, tracks, markers, length),
+//   hanim-timeline check FILE                   the timeline (rate, size, tracks, markers, length),
 //                                               or every problem at its line and column
-//   xengine timeline at FILE --time T           what plays at T: each clip, where in its source, at what level
-//   xengine timeline edit FILE EDIT --track N --clip I [--at T] [--length T] [--to-track N] [--dry-run]
+//   hanim-timeline at FILE --time T             what plays at T: each clip, where in its source, at what level
+//   hanim-timeline edit FILE EDIT --track N --clip I [--at T] [--length T] [--to-track N] [--dry-run]
 //                                               EDIT: split, trim, move, remove, ripple-remove; the file
 //                                               written as the edit leaves it, the text before kept
-//   xengine timeline undo FILE                  the last edit taken back (the text before it restored)
+//   hanim-timeline undo FILE                    the last edit taken back (the text before it restored)
 //
 // Times are the file's: 90f, 1.5s, 250ms, 123fl. An edit's history is a
 // sidecar beside the file (.<file>.history.omui.jsonl, the last 64). One JSON
@@ -27,9 +27,9 @@ namespace os = mcpplibs::os;
 using Json = nlohmann::json;
 
 constexpr std::string_view usage =
-    "usage: xengine timeline check FILE | timeline at FILE --time T | "
-    "timeline edit FILE split|trim|move|remove|ripple-remove --track N --clip I [--at T] [--length T] [--to-track N] [--dry-run] | "
-    "timeline undo FILE";
+    "usage: hanim-timeline check FILE | at FILE --time T | "
+    "edit FILE split|trim|move|remove|ripple-remove --track N --clip I [--at T] [--length T] [--to-track N] [--dry-run] | "
+    "undo FILE";
 constexpr std::size_t history_kept = 64;
 
 int answer(const Json& json, int code) {
@@ -192,7 +192,7 @@ int edit(const std::filesystem::path& file, std::string_view kind, const Options
     for (const auto& line : lines) kept += line + "\n";
     if (!os::fs::write_atomic(history, kept)) return failed(std::format("cannot keep the history in {}", utf8(history)));
     if (!os::fs::write_atomic(file, after)) return failed(std::format("cannot write {}", utf8(file)));
-    out["undo"] = std::format("xengine timeline undo {}", utf8(file));
+    out["undo"] = std::format("hanim-timeline undo {}", utf8(file));
     return answer(out, 0);
 }
 
@@ -216,30 +216,28 @@ int undo(const std::filesystem::path& file) {
     return answer(Json{{"ok", true}, {"undone", last.value("edit", std::string())}, {"left", lines.size()}}, 0);
 }
 
-// The command line (mcpplibs.cmdline): timeline check | at | edit | undo.
+// The command line (mcpplibs.cmdline): check | at | edit | undo.
 cmdline::App command_line() {
     using cmdline::App, cmdline::Arg, cmdline::Option;
     const auto file = Arg("file").required().help("the timeline file");
-    return App("xengine")
-        .description("xengine's shared editing pieces without a GUI: one JSON answer, exit 0 done / 1 refused or failed / 2 a wrong command")
-        .subcommand(App("timeline")
-                        .description("A timeline: checked, sampled, edited, an edit taken back")
-                        .subcommand(App("check").description("the timeline, or every problem at its line and column").arg(file))
-                        .subcommand(App("at")
-                                        .description("what plays at a time: each clip, where in its source, at what level")
-                                        .arg(file)
-                                        .option(Option("time").takes_value().value_name("T").help("90f, 1.5s, 250ms, 123fl")))
-                        .subcommand(App("edit")
-                                        .description("an edit, the file written as it leaves it, the text before kept")
-                                        .arg(file)
-                                        .arg(Arg("edit").required().help("split, trim, move, remove or ripple-remove"))
-                                        .option(Option("track").value_type<std::size_t>().help("a track's index (0: the first)"))
-                                        .option(Option("clip").value_type<std::size_t>().help("a clip's index on its track"))
-                                        .option(Option("at").takes_value().value_name("T").help("where the edit is"))
-                                        .option(Option("length").takes_value().value_name("T").help("a trim's length"))
-                                        .option(Option("to-track").value_type<std::size_t>().help("a move's track"))
-                                        .option(Option("dry-run").help("say what it would do, write nothing")))
-                        .subcommand(App("undo").description("the last edit taken back").arg(file)));
+    return App("hanim-timeline")
+        .description("A timeline without a GUI — checked, sampled, edited, an edit taken back: one JSON answer, exit 0 done / 1 refused or failed / 2 a wrong command")
+        .subcommand(App("check").description("the timeline, or every problem at its line and column").arg(file))
+        .subcommand(App("at")
+                        .description("what plays at a time: each clip, where in its source, at what level")
+                        .arg(file)
+                        .option(Option("time").takes_value().value_name("T").help("90f, 1.5s, 250ms, 123fl")))
+        .subcommand(App("edit")
+                        .description("an edit, the file written as it leaves it, the text before kept")
+                        .arg(file)
+                        .arg(Arg("edit").required().help("split, trim, move, remove or ripple-remove"))
+                        .option(Option("track").value_type<std::size_t>().help("a track's index (0: the first)"))
+                        .option(Option("clip").value_type<std::size_t>().help("a clip's index on its track"))
+                        .option(Option("at").takes_value().value_name("T").help("where the edit is"))
+                        .option(Option("length").takes_value().value_name("T").help("a trim's length"))
+                        .option(Option("to-track").value_type<std::size_t>().help("a move's track"))
+                        .option(Option("dry-run").help("say what it would do, write nothing")))
+        .subcommand(App("undo").description("the last edit taken back").arg(file));
 }
 
 }  // namespace
@@ -248,10 +246,9 @@ int main(int argc, char** argv) {
     const cmdline::App app = command_line();
     auto parsed = app.parse(argc, argv);
     if (!parsed) return parsed.error().is_error() ? wrong(parsed.error().message) : 0;
-    if (!parsed->has_subcommand() || !parsed->subcommand()->get().has_subcommand()) return wrong("xengine timeline <command> FILE");
-    const cmdline::ParsedArgs& timeline = parsed->subcommand()->get();
-    const std::string command(timeline.subcommand_name());
-    const cmdline::ParsedArgs& args = timeline.subcommand()->get();
+    if (!parsed->has_subcommand()) return wrong("hanim-timeline <command> FILE");
+    const std::string command(parsed->subcommand_name());
+    const cmdline::ParsedArgs& args = parsed->subcommand()->get();
     const auto file = os::fs::from_utf8(args.positional(0));
     if (command == "check") return check(file);
     if (command == "undo") return undo(file);

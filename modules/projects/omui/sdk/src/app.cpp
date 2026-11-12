@@ -350,7 +350,7 @@ int present(Headless& host, const std::filesystem::path& socket) {
         error("no host at {}: {}", utf8(socket), connected.error().message());
         return 1;
     }
-    agent::Presenter presenter(host.runtime(), std::move(*connected));
+    Presenter presenter(host.runtime(), std::move(*connected));
     const auto started = std::chrono::steady_clock::now();
     while (!mcpplibs::os::interrupt::requested()) {
         if (const auto size = presenter.resized()) host.runtime().resize(size->first, size->second);

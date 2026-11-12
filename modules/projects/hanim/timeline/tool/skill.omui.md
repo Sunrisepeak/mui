@@ -1,6 +1,6 @@
-# xengine — skill
+# timeline — skill
 
-How an Agent (or a person at a terminal) works with xengine's shared editing pieces without a GUI — now the timeline every editor shares (a video's, a sequencer's, an animation editor's). The operations are the catalog's: [`xengine.ops.omui.ts`](xengine.ops.omui.ts), listed in [`media/ops/xengine.ops.json`](media/ops/xengine.ops.json) and [`media/ops/xengine.ops.md`](media/ops/xengine.ops.md). Each is `xengine timeline <command> FILE …`: one JSON answer, exit 0 done, 1 refused or failed with why, 2 a wrong command.
+How an Agent (or a person at a terminal) works with the timeline every editor shares, without a GUI (a video's, a sequencer's, an animation editor's). The operations are the catalog's: [`timeline.ops.omui.ts`](timeline.ops.omui.ts), listed in [`media/ops/timeline.ops.json`](media/ops/timeline.ops.json) and [`media/ops/timeline.ops.md`](media/ops/timeline.ops.md). Each is `hanim-timeline <command> FILE …`: one JSON answer, exit 0 done, 1 refused or failed with why, 2 a wrong command.
 
 ## Before
 

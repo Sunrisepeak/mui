@@ -26,3 +26,5 @@ Tests (`mcpp test -p hanim.timeline`): exact frame and sample times; times as te
 | Package | Purpose |
 |---|---|
 | [audio](audio) | Frozen keys/clip fades on an audio sample clock; read-only visual queries and the mixer's prepared gain source. Neither parent imports the adapter. |
+
+Without a GUI: [tool](tool), the `hanim-timeline` command — a timeline checked, read at a moment, edited and an edit taken back, with its operations' catalog (`timeline.ops.omui.ts`) and skill.

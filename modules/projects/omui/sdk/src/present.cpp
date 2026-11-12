@@ -1,5 +1,5 @@
-// An application drawn in another process's window (omui.agent:present).
-module omui.agent;
+// An application drawn in another process's window (omui:present).
+module omui;
 
 import std;
 import mcpplibs.os;
@@ -11,7 +11,7 @@ import omui.semantic;
 import mlibs.text;
 import mlibs.hash;
 
-namespace omui::agent {
+namespace omui {
 
 namespace {
 
@@ -328,4 +328,4 @@ bool Presentation::resize(Size size, float scale) {
     return connection_.write(message(Kind::size, bytes)).has_value();
 }
 
-}  // namespace omui::agent
+}  // namespace omui

@@ -9,4 +9,3 @@ The game layer, above the interface (D-161, D-162): a game is the engine's — i
 | [input](input) | Keys, gamepads and the pointer bound to a game's actions, sampled once a step as plain data; an agent's actions held like keys (`PlayTier`, `AgentLane`) |
 | [net](net) | Rollback netcode for two peers, independent of the transport: input delay, prediction, rollback, desync detection |
 | [ui](ui) | The bridge: a game shown and played in omui — its steps paced on the runtime's clock, omui's keys and pointer given to its actions |
-| [tool](tool) | The `xengine` command, headless (xengine's operations' catalog and skill) |

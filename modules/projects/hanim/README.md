@@ -535,3 +535,21 @@ backwards. The website note's “Curve tour” uses this public API with separat
 animated parts, image style and real input. Core reference tests that read files
 use `mcpp test -p hanim.core --target wasm32-emscripten --profile wasm-test`;
 this Node-only test profile is separate from the site's publishing profile.
+
+## Agent surface
+
+The stage is a `Subject` of the agent kernel ([mlibs.agent](../../base/agent)): `hanim::agent::Stage`, module `hanim.agent` (feature `agent`, among the defaults); every operation is decided there first (openas). Its operations are hanim.control's catalog, [hanim.ops.omui.ts](hanim.ops.omui.ts) (the table and the listings in `src/control/` are `omui-gen ops`'s); how to use them, in order, is [skill.omui.md](skill.omui.md). The typed entrance for a native host is `hanim::control::Controller`, with the same catalog.
+
+| | |
+|---|---|
+| Subject and addresses | `animation`, interface `hanim.animation@0.1`. A playback is `{"slot": …, "generation": …}` as `animation.play` and `animation.list` give it (the engine is this stage's); a program is the name its owner offered it under (`Stage::offer`) |
+| State | The engine's time and every playback's place in its program — state, position, rate, progress; the hash covers those |
+| Observation | `animation.list` (what plays, with the engine's time), `animation.inspect` (one playback: state, position, duration, rate, progress, tracks, segments), `animation.plan` and `animation.prepare` (a program's duration and markers) |
+| Control | `animation.play` a program offered; `animation.pause`, `resume`, `reverse`, `rate`, `cancel` (held, or back to its first pose), `release` |
+| Time | `animation.seek` (seconds from its start), `animation.seek-progress` (0 to 1): pure animation is a function of time, so a playback sought to a position is that position's pose — the same requests, the same bits. The engine's clock is its owner's (`Engine::advance`) |
+| Budgets and tiers | A program is bounded by its `ProgramLimits`, the engine by its `EngineLimits` |
+| Not here | **Preview** (a pose asked for without touching the playback: a branch), **causes** (which layers and blends a value came from: the plan's §3.4 lists it missing) and **source** (from a drawn part back to its animation): `capabilities` says so, and the contract suite reports them unsupported. **A program as a request's own data**: programs are C++ builders or the documents [hanim.studio](studio) reads; a stage offers them by name |
+
+```sh
+mcpp test -p hanim     # tests/agent: the agent contract's suite on a stage, then a program played by name, sought, paused, released
+```

@@ -1,7 +1,7 @@
 {
   "kind": "omui.ops",
   "version": 1,
-  "product": "xengine",
+  "product": "timeline",
   "doc": "Check timelines, read what plays at a moment, make the usual edits and take them back.",
   "tools": [
     {"name": "timeline.check", "description": "The timeline (rate, size, tracks and clips, markers, length), or every problem at its line and column", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",

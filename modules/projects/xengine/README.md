@@ -26,6 +26,5 @@ It is two halves with omui between them (D-161), each in a directory of its own,
 | game | [input](game/input) | game | Keys, gamepads and the pointer bound to a game's actions, sampled once a frame as plain data |
 | game | [net](game/net) | game | Rollback netcode for two peers, independent of the transport: input delay, prediction, rollback, desync detection |
 | game | [ui](game/ui) | game | The bridge: a game inside omui — its steps paced on the runtime's clock, omui's keys and pointer given to its actions |
-| game | [tool](game/tool) | game | The `xengine` command: timelines checked, read at a moment, edited and edits taken back, headless (xengine's operations' catalog and skill) |
 
 The other engines of the system are projects of their own: [hanim](../hanim) (animation, and the timeline every editor shares: [hanim.timeline](../hanim/timeline)), [xrender](../xrender) (rendering) and [gongfu](../gongfu) (fighting games, built on the game layer's ideas but with a core that needs only the standard library). Convergence moves the timeline's animation tracks and audio gain automation onto hanim's channels (plan §6.5).

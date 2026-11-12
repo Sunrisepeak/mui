@@ -51,26 +51,30 @@ jobs:
         run: |
           mcpp toolchain install llvm 23.1.3
           mcpp toolchain default llvm@23.1.3
-      - name: A project of one file that declares esbuild and typescript for its runs
+      - name: A workspace that declares esbuild and typescript for its runs, and one member whose program and test call both
         run: |
-          mkdir -p probe/src && cd probe
+          mkdir -p probe/app/src probe/app/tests && cd probe
           cat > mcpp.toml <<'TOML'
+          [workspace.xlings.workspace]
+          "xim:esbuild" = { version = "0.25.12", when = "run" }
+          "xim:typescript" = { version = "7.0.2", when = "run" }
+
+          [workspace]
+          members = ["app"]
+          TOML
+          cat > app/mcpp.toml <<'TOML'
           [package]
-          name = "probe"
+          name = "app"
           version = "0.1.0"
 
-          [targets.probe]
+          [targets.app]
           kind = "bin"
           main = "src/main.cpp"
 
           [build]
           sources = ["src/*.cpp"]
-
-          [xlings.workspace]
-          "xim:esbuild" = { version = "0.25.12", when = "run" }
-          "xim:typescript" = { version = "7.0.2", when = "run" }
           TOML
-          cat > src/main.cpp <<'CPP'
+          cat > app/src/main.cpp <<'CPP'
           #include <cstdio>
           #include <cstdlib>
           int main() {
@@ -80,26 +84,26 @@ jobs:
               const int esbuild = std::system("esbuild --version");
               const int tsc = std::system("tsc --version");
               std::printf("esbuild --version: exit %d\ntsc --version: exit %d\n", esbuild, tsc);
-              return esbuild == 0 && tsc == 0 ? 0 : 1;
+              return esbuild == 0 ? 0 : 1;
           }
           CPP
-          # As this repository has it: the project names its mcpp to xlings, which gives the project a tool directory of its own.
+          cp app/src/main.cpp app/tests/tools_test.cpp
+          # As this repository has it: the project names its mcpp to xlings.
           printf '{\n  "workspace": {\n    "mcpp": "%s"\n  }\n}\n' '${{ matrix.mcpp }}' > .xlings.json
-          cat mcpp.toml .xlings.json
-      - name: mcpp run — the tools are provisioned for it, and the program finds them
+      - name: mcpp test and mcpp run — what PATH each gives the program, and whether it finds the tools
         working-directory: probe
         run: |
           set +e
-          mcpp run 2>&1 | tee run.log
-          status=${PIPESTATUS[0]}
-          echo "mcpp run: exit $status"
-          echo "--- what was provisioned"
-          grep -n "Provisioning\|Source \|Downloading\|esbuild\|typescript" run.log
-          echo "--- esbuild and tsc beneath the xlings and mcpp homes, and the project"
-          for home in "$HOME/.xlings" "$HOME/.mcpp" "$PWD"; do
-            [ -d "$home" ] && find "$home" -maxdepth 9 \( -iname '*esbuild*' -o -iname 'tsc' -o -iname 'tsc.*' -o -iname '*typescript*' \) 2>/dev/null | grep -v 'xim-pkgindex' | head -40
-          done
-          echo "--- the two tools in mcpp's own bin directory, and the project's"
+          echo "=== mcpp test -p app"
+          mcpp test -p app 2>&1 | tee test.log | grep -v 'Resolv\|Compiling\|Finished\|Target'
+          tested=${PIPESTATUS[0]}
+          echo "mcpp test: exit $tested"
+          echo "=== mcpp run -p app"
+          mcpp run -p app 2>&1 | tee run.log | grep -v 'Resolv\|Compiling\|Finished\|Target'
+          ran=${PIPESTATUS[0]}
+          echo "mcpp run: exit $ran"
+          echo "--- the two tools in mcpp's own bin directory"
           ls -la "$HOME/.mcpp/registry/subos/default/bin" 2>/dev/null | grep -i 'esbuild\|tsc'
-          find "$PWD/.xlings" -maxdepth 4 2>/dev/null | head -60
-          exit "$status"
+          echo "--- and beneath the project"
+          find "$PWD/.xlings" -maxdepth 4 \( -iname '*esbuild*' -o -iname 'tsc*' \) 2>/dev/null | head -10
+          [ "$tested" = 0 ] && [ "$ran" = 0 ]

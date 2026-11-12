@@ -4,6 +4,7 @@ module omui.view;
 
 import std;
 import omui.core;
+import mlibs.agent;
 import mlibs.layout;
 import xrender.vector;
 import mlibs.text;
@@ -699,6 +700,11 @@ void Runtime::set_agent_players(bool allowed) {
     impl_->agent_players = allowed;  // read by components when agents ask (Services::agent_players)
 }
 bool Runtime::agent_players() const { return impl_->agent_players; }
+void Runtime::add_subject(mlibs::agent::Subject& subject) {
+    if (std::ranges::find(impl_->subjects, &subject) == impl_->subjects.end()) impl_->subjects.push_back(&subject);
+}
+void Runtime::remove_subject(mlibs::agent::Subject& subject) { std::erase(impl_->subjects, &subject); }
+std::span<mlibs::agent::Subject* const> Runtime::subjects() const noexcept { return impl_->subjects; }
 bool Runtime::motion_reduced() const { return impl_->reduce_motion || impl_->motion_now() != MotionLevel::full; }
 bool Runtime::reduce_motion() const noexcept { return impl_->reduce_motion; }
 

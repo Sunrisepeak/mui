@@ -18,6 +18,7 @@ inline constexpr std::int64_t most_pixels = 4'000'000;
 }  // namespace
 
 std::uint64_t FrameSubject::state_hash() const {
+    if (before_) before_();
     mlibs::hash::Fnv1a hash;
     if (!target_) return hash.value();
     hash.u64(static_cast<std::uint64_t>(target_->width())).u64(static_cast<std::uint64_t>(target_->height()));
@@ -27,6 +28,7 @@ std::uint64_t FrameSubject::state_hash() const {
 
 void FrameSubject::operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) {
     const auto invalid = [&](std::string_view why) { answer.fail(openas::error_code::invalid_argument, why); };
+    if (before_) before_();
     const int width = target_ ? target_->width() : 0, height = target_ ? target_->height() : 0;
 
     if (operation == "frame.layers") {

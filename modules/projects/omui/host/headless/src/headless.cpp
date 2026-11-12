@@ -44,6 +44,7 @@ struct Headless::Impl {
     // The frame's entry (xrender.frame): the host hands its layers over and composes nothing itself.
     xrender::CpuFrame                            window;  // the window's: one layer, the interface's
     xrender::CpuFrame                            camera;  // framed_png's: the scene under the camera, then what stays fixed
+    xrender::FrameSubject                        picture;  // the window's frame, for agents: beside `ui` at the endpoint
     xrender::raster::Surface                             surface;
     std::uint64_t                               rendered = 0;   // the list hash the surface shows
     std::uint64_t                               shown_list = 0; // the list hash of the last frame shown (frame_shown)
@@ -108,7 +109,13 @@ Headless::Headless(HeadlessOptions options) : impl_(std::make_unique<Impl>()) {
         if (!capture) return std::unexpected(capture.error());
         return std::move(capture->svg);
     });
-    if (d.options.level >= HeadlessLevel::pixels) d.runtime->set_png_capture(capture());
+    if (d.options.level >= HeadlessLevel::pixels) {
+        d.runtime->set_png_capture(capture());
+        // The window's frame is among the process's subjects (D-162): its layers, its pixels, what drew one —
+        // drawn when read, as this host draws only when asked.
+        d.picture.show(d.window, d.surface, [this] { impl_->render_now(); });
+        d.runtime->add_subject(d.picture);
+    }
     if (d.options.level == HeadlessLevel::session) {
         agent::EndpointOptions eo;
         eo.name = d.options.endpoint_name.empty() ? d.options.app : d.options.endpoint_name;

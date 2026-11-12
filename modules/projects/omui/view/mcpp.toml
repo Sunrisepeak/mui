@@ -38,6 +38,8 @@ xrender.vector   = { path = "../../xrender/vector" }
 mlibs.image    = { path = "../../../base/image" }
 mlibs.text     = { path = "../../../content/text" }
 mlibs.pipeline = { path = "../../../base/pipeline" }
+# What else a process holds for agents beside the interface (Services::add_subject): the kernel's Subject (D-173).
+mlibs.agent    = { path = "../../../base/agent" }
 mlibs.i18n     = { path = "../../../content/i18n" }
 mcpplibs.os      = "0.4.4"
 

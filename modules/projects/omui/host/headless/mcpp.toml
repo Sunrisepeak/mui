@@ -37,6 +37,8 @@ mlibs.utils    = { path = "../../../../base/utils" }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.5.2"
+# headless_test: the agent contract's suite on the interface where a host draws (a pixel's source).
+mlibs.agent.cts = { path = "../../../../base/agent/cts" }
 # tests/component_motion_sweep_test.cpp: every component from a view document, swept through its motions here.
 omui.ui.base = { path = "../../components/base" }
 omui.viewdoc = { path = "../../viewdoc" }

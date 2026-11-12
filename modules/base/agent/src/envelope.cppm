@@ -46,11 +46,22 @@ public:
     void fail(std::string_view code, std::string_view text, int exit_code = openas::exit_code::failed);
     [[nodiscard]] bool finished() const noexcept { return finished_; }
 
-private:
+    // A record as a subject that already speaks records gives it: its kind and its members (JSON, without
+    // the braces: `"data":{…}`); a `result` ends the answer.
     void record(std::string_view kind, std::string_view members);
+    // The answer comes later — a condition waited for, frames to be shown: the subject keeps the copy this
+    // returns and ends it then (at its owner's safe point); the session does not end this one.
+    [[nodiscard]] Answer later() {
+        deferred_ = true;
+        return *this;
+    }
+    [[nodiscard]] bool deferred() const noexcept { return deferred_; }
+
+private:
     Reply       reply_;
     std::string re_;
     bool        finished_ = false;
+    bool        deferred_ = false;
 };
 
 }  // namespace mlibs::agent

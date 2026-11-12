@@ -102,6 +102,11 @@ public:
     // Checks pending waits; call after each frame.
     void poll();
     [[nodiscard]] std::size_t pending() const noexcept { return waits_.size() + deliveries_.size() + reloads_.size(); }
+    // The session its requests are decided in (opened with the first of them, or the host's own).
+    [[nodiscard]] std::shared_ptr<const AgentSession> session() {
+        ensure_session();
+        return session_;
+    }
     // The next frame's events from `input` requests, oldest first: the host
     // takes one batch a frame (an empty batch is a frame with none); none
     // when nothing waits.

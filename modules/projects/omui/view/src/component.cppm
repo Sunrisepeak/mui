@@ -11,6 +11,7 @@ export module omui.view:component;
 
 import std;
 import omui.core;
+import mlibs.agent;
 import hanim.engine;
 import mlibs.layout;
 import xrender.vector;
@@ -286,6 +287,11 @@ public:
     // them and the person did not turn them off (--no-agent-player). A game
     // offers its agent player tiers only then.
     [[nodiscard]] virtual bool agent_players() const { return false; }
+    // What else this process holds for agents, shown here (D-162): a game in a viewport, a field. Found beside
+    // the interface at the application's endpoint — `subjects`, then its own operations — for as long as it
+    // is added; whoever adds it removes it before it goes.
+    virtual void add_subject(mlibs::agent::Subject&) {}
+    virtual void remove_subject(mlibs::agent::Subject&) {}
     // Physical pixels per logical pixel: what a component rasterising its own
     // textures (a canvas's thumbnails) sizes them by.
     [[nodiscard]] virtual float pixel_scale() const { return 1; }

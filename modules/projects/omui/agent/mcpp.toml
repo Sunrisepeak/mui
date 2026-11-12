@@ -13,6 +13,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 kind = "runtime"
+agent = "subject"
 
 [targets.openmui-agent]
 kind = "lib"
@@ -30,6 +31,9 @@ mlibs.utils    = { path = "../../../base/utils" }
 mlibs.control  = { path = "../../../base/control" }
 # The endpoint (where agents find a program and talk to it) is the agent kernel's (D-173).
 mlibs.agent    = { path = "../../../base/agent" }
+# :subject — the interface among a process's subjects: the kernel's requests (openas actors) read and its records written.
+mlibs.json     = { path = "../../../base/json" }
+openlifa.openas = "0.2.0"
 mlibs.pipeline = { path = "../../../base/pipeline" }
 # `capture` as SVG (vector_capture): the display list written by xrender, its
 # islands' pixels encoded as PNG.
@@ -44,6 +48,8 @@ mcpplibs.os      = "0.4.4"
 [dev-dependencies]
 # Tests are mtest's (D-147).
 mcpplibs.mtest = "0.5.2"
+# contract_test: the agent contract's suite on the interface as a subject (D-174).
+mlibs.agent.cts = { path = "../../../base/agent/cts" }
 # generation_test: A2UI's components drafted as the official ones (button, checkbox, text_box, slider).
 omui.ui.base = { path = "../components/base" }
 # present_test: the application's own font drawn by a host that lacked it, glyph for glyph.

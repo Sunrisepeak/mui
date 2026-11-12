@@ -85,9 +85,12 @@ private:
 class FrameSubject : public mlibs::agent::Subject {
 public:
     // What it shows from now on; both outlive the subject or are shown again. Nothing shown: an empty frame.
-    void show(const CpuFrame& frame, const raster::Surface& target) noexcept {
+    // `before`: an owner that draws only when asked (a host without a window) draws now, so what is read is
+    // the frame as it would be shown.
+    void show(const CpuFrame& frame, const raster::Surface& target, std::function<void()> before = {}) {
         frame_ = &frame;
         target_ = &target;
+        before_ = std::move(before);
     }
 
     [[nodiscard]] std::string_view name() const noexcept override { return "frame"; }
@@ -102,6 +105,7 @@ public:
 private:
     const CpuFrame*        frame_ = nullptr;
     const raster::Surface* target_ = nullptr;
+    std::function<void()>  before_;
 };
 
 }  // namespace xrender

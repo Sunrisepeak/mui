@@ -791,15 +791,15 @@ CLOSURES: dict[str, dict[str, set[str]]] = {
     "xengine.dynamics": {"not": {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "xrender", "mlibs.rhi", "mlibs.shader", "xengine.cellular"}},
     "xengine.cellular": {"not": {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "xrender", "mlibs.rhi", "mlibs.shader"}},
     "xengine.cellular.rhi": {"not": {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "xrender"}},
-    # the field on screen: the renderer's resources (and what they reach), no UI, game, effect loader or shader compiler
-    "xengine.cellular.present": {"not": {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "mlibs.shader", "xrender.effect"}},
+    # the field on screen (its tests draw it through the frame's entry, read by an agent): the renderer's resources
+    # (and what they reach), no UI, game, animation, effect loader or shader compiler
+    "xengine.cellular.present": {"not": {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "xengine.runtime", "hanim", "mlibs.shader", "xrender.effect"}},
     # the agent kernel: below every engine, knowing none of them (D-173)
     "mlibs.agent": {"not": {"omui", "xengine", "hanim", "xrender", "gongfu"}},
     # a game on its own: no interface, no bridge to one (D-162)
     "xengine.runtime": {"not": {"omui", "xengine.ui"}},
-    # the frame's entry and a field drawn through it: the renderer and a kernel, no interface (D-162; the plan's T0.6)
+    # the frame's entry: the renderer and the agent kernel, no interface, game or animation (D-162; the plan's T0.6)
     "xrender.frame": {"not": {"omui", "xengine", "hanim"}},
-    "xengine.cellular.present": {"not": {"omui", "xengine.runtime", "xengine.ui", "hanim"}},
     # the breakout on its own: its simulation and the runtime, nothing of omui's interface
     "omui.showcase.widget_breakout.headless": {"not": {"omui.core", "omui.view", "omui.semantic", "omui.agent", "omui.viewdoc", "omui.player", "omui.designer",
                                                         "omui.sdk", "omui.host", "omui.ui", "omui.theme", "omui.lang", "xengine.ui"}},
@@ -1025,7 +1025,6 @@ def check_skills(root: Path) -> list[Problem]:
 # rule and still owes its surface is listed here with what brings it; a
 # package listed may not also declare, so the list only shrinks.
 AGENT_SURFACE_OWED: dict[str, str] = {
-    "modules/projects/omui/agent": "T0.8: the interface as a subject of the kernel (`ui.*` through a SubjectSession) under the contract suite; its own protocol unchanged",
     "modules/projects/hanim": "T0.8: the stage as a subject (`animation.*` through the agent kernel) under the contract suite",
     "modules/projects/xengine/kernel/audio": "M6.4: what is sounding, each bus's loudness, a sound back to its event (the plan's §3.4: a structured way to listen)",
     "modules/projects/xengine/game/world": "M6.2: entities and scenes as the game subject's addresses and observation by region and kind (§3.4)",

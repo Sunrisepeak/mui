@@ -181,6 +181,33 @@ UTest cases{"breakout.agent-player", [] {
         expect(alone.state().score > 0 && eq(alone.state().score, session.state().score)) << "bricks were broken, and broken again";
     };
 
+    "the game is found beside the interface at the application's own session: `world`, the game the window shows"_test = [] {
+        Session session("human");
+        session.h.advance(seconds(0.5));
+        // A connection's conversation with the application: the tree protocol as ever, and the kernel's requests.
+        agent::ProcessSession process(session.h.runtime(), agent::ProtocolOptions{.app = "breakout", .default_actor = "agent:player"});
+        const auto ask = [&](std::string_view line) {
+            std::vector<Value> records;
+            process.request(line, [&](std::string_view record) { records.push_back(parse_json(record).value_or(Value{})); });
+            return records;
+        };
+        const auto who = ask(R"({"op":"subjects"})");
+        std::vector<std::string> names;
+        for (const Value& subject : *who.front().get("data")->get("subjects")->list()) names.emplace_back(subject.get("name")->as_string());
+        expect(names == std::vector<std::string>{"ui", "frame", "world"}) << "the interface, the frame its host draws, the game";
+
+        const auto state = ask(R"({"op":"world.state"})");
+        expect(state.front().get("data")->get("frame")->as_int() == session.state().frame);
+        expect(state.front().get("data")->get("hash")->as_string() == std::format("{:016x}", bo::checksum(session.state()))) << "the same game, the same bits";
+        const auto seen = ask(R"({"op":"world.observe"})");
+        expect(seen.front().get("data")->get("tier")->as_string() == "human" && seen.front().get("data")->get("view")->get("bricks")->list()->size() > 0u);
+        const auto stepped = ask(R"({"op":"world.step"})");
+        expect(stepped.front().get("code") && stepped.front().get("code")->as_string() == "refused") << "the interface's clock steps this game, not a request";
+        // The interface's own protocol, on the same session, as it always was.
+        const auto tree = ask(R"({"op":"find","q":{"id":"main/field"}})");
+        expect(!tree.empty() && tree.back().get("exitCode")->as_int() == 0);
+    };
+
     "the record of a game, exported headless, replays alone to the same bytes"_test = [] {
         Session session("human");
         Player player;

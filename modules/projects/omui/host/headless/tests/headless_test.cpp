@@ -3,6 +3,8 @@
 // provenance, and an agent driving an H3 session.
 import std;
 import omui.host.headless;
+import mlibs.agent.cts;
+import omui.ui.base;
 import mlibs.testing;
 import mcpplibs.mtest;
 import xrender.text;
@@ -223,13 +225,20 @@ UTest cases{"headless", [] {
             return;
         }
         std::atomic<bool> done{false};
-        std::vector<Value> acted, captured, vectors;
+        std::vector<Value> acted, captured, vectors, who, traced, drew, layers;
+        const Point button = h.runtime().bounds(h.runtime().find("main/inc")).center();
         std::jthread agent_thread([&] {
             auto client = agent::Client::connect("counter-h3", dir);
             if (client) {
                 acted = client->call(parse_json(R"({"op":"act","node":"main/inc","action":"activate","actor":"agent:test"})").value());
                 captured = client->call(parse_json(R"({"op":"capture","node":"main/inc"})").value());
                 vectors = client->call(parse_json(R"({"op":"capture","format":"svg"})").value());
+                // On the same connection, the agent kernel's requests: everything this process holds.
+                who = client->call(parse_json(R"({"op":"subjects"})").value());
+                layers = client->call(parse_json(R"({"op":"frame.layers"})").value());
+                const std::string at = std::format("[{},{}]", static_cast<int>(button.x), static_cast<int>(button.y));
+                traced = client->call(parse_json(std::format(R"({{"op":"frame.at","at":{}}})", at)).value());
+                drew = client->call(parse_json(std::format(R"({{"op":"ui.drew","at":{}}})", at)).value());
             }
             done = true;
         });
@@ -249,6 +258,78 @@ UTest cases{"headless", [] {
         const std::string svg = picture ? std::string(picture->get("svg")->as_string()) : std::string{};
         expect(svg.starts_with("<svg") && svg.contains(R"(data-node="main/inc")")) << "an SVG naming the button";
         expect(picture && picture->get("islands") && picture->get("islands")->list()) << "the islands listed (none or more)";
+
+        // The process's subjects, found at the same endpoint: the interface, and the frame the host draws it into.
+        const Value* subjects = who.empty() || !who.front().get("data") ? nullptr : who.front().get("data")->get("subjects");
+        expect(fatal(subjects && subjects->list() && subjects->list()->size() == 2u)) << (who.empty() ? std::string("no answer") : who.front().json());
+        const Value& interface = (*subjects->list())[0];
+        const Value& frame = (*subjects->list())[1];
+        expect(interface.get("name")->as_string() == "ui" && interface.get("interface")->as_string() == "openmui.tree@0.1");
+        expect(interface.get("capabilities")->get("provenance")->as_bool()) << "this host draws: a pixel is traced";
+        expect(frame.get("name")->as_string() == "frame" && frame.get("interface")->as_string() == "xrender.frame@0.1");
+        expect(!layers.empty() && layers.front().get("data") && layers.front().get("data")->get("layers")->list()->front().get("name")->as_string() == "ui")
+            << "the frame's one layer is the interface";
+        // A pixel of the button: the frame says which layer and which of its objects; the interface says which node that is.
+        const Value* chain = traced.empty() || !traced.front().get("data") ? nullptr : traced.front().get("data")->get("chain");
+        expect(fatal(chain && chain->list() && chain->list()->size() == 1u));
+        expect(chain->list()->front().get("layer")->as_string() == "ui" && chain->list()->front().get("object")->as_int() > 0);
+        expect(!drew.empty() && drew.front().get("data") && drew.front().get("data")->json().contains("main/inc")) << (drew.empty() ? std::string() : drew.front().json());
+    };
+
+    "the agent contract on the interface where a host draws: a pixel's source too"_test = [] {
+        namespace contract = mlibs::agent::cts;
+        // A counter in a headless window, the protocol the host's endpoint would serve, the interface as a subject over it.
+        struct Shown final : mlibs::agent::Subject {
+            Headless                               h{at(HeadlessLevel::pixels)};
+            std::optional<agent::Protocol>         protocol;
+            std::optional<agent::InterfaceSubject> interface;
+            Shown() {
+                auto access = std::make_shared<AgentAccess>();
+                access->set_policy({.mode = AgentMode::development, .source = "contract-test"});
+                h.runtime().set_agent_access(std::move(access));
+                h.mount("main", column({.padding = 12, .gap = 8}, {text_box({.id = "name", .label = "Name"}),
+                                                                   box({.id = "inc", .width = 80, .height = 28, .background = "accent", .radius = 6, .label = "Add one"})}));
+                h.step();
+                agent::ProtocolOptions options{.app = "page", .default_actor = "agent:nobody"};
+                options.capture = h.capture();
+                options.pixel_owner = [this](Point at) { return h.node_at_pixel(at); };
+                protocol.emplace(h.runtime(), std::move(options));
+                interface.emplace(h.runtime(), *protocol, agent::InterfaceOptions{.traces_pixels = true});
+            }
+            std::string_view name() const noexcept override { return interface->name(); }
+            std::string_view interface_name() const noexcept override { return interface->interface_name(); }
+            mlibs::agent::Capabilities capabilities() const noexcept override { return interface->capabilities(); }
+            std::span<const mlibs::control::CatalogEntry> operations() const noexcept override { return interface->operations(); }
+            std::string_view listing() const noexcept override { return interface->listing(); }
+            std::uint64_t state_hash() const override { return interface->state_hash(); }
+            void operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) override {
+                interface->operate(operation, request, answer);
+            }
+        };
+        register_base_components();
+        Point button;
+        {
+            Shown first;
+            button = first.h.runtime().bounds(first.h.runtime().find("main/inc")).center();
+        }
+        const contract::Probe probe{
+            .make = []() -> std::unique_ptr<mlibs::agent::Subject> { return std::make_unique<Shown>(); },
+            .read = R"({"op":"ui.snapshot"})",
+            .change = R"({"op":"ui.act","node":"main/name","action":"set_value","args":{"value":"Ada"}})",
+            .undo = R"({"op":"ui.undo"})",
+            .preview = R"({"op":"ui.preview","steps":[{"node":"main/name","action":"set_value","args":{"value":"Grace"}}],"pictures":false})",
+            .explain = R"({"op":"ui.timeline"})",
+            .source = std::format(R"({{"op":"ui.drew","at":[{},{}]}})", static_cast<int>(button.x), static_cast<int>(button.y)),
+        };
+        const auto report = contract::run(probe, {.subject = "omui.agent on omui.host.headless"});
+        std::println("{}", report.text());
+        expect(report.ok()) << report.text();
+        const auto status = [&](std::string_view id) { return std::ranges::find(report.outcomes, id, &mlibs::cts::Outcome::id)->status; };
+        expect(status("agent.source.chain") == mlibs::cts::Status::passed) << "a pixel traced to its node";
+        std::vector<std::string> unsupported;
+        for (const auto& outcome : report.outcomes)
+            if (outcome.status == mlibs::cts::Status::unsupported) unsupported.push_back(outcome.id);
+        expect(unsupported == std::vector<std::string>{"agent.time.replays", "agent.observe.budget"}) << "replayed time and a budget of bytes are not the interface's";
     };
 
     "a frame as SVG: the same frame, the nodes named, glyphs as outlines, the same bytes twice"_test = [] {

@@ -867,7 +867,30 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
                 }
                 list.push_back(record_value(r));
             }
-            Value data = Value{}.set("level", level).set("records", Value(std::move(list))).set("last", last);
+            // What was done, whoever did it and whatever led to it — a press, a key, an agent's request: the
+            // action journal, kept at every level of the recorder. Each names its actor (D-174: who acted is in
+            // the model); one that came of an input event carries its cause.
+            const auto after = static_cast<std::uint64_t>(req.get("after") ? std::max<std::int64_t>(0, req.get("after")->as_int()) : 0);
+            const auto journal = runtime_.action_journal();
+            Value::List actions;
+            for (std::size_t index = journal.size() > limit ? journal.size() - limit : 0; index < journal.size(); ++index) {
+                const ActionEntry& done = journal[index];
+                if (done.id <= after) continue;
+                if (!may_read_people && done.actor.starts_with("person:")) {
+                    ++withheld;
+                    continue;
+                }
+                Value one = Value{}
+                                .set("id", static_cast<double>(done.id))
+                                .set("at", done.at)
+                                .set("node", done.path)
+                                .set("action", done.action)
+                                .set("actor", done.actor)
+                                .set("exitCode", static_cast<std::int64_t>(done.exit_code));
+                if (done.cause) one.set("cause", static_cast<double>(done.cause));
+                actions.push_back(std::move(one));
+            }
+            Value data = Value{}.set("level", level).set("records", Value(std::move(list))).set("last", last).set("actions", Value(std::move(actions)));
             if (!withheld) return e.data(std::move(data)).result(spec::exit_code::success);
             data.set("withheld", static_cast<double>(withheld));
             return e.data(std::move(data))

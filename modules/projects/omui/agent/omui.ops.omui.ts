@@ -244,10 +244,11 @@ export default defineOps({
     {
       name: "ui.timeline",
       effect: "read",
-      summary: "What input did, oldest first: each input event's records — what it hit, what stopped it (disabled, outside, nothing to press, refused), what it activated — at the recorder's level. The person's own input, outside development, once they say yes (answer)",
+      summary: "What input did, oldest first: each input event's records — what it hit, what stopped it (disabled, outside, nothing to press, refused), what it activated — at the recorder's level; and what was done (`actions`): every action with who did it, whatever led to it — a press, or an agent's request — kept at every level. The person's own input and actions, outside development, once they say yes (answer)",
       params: [
         { name: "since", type: "integer", doc: "only after this cause (an input event's number)", optional: true },
-        { name: "limit", type: "integer", doc: "the last this many records (200)", optional: true },
+        { name: "after", type: "integer", doc: "only actions after this one (an action's id)", optional: true },
+        { name: "limit", type: "integer", doc: "the last this many records, and actions (200)", optional: true },
       ],
       result: "json",
     },

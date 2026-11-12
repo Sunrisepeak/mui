@@ -52,6 +52,7 @@ void Answer::record(std::string_view kind, std::string_view members) {
     }
     line += '}';
     reply_(line);
+    if (kind == "result") finished_ = true;
 }
 
 void Answer::data(std::string_view json) { record("data", std::format("\"data\":{}", json)); }

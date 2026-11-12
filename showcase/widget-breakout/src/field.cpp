@@ -65,6 +65,7 @@ constexpr std::array<std::string_view, 4> orders{"hold", "left", "right", "feed"
 Field::Field() : sampler_(bindings()) {}
 
 Field::~Field() {
+    if (game_ && attached()) services().remove_subject(*game_);  // it goes with this component
     pacer_.stop();
     device_.reset();  // the device stops pulling before its mixer goes
 }
@@ -137,6 +138,7 @@ void Field::new_run() {
 }
 
 void Field::restart_room() {
+    if (game_) services().remove_subject(*game_);
     game_.reset();
     // An agent player's lane (the game's) and record start again with the room.
     player_record_.clear();
@@ -231,6 +233,7 @@ bool Field::begin() {
     xengine::runtime::Options how{.stepping = xengine::runtime::Stepping::owner, .seat = xengine::runtime::Seat::owner, .keep = keep};
     if (player_tier_) how.tier = *player_tier_;
     game_.emplace(start(l), how);
+    services().add_subject(*game_);  // found beside the interface: `world`, the game itself
     sounds_->restart();
     run_at_start_ = run_;
     emit_room_began(props.room, services().path(node()));  // whoever plays along (room 5's copilot) knows where

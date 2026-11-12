@@ -15,6 +15,7 @@ export module omui.view:runtime;
 
 import std;
 import omui.core;
+import mlibs.agent;
 import mlibs.layout;
 import xrender.vector;
 import mlibs.pipeline;
@@ -673,6 +674,11 @@ public:
     // Agents may join as players (the application allows, the person agrees).
     void set_agent_players(bool allowed);
     [[nodiscard]] bool agent_players() const override;
+    // The subjects this process holds beside the interface (a world shown in it, the host's frame): what the
+    // application's endpoint answers `subjects` with, after `ui`.
+    void add_subject(mlibs::agent::Subject& subject) override;
+    void remove_subject(mlibs::agent::Subject& subject) override;
+    [[nodiscard]] std::span<mlibs::agent::Subject* const> subjects() const noexcept;
     [[nodiscard]] bool motion_reduced() const override;
     [[nodiscard]] float pixel_scale() const override { return scale(); }
     [[nodiscard]] bool deterministic() const override;

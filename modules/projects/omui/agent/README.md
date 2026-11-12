@@ -53,3 +53,25 @@ and the reference in `src/catalog/`; how an Agent works with it is
 ```
 
 Depends on `omui.core`, `omui.view`, `omui.semantic`, `openmui.trace` and `mcpplibs.os`.
+
+## Agent surface
+
+The interface is the model the other engines' subjects are written after, and is itself a `Subject` of the agent kernel ([mlibs.agent](../../../base/agent); D-173): `InterfaceSubject`, `ui`. It adds no operation and changes none — `ui.snapshot` is the protocol's `snapshot`, decided by the runtime's own access as ever, answered in the same records. What is new is where it is found: `ProcessSession` — a connection's conversation with an application — speaks `openmui.tree@0.1` as it always did and, on the same lines, the kernel's requests for everything the process holds: `subjects`, `describe` a subject or an operation, any operation by its whole name (`ui.find`, `world.observe`, `frame.at`). The two cannot be taken for each other: the protocol's requests have no dot in their names. What else the process holds is the runtime's (`Runtime::add_subject`; a component through `Services::add_subject`): a game shown in a viewport, the host's frame.
+
+Its operations are [omui.ops.omui.ts](omui.ops.omui.ts); how to use them, [skill.omui.md](skill.omui.md).
+
+| | |
+|---|---|
+| Subject and addresses | `ui`, interface `openmui.tree@0.1`. A node is its id path (`main/compose/draft`); a place is `[x, y]` in logical pixels |
+| State | What was set in the interface — text, switches, values, scroll, focus (`ui.state`; `ui.restore` puts it into another instance); the hash is that, hashed |
+| Observation | `ui.snapshot` (by root, depth, interactive only, paged), `ui.changes` since the last, `ui.find` by role, name and state, `ui.capture` (a node or a region, PNG or SVG), `ui.inspect`, `ui.stats`, `ui.logs` |
+| Control | `ui.act` (a node's action, with its effect's rules: a dry run, `needs-answer`), `ui.invoke` (an application's verb), `ui.transaction` (steps as one), `ui.input` (as a person's devices give it) |
+| Time | The interface's clock is held, stepped and sought by `ui.clock`; a session recorded (`ui.record`) replays in a fresh instance to the same bytes. Not as the suite's replayed requests: see "Not here" |
+| Preview | `ui.preview`: steps performed on a branch — what would change, with pictures where a host draws — and nothing done |
+| Causes | `ui.timeline`: what each input event did at the recorder's level, and `actions` — every action with who did it, whatever led to it, kept at every level; `ui.explain`: a press from press to release, and a sentence saying what happened |
+| Source | `ui.drew`: the node a pixel's colour came from, the nodes it sits in, where each was built — where a host draws (`ProtocolOptions::pixel_owner`); the frame's own chain is the `frame` subject's |
+| History | `ui.undo`, `ui.redo`, `ui.history` by scope; Live Design's commits and branches are `design.*` |
+| Budgets and tiers | A snapshot is paged by nodes (`limit`, `offset`, `depth`, `children_limit`); an agent player's tiers are the game's (`world`) |
+| Not here | **A budget of bytes** on an answer (`capabilities.budget` is false: pages are counted in nodes), and **time as replayed requests** (`capabilities.time` is false: an answer carries the runtime's clock, so the same requests on two instances are the same state, not the same bytes) — the contract suite reports both unsupported. `ui.drew` without a host that draws: unsupported there, and said |
+
+The agent contract's suite ([mlibs.agent.cts](../../../base/agent/cts)) runs on it in `tests/contract_test.cpp` (no host: 9 passed, 3 unsupported) and, where a host draws, in [omui.host.headless](../host/headless)'s tests (a pixel's source too). The suite found what the interface lacked: an agent's own action was in the journal with its actor, and no operation read it — `ui.timeline` answers `actions` since.

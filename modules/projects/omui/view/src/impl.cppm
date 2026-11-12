@@ -4,6 +4,7 @@ module omui.view:impl;
 
 import std;
 import omui.core;
+import mlibs.agent;
 import mlibs.layout;
 import hanim.core;
 import hanim.effect;
@@ -383,6 +384,7 @@ struct Runtime::Impl {
     bool                                  reduce_motion = false;
     bool                                  reduce_transparency = false;
     bool                                  agent_players = false;
+    std::vector<mlibs::agent::Subject*>   subjects;  // beside the interface, for agents (Services::add_subject)
 
     // input
     NodeId               capture;

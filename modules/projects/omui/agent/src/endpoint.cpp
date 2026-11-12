@@ -20,18 +20,20 @@ std::vector<EndpointInfo> list(const std::filesystem::path& directory) {
 
 // The interface's session on a connection: openmui.tree@0.1 (the protocol), spoken over the kernel's lines.
 struct Endpoint::Impl {
+    // A connection's session: openmui.tree@0.1 (the protocol) and the kernel's requests for the process's
+    // subjects (ProcessSession), over the kernel's lines.
     class TreeSession final : public kernel::Session {
     public:
-        TreeSession(Impl& owner, Runtime& runtime, const ProtocolOptions& options) : owner_(owner), protocol_(runtime, options) {
-            owner_.live.push_back(&protocol_);
+        TreeSession(Impl& owner, Runtime& runtime, const ProtocolOptions& options) : owner_(owner), session_(runtime, options) {
+            owner_.live.push_back(&session_.protocol());
         }
-        ~TreeSession() override { std::erase(owner_.live, &protocol_); }
-        void request(std::string_view line, const kernel::Reply& reply) override { protocol_.request(line, reply); }
-        void poll() override { protocol_.poll(); }
+        ~TreeSession() override { std::erase(owner_.live, &session_.protocol()); }
+        void request(std::string_view line, const kernel::Reply& reply) override { session_.request(line, reply); }
+        void poll() override { session_.poll(); }
 
     private:
-        Impl&    owner_;
-        Protocol protocol_;
+        Impl&          owner_;
+        ProcessSession session_;
     };
 
     Runtime&               runtime;

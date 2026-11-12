@@ -127,8 +127,11 @@ void SubjectSession::request(std::string_view line, const Reply& reply) {
     }
     // Authority first: nothing reaches a subject undecided.
     if (options_.access) {
-        const openas::Decision decision =
-            options_.access->decide(request.op, found->operation.effect, found->operation.person, options_.actor, options_.session.get(), request.op);
+        // An operation whose effect is what it runs (an action of a node, a verb: `delegated`) declares the most
+        // it can do; what it does this time is decided where it runs, by the same access. Here it is decided as
+        // an operation that may be asked at all.
+        const openas::Effect effect = found->delegated ? openas::Effect::read : found->operation.effect;
+        const openas::Decision decision = options_.access->decide(request.op, effect, found->operation.person, options_.actor, options_.session.get(), request.op);
         if (decision == openas::Decision::refuse) {
             answer.fail(openas::error_code::refused, std::format("`{}` is not allowed here", request.op));
             return;
@@ -144,7 +147,7 @@ void SubjectSession::request(std::string_view line, const Reply& reply) {
     Request decided = request;
     decided.actor = options_.session ? options_.session->attribute(options_.actor) : options_.actor;
     subject->operate(decided.op, decided, answer);
-    if (!answer.finished()) answer.result();
+    if (!answer.finished() && !answer.deferred()) answer.result();
 }
 
 }  // namespace mlibs::agent

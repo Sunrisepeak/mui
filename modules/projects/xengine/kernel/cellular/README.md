@@ -152,7 +152,14 @@ putting a field on screen is a small adapter between this package and
 xrender's resources, [present](present): one `ImageStore` image a pixel a
 cell, recoloured, re-uploaded and redrawn only where `Execution::changed_tiles`
 says a tile changed, drawn by one command (the GPU kernel's output as one
-`ExternalTexture` is next).
+`ExternalTexture` is next). What a cell's colour is, this kernel says as it
+says what a step is — a palette's first swatch (`pixel_of`), or a shade
+(`Shade`, `shade_of`, D-168): a row's base colour, its grain, tints along
+channels' ranges, and the light of those that emit, in whole numbers
+([CONTRACT.md](CONTRACT.md)) — so a presenter on the CPU and a painter on a
+device have one rule to keep. What matter looks like is a look
+([xengine.matter](../matter)'s appearance) lowered to a shade by the
+presenter's feature `matter`.
 
 ## Agent surface
 

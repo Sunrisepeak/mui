@@ -28,10 +28,17 @@ mlibs.utils = { path = "../../../../base/utils" }
 # in the program. A feature, on by default: the kernel alone — what a carrier's adapter takes (the lattice's,
 # dynamics') — stays the small tools, no JSON.
 [features]
-default = ["json"]
+default = ["json", "appearance"]
 json = { sources = ["src/json/*.cppm", "src/json/*.cpp", "src/json/generated/*.cppm"] }
+# What a state looks like, as data (src/appearance/, module xengine.matter.appearance; D-168): a style pack's
+# colours by material and by phase, and states that read a channel along a range — prepared against a program
+# into numbers a carrier's presenter lowers. Colours are numbers here: no renderer.
+appearance = { sources = ["src/appearance/*.cppm", "src/appearance/*.cpp", "src/appearance/generated/*.cppm"] }
 
 [feature-deps.json]
+mlibs.json = { path = "../../../../base/json" }
+
+[feature-deps.appearance]
 mlibs.json = { path = "../../../../base/json" }
 
 [dev-dependencies]

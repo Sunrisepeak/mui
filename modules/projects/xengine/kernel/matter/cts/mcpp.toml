@@ -36,3 +36,7 @@ xengine.cellular = { path = "../../cellular", features = ["matter"] }
 # tests/emergence_test.cpp: the emergence set on the lattice; a body of a material of the same table stands in
 # one of its scenes (an explosion's pressure pushes it).
 xengine.dynamics = { path = "../../dynamics", features = ["matter"] }
+# tests/on_screen_test.cpp: the scenes shaded by the standard appearance (xengine.cellular.present's feature
+# `matter`), drawn by the renderer and read back as pixels; the pictures kept as PNG.
+"xengine.cellular.present" = { path = "../../cellular/present", features = ["matter"] }
+mlibs.image = { path = "../../../../../base/image" }

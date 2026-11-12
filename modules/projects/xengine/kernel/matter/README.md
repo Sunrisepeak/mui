@@ -86,9 +86,47 @@ The same laws with cells that move — the emergence set, nine phenomena and one
 
 `tests/prepare_test.cpp` is the preparation contract on it (12 cases). The reference step on 4096 instances each beside four is 2.3 ms in a debug build with nothing allocated (`omui-bench --filter simulation/matter`); it is the reference, not the path a large world runs.
 
+## What it looks like
+
+A thing carries a material and state; what is seen of it is a recipe's (D-168) — a world's style pack, apart from its laws: another pack changes the look and nothing of what happens. The feature `appearance` (on by default; module `xengine.matter.appearance`) is that recipe as data.
+
+```ts
+// world.appearance.omui.ts
+import { defineAppearance } from "omui/define";
+export default defineAppearance({
+  phases:    { granular: { color: "#b9a377", grain: 0.16 }, liquid: { color: "#3b7fd9c8" } },   // a material no one named: by its phase
+  materials: { wood: { color: "#8a5a2b", grain: 0.12 }, lava: { color: "#7a1d0a" } },
+  states: [                                                                                    // in order, each over the last
+    { name: "charred", by: "burned", to: "fuel", color: "#15100c", mix: 0.85, of: ["solid", "soft", "granular"] },
+    { name: "glows with heat", by: "temperature", from: 800, to: 1500, color: "#ff4a0c", mix: 0.85, emits: true },
+    { name: "aflame", by: "burning", to: 1, color: "#ffb428", mix: 0.8, emits: true },
+  ],
+});
+```
+
+```cpp
+import xengine.matter.appearance;
+auto look = matter::standard_look(*program);                                  // or look_document(program, text, file)
+```
+
+- **A material's base** is the colour and grain (how uneven: one place lighter, the next darker) the pack says of it — or, where the pack has never heard of it, its phase's. A pack serves many worlds: what it colours and a world has not is `Look::unused()`, not a failure.
+- **A state** reads one channel along a range and moves the colour toward its own, by at most `mix`: from `from` (in the channel's unit: kelvin) to `to` — a number, or the thing's own property (`burned`, against its `fuel`); `to` below `from` is "the less, the more" (frost). `emits` makes it light as well, for whoever draws a glow. `of` keeps it to some phases.
+- **A state never names a material**, as a law does not: `by: "material"` is refused (`matter.names-material`), and so a material added as a row is charred, wet, frosted and aglow like the rest. Lava glows because it is at 1600 K; no line says that lava glows.
+- **A `Look` is numbers** — a colour a material, each state's channel, range (as the channel is stored, by material) and colour — and knows no renderer. A carrier's presenter lowers it: the lattice's is `xengine.cellular.present`'s feature `matter` (`lower(look)`: a `cellular::Shade`, each cell's pixel and light computed in whole numbers); whoever draws bodies reads the same look. Particles and sound by state are the same recipe's later sections (the plan's M6.5), read by the game layer.
+
+[standard.appearance.omui.ts](standard.appearance.omui.ts) is the standard pack: the 17 materials' colours, five phases, and nine states — charred, wet, frosted, hot air (the air over a fire: where flames are seen), glows with heat, white heat, aflame, charged, blast. `tests/appearance_test.cpp`: the pack against the standard program in the channels' units; two materials it has never heard of, by their phases and charred against their own fuel; a pack for another world; 21 refusals by code, pointer and message; JSON problems at their line.
+
+| A hearth, 420 ticks after a light at the pile's foot | Lava poured under water; 40 ticks on | Gunpowder, at its brightest tick | Peat — a row no pack names — by the standard pack and by another |
+|---|---|---|---|
+| ![](media/hearth.png) | ![](media/lava-0.png) ![](media/lava-40.png) | ![](media/blast.png) | ![](media/peat.png) ![](media/peat-night.png) |
+
+Real frames, six pixels a cell, drawn by the CPU renderer with no interface in the program: the copies here are what the test below wrote on 2026-11-13.
+
+**On screen** (`mcpp test -p xengine.matter.cts on_screen_test`; the pictures are kept as PNG in the scratch directory the cases print): a hearth after 420 ticks — 9 cells alight and giving light, 31 cells of air over them showing their heat, 3440 pixels of the frame lit by the glow and none darker, sand against the pool darker than the dry heap (388 against 518 of 765); lava glowing of its own heat when poured, and after 500 ticks all of it set as stone, cooled, and dark; peat — a row of properties no pack names — its phase's colour, alight with the same flame; the same cells by another pack, a different picture and not a cell changed; gunpowder as a flash, 421 cells lit at its brightest tick and dark again after.
+
 ## Where it sits
 
-Base layer. The kernel — module `xengine.matter`: definitions, the plan, the reference step — takes the standard library and `mlibs.utils` (errors, names, trace) and nothing else: `xengine.matter = { path = …, default-features = false }` is what a carrier's adapter takes (`xengine.cellular`'s and `xengine.dynamics`' feature `matter`). The feature `json` (on by default; module `xengine.matter.json`) adds a definition from its JSON snapshot with `mlibs.json`, and `standard()`: the standard definition carried in the module (`standard_snapshot`, the committed JSON embedded; the generator's test keeps the three — data module, snapshot, embedded text — the same). It knows no lattice, no body and no renderer. A carrier adapts on its own side: `xengine.cellular`'s feature `matter` lowers a program to the lattice's (`cellular::lower`: the materials' table, transfers by a column, reactions), where cells also move by `density` and `phase`; `xengine.dynamics`' feature `matter` reads the mechanical columns (`params_of(table, material, area)`: a soft body's mass, friction, restitution, compliance and shape stiffness — the table it had of its own is this one now) and will give contacts as pairs. What a state looks and sounds like is a recipe's, above (D-168).
+Base layer. The kernel — module `xengine.matter`: definitions, the plan, the reference step — takes the standard library and `mlibs.utils` (errors, names, trace) and nothing else: `xengine.matter = { path = …, default-features = false }` is what a carrier's adapter takes (`xengine.cellular`'s and `xengine.dynamics`' feature `matter`). The feature `json` (on by default; module `xengine.matter.json`) adds a definition from its JSON snapshot with `mlibs.json`, and `standard()`: the standard definition carried in the module (`standard_snapshot`, the committed JSON embedded; the generator's test keeps the three — data module, snapshot, embedded text — the same). It knows no lattice, no body and no renderer. A carrier adapts on its own side: `xengine.cellular`'s feature `matter` lowers a program to the lattice's (`cellular::lower`: the materials' table, transfers by a column, reactions), where cells also move by `density` and `phase`; `xengine.dynamics`' feature `matter` reads the mechanical columns (`params_of(table, material, area)`: a soft body's mass, friction, restitution, compliance and shape stiffness — the table it had of its own is this one now) and will give contacts as pairs. What a state looks like is the appearance's (above); the feature carries the data and its preparation, colours as numbers, and still no renderer — the lattice's presenter and whoever draws bodies lower a `Look` on their own side.
 
 Trace: category `simulation`, spans `simulation.matter.prepare` and `simulation.matter.step`, counters `simulation.matter.held` and `.became`.
 
@@ -100,7 +138,8 @@ A definition and its plan hold no state of their own: the state a program steps 
 |---|---|
 | What a world is made of | `Program::describe()`: columns with units and ranges, channels, every material with what differs from the defaults, every law with its kind, its condition as written, what it changes — as JSON |
 | What may be written | `omui/define`'s `defineMatter` types (the TS stubs), and the reader's problems: file, line, column, JSON pointer, and the nearest name |
+| Why a thing looks as it does | `Look::describe(program)`: each material's colour and whether it is the pack's or its phase's, each state with its channel, unit, range by material and colour, and what the pack colours that the world has not — as JSON. The pixels themselves are the frame's to say (`frame.at` traces one to its layer) |
 | Preview | `Program::prepare` and `prepare_document` are pure: a changed definition is prepared and stepped on a copy of the state before it replaces anything |
 | Not here yet | Its own catalog — materials by region, a quantity applied, **why** an instance is in the state it is in (which law, from which neighbours) — comes with the record of causes written at the commit (the plan's T1.11); the manifest's `agent` line changes from `library` to `subject` then |
 
-Minimal procedure: write or edit a `*.matter.omui.ts`; `omui-gen snapshot` it; `prepare_document` and read the problems; `describe()` to check what was understood; run the scenario on a small carrier and read channels by name.
+Minimal procedure: write or edit a `*.matter.omui.ts`; `omui-gen snapshot` it; `prepare_document` and read the problems; `describe()` to check what was understood; run the scenario on a small carrier and read channels by name. For a look: write a `*.appearance.omui.ts`, snapshot it, `look_document(program, …)` and read the problems, `Look::describe` to check, and look at a real frame of a small scene.

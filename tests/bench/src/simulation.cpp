@@ -6,6 +6,7 @@ import xengine.cellular.present;
 import xengine.dynamics;
 import xengine.matter.json;
 import xengine.cellular.matter;
+import xengine.cellular.present.matter;
 
 namespace omui::bench {
 namespace {
@@ -289,6 +290,49 @@ void add_simulation_benchmarks() {
             }
             s.note("scope", std::format("{} cells run a step of {} on average ({} of {} tiles asleep at the first); laws, flows and moves; two buffers in turn; drawing excluded",
                                         steps ? run / steps : 0, area, last.asleep, activity.size()));
+        });
+    add("simulation/matter-256-shade", "256x256 of the standard matter on screen by the standard appearance, every tile: each cell's shade and its light (D-168; the worst case)",
+        [](State& s) {
+            const auto program = xengine::matter::standard();
+            if (!program) { s.fail("the standard definition was refused"); return; }
+            const auto look = xengine::matter::standard_look(*program);
+            if (!look) { s.fail("the standard appearance was refused"); return; }
+            const auto lattice = ca::lower(*program);
+            if (!lattice) { s.fail("the program was not lowered"); return; }
+            const std::uint32_t side = 256;
+            const ca::Shape shape{side, side}, tile{32, 32};
+            const std::size_t area = static_cast<std::size_t>(side) * side;
+            std::vector<std::uint32_t> cells = program->fresh(area, *program->material("air")), cells_next(cells.size());
+            const auto fill = [&](std::uint32_t x0, std::uint32_t y0, std::uint32_t x1, std::uint32_t y1, std::string_view material) {
+                for (std::uint32_t y = y0; y <= y1; ++y)
+                    for (std::uint32_t x = x0; x <= x1; ++x) program->place(cells, area, static_cast<std::size_t>(y) * side + x, *program->material(material));
+            };
+            // Every kind of look at once: stone, a basin of water, sand in the air, wood alight, lava.
+            fill(0, 250, 255, 255, "stone");
+            fill(20, 200, 22, 249, "stone");
+            fill(100, 200, 102, 249, "stone");
+            fill(23, 215, 99, 249, "water");
+            fill(50, 150, 70, 170, "sand");
+            fill(150, 240, 230, 249, "wood");
+            fill(110, 245, 140, 249, "lava");
+            cells[*program->channel("temperature") * area + 240 * side + 150] = 900 * 256;
+            for (std::uint64_t tick = 0; tick < 120; ++tick) {
+                if (!lattice->step(shape, cells, cells_next, {.tile = tile, .boundary = ca::nothing_beyond, .tick = tick})) { s.fail("a step was refused"); return; }
+                cells.swap(cells_next);
+            }
+            xrender::ImageStore store;
+            auto view = ca::FieldPresenter::make(store, shape, static_cast<std::uint32_t>(program->channels().size()), ca::lower(*look), tile);
+            if (!view) { s.fail(view.error()); return; }
+            const ca::Shape grid = ca::tiles(shape, tile);
+            const std::vector<std::uint8_t> every(static_cast<std::size_t>(grid.width) * grid.height, 1);
+            (void)view->present(cells, every);
+            (void)view->present(cells, every);  // both surfaces of each image have been made
+            const xrender::raster::Surface* light = store.get(view->light());
+            const auto lit = light ? std::ranges::count_if(light->pixels(), [](xrender::raster::Rgba8 pixel) { return pixel.a != 0; }) : 0;
+            s.items(area);
+            while (s.next()) (void)view->present(cells, every);
+            s.note("scope", std::format("{} states over {} materials, {} cells giving light; the pixel and the light of every cell, two images updated; the step, upload and drawing excluded",
+                                        look->states().size(), program->materials().size(), lit));
         });
     add("simulation/checkpoint-64","64x64 cells: one reaction step and one deep snapshot in the shared timeline",[](State& s) {
         auto fixture=setup(64);if(!fixture){s.fail("rule preparation failed");return;}

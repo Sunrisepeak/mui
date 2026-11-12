@@ -1,5 +1,5 @@
 # xengine.cellular.present — a cellular field on screen (D-132):
-# its cells coloured by a palette into one image of an xrender ImageStore,
+# its cells coloured by a palette, or by a shade that computes each (D-168), into one image of an xrender ImageStore,
 # a pixel a cell, drawn by one command; only the tiles that changed are
 # recoloured, re-uploaded and redrawn. Its own package: the renderer knows no
 # cells and the rules know no drawing.
@@ -28,6 +28,15 @@ xrender.vector = { path = "../../../../xrender/vector" }
 xrender.raster = { path = "../../../../xrender/raster" }
 mlibs.geom     = { path = "../../../../../base/geom" }
 mlibs.utils    = { path = "../../../../../base/utils" }
+
+# What matter looks like on the lattice (src/matter/, module xengine.cellular.present.matter; D-168): a look
+# — xengine.matter's appearance, prepared against a program — lowered to the lattice's shade. A feature: the
+# presenter alone knows a key and numbers, and that a row is a material only here.
+[features]
+matter = { sources = ["src/matter/*.cppm", "src/matter/*.cpp"] }
+
+[feature-deps.matter]
+xengine.matter = { path = "../../matter", default-features = false, features = ["appearance"] }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.6.3"

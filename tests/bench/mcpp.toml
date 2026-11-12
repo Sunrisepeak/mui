@@ -33,7 +33,8 @@ xengine.dynamics = { path = "../../modules/projects/xengine/kernel/dynamics" }
 # With the lattice as a carrier of matter (simulation/matter-lattice-*).
 xengine.cellular = { path = "../../modules/projects/xengine/kernel/cellular", features = ["matter"] }
 xengine.matter = { path = "../../modules/projects/xengine/kernel/matter" }
-"xengine.cellular.present" = { path = "../../modules/projects/xengine/kernel/cellular/present" }
+# With matter's look lowered to the lattice's shade (simulation/matter-256-shade).
+"xengine.cellular.present" = { path = "../../modules/projects/xengine/kernel/cellular/present", features = ["matter"] }
 "hanim.core" = { path = "../../modules/projects/hanim/core" }
 "hanim" = { path = "../../modules/projects/hanim", features = ["render-vector"] }
 omui.sdk             = { path = "../../modules/projects/omui/sdk" }

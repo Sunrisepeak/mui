@@ -565,6 +565,45 @@ export interface Matter {
 }
 /** `export default defineMatter({ materials: { wood: { ignition: 570, fuel: 15, burnt: "ash" } }, laws: [{ transfer: "temperature", by: "thermal" }] })`. */
 export declare function defineMatter(matter: Matter): Defined<"matter">;
+
+// ── what a world looks like (xengine.matter's appearance) ───────────────────
+
+/** A base look: a colour (`"#rrggbb"`, `"#rrggbbaa"`), and how uneven it is, 0 … 1 — one place lighter, the next darker. */
+export interface AppearanceBase {
+    color?: string;
+    grain?: number;
+}
+/**
+ * A state's look: along a channel's range, the colour moves toward this one. Like a law, a state reads what
+ * a thing carries and never which material it is — a new material is charred, wet and aglow like the rest.
+ */
+export interface AppearanceState {
+    name?: string;
+    /** The channel read: `temperature`, `wetness`, `burned`, `burning`, `charge`, `pressure` … */
+    by: string;
+    /** None of it here (in the channel's unit; 0 unless said) … */
+    from?: number;
+    /** … all of it here: a number, or a property of the thing itself (`"fuel"`: burned, against its own fuel). Below `from`: the less, the more. */
+    to: number | string;
+    color: string;
+    /** How much of the colour at most, 0 … 1 (1 unless said). */
+    mix?: number;
+    /** Light of its own: whoever draws a glow draws it from this. */
+    emits?: boolean;
+    /** The phases it shows on (all unless said). */
+    of?: MatterPhase[];
+}
+export interface Appearance {
+    /** What a material the pack does not name looks like: by its phase. */
+    phases?: { [phase in MatterPhase]?: AppearanceBase };
+    materials?: { [name: string]: AppearanceBase };
+    /** In order: each over what the ones before it left. */
+    states?: AppearanceState[];
+    /** What is no material at all (clear unless said). */
+    nothing?: string;
+}
+/** `export default defineAppearance({ materials: { wood: { color: "#8a5a2b" } }, states: [{ by: "temperature", from: 800, to: 1500, color: "#ff4a0c", emits: true }] })`. */
+export declare function defineAppearance(appearance: Appearance): Defined<"appearance">;
 )ts";
 }
 

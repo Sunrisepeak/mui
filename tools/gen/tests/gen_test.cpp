@@ -269,32 +269,43 @@ UTest cases{"gen", [] {
         expect(catalogs >= 1) << "hanim's catalog at least";
     };
 
-    "every matter definition's committed snapshot is what its data module stands for (D-139)"_test = [] {
+    "every matter definition's and appearance's committed snapshot is what its data module stands for (D-139)"_test = [] {
         // The kernel reads the JSON (xengine.matter is below the scripts): the two must not part.
         const auto repo = spec_dir().parent_path();
-        std::size_t definitions = 0;
+        // Where a module carries a standard snapshot, that too: the file, its place, its module and name.
+        struct Carried {
+            std::string_view suffix, standard, place, module, name;
+        };
+        static constexpr std::array<Carried, 2> kinds{{
+            {".matter.omui.ts", "standard.matter.omui.ts", "src/json/generated/standard_snapshot.cppm", "xengine.matter.json", "standard_snapshot"},
+            {".appearance.omui.ts", "standard.appearance.omui.ts", "src/appearance/generated/standard_appearance_snapshot.cppm", "xengine.matter.appearance",
+             "standard_appearance_snapshot"},
+        }};
+        std::array<std::size_t, 2> found{};
         std::vector<std::filesystem::path> files;
         for (const auto* place : {"modules", "showcase", "examples"})
             if (std::filesystem::exists(repo / place))
                 for (const auto& entry : std::filesystem::recursive_directory_iterator(repo / place)) files.push_back(entry.path());
         for (const auto& path : files) {
             const auto name = path.filename().generic_string();
-            if (!name.ends_with(".matter.omui.ts") || path.generic_string().find("/target/") != std::string::npos) continue;
-            ++definitions;
-            const auto made = gen::snapshot(path);
-            expect(made.has_value()) << (made ? std::string() : made.error());
-            if (!made) continue;
-            const auto committed = path.parent_path() / made->name;
-            expect(read(committed) == made->json) << std::format("{} is out of date: run omui-gen snapshot {} --out {}", committed.generic_string(), path.generic_string(),
-                                                                 committed.generic_string());
-            // Where a module carries the snapshot (xengine.matter.json's standard one), that too.
-            const auto carried = path.parent_path() / "src" / "json" / "generated" / "standard_snapshot.cppm";
-            if (name == "standard.matter.omui.ts" && std::filesystem::exists(carried))
-                expect(read(carried) == gen::emit_embed(made->json, made->name, "xengine.matter.json", "xengine::matter", "standard_snapshot"))
-                    << std::format("{} is out of date: run omui-gen embed {} --module xengine.matter.json --name standard_snapshot --namespace xengine::matter --out {}",
-                                   carried.generic_string(), committed.generic_string(), carried.parent_path().generic_string());
+            if (path.generic_string().find("/target/") != std::string::npos) continue;
+            for (std::size_t kind = 0; kind < kinds.size(); ++kind) {
+                if (!name.ends_with(kinds[kind].suffix)) continue;
+                ++found[kind];
+                const auto made = gen::snapshot(path);
+                expect(made.has_value()) << (made ? std::string() : made.error());
+                if (!made) continue;
+                const auto committed = path.parent_path() / made->name;
+                expect(read(committed) == made->json) << std::format("{} is out of date: run omui-gen snapshot {} --out {}", committed.generic_string(),
+                                                                     path.generic_string(), committed.generic_string());
+                const auto carried = path.parent_path() / kinds[kind].place;
+                if (name == kinds[kind].standard && std::filesystem::exists(carried))
+                    expect(read(carried) == gen::emit_embed(made->json, made->name, kinds[kind].module, "xengine::matter", kinds[kind].name))
+                        << std::format("{} is out of date: run omui-gen embed {} --module {} --name {} --namespace xengine::matter --out {}", carried.generic_string(),
+                                       committed.generic_string(), kinds[kind].module, kinds[kind].name, carried.parent_path().generic_string());
+            }
         }
-        expect(definitions >= 1) << "the standard definition at least";
+        expect(found[0] >= 1 && found[1] >= 1) << "the standard definition and the standard appearance at least";
     };
 
     "a malformed catalog is reported line by line"_test = [] {

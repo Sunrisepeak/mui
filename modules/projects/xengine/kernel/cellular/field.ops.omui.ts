@@ -11,7 +11,7 @@ export default defineOps({
   module: "xengine.cellular.agent",
   namespace: "xengine::cellular::agent",
   generated: "src/agent",
-  doc: "Read a field of cells as numbers, place values in it, step it, return to a frame, and ask what would be.",
+  doc: "Read a field of cells as numbers, place values in it, step it, return to a frame, ask what would be, and who changed a cell.",
   operations: [
     {
       name: "field.observe",
@@ -77,6 +77,14 @@ export default defineOps({
         { name: "place", type: "json", doc: "[x, y, width, height] in cells", optional: true },
         { name: "region", type: "json", doc: "the region observed (the whole field when none is given)", optional: true },
       ],
+      result: "json",
+      cost: "bounded",
+    },
+    {
+      name: "field.explain",
+      effect: "read",
+      summary: "Why a cell holds what it holds, as far as the field knows: its values, the edits on record that cover it — what was written, at which frame, by whom — the latest first, and what the program changed of it in the last step",
+      params: [{ name: "cell", type: "json", doc: "[x, y]" }],
       result: "json",
       cost: "bounded",
     },

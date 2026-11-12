@@ -227,6 +227,42 @@ struct Report {
     std::uint64_t became = 0;   // instances that became another material
     std::uint64_t changed = 0;  // instances any of whose channels changed
 };
+// ── why ────────────────────────────────────────────────────────────────
+
+// One thing a law read of an instance: a channel, a property — as the instance's state leaves it, where an
+// adjustment holds — or a sum over what is beside it. As stored (× 2^fraction of its channel or column).
+struct Reading {
+    Source        source = Source::constant;
+    std::uint32_t index = 0, value = 0;
+};
+// A law judged for one instance on a step's input: whether it held, the comparison that failed first where
+// it did not, and what its condition read (each thing once).
+struct Judged {
+    std::uint32_t        law = 0;
+    bool                 holds = false;
+    std::uint32_t        failed = 0;
+    std::vector<Reading> readings;
+};
+// What a transfer carried between an instance and one beside it in the step.
+struct Flowed {
+    std::uint32_t law = 0, beside = 0, amount = 0;
+    bool          in = false;  // toward the instance
+};
+// One neighbour's part of a sum over what is beside an instance (`near.oxygen`).
+struct Summed {
+    Source        source = Source::near_property;
+    std::uint32_t index = 0, beside = 0, amount = 0;
+};
+// One instance's step, said: the reference step for it alone, with what it read and from whom.
+struct Why {
+    std::vector<Judged>          laws;        // every adjustment, reaction and conversion, in the laws' order
+    std::vector<Flowed>          flows;       // each transfer with each neighbour, where anything flowed
+    std::vector<Summed>          near;        // the parts of every near sum some law reads, where not 0
+    std::vector<std::uint32_t>   properties;  // its material's, as its state leaves them
+    std::vector<std::uint32_t>   after;       // its channels after the step (0: the material it is then)
+    std::optional<std::uint32_t> became_by;   // the law that made it another material
+};
+
 // A step's working space, kept between steps so that a step allocates nothing once it has grown.
 class Workspace {
 public:
@@ -276,6 +312,12 @@ public:
                                                       Workspace& workspace, std::vector<Event>* events = nullptr) const noexcept;
     // What a new instance of a material has in a channel.
     [[nodiscard]] std::uint32_t initial(MaterialId material, std::uint32_t channel) const noexcept;
+    // Why one instance is what it is after a step from `input`: the same arithmetic as step(), for it alone —
+    // `after` is what step() writes for it, bit for bit — with every law judged, every flow and every part
+    // of a near sum named by the neighbour it is with. Only the carrier's pairs that name the instance are
+    // read, so a carrier may give just those (a lattice: a cell and the cells beside it, as a carrier of
+    // their own). Nothing for an instance not there, or state of the wrong shape.
+    [[nodiscard]] Why why(Carrier carrier, std::span<const std::uint32_t> input, std::size_t instance) const;
 
 private:
     [[nodiscard]] std::uint32_t evaluate(const Sum& sum, std::span<const std::uint32_t> properties, std::span<const std::uint32_t> input,

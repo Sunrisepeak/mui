@@ -1,10 +1,11 @@
 // A field of falling sand as a subject of the agent kernel: the agent
-// contract's suite on it — what it says it cannot do yet reported so, never
+// contract's suite on it — what it says it cannot do reported so, never
 // passed — and the field read by region, placed in, stepped, sought and
-// branched through the same session an agent has.
+// branched, and who changed a cell asked, through the same session an agent has.
 import std;
 import mlibs.agent.cts;
 import mlibs.json;
+import openas;
 import xengine.cellular.api;
 import xengine.cellular.agent;
 import mcpplibs.mtest;
@@ -66,13 +67,70 @@ UTest cases{"cellular.agent", [] {
             .preview = R"({"op":"field.branch","steps":8,"channel":0,"value":1,"place":[0,0,16,1]})",
             .script = {R"({"op":"field.place","channel":0,"value":1,"region":[9,0,1,3]})", R"({"op":"field.step","steps":5})", R"({"op":"field.observe","region":[0,8,16,8]})",
                        R"({"op":"field.step","steps":12})", R"({"op":"field.cells","channel":0,"region":[0,13,16,3]})"},
+            .explain = R"({"op":"field.explain","cell":[11,3]})",
             .budgeted = R"({"op":"field.observe","budget":180})",
             .budget = 180,
         };
         contract::declare(probe, {.subject = "xengine.cellular.agent"});
         const std::vector<std::string> unsupported = contract::unsupported(probe.make()->capabilities());
-        expect(unsupported == std::vector<std::string>{"agent.source.chain", "agent.actor.recorded", "agent.causes.explained"})
-            << "causes and the source of what it puts out: not yet, and said so";
+        expect(unsupported == std::vector<std::string>{"agent.source.chain"}) << "which rule wrote a cell — the source of what it puts out — is not here for plain rules, and said so";
+    };
+
+    "who changed a cell is on record: every edit with its actor, the latest first; what the program changed in the last step; a seek drops what came after"_test = [] {
+        auto sandbox = field();
+        agent::SubjectSession ada({sandbox.get()}, {.actor = {openas::Kind::agent, "ada", {}}});
+        agent::SubjectSession grace({sandbox.get()}, {.actor = {openas::Kind::person, "grace", {}}});
+        // The owner placed four grains when the field was made (frame 1); two more are placed by two actors.
+        (void)ask(ada, R"({"op":"field.place","channel":0,"value":1,"region":[4,0,8,1]})");     // frame 2: over the owner's top row
+        (void)ask(grace, R"({"op":"field.place","channel":2,"value":7,"region":[5,0,1,1]})");   // frame 3
+        const auto top = ask(ada, R"({"op":"field.explain","cell":[5,0]})");
+        expect(top["cell"].dump() == "[5,0]" && top["frame"].integer() == 3 && top["values"].dump() == "[1,0,7]") << top.data->root().dump();
+        expect(eq(top["edits"].size(), std::size_t{3})) << "three edits cover it";
+        expect(top["edits"][0]["frame"].integer() == 3 && top["edits"][0]["by"]["name"].text() == "grace" && top["edits"][0]["by"]["kind"].text() == "person" &&
+               top["edits"][0]["wrote"].dump() == R"([{"channel":2,"value":7}])" && top["edits"][0]["region"].dump() == "[5,0,1,1]");
+        expect(top["edits"][1]["frame"].integer() == 2 && top["edits"][1]["by"]["name"].text() == "ada" && top["edits"][1]["kind"].text() == "set");
+        expect(top["edits"][2]["frame"].integer() == 1 && top["edits"][2]["by"]["name"].text() == "owner" && top["edits"][2]["by"]["kind"].text() == "program");
+        expect(!top["last_step"]) << "the last frame was an edit, not a step";
+        expect(eq(ask(ada, R"({"op":"field.explain","cell":[10,0]})")["edits"].size(), std::size_t{1})) << "only ada's row reaches here";
+        expect(eq(ask(ada, R"({"op":"field.explain","cell":[0,9]})")["edits"].size(), std::size_t{0})) << "no one touched this one";
+
+        // A step: the grain at [8,0] falls — the program changed the cell, and the record says from what to what;
+        // the one at [5,0] lies on the owner's grain and stays, counted once more as sand.
+        (void)ask(ada, R"({"op":"field.step"})");
+        const auto dropped = ask(ada, R"({"op":"field.explain","cell":[8,0]})");
+        expect(dropped["last_step"]["frame"].integer() == 4 && dropped["last_step"]["changed"].dump() == R"([{"channel":0,"from":1,"to":0}])") << dropped["last_step"].dump();
+        const auto fallen = ask(ada, R"({"op":"field.explain","cell":[5,0]})");
+        expect(fallen["last_step"]["changed"].dump() == R"([{"channel":1,"from":0,"to":1}])") << fallen["last_step"].dump();
+        expect(ask(ada, R"({"op":"field.explain","cell":[0,9]})")["last_step"]["changed"].dump() == "[]") << "a cell the step left alone";
+        expect(eq(fallen["edits"].size(), std::size_t{3})) << "the edits are still its history";
+
+        // Back before grace's edit: it is another branch's now, and no longer on this record.
+        const std::uint64_t before = sandbox->state_hash();
+        (void)ask(ada, R"({"op":"field.explain","cell":[5,0]})");
+        expect(eq(sandbox->state_hash(), before)) << "explaining changes nothing";
+        (void)ask(ada, R"({"op":"field.seek","frame":2})");
+        const auto earlier = ask(ada, R"({"op":"field.explain","cell":[5,0]})");
+        expect(eq(earlier["edits"].size(), std::size_t{2}) && earlier["edits"][0]["by"]["name"].text() == "ada") << earlier["edits"].dump();
+        expect(eq(sandbox->edits().size(), std::size_t{2}));
+        expect(ask(ada, R"({"op":"field.explain","cell":[16,0]})").error == "invalid-argument");
+        expect(ask(ada, R"({"op":"field.explain"})").error == "invalid-argument");
+
+        // The owner's own edits: several channels at once, raised and lowered; one the field cannot hold is not made.
+        cellular::agent::Edit both{.kind = cellular::agent::EditKind::add, .count = 2, .region = {0, 15, 2, 1}};
+        both.channels = {1, 2};
+        both.values = {5, 0xffffffffu};
+        expect(sandbox->edit(both) && sandbox->edit(both));
+        expect(eq(sandbox->state().cells[1 * 256 + 15 * 16], 10u) && eq(sandbox->state().cells[2 * 256 + 15 * 16 + 1], 0xffffffffu)) << "added twice; saturating";
+        both.kind = cellular::agent::EditKind::take;
+        both.values = {3, 1};
+        expect(sandbox->edit(both));
+        expect(eq(sandbox->state().cells[1 * 256 + 15 * 16], 7u) && eq(sandbox->state().cells[2 * 256 + 15 * 16], 0xfffffffeu));
+        both.channels = {1, 3};
+        expect(!sandbox->edit(both)) << "a channel the field has not";
+        both.channels = {1, 2};
+        both.region = {15, 15, 2, 1};
+        expect(!sandbox->edit(both)) << "a region past the edge";
+        expect(!sandbox->edit({})) << "a step is not an edit";
     };
 
     "sand placed falls and settles: read as numbers by region, cell by cell when asked, within the budget asked"_test = [] {

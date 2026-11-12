@@ -526,4 +526,97 @@ UTest cases{"xengine.matter", [] {
         expect(eq(made->value(*made->material("mud"), *made->column("sticky")), 3u) && eq(made->channels().back().initial, 5u) && eq(made->laws().size(), std::size_t{2}));
         expect(eq(made->channels().size(), matter::Definition::standard().channels.size() + 1));
     };
+    "why: one instance's step said — the step's own bits, every law judged with what it read, each flow and each part of a near sum by its neighbour"_test = [] {
+        // A strip of wood on stone under air, lit at one end, a piece of ice in the stone at the other: fire, heat
+        // flowing, the ice melting. At every step, for every instance, why().after is what step() wrote.
+        World world = strip(standard(), 10);
+        world.put(2 * 10 + 9, "ice");
+        world.heat(10, 900);
+        const auto& program = world.program;
+        std::size_t compared = 0, became = 0;
+        for (int step = 0; step < 260; ++step) {
+            const std::vector<std::uint32_t> before = world.state;
+            world.step();
+            for (std::size_t instance = 0; instance < world.instances; ++instance) {
+                const matter::Why why = program.why({world.instances, world.pairs}, before, instance);
+                bool same = why.after.size() == program.channels().size();
+                for (std::size_t channel = 0; same && channel < why.after.size(); ++channel) same = why.after[channel] == world.state[channel * world.instances + instance];
+                expect(same) << std::format("step {}, instance {}: why() and step() part", step, instance);
+                became += why.became_by.has_value();
+                ++compared;
+                if (instance % 7 != 3) continue;
+                // Given only the pairs that name it, the same.
+                std::vector<matter::Pair> own;
+                for (const matter::Pair& pair : world.pairs)
+                    if (pair.first == instance || pair.second == instance) own.push_back(pair);
+                expect(program.why({world.instances, own}, before, instance).after == why.after);
+            }
+        }
+        expect(compared == 260u * 30u && became >= 1u) << std::format("{} instances compared, {} became another material", compared, became);
+
+        // The moment a piece of wood catches, said. Wood 1 beside the lit piece 0: it holds `burns` for the
+        // first time at the step the world's events say it ignites.
+        World lit = strip(standard(), 6);
+        lit.heat(6, 900);
+        const std::uint32_t burns = static_cast<std::uint32_t>(std::ranges::find(program.laws(), "burns", &matter::Law::name) - program.laws().begin());
+        const std::uint32_t temperature = *program.channel("temperature"), ignition = *program.column("ignition"), oxygen = *program.column("oxygen");
+        std::optional<matter::Why> caught;
+        for (int step = 0; step < 200 && !caught; ++step) {
+            const matter::Why why = program.why({lit.instances, lit.pairs}, lit.state, 7);
+            const auto judged = std::ranges::find(why.laws, burns, &matter::Judged::law);
+            expect(fatal(judged != why.laws.end()));
+            if (judged->holds) caught = why;
+            else {
+                // Not yet: the comparison that fails is the first, temperature against ignition, and it says both.
+                expect(eq(judged->failed, 0u));
+                const auto read = [&](matter::Source source, std::uint32_t index) { return std::ranges::find_if(judged->readings, [&](const matter::Reading& reading) { return reading.source == source && reading.index == index; })->value; };
+                expect(read(matter::Source::channel, temperature) < read(matter::Source::property, ignition));
+            }
+            lit.step();
+        }
+        expect(fatal(caught.has_value()));
+        expect(lit.happened_to("ignite", 7)) << "the step why() says it holds is the step it ignites";
+        const auto& judged = *std::ranges::find(caught->laws, burns, &matter::Judged::law);
+        const auto reading = [&](matter::Source source, std::uint32_t index) {
+            const auto found = std::ranges::find_if(judged.readings, [&](const matter::Reading& each) { return each.source == source && each.index == index; });
+            expect(fatal(found != judged.readings.end()));
+            return found->value;
+        };
+        expect(eq(judged.readings.size(), std::size_t{5})) << "temperature, ignition, burned, fuel, near.oxygen: each once";
+        expect(reading(matter::Source::channel, temperature) >= 570u * 256 && eq(reading(matter::Source::property, ignition), 570u * 256));
+        expect(eq(reading(matter::Source::property, *program.column("fuel")), 400u) && eq(reading(matter::Source::channel, *program.channel("burned")), 0u));
+        // Its oxygen is the air above it: one neighbour's, named.
+        expect(eq(reading(matter::Source::near_property, oxygen), 1u));
+        const auto air = std::ranges::find_if(caught->near, [&](const matter::Summed& part) { return part.source == matter::Source::near_property && part.index == oxygen; });
+        expect(fatal(air != caught->near.end()));
+        expect(eq(air->beside, 1u) && eq(air->amount, 1u) && lit.material(1) == "air");
+        // Its heat came from the piece alight beside it: the greatest flow in is from instance 6.
+        const std::uint32_t heat_flows = static_cast<std::uint32_t>(std::ranges::find(program.laws(), "heat flows", &matter::Law::name) - program.laws().begin());
+        const matter::Flowed* greatest = nullptr;
+        for (const matter::Flowed& flow : caught->flows)
+            if (flow.law == heat_flows && flow.in && (!greatest || flow.amount > greatest->amount)) greatest = &flow;
+        expect(fatal(greatest != nullptr));
+        expect(eq(greatest->beside, 6u)) << "the heat that lit it flowed from the burning piece";
+        expect(std::ranges::any_of(caught->flows, [&](const matter::Flowed& flow) { return flow.law == heat_flows && !flow.in; })) << "and it gave heat on, to what is cooler";
+
+        // Wet wood: the adjustment is judged too, and the ignition it reads is the raised one.
+        World wet = strip(standard(), 3);
+        wet.at("wetness", 4) = 2;
+        wet.heat(4, 600);
+        const matter::Why soaked = program.why({wet.instances, wet.pairs}, wet.state, 4);
+        const std::uint32_t harder = static_cast<std::uint32_t>(std::ranges::find(program.laws(), "wet is harder to light", &matter::Law::name) - program.laws().begin());
+        expect(std::ranges::find(soaked.laws, harder, &matter::Judged::law)->holds);
+        expect(eq(soaked.properties[ignition], (570u + 80u) * 256)) << "570 K and 40 K for each of its wetness";
+        const auto& unlit = *std::ranges::find(soaked.laws, burns, &matter::Judged::law);
+        expect(!unlit.holds && eq(unlit.failed, 0u));
+        expect(eq(std::ranges::find_if(unlit.readings, [&](const matter::Reading& each) { return each.source == matter::Source::property && each.index == ignition; })->value, 650u * 256));
+
+        // What is not there says nothing.
+        expect(program.why({wet.instances, wet.pairs}, wet.state, 99).after.empty());
+        expect(program.why({wet.instances, wet.pairs}, std::span(wet.state).first(5), 1).after.empty());
+        wet.state[4] = 4000;  // no material of this definition: nothing acts on it
+        const matter::Why nothing = program.why({wet.instances, wet.pairs}, wet.state, 4);
+        expect(nothing.laws.empty() && nothing.flows.empty() && eq(nothing.after[0], 4000u));
+    };
 }};
+

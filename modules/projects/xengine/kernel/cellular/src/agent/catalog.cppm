@@ -33,15 +33,19 @@ inline constexpr std::array<mlibs::control::Parameter, 5> parameters_field_branc
     {"place", "json", "[x, y, width, height] in cells", true},
     {"region", "json", "the region observed (the whole field when none is given)", true},
 }};
+inline constexpr std::array<mlibs::control::Parameter, 1> parameters_field_explain{{
+    {"cell", "json", "[x, y]", false},
+}};
 
-// Read a field of cells as numbers, place values in it, step it, return to a frame, and ask what would be.
-inline constexpr std::array<mlibs::control::CatalogEntry, 6> catalog{{
+// Read a field of cells as numbers, place values in it, step it, return to a frame, ask what would be, and who changed a cell.
+inline constexpr std::array<mlibs::control::CatalogEntry, 7> catalog{{
     {{"field.observe", openas::Effect::read, false}, "The frame, the steps run, the state's hash, the field's shape, and each channel of a region as numbers: least, most, sum, cells not zero", parameters_field_observe, "json", mlibs::control::Cost::bounded, "", false, false, false},
     {{"field.cells", openas::Effect::read, false}, "One channel's values in a region, row by row; at most 4096 cells a request", parameters_field_cells, "json", mlibs::control::Cost::bounded, "", false, false, false},
     {{"field.place", openas::Effect::reversible, false}, "Sets one channel to a value over a region; a frame of its own, recorded like a step", parameters_field_place, "json", mlibs::control::Cost::bounded, "field.seek to the frame before it", false, false, false},
     {{"field.step", openas::Effect::reversible, false}, "Runs the program a number of steps over the field: the tiles awake (what is at rest sleeps, the result the same); answers where the field is and how many of its tiles sleep", parameters_field_step, "json", mlibs::control::Cost::bounded, "field.seek to the frame it began at", false, false, false},
     {{"field.seek", openas::Effect::reversible, false}, "Returns to a frame within the history kept; what is run from there is a new branch", parameters_field_seek, "json", mlibs::control::Cost::bounded, "none within the field: what came after the frame is another branch's", false, false, false},
     {{"field.branch", openas::Effect::read, false}, "What would be: the field some steps ahead, a value placed first when one is given, observed as field.observe does; the field itself untouched", parameters_field_branch, "json", mlibs::control::Cost::bounded, "", false, false, false},
+    {{"field.explain", openas::Effect::read, false}, "Why a cell holds what it holds, as far as the field knows: its values, the edits on record that cover it — what was written, at which frame, by whom — the latest first, and what the program changed of it in the last step", parameters_field_explain, "json", mlibs::control::Cost::bounded, "", false, false, false},
 }};
 
 // The listing (field.ops.json), as written beside this file.
@@ -49,7 +53,7 @@ inline constexpr std::string_view listing = R"listing({
   "kind": "omui.ops",
   "version": 1,
   "product": "field",
-  "doc": "Read a field of cells as numbers, place values in it, step it, return to a frame, and ask what would be.",
+  "doc": "Read a field of cells as numbers, place values in it, step it, return to a frame, ask what would be, and who changed a cell.",
   "tools": [
     {"name": "field.observe", "description": "The frame, the steps run, the state's hash, the field's shape, and each channel of a region as numbers: least, most, sum, cells not zero", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"region": {"description": "[x, y, width, height] in cells (the whole field when none is given)"}, "budget": {"type": "integer", "description": "the most bytes of answer: channels are left out from the last, and `more` says how many"}}, "required": []}},
@@ -62,7 +66,9 @@ inline constexpr std::string_view listing = R"listing({
     {"name": "field.seek", "description": "Returns to a frame within the history kept; what is run from there is a new branch", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "none within the field: what came after the frame is another branch's", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"frame": {"type": "integer", "description": "the frame to return to"}}, "required": ["frame"]}},
     {"name": "field.branch", "description": "What would be: the field some steps ahead, a value placed first when one is given, observed as field.observe does; the field itself untouched", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
-     "inputSchema": {"type": "object", "properties": {"steps": {"type": "integer", "description": "how far ahead (1 when none is given)"}, "channel": {"type": "integer", "description": "with `value` and `place`: placed before the steps"}, "value": {"type": "integer"}, "place": {"description": "[x, y, width, height] in cells"}, "region": {"description": "the region observed (the whole field when none is given)"}}, "required": []}}
+     "inputSchema": {"type": "object", "properties": {"steps": {"type": "integer", "description": "how far ahead (1 when none is given)"}, "channel": {"type": "integer", "description": "with `value` and `place`: placed before the steps"}, "value": {"type": "integer"}, "place": {"description": "[x, y, width, height] in cells"}, "region": {"description": "the region observed (the whole field when none is given)"}}, "required": []}},
+    {"name": "field.explain", "description": "Why a cell holds what it holds, as far as the field knows: its values, the edits on record that cover it — what was written, at which frame, by whom — the latest first, and what the program changed of it in the last step", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"cell": {"description": "[x, y]"}}, "required": ["cell"]}}
   ],
   "tiers": []
 }

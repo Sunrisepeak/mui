@@ -67,6 +67,8 @@ Every law reads the step's input; nothing a law writes is seen by another in the
 
 A transfer whose neighbours could together take more than an instance has is refused before anything is written (`matter.unstable`), not clamped: clamping would make what leaves one end differ from what arrives at the other.
 
+**Why** (D-169). `Program::why(carrier, input, instance)` is the same step for one instance, keeping what the step throws away: every adjustment, reaction and conversion judged — held, or the comparison that failed first — with what its condition read (a property as the instance's state leaves it); what each transfer carried to and from each neighbour; each neighbour's part of every near sum; and the instance's channels after. `after` is what `step()` writes for it, bit for bit, and only the pairs that name the instance are read — so a lattice gives a cell and the cells beside it as a carrier of their own. A record of causes is made of this at a commit; nothing of it is in a step's path.
+
 ## What the tests show
 
 `mcpp test -p xengine.matter` — the standard laws ([standard.matter.omui.ts](standard.matter.omui.ts): 19 laws, 17 materials, no law naming one) on rows and small grids of instances:
@@ -78,6 +80,7 @@ A transfer whose neighbours could together take more than an instance has is ref
 - lava beside water: the lava sets as stone and the water boils (the lava first: the water is at its boiling point taking up heat meanwhile);
 - wood at the far end of an iron bar from a heat source catches at step 144, of a stone bar at 421; charge goes through iron and water and stops at wood;
 - **alcohol and its vapour are added as two rows of properties and no law is changed**: it boils at its own point, its vapour condenses, catches beside a fire at step 14 where wood catches at 47, and burns out to smoke — 6 interactions for 2 rows;
+- `why()` for every instance of a burning strip with ice in it, 260 steps: 7800 times what `step()` wrote, also given only the instance's own pairs; the step a piece of wood catches, said — `burns` held having read temperature, ignition, burned, fuel and near.oxygen, the oxygen one neighbour's (the air above), the greatest flow of heat in from the piece alight beside it; before that step the comparison that fails is the first, temperature against ignition; wet wood reads an ignition raised by its wetness;
 - the same state whatever the order of the pairs; the arithmetic of one step against numbers worked by hand, saturating at both ends; a definition refused 23 ways, each by its code, pointer and message; JSON problems at their line and column.
 
 The same laws with cells that move — the emergence set, nine phenomena and one no one wrote — are [cts/tests/emergence_test.cpp](cts/tests/emergence_test.cpp), told in [xengine.cellular's README](../cellular/README.md). Gunpowder is a row (it burns in three steps, hot, with its own oxygen, and its `blast` is `pressure`, a quantity that spreads and eases): an explosion is those numbers, not a law of its own.

@@ -10,10 +10,22 @@ namespace xengine::cellular::agent {
 
 void FieldModel::step(State& state, const Input& input) noexcept {
     const std::size_t area = static_cast<std::size_t>(state.shape.width) * state.shape.height;
-    if (input.place) {
-        std::uint32_t* channel = state.cells.data() + static_cast<std::size_t>(input.channel) * area;
-        for (std::uint32_t y = input.region.y; y < input.region.y + input.region.height; ++y)
-            std::fill_n(channel + static_cast<std::size_t>(y) * state.shape.width + input.region.x, input.region.width, input.value);
+    if (input.kind != EditKind::step) {
+        for (std::uint32_t written = 0; written < input.count; ++written) {
+            std::uint32_t* channel = state.cells.data() + static_cast<std::size_t>(input.channels[written]) * area;
+            const std::uint32_t value = input.values[written];
+            for (std::uint32_t y = input.region.y; y < input.region.y + input.region.height; ++y) {
+                std::uint32_t* row = channel + static_cast<std::size_t>(y) * state.shape.width + input.region.x;
+                if (input.kind == EditKind::set) {
+                    std::fill_n(row, input.region.width, value);
+                    continue;
+                }
+                for (std::uint32_t x = 0; x < input.region.width; ++x) {
+                    if (input.kind == EditKind::add) row[x] = row[x] + value < row[x] ? std::numeric_limits<std::uint32_t>::max() : row[x] + value;
+                    else row[x] -= std::min(row[x], value);
+                }
+            }
+        }
         state.program->wake(state.shape, state.tile, input.region, state.activity, state.boundary.edge);
         return;
     }
@@ -42,6 +54,41 @@ std::expected<Field, std::string> Field::make(Program program, Shape shape, std:
     if (const auto stepped = trial.program->step(trial.shape, trial.cells, trial.next, {.boundary = trial.boundary}); !stepped)
         return std::unexpected(std::string(stepped.error().description().text));
     return Field(state, options);
+}
+
+const openas::Actor& Field::owner() noexcept {
+    static const openas::Actor actor{openas::Kind::program, "owner", {}};
+    return actor;
+}
+
+void Field::step() {
+    timeline_.step({});
+    const FieldState& state = timeline_.state();
+    if (witness_) witness_->stepped(state, state.next, timeline_.frame());
+}
+
+bool Field::edit(const Edit& edit, const openas::Actor& actor) {
+    const FieldState& state = timeline_.state();
+    if (edit.kind == EditKind::step || edit.count < 1 || edit.count > edit.channels.size()) return false;
+    for (std::uint32_t written = 0; written < edit.count; ++written)
+        if (edit.channels[written] >= state.program->channels()) return false;
+    const Tile region = edit.region;
+    if (!region.width || !region.height || region.x >= state.shape.width || region.y >= state.shape.height || region.width > state.shape.width - region.x ||
+        region.height > state.shape.height - region.y)
+        return false;
+    timeline_.step(edit);
+    if (edits_.size() >= std::max<std::size_t>(1, options_.edits_kept)) edits_.erase(edits_.begin());
+    edits_.push_back({timeline_.frame(), edit, actor});
+    if (witness_) witness_->edited(timeline_.state(), edits_.back());
+    return true;
+}
+
+bool Field::seek(std::int64_t frame) {
+    if (!timeline_.seek(frame)) return false;
+    timeline_.branch();
+    std::erase_if(edits_, [frame](const Edited& edit) { return edit.frame > frame; });
+    if (witness_) witness_->rewound(frame);
+    return true;
 }
 
 std::uint64_t Field::hash_of(const FieldState& state) noexcept {
@@ -158,7 +205,7 @@ void Field::operate(std::string_view operation, const mlibs::agent::Request& req
         if (!value) return invalid("`value` is 0 … 4294967295");
         const auto region = region_of(request["region"], "region", true);
         if (!region) return invalid(region.error());
-        place(*channel, *value, *region);
+        place(*channel, *value, *region, request.actor);
         return answer.data(status());
     }
     if (operation == "field.step") {
@@ -170,9 +217,8 @@ void Field::operate(std::string_view operation, const mlibs::agent::Request& req
     if (operation == "field.seek") {
         const auto frame = request["frame"].integer();
         if (!frame) return invalid("`frame`: the frame to return to");
-        if (!timeline_.seek(*frame))
+        if (!seek(*frame))
             return answer.fail(openas::error_code::stale, std::format("frame {} is outside the history kept ({} … {})", *frame, timeline_.earliest(), timeline_.latest()));
-        timeline_.branch();
         return answer.data(status());
     }
     if (operation == "field.branch") {
@@ -189,11 +235,45 @@ void Field::operate(std::string_view operation, const mlibs::agent::Request& req
             if (!value) return invalid("`value` is 0 … 4294967295");
             const auto placed = region_of(request["place"], "place", true);
             if (!placed) return invalid(placed.error());
-            FieldModel::step(future, {1, *channel, *value, *placed});
+            FieldModel::step(future, Edit::place(*channel, *value, *placed));
             ++frames;
         }
         for (std::int64_t played = 0; played < *steps; ++played, ++frames) FieldModel::step(future, {});
         return answer.data(observed(future, timeline_.frame() + frames, *region, std::nullopt));
+    }
+    if (operation == "field.explain") {
+        const auto at = request["cell"].items();
+        const auto x = at.size() == 2 ? at[0].integer() : std::nullopt, y = at.size() == 2 ? at[1].integer() : std::nullopt;
+        if (!x || !y || *x < 0 || *y < 0 || *x >= state.shape.width || *y >= state.shape.height)
+            return invalid(std::format("`cell` is [x, y] within the field ({} × {})", state.shape.width, state.shape.height));
+        const std::size_t area = static_cast<std::size_t>(state.shape.width) * state.shape.height, index = static_cast<std::size_t>(*y) * state.shape.width + static_cast<std::size_t>(*x);
+        std::string out = std::format("{{\"cell\":[{},{}],\"frame\":{},\"steps\":{},\"values\":[", *x, *y, timeline_.frame(), state.steps);
+        for (std::uint32_t channel = 0; channel < state.program->channels(); ++channel) out += std::format("{}{}", channel ? "," : "", state.cells[channel * area + index]);
+        // Whether the program changed it in the last frame, when that frame was a step: its cells of a step ago are kept.
+        const bool edited_last = !edits_.empty() && edits_.back().frame == timeline_.frame();
+        if (state.steps > 0 && !edited_last) {
+            std::string changed;
+            for (std::uint32_t channel = 0; channel < state.program->channels(); ++channel)
+                if (state.cells[channel * area + index] != state.next[channel * area + index])
+                    changed += std::format("{}{{\"channel\":{},\"from\":{},\"to\":{}}}", changed.empty() ? "" : ",", channel, state.next[channel * area + index], state.cells[channel * area + index]);
+            out += std::format("],\"last_step\":{{\"frame\":{},\"changed\":[{}]}},\"edits\":[", timeline_.frame(), changed);
+        } else {
+            out += "],\"edits\":[";
+        }
+        // The edits on record that cover it, the latest first: what was written, and by whom.
+        std::size_t said = 0;
+        for (auto edit = edits_.rbegin(); edit != edits_.rend() && said < 8; ++edit) {
+            const Tile region = edit->edit.region;
+            if (*x < region.x || *y < region.y || *x >= region.x + region.width || *y >= region.y + region.height) continue;
+            std::string wrote;
+            for (std::uint32_t written = 0; written < edit->edit.count; ++written)
+                wrote += std::format("{}{{\"channel\":{},\"value\":{}}}", written ? "," : "", edit->edit.channels[written], edit->edit.values[written]);
+            out += std::format("{}{{\"frame\":{},\"kind\":\"{}\",\"wrote\":[{}],\"region\":[{},{},{},{}],\"by\":{{\"kind\":\"{}\",\"name\":{}}}}}", said ? "," : "", edit->frame,
+                               edit_kind_names[static_cast<std::size_t>(edit->edit.kind)], wrote, region.x, region.y, region.width, region.height, openas::name(edit->actor.kind),
+                               mlibs::agent::json_text(edit->actor.name));
+            ++said;
+        }
+        return answer.data(out + std::format("],\"kept\":{}}}", edits_.size()));
     }
 }
 

@@ -10,6 +10,9 @@ on:
     paths:
       - .github/workflows/probe-windows-tools.yml
 
+env:
+  XLINGS_NON_INTERACTIVE: '1'
+
 jobs:
   probe:
     strategy:
@@ -92,6 +95,8 @@ jobs:
           grep -n "Provisioning\|Source \|Downloading\|esbuild\|typescript" run.log
           echo "--- esbuild and tsc beneath the xlings and mcpp homes, and the project"
           for home in "$HOME/.xlings" "$HOME/.mcpp" "$PWD"; do
-            [ -d "$home" ] && find "$home" -maxdepth 9 \( -iname '*esbuild*' -o -iname 'tsc' -o -iname 'tsc.*' -o -iname '*typescript*' \) 2>/dev/null | head -30
+            [ -d "$home" ] && find "$home" -maxdepth 9 \( -iname '*esbuild*' -o -iname 'tsc' -o -iname 'tsc.*' -o -iname '*typescript*' \) 2>/dev/null | grep -v 'xim-pkgindex' | head -40
           done
+          echo "--- mcpp's own bin directory of provisioned tools"
+          ls -la "$HOME/.mcpp/registry/subos/default/bin" 2>/dev/null | head -40
           exit "$status"

@@ -99,6 +99,7 @@ members = [
     "modules/projects/gongfu/ai",
     "modules/projects/xengine/game/net",
     "modules/projects/xengine/game/world",
+    "modules/projects/xengine/game/runtime",
     "modules/projects/xengine/game/input",
     "modules/projects/xengine/game/ui",
     "modules/projects/omui/components/base",
@@ -145,6 +146,7 @@ members = [
     "showcase/style-gallery",
     "showcase/widget-breakout",
     "showcase/widget-breakout/sim",
+    "showcase/widget-breakout/headless",
     "site",
 ]
 

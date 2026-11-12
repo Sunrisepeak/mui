@@ -36,7 +36,7 @@ bool unsupported(const std::expected<void, std::string>& started) {
 std::optional<std::string> next(agent::Endpoint& endpoint, agent::Connection& connection) {
     for (int turn = 0; turn < 2000; ++turn) {
         endpoint.pump();
-        auto got = connection.receive(std::chrono::milliseconds(2));
+        auto got = connection.receive(std::chrono::milliseconds(1));  // the shortest wait still reads
         if (!got) return std::nullopt;
         if (*got) return **got;
     }

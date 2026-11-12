@@ -309,7 +309,8 @@ std::expected<std::optional<std::string>, std::string> Connection::receive(std::
             if (!line.empty() && line.back() == '\r') line.pop_back();
             return line;
         }
-        const auto left = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now());
+        // Rounded up: a part of a millisecond left is still time to read in.
+        const auto left = std::chrono::ceil<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now());
         if (left.count() <= 0) return std::optional<std::string>{};
         auto got = d.conn.read_for(std::min(left, std::chrono::milliseconds(200)));
         if (!got) return std::unexpected(got.error().message());

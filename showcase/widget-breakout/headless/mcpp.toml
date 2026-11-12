@@ -1,0 +1,32 @@
+# The breakout as a game on its own (D-162): its simulation as xengine.runtime
+# plays it — stepped without omui, found and played by an agent through the
+# agent kernel. The showcase (the package above) shows and plays the same
+# simulation in omui; nothing here knows it.
+[package]
+namespace   = "omui.showcase.widget_breakout"
+name        = "headless"
+version     = "0.1.0"
+description = "The breakout on its own: the simulation as a game the runtime steps and an agent plays, no interface"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[targets.widget-breakout-headless]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+"omui.showcase.widget_breakout.sim" = { path = "../sim" }
+xengine.runtime = { path = "../../../modules/projects/xengine/game/runtime" }
+xengine.input   = { path = "../../../modules/projects/xengine/game/input" }
+xengine.world   = { path = "../../../modules/projects/xengine/game/world" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.5.2"
+mlibs.agent    = { path = "../../../modules/base/agent" }
+mlibs.json     = { path = "../../../modules/base/json" }
+mlibs.utils    = { path = "../../../modules/base/utils" }
+xengine.dynamics = { path = "../../../modules/projects/xengine/kernel/dynamics" }

@@ -793,6 +793,13 @@ CLOSURES: dict[str, dict[str, set[str]]] = {
     "xengine.cellular.rhi": {"not": {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "xrender"}},
     # the field on screen: the renderer's resources (and what they reach), no UI, game, effect loader or shader compiler
     "xengine.cellular.present": {"not": {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "mlibs.shader", "xrender.effect"}},
+    # the agent kernel: below every engine, knowing none of them (D-173)
+    "mlibs.agent": {"not": {"omui", "xengine", "hanim", "xrender", "gongfu"}},
+    # a game on its own: no interface, no bridge to one (D-162)
+    "xengine.runtime": {"not": {"omui", "xengine.ui"}},
+    # the breakout on its own: its simulation and the runtime, nothing of omui's interface
+    "omui.showcase.widget_breakout.headless": {"not": {"omui.core", "omui.view", "omui.semantic", "omui.agent", "omui.viewdoc", "omui.player", "omui.designer",
+                                                        "omui.sdk", "omui.host", "omui.ui", "omui.theme", "omui.lang", "xengine.ui"}},
 }
 
 

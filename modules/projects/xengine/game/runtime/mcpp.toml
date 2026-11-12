@@ -1,0 +1,33 @@
+# xengine.runtime — a game running on its own (D-162): its steps on a
+# timeline, an agent's actions on its tier's lane, and the game as a subject
+# of the agent kernel (observe, act, step, seek, branch), with no interface:
+# a server, a thousand playtests, CI. omui shows and plays the same game
+# through xengine.ui, the bridge; nothing here knows it.
+[package]
+namespace   = "xengine"
+name        = "runtime"
+version     = "0.1.0"
+description = "A game on its own: its steps, an agent player's lane and the game as a subject of the agent kernel — no interface needed"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+
+[targets.xengine-runtime]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm"]
+
+[dependencies]
+mlibs.agent      = { path = "../../../../base/agent" }
+mlibs.simulation = { path = "../../../../base/simulation" }
+mlibs.json       = { path = "../../../../base/json" }
+xengine.input    = { path = "../input" }
+openlifa.openas  = "0.2.0"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.5.2"
+mlibs.utils    = { path = "../../../../base/utils" }

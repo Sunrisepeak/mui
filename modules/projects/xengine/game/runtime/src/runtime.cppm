@@ -1,0 +1,206 @@
+// xengine.runtime — a game running on its own (D-162).
+//
+// A game is the engine's: its state, its fixed steps, its rules. It runs
+// without omui — a server, a thousand playtests, CI — and is a subject of the
+// agent kernel (mlibs.agent) from its own data: its state is explicit and
+// hashed, what a player is shown is a projection the game writes, an agent
+// plays through the same actions a person does, held to a tier (how soon
+// after what it saw, how often), and time is the game's steps: stepped,
+// sought, branched ahead without touching what is played.
+//
+//   struct Play {                                   // what a game gives (Playable)
+//       using State = …; using Input = …;           // mlibs.simulation's Model
+//       static void step(State&, const Input&);
+//       static constexpr std::int32_t steps_per_second = 120;
+//       static std::uint64_t checksum(const State&);           // the same play, the same number
+//       static std::string   observe(const State&, bool full); // what a player is shown, as JSON
+//       static void          play(Input&, const xengine::Actions&);  // an agent player's actions into a step's input
+//       static bool          over(const State&);
+//   };
+//   xengine::runtime::Runtime<Play> game(initial);
+//   mlibs::agent::Endpoint endpoint({.name = "breakout", .session = [&] {
+//       return std::make_unique<mlibs::agent::SubjectSession>(std::vector<mlibs::agent::Subject*>{&game}); }});
+//   → {"op":"world.observe"}  → {"op":"world.act","seen":120,"buttons":[0],"axis":[1]}  → {"op":"world.step","steps":12}
+//   → {"op":"world.branch","steps":240,"axis":[-1]}     what would be, the game untouched
+export module xengine.runtime;
+
+import std;
+import openas;
+import mlibs.agent;
+import mlibs.json;
+import mlibs.simulation;
+import xengine.input;
+
+export namespace xengine::runtime {
+
+template <class G>
+concept Playable = mlibs::simulation::Model<G> &&
+                   requires(const typename G::State& state, typename G::Input& input, const xengine::Actions& actions, bool full) {
+                       { G::steps_per_second } -> std::convertible_to<std::int32_t>;
+                       { G::checksum(state) } -> std::convertible_to<std::uint64_t>;
+                       { G::observe(state, full) } -> std::convertible_to<std::string>;
+                       { G::play(input, actions) };
+                       { G::over(state) } -> std::convertible_to<bool>;
+                   };
+
+// Who steps the game: its owner's loop (a host's clock, a server's), or the
+// agent that plays it (nothing moves between its requests: a playtest, a test).
+enum class Stepping : std::uint8_t { owner, agent };
+
+struct Options {
+    std::string       name = "world";
+    xengine::PlayTier tier{.name = "human", .reaction_steps = 12, .actions_per_second = 10, .full_view = false};
+    Stepping          stepping = Stepping::agent;
+    std::int64_t      keep = 3600;        // steps of history kept, to seek within
+    std::int64_t      most_steps = 3600;  // the most one request steps or branches ahead
+};
+
+template <Playable G>
+class Runtime final : public mlibs::agent::Subject {
+public:
+    using State = typename G::State;
+    using Input = typename G::Input;
+
+    explicit Runtime(const State& initial, Options options = {})
+        : options_(std::move(options)), timeline_(initial, options_.keep), lane_(options_.tier, G::steps_per_second) {}
+
+    // One step: the owner's input for it, the agent player's actions of this step added.
+    void step(Input input = {}) {
+        G::play(input, lane_.take(timeline_.frame()));
+        timeline_.step(input);
+    }
+    [[nodiscard]] const State& state() const noexcept { return timeline_.state(); }
+    [[nodiscard]] std::int64_t frame() const noexcept { return timeline_.frame(); }
+    [[nodiscard]] bool over() const { return G::over(timeline_.state()); }
+    [[nodiscard]] const xengine::PlayTier& tier() const noexcept { return lane_.tier(); }
+
+    // ── the game as a subject ─────────────────────────────────────────────
+    [[nodiscard]] std::string_view name() const noexcept override { return options_.name; }
+    [[nodiscard]] std::string_view interface_name() const noexcept override { return "xengine.world@0.1"; }
+    [[nodiscard]] mlibs::agent::Capabilities capabilities() const noexcept override {
+        return {.observation = true, .control = true, .time = true, .causes = false, .preview = true, .history = false};
+    }
+    [[nodiscard]] std::span<const mlibs::agent::Operation> operations() const noexcept override {
+        static constexpr std::array<mlibs::agent::Operation, 6> all{{
+            {"observe", openas::Effect::read, "what a player on this tier is shown at this step, with the step and the state's hash"},
+            {"state", openas::Effect::read, "the step, the state's hash, whether it is over, the steps it can be sought within"},
+            {"act", openas::Effect::reversible,
+             "a player's actions, as a person's: `seen` (the frame they were decided on), `buttons` held, `axis`, `pointer`; the state shows "
+             "them from `effective` — no sooner than the tier's reaction after `seen` — and they hold until the next"},
+            {"step", openas::Effect::reversible, "plays `steps` steps (1 when none is given); only where the agent steps the game"},
+            {"seek", openas::Effect::reversible, "returns to step `frame` within the history kept; what is played from there is a new branch"},
+            {"branch", openas::Effect::read,
+             "what would be: `steps` ahead from here holding `buttons`, `axis`, `pointer` — the future's view and hash; the game itself untouched"},
+        }};
+        return all;
+    }
+    [[nodiscard]] std::uint64_t state_hash() const override { return G::checksum(timeline_.state()); }
+
+    void operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) override {
+        if (operation == "observe") return answer.data(view(timeline_.state(), timeline_.frame()));
+        if (operation == "state") return answer.data(status());
+        if (operation == "act") return act(request, answer);
+        if (operation == "step") return play(request, answer);
+        if (operation == "seek") return seek(request, answer);
+        if (operation == "branch") return branch(request, answer);
+    }
+
+private:
+    [[nodiscard]] std::string view(const State& state, std::int64_t frame) const {
+        return std::format("{{\"frame\":{},\"hash\":\"{:016x}\",\"over\":{},\"tier\":{},\"view\":{}}}", frame, G::checksum(state), G::over(state),
+                           mlibs::agent::json_text(lane_.tier().name), G::observe(state, lane_.tier().full_view));
+    }
+    [[nodiscard]] std::string status() const {
+        return std::format("{{\"frame\":{},\"hash\":\"{:016x}\",\"over\":{},\"earliest\":{},\"latest\":{}}}", timeline_.frame(),
+                           G::checksum(timeline_.state()), G::over(timeline_.state()), timeline_.earliest(), timeline_.latest());
+    }
+    // A player's actions as a request writes them: `buttons` held (their indices), `axis` (−1 … 1 each), `pointer` ([x, y], 0 … 1).
+    [[nodiscard]] static std::expected<xengine::Actions, std::string> actions_of(const mlibs::agent::Request& request) {
+        xengine::Actions actions;
+        for (const auto& button : request["buttons"].items()) {
+            const auto index = button.integer();
+            if (!index || *index < 0 || *index > 31) return std::unexpected(std::string("`buttons` are indices 0 … 31"));
+            actions.held |= 1u << static_cast<unsigned>(*index);
+        }
+        const auto axes = request["axis"].items();
+        if (axes.size() > actions.axes.size()) return std::unexpected(std::string("`axis` has at most four values"));
+        for (std::size_t index = 0; index < axes.size(); ++index) {
+            const auto value = axes[index].number();
+            if (!value || !(*value >= -1 && *value <= 1)) return std::unexpected(std::string("an `axis` value is −1 … 1"));
+            actions.axes[index] = static_cast<std::int16_t>(*value * 32767.0);
+        }
+        if (const auto pointer = request["pointer"]) {
+            const auto at = pointer.items();
+            const auto x = at.size() == 2 ? at[0].number() : std::nullopt;
+            const auto y = at.size() == 2 ? at[1].number() : std::nullopt;
+            if (!x || !y || !(*x >= 0 && *x <= 1 && *y >= 0 && *y <= 1)) return std::unexpected(std::string("`pointer` is [x, y], each 0 … 1"));
+            actions.pointer_x = static_cast<std::int16_t>(*x * 32767.0);
+            actions.pointer_y = static_cast<std::int16_t>(*y * 32767.0);
+        }
+        return actions;
+    }
+
+    void act(const mlibs::agent::Request& request, mlibs::agent::Answer& answer) {
+        auto actions = actions_of(request);
+        if (!actions) return answer.fail(openas::error_code::invalid_argument, actions.error());
+        // The lane counts steps as they are played (the step that makes frame f + 1 is step f). A request arrives
+        // between steps: the latest step played is frame − 1, and a view at frame f showed step f − 1.
+        const std::int64_t seen = request["seen"].integer().value_or(timeline_.frame());
+        auto due = lane_.submit(timeline_.frame() - 1, seen - 1, *actions);
+        if (!due) {
+            if (due.error() == xengine::AgentLane::Refusal::unseen)
+                return answer.fail(openas::error_code::invalid_argument, std::format("`seen` is step {}, and step {} is the latest played", seen, timeline_.frame()));
+            return answer.fail(openas::error_code::refused, std::format("more often than the `{}` tier allows ({} actions a second)", lane_.tier().name,
+                                                                         lane_.tier().actions_per_second));
+        }
+        // The frame from which the state shows it: the step it is first held in, played.
+        answer.data(std::format("{{\"effective\":{},\"frame\":{}}}", *due + 1, timeline_.frame()));
+    }
+
+    void play(const mlibs::agent::Request& request, mlibs::agent::Answer& answer) {
+        if (options_.stepping != Stepping::agent)
+            return answer.fail(openas::error_code::refused, "this game is stepped by its owner's clock, not by requests");
+        const std::int64_t steps = request["steps"].integer().value_or(1);
+        if (steps < 1 || steps > options_.most_steps)
+            return answer.fail(openas::error_code::invalid_argument, std::format("`steps` is 1 … {}", options_.most_steps));
+        std::int64_t played = 0;
+        for (; played < steps && !G::over(timeline_.state()); ++played) step();
+        answer.data(std::format("{{\"played\":{},\"frame\":{},\"hash\":\"{:016x}\",\"over\":{}}}", played, timeline_.frame(), G::checksum(timeline_.state()),
+                                G::over(timeline_.state())));
+    }
+
+    void seek(const mlibs::agent::Request& request, mlibs::agent::Answer& answer) {
+        const auto frame = request["frame"].integer();
+        if (!frame) return answer.fail(openas::error_code::invalid_argument, "`frame`: the step to return to");
+        if (!timeline_.seek(*frame))
+            return answer.fail(openas::error_code::stale, std::format("step {} is outside the history kept ({} … {})", *frame, timeline_.earliest(), timeline_.latest()));
+        timeline_.branch();
+        // What the player held belonged to the steps left behind.
+        lane_ = xengine::AgentLane(options_.tier, G::steps_per_second);
+        answer.data(status());
+    }
+
+    void branch(const mlibs::agent::Request& request, mlibs::agent::Answer& answer) const {
+        auto actions = actions_of(request);
+        if (!actions) return answer.fail(openas::error_code::invalid_argument, actions.error());
+        const std::int64_t steps = request["steps"].integer().value_or(1);
+        if (steps < 1 || steps > options_.most_steps)
+            return answer.fail(openas::error_code::invalid_argument, std::format("`steps` is 1 … {}", options_.most_steps));
+        State future = timeline_.state();  // a copy: the game is not touched
+        std::int64_t played = 0;
+        for (; played < steps && !G::over(future); ++played) {
+            xengine::Actions held = *actions;
+            if (played == 0) held.pressed = held.held;  // pressed as it begins
+            Input input{};
+            G::play(input, held);
+            G::step(future, input);
+        }
+        answer.data(view(future, timeline_.frame() + played));
+    }
+
+    Options                        options_;
+    mlibs::simulation::Timeline<G> timeline_;
+    xengine::AgentLane             lane_;
+};
+
+}  // namespace xengine::runtime

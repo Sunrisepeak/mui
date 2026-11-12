@@ -7,7 +7,6 @@ Six things every engine gives an agent from its data model on — state, observa
 | Part | |
 |---|---|
 | `:endpoint` | Where agents find a program and talk to it: a local connection named after the program (a Unix socket, a named pipe), a descriptor beside it (`<name>.endpoint.omui.json`: its application, the interface its sessions speak), optionally this machine's loopback behind a secret (a device's endpoint, forwarded). Lines in, lines out; one `Session` a connection, made by the owner; served by `pump()` at the owner's safe point — a frame's boundary, a step's |
-
 | `:envelope` | A request and its answer as records (openas §6): one JSON object a line with its `op`, a `re` echoed in every record, a person's `answer`; `data`, `notice`, `error` records and last a `result` with the exit code. The framing is the same for every subject |
 | `:subject` | What an agent finds, observes and operates: a `Subject` says its name, the interface its operations speak, what it can do of the six (and what it cannot), its operations with their effects, its state's hash. `SubjectSession` is a connection's conversation with a process's subjects — `subjects`, `<subject>.describe`, `<subject>.<operation>` — and decides every operation first (`mlibs.control`): what a person must agree to ends in `needs-answer` until the request carries the answer, what is refused does not run |
 

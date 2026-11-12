@@ -47,5 +47,6 @@ The bricks are real buttons, switches, sliders and progress bars, placed by open
 |---|---|
 | `omui.showcase.widget_breakout` (here) | The game: the field (`field.contract.omui.ts`) over a room's real components; the rooms as data; the copilot; the contraptions' scripts and their casings; the sounds; what the play looks like (sparks, trails, beams). `omui-breakout` runs it; an agent plays it through the field's actions (`launch`, `aim`, `move_to`, `step`, `rewind`, `order`, `choose`…) |
 | [sim](sim) | The deterministic simulation: swept balls with spin, circuits, capacitors and beams, kickers, cores, chains and sparks, gifts; rewindable |
+| [headless](headless) | The game on its own (D-162): the simulation as `xengine.runtime` plays it — no omui in the program — found by name and played by an agent through the agent kernel, on the human tier; the same play, the same bits |
 
 The tests play every room with two bots, a planner that understands the machine and one that only catches: every room can be cleared, no drain is unavoidable, nothing is still for long, and understanding the machine pays.

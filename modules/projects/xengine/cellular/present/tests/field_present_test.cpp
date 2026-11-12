@@ -20,7 +20,7 @@ namespace ca = xengine::cellular;
 namespace rhi = mlibs::rhi;
 namespace geom = mlibs::geom;
 
-UTest cases{"xrender.sdl.field", [] {
+UTest cases{"cellular.present.device", [] {
     "the field drawn by the GPU from the device's own cells is the CPU's picture, one command each"_test = [] {
         xrender::rhi::sdl::Options o;
         o.formats = xrender::gpu_shader_formats() & ca::gpu::shader_formats();

@@ -17,8 +17,8 @@ Tasks, their dependencies and the milestone nodes: the plan's §9.5. Verified lo
 | Task | What | State |
 |---|---|---|
 | N0 | the known local red first: example 13's twin lacked `framed_png` (since eba28d5e) | fixed |
-| T0.1 | `xrender.vector` without `hanim.core` | — |
-| T0.2 | conformance suites run from their owners' side | — |
+| T0.1 | `xrender.vector` without `hanim.core` | done (30e7270d): it names mlibs.math's det; hanim's shape-morph consumer test is hanim.visual's; 23 programs passed, pins unchanged |
+| T0.2 | conformance suites run from their owners' side | SDL done: hanim.rhi, xengine.cellular.rhi.cts and cellular.present run their own suites on xrender.rhi.sdl (lavapipe: 4, 18 and 2 cases); the backend depends on no consumer. Left (T0.2b): the same two suites still run from xrender.rhi.webgpu's browser test — the browser harness builds the backend's test pages only |
 | T0.3 | `xengine.timeline` → `hanim.timeline` | — |
 | T0.4 | xengine as `kernel/` and `game/`; lint `project-dag` | — |
 | T0.5 | `mlibs.agent` (the agent kernel); `omui.agent` keeps the UI subject | — |

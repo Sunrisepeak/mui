@@ -22,3 +22,10 @@ xengine.cellular = { path = "../.." }
 mlibs.rhi = { path = "../../../../../gfx/rhi" }
 mlibs.utils = { path = "../../../../../base/utils" }
 mlibs.cts = { path = "../../../../../base/cts" }
+
+# The suite run on a device (tests/sdl_test.cpp): the owner depends on a backend
+# for its tests, never a backend on its consumers (D-161).
+[dev-dependencies]
+mcpplibs.mtest  = "0.5.2"
+xrender.rhi.sdl = { path = "../../../../xrender/rhi/sdl" }
+mcpplibs.os     = "0.4.4"

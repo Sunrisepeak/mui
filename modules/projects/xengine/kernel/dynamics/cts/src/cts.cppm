@@ -1,5 +1,5 @@
 // xengine.dynamics.cts — every solver family's cases (contract ids
-// xengine.dynamics.collision@1, .xpbd@1, .material@1) on a subject. The CPU
+// xengine.dynamics.collision@1, .xpbd@1, .material@2) on a subject. The CPU
 // reference is the subject today; a SIMD or GPU tier will be another subject
 // held to the same cases (within its declared tolerance), and a family it
 // does not implement is unsupported, never passed.

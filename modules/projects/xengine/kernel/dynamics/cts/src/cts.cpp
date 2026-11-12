@@ -4,6 +4,7 @@ import std;
 import mlibs.simulation;
 import mlibs.hash;
 import xengine.dynamics;
+import xengine.matter.json;
 
 namespace xengine::dynamics::cts {
 namespace {
@@ -68,12 +69,16 @@ void cases() {
         check.equal(bits(history.state()), first, "the same inputs again, the same bits");
         check.evidence("state", first);
     }});
-    mlibs::cts::declare({"material.defaults", "xengine.dynamics.material@1", mlibs::cts::Level::exact, {"material"}, [](Check& check) {
-        const auto table = MaterialTable::defaults();
-        for (const char* name : {"rubber", "wood", "stone", "jelly", "cloth", "sand", "water"})
-            check.that(table.find(name) != nullptr, std::format("{} in the defaults", name));
-        const auto params = params_of(*table.find("stone"), 3);
-        check.equal(params.mass, 7.5, "stone's mass over an area of 3");
+    mlibs::cts::declare({"material.mechanics", "xengine.dynamics.material@2", mlibs::cts::Level::exact, {"material"}, [](Check& check) {
+        // What a body is made of is xengine.matter's standard table (D-165): its mechanical columns, read here.
+        const auto table = xengine::matter::standard();
+        if (!check.that(table.has_value(), "the standard matter table prepares")) return;
+        for (const char* name : {"rubber", "wood", "stone", "jelly", "cloth", "sand", "water"}) check.that(table->material(name).has_value(), std::format("{} in the standard table", name));
+        const auto stone = table->material("stone");
+        if (!check.that(stone.has_value(), "stone")) return;
+        const auto params = params_of(*table, *stone, 3);
+        check.equal(params.mass, 7.5, "stone's mass over an area of 3: its density over water's");
+        check.equal(params.friction, 0.6, "stone's friction as the table writes it");
     }});
 }
 

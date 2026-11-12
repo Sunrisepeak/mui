@@ -4,6 +4,7 @@ module xrender.effect.api;
 
 import std;
 import mlibs.json;
+import mlibs.names;
 
 namespace xrender::effect {
 
@@ -33,7 +34,7 @@ struct Reader {
     template <std::size_t N>
     void only(const Node& t, const std::array<std::string_view, N>& keys, std::string_view where) {
         for (const auto& [key, value] : t.members())
-            if (std::ranges::find(keys, key) == keys.end()) error(value, std::format("{} has no key `{}`", where, key), mlibs::json::nearest(key, keys));
+            if (std::ranges::find(keys, key) == keys.end()) error(value, std::format("{} has no key `{}`", where, key), mlibs::names::nearest(key, keys));
     }
 
     std::optional<std::string> text(const Node& n, std::string_view what) {

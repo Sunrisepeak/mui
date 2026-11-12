@@ -4,13 +4,14 @@ module xengine.audio;
 
 import std;
 import mlibs.json;
+import mlibs.names;
 import :detail;
 
 namespace xengine::audio {
 
-std::size_t detail::distance(std::string_view a, std::string_view b) { return mlibs::json::distance(a, b); }
+std::size_t detail::distance(std::string_view a, std::string_view b) { return mlibs::names::distance(a, b); }
 
-std::string detail::nearest(std::string_view name, std::span<const std::string_view> options) { return mlibs::json::nearest(name, options); }
+std::string detail::nearest(std::string_view name, std::span<const std::string_view> options) { return mlibs::names::nearest(name, options); }
 
 namespace {
 

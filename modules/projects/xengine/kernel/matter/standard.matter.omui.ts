@@ -9,18 +9,22 @@ import { defineMatter } from "omui/define";
 export default defineMatter({
   materials: {
     air: { phase: "gas", density: 1.2, oxygen: 1, thermal: 1 },
-    stone: { density: 2600, thermal: 2, melting: 1300, melted: "lava" },
-    lava: { phase: "liquid", density: 2600, thermal: 4, melting: 1300, frozen: "stone", starts_at: 1600 },
-    sand: { phase: "granular", density: 1600, thermal: 1, porous: 4 },
-    wood: { density: 600, thermal: 1, porous: 2, ignition: 570, fuel: 400, heat: 80, burnt: "ash", tags: ["plant"] },
+    stone: { density: 2500, friction: 0.6, restitution: 0.15, shape_stiffness: 1, thermal: 2, melting: 1300, melted: "lava" },
+    lava: { phase: "liquid", density: 2500, thermal: 4, melting: 1300, frozen: "stone", starts_at: 1600 },
+    sand: { phase: "granular", density: 1600, friction: 0.7, restitution: 0.05, shape_stiffness: 0, thermal: 1, porous: 4 },
+    wood: { density: 600, friction: 0.45, restitution: 0.35, shape_stiffness: 1, thermal: 1, porous: 2, ignition: 570, fuel: 400, heat: 80, burnt: "ash", tags: ["plant"] },
     ash: { phase: "granular", density: 400, thermal: 1 },
     iron: { density: 7800, thermal: 8, conduct: 8, melting: 1800, melted: "molten_iron", tags: ["metal"] },
     molten_iron: { phase: "liquid", density: 7000, thermal: 8, conduct: 8, melting: 1800, frozen: "iron", starts_at: 1900, tags: ["metal"] },
-    water: { phase: "liquid", density: 1000, thermal: 2, conduct: 2, moist: 64, porous: 8, melting: 273, boiling: 373, boiled: "steam", frozen: "ice" },
+    water: { phase: "liquid", density: 1000, friction: 0.02, restitution: 0, shape_stiffness: 0, thermal: 2, conduct: 2, moist: 64, porous: 8, melting: 273, boiling: 373, boiled: "steam", frozen: "ice" },
     steam: { phase: "gas", density: 0.6, thermal: 1, boiling: 373, condensed: "water", starts_at: 380 },
     ice: { density: 917, thermal: 2, melting: 273, melted: "water", starts_at: 260 },
     oil: { phase: "liquid", density: 900, thermal: 1, ignition: 500, fuel: 200, heat: 100, burnt: "smoke" },
     smoke: { phase: "gas", density: 0.9, thermal: 1 },
+    // What a soft body is made of (xengine.dynamics reads the mechanics; density over water's is a body's mass an area).
+    rubber: { phase: "soft", density: 1100, friction: 0.8, restitution: 0.75, compliance: 0.0001, shape_stiffness: 0.2, ignition: 620, fuel: 300, heat: 90, burnt: "smoke" },
+    jelly: { phase: "soft", density: 1000, friction: 0.4, restitution: 0.2, compliance: 0.0005, shape_stiffness: 0.012, moist: 32, porous: 4 },
+    cloth: { phase: "soft", density: 300, friction: 0.5, restitution: 0.05, compliance: 0.001, shape_stiffness: 0, porous: 6, ignition: 520, fuel: 60, heat: 70, burnt: "ash", tags: ["plant"] },
   },
   laws: [
     // What is carried: from where there is more to where there is less, by how well both ends pass it.

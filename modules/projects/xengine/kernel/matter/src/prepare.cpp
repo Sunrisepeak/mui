@@ -4,7 +4,7 @@ module xengine.matter;
 
 import std;
 import mlibs.error;
-import mlibs.json;
+import mlibs.names;
 import mlibs.trace;
 
 namespace xengine::matter {
@@ -43,7 +43,7 @@ struct Names {
         for (const Column& each : columns) all.push_back(each.name);
         for (const Channel& each : channels) all.push_back(each.name);
         for (const std::string_view each : phase_names) all.push_back(each);
-        return mlibs::json::nearest(name, all);
+        return mlibs::names::nearest(name, all);
     }
 };
 
@@ -420,7 +420,7 @@ std::expected<Program, Failure> Program::prepare(const Definition& definition, L
             if (!column) {
                 std::vector<std::string_view> options;
                 for (const Column& each : program.columns_) options.push_back(each.name);
-                return fail(Errc::name, where, std::format("material `{}`: no property `{}` ({})", material.name, property.column, mlibs::json::nearest(property.column, options)));
+                return fail(Errc::name, where, std::format("material `{}`: no property `{}` ({})", material.name, property.column, mlibs::names::nearest(property.column, options)));
             }
             if (said[*column]) return fail(Errc::name, where, std::format("material `{}` says `{}` twice", material.name, property.column));
             said[*column] = true;
@@ -434,7 +434,7 @@ std::expected<Program, Failure> Program::prepare(const Definition& definition, L
                 const std::string* word = std::get_if<std::string>(&property.value);
                 const auto found = word ? std::ranges::find(phase_names, *word) : phase_names.end();
                 if (found == phase_names.end())
-                    return fail(Errc::value, where, std::format("`{}` of `{}` is a phase: {}", of.name, material.name, word ? mlibs::json::nearest(*word, phase_names) : "solid, soft, granular, liquid or gas"));
+                    return fail(Errc::value, where, std::format("`{}` of `{}` is a phase: {}", of.name, material.name, word ? mlibs::names::nearest(*word, phase_names) : "solid, soft, granular, liquid or gas"));
                 store(*column, static_cast<double>(found - phase_names.begin()));
             } else {
                 const std::string* word = std::get_if<std::string>(&property.value);
@@ -442,7 +442,7 @@ std::expected<Program, Failure> Program::prepare(const Definition& definition, L
                 if (!found) {
                     std::vector<std::string_view> options;
                     for (const Material& each : program.materials_) options.push_back(each.name);
-                    return fail(Errc::name, where, std::format("`{}` of `{}` is a material's name{}", of.name, material.name, word ? " (" + mlibs::json::nearest(*word, options) + ")" : ""));
+                    return fail(Errc::name, where, std::format("`{}` of `{}` is a material's name{}", of.name, material.name, word ? " (" + mlibs::names::nearest(*word, options) + ")" : ""));
                 }
                 store(*column, static_cast<double>(*found));
             }

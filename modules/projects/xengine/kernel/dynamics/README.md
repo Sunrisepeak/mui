@@ -1,6 +1,6 @@
 # xengine.dynamics
 
-Every solved simulation in one owner (D-133): collision and its queries, the solver families, and the physical materials they share — deterministic, stepped on [mlibs.simulation](../../../../base/simulation)'s timeline, with no renderer and no UI. The architecture and its phases: [simulation, dynamics and the compute layer](../../../../../.agents/docs/2026-11-08-simulation-dynamics-architecture-design.md).
+Every solved simulation in one owner (D-133): collision and its queries and the solver families — deterministic, stepped on [mlibs.simulation](../../../../base/simulation)'s timeline, with no renderer and no UI. The architecture and its phases: [simulation, dynamics and the compute layer](../../../../../.agents/docs/2026-11-08-simulation-dynamics-architecture-design.md).
 
 ```cpp
 import xengine.dynamics;
@@ -10,8 +10,8 @@ if (auto hit = dyn::sweep(ball.at, ball.radius, ball.velocity * left, brick)) { 
     ball.at += ball.velocity * (left * hit->t);
     ball.velocity = dyn::reflect(ball.velocity, hit->normal);
 }
-auto jelly = *dyn::MaterialTable::defaults().find("jelly");                    // materials
-auto body = dyn::SoftBody::ring(outline, dyn::params_of(jelly, area), ground);  // xpbd
+auto table = xengine::matter::standard();                                        // what things are made of: xengine.matter
+auto body = dyn::SoftBody::ring(outline, dyn::params_of(*table, *table->material("jelly"), area), ground);   // xpbd
 mlibs::simulation::Timeline<dyn::SoftBodyModel> history(*body, 1200, 60);       // replayable
 history.step({});
 ```
@@ -19,7 +19,7 @@ history.step({});
 | Part | What | State |
 |---|---|---|
 | `collision` | Half-planes, one-way ledges, boxes; swept collision (a moving circle against a box, exact); `depth`, `lands` | from the former `xengine.physics`; planes and ledges from the soft bodies |
-| `material` | `PhysicalMaterial` (phase, density, friction, restitution, compliance, shape stiffness), `MaterialTable` with stable ids and defaults; `params_of` gives a soft body's | new (a render material is xrender's; the two meet by a surface type's id) |
+| materials | Not here: what a body is made of is [xengine.matter](../matter)'s table (D-165 — the one table physics, chemistry and the lattice share). `params_of(table, material, area)` reads its mechanical columns (`density` over water's × the area as the mass, `friction`, `restitution`, `compliance`, `shape_stiffness`); the package takes the matter kernel alone, no JSON | moved from `xengine.dynamics.material` (2026-11-13); the standard table has its rows (rubber, wood, stone, jelly, cloth, sand, water), the same numbers |
 | `xpbd` | Soft bodies: rings of particles held by edges, area and shape matching (optionally upright); gravity, push, walk, hop, a dragging hand; half-planes and ledges with restitution and friction; `stages()` says a step's stages in order | from the former `xengine.simulation.bodies` |
 | `rigid`, `articulation`, fluids, FEM, MPM | Later solver families (each its own feature) | P1–P3 of the design |
 

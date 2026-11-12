@@ -5,6 +5,7 @@ module hanim.timeline;
 import std;
 import hanim.core;
 import mlibs.json;
+import mlibs.names;
 
 namespace hanim::timeline {
 
@@ -32,7 +33,7 @@ struct Reader {
     template <std::size_t N>
     void only(const Node& t, const std::array<std::string_view, N>& keys, std::string_view where) {
         for (const auto& [key, value] : t.members())
-            if (std::ranges::find(keys, key) == keys.end()) error(value, std::format("{} has no key `{}`", where, key), mlibs::json::nearest(key, keys));
+            if (std::ranges::find(keys, key) == keys.end()) error(value, std::format("{} has no key `{}`", where, key), mlibs::names::nearest(key, keys));
     }
     std::optional<std::string> text(const Node& n, std::string_view what) {
         if (!n) return std::nullopt;
@@ -208,7 +209,7 @@ std::expected<Timeline, std::vector<Problem>> read_timeline(std::string_view tex
         if (auto s = r.text(n["name"], "a track's `name`")) track.name = *s;
         if (auto s = r.text(n["kind"], "a track's `kind`")) {
             if (const auto k = std::ranges::find(kinds, *s); k != kinds.end()) track.kind = static_cast<Kind>(k - kinds.begin());
-            else r.error(n["kind"], std::format("`{}` is not a kind of track", *s), mlibs::json::nearest(*s, kinds));
+            else r.error(n["kind"], std::format("`{}` is not a kind of track", *s), mlibs::names::nearest(*s, kinds));
         }
         if (const Node mn = n["muted"]) {
             if (auto b = mn.boolean()) track.muted = *b;

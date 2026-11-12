@@ -28,6 +28,8 @@ xengine.dynamics = { path = "..", features = ["agent"] }
 mlibs.simulation = { path = "../../../../../base/simulation" }
 mlibs.cts        = { path = "../../../../../base/cts" }
 mlibs.utils      = { path = "../../../../../base/utils" }
+# The standard table a body's material is read from (the suite's material case).
+xengine.matter   = { path = "../../matter" }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.6.3"

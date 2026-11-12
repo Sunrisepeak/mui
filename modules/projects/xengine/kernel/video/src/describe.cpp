@@ -5,6 +5,7 @@ module xengine.video;
 
 import std;
 import mlibs.json;
+import mlibs.names;
 import xengine.audio;
 
 namespace xengine::video {
@@ -30,7 +31,7 @@ struct Reader {
     template <std::size_t N>
     void only(const Node& t, const std::array<std::string_view, N>& keys, std::string_view what) {
         for (const auto& [key, value] : t.members())
-            if (std::ranges::find(keys, key) == keys.end()) error(value, std::format("{} has no key `{}`", what, key), mlibs::json::nearest(key, keys));
+            if (std::ranges::find(keys, key) == keys.end()) error(value, std::format("{} has no key `{}`", what, key), mlibs::names::nearest(key, keys));
     }
     Node object(const Node& n, std::string_view what) {
         if (!n || n.is_object()) return n;
@@ -145,7 +146,7 @@ std::expected<Description, std::vector<Problem>> read_description(std::string_vi
             if (!s) continue;
             d.from = kind;
             d.source = *s;
-            if (kind == FramesFrom::card && std::ranges::find(cards, *s) == cards.end()) r.error(n, std::format("no card `{}`", *s), mlibs::json::nearest(*s, cards));
+            if (kind == FramesFrom::card && std::ranges::find(cards, *s) == cards.end()) r.error(n, std::format("no card `{}`", *s), mlibs::names::nearest(*s, cards));
             if (kind == FramesFrom::png && !frame_name(*s, 0)) r.error(n, "`png` is a pattern with the frame's number in it", "png: \"shots/{:05}.png\"");
         }
         if (sources == 0) r.error(f, "the frames come from one of `card`, `png` and `view`", "from: { card: \"sync\" }");

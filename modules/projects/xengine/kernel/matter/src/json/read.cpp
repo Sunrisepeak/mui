@@ -11,11 +11,14 @@
 //   }}
 //
 // on the standard columns and channels. Every problem is said by its pointer and placed in the text.
-module xengine.matter;
+module xengine.matter.json;
 
 import std;
 import mlibs.error;
 import mlibs.json;
+import mlibs.names;
+import xengine.matter;
+import :standard_snapshot;
 
 namespace xengine::matter {
 namespace {
@@ -32,7 +35,7 @@ struct Reader {
     // Only the keys a thing has.
     void keys(const Node& object, std::span<const std::string_view> allowed, std::string_view what) {
         for (const auto& [key, value] : object.members())
-            if (std::ranges::find(allowed, key) == allowed.end()) wrong(value, std::format("{} has no key `{}`", what, key), mlibs::json::nearest(key, allowed));
+            if (std::ranges::find(allowed, key) == allowed.end()) wrong(value, std::format("{} has no key `{}`", what, key), mlibs::names::nearest(key, allowed));
     }
     [[nodiscard]] std::string text(const Node& node, std::string_view what) {
         if (!node) return {};
@@ -125,7 +128,7 @@ struct Parsed {
             static constexpr std::array<std::string_view, 3> kinds{"number", "phase", "material"};
             if (!kind.empty()) {
                 const auto found = std::ranges::find(kinds, kind);
-                if (found == kinds.end()) reader.wrong(node["kind"], std::format("`{}` is not a kind of column", kind), mlibs::json::nearest(kind, kinds));
+                if (found == kinds.end()) reader.wrong(node["kind"], std::format("`{}` is not a kind of column", kind), mlibs::names::nearest(kind, kinds));
                 else column.kind = static_cast<ColumnKind>(found - kinds.begin());
             }
             column.unit = reader.text(node["unit"], "`unit`");
@@ -249,5 +252,7 @@ std::expected<Program, std::vector<mlibs::json::Problem>> prepare_document(std::
     problem.at = "/matter" + failure.where;
     return std::unexpected(std::vector<Problem>{std::move(problem)});
 }
+
+std::expected<Program, std::vector<mlibs::json::Problem>> standard() { return prepare_document(standard_snapshot, "standard.matter.omui.json"); }
 
 }  // namespace xengine::matter

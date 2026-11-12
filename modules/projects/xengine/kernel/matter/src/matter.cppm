@@ -6,7 +6,7 @@
 //   A law reads properties and state, never a material by name: fire does not know wood. It raises
 //   temperature, and whatever has fuel, an ignition point below that and oxygen beside it burns.
 //
-//     auto program = matter::prepare_document(snapshot, "world.matter.omui.json");   // the plan, prepared once
+//     auto program = matter::Program::prepare(definition);   // the plan, prepared once (from JSON: xengine.matter.json)
 //     std::vector<std::uint32_t> state = program->fresh(instances, *program->material("air")), next = state;
 //     program->place(state, instances, 7, *program->material("wood"));
 //     matter::Workspace workspace;
@@ -23,7 +23,6 @@ export module xengine.matter;
 
 import std;
 import mlibs.error;
-import mlibs.json;
 
 export namespace xengine::matter {
 
@@ -302,13 +301,5 @@ private:
     std::uint32_t              phase_column_ = 0;
     bool                       adjusts_ = false;
 };
-
-// ── JSON ─────────────────────────────────────────────────────────────────
-
-// A definition from its JSON snapshot ({"matter": {columns?, channels?, materials, laws}} — what a
-// *.matter.omui.ts data module evaluates to), on the standard columns and channels. Problems by pointer.
-[[nodiscard]] std::expected<Definition, std::vector<mlibs::json::Problem>> read(std::string_view text, std::string_view file);
-// Read and prepared; a problem of preparing is placed in the text like one of reading.
-[[nodiscard]] std::expected<Program, std::vector<mlibs::json::Problem>> prepare_document(std::string_view text, std::string_view file, Limits limits = {});
 
 }  // namespace xengine::matter

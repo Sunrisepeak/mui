@@ -23,8 +23,16 @@ sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
 mlibs.utils = { path = "../../../../base/utils" }
-# A definition is read from its JSON snapshot (*.matter.omui.json), problems by pointer.
-mlibs.json  = { path = "../../../../base/json" }
+
+# A definition from its JSON snapshot (src/json/, module xengine.matter.json), and the standard one carried
+# in the program. A feature, on by default: the kernel alone — what xengine.dynamics takes, and through it
+# hanim's engine — stays the small tools, no JSON.
+[features]
+default = ["json"]
+json = { sources = ["src/json/*.cppm", "src/json/*.cpp", "src/json/generated/*.cppm"] }
+
+[feature-deps.json]
+mlibs.json = { path = "../../../../base/json" }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.6.3"

@@ -26,10 +26,11 @@ export default defineMatter({
 ```
 
 ```cpp
-import xengine.matter;
+import xengine.matter.json;   // the kernel (xengine.matter) and a definition from its JSON snapshot
 namespace matter = xengine::matter;
 
 auto program = matter::prepare_document(snapshot, "world.matter.omui.json");   // the plan, prepared once; problems by JSON pointer
+// or matter::standard(): the standard definition, carried in the module
 std::vector<std::uint32_t> state = program->fresh(instances, *program->material("air")), next = state;
 program->place(state, instances, 7, *program->material("wood"));
 matter::Workspace workspace;
@@ -67,7 +68,7 @@ A transfer whose neighbours could together take more than an instance has is ref
 
 ## What the tests show
 
-`mcpp test -p xengine.matter` — the standard laws ([standard.matter.omui.ts](standard.matter.omui.ts): 13 laws, 13 materials, no law naming one) on rows and small grids of instances:
+`mcpp test -p xengine.matter` — the standard laws ([standard.matter.omui.ts](standard.matter.omui.ts): 13 laws, 16 materials, no law naming one) on rows and small grids of instances:
 
 - heat flows along a row and its total stays, step after step; iron carries it further than stone;
 - a strip of wood lit at one end burns piece by piece (caught at steps 1, 31, 56, 80, 103, 126, 149, 170 — each from the last), every piece ash after 570; sealed from air nothing burns;
@@ -82,7 +83,7 @@ A transfer whose neighbours could together take more than an instance has is ref
 
 ## Where it sits
 
-Base layer: the standard library, `mlibs.utils` (errors, trace) and `mlibs.json` (the snapshot). It knows no lattice, no body and no renderer. A carrier adapts on its own side: `xengine.cellular`'s `matter` feature lowers a program to the lattice's (the plan's T1.7), where cells also move by `density` and `phase`; `xengine.dynamics` reads the mechanical columns (T1.2) and gives contacts as pairs. What a state looks and sounds like is a recipe's, above (D-168).
+Base layer. The kernel — module `xengine.matter`: definitions, the plan, the reference step — takes the standard library and `mlibs.utils` (errors, names, trace) and nothing else: `xengine.matter = { path = …, default-features = false }` is what `xengine.dynamics` takes, and through it hanim's engine. The feature `json` (on by default; module `xengine.matter.json`) adds a definition from its JSON snapshot with `mlibs.json`, and `standard()`: the standard definition carried in the module (`standard_snapshot`, the committed JSON embedded; the generator's test keeps the three — data module, snapshot, embedded text — the same). It knows no lattice, no body and no renderer. A carrier adapts on its own side: `xengine.cellular`'s `matter` feature lowers a program to the lattice's (the plan's T1.7), where cells also move by `density` and `phase`; `xengine.dynamics` reads the mechanical columns (`params_of(table, material, area)`: a soft body's mass, friction, restitution, compliance and shape stiffness — the table it had of its own is this one now) and will give contacts as pairs. What a state looks and sounds like is a recipe's, above (D-168).
 
 Trace: category `simulation`, spans `simulation.matter.prepare` and `simulation.matter.step`, counters `simulation.matter.held` and `.became`.
 

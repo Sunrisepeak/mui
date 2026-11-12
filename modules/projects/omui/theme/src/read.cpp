@@ -5,6 +5,7 @@ module omui.theme;
 
 import std;
 import mlibs.json;
+import mlibs.names;
 import omui.core;
 import omui.view;
 import xrender.vector;
@@ -23,11 +24,11 @@ constexpr std::array<std::string_view, 12> style_keys{"doc",    "theme",   "cros
                                                       "text",   "spacing", "radius",    "shadows", "motion", "corner_smoothing"};
 constexpr std::array<std::string_view, 5> effect_control_keys{"effect", "duration", "delay", "ease", "transition"};
 
-using mlibs::json::distance;
+using mlibs::names::distance;
 
 template <std::size_t N>
 std::string did_you_mean(std::string_view name, const std::array<std::string_view, N>& options) {
-    return mlibs::json::nearest(name, options);
+    return mlibs::names::nearest(name, options);
 }
 
 // A place in the document: its value and its JSON pointer.

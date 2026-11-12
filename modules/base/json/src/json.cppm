@@ -119,10 +119,4 @@ private:
     nlohmann::ordered_json value_;
 };
 
-// The number of edits (insert, delete, change, swap two neighbours) from a to b.
-[[nodiscard]] std::size_t distance(std::string_view a, std::string_view b);
-// "did you mean `x`?" for the nearest of `options` within a third of the
-// name (never a whole one-letter name), else "one of `a`, `b` …".
-[[nodiscard]] std::string nearest(std::string_view name, std::span<const std::string_view> options);
-
 }  // namespace mlibs::json

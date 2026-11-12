@@ -287,6 +287,12 @@ UTest cases{"gen", [] {
             const auto committed = path.parent_path() / made->name;
             expect(read(committed) == made->json) << std::format("{} is out of date: run omui-gen snapshot {} --out {}", committed.generic_string(), path.generic_string(),
                                                                  committed.generic_string());
+            // Where a module carries the snapshot (xengine.matter.json's standard one), that too.
+            const auto carried = path.parent_path() / "src" / "json" / "generated" / "standard_snapshot.cppm";
+            if (name == "standard.matter.omui.ts" && std::filesystem::exists(carried))
+                expect(read(carried) == gen::emit_embed(made->json, made->name, "xengine.matter.json", "xengine::matter", "standard_snapshot"))
+                    << std::format("{} is out of date: run omui-gen embed {} --module xengine.matter.json --name standard_snapshot --namespace xengine::matter --out {}",
+                                   carried.generic_string(), committed.generic_string(), carried.parent_path().generic_string());
         }
         expect(definitions >= 1) << "the standard definition at least";
     };

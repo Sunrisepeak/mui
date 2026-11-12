@@ -3,7 +3,7 @@
 // properties — fire spreading, water boiling and freezing, lava meeting water, iron carrying heat.
 // None of the laws names a material; the last cases add one and change no law.
 import std;
-import xengine.matter;
+import xengine.matter.json;
 import mlibs.error;
 import mlibs.json;
 import mcpplibs.mtest;
@@ -29,6 +29,7 @@ matter::Program prepared(const matter::Definition& definition) {
     return *program;
 }
 matter::Program standard() { return prepared(standard_definition()); }
+
 
 // Instances in a row, each beside the next.
 std::vector<matter::Pair> row(std::uint32_t count) {
@@ -119,11 +120,15 @@ std::string refusal(const matter::Definition& definition, matter::Limits limits 
 
 UTest cases{"xengine.matter", [] {
     "the standard definition is prepared: properties by column, as written and as the laws read them; laws by kind; what it holds said as JSON"_test = [] {
+        expect(matter::standard_snapshot == standard_text()) << "the snapshot the module carries is the file beside the data module";
+        const auto carried = matter::standard();
+        expect(fatal(carried.has_value())) << (carried ? "" : carried.error().front().text());
         const matter::Program plan = standard();
+        expect(carried->describe() == plan.describe());
         const auto wood = *plan.material("wood");
-        expect(eq(plan.value(wood, *plan.column("ignition")), 570u * 256u) && eq(plan.number(wood, *plan.column("ignition")), 570.0) && eq(plan.number(wood, *plan.column("friction")), 0.3))
+        expect(eq(plan.value(wood, *plan.column("ignition")), 570u * 256u) && eq(plan.number(wood, *plan.column("ignition")), 570.0) && eq(plan.number(wood, *plan.column("friction")), 0.45))
             << "kelvin as written, 256ths as the laws read it";
-        expect(eq(plan.value(wood, *plan.column("friction")), 19661u)) << "0.3 as 16 bits after the point";
+        expect(eq(plan.value(*plan.material("iron"), *plan.column("friction")), 19661u)) << "what a material does not say is the column's: 0.3, as 16 bits after the point";
         expect(eq(plan.value(*plan.material("air"), *plan.column("density")), 19u) && eq(plan.value(*plan.material("steam"), *plan.column("density")), 10u))
             << "a gas lighter than another stays so as whole numbers (16ths)";
         expect(eq(plan.value(wood, *plan.column("burnt")), *plan.material("ash")) && eq(plan.value(wood, *plan.column("boiled")), matter::none));
@@ -132,12 +137,12 @@ UTest cases{"xengine.matter", [] {
             << "a new instance: its material's own start, or the channel's";
         expect(eq(plan.initial(*plan.material("water"), *plan.channel("wetness")), 64u));
         const auto kinds = [&](matter::LawKind kind) { return std::ranges::count_if(plan.laws(), [&](const matter::Law& law) { return law.kind == kind; }); };
-        expect(eq(plan.laws().size(), std::size_t{13}) && kinds(matter::LawKind::transfer) == 3 && kinds(matter::LawKind::adjust) == 1 && kinds(matter::LawKind::reaction) == 4 &&
+        expect(eq(plan.laws().size(), std::size_t{13}) && eq(plan.materials().size(), std::size_t{16}) && kinds(matter::LawKind::transfer) == 3 && kinds(matter::LawKind::adjust) == 1 && kinds(matter::LawKind::reaction) == 4 &&
                kinds(matter::LawKind::conversion) == 5);
         expect(eq(plan.recipes(), std::size_t{0})) << "no law names a material";
         const std::string said = plan.describe();
         expect(mlibs::json::Document::parse(said, "describe").has_value()) << "it is JSON";
-        expect(said.contains(R"({"name":"wood","id":4,"tags":["plant"],"density":600,"ignition":570,"fuel":400,"heat":80,"porous":2,"burnt":"ash"})")) << said;
+        expect(said.contains(R"({"name":"wood","id":4,"tags":["plant"],"density":600,"friction":0.45,"restitution":0.35,"shape_stiffness":1,"ignition":570,"fuel":400,"heat":80,"porous":2,"burnt":"ash"})")) << said;
         expect(said.contains(R"({"name":"burns","kind":"reaction","when":"temperature >= ignition && burned < fuel && near.oxygen > 0","changes":["burned","temperature"],"flag":"burning"})")) << said;
         expect(said.contains(R"({"name":"heat flows","kind":"transfer","transfer":"temperature","share":"1 / 64","by":"thermal"})")) << said;
         expect(said.contains(R"({"name":"boils","kind":"conversion","when":"phase == liquid && boiling > 0 && temperature >= boiling","become":"boiled","event":"boil"})")) << said;

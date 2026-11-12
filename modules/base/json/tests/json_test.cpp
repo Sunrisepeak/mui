@@ -1,6 +1,6 @@
 // JSON documents with their places: nodes and pointers, problems at line and
 // column (an absent member at the object that should hold it), malformed text
-// placed, members in order, and the nearest name.
+// placed, members in order.
 import std;
 import mlibs.json;
 import mcpplibs.mtest;
@@ -45,13 +45,5 @@ UTest cases{"json", [] {
         expect(!doc.has_value());
         if (doc) return;
         expect(doc.error().line == 3 && doc.error().file == "bad.json" && !doc.error().message.empty()) << doc.error().text();
-    };
-
-    "the nearest name: a typo, a swap, none for a single letter"_test = [] {
-        constexpr std::array<std::string_view, 3> keys{"tempo", "sections", "key"};
-        expect(eq(json::nearest("temop", keys), std::string("did you mean `tempo`?")));
-        expect(eq(json::nearest("sectoins", keys), std::string("did you mean `sections`?")));
-        expect(eq(json::nearest("x", keys), std::string("one of `tempo`, `sections`, `key`")));
-        expect(eq(json::distance("ab", "ba"), std::size_t{1}));
     };
 }};

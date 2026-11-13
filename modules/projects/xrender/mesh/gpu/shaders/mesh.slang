@@ -186,8 +186,17 @@ float4 mesh_fs(VOut point) : SV_Target {
     base_colour = surface.base.rgb;
     if (surface.picture.z > 0.5) {
         // How many texels a pixel covers: how far apart the surface's places in the picture are at this pixel and the next.
-        const float2 across = ddx(point.uv) * surface.picture.xy, along = ddy(point.uv) * surface.picture.xy;
-        base_colour *= picture_at(point.uv, max(length(across), length(along)));
+        // The strip a pixel covers of it (xrender.mesh's `Texture::over`): up to eight places along its length, each at
+        // the size its width asks.
+        const float2 right = ddx(point.uv), down = ddy(point.uv);
+        const float across = length(right * surface.picture.xy), along = length(down * surface.picture.xy);
+        const float2 lengthwise = across >= along ? right : down;
+        const float longer = max(across, along), shorter = max(min(across, along), 1e-6);
+        const float places = clamp(ceil(longer / shorter), 1.0, 8.0);
+        const float footprint = longer / places;
+        float3 sum = float3(0, 0, 0);
+        for (float place = 0; place < places; place += 1) sum += picture_at(point.uv + lengthwise * ((place + 0.5) / places - 0.5), footprint);
+        base_colour *= sum / places;
     }
     const bool matt = surface.shine.z > 0.5;
     const float3 toward_eye = normalize(to_eye);

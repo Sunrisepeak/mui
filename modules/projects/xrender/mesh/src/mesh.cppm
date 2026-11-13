@@ -51,7 +51,8 @@ struct Material {
 // A picture laid over a surface by its mesh's texture coordinates (`mlibs.geom`'s `Mesh::uvs`; it repeats). It is
 // kept as light — the display's curve taken off once, by a table — at every size down to one texel, each the mean
 // of four of the one before: a surface far away or seen at a slant takes its colour from the size whose texels
-// are about a pixel across, mixed with the next, so a pattern does not shimmer or band where it is small.
+// are about a pixel across, mixed with the next, so a pattern does not shimmer or band where it is small; at a slant several places along
+// the pixel's strip are taken (`over`).
 struct Texture {
     int width = 0, height = 0;
     std::vector<Vec3>        light;   // every size's texels, a row after a row, the finest size first
@@ -61,6 +62,11 @@ struct Texture {
     // Its light at `uv` (0 … 1 across and down, repeating), for a pixel that covers `footprint` texels of the finest
     // size across. Between four texels of a size, between two sizes. The same bits everywhere.
     [[nodiscard]] Vec3 at(Vec2 uv, float footprint) const noexcept;
+    // Its light over what a pixel covers of it: `right` and `down` are how far the surface's place in the picture
+    // moves from this pixel to the next across and to the next below. Seen at a slant a pixel covers a long
+    // strip: up to eight places along the strip's length are taken, each at the size the strip's width asks —
+    // so a floor stays sharp across the way it is looked along instead of going soft both ways.
+    [[nodiscard]] Vec3 over(Vec2 uv, Vec2 right, Vec2 down) const noexcept;
     [[nodiscard]] std::size_t size_count() const noexcept { return sizes.size(); }
 };
 

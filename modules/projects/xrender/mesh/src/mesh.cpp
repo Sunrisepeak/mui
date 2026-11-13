@@ -242,11 +242,7 @@ struct Raster {
                                     (corners[0]->uv.y * there[0] + corners[1]->uv.y * there[1] + corners[2]->uv.y * there[2]) * all};
                     };
                     const Vec2 here = uv_at(px, py), right = uv_at(px + 256.0, py), down = uv_at(px, py + 256.0);
-                    const float wide = static_cast<float>(texture->width), high = static_cast<float>(texture->height);
-                    const float across = std::sqrt((right.x - here.x) * (right.x - here.x) * wide * wide + (right.y - here.y) * (right.y - here.y) * high * high);
-                    const float along = std::sqrt((down.x - here.x) * (down.x - here.x) * wide * wide + (down.y - here.y) * (down.y - here.y) * high * high);
-                    const float footprint = std::max(across, along);
-                    material.base = math::scaled(base, texture->at(here, footprint == footprint ? footprint : 1.0f));
+                    material.base = math::scaled(base, texture->over(here, {right.x - here.x, right.y - here.y}, {down.x - here.x, down.y - here.y}));
                     ++stats.textured;
                 }
                 Vec3 colour = lit(normal, place);
@@ -701,6 +697,25 @@ Vec3 Texture::at(Vec2 uv, float footprint) const noexcept {
     };
     const Vec3 here = within(size);
     return toward_next > 0 ? math::mix(here, within(size + 1), toward_next) : here;
+}
+
+Vec3 Texture::over(Vec2 uv, Vec2 right, Vec2 down) const noexcept {
+    const float wide = static_cast<float>(width), high = static_cast<float>(height);
+    const float across = std::sqrt(right.x * right.x * wide * wide + right.y * right.y * high * high);
+    const float along = std::sqrt(down.x * down.x * wide * wide + down.y * down.y * high * high);
+    if (!(across == across) || !(along == along)) return at(uv, 1);
+    // The strip a pixel covers: its length the longer of the two ways, its width the shorter.
+    const Vec2 lengthwise = across >= along ? right : down;
+    const float longer = std::max(across, along), shorter = std::max(std::min(across, along), 1e-6f);
+    const float places = std::clamp(std::ceil(longer / shorter), 1.0f, 8.0f);
+    const float footprint = longer / places;
+    if (places <= 1) return at(uv, footprint);
+    Vec3 sum{0, 0, 0};
+    for (float place = 0; place < places; place += 1) {
+        const float aside = (place + 0.5f) / places - 0.5f;
+        sum = sum + at({uv.x + lengthwise.x * aside, uv.y + lengthwise.y * aside}, footprint);
+    }
+    return sum * (1.0f / places);
 }
 
 namespace {

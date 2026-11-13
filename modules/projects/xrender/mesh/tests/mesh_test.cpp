@@ -803,6 +803,6 @@ static UTest cases{"xrender.mesh", [] {
         expect(lt(std::abs(far_mean / near_mean - 1), 0.25)) << "and as light on the whole as the near floor (the sun's angle is the same)";
         expect(eq(same_who, tiled.targets.ids.size())) << "a texture changes no depth";
         expect(gt(tiled.stats.textured, 60000u) && eq(plain.stats.textured, 0u));
-        expect(eq(bits(tiled.targets), std::uint64_t{0xf0f2e4cb0e0da635})) << std::format("{:016x}", bits(tiled.targets));
+        expect(eq(bits(tiled.targets), std::uint64_t{0xb6962b046d17007d})) << std::format("{:016x}", bits(tiled.targets));
     };
 }};

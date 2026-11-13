@@ -622,8 +622,11 @@ UTest cases{"mesh.gpu.sdl", [] {
         std::println("a floor of tiles: {} draw textured; {} of {} pixels further than 6 levels from the reference ({:.2f}%), {} further than 16; mean {:.3f}, worst {}", pass->last().textured, all.off,
                      all.compared, 100.0 * static_cast<double>(all.off) / static_cast<double>(all.compared), loosely.off, all.mean, all.worst);
         expect(eq(pass->last().textured, 1u));
-        expect(lt(static_cast<double>(all.off), 0.001 * static_cast<double>(all.compared)));
-        expect(le(loosely.off, all.off));
+        // How many places are taken along a pixel's strip turns on the screen's differences of the texture coordinate,
+        // which a device takes over two pixels by two and the reference from each pixel to the next: where the
+        // count steps, a few pixels step a pixel apart, a few levels off.
+        expect(lt(static_cast<double>(all.off), 0.01 * static_cast<double>(all.compared)));
+        expect(lt(static_cast<double>(loosely.off), 0.0005 * static_cast<double>(loosely.compared)));
         static_cast<void>(device->wait_idle());
         device->destroy(*colour), device->destroy(*depth);
     };

@@ -20,6 +20,8 @@ mcpp test -p omui.showcase.kiln.headless   # the playtest: finishes the first ca
 mcpp test -p omui.showcase.kiln.picture    # the four steps of the ladder drawn headless; the game's checksum the same at each
 ```
 
+How it was made, and what making it changed in the engine: [dev-story.md](dev-story.md).
+
 ## The same game, drawn as the machine can
 
 What the level calls scenery — dry roots by the barricade, brush on the ledge — is not in the simulation: it is matter that is only shown. A picture with room simulates it beside the world by the same laws, so it catches from the barricade's fire; one without draws it as placed. The light is laddered too: a glow, frames of a flame baked from it, or none. The game's checksum is the same frame by frame wherever the ladders stand (`picture_test`).

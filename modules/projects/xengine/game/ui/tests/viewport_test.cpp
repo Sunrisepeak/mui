@@ -140,4 +140,49 @@ static UTest viewport_cases{"xengine.ui.viewport", [] {
         host.step();
         expect(eq(host.runtime().subjects().size(), beside)) << "and gone with it";
     };
+    "the pointer kept to the world: a press on a viewport that is looked about holds it; the hand's movement gathers there and nothing else sees the pointer; Escape lets it go"_test = [] {
+        HeadlessOptions options;
+        options.level = HeadlessLevel::layout;
+        options.size = {400, 300};
+        options.fonts = &fonts();
+        Headless host(options);
+        Element viewport;
+        viewport.type = &component_type<xengine::ui::Viewport>();
+        viewport.id = "world";
+        int pressed = 0;
+        host.mount("main", column({.padding = 20, .gap = 8}, {box({.id = "menu", .width = 80, .height = 28, .on = {{"press", [&](const Value&) { ++pressed; }}}}), std::move(viewport)}));
+        host.step();
+        const NodeId node = host.runtime().find("main/world");
+        auto* shown = host.runtime().component<xengine::ui::Viewport>(node);
+        expect(fatal(shown != nullptr));
+        shown->show({.label = "the yard", .look = true});
+        host.step();
+        const Rect box = host.runtime().bounds(node), menu = host.runtime().bounds(host.runtime().find("main/menu"));
+        expect(!shown->holds_pointer() && !host.pointer_held());
+        host.click(box.center());
+        expect(shown->holds_pointer() && host.pointer_held()) << "a press on it: the host holds the pointer";
+        // The hand moves: no place in the interface changes, the movement gathers.
+        host.move_by({10, -4});
+        host.move_by({2.5f, 1});
+        const Point looked = shown->take_look();
+        expect(eq(looked.x, 12.5f) && eq(looked.y, -3.0f)) << std::format("{}, {}", looked.x, looked.y);
+        expect(eq(shown->take_look().x, 0.0f)) << "taken once";
+        // A click while it is kept is the world's, wherever the pointer was left: the menu is not pressed.
+        host.click(menu.center());
+        expect(eq(pressed, 0));
+        // Escape is the person's way out, and then the interface has its pointer again.
+        host.key(Key::escape);
+        expect(!shown->holds_pointer() && !host.pointer_held());
+        host.click(menu.center());
+        expect(eq(pressed, 1));
+        // Held again, then the window loses focus: let go.
+        host.click(box.center());
+        expect(shown->holds_pointer());
+        host.step({FocusEvent{.gained = false}});
+        expect(!shown->holds_pointer() && !host.pointer_held());
+        // A viewport that is not looked about does not take the pointer.
+        shown->show({.label = "the yard"});
+        host.click(box.center());
+        expect(!shown->holds_pointer());
+    };
 }};

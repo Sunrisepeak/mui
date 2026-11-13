@@ -75,6 +75,8 @@ void text_input(Window& w, std::optional<Rect> caret);
 void cursor(Window& w, std::string_view shape);
 [[nodiscard]] std::string clipboard();
 void set_clipboard(std::string_view text);
+// The pointer kept to the focused window and reporting only its movement, or let go; whether the system did.
+bool lock_pointer(bool held);
 // The system's handler of an address (the browser, the mail program).
 bool open_url(std::string_view url);
 // A file given to the person: written to their Downloads folder (else their

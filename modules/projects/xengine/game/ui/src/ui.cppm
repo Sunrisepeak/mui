@@ -77,6 +77,7 @@ struct Viewport {
         std::function<std::optional<xrender::raster::ImageView>()> pixels;  // its picture (premultiplied); none: nothing yet
         float                  width = 480, height = 270;  // its size when the layout does not say
         bool                   pixels_stay = false;        // shown by the nearest pixel (a field of cells), not smoothed
+        bool                   look = false;               // a press on it keeps the pointer to it (the world looked about by the mouse)
     };
     Viewport() = default;
     Viewport(const Viewport&) = delete;
@@ -90,6 +91,14 @@ struct Viewport {
     [[nodiscard]] const Shown& shown() const noexcept { return shown_; }
     // A point of the node (its own coordinates) as a place of the picture, 0 to 1 across and down; outside: none.
     [[nodiscard]] std::optional<omui::Point> within(omui::Point local) const;
+    // The pointer kept to the world (R5): asked of the host — one that cannot says no. While it is kept the
+    // pointer does not cross the interface; how far the hand moved gathers here until it is taken (logical
+    // pixels: x right, y down). Escape, or the window losing focus, lets it go.
+    bool hold_pointer();
+    void let_go();
+    [[nodiscard]] bool holds_pointer() const;
+    [[nodiscard]] omui::Point take_look() noexcept { return std::exchange(looked_, omui::Point{}); }
+    bool on_event(omui::EventContext& ctx, const omui::InputEvent& event);
 
     void mount(omui::Services& services, omui::NodeId node) { services_ = &services, node_ = node; }
     omui::Size measure(omui::MeasureContext&, std::optional<float> width, std::optional<float> height, mlibs::layout::Available across, mlibs::layout::Available down);
@@ -102,6 +111,7 @@ private:
     Shown           shown_;
     std::uint64_t   number_ = 0;   // what the display list names the picture by
     mutable omui::Size size_{};
+    omui::Point     looked_{};     // the hand's movement since it was last taken
 };
 
 }  // namespace xengine::ui

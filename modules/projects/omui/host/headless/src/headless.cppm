@@ -90,6 +90,10 @@ public:
 
     // ── input, as a person gives it ──
     void move(Point p);
+    // The hand moved this far, the pointer where it is: what a pointer kept to a node is told (`movement`).
+    void move_by(Point movement);
+    // Whether the interface holds the pointer (Services::lock_pointer): this host always lets it.
+    [[nodiscard]] bool pointer_held() const noexcept;
     void click(Point p, MouseButton button = MouseButton::left);
     // Clicks the centre of a node; false when there is no such node or it is not visible.
     bool click(std::string_view id);

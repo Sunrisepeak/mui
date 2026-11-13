@@ -41,5 +41,16 @@ viewport->within(local_point);             // a place of the node as a place of 
 
 Drawn by `tests/viewport_test.cpp` with no window and no device: the yard by `xrender.mesh`'s reference, shown in the headless host's frame — at 25 places the frame is the picture to the level; the pixel under the ball is the viewport's node; the semantic tree has the node by its label with the subject's name as its value.
 
-**Not yet:** on a device the host must hand the picture's texture to the frame (`GpuFrame`'s `external`) — no host does; the pointer locked to the viewport and relative motion (R5); a pixel of the viewport explained through to the world's own source (the instance, the triangle).
+**The pointer kept to the world** (R5). A viewport shown with `look` takes the pointer at a press: the host holds it (SDL's relative mode; the headless host always can), it no longer crosses the interface, and every pointer event goes to the viewport with how far the hand moved. The movement gathers until the game takes it:
+
+```cpp
+viewport->show({.label = "the yard", .look = true});
+// each step of the game:
+const omui::Point looked = viewport->take_look();   // logical pixels since the last time: x right, y down
+if (!viewport->holds_pointer()) { /* the person let go: Escape, or the window lost focus */ }
+```
+
+It is a capability asked of the host (`omui::Services::lock_pointer`): one that cannot says no and nothing changes. Escape is the person's way out and is not handed to the game.
+
+**Not yet:** on a device the host must hand the picture's texture to the frame (`GpuFrame`'s `external`) — no host does; the Web host's pointer lock (it says it cannot); a pixel of the viewport explained through to the world's own source (the instance, the triangle).
 

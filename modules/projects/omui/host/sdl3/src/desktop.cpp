@@ -433,6 +433,7 @@ std::expected<void, std::string> Desktop::open() {
     d.window_state();
     d.hit_test();
     d.runtime->set_clipboard([] { return platform::clipboard(); }, [](std::string_view t) { platform::set_clipboard(t); });
+    d.runtime->set_pointer_lock([](bool held) { return platform::lock_pointer(held); });
     d.runtime->set_url_opener([](std::string_view url) { return platform::open_url(url); });
     d.runtime->set_file_offer([](const Runtime::OfferedFile& file) { return platform::save_download(file.name, file.bytes); });
     // The system's file chooser and tray (W7: the SDK's System draws what is missing).

@@ -923,6 +923,21 @@ void Runtime::focus(NodeId node) { impl_->set_focus(node, impl_->focus_visible);
 void Runtime::focus_visibly(NodeId node) { impl_->set_focus(node, true); }
 void Runtime::capture_pointer(NodeId node) { impl_->capture = node; }
 void Runtime::release_pointer() { impl_->capture = {}; }
+void Runtime::set_pointer_lock(std::function<bool(bool)> host) { impl_->pointer_lock = std::move(host); }
+bool Runtime::lock_pointer(NodeId node) {
+    if (!impl_->alive(node) || !impl_->pointer_lock) return false;
+    if (impl_->locked == node) return true;
+    if (!impl_->alive(impl_->locked) && !impl_->pointer_lock(true)) return false;
+    impl_->locked = node;
+    return true;
+}
+void Runtime::unlock_pointer() { impl_->unlock(); }
+NodeId Runtime::pointer_locked_to() const { return impl_->alive(impl_->locked) ? impl_->locked : NodeId{}; }
+void Runtime::Impl::unlock() {
+    if (locked == NodeId{}) return;
+    locked = {};
+    if (pointer_lock) (void)pointer_lock(false);
+}
 
 bool Runtime::perform(NodeId node, std::string_view action, const Value& args) {
     Invocation call;

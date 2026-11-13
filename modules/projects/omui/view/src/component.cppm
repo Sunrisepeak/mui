@@ -381,6 +381,14 @@ public:
     virtual void focus(NodeId node) = 0;
     virtual void capture_pointer(NodeId node) = 0;
     virtual void release_pointer() = 0;
+    // The pointer kept to a node (a world looked about by the mouse, R5): it no longer moves across the
+    // interface or leaves the window, every pointer event goes to the node with `movement` — how far the hand
+    // moved — and nothing else sees it. Whether the host could: one that cannot says no, and nothing changes.
+    // It ends by `unlock_pointer`, when the window loses focus, when the node goes, or by Escape — which is
+    // the person's way out and is not handed to the node.
+    virtual bool lock_pointer(NodeId node) { (void)node; return false; }
+    virtual void unlock_pointer() {}
+    [[nodiscard]] virtual NodeId pointer_locked_to() const { return {}; }
     // Performs one of the node's own actions as the person whose input it is
     // handling — a drag's end, a key its contract does not bind — through the
     // same checks, journal and history (S-12) as any call: what a pointer

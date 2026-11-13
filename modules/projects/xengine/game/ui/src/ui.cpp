@@ -73,6 +73,7 @@ void Viewport::show(Shown what) {
     services_->invalidate_layout(node_);
 }
 void Viewport::clear() {
+    let_go();
     if (services_) {
         if (shown_.subject) services_->remove_subject(*shown_.subject);
         if (number_ != 0) services_->remove_picture(number_);
@@ -87,6 +88,24 @@ void Viewport::changed() {
 std::optional<omui::Point> Viewport::within(omui::Point local) const {
     if (!(size_.width > 0) || !(size_.height > 0) || local.x < 0 || local.y < 0 || local.x > size_.width || local.y > size_.height) return std::nullopt;
     return omui::Point{local.x / size_.width, local.y / size_.height};
+}
+bool Viewport::hold_pointer() { return services_ && services_->lock_pointer(node_); }
+void Viewport::let_go() {
+    if (holds_pointer()) services_->unlock_pointer();
+}
+bool Viewport::holds_pointer() const { return services_ && services_->pointer_locked_to() == node_; }
+bool Viewport::on_event(omui::EventContext&, const omui::InputEvent& event) {
+    const auto* pointer = std::get_if<omui::PointerEvent>(&event);
+    if (!pointer) return false;
+    if (holds_pointer()) {
+        if (pointer->kind == omui::PointerKind::move) looked_ = {looked_.x + pointer->movement.x, looked_.y + pointer->movement.y};
+        return true;
+    }
+    if (shown_.look && pointer->kind == omui::PointerKind::down) {
+        looked_ = {};
+        return hold_pointer();
+    }
+    return false;
 }
 omui::Size Viewport::measure(omui::MeasureContext&, std::optional<float> width, std::optional<float> height, mlibs::layout::Available across, mlibs::layout::Available down) {
     // What the layout says; else as wide as it is let be, as high as its picture's shape makes that.

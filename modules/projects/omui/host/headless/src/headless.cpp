@@ -53,6 +53,8 @@ struct Headless::Impl {
     std::unique_ptr<agent::Endpoint>            endpoint;
     bool                                        requests_held = false;  // the application is not ready yet
     std::int64_t                                frame = -1;
+    Point                                       pointer_at{};          // where move() last put it
+    bool                                        pointer_held = false;  // the interface keeps it (a pointer lock)
 
     void render_now() {
         const xrender::DisplayList& list = runtime->display_list();
@@ -105,6 +107,7 @@ Headless::Headless(HeadlessOptions options) : impl_(std::make_unique<Impl>()) {
     d.glyphs = std::make_unique<xrender::text::GlyphCache>(*fonts);
     // A file offered is taken (the runtime keeps it: offered_files); the
     // drawing in vectors is the agent's capture.
+    d.runtime->set_pointer_lock([this](bool held) { return impl_->pointer_held = held, true; });
     d.runtime->set_file_offer([](const Runtime::OfferedFile&) { return true; });
     d.runtime->set_svg_capture([this](Rect region) -> std::expected<std::string, std::string> {
         auto capture = svg(region);
@@ -204,8 +207,18 @@ void Headless::move(Point p) {
     PointerEvent e;
     e.kind = PointerKind::move;
     e.position = p;
+    e.movement = {p.x - impl_->pointer_at.x, p.y - impl_->pointer_at.y};
+    impl_->pointer_at = p;
     step({e});
 }
+void Headless::move_by(Point movement) {
+    PointerEvent e;
+    e.kind = PointerKind::move;
+    e.position = impl_->pointer_at;
+    e.movement = movement;
+    step({e});
+}
+bool Headless::pointer_held() const noexcept { return impl_->pointer_held; }
 
 void Headless::click(Point p, MouseButton button) {
     PointerEvent down;

@@ -178,6 +178,7 @@ void Runtime::Impl::dispatch(const InputEvent& e) {
                     // The window lost focus: nothing stays pressed or captured.
                     if (alive(pressed)) at(pressed).state.pressed = false;
                     pressed = capture = {};
+                    unlock();
                     touch(dirty_paint);
                 }
             } else if constexpr (std::same_as<T, FileDropEvent>) {
@@ -226,6 +227,15 @@ bool Runtime::Impl::deliver(NodeId target, const InputEvent& e, Point window, bo
 }
 
 void Runtime::Impl::pointer_event(const PointerEvent& e) {
+    if (locked != NodeId{}) {
+        // Kept to a node: it is told how far the hand moved and what was pressed, and nothing else sees the
+        // pointer — no hover, no capture, no place across the interface. A node that went lets it go.
+        if (alive(locked)) {
+            deliver(locked, e, pointer, true);
+            return;
+        }
+        unlock();
+    }
     pointer = e.position;
     pointer_inside = e.kind != PointerKind::leave;
     // Who follows the pointer is drawn again (gone ones forgotten).
@@ -434,6 +444,11 @@ void Runtime::Impl::wheel_event(const WheelEvent& e) {
 }
 
 void Runtime::Impl::key_event(const KeyEvent& e) {
+    if (locked != NodeId{} && e.key == Key::escape) {
+        // The person's way out of a pointer lock: not the node's to take.
+        if (e.kind == KeyKind::down) unlock();
+        return;
+    }
     NodeId target = alive(focus) ? focus : root;
     if (e.kind == KeyKind::down && alive(focus) && !focus_visible &&
         (e.key == Key::tab || e.key == Key::up || e.key == Key::down || e.key == Key::left || e.key == Key::right)) {

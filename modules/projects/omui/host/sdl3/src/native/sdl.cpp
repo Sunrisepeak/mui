@@ -452,6 +452,7 @@ Polled poll(Window& w, bool wait, std::optional<std::chrono::milliseconds> timeo
                 PointerEvent p;
                 p.kind = PointerKind::move;
                 p.position = point(e.motion.x, e.motion.y);
+                p.movement = point(e.motion.xrel, e.motion.yrel);  // what the hand did: all there is under a pointer lock
                 p.buttons = buttons_of(e.motion.state);
                 p.mods = mods_of(SDL_GetModState());
                 out.events.push_back(p);
@@ -650,6 +651,14 @@ std::string clipboard() {
 void set_clipboard(std::string_view text) { SDL_SetClipboardText(std::string(text).c_str()); }
 
 bool open_url(std::string_view url) { return SDL_OpenURL(std::string(url).c_str()); }
+
+// The pointer kept to the window that has the keyboard (SDL's relative mode: hidden, held in place, reporting
+// only how far the hand moved), or let go. Whether SDL did.
+bool lock_pointer(bool held) {
+    SDL_Window* window = SDL_GetKeyboardFocus();
+    if (!window) window = SDL_GetMouseFocus();
+    return window && SDL_SetWindowRelativeMouseMode(window, held);
+}
 
 namespace {
 

@@ -26,6 +26,9 @@ struct PointerEvent {
     Modifiers     mods;
     std::uint8_t  clicks = 1;          // 2 for a double click
     float         pressure = 0.5f;
+    // How far it moved since its last event, logical pixels, where the host knows. Under a pointer lock
+    // (Services::lock_pointer) the position stays where it was and this is all that changes.
+    Point         movement;
 };
 
 struct WheelEvent {

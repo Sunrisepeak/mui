@@ -441,6 +441,9 @@ struct Runtime::Impl {
     std::function<std::string()>            clipboard_read;
     std::function<void(std::string_view)>   clipboard_write;
     std::function<bool(std::string_view)>   url_opener;
+    std::function<bool(bool)>               pointer_lock;  // the host's (Runtime::set_pointer_lock)
+    NodeId                                  locked;        // the node the pointer is kept to
+    void unlock();
     Runtime::NativeSurfaces                 native_surfaces;
     std::vector<std::string>                opened;
     std::function<bool(const Runtime::OfferedFile&)> file_offer;

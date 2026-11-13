@@ -770,6 +770,12 @@ public:
     // Where the clipboard is (a host's system clipboard); without one the
     // runtime keeps its own.
     void set_clipboard(std::function<std::string()> read, std::function<void(std::string_view)> write);
+    // The host's pointer lock: asked to hold the pointer (true) or let it go; whether it did. A host that has
+    // none sets nothing, and `lock_pointer` says no.
+    void set_pointer_lock(std::function<bool(bool held)> host);
+    bool lock_pointer(NodeId node) override;
+    void unlock_pointer() override;
+    [[nodiscard]] NodeId pointer_locked_to() const override;
     // Opens an address outside the program (a document's link) where the
     // host can: the desktop's browser, a new tab on the Web. Only http,
     // https and mailto; false when refused or nothing opens it. Every

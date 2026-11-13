@@ -186,7 +186,11 @@ static UTest cases{"xrender.mesh", [] {
         std::uint64_t covered = 0;
         for (int turn = 0; turn < 24; ++turn) {
             const auto unit = [&] { return static_cast<float>(math::unit24(random.next())); };
-            const math::Transform where{{unit() - 0.5f, unit() - 0.5f, unit() - 0.5f}, math::Quat::about(math::normalized(math::Vec3{unit() - 0.5f, unit() + 0.2f, unit() - 0.5f}), unit() * 6.28f), {1, 1, 1}};
+            // Each by name, one after the other: the same 24 turns whichever compiler built it.
+            const math::Vec3 at{unit() - 0.5f, unit() - 0.5f, unit() - 0.5f};
+            const float angle = unit() * 6.28f;
+            const math::Vec3 axis = math::normalized(math::Vec3{unit() - 0.5f, unit() + 0.2f, unit() - 0.5f});
+            const math::Transform where{at, math::Quat::about(axis, angle), {1, 1, 1}};
             const Camera camera{.eye = {0, 9, 0.5f}, .target = {0, 0, 0}};
             scene::Scene fine;
             put(fine, 1, sheet, 0, where.matrix());

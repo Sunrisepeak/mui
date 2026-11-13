@@ -34,7 +34,11 @@ std::vector<scene::Instance> field(std::uint32_t count, std::uint64_t seed) {
     for (std::uint32_t index = 0; index < count; ++index) {
         const math::Vec3 at{unit(random) * 200 - 100, unit(random) * 40 - 20, unit(random) * 200 - 100};
         const float size = 0.5f + unit(random) * 3;
-        const math::Quat turn = math::Quat::about(math::normalized(math::Vec3{unit(random) - 0.5f, 1, unit(random) - 0.5f}), unit(random) * 6.28f);
+        // One after the other, by name: the order two arguments of a call are worked out in is the compiler's own
+        // (the pin below was the same scene on one compiler and another on the next).
+        const float angle = unit(random) * 6.28f;
+        const math::Vec3 axis = math::normalized(math::Vec3{unit(random) - 0.5f, 1, unit(random) - 0.5f});
+        const math::Quat turn = math::Quat::about(axis, angle);
         made.push_back({.id = 1000 + std::uint64_t{index} * 7,
                         .mesh = static_cast<std::uint32_t>(random.next() % 5),
                         .material = static_cast<std::uint32_t>(random.next() % 4),

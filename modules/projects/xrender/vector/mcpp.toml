@@ -34,6 +34,11 @@ mlibs.geom   = { path = "../../../base/geom" }
 mlibs.memory = { path = "../../../base/memory" }
 xrender.raster = { path = "../raster" }
 
+# The files of tests/vector/ are one program, run a file at a time: one link of the closure for all of them. Files
+# directly in tests/ stay a program each: they count allocations with an operator new of their own.
+[test]
+programs = "directory"
+
 [dev-dependencies]
 mcpplibs.mtest = "0.7.1"
 mlibs.image   = { path = "../../../base/image" }

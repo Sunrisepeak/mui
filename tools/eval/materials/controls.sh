@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The controls' side-by-side material (compare set `components`, D-135):
 # ours — site's quality lab, each control's four states in light
-# (site/tests/quality_lab_test.cpp) — and Material 3's, the same controls in
+# (site/tests/site/quality_lab_test.cpp) — and Material 3's, the same controls in
 # the same states, cells and background, as Google's @material/web draws them
 # (tests/bench/competitors/compare/material3). Both land in
 # target/compare-material/{omui,material3}/<control>.png.

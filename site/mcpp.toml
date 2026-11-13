@@ -66,6 +66,11 @@ omui.build.contracts = { path = "../mcpp/contracts", host-module = true }
 omui.build.embed     = { path = "../mcpp/embed", host-module = true }
 omui.build.toy       = { path = "../mcpp/toy", host-module = true }
 
+# The files of tests/site/ are one program (`site`), run a file at a time: one link of the site's closure, not
+# thirty. tests/frames_test.cpp has a beginning of its own and stays a program.
+[test]
+programs = "directory"
+
 [dev-dependencies]
 mcpplibs.mtest = "0.7.1"
 omui.theme.default = { path = "../modules/projects/omui/theme/default" }  # the staged theme's snapshot (quality_lab_test)

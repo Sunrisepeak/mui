@@ -43,6 +43,10 @@ mlibs.agent    = { path = "../../../base/agent" }
 mlibs.i18n     = { path = "../../../content/i18n" }
 mcpplibs.os      = "0.4.4"
 
+# The files of tests/view/ are one program, run a file at a time: one link of the closure for all of them.
+[test]
+programs = "directory"
+
 [dev-dependencies]
 # Tests are mtest's (D-147).
 mcpplibs.mtest = "0.7.1"

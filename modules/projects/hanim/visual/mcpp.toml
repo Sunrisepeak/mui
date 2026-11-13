@@ -34,6 +34,11 @@ mlibs.geom          = { path = "../../../base/geom" }
 "hanim" = { path = "..", default-features = false, features = ["object"] }
 xrender.vector = { path = "../../xrender/vector" }
 
+# The files of tests/visual/ are one program, run a file at a time: one link of the closure for all of them. Files
+# directly in tests/ stay a program each: they count allocations with an operator new of their own.
+[test]
+programs = "directory"
+
 [dev-dependencies]
 mcpplibs.mtest = "0.7.1"
 xrender.raster  = { path = "../../xrender/raster" }

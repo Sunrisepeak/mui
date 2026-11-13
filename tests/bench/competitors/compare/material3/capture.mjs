@@ -1,6 +1,6 @@
 // Material 3's controls in four states — at rest, under the pointer,
 // pressed, keyboard-focused — each a 220×84 cell at 2× on the same
-// background as ours (site/tests/quality_lab_test.cpp), one strip a control:
+// background as ours (site/tests/site/quality_lab_test.cpp), one strip a control:
 // the competitor's side of the controls' side-by-side review (D-135).
 //
 //   CHROME=<chromium> node capture.mjs OUT_DIR      (after npm install and the esbuild bundle)

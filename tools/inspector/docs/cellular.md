@@ -122,7 +122,7 @@ The palette is data, not a style-name switch in a component.
 revisions, every intermediate state and reverse seek, project reload/evolution,
 real pointer versus Agent painting, actor undo/redo, revoked-session playback,
 restricted reads/writes, narrow Chinese and high-DPI offscreen pixels, and the
-actual batch exporter. `site/tests/reactions_test.cpp` covers embedding,
+actual batch exporter. `site/tests/site/reactions_test.cpp` covers embedding,
 route changes and pause. `tools/ci/site-reactions.mjs` checks real browser
 pointer/keyboard input, 25 canvas samples, reverse replay, navigation and a
 Chinese phone layout, and runs in the existing site browser CI job. Concrete

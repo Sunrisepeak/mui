@@ -1,5 +1,5 @@
 // Staged values (the component quality checklist's way): an overlay over the
-// default theme, loaded only where it is reviewed (site/tests/quality_lab_test.cpp
+// default theme, loaded only where it is reviewed (site/tests/site/quality_lab_test.cpp
 // draws the defaults beside it) — never part of the default library, so no
 // conformance trace and no pin sees it. Approved, its values move into light
 // and dark in one checkpoint and this file goes.

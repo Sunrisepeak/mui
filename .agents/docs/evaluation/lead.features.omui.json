@@ -46,7 +46,7 @@
       "line": "together",
       "title": "人机同屏共在：Agent 的身体与意图可见，人随时接管，冲突有规则",
       "status": "evidence",
-      "scene": "modules/projects/omui/view/tests/person_first_test.cpp",
+      "scene": "modules/projects/omui/view/tests/view/person_first_test.cpp",
       "competitors": [
         "webmcp",
         "a2ui"
@@ -199,7 +199,7 @@
       "line": "build-reliably",
       "title": "为 Agent 审查而生的像素：像素归属到节点，带语义的矢量截图",
       "status": "evidence",
-      "scene": "modules/projects/xrender/vector/tests/svg_test.cpp",
+      "scene": "modules/projects/xrender/vector/tests/vector/svg_test.cpp",
       "competitors": [
         "skia",
         "resvg"

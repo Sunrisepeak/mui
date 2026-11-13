@@ -28,6 +28,11 @@ mlibs.cts      = { path = "../../../../../base/cts" }
 mlibs.utils    = { path = "../../../../../base/utils" }
 mlibs.math     = { path = "../../../../../base/math" }
 
+# The files of tests/cts/ are one program (`cts`): one link of the closure instead of thirteen. Each file's cases
+# are its own (`static UTest cases`), its helpers in an unnamed namespace.
+[test]
+programs = "directory"
+
 [dev-dependencies]
 mcpplibs.mtest = "0.7.1"
 # tests/lattice_test.cpp: the lattice as a carrier (xengine.cellular's feature `matter`) — through the suite,

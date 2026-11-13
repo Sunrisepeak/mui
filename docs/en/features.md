@@ -32,7 +32,7 @@ Compared with today's major UI frameworks: Qt (Widgets / QML), Flutter, SwiftUI,
 
 ## 4. One tree: C++, TypeScript and view documents
 
-**What**: C++, TypeScript and `*.view.omui.json` build the same semantic tree; components are contract-first, and the TypeScript binding is generated. TypeScript is the one script language (D-138): one binding kept complete rather than several kept partly.
+**What**: C++, TypeScript and `*.view.omui.json` build the same semantic tree; components are contract-first, and the TypeScript binding is generated. TypeScript is the one script language: one binding kept complete rather than several kept partly.
 
 **Evidence**: CTS scenarios record the pinned traces in TypeScript; the C++, TypeScript and view-document trees are compared in tests; `omui-gen` generates bindings, stubs and schemas.
 

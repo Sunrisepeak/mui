@@ -10,13 +10,13 @@
 [![C++23](https://img.shields.io/badge/C%2B%2B23-modules-informational)](https://github.com/mcpp-community/mcpp)
 [![code](https://img.shields.io/badge/code-Apache--2.0-green)](LICENSE)
 
-[中文](README.zh.md) · [Features](docs/en/features.md) · [Best practices](docs/en/best-practices.md) · [Benchmarks](docs/en/benchmarks/README.md) · [Design](.agents/docs/README.md)
+[中文](README.zh.md) · [**Guide**](docs/en/README.md) · [Features](docs/en/features.md) · [Best practices](docs/en/best-practices.md) · [Benchmarks](docs/en/benchmarks/README.md) · [Design](.agents/docs/README.md)
 
 </div>
 
 omui is a UI framework implementing the open [openmui specification](https://github.com/openlifa/openmui) in C++ modules — in development. A view is one tree: the pixels on screen, what a screen reader announces, what an agent reads and acts on, and what a test checks all come from it. The CPU renderer draws the same bytes on Linux, macOS and Windows, with GCC and LLVM; CI holds every pinned image to that. Existing UI package and module names remain `openmui.*` during migration.
 
-Namespace ownership follows the [product migration plan](.agents/docs/2026-11-05-product-namespace-migration-design.md): `openmui` for the specification, `omui` for UI, named products such as `hanim`, `mlibs` for reusable libraries, and `xengine` for engines awaiting an independent name. The first new shared library is [mlibs.control](modules/base/control); most existing package names have not changed yet.
+Beside it, in the same repository: **hanim** (animation), **xrender** (rendering) and **xengine** (worlds of matter, games). What can be made with each today, and how: the [guide](docs/en/README.md).
 
 ## Works
 
@@ -36,7 +36,7 @@ Each one is a tool you can use, and each one shows what the framework does.
 
 ```cpp
 import std;
-import openmui;
+import omui;
 
 omui::AppSpec app() {
     static int clicks = 0;
@@ -49,7 +49,7 @@ omui::AppSpec app() {
 ```
 
 ```sh
-mcpp new hello --template openmui && cd hello && mcpp run -- --serve
+omui new hello --template app-cpp && cd hello && omui dev
 omui agent act org.example.hello main/click activate     # an agent presses the same button
 ```
 

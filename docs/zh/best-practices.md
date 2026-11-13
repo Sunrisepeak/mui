@@ -4,7 +4,7 @@
 
 ## 1. 每样东西放在它该在的层
 
-omui 是分层的（D-82）：独立组件（`modules/`）、UI 框架、游戏引擎服务（`mgame`）、专用框架（`gongfu`）、应用。一项能力放在它能通用的最低一层：
+omui 是分层的：独立组件（`modules/`）、UI 框架、游戏引擎服务（`xengine`）、专用框架（`gongfu`）、应用。一项能力放在它能通用的最低一层：
 
 - 给一段绘制命令换颜色是渲染器的能力（`DisplayList::recolor`），哪怕是一个角色的时停用到了它；
 - 从编辑器的文本编译 TypeScript 是脚本绑定的能力（`omui::lang::ts::compile_source`），哪怕是一个工坊需要它；

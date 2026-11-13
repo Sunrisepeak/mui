@@ -10,13 +10,13 @@
 [![C++23](https://img.shields.io/badge/C%2B%2B23-modules-informational)](https://github.com/mcpp-community/mcpp)
 [![code](https://img.shields.io/badge/code-Apache--2.0-green)](LICENSE)
 
-[English](README.md) · [特性](docs/zh/features.md) · [最佳实践](docs/zh/best-practices.md) · [基准](docs/zh/benchmarks/README.md) · [设计](.agents/docs/README.md)
+[English](README.md) · [**指南**](docs/zh/README.md) · [特性](docs/zh/features.md) · [最佳实践](docs/zh/best-practices.md) · [基准](docs/zh/benchmarks/README.md) · [设计](.agents/docs/README.md)
 
 </div>
 
 omui 是用 C++ Modules 实现 [openmui 开放规范](https://github.com/openlifa/openmui)的 UI 框架（实现中）。一个视图就是一棵树：屏幕上的像素、读屏软件念出的内容、agent 读到和操作的对象、测试检查的结果，都来自这棵树。CPU 渲染器在 Linux、macOS、Windows 上，用 GCC 和 LLVM，画出的字节完全相同；CI 用固定的金图检查每一处。迁移期间，现有 UI 包和模块名继续兼容 `openmui.*`。
 
-[产品命名方案](.agents/docs/2026-11-05-product-namespace-migration-design.md)规定：`openmui` 归规范，`omui` 归 UI，`hanim` 等具名产品保持自身名字，通用库归 `mlibs`，暂未独立命名的引擎归 `xengine`。首个新增共享库为 [mlibs.control](modules/base/control)；既有包尚未全部改名。
+同一个仓库里还有：**hanim**（动画）、**xrender**（渲染）、**xengine**（物质世界与游戏）。今天能用它们做什么、怎么做：见[指南](docs/zh/README.md)。
 
 ## 作品
 
@@ -36,7 +36,7 @@ omui 是用 C++ Modules 实现 [openmui 开放规范](https://github.com/openlif
 
 ```cpp
 import std;
-import openmui;
+import omui;
 
 omui::AppSpec app() {
     static int clicks = 0;
@@ -49,7 +49,7 @@ omui::AppSpec app() {
 ```
 
 ```sh
-mcpp new hello --template openmui && cd hello && mcpp run -- --serve
+omui new hello --template app-cpp && cd hello && omui dev
 omui agent act org.example.hello main/click activate     # agent 按下同一个按钮
 ```
 

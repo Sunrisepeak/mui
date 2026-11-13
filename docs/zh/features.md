@@ -32,7 +32,7 @@
 
 ## 4. 一棵树：C++、TypeScript 和视图文档
 
-**是什么**：C++、TypeScript 和 `*.view.omui.json` 写出同一棵语义树；组件契约优先，TypeScript 绑定由生成器产出。脚本语言只有 TypeScript（D-138）：把一种绑定做完整，而不是把几种都做一部分。
+**是什么**：C++、TypeScript 和 `*.view.omui.json` 写出同一棵语义树；组件契约优先，TypeScript 绑定由生成器产出。脚本语言只有 TypeScript：把一种绑定做完整，而不是把几种都做一部分。
 
 **别的框架**：通常绑定一种语言（Dart、Swift、Kotlin、JS），或者多语言绑定由社区各自维护、能力不一致。
 

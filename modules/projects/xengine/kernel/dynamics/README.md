@@ -21,7 +21,8 @@ history.step({});
 | `collision` | Half-planes, one-way ledges, boxes; swept collision (a moving circle against a box, exact); `depth`, `lands` | from the former `xengine.physics`; planes and ledges from the soft bodies |
 | materials | Not here: what a body is made of is [xengine.matter](../matter)'s table (D-165 — the one table physics, chemistry and the lattice share). `params_of(table, material, area)` reads its mechanical columns (`density` over water's × the area as the mass, `friction`, `restitution`, `compliance`, `shape_stiffness`); it is the package's feature `matter` (module `xengine.dynamics.matter`, taking the matter kernel alone, no JSON): a solver takes numbers, and only a consumer that has materials takes the table — hanim's engine does not | moved from `xengine.dynamics.material` (2026-11-13); the standard table has its rows (rubber, wood, stone, jelly, cloth, sand, water), the same numbers |
 | `xpbd` | Soft bodies: rings of particles held by edges, area and shape matching (optionally upright); gravity, push, walk, hop, a dragging hand; half-planes and ledges with restitution and friction; `stages()` says a step's stages in order | from the former `xengine.simulation.bodies` |
-| `rigid`, `articulation`, fluids, FEM, MPM | Later solver families (each its own feature) | P1–P3 of the design |
+| `rigid` | 2D rigid bodies: Box2D v3.2 under this contract — fixed steps, contacts, save / restore / branch bit for bit (the feature `rigid`) | P1, M6.2 |
+| `articulation`, fluids, FEM, MPM | Later solver families (each its own feature) | P2–P3 of the design |
 
 ## Collision
 
@@ -37,9 +38,24 @@ history.step({});
   - On x86-64 (SSE2), arm64 and wasm the rounding mode stays the default and there is no extended intermediate precision.
   - It makes no NaN: a zero vector normalizes to zero.
 
-Box2D v3 (in mcpp-index as `mcpplibs.mwrap.box2d`) suits games that do not rewind: its world cannot be saved as one block. It comes later as a plugin.
+## Rigid bodies (rigid)
 
-Box2D v3 (in mcpp-index as `mcpplibs.mwrap.box2d`) suits games that do not rewind; this package's own rigid family (P1) is measured against it.
+The 2D rigid family is Box2D v3.2 (MIT; `mcpplibs.mwrap.box2d`) under this package's contract — the feature `rigid`, module `xengine.dynamics.rigid`, so a consumer that does not take it links no Box2D (D-170, D-176: the strongest independent solver, reused under our contract). Box2D solves; ours is the shape every family shares:
+
+```cpp
+namespace rigid = xengine::dynamics::rigid;
+auto world = rigid::World::make({.gravity = {0, -10}});                              // 1/60 s, 4 substeps
+auto crate = world->add({.at = {0, 4}}, rigid::Shape::box(0.5f, 0.5f), {.density = 1, .friction = 0.6f});
+world->step();
+for (const rigid::Contact& c : world->contacts()) { /* who met whom, where, how fast */ }
+const auto saved = world->save();          // the whole state at a step boundary (Box2D's snapshot image)
+auto branch = world->branch();             // a world of its own from here: world.branch
+world->restore(saved);                     // rollback: every id still names its body
+```
+
+- **Rollback and branches, bit for bit**: a saved state restored and run again is the uninterrupted run's bits; a world made from it runs on alike; saving changes nothing (`xengine.dynamics.cts` rigid_test). A save is valid for the same Box2D version only — upstream calls its image format experimental — so it serves rollback, undo and branches within a run; what is kept across versions is the application's own state.
+- **The same bits everywhere**: Box2D is cross-platform deterministic built as here (no contraction, no fast math, its own trigonometry): the wrap's CI checks one scene on Linux x86-64 and arm64, macOS, Windows and wasm32 with 1 to 8 workers.
+- **Numbers in**: a material's mechanical columns (`Material`: density, friction, restitution) — what `params_of` reads from xengine.matter's table.
 
 ## Soft bodies (xpbd)
 

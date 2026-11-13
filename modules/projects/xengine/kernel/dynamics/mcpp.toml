@@ -37,6 +37,10 @@ agent = { sources = ["src/agent/*.cppm", "src/agent/*.cpp"] }
 # params_of(table, material, area). A feature: a solver takes numbers, and only a consumer that has
 # materials takes the table — hanim's engine does not.
 matter = { sources = ["src/matter/*.cppm", "src/matter/*.cpp"] }
+# The 2D rigid family (src/rigid/, module xengine.dynamics.rigid; P1, D-170, D-176): Box2D v3 through mwrap,
+# under this package's contract — fixed steps, ids that survive a restore and a branch, the state as bytes.
+# A feature: a consumer that does not take it links no Box2D.
+rigid = { sources = ["src/rigid/*.cppm", "src/rigid/native/*.cpp"] }
 
 [feature-deps.agent]
 mlibs.simulation = { path = "../../../../base/simulation" }
@@ -48,6 +52,9 @@ openlifa.openas  = "0.2.0"
 [feature-deps.matter]
 # The kernel alone — the table and its plan, no JSON.
 xengine.matter = { path = "../matter", default-features = false }
+
+[feature-deps.rigid]
+mcpplibs.mwrap.box2d = "3.2.0"
 
 [dev-dependencies]
 mcpplibs.mtest   = "0.6.3"

@@ -12,6 +12,7 @@
 "compat.concurrentqueue" = ["BSD-2-Clause", "BSL-1.0"]
 "compat.freetype" = ["FreeType"]
 "compat.glx-headers" = ["MIT"]
+"compat.box2d" = ["MIT"]
 "compat.harfbuzz" = ["MIT"]
 "compat.libpng" = ["libpng"]
 "compat.libvpx" = ["BSD-3-Clause"]  # with the WebM project's royalty-free patent grant
@@ -42,6 +43,7 @@
 "compat.zlib" = ["Zlib"]
 "marzer.tomlplusplus" = ["MIT"]
 "mcpplibs.cmdline" = ["Apache-2.0"]
+"mcpplibs.mwrap.box2d" = ["Apache-2.0"]
 "mcpplibs.mwrap.concurrentqueue" = ["Apache-2.0"]
 "mcpplibs.mwrap.harfbuzz" = ["Apache-2.0"]
 "mcpplibs.mwrap.libpng" = ["Apache-2.0"]

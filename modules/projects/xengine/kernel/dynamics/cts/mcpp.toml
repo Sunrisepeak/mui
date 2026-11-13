@@ -25,7 +25,7 @@ cxxflags = ["-fno-fast-math", "-ffp-contract=off"]
 [dependencies]
 # With the body as an agent's subject (this package's tests hold it to the agent contract too) and with
 # materials from xengine.matter's table (the suite's material case; tests/material_test.cpp).
-xengine.dynamics = { path = "..", features = ["agent", "matter"] }
+xengine.dynamics = { path = "..", features = ["agent", "matter", "rigid"] }
 mlibs.simulation = { path = "../../../../../base/simulation" }
 mlibs.cts        = { path = "../../../../../base/cts" }
 mlibs.utils      = { path = "../../../../../base/utils" }

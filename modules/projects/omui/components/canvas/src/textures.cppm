@@ -60,6 +60,7 @@ public:
     // then, as before.
     struct Listed {
         const xrender::DisplayList* list = nullptr;
+        std::uint64_t               serial = 0;  // the list's own number: another list, another number
         bool                        exact = false;
         bool                        unfit = false;
     };
@@ -112,6 +113,7 @@ private:
         // The content's list (Listed), the revision it is of, and the images it draws that entered the store with it.
         std::shared_ptr<const xrender::DisplayList> list;
         std::uint64_t                               list_revision = 0;
+        std::uint64_t                               list_serial = 0;
         std::vector<xrender::ImageRef>              list_images;
         std::optional<std::uint64_t>                unfit;  // the revision found unfit
     };

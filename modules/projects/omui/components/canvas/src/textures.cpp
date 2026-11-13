@@ -224,12 +224,20 @@ std::optional<Textures::Pick> Textures::pick(std::string_view key, std::uint64_t
     return use(blurrier->second, blurrier->first);
 }
 
+namespace {
+// A number no other list of the program has had (a renderer keeps what it made of a list by it).
+std::uint64_t next_list_serial() {
+    static std::atomic<std::uint64_t> last{0};
+    return ++last;
+}
+}  // namespace
+
 Textures::Listed Textures::listed(std::string_view key, std::uint64_t revision) const {
     const auto it = entries_.find(std::string(key));
     if (it == entries_.end()) return {};
     const Entry& e = it->second;
     if (e.unfit == revision) return {.unfit = true};
-    return {e.list.get(), e.list && e.list_revision == revision, false};
+    return {e.list.get(), e.list_serial, e.list && e.list_revision == revision, false};
 }
 
 Textures::Listed Textures::list_now(const Scene& scene, NodeRef node, std::string_view key, std::uint64_t revision) {
@@ -240,6 +248,7 @@ Textures::Listed Textures::list_now(const Scene& scene, NodeRef node, std::strin
     Entry& e = entries_[std::string(key)];
     if (auto list = for_camera(built, [](xrender::ImageRef image) { return image; })) {
         e.list = std::move(list);
+        e.list_serial = next_list_serial();
         e.list_revision = revision;
         e.unfit.reset();
     } else {
@@ -388,6 +397,7 @@ bool Textures::collect(xrender::ImageStore& images, std::uint64_t frame, bool wa
             e.list_images.clear();
             for (const auto& [was, image] : now) e.list_images.push_back(image);
             e.list = std::move(list);
+            e.list_serial = next_list_serial();
             e.list_revision = d.revision;
             e.unfit.reset();
             entered += image_bytes;

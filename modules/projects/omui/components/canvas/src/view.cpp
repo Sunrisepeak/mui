@@ -595,7 +595,7 @@ void Canvas::paint(PaintContext& ctx) const {
                             ctx.list.push_clip(screen);
                             ctx.list.push_transform(Affine::translate(screen.x, screen.y) *
                                                     Affine::scale(screen.width / static_cast<float>(world.width), screen.height / static_cast<float>(world.height)));
-                            ctx.list.append(*got.list);
+                            ctx.list.append(*got.list, got.serial, 0);
                             ctx.list.pop_transform();
                             ctx.list.pop_clip();
                             ++stats_.listed;

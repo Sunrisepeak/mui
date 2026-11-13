@@ -475,6 +475,12 @@ void DisplayList::append(const DisplayList& other) {
     for (const Command& c : other.commands_) commands_.push_back(own(c));
 }
 
+void DisplayList::append(const DisplayList& other, std::uint64_t id, std::uint64_t revision) {
+    const std::size_t first = commands_.size();
+    append(other);
+    if (commands_.size() > first) kept_runs_.push_back({first, commands_.size() - first, id, revision});
+}
+
 bool DisplayList::balanced() const noexcept {
     int clips = 0, transforms = 0, layers = 0, nodes = 0, parts = 0;
     for (const Command& c : commands_) {
@@ -606,6 +612,7 @@ std::uint64_t DisplayList::hash() const noexcept {
 void DisplayList::clear() noexcept {
     ++path_generation_;
     commands_.clear();
+    kept_runs_.clear();
     arena_.reset();
     material_.at = nullptr;
 }

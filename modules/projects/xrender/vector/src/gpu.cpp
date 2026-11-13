@@ -35,6 +35,19 @@ struct Draw {
     mlibs::rhi::Texture mask;    // the clip mask (none: white)
     mlibs::rhi::Texture normal;  // a lit image's normal map
     std::int32_t lit = -1;  // a lit image: its material's uniforms (Impl::lits), drawn by ui_lit_fs
+    std::int32_t kept = -1; // glyphs kept on the device: which of the frame's (Impl::kept_draws); its prim is not drawn
+};
+
+// ui.slang's KeptGlyph: a glyph in the space its run was drawn in.
+struct KeptGlyph {
+    std::array<float, 4> across{}, origin{}, bounds{}, color{};
+};
+static_assert(sizeof(KeptGlyph) == 4 * 16);
+
+// ui.slang's Kept: where a run's space lies this frame, and the clip.
+struct KeptUniforms {
+    std::array<float, 4> across{}, origin{}, clip{};
+    friend bool operator==(const KeptUniforms&, const KeptUniforms&) = default;
 };
 
 // ui.slang's Lit: a material's constants, as raster's MaterialSetup has them.
@@ -231,6 +244,35 @@ struct GpuRenderer::Impl {
     mlibs::rhi::Device&          d;
     mlibs::rhi::GraphicsPipeline pipeline, blend_pipeline;
     mlibs::rhi::GraphicsPipeline lit_pipeline;  // ui_lit_fs: images lit by a material
+    mlibs::rhi::GraphicsPipeline kept_pipeline; // ui_kept_vs: glyphs kept on the device
+    std::array<mlibs::rhi::VertexAttribute, 4>    kept_attributes{};
+    std::array<mlibs::rhi::VertexBufferLayout, 1> kept_layout{};
+    // A display list's kept run (DisplayList::append with an id), its glyphs on the device: an instance a
+    // glyph in the space of the command that drew it, made when the run is first met at its revision and
+    // again when the scale leaves what its outlines' levels were chosen for.
+    struct KeptPart {
+        std::size_t   command = 0;       // within the run
+        std::uint32_t first = 0, count = 0;
+        bool          kept = false;      // no: the command is encoded each frame
+    };
+    struct KeptRun {
+        std::uint64_t         revision = 0;
+        mlibs::rhi::Buffer    buffer;
+        std::uint32_t         capacity = 0;  // bytes
+        std::vector<KeptPart> parts;         // a DrawGlyphs each, in order
+        float                 scale = 0;     // the run's transform's when made
+        float                 least = 0, most = 0;  // the scales, by that one, its outlines serve
+        std::uint64_t         last = 0;
+        bool                  made = false;
+    };
+    std::unordered_map<std::uint64_t, KeptRun> kept_runs;
+    std::vector<KeptGlyph>                     kept_staging;
+    struct KeptDraw {
+        const KeptRun* run = nullptr;
+        std::uint32_t  first = 0, count = 0;
+        KeptUniforms   uniforms;
+    };
+    std::vector<KeptDraw> kept_draws;  // the frame's
     mlibs::rhi::GraphicsPipeline material_pipeline, material_lit_pipeline; // lazy rgba16_float accumulation
     mlibs::rhi::Sampler          nearest;  // every texture is read texel by texel; bilinear images are weighed in the shader
     mlibs::rhi::Texture          white, white_mask, zero_row;
@@ -364,6 +406,8 @@ struct GpuRenderer::Impl {
     explicit Impl(mlibs::rhi::Device& device) : d(device), pool(device) {
         for (std::uint32_t i = 0; i < 12; ++i) attributes[i] = {i, mlibs::rhi::VertexFormat::float4, i * 16};
         layout[0] = {sizeof(Prim), true, attributes};
+        for (std::uint32_t i = 0; i < 4; ++i) kept_attributes[i] = {i, mlibs::rhi::VertexFormat::float4, i * 16};
+        kept_layout[0] = {sizeof(KeptGlyph), true, kept_attributes};
     }
     ~Impl() {
         static_cast<void>(d.wait_idle());
@@ -374,8 +418,10 @@ struct GpuRenderer::Impl {
         for (mlibs::rhi::Texture t : retired) d.destroy(t);
         for (mlibs::rhi::Texture t : {white, white_mask, zero_row, ramps, atlas, outlines}) d.destroy(t);
         d.destroy(instances);
+        for (auto& [id, run] : kept_runs)
+            if (run.buffer) d.destroy(run.buffer);
         d.destroy(nearest);
-        for (mlibs::rhi::GraphicsPipeline p : {pipeline, lit_pipeline, blend_pipeline, blur_pipeline, particles_pipeline, material_pipeline, material_lit_pipeline}) d.destroy(p);
+        for (mlibs::rhi::GraphicsPipeline p : {kept_pipeline, pipeline, lit_pipeline, blend_pipeline, blur_pipeline, particles_pipeline, material_pipeline, material_lit_pipeline}) d.destroy(p);
         for (auto& [k, p] : effect_pipelines) d.destroy(p);
         d.destroy(pixelate_pipeline);
     }
@@ -401,6 +447,10 @@ struct GpuRenderer::Impl {
                                                      .blend = mlibs::rhi::Blend::premultiplied(), .label = "render.ui.lit"});
         if (!lp) return std::unexpected(lp.error());
         lit_pipeline = *lp;
+        auto kp = d.create(mlibs::rhi::GraphicsPipelineDesc{.vertex = &ui::ui_kept_vs, .fragment = &ui::ui_fs, .vertex_buffers = kept_layout,
+                                                     .blend = mlibs::rhi::Blend::premultiplied(), .label = "render.ui.kept"});
+        if (!kp) return std::unexpected(kp.error());
+        kept_pipeline = *kp;
         auto bp = d.create(mlibs::rhi::GraphicsPipelineDesc{.vertex = &blend::blend_vs, .fragment = &blend::blend_fs, .blend = mlibs::rhi::Blend::replace(),
                                                      .label = "render.blend"});
         if (!bp) return std::unexpected(bp.error());
@@ -446,6 +496,11 @@ struct GpuRenderer::Impl {
         std::erase_if(clip_masks, [&](auto& kv) {
             if (frame_number - kv.second.last <= 120) return false;
             d.destroy(kv.second.texture);
+            return true;
+        });
+        std::erase_if(kept_runs, [&](auto& kv) {
+            if (frame_number - kv.second.last <= 120) return false;
+            if (kv.second.buffer) d.destroy(kv.second.buffer);
             return true;
         });
     }
@@ -995,6 +1050,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
         // The outlines kept have outgrown their store: begun again, this frame's kept anew.
         g.outlined.clear();
         g.recents.fill({});
+        for (auto& [id, run] : g.kept_runs) run.made = false;  // their instances name points of the store that was
         g.outline_points.assign(Impl::outline_base, 0.0f);
         g.outline_used = g.outline_sent = Impl::outline_base;
         report.outlines_restarted = true;
@@ -1032,6 +1088,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
         g.glyph_masks_made = g.path_masks_made = g.glyphs_outlined = 0;
         g.clip_records.clear();
         g.clip_shapes.clear();
+        g.kept_draws.clear();
         // The surface drawn into: the target, or an effect layer's own.
         struct Surface {
             std::uint32_t w, h;
@@ -1776,8 +1833,151 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
             }
         };
 
+        // ── kept runs: their glyphs on the device ──────────────────────────
+        // A run begins: what the renderer has of it serves (the same revision, the scale within what its
+        // outlines' levels were chosen for), or it is made as its commands are met. Only where no glyph
+        // mask is ever made (a host's frames); a readback's glyphs are their masks.
+        const std::span<const DisplayList::KeptRun> runs = g.glyph_masks == 0 && g.kept_pipeline ? dl.kept_runs() : std::span<const DisplayList::KeptRun>{};
+        std::size_t                 next_run = 0;
+        const DisplayList::KeptRun* in_run = nullptr;
+        Impl::KeptRun*              keeping = nullptr;
+        bool                        making = false;
+        std::size_t                 part_at = 0;
+        auto run_begins = [&](const DisplayList::KeptRun& run) {
+            in_run = &run;
+            const float now = g.scale_of(m());
+            if (!(now > 0)) return;
+            keeping = &g.kept_runs[run.id];
+            keeping->last = g.frame_number;
+            bool serves = keeping->made && keeping->revision == run.revision;
+            if (serves) {
+                const float by = now / keeping->scale;
+                serves = by > keeping->least && by <= keeping->most;
+            }
+            making = !serves;
+            part_at = 0;
+            if (making) {
+                keeping->revision = run.revision;
+                keeping->parts.clear();
+                keeping->scale = now;
+                keeping->least = 0;
+                keeping->most = std::numeric_limits<float>::max();
+                keeping->made = false;
+                g.kept_staging.clear();
+            }
+        };
+        auto run_ends = [&]() {
+            if (keeping && making) {
+                const auto bytes = static_cast<std::uint32_t>(g.kept_staging.size() * sizeof(KeptGlyph));
+                if (bytes > keeping->capacity) {
+                    if (keeping->buffer) g.d.destroy(keeping->buffer);
+                    keeping->buffer = {};
+                    std::uint32_t cap = std::max<std::uint32_t>(64 * sizeof(KeptGlyph), keeping->capacity);
+                    while (cap < bytes) cap *= 2;
+                    auto made = g.d.create(mlibs::rhi::BufferDesc{cap, mlibs::rhi::BufferUsage::vertex, "render.kept"});
+                    if (!made) {
+                        fail(made.error());
+                    } else {
+                        keeping->buffer = *made;
+                        keeping->capacity = cap;
+                    }
+                }
+                if (bytes > 0 && keeping->buffer) g.list.upload(keeping->buffer, 0, std::span<const KeptGlyph>(g.kept_staging));
+                keeping->made = bytes == 0 || keeping->buffer;
+                report.glyphs_kept_made += g.kept_staging.size();
+            }
+            in_run = nullptr;
+            keeping = nullptr;
+            making = false;
+        };
+        // The glyphs of a part of the run, drawn from the run's instances under the transform and the clip here.
+        auto draw_kept = [&](const Impl::KeptPart& part) {
+            if (part.count == 0) return;
+            const Affine& mm = m();
+            const Clip&   clip = clips.back();
+            const int     flags = (clip.mask ? flag_clip_mask : 0) | static_cast<int>(clip.record) << clip_record_shift;
+            const KeptUniforms uniforms{{mm.a, mm.b, mm.c, mm.d}, {mm.e, mm.f, static_cast<float>(flags), 0}, {clip.x0, clip.y0, clip.x1, clip.y1}};
+            g.glyphs_outlined += part.count;
+            if (!making) report.glyphs_kept += part.count;
+            auto& draws = g.passes[current].draws;
+            if (!draws.empty() && draws.back().kept >= 0 && draws.back().mask == clip.mask) {
+                // The glyphs after the last ones drawn, in the same place under the same clip: one draw of both.
+                Impl::KeptDraw& last = g.kept_draws[static_cast<std::size_t>(draws.back().kept)];
+                if (last.run == keeping && last.first + last.count == part.first && last.uniforms == uniforms) {
+                    last.count += part.count;
+                    return;
+                }
+            }
+            Draw d;
+            d.kept = static_cast<std::int32_t>(g.kept_draws.size());
+            d.mask = clip.mask;
+            g.kept_draws.push_back({keeping, part.first, part.count, uniforms});
+            emit(std::move(d));
+        };
+        // A DrawGlyphs of a kept run: true when its glyphs were drawn from the run's instances (made here
+        // when the run is being made). False: encoded as any — a paint that is not one colour, a colour
+        // glyph, a glyph past the largest level, inside a layer.
+        auto kept_glyphs = [&](const DrawGlyphs& c, std::size_t command) -> bool {
+            const bool here = open.empty() && !g.passes[current].material_mix;
+            if (!making) {
+                if (part_at >= keeping->parts.size() || keeping->parts[part_at].command != command) return false;
+                const Impl::KeptPart& part = keeping->parts[part_at++];
+                if (!part.kept || !here) return false;
+                draw_kept(part);
+                return true;
+            }
+            const Affine& mm = m();
+            Impl::KeptPart part{command, static_cast<std::uint32_t>(g.kept_staging.size()), 0, false};
+            const auto     back = mm.inverse();
+            bool           fits = here && back.has_value() && c.paint.kind == Paint::Kind::solid;
+            float          least = keeping->least, most = keeping->most;
+            for (std::size_t i = 0; fits && i < c.glyphs.size(); ++i) {
+                const Placed pl = place(c, i, mm);
+                Color        colour = c.paint.color;
+                if (pl.style) {
+                    const float opacity = std::clamp(pl.style->opacity, 0.0f, 1.0f);
+                    if (opacity <= 0) continue;
+                    const Color tint = pl.style->tint;
+                    const float by = std::clamp(tint.a, 0.0f, 1.0f);
+                    colour = {colour.r + (tint.r - colour.r) * by, colour.g + (tint.g - colour.g) * by, colour.b + (tint.b - colour.b) * by, colour.a * opacity};
+                }
+                // An outline a level finer than this scale asks: it serves from half this scale to twice it,
+                // never coarser than the reference's own flattening.
+                const float           scale = g.scale_of(pl.outline);
+                const Impl::Outlined* outline = g.outline_of(*res.glyphs, c.font, c.glyphs[i].id, scale * 2);
+                if (!outline) {
+                    fits = false;
+                    break;
+                }
+                if (outline->count == 0) continue;
+                const float top = Impl::level_top(scale * 2);
+                most = std::min(most, top / scale);
+                least = std::max(least, top / (4 * scale));
+                const Affine local = *back * pl.outline;
+                g.kept_staging.push_back({{local.a, local.b, local.c, local.d},
+                                          {local.e, local.f, static_cast<float>(outline->first), static_cast<float>(outline->count)},
+                                          {outline->bounds.x, outline->bounds.y, outline->bounds.width, outline->bounds.height},
+                                          premultiplied(colour)});
+            }
+            if (fits) {
+                part.kept = true;
+                part.count = static_cast<std::uint32_t>(g.kept_staging.size()) - part.first;
+                keeping->least = least;
+                keeping->most = most;
+            } else {
+                g.kept_staging.resize(part.first);
+            }
+            keeping->parts.push_back(part);
+            if (!part.kept) return false;
+            draw_kept(part);
+            return true;
+        };
+
         const auto& all = dl.commands();
         for (std::size_t index = 0; index < all.size() && !failed; ++index) {
+            if (in_run && index >= in_run->first + in_run->count) run_ends();
+            while (!in_run && next_run < runs.size() && runs[next_run].first < index) ++next_run;  // (begun within what was skipped)
+            if (!in_run && next_run < runs.size() && index == runs[next_run].first) run_begins(runs[next_run++]);
             ++report.commands;
             if (const auto* push = std::get_if<PushLayer>(&all[index]); push && push->effect.id != 0) {
                 std::size_t skip_to = index;
@@ -1890,6 +2090,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                             report.missing_glyphs += c.glyphs.size();
                             return;
                         }
+                        if (keeping && kept_glyphs(c, index - in_run->first)) return;
                         const Affine& mm = m();
                         for (std::size_t i = 0; i < c.glyphs.size(); ++i) {
                             const Glyph& gl = c.glyphs[i];
@@ -2021,6 +2222,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                 },
                 all[index]);
         }
+        if (in_run) run_ends();
     };
     encode();
     if (!failed && g.atlas_overflow) {
@@ -2164,8 +2366,30 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                 while (i < s.draws.size()) {
                     const Draw& head = s.draws[i];
                     std::size_t j = i + 1;
-                    while (j < s.draws.size() && s.draws[j].image == head.image && s.draws[j].mask == head.mask && s.draws[j].lit == head.lit &&
-                           s.draws[j].normal == head.normal)
+                    if (head.kept >= 0) {
+                        // Glyphs kept on the device: their own instances, where their run lies this frame.
+                        const Impl::KeptDraw& kept = g.kept_draws[static_cast<std::size_t>(head.kept)];
+                        if (kept.run->buffer) {
+                            list.set_pipeline(g.kept_pipeline);
+                            list.push_uniforms(mlibs::rhi::Stage::vertex, 0, frame);
+                            list.push_uniforms(mlibs::rhi::Stage::vertex, 1, kept.uniforms);
+                            list.push_uniforms(mlibs::rhi::Stage::fragment, 0, frame);
+                            list.bind_vertex_buffer(0, kept.run->buffer);
+                            list.bind_texture(mlibs::rhi::Stage::fragment, 0, g.ramps, g.nearest);
+                            list.bind_texture(mlibs::rhi::Stage::fragment, 1, g.atlas, g.nearest);
+                            list.bind_texture(mlibs::rhi::Stage::fragment, 2, g.white, g.nearest);
+                            list.bind_texture(mlibs::rhi::Stage::fragment, 3, head.mask ? head.mask : g.white_mask, g.nearest);
+                            list.bind_texture(mlibs::rhi::Stage::fragment, 4, g.outlines, g.nearest);
+                            list.draw(6, kept.count, 0, kept.first);
+                            lit = false;
+                            lit_pushed = -1;
+                            use(g.pipeline);
+                        }
+                        i = j;
+                        continue;
+                    }
+                    while (j < s.draws.size() && s.draws[j].kept < 0 && s.draws[j].image == head.image && s.draws[j].mask == head.mask &&
+                           s.draws[j].lit == head.lit && s.draws[j].normal == head.normal)
                         ++j;
                     if ((head.lit >= 0) != lit) {
                         lit = head.lit >= 0;

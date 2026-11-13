@@ -49,6 +49,10 @@ struct RenderReport {
     // them had outgrown its size and was begun again.
     // GPU: rounded clips covered on the device from their outlines this frame (no mask made of them).
     std::size_t clips_outlined = 0;
+    // GPU: glyphs drawn from instances kept on the device (a kept run's, DisplayList::append with an id):
+    // nothing encoded or sent for them this frame — and those encoded and sent this frame to be kept.
+    std::size_t glyphs_kept = 0;
+    std::size_t glyphs_kept_made = 0;
     // GPU: the frame's instances (a primitive each: 192 bytes sent).
     std::size_t instances = 0;
     std::size_t outline_points = 0;

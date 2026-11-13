@@ -181,6 +181,8 @@ public:
         if (r) s.counter("uploaded_kb", static_cast<double>(r->uploaded) / 1024.0);
         if (r) s.counter("masks_made", static_cast<double>(r->masks_made)), s.counter("masks_reused", static_cast<double>(r->masks_reused)),
                    s.counter("glyphs_outlined", static_cast<double>(r->glyphs_outlined));
+                   s.counter("glyphs_kept", static_cast<double>(r->glyphs_kept));
+                   s.counter("instances", static_cast<double>(r->instances));
         auto w = device_->wait_idle();
         const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
         if (!r || !w) {  // not a frame: nothing timed counts
@@ -568,7 +570,9 @@ void add_framework_benchmarks() {
             const double z = w.model.zoom.peek();
             if (z >= 4) dir = 1;
             if (z <= 0.01) dir = -1;
-            w.frame(s, {WheelEvent{.position = {960, 540}, .delta = {0, 60 * dir}}});
+            const auto before = std::chrono::steady_clock::now();
+            const FrameOutput out = w.frame(s, {WheelEvent{.position = {960, 540}, .delta = {0, 60 * dir}}});
+            const double step_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - before).count();
             const double ms = gpu.draw(s, w.h.runtime().display_list(), {&w.h.runtime().images(), &glyphs}, Color::white());
             if (ms > slowest_ms) {
                 slowest_ms = ms;
@@ -579,9 +583,11 @@ void add_framework_benchmarks() {
             }
             points_kept += gpu.last.outline_points;
             restarts += gpu.last.outlines_restarted ? 1 : 0;
-            if (ms > 8.3 && ++over <= 12)
-                late += std::format("{}[zoom {:.3f}: {:.1f} ms, {:.1f} encoding, {} instances, {} KB sent, {} listed]", late.empty() ? "" : " ", z, ms, gpu.last_encode_ms,
-                                    gpu.last.instances, gpu.last.uploaded / 1024, w.canvas().stats().listed);
+            // (The step's time holds the wait for the pool, which the benchmark does not count: the runtime's own is in its output.)
+            if (ms + out.stats.timings.total > 8.3 && ++over <= 12)
+                late += std::format("{}[zoom {:.3f}: drawing {:.1f} ms ({:.1f} encoding), the runtime {:.1f} ms (its paint {:.1f}; the step with its wait {:.1f}); {} instances, {} kept glyphs, {} KB sent, {} listed]",
+                                    late.empty() ? "" : " ", z, ms, gpu.last_encode_ms, out.stats.timings.total, out.stats.timings.paint, step_ms, gpu.last.instances, gpu.last.glyphs_kept,
+                                    gpu.last.uploaded / 1024, w.canvas().stats().listed);
         }
         s.note("late", late);
         s.note("outlines", std::format("{} points kept in all, the store begun again {} times; {} frames over 8.3 ms", points_kept, restarts, over));

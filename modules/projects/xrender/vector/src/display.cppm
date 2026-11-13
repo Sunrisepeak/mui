@@ -422,6 +422,15 @@ public:
 
     // Appends another list's commands (copying their payloads into this arena).
     void append(const DisplayList& other);
+    // The same, the commands marked as a run that is `id`'s content at `revision`: what a renderer may
+    // keep of them from frame to frame while both stay the same (D-188: a device renderer keeps the run's
+    // glyphs on the device, and a frame sends where the run lies). One that keeps nothing draws them as any.
+    void append(const DisplayList& other, std::uint64_t id, std::uint64_t revision);
+    struct KeptRun {
+        std::size_t   first = 0, count = 0;  // the commands
+        std::uint64_t id = 0, revision = 0;
+    };
+    [[nodiscard]] std::span<const KeptRun> kept_runs() const noexcept { return kept_runs_; }
     // One command of another list, with its payload copied into this one.
     void append_command(const Command& c) { commands_.push_back(own(c)); }
 
@@ -484,6 +493,7 @@ private:
     void add_glyphs(FontRef font, float size, Point origin, std::span<const Glyph> placed, const Paint& p);
 
     std::vector<Command> commands_;
+    std::vector<KeptRun> kept_runs_;  // in the commands' order
     mlibs::memory::Arena                arena_{16 * 1024};
     std::uint64_t        path_generation_ = 1;
 };

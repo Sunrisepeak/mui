@@ -966,6 +966,53 @@ void add(Cases& suite) {
             check(problem.empty(), problem);
             check_eq(rig.last.clips_outlined, std::size_t{1});
         }
+        // A kept run (a canvas's window under its camera): its glyphs' instances made once and kept on the
+        // device; a frame of the zoom sends where the run lies and no glyph. The first frame makes them; the
+        // frames after draw them as they are, until the scale has left what their outlines' levels serve
+        // (half to twice) and they are made again. Rectangles and a clip between the lines keep their order.
+        {
+            render::DisplayList window;
+            window.fill_round_rect({0, 0, 120, 70}, geom::CornerRadii::all(9), render::Paint::solid(geom::Color::hex(0xf8fafc)));
+            window.push_clip({2, 2, 116, 66}, geom::CornerRadii::all(8).smoothed(0.6f));
+            std::array<render::Glyph, 6> run{};
+            for (std::uint32_t index = 0; index < run.size(); ++index) run[index] = {index, {static_cast<float>(index) * 9.5f, 0}, index, index, 0, 0};
+            window.draw_glyphs({1}, 12, {6.3f, 18.6f}, run, render::Paint::solid(geom::Color::hex(0x0f172a)));
+            window.fill_rect({4, 24, 60, 3}, render::Paint::solid(geom::Color::hex(0x38bdf8)));
+            std::array<render::GlyphStyle, 6> styles{};
+            styles[1].opacity = 0.5f;
+            styles[3].transform = render::rotate(0.4f);
+            styles[4].tint = geom::Color{1, 0, 0, 1};
+            window.push_transform(geom::Affine::translate(3, 30));
+            window.draw_glyphs({1}, 15, {4.1f, 14.2f}, run, render::Paint::solid(geom::Color{0.1f, 0.4f, 0.2f, 0.9f}), styles);
+            window.pop_transform();
+            window.draw_glyphs({1}, 9, {8, 62}, run, gradient(render::GradientKind::linear, {0, 0}, {60, 0}, 0, render::Spread::pad, rainbow));
+            window.pop_clip();
+            std::size_t made_in_all = 0;
+            for (int frame = 0; frame < 8; ++frame) {
+                render::DisplayList dl;
+                const float zoom = 0.6f * std::pow(1.19f, static_cast<float>(frame));
+                dl.push_transform(geom::Affine::translate(5.3f + static_cast<float>(frame) * 0.7f, 3.4f) * geom::Affine::scale(zoom, zoom));
+                dl.append(window, 41, 1);
+                dl.pop_transform();
+                const std::string problem = rig.compare(dl, std::format("a kept run, frame {}", frame), {5, 520});  // measured: 5 levels, 509 pixels at the largest (the edges of twice the text)
+                check(problem.empty(), problem);
+                // The two lines of one colour are kept (12 glyphs); the gradient's line is encoded each frame.
+                check_eq(rig.last.glyphs_kept + rig.last.glyphs_kept_made, std::size_t{12});
+                check(frame > 0 || rig.last.glyphs_kept_made == 12, "the first frame makes the run's instances");
+                made_in_all += rig.last.glyphs_kept_made;
+                check_eq(rig.last.masks_made, std::size_t{0});
+            }
+            // 0.6 to 2.0 times: made at the first frame and once more past twice its scale.
+            check_eq(made_in_all, std::size_t{24});
+            // Its content changed: made again.
+            window.fill_rect({70, 40, 20, 8}, render::Paint::solid(geom::Color::hex(0xf97316)));
+            render::DisplayList dl;
+            dl.push_transform(geom::Affine::scale(1.3f, 1.3f));
+            dl.append(window, 41, 2);
+            dl.pop_transform();
+            check(rig.compare(dl, "a kept run at a new revision", {5, 520}).empty(), "a new revision");
+            check_eq(rig.last.glyphs_kept_made, std::size_t{12});
+        }
         // At rest with masks allowed: asked for once, drawn from outlines; asked again, made — the reference's bytes.
         rig.glyph_masks = 256;
         render::DisplayList still;

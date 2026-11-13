@@ -1,5 +1,6 @@
 // Performance tiers in the runtime (D-94; performance tiers §4, §5): the
-// device's tier as its host says it, and the frame-budget governor. When
+// device's tier as its host says it, and the frame-budget governor — the
+// general one (mlibs.pipeline.govern, D-178), with the UI's two ladders. When
 // frames keep missing their budget the governor lowers motion (full, then
 // reduced, then off), then effects a tier at a time; when there is room for
 // long enough it raises them again, never above the device's tier nor the
@@ -18,50 +19,28 @@ using mlibs::log::Log;
 
 namespace omui {
 
-namespace {
-
-constexpr std::size_t weighed = 30;   // frames weighed before lowering
-constexpr std::size_t patience = 300; // frames of room before raising
-
-}  // namespace
-
 void Runtime::Impl::govern(double ms) {
-    costs[costs_n++ % costs.size()] = static_cast<float>(ms);
-    ++cost_frames;
+    governor.observe(ms);
     if (!governing) return;
     const double budget = 1000.0 / (display_hz > 0 ? display_hz : 60.0);
-    const std::size_t have = std::min(costs_n, costs.size());
-    auto last = [&](std::size_t n, auto&& pred) {
-        std::size_t hits = 0;
-        for (std::size_t i = 0; i < std::min(n, have); ++i) hits += pred(costs[(costs_n - 1 - i) % costs.size()]);
-        return hits;
-    };
+    // Where the ladders stand is the adaptation's to say (a replay, a tool may have set it since).
+    governor.set(0, static_cast<std::uint8_t>(adaptation.motion));
+    governor.set(1, static_cast<std::uint8_t>(4 - static_cast<int>(adaptation.effects)));
+    const auto change = governor.decide(budget);
+    if (!change) return;
     Adaptation next = adaptation;
-    // Two frames in three over the budget, for a weighed since the last change: one step down.
-    if (cost_frames >= weighed && last(weighed, [&](float c) { return c > budget; }) * 3 >= weighed * 2) {
-        if (next.motion != MotionLevel::off) {
-            next.motion = static_cast<MotionLevel>(static_cast<int>(next.motion) + 1);
-            next.reason = std::format("frames over their {:.1f} ms: motion {}", budget, next.motion == MotionLevel::off ? "off" : "reduced");
-        } else if (next.effects > mlibs::pipeline::Tier::t0) {
-            next.effects = static_cast<mlibs::pipeline::Tier>(static_cast<int>(next.effects) - 1);
-            next.reason = std::format("frames over their {:.1f} ms: effects as on {}", budget, mlibs::pipeline::name(next.effects));
-        }
+    if (change->ladder == 0) {
+        next.motion = static_cast<MotionLevel>(change->lowered);
+        next.reason = change->down ? std::format("frames over their {:.1f} ms: motion {}", budget, next.motion == MotionLevel::off ? "off" : "reduced")
+                                   : std::format("room in the frame: motion {}", next.motion == MotionLevel::full ? "full" : "reduced");
+    } else {
+        next.effects = static_cast<mlibs::pipeline::Tier>(4 - static_cast<int>(change->lowered));
+        next.reason = change->down ? std::format("frames over their {:.1f} ms: effects as on {}", budget, mlibs::pipeline::name(next.effects))
+                                   : std::format("room in the frame: effects as on {}", mlibs::pipeline::name(next.effects));
     }
-    // Every frame of a long while under half the budget: one step back up.
-    else if (cost_frames >= patience && have >= patience && last(patience, [&](float c) { return c < budget / 2; }) == patience) {
-        if (next.effects < mlibs::pipeline::Tier::t4) {
-            next.effects = static_cast<mlibs::pipeline::Tier>(static_cast<int>(next.effects) + 1);
-            next.reason = std::format("room in the frame: effects as on {}", mlibs::pipeline::name(next.effects));
-        } else if (next.motion != MotionLevel::full) {
-            next.motion = static_cast<MotionLevel>(static_cast<int>(next.motion) - 1);
-            next.reason = std::format("room in the frame: motion {}", next.motion == MotionLevel::full ? "full" : "reduced");
-        }
-    }
-    if (next == adaptation) return;
     constexpr Log adapt_log{"adapt"};
     adapt_log.info("{}", next.reason);
     adaptation = std::move(next);
-    cost_frames = 0;
     ++motion_gen;
     touch(dirty_paint);
 }
@@ -88,7 +67,7 @@ void Runtime::set_adaptation(const Adaptation& a) {
 
 void Runtime::set_governor(bool on) {
     impl_->governing = on;
-    impl_->cost_frames = 0;
+    impl_->governor.settle();
 }
 
 void Runtime::report_frame_cost(double ms) { impl_->govern(ms); }

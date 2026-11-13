@@ -621,12 +621,11 @@ struct Runtime::Impl {
     std::string                                 motion_choice;   // the person's, among what a slot offers (Runtime::set_motion_choice)
     std::string                                 route;           // Runtime::set_route
     std::uint64_t                               route_revision = 0;
-    // Performance tiers (D-94): the adaptation now, the governor and the frame costs it weighs (a ring).
+    // Performance tiers (D-94): the adaptation now, and the frame-budget governor (mlibs.pipeline's, general:
+    // here its ladders are motion — full, reduced, off — then effects, a tier at a time).
     Adaptation                                  adaptation;
     bool                                        governing = false;
-    std::array<float, 300>                      costs{};
-    std::size_t                                 costs_n = 0;
-    std::uint64_t                               cost_frames = 0;  // since the governor last changed something
+    mlibs::pipeline::Governor                   governor{{"motion", 2}, {"effects", 4}};
     void govern(double ms);
     [[nodiscard]] MotionLevel motion_now() const noexcept {
         return static_cast<MotionLevel>(std::max(static_cast<int>(motion_level), static_cast<int>(adaptation.motion)));

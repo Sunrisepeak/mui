@@ -41,3 +41,23 @@ The runtime's frame is a pipeline of `omui.view.*` stages
 changes a running application's.
 
 An independent component (D-55): the standard library and mlibs.trace.
+## The frame-budget governor
+
+`mlibs.pipeline.govern` (D-94, D-178): what a frame is made of is lowered a step at a time while frames keep
+missing their budget, and raised again when there is room for long enough. It is general — it knows **ladders**
+(a name, how many steps down) and nothing of what a step means; whoever owns a ladder says that, and words the
+reason.
+
+```cpp
+mlibs::pipeline::Governor governor({{"motion", 2}, {"effects", 4}});   // lowered in this order, raised in the reverse
+if (auto change = governor.frame(cost_ms, 1000.0 / display_hz)) apply(*change);
+```
+
+- **One owner.** omui's motion level and effects tier are two ladders of it (`omui.view`); a world's
+  presentation ladder (a state's recipe from its richest form to a baked one) is another's. A second governor
+  of frame budgets anywhere else is refused by lint `owner`.
+- **A decision is an input.** What it decides is recorded with a session and put back by a replay (`set`), so
+  a replay draws as the recording did; `observe` without `decide` weighs frames and changes nothing (a pin).
+- **The judgement can be another.** `Policy` is a function: the default (`weigh`) is performance tiers §4.2 —
+  two frames in three of the last 30 over the budget lower; 300 frames each under half of it raise.
+- A frame allocates nothing and calls nothing virtual.

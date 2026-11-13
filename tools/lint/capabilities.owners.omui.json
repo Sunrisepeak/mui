@@ -106,6 +106,23 @@
         "text": "void Thumb::paint() { services().animations().spring_to(c_, now, 1, s); }"
       },
       "pattern_doc": "A component animating itself."
+    },
+    {
+      "name": "frame-budget-governor",
+      "owner": "mlibs.pipeline (mlibs.pipeline.govern)",
+      "use": "mlibs::pipeline::Governor with the owner's own ladders; another judgement is a Policy (D-178)",
+      "paths": [
+        "modules/base/pipeline/"
+      ],
+      "skip": [
+        "generated"
+      ],
+      "pattern": "\\b(weighed|patience)\\b\\s*(=|\\{)\\s*\\d+|\\*\\s*3\\s*>=\\s*\\w+\\s*\\*\\s*2\\b.*budget|budget.*\\*\\s*3\\s*>=\\s*\\w+\\s*\\*\\s*2\\b",
+      "sample": {
+        "path": "modules/projects/xengine/game/runtime/src/adapt.cpp",
+        "text": "constexpr std::size_t weighed = 30;   // frames weighed before lowering"
+      },
+      "pattern_doc": "A governor's own numbers (frames weighed before lowering, frames of patience before raising) or its two-in-three test against a budget: a second governor of frame budgets."
     }
   ]
 }

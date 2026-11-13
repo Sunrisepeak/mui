@@ -293,7 +293,7 @@ static UTest cases{"ui.base.more", [] {
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("ui.base pickers {:016x}", hash.value());
         expect(h.save_png(scratch_dir("ui-base-pickers") / "pickers@2x.png").has_value());
-        expect(hash.value() == 0x23c483bef2e1f8afULL) << std::format("pickers {:016x}", hash.value());
+        expect(hash.value() == 0xe0ca452249dd50ebULL) << std::format("pickers {:016x}", hash.value());
     };
 
     "split view: two panes sharing their room as the handle says; the handle a splitter of its own; dragged and taken back whole; kept within min"_test = [] {

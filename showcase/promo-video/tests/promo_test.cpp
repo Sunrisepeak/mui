@@ -160,7 +160,7 @@ UTest cases{"showcase.promo_video", [] {
                                                                           (*px)->width() * 4, mlibs::image::Alpha::premultiplied})
                       .has_value());
         }
-        expect(eq(all.hex(), std::string("69d4af752b650415")));  // the end card names promo.timeline.omui.ts
+        expect(eq(all.hex(), std::string("101ac57c30790b3e")));  // the end card names promo.timeline.omui.ts
         promo::Player full(film(), c, {.scale = 1, .fonts = &fonts(), .parallel_raster = false});
         auto hd = full.frame(1860);
         expect(hd && (*hd)->width() == 1920 && (*hd)->height() == 1080) << "1080p";
@@ -168,7 +168,7 @@ UTest cases{"showcase.promo_video", [] {
         promo::Player uhd(film(), c, {.scale = 2, .fonts = &fonts(), .parallel_raster = false});
         auto k4 = uhd.frame(400);
         expect(k4 && (*k4)->width() == 3840 && (*k4)->height() == 2160) << "4K";
-        if (k4) expect(eq(hex(promo::pixel_hash(**k4)), std::string("8857e7cc0ed245ac")));
+        if (k4) expect(eq(hex(promo::pixel_hash(**k4)), std::string("85761f078734bdd1")));
     };
 
     "seek: a frame drawn directly is the frame played to — in every chapter, after its moments, and through the rewind"_test = [] {

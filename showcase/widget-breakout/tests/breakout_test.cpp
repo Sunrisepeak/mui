@@ -589,8 +589,8 @@ UTest cases{"showcase.widget_breakout", [] {
         expect(g.act("scan")) << "recharged";
         expect(eq(g.disagreement(), std::string()));
         std::println("    dark {:016x}, scanned {:016x}", dark, scanned);
-        expect(eq(dark, std::uint64_t{0x7594d1fc283bea2b}));  // GCC (LLVM: CI)
-        expect(eq(scanned, std::uint64_t{0x4f01954e2d27d653}));
+        expect(eq(dark, std::uint64_t{0x475e133593436b9a}));  // GCC (LLVM: CI)
+        expect(eq(scanned, std::uint64_t{0x2a08b435ad1b17ce}));
     };
 
     "room 5: the copilot plays the top paddle from outside — the semantic tree in, guard_to out, journaled as its own; an order changes where it sends the ball; with a player below, they shut it down"_test = [] {

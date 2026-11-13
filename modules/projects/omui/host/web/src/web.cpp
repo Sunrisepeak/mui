@@ -331,6 +331,7 @@ struct Web::Impl {
             xrender::FrameOptions how;
             how.background = options.background;
             how.rows = rows;
+            how.external = [this](std::uint64_t number) { return runtime->picture(number); };  // a world in a viewport
             if (!rows.empty()) (void)composed.render({&ui_layer, 1}, frame, how);
         }
         mlibs::trace::Span span("present", "host");

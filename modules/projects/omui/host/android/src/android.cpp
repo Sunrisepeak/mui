@@ -83,7 +83,10 @@ struct AndroidHost::Impl {
         if (list.hash() == shown && frame.width() == width && frame.height() == height) return;
         if (frame.width() != width || frame.height() != height) frame = xrender::raster::Surface(width, height);
         const xrender::FrameLayer ui_layer{.name = "ui", .list = &list, .resources = {&runtime->images(), glyphs.get()}, .scale = scale};
-        (void)composed.render({&ui_layer, 1}, frame, {.background = options.background});
+        xrender::FrameOptions how;
+        how.background = options.background;
+        how.external = [this](std::uint64_t number) { return runtime->picture(number); };  // a world in a viewport
+        (void)composed.render({&ui_layer, 1}, frame, how);
         const auto* first = reinterpret_cast<const std::uint8_t*>(frame.row(0));
         const std::size_t stride = height > 1 ? static_cast<std::size_t>(reinterpret_cast<const std::uint8_t*>(frame.row(1)) - first)
                                               : static_cast<std::size_t>(width) * 4;

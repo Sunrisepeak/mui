@@ -19,11 +19,12 @@ inline constexpr std::array<mlibs::control::Parameter, 1> parameters_world_step{
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_world_seek{{
     {"frame", "integer", "the frame to return to", false},
 }};
-inline constexpr std::array<mlibs::control::Parameter, 4> parameters_world_branch{{
+inline constexpr std::array<mlibs::control::Parameter, 5> parameters_world_branch{{
     {"steps", "integer", "how far ahead (1 when none is given)", true},
     {"buttons", "json", "held from when the action takes effect, pressed as it does", true},
     {"axis", "json", "", true},
     {"pointer", "json", "", true},
+    {"then", "json", "what follows: actions each with `after`, the step of the branch it is given at (a press and its release)", true},
 }};
 
 // Observe a game running on its own, play it as a person does, step and seek its time, and ask what would be.
@@ -54,7 +55,7 @@ inline constexpr std::string_view listing = R"listing({
     {"name": "world.seek", "description": "Returns to a frame within the history kept; what is played from there is a new branch", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "none within the runtime: what came after the frame is another branch's", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"frame": {"type": "integer", "description": "the frame to return to"}}, "required": ["frame"]}},
     {"name": "world.branch", "description": "What would be if given actions were given now: the future's view and hash some steps ahead — the actions taking effect as the tier's reaction allows, as `world.act` would have them; the game itself untouched", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
-     "inputSchema": {"type": "object", "properties": {"steps": {"type": "integer", "description": "how far ahead (1 when none is given)"}, "buttons": {"description": "held from when the action takes effect, pressed as it does"}, "axis": {}, "pointer": {"x-space": "plane"}}, "required": []}}
+     "inputSchema": {"type": "object", "properties": {"steps": {"type": "integer", "description": "how far ahead (1 when none is given)"}, "buttons": {"description": "held from when the action takes effect, pressed as it does"}, "axis": {}, "pointer": {"x-space": "plane"}, "then": {"description": "what follows: actions each with `after`, the step of the branch it is given at (a press and its release)"}}, "required": []}}
   ],
   "tiers": [
     {"name": "human", "view": "drawn", "reaction_ms": 100, "actions_per_second": 10, "doc": "As a person plays: shown what is drawn, a tenth of a second's reaction, ten actions a second.", "operations": ["world.observe", "world.state", "world.act", "world.step", "world.seek", "world.branch"]},

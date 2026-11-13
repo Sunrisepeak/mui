@@ -49,6 +49,7 @@ struct Policy {
     int    cool_tries = 12, cool_back = 30, cool_wait = 180;
     int    cool_piece = 15, cool_pieces = 4;  // where the whole way back is not safe: so many steps at a time, so many times
     int    tool_back = 20, tool_settle = 10;  // steps back, and standing, before a tool is tried
+    int    tool_press = 2;                    // steps a tool's action is held for before she stands while it works
     double tool_least = 50;                   // health a tool's use may not leave her below
     int    clears = 3;                        // how much less in the way counts as clearing it
     int    waits = 5, wait = 240;
@@ -70,6 +71,8 @@ public:
     // What is shown now; and what would be after `steps` of `what`, with nothing done. The record's `data`.
     [[nodiscard]] mlibs::json::Document observe();
     [[nodiscard]] mlibs::json::Document branch(int steps, std::string_view what);
+    // The same, `what` and `after` so many steps `then`: a press and its release, tried as they would be done.
+    [[nodiscard]] mlibs::json::Document branch(int steps, std::string_view what, int after, std::string_view then);
     // False once a request was answered with no record or with an error: the game is not there to play, or did
     // not do what was asked (`problem()` says which request's answer).
     [[nodiscard]] bool ok() const noexcept { return ok_; }
@@ -227,7 +230,8 @@ template <Game G>
             if (!game.suits(tool, seen)) continue;
             if (!game.ready(tool, hands)) continue;
             for (std::size_t aim = 0; aim < game.aims(); ++aim) {
-                const View future = ahead(tool.window, std::string(game.use(tool, aim, seen)));
+                // As it would be done: used for a moment, then standing while it works.
+                const View future = game.read(hands.branch(policy.tool_press + tool.window, std::string(game.use(tool, aim, seen)), policy.tool_press, game.stay()).root()["data"]);
                 const Vitals after = game.vitals(future);
                 const int left = game.in_the_way(future, seen);
                 tried += std::format(" {}{}: {} left, health {}{};", tool.name, std::string(game.aim(aim)), left, after.health, after.lost ? ", lost" : "");
@@ -242,7 +246,7 @@ template <Game G>
         if (chosen) {
             (void)game.ready(chosen->tool, hands);
             hands.act(std::string(game.use(chosen->tool, chosen->aim, seen)));
-            hands.step(2);
+            hands.step(policy.tool_press);
             hands.act(game.stay());
             hands.step(chosen->tool.window);
             say(std::format("frame {}: {} at {}, in the way {} → {}", vitals.frame, chosen->tool.name, std::string(game.aim(chosen->aim)), before, chosen->left));

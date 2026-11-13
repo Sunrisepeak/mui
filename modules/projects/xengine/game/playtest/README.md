@@ -20,7 +20,7 @@ The first that applies:
 | 0 | hurt (`Policy::hurt`) | back off and stand until mended; afloat, up and out instead |
 | 1 | a way forward gets further, unharmed | each of the game's ways, tried a stride ahead and — where the stride is safe — further on; the one that gets furthest is taken for a stride |
 | 2a | the way is open but hurts, and the game says what hurts passes | back off and wait, a number of times. The whole way back is tried first; where that is not safe (water behind her, or she is in what hurts already) she backs a piece at a time, for real, and at each place tries whether standing there is safe — and waits only where it is |
-| 2 | blocked | a few steps back, for real; then each tool that suits, cheapest first, at each aim, over the tool's own time, on a branch; the first that leaves less in the way and her well is used |
+| 2 | blocked | a few steps back, for real; then each tool that suits, cheapest first, at each aim, over the tool's own time, on a branch — used for a moment and then standing, as it will be done (`world.branch`'s `then`); the first that leaves less in the way and her well is used |
 | 3 | nothing helped | wait, where a wait tried ahead costs little, a few times; then stop |
 
 It stops having won, having lost, or stuck — and then says where, at what frame, how much is in the way, what she has left, and (in the log) what each try came to.
@@ -59,7 +59,6 @@ A consumer of one, not a subject: part of [xengine.runtime](../runtime)'s surfac
 
 - One direction of progress, a number. A game where forward is not a line gives its own measure (distance to a goal); searching a space of places is not here.
 - A policy, not a planner: it does not combine two tools, or use one to prepare another. Where a game needs that, the finding is the report's "stuck", and the answer is an agent's session (the plan's T2.8), not more cases here.
-- A branch holds one action. What is done as a press and a release is tried as a hold, and the two can differ (Kiln's bomb). It ends when `world.branch` takes a sequence — the runtime's.
 - A game's table is code (a type). As data — so a game's catalog of actions could give it — it waits for a second game that needs it.
 
 ## Tests

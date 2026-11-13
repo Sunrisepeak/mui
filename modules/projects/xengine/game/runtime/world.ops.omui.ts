@@ -65,6 +65,7 @@ export default defineOps({
         { name: "buttons", type: "json", doc: "held from when the action takes effect, pressed as it does", optional: true },
         { name: "axis", type: "json", optional: true },
         { name: "pointer", type: "json", space: "plane", optional: true },
+        { name: "then", type: "json", doc: "what follows: actions each with `after`, the step of the branch it is given at (a press and its release)", optional: true },
       ],
       result: "json",
       cost: "bounded",

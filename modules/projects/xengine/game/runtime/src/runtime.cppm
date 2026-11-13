@@ -146,7 +146,8 @@ private:
                            G::checksum(timeline_.state()), G::over(timeline_.state()), timeline_.earliest(), timeline_.latest());
     }
     // A player's actions as a request writes them: `buttons` held (their indices), `axis` (−1 … 1 each), `pointer` ([x, y], 0 … 1).
-    [[nodiscard]] static std::expected<xengine::Actions, std::string> actions_of(const mlibs::agent::Request& request) {
+    [[nodiscard]] static std::expected<xengine::Actions, std::string> actions_of(const mlibs::agent::Request& request) { return actions_of(request.document->root()); }
+    [[nodiscard]] static std::expected<xengine::Actions, std::string> actions_of(const mlibs::json::Node& request) {
         xengine::Actions actions;
         for (const auto& button : request["buttons"].items()) {
             const auto index = button.integer();
@@ -224,9 +225,32 @@ private:
         if (!lane.submit(timeline_.frame() - 1, timeline_.frame() - 1, *actions))
             return answer.fail(openas::error_code::refused, std::format("more often than the `{}` tier allows ({} actions a second): the action itself would be refused",
                                                                          lane_.tier().name, lane_.tier().actions_per_second));
+        // And what would follow it: `then`, each an action given so many steps after the branch begins (a
+        // press and its release, a run and a jump) — what a player does next, tried with what it does first.
+        struct Later {
+            std::int64_t     after;
+            xengine::Actions actions;
+        };
+        std::vector<Later> then;
+        for (const auto& one : request["then"].items()) {
+            const auto after = one["after"].integer();
+            if (!after || *after < 1 || *after >= steps || (!then.empty() && *after <= then.back().after))
+                return answer.fail(openas::error_code::invalid_argument, "`then`: each with `after`, a step 1 … steps − 1 of the branch, later than the one before");
+            auto later = actions_of(one);
+            if (!later) return answer.fail(openas::error_code::invalid_argument, later.error());
+            then.push_back({*after, *later});
+        }
         State future = timeline_.state();  // a copy: the game is not touched
         std::int64_t played = 0;
+        std::size_t next = 0;
         for (; played < steps && !G::over(future); ++played) {
+            if (next < then.size() && then[next].after == played) {
+                const std::int64_t latest = timeline_.frame() + played - 1;
+                if (!lane.submit(latest, latest, then[next].actions))
+                    return answer.fail(openas::error_code::refused, std::format("`then` at step {}: more often than the `{}` tier allows ({} actions a second)", played,
+                                                                                 lane_.tier().name, lane_.tier().actions_per_second));
+                ++next;
+            }
             Input input{};
             // Whoever seats the agent for real (the runtime, or an owner by its own rules), what is asked is
             // what its actions would do: they are played here.

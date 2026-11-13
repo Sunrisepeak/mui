@@ -186,6 +186,22 @@ UTest cases{"runtime", [] {
         expect(played.data()["hash"].text() == future.data()["hash"].text()) << "the same steps, played";
     };
 
+    "a branch takes what follows too: forward and then back, tried, is what forward and then back, done, comes to"_test = [] {
+        Game game(Chase::State{});
+        agent::SubjectSession session({&game});
+        const auto future = ask(session, R"({"op":"world.branch","steps":50,"axis":[1],"then":[{"after":20,"axis":[-1]}]})");
+        const auto held = ask(session, R"({"op":"world.branch","steps":50,"axis":[1]})");
+        expect(future.data()["view"]["player"].integer().value_or(0) < held.data()["view"]["player"].integer().value_or(0)) << "she turned back";
+        (void)ask(session, R"({"op":"world.act","axis":[1]})");
+        (void)ask(session, R"({"op":"world.step","steps":20})");
+        (void)ask(session, R"({"op":"world.act","axis":[-1]})");
+        const auto played = ask(session, R"({"op":"world.step","steps":30})");
+        expect(played.data()["hash"].text() == future.data()["hash"].text()) << "the same steps, played";
+        // Out of order, or past the branch's end: said, not guessed.
+        expect(ask(session, R"({"op":"world.branch","steps":50,"axis":[1],"then":[{"after":50,"axis":[0]}]})").error() == "invalid-argument");
+        expect(ask(session, R"({"op":"world.branch","steps":50,"then":[{"after":9,"axis":[0]},{"after":9,"axis":[1]}]})").error() == "invalid-argument");
+    };
+
     "time is the game's: sought back within what is kept, a new branch from there; outside it, stale"_test = [] {
         Game game(Chase::State{}, {.tier = assist});
         agent::SubjectSession session({&game});

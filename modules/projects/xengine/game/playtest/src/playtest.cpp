@@ -25,6 +25,9 @@ void Hands::act(std::string_view what) { (void)ask(std::format(R"({{"op":"world.
 void Hands::step(int steps) { (void)ask(std::format(R"({{"op":"world.step","steps":{}}})", steps)); }
 mlibs::json::Document Hands::observe() { return ask(R"({"op":"world.observe"})"); }
 mlibs::json::Document Hands::branch(int steps, std::string_view what) { return ask(std::format(R"({{"op":"world.branch","steps":{},{}}})", steps, what)); }
+mlibs::json::Document Hands::branch(int steps, std::string_view what, int after, std::string_view then) {
+    return ask(std::format(R"({{"op":"world.branch","steps":{},{},"then":[{{"after":{},{}}}]}})", steps, what, after, then));
+}
 
 void note(Report& report, const Policy& policy, std::chrono::steady_clock::time_point began, std::string line) {
     if (policy.say) {

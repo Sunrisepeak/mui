@@ -85,6 +85,9 @@ struct Effect {
 //   adjust     `raise` / `lower`: a property as the other laws read it, changed by state (wet: harder to light);
 //   reaction   `add` / `take` / `set` on channels, `flag`, and with `become` a conversion: the instance
 //              becomes the material its own property names (what it is boiled, frozen, burnt).
+//   motion     `move`: things are moved — down a channel's slope (a pressure throws what is loose and
+//              pushes what is solid), or the same everywhere (gravity). It changes no state: the kernel's
+//              step leaves it to the carriers, each of which moves what it holds in its own way (D-181).
 // `when` is a condition: comparisons joined by `&&`, each between two sums of channels, properties,
 // what is near (`near.oxygen`: the neighbours' sum) and whole numbers — `temperature >= ignition &&
 // burned < fuel && near.oxygen > 0`. Without one a law always holds.
@@ -102,6 +105,17 @@ struct LawSpec {
     std::string         become;  // a column of kind `material`
     std::string         event;   // what a conversion is called ("boil", "freeze")
     bool                recipe = false;  // a special case that may name materials; counted, and said as such
+    // A law of motion (`move`): what it says moves, the carriers do — a lattice has no velocities, so cells
+    // fly, bodies take a force. Either down a channel's slope (`down`: from where the channel is at least
+    // `from`, raw; `speed` m/s for each unit of its difference across a cell; `force` newtons on a body's
+    // face for each unit there), or the same everywhere (`toward` a direction, `accel` m/s²).
+    struct Move {
+        bool        said = false;
+        std::string down;
+        double      from = 0, speed = 0, force = 0;
+        double      toward_x = 0, toward_y = 0, accel = 0;
+        bool        toward = false;
+    } move;
 };
 struct Definition {
     std::vector<Column>       columns;
@@ -159,8 +173,8 @@ struct Limits {
 
 // ── the plan ─────────────────────────────────────────────────────────────
 
-enum class LawKind : std::uint8_t { transfer, adjust, reaction, conversion };
-inline constexpr std::array<std::string_view, 4> law_kind_names{"transfer", "adjust", "reaction", "conversion"};
+enum class LawKind : std::uint8_t { transfer, adjust, reaction, conversion, motion };
+inline constexpr std::array<std::string_view, 5> law_kind_names{"transfer", "adjust", "reaction", "conversion", "motion"};
 
 // What a term of a sum reads.
 enum class Source : std::uint8_t { constant, property, channel, near_property, near_channel };
@@ -199,6 +213,10 @@ struct Law {
     std::optional<std::uint32_t> event;   // an event's name (Program::event_names)
     // A transfer: the channel that flows, the column it flows by, its share.
     std::uint32_t quantity = 0, by = 0, multiply = 1, shift = 6;
+    // A motion: down `along`'s slope (from, speed, force as written), or `accel` toward a direction.
+    std::optional<std::uint32_t> along;
+    double from = 0, speed = 0, force = 0;
+    double toward_x = 0, toward_y = 0, accel = 0;
 };
 struct Channel {
     std::string   name, unit, doc;

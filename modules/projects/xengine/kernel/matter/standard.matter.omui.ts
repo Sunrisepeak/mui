@@ -71,5 +71,10 @@ export default defineMatter({
     { name: "melts", when: "melting > 0 && temperature >= melting", become: "melted", event: "melt" },
     // What is brittle breaks under pressure: a blast makes rubble of a wall, and the rubble is what the wall says.
     { name: "shatters", when: "toughness > 0 && pressure >= toughness", become: "breaks_into", event: "shatter" },
+    // What moves things (D-181). These change no state: each carrier moves what it holds — cells fly, bodies
+    // take a force. A world whose things fall another way, or are drawn by something else, says so here.
+    // A pressure throws what is loose down its slope: from 300 Pa, 0.003 m/s for each Pa across a cell.
+    { name: "pressure throws", move: { down: "pressure", from: 300, speed: 0.003 } },
+    { name: "gravity", move: { toward: [0, 1], accel: 9.8 } },
   ],
 });

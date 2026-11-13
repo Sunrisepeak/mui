@@ -35,7 +35,7 @@ struct Scene {
     ca::Shape shape{128, 72};
 
     Scene()
-        : world(*bodies::MatterWorld::make(standard(), {.shape = {128, 72}, .tile = {8, 8}, .seed = 11, .fill = "air", .flying = {.throw_at = 300}})),
+        : world(*bodies::MatterWorld::make(standard(), {.shape = {128, 72}, .tile = {8, 8}, .seed = 11, .fill = "air", .flying = {.thrown = true}})),
           view(ca::FieldPresenter::make(images, {128, 72}, static_cast<std::uint32_t>(standard().channels().size()), ca::lower(*matter::standard_look(standard())), {16, 16}).value()) {
         const auto material = [](std::string_view name) { return *standard().material(name); };
         world->place({0, 68, 128, 4}, material("stone"));

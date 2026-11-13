@@ -787,11 +787,12 @@ void Matter::operate(std::string_view operation, const mlibs::agent::Request& re
         if (const auto name = request["law"].text()) {
             // A law judged for the cell as it is now: held, or the comparison that fails, with what it read.
             const auto found = std::ranges::find(laws, *name, &matter::Law::name);
-            if (found == laws.end() || found->kind == matter::LawKind::transfer) {
+            const auto can_be_judged = [](const matter::Law& law) { return law.kind != matter::LawKind::transfer && law.kind != matter::LawKind::motion; };
+            if (found == laws.end() || !can_be_judged(*found)) {
                 std::string judgeable;
                 for (const matter::Law& law : laws)
-                    if (law.kind != matter::LawKind::transfer) judgeable += std::format("{}`{}`", judgeable.empty() ? "" : ", ", law.name);
-                return invalid(std::format("`law` is one of {} (a transfer is not judged: it flows wherever two cells differ)", judgeable));
+                    if (can_be_judged(law)) judgeable += std::format("{}`{}`", judgeable.empty() ? "" : ", ", law.name);
+                return invalid(std::format("`law` is one of {} (a transfer is not judged: it flows wherever two cells differ; nor a law of motion: it has no condition)", judgeable));
             }
             const auto index = static_cast<std::uint32_t>(found - laws.begin());
             const matter::Why now = why(state.cells, *cell);

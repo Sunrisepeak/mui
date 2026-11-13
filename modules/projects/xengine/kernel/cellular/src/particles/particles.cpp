@@ -12,7 +12,9 @@ std::expected<Particles, std::string> Particles::make(const matter::Program& pro
     particles.field_ = field;
     particles.options_ = options;
     particles.channels_ = static_cast<std::uint32_t>(program.channels().size());
-    particles.pressure_ = program.channel("pressure");
+    for (const matter::Law& law : program.laws())
+        if (law.kind == matter::LawKind::motion && law.along && law.speed > 0)
+            particles.pushes_.push_back({*law.along, static_cast<float>(law.from), static_cast<float>(law.speed)});
     return particles;
 }
 
@@ -49,25 +51,27 @@ bool Particles::fling(std::span<std::uint32_t> field, std::uint32_t x, std::uint
 
 std::uint32_t Particles::scatter(std::span<std::uint32_t> field, std::span<const std::uint32_t> fill) {
     const std::size_t cells = static_cast<std::size_t>(field_.width) * field_.height;
-    if (!pressure_ || !(options_.throw_at > 0) || field.size() != cells * channels_) return 0;
-    const std::span<const std::uint32_t> pressure = field.subspan(static_cast<std::size_t>(*pressure_) * cells, cells);
-    const auto at = [&](std::int64_t x, std::int64_t y) -> float {
-        if (x < 0 || y < 0 || x >= field_.width || y >= field_.height) return 0;
-        return static_cast<float>(pressure[static_cast<std::size_t>(y) * field_.width + static_cast<std::size_t>(x)]);
-    };
+    if (!options_.thrown || pushes_.empty() || field.size() != cells * channels_) return 0;
     // Decided from the field as it is, then thrown: the order of the throws changes nothing.
     struct Throw { std::uint32_t x, y; Vec velocity; };
     std::vector<Throw> throws;
-    for (std::uint32_t y = 0; y < field_.height; ++y)
-        for (std::uint32_t x = 0; x < field_.width; ++x) {
-            const std::size_t cell = static_cast<std::size_t>(y) * field_.width + x;
-            if (static_cast<float>(pressure[cell]) < options_.throw_at) continue;
-            const std::uint32_t material = field[cell];
-            if (gas(material) || solid(material)) continue;
-            const float across = at(x - 1, y) - at(std::int64_t{x} + 1, y), down = at(x, std::int64_t{y} - 1) - at(x, std::int64_t{y} + 1);
-            if (across == 0 && down == 0) continue;
-            throws.push_back({x, y, {across * options_.push, down * options_.push}});
-        }
+    for (const Push& push : pushes_) {
+        const std::span<const std::uint32_t> pressure = field.subspan(static_cast<std::size_t>(push.channel) * cells, cells);
+        const auto at = [&](std::int64_t x, std::int64_t y) -> float {
+            if (x < 0 || y < 0 || x >= field_.width || y >= field_.height) return 0;
+            return static_cast<float>(pressure[static_cast<std::size_t>(y) * field_.width + static_cast<std::size_t>(x)]);
+        };
+        for (std::uint32_t y = 0; y < field_.height; ++y)
+            for (std::uint32_t x = 0; x < field_.width; ++x) {
+                const std::size_t cell = static_cast<std::size_t>(y) * field_.width + x;
+                if (static_cast<float>(pressure[cell]) < push.from) continue;
+                const std::uint32_t material = field[cell];
+                if (gas(material) || solid(material)) continue;
+                const float across = at(x - 1, y) - at(std::int64_t{x} + 1, y), down = at(x, std::int64_t{y} - 1) - at(x, std::int64_t{y} + 1);
+                if (across == 0 && down == 0) continue;
+                throws.push_back({x, y, {across * push.speed, down * push.speed}});
+            }
+    }
     std::uint32_t thrown = 0;
     cause_ = Cause::pressure;
     for (const Throw& one : throws) thrown += fling(field, one.x, one.y, one.velocity, fill) ? 1 : 0;

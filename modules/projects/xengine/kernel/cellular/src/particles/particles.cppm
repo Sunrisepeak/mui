@@ -5,7 +5,7 @@
 // a cell of the fill (a gas) where it was, and one that lands takes the place of a gas.
 //
 //     auto flying = ca::particles::Particles::make(program, shape, {.cell = 0.1f});
-//     flying->scatter(cells, fill);          // liquids and powders in a pressure above `throw_at`, thrown down its slope
+//     flying->scatter(cells, fill);          // liquids and powders where a law of motion moves them, thrown down its channel's slope
 //     flying->blast(cells, fill, {x, y}, 6, 40);   // or a blast: every cell that is not solid within 6 cells, outward
 //     flying->step(cells);                   // each frame: fly, and land
 //
@@ -26,8 +26,9 @@ struct Options {
     float step = 1.0f / 60.0f;   // seconds a frame
     float drag = 0.02f;          // of its speed a particle loses a frame to the air
     std::uint32_t most = 65536;  // particles in flight at once; past it, what would be thrown stays
-    float throw_at = 0;          // scatter: the pressure (the channel's raw value) a cell is thrown from; 0: never
-    float push = 0.003f;         // scatter: m/s per unit of the pressure's difference across the cell
+    // scatter: whether the definition's laws of motion down a channel's slope throw cells here (a world may
+    // keep its cells in the lattice). From what value and how fast is the law's (`from`, `speed`).
+    bool thrown = false;
     float fastest = 15.0f;       // m/s: no cell is thrown faster
 };
 // Why a cell flew: thrown by code (fling), by the field's pressure (scatter), by a blast.
@@ -63,7 +64,7 @@ public:
     // A cell thrown with a velocity (m/s): out of the field into flight; `fill` (one instance: a gas) left where
     // it was. False for a gas, a cell out of the field, or no room.
     bool fling(std::span<std::uint32_t> field, std::uint32_t x, std::uint32_t y, Vec velocity, std::span<const std::uint32_t> fill);
-    // Every liquid or powder in a pressure of at least `throw_at`, thrown down the pressure's slope.
+    // Every liquid or powder where a law of motion's channel is at least its `from`, thrown down that slope.
     std::uint32_t scatter(std::span<std::uint32_t> field, std::span<const std::uint32_t> fill);
     // A blast at `centre` (cells): every cell within `radius` that is not gas — and not solid unless `breaks` —
     // thrown outward, the faster the nearer (`speed` m/s at the centre).
@@ -101,7 +102,8 @@ private:
     Shape field_;
     Options options_;
     std::uint32_t channels_ = 0;
-    std::optional<std::uint32_t> pressure_;
+    struct Push { std::uint32_t channel = 0; float from = 0, speed = 0; };
+    std::vector<Push> pushes_;  // the definition's laws of motion down a slope that give a speed
     std::vector<Vec> position_, velocity_;  // in cells and cells a second
     std::vector<std::uint32_t> cells_;      // [particle][channel]
     std::vector<Origin> origin_;            // a particle each

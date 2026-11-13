@@ -17,8 +17,8 @@ const matter::Program& standard() {
     static const matter::Program program = *matter::standard();
     return program;
 }
-std::unique_ptr<bodies::MatterWorld> room(std::uint32_t width, std::uint32_t height, float throw_at = 0) {
-    auto world = *bodies::MatterWorld::make(standard(), {.shape = {width, height}, .tile = {8, 8}, .fill = "air", .flying = {.throw_at = throw_at}});
+std::unique_ptr<bodies::MatterWorld> room(std::uint32_t width, std::uint32_t height, bool thrown = false) {
+    auto world = *bodies::MatterWorld::make(standard(), {.shape = {width, height}, .tile = {8, 8}, .fill = "air", .flying = {.thrown = thrown}});
     world->place({0, height - 2, width, 2}, *standard().material("stone"));
     return world;
 }
@@ -57,7 +57,7 @@ static UTest cases{"matter.particles", [] {
     };
 
     "gunpowder going off inside a heap of sand throws the sand by the pressure it makes, and every grain comes down"_test = [] {
-        auto world = room(96, 48, 300);
+        auto world = room(96, 48, true);
         world->place({38, 34, 20, 12}, *standard().material("sand"));
         world->place({46, 42, 4, 3}, *standard().material("gunpowder"));
         const std::size_t sand = count(*world, "sand");
@@ -103,7 +103,7 @@ static UTest cases{"matter.particles", [] {
 
     "the same frames with things in flight are the same bits; a world saved in mid-flight, restored, flies on the same"_test = [] {
         const auto run = [](bool interrupt) {
-            auto world = room(96, 48, 300);
+            auto world = room(96, 48, true);
             world->place({38, 34, 20, 12}, *standard().material("sand"));
             world->place({46, 42, 4, 3}, *standard().material("gunpowder"));
             world->set(*standard().channel("temperature"), {46, 42, 4, 3}, 900 * 256);

@@ -32,7 +32,6 @@ struct Options {
     float gravity = 9.8f;         // what a liquid's column weighs by (the rigid world's gravity, +y)
     std::uint32_t room = 8;       // how far, in cells, what a body moves into looks for a gas to change places with
     float drag = 0.5f;            // a liquid's drag on each face it wets, × its density × the face × the speed
-    float blast = 0.0f;           // newtons a face per unit of the `pressure` channel (0: none)
     std::uint32_t terrain_tile = 32;
 };
 // What the last call of each did.
@@ -116,7 +115,8 @@ private:
     Options options_;
     Shape field_;
     std::uint32_t channels_ = 0, density_ = 0, friction_ = 0, restitution_ = 0;
-    std::optional<std::uint32_t> pressure_;
+    struct Push { std::uint32_t channel = 0; float force = 0; };
+    std::vector<Push> pushes_;  // the definition's laws of motion down a slope that give a force
     std::vector<Piece> pieces_;
     std::vector<std::uint32_t> owner_;           // a cell: 0, or the piece's index + 1
     std::vector<std::uint32_t> fill_;
@@ -140,7 +140,9 @@ struct WorldOptions {
     std::string fill;               // the material the world is made of at first, and what lies beyond its edges (a gas)
     bool open = true;               // its edges a bath of `fill` (heat leaves, a fire there has its oxygen); else nothing
     bool sparse = true;             // the lattice runs the tiles awake
-    float gravity = 9.8f;
+    // m/s², toward +y. Unset: the definition's law of motion toward a direction (none: 0) — a lattice's cells
+    // fall along +y, so a law toward anything else is refused.
+    std::optional<float> gravity;
     Options bodies;
     particles::Options flying;  // its cell and gravity are the world's
 };

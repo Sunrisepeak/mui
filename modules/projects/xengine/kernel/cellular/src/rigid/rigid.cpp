@@ -68,7 +68,8 @@ std::expected<Bodies, std::string> Bodies::make(const matter::Program& program, 
     bodies.density_ = *density;
     bodies.friction_ = program.column("friction").value_or(matter::none);
     bodies.restitution_ = program.column("restitution").value_or(matter::none);
-    bodies.pressure_ = program.channel("pressure");
+    for (const matter::Law& law : program.laws())
+        if (law.kind == matter::LawKind::motion && law.along && law.force > 0) bodies.pushes_.push_back({*law.along, static_cast<float>(law.force)});
     bodies.owner_.assign(static_cast<std::size_t>(field.width) * field.height, 0);
     const Shape tiles = cellular::tiles(field, {options.terrain_tile, options.terrain_tile});
     bodies.terrain_.assign(static_cast<std::size_t>(tiles.width) * tiles.height, dyn::BodyId{});
@@ -230,8 +231,9 @@ void Bodies::push(std::span<const std::uint32_t> field) {
                     const float k = options_.drag * static_cast<float>(program_->number(material, density_)) * cell;
                     add(face_x, face_y, -k * vx, -k * vy);
                 }
-                if (options_.blast > 0 && pressure_) {
-                    const float push = options_.blast * static_cast<float>(field[static_cast<std::size_t>(*pressure_) * cells + n]);
+                // A law of motion down a channel's slope: what the channel is beside the face pushes the face in.
+                for (const Push& law : pushes_) {
+                    const float push = law.force * static_cast<float>(field[static_cast<std::size_t>(law.channel) * cells + n]);
                     if (push != 0) add(face_x, face_y, -static_cast<float>(dx) * push, -static_cast<float>(dy) * push);
                 }
             }
@@ -608,7 +610,14 @@ std::expected<std::unique_ptr<MatterWorld>, std::string> MatterWorld::make(const
     if (!fill) return std::unexpected(std::format("no material `{}` to fill the world with", options.fill));
     auto lattice = cellular::lower(program, {.seed = options.seed});
     if (!lattice) return std::unexpected(std::format("the program does not lower: {}", lattice.error().text()));
-    auto rigid = dyn::World::make({.gravity = {0, options.gravity}});
+    // Gravity is the definition's: its law of motion toward a direction. A lattice's cells fall along +y.
+    float gravity = options.gravity.value_or(0.0f);
+    for (const matter::Law& law : program.laws()) {
+        if (law.kind != matter::LawKind::motion || law.along || options.gravity) continue;
+        if (law.toward_x != 0 || !(law.toward_y > 0)) return std::unexpected(std::format("the law `{}` moves things toward ({}, {}): this world's cells fall along +y", law.name, law.toward_x, law.toward_y));
+        gravity += static_cast<float>(law.accel);
+    }
+    auto rigid = dyn::World::make({.gravity = {0, gravity}});
     if (!rigid) return std::unexpected(rigid.error().text);
     std::unique_ptr<MatterWorld> world(new MatterWorld());
     world->program_ = &program;
@@ -621,11 +630,13 @@ std::expected<std::unique_ptr<MatterWorld>, std::string> MatterWorld::make(const
     const Shape tiles = cellular::tiles(options.shape, options.tile);
     world->activity_.assign(static_cast<std::size_t>(tiles.width) * tiles.height, 0);
     world->rigid_ = std::make_unique<dyn::World>(std::move(*rigid));
-    auto bodies = Bodies::make(program, options.shape, *world->rigid_, options.bodies);
+    Options of_bodies = options.bodies;
+    of_bodies.gravity = gravity;
+    auto bodies = Bodies::make(program, options.shape, *world->rigid_, of_bodies);
     if (!bodies) return std::unexpected(bodies.error());
     world->bodies_ = std::make_unique<Bodies>(std::move(*bodies));
     particles::Options flying = options.flying;
-    flying.cell = options.bodies.cell, flying.gravity = options.gravity;
+    flying.cell = options.bodies.cell, flying.gravity = gravity;
     auto made = particles::Particles::make(program, options.shape, flying);
     if (!made) return std::unexpected(made.error());
     world->flying_ = std::make_unique<particles::Particles>(std::move(*made));

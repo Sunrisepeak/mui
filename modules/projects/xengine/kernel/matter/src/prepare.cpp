@@ -509,6 +509,26 @@ std::expected<Program, Failure> Program::prepare(const Definition& definition, L
         law.text = spec.when;
         const bool transfers = !spec.transfer.empty(), adjusts = !spec.raise.empty() || !spec.lower.empty();
         const bool reacts = !spec.add.empty() || !spec.take.empty() || !spec.set.empty() || !spec.flag.empty() || !spec.become.empty();
+        if (spec.move.said) {
+            if (transfers || adjusts || reacts || !spec.when.empty() || !spec.event.empty())
+                return fail(Errc::law, where, "a law of motion says only what moves (`move`): it has no condition and changes no state");
+            law.kind = LawKind::motion;
+            const bool down = !spec.move.down.empty();
+            if (down == spec.move.toward) return fail(Errc::law, where + "/move", "a motion is down a channel's slope (`down`) or toward a direction (`toward`): one of them");
+            if (down) {
+                const auto along = names.channel(spec.move.down);
+                if (!along || *along == 0) return fail(Errc::name, where + "/move/down", std::format("`{}` is no channel to move down ({})", spec.move.down, names.nearest(spec.move.down)));
+                if (!(spec.move.from >= 0) || !(spec.move.speed >= 0) || !(spec.move.force >= 0) || (spec.move.speed == 0 && spec.move.force == 0))
+                    return fail(Errc::value, where + "/move", "down a slope: `from` at least 0, and a `speed` (what is loose) or a `force` (on a body's face) above 0");
+                law.along = *along, law.from = spec.move.from, law.speed = spec.move.speed, law.force = spec.move.force;
+            } else {
+                const double length = spec.move.toward_x * spec.move.toward_x + spec.move.toward_y * spec.move.toward_y;
+                if (!(length > 0.999 && length < 1.001) || !(spec.move.accel > 0)) return fail(Errc::value, where + "/move", "toward a direction of length 1, by an `accel` above 0");
+                law.toward_x = spec.move.toward_x, law.toward_y = spec.move.toward_y, law.accel = spec.move.accel;
+            }
+            program.laws_.push_back(std::move(law));
+            continue;
+        }
         if (transfers + adjusts + reacts != 1)
             return fail(Errc::law, where, transfers + adjusts + reacts == 0 ? "a law does something: a `transfer`, `raise` or `lower`, or `add`, `take`, `set`, `flag`, `become`"
                                                                               : "a law is one kind: a transfer, an adjustment of properties (`raise`, `lower`), or a reaction (`add`, `take`, `set`, `flag`, `become`)");

@@ -46,7 +46,7 @@ if (auto stepped = program->step({instances, pairs}, state, next, workspace, &ev
 | **Columns** | A property every material has a value of: a number with a unit and a range, a phase, or another material (what this one becomes). The standard ones: mechanics (`density`, `friction`, `restitution`, `compliance`, `shape_stiffness`), heat (`thermal`, `ignition`, `melting`, `boiling`, `latent`, `warmth`, `starts_at`), burning (`fuel`, `burn_rate`, `heat`, `flame`, `oxygen`, `blast`), water (`moist`, `porous`), electricity (`conduct`), `phase`, and what it becomes (`frozen`, `melted`, `boiled`, `condensed`, `burnt`). A definition adds its own |
 | **Materials** | A row: what it does not say is the column's default. `Program::value` is what the laws read, `number` what was written |
 | **Channels** | What each instance carries, unsigned 32-bit: `material`, `temperature`, `wetness`, `charge`, `burned`, `burning`, `damage`, `pressure`, `phase_heat`; a definition adds its own. A channel may start from a property (`temperature` from `starts_at`: lava is placed hot), reset when the instance becomes something else, and name the events of leaving 0 and returning to it (`burning`: `ignite`, `go_out`) |
-| **Laws** | Three kinds. A **transfer**: a channel flows between neighbours, from more to less, by the lesser of their two values of a property — the same amount counted at both ends, so what there is of it stays. A **reaction**: where a condition holds, channels are added to, taken from or set, a flag is raised; with `become`, a **conversion** — the instance turns into the material *its own* property names (`boiled`, `frozen`, `burnt`). And an **adjustment**: a property as the other laws read it, raised or lowered by state |
+| **Laws** | Three kinds that change state, and one that moves things (below). A **transfer**: a channel flows between neighbours, from more to less, by the lesser of their two values of a property — the same amount counted at both ends, so what there is of it stays. A **reaction**: where a condition holds, channels are added to, taken from or set, a flag is raised; with `become`, a **conversion** — the instance turns into the material *its own* property names (`boiled`, `frozen`, `burnt`). And an **adjustment**: a property as the other laws read it, raised or lowered by state |
 | **Conditions and amounts** | `temperature >= ignition && burned < fuel && near.oxygen > 0`: comparisons joined by `&&`, each between sums of channels, properties, `near.` sums over the neighbours, and whole numbers; a term × a whole number, / a power of two. Written in units — `temperature >= 373` is kelvin — and brought to whole numbers when prepared |
 | **Carrier** | Whoever has instances and says which are beside which, with a weight: a lattice's cells and neighbourhoods, bodies and their contacts, particles and their near ones, a sample of an ambient field. The same laws on all of them |
 | **Program** | The definition prepared once into an immutable plan (the preparation contract, `mlibs.cts:prepare`): names resolved, values checked against their columns, conditions parsed; refused with a code, a JSON pointer and what to write instead (`matter.name at /laws/13/when: `temprature` is no channel, property or phase (did you mean `temperature`?)`) |
@@ -76,7 +76,9 @@ const auto program = matter::standard_with(std::array{*pack});     // coal catch
 - **A pack adds and never replaces.** A column, a channel or a law of a name the base has is a clash; so is a material said otherwise (`wood` already says its `ignition`). Every clash is said (`Clash`: the part, the name, why), none decided silently; the same row said twice the same way is not a clash.
 - **An invented law is held to what every law is**: it names no material, and a transfer whose shares could take more than an instance has is refused when stepped.
 
-Not yet: laws that move things (a fourth kind, D-181) and fields that act at a distance.
+**Laws that move things** (D-181) are a kind of their own, `move`: down a channel's slope — `{ name: "pressure throws", move: { down: "pressure", from: 300, speed: 0.003 } }` (from where the channel is at least `from`; `speed` m/s for each unit across a cell, for what is loose; `force` newtons for each unit beside a body's face) — or the same everywhere — `{ name: "gravity", move: { toward: [0, 1], accel: 9.8 } }`. Such a law has no condition and changes no state: this kernel's step leaves it to the carriers, each of which moves what it holds in its own way (cells fly, bodies take a force, the world falls). A pack that brings a channel and a law down its slope has things drawn by something the world did not have.
+
+Not yet: fields that act at a distance (a channel spreads between neighbours only).
 
 ## One step
 
@@ -94,7 +96,7 @@ A transfer whose neighbours could together take more than an instance has is ref
 
 ## What the tests show
 
-`mcpp test -p xengine.matter` — the standard laws ([standard.matter.omui.ts](standard.matter.omui.ts): 19 laws, 17 materials, no law naming one) on rows and small grids of instances:
+`mcpp test -p xengine.matter` — the standard laws ([standard.matter.omui.ts](standard.matter.omui.ts): 22 laws, 17 materials, no law naming one) on rows and small grids of instances:
 
 - heat flows along a row and its total stays, step after step; iron carries it further than stone;
 - a strip of wood lit at one end burns piece by piece (caught at steps 1, 61, 103, 142, 181, 220, 256, 281 — each from the last), every piece ash after 681; sealed from air nothing burns. What burns heats up to its flame's temperature (`flame`, 1100 K unless a material says) and no further: a fire is as hot as a fire is however closed the room, and the stone under a wood fire stays stone;

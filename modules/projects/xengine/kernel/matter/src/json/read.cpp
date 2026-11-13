@@ -199,8 +199,8 @@ struct Parsed {
     if (const Node laws = root["laws"]) {
         if (!laws.is_array()) reader.wrong(laws, "`laws` is a list");
         for (const Node& node : laws.items()) {
-            static constexpr std::array<std::string_view, 15> law_keys{"name", "when", "transfer", "by",   "multiply", "shift", "add",   "take",
-                                                                       "set",  "raise", "lower",   "flag", "become",   "event", "recipe"};
+            static constexpr std::array<std::string_view, 16> law_keys{"name", "when", "transfer", "by",   "multiply", "shift", "add",   "take",
+                                                                       "set",  "raise", "lower",   "flag", "become",   "event", "recipe", "move"};
             if (!node.is_object()) {
                 reader.wrong(node, "a law is an object");
                 definition.laws.emplace_back();  // keeps the laws' places
@@ -225,6 +225,28 @@ struct Parsed {
             if (const Node recipe = node["recipe"]) {
                 if (const auto value = recipe.boolean()) law.recipe = *value;
                 else reader.wrong(recipe, "`recipe` is true or false");
+            }
+            if (const Node move = node["move"]) {
+                static constexpr std::array<std::string_view, 6> move_keys{"down", "from", "speed", "force", "toward", "accel"};
+                if (!move.is_object()) reader.wrong(move, "`move` is an object");
+                else {
+                    reader.keys(move, move_keys, "a motion");
+                    law.move.said = true;
+                    law.move.down = reader.text(move["down"], "`down`");
+                    law.move.from = reader.number(move["from"], "`from`").value_or(0);
+                    law.move.speed = reader.number(move["speed"], "`speed`").value_or(0);
+                    law.move.force = reader.number(move["force"], "`force`").value_or(0);
+                    law.move.accel = reader.number(move["accel"], "`accel`").value_or(0);
+                    if (const Node toward = move["toward"]) {
+                        const std::vector<Node> parts = toward.is_array() ? toward.items() : std::vector<Node>{};
+                        if (parts.size() != 2) reader.wrong(toward, "`toward` is a direction: [x, y]");
+                        else {
+                            law.move.toward = true;
+                            law.move.toward_x = reader.number(parts[0], "`toward`'s x").value_or(0);
+                            law.move.toward_y = reader.number(parts[1], "`toward`'s y").value_or(0);
+                        }
+                    }
+                }
             }
             definition.laws.push_back(std::move(law));
         }

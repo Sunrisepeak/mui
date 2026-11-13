@@ -568,7 +568,7 @@ static UTest cases{"matter.agent", [] {
             const Answered boiled = events(session, "boil"), caught = events(session, "ignite");
             expect(any(boiled, [&](mlibs::json::Node event) { return event["from"].text() == "alcohol" && event["to"].text() == "alcohol_vapour" && event["law"]["name"].text() == "boils" && part(event, "gave", "stone"); }))
                 << "12: it boils by the law water boils by, the hot stone giving the heat: " << boiled.text.substr(0, 700);
-            expect(told(session, R"({"op":"matter.describe"})")["recipes"].integer() == 0 && told(session, R"({"op":"matter.describe"})")["laws"].size() == 20u) << "12: and no law was added for it";
+            expect(told(session, R"({"op":"matter.describe"})")["recipes"].integer() == 0 && told(session, R"({"op":"matter.describe"})")["laws"].size() == 22u) << "12: and no law was added for it";
             std::println("12: alcohol over a stone at 700 K — {} boilings in 400 steps (its vapour condenses under the cold lid and comes back), {} of its vapour caught", count(boiled), count(caught));
         }
     };
@@ -593,11 +593,12 @@ static UTest cases{"matter.agent", [] {
             {R"({"op":"matter.explain","cell":[1]})", "`cell` is [x, y]"},
             {R"({"op":"matter.explain","cell":[3,3],"depth":7})", "`depth` is 0 … 6"},
             {R"({"op":"matter.explain","cell":[3,3],"law":"heat flows"})", "a transfer is not judged"},
-            {R"({"op":"matter.explain","cell":[3,3],"law":"gravity"})", "`law` is one of"},
+            {R"({"op":"matter.explain","cell":[3,3],"law":"levity"})", "`law` is one of"},
+            {R"({"op":"matter.explain","cell":[3,3],"law":"gravity"})", "nor a law of motion"},
             {R"({"op":"matter.explain","cell":[3,3],"budget":20})", "the least this answers"},
             {R"({"op":"matter.observe","budget":40})", "the least this answers"},
             {R"({"op":"matter.describe","material":"cheese"})", "`material` is one of"},
-            {R"({"op":"matter.describe","law":"gravity"})", "`law` is one of"},
+            {R"({"op":"matter.describe","law":"levity"})", "`law` is one of"},
             {R"({"op":"matter.branch","steps":0})", "`steps` is 1 … 4096"},
             {R"({"op":"matter.branch","steps":5,"place":{"material":"cheese","region":[0,0,1,1]}})", "`place`: `material` is one of"},
             {R"({"op":"matter.branch","steps":5,"apply":{"channel":"temperature","region":[0,0,1,1]}})", "`apply`: one of `set`, `add`, `take`"},
@@ -615,7 +616,7 @@ static UTest cases{"matter.agent", [] {
         agent::SubjectSession session = session_of(world);
         strip(session);
         const Answered all = told(session, R"({"op":"matter.describe"})");
-        expect(all["materials"].size() == 17u && all["laws"].size() == 20u && all["recipes"].integer() == 0 && all["channels"][1]["name"].text() == "temperature" && all["channels"][1]["unit"].text() == "K");
+        expect(all["materials"].size() == 17u && all["laws"].size() == 22u && all["recipes"].integer() == 0 && all["channels"][1]["name"].text() == "temperature" && all["channels"][1]["unit"].text() == "K");
         const Answered wood = told(session, R"({"op":"matter.describe","material":"wood"})");
         expect(wood["phase"].text() == "solid" && wood["properties"]["ignition"].number() == 570.0 && wood["properties"]["burnt"].text() == "ash" && wood["properties"]["friction"].number() == 0.45);
         const Answered burns = told(session, R"({"op":"matter.describe","law":"burns"})");

@@ -91,6 +91,8 @@ std::expected<Program, Failure> lower(const xengine::matter::Program& plan, cons
                 for (const matter::Write& write : law.writes)
                     reactions.adjustments.push_back({conditions(law.when, true), *derived_of[write.target], write.change == matter::Change::add, amount(write.amount, true)});
                 break;
+            case matter::LawKind::motion:
+                break;  // not the lattice's: a lattice has no velocities — what flies and the bodies do it
             case matter::LawKind::reaction:
             case matter::LawKind::conversion: {
                 Reaction reaction{.when = conditions(law.when, false), .flag = law.flag, .become = law.become};

@@ -14,7 +14,7 @@ How Kiln was made, and what making it changed below it. Kiln is the vertical sli
 
 | Layer | Package | What it is |
 |---|---|---|
-| The laws | `xengine.matter` | the standard definition: 17 materials, 20 laws, none naming a material |
+| The laws | `xengine.matter` | the standard definition: 17 materials, 22 laws, none naming a material |
 | The world | `xengine.cellular` (`rigid`, `particles`, `decor`) | `MatterWorld`: the lattice, bodies made of its cells (Box2D under `xengine.dynamics`), cells in flight — one deterministic value, saved, restored and branched as one |
 | Time and the agent | `xengine.runtime`, `mlibs.simulation`, `mlibs.agent` | the game as a `Playable` on a timeline; the subject `world` (observe, act, step, seek, branch) |
 | The picture | `xengine.cellular.present` (`world`), `mlibs.pipeline` | `WorldPicture`: the world shown by two ladders a governor moves — the light, the scenery |

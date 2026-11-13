@@ -118,7 +118,7 @@ std::expected<State, std::string> start(const Level& level) {
     const std::uint32_t height = static_cast<std::uint32_t>(level.rows.size());
     std::uint32_t width = 0;
     for (const auto row : level.rows) width = std::max(width, static_cast<std::uint32_t>(row.size()));
-    auto made = rigid::MatterWorld::make(program, {.shape = {width, height}, .tile = {16, 16}, .seed = 17, .fill = "air", .flying = {.throw_at = 300}});
+    auto made = rigid::MatterWorld::make(program, {.shape = {width, height}, .tile = {16, 16}, .seed = 17, .fill = "air", .flying = {.thrown = true}});
     if (!made) return std::unexpected(made.error());
     State state;
     state.world = rigid::WorldValue(std::move(*made));

@@ -38,6 +38,13 @@ struct Draw {
     std::int32_t kept = -1; // glyphs kept on the device: which of the frame's (Impl::kept_draws); its prim is not drawn
 };
 
+// Draws one after another that bind alike: `count` instances from `first` of their pass's.
+struct Batch {
+    std::uint32_t       first = 0, count = 0;
+    mlibs::rhi::Texture image, mask, normal;
+    std::int32_t        lit = -1, kept = -1;
+};
+
 // ui.slang's KeptGlyph: a glyph in the space its run was drawn in.
 struct KeptGlyph {
     std::array<float, 4> across{}, origin{}, bounds{}, color{};
@@ -125,7 +132,23 @@ struct Pass {
     std::uint32_t        w = 0, h = 0;
     mlibs::rhi::LoadOp          load = mlibs::rhi::LoadOp::load;
     std::array<float, 4> clear{};
-    std::vector<Draw>    draws;   // draws
+    // draws: the instances in the order drawn, and the runs of them that bind alike (a run of none:
+    // glyphs kept on the device, drawn from their run's own instances).
+    std::vector<Prim>    prims;
+    std::vector<Batch>   draws;
+    void put(const Draw& d) {
+        const bool kept = d.kept >= 0;
+        if (!kept && !draws.empty()) {
+            Batch& last = draws.back();
+            if (last.kept < 0 && last.image == d.image && last.mask == d.mask && last.lit == d.lit && last.normal == d.normal) {
+                prims.push_back(d.prim);
+                ++last.count;
+                return;
+            }
+        }
+        draws.push_back({static_cast<std::uint32_t>(prims.size()), kept ? 0u : 1u, d.image, d.mask, d.normal, d.lit, d.kept});
+        if (!kept) prims.push_back(d.prim);
+    }
     bool material_mix = false;   // rgba16_float additive leaf fields, no coverage
     BlendPass            blend;   // blend
     EffectStep           effect;  // effect
@@ -158,8 +181,14 @@ struct ClipShape {
 
 // A colour premultiplied to bytes as raster does it, as exact fractions of 255.
 std::array<float, 4> premultiplied(Color c) {
+    // The last colour's answer: a line's glyphs, a wall's cards, are one colour after another.
+    thread_local Color                last{-1, -1, -1, -1};
+    thread_local std::array<float, 4> its{};
+    if (c.r == last.r && c.g == last.g && c.b == last.b && c.a == last.a) return its;
     const xrender::raster::Rgba8 b = xrender::raster::premultiply(c);
-    return {b.r / 255.0f, b.g / 255.0f, b.b / 255.0f, b.a / 255.0f};
+    last = c;
+    its = {b.r / 255.0f, b.g / 255.0f, b.b / 255.0f, b.a / 255.0f};
+    return its;
 }
 
 void set(std::array<float, 4>& v, float a, float b, float c, float d) { v = {a, b, c, d}; }
@@ -298,7 +327,8 @@ struct GpuRenderer::Impl {
     static constexpr std::uint32_t atlas_soft_rows = 2048;
     bool                  atlas_second_pass = false;
     std::size_t           masks_made = 0, masks_reused = 0;  // this encoding's
-    std::vector<std::vector<Draw>> draw_lists;  // the last frame's passes' draws, emptied, for this frame's
+    std::vector<std::vector<Prim>>  prim_lists;  // the last frame's passes' instances, emptied, for this frame's
+    std::vector<std::vector<Batch>> draw_lists;  // and their runs
     // Glyphs' outlines for the device (GpuOptions::glyph_masks, the shader's
     // KIND_GLYPH): each one's contours flattened once a level of size — as
     // finely as the CPU flattens at the level's largest — and kept in a
@@ -582,9 +612,10 @@ struct GpuRenderer::Impl {
     // unit of its own: the power of two at or past it, flattened as finely as
     // the CPU flattens there (1/32 pixel), so finer below it.
     static float level_top(float scale) {
-        float top = 1.0f / 256;
-        while (top < scale) top *= 2;
-        return top;
+        if (!(scale > 1.0f / 256)) return 1.0f / 256;
+        // The power of two at or past it, by its bits: itself when it is one, else the next exponent's.
+        const std::uint32_t bits = std::bit_cast<std::uint32_t>(scale);
+        return (bits & 0x007fffffu) == 0 ? scale : std::bit_cast<float>((bits & 0x7f800000u) + 0x00800000u);
     }
 
     // Contours kept for the device under `key`: `path`'s, and `hole`'s wound
@@ -1073,8 +1104,10 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
         // The passes' lists of draws are kept for the next frame's: a frame of many thousand draws
         // grows none of them again.
         for (Pass& pass : g.passes)
-            if (pass.draws.capacity() > 0) {
+            if (pass.prims.capacity() > 0 || pass.draws.capacity() > 0) {
+                pass.prims.clear();
                 pass.draws.clear();
+                g.prim_lists.push_back(std::move(pass.prims));
                 g.draw_lists.push_back(std::move(pass.draws));
             }
         g.passes.clear();
@@ -1105,11 +1138,14 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
             p.h = h;
             p.load = load;
             p.clear = clear;
-            if (!g.draw_lists.empty()) {
+            if (!g.prim_lists.empty()) {
                 // The roomiest first: the frame's first pass is its largest.
-                const auto roomiest = std::ranges::max_element(g.draw_lists, {}, [](const std::vector<Draw>& draws) { return draws.capacity(); });
-                p.draws = std::move(*roomiest);
-                g.draw_lists.erase(roomiest);
+                const auto roomiest = std::ranges::max_element(g.prim_lists, {}, [](const std::vector<Prim>& prims) { return prims.capacity(); });
+                const auto its = g.draw_lists.begin() + (roomiest - g.prim_lists.begin());
+                p.prims = std::move(*roomiest);
+                p.draws = std::move(*its);
+                g.prim_lists.erase(roomiest);
+                g.draw_lists.erase(its);
             }
             g.passes.push_back(std::move(p));
             current = g.passes.size() - 1;
@@ -1272,7 +1308,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                 transform(leaf.prim, Affine{}, kind_mask, leaf_flags);
                 set(leaf.prim.rect, 0, 0, static_cast<float>(w), static_cast<float>(h));
                 leaf.prim.shape[3] = static_cast<float>(term.weight / total);
-                g.passes[current].draws.push_back(std::move(leaf));
+                g.passes[current].put(leaf);
             }
             transforms.back() = original;
             draws_into(parent, parent_w, parent_h, mlibs::rhi::LoadOp::load, {});
@@ -1283,7 +1319,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
             p.pinv1[2] = static_cast<float>(w); p.pinv1[3] = static_cast<float>(h);
             return true;
         };
-        auto emit = [&](Draw&& d) { g.passes[current].draws.push_back(std::move(d)); };
+        auto emit = [&](Draw&& d) { g.passes[current].put(d); };
         // An analytic rectangle or rounded rectangle.
         auto shape = [&](const Rect& r, const CornerRadii& radii, const Paint& paint) {
             Draw d;
@@ -2265,7 +2301,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
     }
     report.clips_outlined = g.clip_records.size() / Impl::clip_floats;
     std::size_t total = 0;
-    for (const Pass& p : g.passes) total += p.draws.size();
+    for (const Pass& p : g.passes) total += p.prims.size();
     report.instances = total;
     if (total > 0) {
         const auto bytes = static_cast<std::uint32_t>(total * sizeof(Prim));
@@ -2278,10 +2314,17 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
             g.instances = *b;
             g.instance_capacity = cap;
         }
-        g.prims.clear();
+        // One pass holds them all (a frame of no layer): sent from where they are.
+        const Pass* only = nullptr;
         for (const Pass& p : g.passes)
-            for (const Draw& d : p.draws) g.prims.push_back(d.prim);
-        g.list.upload(g.instances, 0, std::span<const Prim>(g.prims));
+            if (p.prims.size() == total) only = &p;
+        if (only) {
+            g.list.upload(g.instances, 0, std::span<const Prim>(only->prims));
+        } else {
+            g.prims.clear();
+            for (const Pass& p : g.passes) g.prims.insert(g.prims.end(), p.prims.begin(), p.prims.end());
+            g.list.upload(g.instances, 0, std::span<const Prim>(g.prims));
+        }
     }
 
     // ── the passes, through the frame's graph (D-81) ─────────────────────
@@ -2295,7 +2338,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
     std::uint32_t first = 0;
     for (const Pass& s : g.passes) {
         const std::uint32_t base = first;
-        first += static_cast<std::uint32_t>(s.draws.size());
+        first += static_cast<std::uint32_t>(s.prims.size());
         if (s.kind == Pass::Kind::effect) {
             const EffectStep& e = s.effect;
             xrender::PassDesc desc{.name = "render.vector.effect"};
@@ -2335,7 +2378,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
         if (s.draws.empty() && s.load == mlibs::rhi::LoadOp::load) continue;
         textures.clear();
         if (s.load == mlibs::rhi::LoadOp::load) add(s.target);
-        for (const Draw& d : s.draws) {
+        for (const Batch& d : s.draws) {
             add(d.image);
             add(d.mask);
             add(d.normal);
@@ -2362,10 +2405,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                 use(s.material_mix ? g.material_pipeline : g.pipeline);
                 bool lit = false;
                 std::int32_t lit_pushed = -1;
-                std::size_t i = 0;
-                while (i < s.draws.size()) {
-                    const Draw& head = s.draws[i];
-                    std::size_t j = i + 1;
+                for (const Batch& head : s.draws) {
                     if (head.kept >= 0) {
                         // Glyphs kept on the device: their own instances, where their run lies this frame.
                         const Impl::KeptDraw& kept = g.kept_draws[static_cast<std::size_t>(head.kept)];
@@ -2385,12 +2425,8 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                             lit_pushed = -1;
                             use(g.pipeline);
                         }
-                        i = j;
                         continue;
                     }
-                    while (j < s.draws.size() && s.draws[j].kept < 0 && s.draws[j].image == head.image && s.draws[j].mask == head.mask &&
-                           s.draws[j].lit == head.lit && s.draws[j].normal == head.normal)
-                        ++j;
                     if ((head.lit >= 0) != lit) {
                         lit = head.lit >= 0;
                         use(s.material_mix ? (lit ? g.material_lit_pipeline : g.material_pipeline) : (lit ? g.lit_pipeline : g.pipeline));
@@ -2403,8 +2439,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                     }
                     list.bind_texture(mlibs::rhi::Stage::fragment, s.material_mix ? 1 : 2, head.image ? head.image : g.white, g.nearest);
                     if (!s.material_mix) list.bind_texture(mlibs::rhi::Stage::fragment, 3, head.mask ? head.mask : g.white_mask, g.nearest);
-                    list.draw(6, static_cast<std::uint32_t>(j - i), 0, base + static_cast<std::uint32_t>(i));
-                    i = j;
+                    list.draw(6, head.count, 0, base + head.first);
                 }
             }
             list.end_render();

@@ -137,7 +137,7 @@ void WorldLattice::stepped(rigid::MatterWorld& world) {
     for (const auto& thrown : journal.thrown)
         if (thrown.cause != rigid::Journal::Cause::blast)
             wrote_.push_back({.kind = agent::Wrote::Kind::thrown, .cell = thrown.cell, .material = thrown.material,
-                              .by = thrown.cause == rigid::Journal::Cause::pressure ? agent::Wrote::By::pressure : agent::Wrote::By::flung});
+                              .by = thrown.cause == rigid::Journal::Cause::pressure ? agent::Wrote::By::pressure : agent::Wrote::By::flung, .law = thrown.law});
     for (const auto& landed : journal.landed)
         wrote_.push_back({.kind = agent::Wrote::Kind::landed, .cell = landed.cell, .material = landed.material, .from = landed.from,
                           .thrown_at = static_cast<std::int64_t>(landed.thrown_at)});

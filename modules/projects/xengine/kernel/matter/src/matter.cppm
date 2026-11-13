@@ -106,12 +106,14 @@ struct LawSpec {
     std::string         event;   // what a conversion is called ("boil", "freeze")
     bool                recipe = false;  // a special case that may name materials; counted, and said as such
     // A law of motion (`move`): what it says moves, the carriers do — a lattice has no velocities, so cells
-    // fly, bodies take a force. Either down a channel's slope (`down`: from where the channel is at least
-    // `from`, raw; `speed` m/s for each unit of its difference across a cell; `force` newtons on a body's
-    // face for each unit there), or the same everywhere (`toward` a direction, `accel` m/s²).
+    // fly, bodies take a force. Either along a channel's slope — `down` it (a pressure pushes away) or `up`
+    // it (a pull toward where there is more): from where the channel is at least `from`, raw; `speed` m/s
+    // for each unit of its difference across a cell; `force` newtons on a body's face for each unit there;
+    // each times the thing's own property `by` where one is named (what has none of it is not moved) — or
+    // the same everywhere (`toward` a direction, `accel` m/s²).
     struct Move {
         bool        said = false;
-        std::string down;
+        std::string down, up, by;
         double      from = 0, speed = 0, force = 0;
         double      toward_x = 0, toward_y = 0, accel = 0;
         bool        toward = false;
@@ -213,8 +215,10 @@ struct Law {
     std::optional<std::uint32_t> event;   // an event's name (Program::event_names)
     // A transfer: the channel that flows, the column it flows by, its share.
     std::uint32_t quantity = 0, by = 0, multiply = 1, shift = 6;
-    // A motion: down `along`'s slope (from, speed, force as written), or `accel` toward a direction.
-    std::optional<std::uint32_t> along;
+    // A motion: along `along`'s slope — down it, or `up` it — (from, speed, force as written; each times the
+    // column `scale` of what is moved, where one is named), or `accel` toward a direction.
+    std::optional<std::uint32_t> along, scale;
+    bool   up = false;
     double from = 0, speed = 0, force = 0;
     double toward_x = 0, toward_y = 0, accel = 0;
 };

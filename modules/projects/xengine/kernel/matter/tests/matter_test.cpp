@@ -453,10 +453,16 @@ UTest cases{"xengine.matter", [] {
         expect(fatal(drawn.has_value()));
         expect(drawn->laws().back().kind == matter::LawKind::motion && drawn->laws().back().along == drawn->channel("charge") && eq(drawn->laws().back().speed, 0.5) && eq(drawn->laws().back().force, 2.0));
         expect(drawn->describe().contains(R"({"name":"drawn","kind":"motion","down":"charge","from":5,"speed":0.5,"force":2})")) << drawn->describe();
+        const auto pulled = matter::Program::prepare(with([](matter::Definition& d) { d.laws.push_back({.name = "pulled", .move = Move{.said = true, .up = "charge", .by = "conduct", .speed = 1}}); }));
+        expect(fatal(pulled.has_value()));
+        expect(pulled->laws().back().up && pulled->laws().back().scale == pulled->column("conduct"));
+        expect(pulled->describe().contains(R"({"name":"pulled","kind":"motion","up":"charge","from":0,"speed":1,"force":0,"by":"conduct"})")) << pulled->describe();
+        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.move = Move{.said = true, .up = "charge", .by = "burnt", .speed = 1}}); })).starts_with("matter.name at /laws/22/move/by: `burnt` is no number among the properties to move by"));
+        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.move = Move{.said = true, .by = "conduct", .toward_y = 1, .accel = 9.8, .toward = true}}); })).starts_with("matter.law at /laws/22/move/by: what is the same everywhere"));
         expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.when = "wetness > 0", .move = Move{.said = true, .down = "pressure", .speed = 1}}); })).starts_with("matter.law at /laws/22: a law of motion says only what moves"));
         expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.move = Move{.said = true, .down = "presure", .speed = 1}}); })).starts_with("matter.name at /laws/22/move/down: `presure` is no channel to move down (did you mean `pressure`?)"));
         expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.move = Move{.said = true, .down = "pressure"}}); })).starts_with("matter.value at /laws/22/move: down a slope"));
-        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.move = Move{.said = true, .down = "pressure", .speed = 1, .toward_y = 1, .accel = 9.8, .toward = true}}); })).starts_with("matter.law at /laws/22/move: a motion is down a channel's slope"));
+        expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.move = Move{.said = true, .down = "pressure", .speed = 1, .toward_y = 1, .accel = 9.8, .toward = true}}); })).starts_with("matter.law at /laws/22/move: a motion is down a channel's slope (`down`), up it"));
         expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.move = Move{.said = true, .toward_x = 3, .accel = 9.8, .toward = true}}); })).starts_with("matter.value at /laws/22/move: toward a direction of length 1"));
         // Conditions and amounts.
         expect(refusal(with([](matter::Definition& d) { d.laws.push_back({.when = "temperature >= ", .add = {{"temperature", "1"}}}); })).starts_with("matter.expression at /laws/22/when: a name or a whole number is expected here"));

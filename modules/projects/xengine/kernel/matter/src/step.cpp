@@ -291,7 +291,10 @@ std::string Program::describe() const {
         out += std::format("{}{{\"name\":{},\"kind\":\"{}\"", index ? "," : "", json_text(law.name), law_kind_names[static_cast<std::size_t>(law.kind)]);
         if (!law.text.empty()) out += std::format(",\"when\":{}", json_text(law.text));
         if (law.kind == LawKind::motion) {
-            if (law.along) out += std::format(",\"down\":{},\"from\":{},\"speed\":{},\"force\":{}", json_text(channels_[*law.along].name), law.from, law.speed, law.force);
+            if (law.along) {
+                out += std::format(",\"{}\":{},\"from\":{},\"speed\":{},\"force\":{}", law.up ? "up" : "down", json_text(channels_[*law.along].name), law.from, law.speed, law.force);
+                if (law.scale) out += std::format(",\"by\":{}", json_text(columns_[*law.scale].name));
+            }
             else out += std::format(",\"toward\":[{},{}],\"accel\":{}", law.toward_x, law.toward_y, law.accel);
         }
         if (law.kind == LawKind::transfer) {

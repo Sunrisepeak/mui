@@ -12,9 +12,11 @@ std::expected<Particles, std::string> Particles::make(const matter::Program& pro
     particles.field_ = field;
     particles.options_ = options;
     particles.channels_ = static_cast<std::uint32_t>(program.channels().size());
-    for (const matter::Law& law : program.laws())
+    for (std::uint32_t index = 0; index < program.laws().size(); ++index) {
+        const matter::Law& law = program.laws()[index];
         if (law.kind == matter::LawKind::motion && law.along && law.speed > 0)
-            particles.pushes_.push_back({*law.along, static_cast<float>(law.from), static_cast<float>(law.speed)});
+            particles.pushes_.push_back({index, *law.along, static_cast<float>(law.from), static_cast<float>(law.up ? -law.speed : law.speed), law.scale});
+    }
     return particles;
 }
 
@@ -40,7 +42,7 @@ bool Particles::fling(std::span<std::uint32_t> field, std::uint32_t x, std::uint
     position_.push_back({static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f});
     velocity_.push_back({velocity.x / options_.cell, velocity.y / options_.cell});
     origin_.push_back({static_cast<std::uint32_t>(at), frame_});
-    if (log_) log_->thrown.push_back({static_cast<std::uint32_t>(at), field[at], cause_});
+    if (log_) log_->thrown.push_back({static_cast<std::uint32_t>(at), field[at], cause_, cause_ == Cause::pressure ? law_ : 0xffffffffu});
     for (std::uint32_t channel = 0; channel < channels_; ++channel) {
         cells_.push_back(field[channel * cells + at]);
         field[channel * cells + at] = fill[channel];
@@ -53,7 +55,7 @@ std::uint32_t Particles::scatter(std::span<std::uint32_t> field, std::span<const
     const std::size_t cells = static_cast<std::size_t>(field_.width) * field_.height;
     if (!options_.thrown || pushes_.empty() || field.size() != cells * channels_) return 0;
     // Decided from the field as it is, then thrown: the order of the throws changes nothing.
-    struct Throw { std::uint32_t x, y; Vec velocity; };
+    struct Throw { std::uint32_t x, y; Vec velocity; std::uint32_t law; };
     std::vector<Throw> throws;
     for (const Push& push : pushes_) {
         const std::span<const std::uint32_t> pressure = field.subspan(static_cast<std::size_t>(push.channel) * cells, cells);
@@ -69,12 +71,16 @@ std::uint32_t Particles::scatter(std::span<std::uint32_t> field, std::span<const
                 if (gas(material) || solid(material)) continue;
                 const float across = at(x - 1, y) - at(std::int64_t{x} + 1, y), down = at(x, std::int64_t{y} - 1) - at(x, std::int64_t{y} + 1);
                 if (across == 0 && down == 0) continue;
-                throws.push_back({x, y, {across * push.speed, down * push.speed}});
+                // What is moved by a property of its own has it, or stays.
+                float speed = push.speed;
+                if (push.scale) speed *= static_cast<float>(program_->number(material, *push.scale));
+                if (speed == 0) continue;
+                throws.push_back({x, y, {across * speed, down * speed}, push.law});
             }
     }
     std::uint32_t thrown = 0;
     cause_ = Cause::pressure;
-    for (const Throw& one : throws) thrown += fling(field, one.x, one.y, one.velocity, fill) ? 1 : 0;
+    for (const Throw& one : throws) law_ = one.law, thrown += fling(field, one.x, one.y, one.velocity, fill) ? 1 : 0;
     cause_ = Cause::flung;
     return thrown;
 }

@@ -227,12 +227,14 @@ struct Parsed {
                 else reader.wrong(recipe, "`recipe` is true or false");
             }
             if (const Node move = node["move"]) {
-                static constexpr std::array<std::string_view, 6> move_keys{"down", "from", "speed", "force", "toward", "accel"};
+                static constexpr std::array<std::string_view, 8> move_keys{"down", "up", "by", "from", "speed", "force", "toward", "accel"};
                 if (!move.is_object()) reader.wrong(move, "`move` is an object");
                 else {
                     reader.keys(move, move_keys, "a motion");
                     law.move.said = true;
                     law.move.down = reader.text(move["down"], "`down`");
+                    law.move.up = reader.text(move["up"], "`up`");
+                    law.move.by = reader.text(move["by"], "`by`");
                     law.move.from = reader.number(move["from"], "`from`").value_or(0);
                     law.move.speed = reader.number(move["speed"], "`speed`").value_or(0);
                     law.move.force = reader.number(move["force"], "`force`").value_or(0);

@@ -347,6 +347,7 @@ void Matter::wrote(const agent::FieldState& now, std::span<const agent::Wrote> w
                 record.kind = RecordKind::thrown;
                 record.from = one.material;
                 record.to = static_cast<std::uint32_t>(one.by);
+                record.law = one.law;
                 if (const auto origin = landings_.find(one.cell); origin != landings_.end()) {
                     record.failed = origin->second.kind == RecordKind::landed ? 2 : 1;
                     record.channel = origin->second.cell;
@@ -452,7 +453,11 @@ std::string Matter::said(const Record& record, std::span<const Record> among, in
             return out + "}";
         }
         case RecordKind::thrown: {
-            out += std::format(",\"what\":\"thrown\",\"material\":{},\"by\":\"{}\"", material_text(program, record.from), thrown_by[std::min<std::size_t>(record.to, 2)]);
+            // By the field: by what the law of motion moves things along, and the law.
+            const bool by_law = record.to == static_cast<std::uint32_t>(agent::Wrote::By::pressure) && record.law < program.laws().size() && program.laws()[record.law].along;
+            out += std::format(",\"what\":\"thrown\",\"material\":{},\"by\":{}", material_text(program, record.from),
+                               json_text(by_law ? std::string_view(program.channels()[*program.laws()[record.law].along].name) : thrown_by[std::min<std::size_t>(record.to, 2)]));
+            if (by_law) out += std::format(",\"law\":{{\"name\":{},\"at\":\"/laws/{}\"}}", json_text(program.laws()[record.law].name), record.law);
             // By a blast: the one whose square held it, no later than this.
             if (depth > 0 && record.to == static_cast<std::uint32_t>(agent::Wrote::By::blast))
                 for (auto earlier = among.rbegin(); earlier != among.rend(); ++earlier)

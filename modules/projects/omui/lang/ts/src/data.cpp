@@ -556,6 +556,11 @@ export interface MatterLaw {
     event?: string;
     /** A special case that may name materials; counted, and said as such. */
     recipe?: boolean;
+    /** A law of motion: what it says moves, each carrier moves in its own way (cells fly, bodies take a force).
+     *  Along a channel's slope — `down` it or `up` it, from where the channel is at least `from`, `speed` m/s for
+     *  each unit across a cell, `force` newtons a unit on a body's face, each times the thing's own property `by` —
+     *  or the same everywhere: `toward` a direction of length 1, by `accel` m/s². No `when`, and no state changed. */
+    move?: { down?: string; up?: string; by?: string; from?: number; speed?: number; force?: number; toward?: [number, number]; accel?: number };
 }
 export interface Matter {
     columns?: { [name: string]: MatterColumn };

@@ -98,6 +98,7 @@ struct Wrote {
     std::uint32_t cell = 0;
     std::uint32_t material = 0;
     By            by = By::flung; // thrown: by what
+    std::uint32_t law = 0xffffffffu;  // thrown by the field: which law of motion (the program's)
     std::uint32_t from = 0;       // landed: the cell it was thrown out of
     std::int64_t  thrown_at = 0;  // landed: and the frame
     std::uint64_t body = 0;       // left: the body it was of, as its owner numbers it; dropped: the body that came loose

@@ -45,6 +45,7 @@ struct Log {
     struct Thrown {
         std::uint32_t cell = 0, material = 0;
         Cause cause = Cause::flung;
+        std::uint32_t law = 0xffffffffu;  // by the field (Cause::pressure): which law of motion
     };
     struct Landed {
         std::uint32_t cell = 0, material = 0;  // where it is a cell again, and of what
@@ -102,13 +103,14 @@ private:
     Shape field_;
     Options options_;
     std::uint32_t channels_ = 0;
-    struct Push { std::uint32_t channel = 0; float from = 0, speed = 0; };
+    struct Push { std::uint32_t law = 0, channel = 0; float from = 0, speed = 0; std::optional<std::uint32_t> scale; };
     std::vector<Push> pushes_;  // the definition's laws of motion down a slope that give a speed
     std::vector<Vec> position_, velocity_;  // in cells and cells a second
     std::vector<std::uint32_t> cells_;      // [particle][channel]
     std::vector<Origin> origin_;            // a particle each
     Log* log_ = nullptr;
     std::uint64_t frame_ = 0;
+    std::uint32_t law_ = 0xffffffffu;       // and by which law, where the field made them
     Cause cause_ = Cause::flung;            // of the throws being made
     Statistics last_, pending_;  // pending: thrown and refused since the last step
 };

@@ -513,15 +513,24 @@ std::expected<Program, Failure> Program::prepare(const Definition& definition, L
             if (transfers || adjusts || reacts || !spec.when.empty() || !spec.event.empty())
                 return fail(Errc::law, where, "a law of motion says only what moves (`move`): it has no condition and changes no state");
             law.kind = LawKind::motion;
-            const bool down = !spec.move.down.empty();
-            if (down == spec.move.toward) return fail(Errc::law, where + "/move", "a motion is down a channel's slope (`down`) or toward a direction (`toward`): one of them");
-            if (down) {
-                const auto along = names.channel(spec.move.down);
-                if (!along || *along == 0) return fail(Errc::name, where + "/move/down", std::format("`{}` is no channel to move down ({})", spec.move.down, names.nearest(spec.move.down)));
+            const bool down = !spec.move.down.empty(), up = !spec.move.up.empty();
+            if (down + up + spec.move.toward != 1) return fail(Errc::law, where + "/move", "a motion is down a channel's slope (`down`), up it (`up`) or toward a direction (`toward`): one of them");
+            if (down || up) {
+                const std::string& channel = down ? spec.move.down : spec.move.up;
+                const std::string key = down ? "/move/down" : "/move/up";
+                const auto along = names.channel(channel);
+                if (!along || *along == 0) return fail(Errc::name, where + key, std::format("`{}` is no channel to move {} ({})", channel, down ? "down" : "up", names.nearest(channel)));
                 if (!(spec.move.from >= 0) || !(spec.move.speed >= 0) || !(spec.move.force >= 0) || (spec.move.speed == 0 && spec.move.force == 0))
                     return fail(Errc::value, where + "/move", "down a slope: `from` at least 0, and a `speed` (what is loose) or a `force` (on a body's face) above 0");
-                law.along = *along, law.from = spec.move.from, law.speed = spec.move.speed, law.force = spec.move.force;
+                if (!spec.move.by.empty()) {
+                    const auto by = names.column(spec.move.by);
+                    if (!by || program.columns_[*by].kind != ColumnKind::number)
+                        return fail(Errc::name, where + "/move/by", std::format("`{}` is no number among the properties to move by ({})", spec.move.by, names.nearest(spec.move.by)));
+                    law.scale = *by;
+                }
+                law.along = *along, law.up = up, law.from = spec.move.from, law.speed = spec.move.speed, law.force = spec.move.force;
             } else {
+                if (!spec.move.by.empty()) return fail(Errc::law, where + "/move/by", "what is the same everywhere moves everything alike: `by` goes with a slope");
                 const double length = spec.move.toward_x * spec.move.toward_x + spec.move.toward_y * spec.move.toward_y;
                 if (!(length > 0.999 && length < 1.001) || !(spec.move.accel > 0)) return fail(Errc::value, where + "/move", "toward a direction of length 1, by an `accel` above 0");
                 law.toward_x = spec.move.toward_x, law.toward_y = spec.move.toward_y, law.accel = spec.move.accel;

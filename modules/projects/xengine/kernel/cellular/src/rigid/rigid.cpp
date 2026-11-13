@@ -69,7 +69,8 @@ std::expected<Bodies, std::string> Bodies::make(const matter::Program& program, 
     bodies.friction_ = program.column("friction").value_or(matter::none);
     bodies.restitution_ = program.column("restitution").value_or(matter::none);
     for (const matter::Law& law : program.laws())
-        if (law.kind == matter::LawKind::motion && law.along && law.force > 0) bodies.pushes_.push_back({*law.along, static_cast<float>(law.force)});
+        if (law.kind == matter::LawKind::motion && law.along && law.force > 0)
+            bodies.pushes_.push_back({*law.along, static_cast<float>(law.up ? -law.force : law.force), law.scale});
     bodies.owner_.assign(static_cast<std::size_t>(field.width) * field.height, 0);
     const Shape tiles = cellular::tiles(field, {options.terrain_tile, options.terrain_tile});
     bodies.terrain_.assign(static_cast<std::size_t>(tiles.width) * tiles.height, dyn::BodyId{});
@@ -233,7 +234,8 @@ void Bodies::push(std::span<const std::uint32_t> field) {
                 }
                 // A law of motion down a channel's slope: what the channel is beside the face pushes the face in.
                 for (const Push& law : pushes_) {
-                    const float push = law.force * static_cast<float>(field[static_cast<std::size_t>(law.channel) * cells + n]);
+                    float push = law.force * static_cast<float>(field[static_cast<std::size_t>(law.channel) * cells + n]);
+                    if (law.scale) push *= static_cast<float>(program_->number(field[f], *law.scale));
                     if (push != 0) add(face_x, face_y, -static_cast<float>(dx) * push, -static_cast<float>(dy) * push);
                 }
             }

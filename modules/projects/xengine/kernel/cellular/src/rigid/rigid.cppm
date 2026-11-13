@@ -115,7 +115,7 @@ private:
     Options options_;
     Shape field_;
     std::uint32_t channels_ = 0, density_ = 0, friction_ = 0, restitution_ = 0;
-    struct Push { std::uint32_t channel = 0; float force = 0; };
+    struct Push { std::uint32_t channel = 0; float force = 0; std::optional<std::uint32_t> scale; };
     std::vector<Push> pushes_;  // the definition's laws of motion down a slope that give a force
     std::vector<Piece> pieces_;
     std::vector<std::uint32_t> owner_;           // a cell: 0, or the piece's index + 1

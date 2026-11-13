@@ -18,6 +18,12 @@ mlibs::rhi::Result<mlibs::rhi::Texture> Graph::transient(const TextureNeed& need
     return t;
 }
 
+mlibs::rhi::Result<History> Graph::history(std::string_view name, const TextureNeed& need, std::string_view label) {
+    auto kept = pool_->history(name, need, label);
+    if (kept && std::ranges::none_of(histories_, [&](const Remembered& one) { return one.history.now == kept->now; })) histories_.push_back({*kept, std::string(label)});
+    return kept;
+}
+
 void Graph::pass(PassDesc desc, std::function<void(mlibs::rhi::CommandList&)> record) {
     passes_.push_back({std::move(desc), std::move(record)});
 }
@@ -42,6 +48,11 @@ std::expected<GraphPlan, std::vector<GraphProblem>> Graph::plan(std::span<const 
         for (mlibs::rhi::Texture r : passes_[i].desc.reads)
             if (const Made* m = made(r); m && !contains(written, r))
                 problems.push_back({i, std::format("{} reads `{}` before any pass writes it", label(i), m->label)});
+        for (mlibs::rhi::Texture r : passes_[i].desc.reads)
+            for (const Remembered& one : histories_) {
+                if (r == one.history.now && !contains(written, r)) problems.push_back({i, std::format("{} reads this frame's `{}` before any pass writes it", label(i), one.label)});
+                if (r == one.history.before && one.history.past == 0) problems.push_back({i, std::format("{} reads the past of `{}`, which holds none", label(i), one.label)});
+            }
         for (mlibs::rhi::Texture w : passes_[i].desc.writes) {
             if (!w) problems.push_back({i, std::format("{} writes a texture that does not exist", label(i))});
             written.push_back(w);
@@ -72,12 +83,13 @@ std::expected<GraphReport, std::vector<GraphProblem>> Graph::record(mlibs::rhi::
         mlibs::trace::Span span(passes_[i].desc.name, "render");
         if (passes_[i].record) passes_[i].record(list);
     }
-    return GraphReport{p->run.size(), p->culled.size(), transients_.size()};
+    return GraphReport{p->run.size(), p->culled.size(), transients_.size(), histories_.size()};
 }
 
 void Graph::clear() {
     passes_.clear();
     transients_.clear();
+    histories_.clear();
 }
 
 }  // namespace xrender

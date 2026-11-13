@@ -14,6 +14,12 @@
 //   - what is left runs in the order it was described, each pass in a trace
 //     span of its name (category "render").
 //
+// A history (`history`, the pool's) is a texture kept by name across frames:
+// a pass that writes this frame's always runs — the next frame reads it — and
+//
+//   - a pass that reads this frame's before any pass wrote it, or reads the
+//     past of a history that holds none (`past` 0), is a problem.
+//
 // Order is the description's: passes are not reordered, so two features in
 // one graph (2D over 3D, 3D inside 2D) compose by the order they are added.
 //
@@ -50,7 +56,7 @@ struct GraphPlan {
 };
 
 struct GraphReport {
-    std::size_t recorded = 0, culled = 0, transients = 0;
+    std::size_t recorded = 0, culled = 0, transients = 0, histories = 0;
 };
 
 class Graph {
@@ -59,6 +65,10 @@ public:
 
     // A texture made for this frame: the pool's, free again at its next frame.
     [[nodiscard]] mlibs::rhi::Result<mlibs::rhi::Texture> transient(const TextureNeed& need, std::string_view label);
+
+    // A texture kept by name from frame to frame (the pool's `history`): `now` for a pass of this frame to
+    // write, `before` what the last frame wrote, `past` how many frames ago (0: nothing — do not read it).
+    [[nodiscard]] mlibs::rhi::Result<History> history(std::string_view name, const TextureNeed& need, std::string_view label);
 
     // A pass, run after the passes added before it.
     void pass(PassDesc desc, std::function<void(mlibs::rhi::CommandList&)> record);
@@ -91,6 +101,11 @@ private:
     TexturePool*      pool_;
     std::vector<Pass> passes_;
     std::vector<Made> transients_;
+    struct Remembered {
+        History     history;
+        std::string label;
+    };
+    std::vector<Remembered> histories_;
 };
 
 }  // namespace xrender

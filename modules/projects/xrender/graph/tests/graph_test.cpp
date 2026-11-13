@@ -92,6 +92,91 @@ UTest cases{"render.graph", [] {
         expect(pool.released() == 3) << std::format("{} released", pool.released());
     };
 
+    "a history is kept by name from frame to frame: what one frame wrote the next reads, and says how long ago; a frame started over has the same two; one nobody asks for goes"_test = [] {
+        Textures device;
+        xrender::TexturePool pool(device, 2);
+        const xrender::TextureNeed light{64, 32, mlibs::rhi::Format::rgba16_float, target_usage};
+        pool.begin_frame();
+        const auto first = pool.history("gathered", light, "gathered");
+        expect(fatal(first.has_value()));
+        expect(first->now != first->before && eq(first->past, 0u)) << "new: it holds no past";
+        expect(pool.owns(first->now) && pool.owns(first->before));
+        const auto same = pool.history("gathered", light, "gathered");
+        expect(same && same->now == first->now && same->before == first->before && eq(same->past, 0u)) << "asked twice in a frame: the same two";
+        const auto scratch = pool.acquire(light, "scratch");
+        expect(scratch && *scratch != first->now && *scratch != first->before) << "nobody else is handed a history's";
+        pool.begin_frame();
+        const auto second = pool.history("gathered", light, "gathered");
+        expect(fatal(second.has_value()));
+        expect(second->before == first->now && second->now == first->before) << "what was written is now the past";
+        expect(eq(second->past, 1u));
+        pool.restart_frame();
+        const auto restarted = pool.history("gathered", light, "gathered");
+        expect(restarted && restarted->now == second->now && restarted->before == second->before && eq(restarted->past, 1u)) << "a frame started over";
+        // A frame that did not ask, then one that does: the past is two frames old, and says so.
+        pool.begin_frame();
+        pool.begin_frame();
+        const auto later = pool.history("gathered", light, "gathered");
+        expect(later && later->before == second->now && eq(later->past, 2u));
+        // Told to forget: the same two, with no past.
+        pool.forget("gathered");
+        pool.begin_frame();
+        const auto forgotten = pool.history("gathered", light, "gathered");
+        expect(forgotten && eq(forgotten->past, 0u) && eq(pool.made(), std::size_t{3})) << "nothing new was made for it";
+        pool.begin_frame();
+        expect(eq(pool.history("gathered", light, "gathered")->past, 1u));
+        // Another size (the window changed): two new ones, the old two destroyed, no past.
+        const std::size_t destroyed = device.destroyed;
+        pool.begin_frame();
+        const auto resized = pool.history("gathered", {128, 64, mlibs::rhi::Format::rgba16_float, target_usage}, "gathered");
+        expect(resized && eq(resized->past, 0u) && eq(device.destroyed, destroyed + 2) && eq(pool.histories(), std::size_t{1}));
+        // Two names are two histories.
+        const auto other = pool.history("other", light, "other");
+        expect(other && other->now != resized->now && eq(pool.histories(), std::size_t{2}));
+        for (int frame = 0; frame < 4; ++frame) pool.begin_frame();
+        expect(eq(pool.histories(), std::size_t{0}) && eq(device.live(), std::size_t{0})) << "nobody asked for `keep` frames";
+    };
+
+    "in a graph: the pass that writes a history runs though nothing of this frame reads it; reading this frame's before it is written, or a past that holds none, is named"_test = [] {
+        Textures device;
+        xrender::TexturePool pool(device);
+        const xrender::TextureNeed light{64, 32, mlibs::rhi::Format::rgba16_float, target_usage};
+        const auto target = device.create(mlibs::rhi::TextureDesc{mlibs::rhi::Format::rgba8_unorm, 64, 32, target_usage, "target"});
+        expect(fatal(target.has_value()));
+        std::vector<std::string> ran;
+        const auto frame = [&](bool read_past, bool resolve_first) {
+            pool.begin_frame();
+            xrender::Graph graph(pool);
+            const auto drawn = graph.transient(light, "drawn");
+            const auto gathered = graph.history("gathered", light, "gathered");
+            expect(fatal(drawn.has_value() && gathered.has_value()));
+            ran.clear();
+            const auto show = [&] { graph.pass({.name = "show", .reads = {gathered->now}, .writes = {*target}}, [&](mlibs::rhi::CommandList&) { ran.push_back("show"); }); };
+            if (resolve_first) show();
+            graph.pass({.name = "draw", .writes = {*drawn}}, [&](mlibs::rhi::CommandList&) { ran.push_back("draw"); });
+            std::vector<mlibs::rhi::Texture> reads{*drawn};
+            if (read_past) reads.push_back(gathered->before);
+            graph.pass({.name = "resolve", .reads = reads, .writes = {gathered->now}}, [&](mlibs::rhi::CommandList&) { ran.push_back("resolve"); });
+            mlibs::rhi::CommandList list;
+            // Nothing of this frame is asked for: no output.
+            return std::pair(graph.record(list, {}), gathered->past);
+        };
+        const auto [first, first_past] = frame(false, false);
+        expect(fatal(first.has_value())) << (first ? "" : first.error().front().text);
+        expect(eq(first_past, 0u) && eq(first->histories, std::size_t{1}));
+        expect(ran == std::vector<std::string>{"draw", "resolve"}) << "kept for the next frame: it runs, and what it reads";
+        const auto [second, second_past] = frame(true, false);
+        expect(second.has_value() && eq(second_past, 1u)) << "the next frame reads the past";
+        pool.forget("gathered");
+        const auto [none, none_past] = frame(true, false);
+        expect(fatal(!none.has_value()));
+        expect(eq(none_past, 0u) && none.error().front().text == "resolve reads the past of `gathered`, which holds none") << none.error().front().text;
+        const auto [early, early_past] = frame(true, true);
+        expect(fatal(!early.has_value()));
+        expect(early.error().front().text == "show reads this frame's `gathered` before any pass writes it") << early.error().front().text;
+        device.destroy(*target);
+    };
+
     "a pass that reads a transient texture before any pass writes it is named"_test = [] {
         Textures device;
         xrender::TexturePool pool(device);

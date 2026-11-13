@@ -153,6 +153,7 @@ members = [
     "showcase/widget-breakout",
     "showcase/widget-breakout/sim",
     "showcase/widget-breakout/headless",
+    "showcase/kiln/sim",
     "site",
 ]
 

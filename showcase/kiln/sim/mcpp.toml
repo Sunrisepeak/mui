@@ -1,0 +1,29 @@
+# Kiln's simulation (M6.2's slice, the plan's T2.6–T2.7): Mui the pixel cat in caverns of living matter — a
+# world of the standard matter with rigid bodies and cells in flight (xengine.cellular.rigid), a character that
+# reads the field (walks, steps up a cell, jumps, swims, is burnt), a wand of fire, water and bombs. Every
+# puzzle is what the laws already do: no scripted interaction. A pure function of the state and the frame's
+# actions; its state is a value (a copy is a branch), so a timeline rewinds and replays it bit for bit.
+[package]
+namespace   = "omui.showcase.kiln"
+name        = "sim"
+version     = "0.1.0"
+description = "Kiln's deterministic simulation: Mui the pixel cat, a wand of fire, water and bombs, in a world of matter with rigid bodies; rewindable"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[targets.kiln-sim]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+xengine.input    = { path = "../../../modules/projects/xengine/game/input" }
+xengine.cellular = { path = "../../../modules/projects/xengine/kernel/cellular", features = ["rigid"] }
+xengine.matter   = { path = "../../../modules/projects/xengine/kernel/matter" }
+mlibs.utils      = { path = "../../../modules/base/utils" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.6.3"

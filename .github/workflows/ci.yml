@@ -156,11 +156,13 @@ jobs:
           # aarch64 Linux's native glibc toolchain is LLVM (mcpp docs/20): there
           # `gcc` is the static musl toolchain, which cannot link the shared
           # X11 libraries the desktop host needs.
+          # The per-push rows build the profile `ci` (the workspace's: dev without debug information, stripped —
+          # a test program is a fifth of its size); the GCC rows keep `dev` and `release`.
           rows='[
-            {"os": "ubuntu-24.04",     "toolchain": "llvm@23.1.3", "profile": "dev"},
-            {"os": "ubuntu-24.04-arm", "toolchain": "llvm@23.1.3", "profile": "dev"},
-            {"os": "macos-15",         "toolchain": "llvm@23.1.3", "profile": "dev"},
-            {"os": "windows-2022",     "toolchain": "llvm@23.1.3", "profile": "dev"}'
+            {"os": "ubuntu-24.04",     "toolchain": "llvm@23.1.3", "profile": "ci"},
+            {"os": "ubuntu-24.04-arm", "toolchain": "llvm@23.1.3", "profile": "ci"},
+            {"os": "macos-15",         "toolchain": "llvm@23.1.3", "profile": "ci"},
+            {"os": "windows-2022",     "toolchain": "llvm@23.1.3", "profile": "ci"}'
           case "${{ github.event_name }}" in
             schedule|workflow_dispatch|push)
               rows="$rows"',
@@ -266,7 +268,7 @@ jobs:
       # The showcases' README pictures are what their tests draw (deterministic:
       # tools/ci/readme-media.sh makes them again after a change in the picture).
       - name: The showcases' README media are up to date
-        if: runner.os == 'Linux' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'dev'
+        if: runner.os == 'Linux' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile != 'release'
         run: tools/ci/readme-media.sh --check $(cd showcase && ls -d */ | tr -d /)  # the site's in its own lane
 
       # A pinned picture that differs on one platform is looked at, not
@@ -290,7 +292,7 @@ jobs:
       # build of its graph of its own, so on one row — gated on a toolchain
       # that builds reflection beside C headers (V-08, tools/ci/reflect.sh).
       - name: omui.reflect (C++26 reflection, GCC 16)
-        if: runner.os == 'Linux' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'dev'
+        if: runner.os == 'Linux' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile != 'release'
         run: tools/ci/reflect.sh '${{ matrix.profile }}'
 
       - name: An agent drives example 07 in its own process (M1 acceptance ②)
@@ -309,7 +311,7 @@ jobs:
           MCPP_BIN_OMUI_DEVHOST="$(readlink -f "$(newest omui-devhost)")" "$(newest devhost_e2e_test)"
 
       - name: mpal as an ok image (openkal), its services found when loaded
-        if: runner.os == 'Linux' && runner.arch == 'X64' && matrix.profile == 'dev'
+        if: runner.os == 'Linux' && runner.arch == 'X64' && matrix.profile != 'release'
         run: mcpp test -p mpal --target x86_64-openkal
 
       - name: The products' commands as an Agent uses them (hanim, xrender; plan §10.3)
@@ -319,11 +321,11 @@ jobs:
         run: tools/ci/tools-e2e.sh
 
       - name: The interaction sweep — every program, every action an agent can perform (D-91)
-        if: runner.os == 'Linux' && matrix.profile == 'dev'
+        if: runner.os == 'Linux' && matrix.profile != 'release'
         run: tools/ci/sweep.sh
 
       - name: Upload the sweep's verdicts
-        if: always() && runner.os == 'Linux' && matrix.profile == 'dev'
+        if: always() && runner.os == 'Linux' && matrix.profile != 'release'
         uses: actions/upload-artifact@v4
         with:
           name: sweep-${{ matrix.os }}-${{ matrix.toolchain }}
@@ -339,11 +341,11 @@ jobs:
           tools/ci/atspi.sh
 
       - name: A feature selects one of two exclusive sources (M0 acceptance ⑤)
-        if: runner.os == 'Linux' && matrix.profile == 'dev'
+        if: runner.os == 'Linux' && matrix.profile != 'release'
         run: tools/ci/features.sh
 
       - name: The templates build and pass their tests (M0 acceptance ①)
-        if: runner.os == 'Linux' && matrix.profile == 'dev'
+        if: runner.os == 'Linux' && matrix.profile != 'release'
         run: tools/ci/templates.sh
 
       - name: Independent core and log consumer has no UI or renderer dependency

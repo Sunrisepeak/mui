@@ -159,6 +159,16 @@ members = [
     "site",
 ]
 
+# CI's rows and a whole-workspace run (mcpp's advice, 2026-11-13): the dev build without debug information and
+# with its symbols stripped. A test program links its whole closure, and unstripped that is most of a
+# configuration's bytes (15 of 22 GB measured: 349 programs, bench_test 129 MB of which 37 MB are code and data).
+# What a failure needs — the check's file and line, both sides — is mtest's own report, not the debugger's.
+# Day-to-day work keeps `dev`.
+[workspace.profile.ci]
+opt   = 0
+debug = false
+strip = true
+
 # Sanitizers (plan §19.1 "内存"): AddressSanitizer and UndefinedBehavior-
 # Sanitizer over every unit of the graph, the first finding fatal. CI runs
 # `mcpp test --workspace --profile sanitize` nightly on Linux.

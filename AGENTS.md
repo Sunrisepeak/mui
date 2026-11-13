@@ -92,6 +92,7 @@
 - **库已有的能力就依赖，不重写**（D-56）：先用已发布、有人在用的 `mcpplibs.*` 包（命令行 `mcpplibs.cmdline`、平台 `mcpplibs.os` 等），再用 mcpp-index 里的知名库（nlohmann/json、toml++ 等），两者都没有的才自己实现。第三方 C 库经 mwrap 使用（D-83，lint `thirdparty`）：上游先发布，再在本仓库引用；不用 GPL／AGPL（动态链接也不行），LGPL 只能作为可选插件动态链接，MPL 不修改即可用；默认选免版税的格式。
 - **本地构建、测试等任何重负载不得占用超过本机 90% 的 CPU 或内存**，避免机器卡顿、卡死：经 `tools/dev/capped.sh` 运行（`tools/dev/capped.sh mcpp test -p …`），它按核数和内存把并发编译数限制在 90% 以内（`MCPP_JOBS`），并以低 CPU／IO 优先级执行；自己启动的并行任务（多个构建、测试、后台循环）合计也不得超过这一上限。
 - **测试**统一用 mtest（D-147，mcpp 原生支持）。工作区跟随 mcpp 与 mtest 的最新发布，每个里程碑节点核对一次版本；测试用的共享物归 mtest，mtest 缺的先向上游补（`mlibs.testing` 只剩保留输出目录等三样，待 mtest 有等价物后删除）。
+- **构建配置**：日常开发用 `dev`（完整调试信息）；全量与 CI 的每次推送用 `--profile ci`（`dev` 去掉调试信息并剥离符号，测试程序约为五分之一大小）。实现写在模块实现单元里（`module X;`），接口单元只放声明，函数体的改动不让导入方重编；逻辑放在不依赖 UI 与渲染的成员里，依赖 UI 的测试少而集中。升级 mcpp 或工具链后执行一次 `mcpp clean --stale`。
 - **开发效率**：检查点只跑它触及的用例（`mtest plan --since` 选出，或 `mcpp test -p 包 [测试名]`）；初期不做大范围测试；全量（`mcpp test --workspace`）只在一组工作结束或改动了底层共享包时跑，并以 CI 为主。超过几分钟的任务一律后台运行，等待期间继续做不依赖它的工作，不用 `sleep` 轮询空等；后台构建未编到的包先不改，以免结果混入新旧两版。GPU 成员在本地按 CI 的环境跑（`tools/ci/gpu.sh` 加 `SDL_VIDEO_DRIVER=offscreen`）。
 - 工具都有两种界面（D-61）：完整的 CLI／openas 入口（结构化输出、退出码）和可选的 omui GUI／TUI。作品必须是真实可用的东西（D-63），并有能在 headless 下确定重现的招牌镜头。
 

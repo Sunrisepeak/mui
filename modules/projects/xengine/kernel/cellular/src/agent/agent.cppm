@@ -87,6 +87,22 @@ struct Edited {
     openas::Actor actor;
 };
 
+// What wrote cells in a frame besides the program, said by a lattice that has more than a program — a world, whose
+// cells also fly and are bodies' (the foundation plan's §6.10.1). A field of its own never says any.
+struct Wrote {
+    enum class Kind : std::uint8_t { blast, thrown, landed, left };
+    enum class By : std::uint8_t { flung, pressure, blast };
+    Kind          kind = Kind::thrown;
+    std::uint32_t cell = 0;       // thrown: the cell it left; landed: where it is a cell again; left: the cell no longer a body's
+    std::uint32_t material = 0;
+    By            by = By::flung; // thrown: by what
+    std::uint32_t from = 0;       // landed: the cell it was thrown out of
+    std::int64_t  thrown_at = 0;  // landed: and the frame
+    std::uint64_t body = 0;       // left: the body it was of, as its owner numbers it
+    Tile          region;         // blast: the square about it
+    std::uint32_t actor = 0;      // blast: who made it — which of the actors told with it
+};
+
 // Who is told what each frame did, at its commit — where a record of causes is made (D-169); a step's own
 // path records nothing. Its calls come between requests, never during a step.
 class Witness {
@@ -98,9 +114,40 @@ public:
     virtual void edited(const FieldState& now, const Edited& edit) = 0;
     // The field returned to `frame`: what happened after it is another branch's.
     virtual void rewound(std::int64_t frame) = 0;
+    // What else wrote cells in the frame (`now` after all of it), in the order it happened, and the actors what
+    // was done from outside is by. Only a lattice with more than a program says it.
+    virtual void wrote(const FieldState& /*now*/, std::span<const Wrote> /*what*/, std::int64_t /*frame*/, std::span<const openas::Actor> /*actors*/) {}
 };
 
-class Field final : public mlibs::agent::Subject {
+// What a subject that speaks of a lattice's cells stands on: a field of its own (Field, which keeps its time), or
+// the lattice of a world that has bodies and cells in flight too and whose time is its game's. Called between
+// requests and steps only.
+class Lattice {
+public:
+    virtual ~Lattice() = default;
+    [[nodiscard]] virtual const FieldState& lattice_state() const noexcept = 0;
+    [[nodiscard]] virtual std::int64_t lattice_frame() const noexcept = 0;
+    // An edit made with who made it; false where the lattice does not take it.
+    virtual bool lattice_edit(const Edit& edit, const openas::Actor& actor) = 0;
+    virtual void lattice_watch(Witness* witness) = 0;
+    virtual void lattice_unwatch(Witness* witness) noexcept = 0;
+    [[nodiscard]] virtual std::uint64_t lattice_hash() const = 0;
+    // What would be: `edits` made in turn, then `steps` steps, on a copy — the lattice itself untouched. `each`
+    // is told every step as a witness's `stepped` is (the state after it, its input, the tiles' bytes it began
+    // with, how many frames on it is). The state then, and its hash.
+    using Each = std::function<void(const FieldState& now, std::span<const std::uint32_t> before, std::span<const std::uint8_t> activity_before, std::int64_t frames_on)>;
+    struct Ahead {
+        FieldState    state;
+        std::uint64_t hash = 0;
+        std::int64_t  frames = 0;
+    };
+    [[nodiscard]] virtual Ahead lattice_ahead(std::span<const Edit> edits, std::int64_t steps, const Each& each) const = 0;
+    // A region a request names ([x, y, width, height]), within the lattice; the whole of it when it names none
+    // and need not.
+    [[nodiscard]] std::expected<Tile, std::string> region_of(mlibs::json::Node node, std::string_view name, bool required) const;
+};
+
+class Field final : public mlibs::agent::Subject, public Lattice {
 public:
     // A field of `shape` run by `program`; its cells channel-major, all zero when none are given.
     [[nodiscard]] static std::expected<Field, std::string> make(Program program, Shape shape, std::vector<std::uint32_t> cells = {}, Options options = {});
@@ -126,8 +173,6 @@ public:
     void unwatch(Witness* witness) noexcept { std::erase(witnesses_, witness); }
     // Who an edit is by when the owner makes it itself.
     [[nodiscard]] static const openas::Actor& owner() noexcept;
-    // One frame on a state that is not the field's (a copy run ahead): the same step.
-    static void advance(FieldState& state, const Edit& edit) noexcept { FieldModel::step(state, edit); }
 
     // ── the field as a subject ────────────────────────────────────────────
     [[nodiscard]] std::string_view name() const noexcept override { return "field"; }
@@ -142,9 +187,14 @@ public:
 
     [[nodiscard]] static std::uint64_t hash_of(const FieldState& state) noexcept;
 
-    // A region a request names ([x, y, width, height]), within the field; the whole field when it names none
-    // and need not.
-    [[nodiscard]] std::expected<Tile, std::string> region_of(mlibs::json::Node node, std::string_view name, bool required) const;
+    // ── the field as what a subject of its cells stands on ────────────────
+    [[nodiscard]] const FieldState& lattice_state() const noexcept override { return timeline_.state(); }
+    [[nodiscard]] std::int64_t lattice_frame() const noexcept override { return timeline_.frame(); }
+    bool lattice_edit(const Edit& made, const openas::Actor& actor) override { return edit(made, actor); }
+    void lattice_watch(Witness* witness) override { watch(witness); }
+    void lattice_unwatch(Witness* witness) noexcept override { unwatch(witness); }
+    [[nodiscard]] std::uint64_t lattice_hash() const override { return hash_of(timeline_.state()); }
+    [[nodiscard]] Ahead lattice_ahead(std::span<const Edit> edits, std::int64_t steps, const Each& each) const override;
 
 private:
     Field(const FieldState& initial, Options options) : options_(options), timeline_(initial, options.keep, 60) {}

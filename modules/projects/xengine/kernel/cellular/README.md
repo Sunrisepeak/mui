@@ -291,3 +291,28 @@ mcpp test -p xengine.matter.cts agent_test   # the agent contract's suite on a f
 
 It is kept only while the world is watched and is no part of the state: not hashed, not saved, not branched. A watched world is the same bits as one that is not (`xengine.matter.cts` journal_test).
 
+### The matter subject on a world
+
+The `matter` subject stands on an interface, `agent::Lattice`: a field of its own (`agent::Field`, which also keeps time) or a world's lattice — `rigid_agent::WorldLattice`, module `xengine.cellular.rigid.agent`, the feature `world-agent` (it implies `matter-agent` and `rigid`). The same operations, the same catalog; time is the game's.
+
+```cpp
+auto world = *rigid::MatterWorld::make(program, options);
+rigid_agent::WorldLattice lattice(*world);                       // asks the world to keep its journal
+matter_agent::Matter matter(shared_program, lattice, {.seed = world->seed()});
+lattice.by(player);                                              // who what is done to the world from now is by
+world->blast({12, 33}, 5, 22);                                   // the game's own code, unchanged
+world->step(), lattice.stepped(*world);                          // each frame; lattice.rewound(*world) after a seek back
+// → {"op":"matter.explain","cell":[24,35],"depth":3}
+// ← records: landed at [24,0] at frame 39, from [12,31] thrown at 21
+//            ← because: thrown by a blast at frame 21 ← because: the blast over [7,28,11,11], by the person "player"
+```
+
+| On record besides the laws | From the journal's |
+|---|---|
+| `blast`, with who made it | `edits` (and `place`, `set` as a field's `placed`, `applied`) |
+| `thrown`: the cell, the material, by a blast, the pressure or code | `thrown` |
+| `landed`: the cell, from which cell, thrown at which frame | `landed` |
+| `left`: a cell no longer a body's, and which body | `left` |
+
+What landed is followed as the laws then move it (sand that comes down on a slope slides), so its landing is answered at the cell it rests in. `matter.branch` on a world is a branch of the whole world — bodies and cells in flight with it. Not yet: a cell a body carried is not followed, a body's own "why did it move" (its lost support) is the rigid family's to say, and a branch's answer lists what the laws would do but not what would fly.
+

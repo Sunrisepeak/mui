@@ -634,7 +634,7 @@ std::uint32_t MatterWorld::blast(particles::Vec centre, float radius, float spee
     const std::uint32_t r = static_cast<std::uint32_t>(std::ceil(radius));
     const std::uint32_t x = static_cast<std::uint32_t>(std::max(0.0f, centre.x - static_cast<float>(r))), y = static_cast<std::uint32_t>(std::max(0.0f, centre.y - static_cast<float>(r)));
     lattice_.wake(options_.shape, options_.tile, {x, y, 2 * r + 1, 2 * r + 1}, activity_);
-    if (watched_) pending_.edits.push_back({.kind = Journal::EditKind::blast, .region = {x, y, 2 * r + 1, 2 * r + 1}, .centre = centre, .radius = radius, .speed = speed, .breaks = breaks});
+    if (watched_) pending_.edits.push_back({.kind = Journal::EditKind::blast, .region = {x, y, 2 * r + 1, 2 * r + 1}, .centre = centre, .radius = radius, .speed = speed, .breaks = breaks, .by = by_});
     return thrown;
 }
 
@@ -645,7 +645,7 @@ void MatterWorld::place(Tile region, std::uint32_t material) {
         for (std::uint32_t x = region.x; x < std::min(region.x + region.width, options_.shape.width); ++x)
             program_->place(cells_, area, static_cast<std::size_t>(y) * options_.shape.width + x, material);
     lattice_.wake(options_.shape, options_.tile, region, activity_);
-    if (watched_) pending_.edits.push_back({.kind = Journal::EditKind::place, .region = region, .value = material});
+    if (watched_) pending_.edits.push_back({.kind = Journal::EditKind::place, .region = region, .value = material, .by = by_});
 }
 
 void MatterWorld::set(std::uint32_t channel, Tile region, std::uint32_t value) {
@@ -655,12 +655,12 @@ void MatterWorld::set(std::uint32_t channel, Tile region, std::uint32_t value) {
         for (std::uint32_t x = region.x; x < std::min(region.x + region.width, options_.shape.width); ++x)
             cells_[channel * area + static_cast<std::size_t>(y) * options_.shape.width + x] = value;
     lattice_.wake(options_.shape, options_.tile, region, activity_);
-    if (watched_) pending_.edits.push_back({.kind = Journal::EditKind::set, .region = region, .channel = channel, .value = value});
+    if (watched_) pending_.edits.push_back({.kind = Journal::EditKind::set, .region = region, .channel = channel, .value = value, .by = by_});
 }
 
 std::expected<std::vector<dyn::BodyId>, std::string> MatterWorld::carve(Tile region) {
     auto made = bodies_->carve(cells_, region, outside_);
-    if (watched_ && made) pending_.edits.push_back({.kind = Journal::EditKind::carve, .region = region, .value = static_cast<std::uint32_t>(made->size())});
+    if (watched_ && made) pending_.edits.push_back({.kind = Journal::EditKind::carve, .region = region, .value = static_cast<std::uint32_t>(made->size()), .by = by_});
     return made;
 }
 

@@ -30,8 +30,10 @@ export import :catalog;
 export namespace xengine::cellular::matter_agent {
 
 // What a record is of: a cell became another material, a channel that names its events left 0 (rose: `ignite`)
-// or returned to it (fell: `go_out`), an actor placed a material or applied a quantity.
-enum class RecordKind : std::uint8_t { became, rose, fell, placed, applied };
+// or returned to it (fell: `go_out`), an actor placed a material or applied a quantity. And what a lattice that
+// is a world's says besides (agent::Wrote): an actor's blast, a cell thrown out of the lattice, a cell landed in
+// it again, a cell that left a body.
+enum class RecordKind : std::uint8_t { became, rose, fell, placed, applied, blast, thrown, landed, left };
 
 // The cell beyond the field's edge, where a record names what is outside (a bath).
 inline constexpr std::uint32_t outside = std::numeric_limits<std::uint32_t>::max();
@@ -64,7 +66,12 @@ struct Record {
     std::uint32_t law = xengine::matter::none;  // the law that held (rose, became) or stopped holding (fell)
     std::uint32_t failed = 0;           // fell: the comparison of the law that no longer holds
     std::uint32_t channel = 0;          // rose, fell, applied
-    std::uint32_t from = 0, to = 0;     // became: materials; rose, fell: the channel's values; placed: `to` the material; applied: `to` the amount
+    // became: materials; rose, fell: the channel's values; placed: `to` the material; applied: `to` the amount;
+    // thrown: `from` the material, `to` by what (agent::Wrote::By); landed: `to` the material, `from` the cell
+    // it was thrown out of; left: `from` the material.
+    std::uint32_t from = 0, to = 0;
+    std::int64_t  since = 0;            // landed: the frame it was thrown at
+    std::uint64_t body = 0;             // left: the body it was of
     std::array<Read, 8> reads{};
     std::array<Gave, 4> gave{};
     std::uint8_t  read_count = 0, gave_count = 0;
@@ -83,9 +90,10 @@ struct Options {
 
 class Matter final : public mlibs::agent::Subject, public agent::Witness {
 public:
-    // The matter subject of `field`, which `program` lowered with `lowering` steps. It asks the field to tell
-    // it each frame (Field::watch, among whoever else watches); the field outlives it.
-    Matter(std::shared_ptr<const xengine::matter::Program> program, agent::Field& field, Lowering lowering = {}, std::size_t records_kept = 16384,
+    // The matter subject of `field` — a field of its own, or a world's lattice — which `program` lowered with
+    // `lowering` steps. It asks the lattice to tell it each frame (among whoever else watches); the lattice
+    // outlives it.
+    Matter(std::shared_ptr<const xengine::matter::Program> program, agent::Lattice& field, Lowering lowering = {}, std::size_t records_kept = 16384,
            std::int64_t most_steps = 4096);
     ~Matter() override;
     Matter(const Matter&) = delete;
@@ -119,13 +127,14 @@ public:
     }
     [[nodiscard]] std::span<const mlibs::control::CatalogEntry> operations() const noexcept override { return catalog; }
     [[nodiscard]] std::string_view listing() const noexcept override { return xengine::cellular::matter_agent::listing; }
-    [[nodiscard]] std::uint64_t state_hash() const override { return field_->state_hash(); }
+    [[nodiscard]] std::uint64_t state_hash() const override { return field_->lattice_hash(); }
     void operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) override;
 
     // ── as the field's witness ──────────────────────────────────────────────
     void stepped(const agent::FieldState& now, std::span<const std::uint32_t> before, std::span<const std::uint8_t> activity_before, std::int64_t frame) override;
     void edited(const agent::FieldState& now, const agent::Edited& edit) override;
     void rewound(std::int64_t frame) override;
+    void wrote(const agent::FieldState& now, std::span<const agent::Wrote> what, std::int64_t frame, std::span<const openas::Actor> actors) override;
 
 private:
     [[nodiscard]] std::optional<agent::Edit> placing(xengine::matter::MaterialId material, Tile region) const;
@@ -139,7 +148,7 @@ private:
     [[nodiscard]] std::string said(const Record& record, std::span<const Record> among, int depth) const;
 
     std::shared_ptr<const xengine::matter::Program> program_;
-    agent::Field*              field_;
+    agent::Lattice*            field_;
     Lowering                   lowering_;
     std::size_t                records_kept_;
     std::int64_t               most_steps_;
@@ -147,7 +156,14 @@ private:
     std::vector<openas::Actor> actors_;
     std::vector<std::uint32_t> event_channels_;  // the channels that name their events
     mutable std::vector<std::uint32_t> from_;    // scratch: where each cell of a step's output was in its input
-    mutable std::vector<std::uint8_t>  slept_;   // scratch: a branch's activity before each of its steps
+    // Where what landed is now: the cell it is in → its landing (the cell and the frame on record), followed as
+    // the laws move it. A body that carries it, or its being thrown again, ends the trail.
+    struct Landing {
+        std::uint32_t cell = 0;
+        std::int64_t  frame = 0;
+    };
+    std::unordered_map<std::uint32_t, Landing>      landings_;
+    std::vector<std::pair<std::uint32_t, Landing>>  moved_;  // a step's scratch
 };
 
 // A field of matter and its two subjects together: `field` keeps time, `matter` speaks of what it is made of.

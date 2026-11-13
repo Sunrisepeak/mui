@@ -99,8 +99,22 @@ std::uint64_t Field::hash_of(const FieldState& state) noexcept {
     return hash.value();
 }
 
-std::expected<Tile, std::string> Field::region_of(mlibs::json::Node node, std::string_view name, bool required) const {
-    const Shape shape = timeline_.state().shape;
+Lattice::Ahead Field::lattice_ahead(std::span<const Edit> edits, std::int64_t steps, const Each& each) const {
+    Ahead ahead{.state = timeline_.state()};  // a copy: the field is not touched
+    for (const Edit& made : edits) FieldModel::step(ahead.state, made), ++ahead.frames;
+    std::vector<std::uint8_t> slept;
+    for (std::int64_t played = 0; played < steps; ++played) {
+        slept = ahead.state.activity;
+        FieldModel::step(ahead.state, {});
+        ++ahead.frames;
+        if (each) each(ahead.state, ahead.state.next, slept, ahead.frames);
+    }
+    ahead.hash = hash_of(ahead.state);
+    return ahead;
+}
+
+std::expected<Tile, std::string> Lattice::region_of(mlibs::json::Node node, std::string_view name, bool required) const {
+    const Shape shape = lattice_state().shape;
     if (!node) {
         if (required) return std::unexpected(std::format("`{}`: [x, y, width, height] in cells", name));
         return Tile{0, 0, shape.width, shape.height};

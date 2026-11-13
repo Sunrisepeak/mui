@@ -53,6 +53,10 @@ particles = { implies = ["matter"], sources = ["src/particles/*.cppm", "src/part
 # catches from a real fire. A feature: a world that shows none pays nothing, and nothing authoritative names it.
 decor = { implies = ["matter"], sources = ["src/decor/*.cppm", "src/decor/*.cpp"] }
 matter-agent = { implies = ["agent", "matter"], sources = ["src/matter/agent/*.cppm", "src/matter/agent/*.cpp"] }
+# A world's lattice as what the matter subject stands on (src/rigid/agent/, module xengine.cellular.rigid.agent;
+# the plan's §6.10.1): the record of causes on a world whose cells also fly and are bodies' — where a cell landed
+# from, what threw it, whose blast. The two it joins, and nothing more.
+world-agent = { implies = ["matter-agent", "rigid"], sources = ["src/rigid/agent/*.cppm", "src/rigid/agent/*.cpp"] }
 
 [feature-deps.agent]
 mlibs.simulation = { path = "../../../../base/simulation" }

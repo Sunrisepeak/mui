@@ -93,17 +93,21 @@ using mlibs::agent::json_text;
     return out + "}";
 }
 
+// What an actor did over a region, not what happened at a cell.
+constexpr bool of_a_region(RecordKind kind) noexcept { return kind == RecordKind::placed || kind == RecordKind::applied || kind == RecordKind::blast; }
+constexpr std::array<std::string_view, 3> thrown_by{"flung", "pressure", "blast"};
+
 }  // namespace
 
-Matter::Matter(std::shared_ptr<const matter::Program> program, agent::Field& field, Lowering lowering, std::size_t records_kept, std::int64_t most_steps)
+Matter::Matter(std::shared_ptr<const matter::Program> program, agent::Lattice& field, Lowering lowering, std::size_t records_kept, std::int64_t most_steps)
     : program_(std::move(program)), field_(&field), lowering_(std::move(lowering)), records_kept_(std::max<std::size_t>(16, records_kept)), most_steps_(most_steps) {
     const auto channels = program_->channels();
     for (std::uint32_t channel = 1; channel < channels.size(); ++channel)
         if (channels[channel].rise || channels[channel].fall) event_channels_.push_back(channel);
-    field_->watch(this);
+    field_->lattice_watch(this);
 }
 
-Matter::~Matter() { field_->unwatch(this); }
+Matter::~Matter() { field_->lattice_unwatch(this); }
 
 std::optional<agent::Edit> Matter::placing(matter::MaterialId material, Tile region) const {
     const auto channels = program_->channels();
@@ -115,7 +119,7 @@ std::optional<agent::Edit> Matter::placing(matter::MaterialId material, Tile reg
 
 bool Matter::place(matter::MaterialId material, Tile region, const openas::Actor& actor) {
     const auto edit = placing(material, region);
-    return edit && field_->edit(*edit, actor);
+    return edit && field_->lattice_edit(*edit, actor);
 }
 
 bool Matter::apply(std::uint32_t channel, agent::EditKind kind, std::uint32_t amount, Tile region, const openas::Actor& actor) {
@@ -123,11 +127,11 @@ bool Matter::apply(std::uint32_t channel, agent::EditKind kind, std::uint32_t am
     agent::Edit edit{.kind = kind, .count = 1, .region = region};
     edit.channels[0] = channel;
     edit.values[0] = amount;
-    return field_->edit(edit, actor);
+    return field_->lattice_edit(edit, actor);
 }
 
 matter::Why Matter::why(std::span<const std::uint32_t> cells, std::uint32_t cell, std::vector<std::uint32_t>* beside) const {
-    const agent::FieldState& state = field_->state();
+    const agent::FieldState& state = field_->lattice_state();
     const Shape shape = state.shape;
     const std::size_t area = static_cast<std::size_t>(shape.width) * shape.height, channels = program_->channels().size();
     if (cell >= area || cells.size() != area * channels) return {};
@@ -290,6 +294,25 @@ void Matter::stepped(const agent::FieldState& now, std::span<const std::uint32_t
     std::vector<Record> happened;
     judge(now, before, activity_before, frame, happened);
     for (const Record& record : happened) keep(record);
+    // What landed goes where the laws then move it (sand that comes down on a slope slides): its landing is
+    // asked of the cell it is in now. `from_` is this step's, as `judge` left it, for the tiles that were awake.
+    if (landings_.empty()) return;
+    const Shape shape = now.shape, tiles_of = tiles(shape, now.tile);
+    const bool every = activity_before.size() != static_cast<std::size_t>(tiles_of.width) * tiles_of.height;
+    moved_.clear();
+    for (std::uint32_t tile_y = 0; tile_y < tiles_of.height; ++tile_y)
+        for (std::uint32_t tile_x = 0; tile_x < tiles_of.width; ++tile_x) {
+            if (!every && asleep(activity_before[static_cast<std::size_t>(tile_y) * tiles_of.width + tile_x])) continue;
+            const std::uint32_t right = std::min(shape.width, (tile_x + 1) * now.tile.width), bottom = std::min(shape.height, (tile_y + 1) * now.tile.height);
+            for (std::uint32_t y = tile_y * now.tile.height; y < bottom; ++y)
+                for (std::uint32_t x = tile_x * now.tile.width; x < right; ++x) {
+                    const std::uint32_t cell = y * shape.width + x, was = from_[cell];
+                    if (was == cell) continue;
+                    if (const auto found = landings_.find(was); found != landings_.end()) moved_.emplace_back(cell, found->second);
+                }
+        }
+    for (const auto& [cell, landing] : moved_) landings_.erase(from_[cell]);
+    for (const auto& [cell, landing] : moved_) landings_[cell] = landing;
 }
 
 void Matter::edited(const agent::FieldState& now, const agent::Edited& edit) {
@@ -305,8 +328,43 @@ void Matter::edited(const agent::FieldState& now, const agent::Edited& edit) {
     keep(record);
 }
 
+void Matter::wrote(const agent::FieldState& now, std::span<const agent::Wrote> what, std::int64_t frame, std::span<const openas::Actor> actors) {
+    for (const agent::Wrote& one : what) {
+        Record record{.frame = frame, .step = now.steps, .cell = one.cell};
+        switch (one.kind) {
+            case agent::Wrote::Kind::blast:
+                record.kind = RecordKind::blast;
+                record.region = one.region;
+                record.cell = one.region.y * now.shape.width + one.region.x;
+                record.actor = actor_of(one.actor < actors.size() ? actors[one.actor] : agent::Field::owner());
+                break;
+            case agent::Wrote::Kind::thrown:
+                landings_.erase(one.cell);
+                record.kind = RecordKind::thrown;
+                record.from = one.material;
+                record.to = static_cast<std::uint32_t>(one.by);
+                break;
+            case agent::Wrote::Kind::landed:
+                record.kind = RecordKind::landed;
+                record.to = one.material;
+                record.from = one.from;
+                record.since = one.thrown_at;
+                landings_[one.cell] = {one.cell, frame};
+                break;
+            case agent::Wrote::Kind::left:
+                record.kind = RecordKind::left;
+                record.from = one.material;
+                record.body = one.body;
+                break;
+        }
+        keep(record);
+    }
+}
+
 void Matter::rewound(std::int64_t frame) {
     std::erase_if(records_, [frame](const Record& record) { return record.frame > frame; });
+    // Where what landed has gone since is of the frames after: not followed back.
+    landings_.clear();
 }
 
 std::string Matter::happened_as(const Record& record) const {
@@ -317,6 +375,10 @@ std::string Matter::happened_as(const Record& record) const {
     switch (record.kind) {
         case RecordKind::placed: return "placed";
         case RecordKind::applied: return "applied";
+        case RecordKind::blast: return "blast";
+        case RecordKind::thrown: return "thrown";
+        case RecordKind::landed: return "landed";
+        case RecordKind::left: return "left";
         case RecordKind::became: {
             const auto event = record.law < laws.size() ? laws[record.law].event : std::nullopt;
             return event && *event < names.size() ? names[*event] : "became";
@@ -332,9 +394,9 @@ std::string Matter::happened_as(const Record& record) const {
 
 std::string Matter::said(const Record& record, std::span<const Record> among, int depth) const {
     const matter::Program& program = *program_;
-    const Shape shape = field_->state().shape;
+    const Shape shape = field_->lattice_state().shape;
     const auto names = program.event_names();
-    const bool edit = record.kind == RecordKind::placed || record.kind == RecordKind::applied;
+    const bool edit = of_a_region(record.kind);
     std::string out = std::format("{{\"frame\":{},\"step\":{}", record.frame, record.step);
     if (!edit) out += std::format(",\"cell\":{}", at(shape, record.cell));
     const auto by = [&] {
@@ -346,6 +408,30 @@ std::string Matter::said(const Record& record, std::span<const Record> among, in
         case RecordKind::applied:
             return out + std::format(",\"what\":\"applied\",\"channel\":{},\"{}\":{}", json_text(program.channels()[record.channel].name),
                                      agent::edit_kind_names[static_cast<std::size_t>(record.edit)], channel_value(program, record.channel, record.to)) + by() + "}";
+        case RecordKind::blast: return out + ",\"what\":\"blast\"" + by() + "}";
+        case RecordKind::left: return out + std::format(",\"what\":\"left\",\"material\":{},\"body\":{}}}", material_text(program, record.from), record.body);
+        case RecordKind::thrown: {
+            out += std::format(",\"what\":\"thrown\",\"material\":{},\"by\":\"{}\"", material_text(program, record.from), thrown_by[std::min<std::size_t>(record.to, 2)]);
+            // By a blast: the one whose square held it, no later than this.
+            if (depth > 0 && record.to == static_cast<std::uint32_t>(agent::Wrote::By::blast))
+                for (auto earlier = among.rbegin(); earlier != among.rend(); ++earlier)
+                    if (earlier->kind == RecordKind::blast && earlier->frame <= record.frame && within(earlier->region, shape, record.cell)) {
+                        out += std::format(",\"because\":{}", said(*earlier, among, depth - 1));
+                        break;
+                    }
+            return out + "}";
+        }
+        case RecordKind::landed: {
+            out += std::format(",\"what\":\"landed\",\"material\":{},\"from\":{},\"thrown_at\":{}", material_text(program, record.to), at(shape, record.from), record.since);
+            // Why it flew: its being thrown, where and when it says.
+            if (depth > 0)
+                for (auto earlier = among.rbegin(); earlier != among.rend(); ++earlier)
+                    if (earlier->kind == RecordKind::thrown && earlier->cell == record.from && earlier->frame == record.since) {
+                        out += std::format(",\"because\":{}", said(*earlier, among, depth - 1));
+                        break;
+                    }
+            return out + "}";
+        }
         case RecordKind::became: {
             const auto event = record.law < program.laws().size() ? program.laws()[record.law].event : std::nullopt;
             out += std::format(",\"what\":{},\"from\":{},\"to\":{}", json_text(event && *event < names.size() ? names[*event] : "became"), material_text(program, record.from),
@@ -402,7 +488,7 @@ std::string Matter::said(const Record& record, std::span<const Record> among, in
                 const Record* cause = nullptr;
                 for (auto earlier = among.rbegin(); earlier != among.rend() && !cause; ++earlier) {
                     if (earlier->frame > record.frame || &*earlier == &record) continue;
-                    const bool edit = earlier->kind == RecordKind::placed || earlier->kind == RecordKind::applied;
+                    const bool edit = of_a_region(earlier->kind);
                     if (edit ? within(earlier->region, shape, giver.cell) : earlier->cell == giver.cell) cause = &*earlier;
                 }
                 if (cause) out += std::format(",\"because\":{}", said(*cause, among, depth - 1));
@@ -417,7 +503,7 @@ std::string Matter::said(const Record& record, std::span<const Record> among, in
 void Matter::operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) {
     const auto invalid = [&](std::string_view why) { answer.fail(openas::error_code::invalid_argument, why); };
     const matter::Program& program = *program_;
-    const agent::FieldState& state = field_->state();
+    const agent::FieldState& state = field_->lattice_state();
     const Shape shape = state.shape;
     const std::size_t area = static_cast<std::size_t>(shape.width) * shape.height;
     const auto channels = program.channels();
@@ -466,8 +552,8 @@ void Matter::operate(std::string_view operation, const mlibs::agent::Request& re
         return edit;
     };
     const auto status = [&] {
-        const agent::FieldState& current = field_->state();
-        return std::format("{{\"frame\":{},\"steps\":{},\"hash\":\"{:016x}\"}}", field_->frame(), current.steps, agent::Field::hash_of(current));
+        const agent::FieldState& current = field_->lattice_state();
+        return std::format("{{\"frame\":{},\"steps\":{},\"hash\":\"{:016x}\"}}", field_->lattice_frame(), current.steps, field_->lattice_hash());
     };
     // How many cells of each material a region of `cells` holds (the last: what is no material).
     const auto count_materials = [&](std::span<const std::uint32_t> cells, Tile region) {
@@ -539,7 +625,7 @@ void Matter::operate(std::string_view operation, const mlibs::agent::Request& re
         if (!region) return invalid(region.error());
         const auto budget = request["budget"].integer();
         const std::uint64_t cells = static_cast<std::uint64_t>(region->width) * region->height;
-        const std::string head = std::format("{{\"frame\":{},\"steps\":{},\"region\":{},\"cells\":{}", field_->frame(), state.steps, region_text(*region), cells);
+        const std::string head = std::format("{{\"frame\":{},\"steps\":{},\"region\":{},\"cells\":{}", field_->lattice_frame(), state.steps, region_text(*region), cells);
         // The materials there are, the most first.
         const auto counts = count_materials(state.cells, *region);
         std::vector<std::uint32_t> present;
@@ -585,7 +671,7 @@ void Matter::operate(std::string_view operation, const mlibs::agent::Request& re
         const auto cell = cell_of();
         if (!cell) return invalid(no_cell);
         const std::uint32_t material = state.cells[*cell];
-        std::string out = std::format("{{\"cell\":{},\"frame\":{},\"material\":{}", at(shape, *cell), field_->frame(), material_text(program, material));
+        std::string out = std::format("{{\"cell\":{},\"frame\":{},\"material\":{}", at(shape, *cell), field_->lattice_frame(), material_text(program, material));
         if (material < materials.size()) out += std::format(",\"phase\":\"{}\"", matter::phase_names[static_cast<std::size_t>(program.phase(material))]);
         out += ",\"channels\":{";
         for (std::uint32_t channel = 1; channel < channels.size(); ++channel)
@@ -607,13 +693,13 @@ void Matter::operate(std::string_view operation, const mlibs::agent::Request& re
     if (operation == "matter.place") {
         const auto edit = placement(request["material"], request["region"]);
         if (!edit) return invalid(edit.error());
-        if (!field_->edit(*edit, request.actor)) return invalid("the field does not take this edit");
+        if (!field_->lattice_edit(*edit, request.actor)) return invalid("the field does not take this edit");
         return answer.data(status());
     }
     if (operation == "matter.apply") {
         const auto edit = application(request["channel"], request["set"], request["add"], request["take"], request["region"]);
         if (!edit) return invalid(edit.error());
-        if (!field_->edit(*edit, request.actor)) return invalid("the field does not take this edit");
+        if (!field_->lattice_edit(*edit, request.actor)) return invalid("the field does not take this edit");
         return answer.data(status());
     }
     if (operation == "matter.explain") {
@@ -623,7 +709,7 @@ void Matter::operate(std::string_view operation, const mlibs::agent::Request& re
         if (depth < 0 || depth > 6) return invalid("`depth` is 0 … 6");
         const auto budget = request["budget"].integer();
         const std::uint32_t material = state.cells[*cell];
-        std::string out = std::format("{{\"cell\":{},\"frame\":{},\"steps\":{},\"now\":{{\"material\":{}", at(shape, *cell), field_->frame(), state.steps, material_text(program, material));
+        std::string out = std::format("{{\"cell\":{},\"frame\":{},\"steps\":{},\"now\":{{\"material\":{}", at(shape, *cell), field_->lattice_frame(), state.steps, material_text(program, material));
         for (std::uint32_t channel = 1; channel < channels.size(); ++channel)
             if (const std::uint32_t value = state.cells[channel * area + *cell]) out += std::format(",{}:{}", json_text(channels[channel].name), channel_value(program, channel, value));
         out += "}";
@@ -656,8 +742,15 @@ void Matter::operate(std::string_view operation, const mlibs::agent::Request& re
         // What is on record of it, the latest first: what happened to the cell, and the edits whose region holds it.
         std::vector<const Record*> own;
         for (auto record = records_.rbegin(); record != records_.rend(); ++record) {
-            const bool edit = record->kind == RecordKind::placed || record->kind == RecordKind::applied;
+            const bool edit = of_a_region(record->kind);
             if (edit ? within(record->region, shape, *cell) : record->cell == *cell) own.push_back(&*record);
+        }
+        // What is here landed somewhere else and the laws moved it here: its landing is of it too.
+        if (const auto landing = landings_.find(*cell); landing != landings_.end() && landing->second.cell != *cell) {
+            const auto found = std::ranges::find_if(records_, [&](const Record& record) {
+                return record.kind == RecordKind::landed && record.cell == landing->second.cell && record.frame == landing->second.frame;
+            });
+            if (found != records_.end()) own.insert(std::ranges::find_if(own, [&](const Record* record) { return record->frame <= found->frame; }), &*found);
         }
         out += ",\"records\":[";
         std::size_t told = 0;
@@ -703,28 +796,27 @@ void Matter::operate(std::string_view operation, const mlibs::agent::Request& re
         if (steps < 1 || steps > most_steps_) return invalid(std::format("`steps` is 1 … {}", most_steps_));
         const auto region = field_->region_of(request["region"], "region", false);
         if (!region) return invalid(region.error());
-        agent::FieldState future = state;  // a copy: the field is not touched
-        std::int64_t frames = 0;
+        std::vector<agent::Edit> edits;
         if (const auto place = request["place"]) {
             const auto edit = placement(place["material"], place["region"]);
             if (!edit) return invalid("`place`: " + edit.error());
-            agent::Field::advance(future, *edit);
-            ++frames;
+            edits.push_back(*edit);
         }
         if (const auto apply = request["apply"]) {
             const auto edit = application(apply["channel"], apply["set"], apply["add"], apply["take"], apply["region"]);
             if (!edit) return invalid("`apply`: " + edit.error());
-            agent::Field::advance(future, *edit);
-            ++frames;
+            edits.push_back(*edit);
         }
         std::vector<Record> happened;
-        for (std::int64_t played = 0; played < steps; ++played, ++frames) {
-            slept_ = future.activity;
-            agent::Field::advance(future, {});
-            judge(future, future.next, slept_, field_->frame() + frames + 1, happened);
-        }
+        // A copy run ahead: the lattice is not touched.
+        const agent::Lattice::Ahead ahead = field_->lattice_ahead(
+            edits, steps, [&](const agent::FieldState& now, std::span<const std::uint32_t> before, std::span<const std::uint8_t> slept, std::int64_t frames_on) {
+                judge(now, before, slept, field_->lattice_frame() + frames_on, happened);
+            });
+        const agent::FieldState& future = ahead.state;
+        const std::int64_t frames = ahead.frames;
         const auto then = count_materials(state.cells, *region), now = count_materials(future.cells, *region);
-        std::string out = std::format("{{\"frame\":{},\"steps\":{},\"hash\":\"{:016x}\",\"region\":{},\"materials\":{{", field_->frame() + frames, future.steps, agent::Field::hash_of(future),
+        std::string out = std::format("{{\"frame\":{},\"steps\":{},\"hash\":\"{:016x}\",\"region\":{},\"materials\":{{", field_->lattice_frame() + frames, future.steps, ahead.hash,
                                       region_text(*region));
         bool first = true;
         for (std::size_t material = 0; material < now.size(); ++material) {

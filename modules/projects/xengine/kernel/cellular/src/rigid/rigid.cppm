@@ -160,6 +160,7 @@ struct Journal : particles::Log, BodyLog {
         particles::Vec centre;              // blast
         float radius = 0, speed = 0;
         bool breaks = false;
+        std::uint32_t by = 0;               // what MatterWorld::by said then: who made it, to whoever keeps that
     };
     std::uint64_t frame = 0;                // the frame it is of: frames() after the step
     std::vector<Edit> edits;                // made since the step before, in order; what they threw is in `thrown`
@@ -195,6 +196,15 @@ public:
     [[nodiscard]] const Journal& journal() const noexcept { return journal_; }
     // The cells the last step's lattice began with (its input): with `journal().lattice`, what the laws did.
     [[nodiscard]] std::span<const std::uint32_t> before() const noexcept { return next_; }
+    // A number the journal's edits carry from now on: who is making them, to whoever keeps who that is. As the
+    // journal, no part of the world's state.
+    void by(std::uint32_t who) noexcept { by_ = who; }
+    // The lattice the cells run on, as a step runs it — what judges a step again needs.
+    [[nodiscard]] const cellular::Program& lattice() const noexcept { return lattice_; }
+    [[nodiscard]] Boundary boundary() const noexcept { return options_.open ? open_to(outside_) : nothing_beyond; }
+    [[nodiscard]] Shape tile() const noexcept { return options_.tile; }
+    [[nodiscard]] std::uint32_t seed() const noexcept { return options_.seed; }
+    [[nodiscard]] std::span<const std::uint8_t> activity() const noexcept { return activity_; }
 
     // Cells written from outside a frame (the tiles they are in wake).
     void place(Tile region, std::uint32_t material);
@@ -224,6 +234,7 @@ private:
     std::unique_ptr<Bodies> bodies_;
     std::unique_ptr<particles::Particles> flying_;
     bool watched_ = false;
+    std::uint32_t by_ = 0;
     Journal journal_, pending_;  // the last step's; what was done since (edits and what they threw)
     std::vector<std::pair<dyn::BodyId, dyn::Pose>> poses_;  // a watched frame's scratch
 };

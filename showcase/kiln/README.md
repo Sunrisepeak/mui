@@ -41,4 +41,6 @@ The player is the engine's (`xengine.playtest`; `headless/tests/playtest_test.cp
 - it crossed the lava pit without casting water: by the time she reached it the lava's top had set to stone and cooled enough to walk on — the water puzzle was not needed (why it sets so soon is to be looked at: the heat it gives the air and the stone, or the bomb's sand falling on it);
 - a grain of sand is thrown 146 times by one bomb: the pressure lasts far longer than a blast does (the standard definition's, to be settled with the law of motion).
 
+And one found by its waiting: after the barricade's fire she stood by for fourteen seconds, and longer by the bombed wall — heat in the cavern only spread and had nowhere to go. Now warm air rises (the engine's convection pack, one law laid over the standard definition) and the cavern has two narrow shafts to the sky: the first cavern is finished at frame 1969 with one bomb, where it took 3469 and two.
+
 And one that was changed, twice: a bomb's rubble used to come down as stone again and shut the hole it made, so the game turned the stone about a bomb to sand itself; now the game converts nothing. A bomb is a pressure and a heat, and stone shatters to sand because the standard definition says a solid does where the pressure on it is past its `toughness` (the law `shatters`, and what it `breaks_into`).

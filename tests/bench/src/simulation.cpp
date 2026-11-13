@@ -348,7 +348,8 @@ void add_simulation_benchmarks() {
     namespace solid = xengine::dynamics::rigid;
     const auto beside = [](State& s, const std::vector<solid::Piece>& pieces, int steps) {
         using clock = std::chrono::steady_clock;
-        double ours = 0, direct = 0;
+        // A round each; compared by their medians, so one round the machine was busy in does not decide it.
+        std::vector<double> ours, direct;
         std::size_t rounds = 0;
         bool same = true;
         s.items(static_cast<std::uint64_t>(steps));
@@ -372,14 +373,14 @@ void add_simulation_benchmarks() {
                 for (int step = 0; step < steps; ++step) world->step();
                 const auto to = clock::now();
                 s.pause();
-                ours += std::chrono::duration<double, std::milli>(to - from).count();
+                ours.push_back(std::chrono::duration<double, std::milli>(to - from).count());
             };
             if (world_first) run_world();
             const auto began = clock::now();
             for (int step = 0; step < steps; ++step) plain->step();
             const auto between = clock::now();
             if (!world_first) run_world();
-            direct += std::chrono::duration<double, std::milli>(between - began).count();
+            direct.push_back(std::chrono::duration<double, std::milli>(between - began).count());
             ++rounds;
             for (std::size_t index = 0; index < ids.size() && same; ++index) {
                 const auto pose = std::as_const(*world).pose(ids[index]);
@@ -389,11 +390,17 @@ void add_simulation_benchmarks() {
             s.resume();
         }
         if (!same) { s.fail("the two worlds parted: not the same scene, so not a comparison"); return; }
-        if (!rounds || !(direct > 0)) return;
-        s.counter("direct_ms", direct / static_cast<double>(rounds));
-        s.counter("overhead_percent", (ours - direct) / direct * 100.0);
-        s.note("scope", std::format("{} bodies, {} steps a round from the same start; Box2D directly {:.3f} ms a round, through the World {:.3f} ms; every body at the same place in both, bit for bit",
-                                    pieces.size(), steps, direct / static_cast<double>(rounds), ours / static_cast<double>(rounds)));
+        const auto median = [](std::vector<double>& values) {
+            if (values.empty()) return 0.0;
+            std::ranges::sort(values);
+            return values[values.size() / 2];
+        };
+        const double through = median(ours), plain_ms = median(direct);
+        if (!rounds || !(plain_ms > 0)) return;
+        s.counter("direct_ms", plain_ms);
+        s.counter("overhead_percent", (through - plain_ms) / plain_ms * 100.0);
+        s.note("scope", std::format("{} bodies, {} steps a round from the same start; the median round: Box2D directly {:.3f} ms, through the World {:.3f} ms; every body at the same place in both, bit for bit",
+                                    pieces.size(), steps, plain_ms, through));
     };
     add("simulation/rigid-pyramid-20", "a pyramid of 210 boxes on a floor, 240 steps from the moment it is built — xengine.dynamics.rigid's World beside Box2D called directly on the same bodies",
         [beside](State& s) {

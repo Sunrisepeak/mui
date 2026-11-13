@@ -5,6 +5,7 @@
 import std;
 import xengine.matter.json;
 import xengine.cellular.rigid;
+import mlibs.simulation;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
@@ -14,6 +15,17 @@ namespace bodies = xengine::cellular::rigid;
 namespace dyn = xengine::dynamics::rigid;
 
 namespace {
+
+// A world of matter as a model of mlibs.simulation: what a game's state holds. An input pushes the bodies.
+struct Model {
+    using State = bodies::WorldValue;
+    struct Input { float push = 0; };
+    static void step(State& world, const Input& input) {
+        if (input.push != 0)
+            for (const auto& view : world->bodies().bodies()) world->rigid().apply(view.body, {input.push, 0}, 0);
+        world->step();
+    }
+};
 
 // A world of matter with rigid bodies in it, open to air at 293 K. Made in place: the bodies hold the world.
 struct Scene {
@@ -193,6 +205,29 @@ UTest cases{"matter.rigid", [] {
             same = sparse->state_hash() == dense->state_hash();
             if (!same) expect(false) << std::format("frame {}: sparse parts from dense", frame);
         }
+    };
+
+    "a world of matter is a value a timeline keeps: pushed, played, sought back and played again to the same bits"_test = [] {
+        static const matter::Program program = *matter::standard();
+        auto made = *bodies::MatterWorld::make(program, {.shape = {48, 32}, .tile = {8, 8}, .fill = "air"});
+        made->place({0, 28, 48, 4}, *program.material("stone"));
+        made->place({2, 18, 44, 10}, *program.material("water"));
+        made->place({8, 4, 6, 6}, *program.material("wood"));
+        made->place({30, 4, 4, 4}, *program.material("iron"));
+        (void)made->carve({0, 0, 48, 12});
+        mlibs::simulation::Timeline<Model> timeline(bodies::WorldValue(std::move(made)), 240, 60);
+        const auto input_at = [](std::int64_t frame) { return Model::Input{.push = frame == 50 ? 20.0f : 0.0f}; };
+        std::vector<std::uint64_t> hashes;
+        for (std::int64_t frame = 0; frame < 200; ++frame) timeline.step(input_at(frame)), hashes.push_back(timeline.state()->state_hash());
+        expect(fatal(timeline.seek(100)));
+        expect(eq(timeline.state()->state_hash(), hashes[99])) << "sought to frame 100";
+        bool same = true;
+        for (std::int64_t frame = 100; frame < 200; ++frame) {
+            timeline.step(input_at(frame));
+            same = same && timeline.state()->state_hash() == hashes[static_cast<std::size_t>(frame)];
+        }
+        expect(same) << "played again from 100: the same bits";
+        expect(hashes[60] != hashes[40]) << "the world moved";
     };
 
     "two runs of the same scene are the same bits: the field, every body"_test = [] {

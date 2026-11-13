@@ -698,4 +698,21 @@ std::uint64_t MatterWorld::state_hash() const noexcept {
     return hash.value();
 }
 
+WorldValue::WorldValue() noexcept = default;
+WorldValue::WorldValue(std::unique_ptr<MatterWorld> world) noexcept : world_(std::move(world)) {}
+WorldValue::WorldValue(const WorldValue& other) {
+    if (!other.world_) return;
+    if (auto branch = other.world_->branch()) world_ = std::move(*branch);
+}
+WorldValue& WorldValue::operator=(const WorldValue& other) {
+    if (this != &other) *this = WorldValue(other);
+    return *this;
+}
+WorldValue::WorldValue(WorldValue&&) noexcept = default;
+WorldValue& WorldValue::operator=(WorldValue&&) noexcept = default;
+WorldValue::~WorldValue() = default;
+WorldValue::operator bool() const noexcept { return world_ != nullptr; }
+MatterWorld& WorldValue::operator*() const noexcept { return *world_; }
+MatterWorld* WorldValue::operator->() const noexcept { return world_.get(); }
+
 }  // namespace xengine::cellular::rigid

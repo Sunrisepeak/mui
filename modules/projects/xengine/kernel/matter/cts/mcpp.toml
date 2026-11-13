@@ -38,6 +38,8 @@ xengine.cellular = { path = "../../cellular", features = ["matter-agent", "rigid
 "mlibs.agent.cts" = { path = "../../../../../base/agent/cts" }
 mlibs.agent     = { path = "../../../../../base/agent" }
 mlibs.json      = { path = "../../../../../base/json" }
+# tests/coupling_test.cpp: a world of matter as a model a timeline keeps.
+mlibs.simulation = { path = "../../../../../base/simulation" }
 openlifa.openas = "0.2.0"
 # tests/emergence_test.cpp: the emergence set on the lattice; a body of a material of the same table stands in
 # one of its scenes (an explosion's pressure pushes it).

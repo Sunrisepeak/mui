@@ -160,4 +160,24 @@ private:
     std::unique_ptr<Bodies> bodies_;
 };
 
+// A world of matter as a value: a copy is a branch (the whole world, bit for bit), so a timeline keeps it and
+// a game's state holds it — mlibs.simulation's Model, xengine.runtime's Playable — with no aliasing between copies.
+class WorldValue {
+public:
+    WorldValue() noexcept;
+    explicit WorldValue(std::unique_ptr<MatterWorld> world) noexcept;
+    WorldValue(const WorldValue& other);
+    WorldValue& operator=(const WorldValue& other);
+    WorldValue(WorldValue&&) noexcept;
+    WorldValue& operator=(WorldValue&&) noexcept;
+    ~WorldValue();
+    // Empty: made so, or a copy whose branch failed (Box2D made no world of its own snapshot).
+    [[nodiscard]] explicit operator bool() const noexcept;
+    [[nodiscard]] MatterWorld& operator*() const noexcept;
+    [[nodiscard]] MatterWorld* operator->() const noexcept;
+
+private:
+    std::unique_ptr<MatterWorld> world_;
+};
+
 }  // namespace xengine::cellular::rigid

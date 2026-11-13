@@ -276,7 +276,7 @@ UTest cases{"mesh.gpu.sdl", [] {
         auto device = open_device();
         if (!device) return;
         const Yard yard(false, true);
-        const auto drawn = both(*device, yard, {});
+        const auto drawn = both(*device, yard, {.environment = {.on = true}});  // with a sky about it for the gold to mirror
         if (!drawn) return;
         keep(drawn->device, "yard-polished");
         const Apart all = apart(drawn->reference, drawn->device, false, 6);

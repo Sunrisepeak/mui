@@ -616,4 +616,27 @@ static UTest cases{"xrender.mesh", [] {
         std::println("the yard with a polished ball and a gold post: bits {:016x}; {}", bits(frame.targets), file.generic_string());
         expect(eq(bits(frame.targets), std::uint64_t{0x329f4ce273cd0cf1})) << std::format("{:016x}", bits(frame.targets));
     };
+    "a metal mirrors what is about it: a gold ball under a sky and over the ground is the sky's colour through gold above and the ground's below; a matt ball asks nothing of it"_test = [] {
+        const Camera camera{.eye = {0, 0, 5}, .target = {0, 0, 0}};
+        const mesh::Environment about{.on = true};
+        const auto ball_of = [&](std::uint32_t material, bool with) {
+            scene::Scene world;
+            put(world, 1, ball, material, math::translation({0, 0, 0}));
+            return drawn(world, camera, 256, 256, {.ambient = {0, 0, 0}, .environment = with ? about : mesh::Environment{}});
+        };
+        const Frame golden = ball_of(gold, true), bare = ball_of(gold, false), matt = ball_of(matt_blue, true), matt_bare = ball_of(matt_blue, false);
+        expect(eq(bits(matt.targets), bits(matt_bare.targets))) << "a matt surface is the same with it and without";
+        const auto light_at = [&](const Frame& frame, int x, int y) { return frame.targets.light[static_cast<std::size_t>(y) * 256 + x]; };
+        // Near the ball's top its normal is up and the eye's way is turned skyward; near its bottom, to the ground.
+        const math::Vec3 top = light_at(golden, 128, 96), bottom = light_at(golden, 128, 160), middle = light_at(golden, 128, 128);
+        std::println("a gold ball with a sky about it: near its top ({:.2f}, {:.2f}, {:.2f}), its middle ({:.2f}, {:.2f}, {:.2f}), near its bottom ({:.2f}, {:.2f}, {:.2f}); with nothing about it the middle is {:.2f}",
+                     top.x, top.y, top.z, middle.x, middle.y, middle.z, bottom.x, bottom.y, bottom.z, light_at(bare, 128, 128).x);
+        expect(eq(light_at(bare, 128, 128).x, 0.0f)) << "with nothing about it and no light, a metal is black";
+        expect(gt(top.z / top.x, bottom.z / bottom.x * 1.3f)) << "bluer above (the sky through gold) than below (the ground through gold)";
+        expect(gt(top.x + top.y + top.z, bottom.x + bottom.y + bottom.z)) << "and brighter";
+        // Facing the eye squarely it mirrors what is behind the eye, at eye level: the level's colour through gold.
+        expect(lt(std::abs(middle.y / middle.x - 0.77f), 0.05f) && lt(std::abs(middle.z / middle.x - 0.34f), 0.05f));
+        const auto file = keep(golden.targets, "gold-ball");
+        expect(eq(bits(golden.targets), std::uint64_t{0x66ca9a070b7d680d})) << std::format("{:016x} {}", bits(golden.targets), file.generic_string());
+    };
 }};

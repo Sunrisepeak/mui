@@ -147,6 +147,7 @@ struct Raster {
     Vec3 shone(Vec3 normal, Vec3 place) noexcept {
         const Vec3 toward_eye = math::normalized(eye - place);
         Vec3 sent = math::scaled(reflected_ambient(material), options.ambient) + material.emissive;
+        if (options.environment.on) sent = sent + mirrored(material, options.environment, normal, toward_eye);
         const Vec3 lifted = place + normal * 2e-3f;
         for (const Lamp& lamp : lamps) {
             if (lamp.kind == scene::LightKind::sun) {
@@ -272,6 +273,19 @@ Vec3 reflected(const Material& material, Vec3 normal, Vec3 toward_eye, Vec3 towa
     const Vec3 head_on = Vec3{0.04f, 0.04f, 0.04f} * (1.0f - metal) + material.base * metal;
     const Vec3 mirrored = head_on + (Vec3{1, 1, 1} - head_on) * glance5;
     return matt + mirrored * (facets * unhidden * 0.25f * facing);
+}
+Vec3 mirrored(const Material& material, const Environment& environment, Vec3 normal, Vec3 toward_eye) noexcept {
+    const float rough = std::clamp(material.roughness, 0.04f, 1.0f), metal = std::clamp(material.metallic, 0.0f, 1.0f);
+    const float seen = std::max(math::dot(normal, toward_eye), 0.0f);
+    const Vec3 way = normal * (2.0f * seen) - toward_eye;  // the eye's way, turned about the normal
+    const float size = math::length(way);
+    const Vec3 there = environment.toward(size > 0 ? way * (1.0f / size) : normal);
+    const Vec3 blurred = there + (environment.level - there) * rough;
+    const float glance = 1.0f - seen, glance5 = glance * glance * glance * glance * glance;
+    const Vec3 head_on = Vec3{0.04f, 0.04f, 0.04f} * (1.0f - metal) + material.base * metal;
+    // A rough surface mirrors less of a glancing look than a smooth one does.
+    const Vec3 share = head_on + (Vec3{1, 1, 1} - head_on) * (glance5 * (1.0f - rough));
+    return math::scaled(share, blurred);
 }
 Vec3 reflected_ambient(const Material& material) noexcept {
     const float metal = std::clamp(material.metallic, 0.0f, 1.0f);

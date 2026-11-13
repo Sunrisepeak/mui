@@ -41,6 +41,9 @@ struct Surface {
     float4 fog;        // rgb; w: its density (0: none)
     float4 fog_shape;  // x: the height the density is given at; y: how fast it thins above it
     float4 shine;        // x: roughness (0.04 … 1); y: metallic; z: 1 where the surface is matt (the plain path)
+    float4 above;        // what is about the scene, above; w: 1 where there is an environment
+    float4 level;
+    float4 below;
     float4 to_light[3];  // rows: the world to the sun's map — x, y across it (−1 … 1), z how far (0 … 1)
     float4 shadow;       // x: which lamp the map is of (−1: none); y: how far along its normal a point is lifted
                          // before it is looked up; z: how much nearer the map must say for a shadow
@@ -86,6 +89,21 @@ float3 reflected(float3 normal, float3 toward_eye, float3 toward_light, float fa
     const float3 mirrored = head_on + (float3(1, 1, 1) - head_on) * glance5;
     return matt + mirrored * (facets * unhidden * 0.25 * facing);
 }
+// What the surface mirrors of what is about the scene (xrender.mesh's `mirrored`).
+float3 mirrored(float3 normal, float3 toward_eye) {
+    const float rough = surface.shine.x, metal = surface.shine.y;
+    const float seen = max(dot(normal, toward_eye), 0.0);
+    const float3 way = normal * (2.0 * seen) - toward_eye;
+    const float size = length(way);
+    const float3 along = size > 0 ? way / size : normal;
+    const float3 far = along.y > 0 ? surface.above.rgb : surface.below.rgb;
+    const float3 there = surface.level.rgb + (far - surface.level.rgb) * abs(along.y);
+    const float3 blurred = there + (surface.level.rgb - there) * rough;
+    const float glance = 1.0 - seen, glance5 = glance * glance * glance * glance * glance;
+    const float3 head_on = float3(0.04, 0.04, 0.04) * (1.0 - metal) + surface.base.rgb * metal;
+    const float3 share = head_on + (float3(1, 1, 1) - head_on) * (glance5 * (1.0 - rough));
+    return share * blurred;
+}
 float encoded(float linear) {
     const float held = clamp(linear, 0.0, 1.0);
     return held <= 0.0031308 ? held * 12.92 : 1.055 * pow(held, 1.0 / 2.4) - 0.055;
@@ -128,6 +146,7 @@ float4 mesh_fs(VOut point) : SV_Target {
         const float metal = surface.shine.y;
         const float3 everywhere = surface.base.rgb * (1.0 - metal) + (float3(0.04, 0.04, 0.04) * (1.0 - metal) + surface.base.rgb * metal);
         colour = everywhere * surface.ambient.rgb + surface.emissive.rgb + sent;
+        if (surface.above.w > 0.5) colour += mirrored(normal, toward_eye);
     }
     if (surface.fog.w > 0) {
         const float apart = length(to_eye);

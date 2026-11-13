@@ -68,6 +68,23 @@ struct Fog {
 // length 1) for `length` (which may be infinite). Deterministic (`mlibs.math`'s exp): the same bits everywhere.
 [[nodiscard]] float through(const Fog& fog, Vec3 eye, Vec3 toward, float length) noexcept;
 
+// What is about the scene, for a surface with a highlight to mirror: a sky above, the land at eye level, the
+// ground below — three colours, and a way looked along is between two of them by how far up or down it goes.
+// The least an environment can be; a picture of one (a map) is the same question asked of a texture. A matt
+// surface does not ask it. Off: nothing is mirrored but the lights.
+struct Environment {
+    bool on = false;
+    Vec3 above{0.35f, 0.5f, 0.8f}, level{0.6f, 0.6f, 0.6f}, below{0.15f, 0.13f, 0.1f};
+    [[nodiscard]] constexpr Vec3 toward(Vec3 way) const noexcept {  // `way` of length 1
+        const float up = way.y > 0 ? way.y : -way.y;
+        const Vec3 far = way.y > 0 ? above : below;
+        return level + (far - level) * up;
+    }
+};
+// What a surface mirrors of the environment toward the eye: what lies along the eye's way turned about the
+// normal, less sharply the rougher it is (toward the level's colour), by how much the surface mirrors there.
+[[nodiscard]] Vec3 mirrored(const Material& material, const Environment& environment, Vec3 normal, Vec3 toward_eye) noexcept;
+
 struct Options {
     Vec3 background{0.02f, 0.02f, 0.03f};
     // Light from everywhere: the one implementation there is of the indirect light (a constant), behind which
@@ -81,6 +98,7 @@ struct Options {
     // velocity does not include it.
     Vec2 jitter{0, 0};
     Fog  fog;
+    Environment environment;
 };
 
 inline constexpr std::uint32_t none = 0xffffffffu;

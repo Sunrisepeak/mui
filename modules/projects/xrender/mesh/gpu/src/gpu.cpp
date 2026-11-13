@@ -29,6 +29,7 @@ struct LampUniforms {
 struct SurfaceUniforms {
     Row          base, emissive, ambient, eye, fog, fog_shape;
     Row          shine;
+    Row          above, level, below;
     Row          to_light[3];
     Row          shadow{-1, 0, 0, 0};
     LampUniforms lamps[most_lamps];
@@ -185,6 +186,7 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
                                         of(math::normalized(light.toward), static_cast<float>(math::det::cos(static_cast<double>(light.cone))))};
     }
     surface.ambient = of(options.ambient);
+    surface.above = of(options.environment.above, options.environment.on ? 1.0f : 0.0f), surface.level = of(options.environment.level), surface.below = of(options.environment.below);
     surface.eye = of(eye, static_cast<float>(last_.lamps));
     surface.fog = of(options.fog.colour, options.fog.density);
     surface.fog_shape = {options.fog.base, options.fog.falloff, 0, 0};

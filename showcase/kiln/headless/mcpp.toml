@@ -20,8 +20,12 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 "omui.showcase.kiln.sim" = { path = "../sim" }
 xengine.runtime = { path = "../../../modules/projects/xengine/game/runtime" }
 xengine.input   = { path = "../../../modules/projects/xengine/game/input" }
+# The matter of the game's world as a subject beside the game (kiln::Causes): the world's lattice under the
+# matter subject, its record of causes.
+xengine.cellular = { path = "../../../modules/projects/xengine/kernel/cellular", features = ["world-agent"] }
+mlibs.agent      = { path = "../../../modules/base/agent" }
+openlifa.openas  = "0.2.0"
 
 [dev-dependencies]
 mcpplibs.mtest = "0.7.1"
-mlibs.agent    = { path = "../../../modules/base/agent" }
 mlibs.json     = { path = "../../../modules/base/json" }

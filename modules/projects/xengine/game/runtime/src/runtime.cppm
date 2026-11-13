@@ -83,6 +83,13 @@ public:
             recorded_.push_back(input);
         }
         timeline_.step(input);
+        if (stepped_) stepped_(timeline_.state());
+    }
+    // Who is told what the game's time did: after each step, and after it went back to a frame (a seek, its
+    // owner's or a request's). What keeps something beside the game that follows its time — a world's record
+    // of causes — is told here; the game knows nothing of it. A step run ahead on a copy (world.branch) tells no one.
+    void tell(std::function<void(const State&)> stepped, std::function<void(const State&)> rewound) {
+        stepped_ = std::move(stepped), rewound_ = std::move(rewound);
     }
     [[nodiscard]] const State& state() const noexcept { return timeline_.state(); }
     [[nodiscard]] std::int64_t frame() const noexcept { return timeline_.frame(); }
@@ -94,7 +101,11 @@ public:
     [[nodiscard]] const mlibs::simulation::Timeline<G>& timeline() const noexcept { return timeline_; }
     // Back to a frame kept (false, and nothing changes, outside it). What was played after it stays reachable
     // until `branch()` or the next step.
-    bool seek(std::int64_t frame) { return timeline_.seek(frame); }
+    bool seek(std::int64_t frame) {
+        if (!timeline_.seek(frame)) return false;
+        if (rewound_) rewound_(timeline_.state());
+        return true;
+    }
     // From here on is a new branch: what was played after this frame is forgotten.
     void branch() noexcept {
         timeline_.branch();
@@ -192,7 +203,7 @@ private:
     void seek(const mlibs::agent::Request& request, mlibs::agent::Answer& answer) {
         const auto frame = request["frame"].integer();
         if (!frame) return answer.fail(openas::error_code::invalid_argument, "`frame`: the step to return to");
-        if (!timeline_.seek(*frame))
+        if (!seek(*frame))
             return answer.fail(openas::error_code::stale, std::format("step {} is outside the history kept ({} … {})", *frame, timeline_.earliest(), timeline_.latest()));
         branch();
         // What the player held belonged to the steps left behind.
@@ -220,6 +231,7 @@ private:
 
     Options                        options_;
     mlibs::simulation::Timeline<G> timeline_;
+    std::function<void(const State&)> stepped_, rewound_;
     xengine::AgentLane             lane_;
     std::vector<Input>             recorded_;
 };

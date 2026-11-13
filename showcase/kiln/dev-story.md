@@ -49,6 +49,7 @@ There are no image files in the game.
 | the ladder's steps in the wrong order | one ladder of four steps, ordered by guess | measured (glow 42 ms, baked 4.5, none 2.1; scenery alive +0.5) and split in two ladders, the dearer lowered first |
 | the world contract's suite, written for a third dimension | a cut image left Box2D's world unusable | Box2D's bytes under a length and a checksum of ours |
 
+- **Why, asked of the game's own world.** `kiln::Causes` is some twenty lines: the world's lattice, the matter subject on it, and the runtime told to say when the game stepped or went back. The simulation was not touched — Mui's wand still calls the world's `blast`, `place` and `set` — yet an agent shown everything asks of a grain of sand and is told it landed there, thrown at frame 40 by a blast, the player's. What made that possible was below the game: a world that says what a frame did besides its laws, and a subject that stands on an interface, not on one kind of field.
 - **One governor.** The picture's ladders are moved by the same `mlibs.pipeline` governor that lowers omui's motion and effects; a decision is a recorded input.
 
 **What was hard, and what it says to improve**
@@ -64,4 +65,4 @@ There are no image files in the game.
 2. **When the game needs a rule, ask whose it is.** A fault in save and restore, an allocation in a frame, a ladder in the wrong order were none of them Kiln's to work round.
 3. **Measure before ordering.** The ladder was wrong until each step was timed.
 4. **Let the player be shown only what a person is.** A playtest that reads the whole state finds nothing a person would.
-5. **Say what is not done.** No window; one cavern; a player that is a policy and not an agent's session (T2.8); `matter.explain` on the whole world not yet there (T2.13).
+5. **Say what is not done.** No window; one cavern; a player that is a policy and not an agent's session (T2.8).

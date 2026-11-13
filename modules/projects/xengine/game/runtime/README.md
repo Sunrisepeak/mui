@@ -34,7 +34,7 @@ The game is a `Subject` of the agent kernel ([mlibs.agent](../../../../base/agen
 | Control | `world.act`: the same actions a person has (`buttons` held, `axis`, `pointer`), decided on a frame `seen`; the state shows them from `effective` — no sooner than the tier's reaction after `seen`, no more often than the tier allows — and they hold, like keys, until the next |
 | Time | `world.step` (where the agent steps the game; an owner's clock refuses it), `world.seek` back within the history kept (what is played from there is a new branch) |
 | Preview | `world.branch`: what would be `steps` ahead holding given actions — the future's view and hash; the game itself untouched (a copy of the state is played) |
-| Causes | Not yet: `capabilities.causes` is false. Why a state is what it is comes with the kernels' records of causes (matter, dynamics) |
+| Causes | Not the game's own: `capabilities.causes` is false. Why a cell of its world is what it is, is a kernel's subject put beside the game in the same session (a world of matter: `xengine.cellular`'s `matter` on the world's lattice), which follows the game's time through `Runtime::tell` — told after each step and after each seek back; a branch run ahead tells no one |
 | History | Not here: `capabilities.history` is false (commits and branches are the kernel's, when a design adapter needs them) |
 | Budgets and tiers | `Options::tier` (reaction, actions a second, full view), `most_steps` a request, `keep` steps of history |
 

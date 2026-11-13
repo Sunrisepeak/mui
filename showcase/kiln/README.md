@@ -9,14 +9,14 @@ Mui the pixel cat, with a wand of fire, water and bombs, in caverns where everyt
 | Package | What |
 |---|---|
 | [sim](sim) | The simulation: Mui (walks, climbs a step of a cell, jumps, swims and runs out of breath, is hurt by heat and fire), the wand (bolts of fire, water, bombs), the first cavern, the exit; a pure function of the state and the frame's actions, its state a value (a copy is a branch) |
-| [headless](headless) | Kiln as a game on its own (D-162): the simulation as the runtime's `Playable`, stepped without omui, sought back and branched ahead; the playtest — an agent playing as a person does, through `world.observe`, `world.branch`, `world.act`, `world.step`, finishing the first cavern and, given the cavern with a mistake planted, stopping where it cannot go on and saying why |
+| [headless](headless) | Kiln as a game on its own (D-162): the simulation as the runtime's `Playable`, stepped without omui, sought back and branched ahead; the playtest — an agent playing as a person does, through `world.observe`, `world.branch`, `world.act`, `world.step`, finishing the first cavern and, given the cavern with a mistake planted, stopping where it cannot go on and saying why. And `kiln::Causes`: the matter of its world as a subject beside the game — an agent shown everything asks `matter.explain` of a cell and is told why (this sand landed here, thrown by a blast, the player's bomb); a person's tier has no such subject |
 | [picture](picture) | Kiln on screen as a display list: the world by presentation ladders (D-178) — the light (a glow; frames of a flame baked once from the glow's own form; none) and the scenery (simulated beside the world; as placed) — what flies, the wand's bolts, the exit, Mui. It reads the state and changes nothing of it |
 
 The first cavern: Mui starts on a ledge; a barricade of wood bars the way (fire); a pool with a crate afloat (jump, or swim before her breath runs out); a stone wall to the ceiling (a bomb; a keg of gunpowder by it is a hazard, not a key); a pit of lava (water sets it to stone); the exit beyond.
 
 ```sh
 mcpp test -p omui.showcase.kiln.sim     # stands, burns the barricade open, swims, holes the wall, cools the lava; the same frames bit for bit
-mcpp test -p omui.showcase.kiln.headless   # the playtest: finishes the first cavern; stops at the planted second wall and says why
+mcpp test -p omui.showcase.kiln.headless   # the playtest: finishes the first cavern; stops at the planted second wall and says why; why a grain of sand is where it is, back to Mui's bomb
 mcpp test -p omui.showcase.kiln.picture    # the four steps of the ladder drawn headless; the game's checksum the same at each
 ```
 

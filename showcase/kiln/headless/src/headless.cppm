@@ -5,7 +5,11 @@
 export module omui.showcase.kiln.headless;
 
 import std;
+import openas;
+import mlibs.agent;
 import xengine.input;
+import xengine.cellular.matter.agent;
+import xengine.cellular.rigid.agent;
 export import xengine.runtime;
 export import omui.showcase.kiln.sim;
 
@@ -24,5 +28,32 @@ struct Play {
 };
 
 using Standalone = xengine::runtime::Runtime<Play>;
+
+// The matter of the game's world as a subject beside the game (xengine.cellular's matter subject on the world's
+// lattice): `matter.observe`, `matter.explain` — why this sand is here, why that crate fell — of the world the
+// game is at, as the game steps and seeks. Time is the game's (`world.step`, `world.seek`). What Mui's wand does
+// to the world is on record as the player's.
+//
+//   kiln::Causes causes(game);
+//   mlibs::agent::SubjectSession session(kiln::subjects(game, &causes));
+//
+// Made after the game and gone before it; it takes the game's one place to be told of its time (Runtime::tell).
+class Causes {
+public:
+    explicit Causes(Standalone& game, openas::Actor player = {openas::Kind::person, "player", {}});
+    ~Causes();
+    Causes(const Causes&) = delete;
+    Causes& operator=(const Causes&) = delete;
+    [[nodiscard]] xengine::cellular::matter_agent::Matter& matter() noexcept { return matter_; }
+
+private:
+    Standalone*                               game_;
+    xengine::cellular::rigid_agent::WorldLattice lattice_;
+    xengine::cellular::matter_agent::Matter   matter_;
+};
+
+// The subjects a session of `game` has: the game, and — where its tier is shown everything (`assist`) — the
+// matter of its world. A person's tier is shown what a person is: it cannot ask why of a cell it does not see.
+[[nodiscard]] std::vector<mlibs::agent::Subject*> subjects(Standalone& game, Causes* causes);
 
 }  // namespace kiln

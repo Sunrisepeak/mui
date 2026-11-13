@@ -135,6 +135,20 @@ bodies->push(cells); bodies->lift(cells); bodies->terrain(cells); world->step();
 
 (`xengine.matter.cts` world_on_screen_test: what flies is drawn in its own colour, the crate's cells as wood where its body is, the same frames the same pixels. A body moving in water leaves its swapped air behind it for a few frames as bubbles, which rise.)
 
+**Matter that is only for show** (the feature `decor`, module `xengine.cellular.decor`; D-178): a world of matter is authoritative — saved, hashed, replayed, branched, the same bits on every machine. A decorative layer is a second field beside it, stepped by the same laws from the same program, that **reads** the world and is never read by it: scenery that catches from a real fire and burns, its warmth and smoke about it. A machine with room draws the richer field; the game played is the same one.
+
+```cpp
+auto layer = ca::decor::Decor::make(program, world.shape(), {.fill = "air"});
+layer->step(world.cells());                                   // each frame it is shown
+layer->place({23, 40, 8, 4}, *program.material("wood"));     // a hedge: the layer's alone
+presenter.present(layer->cells());                            // instead of the world's cells
+```
+
+- **One way, by the types**: a step takes the world's cells as `span<const>`; nothing here hands out a way to write them, and a game's state holds no layer (it is the presenting side's). The layer is not saved and not hashed.
+- **How the two agree**: a cell the layer does not own follows the world wherever the world changed since the last step, and otherwise goes on by the laws from what the layer made of it. Scenery is the layer's while it is still solid and the world has put nothing of its own there.
+- **After a seek, a branch, a load**: `restart(cells, frames)` — the layer anew from the world, its scenery as first placed, warmed for `frames`.
+- It costs a second step of the field (sparse, as the world's): a step of the presentation ladder a governor takes away first (`mlibs.pipeline`'s `Governor`). `xengine.matter.cts` decor_test: a hedge beside a burning post catches and burns while the world's cells there are never wood; the world's hash is the same every frame with a layer beside it or without, and across a restart; the same frames give the same layer.
+
 **Sparse execution** (D-167): a field pays for what is happening in it. Give `step` a byte a tile that you keep between the steps of one field, and a tile at rest is not run:
 
 ```cpp

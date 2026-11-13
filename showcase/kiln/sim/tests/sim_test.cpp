@@ -119,4 +119,17 @@ UTest cases{"kiln.sim", [] {
         };
         expect(eq(play(), play()));
     };
+
+    "buried, she stays where she is: she is moved out of what closed on her only to a free place within three cells, never up through the rock and out of the world"_test = [] {
+        // Deep in the ledge's rock, more than three cells of it over her: there is nowhere to be moved to.
+        auto deep = *kiln::start(kiln::level::first());
+        deep.cat.x = 10.5f, deep.cat.y = 45.0f;
+        for (int frame = 0; frame < 120; ++frame) kiln::step(deep, {});
+        expect(eq(deep.cat.y, 45.0f)) << "not a cell higher: once this rule lifted her three cells a frame, through the ceiling, for ever";
+        // A cell of rock closed on her feet, the place above free: she is put on top of it.
+        auto shallow = *kiln::start(kiln::level::first());
+        shallow.cat.x = 10.5f, shallow.cat.y = 31.0f;
+        for (int frame = 0; frame < 30; ++frame) kiln::step(shallow, {});
+        expect(eq(shallow.cat.y, 30.0f) && shallow.cat.on_ground) << shallow.cat.y;
+    };
 }};

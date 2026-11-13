@@ -121,6 +121,8 @@ struct EffectStep {
     std::int32_t          x0 = 0, y0 = 0;  // the surface's corner in the parent
     std::uint32_t         parent_w = 0, parent_h = 0;
     int                   frost = 0;       // box radius, pixels
+    // Its surface is a cell of one shared by many layers (see Pass::cells): where the cell lies in it.
+    std::uint32_t         cell_x = 0, cell_y = 0;
 };
 
 // The frame's work, in the order it runs: a layer's passes run before the
@@ -152,6 +154,9 @@ struct Pass {
     bool material_mix = false;   // rgba16_float additive leaf fields, no coverage
     BlendPass            blend;   // blend
     EffectStep           effect;  // effect
+    // effect: layers folded into one surface (plan §5.9 step b) — each a cell of `target`'s source,
+    // its effect run on its cell alone, in one pass over them all. Empty: `effect` alone.
+    std::vector<EffectStep> cells;
 };
 
 struct Frame {
@@ -955,6 +960,21 @@ struct GpuRenderer::Impl {
     }
 
     // The commands that run an effect step (outside any pass).
+    // The effects of layers that share a surface: one pass, each on its own cell.
+    void record_cells(std::span<const EffectStep> cells) {
+        if (cells.empty()) return;
+        list.begin_render({cells.front().result, mlibs::rhi::LoadOp::clear, {0, 0, 0, 0}});
+        for (const EffectStep& e : cells) {
+            list.set_pipeline(e.pipeline);
+            list.set_scissor(mlibs::rhi::Region{e.cell_x, e.cell_y, static_cast<std::uint32_t>(e.uniforms.size[0]), static_cast<std::uint32_t>(e.uniforms.size[1])});
+            list.push_uniforms(mlibs::rhi::Stage::fragment, 0, e.uniforms);
+            list.bind_texture(mlibs::rhi::Stage::fragment, 0, e.source, nearest);
+            if (e.gpu.fragment->samplers >= 2) list.bind_texture(mlibs::rhi::Stage::fragment, 1, e.aux ? e.aux : zero_row, nearest);
+            list.draw(3);
+        }
+        list.end_render();
+    }
+
     void record_effect(const EffectStep& e) {
         const auto w = static_cast<std::int32_t>(e.uniforms.size[0]), h = static_cast<std::int32_t>(e.uniforms.size[1]);
         auto quad = [&](mlibs::rhi::GraphicsPipeline p, mlibs::rhi::Texture from, mlibs::rhi::Texture to, const EffectUniforms& u, mlibs::rhi::Texture aux) {
@@ -1165,6 +1185,9 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
             bool         effect = false;
             EffectStep   step;
             Rect         device;  // effect: where its surface lies in the parent's
+            // effect: its surface is a cell of the frame's shared one — the pass its effect joins, and the shared surface's size.
+            std::optional<std::size_t> cells_pass = std::nullopt;
+            std::uint32_t              shared_w = 0, shared_h = 0;
         };
         std::vector<Open> open;
 
@@ -1724,6 +1747,77 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
             draws_into(parent, W, H, mlibs::rhi::LoadOp::load, {});
             layer_image(o.texture, W, H, o.opacity);
         };
+        // LAYERS FOLDED (plan §5.9 step b). A hundred small effect layers were three hundred passes: each
+        // its surface drawn, its effect run, its parent gone on with. Layers of the frame's own surface
+        // whose content makes no pass of its own share one surface instead — each a cell of it, its
+        // content drawn into its cell, its effect run on its cell alone (the effect's library reads
+        // within the cell: openmui_effect's cell_origin) — so they are three passes in all, and their
+        // results are drawn into the parent as instances of one texture. The bytes are the layer's own.
+        struct Shared {
+            mlibs::rhi::Texture source, result;
+            std::uint32_t       w = 0, h = 0;
+            std::uint32_t       x = 0, y = 0, row = 0;  // the shelf being filled
+            std::size_t         source_pass = 0, effect_pass = 0;
+            bool                open = false;
+        };
+        Shared shared;
+        // Whether the commands of a layer (from `first` to its pop) make no pass: shapes, glyphs, shadows of plain paints.
+        auto makes_no_pass = [&](std::size_t first, std::size_t pop) {
+            const auto& all = dl.commands();
+            for (std::size_t at = first; at < pop; ++at) {
+                const bool plain = std::visit(
+                    [](const auto& c) {
+                        using T = std::decay_t<decltype(c)>;
+                        if constexpr (std::same_as<T, FillRect> || std::same_as<T, FillRoundRect> || std::same_as<T, StrokeRoundRect> || std::same_as<T, DrawGlyphs>)
+                            return c.paint.kind != Paint::Kind::mix;
+                        else if constexpr (std::same_as<T, BoxShadow> || std::same_as<T, PopClip> || std::same_as<T, PushTransform> ||
+                                           std::same_as<T, PopTransform> || std::same_as<T, BeginNode> || std::same_as<T, EndNode> ||
+                                           std::same_as<T, NodeFrame> || std::same_as<T, ReferenceBox> || std::same_as<T, BeginPart> || std::same_as<T, EndPart>)
+                            return true;
+                        else if constexpr (std::same_as<T, PushClipRect>)
+                            return c.radii.zero();
+                        else
+                            return false;
+                    },
+                    all[at]);
+                if (!plain) return false;
+            }
+            return true;
+        };
+        // A cell of `w` by `h` in the shared surface (made, with its passes, when there is none or it is full): its corner.
+        auto cell_for = [&](std::uint32_t w, std::uint32_t h) -> std::optional<std::array<std::uint32_t, 2>> {
+            if (shared.open) {
+                if (shared.x + w > shared.w) shared.x = 0, shared.y += shared.row, shared.row = 0;
+                if (w > shared.w || shared.y + h > shared.h) shared.open = false;
+            }
+            if (!shared.open) {
+                // As large as the frame, and no smaller than holds a few dozen small layers of a small frame.
+                constexpr std::uint32_t least = 1024;
+                const std::uint32_t     wide = std::max({g.width, w, least}), high = std::max({g.height, h, least});
+                const auto rgba = mlibs::rhi::TextureUsage::color_target | mlibs::rhi::TextureUsage::sampled;
+                auto source = g.pooled(wide, high, mlibs::rhi::Format::rgba8_unorm, rgba, "render.effect.cells");
+                auto result = g.pooled(wide, high, mlibs::rhi::Format::rgba8_unorm, rgba, "render.effect.cells.result");
+                if (!check(source) || !check(result)) return std::nullopt;
+                const mlibs::rhi::Texture parent = g.passes[current].target;
+                const std::uint32_t       parent_w = g.passes[current].w, parent_h = g.passes[current].h;
+                const bool                mixing = g.passes[current].material_mix;
+                shared = {*source, *result, wide, high, 0, 0, 0, 0, 0, true};
+                draws_into(shared.source, wide, high, mlibs::rhi::LoadOp::clear, {0, 0, 0, 0});
+                shared.source_pass = current;
+                Pass effect;
+                effect.kind = Pass::Kind::effect;
+                effect.target = shared.result;
+                g.passes.push_back(std::move(effect));
+                shared.effect_pass = g.passes.size() - 1;
+                // The parent goes on after them: what it draws from here may read their results.
+                draws_into(parent, parent_w, parent_h, mlibs::rhi::LoadOp::load, {});
+                g.passes[current].material_mix = mixing;
+            }
+            const std::array<std::uint32_t, 2> corner{shared.x, shared.y};
+            shared.x += w;
+            shared.row = std::max(shared.row, h);
+            return corner;
+        };
         // An effect layer (D-68) opens: its content offscreen in a surface of its
         // own, larger than the layer by the effect's reach, as the CPU renderer
         // prepares it. False: drawn as an ordinary layer (no GPU path, or no pop).
@@ -1828,6 +1922,28 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                     g.list.upload(step.aux, mlibs::rhi::Region{0, 0, h, 1}, std::as_bytes(std::span(values)));
                 }
             }
+            if (options.fold_layers && open.empty() && surfaces.size() == 1 && info->gpu.pass == EffectPass::pixel && !info->backdrop && push.blend == BlendMode::normal &&
+                !g.passes[current].material_mix && makes_no_pass(index + 1, pop)) {
+                if (const auto corner = cell_for(w, h)) {
+                    const float cx = static_cast<float>((*corner)[0]), cy = static_cast<float>((*corner)[1]);
+                    step.source = shared.source;
+                    step.result = shared.result;
+                    step.cell_x = (*corner)[0];
+                    step.cell_y = (*corner)[1];
+                    step.uniforms.shape_info[1] = cx;
+                    step.uniforms.shape_info[2] = cy;
+                    const Affine before = m();
+                    open.push_back({current, shared.source, push.opacity, push.blend, true, step, {x0, y0, static_cast<float>(w), static_cast<float>(h)},
+                                    shared.effect_pass, shared.w, shared.h});
+                    current = shared.source_pass;
+                    transforms.push_back(Affine::translate(cx - x0, cy - y0) * before);
+                    clips.push_back({cx, cy, cx + static_cast<float>(w), cy + static_cast<float>(h), {}, nullptr});
+                    surfaces.push_back({shared.w, shared.h});
+                    ++report.layers_folded;
+                    return true;
+                }
+                if (failed) return true;
+            }
             auto source = g.pooled(w, h, mlibs::rhi::Format::rgba8_unorm, rgba, "render.effect.source");
             auto result = g.pooled(w, h, mlibs::rhi::Format::rgba8_unorm,
                                    info->gpu.pass == EffectPass::pixelate ? mlibs::rhi::TextureUsage::compute_write | mlibs::rhi::TextureUsage::sampled : rgba,
@@ -1854,6 +1970,15 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
             transforms.pop_back();
             clips.pop_back();
             surfaces.pop_back();
+            if (o.cells_pass) {
+                // Its effect joins the shared surface's pass; its result, a part of that surface, goes where the layer is.
+                g.passes[*o.cells_pass].cells.push_back(o.step);
+                current = o.parent;
+                texture_image(o.step.result, o.shared_w, o.shared_h,
+                              {static_cast<float>(o.step.cell_x), static_cast<float>(o.step.cell_y), o.device.width, o.device.height}, o.device,
+                              Sampling::nearest, o.opacity, Affine{});
+                return;
+            }
             Pass p;
             p.kind = Pass::Kind::effect;
             p.effect = o.step;
@@ -2343,6 +2468,16 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
         const std::uint32_t base = first;
         first += static_cast<std::uint32_t>(s.prims.size());
         if (s.kind == Pass::Kind::effect) {
+            if (!s.cells.empty()) {
+                xrender::PassDesc desc{.name = "render.vector.effects"};
+                desc.reads = {s.cells.front().source};
+                for (const EffectStep& cell : s.cells)
+                    if (cell.aux && std::ranges::find(desc.reads, cell.aux) == desc.reads.end()) desc.reads.push_back(cell.aux);
+                desc.writes = {s.target};
+                g.graph.pass(std::move(desc), [&g, &s](mlibs::rhi::CommandList&) { g.record_cells(s.cells); });
+                continue;
+            }
+            if (!s.effect.result) continue;  // a shared surface no layer closed in
             const EffectStep& e = s.effect;
             xrender::PassDesc desc{.name = "render.vector.effect"};
             desc.reads = {e.source};

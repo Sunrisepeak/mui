@@ -686,6 +686,62 @@ const std::vector<Case>& cases() {
 
 void add(Cases& suite) {
 
+    // Effect layers of the frame's own surface share one surface, a cell each (plan §5.9 step b):
+    // their content in one pass, their effects in one, their results instances of one texture — and
+    // each layer's bytes what a surface of its own gave.
+    add_case(suite, "render.vector.layers-folded", mlibs::cts::Level::tolerance, [](Bench& bench) {
+        constexpr std::uint32_t W = 160, H = 120;
+        rhi::Device* device = &bench.device;
+        auto gpu = render::GpuRenderer::create(*device); check(gpu.has_value()); if (!gpu) return;
+        auto target = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, W, H,
+            rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "test.folded"});
+        check(target.has_value()); if (!target) return;
+        Rig rig{*device, std::move(*gpu), {}, *target, {}, {}, {}};
+        const auto metaball = render::effects().find("metaball"), tone = render::effects().find("tone");
+        check(metaball.has_value() && tone.has_value(), "the effects");
+        if (!metaball || !tone) return;
+        const auto merging = render::effects().params(*metaball, std::vector<std::pair<std::string_view, float>>{{"smoothness", 10}});
+        const auto toned = render::effects().params(*tone, std::vector<std::pair<std::string_view, float>>{{"color_r", 0.85f}, {"color_g", 0.6f}, {"color_b", 0.3f}, {"amount", 0.7f}});
+        for (float scale : {1.f, 1.5f}) {
+            render::DisplayList dl;
+            dl.fill_rect({0, 0, 160, 120}, geom::Color::hex(0x0f172a));
+            for (int which = 0; which < 6; ++which) {
+                // Layers side by side, one under the frame's edge, of two effects in turn, one of them faded.
+                const geom::Rect layer{4.5f + static_cast<float>(which % 3) * 52, 6 + static_cast<float>(which / 3) * 56, 46, 44};
+                const std::vector<render::EffectShape> shapes{{{layer.x + 4, layer.y + 8, 22, 22}, geom::CornerRadii::all(11)},
+                                                              {{layer.x + 26, layer.y + 14, 14, 14}, geom::CornerRadii::all(7)}};
+                if (which % 2 == 0) dl.push_layer(which == 4 ? 0.6f : 1, render::BlendMode::normal, *metaball, merging, layer, shapes);
+                else dl.push_layer(1, render::BlendMode::normal, *tone, toned, layer);
+                for (const auto& shape : shapes) dl.fill_round_rect(shape.rect, shape.radii, render::Paint::solid(geom::Color::hex(which % 2 ? 0x38bdf8 : 0xe0e7ff)));
+                dl.pop_layer();
+                // What the parent draws between two layers lies over the one before and under the one after.
+                dl.fill_rect({layer.x + 30, layer.y + 30, 24, 10}, geom::Color{0.9f, 0.2f, 0.3f, 0.5f});
+            }
+            // A surface each, then the shared one: the same bytes, pixel for pixel.
+            const geom::Color background = geom::Color::hex(0xf8fafc);
+            auto apart = rig.gpu.render(dl, rig.target, {&rig.images, &rig.glyphs}, {.scale = scale, .background = background, .fold_layers = false});
+            check(apart.has_value() && apart->layers_folded == 0, "a surface each");
+            auto each = rig.d.read(rig.target, {0, 0, W, H});
+            auto together = rig.gpu.render(dl, rig.target, {&rig.images, &rig.glyphs}, {.scale = scale, .background = background});
+            auto shared = rig.d.read(rig.target, {0, 0, W, H});
+            check(together.has_value() && each.has_value() && shared.has_value(), "both renders read back");
+            if (!apart || !together || !each || !shared) continue;
+            std::size_t differing = 0;
+            for (std::size_t at = 0; at < each->size(); ++at) differing += (*each)[at] != (*shared)[at];
+            check(differing == 0, std::format("scale {}: {} bytes differ between a surface each and the shared one", scale, differing));
+            // One of the six lies off the frame at the larger scale: it is not drawn at all.
+            const std::size_t on_frame = scale > 1 ? 5 : 6;
+            check(together->effects_skipped == 0 && together->layers_folded == on_frame,
+                  std::format("scale {}: {} layers folded, {} effects skipped", scale, together->layers_folded, together->effects_skipped));
+            // The frame before them, their content, their effects, the frame after: not three passes a layer.
+            check(together->gpu_passes <= 4 && apart->gpu_passes >= 3 * on_frame, std::format("{} passes shared, {} apart", together->gpu_passes, apart->gpu_passes));
+            // And as the CPU draws them, as near as a surface each is.
+            const auto problem = rig.compare(dl, std::format("six layers sharing a surface, scale {}", scale), {8, 640}, scale);
+            check(problem.empty(), problem);
+        }
+        device->destroy(*target);
+    });
+
     add_case(suite, "render.vector.pixelate-dpi", mlibs::cts::Level::tolerance, [](Bench& bench) {  // pixel grid units strength and identity on the real compute backend at multiple DPI
         rhi::Device* device = &bench.device;
         auto gpu = render::GpuRenderer::create(*device); check(gpu.has_value()); if (!gpu) return;

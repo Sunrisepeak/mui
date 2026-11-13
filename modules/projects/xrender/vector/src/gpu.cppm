@@ -76,6 +76,10 @@ struct GpuOptions {
     // rest it is the reference's. RenderReport's glyphs_outlined says how
     // many shapes a frame drew so.
     std::size_t glyph_masks = std::numeric_limits<std::size_t>::max();
+    // Effect layers of the frame's own surface share one surface, a cell each: three passes for them
+    // all, where a surface each is three passes a layer — the same bytes (RenderReport::layers_folded).
+    // False: a surface each, what the shared one is checked against.
+    bool fold_layers = true;
 };
 
 class GpuRenderer {

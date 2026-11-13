@@ -53,6 +53,7 @@ struct RenderReport {
     // nothing encoded or sent for them this frame — and those encoded and sent this frame to be kept.
     std::size_t glyphs_kept = 0;
     std::size_t glyphs_kept_made = 0;
+    std::size_t layers_folded = 0;     // effect layers drawn as cells of one shared surface: three passes for them all (GPU)
     // GPU: the frame's instances (a primitive each: 192 bytes sent).
     std::size_t instances = 0;
     std::size_t outline_points = 0;

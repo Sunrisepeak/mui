@@ -8,7 +8,7 @@
 namespace = "mlibs"
 name        = "math"
 version     = "0.1.0"
-description = "Deterministic mathematics: elementary functions with the same bits everywhere, splitmix64 randomness"
+description = "Deterministic mathematics: elementary functions with the same bits everywhere, splitmix64 randomness, vectors and linear algebra"
 license     = "Apache-2.0"
 platforms   = ["linux", "macos", "windows", "emscripten"]
 repo        = "https://github.com/Sunrisepeak/mui"

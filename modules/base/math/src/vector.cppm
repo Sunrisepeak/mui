@@ -3,9 +3,8 @@
 // and what couples them take a position as the same type, so a third dimension adds a type here and
 // nothing is defined a second time elsewhere).
 //
-// Plain values: components as written, component-wise arithmetic, no hidden normalisation. Linear
-// algebra (matrices, quaternions, the three-dimensional types) joins this partition with the 3D
-// work (M6.3).
+// Plain values: components as written, component-wise arithmetic, no hidden normalisation. The
+// three-dimensional types, quaternions and matrices are the partition :linear.
 export module mlibs.math.api:vector;
 
 import std;

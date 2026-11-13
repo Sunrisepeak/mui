@@ -15,3 +15,4 @@ export import :random;
 export import :noise;
 export import :color;
 export import :vector;
+export import :linear;

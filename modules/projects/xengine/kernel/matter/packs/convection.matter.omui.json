@@ -1,0 +1,1 @@
+{"matter":{"laws":[{"name":"warm is lighter","when":"phase == gas","lower":{"density":"temperature / 4096"}}]}}

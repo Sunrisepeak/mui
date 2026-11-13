@@ -219,6 +219,52 @@ std::expected<void, Failure> Program::encode(const Reactions& reactions, std::ui
     return {};
 }
 
+std::uint32_t Program::adjusted(std::uint32_t which, const std::uint32_t* row, std::span<const std::uint32_t> in, std::size_t cells, std::size_t cell) const noexcept {
+    const Staged& staged = staged_;
+    std::uint32_t value = row[words_[staged.derived + which]];
+    // An adjustment's amount and conditions read a number, a channel of the cell, a column of its row.
+    const auto amount = [&](std::size_t& position) {
+        std::uint32_t plus = 0, minus = 0;
+        for (std::uint32_t count = words_[position++], term = 0; term < count; ++term, position += 5) {
+            const std::uint32_t index = words_[position + 1];
+            const std::uint32_t read = static_cast<Read>(words_[position]) == Read::constant ? index
+                                       : static_cast<Read>(words_[position]) == Read::channel ? in[static_cast<std::size_t>(index) * cells + cell]
+                                                                                              : row[index];
+            const std::uint32_t scaled = saturating_multiply(read, words_[position + 2]) >> words_[position + 3];
+            if (words_[position + 4]) minus = saturating_add(minus, scaled);
+            else plus = saturating_add(plus, scaled);
+        }
+        return plus - std::min(plus, minus);
+    };
+    std::size_t position = staged.adjustments;
+    for (std::uint32_t count = words_[position++], index = 0; index < count; ++index) {
+        const std::size_t end = words_[position];
+        if (words_[position + 1] == which) {
+            std::size_t at = position + 3;
+            bool holds = true;
+            for (std::uint32_t tests = words_[at++], test = 0; test < tests && holds; ++test) {
+                const auto compare = static_cast<Compare>(words_[at++]);
+                const std::uint32_t left = amount(at), right = amount(at);
+                switch (compare) {
+                    case Compare::greater_equal: holds = left >= right; break;
+                    case Compare::less_equal: holds = left <= right; break;
+                    case Compare::greater: holds = left > right; break;
+                    case Compare::less: holds = left < right; break;
+                    case Compare::equal: holds = left == right; break;
+                    case Compare::not_equal: holds = left != right; break;
+                }
+            }
+            if (holds) {
+                // The conditions were read through; where one failed, `at` is not at the amount — it is not read.
+                const std::uint32_t by = amount(at);
+                value = words_[position + 2] ? saturating_add(value, by) : value - std::min(value, by);
+            }
+        }
+        position = end;
+    }
+    return value;
+}
+
 std::uint32_t Program::react(Shape shape, std::uint32_t x, std::uint32_t y, std::span<const std::uint32_t> in, std::span<std::uint32_t> out, Boundary boundary,
                              Statistics& stats) const noexcept {
     const Staged& staged = staged_;

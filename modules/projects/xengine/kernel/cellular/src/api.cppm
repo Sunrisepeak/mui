@@ -119,7 +119,9 @@ inline constexpr std::uint32_t spreads = 4;  // resting, it changes places sidew
 // A cell moves once a tick. Each cell is in one block, so no two contend for a place and blocks may be done in
 // any order or at once; what moves is conserved by construction. A block that reaches over the edge sits the
 // tick out (at a wrapped edge of an even size it goes round). The kernel knows weights and mobilities, no
-// material: sand, water, oil and smoke are an application's values of the two channels.
+// material: sand, water, oil and smoke are an application's values of the two channels. Looked up in a table
+// (`by_table`), a weight is the column as the reactions' adjustments leave it for that cell — so of two cells of
+// one kind the one a law makes lighter (the warmer) rises through the other.
 struct Exchange {
     std::uint32_t weight = 0, mobility = 0;  // the channels — or, `by_table`, the table's columns
     std::vector<std::uint32_t> carried;      // the channels that go with a cell; none given: every channel
@@ -462,7 +464,13 @@ private:
     struct Staged {
         std::uint32_t at = 0, key = 0, rows = 0, columns = 0, table = 0, near = 0, slots = 0, slot_count = 0, derived = 0, derived_count = 0, adjustments = 0, reactions = 0,
                       flags = 0, resets = 0;
+        // Where the exchange weighs by a column the adjustments change (hot air lighter than cold): which of
+        // the derived values it is. None: the column as written.
+        std::uint32_t weight_derived = 0xffffffffu;
     };
+    // One derived value of a cell: its row's column as the adjustments leave it — what `react` reads, for the
+    // exchange. An adjustment reads the cell alone and its row as written.
+    [[nodiscard]] std::uint32_t adjusted(std::uint32_t which, const std::uint32_t* row, std::span<const std::uint32_t> in, std::size_t cells, std::size_t cell) const noexcept;
     // The reactions checked and written into the words; `halo` grows to their neighbourhood.
     [[nodiscard]] std::expected<void, Failure> encode(const Reactions& reactions, std::uint32_t& halo);
     // One cell's reactions, onto what the rules made of it in `out`: the row it becomes, or the largest number.

@@ -217,6 +217,10 @@ std::expected<Program,Failure> Program::prepare(std::uint32_t channels, Stages s
             if (auto encoded = p.encode(*reactions, halo); !encoded) return std::unexpected(encoded.error());
             p.halo_ = halo;
             p.words_[3] = halo;
+            for (const Exchange& exchange : exchanges)
+                if (exchange.by_table)
+                    for (std::uint32_t index = 0; index < reactions->derived.size(); ++index)
+                        if (reactions->derived[index] == exchange.weight) p.staged_.weight_derived = index;
             if (p.words_.size() > limits.max_words) return std::unexpected(Failure{Errc::limit});
         }
     }
@@ -404,6 +408,7 @@ void Program::exchange(Shape shape, std::span<const std::uint32_t> in, std::span
     const std::uint32_t weight = words_[pos], mobility = words_[pos + 1], seed = words_[pos + 2], carried = words_[pos + 3];
     const std::span<const std::uint32_t> channels(words_.data() + pos + 4, carried);
     const std::size_t cells = static_cast<std::size_t>(shape.width) * shape.height;
+    const bool by_state = staged_.weight_derived != 0xffffffffu;
     // Where the cut is this tick: its four positions in turn.
     const std::uint32_t cut_x = static_cast<std::uint32_t>(tick & 1), cut_y = static_cast<std::uint32_t>((tick >> 1) & 1);
     // A block that reaches over an edge goes round a wrapped edge of an even size, and otherwise sits the tick out.
@@ -439,7 +444,7 @@ void Program::exchange(Shape shape, std::span<const std::uint32_t> in, std::span
                     // Looked up by the cell's key; what is no row neither weighs nor moves.
                     const std::uint32_t key = in[static_cast<std::size_t>(staged_.key) * cells + place[corner]];
                     const std::uint32_t* row = key < staged_.rows ? words_.data() + staged_.table + static_cast<std::size_t>(key) * staged_.columns : nullptr;
-                    heavy[corner] = row ? row[weight & ~of_table] : 0;
+                    heavy[corner] = !row ? 0 : by_state ? adjusted(staged_.weight_derived, row, in, cells, place[corner]) : row[weight & ~of_table];
                     moves[corner] = row ? row[mobility & ~of_table] : 0;
                 } else {
                     heavy[corner] = in[static_cast<std::size_t>(weight) * cells + place[corner]];

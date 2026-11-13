@@ -21,6 +21,8 @@ namespace {
 struct Library {
     std::vector<geom::ClusteredMesh> made;
     std::vector<const geom::ClusteredMesh*> meshes;
+    std::vector<geom::Bvh> grown;
+    std::vector<const geom::Bvh*> trees;
     std::vector<mesh::Material> materials{{{0.8f, 0.2f, 0.15f}, {}}, {{0.5f, 0.5f, 0.5f}, {}}, {{0.15f, 0.4f, 0.8f}, {}}, {{0.9f, 0.75f, 0.2f}, {}}, {{0.1f, 0.1f, 0.1f}, {0.9f, 0.5f, 0.1f}}};
     Library() {
         made.push_back(*geom::clustered(geom::box({1, 1, 1})));
@@ -28,9 +30,11 @@ struct Library {
         made.push_back(*geom::clustered(geom::sphere(1, 32, 64), 32));
         made.push_back(*geom::clustered(geom::cylinder(0.7f, 2, 48), 32));
         made.push_back(*geom::clustered(geom::sheet(8, 8, 16, 16)));
-        for (const geom::ClusteredMesh& one : made) meshes.push_back(&one);
+        for (const geom::ClusteredMesh& one : made) meshes.push_back(&one), grown.push_back(geom::bvh_of(one.mesh));
+        for (const geom::Bvh& tree : grown) trees.push_back(&tree);
     }
-    [[nodiscard]] mesh::Assets assets() const { return {meshes, materials}; }
+    // Without trees nothing casts a shadow; with them a light is hidden where something is between.
+    [[nodiscard]] mesh::Assets assets(bool shadows = false) const { return {meshes, materials, shadows ? std::span<const geom::Bvh* const>(trees) : std::span<const geom::Bvh* const>()}; }
     [[nodiscard]] geom::Box3 bounds(std::uint32_t which) const { return geom::bounds(made[which].mesh); }
 };
 constexpr std::uint32_t box = 0, floor_mesh = 1, ball = 2, post = 3, sheet = 4;
@@ -53,19 +57,19 @@ struct Frame {
     mesh::Targets targets;
     mesh::Stats stats;
 };
-Frame drawn(const scene::Scene& world, const Camera& camera, int width, int height, mesh::Pass& pass, mesh::Options options = {}) {
+Frame drawn(const scene::Scene& world, const Camera& camera, int width, int height, mesh::Pass& pass, mesh::Options options = {}, bool shadows = false) {
     Frame frame;
     frame.targets.resize(width, height);
     scene::Extracted seen;
     scene::extract(world, camera.view(), seen);
     options.reversed_depth = camera.reversed;
-    pass.draw(world, seen, camera.view(), library().assets(), frame.targets, options);
+    pass.draw(world, seen, camera.view(), library().assets(shadows), frame.targets, options);
     frame.stats = pass.last();
     return frame;
 }
-Frame drawn(const scene::Scene& world, const Camera& camera, int width, int height, mesh::Options options = {}) {
+Frame drawn(const scene::Scene& world, const Camera& camera, int width, int height, mesh::Options options = {}, bool shadows = false) {
     mesh::Pass pass;
-    return drawn(world, camera, width, height, pass, options);
+    return drawn(world, camera, width, height, pass, options, shadows);
 }
 std::uint64_t bits(const mesh::Targets& targets) {
     mlibs::hash::Fnv1a hash;
@@ -89,7 +93,8 @@ scene::Scene yard() {
     put(world, 10, box, 0, math::Transform{{-2.2f, 0, 0}, math::Quat::about({0, 1, 0}, 0.6f), {1, 1, 1}}.matrix());
     put(world, 11, ball, 2, math::translation({0.4f, 0, 0.8f}));
     put(world, 12, post, 3, math::translation({2.6f, 0, -0.5f}));
-    put(world, 13, ball, 4, math::Transform{{1.2f, 1.6f, -1.5f}, {}, {0.25f, 0.25f, 0.25f}}.matrix());
+    // The lamp's globe: the light is inside it, so it is not in its own light's way.
+    expect(world.add({.id = 13, .mesh = ball, .material = 4, .world = math::Transform{{1.2f, 1.6f, -1.5f}, {}, {0.25f, 0.25f, 0.25f}}.matrix(), .bounds = library().bounds(ball), .casts = false}).has_value());
     expect(world.add(scene::Light{.id = 1, .kind = scene::LightKind::sun, .colour = {1, 0.96f, 0.9f}, .intensity = 0.9f, .toward = {-0.4f, -1, -0.5f}}).has_value());
     expect(world.add(scene::Light{.id = 2, .kind = scene::LightKind::point, .colour = {1, 0.6f, 0.2f}, .intensity = 2.5f, .at = {1.2f, 1.6f, -1.5f}, .range = 6}).has_value());
     return world;
@@ -281,5 +286,68 @@ static UTest cases{"xrender.mesh", [] {
         const std::size_t middle = (static_cast<std::size_t>((lamp->y0 + lamp->y1) / 2) * 480 + static_cast<std::size_t>((lamp->x0 + lamp->x1) / 2)) * 4;
         expect(gt(frame.targets.colour[middle], std::uint8_t{200}) && gt(frame.targets.colour[middle + 1], std::uint8_t{150}));
         expect(eq(bits(frame.targets), std::uint64_t{0xf29a9acc7a4440f9})) << std::format("{:016x}", bits(frame.targets));
+    };
+    "a shadow is where something stands between a surface and the light: a ball's on the floor is where the sun's rays through the ball land, by a ray through the meshes' trees"_test = [] {
+        scene::Scene world;
+        put(world, 1, floor_mesh, 1, math::translation({0, -1, 0}));
+        put(world, 2, ball, 2, math::translation({0, 0.5f, 0}));
+        const math::Vec3 sun = math::normalized(math::Vec3{-0.5f, -1, -0.3f});
+        expect(world.add(scene::Light{.id = 1, .kind = scene::LightKind::sun, .toward = sun}).has_value());
+        const Camera camera{.eye = {0, 6, 7}, .target = {-0.5f, -1, 0}, .aspect = 16.0f / 9.0f};
+        const Frame lit = drawn(world, camera, 320, 180), shaded = drawn(world, camera, 320, 180, {}, true);
+        // A floor's pixel, back in the world: where the ray through it meets y = −1.
+        const scene::View view = camera.view();
+        const math::Mat4 back = *math::inverse(view.projection * view.view);
+        const auto on_floor = [&](int x, int y) {
+            const float ndc_x = (static_cast<float>(x) + 0.5f) / 320 * 2 - 1, ndc_y = 1 - (static_cast<float>(y) + 0.5f) / 180 * 2;
+            const math::Vec4 near = back * math::Vec4{ndc_x, ndc_y, 0, 1}, far = back * math::Vec4{ndc_x, ndc_y, 1, 1};
+            const math::Vec3 from = near.xyz() * (1 / near.w), to = far.xyz() * (1 / far.w);
+            return from + (to - from) * ((-1 - from.y) / (to.y - from.y));
+        };
+        std::uint32_t in_shadow = 0, agreeing = 0, at_the_edge = 0, wrong = 0, darker_elsewhere = 0;
+        for (int y = 0; y < 180; ++y)
+            for (int x = 0; x < 320; ++x) {
+                const auto who = mesh::at(shaded.targets, x, y);
+                const std::size_t pixel = (static_cast<std::size_t>(y) * 320 + x) * 4;
+                const bool darker = shaded.targets.colour[pixel] < lit.targets.colour[pixel];
+                if (!who || who->instance != 1) {
+                    // The ball itself: lit where it faces the sun, as before (nothing stands between it and the sun).
+                    darker_elsewhere += darker;
+                    continue;
+                }
+                // The sun's ray back from this place passes the ball's middle within its radius: in its shadow.
+                const math::Vec3 place = on_floor(x, y), to_ball = math::Vec3{0, 0.5f, 0} - place;
+                const float along = -math::dot(to_ball, sun);
+                const float apart = math::length(to_ball + sun * along);
+                const bool expected = along > 0 && apart < 1;
+                if (std::abs(apart - 1) < 0.06f) ++at_the_edge;  // a facet of the ball, a pixel's width
+                else if (darker == expected) ++agreeing, in_shadow += darker;
+                else ++wrong;
+            }
+        std::println("a ball over a floor: {} floor pixels in its shadow, {} agree with the sun's rays through a ball, {} wrong, {} at the edge; {} rays, {} met something", in_shadow, agreeing, wrong,
+                     at_the_edge, shaded.stats.rays, shaded.stats.shadowed);
+        expect(gt(in_shadow, 300u) && eq(wrong, 0u) && eq(darker_elsewhere, 0u));
+        expect(gt(shaded.stats.rays, std::uint64_t{20000}) && gt(shaded.stats.shadowed, std::uint64_t{400}) && eq(lit.stats.rays, std::uint64_t{0}));
+        // Shadows asked off: the picture without them, bit for bit.
+        const Frame off = drawn(world, camera, 320, 180, {.shadows = false}, true);
+        expect(eq(bits(off.targets), bits(lit.targets)));
+    };
+    "the yard with shadows: what is off the screen casts too; the picture pinned and kept"_test = [] {
+        scene::Scene world = yard();
+        // A slab off to the right of the view, between the sun and the yard.
+        put(world, 20, box, 1, math::Transform{{9, 6, 6}, {}, {3, 0.2f, 3}}.matrix());
+        const Frame frame = drawn(world, yard_camera, 480, 270, {}, true), plain = drawn(world, yard_camera, 480, 270);
+        const auto file = keep(frame.targets, "yard-shadows");
+        std::vector<mesh::Shown> shown;
+        mesh::shown(frame.targets, shown);
+        expect(std::ranges::find(shown, scene::Id{20}, &mesh::Shown::instance) == shown.end()) << "the slab reaches no pixel";
+        std::uint32_t darker = 0, lighter = 0;
+        for (std::size_t pixel = 0; pixel < frame.targets.ids.size(); ++pixel) {
+            darker += frame.targets.colour[pixel * 4] < plain.targets.colour[pixel * 4];
+            lighter += frame.targets.colour[pixel * 4] > plain.targets.colour[pixel * 4];
+        }
+        std::println("the yard with shadows: {} pixels darker than without, {} lighter; {} rays; bits {:016x}; {}", darker, lighter, frame.stats.rays, bits(frame.targets), file.generic_string());
+        expect(gt(darker, 3000u) && eq(lighter, 0u));
+        expect(eq(bits(frame.targets), std::uint64_t{0x67ba845e17a03e8c})) << std::format("{:016x}", bits(frame.targets));
     };
 }};

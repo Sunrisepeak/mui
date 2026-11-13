@@ -93,16 +93,36 @@ struct Raster {
     const Options& options;
     Stats&         stats;
     std::span<const Lamp> lamps;
+    std::span<const Caster> casters;
     Material       material;
     Pixel          id;
     bool           still = true;  // the draw is where it was, seen from where it was seen: its pixels moved by 0, exactly
 
-    Vec3 lit(Vec3 normal, Vec3 place) const noexcept {
+    // Whether anything is between `from` and a light `reach` away along `toward` (of length 1). The ray is taken
+    // into each mesh's own space as it is — not made of length 1 again — so a distance along it is the world's.
+    bool hidden_from(Vec3 from, Vec3 toward, float reach) noexcept {
+        ++stats.rays;
+        const geom::Ray ray{from, toward};
+        for (const Caster& caster : casters) {
+            const std::optional<float> box = geom::meet(ray, caster.bounds);
+            if (!box || *box > reach) continue;
+            const geom::Ray within{math::point(caster.back, from), math::direction(caster.back, toward)};
+            if (geom::meet(within, *caster.mesh, *caster.tree, reach)) {
+                ++stats.shadowed;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    Vec3 lit(Vec3 normal, Vec3 place) noexcept {
         Vec3 light = options.ambient;
+        // A ray starts a little off the surface, or it meets the surface it left.
+        const Vec3 lifted = place + normal * 2e-3f;
         for (const Lamp& lamp : lamps) {
             if (lamp.kind == scene::LightKind::sun) {
                 const float facing = -math::dot(normal, lamp.toward);
-                if (facing > 0) light = light + lamp.colour * facing;
+                if (facing > 0 && !(!casters.empty() && hidden_from(lifted, -lamp.toward, std::numeric_limits<float>::max()))) light = light + lamp.colour * facing;
                 continue;
             }
             const Vec3 to = lamp.at - place;
@@ -112,6 +132,7 @@ struct Raster {
             const float facing = math::dot(normal, along);
             if (!(facing > 0)) continue;
             if (lamp.kind == scene::LightKind::spot && -math::dot(along, lamp.toward) < lamp.cone_cosine) continue;
+            if (!casters.empty() && hidden_from(lifted, along, apart)) continue;
             const float near = 1.0f - (apart / lamp.range) * (apart / lamp.range);
             light = light + lamp.colour * (facing * near * near);
         }
@@ -216,7 +237,15 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
         lamps[lamp_count++] = {light.kind, light.colour * light.intensity, light.at, math::normalized(light.toward), std::max(light.range, 1e-6f),
                                static_cast<float>(math::det::cos(static_cast<double>(light.cone)))};
     }
-    Raster raster{out, options, last_, std::span(lamps).first(lamp_count), {}, {}, true};
+    // What can cast a shadow: every instance of the scene with a tree, seen by this view or not.
+    casters_.clear();
+    if (options.shadows && !assets.trees.empty())
+        for (const scene::Instance& instance : instances) {
+            if (instance.hidden || !instance.casts || instance.mesh >= assets.meshes.size() || instance.mesh >= assets.trees.size() || !assets.meshes[instance.mesh] || !assets.trees[instance.mesh]) continue;
+            const std::optional<Mat4> back = math::inverse(instance.world);
+            if (back) casters_.push_back({*back, geom::moved(instance.world, instance.bounds), &assets.meshes[instance.mesh]->mesh, assets.trees[instance.mesh]});
+        }
+    Raster raster{out, options, last_, std::span(lamps).first(lamp_count), casters_, {}, {}, true};
 
     for (std::uint32_t number = 0; number < extracted.draws.size() && pixels; ++number) {
         const scene::Draw& draw = extracted.draws[number];

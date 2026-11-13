@@ -36,6 +36,7 @@ struct Instance {
     Box3          bounds;                  // of its mesh, as the mesh has it (before `world`)
     std::uint32_t layers = 1;              // seen by a view with one of these bits
     bool          hidden = false;
+    bool          casts = true;            // it stands between a light and what is behind it (a lamp's own glass does not)
 };
 enum class LightKind : std::uint8_t { sun, point, spot };
 struct Light {

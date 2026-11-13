@@ -37,6 +37,10 @@ struct Material {
 struct Assets {
     std::span<const mlibs::geom::ClusteredMesh* const> meshes;
     std::span<const Material> materials;
+    // None, or a tree of each mesh's triangles (mlibs.geom's `bvh_of`), a mesh each: with them a light is hidden
+    // where something stands between — a ray from the surface to the light, through the trees (D-184: the ray
+    // query is geometry's). A mesh with no tree casts no shadow.
+    std::span<const mlibs::geom::Bvh* const> trees;
 };
 struct Options {
     Vec3 background{0.02f, 0.02f, 0.03f};
@@ -45,6 +49,7 @@ struct Options {
     Vec3 ambient{0.06f, 0.06f, 0.07f};
     bool reversed_depth = false;  // the projection puts the nearest at 1 (math::perspective_reversed)
     bool cull_clusters = true;    // leave out a cluster outside the view or wholly facing away: no pixel changes
+    bool shadows = true;          // where the assets have trees: a light reaches a surface only if nothing is between
 };
 
 inline constexpr std::uint32_t none = 0xffffffffu;
@@ -67,6 +72,16 @@ struct Stats {
     std::uint32_t clusters = 0, clusters_outside = 0, clusters_away = 0;
     std::uint64_t triangles = 0, facing_away = 0, outside = 0, clipped = 0, filled = 0;
     std::uint64_t written = 0, hidden = 0;                  // pixels that passed the depth, and that did not
+    std::uint64_t rays = 0, shadowed = 0;                   // rays sent toward a light, and those that met something
+};
+
+// What can stand between a surface and a light, as a frame holds it: an instance's mesh and its tree, the world
+// taken to the mesh, its box in the world.
+struct Caster {
+    Mat4                     back;
+    mlibs::geom::Box3        bounds;
+    const mlibs::geom::Mesh* mesh = nullptr;
+    const mlibs::geom::Bvh*  tree = nullptr;
 };
 
 class Pass {
@@ -83,6 +98,7 @@ private:
     std::vector<Id>   before_ids_;     // the last frame's instances, in id order
     std::vector<Mat4> before_world_;
     Mat4              before_clip_;    // its world to clip
+    std::vector<Caster> casters_;      // a frame's: every instance of the scene that can cast, seen or not
     bool              remembered_ = false;
 };
 

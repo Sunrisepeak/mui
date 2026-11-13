@@ -44,3 +44,6 @@ openlifa.openas = "0.2.0"
 [dev-dependencies]
 mcpplibs.mtest  = "0.7.1"
 mlibs.agent.cts = { path = "../../../base/agent/cts" }
+# tests/frame_test.cpp: a 3D layer, the mesh pass's picture under a display list, a pixel traced to the triangle.
+xrender.mesh    = { path = "../mesh" }
+xrender.scene   = { path = "../scene" }

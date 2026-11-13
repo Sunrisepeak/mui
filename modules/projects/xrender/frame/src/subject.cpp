@@ -77,9 +77,15 @@ void FrameSubject::operate(std::string_view operation, const mlibs::agent::Reque
         std::string out = std::format("{{\"at\":[{},{}],\"pixel\":[{},{},{},{}],\"chain\":[", *x, *y, static_cast<int>(pixel.r), static_cast<int>(pixel.g),
                                       static_cast<int>(pixel.b), static_cast<int>(pixel.a));
         const PixelSource source = frame_ ? frame_->at(static_cast<int>(*x), static_cast<int>(*y)) : PixelSource{};
-        if (source.layer >= 0)
-            out += std::format("{{\"layer\":{},\"index\":{},\"object\":{}}}", mlibs::agent::json_text(frame_->report().layers[static_cast<std::size_t>(source.layer)].name),
+        if (source.layer >= 0) {
+            out += std::format("{{\"layer\":{},\"index\":{},\"object\":{}", mlibs::agent::json_text(frame_->report().layers[static_cast<std::size_t>(source.layer)].name),
                                source.layer, source.object);
+            // What the layer itself knows of it (a 3D layer: the instance, the cluster, the triangle).
+            std::string more;
+            frame_->describe(static_cast<std::size_t>(source.layer), static_cast<int>(*x), static_cast<int>(*y), more);
+            if (!more.empty()) out += "," + more;
+            out += "}";
+        }
         return answer.data(out + "]}");
     }
 }

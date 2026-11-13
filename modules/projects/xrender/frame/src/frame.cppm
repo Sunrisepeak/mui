@@ -30,7 +30,18 @@ export import :catalog;
 
 export namespace xrender {
 
-// One source of a frame's content.
+// A layer drawn elsewhere — a 3D pass, a decoded picture — given as its pixels, the frame's size. All of it is
+// the caller's, alive while the frame is asked about (as the target is).
+struct PictureLayer {
+    std::span<const std::uint8_t>  rgba;     // straight alpha, sRGB: width × height × 4, rows from the top
+    int                            width = 0, height = 0;
+    std::span<const std::uint32_t> objects;  // none, or who drew each pixel: 0 where nothing did
+    // None, or more of who drew a pixel, as members of a JSON object (`"instance":17,"triangle":80`) appended to
+    // `members`: what `frame.at` says beside the object.
+    std::function<void(int x, int y, std::string& members)> describe;
+};
+
+// One source of a frame's content: a display list, or a picture (PictureLayer).
 struct FrameLayer {
     std::string_view      name;              // how a capture or an explanation addresses it: "ui", "world"
     const DisplayList*    list = nullptr;
@@ -39,6 +50,7 @@ struct FrameLayer {
     std::optional<Affine> transform;         // the device transform it starts under (default: its scale)
     std::optional<float>  effect_scale;      // the logical-pixel scale its image filters work at (default: its scale)
     bool                  object_ids = false;  // keep which of its objects drew each pixel
+    const PictureLayer*        picture = nullptr;   // instead of a list: laid over what is there (it keeps ids where it has `objects`)
 };
 
 struct FrameOptions {
@@ -79,9 +91,12 @@ public:
     [[nodiscard]] PixelSource at(int x, int y) const noexcept;
     // The ids one layer kept, a pixel each, row by row (empty when it kept none): 0 where it drew nothing.
     [[nodiscard]] std::span<const std::uint32_t> object_ids(std::size_t layer) const noexcept;
+    // What else a layer says of who drew a pixel (a picture's `describe`), as JSON members; nothing: unchanged.
+    void describe(std::size_t layer, int x, int y, std::string& members) const;
 
 private:
     std::vector<CpuRenderer> renderers_;  // one a layer: each keeps its ids and its scratch from frame to frame
+    std::vector<const PictureLayer*> pictures_;  // one a layer: the picture it was, or none
     FrameReport              report_;
 };
 

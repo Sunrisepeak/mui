@@ -319,6 +319,17 @@ std::optional<Source> at(const Targets& targets, int x, int y) noexcept {
     return Source{draw.id, draw.mesh, draw.material, id.cluster, id.triangle, targets.depth[pixel], targets.normal[pixel]};
 }
 
+void objects(const Targets& targets, std::vector<std::uint32_t>& out) {
+    out.resize(targets.ids.size());
+    for (std::size_t pixel = 0; pixel < targets.ids.size(); ++pixel) out[pixel] = targets.ids[pixel].draw < targets.draws.size() ? targets.ids[pixel].draw + 1 : 0;
+}
+void describe(const Targets& targets, int x, int y, std::string& members) {
+    const std::optional<Source> source = at(targets, x, y);
+    if (!source) return;
+    members += std::format("\"instance\":{},\"mesh\":{},\"material\":{},\"cluster\":{},\"triangle\":{},\"depth\":{},\"normal\":[{},{},{}]", source->instance, source->mesh, source->material,
+                           source->cluster, source->triangle, source->depth, source->normal.x, source->normal.y, source->normal.z);
+}
+
 void shown(const Targets& targets, std::vector<Shown>& out) {
     out.assign(targets.draws.size(), {});
     for (int y = 0; y < targets.height; ++y)

@@ -95,6 +95,12 @@ struct Source {
 };
 [[nodiscard]] std::optional<Source> at(const Targets& targets, int x, int y) noexcept;
 
+// For a frame's layer of this picture (xrender.frame's `PictureLayer`): who drew each pixel as one number — the draw's
+// place and one, 0 where nothing drew — and what `frame.at` says of a pixel beside it, as JSON members
+// (`"instance":11,"mesh":2,"material":2,"cluster":9,"triangle":640,"depth":0.93,"normal":[0,0.6,0.8]`).
+void objects(const Targets& targets, std::vector<std::uint32_t>& out);
+void describe(const Targets& targets, int x, int y, std::string& members);
+
 // What of an instance reached the frame: how many pixels, and the box of them (x0, y0 inclusive; x1, y1 exclusive).
 struct Shown {
     Id            instance = 0;

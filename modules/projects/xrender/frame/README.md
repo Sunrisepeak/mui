@@ -23,6 +23,10 @@ frame.at(120, 80);   // {layer 1, object 17}: the topmost layer that keeps ids, 
 - **Every host goes through it**: omui's headless host, its desktop host (SDL: the CPU's frame and the device's), the Web's (WebGPU, WebGL2, the CPU), Android's, and the development host drawing an application's list — none calls a renderer itself.
 - **One compositor a target, kept from frame to frame**: each layer's renderer keeps its ids and its scratch, so a partial render (some rows) leaves the rest as it was.
 
+## A layer drawn elsewhere
+
+A layer is a display list, or a picture: `PictureLayer` — pixels of the frame's size drawn by something else (the mesh pass; a decoded picture), laid over what is there, with, if it has them, who drew each pixel and a function that says more of it. A world in three dimensions under an interface is two layers of one frame, and one question — what drew this pixel — is answered for both (`tests/frame_test.cpp`). The CPU frame lays pictures; the GPU frame does not yet (a 3D layer there is the GPU mesh pass's).
+
 ## Agent surface
 
 The frame is a `Subject` of the agent kernel ([mlibs.agent](../../../base/agent)): `FrameSubject`, shown the compositor and the surface (`show`). Its operations are a catalog, [frame.ops.omui.ts](frame.ops.omui.ts) (the table `src/catalog.cppm` and the listings `src/frame.ops.json`, `.md` are `omui-gen ops`'s); how to use them, in order, is [skill.omui.md](skill.omui.md).
@@ -32,7 +36,7 @@ The frame is a `Subject` of the agent kernel ([mlibs.agent](../../../base/agent)
 | Subject and addresses | `frame`, interface `xrender.frame@0.1`. A pixel is `[x, y]` from the top left in the target's pixels, a region `[x, y, width, height]`; a layer is its name and its index from the back |
 | State | The last frame rendered: its pixels and what each layer drew. The hash covers the size and every pixel — the same picture, the same hash |
 | Observation | `frame.layers`: the size, the hash, each layer's name, how much it drew and what it could not (missing images, glyphs, effects, external textures); `frame.capture`: the pixels as drawn, whole or a region, as a PNG (at most 4 megapixels a request) |
-| Source | `frame.at`: a pixel's colour and the chain from it back — the topmost layer that keeps ids, and its object there; empty where no object drew |
+| Source | `frame.at`: a pixel's colour and the chain from it back — the topmost layer that keeps ids, and its object there; empty where no object drew. A layer in three dimensions (a `PictureLayer` of [xrender.mesh](../mesh)'s frame) says more: the instance by its stable id, its mesh and material, the cluster, the triangle, the depth and the normal |
 | Budgets and tiers | `frame.capture` by region: ask for the part in question, not the whole |
 | Not here | **Control, time, preview, history**: a frame is a function of the layers it was given — what changes it is its producers' subjects (`ui`, `world`), and so is their time. **Causes** beyond the chain to an object: why the object is there is its producer's. **A device's frame as the subject** (`GpuFrame`'s target read back for `frame.capture`, its ids for `frame.at`) and **a 3D layer's id buffer** come with the mesh feature (M6.3): on a device the subject is not shown yet, and a pixel's source is the interface's (`ui.drew`, by the reference renderer) |
 

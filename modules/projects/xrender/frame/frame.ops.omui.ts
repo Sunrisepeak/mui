@@ -30,7 +30,7 @@ export default defineOps({
     {
       name: "frame.at",
       effect: "read",
-      summary: "What drew a pixel: its colour, and the chain from it back — the topmost layer that keeps what drew each pixel, and that layer's object there",
+      summary: "What drew a pixel: its colour, and the chain from it back — the topmost layer that keeps what drew each pixel, and that layer's object there; of a layer in three dimensions also the instance, its mesh and material, the cluster, the triangle, the depth and the normal",
       params: [{ name: "at", type: "json", doc: "[x, y] in the frame's pixels" }],
       result: "json",
     },

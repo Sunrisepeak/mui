@@ -18,7 +18,7 @@ inline constexpr std::array<mlibs::control::Parameter, 1> parameters_frame_at{{
 inline constexpr std::array<mlibs::control::CatalogEntry, 3> catalog{{
     {{"frame.layers", openas::Effect::read, false}, "The frame's size, its pixels' hash, and its layers from the back: each one's name, how much it drew, what it could not draw, whether it keeps what drew each pixel", {}, "json", mlibs::control::Cost::instant, "", false, false, false},
     {{"frame.capture", openas::Effect::read, false}, "The pixels as drawn — the whole frame or a region of it — as a PNG in base64; at most 4 megapixels a request", parameters_frame_capture, "json", mlibs::control::Cost::frame, "", false, false, false},
-    {{"frame.at", openas::Effect::read, false}, "What drew a pixel: its colour, and the chain from it back — the topmost layer that keeps what drew each pixel, and that layer's object there", parameters_frame_at, "json", mlibs::control::Cost::instant, "", false, false, false},
+    {{"frame.at", openas::Effect::read, false}, "What drew a pixel: its colour, and the chain from it back — the topmost layer that keeps what drew each pixel, and that layer's object there; of a layer in three dimensions also the instance, its mesh and material, the cluster, the triangle, the depth and the normal", parameters_frame_at, "json", mlibs::control::Cost::instant, "", false, false, false},
 }};
 
 // The listing (frame.ops.json), as written beside this file.
@@ -32,7 +32,7 @@ inline constexpr std::string_view listing = R"listing({
      "inputSchema": {"type": "object", "properties": {}, "required": []}},
     {"name": "frame.capture", "description": "The pixels as drawn — the whole frame or a region of it — as a PNG in base64; at most 4 megapixels a request", "effect": "read", "person": false, "delegated": false, "cost": "frame", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"region": {"description": "[x, y, width, height] in the frame's pixels (the whole frame when none is given)"}}, "required": []}},
-    {"name": "frame.at", "description": "What drew a pixel: its colour, and the chain from it back — the topmost layer that keeps what drew each pixel, and that layer's object there", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+    {"name": "frame.at", "description": "What drew a pixel: its colour, and the chain from it back — the topmost layer that keeps what drew each pixel, and that layer's object there; of a layer in three dimensions also the instance, its mesh and material, the cluster, the triangle, the depth and the normal", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"at": {"description": "[x, y] in the frame's pixels"}}, "required": ["at"]}}
   ],
   "tiers": []

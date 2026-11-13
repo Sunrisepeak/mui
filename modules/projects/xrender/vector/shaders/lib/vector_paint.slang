@@ -47,6 +47,8 @@ static const int KIND_SHADOW = 6; // a box shadow evaluated at the pixel (shadow
 static const int FLAG_AXIS_ALIGNED = 1;   // the transform maps the rectangle to an axis-aligned one
 static const int FLAG_CLIP_MASK = 2;      // multiply by the clip mask
 static const int FLAG_LINEAR = 4;         // image paint / image: bilinear
+static const int CLIP_RECORD_SHIFT = 8;   // above the flags: the record of the clip covered from its outline (0: none)
+static const int CLIP_DEPTH_MOST = 4;     // such clips one within another
 static const int FLAG_LAYER = 8;          // a layer composited: its pixel at the layer's opacity (shape.z), as the CPU pops it
 
 struct Frame {
@@ -324,14 +326,21 @@ uint4 paint_from(Sampler2D ramp_source, Sampler2D image_source, float ramp_count
 
 // A shape's coverage under the clip: its rectangle covers by rect_coverage
 // (a pixel-aligned one is all or nothing), its mask by its bytes.
-uint clipped(Sampler2D clip_source, Frame frame, VOut i, float2 p, int2 px, int flags, uint k) {
+uint clipped(Sampler2D clip_source, Sampler2D points, Frame frame, VOut i, float2 p, int2 px, int flags, uint k) {
     const uint clip = rect_coverage(px, i.clip);
     if (clip != 255) k = mul255(k, clip);
     if ((flags & FLAG_CLIP_MASK) != 0) k = mul255(k, bytes(clip_source.SampleLevel(p / frame.size.xy, 0)).r);
+    // The rounded clips covered from their outlines, each within the next (CLIP_RECORD_SHIFT: the first's record).
+    int record = flags >> CLIP_RECORD_SHIFT;
+    for (int depth = 0; depth < CLIP_DEPTH_MOST && record > 0 && k != 0; ++depth) {
+        int below = 0;
+        k = mul255(k, clip_coverage(points, frame, record, p, below));
+        record = below;
+    }
     return k;
 }
 
-uint coverage_at(Sampler2D atlas_source, Sampler2D clip_source, Frame frame, VOut i, float2 p, int2 px, int kind, int flags) {
+uint coverage_at(Sampler2D atlas_source, Sampler2D clip_source, Sampler2D points, Frame frame, VOut i, float2 p, int2 px, int kind, int flags) {
     uint k;
     if ((flags & FLAG_LAYER) != 0) {
         k = uint(i.shape.z);
@@ -363,7 +372,7 @@ uint coverage_at(Sampler2D atlas_source, Sampler2D clip_source, Frame frame, VOu
         }
         k = coverage_byte(f);
     }
-    return clipped(clip_source, frame, i, p, px, flags, k);
+    return clipped(clip_source, points, frame, i, p, px, flags, k);
 }
 
 // How much of the pixel whose corner is the origin lies to the right of the
@@ -430,6 +439,26 @@ uint glyph_coverage(Sampler2D points, Frame frame, VOut i, float2 p) {
 float2 point_at(Sampler2D points, Frame frame, int at) {
     const float2 texel = float2(float((at % 1024) * 2) + 0.5, float(at / 1024) + 0.5);
     return float2(points.SampleLevel(texel / frame.ramps.yz, 0).r, points.SampleLevel((texel + float2(1, 0)) / frame.ramps.yz, 0).r);
+}
+
+// A rounded clip's coverage of the pixel at `p` from its outline (D-188): record `record` of the frame's, seven
+// points in the store's first rows — the outline's transform (a, b; c, d; e, f), its first point and points, the
+// plain part (a device rectangle's corners; its corners' reach, below 0 for none), and in `below` the record of
+// the clip this one lies within (0: none). The same at every size and place: no mask is made of it.
+uint clip_coverage(Sampler2D points, Frame frame, int record, float2 p, out int below) {
+    const int at = (record - 1) * 7;
+    const float2 last = point_at(points, frame, at + 6);
+    below = int(last.y);
+    if (last.x >= 0) {
+        const float2 from = point_at(points, frame, at + 4), to = point_at(points, frame, at + 5);
+        const float2 lo = floor(p), hi = lo + 1;
+        const bool inside = lo.x >= from.x && lo.y >= from.y && hi.x <= to.x && hi.y <= to.y;
+        const bool corner = (lo.x < from.x + last.x || hi.x > to.x - last.x) && (lo.y < from.y + last.x || hi.y > to.y - last.x);
+        if (inside && !corner) return 255u;
+    }
+    const float2 ab = point_at(points, frame, at), cd = point_at(points, frame, at + 1), origin = point_at(points, frame, at + 2);
+    const float2 run = point_at(points, frame, at + 3);
+    return coverage_byte(outline_area(points, frame, float4(ab, cd), origin, int(run.x), int(run.y), p));
 }
 
 // What the reference's blur — three box passes a direction over pixel

@@ -269,7 +269,12 @@ struct Affine {
         float m = sx > sy ? sx : sy;
         // √m by Newton from a positive start: constexpr and exact enough for tolerances.
         float x = m > 1 ? m : 1;
-        for (int i = 0; i < 20; ++i) x = 0.5f * (x + m / x);
+        // (Stopped where a step changes nothing: the same value as all twenty give, a division each saved.)
+        for (int i = 0; i < 20; ++i) {
+            const float next = 0.5f * (x + m / x);
+            if (next == x) break;
+            x = next;
+        }
         return x;
     }
     // The bounding box of a transformed rectangle.

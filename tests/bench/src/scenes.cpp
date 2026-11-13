@@ -103,8 +103,12 @@ HeadlessOptions scene_options(HeadlessLevel level = HeadlessLevel::pixels) {
 // What a list is made of, by kind of command: where a frame's masks come from.
 std::string made_of(const xrender::DisplayList& list) {
     std::array<std::size_t, std::variant_size_v<xrender::Command>> kinds{};
-    for (const xrender::Command& command : list.commands()) ++kinds[command.index()];
-    std::string text;
+    std::size_t rounded = 0, smoothed = 0;
+    for (const xrender::Command& command : list.commands()) {
+        ++kinds[command.index()];
+        if (const auto* clip = std::get_if<xrender::PushClipRect>(&command); clip && !clip->radii.zero()) ++rounded, smoothed += clip->radii.smoothing > 0 ? 1 : 0;
+    }
+    std::string text = rounded > 0 ? std::format("{} clips rounded ({} of them smoothed)", rounded, smoothed) : std::string();
     for (std::size_t kind = 0; kind < kinds.size(); ++kind)
         if (kinds[kind] > 0) text += std::format("{}{} {}", text.empty() ? "" : ", ", kinds[kind], xrender::command_kind_name(kind));
     return text;
@@ -559,6 +563,7 @@ void add_framework_benchmarks() {
         double      slowest_ms = 0;
         std::string slowest;
         std::size_t points_kept = 0, restarts = 0, over = 0;
+        std::string late;
         while (s.next()) {
             const double z = w.model.zoom.peek();
             if (z >= 4) dir = 1;
@@ -570,11 +575,15 @@ void add_framework_benchmarks() {
                 slowest = std::format("{:.1f} ms ({:.1f} encoding) at zoom {:.3f}: {} commands, {} outlined, {} outline points kept{}, {} masks made, {} KB sent", ms,
                                       gpu.last_encode_ms, z, w.h.runtime().display_list().commands().size(), gpu.last.glyphs_outlined, gpu.last.outline_points,
                                       gpu.last.outlines_restarted ? " (the store begun again)" : "", gpu.last.masks_made, gpu.last.uploaded / 1024);
+                slowest += "; its list: " + made_of(w.h.runtime().display_list());
             }
             points_kept += gpu.last.outline_points;
             restarts += gpu.last.outlines_restarted ? 1 : 0;
-            if (ms > 8.3) ++over;
+            if (ms > 8.3 && ++over <= 12)
+                late += std::format("{}[zoom {:.3f}: {:.1f} ms, {:.1f} encoding, {} instances, {} KB sent, {} listed]", late.empty() ? "" : " ", z, ms, gpu.last_encode_ms,
+                                    gpu.last.instances, gpu.last.uploaded / 1024, w.canvas().stats().listed);
         }
+        s.note("late", late);
         s.note("outlines", std::format("{} points kept in all, the store begun again {} times; {} frames over 8.3 ms", points_kept, restarts, over));
         s.note("slowest", slowest);
         s.note("list", made_of(w.h.runtime().display_list()));

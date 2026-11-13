@@ -47,6 +47,10 @@ struct RenderReport {
     // GPU: the points of outlines kept for the device this frame (flattened
     // and sent; a shape's once a level of scale), and whether the store of
     // them had outgrown its size and was begun again.
+    // GPU: rounded clips covered on the device from their outlines this frame (no mask made of them).
+    std::size_t clips_outlined = 0;
+    // GPU: the frame's instances (a primitive each: 192 bytes sent).
+    std::size_t instances = 0;
     std::size_t outline_points = 0;
     bool        outlines_restarted = false;
     // GPU: the frame's passes (render::Graph) that ran, and those left out

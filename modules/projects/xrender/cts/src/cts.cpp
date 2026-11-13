@@ -918,6 +918,54 @@ void add(Cases& suite) {
             check(problem.empty(), problem);
             check_eq(rig.last.masks_made, std::size_t{0});
         }
+        // Rounded clips under a scale that changes every frame (a canvas's windows under its camera): covered
+        // from their outlines, each primitive under them reading the frame's record — no mask of the surface's
+        // size made or sent. A smoothed one, a circles' one within it (and a plain rectangle's between), and
+        // one turned. Along a clip's curved edge the reference's chords against the outline's finer ones, as a
+        // fill's: measured, 6 levels at the most.
+        for (int frame = 0; frame < 6; ++frame) {
+            render::DisplayList dl;
+            const float zoom = 0.55f + static_cast<float>(frame) * 0.23f;
+            dl.push_transform(geom::Affine::translate(6.3f + static_cast<float>(frame), 4.6f) * geom::Affine::scale(zoom, zoom * 1.004f));
+            dl.push_clip({0, 0, 84, 60}, geom::CornerRadii::all(12).smoothed(0.6f));
+            dl.fill_rect({-10, -10, 120, 90}, gradient(render::GradientKind::linear, {0, 0}, {84, 60}, 0, render::Spread::pad, rainbow));
+            dl.push_clip({6, 5, 70, 48});
+            dl.push_clip({-4, 14, 60, 60}, geom::CornerRadii{20, 4, 0, 9});
+            dl.fill_rect({-20, 0, 140, 90}, render::Paint::solid(geom::Color{0.05f, 0.1f, 0.3f, 0.8f}));
+            dl.fill_round_rect({10, 20, 40, 30}, geom::CornerRadii::all(8), render::Paint::solid(geom::Color::hex(0xfacc15)));
+            std::array<render::Glyph, 4> run{};
+            for (std::uint32_t index = 0; index < run.size(); ++index) run[index] = {index, {static_cast<float>(index) * 9.0f, 0}, index, index, 0, 0};
+            dl.draw_glyphs({1}, 12, {-2.5f, 30.4f}, run, render::Paint::solid(geom::Color::white()));
+            dl.pop_clip();
+            dl.pop_clip();
+            dl.pop_clip();
+            dl.pop_transform();
+            dl.push_transform(geom::Affine::translate(118.4f, 70.3f) * render::rotate(0.3f + 0.1f * static_cast<float>(frame)));
+            dl.push_clip({-22, -16, 44, 32}, geom::CornerRadii::all(10));
+            dl.fill_rect({-40, -40, 80, 80}, render::Paint::solid(geom::Color::hex(0x16a34a)));
+            dl.pop_clip();
+            dl.pop_transform();
+            const std::string problem = rig.compare(dl, std::format("rounded clips from outlines, frame {}", frame), {6, 200});
+            check(problem.empty(), problem);
+            check_eq(rig.last.clips_outlined, std::size_t{3});
+            check_eq(rig.last.masks_made, std::size_t{0});
+            check(rig.last.uploaded < 48 * 1024, std::format("frame {}: {} bytes sent (a mask of the surface's size is not made)", frame, rig.last.uploaded));
+        }
+        // A layer blended under such a clip: the blend's pass reads no records, and is given the clip as a mask.
+        for (int frame = 0; frame < 2; ++frame) {
+            render::DisplayList dl;
+            dl.fill_rect({0, 0, 160, 120}, render::Paint::solid(geom::Color::hex(0xfde68a)));
+            dl.push_transform(geom::Affine::scale(1.0f + 0.2f * static_cast<float>(frame), 1.0f + 0.2f * static_cast<float>(frame)));
+            dl.push_clip({10.4f, 8.2f, 90, 70}, geom::CornerRadii::all(18).smoothed(0.6f));
+            dl.push_layer(0.9f, render::BlendMode::multiply);
+            dl.fill_rect({0, 0, 160, 120}, render::Paint::solid(geom::Color::hex(0x38bdf8)));
+            dl.pop_layer();
+            dl.pop_clip();
+            dl.pop_transform();
+            const std::string problem = rig.compare(dl, std::format("a blended layer under a rounded clip, frame {}", frame), {3, 8});
+            check(problem.empty(), problem);
+            check_eq(rig.last.clips_outlined, std::size_t{1});
+        }
         // At rest with masks allowed: asked for once, drawn from outlines; asked again, made — the reference's bytes.
         rig.glyph_masks = 256;
         render::DisplayList still;

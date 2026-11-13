@@ -15,9 +15,9 @@ import vector_paint;
 // A primitive's coverage at a pixel: a glyph from its outline, the rest as vector_paint has them.
 uint covered(VOut i, float2 p, int flags) {
     const int kind = int(i.m1.z);
-    if (kind == KIND_GLYPH) return clipped(clip_mask, fframe, i, p, int2(p), flags, glyph_coverage(outlines, fframe, i, p));
-    if (kind == KIND_SHADOW) return clipped(clip_mask, fframe, i, p, int2(p), flags, shadow_coverage(outlines, fframe, i, p));
-    return coverage_at(atlas, clip_mask, fframe, i, p, int2(p), kind, flags);
+    if (kind == KIND_GLYPH) return clipped(clip_mask, outlines, fframe, i, p, int2(p), flags, glyph_coverage(outlines, fframe, i, p));
+    if (kind == KIND_SHADOW) return clipped(clip_mask, outlines, fframe, i, p, int2(p), flags, shadow_coverage(outlines, fframe, i, p));
+    return coverage_at(atlas, clip_mask, outlines, fframe, i, p, int2(p), kind, flags);
 }
 
 [shader("vertex")]

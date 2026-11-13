@@ -182,4 +182,82 @@ UTest cases{"geom.solid", [] {
         expect(culled > 200u) << std::format("{} cluster views culled", culled);
         expect(eq(wrongly, std::size_t{0})) << "a triangle that faces the eye in a cluster said to face away";
     };
+    "a polygon cut into triangles: corners − 2 of them, counter-clockwise, their areas the polygon's — given either way round; what crosses itself is refused"_test = [] {
+        using math::Vec2;
+        const std::array<Vec2, 6> ell{{{0, 0}, {2, 0}, {2, 1}, {1, 1}, {1, 3}, {0, 3}}};
+        // A star of five points: every other corner turns the wrong way.
+        std::vector<Vec2> star;
+        for (int point = 0; point < 10; ++point) {
+            const double angle = math::det::two_pi * point / 10, reach = point % 2 ? 0.4 : 1.0;
+            star.push_back({static_cast<float>(reach * math::det::cos(angle)), static_cast<float>(reach * math::det::sin(angle))});
+        }
+        const auto area_of = [](std::span<const Vec2> polygon, std::span<const std::uint32_t> triangles) {
+            double sum = 0;
+            bool all_left = true;
+            for (std::size_t at = 0; at < triangles.size(); at += 3) {
+                const Vec2 a = polygon[triangles[at]], b = polygon[triangles[at + 1]], c = polygon[triangles[at + 2]];
+                const double twice = (static_cast<double>(b.x) - a.x) * (static_cast<double>(c.y) - a.y) - (static_cast<double>(b.y) - a.y) * (static_cast<double>(c.x) - a.x);
+                all_left = all_left && twice > 0;
+                sum += twice / 2;
+            }
+            return all_left ? sum : -1.0;
+        };
+        const auto of_ell = geom::triangulated(ell), of_star = geom::triangulated(star);
+        expect(fatal(of_ell.has_value() && of_star.has_value()));
+        expect(eq(of_ell->size(), std::size_t{4 * 3}) && eq(of_star->size(), std::size_t{8 * 3}));
+        expect(near_to(static_cast<float>(area_of(ell, *of_ell)), 4.0f) && near_to(static_cast<float>(area_of(star, *of_star)), 5 * 0.4f * static_cast<float>(math::det::sin(math::det::two_pi / 10)), 1e-3f));
+        std::vector<Vec2> clockwise(ell.rbegin(), ell.rend());
+        const auto turned = geom::triangulated(clockwise);
+        expect(turned.has_value() && near_to(static_cast<float>(area_of(clockwise, *turned)), 4.0f)) << "given the other way round: the same triangles' worth, still counter-clockwise";
+        const std::array<Vec2, 4> bow{{{0, 0}, {1, 1}, {1, 0}, {0, 1}}};
+        const std::array<Vec2, 4> on_a_line{{{0, 0}, {1, 0}, {2, 0}, {1, 1}}};
+        expect(!geom::triangulated(bow).has_value() && geom::triangulated(on_a_line).error().contains("on the line"));
+        expect(geom::triangulated(std::span(ell).first(2)).error().contains("three at least"));
+    };
+    "an outline pushed through a depth and a profile turned about the axis are sound shapes, and hold the space they should"_test = [] {
+        using math::Vec2;
+        const std::array<Vec2, 6> ell{{{0, 0}, {2, 0}, {2, 1}, {1, 1}, {1, 3}, {0, 3}}};
+        const geom::Mesh pushed = *geom::extruded(ell, 0.5f);
+        sound(pushed, "an L pushed", true);
+        expect(near_to(static_cast<float>(geom::volume(pushed)), 4 * 0.5f)) << geom::volume(pushed);
+        expect(geom::bounds(pushed).low == Vec3{0, 0, -0.25f} && geom::bounds(pushed).high == Vec3{2, 3, 0.25f});
+        std::vector<Vec2> clockwise(ell.rbegin(), ell.rend());
+        const geom::Mesh other = *geom::extruded(clockwise, 0.5f);
+        sound(other, "an L given clockwise", true);
+        expect(near_to(static_cast<float>(geom::volume(other)), 2.0f));
+        expect(!geom::extruded(ell, 0).has_value() && !geom::extruded(std::span(ell).first(2), 1).has_value());
+
+        // A can by its profile: the volume of a prism of 48 sides, exactly as one is.
+        const std::array<Vec2, 4> can{{{0, 1}, {1, 1}, {1, -1}, {0, -1}}};
+        const geom::Mesh turned = *geom::revolved(can, 48);
+        sound(turned, "a can turned", true);
+        const double prism = 2.0 * 48 * 0.5 * math::det::sin(math::det::two_pi / 48);
+        expect(lt(std::abs(geom::volume(turned) - prism), 1e-4)) << geom::volume(turned) << " against " << prism;
+        // Its corners stay corners: the lid's normals are up, the wall's are out.
+        std::size_t up = 0, out = 0, between = 0;
+        for (const Vec3 normal : turned.normals) up += normal.y == 1.0f || normal.y == -1.0f, out += normal.y == 0.0f, between += normal.y != 0.0f && std::abs(normal.y) != 1.0f;
+        expect(gt(up, std::size_t{0}) && gt(out, std::size_t{0}) && eq(between, std::size_t{0}));
+        // A ball by its profile, 24 stretches of a half circle: smooth (its normals are its own places), and the
+        // space of a ball to what its facets allow.
+        std::vector<Vec2> half_circle;
+        for (int step = 0; step <= 24; ++step) {
+            const double down = math::det::pi * step / 24;
+            half_circle.push_back({step == 0 || step == 24 ? 0.0f : static_cast<float>(math::det::sin(down)), step == 0 ? 1.0f : step == 24 ? -1.0f : static_cast<float>(math::det::cos(down))});
+        }
+        const geom::Mesh ball = *geom::revolved(half_circle, 48);
+        sound(ball, "a ball turned", true);
+        float least = 1;
+        for (std::size_t index = 0; index < ball.positions.size(); ++index) least = std::min(least, math::dot(ball.normals[index], math::normalized(ball.positions[index])));
+        const double of_a_ball = 4.0 / 3.0 * math::det::pi;
+        std::println("    a ball turned from 24 stretches, 48 around: {:.4f} of a ball's {:.4f}; its normals within {:.4f} of its places", geom::volume(ball), of_a_ball, least);
+        expect(gt(least, 0.99f) && lt(std::abs(geom::volume(ball) - of_a_ball), of_a_ball * 0.01));
+        // A vase: open at the top (it begins off the axis), so not closed — and sound for all that.
+        const std::array<Vec2, 5> vase{{{0.5f, 2}, {0.3f, 1.2f}, {0.8f, 0.5f}, {0.6f, 0}, {0, 0}}};
+        sound(*geom::revolved(vase, 24), "a vase", false);
+        expect(geom::revolved(std::span(vase).first(1), 24).error().contains("two at least") && geom::revolved(vase, 2).error().contains("three at least"));
+        const std::array<Vec2, 3> inside_out{{{0, 1}, {-1, 0}, {0, -1}}}, on_the_axis{{{0, 1}, {0, 0}, {1, 0}}};
+        expect(geom::revolved(inside_out, 8).error().contains("never below 0") && geom::revolved(on_the_axis, 8).error().contains("both on the axis"));
+        std::println("    made by code {:016x} {:016x} {:016x}", bits(pushed), bits(turned), bits(ball));
+        expect(eq(bits(pushed), std::uint64_t{0x24d72b1884f47389}) && eq(bits(turned), std::uint64_t{0xe94946575782d6eb}) && eq(bits(ball), std::uint64_t{0xa7cbcb092680a157}));
+    };
 }};

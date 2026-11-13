@@ -51,7 +51,7 @@ Part of the frame's subject ([xrender.frame](../frame)); what this package gives
 
 ## Not yet
 
-- **The GPU path**: the same pass through `mlibs.rhi` with Slang materials (base, roughness, metal, textures), compared with this reference within a stated tolerance; shadows there (a map, held to these traced ones) and the fog (held to this one); the resolve over time on the device, with the render graph's resources that last across frames (they land with it: it is their consumer).
+- **The GPU path** has begun: [xrender.mesh.gpu](gpu) draws the same scene through `mlibs.rhi` with one Slang shader and is held to this reference (5 of 129,600 pixels apart on lavapipe). Still to come there: materials with roughness, metal and textures; shadows there (a map, held to these traced ones) and the fog (held to this one); the resolve over time on the device, with the render graph's resources that last across frames (they land with it: it is their consumer).
 - **An optimiser's clusters** and levels of detail (meshoptimizer through mwrap): the clusters here are a mesh's triangles in the order they come.
 - **Speed**: this is a reference, one thread, a pixel at a time. Its cost is measured (`render/mesh-reference-yard` in `tests/bench`) so that it is known, not so that it is fast.
 

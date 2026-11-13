@@ -45,6 +45,7 @@ members = [
     "modules/projects/xrender/frame",
     "modules/projects/xrender/scene",
     "modules/projects/xrender/mesh",
+    "modules/projects/xrender/mesh/gpu",
     "modules/projects/xrender/effect",
     "modules/gfx/rhi",
     "modules/gfx/rhi/cts",

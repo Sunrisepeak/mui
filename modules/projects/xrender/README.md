@@ -16,6 +16,7 @@ A CPU/GPU same-source, Web-first renderer whose pixels agents can review (intern
 | [vector](vector) | 2D vector rendering: the display list, its CPU reference renderer and its GPU renderer |
 | [scene](scene) | `xrender.scene`: what there is to draw in three dimensions and what a view of it sees — instances and lights by stable id, a change list a mirror follows, deterministic culling, sorting and batching; no device |
 | [mesh](mesh) | `xrender.mesh`: meshes drawn, the CPU reference — colour, depth, normal, velocity and an id buffer down to the triangle, the same bits everywhere; what the GPU path is compared with |
+| [mesh/gpu](mesh/gpu) | The mesh pass on a device through `mlibs.rhi`: one Slang shader, held to the CPU reference pixel by pixel (5 of 129,600 pixels apart on lavapipe) |
 | [frame](frame) | `xrender.frame`: the frame's entry — layers composed into a target, captured, and traced from a pixel to what drew it; the frame as an agent's subject |
 | [effect](effect) | A program's own pixel effects (`*.effect.omui.ts` and Slang), loaded and reloaded while it runs |
 | [text](text) | `xrender.text`: mlibs.text's glyphs rasterised and cached, its paragraphs painted (layer content) |

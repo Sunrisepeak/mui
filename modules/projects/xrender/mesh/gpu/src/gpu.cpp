@@ -1,0 +1,166 @@
+module xrender.mesh.gpu;
+
+import std;
+
+namespace xrender::mesh::gpu {
+
+namespace rhi = mlibs::rhi;
+namespace math = mlibs::math;
+using math::Mat4;
+using math::Vec3;
+
+namespace {
+
+struct Corner {
+    float position[3];
+    float normal[3];
+};
+struct Row {
+    float x = 0, y = 0, z = 0, w = 0;
+};
+struct DrawUniforms {
+    Row to_clip[4];
+    Row to_world[3];
+    Row normals[3];
+};
+struct LampUniforms {
+    Row colour_kind, at_range, toward_cone;
+};
+struct SurfaceUniforms {
+    Row          base, emissive, ambient, eye, fog, fog_shape;
+    LampUniforms lamps[most_lamps];
+};
+Row row_of(const Mat4& matrix, int row) { return {matrix.at(0, row), matrix.at(1, row), matrix.at(2, row), matrix.at(3, row)}; }
+Row of(Vec3 value, float last = 0) { return {value.x, value.y, value.z, last}; }
+
+constexpr std::array<rhi::VertexAttribute, 2> attributes{rhi::VertexAttribute{0, rhi::VertexFormat::float3, 0}, rhi::VertexAttribute{1, rhi::VertexFormat::float3, 12}};
+
+}  // namespace
+
+rhi::ShaderFormats Pass::shader_formats() noexcept { return shaders::mesh::mesh_vs.formats(); }
+
+rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth) {
+    const std::array<rhi::VertexBufferLayout, 1> layout{rhi::VertexBufferLayout{sizeof(Corner), false, attributes}};
+    auto pipeline = device.create(rhi::GraphicsPipelineDesc{.vertex = &shaders::mesh::mesh_vs,
+                                                            .fragment = &shaders::mesh::mesh_fs,
+                                                            .vertex_buffers = layout,
+                                                            .blend = rhi::Blend::replace(),
+                                                            .depth_target = rhi::Format::d32_float,
+                                                            .depth = {.test = true, .write = true, .compare = reversed_depth ? rhi::Compare::greater : rhi::Compare::less},
+                                                            .label = "xrender.mesh"});
+    if (!pipeline) return std::unexpected(pipeline.error());
+    Pass pass;
+    pass.device_ = &device, pass.pipeline_ = *pipeline, pass.reversed_ = reversed_depth;
+    return pass;
+}
+Pass::Pass(Pass&& other) noexcept
+    : device_(std::exchange(other.device_, nullptr)), pipeline_(std::exchange(other.pipeline_, {})), meshes_(std::move(other.meshes_)), reversed_(other.reversed_), last_(other.last_) {}
+Pass& Pass::operator=(Pass&& other) noexcept {
+    if (this != &other) {
+        release();
+        device_ = std::exchange(other.device_, nullptr), pipeline_ = std::exchange(other.pipeline_, {}), meshes_ = std::move(other.meshes_), reversed_ = other.reversed_, last_ = other.last_;
+    }
+    return *this;
+}
+Pass::~Pass() { release(); }
+void Pass::release() noexcept {
+    if (!device_) return;
+    static_cast<void>(device_->wait_idle());
+    for (const Loaded& mesh : meshes_)
+        if (mesh.corners) device_->destroy(mesh.corners);
+    meshes_.clear();
+    if (pipeline_) device_->destroy(pipeline_);
+    device_ = nullptr;
+}
+
+rhi::Result<void> Pass::load(std::span<const mlibs::geom::ClusteredMesh* const> meshes) {
+    static_cast<void>(device_->wait_idle());
+    for (const Loaded& mesh : meshes_)
+        if (mesh.corners) device_->destroy(mesh.corners);
+    meshes_.assign(meshes.size(), Loaded{});
+    rhi::CommandList list;
+    std::vector<Corner> corners;
+    for (std::size_t which = 0; which < meshes.size(); ++which) {
+        if (!meshes[which]) continue;
+        const mlibs::geom::Mesh& mesh = meshes[which]->mesh;
+        corners.clear();
+        for (std::size_t first = 0; first + 2 < mesh.indices.size(); first += 3) {
+            std::array<Vec3, 3> at{};
+            for (std::size_t corner = 0; corner < 3; ++corner) at[corner] = mesh.indices[first + corner] < mesh.positions.size() ? mesh.positions[mesh.indices[first + corner]] : Vec3{};
+            const Vec3 face = math::cross(at[1] - at[0], at[2] - at[0]);
+            for (std::size_t corner = 0; corner < 3; ++corner) {
+                const std::uint32_t vertex = mesh.indices[first + corner];
+                const Vec3 normal = !mesh.normals.empty() && vertex < mesh.normals.size() ? mesh.normals[vertex] : face;
+                corners.push_back({{at[corner].x, at[corner].y, at[corner].z}, {normal.x, normal.y, normal.z}});
+            }
+        }
+        if (corners.empty()) continue;
+        auto buffer = device_->create(rhi::BufferDesc{static_cast<std::uint32_t>(corners.size() * sizeof(Corner)), rhi::BufferUsage::vertex, "xrender.mesh.corners"});
+        if (!buffer) return std::unexpected(buffer.error());
+        meshes_[which] = {*buffer, static_cast<std::uint32_t>(corners.size())};
+        list.upload(*buffer, 0, std::span<const Corner>(corners));
+    }
+    if (list.empty()) return {};
+    auto submitted = device_->submit(list);
+    if (!submitted) return std::unexpected(submitted.error());
+    return device_->wait(*submitted);
+}
+
+void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, std::span<const Material> materials, rhi::Texture colour,
+                  rhi::Texture depth, std::uint32_t width, std::uint32_t height, const Options& options) {
+    last_ = {};
+    const Mat4 clip = view.projection * view.view;
+    const std::optional<Mat4> camera = math::inverse(view.view);
+    const Vec3 eye = camera ? math::point(*camera, {0, 0, 0}) : Vec3{};
+    const std::span<const scene::Instance> instances = scene.instances();
+
+    SurfaceUniforms surface{};
+    for (const std::uint32_t index : extracted.lights) {
+        if (index >= scene.lights().size()) continue;
+        if (last_.lamps == most_lamps) {
+            ++last_.lamps_left_out;
+            continue;
+        }
+        const scene::Light& light = scene.lights()[index];
+        const float kind = light.kind == scene::LightKind::sun ? 0.0f : light.kind == scene::LightKind::spot ? 2.0f : 1.0f;
+        surface.lamps[last_.lamps++] = {of(light.colour * light.intensity, kind), of(light.at, std::max(light.range, 1e-6f)),
+                                        of(math::normalized(light.toward), static_cast<float>(math::det::cos(static_cast<double>(light.cone))))};
+    }
+    surface.ambient = of(options.ambient);
+    surface.eye = of(eye, static_cast<float>(last_.lamps));
+    surface.fog = of(options.fog.colour, options.fog.density);
+    surface.fog_shape = {options.fog.base, options.fog.falloff, 0, 0};
+
+    // The background, as a flat colour can say it: with fog, the fog's own (what the reference shows level and
+    // below; its sky clearing upward is a pass of its own, not here yet).
+    const Vec3 behind = options.fog.density > 0 ? options.fog.colour : options.background;
+    const auto shown = [](float linear) {
+        const float held = std::clamp(linear, 0.0f, 1.0f);
+        return held <= 0.0031308f ? held * 12.92f : 1.055f * static_cast<float>(math::det::pow(static_cast<double>(held), 1.0 / 2.4)) - 0.055f;
+    };
+    list.begin_render({colour, rhi::LoadOp::clear, {shown(behind.x), shown(behind.y), shown(behind.z), 1.0f}}, {depth, rhi::LoadOp::clear, reversed_ ? 0.0f : 1.0f});
+    list.set_viewport(0, 0, static_cast<float>(width), static_cast<float>(height));
+    list.set_pipeline(pipeline_);
+    for (const scene::Draw& draw : extracted.draws) {
+        if (draw.instance >= instances.size() || draw.mesh >= meshes_.size() || !meshes_[draw.mesh].corners || draw.material >= materials.size()) {
+            ++last_.missing;
+            continue;
+        }
+        const scene::Instance& instance = instances[draw.instance];
+        const Mat4 to_clip = clip * instance.world;
+        const std::optional<Mat4> back = math::inverse(instance.world);
+        const Mat4 for_normals = back ? math::transposed(*back) : instance.world;
+        DrawUniforms uniforms{};
+        for (int row = 0; row < 4; ++row) uniforms.to_clip[row] = row_of(to_clip, row);
+        for (int row = 0; row < 3; ++row) uniforms.to_world[row] = row_of(instance.world, row), uniforms.normals[row] = row_of(for_normals, row);
+        surface.base = of(materials[draw.material].base), surface.emissive = of(materials[draw.material].emissive);
+        list.push_uniforms(rhi::Stage::vertex, 0, uniforms);
+        list.push_uniforms(rhi::Stage::fragment, 0, surface);
+        list.bind_vertex_buffer(0, meshes_[draw.mesh].corners);
+        list.draw(meshes_[draw.mesh].count);
+        ++last_.draws, last_.triangles += meshes_[draw.mesh].count / 3;
+    }
+    list.end_render();
+}
+
+}  // namespace xrender::mesh::gpu

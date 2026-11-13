@@ -21,7 +21,7 @@ std::uint32_t Sound::hear(const State& state) {
     heard_ = state.world->frames();
     state.world->events(events_);
     const xengine::audio::matter::Ear ear{.width = state.world->shape().width, .at = state.cat.x, .reach = reach, .when = mixer_->clock()};
-    return sounds_->hear(events_, ear) + sounds_->hear(state.world->impacts(), ear);
+    return sounds_->hear(events_, ear) + sounds_->hear(state.world->impacts(), ear) + sounds_->hear(state.world->struck(), ear);
 }
 
 }  // namespace kiln

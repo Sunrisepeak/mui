@@ -162,4 +162,47 @@ static UTest cases{"cellular.happenings", [] {
         std::vector<std::uint8_t> short_counts(tile_count - 1);
         expect(!plan.step(shape, unheard.cells, unheard.next, {.tile = tile, .happened = runs[0].happened, .happened_counts = short_counts}).has_value());
     };
+
+    "a body that meets something is a step's output too: a crate of wood dropped on stone is said once, as wood, where it met the floor and how fast; at rest it is said no more; two crates meeting are each said"_test = [] {
+        auto world = room();
+        const std::uint32_t wood = *standard().material("wood"), iron = *standard().material("iron");
+        world->place({20, 20, 4, 4}, wood);
+        expect(fatal(world->carve({20, 20, 4, 4}).has_value()));
+        int landed_at = -1, said = 0;
+        matter::Impact first{};
+        for (int step = 0; step < 400; ++step) {
+            world->step();
+            for (const matter::Impact& impact : world->struck()) {
+                if (said++ == 0) first = impact, landed_at = step;
+                expect(eq(impact.material, wood)) << "the floor is no body: only the crate is said";
+            }
+        }
+        expect(fatal(landed_at > 0)) << "it fell twelve cells and met the floor";
+        expect(gt(first.speed, 10.0f)) << std::format("{} cells a second", first.speed);
+        const std::uint32_t row = first.instance / shape.width, column = first.instance % shape.width;
+        expect(row >= 34u && row <= 36u && column >= 19u && column <= 24u) << std::format("at the floor under it: column {}, row {}", column, row);
+        std::println("a crate of wood dropped twelve cells: met the floor at step {} at {:.1f} cells a second (column {}, row {}); said {} times in 400 steps", landed_at, first.speed, column, row, said);
+        expect(said <= 4) << "a landing and what bounces it has, not a sound a frame while it rests";
+        for (int step = 0; step < 60; ++step) world->step();
+        expect(world->struck().empty()) << "at rest";
+        // An iron crate dropped onto the wooden one: each is said, by what it is made of.
+        world->place({20, 8, 4, 4}, iron);
+        expect(fatal(world->carve({20, 8, 4, 4}).has_value()));
+        bool heard_wood = false, heard_iron = false;
+        for (int step = 0; step < 400; ++step) {
+            world->step();
+            for (const matter::Impact& impact : world->struck()) heard_wood = heard_wood || impact.material == wood, heard_iron = heard_iron || impact.material == iron;
+        }
+        expect(heard_wood && heard_iron);
+        // The same world, the same things said.
+        auto again = room();
+        again->place({20, 20, 4, 4}, wood);
+        (void)again->carve({20, 20, 4, 4});
+        int again_at = -1;
+        for (int step = 0; step < 400 && again_at < 0; ++step) {
+            again->step();
+            if (!again->struck().empty()) again_at = step;
+        }
+        expect(eq(again_at, landed_at));
+    };
 }};

@@ -83,6 +83,9 @@ public:
     void touched(std::vector<Tile>& out) const;  // the same into `out` (cleared first): no allocation once it has room
     // Which body holds the field's cell now (stamped), if any.
     [[nodiscard]] std::optional<dyn::BodyId> owner(std::uint32_t x, std::uint32_t y) const;
+    // What a body is made of: its first cell's material (a body is carved from one thing, or is called by the
+    // first). `none`: no body of this coupling's — the terrain's.
+    [[nodiscard]] std::uint32_t material_of(dyn::BodyId body) const noexcept;
     [[nodiscard]] const Statistics& last() const noexcept { return last_; }
     // Who is told what a lift does to the bodies from now on (none: no one).
     void log(BodyLog* log) noexcept { log_ = log; }
@@ -209,6 +212,10 @@ public:
     void events(std::vector<xengine::matter::Event>& out) const;
     // And what landed in it, with how fast (the first few a step): `flying().impacts()`.
     [[nodiscard]] std::span<const xengine::matter::Impact> impacts() const noexcept { return flying_->impacts(); }
+    // And the bodies that met something in it — a crate come down on stone, two crates together: where (the
+    // cell at the point they met), what the body is made of, how fast they closed (cells a second). A contact
+    // of two bodies is two of these, one of each. The first sixteen a step; a step's, like the others.
+    [[nodiscard]] std::span<const xengine::matter::Impact> struck() const noexcept { return std::span(struck_).first(struck_count_); }
     // Watched: each step keeps its journal. Off (as made, and in every branch): nothing is kept and a frame costs
     // what it did. Either way the world is the same bits.
     void watch(bool on);
@@ -251,6 +258,8 @@ private:
     std::vector<std::uint32_t> cells_, next_, outside_;
     std::vector<std::uint8_t> activity_;
     std::vector<Tile> touched_;  // a frame's scratch
+    std::array<xengine::matter::Impact, 16> struck_{};
+    std::uint32_t struck_count_ = 0;
     std::vector<Happening> happened_, heard_;  // the last step's, in order; a step's, tile by tile
     std::vector<std::uint8_t> heard_counts_;
     std::vector<std::uint32_t> laws_;  // the lattice's reactions as the program's laws

@@ -488,6 +488,16 @@ std::vector<View> Bodies::bodies() const {
     return out;
 }
 
+std::uint32_t Bodies::material_of(dyn::BodyId body) const noexcept {
+    for (const Piece& piece : pieces_) {
+        if (!(piece.body == body)) continue;
+        const std::size_t local_cells = static_cast<std::size_t>(piece.width) * piece.height;
+        for (std::size_t local = 0; local < local_cells && local < piece.cells.size(); ++local)
+            if (piece.cells[local] != xengine::matter::none) return piece.cells[local];
+    }
+    return xengine::matter::none;
+}
+
 std::optional<View> Bodies::body(dyn::BodyId body) const {
     for (const View& view : bodies())
         if (view.body == body) return view;
@@ -772,6 +782,21 @@ void MatterWorld::step() {
                 if (const auto pose = std::as_const(*rigid_).pose(view.body)) poses_.emplace_back(view.body, *pose);
         }
         rigid_->step();
+        // Bodies that met something this step, for whoever plays a sound: of each contact that began with a
+        // speed, the bodies of ours in it.
+        struck_count_ = 0;
+        for (const dyn::Contact& contact : std::as_const(*rigid_).contacts()) {
+            if (!contact.began || !(contact.approach > 0)) continue;
+            const float cell = options_.bodies.cell;
+            const auto column = static_cast<std::int64_t>(std::floor(contact.point.x / cell)), row = static_cast<std::int64_t>(std::floor(contact.point.y / cell));
+            const std::uint32_t at = static_cast<std::uint32_t>(std::clamp<std::int64_t>(row, 0, options_.shape.height - 1)) * options_.shape.width +
+                                     static_cast<std::uint32_t>(std::clamp<std::int64_t>(column, 0, options_.shape.width - 1));
+            for (const dyn::BodyId body : {contact.one, contact.other}) {
+                const std::uint32_t material = bodies_->material_of(body);
+                if (material == xengine::matter::none || struck_count_ == struck_.size()) continue;
+                struck_[struck_count_++] = {at, material, contact.approach / cell};
+            }
+        }
         if (watched_)
             for (const auto& [body, before] : poses_)
                 if (const auto after = std::as_const(*rigid_).pose(body); after && (after->at.x != before.at.x || after->at.y != before.at.y || after->angle != before.angle))

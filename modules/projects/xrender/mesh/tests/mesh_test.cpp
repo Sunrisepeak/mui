@@ -890,4 +890,35 @@ static UTest cases{"xrender.mesh", [] {
         expect(lt(std::abs(image.x / itself.x - 1), 0.5f)) << "and about as bright as the ball";
         expect(seen.light == again.light);
     };
+    "the pass's light from everywhere beside what rays find: with the sky's colour for it the yard is near the traced yard on the open floor, and too light where things meet the floor — the measure of what a constant leaves out"_test = [] {
+        constexpr int width = 160, height = 90;
+        const math::Vec3 sky{0.5f, 0.6f, 0.7f};
+        const scene::Scene world = yard();
+        mesh::Targets followed;
+        followed.resize(width, height);
+        (void)mesh::traced(world, yard_camera.view(), library().assets(true), followed, {.background = sky}, {.samples = 64, .bounces = 2});
+        const Frame constant = drawn(world, yard_camera, width, height, {.background = sky, .ambient = sky}, true), none = drawn(world, yard_camera, width, height, {.background = sky, .ambient = {0, 0, 0}}, true);
+        // Over what is drawn: how far each is from the traced light, a pixel; and over the floor about the ball's foot.
+        const auto apart = [&](const mesh::Targets& one, bool by_the_ball) {
+            double sum = 0, over = 0;
+            std::size_t count = 0;
+            for (int y = 0; y < height; ++y)
+                for (int x = 0; x < width; ++x) {
+                    const std::size_t pixel = static_cast<std::size_t>(y) * width + x;
+                    if (one.ids[pixel].draw == mesh::none) continue;
+                    if (by_the_ball && (one.draws[one.ids[pixel].draw].id != 1 || std::abs(x - 84) > 14 || std::abs(y - 60) > 4)) continue;
+                    const double difference = static_cast<double>(one.light[pixel].y) - followed.light[pixel].y;
+                    sum += std::abs(difference), over += difference, ++count;
+                }
+            return std::pair(count ? sum / static_cast<double>(count) : 0.0, count ? over / static_cast<double>(count) : 0.0);
+        };
+        const auto [with_sky, with_sky_over] = apart(constant.targets, false);
+        const auto [with_none, with_none_over] = apart(none.targets, false);
+        const auto [by_ball, by_ball_over] = apart(constant.targets, true);
+        std::println("the yard's green light, a pixel, against 64 rays a pixel: a constant of the sky's colour is {:.3f} off ({:+.3f} on the whole); none at all {:.3f} off ({:+.3f}); about the ball's foot the constant is {:+.3f} too light",
+                     with_sky, with_sky_over, with_none, with_none_over, by_ball_over);
+        expect(lt(with_sky * 2, with_none)) << "a constant of the sky's colour is much nearer than none";
+        expect(gt(by_ball_over, 0.03)) << "and too light where the ball is over the floor: what it leaves out";
+        expect(gt(by_ball_over, with_sky_over * 2)) << "there more than anywhere";
+    };
 }};

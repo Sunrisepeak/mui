@@ -106,6 +106,26 @@ void add_render_benchmarks() {
             while (s.next()) pass.draw(world, seen, view, {meshes, materials}, frame);
             s.note("scope", std::format("{} pixels written, {} hidden; {} of {} triangles filled; one thread", pass.last().written, pass.last().hidden, pass.last().filled, pass.last().triangles));
         });
+    add("render/mesh-reference-glow", "the CPU reference of the glow: a picture of light, 480x270 with a lamp's globe and its pool of light brighter than the display, spread by 7 pixels three times each way and shown",
+        [](State& s) {
+            namespace mesh = xrender::mesh;
+            constexpr int width = 480, height = 270;
+            std::vector<math::Vec3> light(static_cast<std::size_t>(width) * height, math::Vec3{0.2f, 0.22f, 0.25f});
+            // A globe of (9, 5, 1.6) and a pool of light under it a little over the display's white.
+            for (int y = 0; y < height; ++y)
+                for (int x = 0; x < width; ++x) {
+                    const int globe = (x - 240) * (x - 240) + (y - 70) * (y - 70), pool = (x - 240) * (x - 240) / 4 + (y - 200) * (y - 200);
+                    if (globe < 12 * 12) light[static_cast<std::size_t>(y) * width + x] = {9.0f, 5.0f, 1.6f};
+                    else if (pool < 40 * 40) light[static_cast<std::size_t>(y) * width + x] = {1.3f, 1.1f, 0.8f};
+                }
+            mesh::Glow glow;
+            std::vector<std::uint8_t> colour;
+            const mesh::Bloom bloom{.threshold = 1, .radius = 7, .strength = 0.6f};
+            mesh::Glow::Told told = glow.show(light, width, height, bloom, colour);
+            s.items(width * height);
+            while (s.next()) told = glow.show(light, width, height, bloom, colour);
+            s.note("scope", std::format("{} pixels brighter than the display; six passes of 15 texels; one thread", told.bright));
+        });
 }
 
 }  // namespace omui::bench

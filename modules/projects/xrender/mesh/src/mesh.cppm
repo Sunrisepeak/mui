@@ -1,0 +1,108 @@
+// xrender.mesh — meshes drawn: the CPU reference (the foundation plan's §5.1–§5.3, M6.3; D-164, D-184).
+//
+//     mesh::Pass pass;
+//     mesh::Targets frame;
+//     frame.resize(640, 360);
+//     scene::extract(world, view, seen);
+//     pass.draw(world, seen, view, {.meshes = meshes, .materials = materials}, frame);
+//     const auto who = mesh::at(frame, 320, 180);   // the instance, cluster and triangle at a pixel
+//
+// One pass over what the scene extracted writes, for each pixel, the colour, the depth, the surface's normal,
+// how far it moved since the last frame, and who drew it. Triangles are clipped to the view, their corners snapped
+// to 1/256 of a pixel and filled by the top-left rule, so two triangles that share an edge share no pixel and
+// leave none between them; every number is IEEE arithmetic in a fixed order — the same bits on every machine.
+// It is the reference a GPU path of the same contract is compared with, and what an agent or a test with no GPU
+// looks at.
+export module xrender.mesh;
+
+import std;
+export import xrender.scene;
+
+export namespace xrender::mesh {
+
+using mlibs::math::Mat4;
+using mlibs::math::Vec2;
+using mlibs::math::Vec3;
+using xrender::scene::Id;
+
+// A surface, as data. The reference's shading is the least that shows a form: what a light gives a matt surface,
+// and what it gives off itself. (The full model — roughness, metal, textures — is the material interface's,
+// with the GPU path.)
+struct Material {
+    Vec3 base{0.8f, 0.8f, 0.8f};  // linear
+    Vec3 emissive;
+};
+// What the scene's numbers name: a draw's `mesh` and `material` are places here. One that names nothing is not
+// drawn, and counted.
+struct Assets {
+    std::span<const mlibs::geom::ClusteredMesh* const> meshes;
+    std::span<const Material> materials;
+};
+struct Options {
+    Vec3 background{0.02f, 0.02f, 0.03f};
+    // Light from everywhere: the one implementation there is of the indirect light (a constant), behind which
+    // baked light and probes come.
+    Vec3 ambient{0.06f, 0.06f, 0.07f};
+    bool reversed_depth = false;  // the projection puts the nearest at 1 (math::perspective_reversed)
+    bool cull_clusters = true;    // leave out a cluster outside the view or wholly facing away: no pixel changes
+};
+
+inline constexpr std::uint32_t none = 0xffffffffu;
+// Who drew a pixel: the draw (its place in Targets::draws), and in its mesh the cluster and the triangle.
+struct Pixel {
+    std::uint32_t draw = none, cluster = none, triangle = none;
+};
+struct Targets {
+    int width = 0, height = 0;
+    std::vector<std::uint8_t> colour;    // rgba8, sRGB, a row after a row from the top
+    std::vector<float>        depth;     // as the projection gives it (0 … 1)
+    std::vector<Vec3>         normal;    // in the world, of length 1; nothing drawn: 0
+    std::vector<Vec2>         velocity;  // pixels moved since the last frame drawn (x right, y down)
+    std::vector<Pixel>        ids;
+    std::vector<scene::Draw>  draws;     // the frame's, as extracted: what `Pixel::draw` names
+    void resize(int new_width, int new_height);
+};
+struct Stats {
+    std::uint32_t draws = 0, missing = 0;                   // drawn; naming no mesh or no material
+    std::uint32_t clusters = 0, clusters_outside = 0, clusters_away = 0;
+    std::uint64_t triangles = 0, facing_away = 0, outside = 0, clipped = 0, filled = 0;
+    std::uint64_t written = 0, hidden = 0;                  // pixels that passed the depth, and that did not
+};
+
+class Pass {
+public:
+    // The frame. `extracted` is of `scene` and `view`; `out` has a size. Remembers where everything was for the
+    // next frame's velocity.
+    void draw(const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, const Assets& assets, Targets& out, const Options& options = {});
+    [[nodiscard]] const Stats& last() const noexcept { return last_; }
+    // The next frame's velocity is 0 everywhere: after a cut, or a jump of the camera.
+    void forget() noexcept { remembered_ = false; }
+
+private:
+    Stats             last_;
+    std::vector<Id>   before_ids_;     // the last frame's instances, in id order
+    std::vector<Mat4> before_world_;
+    Mat4              before_clip_;    // its world to clip
+    bool              remembered_ = false;
+};
+
+// Who drew the pixel, back to the scene's instance — or nothing did.
+struct Source {
+    Id            instance = 0;
+    std::uint32_t mesh = 0, material = 0, cluster = 0, triangle = 0;
+    float         depth = 0;
+    Vec3          normal;
+};
+[[nodiscard]] std::optional<Source> at(const Targets& targets, int x, int y) noexcept;
+
+// What of an instance reached the frame: how many pixels, and the box of them (x0, y0 inclusive; x1, y1 exclusive).
+struct Shown {
+    Id            instance = 0;
+    std::uint32_t pixels = 0;
+    int           x0 = 0, y0 = 0, x1 = 0, y1 = 0;
+};
+// Every instance with a pixel, in id order. An instance that was a draw and is not here is behind something (or
+// too small to cover a pixel's middle).
+void shown(const Targets& targets, std::vector<Shown>& out);
+
+}  // namespace xrender::mesh

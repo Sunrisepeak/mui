@@ -2,6 +2,7 @@ module omui.bench;
 
 import std;
 import xrender.scene;
+import xrender.mesh;
 
 namespace omui::bench {
 
@@ -74,6 +75,36 @@ void add_render_benchmarks() {
                 world.settle();
             }
             s.note("scope", "the tree keeps its shape and its boxes are refitted; it is made again every 64th frame (the largest time)");
+        });
+    add("render/mesh-reference-yard", "the CPU reference of the mesh pass: a floor, a box, two balls and a post (6,092 triangles in 256 clusters) drawn at 480x270 with colour, depth, normal, velocity and ids",
+        [](State& s) {
+            namespace mesh = xrender::mesh;
+            namespace geom = mlibs::geom;
+            const std::array<geom::ClusteredMesh, 4> made{*geom::clustered(geom::box({1, 1, 1})), *geom::clustered(geom::sheet(200, 200, 4, 4)), *geom::clustered(geom::sphere(1, 32, 64), 32),
+                                                          *geom::clustered(geom::cylinder(0.7f, 2, 48), 32)};
+            const std::array<const geom::ClusteredMesh*, 4> meshes{&made[0], &made[1], &made[2], &made[3]};
+            const std::array<mesh::Material, 4> materials{{{{0.8f, 0.2f, 0.15f}, {}}, {{0.5f, 0.5f, 0.5f}, {}}, {{0.15f, 0.4f, 0.8f}, {}}, {{0.9f, 0.75f, 0.2f}, {}}}};
+            scene::Scene world;
+            const auto put = [&](scene::Id id, std::uint32_t which, std::uint32_t material, const math::Mat4& where) {
+                (void)world.add({.id = id, .mesh = which, .material = material, .world = where, .bounds = geom::bounds(made[which].mesh)});
+            };
+            put(1, 1, 1, math::translation({0, -1, 0}));
+            put(10, 0, 0, math::Transform{{-2.2f, 0, 0}, math::Quat::about({0, 1, 0}, 0.6f), {1, 1, 1}}.matrix());
+            put(11, 2, 2, math::translation({0.4f, 0, 0.8f}));
+            put(12, 3, 3, math::translation({2.6f, 0, -0.5f}));
+            put(13, 2, 3, math::Transform{{1.2f, 1.6f, -1.5f}, {}, {0.25f, 0.25f, 0.25f}}.matrix());
+            (void)world.add(scene::Light{.id = 1, .intensity = 0.9f, .toward = {-0.4f, -1, -0.5f}});
+            (void)world.add(scene::Light{.id = 2, .kind = scene::LightKind::point, .colour = {1, 0.6f, 0.2f}, .intensity = 2.5f, .at = {1.2f, 1.6f, -1.5f}, .range = 6});
+            const scene::View view{.view = math::look_at({0.5f, 2.2f, 7.5f}, {0.2f, 0, 0}, {0, 1, 0}), .projection = math::perspective(1.0f, 16.0f / 9.0f, 0.5f, 100.0f)};
+            scene::Extracted seen;
+            scene::extract(world, view, seen);
+            mesh::Pass pass;
+            mesh::Targets frame;
+            frame.resize(480, 270);
+            pass.draw(world, seen, view, {meshes, materials}, frame);
+            s.items(480 * 270);
+            while (s.next()) pass.draw(world, seen, view, {meshes, materials}, frame);
+            s.note("scope", std::format("{} pixels written, {} hidden; {} of {} triangles filled; one thread", pass.last().written, pass.last().hidden, pass.last().filled, pass.last().triangles));
         });
 }
 

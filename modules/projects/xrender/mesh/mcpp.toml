@@ -1,0 +1,33 @@
+# xrender.mesh — meshes drawn (the foundation plan's §5.1–§5.3, M6.3; D-164, D-184): what xrender.scene
+# extracted, as pixels. This is the CPU reference: a deterministic rasteriser whose first pass writes depth,
+# the normal, the velocity and who drew each pixel — instance, cluster, triangle — beside the colour. The GPU
+# path is the same contract's other target and is held to these pixels.
+[package]
+namespace   = "xrender"
+name        = "mesh"
+version     = "0.1.0"
+description = "Meshes drawn, the CPU reference: colour, depth, normal, velocity and an id buffer down to the triangle, the same bits everywhere"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+
+[package.metadata.openmui]
+kind  = "module"
+agent = { part = "xrender.frame" }
+
+[targets.xrender-mesh]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-O2", "-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+xrender.scene = { path = "../scene" }
+mlibs.math    = { path = "../../../base/math" }
+mlibs.geom    = { path = "../../../base/geom" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.7.1"
+mlibs.utils    = { path = "../../../base/utils" }
+mlibs.image    = { path = "../../../base/image" }

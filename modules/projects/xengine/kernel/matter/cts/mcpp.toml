@@ -46,5 +46,5 @@ openlifa.openas = "0.2.0"
 xengine.dynamics = { path = "../../dynamics", features = ["matter"] }
 # tests/on_screen_test.cpp: the scenes shaded by the standard appearance (xengine.cellular.present's feature
 # `matter`), drawn by the renderer and read back as pixels; the pictures kept as PNG.
-"xengine.cellular.present" = { path = "../../cellular/present", features = ["matter"] }
+"xengine.cellular.present" = { path = "../../cellular/present", features = ["matter", "world"] }
 mlibs.image = { path = "../../../../../base/image" }

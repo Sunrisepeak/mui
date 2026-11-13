@@ -54,6 +54,11 @@ public:
     // was, and `frames` steps run on the same cells so that it does not begin from nothing (after a seek, a
     // branch, a load: the layer is not saved).
     void restart(std::span<const std::uint32_t> authoritative, int frames = 0);
+    // The world with the layer's scenery as first placed, and nothing stepped: what is shown where the layer is
+    // not run (a lower step of the ladder), so scenery does not vanish with the simulation of it.
+    void still(std::span<const std::uint32_t> authoritative);
+    // Scenery remembered before the layer has a field (placed at its first `still` or `restart`).
+    void plan(Tile region, std::uint32_t material) { placed_.push_back({region, material}); }
 
     [[nodiscard]] Shape shape() const noexcept { return shape_; }
     // What a presenter draws: the authoritative field with the layer's own over it. Empty before the first step.

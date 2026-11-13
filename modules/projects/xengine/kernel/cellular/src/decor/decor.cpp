@@ -104,12 +104,21 @@ void Decor::step(std::span<const std::uint32_t> authoritative) {
     cells_.swap(next_);
 }
 
-void Decor::restart(std::span<const std::uint32_t> authoritative, int frames) {
-    cells_.clear();
+void Decor::still(std::span<const std::uint32_t> authoritative) {
+    const std::size_t area = static_cast<std::size_t>(shape_.width) * shape_.height;
+    if (authoritative.size() != area * channels_) return;
+    cells_.assign(authoritative.begin(), authoritative.end());
+    next_.assign(cells_.size(), 0);
+    seen_ = cells_;
     std::ranges::fill(owned_, std::uint8_t{0});
-    tick_ = 0;
-    step(authoritative);
+    std::ranges::fill(activity_, std::uint8_t{0});
+    last_ = {.followed = area};
     for (const Placed& placed : placed_) (void)put(placed.region, placed.material);
+}
+
+void Decor::restart(std::span<const std::uint32_t> authoritative, int frames) {
+    still(authoritative);
+    tick_ = 0;
     for (int frame = 0; frame < frames; ++frame) step(authoritative);
 }
 

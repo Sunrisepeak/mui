@@ -24,3 +24,33 @@ view->draw(list, {x, y, width, height});                                // one D
 The renderer knows no cells and the rules know no drawing: this package is the small adapter between them.
 
 Tests (`mcpp test -p xengine.cellular.present`): every pixel its cell's colour after 60 steps, only the changed tiles recoloured and named; drawn with damage tracking, the incremental frame equals the full one at every step; a held snapshot unchanged, a new palette, refusals; by a shade, every pixel and its light after every step, the two images updated together, the glow brighter beside the fire and nowhere darker, the incremental frame with its glow the full one, another shade, refusals. Matter's scenes on screen are `mcpp test -p xengine.matter.cts on_screen_test`. Benchmarks: `simulation/cellular-1024-present` (12 changed tiles of 1024: 0.044 ms p95), `-present-all` (every cell: 2.7 ms), `-frame` (present, damage and the incremental CPU raster: 0.52 ms) — locally, release.
+
+## A world by a ladder (the feature `world`, D-178)
+
+What a world of matter **is** is authoritative and the same on every machine; how it is **shown** is a ladder a machine goes down when its frames cost too much and up again when there is room (`xengine.cellular.present.world`'s `WorldPicture`):
+
+| step | what is done | a frame shown and drawn on the CPU (576 × 336, a debug build) |
+|---|---|---|
+| `rich` | the decorative layer stepped beside the world — scenery that catches from a real fire — and the light as a blurred glow | 41.9 ms |
+| `lit` | the world as it is, scenery as placed, the glow | 41.2 ms |
+| `baked` | no glow computed: over what emits, frames of a flame baked once from the rich form | 4.5 ms |
+| `plain` | the shade alone | 2.1 ms |
+
+| rich | lit | baked | plain |
+|---|---|---|---|
+| ![rich](../media/ladder-rich.png) | ![lit](../media/ladder-lit.png) | ![baked](../media/ladder-baked.png) | ![plain](../media/ladder-plain.png) |
+
+```cpp
+auto picture = ca::WorldPicture::make(images, program, look, shape, {.fill = "air"});
+picture->scenery({23, 46, 10, 4}, wood);                    // a hedge: shown, and at `rich` alive
+picture->bake(*a_small_world_with_a_fire);                  // once: the baked step's frames, from the rich form
+mlibs::pipeline::Governor governor({ca::WorldPicture::ladder()});
+// each frame
+if (auto change = governor.frame(cost_ms, budget_ms)) picture->set_step(static_cast<ca::PictureStep>(change->lowered), "frames over their budget");
+picture->show(world);  picture->draw(list, dest);
+```
+
+- **One line, one way**: `show` takes the world as const. `xengine.matter.cts` ladder_test: the world's hash is the same at each of 360 frames shown at every step, and while the step changes every 17 frames under it.
+- **The low step is the high step's own**: `bake` runs the rich form — this picture's look and glow — on a small scene the caller gives (the kernel names no material) and keeps its light as frames; the same scene gives the same frames (`Flipbook::key`). They are put over what emits (found from the light the presenter keeps, by blocks of 8 × 8 cells).
+- **Mechanisms, not policy**: `ladder()` is one of `mlibs.pipeline`'s — a governor lowers and raises it with whatever else a host has laddered; `set_step` is where its decision, a recording's or a person's pin lands; `richest` is what the device allows at most (asked for more, it says so). `describe()` says the step, why, and what each part is doing: nothing is lowered in silence.
+- What is not here yet: a state's ladder written in the appearance data (the steps are the picture's own four); a baked form's reach is one scene (a flame) — other states have none.

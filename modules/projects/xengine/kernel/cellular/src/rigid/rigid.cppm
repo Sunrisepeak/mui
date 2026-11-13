@@ -136,6 +136,10 @@ public:
     [[nodiscard]] dyn::World& rigid() noexcept { return *rigid_; }
     [[nodiscard]] Bodies& bodies() noexcept { return *bodies_; }
     [[nodiscard]] particles::Particles& flying() noexcept { return *flying_; }
+    // The same to read: what a presenter is given (D-178: it shows the world, and cannot change it).
+    [[nodiscard]] const dyn::World& rigid() const noexcept { return *rigid_; }
+    [[nodiscard]] const Bodies& bodies() const noexcept { return *bodies_; }
+    [[nodiscard]] const particles::Particles& flying() const noexcept { return *flying_; }
     // A blast at `centre` (cells): what is not gas within `radius` thrown outward (solids too when `breaks`);
     // bodies are pushed by it at the next frame through the field's pressure, if the world has one.
     std::uint32_t blast(particles::Vec centre, float radius, float speed, bool breaks = false);

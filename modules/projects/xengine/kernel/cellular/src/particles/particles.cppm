@@ -57,6 +57,7 @@ struct Log {
 };
 // The last step's: what was thrown since the step before (and refused, no room), what landed, what flies on.
 struct Statistics { std::uint64_t thrown = 0, landed = 0, flying = 0, refused = 0; };
+inline constexpr std::size_t impacts_a_step = 64;
 
 class Particles {
 public:
@@ -88,6 +89,9 @@ public:
     // A particle's channel (its material is channel 0).
     [[nodiscard]] std::uint32_t value(std::size_t particle, std::uint32_t channel) const noexcept { return cells_[particle * channels_ + channel]; }
     [[nodiscard]] const Statistics& last() const noexcept { return last_; }
+    // The last step's landings with how fast each came down (cells a second): the first `impacts_a_step` of
+    // them, with no one asked to log — what a sound listens to. Not of the state.
+    [[nodiscard]] std::span<const xengine::matter::Impact> impacts() const noexcept { return std::span(impacts_).first(impact_count_); }
     // What is in flight, as bytes (a world's save), and back.
     // Without `origins`: what a step reads and nothing else — what a state's hash is of.
     void save(std::vector<std::uint8_t>& out, bool origins = true) const;
@@ -107,6 +111,8 @@ private:
     std::vector<Push> pushes_;  // the definition's laws of motion down a slope that give a speed
     std::vector<Vec> position_, velocity_;  // in cells and cells a second
     std::vector<std::uint32_t> cells_;      // [particle][channel]
+    std::array<xengine::matter::Impact, impacts_a_step> impacts_{};  // the last step's
+    std::size_t impact_count_ = 0;
     std::vector<Origin> origin_;            // a particle each
     Log* log_ = nullptr;
     std::uint64_t frame_ = 0;

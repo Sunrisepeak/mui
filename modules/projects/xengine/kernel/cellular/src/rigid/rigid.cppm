@@ -207,6 +207,8 @@ public:
     // world's state: a copy and a restored world start with none. A tile keeps its first `happenings_a_tile`.
     [[nodiscard]] std::span<const Happening> happened() const noexcept { return happened_; }
     void events(std::vector<xengine::matter::Event>& out) const;
+    // And what landed in it, with how fast (the first few a step): `flying().impacts()`.
+    [[nodiscard]] std::span<const xengine::matter::Impact> impacts() const noexcept { return flying_->impacts(); }
     // Watched: each step keeps its journal. Off (as made, and in every branch): nothing is kept and a frame costs
     // what it did. Either way the world is the same bits.
     void watch(bool on);

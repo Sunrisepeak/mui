@@ -83,13 +83,15 @@ UTest cases{"kiln.sim", [] {
 
     "a bomb holes the stone wall; water poured on lava makes stone of it"_test = [] {
         auto state = *kiln::start(kiln::level::first());
-        // On the far ledge, facing the wall.
-        state.cat.x = 70.5f, state.cat.y = 34.0f;
+        // On the far ledge, facing the wall — and far enough from it: at 70.5, beside the keg, the bomb kills her
+        // at frame 57 and the world stops with her.
+        state.cat.x = 62.5f, state.cat.y = 34.0f;
         state.cat.spell = kiln::Spell::bomb;
         run(state, 10);
         const std::size_t wall = count_in(state, "stone", 76, 22, 79, 33);
         kiln::step(state, casting_at(state, 77.0f, 30.0f));
         run(state, 240);
+        expect(gt(state.cat.health, 0) && eq(state.outcome, kiln::Outcome::playing)) << "she is alive to go through it";
         expect(count_in(state, "stone", 76, 22, 79, 33) + 8 < wall) << std::format("the wall had {} cells of stone, now {}", wall, count_in(state, "stone", 76, 22, 79, 33));
         // The game turned nothing into anything: the stone is sand by the law that shatters (D-182).
         expect(eq(state.world->converted(), kiln::start(kiln::level::first())->world->converted())) << "the bomb wrote over no cell";

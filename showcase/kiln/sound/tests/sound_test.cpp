@@ -22,6 +22,10 @@ kiln::Input casting_at(const kiln::State& state, float x, float y) {
 struct Take {
     std::vector<float> samples;          // stereo, a pair a frame of sound
     std::vector<std::uint32_t> began;    // sounds begun, a frame of the game
+    std::size_t landed = 0;              // landings the world told of
+    float fastest = 0;                   // cells a second
+    std::uint64_t world_frame = 0;       // the world's frame last counted
+    std::map<std::string, std::size_t> landings;  // "sand @40" → how many, by material and 40 frames
     std::map<std::string, std::uint32_t> events;  // "shatter stone" → how many
     std::map<std::string, std::size_t> first;     // … → the frame of the game it was first said
 };
@@ -31,6 +35,14 @@ void play(kiln::State& state, kiln::Sound& sound, Take& take, int frames, const 
     for (int frame = 0; frame < frames; ++frame) {
         kiln::step(state, frame == 0 ? input : kiln::Input{});
         take.began.push_back(sound.hear(state));
+        const bool stepped = state.world->frames() != take.world_frame;
+        take.world_frame = state.world->frames();
+        const std::span<const xengine::matter::Impact> impacts = stepped ? state.world->impacts() : std::span<const xengine::matter::Impact>{};
+        take.landed += impacts.size();
+        for (const xengine::matter::Impact& impact : impacts) {
+            take.fastest = std::max(take.fastest, impact.speed);
+            ++take.landings[std::format("{} @{}", kiln::matter().materials()[impact.material].name, (take.began.size() - 1) / 40 * 40)];
+        }
         for (const xengine::matter::Event& event : sound.last())
             if (event.name < kiln::matter().event_names().size()) {
                 const std::string name = std::format("{} {}", kiln::matter().event_names()[event.name], kiln::matter().materials()[event.material].name);
@@ -52,14 +64,18 @@ std::string said(const Take& take) {
     for (const auto& [name, count] : take.events) text += std::format("{}{} × {}", text.empty() ? "" : ", ", name, count);
     return text;
 }
-Take bomb_at_the_wall(std::uint64_t* checksum = nullptr) {
+// Where Mui throws her bomb from: far enough to live (the playtest's player stands so), or beside the keg.
+constexpr float far_enough = 62.5f, too_near = 70.5f;
+Take bomb_at_the_wall(std::uint64_t* checksum = nullptr, float from = far_enough, std::int32_t* health = nullptr, std::uint64_t* world_frames = nullptr) {
     auto state = *kiln::start(kiln::level::first());
     auto sound = *kiln::Sound::make();
-    state.cat.x = 70.5f, state.cat.y = 34.0f, state.cat.spell = kiln::Spell::bomb;
+    state.cat.x = from, state.cat.y = 34.0f, state.cat.spell = kiln::Spell::bomb;
     Take take;
     play(state, sound, take, 10);
     play(state, sound, take, 240, casting_at(state, 77.0f, 30.0f));
     if (checksum) *checksum = kiln::checksum(state);
+    if (health) *health = state.cat.health;
+    if (world_frames) *world_frames = state.world->frames();
     return take;
 }
 
@@ -71,23 +87,31 @@ static UTest cases{"kiln.sound", [] {
         auto sound = *kiln::Sound::make();
         Take take;
         play(state, sound, take, 120);
-        std::println("the cavern, nothing done: {}; left {:.3f} right {:.3f}", said(take), energy(take.samples, 0), energy(take.samples, 1));
+        std::println("the cavern, nothing done: {}; left {:.3f} right {:.3f}; {} landings", said(take), energy(take.samples, 0), energy(take.samples, 1), take.landed);
         expect(eq(take.events.size(), std::size_t{1}) && take.events.contains("freeze lava")) << said(take);
         expect(gt(energy(take.samples, 1), 4 * energy(take.samples, 0))) << "the pit is the far side of the cavern";
     };
     "a bomb at the wall is heard: stone's crumble as it shatters, to Mui's right; the same bits each time"_test = [] {
         std::uint64_t heard_checksum = 0;
-        const Take take = bomb_at_the_wall(&heard_checksum), again = bomb_at_the_wall();
+        std::int32_t health = 0;
+        const Take take = bomb_at_the_wall(&heard_checksum, far_enough, &health), again = bomb_at_the_wall();
+        expect(gt(health, 0)) << "she stood far enough";
         const std::size_t first = take.first.contains("shatter stone") ? take.first.at("shatter stone") : 0;
         std::println("a bomb at the wall: {}; the wall first shatters at frame {}; left {:.2f} right {:.2f}; hash {:016x}", said(take), first, energy(take.samples, 0), energy(take.samples, 1),
                      audio::hash(take.samples));
+        const std::uint64_t sounds = std::accumulate(take.began.begin(), take.began.end(), std::uint64_t{0});
+        std::println("  {} landings told of, the fastest {:.1f} cells a second; {} sounds begun in {} frames", take.landed, take.fastest, sounds, take.began.size());
         expect(gt(take.events.contains("shatter stone") ? take.events.at("shatter stone") : 0u, 8u));
+        expect(gt(take.landed, std::size_t{20}) && gt(take.fastest, 5.0f)) << "the rubble comes down";
+        // How long the rubble goes on landing is the standard definition's (how soon pressure eases; the plan's
+        // T2.14 g): told here, bounded there. A material's landings are at most one sound in 0.05 s.
+        expect(le(sounds, std::uint64_t{250} * 4));
         expect(ge(first, std::size_t{10}) && le(first, std::size_t{40})) << "not before the bolt lands, then at once";
         expect(gt(energy(take.samples, 1), energy(take.samples, 0))) << "the wall is to her right";
         expect(eq(audio::hash(take.samples), audio::hash(again.samples)));
         // The game unheard: the same frames.
         auto state = *kiln::start(kiln::level::first());
-        state.cat.x = 70.5f, state.cat.y = 34.0f, state.cat.spell = kiln::Spell::bomb;
+        state.cat.x = far_enough, state.cat.y = 34.0f, state.cat.spell = kiln::Spell::bomb;
         for (int frame = 0; frame < 10; ++frame) kiln::step(state, {});
         kiln::step(state, casting_at(state, 77.0f, 30.0f));
         for (int frame = 1; frame < 240; ++frame) kiln::step(state, {});
@@ -110,5 +134,14 @@ static UTest cases{"kiln.sound", [] {
         std::println("fire at the barricade: {}", said(take));
         expect(gt(take.events.contains("ignite wood") ? take.events.at("ignite wood") : 0u, 3u));
         expect(gt(energy(take.samples, 0) + energy(take.samples, 1), 0.0));
+    };
+    "a world that has stopped is not heard again: Mui beside the keg dies of her own bomb, and after that frame nothing begins"_test = [] {
+        std::int32_t health = 1;
+        std::uint64_t world_frames = 0;
+        const Take take = bomb_at_the_wall(nullptr, too_near, &health, &world_frames);
+        expect(eq(health, 0) && lt(world_frames, std::uint64_t{250})) << "the game is over before the take is";
+        const std::uint64_t after = std::accumulate(take.began.begin() + static_cast<std::ptrdiff_t>(world_frames), take.began.end(), std::uint64_t{0});
+        std::println("beside the keg: the world stopped at frame {}; {} sounds begun after it", world_frames, after);
+        expect(eq(after, std::uint64_t{0})) << "the last step's events are a step's, not a state";
     };
 }};

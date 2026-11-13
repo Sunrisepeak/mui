@@ -257,6 +257,12 @@ struct Event {
     std::uint32_t from = 0, to = 0;  // became: materials; rose, fell: the channel's values
     std::uint32_t material = 0;      // what the instance was when it happened
 };
+// An instance met something and stopped there — a grain landed. Not a law's doing: a carrier that moves things
+// says it (what flies; a body's contact), for whoever plays a sound.
+struct Impact {
+    std::uint32_t instance = 0, material = 0;
+    float         speed = 0;  // as the carrier measures it (a lattice: cells a second)
+};
 struct Report {
     std::uint64_t instances = 0, pairs = 0;
     std::uint64_t held = 0;     // times a reaction or conversion held for an instance

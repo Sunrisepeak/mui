@@ -35,13 +35,13 @@ Voice voice_of(const substance::Program& program, std::uint32_t material) {
 }
 
 constexpr std::array<Recipe, 7> recipes{{
-    {"land", Shape::strike, 0.8f},
-    {"strike", Shape::strike, 1.0f},
-    {"shatter", Shape::crumble, 1.0f},
-    {"ignite", Shape::sizzle, 0.5f},
-    {"boil", Shape::sizzle, 0.45f},
-    {"freeze", Shape::strike, 0.35f},
-    {"melt", Shape::sizzle, 0.3f},
+    {"land", Shape::strike, 0.8f, 0.05f},
+    {"strike", Shape::strike, 1.0f, 0.0f},
+    {"shatter", Shape::crumble, 1.0f, 0.08f},
+    {"ignite", Shape::sizzle, 0.5f, 0.3f},
+    {"boil", Shape::sizzle, 0.45f, 0.3f},
+    {"freeze", Shape::strike, 0.35f, 0.25f},
+    {"melt", Shape::sizzle, 0.3f, 0.3f},
 }};
 
 }  // namespace
@@ -93,6 +93,7 @@ std::expected<Sounds, std::string> Sounds::make(const substance::Program& progra
         if (recipe.event.empty() || std::ranges::find(sounds.events_, recipe.event) != sounds.events_.end())
             return std::unexpected(std::format("a recipe for the event `{}`: each event once, by its name", recipe.event));
         sounds.events_.push_back(recipe.event);
+        sounds.again_.push_back(static_cast<std::int64_t>(std::max(recipe.again, 0.0f) * static_cast<float>(mixer.rate())));
         for (std::uint32_t material = 0; material < sounds.materials_; ++material) sounds.sounds_.push_back(mixer.add(sound_of(program, material, recipe)));
     }
     for (const std::string& name : program.event_names()) {
@@ -101,6 +102,8 @@ std::expected<Sounds, std::string> Sounds::make(const substance::Program& progra
     }
     sounds.counts_.assign(sounds.sounds_.size(), 0);
     sounds.places_.assign(sounds.sounds_.size(), 0);
+    sounds.most_.assign(sounds.sounds_.size(), 0);
+    sounds.heard_at_.assign(sounds.sounds_.size(), std::numeric_limits<std::int64_t>::min() / 2);
     return sounds;
 }
 
@@ -123,10 +126,10 @@ std::uint32_t Sounds::hear(std::span<const substance::Event> events, const Ear& 
         float rest = 1;
         for (std::uint32_t one = 0; one < std::min(counts_[slot], 16u); ++one) rest *= 0.6f;
         counts_[slot] = 0, places_[slot] = 0;
-        if (sounds_[slot] < 0) continue;
+        if (sounds_[slot] < 0 || ear.when - heard_at_[slot] < again_[slot / materials_]) continue;
         const float strength = 1.0f - rest;
         const float pan = std::clamp((place - ear.at) / std::max(ear.reach, 1.0f), -1.0f, 1.0f);
-        played += mixer_->play(sounds_[slot], ear.when, strength, pan, 0.94f + 0.12f * strength);
+        if (mixer_->play(sounds_[slot], ear.when, strength, pan, 0.94f + 0.12f * strength)) heard_at_[slot] = ear.when, ++played;
     }
     return played;
 }
@@ -144,6 +147,31 @@ bool Sounds::hear(const Heard& heard) noexcept {
     if (strength == 0) return false;
     // Harder is louder, and a little brighter.
     return mixer_->play(index, heard.at, strength, std::clamp(heard.pan, -1.0f, 1.0f), 0.94f + 0.12f * strength);
+}
+
+std::uint32_t Sounds::hear(std::span<const substance::Impact> impacts, const Ear& ear, float full) noexcept {
+    const auto found = std::ranges::find(events_, std::string_view("land"));
+    if (!mixer_ || impacts.empty() || found == events_.end()) return 0;
+    const std::size_t row = static_cast<std::size_t>(found - events_.begin()) * materials_;
+    for (const substance::Impact& impact : impacts) {
+        if (impact.material >= materials_) continue;
+        const std::size_t slot = row + impact.material;
+        ++counts_[slot];
+        places_[slot] += static_cast<float>(impact.instance % std::max(ear.width, 1u));
+        most_[slot] = std::max(most_[slot], impact.speed);
+    }
+    std::uint32_t played = 0;
+    for (std::size_t slot = row; slot < row + materials_; ++slot) {
+        if (!counts_[slot]) continue;
+        const float place = places_[slot] / static_cast<float>(counts_[slot]);
+        const float strength = std::clamp(most_[slot] / std::max(full, 1.0f), 0.0f, 1.0f);
+        counts_[slot] = 0, places_[slot] = 0, most_[slot] = 0;
+        // What only settles is not heard.
+        if (sounds_[slot] < 0 || strength < 0.05f || ear.when - heard_at_[slot] < again_[slot / materials_]) continue;
+        const float pan = std::clamp((place - ear.at) / std::max(ear.reach, 1.0f), -1.0f, 1.0f);
+        if (mixer_->play(sounds_[slot], ear.when, strength, pan, 0.94f + 0.12f * strength)) heard_at_[slot] = ear.when, ++played;
+    }
+    return played;
 }
 
 }  // namespace xengine::audio::matter

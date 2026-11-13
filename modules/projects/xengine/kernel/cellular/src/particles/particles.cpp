@@ -111,11 +111,16 @@ void Particles::land(std::span<std::uint32_t> field, std::size_t particle, std::
     const std::size_t cells = static_cast<std::size_t>(field_.width) * field_.height;
     for (std::uint32_t channel = 0; channel < channels_; ++channel) field[channel * cells + cell] = cells_[particle * channels_ + channel];
     if (log_) log_->landed.push_back({static_cast<std::uint32_t>(cell), cells_[particle * channels_], origin_[particle].cell, origin_[particle].frame});
+    if (impact_count_ < impacts_a_step) {
+        const Vec velocity = velocity_[particle];
+        impacts_[impact_count_++] = {static_cast<std::uint32_t>(cell), cells_[particle * channels_], std::sqrt(velocity.x * velocity.x + velocity.y * velocity.y)};
+    }
     ++last_.landed;
 }
 
 void Particles::step(std::span<std::uint32_t> field) {
     last_ = {.thrown = pending_.thrown, .refused = pending_.refused};
+    impact_count_ = 0;
     pending_ = {};
     const std::size_t cells = static_cast<std::size_t>(field_.width) * field_.height;
     if (field.size() != cells * channels_) return;

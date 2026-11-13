@@ -136,4 +136,28 @@ static UTest cases{"audio.matter", [] {
         auto none = *heard::Sounds::make(program, quiet);
         expect(eq(none.hear(std::span(events).last(1), {.width = 64}), 0u)) << "unnamed: not heard";
     };
+    "what goes on is not a sound a frame, and what lands is as loud as it came down"_test = [] {
+        const matter::Program& program = with_acoustics();
+        const std::uint32_t wood = *program.material("wood"), sand = *program.material("sand"), iron = *program.material("iron");
+        const auto names = program.event_names();
+        const std::uint32_t ignite = static_cast<std::uint32_t>(std::ranges::find(names, "ignite") - names.begin());
+        audio::Mixer mixer;
+        auto sounds = *heard::Sounds::make(program, mixer);
+        // Wood catching, cell after cell, every frame of a second (800 samples a frame).
+        std::uint32_t began = 0;
+        std::vector<float> block(1600);
+        for (int frame = 0; frame < 60; ++frame) {
+            const std::array<matter::Event, 1> burning{{{.kind = matter::EventKind::rose, .instance = 20, .name = ignite, .material = wood}}};
+            began += sounds.hear(burning, {.width = 64, .at = 32, .when = mixer.clock()});
+            mixer.render(block);
+        }
+        std::println("wood catching every frame of a second: {} sounds", began);
+        expect(ge(began, 3u) && le(began, 5u)) << "the recipe's `again` (0.3 s), not sixty";
+        // Landings: grains that only settle are not heard; one that came down fast is, and iron beside it is its own sound.
+        const std::array<matter::Impact, 3> settling{{{.instance = 10, .material = sand, .speed = 1.0f}, {.instance = 11, .material = sand, .speed = 2.0f}, {.instance = 12, .material = sand, .speed = 0.5f}}};
+        expect(eq(sounds.hear(settling, {.width = 64, .at = 32, .when = mixer.clock()}), 0u));
+        const std::array<matter::Impact, 3> falling{{{.instance = 10, .material = sand, .speed = 1.0f}, {.instance = 11, .material = sand, .speed = 45.0f}, {.instance = 40, .material = iron, .speed = 30.0f}}};
+        expect(eq(sounds.hear(falling, {.width = 64, .at = 32, .when = mixer.clock()}), 2u));
+        expect(eq(sounds.hear(falling, {.width = 64, .at = 32, .when = mixer.clock()}), 0u)) << "the same instant: once";
+    };
 }};

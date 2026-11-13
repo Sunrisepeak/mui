@@ -25,6 +25,7 @@ struct Recipe {
     std::string event;
     Shape       shape = Shape::strike;
     float       gain = 1;
+    float       again = 0;  // heard from a world's steps: the least seconds between two of it for one material
 };
 // The events of the standard definition and of a world's journal: land, strike, shatter, ignite, boil, freeze, melt.
 [[nodiscard]] std::span<const Recipe> standard_recipes() noexcept;
@@ -57,7 +58,12 @@ public:
     // A step's events as its carrier says them (a world's `events`): the ones that have a recipe, each event of
     // each material one sound — louder the more of them there were, from where they were on average. A wall that
     // shatters is one crumble, not forty. How many sounds it played. Allocates nothing.
+    // What goes on — wood burning, lava setting — says so every frame: a recipe's `again` keeps it from being a
+    // sound a frame.
     std::uint32_t hear(std::span<const xengine::matter::Event> events, const Ear& ear) noexcept;
+    // A step's landings (a world's `impacts`), as the event `land`: a material's is one sound, as loud as the
+    // fastest of them — `full` the speed that is as loud as it gets.
+    std::uint32_t hear(std::span<const xengine::matter::Impact> impacts, const Ear& ear, float full = 60) noexcept;
     [[nodiscard]] std::int32_t sound(std::string_view event, std::uint32_t material) const noexcept;  // the mixer's index; −1: none
     [[nodiscard]] std::size_t count() const noexcept { return sounds_.size(); }
 
@@ -68,7 +74,9 @@ private:
     std::vector<std::int32_t> sounds_;  // event × material
     std::vector<std::int32_t> named_;   // the program's event names → a recipe's row; −1: none
     std::vector<std::uint32_t> counts_; // a step's scratch, event × material
-    std::vector<float>         places_;
+    std::vector<float>         places_, most_;
+    std::vector<std::int64_t>  heard_at_;  // event × material: the sample it last began at, from a world's steps
+    std::vector<std::int64_t>  again_;     // an event: samples
 };
 
 }  // namespace xengine::audio::matter

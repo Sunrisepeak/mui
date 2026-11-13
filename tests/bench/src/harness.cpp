@@ -350,15 +350,15 @@ std::string Report::json() const {
 }
 
 std::string Report::table() const {
-    std::string out = std::format("{:<34} {:>6} {:>9} {:>9} {:>9} {:>9} {:>10} {:>9}\n", "benchmark", "iters", "mean ms", "p50", "p95",
+    std::string out = std::format("{:<34} {:>6} {:>9} {:>9} {:>9} {:>9} {:>9} {:>10} {:>9}\n", "benchmark", "iters", "mean ms", "p50", "p95", "p99",
                                   "max", "ns/item", "allocs");
     for (const Result& r : results) {
         if (!r.skipped.empty() || !r.failed.empty()) {
             out += std::format("{:<34} {}: {}\n", r.name, r.failed.empty() ? "skipped" : "FAILED", r.failed.empty() ? r.skipped : r.failed);
             continue;
         }
-        out += std::format("{:<34} {:>6} {:>9.3f} {:>9.3f} {:>9.3f} {:>9.3f} {:>10} {:>9}\n", r.name, r.iterations, r.mean_ms, r.p50_ms,
-                           r.p95_ms, r.max_ms, r.items ? std::format("{:.1f}", r.ns_per_item) : std::string("-"),
+        out += std::format("{:<34} {:>6} {:>9.3f} {:>9.3f} {:>9.3f} {:>9.3f} {:>9.3f} {:>10} {:>9}\n", r.name, r.iterations, r.mean_ms, r.p50_ms,
+                           r.p95_ms, r.p99_ms, r.max_ms, r.items ? std::format("{:.1f}", r.ns_per_item) : std::string("-"),
                            r.allocations >= 0 ? std::format("{:.1f}", r.allocations) : std::string("-"));
         if (!r.counters.empty() || !r.notes.empty()) {
             std::string line;

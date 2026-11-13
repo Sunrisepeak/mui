@@ -42,6 +42,19 @@ struct Statistics {
     std::uint64_t wetted = 0;                               // push: faces of a liquid
     std::uint64_t terrain_tiles = 0;                        // terrain: tiles rebuilt
 };
+// What the coupling did to bodies in a lift, said to whoever asks (Bodies::log): a world's journal (D-169).
+struct BodyLog {
+    struct Left {
+        dyn::BodyId body;
+        std::uint32_t cell = 0;  // the field's cell that is no longer solid, and so no longer the body's
+    };
+    struct Split {
+        dyn::BodyId of, made;    // a piece that came apart from `of` is the body `made`
+    };
+    std::vector<Left> left;
+    std::vector<Split> split;
+    std::vector<dyn::BodyId> gone;  // bodies with no cell left
+};
 // A body as the coupling sees it.
 struct View {
     dyn::BodyId body;
@@ -71,6 +84,8 @@ public:
     // Which body holds the field's cell now (stamped), if any.
     [[nodiscard]] std::optional<dyn::BodyId> owner(std::uint32_t x, std::uint32_t y) const;
     [[nodiscard]] const Statistics& last() const noexcept { return last_; }
+    // Who is told what a lift does to the bodies from now on (none: no one).
+    void log(BodyLog* log) noexcept { log_ = log; }
     // What the coupling holds, as bytes (with the rigid world's own save, a whole state): the bodies' cells,
     // where each was stamped and what lies under, the terrain's tiles. Restored onto a rigid world restored or
     // made from the same save — whose ids name the same bodies.
@@ -109,6 +124,7 @@ private:
     std::vector<std::uint64_t> terrain_hash_;
     Statistics last_;
     std::vector<std::uint8_t> read_;             // lift's scratch
+    BodyLog* log_ = nullptr;
 };
 
 // A world of matter with bodies in it: the lattice, the rigid world and the coupling, stepped in their order and
@@ -123,6 +139,34 @@ struct WorldOptions {
     float gravity = 9.8f;
     Options bodies;
     particles::Options flying;  // its cell and gravity are the world's
+};
+// What a frame did besides the lattice's laws, said by the world itself (the foundation plan's §6.10.1): cells
+// thrown and landed (particles::Log), cells that left a body, bodies split and gone (BodyLog), bodies carried,
+// and what was done to the world from outside since the frame before. Kept only while the world is watched, and
+// no part of its state: not hashed, not saved, not branched — a world watched is the same bits as one that is not.
+// What a record of causes is made from, beside the laws judged again on `before()` and `lattice`.
+struct Journal : particles::Log, BodyLog {
+    using Cause = particles::Cause;
+    struct Carried {
+        dyn::BodyId body;
+        particles::Vec from, to;  // its origin before and after the rigid step, in metres
+        float turned = 0;         // radians
+    };
+    enum class EditKind : std::uint8_t { place, set, blast, carve };
+    struct Edit {
+        EditKind kind = EditKind::place;
+        Tile region;                        // place, set, carve; blast: the square about it
+        std::uint32_t channel = 0, value = 0;  // place: `value` the material; set: the channel and its value
+        particles::Vec centre;              // blast
+        float radius = 0, speed = 0;
+        bool breaks = false;
+    };
+    std::uint64_t frame = 0;                // the frame it is of: frames() after the step
+    std::vector<Edit> edits;                // made since the step before, in order; what they threw is in `thrown`
+    std::vector<Carried> carried;           // bodies whose pose the rigid step changed
+    std::vector<std::uint32_t> lattice;     // the cells as the lattice's step left them, before anything else wrote
+    std::vector<std::uint8_t> activity;     // the tiles' bytes the step began with (a tile asleep then was not run)
+    void clear();
 };
 class MatterWorld {
 public:
@@ -144,6 +188,13 @@ public:
     // bodies are pushed by it at the next frame through the field's pressure, if the world has one.
     std::uint32_t blast(particles::Vec centre, float radius, float speed, bool breaks = false);
     [[nodiscard]] std::uint64_t frames() const noexcept { return tick_; }
+    // Watched: each step keeps its journal. Off (as made, and in every branch): nothing is kept and a frame costs
+    // what it did. Either way the world is the same bits.
+    void watch(bool on);
+    [[nodiscard]] bool watched() const noexcept { return watched_; }
+    [[nodiscard]] const Journal& journal() const noexcept { return journal_; }
+    // The cells the last step's lattice began with (its input): with `journal().lattice`, what the laws did.
+    [[nodiscard]] std::span<const std::uint32_t> before() const noexcept { return next_; }
 
     // Cells written from outside a frame (the tiles they are in wake).
     void place(Tile region, std::uint32_t material);
@@ -172,6 +223,9 @@ private:
     std::unique_ptr<dyn::World> rigid_;
     std::unique_ptr<Bodies> bodies_;
     std::unique_ptr<particles::Particles> flying_;
+    bool watched_ = false;
+    Journal journal_, pending_;  // the last step's; what was done since (edits and what they threw)
+    std::vector<std::pair<dyn::BodyId, dyn::Pose>> poses_;  // a watched frame's scratch
 };
 
 // A world of matter as a value: a copy is a branch (the whole world, bit for bit), so a timeline keeps it and

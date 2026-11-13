@@ -37,6 +37,8 @@ bool Particles::fling(std::span<std::uint32_t> field, std::uint32_t x, std::uint
     if (speed > options_.fastest) velocity = {velocity.x * options_.fastest / speed, velocity.y * options_.fastest / speed};
     position_.push_back({static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f});
     velocity_.push_back({velocity.x / options_.cell, velocity.y / options_.cell});
+    origin_.push_back({static_cast<std::uint32_t>(at), frame_});
+    if (log_) log_->thrown.push_back({static_cast<std::uint32_t>(at), field[at], cause_});
     for (std::uint32_t channel = 0; channel < channels_; ++channel) {
         cells_.push_back(field[channel * cells + at]);
         field[channel * cells + at] = fill[channel];
@@ -67,7 +69,9 @@ std::uint32_t Particles::scatter(std::span<std::uint32_t> field, std::span<const
             throws.push_back({x, y, {across * options_.push, down * options_.push}});
         }
     std::uint32_t thrown = 0;
+    cause_ = Cause::pressure;
     for (const Throw& one : throws) thrown += fling(field, one.x, one.y, one.velocity, fill) ? 1 : 0;
+    cause_ = Cause::flung;
     return thrown;
 }
 
@@ -77,6 +81,7 @@ std::uint32_t Particles::blast(std::span<std::uint32_t> field, std::span<const s
     const auto first = [&](float at, std::uint32_t size) { return static_cast<std::uint32_t>(std::clamp(std::floor(at - radius), 0.0f, static_cast<float>(size - 1))); };
     const auto last = [&](float at, std::uint32_t size) { return static_cast<std::uint32_t>(std::clamp(std::floor(at + radius), 0.0f, static_cast<float>(size - 1))); };
     std::uint32_t thrown = 0;
+    cause_ = Cause::blast;
     for (std::uint32_t y = first(centre.y, field_.height); y <= last(centre.y, field_.height); ++y)
         for (std::uint32_t x = first(centre.x, field_.width); x <= last(centre.x, field_.width); ++x) {
             const float dx = static_cast<float>(x) + 0.5f - centre.x, dy = static_cast<float>(y) + 0.5f - centre.y;
@@ -88,12 +93,14 @@ std::uint32_t Particles::blast(std::span<std::uint32_t> field, std::span<const s
             const Vec away = distance > 0 ? Vec{dx / distance, dy / distance} : Vec{0, -1};
             thrown += fling(field, x, y, {away.x * strength, away.y * strength}, fill) ? 1 : 0;
         }
+    cause_ = Cause::flung;
     return thrown;
 }
 
 void Particles::land(std::span<std::uint32_t> field, std::size_t particle, std::size_t cell) {
     const std::size_t cells = static_cast<std::size_t>(field_.width) * field_.height;
     for (std::uint32_t channel = 0; channel < channels_; ++channel) field[channel * cells + cell] = cells_[particle * channels_ + channel];
+    if (log_) log_->landed.push_back({static_cast<std::uint32_t>(cell), cells_[particle * channels_], origin_[particle].cell, origin_[particle].frame});
     ++last_.landed;
 }
 
@@ -126,7 +133,7 @@ void Particles::step(std::span<std::uint32_t> field) {
                     }
             if (!found) {
                 if (kept != particle) {
-                    position_[kept] = position_[particle], velocity_[kept] = velocity_[particle];
+                    position_[kept] = position_[particle], velocity_[kept] = velocity_[particle], origin_[kept] = origin_[particle];
                     std::copy_n(cells_.begin() + static_cast<std::ptrdiff_t>(particle * channels_), channels_, cells_.begin() + static_cast<std::ptrdiff_t>(kept * channels_));
                 }
                 ++kept;
@@ -158,12 +165,12 @@ void Particles::step(std::span<std::uint32_t> field) {
             continue;
         }
         if (kept != particle) {
-            position_[kept] = position_[particle], velocity_[kept] = velocity_[particle];
+            position_[kept] = position_[particle], velocity_[kept] = velocity_[particle], origin_[kept] = origin_[particle];
             std::copy_n(cells_.begin() + static_cast<std::ptrdiff_t>(particle * channels_), channels_, cells_.begin() + static_cast<std::ptrdiff_t>(kept * channels_));
         }
         ++kept;
     }
-    position_.resize(kept), velocity_.resize(kept), cells_.resize(kept * channels_);
+    position_.resize(kept), velocity_.resize(kept), origin_.resize(kept), cells_.resize(kept * channels_);
     last_.flying = kept;
 }
 
@@ -172,13 +179,14 @@ void Particles::centres(std::vector<float>& out) const {
     for (const Vec& position : position_) out.push_back(position.x), out.push_back(position.y);
 }
 
-void Particles::save(std::vector<std::uint8_t>& out) const {
+void Particles::save(std::vector<std::uint8_t>& out, bool origins) const {
     const auto put = [&](std::uint32_t value) { for (int shift = 0; shift < 32; shift += 8) out.push_back(static_cast<std::uint8_t>(value >> shift)); };
     put(static_cast<std::uint32_t>(position_.size()));
     for (std::size_t particle = 0; particle < position_.size(); ++particle) {
         put(std::bit_cast<std::uint32_t>(position_[particle].x)), put(std::bit_cast<std::uint32_t>(position_[particle].y));
         put(std::bit_cast<std::uint32_t>(velocity_[particle].x)), put(std::bit_cast<std::uint32_t>(velocity_[particle].y));
         for (std::uint32_t channel = 0; channel < channels_; ++channel) put(cells_[particle * channels_ + channel]);
+        if (origins) put(origin_[particle].cell), put(static_cast<std::uint32_t>(origin_[particle].frame)), put(static_cast<std::uint32_t>(origin_[particle].frame >> 32));
     }
 }
 
@@ -191,17 +199,21 @@ std::expected<void, std::string> Particles::restore(std::span<const std::uint8_t
         return true;
     };
     std::uint32_t count = 0;
-    if (!take(count) || count > (saved.size() - at) / (16 + 4 * std::size_t{channels_})) return std::unexpected(std::string("not saved particles of this program"));
+    if (!take(count) || count > (saved.size() - at) / (28 + 4 * std::size_t{channels_})) return std::unexpected(std::string("not saved particles of this program"));
     std::vector<Vec> position(count), velocity(count);
     std::vector<std::uint32_t> cells(static_cast<std::size_t>(count) * channels_);
+    std::vector<Origin> origin(count);
     for (std::uint32_t particle = 0; particle < count; ++particle) {
         std::uint32_t px = 0, py = 0, vx = 0, vy = 0;
         (void)take(px), (void)take(py), (void)take(vx), (void)take(vy);
         position[particle] = {std::bit_cast<float>(px), std::bit_cast<float>(py)};
         velocity[particle] = {std::bit_cast<float>(vx), std::bit_cast<float>(vy)};
         for (std::uint32_t channel = 0; channel < channels_; ++channel) (void)take(cells[static_cast<std::size_t>(particle) * channels_ + channel]);
+        std::uint32_t low = 0, high = 0;
+        (void)take(origin[particle].cell), (void)take(low), (void)take(high);
+        origin[particle].frame = std::uint64_t{high} << 32 | low;
     }
-    position_ = std::move(position), velocity_ = std::move(velocity), cells_ = std::move(cells);
+    position_ = std::move(position), velocity_ = std::move(velocity), cells_ = std::move(cells), origin_ = std::move(origin);
     return {};
 }
 

@@ -30,6 +30,29 @@ struct Options {
     float push = 0.003f;         // scatter: m/s per unit of the pressure's difference across the cell
     float fastest = 15.0f;       // m/s: no cell is thrown faster
 };
+// Why a cell flew: thrown by code (fling), by the field's pressure (scatter), by a blast.
+enum class Cause : std::uint8_t { flung, pressure, blast };
+// Where a particle came from: the cell it was thrown out of, and the frame its owner said it was then. Carried
+// with it (saved, branched) and read by no step: what flies is the same bits with or without it.
+struct Origin {
+    std::uint32_t cell = 0;
+    std::uint64_t frame = 0;
+};
+// What was thrown and what landed, said to whoever asks (Particles::log): a world's journal (D-169). Nothing is
+// said, nor kept, where no one asks.
+struct Log {
+    struct Thrown {
+        std::uint32_t cell = 0, material = 0;
+        Cause cause = Cause::flung;
+    };
+    struct Landed {
+        std::uint32_t cell = 0, material = 0;  // where it is a cell again, and of what
+        std::uint32_t from = 0;                // the cell it was thrown out of
+        std::uint64_t thrown_at = 0;           // and the frame
+    };
+    std::vector<Thrown> thrown;
+    std::vector<Landed> landed;
+};
 // The last step's: what was thrown since the step before (and refused, no room), what landed, what flies on.
 struct Statistics { std::uint64_t thrown = 0, landed = 0, flying = 0, refused = 0; };
 
@@ -54,12 +77,18 @@ public:
     // Every particle's channels, particle after particle; and their centres as x, y pairs (in cells) — what a
     // presenter draws them from (cellular.present's draw_loose).
     [[nodiscard]] std::span<const std::uint32_t> values() const noexcept { return cells_; }
+    [[nodiscard]] std::span<const Origin> origins() const noexcept { return origin_; }
+    // Who is told what is thrown and what lands from now on (none: no one), and the frame a throw is said to be
+    // of — its owner's count, which the particles do not keep.
+    void log(Log* log) noexcept { log_ = log; }
+    void now(std::uint64_t frame) noexcept { frame_ = frame; }
     void centres(std::vector<float>& out) const;
     // A particle's channel (its material is channel 0).
     [[nodiscard]] std::uint32_t value(std::size_t particle, std::uint32_t channel) const noexcept { return cells_[particle * channels_ + channel]; }
     [[nodiscard]] const Statistics& last() const noexcept { return last_; }
     // What is in flight, as bytes (a world's save), and back.
-    void save(std::vector<std::uint8_t>& out) const;
+    // Without `origins`: what a step reads and nothing else — what a state's hash is of.
+    void save(std::vector<std::uint8_t>& out, bool origins = true) const;
     [[nodiscard]] std::expected<void, std::string> restore(std::span<const std::uint8_t> saved, std::size_t& at);
 
 private:
@@ -75,6 +104,10 @@ private:
     std::optional<std::uint32_t> pressure_;
     std::vector<Vec> position_, velocity_;  // in cells and cells a second
     std::vector<std::uint32_t> cells_;      // [particle][channel]
+    std::vector<Origin> origin_;            // a particle each
+    Log* log_ = nullptr;
+    std::uint64_t frame_ = 0;
+    Cause cause_ = Cause::flung;            // of the throws being made
     Statistics last_, pending_;  // pending: thrown and refused since the last step
 };
 

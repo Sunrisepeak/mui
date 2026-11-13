@@ -253,6 +253,7 @@ void Bodies::lift(std::span<std::uint32_t> field) {
                 } else {
                     // No longer solid: it leaves the body and stays in the field as what it became.
                     piece.cells[local] = matter::none;
+                    if (log_) log_->left.push_back({piece.body, f});
                     ++last_.lost;
                     lost = true;
                     continue;
@@ -297,6 +298,7 @@ void Bodies::reshape(std::size_t index) {
     }
     const auto pose = world_->pose(piece.body);
     if (!parts || !pose) {
+        if (log_) log_->gone.push_back(piece.body);
         world_->remove(piece.body);
         pieces_.erase(pieces_.begin() + static_cast<std::ptrdiff_t>(index));
         ++last_.gone;
@@ -338,6 +340,7 @@ void Bodies::reshape(std::size_t index) {
             const float rx = own->centre.x - pose->centre.x, ry = own->centre.y - pose->centre.y;
             world_->set_velocity(made[part].body, {pose->velocity.x - pose->spin * ry, pose->velocity.y + pose->spin * rx}, pose->spin);
         }
+        if (log_) log_->split.push_back({pieces_[index].body, made[part].body});
         pieces_.push_back(std::move(made[part]));
         ++last_.split;
     }
@@ -613,11 +616,25 @@ std::expected<std::unique_ptr<MatterWorld>, std::string> MatterWorld::make(const
     return world;
 }
 
+void Journal::clear() {
+    thrown.clear(), landed.clear(), left.clear(), split.clear(), gone.clear(), edits.clear(), carried.clear(), lattice.clear(), activity.clear();
+}
+
+void MatterWorld::watch(bool on) {
+    watched_ = on;
+    journal_.clear(), pending_.clear();
+    // Between steps what is thrown (a blast) is the next frame's.
+    flying_->log(on ? &pending_ : nullptr);
+    bodies_->log(nullptr);
+}
+
 std::uint32_t MatterWorld::blast(particles::Vec centre, float radius, float speed, bool breaks) {
+    flying_->now(tick_ + 1);  // thrown between frames: of the frame the next step makes
     const std::uint32_t thrown = flying_->blast(cells_, outside_, centre, radius, speed, breaks);
     const std::uint32_t r = static_cast<std::uint32_t>(std::ceil(radius));
     const std::uint32_t x = static_cast<std::uint32_t>(std::max(0.0f, centre.x - static_cast<float>(r))), y = static_cast<std::uint32_t>(std::max(0.0f, centre.y - static_cast<float>(r)));
     lattice_.wake(options_.shape, options_.tile, {x, y, 2 * r + 1, 2 * r + 1}, activity_);
+    if (watched_) pending_.edits.push_back({.kind = Journal::EditKind::blast, .region = {x, y, 2 * r + 1, 2 * r + 1}, .centre = centre, .radius = radius, .speed = speed, .breaks = breaks});
     return thrown;
 }
 
@@ -628,6 +645,7 @@ void MatterWorld::place(Tile region, std::uint32_t material) {
         for (std::uint32_t x = region.x; x < std::min(region.x + region.width, options_.shape.width); ++x)
             program_->place(cells_, area, static_cast<std::size_t>(y) * options_.shape.width + x, material);
     lattice_.wake(options_.shape, options_.tile, region, activity_);
+    if (watched_) pending_.edits.push_back({.kind = Journal::EditKind::place, .region = region, .value = material});
 }
 
 void MatterWorld::set(std::uint32_t channel, Tile region, std::uint32_t value) {
@@ -637,18 +655,34 @@ void MatterWorld::set(std::uint32_t channel, Tile region, std::uint32_t value) {
         for (std::uint32_t x = region.x; x < std::min(region.x + region.width, options_.shape.width); ++x)
             cells_[channel * area + static_cast<std::size_t>(y) * options_.shape.width + x] = value;
     lattice_.wake(options_.shape, options_.tile, region, activity_);
+    if (watched_) pending_.edits.push_back({.kind = Journal::EditKind::set, .region = region, .channel = channel, .value = value});
 }
 
-std::expected<std::vector<dyn::BodyId>, std::string> MatterWorld::carve(Tile region) { return bodies_->carve(cells_, region, outside_); }
+std::expected<std::vector<dyn::BodyId>, std::string> MatterWorld::carve(Tile region) {
+    auto made = bodies_->carve(cells_, region, outside_);
+    if (watched_ && made) pending_.edits.push_back({.kind = Journal::EditKind::carve, .region = region, .value = static_cast<std::uint32_t>(made->size())});
+    return made;
+}
 
 void MatterWorld::step() {
     // Each part of a frame a span (simulation.world.*): where a frame's time goes is read from a trace.
     mlibs::trace::Span frame("simulation.world.step", "simulation");
+    if (watched_) {
+        // This frame's journal: what was done since the last step (and what that threw), then what the step does.
+        journal_.clear();
+        journal_.frame = tick_ + 1;
+        journal_.edits.swap(pending_.edits), journal_.thrown.swap(pending_.thrown);
+        pending_.clear();
+        journal_.activity.assign(activity_.begin(), activity_.end());
+        flying_->log(&journal_), bodies_->log(&journal_);
+    }
     {
         Execution execution{.tile = options_.tile, .boundary = options_.open ? open_to(outside_) : nothing_beyond, .tick = tick_++};
         if (options_.sparse) execution.activity = activity_;
         (void)lattice_.step(options_.shape, cells_, next_, execution);
         cells_.swap(next_);
+        if (watched_) journal_.lattice.assign(cells_.begin(), cells_.end());
+        flying_->now(tick_);
     }
     {
         // Cells in flight, among the bodies (stamped: what flies hits them): thrown by the pressure, falling, landing.
@@ -681,17 +715,27 @@ void MatterWorld::step() {
     }
     {
         mlibs::trace::Span span("simulation.world.rigid", "simulation");
+        if (watched_) {
+            poses_.clear();
+            for (const View& view : bodies_->bodies())
+                if (const auto pose = std::as_const(*rigid_).pose(view.body)) poses_.emplace_back(view.body, *pose);
+        }
         rigid_->step();
+        if (watched_)
+            for (const auto& [body, before] : poses_)
+                if (const auto after = std::as_const(*rigid_).pose(body); after && (after->at.x != before.at.x || after->at.y != before.at.y || after->angle != before.angle))
+                    journal_.carried.push_back({body, before.at, after->at, after->angle - before.angle});
     }
     {
         mlibs::trace::Span span("simulation.world.stamp", "simulation");
         bodies_->stamp(cells_);
         wake();
     }
+    if (watched_) flying_->log(&pending_), bodies_->log(nullptr);
 }
 
 std::vector<std::uint8_t> MatterWorld::save() const {
-    std::vector<std::uint8_t> out{'X', 'M', 'W', '1'};
+    std::vector<std::uint8_t> out{'X', 'M', 'W', '2'};
     put64(out, tick_);
     put_list(out, cells_);
     put64(out, activity_.size());
@@ -705,7 +749,7 @@ std::vector<std::uint8_t> MatterWorld::save() const {
 }
 
 std::expected<void, std::string> MatterWorld::restore(std::span<const std::uint8_t> saved) {
-    if (saved.size() < 4 || saved[0] != 'X' || saved[1] != 'M' || saved[2] != 'W' || saved[3] != '1') return std::unexpected(std::string("not a saved world of matter"));
+    if (saved.size() < 4 || saved[0] != 'X' || saved[1] != 'M' || saved[2] != 'W' || saved[3] != '2') return std::unexpected(std::string("not a saved world of matter"));
     std::size_t at = 4;
     Reader read{saved, at};
     const std::uint64_t tick = read.u64();
@@ -725,6 +769,9 @@ std::expected<void, std::string> MatterWorld::restore(std::span<const std::uint8
     tick_ = tick, cells_ = std::move(cells), activity_ = std::move(bytes);
     *bodies_ = std::move(coupled);
     *flying_ = std::move(flying);
+    // Another state: what was being said of the old one is dropped.
+    journal_.clear(), pending_.clear();
+    flying_->log(watched_ ? &pending_ : nullptr), bodies_->log(nullptr);
     return {};
 }
 
@@ -743,6 +790,7 @@ std::expected<std::unique_ptr<MatterWorld>, std::string> MatterWorld::branch() c
     world->rigid_ = std::make_unique<dyn::World>(std::move(*rigid));
     world->bodies_ = std::make_unique<Bodies>(bodies_->onto(*world->rigid_));
     world->flying_ = std::make_unique<particles::Particles>(*flying_);
+    world->flying_->log(nullptr), world->bodies_->log(nullptr);  // a branch is not watched
     return world;
 }
 
@@ -750,7 +798,7 @@ std::uint64_t MatterWorld::state_hash() const noexcept {
     mlibs::hash::Fnv1a hash(rigid_->state_hash());
     for (const std::uint32_t value : cells_) hash.le(value, 4);
     std::vector<std::uint8_t> flying;
-    flying_->save(flying);
+    flying_->save(flying, false);  // what a step reads: where a particle came from is no part of the state's hash
     hash.bytes(flying);
     return hash.value();
 }

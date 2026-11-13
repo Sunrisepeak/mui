@@ -276,3 +276,18 @@ And the emergence set (the plan's §9.3) asked why, each phenomenon through the 
 ```sh
 mcpp test -p xengine.matter.cts agent_test   # the agent contract's suite on a field of matter; the chain of causes, why not, events, branches; the record against the kernel
 ```
+
+## What a frame did besides its laws: the journal
+
+`MatterWorld::watch(true)` makes each step keep a `Journal` (the foundation plan's §6.10.1) — what `matter.explain` on a whole world is made from:
+
+| | |
+|---|---|
+| `thrown`, `landed` | cells that flew: thrown by a blast, the pressure or code; each landing with the cell and the frame it was thrown from (a particle carries its `Origin`, saved and branched with it) |
+| `left`, `split`, `gone` | cells no longer solid and so no longer a body's; the bodies a body fell into; bodies with no cell left |
+| `carried` | bodies the rigid step moved: from where to where, turned how far |
+| `edits` | what was done from outside since the frame before — place, set, blast, carve — said once |
+| `lattice`, `before()` | the lattice step's own output and input: the laws judged again on them |
+
+It is kept only while the world is watched and is no part of the state: not hashed, not saved, not branched. A watched world is the same bits as one that is not (`xengine.matter.cts` journal_test).
+

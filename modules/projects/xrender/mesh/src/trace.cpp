@@ -119,21 +119,45 @@ struct Tracing {
             if (matt) arriving = arriving + colour * facing;
             else sent = sent + math::scaled(reflected(material, met->normal, toward_eye, way, facing), colour);
         }
-        // From one more way about the normal, likelier the nearer the normal (so each way counts the same).
-        const float metal = std::clamp(material.metallic, 0.0f, 1.0f);
+        // From one more way. A matt surface: about its normal, likelier the nearer it (so each way counts the same).
+        // One with a highlight: either that, or — as often as it is a mirror — the way the eye's ray is thrown back
+        // by one of its small faces, chosen as the highlight spreads them (GGX), weighed by how much is mirrored
+        // there (Schlick) and how much the faces hide of one another (Smith; the measure for light from all about).
+        const float rough = std::clamp(material.roughness, 0.04f, 1.0f), metal = std::clamp(material.metallic, 0.0f, 1.0f);
         const Vec3 colour = matt ? material.base : material.base * (1.0f - metal);
-        Vec3 around{0, 0, 0};
+        const Vec3 aside = math::normalized(math::cross(std::abs(met->normal.y) < 0.9f ? Vec3{0, 1, 0} : Vec3{1, 0, 0}, met->normal)), other = math::cross(met->normal, aside);
+        const auto about_normal = [&](float out, float turn, float up) {
+            return math::normalized(aside * (out * static_cast<float>(math::det::cos(static_cast<double>(turn)))) + other * (out * static_cast<float>(math::det::sin(static_cast<double>(turn)))) + met->normal * up);
+        };
+        Vec3 around{0, 0, 0}, thrown{0, 0, 0};  // what arrives for the surface's own colour; what it mirrors
         if (bounces_left > 0) {
+            const float mirrors = matt ? 0.0f : metal + (1.0f - metal) * 0.5f;  // how often the mirrored way is taken
+            const bool mirror = !matt && static_cast<float>(math::unit24(random.next())) < mirrors;
             const float first = static_cast<float>(math::unit24(random.next())), second = static_cast<float>(math::unit24(random.next()));
-            const float out = std::sqrt(first), turn = second * 6.2831853f;
-            const Vec3 aside = math::normalized(math::cross(std::abs(met->normal.y) < 0.9f ? Vec3{0, 1, 0} : Vec3{1, 0, 0}, met->normal)), other = math::cross(met->normal, aside);
-            const Vec3 way = math::normalized(aside * (out * static_cast<float>(math::det::cos(static_cast<double>(turn)))) + other * (out * static_cast<float>(math::det::sin(static_cast<double>(turn)))) +
-                                              met->normal * std::sqrt(std::max(1.0f - first, 0.0f)));
-            around = along(lifted, way, bounces_left - 1, random, false);
+            if (!mirror) {
+                const Vec3 way = about_normal(std::sqrt(first), second * 6.2831853f, std::sqrt(std::max(1.0f - first, 0.0f)));
+                around = along(lifted, way, bounces_left - 1, random, false) * (1.0f / (1.0f - mirrors));
+            } else {
+                const float spread = rough * rough * rough * rough;
+                const float up = std::sqrt((1.0f - first) / (1.0f + (spread - 1.0f) * first));
+                const Vec3 half = about_normal(std::sqrt(std::max(1.0f - up * up, 0.0f)), second * 6.2831853f, up);
+                const float eye_half = math::dot(toward_eye, half), seen = math::dot(met->normal, toward_eye);
+                const Vec3 way = half * (2 * eye_half) - toward_eye;
+                const float facing = math::dot(met->normal, way);
+                if (eye_half > 0 && seen > 0 && facing > 0 && up > 0) {
+                    const float k = rough * rough * 0.5f;
+                    const float unhidden = 1.0f / ((facing * (1.0f - k) + k) * (seen * (1.0f - k) + k));
+                    const float glance = 1.0f - eye_half, glance5 = glance * glance * glance * glance * glance;
+                    const Vec3 head_on = Vec3{0.04f, 0.04f, 0.04f} * (1.0f - metal) + material.base * metal;
+                    const Vec3 share = (head_on + (Vec3{1, 1, 1} - head_on) * glance5) * (unhidden * facing * eye_half / up / mirrors);
+                    thrown = math::scaled(share, along(lifted, way, bounces_left - 1, random, false));
+                }
+            }
         } else {
             around = sky(met->normal);
+            if (!matt) thrown = mirrored(material, options.environment.on ? options.environment : Environment{true, options.background, options.background, options.background}, met->normal, toward_eye);
         }
-        return material.emissive + math::scaled(colour, arriving + around) + sent;
+        return material.emissive + math::scaled(colour, arriving + around) + sent + thrown;
     }
 };
 

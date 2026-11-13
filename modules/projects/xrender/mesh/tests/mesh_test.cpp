@@ -49,6 +49,7 @@ struct Library {
         pictures.push_back(*mesh::Texture::made(tiles, 64, 64));
         textures.push_back(&pictures.front());
         materials.push_back({{1, 1, 1}, {}, 1, 0, 0});  // the tiles' own colours
+        materials.push_back({{1, 1, 1}, {}, 0.05f, 1});  // a mirror: white metal, all but smooth
         for (const geom::ClusteredMesh& one : made) meshes.push_back(&one), grown.push_back(geom::bvh_of(one.mesh));
         for (const geom::Bvh& tree : grown) trees.push_back(&tree);
     }
@@ -57,7 +58,7 @@ struct Library {
     [[nodiscard]] geom::Box3 bounds(std::uint32_t which) const { return geom::bounds(made[which].mesh); }
 };
 constexpr std::uint32_t box = 0, floor_mesh = 1, ball = 2, post = 3, sheet = 4, tiled_floor = 5;
-constexpr std::uint32_t matt_red = 0, matt_grey = 1, matt_blue = 2, polished = 5, gold = 6, satin = 7, wet = 8, warm_glow = 9, cold_glow = 10, iron = 11, tiles = 12;  // materials
+constexpr std::uint32_t matt_red = 0, matt_grey = 1, matt_blue = 2, polished = 5, gold = 6, satin = 7, wet = 8, warm_glow = 9, cold_glow = 10, iron = 11, tiles = 12, mirror = 13;  // materials
 const Library& library() {
     static const Library made;
     return made;
@@ -862,5 +863,31 @@ static UTest cases{"xrender.mesh", [] {
         large.resize(320, 180);
         (void)mesh::traced(world, yard_camera.view(), library().assets(true), large, even_sky, {.samples = 48, .bounces = 2});
         (void)keep(large, "yard-traced-large");
+    };
+    "a mirror followed along rays shows what is over it: a floor of white metal under an even sky is the sky; where a red ball stands on it, the ball's image is red"_test = [] {
+        constexpr int width = 160, height = 90;
+        const mesh::Options even_sky{.background = {0.5f, 0.6f, 0.7f}};
+        scene::Scene world;
+        put(world, 1, floor_mesh, mirror, math::translation({0, -1, 0}));
+        mesh::Targets bare, seen, again;
+        bare.resize(width, height), seen.resize(width, height), again.resize(width, height);
+        (void)mesh::traced(world, yard_camera.view(), library().assets(true), bare, even_sky, {.samples = 32, .bounces = 2});
+        put(world, 11, ball, 0, math::translation({0.4f, 0, 0.8f}));
+        (void)mesh::traced(world, yard_camera.view(), library().assets(true), seen, even_sky, {.samples = 32, .bounces = 2});
+        (void)mesh::traced(world, yard_camera.view(), library().assets(true), again, even_sky, {.samples = 32, .bounces = 2});
+        // The ball's image in the floor is where the ball would be seen were it as far under the floor as it is over it.
+        const scene::View view = yard_camera.view();
+        const auto pixel_of = [&](math::Vec3 at) {
+            const math::Vec4 clip = (view.projection * view.view) * math::Vec4{at.x, at.y, at.z, 1};
+            return static_cast<std::size_t>((0.5f - clip.y / clip.w * 0.5f) * height) * width + static_cast<std::size_t>((clip.x / clip.w * 0.5f + 0.5f) * width);
+        };
+        const math::Vec3 open = bare.light[pixel_of({3.5f, -1, 3})], image = seen.light[pixel_of({0.4f, -2, 0.8f})], itself = seen.light[pixel_of({0.4f, 0, 0.8f})];
+        const auto file = keep(seen, "mirror-traced");
+        std::println("a floor of white metal under a sky of (0.5, 0.6, 0.7): ({:.3f}, {:.3f}, {:.3f}); the red ball ({:.3f}, {:.3f}, {:.3f}), its image in the floor ({:.3f}, {:.3f}, {:.3f}); {}", open.x, open.y, open.z,
+                     itself.x, itself.y, itself.z, image.x, image.y, image.z, file.generic_string());
+        expect(lt(std::abs(open.x / 0.5f - 1), 0.05f) && lt(std::abs(open.y / 0.6f - 1), 0.05f) && lt(std::abs(open.z / 0.7f - 1), 0.05f)) << "all of the sky, in its colour";
+        expect(gt(image.x, image.y * 2) && gt(image.x, image.z * 2)) << "the image is the ball's red";
+        expect(lt(std::abs(image.x / itself.x - 1), 0.5f)) << "and about as bright as the ball";
+        expect(seen.light == again.light);
     };
 }};

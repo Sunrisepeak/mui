@@ -260,8 +260,8 @@ private:
 //
 // Slow and deterministic: a pixel's rays come from its number, the sample's and `seed` alone — the same bits
 // everywhere, in whatever order pixels are drawn. `Options::ambient` is not used: this is what it approximates.
-// A surface with a highlight is followed as a matt one of its colour (its highlight of the lights is kept):
-// what it would mirror of the scene is not followed yet. An instance that does not `cast` is seen by the eye
+// A surface with a highlight is followed two ways, as often each as it is a mirror: about its normal, or thrown
+// back by one of its small faces — so it mirrors what is about it (a wet floor, the things standing on it). An instance that does not `cast` is seen by the eye
 // only — a lamp's globe about its light.
 struct Trace {
     std::uint32_t samples = 16;

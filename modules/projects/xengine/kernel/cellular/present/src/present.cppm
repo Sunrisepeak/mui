@@ -84,6 +84,10 @@ public:
     // The field's light over `dest`, where the shade emits: blurred by `radius` logical pixels and added to
     // what is under it (a layer, the built-in blur, BlendMode::plus), `strength` of it. Nothing without light.
     void draw_glow(xrender::DisplayList& list, mlibs::geom::Rect dest, float radius, float strength = 1) const;
+    // Cells off the grid — in flight — drawn where they are: a square of a cell at each centre (`centres`: x, y
+    // in cells, pair after pair), shaded as a cell of the field is, from its channels (`values`: the field's
+    // channels a cell, cell after cell). One rectangle a cell; nothing for a presenter by a palette.
+    void draw_loose(xrender::DisplayList& list, mlibs::geom::Rect dest, std::span<const float> centres, std::span<const std::uint32_t> values) const;
     [[nodiscard]] xrender::ImageRef image() const noexcept;
     // The light's image; an empty reference where the presenter has none (a palette, or a shade no tint of which emits).
     [[nodiscard]] xrender::ImageRef light() const noexcept;

@@ -50,6 +50,10 @@ public:
 
     [[nodiscard]] std::size_t flying() const noexcept { return position_.size(); }
     [[nodiscard]] std::span<const Vec> positions() const noexcept { return position_; }   // in cells
+    // Every particle's channels, particle after particle; and their centres as x, y pairs (in cells) — what a
+    // presenter draws them from (cellular.present's draw_loose).
+    [[nodiscard]] std::span<const std::uint32_t> values() const noexcept { return cells_; }
+    void centres(std::vector<float>& out) const;
     // A particle's channel (its material is channel 0).
     [[nodiscard]] std::uint32_t value(std::size_t particle, std::uint32_t channel) const noexcept { return cells_[particle * channels_ + channel]; }
     [[nodiscard]] const Statistics& last() const noexcept { return last_; }

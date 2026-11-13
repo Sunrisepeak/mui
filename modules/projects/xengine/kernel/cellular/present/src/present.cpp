@@ -269,6 +269,22 @@ void FieldPresenter::draw(xrender::DisplayList& list, mlibs::geom::Rect dest, fl
     list.draw_image(d.ref, {0, 0, static_cast<float>(d.shape.width), static_cast<float>(d.shape.height)}, dest, xrender::Sampling::nearest, opacity);
 }
 
+void FieldPresenter::draw_loose(xrender::DisplayList& list, mlibs::geom::Rect dest, std::span<const float> centres, std::span<const std::uint32_t> values) const {
+    const Data& d = *data_;
+    if (!d.shade || !d.channels || centres.size() % 2 != 0 || values.size() != centres.size() / 2 * d.channels) return;
+    const float across = dest.width / static_cast<float>(d.shape.width), down = dest.height / static_cast<float>(d.shape.height);
+    for (std::size_t cell = 0; cell < centres.size() / 2; ++cell) {
+        // One cell's channels are a field of one cell, channel-major.
+        const std::uint32_t pixel = shade_of(*d.shade, values.subspan(cell * d.channels, d.channels), 1, 0).pixel;
+        const std::uint32_t alpha = pixel >> 24;
+        if (!alpha) continue;
+        const auto straight = [alpha](std::uint32_t component) { return static_cast<std::uint8_t>(std::min<std::uint32_t>(255, (component * 255 + alpha / 2) / alpha)); };
+        const auto color = mlibs::geom::Color::rgba8(straight(pixel & 0xff), straight((pixel >> 8) & 0xff), straight((pixel >> 16) & 0xff), static_cast<std::uint8_t>(alpha));
+        const float x = dest.x + (centres[2 * cell] - 0.5f) * across, y = dest.y + (centres[2 * cell + 1] - 0.5f) * down;
+        list.fill_rect({x, y, across, down}, color);
+    }
+}
+
 xrender::ImageRef FieldPresenter::image() const noexcept { return data_->ref; }
 std::span<const PixelSwatch> FieldPresenter::pixels() const noexcept { return data_->pixels; }
 std::uint32_t FieldPresenter::fallback_pixel() const noexcept { return data_->fallback; }

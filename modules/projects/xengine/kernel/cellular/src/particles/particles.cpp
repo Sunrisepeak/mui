@@ -167,6 +167,11 @@ void Particles::step(std::span<std::uint32_t> field) {
     last_.flying = kept;
 }
 
+void Particles::centres(std::vector<float>& out) const {
+    out.clear();
+    for (const Vec& position : position_) out.push_back(position.x), out.push_back(position.y);
+}
+
 void Particles::save(std::vector<std::uint8_t>& out) const {
     const auto put = [&](std::uint32_t value) { for (int shift = 0; shift < 32; shift += 8) out.push_back(static_cast<std::uint8_t>(value >> shift)); };
     put(static_cast<std::uint32_t>(position_.size()));

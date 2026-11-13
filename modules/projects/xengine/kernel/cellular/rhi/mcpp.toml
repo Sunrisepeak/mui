@@ -24,3 +24,4 @@ mlibs.shader.rules = { path = "../../../../../gfx/shader/rules", host-module = t
 xengine.cellular = { path = ".." }
 mlibs.rhi = { path = "../../../../../gfx/rhi" }
 mlibs.utils = { path = "../../../../../base/utils" }
+mlibs.math = { path = "../../../../../base/math" }

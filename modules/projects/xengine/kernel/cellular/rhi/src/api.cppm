@@ -25,16 +25,20 @@ public:
     Kernel& operator=(const Kernel&)=delete;
     [[nodiscard]] const Program& program() const noexcept { return program_; }
     [[nodiscard]] mlibs::rhi::Submission ready() const noexcept { return ready_; }
-    // Appends one full-field compute pass to the caller's shared command list.
-    // No upload, submission, wait, readback or clock advancement here. Inputs
-    // and outputs are disjoint on this device. Failed validation appends nothing.
-    [[nodiscard]] mlibs::rhi::Result<void> record(mlibs::rhi::CommandList&,Field input,Field output,Boundary = {}) const;
+    // Appends one step to the caller's shared command list: a full-field compute pass, and for a program whose
+    // cells move a second pass of the exchange's blocks, at `tick` (Execution::tick: the cut and its choices).
+    // No upload, submission, wait, readback or clock advancement here. Inputs and outputs are disjoint on this
+    // device. A boundary with a value a channel (a bath) is taken for up to 32 channels. Failed validation
+    // appends nothing.
+    [[nodiscard]] mlibs::rhi::Result<void> record(mlibs::rhi::CommandList&,Field input,Field output,Boundary = {},std::uint64_t tick = 0) const;
 private:
-    explicit Kernel(mlibs::rhi::Device& d,const Program& p):device_(d),program_(p){}
+    explicit Kernel(mlibs::rhi::Device& device,const Program& program):device_(device),program_(program){}
     mlibs::rhi::Device& device_;
     Program program_;
     mlibs::rhi::Buffer rules_;
-    mlibs::rhi::ComputePipeline pipeline_;
+    mlibs::rhi::ComputePipeline pipeline_, exchange_;
+    // Where the program's stages are in its words, as the shader's uniforms name them.
+    std::array<std::uint32_t,16> layout_{};
     mlibs::rhi::Submission ready_;
 };
 

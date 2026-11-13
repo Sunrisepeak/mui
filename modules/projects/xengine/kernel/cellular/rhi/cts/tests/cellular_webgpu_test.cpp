@@ -28,7 +28,7 @@ int main(int argc, char** argv) {
     std::vector<char*> args(argv, argv + argc);
     require_flag = std::erase_if(args, [](const char* argument) { return std::string_view(argument) == "--require-webgpu"; }) > 0;
 
-    "CPU/GPU equality throughout reactions, resident batches and checkpoint replay"_test = [] {
+    "CPU/GPU equality of every stage — rules, aggregates and terms, transfers, the exchange, matter's table and reactions — tick after tick, in resident batches and in a checkpoint's replay"_test = [] {
         auto device = webgpu::create();
         if (!device) {
             if (required()) expect(false) << std::format("WebGPU is required here, and there is no device: {}", device.error().message);
@@ -45,8 +45,8 @@ int main(int argc, char** argv) {
         gpu::cts::Totals totals;
         // The suite's cases, this program's own: <device>/cellular.identity, …
         gpu::cts::declare(**device, {.subject = caps.device, .required = {"compute"}}, &totals);
-        expect(eq(totals.scenarios, 17u));
-        expect(eq(totals.validation_checks, 130u));
+        expect(eq(totals.scenarios, 40u));
+        expect(eq(totals.validation_checks, 353u));
         std::println("cellular: {} scenarios, {} steps, {} comparisons / {} values, {} validation checks, process {:016x}",
             totals.scenarios, totals.steps, totals.comparisons, totals.compared_values, totals.validation_checks, totals.process_hash);
     };

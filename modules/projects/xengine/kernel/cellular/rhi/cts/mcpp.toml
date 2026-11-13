@@ -18,11 +18,15 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-xengine.cellular = { path = "../.." }
+# With the feature `matter`, and the standard definition: matter lowered (encoding 3 — a table, reactions,
+# cells that move by it) is one of the scenarios.
+xengine.cellular = { path = "../..", features = ["matter"] }
 "xengine.cellular.rhi" = { path = ".." }
 mlibs.rhi = { path = "../../../../../../gfx/rhi" }
 mlibs.utils = { path = "../../../../../../base/utils" }
 mlibs.cts = { path = "../../../../../../base/cts" }
+mlibs.math = { path = "../../../../../../base/math" }
+xengine.matter = { path = "../../../matter" }
 
 # The suite on the page's WebGPU (tests/*_webgpu_test.cpp; tools/ci/browser.sh runs it in a
 # browser): the owner takes a backend for its tests, never a backend its consumers (D-161).

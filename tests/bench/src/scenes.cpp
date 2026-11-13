@@ -270,6 +270,7 @@ void add_framework_benchmarks() {
     added = true;
     register_base_components();
     add_game_benchmarks();
+    add_render_benchmarks();
     add_audio_benchmarks();
     add_simulation_benchmarks();
     add_public_motion_benchmarks();

@@ -10,3 +10,4 @@ export import :game;
 export import :audio;
 export import :public_motion;
 export import :simulation;
+export import :render;

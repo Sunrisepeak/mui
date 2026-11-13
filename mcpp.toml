@@ -43,6 +43,7 @@ members = [
     "modules/projects/xrender/cts",
     "modules/projects/xrender/vector",
     "modules/projects/xrender/frame",
+    "modules/projects/xrender/scene",
     "modules/projects/xrender/effect",
     "modules/gfx/rhi",
     "modules/gfx/rhi/cts",

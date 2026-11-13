@@ -35,6 +35,7 @@ struct Stats {
     std::uint64_t triangles = 0;
     std::uint32_t lamps = 0, lamps_left_out = 0;  // lit by; past `most_lamps`
     std::uint32_t casters = 0;                    // drawn into the sun's map
+    std::uint32_t textured = 0;                   // draws whose colour is looked up in a picture
     std::uint32_t lamps_shadowed = 0, lamp_views = 0;  // lamps and spots with a row of the lamps' map; views drawn for them
 };
 
@@ -69,6 +70,10 @@ public:
     // uploaded and waited for. A mesh of no triangles has no buffer and is not drawn. Called again it replaces
     // what was loaded.
     [[nodiscard]] mlibs::rhi::Result<void> load(std::span<const mlibs::geom::ClusteredMesh* const> meshes);
+    // The pictures materials name (`Material::texture`), as the device takes them: each one's sizes laid on one
+    // sheet of light (rgba16_float), which the shader reads as the reference reads its own — between four texels,
+    // between two sizes. Called again it replaces what was loaded. A mesh with no texture coordinates is plain.
+    [[nodiscard]] mlibs::rhi::Result<void> load_textures(std::span<const Texture* const> textures);
     // The frame, recorded: one pass on `colour` (rgba8_unorm, or rgba16_float for a pass of light; a colour target) and `depth` (d32_float, a depth
     // target) of `width` × `height`, cleared to the background; where there is fog the background is drawn
     // through it first, each pixel along its own ray — the sky that clears upward, as the reference has it.
@@ -103,6 +108,7 @@ private:
     struct Loaded {
         mlibs::rhi::Buffer corners;
         std::uint32_t      count = 0;
+        bool               placed = false;  // it has texture coordinates
     };
     mlibs::rhi::Device*          device_ = nullptr;
     mlibs::rhi::GraphicsPipeline pipeline_, ids_pipeline_, sky_pipeline_, shadow_pipeline_, lamp_shadow_pipeline_, who_pipeline_, velocity_pipeline_;
@@ -110,6 +116,11 @@ private:
     mlibs::rhi::Texture          no_shadow_;  // a texel, for the map's place when there is no map
     mlibs::rhi::Buffer           cover_;  // three corners over the picture: what the sky is drawn with
     std::vector<Loaded>          meshes_;
+    struct Sheet {
+        mlibs::rhi::Texture texture;
+        float               width = 0, height = 0, sizes = 0, sheet_width = 1, sheet_height = 1;
+    };
+    std::vector<Sheet>           textures_;
     bool                         reversed_ = false, light_ = false;
     std::vector<Id>              before_ids_;    // the scene's instances a frame ago, in id order
     std::vector<mlibs::math::Mat4> before_world_;

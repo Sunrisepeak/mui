@@ -14,6 +14,7 @@ namespace {
 struct Corner {
     float position[3];
     float normal[3];
+    float uv[2]{0, 0};
 };
 struct Row {
     float x = 0, y = 0, z = 0, w = 0;
@@ -34,6 +35,7 @@ struct SurfaceUniforms {
     Row          to_light[3];
     Row          shadow{-1, 0, 0, 0};
     Row          lamp_shadow;
+    Row          picture, picture_sheet;
     LampUniforms lamps[most_lamps];
 };
 Row row_of(const Mat4& matrix, int row) { return {matrix.at(0, row), matrix.at(1, row), matrix.at(2, row), matrix.at(3, row)}; }
@@ -46,7 +48,23 @@ Mat4 aside_of(math::Vec2 jitter, std::uint32_t width, std::uint32_t height) {
     return aside;
 }
 
-constexpr std::array<rhi::VertexAttribute, 2> attributes{rhi::VertexAttribute{0, rhi::VertexFormat::float3, 0}, rhi::VertexAttribute{1, rhi::VertexFormat::float3, 12}};
+constexpr std::array<rhi::VertexAttribute, 3> attributes{rhi::VertexAttribute{0, rhi::VertexFormat::float3, 0}, rhi::VertexAttribute{1, rhi::VertexFormat::float3, 12},
+                                                         rhi::VertexAttribute{2, rhi::VertexFormat::float2, 24}};
+
+// A number as a device's half float (rgba16_float): the nearest it has, what is too large its largest.
+std::uint16_t half_of(float value) noexcept {
+    const std::uint32_t bits = std::bit_cast<std::uint32_t>(value);
+    const std::uint32_t sign = (bits >> 16) & 0x8000u;
+    const std::int32_t exponent = static_cast<std::int32_t>((bits >> 23) & 0xffu) - 127 + 15;
+    const std::uint32_t mantissa = bits & 0x7fffffu;
+    if (exponent <= 0) {
+        if (exponent < -10) return static_cast<std::uint16_t>(sign);
+        const std::uint32_t whole = (mantissa | 0x800000u) >> (1 - exponent);
+        return static_cast<std::uint16_t>(sign | ((whole + 0x1000u) >> 13));
+    }
+    if (exponent >= 31) return static_cast<std::uint16_t>(sign | 0x7bffu);
+    return static_cast<std::uint16_t>((sign | (static_cast<std::uint32_t>(exponent) << 10) | (mantissa >> 13)) + ((mantissa >> 12) & 1u));
+}
 
 }  // namespace
 
@@ -149,11 +167,11 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
     return pass;
 }
 Pass::Pass(Pass&& other) noexcept
-    : device_(std::exchange(other.device_, nullptr)), pipeline_(std::exchange(other.pipeline_, {})), ids_pipeline_(std::exchange(other.ids_pipeline_, {})), sky_pipeline_(std::exchange(other.sky_pipeline_, {})), shadow_pipeline_(std::exchange(other.shadow_pipeline_, {})), lamp_shadow_pipeline_(std::exchange(other.lamp_shadow_pipeline_, {})), who_pipeline_(std::exchange(other.who_pipeline_, {})), velocity_pipeline_(std::exchange(other.velocity_pipeline_, {})), nearest_(std::exchange(other.nearest_, {})), no_shadow_(std::exchange(other.no_shadow_, {})), cover_(std::exchange(other.cover_, {})), meshes_(std::move(other.meshes_)), reversed_(other.reversed_), light_(other.light_), last_(other.last_) {}
+    : device_(std::exchange(other.device_, nullptr)), pipeline_(std::exchange(other.pipeline_, {})), ids_pipeline_(std::exchange(other.ids_pipeline_, {})), sky_pipeline_(std::exchange(other.sky_pipeline_, {})), shadow_pipeline_(std::exchange(other.shadow_pipeline_, {})), lamp_shadow_pipeline_(std::exchange(other.lamp_shadow_pipeline_, {})), who_pipeline_(std::exchange(other.who_pipeline_, {})), velocity_pipeline_(std::exchange(other.velocity_pipeline_, {})), nearest_(std::exchange(other.nearest_, {})), no_shadow_(std::exchange(other.no_shadow_, {})), cover_(std::exchange(other.cover_, {})), meshes_(std::move(other.meshes_)), textures_(std::move(other.textures_)), reversed_(other.reversed_), light_(other.light_), last_(other.last_) {}
 Pass& Pass::operator=(Pass&& other) noexcept {
     if (this != &other) {
         release();
-        device_ = std::exchange(other.device_, nullptr), pipeline_ = std::exchange(other.pipeline_, {}), ids_pipeline_ = std::exchange(other.ids_pipeline_, {}), sky_pipeline_ = std::exchange(other.sky_pipeline_, {}), shadow_pipeline_ = std::exchange(other.shadow_pipeline_, {}), lamp_shadow_pipeline_ = std::exchange(other.lamp_shadow_pipeline_, {}), who_pipeline_ = std::exchange(other.who_pipeline_, {}), velocity_pipeline_ = std::exchange(other.velocity_pipeline_, {}), nearest_ = std::exchange(other.nearest_, {}), no_shadow_ = std::exchange(other.no_shadow_, {}), cover_ = std::exchange(other.cover_, {}), meshes_ = std::move(other.meshes_), reversed_ = other.reversed_, light_ = other.light_, last_ = other.last_;
+        device_ = std::exchange(other.device_, nullptr), pipeline_ = std::exchange(other.pipeline_, {}), ids_pipeline_ = std::exchange(other.ids_pipeline_, {}), sky_pipeline_ = std::exchange(other.sky_pipeline_, {}), shadow_pipeline_ = std::exchange(other.shadow_pipeline_, {}), lamp_shadow_pipeline_ = std::exchange(other.lamp_shadow_pipeline_, {}), who_pipeline_ = std::exchange(other.who_pipeline_, {}), velocity_pipeline_ = std::exchange(other.velocity_pipeline_, {}), nearest_ = std::exchange(other.nearest_, {}), no_shadow_ = std::exchange(other.no_shadow_, {}), cover_ = std::exchange(other.cover_, {}), meshes_ = std::move(other.meshes_), textures_ = std::move(other.textures_), reversed_ = other.reversed_, light_ = other.light_, last_ = other.last_;
     }
     return *this;
 }
@@ -164,6 +182,9 @@ void Pass::release() noexcept {
     for (const Loaded& mesh : meshes_)
         if (mesh.corners) device_->destroy(mesh.corners);
     meshes_.clear();
+    for (const Sheet& sheet : textures_)
+        if (sheet.texture) device_->destroy(sheet.texture);
+    textures_.clear();
     if (pipeline_) device_->destroy(pipeline_);
     if (ids_pipeline_) device_->destroy(ids_pipeline_);
     if (sky_pipeline_) device_->destroy(sky_pipeline_);
@@ -195,14 +216,54 @@ rhi::Result<void> Pass::load(std::span<const mlibs::geom::ClusteredMesh* const> 
             for (std::size_t corner = 0; corner < 3; ++corner) {
                 const std::uint32_t vertex = mesh.indices[first + corner];
                 const Vec3 normal = !mesh.normals.empty() && vertex < mesh.normals.size() ? mesh.normals[vertex] : face;
-                corners.push_back({{at[corner].x, at[corner].y, at[corner].z}, {normal.x, normal.y, normal.z}});
+                const math::Vec2 uv = vertex < mesh.uvs.size() ? mesh.uvs[vertex] : math::Vec2{0, 0};
+                corners.push_back({{at[corner].x, at[corner].y, at[corner].z}, {normal.x, normal.y, normal.z}, {uv.x, uv.y}});
             }
         }
         if (corners.empty()) continue;
         auto buffer = device_->create(rhi::BufferDesc{static_cast<std::uint32_t>(corners.size() * sizeof(Corner)), rhi::BufferUsage::vertex, "xrender.mesh.corners"});
         if (!buffer) return std::unexpected(buffer.error());
-        meshes_[which] = {*buffer, static_cast<std::uint32_t>(corners.size())};
+        meshes_[which] = {*buffer, static_cast<std::uint32_t>(corners.size()), !mesh.uvs.empty()};
         list.upload(*buffer, 0, std::span<const Corner>(corners));
+    }
+    if (list.empty()) return {};
+    auto submitted = device_->submit(list);
+    if (!submitted) return std::unexpected(submitted.error());
+    return device_->wait(*submitted);
+}
+
+rhi::Result<void> Pass::load_textures(std::span<const Texture* const> textures) {
+    static_cast<void>(device_->wait_idle());
+    for (const Sheet& sheet : textures_)
+        if (sheet.texture) device_->destroy(sheet.texture);
+    textures_.assign(textures.size(), {});
+    rhi::CommandList list;
+    std::vector<std::uint16_t> texels;
+    for (std::size_t which = 0; which < textures.size(); ++which) {
+        if (!textures[which] || textures[which]->sizes.empty()) continue;
+        const Texture& picture = *textures[which];
+        // The finest size at the sheet's corner, the others in a column beside it.
+        const std::uint32_t wide = static_cast<std::uint32_t>(picture.width), high = static_cast<std::uint32_t>(picture.height);
+        std::uint32_t column_high = 0;
+        for (std::size_t size = 1; size < picture.sizes.size(); ++size) column_high += std::max(high >> size, 1u);
+        const std::uint32_t sheet_wide = wide + (picture.sizes.size() > 1 ? std::max(wide >> 1, 1u) : 0u), sheet_high = std::max(high, column_high);
+        texels.assign(static_cast<std::size_t>(sheet_wide) * sheet_high * 4, 0);
+        std::uint32_t left = 0, top = 0;
+        for (std::size_t size = 0; size < picture.sizes.size(); ++size) {
+            const std::uint32_t size_wide = std::max(wide >> size, 1u), size_high = std::max(high >> size, 1u);
+            for (std::uint32_t y = 0; y < size_high; ++y)
+                for (std::uint32_t x = 0; x < size_wide; ++x) {
+                    const Vec3 light = picture.light[picture.sizes[size] + static_cast<std::size_t>(y) * size_wide + x];
+                    const std::size_t at = (static_cast<std::size_t>(top + y) * sheet_wide + left + x) * 4;
+                    texels[at] = half_of(light.x), texels[at + 1] = half_of(light.y), texels[at + 2] = half_of(light.z), texels[at + 3] = half_of(1.0f);
+                }
+            if (size == 0) left = wide;
+            else top += size_high;
+        }
+        auto made = device_->create(rhi::TextureDesc{rhi::Format::rgba16_float, sheet_wide, sheet_high, rhi::TextureUsage::sampled, "xrender.mesh.picture"});
+        if (!made) return std::unexpected(made.error());
+        textures_[which] = {*made, static_cast<float>(wide), static_cast<float>(high), static_cast<float>(picture.sizes.size()), static_cast<float>(sheet_wide), static_cast<float>(sheet_high)};
+        list.upload(*made, rhi::Region{0, 0, sheet_wide, sheet_high}, std::as_bytes(std::span<const std::uint16_t>(texels)));
     }
     if (list.empty()) return {};
     auto submitted = device_->submit(list);
@@ -376,6 +437,12 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
         const Material& material = materials[draw.material];
         surface.base = of(material.base), surface.emissive = of(material.emissive);
         surface.shine = {std::clamp(material.roughness, 0.04f, 1.0f), std::clamp(material.metallic, 0.0f, 1.0f), material.matt() ? 1.0f : 0.0f, light_ ? 1.0f : 0.0f};
+        // Its picture, where the material names one that is loaded and the mesh says where its corners are in it.
+        const Sheet* sheet = material.texture < textures_.size() && textures_[material.texture].texture && meshes_[draw.mesh].placed ? &textures_[material.texture] : nullptr;
+        surface.picture = sheet ? Row{sheet->width, sheet->height, sheet->sizes, 0} : Row{};
+        surface.picture_sheet = sheet ? Row{1.0f / sheet->sheet_width, 1.0f / sheet->sheet_height, 0, 0} : Row{};
+        list.bind_texture(rhi::Stage::fragment, 2, sheet ? sheet->texture : no_shadow_, nearest_);
+        if (sheet) ++last_.textured;
         list.push_uniforms(rhi::Stage::vertex, 0, uniforms);
         list.push_uniforms(rhi::Stage::fragment, 0, surface);
         list.bind_vertex_buffer(0, meshes_[draw.mesh].corners);

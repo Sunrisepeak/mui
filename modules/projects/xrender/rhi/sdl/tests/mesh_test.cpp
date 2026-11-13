@@ -577,4 +577,54 @@ UTest cases{"mesh.gpu.sdl", [] {
         }
         device->destroy(*colour);
     };
+    "a floor of tiles on the device is the reference's: sharp near, the mean of its tiles far away, each size of the picture read as the reference reads it"_test = [] {
+        auto device = open_device();
+        if (!device) return;
+        Yard yard(true);
+        // The floor's texture coordinates repeat every four units; its material is the tiles' own colours.
+        for (math::Vec2& uv : yard.made[1].mesh.uvs) uv = {uv.x * 50, uv.y * 50};
+        std::vector<std::uint8_t> bytes(64 * 64 * 4, 255);
+        for (int y = 0; y < 64; ++y)
+            for (int x = 0; x < 64; ++x) {
+                const std::uint8_t level = ((x / 8) + (y / 8)) % 2 ? 235 : 70;
+                bytes[static_cast<std::size_t>(y * 64 + x) * 4] = level, bytes[static_cast<std::size_t>(y * 64 + x) * 4 + 1] = level, bytes[static_cast<std::size_t>(y * 64 + x) * 4 + 2] = level;
+            }
+        const mesh::Texture tiles = *mesh::Texture::made(bytes, 64, 64);
+        const std::array<const mesh::Texture*, 1> textures{&tiles};
+        yard.materials.push_back({{1, 1, 1}, {}, 1, 0, 0});
+        scene::Instance floor = *yard.world.find(1);
+        floor.material = static_cast<std::uint32_t>(yard.materials.size() - 1);
+        expect(yard.world.set(floor).has_value());
+        scene::Extracted seen;
+        scene::extract(yard.world, yard.view(), seen);
+        mesh::Targets reference;
+        reference.resize(static_cast<int>(width), static_cast<int>(height));
+        mesh::Pass on_cpu;
+        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}, textures}, reference, {.shadows = false});
+
+        auto pass = mesh::gpu::Pass::make(*device);
+        expect(fatal(pass.has_value())) << (pass ? "" : pass.error().message);
+        expect(fatal(pass->load(yard.meshes).has_value()));
+        const auto loaded = pass->load_textures(textures);
+        expect(fatal(loaded.has_value())) << (loaded ? "" : loaded.error().message);
+        const auto colour = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, width, height, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "mesh.colour"});
+        const auto depth = device->create(rhi::TextureDesc{rhi::Format::d32_float, width, height, rhi::TextureUsage::depth_target, "mesh.depth"});
+        expect(fatal(colour.has_value() && depth.has_value()));
+        rhi::CommandList list;
+        pass->record(list, yard.world, seen, yard.view(), yard.materials, *colour, *depth, width, height, {.shadows = false});
+        const auto submitted = device->submit(list);
+        expect(fatal(submitted.has_value())) << (submitted ? "" : submitted.error().message);
+        expect(device->wait(*submitted).has_value());
+        const auto pixels = device->read(*colour, rhi::Region{0, 0, width, height});
+        expect(fatal(pixels.has_value())) << (pixels ? "" : pixels.error().message);
+        keep(*pixels, "yard-tiles");
+        const Apart all = apart(reference, *pixels, false, 6), loosely = apart(reference, *pixels, false, 16);
+        std::println("a floor of tiles: {} draw textured; {} of {} pixels further than 6 levels from the reference ({:.2f}%), {} further than 16; mean {:.3f}, worst {}", pass->last().textured, all.off,
+                     all.compared, 100.0 * static_cast<double>(all.off) / static_cast<double>(all.compared), loosely.off, all.mean, all.worst);
+        expect(eq(pass->last().textured, 1u));
+        expect(lt(static_cast<double>(all.off), 0.001 * static_cast<double>(all.compared)));
+        expect(le(loosely.off, all.off));
+        static_cast<void>(device->wait_idle());
+        device->destroy(*colour), device->destroy(*depth);
+    };
 }};

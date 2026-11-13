@@ -5,11 +5,13 @@
 struct VIn {
     float3 position : TEXCOORD0;
     float3 normal : TEXCOORD1;
+    float2 uv : TEXCOORD2;
 };
 struct VOut {
     float4 clip : SV_Position;
     float3 place : TEXCOORD0;   // in the world
     float3 normal : TEXCOORD1;  // in the world, not of length 1
+    float2 uv : TEXCOORD2;      // the mesh's place in a picture
 };
 struct Draw {
     float4 to_clip[4];   // rows: the corner, in the mesh's own space, to clip space
@@ -25,6 +27,7 @@ VOut mesh_vs(VIn corner) {
     made.clip = float4(dot(draw.to_clip[0], at), dot(draw.to_clip[1], at), dot(draw.to_clip[2], at), dot(draw.to_clip[3], at));
     made.place = float3(dot(draw.to_world[0], at), dot(draw.to_world[1], at), dot(draw.to_world[2], at));
     made.normal = float3(dot(draw.normals[0].xyz, corner.normal), dot(draw.normals[1].xyz, corner.normal), dot(draw.normals[2].xyz, corner.normal));
+    made.uv = corner.uv;
     return made;
 }
 
@@ -49,11 +52,48 @@ struct Surface {
     float4 shadow;       // x: which lamp the map is of (−1: none); y: how far along its normal a point is lifted
                          // before it is looked up; z: how much nearer the map must say for a shadow
     float4 lamp_shadow;  // x: a face's side of the lamps' map, in texels; zw: one over the map's width and height
+    float4 picture;      // the draw's texture: xy its width and height; z how many sizes it is kept at (0: none)
+    float4 picture_sheet; // xy: one over the width and height of the sheet its sizes are laid on
     Lamp   lamps[8];
 };
 [[vk::binding(0, 2)]] Sampler2D shadow_map : register(t0, space2) : register(s0, space2);
 [[vk::binding(1, 2)]] Sampler2D lamp_map : register(t1, space2) : register(s1, space2);
+[[vk::binding(2, 2)]] Sampler2D picture_map : register(t2, space2) : register(s2, space2);
 [[vk::binding(0, 3)]] ConstantBuffer<Surface> surface : register(b0, space3);
+
+// The surface's own colour at this pixel: the material's, times its picture's light where it has one.
+static float3 base_colour;
+
+// A texture's light at `uv` in one of its sizes (xrender.mesh's `Texture::at`): between the four texels about
+// the place, repeating. The sizes lie on one sheet: the finest at its corner, the others in a column beside it.
+float3 picture_within(int size, float2 uv) {
+    float2 extent = surface.picture.xy;
+    float2 corner = float2(0, 0);
+    for (int smaller = 0; smaller < size; ++smaller) {
+        corner = smaller == 0 ? float2(surface.picture.x, 0) : corner + float2(0, extent.y);
+        extent = max(floor(extent * 0.5), float2(1, 1));
+    }
+    const float2 at = (uv - floor(uv)) * extent - 0.5;
+    const float2 first = floor(at), share = at - first;
+    const float2 low = first - floor(first / extent) * extent, high = (first + 1) - floor((first + 1) / extent) * extent;
+    const float2 sheet = surface.picture_sheet.xy;
+    const float3 top = lerp(picture_map.SampleLevel((corner + float2(low.x, low.y) + 0.5) * sheet, 0).rgb, picture_map.SampleLevel((corner + float2(high.x, low.y) + 0.5) * sheet, 0).rgb, share.x);
+    const float3 bottom = lerp(picture_map.SampleLevel((corner + float2(low.x, high.y) + 0.5) * sheet, 0).rgb, picture_map.SampleLevel((corner + float2(high.x, high.y) + 0.5) * sheet, 0).rgb, share.x);
+    return lerp(top, bottom, share.y);
+}
+// The size whose texels are about a pixel across, mixed with the next.
+float3 picture_at(float2 uv, float footprint) {
+    const int sizes = int(surface.picture.z);
+    int size = 0;
+    float covers = max(footprint, 1.0);
+    while (covers >= 2 && size + 1 < sizes) {
+        covers *= 0.5;
+        ++size;
+    }
+    const float toward_next = size + 1 < sizes ? covers - 1.0 : 0.0;
+    const float3 here = picture_within(size, uv);
+    return toward_next > 0 ? lerp(here, picture_within(size + 1, uv), toward_next) : here;
+}
 
 // Whether something stands between a point and a lamp, by the lamp's six views about itself (a row of the
 // lamps' map, a face a tile): the point, lifted off its surface by a texel and a half as wide as texels are
@@ -102,7 +142,7 @@ float through(float3 toward, float length) {
 // What the surface sends toward the eye of light arriving along `toward_light` (xrender.mesh's `reflected`).
 float3 reflected(float3 normal, float3 toward_eye, float3 toward_light, float facing) {
     const float rough = surface.shine.x, metal = surface.shine.y;
-    const float3 matt = surface.base.rgb * ((1.0 - metal) * facing);
+    const float3 matt = base_colour * ((1.0 - metal) * facing);
     const float seen = dot(normal, toward_eye);
     if (!(seen > 0)) return matt;
     const float3 halfway = normalize(toward_eye + toward_light);
@@ -113,7 +153,7 @@ float3 reflected(float3 normal, float3 toward_eye, float3 toward_light, float fa
     const float k = (rough + 1.0) * (rough + 1.0) * 0.125;
     const float unhidden = 1.0 / ((facing * (1.0 - k) + k) * (seen * (1.0 - k) + k));
     const float glance = 1.0 - eye_half, glance5 = glance * glance * glance * glance * glance;
-    const float3 head_on = float3(0.04, 0.04, 0.04) * (1.0 - metal) + surface.base.rgb * metal;
+    const float3 head_on = float3(0.04, 0.04, 0.04) * (1.0 - metal) + base_colour * metal;
     const float3 mirrored = head_on + (float3(1, 1, 1) - head_on) * glance5;
     return matt + mirrored * (facets * unhidden * 0.25 * facing);
 }
@@ -128,7 +168,7 @@ float3 mirrored(float3 normal, float3 toward_eye) {
     const float3 there = surface.level.rgb + (far - surface.level.rgb) * abs(along.y);
     const float3 blurred = there + (surface.level.rgb - there) * rough;
     const float glance = 1.0 - seen, glance5 = glance * glance * glance * glance * glance;
-    const float3 head_on = float3(0.04, 0.04, 0.04) * (1.0 - metal) + surface.base.rgb * metal;
+    const float3 head_on = float3(0.04, 0.04, 0.04) * (1.0 - metal) + base_colour * metal;
     const float3 share = head_on + (float3(1, 1, 1) - head_on) * (glance5 * (1.0 - rough));
     return share * blurred;
 }
@@ -143,6 +183,12 @@ float4 mesh_fs(VOut point) : SV_Target {
     const float3 to_eye = surface.eye.xyz - point.place;
     // A face turned away is not drawn (the reference leaves it out by its winding; a closed thing's far side).
     if (dot(normal, to_eye) < 0) discard;
+    base_colour = surface.base.rgb;
+    if (surface.picture.z > 0.5) {
+        // How many texels a pixel covers: how far apart the surface's places in the picture are at this pixel and the next.
+        const float2 across = ddx(point.uv) * surface.picture.xy, along = ddy(point.uv) * surface.picture.xy;
+        base_colour *= picture_at(point.uv, max(length(across), length(along)));
+    }
     const bool matt = surface.shine.z > 0.5;
     const float3 toward_eye = normalize(to_eye);
     // Matt: the lights summed, then the surface's colour. Otherwise each light's share by `reflected`.
@@ -170,10 +216,10 @@ float4 mesh_fs(VOut point) : SV_Target {
         if (matt) light += arriving * facing;
         else sent += reflected(normal, toward_eye, along, facing) * arriving;
     }
-    float3 colour = surface.base.rgb * light + surface.emissive.rgb;
+    float3 colour = base_colour * light + surface.emissive.rgb;
     if (!matt) {
         const float metal = surface.shine.y;
-        const float3 everywhere = surface.base.rgb * (1.0 - metal) + (float3(0.04, 0.04, 0.04) * (1.0 - metal) + surface.base.rgb * metal);
+        const float3 everywhere = base_colour * (1.0 - metal) + (float3(0.04, 0.04, 0.04) * (1.0 - metal) + base_colour * metal);
         colour = everywhere * surface.ambient.rgb + surface.emissive.rgb + sent;
         if (surface.above.w > 0.5) colour += mirrored(normal, toward_eye);
     }

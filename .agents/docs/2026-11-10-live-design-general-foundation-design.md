@@ -114,7 +114,7 @@
 | 多 Agent 标记（颜色、避让） | ✓（2026-11-10）：`agent_presence` 同时画出每个 Agent（按到来顺序配色，第一个仍是主题的 `agent` 色），各自的框、轨迹、标签、卡片互相避让，所持认领画成虚线框并标出名字和意图，语义树的 `agents` 列出每个 Agent；按下标记暂停或接手留待以后（标识层目前不接收指针，S-10） |
 | 工作区命名与画布模式 | 部分：替身、变体板、时间线已有；命名工作区与画布以后做 |
 | 历史与认领在内核（D-173） | ✓（2026-11-13，T1.12）：`mlibs.agent:history`（`History`、`Sources`、`HistoryOperations`、`merge_text`）与 `mlibs.agent:claims`（`Claims`：按路径寻址的部件、属性、子树，租约与续约）；`omui.designer` 的历史动词与 `omui.view` 的认领改为内核之上的适配，协议字段不变 |
-| 其他领域适配器 | 第一个非 UI 的适配器是材料实验台（[底层架构综合方案](2026-11-12-foundation-omui-xengine-emergent-world-design.md) 的 T1.13）；其余按需接入 |
+| 其他领域适配器 | 第一个非 UI 的适配器已有：材料实验台 `xengine.matter.lab`（[底层架构综合方案](2026-11-12-foundation-omui-xengine-emergent-world-design.md) 的 T1.13）。源是一种材料一个文件、规律、外观和场景；历史与认领用的是内核的同一份实现，认领的部件就是源的路径；改一处就把场景按原样重放到同一步。其余领域按需接入 |
 
 ## 9. 实施路线（只做 UI 需要的和方向一致的）
 

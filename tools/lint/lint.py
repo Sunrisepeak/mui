@@ -114,6 +114,7 @@ PATH_LAYERS: dict[str, str] = {
     "modules/projects/xengine/kernel/audio": "media",
     "modules/projects/xengine/kernel/video": "media",
     "modules/projects/xengine/kernel/matter": "base",  # materials, their states and laws (D-165)
+    "modules/projects/xengine/kernel/matter/lab": "gfx",  # the material lab: the lattice's presenter and the renderer's frame
     "modules/projects/xengine/game": "game",  # above the interface: world, input, net, ui (the bridge), runtime
     "modules/projects/gongfu": "gongfu",
     "modules/projects/omui": "ui",
@@ -1029,12 +1030,15 @@ def check_operations(root: Path) -> list[Problem]:
     omui-gen ops makes its table from the catalog."""
     import tomllib
     problems = []
-    for member in workspace_members(root):
+    members = workspace_members(root)
+    for member in members:
         base = root / member
+        # A member inside this one (xengine.matter's lab) declares its own operations, with its own catalog.
+        inside = [root / other for other in members if other.startswith(member + "/")]
         declared = {}
         for f in source_files(base):
             rel = f.relative_to(base)
-            if "tests" in rel.parts or "generated" in rel.parts:
+            if "tests" in rel.parts or "generated" in rel.parts or any(nested in f.parents for nested in inside):
                 continue
             for m in OPERATION.finditer(f.read_text(encoding="utf-8")):  # names are string literals: not stripped
                 declared.setdefault(m.group(1), f.relative_to(root).as_posix())

@@ -261,4 +261,43 @@ UTest operations{"agent.history.operations", [] {
         expect(ask(operations, "diff", R"({"from":"nowhere"})").error.contains("nowhere") && ask(operations, "frobnicate").error.contains("no operation"));
         expect(ask(operations, "history", R"({"limit":2})")["log"].size() == 2u);
     };
+
+    "sources that come and go: a merge keeps what each side added and what one side removed; a commit can say the sources it changed"_test = [] {
+        agent::History history(fresh("agent-history-sources"));
+        Notes notes;
+        notes.now = {{"materials/wood", "ignition 570"}, {"materials/jelly", "moist 32"}, {"laws", "burns"}};
+        agent::HistoryOperations operations(history, notes);
+        operations.by_change = true;
+        const Asked first = ask(operations, "commit", R"({"message":"as it is"})");
+        expect(fatal(first.data.has_value())) << first.error;
+        expect(first["changed"].size() == 3u && !first["files"]) << "a first commit changed all it holds";
+
+        // One branch adds a material and takes one away; the other adds another.
+        expect(ask(operations, "branch", R"({"name":"other"})").data.has_value());
+        notes.now.erase("materials/jelly");
+        notes.now["materials/coal"] = "ignition 700";
+        const Asked ours = ask(operations, "commit", R"({"message":"coal for jelly"})");
+        expect(ours["changed"].dump() == R"(["materials/coal","materials/jelly"])") << ours["changed"].dump() << " — what it added, and what it has no longer";
+        expect(ask(operations, "switch", R"({"to":"other"})").data.has_value());
+        expect(notes.now.contains("materials/jelly") && !notes.now.contains("materials/coal"));
+        notes.now["materials/resin"] = "ignition 450";
+        expect(ask(operations, "commit", R"({"message":"resin"})", "agent:b")["changed"].dump() == R"(["materials/resin"])");
+
+        const Asked merged = ask(operations, "merge", R"({"from":"main"})");
+        expect(fatal(merged.data.has_value())) << merged.error;
+        expect(notes.now.contains("materials/coal") && notes.now.contains("materials/resin")) << "both added";
+        expect(!notes.now.contains("materials/jelly")) << "removed on one side, as it was on the other: removed";
+        expect(merged["commit"]["changed"].dump() == R"(["materials/coal","materials/jelly"])") << merged["commit"]["changed"].dump() << " — against its first parent";
+        expect(ask(operations, "history")["log"][0]["changed"].size() == 2u);
+
+        // Removed on one side and changed on the other: the same lines, nothing merged.
+        expect(ask(operations, "branch", R"({"name":"dry"})").data.has_value());
+        notes.now.erase("materials/wood");
+        expect(ask(operations, "commit", R"({"message":"no wood"})").data.has_value());
+        expect(ask(operations, "switch", R"({"to":"dry"})").data.has_value());
+        notes.now["materials/wood"] = "ignition 600";
+        expect(ask(operations, "commit", R"({"message":"harder to light"})").data.has_value());
+        const Texts before = notes.now;
+        expect(ask(operations, "merge", R"({"from":"other"})").error.contains("materials/wood") && notes.now == before);
+    };
 }};

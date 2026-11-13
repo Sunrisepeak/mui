@@ -33,6 +33,7 @@ members = [
     "modules/projects/xengine/kernel/cellular",
     "modules/projects/xengine/kernel/matter",
     "modules/projects/xengine/kernel/matter/cts",
+    "modules/projects/xengine/kernel/matter/lab",
     "modules/base/unicode",
     "modules/base/utils",
     "modules/projects/hanim",

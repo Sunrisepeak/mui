@@ -135,7 +135,7 @@ Trace: category `simulation`, spans `simulation.matter.prepare` and `simulation.
 
 ## Agent surface
 
-A definition and its plan hold no state of their own: the state a program steps is the carrier's, and an agent reaches it through the carrier's subject (the lattice's `field`: regions as numbers, placing, stepping, seeking, branching). What this package gives an agent directly:
+A definition and its plan hold no state of their own: the state a program steps is the carrier's, and an agent reaches it through the carrier's subject (the lattice's `field`: regions as numbers, placing, stepping, seeking, branching). To *design* a definition — change a row, see the same scene under it, keep and branch and merge what was tried — is [the material lab](lab)'s (`xengine.matter.lab`, its own package: it draws). What this package gives an agent directly:
 
 | | |
 |---|---|

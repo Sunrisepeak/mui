@@ -120,8 +120,10 @@ public:
     [[nodiscard]] const Options& options() const noexcept { return options_; }
     // The edits on record, oldest first.
     [[nodiscard]] std::span<const Edited> edits() const noexcept { return edits_; }
-    // Told each frame from now on (one at a time; nullptr: none). Not owned: it outlives the field's use of it.
-    void watch(Witness* witness) noexcept { witness_ = witness; }
+    // Told each frame from now on, in the order they began to watch, until it is taken off. Not owned: a
+    // witness outlives the field's use of it.
+    void watch(Witness* witness) { if (witness && std::ranges::find(witnesses_, witness) == witnesses_.end()) witnesses_.push_back(witness); }
+    void unwatch(Witness* witness) noexcept { std::erase(witnesses_, witness); }
     // Who an edit is by when the owner makes it itself.
     [[nodiscard]] static const openas::Actor& owner() noexcept;
     // One frame on a state that is not the field's (a copy run ahead): the same step.
@@ -152,8 +154,8 @@ private:
     Options                                 options_;
     mlibs::simulation::Timeline<FieldModel> timeline_;
     std::vector<Edited>                     edits_;
-    Witness*                                witness_ = nullptr;
-    std::vector<std::uint8_t>               activity_before_;  // for a witness: the tiles' bytes a step began with
+    std::vector<Witness*>                   witnesses_;
+    std::vector<std::uint8_t>               activity_before_;  // for the witnesses: the tiles' bytes a step began with
 };
 
 }  // namespace xengine::cellular::agent

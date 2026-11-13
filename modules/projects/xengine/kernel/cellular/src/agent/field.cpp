@@ -62,10 +62,10 @@ const openas::Actor& Field::owner() noexcept {
 }
 
 void Field::step() {
-    if (witness_) activity_before_ = timeline_.state().activity;  // the same size every step: no allocation after the first
+    if (!witnesses_.empty()) activity_before_ = timeline_.state().activity;  // the same size every step: no allocation after the first
     timeline_.step({});
     const FieldState& state = timeline_.state();
-    if (witness_) witness_->stepped(state, state.next, activity_before_, timeline_.frame());
+    for (Witness* witness : witnesses_) witness->stepped(state, state.next, activity_before_, timeline_.frame());
 }
 
 bool Field::edit(const Edit& edit, const openas::Actor& actor) {
@@ -80,7 +80,7 @@ bool Field::edit(const Edit& edit, const openas::Actor& actor) {
     timeline_.step(edit);
     if (edits_.size() >= std::max<std::size_t>(1, options_.edits_kept)) edits_.erase(edits_.begin());
     edits_.push_back({timeline_.frame(), edit, actor});
-    if (witness_) witness_->edited(timeline_.state(), edits_.back());
+    for (Witness* witness : witnesses_) witness->edited(timeline_.state(), edits_.back());
     return true;
 }
 
@@ -88,7 +88,7 @@ bool Field::seek(std::int64_t frame) {
     if (!timeline_.seek(frame)) return false;
     timeline_.branch();
     std::erase_if(edits_, [frame](const Edited& edit) { return edit.frame > frame; });
-    if (witness_) witness_->rewound(frame);
+    for (Witness* witness : witnesses_) witness->rewound(frame);
     return true;
 }
 

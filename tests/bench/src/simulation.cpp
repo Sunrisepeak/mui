@@ -312,7 +312,7 @@ void add_simulation_benchmarks() {
             };
             auto watched = make(), alone = make();
             if (!watched || !alone) { s.fail("the world was not made"); return; }
-            alone->field->watch(nullptr);
+            alone->field->unwatch(alone->matter.get());
             for (int warm = 0; warm < 400; ++warm) watched->field->step(), alone->field->step();
             if (watched->field->state_hash() != alone->field->state_hash()) { s.fail("watching a field changed it"); return; }
             const auto began = std::chrono::steady_clock::now();

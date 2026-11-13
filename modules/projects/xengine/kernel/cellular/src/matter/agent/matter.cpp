@@ -103,7 +103,7 @@ Matter::Matter(std::shared_ptr<const matter::Program> program, agent::Field& fie
     field_->watch(this);
 }
 
-Matter::~Matter() { field_->watch(nullptr); }
+Matter::~Matter() { field_->unwatch(this); }
 
 std::optional<agent::Edit> Matter::placing(matter::MaterialId material, Tile region) const {
     const auto channels = program_->channels();
@@ -309,6 +309,27 @@ void Matter::rewound(std::int64_t frame) {
     std::erase_if(records_, [frame](const Record& record) { return record.frame > frame; });
 }
 
+std::string Matter::happened_as(const Record& record) const {
+    const matter::Program& program = *program_;
+    const auto names = program.event_names();
+    const auto laws = program.laws();
+    const auto channels = program.channels();
+    switch (record.kind) {
+        case RecordKind::placed: return "placed";
+        case RecordKind::applied: return "applied";
+        case RecordKind::became: {
+            const auto event = record.law < laws.size() ? laws[record.law].event : std::nullopt;
+            return event && *event < names.size() ? names[*event] : "became";
+        }
+        case RecordKind::rose:
+        case RecordKind::fell: {
+            const auto event = record.kind == RecordKind::rose ? channels[record.channel].rise : channels[record.channel].fall;
+            return event && *event < names.size() ? names[*event] : record.kind == RecordKind::rose ? "rose" : "fell";
+        }
+    }
+    return "?";
+}
+
 std::string Matter::said(const Record& record, std::span<const Record> among, int depth) const {
     const matter::Program& program = *program_;
     const Shape shape = field_->state().shape;
@@ -457,23 +478,7 @@ void Matter::operate(std::string_view operation, const mlibs::agent::Request& re
     };
     // A record in brief: what an event stream carries.
     const auto brief = [&](const Record& record) { return said(record, {}, 0); };
-    const auto event_name = [&](const Record& record) -> std::string {
-        const auto names = program.event_names();
-        switch (record.kind) {
-            case RecordKind::placed: return "placed";
-            case RecordKind::applied: return "applied";
-            case RecordKind::became: {
-                const auto event = record.law < laws.size() ? laws[record.law].event : std::nullopt;
-                return event && *event < names.size() ? names[*event] : "became";
-            }
-            case RecordKind::rose:
-            case RecordKind::fell: {
-                const auto event = record.kind == RecordKind::rose ? channels[record.channel].rise : channels[record.channel].fall;
-                return event && *event < names.size() ? names[*event] : record.kind == RecordKind::rose ? "rose" : "fell";
-            }
-        }
-        return "?";
-    };
+    const auto event_name = [&](const Record& record) { return happened_as(record); };
 
     if (operation == "matter.describe") {
         if (const auto name = request["material"].text()) {

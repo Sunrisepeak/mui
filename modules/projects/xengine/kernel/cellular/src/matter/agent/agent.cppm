@@ -84,7 +84,7 @@ struct Options {
 class Matter final : public mlibs::agent::Subject, public agent::Witness {
 public:
     // The matter subject of `field`, which `program` lowered with `lowering` steps. It asks the field to tell
-    // it each frame (Field::watch); the field outlives it.
+    // it each frame (Field::watch, among whoever else watches); the field outlives it.
     Matter(std::shared_ptr<const xengine::matter::Program> program, agent::Field& field, Lowering lowering = {}, std::size_t records_kept = 16384,
            std::int64_t most_steps = 4096);
     ~Matter() override;
@@ -95,6 +95,9 @@ public:
     // What is on record, oldest first.
     [[nodiscard]] std::span<const Record> records() const noexcept { return records_; }
     [[nodiscard]] std::span<const openas::Actor> actors() const noexcept { return actors_; }
+    // What a record is of, by name: the event its law or its channel names (`ignite`, `boil`, `burn_out`), else
+    // `became`, `rose`, `fell`; an edit: `placed`, `applied`. What matter.events filters by.
+    [[nodiscard]] std::string happened_as(const Record& record) const;
     // One cell's step from `cells` (the field's state, channel-major), said by the matter kernel: the cell and
     // what is beside it as a carrier of their own. `beside[k]` is the field's cell that instance k + 1 is, or
     // `outside`.
@@ -151,6 +154,17 @@ private:
 struct World {
     std::unique_ptr<agent::Field> field;
     std::unique_ptr<Matter>       matter;
+
+    World() = default;
+    World(World&&) noexcept = default;
+    // Another world in this one's place: the matter subject goes before the field it watches.
+    World& operator=(World&& other) noexcept {
+        matter.reset();
+        field = std::move(other.field);
+        matter = std::move(other.matter);
+        return *this;
+    }
+    ~World() { matter.reset(); }
 
     // A world of `shape` cells of the material `filled`, stepped by `program` lowered as `options.lowering` says.
     [[nodiscard]] static std::expected<World, std::string> make(xengine::matter::Program program, Shape shape, std::string_view filled, Options options = {});

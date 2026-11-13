@@ -111,14 +111,17 @@ public:
     [[nodiscard]] virtual std::map<std::string, std::string> texts() = 0;
     // Why texts are put in — how a subject may present the change (an interface shows a switch as a switch).
     enum class Reason : std::uint8_t { edit, switch_to, undo };
-    // These texts put into what runs (each that differs); what changed, as the subject says it: a JSON object.
+    // These texts put into what runs (each that differs; where sources come and go, one that is not among
+    // them is no longer there); what changed, as the subject says it: a JSON object.
     virtual std::expected<std::string, std::string> apply(const std::map<std::string, std::string>& texts, Reason reason) = 0;
     // What runs now, as a hash ("" when it is not known here).
     [[nodiscard]] virtual std::string state() = 0;
 };
 
-// A commit as an operation answers it: {id, message, actor, branch, time, state, parents, files: [paths]}.
-[[nodiscard]] std::string commit_text(const Commit& commit);
+// A commit as an operation answers it: {id, message, actor, branch, time, state, parents, files: [paths]} —
+// or, against another commit (its parent), `changed` in place of `files`: the sources that are not the same
+// in both, those it has no longer among them.
+[[nodiscard]] std::string commit_text(const Commit& commit, const Commit* against = nullptr);
 
 // The history's operations over any subject's sources (D-151's verbs; D-160's L1), one implementation for every
 // domain: a subject's catalog declares them under its own names and gives each request here. Each answers a
@@ -129,7 +132,8 @@ public:
 //   switch   {to, force?}       → what changed, {branch, at, detached?}; refused with changes not committed
 //   revert   {to}               → what changed, {commit}: the texts of `to` put back, as a new commit
 //   diff     {from?, to?}       → {from, to, files: [{path, line, before, after}]} (`to` none: what runs now)
-//   merge    {from}             → what changed, {commit}: by lines, per source; conflicting lines merge nothing
+//   merge    {from}             → what changed, {commit}: by lines, per source; conflicting lines merge nothing;
+//                                 a source one side removed and the other left as it was is removed
 //   tag      {name, at?}        → {tag, at}
 // What the subject calls the operations an answer advises (its catalog's names): "design.history.commit".
 struct HistoryNames {
@@ -143,6 +147,11 @@ public:
     // The commit shown: one seen (a switch to a commit that is no branch's last), else the branch's last ("" when none).
     [[nodiscard]] std::string shown_now() const;
     std::string shown_commit;
+    // A commit is answered with the sources it changed (against its first parent) in place of all it holds:
+    // for a design of many sources, where a commit touches one.
+    bool by_change = false;
+    // A commit as these operations answer it.
+    [[nodiscard]] std::string said(const Commit& commit) const;
 
 private:
     History& history_;

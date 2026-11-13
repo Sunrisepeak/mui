@@ -40,14 +40,28 @@ LineChange changed_lines(std::string_view before, std::string_view after) {
     return {head + 1, joined(std::span(old_lines).subspan(head, old_lines.size() - head - tail)), joined(std::span(new_lines).subspan(head, new_lines.size() - head - tail))};
 }
 
-std::string commit_text(const Commit& commit) {
+std::string commit_text(const Commit& commit, const Commit* against) {
     std::string out = std::format("{{\"id\":{},\"message\":{},\"actor\":{},\"branch\":{},\"time\":{},\"state\":{},\"parents\":[", json_text(commit.id), json_text(commit.message),
                                   json_text(commit.actor), json_text(commit.branch), commit.time, json_text(commit.state));
     for (std::size_t index = 0; index < commit.parents.size(); ++index) out += (index ? "," : "") + json_text(commit.parents[index]);
-    out += "],\"files\":[";
+    out += against ? "],\"changed\":[" : "],\"files\":[";
     bool first = true;
-    for (const auto& [path, object] : commit.files) out += (first ? "" : ",") + json_text(path), first = false;
+    for (const auto& [path, object] : commit.files) {
+        if (against)
+            if (const auto was = against->files.find(path); was != against->files.end() && was->second == object) continue;
+        out += (first ? "" : ",") + json_text(path), first = false;
+    }
+    if (against)
+        for (const auto& [path, object] : against->files)
+            if (!commit.files.contains(path)) out += (first ? "" : ",") + json_text(path), first = false;
     return out + "]}";
+}
+
+std::string HistoryOperations::said(const Commit& commit) const {
+    if (!by_change) return commit_text(commit);
+    static const Commit nothing;
+    const auto parent = commit.parents.empty() ? std::expected<Commit, std::string>(nothing) : history_.commit_of(commit.parents.front());
+    return commit_text(commit, parent ? &*parent : &nothing);
 }
 
 std::string HistoryOperations::shown_now() const {
@@ -76,7 +90,7 @@ std::expected<std::string, std::string> HistoryOperations::run(std::string_view 
         for (const auto& [name, id] : history_.tags()) out += std::format("{}{}:{}", first ? "" : ",", json_text(name), json_text(id)), first = false;
         out += "},\"log\":[";
         first = true;
-        for (const Commit& commit : history_.log(branch, limit)) out += (first ? "" : ",") + commit_text(commit), first = false;
+        for (const Commit& commit : history_.log(branch, limit)) out += (first ? "" : ",") + said(commit), first = false;
         const auto shown = shown_texts();
         return out + std::format("],\"uncommitted\":{}}}", !shown || *shown != sources_.texts());
     }
@@ -85,7 +99,7 @@ std::expected<std::string, std::string> HistoryOperations::run(std::string_view 
         if (message.empty()) return refuse("a commit says what it is: `message`");
         auto commit = history_.commit(sources_.texts(), message, std::string(actor), sources_.state());
         if (!commit) return refuse(commit.error());
-        return commit_text(*commit);
+        return said(*commit);
     }
     if (operation == "branch") {
         const std::string name = text_of(parameters, "name");
@@ -124,7 +138,7 @@ std::expected<std::string, std::string> HistoryOperations::run(std::string_view 
         if (!applied) return refuse(applied.error());
         auto commit = history_.commit(sources_.texts(), std::format("back to {}", id->substr(0, 8)), std::string(actor), sources_.state());
         shown_commit.clear();
-        return commit ? with(std::move(*applied), std::format("\"commit\":{}", commit_text(*commit))) : *applied;
+        return commit ? with(std::move(*applied), std::format("\"commit\":{}", said(*commit))) : *applied;
     }
     if (operation == "diff") {
         const std::string from = text_of(parameters, "from", "HEAD");
@@ -173,11 +187,13 @@ std::expected<std::string, std::string> HistoryOperations::run(std::string_view 
         for (const auto& [path, text] : *theirs) paths.insert(path);
         for (const auto& path : paths) {
             const std::string base_text = base.contains(path) ? base.at(path) : std::string();
-            const std::string our_text = ours->contains(path) ? ours->at(path) : base_text;
-            const std::string their_text = theirs->contains(path) ? theirs->at(path) : base_text;
+            // A source a side has not is one it removed (or never had): its text there is none.
+            const bool in_ours = ours->contains(path), in_theirs = theirs->contains(path);
+            const std::string our_text = in_ours ? ours->at(path) : std::string();
+            const std::string their_text = in_theirs ? theirs->at(path) : std::string();
             const TextMerge result = merge_text(base_text, our_text, their_text);
             if (result.conflict) conflicts += (conflicts.empty() ? "" : ",") + json_text(path);
-            merged.emplace(path, result.text);
+            if (!result.text.empty() || (in_ours && in_theirs)) merged.emplace(path, result.text);
         }
         if (!conflicts.empty())
             return refuse(std::format("both branches changed the same lines of [{}]: nothing merged — {} one side to agree, commit, and merge again", conflicts, names_.edit));
@@ -185,7 +201,7 @@ std::expected<std::string, std::string> HistoryOperations::run(std::string_view 
         if (!applied) return refuse(applied.error());
         auto commit = history_.commit(sources_.texts(), std::format("merge {}", from), std::string(actor), sources_.state(), std::vector<std::string>{*ours_id, *theirs_id});
         shown_commit.clear();
-        return commit ? with(std::move(*applied), std::format("\"commit\":{}", commit_text(*commit))) : *applied;
+        return commit ? with(std::move(*applied), std::format("\"commit\":{}", said(*commit))) : *applied;
     }
     if (operation == "tag") {
         const std::string name = text_of(parameters, "name");

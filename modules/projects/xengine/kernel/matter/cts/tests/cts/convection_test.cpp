@@ -94,26 +94,24 @@ static UTest cases{"matter.convection", [] {
         const Room::Warmth stays = still.warmth(), rises = moving.warmth();
         std::println("a closed room, 240 steps after its floor's air was heated: the warmth's row {:.1f} at first; {:.1f} without the law, {:.1f} with it (the roof is row 8, the floor 39)", began, stays.row, rises.row);
         expect(gt(stays.row, began - 3.0)) << "spreading alone leaves it where it was";
-        expect(lt(rises.row, stays.row - 6.0)) << "carried, it is rows higher";
+        expect(lt(rises.row, stays.row - 10.0)) << "carried, it is rows higher";
         // Carried or spread, in a closed room it is the same warmth: nothing left.
         expect(lt(std::abs(rises.held - stays.held), stays.held * 0.2)) << std::format("{} against {}", rises.held, stays.held);
     };
 
-    "what the law does not do, measured: with a shaft open to the sky the world loses no more of its warmth — at an edge nothing leaves but by conduction, and air cooler than 512 K is as heavy as the air about it"_test = [] {
+    "what the law does not do, measured: with a shaft open to the sky the world loses its warmth no faster — at an edge nothing leaves but by conduction"_test = [] {
         Room still(standard(), true), moving(convecting(), true);
         still.heat_the_floor(), moving.heat_the_floor();
         const double began = still.held_by_all();
         still.run(3000), moving.run(3000);
-        // Said as it is. Carried to the roof the warmth is further from the walls and the floor, through which a
-        // world gives heat to what is beyond its edges; the shaft's top gives no faster than any other cell of
-        // the edge, for a gas does not leave a field. And a density holds sixteenths: a sixteenth for each 256 K
-        // is the least the law can say, so air must be past 512 K to be lighter than a day's — the plume rises
-        // while it is hot and stops where it has mixed. Both are below this pack: the carrier's edge (the sky's
-        // air changing places with the shaft's), and how finely a density is held.
+        // Said as it is. The warmth is carried to the roof and up the shaft, and there it waits: the shaft's top
+        // gives to the sky no faster than any other cell of the edge, for a gas does not leave a field. What
+        // would carry heat out is the sky's air changing places with the shaft's — the carrier's edge, below
+        // this pack.
         const double stays = still.held_by_all() / began, leaves = moving.held_by_all() / began;
         std::println("a room with a shaft, 3000 steps on: of the warmth the world held, {:.0f}% is left without the law, {:.0f}% with it", 100 * stays, 100 * leaves);
         expect(lt(stays, 1.0) && lt(leaves, 1.0)) << "either way some left by the edges";
-        expect(gt(leaves, stays)) << "and, as things are, less of it with the law: when this fails the edge or the density has changed, and the case is to be rewritten";
+        expect(gt(leaves, stays * 0.9)) << "and with the law no faster: when this fails the edge has changed, and the case is to be rewritten as what the law then does";
     };
 
     "the same world twice is the same bits, with the law as without"_test = [] {

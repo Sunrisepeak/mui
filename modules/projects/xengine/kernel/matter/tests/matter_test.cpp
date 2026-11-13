@@ -129,8 +129,8 @@ UTest cases{"xengine.matter", [] {
         expect(eq(plan.value(wood, *plan.column("ignition")), 570u * 256u) && eq(plan.number(wood, *plan.column("ignition")), 570.0) && eq(plan.number(wood, *plan.column("friction")), 0.45))
             << "kelvin as written, 256ths as the laws read it";
         expect(eq(plan.value(*plan.material("iron"), *plan.column("friction")), 19661u)) << "what a material does not say is the column's: 0.3, as 16 bits after the point";
-        expect(eq(plan.value(*plan.material("air"), *plan.column("density")), 19u) && eq(plan.value(*plan.material("steam"), *plan.column("density")), 10u))
-            << "a gas lighter than another stays so as whole numbers (16ths)";
+        expect(eq(plan.value(*plan.material("air"), *plan.column("density")), 307u) && eq(plan.value(*plan.material("steam"), *plan.column("density")), 154u))
+            << "a gas lighter than another stays so as whole numbers (256ths: fine enough for a law to tell air a few kelvin warmer from the air about it)";
         expect(eq(plan.value(wood, *plan.column("burnt")), *plan.material("ash")) && eq(plan.value(wood, *plan.column("boiled")), matter::none));
         expect(plan.phase(*plan.material("water")) == matter::Phase::liquid && plan.phase(wood) == matter::Phase::solid);
         expect(eq(plan.initial(*plan.material("lava"), *plan.channel("temperature")), 1600u * 256u) && eq(plan.initial(wood, *plan.channel("temperature")), 293u * 256u))

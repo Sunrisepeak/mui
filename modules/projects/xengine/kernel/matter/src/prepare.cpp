@@ -332,7 +332,7 @@ Definition Definition::standard() {
         out.columns.push_back({std::move(name), ColumnKind::material, "material", std::move(doc), 0, 0, 0, static_cast<double>(none)});
     };
     // mechanics: what dynamics reads
-    number("density", "kg/m³", "how heavy a volume of it is: what sinks below what", 0, 100000, 1000, 4);
+    number("density", "kg/m³", "how heavy a volume of it is: what sinks below what", 0, 100000, 1000, 8);
     number("friction", "0–1", "of the speed along a contact lost to it", 0, 1, 0.3, 16);
     number("restitution", "0–1", "of the speed into a contact kept off it", 0, 1, 0.4, 16);
     number("compliance", "m/N", "how much it gives when stretched (0: rigid)", 0, 1000, 0, 20);

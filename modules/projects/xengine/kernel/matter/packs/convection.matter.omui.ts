@@ -4,8 +4,8 @@
 // from cell to cell is carried: up a shaft, out at an open edge. No kernel or carrier knows the word: it is a
 // property changed by state, as "wet is harder to light" is.
 //
-// A sixteenth of a kg/m³ (the least a density holds) for each 256 K: air at 293 K weighs one sixteenth less
-// than written, at 800 K three.
+// A density is held to 1/256 kg/m³, and the law takes one of them for each 16 K: of two cells of air the one
+// 16 K warmer is the lighter.
 //
 // Its JSON snapshot, convection.matter.omui.json, is what the kernel reads (matter::read_pack):
 //   omui-gen snapshot …/packs/convection.matter.omui.ts --out …/packs/convection.matter.omui.json

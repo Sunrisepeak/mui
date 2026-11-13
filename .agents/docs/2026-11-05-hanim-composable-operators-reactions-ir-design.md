@@ -1,6 +1,6 @@
 # hanim 可组合内核：属性、状态、反应、动画与effect IR
 
-2026-11-05。**架构补充／review，本文的完整IR与算子尚未实现。** 承接维护者要求：对象、属性、顶点、插值、变换、动画、相机及其运动均可控制；通用动画与effect通过自由组合构成复杂表现；hanim作为独立引擎，被UI／游戏／工具使用，并按需消费共享渲染、数值计算与HPC能力。
+2026-11-05。**架构补充／review，本文的完整IR与算子尚未实现。** 承接要求：对象、属性、顶点、插值、变换、动画、相机及其运动均可控制；通用动画与effect通过自由组合构成复杂表现；hanim作为独立引擎，被UI／游戏／工具使用，并按需消费共享渲染、数值计算与HPC能力。
 
 与[通用性／GPU比较](2026-11-04-hanim-generality-style-gpu-review-design.md)、[play与组合](2026-11-04-hanim-play-api-design.md)、[整体模拟架构](2026-11-04-omui-engine-framework-architecture-design.md)配套。本稿先确定需要表达的语义与约束，API名称仍为候选，不自行新增D-xx决策。
 

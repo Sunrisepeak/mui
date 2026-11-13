@@ -1,12 +1,12 @@
 # hanim 通用对象动画引擎：像素插值、动画库与效果
 
-2026-11-04。**状态：独立 core、owned 对象、共享槽位与首条公开对象形变播放器／效果／CPU渲染链路已落地；严格对象Program编排首批已落地；完整通道／效果作用域、40项公共库、UI迁移及其余域仍未完成。** 维护者本轮进一步明确：**hanim 是 core＋基础动画库＋动画效果组成的通用对象动画产品；统一入口为 `hengine.play(hobject, animation, effect)`；对象、部件、几何与真实像素均可插值；UI 全部使用该引擎；完整覆盖 Manim 功能并在可衡量的维度上超过它。** 当前位于 base 的时间／数值模块只是 core 的已有实现，不能据此收窄整个 hanim 的职责。
+2026-11-04。**状态：独立 core、owned 对象、共享槽位与首条公开对象形变播放器／效果／CPU渲染链路已落地；严格对象Program编排首批已落地；完整通道／效果作用域、40项公共库、UI迁移及其余域仍未完成。** 本轮进一步明确：**hanim 是 core＋基础动画库＋动画效果组成的通用对象动画产品；统一入口为 `hengine.play(hobject, animation, effect)`；对象、部件、几何与真实像素均可插值；UI 全部使用该引擎；完整覆盖 Manim 功能并在可衡量的维度上超过它。** 当前位于 base 的时间／数值模块只是 core 的已有实现，不能据此收窄整个 hanim 的职责。
 
 动画必须是框架用户可以真实复用的能力；官网是消费者与验收场，不是动画库的归宿。本文纠正“官网 40 个设计已等于 40 个通用库条目”的口径，不将新增提议写成已完成。
 
 与[通用动画设计 D-93](2026-11-01-openmui-universal-motion-design.md)、[官网重构方案](2026-11-03-openmui-site-redesign-implementation-design.md)、[中间态修复记录](2026-11-04-omui-motion-readability-presentation-design.md)共同阅读。保留原范围、40／20 数量下限、本地真实验收优先、PR #1 单分支协作；同时工作的 subagent 上限为 **2**。
 
-维护者后续补充的骨骼／模拟／硬件加速、渲染／UI／Agent 总体边界与 Noita 类材料反应压力标准，见[整体引擎与框架架构讨论](2026-11-04-omui-engine-framework-architecture-design.md)。core 统一时间、值域、计划和批处理；rig／physics／fluid 等独立模块提供算法；有状态模拟须以检查点和输入重建，不能假装都能解析 O(1) 寻址。
+后续补充的骨骼／模拟／硬件加速、渲染／UI／Agent 总体边界与 Noita 类材料反应压力标准，见[整体引擎与框架架构讨论](2026-11-04-omui-engine-framework-architecture-design.md)。core 统一时间、值域、计划和批处理；rig／physics／fluid 等独立模块提供算法；有状态模拟须以检查点和输入重建，不能假装都能解析 O(1) 寻址。
 
 ## 1. 当前实现到底在哪里
 
@@ -56,7 +56,7 @@
 
 ## 3. 完整动画产品的分层与目录建议
 
-**按维护者要求，hanim 对外就是完整引擎，而不是只能算数值的工具库。** 对内保持可裁剪分层：core 只依赖标准库与 `openmui.math`；对象、配方、效果、播放器是同一产品的其它包。UI／视频／其它框架是消费者。为统一入口让 core 反向依赖 UI 或复制一套渲染器，都不能解决缺口。
+**按要求，hanim 对外就是完整引擎，而不是只能算数值的工具库。** 对内保持可裁剪分层：core 只依赖标准库与 `openmui.math`；对象、配方、效果、播放器是同一产品的其它包。UI／视频／其它框架是消费者。为统一入口让 core 反向依赖 UI 或复制一套渲染器，都不能解决缺口。
 
 | 层 | 职责 | 位置建议 |
 |---|---|---|
@@ -80,7 +80,7 @@
 
 ## 4. 建议的公开入口
 
-主入口按维护者给出的 **`hengine.play(hobject, animation, effect, config)`** 收敛。首个可运行的严格对象形变入口与完整组合设计见[play API细案](2026-11-04-hanim-play-api-design.md)：简单入口规范化成绑定Program，复杂入口显式编排，统一准备和播放。第8节仍为完整目标草案，不表示所有字段已可调用。上一版 `animplay` 提议最多作为便利函数，必须委托同一 Engine／Plan，不另立播放器。C++ 准备失败使用 `std::expected`，不使用异常。
+主入口按既定的 **`hengine.play(hobject, animation, effect, config)`** 收敛。首个可运行的严格对象形变入口与完整组合设计见[play API细案](2026-11-04-hanim-play-api-design.md)：简单入口规范化成绑定Program，复杂入口显式编排，统一准备和播放。第8节仍为完整目标草案，不表示所有字段已可调用。上一版 `animplay` 提议最多作为便利函数，必须委托同一 Engine／Plan，不另立播放器。C++ 准备失败使用 `std::expected`，不使用异常。
 
 单对象形式绑定一个计划，不要求调用者手写每帧赋值；A→B 形式明确绑定两个端点或状态，不需要用户先手工归一化路径。底层仍可直接构造／采样计划，支持 headless 与离线渲染，不只有交互式 play。
 
@@ -137,7 +137,7 @@
 | A3 · 完整组合 | 20 个创意任务使用同一公开库，组件部件与布局／状态协调 | 不重复实现动画；真实人／agent 操作与动态质量闭环 |
 | A4 · 语言与产品收口 | 契约生成的 C／TS／Python／Lua 接口、最小消费者、目录／文档／诊断 | 干净工程实际运行；本地 release／sanitizer／浏览器／资源预算；其它平台 CI 异步反馈 |
 
-这些实施包归入原 R0–R6／C2–C6，不另行宣布旧检查点完成。维护者本轮明确的像素域和完整 Manim 功能范围纳入第 8–11 节，不能止于 A1 的单轮廓闭环。规范变更遵循 OpenLifa 子模块的既有提交流程；本仓库仍向 PR #1 追加检查点。当前中间态修复是必要基础，但不能替代这一整套公开动画产品的交付。
+这些实施包归入原 R0–R6／C2–C6，不另行宣布旧检查点完成。本轮明确的像素域和完整 Manim 功能范围纳入第 8–11 节，不能止于 A1 的单轮廓闭环。规范变更遵循 OpenLifa 子模块的既有提交流程；本仓库仍向 PR #1 追加检查点。当前中间态修复是必要基础，但不能替代这一整套公开动画产品的交付。
 
 ## 8. hobject、animation、effect 与 Engine 的契约
 
@@ -263,7 +263,7 @@ CPU 为确定性参考；GPU 通过同一计划与渲染图执行，按声明的
 
 ## 12. 旧 Sunrisepeak/Hanim 的参考取舍
 
-维护者提供 [Sunrisepeak/Hanim](https://github.com/Sunrisepeak/Hanim)，要求选择性参考。2026-11-04 通过 GitHub 读取源码；本节审阅固定版本 **`27f9ebee6ab94d8513e40390b3968a6b9c0ef95a`**，不是旧项目运行／性能验收。README 标注 WIP，仓库同时保留 `core/` 与 `old_project/` 两代实现，不能把不同代际接口拼成一个当前契约。
+参考 [Sunrisepeak/Hanim](https://github.com/Sunrisepeak/Hanim)，要求选择性参考。2026-11-04 通过 GitHub 读取源码；本节审阅固定版本 **`27f9ebee6ab94d8513e40390b3968a6b9c0ef95a`**，不是旧项目运行／性能验收。README 标注 WIP，仓库同时保留 `core/` 与 `old_project/` 两代实现，不能把不同代际接口拼成一个当前契约。
 
 ### 12.1 保留的设计意图
 
@@ -387,7 +387,7 @@ ObjectRegistry 删除自己的两套空闲表、代次与存活计数；保留 o
 
 ## 17. 严格对象Program首批与更通用架构的比较
 
-维护者进一步澄清：对象中心／动画中心只是供比较的思路，目标是在通用性、效果质量和性能上超过Manim及常见动画／游戏动画系统。新增[通用性／风格／GPU比较稿](2026-11-04-hanim-generality-style-gpu-review-design.md)，对照Manim已有OpenGL／匹配、成熟游戏系统的混合／GPU及独立高性能库，分别评估创作API和执行内核；主入口仍待review，不把callable候选语法写成已实现。core／matching／effects／异构执行的能力目标完整保留。
+进一步澄清：对象中心／动画中心只是供比较的思路，目标是在通用性、效果质量和性能上超过Manim及常见动画／游戏动画系统。新增[通用性／风格／GPU比较稿](2026-11-04-hanim-generality-style-gpu-review-design.md)，对照Manim已有OpenGL／匹配、成熟游戏系统的混合／GPU及独立高性能库，分别评估创作API和执行内核；主入口仍待review，不把callable候选语法写成已实现。core／matching／effects／异构执行的能力目标完整保留。
 
 **当前交付。** 新增[hanim.program](../../modules/gfx/hanim/src/program/README.md)：不可变bind／sequence／parallel／stagger展开为有界逻辑对象轨道和分段；固定端点、前段真正边界的深拥有、显式snapshot跳变、源版本、节点路径、同轨重叠冲突与准备预算均可查询。`sequence(bind(A,B),bind(A,C))`保持A身份并执行A→B→C；`bind(B,C)`明确是B轨道，不猜测身份别名。当前严格整对象通道，不支持任意通道blend／效果隔离作用域。
 
@@ -411,10 +411,10 @@ Engine四参数入口规范化为PreparedProgram::single，`play(PreparedProgram
 
 ## 18. 通用算子、属性／状态反应与相机的架构补充
 
-2026-11-05，维护者明确每个属性、顶点、插值、变换、对象、相机及运动都可以控制，通过通用动画／effect和自定义组合产生复杂表现。具体基线见[可组合算子与反应IR](2026-11-05-hanim-composable-operators-reactions-ir-design.md)：effect可修饰匹配策略、顶点路径、物质属性与响应，不限于最终画面的滤镜；主动附加与被动响应是参与方式，与执行阶段／有无状态分别定义。
+2026-11-05，明确每个属性、顶点、插值、变换、对象、相机及运动都可以控制，通过通用动画／effect和自定义组合产生复杂表现。具体基线见[可组合算子与反应IR](2026-11-05-hanim-composable-operators-reactions-ir-design.md)：effect可修饰匹配策略、顶点路径、物质属性与响应，不限于最终画面的滤镜；主动附加与被动响应是参与方式，与执行阶段／有无状态分别定义。
 
 环境场只是一个例子。通用反应包含属性、状态、事件／阈值／接触／邻域／材料条件、触发方式、状态迁移及输出；Noita类像素反应是其中一个场景。相机pose、镜头参数和view output各有typed端口，路径／场／动画参数也可被动画。动力学与到达B的约束、质量／属性迁移、状态重建、反应顺序与外部事件幂等必须明确；core纯求值与独立求解模块的边界保持。
 
-局部以本域核心能力、底层通用能力、可编排算子和扩展为中心；全局经公开契约与adapter协作，单一基础归属且可裁剪。该[核心准则](2026-11-05-local-global-composable-architecture-design.md)已按维护者要求写入根AGENTS.md，audio等系统同样适用，保留采样时钟／实时约束和各域语义。
+局部以本域核心能力、底层通用能力、可编排算子和扩展为中心；全局经公开契约与adapter协作，单一基础归属且可裁剪。该[核心准则](2026-11-05-local-global-composable-architecture-design.md)已按要求写入根AGENTS.md，audio等系统同样适用，保留采样时钟／实时约束和各域语义。
 
 本轮为设计与准则修订，未实现新的matcher／路径modifier／通用属性／反应器／solver／camera adapter／GPU evaluator。§17的代码与测试证据仍对应79081cc，不将文档增加记为运行能力完成；完整IR升级应先定义共享契约和依赖，再逐步迁移现有Program／效果适配，不创建第二套播放器或重复内核。

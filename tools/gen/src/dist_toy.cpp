@@ -621,7 +621,7 @@ std::expected<ToyReport, std::string> finish_package(const fs::path& out, const 
     about["index_bytes"] = report.index;
     about["index_limit"] = toy_index_limit;
     about["total_bytes"] = report.total;
-    about["publish"] = std::format("toy create --title \"{}\" (the slug, the cover and the category are the maintainer's; see `toy create --help-json`)", title);
+    about["publish"] = std::format("toy create --title \"{}\" (the slug, the cover and the category are the publisher's; see `toy create --help-json`)", title);
     auto& list = about["files"] = nlohmann::ordered_json::array();
     for (const ToyFile& f : report.files) list.push_back({{"path", f.path}, {"bytes", f.size}});
     fs::path side = out;

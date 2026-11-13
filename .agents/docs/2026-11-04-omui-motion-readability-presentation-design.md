@@ -17,7 +17,7 @@
 
 ### 1.1 当前数量与组合的准确口径
 
-维护者追问“通用像素级动画”的数量时，按实际代码分开记录：
+问到“通用像素级动画”的数量时，按实际代码分开记录：
 
 | 对象 | 当前内置数量 | 计数来源与边界 |
 |---|---:|---|
@@ -79,7 +79,7 @@
 
 阶段性实跑包括：公共文字打断专项 8 项、历史范围 release 7 项、对比度专项早期 8 项（后续扩充）、空白字形 release 4 项、颜色数学 2 项通过。随后 `/tmp/omui-site-agent-quality-second.log` 中 guard 3／preview 9／contrast 1／transition-layout 3，共 16 个用例通过；真实中英各 390／1280、24 帧的原 80 个失败已关闭，实际最低约英文 4.42643、中文 4.42795，按前述 8-bit 门槛测量。**这些是各自运行时的局部结果，不是最终集成候选的整套通过记录。** 最新快照上下文／浮点边框补丁仍待重新验证；segmented 响应式选择面错位、显式父布局动画与默认子动效协调及已存在主题作用域的明暗交叉淡变仍开放。
 
-维护者进一步明确 hanim 须交付 core＋库＋效果、hobject／hengine.play、真实像素物质插值与完整 Manim 功能目标，见[完整引擎讨论稿](2026-11-04-hanim-animation-library-playback-design.md)。本轮 UI 中间态修复不能替代该基础设施，后续通用对象／算法应归入 hanim 家族，UI 保留适配与默认配方。
+进一步明确 hanim 须交付 core＋库＋效果、hobject／hengine.play、真实像素物质插值与完整 Manim 功能目标，见[完整引擎讨论稿](2026-11-04-hanim-animation-library-playback-design.md)。本轮 UI 中间态修复不能替代该基础设施，后续通用对象／算法应归入 hanim 家族，UI 保留适配与默认配方。
 
 后续局部验证：`/tmp/omui-motion-snapshot-context-final.log` 的 motion 对比度／上下文快照 21 项通过；`/tmp/omui-view-snapshot-context-final.log` 的 release view 七程序共 103 项通过（presentation 8、adapt 4、motion 10、constraint 13、text-policy 9、theme 7、原 view 52）。这覆盖上下文快照打断连续性与浮点边框回归，未关闭上述 segmented／父子布局策略问题，也不证明目标 hanim 对象引擎已实现。
 

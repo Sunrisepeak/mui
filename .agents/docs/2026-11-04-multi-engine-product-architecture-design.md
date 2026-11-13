@@ -1,14 +1,14 @@
 # 多引擎、通用库与双视角工具链：顶层产品架构
 
-2026-11-04。状态：**顶层架构 review 稿，明确产品边界与实施方向，不是完整产品已经交付的声明。** 按维护者本轮补充整理；与[引擎／模拟细案](2026-11-04-omui-engine-framework-architecture-design.md)、[hanim 细案](2026-11-04-hanim-animation-library-playback-design.md)及[官网完整实施方案](2026-11-03-openmui-site-redesign-implementation-design.md)配套。官网仍须完成全部 R0–R6／C2–C6，公共动画库至少 40 项、创意组合至少 20 项及逐项质量标准保持。
+2026-11-04。状态：**顶层架构 review 稿，明确产品边界与实施方向，不是完整产品已经交付的声明。** 按本轮补充整理；与[引擎／模拟细案](2026-11-04-omui-engine-framework-architecture-design.md)、[hanim 细案](2026-11-04-hanim-animation-library-playback-design.md)及[官网完整实施方案](2026-11-03-openmui-site-redesign-implementation-design.md)配套。官网仍须完成全部 R0–R6／C2–C6，公共动画库至少 40 项、创意组合至少 20 项及逐项质量标准保持。
 
-维护者已澄清：规范名称是 **openmui**；**mcpp 是构建工具，其构建插件支持 GPU／HPC 库及算子的开发、构建和交付**。运行时计算能力由可复用库提供，各框架／引擎按需消费。规范、产品、包名与构建工具的身份分别明确。
+已澄清：规范名称是 **openmui**；**mcpp 是构建工具，其构建插件支持 GPU／HPC 库及算子的开发、构建和交付**。运行时计算能力由可复用库提供，各框架／引擎按需消费。规范、产品、包名与构建工具的身份分别明确。
 
 2026-11-05新增[feature／AI／局部风格补充](2026-11-05-features-ai-agent-scoped-style-design.md)：可选内置AI／Agent独立于默认Agent控制能力；规则、内置模型Agent、openas外部Agent经共同决策port和领域操作接入；模型调用优先复用llmapi。风格包通过局部token、公共effect和motion组合，不在组件硬编码像素／玻璃实现；实际feature闭包与运行开关分别验收。
 
 最新综合review见[顶层×子系统架构与API验证](2026-11-05-system-subsystem-architecture-and-api-design.md)，包含目标代码树、共享owner、分级入口和实施顺序。动画的对象×动画×效果×配置专项语义继续见[play／Program细案](2026-11-04-hanim-play-api-design.md)：各入口复用同一Program/PreparedPlan，最新推荐以 `play(animation)` 为主；四参数保留为当前兼容入口。严格对象的sequence/parallel/stagger编排已实现，完整通道／scope／GPU和UI迁移仍开放，不能将“完整Program未完成”误读为“完全没有编排”。
 
-维护者补充：hanim的目标是比Manim及常见动画／游戏动画系统更通用、效果更好、性能更高；主入口只是比较思路，详见[通用性／风格／GPU比较稿](2026-11-04-hanim-generality-style-gpu-review-design.md)。创作接口与执行内核分别比较，复用全局的计算／RHI／renderer；已有CPU原型不等于目标已达到。
+补充：hanim的目标是比Manim及常见动画／游戏动画系统更通用、效果更好、性能更高；主入口只是比较思路，详见[通用性／风格／GPU比较稿](2026-11-04-hanim-generality-style-gpu-review-design.md)。创作接口与执行内核分别比较，复用全局的计算／RHI／renderer；已有CPU原型不等于目标已达到。
 
 ## 1. 总项目由独立产品组成
 
@@ -34,7 +34,7 @@ omui、hanim、渲染、模拟、计算和音频在**产品层对等**。产品�
 
 ### 1.1 两条顶层硬约束
 
-维护者进一步抽出的统一准则见[局部能力中心×全局契约组合](2026-11-05-local-global-composable-architecture-design.md)，已纳入根AGENTS.md。hanim以可动画数据／算子为中心，audio以声音／信号／调制为中心；通用基础共享，领域时间／实时性保留，经公开契约与adapter协作。环境场仅是属性／状态触发反应的一个输入；事件、邻域／材料规则及Noita类场景按同一反应模式扩展，不把这些场景写死进内核。
+进一步抽出的统一准则见[局部能力中心×全局契约组合](2026-11-05-local-global-composable-architecture-design.md)，已纳入根AGENTS.md。hanim以可动画数据／算子为中心，audio以声音／信号／调制为中心；通用基础共享，领域时间／实时性保留，经公开契约与adapter协作。环境场仅是属性／状态触发反应的一个输入；事件、邻域／材料规则及Noita类场景按同一反应模式扩展，不把这些场景写死进内核。
 
 **按需承担复杂度与体积。** 只用动画或只用 UI，都能选择对应的最小完整能力；随后按需增加模块、组件、风格、算子或后端。UI 默认动效消费 hanim 的轻量公开子集，不把像素重组、模拟、音频、MIDI、3D 或全部编辑器一起带入。默认 Agent 能力通过轻量契约／provider 和宿主聚合实现，纯数学库不因此依赖 UI 或网络服务。
 

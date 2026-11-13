@@ -4,7 +4,7 @@
 
 ## 0. 做法
 
-- 新的取值先进一个暂存叠加层，框架默认和所有钉住值不动；对照图交维护者批准（第一组的对照图见 [media/2026-11-08-quality/controls.png](media/2026-11-08-quality/controls.png)：左四列旧默认、右四列新取值）。
+- 新的取值先进一个暂存叠加层，框架默认和所有钉住值不动；对照图经人工批准（第一组的对照图见 [media/2026-11-08-quality/controls.png](media/2026-11-08-quality/controls.png)：左四列旧默认、右四列新取值）。
 - 批准后在**一个检查点**里并入 `light`／`dark`，删除叠加层，同时更新钉住值。第一组已于 2026-11-08 批准并入；深色主题的阴影单独调色（黑色、更强），不是浅色的反转。
 - 审查图：`site/tests/quality_lab_test.cpp`（scratch `quality-lab/controls.png`）每个控件静止、悬停、按下、键盘焦点四态，浅色与深色并排；并入后的样子见 [media/2026-11-08-quality/controls-defaults.png](media/2026-11-08-quality/controls-defaults.png)。
 - 组件不写死质感数值：圆角平滑由框架统一套到组件自己画的形状上（`DisplayList::smooth_corners`）；深度来自阴影令牌（`parts::depth`：`<令牌>`、`<令牌>:hovered`、`<令牌>:pressed`）；阴影可以带投射物的颜色（`tint`）。

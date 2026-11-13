@@ -10,11 +10,11 @@
 | [`../../../tests/bench/competitors/lead.metrics.omui.json`](../../../tests/bench/competitors/lead.metrics.omui.json) | 各项目的指标清单（先定、先评审，再测量；落后也不删）：measured／planned／pending_hardware |
 | [`lead.ledger.omui.jsonl`](lead.ledger.omui.jsonl) | 领先度台账，只追加：`metric`（同一作业内交替测量，每轮一个比值，取中位数与 95% 区间，按区间下端判定 behind／par／ahead／far_ahead；没有设备的为 pending_hardware）、`capability`（能力对照：竞品 none／partial／app-defined／full）、`task`（Agent 任务集） |
 | [`lead.md`](lead.md) | `tools/eval/lead.py summary` 从台账生成的最新判定，官网“领先度”页读同一份台账 |
-| `ledger.eval.omui.jsonl` 中 `rubric: "compare-v1"` 的记录 | 并排对照评审：每个维度一条判定（behind／par／ahead），附对照材料；评审方是维护者（最终判定）和一个不带实现上下文的新 Claude 会话（盲比，材料只标 A／B） |
+| `ledger.eval.omui.jsonl` 中 `rubric: "compare-v1"` 的记录 | 并排对照评审：每个维度一条判定（behind／par／ahead），附对照材料；评审方是人（最终判定）和一个不带实现上下文的新 Claude 会话（盲比，材料只标 A／B） |
 
 命令：`tests/bench/competitors/run.sh --ledger [轮数]`（测量并写台账）；`tools/eval/lead.py capability …`（记一条能力对照）；`tools/eval/lead.py summary --out .agents/docs/evaluation/lead.md`。CI 的 Bench 通道（`.github/workflows/bench.yml`）每周一跑一次，结果是这次运行的摘要和制品，由检查点追加进台账。
 
-维护者的要求（2026-10-31）：评分标准要细化，并保留评估和评分记录。每个评估对象要和它所在领域的顶尖做法比：
+要求（2026-10-31）：评分标准要细化，并保留评估和评分记录。每个评估对象要和它所在领域的顶尖做法比：
 - UI 框架对标主流 UI 框架；
 - 引擎对标主流游戏引擎；
 - 动画对标最好的动画引擎；

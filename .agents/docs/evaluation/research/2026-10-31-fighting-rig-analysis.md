@@ -1,6 +1,6 @@
 # Analysis: why the fighters come apart in motion (code, data or method)
 
-Written by codex from frame-by-frame captures of 坤's normals (release build, 1920×1080) and the source; the maintainer had seen hands and heads part from the body.
+Written by codex from frame-by-frame captures of 坤's normals (release build, 1920×1080) and the source; the reviewer had seen hands and heads part from the body.
 
 The broken motion has several causes: a faulty skinning heuristic, inconsistent artwork and rig calibration, unsafe angle interpolation, and insufficient pose-specific art. Fixing the implementation will remove substantial damage, but it will not turn the existing cutouts into animation comparable to the named reference games.
 

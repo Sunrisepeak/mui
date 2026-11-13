@@ -1,6 +1,6 @@
 # 综合架构实施：公共能力、官网映射与检查点
 
-2026-11-05。执行基线 `7b22704`；承接[顶层×子系统方案](2026-11-05-system-subsystem-architecture-and-api-design.md)、[feature／AI／style](2026-11-05-features-ai-agent-scoped-style-design.md)和[PPet](2026-11-05-pixelpet-generative-capabilities-design.md)。维护者已要求开始拆分、实现、测试、更新方案并提交PR #1。本文是执行台账，不另立缩小范围的总目标；P0–P6、F0–F4、K0–K5、R0–R6、C2–C6与公共40／20要求继续有效。
+2026-11-05。执行基线 `7b22704`；承接[顶层×子系统方案](2026-11-05-system-subsystem-architecture-and-api-design.md)、[feature／AI／style](2026-11-05-features-ai-agent-scoped-style-design.md)和[PPet](2026-11-05-pixelpet-generative-capabilities-design.md)。已要求开始拆分、实现、测试、更新方案并提交PR #1。本文是执行台账，不另立缩小范围的总目标；P0–P6、F0–F4、K0–K5、R0–R6、C2–C6与公共40／20要求继续有效。
 
 ## 1. 执行规则与全局验收轴
 
@@ -208,14 +208,14 @@ auto prepared = hengine.prepare(animation);
 2. 时间段选择与对象identity分开。作用域变化可改变叠放次序，这是显式行为；没有隐式crossfade。单对象旧入口不改变调用方自定绘制顺序。
 3. 旧单track `retarget`会规整成一段；本批对带scope程序明确返回`unsupported_operation`，禁止丢失层级／效果。保持scope的中断重编排后续单列。
 4. 全scope／track更新先staging再发布；计数预算包含scope。record错误只改scratch，不改目标列表。仍要求单owner或外部同步、effect注册表在静默边界更新；借用视图不成为永久资源句柄。
-5. [PPet §8.1](2026-11-05-pixelpet-generative-capabilities-design.md)按维护者补充改为C++核心＋项目TS及所选语言混合。语言与reload能力分别声明，数据／脚本热替换、静态核心升级和可选native动态插件分别验收；跨语言共用生成契约、稳定handle、资源owner、状态schema和generation。主交互／worker全双工目标不变，此项是设计补充，尚未交付运行时。
+5. [PPet §8.1](2026-11-05-pixelpet-generative-capabilities-design.md)按补充改为C++核心＋项目TS及所选语言混合。语言与reload能力分别声明，数据／脚本热替换、静态核心升级和可选native动态插件分别验收；跨语言共用生成契约、稳定handle、资源owner、状态schema和generation。主交互／worker全双工目标不变，此项是设计补充，尚未交付运行时。
 6. 下一步需把通道／scope通过公共UI adapter映射到实际交互，不在官网复制编排实现；同时按台账穿插S4反应／分块与S5音频时钟纵切。S1–S10、公共40／20、PPet K0–K5、Web／Toy／TUI及其他平台范围全部保留。
 
 构建复查：共用benchmark工具的依赖包含既有作品构建器，`--filter`只筛运行用例，不裁剪其构建闭包。首次运行遇到生成的host-tool／build-program缓存lock缺项；在生成工作区完成bootstrap，host-tool只采用现有仓库依赖版本并剔除无关项后，最终父命令保持`--locked`通过。仓库lock始终未变。公共hanim独立消费者不含这些作品依赖；后续拆分共用harness需保留单一实现，不能为每个引擎复制测试框架。
 
 ## 9. 双第一优先级开发规范补充
 
-执行基线 `98d14be`。按维护者要求在根[AGENTS.md](../../AGENTS.md)加入人／Agent双第一优先级规范，并在[核心准则§9](2026-11-05-local-global-composable-architecture-design.md#9-人与-agent-双第一优先级的设计与验收)展开评审门槛；综合方案§8和本台账验收轴同步引用。
+执行基线 `98d14be`。按要求在根[AGENTS.md](../../AGENTS.md)加入人／Agent双第一优先级规范，并在[核心准则§9](2026-11-05-local-global-composable-architecture-design.md#9-人与-agent-双第一优先级的设计与验收)展开评审门槛；综合方案§8和本台账验收轴同步引用。
 
 本批明确语义契约先行、完整headless任务与真实离屏视觉、随能力交付最小skill／SOP、开发会话默认full access及发布权限交集、Agent委派和观察数据隐私、纯库的轻量依赖边界。它约束后续各检查点，不将这些要求留到S6才开始考虑；完整公共控制、独立provider及权限链仍在相应检查点实现。
 
@@ -268,7 +268,7 @@ UI示例：`{"name":"pixelate","size":8,"duration":0.4,"animate":{"amount":[0,1]
 
 ### 10.4 动画按全过程验收的首个补充实例
 
-按维护者补充，根[AGENTS.md](../../AGENTS.md)与[核心准则§9.6](2026-11-05-local-global-composable-architecture-design.md#96-动画以过程采样和实际播放验收)明确：时间轴采样、关键事件前后加密、真实语义与像素联合检查、可回放证据，以及实速节奏／性能与人的观感分别验收。既有端点测试不会因此自动获得“过程已验收”状态。
+按补充，根[AGENTS.md](../../AGENTS.md)与[核心准则§9.6](2026-11-05-local-global-composable-architecture-design.md#96-动画以过程采样和实际播放验收)明确：时间轴采样、关键事件前后加密、真实语义与像素联合检查、可回放证据，以及实速节奏／性能与人的观感分别验收。既有端点测试不会因此自动获得“过程已验收”状态。
 
 本批`view.effect-animation`以公开Runtime时间控制，在0–1秒间按60Hz采样61个时刻，DPI 2、240×160、CPU同源renderer、合成背景`#f8fafc`。像素强度0→1与网格origin 0→3同时变化；每帧验证实际参数与图像变化、作用域外像素、对象身份／命中／焦点，再反向seek全部61帧逐帧复核。dev／release／Wasm的61张PNG、关键帧图和无损WebP均字节相同。它是参数效果的功能／回归fixture，不作为官网美术作品评分。
 
@@ -410,7 +410,7 @@ GPU域CTS的16组场景覆盖逐tick读回、12步驻留批次、checkpoint上�
 
 ## 13. 包粒度修订：内部目录优先，按独立价值建库
 
-执行基线`4ab416e`。按维护者补充，将“每个目录都是workspace成员”改为D-99：少量内部实现先放所属包的`src/<职责>/`和模块分区，共用清单；有足够内聚实现的复用库、明确独立产品计划或必要隔离才建立成员。小型必要库保留例外依据，不设机械行数／文件数阈值。已同步AGENTS、核心准则§5.1、综合方案§5、早期架构／实施计划和索引，避免旧表述继续驱动过度拆包。
+执行基线`4ab416e`。按补充，将“每个目录都是workspace成员”改为D-99：少量内部实现先放所属包的`src/<职责>/`和模块分区，共用清单；有足够内聚实现的复用库、明确独立产品计划或必要隔离才建立成员。小型必要库保留例外依据，不设机械行数／文件数阈值。已同步AGENTS、核心准则§5.1、综合方案§5、早期架构／实施计划和索引，避免旧表述继续驱动过度拆包。
 
 源码初筛遍历根清单的128个登记成员，排除嵌套成员后统计自身`src/`下`.cppm`／`.cpp`：54个成员不超过两份C++文件；该数不计测试、shader、脚本和资产，不是应删除的包数。结合实际清单，综合方案区分共享基础、可选设备／GPU／跨域adapter、host构建插件、兼容入口与可收敛的hanim内部职责。UI view当前直接依赖`hanim.effect`，后续合并需保留轻量选择，不能仅减少清单数量却扩大依赖闭包。
 
@@ -464,7 +464,7 @@ paint是记录输入，不消耗模拟tick；seek使用history frame，二者不
 
 ## 15. S6首批共享控制与D-100命名归属
 
-执行基线`4833c1a`。本批交付公共授权、会话与调用上下文，并将维护者的命名补充形成D-100。**S6完整provider／控制与观测链、N1–N4全仓命名迁移均未完成。** 源码、命令和本地证据见[验证报告](../../tools/ci/2026-11-05-shared-control.report.omui.json)。
+执行基线`4833c1a`。本批交付公共授权、会话与调用上下文，并将命名补充形成D-100。**S6完整provider／控制与观测链、N1–N4全仓命名迁移均未完成。** 源码、命令和本地证据见[验证报告](../../tools/ci/2026-11-05-shared-control.report.omui.json)。
 
 ### 15.1 代码归属与兼容
 
@@ -656,7 +656,7 @@ target 图要求精确的 23 个本仓库包＋17 个第三方包＋消费者。
 
 ## 21. D-99：Hanim 产品收敛与真实按需选择
 
-维护者明确：内部独立子项目必须有具体库／引擎价值和理由。多模块互用本身不是拆包理由；局部职责与全局消费者、可选依赖边界交叉评估。该要求已补入 AGENTS.md 和局部×全局设计准则。
+明确：内部独立子项目必须有具体库／引擎价值和理由。多模块互用本身不是拆包理由；局部职责与全局消费者、可选依赖边界交叉评估。该要求已补入 AGENTS.md 和局部×全局设计准则。
 
 ### 21.1 代码树与 API
 
@@ -812,7 +812,7 @@ renderer 的两个 profile 各 18 项集成用例继续通过。新增属性组�
 
 ## 25. 配置式局部控制的边界修正与多部件属性目标
 
-基线 `033cf2e`。维护者进一步明确：整体／局部／文字／子组件的动画选择与简化必须可配置；2D／3D 可视源应按需提供属性、部件、几何／顶点和采样表示；通用几何转换属于共享基础设施，Hanim、renderer、模拟与 UI 共同消费；分级同时包含性能预算、平台适配和许可降级。详见[新增方案](2026-11-05-hanim-representations-selection-policy-design.md)，核心约束已加入 AGENTS.md。
+基线 `033cf2e`。进一步明确：整体／局部／文字／子组件的动画选择与简化必须可配置；2D／3D 可视源应按需提供属性、部件、几何／顶点和采样表示；通用几何转换属于共享基础设施，Hanim、renderer、模拟与 UI 共同消费；分级同时包含性能预算、平台适配和许可降级。详见[新增方案](2026-11-05-hanim-representations-selection-policy-design.md)，核心约束已加入 AGENTS.md。
 
 原先准备的整节点独占变换原型固定了 UI／Hanim 的处理边界，无法表达这些组合要求，已从工作树撤回。其临时构建也未完成验收，不计作 UI 接入。§24 的消费者目标继续有效，按新方案的 A1–A5 补齐必要基础，不将错误边界包装成完成的 adapter。
 
@@ -955,7 +955,7 @@ geom／raster／hanim／vector／motion 五个包的原生 dev／release 各 32 
 
 完整 lint（含文档 schema）、清单／Python／JSON、文档链接及 diff 检查通过。源仓库用户已有 `mcpp.lock` 原样保留、不纳入提交；宿主构建缓存的临时锁按本地所需构建程序重建。当前检查点以本地真实验证推进，后续继续把公开绑定和选择策略用于官网配置舞台，再补完整几何、自动策略及其他架构任务。
 
-维护者追加空间清理后，移除了 `/tmp` 与项目内 87 个已过期构建缓存目录、530 份旧日志，文件系统实际可用空间增加约 17.25 GiB，清理后约 20.18 GiB 可用。保留各工作树源代码／git 元数据、正在运行的应用、最新 native／Wasm 测试增量与仓外消费者，以及本轮图像／测试／基准证据。详情在 `target/omui-presentation/cleanup.report.omui.json`，摘要写入本轮检查点报告。
+追加空间清理后，移除了 `/tmp` 与项目内 87 个已过期构建缓存目录、530 份旧日志，文件系统实际可用空间增加约 17.25 GiB，清理后约 20.18 GiB 可用。保留各工作树源代码／git 元数据、正在运行的应用、最新 native／Wasm 测试增量与仓外消费者，以及本轮图像／测试／基准证据。详情在 `target/omui-presentation/cleanup.report.omui.json`，摘要写入本轮检查点报告。
 
 
 ## 29. 原生播放宿主与官网组件编排
@@ -1041,7 +1041,7 @@ release 基准：64 个效果共 160 个 backend 参数的采样／绑定平均�
 
 本地 mcpp 多选默认 view 与可选官网根时暴露传递 feature 闭包缺失，按实际消费者独立验证，不扩成默认强制依赖；基准本身直接消费公开 image binding，显式声明 `render-vector`。生成的 build-program 工作区在不同消费者间复用锁造成 resolution 不同，只在对应 `target/.build-mcpp/host/…` 内重新配置，源命令仍 `--locked`，用户已有 `mcpp.lock` 字节不变。额外整工作区 `--locked --configure-only` 探针因 fighting 的同一生成锁切换问题返回 2，因此没有记为全工作区通过；最终官网构建图中 UI adapter／Hanim vector 的 16 条实际源码规则均存在，相关消费者与打包已分别通过。该探针不替代完整构建。异平台 CI 不作为本轮推进的等待条件。
 
-按维护者要求再次清理了 38 个过期生成缓存，移除占用约 0.79 GiB，文件系统实际增加约 0.78 GiB；清理后可用 14.55 GiB。保留源码、worktree／git 元数据、正在运行的应用、当前各 profile 增量和验证图像；过程见 `target/omui-ui-effects/cleanup.report.omui.json`。后续构建会再次使用空间。
+按要求再次清理了 38 个过期生成缓存，移除占用约 0.79 GiB，文件系统实际增加约 0.78 GiB；清理后可用 14.55 GiB。保留源码、worktree／git 元数据、正在运行的应用、当前各 profile 增量和验证图像；过程见 `target/omui-ui-effects/cleanup.report.omui.json`。后续构建会再次使用空间。
 
 完整 UI 几何／顶点／3D、任意跨对象／跨树及逐部件 image-scope IR、空间扭曲的输入映射、backdrop／GPU-only UI 路径、hold-world／混合／动态约束、自动资源与降级控制仍开放；当前 provider registry 重载要求静止边界，不是并发不可变资源租约。现有 blur 内核含整数半径量化，本轮使官网选项进入实际有效范围，没有声称实现连续高品质滤镜内核。完整组件默认配方、40／20 的可带走库和工程、其他引擎、AI／PPet、工具与更多后端按总计划继续，过程采样不替代实机节奏和产品美术验收。
 

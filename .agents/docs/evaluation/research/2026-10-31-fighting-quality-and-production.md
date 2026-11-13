@@ -1,12 +1,12 @@
 # Research: what quality and detail mean in the best fighting games, and how this game could reach them
 
-Written by codex (with web search) at the maintainer's request, to discuss and decide on before more is built. The maintainer's note: "to the joint, even the finger" means the craft — exact animation, binding and effects — not finger attacks, and not necessarily rigging down to the fingers.
+Written by codex (with web search) to discuss and decide on before more is built. The note it answers: "to the joint, even the finger" means the craft — exact animation, binding and effects — not finger attacks, and not necessarily rigging down to the fingers.
 
 **openmui’s main presentation problem is insufficiently authored movement and contact.** The current pipeline produces detailed paintings, then asks a small set of flat parts and skeletal poses to perform actions that require changes in perspective, anatomy, silhouette, and expression. More detailed textures, more bones, or larger effects will not resolve that mismatch.
 
 I recommend a narrowly scoped hybrid 2D pilot: retain skeletal animation where it works, but author replacement drawings—including whole-body drawings—for important attack poses, turns, compression, and reactions. Use offline 3D blocking where it helps establish volume and contact. Expand production only after one fighter survives direct comparison with the references.
 
-The maintainer’s correction is fundamental: precision “down to the finger” means deliberate craft. It means a fist closes convincingly, a wrist supports a palm strike, a grabbing hand actually wraps around something, and the fingers preserve their shape between drawings. It does not prescribe finger attacks or a particular rigging technology.
+The correction is fundamental: precision “down to the finger” means deliberate craft. It means a fist closes convincingly, a wrist supports a palm strike, a grabbing hand actually wraps around something, and the fingers preserve their shape between drawings. It does not prescribe finger attacks or a particular rigging technology.
 
 **Evidence and limits.** This report draws on the repository instructions, fighting design documents, README and development story, presentation source, all seven fighter/look file pairs—including Kata—and existing artwork and test captures. No assets were generated. The checkout contains ongoing changes; existing captures are evidence of their recorded states, not proof that every current edit has been rendered.
 
@@ -139,7 +139,7 @@ Add only the necessary presentation primitives: cel/exposure tracks, replacement
 
 Sprite and rig paths must share explicit gameplay attachment and hurtbox metadata. The current skeleton-oriented bake cannot simply infer meaningful limbs from a whole-body cel. Keep collision authoring separate from decorative silhouettes, with intentional changes reviewed and rebaked.
 
-The immediate tool should provide side-by-side playback, onion skins, silhouette mode, contact overlays, frame stepping, and JSON export. The maintainer reviews motion first, then cleaned art, then effects and camera. Measure accepted assets per review hour during the pilot before forecasting the roster.
+The immediate tool should provide side-by-side playback, onion skins, silhouette mode, contact overlays, frame stepping, and JSON export. The reviewer reviews motion first, then cleaned art, then effects and camera. Measure accepted assets per review hour during the pilot before forecasting the roster.
 
 **Pilot: Ni, one heavy normal, one rising special, one level-three super.** Ni offers recognizable boxing and kicking mechanics, and her current limitations cannot easily hide behind elaborate clothing.
 
@@ -177,7 +177,7 @@ Acceptance should require:
 
 A strict reviewer should see an intentional sequence of physical decisions comparable in clarity to SF6, even with a simpler visual style. If they still see a painting assembled into moving pieces, the pilot has failed. Additional effects should not compensate for that failure.
 
-**Decisions for the maintainer.**
+**Decisions for the reviewer.**
 
 1. Is the target SF6-level craft in a distinct, simpler style, or also comparable anatomical detail and cinematic freedom?
 2. Can the painted character style be simplified to make consistent animation affordable?
@@ -188,4 +188,4 @@ A strict reviewer should see an intentional sequence of physical decisions compa
 7. Which supers justify additional views and defender-specific interaction work?
 8. Should finger-led attacks introduced under the earlier interpretation be redesigned?
 9. What pilot time budget and failure threshold will trigger a production-method change?
-10. Which experienced players will judge full-speed hit feel, alongside the maintainer’s final visual approval?
+10. Which experienced players will judge full-speed hit feel, alongside the reviewer's final visual approval?

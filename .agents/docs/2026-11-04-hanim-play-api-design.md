@@ -1,6 +1,6 @@
 # hanim play API：候选入口、动画表达与统一计划
 
-2026-11-04。状态：**接口 review 稿；严格对象域的嵌套 Program 首批实施中**，区分当前播放器与完整目标API。配套[hanim完整产品](2026-11-04-hanim-animation-library-playback-design.md)。维护者讨论 `play(obj, anim, effect, config)` 与 `play(anim(obj), effect, config)` 的取舍。
+2026-11-04。状态：**接口 review 稿；严格对象域的嵌套 Program 首批实施中**，区分当前播放器与完整目标API。配套[hanim完整产品](2026-11-04-hanim-animation-library-playback-design.md)。讨论 `play(obj, anim, effect, config)` 与 `play(anim(obj), effect, config)` 的取舍。
 
 2026-11-05 最新：[综合架构与最小API验证](2026-11-05-system-subsystem-architecture-and-api-design.md#3-最小接口实验验证什么如何使用)推荐以 `anim::morph(source,target)`、`play(animation)` 为日常入口，具名组合、显式prepare和扩展作者接口逐级展开。消费者实验复用现有Program/Engine，不能据此声称正式API或完整IR已经迁移。本文四参数示例保留为当前已实现入口，后续章节的早期推荐不覆盖这一最新review方向。
 
@@ -8,7 +8,7 @@
 
 2026-11-05补充：[可组合算子／反应／相机IR](2026-11-05-hanim-composable-operators-reactions-ir-design.md)将effect扩展为匹配、路径、属性、条件／触发反应和呈现等阶段的typed算子；相机及其运动／镜头／视图、动画与effect参数也可作为目标。环境场只是刺激来源之一，亦覆盖事件／阈值／接触／邻域和材料规则。主动／被动是绑定方式，与pure／stateful及执行阶段分别建模。主入口语法仍待review，先保证共同契约、作用域和执行计划可表达。
 
-维护者澄清对象中心与动画中心都是供比较的思路，不能直接定案。最新比较见[通用性／风格／GPU review](2026-11-04-hanim-generality-style-gpu-review-design.md)。**前稿“四参数为主、anim(obj)仅语法糖”的推荐不再作为定案。**
+澄清对象中心与动画中心都是供比较的思路，不能直接定案。最新比较见[通用性／风格／GPU review](2026-11-04-hanim-generality-style-gpu-review-design.md)。**前稿“四参数为主、anim(obj)仅语法糖”的推荐不再作为定案。**
 
 当前倾向：创作层可采用动画中心的`hengine.play(animation, config)`，`X(obj)`或明确角色的`X(a,b)`构造可组合动画描述；对象中心四参数入口作为适配／便利形式；编译与执行层采用同一Program／PreparedPlan。倾向仍待review，性能与通用性由下层的表示、匹配、求值、效果及批量执行契约保证，不由函数参数顺序保证。
 
@@ -129,7 +129,7 @@ CLI／openas表示使用同样的object、animation、effect和config契约，�
 
 ## 7. 四个组合维度与交叉播放的完整架构
 
-维护者进一步明确：**对象×动画×效果×配置的每项本身都可组合；对象A到B、复杂编排与交叉播放必须从底层支持。** 因此完整编译入口是Program，单对象四参数调用是规范化便利形式。当前编译器的严格整对象域是首阶段，不能将它作为最终通道冲突模型。
+进一步明确：**对象×动画×效果×配置的每项本身都可组合；对象A到B、复杂编排与交叉播放必须从底层支持。** 因此完整编译入口是Program，单对象四参数调用是规范化便利形式。当前编译器的严格整对象域是首阶段，不能将它作为最终通道冲突模型。
 
 ### 7.1 四类表达式与作用域
 

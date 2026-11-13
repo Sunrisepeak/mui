@@ -1,6 +1,6 @@
-# mcpplibs.os：COM／WinRT 与 Objective-C 运行时（方案，待维护者 review）
+# mcpplibs.os：COM／WinRT 与 Objective-C 运行时（方案，待 review）
 
-> 状态：**方案，未实施**。维护者要求（2026-11-10）：给 mcpplibs.os 提 PR 前先写方案；严格符合 os 仓库的规范（README “Rules” R0–R7）；mpal 是第一个消费者。openkal 不对任何平台做适配，镜像里这些模块按 R5 不提供定义，mpal 如实返回 unsupported。
+> 状态：**方案，未实施**。要求（2026-11-10）：给 mcpplibs.os 提 PR 前先写方案；严格符合 os 仓库的规范（README “Rules” R0–R7）；mpal 是第一个消费者。openkal 不对任何平台做适配，镜像里这些模块按 R5 不提供定义，mpal 如实返回 unsupported。
 
 ## 1. 为什么放进 os，而不是 mpal
 
@@ -93,10 +93,10 @@ result<id_ref> define_class(std::string_view name, std::string_view superclass, 
 
 ## 6. 版本与流程
 
-- os 0.5.0（新增平台模块 API，CHANGELOG 写明），按 os 仓库的提交习惯：单独分支、CI 的 hosted 行和 image 行全绿后再请维护者合并发布；本仓库随后改依赖版本。
+- os 0.5.0（新增平台模块 API，CHANGELOG 写明），按 os 仓库的提交习惯：单独分支、CI 的 hosted 行和 image 行全绿后经确认后合并发布；本仓库随后改依赖版本。
 - 在 os 的共享检出旁另建 git worktree 工作（其他 Agent 也在用该检出）。
 
-## 7. 待维护者决定
+## 7. 待决定
 
 1. 放在 `mcpplibs.os.windows`／`mcpplibs.os.macos` 里的子命名空间（本方案），还是新的平台模块 `mcpplibs.os.windows.com`／`mcpplibs.os.macos.objc`（更细，但 R5 的检查要多覆盖两个模块）。
 2. 运行时加载 `combase.dll`／`libobjc` 而不是链接（本方案），是否符合 os 的预期。

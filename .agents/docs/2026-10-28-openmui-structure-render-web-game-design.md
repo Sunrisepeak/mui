@@ -436,7 +436,7 @@ Toy 是 H5 包：运行在 `https://www.bilibili.com/toy/<slug>/` 子路径下�
 
 **错误映射**：`invalid_param` → `invalid-argument`；`unsupported` → `refused`；限流 `307044` → **退出码 3（not ready：同一个请求以后可能成功）**，`Store` 和 `Leaderboard` 自动指数退避；其他 → `failed`。openas 0.2 的退出码 3 正好对应 Toy 的限流语义。
 
-**打包**：`dist-toy` 插件生成 `dist/toy/`：很小的 `index.html`、`<名字>-<哈希>.js / .wasm`、`assets/<哈希>.*`，全部相对路径；CI 运行 Toy 官方的 `toy_doctor.py`（MIT，零依赖，固定版本）检查。**发布不在本仓库的范围内**，由维护者自己用 `toy` 命令行完成。
+**打包**：`dist-toy` 插件生成 `dist/toy/`：很小的 `index.html`、`<名字>-<哈希>.js / .wasm`、`assets/<哈希>.*`，全部相对路径；CI 运行 Toy 官方的 `toy_doctor.py`（MIT，零依赖，固定版本）检查。**发布不在本仓库的范围内**，由发布者用 `toy` 命令行完成。
 
 小红书「小工具」禁止 WASM、Worker 和网络请求（[容器能力清单](https://miniapp-sandbox.xiaohongshu.com/minitool/doc)），**不支持**。
 
@@ -570,7 +570,7 @@ mgame 是一组引擎服务，以 openmui 作为 UI 模块。第一个用户是 
 | 宣传片 | 确定性的对局回放 → openmui-video 导出（S5） | 视频导出 |
 | 3D（以后） | Blender 建模，glTF 导入；不做建模软件 | — |
 
-工具解决不了美术水平：每个角色先定美术方向（剪影、配色、动作节奏），由维护者把关。工具放在哪里（`showcase/` 还是 `tools/`）在各自那一轮决定（Q-27）。
+工具解决不了美术水平：每个角色先定美术方向（剪影、配色、动作节奏），由人工把关。工具放在哪里（`showcase/` 还是 `tools/`）在各自那一轮决定（Q-27）。
 
 ### 8.9 Toy 版
 

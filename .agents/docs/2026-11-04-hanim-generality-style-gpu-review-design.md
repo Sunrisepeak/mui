@@ -1,12 +1,12 @@
 # hanim 通用性、风格与异构执行：架构比较稿
 
-2026-11-04。**讨论／review，未定案。** 维护者明确：对象中心或动画中心是供比较的思路，需要从局部引擎与全局系统评估；目标是在通用性、效果质量和性能上超出 Manim 及常见动画／游戏动画系统。不能把一个好看的 API 或首条 CPU 形变链路当作目标已完成。
+2026-11-04。**讨论／review，未定案。** 明确：对象中心或动画中心是供比较的思路，需要从局部引擎与全局系统评估；目标是在通用性、效果质量和性能上超出 Manim 及常见动画／游戏动画系统。不能把一个好看的 API 或首条 CPU 形变链路当作目标已完成。
 
 配套[play／组合细案](2026-11-04-hanim-play-api-design.md)、[完整动画产品](2026-11-04-hanim-animation-library-playback-design.md)、[整体引擎／模拟](2026-11-04-omui-engine-framework-architecture-design.md)及[多产品架构](2026-11-04-multi-engine-product-architecture-design.md)。本稿重新比较主入口，前稿四参数为主的推荐不再作为定案；不自行新增 D-xx 决策。
 
 ## 1. 对照真实能力，而非弱化对手
 
-2026-11-05维护者补充的[通用算子／主动被动effect／反应／相机IR](2026-11-05-hanim-composable-operators-reactions-ir-design.md)进一步细化本稿：每个属性、载体、运动描述、相机及其输出端口可控制；effect可作用于匹配／插值路径／属性和状态反应；环境场仅是刺激来源之一，另有事件／阈值／接触／邻域等。其状态、到达、资源和模块边界先设计，不能用当前后处理参数链替代。
+2026-11-05补充的[通用算子／主动被动effect／反应／相机IR](2026-11-05-hanim-composable-operators-reactions-ir-design.md)进一步细化本稿：每个属性、载体、运动描述、相机及其输出端口可控制；effect可作用于匹配／插值路径／属性和状态反应；环境场仅是刺激来源之一，另有事件／阈值／接触／邻域等。其状态、到达、资源和模块边界先设计，不能用当前后处理参数链替代。
 
 Manim Community 已提供 Cairo 与 OpenGL 渲染器，也有 TransformMatchingShapes 等匹配动画。不能将“常见作品风格接近”推断为不能 GPU 渲染或不能换风格。[渲染器](https://docs.manim.community/en/stable/reference/manim.constants.RendererType.html)、[匹配动画](https://docs.manim.community/en/stable/reference/manim.animation.transform_matching_parts.TransformMatchingShapes.html)。
 

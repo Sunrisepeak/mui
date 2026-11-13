@@ -17,14 +17,14 @@ Read:
 
 **Top 3:** Street Fighter 6 (the bar) · Guilty Gear -Strive- · Skullgirls 2nd Encore.
 
-**The bar (the maintainer):** Street Fighter 6's quality, in every detail. The only allowance is 2D against 3D. What SF6 does with a camera moving in space and a modelled body, this game must do with 2D's means:
+**The bar:** Street Fighter 6's quality, in every detail. The only allowance is 2D against 3D. What SF6 does with a camera moving in space and a modelled body, this game must do with 2D's means:
 - for the camera: cuts, pans, pushes and rotations on painted planes;
 - for the body: authored poses and parts bound exactly;
 - for impact: held impact frames, drawn smears and effects, the picture's own timing.
 
 A small team, generated art or "for a 2D game" excuses nothing beyond that.
 
-The maintainer finds the attacks, the feel of a hit, the supers and the effects failing today. Say exactly why, frame by frame and part by part, and what each would need to stand beside the top 3.
+The reviewer finds the attacks, the feel of a hit, the supers and the effects failing today. Say exactly why, frame by frame and part by part, and what each would need to stand beside the top 3.
 
 **Detail "to the joint, even the finger" is a matter of craft, not of move design.** It means three things:
 - the binding is exact: parts meet at their joints with no gap, seam, overlap or pop; a limb bends where its joint is; a wrist turns the hand it carries;

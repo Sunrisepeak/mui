@@ -1,6 +1,6 @@
 // The brand exploration (A1 of the site plan): the mark's O and Mui, drawn by
 // the framework from the site's brand data (brand/marks.mark.omui.json,
-// brand/mascot.sprite.omui.json) and saved headless for the maintainer to choose
+// brand/mascot.sprite.omui.json) and saved headless for the reviewer to choose
 // a direction from — each pixel of Mui a vector square, each mark an SVG path.
 //
 // Sheets in scratch "brand-lab": marks (four O treatments, large and at 32 and

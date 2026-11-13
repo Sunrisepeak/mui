@@ -1,6 +1,6 @@
 # 独立游戏完整工作流：工具覆盖、素材资源与编辑
 
-2026-11-04。状态：**架构／产品讨论稿，能力覆盖和实施缺口清单**。配套[顶层架构](2026-11-04-multi-engine-product-architecture-design.md)、[双视角工具](2026-11-04-dual-user-tools-validation-design.md)、[引擎细案](2026-11-04-omui-engine-framework-architecture-design.md)。维护者询问六类核心工具能否覆盖成熟独立游戏，并要求补充素材资源与编辑。
+2026-11-04。状态：**架构／产品讨论稿，能力覆盖和实施缺口清单**。配套[顶层架构](2026-11-04-multi-engine-product-architecture-design.md)、[双视角工具](2026-11-04-dual-user-tools-validation-design.md)、[引擎细案](2026-11-04-omui-engine-framework-architecture-design.md)。问题是六类核心工具能否覆盖成熟独立游戏，并要求补充素材资源与编辑。
 
 2026-11-05补充：[pixelpet运行时创作](2026-11-05-pixelpet-generative-capabilities-design.md)把同一素材与操作基础用于应用运行后的服装制作、穿戴、UI挂件、绘画和技能积累。可编辑源、依赖、版本与派生构件共用catalog；衣柜／技能库是视图，包裹／装备是应用状态。工具与应用不重复实现素材管线；动态UI分别管理定义、实时数据和安装实例。
 

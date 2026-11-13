@@ -8,7 +8,7 @@ namespace omui::site {
 std::span<const BrandShape> brand_geometry() {
     static const auto shapes = [] {
         std::array<BrandShape, 5> g;
-        // The O, with two ears (A2, the maintainer's choice): a clean geometric
+        // The O, with two ears (A2, the one chosen): a clean geometric
         // mark at rest, a cat when looked at closely; the counter still holds
         // the inner word (site/brand/marks.mark.omui.json, outline "ears").
         g[0].part = "outline";

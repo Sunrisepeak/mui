@@ -21,7 +21,7 @@ mcpp pack -p <package> --target wasm32-emscripten --release --pkg-format dist-to
 
 Only the package being packed makes one: a package that is a dependency of the one being packed (the fighting game under the site) leaves its own `dist_toy` alone. The plugin asks `omui.build.plan`'s `is_packed()`.
 
-The package lands in `<out_dir>/toy/<target>/`, and the list of its contents beside it in `<target>.toy.omui.json`. `tools/ci/toy.sh` checks it with Toy's `toy_doctor.py`. Publishing (`toy create`) is the maintainer's job.
+The package lands in `<out_dir>/toy/<target>/`, and the list of its contents beside it in `<target>.toy.omui.json`. `tools/ci/toy.sh` checks it with Toy's `toy_doctor.py`. Publishing (`toy create`) is the publisher's job.
 
 Language fonts can keep a small amount of initial coverage:
 

@@ -2,7 +2,7 @@
 
 2026-11-01。这是当前的**顶层文档**：把 2026-11-01 定下的方向（D-91..D-98）收拢成一个方案和一个实施计划，并链接到各子设计。和更早文档冲突的地方以本文和子设计为准；更早文档里没有被改动的部分（规范、组件绑定、管线、渐进式披露、视图文件、目录和命名、mwrap、规则）继续有效。
 
-2026-11-03 更新：维护者要求开始[omui 官网重构与质量收口](2026-11-03-openmui-site-redesign-implementation-design.md)。**openmui 是规范，omui 是具体实现和官网品牌**；标志用代码构造“大写 O 内含小写 mui”。官网的信息结构、品牌、视觉与实施细节以新方案为准，本文的 W1–W9 和 C2–C6 范围及门禁继续保留。现有 `openmui.*` 技术标识保持兼容。
+2026-11-03 更新：要求开始[omui 官网重构与质量收口](2026-11-03-openmui-site-redesign-implementation-design.md)。**openmui 是规范，omui 是具体实现和官网品牌**；标志用代码构造“大写 O 内含小写 mui”。官网的信息结构、品牌、视觉与实施细节以新方案为准，本文的 W1–W9 和 C2–C6 范围及门禁继续保留。现有 `openmui.*` 技术标识保持兼容。
 
 2026-11-04 补充：[多引擎产品架构](2026-11-04-multi-engine-product-architecture-design.md)统一对等产品、共享模块、按需成本、Agent、多后端与多输出；[核心工具细案](2026-11-04-dual-user-tools-validation-design.md)选定六类双视角真实工具及验收任务。Web 为首批重点，Toy 是 Web SDK 子后端，TUI 按终端能力适配；新增能力先用一个参考平台验证公开契约，再扩展其它后端。完整编辑器随后验证底层能力。官网不再是唯一验收对象，但原官网范围和每维≥90门槛不变；独立库／工具的局部通过不替代它们。
 
@@ -43,7 +43,7 @@
 
 ## 3. 总体架构
 
-**2026-11-04 维护者补充的整体架构 review：**[独立引擎／UI／Agent 与高密度模拟](2026-11-04-omui-engine-framework-architecture-design.md)及 [hanim 完整产品](2026-11-04-hanim-animation-library-playback-design.md)将独立动画产品、共享 renderer、UI 普通消费者、rig／physics／fluid、硬件加速、Agent 控制与可观测性一并展开，并将 Noita 类像素反应负载纳入基础设施验收。下面原表中“hanim 仅时间内核、通用动画归 UI”的职责划分须按新契约迁移，不能据此收窄维护者目标；具体新包／接口仍为讨论稿，规范变更另走 OpenLifa 流程。
+**2026-11-04 补充的整体架构 review：**[独立引擎／UI／Agent 与高密度模拟](2026-11-04-omui-engine-framework-architecture-design.md)及 [hanim 完整产品](2026-11-04-hanim-animation-library-playback-design.md)将独立动画产品、共享 renderer、UI 普通消费者、rig／physics／fluid、硬件加速、Agent 控制与可观测性一并展开，并将 Noita 类像素反应负载纳入基础设施验收。下面原表中“hanim 仅时间内核、通用动画归 UI”的职责划分须按新契约迁移，不能据此收窄既定目标；具体新包／接口仍为讨论稿，规范变更另走 OpenLifa 流程。
 
 ```
 ┌──────────────────── 作品与官网 ─────────────────────────────────┐

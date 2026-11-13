@@ -24,7 +24,7 @@ A serious 2D fighting game at the level of a top independent release — not a d
 
 It is also a showcase (D-63), but the framework shows through what the game needs, never as a lecture: deterministic rollback is why replays and pinned pictures are free; the semantic tree is why an agent can play; data files with located diagnostics are why fighters can be modded.
 
-**The reset.** The first version drew fighters from geometric parts posed by numbers. The maintainer rated it 1/10 (codex, against a strict rubric, 2/10): mannequin fighters, slideshow supers, effects that looked like presentation software, a glyph written as a super. We changed the method rather than polishing it: the art now comes from generated (or an artist's) layered pictures, and the framework does the cutting, rigging, animating, directing, effects, sound and music — all as data, all deterministic. The second direction from the maintainer made the combat **unarmed and hardcore**: hands, feet, body and joints for every normal; signature props only in special moments; supers that are interactive and different for everyone.
+**The reset.** The first version drew fighters from geometric parts posed by numbers. The reviewer rated it 1/10 (codex, against a strict rubric, 2/10): mannequin fighters, slideshow supers, effects that looked like presentation software, a glyph written as a super. We changed the method rather than polishing it: the art now comes from generated (or an artist's) layered pictures, and the framework does the cutting, rigging, animating, directing, effects, sound and music — all as data, all deterministic. The second direction from the reviewer made the combat **unarmed and hardcore**: hands, feet, body and joints for every normal; signature props only in special moments; supers that are interactive and different for everyone.
 
 ## 2. The layers
 
@@ -77,7 +77,7 @@ Each fighter is three files in `fighters/` — what they do (`*.fighter.gongfu.t
 
 An original character built on an internet meme's signs — a clean centre part, a white shirt with rolled sleeves, grey suspender trousers, white-and-gold high-tops, a basketball — played completely straight: cold, quiet, precise. Bajiquan close-range bursts (铁山靠, the shoulder driven in with a step; 顶肘, the elbow) on a dancer's footwork; the ball appears only in his specials and supers. Research and the reasons for the contrast are in the hardcore design §5.
 
-**Super (level 3).** The first version was a stance with one arm pumping seventeen times — the formula the maintainer had asked us to leave. It is now one exchange in which the bodies and the ball really meet, and every contact is a frame of the cinematic, not an effect laid over it:
+**Super (level 3).** The first version was a stance with one arm pumping seventeen times — the formula the reviewer had asked us to leave. It is now one exchange in which the bodies and the ball really meet, and every contact is a frame of the cinematic, not an effect laid over it:
 
 | Frames | Beat |
 |---|---|
@@ -165,7 +165,7 @@ Each step is a tool with a command line (JSON out, an exit code) so an agent can
 | 7. Bake | Hurtboxes from the poses; the build refuses a stale bake | `gongfu-studio bake fighters` |
 | 8. Balance | Bots play every pair | `gongfu-studio versus fighters --rounds 200` |
 | 9. In the game | The tests draw pinned frames and the README loop headless | `mcpp test` in `showcase/fighting` |
-| 10. Grade | codex grades the frames against the rubric (one independent source); the maintainer's grade is final | — |
+| 10. Grade | codex grades the frames against the rubric (one independent source); the reviewer's grade is final | — |
 
 Throwaway scripts were used once — to turn world-angle key poses into tracks before `aim` keys and named poses existed. Both are now features of the look format, and the looks are plain data again with nothing beside them.
 
@@ -322,4 +322,4 @@ Collected in [best practices](../../docs/en/best-practices.md):
 
 - **Keyboard**: player 1 WASD, U I O (punches) J K L (kicks); player 2 the arrows, Insert Home PageUp, Delete End PageDown.
 - **Gamepad**: the first two connected are players 1 and 2, beside the keyboard. The d-pad and the left stick are directions (opposites held together go to gongfu's SOCD rule, as keys do); the buttons are the six-button layout — west LP, north MP, R1 HP, south LK, east MK, R2 HK — written as data in `controls/pad.controls.omui.json`, so it can be remapped. The host reads any pad through SDL's mapping database (the browser's standard mapping on the Web) and applies the dead zones; `tests/gamepad_test.cpp` injects pads headless and checks that a press arrives as the move.
-- **Web and Bilibili Toy**: `tools/ci/toy.sh omui.showcase.fighting` builds it for wasm32-emscripten, packs it with `dist-toy` and checks it with Toy's `toy_doctor.py`; serve `target/toy/omui-fight/` and open it. `#/training` opens training mode (a hash route is the program's flag). Publishing is the maintainer's (`toy create`).
+- **Web and Bilibili Toy**: `tools/ci/toy.sh omui.showcase.fighting` builds it for wasm32-emscripten, packs it with `dist-toy` and checks it with Toy's `toy_doctor.py`; serve `target/toy/omui-fight/` and open it. `#/training` opens training mode (a hash route is the program's flag). Publishing is the publisher's (`toy create`).

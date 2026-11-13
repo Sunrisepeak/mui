@@ -12,7 +12,7 @@
 //
 // The package lands in <out_dir>/toy/<target>/, what is in it beside it in
 // <target>.toy.omui.json. Checking it with Toy's toy_doctor.py is
-// tools/ci/toy.sh's; publishing is the maintainer's (`toy create`).
+// tools/ci/toy.sh's; publishing is the publisher's (`toy create`).
 export module omui.build.toy;
 
 import std;

@@ -1,8 +1,8 @@
 # Research: Apple's Liquid Glass, where openmui stands, and a plan
 
-Written by codex (with web search) after the maintainer found the glass pack "glass, not liquid glass" — the material, its motion, components and their overlap.
+Written by codex (with web search) after the reviewer found the glass pack "glass, not liquid glass" — the material, its motion, components and their overlap.
 
-**openmui has several of the right optical primitives, but its shipped packs do not yet form a Liquid Glass design system.** The maintainer’s assessment is accurate at the experience level: the workshop presents frosted content panels and a separate fluid slider decoration. The missing work connects material, interaction, component geometry, transitions, and overlapping surfaces.
+**openmui has several of the right optical primitives, but its shipped packs do not yet form a Liquid Glass design system.** The assessment is accurate at the experience level: the workshop presents frosted content panels and a separate fluid slider decoration. The missing work connects material, interaction, component geometry, transitions, and overlapping surfaces.
 
 I inspected the current working tree, the requested workshop captures, and additional existing renderer/group captures. No repository files were changed or new benchmarks run. The supplied [Medium article](https://medium.com/@kjkartikjt0002/liquid-glass-ios-26-full-technical-analysis-53768327a062) could not be retrieved; searches did not recover its contents. I read the [Reddit analysis](https://www.reddit.com/r/LiquidGlassDesign/comments/1l9f3ud/apples_liquid_glass_design_a_comparative_analysis/), which usefully emphasizes refraction and responsive motion, but mixes observation with hardware and product speculation. Apple’s sessions, guidelines, and API documentation provide the technical baseline below.
 

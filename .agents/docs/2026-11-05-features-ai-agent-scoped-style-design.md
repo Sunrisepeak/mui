@@ -1,6 +1,6 @@
 # Feature 裁剪、可插拔 AI／Agent 与局部像素风格
 
-2026-11-05。**综合架构补充，供 review；本轮核查现有代码与上游接口，不宣称新 AI 引擎、像素风格包或 feature 矩阵已实现。** 本仓基线 `3401262`，承接[顶层×子系统方案](2026-11-05-system-subsystem-architecture-and-api-design.md)。本轮将维护者的新要求落实为核心／可选边界、内部与外部决策来源、局部风格配方和可验证的实施顺序。
+2026-11-05。**综合架构补充，供 review；本轮核查现有代码与上游接口，不宣称新 AI 引擎、像素风格包或 feature 矩阵已实现。** 本仓基线 `3401262`，承接[顶层×子系统方案](2026-11-05-system-subsystem-architecture-and-api-design.md)。本轮将新要求落实为核心／可选边界、内部与外部决策来源、局部风格配方和可验证的实施顺序。
 
 ## 1. 核心结论与当前事实
 
@@ -144,7 +144,7 @@ worker独立持有Client／conversation和任务上下文，获得版本化引�
 
 ## 4. llmapi复用与上游适配边界
 
-维护者指定复用 [mcpplibs/llmapi](https://github.com/mcpplibs/llmapi)。本轮实际核查版本为0.2.8、提交 `a48d0cd3147b5bf67b4c25f98764d47cf7f028d1`；采用其 `Client<Provider>`、消息／工具／响应类型与provider能力，避免在本仓再实现供应商HTTP、SSE和消息序列化。[公开API](https://github.com/mcpplibs/llmapi/blob/a48d0cd3147b5bf67b4c25f98764d47cf7f028d1/docs/en/cpp-api.md)
+指定复用 [mcpplibs/llmapi](https://github.com/mcpplibs/llmapi)。本轮实际核查版本为0.2.8、提交 `a48d0cd3147b5bf67b4c25f98764d47cf7f028d1`；采用其 `Client<Provider>`、消息／工具／响应类型与provider能力，避免在本仓再实现供应商HTTP、SSE和消息序列化。[公开API](https://github.com/mcpplibs/llmapi/blob/a48d0cd3147b5bf67b4c25f98764d47cf7f028d1/docs/en/cpp-api.md)
 
 源码发现的集成边界：
 

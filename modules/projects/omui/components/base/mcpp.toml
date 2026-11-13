@@ -32,6 +32,8 @@ omui.core    = { path = "../../core" }
 omui.view    = { path = "../../view" }
 mlibs.unicode = { path = "../../../../base/unicode" }
 mlibs.utils    = { path = "../../../../base/utils" }
+# agent_presence shows who holds which part: the claims are the agent kernel's (D-160, D-173).
+mlibs.agent    = { path = "../../../../base/agent" }
 
 [build-dependencies]
 omui.build.contracts = { path = "../../../../../mcpp/contracts", host-module = true }

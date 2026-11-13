@@ -535,16 +535,17 @@ public:
     // an actor has is replaced (empty text: withdrawn); its presence shows it.
     void note(AgentNote note);
     [[nodiscard]] std::span<const AgentNote> agent_notes() const noexcept override;
-    // Claims (D-160): an actor holding a part of the interface while it designs it, so another
-    // agent's change there is refused (`conflict`: who holds it, what for, for how long). Two
-    // claims stand together unless they meet: the same node (the node itself, or the same
-    // property), or one's subtree holding the other's node. The same actor claiming the same
-    // part again renews it. A person is never held; `by` a person releases any claim.
-    std::expected<Claim, Claim> claim(const ClaimRequest& request, const Actor& by);  // error: the claim in the way
+    // Claims (D-160): an actor holding a part of the interface while it designs it — a node by its
+    // path ("main/settings/notifications"), one of its properties, or the node and everything
+    // inside it — so another agent's change there is refused (`conflict`: who holds it, what for,
+    // for how long). The book is the agent kernel's (mlibs::agent::Claims: what meets, leases,
+    // renewal); here it is kept on the runtime's clock and recorded. A person is never held; `by`
+    // a person releases any claim, and taking over releases them all.
+    std::expected<mlibs::agent::Claim, mlibs::agent::Claim> claim(const mlibs::agent::ClaimRequest& request, const Actor& by);  // error: the claim in the way
     bool release_claim(std::string_view node, std::string_view property, const Actor& by);
-    [[nodiscard]] std::vector<Claim> claims() const override;
+    [[nodiscard]] std::vector<mlibs::agent::Claim> claims() const override;
     // The claim another than `actor` holds over this node (itself, a property of it, or a subtree around it), if one.
-    [[nodiscard]] std::optional<Claim> claim_over(NodeId node, std::string_view actor) const;
+    [[nodiscard]] std::optional<mlibs::agent::Claim> claim_over(NodeId node, std::string_view actor) const;
     // Who performs the action under way (its handlers run inside it): what
     // an action the program performs in turn carries on as its actor
     // (openas: an agent's click that takes a card takes it as the agent).

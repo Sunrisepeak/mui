@@ -3,9 +3,8 @@
 // has the design.* verbs (Live Design's catalog), the design's history beside
 // the application (.omui/design/), previews and variants in stand-ins and the
 // timeline; a release links none (D-149: the designer is left out at build
-// time). Its history is a store of its own (DesignHistory): `omui design sync`
-// reads it.
+// time). Its history is the agent kernel's store (mlibs::agent::History, kept
+// beside the application): `omui design sync` reads it.
 export module omui.designer;
 
-export import :history;
 export import :history_verbs;

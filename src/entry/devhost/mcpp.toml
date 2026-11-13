@@ -24,6 +24,8 @@ main = "src/main.cpp"
 omui.sdk = { path = "../../../modules/projects/omui/sdk" }
 # The design's history is the host's (W16): it goes on while builds come and go.
 omui.designer = { path = "../../../modules/projects/omui/designer" }
+# The design's history store, held here as builds come and go: the agent kernel's.
+mlibs.agent   = { path = "../../../modules/base/agent" }
 omui.agent = { path = "../../../modules/projects/omui/agent" }
 mcpplibs.os = "0.4.4"
 mcpplibs.cmdline = "0.0.3"

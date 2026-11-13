@@ -12,6 +12,7 @@ import std;
 import omui;
 import omui.designer;
 import omui.agent;
+import mlibs.agent;
 import mcpplibs.os;
 import mcpplibs.cmdline;
 
@@ -129,7 +130,7 @@ int main(int argc, char** argv) {
     auto builder = std::make_shared<Builder>();
     builder->project = project;
     // The design's history beside the application, held here: it goes on as builds come and go.
-    designer::DesignHistory history(project / ".omui" / "design");
+    mlibs::agent::History history(project / ".omui" / "design");
     ProjectSources sources;
     sources.project = project;
     std::unique_ptr<designer::HistoryVerbs> held;

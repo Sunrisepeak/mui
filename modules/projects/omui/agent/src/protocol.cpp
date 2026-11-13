@@ -4,6 +4,7 @@ import std;
 import omui.core;
 import omui.view;
 import omui.semantic;
+import mlibs.agent;
 import mlibs.trace;
 import mlibs.pipeline;
 import mlibs.control;
@@ -796,9 +797,9 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
     }
     if (op == "claim" || op == "release" || op == "claims") {
         // Claims (D-160): a part held while an actor designs it.
-        const auto claim_value = [&](const Claim& held) {
+        const auto claim_value = [&](const mlibs::agent::Claim& held) {
             return Value{}
-                .set("node", held.node)
+                .set("node", held.part)
                 .set("property", held.property)
                 .set("subtree", held.subtree)
                 .set("actor", held.actor)
@@ -807,7 +808,7 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         };
         if (op == "claims") {
             Value::List held;
-            for (const Claim& one : runtime_.claims()) held.push_back(claim_value(one));
+            for (const mlibs::agent::Claim& one : runtime_.claims()) held.push_back(claim_value(one));
             return e.data(Value{}.set("claims", Value(std::move(held)))).result(spec::exit_code::success);
         }
         const std::string_view node = text_of(req, "node");
@@ -822,13 +823,13 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
             e.error(spec::error_code::not_found, std::format("no node '{}' to claim", node)).result(spec::exit_code::failure);
             return e;
         }
-        ClaimRequest request{.node = std::string(node), .property = std::string(text_of(req, "property")),
+        mlibs::agent::ClaimRequest request{.part = std::string(node), .property = std::string(text_of(req, "property")),
                              .subtree = req.get("subtree") && req.get("subtree")->as_bool(), .intent = std::string(text_of(req, "intent"))};
         if (const Value* seconds = req.get("seconds"); seconds && seconds->is_number()) request.seconds = seconds->as_double();
         auto made = runtime_.claim(request, current->actor);
         if (!made) {
             e.error(spec::error_code::conflict,
-                    std::format("{} holds '{}'{} ({}): claim another part, or after it", made.error().actor, made.error().node,
+                    std::format("{} holds '{}'{} ({}): claim another part, or after it", made.error().actor, made.error().part,
                                 made.error().property.empty() ? "" : "." + made.error().property, made.error().intent.empty() ? "it said nothing" : made.error().intent),
                     claim_value(made.error()).set("retry_after", std::max(0.0, made.error().until - runtime_.now().count())))
                 .result(spec::exit_code::failure);

@@ -178,29 +178,6 @@ struct AgentNote {
     double      at = 0;              // when, in seconds of the runtime's clock
 };
 
-// An actor designing a part of the interface, held so that another agent's
-// change there waits (D-160: Live Design's claims, as small as they can be):
-// a node itself, one of its properties, or the node and everything inside it.
-// A lease: it ends at `until` unless its holder claims it again. The person
-// is never held by one; they release any, and taking over releases them all.
-struct Claim {
-    std::string node;            // the node's path ("main/settings/notifications")
-    std::string property;        // "": the node; a property's name: that alone
-    bool        subtree = false;  // and everything inside the node
-    std::string actor;           // who holds it ("agent:a;via=session:1")
-    std::string intent;          // what it is doing there, as it said
-    double      since = 0, until = 0;  // the lease, in seconds of the runtime's clock
-};
-
-// What a claim asks for: the part, what for, and how long (renewed by asking again).
-struct ClaimRequest {
-    std::string node;
-    std::string property;
-    bool        subtree = false;
-    std::string intent;
-    double      seconds = 30;
-};
-
 // A web page in a view the system draws (D-141: an external surface), placed
 // by the host over a node: what the framework knows of it — where it is, its
 // title, whether it is loading, whether it can go back or forward.
@@ -431,7 +408,7 @@ public:
     // What each agent last said it intends, or handed back with (Runtime::note), oldest first.
     [[nodiscard]] virtual std::span<const AgentNote> agent_notes() const noexcept { return {}; }
     // The claims held now (D-160), oldest first.
-    [[nodiscard]] virtual std::vector<Claim> claims() const { return {}; }
+    [[nodiscard]] virtual std::vector<mlibs::agent::Claim> claims() const { return {}; }
     // While followed, the node is laid out, painted and stated again when an
     // action is journaled or the agent link changes.
     virtual void follow_actions(NodeId node, bool follow) { (void)node, (void)follow; }

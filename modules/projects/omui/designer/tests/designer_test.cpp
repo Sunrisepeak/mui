@@ -709,17 +709,6 @@ UTest cases{"designer", [] {
         expect(again.get("held") && again.get("held")->as_int() == 2) << again.json();
     };
 
-    "a merge of two texts by lines: each side's change, the same change once, overlapping changes a conflict"_test = [] {
-        const std::string base = "a\nb\nc\nd";
-        const auto both = designer::merge_text(base, "A\nb\nc\nd", "a\nb\nc\nD");
-        expect(!both.conflict && both.text == "A\nb\nc\nD") << both.text;
-        const auto same = designer::merge_text(base, "a\nB\nc\nd", "a\nB\nc\nd");
-        expect(!same.conflict && same.text == "a\nB\nc\nd");
-        const auto inserted = designer::merge_text(base, "a\nb\nx\nc\nd", "a\nb\nc\nd\ny");
-        expect(!inserted.conflict && inserted.text == "a\nb\nx\nc\nd\ny") << inserted.text;
-        expect(designer::merge_text(base, "a\nX\nc\nd", "a\nY\nc\nd").conflict);
-    };
-
     "a module a script imports: watched as the script is; edited and committed by design.edit like a script"_test = [] {
         const auto dir = scratch_dir("player-modules");
         const std::string one = R"j({"omui": "0.1", "view": {"root": {"type": "text", "props": {"text": "one"}}}})j";

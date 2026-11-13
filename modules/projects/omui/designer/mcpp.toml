@@ -31,6 +31,10 @@ omui.semantic = { path = "../semantic" }
 omui.player   = { path = "../player" }
 # Live Design's catalog (design.ops.omui.ts): the design.* verbs as declared.
 omui.agent    = { path = "../agent" }
+# The design's history — the store and its operations — is the agent kernel's (D-173: one for every domain);
+# the verbs' arguments go to it as JSON.
+mlibs.agent   = { path = "../../../base/agent" }
+mlibs.json    = { path = "../../../base/json" }
 mlibs.utils   = { path = "../../../base/utils" }
 
 [dev-dependencies]

@@ -1,11 +1,12 @@
-// Live Design's history, kept by content (omui.player:history, D-151).
-module omui.designer;
+// A subject's history, kept by content (mlibs.agent:history; D-151, D-160).
+module mlibs.agent;
 
 import std;
-import omui.core;
+import mcpplibs.os;
 import mlibs.hash;
+import mlibs.json;
 
-namespace omui::designer {
+namespace mlibs::agent {
 
 namespace {
 
@@ -15,29 +16,23 @@ std::filesystem::path path_of(std::string_view utf8) {
     return std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(utf8.data()), utf8.size()));
 }
 
-std::string text_at(const Value& value, std::string_view key) {
-    const Value* field = value.get(key);
-    return field && field->type() == Value::Type::text ? std::string(field->as_string()) : std::string();
-}
+std::string generic_utf8(const std::filesystem::path& path) { return mcpplibs::os::fs::generic_utf8(path); }
 
 bool hex_id(std::string_view word) {
     return word.size() >= 4 && std::ranges::all_of(word, [](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || c == '-'; });
 }
 
-Value value_of(const DesignCommit& commit) {
-    Value::List parents;
-    for (const auto& parent : commit.parents) parents.push_back(Value(parent));
-    Value files(Value::Map{});
-    for (const auto& [path, object] : commit.files) files.set(path, object);
-    return Value{}
-        .set("parents", Value(std::move(parents)))
-        .set("message", commit.message)
-        .set("actor", commit.actor)
-        .set("branch", commit.branch)
-        .set("time", commit.time)
-        .set("tree", commit.tree)
-        .set("files", std::move(files))
-        .set("changes", commit.changes.empty() ? Value{} : parse_json(commit.changes).value_or(Value{}));
+// A commit as it is kept: its id is this text's hash.
+std::string text_of(const Commit& commit) {
+    std::string out = "{\"parents\":[";
+    for (std::size_t index = 0; index < commit.parents.size(); ++index) out += (index ? "," : "") + json_text(commit.parents[index]);
+    out += std::format("],\"message\":{},\"actor\":{},\"branch\":{},\"time\":{},\"state\":{},\"files\":{{", json_text(commit.message), json_text(commit.actor),
+                       json_text(commit.branch), commit.time, json_text(commit.state));
+    bool first = true;
+    for (const auto& [path, object] : commit.files) out += std::format("{}{}:{}", first ? "" : ",", json_text(path), json_text(object)), first = false;
+    // What changed is the subject's own JSON: kept as it is when it parses, else left out.
+    const bool parses = !commit.changes.empty() && mlibs::json::Document::parse(commit.changes, "changes").has_value();
+    return out + std::format("}},\"changes\":{}}}", parses ? commit.changes : std::string("null"));
 }
 
 std::vector<std::string_view> lines_of(std::string_view text) {
@@ -139,15 +134,15 @@ TextMerge merge_text(std::string_view base, std::string_view ours, std::string_v
     return {std::move(out), false};
 }
 
-DesignHistory::DesignHistory(std::filesystem::path directory) : directory_(std::move(directory)) {}
+History::History(std::filesystem::path directory) : directory_(std::move(directory)) {}
 
-std::optional<std::string> DesignHistory::read(const std::filesystem::path& file) const {
+std::optional<std::string> History::read(const std::filesystem::path& file) const {
     std::ifstream in(file, std::ios::binary);
     if (!in) return std::nullopt;
     return std::string{std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
 }
 
-std::expected<void, std::string> DesignHistory::write(const std::filesystem::path& file, std::string_view text) const {
+std::expected<void, std::string> History::write(const std::filesystem::path& file, std::string_view text) const {
     std::error_code error;
     std::filesystem::create_directories(file.parent_path(), error);
     const auto partial = std::filesystem::path(file).concat(".partial");
@@ -161,7 +156,7 @@ std::expected<void, std::string> DesignHistory::write(const std::filesystem::pat
     return {};
 }
 
-std::expected<std::string, std::string> DesignHistory::put_object(std::string_view text) {
+std::expected<std::string, std::string> History::put_object(std::string_view text) {
     const std::string hash = hash_of(text);
     for (int attempt = 0; attempt < 64; ++attempt) {
         const std::string id = attempt == 0 ? hash : std::format("{}-{}", hash, attempt);
@@ -175,14 +170,14 @@ std::expected<std::string, std::string> DesignHistory::put_object(std::string_vi
     return std::unexpected(std::string("the store has too many texts of one hash"));
 }
 
-std::optional<std::string> DesignHistory::ref(std::string_view kind, std::string_view name) const {
+std::optional<std::string> History::ref(std::string_view kind, std::string_view name) const {
     auto text = read(directory_ / "refs" / kind / path_of(name));
     if (!text) return std::nullopt;
     while (!text->empty() && (text->back() == '\n' || text->back() == '\r')) text->pop_back();
     return text;
 }
 
-std::map<std::string, std::string> DesignHistory::refs(std::string_view kind) const {
+std::map<std::string, std::string> History::refs(std::string_view kind) const {
     std::map<std::string, std::string> out;
     const auto root = directory_ / "refs" / kind;
     std::error_code error;
@@ -194,37 +189,38 @@ std::map<std::string, std::string> DesignHistory::refs(std::string_view kind) co
     return out;
 }
 
-std::string DesignHistory::head_branch() const {
+std::string History::head_branch() const {
     auto head = read(directory_ / "HEAD");
     if (!head) return "main";
     while (!head->empty() && (head->back() == '\n' || head->back() == '\r')) head->pop_back();
     return head->empty() ? std::string("main") : *head;
 }
 
-std::map<std::string, std::string> DesignHistory::branches() const { return refs("heads"); }
-std::map<std::string, std::string> DesignHistory::tags() const { return refs("tags"); }
+std::map<std::string, std::string> History::branches() const { return refs("heads"); }
+std::map<std::string, std::string> History::tags() const { return refs("tags"); }
 
-std::expected<DesignCommit, std::string> DesignHistory::commit_of(std::string_view id) const {
+std::expected<Commit, std::string> History::commit_of(std::string_view id) const {
     const auto text = read(directory_ / "commits" / path_of(std::format("{}.json", id)));
-    if (!text) return std::unexpected(std::format("no design commit `{}`", id));
-    auto value = parse_json(*text);
-    if (!value) return std::unexpected(std::format("design commit {}: {}", id, value.error().text()));
-    DesignCommit commit;
+    if (!text) return std::unexpected(std::format("no commit `{}`", id));
+    const auto document = mlibs::json::Document::parse(*text, std::format("commits/{}.json", id));
+    if (!document) return std::unexpected(std::format("commit {}: {}", id, document.error().text()));
+    const mlibs::json::Node value = document->root();
+    Commit commit;
     commit.id = std::string(id);
-    if (const Value* parents = value->get("parents"); parents && parents->list())
-        for (const Value& parent : *parents->list()) commit.parents.emplace_back(parent.as_string());
-    commit.message = text_at(*value, "message");
-    commit.actor = text_at(*value, "actor");
-    commit.branch = text_at(*value, "branch");
-    commit.tree = text_at(*value, "tree");
-    if (const Value* time = value->get("time"); time && time->is_number()) commit.time = time->as_double();
-    if (const Value* changes = value->get("changes"); changes && !changes->is_null()) commit.changes = changes->json();
-    if (const Value* files = value->get("files"); files && files->map())
-        for (const auto& [path, object] : *files->map()) commit.files.emplace(path, std::string(object.as_string()));
+    for (const mlibs::json::Node& parent : value["parents"].items())
+        if (auto name = parent.text()) commit.parents.push_back(std::move(*name));
+    commit.message = value["message"].text().value_or("");
+    commit.actor = value["actor"].text().value_or("");
+    commit.branch = value["branch"].text().value_or("");
+    commit.state = value["state"].text().value_or("");
+    commit.time = value["time"].number().value_or(0);
+    if (const auto changes = value["changes"]; changes && !changes.is_null()) commit.changes = changes.dump();
+    for (const auto& [path, object] : value["files"].members())
+        if (auto name = object.text()) commit.files.emplace(path, std::move(*name));
     return commit;
 }
 
-std::expected<std::string, std::string> DesignHistory::resolve(std::string_view name) const {
+std::expected<std::string, std::string> History::resolve(std::string_view name) const {
     std::size_t back = 0;
     if (const auto tilde = name.find('~'); tilde != std::string_view::npos) {
         const auto count = name.substr(tilde + 1);
@@ -247,7 +243,7 @@ std::expected<std::string, std::string> DesignHistory::resolve(std::string_view 
         if (matches.size() > 1) return std::unexpected(std::format("`{}` names {} commits: give more of the id", name, matches.size()));
         if (matches.size() == 1) found = matches.front();
     }
-    if (!found) return std::unexpected(std::format("no branch, tag or design commit `{}`", name));
+    if (!found) return std::unexpected(std::format("no branch, tag or commit `{}`", name));
     for (; back > 0; --back) {
         auto commit = commit_of(*found);
         if (!commit) return std::unexpected(commit.error());
@@ -257,7 +253,7 @@ std::expected<std::string, std::string> DesignHistory::resolve(std::string_view 
     return *found;
 }
 
-std::expected<std::map<std::string, std::string>, std::string> DesignHistory::texts_of(std::string_view name) const {
+std::expected<std::map<std::string, std::string>, std::string> History::texts_of(std::string_view name) const {
     auto id = resolve(name);
     if (!id) return std::unexpected(id.error());
     auto commit = commit_of(*id);
@@ -265,27 +261,27 @@ std::expected<std::map<std::string, std::string>, std::string> DesignHistory::te
     std::map<std::string, std::string> out;
     for (const auto& [path, object] : commit->files) {
         auto text = read(directory_ / "objects" / path_of(object));
-        if (!text) return std::unexpected(std::format("design commit {}: the text of {} is missing ({})", *id, path, object));
+        if (!text) return std::unexpected(std::format("commit {}: the text of {} is missing ({})", *id, path, object));
         out.emplace(path, std::move(*text));
     }
     return out;
 }
 
-std::expected<DesignCommit, std::string> DesignHistory::commit(const std::map<std::string, std::string>& texts, std::string message, std::string actor,
-                                                               std::string tree, std::optional<std::vector<std::string>> parents, std::string changes) {
-    return commit_to(head_branch(), texts, std::move(message), std::move(actor), std::move(tree), std::move(parents), std::move(changes));
+std::expected<Commit, std::string> History::commit(const std::map<std::string, std::string>& texts, std::string message, std::string actor,
+                                                               std::string state, std::optional<std::vector<std::string>> parents, std::string changes) {
+    return commit_to(head_branch(), texts, std::move(message), std::move(actor), std::move(state), std::move(parents), std::move(changes));
 }
 
-std::expected<DesignCommit, std::string> DesignHistory::commit_on(std::string_view branch, const std::map<std::string, std::string>& texts,
-                                                                  std::string message, std::string actor, std::string tree) {
+std::expected<Commit, std::string> History::commit_on(std::string_view branch, const std::map<std::string, std::string>& texts,
+                                                                  std::string message, std::string actor, std::string state) {
     if (!valid_ref_name(branch)) return std::unexpected(std::format("`{}` cannot name a branch (letters, digits, - _ . /)", branch));
     if (!ref("heads", branch))
         if (const auto at = resolve("HEAD"))
             if (auto made = write(directory_ / "refs" / "heads" / path_of(branch), *at + "\n"); !made) return std::unexpected(made.error());
-    return commit_to(std::string(branch), texts, std::move(message), std::move(actor), std::move(tree), std::nullopt, {});
+    return commit_to(std::string(branch), texts, std::move(message), std::move(actor), std::move(state), std::nullopt, {});
 }
 
-std::expected<std::filesystem::path, std::string> DesignHistory::keep_picture(std::span<const std::uint8_t> png) {
+std::expected<std::filesystem::path, std::string> History::keep_picture(std::span<const std::uint8_t> png) {
     const std::string_view bytes(reinterpret_cast<const char*>(png.data()), png.size());
     const auto file = directory_ / "pictures" / path_of(hash_of(bytes) + ".png");
     if (const auto there = read(file); there && *there == bytes) return file;
@@ -293,34 +289,38 @@ std::expected<std::filesystem::path, std::string> DesignHistory::keep_picture(st
     return file;
 }
 
-std::optional<std::filesystem::path> DesignHistory::thumbnail(std::string_view commit) const {
+std::optional<std::filesystem::path> History::thumbnail(std::string_view commit) const {
     const auto text = read(directory_ / "thumbnails.json");
     if (!text) return std::nullopt;
-    const auto map = parse_json(*text);
-    const Value* name = map ? map->get(commit) : nullptr;
-    if (!name || name->type() != Value::Type::text) return std::nullopt;
-    auto file = directory_ / "pictures" / path_of(name->as_string());
+    const auto map = mlibs::json::Document::parse(*text, "thumbnails.json");
+    const auto name = map ? map->root()[commit].text() : std::nullopt;
+    if (!name) return std::nullopt;
+    auto file = directory_ / "pictures" / path_of(*name);
     std::error_code error;
     return std::filesystem::exists(file, error) ? std::optional(std::move(file)) : std::nullopt;
 }
 
-std::expected<void, std::string> DesignHistory::set_thumbnail(std::string_view commit, const std::filesystem::path& picture) {
-    const auto text = read(directory_ / "thumbnails.json");
-    Value map(Value::Map{});
-    if (text)
-        if (auto read_back = parse_json(*text); read_back && read_back->map()) map = std::move(*read_back);
-    map.set(commit, generic_utf8(picture.filename()));
-    return write(directory_ / "thumbnails.json", map.json());
+std::expected<void, std::string> History::set_thumbnail(std::string_view commit, const std::filesystem::path& picture) {
+    // The map again, this commit's picture set: kept by key.
+    std::map<std::string, std::string> names;
+    if (const auto text = read(directory_ / "thumbnails.json"))
+        if (const auto map = mlibs::json::Document::parse(*text, "thumbnails.json"))
+            for (const auto& [key, value] : map->root().members())
+                if (auto name = value.text()) names.insert_or_assign(key, std::move(*name));
+    names.insert_or_assign(std::string(commit), generic_utf8(picture.filename()));
+    std::string out = "{";
+    for (const auto& [key, name] : names) out += std::format("{}{}:{}", out.size() > 1 ? "," : "", json_text(key), json_text(name));
+    return write(directory_ / "thumbnails.json", out + "}");
 }
 
-std::expected<DesignCommit, std::string> DesignHistory::commit_to(const std::string& branch_name, const std::map<std::string, std::string>& texts,
-                                                                  std::string message, std::string actor, std::string tree,
+std::expected<Commit, std::string> History::commit_to(const std::string& branch_name, const std::map<std::string, std::string>& texts,
+                                                                  std::string message, std::string actor, std::string state,
                                                                   std::optional<std::vector<std::string>> parents, std::string changes) {
-    DesignCommit commit;
+    Commit commit;
     commit.message = std::move(message);
     commit.actor = std::move(actor);
     commit.branch = branch_name;
-    commit.tree = std::move(tree);
+    commit.state = std::move(state);
     commit.changes = std::move(changes);
     commit.time = std::chrono::duration<double>(std::chrono::system_clock::now().time_since_epoch()).count();
     const auto last = ref("heads", branch_name);
@@ -334,7 +334,7 @@ std::expected<DesignCommit, std::string> DesignHistory::commit_to(const std::str
     if (last && commit.parents.size() <= 1)
         if (auto previous = commit_of(*last); previous && previous->files == commit.files)
             return std::unexpected(std::format("nothing changed since {}", *last));
-    const std::string text = value_of(commit).json();
+    const std::string text = text_of(commit);
     commit.id = hash_of(text);
     if (auto written = write(directory_ / "commits" / path_of(commit.id + ".json"), text); !written) return std::unexpected(written.error());
     if (auto moved = write(directory_ / "refs" / "heads" / path_of(branch_name), commit.id + "\n"); !moved) return std::unexpected(moved.error());
@@ -343,7 +343,7 @@ std::expected<DesignCommit, std::string> DesignHistory::commit_to(const std::str
     return commit;
 }
 
-std::expected<std::string, std::string> DesignHistory::branch(std::string_view name, std::optional<std::string_view> at) {
+std::expected<std::string, std::string> History::branch(std::string_view name, std::optional<std::string_view> at) {
     if (!valid_ref_name(name)) return std::unexpected(std::format("`{}` cannot name a branch (letters, digits, - _ . /)", name));
     if (ref("heads", name)) return std::unexpected(std::format("a branch `{}` is there already", name));
     auto commit = resolve(at.value_or("HEAD"));
@@ -352,14 +352,14 @@ std::expected<std::string, std::string> DesignHistory::branch(std::string_view n
     return *commit;
 }
 
-std::expected<std::string, std::string> DesignHistory::switch_to(std::string_view branch_name) {
+std::expected<std::string, std::string> History::switch_to(std::string_view branch_name) {
     const auto last = ref("heads", branch_name);
     if (!last) return std::unexpected(std::format("no branch `{}`", branch_name));
     if (auto written = write(directory_ / "HEAD", std::format("{}\n", branch_name)); !written) return std::unexpected(written.error());
     return *last;
 }
 
-std::expected<std::string, std::string> DesignHistory::tag(std::string_view name, std::optional<std::string_view> at) {
+std::expected<std::string, std::string> History::tag(std::string_view name, std::optional<std::string_view> at) {
     if (!valid_ref_name(name)) return std::unexpected(std::format("`{}` cannot name a tag (letters, digits, - _ . /)", name));
     if (ref("tags", name)) return std::unexpected(std::format("a tag `{}` is there already", name));
     auto commit = resolve(at.value_or("HEAD"));
@@ -368,8 +368,8 @@ std::expected<std::string, std::string> DesignHistory::tag(std::string_view name
     return *commit;
 }
 
-std::vector<DesignCommit> DesignHistory::log(std::string_view name, std::size_t limit) const {
-    std::vector<DesignCommit> out;
+std::vector<Commit> History::log(std::string_view name, std::size_t limit) const {
+    std::vector<Commit> out;
     auto id = resolve(name);
     for (std::optional<std::string> next = id ? std::optional(*id) : std::nullopt; next && out.size() < limit;) {
         auto commit = commit_of(*next);
@@ -380,7 +380,7 @@ std::vector<DesignCommit> DesignHistory::log(std::string_view name, std::size_t 
     return out;
 }
 
-std::optional<std::string> DesignHistory::common_ancestor(std::string_view first, std::string_view second) const {
+std::optional<std::string> History::common_ancestor(std::string_view first, std::string_view second) const {
     auto from = resolve(first), to = resolve(second);
     if (!from || !to) return std::nullopt;
     // Every commit the first reaches, then the second's nearest among them (breadth first).
@@ -406,4 +406,4 @@ std::optional<std::string> DesignHistory::common_ancestor(std::string_view first
     return std::nullopt;
 }
 
-}  // namespace omui::designer
+}  // namespace mlibs::agent

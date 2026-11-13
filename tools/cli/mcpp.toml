@@ -23,8 +23,8 @@ sources = ["src/*.cppm", "src/*.cpp", "src/catalog/*.cppm"]
 [dependencies]
 omui.core        = { path = "../../modules/projects/omui/core" }
 omui.agent       = { path = "../../modules/projects/omui/agent" }
-# Live Design's history store (omui design sync).
-omui.designer    = { path = "../../modules/projects/omui/designer" }
+# A design's history store (omui design sync): the agent kernel's, with no designer linked.
+mlibs.agent      = { path = "../../modules/base/agent" }
 omui.mcp         = { path = "../mcp" }
 omui.viewdoc     = { path = "../../modules/projects/omui/viewdoc" }
 omui.lang.ts     = { path = "../../modules/projects/omui/lang/ts" }

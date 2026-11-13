@@ -8,6 +8,7 @@ export module omui.ui.base:actors;
 import std;
 import omui.core;
 import omui.view;
+import mlibs.agent;
 import :parts;
 import :actor_log_contract;
 import :agent_presence_contract;
@@ -72,7 +73,7 @@ struct AgentPresenceState {
     bool                        asking = false;  // its last request waits for the person's answer
     bool                        taken_over = false;  // the person has taken over from every agent (S-14)
     std::optional<AgentNote>    note;  // what it says it is about to do, or hands back with (openas §4.4, §5.3)
-    std::vector<Claim>          claims;  // the parts it holds while it designs them (D-160)
+    std::vector<mlibs::agent::Claim> claims;  // the parts it holds while it designs them (D-160)
     std::size_t                 hue = 0;  // its colour: the order it came in (0: the theme's `agent`)
 };
 // From the journal: the actors whose names begin with `actors`, the newest

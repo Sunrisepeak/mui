@@ -3,6 +3,7 @@ module omui.ui.base;
 import std;
 import omui.core;
 import omui.view;
+import mlibs.agent;
 
 namespace omui {
 
@@ -353,7 +354,7 @@ AgentPresenceState presence_of(const Services& services, std::string_view actors
     for (const AgentNote& note : services.agent_notes())
         if (out.actor.empty() ? matches(note.actor) : note.actor == out.actor) out.note = note;
     if (out.actor.empty() && out.note) out.actor = out.note->actor;
-    for (const Claim& held : services.claims())
+    for (const mlibs::agent::Claim& held : services.claims())
         if (out.actor.empty() ? matches(held.actor) : held.actor == out.actor) {
             if (out.actor.empty()) out.actor = held.actor;
             if (held.actor == out.actor) out.claims.push_back(held);
@@ -380,7 +381,7 @@ std::vector<AgentPresenceState> agent_presence_states(const Services& services, 
     for (const ActionEntry& e : services.action_journal())
         if (except.empty() || !e.path.starts_with(except)) seen(e.actor, e.at);
     for (const AgentNote& note : services.agent_notes()) seen(note.actor, note.at);
-    for (const Claim& held : services.claims()) seen(held.actor, held.since);
+    for (const mlibs::agent::Claim& held : services.claims()) seen(held.actor, held.since);
     std::vector<AgentPresenceState> out;
     for (std::size_t index = 0; index < order.size(); ++index) {
         AgentPresenceState one = presence_of(services, order[index], true, trail, except);
@@ -485,8 +486,8 @@ void AgentPresence::paint_one(PaintContext& ctx, const AgentPresenceState& now, 
     };
 
     // What it holds (D-160): a dashed outline round each part, its name and what for.
-    for (const Claim& held : now.claims) {
-        const NodeId part = services().find(held.node);
+    for (const mlibs::agent::Claim& held : now.claims) {
+        const NodeId part = services().find(held.part);
         if (!part) continue;
         const Rect at = local(services().bounds(part));
         if (at.empty()) continue;
@@ -594,7 +595,7 @@ void AgentPresence::semantics(SemanticsContext&, spec::SemanticNode& node) const
     Value::List agents;
     for (const AgentPresenceState& one : states()) {
         Value::List held;
-        for (const Claim& claim : one.claims) held.push_back(Value{}.set("node", claim.node).set("property", claim.property).set("intent", claim.intent));
+        for (const mlibs::agent::Claim& claim : one.claims) held.push_back(Value{}.set("node", claim.part).set("property", claim.property).set("intent", claim.intent));
         Value agent = Value{}.set("actor", one.actor).set("hue", static_cast<std::int64_t>(one.hue)).set("claims", Value(std::move(held)));
         if (one.now) agent.set("node", one.now->path).set("action", one.now->action);
         if (one.note) agent.set("says", one.note->text);

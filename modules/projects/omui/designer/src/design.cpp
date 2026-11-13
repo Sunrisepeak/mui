@@ -13,6 +13,7 @@ import omui.abi;
 import omui.semantic;
 import omui.agent;
 import omui.player;
+import mlibs.agent;
 import :views;
 
 namespace omui {  // names this file uses unqualified, from their owner
@@ -50,7 +51,7 @@ private:
     Runtime&                 rt;
     std::vector<std::string> added;  // the verbs it added
     // Live Design's history (D-151): states of the design on branches, beside the application.
-    DesignHistory history;
+    mlibs::agent::History history;
     HistoryVerbs  held{rt, history, *this};  // the history's verbs, over the player's sources (DesignSources below)
     std::string   intent;  // what the design session is doing (design.begin): each step's commit says it
     // What the person expects of the design, in their words and as a query
@@ -175,7 +176,7 @@ private:
                                      by ? by->actor.text() : std::string("person"), agent::tree_hash(tree), std::nullopt,
                                      changes ? changes->json() : std::string());
         if (commit) done->set("commit", commit->id);
-        held.shown_commit.clear();  // the branch's last commit, the step's
+        held.see();  // the branch's last commit, the step's
         refresh_timeline();
         return done;
     }
@@ -327,13 +328,13 @@ private:
     double                   pace = 1;  // the design steps' presentation: its time scaled (design.pace)
 
     // Every commit the branches reach, oldest first.
-    std::vector<DesignCommit> commits_in_time() const {
-        std::map<std::string, DesignCommit> all;
+    std::vector<mlibs::agent::Commit> commits_in_time() const {
+        std::map<std::string, mlibs::agent::Commit> all;
         for (const auto& [branch, head] : history.branches())
-            for (DesignCommit& commit : history.log(branch, 500)) all.try_emplace(commit.id, std::move(commit));
-        std::vector<DesignCommit> out;
+            for (mlibs::agent::Commit& commit : history.log(branch, 500)) all.try_emplace(commit.id, std::move(commit));
+        std::vector<mlibs::agent::Commit> out;
         for (auto& [id, commit] : all) out.push_back(std::move(commit));
-        std::ranges::sort(out, [](const DesignCommit& left, const DesignCommit& right) {
+        std::ranges::sort(out, [](const mlibs::agent::Commit& left, const mlibs::agent::Commit& right) {
             return left.time != right.time ? left.time < right.time : left.id < right.id;
         });
         return out;
@@ -350,7 +351,7 @@ private:
         const std::string head = history.head_branch(), shown = shown_now();
         std::map<std::string, TimelineLane> lanes;
         for (std::size_t column = 0; column < in_time.size(); ++column) {
-            const DesignCommit& commit = in_time[column];
+            const mlibs::agent::Commit& commit = in_time[column];
             TimelineLane& lane = lanes[commit.branch];
             lane.branch = commit.branch;
             lane.head = commit.branch == head;
@@ -402,7 +403,7 @@ private:
         if (kind == Scrub::release) scrubbing = false;
         const auto in_time = commits_in_time();
         if (in_time.empty()) return;
-        const DesignCommit& reached = in_time[std::min(column, in_time.size() - 1)];
+        const mlibs::agent::Commit& reached = in_time[std::min(column, in_time.size() - 1)];
         if (reached.id != shown_now()) (void)see_commit(reached.id);
     }
 
@@ -421,7 +422,7 @@ private:
         }
         auto applied = apply_texts(*texts, Runtime::DesignPresentation::Kind::switch_to);
         if (!applied) return std::unexpected(applied.error());
-        held.shown_commit = id;
+        held.see(id);
         if (const auto commit = history.commit_of(id)) timeline_note = std::format("{} — {}", id.substr(0, 8), commit->message);
         refresh_timeline();
         return applied->set("at", id);
@@ -431,7 +432,7 @@ private:
         const auto in_time = commits_in_time();
         if (in_time.empty()) return std::unexpected(std::string("the design has no commits yet"));
         const std::string shown = shown_now();
-        const auto at = std::ranges::find(in_time, shown, &DesignCommit::id);
+        const auto at = std::ranges::find(in_time, shown, &mlibs::agent::Commit::id);
         const auto index = at == in_time.end() ? static_cast<std::ptrdiff_t>(in_time.size()) - 1 : at - in_time.begin();
         const auto next = std::clamp<std::ptrdiff_t>(index + by, 0, static_cast<std::ptrdiff_t>(in_time.size()) - 1);
         return see_commit(in_time[static_cast<std::size_t>(next)].id);
@@ -979,7 +980,7 @@ private:
             Value::List answered;
             for (const Value& variant : *list->list()) {
                 const std::string name(variant.get("name") ? variant.get("name")->as_string() : "");
-                if (!valid_ref_name(name) || name.contains('/')) return std::unexpected(std::format("`{}` cannot name a variant (letters, digits, - _ .)", name));
+                if (!mlibs::agent::valid_ref_name(name) || name.contains('/')) return std::unexpected(std::format("`{}` cannot name a variant (letters, digits, - _ .)", name));
                 auto texts = with_edits(variant);
                 if (!texts) return std::unexpected(std::format("{}: {}", name, texts.error()));
                 auto shown = stand_in(*texts);

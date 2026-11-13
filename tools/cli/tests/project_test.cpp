@@ -8,7 +8,7 @@ import mcpplibs.mtest;
 import mcpplibs.os;
 import omui.cli;
 import omui.core;
-import omui.designer;
+import mlibs.agent;
 import omui.mcp;
 
 using namespace mcpplibs::mtest;
@@ -67,7 +67,7 @@ UTest cases{"cli.project", [] {
         std::ofstream(repository / "app" / "app.ts", std::ios::binary) << "mount(\"main\", text({ text: \"one\" }));\n";
         expect(git({"init", "-q", "-b", "work"}).first && git({"add", "."}).first && git({"commit", "-q", "-m", "start"}).first);
         const std::string start = git({"rev-parse", "HEAD"}).second;
-        designer::DesignHistory history(repository / "app" / ".omui" / "design");
+        mlibs::agent::History history(repository / "app" / ".omui" / "design");
         expect(history.commit({{"app.ts", "mount(\"main\", text({ text: \"two\" }));\n"}}, "says two", "agent:designer", "t2").has_value());
         expect(history.branch("loud").has_value() && history.switch_to("loud").has_value());
         expect(history.commit({{"app.ts", "mount(\"main\", text({ text: \"THREE\" }));\n"}}, "shouts three", "agent:designer", "t3").has_value());

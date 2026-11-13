@@ -152,7 +152,7 @@ UTest cases{"ui.base.agent_presence", [] {
         };
         as("guide", "main/body/actions/save", "focus");
         as("scout", "main/body/appearance/dark", "toggle");
-        expect(rt.claim({.node = "main/body/appearance", .subtree = true, .intent = "a dark look"}, {"agent", "scout", {}}).has_value());
+        expect(rt.claim({.part = "main/body/appearance", .subtree = true, .intent = "a dark look"}, {"agent", "scout", {}}).has_value());
         h.settle();
         const auto node = h.tree().node("main/presence");
         expect(fatal(node.has_value()));

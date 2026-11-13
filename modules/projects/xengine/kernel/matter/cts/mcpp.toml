@@ -34,7 +34,7 @@ mcpplibs.mtest = "0.6.3"
 # then with cells that move.
 # tests/agent_test.cpp: a field of matter as an agent's subject (the feature `matter-agent`, which implies the
 # two it joins) — under the agent contract's suite, and the emergence scenes asked why through a session.
-xengine.cellular = { path = "../../cellular", features = ["matter-agent"] }
+xengine.cellular = { path = "../../cellular", features = ["matter-agent", "rigid"] }
 "mlibs.agent.cts" = { path = "../../../../../base/agent/cts" }
 mlibs.agent     = { path = "../../../../../base/agent" }
 mlibs.json      = { path = "../../../../../base/json" }

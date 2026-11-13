@@ -58,7 +58,9 @@ struct BodyId {
     bool operator==(const BodyId&) const = default;
     [[nodiscard]] explicit operator bool() const noexcept { return index != 0; }
 };
-struct Pose { Vec at; float angle = 0; Vec velocity; float spin = 0; bool awake = true; };
+// Where a body is: `at` its origin, `rotation` its angle as (cos, sin) — what maps its own frame to the world's
+// without a trigonometric call — `centre` its centre of mass in the world.
+struct Pose { Vec at; float angle = 0; Vec velocity; float spin = 0; bool awake = true; Vec rotation{1, 0}; Vec centre; float mass = 0; };
 // Two bodies that began or ended touching in the last step, where, and how hard they met.
 struct Contact {
     BodyId one, other;
@@ -95,11 +97,18 @@ public:
     [[nodiscard]] std::vector<BodyId> bodies() const;
     void push(BodyId body, Vec impulse, std::optional<Vec> at = std::nullopt) noexcept;  // at: the centre
     void set_velocity(BodyId body, Vec velocity, float spin) noexcept;
+    // An impulse through the centre of mass and an angular one: what forces summed over a step amount to.
+    void apply(BodyId body, Vec impulse, float angular) noexcept;
+    // The body's shapes replaced by these (one material each): what it is made of changed. None: refused.
+    [[nodiscard]] std::expected<void, Error> reshape(BodyId body, std::span<const Shape> shapes, std::span<const Material> materials);
+    // A fixed body at `at` and `angle` with several shapes — terrain.
+    [[nodiscard]] std::expected<BodyId, Error> add(const BodyDef& body, std::span<const Shape> shapes, std::span<const Material> materials);
 
     // One fixed step (Options::step, its substeps); what began and ended touching in it.
     void step() noexcept;
     [[nodiscard]] std::span<const Contact> contacts() const noexcept { return contacts_; }
     [[nodiscard]] std::uint64_t steps() const noexcept { return steps_; }
+    [[nodiscard]] const Options& options() const noexcept { return options_; }
 
     // The whole state at this step boundary, as Box2D's snapshot image with the step count: restore it into
     // this world (every id still names its body), or make a world of its own from it.

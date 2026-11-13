@@ -16,6 +16,8 @@ kind = "lib"
 
 [build]
 sources = ["src/*.cppm", "src/*.cpp"]
+# Integer kernels; the feature `rigid` maps cells through bodies' poses in floats: the same bits everywhere.
+cxxflags = ["-fno-fast-math", "-ffp-contract=off"]
 
 [dependencies]
 mlibs.utils = { path = "../../../../base/utils" }
@@ -36,6 +38,11 @@ matter = { sources = ["src/matter/*.cppm", "src/matter/*.cpp"] }
 # A field of matter as an agent's subject (src/matter/agent/, module xengine.cellular.matter.agent; D-169):
 # materials by name, channels in units, a quantity applied, and why a cell is what it is — the record of causes
 # made at each frame's commit from the matter kernel's `why`. Both of the above, and nothing more.
+# Rigid bodies made of the lattice's cells (src/rigid/, module xengine.cellular.rigid; the plan's §6.7): a body
+# of solid cells that moves with xengine.dynamics' rigid family while the lattice keeps simulating its cells —
+# it burns away, is re-made, splits; a liquid holds it up and drags it, a blast pushes it; the field's own solid
+# cells are fixed collision. It joins the lattice of matter and the rigid family, and nothing more.
+rigid = { implies = ["matter"], sources = ["src/rigid/*.cppm", "src/rigid/*.cpp"] }
 matter-agent = { implies = ["agent", "matter"], sources = ["src/matter/agent/*.cppm", "src/matter/agent/*.cpp"] }
 
 [feature-deps.agent]
@@ -47,6 +54,9 @@ openlifa.openas  = "0.2.0"
 
 [feature-deps.matter]
 xengine.matter = { path = "../matter", default-features = false }
+
+[feature-deps.rigid]
+xengine.dynamics = { path = "../dynamics", features = ["rigid"] }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.6.3"

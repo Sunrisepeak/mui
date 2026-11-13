@@ -2,6 +2,7 @@
 module xengine.dynamics.rigid;
 import std;
 import mcpplibs.mwrap.box2d;
+import mcpplibs.mwrap.box2d.macros;
 import mlibs.hash;
 
 namespace xengine::dynamics::rigid {
@@ -112,8 +113,9 @@ bool World::has(BodyId body) const noexcept { return body && b2Body_IsValid(nati
 std::optional<Pose> World::pose(BodyId body) const noexcept {
     if (!has(body)) return std::nullopt;
     const b2BodyId native = native_->native(body);
-    return Pose{vec(b2Body_GetPosition(native)), b2Rot_GetAngle(b2Body_GetRotation(native)), vec(b2Body_GetLinearVelocity(native)), b2Body_GetAngularVelocity(native),
-                b2Body_IsAwake(native)};
+    const b2Rot rotation = b2Body_GetRotation(native);
+    return Pose{vec(b2Body_GetPosition(native)), b2Rot_GetAngle(rotation), vec(b2Body_GetLinearVelocity(native)), b2Body_GetAngularVelocity(native),
+                b2Body_IsAwake(native), {rotation.c, rotation.s}, vec(b2Body_GetWorldCenter(native)), b2Body_GetMass(native)};
 }
 
 std::vector<BodyId> World::bodies() const { return bodies_; }
@@ -128,6 +130,46 @@ void World::set_velocity(BodyId body, Vec velocity, float spin) noexcept {
     if (!has(body)) return;
     b2Body_SetLinearVelocity(native_->native(body), vec(velocity));
     b2Body_SetAngularVelocity(native_->native(body), spin);
+}
+
+void World::apply(BodyId body, Vec impulse, float angular) noexcept {
+    if (!has(body)) return;
+    const b2BodyId native = native_->native(body);
+    if (impulse.x != 0 || impulse.y != 0) b2Body_ApplyLinearImpulseToCenter(native, vec(impulse), true);
+    if (angular != 0) b2Body_ApplyAngularImpulse(native, angular, true);
+}
+
+std::expected<void, Error> World::reshape(BodyId body, std::span<const Shape> shapes, std::span<const Material> materials) {
+    if (!has(body)) return std::unexpected(Error{Errc::body, "no such body"});
+    if (shapes.empty() || shapes.size() != materials.size()) return std::unexpected(Error{Errc::shape, "a shape at least, and a material each"});
+    const b2BodyId native = native_->native(body);
+    std::vector<b2ShapeId> old(static_cast<std::size_t>(b2Body_GetShapeCount(native)));
+    (void)b2Body_GetShapes(native, old.data(), static_cast<int>(old.size()));
+    for (std::size_t index = 0; index < shapes.size(); ++index)
+        if (auto attached = attach_to(native, shapes[index], materials[index]); !attached) {
+            // What was attached so far goes again: the body keeps the shapes it had.
+            std::vector<b2ShapeId> all(static_cast<std::size_t>(b2Body_GetShapeCount(native)));
+            (void)b2Body_GetShapes(native, all.data(), static_cast<int>(all.size()));
+            for (const b2ShapeId shape : all)
+                if (std::ranges::none_of(old, [&](b2ShapeId kept) { return mcpplibs::mwrap::box2d::macros::B2_ID_EQUALS(kept, shape); })) b2DestroyShape(shape, false);
+            b2Body_UpdateMassFromShapes(native);
+            return std::unexpected(attached.error());
+        }
+    for (const b2ShapeId shape : old) b2DestroyShape(shape, false);
+    b2Body_UpdateMassFromShapes(native);
+    return {};
+}
+
+std::expected<BodyId, Error> World::add(const BodyDef& body, std::span<const Shape> shapes, std::span<const Material> materials) {
+    if (shapes.empty() || shapes.size() != materials.size()) return std::unexpected(Error{Errc::shape, "a shape at least, and a material each"});
+    auto made = add(body, shapes.front(), materials.front());
+    if (!made) return made;
+    for (std::size_t index = 1; index < shapes.size(); ++index)
+        if (auto attached = attach(*made, shapes[index], materials[index]); !attached) {
+            remove(*made);
+            return std::unexpected(attached.error());
+        }
+    return made;
 }
 
 void World::step() noexcept {

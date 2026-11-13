@@ -111,6 +111,23 @@ Sparse execution holds with reactions as with rules (a tile sleeps when nothing 
 
 Preparation owns a validated descriptor, infers halo reach and enforces resource/offset limits. `step` accepts a tile size/order; `step_tile` writes only the requested rectangle and reads its logical halo from the full immutable field. Hosts may schedule disjoint rectangles through their existing task executor. This is not streamed halo exchange, multi-cell movement arbitration or a new task pool.
 
+**Rigid bodies of cells** (the package's feature `rigid`, module `xengine.cellular.rigid`; the plan's §6.7): a body is a grid of solid cells that [xengine.dynamics](../dynamics)' rigid family (Box2D v3) moves as one, while the lattice keeps simulating its cells. Each frame the host stamps the bodies into the field, steps the lattice, and `push` / `lift` / `terrain` / world step / `stamp`:
+
+```cpp
+auto world = dyn::World::make({.gravity = {0, 9.8f}});                  // y down, as the field's rows
+auto bodies = ca::rigid::Bodies::make(program, shape, *world, {.cell = 0.1f});
+auto made = bodies->carve(cells, {x, y, w, h}, air);                     // the solid cells there become bodies
+// a frame
+lattice.step(shape, cells, next, …); cells.swap(next);
+bodies->push(cells); bodies->lift(cells); bodies->terrain(cells); world->step(); bodies->stamp(cells);
+```
+
+- **What the lattice makes of a body's cells is the body's**: they heat, get wet, burn; a cell no longer solid (burnt to ash, melted) leaves it, and the body is re-made of what is left — exactly, as rectangles of one material each — or falls apart into several bodies (four-neighbour pieces), each moving as the old one moved at its centre.
+- **Matter is conserved**: what a body moves into — a liquid, a powder — changes places with the nearest gas no body holds (within `room` cells), and that gas lies under the body until it moves away. A basin with a crate of wood and one of iron keeps every cell of its water over 600 frames.
+- **The field acts on bodies**: buoyancy cell by cell (a cell is under a liquid's surface when its row, walked out of the body, meets the liquid; it displaces that liquid's weight, up, at its centre — so a body rights itself), drag on the faces a liquid wets, a blast's `pressure` on its faces (`Options::blast`). Densities are the table's: wood floats across the surface, iron sinks.
+- **Terrain**: the field's own solid cells are fixed collision, a body per tile of 32, rebuilt only where a tile's solid cells changed.
+- Deterministic: the mapping of cells through poses is + − × and floor without contraction; two runs are the same field and bodies bit for bit (`xengine.matter.cts` coupling_test: a crate lands on stone and rests, wood floats and iron sinks with the water conserved, a plank across two pillars lit in the middle burns through and falls in two, two runs equal).
+
 **Sparse execution** (D-167): a field pays for what is happening in it. Give `step` a byte a tile that you keep between the steps of one field, and a tile at rest is not run:
 
 ```cpp

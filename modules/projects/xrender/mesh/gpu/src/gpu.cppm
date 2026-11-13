@@ -25,6 +25,7 @@ export import :shadow_shaders;
 export import :glow_shaders;
 export import :velocity_shaders;
 export import :resolve_shaders;
+export import :open_shaders;
 
 export namespace xrender::mesh::gpu {
 
@@ -55,6 +56,9 @@ struct Shadows {
     float               behind = 200;   // toward the sun from there: how far off a caster may stand
     mlibs::rhi::Texture lamps_map, lamps_depth;
     std::uint32_t       lamp_size = 512, lamps = 4;
+    // What stands in the way of the light from everywhere: `Open`'s picture of this frame (r32_float, the
+    // target's size). Left out: every place is wholly open.
+    mlibs::rhi::Texture open;
 };
 
 class Pass {
@@ -94,6 +98,10 @@ public:
     // the next. What stood still under a still view says exactly 0; the jitter is not a movement.
     void record_velocity(mlibs::rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, mlibs::rhi::Texture velocity,
                          mlibs::rhi::Texture depth, std::uint32_t width, std::uint32_t height, const Options& options = {});
+    // The surface at each pixel, for `Open`: a pass on `surface` (rgba16_float, a colour target that can be
+    // sampled) — which way it faces and how far from the eye it is (to 250; further is as nothing there).
+    void record_surface(mlibs::rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, mlibs::rhi::Texture surface,
+                        mlibs::rhi::Texture depth, std::uint32_t width, std::uint32_t height, const Options& options = {});
     // After a cut: nothing is remembered, and the next frame's velocity is 0.
     void forget() noexcept { remembered_ = false; }
     [[nodiscard]] const Stats& last() const noexcept { return last_; }
@@ -111,7 +119,7 @@ private:
         bool               placed = false;  // it has texture coordinates
     };
     mlibs::rhi::Device*          device_ = nullptr;
-    mlibs::rhi::GraphicsPipeline pipeline_, ids_pipeline_, sky_pipeline_, shadow_pipeline_, lamp_shadow_pipeline_, who_pipeline_, velocity_pipeline_;
+    mlibs::rhi::GraphicsPipeline pipeline_, ids_pipeline_, sky_pipeline_, shadow_pipeline_, lamp_shadow_pipeline_, who_pipeline_, velocity_pipeline_, surface_pipeline_;
     mlibs::rhi::Sampler          nearest_;
     mlibs::rhi::Texture          no_shadow_;  // a texel, for the map's place when there is no map
     mlibs::rhi::Buffer           cover_;  // three corners over the picture: what the sky is drawn with
@@ -169,6 +177,31 @@ public:
 
 private:
     Temporal() = default;
+    void release() noexcept;
+    mlibs::rhi::Device*          device_ = nullptr;
+    mlibs::rhi::GraphicsPipeline pipeline_;
+    mlibs::rhi::Sampler          nearest_;
+    mlibs::rhi::Buffer           cover_;
+};
+
+// How open each pixel's place is to the light from everywhere, on a device (the reference: `Options::
+// occlusion_rays`, rays through the scene): rays about the surface's normal stepped through the picture
+// `Pass::record_surface` drew. It knows what the eye sees and no more: what is behind a thing or off the
+// picture shuts nothing.
+class Open {
+public:
+    [[nodiscard]] static mlibs::rhi::Result<Open> make(mlibs::rhi::Device& device);
+    Open(Open&& other) noexcept;
+    Open& operator=(Open&& other) noexcept;
+    ~Open();
+    // One pass onto `open` (r32_float, a colour target that can be sampled; hand it to the mesh pass as
+    // `Shadows::open`): `options.occlusion_rays` rays a pixel (32 at the most) of `steps` steps each, as far as
+    // `options.occlusion_reach`; the same picture each time for a seed.
+    void record(mlibs::rhi::CommandList& list, const scene::View& view, mlibs::rhi::Texture surface, mlibs::rhi::Texture open, std::uint32_t width, std::uint32_t height,
+                const Options& options, std::uint32_t steps = 12);
+
+private:
+    Open() = default;
     void release() noexcept;
     mlibs::rhi::Device*          device_ = nullptr;
     mlibs::rhi::GraphicsPipeline pipeline_;

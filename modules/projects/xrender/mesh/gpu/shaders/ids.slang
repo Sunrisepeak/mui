@@ -47,3 +47,19 @@ float4 who_fs(VOut point) : SV_Target {
     if (dot(point.normal, who.eye.xyz - point.place) < 0) discard;
     return float4(float(who.number), 0, 0, 1);
 }
+
+// The surface at a pixel, in a picture of half floats: the normal folded onto a square (two numbers), and how
+// far from the eye in two parts — eighths, which a half float holds exactly to 256, and what is left over,
+// which it then holds to a few hundred-thousandths. Nothing there: 0 far.
+[shader("fragment")]
+float4 surface_fs(VOut point) : SV_Target {
+    const float3 to_eye = who.eye.xyz - point.place;
+    if (dot(point.normal, to_eye) < 0) discard;
+    const float3 normal = normalize(point.normal);
+    const float3 folded = normal / (abs(normal.x) + abs(normal.y) + abs(normal.z));
+    float2 on_square = folded.xy;
+    if (folded.z < 0) on_square = (1.0 - abs(folded.yx)) * float2(folded.x >= 0 ? 1 : -1, folded.y >= 0 ? 1 : -1);
+    const float far = min(length(to_eye), 250.0);
+    const float eighths = floor(far * 8.0) * 0.125;
+    return float4(on_square, eighths, far - eighths);
+}

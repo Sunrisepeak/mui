@@ -587,6 +587,91 @@ UTest cases{"mesh.gpu.sdl", [] {
         }
         device->destroy(*colour);
     };
+    "how open a place is, on the device: rays stepped through what the eye sees darken the yard where the reference's rays through the scene do — under the ball, by the box and the post"_test = [] {
+        auto device = open_device();
+        if (!device) return;
+        // No lights: the light from everywhere alone, so that what is compared is how much of it arrives.
+        Yard yard(true);
+        expect(yard.world.remove_light(1).has_value());
+        scene::Extracted seen;
+        scene::extract(yard.world, yard.view(), seen);
+        const mesh::Options plainly{.background = {0.5f, 0.6f, 0.7f}, .ambient = {0.5f, 0.6f, 0.7f}, .shadows = false};
+        mesh::Options by_rays = plainly;
+        by_rays.shadows = true, by_rays.occlusion_rays = 32, by_rays.occlusion_reach = 1.5f;
+        mesh::Targets plain, traced;
+        plain.resize(static_cast<int>(width), static_cast<int>(height)), traced.resize(static_cast<int>(width), static_cast<int>(height));
+        mesh::Pass on_cpu;
+        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}}, plain, plainly);
+        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, yard.trees}, traced, by_rays);
+        expect(gt(on_cpu.last().occluded, std::uint64_t{10000}));
+
+        auto pass = mesh::gpu::Pass::make(*device);
+        auto open = mesh::gpu::Open::make(*device);
+        expect(fatal(pass.has_value() && open.has_value())) << (pass ? (open ? "" : open.error().message) : pass.error().message);
+        expect(fatal(pass->load(yard.meshes).has_value()));
+        const auto target = [&](rhi::Format format, std::string_view label) {
+            const auto made = device->create(rhi::TextureDesc{format, width, height, rhi::is_depth(format) ? rhi::TextureUsage::depth_target : rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, label});
+            expect(fatal(made.has_value())) << (made ? "" : made.error().message);
+            return *made;
+        };
+        const rhi::Texture colour = target(rhi::Format::rgba8_unorm, "mesh.colour"), depth = target(rhi::Format::d32_float, "mesh.depth"), surface = target(rhi::Format::rgba16_float, "mesh.surface"),
+                           opened = target(rhi::Format::r32_float, "mesh.open");
+        const auto drawn = [&](bool with_open) {
+            rhi::CommandList list;
+            mesh::gpu::Shadows about{};
+            if (with_open) {
+                pass->record_surface(list, yard.world, seen, yard.view(), surface, depth, width, height, by_rays);
+                open->record(list, yard.view(), surface, opened, width, height, by_rays);
+                about.open = opened;
+            }
+            pass->record(list, yard.world, seen, yard.view(), yard.materials, colour, depth, width, height, plainly, &about);
+            const auto submitted = device->submit(list);
+            expect(fatal(submitted.has_value())) << (submitted ? "" : submitted.error().message);
+            expect(device->wait(*submitted).has_value());
+            auto pixels = device->read(colour, rhi::Region{0, 0, width, height});
+            expect(fatal(pixels.has_value())) << (pixels ? "" : pixels.error().message);
+            return std::move(*pixels);
+        };
+        const std::vector<std::byte> without = drawn(false), with = drawn(true), again = drawn(true);
+        keep(with, "yard-open");
+        expect(with == again) << "the same picture each time";
+        expect(lt(static_cast<double>(apart(plain, without, false, 6).off), 0.002 * static_cast<double>(plain.ids.size()))) << "with no picture of it every place is open: the pass as before";
+
+        // A pixel's rays are its own on each side, so pixels are compared in blocks of 15 × 15: each block's mean
+        // green, the reference's with rays against the device's, and against the device's with none.
+        constexpr int block = 15;
+        double off_with = 0, off_without = 0, darkened_reference = 0, darkened_device = 0, worst = 0;
+        int blocks = 0, dark_blocks = 0, dark_both = 0;
+        for (int top = 0; top + block <= static_cast<int>(height); top += block)
+            for (int left = 0; left + block <= static_cast<int>(width); left += block) {
+                double reference = 0, lit = 0, device_with = 0, device_without = 0;
+                for (int y = top; y < top + block; ++y)
+                    for (int x = left; x < left + block; ++x) {
+                        const std::size_t at = (static_cast<std::size_t>(y) * width + static_cast<std::size_t>(x)) * 4 + 1;
+                        reference += traced.colour[at], lit += plain.colour[at], device_with += std::to_integer<int>(with[at]), device_without += std::to_integer<int>(without[at]);
+                    }
+                const double count = block * block;
+                reference /= count, lit /= count, device_with /= count, device_without /= count;
+                off_with += std::abs(device_with - reference), off_without += std::abs(device_without - reference), worst = std::max(worst, std::abs(device_with - reference));
+                darkened_reference += lit - reference, darkened_device += device_without - device_with;
+                const bool dark = lit - reference > 4, dark_on_device = device_without - device_with > 2;
+                dark_blocks += dark, dark_both += dark && dark_on_device, ++blocks;
+            }
+        off_with /= blocks, off_without /= blocks, darkened_reference /= blocks, darkened_device /= blocks;
+        std::println("how open a place is, 32 rays to 1.5: the reference darkens a block by {:.2f} levels on the whole, the device by {:.2f}; a block is {:.2f} levels from the reference with it, {:.2f} without "
+                     "(worst {:.1f}); of {} blocks the reference darkens by over 4 levels the device darkens {}",
+                     darkened_reference, darkened_device, off_with, off_without, worst, dark_blocks, dark_both);
+        // Measured on lavapipe: the reference darkens a block by 1.69 levels on the whole and the device by 1.45 (it
+        // knows what the eye sees: the far side of the ball shuts nothing); a block is 0.27 levels from the
+        // reference with it and 1.69 without, the worst 5.3; all 65 blocks the reference darkens, the device darkens.
+        expect(gt(dark_blocks, 40)) << "under the ball, by the box, by the post";
+        expect(ge(dark_both * 100, dark_blocks * 95)) << "where the reference's rays darken, the device's do";
+        expect(lt(off_with, 0.3 * off_without) && lt(off_with, 0.5)) << "and by about as much: " << off_with << " against " << off_without;
+        expect(lt(darkened_device, darkened_reference * 1.05) && gt(darkened_device, darkened_reference * 0.7)) << "a little less, never more: what the eye does not see shuts nothing";
+        expect(lt(worst, 9.0));
+        static_cast<void>(device->wait_idle());
+        device->destroy(colour), device->destroy(depth), device->destroy(surface), device->destroy(opened);
+    };
     "a floor of tiles on the device is the reference's: sharp near, the mean of its tiles far away, each size of the picture read as the reference reads it"_test = [] {
         auto device = open_device();
         if (!device) return;

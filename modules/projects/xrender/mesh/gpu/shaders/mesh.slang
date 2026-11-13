@@ -54,11 +54,13 @@ struct Surface {
     float4 lamp_shadow;  // x: a face's side of the lamps' map, in texels; zw: one over the map's width and height
     float4 picture;      // the draw's texture: xy its width and height; z how many sizes it is kept at (0: none)
     float4 picture_sheet; // xy: one over the width and height of the sheet its sizes are laid on
+    float4 open;         // x: over 0.5 — there is a picture of how open each pixel is; zw: one over its width and height
     Lamp   lamps[8];
 };
 [[vk::binding(0, 2)]] Sampler2D shadow_map : register(t0, space2) : register(s0, space2);
 [[vk::binding(1, 2)]] Sampler2D lamp_map : register(t1, space2) : register(s1, space2);
 [[vk::binding(2, 2)]] Sampler2D picture_map : register(t2, space2) : register(s2, space2);
+[[vk::binding(3, 2)]] Sampler2D open_map : register(t3, space2) : register(s3, space2);
 [[vk::binding(0, 3)]] ConstantBuffer<Surface> surface : register(b0, space3);
 
 // The surface's own colour at this pixel: the material's, times its picture's light where it has one.
@@ -201,7 +203,14 @@ float4 mesh_fs(VOut point) : SV_Target {
     const bool matt = surface.shine.z > 0.5;
     const float3 toward_eye = normalize(to_eye);
     // Matt: the lights summed, then the surface's colour. Otherwise each light's share by `reflected`.
-    float3 light = surface.ambient.rgb;
+    // The light from everywhere, by how open the place is (xrender.mesh's `reaching`): the open share, and by the
+    // ways that are shut what a surface of this colour sends back.
+    float3 everywhere_in = surface.ambient.rgb;
+    if (surface.open.x > 0.5) {
+        const float open = open_map.SampleLevel(point.clip.xy * surface.open.zw, 0).r;
+        if (open < 1) everywhere_in *= open / (1.0 - clamp(surface.base.rgb, 0.0, 0.98) * (1.0 - open));
+    }
+    float3 light = everywhere_in;
     float3 sent = float3(0, 0, 0);
     const int count = int(surface.eye.w);
     for (int index = 0; index < count; ++index) {
@@ -229,7 +238,7 @@ float4 mesh_fs(VOut point) : SV_Target {
     if (!matt) {
         const float metal = surface.shine.y;
         const float3 everywhere = base_colour * (1.0 - metal) + (float3(0.04, 0.04, 0.04) * (1.0 - metal) + base_colour * metal);
-        colour = everywhere * surface.ambient.rgb + surface.emissive.rgb + sent;
+        colour = everywhere * everywhere_in + surface.emissive.rgb + sent;
         if (surface.above.w > 0.5) colour += mirrored(normal, toward_eye);
     }
     if (surface.fog.w > 0) {

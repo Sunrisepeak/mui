@@ -146,6 +146,8 @@ void Paragraph::layout(float width) {
         truncated_ = true;
     }
 
+    // Which way each run's clusters go, found when first asked: 1 rising, 2 falling, 3 neither.
+    std::vector<std::uint8_t> cluster_way(s.runs.size(), 0);
     // ── each line ──
     float top = 0, widest = 0;
     for (std::size_t li = 0; li < keep; ++li) {
@@ -322,7 +324,25 @@ void Paragraph::layout(float width) {
             float px = pen;
             if (start_trim > 0 && sb.g0 == r.begin) px -= start_trim;  // the mark's empty half before the line's edge
             std::uint32_t prev_cluster = std::numeric_limits<std::uint32_t>::max();
-            for (std::size_t gi = 0; gi < run.glyphs.size(); ++gi) {
+            // The run's glyphs of this line: where its clusters run one way (as a shaper leaves them), one
+            // stretch found by halving — a paragraph of many lines does not walk the whole run for each.
+            std::size_t first = 0, past = run.glyphs.size();
+            {
+                std::uint8_t& way = cluster_way[sb.run];
+                if (way == 0) {
+                    const bool rising = std::ranges::is_sorted(run.glyphs, {}, &ShapedGlyph::cluster);
+                    way = rising ? 1 : std::ranges::is_sorted(run.glyphs, std::ranges::greater{}, &ShapedGlyph::cluster) ? 2 : 3;
+                }
+                const auto from = run.glyphs.begin();
+                if (way == 1) {
+                    first = static_cast<std::size_t>(std::ranges::lower_bound(run.glyphs, b0, {}, &ShapedGlyph::cluster) - from);
+                    past = static_cast<std::size_t>(std::ranges::lower_bound(run.glyphs, b1, {}, &ShapedGlyph::cluster) - from);
+                } else if (way == 2) {
+                    first = static_cast<std::size_t>(std::ranges::lower_bound(run.glyphs, b1 - 1, std::ranges::greater{}, &ShapedGlyph::cluster) - from);
+                    past = static_cast<std::size_t>(std::ranges::upper_bound(run.glyphs, b0, std::ranges::greater{}, &ShapedGlyph::cluster) - from);
+                }
+            }
+            for (std::size_t gi = first; gi < past; ++gi) {
                 const ShapedGlyph& g = run.glyphs[gi];
                 if (g.cluster < b0 || g.cluster >= b1) continue;
                 bool newline = false;

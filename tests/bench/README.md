@@ -46,7 +46,7 @@ WebAssembly, with the method and the numbers.
 | `canvas-kit/drag-100k` | 10 chosen windows of 100,000 dragged every frame with select, drag, snap, grid and minimap on |
 
 Each result has min, mean, p50, p95, p99 and max per iteration (nearest
-rank), the cost per item, heap allocations per iteration (the program counts
+rank), the cost per item, heap allocations per iteration (of the thread that runs it; the program counts
 them by replacing `operator new`), and the counters the body reports — node
 counts and the runtime's phase times for the frame benchmarks.
 

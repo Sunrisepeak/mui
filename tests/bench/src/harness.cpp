@@ -8,8 +8,11 @@ namespace omui::bench {
 
 namespace {
 
-std::atomic<std::uint64_t> allocation_count{0};
-std::atomic<bool>          allocation_counting{false};
+// A thread's own count: an allocation costs it one addition and touches no line another thread
+// writes. (One counter for every thread was a tenth of a run's time where the pool's threads
+// allocate — the benchmark slowing what it measured — and counted their allocations as the frame's.)
+thread_local constinit std::uint64_t allocation_count = 0;
+std::atomic<bool>                    allocation_counting{false};
 
 std::vector<Case>& registry() {
     static std::vector<Case> r;
@@ -149,7 +152,7 @@ struct Access {
 bool State::next() {
     // Read the clock and the allocation count before the harness does anything of its own.
     const clock::time_point now = clock::now();
-    const std::uint64_t allocs_now = allocation_count.load(std::memory_order_relaxed);
+    const std::uint64_t allocs_now = allocation_count;
     if (!skipped_.empty() || !failed_.empty()) return false;
     if (running_) {
         if (paused_at_ != clock::time_point{}) {
@@ -174,7 +177,7 @@ bool State::next() {
     paused_ = {};
     paused_at_ = {};
     allocs_paused_ = 0;
-    allocs_at_ = allocation_count.load(std::memory_order_relaxed);
+    allocs_at_ = allocation_count;
     started_ = clock::now();
     return true;
 }
@@ -182,14 +185,14 @@ bool State::next() {
 void State::pause() noexcept {
     if (!running_ || paused_at_ != clock::time_point{}) return;
     paused_at_ = clock::now();
-    allocs_pause_at_ = allocation_count.load(std::memory_order_relaxed);
+    allocs_pause_at_ = allocation_count;
 }
 
 void State::resume() noexcept {
     if (paused_at_ == clock::time_point{}) return;
     paused_ += clock::now() - paused_at_;
     paused_at_ = {};
-    allocs_paused_ += allocation_count.load(std::memory_order_relaxed) - allocs_pause_at_;
+    allocs_paused_ += allocation_count - allocs_pause_at_;
 }
 
 void State::note(std::string_view name, std::string text) {
@@ -214,11 +217,11 @@ void State::fail(std::string reason) {
 void State::counter(std::string_view name, double value) {
     if (done_ < config_.warmup) return;  // the iteration running is a warm-up one
     // The harness's own bookkeeping is not the body's: its allocations are not counted.
-    const std::uint64_t before = allocation_count.load(std::memory_order_relaxed);
+    const std::uint64_t before = allocation_count;
     struct Uncount {
         std::uint64_t  before;
         std::uint64_t& paused;
-        ~Uncount() { paused += allocation_count.load(std::memory_order_relaxed) - before; }
+        ~Uncount() { paused += allocation_count - before; }
     } uncount{before, allocs_paused_};
     for (std::size_t i = 0; i < counters_.size(); ++i)
         if (counters_[i].first == name) {
@@ -577,11 +580,11 @@ std::expected<std::vector<Budget>, std::string> parse_budgets(std::string_view t
 }
 
 void count_allocation() noexcept {
-    allocation_counting.store(true, std::memory_order_relaxed);
-    allocation_count.fetch_add(1, std::memory_order_relaxed);
+    if (!allocation_counting.load(std::memory_order_relaxed)) allocation_counting.store(true, std::memory_order_relaxed);
+    ++allocation_count;
 }
 
-std::uint64_t allocations() noexcept { return allocation_count.load(std::memory_order_relaxed); }
+std::uint64_t allocations() noexcept { return allocation_count; }
 bool counting_allocations() noexcept { return allocation_counting.load(std::memory_order_relaxed); }
 
 }  // namespace omui::bench

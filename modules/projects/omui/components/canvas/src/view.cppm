@@ -165,11 +165,13 @@ private:
     // A kind's drawing as the camera will ask for it some frames on, made now into a list no frame
     // shows: what a drawing makes the first time it is asked (a label shaped) is made a few nodes a
     // frame before the frame that needs every one of them. The camera's last step repeated says where
-    // it will be; some nodes a frame, in turn, within a part of the frame's time.
-    void rehearse(world::Scene& scene, PaintContext& ctx, Size viewport) const;
-    mutable world::Camera               camera_before_{0, 0, 0};
-    mutable std::vector<world::NodeRef> ahead_;
-    mutable std::size_t                 rehearse_at_ = 0;
+    // it will be, at several distances, the nearest first; a few nodes of each a frame find what is
+    // not made yet, and what is found is made within what the paint may take of the frame.
+    static constexpr std::size_t rehearsal_horizons = 5;
+    void rehearse(world::Scene& scene, PaintContext& ctx, Size viewport, std::chrono::steady_clock::time_point painting_since) const;
+    mutable world::Camera                               camera_before_{0, 0, 0};
+    mutable std::vector<world::NodeRef>                 ahead_;
+    mutable std::array<std::size_t, rehearsal_horizons> rehearse_at_{};
     mutable xrender::DisplayList        rehearsal_;
     mutable std::uint64_t                drawn_revision_ = 0;
     std::string                          focused_;

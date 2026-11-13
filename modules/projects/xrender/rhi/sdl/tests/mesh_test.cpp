@@ -148,7 +148,7 @@ UTest cases{"mesh.gpu.sdl", [] {
         expect(lt(all.mean, 0.1));
     };
 
-    "and in fog: what is drawn is the reference's, surface by surface"_test = [] {
+    "and in fog: what is drawn is the reference's, surface by surface, and the sky behind it clears upward as the reference's does"_test = [] {
         auto device = open_device();
         if (!device) return;
         const Yard yard;
@@ -160,6 +160,12 @@ UTest cases{"mesh.gpu.sdl", [] {
                      100.0 * static_cast<double>(surfaces.off) / static_cast<double>(surfaces.compared), surfaces.mean, surfaces.worst);
         expect(lt(static_cast<double>(surfaces.off), 0.001 * static_cast<double>(surfaces.compared)));
         expect(lt(surfaces.mean, 0.1));
+        // And the sky: every pixel of the picture, what nothing drew too — clearing upward as the reference's does.
+        const Apart all = apart(drawn->reference, drawn->device, false, 6);
+        std::println("    with the sky: {} of {} pixels further than 6 levels ({:.2f}%), mean {:.3f}, worst {}", all.off, all.compared, 100.0 * static_cast<double>(all.off) / static_cast<double>(all.compared),
+                     all.mean, all.worst);
+        expect(lt(static_cast<double>(all.off), 0.001 * static_cast<double>(all.compared)));
+        expect(lt(all.mean, 0.1));
     };
 
     "who drew a pixel, asked of the device: its ids picture names the reference's draw at every pixel but an edge's; and a pixel of the ball is the ball"_test = [] {

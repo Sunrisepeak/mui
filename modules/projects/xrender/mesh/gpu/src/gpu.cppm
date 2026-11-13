@@ -19,6 +19,7 @@ export import xrender.scene;
 export import mlibs.rhi;
 export import :mesh_shaders;
 export import :ids_shaders;
+export import :sky_shaders;
 
 export namespace xrender::mesh::gpu {
 
@@ -43,8 +44,8 @@ public:
     // what was loaded.
     [[nodiscard]] mlibs::rhi::Result<void> load(std::span<const mlibs::geom::ClusteredMesh* const> meshes);
     // The frame, recorded: one pass on `colour` (rgba8_unorm, a colour target) and `depth` (d32_float, a depth
-    // target) of `width` × `height`, cleared to the background (through the fog, where there is fog: as far as
-    // a flat colour can say it — the reference's sky that clears upward is not here yet).
+    // target) of `width` × `height`, cleared to the background; where there is fog the background is drawn
+    // through it first, each pixel along its own ray — the sky that clears upward, as the reference has it.
     void record(mlibs::rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, std::span<const Material> materials,
                 mlibs::rhi::Texture colour, mlibs::rhi::Texture depth, std::uint32_t width, std::uint32_t height, const Options& options = {});
     // Who drew each pixel, recorded: a pass of its own on `ids` (r32_uint, a colour target) and `depth` — for
@@ -64,7 +65,8 @@ private:
         std::uint32_t      count = 0;
     };
     mlibs::rhi::Device*          device_ = nullptr;
-    mlibs::rhi::GraphicsPipeline pipeline_, ids_pipeline_;
+    mlibs::rhi::GraphicsPipeline pipeline_, ids_pipeline_, sky_pipeline_;
+    mlibs::rhi::Buffer           cover_;  // three corners over the picture: what the sky is drawn with
     std::vector<Loaded>          meshes_;
     bool                         reversed_ = false;
     Stats                        last_;

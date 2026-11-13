@@ -18,7 +18,7 @@ device.submit(list);                                             // colour: rgba
 |---|---|
 | **What it takes** | What the reference takes: `xrender.scene`'s scene and what it extracted for the view, the materials, `xrender.mesh`'s `Options` (ambient, background, fog). A device from whoever made it (SDL_GPU, WebGPU): only the interface is known here |
 | **One shader** | `shaders/mesh.slang`, compiled at build time for the target's formats (`mlibs.shader.rules`). Suns, lamps and spots (eight a frame; more are counted as left out), a constant light from everywhere, what the surface gives off, fog worked out along the ray, the display's curve. Matrices go a row at a time and are applied by dot products |
-| **Held to the reference** | On a backend's device (`xrender.rhi.sdl`'s `mesh_test`): the yard at 480 × 270 on lavapipe — 5 of 129,600 pixels further than 6 levels from the reference, mean difference 0.008 levels; in fog, 5 of 95,520 drawn pixels. The bound in the test is a thousandth of the picture and a tenth of a level |
+| **Held to the reference** | On a backend's device (`xrender.rhi.sdl`'s `mesh_test`): the yard at 480 × 270 on lavapipe — 5 of 129,600 pixels further than 6 levels from the reference, mean difference 0.008 levels; in fog — the sky behind drawn through it along each pixel's ray (`shaders/sky.slang`) — 5 of 129,600 over the whole picture. The bound in the test is a thousandth of the picture and a tenth of a level |
 | **A package of its own** | Not `xrender.mesh`'s feature: its build program compiles a shader, and a build program's imports are not conditional on a feature (D-99; as `mlibs.rhi.cts`) |
 
 ## Agent surface
@@ -34,7 +34,6 @@ Part of [xrender.frame](../../frame)'s (`agent = { part = "xrender.frame" }`): t
 
 - **Normals, velocity, the triangle of a pixel**: the interface has one colour target a pass; each is a pass of its own (as the ids are), or waits for several targets.
 - **Shadows**: a map, held to the reference's traced ones.
-- **The sky through fog**: the background is cleared to one colour (the fog's, where there is fog); the reference's sky clearing upward is a pass over what nothing drew.
 - **Faces by winding**: the interface has no culling state; a face turned away is discarded by its normal in the shader.
 - **Clusters**: each mesh is drawn whole; leaving clusters out on the device (and levels of detail) is RN5's.
 - **The resolve over time** on the device.

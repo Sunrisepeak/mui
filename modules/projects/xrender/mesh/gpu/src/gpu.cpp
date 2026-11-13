@@ -61,16 +61,35 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth) {
         device.destroy(*pipeline);
         return std::unexpected(ids.error());
     }
+    auto sky = device.create(rhi::GraphicsPipelineDesc{.vertex = &shaders::sky::sky_vs,
+                                                       .fragment = &shaders::sky::sky_fs,
+                                                       .vertex_buffers = layout,
+                                                       .blend = rhi::Blend::replace(),
+                                                       .depth_target = rhi::Format::d32_float,
+                                                       .depth = {.test = false, .write = false},
+                                                       .label = "xrender.mesh.sky"});
+    auto cover = device.create(rhi::BufferDesc{3 * sizeof(Corner), rhi::BufferUsage::vertex, "xrender.mesh.cover"});
     Pass pass;
     pass.device_ = &device, pass.pipeline_ = *pipeline, pass.ids_pipeline_ = *ids, pass.reversed_ = reversed_depth;
+    if (sky) pass.sky_pipeline_ = *sky;
+    if (cover) pass.cover_ = *cover;
+    if (!sky) return std::unexpected(sky.error());  // `pass` releases what was made
+    if (!cover) return std::unexpected(cover.error());
+    // One triangle past the picture's corners covers it.
+    const std::array<Corner, 3> corners{Corner{{-1, -1, 0}, {}}, Corner{{3, -1, 0}, {}}, Corner{{-1, 3, 0}, {}}};
+    rhi::CommandList list;
+    list.upload(*cover, 0, std::span<const Corner>(corners));
+    auto submitted = device.submit(list);
+    if (!submitted) return std::unexpected(submitted.error());
+    if (auto waited = device.wait(*submitted); !waited) return std::unexpected(waited.error());
     return pass;
 }
 Pass::Pass(Pass&& other) noexcept
-    : device_(std::exchange(other.device_, nullptr)), pipeline_(std::exchange(other.pipeline_, {})), ids_pipeline_(std::exchange(other.ids_pipeline_, {})), meshes_(std::move(other.meshes_)), reversed_(other.reversed_), last_(other.last_) {}
+    : device_(std::exchange(other.device_, nullptr)), pipeline_(std::exchange(other.pipeline_, {})), ids_pipeline_(std::exchange(other.ids_pipeline_, {})), sky_pipeline_(std::exchange(other.sky_pipeline_, {})), cover_(std::exchange(other.cover_, {})), meshes_(std::move(other.meshes_)), reversed_(other.reversed_), last_(other.last_) {}
 Pass& Pass::operator=(Pass&& other) noexcept {
     if (this != &other) {
         release();
-        device_ = std::exchange(other.device_, nullptr), pipeline_ = std::exchange(other.pipeline_, {}), ids_pipeline_ = std::exchange(other.ids_pipeline_, {}), meshes_ = std::move(other.meshes_), reversed_ = other.reversed_, last_ = other.last_;
+        device_ = std::exchange(other.device_, nullptr), pipeline_ = std::exchange(other.pipeline_, {}), ids_pipeline_ = std::exchange(other.ids_pipeline_, {}), sky_pipeline_ = std::exchange(other.sky_pipeline_, {}), cover_ = std::exchange(other.cover_, {}), meshes_ = std::move(other.meshes_), reversed_ = other.reversed_, last_ = other.last_;
     }
     return *this;
 }
@@ -83,6 +102,8 @@ void Pass::release() noexcept {
     meshes_.clear();
     if (pipeline_) device_->destroy(pipeline_);
     if (ids_pipeline_) device_->destroy(ids_pipeline_);
+    if (sky_pipeline_) device_->destroy(sky_pipeline_);
+    if (cover_) device_->destroy(cover_);
     device_ = nullptr;
 }
 
@@ -144,15 +165,26 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
     surface.fog = of(options.fog.colour, options.fog.density);
     surface.fog_shape = {options.fog.base, options.fog.falloff, 0, 0};
 
-    // The background, as a flat colour can say it: with fog, the fog's own (what the reference shows level and
-    // below; its sky clearing upward is a pass of its own, not here yet).
-    const Vec3 behind = options.fog.density > 0 ? options.fog.colour : options.background;
     const auto shown = [](float linear) {
         const float held = std::clamp(linear, 0.0f, 1.0f);
         return held <= 0.0031308f ? held * 12.92f : 1.055f * static_cast<float>(math::det::pow(static_cast<double>(held), 1.0 / 2.4)) - 0.055f;
     };
-    list.begin_render({colour, rhi::LoadOp::clear, {shown(behind.x), shown(behind.y), shown(behind.z), 1.0f}}, {depth, rhi::LoadOp::clear, reversed_ ? 0.0f : 1.0f});
+    list.begin_render({colour, rhi::LoadOp::clear, {shown(options.background.x), shown(options.background.y), shown(options.background.z), 1.0f}},
+                      {depth, rhi::LoadOp::clear, reversed_ ? 0.0f : 1.0f});
     list.set_viewport(0, 0, static_cast<float>(width), static_cast<float>(height));
+    // The background through the fog, before anything: each pixel along its own ray.
+    if (const std::optional<Mat4> from_clip = options.fog.density > 0 ? math::inverse(clip) : std::nullopt) {
+        struct SkyUniforms {
+            Row from_clip[4];
+            Row eye, background, fog, fog_shape;
+        } sky{};
+        for (int row = 0; row < 4; ++row) sky.from_clip[row] = row_of(*from_clip, row);
+        sky.eye = of(eye), sky.background = of(options.background), sky.fog = surface.fog, sky.fog_shape = surface.fog_shape;
+        list.set_pipeline(sky_pipeline_);
+        list.push_uniforms(rhi::Stage::fragment, 0, sky);
+        list.bind_vertex_buffer(0, cover_);
+        list.draw(3);
+    }
     list.set_pipeline(pipeline_);
     for (const scene::Draw& draw : extracted.draws) {
         if (draw.instance >= instances.size() || draw.mesh >= meshes_.size() || !meshes_[draw.mesh].corners || draw.material >= materials.size()) {

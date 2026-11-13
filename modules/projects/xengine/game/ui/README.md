@@ -58,5 +58,5 @@ It is a capability asked of the host (`omui::Services::lock_pointer`): one that 
 {"node": "main/world", "shows": {"subject": "world", "at": [0.5, 0.5], "there": {"instance": 2, "triangle": 1696}}}
 ```
 
-**Not yet:** on a device the host must hand the picture's texture to the frame (`GpuFrame`'s `external`) — no host does; the Web host's pointer lock (it says it cannot).
+**Hosts.** The headless host and the SDL3 host show a viewport's picture: by the CPU from its pixels; on a device the SDL3 host sends the pixels to a texture of its own when the picture's number changes. **Not yet:** a world drawn on the host's own device shown from its texture with no copy; the Web and Android hosts; the Web host's pointer lock (it says it cannot).
 

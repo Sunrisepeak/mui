@@ -28,6 +28,30 @@ mlibs::text::FontCollection& fonts() {
     return f;
 }
 
+// A node that shows a picture of one colour, as a world's viewport does (Services::add_picture).
+struct Shows {
+    static constexpr std::string_view name = "test_shows";
+    Services* services = nullptr;
+    NodeId node{};
+    xrender::raster::Surface picture{4, 4};
+    std::uint64_t number = 0;
+    void mount(Services& s, NodeId n) {
+        services = &s, node = n;
+        fill({0, 0, 255, 255});
+        number = s.add_picture([this]() -> std::optional<xrender::raster::ImageView> { return picture.view(); });
+    }
+    ~Shows() {
+        if (services) services->remove_picture(number);
+    }
+    void fill(xrender::raster::Rgba8 colour) {
+        for (int y = 0; y < 4; ++y)
+            for (int x = 0; x < 4; ++x) picture.at(x, y) = colour;
+    }
+    void changed() { number = Services::picture_changed(number), services->invalidate_paint(node); }
+    Size measure(MeasureContext&, std::optional<float>, std::optional<float>, mlibs::layout::Available, mlibs::layout::Available) { return {40, 40}; }
+    void paint(PaintContext& ctx) const { ctx.list.external_texture(number, {0, 0, ctx.size.width, ctx.size.height}, 1, xrender::Sampling::nearest); }
+};
+
 DesktopOptions offscreen(std::string app = "sdl3-test") {
     DesktopOptions o;
     o.title = "openmui test";
@@ -148,6 +172,47 @@ float4 invert_fs(EffectPixel px) : SV_Target {
         std::println("  from the saved shader to the frame showing it: {} ms, {} ms, {} ms", took[0].count(), took[1].count(), took[2].count());
         expect(std::ranges::min(took) < std::chrono::milliseconds(500)) << "M4 ③: within 500 ms";
         std::filesystem::remove_all(dir, ec);
+    };
+
+    "a picture drawn elsewhere shows in the window, by the CPU and on the GPU: a node names it, the host has its pixels; changed, it shows changed"_test = [] {
+        for (const bool on_gpu : {false, true}) {
+            DesktopOptions o = offscreen(on_gpu ? "sdl3-shown-gpu" : "sdl3-shown-cpu");
+            if (on_gpu) {
+                o.renderer = DesktopOptions::Renderer::gpu;
+                if (auto lib = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) o.vulkan_library = *lib;
+                if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) o.video_driver = *video;
+            }
+            Desktop d(o);
+            auto opened = d.open();
+            if (!opened) {
+                if (on_gpu && mcpplibs::os::env::get("OMUI_REQUIRE_GPU") != "1") {
+                    std::println("  no GPU for the window here ({})", opened.error());
+                    continue;
+                }
+                expect(false) << opened.error();
+                continue;
+            }
+            Element shows;
+            shows.type = &component_type<Shows>();
+            shows.id = "world";
+            d.mount("main", column({.padding = 20}, {std::move(shows)}));
+            expect(d.step());
+            const auto pixel = [&](int x, int y) -> xrender::raster::Rgba8 {
+                auto px = d.window_pixels();
+                expect(px.has_value()) << (px ? "" : px.error());
+                return px ? px->at(static_cast<int>(x * d.scale()), static_cast<int>(y * d.scale())) : xrender::raster::Rgba8{};
+            };
+            const auto first = pixel(40, 40), outside = pixel(5, 5);
+            expect(first.r == 0 && first.g == 0 && first.b == 255) << std::format("{}: blue, the picture's: {} {} {}", on_gpu ? "gpu" : "cpu", first.r, first.g, first.b);
+            expect(outside.r == 255 && outside.g == 255 && outside.b == 255) << "and not outside its node";
+            auto* component = d.runtime().component<Shows>(d.runtime().find("main/world"));
+            expect(fatal(component != nullptr));
+            component->fill({255, 0, 0, 255});
+            component->changed();
+            d.step();
+            const auto second = pixel(40, 40);
+            expect(second.r == 255 && second.g == 0 && second.b == 0) << std::format("{}: red once it changed: {} {} {}", on_gpu ? "gpu" : "cpu", second.r, second.g, second.b);
+        }
     };
 
     "frames as often as they are wanted (D-70): a lease of 20 Hz paces the loop, idle sleeps"_test = [] {

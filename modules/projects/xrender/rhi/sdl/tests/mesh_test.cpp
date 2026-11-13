@@ -66,9 +66,45 @@ struct Yard {
         expect(world.add(scene::Light{.id = 2, .kind = scene::LightKind::point, .colour = {1, 0.6f, 0.2f}, .intensity = 2.5f, .at = {1.2f, 1.6f, -1.5f}, .range = 6}).has_value());
         expect(world.add(scene::Light{.id = 3, .kind = scene::LightKind::spot, .colour = {0.4f, 0.7f, 1}, .intensity = 3, .at = {-2.2f, 4, 1}, .toward = {0, -1, -0.2f}, .range = 9, .cone = 0.5f}).has_value());
     }
-    [[nodiscard]] scene::View view() const {
-        return {.view = math::look_at({0.5f, 2.2f, 7.5f}, {0.2f, 0, 0}, {0, 1, 0}), .projection = math::perspective(1.0f, 16.0f / 9.0f, 0.5f, 100.0f)};
+    // The harbour of xrender.mesh's own test: a wet quay at night, containers, bollards, three lamps on posts and a
+    // spot, a faint moon.
+    struct AtNight {};
+    explicit Yard(AtNight) {
+        materials = {{{0.8f, 0.2f, 0.15f}, {}}, {{0.5f, 0.5f, 0.5f}, {}}, {{0.15f, 0.4f, 0.8f}, {}}, {{0.15f, 0.4f, 0.8f}, {}, 0.25f, 0}, {{0.05f, 0.055f, 0.065f}, {}, 0.28f, 0},
+                     {{0.1f, 0.1f, 0.1f}, {9.0f, 5.0f, 1.6f}}, {{0.1f, 0.1f, 0.1f}, {3.0f, 5.0f, 8.0f}}, {{0.25f, 0.25f, 0.27f}, {}, 0.45f, 1}};
+        made.push_back(*geom::clustered(geom::box({1, 1, 1})));
+        made.push_back(*geom::clustered(geom::sheet(200, 200, 4, 4)));
+        made.push_back(*geom::clustered(geom::sphere(1, 32, 64), 32));
+        made.push_back(*geom::clustered(geom::cylinder(0.7f, 2, 48), 32));
+        for (const geom::ClusteredMesh& one : made) meshes.push_back(&one), grown.push_back(geom::bvh_of(one.mesh));
+        for (const geom::Bvh& tree : grown) trees.push_back(&tree);
+        const auto put = [&](scene::Id id, std::uint32_t which, std::uint32_t material, const math::Mat4& where, bool casts = true) {
+            expect(fatal(world.add({.id = id, .mesh = which, .material = material, .world = where, .bounds = geom::bounds(made[which].mesh), .casts = casts}).has_value()));
+        };
+        const auto scaled = [](math::Vec3 at, math::Vec3 size, float turned = 0) { return math::Transform{at, math::Quat::about({0, 1, 0}, turned), size}.matrix(); };
+        put(1, 1, 4, math::translation({0, -1, 0}));
+        put(10, 0, 0, scaled({-3.6f, -0.2f, -2.2f}, {1.7f, 0.8f, 0.8f}, 0.25f));
+        put(11, 0, 2, scaled({-3.4f, 1.4f, -2.3f}, {1.7f, 0.8f, 0.8f}, 0.1f));
+        put(12, 0, 1, scaled({4.2f, -0.2f, -4.0f}, {1.7f, 0.8f, 0.8f}, -0.5f));
+        put(13, 2, 3, scaled({1.0f, -0.55f, 1.6f}, {0.45f, 0.45f, 0.45f}));
+        std::uint32_t next = 20, light = 1;
+        for (const float x : {-4.5f, -1.5f, 1.5f, 4.5f}) put(next++, 3, 7, scaled({x, -0.72f, 3.2f}, {0.32f, 0.28f, 0.32f}));
+        struct Lamp {
+            math::Vec3 foot;
+            bool warm;
+        };
+        for (const Lamp lamp : {Lamp{{-1.4f, -1, -0.8f}, true}, Lamp{{2.4f, -1, 0.6f}, false}, Lamp{{0.6f, -1, -6.5f}, true}}) {
+            const math::Vec3 top = lamp.foot + math::Vec3{0, 4.15f, 0};
+            put(next++, 3, 7, scaled(lamp.foot + math::Vec3{0, 2, 0}, {0.1f, 2, 0.1f}));
+            put(next++, 2, lamp.warm ? 5 : 6, scaled(top, {0.2f, 0.2f, 0.2f}), false);
+            expect(world.add(scene::Light{.id = light++, .kind = scene::LightKind::point, .colour = lamp.warm ? math::Vec3{1, 0.62f, 0.25f} : math::Vec3{0.55f, 0.75f, 1}, .intensity = 3.2f, .at = top, .range = 10}).has_value());
+        }
+        expect(world.add(scene::Light{.id = light++, .kind = scene::LightKind::spot, .colour = {1, 0.97f, 0.9f}, .intensity = 5, .at = {5.5f, 6, -1}, .toward = math::normalized(math::Vec3{-0.45f, -1, -0.15f}), .range = 14, .cone = 0.3f}).has_value());
+        expect(world.add(scene::Light{.id = light++, .kind = scene::LightKind::sun, .colour = {0.6f, 0.7f, 1}, .intensity = 0.05f, .toward = {0.3f, -1, 0.4f}}).has_value());
+        eye = {-0.6f, 2.3f, 10.5f}, target = {0.2f, 0.2f, 0};
     }
+    math::Vec3 eye{0.5f, 2.2f, 7.5f}, target{0.2f, 0, 0};
+    [[nodiscard]] scene::View view() const { return {.view = math::look_at(eye, target, {0, 1, 0}), .projection = math::perspective(1.0f, 16.0f / 9.0f, 0.5f, 100.0f)}; }
 };
 constexpr std::uint32_t width = 480, height = 270;
 
@@ -346,5 +382,109 @@ UTest cases{"mesh.gpu.sdl", [] {
         expect(lt(static_cast<double>(bare.off), 0.001 * static_cast<double>(bare.compared))) << "with no radius: the light through the curve, the plain pass's picture";
         static_cast<void>(device->wait_idle());
         device->destroy(light), device->destroy(one), device->destroy(other), device->destroy(*colour), device->destroy(*depth);
+    };
+    "a lamp's and a spot's shadows by their maps are the reference's traced shadows: the same pixels dark, but for a line of them along a shadow's edge"_test = [] {
+        auto device = open_device();
+        if (!device) return;
+        const Yard yard;
+        scene::Extracted seen;
+        scene::extract(yard.world, yard.view(), seen);
+        mesh::Targets traced, lit;
+        traced.resize(static_cast<int>(width), static_cast<int>(height)), lit.resize(static_cast<int>(width), static_cast<int>(height));
+        mesh::Pass on_cpu;
+        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, yard.trees}, traced, {.shadows = true});
+        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}}, lit, {.shadows = false});
+
+        auto pass = mesh::gpu::Pass::make(*device);
+        expect(fatal(pass.has_value())) << (pass ? "" : pass.error().message);
+        expect(fatal(pass->load(yard.meshes).has_value()));
+        mesh::gpu::Shadows shadows{.size = 2048, .distance = 30, .lamp_size = 512, .lamps = 2};
+        const auto target = [&](rhi::Format format, std::uint32_t across, std::uint32_t down, std::string_view label) {
+            const auto made = device->create(rhi::TextureDesc{format, across, down, format == rhi::Format::d32_float ? rhi::TextureUsage::depth_target : rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, label});
+            expect(fatal(made.has_value())) << (made ? "" : made.error().message);
+            return *made;
+        };
+        const rhi::Texture colour = target(rhi::Format::rgba8_unorm, width, height, "mesh.colour"), depth = target(rhi::Format::d32_float, width, height, "mesh.depth");
+        shadows.map = target(rhi::Format::r32_float, shadows.size, shadows.size, "mesh.shadow"), shadows.depth = target(rhi::Format::d32_float, shadows.size, shadows.size, "mesh.shadow.depth");
+        shadows.lamps_map = target(rhi::Format::r32_float, shadows.lamp_size * 6, shadows.lamp_size * shadows.lamps, "mesh.shadow.lamps");
+        shadows.lamps_depth = target(rhi::Format::d32_float, shadows.lamp_size * 6, shadows.lamp_size * shadows.lamps, "mesh.shadow.lamps.depth");
+        rhi::CommandList list;
+        pass->record(list, yard.world, seen, yard.view(), yard.materials, colour, depth, width, height, {.shadows = true}, &shadows);
+        const auto submitted = device->submit(list);
+        expect(fatal(submitted.has_value())) << (submitted ? "" : submitted.error().message);
+        expect(device->wait(*submitted).has_value());
+        const auto pixels = device->read(colour, rhi::Region{0, 0, width, height});
+        expect(fatal(pixels.has_value())) << (pixels ? "" : pixels.error().message);
+        keep(*pixels, "yard-shadows-lamps");
+        expect(eq(pass->last().lamps_shadowed, 2u)) << "the lamp and the spot";
+        std::size_t traced_dark = 0, device_dark = 0, both_dark = 0;
+        for (std::size_t pixel = 0; pixel < traced.ids.size(); ++pixel) {
+            const auto level = [&](std::span<const std::uint8_t> from) { return from[pixel * 4] + from[pixel * 4 + 1] + from[pixel * 4 + 2]; };
+            const int unshadowed = level(lit.colour);
+            const int on_device = std::to_integer<int>((*pixels)[pixel * 4]) + std::to_integer<int>((*pixels)[pixel * 4 + 1]) + std::to_integer<int>((*pixels)[pixel * 4 + 2]);
+            const bool dark_traced = level(traced.colour) < unshadowed - 12, dark_device = on_device < unshadowed - 12;
+            traced_dark += dark_traced, device_dark += dark_device, both_dark += dark_traced && dark_device;
+        }
+        const Apart all = apart(traced, *pixels, false, 6);
+        std::println("the sun's, a lamp's and a spot's shadows (six views of {}² a lamp, {} drawn): {} pixels dark in the reference, {} on the device, {} in both; {} of {} pixels further than 6 levels ({:.2f}%), mean {:.3f}",
+                     shadows.lamp_size, pass->last().lamp_views, traced_dark, device_dark, both_dark, all.off, all.compared, 100.0 * static_cast<double>(all.off) / static_cast<double>(all.compared), all.mean);
+        expect(gt(traced_dark, std::size_t{2000}));
+        expect(gt(static_cast<double>(both_dark), 0.97 * static_cast<double>(traced_dark))) << "what the reference shadows, the device shadows";
+        expect(gt(static_cast<double>(both_dark), 0.93 * static_cast<double>(device_dark))) << "and little else";
+        expect(lt(static_cast<double>(all.off), 0.002 * static_cast<double>(all.compared)));
+        expect(lt(pass->last().lamp_views, 12u)) << "a spot's views are only those its cone looks into";
+        static_cast<void>(device->wait_idle());
+        device->destroy(colour), device->destroy(depth), device->destroy(shadows.map), device->destroy(shadows.depth), device->destroy(shadows.lamps_map), device->destroy(shadows.lamps_depth);
+    };
+    "the harbour at night on the device is the reference's: lamps' and a spot's shadows by maps for its traced ones, the wet quay, fog, the lamps' glow"_test = [] {
+        auto device = open_device();
+        if (!device) return;
+        const Yard harbour{Yard::AtNight{}};
+        const mesh::Options night{.background = {0.004f, 0.005f, 0.01f}, .ambient = {0.006f, 0.007f, 0.012f}, .shadows = true, .fog = {.colour = {0.02f, 0.026f, 0.04f}, .density = 0.045f, .base = -1, .falloff = 0.35f},
+                                  .environment = {.on = true, .above = {0.01f, 0.014f, 0.03f}, .level = {0.035f, 0.04f, 0.06f}, .below = {0.004f, 0.004f, 0.005f}}};
+        const mesh::Bloom bloom{.threshold = 1, .radius = 7, .strength = 0.6f};
+        scene::Extracted seen;
+        scene::extract(harbour.world, harbour.view(), seen);
+        mesh::Targets reference;
+        reference.resize(static_cast<int>(width), static_cast<int>(height));
+        mesh::Pass on_cpu;
+        on_cpu.draw(harbour.world, seen, harbour.view(), {harbour.meshes, harbour.materials, harbour.trees}, reference, night);
+        mesh::Glow glow_on_cpu;
+        static_cast<void>(glow_on_cpu.show(reference.light, static_cast<int>(width), static_cast<int>(height), bloom, reference.colour));
+
+        auto pass = mesh::gpu::Pass::make(*device, false, true);
+        expect(fatal(pass.has_value())) << (pass ? "" : pass.error().message);
+        expect(fatal(pass->load(harbour.meshes).has_value()));
+        auto glow = mesh::gpu::Glow::make(*device);
+        expect(fatal(glow.has_value())) << (glow ? "" : glow.error().message);
+        mesh::gpu::Shadows shadows{.size = 2048, .distance = 40, .lamp_size = 512, .lamps = 4};
+        const auto target = [&](rhi::Format format, std::uint32_t across, std::uint32_t down, std::string_view label) {
+            const auto made = device->create(rhi::TextureDesc{format, across, down, format == rhi::Format::d32_float ? rhi::TextureUsage::depth_target : rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, label});
+            expect(fatal(made.has_value())) << (made ? "" : made.error().message);
+            return *made;
+        };
+        const rhi::Texture colour = target(rhi::Format::rgba8_unorm, width, height, "mesh.colour"), depth = target(rhi::Format::d32_float, width, height, "mesh.depth");
+        const rhi::Texture light = target(rhi::Format::rgba16_float, width, height, "mesh.light"), one = target(rhi::Format::rgba16_float, width, height, "mesh.glow.one"),
+                           other = target(rhi::Format::rgba16_float, width, height, "mesh.glow.other");
+        shadows.map = target(rhi::Format::r32_float, shadows.size, shadows.size, "mesh.shadow"), shadows.depth = target(rhi::Format::d32_float, shadows.size, shadows.size, "mesh.shadow.depth");
+        shadows.lamps_map = target(rhi::Format::r32_float, shadows.lamp_size * 6, shadows.lamp_size * shadows.lamps, "mesh.shadow.lamps");
+        shadows.lamps_depth = target(rhi::Format::d32_float, shadows.lamp_size * 6, shadows.lamp_size * shadows.lamps, "mesh.shadow.lamps.depth");
+        rhi::CommandList list;
+        pass->record(list, harbour.world, seen, harbour.view(), harbour.materials, light, depth, width, height, night, &shadows);
+        glow->record(list, light, one, other, colour, width, height, bloom);
+        const auto submitted = device->submit(list);
+        expect(fatal(submitted.has_value())) << (submitted ? "" : submitted.error().message);
+        expect(device->wait(*submitted).has_value());
+        const auto pixels = device->read(colour, rhi::Region{0, 0, width, height});
+        expect(fatal(pixels.has_value())) << (pixels ? "" : pixels.error().message);
+        keep(*pixels, "harbour");
+        const Apart all = apart(reference, *pixels, false, 6);
+        const mesh::gpu::Stats& stats = pass->last();
+        std::println("the harbour on {}: {} draws, {} lights, {} lamps and spots with shadows in {} views, {} casters in the moon's map; {} of {} pixels further than 6 levels from the reference ({:.2f}%), mean {:.3f}, worst {}",
+                     device->caps().device, stats.draws, stats.lamps, stats.lamps_shadowed, stats.lamp_views, stats.casters, all.off, all.compared, 100.0 * static_cast<double>(all.off) / static_cast<double>(all.compared), all.mean, all.worst);
+        expect(eq(stats.lamps, 5u) && eq(stats.lamps_shadowed, 4u) && eq(stats.missing, 0u));
+        expect(lt(static_cast<double>(all.off), 0.004 * static_cast<double>(all.compared)));
+        static_cast<void>(device->wait_idle());
+        for (const rhi::Texture made : {colour, depth, light, one, other, shadows.map, shadows.depth, shadows.lamps_map, shadows.lamps_depth}) device->destroy(made);
     };
 }};

@@ -11,7 +11,7 @@ struct VOut {
 };
 struct Draw {
     float4 to_clip[4];   // rows: the corner to the light's clip space
-    float4 to_world[3];  // not used here: the pass's one block of a draw
+    float4 to_world[3];  // rows (a lamp's view asks where a point is)
     float4 normals[3];
 };
 [[vk::binding(0, 1)]] ConstantBuffer<Draw> draw : register(b0, space1);
@@ -27,3 +27,26 @@ VOut shadow_vs(VIn corner) {
 
 [shader("fragment")]
 float4 shadow_fs(VOut point) : SV_Target { return float4(point.far, 0, 0, 1); }
+
+// A lamp's or a spot's view, one of six faces about it: the same corners through the face's projection, and for
+// each texel how far from the lamp the nearest thing is, as a share of the lamp's reach.
+struct LampVOut {
+    float4 clip : SV_Position;
+    float3 place : TEXCOORD0;  // in the world
+};
+struct LampAt {
+    float4 at_range;  // where the lamp is; w: how far it reaches
+};
+[[vk::binding(0, 3)]] ConstantBuffer<LampAt> lamp : register(b0, space3);
+
+[shader("vertex")]
+LampVOut lamp_vs(VIn corner) {
+    const float4 at = float4(corner.position, 1);
+    LampVOut made;
+    made.clip = float4(dot(draw.to_clip[0], at), dot(draw.to_clip[1], at), dot(draw.to_clip[2], at), dot(draw.to_clip[3], at));
+    made.place = float3(dot(draw.to_world[0], at), dot(draw.to_world[1], at), dot(draw.to_world[2], at));
+    return made;
+}
+
+[shader("fragment")]
+float4 lamp_fs(LampVOut point) : SV_Target { return float4(length(point.place - lamp.at_range.xyz) / lamp.at_range.w, 0, 0, 1); }

@@ -32,6 +32,7 @@ struct Lamp {
     float4 colour_kind;  // rgb times its intensity; w: 0 a sun, 1 a lamp, 2 a spot
     float4 at_range;     // where; w: how far it reaches
     float4 toward_cone;  // the way it shines (of length 1); w: the cone's cosine
+    float4 shadow;       // x: its row of the lamps' map (−1: it has none)
 };
 struct Surface {
     float4 base;       // linear
@@ -47,10 +48,37 @@ struct Surface {
     float4 to_light[3];  // rows: the world to the sun's map — x, y across it (−1 … 1), z how far (0 … 1)
     float4 shadow;       // x: which lamp the map is of (−1: none); y: how far along its normal a point is lifted
                          // before it is looked up; z: how much nearer the map must say for a shadow
+    float4 lamp_shadow;  // x: a face's side of the lamps' map, in texels; zw: one over the map's width and height
     Lamp   lamps[8];
 };
 [[vk::binding(0, 2)]] Sampler2D shadow_map : register(t0, space2) : register(s0, space2);
+[[vk::binding(1, 2)]] Sampler2D lamp_map : register(t1, space2) : register(s1, space2);
 [[vk::binding(0, 3)]] ConstantBuffer<Surface> surface : register(b0, space3);
+
+// Whether something stands between a point and a lamp, by the lamp's six views about itself (a row of the
+// lamps' map, a face a tile): the point, lifted off its surface by a texel and a half as wide as texels are
+// that far from the lamp, is further than what the face it lies in saw there.
+bool lamp_hidden(Lamp lamp, float3 place, float3 normal, float apart) {
+    const float side = surface.lamp_shadow.x;
+    const float3 from = place + normal * (apart * 3.0 / side) - lamp.at_range.xyz;
+    const float3 size = abs(from);
+    float3 axis, right, up;
+    float face;
+    if (size.x >= size.y && size.x >= size.z) {
+        face = from.x > 0 ? 0 : 1, axis = float3(from.x > 0 ? 1 : -1, 0, 0), right = float3(0, 0, 1), up = float3(0, 1, 0);
+    } else if (size.y >= size.z) {
+        face = from.y > 0 ? 2 : 3, axis = float3(0, from.y > 0 ? 1 : -1, 0), right = float3(1, 0, 0), up = float3(0, 0, 1);
+    } else {
+        face = from.z > 0 ? 4 : 5, axis = float3(0, 0, from.z > 0 ? 1 : -1), right = float3(1, 0, 0), up = float3(0, 1, 0);
+    }
+    const float deep = dot(from, axis);
+    if (!(deep > 0)) return false;
+    const float2 across = float2(dot(from, right), dot(from, up)) / deep;
+    // Held inside the face's own tile: the texel beside it is another face's.
+    const float2 in_tile = clamp(float2(across.x * 0.5 + 0.5, 0.5 - across.y * 0.5) * side, float2(0.5, 0.5), float2(side - 0.5, side - 0.5));
+    const float seen = lamp_map.SampleLevel((float2(face, lamp.shadow.x) * side + in_tile) * surface.lamp_shadow.zw, 0).r;
+    return seen < (length(from) - apart * 2.0 / side) / lamp.at_range.w;
+}
 
 // Whether something stands between a point and the sun, by the sun's map: the point, lifted a little off its
 // surface, is further from the light than what the map saw there. Off the map: lit.
@@ -135,6 +163,7 @@ float4 mesh_fs(VOut point) : SV_Target {
             if (lamp.colour_kind.w > 1.5 && -dot(along, lamp.toward_cone.xyz) < lamp.toward_cone.w) continue;
             const float near = 1.0 - (apart / lamp.at_range.w) * (apart / lamp.at_range.w);
             arriving *= near * near;
+            if (lamp.shadow.x >= 0 && dot(normal, along) > 0 && lamp_hidden(lamp, point.place, normal, apart)) continue;
         }
         const float facing = dot(normal, along);
         if (!(facing > 0)) continue;

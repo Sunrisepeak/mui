@@ -32,17 +32,25 @@ struct Stats {
     std::uint64_t triangles = 0;
     std::uint32_t lamps = 0, lamps_left_out = 0;  // lit by; past `most_lamps`
     std::uint32_t casters = 0;                    // drawn into the sun's map
+    std::uint32_t lamps_shadowed = 0, lamp_views = 0;  // lamps and spots with a row of the lamps' map; views drawn for them
 };
 
 // The sun's shadows by a map (the reference traces a ray; a device looks up what the sun saw): two textures of
 // `size` × `size` the caller made — `map` r32_float (a colour target, sampled), `depth` d32_float (a depth
 // target) — and how far from the eye things are shadowed. Everything of the scene that casts is drawn into it,
-// seen by the view or not. Shadows of the first sun only; lamps and spots light through things still.
+// seen by the view or not. Of the first sun only.
+//
+// Lamps' and spots' shadows are a pair of their own, `lamps_map` (r32_float) and `lamps_depth` (d32_float), each
+// 6 × `lamp_size` wide and `lamps` × `lamp_size` high: six views about each of the frame's first `lamps` lamps
+// and spots (a spot's only where its cone looks), each texel how far the nearest thing is. Either pair may be
+// left out: those lights then shine through things.
 struct Shadows {
     mlibs::rhi::Texture map, depth;
     std::uint32_t       size = 2048;
     float               distance = 40;  // from the eye: what the map covers
     float               behind = 200;   // toward the sun from there: how far off a caster may stand
+    mlibs::rhi::Texture lamps_map, lamps_depth;
+    std::uint32_t       lamp_size = 512, lamps = 4;
 };
 
 class Pass {
@@ -80,7 +88,7 @@ private:
         std::uint32_t      count = 0;
     };
     mlibs::rhi::Device*          device_ = nullptr;
-    mlibs::rhi::GraphicsPipeline pipeline_, ids_pipeline_, sky_pipeline_, shadow_pipeline_;
+    mlibs::rhi::GraphicsPipeline pipeline_, ids_pipeline_, sky_pipeline_, shadow_pipeline_, lamp_shadow_pipeline_;
     mlibs::rhi::Sampler          nearest_;
     mlibs::rhi::Texture          no_shadow_;  // a texel, for the map's place when there is no map
     mlibs::rhi::Buffer           cover_;  // three corners over the picture: what the sky is drawn with

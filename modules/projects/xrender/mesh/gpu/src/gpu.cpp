@@ -25,6 +25,7 @@ struct DrawUniforms {
 };
 struct LampUniforms {
     Row colour_kind, at_range, toward_cone;
+    Row shadow{-1, 0, 0, 0};
 };
 struct SurfaceUniforms {
     Row          base, emissive, ambient, eye, fog, fog_shape;
@@ -32,6 +33,7 @@ struct SurfaceUniforms {
     Row          above, level, below;
     Row          to_light[3];
     Row          shadow{-1, 0, 0, 0};
+    Row          lamp_shadow;
     LampUniforms lamps[most_lamps];
 };
 Row row_of(const Mat4& matrix, int row) { return {matrix.at(0, row), matrix.at(1, row), matrix.at(2, row), matrix.at(3, row)}; }
@@ -84,6 +86,14 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
                                                           .depth_target = rhi::Format::d32_float,
                                                           .depth = {.test = true, .write = true, .compare = rhi::Compare::less},
                                                           .label = "xrender.mesh.shadow"});
+    auto lamp_shadow = device.create(rhi::GraphicsPipelineDesc{.vertex = &shaders::shadow::lamp_vs,
+                                                               .fragment = &shaders::shadow::lamp_fs,
+                                                               .vertex_buffers = layout,
+                                                               .target = rhi::Format::r32_float,
+                                                               .blend = rhi::Blend::replace(),
+                                                               .depth_target = rhi::Format::d32_float,
+                                                               .depth = {.test = true, .write = true, .compare = rhi::Compare::less},
+                                                               .label = "xrender.mesh.shadow.lamp"});
     auto nearest = device.create(rhi::SamplerDesc{rhi::Filter::nearest, rhi::Filter::nearest});
     auto no_shadow = device.create(rhi::TextureDesc{rhi::Format::r32_float, 1, 1, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "xrender.mesh.no-shadow"});
     Pass pass;
@@ -91,11 +101,13 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
     if (sky) pass.sky_pipeline_ = *sky;
     if (cover) pass.cover_ = *cover;
     if (shadow) pass.shadow_pipeline_ = *shadow;
+    if (lamp_shadow) pass.lamp_shadow_pipeline_ = *lamp_shadow;
     if (nearest) pass.nearest_ = *nearest;
     if (no_shadow) pass.no_shadow_ = *no_shadow;
     if (!sky) return std::unexpected(sky.error());  // `pass` releases what was made
     if (!cover) return std::unexpected(cover.error());
     if (!shadow) return std::unexpected(shadow.error());
+    if (!lamp_shadow) return std::unexpected(lamp_shadow.error());
     if (!nearest) return std::unexpected(nearest.error());
     if (!no_shadow) return std::unexpected(no_shadow.error());
     // One triangle past the picture's corners covers it.
@@ -110,11 +122,11 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
     return pass;
 }
 Pass::Pass(Pass&& other) noexcept
-    : device_(std::exchange(other.device_, nullptr)), pipeline_(std::exchange(other.pipeline_, {})), ids_pipeline_(std::exchange(other.ids_pipeline_, {})), sky_pipeline_(std::exchange(other.sky_pipeline_, {})), shadow_pipeline_(std::exchange(other.shadow_pipeline_, {})), nearest_(std::exchange(other.nearest_, {})), no_shadow_(std::exchange(other.no_shadow_, {})), cover_(std::exchange(other.cover_, {})), meshes_(std::move(other.meshes_)), reversed_(other.reversed_), light_(other.light_), last_(other.last_) {}
+    : device_(std::exchange(other.device_, nullptr)), pipeline_(std::exchange(other.pipeline_, {})), ids_pipeline_(std::exchange(other.ids_pipeline_, {})), sky_pipeline_(std::exchange(other.sky_pipeline_, {})), shadow_pipeline_(std::exchange(other.shadow_pipeline_, {})), lamp_shadow_pipeline_(std::exchange(other.lamp_shadow_pipeline_, {})), nearest_(std::exchange(other.nearest_, {})), no_shadow_(std::exchange(other.no_shadow_, {})), cover_(std::exchange(other.cover_, {})), meshes_(std::move(other.meshes_)), reversed_(other.reversed_), light_(other.light_), last_(other.last_) {}
 Pass& Pass::operator=(Pass&& other) noexcept {
     if (this != &other) {
         release();
-        device_ = std::exchange(other.device_, nullptr), pipeline_ = std::exchange(other.pipeline_, {}), ids_pipeline_ = std::exchange(other.ids_pipeline_, {}), sky_pipeline_ = std::exchange(other.sky_pipeline_, {}), shadow_pipeline_ = std::exchange(other.shadow_pipeline_, {}), nearest_ = std::exchange(other.nearest_, {}), no_shadow_ = std::exchange(other.no_shadow_, {}), cover_ = std::exchange(other.cover_, {}), meshes_ = std::move(other.meshes_), reversed_ = other.reversed_, light_ = other.light_, last_ = other.last_;
+        device_ = std::exchange(other.device_, nullptr), pipeline_ = std::exchange(other.pipeline_, {}), ids_pipeline_ = std::exchange(other.ids_pipeline_, {}), sky_pipeline_ = std::exchange(other.sky_pipeline_, {}), shadow_pipeline_ = std::exchange(other.shadow_pipeline_, {}), lamp_shadow_pipeline_ = std::exchange(other.lamp_shadow_pipeline_, {}), nearest_ = std::exchange(other.nearest_, {}), no_shadow_ = std::exchange(other.no_shadow_, {}), cover_ = std::exchange(other.cover_, {}), meshes_ = std::move(other.meshes_), reversed_ = other.reversed_, light_ = other.light_, last_ = other.last_;
     }
     return *this;
 }
@@ -130,6 +142,7 @@ void Pass::release() noexcept {
     if (sky_pipeline_) device_->destroy(sky_pipeline_);
     if (cover_) device_->destroy(cover_);
     if (shadow_pipeline_) device_->destroy(shadow_pipeline_);
+    if (lamp_shadow_pipeline_) device_->destroy(lamp_shadow_pipeline_);
     if (nearest_) device_->destroy(nearest_);
     if (no_shadow_) device_->destroy(no_shadow_);
     device_ = nullptr;
@@ -177,6 +190,7 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
     const std::span<const scene::Instance> instances = scene.instances();
 
     SurfaceUniforms surface{};
+    std::array<float, most_lamps> cones{};  // each lamp's half angle, as the scene says it
     for (const std::uint32_t index : extracted.lights) {
         if (index >= scene.lights().size()) continue;
         if (last_.lamps == most_lamps) {
@@ -185,6 +199,7 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
         }
         const scene::Light& light = scene.lights()[index];
         const float kind = light.kind == scene::LightKind::sun ? 0.0f : light.kind == scene::LightKind::spot ? 2.0f : 1.0f;
+        cones[last_.lamps] = light.cone;
         surface.lamps[last_.lamps++] = {of(light.colour * light.intensity, kind), of(light.at, std::max(light.range, 1e-6f)),
                                         of(math::normalized(light.toward), static_cast<float>(math::det::cos(static_cast<double>(light.cone))))};
     }
@@ -243,6 +258,56 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
             map = shadows->map;
         }
     }
+    // The lamps' map: six views about each of the first lamps and spots, a row a lamp and a tile a view.
+    rhi::Texture lamp_map = no_shadow_;
+    if (shadows && options.shadows && shadows->lamps_map && shadows->lamps_depth && shadows->lamps > 0 && shadows->lamp_size > 0) {
+        const float side = static_cast<float>(shadows->lamp_size);
+        surface.lamp_shadow = {side, 0, 1.0f / (side * 6), 1.0f / (side * static_cast<float>(shadows->lamps))};
+        list.begin_render({shadows->lamps_map, rhi::LoadOp::clear, {1, 0, 0, 1}}, {shadows->lamps_depth, rhi::LoadOp::clear, 1.0f});
+        list.set_pipeline(lamp_shadow_pipeline_);
+        struct Face {
+            Vec3 axis, right, up;
+        };
+        // The same six, in the same order, as the shader's lookup.
+        constexpr std::array<Face, 6> faces{Face{{1, 0, 0}, {0, 0, 1}, {0, 1, 0}}, Face{{-1, 0, 0}, {0, 0, 1}, {0, 1, 0}}, Face{{0, 1, 0}, {1, 0, 0}, {0, 0, 1}},
+                                            Face{{0, -1, 0}, {1, 0, 0}, {0, 0, 1}}, Face{{0, 0, 1}, {1, 0, 0}, {0, 1, 0}},  Face{{0, 0, -1}, {1, 0, 0}, {0, 1, 0}}};
+        for (std::uint32_t which = 0; which < last_.lamps && last_.lamps_shadowed < shadows->lamps; ++which) {
+            LampUniforms& lamp = surface.lamps[which];
+            if (lamp.colour_kind.w < 0.5f) continue;  // a sun
+            const Vec3 at{lamp.at_range.x, lamp.at_range.y, lamp.at_range.z}, toward{lamp.toward_cone.x, lamp.toward_cone.y, lamp.toward_cone.z};
+            const float reach = lamp.at_range.w, near = std::min(0.02f, reach * 0.5f);
+            const std::uint32_t row = last_.lamps_shadowed++;
+            lamp.shadow = {static_cast<float>(row), 0, 0, 0};
+            // A spot looks one way: a view its cone does not reach (a view's corner is 54.7° off its middle) is left clear.
+            const float spot_reach = lamp.colour_kind.w > 1.5f ? static_cast<float>(math::det::cos(std::min(static_cast<double>(cones[which]) + 0.9554, 3.14159265))) : -2.0f;
+            list.push_uniforms(rhi::Stage::fragment, 0, lamp.at_range);
+            for (std::uint32_t number = 0; number < faces.size(); ++number) {
+                const Face& face = faces[number];
+                if (math::dot(face.axis, toward) < spot_reach) continue;
+                Mat4 to_face;
+                const auto set = [&](int into, Vec3 axis, float scale, float shift) {
+                    to_face.at(0, into) = axis.x * scale, to_face.at(1, into) = axis.y * scale, to_face.at(2, into) = axis.z * scale;
+                    to_face.at(3, into) = -math::dot(axis, at) * scale + shift;
+                };
+                const float deepens = reach / (reach - near);
+                set(0, face.right, 1, 0), set(1, face.up, 1, 0), set(2, face.axis, deepens, -near * deepens), set(3, face.axis, 1, 0);
+                list.set_viewport(static_cast<float>(number) * side, static_cast<float>(row) * side, side, side);
+                for (const scene::Instance& instance : instances) {
+                    if (instance.hidden || !instance.casts || instance.mesh >= meshes_.size() || !meshes_[instance.mesh].corners) continue;
+                    const Mat4 through = to_face * instance.world;
+                    DrawUniforms uniforms{};
+                    for (int into = 0; into < 4; ++into) uniforms.to_clip[into] = row_of(through, into);
+                    for (int into = 0; into < 3; ++into) uniforms.to_world[into] = row_of(instance.world, into);
+                    list.push_uniforms(rhi::Stage::vertex, 0, uniforms);
+                    list.bind_vertex_buffer(0, meshes_[instance.mesh].corners);
+                    list.draw(meshes_[instance.mesh].count);
+                }
+                ++last_.lamp_views;
+            }
+        }
+        list.end_render();
+        lamp_map = shadows->lamps_map;
+    }
     const auto shown = [&](float linear) {
         if (light_) return linear;
         const float held = std::clamp(linear, 0.0f, 1.0f);
@@ -266,6 +331,7 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
     }
     list.set_pipeline(pipeline_);
     list.bind_texture(rhi::Stage::fragment, 0, map, nearest_);
+    list.bind_texture(rhi::Stage::fragment, 1, lamp_map, nearest_);
     for (const scene::Draw& draw : extracted.draws) {
         if (draw.instance >= instances.size() || draw.mesh >= meshes_.size() || !meshes_[draw.mesh].corners || draw.material >= materials.size()) {
             ++last_.missing;

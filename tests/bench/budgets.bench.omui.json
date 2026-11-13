@@ -130,6 +130,8 @@
      "why": "D-64 and M4: ten glass panels over a 1080p frame at 120 Hz on a GPU (a software device, as CI's lavapipe, is reported, not held to it)"},
     {"name": "wall/zoom-sweep-1000-gpu", "metric": "p99_ms", "max": 8.33, "unless": "software",
      "why": "S1 (§19.3): 1000 windows swept from 1% to 400% at 120 Hz, frame p99 under 8.3 ms, the GPU drawing every frame"},
+    {"name": "wall/zoom-sweep-1000-gpu-lists", "metric": "p99_ms", "max": 8.33, "unless": "software",
+     "why": "D-187, D-188 (plan §5.9 step a): the same sweep with the windows' content as lists under the camera — every primitive where it is at every zoom, nothing stretched — held to the same frame"},
     {"name": "motion/switches-100", "metric": "p95_ms", "max": 5.5,
      "why": "universal motion (D-93): a hundred switches flipped at once, every frame of their morphs drawn at 1080p by the CPU — 4.5 ms on CI's four cores (1.3 locally, 2026-11-02), a third of a 60 Hz frame"},
     {"name": "motion/switches-100-liquid", "metric": "p95_ms", "max": 45,

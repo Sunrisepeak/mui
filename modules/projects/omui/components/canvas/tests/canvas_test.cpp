@@ -384,6 +384,35 @@ UTest cases{"ui.canvas", [] {
         expect(textured >= 1) << "what fits stays";
     };
 
+    "lists that come back together enter within the frame's budget of glyphs, in the order asked for"_test = [] {
+        auto& sc = world::scene("arrive");
+        sc.clear();
+        auto card = [](const world::Scene& s, world::NodeRef n) {
+            return column({.width = Dim(static_cast<float>(s.rect(n).width)), .height = Dim(static_cast<float>(s.rect(n).height)), .background = Fill("surface")},
+                          {text({.text = "twenty glyphs in all"})});
+        };
+        sc.kind("card", world::Kind{.tiers = {{0, world::Tier::Draw::box}, {60, world::Tier::Draw::texture}}, .view = card});
+        for (int i = 0; i < 6; ++i)
+            sc.add({.kind = "card", .x = (i % 3) * 300.0, .y = (i / 3) * 250.0, .width = 240, .height = 200, .key = std::format("c{}", i), .fill = Color::hex(0x94a3b8)});
+        Headless h({.size = {800, 600}});
+        // Seventeen glyphs a card (the spaces draw none): two cards a frame fit forty, three do not.
+        h.mount("main", column({.width = 800, .height = 600}, {canvas({.id = "board", .arrive_glyphs = 40, .content = "lists", .scene = "arrive", .x = 420, .y = 225, .zoom = 0.8,
+                                                                       .width = 800, .height = 600})}));
+        const Canvas* c = h.runtime().component<Canvas>(h.runtime().find("main/board"));
+        expect(c != nullptr);
+        if (!c) return;
+        h.step();  // asked for
+        std::vector<std::size_t> listed;
+        for (int frame = 0; frame < 6 && (listed.empty() || listed.back() < 6); ++frame) {
+            h.step();
+            listed.push_back(c->stats().listed);
+        }
+        expect(listed.size() >= 3 && listed.back() == 6) << std::format("all six in, over frames: {}", listed);
+        for (std::size_t frame = 0; frame < listed.size(); ++frame)
+            expect(listed[frame] - (frame ? listed[frame - 1] : 0) <= 2) << std::format("two a frame at the most: {}", listed);
+        world::drop_scene("arrive");
+    };
+
     "content as lists (D-188): a node's display list made once a revision and drawn under the camera — a zoom makes nothing again and stretches nothing"_test = [] {
         auto& sc = world::scene("lists");
         sc.clear();

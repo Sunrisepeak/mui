@@ -38,6 +38,11 @@ export default defineContract({
         default: 4,
         doc: "Textures entering the frame at most (MiB a frame): what a GPU uploads stays within a frame's budget (measured on an RTX 4080: a quarter to half a millisecond a MiB; 4 leave a 120 Hz frame most of its 8.3 ms).",
       },
+      arrive_glyphs: {
+        type: "f64",
+        default: 8192,
+        doc: "Glyphs of lists entering the frame at most (content: \"lists\"): lists the pool returns together enter over a few frames, in the order asked for, so no one frame prepares all their glyphs (measured on an RTX 4080: a quarter of a millisecond a thousand). The first always enters.",
+      },
       content: {
         type: "string",
         default: "textures",

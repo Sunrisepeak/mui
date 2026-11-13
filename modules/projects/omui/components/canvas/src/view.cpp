@@ -70,7 +70,8 @@ void Canvas::mounted() {
     observe();
     camera_ = {props.x, props.y, std::clamp(props.zoom, props.min_zoom, props.max_zoom)};
     textures_.configure({.budget = static_cast<std::size_t>(std::max(1.0, props.cache_mb) * 1024 * 1024),
-                         .upload = static_cast<std::size_t>(std::max(0.25, props.upload_mb) * 1024 * 1024)});
+                         .upload = static_cast<std::size_t>(std::max(0.25, props.upload_mb) * 1024 * 1024),
+                         .glyphs = static_cast<std::size_t>(std::max(1.0, props.arrive_glyphs))});
 }
 
 void Canvas::prop_changed(CanvasProp p) {
@@ -97,8 +98,10 @@ void Canvas::prop_changed(CanvasProp p) {
         }
         case CanvasProp::cache_mb:
         case CanvasProp::upload_mb:
+        case CanvasProp::arrive_glyphs:
             textures_.configure({.budget = static_cast<std::size_t>(std::max(1.0, props.cache_mb) * 1024 * 1024),
-                                 .upload = static_cast<std::size_t>(std::max(0.25, props.upload_mb) * 1024 * 1024)});
+                                 .upload = static_cast<std::size_t>(std::max(0.25, props.upload_mb) * 1024 * 1024),
+                         .glyphs = static_cast<std::size_t>(std::max(1.0, props.arrive_glyphs))});
             break;
         case CanvasProp::behaviors: build_behaviors(); break;
         case CanvasProp::scene:
@@ -629,6 +632,7 @@ void Canvas::paint(PaintContext& ctx) const {
             case world::Tier::Draw::promote: ++stats_.promoted; break;  // a live child draws it
         }
     }
+    rehearse(*s, ctx, vp);
     // What the frame wants and has not: rasterised on the pool, collected at
     // the start of a frame (the step), drawn when it is in.
     textures_.issue(*s, ctx.services.images(), &ctx.services.fonts(), ctx.theme);
@@ -638,6 +642,40 @@ void Canvas::paint(PaintContext& ctx) const {
     stats_.query_ms = std::chrono::duration<double, std::milli>(queried - from).count();
     stats_.paint_ms = std::chrono::duration<double, std::milli>(done - queried).count();
     mlibs::trace::count("canvas.visible", static_cast<double>(stats_.visible), "canvas");
+}
+
+void Canvas::rehearse(world::Scene& scene, PaintContext& ctx, Size viewport) const {
+    // Near and far in turn: the form a few frames on is not always the one many frames on.
+    const int             frames_ahead = frame_ % 2 == 0 ? 3 : 12;
+    constexpr std::size_t nodes_a_frame = 128;
+    constexpr auto        time_a_frame = std::chrono::microseconds{800};
+    const world::Camera before = std::exchange(camera_before_, camera_);
+    if (!(before.zoom > 0) || before == camera_) return;
+    // Where the camera is after as many steps again as the last one.
+    world::Camera then = camera_;
+    then.x += (camera_.x - before.x) * frames_ahead;
+    then.y += (camera_.y - before.y) * frames_ahead;
+    then.zoom = std::clamp(camera_.zoom * std::pow(camera_.zoom / before.zoom, frames_ahead), props.min_zoom, props.max_zoom);
+    ahead_.clear();
+    scene.query(then.visible(viewport), ahead_);
+    if (ahead_.empty()) return;
+    const std::size_t most = std::min(nodes_a_frame, ahead_.size());
+    const auto        until = std::chrono::steady_clock::now() + time_a_frame;
+    std::size_t       done = 0;
+    for (; done < most; ++done) {
+        // Within its time of the frame (what was made is kept: the next frame goes on from here).
+        if (done > 0 && std::chrono::steady_clock::now() >= until) break;
+        const NodeRef         node = ahead_[(rehearse_at_ + done) % ahead_.size()];
+        const world::Kind&    kind = scene.kind_of(node);
+        const Rect            screen = then.to_screen(scene.rect(node), viewport);
+        const std::size_t     tier = tier_of(kind, screen, false);
+        if (kind.tiers[tier].draw != world::Tier::Draw::custom || !kind.draw) continue;
+        rehearsal_.clear();
+        world::DrawContext drawing{scene, node, rehearsal_, screen, then.zoom, tier, ctx.theme, &ctx.services.fonts()};
+        kind.draw(drawing);
+        ++stats_.rehearsed;
+    }
+    rehearse_at_ = (rehearse_at_ + done) % ahead_.size();
 }
 
 void Canvas::paint_over(PaintContext& ctx) const {

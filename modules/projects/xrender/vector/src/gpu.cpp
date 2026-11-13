@@ -1367,6 +1367,9 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
             const Rect  box = to.map(outline.bounds);
             const float x0 = std::floor(box.x) - 1, y0 = std::floor(box.y) - 1;
             const float width = std::ceil(box.right()) + 1 - x0, height = std::ceil(box.bottom()) + 1 - y0;
+            // Wholly outside the clip: no pixel of it is drawn, so no instance is sent (a title cut short by
+            // its window's edge sends the glyphs that show).
+            if (const Clip& within = clips.back(); x0 >= within.x1 || y0 >= within.y1 || x0 + width <= within.x0 || y0 + height <= within.y0) return;
             Draw d;
             Prim& p = d.prim;
             int flags = 0;

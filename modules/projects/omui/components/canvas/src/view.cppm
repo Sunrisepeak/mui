@@ -79,6 +79,7 @@ public:
     struct Stats {
         std::size_t boxes = 0, custom = 0, textured = 0, stretched = 0, promoted = 0, visible = 0;
         std::size_t listed = 0;  // content drawn as its list under the camera (`content: lists`)
+        std::size_t rehearsed = 0;  // drawings made ahead of the camera, shown by no frame (see rehearse)
         double      query_ms = 0, paint_ms = 0;
     };
     [[nodiscard]] world::Textures::Stats texture_stats() const { return textures_.stats(); }
@@ -161,6 +162,15 @@ private:
     std::vector<std::string>             promoted_;   // keys composed as live components
     std::vector<std::uint64_t>           promoted_revisions_;  // their content revisions when composed (Scene::touch)
     mutable Stats                        stats_;
+    // A kind's drawing as the camera will ask for it some frames on, made now into a list no frame
+    // shows: what a drawing makes the first time it is asked (a label shaped) is made a few nodes a
+    // frame before the frame that needs every one of them. The camera's last step repeated says where
+    // it will be; some nodes a frame, in turn, within a part of the frame's time.
+    void rehearse(world::Scene& scene, PaintContext& ctx, Size viewport) const;
+    mutable world::Camera               camera_before_{0, 0, 0};
+    mutable std::vector<world::NodeRef> ahead_;
+    mutable std::size_t                 rehearse_at_ = 0;
+    mutable xrender::DisplayList        rehearsal_;
     mutable std::uint64_t                drawn_revision_ = 0;
     std::string                          focused_;
     std::uint64_t                        tick_ = 0;   // the pending step's timer

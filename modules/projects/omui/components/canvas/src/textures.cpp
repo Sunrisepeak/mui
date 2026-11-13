@@ -367,7 +367,7 @@ bool Textures::collect(xrender::ImageStore& images, std::uint64_t frame, bool wa
     std::ranges::sort(done, {}, &Done::order);
     last_.entered = last_.evicted = 0;
     bool changed = false;
-    std::size_t entered = 0;
+    std::size_t entered = 0, lists_in = 0, glyphs_in = 0;
     std::vector<Done> later;
     for (Done& d : done) {
         if (d.epoch != inbox_->epoch) continue;  // from before clear()
@@ -375,10 +375,17 @@ bool Textures::collect(xrender::ImageStore& images, std::uint64_t frame, bool wa
             // A view's list: its images into the store (within the frame's budget of bytes, as textures), the list by their new references.
             std::size_t image_bytes = 0;
             for (const auto& [was, pixels] : d.images) image_bytes += static_cast<std::size_t>(pixels->width()) * static_cast<std::size_t>(pixels->height()) * 4;
-            if (entered > 0 && entered + image_bytes > options_.upload) {
+            // And its glyphs within the frame's budget of them: lists that come back together enter over a
+            // few frames, in the order asked for, so no one frame makes all their instances.
+            std::size_t glyphs = 0;
+            for (const xrender::Command& command : d.list->commands())
+                if (const auto* drawn = std::get_if<xrender::DrawGlyphs>(&command)) glyphs += drawn->glyphs.size();
+            if ((entered > 0 && entered + image_bytes > options_.upload) || (lists_in > 0 && glyphs_in + glyphs > options_.glyphs)) {
                 later.push_back(std::move(d));
                 continue;
             }
+            ++lists_in;
+            glyphs_in += glyphs;
             in_flight_.erase({d.key, d.revision, d.level});
             Entry& e = entries_[d.key];
             std::vector<std::pair<std::uint32_t, xrender::ImageRef>> now;
@@ -464,6 +471,7 @@ void Textures::complete(const Scene& scene, xrender::ImageStore& images, mlibs::
     const Options kept = options_;
     options_.jobs = std::max<std::size_t>(1, candidates_.size() + in_flight_.size());
     options_.upload = std::numeric_limits<std::size_t>::max();
+    options_.glyphs = std::numeric_limits<std::size_t>::max();
     issue(scene, images, fonts, theme);
     (void)collect(images, frame, true);
     options_ = kept;

@@ -6,5 +6,6 @@ export import :measure;
 export import :rounded;
 export import :solid;
 export import :mesh;
+export import :stored;
 export import :bvh;
 export import :walk;

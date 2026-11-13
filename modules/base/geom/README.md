@@ -29,3 +29,11 @@ Object identity/revision belongs to the source host. Source command indices do
 not become persistent IDs by themselves. Geometry contains no player, renderer,
 UI, device, logging or Agent transport dependency. Library/API consumers can
 inspect the same typed data without a window.
+## Three dimensions
+
+| Partition | What it holds |
+|---|---|
+| `:solid` | `Box3` (empty as made, grown by points, `moved` by a matrix), `Sphere` and `sphere_of`, `Plane`, `Ray` and `meet` (a box, a sphere, a triangle; never behind where it starts), `Frustum::of(world_to_clip)` with `holds` — conservative: it never drops what is seen; a reversed perspective with no far plane has five planes |
+| `:mesh` | `Mesh` (positions, optional normals, tangents and uvs, indices), `check`, `bounds`, `compute_normals`; the stored form `ClusteredMesh` (version 1): clusters of up to 124 triangles, each with a bounding sphere and the cone its triangles face within (`faces_away`), and the places a hierarchy of clusters fills later; shapes made by code — `box`, `sheet`, `sphere`, `cylinder` — with normals, tangents and uvs, closed bit for bit |
+
+Conventions are `mlibs.math`'s: right-handed, +Y up, triangles counter-clockwise seen from their front, depth 0 … 1. `clustered` cuts triangles in the order they are in; an optimiser that puts near triangles together first (meshoptimizer, to be joined under this form) makes better clusters of the same kind.

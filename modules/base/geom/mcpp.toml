@@ -6,7 +6,7 @@
 namespace   = "mlibs"
 name        = "geom"
 version     = "0.1.0"
-description = "Shared 2D geometry: values, path contracts, validation, curve flattening and pixel snapping"
+description = "Shared geometry: 2D values, paths, curve flattening and pixel snapping; 3D bounds, rays, a frustum, meshes stored in clusters and shapes made by code"
 license     = "Apache-2.0"
 platforms   = ["linux", "macos", "windows", "emscripten"]
 repo        = "https://github.com/Sunrisepeak/mui"

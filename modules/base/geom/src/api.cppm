@@ -4,3 +4,5 @@ export import :primitives;
 export import :path;
 export import :measure;
 export import :rounded;
+export import :solid;
+export import :mesh;

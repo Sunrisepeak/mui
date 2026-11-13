@@ -17,11 +17,14 @@ import std;
 export import xrender.mesh;
 export import xrender.scene;
 export import mlibs.rhi;
+import mlibs.math;
 export import :mesh_shaders;
 export import :ids_shaders;
 export import :sky_shaders;
 export import :shadow_shaders;
 export import :glow_shaders;
+export import :velocity_shaders;
+export import :resolve_shaders;
 
 export namespace xrender::mesh::gpu {
 
@@ -76,6 +79,18 @@ public:
     // asks of a pixel of the device's picture (`who`), with nothing of the CPU's drawn.
     void record_ids(mlibs::rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, mlibs::rhi::Texture ids, mlibs::rhi::Texture depth,
                     std::uint32_t width, std::uint32_t height);
+    // Which thing is at each pixel, for the resolve over time: a pass on `who` (r32_float, a colour target that
+    // can be sampled) — the instance's own id (its low 24 bits, and one more; 0 where nothing is), which is the
+    // same from frame to frame where a draw's place is not. Sampled where `options.jitter` says.
+    void record_who(mlibs::rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, mlibs::rhi::Texture who, mlibs::rhi::Texture depth,
+                    std::uint32_t width, std::uint32_t height, const Options& options = {});
+    // How far each pixel's point of the surface moved on the screen since the last frame recorded here: a pass
+    // on `velocity` (rgba16_float: x right, y down, in pixels) — and the pass remembers where everything is, for
+    // the next. What stood still under a still view says exactly 0; the jitter is not a movement.
+    void record_velocity(mlibs::rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, mlibs::rhi::Texture velocity,
+                         mlibs::rhi::Texture depth, std::uint32_t width, std::uint32_t height, const Options& options = {});
+    // After a cut: nothing is remembered, and the next frame's velocity is 0.
+    void forget() noexcept { remembered_ = false; }
     [[nodiscard]] const Stats& last() const noexcept { return last_; }
     // The formats the pass's shader was compiled to by this build: what a device is opened with.
     [[nodiscard]] static mlibs::rhi::ShaderFormats shader_formats() noexcept;
@@ -83,17 +98,23 @@ public:
 private:
     Pass() = default;
     void release() noexcept;
+    void who_pass(mlibs::rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, mlibs::rhi::Texture target, mlibs::rhi::Texture depth,
+                  std::uint32_t width, std::uint32_t height, mlibs::rhi::GraphicsPipeline pipeline, bool by_instance, mlibs::math::Vec2 jitter);
     struct Loaded {
         mlibs::rhi::Buffer corners;
         std::uint32_t      count = 0;
     };
     mlibs::rhi::Device*          device_ = nullptr;
-    mlibs::rhi::GraphicsPipeline pipeline_, ids_pipeline_, sky_pipeline_, shadow_pipeline_, lamp_shadow_pipeline_;
+    mlibs::rhi::GraphicsPipeline pipeline_, ids_pipeline_, sky_pipeline_, shadow_pipeline_, lamp_shadow_pipeline_, who_pipeline_, velocity_pipeline_;
     mlibs::rhi::Sampler          nearest_;
     mlibs::rhi::Texture          no_shadow_;  // a texel, for the map's place when there is no map
     mlibs::rhi::Buffer           cover_;  // three corners over the picture: what the sky is drawn with
     std::vector<Loaded>          meshes_;
     bool                         reversed_ = false, light_ = false;
+    std::vector<Id>              before_ids_;    // the scene's instances a frame ago, in id order
+    std::vector<mlibs::math::Mat4> before_world_;
+    mlibs::math::Mat4            before_clip_;
+    bool                         remembered_ = false;
     Stats                        last_;
 };
 
@@ -116,6 +137,30 @@ private:
     void release() noexcept;
     mlibs::rhi::Device*          device_ = nullptr;
     mlibs::rhi::GraphicsPipeline spread_, shown_;
+    mlibs::rhi::Sampler          nearest_;
+    mlibs::rhi::Buffer           cover_;
+};
+
+// Frames gathered over time, on a device (the reference: `xrender::mesh::Temporal`): each frame drawn with
+// `Options::jitter = jitter_of(n)`, its light, `record_velocity`'s and `record_who`'s pictures, and the last
+// frame's result and who — kept from frame to frame (the render graph's `history`).
+class Temporal {
+public:
+    [[nodiscard]] static mlibs::rhi::Result<Temporal> make(mlibs::rhi::Device& device);
+    Temporal(Temporal&& other) noexcept;
+    Temporal& operator=(Temporal&& other) noexcept;
+    ~Temporal();
+    // One pass onto `gathered` (rgba16_float: the light, and in its fourth part how many frames are gathered at
+    // the pixel). `begun`: there is a last result — `gathered_before` and `who_before` hold the last frame's
+    // (a history's `past` of 1); without it they are not read and the result is the frame's own.
+    void record(mlibs::rhi::CommandList& list, mlibs::rhi::Texture light, mlibs::rhi::Texture velocity, mlibs::rhi::Texture who, mlibs::rhi::Texture who_before, mlibs::rhi::Texture gathered_before,
+                mlibs::rhi::Texture gathered, std::uint32_t width, std::uint32_t height, bool begun, float least = 0.06f);
+
+private:
+    Temporal() = default;
+    void release() noexcept;
+    mlibs::rhi::Device*          device_ = nullptr;
+    mlibs::rhi::GraphicsPipeline pipeline_;
     mlibs::rhi::Sampler          nearest_;
     mlibs::rhi::Buffer           cover_;
 };

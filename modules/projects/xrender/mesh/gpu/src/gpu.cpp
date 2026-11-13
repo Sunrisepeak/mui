@@ -39,6 +39,13 @@ struct SurfaceUniforms {
 Row row_of(const Mat4& matrix, int row) { return {matrix.at(0, row), matrix.at(1, row), matrix.at(2, row), matrix.at(3, row)}; }
 Row of(Vec3 value, float last = 0) { return {value.x, value.y, value.z, last}; }
 
+// A frame's jitter: every corner moved by so much of a pixel — in clip space, by so much of its own w.
+Mat4 aside_of(math::Vec2 jitter, std::uint32_t width, std::uint32_t height) {
+    Mat4 aside;
+    if (width > 0 && height > 0) aside.at(3, 0) = 2.0f * jitter.x / static_cast<float>(width), aside.at(3, 1) = -2.0f * jitter.y / static_cast<float>(height);
+    return aside;
+}
+
 constexpr std::array<rhi::VertexAttribute, 2> attributes{rhi::VertexAttribute{0, rhi::VertexFormat::float3, 0}, rhi::VertexAttribute{1, rhi::VertexFormat::float3, 12}};
 
 }  // namespace
@@ -94,6 +101,22 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
                                                                .depth_target = rhi::Format::d32_float,
                                                                .depth = {.test = true, .write = true, .compare = rhi::Compare::less},
                                                                .label = "xrender.mesh.shadow.lamp"});
+    auto who = device.create(rhi::GraphicsPipelineDesc{.vertex = &shaders::ids::ids_vs,
+                                                       .fragment = &shaders::ids::who_fs,
+                                                       .vertex_buffers = layout,
+                                                       .target = rhi::Format::r32_float,
+                                                       .blend = rhi::Blend::replace(),
+                                                       .depth_target = rhi::Format::d32_float,
+                                                       .depth = {.test = true, .write = true, .compare = reversed_depth ? rhi::Compare::greater : rhi::Compare::less},
+                                                       .label = "xrender.mesh.who"});
+    auto velocity = device.create(rhi::GraphicsPipelineDesc{.vertex = &shaders::velocity::velocity_vs,
+                                                            .fragment = &shaders::velocity::velocity_fs,
+                                                            .vertex_buffers = layout,
+                                                            .target = rhi::Format::rgba16_float,
+                                                            .blend = rhi::Blend::replace(),
+                                                            .depth_target = rhi::Format::d32_float,
+                                                            .depth = {.test = true, .write = true, .compare = reversed_depth ? rhi::Compare::greater : rhi::Compare::less},
+                                                            .label = "xrender.mesh.velocity"});
     auto nearest = device.create(rhi::SamplerDesc{rhi::Filter::nearest, rhi::Filter::nearest});
     auto no_shadow = device.create(rhi::TextureDesc{rhi::Format::r32_float, 1, 1, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "xrender.mesh.no-shadow"});
     Pass pass;
@@ -102,12 +125,16 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
     if (cover) pass.cover_ = *cover;
     if (shadow) pass.shadow_pipeline_ = *shadow;
     if (lamp_shadow) pass.lamp_shadow_pipeline_ = *lamp_shadow;
+    if (who) pass.who_pipeline_ = *who;
+    if (velocity) pass.velocity_pipeline_ = *velocity;
     if (nearest) pass.nearest_ = *nearest;
     if (no_shadow) pass.no_shadow_ = *no_shadow;
     if (!sky) return std::unexpected(sky.error());  // `pass` releases what was made
     if (!cover) return std::unexpected(cover.error());
     if (!shadow) return std::unexpected(shadow.error());
     if (!lamp_shadow) return std::unexpected(lamp_shadow.error());
+    if (!who) return std::unexpected(who.error());
+    if (!velocity) return std::unexpected(velocity.error());
     if (!nearest) return std::unexpected(nearest.error());
     if (!no_shadow) return std::unexpected(no_shadow.error());
     // One triangle past the picture's corners covers it.
@@ -122,11 +149,11 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
     return pass;
 }
 Pass::Pass(Pass&& other) noexcept
-    : device_(std::exchange(other.device_, nullptr)), pipeline_(std::exchange(other.pipeline_, {})), ids_pipeline_(std::exchange(other.ids_pipeline_, {})), sky_pipeline_(std::exchange(other.sky_pipeline_, {})), shadow_pipeline_(std::exchange(other.shadow_pipeline_, {})), lamp_shadow_pipeline_(std::exchange(other.lamp_shadow_pipeline_, {})), nearest_(std::exchange(other.nearest_, {})), no_shadow_(std::exchange(other.no_shadow_, {})), cover_(std::exchange(other.cover_, {})), meshes_(std::move(other.meshes_)), reversed_(other.reversed_), light_(other.light_), last_(other.last_) {}
+    : device_(std::exchange(other.device_, nullptr)), pipeline_(std::exchange(other.pipeline_, {})), ids_pipeline_(std::exchange(other.ids_pipeline_, {})), sky_pipeline_(std::exchange(other.sky_pipeline_, {})), shadow_pipeline_(std::exchange(other.shadow_pipeline_, {})), lamp_shadow_pipeline_(std::exchange(other.lamp_shadow_pipeline_, {})), who_pipeline_(std::exchange(other.who_pipeline_, {})), velocity_pipeline_(std::exchange(other.velocity_pipeline_, {})), nearest_(std::exchange(other.nearest_, {})), no_shadow_(std::exchange(other.no_shadow_, {})), cover_(std::exchange(other.cover_, {})), meshes_(std::move(other.meshes_)), reversed_(other.reversed_), light_(other.light_), last_(other.last_) {}
 Pass& Pass::operator=(Pass&& other) noexcept {
     if (this != &other) {
         release();
-        device_ = std::exchange(other.device_, nullptr), pipeline_ = std::exchange(other.pipeline_, {}), ids_pipeline_ = std::exchange(other.ids_pipeline_, {}), sky_pipeline_ = std::exchange(other.sky_pipeline_, {}), shadow_pipeline_ = std::exchange(other.shadow_pipeline_, {}), lamp_shadow_pipeline_ = std::exchange(other.lamp_shadow_pipeline_, {}), nearest_ = std::exchange(other.nearest_, {}), no_shadow_ = std::exchange(other.no_shadow_, {}), cover_ = std::exchange(other.cover_, {}), meshes_ = std::move(other.meshes_), reversed_ = other.reversed_, light_ = other.light_, last_ = other.last_;
+        device_ = std::exchange(other.device_, nullptr), pipeline_ = std::exchange(other.pipeline_, {}), ids_pipeline_ = std::exchange(other.ids_pipeline_, {}), sky_pipeline_ = std::exchange(other.sky_pipeline_, {}), shadow_pipeline_ = std::exchange(other.shadow_pipeline_, {}), lamp_shadow_pipeline_ = std::exchange(other.lamp_shadow_pipeline_, {}), who_pipeline_ = std::exchange(other.who_pipeline_, {}), velocity_pipeline_ = std::exchange(other.velocity_pipeline_, {}), nearest_ = std::exchange(other.nearest_, {}), no_shadow_ = std::exchange(other.no_shadow_, {}), cover_ = std::exchange(other.cover_, {}), meshes_ = std::move(other.meshes_), reversed_ = other.reversed_, light_ = other.light_, last_ = other.last_;
     }
     return *this;
 }
@@ -143,6 +170,8 @@ void Pass::release() noexcept {
     if (cover_) device_->destroy(cover_);
     if (shadow_pipeline_) device_->destroy(shadow_pipeline_);
     if (lamp_shadow_pipeline_) device_->destroy(lamp_shadow_pipeline_);
+    if (who_pipeline_) device_->destroy(who_pipeline_);
+    if (velocity_pipeline_) device_->destroy(velocity_pipeline_);
     if (nearest_) device_->destroy(nearest_);
     if (no_shadow_) device_->destroy(no_shadow_);
     device_ = nullptr;
@@ -338,7 +367,7 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
             continue;
         }
         const scene::Instance& instance = instances[draw.instance];
-        const Mat4 to_clip = clip * instance.world;
+        const Mat4 to_clip = aside_of(options.jitter, width, height) * clip * instance.world;
         const std::optional<Mat4> back = math::inverse(instance.world);
         const Mat4 for_normals = back ? math::transposed(*back) : instance.world;
         DrawUniforms uniforms{};
@@ -442,17 +471,25 @@ void Glow::record(rhi::CommandList& list, rhi::Texture light, rhi::Texture one, 
 
 void Pass::record_ids(rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, rhi::Texture ids, rhi::Texture depth, std::uint32_t width,
                       std::uint32_t height) {
+    who_pass(list, scene, extracted, view, ids, depth, width, height, ids_pipeline_, false, {0, 0});
+}
+void Pass::record_who(rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, rhi::Texture who, rhi::Texture depth, std::uint32_t width,
+                      std::uint32_t height, const Options& options) {
+    who_pass(list, scene, extracted, view, who, depth, width, height, who_pipeline_, true, options.jitter);
+}
+void Pass::who_pass(rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, rhi::Texture ids, rhi::Texture depth, std::uint32_t width,
+                    std::uint32_t height, rhi::GraphicsPipeline pipeline, bool by_instance, math::Vec2 jitter) {
     struct Who {
         Row           eye;
         std::uint32_t number = 0, spare[3]{};
     };
-    const Mat4 clip = view.projection * view.view;
+    const Mat4 clip = aside_of(jitter, width, height) * view.projection * view.view;
     const std::optional<Mat4> camera = math::inverse(view.view);
     const Vec3 eye = camera ? math::point(*camera, {0, 0, 0}) : Vec3{};
     const std::span<const scene::Instance> instances = scene.instances();
     list.begin_render({ids, rhi::LoadOp::clear, {0, 0, 0, 0}}, {depth, rhi::LoadOp::clear, reversed_ ? 0.0f : 1.0f});
     list.set_viewport(0, 0, static_cast<float>(width), static_cast<float>(height));
-    list.set_pipeline(ids_pipeline_);
+    list.set_pipeline(pipeline);
     for (std::uint32_t number = 0; number < extracted.draws.size(); ++number) {
         const scene::Draw& draw = extracted.draws[number];
         if (draw.instance >= instances.size() || draw.mesh >= meshes_.size() || !meshes_[draw.mesh].corners) continue;
@@ -464,10 +501,122 @@ void Pass::record_ids(rhi::CommandList& list, const scene::Scene& scene, const s
         for (int row = 0; row < 4; ++row) uniforms.to_clip[row] = row_of(to_clip, row);
         for (int row = 0; row < 3; ++row) uniforms.to_world[row] = row_of(instance.world, row), uniforms.normals[row] = row_of(for_normals, row);
         list.push_uniforms(rhi::Stage::vertex, 0, uniforms);
-        list.push_uniforms(rhi::Stage::fragment, 0, Who{of(eye), number + 1, {}});
+        list.push_uniforms(rhi::Stage::fragment, 0, Who{of(eye), by_instance ? static_cast<std::uint32_t>(instance.id & 0xffffffu) + 1 : number + 1, {}});
         list.bind_vertex_buffer(0, meshes_[draw.mesh].corners);
         list.draw(meshes_[draw.mesh].count);
     }
+    list.end_render();
+}
+
+void Pass::record_velocity(rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, rhi::Texture velocity, rhi::Texture depth,
+                           std::uint32_t width, std::uint32_t height, const Options& options) {
+    struct VelocityDraw {
+        Row to_clip[4];
+        Row to_world[3];
+        Row normals[3];
+        Row before[4];
+    };
+    struct Moved {
+        Row eye, size_jitter, still;
+    };
+    const Mat4 clip = view.projection * view.view, drawn_clip = aside_of(options.jitter, width, height) * clip;
+    const std::optional<Mat4> camera = math::inverse(view.view);
+    const Vec3 eye = camera ? math::point(*camera, {0, 0, 0}) : Vec3{};
+    const std::span<const scene::Instance> instances = scene.instances();
+    list.begin_render({velocity, rhi::LoadOp::clear, {0, 0, 0, 1}}, {depth, rhi::LoadOp::clear, reversed_ ? 0.0f : 1.0f});
+    list.set_viewport(0, 0, static_cast<float>(width), static_cast<float>(height));
+    list.set_pipeline(velocity_pipeline_);
+    for (const scene::Draw& draw : extracted.draws) {
+        if (draw.instance >= instances.size() || draw.mesh >= meshes_.size() || !meshes_[draw.mesh].corners) continue;
+        const scene::Instance& instance = instances[draw.instance];
+        const Mat4 to_clip = clip * instance.world, jittered = drawn_clip * instance.world;
+        // Where it was a frame ago: its own place then, through the view then. New this frame: where it is.
+        Mat4 before = to_clip;
+        if (remembered_) {
+            const auto found = std::ranges::lower_bound(before_ids_, instance.id);
+            before = before_clip_ * (found != before_ids_.end() && *found == instance.id ? before_world_[static_cast<std::size_t>(found - before_ids_.begin())] : instance.world);
+        }
+        const std::optional<Mat4> back = math::inverse(instance.world);
+        const Mat4 for_normals = back ? math::transposed(*back) : instance.world;
+        VelocityDraw uniforms{};
+        for (int row = 0; row < 4; ++row) uniforms.to_clip[row] = row_of(jittered, row), uniforms.before[row] = row_of(before, row);
+        for (int row = 0; row < 3; ++row) uniforms.to_world[row] = row_of(instance.world, row), uniforms.normals[row] = row_of(for_normals, row);
+        list.push_uniforms(rhi::Stage::vertex, 0, uniforms);
+        list.push_uniforms(rhi::Stage::fragment, 0,
+                           Moved{of(eye), {static_cast<float>(width), static_cast<float>(height), options.jitter.x, options.jitter.y}, {before.values == to_clip.values ? 1.0f : 0.0f, 0, 0, 0}});
+        list.bind_vertex_buffer(0, meshes_[draw.mesh].corners);
+        list.draw(meshes_[draw.mesh].count);
+    }
+    list.end_render();
+    // The scene's instances are in id order: what the next frame looks its things up in.
+    before_ids_.clear(), before_world_.clear();
+    for (const scene::Instance& instance : instances) before_ids_.push_back(instance.id), before_world_.push_back(instance.world);
+    before_clip_ = clip;
+    remembered_ = true;
+}
+
+rhi::Result<Temporal> Temporal::make(rhi::Device& device) {
+    const std::array<rhi::VertexBufferLayout, 1> layout{rhi::VertexBufferLayout{sizeof(Corner), false, attributes}};
+    auto pipeline = device.create(rhi::GraphicsPipelineDesc{.vertex = &shaders::resolve::resolve_vs,
+                                                            .fragment = &shaders::resolve::resolve_fs,
+                                                            .vertex_buffers = layout,
+                                                            .target = rhi::Format::rgba16_float,
+                                                            .blend = rhi::Blend::replace(),
+                                                            .label = "xrender.mesh.resolve"});
+    auto nearest = device.create(rhi::SamplerDesc{rhi::Filter::nearest, rhi::Filter::nearest});
+    auto cover = device.create(rhi::BufferDesc{3 * sizeof(Corner), rhi::BufferUsage::vertex, "xrender.mesh.resolve.cover"});
+    Temporal made;
+    made.device_ = &device;
+    if (pipeline) made.pipeline_ = *pipeline;
+    if (nearest) made.nearest_ = *nearest;
+    if (cover) made.cover_ = *cover;
+    if (!pipeline) return std::unexpected(pipeline.error());  // `made` releases what was made
+    if (!nearest) return std::unexpected(nearest.error());
+    if (!cover) return std::unexpected(cover.error());
+    const std::array<Corner, 3> corners{Corner{{-1, -1, 0}, {}}, Corner{{3, -1, 0}, {}}, Corner{{-1, 3, 0}, {}}};
+    rhi::CommandList list;
+    list.upload(*cover, 0, std::span<const Corner>(corners));
+    auto submitted = device.submit(list);
+    if (!submitted) return std::unexpected(submitted.error());
+    if (auto waited = device.wait(*submitted); !waited) return std::unexpected(waited.error());
+    return made;
+}
+Temporal::Temporal(Temporal&& other) noexcept
+    : device_(std::exchange(other.device_, nullptr)), pipeline_(std::exchange(other.pipeline_, {})), nearest_(std::exchange(other.nearest_, {})), cover_(std::exchange(other.cover_, {})) {}
+Temporal& Temporal::operator=(Temporal&& other) noexcept {
+    if (this != &other) {
+        release();
+        device_ = std::exchange(other.device_, nullptr), pipeline_ = std::exchange(other.pipeline_, {}), nearest_ = std::exchange(other.nearest_, {}), cover_ = std::exchange(other.cover_, {});
+    }
+    return *this;
+}
+Temporal::~Temporal() { release(); }
+void Temporal::release() noexcept {
+    if (!device_) return;
+    static_cast<void>(device_->wait_idle());
+    if (pipeline_) device_->destroy(pipeline_);
+    if (nearest_) device_->destroy(nearest_);
+    if (cover_) device_->destroy(cover_);
+    device_ = nullptr;
+}
+
+void Temporal::record(rhi::CommandList& list, rhi::Texture light, rhi::Texture velocity, rhi::Texture who, rhi::Texture who_before, rhi::Texture gathered_before, rhi::Texture gathered,
+                      std::uint32_t width, std::uint32_t height, bool begun, float least) {
+    struct Uniforms {
+        Row size, how;
+    } uniforms{{static_cast<float>(width), static_cast<float>(height), 1.0f / static_cast<float>(width), 1.0f / static_cast<float>(height)}, {begun ? 1.0f : 0.0f, least, 0, 0}};
+    list.begin_render({gathered, rhi::LoadOp::clear, {0, 0, 0, 0}});
+    list.set_viewport(0, 0, static_cast<float>(width), static_cast<float>(height));
+    list.set_pipeline(pipeline_);
+    list.push_uniforms(rhi::Stage::fragment, 0, uniforms);
+    list.bind_texture(rhi::Stage::fragment, 0, light, nearest_);
+    list.bind_texture(rhi::Stage::fragment, 1, velocity, nearest_);
+    list.bind_texture(rhi::Stage::fragment, 2, who, nearest_);
+    // With no last result the two are not read: something of the right kind stands in their places.
+    list.bind_texture(rhi::Stage::fragment, 3, begun ? who_before : who, nearest_);
+    list.bind_texture(rhi::Stage::fragment, 4, begun ? gathered_before : light, nearest_);
+    list.bind_vertex_buffer(0, cover_);
+    list.draw(3);
     list.end_render();
 }
 

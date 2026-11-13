@@ -31,5 +31,6 @@ mlibs.utils = { path = "../../../../base/utils" }
 mlibs.rhi.cts = { path = "../../../../gfx/rhi/cts" }
 xrender.cts = { path = "../../cts" }
 xrender.mesh.gpu = { path = "../../mesh/gpu" }
+xrender.graph = { path = "../../graph" }
 mlibs.image = { path = "../../../../base/image" }
 mcpplibs.os     = "0.4.4"

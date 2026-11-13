@@ -5,6 +5,7 @@ import std;
 import mlibs.rhi;
 import xrender.rhi.sdl;
 import xrender.mesh.gpu;
+import xrender.graph;
 import mlibs.image;
 import mcpplibs.os;
 import mcpplibs.mtest;
@@ -486,5 +487,94 @@ UTest cases{"mesh.gpu.sdl", [] {
         expect(lt(static_cast<double>(all.off), 0.004 * static_cast<double>(all.compared)));
         static_cast<void>(device->wait_idle());
         for (const rhi::Texture made : {colour, depth, light, one, other, shadows.map, shadows.depth, shadows.lamps_map, shadows.lamps_depth}) device->destroy(made);
+    };
+    "frames gathered over time on the device are the reference's: sixteen frames each sampled a little aside, then the box moved a long way in one — the picture the reference's resolve gives, kept from frame to frame by the graph's histories"_test = [] {
+        auto device = open_device();
+        if (!device) return;
+        Yard yard;
+        mesh::Pass on_cpu;
+        mesh::Temporal gathered_on_cpu;
+        mesh::Targets reference;
+        reference.resize(static_cast<int>(width), static_cast<int>(height));
+        std::vector<std::uint8_t> resolved;
+
+        auto pass = mesh::gpu::Pass::make(*device, false, true);
+        expect(fatal(pass.has_value())) << (pass ? "" : pass.error().message);
+        expect(fatal(pass->load(yard.meshes).has_value()));
+        auto temporal = mesh::gpu::Temporal::make(*device);
+        auto glow = mesh::gpu::Glow::make(*device);
+        expect(fatal(temporal.has_value() && glow.has_value())) << (temporal ? "" : temporal.error().message);
+        const auto colour = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, width, height, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "mesh.colour"});
+        expect(fatal(colour.has_value()));
+        {
+            xrender::TexturePool pool(*device);
+            const auto sampled_target = rhi::TextureUsage::color_target | rhi::TextureUsage::sampled;
+            const xrender::TextureNeed of_light{width, height, rhi::Format::rgba16_float, sampled_target}, of_who{width, height, rhi::Format::r32_float, sampled_target},
+                of_depth{width, height, rhi::Format::d32_float, rhi::TextureUsage::depth_target};
+            std::uint32_t last_past = 0;
+            // One frame on both: the reference's draw and resolve; the device's five passes in a graph.
+            const auto frame = [&](std::uint32_t number) {
+                const mesh::Options options{.shadows = false, .jitter = mesh::jitter_of(number)};
+                scene::Extracted seen;
+                scene::extract(yard.world, yard.view(), seen);
+                on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}}, reference, options);
+                const mesh::Temporal::Told told = gathered_on_cpu.resolve(reference, resolved);
+
+                pool.begin_frame();
+                xrender::Graph graph(pool);
+                const auto light = graph.transient(of_light, "light"), velocity = graph.transient(of_light, "velocity"), depth = graph.transient(of_depth, "depth");
+                const auto who = graph.history("mesh.who", of_who, "who"), gathered = graph.history("mesh.gathered", of_light, "gathered");
+                expect(fatal(light.has_value() && velocity.has_value() && depth.has_value() && who.has_value() && gathered.has_value()));
+                const bool begun = who->past == 1 && gathered->past == 1;
+                last_past = gathered->past;
+                graph.pass({.name = "mesh.light", .writes = {*light, *depth}},
+                           [&](rhi::CommandList& list) { pass->record(list, yard.world, seen, yard.view(), yard.materials, *light, *depth, width, height, options); });
+                graph.pass({.name = "mesh.who", .writes = {who->now, *depth}}, [&](rhi::CommandList& list) { pass->record_who(list, yard.world, seen, yard.view(), who->now, *depth, width, height, options); });
+                graph.pass({.name = "mesh.velocity", .writes = {*velocity, *depth}},
+                           [&](rhi::CommandList& list) { pass->record_velocity(list, yard.world, seen, yard.view(), *velocity, *depth, width, height, options); });
+                std::vector<rhi::Texture> reads{*light, *velocity, who->now};
+                if (begun) reads.push_back(who->before), reads.push_back(gathered->before);
+                graph.pass({.name = "mesh.resolve", .reads = reads, .writes = {gathered->now}},
+                           [&](rhi::CommandList& list) { temporal->record(list, *light, *velocity, who->now, who->before, gathered->before, gathered->now, width, height, begun); });
+                graph.pass({.name = "mesh.show", .reads = {gathered->now}, .writes = {*colour}},
+                           [&](rhi::CommandList& list) { glow->record(list, gathered->now, *light, *velocity, *colour, width, height, {}); });
+                rhi::CommandList list;
+                const auto report = graph.record(list, {&*colour, 1});
+                expect(fatal(report.has_value())) << (report ? "" : report.error().front().text);
+                expect(eq(report->recorded, std::size_t{5}) && eq(report->histories, std::size_t{2}));
+                const auto submitted = device->submit(list);
+                expect(fatal(submitted.has_value())) << (submitted ? "" : submitted.error().message);
+                expect(device->wait(*submitted).has_value());
+                return told;
+            };
+            const auto compared = [&](std::string_view name) {
+                auto pixels = device->read(*colour, rhi::Region{0, 0, width, height});
+                expect(fatal(pixels.has_value())) << (pixels ? "" : pixels.error().message);
+                keep(*pixels, name);
+                mesh::Targets shown = reference;
+                shown.colour = resolved;
+                return apart(shown, *pixels, false, 6);
+            };
+            mesh::Temporal::Told told;
+            for (std::uint32_t number = 0; number < 16; ++number) told = frame(number);
+            expect(eq(last_past, 1u)) << "each frame reads the last frame's";
+            const Apart still = compared("yard-gathered");
+            std::println("16 frames gathered ({} pixels carried in the last): {} of {} pixels further than 6 levels from the reference's resolve ({:.2f}%), mean {:.3f}, worst {}", told.carried, still.off,
+                         still.compared, 100.0 * static_cast<double>(still.off) / static_cast<double>(still.compared), still.mean, still.worst);
+            expect(lt(static_cast<double>(still.off), 0.001 * static_cast<double>(still.compared)));
+            // The box goes a long way to the left in one frame: where it was is the floor again at once.
+            const math::Mat4 was = yard.world.find(10)->world;
+            expect(yard.world.move(10, math::translation({-1.5f, 0, 0}) * was).has_value());
+            told = frame(16);
+            const Apart moved = compared("yard-gathered-moved");
+            std::println("    the box moved: the reference carried {} pixels, {} were another thing's; {} of {} pixels further than 6 levels ({:.2f}%), mean {:.3f}", told.carried, told.another, moved.off,
+                         moved.compared, 100.0 * static_cast<double>(moved.off) / static_cast<double>(moved.compared), moved.mean);
+            expect(gt(told.another, 500u));
+            expect(lt(static_cast<double>(moved.off), 0.001 * static_cast<double>(moved.compared)));
+            std::println("    the pool: {} textures made in 17 frames, {} histories", pool.made(), pool.histories());
+            expect(eq(pool.made(), std::size_t{7})) << "three of a frame and two histories of two: made once";
+            static_cast<void>(device->wait_idle());
+        }
+        device->destroy(*colour);
     };
 }};

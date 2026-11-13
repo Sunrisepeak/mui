@@ -39,3 +39,11 @@ uint ids_fs(VOut point) : SV_Target {
     if (dot(point.normal, who.eye.xyz - point.place) < 0) discard;
     return who.number;
 }
+
+// The same as a number a float holds exactly (below 2²⁴): what the resolve over time compares between frames,
+// read as any other picture is.
+[shader("fragment")]
+float4 who_fs(VOut point) : SV_Target {
+    if (dot(point.normal, who.eye.xyz - point.place) < 0) discard;
+    return float4(float(who.number), 0, 0, 1);
+}

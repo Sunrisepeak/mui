@@ -217,13 +217,20 @@ private:
         const std::int64_t steps = request["steps"].integer().value_or(1);
         if (steps < 1 || steps > options_.most_steps)
             return answer.fail(openas::error_code::invalid_argument, std::format("`steps` is 1 … {}", options_.most_steps));
+        // What would be if the actions were given now: on a copy of the player's lane, so they take effect as
+        // the tier's reaction allows and what is held until then is held — the future `world.act` and
+        // `world.step` would play, not one a person could not have.
+        xengine::AgentLane lane = lane_;
+        if (!lane.submit(timeline_.frame() - 1, timeline_.frame() - 1, *actions))
+            return answer.fail(openas::error_code::refused, std::format("more often than the `{}` tier allows ({} actions a second): the action itself would be refused",
+                                                                         lane_.tier().name, lane_.tier().actions_per_second));
         State future = timeline_.state();  // a copy: the game is not touched
         std::int64_t played = 0;
         for (; played < steps && !G::over(future); ++played) {
-            xengine::Actions held = *actions;
-            if (played == 0) held.pressed = held.held;  // pressed as it begins
             Input input{};
-            G::play(input, held);
+            // Whoever seats the agent for real (the runtime, or an owner by its own rules), what is asked is
+            // what its actions would do: they are played here.
+            G::play(input, lane.take(timeline_.frame() + played));
             G::step(future, input);
         }
         answer.data(view(future, timeline_.frame() + played));

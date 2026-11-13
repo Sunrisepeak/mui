@@ -21,7 +21,7 @@ inline constexpr std::array<mlibs::control::Parameter, 1> parameters_world_seek{
 }};
 inline constexpr std::array<mlibs::control::Parameter, 4> parameters_world_branch{{
     {"steps", "integer", "how far ahead (1 when none is given)", true},
-    {"buttons", "json", "held throughout, pressed as it begins", true},
+    {"buttons", "json", "held from when the action takes effect, pressed as it does", true},
     {"axis", "json", "", true},
     {"pointer", "json", "", true},
 }};
@@ -33,7 +33,7 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 6> catalog{{
     {{"world.act", openas::Effect::reversible, false}, "A player's actions, as a person's: the state shows them from `effective`, no sooner than the tier's reaction after `seen`, and they hold until the next", parameters_world_act, "json", mlibs::control::Cost::instant, "world.seek to the frame before it took effect", false, false, false},
     {{"world.step", openas::Effect::reversible, false}, "Plays steps; only where the agent steps the game (an owner's clock refuses it)", parameters_world_step, "json", mlibs::control::Cost::bounded, "world.seek to the frame it began at", false, false, false},
     {{"world.seek", openas::Effect::reversible, false}, "Returns to a frame within the history kept; what is played from there is a new branch", parameters_world_seek, "json", mlibs::control::Cost::bounded, "none within the runtime: what came after the frame is another branch's", false, false, false},
-    {{"world.branch", openas::Effect::read, false}, "What would be: the future's view and hash some steps ahead holding given actions; the game itself untouched", parameters_world_branch, "json", mlibs::control::Cost::bounded, "", false, false, false},
+    {{"world.branch", openas::Effect::read, false}, "What would be if given actions were given now: the future's view and hash some steps ahead — the actions taking effect as the tier's reaction allows, as `world.act` would have them; the game itself untouched", parameters_world_branch, "json", mlibs::control::Cost::bounded, "", false, false, false},
 }};
 
 // The listing (world.ops.json), as written beside this file.
@@ -53,8 +53,8 @@ inline constexpr std::string_view listing = R"listing({
      "inputSchema": {"type": "object", "properties": {"steps": {"type": "integer", "description": "how many (1 when none is given)"}}, "required": []}},
     {"name": "world.seek", "description": "Returns to a frame within the history kept; what is played from there is a new branch", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "none within the runtime: what came after the frame is another branch's", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"frame": {"type": "integer", "description": "the frame to return to"}}, "required": ["frame"]}},
-    {"name": "world.branch", "description": "What would be: the future's view and hash some steps ahead holding given actions; the game itself untouched", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
-     "inputSchema": {"type": "object", "properties": {"steps": {"type": "integer", "description": "how far ahead (1 when none is given)"}, "buttons": {"description": "held throughout, pressed as it begins"}, "axis": {}, "pointer": {"x-space": "plane"}}, "required": []}}
+    {"name": "world.branch", "description": "What would be if given actions were given now: the future's view and hash some steps ahead — the actions taking effect as the tier's reaction allows, as `world.act` would have them; the game itself untouched", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"steps": {"type": "integer", "description": "how far ahead (1 when none is given)"}, "buttons": {"description": "held from when the action takes effect, pressed as it does"}, "axis": {}, "pointer": {"x-space": "plane"}}, "required": []}}
   ],
   "tiers": [
     {"name": "human", "view": "drawn", "reaction_ms": 100, "actions_per_second": 10, "doc": "As a person plays: shown what is drawn, a tenth of a second's reaction, ten actions a second.", "operations": ["world.observe", "world.state", "world.act", "world.step", "world.seek", "world.branch"]},

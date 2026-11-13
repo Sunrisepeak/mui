@@ -10,7 +10,8 @@
 //
 //   0  hurt: out of harm's way, and mend (afloat: up and out, where backing off is drowning)
 //   1  forward: each way of the game's, tried a stride ahead and further; the one that gets furthest unharmed
-//   2a the way is open but would hurt, and what hurts passes with time: back off and let it
+//   2a the way is open but would hurt, and what hurts passes with time: back off — as far as was tried and
+//      leaves her standing — and let it
 //   2  blocked: each tool that suits what is ahead, at each aim, over its own time; the first that clears the way
 //   3  nothing helps now: wait where waiting costs nothing, a few times; then say where it is stuck and why
 //
@@ -46,6 +47,7 @@ struct Policy {
     double hurt = 60;                         // below it: out of harm's way and mend, before anything
     int    mend_back = 30, mend_wait = 300, surface = 60;
     int    cool_tries = 12, cool_back = 30, cool_wait = 180;
+    int    cool_piece = 15, cool_pieces = 4;  // where the whole way back is not safe: so many steps at a time, so many times
     int    tool_back = 20, tool_settle = 10;  // steps back, and standing, before a tool is tried
     double tool_least = 50;                   // health a tool's use may not leave her below
     int    clears = 3;                        // how much less in the way counts as clearing it
@@ -68,13 +70,16 @@ public:
     // What is shown now; and what would be after `steps` of `what`, with nothing done. The record's `data`.
     [[nodiscard]] mlibs::json::Document observe();
     [[nodiscard]] mlibs::json::Document branch(int steps, std::string_view what);
-    // False once a request was answered with no record, or one that is no JSON: the game is not there to play.
+    // False once a request was answered with no record or with an error: the game is not there to play, or did
+    // not do what was asked (`problem()` says which request's answer).
     [[nodiscard]] bool ok() const noexcept { return ok_; }
+    [[nodiscard]] std::string_view problem() const noexcept { return problem_; }
 
 private:
     [[nodiscard]] mlibs::json::Document ask(std::string_view line);
     mlibs::agent::SubjectSession* session_;
     bool                          ok_ = true;
+    std::string                   problem_;
 };
 
 // What a game gives the player.
@@ -168,13 +173,40 @@ template <Game G>
             continue;
         }
         // 2a the way is open but would hurt her, and what hurts passes: back off and let it.
-        if (harmful && game.passes(seen) && waits++ < policy.cool_tries) {
-            hands.act(game.back());
-            hands.step(policy.cool_back);
-            hands.act(game.stay());
-            hands.step(policy.cool_wait);
-            say(std::format("frame {}: the way ahead of {:.1f} hurts; back off and let it cool", vitals.frame, vitals.progress));
-            continue;
+        // Backing off is a step like any other, tried before it is taken. The whole way back where that leaves
+        // her standing and unharmed; where it does not (water behind her, or she is in what hurts already): a
+        // piece at a time, for real, asking at each place whether standing there is safe — and waiting only
+        // where it is.
+        if (harmful && game.passes(seen) && waits < policy.cool_tries) {
+            const auto safe_to_stand = [&] {
+                const Vitals later = game.vitals(ahead(policy.cool_wait, game.stay()));
+                const Vitals here = game.vitals(now());
+                return !later.lost && later.health >= here.health - policy.wait_cost;
+            };
+            const Vitals there = game.vitals(ahead(policy.cool_back, game.back()));
+            int backed = 0;
+            bool stands = false;
+            if (!there.lost && !there.afloat && there.health >= vitals.health - policy.harm) {
+                hands.act(game.back());
+                hands.step(policy.cool_back);
+                backed = policy.cool_back, stands = true;
+            } else {
+                for (int piece = 0; piece <= policy.cool_pieces && !(stands = safe_to_stand()); ++piece) {
+                    if (piece == policy.cool_pieces) break;
+                    hands.act(game.back());
+                    hands.step(policy.cool_piece);
+                    backed += policy.cool_piece;
+                }
+            }
+            if (stands) {
+                ++waits;
+                hands.act(game.stay());
+                hands.step(policy.cool_wait);
+                say(std::format("frame {}: the way ahead of {:.1f} hurts; back off {}{} and let it cool", vitals.frame, vitals.progress, backed,
+                                backed == policy.cool_back && there.health >= vitals.health - policy.harm && !there.afloat && !there.lost ? "" : ", to where she can stand,"));
+                continue;
+            }
+            say(std::format("frame {}: the way ahead of {:.1f} hurts, and {} steps back there is still nowhere to stand", vitals.frame, vitals.progress, backed));
         }
         // 2 blocked: each tool that suits what she sees ahead, at each aim, over its own time; the first that clears the way.
         struct Try {
@@ -232,7 +264,7 @@ template <Game G>
                                  std::string(game.has(seen)));
         return report;
     }
-    report.why = hands.ok() ? "out of turns" : "the game did not answer";
+    report.why = hands.ok() ? "out of turns" : std::format("the game did not do what was asked ({})", hands.problem());
     return report;
 }
 

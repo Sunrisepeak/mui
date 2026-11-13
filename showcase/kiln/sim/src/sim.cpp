@@ -279,8 +279,14 @@ void move(State& state, const Input& input) {
         break;
     }
     if (!cat.on_ground && !free_at(look, cat.x, std::floor(cat.y) + 1.0f) && free_at(look, cat.x, std::floor(cat.y)) && cat.vy >= 0) cat.on_ground = true, cat.y = std::floor(cat.y);
-    // Pushed out of what moved into her (a body), up to three cells.
-    for (int lift = 0; lift < 3 && !free_at(look, cat.x, cat.y); ++lift) cat.y = std::floor(cat.y) - 1.0f;
+    // Pushed out of what moved into her (a body, rubble come down on her): to the nearest free place above,
+    // up to three cells. Where there is none she stays — buried, not lifted through the rock and out of the world.
+    if (!free_at(look, cat.x, cat.y))
+        for (int lift = 1; lift <= 3; ++lift)
+            if (free_at(look, cat.x, std::floor(cat.y) - static_cast<float>(lift))) {
+                cat.y = std::floor(cat.y) - static_cast<float>(lift);
+                break;
+            }
     // What hurts: heat around her, burning, lava; water over her head takes her breath.
     const std::uint32_t temperature = *program.channel("temperature"), burning = *program.channel("burning");
     const Box now = box_at(cat.x, cat.y);

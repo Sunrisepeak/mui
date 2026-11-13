@@ -22,6 +22,7 @@ struct Corridor {
         std::array<std::int32_t, 2> doors{200, 0};  // where a shut door stands; 0: none, or opened
         std::int32_t                fire_from = 400, fire_to = 440;
         std::int64_t                fire_until = 1500;  // the frame it has burned out by
+        std::int32_t                pool_from = 0, pool_to = 0;  // water: she is afloat in it, and still in it she drowns
     };
     struct Input {
         xengine::Actions player{};
@@ -44,16 +45,18 @@ struct Corridor {
                 }
         const bool burning = state.frame < state.fire_until && state.at >= state.fire_from && state.at < state.fire_to;
         if (burning) --state.health;
-        if (!burning && axis > -0.5 && axis < 0.5 && state.frame % 10 == 0 && state.health < 100) ++state.health;
+        const bool afloat = state.at >= state.pool_from && state.at < state.pool_to;
+        if (afloat && axis > -0.5 && axis < 0.5 && state.frame % 4 == 0) --state.health;
+        if (!burning && !afloat && axis > -0.5 && axis < 0.5 && state.frame % 10 == 0 && state.health < 100) ++state.health;
     }
     static std::uint64_t checksum(const State& state) noexcept {
         std::uint64_t sum = static_cast<std::uint64_t>(state.frame);
-        for (const std::int32_t part : {state.at, state.health, state.keys, state.doors[0], state.doors[1]}) sum = sum * 1099511628211ull + static_cast<std::uint32_t>(part);
+        for (const std::int32_t part : {state.at, state.health, state.keys, state.doors[0], state.doors[1], state.pool_from, state.pool_to}) sum = sum * 1099511628211ull + static_cast<std::uint32_t>(part);
         return sum;
     }
     static std::string observe(const State& state, bool) {
-        return std::format(R"({{"at":{},"health":{},"keys":{},"doors":[{},{}],"burning":{},"outcome":"{}"}})", state.at, state.health, state.keys, state.doors[0], state.doors[1],
-                           state.frame < state.fire_until, state.at >= end ? "won" : state.health <= 0 ? "lost" : "");
+        return std::format(R"({{"at":{},"health":{},"keys":{},"doors":[{},{}],"burning":{},"afloat":{},"outcome":"{}"}})", state.at, state.health, state.keys, state.doors[0], state.doors[1],
+                           state.frame < state.fire_until, state.at >= state.pool_from && state.at < state.pool_to, state.at >= end ? "won" : state.health <= 0 ? "lost" : "");
     }
     static void play(Input& input, const xengine::Actions& actions) { input.player = actions; }
     static bool over(const State& state) noexcept { return state.at >= end || state.health <= 0; }
@@ -65,7 +68,7 @@ struct Table {
     struct View {
         std::int64_t                frame = 0, at = 0, health = 0, keys = 0;
         std::array<std::int64_t, 2> doors{};
-        bool                        burning = false;
+        bool                        burning = false, afloat = false;
         std::string                 outcome;
     };
     using Tool = playtest::Tool;
@@ -76,12 +79,12 @@ struct Table {
         seen.at = view["at"].integer().value_or(0), seen.health = view["health"].integer().value_or(0), seen.keys = view["keys"].integer().value_or(0);
         std::size_t index = 0;
         for (const auto& door : view["doors"].items()) seen.doors[index++ % 2] = door.integer().value_or(0);
-        seen.burning = view["burning"].boolean() == true;
+        seen.burning = view["burning"].boolean() == true, seen.afloat = view["afloat"].boolean() == true;
         seen.outcome = std::string(view["outcome"].text().value_or(""));
         return seen;
     }
     [[nodiscard]] playtest::Vitals vitals(const View& seen) const {
-        return {.progress = static_cast<double>(seen.at), .health = static_cast<double>(seen.health), .frame = seen.frame, .won = seen.outcome == "won", .lost = seen.outcome == "lost"};
+        return {.progress = static_cast<double>(seen.at), .health = static_cast<double>(seen.health), .frame = seen.frame, .won = seen.outcome == "won", .lost = seen.outcome == "lost", .afloat = seen.afloat};
     }
     [[nodiscard]] std::span<const std::string_view> ways() const {
         static constexpr std::array<std::string_view, 1> ways{R"("axis":[1])"};
@@ -132,7 +135,7 @@ UTest cases{"xengine.playtest", [] {
         expect(said(report, "key at (the door), in the way 5 → 0"));
         expect(!said(report, "knock at"));
         // The fire was a hazard and not an obstacle: no tool spent on it, she backed off until it had burned out.
-        expect(said(report, "hurts; back off and let it cool"));
+        expect(said(report, "hurts; back off 30 and let it cool"));
         const auto frame = std::stoll(report.why.substr(std::string_view("won at frame ").size()));
         expect(frame > 1500) << frame;
     };
@@ -164,6 +167,20 @@ UTest cases{"xengine.playtest", [] {
         expect(report.won) << report.why;
     };
 
+    "backing off is tried before it is taken: with water behind her she backs only as far as she can stand, and is never hurt by her own retreat"_test = [] {
+        Corridor::State pool;
+        pool.pool_from = 340, pool.pool_to = 380;  // thirty steps back from the fire is in it
+        const playtest::Report report = played(pool);
+        expect(report.won) << report.why;
+        // The whole way back is into the water, so it is not taken: she backs a piece at a time until where
+        // she stands is safe, and ends between the water and the fire.
+        expect(!said(report, "back off 30 and"));
+        expect(said(report, "back off 30, to where she can stand, and let it cool"));
+        expect(said(report, "ahead of 389.0 hurts; back off 0, to where she can stand,")) << "between the water (to 380) and the fire (from 400), and no further back";
+        expect(!said(report, "nowhere to stand"));
+        expect(!said(report, "hurt (") && !said(report, "hurt afloat")) << "nothing she did cost her enough to need mending, and she did not drown";
+    };
+
     "a way that only hurts is never taken: a fire that does not burn out stops her, unharmed"_test = [] {
         Corridor::State lasting;
         lasting.fire_until = 1'000'000;
@@ -171,5 +188,6 @@ UTest cases{"xengine.playtest", [] {
         expect(!report.won);
         expect(report.why.starts_with("stuck at cell")) << report.why;
         expect(!said(report, "hurt (")) << "she was never hurt enough to need mending";
+        expect(!said(report, "hurt afloat"));
     };
 }};

@@ -171,6 +171,21 @@ UTest cases{"runtime", [] {
         expect(played.data()["hash"].text() == future.data()["hash"].text()) << "the same steps, played";
     };
 
+    "on a person's tier too the branch is the future that is played: the reaction's steps are in it, and what was held is held until then"_test = [] {
+        Game game(Chase::State{});  // the human tier: a tenth of a second's reaction
+        agent::SubjectSession session({&game});
+        (void)ask(session, R"({"op":"world.act","axis":[1]})");
+        (void)ask(session, R"({"op":"world.step","steps":20})");
+        const auto walked = ask(session, R"({"op":"world.observe"})").data()["view"]["player"].integer().value_or(0);
+        // Turning back, tried: she walks on for the reaction's steps first.
+        const auto future = ask(session, R"({"op":"world.branch","steps":30,"axis":[-1]})");
+        const auto there = future.data()["view"]["player"].integer().value_or(0);
+        expect(there > walked - 30) << std::format("{} from {}: not thirty steps back, the first of them were still forward", there, walked);
+        (void)ask(session, R"({"op":"world.act","axis":[-1]})");
+        const auto played = ask(session, R"({"op":"world.step","steps":30})");
+        expect(played.data()["hash"].text() == future.data()["hash"].text()) << "the same steps, played";
+    };
+
     "time is the game's: sought back within what is kept, a new branch from there; outside it, stale"_test = [] {
         Game game(Chase::State{}, {.tier = assist});
         agent::SubjectSession session({&game});

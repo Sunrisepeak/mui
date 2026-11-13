@@ -59,10 +59,10 @@ export default defineOps({
     {
       name: "world.branch",
       effect: "read",
-      summary: "What would be: the future's view and hash some steps ahead holding given actions; the game itself untouched",
+      summary: "What would be if given actions were given now: the future's view and hash some steps ahead — the actions taking effect as the tier's reaction allows, as `world.act` would have them; the game itself untouched",
       params: [
         { name: "steps", type: "integer", doc: "how far ahead (1 when none is given)", optional: true },
-        { name: "buttons", type: "json", doc: "held throughout, pressed as it begins", optional: true },
+        { name: "buttons", type: "json", doc: "held from when the action takes effect, pressed as it does", optional: true },
         { name: "axis", type: "json", optional: true },
         { name: "pointer", type: "json", space: "plane", optional: true },
       ],

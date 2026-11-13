@@ -167,10 +167,10 @@ UTest cases{"breakout.headless", [] {
         Table table("breakout-branch", directory);
         if (!table.open()) return;
         const std::uint64_t before = table.game.state_hash();
-        auto future = table.call(R"({"op":"world.branch","steps":240,"buttons":[0]})");
+        auto future = table.call(R"({"op":"world.branch","steps":60,"buttons":[0]})");
         expect(fatal(future.has_value()));
         const auto data = future->root()["data"];
-        expect(data["frame"].integer() == 240);
+        expect(data["frame"].integer() == 60);
         expect(data["view"]["balls"][0]["waiting"].boolean() == false) << "in that future the ball was launched";
         expect(eq(table.game.state_hash(), before) && eq(table.game.frame(), std::int64_t{0})) << "here it still waits";
         table.endpoint.stop();

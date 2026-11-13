@@ -8,9 +8,16 @@ mlibs::json::Document Hands::ask(std::string_view line) {
     std::optional<mlibs::json::Document> first;
     session_->request(line, [&](std::string_view record) {
         if (first) return;
-        if (auto parsed = mlibs::json::Document::parse(record, "record")) first.emplace(std::move(*parsed));
+        auto parsed = mlibs::json::Document::parse(record, "record");
+        if (!parsed) return;
+        // A request the game did not carry out (an action more often than the tier allows, a step too long): the
+        // player has not done what it thinks it did, and says so rather than play on.
+        if (parsed->root()["kind"].text() == "error" && problem_.empty())
+            problem_ = std::format("{}: {}", parsed->root()["code"].text().value_or("error"), parsed->root()["message"].text().value_or(""));
+        first.emplace(std::move(*parsed));
     });
-    if (first) return std::move(*first);
+    if (first && problem_.empty()) return std::move(*first);
+    if (problem_.empty()) problem_ = "no record";
     ok_ = false;
     return std::move(*mlibs::json::Document::parse("{}", "none"));
 }

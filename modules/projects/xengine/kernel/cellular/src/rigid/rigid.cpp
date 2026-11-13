@@ -530,7 +530,6 @@ struct Reader {
         return values;
     }
 };
-dyn::BodyId body_from(std::uint32_t index, std::uint32_t generation) { return {static_cast<std::int32_t>(index), static_cast<std::uint16_t>(generation)}; }
 }  // namespace
 
 void Bodies::save(std::vector<std::uint8_t>& out) const {
@@ -552,7 +551,7 @@ std::expected<void, std::string> Bodies::restore(std::span<const std::uint8_t> s
     std::vector<Piece> pieces(static_cast<std::size_t>(std::min<std::uint64_t>(read.u64(), saved.size())));
     for (Piece& piece : pieces) {
         const std::uint32_t index = read.u32(), generation = read.u32();
-        piece.body = body_from(index, generation);
+        piece.body = dyn::BodyId{static_cast<std::int32_t>(index), static_cast<std::uint16_t>(generation)};
         piece.left = static_cast<std::int32_t>(read.u32()), piece.top = static_cast<std::int32_t>(read.u32());
         piece.width = read.u32(), piece.height = read.u32();
         piece.cells = read.list(), piece.covered = read.list(), piece.from = read.list(), piece.under = read.list();
@@ -565,7 +564,7 @@ std::expected<void, std::string> Bodies::restore(std::span<const std::uint8_t> s
     std::vector<std::uint64_t> hashes;
     for (std::uint64_t tile = 0; read.ok && tile < tiles; ++tile) {
         const std::uint32_t index = read.u32(), generation = read.u32();
-        terrain.push_back(body_from(index, generation));
+        terrain.push_back(dyn::BodyId{static_cast<std::int32_t>(index), static_cast<std::uint16_t>(generation)});
         hashes.push_back(read.u64());
     }
     if (!read.ok || owner.size() != owner_.size() || terrain.size() != terrain_.size()) return std::unexpected(std::string("not a saved coupling of this field"));
@@ -581,7 +580,7 @@ Bodies Bodies::onto(dyn::World& world) const {
 
 std::expected<std::unique_ptr<MatterWorld>, std::string> MatterWorld::make(const matter::Program& program, const WorldOptions& options) {
     const auto fill = program.material(options.fill);
-    if (!fill) return std::unexpected(std::format("no material `{}`", options.fill));
+    if (!fill) return std::unexpected(std::format("no material `{}` to fill the world with", options.fill));
     auto lattice = cellular::lower(program, {.seed = options.seed});
     if (!lattice) return std::unexpected(std::format("the program does not lower: {}", lattice.error().text()));
     auto rigid = dyn::World::make({.gravity = {0, options.gravity}});

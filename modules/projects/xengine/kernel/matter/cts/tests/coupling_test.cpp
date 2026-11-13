@@ -153,7 +153,7 @@ UTest cases{"matter.rigid", [] {
         static const matter::Program program = *matter::standard();
         // A basin with a crate of wood falling in, a plank burning over it, sand pouring: everything moving.
         const auto make = [](bool sparse) {
-            auto world = *bodies::MatterWorld::make(program, {.shape = {64, 48}, .tile = {8, 8}, .seed = 5, .sparse = sparse});
+            auto world = *bodies::MatterWorld::make(program, {.shape = {64, 48}, .tile = {8, 8}, .seed = 5, .fill = "air", .sparse = sparse});
             const auto material = [&](std::string_view name) { return *program.material(name); };
             world->place({0, 44, 64, 4}, material("stone"));
             world->place({0, 20, 2, 24}, material("stone"));

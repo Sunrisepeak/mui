@@ -114,7 +114,7 @@ struct WorldOptions {
     Shape shape;
     Shape tile{16, 16};
     std::uint32_t seed = 0;         // of the lattice's sideways choices
-    std::string fill = "air";       // what the world is made of at first, and what lies beyond its edges
+    std::string fill;               // the material the world is made of at first, and what lies beyond its edges (a gas)
     bool open = true;               // its edges a bath of `fill` (heat leaves, a fire there has its oxygen); else nothing
     bool sparse = true;             // the lattice runs the tiles awake
     float gravity = 9.8f;

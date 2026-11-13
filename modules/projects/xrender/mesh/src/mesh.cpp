@@ -102,6 +102,7 @@ struct Raster {
     Mat4           aside;         // this frame's jitter, in clip space
     Vec3           eye{};         // the view's, in the world
     bool           fog = false;
+    std::uint64_t  at_pixel = 0;       // the pixel being shaded: what its own rays are drawn from
     Vec3           base{};             // the draw's own base colour: what a texture's light multiplies
     const Texture* texture = nullptr;  // the draw's, or none
 
@@ -122,9 +123,41 @@ struct Raster {
         return false;
     }
 
+    // The share of the light from everywhere that reaches `place`: of rays about the normal (likelier the nearer
+    // it), those that go the reach without meeting anything.
+    float open_to(Vec3 normal, Vec3 place) noexcept {
+        if (options.occlusion_rays == 0 || casters.empty()) return 1;
+        math::SplitMix64 random{math::mix64(math::mix64(options.occlusion_seed) + at_pixel)};
+        const Vec3 lifted = place + normal * 2e-3f;
+        const Vec3 aside = math::normalized(math::cross(std::abs(normal.y) < 0.9f ? Vec3{0, 1, 0} : Vec3{1, 0, 0}, normal)), other = math::cross(normal, aside);
+        std::uint32_t free = 0;
+        for (std::uint32_t ray = 0; ray < options.occlusion_rays; ++ray) {
+            const float first = static_cast<float>(math::unit24(random.next())), turn = static_cast<float>(math::unit24(random.next())) * 6.2831853f;
+            const float out = std::sqrt(first);
+            const Vec3 way = math::normalized(aside * (out * static_cast<float>(math::det::cos(static_cast<double>(turn)))) + other * (out * static_cast<float>(math::det::sin(static_cast<double>(turn)))) +
+                                              normal * std::sqrt(std::max(1.0f - first, 0.0f)));
+            const std::uint64_t before = stats.shadowed;
+            const bool met = hidden_from(lifted, way, options.occlusion_reach);
+            --stats.rays, stats.shadowed = before, ++stats.occlusion_rays;  // counted as what they are
+            if (met) ++stats.occluded;
+            else ++free;
+        }
+        return static_cast<float>(free) / static_cast<float>(options.occlusion_rays);
+    }
+
+    // What reaches a surface open to the sky by `open` of the ways about it: the open share — and, by the ways
+    // that are shut, what the things in them send back, taken to be of the surface's own colour and lit as it
+    // is (light going to and fro in a hollow: open / (1 − colour · (1 − open)), the form Jimenez and others
+    // fitted in 2016). A dark surface's corner is dark; a light one's is filled by its own light.
+    [[nodiscard]] Vec3 reaching(float open) const noexcept {
+        if (open >= 1) return {1, 1, 1};
+        const auto of = [&](float colour) { return open / (1.0f - std::clamp(colour, 0.0f, 0.98f) * (1.0f - open)); };
+        return {of(material.base.x), of(material.base.y), of(material.base.z)};
+    }
+
     Vec3 lit(Vec3 normal, Vec3 place) noexcept {
         if (!material.matt()) return shone(normal, place);
-        Vec3 light = options.ambient;
+        Vec3 light = math::scaled(options.ambient, reaching(open_to(normal, place)));
         // A ray starts a little off the surface, or it meets the surface it left.
         const Vec3 lifted = place + normal * 2e-3f;
         for (const Lamp& lamp : lamps) {
@@ -150,7 +183,7 @@ struct Raster {
     // The same lights on a surface that is not matt: each light's share by `reflected`.
     Vec3 shone(Vec3 normal, Vec3 place) noexcept {
         const Vec3 toward_eye = math::normalized(eye - place);
-        Vec3 sent = math::scaled(reflected_ambient(material), options.ambient) + material.emissive;
+        Vec3 sent = math::scaled(math::scaled(reflected_ambient(material), options.ambient), reaching(open_to(normal, place))) + material.emissive;
         if (options.environment.on) sent = sent + mirrored(material, options.environment, normal, toward_eye);
         const Vec3 lifted = place + normal * 2e-3f;
         for (const Lamp& lamp : lamps) {
@@ -245,6 +278,7 @@ struct Raster {
                     material.base = math::scaled(base, texture->over(here, {right.x - here.x, right.y - here.y}, {down.x - here.x, down.y - here.y}));
                     ++stats.textured;
                 }
+                at_pixel = pixel;
                 Vec3 colour = lit(normal, place);
                 if (fog) {
                     const Vec3 to = place - eye;

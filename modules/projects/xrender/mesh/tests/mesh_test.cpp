@@ -920,6 +920,21 @@ static UTest cases{"xrender.mesh", [] {
         expect(lt(with_sky * 2, with_none)) << "a constant of the sky's colour is much nearer than none";
         expect(gt(by_ball_over, 0.03)) << "and too light where the ball is over the floor: what it leaves out";
         expect(gt(by_ball_over, with_sky_over * 2)) << "there more than anywhere";
+        // With rays for it: the light from everywhere only as far as the sky is open to the surface.
+        const Frame open_only = drawn(world, yard_camera, width, height, {.background = sky, .ambient = sky, .occlusion_rays = 32, .occlusion_reach = 1000}, true);
+        const auto [with_rays, with_rays_over] = apart(open_only.targets, false);
+        const auto [by_ball_rays, by_ball_rays_over] = apart(open_only.targets, true);
+        std::println("    with 32 rays a sample for it: {:.3f} off ({:+.3f} on the whole); about the ball's foot {:+.3f}; {} rays, {} met something", with_rays, with_rays_over, by_ball_rays_over,
+                     open_only.stats.occlusion_rays, open_only.stats.occluded);
+        expect(lt(std::abs(by_ball_rays_over), by_ball_over * 0.35)) << "the ball's foot is no longer too light";
+        // On the whole the yard is a little darker than the traced one (−0.012), where the constant was a little
+        // lighter (+0.007): a way that is shut is taken to send back the surface's own light from the sky, and the
+        // traced yard's shut ways are things the sun is on. What the sample cannot know is stated, not hidden.
+        expect(lt(with_rays, 0.025f) && lt(std::abs(with_rays_over), 0.02f)) << "and the whole yard stays near: " << with_rays << " " << with_rays_over;
+        expect(eq(constant.stats.occlusion_rays, std::uint64_t{0}) && eq(open_only.stats.rays, constant.stats.rays)) << "the lights' rays are counted as before";
+        const Frame again = drawn(world, yard_camera, width, height, {.background = sky, .ambient = sky, .occlusion_rays = 32, .occlusion_reach = 1000}, true);
+        expect(eq(bits(again.targets), bits(open_only.targets))) << "a pixel's rays are its own: the same bits twice";
+        (void)keep(open_only.targets, "yard-occlusion");
     };
     "tone: cut off at white a bright lamp is flat and white; bent toward white it keeps its shape and its colour; exposure scales first; no tone is the pass's own bytes"_test = [] {
         const mesh::Tone filmic{.filmic = true};

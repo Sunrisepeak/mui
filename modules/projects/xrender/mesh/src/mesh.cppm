@@ -122,6 +122,14 @@ struct Options {
     // velocity does not include it.
     Vec2 jitter{0, 0};
     Fog  fog;
+    // How much of the light from everywhere reaches a surface: with `occlusion_rays` above 0 (and the assets'
+    // trees) that many rays leave each sample about its normal, and `ambient` is given only the share of them
+    // that go `occlusion_reach` without meeting anything — a corner, the floor under a thing, darker. The rays
+    // are a pixel's own (its number and `occlusion_seed`): grain, which frames gathered over time take out when
+    // the seed changes with the frame. The reference a device's occlusion from depth is held to.
+    std::uint32_t occlusion_rays = 0;
+    float         occlusion_reach = 4;
+    std::uint64_t occlusion_seed = 1;
     Environment environment;
 };
 
@@ -147,6 +155,7 @@ struct Stats {
     std::uint64_t triangles = 0, facing_away = 0, outside = 0, clipped = 0, filled = 0;
     std::uint64_t written = 0, hidden = 0;                  // pixels that passed the depth, and that did not
     std::uint64_t rays = 0, shadowed = 0;                   // rays sent toward a light, and those that met something
+    std::uint64_t occlusion_rays = 0, occluded = 0;         // rays sent for the light from everywhere, and those that met something
     std::uint64_t textured = 0;                             // samples whose colour was looked up in a texture
     std::uint64_t fogged = 0;                               // samples whose light went through fog: each one written, and the background's pixels
 };

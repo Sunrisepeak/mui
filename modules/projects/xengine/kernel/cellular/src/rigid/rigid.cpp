@@ -671,8 +671,13 @@ void MatterWorld::place(Tile region, std::uint32_t material) {
     const std::size_t area = static_cast<std::size_t>(options_.shape.width) * options_.shape.height;
     if (material >= program_->materials().size()) return;
     for (std::uint32_t y = region.y; y < std::min(region.y + region.height, options_.shape.height); ++y)
-        for (std::uint32_t x = region.x; x < std::min(region.x + region.width, options_.shape.width); ++x)
-            program_->place(cells_, area, static_cast<std::size_t>(y) * options_.shape.width + x, material);
+        for (std::uint32_t x = region.x; x < std::min(region.x + region.width, options_.shape.width); ++x) {
+            const std::size_t cell = static_cast<std::size_t>(y) * options_.shape.width + x;
+            // What was there and was not gas is no longer: a work that does this turns one thing into another.
+            const std::uint32_t was = cells_[cell];
+            if (was != material && was < program_->materials().size() && program_->phase(was) != matter::Phase::gas) ++converted_;
+            program_->place(cells_, area, cell, material);
+        }
     lattice_.wake(options_.shape, options_.tile, region, activity_);
     if (watched_) pending_.edits.push_back({.kind = Journal::EditKind::place, .region = region, .value = material, .by = by_});
 }

@@ -21,7 +21,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 xengine.input    = { path = "../../../modules/projects/xengine/game/input" }
-xengine.cellular = { path = "../../../modules/projects/xengine/kernel/cellular", features = ["rigid"] }
+xengine.cellular = { path = "../../../modules/projects/xengine/kernel/cellular", features = ["rigid", "verbs"] }
 xengine.matter   = { path = "../../../modules/projects/xengine/kernel/matter" }
 mlibs.utils      = { path = "../../../modules/base/utils" }
 

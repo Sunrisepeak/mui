@@ -91,6 +91,8 @@ UTest cases{"kiln.sim", [] {
         kiln::step(state, casting_at(state, 77.0f, 30.0f));
         run(state, 240);
         expect(count_in(state, "stone", 76, 22, 79, 33) + 8 < wall) << std::format("the wall had {} cells of stone, now {}", wall, count_in(state, "stone", 76, 22, 79, 33));
+        // The game turned nothing into anything: the stone is sand by the law that shatters (D-182).
+        expect(eq(state.world->converted(), kiln::start(kiln::level::first())->world->converted())) << "the bomb wrote over no cell";
         // Over the lava: water.
         auto other = *kiln::start(kiln::level::first());
         other.cat.x = 83.5f, other.cat.y = 34.0f, other.cat.spell = kiln::Spell::water, other.cat.mana = 100;
@@ -102,6 +104,7 @@ UTest cases{"kiln.sim", [] {
         run(other, 300);
         expect(count_in(other, "lava", 86, 36, 111, 43) < lava) << std::format("lava {} → {}", lava, count_in(other, "lava", 86, 36, 111, 43));
         expect(count_in(other, "stone", 86, 36, 111, 43) > 5u) << "stone where the water met it";
+        expect(eq(other.world->converted(), kiln::start(kiln::level::first())->world->converted())) << "water was poured only where there was air";
     };
 
     "the same actions are the same frames, bit for bit"_test = [] {

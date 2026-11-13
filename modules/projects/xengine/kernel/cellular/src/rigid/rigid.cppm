@@ -195,6 +195,10 @@ public:
     // bodies are pushed by it at the next frame through the field's pressure, if the world has one.
     std::uint32_t blast(particles::Vec centre, float radius, float speed, bool breaks = false);
     [[nodiscard]] std::uint64_t frames() const noexcept { return tick_; }
+    // The cells `place` wrote over something that was not gas, since this world was made (not of its state: a
+    // copy starts from the same count, a restored world keeps its own). A work that only puts matter where
+    // there is none and applies quantities leaves it where its setting-up left it (D-182).
+    [[nodiscard]] std::uint64_t converted() const noexcept { return converted_; }
     // Watched: each step keeps its journal. Off (as made, and in every branch): nothing is kept and a frame costs
     // what it did. Either way the world is the same bits.
     void watch(bool on);
@@ -237,6 +241,7 @@ private:
     std::vector<std::uint8_t> activity_;
     std::vector<Tile> touched_;  // a frame's scratch
     std::uint64_t tick_ = 0;
+    std::uint64_t converted_ = 0;
     std::unique_ptr<dyn::World> rigid_;
     std::unique_ptr<Bodies> bodies_;
     std::unique_ptr<particles::Particles> flying_;

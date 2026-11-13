@@ -2,10 +2,12 @@ module omui.showcase.kiln.sim;
 import std;
 import xengine.matter.json;
 import mlibs.hash;
+import xengine.cellular.verbs;
 
 namespace kiln {
 namespace substance = xengine::matter;
 namespace ca = xengine::cellular;
+namespace verbs = xengine::cellular::verbs;
 
 const substance::Program& matter() {
     static const substance::Program program = *substance::standard();
@@ -181,45 +183,22 @@ void cast(State& state, const Input& input) {
     state.bolts.push_back({from_x + dx * 2.0f, from_y + dy * 2.0f, dx * bolt_speed, dy * bolt_speed, cat.spell});
 }
 
-// A bomb's pressure, as the channel holds it, over a disc of so many cells: three times what breaks stone.
-constexpr std::int64_t bomb_radius = 6;
-constexpr std::uint32_t bomb_pressure = 600000;
-// Where a bolt lands, what it does: fire heats, water pours, a bomb blasts and heats.
+// What each spell is: numbers given to the world's verbs (xengine.cellular.verbs). A bomb's pressure, as the
+// channel holds it, is three times what breaks stone.
+constexpr verbs::Explosion bomb{.radius = 6, .pressure = 600000, .heat_radius = 3, .kelvin = 1100};
+constexpr std::int64_t fire_radius = 2;
+constexpr double fire_kelvin = 1000;
+constexpr verbs::Pour splash{.radius = 2, .reach = 3};
+// Where a bolt lands: fire heats, water pours, a bomb is a pressure and a heat. What follows is the laws' — what
+// is brittle breaks into what it says it breaks into, what is loose is thrown, what burns is lit: the game
+// turns no material into another.
 void land(State& state, const Bolt& bolt) {
     auto& world = *state.world;
-    const auto& program = world.program();
-    const std::uint32_t temperature = *program.channel("temperature");
-    const std::int64_t cx = static_cast<std::int64_t>(std::floor(bolt.x)), cy = static_cast<std::int64_t>(std::floor(bolt.y));
-    const auto clip = [&](std::int64_t radius) -> ca::Tile {
-        const std::int64_t x0 = std::max<std::int64_t>(0, cx - radius), y0 = std::max<std::int64_t>(0, cy - radius);
-        const std::int64_t x1 = std::min<std::int64_t>(world.shape().width - 1, cx + radius), y1 = std::min<std::int64_t>(world.shape().height - 1, cy + radius);
-        if (x1 < x0 || y1 < y0) return {};
-        return {static_cast<std::uint32_t>(x0), static_cast<std::uint32_t>(y0), static_cast<std::uint32_t>(x1 - x0 + 1), static_cast<std::uint32_t>(y1 - y0 + 1)};
-    };
+    const verbs::Cell at{static_cast<std::int64_t>(std::floor(bolt.x)), static_cast<std::int64_t>(std::floor(bolt.y))};
     switch (bolt.spell) {
-        case Spell::fire: world.set(temperature, clip(2), 1000 * 256); break;
-        case Spell::water: {
-            const Look look = look_of(state);
-            const auto water = *program.material("water");
-            for (std::int64_t y = cy - 2; y <= cy + 2; ++y)
-                for (std::int64_t x = cx - 2; x <= cx + 2; ++x)
-                    if (std::abs(x - cx) + std::abs(y - cy) <= 3 && look.gas(x, y)) world.place({static_cast<std::uint32_t>(x), static_cast<std::uint32_t>(y), 1, 1}, water);
-            break;
-        }
-        case Spell::bomb: {
-            // A bomb is pressure and heat, and nothing else. What is brittle breaks by the law (stone into the
-            // sand it says it breaks into), what is loose is thrown by the pressure, what burns is lit: the game
-            // turns no material into another.
-            const std::uint32_t pressure = *program.channel("pressure");
-            for (std::int64_t dy = -bomb_radius; dy <= bomb_radius; ++dy) {
-                const auto half = static_cast<std::int64_t>(std::floor(std::sqrt(static_cast<double>(bomb_radius * bomb_radius - dy * dy))));
-                const std::int64_t y = cy + dy, x0 = std::max<std::int64_t>(0, cx - half), x1 = std::min<std::int64_t>(world.shape().width - 1, cx + half);
-                if (y < 0 || y >= world.shape().height || x1 < x0) continue;
-                world.set(pressure, {static_cast<std::uint32_t>(x0), static_cast<std::uint32_t>(y), static_cast<std::uint32_t>(x1 - x0 + 1), 1}, bomb_pressure);
-            }
-            world.set(temperature, clip(3), 1100 * 256);
-            break;
-        }
+        case Spell::fire: verbs::heat(world, at, fire_radius, fire_kelvin); break;
+        case Spell::water: (void)verbs::pour(world, at, *world.program().material("water"), splash); break;
+        case Spell::bomb: verbs::explode(world, at, bomb); break;
     }
 }
 

@@ -51,6 +51,10 @@ particles = { implies = ["matter"], sources = ["src/particles/*.cppm", "src/part
 # Matter that is only for show (src/decor/, module xengine.cellular.decor; D-178): a second field beside a world
 # of matter, stepped by the same laws, that reads the authoritative field and is never read by it — scenery that
 # catches from a real fire. A feature: a world that shows none pays nothing, and nothing authoritative names it.
+# What is done to a world of matter, as parts any work uses (src/verbs/, module xengine.cellular.verbs; D-183,
+# the engine's standard library): an explosion, a heat, a pour, a vent — each only places matter where there is
+# none and applies quantities; what follows is the laws'.
+verbs = { implies = ["rigid"], sources = ["src/verbs/*.cppm", "src/verbs/*.cpp"] }
 decor = { implies = ["matter"], sources = ["src/decor/*.cppm", "src/decor/*.cpp"] }
 matter-agent = { implies = ["agent", "matter"], sources = ["src/matter/agent/*.cppm", "src/matter/agent/*.cpp"] }
 # A world's lattice as what the matter subject stands on (src/rigid/agent/, module xengine.cellular.rigid.agent;

@@ -35,6 +35,17 @@ main = "src/main.cpp"
 sources  = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
+# What matter sounds like, made from what it is (src/matter/, module xengine.audio.matter; D-183): an event's
+# shape of sound, each material's from its own properties. A feature, on by default (so the package's own tests
+# build it); one that wants audio and no matter says `default-features = false`.
+[features]
+default = ["matter"]
+matter = { sources = ["src/matter/*.cppm", "src/matter/*.cpp"] }
+
+[feature-deps.matter]
+# The kernel alone — the table and its plan, no JSON.
+xengine.matter = { path = "../matter", default-features = false }
+
 [dependencies]
 mlibs.math = { path = "../../../../base/math" }
 mlibs.utils = { path = "../../../../base/utils" }
@@ -45,3 +56,5 @@ mcpplibs.cmdline    = "0.0.3"
 
 [dev-dependencies]
 mcpplibs.mtest = "0.7.1"
+# tests/matter_test.cpp: the standard definition, read, with the pack of acoustics over it.
+xengine.matter = { path = "../matter" }

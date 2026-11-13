@@ -22,6 +22,7 @@ export module xengine.cellular.rigid;
 import std;
 export import xengine.cellular.matter;
 export import xengine.dynamics.rigid;
+export import xengine.cellular.particles;
 
 export namespace xengine::cellular::rigid {
 namespace dyn = xengine::dynamics::rigid;
@@ -119,6 +120,7 @@ struct WorldOptions {
     bool sparse = true;             // the lattice runs the tiles awake
     float gravity = 9.8f;
     Options bodies;
+    particles::Options flying;  // its cell and gravity are the world's
 };
 class MatterWorld {
 public:
@@ -131,6 +133,10 @@ public:
     [[nodiscard]] std::span<const std::uint32_t> cells() const noexcept { return cells_; }
     [[nodiscard]] dyn::World& rigid() noexcept { return *rigid_; }
     [[nodiscard]] Bodies& bodies() noexcept { return *bodies_; }
+    [[nodiscard]] particles::Particles& flying() noexcept { return *flying_; }
+    // A blast at `centre` (cells): what is not gas within `radius` thrown outward (solids too when `breaks`);
+    // bodies are pushed by it at the next frame through the field's pressure, if the world has one.
+    std::uint32_t blast(particles::Vec centre, float radius, float speed, bool breaks = false);
     [[nodiscard]] std::uint64_t frames() const noexcept { return tick_; }
 
     // Cells written from outside a frame (the tiles they are in wake).
@@ -158,6 +164,7 @@ private:
     std::uint64_t tick_ = 0;
     std::unique_ptr<dyn::World> rigid_;
     std::unique_ptr<Bodies> bodies_;
+    std::unique_ptr<particles::Particles> flying_;
 };
 
 // A world of matter as a value: a copy is a branch (the whole world, bit for bit), so a timeline keeps it and

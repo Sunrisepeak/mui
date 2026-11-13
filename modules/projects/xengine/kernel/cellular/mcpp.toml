@@ -42,7 +42,10 @@ matter = { sources = ["src/matter/*.cppm", "src/matter/*.cpp"] }
 # of solid cells that moves with xengine.dynamics' rigid family while the lattice keeps simulating its cells —
 # it burns away, is re-made, splits; a liquid holds it up and drags it, a blast pushes it; the field's own solid
 # cells are fixed collision. It joins the lattice of matter and the rigid family, and nothing more.
-rigid = { implies = ["matter"], sources = ["src/rigid/*.cppm", "src/rigid/*.cpp"] }
+rigid = { implies = ["matter", "particles"], sources = ["src/rigid/*.cppm", "src/rigid/*.cpp"] }
+# Cells in flight (src/particles/, module xengine.cellular.particles; the plan's §6.7, lattice ↔ particles):
+# thrown by a pressure or a blast, carrying their whole state, a cell again where they land. Conserving.
+particles = { implies = ["matter"], sources = ["src/particles/*.cppm", "src/particles/*.cpp"] }
 matter-agent = { implies = ["agent", "matter"], sources = ["src/matter/agent/*.cppm", "src/matter/agent/*.cpp"] }
 
 [feature-deps.agent]

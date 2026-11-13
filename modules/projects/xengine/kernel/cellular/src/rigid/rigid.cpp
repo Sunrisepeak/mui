@@ -599,7 +599,20 @@ std::expected<std::unique_ptr<MatterWorld>, std::string> MatterWorld::make(const
     auto bodies = Bodies::make(program, options.shape, *world->rigid_, options.bodies);
     if (!bodies) return std::unexpected(bodies.error());
     world->bodies_ = std::make_unique<Bodies>(std::move(*bodies));
+    particles::Options flying = options.flying;
+    flying.cell = options.bodies.cell, flying.gravity = options.gravity;
+    auto made = particles::Particles::make(program, options.shape, flying);
+    if (!made) return std::unexpected(made.error());
+    world->flying_ = std::make_unique<particles::Particles>(std::move(*made));
     return world;
+}
+
+std::uint32_t MatterWorld::blast(particles::Vec centre, float radius, float speed, bool breaks) {
+    const std::uint32_t thrown = flying_->blast(cells_, outside_, centre, radius, speed, breaks);
+    const std::uint32_t r = static_cast<std::uint32_t>(std::ceil(radius));
+    const std::uint32_t x = static_cast<std::uint32_t>(std::max(0.0f, centre.x - static_cast<float>(r))), y = static_cast<std::uint32_t>(std::max(0.0f, centre.y - static_cast<float>(r)));
+    lattice_.wake(options_.shape, options_.tile, {x, y, 2 * r + 1, 2 * r + 1}, activity_);
+    return thrown;
 }
 
 void MatterWorld::place(Tile region, std::uint32_t material) {
@@ -627,6 +640,13 @@ void MatterWorld::step() {
     if (options_.sparse) execution.activity = activity_;
     (void)lattice_.step(options_.shape, cells_, next_, execution);
     cells_.swap(next_);
+    // Cells in flight, among the bodies (stamped: what flies hits them): thrown by the pressure, falling, landing.
+    (void)flying_->scatter(cells_, outside_);
+    const bool flew = flying_->flying() > 0;
+    flying_->step(cells_);
+    // What flies writes the field from outside the lattice's step: a sparse world wakes it whole while anything
+    // is in flight or has just landed (simple, and the same bits).
+    if (options_.sparse && flew) std::ranges::fill(activity_, std::uint8_t{0});
     bodies_->push(cells_);
     // The bodies write the field from outside the lattice's step: where they were and where they are wake.
     const auto wake = [&] {
@@ -648,6 +668,7 @@ std::vector<std::uint8_t> MatterWorld::save() const {
     put64(out, activity_.size());
     out.insert(out.end(), activity_.begin(), activity_.end());
     bodies_->save(out);
+    flying_->save(out);
     const auto rigid = rigid_->save();
     put64(out, rigid.size());
     out.insert(out.end(), rigid.begin(), rigid.end());
@@ -667,11 +688,14 @@ std::expected<void, std::string> MatterWorld::restore(std::span<const std::uint8
     // The coupling and the rigid world after it; nothing replaced until both read.
     Bodies coupled = bodies_->onto(*rigid_);
     if (auto restored = coupled.restore(saved, at); !restored) return std::unexpected(restored.error());
+    particles::Particles flying = *flying_;
+    if (auto restored = flying.restore(saved, at); !restored) return std::unexpected(restored.error());
     const std::uint64_t rigid_size = read.u64();
     if (!read.ok || saved.size() - at < rigid_size) return std::unexpected(std::string("a saved world cut short"));
     if (auto restored = rigid_->restore(saved.subspan(at, static_cast<std::size_t>(rigid_size))); !restored) return std::unexpected(restored.error().text);
     tick_ = tick, cells_ = std::move(cells), activity_ = std::move(bytes);
     *bodies_ = std::move(coupled);
+    *flying_ = std::move(flying);
     return {};
 }
 
@@ -689,12 +713,16 @@ std::expected<std::unique_ptr<MatterWorld>, std::string> MatterWorld::branch() c
     if (!rigid) return std::unexpected(rigid.error().text);
     world->rigid_ = std::make_unique<dyn::World>(std::move(*rigid));
     world->bodies_ = std::make_unique<Bodies>(bodies_->onto(*world->rigid_));
+    world->flying_ = std::make_unique<particles::Particles>(*flying_);
     return world;
 }
 
 std::uint64_t MatterWorld::state_hash() const noexcept {
     mlibs::hash::Fnv1a hash(rigid_->state_hash());
     for (const std::uint32_t value : cells_) hash.le(value, 4);
+    std::vector<std::uint8_t> flying;
+    flying_->save(flying);
+    hash.bytes(flying);
     return hash.value();
 }
 

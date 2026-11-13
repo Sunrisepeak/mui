@@ -18,6 +18,7 @@ import omui.core;
 import mlibs.agent;
 import mlibs.layout;
 import xrender.vector;
+import xrender.raster;
 import mlibs.pipeline;
 import mlibs.text;
 import :element;
@@ -680,6 +681,11 @@ public:
     void add_subject(mlibs::agent::Subject& subject) override;
     void remove_subject(mlibs::agent::Subject& subject) override;
     [[nodiscard]] std::span<mlibs::agent::Subject* const> subjects() const noexcept;
+    // The pictures components show from elsewhere (Services::add_picture): what a host that draws on the CPU
+    // gives its renderer for external_texture() commands (`CpuOptions::external`). Whatever its content's count.
+    std::uint64_t add_picture(std::function<std::optional<xrender::raster::ImageView>()> pixels) override;
+    void remove_picture(std::uint64_t number) override;
+    [[nodiscard]] std::optional<xrender::raster::ImageView> picture(std::uint64_t number) const;
     [[nodiscard]] bool motion_reduced() const override;
     [[nodiscard]] float pixel_scale() const override { return scale(); }
     [[nodiscard]] bool deterministic() const override;

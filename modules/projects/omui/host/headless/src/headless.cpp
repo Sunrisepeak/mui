@@ -72,6 +72,7 @@ struct Headless::Impl {
             how.background = options.background;
             how.rows = rows;
             if (options.parallel_raster) how.parallel = &raster_parallel();
+            how.external = [this](std::uint64_t number) { return runtime->picture(number); };
             (void)window.render({&ui_layer, 1}, surface, how);
         }
         rendered = h;
@@ -332,7 +333,10 @@ std::expected<std::vector<std::uint8_t>, std::string> Headless::framed_png(Rect 
                             .transform = xrender::Affine::scale(d.options.scale, d.options.scale) * xrender::Affine::translate(left, top) * xrender::Affine::scale(fit, fit),
                             .effect_scale = d.options.scale},
         xrender::FrameLayer{.name = "fixed", .list = &over, .resources = resources, .scale = d.options.scale}};
-    (void)d.camera.render(std::span(layers).first(over.commands().empty() ? 1 : 2), framed, {.background = d.options.background});
+    xrender::FrameOptions how;
+    how.background = d.options.background;
+    how.external = [&d](std::uint64_t number) { return d.runtime->picture(number); };
+    (void)d.camera.render(std::span(layers).first(over.commands().empty() ? 1 : 2), framed, how);
     auto v = view_of(framed, d.options.scale, std::nullopt);
     if (!v) return std::unexpected(v.error());
     return mlibs::image::encode_png(*v);

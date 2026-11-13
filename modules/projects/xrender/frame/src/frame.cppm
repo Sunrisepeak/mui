@@ -61,6 +61,9 @@ struct FrameOptions {
     Parallel*    parallel = nullptr;  // bands drawn at the same time, the bytes a serial render's
     std::int32_t rows_per_task = 64;
     bool         measure = false;
+    // On the CPU: the pictures the layers' external_texture() commands name, as pixels (`CpuOptions::external`).
+    // A device's frame is given textures instead (`GpuFrame`'s options).
+    std::function<std::optional<xrender::raster::ImageView>(std::uint64_t id)> external;
 };
 
 struct LayerReport {

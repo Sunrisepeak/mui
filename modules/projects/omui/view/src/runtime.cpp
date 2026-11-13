@@ -705,6 +705,20 @@ void Runtime::add_subject(mlibs::agent::Subject& subject) {
 }
 void Runtime::remove_subject(mlibs::agent::Subject& subject) { std::erase(impl_->subjects, &subject); }
 std::span<mlibs::agent::Subject* const> Runtime::subjects() const noexcept { return impl_->subjects; }
+std::uint64_t Runtime::add_picture(std::function<std::optional<xrender::raster::ImageView>()> pixels) {
+    if (!pixels) return 0;
+    const std::uint32_t handle = impl_->next_picture++;
+    impl_->pictures.push_back({handle, std::move(pixels)});
+    return static_cast<std::uint64_t>(handle) << 32;
+}
+void Runtime::remove_picture(std::uint64_t number) {
+    std::erase_if(impl_->pictures, [&](const Impl::ShownPicture& one) { return one.handle == static_cast<std::uint32_t>(number >> 32); });
+}
+std::optional<xrender::raster::ImageView> Runtime::picture(std::uint64_t number) const {
+    for (const Impl::ShownPicture& one : impl_->pictures)
+        if (one.handle == static_cast<std::uint32_t>(number >> 32)) return one.pixels();
+    return std::nullopt;
+}
 bool Runtime::motion_reduced() const { return impl_->reduce_motion || impl_->motion_now() != MotionLevel::full; }
 bool Runtime::reduce_motion() const noexcept { return impl_->reduce_motion; }
 

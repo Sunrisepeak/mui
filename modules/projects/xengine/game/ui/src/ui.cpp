@@ -5,6 +5,10 @@ import omui.core;
 import omui.view;
 import xengine.input;
 import mlibs.simulation;
+import mlibs.agent;
+import mlibs.layout;
+import xrender.raster;
+import xrender.vector;
 
 namespace xengine::ui {
 
@@ -58,6 +62,50 @@ void Pacer::wake() {
     const double scale = clock_.scale > 0 ? clock_.scale : 1;
     const double wait = (1 - clock_.alpha()) * clock_.step() / scale;
     timer_ = services_->after(omui::seconds(std::max(0.0, wait)), [this] { wake(); });
+}
+
+void Viewport::show(Shown what) {
+    clear();
+    shown_ = std::move(what);
+    if (!services_) return;
+    if (shown_.subject) services_->add_subject(*shown_.subject);
+    if (shown_.pixels) number_ = services_->add_picture(shown_.pixels);
+    services_->invalidate_layout(node_);
+}
+void Viewport::clear() {
+    if (services_) {
+        if (shown_.subject) services_->remove_subject(*shown_.subject);
+        if (number_ != 0) services_->remove_picture(number_);
+        services_->invalidate_paint(node_);
+    }
+    shown_ = {}, number_ = 0;
+}
+void Viewport::changed() {
+    number_ = omui::Services::picture_changed(number_);
+    if (services_) services_->invalidate_paint(node_);
+}
+std::optional<omui::Point> Viewport::within(omui::Point local) const {
+    if (!(size_.width > 0) || !(size_.height > 0) || local.x < 0 || local.y < 0 || local.x > size_.width || local.y > size_.height) return std::nullopt;
+    return omui::Point{local.x / size_.width, local.y / size_.height};
+}
+omui::Size Viewport::measure(omui::MeasureContext&, std::optional<float> width, std::optional<float> height, mlibs::layout::Available across, mlibs::layout::Available down) {
+    // What the layout says; else as wide as it is let be, as high as its picture's shape makes that.
+    const float shape = shown_.width > 0 ? shown_.height / shown_.width : 0.5625f;
+    const float wide = width.value_or(across.is_definite() ? across.value : shown_.width);
+    return {wide, height.value_or(down.is_definite() ? std::min(down.value, wide * shape) : wide * shape)};
+}
+void Viewport::paint(omui::PaintContext& ctx) const {
+    size_ = ctx.size;
+    const omui::Rect whole{0, 0, ctx.size.width, ctx.size.height};
+    // Under the picture: what shows until there is one (and on a host that shows none).
+    ctx.list.fill_rect(whole, xrender::Paint::solid(ctx.theme.color("surface")));
+    if (number_ != 0) ctx.list.external_texture(number_, whole, 1, shown_.pixels_stay ? xrender::Sampling::nearest : xrender::Sampling::linear);
+}
+void Viewport::semantics(omui::SemanticsContext&, omui::spec::SemanticNode& node) const {
+    node.name = shown_.label;
+    // Which subject it shows: an agent goes from this node to the world's own questions (`subjects`), and back.
+    node.value = omui::Value(shown_.subject ? std::string(shown_.subject->name()) : std::string());
+    node.description = shown_.subject ? "a world shown here; ask its own subject" : "nothing shown";
 }
 
 }  // namespace xengine::ui

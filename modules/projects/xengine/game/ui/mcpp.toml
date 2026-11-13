@@ -25,7 +25,20 @@ omui.core = { path = "../../../omui/core" }
 omui.view = { path = "../../../omui/view" }
 xengine.input = { path = "../input" }
 mlibs.simulation = { path = "../../../../base/simulation" }
+mlibs.agent = { path = "../../../../base/agent" }
+mlibs.layout = { path = "../../../../content/layout" }
+xrender.raster = { path = "../../../xrender/raster" }
+xrender.vector = { path = "../../../xrender/vector" }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.7.1"
 mlibs.utils = { path = "../../../../base/utils" }
+omui.host.headless = { path = "../../../omui/host/headless" }
+omui.semantic = { path = "../../../omui/semantic" }
+xrender.mesh = { path = "../../../xrender/mesh" }
+xrender.scene = { path = "../../../xrender/scene" }
+xrender.text = { path = "../../../xrender/text" }
+mlibs.text = { path = "../../../../content/text" }
+mlibs.geom = { path = "../../../../base/geom" }
+mlibs.math = { path = "../../../../base/math" }
+mlibs.control = { path = "../../../../base/control" }

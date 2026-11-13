@@ -56,6 +56,7 @@ const FrameReport& CpuFrame::render(std::span<const FrameLayer> layers, raster::
         how.measure = options.measure;
         how.transform = layer.transform;
         how.effect_scale = layer.effect_scale;
+        how.external = options.external;
         said.report = renderers_[index].render(*layer.list, target, layer.resources, how);
     }
     return report_;

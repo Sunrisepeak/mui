@@ -385,6 +385,12 @@ struct Runtime::Impl {
     bool                                  reduce_transparency = false;
     bool                                  agent_players = false;
     std::vector<mlibs::agent::Subject*>   subjects;  // beside the interface, for agents (Services::add_subject)
+    struct ShownPicture {
+        std::uint32_t                                                 handle = 0;
+        std::function<std::optional<xrender::raster::ImageView>()>    pixels;
+    };
+    std::vector<ShownPicture>             pictures;  // drawn elsewhere, shown here (Services::add_picture)
+    std::uint32_t                         next_picture = 1;
 
     // input
     NodeId               capture;

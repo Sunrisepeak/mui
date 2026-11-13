@@ -88,6 +88,11 @@ struct CpuOptions {
     // Output logical-pixel scale for image filters. Offscreen recursion
     // preserves this instead of treating a node's geometry scale as DPI.
     std::optional<float> effect_scale;
+    // The pictures external_texture() commands name, as pixels (premultiplied, the renderer's): what on a device
+    // is a texture of the host's — a world drawn elsewhere, a video frame — shown here the same, over the
+    // command's rectangle. None, or one it does not know: the command is skipped and counted. The pixels are
+    // the caller's, alive while the frame is drawn; with `parallel` it is asked from several threads.
+    std::function<std::optional<xrender::raster::ImageView>(std::uint64_t id)> external;
 };
 
 class CpuRenderer {

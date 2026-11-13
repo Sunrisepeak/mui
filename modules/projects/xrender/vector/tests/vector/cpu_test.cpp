@@ -331,4 +331,28 @@ static UTest cases{"render.cpu", [] {
         expect(eq(report.external_skipped, std::size_t{1}));
         expect(eq(int(out.at(1, 1).a), 255), std::source_location::current());
     };
+    "an external texture given as pixels is drawn over its rectangle: what a device shows from a texture, the same command shows here"_test = [] {
+        // A picture of four pixels: red, green, blue, white.
+        raster::Surface picture(2, 2);
+        picture.at(0, 0) = {255, 0, 0, 255}, picture.at(1, 0) = {0, 255, 0, 255}, picture.at(0, 1) = {0, 0, 255, 255}, picture.at(1, 1) = {255, 255, 255, 255};
+        render::DisplayList dl;
+        dl.fill_rect({0, 0, 8, 8}, geom::Color::black());
+        dl.external_texture(7, {2, 2, 4, 4}, 1, render::Sampling::nearest);
+        dl.external_texture(8, {0, 0, 2, 2});
+        raster::Surface out(8, 8);
+        render::CpuRenderer cpu;
+        render::CpuOptions options;
+        options.external = [&](std::uint64_t id) -> std::optional<raster::ImageView> { return id == 7 ? std::optional(picture.view()) : std::nullopt; };
+        const auto report = cpu.render(dl, out, {}, options);
+        expect(eq(report.external_skipped, std::size_t{1})) << "the one nobody knows";
+        expect(eq(int(out.at(2, 2).r), 255) && eq(int(out.at(3, 3).g), 0)) << "each of its pixels two across";
+        expect(eq(int(out.at(5, 2).g), 255) && eq(int(out.at(2, 5).b), 255) && eq(int(out.at(5, 5).r), 255) && eq(int(out.at(5, 5).g), 255));
+        expect(eq(int(out.at(1, 1).r), 0) && eq(int(out.at(6, 6).r), 0)) << "and nothing outside its rectangle";
+        // Half shown: half of it over the black.
+        render::DisplayList faint;
+        faint.fill_rect({0, 0, 8, 8}, geom::Color::black());
+        faint.external_texture(7, {2, 2, 4, 4}, 0.5f, render::Sampling::nearest);
+        cpu.render(faint, out, {}, options);
+        expect(ge(int(out.at(2, 2).r), 126) && le(int(out.at(2, 2).r), 129));
+    };
 }};

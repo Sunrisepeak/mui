@@ -720,7 +720,13 @@ void CpuRenderer::draw(Scratch& sc, const DisplayList& list, xrender::raster::Su
                 } else if constexpr (std::same_as<T, PopLayer>) {
                     canvas.pop_layer();
                 } else if constexpr (std::same_as<T, ExternalTexture>) {
-                    ++report.external_skipped;
+                    const std::optional<xrender::raster::ImageView> picture = options.external ? options.external(c.texture) : std::nullopt;
+                    if (!picture || !picture->pixels || picture->width <= 0 || picture->height <= 0) {
+                        ++report.external_skipped;
+                        return;
+                    }
+                    canvas.draw_image(*picture, {0, 0, static_cast<float>(picture->width), static_cast<float>(picture->height)}, c.dest, static_cast<xrender::raster::Sampling>(c.sampling),
+                                      c.opacity, m());
                 } else if constexpr (std::same_as<T, BeginNode>) {
                     nodes.push_back(c.node);
                     canvas.set_object_id(c.node);

@@ -23,3 +23,23 @@ What the window played is the game with no window: each step's input, on a `Runt
 
 - **The pacer:** it wakes at the next step due on the runtime's clock, takes every step due, and asks for frames while it runs. The clock is virtual under the headless host, so a headless second is exactly 120 steps. A stall past its catch-up is not owed afterwards. Its clock's `scale` is slow motion; `alpha` is the fraction between two steps, for drawing.
 - **Events:** a key reaches `xengine.input` by its code (`code(Key)` for bindings). The pointer arrives within the game's area, 0 to 1 across and down, and a click as a mouse button. Losing focus lets go of everything. What the game does not take (text, an input method's composition) stays the interface's (D-76).
+
+## A world in an interface: `Viewport`
+
+The node of the UI tree where a world is (the plan's §4.3, R3). Layout, hit testing and semantics know where the world is; the node says which subject it shows, and the world's own questions go to that subject, found beside the interface (`subjects`) for as long as the node shows it. The picture is drawn elsewhere — the renderer's mesh pass, a field — and the node names it in its display list (`external_texture`), so the same node shows on a device (a texture) and with no device (pixels).
+
+```cpp
+omui::Element e;  e.type = &omui::component_type<xengine::ui::Viewport>();  e.id = "world";
+// once mounted:
+auto* viewport = runtime.component<xengine::ui::Viewport>(runtime.find("main/world"));
+viewport->show({.label = "the yard", .subject = &world_subject, .pixels = [&] { return picture.view(); }, .width = 320, .height = 180});
+viewport->changed();                       // each time the picture is drawn again
+viewport->within(local_point);             // a place of the node as a place of the picture, 0 to 1
+```
+
+![a headless interface's frame: a title, and under it a floor and a ball drawn by the mesh reference](media/viewport.png)
+
+Drawn by `tests/viewport_test.cpp` with no window and no device: the yard by `xrender.mesh`'s reference, shown in the headless host's frame — at 25 places the frame is the picture to the level; the pixel under the ball is the viewport's node; the semantic tree has the node by its label with the subject's name as its value.
+
+**Not yet:** on a device the host must hand the picture's texture to the frame (`GpuFrame`'s `external`) — no host does; the pointer locked to the viewport and relative motion (R5); a pixel of the viewport explained through to the world's own source (the instance, the triangle).
+

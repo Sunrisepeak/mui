@@ -15,6 +15,7 @@ import mlibs.agent;
 import hanim.engine;
 import mlibs.layout;
 import xrender.vector;
+import xrender.raster;
 import mlibs.text;
 import :element;
 import :theme;
@@ -269,6 +270,16 @@ public:
     // is added; whoever adds it removes it before it goes.
     virtual void add_subject(mlibs::agent::Subject&) {}
     virtual void remove_subject(mlibs::agent::Subject&) {}
+    // A picture drawn elsewhere and shown in the interface (D-162: a world in a viewport): whoever draws it gives
+    // its pixels (premultiplied; none while it has nothing), and is given the number a node's display list
+    // names it by — `external_texture(number, where)`. The number says what is shown: when the picture's
+    // content changes, draw it by `picture_changed(number)` from then on, so whoever keeps a frame by its list
+    // sees that it changed. 0: this host shows no such pictures. Whoever adds it removes it before it goes.
+    virtual std::uint64_t add_picture(std::function<std::optional<xrender::raster::ImageView>()>) { return 0; }
+    virtual void remove_picture(std::uint64_t) {}
+    [[nodiscard]] static constexpr std::uint64_t picture_changed(std::uint64_t number) noexcept {
+        return number == 0 ? 0 : (number & ~std::uint64_t{0xffffffffu}) | ((number + 1) & 0xffffffffu);
+    }
     // Physical pixels per logical pixel: what a component rasterising its own
     // textures (a canvas's thumbnails) sizes them by.
     [[nodiscard]] virtual float pixel_scale() const { return 1; }

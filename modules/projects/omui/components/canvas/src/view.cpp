@@ -537,7 +537,7 @@ void Canvas::paint(PaintContext& ctx) const {
         if (k.tiers[t].draw == world::Tier::Draw::promote && t > 0 && std::ranges::find(promoted_, s->key(n)) == promoted_.end()) --t;
         return t;
     };
-    const bool lists = props.content == "lists";
+    const bool lists = props.content == "lists" || (props.content == "auto" && services().on_device());
     // Drawn complete (Services::complete_frames): every texture the frame
     // shows made at its level first, so the frame is what it would be at rest.
     if (services().complete_frames()) {

@@ -341,6 +341,7 @@ struct Runtime::Impl {
     xrender::ImageStore                    images;
     hanim::Clock                           clock;
     bool                                   complete_frames = false;
+    bool                                   on_device = false;
     DrivenLanes                            anims;
     mlibs::layout::Engine                        layout;
     Verbs                                 verbs;

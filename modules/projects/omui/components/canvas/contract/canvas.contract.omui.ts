@@ -45,8 +45,8 @@ export default defineContract({
       },
       content: {
         type: "string",
-        default: "textures",
-        doc: "How a node's content is drawn at the texture tier: `textures` (rasterised on the task pool a level of zoom, the nearest ready one stretched until the level's is in — what a CPU renderer wants), or `lists` (its display list made once a revision and drawn under the camera's transform every frame: nothing stretched and nothing swapped while the camera zooms, each shape where it is — what a GPU renderer that covers shapes from their outlines wants, D-188; a content that cannot be drawn so keeps its textures).",
+        default: "auto",
+        doc: "How a node's content is drawn at the texture tier — `auto`: `lists` where a device draws the frames (a host with a GPU renderer), `textures` where the CPU does. `textures` (rasterised on the task pool a level of zoom, the nearest ready one stretched until the level's is in — what a CPU renderer wants), or `lists` (its display list made once a revision and drawn under the camera's transform every frame: nothing stretched and nothing swapped while the camera zooms, each shape where it is — what a GPU renderer that covers shapes from their outlines wants, D-188; a content that cannot be drawn so keeps its textures).",
       },
       promotion: {
         type: "string",

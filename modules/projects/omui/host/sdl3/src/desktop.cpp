@@ -237,6 +237,7 @@ struct Desktop::Impl final : WindowHost {
         }
         device = std::move(*made);
         gpu.emplace(std::move(*r));
+        if (runtime) runtime->set_on_device(true);  // content as lists where it may be (a canvas's `content: auto`)
         return {};
     }
 

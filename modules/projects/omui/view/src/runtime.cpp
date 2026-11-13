@@ -526,6 +526,12 @@ double Runtime::display_hz() const noexcept { return impl_->display_hz; }
 
 bool Runtime::deterministic() const { return impl_->clock.kind() != hanim::ClockKind::interactive; }
 bool Runtime::complete_frames() const { return impl_->complete_frames; }
+bool Runtime::on_device() const { return impl_->on_device; }
+void Runtime::set_on_device(bool on) {
+    if (impl_->on_device == on) return;
+    impl_->on_device = on;
+    impl_->touch(dirty_paint);
+}
 NodeId Runtime::focused() const noexcept { return impl_->focus; }
 Verbs& Runtime::verbs() noexcept { return impl_->verbs; }
 UiQueue& Runtime::queue() noexcept { return impl_->queue; }

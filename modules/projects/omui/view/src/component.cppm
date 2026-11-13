@@ -295,6 +295,11 @@ public:
     // would have led to — what an offline render needs (a video rendered out
     // of order, in parallel or seeking back; a still).
     [[nodiscard]] virtual bool complete_frames() const { return false; }
+    // The frames are drawn by a device (a GPU renderer): what it draws from a
+    // display list costs it the same at any scale, so content that would be
+    // rasterised a level of zoom for a CPU renderer is better given as its
+    // list (a canvas's `content: auto`). A host says so (Runtime::set_on_device).
+    [[nodiscard]] virtual bool on_device() const { return false; }
     // Frames at this rate while the lease lives (D-70, L2): a camera on a
     // spring asks for the display's fastest, a stream for 60.
     [[nodiscard]] virtual FrameDemandLease demand_frames(FrameDemand d) { (void)d; return {}; }

@@ -693,6 +693,9 @@ public:
     [[nodiscard]] float pixel_scale() const override { return scale(); }
     [[nodiscard]] bool deterministic() const override;
     [[nodiscard]] bool complete_frames() const override;
+    // Whether a device draws the frames (Services::on_device): the host's to say, once it has one.
+    void set_on_device(bool on);
+    [[nodiscard]] bool on_device() const override;
     [[nodiscard]] FrameDemandLease demand_frames(FrameDemand d) override;
     void release_frames(std::uint64_t token) noexcept override;
     // What the last frame found frames are wanted for: animations, input in

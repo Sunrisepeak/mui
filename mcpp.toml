@@ -44,6 +44,7 @@ members = [
     "modules/projects/xrender/vector",
     "modules/projects/xrender/frame",
     "modules/projects/xrender/scene",
+    "modules/projects/xrender/sprite",
     "modules/projects/xrender/mesh",
     "modules/projects/xrender/mesh/gpu",
     "modules/projects/xrender/effect",

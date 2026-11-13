@@ -1,0 +1,32 @@
+# xrender.sprite — pictures on bones in two dimensions (the foundation plan's §5.1: the renderer's `sprite`
+# feature). Its first part is 2D skinning: a picture's region laid on a bone as a grid of cells, each corner
+# going over to the next bones along across their joints — what gongfu.present2d had as its own and now takes
+# from here. It makes corners, texture coordinates and triangles; drawing them is xrender.vector's `draw_mesh`.
+# Batching and atlases are not here yet.
+[package]
+namespace   = "xrender"
+name        = "sprite"
+version     = "0.1.0"
+description = "Pictures on bones in 2D: a region skinned over a grid of cells to a bone and the bones it bends to, deterministic"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+
+[package.metadata.openmui]
+kind  = "module"
+agent = { library = "2D skinning: a function of a region, its grid and the bones' places" }
+
+[targets.xrender-sprite]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+mlibs.math = { path = "../../../base/math" }
+mlibs.geom = { path = "../../../base/geom" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.7.1"
+mlibs.utils    = { path = "../../../base/utils" }

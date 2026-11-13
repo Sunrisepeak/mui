@@ -61,9 +61,9 @@ void Painter::fx(const Look& look, const Fx& fx, double age, Point origin, doubl
     // The mesh drawn: in the picture's own colours, or as its shape in one (the effect's `paint`, else the piece's own).
     auto draw = [&](const Picture& pic, const std::optional<Color>& own, float opacity) {
         if (const std::optional<Color> c = paint ? paint : own) {
-            out.draw_mesh_mask(pic.ref, mesh_at_, mesh_uv_, mesh_index_, Color{c->r, c->g, c->b, c->a * opacity}, render::Sampling::linear);
+            out.draw_mesh_mask(pic.ref, mesh_.at, mesh_.uv, mesh_.index, Color{c->r, c->g, c->b, c->a * opacity}, render::Sampling::linear);
         } else {
-            out.draw_mesh(pic.ref, mesh_at_, mesh_uv_, mesh_index_, render::Sampling::linear, opacity);
+            out.draw_mesh(pic.ref, mesh_.at, mesh_.uv, mesh_.index, render::Sampling::linear, opacity);
         }
     };
     // A region drawn as a quad about `centre` (picture pixels), `h` high, turned, mirrored with the facing.
@@ -75,9 +75,9 @@ void Painter::fx(const Look& look, const Fx& fx, double age, Point origin, doubl
             x *= facing;
             return Point{static_cast<float>(centre.x + x * ca - y * sa), static_cast<float>(centre.y + x * sa + y * ca)};
         };
-        mesh_at_.assign({corner(-hw, -hh), corner(hw, -hh), corner(hw, hh), corner(-hw, hh)});
-        mesh_uv_.assign({{src.x, src.y}, {src.x + src.width, src.y}, {src.x + src.width, src.y + src.height}, {src.x, src.y + src.height}});
-        mesh_index_.assign({0, 1, 2, 0, 2, 3});
+        mesh_.at.assign({corner(-hw, -hh), corner(hw, -hh), corner(hw, hh), corner(-hw, hh)});
+        mesh_.uv.assign({{src.x, src.y}, {src.x + src.width, src.y}, {src.x + src.width, src.y + src.height}, {src.x, src.y + src.height}});
+        mesh_.index.assign({0, 1, 2, 0, 2, 3});
         draw(pic, own, opacity);
     };
 
@@ -100,9 +100,9 @@ void Painter::fx(const Look& look, const Fx& fx, double age, Point origin, doubl
         const double total = len[n - 1];
         if (total <= 0) continue;
         const double shown = total * drawn;
-        mesh_at_.clear();
-        mesh_uv_.clear();
-        mesh_index_.clear();
+        mesh_.at.clear();
+        mesh_.uv.clear();
+        mesh_.index.clear();
         for (std::size_t i = 0; i < n && len[i] <= shown + 1e-9; ++i) {
             const Point a = pts[i == 0 ? 0 : i - 1], b = pts[std::min(i + 1, n - 1)];
             double dx = b.x - a.x, dy = b.y - a.y;
@@ -113,19 +113,19 @@ void Painter::fx(const Look& look, const Fx& fx, double age, Point origin, doubl
             const Point l = at(pts[i].x - dy * half, pts[i].y + dx * half);
             const Point r = at(pts[i].x + dy * half, pts[i].y - dx * half);
             const float u = s.source.x + s.source.width * static_cast<float>(len[i] / total);
-            mesh_at_.push_back(l);
-            mesh_at_.push_back(r);
-            mesh_uv_.push_back({u, s.source.y});
-            mesh_uv_.push_back({u, s.source.y + s.source.height});
+            mesh_.at.push_back(l);
+            mesh_.at.push_back(r);
+            mesh_.uv.push_back({u, s.source.y});
+            mesh_.uv.push_back({u, s.source.y + s.source.height});
         }
-        const std::size_t rows = mesh_at_.size() / 2;
+        const std::size_t rows = mesh_.at.size() / 2;
         for (std::size_t i = 0; i + 1 < rows; ++i) {
             const auto k = static_cast<std::uint16_t>(2 * i);
             for (const std::uint16_t v : {k, static_cast<std::uint16_t>(k + 1), static_cast<std::uint16_t>(k + 3), k, static_cast<std::uint16_t>(k + 3),
                                           static_cast<std::uint16_t>(k + 2)})
-                mesh_index_.push_back(v);
+                mesh_.index.push_back(v);
         }
-        if (!mesh_index_.empty()) draw(*pic, s.color, static_cast<float>(fading * alpha));
+        if (!mesh_.index.empty()) draw(*pic, s.color, static_cast<float>(fading * alpha));
     }
 
     for (const FxSprite& s : fx.sprites) {

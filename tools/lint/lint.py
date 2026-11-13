@@ -816,6 +816,21 @@ CLOSURES: dict[str, dict[str, set[str]]] = {
     "xengine.runtime": {"not": {"omui", "xengine.ui"}},
     # the frame's entry: the renderer and the agent kernel, no interface, game or animation (D-162; the plan's T0.6)
     "xrender.frame": {"not": {"omui", "xengine", "hanim"}},
+    # three dimensions (M6.3): what there is to draw, the reference pass and the pass on a device reach geometry,
+    # numbers and the device's interface — eight packages for a picture on a device, no interface, animation,
+    # display list or shader compiler
+    "xrender.scene": {"only": {"xrender.scene", "mlibs.geom", "mlibs.math", "mlibs.utils"}},
+    "xrender.mesh": {"only": {"xrender.mesh", "xrender.scene", "mlibs.geom", "mlibs.math", "mlibs.utils"}},
+    "xrender.mesh.gpu": {"only": {"xrender.mesh.gpu", "xrender.mesh", "xrender.scene", "mlibs.geom", "mlibs.math", "mlibs.utils", "mlibs.rhi", "mlibs.memory"}},
+    "xrender.sprite": {"only": {"xrender.sprite", "mlibs.geom", "mlibs.math", "mlibs.utils"}},
+    # … and an application that draws in two dimensions links none of it: the SDK, the hosts and the site reach
+    # no mesh pass and no scene (a world is shown in an interface as a picture its owner drew: xengine.ui)
+    "omui.sdk": {"not": {"xrender.mesh", "xrender.scene"}},
+    "omui.host.sdl3": {"not": {"xrender.mesh", "xrender.scene"}},
+    "omui.host.web": {"not": {"xrender.mesh", "xrender.scene"}},
+    "omui.host.headless": {"not": {"xrender.mesh", "xrender.scene"}},
+    "omui.site": {"not": {"xrender.mesh", "xrender.scene"}},
+    "xengine.ui": {"not": {"xrender.mesh", "xrender.scene"}},
     # the breakout on its own: its simulation and the runtime, nothing of omui's interface
     "omui.showcase.widget_breakout.headless": {"not": {"omui.core", "omui.view", "omui.semantic", "omui.agent", "omui.viewdoc", "omui.player", "omui.designer",
                                                         "omui.sdk", "omui.host", "omui.ui", "omui.theme", "omui.lang", "xengine.ui"}},

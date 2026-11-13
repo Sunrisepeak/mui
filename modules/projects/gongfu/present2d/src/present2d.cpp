@@ -6,6 +6,7 @@ import gongfu;
 import hanim.core;
 import mlibs.geom;
 import xrender.vector;
+import xrender.sprite;
 
 namespace gongfu::present2d {
 
@@ -939,16 +940,14 @@ void Painter::draw_cel(const Look& look, const Cel& cel, const FighterState& s, 
     const View view{scene, camera};
     const mlibs::geom::Rect& r = cel.source;
     const std::array<Point, 4> pixel{Point{r.x, r.y}, {r.x + r.width, r.y}, {r.x + r.width, r.y + r.height}, {r.x, r.y + r.height}};
-    mesh_at_.clear();
-    mesh_uv_.clear();
-    for (const Point& px : pixel) {
-        const Point w = cel_point(look, cel, s, px);
-        mesh_at_.push_back(view.at(w.x, w.y));
-        mesh_uv_.push_back(px);
+    std::array<Point, 4> placed;
+    for (std::size_t corner = 0; corner < 4; ++corner) {
+        const Point w = cel_point(look, cel, s, pixel[corner]);
+        placed[corner] = view.at(w.x, w.y);
     }
-    mesh_index_.assign({0, 1, 2, 0, 2, 3});
-    if (tint) out.draw_mesh_mask(pic.ref, mesh_at_, mesh_uv_, mesh_index_, *tint, render::Sampling::linear, 0);
-    else out.draw_mesh(pic.ref, mesh_at_, mesh_uv_, mesh_index_, render::Sampling::linear, 1.0f, 0);
+    xrender::sprite::cornered(r, placed, mesh_);
+    if (tint) out.draw_mesh_mask(pic.ref, mesh_.at, mesh_.uv, mesh_.index, *tint, render::Sampling::linear, 0);
+    else out.draw_mesh(pic.ref, mesh_.at, mesh_.uv, mesh_.index, render::Sampling::linear, 1.0f, 0);
 }
 
 void Painter::picture_part(const Look& look, const Part& own, std::size_t drawing, const FighterState& s, const Scene& scene, const Camera& camera,
@@ -963,60 +962,23 @@ void Painter::picture_part(const Look& look, const Part& own, std::size_t drawin
     const View view{scene, camera};
     const double facing = s.facing < 0 ? -1.0 : 1.0;
     const auto b = static_cast<std::size_t>(part.bone);
-    // The art's own turn and size: anchor to tip along the bone (the picture's y runs down).
-    double ix = d.tip.x - d.anchor.x, iy = -(d.tip.y - d.anchor.y);
-    double len = dm::sqrt(ix * ix + iy * iy);
-    const double scale = look.art_scale > 0 && !part.fit ? look.art_scale : len > 0 ? look.bones[b].length / len : 1.0;
-    if (len <= 0) ix = 1, iy = 0, len = 1;
-    const double c0 = ix / len, s0 = iy / len;
-    auto place = [&](const BonePlace& bone, double along, double across) {
-        const double ca = dm::cos(bone.angle), sa = dm::sin(bone.angle);
-        return Point{static_cast<float>(bone.joint.x + along * ca - across * facing * sa), static_cast<float>(bone.joint.y + along * sa + across * facing * ca)};
-    };
-    const std::int32_t cols = std::max(1, part.mesh[0]), rows = std::max(1, part.mesh[1]);
-    mesh_at_.clear();
-    mesh_uv_.clear();
-    mesh_index_.clear();
-    for (std::int32_t j = 0; j <= rows; ++j)
-        for (std::int32_t i = 0; i <= cols; ++i) {
-            const double lx = d.source.x + d.source.width * i / cols, ly = d.source.y + d.source.height * j / rows;
-            const double dx = lx - d.anchor.x, dy = -(ly - d.anchor.y);
-            const double along = (dx * c0 + dy * s0) * scale, across = (-dx * s0 + dy * c0) * scale * (part.mirror ? -1 : 1);
-            Point at = place(pose_[b], along, across);
-            if (!part.bend.empty()) {
-                // Skinning: from the rest pose, each bend bone takes the vertex over across `blend` about its joint.
-                // How far toward the bend is measured along the part's own bone (where the joint lies on it), not
-                // along the bend bone: a bent rest elbow would otherwise split the sleeve across its width and pull
-                // the shoulder's end off its joint. The part's own end stays its bone's.
-                const Point rest = place(rest_[b], along, across);
-                const double oa = dm::cos(rest_[b].angle), os = dm::sin(rest_[b].angle);
-                for (const std::int32_t cb : part.bend) {
-                    if (cb < 0 || static_cast<std::size_t>(cb) >= rest_.size()) continue;
-                    const BonePlace& rc = rest_[static_cast<std::size_t>(cb)];
-                    const double ca = dm::cos(rc.angle), sa = dm::sin(rc.angle);
-                    const double rx = rest.x - rc.joint.x, ry = rest.y - rc.joint.y;
-                    const double along_c = rx * ca + ry * sa, across_c = (-rx * sa + ry * ca) * facing;
-                    const double at_joint = (rc.joint.x - rest_[b].joint.x) * oa + (rc.joint.y - rest_[b].joint.y) * os;  // the bend's joint on the part's bone
-                    const double w = std::clamp(0.5 + (along - at_joint) / std::max(1.0, part.blend * scale), 0.0, 1.0);
-                    const Point moved = place(pose_[static_cast<std::size_t>(cb)], along_c, across_c);
-                    at = {static_cast<float>(at.x + (moved.x - at.x) * w), static_cast<float>(at.y + (moved.y - at.y) * w)};
-                }
-            }
-            mesh_at_.push_back(view.at(at.x, at.y));
-            mesh_uv_.push_back({static_cast<float>(lx), static_cast<float>(ly)});
-        }
-    for (std::int32_t j = 0; j < rows; ++j)
-        for (std::int32_t i = 0; i < cols; ++i) {
-            const auto k = static_cast<std::uint16_t>(j * (cols + 1) + i), w = static_cast<std::uint16_t>(cols + 1);
-            for (const std::uint16_t v : {k, static_cast<std::uint16_t>(k + 1), static_cast<std::uint16_t>(k + w + 1), k, static_cast<std::uint16_t>(k + w + 1),
-                                          static_cast<std::uint16_t>(k + w)})
-                mesh_index_.push_back(v);
-        }
+    // Skinned by the renderer's own (xrender.sprite): the part's bone and the bones it bends to, as drawn and as posed.
+    bends_.clear();
+    for (const std::int32_t cb : part.bend) {
+        if (cb < 0 || static_cast<std::size_t>(cb) >= rest_.size()) continue;
+        const auto bend = static_cast<std::size_t>(cb);
+        bends_.push_back({{rest_[bend].joint, rest_[bend].angle}, {pose_[bend].joint, pose_[bend].angle}});
+    }
+    xrender::sprite::skinned({d.source, d.anchor, d.tip},
+                             {.columns = part.mesh[0], .rows = part.mesh[1], .blend = part.blend, .mirror = part.mirror, .facing = facing,
+                              .scale = look.art_scale > 0 && !part.fit ? look.art_scale : 0.0, .length = look.bones[b].length},
+                             {{rest_[b].joint, rest_[b].angle}, {pose_[b].joint, pose_[b].angle}}, bends_, mesh_);
+    for (Point& at : mesh_.at) at = view.at(at.x, at.y);
     // An afterimage or a clone: the part's shape in its tint. Else lit by its
     // material where its picture has a relief: the stage's light (the
     // world's rules), the material's bands and strengths.
     if (tint) {
-        out.draw_mesh_mask(pic.ref, mesh_at_, mesh_uv_, mesh_index_, *tint, render::Sampling::linear);
+        out.draw_mesh_mask(pic.ref, mesh_.at, mesh_.uv, mesh_.index, *tint, render::Sampling::linear);
         return;
     }
     const render::Material* lit = nullptr;
@@ -1034,7 +996,7 @@ void Painter::picture_part(const Look& look, const Part& own, std::size_t drawin
             lit = &material;
         }
     }
-    out.draw_mesh(pic.ref, mesh_at_, mesh_uv_, mesh_index_, render::Sampling::linear, 1.0f, 0.5f, lit);
+    out.draw_mesh(pic.ref, mesh_.at, mesh_.uv, mesh_.index, render::Sampling::linear, 1.0f, 0.5f, lit);
 }
 
 void Painter::stage_layers(const Stage& art, bool front, const Scene& scene, const Camera& cam, double middle, std::int32_t frame, float alpha,
@@ -1072,10 +1034,10 @@ void Painter::stage_layers(const Stage& art, bool front, const Scene& scene, con
                 if (im.flicker > 0) opacity *= 1 - im.flicker * (0.5 + 0.25 * dm::sin(seconds * 7.3 + static_cast<double>(n) * 11) + 0.25 * dm::sin(seconds * 2.9 + static_cast<double>(n) * 5));
                 const Rect& src = im.source;
                 const float u0 = im.flip ? src.x + src.width : src.x, u1 = im.flip ? src.x : src.x + src.width;
-                mesh_at_.assign({a, {b.x, a.y}, b, {a.x, b.y}});
-                mesh_uv_.assign({{u0, src.y}, {u1, src.y}, {u1, src.y + src.height}, {u0, src.y + src.height}});
-                mesh_index_.assign({0, 1, 2, 0, 2, 3});
-                out.draw_mesh(pic.ref, mesh_at_, mesh_uv_, mesh_index_, render::Sampling::linear, static_cast<float>(opacity));
+                mesh_.at.assign({a, {b.x, a.y}, b, {a.x, b.y}});
+                mesh_.uv.assign({{u0, src.y}, {u1, src.y}, {u1, src.y + src.height}, {u0, src.y + src.height}});
+                mesh_.index.assign({0, 1, 2, 0, 2, 3});
+                out.draw_mesh(pic.ref, mesh_.at, mesh_.uv, mesh_.index, render::Sampling::linear, static_cast<float>(opacity));
             }
             for (const StageShape& sh : layer.shapes) {
                 // Its sway at this frame: a turn about its pivot, a pure function of the frame.

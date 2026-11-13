@@ -24,6 +24,7 @@ export import gongfu.data;
 import hanim.core;
 import mlibs.geom;
 import xrender.vector;
+import xrender.sprite;
 
 export namespace gongfu::present2d {
 
@@ -800,8 +801,8 @@ private:
     void picture_part(const Look& look, const Part& part, std::size_t drawing, const FighterState& s, const Scene& scene, const Camera& camera,
                       std::optional<Color> tint, xrender::DisplayList& out);
     Pose                     pose_, past_, rest_, held_;
-    std::vector<Point>       mesh_at_, mesh_uv_;
-    std::vector<std::uint16_t> mesh_index_;
+    xrender::sprite::Mesh               mesh_;   // a textured mesh's corners, where each is in the picture, its triangles: reused
+    std::vector<xrender::sprite::Posed> bends_;  // the bones a part bends to, as drawn and as posed
     std::vector<double>      follow_;  // each bone's secondary motion this frame, degrees
     std::vector<std::size_t> order_;
     xrender::Path       path_;

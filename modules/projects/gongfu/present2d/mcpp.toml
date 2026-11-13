@@ -31,6 +31,7 @@ marzer.tomlplusplus   = "3.4.0"
 hanim.core                 = { path = "../../hanim/core" }
 mlibs.geom          = { path = "../../../base/geom" }
 xrender.vector = { path = "../../xrender/vector" }
+xrender.sprite = { path = "../../xrender/sprite" }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.7.1"

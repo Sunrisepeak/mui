@@ -107,6 +107,16 @@ bool Viewport::on_event(omui::EventContext&, const omui::InputEvent& event) {
     }
     return false;
 }
+omui::Value Viewport::shown_at(omui::Point local, omui::Size size) const {
+    if (!shown_.subject && !shown_.describe) return {};
+    if (!(size.width > 0) || !(size.height > 0)) return {};
+    const float across = std::clamp(local.x / size.width, 0.0f, 1.0f), down = std::clamp(local.y / size.height, 0.0f, 1.0f);
+    omui::Value said;
+    said.set("subject", shown_.subject ? std::string(shown_.subject->name()) : std::string());
+    said.set("at", omui::Value(omui::Value::List{omui::Value(static_cast<double>(across)), omui::Value(static_cast<double>(down))}));
+    if (shown_.describe) said.set("there", shown_.describe(across, down));
+    return said;
+}
 omui::Size Viewport::measure(omui::MeasureContext&, std::optional<float> width, std::optional<float> height, mlibs::layout::Available across, mlibs::layout::Available down) {
     // What the layout says; else as wide as it is let be, as high as its picture's shape makes that.
     const float shape = shown_.width > 0 ? shown_.height / shown_.width : 0.5625f;

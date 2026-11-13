@@ -959,6 +959,9 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
             chain.push_back(Value{}.set("id", runtime_.path(up)).set("source", source(up)));
         Value d;
         d.set("at", *at).set("node", runtime_.path(n)).set("source", source(n)).set("chain", Value(std::move(chain)));
+        // A node that shows something drawn elsewhere (a world in a viewport) says what, and where in it: the
+        // way from this pixel on to the world's own subject.
+        if (Value shows = runtime_.shown_at(n, p); !shows.is_null()) d.set("shows", std::move(shows));
         return e.data(std::move(d)).result(spec::exit_code::success);
     }
     if (op == "inspect") {

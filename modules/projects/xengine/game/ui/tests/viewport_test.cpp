@@ -121,12 +121,30 @@ static UTest viewport_cases{"xengine.ui.viewport", [] {
             if (one.name == "the yard") found = true, expect(one.value.json() == "\"world\"") << one.value.json();
         expect(found) << "in the semantic tree by its label";
         expect(eq(host.runtime().subjects().size(), beside + 1) && std::ranges::contains(host.runtime().subjects(), static_cast<mlibs::agent::Subject*>(&world)));
+        // What drew a pixel of the interface, asked on through the node to the world: its subject, the place in
+        // its picture, and what the world says is there — here the instance the reference's id buffer names.
+        shown->show({.label = "the yard", .subject = &world, .pixels = [&]() -> std::optional<xrender::raster::ImageView> { return yard.picture.view(); }, .width = 320, .height = 180,
+                     .describe = [&](float across, float down) {
+                         const int x = std::min(static_cast<int>(across * 320), 319), y = std::min(static_cast<int>(down * 180), 179);
+                         const mesh::Pixel who = yard.targets.ids[static_cast<std::size_t>(y) * 320 + x];
+                         Value said;
+                         if (who.draw != mesh::none) said.set("instance", static_cast<std::int64_t>(yard.targets.draws[who.draw].id)).set("triangle", static_cast<std::int64_t>(who.triangle));
+                         return said;
+                     }});
+        host.step();
+        const std::string on_ball = host.runtime().shown_at(node, box.center()).json(), on_sky = host.runtime().shown_at(node, {box.x + 5, box.y + 5}).json();
+        std::println("what the viewport shows at its middle: {}; at its corner: {}", on_ball, on_sky);
+        expect(on_ball.contains("\"subject\":\"world\"") && on_ball.contains("\"at\":[0.5,0.5]") && on_ball.contains("\"instance\":2")) << on_ball;
+        expect(on_sky.contains("\"subject\":\"world\"") && !on_sky.contains("instance")) << on_sky;
+        expect(host.runtime().shown_at(host.runtime().find("main/title"), {30, 30}).json() == "null") << "a node that shows nothing from elsewhere says nothing";
         // A place in the node is a place in the world's picture.
         const auto place = shown->within({box.width / 2, box.height / 4});
         expect(place.has_value() && eq(place->x, 0.5f) && eq(place->y, 0.25f));
         expect(!shown->within({-1, 5}).has_value());
 
-        // The ball turns red; drawn again and told so, the frame shows it.
+        // The ball turns red; drawn again and told so, the frame shows it. (The host draws a frame when its
+        // pixels are asked for: the one kept is drawn first.)
+        (void)host.pixels();
         yard.materials[1].base = {0.8f, 0.2f, 0.15f};
         yard.draw();
         host.step();

@@ -52,5 +52,11 @@ if (!viewport->holds_pointer()) { /* the person let go: Escape, or the window lo
 
 It is a capability asked of the host (`omui::Services::lock_pointer`): one that cannot says no and nothing changes. Escape is the person's way out and is not handed to the game.
 
-**Not yet:** on a device the host must hand the picture's texture to the frame (`GpuFrame`'s `external`) — no host does; the Web host's pointer lock (it says it cannot); a pixel of the viewport explained through to the world's own source (the instance, the triangle).
+**From a pixel on to the world.** An agent that asks the interface what drew a pixel (`ui.drew`) is told the node, and — where the node is a viewport — what it shows there: the subject to ask next, the place in its picture, and what the world itself says is at that place (`Shown::describe`, the game's: here the reference's id buffer):
+
+```json
+{"node": "main/world", "shows": {"subject": "world", "at": [0.5, 0.5], "there": {"instance": 2, "triangle": 1696}}}
+```
+
+**Not yet:** on a device the host must hand the picture's texture to the frame (`GpuFrame`'s `external`) — no host does; the Web host's pointer lock (it says it cannot).
 

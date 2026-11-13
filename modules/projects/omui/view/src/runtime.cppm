@@ -344,6 +344,9 @@ public:
     // Where a script built it, `file:line:column` (development mode keeps it;
     // Live Design's design.locate), or empty.
     [[nodiscard]] std::string_view built_at(NodeId node) const;
+    // What a node shows at a point of the window, when what it shows was drawn elsewhere (its component's
+    // `shown_at`): null where it has nothing to say.
+    [[nodiscard]] Value shown_at(NodeId node, Point window) const;
     // The other way: the nodes a script built on a line of a file (its path as
     // the script was run by), in tree order.
     [[nodiscard]] std::vector<NodeId> built_on(std::string_view file, std::uint32_t line) const;

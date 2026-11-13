@@ -77,6 +77,9 @@ struct Viewport {
         std::function<std::optional<xrender::raster::ImageView>()> pixels;  // its picture (premultiplied); none: nothing yet
         float                  width = 480, height = 270;  // its size when the layout does not say
         bool                   pixels_stay = false;        // shown by the nearest pixel (a field of cells), not smoothed
+        // None, or what the world says is at a place of its picture (0 to 1 across and down): an object's members —
+        // the instance, the triangle — for whoever asks what drew a pixel of the interface.
+        std::function<omui::Value(float across, float down)> describe;
         bool                   look = false;               // a press on it keeps the pointer to it (the world looked about by the mouse)
     };
     Viewport() = default;
@@ -99,6 +102,7 @@ struct Viewport {
     [[nodiscard]] bool holds_pointer() const;
     [[nodiscard]] omui::Point take_look() noexcept { return std::exchange(looked_, omui::Point{}); }
     bool on_event(omui::EventContext& ctx, const omui::InputEvent& event);
+    [[nodiscard]] omui::Value shown_at(omui::Point local, omui::Size size) const;
 
     void mount(omui::Services& services, omui::NodeId node) { services_ = &services, node_ = node; }
     omui::Size measure(omui::MeasureContext&, std::optional<float> width, std::optional<float> height, mlibs::layout::Available across, mlibs::layout::Available down);

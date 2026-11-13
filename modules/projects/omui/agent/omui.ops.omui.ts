@@ -265,7 +265,7 @@ export default defineOps({
     {
       name: "ui.drew",
       effect: "read",
-      summary: "What drew a pixel: the node its colour came from, the nodes it sits in, and where in the program each was built",
+      summary: "What drew a pixel: the node its colour came from, the nodes it sits in, and where in the program each was built; where the node shows something drawn elsewhere (a world in a viewport), `shows`: its subject, the place in its picture and what is there",
       params: [{ name: "at", type: "json", doc: "[x, y] in logical pixels" }],
       result: "json",
     },

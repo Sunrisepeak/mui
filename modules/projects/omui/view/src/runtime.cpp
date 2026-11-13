@@ -302,6 +302,13 @@ std::vector<NodeId> Runtime::children(NodeId node) const { return valid(node) ? 
 const ComponentType& Runtime::type(NodeId node) const { return valid(node) ? *impl_->at(node).type : root_type(); }
 std::source_location Runtime::origin(NodeId node) const { return valid(node) ? impl_->at(node).where : std::source_location{}; }
 
+Value Runtime::shown_at(NodeId node, Point window) const {
+    if (!valid(node)) return {};
+    const auto& one = impl_->at(node);
+    if (!one.type || !one.type->shown_at || !one.instance) return {};
+    const Rect box = bounds(node);
+    return one.type->shown_at(one.instance, {window.x - box.x, window.y - box.y}, {box.width, box.height});
+}
 std::string_view Runtime::built_at(NodeId node) const { return valid(node) ? std::string_view(impl_->built_places[impl_->at(node).built_at]) : std::string_view(); }
 
 std::vector<NodeId> Runtime::built_on(std::string_view file, std::uint32_t line) const {

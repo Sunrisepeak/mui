@@ -592,6 +592,9 @@ struct ComponentType {
     // Which points of its box take the pointer (a figure over a page: only
     // where it is drawn, the page beneath elsewhere); none: all of it.
     bool (*hits)(const void*, Point local, Size) = nullptr;
+    // What the node shows at a point of itself, when what it shows was drawn elsewhere (a world in a viewport):
+    // what `ui.drew` says beside the node — which subject, and where in it. Nothing to say: a null value.
+    Value (*shown_at)(const void*, Point local, Size) = nullptr;
     // Text a person can select (a page's words, as on any web page): the byte
     // offset at a local point (none: not selectable now), and its text.
     std::optional<std::size_t> (*text_offset)(const void*, Point local) = nullptr;
@@ -696,6 +699,8 @@ template <class C>
             x.window_area = [](const void* p, Point at, Size sz) { return static_cast<const C*>(p)->window_area(at, sz); };
         if constexpr (requires(const C& c, Point p, Size sz) { { c.hits(p, sz) } -> std::same_as<bool>; })
             x.hits = [](const void* p, Point at, Size sz) { return static_cast<const C*>(p)->hits(at, sz); };
+        if constexpr (requires(const C& c, Point p, Size sz) { { c.shown_at(p, sz) } -> std::same_as<Value>; })
+            x.shown_at = [](const void* p, Point at, Size sz) { return static_cast<const C*>(p)->shown_at(at, sz); };
         if constexpr (requires(const C& c, Point p) { { c.text_offset(p) } -> std::same_as<std::optional<std::size_t>>; })
             x.text_offset = [](const void* p, Point at) { return static_cast<const C*>(p)->text_offset(at); };
         if constexpr (requires(const C& c) { { c.text_of() } -> std::convertible_to<std::string_view>; })

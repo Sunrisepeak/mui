@@ -100,6 +100,16 @@ HeadlessOptions scene_options(HeadlessLevel level = HeadlessLevel::pixels) {
     return o;
 }
 
+// What a list is made of, by kind of command: where a frame's masks come from.
+std::string made_of(const xrender::DisplayList& list) {
+    std::array<std::size_t, std::variant_size_v<xrender::Command>> kinds{};
+    for (const xrender::Command& command : list.commands()) ++kinds[command.index()];
+    std::string text;
+    for (std::size_t kind = 0; kind < kinds.size(); ++kind)
+        if (kinds[kind] > 0) text += std::format("{}{} {}", text.empty() ? "" : ", ", kinds[kind], xrender::command_kind_name(kind));
+    return text;
+}
+
 // A GPU to draw frames on (omui.rhi through SDL), when the machine has one:
 // tools/ci/gpu.sh's OMUI_VULKAN_LIBRARY and OMUI_GPU_VIDEO_DRIVER as the
 // tests use them. A software device (lavapipe) is counted `software`, so a
@@ -551,13 +561,7 @@ void add_framework_benchmarks() {
             }
         }
         s.note("slowest", slowest);
-        // What the last frame's list was made of: where a frame's masks come from.
-        std::array<std::size_t, std::variant_size_v<xrender::Command>> kinds{};
-        for (const xrender::Command& command : w.h.runtime().display_list().commands()) ++kinds[command.index()];
-        std::string made_of;
-        for (std::size_t kind = 0; kind < kinds.size(); ++kind)
-            if (kinds[kind] > 0) made_of += std::format("{}{} {}", made_of.empty() ? "" : ", ", kinds[kind], xrender::command_kind_name(kind));
-        s.note("list", made_of);
+        s.note("list", made_of(w.h.runtime().display_list()));
     });
     add("wall/pan-1000", "1000 windows as textures (about 160 px each), a trackpad pans every frame", [](State& s) {
         Wall w(1000, 40, "bench-wall-pan");
@@ -811,6 +815,7 @@ void add_framework_benchmarks() {
                 else (void)h.pixels();
                 frame_counters(s, f, &h.runtime());
             }
+            if (gpu) s.note("list", made_of(h.runtime().display_list()));
         };
     };
     add("motion/switches-100", "a hundred switches flipped at once, the framework's own motion: every frame of their morphs drawn", switches(""));

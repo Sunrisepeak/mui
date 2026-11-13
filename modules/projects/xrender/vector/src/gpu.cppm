@@ -69,8 +69,12 @@ struct GpuOptions {
     // levels of the mask — and takes its mask once it has been asked for at
     // the same size and place in two frames running, this many a frame (0:
     // never — the outlines at rest too, nothing swapped). Text under a
-    // changing scale or transform costs no rasterising. RenderReport's
-    // glyphs_outlined says how many a frame drew so.
+    // changing scale or transform costs no rasterising. A path filled by
+    // the non-zero rule is drawn so too while it moves or changes, and takes
+    // its mask once it has stayed two frames (a few a frame): where its
+    // contours cross, a pixel's area by magnitude is not the rule's, so at
+    // rest it is the reference's. RenderReport's glyphs_outlined says how
+    // many shapes a frame drew so.
     std::size_t glyph_masks = std::numeric_limits<std::size_t>::max();
 };
 

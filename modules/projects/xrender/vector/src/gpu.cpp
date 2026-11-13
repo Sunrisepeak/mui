@@ -460,15 +460,25 @@ struct GpuRenderer::Impl {
     // Whether a mask the atlas has not got may be made this frame: always
     // when masks are unlimited; else when it was asked for in the frame
     // before too and the frame has made fewer than its number.
-    bool may_make(std::uint64_t key) {
+    bool may_make(std::uint64_t key) { return may_make(key, glyph_masks, glyph_masks_made); }
+    bool may_make(std::uint64_t key, std::size_t most, std::size_t& made) {
         if (glyph_masks == std::numeric_limits<std::size_t>::max()) return true;
         asked.push_back(key);
-        if (glyph_masks_made < glyph_masks && std::ranges::binary_search(asked_before, key)) {
-            ++glyph_masks_made;
+        if (made < most && std::ranges::binary_search(asked_before, key)) {
+            ++made;
             return true;
         }
         return false;
     }
+    // A filled path, where a frame's glyph masks are limited: its outline
+    // while it moves or changes, its mask — the reference's bytes, whatever
+    // its contours cross — once it has stayed two frames, so many a frame.
+    static constexpr std::size_t path_masks_a_frame = 16;
+    // What one path's outline may cost the device: its points read at every
+    // pixel of its box. Past it the path is its mask (until outlines are
+    // read by bands of rows).
+    static constexpr float outline_reads_most = 3.0e6f;
+    std::size_t path_masks_made = 0;
 
     // The level of size an outline is kept at for `scale` device pixels a
     // unit of its own: the power of two at or past it, flattened as finely as
@@ -918,7 +928,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
         g.atlas_overflow = false;
         g.masks_made = g.masks_reused = 0;
         g.asked.clear();
-        g.glyph_masks_made = g.glyphs_outlined = 0;
+        g.glyph_masks_made = g.path_masks_made = g.glyphs_outlined = 0;
         // The surface drawn into: the target, or an effect layer's own.
         struct Surface {
             std::uint32_t w, h;
@@ -1216,6 +1226,21 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                 plain.covered = !stroke;
             }
             outline_glyph(*kept, to, paint, 1, upright ? &plain : nullptr);
+            return true;
+        };
+        // A path filled by the non-zero rule whose mask the atlas has not got, drawn from its outline
+        // instead while it moves or changes (the frame's masks limited): true when it was.
+        auto path_instead = [&](std::uint64_t key, const PathView& path, const Paint& paint) {
+            if (g.cached.contains(key) || g.may_make(key, Impl::path_masks_a_frame, g.path_masks_made)) return false;
+            const Affine& mm = m();
+            Key shape;
+            shape.path(path);
+            const Impl::Outlined* kept = g.outline_of(shape.value(), mm.max_scale(),
+                                                      [&](std::uint64_t under, float top) -> Impl::Outlined& { return g.outline_kept(under, path, {}, top); });
+            if (!kept) return false;
+            const Rect box = mm.map(kept->bounds);
+            if (static_cast<float>(kept->count) * (box.width + 2) * (box.height + 2) > Impl::outline_reads_most) return false;
+            outline_glyph(*kept, mm, paint, 1);
             return true;
         };
         // What every device-space mask's key starts with: the transform and the clip it was rasterised within.
@@ -1574,6 +1599,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                              0, 0, Paint::solid(c.color));
                     } else if constexpr (std::same_as<T, FillPath>) {
                         const auto key = device_key(3).path(c.path).u64(static_cast<std::uint64_t>(c.rule)).value();
+                        if (c.rule == FillRule::nonzero && path_instead(key, c.path, c.paint)) return;
                         mask(g.cover(key,
                                      [&](xrender::raster::Coverage& cov) {
                                          xrender::raster::fill_coverage(c.path, m(), c.rule, pixels(clips.back()), cov);

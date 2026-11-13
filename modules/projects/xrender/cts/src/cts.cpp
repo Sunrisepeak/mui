@@ -851,6 +851,10 @@ void add(Cases& suite) {
             const geom::CornerRadii corners = geom::CornerRadii::all(11).smoothed(0.6f);
             dl.fill_round_rect({70.3f, 58.6f, 50 + size, 44.5f}, corners, render::Paint::solid(geom::Color{0.1f, 0.5f, 0.3f, 0.7f}));
             dl.stroke_round_rect({8.4f, 66.2f, 52.5f, 30 + size * 0.5f}, corners, 3, render::Paint::solid(geom::Color::hex(0xb91c1c)));
+            // A path that changes with the frame (a shape morphing): two discs, by the non-zero rule.
+            render::Path drops;
+            drops.add_circle({128.4f, 20.3f}, 5 + size * 0.2f).add_circle({146.2f, 34.6f}, 6.5f);
+            dl.fill_path(drops, render::FillRule::nonzero, render::Paint::solid(geom::Color::hex(0x7c3aed)));
         };
         // A scale changing every frame, no mask ever made: each frame the outlines', within the reference's
         // own flattening of a curve (chords within 1/32 pixel at the size drawn lose a little of a curved
@@ -864,7 +868,7 @@ void add(Cases& suite) {
             text(dl, size, 0.2f + 0.1f * static_cast<float>(frame));
             const std::string problem = rig.compare(dl, std::format("glyphs outlined at {}", size), moving);
             check(problem.empty(), problem);
-            check_eq(rig.last.glyphs_outlined, std::size_t{14});
+            check_eq(rig.last.glyphs_outlined, std::size_t{15});
             check_eq(rig.last.masks_made, std::size_t{0});
         }
         // At rest with masks allowed: asked for once, drawn from outlines; asked again, made — the reference's bytes.
@@ -872,7 +876,7 @@ void add(Cases& suite) {
         render::DisplayList still;
         text(still, 21.5f, 0.35f);
         check(rig.compare(still, "glyphs first asked", moving).empty(), "the first frame at rest");
-        check_eq(rig.last.glyphs_outlined, std::size_t{14});
+        check_eq(rig.last.glyphs_outlined, std::size_t{15});
         const std::string settled = rig.compare(still, "glyphs at rest", {1, 0});
         check(settled.empty(), settled);
         check_eq(rig.last.glyphs_outlined, std::size_t{0});
@@ -885,7 +889,8 @@ void add(Cases& suite) {
         text(other, 17.25f, 0.6f);
         check(rig.compare(other, "glyphs, one mask a frame: asked", moving).empty(), "asked");
         check(rig.compare(other, "glyphs, one mask a frame: first", moving).empty(), "the first made");
-        check_eq(rig.last.masks_made, std::size_t{1});
+        // The one glyph's, and the path's (a path at rest is its mask: its own few a frame).
+        check_eq(rig.last.masks_made, std::size_t{2});
         check_eq(rig.last.glyphs_outlined, std::size_t{13});
         device->destroy(*target);
     });

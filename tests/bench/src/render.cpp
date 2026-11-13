@@ -3,6 +3,10 @@ module omui.bench;
 import std;
 import xrender.scene;
 import xrender.mesh;
+import xrender.mesh.gpu;
+import xrender.rhi.sdl;
+import mlibs.rhi;
+import mcpplibs.os;
 
 namespace omui::bench {
 
@@ -105,6 +109,91 @@ void add_render_benchmarks() {
             s.items(480 * 270);
             while (s.next()) pass.draw(world, seen, view, {meshes, materials}, frame);
             s.note("scope", std::format("{} pixels written, {} hidden; {} of {} triangles filled; one thread", pass.last().written, pass.last().hidden, pass.last().filled, pass.last().triangles));
+        });
+    add("render/mesh-device-yard-1080p", "the mesh pass on this machine's device (xrender.mesh.gpu through SDL_GPU): the yard at 1920x1080 as a frame is made of it — the surface for occlusion, how open each place is (8 rays of 12 steps), the sun's map (2048²), a lamp's and a spot's six views (512²), the light, the glow and the display's curve — submitted and waited for",
+        [](State& s) {
+            namespace mesh = xrender::mesh;
+            namespace geom = mlibs::geom;
+            namespace rhi = mlibs::rhi;
+            constexpr std::uint32_t width = 1920, height = 1080;
+            xrender::rhi::sdl::Options options;
+            options.formats = mesh::gpu::Pass::shader_formats();
+            if (auto library = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) options.vulkan_library = *library;
+            if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) options.video_driver = *video;
+            auto device = xrender::rhi::sdl::create(options);
+            if (!device) {
+                s.skip(std::format("no GPU device ({})", device.error().message));
+                return;
+            }
+            rhi::Device& on = **device;
+            s.note("device", std::format("{} ({}{})", on.caps().device, rhi::name(on.caps().backend), on.caps().software ? ", software" : ""));
+            const std::array<geom::ClusteredMesh, 4> made{*geom::clustered(geom::box({1, 1, 1})), *geom::clustered(geom::sheet(200, 200, 4, 4)), *geom::clustered(geom::sphere(1, 32, 64), 32),
+                                                          *geom::clustered(geom::cylinder(0.7f, 2, 48), 32)};
+            const std::array<const geom::ClusteredMesh*, 4> meshes{&made[0], &made[1], &made[2], &made[3]};
+            const std::array<mesh::Material, 5> materials{{{{0.8f, 0.2f, 0.15f}, {}}, {{0.5f, 0.5f, 0.5f}, {}}, {{0.15f, 0.4f, 0.8f}, {}, 0.25f, 0}, {{1.0f, 0.77f, 0.34f}, {}, 0.3f, 1}, {{0.1f, 0.1f, 0.1f}, {9.0f, 5.0f, 1.6f}}}};
+            scene::Scene world;
+            const auto put = [&](scene::Id id, std::uint32_t which, std::uint32_t material, const math::Mat4& where, bool casts = true) {
+                (void)world.add({.id = id, .mesh = which, .material = material, .world = where, .bounds = geom::bounds(made[which].mesh), .casts = casts});
+            };
+            put(1, 1, 1, math::translation({0, -1, 0}));
+            put(10, 0, 0, math::Transform{{-2.2f, 0, 0}, math::Quat::about({0, 1, 0}, 0.6f), {1, 1, 1}}.matrix());
+            put(11, 2, 2, math::translation({0.4f, 0, 0.8f}));
+            put(12, 3, 3, math::translation({2.6f, 0, -0.5f}));
+            put(13, 2, 4, math::Transform{{1.2f, 1.6f, -1.5f}, {}, {0.25f, 0.25f, 0.25f}}.matrix(), false);
+            (void)world.add(scene::Light{.id = 1, .kind = scene::LightKind::sun, .colour = {1, 0.96f, 0.9f}, .intensity = 0.9f, .toward = {-0.4f, -1, -0.5f}});
+            (void)world.add(scene::Light{.id = 2, .kind = scene::LightKind::point, .colour = {1, 0.6f, 0.2f}, .intensity = 2.5f, .at = {1.2f, 1.6f, -1.5f}, .range = 6});
+            (void)world.add(scene::Light{.id = 3, .kind = scene::LightKind::spot, .colour = {0.4f, 0.7f, 1}, .intensity = 3, .at = {-2.2f, 4, 1}, .toward = {0, -1, -0.2f}, .range = 9, .cone = 0.5f});
+            const scene::View view{.view = math::look_at({0.5f, 2.2f, 7.5f}, {0.2f, 0, 0}, {0, 1, 0}), .projection = math::perspective(1.0f, 16.0f / 9.0f, 0.5f, 100.0f)};
+            scene::Extracted seen;
+            scene::extract(world, view, seen);
+
+            auto pass = mesh::gpu::Pass::make(on, false, true);
+            auto open = mesh::gpu::Open::make(on);
+            auto glow = mesh::gpu::Glow::make(on);
+            if (!pass || !open || !glow || !pass->load(meshes)) {
+                s.fail("the mesh pass could not be made on this device");
+                return;
+            }
+            std::vector<rhi::Texture> textures;
+            const auto target = [&](rhi::Format format, std::uint32_t across, std::uint32_t down, std::string_view label) {
+                const auto one = on.create(rhi::TextureDesc{format, across, down, rhi::is_depth(format) ? rhi::TextureUsage::depth_target : rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, label});
+                if (one) textures.push_back(*one);
+                return one ? *one : rhi::Texture{};
+            };
+            mesh::gpu::Shadows shadows{.size = 2048, .distance = 30, .lamp_size = 512, .lamps = 2};
+            const rhi::Texture colour = target(rhi::Format::rgba8_unorm, width, height, "bench.colour"), depth = target(rhi::Format::d32_float, width, height, "bench.depth"),
+                               light = target(rhi::Format::rgba16_float, width, height, "bench.light"), one = target(rhi::Format::rgba16_float, width, height, "bench.one"),
+                               other = target(rhi::Format::rgba16_float, width, height, "bench.other"), surface = target(rhi::Format::rgba16_float, width, height, "bench.surface");
+            shadows.open = target(rhi::Format::r32_float, width, height, "bench.open");
+            shadows.map = target(rhi::Format::r32_float, shadows.size, shadows.size, "bench.shadow"), shadows.depth = target(rhi::Format::d32_float, shadows.size, shadows.size, "bench.shadow.depth");
+            shadows.lamps_map = target(rhi::Format::r32_float, shadows.lamp_size * 6, shadows.lamp_size * shadows.lamps, "bench.lamps");
+            shadows.lamps_depth = target(rhi::Format::d32_float, shadows.lamp_size * 6, shadows.lamp_size * shadows.lamps, "bench.lamps.depth");
+            const mesh::Options options_of{.background = {0.5f, 0.6f, 0.7f}, .ambient = {0.2f, 0.24f, 0.3f}, .shadows = true, .occlusion_rays = 8, .occlusion_reach = 1.5f, .environment = {.on = true}};
+            const mesh::Bloom bloom{.threshold = 1, .radius = 7, .strength = 0.6f};
+            const auto frame = [&] {
+                const auto begun = std::chrono::steady_clock::now();
+                rhi::CommandList list;
+                pass->record_surface(list, world, seen, view, surface, depth, width, height, options_of);
+                open->record(list, view, surface, shadows.open, width, height, options_of);
+                pass->record(list, world, seen, view, materials, light, depth, width, height, options_of, &shadows);
+                glow->record(list, light, one, other, colour, width, height, bloom, {.exposure = 1, .filmic = true});
+                const auto submitted = on.submit(list);
+                s.counter("encode_ms", std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - begun).count());
+                const auto waited = on.wait_idle();
+                if (!submitted || !waited) {
+                    s.fail(std::format("the frame failed: {}", !submitted ? submitted.error().message : waited.error().message));
+                    return;
+                }
+                s.counter("gpu_ms", std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - begun).count());
+                s.counter("software", on.caps().software ? 1 : 0);
+            };
+            frame();
+            s.items(width * height);
+            while (s.next()) frame();
+            s.note("scope", std::format("{} draws, {} casters in the sun's map, {} views of lamps; 12 passes a frame; the same frame the device suite holds to the reference at 480x270", pass->last().draws,
+                                        pass->last().casters, pass->last().lamp_views));
+            static_cast<void>(on.wait_idle());
+            for (const rhi::Texture made_one : textures) on.destroy(made_one);
         });
     add("render/mesh-reference-glow", "the CPU reference of the glow: a picture of light, 480x270 with a lamp's globe and its pool of light brighter than the display, spread by 7 pixels three times each way and shown",
         [](State& s) {

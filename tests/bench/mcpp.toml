@@ -29,7 +29,8 @@ sources = ["src/*.cppm", "src/*.cpp"]
 mcpplibs.cmdline = "0.0.3"
 xrender.text = { path = "../../modules/projects/xrender/text" }
 xrender.scene = { path = "../../modules/projects/xrender/scene" }
-xrender.mesh  = { path = "../../modules/projects/xrender/mesh" }
+"xrender.mesh"  = { path = "../../modules/projects/xrender/mesh" }
+"xrender.mesh.gpu" = { path = "../../modules/projects/xrender/mesh/gpu" }
 mlibs.simulation = { path = "../../modules/base/simulation" }
 xengine.dynamics = { path = "../../modules/projects/xengine/kernel/dynamics", features = ["rigid"] }
 # With the lattice as a carrier of matter (simulation/matter-lattice-*), and a field of it as an agent's subject

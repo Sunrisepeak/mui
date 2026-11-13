@@ -90,6 +90,10 @@ addToLibrary({
         }
         var features = [];
         if (adapter.features.has('depth32float-stencil8')) features.push('depth32float-stencil8');
+        // A 32-bit float texture read through a sampler (a shadow map, an id as a float): WebGPU has it as a
+        // feature. Without it such a texture can be loaded and not sampled, and binding one where a shader
+        // samples is the page's validation error.
+        if (adapter.features.has('float32-filterable')) features.push('float32-filterable');
         var limits = { maxTextureDimension2D: adapter.limits.maxTextureDimension2D };
         return adapter.requestDevice({ requiredFeatures: features, requiredLimits: limits }).then(function (device) {
           G.adapter = adapter;
@@ -102,6 +106,7 @@ addToLibrary({
             software: software,
             maxTexture: device.limits.maxTextureDimension2D,
             depthStencil: device.features.has('depth32float-stencil8'),
+            float32Filterable: device.features.has('float32-filterable'),
           };
           device.addEventListener('uncapturederror', function (e) { G.errors.push(e.error && e.error.message || String(e)); });
           device.lost.then(function (l) { G.lost = l.message || l.reason || 'the device was lost'; });
@@ -213,7 +218,45 @@ addToLibrary({
                   fragment.samplers + fragment.storageTextures + fragment.storageBuffers, fragment.uniforms];
       var groups = 0;
       for (var g = 0; g < 4; ++g) if (used[g]) groups = g + 1;
-      return { pipeline: pipeline, vertex: vertex, fragment: fragment, groups: groups, empty: [] };
+      return { pipeline: pipeline, desc: desc, vertex: vertex, fragment: fragment, groups: groups, empty: [], unfiltered: {} };
+    },
+
+    // The pipeline for what is bound. A 32-bit float texture cannot be read through a filtering sampler on a
+    // page without 'float32-filterable', and a pipeline's own ('auto') layout takes every sampled texture to be
+    // filtered: with such a texture bound, the same pipeline is made again with its layouts written out — those
+    // slots unfiltered, their samplers non-filtering (a sampler that filters bound there is the page's error).
+    // Made once for each set of such slots. A stage that also binds storage is left as it is.
+    variant: function (p, bound) {
+      var G = omuiGpu;
+      if (G.info.float32Filterable) return p;
+      var key = '', any = false, stages = [p.vertex, p.fragment];
+      for (var s = 0; s < 2; ++s)
+        for (var i = 0; i < stages[s].samplers; ++i) {
+          var plain = !!(bound[s].samplers[i] && bound[s].samplers[i].unfilterable);
+          key += plain ? '1' : '0';
+          any = any || plain;
+        }
+      if (!any) return p;
+      if (p.unfiltered[key]) return p.unfiltered[key];
+      if (p.vertex.storageTextures + p.vertex.storageBuffers + p.fragment.storageTextures + p.fragment.storageBuffers) return p;
+      var layouts = [], at = 0;
+      for (var g = 0; g < p.groups; ++g) {
+        var stage = g < 2 ? 0 : 1, c = stages[stage], visibility = stage === 0 ? GPUShaderStage.VERTEX : GPUShaderStage.FRAGMENT, entries = [];
+        if (g % 2 === 0) {
+          for (var slot = 0; slot < c.samplers; ++slot) {
+            var unfiltered = key[at++] === '1';
+            entries.push({ binding: 2 * slot, visibility: visibility, texture: { sampleType: unfiltered ? 'unfilterable-float' : 'float' } });
+            entries.push({ binding: 2 * slot + 1, visibility: visibility, sampler: { type: unfiltered ? 'non-filtering' : 'filtering' } });
+          }
+        } else {
+          for (var u = 0; u < c.uniforms; ++u) entries.push({ binding: u, visibility: visibility, buffer: { type: 'uniform' } });
+        }
+        layouts.push(G.device.createBindGroupLayout({ entries: entries }));
+      }
+      var desc = Object.assign({}, p.desc, { layout: G.device.createPipelineLayout({ bindGroupLayouts: layouts }) });
+      var made = { pipeline: G.device.createRenderPipeline(desc), vertex: p.vertex, fragment: p.fragment, groups: p.groups, empty: [] };
+      p.unfiltered[key] = made;
+      return made;
     },
 
     compute: function (w, cs, entry, label) {
@@ -279,6 +322,7 @@ addToLibrary({
 
       var encoder = device.createCommandEncoder();
       var pass = null, compute = false, target = null, pipeline = null;
+      var drawing = null;  // the pipeline set on the pass: `pipeline`, or its variant for what is bound
       // What each stage has bound in this pass, and its uniforms (pushed
       // once, they hold from there on, through later passes).
       var stage = function () { return { samplers: [], storageTextures: [], storageBuffers: [] }; };
@@ -305,11 +349,18 @@ addToLibrary({
           }
           return;
         }
-        for (g = 0; g < pipeline.groups; ++g) {
+        // The pipeline as what is bound asks (`variant`): another than the one in use is set, and its groups with it.
+        var using = (dirty[0] || dirty[2] || !drawing) ? G.variant(pipeline, bound) : drawing;
+        if (using !== drawing) {
+          pass.setPipeline(using.pipeline);
+          drawing = using;
+          everything();
+        }
+        for (g = 0; g < using.groups; ++g) {
           if (!dirty[g]) continue;
-          var s = g < 2 ? 0 : 1, counts = s === 0 ? pipeline.vertex : pipeline.fragment;
+          var s = g < 2 ? 0 : 1, counts = s === 0 ? using.vertex : using.fragment;
           entries = g % 2 === 0 ? G.readEntries(bound[s], counts) : G.uniformEntries(uniforms[s], counts.uniforms);
-          pass.setBindGroup(g, G.group(pipeline, g, entries));
+          pass.setBindGroup(g, G.group(using, g, entries));
           dirty[g] = false;
         }
       };
@@ -380,6 +431,7 @@ addToLibrary({
           case O.set_pipeline:
             pipeline = G.pipelines[w[k]];
             pass.setPipeline(pipeline.pipeline);
+            drawing = pipeline;
             everything();
             break;
           case O.set_viewport:
@@ -397,7 +449,7 @@ addToLibrary({
             pass.setIndexBuffer(G.buffers[w[k]].buffer, w[k + 2] ? 'uint32' : 'uint16', w[k + 1]);
             break;
           case O.bind_texture:
-            bound[w[k]].samplers[w[k + 1]] = { view: G.textures[w[k + 2]].view, sampler: G.samplers[w[k + 3]] };
+            bound[w[k]].samplers[w[k + 1]] = { view: G.textures[w[k + 2]].view, sampler: G.samplers[w[k + 3]], unfilterable: G.FORMATS[G.textures[w[k + 2]].formatIndex] === 'r32float' };
             dirty[w[k] === G.STAGE.fragment ? 2 : 0] = true;
             break;
           case O.bind_storage_texture:

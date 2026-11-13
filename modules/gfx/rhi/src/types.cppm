@@ -117,7 +117,7 @@ enum class Format : std::uint8_t {
     bgra8_unorm,    // what swapchains often are
     r8_unorm,       // coverage masks, glyph atlases
     rgba16_float,   // effects' intermediate layers
-    r32_float,
+    r32_float,      // one 32-bit float: a distance, an id; read through a nearest sampler (filtered: not portable — WebGPU)
     r32_uint,       // object ids (pixel provenance)
     d32_float,      // depth
     d32_float_s8,   // depth and an 8-bit stencil

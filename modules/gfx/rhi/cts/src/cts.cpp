@@ -357,6 +357,28 @@ void sampling(Bench& b, Rgba tint, const std::function<Rgba(Rgba)>& tinted) {
 
 void texture_nearest(Bench& b) { sampling(b, white, [](Rgba c) { return c; }); }
 
+// A 32-bit float texture read through a nearest sampler: a shadow map, an id kept as a float. Cleared to 1 it
+// is red over the whole target (its one channel; the others 0 and 1). The pipeline is the one `texture_nearest`
+// samples an rgba8 texture with: a backend that tells the two kinds of texture apart in a pipeline's layout
+// (WebGPU, where 32-bit floats are not filtered) has both. Through a sampler that filters it is not portable.
+void float_nearest(Bench& b) {
+    const Texture map = b.texture(Format::r32_float, 2, 2, TextureUsage::color_target | TextureUsage::sampled, "cts.r32f");
+    const std::array<T, 6> v{T{-1, 1, 0, 0}, T{1, 1, 1, 0}, T{-1, -1, 0, 1}, T{1, 1, 1, 0}, T{1, -1, 1, 1}, T{-1, -1, 0, 1}};
+    const Buffer vb = b.vertices(v);
+    CommandList filled;
+    filled.begin_render({map, LoadOp::clear, {1, 0, 0, 1}});
+    filled.end_render();
+    b.submit(filled);
+    b.pass(LoadOp::clear, black, [&](CommandList& l) {
+        l.set_pipeline(b.textured);
+        l.bind_vertex_buffer(0, vb);
+        l.bind_texture(Stage::fragment, 0, map, b.nearest);
+        l.push_uniforms(Stage::fragment, 0, unit(white));
+        l.draw(6);
+    });
+    expect(b, b.pixels(), W, [](auto, auto) { return red; });
+}
+
 // The uniform multiplies: white × (0.4, 0.6, 1, 1).
 void uniforms(Bench& b) {
     sampling(b, {102, 153, 255, 255}, [](Rgba c) {
@@ -494,7 +516,7 @@ struct Case {
     mlibs::cts::Level         level = mlibs::cts::Level::exact;
 };
 constexpr auto within = mlibs::cts::Level::tolerance;  // blending and resolving round: ±1
-constexpr std::array<Case, 19> all{{
+constexpr std::array<Case, 20> all{{
     {"clear", clear},
     {"orientation", orientation},
     {"instancing", instancing},
@@ -504,6 +526,7 @@ constexpr std::array<Case, 19> all{{
     {"scissor", scissor},
     {"viewport", viewport},
     {"texture_nearest", texture_nearest},
+    {"float_nearest", float_nearest},
     {"uniforms", uniforms},
     {"load_keeps", load_keeps},
     {"copy", copy},

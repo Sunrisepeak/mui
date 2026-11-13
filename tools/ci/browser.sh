@@ -8,6 +8,7 @@
 #      conformance suite among them — on the page's WebGPU and WebGL2, built
 #      with the wasm-browser profile (linked to suspend, so the suite can
 #      read WebGPU back);
+#      and the mesh pass's suite (xrender.mesh.gpu.cts) on both;
 #   2. omui.host.web drawing its frames on each: what it chooses, and its
 #      frame of a page within the GPU renderer's tolerances of the CPU's;
 #   3. every WGSL and ESSL entry point the Web build wrote
@@ -63,6 +64,17 @@ for suite in shape_webgpu_test cellular_webgpu_test; do
   [ -n "$program" ] || { echo "::error::$suite.js was not built"; exit 1; }
   "$node_bin" tools/ci/browser.mjs --chrome "$chrome" "$program" --require-webgpu \
     || { echo "::error::$suite failed in the browser"; exit 1; }
+done
+
+# 1c. The mesh pass's contract (xrender.mesh.gpu.cts: the scenes of three dimensions against the CPU
+# reference), run by its owner on the page's WebGPU and on its WebGL2 — every case on both.
+"$mcpp" test --target wasm32-emscripten --profile wasm-browser -p xrender.mesh.gpu.cts --no-run \
+  || { echo "::error::the mesh pass's suite did not build for the browser"; exit 1; }
+for backend in webgpu webgl; do
+  program=$(find target/wasm32-emscripten -path '*/bin/*' -name "mesh_${backend}_test.js" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2 || true)
+  [ -n "$program" ] || { echo "::error::mesh_${backend}_test.js was not built"; exit 1; }
+  "$node_bin" tools/ci/browser.mjs --chrome "$chrome" --timeout 600 "$program" --require-$backend \
+    || { echo "::error::the mesh pass's suite failed on the page's $backend"; exit 1; }
 done
 
 # 2. host.web drawing on the page's WebGPU, then its WebGL2 (a canvas keeps

@@ -169,6 +169,53 @@ std::expected<void, Failure> Program::encode(const Reactions& reactions, std::ui
     words_.push_back(static_cast<std::uint32_t>(reactions.resets.size()));
     for (const Reset& reset : reactions.resets) words_.insert(words_.end(), {reset.channel, reset.initial, reset.from.value_or(largest)});
     staged_ = staged;
+    // What a row rules out: a comparison whose amounts read only numbers and the row's own columns is the same
+    // for every cell of the row — where it fails, the reaction is not judged for that row's cells.
+    const std::uint32_t reaction_count = words_[staged.reactions], stride = (reaction_count + 63) / 64;
+    possible_.assign(static_cast<std::size_t>(rows) * stride, ~std::uint64_t{0});
+    const auto fixed = [&](std::size_t position) {  // an amount of numbers and the row's columns only
+        for (std::uint32_t count = words_[position++], term = 0; term < count; ++term, position += 5)
+            if (words_[position] != static_cast<std::uint32_t>(Read::constant) && words_[position] != static_cast<std::uint32_t>(Read::lookup)) return false;
+        return true;
+    };
+    const auto amount_of = [&](std::size_t& position, const std::uint32_t* row) {
+        std::uint32_t plus = 0, minus = 0;
+        for (std::uint32_t count = words_[position++], term = 0; term < count; ++term, position += 5) {
+            const std::uint32_t index = words_[position + 1];
+            const std::uint32_t value = words_[position] == static_cast<std::uint32_t>(Read::constant) ? index : row[index];
+            const std::uint32_t scaled = saturating_multiply(value, words_[position + 2]) >> words_[position + 3];
+            if (words_[position + 4]) minus = saturating_add(minus, scaled);
+            else plus = saturating_add(plus, scaled);
+        }
+        return plus - std::min(plus, minus);
+    };
+    const auto skip = [&](std::size_t& position) { position += 1 + 5 * static_cast<std::size_t>(words_[position]); };
+    std::size_t position = staged.reactions + 1;
+    for (std::uint32_t index = 0; index < reaction_count; ++index) {
+        const std::size_t end = words_[position];
+        for (std::uint32_t key = 0; key < rows; ++key) {
+            const std::uint32_t* row = words_.data() + staged.table + static_cast<std::size_t>(key) * staged.columns;
+            std::size_t at = position + 3;
+            bool can = true;
+            for (std::uint32_t count = words_[at++], comparison = 0; comparison < count && can; ++comparison) {
+                const auto compare = static_cast<Compare>(words_[at++]);
+                std::size_t right_at = at;
+                skip(right_at);
+                if (!fixed(at) || !fixed(right_at)) { at = right_at; skip(at); continue; }
+                const std::uint32_t left = amount_of(at, row), right = amount_of(at, row);
+                switch (compare) {
+                    case Compare::greater_equal: can = left >= right; break;
+                    case Compare::less_equal: can = left <= right; break;
+                    case Compare::greater: can = left > right; break;
+                    case Compare::less: can = left < right; break;
+                    case Compare::equal: can = left == right; break;
+                    case Compare::not_equal: can = left != right; break;
+                }
+            }
+            if (!can) possible_[static_cast<std::size_t>(key) * stride + index / 64] &= ~(std::uint64_t{1} << (index % 64));
+        }
+        position = end;
+    }
     return {};
 }
 
@@ -198,7 +245,7 @@ std::uint32_t Program::react(Shape shape, std::uint32_t x, std::uint32_t y, std:
         return in[static_cast<std::size_t>(channel) * cells + static_cast<std::uint32_t>(at_y) * shape.width + static_cast<std::uint32_t>(at_x)];
     };
     // What is near, summed when first read: a neighbour that is no row reads as nothing.
-    std::array<std::uint32_t, 16> near{};
+    std::array<std::uint32_t, 16> near;  // read only where `known` says
     std::uint32_t known = 0;
     const auto near_of = [&](std::uint32_t slot) {
         if (known >> slot & 1) return near[slot];
@@ -214,7 +261,7 @@ std::uint32_t Program::react(Shape shape, std::uint32_t x, std::uint32_t y, std:
         known |= 1u << slot;
         return near[slot] = sum;
     };
-    std::array<std::uint32_t, 16> derived{};
+    std::array<std::uint32_t, 16> derived;  // the first derived_count
     for (std::uint32_t index = 0; index < staged.derived_count; ++index) derived[index] = row[words_[staged.derived + index]];
     // An amount at `position` (left after it): what is added less what is taken.
     const auto amount = [&](std::size_t& position) {
@@ -267,25 +314,32 @@ std::uint32_t Program::react(Shape shape, std::uint32_t x, std::uint32_t y, std:
         position = end;
     }
     // The reactions that hold: what they add and take, the first set of each channel, the flags, the first becoming.
-    std::array<std::uint32_t, 32> plus{}, minus{}, base{};
+    // A channel's sums are made when a reaction first touches it (`touched`), and read only where it does.
+    std::array<std::uint32_t, 32> plus, minus, base;
     std::uint32_t is_set = 0, touched = 0, becomes = largest;
+    const auto touch = [&](std::uint32_t channel) {
+        if (touched >> channel & 1) return;
+        touched |= 1u << channel;
+        plus[channel] = minus[channel] = base[channel] = 0;
+    };
     for (std::uint32_t count = words_[staged.flags], index = 0; index < count; ++index) {
         const std::uint32_t channel = words_[staged.flags + 1 + index];
+        touch(channel);
         is_set |= 1u << channel;
-        touched |= 1u << channel;
     }
     position = staged.reactions;
+    const std::uint64_t* const possible = possible_.data() + static_cast<std::size_t>(key) * ((words_[position] + 63) / 64);
     for (std::uint32_t count = words_[position++], index = 0; index < count; ++index) {
         const std::size_t end = words_[position];
         const std::uint32_t flag = words_[position + 1], become = words_[position + 2];
         std::size_t at = position + 3;
-        if (holds(at)) {
+        if ((possible[index / 64] >> (index % 64) & 1) && holds(at)) {
             ++stats.matched;
             for (std::uint32_t changes = words_[at++], change = 0; change < changes; ++change) {
                 const std::uint32_t channel = words_[at], kind = words_[at + 1];
                 at += 2;
                 const std::uint32_t by = amount(at);
-                touched |= 1u << channel;
+                touch(channel);
                 if (kind == static_cast<std::uint32_t>(ChangeKind::add)) plus[channel] = saturating_add(plus[channel], by);
                 else if (kind == static_cast<std::uint32_t>(ChangeKind::take)) minus[channel] = saturating_add(minus[channel], by);
                 else if (!(is_set >> channel & 1)) base[channel] = by, is_set |= 1u << channel;

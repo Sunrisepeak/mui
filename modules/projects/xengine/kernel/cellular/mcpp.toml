@@ -21,6 +21,8 @@ sources = ["src/*.cppm", "src/*.cpp"]
 mlibs.utils = { path = "../../../../base/utils" }
 # The numbers an exchange chooses by (mix32: what a shader computes alike).
 mlibs.math  = { path = "../../../../base/math" }
+# The host's parallel-for a step may be given (FunctionRef: no allocation, no thread of the kernel's own).
+mlibs.memory = { path = "../../../../base/memory" }
 
 # The field as an agent's subject (src/agent/, module xengine.cellular.agent; D-174): its frames on the
 # clock and history library, its operations through the agent kernel. A feature, so that the kernel alone

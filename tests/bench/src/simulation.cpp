@@ -1,6 +1,8 @@
 module omui.bench;
 import std;
 import mlibs.simulation;
+import mlibs.memory;
+import omui.core;
 import xengine.cellular;
 import xengine.cellular.present;
 import xengine.dynamics;
@@ -373,6 +375,63 @@ void add_simulation_benchmarks() {
             s.note("scope", std::format("{} states over {} materials, {} cells giving light; the pixel and the light of every cell, two images updated; the step, upload and drawing excluded",
                                         look->states().size(), program->materials().size(), lit));
         });
+    // M6.1's scale: a 1024 x 1024 world of the standard matter on the CPU — a lake at rest, sand pouring, wood
+    // alight, lava beside water, open to air — stepped sparsely in pieces on the shared pool (Execution::parallel),
+    // and checked to be the bits of the same steps run one after another.
+    const auto matter_1024 = [](State& s, bool sparse) {
+        const auto program = xengine::matter::standard();
+        if (!program) { s.fail("the standard definition was refused"); return; }
+        const auto lattice = ca::lower(*program, {.seed = 3});
+        if (!lattice) { s.fail("the program was not lowered"); return; }
+        const std::uint32_t side = 1024;
+        const std::size_t area = std::size_t{side} * side;
+        const ca::Shape shape{side, side}, tile{32, 32};
+        const auto air = *program->material("air");
+        const auto outside = program->fresh(1, air);
+        std::vector<std::uint32_t> cells = program->fresh(area, air);
+        const auto fill = [&](std::uint32_t x0, std::uint32_t y0, std::uint32_t x1, std::uint32_t y1, std::string_view material) {
+            for (std::uint32_t y = y0; y <= y1; ++y)
+                for (std::uint32_t x = x0; x <= x1; ++x) program->place(cells, area, std::size_t{y} * side + x, *program->material(material));
+        };
+        fill(0, 1000, 1023, 1023, "stone");
+        fill(40, 840, 44, 999, "stone");
+        fill(420, 840, 424, 999, "stone");
+        fill(45, 860, 419, 999, "water");
+        fill(500, 120, 600, 320, "sand");
+        fill(600, 990, 900, 999, "wood");
+        fill(930, 940, 1000, 999, "lava");
+        fill(905, 960, 925, 999, "water");
+        const auto temperature = *program->channel("temperature");
+        for (std::uint32_t y = 990; y <= 999; ++y) cells[temperature * area + std::size_t{y} * side + 600] = 900 * 256;
+        const auto tiles = ca::tiles(shape, tile);
+        struct World { std::vector<std::uint32_t> cells, other; std::vector<std::uint8_t> activity; std::uint64_t tick = 0; };
+        World pooled{cells, std::vector<std::uint32_t>(cells.size()), std::vector<std::uint8_t>(std::size_t{tiles.width} * tiles.height)}, alone = pooled;
+        const auto pool_body = [](std::uint32_t count, mlibs::memory::FunctionRef<void(std::uint32_t)> piece) {
+            // A piece at a time: what is awake clusters (a fire's front), so chunks of neighbouring tiles would leave one thread with it.
+            Tasks::shared().parallel_for(count, 1, [&](std::size_t begin, std::size_t end) { for (std::size_t index = begin; index < end; ++index) piece(static_cast<std::uint32_t>(index)); });
+        };
+        const ca::ForEach pool = pool_body;
+        std::uint64_t awake = 0, steps = 0;
+        const auto step = [&](World& world, const ca::ForEach* parallel) {
+            ca::Execution execution{.tile = tile, .boundary = ca::open_to(outside), .tick = world.tick++, .parallel = parallel};
+            if (sparse) { execution.activity = world.activity; execution.alternate = true; }
+            const auto stepped = lattice->step(shape, world.cells, world.other, execution);
+            world.cells.swap(world.other);
+            return stepped ? stepped->cells : 0;
+        };
+        for (int warm = 0; warm < 120; ++warm) (void)step(pooled, &pool), (void)step(alone, nullptr);
+        if (pooled.cells != alone.cells || pooled.activity != alone.activity) { s.fail("the step in pieces on the pool parted from the step run one after another"); return; }
+        s.items(area);
+        while (s.next()) awake += step(pooled, &pool), ++steps;
+        s.counter("threads", static_cast<double>(Tasks::shared().threads()));
+        s.note("scope", std::format("9 channels, 17 materials, 19 laws; {:.1f}% of the cells run a step on average (tiles of 32 awake); in pieces on the shared pool of {} threads, "
+                                    "the same bits as one after another (checked after 120 steps)",
+                                    steps ? 100.0 * static_cast<double>(awake) / static_cast<double>(steps * area) : 0.0, Tasks::shared().threads()));
+    };
+    add("simulation/matter-1024-sparse", "1024x1024 of the standard matter, cells that move, open to air: a lake at rest, sand pouring, wood alight, lava by water — the tiles awake run in pieces on the pool (M6.1)",
+        [matter_1024](State& s) { matter_1024(s, true); });
+    add("simulation/matter-1024-dense", "the same 1024x1024 world with every tile run in pieces on the pool: the worst case, every cell awake",
+        [matter_1024](State& s) { matter_1024(s, false); });
     add("simulation/checkpoint-64","64x64 cells: one reaction step and one deep snapshot in the shared timeline",[](State& s) {
         auto fixture=setup(64);if(!fixture){s.fail("rule preparation failed");return;}
         mlibs::simulation::Timeline<Model> history(*fixture,32,1);s.items(64*64);

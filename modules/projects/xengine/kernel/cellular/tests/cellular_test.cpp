@@ -2,6 +2,7 @@ import std;
 import mlibs.math;
 import mlibs.simulation;
 import xengine.cellular;
+import mlibs.memory;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
@@ -945,6 +946,70 @@ UTest cases{"simulation.cellular", [] {
             }
         }
         expect(moved > 100u) << "and they did move";
+    };
+
+    "a step run in pieces by the host's parallel-for is the same bits, activity, changed tiles and statistics, whatever order and threads run them"_test = [] {
+        // Every stage at once: a table (weight, mobility, conductance), a reaction, a transfer conducted by a column,
+        // an exchange by the table. Three runners: one after another, pieces in reverse, pieces on four threads.
+        ca::Reactions staged;
+        staged.table = {.key = 0, .columns = 3, .values = {/* air: conducts nothing */ 0, 0, 0, /* sand */ 9, ca::falls | ca::slides, 2, /* water */ 5, ca::falls | ca::spreads, 2,
+                                                         /* smoke */ 1, ca::falls | ca::spreads, 1, /* stone */ 20, 0, 2}};
+        const ca::Amount heat{{.read = ca::Read::channel, .index = 1}}, hot{{.read = ca::Read::constant, .index = 300}}, one{{.read = ca::Read::constant, .index = 1}};
+        staged.reactions = {{.when = {{.left = heat, .right = hot, .compare = ca::Compare::greater_equal}}, .changes = {{.channel = 2, .kind = ca::ChangeKind::add, .amount = one}}}};
+        const std::array<ca::Transfer, 1> flows{{{.channel = 1, .offsets = {ca::cardinal.begin(), ca::cardinal.end()}, .shift = 3, .by_limit = 2, .by_column = 2}}};
+        const std::array<ca::Exchange, 1> moving{{{.weight = 0, .mobility = 1, .carried = {0, 1, 2}, .seed = 11, .by_table = true}}};
+        const auto program = ca::Program::prepare(3, ca::Stages{.transfers = flows, .exchanges = moving, .reactions = &staged});
+        expect(fatal(program.has_value()));
+        const ca::Shape shape{37, 29}, tile{4, 4};
+        const std::size_t area = std::size_t{shape.width} * shape.height;
+        std::vector<std::uint32_t> initial(area * 3);
+        for (std::size_t cell = 0; cell < area; ++cell) {
+            const std::uint32_t pick = mlibs::math::mix32(static_cast<std::uint32_t>(cell) * 0x9e3779b1u);
+            const std::size_t x = cell % shape.width, y = cell / shape.width;
+            initial[cell] = x < 16 && y < 16 ? (pick % 3 == 0 ? pick % 5 : 0) : y >= 25 ? 4 : 0;  // a mixture in a corner, a floor of stone, air
+            initial[area + cell] = x < 16 && y < 16 && pick % 11 == 0 ? 2000 : 250;  // fires in the corner
+        }
+        const ca::ForEach in_order = [](std::uint32_t count, mlibs::memory::FunctionRef<void(std::uint32_t)> piece) { for (std::uint32_t index = 0; index < count; ++index) piece(index); };
+        const auto backwards_body = [](std::uint32_t count, mlibs::memory::FunctionRef<void(std::uint32_t)> piece) { for (std::uint32_t index = count; index-- > 0;) piece(index); };
+        const auto threads_body = [](std::uint32_t count, mlibs::memory::FunctionRef<void(std::uint32_t)> piece) {
+            std::atomic<std::uint32_t> next{0};
+            const auto work = [&] { for (std::uint32_t index; (index = next.fetch_add(1)) < count;) piece(index); };
+            std::vector<std::jthread> pool;
+            for (int thread = 0; thread < 3; ++thread) pool.emplace_back(work);
+            work();
+        };
+        const ca::ForEach backwards = backwards_body, threads = threads_body;
+        (void)in_order;
+        for (const bool sparse : {false, true}) {
+            struct Run { const ca::ForEach* parallel; std::vector<std::uint32_t> cells, next; std::vector<std::uint8_t> activity, changed; ca::Statistics last; };
+            const auto tiles = ca::tiles(shape, tile);
+            const std::size_t tile_count = std::size_t{tiles.width} * tiles.height;
+            std::array<Run, 3> runs{{{nullptr, initial, std::vector<std::uint32_t>(initial.size()), std::vector<std::uint8_t>(tile_count), std::vector<std::uint8_t>(tile_count), {}},
+                                     {&backwards, initial, std::vector<std::uint32_t>(initial.size()), std::vector<std::uint8_t>(tile_count), std::vector<std::uint8_t>(tile_count), {}},
+                                     {&threads, initial, std::vector<std::uint32_t>(initial.size()), std::vector<std::uint8_t>(tile_count), std::vector<std::uint8_t>(tile_count), {}}}};
+            std::uint64_t asleep = 0, matched = 0;
+            for (std::uint64_t tick = 0; tick < 160; ++tick) {
+                for (Run& run : runs) {
+                    ca::Execution execution{.tile = tile, .boundary = {tick % 2 ? ca::Edge::wrap : ca::Edge::clamp, 0}, .changed_tiles = run.changed, .tick = tick, .parallel = run.parallel};
+                    if (sparse) execution.activity = run.activity;
+                    const auto stepped = program->step(shape, run.cells, run.next, execution);
+                    expect(fatal(stepped.has_value()));
+                    run.last = *stepped;
+                    run.cells.swap(run.next);
+                }
+                const Run& reference = runs[0];
+                for (std::size_t other = 1; other < runs.size(); ++other) {
+                    const Run& run = runs[other];
+                    const bool same = run.cells == reference.cells && run.activity == reference.activity && run.changed == reference.changed && run.last.cells == reference.last.cells &&
+                                      run.last.matched == reference.last.matched && run.last.changed == reference.last.changed && run.last.asleep == reference.last.asleep;
+                    expect(fatal(same)) << std::format("tick {}, sparse {}: runner {} parts from one after another", tick, sparse, other);
+                }
+                asleep += reference.last.asleep;
+                matched += reference.last.matched;
+            }
+            expect(matched > 0u) << "the reaction acted";
+            if (sparse) expect(asleep > 0u) << "and tiles slept";
+        }
     };
 
     "encoding 3 — a malformed table or reaction is refused where it is"_test = [] {

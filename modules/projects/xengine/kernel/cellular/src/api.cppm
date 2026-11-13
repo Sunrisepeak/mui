@@ -1,6 +1,7 @@
 export module xengine.cellular.api;
 import std;
 import mlibs.error;
+import mlibs.memory;
 
 export namespace xengine::cellular {
 struct Range {
@@ -252,6 +253,10 @@ struct Boundary {
     std::uint32_t value = 0;
     std::span<const std::uint32_t> values;
 };
+// The host's parallel-for: runs `piece(index)` for every index below `count`, in any order and on any of its
+// threads, and returns when all have run. The kernel owns no thread; a host gives the pool it has (omui's
+// Tasks, a game runtime's) or none. A FunctionRef refers to a callable the caller keeps alive (name it).
+using ForEach = mlibs::memory::FunctionRef<void(std::uint32_t count, mlibs::memory::FunctionRef<void(std::uint32_t)> piece)>;
 struct Execution {
     Shape tile{32,32};
     Boundary boundary;
@@ -272,6 +277,10 @@ struct Execution {
     // With `activity`: the output is the buffer this field's input of one step ago was in (two buffers taking
     // turns), so a sleeping tile's cells are already there and are not copied — a step costs what is awake.
     bool alternate = false;
+    // Optional — the host's parallel-for (ForEach). The step gives it pieces that read only the input and write
+    // cells no other piece writes (the tiles; then the exchange's rows of blocks), so the output, the activity
+    // and the statistics are the same bits however the pieces run. None: one after another on this thread.
+    const ForEach* parallel = nullptr;
 };
 // Whether a tile's byte of Execution::activity says it sleeps.
 [[nodiscard]] constexpr bool asleep(std::uint8_t activity) noexcept { return (activity & 0x0f) == 0x0f; }
@@ -363,7 +372,7 @@ public:
         if(this!=&other) {
             channels_=std::exchange(other.channels_,0);halo_=std::exchange(other.halo_,0);rules_=std::exchange(other.rules_,0);transfers_=std::exchange(other.transfers_,0);moves_=std::exchange(other.moves_,false);
             staged_=std::exchange(other.staged_,{});
-            limits_=other.limits_;words_=std::move(other.words_);
+            limits_=other.limits_;words_=std::move(other.words_);possible_=std::move(other.possible_);
         }
         return *this;
     }
@@ -437,6 +446,10 @@ private:
     [[nodiscard]] std::uint32_t react(Shape, std::uint32_t x, std::uint32_t y, std::span<const std::uint32_t> in, std::span<std::uint32_t> out, Boundary,
                                       Statistics&) const noexcept;
     Staged staged_;
+    // Encoding 3, for the CPU step alone (not in the words): by row, a bit a reaction — 0 where a comparison of
+    // the reaction's that reads only numbers and the row's own columns fails, so the reaction holds for no cell
+    // of that row and is not judged. Rows × ⌈reactions / 64⌉ words.
+    std::vector<std::uint64_t> possible_;
     std::uint32_t channels_ = 0, halo_ = 0, rules_ = 0, transfers_ = 0;
     bool moves_ = false;
     Limits limits_;

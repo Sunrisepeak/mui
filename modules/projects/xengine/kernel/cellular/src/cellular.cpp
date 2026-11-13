@@ -34,6 +34,8 @@ namespace {
 // A tile's byte of Execution::activity: the low four bits are the block cuts it was seen at rest under (all
 // four: asleep; a program that moves nothing shows all four at once); the others are a step's own marks, gone
 // when it returns.
+// One piece of a parallel step, as the host's ForEach takes it.
+using Piece = mlibs::memory::FunctionRef<void(std::uint32_t)>;
 inline constexpr std::uint8_t rested = 0x0f, mark_sleeping = 0x10, mark_restless = 0x20, mark_altered = 0x40;
 struct TileRun { std::uint32_t first = 0, count = 0; };
 // The tiles along one axis that hold the cells `first` to `last` and `reach` cells either side — round a
@@ -407,16 +409,21 @@ void Program::exchange(Shape shape, std::span<const std::uint32_t> in, std::span
     // A block that reaches over an edge goes round a wrapped edge of an even size, and otherwise sits the tick out.
     const bool round_x = boundary.edge == Edge::wrap && shape.width % 2 == 0, round_y = boundary.edge == Edge::wrap && shape.height % 2 == 0;
     const std::uint32_t tick_key = mlibs::math::mix32(seed ^ mlibs::math::mix32(mlibs::math::fold32(tick)));
-    for (std::uint32_t top = cut_y; top < shape.height; top += 2) {
+    // A tile's activity byte, shared by the rows of blocks beside it: read and marked atomically.
+    const auto marks = [&](std::size_t tile_index) { return std::atomic_ref<std::uint8_t>(activity[tile_index]); };
+    // A row of blocks: what one piece of a parallel step does. Rows write disjoint cells.
+    const auto row_of_blocks = [&](std::uint32_t row_index) {
+        const std::uint32_t top = cut_y + 2 * row_index;
         const bool over_y = top + 1 >= shape.height;
-        if (over_y && !round_y) continue;
+        if (over_y && !round_y) return;
         const std::uint32_t bottom = over_y ? 0 : top + 1;
         const std::size_t top_tiles = static_cast<std::size_t>(top / tile.height) * columns, bottom_tiles = static_cast<std::size_t>(bottom / tile.height) * columns;
         for (std::uint32_t left = cut_x; left < shape.width; left += 2) {
             const bool over_x = left + 1 >= shape.width;
             if (over_x && !round_x) continue;
             const std::uint32_t right = over_x ? 0 : left + 1;
-            if ((sparse && (activity[top_tiles + left / tile.width] & mark_sleeping)) || (!asleep_before.empty() && asleep(asleep_before[top_tiles + left / tile.width]))) {
+            if ((sparse && (marks(top_tiles + left / tile.width).load(std::memory_order_relaxed) & mark_sleeping)) ||
+                (!asleep_before.empty() && asleep(asleep_before[top_tiles + left / tile.width]))) {
                 // On to the first block past this tile.
                 const std::uint64_t end = (std::uint64_t{left / tile.width} + 1) * tile.width;
                 if (end >= shape.width) break;
@@ -475,7 +482,8 @@ void Program::exchange(Shape shape, std::span<const std::uint32_t> in, std::span
             if (sparse && could_move) {
                 const std::size_t left_tile = left / tile.width, right_tile = right / tile.width;
                 for (const std::size_t touched : {top_tiles + left_tile, top_tiles + right_tile, bottom_tiles + left_tile, bottom_tiles + right_tile})
-                    activity[touched] |= mark_restless;
+                    // Marked once: after that a read, so threads beside one another do not contend for the byte.
+                    if (const auto mark = marks(touched); !(mark.load(std::memory_order_relaxed) & mark_restless)) mark.fetch_or(mark_restless, std::memory_order_relaxed);
             }
             if (at == std::array<std::uint8_t, 4>{0, 1, 2, 3}) continue;
             if (tracing) {
@@ -488,7 +496,11 @@ void Program::exchange(Shape shape, std::span<const std::uint32_t> in, std::span
                 for (std::size_t corner = 0; corner < 4; ++corner) out[base + place[corner]] = made[at[corner]];
             }
         }
-    }
+    };
+    const std::uint32_t rows = (shape.height - cut_y + 1) / 2;
+    if (execution.parallel) (*execution.parallel)(rows, Piece(row_of_blocks));
+    else
+        for (std::uint32_t row_index = 0; row_index < rows; ++row_index) row_of_blocks(row_index);
 }
 
 std::expected<Statistics,Failure> Program::step_tile(Shape shape, Tile tile, std::span<const std::uint32_t> in,
@@ -516,15 +528,17 @@ std::expected<Statistics,Failure> Program::step(Shape shape, std::span<const std
         const auto x = (index % columns) * execution.tile.width, y = (index / columns) * execution.tile.height;
         return Tile{x, y, std::min(execution.tile.width, shape.width - x), std::min(execution.tile.height, shape.height - y)};
     };
-    for(std::uint32_t i=0;i<total;++i) {
-        const auto k=execution.reverse_tiles ? total-1-i : i;
+    // The statistics, added to by every piece (atomically: pieces may run at once).
+    const auto add = [&](std::uint64_t& to, std::uint64_t amount) { if (amount) std::atomic_ref<std::uint64_t>(to).fetch_add(amount, std::memory_order_relaxed); };
+    // One tile: what one piece of a parallel step does. Tiles write disjoint cells and their own bytes.
+    const auto run = [&](std::uint32_t k) {
         const Tile tile = tile_at(k);
         if (sparse) {
             activity[k] &= rested;
             if (asleep(activity[k])) {
                 // At rest: its cells are the input's — copied, or already there where two buffers take turns.
                 activity[k] |= mark_sleeping;
-                ++stats.asleep;
+                add(stats.asleep, 1);
                 if (!execution.alternate)
                     for (std::uint32_t channel = 0; channel < channels_; ++channel)
                         for (std::uint32_t y = tile.y; y < tile.y + tile.height; ++y) {
@@ -532,20 +546,23 @@ std::expected<Statistics,Failure> Program::step(Shape shape, std::span<const std
                             std::copy_n(in.begin() + static_cast<std::ptrdiff_t>(row), tile.width, out.begin() + static_cast<std::ptrdiff_t>(row));
                         }
                 if (!execution.changed_tiles.empty()) execution.changed_tiles[k] = 0;
-                continue;
+                return;
             }
         }
         const auto s=run_tile(shape,tile,in,out,execution.boundary);
-        stats.cells+=s.cells;stats.matched+=s.matched;stats.changed+=s.changed;
+        add(stats.cells,s.cells);add(stats.matched,s.matched);add(stats.changed,s.changed);
         if(!execution.changed_tiles.empty())execution.changed_tiles[k]=s.changed?1:0;
         if (sparse && s.changed) activity[k] |= mark_altered;
-    }
+    };
+    if (execution.parallel) (*execution.parallel)(total, Piece(run));
+    else
+        for(std::uint32_t i=0;i<total;++i) run(execution.reverse_tiles ? total-1-i : i);
     if(moves_) {
         // Cells moved after the tiles were done: what changed is counted again, cell by cell, where it was run.
         exchange(shape,in,out,execution);
         stats.changed=0;
-        for (std::uint32_t k = 0; k < total; ++k) {
-            if (sparse && (activity[k] & mark_sleeping)) continue;
+        const auto recount = [&](std::uint32_t k) {
+            if (sparse && (activity[k] & mark_sleeping)) return;
             const Tile tile = tile_at(k);
             std::uint64_t changed_here = 0;
             for (std::uint32_t y = tile.y; y < tile.y + tile.height; ++y)
@@ -555,10 +572,13 @@ std::expected<Statistics,Failure> Program::step(Shape shape, std::span<const std
                     for (std::uint32_t ch = 0; ch < channels_ && !changed; ++ch) changed = out[ch * cells + cell] != in[ch * cells + cell];
                     changed_here += changed;
                 }
-            stats.changed += changed_here;
+            add(stats.changed, changed_here);
             if (!execution.changed_tiles.empty()) execution.changed_tiles[k] = changed_here ? 1 : 0;
             if (sparse) activity[k] = static_cast<std::uint8_t>(changed_here ? activity[k] | mark_altered : activity[k] & ~mark_altered);
-        }
+        };
+        if (execution.parallel) (*execution.parallel)(total, Piece(recount));
+        else
+            for (std::uint32_t k = 0; k < total; ++k) recount(k);
     }
     if (sparse) {
         // What this step showed of each tile that was run: nothing changed in it and nothing in it could have

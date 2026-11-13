@@ -41,6 +41,8 @@ xengine.matter = { path = "../../modules/projects/xengine/kernel/matter" }
 omui.sdk             = { path = "../../modules/projects/omui/sdk" }
 omui.view            = { path = "../../modules/projects/omui/view", features = ["hanim"] }
 mlibs.utils           = { path = "../../modules/base/utils" }
+# The host's parallel-for a cellular step takes (simulation/matter-1024-*).
+mlibs.memory          = { path = "../../modules/base/memory" }
 mlibs.markdown        = { path = "../../modules/content/markdown" }
 xengine.audio           = { path = "../../modules/projects/xengine/kernel/audio" }
 "hanim.timeline"       = { path = "../../modules/projects/hanim/timeline" }

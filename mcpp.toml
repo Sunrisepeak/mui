@@ -137,6 +137,7 @@ members = [
     "tests/bench",
     "tests/bench/competitors",
     "modules/projects/omui/cts",
+    "tests/size/yard",
     "tests/features",
     "tests/plugins/contracts",
     "tests/plugins/embed",

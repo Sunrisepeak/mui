@@ -53,6 +53,9 @@ OMUI_PAGE_TEST="$page_test" "$node_bin" --test modules/projects/omui/host/web/te
 "$node_bin" --test modules/projects/xrender/rhi/webgpu/tests/js/webgpu.test.mjs modules/projects/xrender/rhi/webgl/tests/js/webgl.test.mjs \
   || { echo "::error::the page's halves of rhi.webgpu and rhi.webgl failed their tests"; exit 1; }
 
+# What three dimensions weigh on a page, held to its budget (tests/size/yard).
+tools/ci/mesh-web-size.sh || { echo "::error::the yard's bytes are over their budget"; exit 1; }
+
 # What only a real page can check (WebGPU's and WebGL2's conformance, the
 # browser's shader compilers), where a headless Chromium is found.
 tools/ci/browser.sh || { echo "::error::the browser's checks failed"; exit 1; }

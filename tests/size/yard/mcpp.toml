@@ -1,0 +1,27 @@
+# omui.size.yard — the least program that shows three dimensions on a page (the foundation plan's §5, M6.3:
+# "the Wasm size budget, the least display closure's budget"): a yard — a floor, a box, a ball, a sun — drawn
+# once by xrender.mesh.gpu on the page's WebGPU, or its WebGL2, and shown on the page's canvas. No interface,
+# no display list, no text. What it weighs is what three dimensions cost a page before anything else is added:
+# tools/ci/mesh-web-size.sh builds it as a release is built and holds its bytes to size.budget.omui.json.
+[package]
+namespace   = "omui.size"
+name        = "yard"
+version     = "0.1.0"
+description = "The least program that shows a 3D scene on a page: what it weighs is budgeted"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+
+[package.metadata.openmui]
+kind = "tool"
+
+[targets.omui-size-yard]
+kind = "bin"
+main = "src/main.cpp"
+
+[dependencies]
+xrender.mesh.gpu   = { path = "../../../modules/projects/xrender/mesh/gpu" }
+xrender.rhi.webgpu = { path = "../../../modules/projects/xrender/rhi/webgpu" }
+xrender.rhi.webgl  = { path = "../../../modules/projects/xrender/rhi/webgl" }
+mlibs.rhi          = { path = "../../../modules/gfx/rhi" }
+mlibs.geom         = { path = "../../../modules/base/geom" }
+mlibs.math         = { path = "../../../modules/base/math" }

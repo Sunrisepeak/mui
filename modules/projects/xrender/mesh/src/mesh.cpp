@@ -365,6 +365,53 @@ void describe(const Targets& targets, int x, int y, std::string& members) {
                            source->cluster, source->triangle, source->depth, source->normal.x, source->normal.y, source->normal.z);
 }
 
+std::optional<Source> pick(const scene::Scene& scene, const scene::View& view, const Assets& assets, float x, float y, int width, int height) {
+    if (width <= 0 || height <= 0) return std::nullopt;
+    const std::optional<Mat4> back = math::inverse(view.projection * view.view);
+    if (!back) return std::nullopt;
+    // The ray through the point: from where it is on the near side of the view's volume to where it is deeper in.
+    const float ndc_x = x / static_cast<float>(width) * 2 - 1, ndc_y = 1 - y / static_cast<float>(height) * 2;
+    const Vec4 first = *back * Vec4{ndc_x, ndc_y, 0.25f, 1}, second = *back * Vec4{ndc_x, ndc_y, 0.75f, 1};
+    if (first.w == 0 || second.w == 0) return std::nullopt;
+    const Vec3 one = first.xyz() * (1 / first.w), other = second.xyz() * (1 / second.w);
+    const std::optional<Mat4> camera = math::inverse(view.view);
+    if (!camera) return std::nullopt;
+    const Vec3 eye = math::point(*camera, {0, 0, 0});
+    // Along the line of the two, away from the eye (which of the two is nearer depends on the depth's convention).
+    const Vec3 line = math::dot(one - eye, one - eye) < math::dot(other - eye, other - eye) ? other - one : one - other;
+    const float length = math::length(line);
+    if (!(length > 0)) return std::nullopt;
+    const geom::Ray ray{eye, line * (1 / length)};
+    std::optional<Source> found;
+    float nearest = std::numeric_limits<float>::max();
+    for (const scene::Instance& instance : scene.instances()) {
+        if (instance.hidden || !(instance.layers & view.layers) || instance.mesh >= assets.meshes.size() || instance.mesh >= assets.trees.size() || !assets.meshes[instance.mesh] ||
+            !assets.trees[instance.mesh])
+            continue;
+        const std::optional<float> box = geom::meet(ray, geom::moved(instance.world, instance.bounds));
+        if (!box || *box > nearest) continue;
+        const std::optional<Mat4> into = math::inverse(instance.world);
+        if (!into) continue;
+        const geom::Mesh& mesh = assets.meshes[instance.mesh]->mesh;
+        // In the mesh's own space, not made of length 1 again: a distance along it is the world's. Fronts only, as
+        // the frame draws: a triangle met from behind is passed through.
+        const geom::Ray within{math::point(*into, ray.from), math::direction(*into, ray.along)};
+        const auto front = [&](std::uint32_t triangle) -> std::optional<float> {
+            const Vec3 a = mesh.positions[mesh.indices[triangle * 3]], b = mesh.positions[mesh.indices[triangle * 3 + 1]], c = mesh.positions[mesh.indices[triangle * 3 + 2]];
+            if (math::dot(math::cross(b - a, c - a), within.along) >= 0) return std::nullopt;
+            return geom::meet(within, a, b, c);
+        };
+        const std::optional<geom::RayHit> hit = geom::nearest(*assets.trees[instance.mesh], within, front, nearest);
+        if (!hit || hit->distance >= nearest) continue;
+        nearest = hit->distance;
+        const Vec3 a = mesh.positions[mesh.indices[hit->item * 3]], b = mesh.positions[mesh.indices[hit->item * 3 + 1]], c = mesh.positions[mesh.indices[hit->item * 3 + 2]];
+        const Vec4 clip = view.projection * view.view * Vec4{ray.from + ray.along * hit->distance, 1};
+        found = Source{instance.id, instance.mesh, instance.material, none, hit->item, clip.w != 0 ? clip.z / clip.w : 0.0f,
+                       math::normalized(math::direction(math::transposed(*into), math::cross(b - a, c - a)))};
+    }
+    return found;
+}
+
 void shown(const Targets& targets, std::vector<Shown>& out) {
     out.assign(targets.draws.size(), {});
     for (int y = 0; y < targets.height; ++y)

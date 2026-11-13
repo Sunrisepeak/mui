@@ -42,6 +42,7 @@ Part of the frame's subject ([xrender.frame](../frame)); what this package gives
 | | |
 |---|---|
 | Source | `at(targets, x, y)`: the instance (the scene's stable id), its mesh and material, the cluster and the triangle, the depth and the normal at a pixel — or that nothing drew it |
+| Before anything is drawn | `pick(scene, view, assets, x, y, width, height)`: what is under a point of a view, by a ray through the meshes' trees — the instance and the triangle the id buffer would say, with no frame. Over the yard's 24,000 drawn pixels the two name the same triangle at 23,995 and never another instance |
 | Observation | `shown(targets, out)`: every instance that reached the frame, with how many pixels and the box of them. An instance that was a draw (`xrender.scene`'s `extract`) and is not shown is behind something; `scene::why_unseen` says why one was no draw at all |
 | Numbers | `Pass::last()`: draws, clusters looked at and left out (outside, facing away), triangles (outside, cut, facing away, filled), pixels written and hidden |
 | In a frame | `objects(targets, out)` and `describe(targets, x, y, members)` make this picture a layer of [xrender.frame](../frame) (`PictureLayer`): `frame.at` on a pixel of it answers with the instance, mesh, material, cluster, triangle, depth and normal |

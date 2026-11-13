@@ -149,6 +149,13 @@ struct Source {
 void objects(const Targets& targets, std::vector<std::uint32_t>& out);
 void describe(const Targets& targets, int x, int y, std::string& members);
 
+// What is under a point of a view, found by a ray and nothing drawn: the nearest front of an instance's mesh along
+// the ray through (`x`, `y`) of a frame `width` × `height` (pixels; a pixel's middle is at +0.5). Through the
+// meshes' trees (`Assets::trees`; a mesh without one is passed through). Hidden instances and those on none of the
+// view's layers are not there. The id buffer's answer for the pixel, without the frame: what a pointer is over,
+// what an agent asks before anything is rendered. `Source::cluster` is not known to a ray: `none`.
+[[nodiscard]] std::optional<Source> pick(const scene::Scene& scene, const scene::View& view, const Assets& assets, float x, float y, int width, int height);
+
 // What of an instance reached the frame: how many pixels, and the box of them (x0, y0 inclusive; x1, y1 exclusive).
 struct Shown {
     Id            instance = 0;

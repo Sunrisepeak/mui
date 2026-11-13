@@ -439,4 +439,39 @@ static UTest cases{"xrender.mesh", [] {
                      trailing, of_box, box_wrong);
         expect(gt(told.another, 1000u) && gt(left_behind, 1500u) && le(trailing, left_behind / 100) && le(box_wrong, of_box / 20)) << "no trail where it was, no smear where it is";
     };
+    "what is under a point, by a ray and nothing drawn, is what the frame's id buffer says there: the same instance and the same triangle, pixel after pixel"_test = [] {
+        const scene::Scene world = yard();
+        const mesh::Assets assets = library().assets(true);
+        const Frame frame = drawn(world, yard_camera, 240, 135);
+        std::uint32_t same = 0, other_triangle = 0, other_instance = 0, drawn_pixels = 0;
+        double depth_apart = 0;
+        for (int y = 0; y < 135; ++y)
+            for (int x = 0; x < 240; ++x) {
+                const auto by_frame = mesh::at(frame.targets, x, y);
+                const auto by_ray = mesh::pick(world, yard_camera.view(), assets, static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f, 240, 135);
+                drawn_pixels += by_frame.has_value();
+                if (by_frame.has_value() != by_ray.has_value() || (by_frame && by_frame->instance != by_ray->instance)) ++other_instance;
+                else if (by_frame && by_frame->triangle != by_ray->triangle) ++other_triangle;
+                else if (by_frame) ++same, depth_apart = std::max(depth_apart, static_cast<double>(std::abs(by_frame->depth - by_ray->depth)));
+            }
+        std::println("32,400 points of the yard: {} drawn; the ray and the frame name the same triangle at {}, another triangle of the same thing at {}, another thing at {}; depths within {:.2e}", drawn_pixels,
+                     same, other_triangle, other_instance, depth_apart);
+        // Where they part is along an edge: the frame snaps corners to 1/256 of a pixel, a ray does not.
+        expect(gt(same, drawn_pixels * 995 / 1000) && le(other_instance, 40u) && lt(depth_apart, 1e-3));
+        // Past everything: nothing. A hidden thing is not there to be picked; on another layer, not for this view.
+        expect(!mesh::pick(world, yard_camera.view(), assets, 120, 5, 240, 135).has_value());
+        scene::Scene hidden = yard();
+        scene::Instance ball_hidden = *hidden.find(11);
+        ball_hidden.hidden = true;
+        expect(hidden.set(ball_hidden).has_value());
+        const auto through = mesh::pick(hidden, yard_camera.view(), assets, 123, 71, 240, 135);
+        const auto before = mesh::pick(world, yard_camera.view(), assets, 123, 71, 240, 135);
+        expect(fatal(before.has_value() && through.has_value()));
+        expect(eq(before->instance, scene::Id{11}) && eq(through->instance, scene::Id{1})) << "with the ball hidden the floor behind it is under the point";
+        // The other depth convention: the same answers.
+        Camera reversed = yard_camera;
+        reversed.reversed = true;
+        const auto again = mesh::pick(world, reversed.view(), assets, 123, 71, 240, 135);
+        expect(again.has_value() && eq(again->instance, scene::Id{11}) && eq(again->triangle, before->triangle));
+    };
 }};

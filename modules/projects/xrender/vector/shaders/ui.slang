@@ -16,6 +16,7 @@ import vector_paint;
 uint covered(VOut i, float2 p, int flags) {
     const int kind = int(i.m1.z);
     if (kind == KIND_GLYPH) return clipped(clip_mask, fframe, i, p, int2(p), flags, glyph_coverage(outlines, fframe, i, p));
+    if (kind == KIND_SHADOW) return clipped(clip_mask, fframe, i, p, int2(p), flags, shadow_coverage(outlines, fframe, i, p));
     return coverage_at(atlas, clip_mask, fframe, i, p, int2(p), kind, flags);
 }
 

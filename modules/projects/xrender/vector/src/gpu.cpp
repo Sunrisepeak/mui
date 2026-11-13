@@ -20,7 +20,7 @@ struct Prim {
 };
 static_assert(sizeof(Prim) == 12 * 16);
 
-constexpr float kind_rect = 0, kind_rrect = 1, kind_mask = 2, kind_image = 3, kind_rring = 4, kind_glyph = 5;
+constexpr float kind_rect = 0, kind_rrect = 1, kind_mask = 2, kind_image = 3, kind_rring = 4, kind_glyph = 5, kind_shadow = 6;
 constexpr int flag_axis = 1, flag_clip_mask = 2, flag_linear = 4, flag_layer = 8;
 
 // A value 0…1 as a byte, the way raster rounds opacities.
@@ -543,6 +543,48 @@ struct GpuRenderer::Impl {
         Outlined& kept = outline_kept(key, colour ? xrender::raster::PathData{} : glyphs.outline(font, glyph), {}, top);
         kept.blank = kept.count == 0 && !colour;
         return kept.count > 0 || kept.blank ? &kept : nullptr;
+    }
+
+    // The reference's blur of `d` (three box passes a direction, W3C Filter
+    // Effects) as the table the shader's blurred_step reads: with D the
+    // passes' taps together (the weight of the pixel k along on a pixel),
+    // for j from −reach to reach + 1 the sum of D from j on, and D[j − 1].
+    // `reach`: the taps' furthest.
+    const Outlined& blur_table(int d, int& reach) {
+        const int half = d / 2;
+        reach = d % 2 == 1 ? 3 * half : 3 * half - 1;
+        Key k;
+        k.u64(11).u64(static_cast<std::uint64_t>(d));
+        const std::uint64_t key = k.value();
+        if (auto it = outlined.find(key); it != outlined.end()) return it->second;
+        // The taps: each pass the mean of [−lo, +hi] around a pixel.
+        const std::array<std::pair<int, int>, 3> passes = d % 2 == 1 ? std::array<std::pair<int, int>, 3>{{{half, half}, {half, half}, {half, half}}}
+                                                                    : std::array<std::pair<int, int>, 3>{{{half, half - 1}, {half - 1, half}, {half, half}}};
+        const auto span = static_cast<std::size_t>(2 * reach + 1);
+        std::vector<double> taps(span, 0.0), next(span, 0.0);
+        taps[static_cast<std::size_t>(reach)] = 1;
+        for (const auto& [lo, hi] : passes) {
+            std::ranges::fill(next, 0.0);
+            const double each = 1.0 / (lo + hi + 1);
+            for (int from = -reach; from <= reach; ++from) {
+                const double weight = taps[static_cast<std::size_t>(from + reach)];
+                if (weight == 0) continue;
+                for (int step = -lo; step <= hi; ++step) next[static_cast<std::size_t>(from + step + reach)] += weight * each;
+            }
+            taps.swap(next);
+        }
+        Outlined made;
+        made.first = static_cast<std::uint32_t>(outline_used / 2);
+        made.count = static_cast<std::uint32_t>(2 * reach + 2);
+        auto tap = [&](int at) { return at < -reach || at > reach ? 0.0 : taps[static_cast<std::size_t>(at + reach)]; };
+        for (int j = -reach; j <= reach + 1; ++j) {
+            double from_here = 0;
+            for (int at = reach; at >= j; --at) from_here += tap(at);
+            if (outline_used + 2 > outline_points.size()) outline_points.resize(outline_points.size() + outline_w, 0.0f);
+            outline_points[outline_used++] = static_cast<float>(from_here);
+            outline_points[outline_used++] = static_cast<float>(tap(j - 1));
+        }
+        return outlined.emplace(key, made).first->second;
     }
 
     // A shape's contours for the device at `scale` pixels a unit, by
@@ -1228,6 +1270,68 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
             outline_glyph(*kept, to, paint, 1, upright ? &plain : nullptr);
             return true;
         };
+        // A box shadow whose mask the atlas has not got, evaluated at the pixel instead (KIND_SHADOW)
+        // while it moves or changes (the frame's masks limited): true when it was. Outset shadows
+        // under a transform that keeps the box upright (stretched one way or not); the rest are masks.
+        auto shadow_instead = [&](std::uint64_t key, const BoxShadow& c) {
+            const Affine& mm = m();
+            if (c.inset || !(mm.b == 0 && mm.c == 0 && mm.a > 0 && mm.d > 0) || g.cached.contains(key)) return false;
+            const bool stretched = mm.a != mm.d;
+            // As raster's blur: σ = blur / 2 at the transform's larger scale, d = ⌊σ·3·√(2π)/4 + ½⌋; none below a quarter pixel.
+            const float sigma = c.blur / 2 * mm.max_scale();
+            // (a blur of one pixel's width: the shape's own coverage, the hairline under a knob).
+            const int d = sigma > 0.25f ? std::max(1, static_cast<int>(std::floor(sigma * 3.0f * 2.5066282746310002f / 4.0f + 0.5f))) : 1;
+            if (d > 192 || (d == 1 && stretched)) return false;
+            const Rect shape{c.rect.x + c.offset.x - c.spread, c.rect.y + c.offset.y - c.spread, c.rect.width + 2 * c.spread, c.rect.height + 2 * c.spread};
+            if (!(shape.width > 0 && shape.height > 0)) return false;
+            if (g.may_make(key, Impl::path_masks_a_frame, g.path_masks_made)) return false;
+            int reach = 0;
+            const Impl::Outlined& table = g.blur_table(d, reach);
+            const CornerRadii round = CornerRadii{std::max(0.0f, c.radii.top_left + c.spread), std::max(0.0f, c.radii.top_right + c.spread),
+                                                  std::max(0.0f, c.radii.bottom_right + c.spread), std::max(0.0f, c.radii.bottom_left + c.spread)}
+                                          .fitted({shape.width, shape.height});
+            const Rect  placed = mm.map(shape);
+            const float x0 = std::floor(placed.x) - static_cast<float>(reach) - 1, y0 = std::floor(placed.y) - static_cast<float>(reach) - 1;
+            const float width = std::ceil(placed.right()) + static_cast<float>(reach) + 1 - x0, height = std::ceil(placed.bottom()) + static_cast<float>(reach) + 1 - y0;
+            // The box the shadow shows outside of: its circles' exact area, or — its corners smoothed, or
+            // stretched to ellipses — its outline's.
+            const Impl::Outlined* box_outline = nullptr;
+            if ((c.radii.smoothing > 0 || stretched) && !c.radii.zero()) {
+                Key outline;
+                outline.f32(c.rect.width).f32(c.rect.height).radii(c.radii).f32(0);
+                box_outline = g.outline_of(outline.value(), mm.max_scale(), [&](std::uint64_t under, float top) -> Impl::Outlined& {
+                    Path path;
+                    path.add_rounded_rect({0, 0, c.rect.width, c.rect.height}, c.radii);
+                    return g.outline_kept(under, path.view(), {}, top);
+                });
+                if (!box_outline) return false;
+            }
+            Draw draw;
+            Prim& p = draw.prim;
+            int flags = 0;
+            if (!paint_into(p, draw, flags, Paint::solid(c.color), {x0, y0, width, height})) return true;
+            p.shape[0] = mm.a / mm.d;  // a corner's reach across, by its reach down: an ellipse's when stretched
+            p.shape[1] = 255;
+            clip_into(p, draw, flags);
+            transform(p, Affine{}, kind_shadow, flags);
+            p.m1[0] = static_cast<float>(table.first);
+            p.m1[1] = static_cast<float>(reach);
+            set(p.rect, x0, y0, width, height);
+            set(p.uv, placed.x, placed.y, placed.width, placed.height);
+            set(p.radii, round.top_left * mm.d, round.top_right * mm.d, round.bottom_right * mm.d, round.bottom_left * mm.d);  // down the column
+            const CornerRadii box = c.radii.fitted({c.rect.width, c.rect.height});
+            edges(p.m0, mm.map(c.rect));
+            set(p.pgeo, box.top_left * mm.a, box.top_right * mm.a, box.bottom_right * mm.a, box.bottom_left * mm.a);
+            if (box_outline) {
+                const Affine to = mm * Affine::translate(c.rect.x, c.rect.y);
+                set(p.pinv0, to.a, to.d, to.e, to.f);
+                p.pinv1[0] = static_cast<float>(box_outline->first);
+                p.pinv1[1] = static_cast<float>(box_outline->count);
+            }
+            ++g.glyphs_outlined;
+            emit(std::move(draw));
+            return true;
+        };
         // A path filled by the non-zero rule whose mask the atlas has not got, drawn from its outline
         // instead while it moves or changes (the frame's masks limited): true when it was.
         auto path_instead = [&](std::uint64_t key, const PathView& path, const Paint& paint) {
@@ -1591,6 +1695,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                         emit(std::move(d));
                     } else if constexpr (std::same_as<T, BoxShadow>) {
                         const auto key = device_key(2).rect(c.rect).radii(c.radii).f32(c.offset.x).f32(c.offset.y).f32(c.blur).f32(c.spread).u64(c.inset).value();
+                        if (shadow_instead(key, c)) return;
                         mask(g.cover(key,
                                      [&](xrender::raster::Coverage& cov) {
                                          xrender::raster::box_shadow_coverage(c.rect, c.radii, c.offset, c.blur, c.spread, c.inset, m(), pixels(clips.back()), cov,

@@ -42,6 +42,8 @@ static const int KIND_IMAGE = 3;
 static const int KIND_RRING = 4;  // a rounded rectangle's stroke: the rrect (the stroke's outer edge) less the one shape.x inside it
 static const int KIND_GLYPH = 5;  // a glyph or a path covered from its outline's points (glyph_coverage): radii its transform a, b, c, d; uv its e, f, first point, points; m0, shape.x, shape.w its plain part
 
+static const int KIND_SHADOW = 6; // a box shadow evaluated at the pixel (shadow_coverage): uv its shape's device x, y, w, h; radii the shape's, down the column (shape.x times that across); m1.xy its blur's table (first point, reach); m0, pgeo the box it shows outside of (edges, radii); pinv0, pinv1.xy the box's outline when its corners are smoothed
+
 static const int FLAG_AXIS_ALIGNED = 1;   // the transform maps the rectangle to an axis-aligned one
 static const int FLAG_CLIP_MASK = 2;      // multiply by the clip mask
 static const int FLAG_LINEAR = 4;         // image paint / image: bilinear
@@ -71,7 +73,7 @@ VOut vertex_at(Prim i, uint vertex, Frame frame) {
     const int kind = int(i.m1.z);
     VOut o;
     float2 device;
-    if (kind == KIND_MASK || kind == KIND_GLYPH) {
+    if (kind == KIND_MASK || kind == KIND_GLYPH || kind == KIND_SHADOW) {
         o.local = i.rect.xy + t * i.rect.zw;  // device space
         device = o.local;
     } else {
@@ -372,23 +374,13 @@ float edge_area(float2 a, float2 b) {
     return (right + 0.5 * (left * left - inside * inside) - lo) / (hi - lo) * dy;
 }
 
-// A glyph's coverage from its outline (KIND_GLYPH): its flattened contours'
-// points, in ems, read from `points` (two texels a point, 1024 points a row;
-// an x past 1e29 begins a contour), taken to the device by the glyph's own
-// transform. The same at every size and place: nothing is rasterised again
-// when a glyph is scaled. Non-zero winding as the area's magnitude, which is
-// exact where contours do not overlap.
-uint glyph_coverage(Sampler2D points, Frame frame, VOut i, float2 p) {
-    if (i.shape.w > 0) {
-        // The plain part (m0: a device rectangle; shape.x: its corners' reach): a pixel wholly inside
-        // it and in no corner is covered (shape.w 1) or not at all (2) without the outline read.
-        const float2 lo = floor(p), hi = lo + 1;
-        const bool inside = lo.x >= i.m0.x && lo.y >= i.m0.y && hi.x <= i.m0.z && hi.y <= i.m0.w;
-        const bool corner = (lo.x < i.m0.x + i.shape.x || hi.x > i.m0.z - i.shape.x) && (lo.y < i.m0.y + i.shape.x || hi.y > i.m0.w - i.shape.x);
-        if (inside && !corner) return i.shape.w < 1.5 ? 255u : 0u;
-    }
-    const float2 origin = i.uv.xy - floor(p);
-    const int first = int(i.uv.z), count = int(i.uv.w);
+// The area of the pixel at `p` inside an outline: its flattened contours'
+// points, in its own units, read from `points` (two texels a point, 1024
+// points a row; an x past 1e29 begins a contour), taken to the device by
+// `across` (a, b, c, d) and `origin` (e, f). Non-zero winding as the area's
+// magnitude, which is exact where contours do not overlap.
+float outline_area(Sampler2D points, Frame frame, float4 across, float2 origin, int first, int count, float2 p) {
+    const float2 corner = origin - floor(p);
     float area = 0;
     float2 before = float2(0, 0);
     bool open = false;
@@ -401,12 +393,99 @@ uint glyph_coverage(Sampler2D points, Frame frame, VOut i, float2 p) {
             continue;
         }
         const float y = points.SampleLevel((texel + float2(1, 0)) / frame.ramps.yz, 0).r;
-        const float2 now = float2(i.radii.x * x + i.radii.z * y, i.radii.y * x + i.radii.w * y) + origin;
+        const float2 now = float2(across.x * x + across.z * y, across.y * x + across.w * y) + corner;
         if (open) area += edge_area(before, now);
         before = now;
         open = true;
     }
-    return coverage_byte(min(abs(area), 1.0));
+    return min(abs(area), 1.0);
+}
+
+// A glyph's or a path's coverage from its outline (KIND_GLYPH): the same at
+// every size and place — nothing is rasterised again when it is scaled.
+uint glyph_coverage(Sampler2D points, Frame frame, VOut i, float2 p) {
+    if (i.shape.w > 0) {
+        // The plain part (m0: a device rectangle; shape.x: its corners' reach): a pixel wholly inside
+        // it and in no corner is covered (shape.w 1) or not at all (2) without the outline read.
+        const float2 lo = floor(p), hi = lo + 1;
+        const bool inside = lo.x >= i.m0.x && lo.y >= i.m0.y && hi.x <= i.m0.z && hi.y <= i.m0.w;
+        const bool corner = (lo.x < i.m0.x + i.shape.x || hi.x > i.m0.z - i.shape.x) && (lo.y < i.m0.y + i.shape.x || hi.y > i.m0.w - i.shape.x);
+        if (inside && !corner) return i.shape.w < 1.5 ? 255u : 0u;
+    }
+    return coverage_byte(outline_area(points, frame, i.radii, i.uv.xy, int(i.uv.z), int(i.uv.w), p));
+}
+
+// Point `at` of the store: two floats.
+float2 point_at(Sampler2D points, Frame frame, int at) {
+    const float2 texel = float2(float((at % 1024) * 2) + 0.5, float(at / 1024) + 0.5);
+    return float2(points.SampleLevel(texel / frame.ramps.yz, 0).r, points.SampleLevel((texel + float2(1, 0)) / frame.ramps.yz, 0).r);
+}
+
+// What the reference's blur — three box passes a direction over pixel
+// coverage — makes of a half line beginning `u` pixels before the pixel's
+// left edge: the passes' taps D summed from the pixel the edge lies in, that
+// pixel's own tap by the part of it covered. The table at `first` holds, for
+// j from −reach to reach + 1, the sum of D from j on and D[j − 1].
+float blurred_step(Sampler2D points, Frame frame, int first, int reach, float u) {
+    const float whole = floor(u);
+    const int j = -int(whole);
+    if (j < -reach) return 1;
+    if (j > reach + 1) return 0;
+    const float2 entry = point_at(points, frame, first + j + reach);
+    return entry.x + (u - whole) * entry.y;
+}
+
+// A box shadow at the pixel (KIND_SHADOW), as the reference makes it: its
+// rounded rectangle's coverage blurred by the three box passes — each row of
+// the shape a span whose blurred ends are blurred_step's, the rows weighed by
+// the passes' taps down the column, a row through a corner taken in four
+// parts — and shown outside the box only. Nothing of it is a picture: a
+// shadow that moves or is scaled costs no rasterising.
+uint shadow_coverage(Sampler2D points, Frame frame, VOut i, float2 p) {
+    const float2 lo = floor(p);
+    const float inside = i.pinv1.y > 0 ? outline_area(points, frame, float4(i.pinv0.x, 0, 0, i.pinv0.y), i.pinv0.zw, int(i.pinv1.x), int(i.pinv1.y), p)
+                                       : exact_rounded(lo, lo + 1, i.m0.xy, i.m0.zw - i.m0.xy, i.pgeo);
+    const uint within = coverage_byte(inside);
+    if (within >= 255) return 0;
+    const int first = int(i.m1.x), reach = int(i.m1.y);
+    const float left = i.uv.x, top = i.uv.y, right = left + i.uv.z, bottom = top + i.uv.w;
+    const float4 r = i.radii;
+    // A blur of one pixel's width is none: the shape's own coverage.
+    if (reach == 0) return mul255(coverage_byte(exact_rounded(lo, lo + 1, i.uv.xy, i.uv.zw, r)), 255u - within);
+    const float plain = blurred_step(points, frame, first, reach, lo.x - left) - blurred_step(points, frame, first, reach, lo.x - right);
+    const float upper = top + max(r.x, r.y), lower = bottom - max(r.z, r.w);
+    float total = 0;
+    for (int l = -reach; l <= reach; ++l) {
+        const float row = lo.y + float(l);
+        const float from = max(row, top), to = min(row + 1, bottom), tall = to - from;
+        if (tall <= 0) continue;
+        const float weight = point_at(points, frame, first + l + 1 + reach).y * tall;
+        if (from >= upper && to <= lower) {
+            total += weight * plain;
+            continue;
+        }
+        for (int part = 0; part < 4; ++part) {
+            const float y = from + tall * (float(part) + 0.5) / 4;
+            float in_left = 0, in_right = 0;
+            if (y < top + r.x) {
+                const float away = top + r.x - y;
+                in_left = i.shape.x * (r.x - sqrt(max(r.x * r.x - away * away, 0.0)));
+            } else if (y > bottom - r.w) {
+                const float away = y - (bottom - r.w);
+                in_left = i.shape.x * (r.w - sqrt(max(r.w * r.w - away * away, 0.0)));
+            }
+            if (y < top + r.y) {
+                const float away = top + r.y - y;
+                in_right = i.shape.x * (r.y - sqrt(max(r.y * r.y - away * away, 0.0)));
+            } else if (y > bottom - r.z) {
+                const float away = y - (bottom - r.z);
+                in_right = i.shape.x * (r.z - sqrt(max(r.z * r.z - away * away, 0.0)));
+            }
+            total += weight * 0.25 * (blurred_step(points, frame, first, reach, lo.x - (left + in_left)) -
+                                      blurred_step(points, frame, first, reach, lo.x - (right - in_right)));
+        }
+    }
+    return mul255(coverage_byte(total), 255u - within);
 }
 
 uint lit_channel(uint v, float k, float rc, float rim, float a) {

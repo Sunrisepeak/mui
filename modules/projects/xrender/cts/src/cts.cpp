@@ -849,6 +849,10 @@ void add(Cases& suite) {
             dl.draw_glyphs({1}, size, {6.3f, 12.2f + size * 2.2f}, run, gradient(render::GradientKind::linear, {0, 0}, {120, 0}, 0, render::Spread::pad, rainbow), styles);
             // Smoothed corners have no closed form: a mask at rest, the same outlines in motion — the fill's, and a stroke's ring.
             const geom::CornerRadii corners = geom::CornerRadii::all(11).smoothed(0.6f);
+            // Their shadows first, as an interface lays them: the blur evaluated at the pixel while they move —
+            // one under smoothed corners, sharp and close; one under circles, wide, spread and offset.
+            dl.box_shadow({70.3f, 58.6f, 50 + size, 44.5f}, corners, {0, 1.5f}, 3, 0, geom::Color{0, 0, 0, 0.5f});
+            dl.box_shadow({8.4f, 66.2f, 52.5f, 30 + size * 0.5f}, geom::CornerRadii{4, 9, 14, 0}, {2.5f, 4}, 6 + size * 0.3f, 1.5f, geom::Color{0.1f, 0.1f, 0.4f, 0.6f});
             dl.fill_round_rect({70.3f, 58.6f, 50 + size, 44.5f}, corners, render::Paint::solid(geom::Color{0.1f, 0.5f, 0.3f, 0.7f}));
             dl.stroke_round_rect({8.4f, 66.2f, 52.5f, 30 + size * 0.5f}, corners, 3, render::Paint::solid(geom::Color::hex(0xb91c1c)));
             // A path that changes with the frame (a shape morphing): two discs, by the non-zero rule.
@@ -868,7 +872,50 @@ void add(Cases& suite) {
             text(dl, size, 0.2f + 0.1f * static_cast<float>(frame));
             const std::string problem = rig.compare(dl, std::format("glyphs outlined at {}", size), moving);
             check(problem.empty(), problem);
-            check_eq(rig.last.glyphs_outlined, std::size_t{15});
+            check_eq(rig.last.glyphs_outlined, std::size_t{17});
+            check_eq(rig.last.masks_made, std::size_t{0});
+        }
+        // Shadows alone, moving and their blur changing (the passes' width from 1 to 12 pixels): what the
+        // pixel's evaluation is from the reference's three box passes over its rasterised shape.
+        for (int frame = 0; frame < 8; ++frame) {
+            render::DisplayList dl;
+            const float along = static_cast<float>(frame);
+            dl.box_shadow({20.3f + along * 1.7f, 14.6f, 56, 30 + along}, geom::CornerRadii::all(9), {0, 2}, 1.5f + along * 2.1f, 0, geom::Color{0, 0, 0, 0.8f});
+            dl.box_shadow({92.4f, 60.2f + along * 0.6f, 44, 40}, geom::CornerRadii{0, 6, 20, 3}, {-3, 2.5f}, 9 - along, 2, geom::Color{0.5f, 0, 0.1f, 0.9f});
+            dl.box_shadow({14.5f, 74.5f, 50, 30}, geom::CornerRadii::all(14).smoothed(0.6f), {1, 3}, 4 + along, -1, geom::Color{0, 0.2f, 0.5f, 0.7f});
+            // A hairline: a blur too small to blur, the shape spread half a pixel past its box.
+            dl.box_shadow({100.3f + along * 0.4f, 12.7f, 18, 18}, geom::CornerRadii::all(9), {0, 0}, 0.5f, 0.5f, geom::Color{0, 0, 0, 0.6f});
+            // Where a box's curved edge meets its shadow the reference's chords (1/32 pixel under a flat arc: 8 levels of
+            // coverage across a pixel) show through the shadow's colour; the blur itself is within 2 (the frames after these).
+            // The hairline is all curved edge — two circles' chords in each of its sixty pixels.
+            const std::string problem = rig.compare(dl, std::format("shadows at the pixel, frame {}", frame), {8, 200});
+            check(problem.empty(), problem);
+            check_eq(rig.last.masks_made, std::size_t{0});
+        }
+        // Square boxes with rounded shadows (the spread's radius), so no curved edge of a box is in the way:
+        // the blur's evaluation against the reference's passes — 2 levels at the most (the passes round to a
+        // level each; a corner's rows are taken in four parts).
+        for (int frame = 0; frame < 6; ++frame) {
+            render::DisplayList dl;
+            const float along = static_cast<float>(frame);
+            dl.box_shadow({24.3f + along * 1.3f, 20.6f, 40, 30}, {}, {0, 2}, 2 + along * 3, 6, geom::Color{0, 0, 0, 0.9f});
+            dl.box_shadow({96.7f, 58.2f + along * 0.7f, 36, 44}, {}, {-2.5f, 3}, 14 - along * 2, 11, geom::Color{0.5f, 0, 0.1f, 0.9f});
+            const std::string problem = rig.compare(dl, std::format("blur at the pixel, frame {}", frame), {2, 80});
+            check(problem.empty(), problem);
+            check_eq(rig.last.masks_made, std::size_t{0});
+        }
+        // A shadow under a transform that stretches its box (a knob drawn out like a drop): its corners ellipses.
+        for (int frame = 0; frame < 4; ++frame) {
+            render::DisplayList dl;
+            const float along = static_cast<float>(frame);
+            dl.push_transform(geom::Affine::translate(20.4f + along, 16.3f) * geom::Affine::scale(1.0f + along * 0.35f, 1.0f - along * 0.12f));
+            dl.box_shadow({0, 0, 50, 34}, geom::CornerRadii::all(17), {0, 3}, 7, 0, geom::Color{0, 0, 0, 0.8f});
+            dl.pop_transform();
+            dl.push_transform(geom::Affine::translate(30.2f, 70.6f) * geom::Affine::scale(0.8f, 1.0f + along * 0.2f));
+            dl.box_shadow({0, 0, 60, 30}, geom::CornerRadii{3, 12, 6, 9}, {2, 2}, 5, 2, geom::Color{0.4f, 0, 0.3f, 0.9f});
+            dl.pop_transform();
+            const std::string problem = rig.compare(dl, std::format("shadows stretched, frame {}", frame), {8, 120});
+            check(problem.empty(), problem);
             check_eq(rig.last.masks_made, std::size_t{0});
         }
         // At rest with masks allowed: asked for once, drawn from outlines; asked again, made — the reference's bytes.
@@ -876,7 +923,7 @@ void add(Cases& suite) {
         render::DisplayList still;
         text(still, 21.5f, 0.35f);
         check(rig.compare(still, "glyphs first asked", moving).empty(), "the first frame at rest");
-        check_eq(rig.last.glyphs_outlined, std::size_t{15});
+        check_eq(rig.last.glyphs_outlined, std::size_t{17});
         const std::string settled = rig.compare(still, "glyphs at rest", {1, 0});
         check(settled.empty(), settled);
         check_eq(rig.last.glyphs_outlined, std::size_t{0});
@@ -889,8 +936,8 @@ void add(Cases& suite) {
         text(other, 17.25f, 0.6f);
         check(rig.compare(other, "glyphs, one mask a frame: asked", moving).empty(), "asked");
         check(rig.compare(other, "glyphs, one mask a frame: first", moving).empty(), "the first made");
-        // The one glyph's, and the path's (a path at rest is its mask: its own few a frame).
-        check_eq(rig.last.masks_made, std::size_t{2});
+        // The one glyph's, and the path's and the two shadows' (at rest they are masks: their own few a frame).
+        check_eq(rig.last.masks_made, std::size_t{4});
         check_eq(rig.last.glyphs_outlined, std::size_t{13});
         device->destroy(*target);
     });

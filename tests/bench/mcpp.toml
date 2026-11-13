@@ -62,4 +62,4 @@ xrender.rhi.sdl       = { path = "../../modules/projects/xrender/rhi/sdl" }
 mcpplibs.os           = "0.4.4"
 
 [dev-dependencies]
-mcpplibs.mtest = "0.6.3"
+mcpplibs.mtest = "0.7.1"

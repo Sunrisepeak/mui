@@ -41,5 +41,5 @@ mlibs.utils  = { path = "../../../../base/utils" }
 omui.build.contracts = { path = "../../../../../mcpp/contracts", host-module = true }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.6.3"
+mcpplibs.mtest = "0.7.1"
 omui.host.headless = { path = "../../host/headless" }

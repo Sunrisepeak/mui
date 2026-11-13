@@ -27,5 +27,5 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 gongfu = { path = ".." }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.6.3"
+mcpplibs.mtest = "0.7.1"
 mlibs.utils = { path = "../../../base/utils" }

@@ -31,7 +31,7 @@ mlibs.utils  = { path = "../../../base/utils" }
 mlibs.json   = { path = "../../../base/json" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.6.3"
+mcpplibs.mtest = "0.7.1"
 xrender.raster  = { path = "../raster" }
 mlibs.geom    = { path = "../../../base/geom" }
 xrender.rhi.sdl = { path = "../rhi/sdl" }

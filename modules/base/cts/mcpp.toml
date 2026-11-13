@@ -30,4 +30,4 @@ sources = ["src/*.cppm", "src/*.cpp"]
 [dependencies]
 mlibs.utils    = { path = "../utils" }
 # A suite's cases are mtest's conformance cases: the library, not only its tests.
-mcpplibs.mtest = "0.6.3"
+mcpplibs.mtest = "0.7.1"

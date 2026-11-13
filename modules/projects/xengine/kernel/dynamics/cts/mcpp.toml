@@ -33,7 +33,7 @@ mlibs.utils      = { path = "../../../../../base/utils" }
 xengine.matter   = { path = "../../matter" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.6.3"
+mcpplibs.mtest = "0.7.1"
 # tests/agent_test.cpp: the agent contract's suite on a body (mlibs.agent.cts), then kicks, seeks and branches.
 mlibs.agent.cts = { path = "../../../../../base/agent/cts" }
 mlibs.json      = { path = "../../../../../base/json" }

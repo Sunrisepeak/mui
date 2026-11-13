@@ -48,7 +48,7 @@ mlibs.pipeline   = { path = "../../../../../base/pipeline" }
 xengine.matter = { path = "../../matter", default-features = false, features = ["appearance"] }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.6.3"
+mcpplibs.mtest = "0.7.1"
 mlibs.utils = { path = "../../../../../base/utils" }
 # offscreen_test, agent_test: a field an agent operates (the kernel's `agent` feature) — under the agent contract's
 # suite, and drawn through the frame's entry and read back with no interface in the program.

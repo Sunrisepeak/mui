@@ -36,6 +36,6 @@ mlibs.cts   = { path = "../../../base/cts" }
 # browser): the owner takes a backend for its tests, never a backend its consumers (D-161).
 # Its run on SDL_GPU is in a native-only package: this one runs on the Web too.
 [dev-dependencies]
-mcpplibs.mtest     = "0.6.3"
+mcpplibs.mtest     = "0.7.1"
 xrender.rhi.webgpu = { path = "../../xrender/rhi/webgpu" }
 mcpplibs.os        = "0.4.4"

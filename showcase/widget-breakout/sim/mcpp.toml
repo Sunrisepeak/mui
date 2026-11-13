@@ -31,4 +31,4 @@ xengine.dynamics = { path = "../../../modules/projects/xengine/kernel/dynamics" 
 mlibs.simulation = { path = "../../../modules/base/simulation" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.6.3"
+mcpplibs.mtest = "0.7.1"

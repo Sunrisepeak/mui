@@ -28,6 +28,6 @@ mcpplibs.cmdline = "0.0.3"
 omui.sdk = { path = "../../modules/projects/omui/sdk" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.6.3"
+mcpplibs.mtest = "0.7.1"
 mlibs.utils  = { path = "../../modules/base/utils" }
 omui.lang.js  = { path = "../../modules/projects/omui/lang/js" }

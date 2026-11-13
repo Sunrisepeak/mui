@@ -29,7 +29,7 @@ mlibs.utils    = { path = "../../../../../base/utils" }
 mlibs.math     = { path = "../../../../../base/math" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.6.3"
+mcpplibs.mtest = "0.7.1"
 # tests/lattice_test.cpp: the lattice as a carrier (xengine.cellular's feature `matter`) — through the suite,
 # then with cells that move.
 # tests/agent_test.cpp: a field of matter as an agent's subject (the feature `matter-agent`, which implies the

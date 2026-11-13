@@ -29,7 +29,7 @@ mlibs.pipeline   = { path = "../../../modules/base/pipeline" }
 mlibs.geom       = { path = "../../../modules/base/geom" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.6.3"
+mcpplibs.mtest = "0.7.1"
 mlibs.image    = { path = "../../../modules/base/image" }
 mlibs.json     = { path = "../../../modules/base/json" }
 mlibs.utils    = { path = "../../../modules/base/utils" }

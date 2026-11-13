@@ -39,4 +39,4 @@ xengine.audio       = { path = "../audio" }
 mlibs.json          = { path = "../../../../base/json" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.6.3"
+mcpplibs.mtest = "0.7.1"

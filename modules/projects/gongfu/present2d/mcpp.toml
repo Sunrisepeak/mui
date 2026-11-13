@@ -33,7 +33,7 @@ mlibs.geom          = { path = "../../../base/geom" }
 xrender.vector = { path = "../../xrender/vector" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.6.3"
+mcpplibs.mtest = "0.7.1"
 mlibs.utils = { path = "../../../base/utils" }
 xrender.raster  = { path = "../../xrender/raster" }
 mlibs.image   = { path = "../../../base/image" }

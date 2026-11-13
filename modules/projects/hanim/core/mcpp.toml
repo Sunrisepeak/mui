@@ -37,4 +37,4 @@ mlibs.memory = { path = "../../../base/memory" }
 mlibs.geom   = { path = "../../../base/geom" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.6.3"
+mcpplibs.mtest = "0.7.1"

@@ -35,6 +35,6 @@ mlibs.memory = { path = "../../../base/memory" }
 xrender.raster = { path = "../raster" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.6.3"
+mcpplibs.mtest = "0.7.1"
 mlibs.image   = { path = "../../../base/image" }
 mcpplibs.os     = "0.4.4"

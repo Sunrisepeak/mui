@@ -68,6 +68,6 @@ xengine.matter = { path = "../matter", default-features = false }
 xengine.dynamics = { path = "../dynamics", features = ["rigid"] }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.6.3"
+mcpplibs.mtest = "0.7.1"
 mlibs.simulation   = { path = "../../../../base/simulation" }
 mlibs.cts          = { path = "../../../../base/cts" }

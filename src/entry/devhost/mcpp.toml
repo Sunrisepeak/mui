@@ -32,7 +32,7 @@ mcpplibs.cmdline = "0.0.3"
 
 [dev-dependencies]
 # Tests are mtest's (D-147); the end-to-end case reads the host as an agent does.
-mcpplibs.mtest = "0.6.3"
+mcpplibs.mtest = "0.7.1"
 
 # The end-to-end case runs `mcpp build` in this workspace several times, so it runs outside
 # `mcpp test` (which holds the build directory while its tests run, mcpp#915): built with

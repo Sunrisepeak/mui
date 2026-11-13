@@ -54,6 +54,6 @@ mcpplibs.os      = "0.4.4"
 mcpplibs.mwrap.sdl3 = "3.4.18"
 
 [dev-dependencies]
-mcpplibs.mtest = "0.6.3"
+mcpplibs.mtest = "0.7.1"
 # A web page in the system's own view (the macOS case): the web_view component.
 omui.ui.base = { path = "../../components/base" }

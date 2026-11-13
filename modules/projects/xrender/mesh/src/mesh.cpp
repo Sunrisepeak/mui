@@ -98,6 +98,8 @@ struct Raster {
     Pixel          id;
     bool           still = true;  // the draw is where it was, seen from where it was seen: its pixels moved by 0, exactly
     Mat4           aside;         // this frame's jitter, in clip space
+    Vec3           eye{};         // the view's, in the world
+    bool           fog = false;
 
     // Whether anything is between `from` and a light `reach` away along `toward` (of length 1). The ray is taken
     // into each mesh's own space as it is — not made of length 1 again — so a distance along it is the world's.
@@ -197,7 +199,14 @@ struct Raster {
                     // The sample is `jitter` aside of the pixel's middle; the surface there, seen without it, is not.
                     moved = {static_cast<float>(column) + 0.5f - options.jitter.x - was_x, static_cast<float>(row) + 0.5f - options.jitter.y - was_y};
                 }
-                const Vec3 colour = lit(normal, place);
+                Vec3 colour = lit(normal, place);
+                if (fog) {
+                    const Vec3 to = place - eye;
+                    const float apart = math::length(to);
+                    const float share = apart > 0 ? through(options.fog, eye, to * (1.0f / apart), apart) : 1.0f;
+                    colour = options.fog.colour + (colour - options.fog.colour) * share;
+                    ++stats.fogged;
+                }
                 out.depth[pixel] = depth, out.normal[pixel] = normal, out.velocity[pixel] = moved, out.ids[pixel] = id, out.light[pixel] = colour;
                 out.colour[pixel * 4] = encoded(colour.x), out.colour[pixel * 4 + 1] = encoded(colour.y), out.colour[pixel * 4 + 2] = encoded(colour.z), out.colour[pixel * 4 + 3] = 255;
             }
@@ -214,6 +223,24 @@ void Targets::resize(int new_width, int new_height) {
     width = std::max(new_width, 0), height = std::max(new_height, 0);
     const std::size_t pixels = static_cast<std::size_t>(width) * height;
     colour.resize(pixels * 4), light.resize(pixels), depth.resize(pixels), normal.resize(pixels), velocity.resize(pixels), ids.resize(pixels);
+}
+
+float through(const Fog& fog, Vec3 eye, Vec3 toward, float length) noexcept {
+    if (!(fog.density > 0) || !(length > 0)) return 1;
+    // The density where the eye is; and how fast it thins along the ray (a unit of length).
+    const double here = static_cast<double>(fog.density) * (fog.falloff > 0 ? math::det::exp(std::clamp(-static_cast<double>(fog.falloff) * (eye.y - fog.base), -60.0, 60.0)) : 1.0);
+    const double thins = static_cast<double>(fog.falloff) * toward.y;
+    const bool endless = !(length < std::numeric_limits<float>::max());
+    double depth = 0;  // ∫ density along the ray: here · (1 − e^(−thins · length)) / thins
+    if (endless) {
+        if (!(thins > 1e-9)) return 0;  // level or downward for ever: nothing comes through
+        depth = here / thins;
+    } else if (std::abs(thins * length) < 1e-5) {
+        depth = here * length;
+    } else {
+        depth = here * (1.0 - math::det::exp(std::clamp(-thins * length, -60.0, 60.0))) / thins;
+    }
+    return depth > 60 ? 0.0f : static_cast<float>(math::det::exp(-depth));
 }
 
 void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, const Assets& assets, Targets& out, const Options& options) {
@@ -252,6 +279,8 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
     if (out.width > 0 && out.height > 0) aside.at(3, 0) = 2.0f * options.jitter.x / static_cast<float>(out.width), aside.at(3, 1) = -2.0f * options.jitter.y / static_cast<float>(out.height);
     // Applied to each corner after the clipping (`aside * clip`: the column that multiplies the corner's own w).
     Raster raster{out, options, last_, std::span(lamps).first(lamp_count), casters_, {}, {}, true, aside};
+    raster.fog = options.fog.density > 0 && camera.has_value();
+    if (camera) raster.eye = math::point(*camera, {0, 0, 0});
 
     for (std::uint32_t number = 0; number < extracted.draws.size() && pixels; ++number) {
         const scene::Draw& draw = extracted.draws[number];
@@ -336,6 +365,25 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
                 else ++last_.outside;
             }
         }
+    }
+
+    // The background through the fog: a surface infinitely far along each pixel's own ray.
+    if (const std::optional<Mat4> back = raster.fog ? math::inverse(clip) : std::nullopt) {
+        for (int row = 0; row < out.height; ++row)
+            for (int column = 0; column < out.width; ++column) {
+                const std::size_t pixel = static_cast<std::size_t>(row) * out.width + column;
+                if (out.ids[pixel].draw != none) continue;
+                const Vec3 through_pixel = math::point(*back, {(static_cast<float>(column) + 0.5f) / static_cast<float>(out.width) * 2 - 1,
+                                                               1 - (static_cast<float>(row) + 0.5f) / static_cast<float>(out.height) * 2, 0.5f});
+                const Vec3 to = through_pixel - raster.eye;
+                const float apart = math::length(to);
+                if (!(apart > 0)) continue;
+                const float share = through(options.fog, raster.eye, to * (1.0f / apart), std::numeric_limits<float>::infinity());
+                const Vec3 colour = options.fog.colour + (options.background - options.fog.colour) * share;
+                out.light[pixel] = colour;
+                out.colour[pixel * 4] = encoded(colour.x), out.colour[pixel * 4 + 1] = encoded(colour.y), out.colour[pixel * 4 + 2] = encoded(colour.z);
+                ++last_.fogged;
+            }
     }
 
     before_ids_.clear(), before_world_.clear();

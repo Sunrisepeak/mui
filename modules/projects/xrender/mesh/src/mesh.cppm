@@ -42,6 +42,19 @@ struct Assets {
     // query is geometry's). A mesh with no tree casts no shadow.
     std::span<const mlibs::geom::Bvh* const> trees;
 };
+// Fog: what is between the eye and a surface, taken as a share of the surface's light and given the fog's own.
+// Its density is `density` a unit of length at the height `base` and thinner by e each 1/`falloff` above it
+// (0: the same at every height); how much is gone through along a ray is worked out exactly, not stepped. The
+// background is a surface infinitely far: looking up through thinning fog it shows, looking level it does not.
+struct Fog {
+    Vec3  colour{0.5f, 0.6f, 0.7f};
+    float density = 0;  // 0: no fog — the pass does nothing for it
+    float base = 0, falloff = 0;
+};
+// The share of a surface's light that reaches the eye through `fog`, along a ray from `eye` toward `toward` (of
+// length 1) for `length` (which may be infinite). Deterministic (`mlibs.math`'s exp): the same bits everywhere.
+[[nodiscard]] float through(const Fog& fog, Vec3 eye, Vec3 toward, float length) noexcept;
+
 struct Options {
     Vec3 background{0.02f, 0.02f, 0.03f};
     // Light from everywhere: the one implementation there is of the indirect light (a constant), behind which
@@ -54,6 +67,7 @@ struct Options {
     // pixel). A different one each frame, and the frames gathered over time (`Temporal`), is anti-aliasing. The
     // velocity does not include it.
     Vec2 jitter{0, 0};
+    Fog  fog;
 };
 
 inline constexpr std::uint32_t none = 0xffffffffu;
@@ -78,6 +92,7 @@ struct Stats {
     std::uint64_t triangles = 0, facing_away = 0, outside = 0, clipped = 0, filled = 0;
     std::uint64_t written = 0, hidden = 0;                  // pixels that passed the depth, and that did not
     std::uint64_t rays = 0, shadowed = 0;                   // rays sent toward a light, and those that met something
+    std::uint64_t fogged = 0;                               // samples whose light went through fog: each one written, and the background's pixels
 };
 
 // What can stand between a surface and a light, as a frame holds it: an instance's mesh and its tree, the world

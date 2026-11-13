@@ -474,4 +474,73 @@ static UTest cases{"xrender.mesh", [] {
         const auto again = mesh::pick(world, reversed.view(), assets, 123, 71, 240, 135);
         expect(again.has_value() && eq(again->instance, scene::Id{11}) && eq(again->triangle, before->triangle));
     };
+    "fog along a ray is worked out, not stepped: none is all the light, even fog is e to the minus density times length, thinning fog is what many small steps add up to"_test = [] {
+        const math::Vec3 eye{0, 2, 0};
+        expect(eq(mesh::through({}, eye, {0, 0, -1}, 100.0f), 1.0f)) << "no density, no fog";
+        const mesh::Fog even{.density = 0.05f};
+        expect(lt(std::abs(mesh::through(even, eye, {0, 0, -1}, 10.0f) - static_cast<float>(math::det::exp(-0.5))), 1e-6f));
+        const float once = mesh::through(even, eye, {1, 0, 0}, 7.0f), twice = mesh::through(even, eye, {1, 0, 0}, 14.0f);
+        expect(lt(std::abs(twice - once * once), 1e-6f)) << "twice as far is the share of the share";
+        expect(eq(mesh::through(even, eye, {0, 1, 0}, std::numeric_limits<float>::infinity()), 0.0f)) << "even fog for ever lets nothing through, whichever way";
+
+        const mesh::Fog thinning{.density = 0.2f, .base = 0, .falloff = 0.4f};
+        for (const math::Vec3 toward : {math::normalized(math::Vec3{1, 0.5f, 0}), math::normalized(math::Vec3{0, -0.3f, -1}), math::Vec3{0, 0, -1}, math::Vec3{0, 1, 0}}) {
+            const float length = 5;
+            double stepped = 0;
+            const int steps = 20000;
+            for (int step = 0; step < steps; ++step) {
+                const double along = (step + 0.5) * length / steps;
+                stepped += 0.2 * math::det::exp(-0.4 * (eye.y + toward.y * along)) * length / steps;
+            }
+            const float worked = mesh::through(thinning, eye, toward, length);
+            expect(lt(std::abs(worked - static_cast<float>(math::det::exp(-stepped))), 1e-5f)) << std::format("toward y {}: {} against {}", toward.y, worked, math::det::exp(-stepped));
+        }
+        // Up for ever through thinning fog is a finite amount of it; level for ever is all of it.
+        const float up = mesh::through(thinning, eye, {0, 1, 0}, std::numeric_limits<float>::infinity());
+        expect(lt(std::abs(up - static_cast<float>(math::det::exp(-0.2 * math::det::exp(-0.8) / 0.4))), 1e-6f)) << up;
+        expect(eq(mesh::through(thinning, eye, {1, 0, 0}, std::numeric_limits<float>::infinity()), 0.0f));
+        // Higher up there is less of it.
+        expect(gt(mesh::through(thinning, {0, 6, 0}, {1, 0, 0}, 10.0f), mesh::through(thinning, {0, 1, 0}, {1, 0, 0}, 10.0f)));
+    };
+
+    "the yard in fog: who drew each pixel and how deep is unchanged; each surface's light is between its own and the fog's, the far floor more the fog's than the near; the sky shows more the higher it is looked at"_test = [] {
+        const scene::Scene world = yard();
+        const mesh::Fog fog{.colour = {0.5f, 0.6f, 0.7f}, .density = 0.08f, .base = -1, .falloff = 0.35f};
+        const Frame clear = drawn(world, yard_camera, 480, 270), foggy = drawn(world, yard_camera, 480, 270, {.fog = fog});
+        expect(eq(clear.stats.fogged, std::uint64_t{0}));
+        expect(eq(foggy.stats.fogged, foggy.stats.written + static_cast<std::uint64_t>(std::ranges::count(foggy.targets.ids, mesh::none, &mesh::Pixel::draw)))) << "every sample written, and the background's pixels";
+        const auto apart = [&](math::Vec3 light) { return std::abs(light.x - fog.colour.x) + std::abs(light.y - fog.colour.y) + std::abs(light.z - fog.colour.z); };
+        std::size_t outside = 0, changed = 0;
+        for (std::size_t pixel = 0; pixel < clear.targets.ids.size(); ++pixel) {
+            changed += clear.targets.ids[pixel].draw != foggy.targets.ids[pixel].draw || clear.targets.ids[pixel].triangle != foggy.targets.ids[pixel].triangle ||
+                       clear.targets.depth[pixel] != foggy.targets.depth[pixel];
+            if (clear.targets.ids[pixel].draw == mesh::none) continue;
+            const math::Vec3 own = clear.targets.light[pixel], seen = foggy.targets.light[pixel];
+            for (const auto [low, high, value] : {std::tuple{std::min(own.x, fog.colour.x), std::max(own.x, fog.colour.x), seen.x}, std::tuple{std::min(own.y, fog.colour.y), std::max(own.y, fog.colour.y), seen.y},
+                                                  std::tuple{std::min(own.z, fog.colour.z), std::max(own.z, fog.colour.z), seen.z}})
+                outside += value < low - 1e-5f || value > high + 1e-5f;
+        }
+        expect(eq(changed, std::size_t{0})) << "fog is light, not geometry";
+        expect(eq(outside, std::size_t{0}));
+        // Down the left edge of the picture (the floor, nothing standing on it there): how much of its own light is
+        // left, the nearest row and the farthest.
+        const auto own_share = [&](std::size_t pixel) { return apart(foggy.targets.light[pixel]) / std::max(apart(clear.targets.light[pixel]), 1e-6f); };
+        const auto floor_at = [&](int row) { return static_cast<std::size_t>(row) * 480 + 20; };
+        int farthest = 269;
+        while (farthest > 0 && clear.targets.ids[floor_at(farthest - 1)].draw == clear.targets.ids[floor_at(269)].draw) --farthest;
+        expect(fatal(clear.targets.ids[floor_at(269)].draw != mesh::none && farthest < 200)) << farthest;
+        const float near_share = own_share(floor_at(269)), far_share = own_share(floor_at(farthest));
+        expect(gt(near_share, far_share + 0.1f)) << std::format("near {} far {}", near_share, far_share);
+        // The background: up the middle column, where nothing is drawn. The higher, the more of it shows.
+        std::vector<float> sky;
+        for (int row = 0; row < 270; ++row)
+            if (clear.targets.ids[static_cast<std::size_t>(row) * 480 + 240].draw == mesh::none) sky.push_back(apart(foggy.targets.light[static_cast<std::size_t>(row) * 480 + 240]));
+        expect(fatal(sky.size() > 10)) << sky.size();
+        expect(std::ranges::is_sorted(sky, std::greater{})) << "from the top down: less and less of the background";
+        expect(gt(sky.front(), sky.back() + 0.05f)) << std::format("top {} lowest {}", sky.front(), sky.back());
+        const auto file = keep(foggy.targets, "yard-fog");
+        std::println("the yard in fog: floor's own light left, near {:.3f} far {:.3f}; sky {:.3f} at the top, {:.3f} at its lowest; bits {:016x}; {}", near_share, far_share, sky.front(), sky.back(),
+                     bits(foggy.targets), file.generic_string());
+        expect(eq(bits(foggy.targets), std::uint64_t{0xc84a8f6fceb3b509})) << std::format("{:016x}", bits(foggy.targets));
+    };
 }};

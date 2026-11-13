@@ -141,7 +141,7 @@ public:
     // `light`, `one`, `other`: rgba16_float, colour targets that can be sampled, `width` × `height` (`one` and
     // `other` are working space); `colour`: rgba8_unorm, a colour target. With no radius: the light through the curve.
     void record(mlibs::rhi::CommandList& list, mlibs::rhi::Texture light, mlibs::rhi::Texture one, mlibs::rhi::Texture other, mlibs::rhi::Texture colour, std::uint32_t width, std::uint32_t height,
-                const Bloom& bloom);
+                const Bloom& bloom, const Tone& tone = {});
 
 private:
     Glow() = default;

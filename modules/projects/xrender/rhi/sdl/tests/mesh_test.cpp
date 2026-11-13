@@ -352,10 +352,10 @@ UTest cases{"mesh.gpu.sdl", [] {
         const auto colour = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, width, height, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "mesh.colour"});
         const auto depth = device->create(rhi::TextureDesc{rhi::Format::d32_float, width, height, rhi::TextureUsage::depth_target, "mesh.depth"});
         expect(fatal(colour.has_value() && depth.has_value()));
-        const auto shown_with = [&](const mesh::Bloom& how) {
+        const auto shown_with = [&](const mesh::Bloom& how, const mesh::Tone& tone = {}) {
             rhi::CommandList list;
             pass->record(list, yard.world, seen, yard.view(), yard.materials, light, *depth, width, height, {.shadows = false});
-            glow->record(list, light, one, other, *colour, width, height, how);
+            glow->record(list, light, one, other, *colour, width, height, how, tone);
             const auto submitted = device->submit(list);
             expect(fatal(submitted.has_value())) << (submitted ? "" : submitted.error().message);
             expect(device->wait(*submitted).has_value());
@@ -381,6 +381,16 @@ UTest cases{"mesh.gpu.sdl", [] {
         expect(lt(lighter > lighter_on_cpu ? lighter - lighter_on_cpu : lighter_on_cpu - lighter, lighter_on_cpu / 50)) << "over as many pixels as in the reference";
         expect(lt(static_cast<double>(all.off), 0.001 * static_cast<double>(all.compared)));
         expect(lt(static_cast<double>(bare.off), 0.001 * static_cast<double>(bare.compared))) << "with no radius: the light through the curve, the plain pass's picture";
+        // And through a tone: half the exposure, bent toward white — the reference's curve.
+        const mesh::Tone tone{.exposure = 0.5f, .filmic = true};
+        mesh::Targets toned = reference;
+        static_cast<void>(glow_on_cpu.show(reference.light, static_cast<int>(width), static_cast<int>(height), bloom, toned.colour, tone));
+        const std::vector<std::byte> toned_on_device = shown_with(bloom, tone);
+        keep(toned_on_device, "yard-glow-toned");
+        const Apart with_tone = apart(toned, toned_on_device, false, 6);
+        std::println("    through a tone: {} of {} pixels further than 6 levels, mean {:.3f}", with_tone.off, with_tone.compared, with_tone.mean);
+        expect(lt(static_cast<double>(with_tone.off), 0.001 * static_cast<double>(with_tone.compared)));
+        expect(toned.colour != reference.colour);
         static_cast<void>(device->wait_idle());
         device->destroy(light), device->destroy(one), device->destroy(other), device->destroy(*colour), device->destroy(*depth);
     };

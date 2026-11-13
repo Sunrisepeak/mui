@@ -734,7 +734,7 @@ void box_line(const Vec3* from, Vec3* into, int count, std::ptrdiff_t stride, in
 
 }  // namespace
 
-Glow::Told Glow::show(std::span<const Vec3> light, int width, int height, const Bloom& bloom, std::vector<std::uint8_t>& colour) {
+Glow::Told Glow::show(std::span<const Vec3> light, int width, int height, const Bloom& bloom, std::vector<std::uint8_t>& colour, const Tone& tone) {
     Told told;
     const std::size_t pixels = static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
     colour.resize(pixels * 4);
@@ -761,6 +761,7 @@ Glow::Told Glow::show(std::span<const Vec3> light, int width, int height, const 
     for (std::size_t pixel = 0; pixel < pixels; ++pixel) {
         Vec3 shown = light[pixel];
         if (spreads) shown = shown + spread_[pixel] * bloom.strength;
+        if (tone.filmic || tone.exposure != 1) shown = tone.of(shown);
         colour[pixel * 4] = encoded(shown.x), colour[pixel * 4 + 1] = encoded(shown.y), colour[pixel * 4 + 2] = encoded(shown.z), colour[pixel * 4 + 3] = 255;
     }
     return told;

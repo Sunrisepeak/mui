@@ -235,7 +235,21 @@ struct Bloom {
     float radius = 0;        // pixels, about a third of how far it reaches; below 1: none
     float strength = 0.5f;   // how much of what spread is added
 };
-// The frame as shown: the light, what of it spread, the display's curve. The spread is three box passes each
+// How light becomes what a display can show. `exposure` scales it first. Without `filmic` what is above the
+// display's white is cut off there, each part by itself — a bright lamp goes flat and its colour with it. With
+// it the light is bent toward white as it grows (the fitted curve games use, Narkowicz's of ACES: +, × and ÷
+// only), so a highlight keeps its shape and a little of its colour.
+struct Tone {
+    float exposure = 1;
+    bool  filmic = false;
+    [[nodiscard]] constexpr Vec3 of(Vec3 light) const noexcept {
+        const Vec3 scaled = light * exposure;
+        if (!filmic) return scaled;
+        const auto bent = [](float value) { return value <= 0 ? 0.0f : (value * (2.51f * value + 0.03f)) / (value * (2.43f * value + 0.59f) + 0.14f); };
+        return {bent(scaled.x), bent(scaled.y), bent(scaled.z)};
+    }
+};
+// The frame as shown: the light, what of it spread, the tone, the display's curve. The spread is three box passes each
 // way (close to a bell), in a fixed order: the same bits everywhere. What would spread from beyond the frame's
 // edge is not there, and what spreads past it is lost. Keeps its working space between frames.
 class Glow {
@@ -244,7 +258,7 @@ public:
         std::uint32_t bright = 0;  // pixels with something to spread
     };
     // `colour` becomes rgba8, sRGB, `width` × `height`. With no radius it is the light through the curve.
-    Told show(std::span<const Vec3> light, int width, int height, const Bloom& bloom, std::vector<std::uint8_t>& colour);
+    Told show(std::span<const Vec3> light, int width, int height, const Bloom& bloom, std::vector<std::uint8_t>& colour, const Tone& tone = {});
     [[nodiscard]] std::span<const Vec3> spread() const noexcept { return spread_; }  // the last frame's, before `strength`
 
 private:

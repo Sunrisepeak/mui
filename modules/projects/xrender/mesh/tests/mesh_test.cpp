@@ -921,4 +921,27 @@ static UTest cases{"xrender.mesh", [] {
         expect(gt(by_ball_over, 0.03)) << "and too light where the ball is over the floor: what it leaves out";
         expect(gt(by_ball_over, with_sky_over * 2)) << "there more than anywhere";
     };
+    "tone: cut off at white a bright lamp is flat and white; bent toward white it keeps its shape and its colour; exposure scales first; no tone is the pass's own bytes"_test = [] {
+        const mesh::Tone filmic{.filmic = true};
+        // The curve: dark stays dark, a middle grey a little lifted, however bright never past white, always rising.
+        float before = 0;
+        for (const float light : {0.0f, 0.01f, 0.18f, 0.5f, 1.0f, 2.0f, 8.0f, 64.0f}) {
+            const float shown = filmic.of({light, light, light}).x;
+            expect(ge(shown, before) && le(shown, 1.04f)) << light;
+            before = shown;
+        }
+        expect(eq(filmic.of({0, 0, 0}).x, 0.0f) && lt(std::abs(filmic.of({0.18f, 0.18f, 0.18f}).x - 0.267f), 0.005f) && gt(filmic.of({8, 8, 8}).x, 0.97f));
+        expect(eq(mesh::Tone{.exposure = 2}.of({0.25f, 0.5f, 1}).y, 1.0f)) << "exposure alone: twice the light";
+        // A lamp of (9, 5, 1.6): cut off, its red and green are both the display's white; bent, they still differ.
+        const std::vector<math::Vec3> lamp(16, math::Vec3{9.0f, 5.0f, 1.6f}), dim(16, math::Vec3{0.2f, 0.3f, 0.1f});
+        mesh::Glow glow;
+        std::vector<std::uint8_t> cut, bent, plain, same;
+        (void)glow.show(lamp, 4, 4, {}, cut);
+        (void)glow.show(lamp, 4, 4, {}, bent, {.exposure = 0.25f, .filmic = true});
+        expect(eq(int(cut[0]), 255) && eq(int(cut[1]), 255) && eq(int(cut[2]), 255)) << "flat white";
+        expect(gt(int(bent[0]), int(bent[1]) + 4) && gt(int(bent[1]), int(bent[2]) + 20)) << std::format("{} {} {}", bent[0], bent[1], bent[2]);
+        (void)glow.show(dim, 4, 4, {}, plain);
+        (void)glow.show(dim, 4, 4, {}, same, {});
+        expect(plain == same);
+    };
 }};

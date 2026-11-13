@@ -19,7 +19,7 @@ VOut glow_vs(VIn corner) {
 struct Glow {
     float4 size;    // xy: the picture's width and height; zw: one over them
     float4 along;   // xy: one texel along the pass (1, 0) or (0, 1); z: the radius; w: over 0.5 — take only what is above the threshold
-    float4 amount;  // x: the threshold; y: the strength
+    float4 amount;  // x: the threshold; y: the strength; z: the exposure; w: over 0.5 — the filmic curve
 };
 [[vk::binding(0, 3)]] ConstantBuffer<Glow> glow : register(b0, space3);
 [[vk::binding(0, 2)]] Sampler2D first : register(t0, space2) : register(s0, space2);
@@ -54,6 +54,8 @@ float encoded(float linear) {
 [shader("fragment")]
 float4 shown_fs(VOut point) : SV_Target {
     const float2 at = (floor(point.clip.xy) + 0.5) * glow.size.zw;
-    const float3 colour = first.SampleLevel(at, 0).rgb + second.SampleLevel(at, 0).rgb * glow.amount.y;
+    float3 colour = (first.SampleLevel(at, 0).rgb + second.SampleLevel(at, 0).rgb * glow.amount.y) * glow.amount.z;
+    // xrender.mesh's `Tone`: bent toward white as it grows.
+    if (glow.amount.w > 0.5) colour = max(colour, float3(0, 0, 0)) * (2.51 * max(colour, float3(0, 0, 0)) + 0.03) / (max(colour, float3(0, 0, 0)) * (2.43 * max(colour, float3(0, 0, 0)) + 0.59) + 0.14);
     return float4(encoded(colour.r), encoded(colour.g), encoded(colour.b), 1);
 }

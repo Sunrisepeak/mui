@@ -505,14 +505,14 @@ void Glow::release() noexcept {
     device_ = nullptr;
 }
 
-void Glow::record(rhi::CommandList& list, rhi::Texture light, rhi::Texture one, rhi::Texture other, rhi::Texture colour, std::uint32_t width, std::uint32_t height, const Bloom& bloom) {
+void Glow::record(rhi::CommandList& list, rhi::Texture light, rhi::Texture one, rhi::Texture other, rhi::Texture colour, std::uint32_t width, std::uint32_t height, const Bloom& bloom, const Tone& tone) {
     struct Uniforms {
         Row size, along, amount;
     } uniforms{};
     const int radius = static_cast<int>(bloom.radius);
     const bool spreads = radius >= 1 && bloom.strength > 0;
     uniforms.size = {static_cast<float>(width), static_cast<float>(height), 1.0f / static_cast<float>(width), 1.0f / static_cast<float>(height)};
-    uniforms.amount = {bloom.threshold, spreads ? bloom.strength : 0.0f, 0, 0};
+    uniforms.amount = {bloom.threshold, spreads ? bloom.strength : 0.0f, tone.exposure, tone.filmic ? 1.0f : 0.0f};
     const auto pass = [&](rhi::GraphicsPipeline pipeline, rhi::Texture onto, rhi::Texture from, rhi::Texture beside) {
         list.begin_render({onto, rhi::LoadOp::clear, {0, 0, 0, 1}});
         list.set_viewport(0, 0, static_cast<float>(width), static_cast<float>(height));

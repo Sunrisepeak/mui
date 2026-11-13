@@ -57,6 +57,101 @@ struct Counts {
     std::string execute(const std::vector<int>& v) noexcept { return std::format("{}", std::accumulate(v.begin(), v.end(), 0)); }
 };
 
+// A toy world for the world contract: a counter and a heap of numbers that mix each frame. Its flaws are switches,
+// each a way real worlds have gone wrong — the cases must name them.
+struct Heap {
+    std::shared_ptr<std::vector<std::uint64_t>> numbers = std::make_shared<std::vector<std::uint64_t>>(8, 1);
+    std::uint64_t frame = 0;
+    std::uint64_t clock = 0;  // something outside the world, read by a world that is not deterministic
+};
+struct ToyWorld {
+    using State = Heap;
+    bool shares = false;        // a branch keeps the original's heap
+    bool save_steps = false;    // taking an image moves the world
+    bool half_restore = false;  // an image cut short is applied as far as it goes
+    bool reads_write = false;   // reading changes it
+    bool wanders = false;       // the same steps, another hash
+    std::uint64_t made = 0;
+
+    std::unique_ptr<Heap> make() {
+        auto heap = std::make_unique<Heap>();
+        heap->clock = wanders ? made++ : 0;
+        return heap;
+    }
+    void step(Heap& heap) const {
+        auto& numbers = *heap.numbers;
+        ++heap.frame;
+        for (std::size_t index = 0; index < numbers.size(); ++index)
+            numbers[index] = numbers[index] * 6364136223846793005ull + numbers[(index + 1) % numbers.size()] + heap.frame + heap.clock;
+    }
+    void disturb(Heap& heap) const { (*heap.numbers)[3] ^= 0x55; }
+    std::uint64_t hash(const Heap& heap) const {
+        std::uint64_t value = heap.frame;
+        for (const std::uint64_t number : *heap.numbers) value = value * 1099511628211ull ^ number;
+        return value;
+    }
+    std::vector<std::uint8_t> save(const Heap& heap) const {
+        if (save_steps) (*heap.numbers)[0] += 1;
+        std::vector<std::uint8_t> image;
+        const auto put = [&image](std::uint64_t value) {
+            for (int byte = 0; byte < 8; ++byte) image.push_back(static_cast<std::uint8_t>(value >> (8 * byte)));
+        };
+        put(heap.frame);
+        for (const std::uint64_t number : *heap.numbers) put(number);
+        return image;
+    }
+    bool restore(Heap& heap, std::span<const std::uint8_t> image) const {
+        const std::size_t whole = 8 * (1 + heap.numbers->size());
+        if (image.size() != whole && !half_restore) return false;
+        const auto take = [&image](std::size_t at) {
+            std::uint64_t value = 0;
+            for (int byte = 0; byte < 8; ++byte) value |= std::uint64_t{image[at + static_cast<std::size_t>(byte)]} << (8 * byte);
+            return value;
+        };
+        if (image.size() >= 8) heap.frame = take(0);
+        for (std::size_t index = 0; index < heap.numbers->size() && 8 * (index + 2) <= image.size(); ++index) (*heap.numbers)[index] = take(8 * (index + 1));
+        return image.size() == whole;
+    }
+    std::unique_ptr<Heap> branch(const Heap& heap) const {
+        auto copy = std::make_unique<Heap>(heap);
+        if (!shares) copy->numbers = std::make_shared<std::vector<std::uint64_t>>(*heap.numbers);
+        return copy;
+    }
+    void read(const Heap& heap) const {
+        if (reads_write) (*heap.numbers)[1] += 1;
+    }
+};
+// What shows a toy world: two ladders. A flawed one writes the world when its first ladder is lowered, or keeps
+// no reason.
+struct ToyShown {
+    std::array<std::uint8_t, 2> lowered{};
+    std::array<std::string, 2> why{"as made", "as made"};
+};
+struct ToyLadder {
+    std::string_view name;
+    std::uint8_t steps;
+};
+struct ToyPicture {
+    using Worlds = ToyWorld;
+    using Shown = ToyShown;
+    ToyWorld world;
+    bool writes_when_lowered = false;
+    bool forgets_why = false;
+    bool one_name = false;
+
+    ToyWorld& worlds() { return world; }
+    std::unique_ptr<ToyShown> make() const { return std::make_unique<ToyShown>(); }
+    std::array<ToyLadder, 2> ladders(const ToyShown&) const { return {{{"toy.light", 2}, {one_name ? "toy.light" : "toy.detail", 1}}}; }
+    void set(ToyShown& shown, std::size_t index, std::uint8_t lowered, std::string why) const {
+        shown.lowered[index] = lowered;
+        if (!forgets_why) shown.why[index] = std::move(why);
+    }
+    void show(ToyShown& shown, const Heap& heap) const {
+        if (writes_when_lowered && shown.lowered[0] == 2) (*heap.numbers)[5] += 1;
+    }
+    std::string describe(const ToyShown& shown) const { return std::format("light {} ({}), detail {} ({})", shown.lowered[0], shown.why[0], shown.lowered[1], shown.why[1]); }
+};
+
 }  // namespace
 
 UTest cases{"cts", [] {
@@ -145,5 +240,33 @@ UTest cases{"cts", [] {
         const auto l = cts::tally([&] { cts::against({.subject = "leaky"}, [&] { cts::prepare::declare(leaky, "toy@1", samples); }); });
         expect(!l.ok() && l.cases[3].status == cts::Status::failed) << "a refusal that publishes part fails";
         expect(l.cases[3].failures[0].why.contains("the state after the refusal")) << l.text();
+    };
+
+    "the world contract: a sound world passes every case; each way a world goes wrong fails the case that names it"_test = [] {
+        const auto run = [](ToyWorld world) { return cts::tally([&] { cts::against({.subject = "toy-world"}, [&] { cts::world::declare(world, "toy.world@1"); }); }); };
+        const auto sound = run({});
+        expect(sound.ok() && eq(sound.count(cts::Status::passed), cts::world::case_count<ToyWorld>())) << sound.text();
+        expect(eq(cts::world::case_count<ToyWorld>(), std::size_t{8}));
+        const auto failed = [&](ToyWorld world) { return run(world).ids(cts::Status::failed); };
+        using Ids = std::vector<std::string>;
+        expect(failed({.shares = true}) == Ids{"world.branch-runs-alike", "world.branch-shares-nothing"}) << "a branch that keeps the original's heap";
+        expect(failed({.save_steps = true}) == Ids{"world.image-restored-runs-on", "world.image-taken-twice-the-same"}) << "an image that moves the world";
+        expect(failed({.half_restore = true}) == Ids{"world.image-cut-short-refused"}) << "an image cut short applied as far as it goes";
+        expect(failed({.reads_write = true}) == Ids{"world.reading-changes-nothing"}) << "reading that writes";
+        const auto wandering = failed({.wanders = true});
+        expect(!wandering.empty() && wandering.front() == "world.same-steps-same-hash") << "the same steps, another hash";
+    };
+
+    "the presentation contract: what shows a world passes; one that writes it, forgets why or names two ladders alike fails by name"_test = [] {
+        const auto run = [](ToyPicture picture) {
+            return cts::tally([&] { cts::against({.subject = "toy-picture"}, [&] { cts::world::declare_presentation(picture, "toy.presentation@1"); }); });
+        };
+        const auto sound = run({});
+        expect(sound.ok() && eq(sound.count(cts::Status::passed), cts::world::presentation_case_count)) << sound.text();
+        expect(sound.find("presentation.world-the-same-at-every-step")->evidence == std::vector<std::pair<std::string, std::string>>{{"runs", "5"}}) << "richest, three steps alone, lowest";
+        using Ids = std::vector<std::string>;
+        expect(run({.writes_when_lowered = true}).ids(cts::Status::failed) == Ids{"presentation.world-the-same-at-every-step", "presentation.world-the-same-while-ladders-move"});
+        expect(run({.forgets_why = true}).ids(cts::Status::failed) == Ids{"presentation.says-where-and-why"});
+        expect(run({.one_name = true}).ids(cts::Status::failed) == Ids{"presentation.ladders-named"});
     };
 }};

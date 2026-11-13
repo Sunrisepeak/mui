@@ -14,6 +14,7 @@ const double v = mlibs::math::unit53(mlibs::math::mix64(key));   // a number fro
 | Partition | |
 |---|---|
 | `:det` | Elementary functions with the same bits on every platform: exp, log, sin, cos, atan, atan2, cbrt, pow (fdlibm, the five correctly rounded operations only), sqrt, abs, clamp, mix, exact truncating `fmod`, and π. Moved from `hanim:math`: `hanim::dm` is this namespace. |
+| `:vector` | `Vec2` (two floats: a position, a velocity, a direction in the plane), arithmetic by component, `dot`, `cross`. The one definition a solver family, the particles and what couples them name; the three-dimensional types and linear algebra join here with the 3D work. |
 | `:random` | splitmix64: `golden`, its finaliser `finalize`, `mix64` (a stream's output for a state: a number from a key), the stream `SplitMix64`, and `unit24` / `unit53` ([0, 1) from a number's top bits). |
 | `:color` | `color::relative_luminance(r,g,b)` for finite normalized sRGB and `color::contrast_ratio(luma_a,luma_b)`; shared [WCAG readability math](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html), using deterministic `pow`. |
 

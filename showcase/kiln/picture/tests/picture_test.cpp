@@ -7,9 +7,11 @@ import omui.showcase.kiln.picture;
 import mlibs.image;
 import mlibs.json;
 import mlibs.hash;
+import mlibs.cts;
 import mcpplibs.mtest;
 
-using namespace mcpplibs::mtest;
+// mtest by name: its `cts` is not mlibs'.
+using mcpplibs::mtest::UTest, mcpplibs::mtest::expect, mcpplibs::mtest::eq, mcpplibs::mtest::fatal, mcpplibs::mtest::operator""_test;
 namespace ca = xengine::cellular;
 namespace raster = xrender::raster;
 
@@ -35,6 +37,30 @@ kiln::Input play(const kiln::State& state, int frame) {
     if (frame == 160) return casting_at(state, 26.5f, 26.0f);
     return {};
 }
+// Kiln's picture under the presentation contract (mlibs.cts:world): the game — the play above — is what is
+// shown, its checksum the hash.
+struct Game {
+    using State = kiln::State;
+    std::unique_ptr<State> make() const { return std::make_unique<State>(*kiln::start(kiln::level::first())); }
+    void step(State& state) const { kiln::step(state, play(state, static_cast<int>(state.frame) + 100)); }  // the fire lit at its 60th frame
+    std::uint64_t hash(const State& state) const { return kiln::checksum(state); }
+};
+struct Pictured {
+    xrender::ImageStore images;
+    kiln::Picture picture;
+    Pictured() : picture(*kiln::Picture::make(images, kiln::level::first())) {}
+};
+struct KilnPicture {
+    using Worlds = Game;
+    using Shown = Pictured;
+    Game game;
+    Game& worlds() { return game; }
+    std::unique_ptr<Shown> make() const { return std::make_unique<Shown>(); }
+    auto ladders(const Shown&) const { return ca::WorldPicture::ladders(); }
+    void set(Shown& shown, std::size_t ladder, std::uint8_t lowered, std::string why) const { shown.picture.world().set(ladder, lowered, std::move(why)); }
+    void show(Shown& shown, const kiln::State& state) const { shown.picture.show(state); }
+    std::string describe(const Shown& shown) const { return shown.picture.world().describe(); }
+};
 struct Shown {
     xrender::ImageStore images;
     kiln::Picture picture;
@@ -83,6 +109,8 @@ constexpr std::array<Standing, 4> standings{{{"rich", ca::Light::glow, true}, {"
 }  // namespace
 
 UTest cases{"kiln.picture", [] {
+    // 140 frames: the barricade is lit at the 60th and burns for the rest.
+    mlibs::cts::against({.subject = "kiln-picture"}, [] { mlibs::cts::world::declare_presentation(KilnPicture{}, "xengine.presentation@1", {.frames = 140, .at = 70}); });
     "Mui lights the barricade: wherever the ladders stand the game is the same game, and the picture what they say"_test = [] {
         // The game alone.
         std::vector<std::uint64_t> expected;

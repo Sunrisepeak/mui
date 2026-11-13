@@ -55,6 +55,8 @@ xengine.matter = { path = "../matter", default-features = false }
 
 [feature-deps.rigid]
 mcpplibs.mwrap.box2d = "3.2.0"
+# The vector type (mlibs.math's: one definition for the family, the particles and what couples them).
+mlibs.math = { path = "../../../../base/math" }
 
 [dev-dependencies]
 mcpplibs.mtest   = "0.6.3"

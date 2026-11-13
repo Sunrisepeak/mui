@@ -19,10 +19,12 @@
 // application's own state.
 export module xengine.dynamics.rigid;
 import std;
+export import mlibs.math;
 
 export namespace xengine::dynamics::rigid {
 
-struct Vec { float x = 0, y = 0; };
+// A vector in the plane: mlibs.math's, the one definition (the particles and the coupling name the same type).
+using Vec = mlibs::math::Vec2;
 enum class Kind : std::uint8_t { fixed, moving, kinematic };
 // A body's mechanical numbers — what xengine.dynamics.matter's params_of reads from a material's row.
 struct Material {

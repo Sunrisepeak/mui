@@ -19,6 +19,11 @@ export namespace omui::gen {
 struct OpParameter {
     std::string name, type, doc;
     bool optional = false;
+    // Of a position: the form it is written in, which belongs to the subject's interface and not to every
+    // world (the foundation plan's §6.13). `plane`: a point of a flat view, each coordinate 0 to 1;
+    // `lattice-2d`: a cell [x, y] or a region [x, y, width, height] of a lattice of two dimensions. A world of
+    // three dimensions adds forms (a ray, a volume) beside these; an operation's existing parameter keeps its own.
+    std::string space;
 };
 struct Operation {
     std::string name, effect, summary, result, cost = "instant", undo;

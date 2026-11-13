@@ -176,7 +176,9 @@ std::expected<Catalog, std::vector<std::string>> read_root(const mlibs::json::Do
                         problem(at(parameter), "a parameter is { name, type, doc }");
                         continue;
                     }
-                    OpParameter value{text_or(parameter["name"]), text_or(parameter["type"]), text_or(parameter["doc"]), flag_or(parameter["optional"])};
+                    OpParameter value{text_or(parameter["name"]), text_or(parameter["type"]), text_or(parameter["doc"]), flag_or(parameter["optional"]), text_or(parameter["space"])};
+                    if (!value.space.empty() && value.space != "plane" && value.space != "lattice-2d")
+                        problem(at(parameter), std::format("`{}`: parameter `{}` has space `{}` (plane, lattice-2d)", operation.name, value.name, value.space));
                     if (value.name.empty() || !type_name(value.type))
                         problem(at(parameter),
                                 std::format("`{}`: parameter `{}` needs a name and a type (bool, "
@@ -297,7 +299,10 @@ std::string emit_catalog_json(const Catalog& catalog) {
         const auto& operation = catalog.operations[index];
         std::string properties, required;
         for (const auto& parameter : operation.parameters) {
-            const std::string schema = schema_type(parameter.type, parameter.doc);
+            std::string schema = schema_type(parameter.type, parameter.doc);
+            // A position says the form it is written in (`x-space`): an agent reads it from the listing.
+            if (!parameter.space.empty() && schema.ends_with('}'))
+                schema.insert(schema.size() - 1, std::format("{}\"x-space\": {}", schema.size() > 2 ? ", " : "", json_string(parameter.space)));
             properties += std::format("{}{}: {}", properties.empty() ? "" : ", ",
                                       json_string(parameter.name), schema);
             if (!parameter.optional)
@@ -339,8 +344,8 @@ std::string emit_catalog_markdown(const Catalog& catalog) {
         std::string parameters;
         for (const auto& parameter : operation.parameters)
             parameters +=
-                std::format("{}`{}`: {}{}", parameters.empty() ? "" : ", ", parameter.name,
-                            parameter.type, parameter.optional ? " (optional)" : "");
+                std::format("{}`{}`: {}{}{}", parameters.empty() ? "" : ", ", parameter.name,
+                            parameter.type, parameter.space.empty() ? std::string() : std::format(" in {}", parameter.space), parameter.optional ? " (optional)" : "");
         out +=
             std::format("| `{}` — {} | {}{} | {} | {} | {} | {} | {} |\n", operation.name,
                         operation.summary,

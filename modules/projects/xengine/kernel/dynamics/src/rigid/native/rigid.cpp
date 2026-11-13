@@ -7,7 +7,8 @@ import mlibs.hash;
 
 namespace xengine::dynamics::rigid {
 namespace {
-constexpr std::array<char, 4> magic{'X', 'R', 'G', '1'};
+constexpr std::array<char, 4> magic{'X', 'R', 'G', '2'};
+std::uint64_t image_sum(std::span<const std::uint8_t> image) noexcept { return mlibs::hash::Fnv1a().bytes(image).value(); }
 b2Vec2 vec(Vec v) noexcept { return {v.x, v.y}; }
 Vec vec(b2Vec2 v) noexcept { return {v.x, v.y}; }
 }  // namespace
@@ -199,7 +200,9 @@ void World::step() noexcept {
     }
 }
 
-// Saved: the magic, the step count, the bodies in the order made, then Box2D's image.
+// Saved: the magic, the step count, the bodies in the order made, then Box2D's image under its length and its
+// hash. Box2D reads its image in place and says a cut one "leaves the world unusable", so nothing reaches it that
+// is not, whole, what was written here: an image cut short or damaged is refused with the world as it was.
 std::vector<std::uint8_t> World::save() const {
     const int size = b2World_GetSnapshot(native_->world, nullptr, 0);
     std::vector<std::uint8_t> saved;
@@ -211,9 +214,14 @@ std::vector<std::uint8_t> World::save() const {
     put(steps_, 8);
     put(bodies_.size(), 8);
     for (const BodyId body : bodies_) put(static_cast<std::uint32_t>(body.index), 4), put(body.generation, 2);
+    put(static_cast<std::uint64_t>(size), 8);
+    const std::size_t sum_at = saved.size();
+    put(0, 8);
     const std::size_t at = saved.size();
     saved.resize(at + static_cast<std::size_t>(size));
     (void)b2World_GetSnapshot(native_->world, saved.data() + at, size);
+    const std::uint64_t sum = image_sum(std::span(saved).subspan(at));
+    for (int index = 0; index < 8; ++index) saved[sum_at + static_cast<std::size_t>(index)] = static_cast<std::uint8_t>(sum >> (8 * index));
     return saved;
 }
 
@@ -239,7 +247,10 @@ std::expected<Parsed, Error> parse(std::span<const std::uint8_t> saved) {
         if (!body_index || !generation) return std::unexpected(Error{Errc::state, "a saved rigid world cut short"});
         parsed.bodies.push_back({static_cast<std::int32_t>(static_cast<std::uint32_t>(*body_index)), static_cast<std::uint16_t>(*generation)});
     }
+    const auto size = take(8), sum = take(8);
+    if (!size || !sum || saved.size() - at != *size) return std::unexpected(Error{Errc::state, "a saved rigid world cut short"});
     parsed.image = saved.subspan(at);
+    if (image_sum(parsed.image) != *sum) return std::unexpected(Error{Errc::state, "a saved rigid world damaged"});
     return parsed;
 }
 }  // namespace

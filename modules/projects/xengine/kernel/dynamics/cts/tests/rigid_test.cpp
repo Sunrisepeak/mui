@@ -3,9 +3,12 @@
 // made from it runs on as the original does, every id names its body across both, what touched what is said.
 import std;
 import xengine.dynamics.rigid;
+import xengine.dynamics.cts;
+import mlibs.hash;
 import mcpplibs.mtest;
 
-using namespace mcpplibs::mtest;
+// mtest by name: its `cts` is not ours.
+using mcpplibs::mtest::UTest, mcpplibs::mtest::expect, mcpplibs::mtest::eq, mcpplibs::mtest::fatal, mcpplibs::mtest::operator""_test;
 namespace rigid = xengine::dynamics::rigid;
 
 namespace {
@@ -26,9 +29,53 @@ Scene make() {
     return {std::move(*world), *ball, std::move(boxes)};
 }
 void run(rigid::World& world, int steps) { for (int step = 0; step < steps; ++step) world.step(); }
+
+// Box2D's family as the suite sees a rigid family (xengine.dynamics.cts' RigidFamily): the pyramid struck by the
+// ball. Jolt, for three dimensions, will be another of these.
+struct Box2dFamily {
+    using State = rigid::World;
+    using Body = rigid::BodyId;
+    std::unique_ptr<State> make() const { return std::make_unique<State>(std::move(make_scene().world)); }
+    static Scene make_scene();
+    void step(State& world) const { world.step(); }
+    void disturb(State& world) const {
+        for (const rigid::BodyId body : world.bodies()) world.push(body, {0, -400});
+    }
+    std::uint64_t hash(const State& world) const { return world.state_hash(); }
+    std::vector<std::uint8_t> save(const State& world) const { return world.save(); }
+    bool restore(State& world, std::span<const std::uint8_t> image) const { return world.restore(image).has_value(); }
+    std::unique_ptr<State> branch(const State& world) const {
+        auto made = world.branch();
+        return made ? std::make_unique<State>(std::move(*made)) : nullptr;
+    }
+    void read(const State& world) const {
+        for (const rigid::BodyId body : world.bodies()) (void)world.pose(body);
+        (void)world.contacts();
+    }
+    std::vector<Body> bodies(const State& world) const { return world.bodies(); }
+    Body add(State& world) const { return *world.add({.at = {30, 2}}, rigid::Shape::circle(0.5f)); }
+    void remove(State& world, Body body) const { world.remove(body); }
+    bool has(const State& world, Body body) const { return world.has(body); }
+    std::uint64_t where(const State& world, Body body) const {
+        const auto pose = world.pose(body);
+        mlibs::hash::Fnv1a hash;
+        if (pose)
+            for (const float value : {pose->at.x, pose->at.y, pose->angle}) hash.u64(std::bit_cast<std::uint32_t>(value));
+        return hash.value();
+    }
+};
+Scene Box2dFamily::make_scene() { return ::make(); }
 }  // namespace
 
 UTest cases{"dynamics.rigid", [] {
+    // The family's hard constraints (the world contract and the ids), on Box2D: box2d-v3/world.…, box2d-v3/rigid.…
+    // Box2D writes its structures as they lie in memory, unused bytes with them: two worlds at one state need not
+    // have one image, byte for byte (their hashes are one). Said, so that case is unsupported — not passed.
+    mlibs::cts::against({.subject = "box2d-v3", .has = [](std::string_view capability) { return capability != "canonical-image"; }}, [] { xengine::dynamics::cts::declare_rigid(Box2dFamily{}); });
+    "the family has ten hard constraints, the case that reading changes nothing among them"_test = [] {
+        expect(eq(xengine::dynamics::cts::rigid_case_count<Box2dFamily>(), std::size_t{10}));
+    };
+
     "a saved state restored and run again is the uninterrupted run's bits; saving changes nothing; a branch runs on alike"_test = [] {
         Scene straight = make();
         std::vector<std::uint64_t> expected;
@@ -44,7 +91,7 @@ UTest cases{"dynamics.rigid", [] {
             for (int byte = 0; byte < 8; ++byte) value |= static_cast<std::uint64_t>(saved[at + static_cast<std::size_t>(byte)]) << (8 * byte);
             return value;
         };
-        expect(saved[0] == 'X' && saved[1] == 'R' && saved[2] == 'G' && saved[3] == '1');
+        expect(saved[0] == 'X' && saved[1] == 'R' && saved[2] == 'G' && saved[3] == '2');
         expect(eq(word(4), std::uint64_t{150}));
         expect(word(12) >= 1u && word(12) < 1000u) << std::format("{} bodies in the image's head", word(12));
         run(rolled.world, 150);
@@ -75,26 +122,6 @@ UTest cases{"dynamics.rigid", [] {
         const auto top = straight.world.pose(straight.boxes.back());
         expect(fatal(top.has_value()));
         expect(top->at.y < 15.0f) << std::format("the top box at {}", top->at.y);
-    };
-
-    "every id names its body across a restore: one removed after the save is back, one added after it is gone"_test = [] {
-        Scene scene = make();
-        run(scene.world, 30);
-        const auto saved = scene.world.save();
-        const rigid::BodyId box = scene.boxes[5];
-        const auto before = scene.world.pose(box);
-        scene.world.remove(box);
-        expect(!scene.world.has(box));
-        const auto added = scene.world.add({.at = {30, 2}}, rigid::Shape::circle(0.5f));
-        expect(fatal(added.has_value()));
-        expect(fatal(scene.world.restore(saved).has_value()));
-        expect(scene.world.has(box)) << "the removed box is back";
-        const auto after = scene.world.pose(box);
-        expect(fatal(before && after));
-        expect(before->at.x == after->at.x && before->at.y == after->at.y && before->angle == after->angle);
-        const auto bodies = scene.world.bodies();
-        expect(!scene.world.has(*added) || std::ranges::find(bodies, *added) == bodies.end()) << "the body added after the save is not in the world";
-        expect(eq(bodies.size(), scene.boxes.size() + 2));
     };
 
     "what touched what: the ball meets the pyramid, with where, which way and how fast"_test = [] {

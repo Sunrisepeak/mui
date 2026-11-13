@@ -79,4 +79,12 @@ UTest cases{"math", [] {
         expect(mlibs::math::gradient_noise(.37, 1.91, 2026).value == -0x1.d59320dd4e38p-2) << std::format("{:a}", mlibs::math::gradient_noise(.37, 1.91, 2026).value);
         expect(mlibs::math::curl_noise(-8.125, 3.5, 11)[0] == -0x1.caba83bcb592bp-1) << std::format("{:a}", mlibs::math::curl_noise(-8.125, 3.5, 11)[0]);
     };
+
+    "a vector in the plane: components as written, arithmetic by component, constant expressions"_test = [] {
+        constexpr math::Vec2 one{3, 4}, other{-1, 2};
+        static_assert(one + other == math::Vec2{2, 6} && one - other == math::Vec2{4, 2} && one * 2.0f == math::Vec2{6, 8} && -one == math::Vec2{-3, -4});
+        static_assert(math::dot(one, other) == 5.0f && math::cross(one, other) == 10.0f);
+        static_assert(sizeof(math::Vec2) == 2 * sizeof(float) && std::is_trivially_copyable_v<math::Vec2>);
+        expect(math::Vec2{} == math::Vec2{0, 0});
+    };
 }};

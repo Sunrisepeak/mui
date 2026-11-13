@@ -33,3 +33,5 @@ mcpplibs.mtest = "0.6.3"
 mlibs.image    = { path = "../../../modules/base/image" }
 mlibs.json     = { path = "../../../modules/base/json" }
 mlibs.utils    = { path = "../../../modules/base/utils" }
+# tests/picture_test.cpp: the picture under the presentation contract.
+mlibs.cts      = { path = "../../../modules/base/cts" }

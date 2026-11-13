@@ -5,7 +5,9 @@
 // counted in a program that is not a test), :compare (bytes, tolerances,
 // pictures, pinned hashes, sampled processes) and :prepare (the preparation
 // contract's cases: accepted the same way twice, refusals by kind that leave
-// the engine as it was). The runner, the selection and the reports are
+// the engine as it was) and :world (the world contract — a deterministic value: images, branches — and the
+// presentation contract — what shows a world never writes it, wherever its ladders stand). The runner, the
+// selection and the reports are
 // mtest's. Suites live with their contract's owner and run in that owner's
 // tests and its implementations' tests.
 export module mlibs.cts;
@@ -13,3 +15,4 @@ export module mlibs.cts;
 export import :core;
 export import :compare;
 export import :prepare;
+export import :world;

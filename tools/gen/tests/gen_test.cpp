@@ -308,6 +308,29 @@ UTest cases{"gen", [] {
         expect(found[0] >= 1 && found[1] >= 1) << "the standard definition and the standard appearance at least";
     };
 
+    "a position says the form it is written in: in the listing as x-space, an unknown form refused"_test = [] {
+        const auto text = [](std::string_view space) {
+            return std::format(R"({{"ops": {{
+  "product": "x",
+  "module": "x.control",
+  "namespace": "x::control",
+  "operations": [
+    {{"name": "x.look", "effect": "read", "summary": "looks", "result": "json", "params": [
+      {{"name": "at", "type": "json", "doc": "[x, y]", "space": "{}"}},
+      {{"name": "depth", "type": "integer"}}]}}
+  ]
+}}}})", space);
+        };
+        const auto catalog = gen::read_catalog(text("lattice-2d"), "x.ops.omui.json");
+        expect(fatal(catalog.has_value()));
+        const std::string listing = gen::emit_catalog_json(*catalog);
+        expect(listing.contains(R"("at": {"description": "[x, y]", "x-space": "lattice-2d"})")) << listing;
+        expect(listing.contains(R"("depth": {"type": "integer"})")) << "a parameter that is no position says none";
+        expect(gen::emit_catalog_markdown(*catalog).contains("`at`: json in lattice-2d"));
+        const auto unknown = gen::read_catalog(text("somewhere"), "x.ops.omui.json");
+        expect(!unknown && std::ranges::any_of(unknown.error(), [](const std::string& problem) { return problem.contains("space `somewhere` (plane, lattice-2d)"); }));
+    };
+
     "a malformed catalog is reported line by line"_test = [] {
         const auto broken = gen::read_catalog(R"({"ops": {
   "product": "x",

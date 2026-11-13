@@ -14,11 +14,12 @@
 // particle's path walked cell by cell in a fixed order; two runs are the same bits.
 export module xengine.cellular.particles;
 import std;
+export import mlibs.math;
 export import xengine.cellular.matter;
 
 export namespace xengine::cellular::particles {
 
-struct Vec { float x = 0, y = 0; };
+using Vec = mlibs::math::Vec2;  // in cells; the rigid family's vector is the same type
 struct Options {
     float cell = 0.1f;           // metres a cell
     float gravity = 9.8f;        // m/s², toward +y (the field's rows go down)

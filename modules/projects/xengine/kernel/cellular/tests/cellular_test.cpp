@@ -948,9 +948,9 @@ UTest cases{"simulation.cellular", [] {
         expect(moved > 100u) << "and they did move";
     };
 
-    "a step run in pieces by the host's parallel-for is the same bits, activity, changed tiles and statistics, whatever order and threads run them"_test = [] {
+    "a step run in pieces by the host's parallel-for is the same bits, activity, changed tiles and statistics, whatever order runs them"_test = [] {
         // Every stage at once: a table (weight, mobility, conductance), a reaction, a transfer conducted by a column,
-        // an exchange by the table. Three runners: one after another, pieces in reverse, pieces on four threads.
+        // an exchange by the table. Three runners: one after another, pieces in reverse, odd pieces before even.
         ca::Reactions staged;
         staged.table = {.key = 0, .columns = 3, .values = {/* air: conducts nothing */ 0, 0, 0, /* sand */ 9, ca::falls | ca::slides, 2, /* water */ 5, ca::falls | ca::spreads, 2,
                                                          /* smoke */ 1, ca::falls | ca::spreads, 1, /* stone */ 20, 0, 2}};
@@ -971,14 +971,14 @@ UTest cases{"simulation.cellular", [] {
         }
         const ca::ForEach in_order = [](std::uint32_t count, mlibs::memory::FunctionRef<void(std::uint32_t)> piece) { for (std::uint32_t index = 0; index < count; ++index) piece(index); };
         const auto backwards_body = [](std::uint32_t count, mlibs::memory::FunctionRef<void(std::uint32_t)> piece) { for (std::uint32_t index = count; index-- > 0;) piece(index); };
-        const auto threads_body = [](std::uint32_t count, mlibs::memory::FunctionRef<void(std::uint32_t)> piece) {
-            std::atomic<std::uint32_t> next{0};
-            const auto work = [&] { for (std::uint32_t index; (index = next.fetch_add(1)) < count;) piece(index); };
-            std::vector<std::jthread> pool;
-            for (int thread = 0; thread < 3; ++thread) pool.emplace_back(work);
-            work();
+        // Odd pieces first, then even: neighbours never one after another. (Pieces on real threads: omui.bench's
+        // simulation/matter-1024-* on omui's pool check their bits against one after another — natively; this test
+        // runs on the Web too, where a program has no threads.)
+        const auto interleaved_body = [](std::uint32_t count, mlibs::memory::FunctionRef<void(std::uint32_t)> piece) {
+            for (std::uint32_t index = 1; index < count; index += 2) piece(index);
+            for (std::uint32_t index = 0; index < count; index += 2) piece(index);
         };
-        const ca::ForEach backwards = backwards_body, threads = threads_body;
+        const ca::ForEach backwards = backwards_body, interleaved = interleaved_body;
         (void)in_order;
         for (const bool sparse : {false, true}) {
             struct Run { const ca::ForEach* parallel; std::vector<std::uint32_t> cells, next; std::vector<std::uint8_t> activity, changed; ca::Statistics last; };
@@ -986,7 +986,7 @@ UTest cases{"simulation.cellular", [] {
             const std::size_t tile_count = std::size_t{tiles.width} * tiles.height;
             std::array<Run, 3> runs{{{nullptr, initial, std::vector<std::uint32_t>(initial.size()), std::vector<std::uint8_t>(tile_count), std::vector<std::uint8_t>(tile_count), {}},
                                      {&backwards, initial, std::vector<std::uint32_t>(initial.size()), std::vector<std::uint8_t>(tile_count), std::vector<std::uint8_t>(tile_count), {}},
-                                     {&threads, initial, std::vector<std::uint32_t>(initial.size()), std::vector<std::uint8_t>(tile_count), std::vector<std::uint8_t>(tile_count), {}}}};
+                                     {&interleaved, initial, std::vector<std::uint32_t>(initial.size()), std::vector<std::uint8_t>(tile_count), std::vector<std::uint8_t>(tile_count), {}}}};
             std::uint64_t asleep = 0, matched = 0;
             for (std::uint64_t tick = 0; tick < 160; ++tick) {
                 for (Run& run : runs) {

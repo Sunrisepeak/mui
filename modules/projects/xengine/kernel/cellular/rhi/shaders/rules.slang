@@ -62,13 +62,13 @@ uint aggregate(uint kind, uint channel, uint low, uint high, uint position, uint
 uint row_at(uint key) { return key < params.rows ? params.table + key * params.columns : largest; }
 
 // ── encoding 3: one cell's reactions ─────────────────────────────────────
-struct Cell {
-    uint x; uint y; uint cell; uint key; uint row;
-    uint near[16]; uint known;
-    uint derived[16];
-};
-uint near_of(inout Cell c, uint slot) {
-    if (((c.known >> slot) & 1) != 0) return c.near[slot];
+// No local array is indexed by a value known only at run time (fxc, Direct3D's DXBC compiler, cannot keep one in
+// a loop it does not unroll): near sums are made when read, a derived value when read (its column, then the
+// adjustments that change it, in order — they read the cell and its row alone), and a reaction's changes are
+// summed a channel at a time over the reactions that held (a 64-bit mask). The same arithmetic as the CPU's.
+struct Cell { uint x; uint y; uint cell; uint key; uint row; };
+
+uint near_sum(Cell c, uint slot) {
     uint kind = rules[params.slots + 1 + 2 * slot], index = rules[params.slots + 2 + 2 * slot];
     uint sum = 0, count = rules[params.near];
     for (uint offset = 0; offset < count; ++offset) {
@@ -77,88 +77,136 @@ uint near_of(inout Cell c, uint slot) {
         if (other >= params.rows) continue;
         sum = saturating_add(sum, kind != 0 ? rules[params.table + other * params.columns + index] : sample_field(index, at_x, at_y));
     }
-    c.known |= 1u << slot;
-    c.near[slot] = sum;
     return sum;
 }
-// An amount at `position` (left after it): what is added less what is taken.
-uint amount(inout Cell c, inout uint position) {
+uint skip_amount(uint position) { return position + 1 + 5 * rules[position]; }
+// An amount of numbers, the cell's channels and its row's columns (an adjustment's): what is added less what is taken.
+uint plain_amount(Cell c, inout uint position) {
     uint plus = 0, minus = 0, count = rules[position++];
     for (uint term = 0; term < count; ++term) {
         uint read = rules[position], index = rules[position + 1], value = 0;
         if (read == 0) value = index;
         else if (read == 1) value = before[index * params.width * params.height + c.cell];
-        else if (read == 2) value = rules[c.row + index];
-        else if (read == 3) value = c.derived[index];
-        else value = near_of(c, index);
+        else value = rules[c.row + index];
         uint scaled = saturating_multiply(value, rules[position + 2]) >> rules[position + 3];
         if (rules[position + 4] != 0) minus = saturating_add(minus, scaled); else plus = saturating_add(plus, scaled);
         position += 5;
     }
     return plus - min(plus, minus);
 }
-bool holds(inout Cell c, inout uint position) {
+bool compared(uint compare, uint left, uint right) {
+    return compare == 0 ? left >= right : compare == 1 ? left <= right : compare == 2 ? left > right
+         : compare == 3 ? left < right : compare == 4 ? left == right : left != right;
+}
+bool plain_holds(Cell c, inout uint position) {
+    uint count = rules[position++];
+    for (uint index = 0; index < count; ++index) {
+        uint compare = rules[position++];
+        uint left = plain_amount(c, position);
+        uint right = plain_amount(c, position);
+        if (!compared(compare, left, right)) return false;
+    }
+    return true;
+}
+// A derived value: its column of the row, then each adjustment of it whose conditions hold, in order.
+uint derived_value(Cell c, uint which) {
+    uint value = rules[c.row + rules[params.derived + which]];
+    uint position = params.adjustments, count = rules[position++];
+    for (uint index = 0; index < count; ++index) {
+        uint end = rules[position], target = rules[position + 1], raise = rules[position + 2], at = position + 3;
+        if (target == which && plain_holds(c, at)) {
+            uint by = plain_amount(c, at);
+            value = raise != 0 ? saturating_add(value, by) : value - min(value, by);
+        }
+        position = end;
+    }
+    return value;
+}
+// A reaction's amount: also derived values and near sums.
+uint amount(Cell c, inout uint position) {
+    uint plus = 0, minus = 0, count = rules[position++];
+    for (uint term = 0; term < count; ++term) {
+        uint read = rules[position], index = rules[position + 1], value = 0;
+        if (read == 0) value = index;
+        else if (read == 1) value = before[index * params.width * params.height + c.cell];
+        else if (read == 2) value = rules[c.row + index];
+        else if (read == 3) value = derived_value(c, index);
+        else value = near_sum(c, index);
+        uint scaled = saturating_multiply(value, rules[position + 2]) >> rules[position + 3];
+        if (rules[position + 4] != 0) minus = saturating_add(minus, scaled); else plus = saturating_add(plus, scaled);
+        position += 5;
+    }
+    return plus - min(plus, minus);
+}
+bool holds(Cell c, inout uint position) {
     uint count = rules[position++];
     for (uint index = 0; index < count; ++index) {
         uint compare = rules[position++];
         uint left = amount(c, position);
         uint right = amount(c, position);
-        bool passed = compare == 0 ? left >= right : compare == 1 ? left <= right : compare == 2 ? left > right
-                    : compare == 3 ? left < right : compare == 4 ? left == right : left != right;
-        if (!passed) return false;
+        if (!compared(compare, left, right)) return false;
     }
     return true;
 }
+uint skip_conditions(uint position) {
+    uint count = rules[position++];
+    for (uint index = 0; index < count; ++index) position = skip_amount(skip_amount(position + 1));
+    return position;
+}
+bool held(uint low, uint high, uint index) { return index < 32 ? ((low >> index) & 1) != 0 : ((high >> (index - 32)) & 1) != 0; }
 // Onto what the rules made of the cell: the row it becomes, or the largest number.
 uint react(uint x, uint y, uint cell) {
     uint cells = params.width * params.height;
     Cell c;
-    c.x = x; c.y = y; c.cell = cell; c.known = 0;
+    c.x = x; c.y = y; c.cell = cell;
     c.key = before[params.key * cells + cell];
     if (c.key >= params.rows) return largest;
     c.row = params.table + c.key * params.columns;
-    for (uint index = 0; index < 16; ++index) { c.near[index] = 0; c.derived[index] = 0; }
-    for (uint index = 0; index < params.derived_count; ++index) c.derived[index] = rules[c.row + rules[params.derived + index]];
-    uint position = params.adjustments, count = rules[position++];
+    // Which reactions hold (at most 64, the host's check), and the first becoming.
+    uint low = 0, high = 0, becomes = largest;
+    uint position = params.reactions, count = rules[position++];
     for (uint index = 0; index < count; ++index) {
-        uint end = rules[position], which = rules[position + 1], raise = rules[position + 2], at = position + 3;
+        uint end = rules[position], become = rules[position + 2], at = position + 3;
         if (holds(c, at)) {
-            uint by = amount(c, at);
-            c.derived[which] = raise != 0 ? saturating_add(c.derived[which], by) : c.derived[which] - min(c.derived[which], by);
-        }
-        position = end;
-    }
-    uint plus[32], minus[32], base[32];
-    for (uint channel = 0; channel < 32; ++channel) { plus[channel] = 0; minus[channel] = 0; base[channel] = 0; }
-    uint is_set = 0, touched = 0, becomes = largest;
-    uint flags = rules[params.flags];
-    for (uint index = 0; index < flags; ++index) { uint channel = rules[params.flags + 1 + index]; is_set |= 1u << channel; touched |= 1u << channel; }
-    position = params.reactions; count = rules[position++];
-    for (uint index = 0; index < count; ++index) {
-        uint end = rules[position], flag = rules[position + 1], become = rules[position + 2], at = position + 3;
-        if (holds(c, at)) {
-            uint changes = rules[at++];
-            for (uint change = 0; change < changes; ++change) {
-                uint channel = rules[at], kind = rules[at + 1];
-                at += 2;
-                uint by = amount(c, at);
-                touched |= 1u << channel;
-                if (kind == 0) plus[channel] = saturating_add(plus[channel], by);
-                else if (kind == 1) minus[channel] = saturating_add(minus[channel], by);
-                else if (((is_set >> channel) & 1) == 0) { base[channel] = by; is_set |= 1u << channel; }
+            if (index < 32) low |= 1u << index; else high |= 1u << (index - 32);
+            if (become != largest && becomes == largest) {
+                uint next = rules[c.row + become];
+                if (next < params.rows && next != c.key) becomes = next;
             }
-            if (flag != largest) base[flag] = 1;
-            uint next = become != largest ? rules[c.row + become] : largest;
-            if (become != largest && becomes == largest && next < params.rows && next != c.key) becomes = next;
         }
         position = end;
     }
+    // A channel at a time: base (the first set; a flag's 1 while a reaction that flags it holds) + added − taken.
+    uint flags = rules[params.flags];
     for (uint channel = 0; channel < params.channels; ++channel) {
-        if (((touched >> channel) & 1) == 0) continue;
+        bool touched = false, is_set = false;
+        uint plus = 0, minus = 0, base = 0;
+        for (uint flag = 0; flag < flags; ++flag)
+            if (rules[params.flags + 1 + flag] == channel) { touched = true; is_set = true; }
+        position = params.reactions + 1;
+        for (uint index = 0; index < count; ++index) {
+            uint end = rules[position], flag = rules[position + 1];
+            if (held(low, high, index)) {
+                if (flag == channel) base = 1;
+                uint at = skip_conditions(position + 3), changes = rules[at++];
+                for (uint change = 0; change < changes; ++change) {
+                    uint target = rules[at], kind = rules[at + 1];
+                    at += 2;
+                    if (target != channel) { at = skip_amount(at); continue; }
+                    uint by = amount(c, at);
+                    touched = true;
+                    if (kind == 0) plus = saturating_add(plus, by);
+                    else if (kind == 1) minus = saturating_add(minus, by);
+                    else if (!is_set) { base = by; is_set = true; }
+                }
+            }
+            position = end;
+        }
+        if (!touched) continue;
         uint index = channel * cells + cell, value = after[index];
-        if (((is_set >> channel) & 1) != 0) value = base[channel];
-        value = saturating_add(value, plus[channel]);
-        value -= min(value, minus[channel]);
+        if (is_set) value = base;
+        value = saturating_add(value, plus);
+        value -= min(value, minus);
         after[index] = value;
     }
     if (becomes != largest) after[params.key * cells + cell] = becomes;
@@ -250,6 +298,25 @@ void evolve(uint3 id : SV_DispatchThreadID) {
 // ── the exchange: cells change places within blocks of 2 × 2 ─────────────
 static const uint falls = 1, slides = 2, spreads = 4;
 
+uint pick(uint v0, uint v1, uint v2, uint v3, uint which) { return which == 0 ? v0 : which == 1 ? v1 : which == 2 ? v2 : v3; }
+uint corner_of(uint at, uint place) { return (at >> (2 * place)) & 3; }
+uint swapped(uint at, uint one, uint other) {
+    uint a = corner_of(at, one), b = corner_of(at, other);
+    at &= ~((3u << (2 * one)) | (3u << (2 * other)));
+    return at | (b << (2 * one)) | (a << (2 * other));
+}
+// How heavy the cell at `place` is and how it may move: its channels, or its row's columns.
+void weigh(uint place, uint weight, uint mobility, uint cells, out uint heavy, out uint moves) {
+    if ((weight & of_table) != 0) {
+        uint row = row_at(before[params.key * cells + place]);
+        heavy = row != largest ? rules[row + (weight & ~of_table)] : 0;
+        moves = row != largest ? rules[row + (mobility & ~of_table)] : 0;
+    } else {
+        heavy = before[weight * cells + place];
+        moves = before[mobility * cells + place];
+    }
+}
+
 [shader("compute")]
 [numthreads(8, 8, 1)]
 void exchange(uint3 id : SV_DispatchThreadID) {
@@ -261,54 +328,54 @@ void exchange(uint3 id : SV_DispatchThreadID) {
     if ((over_x && !round_x) || (over_y && !round_y)) return;
     uint right = over_x ? 0 : left + 1, bottom = over_y ? 0 : top + 1;
     uint cells = params.width * params.height;
-    uint place[4];
-    place[0] = top * params.width + left; place[1] = top * params.width + right;
-    place[2] = bottom * params.width + left; place[3] = bottom * params.width + right;
+    // Four of each as scalars, picked by a corner (no local array indexed at run time: fxc); the corners are
+    // above left, above right, below left, below right, and which cell is at each is 2 bits of `at`.
+    uint p0 = top * params.width + left, p1 = top * params.width + right, p2 = bottom * params.width + left, p3 = bottom * params.width + right;
     uint weight = rules[params.exchange], mobility = rules[params.exchange + 1], carried = rules[params.exchange + 3];
-    uint heavy[4], moves[4];
-    for (uint corner = 0; corner < 4; ++corner) {
-        if ((weight & of_table) != 0) {
-            uint row = row_at(before[params.key * cells + place[corner]]);
-            heavy[corner] = row != largest ? rules[row + (weight & ~of_table)] : 0;
-            moves[corner] = row != largest ? rules[row + (mobility & ~of_table)] : 0;
-        } else {
-            heavy[corner] = before[weight * cells + place[corner]];
-            moves[corner] = before[mobility * cells + place[corner]];
-        }
-    }
-    uint at[4]; bool moved[4];
-    for (uint corner = 0; corner < 4; ++corner) { at[corner] = corner; moved[corner] = false; }
+    uint h0, h1, h2, h3, m0, m1, m2, m3;
+    weigh(p0, weight, mobility, cells, h0, m0);
+    weigh(p1, weight, mobility, cells, h1, m1);
+    weigh(p2, weight, mobility, cells, h2, m2);
+    weigh(p3, weight, mobility, cells, h3, m3);
+    uint at = 0 | (1u << 2) | (2u << 4) | (3u << 6), moved = 0;  // moved: a bit a cell
     // 1 a cell that falls sinks below a lighter one that falls.
     for (uint column = 0; column < 2; ++column) {
-        uint above = at[column], below = at[column + 2];
-        if ((moves[above] & falls) != 0 && (moves[below] & falls) != 0 && heavy[above] > heavy[below]) {
-            moved[above] = true; moved[below] = true; at[column] = below; at[column + 2] = above;
+        uint above = corner_of(at, column), below = corner_of(at, column + 2);
+        if ((pick(m0, m1, m2, m3, above) & falls) != 0 && (pick(m0, m1, m2, m3, below) & falls) != 0 && pick(h0, h1, h2, h3, above) > pick(h0, h1, h2, h3, below)) {
+            moved |= (1u << above) | (1u << below);
+            at = swapped(at, column, column + 2);
         }
     }
     // 2 a cell that slides, resting, goes diagonally down past a lighter neighbour.
     for (uint from = 0; from < 2; ++from) {
         uint beside = 1 - from, diagonal = 3 - from;
-        uint cell = at[from], other = at[beside], under = at[diagonal];
-        if (moved[cell] || moved[other] || moved[under]) continue;
-        if ((moves[cell] & slides) != 0 && (moves[under] & falls) != 0 && heavy[cell] > heavy[under] && (moves[other] & falls) != 0 && heavy[other] < heavy[cell]) {
-            moved[cell] = true; moved[under] = true; at[from] = under; at[diagonal] = cell;
+        uint cell = corner_of(at, from), other = corner_of(at, beside), under = corner_of(at, diagonal);
+        if ((moved & ((1u << cell) | (1u << other) | (1u << under))) != 0) continue;
+        uint heavy = pick(h0, h1, h2, h3, cell);
+        if ((pick(m0, m1, m2, m3, cell) & slides) != 0 && (pick(m0, m1, m2, m3, under) & falls) != 0 && heavy > pick(h0, h1, h2, h3, under) &&
+            (pick(m0, m1, m2, m3, other) & falls) != 0 && pick(h0, h1, h2, h3, other) < heavy) {
+            moved |= (1u << cell) | (1u << under);
+            at = swapped(at, from, diagonal);
             break;
         }
     }
     // 3 a cell that spreads changes places with a lighter one beside it, or not, with equal chance.
     for (uint row = 0; row < 2; ++row) {
-        uint one = at[row * 2], other = at[row * 2 + 1];
-        if (moved[one] || moved[other] || heavy[one] == heavy[other]) continue;
-        uint heavier = heavy[one] > heavy[other] ? one : other, lighter = heavier == one ? other : one;
-        if ((moves[heavier] & spreads) == 0 || (moves[lighter] & falls) == 0) continue;
+        uint one = corner_of(at, row * 2), other = corner_of(at, row * 2 + 1);
+        uint heavy_one = pick(h0, h1, h2, h3, one), heavy_other = pick(h0, h1, h2, h3, other);
+        if ((moved & ((1u << one) | (1u << other))) != 0 || heavy_one == heavy_other) continue;
+        uint heavier = heavy_one > heavy_other ? one : other, lighter = heavier == one ? other : one;
+        if ((pick(m0, m1, m2, m3, heavier) & spreads) == 0 || (pick(m0, m1, m2, m3, lighter) & falls) == 0) continue;
         uint chance = mix32(params.tick_key ^ (left * 0x9e3779b1u) ^ mix32(top * 2 + row));
-        if ((chance & 1) != 0) { moved[one] = true; moved[other] = true; at[row * 2] = other; at[row * 2 + 1] = one; }
+        if ((chance & 1) != 0) { moved |= (1u << one) | (1u << other); at = swapped(at, row * 2, row * 2 + 1); }
     }
-    if (at[0] == 0 && at[1] == 1 && at[2] == 2 && at[3] == 3) return;
+    if (at == (0 | (1u << 2) | (2u << 4) | (3u << 6))) return;
     for (uint index = 0; index < carried; ++index) {
         uint base = rules[params.exchange + 4 + index] * cells;
-        uint made[4];
-        for (uint corner = 0; corner < 4; ++corner) made[corner] = after[base + place[corner]];
-        for (uint corner = 0; corner < 4; ++corner) after[base + place[corner]] = made[at[corner]];
+        uint v0 = after[base + p0], v1 = after[base + p1], v2 = after[base + p2], v3 = after[base + p3];
+        after[base + p0] = pick(v0, v1, v2, v3, corner_of(at, 0));
+        after[base + p1] = pick(v0, v1, v2, v3, corner_of(at, 1));
+        after[base + p2] = pick(v0, v1, v2, v3, corner_of(at, 2));
+        after[base + p3] = pick(v0, v1, v2, v3, corner_of(at, 3));
     }
 }

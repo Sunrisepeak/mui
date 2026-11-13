@@ -51,6 +51,9 @@ r::Result<std::unique_ptr<Kernel>> Kernel::prepare(r::Device& device,const Progr
     if(!device.caps().compute)return std::unexpected(r::Error{r::Errc::unsupported,"cellular execution requires compute"});
     auto result=std::unique_ptr<Kernel>(new Kernel(device,program));
     result->layout_=layout_of(program.words());
+    // The device's kernel keeps which reactions hold in 64 bits (no array a shader indexes at run time).
+    if(program.encoding()==3 && program.words()[result->layout_[13]]>64)
+        return std::unexpected(r::Error{r::Errc::unsupported,"the device's kernel runs at most 64 reactions"});
     auto pipeline=device.create(r::ComputePipelineDesc{&shaders::rules::evolve,"simulation.cellular"});
     if(!pipeline)return std::unexpected(pipeline.error());result->pipeline_=*pipeline;
     if(program.moves()) {

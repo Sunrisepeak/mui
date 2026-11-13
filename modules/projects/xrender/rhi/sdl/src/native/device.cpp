@@ -592,7 +592,10 @@ Result<Submission> SdlDevice::run(const CommandList& list) {
         }
     }
     if (total) {
-        if (!transfer(upload_, upload_capacity_, total, SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD))
+        // Never smaller than 8 MiB: making the buffer again larger costs milliseconds (measured on an
+        // RTX 4080: some 14 ms for 16 MiB), which a frame in the middle of a run has not got; a frame's
+        // usual uploads fit the first one.
+        if (!transfer(upload_, upload_capacity_, std::max<std::uint32_t>(total, 8u << 20), SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD))
             return fail(Errc::out_of_memory, sdl_error("creating the upload buffer"));
         auto* mapped = static_cast<std::byte*>(SDL_MapGPUTransferBuffer(device_, upload_, true));
         if (!mapped) return fail(Errc::backend, sdl_error("mapping the upload buffer"));

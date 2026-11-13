@@ -7,7 +7,8 @@
 // axis-aligned rectangle's coverage is the area of the pixel inside it,
 // gradients are looked up in the CPU's own 256-entry tables at the same
 // index, and paths, strokes, glyphs, box shadows and rounded clips are
-// coverage the CPU rasteriser produces, placed in an atlas. A rounded
+// coverage the CPU rasteriser produces, placed in an atlas (a glyph in motion
+// may be covered from its outline instead: GpuOptions::glyph_masks). A rounded
 // rectangle is covered by the exact area of its circles (the CPU, flattening
 // arcs within 1/32 pixel, is within a few levels of it); rotated rectangles
 // use signed distances. Layers are
@@ -43,6 +44,14 @@ export import :blend_shaders;
 
 export namespace xrender {
 
+// The glyph masks a frame may make where frames follow one another (a host's
+// window, a benchmark of one): none. Text and smoothed corners are their
+// outlines' at every frame — each glyph where it is to the fraction of a
+// pixel, not at a cache's quarter — so a scale that changes rasterises
+// nothing, and nothing is swapped for another picture when it comes to rest:
+// a zoom neither stalls nor jumps (GpuOptions::glyph_masks).
+inline constexpr std::size_t glyph_masks_a_live_frame = 0;
+
 struct GpuOptions {
     float scale = 1.0f;  // physical pixels per logical pixel
     bool  clear = true;
@@ -52,6 +61,17 @@ struct GpuOptions {
     // an engine's view — premultiplied, sampled. None for an id: skipped and
     // counted, as the CPU renderer counts every one.
     std::function<std::optional<mlibs::rhi::Texture>(std::uint64_t id)> external;
+    // How many glyph masks one frame may rasterise and upload. Unlimited (the
+    // default): every glyph by its mask, the CPU's own bytes. Limited (what a
+    // host drawing frame after frame gives): a glyph whose mask the atlas has
+    // not got is covered on the device from its outline — the exact area of
+    // its flattened contours, the same at every size and place, within a few
+    // levels of the mask — and takes its mask once it has been asked for at
+    // the same size and place in two frames running, this many a frame (0:
+    // never — the outlines at rest too, nothing swapped). Text under a
+    // changing scale or transform costs no rasterising. RenderReport's
+    // glyphs_outlined says how many a frame drew so.
+    std::size_t glyph_masks = std::numeric_limits<std::size_t>::max();
 };
 
 class GpuRenderer {

@@ -40,6 +40,7 @@ static const int KIND_RRECT = 1;
 static const int KIND_MASK = 2;
 static const int KIND_IMAGE = 3;
 static const int KIND_RRING = 4;  // a rounded rectangle's stroke: the rrect (the stroke's outer edge) less the one shape.x inside it
+static const int KIND_GLYPH = 5;  // a glyph or a path covered from its outline's points (glyph_coverage): radii its transform a, b, c, d; uv its e, f, first point, points; m0, shape.x, shape.w its plain part
 
 static const int FLAG_AXIS_ALIGNED = 1;   // the transform maps the rectangle to an axis-aligned one
 static const int FLAG_CLIP_MASK = 2;      // multiply by the clip mask
@@ -48,7 +49,7 @@ static const int FLAG_LAYER = 8;          // a layer composited: its pixel at th
 
 struct Frame {
     float4 size;   // target width, height; atlas width, height
-    float4 ramps;  // the ramp texture's rows, -, -, -
+    float4 ramps;  // the ramp texture's rows; the outline points' texture: width, height; -
 };
 
 struct Lit {
@@ -70,7 +71,7 @@ VOut vertex_at(Prim i, uint vertex, Frame frame) {
     const int kind = int(i.m1.z);
     VOut o;
     float2 device;
-    if (kind == KIND_MASK) {
+    if (kind == KIND_MASK || kind == KIND_GLYPH) {
         o.local = i.rect.xy + t * i.rect.zw;  // device space
         device = o.local;
     } else {
@@ -308,6 +309,15 @@ uint4 paint_from(Sampler2D ramp_source, Sampler2D image_source, float ramp_count
 }
 
 
+// A shape's coverage under the clip: its rectangle covers by rect_coverage
+// (a pixel-aligned one is all or nothing), its mask by its bytes.
+uint clipped(Sampler2D clip_source, Frame frame, VOut i, float2 p, int2 px, int flags, uint k) {
+    const uint clip = rect_coverage(px, i.clip);
+    if (clip != 255) k = mul255(k, clip);
+    if ((flags & FLAG_CLIP_MASK) != 0) k = mul255(k, bytes(clip_source.SampleLevel(p / frame.size.xy, 0)).r);
+    return k;
+}
+
 uint coverage_at(Sampler2D atlas_source, Sampler2D clip_source, Frame frame, VOut i, float2 p, int2 px, int kind, int flags) {
     uint k;
     if ((flags & FLAG_LAYER) != 0) {
@@ -340,12 +350,63 @@ uint coverage_at(Sampler2D atlas_source, Sampler2D clip_source, Frame frame, VOu
         }
         k = coverage_byte(f);
     }
-    // The clip: its rectangle covers by rect_coverage (a pixel-aligned one is
-    // all or nothing), its mask by its bytes.
-    const uint clip = rect_coverage(px, i.clip);
-    if (clip != 255) k = mul255(k, clip);
-    if ((flags & FLAG_CLIP_MASK) != 0) k = mul255(k, bytes(clip_source.SampleLevel(p / frame.size.xy, 0)).r);
-    return k;
+    return clipped(clip_source, frame, i, p, px, flags, k);
+}
+
+// How much of the pixel whose corner is the origin lies to the right of the
+// edge a → b, times the height of the edge within the pixel's row, signed by
+// its direction: summed over a closed outline's edges, the area of the pixel
+// inside it (the exact area under a straight edge, as the CPU's rasteriser
+// accumulates it).
+float edge_area(float2 a, float2 b) {
+    const float y0 = clamp(a.y, 0.0, 1.0), y1 = clamp(b.y, 0.0, 1.0);
+    const float dy = y0 - y1;
+    if (dy == 0) return 0;
+    const float slope = (b.x - a.x) / (b.y - a.y);
+    const float x0 = a.x + (y0 - a.y) * slope, x1 = a.x + (y1 - a.y) * slope;
+    const float lo = min(x0, x1), hi = max(x0, x1);
+    if (lo >= 1) return 0;
+    // An upright edge: the mean of its ends (the general form divides by its width).
+    if (hi - lo < 1e-4) return (1 - clamp(0.5 * (lo + hi), 0.0, 1.0)) * dy;
+    const float right = min(hi, 1.0), inside = max(right, 0.0), left = max(lo, 0.0);
+    return (right + 0.5 * (left * left - inside * inside) - lo) / (hi - lo) * dy;
+}
+
+// A glyph's coverage from its outline (KIND_GLYPH): its flattened contours'
+// points, in ems, read from `points` (two texels a point, 1024 points a row;
+// an x past 1e29 begins a contour), taken to the device by the glyph's own
+// transform. The same at every size and place: nothing is rasterised again
+// when a glyph is scaled. Non-zero winding as the area's magnitude, which is
+// exact where contours do not overlap.
+uint glyph_coverage(Sampler2D points, Frame frame, VOut i, float2 p) {
+    if (i.shape.w > 0) {
+        // The plain part (m0: a device rectangle; shape.x: its corners' reach): a pixel wholly inside
+        // it and in no corner is covered (shape.w 1) or not at all (2) without the outline read.
+        const float2 lo = floor(p), hi = lo + 1;
+        const bool inside = lo.x >= i.m0.x && lo.y >= i.m0.y && hi.x <= i.m0.z && hi.y <= i.m0.w;
+        const bool corner = (lo.x < i.m0.x + i.shape.x || hi.x > i.m0.z - i.shape.x) && (lo.y < i.m0.y + i.shape.x || hi.y > i.m0.w - i.shape.x);
+        if (inside && !corner) return i.shape.w < 1.5 ? 255u : 0u;
+    }
+    const float2 origin = i.uv.xy - floor(p);
+    const int first = int(i.uv.z), count = int(i.uv.w);
+    float area = 0;
+    float2 before = float2(0, 0);
+    bool open = false;
+    for (int n = 0; n < count; ++n) {
+        const int at = first + n;
+        const float2 texel = float2(float((at % 1024) * 2) + 0.5, float(at / 1024) + 0.5);
+        const float x = points.SampleLevel(texel / frame.ramps.yz, 0).r;
+        if (x > 1e29) {
+            open = false;
+            continue;
+        }
+        const float y = points.SampleLevel((texel + float2(1, 0)) / frame.ramps.yz, 0).r;
+        const float2 now = float2(i.radii.x * x + i.radii.z * y, i.radii.y * x + i.radii.w * y) + origin;
+        if (open) area += edge_area(before, now);
+        before = now;
+        open = true;
+    }
+    return coverage_byte(min(abs(area), 1.0));
 }
 
 uint lit_channel(uint v, float k, float rc, float rim, float a) {

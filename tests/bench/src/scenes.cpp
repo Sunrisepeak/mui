@@ -107,16 +107,20 @@ HeadlessOptions scene_options(HeadlessLevel level = HeadlessLevel::pixels) {
 class Gpu {
 public:
     explicit Gpu(Size size) {
-        xrender::rhi::sdl::Options o;
-        o.formats = xrender::gpu_shader_formats();
-        if (auto lib = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) o.vulkan_library = *lib;
-        if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) o.video_driver = *video;
-        auto device = xrender::rhi::sdl::create(o);
-        if (!device) {
-            why_ = std::format("no GPU device ({})", device.error().message);
+        // One device for the program's benchmarks, as a program has one: a device a benchmark
+        // gave out at the fifteenth (a driver's limit of them in a process), and the later ones were skipped.
+        static mlibs::rhi::Result<std::unique_ptr<mlibs::rhi::Device>> shared = [] {
+            xrender::rhi::sdl::Options o;
+            o.formats = xrender::gpu_shader_formats();
+            if (auto lib = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) o.vulkan_library = *lib;
+            if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) o.video_driver = *video;
+            return xrender::rhi::sdl::create(o);
+        }();
+        if (!shared) {
+            why_ = std::format("no GPU device ({})", shared.error().message);
             return;
         }
-        device_ = std::move(*device);
+        device_ = shared->get();
         auto renderer = xrender::GpuRenderer::create(*device_);
         if (!renderer) {
             why_ = std::format("the GPU renderer: {}", renderer.error().message);
@@ -133,6 +137,8 @@ public:
         target_ = *target;
     }
     ~Gpu() {
+        if (device_) static_cast<void>(device_->wait_idle());
+        renderer_.reset();
         if (device_ && target_) device_->destroy(target_);
     }
     Gpu(const Gpu&) = delete;
@@ -152,23 +158,31 @@ public:
     // The list drawn whole into the frame and waited for: counted as gpu_ms,
     // of which encode_ms is the CPU's (the list encoded and submitted), and
     // what it uploaded (uploaded_kb: new images, new masks, the instances).
-    void draw(State& s, const xrender::DisplayList& list, const xrender::Resources& resources, Color background) {
+    // Returns the frame's milliseconds (0: not a frame) and leaves its report in `last`.
+    double draw(State& s, const xrender::DisplayList& list, const xrender::Resources& resources, Color background) {
         const auto t0 = std::chrono::steady_clock::now();
-        auto r = renderer_->render(list, target_, resources, {.scale = 1, .clear = true, .background = background});
-        s.counter("encode_ms", std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count());
+        auto r = renderer_->render(list, target_, resources, {.scale = 1, .clear = true, .background = background, .glyph_masks = xrender::glyph_masks_a_live_frame});
+        last_encode_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+        s.counter("encode_ms", last_encode_ms);
         if (r) s.counter("uploaded_kb", static_cast<double>(r->uploaded) / 1024.0);
+        if (r) s.counter("masks_made", static_cast<double>(r->masks_made)), s.counter("masks_reused", static_cast<double>(r->masks_reused)),
+                   s.counter("glyphs_outlined", static_cast<double>(r->glyphs_outlined));
         auto w = device_->wait_idle();
         const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
         if (!r || !w) {  // not a frame: nothing timed counts
             s.fail(std::format("the GPU frame failed: {}", !r ? r.error().message : w.error().message));
-            return;
+            return 0;
         }
+        last = *r;
         s.counter("gpu_ms", ms);
         s.counter("software", device_->caps().software ? 1 : 0);
+        return ms;
     }
+    xrender::RenderReport last{};
+    double                last_encode_ms = 0;
 
 private:
-    std::unique_ptr<mlibs::rhi::Device>       device_;
+    mlibs::rhi::Device*                device_ = nullptr;  // the program's, shared
     std::optional<xrender::GpuRenderer> renderer_;
     mlibs::rhi::Texture                       target_{};
     std::string                        why_;
@@ -522,13 +536,28 @@ void add_framework_benchmarks() {
         w.camera(b.x + b.width / 2, b.y + b.height / 2, 0.01);
         xrender::text::GlyphCache glyphs(w.h.runtime().fonts());
         float dir = -1;
+        double      slowest_ms = 0;
+        std::string slowest;
         while (s.next()) {
             const double z = w.model.zoom.peek();
             if (z >= 4) dir = 1;
             if (z <= 0.01) dir = -1;
             w.frame(s, {WheelEvent{.position = {960, 540}, .delta = {0, 60 * dir}}});
-            gpu.draw(s, w.h.runtime().display_list(), {&w.h.runtime().images(), &glyphs}, Color::white());
+            const double ms = gpu.draw(s, w.h.runtime().display_list(), {&w.h.runtime().images(), &glyphs}, Color::white());
+            if (ms > slowest_ms) {
+                slowest_ms = ms;
+                slowest = std::format("{:.1f} ms ({:.1f} encoding) at zoom {:.3f}: {} commands, {} outlined, {} masks made, {} KB sent", ms, gpu.last_encode_ms, z,
+                                      w.h.runtime().display_list().commands().size(), gpu.last.glyphs_outlined, gpu.last.masks_made, gpu.last.uploaded / 1024);
+            }
         }
+        s.note("slowest", slowest);
+        // What the last frame's list was made of: where a frame's masks come from.
+        std::array<std::size_t, std::variant_size_v<xrender::Command>> kinds{};
+        for (const xrender::Command& command : w.h.runtime().display_list().commands()) ++kinds[command.index()];
+        std::string made_of;
+        for (std::size_t kind = 0; kind < kinds.size(); ++kind)
+            if (kinds[kind] > 0) made_of += std::format("{}{} {}", made_of.empty() ? "" : ", ", kinds[kind], xrender::command_kind_name(kind));
+        s.note("list", made_of);
     });
     add("wall/pan-1000", "1000 windows as textures (about 160 px each), a trackpad pans every frame", [](State& s) {
         Wall w(1000, 40, "bench-wall-pan");
@@ -644,6 +673,29 @@ void add_framework_benchmarks() {
         xrender::ImageStore images;
         while (s.next()) gpu.draw(s, dl, {&images, nullptr}, Color::hex(0x0f172a));
     });
+
+    // What a new image costs a frame: a megabyte of pixels entering the store every frame (a canvas's
+    // window textures as they arrive), drawn once; gpu_ms a megabyte is what a frame's budget of new
+    // pixels is set from.
+    for (const int megabytes : {1, 4, 16})
+        add(std::format("render/new-image-{}mb-gpu", megabytes), "a new image of that size every frame: made, sent, drawn, waited for", [megabytes](State& s) {
+            Gpu gpu(full_hd);
+            if (!gpu.ready(s)) return;
+            const int side = megabytes == 1 ? 512 : megabytes == 4 ? 1024 : 2048;
+            auto pixels = std::make_shared<xrender::raster::Surface>(side, side);
+            for (int row = 0; row < side; ++row)
+                for (int column = 0; column < side; ++column)
+                    pixels->at(column, row) = {static_cast<std::uint8_t>(column), static_cast<std::uint8_t>(row), 120, 255};
+            xrender::ImageStore images;
+            xrender::ImageRef   before{};
+            while (s.next()) {
+                if (before.id) images.remove(before);
+                before = images.add(std::shared_ptr<const xrender::raster::Surface>(pixels));
+                xrender::DisplayList dl;
+                dl.draw_image(before, {0, 0, static_cast<float>(side), static_cast<float>(side)}, {0, 0, 512, 512}, xrender::Sampling::nearest);
+                gpu.draw(s, dl, {&images, nullptr}, Color::white());
+            }
+        });
 
     // ── S2 (§19.3): every style pack's frame on the GPU — the studio at
     // 1080p, the volume slider moving every frame so every frame is drawn;

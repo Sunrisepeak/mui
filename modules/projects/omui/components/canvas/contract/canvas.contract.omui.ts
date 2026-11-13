@@ -35,8 +35,8 @@ export default defineContract({
       },
       upload_mb: {
         type: "f64",
-        default: 16,
-        doc: "Textures entering the frame at most (MiB a frame): what a GPU uploads stays within a frame's budget.",
+        default: 4,
+        doc: "Textures entering the frame at most (MiB a frame): what a GPU uploads stays within a frame's budget (measured on an RTX 4080: a quarter to half a millisecond a MiB; 4 leave a 120 Hz frame most of its 8.3 ms).",
       },
       promotion: {
         type: "string",

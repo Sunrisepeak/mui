@@ -30,7 +30,7 @@ class Textures {
 public:
     struct Options {
         std::size_t budget = std::size_t{256} << 20;  // bytes of textures kept
-        std::size_t upload = std::size_t{16} << 20;   // bytes entering the store per frame
+        std::size_t upload = std::size_t{4} << 20;    // bytes entering the store per frame
         std::size_t jobs = 0;                          // in flight at once (0: twice the pool's threads)
         int         max_side = 4096;                   // a texture's largest side, pixels
     };

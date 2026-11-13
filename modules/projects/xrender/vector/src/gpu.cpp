@@ -20,7 +20,7 @@ struct Prim {
 };
 static_assert(sizeof(Prim) == 12 * 16);
 
-constexpr float kind_rect = 0, kind_rrect = 1, kind_mask = 2, kind_image = 3, kind_rring = 4;
+constexpr float kind_rect = 0, kind_rrect = 1, kind_mask = 2, kind_image = 3, kind_rring = 4, kind_glyph = 5;
 constexpr int flag_axis = 1, flag_clip_mask = 2, flag_linear = 4, flag_layer = 8;
 
 // A value 0…1 as a byte, the way raster rounds opacities.
@@ -242,6 +242,33 @@ struct GpuRenderer::Impl {
     static constexpr std::uint32_t atlas_soft_rows = 2048;
     bool                  atlas_second_pass = false;
     std::size_t           masks_made = 0, masks_reused = 0;  // this encoding's
+    std::vector<std::vector<Draw>> draw_lists;  // the last frame's passes' draws, emptied, for this frame's
+    // Glyphs' outlines for the device (GpuOptions::glyph_masks, the shader's
+    // KIND_GLYPH): each one's contours flattened once a level of size — as
+    // finely as the CPU flattens at the level's largest — and kept in a
+    // texture of floats, two a point (ems), 1024 points a row; an x of
+    // `contour_begins` starts a contour.
+    struct Outlined {
+        std::uint32_t first = 0, count = 0;  // points
+        Rect          bounds;                // ems
+        bool          blank = false;         // no outline and no image (a space): nothing to draw
+    };
+    static constexpr std::uint32_t outline_w = 2048;
+    static constexpr float         contour_begins = 1e30f;
+    static constexpr float         outline_largest = 512;  // pixels an em: past it a glyph is its mask
+    static constexpr std::size_t   outline_most = std::size_t{outline_w} * 2048;  // floats: past it the store begins again
+    mlibs::rhi::Texture   outlines;
+    std::uint32_t         outline_rows = 0;         // the texture's
+    std::vector<float>    outline_points;           // what it holds, whole rows
+    std::size_t           outline_used = 0;         // floats written
+    std::size_t           outline_sent = 0;         // floats the texture has
+    std::unordered_map<std::uint64_t, Outlined> outlined;  // by font, glyph, level; none of points: not to be drawn so
+    xrender::raster::Polygons outline_scratch;
+    // The masks asked for and not in the atlas, this frame and (sorted) the
+    // one before: a mask is made for what was asked twice running.
+    std::vector<std::uint64_t> asked, asked_before;
+    std::size_t           glyph_masks = 0, glyph_masks_made = 0, glyphs_outlined = 0;
+
     std::optional<xrender::raster::PixelRect> too_wide;     // a mask wider than the atlas (an error)
     std::vector<mlibs::rhi::Texture> retired;             // atlases grown out of, destroyed after the submission
     // Rounded and path clips' masks, surface-sized, by what made them.
@@ -314,7 +341,7 @@ struct GpuRenderer::Impl {
         for (const Spare& sp : spares) d.destroy(sp.texture);
         for (auto& [k, c] : clip_masks) d.destroy(c.texture);
         for (mlibs::rhi::Texture t : retired) d.destroy(t);
-        for (mlibs::rhi::Texture t : {white, white_mask, zero_row, ramps, atlas}) d.destroy(t);
+        for (mlibs::rhi::Texture t : {white, white_mask, zero_row, ramps, atlas, outlines}) d.destroy(t);
         d.destroy(instances);
         d.destroy(nearest);
         for (mlibs::rhi::GraphicsPipeline p : {pipeline, lit_pipeline, blend_pipeline, blur_pipeline, particles_pipeline, material_pipeline, material_lit_pipeline}) d.destroy(p);
@@ -412,6 +439,116 @@ struct GpuRenderer::Impl {
         atlas = *t;
         atlas_h = 1024;
         return {};
+    }
+
+    // The outlines' texture with room for what is kept: made again larger,
+    // and sent whole, when it has not.
+    mlibs::rhi::Result<void> ensure_outlines() {
+        const auto rows = static_cast<std::uint32_t>(std::max<std::size_t>(1, outline_points.size() / outline_w));
+        if (outlines && rows <= outline_rows) return {};
+        std::uint32_t cap = std::max<std::uint32_t>(64, outline_rows);
+        while (cap < rows) cap *= 2;
+        auto t = d.create(mlibs::rhi::TextureDesc{mlibs::rhi::Format::r32_float, outline_w, cap, mlibs::rhi::TextureUsage::sampled, "render.outlines"});
+        if (!t) return std::unexpected(t.error());
+        if (outlines) retired.push_back(outlines);
+        outlines = *t;
+        outline_rows = cap;
+        outline_sent = 0;
+        return {};
+    }
+
+    // Whether a mask the atlas has not got may be made this frame: always
+    // when masks are unlimited; else when it was asked for in the frame
+    // before too and the frame has made fewer than its number.
+    bool may_make(std::uint64_t key) {
+        if (glyph_masks == std::numeric_limits<std::size_t>::max()) return true;
+        asked.push_back(key);
+        if (glyph_masks_made < glyph_masks && std::ranges::binary_search(asked_before, key)) {
+            ++glyph_masks_made;
+            return true;
+        }
+        return false;
+    }
+
+    // The level of size an outline is kept at for `scale` device pixels a
+    // unit of its own: the power of two at or past it, flattened as finely as
+    // the CPU flattens there (1/32 pixel), so finer below it.
+    static float level_top(float scale) {
+        float top = 1.0f / 256;
+        while (top < scale) top *= 2;
+        return top;
+    }
+
+    // Contours kept for the device under `key`: `path`'s, and `hole`'s wound
+    // the other way (a ring: what the first covers less what the second
+    // does), flattened at `top` pixels a unit. No points: nothing to keep.
+    Outlined& outline_kept(std::uint64_t key, xrender::raster::PathData path, xrender::raster::PathData hole, float top) {
+        Outlined made;
+        const std::size_t begun = outline_used;
+        auto put = [&](float x, float y) {
+            if (outline_used + 2 > outline_points.size()) outline_points.resize(outline_points.size() + outline_w, 0.0f);
+            outline_points[outline_used++] = x;
+            outline_points[outline_used++] = y;
+        };
+        float x0 = std::numeric_limits<float>::max(), y0 = x0, x1 = -x0, y1 = -x0;
+        auto contours = [&](xrender::raster::PathData from, bool turned) {
+            if (from.verbs.empty()) return;
+            outline_scratch.clear();
+            xrender::raster::flatten(from, Affine::scale(top, top), outline_scratch);
+            for (std::size_t polygon = 0; polygon < outline_scratch.count(); ++polygon) {
+                const std::span<const Point> points = outline_scratch.polygon(polygon);
+                if (points.size() < 3) continue;
+                put(contour_begins, 0);
+                for (std::size_t index = 0; index <= points.size(); ++index) {
+                    const std::size_t from_first = index % points.size();
+                    const Point& point = points[turned ? points.size() - 1 - from_first : from_first];
+                    const float x = point.x / top, y = point.y / top;
+                    put(x, y);
+                    x0 = std::min(x0, x), y0 = std::min(y0, y), x1 = std::max(x1, x), y1 = std::max(y1, y);
+                }
+            }
+        };
+        contours(path, false);
+        contours(hole, true);
+        if (outline_used > begun) {
+            made.first = static_cast<std::uint32_t>(begun / 2);
+            made.count = static_cast<std::uint32_t>((outline_used - begun) / 2);
+            made.bounds = {x0, y0, x1 - x0, y1 - y0};
+        }
+        return outlined.emplace(key, made).first->second;
+    }
+
+    // A glyph's outline for the device at `scale` pixels an em; none when it
+    // is not to be drawn so: a colour glyph, a scale past the largest level.
+    // One of no points and `blank` is drawn, as nothing.
+    const Outlined* outline_of(GlyphSource& glyphs, FontRef font, std::uint32_t glyph, float scale) {
+        if (!(scale > 0) || scale > outline_largest) return nullptr;
+        const float top = level_top(scale);
+        Key k;
+        k.u64(7).u64(font.id).u64(glyph).f32(top);
+        const std::uint64_t key = k.value();
+        if (auto it = outlined.find(key); it != outlined.end()) return it->second.count > 0 || it->second.blank ? &it->second : nullptr;
+        // A colour glyph has its layers' image, whatever outline it also has.
+        const bool colour = glyphs.mask(font, glyph, 16, {0, 0}).color != nullptr;
+        Outlined& kept = outline_kept(key, colour ? xrender::raster::PathData{} : glyphs.outline(font, glyph), {}, top);
+        kept.blank = kept.count == 0 && !colour;
+        return kept.count > 0 || kept.blank ? &kept : nullptr;
+    }
+
+    // A shape's contours for the device at `scale` pixels a unit, by
+    // `shape`, a key of what it is: kept, or `make` keeps them (outline_kept
+    // under the key and at the level it is given). None when it has no
+    // points or the scale is past the largest level.
+    template <class Make>
+    const Outlined* outline_of(std::uint64_t shape, float scale, Make&& make) {
+        if (!(scale > 0) || scale > outline_largest) return nullptr;
+        const float top = level_top(scale);
+        Key k;
+        k.u64(8).u64(shape).f32(top);
+        const std::uint64_t key = k.value();
+        if (auto it = outlined.find(key); it != outlined.end()) return it->second.count > 0 ? &it->second : nullptr;
+        const Outlined& kept = make(key, top);
+        return kept.count > 0 ? &kept : nullptr;
     }
 
     // Twice the rows, what it held copied over (in the list, after the
@@ -745,6 +882,13 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
     g.images_used.clear();
     g.list.clear();
     if (auto a = g.ensure_atlas(); !a) return std::unexpected(a.error());
+    g.glyph_masks = options.glyph_masks;
+    if (g.outline_used > Impl::outline_most) {
+        // The outlines kept have outgrown their store: begun again, this frame's kept anew.
+        g.outlined.clear();
+        g.outline_points.clear();
+        g.outline_used = g.outline_sent = 0;
+    }
     mlibs::rhi::Error failure{};
     bool failed = false;
     bool bounds_measured=false;
@@ -759,6 +903,13 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
     // The frame, encoded: the passes and their draws. Run again, once, with
     // the atlas emptied when this frame's masks did not fit what it held.
     auto encode = [&] {
+        // The passes' lists of draws are kept for the next frame's: a frame of many thousand draws
+        // grows none of them again.
+        for (Pass& pass : g.passes)
+            if (pass.draws.capacity() > 0) {
+                pass.draws.clear();
+                g.draw_lists.push_back(std::move(pass.draws));
+            }
         g.passes.clear();
         g.graph.clear();
         g.ramp_rows.clear();
@@ -766,6 +917,8 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
         g.rows.clear();
         g.atlas_overflow = false;
         g.masks_made = g.masks_reused = 0;
+        g.asked.clear();
+        g.glyph_masks_made = g.glyphs_outlined = 0;
         // The surface drawn into: the target, or an effect layer's own.
         struct Surface {
             std::uint32_t w, h;
@@ -782,6 +935,12 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
             p.h = h;
             p.load = load;
             p.clear = clear;
+            if (!g.draw_lists.empty()) {
+                // The roomiest first: the frame's first pass is its largest.
+                const auto roomiest = std::ranges::max_element(g.draw_lists, {}, [](const std::vector<Draw>& draws) { return draws.capacity(); });
+                p.draws = std::move(*roomiest);
+                g.draw_lists.erase(roomiest);
+            }
             g.passes.push_back(std::move(p));
             current = g.passes.size() - 1;
         };
@@ -985,6 +1144,79 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                 static_cast<float>(e->bounds.height));
             set(p.uv, static_cast<float>(e->x), static_cast<float>(e->y), 0, 0);
             emit(std::move(d));
+        };
+        // A glyph covered on the device from its outline (KIND_GLYPH), `to` taking its ems to the device.
+        // `plain`: a device rectangle, corners of `reach` aside, whose pixels need no outline read — wholly
+        // covered (`covered`), or not at all (a ring's inside).
+        struct Plain {
+            Rect  box;
+            float reach = 0;
+            bool  covered = true;
+        };
+        auto outline_glyph = [&](const Impl::Outlined& outline, const Affine& to, const Paint& paint, float scale, const Plain* plain = nullptr) {
+            const Rect  box = to.map(outline.bounds);
+            const float x0 = std::floor(box.x) - 1, y0 = std::floor(box.y) - 1;
+            const float width = std::ceil(box.right()) + 1 - x0, height = std::ceil(box.bottom()) + 1 - y0;
+            Draw d;
+            Prim& p = d.prim;
+            int flags = 0;
+            if (!paint_into(p, d, flags, paint, {x0, y0, width, height})) return;
+            p.shape[1] = byte_of(scale);
+            clip_into(p, d, flags);
+            transform(p, Affine{}, kind_glyph, flags);
+            set(p.rect, x0, y0, width, height);
+            set(p.radii, to.a, to.b, to.c, to.d);
+            set(p.uv, to.e, to.f, static_cast<float>(outline.first), static_cast<float>(outline.count));
+            if (plain) {
+                edges(p.m0, plain->box);
+                p.shape[0] = plain->reach;
+                p.shape[3] = plain->covered ? 1.0f : 2.0f;
+            }
+            ++g.glyphs_outlined;
+            emit(std::move(d));
+        };
+        // A glyph whose mask the atlas has not got: true when it was drawn from its outline instead
+        // (the frame's masks are limited, and this one is not yet to be made).
+        auto outlined_instead = [&](std::uint64_t key, const DrawGlyphs& c, std::uint32_t glyph, const Affine& to, const Paint& paint, float scale) {
+            if (g.may_make(key)) return false;
+            const Impl::Outlined* outline = g.outline_of(*res.glyphs, c.font, glyph, to.max_scale());
+            if (!outline) return false;
+            if (outline->count > 0) outline_glyph(*outline, to, paint, scale);
+            return true;
+        };
+        // A smoothed rounded rectangle (its stroke of `width`, when not 0) whose mask the atlas has not
+        // got, drawn from its outline instead when the frame's masks are limited: true when it was. The
+        // outline is the shape's at the origin, by its size, radii and width: rectangles alike share one,
+        // and one met before costs no path.
+        auto rounded_instead = [&](std::uint64_t key, const Rect& rect, const CornerRadii& corners, float width, const Paint& paint) {
+            if (g.cached.contains(key) || g.may_make(key)) return false;
+            const Affine& mm = m();
+            const Rect    placed{0, 0, rect.width, rect.height};
+            const bool    stroke = width > 0;
+            const Ring    ring = stroke ? stroke_ring(placed, corners, width) : Ring{};
+            Key shape;
+            shape.f32(rect.width).f32(rect.height).radii(corners).f32(width);
+            const Impl::Outlined* kept = g.outline_of(shape.value(), mm.max_scale(), [&](std::uint64_t under, float top) -> Impl::Outlined& {
+                Path outer, inner;
+                outer.add_rounded_rect(stroke ? ring.outer : placed, stroke ? ring.outer_radii : corners);
+                if (stroke && ring.hollow) inner.add_rounded_rect(ring.inner, ring.inner_radii);
+                return g.outline_kept(under, outer.view(), inner.view(), top);
+            });
+            if (!kept) return false;
+            const Affine to = mm * Affine::translate(rect.x, rect.y);
+            Plain plain;
+            const bool upright = mm.b == 0 && mm.c == 0 && mm.a > 0 && mm.d > 0 && (!stroke || ring.hollow);
+            if (upright) {
+                // Past where a smoothed corner begins, (1 + smoothing) radii along the edge, the outline is the rectangle's.
+                const Rect&        within = stroke ? ring.inner : placed;
+                const CornerRadii& radii = stroke ? ring.inner_radii : corners;
+                const float largest = std::max({radii.top_left, radii.top_right, radii.bottom_right, radii.bottom_left});
+                plain.box = to.map(within);
+                plain.reach = (1 + radii.smoothing) * largest * std::max(mm.a, mm.d) + 1;
+                plain.covered = !stroke;
+            }
+            outline_glyph(*kept, to, paint, 1, upright ? &plain : nullptr);
+            return true;
         };
         // What every device-space mask's key starts with: the transform and the clip it was rasterised within.
         auto device_key = [&](std::uint64_t kind) {
@@ -1289,11 +1521,13 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                     } else if constexpr (std::same_as<T, FillRoundRect>) {
                         if (c.radii.smoothing > 0 && !c.radii.zero()) {
                             // Smoothed corners have no closed-form area: the shared outline's mask, as a path is drawn.
-                            Path outline;
-                            outline.add_rounded_rect(c.rect, c.radii);
-                            const auto key = device_key(3).path(outline.view()).u64(static_cast<std::uint64_t>(FillRule::nonzero)).value();
+                            // By what the outline is made of: one the atlas has costs no path.
+                            const auto key = device_key(9).rect(c.rect).radii(c.radii).value();
+                            if (rounded_instead(key, c.rect, c.radii, 0, c.paint)) return;
                             mask(g.cover(key,
                                          [&](xrender::raster::Coverage& cov) {
+                                             Path outline;
+                                             outline.add_rounded_rect(c.rect, c.radii);
                                              xrender::raster::fill_coverage(outline.view(), m(), FillRule::nonzero, pixels(clips.back()), cov);
                                          }),
                                  0, 0, c.paint);
@@ -1306,12 +1540,13 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                         const Ring ring = stroke_ring(c.rect, c.radii, c.width);
                         if (c.radii.smoothing > 0 && !c.radii.zero()) {
                             // Smoothed: the two outlines even-odd, through a mask, as the CPU fills them.
-                            Path outline;
-                            outline.add_rounded_rect(ring.outer, ring.outer_radii);
-                            if (ring.hollow) outline.add_rounded_rect(ring.inner, ring.inner_radii);
-                            const auto key = device_key(3).path(outline.view()).u64(static_cast<std::uint64_t>(FillRule::even_odd)).value();
+                            const auto key = device_key(10).rect(c.rect).radii(c.radii).f32(c.width).value();
+                            if (rounded_instead(key, c.rect, c.radii, c.width, c.paint)) return;
                             mask(g.cover(key,
                                          [&](xrender::raster::Coverage& cov) {
+                                             Path outline;
+                                             outline.add_rounded_rect(ring.outer, ring.outer_radii);
+                                             if (ring.hollow) outline.add_rounded_rect(ring.inner, ring.inner_radii);
                                              xrender::raster::fill_coverage(outline.view(), m(), FillRule::even_odd, pixels(clips.back()), cov);
                                          }),
                                  0, 0, c.paint);
@@ -1413,6 +1648,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                                     mask(&hit->second, static_cast<int>(call.ix), static_cast<int>(call.iy), paint, scale);
                                     continue;
                                 }
+                                if (hit == g.cached.end() && outlined_instead(key, c, gl.id, pl.outline, paint, scale)) continue;
                                 const GlyphMask gm = res.glyphs->mask(c.font, gl.id, call.size, call.fraction);
                                 if (gm.color) {
                                     if (hit == g.cached.end()) g.cached.emplace(key, Impl::Cached{.color = true, .last = g.frame_number});
@@ -1426,10 +1662,11 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                                     ++report.missing_glyphs;
                                 }
                             } else {
+                                Key k;
+                                k.u64(6).u64(c.font.id).u64(gl.id).affine(pl.outline).pixels(pixels(clips.back()));
+                                if (!g.cached.contains(k.value()) && outlined_instead(k.value(), c, gl.id, pl.outline, paint, scale)) continue;
                                 const xrender::raster::PathData outline = res.glyphs->outline(c.font, gl.id);
                                 if (!outline.verbs.empty()) {
-                                    Key k;
-                                    k.u64(6).u64(c.font.id).u64(gl.id).affine(pl.outline).pixels(pixels(clips.back()));
                                     mask(g.cover(k.value(),
                                                  [&](xrender::raster::Coverage& cov) {
                                                      xrender::raster::fill_coverage(outline, pl.outline, xrender::raster::FillRule::nonzero, pixels(clips.back()), cov);
@@ -1526,6 +1763,14 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
     } else if (auto r = g.ensure_ramps(1); !r) {
         return std::unexpected(r.error());
     }
+    if (auto o = g.ensure_outlines(); !o) return std::unexpected(o.error());
+    if (g.outline_used > g.outline_sent) {
+        // The rows the new points lie in (the first of them again, whole).
+        const std::size_t first_row = g.outline_sent / Impl::outline_w, rows = g.outline_points.size() / Impl::outline_w - first_row;
+        g.list.upload(g.outlines, mlibs::rhi::Region{0, static_cast<std::uint32_t>(first_row), Impl::outline_w, static_cast<std::uint32_t>(rows)},
+                      std::as_bytes(std::span(g.outline_points).subspan(first_row * Impl::outline_w)));
+        g.outline_sent = g.outline_used;
+    }
     std::size_t total = 0;
     for (const Pass& p : g.passes) total += p.draws.size();
     if (total > 0) {
@@ -1606,7 +1851,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
             list.begin_render({s.target, s.load, s.clear});
             if (!s.draws.empty()) {
                 const Frame frame{{static_cast<float>(s.w), static_cast<float>(s.h), static_cast<float>(g.atlas_w), static_cast<float>(g.atlas_h)},
-                                  {static_cast<float>(g.ramp_capacity), 0, 0, 0}};
+                                  {static_cast<float>(g.ramp_capacity), static_cast<float>(Impl::outline_w), static_cast<float>(g.outline_rows), 0}};
                 // The pipeline and what every draw binds; again when a run of lit
                 // images begins or ends (ui_lit_fs).
                 auto use = [&](mlibs::rhi::GraphicsPipeline pipeline) {
@@ -1615,7 +1860,10 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                     list.push_uniforms(mlibs::rhi::Stage::fragment, 0, frame);
                     list.bind_vertex_buffer(0, g.instances);
                     list.bind_texture(mlibs::rhi::Stage::fragment, 0, g.ramps, g.nearest);
-                    if (!s.material_mix) list.bind_texture(mlibs::rhi::Stage::fragment, 1, g.atlas, g.nearest);
+                    if (!s.material_mix) {
+                        list.bind_texture(mlibs::rhi::Stage::fragment, 1, g.atlas, g.nearest);
+                        list.bind_texture(mlibs::rhi::Stage::fragment, 4, g.outlines, g.nearest);
+                    }
                 };
                 use(s.material_mix ? g.material_pipeline : g.pipeline);
                 bool lit = false;
@@ -1635,7 +1883,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                     if (lit) {
                         if (head.lit != lit_pushed) list.push_uniforms(mlibs::rhi::Stage::fragment, 1, g.lits[static_cast<std::size_t>(head.lit)]);
                         lit_pushed = head.lit;
-                        list.bind_texture(mlibs::rhi::Stage::fragment, s.material_mix ? 2 : 4, head.normal, g.nearest);
+                        list.bind_texture(mlibs::rhi::Stage::fragment, s.material_mix ? 2 : 5, head.normal, g.nearest);
                     }
                     list.bind_texture(mlibs::rhi::Stage::fragment, s.material_mix ? 1 : 2, head.image ? head.image : g.white, g.nearest);
                     if (!s.material_mix) list.bind_texture(mlibs::rhi::Stage::fragment, 3, head.mask ? head.mask : g.white_mask, g.nearest);
@@ -1665,6 +1913,11 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
     report.rows = g.height;
     report.masks_made = g.masks_made;
     report.masks_reused = g.masks_reused;
+    report.glyphs_outlined = g.glyphs_outlined;
+    if (g.glyph_masks != std::numeric_limits<std::size_t>::max()) {
+        g.asked_before.swap(g.asked);
+        std::ranges::sort(g.asked_before);
+    }
     return report;
 }
 

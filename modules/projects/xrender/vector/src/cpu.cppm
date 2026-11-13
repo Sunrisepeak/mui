@@ -41,6 +41,9 @@ struct RenderReport {
     std::size_t masks_made = 0;
     std::size_t masks_reused = 0;
     bool        atlas_emptied = false;
+    // GPU: glyphs covered on the device from their outlines this frame
+    // (GpuOptions::glyph_masks); none when every glyph was its mask.
+    std::size_t glyphs_outlined = 0;
     // GPU: the frame's passes (render::Graph) that ran, and those left out
     // because nothing reads what they make.
     std::size_t gpu_passes = 0;

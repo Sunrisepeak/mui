@@ -30,6 +30,7 @@ mlibs::rhi::Result<const FrameReport*> GpuFrame::render(std::span<const FrameLay
         how.clear = options.clear && index == 0;
         how.background = options.background;
         how.external = options.external;
+        how.glyph_masks = options.glyph_masks;
         auto drawn = renderer_.render(*layer.list, target, layer.resources, how);
         if (!drawn) return std::unexpected(drawn.error());
         said.report = *drawn;

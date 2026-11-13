@@ -345,6 +345,7 @@ struct Desktop::Impl final : WindowHost {
             xrender::GpuFrameOptions how;
             how.background = options.background;
             how.external = [this](std::uint64_t number) { return shown_texture(number); };
+            how.glyph_masks = xrender::glyph_masks_a_live_frame;  // a window's frames: text is its outlines', in motion and at rest
             auto r = gpu->render({&ui_layer, 1}, gpu_frame, uw, uh, how);
             if (!r) {
                 warn("the GPU renderer: {}", r.error().message);

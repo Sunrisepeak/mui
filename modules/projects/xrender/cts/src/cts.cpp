@@ -191,6 +191,58 @@ private:
     std::map<std::uint32_t, std::unique_ptr<raster::PathBuilder>> outlines_;
 };
 
+// Glyphs with curves and holes: a disc, a ring (its inner contour wound the
+// other way), a bowl (a cubic and a quadratic), each an em tall or less.
+class Rounds final : public render::GlyphSource {
+public:
+    render::GlyphMask mask(render::FontRef font, std::uint32_t glyph, float size, geom::Point fraction) override {
+        const auto key = std::format("{}/{}/{}/{}", glyph, size, fraction.x, fraction.y);
+        auto it = masks_.find(key);
+        if (it == masks_.end()) {
+            auto made = std::make_unique<raster::Coverage>();
+            raster::fill_coverage(outline(font, glyph), geom::Affine::translate(fraction.x, fraction.y) * geom::Affine::scale(size, size),
+                                  raster::FillRule::nonzero, {-1000, -1000, 4000, 4000}, *made);
+            it = masks_.emplace(key, std::move(made)).first;
+        }
+        return {it->second.get(), nullptr, {}};
+    }
+    raster::PathData outline(render::FontRef, std::uint32_t glyph) override {
+        auto it = outlines_.find(glyph);
+        if (it == outlines_.end()) {
+            auto path = std::make_unique<raster::PathBuilder>();
+            // A circle as four cubics.
+            auto circle = [&](geom::Point centre, float radius) {
+                const float reach = radius * 0.5522848f;
+                path->move_to({centre.x + radius, centre.y});
+                path->cubic_to({centre.x + radius, centre.y + reach}, {centre.x + reach, centre.y + radius}, {centre.x, centre.y + radius});
+                path->cubic_to({centre.x - reach, centre.y + radius}, {centre.x - radius, centre.y + reach}, {centre.x - radius, centre.y});
+                path->cubic_to({centre.x - radius, centre.y - reach}, {centre.x - reach, centre.y - radius}, {centre.x, centre.y - radius});
+                path->cubic_to({centre.x + reach, centre.y - radius}, {centre.x + radius, centre.y - reach}, {centre.x + radius, centre.y});
+                path->close();
+            };
+            switch (glyph % 3) {
+            case 0: circle({0.3f, -0.35f}, 0.3f); break;
+            case 1:
+                circle({0.35f, -0.35f}, 0.34f);
+                // The hole, against the disc's direction.
+                path->move_to({0.35f, -0.55f}).quad_to({0.15f, -0.55f}, {0.15f, -0.35f}).quad_to({0.15f, -0.15f}, {0.35f, -0.15f});
+                path->quad_to({0.55f, -0.15f}, {0.55f, -0.35f}).quad_to({0.55f, -0.55f}, {0.35f, -0.55f}).close();
+                break;
+            default:
+                path->move_to({0.05f, -0.7f}).line_to({0.6f, -0.7f}).cubic_to({0.7f, -0.3f}, {0.5f, 0.0f}, {0.3f, 0.0f});
+                path->quad_to({0.0f, -0.1f}, {0.05f, -0.7f}).close();
+                break;
+            }
+            it = outlines_.emplace(glyph, std::move(path)).first;
+        }
+        return it->second->data();
+    }
+
+private:
+    std::map<std::string, std::unique_ptr<raster::Coverage>> masks_;
+    std::map<std::uint32_t, std::unique_ptr<raster::PathBuilder>> outlines_;
+};
+
 struct Tolerance {
     int         max_diff;        // the largest channel difference anywhere
     std::size_t max_off_pixels;  // pixels differing by more than 1
@@ -204,13 +256,16 @@ struct Rig {
     render::ImageStore   images;
     Boxes                glyphs;
     render::RenderReport last{};  // the GPU's, of the last compare
+    std::size_t          glyph_masks = std::numeric_limits<std::size_t>::max();  // GpuOptions::glyph_masks of the next compares
+    render::GlyphSource* source = nullptr;                                       // their glyphs, when not the boxes
 
     // Both renders of `dl`; how they differ.
     std::string compare(const render::DisplayList& dl, std::string_view name, Tolerance t, float scale = 1) {
         const geom::Color bg = geom::Color::hex(0xf8fafc);
         raster::Surface ref(W, H);
-        cpu.render(dl, ref, {&images, &glyphs}, {.scale = scale, .background = bg});
-        auto report = gpu.render(dl, target, {&images, &glyphs}, {.scale = scale, .background = bg});
+        render::GlyphSource* from = source ? source : &glyphs;
+        cpu.render(dl, ref, {&images, from}, {.scale = scale, .background = bg});
+        auto report = gpu.render(dl, target, {&images, from}, {.scale = scale, .background = bg, .glyph_masks = glyph_masks});
         if (!report) return std::format("{}: the GPU render failed: {}", name, report.error().message);
         last = *report;
         auto bytes = d.read(target, {0, 0, W, H});
@@ -770,6 +825,69 @@ void add(Cases& suite) {
         auto last = rig.gpu.render(few, *target, {&rig.images, &rig.glyphs}, {.scale = 1, .background = bg});
         check(last.has_value());
         if (last) check(last->masks_made + last->masks_reused == 30, "the first frame's masks, made again or kept");
+    });
+
+    add_case(suite, "render.vector.glyphs-outlined", mlibs::cts::Level::tolerance, [](Bench& bench) {  // a frame's glyph masks limited: text in motion is covered on the device from its outlines, at rest it is the reference's bytes
+        rhi::Device* device = &bench.device;
+        auto gpu = render::GpuRenderer::create(*device);
+        check(gpu.has_value(), gpu ? "" : gpu.error().message);
+        if (!gpu) return;
+        auto target = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, W, H, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "test.target"});
+        check(target.has_value());
+        if (!target) return;
+        Rig rig{*device, std::move(*gpu), {}, *target, {}, {}, {}};
+        Rounds rounds;
+        rig.source = &rounds;
+        auto text = [](render::DisplayList& dl, float size, float turn) {
+            std::array<render::Glyph, 6> run{};
+            for (std::uint32_t index = 0; index < run.size(); ++index) run[index] = {index, {static_cast<float>(index) * 0.8f * size, 0}, index, index, 0, 0};
+            dl.draw_glyphs({1}, size, {6.3f, 8.6f + size}, run, render::Paint::solid(geom::Color::hex(0x0f172a)));
+            std::array<render::GlyphStyle, 6> styles{};
+            styles[1].opacity = 0.5f;
+            styles[2].transform = render::rotate(turn);
+            styles[4].transform = geom::Affine::translate(0, -3) * render::rotate(-turn);
+            dl.draw_glyphs({1}, size, {6.3f, 12.2f + size * 2.2f}, run, gradient(render::GradientKind::linear, {0, 0}, {120, 0}, 0, render::Spread::pad, rainbow), styles);
+            // Smoothed corners have no closed form: a mask at rest, the same outlines in motion — the fill's, and a stroke's ring.
+            const geom::CornerRadii corners = geom::CornerRadii::all(11).smoothed(0.6f);
+            dl.fill_round_rect({70.3f, 58.6f, 50 + size, 44.5f}, corners, render::Paint::solid(geom::Color{0.1f, 0.5f, 0.3f, 0.7f}));
+            dl.stroke_round_rect({8.4f, 66.2f, 52.5f, 30 + size * 0.5f}, corners, 3, render::Paint::solid(geom::Color::hex(0xb91c1c)));
+        };
+        // A scale changing every frame, no mask ever made: each frame the outlines', within the reference's
+        // own flattening of a curve (chords within 1/32 pixel at the size drawn lose a little of a curved
+        // edge's pixels; the outlines are flattened at the level's largest size, finer): measured, 5 levels
+        // at the most, on curved edges only, the device's side the darker.
+        constexpr Tolerance moving{5, 400};
+        rig.glyph_masks = 0;
+        for (int frame = 0; frame < 6; ++frame) {
+            render::DisplayList dl;
+            const float size = 7.0f + static_cast<float>(frame) * 5.3f;
+            text(dl, size, 0.2f + 0.1f * static_cast<float>(frame));
+            const std::string problem = rig.compare(dl, std::format("glyphs outlined at {}", size), moving);
+            check(problem.empty(), problem);
+            check_eq(rig.last.glyphs_outlined, std::size_t{14});
+            check_eq(rig.last.masks_made, std::size_t{0});
+        }
+        // At rest with masks allowed: asked for once, drawn from outlines; asked again, made — the reference's bytes.
+        rig.glyph_masks = 256;
+        render::DisplayList still;
+        text(still, 21.5f, 0.35f);
+        check(rig.compare(still, "glyphs first asked", moving).empty(), "the first frame at rest");
+        check_eq(rig.last.glyphs_outlined, std::size_t{14});
+        const std::string settled = rig.compare(still, "glyphs at rest", {1, 0});
+        check(settled.empty(), settled);
+        check_eq(rig.last.glyphs_outlined, std::size_t{0});
+        check(rig.last.masks_made > 0, "the masks were made in the second frame");
+        check(rig.compare(still, "glyphs kept", {1, 0}).empty(), "the third frame");
+        check_eq(rig.last.masks_made, std::size_t{0});
+        // One mask a frame: the rest stay outlines until their turn.
+        rig.glyph_masks = 1;
+        render::DisplayList other;
+        text(other, 17.25f, 0.6f);
+        check(rig.compare(other, "glyphs, one mask a frame: asked", moving).empty(), "asked");
+        check(rig.compare(other, "glyphs, one mask a frame: first", moving).empty(), "the first made");
+        check_eq(rig.last.masks_made, std::size_t{1});
+        check_eq(rig.last.glyphs_outlined, std::size_t{13});
+        device->destroy(*target);
     });
 
     add_case(suite, "render.vector.graph-passes", mlibs::cts::Level::semantic, [](Bench& bench) {  // a frame is the render graph's (D-81): each pass that runs a trace span, the same passes frame after frame

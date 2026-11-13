@@ -109,6 +109,9 @@ struct GpuFrameOptions {
     // The textures a layer's external_texture() commands name, made on the same device (a video frame, an
     // engine's view); none for an id: skipped and counted.
     std::function<std::optional<mlibs::rhi::Texture>(std::uint64_t id)> external;
+    // GpuOptions::glyph_masks for every layer: unlimited (a picture to be read back, every glyph the
+    // reference's bytes), or what a host showing frame after frame gives (glyph_masks_a_live_frame).
+    std::size_t glyph_masks = std::numeric_limits<std::size_t>::max();
 };
 
 // Layers composed by the device's renderer into a colour target the host made (and presents, or reads back).

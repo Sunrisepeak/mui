@@ -153,5 +153,7 @@ float4 mesh_fs(VOut point) : SV_Target {
         const float share = apart > 0 ? through(-to_eye / apart, apart) : 1.0;
         colour = surface.fog.rgb + (colour - surface.fog.rgb) * share;
     }
+    // The light itself where the target holds it (what `Glow` takes); else through the display's curve.
+    if (surface.shine.w > 0.5) return float4(colour, 1);
     return float4(encoded(colour.r), encoded(colour.g), encoded(colour.b), 1);
 }

@@ -10,7 +10,7 @@
 // It takes what the reference takes — the scene, what `xrender.scene` extracted for the view, the materials,
 // the options — and depends on `mlibs.rhi`'s interface alone: the device is whoever made it (SDL_GPU, WebGPU).
 // What it draws is held to the reference by the device suites (a backend's tests), within a tolerance said
-// there. What it does not do yet is said in the README: shadows, ids, velocity.
+// there. What it does not do yet is said in the README.
 export module xrender.mesh.gpu;
 
 import std;
@@ -21,6 +21,7 @@ export import :mesh_shaders;
 export import :ids_shaders;
 export import :sky_shaders;
 export import :shadow_shaders;
+export import :glow_shaders;
 
 export namespace xrender::mesh::gpu {
 
@@ -46,8 +47,9 @@ struct Shadows {
 
 class Pass {
 public:
-    // The pipeline: the pass's shader, a depth test (`reversed`: the nearest at 1), an rgba8 target.
-    [[nodiscard]] static mlibs::rhi::Result<Pass> make(mlibs::rhi::Device& device, bool reversed_depth = false);
+    // The pipeline: the pass's shader, a depth test (`reversed`: the nearest at 1), an rgba8 target. `light`: the
+    // target is rgba16_float instead and holds the light before the display's curve — what `Glow` takes.
+    [[nodiscard]] static mlibs::rhi::Result<Pass> make(mlibs::rhi::Device& device, bool reversed_depth = false, bool light = false);
     Pass(Pass&& other) noexcept;
     Pass& operator=(Pass&& other) noexcept;
     ~Pass();
@@ -56,7 +58,7 @@ public:
     // uploaded and waited for. A mesh of no triangles has no buffer and is not drawn. Called again it replaces
     // what was loaded.
     [[nodiscard]] mlibs::rhi::Result<void> load(std::span<const mlibs::geom::ClusteredMesh* const> meshes);
-    // The frame, recorded: one pass on `colour` (rgba8_unorm, a colour target) and `depth` (d32_float, a depth
+    // The frame, recorded: one pass on `colour` (rgba8_unorm, or rgba16_float for a pass of light; a colour target) and `depth` (d32_float, a depth
     // target) of `width` × `height`, cleared to the background; where there is fog the background is drawn
     // through it first, each pixel along its own ray — the sky that clears upward, as the reference has it.
     void record(mlibs::rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, std::span<const Material> materials,
@@ -83,8 +85,31 @@ private:
     mlibs::rhi::Texture          no_shadow_;  // a texel, for the map's place when there is no map
     mlibs::rhi::Buffer           cover_;  // three corners over the picture: what the sky is drawn with
     std::vector<Loaded>          meshes_;
-    bool                         reversed_ = false;
+    bool                         reversed_ = false, light_ = false;
     Stats                        last_;
+};
+
+// The frame as shown, on a device (the reference: `xrender::mesh::Glow`): the light a pass of light drew, what of
+// it is brighter than the display spread about it, the display's curve. Six passes between two pictures of the
+// caller's and one onto `colour`.
+class Glow {
+public:
+    [[nodiscard]] static mlibs::rhi::Result<Glow> make(mlibs::rhi::Device& device);
+    Glow(Glow&& other) noexcept;
+    Glow& operator=(Glow&& other) noexcept;
+    ~Glow();
+    // `light`, `one`, `other`: rgba16_float, colour targets that can be sampled, `width` × `height` (`one` and
+    // `other` are working space); `colour`: rgba8_unorm, a colour target. With no radius: the light through the curve.
+    void record(mlibs::rhi::CommandList& list, mlibs::rhi::Texture light, mlibs::rhi::Texture one, mlibs::rhi::Texture other, mlibs::rhi::Texture colour, std::uint32_t width, std::uint32_t height,
+                const Bloom& bloom);
+
+private:
+    Glow() = default;
+    void release() noexcept;
+    mlibs::rhi::Device*          device_ = nullptr;
+    mlibs::rhi::GraphicsPipeline spread_, shown_;
+    mlibs::rhi::Sampler          nearest_;
+    mlibs::rhi::Buffer           cover_;
 };
 
 // The draw a pixel of an ids picture names (`pixels`: what the device read back of it, four bytes a pixel, the

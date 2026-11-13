@@ -47,5 +47,6 @@ float4 sky_fs(VOut point) : SV_Target {
         share = depth > 60 ? 0.0 : exp(-depth);
     }
     const float3 colour = sky.fog.rgb + (sky.background.rgb - sky.fog.rgb) * share;
+    if (sky.background.w > 0.5) return float4(colour, 1);  // the target holds the light itself
     return float4(encoded(colour.r), encoded(colour.g), encoded(colour.b), 1);
 }

@@ -285,4 +285,66 @@ UTest cases{"mesh.gpu.sdl", [] {
         expect(lt(static_cast<double>(all.off), 0.001 * static_cast<double>(all.compared)));
         expect(lt(all.mean, 0.1));
     };
+    "a lamp brighter than the display glows on the device as in the reference: the light kept before the curve, what is above it spread, then shown"_test = [] {
+        auto device = open_device();
+        if (!device) return;
+        Yard yard;
+        yard.materials[4].emissive = {9.0f, 5.0f, 1.6f};
+        const mesh::Bloom bloom{.threshold = 1, .radius = 6, .strength = 0.6f};
+        scene::Extracted seen;
+        scene::extract(yard.world, yard.view(), seen);
+        mesh::Targets reference;
+        reference.resize(static_cast<int>(width), static_cast<int>(height));
+        mesh::Pass on_cpu;
+        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}}, reference, {.shadows = false});
+        const std::vector<std::uint8_t> plain = reference.colour;
+        mesh::Glow glow_on_cpu;
+        const auto told = glow_on_cpu.show(reference.light, static_cast<int>(width), static_cast<int>(height), bloom, reference.colour);
+
+        auto pass = mesh::gpu::Pass::make(*device, false, true);
+        expect(fatal(pass.has_value())) << (pass ? "" : pass.error().message);
+        expect(fatal(pass->load(yard.meshes).has_value()));
+        auto glow = mesh::gpu::Glow::make(*device);
+        expect(fatal(glow.has_value())) << (glow ? "" : glow.error().message);
+        const auto of_light = [&](std::string_view label) {
+            const auto made = device->create(rhi::TextureDesc{rhi::Format::rgba16_float, width, height, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, label});
+            expect(fatal(made.has_value())) << (made ? "" : made.error().message);
+            return *made;
+        };
+        const rhi::Texture light = of_light("mesh.light"), one = of_light("mesh.glow.one"), other = of_light("mesh.glow.other");
+        const auto colour = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, width, height, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "mesh.colour"});
+        const auto depth = device->create(rhi::TextureDesc{rhi::Format::d32_float, width, height, rhi::TextureUsage::depth_target, "mesh.depth"});
+        expect(fatal(colour.has_value() && depth.has_value()));
+        const auto shown_with = [&](const mesh::Bloom& how) {
+            rhi::CommandList list;
+            pass->record(list, yard.world, seen, yard.view(), yard.materials, light, *depth, width, height, {.shadows = false});
+            glow->record(list, light, one, other, *colour, width, height, how);
+            const auto submitted = device->submit(list);
+            expect(fatal(submitted.has_value())) << (submitted ? "" : submitted.error().message);
+            expect(device->wait(*submitted).has_value());
+            auto pixels = device->read(*colour, rhi::Region{0, 0, width, height});
+            expect(fatal(pixels.has_value())) << (pixels ? "" : pixels.error().message);
+            return std::move(*pixels);
+        };
+        const std::vector<std::byte> glowing = shown_with(bloom), without = shown_with({});
+        keep(glowing, "yard-glow");
+        const Apart all = apart(reference, glowing, false, 6);
+        mesh::Targets unspread = reference;
+        unspread.colour = plain;
+        const Apart bare = apart(unspread, without, false, 6);
+        std::size_t lighter = 0, lighter_on_cpu = 0;
+        for (std::size_t pixel = 0; pixel < plain.size() / 4; ++pixel) {
+            lighter += std::to_integer<int>(glowing[pixel * 4]) > std::to_integer<int>(without[pixel * 4]) + 2;
+            lighter_on_cpu += reference.colour[pixel * 4] > plain[pixel * 4] + 2;
+        }
+        std::println("the yard with a lamp of (9, 5, 1.6): {} pixels brighter than the display; lighter by its glow, {} on the device and {} in the reference; {} of {} pixels further than 6 levels from the reference ({:.2f}%), mean {:.3f}, worst {}; with no radius {} further",
+                     told.bright, lighter, lighter_on_cpu, all.off, all.compared, 100.0 * static_cast<double>(all.off) / static_cast<double>(all.compared), all.mean, all.worst, bare.off);
+        expect(gt(told.bright, 20u));
+        expect(gt(lighter, std::size_t{1000})) << "it shows about what is bright";
+        expect(lt(lighter > lighter_on_cpu ? lighter - lighter_on_cpu : lighter_on_cpu - lighter, lighter_on_cpu / 50)) << "over as many pixels as in the reference";
+        expect(lt(static_cast<double>(all.off), 0.001 * static_cast<double>(all.compared)));
+        expect(lt(static_cast<double>(bare.off), 0.001 * static_cast<double>(bare.compared))) << "with no radius: the light through the curve, the plain pass's picture";
+        static_cast<void>(device->wait_idle());
+        device->destroy(light), device->destroy(one), device->destroy(other), device->destroy(*colour), device->destroy(*depth);
+    };
 }};

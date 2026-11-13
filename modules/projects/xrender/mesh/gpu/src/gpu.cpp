@@ -43,11 +43,13 @@ constexpr std::array<rhi::VertexAttribute, 2> attributes{rhi::VertexAttribute{0,
 
 rhi::ShaderFormats Pass::shader_formats() noexcept { return shaders::mesh::mesh_vs.formats(); }
 
-rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth) {
+rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool light) {
+    const rhi::Format shown_as = light ? rhi::Format::rgba16_float : rhi::Format::rgba8_unorm;
     const std::array<rhi::VertexBufferLayout, 1> layout{rhi::VertexBufferLayout{sizeof(Corner), false, attributes}};
     auto pipeline = device.create(rhi::GraphicsPipelineDesc{.vertex = &shaders::mesh::mesh_vs,
                                                             .fragment = &shaders::mesh::mesh_fs,
                                                             .vertex_buffers = layout,
+                                                            .target = shown_as,
                                                             .blend = rhi::Blend::replace(),
                                                             .depth_target = rhi::Format::d32_float,
                                                             .depth = {.test = true, .write = true, .compare = reversed_depth ? rhi::Compare::greater : rhi::Compare::less},
@@ -68,6 +70,7 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth) {
     auto sky = device.create(rhi::GraphicsPipelineDesc{.vertex = &shaders::sky::sky_vs,
                                                        .fragment = &shaders::sky::sky_fs,
                                                        .vertex_buffers = layout,
+                                                       .target = shown_as,
                                                        .blend = rhi::Blend::replace(),
                                                        .depth_target = rhi::Format::d32_float,
                                                        .depth = {.test = false, .write = false},
@@ -84,7 +87,7 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth) {
     auto nearest = device.create(rhi::SamplerDesc{rhi::Filter::nearest, rhi::Filter::nearest});
     auto no_shadow = device.create(rhi::TextureDesc{rhi::Format::r32_float, 1, 1, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "xrender.mesh.no-shadow"});
     Pass pass;
-    pass.device_ = &device, pass.pipeline_ = *pipeline, pass.ids_pipeline_ = *ids, pass.reversed_ = reversed_depth;
+    pass.device_ = &device, pass.pipeline_ = *pipeline, pass.ids_pipeline_ = *ids, pass.reversed_ = reversed_depth, pass.light_ = light;
     if (sky) pass.sky_pipeline_ = *sky;
     if (cover) pass.cover_ = *cover;
     if (shadow) pass.shadow_pipeline_ = *shadow;
@@ -107,11 +110,11 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth) {
     return pass;
 }
 Pass::Pass(Pass&& other) noexcept
-    : device_(std::exchange(other.device_, nullptr)), pipeline_(std::exchange(other.pipeline_, {})), ids_pipeline_(std::exchange(other.ids_pipeline_, {})), sky_pipeline_(std::exchange(other.sky_pipeline_, {})), shadow_pipeline_(std::exchange(other.shadow_pipeline_, {})), nearest_(std::exchange(other.nearest_, {})), no_shadow_(std::exchange(other.no_shadow_, {})), cover_(std::exchange(other.cover_, {})), meshes_(std::move(other.meshes_)), reversed_(other.reversed_), last_(other.last_) {}
+    : device_(std::exchange(other.device_, nullptr)), pipeline_(std::exchange(other.pipeline_, {})), ids_pipeline_(std::exchange(other.ids_pipeline_, {})), sky_pipeline_(std::exchange(other.sky_pipeline_, {})), shadow_pipeline_(std::exchange(other.shadow_pipeline_, {})), nearest_(std::exchange(other.nearest_, {})), no_shadow_(std::exchange(other.no_shadow_, {})), cover_(std::exchange(other.cover_, {})), meshes_(std::move(other.meshes_)), reversed_(other.reversed_), light_(other.light_), last_(other.last_) {}
 Pass& Pass::operator=(Pass&& other) noexcept {
     if (this != &other) {
         release();
-        device_ = std::exchange(other.device_, nullptr), pipeline_ = std::exchange(other.pipeline_, {}), ids_pipeline_ = std::exchange(other.ids_pipeline_, {}), sky_pipeline_ = std::exchange(other.sky_pipeline_, {}), shadow_pipeline_ = std::exchange(other.shadow_pipeline_, {}), nearest_ = std::exchange(other.nearest_, {}), no_shadow_ = std::exchange(other.no_shadow_, {}), cover_ = std::exchange(other.cover_, {}), meshes_ = std::move(other.meshes_), reversed_ = other.reversed_, last_ = other.last_;
+        device_ = std::exchange(other.device_, nullptr), pipeline_ = std::exchange(other.pipeline_, {}), ids_pipeline_ = std::exchange(other.ids_pipeline_, {}), sky_pipeline_ = std::exchange(other.sky_pipeline_, {}), shadow_pipeline_ = std::exchange(other.shadow_pipeline_, {}), nearest_ = std::exchange(other.nearest_, {}), no_shadow_ = std::exchange(other.no_shadow_, {}), cover_ = std::exchange(other.cover_, {}), meshes_ = std::move(other.meshes_), reversed_ = other.reversed_, light_ = other.light_, last_ = other.last_;
     }
     return *this;
 }
@@ -240,7 +243,8 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
             map = shadows->map;
         }
     }
-    const auto shown = [](float linear) {
+    const auto shown = [&](float linear) {
+        if (light_) return linear;
         const float held = std::clamp(linear, 0.0f, 1.0f);
         return held <= 0.0031308f ? held * 12.92f : 1.055f * static_cast<float>(math::det::pow(static_cast<double>(held), 1.0 / 2.4)) - 0.055f;
     };
@@ -254,7 +258,7 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
             Row eye, background, fog, fog_shape;
         } sky{};
         for (int row = 0; row < 4; ++row) sky.from_clip[row] = row_of(*from_clip, row);
-        sky.eye = of(eye), sky.background = of(options.background), sky.fog = surface.fog, sky.fog_shape = surface.fog_shape;
+        sky.eye = of(eye), sky.background = of(options.background, light_ ? 1.0f : 0.0f), sky.fog = surface.fog, sky.fog_shape = surface.fog_shape;
         list.set_pipeline(sky_pipeline_);
         list.push_uniforms(rhi::Stage::fragment, 0, sky);
         list.bind_vertex_buffer(0, cover_);
@@ -276,7 +280,7 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
         for (int row = 0; row < 3; ++row) uniforms.to_world[row] = row_of(instance.world, row), uniforms.normals[row] = row_of(for_normals, row);
         const Material& material = materials[draw.material];
         surface.base = of(material.base), surface.emissive = of(material.emissive);
-        surface.shine = {std::clamp(material.roughness, 0.04f, 1.0f), std::clamp(material.metallic, 0.0f, 1.0f), material.matt() ? 1.0f : 0.0f, 0};
+        surface.shine = {std::clamp(material.roughness, 0.04f, 1.0f), std::clamp(material.metallic, 0.0f, 1.0f), material.matt() ? 1.0f : 0.0f, light_ ? 1.0f : 0.0f};
         list.push_uniforms(rhi::Stage::vertex, 0, uniforms);
         list.push_uniforms(rhi::Stage::fragment, 0, surface);
         list.bind_vertex_buffer(0, meshes_[draw.mesh].corners);
@@ -284,6 +288,90 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
         ++last_.draws, last_.triangles += meshes_[draw.mesh].count / 3;
     }
     list.end_render();
+}
+
+rhi::Result<Glow> Glow::make(rhi::Device& device) {
+    const std::array<rhi::VertexBufferLayout, 1> layout{rhi::VertexBufferLayout{sizeof(Corner), false, attributes}};
+    auto spread = device.create(rhi::GraphicsPipelineDesc{.vertex = &shaders::glow::glow_vs,
+                                                          .fragment = &shaders::glow::spread_fs,
+                                                          .vertex_buffers = layout,
+                                                          .target = rhi::Format::rgba16_float,
+                                                          .blend = rhi::Blend::replace(),
+                                                          .label = "xrender.mesh.glow.spread"});
+    auto shown = device.create(rhi::GraphicsPipelineDesc{.vertex = &shaders::glow::glow_vs,
+                                                         .fragment = &shaders::glow::shown_fs,
+                                                         .vertex_buffers = layout,
+                                                         .blend = rhi::Blend::replace(),
+                                                         .label = "xrender.mesh.glow.shown"});
+    auto nearest = device.create(rhi::SamplerDesc{rhi::Filter::nearest, rhi::Filter::nearest});
+    auto cover = device.create(rhi::BufferDesc{3 * sizeof(Corner), rhi::BufferUsage::vertex, "xrender.mesh.glow.cover"});
+    Glow glow;
+    glow.device_ = &device;
+    if (spread) glow.spread_ = *spread;
+    if (shown) glow.shown_ = *shown;
+    if (nearest) glow.nearest_ = *nearest;
+    if (cover) glow.cover_ = *cover;
+    if (!spread) return std::unexpected(spread.error());  // `glow` releases what was made
+    if (!shown) return std::unexpected(shown.error());
+    if (!nearest) return std::unexpected(nearest.error());
+    if (!cover) return std::unexpected(cover.error());
+    const std::array<Corner, 3> corners{Corner{{-1, -1, 0}, {}}, Corner{{3, -1, 0}, {}}, Corner{{-1, 3, 0}, {}}};
+    rhi::CommandList list;
+    list.upload(*cover, 0, std::span<const Corner>(corners));
+    auto submitted = device.submit(list);
+    if (!submitted) return std::unexpected(submitted.error());
+    if (auto waited = device.wait(*submitted); !waited) return std::unexpected(waited.error());
+    return glow;
+}
+Glow::Glow(Glow&& other) noexcept
+    : device_(std::exchange(other.device_, nullptr)), spread_(std::exchange(other.spread_, {})), shown_(std::exchange(other.shown_, {})), nearest_(std::exchange(other.nearest_, {})), cover_(std::exchange(other.cover_, {})) {}
+Glow& Glow::operator=(Glow&& other) noexcept {
+    if (this != &other) {
+        release();
+        device_ = std::exchange(other.device_, nullptr), spread_ = std::exchange(other.spread_, {}), shown_ = std::exchange(other.shown_, {}), nearest_ = std::exchange(other.nearest_, {}), cover_ = std::exchange(other.cover_, {});
+    }
+    return *this;
+}
+Glow::~Glow() { release(); }
+void Glow::release() noexcept {
+    if (!device_) return;
+    static_cast<void>(device_->wait_idle());
+    if (spread_) device_->destroy(spread_);
+    if (shown_) device_->destroy(shown_);
+    if (nearest_) device_->destroy(nearest_);
+    if (cover_) device_->destroy(cover_);
+    device_ = nullptr;
+}
+
+void Glow::record(rhi::CommandList& list, rhi::Texture light, rhi::Texture one, rhi::Texture other, rhi::Texture colour, std::uint32_t width, std::uint32_t height, const Bloom& bloom) {
+    struct Uniforms {
+        Row size, along, amount;
+    } uniforms{};
+    const int radius = static_cast<int>(bloom.radius);
+    const bool spreads = radius >= 1 && bloom.strength > 0;
+    uniforms.size = {static_cast<float>(width), static_cast<float>(height), 1.0f / static_cast<float>(width), 1.0f / static_cast<float>(height)};
+    uniforms.amount = {bloom.threshold, spreads ? bloom.strength : 0.0f, 0, 0};
+    const auto pass = [&](rhi::GraphicsPipeline pipeline, rhi::Texture onto, rhi::Texture from, rhi::Texture beside) {
+        list.begin_render({onto, rhi::LoadOp::clear, {0, 0, 0, 1}});
+        list.set_viewport(0, 0, static_cast<float>(width), static_cast<float>(height));
+        list.set_pipeline(pipeline);
+        list.push_uniforms(rhi::Stage::fragment, 0, uniforms);
+        list.bind_texture(rhi::Stage::fragment, 0, from, nearest_);
+        list.bind_texture(rhi::Stage::fragment, 1, beside, nearest_);
+        list.bind_vertex_buffer(0, cover_);
+        list.draw(3);
+        list.end_render();
+    };
+    if (spreads)
+        for (int number = 0; number < 3; ++number) {
+            // Along the rows (the first time from the light, taking what is above the threshold), then down the columns.
+            uniforms.along = {1, 0, static_cast<float>(radius), number == 0 ? 1.0f : 0.0f};
+            pass(spread_, one, number == 0 ? light : other, light);
+            uniforms.along = {0, 1, static_cast<float>(radius), 0};
+            pass(spread_, other, one, light);
+        }
+    // With nothing spread the strength is 0 and what is beside the light is the light itself: not read into the sum.
+    pass(shown_, colour, light, spreads ? other : light);
 }
 
 void Pass::record_ids(rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, rhi::Texture ids, rhi::Texture depth, std::uint32_t width,

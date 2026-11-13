@@ -40,9 +40,23 @@ struct Surface {
     float4 eye;        // w: how many lamps
     float4 fog;        // rgb; w: its density (0: none)
     float4 fog_shape;  // x: the height the density is given at; y: how fast it thins above it
+    float4 to_light[3];  // rows: the world to the sun's map — x, y across it (−1 … 1), z how far (0 … 1)
+    float4 shadow;       // x: which lamp the map is of (−1: none); y: how far along its normal a point is lifted
+                         // before it is looked up; z: how much nearer the map must say for a shadow
     Lamp   lamps[8];
 };
+[[vk::binding(0, 2)]] Sampler2D shadow_map : register(t0, space2) : register(s0, space2);
 [[vk::binding(0, 3)]] ConstantBuffer<Surface> surface : register(b0, space3);
+
+// Whether something stands between a point and the sun, by the sun's map: the point, lifted a little off its
+// surface, is further from the light than what the map saw there. Off the map: lit.
+bool in_shadow(float3 place, float3 normal) {
+    const float4 lifted = float4(place + normal * surface.shadow.y, 1);
+    const float3 there = float3(dot(surface.to_light[0], lifted), dot(surface.to_light[1], lifted), dot(surface.to_light[2], lifted));
+    if (abs(there.x) >= 1 || abs(there.y) >= 1 || there.z >= 1) return false;
+    const float seen = shadow_map.SampleLevel(float2(there.x * 0.5 + 0.5, 0.5 - there.y * 0.5), 0).r;
+    return seen < there.z - surface.shadow.z;
+}
 
 // The share of a surface's light that comes through the fog (xrender.mesh's `through`).
 float through(float3 toward, float length) {
@@ -70,7 +84,7 @@ float4 mesh_fs(VOut point) : SV_Target {
         const Lamp lamp = surface.lamps[index];
         if (lamp.colour_kind.w < 0.5) {
             const float facing = -dot(normal, lamp.toward_cone.xyz);
-            if (facing > 0) light += lamp.colour_kind.rgb * facing;
+            if (facing > 0 && !(float(index) == surface.shadow.x && in_shadow(point.place, normal))) light += lamp.colour_kind.rgb * facing;
             continue;
         }
         const float3 to = lamp.at_range.xyz - point.place;

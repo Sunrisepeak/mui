@@ -1,0 +1,29 @@
+// The sun's view of the scene, for shadows: each caster's corners through the light's own projection, and for
+// each texel how far from the light the nearest thing is (0 … 1 across the map's depth), in a float target the
+// mesh pass then reads.
+struct VIn {
+    float3 position : TEXCOORD0;
+    float3 normal : TEXCOORD1;
+};
+struct VOut {
+    float4 clip : SV_Position;
+    float  far : TEXCOORD0;
+};
+struct Draw {
+    float4 to_clip[4];   // rows: the corner to the light's clip space
+    float4 to_world[3];  // not used here: the pass's one block of a draw
+    float4 normals[3];
+};
+[[vk::binding(0, 1)]] ConstantBuffer<Draw> draw : register(b0, space1);
+
+[shader("vertex")]
+VOut shadow_vs(VIn corner) {
+    const float4 at = float4(corner.position, 1);
+    VOut made;
+    made.clip = float4(dot(draw.to_clip[0], at), dot(draw.to_clip[1], at), dot(draw.to_clip[2], at), dot(draw.to_clip[3], at));
+    made.far = made.clip.z;
+    return made;
+}
+
+[shader("fragment")]
+float4 shadow_fs(VOut point) : SV_Target { return float4(point.far, 0, 0, 1); }

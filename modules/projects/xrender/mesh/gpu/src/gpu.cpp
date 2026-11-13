@@ -28,6 +28,8 @@ struct LampUniforms {
 };
 struct SurfaceUniforms {
     Row          base, emissive, ambient, eye, fog, fog_shape;
+    Row          to_light[3];
+    Row          shadow{-1, 0, 0, 0};
     LampUniforms lamps[most_lamps];
 };
 Row row_of(const Mat4& matrix, int row) { return {matrix.at(0, row), matrix.at(1, row), matrix.at(2, row), matrix.at(3, row)}; }
@@ -69,27 +71,45 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth) {
                                                        .depth = {.test = false, .write = false},
                                                        .label = "xrender.mesh.sky"});
     auto cover = device.create(rhi::BufferDesc{3 * sizeof(Corner), rhi::BufferUsage::vertex, "xrender.mesh.cover"});
+    auto shadow = device.create(rhi::GraphicsPipelineDesc{.vertex = &shaders::shadow::shadow_vs,
+                                                          .fragment = &shaders::shadow::shadow_fs,
+                                                          .vertex_buffers = layout,
+                                                          .target = rhi::Format::r32_float,
+                                                          .blend = rhi::Blend::replace(),
+                                                          .depth_target = rhi::Format::d32_float,
+                                                          .depth = {.test = true, .write = true, .compare = rhi::Compare::less},
+                                                          .label = "xrender.mesh.shadow"});
+    auto nearest = device.create(rhi::SamplerDesc{rhi::Filter::nearest, rhi::Filter::nearest});
+    auto no_shadow = device.create(rhi::TextureDesc{rhi::Format::r32_float, 1, 1, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "xrender.mesh.no-shadow"});
     Pass pass;
     pass.device_ = &device, pass.pipeline_ = *pipeline, pass.ids_pipeline_ = *ids, pass.reversed_ = reversed_depth;
     if (sky) pass.sky_pipeline_ = *sky;
     if (cover) pass.cover_ = *cover;
+    if (shadow) pass.shadow_pipeline_ = *shadow;
+    if (nearest) pass.nearest_ = *nearest;
+    if (no_shadow) pass.no_shadow_ = *no_shadow;
     if (!sky) return std::unexpected(sky.error());  // `pass` releases what was made
     if (!cover) return std::unexpected(cover.error());
+    if (!shadow) return std::unexpected(shadow.error());
+    if (!nearest) return std::unexpected(nearest.error());
+    if (!no_shadow) return std::unexpected(no_shadow.error());
     // One triangle past the picture's corners covers it.
     const std::array<Corner, 3> corners{Corner{{-1, -1, 0}, {}}, Corner{{3, -1, 0}, {}}, Corner{{-1, 3, 0}, {}}};
     rhi::CommandList list;
     list.upload(*cover, 0, std::span<const Corner>(corners));
+    list.begin_render({*no_shadow, rhi::LoadOp::clear, {1, 0, 0, 1}});
+    list.end_render();
     auto submitted = device.submit(list);
     if (!submitted) return std::unexpected(submitted.error());
     if (auto waited = device.wait(*submitted); !waited) return std::unexpected(waited.error());
     return pass;
 }
 Pass::Pass(Pass&& other) noexcept
-    : device_(std::exchange(other.device_, nullptr)), pipeline_(std::exchange(other.pipeline_, {})), ids_pipeline_(std::exchange(other.ids_pipeline_, {})), sky_pipeline_(std::exchange(other.sky_pipeline_, {})), cover_(std::exchange(other.cover_, {})), meshes_(std::move(other.meshes_)), reversed_(other.reversed_), last_(other.last_) {}
+    : device_(std::exchange(other.device_, nullptr)), pipeline_(std::exchange(other.pipeline_, {})), ids_pipeline_(std::exchange(other.ids_pipeline_, {})), sky_pipeline_(std::exchange(other.sky_pipeline_, {})), shadow_pipeline_(std::exchange(other.shadow_pipeline_, {})), nearest_(std::exchange(other.nearest_, {})), no_shadow_(std::exchange(other.no_shadow_, {})), cover_(std::exchange(other.cover_, {})), meshes_(std::move(other.meshes_)), reversed_(other.reversed_), last_(other.last_) {}
 Pass& Pass::operator=(Pass&& other) noexcept {
     if (this != &other) {
         release();
-        device_ = std::exchange(other.device_, nullptr), pipeline_ = std::exchange(other.pipeline_, {}), ids_pipeline_ = std::exchange(other.ids_pipeline_, {}), sky_pipeline_ = std::exchange(other.sky_pipeline_, {}), cover_ = std::exchange(other.cover_, {}), meshes_ = std::move(other.meshes_), reversed_ = other.reversed_, last_ = other.last_;
+        device_ = std::exchange(other.device_, nullptr), pipeline_ = std::exchange(other.pipeline_, {}), ids_pipeline_ = std::exchange(other.ids_pipeline_, {}), sky_pipeline_ = std::exchange(other.sky_pipeline_, {}), shadow_pipeline_ = std::exchange(other.shadow_pipeline_, {}), nearest_ = std::exchange(other.nearest_, {}), no_shadow_ = std::exchange(other.no_shadow_, {}), cover_ = std::exchange(other.cover_, {}), meshes_ = std::move(other.meshes_), reversed_ = other.reversed_, last_ = other.last_;
     }
     return *this;
 }
@@ -104,6 +124,9 @@ void Pass::release() noexcept {
     if (ids_pipeline_) device_->destroy(ids_pipeline_);
     if (sky_pipeline_) device_->destroy(sky_pipeline_);
     if (cover_) device_->destroy(cover_);
+    if (shadow_pipeline_) device_->destroy(shadow_pipeline_);
+    if (nearest_) device_->destroy(nearest_);
+    if (no_shadow_) device_->destroy(no_shadow_);
     device_ = nullptr;
 }
 
@@ -141,7 +164,7 @@ rhi::Result<void> Pass::load(std::span<const mlibs::geom::ClusteredMesh* const> 
 }
 
 void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, std::span<const Material> materials, rhi::Texture colour,
-                  rhi::Texture depth, std::uint32_t width, std::uint32_t height, const Options& options) {
+                  rhi::Texture depth, std::uint32_t width, std::uint32_t height, const Options& options, const Shadows* shadows) {
     last_ = {};
     const Mat4 clip = view.projection * view.view;
     const std::optional<Mat4> camera = math::inverse(view.view);
@@ -165,6 +188,55 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
     surface.fog = of(options.fog.colour, options.fog.density);
     surface.fog_shape = {options.fog.base, options.fog.falloff, 0, 0};
 
+    // The sun's map, before the frame: what the first sun sees of everything that casts, over the part of the
+    // view within `distance` of the eye — a ball about that part, looked at along the sun's way.
+    rhi::Texture map = no_shadow_;
+    if (shadows && options.shadows && shadows->map && shadows->depth && camera) {
+        std::optional<std::uint32_t> sun;
+        for (std::uint32_t index = 0; index < last_.lamps && !sun; ++index)
+            if (surface.lamps[index].colour_kind.w < 0.5f) sun = index;
+        const std::optional<Mat4> from_clip = math::inverse(clip);
+        if (sun && from_clip) {
+            const Vec3 forward{surface.lamps[*sun].toward_cone.x, surface.lamps[*sun].toward_cone.y, surface.lamps[*sun].toward_cone.z};
+            std::array<Vec3, 8> corners{};
+            Vec3 centre{};
+            for (int corner = 0; corner < 4; ++corner) {
+                const Vec3 near = math::point(*from_clip, {corner & 1 ? 1.0f : -1.0f, corner & 2 ? 1.0f : -1.0f, reversed_ ? 1.0f : 0.0f});
+                const Vec3 along = math::normalized(near - eye);
+                corners[static_cast<std::size_t>(corner)] = near, corners[static_cast<std::size_t>(corner) + 4] = eye + along * shadows->distance;
+            }
+            for (const Vec3& corner : corners) centre = centre + corner * 0.125f;
+            float radius = 0;
+            for (const Vec3& corner : corners) radius = std::max(radius, math::length(corner - centre));
+            const Vec3 aside = math::normalized(math::cross(std::abs(forward.y) < 0.99f ? Vec3{0, 1, 0} : Vec3{1, 0, 0}, forward)), above = math::cross(forward, aside);
+            const float deep = shadows->behind + 2 * radius;
+            Mat4 to_light;  // rows: aside, above, forward — each a share of the map
+            const auto row = [&](int which, Vec3 axis, float scale, float shift) {
+                to_light.at(0, which) = axis.x * scale, to_light.at(1, which) = axis.y * scale, to_light.at(2, which) = axis.z * scale;
+                to_light.at(3, which) = -math::dot(axis, centre) * scale + shift;
+            };
+            row(0, aside, 1.0f / radius, 0), row(1, above, 1.0f / radius, 0), row(2, forward, 1.0f / deep, (shadows->behind + radius) / deep);
+            const float texel = 2 * radius / static_cast<float>(shadows->size);
+            for (int which = 0; which < 3; ++which) surface.to_light[which] = row_of(to_light, which);
+            surface.shadow = {static_cast<float>(*sun), texel * 2.0f, texel * 1.5f / deep, 0};
+
+            list.begin_render({shadows->map, rhi::LoadOp::clear, {1, 0, 0, 1}}, {shadows->depth, rhi::LoadOp::clear, 1.0f});
+            list.set_viewport(0, 0, static_cast<float>(shadows->size), static_cast<float>(shadows->size));
+            list.set_pipeline(shadow_pipeline_);
+            for (const scene::Instance& instance : instances) {
+                if (instance.hidden || !instance.casts || instance.mesh >= meshes_.size() || !meshes_[instance.mesh].corners) continue;
+                const Mat4 through = to_light * instance.world;
+                DrawUniforms uniforms{};
+                for (int which = 0; which < 4; ++which) uniforms.to_clip[which] = row_of(through, which);
+                list.push_uniforms(rhi::Stage::vertex, 0, uniforms);
+                list.bind_vertex_buffer(0, meshes_[instance.mesh].corners);
+                list.draw(meshes_[instance.mesh].count);
+                ++last_.casters;
+            }
+            list.end_render();
+            map = shadows->map;
+        }
+    }
     const auto shown = [](float linear) {
         const float held = std::clamp(linear, 0.0f, 1.0f);
         return held <= 0.0031308f ? held * 12.92f : 1.055f * static_cast<float>(math::det::pow(static_cast<double>(held), 1.0 / 2.4)) - 0.055f;
@@ -186,6 +258,7 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
         list.draw(3);
     }
     list.set_pipeline(pipeline_);
+    list.bind_texture(rhi::Stage::fragment, 0, map, nearest_);
     for (const scene::Draw& draw : extracted.draws) {
         if (draw.instance >= instances.size() || draw.mesh >= meshes_.size() || !meshes_[draw.mesh].corners || draw.material >= materials.size()) {
             ++last_.missing;

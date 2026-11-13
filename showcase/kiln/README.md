@@ -36,7 +36,7 @@ A known limit of the baked step: its frames are of one scene, a flame, and they 
 
 ## What the playtest found
 
-The player in `headless/tests/playtest_test.cpp` sees what a person is shown and does what a person can; it tries ahead by branching. Playing the first cavern it found two things, not yet changed:
+The player is the engine's (`xengine.playtest`; `headless/tests/playtest_test.cpp` gives it Kiln's table: its ways forward, its spells and aims, what is in the way). It sees what a person is shown and does what a person can; it tries ahead by branching. Playing the first cavern it found two things, not yet changed:
 
 - it crossed the lava pit without casting water: by the time she reached it the lava's top had set to stone and cooled enough to walk on — the water puzzle was not needed (why it sets so soon is to be looked at: the heat it gives the air and the stone, or the bomb's sand falling on it);
 - a grain of sand is thrown 146 times by one bomb: the pressure lasts far longer than a blast does (the standard definition's, to be settled with the law of motion).

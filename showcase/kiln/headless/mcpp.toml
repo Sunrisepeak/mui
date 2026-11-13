@@ -29,3 +29,4 @@ openlifa.openas  = "0.2.0"
 [dev-dependencies]
 mcpplibs.mtest = "0.7.1"
 mlibs.json     = { path = "../../../modules/base/json" }
+xengine.playtest = { path = "../../../modules/projects/xengine/game/playtest" }

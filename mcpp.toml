@@ -108,6 +108,7 @@ members = [
     "modules/projects/xengine/game/net",
     "modules/projects/xengine/game/world",
     "modules/projects/xengine/game/runtime",
+    "modules/projects/xengine/game/playtest",
     "modules/projects/xengine/game/input",
     "modules/projects/xengine/game/ui",
     "modules/projects/omui/components/base",

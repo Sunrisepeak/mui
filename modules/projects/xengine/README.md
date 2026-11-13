@@ -22,6 +22,7 @@ It is two halves with omui between them (D-161), each in a directory of its own,
 | kernel | [audio](kernel/audio) | media | Sounds and music as data (`*.sound.omui.ts`, `*.music.omui.ts`), voices mixed into buses a block at a time with nothing allocated; offline renders the same bits everywhere; the `omui-music` tool |
 | kernel | [video](kernel/video) | media | Frames and a sound track encoded on exact frame and sample counts: sources, encoders as plugins, `*.video.omui.ts`; the same bytes everywhere |
 | game | [runtime](game/runtime) | game | A game on its own (D-162): its steps, an agent player's lane, and the game as a subject of the agent kernel; no interface in it |
+| game | [playtest](game/playtest) | game | A game played by branching ahead (§6.14, a general part): the player's order of trying, a game's table of ways and tools, and a report of where and why it is stuck |
 | game | [world](game/world) | game | Entities and components in fixed columns of plain data: deterministic order, a snapshot is one copy |
 | game | [input](game/input) | game | Keys, gamepads and the pointer bound to a game's actions, sampled once a frame as plain data |
 | game | [net](game/net) | game | Rollback netcode for two peers, independent of the transport: input delay, prediction, rollback, desync detection |

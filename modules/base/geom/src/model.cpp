@@ -126,16 +126,35 @@ std::expected<Mesh, std::string> revolved(std::span<const Vec2> profile, std::ui
     return mesh;
 }
 
-std::expected<Mesh, std::string> extruded(std::span<const Vec2> outline, float depth) {
+std::expected<Mesh, std::string> extruded(std::span<const Vec2> given, float depth, float bevel) {
     if (!(depth > 0) || !std::isfinite(depth)) return std::unexpected(std::format("a depth of {}: above 0", depth));
+    if (!(bevel >= 0) || !std::isfinite(bevel) || !(bevel * 2 < depth)) return std::unexpected(std::format("a bevel of {} in a depth of {}: 0 or more, and less than half the depth", bevel, depth));
+    if (auto whole = triangulated(given); !whole) return std::unexpected(whole.error());
+    const std::size_t count = given.size();
+    const bool turned = twice_area(given) < 0;  // given clockwise: walked the other way
+    // The faces' own outline: the given one drawn in by the bevel, each corner along the line between its two edges.
+    std::vector<Vec2> drawn_in(given.begin(), given.end());
+    if (bevel > 0) {
+        const float side = turned ? -1.0f : 1.0f;
+        for (std::size_t index = 0; index < count; ++index) {
+            const Vec2 before = given[(index + count - 1) % count], here = given[index], after = given[(index + 1) % count];
+            const float ax = here.x - before.x, ay = here.y - before.y, bx = after.x - here.x, by = after.y - here.y;
+            const float a_long = std::sqrt(ax * ax + ay * ay), b_long = std::sqrt(bx * bx + by * by);
+            const Vec2 in_a{-ay / a_long * side, ax / a_long * side}, in_b{-by / b_long * side, bx / b_long * side};
+            const float both = 1 + in_a.x * in_b.x + in_a.y * in_b.y;
+            if (!(both > 0.05f)) return std::unexpected(std::format("corner {} is too sharp to bevel", index));
+            drawn_in[index] = {here.x + (in_a.x + in_b.x) * bevel / both, here.y + (in_a.y + in_b.y) * bevel / both};
+        }
+        if ((twice_area(drawn_in) < 0) != turned) return std::unexpected(std::format("a bevel of {} is more than the outline has room for", bevel));
+    }
+    const std::span<const Vec2> outline(drawn_in);
     auto cut = triangulated(outline);
-    if (!cut) return std::unexpected(cut.error());
-    const std::size_t count = outline.size();
-    const bool turned = twice_area(outline) < 0;  // given clockwise: walked the other way
-    const auto corner = [&](std::size_t index) { return outline[turned ? count - 1 - index : index]; };
+    if (!cut) return std::unexpected(std::format("a bevel of {} is more than the outline has room for ({})", bevel, cut.error()));
+    const auto corner = [&](std::size_t index) { return given[turned ? count - 1 - index : index]; };
+    const auto rim = [&](std::size_t index) { return drawn_in[turned ? count - 1 - index : index]; };
     Vec2 low = outline[0], high = outline[0];
     for (const Vec2 point : outline) low = {std::min(low.x, point.x), std::min(low.y, point.y)}, high = {std::max(high.x, point.x), std::max(high.y, point.y)};
-    const float half = depth * 0.5f;
+    const float half = depth * 0.5f, wall = half - bevel;  // the wall stops a bevel short of each face
     Mesh mesh;
     // The two faces: the outline's own triangles in front (+Z), the same turned over behind.
     for (const float z : {half, -half}) {
@@ -165,7 +184,7 @@ std::expected<Mesh, std::string> extruded(std::span<const Vec2> outline, float d
         const auto first = static_cast<std::uint32_t>(mesh.positions.size());
         const float u0 = walked / round, u1 = (walked + length) / round;
         walked += length;
-        const std::array<std::pair<Vec3, Vec2>, 4> corners{{{{from.x, from.y, -half}, {u0, 1}}, {{to.x, to.y, -half}, {u1, 1}}, {{to.x, to.y, half}, {u1, 0}}, {{from.x, from.y, half}, {u0, 0}}}};
+        const std::array<std::pair<Vec3, Vec2>, 4> corners{{{{from.x, from.y, -wall}, {u0, 1}}, {{to.x, to.y, -wall}, {u1, 1}}, {{to.x, to.y, wall}, {u1, 0}}, {{from.x, from.y, wall}, {u0, 0}}}};
         for (const auto& [place, uv] : corners) {
             mesh.positions.push_back(place);
             mesh.normals.push_back(normal);
@@ -173,6 +192,23 @@ std::expected<Mesh, std::string> extruded(std::span<const Vec2> outline, float d
             mesh.uvs.push_back(uv);
         }
         for (const std::uint32_t at : {first, first + 1, first + 2, first, first + 2, first + 3}) mesh.indices.push_back(at);
+        if (!(bevel > 0)) continue;
+        // The bevel: a flat piece from the wall's rim to the face's, front and back, facing half out and half along Z.
+        const Vec2 rim_from = rim(index), rim_to = rim((index + 1) % count);
+        for (const float way : {1.0f, -1.0f}) {
+            const auto begun = static_cast<std::uint32_t>(mesh.positions.size());
+            const Vec3 slanted = math::normalized(Vec3{normal.x, normal.y, way});
+            const std::array<Vec3, 4> piece = way > 0 ? std::array<Vec3, 4>{Vec3{from.x, from.y, wall}, Vec3{to.x, to.y, wall}, Vec3{rim_to.x, rim_to.y, half}, Vec3{rim_from.x, rim_from.y, half}}
+                                                      : std::array<Vec3, 4>{Vec3{rim_from.x, rim_from.y, -half}, Vec3{rim_to.x, rim_to.y, -half}, Vec3{to.x, to.y, -wall}, Vec3{from.x, from.y, -wall}};
+            const std::array<Vec2, 4> placed{Vec2{u0, way > 0 ? 0.0f : 1.0f}, Vec2{u1, way > 0 ? 0.0f : 1.0f}, Vec2{u1, way > 0 ? 0.0f : 1.0f}, Vec2{u0, way > 0 ? 0.0f : 1.0f}};
+            for (std::size_t which = 0; which < 4; ++which) {
+                mesh.positions.push_back(piece[which]);
+                mesh.normals.push_back(slanted);
+                mesh.tangents.push_back({dx / length, dy / length, 0, 1});
+                mesh.uvs.push_back(placed[which]);
+            }
+            for (const std::uint32_t at : {begun, begun + 1, begun + 2, begun, begun + 2, begun + 3}) mesh.indices.push_back(at);
+        }
     }
     return mesh;
 }

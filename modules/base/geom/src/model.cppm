@@ -26,7 +26,10 @@ export namespace mlibs::geom {
 [[nodiscard]] std::expected<Mesh, std::string> revolved(std::span<const Vec2> profile, std::uint32_t sectors = 32);
 
 // An outline in the x–y plane pushed through `depth` along Z (half each way): two flat faces and a wall. Closed.
-[[nodiscard]] std::expected<Mesh, std::string> extruded(std::span<const Vec2> outline, float depth);
+// With a `bevel` its edges are cut at 45°: the faces are the outline drawn in by so much, the wall stops so much
+// short of each, and a flat piece joins them — the edge that catches the light. A bevel the outline has no room
+// for, or a corner too sharp for one, is refused with its reason.
+[[nodiscard]] std::expected<Mesh, std::string> extruded(std::span<const Vec2> outline, float depth, float bevel = 0);
 
 // The space a closed mesh holds (by its triangles: the sum of the tetrahedra they make with the origin). Of one
 // that is not closed, or faces inward: not a volume.

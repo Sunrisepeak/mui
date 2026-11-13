@@ -226,6 +226,25 @@ UTest cases{"geom.solid", [] {
         sound(other, "an L given clockwise", true);
         expect(near_to(static_cast<float>(geom::volume(other)), 2.0f));
         expect(!geom::extruded(ell, 0).has_value() && !geom::extruded(std::span(ell).first(2), 1).has_value());
+        // Bevelled: sound, closed, and the space it holds worked out — a square of 2, a depth of 1, a bevel of ¼
+        // is a slab of ½ between two cut pyramids.
+        const std::array<Vec2, 4> square{{{0, 0}, {2, 0}, {2, 2}, {0, 2}}};
+        const geom::Mesh cut_square = *geom::extruded(square, 1, 0.25f);
+        sound(cut_square, "a bevelled square", true);
+        const float cut_pyramid = 0.25f / 6 * (4 + 2.25f + 4 * 1.75f * 1.75f);
+        expect(near_to(static_cast<float>(geom::volume(cut_square)), 4 * 0.5f + 2 * cut_pyramid)) << geom::volume(cut_square);
+        expect(geom::bounds(cut_square).low == Vec3{0, 0, -0.5f} && geom::bounds(cut_square).high == Vec3{2, 2, 0.5f}) << "it reaches as far as the plain one";
+        expect(eq(cut_square.triangles(), std::size_t{2 * 2 + 4 * 2 + 4 * 4}));
+        const geom::Mesh cut_ell = *geom::extruded(ell, 0.5f, 0.1f), cut_other = *geom::extruded(clockwise, 0.5f, 0.1f);
+        sound(cut_ell, "a bevelled L", true);
+        sound(cut_other, "a bevelled L given clockwise", true);
+        expect(near_to(static_cast<float>(geom::volume(cut_ell)), static_cast<float>(geom::volume(cut_other))));
+        expect(lt(geom::volume(cut_ell), 2.0) && gt(geom::volume(cut_ell), 1.8)) << geom::volume(cut_ell);
+        expect(eq(geom::extruded(ell, 0.5f, 0).value().positions.size(), pushed.positions.size())) << "no bevel: the plain shape";
+        expect(geom::extruded(square, 1, 0.5f).error().contains("less than half the depth"));
+        expect(geom::extruded(ell, 3, 0.6f).error().contains("room")) << "the L's arms are 1 wide";
+        const std::array<Vec2, 3> spike{{{0, 0}, {4, 0.05f}, {0, 0.1f}}};
+        expect(geom::extruded(spike, 1, 0.01f).error().contains("too sharp"));
 
         // A can by its profile: the volume of a prism of 48 sides, exactly as one is.
         const std::array<Vec2, 4> can{{{0, 1}, {1, 1}, {1, -1}, {0, -1}}};

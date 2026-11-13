@@ -269,6 +269,7 @@ Result run_one(const Case& c, const Options& o) {
     }
     std::vector<double> ms = Access::samples(s);
     r.iterations = ms.size();
+    r.samples_ms = ms;
     if (ms.empty()) return r;
     std::ranges::sort(ms);
     r.min_ms = ms.front();

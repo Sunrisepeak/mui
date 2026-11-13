@@ -986,6 +986,15 @@ burning: ladder({
 
 次序（T2.12 的第 6、7 项）：6. 给 mtest 提“按次计时的测量”的 PR（方案先行；属于 mtest 的通用框架能力，CI 通过后合并、发布、使用）；7. 迁 `tests/bench`：每个场景是一个 `Bench` 用例，预算是它的 `at_most` 属性，量经 `metric` 上报，CI 的基准一步改成 mtest 的一次运行；迁移前后 102 条预算逐条对上，然后删掉 harness、报告与 `budgets.bench.omui.json`。
 
+落地记录（2026-11-13）：第 6 项完成——[mcpp-community/mtest#16](https://github.com/mcpp-community/mtest/pull/16)（`bench::each`、`bench::distribute`、`bench::lap`）合并并发布为 0.7.2。第 7 项分两步，中间留一轮 CI 作对照：
+
+| 步 | 内容 | 状态 |
+|---|---|---|
+| 7a | `tests/bench/tests/budgets_test.cpp`：每个基准是一个 `bench` 种类的用例；量经 `metric` 上报（名字就是预算里用的名字：`p95_ms`、`max_allocations`、`ns_per_item`、各自的计数器），分位数由 `bench::distribute` 算；预算是用例的边界（`at_most`），带 `unless` 的预算（软件 GPU 上不适用的帧预算）在用例里按本次的计数器判定；一条预算指向不存在的基准时失败。只在 `OMUI_BENCH=1`（release、独占机器）下运行，否则跳过并说明；`OMUI_BENCH=quick` 每个跑一遍、不判定 | 本检查点 |
+| 7b | CI 的基准一步改成 `OMUI_BENCH=1 mcpp test -p omui.bench --profile release budgets`；与旧的一步并行跑一轮，102 条预算逐条对上后删除 `omui-bench` 的 `--check`、报告、表格、JSON 格式与 `main`，只留场景与取样循环 | 待 7a 的一轮 CI |
+
+发现的一处上游缺口（小，未提）：`metric` 的方向只有 `lower`／`higher`，没有“无所谓”（节点数这类计数器），趋势判定会把它当成越低越好。
+
 ### 6.14 四级归位：通用基础 → 通用部件 → 专用 → 具体应用（D-179）
 
 来由（2026-11-13）：一个分析与设计的思路——通用的基础设施、性质、规则 → 通用的、带某种效果、可复用的场景与部件 → 特定专门的 → 具体的应用场景。

@@ -104,6 +104,7 @@ struct Result {
     double       allocations = -1;       // per iteration (mean); -1: not counted
     std::uint64_t max_allocations = 0;
     std::vector<std::pair<std::string, double>> counters;
+    std::vector<double> samples_ms;      // each measured iteration, in the order run
     std::string  skipped;                // why it did not run; empty when it did
     std::string  failed;                 // why what it measures went wrong; empty when it did not
     std::vector<std::pair<std::string, std::string>> notes;

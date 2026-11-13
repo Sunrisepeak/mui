@@ -420,6 +420,15 @@ jobs:
             --check tests/bench/budgets.bench.omui.json --all-budgets --json results.bench.omui.json \
             --report bench-report.md --label "${{ matrix.os }} ${{ matrix.toolchain }}"
 
+      # The same benchmarks as mtest's cases, their budgets the cases' bounds (tests/bench/tests/budgets_test.cpp;
+      # the foundation plan's §6.13.1, T2.12 step 7a). Beside the step above for one round: once the two agree
+      # budget for budget, the step above and the program's own check and report go.
+      - name: Benchmarks as mtest cases, budgets as their bounds
+        if: matrix.profile == 'release'
+        env:
+          OMUI_BENCH: "1"
+        run: mcpp test -p omui.bench --profile release budgets
+
       - name: Keep the benchmark report
         if: always() && matrix.profile == 'release'
         uses: actions/upload-artifact@v4

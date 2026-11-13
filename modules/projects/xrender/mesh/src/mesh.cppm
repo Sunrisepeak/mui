@@ -50,6 +50,10 @@ struct Options {
     bool reversed_depth = false;  // the projection puts the nearest at 1 (math::perspective_reversed)
     bool cull_clusters = true;    // leave out a cluster outside the view or wholly facing away: no pixel changes
     bool shadows = true;          // where the assets have trees: a light reaches a surface only if nothing is between
+    // Every sample of this frame taken this far from its pixel's middle (pixels: x right, y down; within half a
+    // pixel). A different one each frame, and the frames gathered over time (`Temporal`), is anti-aliasing. The
+    // velocity does not include it.
+    Vec2 jitter{0, 0};
 };
 
 inline constexpr std::uint32_t none = 0xffffffffu;
@@ -60,6 +64,7 @@ struct Pixel {
 struct Targets {
     int width = 0, height = 0;
     std::vector<std::uint8_t> colour;    // rgba8, sRGB, a row after a row from the top
+    std::vector<Vec3>         light;     // the same before the display's curve (linear, not held to 1): what is gathered over time
     std::vector<float>        depth;     // as the projection gives it (0 … 1)
     std::vector<Vec3>         normal;    // in the world, of length 1; nothing drawn: 0
     std::vector<Vec2>         velocity;  // pixels moved since the last frame drawn (x right, y down)
@@ -100,6 +105,33 @@ private:
     Mat4              before_clip_;    // its world to clip
     std::vector<Caster> casters_;      // a frame's: every instance of the scene that can cast, seen or not
     bool              remembered_ = false;
+};
+
+// Where frame `number`'s samples are taken, for `Options::jitter`: a sequence that fills a pixel evenly (Halton's,
+// bases 2 and 3), 16 long, each within half a pixel of the middle.
+[[nodiscard]] Vec2 jitter_of(std::uint32_t number) noexcept;
+
+// Frames gathered over time: anti-aliasing from frames whose samples were each taken a little aside (`jitter`).
+// A pixel's light is the last result's where its surface was a frame ago (the velocity), mixed with the frame's own
+// — unless neither there nor beside it was this instance (the ids): then the frame's own, and it starts
+// again. What is carried is held to what the frame's pixels around it show, so what has changed does not linger.
+// The reference of the method: a GPU's resolve is held to it.
+class Temporal {
+public:
+    struct Told {
+        std::uint32_t carried = 0, another = 0, outside = 0;  // pixels that kept their past; that were another thing's; whose past was off the frame
+    };
+    // `frame` as drawn (its light, velocity and ids); `colour` rgba8, sRGB, the frame's size.
+    Told resolve(const Targets& frame, std::vector<std::uint8_t>& colour);
+    [[nodiscard]] std::span<const Vec3> light() const noexcept { return light_; }
+    void forget() noexcept { width_ = height_ = 0; }
+    float least = 0.06f;  // the newest frame's share once a pixel has settled
+
+private:
+    int                        width_ = 0, height_ = 0;
+    std::vector<Vec3>          light_, next_;
+    std::vector<Id>            who_, next_who_;   // the instance at each pixel of the last result; 0: none
+    std::vector<std::uint16_t> age_, next_age_;   // frames gathered there
 };
 
 // Who drew the pixel, back to the scene's instance — or nothing did.

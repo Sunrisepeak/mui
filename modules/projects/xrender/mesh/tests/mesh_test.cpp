@@ -350,4 +350,93 @@ static UTest cases{"xrender.mesh", [] {
         expect(gt(darker, 3000u) && eq(lighter, 0u));
         expect(eq(bits(frame.targets), std::uint64_t{0x67ba845e17a03e8c})) << std::format("{:016x}", bits(frame.targets));
     };
+    "frames gathered over time are anti-aliasing: sixteen frames each sampled a little aside come to what sixteen samples a pixel give, far nearer than one frame is"_test = [] {
+        const scene::Scene world = yard();
+        constexpr int width = 240, height = 135, fine = 4;
+        // The truth: sixteen samples a pixel, their light averaged.
+        const Frame large = drawn(world, yard_camera, width * fine, height * fine);
+        std::vector<math::Vec3> truth(static_cast<std::size_t>(width) * height);
+        for (int y = 0; y < height; ++y)
+            for (int x = 0; x < width; ++x) {
+                math::Vec3 sum;
+                for (int dy = 0; dy < fine; ++dy)
+                    for (int dx = 0; dx < fine; ++dx) sum = sum + large.targets.light[static_cast<std::size_t>(y * fine + dy) * (width * fine) + static_cast<std::size_t>(x * fine + dx)];
+                truth[static_cast<std::size_t>(y) * width + x] = sum * (1.0f / (fine * fine));
+            }
+        const auto apart = [&](std::span<const math::Vec3> light) {
+            double sum = 0;
+            for (std::size_t pixel = 0; pixel < truth.size(); ++pixel)
+                sum += std::abs(light[pixel].x - truth[pixel].x) + std::abs(light[pixel].y - truth[pixel].y) + std::abs(light[pixel].z - truth[pixel].z);
+            return sum / static_cast<double>(truth.size());
+        };
+        const Frame one = drawn(world, yard_camera, width, height);
+        mesh::Pass pass;
+        mesh::Temporal gathered;
+        std::vector<std::uint8_t> colour;
+        mesh::Temporal::Told told;
+        for (std::uint32_t number = 0; number < 16; ++number) {
+            const Frame frame = drawn(world, yard_camera, width, height, pass, {.jitter = mesh::jitter_of(number)});
+            // Nothing moved: the jitter is not a movement.
+            if (number == 5) expect(std::ranges::all_of(frame.targets.velocity, [](math::Vec2 velocity) { return velocity.x == 0 && velocity.y == 0; }));
+            told = gathered.resolve(frame.targets, colour);
+        }
+        const double alone = apart(one.targets.light), together = apart(gathered.light());
+        std::println("against 16 samples a pixel: one frame is {:.5f} off a pixel, 16 frames gathered {:.5f} ({:.0f}% of it); the last frame carried {} pixels, {} were another thing's", alone, together,
+                     100 * together / alone, told.carried, told.another);
+        expect(lt(together * 2.5, alone)) << "less than 40% of one frame's error";
+        expect(gt(told.carried, static_cast<std::uint32_t>(width * height * 9 / 10)));
+        // The sequence: 16 different places within half a pixel, about the middle on average.
+        math::Vec2 sum{0, 0};
+        std::set<std::pair<float, float>> places;
+        for (std::uint32_t number = 0; number < 16; ++number) {
+            const math::Vec2 at = mesh::jitter_of(number);
+            expect(le(std::abs(at.x), 0.5f) && le(std::abs(at.y), 0.5f));
+            sum = {sum.x + at.x, sum.y + at.y}, places.insert({at.x, at.y});
+        }
+        expect(eq(places.size(), std::size_t{16}) && lt(std::abs(sum.x / 16), 0.05f) && lt(std::abs(sum.y / 16), 0.05f));
+        // Kept for the README: one frame's edge and the gathered one's, the same crop.
+        // The box's corner, each pixel six across: one frame on the left, the gathered frames on the right.
+        constexpr int left = 55, top = 45, across = 70, down = 50, times = 6, gap = 12;
+        mesh::Targets beside;
+        beside.width = across * times * 2 + gap, beside.height = down * times;
+        beside.colour.assign(static_cast<std::size_t>(beside.width) * beside.height * 4, 255);
+        for (int y = 0; y < beside.height; ++y)
+            for (int x = 0; x < across * times; ++x) {
+                const std::size_t from = (static_cast<std::size_t>(top + y / times) * width + static_cast<std::size_t>(left + x / times)) * 4;
+                std::copy_n(one.targets.colour.begin() + static_cast<std::ptrdiff_t>(from), 4, beside.colour.begin() + static_cast<std::ptrdiff_t>((static_cast<std::size_t>(y) * beside.width + x) * 4));
+                std::copy_n(colour.begin() + static_cast<std::ptrdiff_t>(from), 4,
+                            beside.colour.begin() + static_cast<std::ptrdiff_t>((static_cast<std::size_t>(y) * beside.width + x + across * times + gap) * 4));
+            }
+        (void)keep(beside, "edges");
+    };
+    "what moves leaves nothing behind: where the box was a frame ago is the floor again, and the box is the box where it is now"_test = [] {
+        scene::Scene world = yard();
+        mesh::Pass pass;
+        mesh::Temporal gathered;
+        std::vector<std::uint8_t> colour;
+        Frame before;
+        for (std::uint32_t number = 0; number < 8; ++number) {
+            before = drawn(world, yard_camera, 320, 180, pass, {.jitter = mesh::jitter_of(number)});
+            (void)gathered.resolve(before.targets, colour);
+        }
+        // The box goes a long way to the left in one frame.
+        const math::Mat4 was = world.find(10)->world;
+        expect(world.move(10, math::translation({-1.5f, 0, 0}) * was).has_value());
+        const Frame moved = drawn(world, yard_camera, 320, 180, pass, {.jitter = mesh::jitter_of(8)});
+        const mesh::Temporal::Told told = gathered.resolve(moved.targets, colour);
+        // Where the box was and is no more, the result is what the frame shows there (the floor; the ball's side):
+        // nothing of the box is left. And the box, where it is now, is the box.
+        std::uint32_t left_behind = 0, trailing = 0, of_box = 0, box_wrong = 0;
+        for (std::size_t pixel = 0; pixel < moved.targets.ids.size(); ++pixel) {
+            const int x = static_cast<int>(pixel % 320), y = static_cast<int>(pixel / 320);
+            const auto who = mesh::at(moved.targets, x, y), was = mesh::at(before.targets, x, y);
+            const math::Vec3 now = moved.targets.light[pixel], result = gathered.light()[pixel];
+            const float off = std::abs(now.x - result.x) + std::abs(now.y - result.y) + std::abs(now.z - result.z);
+            if (who && who->instance == 10) ++of_box, box_wrong += off > 0.25f;
+            else if (was && was->instance == 10) ++left_behind, trailing += off > 0.1f;
+        }
+        std::println("the box jumped 1.5 to the left: {} pixels began again; of the {} it left, {} are not what the frame shows there; of the box's {} now, {} are not the box's", told.another, left_behind,
+                     trailing, of_box, box_wrong);
+        expect(gt(told.another, 1000u) && gt(left_behind, 1500u) && le(trailing, left_behind / 100) && le(box_wrong, of_box / 20)) << "no trail where it was, no smear where it is";
+    };
 }};

@@ -97,6 +97,7 @@ struct Raster {
     Material       material;
     Pixel          id;
     bool           still = true;  // the draw is where it was, seen from where it was seen: its pixels moved by 0, exactly
+    Mat4           aside;         // this frame's jitter, in clip space
 
     // Whether anything is between `from` and a light `reach` away along `toward` (of length 1). The ray is taken
     // into each mesh's own space as it is — not made of length 1 again — so a distance along it is the world's.
@@ -147,7 +148,7 @@ struct Raster {
         std::array<double, 3> x{}, y{};
         std::array<float, 3> z{}, inverse{};
         for (int index = 0; index < 3; ++index) {
-            const Vec4& clip = corners[index]->clip;
+            const Vec4 clip = aside * corners[index]->clip;
             inverse[index] = 1.0f / clip.w;
             z[index] = clip.z * inverse[index];
             // The screen, y down, in 1/256 of a pixel: whole numbers, so the edges below are exact.
@@ -193,10 +194,11 @@ struct Raster {
                 Vec2 moved{0, 0};
                 if (!still && before.w > 0) {
                     const float was_x = (before.x / before.w * 0.5f + 0.5f) * static_cast<float>(out.width), was_y = (0.5f - before.y / before.w * 0.5f) * static_cast<float>(out.height);
-                    moved = {static_cast<float>(column) + 0.5f - was_x, static_cast<float>(row) + 0.5f - was_y};
+                    // The sample is `jitter` aside of the pixel's middle; the surface there, seen without it, is not.
+                    moved = {static_cast<float>(column) + 0.5f - options.jitter.x - was_x, static_cast<float>(row) + 0.5f - options.jitter.y - was_y};
                 }
                 const Vec3 colour = lit(normal, place);
-                out.depth[pixel] = depth, out.normal[pixel] = normal, out.velocity[pixel] = moved, out.ids[pixel] = id;
+                out.depth[pixel] = depth, out.normal[pixel] = normal, out.velocity[pixel] = moved, out.ids[pixel] = id, out.light[pixel] = colour;
                 out.colour[pixel * 4] = encoded(colour.x), out.colour[pixel * 4 + 1] = encoded(colour.y), out.colour[pixel * 4 + 2] = encoded(colour.z), out.colour[pixel * 4 + 3] = 255;
             }
         }
@@ -211,7 +213,7 @@ Vec4 moved(const Mat4& matrix, Vec3 point) noexcept { return matrix * Vec4{point
 void Targets::resize(int new_width, int new_height) {
     width = std::max(new_width, 0), height = std::max(new_height, 0);
     const std::size_t pixels = static_cast<std::size_t>(width) * height;
-    colour.resize(pixels * 4), depth.resize(pixels), normal.resize(pixels), velocity.resize(pixels), ids.resize(pixels);
+    colour.resize(pixels * 4), light.resize(pixels), depth.resize(pixels), normal.resize(pixels), velocity.resize(pixels), ids.resize(pixels);
 }
 
 void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, const Assets& assets, Targets& out, const Options& options) {
@@ -220,7 +222,7 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
     const std::size_t pixels = static_cast<std::size_t>(out.width) * out.height;
     if (out.depth.size() != pixels) out.resize(out.width, out.height);
     std::ranges::fill(out.depth, options.reversed_depth ? 0.0f : 1.0f);
-    std::ranges::fill(out.normal, Vec3{}), std::ranges::fill(out.velocity, Vec2{0, 0}), std::ranges::fill(out.ids, Pixel{});
+    std::ranges::fill(out.normal, Vec3{}), std::ranges::fill(out.velocity, Vec2{0, 0}), std::ranges::fill(out.ids, Pixel{}), std::ranges::fill(out.light, options.background);
     const std::array<std::uint8_t, 4> clear{encoded(options.background.x), encoded(options.background.y), encoded(options.background.z), 255};
     for (std::size_t pixel = 0; pixel < pixels; ++pixel) std::copy_n(clear.begin(), 4, out.colour.begin() + static_cast<std::ptrdiff_t>(pixel * 4));
 
@@ -245,7 +247,11 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
             const std::optional<Mat4> back = math::inverse(instance.world);
             if (back) casters_.push_back({*back, geom::moved(instance.world, instance.bounds), &assets.meshes[instance.mesh]->mesh, assets.trees[instance.mesh]});
         }
-    Raster raster{out, options, last_, std::span(lamps).first(lamp_count), casters_, {}, {}, true};
+    // The jitter: every corner moved by so much of a pixel — in clip space, by so much of its own w.
+    Mat4 aside;
+    if (out.width > 0 && out.height > 0) aside.at(3, 0) = 2.0f * options.jitter.x / static_cast<float>(out.width), aside.at(3, 1) = -2.0f * options.jitter.y / static_cast<float>(out.height);
+    // Applied to each corner after the clipping (`aside * clip`: the column that multiplies the corner's own w).
+    Raster raster{out, options, last_, std::span(lamps).first(lamp_count), casters_, {}, {}, true, aside};
 
     for (std::uint32_t number = 0; number < extracted.draws.size() && pixels; ++number) {
         const scene::Draw& draw = extracted.draws[number];
@@ -373,6 +379,84 @@ void shown(const Targets& targets, std::vector<Shown>& out) {
     for (std::size_t draw = 0; draw < out.size(); ++draw) out[draw].instance = targets.draws[draw].id;
     std::erase_if(out, [](const Shown& one) { return one.pixels == 0; });
     std::ranges::sort(out, {}, &Shown::instance);
+}
+
+Vec2 jitter_of(std::uint32_t number) noexcept {
+    // Halton's sequence: a number's digits in a base, mirrored about the point.
+    const auto mirrored = [](std::uint32_t index, std::uint32_t base) {
+        float share = 1, value = 0;
+        while (index) share /= static_cast<float>(base), value += share * static_cast<float>(index % base), index /= base;
+        return value;
+    };
+    const std::uint32_t index = number % 16 + 1;
+    return {mirrored(index, 2) - 0.5f, mirrored(index, 3) - 0.5f};
+}
+
+Temporal::Told Temporal::resolve(const Targets& frame, std::vector<std::uint8_t>& colour) {
+    Told told;
+    const std::size_t pixels = static_cast<std::size_t>(frame.width) * frame.height;
+    colour.resize(pixels * 4);
+    const bool begun = width_ == frame.width && height_ == frame.height && light_.size() == pixels;
+    next_.resize(pixels), next_who_.resize(pixels), next_age_.resize(pixels);
+    const auto who_at = [&](std::size_t pixel) -> Id {
+        const std::uint32_t draw = frame.ids[pixel].draw;
+        return draw < frame.draws.size() ? frame.draws[draw].id : 0;
+    };
+    // Whether the last result had this instance at the place or beside it. Beside counts: at a thing's edge the
+    // sample falls on it one frame and off it the next, and the edge is exactly where frames are to be gathered.
+    const auto about = [&](int at_x, int at_y, Id who) {
+        for (int dy = -1; dy <= 1; ++dy)
+            for (int dx = -1; dx <= 1; ++dx) {
+                const int nx = at_x + dx, ny = at_y + dy;
+                if (nx >= 0 && ny >= 0 && nx < width_ && ny < height_ && who_[static_cast<std::size_t>(ny) * width_ + nx] == who) return true;
+            }
+        return false;
+    };
+    for (int y = 0; y < frame.height; ++y)
+        for (int x = 0; x < frame.width; ++x) {
+            const std::size_t pixel = static_cast<std::size_t>(y) * frame.width + x;
+            const Vec3 now = frame.light[pixel];
+            const Id who = who_at(pixel);
+            Vec3 result = now;
+            std::uint16_t age = 0;
+            if (begun) {
+                // Where this surface was in the last result.
+                const float was_x = static_cast<float>(x) + 0.5f - frame.velocity[pixel].x, was_y = static_cast<float>(y) + 0.5f - frame.velocity[pixel].y;
+                const int near_x = static_cast<int>(std::floor(was_x)), near_y = static_cast<int>(std::floor(was_y));
+                if (near_x < 0 || near_y < 0 || near_x >= width_ || near_y >= height_) {
+                    ++told.outside;
+                } else if (!about(near_x, near_y, who)) {
+                    ++told.another;
+                } else {
+                    // Its light there: between the four results about the place (at a pixel's middle, that pixel's).
+                    const float fx = was_x - 0.5f, fy = was_y - 0.5f;
+                    const int x0 = std::clamp(static_cast<int>(std::floor(fx)), 0, width_ - 1), y0 = std::clamp(static_cast<int>(std::floor(fy)), 0, height_ - 1);
+                    const int x1 = std::min(x0 + 1, width_ - 1), y1 = std::min(y0 + 1, height_ - 1);
+                    const float share_x = std::clamp(fx - static_cast<float>(x0), 0.0f, 1.0f), share_y = std::clamp(fy - static_cast<float>(y0), 0.0f, 1.0f);
+                    const auto past = [&](int px, int py) { return light_[static_cast<std::size_t>(py) * width_ + px]; };
+                    Vec3 carried = math::mix(math::mix(past(x0, y0), past(x1, y0), share_x), math::mix(past(x0, y1), past(x1, y1), share_x), share_y);
+                    // Held to what the frame shows about this pixel: what has changed does not linger.
+                    Vec3 low = now, high = now;
+                    for (int dy = -1; dy <= 1; ++dy)
+                        for (int dx = -1; dx <= 1; ++dx) {
+                            const int nx = std::clamp(x + dx, 0, frame.width - 1), ny = std::clamp(y + dy, 0, frame.height - 1);
+                            const Vec3 beside = frame.light[static_cast<std::size_t>(ny) * frame.width + nx];
+                            low = {std::min(low.x, beside.x), std::min(low.y, beside.y), std::min(low.z, beside.z)};
+                            high = {std::max(high.x, beside.x), std::max(high.y, beside.y), std::max(high.z, beside.z)};
+                        }
+                    carried = {std::clamp(carried.x, low.x, high.x), std::clamp(carried.y, low.y, high.y), std::clamp(carried.z, low.z, high.z)};
+                    age = static_cast<std::uint16_t>(std::min<int>(age_[static_cast<std::size_t>(near_y) * width_ + near_x] + 1, 1000));
+                    const float share = std::max(1.0f / static_cast<float>(age + 1), least);
+                    result = math::mix(carried, now, share);
+                    ++told.carried;
+                }
+            }
+            next_[pixel] = result, next_who_[pixel] = who, next_age_[pixel] = age;
+            colour[pixel * 4] = encoded(result.x), colour[pixel * 4 + 1] = encoded(result.y), colour[pixel * 4 + 2] = encoded(result.z), colour[pixel * 4 + 3] = 255;
+        }
+    light_.swap(next_), who_.swap(next_who_), age_.swap(next_age_);
+    width_ = frame.width, height_ = frame.height;
+    return told;
 }
 
 }  // namespace xrender::mesh

@@ -6,6 +6,8 @@ Closed red-list rows and finished milestones (M0, M1, M2): [STATUS archive](STAT
 
 ## Current: the engine foundation (2026-11-12, [M6.0–M6.5](2026-11-12-foundation-omui-xengine-emergent-world-design.md), D-161–D-177) — M6.0 reached, M6.1's tasks done, its node in check
 
+**Assessment (2026-11-13):** the plan's §15 — the nine design ideas and how each is checked, every engine's evidence and gaps, the milestones' completion (M6.0–M6.2: 30 of 34 tasks; M6.3–M6.5 not begun) and where quality falls short (no all-green CI run on an M6 head; no side-by-side comparison on the world's side; devices in software only). D-179 (four-level placement, §6.14) places each known limitation at the level that must solve it.
+
 Tasks, their dependencies and the milestone nodes: the plan's §9.5. Verified locally by what each task touches; one full run in the background and one look at CI per milestone node.
 
 **Node M6.0-A reached (2026-11-12, 847ad9cf pushed):** T0.1–T0.4 and the first part of T0.5. The node's check is CI on the pushed head: a local run of every member (`--workspace`, or `-p` for each) builds a second configuration of about 25 GB, which this disk does not hold beside the first; locally each task ran its own packages and their direct consumers (the commits say which).

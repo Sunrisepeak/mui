@@ -10,6 +10,7 @@ import std;
 import mlibs.json;
 export import xengine.matter;
 export import :standard_snapshot;
+export import :convection_snapshot;
 
 export namespace xengine::matter {
 
@@ -26,5 +27,9 @@ export namespace xengine::matter {
 // The standard definition (standard.matter.omui.ts: the laws every world shares and a first table of
 // materials), prepared from the snapshot this module carries (`standard_snapshot`).
 [[nodiscard]] std::expected<Program, std::vector<mlibs::json::Problem>> standard();
+// A pack the engine carries (packs/convection.matter.omui.ts): warm gas is lighter — one law, a density lowered
+// by a temperature. Laid over a definition (`standard_with`), what is warm rises and heat is carried, up a
+// shaft and to an open edge. The standard definition does not include it: a world says so.
+[[nodiscard]] std::expected<Definition, std::vector<mlibs::json::Problem>> convection();
 
 }  // namespace xengine::matter

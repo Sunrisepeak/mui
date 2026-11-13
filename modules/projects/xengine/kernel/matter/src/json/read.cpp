@@ -19,6 +19,7 @@ import mlibs.json;
 import mlibs.names;
 import xengine.matter;
 import :standard_snapshot;
+import :convection_snapshot;
 
 namespace xengine::matter {
 namespace {
@@ -298,5 +299,6 @@ std::expected<Program, std::string> standard_with(std::span<const Definition> pa
 }
 
 std::expected<Program, std::vector<mlibs::json::Problem>> standard() { return prepare_document(standard_snapshot, "standard.matter.omui.json"); }
+std::expected<Definition, std::vector<mlibs::json::Problem>> convection() { return read_pack(convection_snapshot, "convection.matter.omui.json"); }
 
 }  // namespace xengine::matter

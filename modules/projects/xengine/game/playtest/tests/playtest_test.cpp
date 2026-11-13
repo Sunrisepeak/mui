@@ -23,6 +23,7 @@ struct Corridor {
         std::int32_t                fire_from = 400, fire_to = 440;
         std::int64_t                fire_until = 1500;  // the frame it has burned out by
         std::int32_t                pool_from = 0, pool_to = 0;  // water: she is afloat in it, and still in it she drowns
+        std::int32_t                mire_from = 0, mire_to = 0;  // a mire: a cell forward takes thirty steps
     };
     struct Input {
         xengine::Actions player{};
@@ -34,7 +35,8 @@ struct Corridor {
         ++state.frame;
         const double axis = input.player.axis(0);
         const bool   shut = std::ranges::contains(state.doors, state.at + 1);
-        if (axis > 0.5 && !shut) ++state.at;
+        const bool mired = state.at >= state.mire_from && state.at < state.mire_to;
+        if (axis > 0.5 && !shut && (!mired || state.frame % 30 == 0)) ++state.at;
         if (axis < -0.5 && state.at > 0) --state.at;
         // A key held out opens the door within reach, and is spent.
         if (input.player.down(2) && state.keys > 0)
@@ -51,7 +53,7 @@ struct Corridor {
     }
     static std::uint64_t checksum(const State& state) noexcept {
         std::uint64_t sum = static_cast<std::uint64_t>(state.frame);
-        for (const std::int32_t part : {state.at, state.health, state.keys, state.doors[0], state.doors[1], state.pool_from, state.pool_to}) sum = sum * 1099511628211ull + static_cast<std::uint32_t>(part);
+        for (const std::int32_t part : {state.at, state.health, state.keys, state.doors[0], state.doors[1], state.pool_from, state.pool_to, state.mire_from, state.mire_to}) sum = sum * 1099511628211ull + static_cast<std::uint32_t>(part);
         return sum;
     }
     static std::string observe(const State& state, bool) {
@@ -179,6 +181,18 @@ UTest cases{"xengine.playtest", [] {
         expect(said(report, "ahead of 389.0 hurts; back off 0, to where she can stand,")) << "between the water (to 380) and the fire (from 400), and no further back";
         expect(!said(report, "nowhere to stand"));
         expect(!said(report, "hurt (") && !said(report, "hurt afloat")) << "nothing she did cost her enough to need mending, and she did not drown";
+    };
+
+    "where a stride gains nothing she looks further before she spends anything: a mire is waded, and the key is still hers at the door beyond it"_test = [] {
+        Corridor::State mire;
+        mire.mire_from = 100, mire.mire_to = 106;  // a stride of forty is a cell of it: less than counts as forward
+        mire.doors = {300, 0};
+        const playtest::Report report = played(mire);
+        expect(report.won) << report.why;
+        expect(said(report, "a stride gained nothing; the longer way"));
+        // Nothing was tried on the mire — no knock, no key: the one key opened the door.
+        expect(said(report, "key at (the door), in the way 5 → 0"));
+        expect(!said(report, "blocked at 10"));
     };
 
     "a way that only hurts is never taken: a fire that does not burn out stops her, unharmed"_test = [] {

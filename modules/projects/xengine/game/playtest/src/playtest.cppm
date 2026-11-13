@@ -10,6 +10,7 @@
 //
 //   0  hurt: out of harm's way, and mend (afloat: up and out, where backing off is drowning)
 //   1  forward: each way of the game's, tried a stride ahead and further; the one that gets furthest unharmed
+//   1b a stride gained nothing and nothing hurt: the same ways for longer, before anything is spent
 //   2a the way is open but would hurt, and what hurts passes with time: back off — as far as was tried and
 //      leaves her standing — and let it
 //   2  blocked: each tool that suits what is ahead, at each aim, over its own time; the first that clears the way
@@ -174,6 +175,23 @@ template <Game G>
                 reached = furthest, waits = 0;
             }
             continue;
+        }
+        // 1b a stride gained nothing and nothing hurt: the same ways, tried for as long as the look further on
+        // — out of a pool, up a slope, through what slows her — before anything is spent on what may be no wall.
+        if (!harmful) {
+            double further = vitals.progress + policy.gain;
+            for (const std::string_view way : std::span<const std::string_view>(game.ways())) {
+                const Vitals beyond = game.vitals(ahead(policy.further, way));
+                if (beyond.lost || beyond.health < vitals.health - policy.harm_further || beyond.health < policy.least) continue;
+                if (beyond.won || beyond.progress > further) further = beyond.won ? 1e9 : beyond.progress, best = way;
+            }
+            if (best) {
+                hands.act(*best);
+                hands.step(policy.further);
+                say(std::format("frame {}: a stride gained nothing; the longer way, forward to {:.1f}", vitals.frame, further));
+                if (further > reached + 1) reached = further, waits = 0;
+                continue;
+            }
         }
         // 2a the way is open but would hurt her, and what hurts passes: back off and let it.
         // Backing off is a step like any other, tried before it is taken. The whole way back where that leaves

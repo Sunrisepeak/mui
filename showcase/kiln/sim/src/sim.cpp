@@ -10,7 +10,9 @@ namespace ca = xengine::cellular;
 namespace verbs = xengine::cellular::verbs;
 
 const substance::Program& matter() {
-    static const substance::Program program = *substance::standard();
+    // The standard definition and the engine's convection pack: in a cavern warm air rises, and what a fire
+    // or a blast heated leaves by the shafts.
+    static const substance::Program program = *substance::standard_with(std::array{*substance::convection()});
     return program;
 }
 
@@ -41,6 +43,8 @@ std::vector<std::string> first_grid(bool flawed) {
         paint(86, 36, 111, 43, 'l');                 // lava: water cools it to stone
         paint(112, 34, 125, 61, '#');                // the last floor
         paint(118, 29, 121, 33, 'E');                // the exit
+        paint(22, 0, 23, 17, '.');                   // a shaft to the sky before the barricade: where a fire's heat leaves
+        paint(70, 0, 71, 17, '.');                   // and one before the wall
         if (flawed) paint(113, 18, 116, 33, '#');  // the mistake: a second wall, and one bomb
         rows[30][6] = 'P';
         rows[29][6] = '.';

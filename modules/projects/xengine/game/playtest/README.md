@@ -19,6 +19,7 @@ The first that applies:
 |---|---|---|
 | 0 | hurt (`Policy::hurt`) | back off and stand until mended; afloat, up and out instead |
 | 1 | a way forward gets further, unharmed | each of the game's ways, tried a stride ahead and — where the stride is safe — further on; the one that gets furthest is taken for a stride |
+| 1b | a stride gained nothing, and nothing hurt | the same ways tried for as long as the look further on, and the one that gets somewhere taken for that long — out of a pool, through what slows her — before anything is spent |
 | 2a | the way is open but hurts, and the game says what hurts passes | back off and wait, a number of times. The whole way back is tried first; where that is not safe (water behind her, or she is in what hurts already) she backs a piece at a time, for real, and at each place tries whether standing there is safe — and waits only where it is |
 | 2 | blocked | a few steps back, for real; then each tool that suits, cheapest first, at each aim, over the tool's own time, on a branch — used for a moment and then standing, as it will be done (`world.branch`'s `then`); the first that leaves less in the way and her well is used |
 | 3 | nothing helped | wait, where a wait tried ahead costs little, a few times; then stop |

@@ -19,12 +19,14 @@ const matter::Program& standard() {
     static const matter::Program program = *matter::standard();
     return program;
 }
+std::string pack_file() {
+    const auto file = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path().parent_path().parent_path() / "packs" / "convection.matter.omui.json";
+    std::ifstream in(file, std::ios::binary);
+    return {std::istreambuf_iterator<char>(in), {}};
+}
 const matter::Program& convecting() {
     static const matter::Program program = [] {
-        const auto file = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path().parent_path().parent_path() / "packs" / "convection.matter.omui.json";
-        std::ifstream in(file, std::ios::binary);
-        const std::string text{std::istreambuf_iterator<char>(in), {}};
-        auto pack = matter::read_pack(text, "convection.matter.omui.json");
+        auto pack = matter::convection();
         expect(fatal(pack.has_value())) << (pack ? "" : pack.error().front().text());
         auto made = matter::standard_with(std::array{*pack});
         expect(fatal(made.has_value())) << (made ? "" : made.error());
@@ -84,6 +86,12 @@ static UTest cases{"matter.convection", [] {
         expect(eq(convecting().laws().size(), standard().laws().size() + 1));
         expect(convecting().laws().back().name == "warm is lighter" && convecting().laws().back().kind == matter::LawKind::adjust && !convecting().laws().back().recipe);
         expect(eq(convecting().materials().size(), standard().materials().size()));
+        // What the engine carries is the pack's file (omui-gen embed keeps it so).
+        std::string file = pack_file();
+        while (!file.empty() && (file.back() == '\n' || file.back() == '\r')) file.pop_back();
+        std::string_view carried = matter::convection_snapshot;
+        while (!carried.empty() && (carried.back() == '\n' || carried.back() == '\r')) carried.remove_suffix(1);
+        expect(file == carried) << "run omui-gen embed packs/convection.matter.omui.json --module xengine.matter.json --name convection_snapshot --namespace xengine::matter --out src/json/generated";
     };
 
     "air heated at the floor of a closed room: with the law its warmth goes up to the roof; without it it stays by the floor"_test = [] {

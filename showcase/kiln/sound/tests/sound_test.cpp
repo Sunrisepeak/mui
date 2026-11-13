@@ -65,7 +65,7 @@ std::string said(const Take& take) {
     return text;
 }
 // Where Mui throws her bomb from: far enough to live (the playtest's player stands so), or beside the keg.
-constexpr float far_enough = 62.5f, too_near = 70.5f;
+constexpr float far_enough = 62.5f, too_near = 74.0f;
 Take bomb_at_the_wall(std::uint64_t* checksum = nullptr, float from = far_enough, std::int32_t* health = nullptr, std::uint64_t* world_frames = nullptr) {
     auto state = *kiln::start(kiln::level::first());
     auto sound = *kiln::Sound::make();

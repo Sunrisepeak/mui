@@ -6,6 +6,7 @@ import std;
 import openas;
 import mlibs.agent;
 import mlibs.json;
+import xengine.cellular.verbs;
 
 namespace xengine::cellular::matter_agent {
 namespace {
@@ -776,6 +777,74 @@ void Matter::operate(std::string_view operation, const mlibs::agent::Request& re
         const auto edit = application(request["channel"], request["set"], request["add"], request["take"], request["region"]);
         if (!edit) return invalid(edit.error());
         if (!field_->lattice_edit(*edit, request.actor)) return invalid("the field does not take this edit");
+        return answer.data(status());
+    }
+    // The engine's verbs (xengine.cellular.verbs), done to the field this subject stands on by the one who asks:
+    // each write is an edit of the field's, on record with its actor.
+    if (operation == "matter.explode" || operation == "matter.heat" || operation == "matter.pour") {
+        const auto cell = cell_of();
+        if (!cell) return invalid(no_cell);
+        const verbs::Cell centre{static_cast<std::int64_t>(*cell % shape.width), static_cast<std::int64_t>(*cell / shape.width)};
+        struct OnField final : verbs::Surface {
+            const Matter&        subject;
+            agent::Lattice&      field;
+            const openas::Actor& actor;
+            bool                 taken = true;
+            OnField(const Matter& subject_, agent::Lattice& field_, const openas::Actor& actor_) : subject(subject_), field(field_), actor(actor_) {}
+            [[nodiscard]] const matter::Program& program() const noexcept override { return *subject.program_; }
+            [[nodiscard]] Shape shape() const noexcept override { return field.lattice_state().shape; }
+            [[nodiscard]] std::span<const std::uint32_t> cells() const noexcept override { return field.lattice_state().cells; }
+            [[nodiscard]] std::uint64_t frames() const noexcept override { return static_cast<std::uint64_t>(field.lattice_frame()); }
+            void place(Tile region, std::uint32_t material) override {
+                const auto edit = subject.placing(material, region);
+                taken = taken && edit && field.lattice_edit(*edit, actor);
+            }
+            void set(std::uint32_t channel, Tile region, std::uint32_t value) override { taken = taken && field.lattice_edit(agent::Edit::place(channel, value, region), actor); }
+        } on_field{*this, *field_, request.actor};
+        const auto whole = [&](std::string_view key, std::int64_t least, std::int64_t most, std::optional<std::int64_t> otherwise) -> std::expected<std::int64_t, std::string> {
+            const auto node = request[key];
+            if (!node && otherwise) return *otherwise;
+            const auto value = node.integer();
+            if (!value || *value < least || *value > most) return std::unexpected(std::format("`{}` is {} … {}", key, least, most));
+            return *value;
+        };
+        std::uint32_t filled = 0;
+        if (operation == "matter.heat") {
+            const auto radius = whole("radius", 0, 64, std::nullopt);
+            const auto kelvin = request["kelvin"].number();
+            if (!radius) return invalid(radius.error());
+            if (!kelvin || !(*kelvin >= 0) || *kelvin > 16000000) return invalid("`kelvin` is a temperature, 0 … 16000000");
+            verbs::heat(on_field, centre, *radius, *kelvin);
+        } else if (operation == "matter.explode") {
+            const auto radius = whole("radius", 1, 64, std::nullopt);
+            if (!radius) return invalid(radius.error());
+            const auto heat_radius = whole("heat_radius", 0, 64, *radius / 2);
+            if (!heat_radius) return invalid(heat_radius.error());
+            const auto pressure_channel = program.channel("pressure");
+            const auto pressure = request["pressure"].number(), heat = request["heat"].number();
+            if (!pressure && !heat) return invalid("an explosion is a `pressure`, a `heat`, or both");
+            if (pressure && !pressure_channel) return invalid("this definition has no channel `pressure`");
+            const double most = pressure_channel ? in_units(std::numeric_limits<std::uint32_t>::max(), channels[*pressure_channel].fraction) : 0;
+            if (pressure && (!(*pressure > 0) || *pressure > most)) return invalid(std::format("`pressure` is above 0, at most {}", number(most)));
+            if (heat && (!(*heat > 0) || *heat > 16000000)) return invalid("`heat` is a temperature above 0, at most 16000000");
+            const std::uint32_t raw = pressure ? static_cast<std::uint32_t>(*pressure * static_cast<double>(std::uint64_t{1} << channels[*pressure_channel].fraction)) : 0;
+            verbs::explode(on_field, centre, {.radius = *radius, .pressure = raw, .heat_radius = *heat_radius, .kelvin = heat.value_or(0)});
+        } else {
+            const auto name = request["material"].text();
+            const auto material = name ? program.material(*name) : std::nullopt;
+            if (!material) return invalid(std::format("`material` is one of {}", names_of(materials)));
+            const auto radius = whole("radius", 0, 64, std::nullopt);
+            if (!radius) return invalid(radius.error());
+            const auto reach = whole("reach", 0, 128, 0);
+            if (!reach) return invalid(reach.error());
+            filled = verbs::pour(on_field, centre, *material, {.radius = *radius, .reach = *reach});
+        }
+        if (!on_field.taken) return invalid("the field does not take this edit");
+        if (operation == "matter.pour") {
+            std::string said = status();
+            if (!said.empty() && said.back() == '}') said.insert(said.size() - 1, std::format(",\"filled\":{}", filled));
+            return answer.data(said);
+        }
         return answer.data(status());
     }
     if (operation == "matter.explain") {

@@ -4,7 +4,7 @@
 // stays where it was.
 import std;
 import xengine.matter.json;
-import xengine.cellular.verbs;
+import xengine.cellular.rigid;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;

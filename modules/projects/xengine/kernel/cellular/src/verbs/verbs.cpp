@@ -8,7 +8,7 @@ namespace xengine::cellular::verbs {
 namespace {
 
 // The square of `radius` about a cell, within the world; of no cells when it lies outside.
-Tile square(const rigid::MatterWorld& world, Cell centre, std::int64_t radius) {
+Tile square(const Surface& world, Cell centre, std::int64_t radius) {
     const std::int64_t left = std::max<std::int64_t>(0, centre.x - radius), top = std::max<std::int64_t>(0, centre.y - radius);
     const std::int64_t right = std::min<std::int64_t>(world.shape().width - 1, centre.x + radius), bottom = std::min<std::int64_t>(world.shape().height - 1, centre.y + radius);
     if (right < left || bottom < top) return {};
@@ -20,14 +20,14 @@ std::uint32_t stored(const matter::Program& program, std::uint32_t channel, doub
 
 }  // namespace
 
-void heat(rigid::MatterWorld& world, Cell centre, std::int64_t radius, double kelvin) {
+void heat(Surface& world, Cell centre, std::int64_t radius, double kelvin) {
     const auto temperature = world.program().channel("temperature");
     const Tile region = square(world, centre, radius);
     if (!temperature || !region.width) return;
     world.set(*temperature, region, stored(world.program(), *temperature, kelvin));
 }
 
-void explode(rigid::MatterWorld& world, Cell centre, const Explosion& explosion) {
+void explode(Surface& world, Cell centre, const Explosion& explosion) {
     const auto pressure = world.program().channel("pressure");
     if (pressure && explosion.pressure > 0) {
         // A disc, a row at a time.
@@ -41,7 +41,7 @@ void explode(rigid::MatterWorld& world, Cell centre, const Explosion& explosion)
     if (explosion.kelvin > 0) heat(world, centre, explosion.heat_radius, explosion.kelvin);
 }
 
-std::uint32_t pour(rigid::MatterWorld& world, Cell centre, std::uint32_t material, const Pour& pour) {
+std::uint32_t pour(Surface& world, Cell centre, std::uint32_t material, const Pour& pour) {
     const matter::Program& program = world.program();
     if (material >= program.materials().size()) return 0;
     const Shape shape = world.shape();
@@ -58,7 +58,7 @@ std::uint32_t pour(rigid::MatterWorld& world, Cell centre, std::uint32_t materia
     return filled;
 }
 
-std::uint32_t vent(rigid::MatterWorld& world, const Vent& vent) {
+std::uint32_t vent(Surface& world, const Vent& vent) {
     if (vent.every == 0 || world.frames() % vent.every != 0) return 0;
     std::uint32_t filled = 0;
     if (vent.material) filled = pour(world, vent.at, *vent.material, vent.pour);

@@ -23,6 +23,7 @@ import std;
 export import xengine.cellular.matter;
 export import xengine.dynamics.rigid;
 export import xengine.cellular.particles;
+export import xengine.cellular.verbs;
 
 export namespace xengine::cellular::rigid {
 namespace dyn = xengine::dynamics::rigid;
@@ -175,15 +176,16 @@ struct Journal : particles::Log, BodyLog {
     std::vector<std::uint8_t> activity;     // the tiles' bytes the step began with (a tile asleep then was not run)
     void clear();
 };
-class MatterWorld {
+// A world is what the verbs are done to (verbs::Surface): an explosion, a heat, a pour, a vent.
+class MatterWorld final : public verbs::Surface {
 public:
     [[nodiscard]] static std::expected<std::unique_ptr<MatterWorld>, std::string> make(const xengine::matter::Program& program, const WorldOptions& options);
     MatterWorld(const MatterWorld&) = delete;
     MatterWorld& operator=(const MatterWorld&) = delete;
 
-    [[nodiscard]] const xengine::matter::Program& program() const noexcept { return *program_; }
-    [[nodiscard]] Shape shape() const noexcept { return options_.shape; }
-    [[nodiscard]] std::span<const std::uint32_t> cells() const noexcept { return cells_; }
+    [[nodiscard]] const xengine::matter::Program& program() const noexcept override { return *program_; }
+    [[nodiscard]] Shape shape() const noexcept override { return options_.shape; }
+    [[nodiscard]] std::span<const std::uint32_t> cells() const noexcept override { return cells_; }
     [[nodiscard]] dyn::World& rigid() noexcept { return *rigid_; }
     [[nodiscard]] Bodies& bodies() noexcept { return *bodies_; }
     [[nodiscard]] particles::Particles& flying() noexcept { return *flying_; }
@@ -194,7 +196,7 @@ public:
     // A blast at `centre` (cells): what is not gas within `radius` thrown outward (solids too when `breaks`);
     // bodies are pushed by it at the next frame through the field's pressure, if the world has one.
     std::uint32_t blast(particles::Vec centre, float radius, float speed, bool breaks = false);
-    [[nodiscard]] std::uint64_t frames() const noexcept { return tick_; }
+    [[nodiscard]] std::uint64_t frames() const noexcept override { return tick_; }
     // The cells `place` wrote over something that was not gas, since this world was made (not of its state: a
     // copy starts from the same count, a restored world keeps its own). A work that only puts matter where
     // there is none and applies quantities leaves it where its setting-up left it (D-182).
@@ -218,8 +220,8 @@ public:
     [[nodiscard]] std::span<const std::uint8_t> activity() const noexcept { return activity_; }
 
     // Cells written from outside a frame (the tiles they are in wake).
-    void place(Tile region, std::uint32_t material);
-    void set(std::uint32_t channel, Tile region, std::uint32_t value);
+    void place(Tile region, std::uint32_t material) override;
+    void set(std::uint32_t channel, Tile region, std::uint32_t value) override;
     // The solid cells of `region` become bodies.
     [[nodiscard]] std::expected<std::vector<dyn::BodyId>, std::string> carve(Tile region);
     // One frame: the lattice's step, what the field does to the bodies, the bodies out, the terrain, the rigid

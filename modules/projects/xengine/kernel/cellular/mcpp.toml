@@ -44,7 +44,7 @@ matter = { sources = ["src/matter/*.cppm", "src/matter/*.cpp"] }
 # of solid cells that moves with xengine.dynamics' rigid family while the lattice keeps simulating its cells —
 # it burns away, is re-made, splits; a liquid holds it up and drags it, a blast pushes it; the field's own solid
 # cells are fixed collision. It joins the lattice of matter and the rigid family, and nothing more.
-rigid = { implies = ["matter", "particles"], sources = ["src/rigid/*.cppm", "src/rigid/*.cpp"] }
+rigid = { implies = ["matter", "particles", "verbs"], sources = ["src/rigid/*.cppm", "src/rigid/*.cpp"] }
 # Cells in flight (src/particles/, module xengine.cellular.particles; the plan's §6.7, lattice ↔ particles):
 # thrown by a pressure or a blast, carrying their whole state, a cell again where they land. Conserving.
 particles = { implies = ["matter"], sources = ["src/particles/*.cppm", "src/particles/*.cpp"] }
@@ -54,9 +54,9 @@ particles = { implies = ["matter"], sources = ["src/particles/*.cppm", "src/part
 # What is done to a world of matter, as parts any work uses (src/verbs/, module xengine.cellular.verbs; D-183,
 # the engine's standard library): an explosion, a heat, a pour, a vent — each only places matter where there is
 # none and applies quantities; what follows is the laws'.
-verbs = { implies = ["rigid"], sources = ["src/verbs/*.cppm", "src/verbs/*.cpp"] }
+verbs = { implies = ["matter"], sources = ["src/verbs/*.cppm", "src/verbs/*.cpp"] }
 decor = { implies = ["matter"], sources = ["src/decor/*.cppm", "src/decor/*.cpp"] }
-matter-agent = { implies = ["agent", "matter"], sources = ["src/matter/agent/*.cppm", "src/matter/agent/*.cpp"] }
+matter-agent = { implies = ["agent", "matter", "verbs"], sources = ["src/matter/agent/*.cppm", "src/matter/agent/*.cpp"] }
 # A world's lattice as what the matter subject stands on (src/rigid/agent/, module xengine.cellular.rigid.agent;
 # the plan's §6.10.1): the record of causes on a world whose cells also fly and are bodies' — where a cell landed
 # from, what threw it, whose blast. The two it joins, and nothing more.

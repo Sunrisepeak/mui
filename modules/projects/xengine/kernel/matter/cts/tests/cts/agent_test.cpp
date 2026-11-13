@@ -573,6 +573,42 @@ static UTest cases{"matter.agent", [] {
         }
     };
 
+    "the engine's verbs as an agent's operations: an explosion by a wall is rubble by the law, and asked why, the sand names the law and the one who exploded it; a pour fills only gas; a heat lights wood"_test = [] {
+        subject::World world = world_of({24, 16});
+        auto session = session_of(world, "builder");
+        told(session, R"({"op":"matter.place","material":"stone","region":[0,14,24,2]})");
+        told(session, R"({"op":"matter.place","material":"stone","region":[12,6,2,8]})");
+        told(session, R"({"op":"matter.explode","cell":[10,11],"radius":4,"pressure":600000,"heat":900})");
+        told(session, R"({"op":"field.step","steps":3})");
+        const auto shattered = told(session, R"({"op":"matter.events","name":"shatter"})");
+        expect(gt(shattered["events"].size(), std::size_t{4})) << shattered.text;
+        const auto first = shattered["events"][0];
+        const auto why = told(session, std::format(R"({{"op":"matter.explain","cell":[{},{}],"depth":2}})", first["cell"][0].integer().value_or(0), first["cell"][1].integer().value_or(0)));
+        expect(why.text.contains(R"("what":"shatter","from":"stone","to":"sand")") && why.text.contains(R"("law":{"name":"shatters")") && why.text.contains(R"("name":"builder")")) << why.text;
+        // A pour: only where there is gas — the floor under it is the floor.
+        const auto poured = told(session, R"({"op":"matter.pour","material":"water","cell":[4,13],"radius":2,"reach":3})");
+        expect(poured["filled"].integer() == 13) << poured.text;
+        expect(told(session, R"({"op":"matter.at","cell":[4,14]})")["material"].text() == "stone");
+        expect(told(session, R"({"op":"matter.pour","material":"water","cell":[4,13],"radius":2,"reach":3})")["filled"].integer() == 0) << "where it poured there is no gas left";
+        // A heat.
+        told(session, R"({"op":"matter.place","material":"wood","region":[18,12,3,2]})");
+        told(session, R"({"op":"matter.heat","cell":[19,12],"radius":1,"kelvin":900})");
+        told(session, R"({"op":"field.step","steps":2})");
+        expect(gt(told(session, R"({"op":"matter.events","name":"ignite"})")["events"].size(), std::size_t{0}));
+        // Ill said.
+        const std::array<std::pair<std::string_view, std::string_view>, 5> refused{{
+            {R"({"op":"matter.explode","cell":[10,11],"radius":0,"pressure":5})", "`radius` is 1 … 64"},
+            {R"({"op":"matter.explode","cell":[10,11],"radius":3})", "an explosion is a `pressure`, a `heat`, or both"},
+            {R"({"op":"matter.heat","cell":[10,11],"radius":2})", "`kelvin` is a temperature"},
+            {R"({"op":"matter.pour","material":"cheese","cell":[4,13],"radius":2})", "`material` is one of"},
+            {R"({"op":"matter.pour","material":"water","cell":[99,13],"radius":2})", "`cell` is [x, y]"},
+        }};
+        for (const auto& [line, reason] : refused) {
+            const Answered answer = ask(session, line);
+            expect(answer.error == openas::error_code::invalid_argument && answer.message.contains(reason)) << line << " → " << answer.text;
+        }
+    };
+
     "what it refuses, and says why: a material or a channel it has not, an amount out of its range, a cell outside, a law that is not judged, a budget too small"_test = [] {
         subject::World world = world_of({12, 5});
         agent::SubjectSession session = session_of(world);

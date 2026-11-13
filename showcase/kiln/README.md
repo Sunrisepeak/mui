@@ -16,7 +16,7 @@ The first cavern: Mui starts on a ledge; a barricade of wood bars the way (fire)
 
 ```sh
 mcpp test -p omui.showcase.kiln.sim     # stands, burns the barricade open, swims, holes the wall, cools the lava; the same frames bit for bit
-mcpp test -p omui.showcase.kiln.headless   # the playtest: finishes the first cavern; stops at the planted second wall and says why; why a grain of sand is where it is, back to Mui's bomb
+mcpp test -p omui.showcase.kiln.headless   # the playtest: finishes the first cavern; stops at the planted second wall and says why; why a grain of sand is where it is, back through the law that shattered the stone to the pressure Mui applied
 mcpp test -p omui.showcase.kiln.picture    # the four steps of the ladder drawn headless; the game's checksum the same at each
 ```
 
@@ -34,9 +34,9 @@ A known limit of the baked step: its frames are of one scene, a flame, and they 
 
 ## What the playtest found
 
-The player in `headless/tests/playtest_test.cpp` sees what a person is shown and does what a person can; it tries ahead by branching. Playing the first cavern it found two things about the game, not yet changed:
+The player in `headless/tests/playtest_test.cpp` sees what a person is shown and does what a person can; it tries ahead by branching. Playing the first cavern it found two things, not yet changed:
 
 - it crossed the lava pit without casting water: by the time she reached it the lava's top had set to stone and cooled enough to walk on — the water puzzle was not needed (why it sets so soon is to be looked at: the heat it gives the air and the stone, or the bomb's sand falling on it);
-- at the pool it spends a bomb on the pool's far wall before it finds the swim.
+- a grain of sand is thrown 146 times by one bomb: the pressure lasts far longer than a blast does (the standard definition's, to be settled with the law of motion).
 
-And one that was changed: a bomb's rubble used to come down as stone again and shut the hole it made; a bomb now shatters the stone about it to sand first, which slumps into a heap she walks over.
+And one that was changed, twice: a bomb's rubble used to come down as stone again and shut the hole it made, so the game turned the stone about a bomb to sand itself; now the game converts nothing. A bomb is a pressure and a heat, and stone shatters to sand because the standard definition says a solid does where the pressure on it is past its `toughness` (the law `shatters`, and what it `breaks_into`).

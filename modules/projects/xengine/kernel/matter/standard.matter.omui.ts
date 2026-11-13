@@ -7,9 +7,15 @@
 import { defineMatter } from "omui/define";
 
 export default defineMatter({
+  // What breaks: at a pressure of its `toughness` a thing is what its `breaks_into` names — stone under a blast
+  // is sand. Said here and not among the columns every definition starts from: a definition adds what it needs.
+  columns: {
+    toughness: { unit: "pressure", doc: "the pressure at which it breaks; 0: it does not", most: 4000000000 },
+    breaks_into: { kind: "material", doc: "what it is when it breaks" },
+  },
   materials: {
     air: { phase: "gas", density: 1.2, oxygen: 1, thermal: 1 },
-    stone: { density: 2500, friction: 0.6, restitution: 0.15, shape_stiffness: 1, thermal: 2, melting: 1300, melted: "lava" },
+    stone: { density: 2500, friction: 0.6, restitution: 0.15, shape_stiffness: 1, thermal: 2, melting: 1300, melted: "lava", toughness: 200000, breaks_into: "sand" },
     lava: { phase: "liquid", density: 2500, thermal: 4, melting: 1300, frozen: "stone", starts_at: 1600 },
     sand: { phase: "granular", density: 1600, friction: 0.7, restitution: 0.05, shape_stiffness: 0, thermal: 1, porous: 4 },
     wood: { density: 600, friction: 0.45, restitution: 0.35, shape_stiffness: 1, thermal: 1, porous: 2, ignition: 570, fuel: 400, heat: 80, burnt: "ash", tags: ["plant"] },
@@ -63,5 +69,7 @@ export default defineMatter({
     { name: "condenses", when: "phase == gas && temperature < boiling && phase_heat >= latent", become: "condensed", event: "condense" },
     { name: "freezes", when: "phase == liquid && temperature < melting", become: "frozen", event: "freeze" },
     { name: "melts", when: "melting > 0 && temperature >= melting", become: "melted", event: "melt" },
+    // What is brittle breaks under pressure: a blast makes rubble of a wall, and the rubble is what the wall says.
+    { name: "shatters", when: "toughness > 0 && pressure >= toughness", become: "breaks_into", event: "shatter" },
   ],
 });

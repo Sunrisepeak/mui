@@ -224,8 +224,13 @@ Report playtest(agent::SubjectSession& session, double width, double height) {
         // few times; then say so.
         report.note(std::format("frame {}: blocked at {:.1f}, {} in the way, {} mana, {} bombs; tried{}", seen.frame, seen.x, before, seen.mana, seen.bombs, tried.empty() ? " nothing" : tried));
         if (waits++ < 5) {
-            step(240);
-            continue;
+            // Waiting is a step like any other: not taken where she cannot stay (a crust over lava still hot).
+            const Seen later = branch(240, R"("axis":[0])");
+            if (later.outcome != "lost" && later.health >= seen.health - 25) {
+                step(240);
+                continue;
+            }
+            report.note(std::format("frame {}: and waiting here would cost her {} of health: no waiting", seen.frame, seen.health - later.health));
         }
         report.why = std::format("stuck at x {:.1f}, frame {}: {} cells in the way ahead; {} bombs, {} mana; walking, jumping and every spell at every aim leave the way shut",
                                  seen.x, seen.frame, before, seen.bombs, seen.mana);

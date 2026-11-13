@@ -14,7 +14,7 @@ How Kiln was made, and what making it changed below it. Kiln is the vertical sli
 
 | Layer | Package | What it is |
 |---|---|---|
-| The laws | `xengine.matter` | the standard definition: 17 materials, 19 laws, none naming a material |
+| The laws | `xengine.matter` | the standard definition: 17 materials, 20 laws, none naming a material |
 | The world | `xengine.cellular` (`rigid`, `particles`, `decor`) | `MatterWorld`: the lattice, bodies made of its cells (Box2D under `xengine.dynamics`), cells in flight — one deterministic value, saved, restored and branched as one |
 | Time and the agent | `xengine.runtime`, `mlibs.simulation`, `mlibs.agent` | the game as a `Playable` on a timeline; the subject `world` (observe, act, step, seek, branch) |
 | The picture | `xengine.cellular.present` (`world`), `mlibs.pipeline` | `WorldPicture`: the world shown by two ladders a governor moves — the light, the scenery |
@@ -38,7 +38,7 @@ There are no image files in the game.
 
 **What worked**
 
-- **Branching as the way to play-test.** The player in `playtest_test` is shown what a person is shown and does what a person can; before each move it copies the world and tries ahead. It finishes the first cavern (frame 6423) and, given a cavern with a second wall and one bomb, stops at x 111.5 and says why: no bomb left, 20 cells in the way, and nothing else opens stone. It needed nothing of the game but `observe`, `act`, `step` and `branch`.
+- **Branching as the way to play-test.** The player in `playtest_test` is shown what a person is shown and does what a person can; before each move it copies the world and tries ahead. It finishes the first cavern (frame 4526) and, given a cavern with a second wall and one bomb, stops at x 111.5 (frame 4226) and says why: no bomb left, 20 cells in the way, and nothing else opens stone. It needed nothing of the game but `observe`, `act`, `step` and `branch`.
 - **The slice found real faults below it,** each fixed where it lay and not in the game:
 
 | Found by | Fault | Fixed in |
@@ -49,15 +49,15 @@ There are no image files in the game.
 | the ladder's steps in the wrong order | one ladder of four steps, ordered by guess | measured (glow 42 ms, baked 4.5, none 2.1; scenery alive +0.5) and split in two ladders, the dearer lowered first |
 | the world contract's suite, written for a third dimension | a cut image left Box2D's world unusable | Box2D's bytes under a length and a checksum of ours |
 
-- **Why, asked of the game's own world.** `kiln::Causes` is some twenty lines: the world's lattice, the matter subject on it, and the runtime told to say when the game stepped or went back. The simulation was not touched — Mui's wand still calls the world's `blast`, `place` and `set` — yet an agent shown everything asks of a grain of sand and is told it landed there, thrown at frame 40 by a blast, the player's. What made that possible was below the game: a world that says what a frame did besides its laws, and a subject that stands on an interface, not on one kind of field.
+- **Why, asked of the game's own world.** `kiln::Causes` is some twenty lines: the world's lattice, the matter subject on it, and the runtime told to say when the game stepped or went back. The simulation was not touched — Mui's wand writes a pressure and a heat to the world — yet an agent shown everything asks of a grain of sand and is told the whole of it: it landed there, thrown by the pressure (its 146th flight: the pressure lasted), and it was sand because stone shattered at frame 40 by the law `shatters`, which read a toughness of 200000 under a pressure of 600000 — the pressure the player applied a frame before. What made that possible was below the game: a world that says what a frame did besides its laws, and a subject that stands on an interface, not on one kind of field.
 - **One governor.** The picture's ladders are moved by the same `mlibs.pipeline` governor that lowers omui's motion and effects; a decision is a recorded input.
 
 **What was hard, and what it says to improve**
 
-- **A bomb's rubble shut the hole it made.** Stone thrown by a blast came down as stone. This one is the game's: a bomb now shatters the stone about it to sand, which slumps into a heap she walks over. Whether "a blast breaks a brittle solid into its powder" should be a property in the standard definition — `breaks_into`, as `becomes` is — is open; it would then be every game's.
+- **A bomb's rubble shut the hole it made, and the first answer was the game's.** Stone thrown by a blast came down as stone, so the game turned the stone about a bomb to sand itself — a work converting a material, which is the thing the plan says a work does not do (D-182). It is now a law of the standard definition: a solid has a `toughness` and what it `breaks_into`, and shatters where the pressure on it is past its toughness. Kiln's bomb is a pressure and a heat written to a disc of cells, and nothing else; the stone breaks to sand, the sand is thrown by the pressure and slumps into a heap, and the keg by the wall goes off because it was heated. Every game with the standard definition has the same bomb for nothing, and a pack that gives glass a toughness has glass that shatters.
 - **The player was the hard part, not the game.** Four of its faults were policy: counting regained ground as progress, losing sight of the way when it walked back, treating a hazard as an obstacle, drowning in the pool with small steps. It is a policy in a test; branching play-tests belong one level up, as a part any `Playable` can be given (the plan's §6.14).
 - **The baked step shows what it was baked from.** Its frames are of a flame, so lava glows as small fires there. Each state that emits needs its own baked scene, written in the appearance data and not in a picture.
-- **Two things the playtest found are still as they were:** she crosses the lava without water (its top has set and cooled by the time she arrives — is lava's heat lost too soon in the standard definition, or is this pit too shallow?), and a bomb is spent on the pool's far wall before the swim is found.
+- **What the playtest found, and what is left of it.** She used to spend a bomb on the pool's far wall before finding the swim; with the bomb a pressure and not a blast she no longer does (one bomb, at the wall). She still crosses the lava without water — its top has set by the time she arrives — though the crust is hot: standing on it to wait would cost her all her health, which the player now tries ahead before waiting. And a grain is thrown 146 times by one bomb: the pressure lasts some 260 frames, far longer than a blast does. That one is the standard definition's (how pressure spreads and is lost), to be settled where the push of pressure becomes a law of its own (the plan's T2.14c).
 
 ## 5. What it leaves as practice
 

@@ -568,7 +568,7 @@ static UTest cases{"matter.agent", [] {
             const Answered boiled = events(session, "boil"), caught = events(session, "ignite");
             expect(any(boiled, [&](mlibs::json::Node event) { return event["from"].text() == "alcohol" && event["to"].text() == "alcohol_vapour" && event["law"]["name"].text() == "boils" && part(event, "gave", "stone"); }))
                 << "12: it boils by the law water boils by, the hot stone giving the heat: " << boiled.text.substr(0, 700);
-            expect(told(session, R"({"op":"matter.describe"})")["recipes"].integer() == 0 && told(session, R"({"op":"matter.describe"})")["laws"].size() == 19u) << "12: and no law was added for it";
+            expect(told(session, R"({"op":"matter.describe"})")["recipes"].integer() == 0 && told(session, R"({"op":"matter.describe"})")["laws"].size() == 20u) << "12: and no law was added for it";
             std::println("12: alcohol over a stone at 700 K — {} boilings in 400 steps (its vapour condenses under the cold lid and comes back), {} of its vapour caught", count(boiled), count(caught));
         }
     };
@@ -615,7 +615,7 @@ static UTest cases{"matter.agent", [] {
         agent::SubjectSession session = session_of(world);
         strip(session);
         const Answered all = told(session, R"({"op":"matter.describe"})");
-        expect(all["materials"].size() == 17u && all["laws"].size() == 19u && all["recipes"].integer() == 0 && all["channels"][1]["name"].text() == "temperature" && all["channels"][1]["unit"].text() == "K");
+        expect(all["materials"].size() == 17u && all["laws"].size() == 20u && all["recipes"].integer() == 0 && all["channels"][1]["name"].text() == "temperature" && all["channels"][1]["unit"].text() == "K");
         const Answered wood = told(session, R"({"op":"matter.describe","material":"wood"})");
         expect(wood["phase"].text() == "solid" && wood["properties"]["ignition"].number() == 570.0 && wood["properties"]["burnt"].text() == "ash" && wood["properties"]["friction"].number() == 0.45);
         const Answered burns = told(session, R"({"op":"matter.describe","law":"burns"})");

@@ -181,6 +181,9 @@ void cast(State& state, const Input& input) {
     state.bolts.push_back({from_x + dx * 2.0f, from_y + dy * 2.0f, dx * bolt_speed, dy * bolt_speed, cat.spell});
 }
 
+// A bomb's pressure, as the channel holds it, over a disc of so many cells: three times what breaks stone.
+constexpr std::int64_t bomb_radius = 6;
+constexpr std::uint32_t bomb_pressure = 600000;
 // Where a bolt lands, what it does: fire heats, water pours, a bomb blasts and heats.
 void land(State& state, const Bolt& bolt) {
     auto& world = *state.world;
@@ -204,15 +207,16 @@ void land(State& state, const Bolt& bolt) {
             break;
         }
         case Spell::bomb: {
-            // The blast shatters the stone about it to sand, then throws what is there: what comes down is a
-            // heap that slumps and can be walked over, not a wall rebuilt of its own rubble.
-            const Look look = look_of(state);
-            const auto stone = *program.material("stone"), sand = *program.material("sand");
-            for (std::int64_t y = cy - 6; y <= cy + 6; ++y)
-                for (std::int64_t x = cx - 6; x <= cx + 6; ++x)
-                    if ((x - cx) * (x - cx) + (y - cy) * (y - cy) <= 36 && look.at(x, y) == stone && !world.bodies().owner(static_cast<std::uint32_t>(x), static_cast<std::uint32_t>(y)))
-                        world.place({static_cast<std::uint32_t>(x), static_cast<std::uint32_t>(y), 1, 1}, sand);
-            (void)world.blast({bolt.x, bolt.y}, 7.0f, 30.0f, true);
+            // A bomb is pressure and heat, and nothing else. What is brittle breaks by the law (stone into the
+            // sand it says it breaks into), what is loose is thrown by the pressure, what burns is lit: the game
+            // turns no material into another.
+            const std::uint32_t pressure = *program.channel("pressure");
+            for (std::int64_t dy = -bomb_radius; dy <= bomb_radius; ++dy) {
+                const auto half = static_cast<std::int64_t>(std::floor(std::sqrt(static_cast<double>(bomb_radius * bomb_radius - dy * dy))));
+                const std::int64_t y = cy + dy, x0 = std::max<std::int64_t>(0, cx - half), x1 = std::min<std::int64_t>(world.shape().width - 1, cx + half);
+                if (y < 0 || y >= world.shape().height || x1 < x0) continue;
+                world.set(pressure, {static_cast<std::uint32_t>(x0), static_cast<std::uint32_t>(y), static_cast<std::uint32_t>(x1 - x0 + 1), 1}, bomb_pressure);
+            }
             world.set(temperature, clip(3), 1100 * 256);
             break;
         }

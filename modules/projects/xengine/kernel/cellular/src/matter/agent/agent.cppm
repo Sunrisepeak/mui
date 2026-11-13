@@ -67,7 +67,8 @@ struct Record {
     std::uint32_t failed = 0;           // fell: the comparison of the law that no longer holds
     std::uint32_t channel = 0;          // rose, fell, applied
     // became: materials; rose, fell: the channel's values; placed: `to` the material; applied: `to` the amount;
-    // thrown: `from` the material, `to` by what (agent::Wrote::By); landed: `to` the material, `from` the cell
+    // thrown: `from` the material, `to` by what (agent::Wrote::By), and where what was thrown had come to be
+    // (`failed` 1 + landed, 0 none; `channel` the cell; `since` the frame); landed: `to` the material, `from` the cell
     // it was thrown out of; left: `from` the material.
     std::uint32_t from = 0, to = 0;
     std::int64_t  since = 0;            // landed: the frame it was thrown at
@@ -159,9 +160,12 @@ private:
     mutable std::vector<std::uint32_t> from_;    // scratch: where each cell of a step's output was in its input
     // Where what landed is now: the cell it is in → its landing (the cell and the frame on record), followed as
     // the laws move it. A body that carries it, or its being thrown again, ends the trail.
+    // Where what is in a cell now came to be what it is — it landed, or it became it by a law — followed as the
+    // laws move it: the record a grain's flight is traced back by. Bounded: the oldest are let go.
     struct Landing {
         std::uint32_t cell = 0;
         std::int64_t  frame = 0;
+        RecordKind    kind = RecordKind::landed;
     };
     std::unordered_map<std::uint32_t, Landing>      landings_;
     std::vector<std::pair<std::uint32_t, Landing>>  moved_;  // a step's scratch

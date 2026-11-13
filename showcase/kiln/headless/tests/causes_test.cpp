@@ -1,6 +1,6 @@
 // The matter of Kiln's world as a subject beside the game (kiln::Causes; the foundation plan's §6.10.1, T2.13d):
 // Mui throws a bomb, and an agent that is shown everything asks of a grain of sand why it is where it is — it
-// landed, thrown by a blast, which the player made. The game with the record beside it is the same game; going
+// landed, thrown by pressure, where stone had shattered by a law, under pressure the player applied. The game with the record beside it is the same game; going
 // back in the game's time takes the record back; a person's tier has no such subject.
 import std;
 import mlibs.agent;
@@ -66,19 +66,20 @@ void bomb(kiln::Standalone& game, int after) {
 }  // namespace
 
 UTest cases{"kiln.causes", [] {
-    "Mui throws a bomb; of a grain of the sand it left, an agent shown everything is told: it landed, thrown by a blast, the player's"_test = [] {
+    "Mui throws a bomb; of a grain of the sand it left, an agent shown everything is told: it landed, thrown by pressure, where stone had shattered by the law — under pressure the player applied"_test = [] {
         kiln::Standalone game(cavern(), options(true));
         kiln::Causes causes(game);
         agent::SubjectSession session(kiln::subjects(game, &causes), {.actor = {openas::Kind::agent, "the one who asks", {}}});
         for (int frame = 0; frame < 30; ++frame) game.step({});
         const std::int64_t before = game.frame();
         bomb(game, 400);
-        // What the bomb did is on record as the player's: the heat it left, and the blast.
-        const Answered blasts = told(session, R"({"op":"matter.events","name":"blast"})");
-        expect(fatal(eq(blasts["events"].size(), std::size_t{1}))) << blasts.text;
-        expect(blasts["events"][0]["by"]["name"].text() == "player" && blasts["events"][0]["by"]["kind"].text() == "person");
-        const std::int64_t blast_at = blasts["events"][0]["frame"].integer().value_or(-1);
-        expect(blast_at > before);
+        // A bomb is pressure and heat: both on record as applied by the player; stone shattered by the law.
+        const Answered applied = told(session, R"({"op":"matter.events","name":"applied"})");
+        expect(fatal(applied["events"].size() >= 2u)) << applied.text;
+        const std::int64_t bomb_at = applied["events"][0]["frame"].integer().value_or(-1);
+        expect(applied["events"][0]["by"]["name"].text() == "player" && applied["events"][0]["by"]["kind"].text() == "person" && bomb_at >= before);
+        expect(told(session, R"({"op":"matter.events","name":"shatter"})")["events"].size() > 10u) << "the wall's stone broke by the law, not by the game";
+        expect(eq(told(session, R"({"op":"matter.events","name":"blast"})")["events"].size(), std::size_t{0})) << "the game made no blast of its own";
         // A grain of sand that the blast threw, where it now rests.
         const auto& world = *game.state().world;
         const auto shape = world.shape();
@@ -94,17 +95,19 @@ UTest cases{"kiln.causes", [] {
         expect(fatal(why.has_value())) << std::format("of {} cells of sand asked, none says it landed", asked);
         std::println("{}", why->text);
         const auto landing = (*why)["records"][0];
-        expect(landing["material"].text() == "sand" && landing["thrown_at"].integer() == blast_at);
+        expect(landing["material"].text() == "sand" && landing["thrown_at"].integer().value_or(-1) > bomb_at);
         const auto throwing = landing["because"];
-        expect(throwing["what"].text() == "thrown" && throwing["by"].text() == "blast");
-        const auto blast = throwing["because"];
-        expect(blast["what"].text() == "blast" && blast["by"]["name"].text() == "player" && blast["frame"].integer() == blast_at);
+        expect(throwing["what"].text() == "thrown" && throwing["by"].text() == "pressure");
+        // Why there was sand under pressure there: it shattered — the law, what it read, and whose pressure it was.
+        const auto cause = throwing["because"];
+        expect(cause["what"].text() == "shatter" && cause["from"].text() == "stone" && cause["to"].text() == "sand" && cause["law"]["name"].text() == "shatters") << why->text;
+        expect(cause["applied"]["channel"].text() == "pressure" && cause["applied"]["by"]["name"].text() == "player") << "and the pressure was the player's";
 
         // Back in the game's time to before the bomb: the record goes back with it, and the game goes on from there.
         expect(fatal(game.seek(before)));
-        expect(eq(told(session, R"({"op":"matter.events","name":"blast"})")["events"].size(), std::size_t{0})) << "what happened after that frame is another branch's";
+        expect(eq(told(session, R"({"op":"matter.events","name":"shatter"})")["events"].size(), std::size_t{0})) << "what happened after that frame is another branch's";
         for (int frame = 0; frame < 60; ++frame) game.step({});
-        expect(eq(told(session, R"({"op":"matter.events","name":"blast"})")["events"].size(), std::size_t{0})) << "and in this branch no bomb was thrown";
+        expect(eq(told(session, R"({"op":"matter.events","name":"shatter"})")["events"].size(), std::size_t{0})) << "and in this branch no bomb was thrown";
     };
 
     "the game with its causes on record is the same game: the same checksum each frame as one with no record beside it"_test = [] {

@@ -296,6 +296,11 @@ void Matter::stepped(const agent::FieldState& now, std::span<const std::uint32_t
     for (const Record& record : happened) keep(record);
     // What landed goes where the laws then move it (sand that comes down on a slope slides): its landing is
     // asked of the cell it is in now. `from_` is this step's, as `judge` left it, for the tiles that were awake.
+    constexpr std::size_t origins_kept = 16384;
+    if (landings_.size() > origins_kept) std::erase_if(landings_, [frame](const auto& entry) { return entry.second.frame < frame - 600; });
+    if (landings_.size() > origins_kept) landings_.clear();
+    for (const Record& record : happened)
+        if (record.kind == RecordKind::became) landings_[record.cell] = {record.cell, frame, RecordKind::became};
     if (landings_.empty()) return;
     const Shape shape = now.shape, tiles_of = tiles(shape, now.tile);
     const bool every = activity_before.size() != static_cast<std::size_t>(tiles_of.width) * tiles_of.height;
@@ -339,17 +344,22 @@ void Matter::wrote(const agent::FieldState& now, std::span<const agent::Wrote> w
                 record.actor = actor_of(one.actor < actors.size() ? actors[one.actor] : agent::Field::owner());
                 break;
             case agent::Wrote::Kind::thrown:
-                landings_.erase(one.cell);
                 record.kind = RecordKind::thrown;
                 record.from = one.material;
                 record.to = static_cast<std::uint32_t>(one.by);
+                if (const auto origin = landings_.find(one.cell); origin != landings_.end()) {
+                    record.failed = origin->second.kind == RecordKind::landed ? 2 : 1;
+                    record.channel = origin->second.cell;
+                    record.since = origin->second.frame;
+                    landings_.erase(origin);
+                }
                 break;
             case agent::Wrote::Kind::landed:
                 record.kind = RecordKind::landed;
                 record.to = one.material;
                 record.from = one.from;
                 record.since = one.thrown_at;
-                landings_[one.cell] = {one.cell, frame};
+                landings_[one.cell] = {one.cell, frame, RecordKind::landed};
                 break;
             case agent::Wrote::Kind::left:
                 record.kind = RecordKind::left;
@@ -450,6 +460,36 @@ std::string Matter::said(const Record& record, std::span<const Record> among, in
                         out += std::format(",\"because\":{}", said(*earlier, among, depth - 1));
                         break;
                     }
+            // By the pressure: what last happened to the cell it was — what it became and by which law (with
+            // what an actor applied of what that law read) — or, where nothing did, what an actor applied there.
+            if (depth > 0 && record.to == static_cast<std::uint32_t>(agent::Wrote::By::pressure)) {
+                // A pressure that lasts throws the same grain again and again: its flights before this one are
+                // counted, not each told, and the cause is how it came to be there before the first.
+                const Record* at = &record;
+                const Record* cause = nullptr;
+                int flights = 0;
+                while (at->failed != 0) {
+                    const RecordKind kind = at->failed == 2 ? RecordKind::landed : RecordKind::became;
+                    const Record* origin = nullptr;
+                    for (auto earlier = among.rbegin(); earlier != among.rend() && !origin; ++earlier)
+                        if (earlier->kind == kind && earlier->cell == at->channel && earlier->frame == at->since) origin = &*earlier;
+                    if (!origin) break;
+                    cause = origin;
+                    if (origin->kind != RecordKind::landed) break;
+                    const Record* threw = nullptr;
+                    for (auto earlier = among.rbegin(); earlier != among.rend() && !threw; ++earlier)
+                        if (earlier->kind == RecordKind::thrown && earlier->cell == origin->from && earlier->frame == origin->since) threw = &*earlier;
+                    // It came by a blast, or its throw is no longer on record: that landing says what is known.
+                    if (!threw || threw->to != static_cast<std::uint32_t>(agent::Wrote::By::pressure) || threw->frame >= at->frame) break;
+                    at = threw, cause = nullptr, ++flights;
+                }
+                for (auto earlier = among.rbegin(); earlier != among.rend() && !cause; ++earlier)
+                    if (earlier->frame <= at->frame && earlier->cell == at->cell && (earlier->kind == RecordKind::became || earlier->kind == RecordKind::rose)) cause = &*earlier;
+                for (auto earlier = among.rbegin(); earlier != among.rend() && !cause; ++earlier)
+                    if (earlier->frame <= at->frame && earlier->kind == RecordKind::applied && within(earlier->region, shape, at->cell)) cause = &*earlier;
+                if (flights) out += std::format(",\"flights_before\":{}", flights);
+                if (cause) out += std::format(",\"because\":{}", said(*cause, among, depth - 1));
+            }
             return out + "}";
         }
         case RecordKind::landed: {
@@ -776,10 +816,10 @@ void Matter::operate(std::string_view operation, const mlibs::agent::Request& re
             const bool edit = of_a_region(record->kind);
             if (edit ? within(record->region, shape, *cell) : record->cell == *cell) own.push_back(&*record);
         }
-        // What is here landed somewhere else and the laws moved it here: its landing is of it too.
+        // What is here landed or became what it is somewhere else and the laws moved it here: its landing is of it too.
         if (const auto landing = landings_.find(*cell); landing != landings_.end() && landing->second.cell != *cell) {
             const auto found = std::ranges::find_if(records_, [&](const Record& record) {
-                return record.kind == RecordKind::landed && record.cell == landing->second.cell && record.frame == landing->second.frame;
+                return record.kind == landing->second.kind && record.cell == landing->second.cell && record.frame == landing->second.frame;
             });
             if (found != records_.end()) own.insert(std::ranges::find_if(own, [&](const Record* record) { return record->frame <= found->frame; }), &*found);
         }

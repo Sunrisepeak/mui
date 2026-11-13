@@ -50,6 +50,28 @@ public:
     };
     [[nodiscard]] std::optional<Pick> pick(std::string_view key, std::uint64_t revision, int level, std::uint64_t frame);
 
+    // A node's content as a display list in its own world units, to be drawn
+    // under the camera's transform as it is (D-188): made once a revision —
+    // not once a level of zoom — so a zoom stretches nothing and swaps
+    // nothing. `list`: the one to draw (an older revision's until the new one
+    // is in; none before any is); `exact`: it is this revision's; `unfit`:
+    // this content cannot be drawn so (it holds what only its own runtime
+    // can draw: a lit material, a mesh, an external texture) — its textures
+    // then, as before.
+    struct Listed {
+        const xrender::DisplayList* list = nullptr;
+        bool                        exact = false;
+        bool                        unfit = false;
+    };
+    [[nodiscard]] Listed listed(std::string_view key, std::uint64_t revision) const;
+    // A `content`'s list made here and now (the kind's function called on this thread): this
+    // revision's in the frame that asks, so a node of content is never a box and never a frame late.
+    // A kind without a `content`: what listed() says.
+    Listed list_now(const Scene& scene, NodeRef node, std::string_view key, std::uint64_t revision);
+    // The frame wants a view's list and it is not this revision's: a candidate (issue has it laid
+    // out and painted on the pool).
+    void want_list(std::string_view key, std::uint64_t revision, NodeRef node, float priority);
+
     // The frame wants `level` of a node and it is not ready: a candidate.
     void want(std::string_view key, std::uint64_t revision, int level, NodeRef node, float priority);
     // The frame's candidates, by priority, as jobs (their content built here,
@@ -71,7 +93,7 @@ public:
     [[nodiscard]] bool busy() const;  // jobs in flight or results waiting
 
     struct Stats {
-        std::size_t textures = 0, bytes = 0, jobs = 0, waiting = 0, entered = 0, evicted = 0;
+        std::size_t textures = 0, bytes = 0, jobs = 0, waiting = 0, entered = 0, evicted = 0, lists = 0;
     };
     [[nodiscard]] Stats stats() const;
 
@@ -87,7 +109,14 @@ private:
     struct Entry {
         std::uint64_t        revision = 0;
         std::map<int, Level> levels;
+        // The content's list (Listed), the revision it is of, and the images it draws that entered the store with it.
+        std::shared_ptr<const xrender::DisplayList> list;
+        std::uint64_t                               list_revision = 0;
+        std::vector<xrender::ImageRef>              list_images;
+        std::optional<std::uint64_t>                unfit;  // the revision found unfit
     };
+    // A candidate's and a job's level when what is wanted is the list.
+    static constexpr int list_level = std::numeric_limits<int>::min();
     struct Candidate {
         std::string   key;
         std::uint64_t revision;

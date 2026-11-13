@@ -38,6 +38,11 @@ export default defineContract({
         default: 4,
         doc: "Textures entering the frame at most (MiB a frame): what a GPU uploads stays within a frame's budget (measured on an RTX 4080: a quarter to half a millisecond a MiB; 4 leave a 120 Hz frame most of its 8.3 ms).",
       },
+      content: {
+        type: "string",
+        default: "textures",
+        doc: "How a node's content is drawn at the texture tier: `textures` (rasterised on the task pool a level of zoom, the nearest ready one stretched until the level's is in — what a CPU renderer wants), or `lists` (its display list made once a revision and drawn under the camera's transform every frame: nothing stretched and nothing swapped while the camera zooms, each shape where it is — what a GPU renderer that covers shapes from their outlines wants, D-188; a content that cannot be drawn so keeps its textures).",
+      },
       promotion: {
         type: "string",
         default: "at_rest",

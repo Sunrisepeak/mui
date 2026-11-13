@@ -384,6 +384,68 @@ UTest cases{"ui.canvas", [] {
         expect(textured >= 1) << "what fits stays";
     };
 
+    "content as lists (D-188): a node's display list made once a revision and drawn under the camera — a zoom makes nothing again and stretches nothing"_test = [] {
+        auto& sc = world::scene("lists");
+        sc.clear();
+        std::atomic<int> built = 0;
+        sc.kind("doc", world::Kind{.tiers = {{0, world::Tier::Draw::box}, {60, world::Tier::Draw::texture}},
+                                   .content = [&](const world::Scene& s, world::NodeRef n, xrender::DisplayList& dl) {
+                                       ++built;
+                                       const auto r = s.rect(n);
+                                       dl.fill_rect({0, 0, static_cast<float>(r.width), static_cast<float>(r.height)},
+                                                    Color::hex(static_cast<std::uint32_t>(s.number(n, "color", 0xdc2626))));
+                                       dl.fill_rect({0, 0, static_cast<float>(r.width), 20}, Color::hex(0x1d4ed8));
+                                   }});
+        // A view beside them: laid out and painted on the pool, its list (not its pixels) what comes back.
+        auto card = [](const world::Scene& s, world::NodeRef n) {
+            return column({.width = Dim(static_cast<float>(s.rect(n).width)), .height = Dim(static_cast<float>(s.rect(n).height)), .background = Fill("surface")},
+                          {box({.height = 40, .background = Fill(Color::hex(0x0ea5e9))}), text({.text = std::string(s.text(n, "title")), .style = "heading"})});
+        };
+        sc.kind("card", world::Kind{.tiers = {{0, world::Tier::Draw::box}, {60, world::Tier::Draw::texture}}, .view = card});
+        for (int i = 0; i < 12; ++i)
+            sc.add({.kind = "doc", .x = (i % 4) * 300.0, .y = (i / 4) * 250.0, .width = 240, .height = 200, .key = std::format("d{}", i),
+                    .fill = Color::hex(0x94a3b8)});
+        const auto c0 = sc.add({.kind = "card", .x = 0, .y = 750, .width = 280, .height = 200, .key = "c0", .fill = Color::hex(0x94a3b8)});
+        sc.set(c0, "title", "A card");
+        world::Camera cam{570, 450, 0.6};
+        Headless h({.size = {800, 600}});
+        h.mount("main", column({.width = 800, .height = 600}, {canvas({.id = "board", .content = "lists", .scene = "lists", .x = cam.x, .y = cam.y, .zoom = cam.zoom,
+                                                                       .width = 800, .height = 600})}));
+        auto at = [&](world::NodeRef n, double dx, double dy) {
+            const auto r = sc.rect(n);
+            const Point p = cam.to_screen(r.x + dx, r.y + dy, {800, 600});
+            return h.pixels().at(static_cast<int>(p.x), static_cast<int>(p.y));
+        };
+        const auto d5 = *sc.find("d5");
+        const xrender::raster::Rgba8 red = xrender::raster::premultiply(Color::hex(0xdc2626)), blue = xrender::raster::premultiply(Color::hex(0x1d4ed8));
+        h.step();
+        h.settle();
+        const Canvas* c = h.runtime().component<Canvas>(h.runtime().find("main/board"));
+        expect(c != nullptr);
+        if (!c) return;
+        expect(at(d5, 120, 100) == red && at(d5, 120, 10) == blue) << "the content's own drawing, under the camera";
+        expect(at(c0, 140, 20) == xrender::raster::premultiply(Color::hex(0x0ea5e9))) << "the view's band, from its list";
+        expect(c->stats().listed == 13 && c->stats().textured == 0) << std::format("lists, not textures: {} listed, {} textured", c->stats().listed, c->stats().textured);
+        const int once = built.load();
+        expect(once == 12) << std::format("each content built once ({})", once);
+        // Closer, in one frame: the same lists at the new scale, exact at once — nothing built, nothing stretched, nothing waited for.
+        cam = {sc.rect(d5).x + 120, sc.rect(d5).y + 100, 2.5};
+        const NodeId board = h.runtime().find("main/board");
+        h.runtime().set(board, "zoom", Value(cam.zoom));
+        h.runtime().set(board, "x", Value(cam.x));
+        h.runtime().set(board, "y", Value(cam.y));
+        h.step();
+        expect(at(d5, 120, 100) == red && at(d5, 120, 19.5) == blue && at(d5, 120, 20.5) == red) << "the band's edge where it is, at two and a half times";
+        expect(c->stats().stretched == 0 && c->stats().textured == 0 && built.load() == once) << std::format("built {} at the new zoom", built.load() - once);
+        // The content changes: its list is made again in the frame that draws it.
+        sc.set(d5, "color", 0x16a34a);
+        sc.touch(d5);
+        h.step();
+        expect(at(d5, 120, 100) == xrender::raster::premultiply(Color::hex(0x16a34a))) << "the new content";
+        expect(built.load() == once + 1) << "and only it was built again";
+        world::drop_scene("lists");
+    };
+
     "texture tiers from a view: laid out offscreen on the pool, the same pixels as the live node, drawn again in a new theme"_test = [] {
         auto& sc = world::scene("views");
         sc.clear();

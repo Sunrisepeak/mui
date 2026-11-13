@@ -78,6 +78,7 @@ public:
     // What the frame drew per tier kind: boxes, custom, promoted (the HUD's).
     struct Stats {
         std::size_t boxes = 0, custom = 0, textured = 0, stretched = 0, promoted = 0, visible = 0;
+        std::size_t listed = 0;  // content drawn as its list under the camera (`content: lists`)
         double      query_ms = 0, paint_ms = 0;
     };
     [[nodiscard]] world::Textures::Stats texture_stats() const { return textures_.stats(); }

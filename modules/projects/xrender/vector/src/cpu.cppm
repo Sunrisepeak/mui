@@ -44,6 +44,11 @@ struct RenderReport {
     // GPU: glyphs covered on the device from their outlines this frame
     // (GpuOptions::glyph_masks); none when every glyph was its mask.
     std::size_t glyphs_outlined = 0;
+    // GPU: the points of outlines kept for the device this frame (flattened
+    // and sent; a shape's once a level of scale), and whether the store of
+    // them had outgrown its size and was begun again.
+    std::size_t outline_points = 0;
+    bool        outlines_restarted = false;
     // GPU: the frame's passes (render::Graph) that ran, and those left out
     // because nothing reads what they make.
     std::size_t gpu_passes = 0;

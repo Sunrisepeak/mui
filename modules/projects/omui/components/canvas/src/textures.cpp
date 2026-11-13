@@ -21,6 +21,10 @@ struct Textures::Done {
     int                              level;
     std::uint64_t                    epoch;
     std::shared_ptr<xrender::raster::Surface> surface;
+    // A list wanted (Textures::list_level): what the view painted, and the images it draws, held
+    // from its runtime's store.
+    std::shared_ptr<xrender::DisplayList> list;
+    std::vector<std::pair<xrender::ImageRef, std::shared_ptr<const xrender::raster::Surface>>> images;
 };
 
 // Where jobs put what they made; shared with them, so a job that outlives
@@ -109,6 +113,43 @@ void paint_view(Runtime& rt, const Element& view, xrender::DisplayList& out) {
     rt.unmount("content");
 }
 
+// A content's list as the canvas draws it under the camera: its drawing and
+// state commands, each image by `image` (the canvas's store's reference for
+// the content's own); a runtime's metadata (nodes, frames, parts) left out —
+// they are its own nodes', not the page's. None when it holds what only its
+// own runtime can draw.
+template <class Image>
+std::shared_ptr<xrender::DisplayList> for_camera(const xrender::DisplayList& from, Image&& image) {
+    auto out = std::make_shared<xrender::DisplayList>();
+    bool fit = true;
+    for (const xrender::Command& command : from.commands())
+        std::visit(
+            [&](const auto& cmd) {
+                using T = std::decay_t<decltype(cmd)>;
+                constexpr bool drawn = std::same_as<T, xrender::FillRect> || std::same_as<T, xrender::FillRoundRect> || std::same_as<T, xrender::StrokeRoundRect> ||
+                                       std::same_as<T, xrender::BoxShadow> || std::same_as<T, xrender::FillPath> || std::same_as<T, xrender::StrokePath> ||
+                                       std::same_as<T, xrender::DrawImage> || std::same_as<T, xrender::DrawGlyphs>;
+                constexpr bool state = std::same_as<T, xrender::PushClipRect> || std::same_as<T, xrender::PushClipPath> || std::same_as<T, xrender::PopClip> ||
+                                       std::same_as<T, xrender::PushTransform> || std::same_as<T, xrender::PopTransform> || std::same_as<T, xrender::PushLayer> ||
+                                       std::same_as<T, xrender::PopLayer>;
+                if constexpr (drawn) {
+                    T copy = cmd;
+                    if constexpr (std::same_as<T, xrender::DrawImage>) copy.image = image(cmd.image);
+                    if constexpr (requires { cmd.paint; }) {
+                        if (cmd.paint.material) fit = false;
+                        if (cmd.paint.kind == xrender::Paint::Kind::image || cmd.paint.kind == xrender::Paint::Kind::image_mask) copy.paint.image = image(cmd.paint.image);
+                    }
+                    out->append_command(xrender::Command{copy});
+                } else if constexpr (state) {
+                    out->append_command(xrender::Command{cmd});
+                } else if constexpr (std::same_as<T, xrender::ExternalTexture>) {
+                    fit = false;  // its runtime's own texture
+                }
+            },
+            command);
+    return fit ? out : nullptr;
+}
+
 // The images a display list draws, by reference.
 void images_of(const xrender::DisplayList& dl, std::vector<xrender::ImageRef>& out) {
     for (const xrender::Command& c : dl.commands())
@@ -183,6 +224,32 @@ std::optional<Textures::Pick> Textures::pick(std::string_view key, std::uint64_t
     return use(blurrier->second, blurrier->first);
 }
 
+Textures::Listed Textures::listed(std::string_view key, std::uint64_t revision) const {
+    const auto it = entries_.find(std::string(key));
+    if (it == entries_.end()) return {};
+    const Entry& e = it->second;
+    if (e.unfit == revision) return {.unfit = true};
+    return {e.list.get(), e.list && e.list_revision == revision, false};
+}
+
+Textures::Listed Textures::list_now(const Scene& scene, NodeRef node, std::string_view key, std::uint64_t revision) {
+    const Kind& k = scene.kind_of(node);
+    if (!k.content) return listed(key, revision);
+    xrender::DisplayList built;
+    k.content(scene, node, built);
+    Entry& e = entries_[std::string(key)];
+    if (auto list = for_camera(built, [](xrender::ImageRef image) { return image; })) {
+        e.list = std::move(list);
+        e.list_revision = revision;
+        e.unfit.reset();
+    } else {
+        e.unfit = revision;
+    }
+    return listed(key, revision);
+}
+
+void Textures::want_list(std::string_view key, std::uint64_t revision, NodeRef node, float priority) { want(key, revision, list_level, node, priority); }
+
 void Textures::want(std::string_view key, std::uint64_t revision, int level, NodeRef node, float priority) {
     if (in_flight_.contains({std::string(key), revision, level})) return;
     candidates_.push_back({std::string(key), revision, level, node, priority});
@@ -207,6 +274,7 @@ void Textures::issue(const Scene& scene, const xrender::ImageStore& images, mlib
         if (!k.content && !k.view) continue;
         const WorldRect r = scene.rect(c.node);
         if (r.empty()) continue;
+        if (c.level == list_level && k.content) continue;  // a `content`'s list is made where it is asked for (list_now)
         // The texture: 2^level texels a world unit, its largest side capped.
         double s = std::ldexp(1.0, c.level);
         const double largest = std::max(r.width, r.height) * s;
@@ -253,12 +321,26 @@ void Textures::issue(const Scene& scene, const xrender::ImageStore& images, mlib
                     mlibs::trace::Span layout("canvas.texture.view", "canvas");
                     paint_view(*lease.runtime, *view, painted);
                 }
+                if (level == list_level) {
+                    // The list itself is what was asked for: with the images it draws, held from this runtime's store.
+                    Done done{order, key, rev, level, epoch, nullptr, std::make_shared<xrender::DisplayList>(), {}};
+                    done.list->append(painted);
+                    std::vector<xrender::ImageRef> used;
+                    images_of(painted, used);
+                    std::ranges::sort(used, {}, &xrender::ImageRef::id);
+                    used.erase(std::unique(used.begin(), used.end(), [](xrender::ImageRef a, xrender::ImageRef b) { return a.id == b.id; }), used.end());
+                    for (xrender::ImageRef image : used)
+                        if (auto pixels = lease.runtime->images().shared(image)) done.images.emplace_back(image, std::move(pixels));
+                    offscreen->give_back(std::move(lease));
+                    inbox->done_with(std::move(done));
+                    return;
+                }
                 (void)r.render(painted, *surface, {&lease.runtime->images(), glyphs_for(fonts)}, o);
                 offscreen->give_back(std::move(lease));
             } else {
                 (void)r.render(*dl, *surface, {snapshot.get(), glyphs_for(fonts)}, o);
             }
-            inbox->done_with(Done{order, key, rev, level, epoch, std::move(surface)});
+            inbox->done_with(Done{order, key, rev, level, epoch, std::move(surface), nullptr, {}});
         });
     }
     candidates_.clear();
@@ -280,6 +362,39 @@ bool Textures::collect(xrender::ImageStore& images, std::uint64_t frame, bool wa
     std::vector<Done> later;
     for (Done& d : done) {
         if (d.epoch != inbox_->epoch) continue;  // from before clear()
+        if (d.level == list_level) {
+            // A view's list: its images into the store (within the frame's budget of bytes, as textures), the list by their new references.
+            std::size_t image_bytes = 0;
+            for (const auto& [was, pixels] : d.images) image_bytes += static_cast<std::size_t>(pixels->width()) * static_cast<std::size_t>(pixels->height()) * 4;
+            if (entered > 0 && entered + image_bytes > options_.upload) {
+                later.push_back(std::move(d));
+                continue;
+            }
+            in_flight_.erase({d.key, d.revision, d.level});
+            Entry& e = entries_[d.key];
+            std::vector<std::pair<std::uint32_t, xrender::ImageRef>> now;
+            for (const auto& [was, pixels] : d.images) now.emplace_back(was.id, images.add(pixels));
+            auto list = for_camera(*d.list, [&](xrender::ImageRef image) {
+                const auto found = std::ranges::find(now, image.id, &std::pair<std::uint32_t, xrender::ImageRef>::first);
+                return found != now.end() ? found->second : xrender::ImageRef{};
+            });
+            if (!list) {
+                for (const auto& [was, image] : now) images.remove(image);
+                e.unfit = d.revision;
+                changed = true;
+                continue;
+            }
+            for (xrender::ImageRef image : e.list_images) images.remove(image);
+            e.list_images.clear();
+            for (const auto& [was, image] : now) e.list_images.push_back(image);
+            e.list = std::move(list);
+            e.list_revision = d.revision;
+            e.unfit.reset();
+            entered += image_bytes;
+            ++last_.entered;
+            changed = true;
+            continue;
+        }
         const std::size_t bytes = static_cast<std::size_t>(d.surface->width()) * static_cast<std::size_t>(d.surface->height()) * 4;
         // The frame's budget of bytes entering the store (a GPU renderer uploads each once).
         if (entered > 0 && entered + bytes > options_.upload) {
@@ -330,7 +445,7 @@ bool Textures::collect(xrender::ImageStore& images, std::uint64_t frame, bool wa
         oldest_entry->levels.erase(oldest_level);
         ++last_.evicted;
     }
-    std::erase_if(entries_, [](const auto& kv) { return kv.second.levels.empty(); });
+    std::erase_if(entries_, [](const auto& kv) { return kv.second.levels.empty() && !kv.second.list && !kv.second.unfit; });
     return changed;
 }
 
@@ -351,8 +466,10 @@ void Textures::clear(xrender::ImageStore& images) {
         std::scoped_lock g(offscreen_->lock);
         offscreen_->theme.reset();
     }
-    for (auto& [key, e] : entries_)
+    for (auto& [key, e] : entries_) {
         for (auto& [lv, l] : e.levels) images.remove(l.image);
+        for (xrender::ImageRef image : e.list_images) images.remove(image);
+    }
     entries_.clear();
     in_flight_.clear();
     candidates_.clear();
@@ -371,7 +488,7 @@ Textures::Stats Textures::stats() const {
     Stats s = last_;
     s.bytes = bytes_;
     s.jobs = in_flight_.size();
-    for (const auto& [key, e] : entries_) s.textures += e.levels.size();
+    for (const auto& [key, e] : entries_) s.textures += e.levels.size(), s.lists += e.list ? 1 : 0;
     std::scoped_lock g(inbox_->lock);
     s.waiting = inbox_->done.size();
     return s;

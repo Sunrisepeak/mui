@@ -534,6 +534,7 @@ void Canvas::paint(PaintContext& ctx) const {
         if (k.tiers[t].draw == world::Tier::Draw::promote && t > 0 && std::ranges::find(promoted_, s->key(n)) == promoted_.end()) --t;
         return t;
     };
+    const bool lists = props.content == "lists";
     // Drawn complete (Services::complete_frames): every texture the frame
     // shows made at its level first, so the frame is what it would be at rest.
     if (services().complete_frames()) {
@@ -542,6 +543,13 @@ void Canvas::paint(PaintContext& ctx) const {
             const Rect screen = camera_.to_screen(s->rect(n), vp);
             if (k.tiers[tier(n, k, screen)].draw != world::Tier::Draw::texture) continue;
             const std::uint64_t rev = s->content_revision(n);
+            if (lists) {
+                const auto got = textures_.listed(s->key(n), rev);
+                if (!got.unfit) {
+                    if (!got.exact && !k.content) textures_.want_list(s->key(n), rev, n, 1);
+                    continue;
+                }
+            }
             if (const auto pick = textures_.pick(s->key(n), rev, level, frame_); !pick || !pick->exact) textures_.want(s->key(n), rev, level, n, 1);
         }
         textures_.complete(*s, ctx.services.images(), &ctx.services.fonts(), ctx.theme, frame_);
@@ -573,6 +581,32 @@ void Canvas::paint(PaintContext& ctx) const {
                 // ready one meanwhile, a box before any is.
                 const std::string_view key = s->key(n);
                 const std::uint64_t rev = s->content_revision(n);
+                if (lists) {
+                    // The content's own list under the camera: made once a revision, the same at every zoom.
+                    auto got = textures_.listed(key, rev);
+                    if (!got.exact && !got.unfit && k.content) got = textures_.list_now(*s, n, key, rev);
+                    if (!got.unfit) {
+                        if (!got.exact) {
+                            const float cx = screen.x + screen.width / 2 - vp.width / 2, cy = screen.y + screen.height / 2 - vp.height / 2;
+                            textures_.want_list(key, rev, n, screen.width * screen.height / (1.0f + (cx * cx + cy * cy) / (vp.width * vp.width + vp.height * vp.height)));
+                        }
+                        const world::WorldRect world = s->rect(n);
+                        if (got.list && world.width > 0 && world.height > 0) {
+                            ctx.list.push_clip(screen);
+                            ctx.list.push_transform(Affine::translate(screen.x, screen.y) *
+                                                    Affine::scale(screen.width / static_cast<float>(world.width), screen.height / static_cast<float>(world.height)));
+                            ctx.list.append(*got.list);
+                            ctx.list.pop_transform();
+                            ctx.list.pop_clip();
+                            ++stats_.listed;
+                        } else {
+                            const Color fill = s->fill(n);
+                            if (fill.a > 0) ctx.list.fill_round_rect(screen, CornerRadii::all(static_cast<float>(s->radius(n) * camera_.zoom)), xrender::Paint::solid(fill));
+                            ++stats_.boxes;
+                        }
+                        break;
+                    }
+                }
                 const auto pick = textures_.pick(key, rev, level, frame_);
                 if (!pick || !pick->exact) {
                     const float cx = screen.x + screen.width / 2 - vp.width / 2, cy = screen.y + screen.height / 2 - vp.height / 2;

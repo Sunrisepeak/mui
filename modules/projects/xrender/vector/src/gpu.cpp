@@ -940,7 +940,9 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
         g.outlined.clear();
         g.outline_points.clear();
         g.outline_used = g.outline_sent = 0;
+        report.outlines_restarted = true;
     }
+    const std::size_t outline_before = g.outline_used;
     mlibs::rhi::Error failure{};
     bool failed = false;
     bool bounds_measured=false;
@@ -2045,6 +2047,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
     report.masks_made = g.masks_made;
     report.masks_reused = g.masks_reused;
     report.glyphs_outlined = g.glyphs_outlined;
+    report.outline_points = (g.outline_used - outline_before) / 2;
     if (g.glyph_masks != std::numeric_limits<std::size_t>::max()) {
         g.asked_before.swap(g.asked);
         std::ranges::sort(g.asked_before);

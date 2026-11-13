@@ -517,6 +517,7 @@ void add_framework_benchmarks() {
             s.counter("visible", static_cast<double>(st.visible));
             s.counter("textured", static_cast<double>(st.textured));
             s.counter("stretched", static_cast<double>(st.stretched));
+            s.counter("listed", static_cast<double>(st.listed));
             s.counter("live", static_cast<double>(st.promoted));
             s.counter("canvas_paint_ms", st.paint_ms);
             frame_counters(s, f);
@@ -538,16 +539,26 @@ void add_framework_benchmarks() {
             w.frame(s, {WheelEvent{.position = {960, 540}, .delta = {0, 60 * dir}}});
         }
     });
-    add("wall/zoom-sweep-1000-gpu", "the same sweep with the GPU drawing every frame (S1: 120 Hz, frame p99 under 8.3 ms)", [](State& s) {
+    // The sweep on the GPU, the windows' content as textures (a level of zoom each, stretched until it is in) or
+    // as their lists under the camera (D-188: made once, nothing stretched or swapped).
+    for (const bool lists : {false, true})
+    add(lists ? "wall/zoom-sweep-1000-gpu-lists" : "wall/zoom-sweep-1000-gpu",
+        lists ? "the same sweep, the windows' content drawn as lists under the camera: nothing rasterised, stretched or swapped"
+              : "the same sweep with the GPU drawing every frame (S1: 120 Hz, frame p99 under 8.3 ms)", [lists](State& s) {
         Gpu gpu(full_hd);
         if (!gpu.ready(s)) return;
-        Wall w(1000, 40, "bench-wall-zoom-gpu");
-        const auto b = world::scene("bench-wall-zoom-gpu").bounds();
+        Wall w(1000, 40, lists ? "bench-wall-zoom-gpu-lists" : "bench-wall-zoom-gpu");
+        if (lists) {
+            w.h.runtime().set(w.h.runtime().find(w.model.canvas_path), "content", Value(std::string("lists")));
+            w.h.settle();
+        }
+        const auto b = world::scene(lists ? "bench-wall-zoom-gpu-lists" : "bench-wall-zoom-gpu").bounds();
         w.camera(b.x + b.width / 2, b.y + b.height / 2, 0.01);
         xrender::text::GlyphCache glyphs(w.h.runtime().fonts());
         float dir = -1;
         double      slowest_ms = 0;
         std::string slowest;
+        std::size_t points_kept = 0, restarts = 0, over = 0;
         while (s.next()) {
             const double z = w.model.zoom.peek();
             if (z >= 4) dir = 1;
@@ -556,10 +567,15 @@ void add_framework_benchmarks() {
             const double ms = gpu.draw(s, w.h.runtime().display_list(), {&w.h.runtime().images(), &glyphs}, Color::white());
             if (ms > slowest_ms) {
                 slowest_ms = ms;
-                slowest = std::format("{:.1f} ms ({:.1f} encoding) at zoom {:.3f}: {} commands, {} outlined, {} masks made, {} KB sent", ms, gpu.last_encode_ms, z,
-                                      w.h.runtime().display_list().commands().size(), gpu.last.glyphs_outlined, gpu.last.masks_made, gpu.last.uploaded / 1024);
+                slowest = std::format("{:.1f} ms ({:.1f} encoding) at zoom {:.3f}: {} commands, {} outlined, {} outline points kept{}, {} masks made, {} KB sent", ms,
+                                      gpu.last_encode_ms, z, w.h.runtime().display_list().commands().size(), gpu.last.glyphs_outlined, gpu.last.outline_points,
+                                      gpu.last.outlines_restarted ? " (the store begun again)" : "", gpu.last.masks_made, gpu.last.uploaded / 1024);
             }
+            points_kept += gpu.last.outline_points;
+            restarts += gpu.last.outlines_restarted ? 1 : 0;
+            if (ms > 8.3) ++over;
         }
+        s.note("outlines", std::format("{} points kept in all, the store begun again {} times; {} frames over 8.3 ms", points_kept, restarts, over));
         s.note("slowest", slowest);
         s.note("list", made_of(w.h.runtime().display_list()));
     });

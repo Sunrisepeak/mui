@@ -10,10 +10,11 @@ namespace {
 // A grid's occupied cells as rectangles of one label each, row-major greedy: the widest run from the first
 // free cell, grown down while the whole run below is free and of its label. Exact (every cell in one).
 struct Rect { std::uint32_t x = 0, y = 0, width = 0, height = 0, label = 0; };
+// Into `out`, with `used` as its scratch: both the caller's, kept between frames (a frame allocates nothing).
 template <class Label>
-std::vector<Rect> rectangles(std::uint32_t width, std::uint32_t height, Label label_of) {
-    std::vector<Rect> out;
-    std::vector<std::uint8_t> used(static_cast<std::size_t>(width) * height, 0);
+void rectangles(std::uint32_t width, std::uint32_t height, Label label_of, std::vector<Rect>& out, std::vector<std::uint8_t>& used) {
+    out.clear();
+    used.assign(static_cast<std::size_t>(width) * height, 0);
     for (std::uint32_t y = 0; y < height; ++y)
         for (std::uint32_t x = 0; x < width; ++x) {
             const std::size_t at = static_cast<std::size_t>(y) * width + x;
@@ -32,10 +33,16 @@ std::vector<Rect> rectangles(std::uint32_t width, std::uint32_t height, Label la
                 for (std::uint32_t across = 0; across < run; ++across) used[static_cast<std::size_t>(y + down) * width + x + across] = 1;
             out.push_back({x, y, run, rows, *label});
         }
-    return out;
 }
 
 }  // namespace
+
+struct Bodies::Scratch {
+    std::vector<Rect> rects;
+    std::vector<std::uint8_t> used;
+    std::vector<dyn::Shape> shapes;
+    std::vector<dyn::Material> materials;
+};
 
 bool Bodies::solid(std::uint32_t material) const noexcept {
     return material != matter::none && material < program_->materials().size() && program_->phase(material) == matter::Phase::solid;
@@ -72,15 +79,19 @@ std::expected<Bodies, std::string> Bodies::make(const matter::Program& program, 
 // The piece's body made (or its shapes replaced) from its cells: a box a rectangle of one material.
 std::expected<void, std::string> Bodies::shape(Piece& piece, bool make_body, const dyn::Pose* like) {
     const std::size_t area = static_cast<std::size_t>(piece.width) * piece.height;
-    const auto rects = rectangles(piece.width, piece.height, [&](std::uint32_t x, std::uint32_t y) -> std::optional<std::uint32_t> {
+    if (!scratch_) scratch_ = std::make_shared<Scratch>();
+    Scratch& scratch = *scratch_;
+    rectangles(piece.width, piece.height, [&](std::uint32_t x, std::uint32_t y) -> std::optional<std::uint32_t> {
         const std::uint32_t material = piece.cells[static_cast<std::size_t>(y) * piece.width + x];
         if (material == matter::none) return std::nullopt;
         return material;
-    });
+    }, scratch.rects, scratch.used);
+    const std::vector<Rect>& rects = scratch.rects;
     if (rects.empty()) return std::unexpected(std::string("a body of no cells"));
     const float cell = options_.cell;
-    std::vector<dyn::Shape> shapes;
-    std::vector<dyn::Material> materials;
+    std::vector<dyn::Shape>& shapes = scratch.shapes;
+    std::vector<dyn::Material>& materials = scratch.materials;
+    shapes.clear(), materials.clear();
     for (const Rect& rect : rects) {
         dyn::Shape box = dyn::Shape::box(static_cast<float>(rect.width) * cell * 0.5f, static_cast<float>(rect.height) * cell * 0.5f);
         box.centre = {(static_cast<float>(piece.left) + static_cast<float>(rect.x) + static_cast<float>(rect.width) * 0.5f) * cell,
@@ -439,14 +450,18 @@ void Bodies::terrain(std::span<const std::uint32_t> field) {
             terrain_hash_[tile] = hash.value();
             ++last_.terrain_tiles;
             if (terrain_[tile]) world_->remove(terrain_[tile]), terrain_[tile] = {};
-            const auto rects = rectangles(width, height, [&](std::uint32_t x, std::uint32_t y) -> std::optional<std::uint32_t> {
+            if (!scratch_) scratch_ = std::make_shared<Scratch>();
+            Scratch& scratch = *scratch_;
+            rectangles(width, height, [&](std::uint32_t x, std::uint32_t y) -> std::optional<std::uint32_t> {
                 const std::size_t f = static_cast<std::size_t>(y0 + y) * field_.width + x0 + x;
                 if (owner_[f] || !solid(field[f])) return std::nullopt;
                 return 1u;  // one fixed body: what the terrain is made of meets the bodies by their own materials
-            });
+            }, scratch.rects, scratch.used);
+            const std::vector<Rect>& rects = scratch.rects;
             if (rects.empty()) continue;
-            std::vector<dyn::Shape> shapes;
-            std::vector<dyn::Material> materials;
+            std::vector<dyn::Shape>& shapes = scratch.shapes;
+            std::vector<dyn::Material>& materials = scratch.materials;
+            shapes.clear(), materials.clear();
             const float cell = options_.cell;
             for (const Rect& rect : rects) {
                 dyn::Shape box = dyn::Shape::box(static_cast<float>(rect.width) * cell * 0.5f, static_cast<float>(rect.height) * cell * 0.5f);
@@ -584,6 +599,7 @@ std::expected<void, std::string> Bodies::restore(std::span<const std::uint8_t> s
 Bodies Bodies::onto(dyn::World& world) const {
     Bodies copy = *this;
     copy.world_ = &world;
+    copy.scratch_.reset();  // its own, made when it first needs it
     return copy;
 }
 

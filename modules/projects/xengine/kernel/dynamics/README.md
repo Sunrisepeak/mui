@@ -67,6 +67,7 @@ A `SoftBody` is a ring of particles held by its edges' lengths, its enclosed are
 
 - `inspect`: `report(body)` (centre, bounds, area against rest, fastest speed, contacts by kind) and `explain(body)` in words, read between steps — an agent pauses a timeline, steps it once and reads.
 - [cts](cts): `xengine.dynamics.cts` runs every family's cases (collision, xpbd, material) on a subject — the CPU reference today, a SIMD or GPU tier later — on `mlibs.cts`: passed, failed or unsupported.
+- The rigid family beside the solver it wraps: `simulation/rigid-pyramid-20` and `simulation/rigid-rain-1000` in `tests/bench` step the same bodies on a `World` and on Box2D called directly (`rigid::Direct`), in the same run and taking turns, every body at the same place in both — the wrapper costs 1.6% and 3.4% (release, locally); a budget holds it under 10%.
 - Benchmarks: `dynamics/softbody-24` and `-96` in `tests/bench` (zero allocations a step; a frame's budget for a figure's softness).
 
 Run `mcpp test -p xengine.dynamics -p xengine.dynamics.cts`: swept collision to the same bits, soft bodies dropped, landed on ledges, walked, kept upright and replayed bit for bit, the material table.

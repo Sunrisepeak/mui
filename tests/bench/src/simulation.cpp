@@ -6,6 +6,7 @@ import omui.core;
 import xengine.cellular;
 import xengine.cellular.present;
 import xengine.dynamics;
+import xengine.dynamics.rigid;
 import xengine.matter.json;
 import xengine.cellular.matter;
 import xengine.cellular.matter.agent;
@@ -341,6 +342,77 @@ void add_simulation_benchmarks() {
                 if (whole > 0 && (stat.name.starts_with("simulation.world.") || stat.name == "simulation.cellular.step") && stat.name != "simulation.world.step")
                     stages += std::format("{}{} {:.0f}%", stages.empty() ? "" : ", ", stat.name.substr(stat.name.rfind('.') + 1) == "step" ? "lattice" : stat.name.substr(stat.name.rfind('.') + 1), 100.0 * stat.total_ms / whole);
             s.note("scope", std::format("{} bodies; the frame's parts: {}; drawing excluded", world.bodies().bodies().size(), stages));
+        });
+    // T2.9: the rigid family beside the solver it wraps. The same bodies on a World and on Box2D called directly,
+    // each stepped from the same start in the same run, in turn: the wrapper's cost is a number, not a guess.
+    namespace solid = xengine::dynamics::rigid;
+    const auto beside = [](State& s, const std::vector<solid::Piece>& pieces, int steps) {
+        using clock = std::chrono::steady_clock;
+        double ours = 0, direct = 0;
+        std::size_t rounds = 0;
+        bool same = true;
+        s.items(static_cast<std::uint64_t>(steps));
+        while (s.next()) {
+            s.pause();
+            auto world = solid::World::make();
+            auto plain = solid::Direct::make(pieces);
+            if (!world || !plain) { s.fail("the scene was refused"); return; }
+            std::vector<solid::BodyId> ids;
+            for (const solid::Piece& piece : pieces) {
+                const auto made = world->add(piece.body, piece.shape, piece.material);
+                if (!made) { s.fail("a body was refused"); return; }
+                ids.push_back(*made);
+            }
+            // Box2D directly (outside what the row times) and the World (what the row times), which goes first
+            // taking turns: whichever is second finds the caches warm.
+            const bool world_first = rounds % 2 == 1;
+            const auto run_world = [&] {
+                s.resume();
+                const auto from = clock::now();
+                for (int step = 0; step < steps; ++step) world->step();
+                const auto to = clock::now();
+                s.pause();
+                ours += std::chrono::duration<double, std::milli>(to - from).count();
+            };
+            if (world_first) run_world();
+            const auto began = clock::now();
+            for (int step = 0; step < steps; ++step) plain->step();
+            const auto between = clock::now();
+            if (!world_first) run_world();
+            direct += std::chrono::duration<double, std::milli>(between - began).count();
+            ++rounds;
+            for (std::size_t index = 0; index < ids.size() && same; ++index) {
+                const auto pose = std::as_const(*world).pose(ids[index]);
+                const solid::Vec at = plain->at(index);
+                same = pose && pose->at.x == at.x && pose->at.y == at.y;
+            }
+            s.resume();
+        }
+        if (!same) { s.fail("the two worlds parted: not the same scene, so not a comparison"); return; }
+        if (!rounds || !(direct > 0)) return;
+        s.counter("direct_ms", direct / static_cast<double>(rounds));
+        s.counter("overhead_percent", (ours - direct) / direct * 100.0);
+        s.note("scope", std::format("{} bodies, {} steps a round from the same start; Box2D directly {:.3f} ms a round, through the World {:.3f} ms; every body at the same place in both, bit for bit",
+                                    pieces.size(), steps, direct / static_cast<double>(rounds), ours / static_cast<double>(rounds)));
+    };
+    add("simulation/rigid-pyramid-20", "a pyramid of 210 boxes on a floor, 240 steps from the moment it is built — xengine.dynamics.rigid's World beside Box2D called directly on the same bodies",
+        [beside](State& s) {
+            std::vector<solid::Piece> pieces{{{.kind = solid::Kind::fixed, .at = {0, -0.5f}}, solid::Shape::box(40, 0.5f), {}}};
+            for (int row = 0; row < 20; ++row)
+                for (int box = 0; box < 20 - row; ++box)
+                    pieces.push_back({{.at = {(static_cast<float>(box) - static_cast<float>(20 - row) * 0.5f) * 1.05f, 0.5f + static_cast<float>(row) * 1.02f}}, solid::Shape::box(0.5f, 0.5f), {}});
+            beside(s, pieces, 240);
+        });
+    add("simulation/rigid-rain-1000", "1000 boxes and circles let go above a walled floor, 240 steps: they fall, pile and slide — the World beside Box2D called directly on the same bodies",
+        [beside](State& s) {
+            std::vector<solid::Piece> pieces{{{.kind = solid::Kind::fixed, .at = {0, -0.5f}}, solid::Shape::box(30, 0.5f), {}},
+                                             {{.kind = solid::Kind::fixed, .at = {-30, 20}}, solid::Shape::box(0.5f, 21), {}},
+                                             {{.kind = solid::Kind::fixed, .at = {30, 20}}, solid::Shape::box(0.5f, 21), {}}};
+            for (int index = 0; index < 1000; ++index) {
+                const float x = -24.0f + static_cast<float>(index % 40) * 1.2f + static_cast<float>((index / 40) % 2) * 0.4f, y = 2.0f + static_cast<float>(index / 40) * 1.3f;
+                pieces.push_back({{.at = {x, y}, .angle = static_cast<float>(index % 7) * 0.2f}, index % 3 ? solid::Shape::box(0.4f, 0.4f) : solid::Shape::circle(0.45f), {}});
+            }
+            beside(s, pieces, 240);
         });
     add("simulation/world-128x64-branch", "the same cavern branched: the whole world copied — the field, what flies, the coupling, the rigid world from its own image — what a timeline's snapshot and an agent's `world.branch` cost before a frame is run",
         [cavern](State& s) {

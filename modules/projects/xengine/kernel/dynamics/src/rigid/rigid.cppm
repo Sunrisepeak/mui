@@ -134,4 +134,29 @@ private:
     Options options_;
 };
 
+// Box2D called directly on the same bodies — no ids of ours, no contact list gathered after a step, its shapes
+// as Box2D makes them by default (no hit events): what a World's step is measured against, the wrapper's cost
+// said as a number (the foundation plan's T2.9). For a benchmark; a game has a World.
+struct Piece {
+    BodyDef  body;
+    Shape    shape;
+    Material material;
+};
+class Direct {
+public:
+    [[nodiscard]] static std::expected<Direct, Error> make(std::span<const Piece> pieces, const Options& options = {});
+    Direct(Direct&&) noexcept;
+    Direct& operator=(Direct&&) noexcept;
+    ~Direct();
+    void step() noexcept;
+    // Where piece `index` is: the two worlds are the same scene only while these agree.
+    [[nodiscard]] Vec at(std::size_t index) const noexcept;
+
+private:
+    Direct() = default;
+    struct Native;
+    std::unique_ptr<Native> native_;
+    Options options_;
+};
+
 }  // namespace xengine::dynamics::rigid

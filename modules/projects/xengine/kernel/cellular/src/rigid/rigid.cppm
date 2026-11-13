@@ -124,6 +124,10 @@ private:
     std::vector<std::uint64_t> terrain_hash_;
     Statistics last_;
     std::vector<std::uint8_t> read_;             // lift's scratch
+    // What re-making a body's or a terrain tile's shapes works in, kept between frames: a frame allocates nothing
+    // of ours where the terrain changes (what the rigid world itself makes for a new body is its own).
+    struct Scratch;
+    std::shared_ptr<Scratch> scratch_;
     BodyLog* log_ = nullptr;
 };
 

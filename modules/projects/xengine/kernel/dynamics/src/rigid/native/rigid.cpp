@@ -38,12 +38,12 @@ std::expected<World, Error> World::make(const Options& options) {
 }
 
 namespace {
-std::expected<void, Error> attach_to(b2BodyId body, const Shape& shape, const Material& material) {
+std::expected<void, Error> attach_to(b2BodyId body, const Shape& shape, const Material& material, bool hit_events = true) {
     b2ShapeDef def = b2DefaultShapeDef();
     def.density = material.density;
     def.material.friction = material.friction;
     def.material.restitution = material.restitution;
-    def.enableHitEvents = true;
+    def.enableHitEvents = hit_events;
     switch (shape.form) {
         case Shape::Form::box: {
             if (!(shape.half.x > 0) || !(shape.half.y > 0)) return std::unexpected(Error{Errc::shape, "a box has half extents above 0"});
@@ -308,5 +308,47 @@ std::uint64_t World::state_hash() const noexcept {
     }
     return hash.value();
 }
+
+struct Direct::Native {
+    b2WorldId world{};
+    std::vector<b2BodyId> bodies;
+    ~Native() {
+        if (b2World_IsValid(world)) b2DestroyWorld(world);
+    }
+};
+
+Direct::Direct(Direct&&) noexcept = default;
+Direct& Direct::operator=(Direct&&) noexcept = default;
+Direct::~Direct() = default;
+
+std::expected<Direct, Error> Direct::make(std::span<const Piece> pieces, const Options& options) {
+    if (options.substeps < 1 || !(options.step > 0)) return std::unexpected(Error{Errc::state, "a step is longer than 0 and has a substep at least"});
+    b2WorldDef world = b2DefaultWorldDef();
+    world.gravity = vec(options.gravity);
+    Direct direct;
+    direct.options_ = options;
+    direct.native_ = std::make_unique<Native>();
+    direct.native_->world = b2CreateWorld(&world);
+    if (!b2World_IsValid(direct.native_->world)) return std::unexpected(Error{Errc::limit, "Box2D has no room for another world"});
+    for (const Piece& piece : pieces) {
+        b2BodyDef def = b2DefaultBodyDef();
+        def.type = piece.body.kind == Kind::fixed ? b2_staticBody : piece.body.kind == Kind::kinematic ? b2_kinematicBody : b2_dynamicBody;
+        def.position = vec(piece.body.at);
+        def.rotation = b2MakeRot(piece.body.angle);
+        def.linearVelocity = vec(piece.body.velocity);
+        def.angularVelocity = piece.body.spin;
+        def.isBullet = piece.body.bullet;
+        def.motionLocks.angularZ = piece.body.fixed_rotation;
+        const b2BodyId made = b2CreateBody(direct.native_->world, &def);
+        if (!b2Body_IsValid(made)) return std::unexpected(Error{Errc::limit, "the world could not make another body"});
+        if (auto attached = attach_to(made, piece.shape, piece.material, false); !attached) return std::unexpected(attached.error());
+        direct.native_->bodies.push_back(made);
+    }
+    return direct;
+}
+
+void Direct::step() noexcept { b2World_Step(native_->world, options_.step, options_.substeps); }
+
+Vec Direct::at(std::size_t index) const noexcept { return index < native_->bodies.size() ? vec(b2Body_GetPosition(native_->bodies[index])) : Vec{}; }
 
 }  // namespace xengine::dynamics::rigid

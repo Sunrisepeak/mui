@@ -1,5 +1,6 @@
 module xengine.cellular.rigid;
 import std;
+import mlibs.trace;
 import mlibs.hash;
 
 namespace xengine::cellular::rigid {
@@ -237,7 +238,8 @@ void Bodies::lift(std::span<std::uint32_t> field) {
         Piece& piece = pieces_[index];
         const std::uint32_t mine = static_cast<std::uint32_t>(index + 1);
         const std::size_t local_cells = static_cast<std::size_t>(piece.width) * piece.height;
-        std::vector<std::uint8_t> read(local_cells, 0);
+        std::vector<std::uint8_t>& read = read_;  // kept between frames: a frame allocates nothing
+        read.assign(local_cells, 0);
         bool lost = false;
         for (std::size_t entry = 0; entry < piece.covered.size(); ++entry) {
             const std::uint32_t f = piece.covered[entry], local = piece.from[entry];
@@ -472,6 +474,11 @@ std::optional<View> Bodies::body(dyn::BodyId body) const {
 
 std::vector<Tile> Bodies::touched() const {
     std::vector<Tile> out;
+    touched(out);
+    return out;
+}
+void Bodies::touched(std::vector<Tile>& out) const {
+    out.clear();
     for (const Piece& piece : pieces_) {
         if (piece.covered.empty()) continue;
         std::uint32_t x0 = field_.width, y0 = field_.height, x1 = 0, y1 = 0;
@@ -484,7 +491,6 @@ std::vector<Tile> Bodies::touched() const {
         x1 = std::min(field_.width - 1, x1 + room), y1 = std::min(field_.height - 1, y1 + room);
         out.push_back({x0, y0, x1 - x0 + 1, y1 - y0 + 1});
     }
-    return out;
 }
 
 std::optional<dyn::BodyId> Bodies::owner(std::uint32_t x, std::uint32_t y) const {
@@ -636,29 +642,52 @@ void MatterWorld::set(std::uint32_t channel, Tile region, std::uint32_t value) {
 std::expected<std::vector<dyn::BodyId>, std::string> MatterWorld::carve(Tile region) { return bodies_->carve(cells_, region, outside_); }
 
 void MatterWorld::step() {
-    Execution execution{.tile = options_.tile, .boundary = options_.open ? open_to(outside_) : nothing_beyond, .tick = tick_++};
-    if (options_.sparse) execution.activity = activity_;
-    (void)lattice_.step(options_.shape, cells_, next_, execution);
-    cells_.swap(next_);
-    // Cells in flight, among the bodies (stamped: what flies hits them): thrown by the pressure, falling, landing.
-    (void)flying_->scatter(cells_, outside_);
-    const bool flew = flying_->flying() > 0;
-    flying_->step(cells_);
-    // What flies writes the field from outside the lattice's step: a sparse world wakes it whole while anything
-    // is in flight or has just landed (simple, and the same bits).
-    if (options_.sparse && flew) std::ranges::fill(activity_, std::uint8_t{0});
-    bodies_->push(cells_);
+    // Each part of a frame a span (simulation.world.*): where a frame's time goes is read from a trace.
+    mlibs::trace::Span frame("simulation.world.step", "simulation");
+    {
+        Execution execution{.tile = options_.tile, .boundary = options_.open ? open_to(outside_) : nothing_beyond, .tick = tick_++};
+        if (options_.sparse) execution.activity = activity_;
+        (void)lattice_.step(options_.shape, cells_, next_, execution);
+        cells_.swap(next_);
+    }
+    {
+        // Cells in flight, among the bodies (stamped: what flies hits them): thrown by the pressure, falling, landing.
+        mlibs::trace::Span span("simulation.world.flying", "simulation");
+        (void)flying_->scatter(cells_, outside_);
+        const bool flew = flying_->flying() > 0;
+        flying_->step(cells_);
+        // What flies writes the field from outside the lattice's step: a sparse world wakes it whole while anything
+        // is in flight or has just landed (simple, and the same bits).
+        if (options_.sparse && flew) std::ranges::fill(activity_, std::uint8_t{0});
+    }
     // The bodies write the field from outside the lattice's step: where they were and where they are wake.
     const auto wake = [&] {
-        if (options_.sparse)
-            for (const Tile& region : bodies_->touched()) lattice_.wake(options_.shape, options_.tile, region, activity_);
+        if (!options_.sparse) return;
+        bodies_->touched(touched_);
+        for (const Tile& region : touched_) lattice_.wake(options_.shape, options_.tile, region, activity_);
     };
-    wake();
-    bodies_->lift(cells_);
-    bodies_->terrain(cells_);
-    rigid_->step();
-    bodies_->stamp(cells_);
-    wake();
+    {
+        mlibs::trace::Span span("simulation.world.push", "simulation");
+        bodies_->push(cells_);
+        wake();
+    }
+    {
+        mlibs::trace::Span span("simulation.world.lift", "simulation");
+        bodies_->lift(cells_);
+    }
+    {
+        mlibs::trace::Span span("simulation.world.terrain", "simulation");
+        bodies_->terrain(cells_);
+    }
+    {
+        mlibs::trace::Span span("simulation.world.rigid", "simulation");
+        rigid_->step();
+    }
+    {
+        mlibs::trace::Span span("simulation.world.stamp", "simulation");
+        bodies_->stamp(cells_);
+        wake();
+    }
 }
 
 std::vector<std::uint8_t> MatterWorld::save() const {

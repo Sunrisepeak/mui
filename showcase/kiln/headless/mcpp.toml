@@ -1,0 +1,27 @@
+# Kiln as a game on its own (D-162): its simulation as xengine.runtime plays it — stepped without omui, its
+# whole world sought back and branched ahead, played by an agent through the agent kernel as a person plays.
+[package]
+namespace   = "omui.showcase.kiln"
+name        = "headless"
+version     = "0.1.0"
+description = "Kiln on its own: the simulation as a game the runtime steps, rewinds and branches, and an agent plays; no interface"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[targets.kiln-headless]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+"omui.showcase.kiln.sim" = { path = "../sim" }
+xengine.runtime = { path = "../../../modules/projects/xengine/game/runtime" }
+xengine.input   = { path = "../../../modules/projects/xengine/game/input" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.6.3"
+mlibs.agent    = { path = "../../../modules/base/agent" }
+mlibs.json     = { path = "../../../modules/base/json" }

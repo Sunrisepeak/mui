@@ -203,14 +203,14 @@ void World::step() noexcept {
 std::vector<std::uint8_t> World::save() const {
     const int size = b2World_GetSnapshot(native_->world, nullptr, 0);
     std::vector<std::uint8_t> saved;
-    const auto put = [&](const auto& value) {
-        const auto bytes = std::as_bytes(std::span(&value, 1));
-        for (const std::byte b : bytes) saved.push_back(static_cast<std::uint8_t>(b));
+    // Little-endian, a byte at a time: the same image on every platform, and no reading of an object's bytes.
+    const auto put = [&](std::uint64_t value, int bytes) {
+        for (int index = 0; index < bytes; ++index) saved.push_back(static_cast<std::uint8_t>(value >> (8 * index)));
     };
     for (const char c : magic) saved.push_back(static_cast<std::uint8_t>(c));
-    put(steps_);
-    put(static_cast<std::uint64_t>(bodies_.size()));
-    for (const BodyId body : bodies_) put(body.index), put(body.generation);
+    put(steps_, 8);
+    put(bodies_.size(), 8);
+    for (const BodyId body : bodies_) put(static_cast<std::uint32_t>(body.index), 4), put(body.generation, 2);
     const std::size_t at = saved.size();
     saved.resize(at + static_cast<std::size_t>(size));
     (void)b2World_GetSnapshot(native_->world, saved.data() + at, size);
@@ -221,21 +221,23 @@ namespace {
 struct Parsed { std::uint64_t steps = 0; std::vector<BodyId> bodies; std::span<const std::uint8_t> image; };
 std::expected<Parsed, Error> parse(std::span<const std::uint8_t> saved) {
     std::size_t at = 0;
-    const auto take = [&](auto& value) {
-        if (saved.size() - at < sizeof(value)) return false;
-        std::memcpy(&value, saved.data() + at, sizeof(value));
-        at += sizeof(value);
-        return true;
+    const auto take = [&](int bytes) -> std::optional<std::uint64_t> {
+        if (saved.size() - at < static_cast<std::size_t>(bytes)) return std::nullopt;
+        std::uint64_t value = 0;
+        for (int index = 0; index < bytes; ++index) value |= static_cast<std::uint64_t>(saved[at + static_cast<std::size_t>(index)]) << (8 * index);
+        at += static_cast<std::size_t>(bytes);
+        return value;
     };
     if (saved.size() < magic.size() || !std::equal(magic.begin(), magic.end(), saved.begin())) return std::unexpected(Error{Errc::state, "not a saved rigid world"});
     at = magic.size();
     Parsed parsed;
-    std::uint64_t count = 0;
-    if (!take(parsed.steps) || !take(count) || count > saved.size()) return std::unexpected(Error{Errc::state, "a saved rigid world cut short"});
-    for (std::uint64_t index = 0; index < count; ++index) {
-        BodyId body;
-        if (!take(body.index) || !take(body.generation)) return std::unexpected(Error{Errc::state, "a saved rigid world cut short"});
-        parsed.bodies.push_back(body);
+    const auto steps = take(8), count = take(8);
+    if (!steps || !count || *count > saved.size()) return std::unexpected(Error{Errc::state, "a saved rigid world cut short"});
+    parsed.steps = *steps;
+    for (std::uint64_t index = 0; index < *count; ++index) {
+        const auto body_index = take(4), generation = take(2);
+        if (!body_index || !generation) return std::unexpected(Error{Errc::state, "a saved rigid world cut short"});
+        parsed.bodies.push_back({static_cast<std::int32_t>(static_cast<std::uint32_t>(*body_index)), static_cast<std::uint16_t>(*generation)});
     }
     parsed.image = saved.subspan(at);
     return parsed;

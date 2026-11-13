@@ -37,6 +37,16 @@ UTest cases{"dynamics.rigid", [] {
         run(rolled.world, 150);
         const auto saved = rolled.world.save();
         expect(saved.size() > 1000u) << std::format("{} bytes", saved.size());
+        // The image's head, byte for byte: the magic, the steps and how many bodies, little-endian — the same on
+        // every platform and at every optimisation (a build that wrote an object's bytes here once wrote garbage).
+        const auto word = [&](std::size_t at) {
+            std::uint64_t value = 0;
+            for (int byte = 0; byte < 8; ++byte) value |= static_cast<std::uint64_t>(saved[at + static_cast<std::size_t>(byte)]) << (8 * byte);
+            return value;
+        };
+        expect(saved[0] == 'X' && saved[1] == 'R' && saved[2] == 'G' && saved[3] == '1');
+        expect(eq(word(4), std::uint64_t{150}));
+        expect(word(12) >= 1u && word(12) < 1000u) << std::format("{} bodies in the image's head", word(12));
         run(rolled.world, 150);
         expect(eq(rolled.world.state_hash(), expected[299])) << "taking a save changes nothing";
         expect(fatal(rolled.world.restore(saved).has_value()));

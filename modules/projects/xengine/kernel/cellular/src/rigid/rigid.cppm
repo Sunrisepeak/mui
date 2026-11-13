@@ -67,6 +67,7 @@ public:
     // Where the bodies' stamped cells are now, each grown by `room` (what a stamp moves aside): the field's cells
     // written from outside a lattice step — a sparse host wakes their tiles.
     [[nodiscard]] std::vector<Tile> touched() const;
+    void touched(std::vector<Tile>& out) const;  // the same into `out` (cleared first): no allocation once it has room
     // Which body holds the field's cell now (stamped), if any.
     [[nodiscard]] std::optional<dyn::BodyId> owner(std::uint32_t x, std::uint32_t y) const;
     [[nodiscard]] const Statistics& last() const noexcept { return last_; }
@@ -107,6 +108,7 @@ private:
     std::vector<dyn::BodyId> terrain_;           // a fixed body a tile (none: no solid there)
     std::vector<std::uint64_t> terrain_hash_;
     Statistics last_;
+    std::vector<std::uint8_t> read_;             // lift's scratch
 };
 
 // A world of matter with bodies in it: the lattice, the rigid world and the coupling, stepped in their order and
@@ -161,6 +163,7 @@ private:
     cellular::Program lattice_;
     std::vector<std::uint32_t> cells_, next_, outside_;
     std::vector<std::uint8_t> activity_;
+    std::vector<Tile> touched_;  // a frame's scratch
     std::uint64_t tick_ = 0;
     std::unique_ptr<dyn::World> rigid_;
     std::unique_ptr<Bodies> bodies_;

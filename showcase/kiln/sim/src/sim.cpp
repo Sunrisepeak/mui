@@ -13,9 +13,9 @@ const substance::Program& matter() {
 }
 
 namespace level {
-Level first() {
-    // Painted once: rectangles of material on a grid of air, then read as rows.
-    static const std::vector<std::string> grid = [] {
+namespace {
+std::vector<std::string> first_grid(bool flawed) {
+        // Painted: rectangles of material on a grid of air, then read as rows.
         constexpr int width = 128, height = 64;
         std::vector<std::string> rows(height, std::string(width, '.'));
         const auto paint = [&](int x0, int y0, int x1, int y1, char what) {
@@ -39,11 +39,21 @@ Level first() {
         paint(86, 36, 111, 43, 'l');                 // lava: water cools it to stone
         paint(112, 34, 125, 61, '#');                // the last floor
         paint(118, 29, 121, 33, 'E');                // the exit
+        if (flawed) paint(113, 18, 116, 33, '#');  // the mistake: a second wall, and one bomb
         rows[30][6] = 'P';
         rows[29][6] = '.';
         return rows;
-    }();
-    Level level{.name = "the first cavern"};
+}
+}  // namespace
+Level first() {
+    static const std::vector<std::string> grid = first_grid(false);
+    Level level{.name = "the first cavern", .bombs = 2};
+    for (const std::string& row : grid) level.rows.push_back(row);
+    return level;
+}
+Level flawed() {
+    static const std::vector<std::string> grid = first_grid(true);
+    Level level{.name = "the first cavern, with a second wall", .bombs = 1};
     for (const std::string& row : grid) level.rows.push_back(row);
     return level;
 }
@@ -136,6 +146,7 @@ std::expected<State, std::string> start(const Level& level) {
         if (!crates) return std::unexpected(crates.error());
     }
     // Her feet on the top of the cell the `P` marks.
+    state.cat.bombs = level.bombs;
     state.cat.x = static_cast<float>(feet->first) + 0.5f;
     state.cat.y = static_cast<float>(feet->second);
     return state;
@@ -151,8 +162,9 @@ void cast(State& state, const Input& input) {
     Cat& cat = state.cat;
     const auto& world = *state.world;
     const std::int32_t cost = spell_cost[static_cast<std::size_t>(cat.spell)];
-    if (cat.mana < cost) return;
+    if (cat.mana < cost || (cat.spell == Spell::bomb && cat.bombs == 0)) return;
     cat.mana -= cost;
+    if (cat.spell == Spell::bomb) --cat.bombs;
     ++state.casts;
     const float from_x = cat.x, from_y = cat.y - static_cast<float>(cat_height) * 0.6f;
     float dx = cat.facing_right ? 1.0f : -1.0f, dy = 0;
@@ -189,10 +201,19 @@ void land(State& state, const Bolt& bolt) {
                     if (std::abs(x - cx) + std::abs(y - cy) <= 3 && look.gas(x, y)) world.place({static_cast<std::uint32_t>(x), static_cast<std::uint32_t>(y), 1, 1}, water);
             break;
         }
-        case Spell::bomb:
-            (void)world.blast({bolt.x, bolt.y}, 5.0f, 14.0f, true);
+        case Spell::bomb: {
+            // The blast shatters the stone about it to sand, then throws what is there: what comes down is a
+            // heap that slumps and can be walked over, not a wall rebuilt of its own rubble.
+            const Look look = look_of(state);
+            const auto stone = *program.material("stone"), sand = *program.material("sand");
+            for (std::int64_t y = cy - 6; y <= cy + 6; ++y)
+                for (std::int64_t x = cx - 6; x <= cx + 6; ++x)
+                    if ((x - cx) * (x - cx) + (y - cy) * (y - cy) <= 36 && look.at(x, y) == stone && !world.bodies().owner(static_cast<std::uint32_t>(x), static_cast<std::uint32_t>(y)))
+                        world.place({static_cast<std::uint32_t>(x), static_cast<std::uint32_t>(y), 1, 1}, sand);
+            (void)world.blast({bolt.x, bolt.y}, 7.0f, 30.0f, true);
             world.set(temperature, clip(3), 1100 * 256);
             break;
+        }
     }
 }
 
@@ -238,9 +259,15 @@ void move(State& state, const Input& input) {
     const float target = axis * (cat.swimming ? walk * 0.5f : walk);
     cat.vx += (target - cat.vx) * (cat.on_ground || cat.swimming ? 0.35f : 0.12f);
     if (cat.swimming) {
-        cat.vy += gravity * 0.3f * step_seconds;
-        if (input.player.down(jump_button)) cat.vy -= 200.0f * step_seconds;
-        cat.vy *= 0.92f;
+        // Holding jump she swims up; at the surface, her head out, she leaps out as she would from the ground.
+        bool head_out = false;
+        for (std::int64_t column = box.left; column <= box.right; ++column) head_out = head_out || !look.liquid(column, box.top);
+        if (input.player.down(jump_button) && head_out && cat.vy > -5.0f) cat.vy = -jump;
+        else {
+            cat.vy += gravity * 0.3f * step_seconds;
+            if (input.player.down(jump_button)) cat.vy -= 200.0f * step_seconds;
+            cat.vy *= 0.92f;
+        }
     } else {
         cat.vy += gravity * step_seconds;
         if (cat.on_ground && input.player.went_down(jump_button)) cat.vy = -jump;
@@ -272,17 +299,23 @@ void move(State& state, const Input& input) {
     // What hurts: heat around her, burning, lava; water over her head takes her breath.
     const std::uint32_t temperature = *program.channel("temperature"), burning = *program.channel("burning");
     const Box now = box_at(cat.x, cat.y);
+    // Heat by what holds it: a hot solid or liquid at 420 K, a gas only near flames (700 K) — the warm air a fire
+    // leaves in a low passage is not a trap for half a minute.
     std::uint32_t hottest = 0;
     bool aflame = false, under = true;
     for (std::int64_t row = now.top - 1; row <= now.bottom + 1; ++row)
         for (std::int64_t column = now.left - 1; column <= now.right + 1; ++column) {
-            hottest = std::max(hottest, look.channel(temperature, column, row));
+            const std::uint32_t heat = look.channel(temperature, column, row);
+            const bool airy = look.gas(column, row);
+            if (!airy || heat >= 700 * 256) hottest = std::max(hottest, heat);
             aflame = aflame || look.channel(burning, column, row) != 0;
         }
     for (std::int64_t column = now.left; column <= now.right; ++column) under = under && look.liquid(column, now.top);
     const bool hurt = hottest >= 420 * 256 || aflame;
     if (hurt) cat.health -= hottest >= 900 * 256 ? 3 : 1, cat.hurt = 0;
     else ++cat.hurt;
+    // Two seconds out of harm, and she mends: a point every ten frames.
+    if (cat.hurt > 120 && cat.health < 100 && state.frame % 10 == 0) ++cat.health;
     if (under) {
         if (cat.breath > 0) --cat.breath;
         else if (state.frame % 10 == 0) --cat.health, cat.hurt = 0;
@@ -317,6 +350,7 @@ std::uint64_t checksum(const State& state) noexcept {
     const Cat& cat = state.cat;
     for (const float value : {cat.x, cat.y, cat.vx, cat.vy}) hash.le(std::bit_cast<std::uint32_t>(value), 4);
     for (const std::int32_t value : {cat.health, cat.mana, cat.breath}) hash.le(static_cast<std::uint32_t>(value), 4);
+    hash.le(cat.bombs, 4);
     hash.le(static_cast<std::uint8_t>(cat.spell), 1).le(cat.facing_right, 1).le(cat.on_ground, 1).le(cat.swimming, 1).le(cat.hurt, 4);
     for (const Bolt& bolt : state.bolts)
         for (const float value : {bolt.x, bolt.y, bolt.vx, bolt.vy}) hash.le(std::bit_cast<std::uint32_t>(value), 4);
@@ -330,15 +364,15 @@ std::string observe(const State& state, bool full) {
     const auto& program = look.program;
     const Cat& cat = state.cat;
     const auto outcome = state.outcome == Outcome::won ? "won" : state.outcome == Outcome::lost ? "lost" : "playing";
-    std::string out = std::format(R"({{"frame":{},"outcome":"{}","cat":{{"x":{:.2f},"y":{:.2f},"vx":{:.2f},"vy":{:.2f},"health":{},"mana":{},"breath":{},"spell":"{}","on_ground":{},"swimming":{}}},"exit":[{},{},{},{}],)",
-                                  state.frame, outcome, cat.x, cat.y, cat.vx, cat.vy, cat.health, cat.mana, cat.breath, spell_names[static_cast<std::size_t>(cat.spell)], cat.on_ground,
+    std::string out = std::format(R"({{"frame":{},"outcome":"{}","cat":{{"x":{:.2f},"y":{:.2f},"vx":{:.2f},"vy":{:.2f},"health":{},"mana":{},"breath":{},"bombs":{},"spell":"{}","on_ground":{},"swimming":{}}},"exit":[{},{},{},{}],)",
+                                  state.frame, outcome, cat.x, cat.y, cat.vx, cat.vy, cat.health, cat.mana, cat.breath, cat.bombs, spell_names[static_cast<std::size_t>(cat.spell)], cat.on_ground,
                                   cat.swimming, state.exit.x, state.exit.y, state.exit.width, state.exit.height);
-    // What is around her: a window of 32 × 24 cells, a letter a cell by phase (a person sees about that much).
-    const std::int64_t left = static_cast<std::int64_t>(cat.x) - 16, top = static_cast<std::int64_t>(cat.y) - 16;
+    // What is around her: a screen's worth, 80 × 48 cells, a letter a cell by what it is (what a person playing sees).
+    const std::int64_t left = static_cast<std::int64_t>(cat.x) - 40, top = static_cast<std::int64_t>(cat.y) - 30;
     out += std::format(R"("around":{{"left":{},"top":{},"rows":[)", left, top);
-    for (std::int64_t row = 0; row < 24; ++row) {
+    for (std::int64_t row = 0; row < 48; ++row) {
         out += row ? ",\"" : "\"";
-        for (std::int64_t column = 0; column < 32; ++column) {
+        for (std::int64_t column = 0; column < 80; ++column) {
             const std::uint32_t material = look.at(left + column, top + row);
             char letter = '#';
             if (material != substance::none) {

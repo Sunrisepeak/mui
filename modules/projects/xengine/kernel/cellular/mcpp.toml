@@ -17,7 +17,9 @@ kind = "lib"
 [build]
 sources = ["src/*.cppm", "src/*.cpp"]
 # Integer kernels; the feature `rigid` maps cells through bodies' poses in floats: the same bits everywhere.
-cxxflags = ["-fno-fast-math", "-ffp-contract=off"]
+# Optimised in every profile (the last -O wins): a field stepped at -O0 costs several times as much, which a
+# game, a playtest branching ahead and every consumer's tests would pay; the results are the same bits.
+cxxflags = ["-fno-fast-math", "-ffp-contract=off", "-O2"]
 
 [dependencies]
 mlibs.utils = { path = "../../../../base/utils" }

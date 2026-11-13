@@ -31,8 +31,9 @@ xrender.text = { path = "../../modules/projects/xrender/text" }
 mlibs.simulation = { path = "../../modules/base/simulation" }
 xengine.dynamics = { path = "../../modules/projects/xengine/kernel/dynamics" }
 # With the lattice as a carrier of matter (simulation/matter-lattice-*), and a field of it as an agent's subject
-# with its record of causes (simulation/matter-256-causes; the feature implies `matter` and `agent`).
-xengine.cellular = { path = "../../modules/projects/xengine/kernel/cellular", features = ["matter-agent"] }
+# with its record of causes (simulation/matter-256-causes; the feature implies `matter` and `agent`); and the
+# whole 2D world, its bodies made of the lattice's cells (simulation/world-128x64-frame; the feature `rigid`).
+xengine.cellular = { path = "../../modules/projects/xengine/kernel/cellular", features = ["matter-agent", "rigid"] }
 xengine.matter = { path = "../../modules/projects/xengine/kernel/matter" }
 # With matter's look lowered to the lattice's shade (simulation/matter-256-shade).
 "xengine.cellular.present" = { path = "../../modules/projects/xengine/kernel/cellular/present", features = ["matter"] }

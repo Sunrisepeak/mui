@@ -10,6 +10,8 @@ import xengine.matter.json;
 import xengine.cellular.matter;
 import xengine.cellular.matter.agent;
 import xengine.cellular.present.matter;
+import xengine.cellular.rigid;
+import mlibs.trace;
 
 namespace omui::bench {
 namespace {
@@ -293,6 +295,67 @@ void add_simulation_benchmarks() {
             }
             s.note("scope", std::format("{} cells run a step of {} on average ({} of {} tiles asleep at the first); laws, flows and moves; two buffers in turn; drawing excluded",
                                         steps ? run / steps : 0, area, last.asleep, activity.size()));
+        });
+    // M6.2: the whole 2D world — the lattice, what flies, the coupling and the rigid step — on a cavern the size of a
+    // showcase's: what a game pays a frame, and what a playtest that branches ahead pays thousands of times.
+    namespace rigid = xengine::cellular::rigid;
+    const auto cavern = [](State& s, const xengine::matter::Program& program) -> std::unique_ptr<rigid::MatterWorld> {
+        auto made = rigid::MatterWorld::make(program, {.shape = {128, 64}, .tile = {16, 16}, .seed = 17, .fill = "air"});
+        if (!made) { s.fail(made.error()); return nullptr; }
+        rigid::MatterWorld& world = **made;
+        const auto put = [&](std::uint32_t x, std::uint32_t y, std::uint32_t width, std::uint32_t height, std::string_view material) {
+            world.place({x, y, width, height}, *program.material(material));
+        };
+        put(0, 56, 128, 8, "stone");
+        put(0, 0, 2, 56, "stone"), put(126, 0, 2, 56, "stone");
+        put(40, 48, 2, 8, "stone"), put(70, 48, 2, 8, "stone");
+        put(42, 50, 28, 6, "water");
+        put(50, 44, 4, 4, "wood"), put(60, 44, 4, 4, "wood");
+        if (!world.carve({50, 44, 14, 4})) { s.fail("the crates were not carved"); return nullptr; }
+        put(20, 46, 3, 10, "wood");
+        world.set(*program.channel("temperature"), {20, 55, 3, 1}, 900 * 256);
+        // The crates are afloat, the fire has taken the barricade and its heat is about the cavern: a frame costs
+        // from here what it goes on costing.
+        for (int warm = 0; warm < 900; ++warm) world.step();
+        return std::move(*made);
+    };
+    add("simulation/world-128x64-frame", "a 128x64 cavern of the standard matter with bodies in it: a floor, a pool with crates afloat, a barricade alight — one frame of the whole world (lattice, flight, coupling, rigid)",
+        [cavern](State& s) {
+            const auto program = xengine::matter::standard();
+            if (!program) { s.fail("the standard definition was refused"); return; }
+            const auto made = cavern(s, *program);
+            if (!made) return;
+            rigid::MatterWorld& world = *made;
+            s.items(128 * 64);
+            while (s.next()) world.step();
+            // Where a frame's time goes: the same frames again, traced (outside what was measured).
+            mlibs::trace::start();
+            for (int frame = 0; frame < 120; ++frame) world.step();
+            const mlibs::trace::Trace trace = mlibs::trace::stop();
+            std::string stages;
+            double whole = 0;
+            const auto summary = trace.summary();
+            for (const auto& stat : summary)
+                if (stat.name == "simulation.world.step") whole = stat.total_ms;
+            for (const auto& stat : summary)
+                if (whole > 0 && (stat.name.starts_with("simulation.world.") || stat.name == "simulation.cellular.step") && stat.name != "simulation.world.step")
+                    stages += std::format("{}{} {:.0f}%", stages.empty() ? "" : ", ", stat.name.substr(stat.name.rfind('.') + 1) == "step" ? "lattice" : stat.name.substr(stat.name.rfind('.') + 1), 100.0 * stat.total_ms / whole);
+            s.note("scope", std::format("{} bodies; the frame's parts: {}; drawing excluded", world.bodies().bodies().size(), stages));
+        });
+    add("simulation/world-128x64-branch", "the same cavern branched: the whole world copied — the field, what flies, the coupling, the rigid world from its own image — what a timeline's snapshot and an agent's `world.branch` cost before a frame is run",
+        [cavern](State& s) {
+            const auto program = xengine::matter::standard();
+            if (!program) { s.fail("the standard definition was refused"); return; }
+            auto made = cavern(s, *program);
+            if (!made) return;
+            const rigid::WorldValue world(std::move(made));
+            std::uint64_t kept = 0;
+            while (s.next()) {
+                const rigid::WorldValue branch = world;
+                kept += static_cast<bool>(branch);
+            }
+            if (!kept) s.fail("the world did not branch");
+            s.note("scope", std::format("{} bytes of rigid image; nothing stepped", world->rigid().save().size()));
         });
     add("simulation/matter-256-causes", "the same 256x256 of matter as an agent's subject: a step with the record of causes made at its commit (D-169) — what watching a field costs",
         [](State& s) {

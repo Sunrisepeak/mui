@@ -32,6 +32,7 @@ struct Cat {
     float x = 0, y = 0;            // the middle of her feet, in cells
     float vx = 0, vy = 0;          // cells a second
     std::int32_t health = 100, mana = 100, breath = 180;
+    std::uint32_t bombs = 0;       // charges: a cavern gives so many
     Spell spell = Spell::fire;
     bool facing_right = true, on_ground = false, swimming = false;
     std::uint32_t hurt = 0;        // frames since she was last hurt (for a picture's flash)
@@ -61,11 +62,15 @@ struct Input {
 struct Level {
     std::string_view name;
     std::vector<std::string_view> rows;
+    std::uint32_t bombs = 2;  // the wand's bomb charges in this cavern
 };
 namespace level {
 // The first cavern: a barricade of wood to burn, a pool with a crate afloat, a stone wall to blast, lava to
-// cool into a floor, the exit beyond.
+// cool into a floor, the exit beyond. Two bombs.
 [[nodiscard]] Level first();
+// The first cavern with a mistake in it, for a playtest to find: a second wall of stone past the lava, and
+// still one bomb — fire and water open no stone, so it cannot be finished.
+[[nodiscard]] Level flawed();
 }  // namespace level
 
 // The level's world, Mui at her start; or why it cannot be made.
@@ -73,7 +78,7 @@ namespace level {
 void step(State& state, const Input& input);
 [[nodiscard]] std::uint64_t checksum(const State& state) noexcept;
 // What a player is shown, as JSON: Mui (where, health, mana, breath, the spell), the exit, what is around her
-// (materials by name in a window of cells), the bodies near, what flies; `full`: every channel there too.
+// (a screen's worth of cells, a letter each), the bodies near, what flies; `full`: every channel there too.
 [[nodiscard]] std::string observe(const State& state, bool full);
 // The standard definition of matter, loaded once (what every world of Kiln is made of).
 [[nodiscard]] const xengine::matter::Program& matter();

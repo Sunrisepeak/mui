@@ -201,6 +201,12 @@ public:
     // copy starts from the same count, a restored world keeps its own). A work that only puts matter where
     // there is none and applies quantities leaves it where its setting-up left it (D-182).
     [[nodiscard]] std::uint64_t converted() const noexcept { return converted_; }
+    // What the last step's laws did that has a name (a cell became another thing, a flag rose), in the lattice's
+    // own order — the same list however the step was run; with `events`, by their names (xengine.matter's Event:
+    // the law, the event's name, the material it was). For whoever listens: a sound, a score. Not of the
+    // world's state: a copy and a restored world start with none. A tile keeps its first `happenings_a_tile`.
+    [[nodiscard]] std::span<const Happening> happened() const noexcept { return happened_; }
+    void events(std::vector<xengine::matter::Event>& out) const;
     // Watched: each step keeps its journal. Off (as made, and in every branch): nothing is kept and a frame costs
     // what it did. Either way the world is the same bits.
     void watch(bool on);
@@ -236,12 +242,16 @@ public:
 
 private:
     MatterWorld() = default;
+    void listen();  // room for a step's happenings, made once
     const xengine::matter::Program* program_ = nullptr;
     WorldOptions options_;
     cellular::Program lattice_;
     std::vector<std::uint32_t> cells_, next_, outside_;
     std::vector<std::uint8_t> activity_;
     std::vector<Tile> touched_;  // a frame's scratch
+    std::vector<Happening> happened_, heard_;  // the last step's, in order; a step's, tile by tile
+    std::vector<std::uint8_t> heard_counts_;
+    std::vector<std::uint32_t> laws_;  // the lattice's reactions as the program's laws
     std::uint64_t tick_ = 0;
     std::uint64_t converted_ = 0;
     std::unique_ptr<dyn::World> rigid_;

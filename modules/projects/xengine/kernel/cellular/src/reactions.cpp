@@ -327,6 +327,11 @@ std::uint32_t Program::react(Shape shape, std::uint32_t x, std::uint32_t y, std:
         touch(channel);
         is_set |= 1u << channel;
     }
+    std::uint32_t risen = 0;  // the flags a reaction has set here this step
+    const auto happen = [&](std::uint32_t reaction, bool rose) {
+        if (stats.kept < happenings_a_tile) stats.happened[stats.kept++] = {static_cast<std::uint32_t>(cell), reaction, key, rose};
+        ++stats.happenings;
+    };
     position = staged.reactions;
     const std::uint64_t* const possible = possible_.data() + static_cast<std::size_t>(key) * ((words_[position] + 63) / 64);
     for (std::uint32_t count = words_[position++], index = 0; index < count; ++index) {
@@ -344,8 +349,15 @@ std::uint32_t Program::react(Shape shape, std::uint32_t x, std::uint32_t y, std:
                 else if (kind == static_cast<std::uint32_t>(ChangeKind::take)) minus[channel] = saturating_add(minus[channel], by);
                 else if (!(is_set >> channel & 1)) base[channel] = by, is_set |= 1u << channel;
             }
-            if (flag != largest) base[flag] = 1;
-            if (become != largest && becomes == largest && row[become] < staged.rows && row[become] != key) becomes = row[become];
+            if (flag != largest) {
+                base[flag] = 1;
+                if (!(risen >> flag & 1) && in[static_cast<std::size_t>(flag) * cells + cell] == 0) happen(index, true);
+                risen |= 1u << flag;
+            }
+            if (become != largest && becomes == largest && row[become] < staged.rows && row[become] != key) {
+                becomes = row[become];
+                happen(index, false);
+            }
         }
         position = end;
     }

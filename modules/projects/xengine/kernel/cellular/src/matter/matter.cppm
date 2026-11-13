@@ -56,4 +56,11 @@ struct Lowering {
 void events_between(const xengine::matter::Program& matter, std::size_t cells, std::span<const std::uint32_t> input, std::span<const std::uint32_t> output,
                     std::vector<xengine::matter::Event>& events);
 
+// The lattice's happenings (Execution::happened) as the matter program names them. A reaction of the lattice is a
+// law of kind reaction or conversion, in the laws' order: `laws[reaction]` is that law.
+[[nodiscard]] std::vector<std::uint32_t> laws_of_reactions(const xengine::matter::Program& matter);
+// A happening as an event: a law that made the cell another thing, by its own event; a flag that rose, by the
+// channel's. Unnamed: the largest number (Event::name) — the law and the cell are still said.
+[[nodiscard]] xengine::matter::Event event_of(const xengine::matter::Program& matter, std::span<const std::uint32_t> laws, const Happening& happening) noexcept;
+
 }  // namespace xengine::cellular

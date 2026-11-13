@@ -127,10 +127,37 @@ void events_between(const xengine::matter::Program& plan, std::size_t cells, std
             const std::uint32_t old = input[channel * cells + cell], now = output[channel * cells + cell];
             if ((old == 0) == (now == 0)) continue;
             const auto named = now != 0 ? channels[channel].rise : channels[channel].fall;
-            if (named) events.push_back({now != 0 ? matter::EventKind::rose : matter::EventKind::fell, static_cast<std::uint32_t>(cell), *named, 0, channel, old, now});
+            if (named) events.push_back({now != 0 ? matter::EventKind::rose : matter::EventKind::fell, static_cast<std::uint32_t>(cell), *named, 0, channel, old, now, input[cell]});
         }
-        if (input[cell] != output[cell]) events.push_back({matter::EventKind::became, static_cast<std::uint32_t>(cell), unnamed, unnamed, 0, input[cell], output[cell]});
+        if (input[cell] != output[cell]) events.push_back({matter::EventKind::became, static_cast<std::uint32_t>(cell), unnamed, unnamed, 0, input[cell], output[cell], input[cell]});
     }
+}
+
+std::vector<std::uint32_t> laws_of_reactions(const xengine::matter::Program& plan) {
+    std::vector<std::uint32_t> laws;
+    const auto all = plan.laws();
+    for (std::uint32_t law = 0; law < all.size(); ++law)
+        if (all[law].kind == matter::LawKind::reaction || all[law].kind == matter::LawKind::conversion) laws.push_back(law);
+    return laws;
+}
+
+xengine::matter::Event event_of(const xengine::matter::Program& plan, std::span<const std::uint32_t> laws, const Happening& happening) noexcept {
+    constexpr std::uint32_t unnamed = std::numeric_limits<std::uint32_t>::max();
+    matter::Event event{.instance = happening.cell, .name = unnamed, .law = unnamed, .from = happening.was, .to = happening.was, .material = happening.was};
+    if (happening.reaction >= laws.size()) return event;
+    event.law = laws[happening.reaction];
+    const matter::Law& law = plan.laws()[event.law];
+    if (happening.rose) {
+        event.kind = matter::EventKind::rose;
+        if (law.flag) {
+            event.channel = *law.flag, event.from = 0, event.to = 1;
+            if (const auto named = plan.channels()[*law.flag].rise) event.name = *named;
+        }
+        return event;
+    }
+    if (law.event) event.name = *law.event;
+    if (law.become && happening.was < plan.materials().size()) event.to = plan.value(happening.was, *law.become);
+    return event;
 }
 
 }  // namespace xengine::cellular

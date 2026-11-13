@@ -523,6 +523,8 @@ std::expected<Statistics,Failure> Program::step(Shape shape, std::span<const std
     const std::span<std::uint8_t> activity = execution.activity;
     const bool sparse = !activity.empty();
     if (sparse && activity.size() != total) return std::unexpected(Failure{Errc::tile});
+    const bool listened = !execution.happened_counts.empty();
+    if (listened && (execution.happened_counts.size() != total || execution.happened.size() != std::size_t{total} * happenings_a_tile)) return std::unexpected(Failure{Errc::tile});
     const std::size_t cells = static_cast<std::size_t>(shape.width) * shape.height;
     const auto tile_at = [&](std::uint32_t index) {
         const auto x = (index % columns) * execution.tile.width, y = (index / columns) * execution.tile.height;
@@ -539,6 +541,7 @@ std::expected<Statistics,Failure> Program::step(Shape shape, std::span<const std
                 // At rest: its cells are the input's — copied, or already there where two buffers take turns.
                 activity[k] |= mark_sleeping;
                 add(stats.asleep, 1);
+                if (listened) execution.happened_counts[k] = 0;
                 if (!execution.alternate)
                     for (std::uint32_t channel = 0; channel < channels_; ++channel)
                         for (std::uint32_t y = tile.y; y < tile.y + tile.height; ++y) {
@@ -550,7 +553,11 @@ std::expected<Statistics,Failure> Program::step(Shape shape, std::span<const std
             }
         }
         const auto s=run_tile(shape,tile,in,out,execution.boundary);
-        add(stats.cells,s.cells);add(stats.matched,s.matched);add(stats.changed,s.changed);
+        add(stats.cells,s.cells);add(stats.matched,s.matched);add(stats.changed,s.changed);add(stats.happenings,s.happenings);
+        if (listened) {
+            execution.happened_counts[k] = static_cast<std::uint8_t>(s.kept);
+            std::copy_n(s.happened.begin(), s.kept, execution.happened.begin() + static_cast<std::ptrdiff_t>(std::size_t{k} * happenings_a_tile));
+        }
         if(!execution.changed_tiles.empty())execution.changed_tiles[k]=s.changed?1:0;
         if (sparse && s.changed) activity[k] |= mark_altered;
     };

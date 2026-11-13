@@ -631,6 +631,7 @@ std::expected<std::unique_ptr<MatterWorld>, std::string> MatterWorld::make(const
     world->outside_ = program.fresh(1, *fill);
     const Shape tiles = cellular::tiles(options.shape, options.tile);
     world->activity_.assign(static_cast<std::size_t>(tiles.width) * tiles.height, 0);
+    world->listen();
     world->rigid_ = std::make_unique<dyn::World>(std::move(*rigid));
     Options of_bodies = options.bodies;
     of_bodies.gravity = gravity;
@@ -698,6 +699,17 @@ std::expected<std::vector<dyn::BodyId>, std::string> MatterWorld::carve(Tile reg
     return made;
 }
 
+void MatterWorld::listen() {
+    heard_counts_.assign(activity_.size(), 0);
+    heard_.assign(activity_.size() * happenings_a_tile, {});
+    happened_.clear(), happened_.reserve(heard_.size());
+    laws_ = laws_of_reactions(*program_);
+}
+
+void MatterWorld::events(std::vector<xengine::matter::Event>& out) const {
+    for (const Happening& happening : happened_) out.push_back(event_of(*program_, laws_, happening));
+}
+
 void MatterWorld::step() {
     // Each part of a frame a span (simulation.world.*): where a frame's time goes is read from a trace.
     mlibs::trace::Span frame("simulation.world.step", "simulation");
@@ -713,7 +725,12 @@ void MatterWorld::step() {
     {
         Execution execution{.tile = options_.tile, .boundary = options_.open ? open_to(outside_) : nothing_beyond, .tick = tick_++};
         if (options_.sparse) execution.activity = activity_;
+        execution.happened = heard_, execution.happened_counts = heard_counts_;
         (void)lattice_.step(options_.shape, cells_, next_, execution);
+        happened_.clear();  // room for every place was made with the world: a frame allocates nothing
+        for (std::size_t tile = 0; tile < heard_counts_.size(); ++tile)
+            happened_.insert(happened_.end(), heard_.begin() + static_cast<std::ptrdiff_t>(tile * happenings_a_tile),
+                             heard_.begin() + static_cast<std::ptrdiff_t>(tile * happenings_a_tile + heard_counts_[tile]));
         cells_.swap(next_);
         if (watched_) journal_.lattice.assign(cells_.begin(), cells_.end());
         flying_->now(tick_);
@@ -801,6 +818,7 @@ std::expected<void, std::string> MatterWorld::restore(std::span<const std::uint8
     if (!read.ok || saved.size() - at < rigid_size) return std::unexpected(std::string("a saved world cut short"));
     if (auto restored = rigid_->restore(saved.subspan(at, static_cast<std::size_t>(rigid_size))); !restored) return std::unexpected(restored.error().text);
     tick_ = tick, cells_ = std::move(cells), activity_ = std::move(bytes);
+    happened_.clear();
     *bodies_ = std::move(coupled);
     *flying_ = std::move(flying);
     // Another state: what was being said of the old one is dropped.
@@ -818,6 +836,7 @@ std::expected<std::unique_ptr<MatterWorld>, std::string> MatterWorld::branch() c
     world->next_.assign(cells_.size(), 0);
     world->outside_ = outside_;
     world->activity_ = activity_;
+    world->listen();
     world->tick_ = tick_;
     auto rigid = rigid_->branch();
     if (!rigid) return std::unexpected(rigid.error().text);

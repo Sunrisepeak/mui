@@ -95,7 +95,40 @@ std::expected<Sounds, std::string> Sounds::make(const substance::Program& progra
         sounds.events_.push_back(recipe.event);
         for (std::uint32_t material = 0; material < sounds.materials_; ++material) sounds.sounds_.push_back(mixer.add(sound_of(program, material, recipe)));
     }
+    for (const std::string& name : program.event_names()) {
+        const auto found = std::ranges::find(sounds.events_, name);
+        sounds.named_.push_back(found == sounds.events_.end() ? -1 : static_cast<std::int32_t>(found - sounds.events_.begin()));
+    }
+    sounds.counts_.assign(sounds.sounds_.size(), 0);
+    sounds.places_.assign(sounds.sounds_.size(), 0);
     return sounds;
+}
+
+std::uint32_t Sounds::hear(std::span<const substance::Event> events, const Ear& ear) noexcept {
+    if (!mixer_ || events.empty()) return 0;
+    bool any = false;
+    for (const substance::Event& event : events) {
+        if (event.name >= named_.size() || named_[event.name] < 0 || event.material >= materials_) continue;
+        const std::size_t slot = static_cast<std::size_t>(named_[event.name]) * materials_ + event.material;
+        ++counts_[slot];
+        places_[slot] += static_cast<float>(event.instance % std::max(ear.width, 1u));
+        any = true;
+    }
+    if (!any) return 0;
+    std::uint32_t played = 0;
+    for (std::size_t slot = 0; slot < counts_.size(); ++slot) {
+        if (!counts_[slot]) continue;
+        const float count = static_cast<float>(counts_[slot]), place = places_[slot] / count;
+        // One is quiet, a handful is most of the way: 0.4, 0.64, 0.78, 0.87 …
+        float rest = 1;
+        for (std::uint32_t one = 0; one < std::min(counts_[slot], 16u); ++one) rest *= 0.6f;
+        counts_[slot] = 0, places_[slot] = 0;
+        if (sounds_[slot] < 0) continue;
+        const float strength = 1.0f - rest;
+        const float pan = std::clamp((place - ear.at) / std::max(ear.reach, 1.0f), -1.0f, 1.0f);
+        played += mixer_->play(sounds_[slot], ear.when, strength, pan, 0.94f + 0.12f * strength);
+    }
+    return played;
 }
 
 std::int32_t Sounds::sound(std::string_view event, std::uint32_t material) const noexcept {

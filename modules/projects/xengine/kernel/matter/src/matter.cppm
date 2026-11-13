@@ -255,6 +255,7 @@ struct Event {
     std::uint32_t law = 0;      // became: the law
     std::uint32_t channel = 0;  // rose, fell: the channel
     std::uint32_t from = 0, to = 0;  // became: materials; rose, fell: the channel's values
+    std::uint32_t material = 0;      // what the instance was when it happened
 };
 struct Report {
     std::uint64_t instances = 0, pairs = 0;

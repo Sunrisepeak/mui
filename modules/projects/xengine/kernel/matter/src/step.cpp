@@ -231,14 +231,14 @@ std::expected<Report, Failure> Program::step(Carrier carrier, std::span<const st
             if (events && (old == 0) != (value == 0)) {
                 const Channel& of = channels_[channel];
                 const auto named = value != 0 ? of.rise : of.fall;
-                if (named) events->push_back({value != 0 ? EventKind::rose : EventKind::fell, static_cast<std::uint32_t>(instance), *named, 0, channel, old, value});
+                if (named) events->push_back({value != 0 ? EventKind::rose : EventKind::fell, static_cast<std::uint32_t>(instance), *named, 0, channel, old, value, material});
             }
         }
         output[instance] = becomes != none ? becomes : material;
         if (becomes != none) {
             ++report.became;
             changed = true;
-            if (events) events->push_back({EventKind::became, static_cast<std::uint32_t>(instance), laws_[by_law].event.value_or(largest), by_law, 0, material, becomes});
+            if (events) events->push_back({EventKind::became, static_cast<std::uint32_t>(instance), laws_[by_law].event.value_or(largest), by_law, 0, material, becomes, material});
         }
         report.changed += changed;
     }

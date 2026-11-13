@@ -156,6 +156,7 @@ members = [
     "showcase/kiln/sim",
     "showcase/kiln/headless",
     "showcase/kiln/picture",
+    "showcase/kiln/sound",
     "site",
 ]
 

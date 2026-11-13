@@ -279,6 +279,10 @@ And the emergence set (the plan's §9.3) asked why, each phenomenon through the 
 mcpp test -p xengine.matter.cts agent_test   # the agent contract's suite on a field of matter; the chain of causes, why not, events, branches; the record against the kernel
 ```
 
+## What a step's laws did: happenings
+
+A step can say what its reactions did that has a name — which cell became another thing by which reaction, where a reaction's flag rose (it was 0 in the step's input): `Execution::happened` and `happened_counts`, `happenings_a_tile` (8) places a tile, beside `activity` and `changed_tiles`. Read in tile order it is the same list however the step was run; a tile past its places only counts (`Statistics::happenings`); a step given no spans pays nothing. With the feature `matter`, `laws_of_reactions` and `event_of` name one as `xengine.matter`'s `Event`: the law, the event's name (a law's `event`, a flag's `rise`), the material it was. `MatterWorld::happened()` and `events()` are the last step's, with nobody watching — what a sound or a score listens to (`xengine.audio.matter`'s `Sounds::hear`). They are no part of the world's state: a copy and a restored world start with none.
+
 ## What a frame did besides its laws: the journal
 
 `MatterWorld::watch(true)` makes each step keep a `Journal` (the foundation plan's §6.10.1) — what `matter.explain` on a whole world is made from:

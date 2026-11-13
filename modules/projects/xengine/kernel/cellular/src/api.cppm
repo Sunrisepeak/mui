@@ -257,6 +257,16 @@ struct Boundary {
 // threads, and returns when all have run. The kernel owns no thread; a host gives the pool it has (omui's
 // Tasks, a game runtime's) or none. A FunctionRef refers to a callable the caller keeps alive (name it).
 using ForEach = mlibs::memory::FunctionRef<void(std::uint32_t count, mlibs::memory::FunctionRef<void(std::uint32_t)> piece)>;
+// What a reaction did to a cell this step that has a name to whoever listens: the cell became another thing, or
+// the reaction's flag rose there (it was 0 in the step's input). `reaction` is the program's, in the order they
+// were given; `cell` is where it was when the reactions ran (cells change places after).
+struct Happening {
+    std::uint32_t cell = 0, reaction = 0;
+    std::uint32_t was = 0;  // the cell's row then (its key's value)
+    bool rose = false;  // its flag rose; otherwise the cell became another thing
+};
+inline constexpr std::uint32_t happenings_a_tile = 8;
+
 struct Execution {
     Shape tile{32,32};
     Boundary boundary;
@@ -265,6 +275,12 @@ struct Execution {
     // to 1 where a cell of the tile changed this step and 0 where none did —
     // what a presenter re-uploads and a renderer redraws (D-132).
     std::span<std::uint8_t> changed_tiles = {};
+    // Optional: the step's happenings, for whoever listens (a sound, a score) — `happenings_a_tile` places a tile
+    // and one count a tile (how many of its places are filled), tiles row by row as changed_tiles. Read in tile
+    // order it is the same list however the step was run. A tile asleep has none. Past a tile's places the rest
+    // are only counted (Statistics::happenings).
+    std::span<Happening> happened = {};
+    std::span<std::uint8_t> happened_counts = {};
     // Which step this is, for a program that moves cells: where the blocks are cut, and its choices.
     std::uint64_t tick = 0;
     // Optional — sparse execution (D-167): one byte a tile, as changed_tiles, that the caller keeps between the
@@ -291,7 +307,14 @@ struct Execution {
 }
 // What a step did: the cells it ran (all of them, but for tiles asleep), those a rule matched, those that
 // changed, and the tiles it left asleep.
-struct Statistics { std::uint64_t cells = 0, matched = 0, changed = 0, asleep = 0; };
+struct Statistics {
+    std::uint64_t cells = 0, matched = 0, changed = 0, asleep = 0;
+    // How many happenings there were. One tile's (run_tile) also keeps its first few; a whole step's are the
+    // caller's, tile by tile (Execution::happened).
+    std::uint64_t happenings = 0;
+    std::array<Happening, happenings_a_tile> happened{};
+    std::uint32_t kept = 0;
+};
 // What a quantity does from outside to a rectangle of cells: over the cells just beyond its left side less those
 // just beyond its right (x), and those above less those below (y), the sum of `values` — one channel's cells. A
 // pressure's net push on what is inside, in the channel's units: positive x is toward greater x, positive y

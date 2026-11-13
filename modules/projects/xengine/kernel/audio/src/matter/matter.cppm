@@ -37,6 +37,14 @@ struct Heard {
     std::int64_t     at = 0;        // the mixer's sample it is heard at
 };
 
+// Where a step's events are heard from: a lattice `width` cells wide, an ear over the cell column `at`, what is
+// `reach` cells to a side wholly on that side; `when` the mixer's sample.
+struct Ear {
+    std::uint32_t width = 1;
+    float         at = 0, reach = 32;
+    std::int64_t  when = 0;
+};
+
 // The sound of one shape for one material, as data: what `Sounds` adds to the mixer, and what a tool shows.
 [[nodiscard]] Sound sound_of(const xengine::matter::Program& program, std::uint32_t material, const Recipe& recipe);
 
@@ -46,6 +54,10 @@ public:
     [[nodiscard]] static std::expected<Sounds, std::string> make(const xengine::matter::Program& program, Mixer& mixer, std::span<const Recipe> recipes = standard_recipes());
     // Plays it. False: no recipe for the event, no such material, or the mixer's queue is full.
     bool hear(const Heard& heard) noexcept;
+    // A step's events as its carrier says them (a world's `events`): the ones that have a recipe, each event of
+    // each material one sound — louder the more of them there were, from where they were on average. A wall that
+    // shatters is one crumble, not forty. How many sounds it played. Allocates nothing.
+    std::uint32_t hear(std::span<const xengine::matter::Event> events, const Ear& ear) noexcept;
     [[nodiscard]] std::int32_t sound(std::string_view event, std::uint32_t material) const noexcept;  // the mixer's index; −1: none
     [[nodiscard]] std::size_t count() const noexcept { return sounds_.size(); }
 
@@ -54,6 +66,9 @@ private:
     std::vector<std::string>  events_;
     std::size_t               materials_ = 0;
     std::vector<std::int32_t> sounds_;  // event × material
+    std::vector<std::int32_t> named_;   // the program's event names → a recipe's row; −1: none
+    std::vector<std::uint32_t> counts_; // a step's scratch, event × material
+    std::vector<float>         places_;
 };
 
 }  // namespace xengine::audio::matter

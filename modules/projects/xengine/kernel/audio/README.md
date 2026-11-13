@@ -46,6 +46,8 @@ sounds.hear({.event = "land", .material = iron, .strength = 0.8f, .pan = -0.2f, 
 
 The feature `matter` (on by default; D-183). A world's events have names and a material has properties: a recipe says which shape of sound an event has — `strike` (one thing meets another: a click and the thing's ring), `crumble` (it breaks), `sizzle` (it burns or boils) — and each material's sound of that shape is made from its own numbers: `ring`, the pitch a piece of it gives when struck, and `damping`, how soon that dies. Those two are this package's pack over the standard definition ([packs/acoustics.matter.omui.ts](packs/acoustics.matter.omui.ts)); a material that says neither still sounds, from its phase and density. No work writes "when wood lands play this". It is of the presentation: it reads the world and changes nothing of it; the sounds are made once, hearing one allocates nothing, and a scene of events renders to the same bits everywhere (`tests/matter_test.cpp`). Not yet: the world's journal wired to it, lasting layers for what burns and boils, the recipes as data.
 
+A world need not be told event by event: `sounds.hear(events, {.width, .at, .reach, .when})` takes a step's events as their carrier says them (`MatterWorld::events`) — each event of each material is one sound, louder the more of them there were, from where they were on average. A wall of forty cells that shatters is one crumble, not forty.
+
 ## Music
 
 ```cpp

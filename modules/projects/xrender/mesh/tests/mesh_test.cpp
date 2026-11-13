@@ -23,6 +23,8 @@ struct Library {
     std::vector<const geom::ClusteredMesh*> meshes;
     std::vector<geom::Bvh> grown;
     std::vector<const geom::Bvh*> trees;
+    std::vector<mesh::Texture> pictures;
+    std::vector<const mesh::Texture*> textures;
     std::vector<mesh::Material> materials{{{0.8f, 0.2f, 0.15f}, {}}, {{0.5f, 0.5f, 0.5f}, {}}, {{0.15f, 0.4f, 0.8f}, {}}, {{0.9f, 0.75f, 0.2f}, {}}, {{0.1f, 0.1f, 0.1f}, {0.9f, 0.5f, 0.1f}},
                                           {{0.15f, 0.4f, 0.8f}, {}, 0.25f, 0}, {{1.0f, 0.77f, 0.34f}, {}, 0.3f, 1}, {{0.15f, 0.4f, 0.8f}, {}, 0.6f, 0},
                                           // The harbour's: a wet quay, a warm lamp's globe and a cold one's (brighter than the display shows), iron.
@@ -33,15 +35,29 @@ struct Library {
         made.push_back(*geom::clustered(geom::sphere(1, 32, 64), 32));
         made.push_back(*geom::clustered(geom::cylinder(0.7f, 2, 48), 32));
         made.push_back(*geom::clustered(geom::sheet(8, 8, 16, 16)));
+        // A floor whose texture coordinates repeat every four units: for a picture of tiles.
+        geom::Mesh tiled = geom::sheet(200, 200, 4, 4);
+        for (math::Vec2& uv : tiled.uvs) uv = {uv.x * 50, uv.y * 50};
+        made.push_back(*geom::clustered(tiled));
+        // Tiles: 64 × 64, eight of them a side, light and dark.
+        std::vector<std::uint8_t> tiles(64 * 64 * 4, 255);
+        for (int y = 0; y < 64; ++y)
+            for (int x = 0; x < 64; ++x) {
+                const std::uint8_t level = ((x / 8) + (y / 8)) % 2 ? 235 : 70;
+                tiles[static_cast<std::size_t>(y * 64 + x) * 4] = level, tiles[static_cast<std::size_t>(y * 64 + x) * 4 + 1] = level, tiles[static_cast<std::size_t>(y * 64 + x) * 4 + 2] = level;
+            }
+        pictures.push_back(*mesh::Texture::made(tiles, 64, 64));
+        textures.push_back(&pictures.front());
+        materials.push_back({{1, 1, 1}, {}, 1, 0, 0});  // the tiles' own colours
         for (const geom::ClusteredMesh& one : made) meshes.push_back(&one), grown.push_back(geom::bvh_of(one.mesh));
         for (const geom::Bvh& tree : grown) trees.push_back(&tree);
     }
     // Without trees nothing casts a shadow; with them a light is hidden where something is between.
-    [[nodiscard]] mesh::Assets assets(bool shadows = false) const { return {meshes, materials, shadows ? std::span<const geom::Bvh* const>(trees) : std::span<const geom::Bvh* const>()}; }
+    [[nodiscard]] mesh::Assets assets(bool shadows = false) const { return {meshes, materials, shadows ? std::span<const geom::Bvh* const>(trees) : std::span<const geom::Bvh* const>(), textures}; }
     [[nodiscard]] geom::Box3 bounds(std::uint32_t which) const { return geom::bounds(made[which].mesh); }
 };
-constexpr std::uint32_t box = 0, floor_mesh = 1, ball = 2, post = 3, sheet = 4;
-constexpr std::uint32_t matt_red = 0, matt_grey = 1, matt_blue = 2, polished = 5, gold = 6, satin = 7, wet = 8, warm_glow = 9, cold_glow = 10, iron = 11;  // materials
+constexpr std::uint32_t box = 0, floor_mesh = 1, ball = 2, post = 3, sheet = 4, tiled_floor = 5;
+constexpr std::uint32_t matt_red = 0, matt_grey = 1, matt_blue = 2, polished = 5, gold = 6, satin = 7, wet = 8, warm_glow = 9, cold_glow = 10, iron = 11, tiles = 12;  // materials
 const Library& library() {
     static const Library made;
     return made;
@@ -733,5 +749,60 @@ static UTest cases{"xrender.mesh", [] {
         expect(gt(told.bright, 50u) && gt(glowing, told.bright * 4)) << "the globes are brighter than white, and it shows about them";
         expect(gt(wet_bright, 200u)) << "the wet quay throws the lamps back";
         expect(eq(bits(shown), std::uint64_t{0x754074c9761c2350})) << std::format("{:016x}", bits(shown));
+    };
+    "a texture is its picture at every size: a texel's middle is the texel, a pixel that covers many takes their mean, and between two sizes it is between them"_test = [] {
+        // Four by four: black and white squares of two.
+        std::vector<std::uint8_t> bytes(4 * 4 * 4, 255);
+        for (int y = 0; y < 4; ++y)
+            for (int x = 0; x < 4; ++x)
+                if (((x / 2) + (y / 2)) % 2 == 0) bytes[static_cast<std::size_t>(y * 4 + x) * 4] = bytes[static_cast<std::size_t>(y * 4 + x) * 4 + 1] = bytes[static_cast<std::size_t>(y * 4 + x) * 4 + 2] = 0;
+        const auto texture = mesh::Texture::made(bytes, 4, 4);
+        expect(fatal(texture.has_value()));
+        expect(eq(texture->size_count(), std::size_t{3})) << "4, 2 and 1 across";
+        expect(eq(texture->light.size(), std::size_t{16 + 4 + 1}));
+        expect(eq(texture->at({0.125f, 0.125f}, 1).x, 0.0f) && eq(texture->at({0.625f, 0.125f}, 1).x, 1.0f)) << "a texel's middle, at a pixel a texel";
+        expect(eq(texture->at({0.5f, 0.125f}, 1).x, 0.5f)) << "between a black and a white: half";
+        expect(eq(texture->at({1.125f, -0.875f}, 1).x, 0.0f)) << "it repeats";
+        expect(eq(texture->at({0.25f, 0.25f}, 2).x, 0.0f)) << "at two texels a pixel: the size of 2 across, whose texels are the squares";
+        expect(eq(texture->at({0.3f, 0.7f}, 4).x, 0.5f) && eq(texture->at({0.3f, 0.7f}, 64).x, 0.5f)) << "at four and beyond: the one texel, the mean of all";
+        const float between = texture->at({0.25f, 0.25f}, 3).x;
+        expect(eq(between, 0.25f)) << "halfway from the black square to the mean";
+        expect(!mesh::Texture::made(bytes, 8, 8).has_value() && !mesh::Texture::made(bytes, 0, 4).has_value());
+    };
+    "a floor of tiles to the horizon: sharp near, and far away the mean of its tiles — no shimmer; who drew each pixel and how deep are the plain floor's; pinned, and kept"_test = [] {
+        const auto yard_with = [](std::uint32_t floor, std::uint32_t material) {
+            scene::Scene world;
+            put(world, 1, floor, material, math::translation({0, -1, 0}));
+            put(world, 10, box, 0, math::Transform{{-2.2f, 0, 0}, math::Quat::about({0, 1, 0}, 0.6f), {1, 1, 1}}.matrix());
+            put(world, 11, ball, 2, math::translation({0.4f, 0, 0.8f}));
+            expect(world.add(scene::Light{.id = 1, .kind = scene::LightKind::sun, .colour = {1, 0.96f, 0.9f}, .intensity = 0.9f, .toward = {-0.4f, -1, -0.5f}}).has_value());
+            return world;
+        };
+        const Frame tiled = drawn(yard_with(tiled_floor, tiles), yard_camera, 480, 270), plain = drawn(yard_with(floor_mesh, 1), yard_camera, 480, 270);
+        const auto file = keep(tiled.targets, "yard-tiles");
+        // A row of the floor: how far its light is from its own mean (the tiles' contrast there).
+        const auto spread = [&](int row) {
+            double sum = 0, squares = 0;
+            int count = 0;
+            for (int x = 0; x < 480; ++x) {
+                const std::size_t pixel = static_cast<std::size_t>(row) * 480 + x;
+                if (tiled.targets.ids[pixel].draw == mesh::none || tiled.targets.draws[tiled.targets.ids[pixel].draw].id != 1) continue;
+                sum += tiled.targets.light[pixel].y, squares += static_cast<double>(tiled.targets.light[pixel].y) * tiled.targets.light[pixel].y, ++count;
+            }
+            const double mean = count ? sum / count : 0;
+            return std::pair(mean, count ? std::sqrt(std::max(squares / count - mean * mean, 0.0)) : 0.0);
+        };
+        const auto [near_mean, near_spread] = spread(250);
+        const auto [far_mean, far_spread] = spread(74);
+        std::size_t same_who = 0;
+        for (std::size_t pixel = 0; pixel < tiled.targets.ids.size(); ++pixel) same_who += tiled.targets.depth[pixel] == plain.targets.depth[pixel];
+        std::println("a floor of tiles: near the eye its light is {:.3f} ± {:.3f} along a row, by the horizon {:.3f} ± {:.3f}; {} samples looked up; bits {:016x}; {}", near_mean, near_spread, far_mean, far_spread,
+                     tiled.stats.textured, bits(tiled.targets), file.generic_string());
+        expect(gt(near_spread, 0.15)) << "near: light tiles and dark";
+        expect(lt(far_spread, near_spread * 0.12)) << "far: a pixel covers many tiles and is their mean";
+        expect(lt(std::abs(far_mean / near_mean - 1), 0.25)) << "and as light on the whole as the near floor (the sun's angle is the same)";
+        expect(eq(same_who, tiled.targets.ids.size())) << "a texture changes no depth";
+        expect(gt(tiled.stats.textured, 60000u) && eq(plain.stats.textured, 0u));
+        expect(eq(bits(tiled.targets), std::uint64_t{0xf0f2e4cb0e0da635})) << std::format("{:016x}", bits(tiled.targets));
     };
 }};

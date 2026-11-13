@@ -38,6 +38,7 @@ struct Material {
     Vec3  emissive;
     float roughness = 1;  // 1 matt … 0 a mirror (held to 0.04 at least: a point of light has no size)
     float metallic = 0;   // 0 … 1
+    std::uint32_t texture = 0xffffffffu;  // none, or which of `Assets::textures` its base colour is multiplied by
     [[nodiscard]] constexpr bool matt() const noexcept { return roughness >= 1 && metallic <= 0; }
 };
 // What a surface sends toward the eye of light arriving along `toward_light` (all of length 1; `facing` the
@@ -47,6 +48,22 @@ struct Material {
 [[nodiscard]] Vec3 reflected_ambient(const Material& material) noexcept;
 // What the scene's numbers name: a draw's `mesh` and `material` are places here. One that names nothing is not
 // drawn, and counted.
+// A picture laid over a surface by its mesh's texture coordinates (`mlibs.geom`'s `Mesh::uvs`; it repeats). It is
+// kept as light — the display's curve taken off once, by a table — at every size down to one texel, each the mean
+// of four of the one before: a surface far away or seen at a slant takes its colour from the size whose texels
+// are about a pixel across, mixed with the next, so a pattern does not shimmer or band where it is small.
+struct Texture {
+    int width = 0, height = 0;
+    std::vector<Vec3>        light;   // every size's texels, a row after a row, the finest size first
+    std::vector<std::uint32_t> sizes; // where each size begins in `light`
+    // From rgba8 in sRGB (`width` × `height` × 4, rows from the top). Nothing: no size, no pixels, or too few bytes.
+    [[nodiscard]] static std::optional<Texture> made(std::span<const std::uint8_t> rgba, int width, int height);
+    // Its light at `uv` (0 … 1 across and down, repeating), for a pixel that covers `footprint` texels of the finest
+    // size across. Between four texels of a size, between two sizes. The same bits everywhere.
+    [[nodiscard]] Vec3 at(Vec2 uv, float footprint) const noexcept;
+    [[nodiscard]] std::size_t size_count() const noexcept { return sizes.size(); }
+};
+
 struct Assets {
     std::span<const mlibs::geom::ClusteredMesh* const> meshes;
     std::span<const Material> materials;
@@ -54,6 +71,7 @@ struct Assets {
     // where something stands between — a ray from the surface to the light, through the trees (D-184: the ray
     // query is geometry's). A mesh with no tree casts no shadow.
     std::span<const mlibs::geom::Bvh* const> trees;
+    std::span<const Texture* const> textures;  // what `Material::texture` names
 };
 // Fog: what is between the eye and a surface, taken as a share of the surface's light and given the fog's own.
 // Its density is `density` a unit of length at the height `base` and thinner by e each 1/`falloff` above it
@@ -123,6 +141,7 @@ struct Stats {
     std::uint64_t triangles = 0, facing_away = 0, outside = 0, clipped = 0, filled = 0;
     std::uint64_t written = 0, hidden = 0;                  // pixels that passed the depth, and that did not
     std::uint64_t rays = 0, shadowed = 0;                   // rays sent toward a light, and those that met something
+    std::uint64_t textured = 0;                             // samples whose colour was looked up in a texture
     std::uint64_t fogged = 0;                               // samples whose light went through fog: each one written, and the background's pixels
 };
 

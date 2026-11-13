@@ -15,12 +15,14 @@ namespace geom = mlibs::geom;
 struct Corner {
     Vec4 clip, before;
     Vec3 normal, place;
+    Vec2 uv{0, 0};
 };
 Vec4 mixed(const Vec4& from, const Vec4& to, float share) noexcept {
     return {from.x + (to.x - from.x) * share, from.y + (to.y - from.y) * share, from.z + (to.z - from.z) * share, from.w + (to.w - from.w) * share};
 }
 Corner mixed(const Corner& from, const Corner& to, float share) noexcept {
-    return {mixed(from.clip, to.clip, share), mixed(from.before, to.before, share), math::mix(from.normal, to.normal, share), math::mix(from.place, to.place, share)};
+    return {mixed(from.clip, to.clip, share), mixed(from.before, to.before, share), math::mix(from.normal, to.normal, share), math::mix(from.place, to.place, share),
+            {from.uv.x + (to.uv.x - from.uv.x) * share, from.uv.y + (to.uv.y - from.uv.y) * share}};
 }
 // The view's volume and a guard band about it: the depth's two planes, and eight widths to each side — past
 // which a corner's place on the screen would be too large a number to snap exactly.
@@ -100,6 +102,8 @@ struct Raster {
     Mat4           aside;         // this frame's jitter, in clip space
     Vec3           eye{};         // the view's, in the world
     bool           fog = false;
+    Vec3           base{};             // the draw's own base colour: what a texture's light multiplies
+    const Texture* texture = nullptr;  // the draw's, or none
 
     // Whether anything is between `from` and a light `reach` away along `toward` (of length 1). The ray is taken
     // into each mesh's own space as it is — not made of length 1 again — so a distance along it is the world's.
@@ -226,6 +230,24 @@ struct Raster {
                     const float was_x = (before.x / before.w * 0.5f + 0.5f) * static_cast<float>(out.width), was_y = (0.5f - before.y / before.w * 0.5f) * static_cast<float>(out.height);
                     // The sample is `jitter` aside of the pixel's middle; the surface there, seen without it, is not.
                     moved = {static_cast<float>(column) + 0.5f - options.jitter.x - was_x, static_cast<float>(row) + 0.5f - options.jitter.y - was_y};
+                }
+                if (texture) {
+                    // The surface's place in the picture here, a pixel to the right and a pixel down: how many texels
+                    // a pixel covers is how far apart they are.
+                    const auto uv_at = [&](double at_x, double at_y) {
+                        const std::array<float, 3> there{static_cast<float>(edge(1, 2, at_x, at_y) / area) * inverse[0], static_cast<float>(edge(2, 0, at_x, at_y) / area) * inverse[1],
+                                                         static_cast<float>(edge(0, 1, at_x, at_y) / area) * inverse[2]};
+                        const float all = 1.0f / (there[0] + there[1] + there[2]);
+                        return Vec2{(corners[0]->uv.x * there[0] + corners[1]->uv.x * there[1] + corners[2]->uv.x * there[2]) * all,
+                                    (corners[0]->uv.y * there[0] + corners[1]->uv.y * there[1] + corners[2]->uv.y * there[2]) * all};
+                    };
+                    const Vec2 here = uv_at(px, py), right = uv_at(px + 256.0, py), down = uv_at(px, py + 256.0);
+                    const float wide = static_cast<float>(texture->width), high = static_cast<float>(texture->height);
+                    const float across = std::sqrt((right.x - here.x) * (right.x - here.x) * wide * wide + (right.y - here.y) * (right.y - here.y) * high * high);
+                    const float along = std::sqrt((down.x - here.x) * (down.x - here.x) * wide * wide + (down.y - here.y) * (down.y - here.y) * high * high);
+                    const float footprint = std::max(across, along);
+                    material.base = math::scaled(base, texture->at(here, footprint == footprint ? footprint : 1.0f));
+                    ++stats.textured;
                 }
                 Vec3 colour = lit(normal, place);
                 if (fog) {
@@ -360,6 +382,8 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
         const geom::ClusteredMesh& clustered = *assets.meshes[draw.mesh];
         const geom::Mesh& mesh = clustered.mesh;
         raster.material = assets.materials[draw.material];
+        raster.base = raster.material.base;
+        raster.texture = (raster.material.texture < assets.textures.size() && !mesh.uvs.empty()) ? assets.textures[raster.material.texture] : nullptr;
         const Mat4 to_clip = clip * instance.world;
         // Where it was a frame ago: its own place then, through the view then. New this frame: where it is.
         Mat4 before = to_clip;
@@ -401,7 +425,8 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
                     const std::uint32_t vertex = mesh.indices[first + static_cast<std::size_t>(corner)];
                     at[corner] = vertex < mesh.positions.size() ? mesh.positions[vertex] : Vec3{};
                     polygon[corner] = {moved(to_clip, at[corner]), moved(before, at[corner]),
-                                       vertex < mesh.normals.size() ? math::direction(for_normals, mesh.normals[vertex]) : Vec3{}, math::point(instance.world, at[corner])};
+                                       vertex < mesh.normals.size() ? math::direction(for_normals, mesh.normals[vertex]) : Vec3{}, math::point(instance.world, at[corner]),
+                                       vertex < mesh.uvs.size() ? mesh.uvs[vertex] : Vec2{0, 0}};
                 }
                 if (mesh.normals.empty()) {
                     const Vec3 face = math::direction(for_normals, math::cross(at[1] - at[0], at[2] - at[0]));
@@ -619,6 +644,63 @@ Temporal::Told Temporal::resolve(const Targets& frame, std::vector<std::uint8_t>
     light_.swap(next_), who_.swap(next_who_), age_.swap(next_age_);
     width_ = frame.width, height_ = frame.height;
     return told;
+}
+
+std::optional<Texture> Texture::made(std::span<const std::uint8_t> rgba, int width, int height) {
+    if (width <= 0 || height <= 0 || rgba.size() < static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4) return std::nullopt;
+    // The display's curve taken off, by a table made once with mlibs.math's own powers.
+    static const std::array<float, 256> decoded = [] {
+        std::array<float, 256> table{};
+        for (std::size_t byte = 0; byte < table.size(); ++byte) {
+            const double value = static_cast<double>(byte) / 255.0;
+            table[byte] = static_cast<float>(value <= 0.04045 ? value / 12.92 : math::det::pow((value + 0.055) / 1.055, 2.4));
+        }
+        return table;
+    }();
+    Texture texture;
+    texture.width = width, texture.height = height;
+    texture.sizes.push_back(0);
+    texture.light.reserve(static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4 / 3 + 2);
+    for (std::size_t texel = 0; texel < static_cast<std::size_t>(width) * static_cast<std::size_t>(height); ++texel)
+        texture.light.push_back({decoded[rgba[texel * 4]], decoded[rgba[texel * 4 + 1]], decoded[rgba[texel * 4 + 2]]});
+    // Each next size: half as wide and as high (one at least), a texel the mean of those it covers.
+    for (int wide = width, high = height; wide > 1 || high > 1;) {
+        const int next_wide = std::max(wide / 2, 1), next_high = std::max(high / 2, 1);
+        const std::uint32_t from = texture.sizes.back();
+        texture.sizes.push_back(static_cast<std::uint32_t>(texture.light.size()));
+        for (int y = 0; y < next_high; ++y)
+            for (int x = 0; x < next_wide; ++x) {
+                const int x0 = std::min(x * 2, wide - 1), x1 = std::min(x * 2 + 1, wide - 1), y0 = std::min(y * 2, high - 1), y1 = std::min(y * 2 + 1, high - 1);
+                const auto of = [&](int at_x, int at_y) { return texture.light[from + static_cast<std::size_t>(at_y) * static_cast<std::size_t>(wide) + static_cast<std::size_t>(at_x)]; };
+                texture.light.push_back((of(x0, y0) + of(x1, y0) + of(x0, y1) + of(x1, y1)) * 0.25f);
+            }
+        wide = next_wide, high = next_high;
+    }
+    return texture;
+}
+
+Vec3 Texture::at(Vec2 uv, float footprint) const noexcept {
+    if (sizes.empty()) return {1, 1, 1};
+    // The size whose texels are a pixel across or just under, and how far toward the next: a footprint of 1 or
+    // less is the finest, of 2 the next, of 3 halfway between that and the one of 4.
+    std::size_t size = 0;
+    float covers = footprint > 1 ? footprint : 1.0f;
+    while (covers >= 2 && size + 1 < sizes.size()) covers *= 0.5f, ++size;
+    const float toward_next = size + 1 < sizes.size() ? covers - 1.0f : 0.0f;
+    const auto within = [&](std::size_t which) {
+        const int wide = std::max(width >> which, 1), high = std::max(height >> which, 1);
+        // Between the four texels about the place; a texel's middle is its own colour. It repeats.
+        const float at_x = (uv.x - std::floor(uv.x)) * static_cast<float>(wide) - 0.5f, at_y = (uv.y - std::floor(uv.y)) * static_cast<float>(high) - 0.5f;
+        const float floor_x = std::floor(at_x), floor_y = std::floor(at_y);
+        const float share_x = at_x - floor_x, share_y = at_y - floor_y;
+        const auto wrapped = [](int value, int count) { return ((value % count) + count) % count; };
+        const int x0 = wrapped(static_cast<int>(floor_x), wide), x1 = wrapped(static_cast<int>(floor_x) + 1, wide), y0 = wrapped(static_cast<int>(floor_y), high),
+                  y1 = wrapped(static_cast<int>(floor_y) + 1, high);
+        const auto of = [&](int tx, int ty) { return light[sizes[which] + static_cast<std::size_t>(ty) * static_cast<std::size_t>(wide) + static_cast<std::size_t>(tx)]; };
+        return math::mix(math::mix(of(x0, y0), of(x1, y0), share_x), math::mix(of(x0, y1), of(x1, y1), share_x), share_y);
+    };
+    const Vec3 here = within(size);
+    return toward_next > 0 ? math::mix(here, within(size + 1), toward_next) : here;
 }
 
 namespace {

@@ -117,9 +117,16 @@ public:
     // The premultiplied colours of `count` pixels of row y from column x.
     void shade(int x, int y, int count, Rgba8* out) const;
     // A gradient's lookup table: entry i is the colour at t = i / 255 (the
-    // paint's opacity applied), looked up at int(t × 255 + 0.5) — what a GPU
-    // renderer uploads to shade exactly as this one does.
+    // paint's opacity applied). The colour at t is between the two entries
+    // about it, by a weight in 1/65536 (ramp_colour: every bit t has) — so a last bit of t moves
+    // a channel a level at the most, whatever the stops — but where stops
+    // meet at one offset between two entries (`hard`, a flag an entry: the
+    // edge is after it, the weight it is met at) it is the entry's on its
+    // side of the edge: a hard edge stays one, and is where it was put.
+    // What a GPU renderer uploads to shade exactly as this one does.
     [[nodiscard]] inline std::span<const Rgba8, 256> table() const noexcept { return lut_; }
+    [[nodiscard]] inline std::span<const std::uint8_t, 256> hard() const noexcept { return hard_; }
+    [[nodiscard]] Rgba8 ramp_colour(float t) const noexcept;  // t in [0, 1]; a half rounds toward the next entry
 
     // A premultiplied colour lit by a normal map's texel (the material's
     // shading, exactly: what the GPU's shader computes the same way).
@@ -138,6 +145,16 @@ private:
     Rgba8                 solid_color_{};
     std::optional<Affine> inverse_;
     std::array<Rgba8, 256> lut_{};
+    std::array<std::uint8_t, 256> hard_{};
+    // The table as ramp_colour reads it, an entry: its red and blue in one word and its green and alpha in
+    // another, 32 bits a channel in 1/65536 with the half to round by; then, laid out the same, each
+    // channel's step to the next entry (signed: the words' sum with a step times a weight has no channel
+    // below zero, so none borrows of another).
+    struct Wide { std::uint64_t red_blue, green_alpha, red_blue_step, green_alpha_step; };  // (an entry of `hard` set: its steps are 0)
+    std::array<Wide, 256> wide_{};
+    // No entry more than a level from the next in any channel, and no edge: the colour between two is
+    // then the nearer's, and one read of the table gives it (the same bytes, by construction of the rounding).
+    bool gentle_ = false;
     std::uint32_t         opacity8_ = 255;
     std::uint32_t         image_k_ = 255;  // an image's tint times the opacity, in 1/255
     std::uint64_t         serial_ = 0;     // this shader's own number (its columns' cache, below)

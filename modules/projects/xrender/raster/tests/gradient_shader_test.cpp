@@ -45,6 +45,43 @@ UTest cases{"raster.gradient-setup", [] {
         const auto empty = gradient({}); const raster::Shader clear(empty);
         expect(std::ranges::all_of(clear.table(), [](auto p) { return p == raster::Rgba8{}; }));
     };
+    "the colour at t is between the two entries about it, a last bit of t a level at the most; a hard stop stays an edge where it was put"_test = [] {
+        // Steep: black to white over a hundredth of the ramp, about 100 levels an entry.
+        const std::array<raster::Stop, 4> steep{{{0, geom::Color::black()}, {0.5f, geom::Color::black()}, {0.51f, geom::Color::white()}, {1, geom::Color::white()}}};
+        const auto paint = gradient(steep);
+        const raster::Shader shader(paint);
+        expect(std::ranges::all_of(shader.hard(), [](std::uint8_t met) { return met == 0; }));
+        int most = 0, steps = 0;
+        for (float t = 0.49f; t < 0.52f;) {
+            const float next = std::nextafter(t, 1.0f);
+            const int here = shader.ramp_colour(t).r, there = shader.ramp_colour(next).r;
+            most = std::max(most, std::abs(there - here));
+            steps += there != here ? 1 : 0;
+            t = next;
+        }
+        expect(most <= 1) << "a last bit of t moved a channel" << most << "levels";
+        expect(steps >= 255) << "every level between is given";
+        expect(shader.ramp_colour(0.0f) == raster::Rgba8{0, 0, 0, 255} && shader.ramp_colour(1.0f) == raster::Rgba8{255, 255, 255, 255});
+        // Hard: two stops at one offset. No colour between the two, and the edge at the offset itself.
+        for (const float offset : {0.5f, 0.3f, 0.777f, 1.0f / 255.0f, 1.0f}) {
+            const std::array<raster::Stop, 4> hard{{{0, geom::Color{1, 0, 0, 1}}, {offset, geom::Color{1, 0, 0, 1}}, {offset, geom::Color{0, 1, 0, 1}}, {1, geom::Color{0, 1, 0, 1}}}};
+            const auto edged = gradient(hard);
+            const raster::Shader edge(edged);
+            expect(eq(std::ranges::count_if(edge.hard(), [](std::uint8_t met) { return met != 0; }), std::ptrdiff_t{1}));
+            bool only_two = true;
+            float first_green = 2;
+            for (int step = 0; step <= 100000; ++step) {
+                const float t = static_cast<float>(step) / 100000.0f;
+                const raster::Rgba8 colour = edge.ramp_colour(t);
+                const bool red = colour == raster::Rgba8{255, 0, 0, 255}, green = colour == raster::Rgba8{0, 255, 0, 255};
+                only_two = only_two && (red || green);
+                if (green && first_green > 1) first_green = t;
+            }
+            expect(only_two) << "a colour between the two at" << offset;
+            // Where it turns: the offset, to 1/256 of an entry (and the step of this walk).
+            expect(std::abs(first_green - offset) <= 1.0f / (255.0f * 256.0f) + 1.0e-5f + (offset == 1.0f ? 1.0f / 255.0f / 256.0f : 0.0f)) << offset << first_green;
+        }
+    };
     "both ordered and shuffled gradient setup avoid per-frame scalar allocations"_test = [] {
         auto a = gradient(ordered), b = gradient(shuffled);
         const auto before = allocations.load(std::memory_order_relaxed);

@@ -7,6 +7,24 @@ namespace xrender::raster {
 
 namespace {
 
+// The ramp's colour `weight` (in 1/65536) of the way from `entry` to the next: (here × (65536 − weight) + next ×
+// weight + 32768) >> 16 a channel — as here × 65536 + 32768 + (next − here) × weight, two channels a 64-bit word
+// and a multiplication; at a hard stop's edge the entry's on its side of it.
+constexpr float ramp_units = 255.0f * 65536.0f;
+
+template <class Wide>
+[[gnu::always_inline]] inline Rgba8 ramp_between(const std::array<Wide, 256>& wide, const std::array<std::uint8_t, 256>& hard,
+                                                 int entry, int weight) {
+    // An entry with an edge after it steps by nothing: past the edge it is the next entry's own colour.
+    auto index = static_cast<std::size_t>(entry);
+    if (const int met = hard[index]; met != 0 && weight >= met * 256) [[unlikely]] index = std::min<std::size_t>(index + 1, 255), weight = 0;
+    const Wide&         here = wide[index];
+    const auto          by = static_cast<std::uint64_t>(weight);
+    const std::uint64_t red_blue = here.red_blue + here.red_blue_step * by, green_alpha = here.green_alpha + here.green_alpha_step * by;
+    return {static_cast<std::uint8_t>(red_blue >> 16), static_cast<std::uint8_t>(green_alpha >> 16), static_cast<std::uint8_t>(red_blue >> 48),
+            static_cast<std::uint8_t>(green_alpha >> 48)};
+}
+
 float spread_t(float t, Spread s) {
     switch (s) {
         case Spread::pad: return std::clamp(t, 0.0f, 1.0f);
@@ -95,6 +113,30 @@ Shader::Shader(const Paint& paint) : paint_(&paint) {
             auto q = [](float v) { return static_cast<std::uint8_t>(static_cast<int>(std::clamp(v, 0.0f, 1.0f) * 255.0f + 0.5f)); };
             lut_[static_cast<std::size_t>(i)] = {q(r * op), q(g * op), q(bl * op), q(al)};
         }
+        // Stops that meet at one offset after an entry and not after the next: an edge between the two.
+        for (std::size_t one = 0; one < stops.size(); ++one)
+            for (std::size_t other = one + 1; other < stops.size(); ++other) {
+                const float offset = stops[one].offset;
+                if (stops[other].offset != offset || !(offset > 0.0f && offset <= 1.0f)) continue;
+                const int entry = std::clamp(static_cast<int>(std::ceil(offset * 255.0f)) - 1, 0, 254);
+                // Where between the two, as the weight it is met at.
+                const int met = static_cast<int>((offset * 255.0f - static_cast<float>(entry)) * 256.0f + 0.5f);
+                hard_[static_cast<std::size_t>(entry)] = static_cast<std::uint8_t>(std::clamp(met, 1, 255));
+            }
+        bool gentle = true;
+        for (std::size_t entry = 0; entry < wide_.size(); ++entry) {
+            const Rgba8 here = lut_[entry], next = lut_[std::min<std::size_t>(entry + 1, 255)];
+            auto pair = [](std::int64_t low, std::int64_t high) { return static_cast<std::uint64_t>(low) + (static_cast<std::uint64_t>(high) << 32); };
+            const bool edge = hard_[entry] != 0;
+            // The half to round by: one less where the channel falls, so that half way is the next entry's
+            // whichever way it goes — and a step of one level is taken exactly where the nearer entry changes.
+            auto begun = [](std::uint8_t from, std::uint8_t to) { return from * 65536 + (to < from ? 32767 : 32768); };
+            wide_[entry] = {pair(begun(here.r, next.r), begun(here.b, next.b)), pair(begun(here.g, next.g), begun(here.a, next.a)),
+                            edge ? 0 : pair(next.r - here.r, next.b - here.b), edge ? 0 : pair(next.g - here.g, next.a - here.a)};
+            auto level = [](std::uint8_t from, std::uint8_t to) { return std::abs(to - from) <= 1; };
+            gentle = gentle && !edge && level(here.r, next.r) && level(here.g, next.g) && level(here.b, next.b) && level(here.a, next.a);
+        }
+        gentle_ = gentle;
         opaque_ = inverse_.has_value() && std::ranges::all_of(lut_, [](const Rgba8& c) { return c.a == 255; });
     }
 }
@@ -122,8 +164,16 @@ Rgba8 Shader::gradient_at(float px, float py) const {
             break;
         }
     }
-    t = spread_t(t, p.spread);
-    return lut_[static_cast<std::size_t>(static_cast<int>(t * 255.0f + 0.5f))];
+    const int at = static_cast<int>(spread_t(t, p.spread) * ramp_units + 0.5f);  // ramp_colour's, here in the pixel's loop
+    if (gentle_) return lut_[static_cast<std::size_t>((at + 32768) >> 16)];
+    return ramp_between(wide_, hard_, at >> 16, at & 0xffff);
+}
+
+Rgba8 Shader::ramp_colour(float t) const noexcept {
+    // Where along the table in 1/65536 of an entry (a float's 24 bits hold it): the entry and the weight to the next.
+    const int at = static_cast<int>(t * ramp_units + 0.5f);
+    if (gentle_) return lut_[static_cast<std::size_t>((at + 32768) >> 16)];
+    return ramp_between(wide_, hard_, at >> 16, at & 0xffff);
 }
 
 Rgba8 Shader::texel_at(const ImageView& img, Point q) const {
@@ -423,14 +473,21 @@ void Shader::shade(int x, int y, int count, Rgba8* out) const {
             Lanes t = ((qx - p.start.x) * dx + (qy - p.start.y) * dy) / len2;
             t = t < 0.0f ? Lanes{} : t;          // std::clamp's own tests, in its order
             t = 1.0f < t ? Lanes{} + 1.0f : t;
-            const LaneInts entry = __builtin_convertvector(t * 255.0f + 0.5f, LaneInts);
-            for (int lane = 0; lane < 4; ++lane) out[i + lane] = lut_[static_cast<std::size_t>(entry[lane])];
+            // ramp_colour's entry and weight, the four at once.
+            const LaneInts at = __builtin_convertvector(t * ramp_units + 0.5f, LaneInts);
+            if (gentle_) {
+                const LaneInts nearer = (at + 32768) >> 16;
+                for (int lane = 0; lane < 4; ++lane) out[i + lane] = lut_[static_cast<std::size_t>(nearer[lane])];
+            } else {
+                for (int lane = 0; lane < 4; ++lane) out[i + lane] = ramp_between(wide_, hard_, at[lane] >> 16, at[lane] & 0xffff);
+            }
         }
         for (; i < count; ++i) {
             const float px = static_cast<float>(x + i) + 0.5f;
             const float qx = m.a * px + cy + m.e, qy = m.b * px + dyy + m.f;
             const float t = std::clamp(((qx - p.start.x) * dx + (qy - p.start.y) * dy) / len2, 0.0f, 1.0f);
-            out[i] = lut_[static_cast<std::size_t>(static_cast<int>(t * 255.0f + 0.5f))];
+            const int at = static_cast<int>(t * ramp_units + 0.5f);
+            out[i] = gentle_ ? lut_[static_cast<std::size_t>((at + 32768) >> 16)] : ramp_between(wide_, hard_, at >> 16, at & 0xffff);
         }
         return;
     }

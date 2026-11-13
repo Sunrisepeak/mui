@@ -118,7 +118,7 @@ static UTest cases{"render.effects", [] {
             all.u64(out.hash());
         }
         // Pinned: GCC and LLVM, Linux, macOS and Windows compute these bytes.
-        expect(eq(all.hex(), std::string("9a97767fe1102700")));
+        expect(eq(all.hex(), std::string("436d0ff2fcc245fb")));
     };
 
     "liquid glass: the backdrop bent, frosted, tinted and lit under the glass; pinned"_test = [] {
@@ -230,7 +230,7 @@ static UTest cases{"render.effects", [] {
         expect(apart.r == 15 && apart.g == 23 && apart.b == 42) << "smoothness 0: apart";
         // Pinned: GCC and LLVM, Linux, macOS and Windows compute these bytes.
         std::println("    all {}", all.hex());
-        expect(eq(all.hex(), std::string("1b2cea8047d48716")));
+        expect(eq(all.hex(), std::string("281c07eb2e4191d7")));
     };
 
     "tone: the layer in one colour, its brightness kept; amount 0 is the layer as it is — pinned"_test = [] {
@@ -260,7 +260,7 @@ static UTest cases{"render.effects", [] {
         all.u64(grey.hash());
         all.u64(warm.hash());
         std::println("    tone {}", all.hex());
-        expect(eq(all.hex(), std::string("b05e4b5bbb0ecfb2")));  // GCC and LLVM, every platform
+        expect(eq(all.hex(), std::string("78c4e0a2db227ea1")));  // GCC and LLVM, every platform
     };
 
     "progress 0 is the layer as it is (1 for reveal)"_test = [] {

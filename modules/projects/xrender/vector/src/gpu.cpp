@@ -1086,8 +1086,11 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                     std::array<xrender::raster::Rgba8, 256> row{};
                     std::ranges::copy(shader.table(), row.begin());
                     g.ramp_rows.push_back(row);
+                    // The row under it: where an edge lies after an entry (Shader::hard).
+                    for (std::size_t entry = 0; entry < row.size(); ++entry) row[entry] = {shader.hard()[entry], 0, 0, 0};
+                    g.ramp_rows.push_back(row);
                     const float kind = paint.gradient.kind == GradientKind::linear ? 1.0f : paint.gradient.kind == GradientKind::radial ? 2.0f : 3.0f;
-                    set(p.paint, kind, static_cast<float>(g.ramp_rows.size() - 1), static_cast<float>(paint.gradient.spread), paint.gradient.radius);
+                    set(p.paint, kind, static_cast<float>(g.ramp_rows.size() / 2 - 1), static_cast<float>(paint.gradient.spread), paint.gradient.radius);
                     if (paint.gradient.kind == GradientKind::radial)
                         set(p.pgeo, paint.gradient.start.x, paint.gradient.start.y, paint.gradient.radius, 0);
                     else

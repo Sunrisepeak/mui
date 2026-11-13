@@ -986,6 +986,33 @@ void add_framework_benchmarks() {
             s.counter("moving", f.moving ? 1 : 0);
         }
     });
+    // A gradient over the whole of a 1080p target on the CPU reference (plan §5.9 gap 6): by the row for a padded
+    // linear one, a pixel at a time for the rest; a ramp of gentle steps read once a pixel, a steep one between two entries.
+    struct GradientFill { std::string_view name, about; bool radial, steep; };
+    for (const GradientFill fill : {GradientFill{"render/gradient-fill-1080p-linear", "a padded linear gradient of two stops over 1920 × 1080 on the CPU reference (no entry of its ramp more than a level from the next: one read a pixel)", false, false},
+                                    GradientFill{"render/gradient-fill-1080p-linear-steep", "the same of six stops: a pixel's colour between two entries", false, true},
+                                    GradientFill{"render/gradient-fill-1080p-radial", "a repeating radial gradient of two stops over 1920 × 1080 on the CPU reference", true, false},
+                                    GradientFill{"render/gradient-fill-1080p-radial-steep", "the same of six stops", true, true}})
+        add(std::string(fill.name), std::string(fill.about), [fill](State& s) {
+            const std::array<xrender::GradientStop, 6> six{{{0, Color::hex(0xef4444)}, {0.2f, Color::hex(0xf59e0b)}, {0.4f, Color::hex(0x22c55e)},
+                                                            {0.6f, Color::hex(0x06b6d4)}, {0.8f, Color::hex(0x6366f1)}, {1, Color::hex(0xec4899)}}};
+            const std::array<xrender::GradientStop, 2> two{{{0, Color::hex(0x4f46e5)}, {1, Color::hex(0xec4899)}}};
+            xrender::Paint paint;
+            paint.kind = xrender::Paint::Kind::gradient;
+            paint.gradient.kind = fill.radial ? xrender::GradientKind::radial : xrender::GradientKind::linear;
+            paint.gradient.start = fill.radial ? Point{960, 540} : Point{0, 0};
+            paint.gradient.end = {1920, 1080};
+            paint.gradient.radius = 400;
+            paint.gradient.spread = fill.radial ? xrender::Spread::repeat : xrender::Spread::pad;
+            if (fill.steep) paint.gradient.stops = six;
+            else paint.gradient.stops = two;
+            xrender::DisplayList dl;
+            dl.fill_rect({0, 0, 1920, 1080}, paint);
+            xrender::raster::Surface surf(1920, 1080);
+            xrender::CpuRenderer cpu;
+            s.items(1920 * 1080);
+            while (s.next()) (void)cpu.render(dl, surf, {}, {.background = Color::white()});
+        });
     add("render/effect-particles", "a 480 × 320 layer bursting into particles: offscreen, effect, composite (D-68)", [](State& s) {
         xrender::DisplayList dl;
         const Rect area{20, 20, 480, 320};

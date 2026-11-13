@@ -306,8 +306,19 @@ uint4 paint_from(Sampler2D ramp_source, Sampler2D image_source, float ramp_count
         t = turn - floor(turn);
     }
     t = spread_t(t, int(i.paint.z));
-    const float index = float(int(t * 255.0 + 0.5));
-    return bytes(ramp_source.SampleLevel(float2((index + 0.5) / 256.0, (i.paint.y + 0.5) / ramp_count), 0));
+    // As raster's ramp_colour: between the two entries about t by a weight in 1/65536; the entry's on its side
+    // where the row under the ramp's says an edge lies after the entry.
+    const int along = int(t * 16711680.0 + 0.5);  // 255 × 65536: in 1/65536 of an entry
+    const float entry = float(along >> 16);
+    const uint weight = uint(along & 0xffff);
+    const float row = (i.paint.y * 2.0 + 0.5) / ramp_count;
+    const uint4 here = bytes(ramp_source.SampleLevel(float2((entry + 0.5) / 256.0, row), 0));
+    const uint4 next = bytes(ramp_source.SampleLevel(float2((min(entry + 1.0, 255.0) + 0.5) / 256.0, row), 0));
+    const uint met = bytes(ramp_source.SampleLevel(float2((entry + 0.5) / 256.0, (i.paint.y * 2.0 + 1.5) / ramp_count), 0)).r;
+    if (met != 0u) return weight < met * 256u ? here : next;
+    // (A half rounds toward the next entry whichever way the channel goes: one less to round by where it falls.)
+    const uint4 half = uint4(32768u) - uint4(next < here);
+    return (here * (65536u - weight) + next * weight + half) >> 16;
 }
 
 

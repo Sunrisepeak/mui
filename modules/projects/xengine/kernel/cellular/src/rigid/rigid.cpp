@@ -470,11 +470,233 @@ std::optional<View> Bodies::body(dyn::BodyId body) const {
     return std::nullopt;
 }
 
+std::vector<Tile> Bodies::touched() const {
+    std::vector<Tile> out;
+    for (const Piece& piece : pieces_) {
+        if (piece.covered.empty()) continue;
+        std::uint32_t x0 = field_.width, y0 = field_.height, x1 = 0, y1 = 0;
+        for (const std::uint32_t f : piece.covered) {
+            const std::uint32_t x = f % field_.width, y = f / field_.width;
+            x0 = std::min(x0, x), y0 = std::min(y0, y), x1 = std::max(x1, x), y1 = std::max(y1, y);
+        }
+        const std::uint32_t room = options_.room;
+        x0 = x0 > room ? x0 - room : 0, y0 = y0 > room ? y0 - room : 0;
+        x1 = std::min(field_.width - 1, x1 + room), y1 = std::min(field_.height - 1, y1 + room);
+        out.push_back({x0, y0, x1 - x0 + 1, y1 - y0 + 1});
+    }
+    return out;
+}
+
 std::optional<dyn::BodyId> Bodies::owner(std::uint32_t x, std::uint32_t y) const {
     if (x >= field_.width || y >= field_.height) return std::nullopt;
     const std::uint32_t at = owner_[static_cast<std::size_t>(y) * field_.width + x];
     if (!at) return std::nullopt;
     return pieces_[at - 1].body;
+}
+
+}  // namespace xengine::cellular::rigid
+
+// ── the coupling's state as bytes, and a world of matter with bodies ─────
+namespace xengine::cellular::rigid {
+namespace {
+void put32(std::vector<std::uint8_t>& out, std::uint32_t value) {
+    for (int shift = 0; shift < 32; shift += 8) out.push_back(static_cast<std::uint8_t>(value >> shift));
+}
+void put64(std::vector<std::uint8_t>& out, std::uint64_t value) {
+    for (int shift = 0; shift < 64; shift += 8) out.push_back(static_cast<std::uint8_t>(value >> shift));
+}
+void put_list(std::vector<std::uint8_t>& out, std::span<const std::uint32_t> values) {
+    put64(out, values.size());
+    for (const std::uint32_t value : values) put32(out, value);
+}
+struct Reader {
+    std::span<const std::uint8_t> bytes;
+    std::size_t& at;
+    bool ok = true;
+    std::uint64_t take(int width) {
+        if (!ok || bytes.size() - at < static_cast<std::size_t>(width)) { ok = false; return 0; }
+        std::uint64_t value = 0;
+        for (int index = 0; index < width; ++index) value |= std::uint64_t{bytes[at + static_cast<std::size_t>(index)]} << (8 * index);
+        at += static_cast<std::size_t>(width);
+        return value;
+    }
+    std::uint32_t u32() { return static_cast<std::uint32_t>(take(4)); }
+    std::uint64_t u64() { return take(8); }
+    std::vector<std::uint32_t> list() {
+        const std::uint64_t count = u64();
+        if (!ok || count > (bytes.size() - at) / 4) { ok = false; return {}; }
+        std::vector<std::uint32_t> values(static_cast<std::size_t>(count));
+        for (std::uint32_t& value : values) value = u32();
+        return values;
+    }
+};
+dyn::BodyId body_from(std::uint32_t index, std::uint32_t generation) { return {static_cast<std::int32_t>(index), static_cast<std::uint16_t>(generation)}; }
+}  // namespace
+
+void Bodies::save(std::vector<std::uint8_t>& out) const {
+    put64(out, pieces_.size());
+    for (const Piece& piece : pieces_) {
+        put32(out, static_cast<std::uint32_t>(piece.body.index)), put32(out, piece.body.generation);
+        put32(out, static_cast<std::uint32_t>(piece.left)), put32(out, static_cast<std::uint32_t>(piece.top)), put32(out, piece.width), put32(out, piece.height);
+        put_list(out, piece.cells), put_list(out, piece.covered), put_list(out, piece.from), put_list(out, piece.under);
+    }
+    put_list(out, owner_);
+    put_list(out, fill_);
+    put64(out, terrain_.size());
+    for (std::size_t tile = 0; tile < terrain_.size(); ++tile)
+        put32(out, static_cast<std::uint32_t>(terrain_[tile].index)), put32(out, terrain_[tile].generation), put64(out, terrain_hash_[tile]);
+}
+
+std::expected<void, std::string> Bodies::restore(std::span<const std::uint8_t> saved, std::size_t& at) {
+    Reader read{saved, at};
+    std::vector<Piece> pieces(static_cast<std::size_t>(std::min<std::uint64_t>(read.u64(), saved.size())));
+    for (Piece& piece : pieces) {
+        const std::uint32_t index = read.u32(), generation = read.u32();
+        piece.body = body_from(index, generation);
+        piece.left = static_cast<std::int32_t>(read.u32()), piece.top = static_cast<std::int32_t>(read.u32());
+        piece.width = read.u32(), piece.height = read.u32();
+        piece.cells = read.list(), piece.covered = read.list(), piece.from = read.list(), piece.under = read.list();
+        if (read.ok && piece.cells.size() != static_cast<std::size_t>(piece.width) * piece.height * channels_) read.ok = false;
+    }
+    auto owner = read.list();
+    auto fill = read.list();
+    const std::uint64_t tiles = read.u64();
+    std::vector<dyn::BodyId> terrain;
+    std::vector<std::uint64_t> hashes;
+    for (std::uint64_t tile = 0; read.ok && tile < tiles; ++tile) {
+        const std::uint32_t index = read.u32(), generation = read.u32();
+        terrain.push_back(body_from(index, generation));
+        hashes.push_back(read.u64());
+    }
+    if (!read.ok || owner.size() != owner_.size() || terrain.size() != terrain_.size()) return std::unexpected(std::string("not a saved coupling of this field"));
+    pieces_ = std::move(pieces), owner_ = std::move(owner), fill_ = std::move(fill), terrain_ = std::move(terrain), terrain_hash_ = std::move(hashes);
+    return {};
+}
+
+Bodies Bodies::onto(dyn::World& world) const {
+    Bodies copy = *this;
+    copy.world_ = &world;
+    return copy;
+}
+
+std::expected<std::unique_ptr<MatterWorld>, std::string> MatterWorld::make(const matter::Program& program, const WorldOptions& options) {
+    const auto fill = program.material(options.fill);
+    if (!fill) return std::unexpected(std::format("no material `{}`", options.fill));
+    auto lattice = cellular::lower(program, {.seed = options.seed});
+    if (!lattice) return std::unexpected(std::format("the program does not lower: {}", lattice.error().text()));
+    auto rigid = dyn::World::make({.gravity = {0, options.gravity}});
+    if (!rigid) return std::unexpected(rigid.error().text);
+    std::unique_ptr<MatterWorld> world(new MatterWorld());
+    world->program_ = &program;
+    world->options_ = options;
+    world->lattice_ = std::move(*lattice);
+    const std::size_t area = static_cast<std::size_t>(options.shape.width) * options.shape.height;
+    world->cells_ = program.fresh(area, *fill);
+    world->next_.assign(world->cells_.size(), 0);
+    world->outside_ = program.fresh(1, *fill);
+    const Shape tiles = cellular::tiles(options.shape, options.tile);
+    world->activity_.assign(static_cast<std::size_t>(tiles.width) * tiles.height, 0);
+    world->rigid_ = std::make_unique<dyn::World>(std::move(*rigid));
+    auto bodies = Bodies::make(program, options.shape, *world->rigid_, options.bodies);
+    if (!bodies) return std::unexpected(bodies.error());
+    world->bodies_ = std::make_unique<Bodies>(std::move(*bodies));
+    return world;
+}
+
+void MatterWorld::place(Tile region, std::uint32_t material) {
+    const std::size_t area = static_cast<std::size_t>(options_.shape.width) * options_.shape.height;
+    if (material >= program_->materials().size()) return;
+    for (std::uint32_t y = region.y; y < std::min(region.y + region.height, options_.shape.height); ++y)
+        for (std::uint32_t x = region.x; x < std::min(region.x + region.width, options_.shape.width); ++x)
+            program_->place(cells_, area, static_cast<std::size_t>(y) * options_.shape.width + x, material);
+    lattice_.wake(options_.shape, options_.tile, region, activity_);
+}
+
+void MatterWorld::set(std::uint32_t channel, Tile region, std::uint32_t value) {
+    const std::size_t area = static_cast<std::size_t>(options_.shape.width) * options_.shape.height;
+    if (channel >= program_->channels().size()) return;
+    for (std::uint32_t y = region.y; y < std::min(region.y + region.height, options_.shape.height); ++y)
+        for (std::uint32_t x = region.x; x < std::min(region.x + region.width, options_.shape.width); ++x)
+            cells_[channel * area + static_cast<std::size_t>(y) * options_.shape.width + x] = value;
+    lattice_.wake(options_.shape, options_.tile, region, activity_);
+}
+
+std::expected<std::vector<dyn::BodyId>, std::string> MatterWorld::carve(Tile region) { return bodies_->carve(cells_, region, outside_); }
+
+void MatterWorld::step() {
+    Execution execution{.tile = options_.tile, .boundary = options_.open ? open_to(outside_) : nothing_beyond, .tick = tick_++};
+    if (options_.sparse) execution.activity = activity_;
+    (void)lattice_.step(options_.shape, cells_, next_, execution);
+    cells_.swap(next_);
+    bodies_->push(cells_);
+    // The bodies write the field from outside the lattice's step: where they were and where they are wake.
+    const auto wake = [&] {
+        if (options_.sparse)
+            for (const Tile& region : bodies_->touched()) lattice_.wake(options_.shape, options_.tile, region, activity_);
+    };
+    wake();
+    bodies_->lift(cells_);
+    bodies_->terrain(cells_);
+    rigid_->step();
+    bodies_->stamp(cells_);
+    wake();
+}
+
+std::vector<std::uint8_t> MatterWorld::save() const {
+    std::vector<std::uint8_t> out{'X', 'M', 'W', '1'};
+    put64(out, tick_);
+    put_list(out, cells_);
+    put64(out, activity_.size());
+    out.insert(out.end(), activity_.begin(), activity_.end());
+    bodies_->save(out);
+    const auto rigid = rigid_->save();
+    put64(out, rigid.size());
+    out.insert(out.end(), rigid.begin(), rigid.end());
+    return out;
+}
+
+std::expected<void, std::string> MatterWorld::restore(std::span<const std::uint8_t> saved) {
+    if (saved.size() < 4 || saved[0] != 'X' || saved[1] != 'M' || saved[2] != 'W' || saved[3] != '1') return std::unexpected(std::string("not a saved world of matter"));
+    std::size_t at = 4;
+    Reader read{saved, at};
+    const std::uint64_t tick = read.u64();
+    auto cells = read.list();
+    const std::uint64_t activity = read.u64();
+    if (!read.ok || cells.size() != cells_.size() || activity != activity_.size() || saved.size() - at < activity) return std::unexpected(std::string("a saved world of another shape"));
+    std::vector<std::uint8_t> bytes(saved.begin() + static_cast<std::ptrdiff_t>(at), saved.begin() + static_cast<std::ptrdiff_t>(at + activity));
+    at += static_cast<std::size_t>(activity);
+    // The coupling and the rigid world after it; nothing replaced until both read.
+    Bodies coupled = bodies_->onto(*rigid_);
+    if (auto restored = coupled.restore(saved, at); !restored) return std::unexpected(restored.error());
+    const std::uint64_t rigid_size = read.u64();
+    if (!read.ok || saved.size() - at < rigid_size) return std::unexpected(std::string("a saved world cut short"));
+    if (auto restored = rigid_->restore(saved.subspan(at, static_cast<std::size_t>(rigid_size))); !restored) return std::unexpected(restored.error().text);
+    tick_ = tick, cells_ = std::move(cells), activity_ = std::move(bytes);
+    *bodies_ = std::move(coupled);
+    return {};
+}
+
+std::expected<std::unique_ptr<MatterWorld>, std::string> MatterWorld::branch() const {
+    std::unique_ptr<MatterWorld> world(new MatterWorld());
+    world->program_ = program_;
+    world->options_ = options_;
+    world->lattice_ = lattice_;
+    world->cells_ = cells_;
+    world->next_.assign(cells_.size(), 0);
+    world->outside_ = outside_;
+    world->activity_ = activity_;
+    world->tick_ = tick_;
+    auto rigid = rigid_->branch();
+    if (!rigid) return std::unexpected(rigid.error().text);
+    world->rigid_ = std::make_unique<dyn::World>(std::move(*rigid));
+    world->bodies_ = std::make_unique<Bodies>(bodies_->onto(*world->rigid_));
+    return world;
+}
+
+std::uint64_t MatterWorld::state_hash() const noexcept {
+    mlibs::hash::Fnv1a hash(rigid_->state_hash());
+    for (const std::uint32_t value : cells_) hash.le(value, 4);
+    return hash.value();
 }
 
 }  // namespace xengine::cellular::rigid

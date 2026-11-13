@@ -63,9 +63,19 @@ public:
 
     [[nodiscard]] std::vector<View> bodies() const;
     [[nodiscard]] std::optional<View> body(dyn::BodyId body) const;
+    // Where the bodies' stamped cells are now, each grown by `room` (what a stamp moves aside): the field's cells
+    // written from outside a lattice step — a sparse host wakes their tiles.
+    [[nodiscard]] std::vector<Tile> touched() const;
     // Which body holds the field's cell now (stamped), if any.
     [[nodiscard]] std::optional<dyn::BodyId> owner(std::uint32_t x, std::uint32_t y) const;
     [[nodiscard]] const Statistics& last() const noexcept { return last_; }
+    // What the coupling holds, as bytes (with the rigid world's own save, a whole state): the bodies' cells,
+    // where each was stamped and what lies under, the terrain's tiles. Restored onto a rigid world restored or
+    // made from the same save — whose ids name the same bodies.
+    void save(std::vector<std::uint8_t>& out) const;
+    [[nodiscard]] std::expected<void, std::string> restore(std::span<const std::uint8_t> saved, std::size_t& at);
+    // The same coupling for another rigid world made from the same save (a branch).
+    [[nodiscard]] Bodies onto(dyn::World& world) const;
 
 private:
     struct Piece {
@@ -96,6 +106,58 @@ private:
     std::vector<dyn::BodyId> terrain_;           // a fixed body a tile (none: no solid there)
     std::vector<std::uint64_t> terrain_hash_;
     Statistics last_;
+};
+
+// A world of matter with bodies in it: the lattice, the rigid world and the coupling, stepped in their order and
+// saved, restored and branched as one (world.branch). Made in place (the coupling holds the rigid world).
+struct WorldOptions {
+    Shape shape;
+    Shape tile{16, 16};
+    std::uint32_t seed = 0;         // of the lattice's sideways choices
+    std::string fill = "air";       // what the world is made of at first, and what lies beyond its edges
+    bool open = true;               // its edges a bath of `fill` (heat leaves, a fire there has its oxygen); else nothing
+    bool sparse = true;             // the lattice runs the tiles awake
+    float gravity = 9.8f;
+    Options bodies;
+};
+class MatterWorld {
+public:
+    [[nodiscard]] static std::expected<std::unique_ptr<MatterWorld>, std::string> make(const xengine::matter::Program& program, const WorldOptions& options);
+    MatterWorld(const MatterWorld&) = delete;
+    MatterWorld& operator=(const MatterWorld&) = delete;
+
+    [[nodiscard]] const xengine::matter::Program& program() const noexcept { return *program_; }
+    [[nodiscard]] Shape shape() const noexcept { return options_.shape; }
+    [[nodiscard]] std::span<const std::uint32_t> cells() const noexcept { return cells_; }
+    [[nodiscard]] dyn::World& rigid() noexcept { return *rigid_; }
+    [[nodiscard]] Bodies& bodies() noexcept { return *bodies_; }
+    [[nodiscard]] std::uint64_t frames() const noexcept { return tick_; }
+
+    // Cells written from outside a frame (the tiles they are in wake).
+    void place(Tile region, std::uint32_t material);
+    void set(std::uint32_t channel, Tile region, std::uint32_t value);
+    // The solid cells of `region` become bodies.
+    [[nodiscard]] std::expected<std::vector<dyn::BodyId>, std::string> carve(Tile region);
+    // One frame: the lattice's step, what the field does to the bodies, the bodies out, the terrain, the rigid
+    // step, the bodies back in.
+    void step();
+
+    [[nodiscard]] std::vector<std::uint8_t> save() const;
+    [[nodiscard]] std::expected<void, std::string> restore(std::span<const std::uint8_t> saved);
+    [[nodiscard]] std::expected<std::unique_ptr<MatterWorld>, std::string> branch() const;
+    // The field's every value and the rigid world's every body, bit for bit.
+    [[nodiscard]] std::uint64_t state_hash() const noexcept;
+
+private:
+    MatterWorld() = default;
+    const xengine::matter::Program* program_ = nullptr;
+    WorldOptions options_;
+    cellular::Program lattice_;
+    std::vector<std::uint32_t> cells_, next_, outside_;
+    std::vector<std::uint8_t> activity_;
+    std::uint64_t tick_ = 0;
+    std::unique_ptr<dyn::World> rigid_;
+    std::unique_ptr<Bodies> bodies_;
 };
 
 }  // namespace xengine::cellular::rigid

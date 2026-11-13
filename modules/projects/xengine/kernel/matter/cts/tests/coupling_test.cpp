@@ -149,6 +149,52 @@ UTest cases{"matter.rigid", [] {
         std::println("the plank fell in two after {} frames, {} cells burnt away", frames, lost);
     };
 
+    "a world of matter with bodies saved, run on, restored and run again is the same bits; a branch runs on as it does; sparse is dense"_test = [] {
+        static const matter::Program program = *matter::standard();
+        // A basin with a crate of wood falling in, a plank burning over it, sand pouring: everything moving.
+        const auto make = [](bool sparse) {
+            auto world = *bodies::MatterWorld::make(program, {.shape = {64, 48}, .tile = {8, 8}, .seed = 5, .sparse = sparse});
+            const auto material = [&](std::string_view name) { return *program.material(name); };
+            world->place({0, 44, 64, 4}, material("stone"));
+            world->place({0, 20, 2, 24}, material("stone"));
+            world->place({62, 20, 2, 24}, material("stone"));
+            world->place({2, 32, 60, 12}, material("water"));
+            world->place({10, 6, 8, 8}, material("wood"));
+            world->place({30, 18, 24, 2}, material("wood"));
+            world->place({40, 2, 6, 6}, material("sand"));
+            (void)world->carve({2, 2, 60, 18});
+            world->set(*program.channel("temperature"), {30, 18, 2, 2}, 900 * 256);
+            return world;
+        };
+        auto world = make(true);
+        for (int frame = 0; frame < 60; ++frame) world->step();
+        const auto saved = world->save();
+        auto branch = world->branch();
+        expect(fatal(branch.has_value()));
+        std::vector<std::uint64_t> ahead;
+        for (int frame = 0; frame < 120; ++frame) world->step(), ahead.push_back(world->state_hash());
+        expect(fatal(world->restore(saved).has_value()));
+        expect(eq(world->frames(), std::uint64_t{60}));
+        bool again = true, branched = true;
+        for (std::size_t frame = 0; frame < 120; ++frame) {
+            world->step();
+            (*branch)->step();
+            again = again && world->state_hash() == ahead[frame];
+            branched = branched && (*branch)->state_hash() == ahead[frame];
+        }
+        expect(again) << "restored and run again: the same bits frame by frame";
+        expect(branched) << "the branch ran on as the original did";
+        expect(world->bodies().bodies().size() >= 2u) << "bodies are in it";
+        // The same world with every tile run: sparse execution and the bodies' wakes change no bit.
+        auto sparse = make(true), dense = make(false);
+        bool same = true;
+        for (int frame = 0; frame < 240 && same; ++frame) {
+            sparse->step(), dense->step();
+            same = sparse->state_hash() == dense->state_hash();
+            if (!same) expect(false) << std::format("frame {}: sparse parts from dense", frame);
+        }
+    };
+
     "two runs of the same scene are the same bits: the field, every body"_test = [] {
         std::array<std::uint64_t, 2> states{};
         std::array<std::vector<std::uint32_t>, 2> fields;

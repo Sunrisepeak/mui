@@ -44,7 +44,8 @@ struct Yard {
     std::vector<geom::Bvh> grown;
     std::vector<const geom::Bvh*> trees;
     // `sun_only`: no lamp and no spot — the light whose shadows the device has.
-    explicit Yard(bool sun_only = false) {
+    explicit Yard(bool sun_only = false, bool polished = false) {
+        if (polished) materials[2] = {{0.15f, 0.4f, 0.8f}, {}, 0.25f, 0}, materials[3] = {{1.0f, 0.77f, 0.34f}, {}, 0.3f, 1};
         made.push_back(*geom::clustered(geom::box({1, 1, 1})));
         made.push_back(*geom::clustered(geom::sheet(200, 200, 4, 4)));
         made.push_back(*geom::clustered(geom::sphere(1, 32, 64), 32));
@@ -269,5 +270,19 @@ UTest cases{"mesh.gpu.sdl", [] {
         expect(lt(static_cast<double>(all.off), 0.002 * static_cast<double>(all.compared)));
         static_cast<void>(device->wait_idle());
         device->destroy(*colour), device->destroy(*depth), device->destroy(*map), device->destroy(*map_depth);
+    };
+
+    "a polished ball and a gold post on the device are the reference's: the highlights where it has them, as bright"_test = [] {
+        auto device = open_device();
+        if (!device) return;
+        const Yard yard(false, true);
+        const auto drawn = both(*device, yard, {});
+        if (!drawn) return;
+        keep(drawn->device, "yard-polished");
+        const Apart all = apart(drawn->reference, drawn->device, false, 6);
+        std::println("the yard with a polished ball and a gold post: {} of {} pixels further than 6 levels from the reference ({:.2f}%), mean {:.3f}, worst {}", all.off, all.compared,
+                     100.0 * static_cast<double>(all.off) / static_cast<double>(all.compared), all.mean, all.worst);
+        expect(lt(static_cast<double>(all.off), 0.001 * static_cast<double>(all.compared)));
+        expect(lt(all.mean, 0.1));
     };
 }};

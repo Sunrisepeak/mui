@@ -28,6 +28,7 @@ struct LampUniforms {
 };
 struct SurfaceUniforms {
     Row          base, emissive, ambient, eye, fog, fog_shape;
+    Row          shine;
     Row          to_light[3];
     Row          shadow{-1, 0, 0, 0};
     LampUniforms lamps[most_lamps];
@@ -271,7 +272,9 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
         DrawUniforms uniforms{};
         for (int row = 0; row < 4; ++row) uniforms.to_clip[row] = row_of(to_clip, row);
         for (int row = 0; row < 3; ++row) uniforms.to_world[row] = row_of(instance.world, row), uniforms.normals[row] = row_of(for_normals, row);
-        surface.base = of(materials[draw.material].base), surface.emissive = of(materials[draw.material].emissive);
+        const Material& material = materials[draw.material];
+        surface.base = of(material.base), surface.emissive = of(material.emissive);
+        surface.shine = {std::clamp(material.roughness, 0.04f, 1.0f), std::clamp(material.metallic, 0.0f, 1.0f), material.matt() ? 1.0f : 0.0f, 0};
         list.push_uniforms(rhi::Stage::vertex, 0, uniforms);
         list.push_uniforms(rhi::Stage::fragment, 0, surface);
         list.bind_vertex_buffer(0, meshes_[draw.mesh].corners);

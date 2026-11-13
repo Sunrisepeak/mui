@@ -23,7 +23,8 @@ struct Library {
     std::vector<const geom::ClusteredMesh*> meshes;
     std::vector<geom::Bvh> grown;
     std::vector<const geom::Bvh*> trees;
-    std::vector<mesh::Material> materials{{{0.8f, 0.2f, 0.15f}, {}}, {{0.5f, 0.5f, 0.5f}, {}}, {{0.15f, 0.4f, 0.8f}, {}}, {{0.9f, 0.75f, 0.2f}, {}}, {{0.1f, 0.1f, 0.1f}, {0.9f, 0.5f, 0.1f}}};
+    std::vector<mesh::Material> materials{{{0.8f, 0.2f, 0.15f}, {}}, {{0.5f, 0.5f, 0.5f}, {}}, {{0.15f, 0.4f, 0.8f}, {}}, {{0.9f, 0.75f, 0.2f}, {}}, {{0.1f, 0.1f, 0.1f}, {0.9f, 0.5f, 0.1f}},
+                                          {{0.15f, 0.4f, 0.8f}, {}, 0.25f, 0}, {{1.0f, 0.77f, 0.34f}, {}, 0.3f, 1}, {{0.15f, 0.4f, 0.8f}, {}, 0.6f, 0}};
     Library() {
         made.push_back(*geom::clustered(geom::box({1, 1, 1})));
         made.push_back(*geom::clustered(geom::sheet(200, 200, 4, 4)));
@@ -38,6 +39,7 @@ struct Library {
     [[nodiscard]] geom::Box3 bounds(std::uint32_t which) const { return geom::bounds(made[which].mesh); }
 };
 constexpr std::uint32_t box = 0, floor_mesh = 1, ball = 2, post = 3, sheet = 4;
+constexpr std::uint32_t matt_blue = 2, polished = 5, gold = 6, satin = 7;  // materials
 const Library& library() {
     static const Library made;
     return made;
@@ -542,5 +544,76 @@ static UTest cases{"xrender.mesh", [] {
         std::println("the yard in fog: floor's own light left, near {:.3f} far {:.3f}; sky {:.3f} at the top, {:.3f} at its lowest; bits {:016x}; {}", near_share, far_share, sky.front(), sky.back(),
                      bits(foggy.targets), file.generic_string());
         expect(eq(bits(foggy.targets), std::uint64_t{0xc84a8f6fceb3b509})) << std::format("{:016x}", bits(foggy.targets));
+    };
+    "a polished ball has a highlight where the sun is mirrored to the eye, and a matt one has none; rougher, it is dimmer and wider; the picture's bits are the same twice"_test = [] {
+        const Camera camera{.eye = {0, 0.5f, 5}, .target = {0, 0, 0}};
+        const math::Vec3 toward_sun = math::normalized(math::Vec3{0.5f, 1, 0.6f});
+        struct Seen {
+            float brightest = 0;
+            int   x = 0, y = 0, near_it = 0;  // pixels at least 0.8 of the brightest
+            std::uint64_t bits = 0;
+        };
+        const auto ball_of = [&](std::uint32_t material) {
+            scene::Scene world;
+            put(world, 1, ball, material, math::translation({0, 0, 0}));
+            expect(world.add(scene::Light{.id = 1, .kind = scene::LightKind::sun, .colour = {1, 1, 1}, .intensity = 1, .toward = -toward_sun}).has_value());
+            const Frame frame = drawn(world, camera, 256, 256);
+            Seen seen{.bits = bits(frame.targets)};
+            for (int y = 0; y < 256; ++y)
+                for (int x = 0; x < 256; ++x) {
+                    const math::Vec3 light = frame.targets.light[static_cast<std::size_t>(y) * 256 + x];
+                    const float sum = light.x + light.y + light.z;
+                    if (frame.targets.ids[static_cast<std::size_t>(y) * 256 + x].draw != mesh::none && sum > seen.brightest) seen.brightest = sum, seen.x = x, seen.y = y;
+                }
+            for (const math::Vec3& light : frame.targets.light) seen.near_it += light.x + light.y + light.z >= 0.8f * seen.brightest;
+            return seen;
+        };
+        const Seen matt = ball_of(matt_blue), shiny = ball_of(polished), softer = ball_of(satin);
+        // Where the highlight should be: the point of the ball whose normal is halfway between the eye and the sun.
+        const math::Vec3 half = math::normalized(math::normalized(camera.eye) + toward_sun);
+        const scene::View view = camera.view();
+        const math::Vec3 there = math::point(view.projection * view.view, half);
+        const float at_x = (there.x * 0.5f + 0.5f) * 256, at_y = (0.5f - there.y * 0.5f) * 256;
+        std::println("a ball under one sun, 256²: matt brightest {:.2f} at ({}, {}); polished {:.2f} at ({}, {}), mirrored at ({:.0f}, {:.0f}), {} pixels near it; satin {:.2f}, {} pixels near it", matt.brightest, matt.x,
+                     matt.y, shiny.brightest, shiny.x, shiny.y, at_x, at_y, shiny.near_it, softer.brightest, softer.near_it);
+        expect(gt(shiny.brightest, matt.brightest * 2)) << "a highlight is far brighter than anything matt";
+        expect(lt(std::abs(static_cast<float>(shiny.x) + 0.5f - at_x), 4.0f) && lt(std::abs(static_cast<float>(shiny.y) + 0.5f - at_y), 4.0f)) << "where the sun is mirrored (not quite at the half-way point: it is seen from a finite distance)";
+        expect(lt(softer.brightest, shiny.brightest) && gt(softer.near_it, shiny.near_it)) << "rougher: dimmer and wider";
+        expect(eq(ball_of(polished).bits, shiny.bits));
+    };
+
+    "a metal has no colour of its own but its highlight's: away from the highlight it is dark, and the highlight is the metal's colour"_test = [] {
+        const Camera camera{.eye = {0, 0.5f, 5}, .target = {0, 0, 0}};
+        scene::Scene world;
+        put(world, 1, ball, gold, math::translation({0, 0, 0}));
+        expect(world.add(scene::Light{.id = 1, .kind = scene::LightKind::sun, .colour = {1, 1, 1}, .intensity = 1, .toward = math::normalized(math::Vec3{-0.5f, -1, -0.6f})}).has_value());
+        const Frame frame = drawn(world, camera, 256, 256, {.ambient = {0, 0, 0}});
+        math::Vec3 brightest{};
+        std::size_t lit_squarely = 0, dark = 0;
+        for (std::size_t pixel = 0; pixel < frame.targets.light.size(); ++pixel) {
+            if (frame.targets.ids[pixel].draw == mesh::none) continue;
+            const math::Vec3 light = frame.targets.light[pixel];
+            if (light.x > brightest.x) brightest = light;
+            // Facing the sun squarely enough that a matt ball would be bright there.
+            if (math::dot(frame.targets.normal[pixel], math::normalized(math::Vec3{0.5f, 1, 0.6f})) > 0.6f) ++lit_squarely, dark += light.x < 0.08f;
+        }
+        std::println("a gold ball: its highlight ({:.2f}, {:.2f}, {:.2f}); of {} pixels the sun falls squarely on, {} are darker than 0.08", brightest.x, brightest.y, brightest.z, lit_squarely, dark);
+        expect(gt(brightest.x, 1.0f)) << "a highlight";
+        expect(lt(std::abs(brightest.y / brightest.x - 0.77f), 0.08f) && lt(std::abs(brightest.z / brightest.x - 0.34f), 0.12f)) << "of the metal's colour (whiter only at a glancing look)";
+        expect(gt(dark * 3, lit_squarely)) << "nothing matt in it: off the highlight it sends the sun nowhere near the eye";
+    };
+
+    "the yard with a polished ball and a gold post: pinned, and kept"_test = [] {
+        scene::Scene world;
+        put(world, 1, floor_mesh, 1, math::translation({0, -1, 0}));
+        put(world, 10, box, 0, math::Transform{{-2.2f, 0, 0}, math::Quat::about({0, 1, 0}, 0.6f), {1, 1, 1}}.matrix());
+        put(world, 11, ball, polished, math::translation({0.4f, 0, 0.8f}));
+        put(world, 12, post, gold, math::translation({2.6f, 0, -0.5f}));
+        expect(world.add(scene::Light{.id = 1, .kind = scene::LightKind::sun, .colour = {1, 0.96f, 0.9f}, .intensity = 0.9f, .toward = {-0.4f, -1, -0.5f}}).has_value());
+        expect(world.add(scene::Light{.id = 2, .kind = scene::LightKind::point, .colour = {1, 0.6f, 0.2f}, .intensity = 2.5f, .at = {1.2f, 1.6f, -1.5f}, .range = 6}).has_value());
+        const Frame frame = drawn(world, yard_camera, 480, 270, {}, true);
+        const auto file = keep(frame.targets, "yard-polished");
+        std::println("the yard with a polished ball and a gold post: bits {:016x}; {}", bits(frame.targets), file.generic_string());
+        expect(eq(bits(frame.targets), std::uint64_t{0x329f4ce273cd0cf1})) << std::format("{:016x}", bits(frame.targets));
     };
 }};

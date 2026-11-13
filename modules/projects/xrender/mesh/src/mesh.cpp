@@ -119,6 +119,7 @@ struct Raster {
     }
 
     Vec3 lit(Vec3 normal, Vec3 place) noexcept {
+        if (!material.matt()) return shone(normal, place);
         Vec3 light = options.ambient;
         // A ray starts a little off the surface, or it meets the surface it left.
         const Vec3 lifted = place + normal * 2e-3f;
@@ -140,6 +141,32 @@ struct Raster {
             light = light + lamp.colour * (facing * near * near);
         }
         return math::scaled(material.base, light) + material.emissive;
+    }
+
+    // The same lights on a surface that is not matt: each light's share by `reflected`.
+    Vec3 shone(Vec3 normal, Vec3 place) noexcept {
+        const Vec3 toward_eye = math::normalized(eye - place);
+        Vec3 sent = math::scaled(reflected_ambient(material), options.ambient) + material.emissive;
+        const Vec3 lifted = place + normal * 2e-3f;
+        for (const Lamp& lamp : lamps) {
+            if (lamp.kind == scene::LightKind::sun) {
+                const float facing = -math::dot(normal, lamp.toward);
+                if (facing > 0 && !(!casters.empty() && hidden_from(lifted, -lamp.toward, std::numeric_limits<float>::max())))
+                    sent = sent + math::scaled(reflected(material, normal, toward_eye, -lamp.toward, facing), lamp.colour);
+                continue;
+            }
+            const Vec3 to = lamp.at - place;
+            const float apart = math::length(to);
+            if (!(apart < lamp.range) || !(apart > 0)) continue;
+            const Vec3 along = to * (1.0f / apart);
+            const float facing = math::dot(normal, along);
+            if (!(facing > 0)) continue;
+            if (lamp.kind == scene::LightKind::spot && -math::dot(along, lamp.toward) < lamp.cone_cosine) continue;
+            if (!casters.empty() && hidden_from(lifted, along, apart)) continue;
+            const float near = 1.0f - (apart / lamp.range) * (apart / lamp.range);
+            sent = sent + math::scaled(reflected(material, normal, toward_eye, along, facing), lamp.colour * (near * near));
+        }
+        return sent;
     }
 
     // One triangle, its corners inside the view's volume. True where it faces the view (and so was filled).
@@ -223,6 +250,32 @@ void Targets::resize(int new_width, int new_height) {
     width = std::max(new_width, 0), height = std::max(new_height, 0);
     const std::size_t pixels = static_cast<std::size_t>(width) * height;
     colour.resize(pixels * 4), light.resize(pixels), depth.resize(pixels), normal.resize(pixels), velocity.resize(pixels), ids.resize(pixels);
+}
+
+Vec3 reflected(const Material& material, Vec3 normal, Vec3 toward_eye, Vec3 toward_light, float facing) noexcept {
+    const float rough = std::clamp(material.roughness, 0.04f, 1.0f), metal = std::clamp(material.metallic, 0.0f, 1.0f);
+    const Vec3 matt = material.base * ((1.0f - metal) * facing);
+    const float seen = math::dot(normal, toward_eye);
+    if (!(seen > 0)) return matt;  // seen from behind (a smooth normal at a rim): nothing mirrored
+    const Vec3 half = math::normalized(toward_eye + toward_light);
+    const float along_half = std::max(math::dot(normal, half), 0.0f), eye_half = std::max(math::dot(toward_eye, half), 0.0f);
+    // How many of the surface's small faces look along `half` (GGX; without the 1/π a matt surface here does
+    // not have either).
+    const float spread = rough * rough * rough * rough;
+    const float under = along_half * along_half * (spread - 1.0f) + 1.0f;
+    const float facets = spread / (under * under);
+    // How much of them one hides from another, toward the light and toward the eye.
+    const float k = (rough + 1.0f) * (rough + 1.0f) * 0.125f;
+    const float unhidden = 1.0f / ((facing * (1.0f - k) + k) * (seen * (1.0f - k) + k));
+    // How much is mirrored rather than taken in: more at a glancing look.
+    const float glance = 1.0f - eye_half, glance5 = glance * glance * glance * glance * glance;
+    const Vec3 head_on = Vec3{0.04f, 0.04f, 0.04f} * (1.0f - metal) + material.base * metal;
+    const Vec3 mirrored = head_on + (Vec3{1, 1, 1} - head_on) * glance5;
+    return matt + mirrored * (facets * unhidden * 0.25f * facing);
+}
+Vec3 reflected_ambient(const Material& material) noexcept {
+    const float metal = std::clamp(material.metallic, 0.0f, 1.0f);
+    return material.base * (1.0f - metal) + (Vec3{0.04f, 0.04f, 0.04f} * (1.0f - metal) + material.base * metal);
 }
 
 float through(const Fog& fog, Vec3 eye, Vec3 toward, float length) noexcept {

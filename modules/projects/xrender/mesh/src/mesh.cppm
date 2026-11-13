@@ -28,10 +28,23 @@ using xrender::scene::Id;
 // A surface, as data. The reference's shading is the least that shows a form: what a light gives a matt surface,
 // and what it gives off itself. (The full model — roughness, metal, textures — is the material interface's,
 // with the GPU path.)
+// A surface. `roughness` 1 and `metallic` 0 (what a material says when it says neither) is matt: light from a
+// lamp by how squarely it falls, nothing mirrored. Smoother, or metal: a highlight as well — the microfacet
+// model every engine draws with (GGX's spread, Smith's shadowing as Schlick wrote it, Schlick's Fresnel), from
+// +, ×, ÷ and a square root alone, so its bits are the same everywhere. A metal has no colour of its own but
+// its highlight's.
 struct Material {
-    Vec3 base{0.8f, 0.8f, 0.8f};  // linear
-    Vec3 emissive;
+    Vec3  base{0.8f, 0.8f, 0.8f};  // linear
+    Vec3  emissive;
+    float roughness = 1;  // 1 matt … 0 a mirror (held to 0.04 at least: a point of light has no size)
+    float metallic = 0;   // 0 … 1
+    [[nodiscard]] constexpr bool matt() const noexcept { return roughness >= 1 && metallic <= 0; }
 };
+// What a surface sends toward the eye of light arriving along `toward_light` (all of length 1; `facing` the
+// normal's part of it, above 0), as a share of that light a channel: what `Pass` and a device's shader both do.
+[[nodiscard]] Vec3 reflected(const Material& material, Vec3 normal, Vec3 toward_eye, Vec3 toward_light, float facing) noexcept;
+// And of the light from everywhere.
+[[nodiscard]] Vec3 reflected_ambient(const Material& material) noexcept;
 // What the scene's numbers name: a draw's `mesh` and `material` are places here. One that names nothing is not
 // drawn, and counted.
 struct Assets {

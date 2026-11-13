@@ -49,16 +49,28 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth) {
                                                             .depth = {.test = true, .write = true, .compare = reversed_depth ? rhi::Compare::greater : rhi::Compare::less},
                                                             .label = "xrender.mesh"});
     if (!pipeline) return std::unexpected(pipeline.error());
+    auto ids = device.create(rhi::GraphicsPipelineDesc{.vertex = &shaders::ids::ids_vs,
+                                                       .fragment = &shaders::ids::ids_fs,
+                                                       .vertex_buffers = layout,
+                                                       .target = rhi::Format::r32_uint,
+                                                       .blend = rhi::Blend::replace(),
+                                                       .depth_target = rhi::Format::d32_float,
+                                                       .depth = {.test = true, .write = true, .compare = reversed_depth ? rhi::Compare::greater : rhi::Compare::less},
+                                                       .label = "xrender.mesh.ids"});
+    if (!ids) {
+        device.destroy(*pipeline);
+        return std::unexpected(ids.error());
+    }
     Pass pass;
-    pass.device_ = &device, pass.pipeline_ = *pipeline, pass.reversed_ = reversed_depth;
+    pass.device_ = &device, pass.pipeline_ = *pipeline, pass.ids_pipeline_ = *ids, pass.reversed_ = reversed_depth;
     return pass;
 }
 Pass::Pass(Pass&& other) noexcept
-    : device_(std::exchange(other.device_, nullptr)), pipeline_(std::exchange(other.pipeline_, {})), meshes_(std::move(other.meshes_)), reversed_(other.reversed_), last_(other.last_) {}
+    : device_(std::exchange(other.device_, nullptr)), pipeline_(std::exchange(other.pipeline_, {})), ids_pipeline_(std::exchange(other.ids_pipeline_, {})), meshes_(std::move(other.meshes_)), reversed_(other.reversed_), last_(other.last_) {}
 Pass& Pass::operator=(Pass&& other) noexcept {
     if (this != &other) {
         release();
-        device_ = std::exchange(other.device_, nullptr), pipeline_ = std::exchange(other.pipeline_, {}), meshes_ = std::move(other.meshes_), reversed_ = other.reversed_, last_ = other.last_;
+        device_ = std::exchange(other.device_, nullptr), pipeline_ = std::exchange(other.pipeline_, {}), ids_pipeline_ = std::exchange(other.ids_pipeline_, {}), meshes_ = std::move(other.meshes_), reversed_ = other.reversed_, last_ = other.last_;
     }
     return *this;
 }
@@ -70,6 +82,7 @@ void Pass::release() noexcept {
         if (mesh.corners) device_->destroy(mesh.corners);
     meshes_.clear();
     if (pipeline_) device_->destroy(pipeline_);
+    if (ids_pipeline_) device_->destroy(ids_pipeline_);
     device_ = nullptr;
 }
 
@@ -161,6 +174,45 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
         ++last_.draws, last_.triangles += meshes_[draw.mesh].count / 3;
     }
     list.end_render();
+}
+
+void Pass::record_ids(rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, rhi::Texture ids, rhi::Texture depth, std::uint32_t width,
+                      std::uint32_t height) {
+    struct Who {
+        Row           eye;
+        std::uint32_t number = 0, spare[3]{};
+    };
+    const Mat4 clip = view.projection * view.view;
+    const std::optional<Mat4> camera = math::inverse(view.view);
+    const Vec3 eye = camera ? math::point(*camera, {0, 0, 0}) : Vec3{};
+    const std::span<const scene::Instance> instances = scene.instances();
+    list.begin_render({ids, rhi::LoadOp::clear, {0, 0, 0, 0}}, {depth, rhi::LoadOp::clear, reversed_ ? 0.0f : 1.0f});
+    list.set_viewport(0, 0, static_cast<float>(width), static_cast<float>(height));
+    list.set_pipeline(ids_pipeline_);
+    for (std::uint32_t number = 0; number < extracted.draws.size(); ++number) {
+        const scene::Draw& draw = extracted.draws[number];
+        if (draw.instance >= instances.size() || draw.mesh >= meshes_.size() || !meshes_[draw.mesh].corners) continue;
+        const scene::Instance& instance = instances[draw.instance];
+        const Mat4 to_clip = clip * instance.world;
+        const std::optional<Mat4> back = math::inverse(instance.world);
+        const Mat4 for_normals = back ? math::transposed(*back) : instance.world;
+        DrawUniforms uniforms{};
+        for (int row = 0; row < 4; ++row) uniforms.to_clip[row] = row_of(to_clip, row);
+        for (int row = 0; row < 3; ++row) uniforms.to_world[row] = row_of(instance.world, row), uniforms.normals[row] = row_of(for_normals, row);
+        list.push_uniforms(rhi::Stage::vertex, 0, uniforms);
+        list.push_uniforms(rhi::Stage::fragment, 0, Who{of(eye), number + 1, {}});
+        list.bind_vertex_buffer(0, meshes_[draw.mesh].corners);
+        list.draw(meshes_[draw.mesh].count);
+    }
+    list.end_render();
+}
+
+std::uint32_t who(std::span<const std::byte> pixels, std::uint32_t width, std::uint32_t x, std::uint32_t y) noexcept {
+    const std::size_t at = (static_cast<std::size_t>(y) * width + x) * 4;
+    if (at + 3 >= pixels.size()) return none;
+    const std::uint32_t number = std::to_integer<std::uint32_t>(pixels[at]) | std::to_integer<std::uint32_t>(pixels[at + 1]) << 8 | std::to_integer<std::uint32_t>(pixels[at + 2]) << 16 |
+                                 std::to_integer<std::uint32_t>(pixels[at + 3]) << 24;
+    return number == 0 ? none : number - 1;
 }
 
 }  // namespace xrender::mesh::gpu

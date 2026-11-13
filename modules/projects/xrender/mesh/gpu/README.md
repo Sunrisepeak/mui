@@ -28,11 +28,11 @@ Part of [xrender.frame](../../frame)'s (`agent = { part = "xrender.frame" }`): t
 | | |
 |---|---|
 | Numbers | `Pass::last()`: draws, draws naming nothing loaded, triangles, lamps and lamps left out |
-| Source | not here yet: who drew a pixel is the reference's (`xrender.mesh`'s ids, `pick` by ray) until this pass writes ids |
+| Source | `record_ids`: a pass of its own on an `r32_uint` target — each pixel the place of its draw in the frame's draws (`who(pixels, width, x, y)`), from which the scene gives the instance's stable id. On lavapipe 4 of 129,600 pixels name another draw than the reference's id buffer (an edge's). The triangle under a point is `xrender.mesh`'s `pick`, by a ray |
 
 ## Not yet
 
-- **Ids, normals, velocity**: the interface has one colour target a pass; they are passes of their own, or wait for several targets.
+- **Normals, velocity, the triangle of a pixel**: the interface has one colour target a pass; each is a pass of its own (as the ids are), or waits for several targets.
 - **Shadows**: a map, held to the reference's traced ones.
 - **The sky through fog**: the background is cleared to one colour (the fog's, where there is fog); the reference's sky clearing upward is a pass over what nothing drew.
 - **Faces by winding**: the interface has no culling state; a face turned away is discarded by its normal in the shader.

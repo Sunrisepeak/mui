@@ -18,6 +18,7 @@ export import xrender.mesh;
 export import xrender.scene;
 export import mlibs.rhi;
 export import :mesh_shaders;
+export import :ids_shaders;
 
 export namespace xrender::mesh::gpu {
 
@@ -46,6 +47,11 @@ public:
     // a flat colour can say it — the reference's sky that clears upward is not here yet).
     void record(mlibs::rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, std::span<const Material> materials,
                 mlibs::rhi::Texture colour, mlibs::rhi::Texture depth, std::uint32_t width, std::uint32_t height, const Options& options = {});
+    // Who drew each pixel, recorded: a pass of its own on `ids` (r32_uint, a colour target) and `depth` — for
+    // every pixel the place of its draw in `extracted.draws` and one more; 0 where nothing is. What an agent
+    // asks of a pixel of the device's picture (`who`), with nothing of the CPU's drawn.
+    void record_ids(mlibs::rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, mlibs::rhi::Texture ids, mlibs::rhi::Texture depth,
+                    std::uint32_t width, std::uint32_t height);
     [[nodiscard]] const Stats& last() const noexcept { return last_; }
     // The formats the pass's shader was compiled to by this build: what a device is opened with.
     [[nodiscard]] static mlibs::rhi::ShaderFormats shader_formats() noexcept;
@@ -58,10 +64,14 @@ private:
         std::uint32_t      count = 0;
     };
     mlibs::rhi::Device*          device_ = nullptr;
-    mlibs::rhi::GraphicsPipeline pipeline_;
+    mlibs::rhi::GraphicsPipeline pipeline_, ids_pipeline_;
     std::vector<Loaded>          meshes_;
     bool                         reversed_ = false;
     Stats                        last_;
 };
+
+// The draw a pixel of an ids picture names (`pixels`: what the device read back of it, four bytes a pixel, the
+// least first): its place in the frame's draws, or `none`.
+[[nodiscard]] std::uint32_t who(std::span<const std::byte> pixels, std::uint32_t width, std::uint32_t x, std::uint32_t y) noexcept;
 
 }  // namespace xrender::mesh::gpu

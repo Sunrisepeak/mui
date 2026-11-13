@@ -161,4 +161,48 @@ UTest cases{"mesh.gpu.sdl", [] {
         expect(lt(static_cast<double>(surfaces.off), 0.001 * static_cast<double>(surfaces.compared)));
         expect(lt(surfaces.mean, 0.1));
     };
+
+    "who drew a pixel, asked of the device: its ids picture names the reference's draw at every pixel but an edge's; and a pixel of the ball is the ball"_test = [] {
+        auto device = open_device();
+        if (!device) return;
+        const Yard yard;
+        scene::Extracted seen;
+        scene::extract(yard.world, yard.view(), seen);
+        mesh::Targets reference;
+        reference.resize(static_cast<int>(width), static_cast<int>(height));
+        mesh::Pass on_cpu;
+        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}}, reference, {.shadows = false});
+
+        auto pass = mesh::gpu::Pass::make(*device);
+        expect(fatal(pass.has_value())) << (pass ? "" : pass.error().message);
+        expect(fatal(pass->load(yard.meshes).has_value()));
+        const auto ids = device->create(rhi::TextureDesc{rhi::Format::r32_uint, width, height, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "mesh.ids"});
+        const auto depth = device->create(rhi::TextureDesc{rhi::Format::d32_float, width, height, rhi::TextureUsage::depth_target, "mesh.ids.depth"});
+        expect(fatal(ids.has_value() && depth.has_value())) << (ids ? (depth ? "" : depth.error().message) : ids.error().message);
+        rhi::CommandList list;
+        pass->record_ids(list, yard.world, seen, yard.view(), *ids, *depth, width, height);
+        const auto submitted = device->submit(list);
+        expect(fatal(submitted.has_value())) << (submitted ? "" : submitted.error().message);
+        expect(device->wait(*submitted).has_value());
+        const auto pixels = device->read(*ids, rhi::Region{0, 0, width, height});
+        expect(fatal(pixels.has_value())) << (pixels ? "" : pixels.error().message);
+        expect(eq(pixels->size(), std::size_t{width} * height * 4));
+
+        std::size_t other = 0, drawn = 0;
+        for (std::uint32_t y = 0; y < height; ++y)
+            for (std::uint32_t x = 0; x < width; ++x) {
+                const std::uint32_t said = mesh::gpu::who(*pixels, width, x, y), is = reference.ids[static_cast<std::size_t>(y) * width + x].draw;
+                drawn += said != mesh::none, other += said != is;
+            }
+        std::println("who drew each pixel, on the device: {} pixels drawn; {} of {} name another draw than the reference ({:.3f}%)", drawn, other, std::size_t{width} * height,
+                     100.0 * static_cast<double>(other) / (static_cast<double>(width) * height));
+        expect(lt(static_cast<double>(other), 0.001 * width * height)) << "an edge's pixels";
+        // The middle of the ball, as the scene's own id: draw → instance → id.
+        const std::optional<mesh::Source> ball = mesh::at(reference, 225, 140);
+        const std::uint32_t said = mesh::gpu::who(*pixels, width, 225, 140);
+        expect(fatal(ball.has_value() && said != mesh::none && said < seen.draws.size()));
+        expect(eq(yard.world.instances()[seen.draws[said].instance].id, scene::Id{11}) && eq(ball->instance, scene::Id{11}));
+        static_cast<void>(device->wait_idle());
+        device->destroy(*ids), device->destroy(*depth);
+    };
 }};

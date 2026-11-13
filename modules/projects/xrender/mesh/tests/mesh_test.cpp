@@ -24,7 +24,9 @@ struct Library {
     std::vector<geom::Bvh> grown;
     std::vector<const geom::Bvh*> trees;
     std::vector<mesh::Material> materials{{{0.8f, 0.2f, 0.15f}, {}}, {{0.5f, 0.5f, 0.5f}, {}}, {{0.15f, 0.4f, 0.8f}, {}}, {{0.9f, 0.75f, 0.2f}, {}}, {{0.1f, 0.1f, 0.1f}, {0.9f, 0.5f, 0.1f}},
-                                          {{0.15f, 0.4f, 0.8f}, {}, 0.25f, 0}, {{1.0f, 0.77f, 0.34f}, {}, 0.3f, 1}, {{0.15f, 0.4f, 0.8f}, {}, 0.6f, 0}};
+                                          {{0.15f, 0.4f, 0.8f}, {}, 0.25f, 0}, {{1.0f, 0.77f, 0.34f}, {}, 0.3f, 1}, {{0.15f, 0.4f, 0.8f}, {}, 0.6f, 0},
+                                          // The harbour's: a wet quay, a warm lamp's globe and a cold one's (brighter than the display shows), iron.
+                                          {{0.05f, 0.055f, 0.065f}, {}, 0.28f, 0}, {{0.1f, 0.1f, 0.1f}, {9.0f, 5.0f, 1.6f}}, {{0.1f, 0.1f, 0.1f}, {3.0f, 5.0f, 8.0f}}, {{0.25f, 0.25f, 0.27f}, {}, 0.45f, 1}};
     Library() {
         made.push_back(*geom::clustered(geom::box({1, 1, 1})));
         made.push_back(*geom::clustered(geom::sheet(200, 200, 4, 4)));
@@ -39,7 +41,7 @@ struct Library {
     [[nodiscard]] geom::Box3 bounds(std::uint32_t which) const { return geom::bounds(made[which].mesh); }
 };
 constexpr std::uint32_t box = 0, floor_mesh = 1, ball = 2, post = 3, sheet = 4;
-constexpr std::uint32_t matt_blue = 2, polished = 5, gold = 6, satin = 7;  // materials
+constexpr std::uint32_t matt_red = 0, matt_grey = 1, matt_blue = 2, polished = 5, gold = 6, satin = 7, wet = 8, warm_glow = 9, cold_glow = 10, iron = 11;  // materials
 const Library& library() {
     static const Library made;
     return made;
@@ -101,6 +103,37 @@ scene::Scene yard() {
     expect(world.add(scene::Light{.id = 2, .kind = scene::LightKind::point, .colour = {1, 0.6f, 0.2f}, .intensity = 2.5f, .at = {1.2f, 1.6f, -1.5f}, .range = 6}).has_value());
     return world;
 }
+// A harbour at night after rain: a wet quay, containers, bollards, three lamps
+// on posts (two warm, one cold) and a spot from a crane, a faint moon; fog low over it all.
+scene::Scene harbour() {
+    scene::Scene world;
+    put(world, 1, floor_mesh, wet, math::translation({0, -1, 0}));
+    const auto scaled = [](math::Vec3 at, math::Vec3 size, float turned = 0) { return math::Transform{at, math::Quat::about({0, 1, 0}, turned), size}.matrix(); };
+    put(world, 10, box, matt_red, scaled({-3.6f, -0.2f, -2.2f}, {1.7f, 0.8f, 0.8f}, 0.25f));
+    put(world, 11, box, matt_blue, scaled({-3.4f, 1.4f, -2.3f}, {1.7f, 0.8f, 0.8f}, 0.1f));
+    put(world, 12, box, matt_grey, scaled({4.2f, -0.2f, -4.0f}, {1.7f, 0.8f, 0.8f}, -0.5f));
+    put(world, 13, ball, polished, scaled({1.0f, -0.55f, 1.6f}, {0.45f, 0.45f, 0.45f}));
+    std::uint32_t next = 20;
+    for (const float x : {-4.5f, -1.5f, 1.5f, 4.5f}) put(world, next++, post, iron, scaled({x, -0.72f, 3.2f}, {0.32f, 0.28f, 0.32f}));
+    struct Lamp {
+        math::Vec3 foot;
+        bool warm;
+    };
+    std::uint32_t light = 1;
+    for (const Lamp lamp : {Lamp{{-1.4f, -1, -0.8f}, true}, Lamp{{2.4f, -1, 0.6f}, false}, Lamp{{0.6f, -1, -6.5f}, true}}) {
+        const math::Vec3 top = lamp.foot + math::Vec3{0, 4.15f, 0};
+        put(world, next++, post, iron, scaled(lamp.foot + math::Vec3{0, 2, 0}, {0.1f, 2, 0.1f}));
+        // The globe: the light is inside it, so it is not in its own light's way.
+        expect(world.add({.id = next++, .mesh = ball, .material = lamp.warm ? warm_glow : cold_glow, .world = scaled(top, {0.2f, 0.2f, 0.2f}), .bounds = library().bounds(ball), .casts = false}).has_value());
+        expect(world.add(scene::Light{.id = light++, .kind = scene::LightKind::point, .colour = lamp.warm ? math::Vec3{1, 0.62f, 0.25f} : math::Vec3{0.55f, 0.75f, 1}, .intensity = 3.2f, .at = top, .range = 10}).has_value());
+    }
+    expect(world.add(scene::Light{.id = light++, .kind = scene::LightKind::spot, .colour = {1, 0.97f, 0.9f}, .intensity = 5, .at = {5.5f, 6, -1}, .toward = math::normalized(math::Vec3{-0.45f, -1, -0.15f}), .range = 14, .cone = 0.3f}).has_value());
+    expect(world.add(scene::Light{.id = light++, .kind = scene::LightKind::sun, .colour = {0.6f, 0.7f, 1}, .intensity = 0.05f, .toward = {0.3f, -1, 0.4f}}).has_value());
+    return world;
+}
+const Camera harbour_camera{.eye = {-0.6f, 2.3f, 10.5f}, .target = {0.2f, 0.2f, 0}, .aspect = 16.0f / 9.0f};
+const mesh::Options harbour_night{.background = {0.004f, 0.005f, 0.01f}, .ambient = {0.006f, 0.007f, 0.012f}, .fog = {.colour = {0.02f, 0.026f, 0.04f}, .density = 0.045f, .base = -1, .falloff = 0.35f},
+                                  .environment = {.on = true, .above = {0.01f, 0.014f, 0.03f}, .level = {0.035f, 0.04f, 0.06f}, .below = {0.004f, 0.004f, 0.005f}}};
 const Camera yard_camera{.eye = {0.5f, 2.2f, 7.5f}, .target = {0.2f, 0, 0}, .aspect = 16.0f / 9.0f};
 
 }  // namespace
@@ -638,5 +671,63 @@ static UTest cases{"xrender.mesh", [] {
         expect(lt(std::abs(middle.y / middle.x - 0.77f), 0.05f) && lt(std::abs(middle.z / middle.x - 0.34f), 0.05f));
         const auto file = keep(golden.targets, "gold-ball");
         expect(eq(bits(golden.targets), std::uint64_t{0x66ca9a070b7d680d})) << std::format("{:016x} {}", bits(golden.targets), file.generic_string());
+    };
+    "light brighter than the display shows spreads: one bright pixel's excess is all there about it, evenly, and nothing dimmer spreads; with no radius the frame is its light through the curve"_test = [] {
+        const int width = 64, height = 48;
+        std::vector<math::Vec3> light(static_cast<std::size_t>(width) * height, math::Vec3{0.2f, 0.2f, 0.2f});
+        light[24 * width + 32] = {9, 5, 1};
+        mesh::Glow glow;
+        std::vector<std::uint8_t> colour;
+        const auto told = glow.show(light, width, height, {.threshold = 1, .radius = 3, .strength = 0.5f}, colour);
+        expect(eq(told.bright, 1u));
+        const auto spread = glow.spread();
+        math::Vec3 sum{0, 0, 0};
+        float uneven = 0;
+        for (int y = 0; y < height; ++y)
+            for (int x = 0; x < width; ++x) {
+                const math::Vec3 here = spread[static_cast<std::size_t>(y) * width + x];
+                sum = sum + here;
+                if (x > 0 && y > 0) uneven = std::max({uneven, std::abs(here.x - spread[static_cast<std::size_t>(y) * width + (64 - x)].x), std::abs(here.x - spread[static_cast<std::size_t>(48 - y) * width + x].x)});
+                if (std::abs(x - 32) > 9 || std::abs(y - 24) > 9) expect(eq(here.x, 0.0f)) << "three passes of 3 reach 9 and no farther";
+            }
+        std::println("one pixel of (9, 5, 1) over a threshold of 1: ({:.4f}, {:.4f}, {:.4f}) spread in all — its excess is (8, 4.444, 0.889); the most at one pixel {:.4f}; unevenness {:.2e}", sum.x, sum.y, sum.z,
+                     spread[24 * width + 32].x, uneven);
+        expect(lt(std::abs(sum.x - 8.0f), 1e-3f) && lt(std::abs(sum.y - 8.0f * 5 / 9), 1e-3f) && lt(std::abs(sum.z - 8.0f / 9), 1e-3f)) << "its excess, in its own colour, neither more nor less";
+        expect(lt(uneven, 1e-6f)) << "the same to the left as to the right, above as below";
+        expect(gt(spread[24 * width + 32].x, spread[24 * width + 35].x) && gt(spread[24 * width + 35].x, spread[24 * width + 38].x)) << "most where it came from";
+        expect(gt(colour[(24 * width + 35) * 4], colour[(4 * width + 4) * 4])) << "its neighbours are lighter for it";
+        // Nothing above the threshold: nothing spreads, and the frame is what the pass itself wrote.
+        const Frame frame = drawn(yard(), yard_camera, 160, 90);
+        const auto none = glow.show(frame.targets.light, 160, 90, {.threshold = 100, .radius = 6}, colour);
+        expect(eq(none.bright, 0u));
+        expect(colour == frame.targets.colour);
+        (void)glow.show(frame.targets.light, 160, 90, {}, colour);
+        expect(colour == frame.targets.colour) << "no radius";
+    };
+    "a harbour at night after rain: lamps and a spot with their shadows, a wet quay, fog, the lamps' glow — pinned, and kept"_test = [] {
+        const scene::Scene world = harbour();
+        const int width = 480, height = 270;
+        const Frame frame = drawn(world, harbour_camera, width, height, harbour_night, true), unshadowed = drawn(world, harbour_camera, width, height, harbour_night);
+        mesh::Targets shown = frame.targets;
+        mesh::Glow glow;
+        const auto told = glow.show(frame.targets.light, width, height, {.threshold = 1, .radius = 7, .strength = 0.6f}, shown.colour);
+        const auto file = keep(shown, "harbour");
+        (void)keep(frame.targets, "harbour-no-glow");
+        std::uint32_t darker = 0, lighter = 0, glowing = 0, wet_bright = 0;
+        for (std::size_t pixel = 0; pixel < frame.targets.light.size(); ++pixel) {
+            const math::Vec3 with = frame.targets.light[pixel], without = unshadowed.targets.light[pixel];
+            darker += with.x + with.y + with.z < (without.x + without.y + without.z) * 0.9f;
+            lighter += with.x + with.y + with.z > (without.x + without.y + without.z) * 1.001f;
+            glowing += shown.colour[pixel * 4] > frame.targets.colour[pixel * 4] + 2;
+            const mesh::Pixel who = frame.targets.ids[pixel];
+            if (who.draw != mesh::none && frame.targets.draws[who.draw].instance == 1 && std::max({with.x, with.y, with.z}) > 0.5f) ++wet_bright;
+        }
+        std::println("the harbour, 480 × 270: {} written, {} rays, {} of them stopped; {} pixels in a shadow, {} lighter for one; {} pixels brighter than the display, {} lighter by their glow; {} of the quay's pixels bright with a lamp's highlight; bits {:016x}; {}",
+                     frame.stats.written, frame.stats.rays, frame.stats.shadowed, darker, lighter, told.bright, glowing, wet_bright, bits(shown), file.generic_string());
+        expect(gt(darker, 2000u)) << "several lights, each with its shadows";
+        expect(eq(lighter, 0u)) << "a shadow only takes light away";
+        expect(gt(told.bright, 50u) && gt(glowing, told.bright * 4)) << "the globes are brighter than white, and it shows about them";
+        expect(gt(wet_bright, 200u)) << "the wet quay throws the lamps back";
+        expect(eq(bits(shown), std::uint64_t{0x754074c9761c2350})) << std::format("{:016x}", bits(shown));
     };
 }};

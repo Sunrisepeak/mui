@@ -202,6 +202,30 @@ void describe(const Targets& targets, int x, int y, std::string& members);
 // what an agent asks before anything is rendered. `Source::cluster` is not known to a ray: `none`.
 [[nodiscard]] std::optional<Source> pick(const scene::Scene& scene, const scene::View& view, const Assets& assets, float x, float y, int width, int height);
 
+// Light brighter than the display can show, spread to the pixels about it: what tells a lamp from a white wall.
+// It is taken from the light before the display's curve (`Targets::light`, or `Temporal::light()`), which is
+// where "brighter than white" still exists.
+struct Bloom {
+    float threshold = 1;     // of a pixel's brightest part: what is above this spreads
+    float radius = 0;        // pixels, about a third of how far it reaches; below 1: none
+    float strength = 0.5f;   // how much of what spread is added
+};
+// The frame as shown: the light, what of it spread, the display's curve. The spread is three box passes each
+// way (close to a bell), in a fixed order: the same bits everywhere. What would spread from beyond the frame's
+// edge is not there, and what spreads past it is lost. Keeps its working space between frames.
+class Glow {
+public:
+    struct Told {
+        std::uint32_t bright = 0;  // pixels with something to spread
+    };
+    // `colour` becomes rgba8, sRGB, `width` × `height`. With no radius it is the light through the curve.
+    Told show(std::span<const Vec3> light, int width, int height, const Bloom& bloom, std::vector<std::uint8_t>& colour);
+    [[nodiscard]] std::span<const Vec3> spread() const noexcept { return spread_; }  // the last frame's, before `strength`
+
+private:
+    std::vector<Vec3> spread_, other_;
+};
+
 // What of an instance reached the frame: how many pixels, and the box of them (x0, y0 inclusive; x1, y1 exclusive).
 struct Shown {
     Id            instance = 0;

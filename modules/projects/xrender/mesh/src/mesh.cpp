@@ -621,4 +621,52 @@ Temporal::Told Temporal::resolve(const Targets& frame, std::vector<std::uint8_t>
     return told;
 }
 
+namespace {
+
+// One box pass along a line of `count` values `stride` apart: each becomes the mean of those within `radius` of
+// it, what is past either end counted as dark. Summed afresh for each value, in one order: no error carried along.
+void box_line(const Vec3* from, Vec3* into, int count, std::ptrdiff_t stride, int radius) noexcept {
+    const float share = 1.0f / static_cast<float>(radius * 2 + 1);
+    for (int index = 0; index < count; ++index) {
+        Vec3 sum{0, 0, 0};
+        const int first = std::max(index - radius, 0), last = std::min(index + radius, count - 1);
+        for (int other = first; other <= last; ++other) sum = sum + from[other * stride];
+        into[index * stride] = sum * share;
+    }
+}
+
+}  // namespace
+
+Glow::Told Glow::show(std::span<const Vec3> light, int width, int height, const Bloom& bloom, std::vector<std::uint8_t>& colour) {
+    Told told;
+    const std::size_t pixels = static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
+    colour.resize(pixels * 4);
+    const int radius = static_cast<int>(bloom.radius);
+    const bool spreads = radius >= 1 && bloom.strength > 0;
+    if (spreads) {
+        spread_.assign(pixels, Vec3{0, 0, 0});
+        other_.resize(pixels);
+        for (std::size_t pixel = 0; pixel < pixels; ++pixel) {
+            const Vec3 here = light[pixel];
+            const float brightest = std::max({here.x, here.y, here.z});
+            if (!(brightest > bloom.threshold)) continue;
+            spread_[pixel] = here * ((brightest - bloom.threshold) / brightest);
+            ++told.bright;
+        }
+        if (told.bright != 0)
+            for (int pass = 0; pass < 3; ++pass) {
+                for (int y = 0; y < height; ++y) box_line(&spread_[static_cast<std::size_t>(y) * width], &other_[static_cast<std::size_t>(y) * width], width, 1, radius);
+                for (int x = 0; x < width; ++x) box_line(&other_[x], &spread_[x], height, width, radius);
+            }
+    } else {
+        spread_.clear();
+    }
+    for (std::size_t pixel = 0; pixel < pixels; ++pixel) {
+        Vec3 shown = light[pixel];
+        if (spreads) shown = shown + spread_[pixel] * bloom.strength;
+        colour[pixel * 4] = encoded(shown.x), colour[pixel * 4 + 1] = encoded(shown.y), colour[pixel * 4 + 2] = encoded(shown.z), colour[pixel * 4 + 3] = 255;
+    }
+    return told;
+}
+
 }  // namespace xrender::mesh

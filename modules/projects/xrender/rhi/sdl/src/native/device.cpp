@@ -283,7 +283,7 @@ public:
     }
 
     Result<void> wait(Submission s) override {
-        auto it = fences_.find(s.id);
+        auto it = std::ranges::find(fences_, s.id, &std::pair<std::uint64_t, SDL_GPUFence*>::first);
         if (it == fences_.end()) return {};  // already waited for
         const bool ok = SDL_WaitForGPUFences(device_, true, &it->second, 1);
         SDL_ReleaseGPUFence(device_, it->second);
@@ -563,7 +563,9 @@ private:
     mlibs::memory::SlotMap<SDL_GPUSampler*, SamplerTag>              samplers_;
     mlibs::memory::SlotMap<GraphicsSlot, GraphicsPipelineTag>        graphics_;
     mlibs::memory::SlotMap<ComputeSlot, ComputePipelineTag>          compute_;
-    std::map<std::uint64_t, SDL_GPUFence*>            fences_;
+    // The submissions not yet waited for, a few at most: kept in a row whose room stays, so a frame's submission
+    // allocates nothing here.
+    std::vector<std::pair<std::uint64_t, SDL_GPUFence*>> fences_;
     std::uint64_t                                     next_submission_ = 1;
     SDL_GPUTransferBuffer*                            upload_ = nullptr;
     std::uint32_t                                     upload_capacity_ = 0;
@@ -753,7 +755,7 @@ Result<Submission> SdlDevice::run(const CommandList& list) {
     SDL_GPUFence* fence = SDL_SubmitGPUCommandBufferAndAcquireFence(cb);
     if (!fence) return fail(Errc::device_lost, sdl_error("submitting"));
     const Submission s{next_submission_++};
-    fences_.emplace(s.id, fence);
+    fences_.emplace_back(s.id, fence);
     return s;
 }
 

@@ -170,9 +170,10 @@ void add_render_benchmarks() {
             shadows.lamps_depth = target(rhi::Format::d32_float, shadows.lamp_size * 6, shadows.lamp_size * shadows.lamps, "bench.lamps.depth");
             const mesh::Options options_of{.background = {0.5f, 0.6f, 0.7f}, .ambient = {0.2f, 0.24f, 0.3f}, .shadows = true, .occlusion_rays = 8, .occlusion_reach = 1.5f, .environment = {.on = true}};
             const mesh::Bloom bloom{.threshold = 1, .radius = 7, .strength = 0.6f};
+            rhi::CommandList list;  // kept: a list cleared keeps its room, so a frame allocates nothing for it
             const auto frame = [&] {
                 const auto begun = std::chrono::steady_clock::now();
-                rhi::CommandList list;
+                list.clear();
                 pass->record_surface(list, world, seen, view, surface, depth, width, height, options_of);
                 open->record(list, view, surface, shadows.open, width, height, options_of);
                 pass->record(list, world, seen, view, materials, light, depth, width, height, options_of, &shadows);

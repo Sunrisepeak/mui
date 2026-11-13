@@ -35,7 +35,7 @@ struct Cat {
     std::uint32_t bombs = 0;       // charges: a cavern gives so many
     Spell spell = Spell::fire;
     bool facing_right = true, on_ground = false, swimming = false;
-    std::uint32_t hurt = 0;        // frames since she was last hurt (for a picture's flash)
+    std::uint32_t hurt = 600;      // frames since she was last hurt (for a picture's flash, and when she mends); at the start: long ago
 };
 struct Bolt {
     float x = 0, y = 0, vx = 0, vy = 0;
@@ -59,10 +59,18 @@ struct Input {
 // A level: rows of characters, one a cell. ` ` or `.` air, `#` stone, `w` wood, `~` water, `s` sand, `o` oil,
 // `l` lava, `g` gunpowder, `i` iron, `I` ice, `C` wood that is a body (a crate; each connected piece one body),
 // `P` where Mui stands (her feet), `E` the exit (any number of them: the region they span).
+// Scenery: matter that is only shown (D-178) — the simulation never has it, so it is no part of the game; a
+// picture that has room simulates it beside the world (it catches from the world's fires), one that has not
+// draws it as placed.
+struct Scenery {
+    xengine::cellular::Tile region;
+    std::string_view material;  // a solid of the definition
+};
 struct Level {
     std::string_view name;
     std::vector<std::string_view> rows;
     std::uint32_t bombs = 2;  // the wand's bomb charges in this cavern
+    std::vector<Scenery> scenery;
 };
 namespace level {
 // The first cavern: a barricade of wood to burn, a pool with a crate afloat, a stone wall to blast, lava to

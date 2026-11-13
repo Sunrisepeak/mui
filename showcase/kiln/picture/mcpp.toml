@@ -1,0 +1,35 @@
+# Kiln's picture (the plan's T2.5, T2.10b): a state of the game as a display list — the world of matter by a
+# presentation's ladders (the light: a glow, frames of a flame baked once from it, none; the scenery: simulated
+# beside the world, or as placed), what flies, the wand's bolts, the exit, Mui. It reads the state
+# and changes nothing of it: the game is the same game whatever the machine can draw. No window and no omui:
+# a host hands it a display list, a test draws it headless.
+[package]
+namespace   = "omui.showcase.kiln"
+name        = "picture"
+version     = "0.1.0"
+description = "Kiln on screen: the world by presentation ladders (light: glow, baked, none; scenery: alive, still), Mui, the wand's bolts; reads the state, changes nothing"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[targets.kiln-picture]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+"omui.showcase.kiln.sim" = { path = "../sim" }
+"xengine.cellular.present" = { path = "../../../modules/projects/xengine/kernel/cellular/present", features = ["matter", "world"] }
+xengine.cellular = { path = "../../../modules/projects/xengine/kernel/cellular", features = ["rigid", "decor"] }
+xengine.matter   = { path = "../../../modules/projects/xengine/kernel/matter", features = ["appearance"] }
+xrender.vector   = { path = "../../../modules/projects/xrender/vector" }
+xrender.raster   = { path = "../../../modules/projects/xrender/raster" }
+mlibs.pipeline   = { path = "../../../modules/base/pipeline" }
+mlibs.geom       = { path = "../../../modules/base/geom" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.6.3"
+mlibs.image    = { path = "../../../modules/base/image" }
+mlibs.json     = { path = "../../../modules/base/json" }
+mlibs.utils    = { path = "../../../modules/base/utils" }

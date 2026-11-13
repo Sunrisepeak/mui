@@ -48,6 +48,8 @@ std::vector<std::string> first_grid(bool flawed) {
 Level first() {
     static const std::vector<std::string> grid = first_grid(false);
     Level level{.name = "the first cavern", .bombs = 2};
+    // Dry roots hanging by the barricade, brush on the ledge before it, a trail of it on the far ledge.
+    level.scenery = {{{28, 18, 5, 6}, "wood"}, {{17, 28, 7, 2}, "wood"}, {{62, 33, 8, 1}, "wood"}};
     for (const std::string& row : grid) level.rows.push_back(row);
     return level;
 }

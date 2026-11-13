@@ -13,8 +13,9 @@ struct WorldPicture::Data {
     PictureOptions options;
     std::optional<FieldPresenter> view;
     std::optional<decor::Decor> layer;
-    PictureStep step = PictureStep::rich;
-    std::string why = "as made";
+    Light light = Light::glow;
+    bool alive = true;
+    std::string light_why = "as made", scenery_why = "as made";
     bool layer_running = false;     // the layer was stepped at the last show (else it starts again)
     std::size_t scenery = 0;        // cells asked for
     Flipbook flames;
@@ -48,21 +49,31 @@ std::expected<WorldPicture, std::string> WorldPicture::make(xrender::ImageStore&
     auto layer = decor::Decor::make(program, shape, {.tile = options.tile, .seed = options.seed, .fill = options.fill});
     if (!layer) return std::unexpected(layer.error());
     data->layer.emplace(std::move(*layer));
-    data->step = options.richest;
+    data->light = options.best_light;
+    data->alive = options.scenery_alive;
     const Shape grid = tiles(shape, {8, 8});
     data->blocks.assign(static_cast<std::size_t>(grid.width) * grid.height, {});
     return WorldPicture(std::move(data));
 }
 
-void WorldPicture::set_step(PictureStep step, std::string reason) {
+void WorldPicture::set(std::size_t ladder, std::uint8_t lowered, std::string reason) {
     Data& d = *data_;
-    const PictureStep allowed = std::max(step, d.options.richest);
-    if (allowed != step) reason = std::format("{} (asked for {}: this device shows {} at most)", reason.empty() ? "set" : reason, picture_step_names[static_cast<std::size_t>(step)],
-                                             picture_step_names[static_cast<std::size_t>(d.options.richest)]);
-    d.step = allowed;
-    d.why = reason.empty() ? std::string("set") : std::move(reason);
+    if (reason.empty()) reason = "set";
+    if (ladder == light_ladder) {
+        const Light asked = static_cast<Light>(std::min<std::uint8_t>(lowered, 2)), allowed = std::max(asked, d.options.best_light);
+        if (allowed != asked)
+            reason = std::format("{} (asked for {}: this device shows {} at most)", reason, light_names[static_cast<std::size_t>(asked)], light_names[static_cast<std::size_t>(allowed)]);
+        d.light = allowed;
+        d.light_why = std::move(reason);
+    } else if (ladder == scenery_ladder) {
+        const bool asked = lowered == 0, allowed = asked && d.options.scenery_alive;
+        if (allowed != asked) reason = std::format("{} (asked for alive: this device shows scenery still)", reason);
+        d.alive = allowed;
+        d.scenery_why = std::move(reason);
+    }
 }
-PictureStep WorldPicture::step() const noexcept { return data_->step; }
+Light WorldPicture::light() const noexcept { return data_->light; }
+bool WorldPicture::scenery_alive() const noexcept { return data_->alive; }
 
 void WorldPicture::scenery(Tile region, std::uint32_t material) {
     Data& d = *data_;
@@ -78,7 +89,7 @@ std::span<const std::uint32_t> WorldPicture::shown() const noexcept { return dat
 void WorldPicture::show(const rigid::MatterWorld& world) {
     Data& d = *data_;
     const auto cells = world.cells();
-    if (d.step == PictureStep::rich) {
+    if (d.alive) {
         if (!d.layer_running) d.layer->restart(cells, d.options.warm);
         else d.layer->step(cells);
         d.layer_running = true;
@@ -94,7 +105,7 @@ void WorldPicture::show(const rigid::MatterWorld& world) {
     d.loose.assign(world.flying().values().begin(), world.flying().values().end());
     // Baked: where the look emits, by blocks of 8 × 8 cells — read from the light the presenter keeps.
     std::ranges::fill(d.blocks, Data::Block{});
-    if (d.step == PictureStep::baked && d.view->glows())
+    if (d.light == Light::baked && d.view->glows())
         if (const raster::Surface* light = d.store->get(d.view->light())) {
             const Shape grid = tiles(d.shape, {8, 8});
             for (std::uint32_t y = 0; y < d.shape.height; ++y)
@@ -112,9 +123,9 @@ void WorldPicture::draw(xrender::DisplayList& list, mlibs::geom::Rect dest) cons
     d.view->draw(list, dest);
     d.view->draw_loose(list, dest, d.centres, d.loose);
     const float across = dest.width / static_cast<float>(d.shape.width), down = dest.height / static_cast<float>(d.shape.height);
-    if (d.step == PictureStep::rich || d.step == PictureStep::lit) {
+    if (d.light == Light::glow) {
         d.view->draw_glow(list, dest, d.options.glow * across, d.options.strength);
-    } else if (d.step == PictureStep::baked && !d.flames.frames.empty()) {
+    } else if (d.light == Light::baked && !d.flames.frames.empty()) {
         // A baked frame over each block that emits, the more of it the more of the block does; which frame by
         // the time and the block, so that neighbours do not flicker as one.
         const Shape grid = tiles(d.shape, {8, 8});
@@ -189,15 +200,17 @@ std::string WorldPicture::describe() const {
     const Data& d = *data_;
     std::size_t emitting_blocks = 0;
     for (const Data::Block& block : d.blocks) emitting_blocks += block.emitting != 0;
-    std::string why;
-    for (const char c : d.why) {
-        if (c == '"' || c == '\\') why += '\\';
-        why += c;
-    }
-    const bool glow = d.step == PictureStep::rich || d.step == PictureStep::lit;
-    return std::format(R"({{"step":"{}","richest":"{}","why":"{}","layer":"{}","glow":{},"flames":{},"baked_frames":{},"scenery":{},"differing":{}}})",
-                       picture_step_names[static_cast<std::size_t>(d.step)], picture_step_names[static_cast<std::size_t>(d.options.richest)], why,
-                       d.step == PictureStep::rich ? "stepped" : "still", glow, d.step == PictureStep::baked ? emitting_blocks : 0, d.flames.frames.size(), d.scenery, d.differing);
+    const auto quoted = [](std::string_view text) {
+        std::string out;
+        for (const char c : text) {
+            if (c == '"' || c == '\\') out += '\\';
+            out += c;
+        }
+        return out;
+    };
+    return std::format(R"({{"light":"{}","light_why":"{}","best_light":"{}","scenery":"{}","scenery_why":"{}","flames":{},"baked_frames":{},"placed":{},"differing":{}}})",
+                       light_names[static_cast<std::size_t>(d.light)], quoted(d.light_why), light_names[static_cast<std::size_t>(d.options.best_light)], scenery_names[d.alive ? 0 : 1],
+                       quoted(d.scenery_why), d.light == Light::baked ? emitting_blocks : 0, d.flames.frames.size(), d.scenery, d.differing);
 }
 
 }  // namespace xengine::cellular

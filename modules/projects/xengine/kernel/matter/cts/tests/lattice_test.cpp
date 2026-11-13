@@ -9,18 +9,18 @@ import xengine.cellular.matter;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
-namespace suite = xengine::matter::cts;
+namespace carriers = xengine::matter::cts;  // not `suite`: mtest has one, and its namespace is used here
 namespace matter = xengine::matter;
 namespace ca = xengine::cellular;
 using mlibs::cts::Status;
 
 namespace {
 
-ca::Boundary edge_of(suite::Grid grid) { return grid.wrapped ? ca::Boundary{ca::Edge::wrap, 0} : ca::nothing_beyond; }
+ca::Boundary edge_of(carriers::Grid grid) { return grid.wrapped ? ca::Boundary{ca::Edge::wrap, 0} : ca::nothing_beyond; }
 
 // The lattice with every tile run, in tiles of that size.
-suite::Subject lattice(std::string name, ca::Shape tile) {
-    return {.name = std::move(name), .carry = [tile](const matter::Program& program, suite::Grid grid) -> suite::Step {
+carriers::Subject lattice(std::string name, ca::Shape tile) {
+    return {.name = std::move(name), .carry = [tile](const matter::Program& program, carriers::Grid grid) -> carriers::Step {
                 auto plan = ca::lower(program, {.moves = false});
                 if (!plan) return {};
                 return [plan = std::move(*plan), grid, tile](std::span<const std::uint32_t> state, std::span<std::uint32_t> next) {
@@ -29,8 +29,8 @@ suite::Subject lattice(std::string name, ca::Shape tile) {
             }};
 }
 // The lattice run sparsely: what is at rest sleeps, and is the same bits.
-suite::Subject sparse_lattice(std::string name, ca::Shape tile, std::shared_ptr<std::uint64_t> slept = {}) {
-    return {.name = std::move(name), .carry = [tile, slept](const matter::Program& program, suite::Grid grid) -> suite::Step {
+carriers::Subject sparse_lattice(std::string name, ca::Shape tile, std::shared_ptr<std::uint64_t> slept = {}) {
+    return {.name = std::move(name), .carry = [tile, slept](const matter::Program& program, carriers::Grid grid) -> carriers::Step {
                 auto plan = ca::lower(program, {.moves = false});
                 if (!plan) return {};
                 const ca::Shape tiles = ca::tiles({grid.width, grid.height}, tile);
@@ -49,23 +49,23 @@ matter::Program standard() { return *matter::standard(); }
 
 UTest cases{"matter.lattice", [] {
     // The carrier suite on the lattice, as this program's own cases: every tile run, in small tiles, and sparsely.
-    suite::declare(lattice("lattice", {32, 32}));
-    suite::declare(lattice("lattice-tiles", {3, 2}));
-    suite::declare(sparse_lattice("lattice-sparse", {4, 4}));
+    carriers::declare(lattice("lattice", {32, 32}));
+    carriers::declare(lattice("lattice-tiles", {3, 2}));
+    carriers::declare(sparse_lattice("lattice-sparse", {4, 4}));
 
     "the lattice is the reference step's bits: every case, whole, in tiles and sparsely — and what is at rest did sleep"_test = [] {
-        const auto whole = mlibs::cts::tally([] { suite::declare(lattice("lattice", {32, 32})); });
-        expect(whole.ok() && eq(whole.count(Status::passed), suite::case_count())) << whole.text();
+        const auto whole = mlibs::cts::tally([] { carriers::declare(lattice("lattice", {32, 32})); });
+        expect(whole.ok() && eq(whole.count(Status::passed), carriers::case_count())) << whole.text();
         const auto slept = std::make_shared<std::uint64_t>(0);
-        const auto sparse = mlibs::cts::tally([&] { suite::declare(sparse_lattice("lattice-sparse", {4, 4}, slept)); });
-        expect(sparse.ok() && eq(sparse.count(Status::passed), suite::case_count())) << sparse.text();
+        const auto sparse = mlibs::cts::tally([&] { carriers::declare(sparse_lattice("lattice-sparse", {4, 4}, slept)); });
+        expect(sparse.ok() && eq(sparse.count(Status::passed), carriers::case_count())) << sparse.text();
         expect(*slept > 0u) << "tiles slept in the suite's worlds";
         std::println("the carrier suite on the sparse lattice: {} cases the reference's bits, {} tile-steps asleep", sparse.count(Status::passed), *slept);
     };
 
     "a lattice wrong in one thing fails the suite: another neighbourhood, an edge that is something"_test = [] {
         const auto diagonal = mlibs::cts::tally([] {
-            suite::declare({.name = "lattice-of-eight", .carry = [](const matter::Program& program, suite::Grid grid) -> suite::Step {
+            carriers::declare({.name = "lattice-of-eight", .carry = [](const matter::Program& program, carriers::Grid grid) -> carriers::Step {
                                 // Eight neighbours each: heat's share of a difference to each of four no longer leaves room.
                                 auto plan = ca::lower(program, {.neighbourhood = {ca::surrounding.begin(), ca::surrounding.end()}, .moves = false});
                                 if (!plan) return {};
@@ -76,7 +76,7 @@ UTest cases{"matter.lattice", [] {
         });
         expect(!diagonal.ok()) << diagonal.text();
         const auto walled = mlibs::cts::tally([] {
-            suite::declare({.name = "lattice-in-air", .carry = [](const matter::Program& program, suite::Grid grid) -> suite::Step {
+            carriers::declare({.name = "lattice-in-air", .carry = [](const matter::Program& program, carriers::Grid grid) -> carriers::Step {
                                 auto plan = ca::lower(program, {.moves = false});
                                 if (!plan) return {};
                                 // Beyond the edge: material 0 at 0 K, not nothing.
@@ -111,12 +111,12 @@ UTest cases{"matter.lattice", [] {
         const matter::Program program = standard();
         const auto plan = ca::lower(program, {.moves = false});
         expect(fatal(plan.has_value()));
-        const suite::Grid grid{6, 3, false};
+        const carriers::Grid grid{6, 3, false};
         std::vector<std::uint32_t> state = program.fresh(18, *program.material("stone")), next(state.size()), reference_next(state.size());
         for (std::uint32_t x = 0; x < 6; ++x) program.place(state, 18, x, *program.material("air"));
         for (std::uint32_t x = 0; x < 6; ++x) program.place(state, 18, 6 + x, *program.material("wood"));
         state[*program.channel("temperature") * 18 + 6] = 700 * 256;
-        const auto pairs = suite::pairs_of(grid);
+        const auto pairs = carriers::pairs_of(grid);
         matter::Workspace workspace;
         std::size_t compared = 0, became = 0, rose = 0;
         for (int step = 0; step < 800; ++step) {

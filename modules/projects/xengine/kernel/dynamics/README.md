@@ -48,6 +48,7 @@ auto world = rigid::World::make({.gravity = {0, -10}});                         
 auto crate = world->add({.at = {0, 4}}, rigid::Shape::box(0.5f, 0.5f), {.density = 1, .friction = 0.6f});
 world->step();
 for (const rigid::Contact& c : world->contacts()) { /* who met whom, where, how fast */ }
+world->touching(crate, out);               // whom it touches now: the state, not the last step's events
 const auto saved = world->save();          // the whole state at a step boundary (Box2D's snapshot image)
 auto branch = world->branch();             // a world of its own from here: world.branch
 world->restore(saved);                     // rollback: every id still names its body

@@ -7,6 +7,11 @@ namespace xengine::cellular::rigid_agent {
 
 namespace {
 
+namespace dyn = xengine::dynamics::rigid;
+
+// A body as a number an answer carries.
+constexpr std::uint64_t number(dyn::BodyId body) noexcept { return (static_cast<std::uint64_t>(body.generation) << 32) | static_cast<std::uint32_t>(body.index); }
+
 // An edit this lattice made and told its witnesses of when it made it: the journal's copy is not told again.
 constexpr std::uint32_t told = 0x8000'0000u;
 
@@ -138,13 +143,77 @@ void WorldLattice::stepped(rigid::MatterWorld& world) {
                           .thrown_at = static_cast<std::int64_t>(landed.thrown_at)});
     for (const auto& left : journal.left)
         wrote_.push_back({.kind = agent::Wrote::Kind::left, .cell = left.cell, .material = left.cell < world.before().size() ? world.before()[left.cell] : 0,
-                          .body = (static_cast<std::uint64_t>(left.body.generation) << 32) | static_cast<std::uint32_t>(left.body.index)});
+                          .body = number(left.body)});
+    // A body that came loose: one that was still, began to move and has gone a cell's length — with whom it
+    // touched as it began, the one that last lost a cell or fell apart first.
+    for (const auto& left : journal.left) tracks_[number(left.body)].changed = frame;
+    for (const auto& split : journal.split) tracks_[number(split.of)].changed = frame, tracks_[number(split.made)].of = number(split.of);
+    for (const dyn::BodyId gone : journal.gone) tracks_[number(gone)].changed = frame;
+    const float cell = world.cell(), still = 0.02f * cell;
+    for (const auto& carried : journal.carried) {
+        Track& track = tracks_[number(carried.body)];
+        if (std::hypot(carried.to.x - carried.from.x, carried.to.y - carried.from.y) < still) {
+            track.since = 0;
+            continue;
+        }
+        if (!track.since || track.last != frame - 1) {
+            track.since = frame, track.start_x = carried.from.x, track.start_y = carried.from.y, track.told = false;
+            track.supports = track.touched;
+            for (const std::uint64_t other : track.earlier)
+                if (std::ranges::find(track.supports, other) == track.supports.end()) track.supports.push_back(other);
+        }
+        track.last = frame;
+        if (track.told || std::hypot(carried.to.x - track.start_x, carried.to.y - track.start_y) < cell) continue;
+        track.told = true;
+        std::uint64_t support = 0;
+        std::int64_t changed = -1;
+        // Of whom it touched, the one that changed last — or the body that one came apart from, which is the
+        // one whose cells are on record as having left it.
+        for (std::uint64_t other : track.supports) {
+            std::int64_t at = -1;
+            for (int up = 0; up < 8; ++up) {
+                const auto found = tracks_.find(other);
+                if (found == tracks_.end()) break;
+                if (found->second.changed >= 0 && found->second.changed <= track.since) at = found->second.changed;
+                if (at >= 0 || !found->second.of) break;
+                other = found->second.of;
+            }
+            if (!support || at > changed) support = other, changed = at;
+        }
+        const auto x = static_cast<std::uint32_t>(std::clamp(track.start_x / cell, 0.0f, static_cast<float>(width - 1)));
+        const auto y = static_cast<std::uint32_t>(std::clamp(track.start_y / cell, 0.0f, static_cast<float>(state_.shape.height - 1)));
+        wrote_.push_back({.kind = agent::Wrote::Kind::dropped, .cell = y * width + x, .body = number(carried.body), .support = support});
+        // Said at the frame it began to move.
+        const agent::Wrote dropped = wrote_.back();
+        wrote_.pop_back();
+        for (agent::Witness* witness : witnesses_) witness->wrote(state_, {&dropped, 1}, track.since, actors_);
+    }
     if (!wrote_.empty())
         for (agent::Witness* witness : witnesses_) witness->wrote(state_, wrote_, frame, actors_);
+    // Whom each body touches now: what the next frame's coming loose is told from. The lattice's own solid cells
+    // (fixed bodies of the terrain) are no one's support to explain.
+    const std::vector<rigid::View> pieces = world.bodies().bodies();
+    for (const rigid::View& view : pieces) {
+        touching_.clear();
+        world.rigid().touching(view.body, touching_);
+        Track& track = tracks_[number(view.body)];
+        track.earlier.swap(track.touched);
+        track.touched.clear();
+        for (const dyn::BodyId other : touching_)
+            if (std::ranges::any_of(pieces, [&](const rigid::View& piece) { return piece.body == other; })) track.touched.push_back(number(other));
+    }
+}
+
+std::uint64_t WorldLattice::lattice_body(std::uint32_t cell) const {
+    const std::uint32_t width = state_.shape.width;
+    if (!width || cell >= width * state_.shape.height) return 0;
+    const auto owner = std::as_const(*world_).bodies().owner(cell % width, cell / width);
+    return owner ? number(*owner) : 0;
 }
 
 void WorldLattice::rewound(rigid::MatterWorld& world) {
     bind(world);
+    tracks_.clear();
     for (agent::Witness* witness : witnesses_) witness->rewound(lattice_frame());
 }
 

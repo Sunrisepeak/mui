@@ -10,6 +10,8 @@
 //     world->step(), lattice.stepped(*world);
 //     // → {"op":"matter.explain","cell":[27,35]}
 //     //   landed, from [11,32] thrown at frame 21 ← thrown by a blast ← the blast, by the player
+//     // → {"op":"matter.explain","cell":[40,31]}   (a cell of the crate that stood on the beam)
+//     //   body: dropped at frame 431, its support the beam ← the beam's cells that left it ← burned out
 //
 // Time is the game's: the lattice keeps no clock and no history. Its owner steps the world and says so
 // (`stepped`), and says when it went back (`rewound`). What the record is made from is the world's journal,
@@ -50,6 +52,7 @@ public:
     // A branch of the whole world run ahead: bodies and cells in flight with it. `each` is told what the laws
     // did each step.
     [[nodiscard]] Ahead lattice_ahead(std::span<const agent::Edit> edits, std::int64_t steps, const Each& each) const override;
+    [[nodiscard]] std::uint64_t lattice_body(std::uint32_t cell) const override;
 
 private:
     void bind(rigid::MatterWorld& world);
@@ -62,6 +65,20 @@ private:
     std::vector<openas::Actor>   actors_;     // [0] the owner; an edit's `by` numbers them
     std::uint32_t                by_ = 0;
     std::vector<agent::Wrote>    wrote_;      // a frame's scratch
+    // What a body's coming loose is told from, kept frame to frame (and dropped when the world goes back): whom
+    // each body touched at the frame before, when each last lost a cell or fell apart and what it came apart
+    // from, and each one's motion since it was last still.
+    struct Track {
+        std::vector<std::uint64_t> touched, earlier;    // at the end of the frame before, and of the one before that
+        std::int64_t               changed = -1;        // the last frame it lost a cell, split or was gone
+        std::uint64_t              of = 0;              // the body it is a piece of (0: none)
+        std::int64_t               since = 0, last = 0; // moving since which frame; the last frame it moved
+        float                      start_x = 0, start_y = 0;
+        std::vector<std::uint64_t> supports;            // whom it touched as it began to move
+        bool                       told = false;
+    };
+    std::unordered_map<std::uint64_t, Track> tracks_;
+    std::vector<xengine::dynamics::rigid::BodyId> touching_;  // a frame's scratch
 };
 
 }  // namespace xengine::cellular::rigid_agent

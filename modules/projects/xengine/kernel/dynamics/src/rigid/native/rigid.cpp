@@ -121,6 +121,21 @@ std::optional<Pose> World::pose(BodyId body) const noexcept {
 
 std::vector<BodyId> World::bodies() const { return bodies_; }
 
+void World::touching(BodyId body, std::vector<BodyId>& out) const {
+    if (!has(body)) return;
+    const b2BodyId native = native_->native(body);
+    std::vector<b2ContactData> contacts(static_cast<std::size_t>(std::max(0, b2Body_GetContactCapacity(native))));
+    const int count = b2Body_GetContactData(native, contacts.data(), static_cast<int>(contacts.size()));
+    for (int index = 0; index < count; ++index) {
+        const b2ContactData& contact = contacts[static_cast<std::size_t>(index)];
+        if (contact.manifold.pointCount <= 0) continue;
+        const b2BodyId one = b2Shape_GetBody(contact.shapeIdA), other = b2Shape_GetBody(contact.shapeIdB);
+        const b2BodyId far = one.index1 == native.index1 && one.generation == native.generation ? other : one;
+        const BodyId touched{far.index1, far.generation};
+        if (std::ranges::find(out, touched) == out.end()) out.push_back(touched);
+    }
+}
+
 void World::push(BodyId body, Vec impulse, std::optional<Vec> at) noexcept {
     if (!has(body)) return;
     if (at) b2Body_ApplyLinearImpulse(native_->native(body), vec(impulse), vec(*at), true);

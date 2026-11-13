@@ -109,6 +109,9 @@ public:
     // One fixed step (Options::step, its substeps); what began and ended touching in it.
     void step() noexcept;
     [[nodiscard]] std::span<const Contact> contacts() const noexcept { return contacts_; }
+    // The bodies `body` touches now, each once (appended to `out`): a reading of the state, whatever began or
+    // ended in the last step — what stands on what.
+    void touching(BodyId body, std::vector<BodyId>& out) const;
     [[nodiscard]] std::uint64_t steps() const noexcept { return steps_; }
     [[nodiscard]] const Options& options() const noexcept { return options_; }
 

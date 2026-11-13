@@ -204,6 +204,7 @@ public:
     [[nodiscard]] Boundary boundary() const noexcept { return options_.open ? open_to(outside_) : nothing_beyond; }
     [[nodiscard]] Shape tile() const noexcept { return options_.tile; }
     [[nodiscard]] std::uint32_t seed() const noexcept { return options_.seed; }
+    [[nodiscard]] float cell() const noexcept { return options_.bodies.cell; }  // metres a cell
     [[nodiscard]] std::span<const std::uint8_t> activity() const noexcept { return activity_; }
 
     // Cells written from outside a frame (the tiles they are in wake).

@@ -32,8 +32,8 @@ export namespace xengine::cellular::matter_agent {
 // What a record is of: a cell became another material, a channel that names its events left 0 (rose: `ignite`)
 // or returned to it (fell: `go_out`), an actor placed a material or applied a quantity. And what a lattice that
 // is a world's says besides (agent::Wrote): an actor's blast, a cell thrown out of the lattice, a cell landed in
-// it again, a cell that left a body.
-enum class RecordKind : std::uint8_t { became, rose, fell, placed, applied, blast, thrown, landed, left };
+// it again, a cell that left a body, a body that came loose of what it rested on.
+enum class RecordKind : std::uint8_t { became, rose, fell, placed, applied, blast, thrown, landed, left, dropped };
 
 // The cell beyond the field's edge, where a record names what is outside (a bath).
 inline constexpr std::uint32_t outside = std::numeric_limits<std::uint32_t>::max();
@@ -71,7 +71,8 @@ struct Record {
     // it was thrown out of; left: `from` the material.
     std::uint32_t from = 0, to = 0;
     std::int64_t  since = 0;            // landed: the frame it was thrown at
-    std::uint64_t body = 0;             // left: the body it was of
+    std::uint64_t body = 0;             // left: the body it was of; dropped: the body
+    std::uint64_t support = 0;          // dropped: the body it had rested on
     std::array<Read, 8> reads{};
     std::array<Gave, 4> gave{};
     std::uint8_t  read_count = 0, gave_count = 0;

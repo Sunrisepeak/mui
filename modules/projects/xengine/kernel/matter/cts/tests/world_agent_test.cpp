@@ -166,7 +166,10 @@ UTest cases{"matter.world-agent", [] {
     "what the laws do in a world is on record as in a field: the beam lit by an agent burns, and its cells leave the body it was"_test = [] {
         Game game;
         agent::SubjectSession session = game.session("the one who lit it");
-        (void)game.world->carve({34, 26, 14, 2});  // the beam a body
+        const auto beam = game.world->carve({34, 26, 14, 2});  // the beam a body
+        const auto crate = std::as_const(*game.world).bodies().owner(40, 23);
+        expect(fatal(beam.has_value() && beam->size() == 1u && crate.has_value()));
+        const auto number = [](auto body) { return (static_cast<std::int64_t>(body.generation) << 32) | static_cast<std::uint32_t>(body.index); };
         game.step(5);
         told(session, R"({"op":"matter.apply","channel":"temperature","set":900,"region":[40,26,2,2]})");
         game.step(1500);
@@ -184,6 +187,21 @@ UTest cases{"matter.world-agent", [] {
         expect(applied) << "back to the hand that applied the heat";
         const std::size_t left = static_cast<std::size_t>(std::ranges::count(game.matter.records(), subject::RecordKind::left, &subject::Record::kind));
         expect(left > 0u) << "cells burned out of the body are said to have left it";
+        // Why the crate is on the floor: it came loose of the beam it stood on, whose cells had left it, burned out.
+        std::optional<std::uint32_t> of_crate;
+        for (std::uint32_t at = 0; at < shape.width * shape.height && !of_crate; ++at)
+            if (std::as_const(*game.world).bodies().owner(at % shape.width, at / shape.width) == crate) of_crate = at;
+        expect(fatal(of_crate.has_value())) << "the crate is somewhere";
+        expect(*of_crate / shape.width > 28u) << std::format("and lower than it stood: a cell of it at row {}", *of_crate / shape.width);
+        const Answered fell = told(session, std::format(R"({{"op":"matter.explain","cell":[{},{}],"depth":3}})", *of_crate % shape.width, *of_crate / shape.width));
+        std::println("{}", fell.text);
+        expect(fell["body"]["id"].integer() == number(*crate));
+        expect(fatal(fell["body"]["records"].size() >= 1u)) << "its coming loose is on record";
+        const auto first_drop = fell["body"]["records"][fell["body"]["records"].size() - 1];
+        expect(first_drop["what"].text() == "dropped" && first_drop["support"].integer() == number((*beam)[0])) << "it had stood on the beam";
+        const auto gave_way = first_drop["because"][0];
+        expect(gave_way["what"].text() == "left" && gave_way["material"].text() == "wood" && gave_way["because"]["what"].text() == "burn_out") << "whose cells had burned out of it";
+        expect(gave_way["frame"].integer().value_or(1 << 30) <= first_drop["frame"].integer().value_or(0));
     };
 
     "what would be is a branch of the whole world: nothing here is touched, and then it happens so"_test = [] {

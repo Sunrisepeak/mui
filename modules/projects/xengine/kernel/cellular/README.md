@@ -313,6 +313,15 @@ world->step(), lattice.stepped(*world);                          // each frame; 
 | `thrown`: the cell, the material, by a blast, the pressure or code | `thrown` |
 | `landed`: the cell, from which cell, thrown at which frame | `landed` |
 | `left`: a cell no longer a body's, and which body | `left` |
+| `dropped`: a body that was still came loose — which, and the body it had rested on | `carried`, `split`, and whom the rigid world says it touched |
 
-What landed is followed as the laws then move it (sand that comes down on a slope slides), so its landing is answered at the cell it rests in. `matter.branch` on a world is a branch of the whole world — bodies and cells in flight with it. Not yet: a cell a body carried is not followed, a body's own "why did it move" (its lost support) is the rigid family's to say, and a branch's answer lists what the laws would do but not what would fly.
+What landed is followed as the laws then move it (sand that comes down on a slope slides), so its landing is answered at the cell it rests in. `matter.branch` on a world is a branch of the whole world — bodies and cells in flight with it. Asked of a body's cell, the answer has the body too: when it came loose and of what, and why that gave way.
+
+```
+// → {"op":"matter.explain","cell":[41,31],"depth":3}        (the crate, now on the floor)
+// ← body: dropped at frame 540, its support the beam
+//         ← because: the beam's cells that left it at 539 and 518 ← each burned out (`burns out`: burned >= fuel)
+```
+
+A body counts as come loose when, having been still, it has gone a cell's length; its support is, of the bodies it touched as it began, the one that last lost a cell or fell apart (a piece is traced to the body it came apart from). Not yet: a cell a body carried is not followed; a body pushed (a blast, another body's blow) is said to have dropped without a cause; a branch's answer lists what the laws would do but not what would fly or fall.
 

@@ -356,6 +356,12 @@ void Matter::wrote(const agent::FieldState& now, std::span<const agent::Wrote> w
                 record.from = one.material;
                 record.body = one.body;
                 break;
+            case agent::Wrote::Kind::dropped:
+                record.kind = RecordKind::dropped;
+                record.step = frame;  // told a few frames on, of the frame it began to move
+                record.body = one.body;
+                record.support = one.support;
+                break;
         }
         keep(record);
     }
@@ -379,6 +385,7 @@ std::string Matter::happened_as(const Record& record) const {
         case RecordKind::thrown: return "thrown";
         case RecordKind::landed: return "landed";
         case RecordKind::left: return "left";
+        case RecordKind::dropped: return "dropped";
         case RecordKind::became: {
             const auto event = record.law < laws.size() ? laws[record.law].event : std::nullopt;
             return event && *event < names.size() ? names[*event] : "became";
@@ -409,7 +416,31 @@ std::string Matter::said(const Record& record, std::span<const Record> among, in
             return out + std::format(",\"what\":\"applied\",\"channel\":{},\"{}\":{}", json_text(program.channels()[record.channel].name),
                                      agent::edit_kind_names[static_cast<std::size_t>(record.edit)], channel_value(program, record.channel, record.to)) + by() + "}";
         case RecordKind::blast: return out + ",\"what\":\"blast\"" + by() + "}";
-        case RecordKind::left: return out + std::format(",\"what\":\"left\",\"material\":{},\"body\":{}}}", material_text(program, record.from), record.body);
+        case RecordKind::left: {
+            out += std::format(",\"what\":\"left\",\"material\":{},\"body\":{}", material_text(program, record.from), record.body);
+            // Why it is no longer solid: what it became, by which law.
+            if (depth > 0)
+                for (auto earlier = among.rbegin(); earlier != among.rend(); ++earlier)
+                    if (earlier->kind == RecordKind::became && earlier->cell == record.cell && earlier->frame <= record.frame) {
+                        out += std::format(",\"because\":{}", said(*earlier, among, depth - 1));
+                        break;
+                    }
+            return out + "}";
+        }
+        case RecordKind::dropped: {
+            out += std::format(",\"what\":\"dropped\",\"body\":{}", record.body);
+            if (!record.support) return out + "}";
+            out += std::format(",\"support\":{}", record.support);
+            // Why what it rested on gave way: the cells that had left that body by then, the latest first.
+            int told = 0;
+            for (auto earlier = among.rbegin(); earlier != among.rend() && told < 3 && depth > 0; ++earlier) {
+                if (earlier->kind != RecordKind::left || earlier->body != record.support || earlier->frame > record.frame) continue;
+                out += (told ? "," : ",\"because\":[") + said(*earlier, among, depth - 1);
+                ++told;
+            }
+            if (told) out += "]";
+            return out + "}";
+        }
         case RecordKind::thrown: {
             out += std::format(",\"what\":\"thrown\",\"material\":{},\"by\":\"{}\"", material_text(program, record.from), thrown_by[std::min<std::size_t>(record.to, 2)]);
             // By a blast: the one whose square held it, no later than this.
@@ -751,6 +782,14 @@ void Matter::operate(std::string_view operation, const mlibs::agent::Request& re
                 return record.kind == RecordKind::landed && record.cell == landing->second.cell && record.frame == landing->second.frame;
             });
             if (found != records_.end()) own.insert(std::ranges::find_if(own, [&](const Record* record) { return record->frame <= found->frame; }), &*found);
+        }
+        // A body's cell: what is on record of the body — when it came loose, and of what.
+        if (const std::uint64_t body = field_->lattice_body(*cell)) {
+            out += std::format(",\"body\":{{\"id\":{},\"records\":[", body);
+            int said_of = 0;
+            for (auto record = records_.rbegin(); record != records_.rend() && said_of < 4; ++record)
+                if (record->kind == RecordKind::dropped && record->body == body) out += (said_of++ ? "," : "") + said(*record, records_, static_cast<int>(depth));
+            out += "]}";
         }
         out += ",\"records\":[";
         std::size_t told = 0;

@@ -90,15 +90,18 @@ struct Edited {
 // What wrote cells in a frame besides the program, said by a lattice that has more than a program — a world, whose
 // cells also fly and are bodies' (the foundation plan's §6.10.1). A field of its own never says any.
 struct Wrote {
-    enum class Kind : std::uint8_t { blast, thrown, landed, left };
+    enum class Kind : std::uint8_t { blast, thrown, landed, left, dropped };
     enum class By : std::uint8_t { flung, pressure, blast };
     Kind          kind = Kind::thrown;
-    std::uint32_t cell = 0;       // thrown: the cell it left; landed: where it is a cell again; left: the cell no longer a body's
+    // thrown: the cell it left; landed: where it is a cell again; left: the cell no longer a body's; dropped: the
+    // cell its origin was in as it began to move.
+    std::uint32_t cell = 0;
     std::uint32_t material = 0;
     By            by = By::flung; // thrown: by what
     std::uint32_t from = 0;       // landed: the cell it was thrown out of
     std::int64_t  thrown_at = 0;  // landed: and the frame
-    std::uint64_t body = 0;       // left: the body it was of, as its owner numbers it
+    std::uint64_t body = 0;       // left: the body it was of, as its owner numbers it; dropped: the body that came loose
+    std::uint64_t support = 0;    // dropped: the body it had been touching (0: none that is known)
     Tile          region;         // blast: the square about it
     std::uint32_t actor = 0;      // blast: who made it — which of the actors told with it
 };
@@ -142,6 +145,8 @@ public:
         std::int64_t  frames = 0;
     };
     [[nodiscard]] virtual Ahead lattice_ahead(std::span<const Edit> edits, std::int64_t steps, const Each& each) const = 0;
+    // The body a cell is of now, as the lattice's owner numbers it; 0: none, or a lattice that has no bodies.
+    [[nodiscard]] virtual std::uint64_t lattice_body(std::uint32_t /*cell*/) const { return 0; }
     // A region a request names ([x, y, width, height]), within the lattice; the whole of it when it names none
     // and need not.
     [[nodiscard]] std::expected<Tile, std::string> region_of(mlibs::json::Node node, std::string_view name, bool required) const;

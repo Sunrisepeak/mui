@@ -55,6 +55,29 @@ if (auto stepped = program->step({instances, pairs}, state, next, workspace, &ev
 
 **Whole numbers, in units.** Every value a law reads is an unsigned 32-bit integer and every sum saturates, so a step is the same bits on every machine. A column or a channel has a number of bits after the point (`fraction`): temperature is stored in 256ths of a kelvin, because a flow is a share of a difference and a difference of 47 K, in whole kelvin and at a 64th a step, would not flow at all. Laws are still written in kelvin: preparing brings every term of a comparison, and every amount, to its target's unit.
 
+## Packs: a definition laid over another
+
+A pack is a document of the same form that says only what it adds (D-182). `overlay(base, pack)` puts its columns, channels, materials and laws after the base's own; `standard_with(packs)` is the standard definition with packs over it, prepared.
+
+```ts
+// fuels.matter.omui.ts — three materials no law knows of
+export default defineMatter({ materials: {
+  coal: { density: 1400, thermal: 1, ignition: 700, fuel: 600, heat: 120, burnt: "ash" },
+  peat: { density: 700, porous: 6, ignition: 520, fuel: 250, heat: 60, burnt: "ash" },
+} });
+```
+
+```cpp
+const auto pack = matter::read_pack(text, "fuels.matter.omui.json");
+const auto program = matter::standard_with(std::array{*pack});     // coal catches from wood: no law was written for it
+```
+
+- **A pack may bring a law the world did not have** — its own columns, a channel, the laws, the materials that have the property — and say more of a material that is there (`iron: { lucent: 8 }`). The test's pack invents a glow that passes along what is lucent and wakes a crystal: it reaches one through iron and not the one behind wood.
+- **A pack adds and never replaces.** A column, a channel or a law of a name the base has is a clash; so is a material said otherwise (`wood` already says its `ignition`). Every clash is said (`Clash`: the part, the name, why), none decided silently; the same row said twice the same way is not a clash.
+- **An invented law is held to what every law is**: it names no material, and a transfer whose shares could take more than an instance has is refused when stepped.
+
+Not yet: laws that move things (a fourth kind, D-181) and fields that act at a distance.
+
 ## One step
 
 Every law reads the step's input; nothing a law writes is seen by another in the same step. In order ([CONTRACT.md](CONTRACT.md) has the arithmetic, which a carrier's own path is held to):

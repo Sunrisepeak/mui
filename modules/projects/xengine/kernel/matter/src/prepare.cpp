@@ -283,6 +283,46 @@ private:
 
 }  // namespace
 
+std::expected<Definition, std::vector<Clash>> overlay(Definition base, const Definition& pack) {
+    std::vector<Clash> clashes;
+    const auto added = [&](auto& into, const auto& from, std::string_view part) {
+        for (const auto& one : from) {
+            if (std::ranges::find(into, one.name, &std::remove_cvref_t<decltype(one)>::name) != into.end()) {
+                clashes.push_back({std::string(part), one.name, std::format("the definition under the pack has a {} `{}`: a pack adds, it does not replace", part, one.name)});
+                continue;
+            }
+            into.push_back(one);
+        }
+    };
+    added(base.columns, pack.columns, "column");
+    added(base.channels, pack.channels, "channel");
+    added(base.laws, pack.laws, "law");
+    for (const MaterialSpec& material : pack.materials) {
+        const auto found = std::ranges::find(base.materials, material.name, &MaterialSpec::name);
+        if (found == base.materials.end()) {
+            base.materials.push_back(material);
+            continue;
+        }
+        // Said more of: a value its row does not give. Said otherwise: a clash.
+        for (const Property& property : material.properties) {
+            const auto has = std::ranges::find(found->properties, property.column, &Property::column);
+            if (has == found->properties.end()) found->properties.push_back(property);
+            else if (has->value != property.value)
+                clashes.push_back({"material", material.name, std::format("`{}` already says its `{}`: a pack may say more of a material, not otherwise", material.name, property.column)});
+        }
+        for (const std::string& tag : material.tags)
+            if (std::ranges::find(found->tags, tag) == found->tags.end()) found->tags.push_back(tag);
+    }
+    if (!clashes.empty()) return std::unexpected(std::move(clashes));
+    return base;
+}
+
+std::string said(std::span<const Clash> clashes) {
+    std::string out;
+    for (const Clash& clash : clashes) out += std::format("{}{} `{}`: {}", out.empty() ? "" : "\n", clash.part, clash.name, clash.why);
+    return out;
+}
+
 Definition Definition::standard() {
     Definition out;
     const auto number = [&](std::string name, std::string unit, std::string doc, double least, double most, double initial, std::uint32_t fraction = 0) {

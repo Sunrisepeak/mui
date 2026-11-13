@@ -117,6 +117,19 @@ struct Definition {
     [[nodiscard]] static Definition standard();
 };
 
+// A pack laid over a definition (the foundation plan's §6.15, D-182): what the pack adds — columns, channels,
+// materials, laws — after the base's own, in the pack's order. A pack adds and never replaces: a column, a
+// channel or a law of a name the base has is a clash; a material the base has may be said more of (a value of a
+// column its row does not give, a tag), never otherwise. Every clash is said, none decided silently.
+struct Clash {
+    std::string part;  // "column", "channel", "material", "law"
+    std::string name;
+    std::string why;
+};
+[[nodiscard]] std::expected<Definition, std::vector<Clash>> overlay(Definition base, const Definition& pack);
+// The clashes as one text, a line each.
+[[nodiscard]] std::string said(std::span<const Clash> clashes);
+
 // ── errors ───────────────────────────────────────────────────────────────
 
 enum class Errc : std::uint8_t { name, value, expression, law, names_material, limit, unprepared, shape, pair, unstable };

@@ -101,7 +101,7 @@ struct Parsed {
     Definition definition;
 };
 
-[[nodiscard]] std::expected<Parsed, std::vector<Problem>> parse(std::string_view text, std::string_view file) {
+[[nodiscard]] std::expected<Parsed, std::vector<Problem>> parse(std::string_view text, std::string_view file, bool pack = false) {
     auto document = Document::parse(text, std::string(file));
     if (!document) return std::unexpected(std::vector<Problem>{document.error()});
     Reader reader{*document, {}};
@@ -112,7 +112,8 @@ struct Parsed {
     }
     static constexpr std::array<std::string_view, 4> root_keys{"columns", "channels", "materials", "laws"};
     reader.keys(root, root_keys, "a matter definition");
-    Definition definition = Definition::standard();
+    // A pack says only what it adds; a definition starts from the standard columns and channels.
+    Definition definition = pack ? Definition{} : Definition::standard();
 
     if (const Node columns = root["columns"]) {
         if (!columns.is_object()) reader.wrong(columns, "`columns` is an object: each property by its name");
@@ -251,6 +252,25 @@ std::expected<Program, std::vector<mlibs::json::Problem>> prepare_document(std::
     Problem problem = parsed->document.problem(at, failure.message);
     problem.at = "/matter" + failure.where;
     return std::unexpected(std::vector<Problem>{std::move(problem)});
+}
+
+std::expected<Definition, std::vector<mlibs::json::Problem>> read_pack(std::string_view text, std::string_view file) {
+    auto parsed = parse(text, file, true);
+    if (!parsed) return std::unexpected(std::move(parsed.error()));
+    return std::move(parsed->definition);
+}
+
+std::expected<Program, std::string> standard_with(std::span<const Definition> packs, Limits limits) {
+    auto definition = read(standard_snapshot, "standard.matter.omui.json");
+    if (!definition) return std::unexpected(std::string("the standard definition was refused"));
+    for (const Definition& pack : packs) {
+        auto laid = overlay(std::move(*definition), pack);
+        if (!laid) return std::unexpected(said(laid.error()));
+        *definition = std::move(*laid);
+    }
+    auto program = Program::prepare(*definition, limits);
+    if (!program) return std::unexpected(std::format("{} at {}", program.error().message, program.error().where));
+    return std::move(*program);
 }
 
 std::expected<Program, std::vector<mlibs::json::Problem>> standard() { return prepare_document(standard_snapshot, "standard.matter.omui.json"); }

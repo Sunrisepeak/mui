@@ -18,6 +18,11 @@ export namespace xengine::matter {
 [[nodiscard]] std::expected<Definition, std::vector<mlibs::json::Problem>> read(std::string_view text, std::string_view file);
 // Read and prepared; a problem of preparing is placed in the text like one of reading.
 [[nodiscard]] std::expected<Program, std::vector<mlibs::json::Problem>> prepare_document(std::string_view text, std::string_view file, Limits limits = {});
+// A pack (D-182): a document of the same form that says only what it adds — read without the standard columns
+// and channels, to be laid over a definition (`overlay`).
+[[nodiscard]] std::expected<Definition, std::vector<mlibs::json::Problem>> read_pack(std::string_view text, std::string_view file);
+// The standard definition with packs laid over it in turn, prepared; or the clashes, or why it does not prepare.
+[[nodiscard]] std::expected<Program, std::string> standard_with(std::span<const Definition> packs, Limits limits = {});
 // The standard definition (standard.matter.omui.ts: the laws every world shares and a first table of
 // materials), prepared from the snapshot this module carries (`standard_snapshot`).
 [[nodiscard]] std::expected<Program, std::vector<mlibs::json::Problem>> standard();

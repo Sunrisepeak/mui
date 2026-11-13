@@ -251,6 +251,31 @@ private:
     std::vector<Vec3> spread_, other_;
 };
 
+// Light followed along rays: the reference of what the pass's constant "light from everywhere" stands in for
+// (the foundation plan's §5.7, D-184 step c). Each pixel sends `samples` rays; where one meets a surface, the
+// surface's light is what it gives off, what the lights send it (as the pass works it out, shadows by rays), and
+// what arrives from one more way chosen about its normal — followed in turn, `bounces` times, and at the end or
+// into the open the sky (`Options::environment` where it is on, else the background). So a corner is darker than
+// an open floor, and a floor beside a red wall is a little red, with nothing told to make it so.
+//
+// Slow and deterministic: a pixel's rays come from its number, the sample's and `seed` alone — the same bits
+// everywhere, in whatever order pixels are drawn. `Options::ambient` is not used: this is what it approximates.
+// A surface with a highlight is followed as a matt one of its colour (its highlight of the lights is kept):
+// what it would mirror of the scene is not followed yet. An instance that does not `cast` is seen by the eye
+// only — a lamp's globe about its light.
+struct Trace {
+    std::uint32_t samples = 16;
+    std::uint32_t bounces = 2;   // how many times a ray is followed on from a surface
+    std::uint64_t seed = 1;
+};
+struct Traced {
+    std::uint64_t rays = 0;      // every ray sent: from the eye, on from a surface, toward a light
+    std::uint64_t into_open = 0; // those that met nothing and took the sky's light
+};
+// `out.light` and `out.colour` (the light through the display's curve) of `out`'s size; the other targets are
+// not written. Needs `assets.trees`: a mesh with no tree is not there.
+Traced traced(const scene::Scene& scene, const scene::View& view, const Assets& assets, Targets& out, const Options& options = {}, const Trace& how = {});
+
 // What of an instance reached the frame: how many pixels, and the box of them (x0, y0 inclusive; x1, y1 exclusive).
 struct Shown {
     Id            instance = 0;

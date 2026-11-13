@@ -805,4 +805,62 @@ static UTest cases{"xrender.mesh", [] {
         expect(gt(tiled.stats.textured, 60000u) && eq(plain.stats.textured, 0u));
         expect(eq(bits(tiled.targets), std::uint64_t{0xb6962b046d17007d})) << std::format("{:016x}", bits(tiled.targets));
     };
+    "light followed along rays: an open floor under an even sky sends back the sky's light times its colour, exactly; beside a ball it is darker; before a red box in the sun it is redder — the same bits twice, pinned, and kept"_test = [] {
+        constexpr int width = 160, height = 90;
+        const auto place_of = [&](const Camera& camera, math::Vec3 at) {
+            const scene::View view = camera.view();
+            const math::Vec4 clip = (view.projection * view.view) * math::Vec4{at.x, at.y, at.z, 1};
+            return std::pair(static_cast<int>((clip.x / clip.w * 0.5f + 0.5f) * width), static_cast<int>((0.5f - clip.y / clip.w * 0.5f) * height));
+        };
+        const auto about = [&](const mesh::Targets& targets, std::pair<int, int> at) {  // the mean of nine pixels
+            math::Vec3 sum{0, 0, 0};
+            for (int dy = -1; dy <= 1; ++dy)
+                for (int dx = -1; dx <= 1; ++dx) sum = sum + targets.light[static_cast<std::size_t>(std::clamp(at.second + dy, 0, height - 1)) * width + std::clamp(at.first + dx, 0, width - 1)];
+            return sum * (1.0f / 9);
+        };
+        const mesh::Options even_sky{.background = {0.5f, 0.6f, 0.7f}};
+        // A floor and nothing else, no light but the sky.
+        {
+            scene::Scene world;
+            put(world, 1, floor_mesh, 1, math::translation({0, -1, 0}));
+            mesh::Targets seen;
+            seen.resize(width, height);
+            const mesh::Traced told = mesh::traced(world, yard_camera.view(), library().assets(true), seen, even_sky, {.samples = 4, .bounces = 2});
+            const math::Vec3 floor = seen.light[static_cast<std::size_t>(80) * width + 80], above = seen.light[static_cast<std::size_t>(5) * width + 80];
+            expect(lt(std::abs(floor.x - 0.25f), 1e-6f) && lt(std::abs(floor.y - 0.3f), 1e-6f) && lt(std::abs(floor.z - 0.35f), 1e-6f)) << std::format("{} {} {}", floor.x, floor.y, floor.z);
+            expect(eq(above.x, 0.5f) && eq(above.z, 0.7f)) << "and above the horizon, the sky";
+            expect(gt(told.into_open, told.rays / 3));
+        }
+        // The yard with its lights taken away: the sky's light alone, less of it where the ball is over the floor.
+        scene::Scene unlit = yard();
+        expect(unlit.remove_light(1).has_value() && unlit.remove_light(2).has_value());
+        mesh::Targets by_sky;
+        by_sky.resize(width, height);
+        (void)mesh::traced(unlit, yard_camera.view(), library().assets(true), by_sky, even_sky, {.samples = 32, .bounces = 2});
+        const math::Vec3 open = about(by_sky, place_of(yard_camera, {4.5f, -1, 3})), by_ball = about(by_sky, place_of(yard_camera, {0.4f, -1, 1.95f}));
+        // The yard as it is: the sun on the red box, and the floor before it.
+        const scene::Scene world = yard();
+        mesh::Targets seen, again, other;
+        seen.resize(width, height), again.resize(width, height), other.resize(width, height);
+        const auto from = std::chrono::steady_clock::now();
+        const mesh::Traced told = mesh::traced(world, yard_camera.view(), library().assets(true), seen, even_sky, {.samples = 32, .bounces = 2});
+        const double took = std::chrono::duration<double>(std::chrono::steady_clock::now() - from).count();
+        (void)mesh::traced(world, yard_camera.view(), library().assets(true), again, even_sky, {.samples = 32, .bounces = 2});
+        (void)mesh::traced(world, yard_camera.view(), library().assets(true), other, even_sky, {.samples = 32, .bounces = 2, .seed = 2});
+        const math::Vec3 lit_open = about(seen, place_of(yard_camera, {4.5f, -1, 3})), before_box = about(seen, place_of(yard_camera, {-1.6f, -1, 1.75f}));
+        const auto file = keep(seen, "yard-traced");
+        std::println("followed along rays, 160 × 90, 32 a pixel, 2 on: {} rays ({} into the open) in {:.2f} s; by the sky alone the open floor {:.3f}, beside the ball {:.3f}; in the sun the open floor's red over green {:.3f}, before the red box {:.3f}; bits {:016x}; {}",
+                     told.rays, told.into_open, took, open.y, by_ball.y, lit_open.x / lit_open.y, before_box.x / before_box.y, bits(seen), file.generic_string());
+        expect(lt(std::abs(open.y / 0.3f - 1), 0.05f)) << "open: all of the sky";
+        expect(lt(by_ball.y, open.y * 0.85f)) << "beside the ball: less of it";
+        expect(gt(before_box.x / before_box.y, lit_open.x / lit_open.y * 1.04f)) << "the box's red on the floor before it";
+        expect(seen.light == again.light && seen.colour == again.colour) << "the same bits twice";
+        expect(seen.light != other.light) << "another seed, other rays";
+        expect(eq(bits(seen), std::uint64_t{0xf0b9ab79dca2b15c})) << std::format("{:016x}", bits(seen));
+        // Kept larger for the README, beside the pass's own picture of the same yard.
+        mesh::Targets large;
+        large.resize(320, 180);
+        (void)mesh::traced(world, yard_camera.view(), library().assets(true), large, even_sky, {.samples = 48, .bounces = 2});
+        (void)keep(large, "yard-traced-large");
+    };
 }};

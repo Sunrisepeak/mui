@@ -7,3 +7,4 @@ export import :rounded;
 export import :solid;
 export import :mesh;
 export import :bvh;
+export import :walk;

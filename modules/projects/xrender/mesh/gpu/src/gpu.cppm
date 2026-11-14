@@ -26,6 +26,7 @@ export import :glow_shaders;
 export import :velocity_shaders;
 export import :resolve_shaders;
 export import :open_shaders;
+export import :laid_shaders;
 
 export namespace xrender::mesh::gpu {
 
@@ -46,6 +47,10 @@ struct Stats {
     // sides of what casts, so only what the view cannot hold is left out, and no texel of a map changes.
     std::uint32_t shadow_clusters = 0, shadow_clusters_outside = 0, shadow_runs = 0;
     std::uint64_t shadow_triangles = 0;
+    // Draws of surfaces seen through (`Material::see_through`): laid over the frame in layers, and how many layers
+    // were drawn for them; or — with no `Layers` given, or a target that does not hold the light itself — drawn
+    // whole, as surfaces that hide all.
+    std::uint32_t through = 0, layers = 0, through_whole = 0;
 };
 
 // The sun's shadows by a map (the reference traces a ray; a device looks up what the sun saw): two textures of
@@ -69,6 +74,21 @@ struct Shadows {
     mlibs::rhi::Texture open;
 };
 
+// The surfaces seen through (`Material::see_through`), on a device: laid over the frame a layer at a time from the
+// nearest — each layer, of every pixel's, the nearest one behind the layer before (depth peeling) — each taking
+// of the pixel what it hides of what the nearer ones let through: the reference's own order, whatever order they
+// are drawn in. The caller's textures, of the frame's size. A pixel with more of them over one another than
+// `count` loses the farthest: they show as not there. Needs a pass of light (`Pass::make`'s `light`): shares
+// are of light, not of what a display's curve made of it.
+struct Layers {
+    mlibs::rhi::Texture behind;      // r32_float, a colour target and sampled: how deep what stops the eye is
+    mlibs::rhi::Texture deep[2];     // r32_float, colour targets and sampled: how deep the layer laid last is, the two in turn
+    mlibs::rhi::Texture depth;       // d32_float: the layers' own depth (the frame's stays what stops the eye's)
+    mlibs::rhi::Texture layer;       // rgba16_float, a colour target and sampled: one layer's light, and what it hides
+    mlibs::rhi::Texture gathered;    // rgba16_float, a colour target and sampled: the layers' light, and what they hide together
+    std::uint32_t       count = 4;
+};
+
 class Pass {
 public:
     // The pipeline: the pass's shader, a depth test (`reversed`: the nearest at 1), an rgba8 target. `light`: the
@@ -90,7 +110,8 @@ public:
     // target) of `width` × `height`, cleared to the background; where there is fog the background is drawn
     // through it first, each pixel along its own ray — the sky that clears upward, as the reference has it.
     void record(mlibs::rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, std::span<const Material> materials,
-                mlibs::rhi::Texture colour, mlibs::rhi::Texture depth, std::uint32_t width, std::uint32_t height, const Options& options = {}, const Shadows* shadows = nullptr);
+                mlibs::rhi::Texture colour, mlibs::rhi::Texture depth, std::uint32_t width, std::uint32_t height, const Options& options = {}, const Shadows* shadows = nullptr,
+                const Layers* layers = nullptr);
     // The materials, for the passes that take none (who drew each pixel, the surface, the velocity): where one is
     // seen from both sides or cut out by its picture (`Material::two_sided`, `cutout`) those passes leave out the
     // very pixels the colour pass leaves out. Kept until called again; without it every surface is whole and of
@@ -140,6 +161,7 @@ private:
         std::vector<mlibs::geom::Cluster> clusters;  // each a run of the corners: three a triangle from 3 × its first triangle
     };
     mlibs::rhi::Device*          device_ = nullptr;
+    mlibs::rhi::GraphicsPipeline through_pipeline_, deep_pipeline_, under_pipeline_, laid_pipeline_;  // a layer of what is seen through; how deep what stops the eye is; a layer under those before it; all over the frame
     mlibs::rhi::GraphicsPipeline pipeline_, ids_pipeline_, sky_pipeline_, shadow_pipeline_, lamp_shadow_pipeline_, who_pipeline_, velocity_pipeline_, velocity_who_pipeline_, surface_pipeline_;
     mlibs::rhi::Sampler          nearest_;
     mlibs::rhi::Sampler          pictures_;  // a material's picture: between texels and between levels, repeating

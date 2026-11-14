@@ -66,6 +66,8 @@ struct Surface {
     float4 glow_picture;     // multiplies what the surface gives off
     float4 shade_picture;    // its red: the share of the light from everywhere that reaches the surface; w: how much of that is taken
     float4 own;              // x: the roughness as the material says it; y: the metal (what the surface picture multiplies)
+    float4 through;          // x: over 0.5 — a layer of the surfaces seen through is drawn; y: a layer was laid before this one;
+                             // zw: one over the frame's width and height
     Lamp   lamps[8];
 };
 [[vk::binding(0, 2)]] Sampler2D shadow_map : register(t0, space2) : register(s0, space2);
@@ -76,6 +78,8 @@ struct Surface {
 [[vk::binding(5, 2)]] Sampler2D normal_map : register(t5, space2) : register(s5, space2);
 [[vk::binding(6, 2)]] Sampler2D glow_map : register(t6, space2) : register(s6, space2);
 [[vk::binding(7, 2)]] Sampler2D shade_map : register(t7, space2) : register(s7, space2);
+[[vk::binding(8, 2)]] Sampler2D behind_map : register(t8, space2) : register(s8, space2);  // how deep what stops the eye is
+[[vk::binding(9, 2)]] Sampler2D before_map : register(t9, space2) : register(s9, space2);  // how deep the layer laid before is
 [[vk::binding(0, 3)]] ConstantBuffer<Surface> surface : register(b0, space3);
 
 // The surface at this pixel: the material's own, times its pictures where it has them.
@@ -196,28 +200,36 @@ float encoded(float linear) {
     return held <= 0.0031308 ? held * 12.92 : 1.055 * pow(held, 1.0 / 2.4) - 0.055;
 }
 
-[shader("fragment")]
-float4 mesh_fs(VOut point) : SV_Target {
+// The surface's light at a pixel, and how much it hides of what is behind it; `gone`: nothing of it is drawn there
+// (turned away, beyond the view, cut out).
+struct Lit {
+    float3 light;
+    float  hides;
+    bool   gone;
+};
+Lit lit_at(VOut point) {
+    Lit lit;
+    lit.light = float3(0, 0, 0), lit.hides = 0, lit.gone = true;
+    // How far the surface's place in its pictures moves from this pixel to the next across and to the next below:
+    // how many texels a pixel covers. And how far the surface itself goes. Both taken here, before anything turns
+    // on what a pixel is: a difference between pixels is one only where every pixel takes the same way through
+    // the code.
+    const float2 right = ddx(point.uv), down = ddy(point.uv);
+    const float3 place_right = ddx(point.place), place_down = ddy(point.place);
     float3 normal = normalize(point.normal);
     const float3 to_eye = surface.eye.xyz - point.place;
     // A face turned away is not drawn (the reference leaves it out by its winding; a closed thing's far side) —
     // unless the surface is seen from both sides: then it faces the eye wherever it is seen.
     if (dot(normal, to_eye) < 0) {
         if (surface.cut.w > 0.5) normal = -normal;
-        else discard;
+        else return lit;
     }
     // Beyond the view: the far cut, taken at the pixel (the device's own far plane lies further off).
-    if ((point.clip.z - 0.5) * surface.cut.x > 0) discard;
+    if ((point.clip.z - 0.5) * surface.cut.x > 0) return lit;
     base_colour = surface.base.rgb, given_off = surface.emissive.rgb;
     rough_here = surface.shine.x, metal_here = surface.shine.y;
     bool matt = surface.shine.z > 0.5;
     float shaded = 1.0;
-    // How far the surface's place in its pictures moves from this pixel to the next across and to the next below:
-    // how many texels a pixel covers.
-    const float2 right = ddx(point.uv), down = ddy(point.uv);
-    // And how far the surface itself goes (taken here, before anything turns on what a pixel is: a difference
-    // between pixels is one only where every pixel takes the same way through the code).
-    const float3 place_right = ddx(point.place), place_down = ddy(point.place);
     float hides = surface.cut.z;
     if (surface.picture.z > 0.5) {
         const float4 there = picture_over(picture_map, surface.picture, point.uv, right, down);
@@ -225,7 +237,7 @@ float4 mesh_fs(VOut point) : SV_Target {
         hides *= there.a;
     }
     // Cut out: where it hides less than the cut, the surface is not there.
-    if (surface.cut.y > 0 && hides < surface.cut.y) discard;
+    if (surface.cut.y > 0 && hides < surface.cut.y) return lit;
     if (surface.surface_picture.z > 0.5) {
         // The material's own numbers ride in the draw's `shine` already held to what the model takes; the
         // picture's share is taken of what the material says, then held the same way (xrender.mesh's `reflected`).
@@ -306,7 +318,38 @@ float4 mesh_fs(VOut point) : SV_Target {
         const float share = apart > 0 ? through(-to_eye / apart, apart) : 1.0;
         colour = surface.fog.rgb + (colour - surface.fog.rgb) * share;
     }
+    lit.light = colour, lit.hides = hides, lit.gone = false;
+    return lit;
+}
+
+// What the pass writes. A frame's pass has the one target and `deep` goes nowhere; a layer of the surfaces seen
+// through (xrender.mesh's `Material::see_through`) has both: of each pixel's, the nearest one that is nearer than
+// what stops the eye and farther than the layer laid before — its light times what it hides, and how much it
+// hides, to be put under the layers before it; and how deep it is, for the next layer to lie behind. One shader
+// for both, told which by `surface.through.x`: the surface's light is worked out by the same code, once.
+struct Layer {
+    float4 light : SV_Target0;
+    float4 deep : SV_Target1;
+};
+[shader("fragment")]
+Layer mesh_fs(VOut point) {
+    const Lit lit = lit_at(point);
+    Layer made;
+    made.deep = float4(point.clip.z, 0, 0, 1);
+    if (surface.through.x > 0.5) {
+        const float2 at = point.clip.xy * surface.through.zw;
+        const float deep = point.clip.z;
+        bool gone = lit.gone || !(lit.hides > 0);
+        if ((deep - behind_map.SampleLevel(at, 0).r) * surface.cut.x >= 0) gone = true;
+        if (surface.through.y > 0.5 && (deep - before_map.SampleLevel(at, 0).r) * surface.cut.x <= 0) gone = true;
+        if (gone) discard;
+        const float hides = min(lit.hides, 1.0);
+        made.light = float4(lit.light * hides, hides);
+        return made;
+    }
+    if (lit.gone) discard;
     // The light itself where the target holds it (what `Glow` takes); else through the display's curve.
-    if (surface.shine.w > 0.5) return float4(colour, 1);
-    return float4(encoded(colour.r), encoded(colour.g), encoded(colour.b), 1);
+    if (surface.shine.w > 0.5) made.light = float4(lit.light, 1);
+    else made.light = float4(encoded(lit.light.r), encoded(lit.light.g), encoded(lit.light.b), 1);
+    return made;
 }

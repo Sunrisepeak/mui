@@ -1061,6 +1061,176 @@ Cases suite_of() {
         static_cast<void>(device->wait_idle());
         for (const rhi::Texture made : {colour, depth, ids, who, shadows.map, shadows.depth}) device->destroy(made);
     });
+    // surfaces seen through, on the device: panes of glass before the yard and before one another, one of them thinning across its picture, are the reference's — each pixel's light what the nearest hides of it, then the next of what is left, whatever order they are drawn in; they throw no shadow and are not who stops the eye
+    add(suite, "mesh.through", [](Rig& rig) {
+        rhi::Device* const device = &rig.device;
+        Yard yard(true);
+        yard.made.push_back(*geom::clustered(geom::sheet(3, 1.5f, 6, 3)));
+        yard.meshes.clear(), yard.grown.clear(), yard.trees.clear();
+        for (const geom::ClusteredMesh& one : yard.made) yard.meshes.push_back(&one), yard.grown.push_back(geom::bvh_of(one.mesh));
+        for (const geom::Bvh& tree : yard.grown) yard.trees.push_back(&tree);
+        // A picture that hides less and less from left to right: all of the pane's light at its left, none at its right.
+        std::vector<std::uint8_t> bytes(64 * 16 * 4, 0);
+        for (int y = 0; y < 16; ++y)
+            for (int x = 0; x < 64; ++x) {
+                const std::size_t at = static_cast<std::size_t>(y * 64 + x) * 4;
+                bytes[at] = 255, bytes[at + 1] = 236, bytes[at + 2] = 200, bytes[at + 3] = static_cast<std::uint8_t>(255 - x * 4);
+            }
+        const mesh::Texture thinning = *mesh::Texture::made(bytes, 64, 16);
+        const std::array<const mesh::Texture*, 1> textures{&thinning};
+        const std::uint32_t first = static_cast<std::uint32_t>(yard.materials.size()), sheet = static_cast<std::uint32_t>(yard.made.size() - 1);
+        yard.materials.push_back({.base = {0.2f, 0.5f, 0.9f}, .roughness = 0.3f, .opacity = 0.35f, .two_sided = true, .see_through = true});
+        yard.materials.push_back({.base = {0.9f, 0.25f, 0.2f}, .roughness = 0.5f, .opacity = 0.6f, .two_sided = true, .see_through = true});
+        yard.materials.push_back({.base = {0.3f, 0.85f, 0.4f}, .roughness = 0.5f, .opacity = 0.5f, .two_sided = true, .see_through = true});
+        yard.materials.push_back({.base = {1, 1, 1}, .texture = 0, .opacity = 0.9f, .two_sided = true, .see_through = true});
+        // Stood up before the eye one behind another and aside of one another — given the farthest first, then the
+        // nearest, then the two between: where they are over one another the order they are laid in is their depths'.
+        const math::Quat upright = math::Quat::about({1, 0, 0}, 1.5707964f);
+        const auto pane = [&](scene::Id id, std::uint32_t material, math::Vec3 at, float turned) {
+            expect(yard.world.add({.id = id, .mesh = sheet, .material = first + material, .world = math::Transform{at, math::Quat::about({0, 1, 0}, turned) * upright, {1, 1, 1}}.matrix(), .bounds = geom::bounds(yard.made[sheet].mesh)}).has_value());
+        };
+        pane(30, 2, {0.6f, 0.2f, 1.2f}, -0.2f), pane(31, 0, {-0.1f, 0.1f, 3.4f}, 0.15f), pane(32, 1, {0.3f, 0.5f, 2.3f}, 0.0f), pane(33, 3, {2.6f, -0.2f, 2.9f}, -0.5f);
+        scene::Extracted seen;
+        scene::extract(yard.world, yard.view(), seen);
+        auto pass = mesh::gpu::Pass::make(*device, false, true);
+        if (!(expect(pass.has_value()) << (pass ? "" : pass.error().message))) return;
+        if (!(expect(pass->load(yard.meshes).has_value()))) return;
+        const auto loaded = pass->load_textures(textures);
+        if (!(expect(loaded.has_value()) << (loaded ? "" : loaded.error().message))) return;
+        pass->use(yard.materials);
+        auto glow = mesh::gpu::Glow::make(*device);
+        if (!(expect(glow.has_value()) << (glow ? "" : glow.error().message))) return;
+        std::vector<rhi::Texture> all_made;
+        const auto target = [&](rhi::Format format, std::uint32_t wide, std::uint32_t high, std::string_view label) {
+            const auto made = device->create(rhi::TextureDesc{format, wide, high, rhi::is_depth(format) ? rhi::TextureUsage::depth_target : rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, label});
+            if (!(expect(made.has_value()) << (made ? "" : made.error().message))) return rhi::Texture{};
+            all_made.push_back(*made);
+            return *made;
+        };
+        const rhi::Texture light = target(rhi::Format::rgba16_float, width, height, "mesh.light"), one = target(rhi::Format::rgba16_float, width, height, "mesh.glow.one"),
+                           other = target(rhi::Format::rgba16_float, width, height, "mesh.glow.other"), colour = target(rhi::Format::rgba8_unorm, width, height, "mesh.colour"),
+                           depth = target(rhi::Format::d32_float, width, height, "mesh.depth"), who = target(rhi::Format::r32_float, width, height, "mesh.who");
+        mesh::gpu::Shadows shadows{.size = 2048, .distance = 30};
+        shadows.map = target(rhi::Format::r32_float, shadows.size, shadows.size, "mesh.shadow"), shadows.depth = target(rhi::Format::d32_float, shadows.size, shadows.size, "mesh.shadow.depth");
+        mesh::gpu::Layers layers;
+        layers.behind = target(rhi::Format::r32_float, width, height, "mesh.through.behind"), layers.deep[0] = target(rhi::Format::r32_float, width, height, "mesh.through.deep.0");
+        layers.deep[1] = target(rhi::Format::r32_float, width, height, "mesh.through.deep.1"), layers.depth = target(rhi::Format::d32_float, width, height, "mesh.through.depth");
+        layers.layer = target(rhi::Format::rgba16_float, width, height, "mesh.through.layer"), layers.gathered = target(rhi::Format::rgba16_float, width, height, "mesh.through.gathered");
+        if (std::ranges::any_of(all_made, [](rhi::Texture made) { return !made; }) || all_made.size() != 14) return;
+        bool shadowed = false;
+        mesh::gpu::Stats told;
+        const auto drawn = [&](const mesh::gpu::Layers* with, bool named) {
+            rhi::CommandList list;
+            pass->record(list, yard.world, seen, yard.view(), yard.materials, light, depth, width, height, {.shadows = shadowed}, &shadows, with);
+            told = pass->last();
+            glow->record(list, light, one, other, colour, width, height, {}, {});
+            if (named) pass->record_who(list, yard.world, seen, yard.view(), who, depth, width, height);
+            const auto submitted = device->submit(list);
+            if (!(expect(submitted.has_value()) << (submitted ? "" : submitted.error().message))) return std::vector<std::byte>{};
+            expect(device->wait(*submitted).has_value());
+            auto pixels = device->read(colour, rhi::Region{0, 0, width, height});
+            if (!(expect(pixels.has_value()) << (pixels ? "" : pixels.error().message))) return std::vector<std::byte>{};
+            return std::move(*pixels);
+        };
+        // Twice: without shadows — the laying over by itself — and with the sun's, which the panes take and do not throw.
+        std::array<std::size_t, 5> compared_bare{};
+        std::vector<std::byte> pixels_bare;
+        std::vector<std::uint8_t> panes;
+        const auto against = [&] {
+            mesh::Targets reference;
+            reference.resize(static_cast<int>(width), static_cast<int>(height));
+            mesh::Pass on_cpu;
+            on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, yard.trees, textures}, reference, {.shadows = shadowed});
+            mesh::Glow shown_on_cpu;
+            shown_on_cpu.show(reference.light, static_cast<int>(width), static_cast<int>(height), {}, reference.colour);
+            // How many of them are over one another, a pixel: the reference's own count.
+            std::array<std::size_t, 6> deep{};
+            panes.assign(std::size_t{width} * height, 0);
+            for (const mesh::Through& one : reference.through) ++panes[one.pixel];
+            for (const std::uint8_t count : panes) ++deep[std::min<std::size_t>(count, 5)];
+            expect(gt(deep[1], std::size_t{5000}) && gt(deep[2], std::size_t{3000}) && gt(deep[3], std::size_t{500}) && gt(deep[4], std::size_t{300}) && eq(deep[5], std::size_t{0}))
+                << deep[1] << ' ' << deep[2] << ' ' << deep[3] << ' ' << deep[4] << ' ' << deep[5];
+
+            const std::vector<std::byte> pixels = drawn(&layers, true);
+            if (pixels.empty()) return false;
+            expect(eq(told.through, 4u) && eq(told.layers, 4u) && eq(told.through_whole, 0u)) << told.through << ' ' << told.layers << ' ' << told.through_whole;
+            keep(pixels, shadowed ? "yard-panes-shadowed" : "yard-panes");
+            std::vector<std::byte> of_reference(reference.colour.size());
+            std::memcpy(of_reference.data(), reference.colour.data(), reference.colour.size());
+            keep(of_reference, shadowed ? "yard-panes-shadowed-reference" : "yard-panes-reference");
+            // Who stops the eye: never a pane (the pass that names instances, against the reference's names).
+            const auto by_instance = device->read(who, rhi::Region{0, 0, width, height});
+            if (!(expect(by_instance.has_value()))) return false;
+            std::size_t named_a_pane = 0, named_another = 0;
+            for (std::size_t pixel = 0; pixel < reference.ids.size(); ++pixel) {
+                float instance = 0;
+                std::memcpy(&instance, by_instance->data() + pixel * 4, 4);
+                const std::uint32_t is = reference.ids[pixel].draw;
+                const float is_instance = is == mesh::none ? 0.0f : static_cast<float>((reference.draws[is].id & 0xffffffu) + 1);
+                named_a_pane += instance >= 31 && instance <= 34, named_another += instance != is_instance;
+            }
+            // The picture: over all of it, and over the pixels a pane is seen at — by how many are over one another.
+            const Apart all = apart(reference, pixels, false, 6);
+            // Within: a pixel whose eight neighbours have the same panes over the same thing — no edge of anything
+            // goes through it, so what it shows is the laying over itself, not where an edge fell.
+            std::array<std::size_t, 5> off{}, compared{}, off_within{}, within{};
+            std::array<double, 5> sum{};
+            const auto same_about = [&](std::uint32_t x, std::uint32_t y) {
+                if (x == 0 || y == 0 || x + 1 == width || y + 1 == height) return false;
+                const std::size_t pixel = std::size_t{y} * width + x;
+                for (int down = -1; down <= 1; ++down)
+                    for (int across = -1; across <= 1; ++across) {
+                        const std::size_t beside = static_cast<std::size_t>(static_cast<int>(y) + down) * width + static_cast<std::size_t>(static_cast<int>(x) + across);
+                        if (panes[beside] != panes[pixel] || reference.ids[beside].draw != reference.ids[pixel].draw) return false;
+                    }
+                return true;
+            };
+            for (std::uint32_t y = 0; y < height; ++y)
+                for (std::uint32_t x = 0; x < width; ++x) {
+                    const std::size_t pixel = std::size_t{y} * width + x, count = std::min<std::size_t>(panes[pixel], 4);
+                    int most = 0;
+                    for (std::size_t channel = 0; channel < 3; ++channel) most = std::max(most, std::abs(static_cast<int>(reference.colour[pixel * 4 + channel]) - std::to_integer<int>(pixels[pixel * 4 + channel])));
+                    ++compared[count], off[count] += most > 6, sum[count] += most;
+                    if (same_about(x, y)) ++within[count], off_within[count] += most > 6;
+                }
+            std::println("panes seen through, four of them, up to four over one another{}: {} of {} pixels further than 6 levels from the reference ({:.2f}%), mean {:.3f}, worst {}; behind one pane {} of {} "
+                         "(a pixel's largest difference {:.2f} on average), behind two {} of {} ({:.2f}), behind three {} of {} ({:.2f}), behind four {} of {} ({:.2f}), with none {} of {}; away from every edge {} of {}, {} of {}, {} of {}, {} of {}; the pass that names who stops the eye names a "
+                         "pane at {} pixels, another than the reference at {}",
+                         shadowed ? ", with the sun's shadows by its map" : "", all.off, all.compared, 100.0 * static_cast<double>(all.off) / static_cast<double>(all.compared), all.mean, all.worst, off[1], compared[1], sum[1] / static_cast<double>(compared[1]), off[2],
+                         compared[2], sum[2] / static_cast<double>(compared[2]), off[3], compared[3], sum[3] / static_cast<double>(compared[3]), off[4], compared[4], sum[4] / static_cast<double>(compared[4]), off[0], compared[0], off_within[1], within[1], off_within[2], within[2], off_within[3], within[3], off_within[4], within[4], named_a_pane, named_another);
+            expect(eq(named_a_pane, std::size_t{0}));
+            expect(lt(static_cast<double>(named_another), 0.001 * width * height));
+            expect(lt(static_cast<double>(all.off), 0.002 * static_cast<double>(all.compared)));
+            expect(lt(all.mean, 0.2));
+            // Away from every edge the laying over is the reference's, however many are over one another. (With the
+            // sun's shadows a shadow's edge crosses the panes too: the map's against the reference's ray, as everywhere.)
+            for (const std::size_t count : {std::size_t{1}, std::size_t{2}, std::size_t{3}, std::size_t{4}})
+                expect(gt(within[count], std::size_t{200}) && lt(static_cast<double>(off_within[count]), (shadowed ? 0.05 : 0.0005) * static_cast<double>(within[count]))) << count << ' ' << off_within[count] << ' ' << within[count];
+            if (!shadowed) compared_bare = compared, pixels_bare = pixels;
+            return true;
+        };
+        if (!against()) return;
+        shadowed = true;
+        if (!against()) return;
+        shadowed = false;
+        // One layer only: a pixel keeps its nearest pane and loses the others — where one pane is, nothing changes.
+        layers.count = 1;
+        const std::vector<std::byte> nearest_only = drawn(&layers, false);
+        if (nearest_only.empty()) return;
+        std::array<std::size_t, 5> changed{};
+        for (std::size_t pixel = 0; pixel < panes.size(); ++pixel)
+            changed[std::min<std::size_t>(panes[pixel], 4)] += std::memcmp(nearest_only.data() + pixel * 4, pixels_bare.data() + pixel * 4, 3) != 0;
+        expect(eq(told.layers, 1u));
+        expect(eq(changed[0], std::size_t{0}) && lt(static_cast<double>(changed[1]), 0.005 * static_cast<double>(compared_bare[1])) && gt(static_cast<double>(changed[3] + changed[4]), 0.9 * static_cast<double>(compared_bare[3] + compared_bare[4])))
+            << changed[0] << ' ' << changed[1] << ' ' << changed[2] << ' ' << changed[3] << ' ' << changed[4];
+        // With no layers given they are drawn whole, and say so.
+        const std::vector<std::byte> whole = drawn(nullptr, false);
+        expect(eq(told.through, 4u) && eq(told.through_whole, 4u) && eq(told.layers, 0u));
+        std::println("with one layer {} of {} pixels behind one pane change, {} of {} behind two, {} of {} behind three, {} of {} behind four; drawn whole {} draws", changed[1], compared_bare[1], changed[2], compared_bare[2], changed[3],
+                     compared_bare[3], changed[4], compared_bare[4], told.through_whole);
+        static_cast<void>(device->wait_idle());
+        for (const rhi::Texture made : all_made) device->destroy(made);
+    });
     return suite;
 }
 

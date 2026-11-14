@@ -57,6 +57,12 @@ struct Material {
     // Seen from behind too — a leaf, a sheet of cloth, a pane — its normal there turned to face the eye. Without
     // it a face turned away is not drawn (a closed thing's far side never shows).
     bool two_sided = false;
+    // It lets what is behind it show, by the share it does not hide (1 − `opacity` × its picture's cover): a pane
+    // of glass, a label on it, smoke on a card. Such surfaces are laid over the frame after everything whole, each
+    // pixel's from the farthest to the nearest whatever order they were drawn in, and each keeps its name and its
+    // share of the pixel (`Targets::through`). The pixel's depth, normal, velocity and `ids` stay those of what
+    // stops the eye behind them. It hides nothing from a light: it casts no shadow.
+    bool see_through = false;
     [[nodiscard]] constexpr bool matt() const noexcept { return roughness >= 1 && metallic <= 0; }
 };
 // What a surface sends toward the eye of light arriving along `toward_light` (all of length 1; `facing` the
@@ -173,6 +179,14 @@ inline constexpr std::uint32_t none = 0xffffffffu;
 struct Pixel {
     std::uint32_t draw = none, cluster = none, triangle = none;
 };
+// A surface seen through, at a pixel: who, how deep, and its share of the pixel's light — what it hides of what is
+// behind it, times what the ones nearer than it let through. What is left over of 1 is what stops the eye's.
+struct Through {
+    std::uint32_t pixel = 0;  // a row after a row from the top
+    Pixel         id;
+    float         depth = 0;
+    float         share = 0;
+};
 struct Targets {
     int width = 0, height = 0;
     std::vector<std::uint8_t> colour;    // rgba8, sRGB, a row after a row from the top
@@ -182,6 +196,7 @@ struct Targets {
     std::vector<Vec2>         velocity;  // pixels moved since the last frame drawn (x right, y down)
     std::vector<Pixel>        ids;
     std::vector<scene::Draw>  draws;     // the frame's, as extracted: what `Pixel::draw` names
+    std::vector<Through>      through;   // the surfaces seen through, in pixel order; of one pixel, the nearest first
     void resize(int new_width, int new_height);
 };
 struct Stats {
@@ -190,6 +205,7 @@ struct Stats {
     std::uint64_t triangles = 0, facing_away = 0, outside = 0, clipped = 0, filled = 0;
     std::uint64_t written = 0, hidden = 0;                  // pixels that passed the depth, and that did not
     std::uint64_t cut = 0;                                  // samples a cut-out left out (`Material::cutout`): before the depth, so not in either
+    std::uint64_t through = 0;                              // samples of surfaces seen through, laid over what is behind them (not in `written`)
     std::uint64_t rays = 0, shadowed = 0;                   // rays sent toward a light, and those that met something
     std::uint64_t occlusion_rays = 0, occluded = 0;         // rays sent for the light from everywhere, and those that met something
     std::uint64_t textured = 0;                             // samples whose colour was looked up in a texture
@@ -212,6 +228,11 @@ struct Caster {
 [[nodiscard]] std::optional<mlibs::geom::RayHit> meet(const mlibs::geom::Ray& ray, const mlibs::geom::Mesh& mesh, const mlibs::geom::Bvh& tree, const Material* material, const Texture* picture,
                                                       float farthest = std::numeric_limits<float>::max());
 
+// A sample of a surface seen through, as a frame keeps it until the pixel's are laid over one another.
+struct Laid {
+    Through what;   // `share`: how much it hides, until then
+    Vec3    light;
+};
 class Pass {
 public:
     // The frame. `extracted` is of `scene` and `view`; `out` has a size. Remembers where everything was for the
@@ -227,6 +248,7 @@ private:
     std::vector<Mat4> before_world_;
     Mat4              before_clip_;    // its world to clip
     std::vector<Caster> casters_;      // a frame's: every instance of the scene that can cast, seen or not
+    std::vector<Laid>   laid_;         // a frame's samples of surfaces seen through, kept between frames
     bool              remembered_ = false;
 };
 
@@ -265,10 +287,15 @@ struct Source {
     Vec3          normal;
 };
 [[nodiscard]] std::optional<Source> at(const Targets& targets, int x, int y) noexcept;
+// The surfaces seen through at the pixel, the nearest first (none: empty): each one's `id` names its draw as
+// `Targets::ids` does.
+[[nodiscard]] std::span<const Through> through_at(const Targets& targets, int x, int y) noexcept;
 
 // For a frame's layer of this picture (xrender.frame's `PictureLayer`): who drew each pixel as one number — the draw's
 // place and one, 0 where nothing drew — and what `frame.at` says of a pixel beside it, as JSON members
-// (`"instance":11,"mesh":2,"material":2,"cluster":9,"triangle":640,"depth":0.93,"normal":[0,0.6,0.8]`).
+// (`"instance":11,"mesh":2,"material":2,"cluster":9,"triangle":640,"depth":0.93,"normal":[0,0.6,0.8]`), and where
+// surfaces are seen through there, each with its share, the nearest first
+// (`"through":[{"instance":30,"material":4,"share":0.4}]`).
 void objects(const Targets& targets, std::vector<std::uint32_t>& out);
 void describe(const Targets& targets, int x, int y, std::string& members);
 

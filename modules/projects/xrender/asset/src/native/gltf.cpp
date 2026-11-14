@@ -199,11 +199,12 @@ struct Maker {
                 made.base = {pbr.base_color_factor[0], pbr.base_color_factor[1], pbr.base_color_factor[2]};
                 made.roughness = pbr.roughness_factor, made.metallic = pbr.metallic_factor;
                 // Cut out by its alpha (MASK): where the factor's alpha times the picture's is below the cutoff, the
-                // surface is not there.
+                // surface is not there. Seen through by it (BLEND): that much of what is behind it is hidden.
                 if (from.alpha_mode == cgltf_alpha_mode_mask) made.opacity = pbr.base_color_factor[3], made.cutout = from.alpha_cutoff;
+                if (from.alpha_mode == cgltf_alpha_mode_blend) made.opacity = pbr.base_color_factor[3];
                 if (pbr.base_color_texture.texture)
                     made.texture = picture(pbr.base_color_texture, where + "/pbrMetallicRoughness/baseColorTexture", mesh::Coding::colour, "the material's base colour factor alone",
-                                           from.alpha_mode == cgltf_alpha_mode_mask);
+                                           from.alpha_mode != cgltf_alpha_mode_opaque);
                 if (pbr.metallic_roughness_texture.texture)
                     made.surface = picture(pbr.metallic_roughness_texture, where + "/pbrMetallicRoughness/metallicRoughnessTexture", mesh::Coding::plain, "the two factors over the whole surface");
             }
@@ -219,7 +220,7 @@ struct Maker {
             }
             if (from.emissive_texture.texture) made.glow = picture(from.emissive_texture, where + "/emissiveTexture", mesh::Coding::colour, "the emissive factor over the whole surface");
             if (from.alpha_mode == cgltf_alpha_mode_mask && !from.has_pbr_metallic_roughness) made.cutout = from.alpha_cutoff;
-            if (from.alpha_mode == cgltf_alpha_mode_blend) note(where + "/alphaMode", "seen through by its alpha (BLEND)", "drawn solid");
+            made.see_through = from.alpha_mode == cgltf_alpha_mode_blend;
             made.two_sided = from.double_sided != 0;
             if (from.unlit) note(where + "/extensions/KHR_materials_unlit", "a surface no light changes", "lit as any other");
             const std::array<std::pair<bool, std::string_view>, 11> more{{{from.has_pbr_specular_glossiness != 0, "KHR_materials_pbrSpecularGlossiness"},

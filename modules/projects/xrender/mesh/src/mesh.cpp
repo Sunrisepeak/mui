@@ -114,6 +114,7 @@ struct Raster {
     const Texture* glow = nullptr;
     const Texture* shade = nullptr;
     Material       own;         // the draw's material as it says, before any picture
+    std::vector<Laid>* laid = nullptr;  // the draw is seen through: its samples are kept here, to be laid over the frame
     float          shaded = 1;  // the share of the light from everywhere the shade picture lets through here
 
     // Whether anything is between `from` and a light `reach` away along `toward` (of length 1). The ray is taken
@@ -345,7 +346,8 @@ struct Raster {
                     ++stats.cut;
                     continue;
                 }
-                ++stats.written;
+                if (laid && !(hides > 0)) continue;  // seen through wholly: nothing of it
+                if (!laid) ++stats.written;
                 at_pixel = pixel;
                 Vec3 colour = lit(normal, place);
                 if (fog) {
@@ -354,6 +356,11 @@ struct Raster {
                     const float share = apart > 0 ? through(options.fog, eye, to * (1.0f / apart), apart) : 1.0f;
                     colour = options.fog.colour + (colour - options.fog.colour) * share;
                     ++stats.fogged;
+                }
+                if (laid) {
+                    ++stats.through;
+                    laid->push_back({{static_cast<std::uint32_t>(pixel), id, depth, std::min(hides, 1.0f)}, colour});
+                    continue;
                 }
                 out.depth[pixel] = depth, out.normal[pixel] = normal, out.velocity[pixel] = moved, out.ids[pixel] = id, out.light[pixel] = colour;
                 out.colour[pixel * 4] = encoded(colour.x), out.colour[pixel * 4 + 1] = encoded(colour.y), out.colour[pixel * 4 + 2] = encoded(colour.z), out.colour[pixel * 4 + 3] = 255;
@@ -479,6 +486,7 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
     if (out.depth.size() != pixels) out.resize(out.width, out.height);
     std::ranges::fill(out.depth, options.reversed_depth ? 0.0f : 1.0f);
     std::ranges::fill(out.normal, Vec3{}), std::ranges::fill(out.velocity, Vec2{0, 0}), std::ranges::fill(out.ids, Pixel{}), std::ranges::fill(out.light, options.background);
+    out.through.clear(), laid_.clear();
     const std::array<std::uint8_t, 4> clear{encoded(options.background.x), encoded(options.background.y), encoded(options.background.z), 255};
     for (std::size_t pixel = 0; pixel < pixels; ++pixel) std::copy_n(clear.begin(), 4, out.colour.begin() + static_cast<std::ptrdiff_t>(pixel * 4));
 
@@ -500,9 +508,10 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
     if (options.shadows && !assets.trees.empty())
         for (const scene::Instance& instance : instances) {
             if (instance.hidden || !instance.casts || instance.mesh >= assets.meshes.size() || instance.mesh >= assets.trees.size() || !assets.meshes[instance.mesh] || !assets.trees[instance.mesh]) continue;
+            const Material* material = instance.material < assets.materials.size() ? &assets.materials[instance.material] : nullptr;
+            if (material && material->see_through) continue;  // it hides nothing from a light
             const std::optional<Mat4> back = math::inverse(instance.world);
             if (!back) continue;
-            const Material* material = instance.material < assets.materials.size() ? &assets.materials[instance.material] : nullptr;
             const Texture* picture = material && material->texture < assets.textures.size() ? assets.textures[material->texture] : nullptr;
             casters_.push_back({*back, geom::moved(instance.world, instance.bounds), &assets.meshes[instance.mesh]->mesh, assets.trees[instance.mesh], material, picture});
         }
@@ -514,12 +523,16 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
     raster.fog = options.fog.density > 0 && camera.has_value();
     if (camera) raster.eye = math::point(*camera, {0, 0, 0});
 
+    // Everything whole first; then the surfaces seen through, their samples kept to be laid over it.
+    for (const bool seen_through : {false, true})
     for (std::uint32_t number = 0; number < extracted.draws.size() && pixels; ++number) {
         const scene::Draw& draw = extracted.draws[number];
         if (draw.instance >= instances.size() || draw.mesh >= assets.meshes.size() || !assets.meshes[draw.mesh] || draw.material >= assets.materials.size()) {
-            ++last_.missing;
+            if (!seen_through) ++last_.missing;
             continue;
         }
+        if (assets.materials[draw.material].see_through != seen_through) continue;
+        raster.laid = seen_through ? &laid_ : nullptr;
         ++last_.draws;
         const scene::Instance& instance = instances[draw.instance];
         const geom::ClusteredMesh& clustered = *assets.meshes[draw.mesh];
@@ -628,10 +641,48 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
             }
     }
 
+    // The surfaces seen through, laid over what is behind them: each pixel's from the nearest on, each taking of
+    // the pixel what it hides of what the nearer ones let through — the same light as laying them from the
+    // farthest to the nearest, in an order that is the pixel's own (of two as deep, the earlier draw is nearer).
+    if (!laid_.empty()) {
+        std::ranges::sort(laid_, [&](const Laid& one, const Laid& other) {
+            if (one.what.pixel != other.what.pixel) return one.what.pixel < other.what.pixel;
+            if (one.what.depth != other.what.depth) return options.reversed_depth ? one.what.depth > other.what.depth : one.what.depth < other.what.depth;
+            if (one.what.id.draw != other.what.id.draw) return one.what.id.draw < other.what.id.draw;
+            return one.what.id.triangle < other.what.id.triangle;
+        });
+        out.through.reserve(laid_.size());
+        for (std::size_t first = 0; first < laid_.size();) {
+            const std::uint32_t pixel = laid_[first].what.pixel;
+            float let = 1;
+            Vec3 sum{0, 0, 0};
+            std::size_t next = first;
+            for (; next < laid_.size() && laid_[next].what.pixel == pixel; ++next) {
+                Through what = laid_[next].what;
+                const float hides = what.share;
+                what.share = hides * let;
+                sum = sum + laid_[next].light * what.share;
+                let *= 1.0f - hides;
+                out.through.push_back(what);
+            }
+            const Vec3 colour = sum + out.light[pixel] * let;
+            out.light[pixel] = colour;
+            out.colour[std::size_t{pixel} * 4] = encoded(colour.x), out.colour[std::size_t{pixel} * 4 + 1] = encoded(colour.y), out.colour[std::size_t{pixel} * 4 + 2] = encoded(colour.z);
+            first = next;
+        }
+    }
+
     before_ids_.clear(), before_world_.clear();
     for (const scene::Instance& instance : instances) before_ids_.push_back(instance.id), before_world_.push_back(instance.world);
     before_clip_ = clip;
     remembered_ = true;
+}
+
+std::span<const Through> through_at(const Targets& targets, int x, int y) noexcept {
+    if (x < 0 || y < 0 || x >= targets.width || y >= targets.height) return {};
+    const std::uint32_t pixel = static_cast<std::uint32_t>(y) * static_cast<std::uint32_t>(targets.width) + static_cast<std::uint32_t>(x);
+    const auto found = std::ranges::equal_range(targets.through, pixel, {}, &Through::pixel);
+    return {found.begin(), found.end()};
 }
 
 std::optional<Source> at(const Targets& targets, int x, int y) noexcept {
@@ -650,9 +701,18 @@ void objects(const Targets& targets, std::vector<std::uint32_t>& out) {
 }
 void describe(const Targets& targets, int x, int y, std::string& members) {
     const std::optional<Source> source = at(targets, x, y);
-    if (!source) return;
-    members += std::format("\"instance\":{},\"mesh\":{},\"material\":{},\"cluster\":{},\"triangle\":{},\"depth\":{},\"normal\":[{},{},{}]", source->instance, source->mesh, source->material,
-                           source->cluster, source->triangle, source->depth, source->normal.x, source->normal.y, source->normal.z);
+    if (source)
+        members += std::format("\"instance\":{},\"mesh\":{},\"material\":{},\"cluster\":{},\"triangle\":{},\"depth\":{},\"normal\":[{},{},{}]", source->instance, source->mesh, source->material,
+                               source->cluster, source->triangle, source->depth, source->normal.x, source->normal.y, source->normal.z);
+    const std::span<const Through> through = through_at(targets, x, y);
+    if (through.empty()) return;
+    members += source ? ",\"through\":[" : "\"through\":[";
+    for (std::size_t index = 0; index < through.size(); ++index) {
+        if (through[index].id.draw >= targets.draws.size()) continue;
+        const scene::Draw& draw = targets.draws[through[index].id.draw];
+        members += std::format("{}{{\"instance\":{},\"material\":{},\"share\":{}}}", index ? "," : "", draw.id, draw.material, through[index].share);
+    }
+    members += "]";
 }
 
 std::optional<Source> pick(const scene::Scene& scene, const scene::View& view, const Assets& assets, float x, float y, int width, int height) {
@@ -719,6 +779,20 @@ void shown(const Targets& targets, std::vector<Shown>& out) {
             one.x0 = std::min(one.x0, x), one.x1 = std::max(one.x1, x + 1), one.y1 = y + 1;
             ++one.pixels;
         }
+    // A surface seen through reached the frame at each pixel it is laid over.
+    for (std::size_t index = 0; index < targets.through.size(); ++index) {
+        const Through& what = targets.through[index];
+        if (what.id.draw >= out.size() || targets.width <= 0) continue;
+        // Once a pixel, however many of its triangles lie over one another there.
+        bool counted = false;
+        for (std::size_t before = index; before-- > 0 && targets.through[before].pixel == what.pixel && !counted;) counted = targets.through[before].id.draw == what.id.draw;
+        if (counted) continue;
+        const int x = static_cast<int>(what.pixel % static_cast<std::uint32_t>(targets.width)), y = static_cast<int>(what.pixel / static_cast<std::uint32_t>(targets.width));
+        Shown& one = out[what.id.draw];
+        if (!one.pixels) one.x0 = x, one.y0 = y, one.x1 = x + 1, one.y1 = y + 1;
+        one.x0 = std::min(one.x0, x), one.x1 = std::max(one.x1, x + 1), one.y0 = std::min(one.y0, y), one.y1 = std::max(one.y1, y + 1);
+        ++one.pixels;
+    }
     for (std::size_t draw = 0; draw < out.size(); ++draw) out[draw].instance = targets.draws[draw].id;
     std::erase_if(out, [](const Shown& one) { return one.pixels == 0; });
     std::ranges::sort(out, {}, &Shown::instance);

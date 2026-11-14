@@ -79,7 +79,7 @@ struct Tracing {
         ++told.rays;
         const geom::Ray ray{from, toward};
         for (const Thing& thing : things) {
-            if (!thing.casts) continue;
+            if (!thing.casts || thing.material.see_through) continue;  // what is seen through hides nothing from a light
             const std::optional<float> box = geom::meet(ray, thing.bounds);
             if (!box || *box > reach) continue;
             const geom::Ray within{math::point(thing.back, from), math::direction(thing.back, toward)};
@@ -97,6 +97,11 @@ struct Tracing {
             return sky(toward);
         }
         Material material = met->thing->material;
+        // A surface seen through: as often as it does not hide what is behind it, the ray goes on through it.
+        if (material.see_through) {
+            const float hides = material.opacity * (met->thing->texture ? met->thing->texture->cover_at(met->uv) : 1.0f);
+            if (!(static_cast<float>(math::unit24(random.next())) < hides)) return along(met->place + toward * 2e-3f, toward, bounces_left, random, from_eye);
+        }
         // Its picture at the place (a pixel a texel: the finest size).
         if (met->thing->texture) material.base = math::scaled(material.base, met->thing->texture->at(met->uv, 1));
         const Vec3 lifted = met->place + met->normal * 2e-3f, toward_eye = toward * -1.0f;

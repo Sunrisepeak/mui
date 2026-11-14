@@ -112,3 +112,12 @@ float4 surface_fs(VOut point) : SV_Target {
     const float eighths = floor(far * 8.0) * 0.125;
     return float4(on_square, eighths, far - eighths);
 }
+
+// How deep what stops the eye is, as a picture a later pass reads (the depth target itself is not read): the
+// pass's own depth at the pixel. Nothing there: what the picture was cleared to.
+[shader("fragment")]
+float4 deep_fs(VOut point) : SV_Target {
+    const float2 right = ddx(point.uv), down = ddy(point.uv);
+    if (left_out(point, right, down)) discard;
+    return float4(point.clip.z, 0, 0, 1);
+}

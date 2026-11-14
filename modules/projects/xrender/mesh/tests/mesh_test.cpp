@@ -984,6 +984,99 @@ static UTest cases{"xrender.mesh", [] {
         expect(gt(leaf_behind.frame.stats.written, 100u) && gt(leaf_behind.frame.stats.cut, 100u));
     };
 
+    "surfaces seen through: each pixel's are laid over what is behind them from the farthest to the nearest whatever order they were drawn in, each with its name and its share; what stops the eye keeps the pixel's depth and name; they cast no shadow"_test = [] {
+        const geom::ClusteredMesh sheet_mesh = *geom::clustered(geom::sheet(4, 4, 2, 2));
+        const geom::Bvh sheet_tree = geom::bvh_of(sheet_mesh.mesh);
+        const std::array<const geom::ClusteredMesh*, 1> meshes{&sheet_mesh};
+        const std::array<const geom::Bvh*, 1> trees{&sheet_tree};
+        // A picture whose left half is whole and whose right half is clear.
+        std::vector<std::uint8_t> bytes(8 * 8 * 4, 0);
+        for (int y = 0; y < 8; ++y)
+            for (int x = 0; x < 4; ++x) bytes[static_cast<std::size_t>(y * 8 + x) * 4] = 255, bytes[static_cast<std::size_t>(y * 8 + x) * 4 + 1] = 255, bytes[static_cast<std::size_t>(y * 8 + x) * 4 + 2] = 255, bytes[static_cast<std::size_t>(y * 8 + x) * 4 + 3] = 255;
+        const mesh::Texture half = *mesh::Texture::made(bytes, 8, 8);
+        const std::array<const mesh::Texture*, 1> textures{&half};
+        // 0: a grey wall. 1: a red pane that hides a quarter. 2: a green pane that hides a half. 3: a blue pane whose
+        // picture says where it is there at all.
+        const std::array<mesh::Material, 4> materials{mesh::Material{.base = {0.6f, 0.6f, 0.6f}}, mesh::Material{.base = {1, 0, 0}, .opacity = 0.25f, .see_through = true},
+                                                       mesh::Material{.base = {0, 1, 0}, .opacity = 0.5f, .see_through = true}, mesh::Material{.base = {0, 0, 1}, .texture = 0, .see_through = true}};
+        const auto stood = [](float z, float size) { return math::Transform{{0, 0, z}, math::Quat::about({1, 0, 0}, 1.5707964f), {size, 1, size}}.matrix(); };
+        struct Put {
+            scene::Id     id;
+            std::uint32_t material;
+            float         z, size;
+        };
+        const auto frame_of = [&](std::initializer_list<Put> things, bool sun = false, bool reversed = false) {
+            scene::Scene world;
+            for (const Put& thing : things) expect(fatal(world.add({.id = thing.id, .mesh = 0, .material = thing.material, .world = stood(thing.z, thing.size), .bounds = geom::bounds(sheet_mesh.mesh)}).has_value()));
+            if (sun) expect(world.add(scene::Light{.id = 1, .kind = scene::LightKind::sun, .intensity = 1, .toward = {0, 0, -1}}).has_value());
+            const Camera camera{.eye = {0, 0, 6}, .reversed = reversed};
+            Frame frame;
+            frame.targets.resize(96, 96);
+            scene::Extracted seen;
+            scene::extract(world, camera.view(), seen);
+            mesh::Pass pass;
+            // Light from everywhere alone, of 1: a surface's light is its colour, exactly.
+            pass.draw(world, seen, camera.view(), {meshes, materials, sun ? std::span<const geom::Bvh* const>(trees) : std::span<const geom::Bvh* const>(), textures}, frame.targets,
+                      {.background = {0, 0, 0.5f}, .ambient = {1, 1, 1}, .reversed_depth = reversed});
+            frame.stats = pass.last();
+            return frame;
+        };
+        const auto light = [](const Frame& frame, int x, int y) { return frame.targets.light[static_cast<std::size_t>(y) * 96 + static_cast<std::size_t>(x)]; };
+        const auto instance_of = [](const Frame& frame, const mesh::Through& what) { return frame.targets.draws[what.id.draw].id; };
+
+        // The wall, the red pane before it, the green pane before that: the green takes a half, the red a quarter of
+        // the half left, the wall the rest.
+        const Frame both = frame_of({{2, 0, -2, 3}, {5, 1, 0, 1}, {7, 2, 1, 1}});
+        const math::Vec3 middle = light(both, 48, 48);
+        expect(near(middle.x, 0.125f + 0.6f * 0.375f, 1e-6f) && near(middle.y, 0.5f + 0.6f * 0.375f, 1e-6f) && near(middle.z, 0.6f * 0.375f, 1e-6f)) << middle.x << ' ' << middle.y << ' ' << middle.z;
+        const auto stops = mesh::at(both.targets, 48, 48);
+        expect(fatal(stops.has_value()));
+        expect(eq(stops->instance, scene::Id{2})) << "the pixel is the wall's: its depth, its normal, its name";
+        const std::span<const mesh::Through> through = mesh::through_at(both.targets, 48, 48);
+        expect(fatal(eq(through.size(), std::size_t{2})));
+        expect(eq(instance_of(both, through[0]), scene::Id{7}) && eq(through[0].share, 0.5f) && eq(instance_of(both, through[1]), scene::Id{5}) && eq(through[1].share, 0.125f));
+        expect(lt(through[0].depth, through[1].depth) && lt(through[1].depth, stops->depth));
+        expect(gt(both.stats.through, 2000u) && eq(both.stats.draws, 3u));
+        std::string said;
+        mesh::describe(both.targets, 48, 48, said);
+        expect(said.contains("\"instance\":2,") && said.contains("\"through\":[{\"instance\":7,\"material\":2,\"share\":0.5},{\"instance\":5,\"material\":1,\"share\":0.125}]")) << said;
+        // Who reached the frame: all three.
+        std::vector<mesh::Shown> reached;
+        mesh::shown(both.targets, reached);
+        expect(fatal(eq(reached.size(), std::size_t{3})));
+        expect(eq(reached[1].instance, scene::Id{5}) && gt(reached[1].pixels, 1000u) && gt(reached[2].pixels, reached[1].pixels) && lt(reached[1].x0, 40) && gt(reached[1].x1, 56));
+        // Drawn in the other order (the panes' names changed about), it is the same light, bit for bit; with the
+        // other depth convention too.
+        const Frame other_order = frame_of({{2, 0, -2, 3}, {7, 1, 0, 1}, {5, 2, 1, 1}});
+        const Frame reversed = frame_of({{2, 0, -2, 3}, {5, 1, 0, 1}, {7, 2, 1, 1}}, false, true);
+        std::size_t differs = 0, differs_reversed = 0;
+        for (std::size_t pixel = 0; pixel < both.targets.light.size(); ++pixel) {
+            differs += std::bit_cast<std::array<std::uint32_t, 3>>(both.targets.light[pixel]) != std::bit_cast<std::array<std::uint32_t, 3>>(other_order.targets.light[pixel]);
+            differs_reversed += std::bit_cast<std::array<std::uint32_t, 3>>(both.targets.light[pixel]) != std::bit_cast<std::array<std::uint32_t, 3>>(reversed.targets.light[pixel]);
+        }
+        expect(eq(differs, std::size_t{0}) && eq(differs_reversed, std::size_t{0}));
+        // Beside the panes the wall is the wall; with no wall the panes are over the background.
+        expect(near(light(both, 6, 48).x, 0.6f, 1e-6f) && mesh::through_at(both.targets, 6, 48).empty());
+        const Frame no_wall = frame_of({{5, 1, 0, 1}});
+        expect(!mesh::at(no_wall.targets, 48, 48).has_value() && eq(mesh::through_at(no_wall.targets, 48, 48).size(), std::size_t{1}));
+        expect(near(light(no_wall, 48, 48).x, 0.25f, 1e-6f) && near(light(no_wall, 48, 48).z, 0.5f * 0.75f, 1e-6f));
+        std::string of_pane;
+        mesh::describe(no_wall.targets, 48, 48, of_pane);
+        expect(of_pane.starts_with("\"through\":[{\"instance\":5,")) << of_pane;
+        // A pane behind the wall is not seen.
+        const Frame hidden = frame_of({{2, 0, -2, 3}, {5, 1, -3, 1}});
+        expect(mesh::through_at(hidden.targets, 48, 48).empty() && eq(hidden.stats.through, 0u) && near(light(hidden, 48, 48).x, 0.6f, 1e-6f));
+        // Its picture says where it is there: whole on the left, nothing on the right.
+        const Frame pictured = frame_of({{2, 0, -2, 3}, {5, 3, 0, 1}});
+        expect(near(light(pictured, 30, 48).z, 1.0f, 1e-6f) && near(light(pictured, 30, 48).x, 0.0f, 1e-6f) && near(light(pictured, 60, 48).x, 0.6f, 1e-6f));
+        expect(eq(mesh::through_at(pictured.targets, 30, 48).size(), std::size_t{1}) && mesh::through_at(pictured.targets, 60, 48).empty());
+        // No shadow: under a sun from before, the wall behind the panes is lit as the wall beside them.
+        const Frame lit = frame_of({{2, 0, -2, 3}, {5, 1, 0, 1}, {7, 2, 1, 1}}, true);
+        expect(near(light(lit, 6, 48).x, 0.6f * 2.0f, 1e-5f)) << light(lit, 6, 48).x;
+        expect(near(light(lit, 48, 48).z, 0.6f * 2.0f * 0.375f, 1e-5f)) << light(lit, 48, 48).z;
+        expect(gt(lit.stats.rays, 1000u) && eq(lit.stats.shadowed, 0u));
+    };
+
     "light followed along rays: an open floor under an even sky sends back the sky's light times its colour, exactly; beside a ball it is darker; before a red box in the sun it is redder — the same bits twice, pinned, and kept"_test = [] {
         constexpr int width = 160, height = 90;
         const auto place_of = [&](const Camera& camera, math::Vec3 at) {

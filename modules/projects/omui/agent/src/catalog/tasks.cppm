@@ -19,10 +19,12 @@ inline constexpr std::array<mlibs::control::Parameter, 1> parameters_task_cancel
 
 // Background tasks: started with a handle at once, their progress and end readable, cancelled without waiting, the interface running all along.
 inline constexpr std::array<mlibs::control::CatalogEntry, 3> catalog{{
-    {{"task.list", openas::Effect::read, false}, "The background tasks, newest first: each one's id, what it is, who started it, its state (running, done, failed, cancelled), its progress and how long it has run", parameters_task_list, "json", mlibs::control::Cost::instant, "", false, false, false},
-    {{"task.status", openas::Effect::read, false}, "One task: its state, progress (0…1, and what it is doing), and once ended its result or why it failed", parameters_task_status, "json", mlibs::control::Cost::instant, "", false, false, false},
-    {{"task.cancel", openas::Effect::reversible, false}, "Cancels a task: taken at once (it answers without waiting for the work to stop), nothing the task would have committed is, and the work is asked to stop", parameters_task_cancel, "json", mlibs::control::Cost::instant, "none needed: nothing it would have made was kept; start it again", false, false, false},
+    {{"task.list", openas::Effect::read, false}, "The background tasks, newest first: each one's id, what it is, who started it, its state (running, done, failed, cancelled), its progress and how long it has run", parameters_task_list, "json", mlibs::control::Cost::instant, "", false, false, false, {}},
+    {{"task.status", openas::Effect::read, false}, "One task: its state, progress (0…1, and what it is doing), and once ended its result or why it failed", parameters_task_status, "json", mlibs::control::Cost::instant, "", false, false, false, {}},
+    {{"task.cancel", openas::Effect::reversible, false}, "Cancels a task: taken at once (it answers without waiting for the work to stop), nothing the task would have committed is, and the work is asked to stop", parameters_task_cancel, "json", mlibs::control::Cost::instant, "none needed: nothing it would have made was kept; start it again", false, false, false, {}},
 }};
+
+inline constexpr mlibs::control::Guide guide{"Background tasks: started with a handle at once, their progress and end readable, cancelled without waiting, the interface running all along.", {}};
 
 // The listing (task.ops.json), as written beside this file.
 inline constexpr std::string_view listing = R"listing({

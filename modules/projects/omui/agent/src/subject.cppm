@@ -46,6 +46,7 @@ public:
     }
     [[nodiscard]] std::span<const mlibs::control::CatalogEntry> operations() const noexcept override { return catalog; }
     [[nodiscard]] std::string_view listing() const noexcept override { return omui::agent::listing; }
+    [[nodiscard]] mlibs::control::Guide guide() const noexcept override { return omui::agent::guide; }
     // What `ui.state` answers, hashed: what was set in the interface — text, switches, values, scroll, focus.
     [[nodiscard]] std::uint64_t state_hash() const override;
     void operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) override;

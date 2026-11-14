@@ -36,11 +36,11 @@ inline constexpr std::string_view effect_template = R"omui(// The effect templat
 // within a level where the GPU rounds a division or a square root otherwise.
 
 struct EffectFrame {
-    float4 size;        // the surface's width, height (device pixels); the device scale; -
+    float4 size;        // the surface's width, height (device pixels); the device scale; a shared surface's width (0: its own)
     float4 layer;       // the layer's rectangle in the surface: x, y, width, height
     float4 params[4];   // parameters 0…15, in the effect's order
     float4 derived[2];  // 0…7: values the renderer computed for the effect on the CPU
-    float4 shape_info;  // the number of shapes (1…8), -, -, -
+    float4 shape_info;  // the number of shapes (1…8); the cell's corner in a shared surface x, y (cell_origin); the shared surface's height
     float4 shapes[16];  // shape i: [2i] its rectangle x, y, w, h; [2i + 1] its radii tl, tr, br, bl (surface pixels)
 };
 
@@ -52,7 +52,14 @@ struct EffectFrame {
 struct EffectPixel {
     float4 pos : SV_Position;
 };
-int2 at(EffectPixel px) { return int2(px.pos.xy); }
+// A layer's surface may be a cell of one shared by many layers: where the cell lies in it (0, 0 for a
+// surface of its own). A fragment's pixel and the source's are the cell's: an effect reads and writes
+// its layer's surface as if it were alone.
+int2 cell_origin() { return int2(effect.shape_info.yz); }
+// The extent of the texture the source is read from: the shared surface's, or the layer's own (said by
+// the encoder: a query of the texture is not written alike for every target).
+float2 source_extent() { return effect.size.w > 0.0 ? float2(effect.size.w, effect.shape_info.w) : effect.size.xy; }
+int2 at(EffectPixel px) { return int2(px.pos.xy) - cell_origin(); }
 
 float param(int i) { return effect.params[i >> 2][i & 3]; }
 float derived(int i) { return effect.derived[i >> 2][i & 3]; }
@@ -65,7 +72,7 @@ float device_scale() { return effect.size.z; }
 uint4 source_texel(int2 p) {
     const int2 n = surface_size();
     if (p.x < 0 || p.y < 0 || p.x >= n.x || p.y >= n.y) return uint4(0);
-    return uint4(round(saturate(effect_source.SampleLevel((float2(p) + 0.5) / float2(n), 0)) * 255.0));
+    return uint4(round(saturate(effect_source.SampleLevel((float2(p + cell_origin()) + 0.5) / source_extent(), 0)) * 255.0));
 }
 
 // Bilinear sample in byte units at a point of the surface (pixel centres at

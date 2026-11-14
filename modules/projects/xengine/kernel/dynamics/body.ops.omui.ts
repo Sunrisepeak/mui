@@ -50,6 +50,7 @@ export default defineOps({
     },
     {
       name: "body.seek",
+      examples: [{ frame: 240 }],
       effect: "reversible",
       summary: "Returns to a frame within the history kept; what is stepped from there is a new branch",
       params: [{ name: "frame", type: "integer", doc: "the frame to return to" }],
@@ -75,6 +76,33 @@ export default defineOps({
       effect: "read",
       summary: "What the last step touched, in words: its place, its squash, its speed, its contacts by kind, and the stages a step goes through",
       result: "string",
+    },
+  ],
+  tasks: [
+    {
+      name: "see-where-it-is",
+      summary: "Read where the body is and what it touches, as numbers and in words",
+      steps: [
+        { op: "body.observe" },
+        { op: "body.contacts" },
+      ],
+    },
+    {
+      name: "push-and-watch",
+      summary: "Kick the body, step it, and read where it went",
+      steps: [
+        { op: "body.push", kick: [120, -380] },
+        { op: "body.step", steps: 30 },
+        { op: "body.observe" },
+      ],
+    },
+    {
+      name: "ask-before-pushing",
+      summary: "See where a kick would take it some steps ahead, the body itself untouched",
+      steps: [
+        { op: "body.branch", steps: 30, kick: [0, -400] },
+        { op: "body.observe" },
+      ],
     },
   ],
 });

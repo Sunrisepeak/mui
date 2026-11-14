@@ -89,30 +89,115 @@ inline constexpr std::array<mlibs::control::Parameter, 4> parameters_lab_claim{{
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_lab_release{{
     {"part", "string", "as it was claimed", false},
 }};
+inline constexpr std::array<std::string_view, 1> examples_lab_describe{{
+    "{\"op\":\"lab.describe\"}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_lab_read{{
+    "{\"op\":\"lab.read\",\"path\":\"materials/wood.json\"}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_lab_edit{{
+    "{\"op\":\"lab.edit\",\"path\":\"materials/wood.json\",\"text\":\"{\\\"density\\\":600,\\\"friction\\\":0.45,\\\"restitution\\\":0.35,\\\"shape_stiffness\\\":1,\\\"thermal\\\":1,\\\"porous\\\":2,\\\"ignition\\\":600,\\\"fuel\\\":400,\\\"heat\\\":80,\\\"burnt\\\":\\\"ash\\\",\\\"tags\\\":[\\\"plant\\\"],\\\"look\\\":{\\\"color\\\":\\\"#8a5a2b\\\",\\\"grain\\\":0.12}}\"}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_lab_material{{
+    "{\"op\":\"lab.material\",\"name\":\"wood\",\"properties\":{\"ignition\":600},\"intent\":\"wood lights sooner\"}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_lab_law{{
+    "{\"op\":\"lab.law\",\"name\":\"embers warm\",\"law\":{\"when\":\"temperature > 800\",\"add\":{\"temperature\":5}}}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_lab_try{{
+    "{\"op\":\"lab.try\",\"material\":\"wood\",\"properties\":{\"ignition\":5000},\"steps\":40}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_lab_explain{{
+    "{\"op\":\"lab.explain\",\"part\":\"materials/wood\",\"property\":\"ignition\"}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_lab_history{{
+    "{\"op\":\"lab.history\",\"limit\":3}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_lab_commit{{
+    "{\"op\":\"lab.commit\",\"message\":\"a hearth\"}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_lab_branch{{
+    "{\"op\":\"lab.branch\",\"name\":\"resins\"}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_lab_switch{{
+    "{\"op\":\"lab.switch\",\"to\":\"main\"}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_lab_revert{{
+    "{\"op\":\"lab.revert\",\"to\":\"HEAD~1\"}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_lab_diff{{
+    "{\"op\":\"lab.diff\",\"from\":\"HEAD~1\"}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_lab_merge{{
+    "{\"op\":\"lab.merge\",\"from\":\"resins\"}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_lab_tag{{
+    "{\"op\":\"lab.tag\",\"name\":\"v1\"}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_lab_claim{{
+    "{\"op\":\"lab.claim\",\"part\":\"materials/wood\",\"intent\":\"tuning how wood burns\"}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_lab_release{{
+    "{\"op\":\"lab.release\",\"part\":\"materials/wood\"}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_lab_claims{{
+    "{\"op\":\"lab.claims\"}",
+}};
 
 // Design matter: change a material's row or a law and see the same scene under the new definition, try a change before making it, keep every step as a commit, and hold the part you are working on.
 inline constexpr std::array<mlibs::control::CatalogEntry, 20> catalog{{
-    {{"lab.describe", openas::Effect::read, false}, "What is being designed: each source with its lines and hash — a material a file (materials/wood.json), the laws (laws.json), the look (look.json), the scene (scene.json) — the world's shape and steps, the commit shown, whether there are changes not committed, and the claims held", parameters_lab_describe, "json", mlibs::control::Cost::instant, "", false, false, false},
-    {{"lab.read", openas::Effect::read, false}, "One source's text as it is now", parameters_lab_read, "json", mlibs::control::Cost::bounded, "", false, false, false},
-    {{"lab.edit", openas::Effect::reversible, false}, "One source's text replaced, made or removed: the definition is prepared, the look checked and the scene played again under them, to the same step, before anything is replaced — a text with a problem changes nothing and says where. Answers what changed in the world (cells that differ, materials then and now) and its commit", parameters_lab_edit, "json", mlibs::control::Cost::bounded, "lab.revert to the commit before it (`HEAD~1`)", false, false, false},
-    {{"lab.material", openas::Effect::reversible, false}, "One material's row: made when it is not there, properties set (null takes one away) or the row removed — its own source changed and nothing else, the scene played again. Answers as lab.edit", parameters_lab_material, "json", mlibs::control::Cost::bounded, "lab.revert to the commit before it (`HEAD~1`)", false, false, false},
-    {{"lab.law", openas::Effect::reversible, false}, "One law by its name: replaced where it stands, added after the last when it is new, or removed. A law reads properties and never a material's name (refused otherwise). Answers as lab.edit", parameters_lab_law, "json", mlibs::control::Cost::bounded, "lab.revert to the commit before it (`HEAD~1`)", false, false, false},
-    {{"lab.try", openas::Effect::read, false}, "What a change would do, nothing changed: the same scene played under the changed sources and under these, some steps on — cells that differ, materials in each, what happened in each counted by name", parameters_lab_try, "json", mlibs::control::Cost::bounded, "", false, false, false},
-    {{"lab.reset", openas::Effect::reversible, false}, "The scene begun anew: a field of a shape filled with one material, nothing placed, no step run. Answers as lab.edit", parameters_lab_reset, "json", mlibs::control::Cost::bounded, "lab.revert to the commit before it (`HEAD~1`)", false, false, false},
-    {{"lab.explain", openas::Effect::read, false}, "Why a part of the design is what it is: the commits that changed its source, newest first — who, what for, the lines before and after — and who holds it now. With a property: the line that says it and the commit that last wrote that line", parameters_lab_explain, "json", mlibs::control::Cost::bounded, "", false, false, false},
-    {{"lab.picture", openas::Effect::read, false}, "The field as it looks now — every cell by the look, its light as a glow — as a PNG kept beside the lab by its content: its path, size and hash", parameters_lab_picture, "json", mlibs::control::Cost::bounded, "", false, false, false},
-    {{"lab.history", openas::Effect::read, false}, "The design's history: the branch worked on, branches and tags, a branch's commits newest first — each with who made it — and whether what runs has changes not committed", parameters_lab_history, "json", mlibs::control::Cost::bounded, "", false, false, false},
-    {{"lab.commit", openas::Effect::reversible, false}, "What runs now kept as a commit on the branch worked on, with its picture (a change of the definition keeps itself; this keeps what was placed in the scene since)", parameters_lab_commit, "json", mlibs::control::Cost::bounded, "lab.revert to the commit before it (`HEAD~1`)", false, false, false},
-    {{"lab.branch", openas::Effect::reversible, false}, "A branch made at a commit (the one worked on when none is given); work stays where it is", parameters_lab_branch, "json", mlibs::control::Cost::instant, "a branch is left behind by switching away; nothing is lost", false, false, false},
-    {{"lab.switch", openas::Effect::reversible, false}, "Another branch's, tag's or commit's sources put into what runs: its definition prepared, its scene played; refused while there are changes not committed, unless forced", parameters_lab_switch, "json", mlibs::control::Cost::bounded, "lab.switch back", false, false, false},
-    {{"lab.revert", openas::Effect::reversible, false}, "A commit's sources put back as a new commit: nothing of the history is lost", parameters_lab_revert, "json", mlibs::control::Cost::bounded, "lab.revert to the commit before it (`HEAD~1`)", false, false, false},
-    {{"lab.diff", openas::Effect::read, false}, "Where two states differ, by source and line: a commit against another, or against what runs now", parameters_lab_diff, "json", mlibs::control::Cost::bounded, "", false, false, false},
-    {{"lab.merge", openas::Effect::reversible, false}, "Another branch's changes brought into this one, by source and by line: two materials added on two branches are both there, two properties of one material both set; the same line changed on both merges nothing and says which sources. The merged definition is prepared and played before it is kept", parameters_lab_merge, "json", mlibs::control::Cost::bounded, "lab.revert to the commit before it (`HEAD~1`)", false, false, false},
-    {{"lab.tag", openas::Effect::reversible, false}, "A name given to a commit (the one worked on when none is given)", parameters_lab_tag, "json", mlibs::control::Cost::instant, "a tag stays; give another name", false, false, false},
-    {{"lab.claim", openas::Effect::reversible, false}, "A part held while working on it: others' changes to it wait and are told who holds it and what for (a person is never held). A lease: asked again, it is renewed", parameters_lab_claim, "json", mlibs::control::Cost::instant, "lab.release", false, false, false},
-    {{"lab.release", openas::Effect::reversible, false}, "A part let go (a person lets go of anyone's)", parameters_lab_release, "json", mlibs::control::Cost::instant, "lab.claim again", false, false, false},
-    {{"lab.claims", openas::Effect::read, false}, "The parts held now: who, what for, how long yet", {}, "json", mlibs::control::Cost::instant, "", false, false, false},
+    {{"lab.describe", openas::Effect::read, false}, "What is being designed: each source with its lines and hash — a material a file (materials/wood.json), the laws (laws.json), the look (look.json), the scene (scene.json) — the world's shape and steps, the commit shown, whether there are changes not committed, and the claims held", parameters_lab_describe, "json", mlibs::control::Cost::instant, "", false, false, false, examples_lab_describe},
+    {{"lab.read", openas::Effect::read, false}, "One source's text as it is now", parameters_lab_read, "json", mlibs::control::Cost::bounded, "", false, false, false, examples_lab_read},
+    {{"lab.edit", openas::Effect::reversible, false}, "One source's text replaced, made or removed: the definition is prepared, the look checked and the scene played again under them, to the same step, before anything is replaced — a text with a problem changes nothing and says where. Answers what changed in the world (cells that differ, materials then and now) and its commit", parameters_lab_edit, "json", mlibs::control::Cost::bounded, "lab.revert to the commit before it (`HEAD~1`)", false, false, false, examples_lab_edit},
+    {{"lab.material", openas::Effect::reversible, false}, "One material's row: made when it is not there, properties set (null takes one away) or the row removed — its own source changed and nothing else, the scene played again. Answers as lab.edit", parameters_lab_material, "json", mlibs::control::Cost::bounded, "lab.revert to the commit before it (`HEAD~1`)", false, false, false, examples_lab_material},
+    {{"lab.law", openas::Effect::reversible, false}, "One law by its name: replaced where it stands, added after the last when it is new, or removed. A law reads properties and never a material's name (refused otherwise). Answers as lab.edit", parameters_lab_law, "json", mlibs::control::Cost::bounded, "lab.revert to the commit before it (`HEAD~1`)", false, false, false, examples_lab_law},
+    {{"lab.try", openas::Effect::read, false}, "What a change would do, nothing changed: the same scene played under the changed sources and under these, some steps on — cells that differ, materials in each, what happened in each counted by name", parameters_lab_try, "json", mlibs::control::Cost::bounded, "", false, false, false, examples_lab_try},
+    {{"lab.reset", openas::Effect::reversible, false}, "The scene begun anew: a field of a shape filled with one material, nothing placed, no step run. Answers as lab.edit", parameters_lab_reset, "json", mlibs::control::Cost::bounded, "lab.revert to the commit before it (`HEAD~1`)", false, false, false, {}},
+    {{"lab.explain", openas::Effect::read, false}, "Why a part of the design is what it is: the commits that changed its source, newest first — who, what for, the lines before and after — and who holds it now. With a property: the line that says it and the commit that last wrote that line", parameters_lab_explain, "json", mlibs::control::Cost::bounded, "", false, false, false, examples_lab_explain},
+    {{"lab.picture", openas::Effect::read, false}, "The field as it looks now — every cell by the look, its light as a glow — as a PNG kept beside the lab by its content: its path, size and hash", parameters_lab_picture, "json", mlibs::control::Cost::bounded, "", false, false, false, {}},
+    {{"lab.history", openas::Effect::read, false}, "The design's history: the branch worked on, branches and tags, a branch's commits newest first — each with who made it — and whether what runs has changes not committed", parameters_lab_history, "json", mlibs::control::Cost::bounded, "", false, false, false, examples_lab_history},
+    {{"lab.commit", openas::Effect::reversible, false}, "What runs now kept as a commit on the branch worked on, with its picture (a change of the definition keeps itself; this keeps what was placed in the scene since)", parameters_lab_commit, "json", mlibs::control::Cost::bounded, "lab.revert to the commit before it (`HEAD~1`)", false, false, false, examples_lab_commit},
+    {{"lab.branch", openas::Effect::reversible, false}, "A branch made at a commit (the one worked on when none is given); work stays where it is", parameters_lab_branch, "json", mlibs::control::Cost::instant, "a branch is left behind by switching away; nothing is lost", false, false, false, examples_lab_branch},
+    {{"lab.switch", openas::Effect::reversible, false}, "Another branch's, tag's or commit's sources put into what runs: its definition prepared, its scene played; refused while there are changes not committed, unless forced", parameters_lab_switch, "json", mlibs::control::Cost::bounded, "lab.switch back", false, false, false, examples_lab_switch},
+    {{"lab.revert", openas::Effect::reversible, false}, "A commit's sources put back as a new commit: nothing of the history is lost", parameters_lab_revert, "json", mlibs::control::Cost::bounded, "lab.revert to the commit before it (`HEAD~1`)", false, false, false, examples_lab_revert},
+    {{"lab.diff", openas::Effect::read, false}, "Where two states differ, by source and line: a commit against another, or against what runs now", parameters_lab_diff, "json", mlibs::control::Cost::bounded, "", false, false, false, examples_lab_diff},
+    {{"lab.merge", openas::Effect::reversible, false}, "Another branch's changes brought into this one, by source and by line: two materials added on two branches are both there, two properties of one material both set; the same line changed on both merges nothing and says which sources. The merged definition is prepared and played before it is kept", parameters_lab_merge, "json", mlibs::control::Cost::bounded, "lab.revert to the commit before it (`HEAD~1`)", false, false, false, examples_lab_merge},
+    {{"lab.tag", openas::Effect::reversible, false}, "A name given to a commit (the one worked on when none is given)", parameters_lab_tag, "json", mlibs::control::Cost::instant, "a tag stays; give another name", false, false, false, examples_lab_tag},
+    {{"lab.claim", openas::Effect::reversible, false}, "A part held while working on it: others' changes to it wait and are told who holds it and what for (a person is never held). A lease: asked again, it is renewed", parameters_lab_claim, "json", mlibs::control::Cost::instant, "lab.release", false, false, false, examples_lab_claim},
+    {{"lab.release", openas::Effect::reversible, false}, "A part let go (a person lets go of anyone's)", parameters_lab_release, "json", mlibs::control::Cost::instant, "lab.claim again", false, false, false, examples_lab_release},
+    {{"lab.claims", openas::Effect::read, false}, "The parts held now: who, what for, how long yet", {}, "json", mlibs::control::Cost::instant, "", false, false, false, examples_lab_claims},
 }};
+
+inline constexpr std::array<std::string_view, 2> steps_read_the_definition{{
+    "{\"op\":\"lab.describe\"}",
+    "{\"op\":\"lab.read\",\"path\":\"materials/wood.json\"}",
+}};
+inline constexpr std::array<std::string_view, 1> steps_try_before_changing{{
+    "{\"op\":\"lab.try\",\"material\":\"wood\",\"properties\":{\"ignition\":5000},\"steps\":40}",
+}};
+inline constexpr std::array<std::string_view, 3> steps_change_a_material_and_ask_why{{
+    "{\"op\":\"lab.material\",\"name\":\"wood\",\"properties\":{\"ignition\":600},\"intent\":\"wood lights sooner\"}",
+    "{\"op\":\"lab.history\",\"limit\":3}",
+    "{\"op\":\"lab.explain\",\"part\":\"materials/wood\",\"property\":\"ignition\"}",
+}};
+inline constexpr std::array<std::string_view, 3> steps_take_a_change_back{{
+    "{\"op\":\"lab.material\",\"name\":\"wood\",\"properties\":{\"ignition\":600},\"intent\":\"wood lights sooner\"}",
+    "{\"op\":\"lab.diff\",\"from\":\"HEAD~1\"}",
+    "{\"op\":\"lab.revert\",\"to\":\"HEAD~1\"}",
+}};
+inline constexpr std::array<std::string_view, 3> steps_hold_the_part_you_work_on{{
+    "{\"op\":\"lab.claim\",\"part\":\"materials/wood\",\"intent\":\"tuning how wood burns\"}",
+    "{\"op\":\"lab.claims\"}",
+    "{\"op\":\"lab.release\",\"part\":\"materials/wood\"}",
+}};
+inline constexpr std::array<mlibs::control::Task, 5> guide_tasks{{
+    {"read-the-definition", "Read what the definition is made of, then one material's row", steps_read_the_definition},
+    {"try-before-changing", "See the same scene under a changed row, beside the scene as it is, nothing changed", steps_try_before_changing},
+    {"change-a-material-and-ask-why", "Change a property of a material, see the commit it made, and ask who set the property and why", steps_change_a_material_and_ask_why},
+    {"take-a-change-back", "Make a change, compare it with the commit before, and go back to that commit", steps_take_a_change_back},
+    {"hold-the-part-you-work-on", "Say which part you are working on so others do not write over it, and let it go", steps_hold_the_part_you_work_on},
+}};
+inline constexpr mlibs::control::Guide guide{"Design matter: change a material's row or a law and see the same scene under the new definition, try a change before making it, keep every step as a commit, and hold the part you are working on.", guide_tasks};
 
 // The listing (lab.ops.json), as written beside this file.
 inline constexpr std::string_view listing = R"listing({
@@ -122,47 +207,89 @@ inline constexpr std::string_view listing = R"listing({
   "doc": "Design matter: change a material's row or a law and see the same scene under the new definition, try a change before making it, keep every step as a commit, and hold the part you are working on.",
   "tools": [
     {"name": "lab.describe", "description": "What is being designed: each source with its lines and hash — a material a file (materials/wood.json), the laws (laws.json), the look (look.json), the scene (scene.json) — the world's shape and steps, the commit shown, whether there are changes not committed, and the claims held", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"lab.describe"}],
      "inputSchema": {"type": "object", "properties": {"budget": {"type": "integer", "description": "the most bytes of answer: the sources are then counted, not listed"}}, "required": []}},
     {"name": "lab.read", "description": "One source's text as it is now", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"lab.read","path":"materials/wood.json"}],
      "inputSchema": {"type": "object", "properties": {"path": {"type": "string", "description": "as lab.describe lists it: materials/<name>.json, laws.json, look.json, scene.json"}}, "required": ["path"]}},
     {"name": "lab.edit", "description": "One source's text replaced, made or removed: the definition is prepared, the look checked and the scene played again under them, to the same step, before anything is replaced — a text with a problem changes nothing and says where. Answers what changed in the world (cells that differ, materials then and now) and its commit", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "lab.revert to the commit before it (`HEAD~1`)", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"lab.edit","path":"materials/wood.json","text":"{\"density\":600,\"friction\":0.45,\"restitution\":0.35,\"shape_stiffness\":1,\"thermal\":1,\"porous\":2,\"ignition\":600,\"fuel\":400,\"heat\":80,\"burnt\":\"ash\",\"tags\":[\"plant\"],\"look\":{\"color\":\"#8a5a2b\",\"grain\":0.12}}"}],
      "inputSchema": {"type": "object", "properties": {"path": {"type": "string", "description": "a source's path"}, "text": {"type": "string", "description": "its whole text, JSON (kept a row a line)"}, "remove": {"type": "string", "description": "a boolean (its id): the source taken away (a material's row)"}, "intent": {"type": "string", "description": "what the change is for: its commit's message"}}, "required": ["path"]}},
     {"name": "lab.material", "description": "One material's row: made when it is not there, properties set (null takes one away) or the row removed — its own source changed and nothing else, the scene played again. Answers as lab.edit", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "lab.revert to the commit before it (`HEAD~1`)", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"lab.material","name":"wood","properties":{"ignition":600},"intent":"wood lights sooner"}],
      "inputSchema": {"type": "object", "properties": {"name": {"type": "string", "description": "the material"}, "properties": {"description": "{property: value} — numbers, a phase's name, another material's name, tags as a list; null removes one"}, "remove": {"type": "string", "description": "a boolean (its id): the row taken away (refused while a material or the scene names it)"}, "intent": {"type": "string", "description": "what the change is for: its commit's message"}}, "required": ["name"]}},
     {"name": "lab.law", "description": "One law by its name: replaced where it stands, added after the last when it is new, or removed. A law reads properties and never a material's name (refused otherwise). Answers as lab.edit", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "lab.revert to the commit before it (`HEAD~1`)", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"lab.law","name":"embers warm","law":{"when":"temperature > 800","add":{"temperature":5}}}],
      "inputSchema": {"type": "object", "properties": {"name": {"type": "string", "description": "the law's name"}, "law": {"description": "the law without its name: {when, add | take | set | raise | become, event?, flag?} or {transfer, by | shift}"}, "remove": {"type": "string", "description": "a boolean (its id): the law taken away"}, "intent": {"type": "string", "description": "what the change is for: its commit's message"}}, "required": ["name"]}},
     {"name": "lab.try", "description": "What a change would do, nothing changed: the same scene played under the changed sources and under these, some steps on — cells that differ, materials in each, what happened in each counted by name", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"lab.try","material":"wood","properties":{"ignition":5000},"steps":40}],
      "inputSchema": {"type": "object", "properties": {"material": {"type": "string", "description": "a material whose row is changed, with `properties` as lab.material takes them"}, "properties": {"description": "{property: value}; null removes one"}, "path": {"type": "string", "description": "or a source's path, with `text` as lab.edit takes it"}, "text": {"type": "string", "description": "the source's whole text"}, "steps": {"type": "integer", "description": "steps run on after the scene's own, in both (0 when none is given)"}}, "required": []}},
     {"name": "lab.reset", "description": "The scene begun anew: a field of a shape filled with one material, nothing placed, no step run. Answers as lab.edit", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "lab.revert to the commit before it (`HEAD~1`)", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"shape": {"description": "[width, height] in cells (as it is when none is given)"}, "filled": {"type": "string", "description": "the material every cell is (as it is when none is given)"}, "intent": {"type": "string", "description": "what the change is for: its commit's message"}}, "required": []}},
     {"name": "lab.explain", "description": "Why a part of the design is what it is: the commits that changed its source, newest first — who, what for, the lines before and after — and who holds it now. With a property: the line that says it and the commit that last wrote that line", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"lab.explain","part":"materials/wood","property":"ignition"}],
      "inputSchema": {"type": "object", "properties": {"part": {"type": "string", "description": "materials/<name>, laws, look or scene"}, "property": {"type": "string", "description": "a property of a material's row, or any member's key in the source"}, "limit": {"type": "integer", "description": "the most commits answered (10 when none is given)"}}, "required": ["part"]}},
     {"name": "lab.picture", "description": "The field as it looks now — every cell by the look, its light as a glow — as a PNG kept beside the lab by its content: its path, size and hash", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"scale": {"type": "integer", "description": "pixels a cell (the lab's own when none is given; 1 … 16)"}}, "required": []}},
     {"name": "lab.history", "description": "The design's history: the branch worked on, branches and tags, a branch's commits newest first — each with who made it — and whether what runs has changes not committed", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"lab.history","limit":3}],
      "inputSchema": {"type": "object", "properties": {"branch": {"type": "string", "description": "this branch's commits (the one worked on when none is given)"}, "limit": {"type": "integer", "description": "the most commits (50 when none is given)"}}, "required": []}},
     {"name": "lab.commit", "description": "What runs now kept as a commit on the branch worked on, with its picture (a change of the definition keeps itself; this keeps what was placed in the scene since)", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "lab.revert to the commit before it (`HEAD~1`)", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"lab.commit","message":"a hearth"}],
      "inputSchema": {"type": "object", "properties": {"message": {"type": "string", "description": "what it is"}}, "required": ["message"]}},
     {"name": "lab.branch", "description": "A branch made at a commit (the one worked on when none is given); work stays where it is", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "a branch is left behind by switching away; nothing is lost", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"lab.branch","name":"resins"}],
      "inputSchema": {"type": "object", "properties": {"name": {"type": "string", "description": "letters, digits, - _ . and / between words"}, "at": {"type": "string", "description": "a branch, a tag or a commit"}}, "required": ["name"]}},
     {"name": "lab.switch", "description": "Another branch's, tag's or commit's sources put into what runs: its definition prepared, its scene played; refused while there are changes not committed, unless forced", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "lab.switch back", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"lab.switch","to":"main"}],
      "inputSchema": {"type": "object", "properties": {"to": {"type": "string", "description": "a branch, a tag or a commit"}, "force": {"type": "string", "description": "a boolean (its id): drop what is not committed"}}, "required": ["to"]}},
     {"name": "lab.revert", "description": "A commit's sources put back as a new commit: nothing of the history is lost", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "lab.revert to the commit before it (`HEAD~1`)", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"lab.revert","to":"HEAD~1"}],
      "inputSchema": {"type": "object", "properties": {"to": {"type": "string", "description": "a branch, a tag or a commit (`HEAD~1`: the one before the last)"}}, "required": ["to"]}},
     {"name": "lab.diff", "description": "Where two states differ, by source and line: a commit against another, or against what runs now", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"lab.diff","from":"HEAD~1"}],
      "inputSchema": {"type": "object", "properties": {"from": {"type": "string", "description": "a branch, a tag or a commit (the last commit when none is given)"}, "to": {"type": "string", "description": "another; what runs now when none is given"}}, "required": []}},
     {"name": "lab.merge", "description": "Another branch's changes brought into this one, by source and by line: two materials added on two branches are both there, two properties of one material both set; the same line changed on both merges nothing and says which sources. The merged definition is prepared and played before it is kept", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "lab.revert to the commit before it (`HEAD~1`)", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"lab.merge","from":"resins"}],
      "inputSchema": {"type": "object", "properties": {"from": {"type": "string", "description": "a branch, a tag or a commit"}}, "required": ["from"]}},
     {"name": "lab.tag", "description": "A name given to a commit (the one worked on when none is given)", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "a tag stays; give another name", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"lab.tag","name":"v1"}],
      "inputSchema": {"type": "object", "properties": {"name": {"type": "string", "description": "letters, digits, - _ . and / between words"}, "at": {"type": "string", "description": "a branch, a tag or a commit"}}, "required": ["name"]}},
     {"name": "lab.claim", "description": "A part held while working on it: others' changes to it wait and are told who holds it and what for (a person is never held). A lease: asked again, it is renewed", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "lab.release", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"lab.claim","part":"materials/wood","intent":"tuning how wood burns"}],
      "inputSchema": {"type": "object", "properties": {"part": {"type": "string", "description": "materials/<name>, laws/<name>, look, scene — or `materials`, `laws` with `subtree` for all of them"}, "intent": {"type": "string", "description": "what you are doing there"}, "subtree": {"type": "string", "description": "a boolean (its id): the part and everything inside it"}, "seconds": {"type": "number", "description": "how long (30 when none is given; 1 … 600)"}}, "required": ["part"]}},
     {"name": "lab.release", "description": "A part let go (a person lets go of anyone's)", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "lab.claim again", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"lab.release","part":"materials/wood"}],
      "inputSchema": {"type": "object", "properties": {"part": {"type": "string", "description": "as it was claimed"}}, "required": ["part"]}},
     {"name": "lab.claims", "description": "The parts held now: who, what for, how long yet", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"lab.claims"}],
      "inputSchema": {"type": "object", "properties": {}, "required": []}}
   ],
-  "tiers": []
+  "tiers": [],
+  "tasks": [
+    {"name": "read-the-definition", "summary": "Read what the definition is made of, then one material's row", "steps": [
+      {"op":"lab.describe"},
+      {"op":"lab.read","path":"materials/wood.json"}
+    ]},
+    {"name": "try-before-changing", "summary": "See the same scene under a changed row, beside the scene as it is, nothing changed", "steps": [
+      {"op":"lab.try","material":"wood","properties":{"ignition":5000},"steps":40}
+    ]},
+    {"name": "change-a-material-and-ask-why", "summary": "Change a property of a material, see the commit it made, and ask who set the property and why", "steps": [
+      {"op":"lab.material","name":"wood","properties":{"ignition":600},"intent":"wood lights sooner"},
+      {"op":"lab.history","limit":3},
+      {"op":"lab.explain","part":"materials/wood","property":"ignition"}
+    ]},
+    {"name": "take-a-change-back", "summary": "Make a change, compare it with the commit before, and go back to that commit", "steps": [
+      {"op":"lab.material","name":"wood","properties":{"ignition":600},"intent":"wood lights sooner"},
+      {"op":"lab.diff","from":"HEAD~1"},
+      {"op":"lab.revert","to":"HEAD~1"}
+    ]},
+    {"name": "hold-the-part-you-work-on", "summary": "Say which part you are working on so others do not write over it, and let it go", "steps": [
+      {"op":"lab.claim","part":"materials/wood","intent":"tuning how wood burns"},
+      {"op":"lab.claims"},
+      {"op":"lab.release","part":"materials/wood"}
+    ]}
+  ]
 }
 )listing";
 

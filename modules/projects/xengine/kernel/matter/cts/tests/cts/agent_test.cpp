@@ -72,6 +72,7 @@ public:
     [[nodiscard]] agent::Capabilities capabilities() const noexcept override { return world_.matter->capabilities(); }
     [[nodiscard]] std::span<const mlibs::control::CatalogEntry> operations() const noexcept override { return world_.matter->operations(); }
     [[nodiscard]] std::string_view listing() const noexcept override { return world_.matter->listing(); }
+    [[nodiscard]] mlibs::control::Guide guide() const noexcept override { return world_.matter->guide(); }
     [[nodiscard]] std::uint64_t state_hash() const override { return world_.matter->state_hash(); }
     void operate(std::string_view operation, const agent::Request& request, agent::Answer& answer) override { world_.matter->operate(operation, request, answer); }
 
@@ -599,7 +600,7 @@ static UTest cases{"matter.agent", [] {
         const std::array<std::pair<std::string_view, std::string_view>, 5> refused{{
             {R"({"op":"matter.explode","cell":[10,11],"radius":0,"pressure":5})", "`radius` is 1 … 64"},
             {R"({"op":"matter.explode","cell":[10,11],"radius":3})", "an explosion is a `pressure`, a `heat`, or both"},
-            {R"({"op":"matter.heat","cell":[10,11],"radius":2})", "`kelvin` is a temperature"},
+            {R"({"op":"matter.heat","cell":[10,11],"radius":2})", "`matter.heat` needs `kelvin`"},  // said by the session, from the catalog, before the subject
             {R"({"op":"matter.pour","material":"cheese","cell":[4,13],"radius":2})", "`material` is one of"},
             {R"({"op":"matter.pour","material":"water","cell":[99,13],"radius":2})", "`cell` is [x, y]"},
         }};

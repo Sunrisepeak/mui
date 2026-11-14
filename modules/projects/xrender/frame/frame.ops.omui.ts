@@ -35,4 +35,28 @@ export default defineOps({
       result: "json",
     },
   ],
+  tasks: [
+    {
+      name: "see-what-the-frame-is-made-of",
+      summary: "Read the frame's size and its layers from the back",
+      steps: [
+        { op: "frame.layers" },
+      ],
+    },
+    {
+      name: "look-at-the-pixels",
+      summary: "Take a corner of the frame as a picture",
+      steps: [
+        { op: "frame.layers" },
+        { op: "frame.capture", region: [0, 0, 8, 8] },
+      ],
+    },
+    {
+      name: "ask-what-drew-a-pixel",
+      summary: "Go from a pixel back to the layer and the object that drew it",
+      steps: [
+        { op: "frame.at", at: [30, 70] },
+      ],
+    },
+  ],
 });

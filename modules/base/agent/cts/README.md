@@ -1,6 +1,6 @@
 # mlibs.agent.cts
 
-The agent contract's conformance suite (D-174): the eight native properties as cases, run on any subject of [mlibs.agent](..) through the same session an agent has — an interface, a game, an animation stage, a field. On [mlibs.cts](../../cts): every case passed, failed or unsupported.
+The agent contract's conformance suite (D-174): the eight native properties, and the norms over them that let an agent begin with nothing but the endpoint (D-186), as cases, run on any subject of [mlibs.agent](..) through the same session an agent has — an interface, a game, an animation stage, a field. On [mlibs.cts](../../cts): every case passed, failed or unsupported.
 
 The suite knows no subject's operations. A subject's owner hands it a **probe**: how one is made (the same first state each time), and which of its requests show each property.
 
@@ -33,7 +33,10 @@ expect(contract::unsupported(game.capabilities()) == std::vector<std::string>{"a
 | 7 | | `agent.observe.budget` | observation, budget | Asked within a budget, the answer is within it |
 | 8 | The working details | `agent.errors.structured` | — | An unknown operation is `not-found`, a line that is no request `invalid-argument`; each says what is wrong, in records that echo `re` and end in a result; the state untouched |
 | 8 | | `agent.causes.explained` | control, causes | A change on record is explained by a chain that is not empty; explaining changes nothing |
+| 9 | It guides itself (D-186) | `agent.guide.runs` | — | It says what it is and has tasks to begin with (its catalog's `doc` and `tasks`), and `describe` gives them; every task, on a subject as it is made, runs step by step as written; an operation that needs arguments shows a request of it, and no example is answered `invalid-argument` |
+| 10 | Every error carries a way out (D-186) | `agent.errors.next` | — | A line that is no request, a subject that is not here, each operation's name a letter short, each operation sent without what it needs: the error carries `next` — each way with why and a request; a session's own request (`describe`, `subjects`) runs as given, any other is a request of the catalog; a name a letter short is led to the name; the state untouched |
 
+- **A task runs on the probe's subject**: a catalog's tasks are its interface's — what any subject speaking it can be asked — so they name no node, handle or place only one application has. Norms 11 (a log is a fact) and 12 (`find` by intent) are not cases yet.
 - **Unsupported comes from the subject alone**: a case whose needs its `capabilities()` lack does not run, and is never counted as passed. A runner may require a capability (`Policy::required`): then its absence fails.
 - **A claim not shown fails**: a subject that says it has a capability whose probe names no request for it fails that capability's cases.
 - **Each subject runs it in its own tests** — the suite is here with the contract's owner; a package that is a subject registers its probe (lint `agent-surface`).

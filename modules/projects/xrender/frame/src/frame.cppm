@@ -151,6 +151,7 @@ public:
     [[nodiscard]] mlibs::agent::Capabilities capabilities() const noexcept override { return {.observation = true, .provenance = true}; }
     [[nodiscard]] std::span<const mlibs::control::CatalogEntry> operations() const noexcept override { return catalog; }
     [[nodiscard]] std::string_view listing() const noexcept override { return xrender::listing; }
+    [[nodiscard]] mlibs::control::Guide guide() const noexcept override { return xrender::guide; }
     // The pixels' hash, with the frame's size: the same picture, the same hash.
     [[nodiscard]] std::uint64_t state_hash() const override;
     void operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) override;

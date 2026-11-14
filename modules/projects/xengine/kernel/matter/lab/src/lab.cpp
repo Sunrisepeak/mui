@@ -271,6 +271,7 @@ public:
     [[nodiscard]] mlibs::agent::Capabilities capabilities() const noexcept override { return target().capabilities(); }
     [[nodiscard]] std::span<const mlibs::control::CatalogEntry> operations() const noexcept override { return target().operations(); }
     [[nodiscard]] std::string_view listing() const noexcept override { return target().listing(); }
+    [[nodiscard]] mlibs::control::Guide guide() const noexcept override { return target().guide(); }
     [[nodiscard]] std::uint64_t state_hash() const override { return target().state_hash(); }
     void poll() override { target().poll(); }
     // What changes the field changes the scene: held while another has claimed it.

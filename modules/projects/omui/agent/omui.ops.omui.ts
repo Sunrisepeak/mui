@@ -71,6 +71,7 @@ export default defineOps({
     },
     {
       name: "ui.act",
+      examples: [{ node: "main/save", action: "activate" }],
       effect: "irreversible",
       delegated: true,
       summary: "Perform a node's action, under that action's effect (an irreversible one asks the person)",
@@ -87,6 +88,7 @@ export default defineOps({
     },
     {
       name: "ui.invoke",
+      examples: [{ verb: "save" }],
       effect: "irreversible",
       delegated: true,
       summary: "Call one of the application's verbs, under its declared effect",
@@ -118,6 +120,7 @@ export default defineOps({
     },
     {
       name: "ui.transaction",
+      examples: [{ steps: [{ node: "main/name", action: "set_value", args: { value: "Ada" } }] }],
       effect: "reversible",
       summary: "Steps performed as one: all done, or all taken back",
       params: [
@@ -130,6 +133,7 @@ export default defineOps({
     },
     {
       name: "ui.preview",
+      examples: [{ steps: [{ node: "main/dark", action: "toggle" }], pictures: false }],
       effect: "read",
       summary: "What steps would make, shown before it is allowed: pictures before and after, the semantic changes; nothing stays",
       params: [
@@ -154,6 +158,7 @@ export default defineOps({
     },
     {
       name: "ui.restore",
+      examples: [{ state: { values: [] } }],
       effect: "reversible",
       summary: "ui.state's values put back where the same id with the same role takes them (a new build, a restart): what was restored, what is not there any more, what could not be; not a step of the history",
       params: [{ name: "state", type: "json", doc: "what ui.state answered" }],
@@ -192,6 +197,7 @@ export default defineOps({
     },
     {
       name: "ui.input",
+      examples: [{ events: [{ type: "click", at: [24, 24] }] }],
       effect: "reversible",
       summary: "A person's input as their devices give it (pointer, keys, text), delivered a frame at a time; answers what each press hit",
       params: [{ name: "events", type: "json", doc: "a list of {type: move, click, drag, wheel, key, keys, text, wait, …}" }],
@@ -201,6 +207,7 @@ export default defineOps({
     },
     {
       name: "ui.intend",
+      examples: [{ text: "filling in the form" }],
       effect: "read",
       summary: "Say to the person what you are about to do (the steps, or a note) — or, handing the task back, what you did, what is left, what you were unsure of: shown by your presence until you say another; nothing in the application changes",
       params: [
@@ -212,6 +219,7 @@ export default defineOps({
     },
     {
       name: "ui.claim",
+      examples: [{ node: "main/name" }],
       effect: "reversible",
       summary: "Hold a part of the interface while you design it (D-160), so another agent's change there is refused (conflict: who holds it, what for, retry_after) — a node itself, one of its properties, or the node and everything inside it; as small as the work. Shown with your presence; claiming it again renews it; the person is never held, and taking over releases every claim",
       params: [
@@ -226,6 +234,7 @@ export default defineOps({
     },
     {
       name: "ui.release",
+      examples: [{ node: "main/name" }],
       effect: "reversible",
       summary: "Let go of a part you hold (ui.claim): another may claim and change it",
       params: [
@@ -264,6 +273,7 @@ export default defineOps({
     },
     {
       name: "ui.drew",
+      examples: [{ at: [24, 24] }],
       effect: "read",
       summary: "What drew a pixel: the node its colour came from, the nodes it sits in, and where in the program each was built; where the node shows something drawn elsewhere (a world in a viewport), `shows`: its subject, the place in its picture and what is there",
       params: [{ name: "at", type: "json", doc: "[x, y] in logical pixels" }],
@@ -285,6 +295,7 @@ export default defineOps({
     },
     {
       name: "ui.profile",
+      examples: [{ action: "start" }],
       effect: "reversible",
       summary: "Start or stop recording a trace; stopping answers its summary (and Chrome's format)",
       params: [{ name: "action", type: "string", doc: "start or stop" }, { name: "chrome", type: "bool", optional: true }],
@@ -342,6 +353,39 @@ export default defineOps({
       ],
       result: "json",
       undo: "release gives the time back to the host",
+    },
+  ],
+  tasks: [
+    {
+      name: "see-what-is-here",
+      summary: "Read what the application is and can do, then the nodes a person or an agent can act on: each one's path is what `ui.act` takes as `node`",
+      steps: [
+        { op: "ui.describe" },
+        { op: "ui.snapshot", interactive: true },
+      ],
+    },
+    {
+      name: "find-a-node",
+      summary: "Find nodes by role or name instead of reading the whole tree",
+      steps: [
+        { op: "ui.find", q: { role: "button" } },
+      ],
+    },
+    {
+      name: "ask-what-happened",
+      summary: "Read what was done here and by whom, then the steps that can be taken back",
+      steps: [
+        { op: "ui.timeline" },
+        { op: "ui.history" },
+      ],
+    },
+    {
+      name: "read-what-changed",
+      summary: "After acting, read the changes alone instead of the whole tree again",
+      steps: [
+        { op: "ui.snapshot", depth: 1 },
+        { op: "ui.changes" },
+      ],
     },
   ],
 });

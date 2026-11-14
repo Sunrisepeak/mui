@@ -18,7 +18,7 @@ using mlibs::cts::Status;
 namespace {
 
 // How a ledger departs from the contract (none: it keeps it).
-enum class Fault : std::uint8_t { none, reading_writes, preview_moves, undo_keeps, forgets_actor, over_budget, unstable };
+enum class Fault : std::uint8_t { none, reading_writes, preview_moves, undo_keeps, forgets_actor, over_budget, unstable, no_guide, task_stops, shows_nothing };
 
 // Amounts added by someone, at a tick of its own clock.
 class Ledger final : public agent::Subject {
@@ -33,16 +33,42 @@ public:
     std::span<const control::CatalogEntry> operations() const noexcept override {
         static constexpr std::array<control::Parameter, 1> read_parameters{{{"budget", "integer", "the most bytes of answer (all of it when none is given)", true}}};
         static constexpr std::array<control::Parameter, 1> add_parameters{{{"by", "integer", "how much (1 when none is given)", true}}};
+        static constexpr std::array<control::Parameter, 1> try_parameters{{{"by", "integer", "how much", false}}};
+        static constexpr std::array<std::string_view, 1> try_examples{R"({"op":"ledger.try","by":3})"};
+        static constexpr std::array<control::CatalogEntry, 7> silent{{
+            {{"ledger.read", openas::Effect::read, false}, "The total and the entries, the latest first", read_parameters, "json", control::Cost::instant, "", false, false, false},
+            {{"ledger.add", openas::Effect::reversible, false}, "Adds an entry", add_parameters, "json", control::Cost::instant, "ledger.undo", false, true, false},
+            {{"ledger.undo", openas::Effect::reversible, false}, "Takes the latest entry back", {}, "json", control::Cost::instant, "ledger.add with what it held", false, false, false},
+            {{"ledger.try", openas::Effect::read, false}, "The total an entry would give, nothing added", try_parameters, "json", control::Cost::instant, "", false, false, false},
+            {{"ledger.tick", openas::Effect::reversible, false}, "Its clock, one on", {}, "json", control::Cost::instant, "none: its clock only goes on", false, false, false},
+            {{"ledger.why", openas::Effect::read, false}, "Why the total is what it is: the entry that last changed it, and who made it", {}, "json", control::Cost::instant, "", false, false, false},
+            {{"ledger.source", openas::Effect::read, false}, "The entries the total is made of, each with the request that made it", {}, "json", control::Cost::instant, "", false, false, false},
+        }};
+        if (fault_ == Fault::shows_nothing) return silent;  // what needs an argument shows no request of it
         static constexpr std::array<control::CatalogEntry, 7> all{{
             {{"ledger.read", openas::Effect::read, false}, "The total and the entries, the latest first", read_parameters, "json", control::Cost::instant, "", false, false, false},
             {{"ledger.add", openas::Effect::reversible, false}, "Adds an entry", add_parameters, "json", control::Cost::instant, "ledger.undo", false, true, false},
             {{"ledger.undo", openas::Effect::reversible, false}, "Takes the latest entry back", {}, "json", control::Cost::instant, "ledger.add with what it held", false, false, false},
-            {{"ledger.try", openas::Effect::read, false}, "The total an entry would give, nothing added", add_parameters, "json", control::Cost::instant, "", false, false, false},
+            {{"ledger.try", openas::Effect::read, false}, "The total an entry would give, nothing added", try_parameters, "json", control::Cost::instant, "", false, false, false, try_examples},
             {{"ledger.tick", openas::Effect::reversible, false}, "Its clock, one on", {}, "json", control::Cost::instant, "none: its clock only goes on", false, false, false},
             {{"ledger.why", openas::Effect::read, false}, "Why the total is what it is: the entry that last changed it, and who made it", {}, "json", control::Cost::instant, "", false, false, false},
             {{"ledger.source", openas::Effect::read, false}, "The entries the total is made of, each with the request that made it", {}, "json", control::Cost::instant, "", false, false, false},
         }};
         return all;
+    }
+    control::Guide guide() const noexcept override {
+        static constexpr std::array<std::string_view, 3> add_steps{R"({"op":"ledger.read"})", R"({"op":"ledger.add","by":4})", R"({"op":"ledger.why"})"};
+        static constexpr std::array<std::string_view, 3> back_steps{R"({"op":"ledger.try","by":9})", R"({"op":"ledger.add","by":9})", R"({"op":"ledger.undo"})"};
+        // A task whose third step has nothing left to take back.
+        static constexpr std::array<std::string_view, 6> stopping{R"({"op":"ledger.undo"})", R"({"op":"ledger.undo"})", R"({"op":"ledger.undo"})",
+                                                                  R"({"op":"ledger.undo"})", R"({"op":"ledger.undo"})", R"({"op":"ledger.read"})"};
+        static constexpr std::array<control::Task, 2> tasks{{
+            {"add-and-see-why", "Add an entry and ask why the total is what it is", add_steps},
+            {"try-then-take-back", "See what an entry would give, add it, take it back", back_steps},
+        }};
+        static constexpr std::array<control::Task, 1> stops{{{"take-everything-back", "Take every entry back", stopping}}};
+        if (fault_ == Fault::no_guide) return {};
+        return {"Amounts added by someone, at a tick of its own clock.", fault_ == Fault::task_stops ? std::span<const control::Task>(stops) : std::span<const control::Task>(tasks)};
     }
     std::uint64_t state_hash() const override {
         std::vector<std::uint64_t> parts{static_cast<std::uint64_t>(tick_), static_cast<std::uint64_t>(entries_.size())};
@@ -143,7 +169,7 @@ UTest cases{"agent.contract", [] {
     "a subject that keeps the contract passes every case"_test = [&whole] {
         const auto tally = counted(whole);
         expect(tally.ok()) << tally.text();
-        expect(eq(tally.count(Status::passed), contract::case_count()) && contract::case_count() >= 12u) << "all eight properties, none skipped";
+        expect(eq(tally.count(Status::passed), contract::case_count()) && contract::case_count() >= 14u) << "all eight properties and the two norms over them, none skipped";
         expect(contract::unsupported(everything).empty());
     };
 
@@ -178,6 +204,12 @@ UTest cases{"agent.contract", [] {
         expect(failures(counted(probe_of(everything, Fault::over_budget))) == "agent.observe.budget");
         const std::string unstable = failures(counted(probe_of(everything, Fault::unstable)));
         expect(unstable.contains("agent.catalog.stable") && unstable.contains("agent.time.replays")) << unstable;
+
+        // What it tells an agent that knows nothing of it (D-186): no guide, a task that does not run as written,
+        // an operation that needs an argument and shows no request of it.
+        expect(failures(counted(probe_of(everything, Fault::no_guide))) == "agent.guide.runs");
+        expect(failures(counted(probe_of(everything, Fault::task_stops))) == "agent.guide.runs");
+        expect(failures(counted(probe_of(everything, Fault::shows_nothing))) == "agent.guide.runs");
 
         // It says it has time and a preview; its probe shows neither.
         contract::Probe silent = probe_of(everything);

@@ -191,6 +191,21 @@ struct CatalogEntry {
     bool cancellable = false;     // it can be cancelled while it runs
     bool undoable = false;        // the host's history takes it back (undo, redo)
     bool delegated = false;       // its effect is what it runs (an action, a verb), decided there; `operation.effect` is the most
+    // Requests of it as they are sent (a JSON object a line), the plainest first: what `describe` shows with
+    // the operation, and what a refused or malformed request is answered with (D-186).
+    std::span<const std::string_view> examples;
+};
+// A task to begin with: what it gets done, and the requests that do it, in order, each as it is sent.
+struct Task {
+    std::string_view name;     // "burn-a-plank"
+    std::string_view summary;
+    std::span<const std::string_view> steps;
+};
+// What a catalog tells an agent that knows nothing of its subject (D-186): what the subject is, in a line, and
+// the tasks to begin with. A catalog's data, as its operations are (`<product>.ops.omui.ts`: doc, tasks).
+struct Guide {
+    std::string_view about;
+    std::span<const Task> tasks;
 };
 // Cold synchronous admission. Bind authority before authorization callbacks;
 // keep this scope alive through domain execution and dependent output.

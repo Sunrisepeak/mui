@@ -33,6 +33,13 @@ struct Operation {
     // decided where that runs; `effect` is the most it can be.
     bool delegated = false;
     std::vector<OpParameter> parameters;
+    std::vector<std::string> examples;  // requests of it, each a JSON object on one line
+    int line = 0;
+};
+// A task to begin with (D-186): the requests that do it, in order, each a JSON object on one line.
+struct Task {
+    std::string name, summary;
+    std::vector<std::string> steps;
     int line = 0;
 };
 // An agent player's tier (plan §8.4): what it is shown, how soon its actions
@@ -49,6 +56,7 @@ struct Catalog {
     std::string generated = "src/control";  // where its outputs go, beside the catalog
     std::vector<Operation> operations;
     std::vector<Tier> tiers;
+    std::vector<Task> tasks;
 };
 
 // The catalog in `text` — its JSON snapshot, `{"ops": {…}}` — (named `file`

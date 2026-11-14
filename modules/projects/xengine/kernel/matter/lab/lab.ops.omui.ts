@@ -34,6 +34,7 @@ export default defineOps({
     },
     {
       name: "lab.edit",
+      examples: [{ path: "materials/wood.json", text: "{\"density\":600,\"friction\":0.45,\"restitution\":0.35,\"shape_stiffness\":1,\"thermal\":1,\"porous\":2,\"ignition\":600,\"fuel\":400,\"heat\":80,\"burnt\":\"ash\",\"tags\":[\"plant\"],\"look\":{\"color\":\"#8a5a2b\",\"grain\":0.12}}" }],
       effect: "reversible",
       summary: "One source's text replaced, made or removed: the definition is prepared, the look checked and the scene played again under them, to the same step, before anything is replaced — a text with a problem changes nothing and says where. Answers what changed in the world (cells that differ, materials then and now) and its commit",
       params: [
@@ -62,6 +63,7 @@ export default defineOps({
     },
     {
       name: "lab.law",
+      examples: [{ name: "embers warm", law: { when: "temperature > 800", add: { temperature: 5 } } }],
       effect: "reversible",
       summary: "One law by its name: replaced where it stands, added after the last when it is new, or removed. A law reads properties and never a material's name (refused otherwise). Answers as lab.edit",
       params: [
@@ -134,6 +136,7 @@ export default defineOps({
     },
     {
       name: "lab.commit",
+      examples: [{ message: "a hearth" }],
       effect: "reversible",
       summary: "What runs now kept as a commit on the branch worked on, with its picture (a change of the definition keeps itself; this keeps what was placed in the scene since)",
       params: [{ name: "message", type: "string", doc: "what it is" }],
@@ -143,6 +146,7 @@ export default defineOps({
     },
     {
       name: "lab.branch",
+      examples: [{ name: "resins" }],
       effect: "reversible",
       summary: "A branch made at a commit (the one worked on when none is given); work stays where it is",
       params: [
@@ -155,6 +159,7 @@ export default defineOps({
     },
     {
       name: "lab.switch",
+      examples: [{ to: "main" }],
       effect: "reversible",
       summary: "Another branch's, tag's or commit's sources put into what runs: its definition prepared, its scene played; refused while there are changes not committed, unless forced",
       params: [
@@ -187,6 +192,7 @@ export default defineOps({
     },
     {
       name: "lab.merge",
+      examples: [{ from: "resins" }],
       effect: "reversible",
       summary: "Another branch's changes brought into this one, by source and by line: two materials added on two branches are both there, two properties of one material both set; the same line changed on both merges nothing and says which sources. The merged definition is prepared and played before it is kept",
       params: [{ name: "from", type: "string", doc: "a branch, a tag or a commit" }],
@@ -196,6 +202,7 @@ export default defineOps({
     },
     {
       name: "lab.tag",
+      examples: [{ name: "v1" }],
       effect: "reversible",
       summary: "A name given to a commit (the one worked on when none is given)",
       params: [
@@ -236,6 +243,50 @@ export default defineOps({
       params: [],
       result: "json",
       cost: "instant",
+    },
+  ],
+  tasks: [
+    {
+      name: "read-the-definition",
+      summary: "Read what the definition is made of, then one material's row",
+      steps: [
+        { op: "lab.describe" },
+        { op: "lab.read", path: "materials/wood.json" },
+      ],
+    },
+    {
+      name: "try-before-changing",
+      summary: "See the same scene under a changed row, beside the scene as it is, nothing changed",
+      steps: [
+        { op: "lab.try", material: "wood", properties: { ignition: 5000 }, steps: 40 },
+      ],
+    },
+    {
+      name: "change-a-material-and-ask-why",
+      summary: "Change a property of a material, see the commit it made, and ask who set the property and why",
+      steps: [
+        { op: "lab.material", name: "wood", properties: { ignition: 600 }, intent: "wood lights sooner" },
+        { op: "lab.history", limit: 3 },
+        { op: "lab.explain", part: "materials/wood", property: "ignition" },
+      ],
+    },
+    {
+      name: "take-a-change-back",
+      summary: "Make a change, compare it with the commit before, and go back to that commit",
+      steps: [
+        { op: "lab.material", name: "wood", properties: { ignition: 600 }, intent: "wood lights sooner" },
+        { op: "lab.diff", from: "HEAD~1" },
+        { op: "lab.revert", to: "HEAD~1" },
+      ],
+    },
+    {
+      name: "hold-the-part-you-work-on",
+      summary: "Say which part you are working on so others do not write over it, and let it go",
+      steps: [
+        { op: "lab.claim", part: "materials/wood", intent: "tuning how wood burns" },
+        { op: "lab.claims" },
+        { op: "lab.release", part: "materials/wood" },
+      ],
     },
   ],
 });

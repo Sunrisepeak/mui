@@ -317,7 +317,8 @@ void Lab::operate(std::string_view operation, const mlibs::agent::Request& reque
     if (operation.starts_with("lab.") && std::ranges::contains(kept, operation.substr(4))) {
         refused_ = openas::error_code::invalid_argument;
         auto ran = operations_.run(operation.substr(4), request.document->root(), actor);
-        if (!ran) return answer.fail(refused_, ran.error());
+        // The history says what kind of refusal its own was; what the sources refused is theirs (refused_).
+        if (!ran) return answer.fail(operations_.refused_as.empty() ? refused_ : operations_.refused_as, ran.error());
         picture_head();
         return answer.data(*ran);
     }

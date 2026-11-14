@@ -191,6 +191,73 @@ std::expected<Catalog, std::vector<std::string>> read_root(const mlibs::json::Do
     }
     if (catalog.operations.empty())
         problem(1, "a catalog lists at least one operation");
+    // A request as it is sent: the operation, then the arguments as written. Each argument is one of the
+    // operation's parameters, and none it needs is left out — so what the catalog shows is accepted as shown.
+    const auto request_of = [&](const Operation& operation, const Node& arguments, std::string_view where) {
+        std::string line = std::format("{{\"op\":{}", json_string(operation.name));
+        for (const auto& [key, value] : arguments.members()) {
+            if (key == "op") continue;
+            if (std::ranges::none_of(operation.parameters, [&](const OpParameter& parameter) { return parameter.name == key; }))
+                problem(at(value), std::format("{}: `{}` has no parameter `{}`", where, operation.name, key));
+            line += std::format(",{}:{}", json_string(key), value.dump());
+        }
+        for (const OpParameter& parameter : operation.parameters)
+            if (!parameter.optional && !arguments[parameter.name])
+                problem(at(arguments), std::format("{}: `{}` needs `{}`", where, operation.name, parameter.name));
+        return line + "}";
+    };
+    {
+        std::size_t index = 0;
+        for (const Node& entry : head["operations"].items()) {
+            if (!entry.is_object()) continue;
+            Operation& operation = catalog.operations[index++];
+            for (const Node& example : entry["examples"].items()) {
+                if (!example.is_object()) {
+                    problem(at(example), std::format("`{}`: an example is its arguments, an object ({{}} for none)", operation.name));
+                    continue;
+                }
+                operation.examples.push_back(request_of(operation, example, "an example"));
+            }
+        }
+    }
+    std::set<std::string> task_names;
+    for (const Node& entry : head["tasks"].items()) {
+        const int line = at(entry);
+        if (!entry.is_object()) {
+            problem(line, "a task is { name, summary, steps }");
+            continue;
+        }
+        Task task{text_or(entry["name"]), text_or(entry["summary"]), {}, line};
+        if (task.name.empty() || !std::ranges::all_of(task.name, [](char c) { return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-'; }))
+            problem(line, std::format("a task's name is lowercase words joined by `-` (`{}`)", task.name));
+        else if (!task_names.insert(task.name).second)
+            problem(line, std::format("task `{}` is in the catalog twice", task.name));
+        if (task.summary.empty())
+            problem(line, std::format("task `{}` says what it gets done (summary)", task.name));
+        for (const Node& step : entry["steps"].items()) {
+            const std::string name = text_or(step["op"]);
+            const auto operation = std::ranges::find_if(catalog.operations, [&](const Operation& listed) { return listed.name == name; });
+            if (!step.is_object() || operation == catalog.operations.end()) {
+                problem(at(step), std::format("task `{}`: a step is a request of the catalog, {{ op, … }} (`{}` is not one of its operations)", task.name, name));
+                continue;
+            }
+            task.steps.push_back(request_of(*operation, step, std::format("task `{}`", task.name)));
+        }
+        if (task.steps.empty())
+            problem(line, std::format("task `{}` has the requests that do it (steps)", task.name));
+        catalog.tasks.push_back(std::move(task));
+    }
+    // An operation that shows no request of its own shows the first step of a task that is one: written once.
+    for (Operation& operation : catalog.operations) {
+        if (!operation.examples.empty()) continue;
+        const std::string begins = std::format("{{\"op\":{}", json_string(operation.name));
+        for (const Task& task : catalog.tasks) {
+            const auto step = std::ranges::find_if(task.steps, [&](const std::string& line) { return line.starts_with(begins + ",") || line == begins + "}"; });
+            if (step == task.steps.end()) continue;
+            operation.examples.push_back(*step);
+            break;
+        }
+    }
     for (const Node& entry : head["tiers"].items()) {
             const int line = at(entry);
             if (!entry.is_object()) {
@@ -270,12 +337,20 @@ std::string emit_catalog_cpp(const Catalog& catalog, std::string_view source) {
                                parameter.optional ? "true" : "false");
         out += "}};\n";
     }
+    for (const auto& operation : catalog.operations) {
+        if (operation.examples.empty())
+            continue;
+        out += std::format("inline constexpr std::array<std::string_view, {}> examples_{}{{{{\n", operation.examples.size(), identifier(operation.name));
+        for (const auto& example : operation.examples)
+            out += std::format("    {},\n", cpp_string(example));
+        out += "}};\n";
+    }
     out += std::format("\n// {}\ninline constexpr std::array<mlibs::control::CatalogEntry, {}> "
                        "catalog{{{{\n",
                        catalog.doc, catalog.operations.size());
     for (const auto& operation : catalog.operations)
         out +=
-            std::format("    {{{{{}, {}, {}}}, {}, {}, {}, mlibs::control::Cost::{}, {}, {}, {}, {}}},\n",
+            std::format("    {{{{{}, {}, {}}}, {}, {}, {}, mlibs::control::Cost::{}, {}, {}, {}, {}, {}}},\n",
                         cpp_string(operation.name), effect_enum(operation.effect),
                         operation.person ? "true" : "false", cpp_string(operation.summary),
                         operation.parameters.empty() ? std::string("{}")
@@ -283,9 +358,25 @@ std::string emit_catalog_cpp(const Catalog& catalog, std::string_view source) {
                         cpp_string(operation.result), operation.cost, cpp_string(operation.undo),
                         operation.cancellable ? "true" : "false",
                         operation.undoable ? "true" : "false",
-                        operation.delegated ? "true" : "false");
+                        operation.delegated ? "true" : "false",
+                        operation.examples.empty() ? std::string("{}") : "examples_" + identifier(operation.name));
+    out += "}};\n";
+    // What an agent that knows nothing of it begins with (D-186): what it is, and its tasks.
+    for (const auto& task : catalog.tasks) {
+        out += std::format("\ninline constexpr std::array<std::string_view, {}> steps_{}{{{{\n", task.steps.size(), identifier(task.name));
+        for (const auto& step : task.steps)
+            out += std::format("    {},\n", cpp_string(step));
+        out += "}};";
+    }
+    if (!catalog.tasks.empty()) {
+        out += std::format("\ninline constexpr std::array<mlibs::control::Task, {}> guide_tasks{{{{\n", catalog.tasks.size());
+        for (const auto& task : catalog.tasks)
+            out += std::format("    {{{}, {}, steps_{}}},\n", cpp_string(task.name), cpp_string(task.summary), identifier(task.name));
+        out += "}};";
+    }
+    out += std::format("\ninline constexpr mlibs::control::Guide guide{{{}, {}}};\n", cpp_string(catalog.doc), catalog.tasks.empty() ? "{}" : "guide_tasks");
     // The listing itself, for a program that serves the catalog (MCP) without its file.
-    out += std::format("}}}};\n\n// The listing ({}.ops.json), as written beside this file.\n"
+    out += std::format("\n// The listing ({}.ops.json), as written beside this file.\n"
                        "inline constexpr std::string_view listing = R\"listing({})listing\";\n\n}}  // namespace {}\n",
                        catalog.product, emit_catalog_json(catalog), catalog.ns);
     return out;
@@ -309,15 +400,21 @@ std::string emit_catalog_json(const Catalog& catalog) {
                 required +=
                     std::format("{}{}", required.empty() ? "" : ", ", json_string(parameter.name));
         }
+        // Requests of it, as they are sent.
+        std::string examples;
+        for (const auto& example : operation.examples)
+            examples += std::format("{}{}", examples.empty() ? "\n     \"examples\": [" : ", ", example);
+        if (!examples.empty())
+            examples += "],";
         out += std::format("    {{\"name\": {}, \"description\": {}, \"effect\": {}, \"person\": "
                            "{}, \"delegated\": {}, \"cost\": {}, \"undo\": {}, "
-                           "\"undoable\": {}, \"cancellable\": {}, \"result\": {},\n     \"inputSchema\": {{\"type\": \"object\", "
+                           "\"undoable\": {}, \"cancellable\": {}, \"result\": {},{}\n     \"inputSchema\": {{\"type\": \"object\", "
                            "\"properties\": {{{}}}, \"required\": [{}]}}}}{}\n",
                            json_string(operation.name), json_string(operation.summary),
                            json_string(operation.effect), operation.person ? "true" : "false",
                            operation.delegated ? "true" : "false", json_string(operation.cost), json_string(operation.undo),
                            operation.undoable ? "true" : "false", operation.cancellable ? "true" : "false", json_string(operation.result),
-                           properties, required, index + 1 < catalog.operations.size() ? "," : "");
+                           examples, properties, required, index + 1 < catalog.operations.size() ? "," : "");
     }
     out += "  ],\n  \"tiers\": [";
     for (std::size_t index = 0; index < catalog.tiers.size(); ++index) {
@@ -331,7 +428,21 @@ std::string emit_catalog_json(const Catalog& catalog) {
                            tier.reaction_ms, tier.actions_per_second, json_string(tier.doc),
                            operations);
     }
-    return out + (catalog.tiers.empty() ? "]\n}\n" : "\n  ]\n}\n");
+    out += catalog.tiers.empty() ? "]" : "\n  ]";
+    // The tasks to begin with: each step a request as it is sent.
+    if (!catalog.tasks.empty()) {
+        out += ",\n  \"tasks\": [";
+        for (std::size_t index = 0; index < catalog.tasks.size(); ++index) {
+            const auto& task = catalog.tasks[index];
+            std::string steps;
+            for (const auto& step : task.steps)
+                steps += std::format("{}\n      {}", steps.empty() ? "" : ",", step);
+            out += std::format("{}\n    {{\"name\": {}, \"summary\": {}, \"steps\": [{}\n    ]}}", index ? "," : "", json_string(task.name),
+                               json_string(task.summary), steps);
+        }
+        out += "\n  ]";
+    }
+    return out + "\n}\n";
 }
 
 std::string emit_catalog_markdown(const Catalog& catalog) {
@@ -356,6 +467,15 @@ std::string emit_catalog_markdown(const Catalog& catalog) {
                         operation.result.empty() ? "—" : operation.result, operation.cost,
                         operation.undo.empty() ? "—" : operation.undo,
                         operation.cancellable ? "yes" : "no");
+    }
+    if (!catalog.tasks.empty()) {
+        out += "\n## Tasks to begin with\n\nEach step is a request as it is sent; `describe` gives the same to an agent.\n";
+        for (const auto& task : catalog.tasks) {
+            out += std::format("\n**{}** — {}\n\n```json\n", task.name, task.summary);
+            for (const auto& step : task.steps)
+                out += step + "\n";
+            out += "```\n";
+        }
     }
     if (!catalog.tiers.empty()) {
         out += "\n## Agent player tiers\n\n| Tier | Shown | Reaction | Actions a second | "

@@ -144,6 +144,12 @@ public:
     HistoryOperations(History& history, Sources& sources, HistoryNames names = {}) : history_(history), sources_(sources), names_(std::move(names)) {}
 
     std::expected<std::string, std::string> run(std::string_view operation, mlibs::json::Node parameters, std::string_view actor);
+    // What kind of refusal the last run's was (openas's error codes): `invalid-argument` for a request that could
+    // not be accepted as written, `not-found` for a branch, tag or commit that is not there, `conflict` for a
+    // merge both sides changed, `failed` for one well formed that could not be done as things are (nothing
+    // changed to commit, changes not committed before a switch). Empty: the sources refused what was put in —
+    // the reason is theirs to give.
+    std::string_view refused_as;
     // The commit shown: one seen (a switch to a commit that is no branch's last), else the branch's last ("" when none).
     [[nodiscard]] std::string shown_now() const;
     std::string shown_commit;

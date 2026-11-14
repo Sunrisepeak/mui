@@ -6,6 +6,11 @@
 // records, one a line — `data`, `notice`, `error` — and last a `result` with
 // the exit code. A subject writes what its data means; the framing is here,
 // the same for every subject.
+//
+// An error says what is wrong and carries the ways out of it (D-186): `next`,
+// an array of {"why": …, "request": {…}} — each request one that can be sent
+// as it is. A subject that knows the way out gives it; one that gives none
+// still answers with the session's (the operation described, an example of it).
 export module mlibs.agent:envelope;
 
 import std;
@@ -17,6 +22,8 @@ export namespace mlibs::agent {
 
 // A JSON string literal.
 [[nodiscard]] std::string json_text(std::string_view text);
+// One way out of an error: why it helps, and a request (a JSON object) to send as it is.
+[[nodiscard]] std::string way_out(std::string_view why, std::string_view request);
 
 struct Request {
     std::string op;
@@ -39,11 +46,14 @@ public:
     // A `data` record carrying one JSON value (its text).
     void data(std::string_view json);
     void notice(std::string_view text);
-    void error(std::string_view code, std::string_view text);
+    // `next`: the ways out, a JSON array of {"why", "request"} (none given: the session's, see otherwise).
+    void error(std::string_view code, std::string_view text, std::string_view next = {});
     // The last record; once.
     void result(int exit_code = openas::exit_code::done);
     // An error and the result that ends the answer.
-    void fail(std::string_view code, std::string_view text, int exit_code = openas::exit_code::failed);
+    void fail(std::string_view code, std::string_view text, int exit_code = openas::exit_code::failed, std::string_view next = {});
+    // The ways out an error of this answer carries when it gives none itself (a JSON array, as `next`).
+    void otherwise(std::string next) { otherwise_ = std::move(next); }
     [[nodiscard]] bool finished() const noexcept { return finished_; }
 
     // A record as a subject that already speaks records gives it: its kind and its members (JSON, without
@@ -60,6 +70,7 @@ public:
 private:
     Reply       reply_;
     std::string re_;
+    std::string otherwise_;
     bool        finished_ = false;
     bool        deferred_ = false;
 };

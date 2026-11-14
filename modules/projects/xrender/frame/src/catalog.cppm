@@ -13,13 +13,39 @@ inline constexpr std::array<mlibs::control::Parameter, 1> parameters_frame_captu
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_frame_at{{
     {"at", "json", "[x, y] in the frame's pixels", false},
 }};
+inline constexpr std::array<std::string_view, 1> examples_frame_layers{{
+    "{\"op\":\"frame.layers\"}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_frame_capture{{
+    "{\"op\":\"frame.capture\",\"region\":[0,0,8,8]}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_frame_at{{
+    "{\"op\":\"frame.at\",\"at\":[30,70]}",
+}};
 
 // See which layers a frame is made of, take its pixels, and go from a pixel back to what drew it.
 inline constexpr std::array<mlibs::control::CatalogEntry, 3> catalog{{
-    {{"frame.layers", openas::Effect::read, false}, "The frame's size, its pixels' hash, and its layers from the back: each one's name, how much it drew, what it could not draw, whether it keeps what drew each pixel", {}, "json", mlibs::control::Cost::instant, "", false, false, false},
-    {{"frame.capture", openas::Effect::read, false}, "The pixels as drawn — the whole frame or a region of it — as a PNG in base64; at most 4 megapixels a request", parameters_frame_capture, "json", mlibs::control::Cost::frame, "", false, false, false},
-    {{"frame.at", openas::Effect::read, false}, "What drew a pixel: its colour, and the chain from it back — the topmost layer that keeps what drew each pixel, and that layer's object there; of a layer in three dimensions also the instance, its mesh and material, the cluster, the triangle, the depth and the normal", parameters_frame_at, "json", mlibs::control::Cost::instant, "", false, false, false},
+    {{"frame.layers", openas::Effect::read, false}, "The frame's size, its pixels' hash, and its layers from the back: each one's name, how much it drew, what it could not draw, whether it keeps what drew each pixel", {}, "json", mlibs::control::Cost::instant, "", false, false, false, examples_frame_layers},
+    {{"frame.capture", openas::Effect::read, false}, "The pixels as drawn — the whole frame or a region of it — as a PNG in base64; at most 4 megapixels a request", parameters_frame_capture, "json", mlibs::control::Cost::frame, "", false, false, false, examples_frame_capture},
+    {{"frame.at", openas::Effect::read, false}, "What drew a pixel: its colour, and the chain from it back — the topmost layer that keeps what drew each pixel, and that layer's object there; of a layer in three dimensions also the instance, its mesh and material, the cluster, the triangle, the depth and the normal", parameters_frame_at, "json", mlibs::control::Cost::instant, "", false, false, false, examples_frame_at},
 }};
+
+inline constexpr std::array<std::string_view, 1> steps_see_what_the_frame_is_made_of{{
+    "{\"op\":\"frame.layers\"}",
+}};
+inline constexpr std::array<std::string_view, 2> steps_look_at_the_pixels{{
+    "{\"op\":\"frame.layers\"}",
+    "{\"op\":\"frame.capture\",\"region\":[0,0,8,8]}",
+}};
+inline constexpr std::array<std::string_view, 1> steps_ask_what_drew_a_pixel{{
+    "{\"op\":\"frame.at\",\"at\":[30,70]}",
+}};
+inline constexpr std::array<mlibs::control::Task, 3> guide_tasks{{
+    {"see-what-the-frame-is-made-of", "Read the frame's size and its layers from the back", steps_see_what_the_frame_is_made_of},
+    {"look-at-the-pixels", "Take a corner of the frame as a picture", steps_look_at_the_pixels},
+    {"ask-what-drew-a-pixel", "Go from a pixel back to the layer and the object that drew it", steps_ask_what_drew_a_pixel},
+}};
+inline constexpr mlibs::control::Guide guide{"See which layers a frame is made of, take its pixels, and go from a pixel back to what drew it.", guide_tasks};
 
 // The listing (frame.ops.json), as written beside this file.
 inline constexpr std::string_view listing = R"listing({
@@ -29,13 +55,28 @@ inline constexpr std::string_view listing = R"listing({
   "doc": "See which layers a frame is made of, take its pixels, and go from a pixel back to what drew it.",
   "tools": [
     {"name": "frame.layers", "description": "The frame's size, its pixels' hash, and its layers from the back: each one's name, how much it drew, what it could not draw, whether it keeps what drew each pixel", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"frame.layers"}],
      "inputSchema": {"type": "object", "properties": {}, "required": []}},
     {"name": "frame.capture", "description": "The pixels as drawn — the whole frame or a region of it — as a PNG in base64; at most 4 megapixels a request", "effect": "read", "person": false, "delegated": false, "cost": "frame", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"frame.capture","region":[0,0,8,8]}],
      "inputSchema": {"type": "object", "properties": {"region": {"description": "[x, y, width, height] in the frame's pixels (the whole frame when none is given)"}}, "required": []}},
     {"name": "frame.at", "description": "What drew a pixel: its colour, and the chain from it back — the topmost layer that keeps what drew each pixel, and that layer's object there; of a layer in three dimensions also the instance, its mesh and material, the cluster, the triangle, the depth and the normal", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"frame.at","at":[30,70]}],
      "inputSchema": {"type": "object", "properties": {"at": {"description": "[x, y] in the frame's pixels"}}, "required": ["at"]}}
   ],
-  "tiers": []
+  "tiers": [],
+  "tasks": [
+    {"name": "see-what-the-frame-is-made-of", "summary": "Read the frame's size and its layers from the back", "steps": [
+      {"op":"frame.layers"}
+    ]},
+    {"name": "look-at-the-pixels", "summary": "Take a corner of the frame as a picture", "steps": [
+      {"op":"frame.layers"},
+      {"op":"frame.capture","region":[0,0,8,8]}
+    ]},
+    {"name": "ask-what-drew-a-pixel", "summary": "Go from a pixel back to the layer and the object that drew it", "steps": [
+      {"op":"frame.at","at":[30,70]}
+    ]}
+  ]
 }
 )listing";
 

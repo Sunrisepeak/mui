@@ -41,6 +41,7 @@ public:
     [[nodiscard]] mlibs::agent::Capabilities capabilities() const noexcept override { return {.observation = true, .control = true, .time = true}; }
     [[nodiscard]] std::span<const mlibs::control::CatalogEntry> operations() const noexcept override { return hanim::control::operations(); }
     [[nodiscard]] std::string_view listing() const noexcept override { return hanim::control::listing; }
+    [[nodiscard]] mlibs::control::Guide guide() const noexcept override { return hanim::control::guide; }
     // The engine's time and every playback's place in its program: the same stage, the same hash.
     [[nodiscard]] std::uint64_t state_hash() const override;
     void operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) override;

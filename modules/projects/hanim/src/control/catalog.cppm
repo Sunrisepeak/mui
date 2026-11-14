@@ -47,23 +47,70 @@ inline constexpr std::array<mlibs::control::Parameter, 2> parameters_animation_c
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_animation_release{{
     {"playback", "playback", "", false},
 }};
+inline constexpr std::array<std::string_view, 1> examples_animation_prepare{{
+    "{\"op\":\"animation.prepare\",\"program\":\"rise\"}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_animation_play{{
+    "{\"op\":\"animation.play\",\"program\":\"rise\"}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_animation_list{{
+    "{\"op\":\"animation.list\"}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_animation_inspect{{
+    "{\"op\":\"animation.inspect\",\"playback\":{\"slot\":0,\"generation\":1}}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_animation_plan{{
+    "{\"op\":\"animation.plan\",\"playback\":{\"slot\":0,\"generation\":1}}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_animation_seek{{
+    "{\"op\":\"animation.seek\",\"playback\":{\"slot\":0,\"generation\":1},\"position\":0.4}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_animation_seek_progress{{
+    "{\"op\":\"animation.seek-progress\",\"playback\":{\"slot\":0,\"generation\":1},\"progress\":0.5}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_animation_pause{{
+    "{\"op\":\"animation.pause\",\"playback\":{\"slot\":0,\"generation\":1}}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_animation_resume{{
+    "{\"op\":\"animation.resume\",\"playback\":{\"slot\":0,\"generation\":1}}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_animation_reverse{{
+    "{\"op\":\"animation.reverse\",\"playback\":{\"slot\":0,\"generation\":1}}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_animation_rate{{
+    "{\"op\":\"animation.rate\",\"playback\":{\"slot\":0,\"generation\":1},\"rate\":2}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_animation_cancel{{
+    "{\"op\":\"animation.cancel\",\"playback\":{\"slot\":0,\"generation\":1},\"restore\":true}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_animation_release{{
+    "{\"op\":\"animation.release\",\"playback\":{\"slot\":0,\"generation\":1}}",
+}};
 
 // Prepare, play, inspect and steer animations on a host's one Engine.
 inline constexpr std::array<mlibs::control::CatalogEntry, 13> catalog{{
-    {{"animation.prepare", openas::Effect::read, false}, "Prepare an immutable animation plan", parameters_animation_prepare, "plan", mlibs::control::Cost::bounded, "", false, false, false},
-    {{"animation.play", openas::Effect::reversible, false}, "Start an authored or prepared animation", parameters_animation_play, "playback", mlibs::control::Cost::bounded, "animation.cancel with restore puts its objects back", false, false, false},
-    {{"animation.list", openas::Effect::read, false}, "List owned playback identities and transport state", {}, "json", mlibs::control::Cost::instant, "", false, false, false},
-    {{"animation.inspect", openas::Effect::read, false}, "Read one playback's transport state", parameters_animation_inspect, "json", mlibs::control::Cost::instant, "", false, false, false},
-    {{"animation.plan", openas::Effect::read, false}, "Read its immutable plan and channels", parameters_animation_plan, "plan", mlibs::control::Cost::instant, "", false, false, false},
-    {{"animation.seek", openas::Effect::reversible, false}, "Sample absolute seconds", parameters_animation_seek, "", mlibs::control::Cost::frame, "seek back to the position animation.inspect read", false, false, false},
-    {{"animation.seek-progress", openas::Effect::reversible, false}, "Sample normalized progress", parameters_animation_seek_progress, "", mlibs::control::Cost::frame, "seek back to the progress animation.inspect read", false, false, false},
-    {{"animation.pause", openas::Effect::reversible, false}, "Pause transport", parameters_animation_pause, "", mlibs::control::Cost::instant, "animation.resume", false, false, false},
-    {{"animation.resume", openas::Effect::reversible, false}, "Resume transport", parameters_animation_resume, "", mlibs::control::Cost::instant, "animation.pause", false, false, false},
-    {{"animation.reverse", openas::Effect::reversible, false}, "Reverse transport direction", parameters_animation_reverse, "", mlibs::control::Cost::instant, "animation.reverse again", false, false, false},
-    {{"animation.rate", openas::Effect::reversible, false}, "Set a nonzero signed rate", parameters_animation_rate, "", mlibs::control::Cost::instant, "animation.rate with the rate animation.inspect read", false, false, false},
-    {{"animation.cancel", openas::Effect::irreversible, false}, "Cancel a playback; optionally restore its initial pose", parameters_animation_cancel, "", mlibs::control::Cost::instant, "none: a cancelled playback stays cancelled (play its program again)", false, false, false},
-    {{"animation.release", openas::Effect::irreversible, false}, "Release a playback and invalidate its handle", parameters_animation_release, "", mlibs::control::Cost::instant, "none: the handle is gone (play its program again for a new one)", false, false, false},
+    {{"animation.prepare", openas::Effect::read, false}, "Prepare an immutable animation plan", parameters_animation_prepare, "plan", mlibs::control::Cost::bounded, "", false, false, false, examples_animation_prepare},
+    {{"animation.play", openas::Effect::reversible, false}, "Start an authored or prepared animation", parameters_animation_play, "playback", mlibs::control::Cost::bounded, "animation.cancel with restore puts its objects back", false, false, false, examples_animation_play},
+    {{"animation.list", openas::Effect::read, false}, "List owned playback identities and transport state", {}, "json", mlibs::control::Cost::instant, "", false, false, false, examples_animation_list},
+    {{"animation.inspect", openas::Effect::read, false}, "Read one playback's transport state", parameters_animation_inspect, "json", mlibs::control::Cost::instant, "", false, false, false, examples_animation_inspect},
+    {{"animation.plan", openas::Effect::read, false}, "Read its immutable plan and channels", parameters_animation_plan, "plan", mlibs::control::Cost::instant, "", false, false, false, examples_animation_plan},
+    {{"animation.seek", openas::Effect::reversible, false}, "Sample absolute seconds", parameters_animation_seek, "", mlibs::control::Cost::frame, "seek back to the position animation.inspect read", false, false, false, examples_animation_seek},
+    {{"animation.seek-progress", openas::Effect::reversible, false}, "Sample normalized progress", parameters_animation_seek_progress, "", mlibs::control::Cost::frame, "seek back to the progress animation.inspect read", false, false, false, examples_animation_seek_progress},
+    {{"animation.pause", openas::Effect::reversible, false}, "Pause transport", parameters_animation_pause, "", mlibs::control::Cost::instant, "animation.resume", false, false, false, examples_animation_pause},
+    {{"animation.resume", openas::Effect::reversible, false}, "Resume transport", parameters_animation_resume, "", mlibs::control::Cost::instant, "animation.pause", false, false, false, examples_animation_resume},
+    {{"animation.reverse", openas::Effect::reversible, false}, "Reverse transport direction", parameters_animation_reverse, "", mlibs::control::Cost::instant, "animation.reverse again", false, false, false, examples_animation_reverse},
+    {{"animation.rate", openas::Effect::reversible, false}, "Set a nonzero signed rate", parameters_animation_rate, "", mlibs::control::Cost::instant, "animation.rate with the rate animation.inspect read", false, false, false, examples_animation_rate},
+    {{"animation.cancel", openas::Effect::irreversible, false}, "Cancel a playback; optionally restore its initial pose", parameters_animation_cancel, "", mlibs::control::Cost::instant, "none: a cancelled playback stays cancelled (play its program again)", false, false, false, examples_animation_cancel},
+    {{"animation.release", openas::Effect::irreversible, false}, "Release a playback and invalidate its handle", parameters_animation_release, "", mlibs::control::Cost::instant, "none: the handle is gone (play its program again for a new one)", false, false, false, examples_animation_release},
 }};
+
+inline constexpr std::array<std::string_view, 1> steps_see_what_is_playing{{
+    "{\"op\":\"animation.list\"}",
+}};
+inline constexpr std::array<mlibs::control::Task, 1> guide_tasks{{
+    {"see-what-is-playing", "List the playbacks here: each one's handle (what every other operation takes as `playback`), its program and where its transport is", steps_see_what_is_playing},
+}};
+inline constexpr mlibs::control::Guide guide{"Prepare, play, inspect and steer animations on a host's one Engine.", guide_tasks};
 
 // The listing (hanim.ops.json), as written beside this file.
 inline constexpr std::string_view listing = R"listing({
@@ -73,33 +120,51 @@ inline constexpr std::string_view listing = R"listing({
   "doc": "Prepare, play, inspect and steer animations on a host's one Engine.",
   "tools": [
     {"name": "animation.prepare", "description": "Prepare an immutable animation plan", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "plan",
+     "examples": [{"op":"animation.prepare","program":"rise"}],
      "inputSchema": {"type": "object", "properties": {"program": {"type": "string", "description": "a program (its id): the composition to prepare"}}, "required": ["program"]}},
     {"name": "animation.play", "description": "Start an authored or prepared animation", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "animation.cancel with restore puts its objects back", "undoable": false, "cancellable": false, "result": "playback",
+     "examples": [{"op":"animation.play","program":"rise"}],
      "inputSchema": {"type": "object", "properties": {"program": {"type": "string", "description": "a program (its id): a composition or a prepared plan"}}, "required": ["program"]}},
     {"name": "animation.list", "description": "List owned playback identities and transport state", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"animation.list"}],
      "inputSchema": {"type": "object", "properties": {}, "required": []}},
     {"name": "animation.inspect", "description": "Read one playback's transport state", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"animation.inspect","playback":{"slot":0,"generation":1}}],
      "inputSchema": {"type": "object", "properties": {"playback": {"type": "string", "description": "a playback (its id)"}}, "required": ["playback"]}},
     {"name": "animation.plan", "description": "Read its immutable plan and channels", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "plan",
+     "examples": [{"op":"animation.plan","playback":{"slot":0,"generation":1}}],
      "inputSchema": {"type": "object", "properties": {"playback": {"type": "string", "description": "a playback (its id)"}}, "required": ["playback"]}},
     {"name": "animation.seek", "description": "Sample absolute seconds", "effect": "reversible", "person": false, "delegated": false, "cost": "frame", "undo": "seek back to the position animation.inspect read", "undoable": false, "cancellable": false, "result": "",
+     "examples": [{"op":"animation.seek","playback":{"slot":0,"generation":1},"position":0.4}],
      "inputSchema": {"type": "object", "properties": {"playback": {"type": "string", "description": "a playback (its id)"}, "position": {"type": "number", "description": "seconds: from its start"}}, "required": ["playback", "position"]}},
     {"name": "animation.seek-progress", "description": "Sample normalized progress", "effect": "reversible", "person": false, "delegated": false, "cost": "frame", "undo": "seek back to the progress animation.inspect read", "undoable": false, "cancellable": false, "result": "",
+     "examples": [{"op":"animation.seek-progress","playback":{"slot":0,"generation":1},"progress":0.5}],
      "inputSchema": {"type": "object", "properties": {"playback": {"type": "string", "description": "a playback (its id)"}, "progress": {"type": "number", "description": "0 to 1 (not for a program looping forever)"}}, "required": ["playback", "progress"]}},
     {"name": "animation.pause", "description": "Pause transport", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "animation.resume", "undoable": false, "cancellable": false, "result": "",
+     "examples": [{"op":"animation.pause","playback":{"slot":0,"generation":1}}],
      "inputSchema": {"type": "object", "properties": {"playback": {"type": "string", "description": "a playback (its id)"}}, "required": ["playback"]}},
     {"name": "animation.resume", "description": "Resume transport", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "animation.pause", "undoable": false, "cancellable": false, "result": "",
+     "examples": [{"op":"animation.resume","playback":{"slot":0,"generation":1}}],
      "inputSchema": {"type": "object", "properties": {"playback": {"type": "string", "description": "a playback (its id)"}}, "required": ["playback"]}},
     {"name": "animation.reverse", "description": "Reverse transport direction", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "animation.reverse again", "undoable": false, "cancellable": false, "result": "",
+     "examples": [{"op":"animation.reverse","playback":{"slot":0,"generation":1}}],
      "inputSchema": {"type": "object", "properties": {"playback": {"type": "string", "description": "a playback (its id)"}}, "required": ["playback"]}},
     {"name": "animation.rate", "description": "Set a nonzero signed rate", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "animation.rate with the rate animation.inspect read", "undoable": false, "cancellable": false, "result": "",
+     "examples": [{"op":"animation.rate","playback":{"slot":0,"generation":1},"rate":2}],
      "inputSchema": {"type": "object", "properties": {"playback": {"type": "string", "description": "a playback (its id)"}, "rate": {"type": "number", "description": "nonzero; negative plays backwards"}}, "required": ["playback", "rate"]}},
     {"name": "animation.cancel", "description": "Cancel a playback; optionally restore its initial pose", "effect": "irreversible", "person": false, "delegated": false, "cost": "instant", "undo": "none: a cancelled playback stays cancelled (play its program again)", "undoable": false, "cancellable": false, "result": "",
+     "examples": [{"op":"animation.cancel","playback":{"slot":0,"generation":1},"restore":true}],
      "inputSchema": {"type": "object", "properties": {"playback": {"type": "string", "description": "a playback (its id)"}, "restore": {"type": "boolean", "description": "back to its first pose"}}, "required": ["playback"]}},
     {"name": "animation.release", "description": "Release a playback and invalidate its handle", "effect": "irreversible", "person": false, "delegated": false, "cost": "instant", "undo": "none: the handle is gone (play its program again for a new one)", "undoable": false, "cancellable": false, "result": "",
+     "examples": [{"op":"animation.release","playback":{"slot":0,"generation":1}}],
      "inputSchema": {"type": "object", "properties": {"playback": {"type": "string", "description": "a playback (its id)"}}, "required": ["playback"]}}
   ],
-  "tiers": []
+  "tiers": [],
+  "tasks": [
+    {"name": "see-what-is-playing", "summary": "List the playbacks here: each one's handle (what every other operation takes as `playback`), its program and where its transport is", "steps": [
+      {"op":"animation.list"}
+    ]}
+  ]
 }
 )listing";
 

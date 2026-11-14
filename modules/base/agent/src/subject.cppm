@@ -8,8 +8,9 @@
 // subjects are:
 //
 //   → {"op":"subjects"}                               who is here, what each can do, its state's hash
-//   → {"op":"describe","subject":"world"}             a subject's operations, briefly: name, effect, what it does
-//   → {"op":"describe","operation":"world.act"}       one of them whole: its parameters, cost, how it is undone
+//   → {"op":"describe","subject":"world"}             what it is, the tasks to begin with (each step a request to
+//                                                     send as it is), and its operations briefly: name, effect, a line
+//   → {"op":"describe","operation":"world.act"}       one of them whole: its parameters, cost, how it is undone, examples
 //   → {"op":"describe","subject":"world","detail":"full"}   the whole catalog (its listing: <product>.ops.json)
 //   → {"op":"world.observe","re":7, …}                one of them — decided first (mlibs.control, openas)
 //
@@ -27,6 +28,13 @@
 // An operation the policy asks a person about ends in `needs-answer` (exit
 // code 2) until the request carries the answer; one it refuses is `refused`
 // and does not run. Nothing reaches a subject without that decision.
+//
+// An agent needs no more than this to begin (D-186): `subjects`, then
+// `describe` — the guide is the catalog's own data (its doc, tasks and
+// examples), and every error carries `next`, requests that lead out of it:
+// the nearest names for one misspelt, the operation described and an example
+// for one sent without what it needs, the same request with the answer for
+// one a person is asked about.
 export module mlibs.agent:subject;
 
 import std;
@@ -60,6 +68,8 @@ public:
     [[nodiscard]] virtual std::span<const mlibs::control::CatalogEntry> operations() const noexcept = 0;
     // The catalog's listing (<product>.ops.json: every operation with its input schema, the tiers), when it has one.
     [[nodiscard]] virtual std::string_view listing() const noexcept { return {}; }
+    // What it tells an agent that knows nothing of it: what it is, and the tasks to begin with (its catalog's `guide`).
+    [[nodiscard]] virtual mlibs::control::Guide guide() const noexcept { return {}; }
     // A hash of its whole state: the same state, the same hash. 0: it has none to give.
     [[nodiscard]] virtual std::uint64_t state_hash() const { return 0; }
     // One of its operations (its whole name), already decided: its data, then

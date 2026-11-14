@@ -260,6 +260,15 @@ UTest operations{"agent.history.operations", [] {
         expect(ask(operations, "switch", R"({"to":"nowhere"})").error.contains("lab.history lists the branches and tags") && ask(operations, "revert", R"({"to":"nowhere"})").error.contains("no branch, tag or commit"));
         expect(ask(operations, "diff", R"({"from":"nowhere"})").error.contains("nowhere") && ask(operations, "frobnicate").error.contains("no operation"));
         expect(ask(operations, "history", R"({"limit":2})")["log"].size() == 2u);
+        // What kind each refusal is: a name that is not there is not a request written wrong, nor is one that cannot be done as things are.
+        (void)ask(operations, "switch", R"({"to":"nowhere"})");
+        expect(operations.refused_as == "not-found");
+        (void)ask(operations, "merge", R"({"from":"nowhere"})");
+        expect(operations.refused_as == "not-found");
+        (void)ask(operations, "commit", R"({"message":"nothing new"})");
+        expect(operations.refused_as == "failed") << "nothing changed since the last";
+        (void)ask(operations, "commit", R"({})");
+        expect(operations.refused_as == "invalid-argument") << "a commit says what it is";
     };
 
     "sources that come and go: a merge keeps what each side added and what one side removed; a commit can say the sources it changed"_test = [] {

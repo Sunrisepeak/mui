@@ -5,11 +5,26 @@
   "doc": "See which layers a frame is made of, take its pixels, and go from a pixel back to what drew it.",
   "tools": [
     {"name": "frame.layers", "description": "The frame's size, its pixels' hash, and its layers from the back: each one's name, how much it drew, what it could not draw, whether it keeps what drew each pixel", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"frame.layers"}],
      "inputSchema": {"type": "object", "properties": {}, "required": []}},
     {"name": "frame.capture", "description": "The pixels as drawn — the whole frame or a region of it — as a PNG in base64; at most 4 megapixels a request", "effect": "read", "person": false, "delegated": false, "cost": "frame", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"frame.capture","region":[0,0,8,8]}],
      "inputSchema": {"type": "object", "properties": {"region": {"description": "[x, y, width, height] in the frame's pixels (the whole frame when none is given)"}}, "required": []}},
     {"name": "frame.at", "description": "What drew a pixel: its colour, and the chain from it back — the topmost layer that keeps what drew each pixel, and that layer's object there; of a layer in three dimensions also the instance, its mesh and material, the cluster, the triangle, the depth and the normal", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"frame.at","at":[30,70]}],
      "inputSchema": {"type": "object", "properties": {"at": {"description": "[x, y] in the frame's pixels"}}, "required": ["at"]}}
   ],
-  "tiers": []
+  "tiers": [],
+  "tasks": [
+    {"name": "see-what-the-frame-is-made-of", "summary": "Read the frame's size and its layers from the back", "steps": [
+      {"op":"frame.layers"}
+    ]},
+    {"name": "look-at-the-pixels", "summary": "Take a corner of the frame as a picture", "steps": [
+      {"op":"frame.layers"},
+      {"op":"frame.capture","region":[0,0,8,8]}
+    ]},
+    {"name": "ask-what-drew-a-pixel", "summary": "Go from a pixel back to the layer and the object that drew it", "steps": [
+      {"op":"frame.at","at":[30,70]}
+    ]}
+  ]
 }

@@ -188,6 +188,7 @@ public:
     }
     [[nodiscard]] std::span<const mlibs::control::CatalogEntry> operations() const noexcept override { return catalog; }
     [[nodiscard]] std::string_view listing() const noexcept override { return xengine::cellular::agent::listing; }
+    [[nodiscard]] mlibs::control::Guide guide() const noexcept override { return xengine::cellular::agent::guide; }
     [[nodiscard]] std::uint64_t state_hash() const override { return hash_of(timeline_.state()); }
     void operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) override;
 

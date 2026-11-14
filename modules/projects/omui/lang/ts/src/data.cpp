@@ -93,6 +93,17 @@ export interface Operation {
     delegated?: boolean;
     /** The runtime's undo takes it back. */
     undoable?: boolean;
+    /** Its arguments as they are sent, the plainest first (`{}`: none): `describe` shows them as requests. */
+    examples?: Record<string, unknown>[];
+}
+/** A request as it is sent: an operation of the catalog by its whole name, and its arguments. */
+export type Step = { op: string } & Record<string, unknown>;
+/** A task to begin with: what it gets done, and the requests that do it, in order. */
+export interface Task {
+    /** Lowercase words joined by `-`. */
+    name: string;
+    summary: string;
+    steps: Step[];
 }
 /** A level an agent plays at (games): how it sees and how fast it may act. */
 export interface Tier {
@@ -116,6 +127,8 @@ export interface Catalog {
     /** The partition holding it (`catalog` when absent): a module with two catalogs names the second. */
     partition?: string;
     tiers?: Tier[];
+    /** Three to five tasks an agent that knows nothing of the product begins with; each runs as written. */
+    tasks?: Task[];
 }
 export declare function defineOps(catalog: Catalog): Defined<"ops">;
 

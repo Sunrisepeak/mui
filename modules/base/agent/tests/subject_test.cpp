@@ -21,12 +21,20 @@ public:
     agent::Capabilities capabilities() const noexcept override { return {.observation = true, .control = true}; }
     std::span<const control::CatalogEntry> operations() const noexcept override {
         static constexpr std::array<control::Parameter, 1> add_parameters{{{"by", "integer", "how much (1 when none is given)", true}}};
-        static constexpr std::array<control::CatalogEntry, 3> all{{
+        static constexpr std::array<control::Parameter, 1> set_parameters{{{"to", "integer", "the count from now on", false}}};
+        static constexpr std::array<std::string_view, 1> set_examples{R"({"op":"counter.set","to":3})"};
+        static constexpr std::array<control::CatalogEntry, 4> all{{
             {{"counter.read", openas::Effect::read, false}, "The count", {}, "json", control::Cost::instant, "", false, false, false},
             {{"counter.add", openas::Effect::reversible, false}, "Adds to the count", add_parameters, "json", control::Cost::instant, "counter.add with the opposite", false, false, false},
             {{"counter.reset", openas::Effect::irreversible, false}, "Forgets the count", {}, "json", control::Cost::instant, "", false, false, false},
+            {{"counter.set", openas::Effect::reversible, false}, "Sets the count", set_parameters, "json", control::Cost::instant, "counter.set to what it was", false, false, false, set_examples},
         }};
         return all;
+    }
+    control::Guide guide() const noexcept override {
+        static constexpr std::array<std::string_view, 2> steps{R"({"op":"counter.add","by":2})", R"({"op":"counter.read"})"};
+        static constexpr std::array<control::Task, 1> tasks{{{"count-up", "Add to the count and read it", steps}}};
+        return {"A count.", tasks};
     }
     std::uint64_t state_hash() const override { return static_cast<std::uint64_t>(count) + 1; }
     void operate(std::string_view operation, const agent::Request& request, agent::Answer& answer) override {
@@ -34,6 +42,10 @@ public:
         by = request.actor.name;
         if (operation == "counter.add") count += request["by"].integer().value_or(1);
         if (operation == "counter.reset") count = 0;
+        if (operation == "counter.set") {
+            if (request["to"].integer().value_or(0) < 0) return answer.fail(openas::error_code::invalid_argument, "a count is not negative");
+            count = request["to"].integer().value_or(0);
+        }
         answer.data(std::format("{{\"count\":{}}}", count));
     }
     void poll() override { ++polled; }
@@ -52,6 +64,14 @@ struct Answered {
         for (const auto& record : records)
             if (record.root()["kind"].text() == "error") return record.root()["code"].text().value_or("");
         return {};
+    }
+    // The error's ways out: each one's request, as JSON.
+    [[nodiscard]] std::vector<std::string> next() const {
+        std::vector<std::string> out;
+        for (const auto& record : records)
+            if (record.root()["kind"].text() == "error")
+                for (const auto& way : record.root()["next"].items()) out.push_back(way["request"].dump());
+        return out;
     }
 };
 Answered ask(agent::SubjectSession& session, std::string_view line) {
@@ -84,7 +104,7 @@ UTest cases{"agent.subject", [] {
 
         const auto described = ask(session, R"({"op":"describe","subject":"counter"})");
         const auto operations = described.records[0].root()["data"]["operations"];
-        expect(eq(operations.size(), std::size_t{3}));
+        expect(eq(operations.size(), std::size_t{4}));
         expect(operations[1]["name"].text() == "counter.add" && operations[1]["effect"].text() == "reversible");
         expect(!operations[1]["parameters"]) << "briefly: a name, its effect, a line";
         expect(!described.records[0].root()["re"]) << "no re asked, none echoed";
@@ -94,7 +114,56 @@ UTest cases{"agent.subject", [] {
         expect(entry["undo"].text() == "counter.add with the opposite" && entry["cost"].text() == "instant");
         expect(ask(session, R"({"op":"describe","operation":"counter.fly"})").error() == "not-found");
         expect(ask(session, R"({"op":"describe","subject":"clock"})").error() == "not-found") << "a subject that is not here";
-        expect(eq(ask(session, R"({"op":"describe"})").records[0].root()["data"]["operations"].size(), std::size_t{3})) << "the only subject here, when none is named";
+        expect(eq(ask(session, R"({"op":"describe"})").records[0].root()["data"]["operations"].size(), std::size_t{4})) << "the only subject here, when none is named";
+    };
+
+    "an agent that knows nothing of it begins from `describe`: what it is, tasks whose steps run as written, examples with an operation (D-186)"_test = [] {
+        Counter counter;
+        agent::SubjectSession session({&counter});
+        const auto described = ask(session, R"({"op":"describe","subject":"counter"})");
+        const auto data = described.records[0].root()["data"];
+        expect(data["about"].text() == "A count.");
+        expect(eq(data["tasks"].size(), std::size_t{1}) && data["tasks"][0]["name"].text() == "count-up" && data["tasks"][0]["summary"].text() == "Add to the count and read it");
+        // Each step is a request: sent as it is given.
+        for (const auto& step : data["tasks"][0]["steps"].items()) expect(eq(ask(session, step.dump()).exit_code(), std::int64_t{0})) << step.dump();
+        expect(eq(counter.count, std::int64_t{2}));
+        const auto one = ask(session, R"({"op":"describe","operation":"counter.set"})");
+        const auto whole = one.records[0].root()["data"];
+        expect(eq(whole["examples"].size(), std::size_t{1}));
+        expect(eq(ask(session, whole["examples"][0].dump()).exit_code(), std::int64_t{0}) && eq(counter.count, std::int64_t{3}));
+        expect(!ask(session, R"({"op":"describe","operation":"counter.read"})").records[0].root()["data"]["examples"]) << "none declared, none shown";
+    };
+
+    "every error carries its ways out, requests to send as they are (D-186)"_test = [] {
+        Counter counter;
+        agent::SubjectSession session({&counter});
+        using Ways = std::vector<std::string>;
+        // A name a letter off: the operation it is nearest, described; then what the subject can do.
+        expect(ask(session, R"({"op":"counter.ad"})").next() == Ways{R"({"op":"describe","operation":"counter.add"})", R"({"op":"describe","subject":"counter"})"});
+        // Nothing near it, and no subject of that name: who is here.
+        expect(ask(session, R"({"op":"clock.read"})").next() == Ways{R"({"op":"subjects"})"});
+        expect(ask(session, "not json").next() == Ways{R"({"op":"subjects"})"});
+        expect(ask(session, R"({"op":"describe","subject":"clock"})").next() == Ways{R"({"op":"subjects"})"});
+        expect(ask(session, R"({"op":"describe","operation":"counter.rest"})").next().front() == R"({"op":"describe","operation":"counter.reset"})");
+        // Without what it needs: answered before the subject, with the operation whole and a request that is well formed.
+        const int before = counter.operated;
+        const auto lacking = ask(session, R"({"op":"counter.set"})");
+        expect(lacking.error() == "invalid-argument" && eq(counter.operated, before)) << "it did not reach the subject";
+        expect(lacking.next() == Ways{R"({"op":"describe","operation":"counter.set"})", R"({"op":"counter.set","to":3})"});
+        for (const std::string& way : lacking.next()) expect(eq(ask(session, way).exit_code(), std::int64_t{0})) << way;
+        // The subject's own failure, which names no way out, carries the operation's.
+        expect(ask(session, R"({"op":"counter.set","to":-1})").next() == lacking.next());
+
+        // What a person must agree to: the same request with the answer. What is refused: what else there is.
+        auto access = std::make_shared<control::Access>(control::Policy{});
+        agent::SubjectSession asking({&counter}, {.access = access});
+        const auto asked = ask(asking, R"({"op":"counter.reset","re":7})");
+        expect(asked.next() == Ways{R"({"op":"counter.reset","re":7,"answer":"yes"})"});
+        expect(eq(ask(asking, asked.next().front()).exit_code(), std::int64_t{0}) && eq(counter.count, std::int64_t{0}));
+        control::Policy narrow;
+        narrow.user.operations = std::vector<std::string>{"counter.read"};
+        agent::SubjectSession limited({&counter}, {.access = std::make_shared<control::Access>(narrow)});
+        expect(ask(limited, R"({"op":"counter.add"})").next() == Ways{R"({"op":"describe","subject":"counter"})"});
     };
 
     "an operation runs and answers its data; what is not here is not-found; a line that is no request is said so"_test = [] {

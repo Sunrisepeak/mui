@@ -22,6 +22,8 @@ struct Answered {
     std::int64_t             exit = -1;      // the result's; -1: no result came
     bool                     records = true; // every line was a record (an object with a kind)
     std::vector<std::string> echoed;         // each record's `re`, as JSON ("" when it has none)
+    std::vector<std::string> next;           // an error record's ways out: each one's request, as JSON
+    bool                     next_whole = true;  // … and each said why
 };
 
 Answered ask(Session& session, std::string_view line) {
@@ -45,6 +47,10 @@ Answered ask(Session& session, std::string_view line) {
         if (kind == "error") {
             out.code = root["code"].text().value_or("");
             out.message = root["text"].text().value_or("");
+            for (const auto& way : root["next"].items()) {
+                out.next.push_back(way["request"].dump());
+                if (way["why"].text().value_or("").empty() || !way["request"].is_object()) out.next_whole = false;
+            }
         }
         if (kind == "result") out.exit = root["exitCode"].integer().value_or(-1);
     }
@@ -257,6 +263,98 @@ void causes_explained(const Probe& probe, Check& check) {
     check.equal(hex(subject->state_hash()), hex(after), "explaining leaves the state as it was");
 }
 
+// 9 it guides itself: what it is and the tasks to begin with are its catalog's, and run as they are written.
+void guide_runs(const Probe& probe, Check& check) {
+    const auto subject = probe.make();
+    const mlibs::control::Guide guide = subject->guide();
+    check.that(!guide.about.empty(), "it says what it is, in a line (the catalog's doc)");
+    check.that(!guide.tasks.empty(), "it has tasks to begin with (the catalog's tasks)");
+    {
+        SubjectSession session({subject.get()});
+        const Answered described = ask(session, std::format(R"({{"op":"describe","subject":"{}"}})", subject->name()));
+        if (auto parsed = mlibs::json::Document::parse(described.data, "record")) {
+            const auto data = parsed->root()["data"];
+            check.that(data["about"].text() == guide.about, "`describe` says what it is");
+            check.equal(data["tasks"].size(), guide.tasks.size(), "`describe` gives the tasks to begin with");
+        }
+    }
+    std::size_t steps = 0;
+    for (const mlibs::control::Task& task : guide.tasks) {
+        check.that(!task.name.empty() && !task.summary.empty() && !task.steps.empty(), std::format("task `{}` says what it gets done and has the requests that do it", task.name));
+        // Each task from the beginning: on a subject as it is made.
+        const auto fresh = probe.make();
+        SubjectSession session({fresh.get()});
+        for (const std::string_view step : task.steps) {
+            ++steps;
+            if (!check.that(entry_of(*fresh, operation_of(step)) != nullptr, std::format("task `{}`: {} is a request of the catalog", task.name, step))) continue;
+            const Answered answered = ask(session, step);
+            check.that(answered.exit == 0, std::format("task `{}`: {} runs as written ({} {})", task.name, step, answered.code, answered.message));
+        }
+    }
+    std::size_t examples = 0;
+    for (const mlibs::control::CatalogEntry& entry : subject->operations()) {
+        const bool needs = std::ranges::any_of(entry.parameters, [](const mlibs::control::Parameter& parameter) { return !parameter.optional; });
+        if (needs) check.that(!entry.examples.empty(), std::format("`{}` needs arguments: it shows a request of it (an example, or a step of a task)", entry.operation.name));
+        for (const std::string_view example : entry.examples) {
+            ++examples;
+            check.that(operation_of(example) == entry.operation.name, std::format("`{}`: its example is a request of it", entry.operation.name));
+            const auto fresh = probe.make();
+            SubjectSession session({fresh.get()});
+            const Answered answered = ask(session, example);
+            // Well formed, whatever it is sent to: it may name a node, a handle or a place this subject has not
+            // (`not-found`, a precondition), and is never a request that could not be accepted anywhere.
+            check.that(answered.code != openas::error_code::invalid_argument,
+                       std::format("`{}`: {} is well formed ({} {})", entry.operation.name, example, answered.code, answered.message));
+        }
+    }
+    check.evidence("tasks", std::to_string(guide.tasks.size()));
+    check.evidence("steps", std::to_string(steps));
+    check.evidence("examples", std::to_string(examples));
+}
+
+// 10 every error carries a way out: requests to send as they are.
+void errors_next(const Probe& probe, Check& check) {
+    const auto subject = probe.make();
+    SubjectSession session({subject.get()});
+    const std::uint64_t before = subject->state_hash();
+    // What `next` holds is sent as it is: a session's own request runs; any other is a request of the catalog.
+    const auto leads = [&](const Answered& answered, std::string_view what) {
+        if (!check.that(!answered.next.empty() && answered.next_whole, std::format("{}: the error carries its ways out (`next`), each with why", what))) return;
+        for (const std::string& request : answered.next) {
+            const std::string operation = operation_of(request);
+            if (operation == "describe" || operation == "subjects")
+                check.that(ask(session, request).exit == 0, std::format("{}: {} runs as given", what, request));
+            else
+                check.that(entry_of(*subject, operation) != nullptr, std::format("{}: {} is a request of the catalog", what, request));
+        }
+    };
+    leads(ask(session, "{\"op\":"), "a line that is no request");
+    leads(ask(session, R"({"op":"describe","subject":"nobody-here"})"), "a subject that is not here");
+    std::size_t misspelt = 0, lacking = 0;
+    for (const mlibs::control::CatalogEntry& entry : subject->operations()) {
+        const std::string_view name = entry.operation.name;
+        // A letter short of its name, when that is no other operation's.
+        if (const std::string_view near = name.substr(0, name.size() - 1); !near.ends_with('.') && entry_of(*subject, near) == nullptr) {
+            const Answered answered = ask(session, std::format(R"({{"op":"{}"}})", near));
+            check.equal(answered.code, std::string(openas::error_code::not_found), std::format("`{}` is no operation", near));
+            leads(answered, near);
+            check.that(std::ranges::any_of(answered.next, [&](const std::string& request) { return request.contains(std::format("\"{}\"", name)); }),
+                       std::format("`{}`: the ways out name `{}`", near, name));
+            ++misspelt;
+        }
+        // Without what it needs.
+        if (std::ranges::any_of(entry.parameters, [](const mlibs::control::Parameter& parameter) { return !parameter.optional; })) {
+            const Answered answered = ask(session, std::format(R"({{"op":"{}"}})", name));
+            check.equal(answered.code, std::string(openas::error_code::invalid_argument), std::format("`{}` without what it needs is `invalid-argument`", name));
+            leads(answered, std::format("`{}` without what it needs", name));
+            ++lacking;
+        }
+    }
+    check.equal(hex(subject->state_hash()), hex(before), "none of them touched the state");
+    check.evidence("misspelt", std::to_string(misspelt));
+    check.evidence("lacking", std::to_string(lacking));
+}
+
 struct Entry {
     std::string_view              id;
     Level                         level;
@@ -264,7 +362,7 @@ struct Entry {
     void (*body)(const Probe&, Check&);
 };
 
-// The eight properties, as cases.
+// The eight properties and the norms over them (D-186: 9 it guides itself, 10 every error carries a way out), as cases.
 const std::vector<Entry>& entries() {
     static const std::vector<Entry> all{
         // 1 one source: what it can do is its catalog; what can be named has a stable address.
@@ -287,6 +385,10 @@ const std::vector<Entry>& entries() {
         // 8 the working details: errors with a code, requests answered in records, a change explained.
         {"agent.errors.structured", Level::semantic, {}, errors_structured},
         {"agent.causes.explained", Level::semantic, {"control", "causes"}, causes_explained},
+        // 9 it guides itself (D-186): what it is and the tasks to begin with, each running as written.
+        {"agent.guide.runs", Level::semantic, {}, guide_runs},
+        // 10 every error carries a way out.
+        {"agent.errors.next", Level::semantic, {}, errors_next},
     };
     return all;
 }

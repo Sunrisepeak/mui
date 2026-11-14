@@ -3,6 +3,7 @@ module mlibs.agent;
 
 import std;
 import mlibs.json;
+import openas;
 
 namespace mlibs::agent {
 
@@ -71,7 +72,11 @@ std::string HistoryOperations::shown_now() const {
 }
 
 std::expected<std::string, std::string> HistoryOperations::run(std::string_view operation, mlibs::json::Node parameters, std::string_view actor) {
-    const auto refuse = [](std::string why) { return std::unexpected(std::move(why)); };
+    const auto refuse = [this](std::string why, std::string_view as = openas::error_code::invalid_argument) {
+        refused_as = as;
+        return std::unexpected(std::move(why));
+    };
+    const std::string_view not_found = openas::error_code::not_found, failed = openas::error_code::failed, theirs_to_say = {};
     // What is shown, as texts: the commit seen, else the branch's last.
     const auto shown_texts = [&] { return history_.texts_of(shown_now().empty() ? std::string("HEAD") : shown_now()); };
     const auto optional_at = [&](std::optional<std::string>& kept) -> std::optional<std::string_view> {
@@ -98,7 +103,7 @@ std::expected<std::string, std::string> HistoryOperations::run(std::string_view 
         const std::string message = text_of(parameters, "message");
         if (message.empty()) return refuse("a commit says what it is: `message`");
         auto commit = history_.commit(sources_.texts(), message, std::string(actor), sources_.state());
-        if (!commit) return refuse(commit.error());
+        if (!commit) return refuse(commit.error(), failed);
         return said(*commit);
     }
     if (operation == "branch") {
@@ -113,14 +118,14 @@ std::expected<std::string, std::string> HistoryOperations::run(std::string_view 
         // Changes not committed: what runs is not the commit shown (the branch's last, or one seen).
         const auto shown = shown_texts();
         if (shown && *shown != sources_.texts() && !parameters["force"].boolean().value_or(false))
-            return refuse(std::format("the design has changes not committed: {} them, or switch with force (they are dropped)", names_.commit));
+            return refuse(std::format("the design has changes not committed: {} them, or switch with force (they are dropped)", names_.commit), failed);
         const auto branches = history_.branches();
         auto at = history_.resolve(to);
-        if (!at) return refuse(std::format("{} ({} lists the branches and tags)", at.error(), names_.list));
+        if (!at) return refuse(std::format("{} ({} lists the branches and tags)", at.error(), names_.list), not_found);
         auto texts = history_.texts_of(*at);
-        if (!texts) return refuse(texts.error());
+        if (!texts) return refuse(texts.error(), failed);
         auto applied = sources_.apply(*texts, Sources::Reason::switch_to);
-        if (!applied) return refuse(applied.error());
+        if (!applied) return refuse(applied.error(), theirs_to_say);
         if (!branches.contains(to)) {  // a commit, seen: the branch stays; a commit keeps it there, a branch made of it is one
             shown_commit = *at;
             return with(std::move(*applied), std::format("\"branch\":{},\"at\":{},\"detached\":true", json_text(history_.head_branch()), json_text(*at)));
@@ -131,11 +136,11 @@ std::expected<std::string, std::string> HistoryOperations::run(std::string_view 
     }
     if (operation == "revert") {
         auto id = history_.resolve(text_of(parameters, "to"));
-        if (!id) return refuse(id.error());
+        if (!id) return refuse(std::format("{} ({} lists the branches and tags)", id.error(), names_.list), not_found);
         auto texts = history_.texts_of(*id);
-        if (!texts) return refuse(texts.error());
+        if (!texts) return refuse(texts.error(), failed);
         auto applied = sources_.apply(*texts, Sources::Reason::undo);
-        if (!applied) return refuse(applied.error());
+        if (!applied) return refuse(applied.error(), theirs_to_say);
         auto commit = history_.commit(sources_.texts(), std::format("back to {}", id->substr(0, 8)), std::string(actor), sources_.state());
         shown_commit.clear();
         return commit ? with(std::move(*applied), std::format("\"commit\":{}", said(*commit))) : *applied;
@@ -143,12 +148,12 @@ std::expected<std::string, std::string> HistoryOperations::run(std::string_view 
     if (operation == "diff") {
         const std::string from = text_of(parameters, "from", "HEAD");
         auto before = history_.texts_of(from);
-        if (!before) return refuse(before.error());
+        if (!before) return refuse(before.error(), not_found);
         const auto to = parameters["to"].text();
         Texts after;
         if (to) {
             auto texts = history_.texts_of(*to);
-            if (!texts) return refuse(texts.error());
+            if (!texts) return refuse(texts.error(), not_found);
             after = std::move(*texts);
         } else {
             after = sources_.texts();  // what runs now
@@ -172,11 +177,11 @@ std::expected<std::string, std::string> HistoryOperations::run(std::string_view 
         const std::string from = text_of(parameters, "from");
         auto theirs_id = history_.resolve(from);
         auto ours_id = history_.resolve("HEAD");
-        if (!theirs_id) return refuse(theirs_id.error());
-        if (!ours_id) return refuse("nothing committed on this branch to merge into");
+        if (!theirs_id) return refuse(std::format("{} ({} lists the branches and tags)", theirs_id.error(), names_.list), not_found);
+        if (!ours_id) return refuse("nothing committed on this branch to merge into", failed);
         const auto base_id = history_.common_ancestor("HEAD", *theirs_id);
         auto ours = history_.texts_of(*ours_id), theirs = history_.texts_of(*theirs_id);
-        if (!ours || !theirs) return refuse(!ours ? ours.error() : theirs.error());
+        if (!ours || !theirs) return refuse(!ours ? ours.error() : theirs.error(), failed);
         Texts base;
         if (base_id)
             if (auto texts = history_.texts_of(*base_id)) base = std::move(*texts);
@@ -196,9 +201,9 @@ std::expected<std::string, std::string> HistoryOperations::run(std::string_view 
             if (!result.text.empty() || (in_ours && in_theirs)) merged.emplace(path, result.text);
         }
         if (!conflicts.empty())
-            return refuse(std::format("both branches changed the same lines of [{}]: nothing merged — {} one side to agree, commit, and merge again", conflicts, names_.edit));
+            return refuse(std::format("both branches changed the same lines of [{}]: nothing merged — {} one side to agree, commit, and merge again", conflicts, names_.edit), "conflict");
         auto applied = sources_.apply(merged, Sources::Reason::edit);
-        if (!applied) return refuse(applied.error());
+        if (!applied) return refuse(applied.error(), theirs_to_say);
         auto commit = history_.commit(sources_.texts(), std::format("merge {}", from), std::string(actor), sources_.state(), std::vector<std::string>{*ours_id, *theirs_id});
         shown_commit.clear();
         return commit ? with(std::move(*applied), std::format("\"commit\":{}", said(*commit))) : *applied;

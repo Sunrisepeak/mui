@@ -59,6 +59,7 @@ export default defineOps({
     },
     {
       name: "field.seek",
+      examples: [{ frame: 1 }],
       effect: "reversible",
       summary: "Returns to a frame within the history kept; what is run from there is a new branch",
       params: [{ name: "frame", type: "integer", doc: "the frame to return to" }],
@@ -87,6 +88,40 @@ export default defineOps({
       params: [{ name: "cell", type: "json", doc: "[x, y]", space: "lattice-2d" }],
       result: "json",
       cost: "bounded",
+    },
+  ],
+  tasks: [
+    {
+      name: "read-the-field",
+      summary: "Read the field's channels in brief, then one channel's cells in a region",
+      steps: [
+        { op: "field.observe" },
+        { op: "field.cells", channel: 0, region: [0, 0, 4, 4] },
+      ],
+    },
+    {
+      name: "place-step-and-look",
+      summary: "Place a value, step the rules, and read what became of it",
+      steps: [
+        { op: "field.place", channel: 0, value: 1, region: [9, 0, 1, 3] },
+        { op: "field.step", steps: 5 },
+        { op: "field.observe" },
+      ],
+    },
+    {
+      name: "ask-what-would-be",
+      summary: "See the field some steps ahead with a value placed first, the field itself untouched",
+      steps: [
+        { op: "field.branch", steps: 8, channel: 0, value: 1, place: [0, 0, 16, 1] },
+      ],
+    },
+    {
+      name: "ask-who-changed-a-cell",
+      summary: "Place a value and ask who changed a cell, and what the last step did to it",
+      steps: [
+        { op: "field.place", channel: 0, value: 1, region: [10, 3, 3, 1] },
+        { op: "field.explain", cell: [11, 3] },
+      ],
     },
   ],
 });

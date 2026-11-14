@@ -35,21 +35,23 @@ inline constexpr std::array<mlibs::control::Parameter, 4> parameters_omui_design
 
 // The project's commands: create, build, test, check, describe, package; dependencies, tools and the design's history.
 inline constexpr std::array<mlibs::control::CatalogEntry, 14> catalog{{
-    {{"omui.doctor", openas::Effect::read, false}, "Which tools are there and which are missing (mcpp, xlings, tsc, esbuild), and what each is for", {}, "json", mlibs::control::Cost::bounded, "", false, false, false},
-    {{"omui.new", openas::Effect::irreversible, false}, "A new project from a template (app-ts by default): a directory of files, written beside the one the server runs in", parameters_omui_new, "json", mlibs::control::Cost::heavy, "none: delete the directory it made", false, false, false},
-    {{"omui.build", openas::Effect::reversible, false}, "Builds the project (mcpp build): its outputs under target/, nothing else changed", parameters_omui_build, "json", mlibs::control::Cost::heavy, "none needed: target/ is the build's own", false, false, false},
-    {{"omui.test", openas::Effect::reversible, false}, "Runs the project's tests (mtest): which passed, which failed and where", {}, "json", mlibs::control::Cost::heavy, "none needed: tests change nothing they keep", false, false, false},
-    {{"omui.check", openas::Effect::read, false}, "Type-checks the project's TypeScript against the API it registers (tsc), or view documents: each problem at its line", parameters_omui_check, "json", mlibs::control::Cost::heavy, "", false, false, false},
-    {{"omui.describe", openas::Effect::read, false}, "What writing for the project takes: every builder, native module, theme token and verb, as JSON", {}, "json", mlibs::control::Cost::heavy, "", false, false, false},
-    {{"omui.deps", openas::Effect::read, false}, "The project's dependencies as its mcpp.toml declares them", {}, "json", mlibs::control::Cost::instant, "", false, false, false},
-    {{"omui.tools", openas::Effect::read, false}, "The tools the project names for xlings, and whether each is installed", {}, "json", mlibs::control::Cost::bounded, "", false, false, false},
-    {{"omui.config", openas::Effect::read, false}, "The project's omui.config.ts over the defaults: how far agents may go, what the recorder keeps, whether the designer is linked", {}, "json", mlibs::control::Cost::bounded, "", false, false, false},
-    {{"omui.add", openas::Effect::reversible, false}, "Adds a dependency to mcpp.toml (mcpp add)", parameters_omui_add, "json", mlibs::control::Cost::bounded, "omui.remove", false, false, false},
-    {{"omui.remove", openas::Effect::reversible, false}, "Removes a dependency from mcpp.toml (mcpp remove)", parameters_omui_remove, "json", mlibs::control::Cost::bounded, "omui.add", false, false, false},
-    {{"omui.package", openas::Effect::irreversible, false}, "Packages the application for people to install (mcpp pack): an artifact written to keep and hand out", parameters_omui_package, "json", mlibs::control::Cost::heavy, "none: delete the package it wrote", false, false, false},
-    {{"omui.design.sync", openas::Effect::irreversible, false}, "Carries Live Design's history into git: each design commit a commit on design/<branch>, tags as design/<tag> (the work tree untouched)", {}, "json", mlibs::control::Cost::bounded, "none: delete the design/* references", false, false, false},
-    {{"omui.design.film", openas::Effect::irreversible, false}, "The design's history as a film (WebM): each step as it was presented, captioned", parameters_omui_design_film, "json", mlibs::control::Cost::heavy, "none: delete the film", false, false, false},
+    {{"omui.doctor", openas::Effect::read, false}, "Which tools are there and which are missing (mcpp, xlings, tsc, esbuild), and what each is for", {}, "json", mlibs::control::Cost::bounded, "", false, false, false, {}},
+    {{"omui.new", openas::Effect::irreversible, false}, "A new project from a template (app-ts by default): a directory of files, written beside the one the server runs in", parameters_omui_new, "json", mlibs::control::Cost::heavy, "none: delete the directory it made", false, false, false, {}},
+    {{"omui.build", openas::Effect::reversible, false}, "Builds the project (mcpp build): its outputs under target/, nothing else changed", parameters_omui_build, "json", mlibs::control::Cost::heavy, "none needed: target/ is the build's own", false, false, false, {}},
+    {{"omui.test", openas::Effect::reversible, false}, "Runs the project's tests (mtest): which passed, which failed and where", {}, "json", mlibs::control::Cost::heavy, "none needed: tests change nothing they keep", false, false, false, {}},
+    {{"omui.check", openas::Effect::read, false}, "Type-checks the project's TypeScript against the API it registers (tsc), or view documents: each problem at its line", parameters_omui_check, "json", mlibs::control::Cost::heavy, "", false, false, false, {}},
+    {{"omui.describe", openas::Effect::read, false}, "What writing for the project takes: every builder, native module, theme token and verb, as JSON", {}, "json", mlibs::control::Cost::heavy, "", false, false, false, {}},
+    {{"omui.deps", openas::Effect::read, false}, "The project's dependencies as its mcpp.toml declares them", {}, "json", mlibs::control::Cost::instant, "", false, false, false, {}},
+    {{"omui.tools", openas::Effect::read, false}, "The tools the project names for xlings, and whether each is installed", {}, "json", mlibs::control::Cost::bounded, "", false, false, false, {}},
+    {{"omui.config", openas::Effect::read, false}, "The project's omui.config.ts over the defaults: how far agents may go, what the recorder keeps, whether the designer is linked", {}, "json", mlibs::control::Cost::bounded, "", false, false, false, {}},
+    {{"omui.add", openas::Effect::reversible, false}, "Adds a dependency to mcpp.toml (mcpp add)", parameters_omui_add, "json", mlibs::control::Cost::bounded, "omui.remove", false, false, false, {}},
+    {{"omui.remove", openas::Effect::reversible, false}, "Removes a dependency from mcpp.toml (mcpp remove)", parameters_omui_remove, "json", mlibs::control::Cost::bounded, "omui.add", false, false, false, {}},
+    {{"omui.package", openas::Effect::irreversible, false}, "Packages the application for people to install (mcpp pack): an artifact written to keep and hand out", parameters_omui_package, "json", mlibs::control::Cost::heavy, "none: delete the package it wrote", false, false, false, {}},
+    {{"omui.design.sync", openas::Effect::irreversible, false}, "Carries Live Design's history into git: each design commit a commit on design/<branch>, tags as design/<tag> (the work tree untouched)", {}, "json", mlibs::control::Cost::bounded, "none: delete the design/* references", false, false, false, {}},
+    {{"omui.design.film", openas::Effect::irreversible, false}, "The design's history as a film (WebM): each step as it was presented, captioned", parameters_omui_design_film, "json", mlibs::control::Cost::heavy, "none: delete the film", false, false, false, {}},
 }};
+
+inline constexpr mlibs::control::Guide guide{"The project's commands: create, build, test, check, describe, package; dependencies, tools and the design's history.", {}};
 
 // The listing (omui-cli.ops.json), as written beside this file.
 inline constexpr std::string_view listing = R"listing({

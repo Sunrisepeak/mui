@@ -13,6 +13,7 @@ export default defineOps({
   operations: [
     {
       name: "animation.prepare",
+      examples: [{ program: "rise" }],
       effect: "read",
       summary: "Prepare an immutable animation plan",
       params: [{ name: "program", type: "program", doc: "the composition to prepare" }],
@@ -21,6 +22,7 @@ export default defineOps({
     },
     {
       name: "animation.play",
+      examples: [{ program: "rise" }],
       effect: "reversible",
       summary: "Start an authored or prepared animation",
       params: [{ name: "program", type: "program", doc: "a composition or a prepared plan" }],
@@ -31,6 +33,7 @@ export default defineOps({
     { name: "animation.list", effect: "read", summary: "List owned playback identities and transport state", result: "json" },
     {
       name: "animation.inspect",
+      examples: [{ playback: { slot: 0, generation: 1 } }],
       effect: "read",
       summary: "Read one playback's transport state",
       params: [{ name: "playback", type: "playback" }],
@@ -38,6 +41,7 @@ export default defineOps({
     },
     {
       name: "animation.plan",
+      examples: [{ playback: { slot: 0, generation: 1 } }],
       effect: "read",
       summary: "Read its immutable plan and channels",
       params: [{ name: "playback", type: "playback" }],
@@ -45,6 +49,7 @@ export default defineOps({
     },
     {
       name: "animation.seek",
+      examples: [{ playback: { slot: 0, generation: 1 }, position: 0.4 }],
       effect: "reversible",
       summary: "Sample absolute seconds",
       params: [{ name: "playback", type: "playback" }, { name: "position", type: "seconds", doc: "from its start" }],
@@ -53,6 +58,7 @@ export default defineOps({
     },
     {
       name: "animation.seek-progress",
+      examples: [{ playback: { slot: 0, generation: 1 }, progress: 0.5 }],
       effect: "reversible",
       summary: "Sample normalized progress",
       params: [{ name: "playback", type: "playback" }, { name: "progress", type: "number", doc: "0 to 1 (not for a program looping forever)" }],
@@ -61,6 +67,7 @@ export default defineOps({
     },
     {
       name: "animation.pause",
+      examples: [{ playback: { slot: 0, generation: 1 } }],
       effect: "reversible",
       summary: "Pause transport",
       params: [{ name: "playback", type: "playback" }],
@@ -68,6 +75,7 @@ export default defineOps({
     },
     {
       name: "animation.resume",
+      examples: [{ playback: { slot: 0, generation: 1 } }],
       effect: "reversible",
       summary: "Resume transport",
       params: [{ name: "playback", type: "playback" }],
@@ -75,6 +83,7 @@ export default defineOps({
     },
     {
       name: "animation.reverse",
+      examples: [{ playback: { slot: 0, generation: 1 } }],
       effect: "reversible",
       summary: "Reverse transport direction",
       params: [{ name: "playback", type: "playback" }],
@@ -82,6 +91,7 @@ export default defineOps({
     },
     {
       name: "animation.rate",
+      examples: [{ playback: { slot: 0, generation: 1 }, rate: 2 }],
       effect: "reversible",
       summary: "Set a nonzero signed rate",
       params: [{ name: "playback", type: "playback" }, { name: "rate", type: "number", doc: "nonzero; negative plays backwards" }],
@@ -89,6 +99,7 @@ export default defineOps({
     },
     {
       name: "animation.cancel",
+      examples: [{ playback: { slot: 0, generation: 1 }, restore: true }],
       effect: "irreversible",
       summary: "Cancel a playback; optionally restore its initial pose",
       params: [{ name: "playback", type: "playback" }, { name: "restore", type: "bool", doc: "back to its first pose", optional: true }],
@@ -96,10 +107,20 @@ export default defineOps({
     },
     {
       name: "animation.release",
+      examples: [{ playback: { slot: 0, generation: 1 } }],
       effect: "irreversible",
       summary: "Release a playback and invalidate its handle",
       params: [{ name: "playback", type: "playback" }],
       undo: "none: the handle is gone (play its program again for a new one)",
+    },
+  ],
+  tasks: [
+    {
+      name: "see-what-is-playing",
+      summary: "List the playbacks here: each one's handle (what every other operation takes as `playback`), its program and where its transport is",
+      steps: [
+        { op: "animation.list" },
+      ],
     },
   ],
 });

@@ -88,6 +88,7 @@ public:
     [[nodiscard]] agent::Capabilities capabilities() const noexcept override { return game_->matter.capabilities(); }
     [[nodiscard]] std::span<const mlibs::control::CatalogEntry> operations() const noexcept override { return game_->matter.operations(); }
     [[nodiscard]] std::string_view listing() const noexcept override { return game_->matter.listing(); }
+    [[nodiscard]] mlibs::control::Guide guide() const noexcept override { return game_->matter.guide(); }
     [[nodiscard]] std::uint64_t state_hash() const override { return game_->matter.state_hash(); }
     void operate(std::string_view operation, const agent::Request& request, agent::Answer& answer) override { game_->matter.operate(operation, request, answer); }
 

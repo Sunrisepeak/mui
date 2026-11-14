@@ -57,16 +57,23 @@ void Answer::record(std::string_view kind, std::string_view members) {
 
 void Answer::data(std::string_view json) { record("data", std::format("\"data\":{}", json)); }
 void Answer::notice(std::string_view text) { record("notice", std::format("\"text\":{}", json_text(text))); }
-void Answer::error(std::string_view code, std::string_view text) {
-    record("error", std::format("\"code\":{},\"text\":{}", json_text(code), json_text(text)));
+void Answer::error(std::string_view code, std::string_view text, std::string_view next) {
+    if (next.empty()) next = otherwise_;
+    std::string members = std::format("\"code\":{},\"text\":{}", json_text(code), json_text(text));
+    if (!next.empty()) members += std::format(",\"next\":{}", next);
+    record("error", members);
 }
 void Answer::result(int exit_code) {
     record("result", std::format("\"exitCode\":{}", exit_code));
     finished_ = true;
 }
-void Answer::fail(std::string_view code, std::string_view text, int exit_code) {
-    error(code, text);
+void Answer::fail(std::string_view code, std::string_view text, int exit_code, std::string_view next) {
+    error(code, text, next);
     result(exit_code);
+}
+
+std::string way_out(std::string_view why, std::string_view request) {
+    return std::format("{{\"why\":{},\"request\":{}}}", json_text(why), request);
 }
 
 }  // namespace mlibs::agent

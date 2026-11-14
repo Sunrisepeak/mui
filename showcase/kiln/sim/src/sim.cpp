@@ -384,7 +384,10 @@ std::string observe(const State& state, bool full) {
         }
         out += '"';
     }
-    out += "]},";
+    // What the letters are: a view read by someone who has never seen the game says so itself (a cold start
+    // at the game took `w` for wood only because fire burnt it). `rows[r][c]` is the cell at left + c, top + r.
+    out += R"(],"legend":{"#":"solid: stone, or outside the cavern",".":"air","^":"another gas: smoke, steam","~":"water","l":"lava","o":"another liquid",)"
+           R"("s":"loose grains: sand, ash","w":"wood","g":"gunpowder","*":"burning, whatever it is"}},)";
     out += std::format(R"("bolts":{},"flying":{},"bodies":{})", state.bolts.size(), state.world->flying().flying(), state.world->bodies().bodies().size());
     if (full) out += std::format(R"(,"casts":{},"hash":"{:016x}")", state.casts, checksum(state));
     out += "}";

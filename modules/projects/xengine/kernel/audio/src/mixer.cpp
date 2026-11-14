@@ -488,6 +488,21 @@ std::vector<float> render(Mixer& mixer, std::int64_t frames) {
     return out;
 }
 
+std::vector<float> mono(const Sound& sound, std::int32_t rate) {
+    Sound centred = sound;
+    centred.bus = "sfx";
+    for (Layer& layer : centred.layers) layer.pan = 0;
+    // A mixer of its own: one voice, no effects, a ceiling no sample reaches. At the middle the pan's two gains
+    // are each 1 (equal power, times √2), so the left channel is the sound itself.
+    Mixer alone({.rate = rate, .voices = 1, .queue = 2, .ceiling = 1e30f});
+    alone.play(alone.add(centred), 0);
+    const auto frames = static_cast<std::int64_t>(std::ceil(static_cast<double>(sound.length()) * rate)) + 1;
+    const std::vector<float> both = render(alone, frames);
+    std::vector<float> out(static_cast<std::size_t>(frames));
+    for (std::size_t frame = 0; frame < out.size(); ++frame) out[frame] = both[2 * frame];
+    return out;
+}
+
 std::uint64_t hash(std::span<const float> samples) noexcept {
     mlibs::hash::Fnv1a h;
     for (const float s : samples) h.le(std::bit_cast<std::uint32_t>(s), 4);

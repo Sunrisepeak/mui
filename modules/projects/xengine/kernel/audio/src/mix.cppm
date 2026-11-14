@@ -255,6 +255,10 @@ private:
 
 // `frames` of a mixer rendered at once (offline: a video's track, a test's).
 [[nodiscard]] std::vector<float> render(Mixer& mixer, std::int64_t frames);
+// A sound as one channel at `rate`, its layers' pans set aside (what a place in space plays: where it is heard
+// from is the listener's to work out), its gain kept, through no bus's effects and no limiter. Its length and
+// one more sample. A layer of a recording is silent here (no recordings are given).
+[[nodiscard]] std::vector<float> mono(const Sound& sound, std::int32_t rate);
 // A WAV file of interleaved samples (stereo, or `channels` of them): 16-bit PCM, or 32-bit float.
 [[nodiscard]] std::vector<std::byte> wav(std::span<const float> interleaved, std::int32_t rate, bool float32 = false, std::int32_t channels = 2);
 // A recording read from a WAV file: 8-, 16-, 24-bit PCM or 32-bit float, its

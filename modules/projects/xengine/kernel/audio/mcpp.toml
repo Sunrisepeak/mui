@@ -39,12 +39,20 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 # shape of sound, each material's from its own properties. A feature, on by default (so the package's own tests
 # build it); one that wants audio and no matter says `default-features = false`.
 [features]
-default = ["matter"]
+default = ["matter", "space"]
 matter = { sources = ["src/matter/*.cppm", "src/matter/*.cpp"] }
+# Sound in a place and what the ears hear of it (src/space/, module xengine.audio.space; the plan's M6.4, S2 and S5):
+# each ear reads the sound a distance behind the clock — arrival, Doppler and the ears' time difference from one
+# rule — with level, air, head shade and walls; `heard()` is what reached each ear, as data. On by default: it adds
+# only `mlibs.geom` (the walls' rays).
+space = { sources = ["src/space/*.cppm", "src/space/*.cpp"] }
 
 [feature-deps.matter]
 # The kernel alone — the table and its plan, no JSON.
 xengine.matter = { path = "../matter", default-features = false }
+
+[feature-deps.space]
+mlibs.geom = { path = "../../../../base/geom" }
 
 [dependencies]
 mlibs.math = { path = "../../../../base/math" }

@@ -48,6 +48,29 @@ The feature `matter` (on by default; D-183). A world's events have names and a m
 
 A world need not be told event by event: `sounds.hear(events, {.width, .at, .reach, .when})` takes a step's events as their carrier says them (`MatterWorld::events`) — each event of each material is one sound, louder the more of them there were, from where they were on average. A wall of forty cells that shatters is one crumble, not forty. What goes on — wood burning, lava setting — says so every frame; a recipe's `again` is the least time between two of it for one material. `sounds.hear(impacts, ear, full)` takes a step's landings (`MatterWorld::impacts`) as the event `land`: one sound a material, as loud as the fastest came down, and what only settles is not heard. Both are a step's, not a state: hear a step once.
 
+## Sound in a place, and what is heard (`xengine.audio.space`)
+
+```cpp
+import xengine.audio.space;
+namespace space = xengine::audio::space;
+
+auto place = space::Space::make(mixer).value();      // a source of the mixer's, adding into "sfx"
+mixer.add_source(place);
+const auto shot = place->add(gunshot);               // one channel, once (`audio::mono`: the mixer's own synthesis)
+place->walls(world);                                 // the world's triangles; each surface lets `through` by
+place->listen({.at = head, .forward = looking});
+const auto id = place->emit(shot, muzzle, 1, "rifle, player 2").value();
+place->move(id, muzzle_now);                         // each step, for a sound that moves
+mixer.render(block);
+for (const space::Heard& one : place->heard()) …     // what reached each ear, from where, how loud, through what
+```
+
+- **One rule for the way:** each ear is a receiver at its own place and hears, at each moment, the sound as it left the emitter when it was as far from the ear as sound goes in the time between: t − τ = |emitter(τ) − ear(t)| ÷ speed, solved from where the emitter has been (exactly at each block's two ends, a straight line between). Arrival late with distance, Doppler (c ÷ (c ∓ v), exact: a 1 kHz tone coming nearer at a tenth of the speed of sound is 1111.11 Hz, going away 909.09) and the ears' time difference (the far ear 25 samples later at 48 kHz from the side: a 17.5 cm head over 343 m/s) all follow from it — none is an effect of its own.
+- **Then for each ear:** the level falls as `reference` over the distance (four times as far: −12.01 dB); the air takes the highs of a far sound; the head shades the far ear; each surface on the way (a ray through `Wall`'s triangles) lets `through` by and, above its `bright`, 6 dB less an octave (the mass law: through one wall of −20 dB, 200 Hz is −20.2 dB and 6 kHz −35.2). Gains and filters move across a block from where they were to where they are; a place given once a step, carried on at its last speed for a step at most, so a moving sound neither clicks nor wobbles.
+- **Hearing is data:** `heard()` gives each sound's name and cause, its distance, azimuth and elevation in the listener's frame, its delay, its pitch against the one made, the surfaces it came through, and how loud it was at each ear in the block — measured from the samples that reached the ear. What an agent hears is what a person hears, as numbers.
+- **The same bits:** `mlibs.math`'s det for exp, log and atan2, no contraction, denormals flushed by hand; one thread (the owner moves things between blocks).
+- **Against the strongest:** Steam Audio and Wwise Spatial Audio spatialise by HRTF convolution with occlusion and reverb by rays; FMOD and Unity's default panner by distance curves and a pan. Here the propagation is physical from one rule (delay, exact Doppler, the ears' time difference) where they model Doppler and ITD as separate approximations, and what is heard is data an agent reads. Behind: no HRTF (elevation and front–back by the head shade alone), no reflections or reverb by the world's shape, no diffraction round an edge — Steam Audio is the plan's way to those (its HRTF and rays as a stage of this one), not yet wrapped.
+
 ## Music
 
 ```cpp

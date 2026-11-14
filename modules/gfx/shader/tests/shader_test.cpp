@@ -313,6 +313,22 @@ UTest cases{"shader", [] {
         std::filesystem::remove_all(dir, ec);
     };
 
+    "short names: each name Slang wrote for something of the program's becomes a short one, the same wherever it stands; nothing else changes"_test = [] {
+        using mlibs::shader::short_names;
+        // The most used the shortest; a number's suffix, a directive, an entry point, a bound name and a built-in stay.
+        expect(eq(short_names("fn lit_0(place_0:vec3<f32>)->f32{var _S1:f32=dot(place_0,place_0)*2.0f;return _S1+place_0.x;}"), std::string("fn c(a:vec3<f32>)->f32{var b:f32=dot(a,a)*2.0f;return b+a.x;}")));
+        expect(eq(short_names("#version 300 es\nuniform sampler2D omui_fs_sampler0;\nin vec2 omui_v0;\nvoid main(){vec2 uv_0=omui_v0;gl_FragCoord;}"),
+                  std::string("#version 300 es\nuniform sampler2D omui_fs_sampler0;\nin vec2 omui_v0;\nvoid main(){vec2 a=omui_v0;gl_FragCoord;}")));
+        expect(eq(short_names("@fragment fn mesh_fs()->@location(0)vec4<f32>{return vec4<f32>(1e-05,0x1Fu,1.0e+2,0.5f);}"), std::string("@fragment fn mesh_fs()->@location(0)vec4<f32>{return vec4<f32>(1e-05,0x1Fu,1.0e+2,0.5f);}")));
+        // A short name the text already has is passed over: `a` is a word here, and so is `b`.
+        expect(eq(short_names("let a=b;let x_0=a;"), std::string("let a=b;let c=a;")));
+        // Members and structures too, each the same everywhere.
+        expect(eq(short_names("struct Lamp_0{colour_0:vec4<f32>,}var lamp_0:Lamp_0;lamp_0.colour_0.xyz"), std::string("struct a{b:vec4<f32>,}var c:a;c.b.xyz")));
+        expect(eq(short_names(""), std::string()) && eq(short_names("no names of the program's own"), std::string("no names of the program's own")));
+        // Twice is once: no short name ends as Slang's do.
+        const std::string once = short_names("fn lit_0(place_0:vec3<f32>)->f32{return place_0.x;}");
+        expect(eq(short_names(once), once));
+    };
     "compact text: the same tokens with nothing between them that a compiler does not read"_test = [] {
         using mlibs::shader::compact;
         expect(eq(compact("#version 300 es\nprecision highp float;\n\nstruct Lamp_0\n{\n    vec4 colour_0;  // its light\n};\n"), std::string("#version 300 es\nprecision highp float;struct Lamp_0{vec4 colour_0;};")));
@@ -337,12 +353,14 @@ UTest cases{"shader", [] {
                 const auto* same = other ? other->code_for(code.format) : nullptr;
                 if (!(expect(same != nullptr))) continue;
                 const std::string was = text(code.bytes), is = text(same->bytes);
-                expect(eq(is, compact(was)) && eq(compact(is), is)) << is;
+                expect(eq(is, compact(mlibs::shader::short_names(was))) && eq(compact(is), is)) << is;
                 expect(!is.contains("  ") && !is.contains("\n\n") && (!is.contains('\n') || is.starts_with("#version 300 es\n"))) << is;
                 before += was.size(), after += is.size();
             }
-        // A quad's two small shaders: 2,795 characters become 2,394 (the mesh pass's, with bodies to indent: 30% fewer).
-        expect(gt(before, std::size_t{0}) && lt(after * 100, before * 90)) << before << ' ' << after;
+        // A quad's two small shaders: 2,795 characters become 2,394 compact, and fewer with their names short (the
+        // mesh pass's, with bodies to indent and many names: see the package's README).
+        std::println("a quad's shaders as a build carries them: {} characters of {}", after, before);
+        expect(gt(before, std::size_t{0}) && lt(after * 100, before * 80)) << before << ' ' << after;
     };
 
     "the formats a build compiles to, by target and host"_test = [] {

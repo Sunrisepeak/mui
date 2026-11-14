@@ -76,9 +76,10 @@ struct Options {
     // of slangc's time (a hot reload's budget). The same files either way;
     // false (or OMUI_SLANGC_PROCESS=1): run slangc.
     bool                               in_process = true;
-    // The text formats (WGSL, ESSL) written compact (`compact`): a program
-    // carries them as they are, a byte a character. What a build embeds
-    // (omui-shader) is compact; false here, for text a person reads.
+    // The text formats (WGSL, ESSL) written compact (`short_names`, then
+    // `compact`): a program carries them as they are, a byte a character.
+    // What a build embeds (omui-shader) is compact; false here, for text a
+    // person reads.
     bool                               compact = false;
 };
 
@@ -90,6 +91,18 @@ struct Options {
 // the shader a device compiles is the same shader. About 30% smaller for
 // what Slang writes.
 [[nodiscard]] std::string compact(std::string_view text);
+
+// Shader text (WGSL or GLSL ES, as Slang writes it) with the program's own
+// names made short. Slang ends every name it writes for something of the
+// program's — a function, a variable, a structure, a member — with `_` and a
+// number, and its temporaries are `_S` and a number; nothing a device or a
+// backend knows a shader by is written so (an entry point keeps its name,
+// what is bound is `omui_…` or a number). Each such name becomes one of one
+// or two characters, the same one wherever it stands, the most used the
+// shortest; none is a word the text already has or one a language keeps.
+// Numbers, directives and every other word are as they were: the same
+// program under other names. About a quarter smaller again after `compact`.
+[[nodiscard]] std::string short_names(std::string_view text);
 
 // slangc: OMUI_SLANGC, else the one mcpp provisioned for this build
 // (provisioned_slangc), else the PATH's; an error says how to get it.

@@ -837,7 +837,7 @@ std::expected<Program, std::string> compile(const std::filesystem::path& source,
                 const std::string_view source_text(reinterpret_cast<const char*>(bytes->data()), bytes->size());
                 auto text = format == rhi::ShaderFormat::wgsl ? wgsl_for_rhi(source_text, entry.stage) : essl_for_rhi(source_text, entry.stage);
                 if (!text) return std::unexpected(std::format("{} ({} for {}): {}", file_name, entry.name, name(format), text.error()));
-                if (options.compact) *text = compact(*text);
+                if (options.compact) *text = compact(short_names(*text));
                 const auto b = std::as_bytes(std::span(*text));
                 bytes->assign(b.begin(), b.end());
             }
@@ -850,6 +850,105 @@ std::expected<Program, std::string> compile(const std::filesystem::path& source,
                                            os::fs::utf8(source.filename())));
     for (const std::string& d : run.dependencies) program.dependencies.push_back(os::fs::from_utf8(d));
     return program;
+}
+
+std::string short_names(std::string_view text) {
+    constexpr auto letter = [](char character) { return (character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z') || character == '_'; };
+    constexpr auto digit = [](char character) { return character >= '0' && character <= '9'; };
+    // One of the program's own names, as Slang writes them: `…_<number>`, or `_S<number>`.
+    constexpr auto own = [](std::string_view word) {
+        if (word.starts_with("omui_") || word.starts_with("gl_")) return false;
+        std::size_t digits = 0;
+        while (digits < word.size() && word[word.size() - 1 - digits] >= '0' && word[word.size() - 1 - digits] <= '9') ++digits;
+        if (digits == 0 || digits == word.size()) return false;
+        const std::string_view before = word.substr(0, word.size() - digits);
+        return before == "_S" || (before.size() > 1 && before.back() == '_');
+    };
+    // The text as pieces: a word, or what stands between words (numbers, signs, blanks, a whole directive line).
+    struct Piece {
+        std::string_view text;
+        bool             word = false;
+    };
+    std::vector<Piece> pieces;
+    std::size_t at = 0, from = 0;
+    bool line_begins = true;
+    const auto between = [&](std::size_t until) {
+        if (until > from) pieces.push_back({text.substr(from, until - from), false});
+        from = until;
+    };
+    while (at < text.size()) {
+        const char character = text[at];
+        if (line_begins && character == '#') {  // a directive: as it is, to the line's end
+            while (at < text.size() && text[at] != '\n') ++at;
+            continue;
+        }
+        if (character == '\n') line_begins = true;
+        else if (character != ' ' && character != '\t' && character != '\r') line_begins = false;
+        if (digit(character)) {  // a number, with its point, its exponent and its suffix: no word begins in it
+            ++at;
+            while (at < text.size() && (letter(text[at]) || digit(text[at]) || text[at] == '.' || ((text[at] == '+' || text[at] == '-') && (text[at - 1] == 'e' || text[at - 1] == 'E')))) ++at;
+            continue;
+        }
+        if (letter(character)) {
+            between(at);
+            while (at < text.size() && (letter(text[at]) || digit(text[at]))) ++at;
+            pieces.push_back({text.substr(from, at - from), true});
+            from = at;
+            continue;
+        }
+        ++at;
+    }
+    between(text.size());
+    // How often each of the program's names stands, in the order they first stand; and every other word.
+    struct Name {
+        std::string_view long_name;
+        std::size_t      count = 0, first = 0;
+        std::string      short_name;
+    };
+    std::vector<Name> names;
+    std::unordered_map<std::string_view, std::size_t> which;
+    std::unordered_set<std::string_view> taken{"as", "at", "do", "fn", "if", "in", "is", "of", "on", "or", "to", "_"};
+    for (const Piece& piece : pieces) {
+        if (!piece.word) continue;
+        if (!own(piece.text)) {
+            taken.insert(piece.text);
+            continue;
+        }
+        const auto [found, fresh] = which.try_emplace(piece.text, names.size());
+        if (fresh) names.push_back({piece.text, 0, names.size(), {}});
+        ++names[found->second].count;
+    }
+    std::vector<std::size_t> order(names.size());
+    std::ranges::iota(order, std::size_t{0});
+    std::ranges::sort(order, [&](std::size_t one, std::size_t other) { return names[one].count != names[other].count ? names[one].count > names[other].count : names[one].first < names[other].first; });
+    // Short names in turn: a letter, then a letter and a letter or a digit.
+    constexpr std::string_view letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", more = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    std::size_t next = 0;
+    const auto short_name = [&] {
+        for (;;) {
+            std::string made;
+            std::size_t number = next++;
+            if (number < letters.size()) made = {letters[number]};
+            else {
+                number -= letters.size();
+                // Two characters, then three: more names than a shader has.
+                if (number < letters.size() * more.size()) made = {letters[number / more.size()], more[number % more.size()]};
+                else {
+                    number -= letters.size() * more.size();
+                    made = {letters[number / (more.size() * more.size()) % letters.size()], more[number / more.size() % more.size()], more[number % more.size()]};
+                }
+            }
+            if (!taken.contains(made)) return made;
+        }
+    };
+    for (const std::size_t index : order) names[index].short_name = short_name();
+    std::string out;
+    out.reserve(text.size());
+    for (const Piece& piece : pieces) {
+        const auto found = piece.word ? which.find(piece.text) : which.end();
+        out += found != which.end() ? std::string_view(names[found->second].short_name) : piece.text;
+    }
+    return out;
 }
 
 std::string compact(std::string_view text) {

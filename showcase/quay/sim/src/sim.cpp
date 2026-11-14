@@ -295,6 +295,53 @@ void step(State& state, const Input& input) {
     ++state.frame;
 }
 
+namespace {
+std::int16_t axis_of(float value) noexcept { return static_cast<std::int16_t>(std::clamp(value, -1.0f, 1.0f) * 32767); }
+float angle_between(float from, float to) noexcept {
+    float apart = to - from;
+    while (apart > 3.14159265f) apart -= 6.2831853f;
+    while (apart < -3.14159265f) apart += 6.2831853f;
+    return apart;
+}
+}  // namespace
+
+Input Guide::operator()(const State& state) {
+    Input input;
+    xengine::Actions& actions = input.player;
+    const Vec3 from = eye(state), look = looking(state);
+    std::optional<Vec3> target;
+    float nearest = 40;
+    for (const Warden& warden : state.wardens) {
+        if (warden.health <= 0) continue;
+        const Vec3 chest = warden.at + Vec3{0, 1.2f, 0};
+        const float distance = math::length(chest - from);
+        if (distance < nearest && math::dot(math::normalized(chest - from), look) > 0.3f && clear(state, from, chest)) nearest = distance, target = chest;
+    }
+    const auto aim_at = [&](Vec3 at) {
+        const Vec3 way = math::normalized(at - from);
+        const float yaw = static_cast<float>(det::atan2(static_cast<double>(way.x), static_cast<double>(-way.z)));
+        const float pitch = static_cast<float>(det::atan2(static_cast<double>(way.y), det::sqrt(static_cast<double>(way.x * way.x + way.z * way.z))));
+        const float turn = angle_between(state.keeper.yaw, yaw), tilt = pitch - state.keeper.pitch;
+        actions.axes[2] = axis_of(turn * 8), actions.axes[3] = axis_of(tilt * 8);
+        return std::abs(turn) + std::abs(tilt);
+    };
+    if (target) {
+        if (aim_at(*target) < 0.02f) actions.held |= 1u << fire_button;
+        return input;
+    }
+    if (state.frame >= planned_) {
+        planned_ = state.frame + steps_per_second;
+        if (const auto made = state.ground->path(state.keeper.at, state.beacon); made && !made->corners.empty()) path_ = made->corners, next_ = 0;
+    }
+    while (next_ < path_.size() && horizontal(path_[next_], state.keeper.at) < 0.8f) ++next_;
+    if (next_ < path_.size()) {
+        if (aim_at({path_[next_].x, from.y, path_[next_].z}) < 0.6f) actions.axes[1] = axis_of(1);
+    } else {
+        actions.held |= 1u << use_button;
+    }
+    return input;
+}
+
 std::uint64_t checksum(const State& state) noexcept {
     mlibs::hash::Fnv1a hash;
     const auto add = [&](auto value) { hash.bytes(std::as_bytes(std::span(&value, 1))); };

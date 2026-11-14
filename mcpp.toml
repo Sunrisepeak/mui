@@ -178,6 +178,7 @@ members = [
     "showcase/kiln/sound",
     "showcase/quay/sim",
     "showcase/quay/headless",
+    "showcase/quay/picture",
     "showcase/swarm/headless",
     "showcase/swarm/play",
     "site",

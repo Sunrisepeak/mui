@@ -83,7 +83,7 @@ std::vector<Placed> placed_of(std::span<const Batch> batches, const Mat4& view, 
                 ++outside;
                 continue;
             }
-            out.push_back({{middle.x, middle.y, middle.z}, one.size * 0.5f, math::det::cos(one.turn), math::det::sin(one.turn), -middle.z, batch, index});
+            out.push_back({{middle.x, middle.y, middle.z}, one.size * 0.5f, static_cast<float>(math::det::cos(one.turn)), static_cast<float>(math::det::sin(one.turn)), -middle.z, batch, index});
         }
     // The farthest first; at one distance, in the batches' order.
     std::ranges::stable_sort(out, [](const Placed& one, const Placed& other) { return one.distance > other.distance; });

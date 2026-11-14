@@ -7,7 +7,8 @@
 // in degrees, a bearing to the right positive, an elevation above where the eyes look positive:
 //   keeper   health, rounds, whether a shot just struck, how far along the beacon's lighting is
 //   tide     seconds before it covers the breakwater
-//   beacon   its lamp: bearing, elevation, distance (it burns at the end of the breakwater, seen from anywhere)
+//   beacon   its lamp: bearing, elevation, distance (on its mast at the end of the breakwater, seen from anywhere);
+//            and how far across the ground its mast's foot is
 //   wardens  those in view (within the view's angle, nothing between): bearing, elevation, distance — nearest first
 //   heard    the last half second's sounds that reach the watchkeeper's ears (xengine.audio.space's `reach`, the rule
 //            the speakers play by and the wardens hear by): what, bearing, level at the ears, walls on the way
@@ -21,9 +22,9 @@ export import omui.showcase.quay.sim;
 
 export namespace quay {
 
-// What a person sees: the view's half angle across (a 100° view), how far a warden is made out at night in the
+// What a person sees: within the view's angle (`view_half_angle`), as far as a warden is made out at night in the
 // rain, and the depth samples across the view.
-inline constexpr float view_half_angle = 50, seen_within = 40;
+inline constexpr float seen_within = 40;
 inline constexpr int depth_from = -60, depth_every = 10, depth_count = 13;
 inline constexpr float depth_reach = 30;
 

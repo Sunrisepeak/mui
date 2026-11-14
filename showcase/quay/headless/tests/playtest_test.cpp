@@ -26,6 +26,7 @@ constexpr int decide_every = 6, reaction = 12, plan_every = 30, try_steps = 90;
 
 struct Bearing {
     double bearing = 0, elevation = 0, distance = 0;
+    double across = 0;  // the beacon's: to its mast's foot, over the ground
 };
 struct Heard {
     std::string what;
@@ -43,7 +44,7 @@ struct View {
     std::vector<double>  depth;  // from −60° every 10°
 };
 Bearing bearing_of(const mlibs::json::Node& node) {
-    return {node["bearing"].number().value_or(0), node["elevation"].number().value_or(0), node["distance"].number().value_or(0)};
+    return {node["bearing"].number().value_or(0), node["elevation"].number().value_or(0), node["distance"].number().value_or(0), node["across"].number().value_or(0)};
 }
 View read(const mlibs::json::Node& data) {
     const auto view = data["view"];
@@ -95,7 +96,7 @@ public:
                 break;
             }
             // Coming no nearer the beacon for six seconds: say where and why.
-            if (view.beacon.distance < nearest - 0.5) nearest = view.beacon.distance, nearer_at = view.frame;
+            if (view.beacon.across < nearest - 0.5) nearest = view.beacon.across, nearer_at = view.frame;
             if (view.frame - nearer_at > 6 * quay::steps_per_second && view.wardens.empty()) {
                 report.why = stuck(view), report.frames = view.frame, report.health = view.health, report.rounds = view.rounds;
                 break;
@@ -156,13 +157,13 @@ private:
                 return act(view, turn, look, 0, {});
             }
         // At the beacon: work it.
-        if (view.beacon.distance < 2.0) return act(view, 0, 0, 0, {quay::use_button});
+        if (view.beacon.across < 2.0) return act(view, 0, 0, 0, {quay::use_button});
         // The way to the beacon: tried on branches every half second, kept between.
         if (view.frame >= planned_) {
             planned_ = view.frame + plan_every;
             way_ = best_way(view);
         }
-        const auto [left, above] = onto(view, view.beacon.bearing + way_, view.beacon.elevation, turn, look);
+        const auto [left, above] = onto(view, view.beacon.bearing + way_, view.beacon.elevation - std::atan2(quay::beacon_height - quay::eye_height, view.beacon.across) * 180 / 3.14159265358979323846, turn, look);
         (void)above;
         act(view, turn, look, std::abs(left) < 35 ? 1.0 : 0.0, {});
     }
@@ -179,7 +180,7 @@ private:
             ++tried_;
             if (!hands_->ok()) return way_;
             const View ahead = read(future.root()["data"]);
-            const double score = ahead.beacon.distance + 0.2 * static_cast<double>(view.health - ahead.health) + (ahead.outcome == "lost" ? 1000 : 0);
+            const double score = ahead.beacon.across + 0.2 * static_cast<double>(view.health - ahead.health) + (ahead.outcome == "lost" ? 1000 : 0);
             if (score < best_score - 0.05) best_score = score, best = way;
         }
         return best;
@@ -196,10 +197,10 @@ private:
             if (!found) from = angle, found = true;
             to = angle, nearest = std::min(nearest, view.depth[sample]);
         }
-        if (!found) return std::format("stuck {:.1f} m from the beacon (bearing {:.0f}°): no way tried came nearer for six seconds, and nothing in view stands in the way", view.beacon.distance, view.beacon.bearing);
+        if (!found) return std::format("stuck {:.1f} m from the beacon (bearing {:.0f}°): no way tried came nearer for six seconds, and nothing in view stands in the way", view.beacon.across, view.beacon.bearing);
         return std::format("stuck {:.1f} m from the beacon (bearing {:.0f}°): no way tried came nearer for six seconds — something solid {:.1f} m ahead across {:+}° to {:+}°, "
                            "the beacon's side: the way to the beacon is closed",
-                           view.beacon.distance, view.beacon.bearing, nearest, from, to);
+                           view.beacon.across, view.beacon.bearing, nearest, from, to);
     }
 
     struct Asked {
@@ -231,7 +232,7 @@ UTest cases{"quay.playtest", [] {
         expect(!human->root()["at"] && !human->root()["all"] && !human->root()["hash"]) << "no places at a person's tier";
         expect(full->root()["hash"] && eq(full->root()["all"].items().size(), std::size_t{4}));
         expect(eq(human->root()["depth"]["metres"].items().size(), std::size_t{13}));
-        const double beacon = human->root()["beacon"]["distance"].number().value_or(0);
+        const double beacon = human->root()["beacon"]["across"].number().value_or(0);
         expect(gt(beacon, 76.0) && lt(beacon, 78.0)) << "77 m down the quay";
         expect(lt(std::abs(human->root()["beacon"]["bearing"].number().value_or(99)), 1.0)) << "straight ahead";
     };

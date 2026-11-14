@@ -37,6 +37,11 @@ inline constexpr float step_seconds = 1.0f / steps_per_second;
 // 3 looks (up +).
 inline constexpr int jump_button = 0, fire_button = 1, use_button = 2, run_button = 3;
 inline constexpr float eye_height = 1.6f;
+// The beacon's lamp, on a mast above the containers (two stacked are 5.2 m): seen from anywhere on the quay.
+inline constexpr float beacon_height = 9;
+// The watchkeeper's view: half its angle across, degrees (a 100° view), and its width over its height — what a
+// person is shown and the picture draws.
+inline constexpr float view_half_angle = 50, view_aspect = 16.0f / 9.0f;
 
 // A box of the level: a container, a wall, a floor (fixed), or a crate (it moves when struck or pushed).
 struct Box {
@@ -147,5 +152,19 @@ void step(State& state, const Input& input);
 [[nodiscard]] std::size_t standing(const State& state) noexcept;
 // Whether a ray from `from` to `to` meets nothing of the world on the way.
 [[nodiscard]] bool clear(const State& state, Vec3 from, Vec3 to);
+
+// A player that knows the harbour (it reads the state, as no person can): it turns to the nearest warden it can
+// see (within 40 m, ahead, nothing between) and fires when on it; otherwise it walks the quay's paths to the
+// beacon, planned again every second, and works it there. What plays Quay where no one does — the runs of the
+// picture's and the sound's tests, a window's attract mode — the same frames every time.
+class Guide {
+public:
+    [[nodiscard]] Input operator()(const State& state);
+
+private:
+    std::vector<Vec3> path_;
+    std::size_t       next_ = 0;
+    std::uint64_t     planned_ = 0;
+};
 
 }  // namespace quay

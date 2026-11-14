@@ -35,17 +35,19 @@ std::string observe(const State& state, bool full) {
     std::string out = std::format(R"({{"frame":{},"outcome":"{}","why":"{}","tide":{:.1f},)", state.frame, outcome_names[static_cast<std::size_t>(state.outcome)], state.why, state.tide);
     out += std::format(R"("keeper":{{"health":{},"rounds":{},"struck":{},"lighting":{:.2f}}},)", keeper.health, keeper.rounds, keeper.hurt < 30 ? "true" : "false",
                        std::min(1.0, static_cast<double>(keeper.lighting) / steps_per_second));
-    const Seen lamp = seen_from(state, state.beacon + Vec3{0, 1.2f, 0});
-    out += std::format(R"("beacon":{{"bearing":{:.2f},"elevation":{:.2f},"distance":{:.2f}}},)", lamp.bearing, lamp.elevation, lamp.distance);
+    const Seen lamp = seen_from(state, state.beacon + Vec3{0, beacon_height, 0});
+    const double across = static_cast<double>(math::length(Vec3{state.beacon.x - keeper.at.x, 0, state.beacon.z - keeper.at.z}));  // to the mast's foot
+    out += std::format(R"("beacon":{{"bearing":{:.2f},"elevation":{:.2f},"distance":{:.2f},"across":{:.2f}}},)", lamp.bearing, lamp.elevation, lamp.distance, across);
 
     // The wardens in view: within the view's angle and the night's reach, chest or head clear of everything.
     std::vector<Seen> wardens;
     const Vec3 eye = quay::eye(state);
+    const double half_up = det::atan(det::sin(view_half_angle / degrees) / det::cos(view_half_angle / degrees) / view_aspect) * degrees;  // the view's half angle top to bottom
     for (const Warden& warden : state.wardens) {
         if (warden.health <= 0) continue;
         const Vec3 chest = warden.at + Vec3{0, 1.2f, 0};
         const Seen seen = seen_from(state, chest);
-        if (seen.distance > seen_within || std::abs(seen.bearing) > view_half_angle || std::abs(seen.elevation) > 40) continue;
+        if (seen.distance > seen_within || std::abs(seen.bearing) > view_half_angle || std::abs(seen.elevation) > half_up) continue;
         if (clear(state, eye, chest) || clear(state, eye, warden.at + Vec3{0, 1.65f, 0})) wardens.push_back(seen);
     }
     std::ranges::sort(wardens, {}, &Seen::distance);

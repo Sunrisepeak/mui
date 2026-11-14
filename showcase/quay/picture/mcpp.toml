@@ -1,0 +1,34 @@
+# Quay's picture (the FPS slice design, F3): the harbour at night as the watchkeeper sees it, drawn from the game's
+# state by xrender — the wet quay, containers, crates, lamps and a floodlight, the beacon brightening as it is
+# worked, the wardens bent by hanim.skeleton's skeletons, the gun and the flashes of shots; fog, the light from
+# everywhere, the glow. It only reads the state; which warden drew a pixel is the game's number.
+[package]
+namespace   = "omui.showcase.quay"
+name        = "picture"
+version     = "0.1.0"
+description = "Quay's picture: the harbour at night from the watchkeeper's eye, drawn from the state by xrender, the wardens skinned"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[targets.quay-picture]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+omui.showcase.quay.sim = { path = "../sim" }
+xrender.mesh   = { path = "../../../modules/projects/xrender/mesh" }
+xrender.scene  = { path = "../../../modules/projects/xrender/scene" }
+hanim.skeleton = { path = "../../../modules/projects/hanim/skeleton" }
+mlibs.geom     = { path = "../../../modules/base/geom" }
+mlibs.math     = { path = "../../../modules/base/math" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+mlibs.utils    = { path = "../../../modules/base/utils" }
+mlibs.image    = { path = "../../../modules/base/image" }
+mlibs.json     = { path = "../../../modules/base/json" }
+omui.showcase.quay.headless = { path = "../headless" }

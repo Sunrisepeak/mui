@@ -12,61 +12,6 @@ namespace nav = xengine::nav;
 
 namespace {
 
-std::int16_t axis_of(float value) { return static_cast<std::int16_t>(std::clamp(value, -1.0f, 1.0f) * 32767); }
-float angle_between(float from, float to) {
-    float apart = to - from;
-    while (apart > 3.14159265f) apart -= 6.2831853f;
-    while (apart < -3.14159265f) apart += 6.2831853f;
-    return apart;
-}
-
-// A player that sees as the watchkeeper does: it turns to a warden in sight (nothing between, within 40 m and
-// ahead) and fires when on it; otherwise it walks the quay's path to the beacon and works it there.
-struct Player {
-    std::vector<quay::Vec3> path;
-    std::size_t             next = 0;
-    std::uint64_t           planned = 0;
-    std::uint32_t           shots = 0;
-    quay::Input operator()(const quay::State& state) {
-        quay::Input input;
-        xengine::Actions& actions = input.player;
-        const quay::Vec3 eye = quay::eye(state), look = quay::looking(state);
-        // A warden in sight: the nearest.
-        std::optional<quay::Vec3> target;
-        float nearest = 40;
-        for (const quay::Warden& warden : state.wardens) {
-            if (warden.health <= 0) continue;
-            const quay::Vec3 chest = warden.at + quay::Vec3{0, 1.2f, 0};
-            const float distance = math::length(chest - eye);
-            if (distance < nearest && math::dot(math::normalized(chest - eye), look) > 0.3f && quay::clear(state, eye, chest)) nearest = distance, target = chest;
-        }
-        const auto aim_at = [&](quay::Vec3 at) {
-            const quay::Vec3 way = math::normalized(at - eye);
-            const float yaw = std::atan2(way.x, -way.z), pitch = std::asin(std::clamp(way.y, -1.0f, 1.0f));
-            const float turn = angle_between(state.keeper.yaw, yaw), tilt = pitch - state.keeper.pitch;
-            actions.axes[2] = axis_of(turn * 8), actions.axes[3] = axis_of(tilt * 8);
-            return std::abs(turn) + std::abs(tilt);
-        };
-        if (target) {
-            if (aim_at(*target) < 0.02f) actions.held |= 1u << quay::fire_button, ++shots;
-            return input;
-        }
-        // The way to the beacon, planned again every second.
-        if (state.frame >= planned) {
-            planned = state.frame + 60;
-            if (const auto made = state.ground->path(state.keeper.at, state.beacon); made && !made->corners.empty()) path = made->corners, next = 0;
-        }
-        while (next < path.size() && math::length(quay::Vec3{path[next].x - state.keeper.at.x, 0, path[next].z - state.keeper.at.z}) < 0.8f) ++next;
-        if (next < path.size()) {
-            const float off = aim_at({path[next].x, eye.y, path[next].z});
-            if (off < 0.6f) actions.axes[1] = axis_of(1);
-        } else {
-            actions.held |= 1u << quay::use_button;
-        }
-        return input;
-    }
-};
-
 struct Played {
     quay::Outcome outcome = quay::Outcome::playing;
     std::string   why;
@@ -77,8 +22,8 @@ struct Played {
 };
 Played play(const quay::Level& level, std::uint64_t most = 60 * 240) {
     quay::State state = quay::start(level);
-    Player player;
-    while (state.outcome == quay::Outcome::playing && state.frame < most) quay::step(state, player(state));
+    quay::Guide guide;
+    while (state.outcome == quay::Outcome::playing && state.frame < most) quay::step(state, guide(state));
     return {state.outcome, state.why, state.frame, quay::checksum(state), quay::standing(state), state.keeper.health, level.rounds - state.keeper.rounds};
 }
 

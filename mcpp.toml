@@ -117,6 +117,8 @@ members = [
     "modules/projects/xengine/game/playtest",
     "modules/projects/xengine/game/input",
     "modules/projects/xengine/game/ui",
+    "modules/projects/xengine/game/nav",
+    "modules/projects/xengine/game/nav/cts",
     "modules/projects/omui/components/base",
     "modules/projects/omui/components/canvas",
     "modules/projects/omui/components/canvas/kit",

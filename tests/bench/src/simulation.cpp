@@ -8,6 +8,8 @@ import xengine.cellular.present;
 import xengine.dynamics;
 import xengine.dynamics.rigid;
 import xengine.dynamics.rigid3;
+import xengine.nav;
+import xengine.nav.cts;
 import xengine.matter.json;
 import xengine.cellular.matter;
 import xengine.cellular.matter.agent;
@@ -487,6 +489,51 @@ void add_simulation_benchmarks() {
             s.counter("overhead_percent", (through - plain_ms) / plain_ms * 100.0);
             s.note("scope", std::format("{} bodies, {} steps a round from the same start, one thread; the median round: Jolt directly {:.3f} ms, through the World {:.3f} ms; every body at the same place in both, bit for bit",
                                         pieces.size(), steps, plain_ms, through));
+        });
+    // M6.4: navigation beside the library it wraps — a crowd of 64 sent across a room (through a doorway, up a link)
+    // stepped on a nav World and on Detour's crowd called directly on the same mesh and walkers, taking turns.
+    add("simulation/nav-crowd-64", "64 walkers sent across a room with a wall, a doorway and a link up onto a platform, 600 steps — xengine.nav's World beside Detour's crowd called directly on the same mesh and walkers",
+        [](State& s) {
+            using clock = std::chrono::steady_clock;
+            constexpr int steps = 600;
+            std::vector<double> ours, direct;
+            std::size_t rounds = 0;
+            s.items(static_cast<std::uint64_t>(steps));
+            while (s.next()) {
+                s.pause();
+                xengine::nav::World world = xengine::nav::cts::crowd(64);
+                auto plain = xengine::nav::Direct::of(world);
+                if (!plain) { s.fail("the scene was refused"); return; }
+                const bool world_first = rounds % 2 == 1;
+                const auto run_world = [&] {
+                    s.resume();
+                    const auto from = clock::now();
+                    for (int step = 0; step < steps; ++step) world.step();
+                    const auto to = clock::now();
+                    s.pause();
+                    ours.push_back(std::chrono::duration<double, std::milli>(to - from).count());
+                };
+                if (world_first) run_world();
+                const auto began = clock::now();
+                for (int step = 0; step < steps; ++step) plain->step();
+                const auto between = clock::now();
+                if (!world_first) run_world();
+                direct.push_back(std::chrono::duration<double, std::milli>(between - began).count());
+                ++rounds;
+                s.resume();
+            }
+            const auto median = [](std::vector<double>& values) {
+                if (values.empty()) return 0.0;
+                std::ranges::sort(values);
+                return values[values.size() / 2];
+            };
+            const double through = median(ours), plain_ms = median(direct);
+            if (!rounds || !(plain_ms > 0)) return;
+            s.counter("direct_ms", plain_ms);
+            s.counter("overhead_percent", (through - plain_ms) / plain_ms * 100.0);
+            s.note("scope", std::format("64 walkers, {} steps a round from the same start; the median round: Detour's crowd directly {:.3f} ms, through the World {:.3f} ms. "
+                                        "Not the same walk bit for bit: Detour plans paths in its queue across steps, the World plans each whole when asked",
+                                        steps, plain_ms, through));
         });
     add("simulation/world-128x64-branch", "the same cavern branched: the whole world copied — the field, what flies, the coupling, the rigid world from its own image — what a timeline's snapshot and an agent's `world.branch` cost before a frame is run",
         [cavern](State& s) {

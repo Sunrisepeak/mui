@@ -489,6 +489,28 @@ Cases suite_of() {
         expect(gt(static_cast<double>(both_dark), 0.93 * static_cast<double>(device_dark))) << "and little else";
         expect(lt(static_cast<double>(all.off), 0.002 * static_cast<double>(all.compared)));
         expect(lt(pass->last().lamp_views, 12u)) << "a spot's views are only those its cone looks into";
+        // A light's view is drawn only the clusters it can hold — and no texel of a map changes, nor a byte of
+        // the picture: the same as every cluster drawn into every view.
+        const mesh::gpu::Stats kept = pass->last();
+        const auto sun_map = device->read(shadows.map, rhi::Region{0, 0, shadows.size, shadows.size});
+        const auto lamps_map = device->read(shadows.lamps_map, rhi::Region{0, 0, shadows.lamp_size * 6, shadows.lamp_size * shadows.lamps});
+        rhi::CommandList again;
+        pass->record(again, yard.world, seen, yard.view(), yard.materials, colour, depth, width, height, {.cull_clusters = false, .shadows = true}, &shadows);
+        const auto resubmitted = device->submit(again);
+        if (!(expect(resubmitted.has_value()) << (resubmitted ? "" : resubmitted.error().message))) return;
+        expect(device->wait(*resubmitted).has_value());
+        const mesh::gpu::Stats whole = pass->last();
+        const auto whole_pixels = device->read(colour, rhi::Region{0, 0, width, height});
+        const auto whole_sun = device->read(shadows.map, rhi::Region{0, 0, shadows.size, shadows.size});
+        const auto whole_lamps = device->read(shadows.lamps_map, rhi::Region{0, 0, shadows.lamp_size * 6, shadows.lamp_size * shadows.lamps});
+        if (!(expect(sun_map.has_value() && lamps_map.has_value() && whole_pixels.has_value() && whole_sun.has_value() && whole_lamps.has_value()) << "the maps and the picture are read back")) return;
+        std::println("    the lights' views: {} clusters looked at, {} outside their view; {} triangles in {} draw calls, where every cluster is {} in {}", kept.shadow_clusters,
+                     kept.shadow_clusters_outside, kept.shadow_triangles, kept.shadow_runs, whole.shadow_triangles, whole.shadow_runs);
+        expect(*sun_map == *whole_sun) << "the sun's map, texel for texel";
+        expect(*lamps_map == *whole_lamps) << "the lamps' map, texel for texel";
+        expect(*pixels == *whole_pixels) << "the picture, byte for byte";
+        expect(eq(kept.shadow_clusters, whole.shadow_clusters) && eq(whole.shadow_clusters_outside, 0u));
+        expect(gt(kept.shadow_clusters_outside, 0u) && lt(kept.shadow_triangles, whole.shadow_triangles)) << "a face of a lamp's six sees a sixth of what is around it";
         static_cast<void>(device->wait_idle());
         device->destroy(colour), device->destroy(depth), device->destroy(shadows.map), device->destroy(shadows.depth), device->destroy(shadows.lamps_map), device->destroy(shadows.lamps_depth);
     });

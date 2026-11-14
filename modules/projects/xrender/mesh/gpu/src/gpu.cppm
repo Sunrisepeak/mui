@@ -41,6 +41,11 @@ struct Stats {
     // The colour pass's clusters: looked at, and left out — outside the view, or every triangle facing away
     // (`Options::cull_clusters`; no pixel changes) — and the draw calls their runs took.
     std::uint32_t clusters = 0, clusters_outside = 0, clusters_away = 0, runs = 0;
+    // The shadow views' clusters (the sun's map and each lamp's views, summed): looked at, left out as outside
+    // the view the light sees by, and the draw calls. What faces away from a light is drawn: a map holds both
+    // sides of what casts, so only what the view cannot hold is left out, and no texel of a map changes.
+    std::uint32_t shadow_clusters = 0, shadow_clusters_outside = 0, shadow_runs = 0;
+    std::uint64_t shadow_triangles = 0;
 };
 
 // The sun's shadows by a map (the reference traces a ray; a device looks up what the sun saw): two textures of
@@ -150,6 +155,7 @@ private:
         std::uint32_t first = 0, count = 0;  // corners
     };
     std::vector<Run>             runs_;  // a draw's, kept between draws
+    bool shadow_runs_for(const Loaded& loaded, const mlibs::math::Mat4& world, const mlibs::geom::Frustum& sees, bool cull);
     void runs_for(const Loaded& loaded, const mlibs::math::Mat4& world, const std::optional<mlibs::math::Mat4>& back, const mlibs::geom::Frustum& frustum, mlibs::math::Vec3 eye,
                   bool cull, bool counted);
 };

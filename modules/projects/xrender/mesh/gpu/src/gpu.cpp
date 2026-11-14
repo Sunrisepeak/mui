@@ -362,14 +362,18 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
             list.begin_render({shadows->map, rhi::LoadOp::clear, {1, 0, 0, 1}}, {shadows->depth, rhi::LoadOp::clear, 1.0f});
             list.set_viewport(0, 0, static_cast<float>(shadows->size), static_cast<float>(shadows->size));
             list.set_pipeline(shadow_pipeline_);
+            const mlibs::geom::Frustum sees = mlibs::geom::Frustum::of(to_light);
             for (const scene::Instance& instance : instances) {
                 if (instance.hidden || !instance.casts || instance.mesh >= meshes_.size() || !meshes_[instance.mesh].corners) continue;
                 const Mat4 through = to_light * instance.world;
                 DrawUniforms uniforms{};
                 for (int which = 0; which < 4; ++which) uniforms.to_clip[which] = row_of(through, which);
-                list.push_uniforms(rhi::Stage::vertex, 0, uniforms);
-                list.bind_vertex_buffer(0, meshes_[instance.mesh].corners);
-                list.draw(meshes_[instance.mesh].count);
+                // The clusters the map can hold: what the sun's box does not reach casts nothing into it.
+                if (shadow_runs_for(meshes_[instance.mesh], instance.world, sees, options.cull_clusters)) {
+                    list.push_uniforms(rhi::Stage::vertex, 0, uniforms);
+                    list.bind_vertex_buffer(0, meshes_[instance.mesh].corners);
+                    for (const Run& run : runs_) list.draw(run.count, 1, run.first);
+                }
                 ++last_.casters;
             }
             list.end_render();
@@ -410,15 +414,18 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
                 const float deepens = reach / (reach - near);
                 set(0, face.right, 1, 0), set(1, face.up, 1, 0), set(2, face.axis, deepens, -near * deepens), set(3, face.axis, 1, 0);
                 list.set_viewport(static_cast<float>(number) * side, static_cast<float>(row) * side, side, side);
+                const mlibs::geom::Frustum sees = mlibs::geom::Frustum::of(to_face);
                 for (const scene::Instance& instance : instances) {
                     if (instance.hidden || !instance.casts || instance.mesh >= meshes_.size() || !meshes_[instance.mesh].corners) continue;
                     const Mat4 through = to_face * instance.world;
                     DrawUniforms uniforms{};
                     for (int into = 0; into < 4; ++into) uniforms.to_clip[into] = row_of(through, into);
                     for (int into = 0; into < 3; ++into) uniforms.to_world[into] = row_of(instance.world, into);
+                    // One face of the six sees a sixth of what is around the lamp, and no further than it reaches.
+                    if (!shadow_runs_for(meshes_[instance.mesh], instance.world, sees, options.cull_clusters)) continue;
                     list.push_uniforms(rhi::Stage::vertex, 0, uniforms);
                     list.bind_vertex_buffer(0, meshes_[instance.mesh].corners);
-                    list.draw(meshes_[instance.mesh].count);
+                    for (const Run& run : runs_) list.draw(run.count, 1, run.first);
                 }
                 ++last_.lamp_views;
             }
@@ -606,6 +613,19 @@ void Pass::runs_for(const Loaded& loaded, const Mat4& world, const std::optional
         if (!runs_.empty() && runs_.back().first + runs_.back().count == first) runs_.back().count += count;
         else runs_.push_back({first, count});
     }
+}
+
+// A mesh's runs of corners a light's view can hold (false: none). Both sides of what casts are in a map, so
+// nothing is left out for facing away.
+bool Pass::shadow_runs_for(const Loaded& loaded, const Mat4& world, const mlibs::geom::Frustum& sees, bool cull) {
+    const std::uint32_t before = last_.clusters, outside = last_.clusters_outside;
+    runs_for(loaded, world, std::nullopt, sees, {}, cull, true);
+    // Counted as the shadow views', not as the eye's.
+    last_.shadow_clusters += last_.clusters - before, last_.shadow_clusters_outside += last_.clusters_outside - outside;
+    last_.clusters = before, last_.clusters_outside = outside;
+    last_.shadow_runs += static_cast<std::uint32_t>(runs_.size());
+    for (const Run& run : runs_) last_.shadow_triangles += run.count / 3;
+    return !runs_.empty();
 }
 
 void Pass::record_ids(rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, rhi::Texture ids, rhi::Texture depth, std::uint32_t width,

@@ -16,3 +16,5 @@ mcpp.lock
 
 # omui check and omui dev: the tools' local state (D-156)
 .omui/
+# a source directory named target (src/**/target/) is code, not a build
+!**/src/**/target/

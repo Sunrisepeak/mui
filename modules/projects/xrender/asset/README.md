@@ -35,13 +35,13 @@ Khronos' sample models, read whole from their `.glb` (a debug build, 2026-11-14;
 | Avocado | 682 | 6 | 1 | none (3 textures) |
 | Lantern | 5,394 | 46 | 3 | none (4 textures) |
 | AntiqueCamera | 20,066 | 167 | 2 | none (6 textures) |
-| DamagedHelmet | 15,452 | 130 | 1 | its five pictures are JPEGs, which are not read: its own numbers alone |
+| DamagedHelmet | 15,452 | 130 | 1 | none (5 textures, each a JPEG) |
 
-Two of them drawn by the CPU reference from what was brought in — every picture of their materials, a sun, a sky to mirror:
+Three of them drawn by the CPU reference from what was brought in — every picture of their materials, a sun, a sky to mirror:
 
-| | |
-|---|---|
-| ![Lantern](media/lantern.png) | ![AntiqueCamera](media/antique-camera.png) |
+| | | |
+|---|---|---|
+| ![Lantern](media/lantern.png) | ![AntiqueCamera](media/antique-camera.png) | ![DamagedHelmet](media/damaged-helmet.png) |
 
 A sheet of 4,608 triangles in a scattered order: cut as they come, a cluster spans the sheet (the widest 5.66 across its bounds); ordered, the widest is 1.39 in as many clusters (38). The plain meshlet builder fills every cluster and gathers what is left at the end into one 4.04 across — one culling can never leave out; the builder used closes a cluster early where it would grow wide.
 

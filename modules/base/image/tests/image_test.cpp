@@ -361,6 +361,81 @@ UTest cases{"image", [] {
         expect(back.has_value() && back->rgba == std::vector<std::uint8_t>{128, 0, 0, 128});
     };
 
+    "JPEG: close to the picture, clear pixels shown over what is behind, every pixel opaque; odd sizes; progressive"_test = [] {
+        const auto img = test_picture(96, 64);
+        auto jpeg = image::encode_jpeg(image::view(img), {.quality = 92, .full_colour = true});
+        expect(jpeg.has_value()) << (jpeg ? "" : jpeg.error());
+        if (!jpeg) return;
+        expect(jpeg->size() > 3 && (*jpeg)[0] == 0xff && (*jpeg)[1] == 0xd8 && (*jpeg)[2] == 0xff);
+        auto back = image::decode_jpeg(*jpeg);
+        expect(back.has_value() && back->width == 96 && back->height == 64 && back->alpha == image::Alpha::straight) << (back ? "" : back.error());
+        if (!back) return;
+        // What was written: each pixel over white.
+        long long off = 0;
+        int worst = 0;
+        bool opaque = true;
+        for (std::size_t pixel = 0; pixel < img.rgba.size(); pixel += 4) {
+            const int cover = img.rgba[pixel + 3];
+            for (std::size_t part = 0; part < 3; ++part) {
+                const int shown = (img.rgba[pixel + part] * cover + 255 * (255 - cover) + 127) / 255;
+                const int apart = std::abs(shown - int(back->rgba[pixel + part]));
+                off += apart, worst = std::max(worst, apart);
+            }
+            opaque = opaque && back->rgba[pixel + 3] == 255;
+        }
+        expect(opaque) << "a JPEG has no alpha";
+        const double mean = static_cast<double>(off) / static_cast<double>(img.rgba.size() / 4 * 3);
+        expect(mean < 2.0 && worst < 48) << std::format("mean {} worst {}", mean, worst);
+        // Over another colour.
+        const auto clear = test_picture(8, 8);
+        image::Image nothing = clear;
+        for (std::size_t pixel = 0; pixel < nothing.rgba.size(); pixel += 4) nothing.rgba[pixel + 3] = 0;
+        auto over = image::decode_jpeg(*image::encode_jpeg(image::view(nothing), {.quality = 100, .full_colour = true, .behind = {20, 40, 200}}));
+        expect(over && std::abs(int(over->rgba[0]) - 20) <= 2 && std::abs(int(over->rgba[1]) - 40) <= 2 && std::abs(int(over->rgba[2]) - 200) <= 2);
+        // Sizes that are no multiple of a block, colour at every second pixel; and coarse-to-fine.
+        for (const auto [width, height] : {std::pair{17, 13}, std::pair{2, 2}, std::pair{33, 7}}) {
+            const auto odd = test_picture(width, height);
+            for (const bool progressive : {false, true}) {
+                auto written = image::encode_jpeg(image::view(odd), {.quality = 85, .progressive = progressive});
+                auto read = written ? image::decode_jpeg(*written) : std::unexpected(written.error());
+                expect(read.has_value() && read->width == width && read->height == height) << std::format("{} x {}{}", width, height, progressive ? ", progressive" : "");
+            }
+        }
+        const auto big = test_picture(96, 64);
+        expect(image::encode_jpeg(image::view(big), {.quality = 85, .progressive = true})->size() != image::encode_jpeg(image::view(big), {.quality = 85})->size()) << "another file";
+    };
+
+    "JPEG is deterministic: an encoding's bytes and its pixels, pinned"_test = [] {
+        const auto img = test_picture(96, 64);
+        auto jpeg = image::encode_jpeg(image::view(img), {.quality = 80});
+        expect(fatal(jpeg.has_value()));
+        expect(eq(fnv(*jpeg), 2330307852921621439ull)) << "the encoder writes the same bytes";
+        auto back = image::decode_jpeg(*jpeg);
+        expect(fatal(back.has_value()));
+        expect(eq(fnv(back->rgba), 1682754195325076408ull)) << "and the decoder the same pixels";
+        auto full = image::decode_jpeg(*image::encode_jpeg(image::view(img), {.quality = 95, .full_colour = true, .progressive = true}));
+        expect(fatal(full.has_value()));
+        expect(eq(fnv(full->rgba), 16399885890136014228ull));
+    };
+
+    "JPEG: bad input is an error, not a crash"_test = [] {
+        const std::vector<std::uint8_t> junk{0xff, 0xd8, 0xff, 1, 2, 3, 4, 5};
+        auto bad = image::decode_jpeg(junk);
+        expect(!bad.has_value() && bad.error().starts_with("jpeg:")) << (bad ? "" : bad.error());
+        expect(!image::decode_jpeg({}).has_value()) << "nothing";
+        const auto img = test_picture(40, 24);
+        for (const bool progressive : {false, true}) {
+            const auto good = *image::encode_jpeg(image::view(img), {.progressive = progressive});
+            for (const std::size_t keep : {std::size_t{2}, std::size_t{20}, good.size() / 3, good.size() / 2, good.size() - 3})
+                expect(!image::decode_jpeg(std::span(good).first(keep)).has_value()) << std::format("cut to {} of {}", keep, good.size());
+            auto scrambled = good;
+            for (std::size_t at = good.size() / 2; at < scrambled.size(); at += 7) scrambled[at] ^= 0x5a;
+            (void)image::decode_jpeg(scrambled);  // an error or some pixels; only not a crash
+        }
+        expect(!image::encode_jpeg(image::View{}).has_value()) << "an empty image";
+        expect(!image::encode_jpeg(image::view(img), {.quality = 0}).has_value() && !image::encode_jpeg(image::view(img), {.quality = 101}).has_value()) << "a quality that is none";
+    };
+
     "WebP: bad input is an error, not a crash"_test = [] {
         std::array<std::uint8_t, 4> junk{1, 2, 3, 4};
         auto bad = image::decode_webp(junk);
@@ -593,8 +668,12 @@ UTest cases{"image", [] {
         auto sniffed_webp = image::load(dir / "a.webp");
         expect(sniffed_png && sniffed_png->rgba == img.rgba) << "load: a PNG";
         expect(sniffed_webp && sniffed_webp->rgba == img.rgba) << "load: a WebP";
+        expect(image::save_jpeg(dir / "a.jpg", image::view(img), {.quality = 100, .full_colour = true}).has_value());
+        auto sniffed_jpeg = image::load(dir / "a.jpg");
+        auto named_jpeg = image::load_jpeg(dir / "a.jpg");
+        expect(sniffed_jpeg && named_jpeg && sniffed_jpeg->rgba == named_jpeg->rgba && sniffed_jpeg->width == img.width) << "load: a JPEG";
         auto neither = image::decode(junk);
-        expect(!neither.has_value() && neither.error() == "not a PNG or WebP image");
+        expect(!neither.has_value() && neither.error() == "not a PNG, WebP or JPEG image");
         expect(!image::load(dir / "missing.webp").has_value());
         const std::array<image::View, 2> two{image::view(img), image::view(*back)};
         expect(image::save_animated_webp(dir / "anim.webp", two, {.lossless = true}).has_value());

@@ -1,8 +1,9 @@
-// mlibs.image — images in memory, PNG, animated PNG, and WebP.
+// mlibs.image — images in memory, PNG, animated PNG, WebP and JPEG.
 //
 // An Image is 8-bit RGBA, rows top to bottom, either straight or
 // premultiplied alpha (the renderer works premultiplied; files are straight).
-// PNG goes through libpng's simplified API, WebP through libwebp (D-56).
+// PNG goes through libpng's simplified API, WebP through libwebp, JPEG through
+// libjpeg-turbo's TurboJPEG API (D-56).
 // Decoding returns an error message rather than throwing; writing is
 // deterministic for a given libpng, zlib and libwebp, which mcpp.lock pins.
 export module mlibs.image.api;
@@ -121,7 +122,24 @@ struct Animation {
 [[nodiscard]] std::expected<Animation, std::string> decode_animated_webp(std::span<const std::uint8_t> bytes);
 [[nodiscard]] std::expected<Animation, std::string> load_animated_webp(const std::filesystem::path& file);
 
-// Either format, told by its signature (PNG's eight bytes, WebP's RIFF/WEBP).
+// JPEG, 8 bits a sample, baseline or progressive, with or without arithmetic coding; grey and four-ink (CMYK,
+// YCCK) files come back as colours. A JPEG has no alpha: decoding gives every pixel opaque, encoding writes each
+// pixel as it shows over `behind`. Decoding is whole numbers throughout (libjpeg-turbo's default path, without
+// SIMD): the same pixels on every platform, and the ones libjpeg-turbo gives anywhere — what a browser shows of the
+// file. A file cut short, of 12 or 16 bits a sample, lossless, or of more than 2^28 pixels is refused with its
+// reason. The encoding is deterministic too (Huffman tables fitted to the picture).
+struct JpegOptions {
+    int  quality = 90;         // 1 … 100
+    bool full_colour = false;  // colour kept at every pixel (4:4:4) instead of every second each way (4:2:0)
+    bool progressive = false;  // coarse first, then finer: a little smaller, slower to read
+    std::array<std::uint8_t, 3> behind{255, 255, 255};  // what shows through clear pixels
+};
+[[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> encode_jpeg(const View& pixels, JpegOptions options = {});
+[[nodiscard]] std::expected<Image, std::string> decode_jpeg(std::span<const std::uint8_t> bytes);
+[[nodiscard]] std::expected<void, std::string> save_jpeg(const std::filesystem::path& file, const View& pixels, JpegOptions options = {});
+[[nodiscard]] std::expected<Image, std::string> load_jpeg(const std::filesystem::path& file);
+
+// Any of the three, told by its signature (PNG's eight bytes, WebP's RIFF/WEBP, JPEG's FF D8 FF).
 [[nodiscard]] std::expected<Image, std::string> decode(std::span<const std::uint8_t> bytes);
 [[nodiscard]] std::expected<Image, std::string> load(const std::filesystem::path& file);
 

@@ -87,8 +87,13 @@ bool is_webp(std::span<const std::uint8_t> b) {
     auto at = [&](std::size_t i, std::string_view tag) { return std::equal(tag.begin(), tag.end(), b.begin() + static_cast<std::ptrdiff_t>(i)); };
     return b.size() >= 12 && at(0, "RIFF") && at(8, "WEBP");
 }
+bool is_jpeg(std::span<const std::uint8_t> b) { return b.size() >= 3 && b[0] == 0xff && b[1] == 0xd8 && b[2] == 0xff; }
 
 }  // namespace
+
+std::expected<void, std::string> save_jpeg(const std::filesystem::path& file, const View& pixels, JpegOptions options) { return write_file(file, encode_jpeg(pixels, options)); }
+
+std::expected<Image, std::string> load_jpeg(const std::filesystem::path& file) { return read_file(file).and_then([](const auto& b) { return decode_jpeg(b); }); }
 
 std::expected<void, std::string> save_png(const std::filesystem::path& file, const View& pixels) { return write_file(file, encode_png(pixels)); }
 
@@ -115,7 +120,8 @@ std::expected<Image, std::string> load_webp(const std::filesystem::path& file) {
 std::expected<Image, std::string> decode(std::span<const std::uint8_t> bytes) {
     if (is_png(bytes)) return decode_png(bytes);
     if (is_webp(bytes)) return decode_webp(bytes);
-    return std::unexpected("not a PNG or WebP image");
+    if (is_jpeg(bytes)) return decode_jpeg(bytes);
+    return std::unexpected("not a PNG, WebP or JPEG image");
 }
 
 std::expected<Image, std::string> load(const std::filesystem::path& file) { return read_file(file).and_then([](const auto& b) { return decode(b); }); }

@@ -129,6 +129,7 @@ struct Raster {
     const Texture* coat = nullptr;
     const Texture* coat_rough = nullptr;
     const Texture* coat_normal_picture = nullptr;
+    const Texture* sheen_picture = nullptr;
     Vec3           coat_normal{0, 0, 1};
     // What lets light through shows the light of what is whole behind it (`Material::transmission`): that light
     // at every size, the view's clip space (unjittered) and the instance's place and its inverse.
@@ -272,7 +273,11 @@ struct Raster {
         layer.base = {0, 0, 0}, layer.roughness = material.clearcoat_roughness, layer.metallic = 0;
         Vec3 coat{0, 0, 0};
         const Vec3 under = math::scaled(math::scaled(takes, from_all_about(normal)), reaching(open)) * shaded;
-        Vec3 sent = coated > 0 ? under : under + material.emissive;
+        // A sheen: the fibres' own light, and what comes from under them less by what they take of an even light.
+        const bool sheened = material.sheen.x > 0 || material.sheen.y > 0 || material.sheen.z > 0;
+        Vec3 sheen{0, 0, 0};
+        if (sheened) sheen = math::scaled(math::scaled(from_all_about(normal), material.sheen), reaching(open)) * (sheen_share(std::max(math::dot(normal, toward_eye), 0.0f), material.sheen_roughness) * shaded);
+        Vec3 sent = coated > 0 || sheened ? under : under + material.emissive;
         if (options.environment.on) sent = sent + mirrored(material, options.environment, normal, toward_eye) * (pictured ? shaded : 1.0f);
         if (coated > 0) {
             if (!pictured) coat = math::scaled(math::scaled(reflected_ambient(layer), from_all_about(coat_normal)), reaching(open)) * shaded;
@@ -285,6 +290,7 @@ struct Raster {
                 if (!(facing > 0) && !(coat_facing > 0)) continue;
                 if (!casters.empty() && hidden_from(lifted, -lamp.toward, std::numeric_limits<float>::max())) continue;
                 if (facing > 0) sent = sent + math::scaled(reflected(material, normal, toward_eye, -lamp.toward, facing), lamp.colour);
+                if (sheened && facing > 0) sheen = sheen + math::scaled(material.sheen, lamp.colour) * sheen_reflected(material.sheen_roughness, normal, toward_eye, -lamp.toward, facing);
                 if (coat_facing > 0) coat = coat + math::scaled(reflected(layer, coat_normal, toward_eye, -lamp.toward, coat_facing), lamp.colour);
                 continue;
             }
@@ -298,9 +304,15 @@ struct Raster {
             if (!casters.empty() && hidden_from(lifted, along, apart)) continue;
             const float near = 1.0f - (apart / lamp.range) * (apart / lamp.range);
             if (facing > 0) sent = sent + math::scaled(reflected(material, normal, toward_eye, along, facing), lamp.colour * (near * near));
+            if (sheened && facing > 0) sheen = sheen + math::scaled(material.sheen, lamp.colour * (near * near)) * sheen_reflected(material.sheen_roughness, normal, toward_eye, along, facing);
             if (coat_facing > 0) coat = coat + math::scaled(reflected(layer, coat_normal, toward_eye, along, coat_facing), lamp.colour * (near * near));
         }
-        if (!(coated > 0)) return sent;
+        if (!(coated > 0) && !sheened) return sent;
+        if (sheened) {
+            const float brightest = std::max({material.sheen.x, material.sheen.y, material.sheen.z});
+            sent = sent * (1.0f - brightest * sheen_share(std::max(math::dot(normal, toward_eye), 0.0f), material.sheen_roughness)) + sheen;
+        }
+        if (!(coated > 0)) return material.emissive + sent;
         // How much the coat mirrors of the eye's way (Schlick, 4% head on): that much less comes up through it.
         const float glance = 1.0f - std::clamp(math::dot(coat_normal, toward_eye), 0.0f, 1.0f), glance5 = glance * glance * glance * glance * glance;
         const float coat_mirrors = 0.04f + 0.96f * glance5;
@@ -390,7 +402,7 @@ struct Raster {
                     material.base = math::scaled(base, Vec3{at(&Vec4::x), at(&Vec4::y), at(&Vec4::z)}), hides = own.opacity * at(&Vec4::w);
                 }
                 coat_normal = normal;
-                if (texture || surface || normal_picture || glow || shade || clearness || thick || coat || coat_rough || coat_normal_picture) {
+                if (texture || surface || normal_picture || glow || shade || clearness || thick || coat || coat_rough || coat_normal_picture || sheen_picture) {
                     // The surface's place in the picture here, a pixel to the right and a pixel down: how many texels
                     // a pixel covers is how far apart they are.
                     const auto uv_at = [&](double at_x, double at_y) {
@@ -473,6 +485,10 @@ struct Raster {
                     if (coat_rough) {
                         const Place at = laid(own.placing.coat_rough);
                         material.clearcoat_roughness = own.clearcoat_roughness * coat_rough->over(at.here, at.across, at.along).y;
+                    }
+                    if (sheen_picture) {
+                        const Place at = laid(own.placing.sheen);
+                        material.sheen = math::scaled(own.sheen, sheen_picture->over(at.here, at.across, at.along));
                     }
                     // The coat's normal is the surface's own, before its normal picture — or its own picture's.
                     if (coat_normal_picture) coat_normal = bent_by(*coat_normal_picture, own.placing.coat_normal, own.coat_normal_scale, normal);
@@ -763,7 +779,7 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
         raster.glow = picture(raster.material.glow, placing.glow), raster.shade = picture(raster.material.shade, placing.shade);
         raster.clearness = picture(raster.material.clearness, placing.clearness), raster.thick = picture(raster.material.thick, placing.thick);
         raster.coat = picture(raster.material.coat, placing.coat), raster.coat_rough = picture(raster.material.coat_rough, placing.coat_rough);
-        raster.coat_normal_picture = picture(raster.material.coat_normal, placing.coat_normal);
+        raster.coat_normal_picture = picture(raster.material.coat_normal, placing.coat_normal), raster.sheen_picture = picture(raster.material.sheen_picture, placing.sheen);
         raster.coloured = !mesh.colours.empty();
         raster.world = instance.world, raster.back = math::inverse(instance.world).value_or(Mat4{});
         const Mat4 to_clip = clip * instance.world;

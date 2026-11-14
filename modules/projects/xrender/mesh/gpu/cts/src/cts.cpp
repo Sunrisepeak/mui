@@ -391,18 +391,19 @@ Cases suite_of() {
         expect(lt(turned_all.mean, 0.1));
         expect(lt(static_cast<double>(other), 0.001 * static_cast<double>(turned_all.compared)));
     });
-    // a clear coat and what a surface mirrors by its specular strength and colour, on the device: a coated box and
-    // a polished ball mirroring a red, the reference's
+    // a clear coat, a sheen and what a surface mirrors by its specular strength and colour, on the device: a coated
+    // box, a polished ball mirroring a red and a post of cloth, the reference's
     add(suite, "mesh.coat", [](Rig& rig) {
         rhi::Device* const device = &rig.device;
         Yard yard(false, true);
         yard.materials[0].clearcoat = 1, yard.materials[0].clearcoat_roughness = 0.15f;
         yard.materials[2].specular = 0.8f, yard.materials[2].specular_colour = {1, 0.3f, 0.3f}, yard.materials[2].ior = 1.7f;
+        yard.materials[3].sheen = {1, 0.5f, 0.7f}, yard.materials[3].sheen_roughness = 0.5f, yard.materials[3].metallic = 0;  // the post: cloth
         const auto drawn = both(*device, yard, {.environment = {.on = true}});
         if (!drawn) return;
         keep(drawn->device, "yard-coat");
         const Apart all = apart(drawn->reference, drawn->device, false, 6);
-        std::println("a coated box and a ball mirroring red: {} of {} pixels further than 6 levels from the reference ({:.2f}%), mean {:.3f}, worst {}", all.off, all.compared,
+        std::println("a coated box, a ball mirroring red and a post with a sheen: {} of {} pixels further than 6 levels from the reference ({:.2f}%), mean {:.3f}, worst {}", all.off, all.compared,
                      100.0 * static_cast<double>(all.off) / static_cast<double>(all.compared), all.mean, all.worst);
         expect(lt(static_cast<double>(all.off), 0.001 * static_cast<double>(all.compared)));
         expect(lt(all.mean, 0.1));

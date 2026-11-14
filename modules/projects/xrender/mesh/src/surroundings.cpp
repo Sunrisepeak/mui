@@ -449,13 +449,88 @@ Vec2 share(float seen, float roughness) noexcept {
 }
 std::span<const Vec2> share_table() noexcept { return shares_table(); }
 
+namespace {
+// Charlie's distribution times its visibility (Estevez and Kulla's Λ, fitted, as glTF's sample viewer has it)
+// times π, in double: what `sheen_reflected` and the table are of.
+double sheen_lambda_fit(double cosine, double alpha) {
+    const double from_smooth = (1.0 - alpha) * (1.0 - alpha);
+    const auto mixed = [&](double smooth, double rough) { return rough + (smooth - rough) * from_smooth; };
+    const double a = mixed(25.3245, 21.5473), b = mixed(3.32435, 3.82987), c = mixed(0.16801, 0.19823), d = mixed(-1.27393, -1.97760), e = mixed(-4.85967, -4.32054);
+    return a / (1.0 + b * math::det::pow(cosine, c)) + d * cosine + e;
+}
+double sheen_lambda(double cosine, double alpha) {
+    return cosine < 0.5 ? math::det::exp(sheen_lambda_fit(cosine, alpha)) : math::det::exp(2.0 * sheen_lambda_fit(0.5, alpha) - sheen_lambda_fit(1.0 - cosine, alpha));
+}
+double sheen_lobe(double roughness, double along_half, double facing, double seen) {
+    const double alpha = std::max(roughness, 1e-3) * std::max(roughness, 1e-3), inverse = 1.0 / alpha;
+    const double sine_squared = std::max(1.0 - along_half * along_half, 0.0);
+    const double spread = (2.0 + inverse) * math::det::pow(sine_squared, inverse * 0.5) * 0.5;
+    const double visible = std::clamp(1.0 / ((1.0 + sheen_lambda(seen, alpha) + sheen_lambda(facing, alpha)) * (4.0 * seen * facing)), 0.0, 1.0);
+    return spread * visible;
+}
+// The table: for each roughness and look, the sum over the ways above (by their sines: 64 × 128 of them) of the
+// lobe times how squarely each falls, over π.
+std::array<float, shares_across * shares_across> sheen_summed() noexcept {
+    std::array<float, shares_across * shares_across> summed{};
+    constexpr int downs = 64, rounds = 128;
+    for (int row = 0; row < shares_across; ++row) {
+        const double roughness = static_cast<double>(row) / (shares_across - 1);
+        for (int column = 0; column < shares_across; ++column) {
+            const double seen = std::max(static_cast<double>(column) / (shares_across - 1), 1.0 / 1024.0);
+            const double eye_x = math::det::sqrt(std::max(1.0 - seen * seen, 0.0)), eye_z = seen;
+            double sum = 0;
+            for (int down = 0; down < downs; ++down) {
+                const double tilt = (down + 0.5) / downs * (math::det::pi * 0.5);
+                const double facing = math::det::cos(tilt), sine = math::det::sin(tilt);
+                for (int round = 0; round < rounds; ++round) {
+                    const double turn = (round + 0.5) / rounds * math::det::two_pi;
+                    const double light_x = sine * math::det::cos(turn), light_y = sine * math::det::sin(turn);
+                    const double half_x = light_x + eye_x, half_y = light_y, half_z = facing + eye_z;
+                    const double half_size = math::det::sqrt(half_x * half_x + half_y * half_y + half_z * half_z);
+                    if (!(half_size > 0)) continue;
+                    sum += sheen_lobe(roughness, half_z / half_size, facing, seen) * facing * sine;
+                }
+            }
+            const double step = (math::det::pi * 0.5 / downs) * (math::det::two_pi / rounds);
+            // Held to all of it: at an all but grazing look and a smooth sheen the fitted visibility counts over
+            // 1 (2.0 at a roughness of 0.03 and a look of 1/1024) — no layer sends back more than comes.
+            summed[static_cast<std::size_t>(row) * shares_across + static_cast<std::size_t>(column)] = std::min(static_cast<float>(sum * step / math::det::pi), 1.0f);
+        }
+    }
+    return summed;
+}
+const std::array<float, shares_across * shares_across>& sheen_shares() noexcept {
+    static const std::array<float, shares_across * shares_across> table = sheen_summed();
+    return table;
+}
+}  // namespace
+
+float sheen_reflected(float roughness, Vec3 normal, Vec3 toward_eye, Vec3 toward_light, float facing) noexcept {
+    const float seen = math::dot(normal, toward_eye);
+    if (!(seen > 0) || !(facing > 0)) return 0;
+    const Vec3 half = math::normalized(toward_eye + toward_light);
+    const double rough = static_cast<double>(std::clamp(roughness, 0.0f, 1.0f));
+    return static_cast<float>(sheen_lobe(rough, std::max(static_cast<double>(math::dot(normal, half)), 0.0), facing, seen) * facing);
+}
+float sheen_share(float seen, float roughness) noexcept {
+    const auto& table = sheen_shares();
+    const float last = static_cast<float>(shares_across - 1);
+    const float column = std::clamp(seen, 0.0f, 1.0f) * last, row = std::clamp(roughness, 0.0f, 1.0f) * last;
+    const int first_column = std::min(static_cast<int>(column), shares_across - 2), first_row = std::min(static_cast<int>(row), shares_across - 2);
+    const float along_row = column - static_cast<float>(first_column), below = row - static_cast<float>(first_row);
+    const auto at = [&](int column_at, int row_at) { return table[static_cast<std::size_t>(row_at) * shares_across + static_cast<std::size_t>(column_at)]; };
+    const float upper = at(first_column, first_row) + (at(first_column + 1, first_row) - at(first_column, first_row)) * along_row;
+    const float lower = at(first_column, first_row + 1) + (at(first_column + 1, first_row + 1) - at(first_column, first_row + 1)) * along_row;
+    return upper + (lower - upper) * below;
+}
+std::span<const float> sheen_table() noexcept { return sheen_shares(); }
+
 Vec3 kept(const Material& material, float seen) noexcept {
     const float rough = std::clamp(material.roughness, 0.04f, 1.0f), metal = std::clamp(material.metallic, 0.0f, 1.0f);
     const Vec2 once = share(seen, rough);
     const float all = once.x + once.y;
     if (!(all > 0)) return {1, 1, 1};
-    const Vec3 head_on = Vec3{0.04f, 0.04f, 0.04f} * (1.0f - metal) + material.base * metal;
-    return Vec3{1, 1, 1} + head_on * (1.0f / all - 1.0f);
+    return Vec3{1, 1, 1} + mirrors_of(material).head_on * (1.0f / all - 1.0f);
 }
 
 }  // namespace xrender::mesh

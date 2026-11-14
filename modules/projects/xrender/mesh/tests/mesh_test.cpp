@@ -692,6 +692,39 @@ static UTest cases{"xrender.mesh", [] {
         expect(eq(ball_of(same).brightest, shiny.brightest)) << "an index of 1.5 at full strength is the 4% as it was";
     };
 
+    "a sheen is the soft light at a cloth's rim: brighter at the edge of a ball than at its middle, by its colour; the table of what it takes of an even light is under 1 and grows to the rim"_test = [] {
+        const Camera camera{.eye = {0, 0, 5}, .target = {0, 0, 0}};
+        const auto ball_of = [&](const mesh::Material& material) {
+            std::vector<mesh::Material> materials{material};
+            scene::Scene world;
+            put(world, 1, ball, 0, math::translation({0, 0, 0}));
+            expect(world.add(scene::Light{.id = 1, .kind = scene::LightKind::sun, .colour = {1, 1, 1}, .intensity = 1, .toward = {0, 0, -1}}).has_value());
+            mesh::Targets targets;
+            targets.resize(256, 256);
+            scene::Extracted seen;
+            scene::extract(world, camera.view(), seen);
+            mesh::Pass pass;
+            pass.draw(world, seen, camera.view(), {library().meshes, materials, {}, {}}, targets, {.ambient = {0.2f, 0.2f, 0.2f}});
+            return targets;
+        };
+        const mesh::Material cloth{.base = {0.1f, 0.1f, 0.4f}, .roughness = 0.99f};
+        mesh::Material velvet = cloth;
+        velvet.sheen = {1, 0.4f, 0.6f}, velvet.sheen_roughness = 0.4f;
+        const mesh::Targets plain = ball_of(cloth), soft = ball_of(velvet);
+        // The ball's middle and near its rim, on the middle row (the ball is 47 pixels across its half).
+        const std::size_t middle = static_cast<std::size_t>(128) * 256 + 128, rim = static_cast<std::size_t>(128) * 256 + 128 + 44;
+        const float middle_gain = soft.light[middle].x - plain.light[middle].x, rim_gain = soft.light[rim].x - plain.light[rim].x;
+        std::println("a cloth ball with a sheen, 256²: red gained at the middle {:.4f}, near the rim {:.4f}; green at the rim {:.4f}; the table 0 … 1: head on {:.3f}, at a glance {:.3f}", middle_gain, rim_gain,
+                     soft.light[rim].y - plain.light[rim].y, mesh::sheen_share(1, 0.4f), mesh::sheen_share(0.05f, 0.4f));
+        expect(ne(soft.ids[rim].draw, mesh::none)) << "the rim's pixel is the ball's";
+        expect(gt(rim_gain, middle_gain * 2)) << "the sheen is at the rim";
+        expect(gt(soft.light[rim].x - plain.light[rim].x, (soft.light[rim].y - plain.light[rim].y) * 1.5f)) << "by its colour: more red than green";
+        const auto [least, most] = std::ranges::minmax(mesh::sheen_table());
+        std::println("the sheen's table: {:.4f} … {:.4f}", least, most);
+        expect(ge(least, 0.0f) && le(most, 1.0f));
+        expect(gt(mesh::sheen_share(0.05f, 0.4f), mesh::sheen_share(1, 0.4f))) << "more at a glance";
+    };
+
     "a metal has no colour of its own but its highlight's: away from the highlight it is dark, and the highlight is the metal's colour"_test = [] {
         const Camera camera{.eye = {0, 0.5f, 5}, .target = {0, 0, 0}};
         scene::Scene world;

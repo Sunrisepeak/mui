@@ -221,26 +221,27 @@ static UTest cases{"xrender.asset", [] {
              {{"primitives": [{{"attributes": {{"POSITION": 0, "NORMAL": 1}}, "indices": 3, "material": 1}}]}}],
   "materials": [{{"pbrMetallicRoughness": {{"baseColorTexture": {{"index": 0}}, "metallicRoughnessTexture": {{"index": 0}}}},
                  "normalTexture": {{"index": 0}}, "occlusionTexture": {{"index": 0}}, "emissiveTexture": {{"index": 0}},
-                 "alphaMode": "BLEND", "doubleSided": true, "extensions": {{"KHR_materials_sheen": {{"sheenColorFactor": [1, 1, 1]}}, "KHR_materials_clearcoat": {{"clearcoatFactor": 1}}}}}},
+                 "alphaMode": "BLEND", "doubleSided": true, "extensions": {{"KHR_materials_anisotropy": {{"anisotropyStrength": 1}}, "KHR_materials_sheen": {{"sheenColorFactor": [1, 1, 1]}}, "KHR_materials_clearcoat": {{"clearcoatFactor": 1}}}}}},
                 {{"alphaMode": "MASK", "emissiveFactor": [1, 1, 1], "extensions": {{"KHR_materials_emissive_strength": {{"emissiveStrength": 4}}}}}}],
   "textures": [{{"source": 0}}],
   "images": [{{"uri": "{}", "mimeType": "image/jpeg"}}],
   "animations": [{{"channels": [], "samplers": []}}],
-  "extensionsUsed": ["KHR_materials_sheen", "KHR_materials_clearcoat", "KHR_materials_emissive_strength", "VENDOR_something"])",
+  "extensionsUsed": ["KHR_materials_anisotropy", "KHR_materials_sheen", "KHR_materials_clearcoat", "KHR_materials_emissive_strength", "VENDOR_something"])",
                                                       uri_of(not_a_picture, "image/jpeg")));
         const auto model = asset::gltf(bytes_of(text));
         expect(fatal(model.has_value())) << (model ? "" : model.error());
         for (const std::string_view where :
-             {"/images/0", "/materials/0/extensions/KHR_materials_sheen",
+             {"/images/0", "/materials/0/extensions/KHR_materials_anisotropy",
               "/meshes/0/primitives/0/attributes/TEXCOORD_2", "/meshes/0/primitives/0/attributes/COLOR_1", "/meshes/0/primitives/0/attributes/NORMAL", "/meshes/0/primitives/1/mode",
-              "/nodes/0/camera", "/animations", "/extensionsUsed/3"})
+              "/nodes/0/camera", "/animations", "/extensionsUsed/4"})
             expect(noted(*model, where)) << where;
         expect(eq(model->notes.size(), std::size_t{9}));
         // A place that mirrors its mesh (the second node's scale below 0) is carried as it is — the pass draws
         // such an instance the right way round — so it leaves no note.
         expect(!noted(*model, "/nodes/1"));
-        // A clear coat is carried (KHR_materials_clearcoat), so it leaves no note.
+        // A clear coat and a sheen are carried (KHR_materials_clearcoat, _sheen), so they leave no note.
         expect(!noted(*model, "/materials/0/extensions/KHR_materials_clearcoat") && eq(model->materials[0].clearcoat, 1.0f));
+        expect(!noted(*model, "/materials/0/extensions/KHR_materials_sheen") && eq(model->materials[0].sheen.x, 1.0f));
         // Seen from both sides, cut out and seen through are carried, so they leave no note: the second material's
         // cut is the format's own (0.5) where the document names none.
         expect(!noted(*model, "/materials/0/doubleSided") && !noted(*model, "/materials/0/alphaMode") && !noted(*model, "/materials/1/alphaMode"));

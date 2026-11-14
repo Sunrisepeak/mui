@@ -62,6 +62,7 @@ struct SurfaceUniforms {
     Row          behind_squares[16];
     Row          mirrors{0.04f, 0.04f, 0.04f, 1};  // what a surface that is not metal mirrors head on; w: at a glance
     Row          coat;                             // x: the clear coat; y: its roughness
+    Row          sheen;                            // its colour; w: its roughness
     LampUniforms lamps[most_lamps];
 };
 // What the passes that draw no colour ask of a draw's material (the shaders' `Whole`).
@@ -316,7 +317,8 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
     list.upload(*cover, 0, std::span<const Corner>(corners));
     std::vector<std::uint16_t> table;
     table.reserve(share_table().size() * 4);
-    for (const math::Vec2 one : share_table()) table.insert(table.end(), {half_of(one.x), half_of(one.y), half_of(0.0f), half_of(1.0f)});
+    // Red and green: `share_table`; blue: `sheen_table` (the same rows and columns).
+    for (std::size_t at = 0; at < share_table().size(); ++at) table.insert(table.end(), {half_of(share_table()[at].x), half_of(share_table()[at].y), half_of(sheen_table()[at]), half_of(1.0f)});
     list.upload(*shares, rhi::Region{0, 0, static_cast<std::uint32_t>(share_table_side), static_cast<std::uint32_t>(share_table_side)}, std::as_bytes(std::span<const std::uint16_t>(table)));
     list.begin_render({*no_shadow, rhi::LoadOp::clear, {1, 0, 0, 1}});
     list.end_render();
@@ -888,6 +890,7 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
         dielectric.metallic = 0;
         const Mirrors ends = mirrors_of(dielectric);
         surface.mirrors = of(ends.head_on, ends.edge);
+        surface.sheen = of(material.sheen, material.sheen_roughness);
         surface.coat = {std::clamp(material.clearcoat, 0.0f, 1.0f), std::clamp(material.clearcoat_roughness, 0.04f, 1.0f), 0, 0};
         surface.clearness_picture = said(clearness[0], 0), surface.thick_picture = said(clearness[1], 0);
         surface.placing[10] = across_of(material.placing.clearness), surface.placing[11] = down_of(material.placing.clearness);

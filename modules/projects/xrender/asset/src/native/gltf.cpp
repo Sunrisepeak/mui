@@ -288,8 +288,16 @@ struct Maker {
                     made.coat_normal_scale = coat.clearcoat_normal_texture.scale;
                 }
             }
-            const std::array<std::pair<bool, std::string_view>, 6> more{{{from.has_pbr_specular_glossiness != 0, "KHR_materials_pbrSpecularGlossiness"},
-                                                                          {from.has_sheen != 0, "KHR_materials_sheen"},
+            // A sheen (KHR_materials_sheen): its colour and roughness, the colour's picture; the roughness's noted.
+            if (from.has_sheen) {
+                const cgltf_sheen& sheen = from.sheen;
+                made.sheen = {sheen.sheen_color_factor[0], sheen.sheen_color_factor[1], sheen.sheen_color_factor[2]}, made.sheen_roughness = sheen.sheen_roughness_factor;
+                const std::string at = where + "/extensions/KHR_materials_sheen";
+                if (sheen.sheen_color_texture.texture)
+                    made.sheen_picture = picture(sheen.sheen_color_texture, at + "/sheenColorTexture", mesh::Coding::colour, "the colour factor over the whole surface", made.placing.sheen);
+                if (sheen.sheen_roughness_texture.texture) note(at + "/sheenRoughnessTexture", "a picture of the sheen's roughness (its alpha)", "left out: the factor over the whole surface");
+            }
+            const std::array<std::pair<bool, std::string_view>, 5> more{{{from.has_pbr_specular_glossiness != 0, "KHR_materials_pbrSpecularGlossiness"},
                                                                           {from.has_iridescence != 0, "KHR_materials_iridescence"},
                                                                           {from.has_diffuse_transmission != 0, "KHR_materials_diffuse_transmission"},
                                                                           {from.has_anisotropy != 0, "KHR_materials_anisotropy"},

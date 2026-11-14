@@ -94,6 +94,7 @@ struct Surface {
     // and strength), and w: the strength — what it mirrors at a glancing look.
     float4 mirrors;
     float4 coat;                // a clear coat (xrender.mesh's `Material::clearcoat`): x how much, y its roughness (0.04 … 1)
+    float4 sheen;               // a sheen (xrender.mesh's `Material::sheen`): its colour; w its roughness
     Lamp   lamps[8];
 };
 [[vk::binding(0, 2)]] Sampler2D shadow_map : register(t0, space2) : register(s0, space2);
@@ -364,6 +365,26 @@ float4 transmitted(float3 normal, float3 place) {
 
 // The surface's light at a pixel, and how much it hides of what is behind it; `gone`: nothing of it is drawn there
 // (turned away, beyond the view, cut out).
+// What a white sheen sends back toward the eye of light arriving along `toward_light` (xrender.mesh's
+// `sheen_reflected`: Charlie's distribution and its visibility, Λ fitted).
+float sheen_lambda_fit(float cosine, float alpha) {
+    const float from_smooth = (1.0 - alpha) * (1.0 - alpha);
+    const float a = lerp(21.5473, 25.3245, from_smooth), b = lerp(3.82987, 3.32435, from_smooth), c = lerp(0.19823, 0.16801, from_smooth);
+    const float d = lerp(-1.97760, -1.27393, from_smooth), e = lerp(-4.32054, -4.85967, from_smooth);
+    return a / (1.0 + b * pow(cosine, c)) + d * cosine + e;
+}
+float sheen_lambda(float cosine, float alpha) { return cosine < 0.5 ? exp(sheen_lambda_fit(cosine, alpha)) : exp(2.0 * sheen_lambda_fit(0.5, alpha) - sheen_lambda_fit(1.0 - cosine, alpha)); }
+float sheen_reflected(float3 normal, float3 toward_eye, float3 toward_light, float facing) {
+    const float seen = dot(normal, toward_eye);
+    if (!(seen > 0) || !(facing > 0)) return 0;
+    const float rough = max(clamp(surface.sheen.w, 0.0, 1.0), 1e-3), alpha = rough * rough, inverse = 1.0 / alpha;
+    const float along_half = max(dot(normal, normalize(toward_eye + toward_light)), 0.0);
+    const float spread = (2.0 + inverse) * pow(max(1.0 - along_half * along_half, 0.0), inverse * 0.5) * 0.5;
+    const float visible = clamp(1.0 / ((1.0 + sheen_lambda(seen, alpha) + sheen_lambda(facing, alpha)) * (4.0 * seen * facing)), 0.0, 1.0);
+    return spread * visible * facing;
+}
+// How much of an even light a white sheen sends back (xrender.mesh's `sheen_share`: the share table's blue).
+float sheen_share(float seen) { return share_map.SampleLevel((float2(clamp(seen, 0.0, 1.0), clamp(surface.sheen.w, 0.0, 1.0)) * 31.0 + 0.5) / 32.0, 0).b; }
 // How much a clear coat mirrors of the eye's way (Schlick, 4% head on): that much less comes up through it.
 float coat_mirrors(float3 coat_normal, float3 toward_eye) {
     const float glance = 1.0 - clamp(dot(coat_normal, toward_eye), 0.0, 1.0), glance5 = glance * glance * glance * glance * glance;
@@ -493,6 +514,8 @@ Lit lit_at<A : IAbout>(VOut point) {
     everywhere_in *= shaded;
     float3 light = everywhere_in;
     float3 sent = float3(0, 0, 0);
+    const bool sheened = any(surface.sheen.rgb > 0);
+    float3 sheen = sheened ? surface.sheen.rgb * everywhere_in * sheen_share(max(dot(normal, normalize(to_eye)), 0.0)) : float3(0, 0, 0);
     const int count = int(surface.eye.w);
     for (int index = 0; index < count; ++index) {
         const Lamp lamp = surface.lamps[index];
@@ -514,10 +537,12 @@ Lit lit_at<A : IAbout>(VOut point) {
         if (!(facing > 0)) continue;
         if (matt) light += arriving * facing;
         else sent += reflected(normal, toward_eye, along, facing) * arriving;
+        if (sheened) sheen += surface.sheen.rgb * arriving * sheen_reflected(normal, toward_eye, along, facing);
     }
     float3 colour = base_colour * (1.0 - lets_here) * light + given_off;
     if (!matt) {
         colour = A::takes(metal_here) * everywhere_in + given_off + sent + A::mirrors(normal, toward_eye, shaded);
+        if (sheened) colour = given_off + (colour - given_off) * (1.0 - max(surface.sheen.r, max(surface.sheen.g, surface.sheen.b)) * sheen_share(max(dot(normal, toward_eye), 0.0))) + sheen;
         if (surface.coat.x > 0) colour = given_off + (colour - given_off) * (1.0 - surface.coat.x * coat_mirrors(coat_normal, toward_eye)) + coated<A>(coat_normal, normal, toward_eye, point.place, everywhere_in, shaded) * surface.coat.x;
     }
     if (surface.own.z > 0.5) colour = base_colour + given_off;

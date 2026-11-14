@@ -44,8 +44,8 @@ struct Placing {
 };
 // How each of a surface's pictures is laid over it.
 struct Placings {
-    Placing base, surface, normal, glow, shade, clearness, thick, coat, coat_rough, coat_normal;
-    [[nodiscard]] static constexpr Placings all(Placing placing) noexcept { return {placing, placing, placing, placing, placing, placing, placing, placing, placing, placing}; }
+    Placing base, surface, normal, glow, shade, clearness, thick, coat, coat_rough, coat_normal, sheen;
+    [[nodiscard]] static constexpr Placings all(Placing placing) noexcept { return {placing, placing, placing, placing, placing, placing, placing, placing, placing, placing, placing}; }
 };
 // A surface, as data. The reference's shading is the least that shows a form: what a light gives a matt surface,
 // and what it gives off itself. (The full model — roughness, metal, textures — is the material interface's,
@@ -122,8 +122,15 @@ struct Material {
     std::uint32_t coat_rough = 0xffffffffu;
     std::uint32_t coat_normal = 0xffffffffu;
     float coat_normal_scale = 1;
+    // A sheen (KHR_materials_sheen): the soft light at a cloth's or a peach's rim — fibres that send back light
+    // grazing them (Charlie's distribution and visibility), `sheen` its colour (black: none), as rough as
+    // `sheen_roughness`; what the surface under it sends is less by what the sheen takes of an even light
+    // (`sheen_share`). Its picture is a colour (`Coding::colour`) multiplying `sheen`.
+    Vec3  sheen{0, 0, 0};
+    float sheen_roughness = 0;
+    std::uint32_t sheen_picture = 0xffffffffu;
     Placings placing;  // how each picture of the surface is laid over it
-    [[nodiscard]] constexpr bool matt() const noexcept { return roughness >= 1 && metallic <= 0 && !(clearcoat > 0); }
+    [[nodiscard]] constexpr bool matt() const noexcept { return roughness >= 1 && metallic <= 0 && !(clearcoat > 0) && !(sheen.x > 0 || sheen.y > 0 || sheen.z > 0); }
 };
 // What a material mirrors head on, a channel, and of the light at a glancing look (Schlick's two ends; the
 // `specular`, `specular_colour` and `ior` of a surface that is not metal, its colour and all for a metal).
@@ -299,6 +306,15 @@ struct Environment {
 [[nodiscard]] Vec2 share(float seen, float roughness) noexcept;
 [[nodiscard]] std::span<const Vec2> share_table() noexcept;
 inline constexpr int share_table_side = 32;
+// What a sheen sends back toward the eye of light arriving along `toward_light` (`facing` the normal's part of it),
+// for a white sheen as rough as `roughness`: Charlie's distribution and its visibility (Estevez and Kulla 2017,
+// Λ as glTF's sample viewer fits it), with no 1/π (as `reflected`).
+[[nodiscard]] float sheen_reflected(float roughness, Vec3 normal, Vec3 toward_eye, Vec3 toward_light, float facing) noexcept;
+// How much of an even light a white sheen sends back, by how it is looked at and how rough it is: what the surface
+// under it is less by (times the sheen's brightest channel). One table (`sheen_table`: 32 × 32 like
+// `share_table`, a row a roughness, a column how it is looked at), summed once over the half of the ways above.
+[[nodiscard]] float sheen_share(float seen, float roughness) noexcept;
+[[nodiscard]] std::span<const float> sheen_table() noexcept;
 // What the highlight is multiplied by so that light is kept between a rough surface's small faces: what met a
 // second face is sent on as what the surface mirrors head on would have it, 1 + head on × (1 ÷ the share's sum − 1).
 // A white metal sends back all of an even light however rough it is (the furnace's rule); a surface that

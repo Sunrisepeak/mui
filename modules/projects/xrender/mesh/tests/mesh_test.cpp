@@ -1938,19 +1938,48 @@ static UTest cases{"xrender.mesh", [] {
         const Camera camera{.eye = {0, 0, 4}};
         std::println("the surroundings made of 256 × 128 in {:.2f} s ({} sizes from {} across; what falls, {} across)", made_in, surroundings->sizes.size(), surroundings->sizes[0].side, surroundings->falls.side);
         struct Held {
-            std::uint32_t material;
+            mesh::Material material;
             std::string_view name;
             float within;  // root mean square, of the mean light
         };
-        for (const Held& held : {Held{matt_grey, "matt", 0.008f}, Held{polished, "polished", 0.015f}, Held{satin, "satin", 0.015f}, Held{gold, "gold", 0.075f}, Held{iron, "iron", 0.062f}, Held{dull_copper, "dull-copper", 0.067f}, Held{roughest_copper, "roughest-copper", 0.04f}}) {
+        const std::span<const mesh::Material> made = library().materials;
+        // The layers over a surface, each against its own gathering along rays: a clear coat over a rough red, a
+        // sheen over dark blue, brushed steel (its highlight drawn out), a thin film over near black. Measured:
+        // the coat 1.1%, the film 1.1%; the sheen 14.1% (the pass lights it by what falls on the surface, not by
+        // its own lobe: red 88); brushed steel 77.6% (the pass's one lookup about a bent normal, as glTF's sample
+        // viewer has it: red 89) — each bound is its measure, to be lowered by the work.
+        mesh::Material coated{.base = {0.6f, 0.05f, 0.04f}, .roughness = 0.6f, .metallic = 0};
+        coated.clearcoat = 1, coated.clearcoat_roughness = 0.05f;
+        mesh::Material velvet{.base = {0.05f, 0.08f, 0.3f}, .roughness = 0.8f, .metallic = 0};
+        velvet.sheen = {0.8f, 0.8f, 0.8f}, velvet.sheen_roughness = 0.4f;
+        mesh::Material brushed{.base = {0.9f, 0.9f, 0.92f}, .roughness = 0.35f, .metallic = 1};
+        brushed.anisotropy = 0.8f;
+        mesh::Material filmed{.base = {0.1f, 0.1f, 0.1f}, .roughness = 0.15f, .metallic = 0};
+        filmed.iridescence = 1, filmed.film_ior = 1.3f, filmed.film_thickness = 400;
+        for (const Held& held : {Held{made[matt_grey], "matt", 0.008f}, Held{made[polished], "polished", 0.015f}, Held{made[satin], "satin", 0.015f}, Held{made[gold], "gold", 0.075f},
+                                 Held{made[iron], "iron", 0.062f}, Held{made[dull_copper], "dull-copper", 0.067f}, Held{made[roughest_copper], "roughest-copper", 0.04f},
+                                 Held{coated, "coated", 0.015f}, Held{velvet, "velvet", 0.15f}, Held{brushed, "brushed", 0.8f}, Held{filmed, "film", 0.015f}}) {
+            std::vector<mesh::Material> materials(made.begin(), made.end());
+            materials.push_back(held.material);
+            const std::uint32_t own = static_cast<std::uint32_t>(materials.size() - 1);
+            mesh::Assets assets = library().assets(true);
+            assets.materials = materials;
             scene::Scene world;
-            put(world, 1, ball, held.material, math::translation({0, 0, 0}));
+            put(world, 1, ball, own, math::translation({0, 0, 0}));
             mesh::Pass pass;
-            const Frame drawn_frame = drawn(world, camera, width, height, pass, lit_by);
+            Frame drawn_frame;
+            drawn_frame.targets.resize(width, height);
+            {
+                scene::Extracted seen;
+                scene::extract(world, camera.view(), seen);
+                mesh::Assets drawn_with = library().assets(false);
+                drawn_with.materials = materials;
+                pass.draw(world, seen, camera.view(), drawn_with, drawn_frame.targets, lit_by);
+            }
             mesh::Targets followed, other;
             followed.resize(width, height), other.resize(width, height);
-            (void)mesh::traced(world, camera.view(), library().assets(true), followed, lit_by, {.samples = 1024, .bounces = 1});
-            (void)mesh::traced(world, camera.view(), library().assets(true), other, lit_by, {.samples = 1024, .bounces = 1, .seed = 7});
+            (void)mesh::traced(world, camera.view(), assets, followed, lit_by, {.samples = 1024, .bounces = 1});
+            (void)mesh::traced(world, camera.view(), assets, other, lit_by, {.samples = 1024, .bounces = 1, .seed = 7});
             // Where the ball is, a pixel in from its rim.
             // Two followings with other rays: the product of the drawn light's distances from the two has the
             // rays' grain in neither, so its mean is the square of how far the drawn light is from the truth.

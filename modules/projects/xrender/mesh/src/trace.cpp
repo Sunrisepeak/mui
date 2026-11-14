@@ -42,6 +42,8 @@ struct Met {
     math::Vec4   uv{0, 0, 0, 0};  // the mesh's two sets of texture coordinates there
     Vec3         face;  // the normal before the surface's picture of it turned it: the side a ray leaves by
     math::Vec4   colour{1, 1, 1, 1};  // the mesh's own there (`Mesh::colours`), or white
+    Vec3         coat_normal{0, 0, 1};  // the clear coat's: the surface's own before its picture turned it
+    Vec3         drawn_out{0, 0, 0};    // the way the highlight is drawn out along (`Material::anisotropy`), or none
     // A picture's place there, as `placing` lays it.
     [[nodiscard]] Vec2 at(const Placing& placing) const noexcept { return placing.of(placing.set ? Vec2{uv.z, uv.w} : Vec2{uv.x, uv.y}); }
 };
@@ -84,16 +86,15 @@ struct Tracing {
         Vec3 normal = !mesh.normals.empty() ? mesh.normals[corner[0]] * share[0] + mesh.normals[corner[1]] * share[1] + mesh.normals[corner[2]] * share[2] : face;
         normal = math::normalized(math::direction(best->thing->normals, normal));
         if (math::dot(normal, toward) > 0) normal = normal * -1.0f;  // met from behind: the side that was met
-        best->place = from + toward * best->distance, best->normal = normal, best->face = normal;
+        best->place = from + toward * best->distance, best->normal = normal, best->face = normal, best->coat_normal = normal;
         const auto mixed = [&](const auto& values, auto part_of) { return values[corner[0]].*part_of * share[0] + values[corner[1]].*part_of * share[1] + values[corner[2]].*part_of * share[2]; };
         if (!mesh.uvs.empty()) best->uv.x = mixed(mesh.uvs, &Vec2::x), best->uv.y = mixed(mesh.uvs, &Vec2::y);
         if (!mesh.second_uvs.empty()) best->uv.z = mixed(mesh.second_uvs, &Vec2::x), best->uv.w = mixed(mesh.second_uvs, &Vec2::y);
         if (!mesh.colours.empty())
             best->colour = {mixed(mesh.colours, &math::Vec4::x), mixed(mesh.colours, &math::Vec4::y), mixed(mesh.colours, &math::Vec4::z), mixed(mesh.colours, &math::Vec4::w)};
-        // Which way the surface faces by its picture (as the pass reads it): about the mesh's tangent, or the way
-        // the surface goes as the picture's first coordinate grows over this triangle.
-        if (const Texture* picture = best->thing->normal_picture) {
-            const Placing& placing = best->thing->material.placing.normal;
+        // The way across the surface and the way up it, in the world: the mesh's tangent, or the way the picture's
+        // first and second coordinates grow over this triangle (by `placing`); none where neither is known.
+        const auto frame = [&](const Placing& placing) {
             const std::vector<Vec2>& uvs = placing.set ? mesh.second_uvs : mesh.uvs;
             Vec3 right_way{0, 0, 0}, up_way{0, 0, 0};
             if (!mesh.tangents.empty()) {
@@ -101,13 +102,20 @@ struct Tracing {
                 right_way = math::direction(best->thing->world, Vec3{one.x * share[0] + two.x * share[1] + three.x * share[2], one.y * share[0] + two.y * share[1] + three.y * share[2],
                                                                      one.z * share[0] + two.z * share[1] + three.z * share[2]});
                 up_way = math::cross(normal, right_way) * one.w;
-            } else {
+            } else if (!uvs.empty()) {
                 const Vec3 first = math::direction(best->thing->world, b - a), second = math::direction(best->thing->world, c - a);
                 const Vec2 uv_first = uvs[corner[0]], uv_second = uvs[corner[1]], uv_third = uvs[corner[2]];
                 const Vec2 first_uv = placing.moved({uv_second.x - uv_first.x, uv_second.y - uv_first.y}), second_uv = placing.moved({uv_third.x - uv_first.x, uv_third.y - uv_first.y});
                 const float turn = first_uv.x * second_uv.y - second_uv.x * first_uv.y;
                 if (turn != 0) right_way = (first * second_uv.y - second * first_uv.y) * (1.0f / turn), up_way = (second * first_uv.x - first * second_uv.x) * (1.0f / turn);
             }
+            return std::pair{right_way, up_way};
+        };
+        // Which way the surface faces by its picture (as the pass reads it): about the mesh's tangent, or the way
+        // the surface goes as the picture's first coordinate grows over this triangle.
+        if (const Texture* picture = best->thing->normal_picture) {
+            const Placing& placing = best->thing->material.placing.normal;
+            auto [right_way, up_way] = frame(placing);
             right_way = right_way - normal * math::dot(normal, right_way);
             if (math::dot(right_way, right_way) > 0) {
                 right_way = math::normalized(right_way);
@@ -118,6 +126,21 @@ struct Tracing {
                 const Vec3 turned = right_way * ((said.x * 2 - 1) * scale) + up_way * ((said.y * 2 - 1) * scale) + normal * (said.z * 2 - 1);
                 // Turned past the eye's ray it would be a side that cannot be seen: the surface's own is kept.
                 if (math::dot(turned, turned) > 0 && math::dot(turned, toward) < 0) best->normal = math::normalized(turned);
+            }
+        }
+        // The way the highlight is drawn out along: the tangent turned by the material's rotation, in the surface
+        // as its picture turned it (the pass's way; the anisotropy picture is the pass's only).
+        if (best->thing->material.anisotropy > 0) {
+            auto [right_way, up_way] = frame(best->thing->material.placing.anisotropy);
+            const Vec3 facing = best->normal;
+            right_way = right_way - facing * math::dot(facing, right_way);
+            if (math::dot(right_way, right_way) > 0) {
+                right_way = math::normalized(right_way);
+                const Vec3 other = math::cross(facing, right_way);
+                up_way = math::dot(other, up_way) < 0 ? other * -1.0f : other;
+                const double turn = static_cast<double>(best->thing->material.anisotropy_rotation);
+                const Vec3 along_way = right_way * static_cast<float>(math::det::cos(turn)) + up_way * static_cast<float>(math::det::sin(turn));
+                if (math::dot(along_way, along_way) > 0) best->drawn_out = math::normalized(along_way);
             }
         }
         return best;
@@ -205,6 +228,16 @@ struct Tracing {
         const Vec3 lifted = met->place + met->face * 2e-3f, toward_eye = toward * -1.0f;
         Vec3 arriving{0, 0, 0}, sent{0, 0, 0};  // on a matt surface the lights are summed; else each by `reflected`
         const bool matt = material.matt();
+        // A highlight drawn out along the surface (`Material::anisotropy`); a sheen (its fibres' own light, what
+        // comes from under them less by what they take of an even light); a clear coat (a layer of its own over
+        // the surface, by its own normal and roughness, mirroring 4% head on) — each as the pass has it, its light
+        // gathered along rays.
+        const bool drawn = material.anisotropy > 0 && math::dot(met->drawn_out, met->drawn_out) > 0;
+        const bool sheened = material.sheen.x > 0 || material.sheen.y > 0 || material.sheen.z > 0;
+        const float coated = std::clamp(material.clearcoat, 0.0f, 1.0f);
+        Material layer;
+        layer.base = {0, 0, 0}, layer.roughness = material.clearcoat_roughness, layer.metallic = 0;
+        Vec3 sheen{0, 0, 0}, coat{0, 0, 0};
         for (const Lamp& lamp : lamps) {
             Vec3 way = lamp.toward * -1.0f, colour = lamp.colour;
             float reach = std::numeric_limits<float>::max();
@@ -218,10 +251,14 @@ struct Tracing {
                 colour = colour * (lamp.physical ? physical_reach(lamp.range, apart) * (lamp.kind == scene::LightKind::spot ? soft_edge(lamp.cone_cosine, lamp.inner_cosine, -math::dot(way, lamp.toward)) : 1.0f)
                                                  : near * near);
             }
-            const float facing = math::dot(met->normal, way);
-            if (!(facing > 0) || !(math::dot(met->face, way) > 0) || hidden(lifted, way, reach)) continue;
-            if (matt) arriving = arriving + colour * facing;
-            else sent = sent + math::scaled(reflected(material, met->normal, toward_eye, way, facing), colour);
+            const float facing = math::dot(met->normal, way), coat_facing = coated > 0 ? math::dot(met->coat_normal, way) : 0.0f;
+            if ((!(facing > 0) && !(coat_facing > 0)) || !(math::dot(met->face, way) > 0) || hidden(lifted, way, reach)) continue;
+            if (facing > 0) {
+                if (matt) arriving = arriving + colour * facing;
+                else sent = sent + math::scaled(drawn ? reflected_drawn_out(material, met->normal, met->drawn_out, toward_eye, way, facing) : reflected(material, met->normal, toward_eye, way, facing), colour);
+                if (sheened) sheen = sheen + math::scaled(material.sheen, colour) * sheen_reflected(material.sheen_roughness, met->normal, toward_eye, way, facing);
+            }
+            if (coat_facing > 0) coat = coat + math::scaled(reflected(layer, met->coat_normal, toward_eye, way, coat_facing), colour);
         }
         // From one more way. A matt surface: about its normal, likelier the nearer it (so each way counts the same).
         // One with a highlight: either that, or — as often as it is a mirror — the way the eye's ray is thrown back
@@ -236,29 +273,55 @@ struct Tracing {
             return math::normalized(aside * (out * static_cast<float>(math::det::cos(static_cast<double>(turn)))) + other * (out * static_cast<float>(math::det::sin(static_cast<double>(turn)))) + met->normal * up);
         };
         Vec3 around{0, 0, 0}, thrown{0, 0, 0};  // what arrives for the surface's own colour; what it mirrors
+        // A highlight's lobe along rays by GGX (Smith's measure for light from all about, as the pass's picture of
+        // it): how much of light from `way` is thrown to the eye about `normal`, and how likely the lobe was to
+        // throw it so (its share of all ways).
+        struct Lobe {
+            Vec3  share;
+            float likelihood = 0;
+        };
+        const auto lobe = [&](const Material& of, Vec3 normal, Vec3 way) -> Lobe {
+            constexpr float pi = 3.14159265f;
+            const float lobe_rough = std::clamp(of.roughness, 0.04f, 1.0f), seen = math::dot(normal, toward_eye), facing = math::dot(normal, way);
+            const Vec3 half = math::normalized(toward_eye + way);
+            const float up = math::dot(normal, half), eye_half = math::dot(toward_eye, half);
+            if (!(seen > 0) || !(facing > 0) || !(up > 0) || !(eye_half > 0)) return {};
+            const float spread = lobe_rough * lobe_rough * lobe_rough * lobe_rough, under = up * up * (spread - 1.0f) + 1.0f;
+            const float faces = spread / (pi * under * under);  // how many small faces look along `half`
+            const float k = lobe_rough * lobe_rough * 0.5f;
+            const float unhidden = 1.0f / ((facing * (1.0f - k) + k) * (seen * (1.0f - k) + k));
+            const float glance = 1.0f - eye_half, glance5 = glance * glance * glance * glance * glance;
+            return {math::scaled(mirrors_at(of, glance5, seen), kept(of, seen)) * (faces * unhidden * facing * 0.25f), faces * up / (4.0f * eye_half)};
+        };
+        // A highlight drawn out: the pass's own measure (with π out, as along rays), the lobe's likelihood the
+        // round one's it is chosen by.
+        const auto drawn_lobe = [&](Vec3 way) -> Lobe {
+            const float facing = math::dot(met->normal, way);
+            if (!(facing > 0)) return {};
+            const Lobe round = lobe(material, met->normal, way);
+            // The highlight alone: the pass's whole less its matt part (a metal's colour is what it mirrors).
+            const Vec3 matt_part = material.base * ((1.0f - std::clamp(material.metallic, 0.0f, 1.0f)) * (1.0f - std::clamp(material.transmission, 0.0f, 1.0f)) * facing);
+            return {(reflected_drawn_out(material, met->normal, met->drawn_out, toward_eye, way, facing) - matt_part) * (1.0f / 3.14159265f), round.likelihood};
+        };
         if (bounces_left > 0 && picture()) {
             const float first = static_cast<float>(math::unit24(random.next())), second = static_cast<float>(math::unit24(random.next()));
             const Surroundings::Chosen asked = picture()->chosen(first, second);
-            const float facing = math::dot(met->normal, asked.way);
-            if (asked.likelihood > 0 && facing > 0 && math::dot(met->face, asked.way) > 0 && !hidden(lifted, asked.way, std::numeric_limits<float>::max())) {
+            const float facing = math::dot(met->normal, asked.way), coat_facing = coated > 0 ? math::dot(met->coat_normal, asked.way) : 0.0f;
+            if (asked.likelihood > 0 && (facing > 0 || coat_facing > 0) && math::dot(met->face, asked.way) > 0 && !hidden(lifted, asked.way, std::numeric_limits<float>::max())) {
                 constexpr float pi = 3.14159265f;
                 const Vec3 light = picture()->toward(asked.way);
-                // For the surface's own colour: facing ÷ π of the ways is how likely the surface was to ask this one.
-                sent = sent + math::scaled(colour, light) * (facing / (pi * asked.likelihood + facing));
-                const float seen = math::dot(met->normal, toward_eye);
-                if (!matt && seen > 0) {
-                    const Vec3 half = math::normalized(toward_eye + asked.way);
-                    const float up = math::dot(met->normal, half), eye_half = math::dot(toward_eye, half);
-                    if (up > 0 && eye_half > 0) {
-                        const float spread = rough * rough * rough * rough, under = up * up * (spread - 1.0f) + 1.0f;
-                        const float faces = spread / (pi * under * under);  // how many small faces look along `half`
-                        const float k = rough * rough * 0.5f;
-                        const float unhidden = 1.0f / ((facing * (1.0f - k) + k) * (seen * (1.0f - k) + k));
-                        const float glance = 1.0f - eye_half, glance5 = glance * glance * glance * glance * glance;
-                        const Mirrors ends = mirrors_of(material);
-                        const float thrown_so = faces * up / (4.0f * eye_half);  // how likely the highlight was to throw the eye's way there
-                        sent = sent + math::scaled(math::scaled(ends.head_on + (Vec3{ends.edge, ends.edge, ends.edge} - ends.head_on) * glance5, kept(material, seen)), light) * (faces * unhidden * facing * 0.25f / (asked.likelihood + thrown_so));
+                if (facing > 0) {
+                    // For the surface's own colour: facing ÷ π of the ways is how likely the surface was to ask this one.
+                    sent = sent + math::scaled(colour, light) * (facing / (pi * asked.likelihood + facing));
+                    if (sheened) sheen = sheen + math::scaled(material.sheen, light) * (sheen_reflected(material.sheen_roughness, met->normal, toward_eye, asked.way, facing) / (pi * asked.likelihood + facing));
+                    if (!matt) {
+                        const Lobe thrown_so = drawn ? drawn_lobe(asked.way) : lobe(material, met->normal, asked.way);
+                        if (thrown_so.likelihood > 0) sent = sent + math::scaled(thrown_so.share, light) * (1.0f / (asked.likelihood + thrown_so.likelihood));
                     }
+                }
+                if (coat_facing > 0) {
+                    const Lobe on_coat = lobe(layer, met->coat_normal, asked.way);
+                    if (on_coat.likelihood > 0) coat = coat + math::scaled(on_coat.share, light) * (1.0f / (asked.likelihood + on_coat.likelihood));
                 }
             }
         }
@@ -267,8 +330,14 @@ struct Tracing {
             const bool mirror = !matt && static_cast<float>(math::unit24(random.next())) < mirrors;
             const float first = static_cast<float>(math::unit24(random.next())), second = static_cast<float>(math::unit24(random.next()));
             if (!mirror) {
-                const Vec3 way = about_normal(std::sqrt(first), second * 6.2831853f, std::sqrt(std::max(1.0f - first, 0.0f)));
-                if (math::dot(met->face, way) > 0) around = along(lifted, way, bounces_left - 1, random, false, std::sqrt(std::max(1.0f - first, 0.0f)) / 3.14159265f) * (1.0f / (1.0f - mirrors));
+                const float up = std::sqrt(std::max(1.0f - first, 0.0f));
+                const Vec3 way = about_normal(std::sqrt(first), second * 6.2831853f, up);
+                if (math::dot(met->face, way) > 0) {
+                    const Vec3 light = along(lifted, way, bounces_left - 1, random, false, up / 3.14159265f) * (1.0f / (1.0f - mirrors));
+                    around = light;
+                    // The sheen's share of it: its measure over how likely the way was (facing ÷ π, π out).
+                    if (sheened && up > 0) sheen = sheen + math::scaled(material.sheen, light) * (sheen_reflected(material.sheen_roughness, met->normal, toward_eye, way, up) / up);
+                }
             } else {
                 const float spread = rough * rough * rough * rough;
                 const float up = std::sqrt((1.0f - first) / (1.0f + (spread - 1.0f) * first));
@@ -277,18 +346,45 @@ struct Tracing {
                 const Vec3 way = half * (2 * eye_half) - toward_eye;
                 const float facing = math::dot(met->normal, way);
                 if (eye_half > 0 && seen > 0 && facing > 0 && up > 0 && math::dot(met->face, way) > 0) {
-                    const float k = rough * rough * 0.5f;
+                    const float under = up * up * (spread - 1.0f) + 1.0f, chosen = spread / (3.14159265f * under * under) * up / (4.0f * eye_half);
+                    Vec3 share{0, 0, 0};
+                    if (drawn) {
+                        // Drawn out: its own measure over how likely the round lobe was to choose this way.
+                        share = drawn_lobe(way).share * (1.0f / (chosen * mirrors));
+                    } else {
+                        const float k = rough * rough * 0.5f;
+                        const float unhidden = 1.0f / ((facing * (1.0f - k) + k) * (seen * (1.0f - k) + k));
+                        const float glance = 1.0f - eye_half, glance5 = glance * glance * glance * glance * glance;
+                        share = math::scaled(mirrors_at(material, glance5, seen), kept(material, seen)) * (unhidden * facing * eye_half / up / mirrors);
+                    }
+                    thrown = math::scaled(share, along(lifted, way, bounces_left - 1, random, false, chosen));
+                }
+            }
+            // The coat's own way: one of its small faces chosen as its highlight spreads them, about its normal.
+            if (coated > 0) {
+                const float coat_rough = std::clamp(layer.roughness, 0.04f, 1.0f), spread = coat_rough * coat_rough * coat_rough * coat_rough;
+                const float pick = static_cast<float>(math::unit24(random.next())), turn = static_cast<float>(math::unit24(random.next())) * 6.2831853f;
+                const float up = std::sqrt((1.0f - pick) / (1.0f + (spread - 1.0f) * pick)), out = std::sqrt(std::max(1.0f - up * up, 0.0f));
+                const Vec3 coat_aside = math::normalized(math::cross(std::abs(met->coat_normal.y) < 0.9f ? Vec3{0, 1, 0} : Vec3{1, 0, 0}, met->coat_normal)), coat_other = math::cross(met->coat_normal, coat_aside);
+                const Vec3 half = math::normalized(coat_aside * (out * static_cast<float>(math::det::cos(static_cast<double>(turn)))) + coat_other * (out * static_cast<float>(math::det::sin(static_cast<double>(turn)))) + met->coat_normal * up);
+                const float eye_half = math::dot(toward_eye, half), seen = math::dot(met->coat_normal, toward_eye);
+                const Vec3 way = half * (2 * eye_half) - toward_eye;
+                const float facing = math::dot(met->coat_normal, way);
+                if (eye_half > 0 && seen > 0 && facing > 0 && up > 0 && math::dot(met->face, way) > 0) {
+                    const float k = coat_rough * coat_rough * 0.5f;
                     const float unhidden = 1.0f / ((facing * (1.0f - k) + k) * (seen * (1.0f - k) + k));
                     const float glance = 1.0f - eye_half, glance5 = glance * glance * glance * glance * glance;
-                    const Mirrors ends = mirrors_of(material);
-                    const Vec3 share = math::scaled(ends.head_on + (Vec3{ends.edge, ends.edge, ends.edge} - ends.head_on) * glance5, kept(material, seen)) * (unhidden * facing * eye_half / up / mirrors);
                     const float under = up * up * (spread - 1.0f) + 1.0f;
-                    thrown = math::scaled(share, along(lifted, way, bounces_left - 1, random, false, spread / (3.14159265f * under * under) * up / (4.0f * eye_half)));
+                    const Vec3 share = math::scaled(mirrors_at(layer, glance5, seen), kept(layer, seen)) * (unhidden * facing * eye_half / up);
+                    coat = coat + math::scaled(share, along(lifted, way, bounces_left - 1, random, false, spread / (3.14159265f * under * under) * up / (4.0f * eye_half)));
                 }
             }
         } else {
+            const Environment& about = options.environment.on ? options.environment : Environment{true, options.background, options.background, options.background};
             around = options.environment.on ? options.environment.falling(met->normal) : options.background;
-            if (!matt) thrown = mirrored(material, options.environment.on ? options.environment : Environment{true, options.background, options.background, options.background}, met->normal, toward_eye);
+            if (!matt) thrown = mirrored(material, about, drawn ? drawn_out_normal(material, met->normal, met->drawn_out, toward_eye) : met->normal, toward_eye);
+            if (sheened) sheen = sheen + math::scaled(material.sheen, around) * sheen_share(std::max(math::dot(met->normal, toward_eye), 0.0f), material.sheen_roughness);
+            if (coated > 0) coat = coat + mirrored(layer, about, met->coat_normal, toward_eye);
         }
         // What comes through it: the eye's ray goes on through one of its small faces (chosen as the highlight
         // spreads them, as rough as the surface bends: none at an index of 1) — out of a thin wall again at once,
@@ -314,7 +410,17 @@ struct Tracing {
             }
             come_through = math::scaled(material.base, come_through) * (lets * (1.0f - metal));
         }
-        return material.emissive + math::scaled(colour, arriving + around) + sent + thrown + come_through;
+        Vec3 under = math::scaled(colour, arriving + around) + sent + thrown + come_through;
+        if (sheened) {
+            const float brightest = std::max({material.sheen.x, material.sheen.y, material.sheen.z});
+            under = under * (1.0f - brightest * sheen_share(std::max(math::dot(met->normal, toward_eye), 0.0f), material.sheen_roughness)) + sheen;
+        }
+        if (coated > 0) {
+            // How much the coat mirrors of the eye's way (Schlick, 4% head on): that much less comes up through it.
+            const float glance = 1.0f - std::clamp(math::dot(met->coat_normal, toward_eye), 0.0f, 1.0f), glance5 = glance * glance * glance * glance * glance;
+            under = under * (1.0f - coated * (0.04f + 0.96f * glance5)) + coat * coated;
+        }
+        return material.emissive + under;
     }
 };
 

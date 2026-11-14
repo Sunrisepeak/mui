@@ -30,6 +30,7 @@ xrender.scene = { path = "../scene" }
 mlibs.math    = { path = "../../../base/math" }
 mlibs.geom    = { path = "../../../base/geom" }
 mlibs.image   = { path = "../../../base/image" }
+"mlibs.image.ktx2" = { path = "../../../base/image/ktx2" }
 mlibs.utils   = { path = "../../../base/utils" }
 mcpplibs.mwrap.cgltf         = "1.15"
 mcpplibs.mwrap.meshoptimizer = "1.3"

@@ -5,6 +5,7 @@ module xrender.asset;
 import std;
 import mcpplibs.mwrap.cgltf;
 import mlibs.image;
+import mlibs.image.ktx2;
 import mlibs.base64;
 
 namespace xrender::asset {
@@ -101,7 +102,7 @@ std::string_view mode_name(cgltf_primitive_type type) noexcept {
 }
 
 // The extensions whose data this reads, or that ask nothing more of a reader than glTF itself.
-constexpr std::array<std::string_view, 4> read_extensions{"KHR_lights_punctual", "KHR_materials_emissive_strength", "EXT_texture_webp", "KHR_mesh_quantization"};
+constexpr std::array<std::string_view, 5> read_extensions{"KHR_lights_punctual", "KHR_materials_emissive_strength", "EXT_texture_webp", "KHR_texture_basisu", "KHR_mesh_quantization"};
 // The ones without which a mesh's numbers cannot be read at all: a document that requires one is refused.
 constexpr std::array<std::string_view, 2> packed_geometry{"KHR_draco_mesh_compression", "EXT_meshopt_compression"};
 
@@ -155,9 +156,11 @@ struct Maker {
     std::uint32_t picture(const cgltf_texture_view& view, const std::string& where, mesh::Coding coding, std::string_view instead, bool covering = false) {
         const cgltf_texture& texture = *view.texture;
         const std::size_t texture_index = cgltf_texture_index(&data, &texture);
-        const cgltf_image* image = texture.image ? texture.image : texture.has_webp ? texture.webp_image : nullptr;
+        // The texture's own picture where it has one (PNG or JPEG: the document's fallback, read exactly); else the
+        // one an extension names — WebP, or KTX2 (KHR_texture_basisu).
+        const cgltf_image* image = texture.image ? texture.image : texture.has_webp ? texture.webp_image : texture.has_basisu ? texture.basisu_image : nullptr;
         if (!image) {
-            note(std::format("/textures/{}", texture_index), texture.has_basisu ? "a KTX2 picture (KHR_texture_basisu), which is not decoded yet" : "a texture with no picture", std::string(instead));
+            note(std::format("/textures/{}", texture_index), "a texture with no picture", std::string(instead));
             return mesh::Material{}.texture;
         }
         const std::size_t image_index = cgltf_image_index(&data, image);
@@ -166,7 +169,8 @@ struct Maker {
         if (made_as[as] == unasked && !std::ranges::contains(made_as, refused)) {
             made_as[as] = refused;
             const auto bytes = picture_bytes(*image, options);
-            auto decoded = bytes ? mlibs::image::decode(*bytes) : std::unexpected(bytes.error());
+            // A KTX2 file's largest picture (the texture's smaller sizes are made here, as every picture's are).
+            auto decoded = !bytes ? std::unexpected(bytes.error()) : mlibs::image::is_ktx2(*bytes) ? mlibs::image::decode_ktx2(*bytes) : mlibs::image::decode(*bytes);
             std::optional<mesh::Texture> made;
             if (decoded && as == 2)
                 for (std::size_t byte = 3; byte < decoded->rgba.size(); byte += 4) decoded->rgba[byte] = 255;
@@ -177,7 +181,7 @@ struct Maker {
             } else {
                 note(std::format("/images/{}", image_index),
                      std::format("a picture that is not read{}: {}", image->mime_type ? std::format(" ({})", image->mime_type) : std::string(), decoded ? "it has no pixels" : decoded.error()),
-                     "every material that names it is left with its own numbers alone (PNG, WebP and JPEG are read)");
+                     "every material that names it is left with its own numbers alone (PNG, WebP, JPEG and KTX2 are read)");
             }
         }
         if (std::ranges::contains(made_as, refused) || made_as[as] == unasked) return mesh::Material{}.texture;
@@ -330,7 +334,7 @@ struct Maker {
                 return std::unexpected(std::format("it requires {}, without which its meshes cannot be read; this does not unpack it (/extensionsRequired/{})", data.extensions_required[index], index));
         for (std::size_t index = 0; index < data.extensions_used_count; ++index) {
             const std::string_view name(data.extensions_used[index]);
-            if (std::ranges::contains(read_extensions, name) || name.starts_with("KHR_materials_") || name == "KHR_texture_transform" || name == "KHR_texture_basisu") continue;  // noted where used
+            if (std::ranges::contains(read_extensions, name) || name.starts_with("KHR_materials_") || name == "KHR_texture_transform") continue;  // noted where used
             bool required = false;
             for (std::size_t other = 0; other < data.extensions_required_count; ++other) required = required || name == data.extensions_required[other];
             note(std::format("/extensionsUsed/{}", index), std::format("the extension {}{}", name, required ? " (the document requires it)" : ""), "what it adds is left out");

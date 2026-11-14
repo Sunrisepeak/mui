@@ -281,6 +281,38 @@ static UTest cases{"xrender.asset", [] {
         expect(near(covering.at({0.25f, 0.75f}, 1).z, 1.0f, 1e-5f)) << "a texel half there is its own colour, whole";
     };
 
+    "a KTX2 picture (KHR_texture_basisu) is read: the texture an extension names, with no other to fall back on"_test = [] {
+        // Basis Universal's own test photograph (mlibs.image.ktx2's tests/data), beside the document.
+        const std::filesystem::path beside = std::filesystem::path(std::source_location::current().file_name()).parent_path() / "../../../../base/image/ktx2/tests/data";
+        const auto read = [&](std::string_view name) -> std::expected<std::vector<std::uint8_t>, std::string> {
+            std::ifstream in(beside / name, std::ios::binary);
+            if (!in) return std::unexpected(std::format("no {}", name));
+            return std::vector<std::uint8_t>{std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
+        };
+        const std::string text = with_uri(R"(,
+  "scenes": [{"nodes": [0]}],
+  "nodes": [{"mesh": 0}],
+  "meshes": [{"primitives": [{"attributes": {"POSITION": 0, "NORMAL": 1, "TEXCOORD_0": 2}, "indices": 3, "material": 0}]}],
+  "materials": [{"pbrMetallicRoughness": {"baseColorTexture": {"index": 0}}}],
+  "textures": [{"extensions": {"KHR_texture_basisu": {"source": 0}}}],
+  "images": [{"uri": "kodim23.ktx2", "mimeType": "image/ktx2"}],
+  "extensionsUsed": ["KHR_texture_basisu"],
+  "extensionsRequired": ["KHR_texture_basisu"])");
+        const auto model = asset::gltf(bytes_of(text), {.read = read});
+        expect(fatal(model.has_value())) << (model ? "" : model.error());
+        expect(eq(model->notes.size(), std::size_t{0})) << (model->notes.empty() ? "" : model->notes.front().where + ": " + model->notes.front().what);
+        expect(fatal(eq(model->textures.size(), std::size_t{1}) && eq(model->materials.size(), std::size_t{1}) && eq(model->materials[0].texture, 0u)));
+        const xrender::mesh::Texture& picture = model->textures[0];
+        expect(eq(picture.width, 768) && eq(picture.height, 512));
+        // A photograph: its corners are not one colour, and nothing of it is over a display's white.
+        const math::Vec3 one = picture.at({0.1f, 0.1f}, 1), other = picture.at({0.6f, 0.5f}, 1);
+        expect(gt(math::length(one - other), 0.05f)) << one.x << ' ' << other.x;
+        // A file that is cut short is a note, and the material keeps its own numbers.
+        const auto cut = asset::gltf(bytes_of(text), {.read = [&](std::string_view name) { return read(name).transform([](std::vector<std::uint8_t> bytes) { bytes.resize(bytes.size() / 2); return bytes; }); }});
+        expect(fatal(cut.has_value())) << (cut ? "" : cut.error());
+        expect(noted(*cut, "/images/0") && eq(cut->textures.size(), std::size_t{0}) && eq(cut->materials[0].texture, xrender::mesh::Material{}.texture));
+    };
+
     "strips and fans are triangles with their fronts kept; lamps have a reach"_test = [] {
         const std::string text = with_uri(R"(,
   "scenes": [{"nodes": [0, 1, 2]}],

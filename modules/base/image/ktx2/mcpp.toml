@@ -1,0 +1,31 @@
+# mlibs.image.ktx2 — KTX2 textures read (the foundation plan's M6.3 and its middleware table: KTX2 with Basis
+# Universal's codecs is the format textures travel in; glTF's KHR_texture_basisu): what a file is, its pictures
+# as pixels, and the same pictures as a GPU's own blocks. The transcoder is Basis Universal's, through its module
+# wrap (mcpplibs.mwrap.basis_universal; D-56, D-83), named in one native unit. A package of its own beside
+# mlibs.image so that the images everything shares do not carry the transcoder (D-99: dependency isolation — it
+# is several times the size of the PNG, WebP and JPEG readers together).
+[package]
+namespace   = "mlibs.image"
+name        = "ktx2"
+version     = "0.1.0"
+description = "KTX2 textures (Basis Universal's ETC1S, UASTC, ASTC and XUASTC) as pixels and as BC7, ETC2 and ASTC blocks, the same bytes everywhere"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+
+[targets.mlibs-image-ktx2]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/native/*.cpp"]
+
+[dependencies]
+mlibs.image = { path = ".." }
+mcpplibs.mwrap.basis_universal = "2.50.1"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+mlibs.utils    = { path = "../../utils" }

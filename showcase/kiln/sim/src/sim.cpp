@@ -127,7 +127,7 @@ std::expected<State, std::string> start(const Level& level) {
     auto made = rigid::MatterWorld::make(program, {.shape = {width, height}, .tile = {16, 16}, .seed = 17, .fill = "air", .flying = {.thrown = true}});
     if (!made) return std::unexpected(made.error());
     State state;
-    state.world = rigid::WorldValue(std::move(*made));
+    state.world = mlibs::simulation::Branching<rigid::MatterWorld>(std::move(*made));
     auto& world = *state.world;
     const std::array<std::pair<char, std::string_view>, 10> legend{
         {{'#', "stone"}, {'w', "wood"}, {'~', "water"}, {'s', "sand"}, {'o', "oil"}, {'l', "lava"}, {'g', "gunpowder"}, {'i', "iron"}, {'I', "ice"}, {'C', "wood"}}};

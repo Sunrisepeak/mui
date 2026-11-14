@@ -68,6 +68,20 @@ struct Options {
 };
 using EmitterId = std::uint32_t;  // 1, 2, 3 … in the order emitted
 
+// How a sound at `at` reaches a listener, by the rule `Space` plays sounds by — a step's numbers, no samples: what a
+// game's own ears use (a guard that hears a shot), the same as what reaches a player's.
+struct Reach {
+    float         distance = 0;    // m, from the middle of the head
+    float         azimuth = 0;     // degrees: 0 ahead, 90 right, −90 left, ±180 behind
+    float         elevation = 0;   // degrees: up
+    float         delay = 0;       // s
+    std::uint32_t walls = 0;       // surfaces between
+    float         through = 1;     // of its amplitude they let by
+    float         bright = 20000;  // Hz: the highest they let by whole
+    float         level = 0;       // dB against the sound's own level within `reference`: distance and walls
+};
+[[nodiscard]] Reach reach(const Listener& listener, Vec3 at, std::span<const Wall> walls, const Options& options = {}) noexcept;
+
 // What the ears heard of one sound, the last block.
 struct Heard {
     EmitterId        id = 0;
@@ -134,13 +148,6 @@ private:
     [[nodiscard]] static Vec3 where(const Emitter& emitter, double when) noexcept;
     // The sample of the sound an ear at `ear` hears at sample `now`, and how far it was when it left.
     [[nodiscard]] std::pair<double, float> heard_at(const Emitter& emitter, Vec3 ear, std::int64_t now) const noexcept;
-    // Surfaces between two places: how many, what of a sound they let by, and the highest they let by whole.
-    struct Between {
-        std::uint32_t walls = 0;
-        float         through = 1, bright = 0;
-    };
-    [[nodiscard]] Between between(Vec3 from, Vec3 to) const noexcept;
-
     Options                         options_;
     std::int32_t                    rate_ = 48000, bus_ = 0;
     std::vector<std::vector<float>> sounds_;

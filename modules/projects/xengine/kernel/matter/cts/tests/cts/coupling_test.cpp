@@ -18,7 +18,7 @@ namespace {
 
 // A world of matter as a model of mlibs.simulation: what a game's state holds. An input pushes the bodies.
 struct Model {
-    using State = bodies::WorldValue;
+    using State = mlibs::simulation::Branching<bodies::MatterWorld>;
     struct Input { float push = 0; };
     static void step(State& world, const Input& input) {
         if (input.push != 0)
@@ -215,7 +215,7 @@ static UTest cases{"matter.rigid", [] {
         made->place({8, 4, 6, 6}, *program.material("wood"));
         made->place({30, 4, 4, 4}, *program.material("iron"));
         (void)made->carve({0, 0, 48, 12});
-        mlibs::simulation::Timeline<Model> timeline(bodies::WorldValue(std::move(made)), 240, 60);
+        mlibs::simulation::Timeline<Model> timeline(mlibs::simulation::Branching<bodies::MatterWorld>(std::move(made)), 240, 60);
         const auto input_at = [](std::int64_t frame) { return Model::Input{.push = frame == 50 ? 20.0f : 0.0f}; };
         std::vector<std::uint64_t> hashes;
         for (std::int64_t frame = 0; frame < 200; ++frame) timeline.step(input_at(frame)), hashes.push_back(timeline.state()->state_hash());

@@ -60,4 +60,28 @@ UTest cases{"simulation", [] {
         expect(!authoritative(Tier{.determinism=Determinism::same_binary}));
         expect(name(Fidelity::cosmetic)=="cosmetic" && name(Determinism::cross_platform)=="cross_platform" && name(Backend::simd)=="simd");
     };
+
+    "a world that is not a value is made one: a copy is its branch, and the copies go their own ways"_test = [] {
+        struct Native {  // a native engine's world: moved, not copied; it branches
+            std::vector<int> bodies;
+            Native() = default;
+            Native(Native&&) = default;
+            Native(const Native&) = delete;
+            [[nodiscard]] std::expected<Native, std::string> branch() const {
+                Native made;
+                made.bodies = bodies;
+                return made;
+            }
+        };
+        Native first;
+        first.bodies = {1, 2, 3};
+        mlibs::simulation::Branching<Native> world(std::move(first));
+        mlibs::simulation::Branching<Native> copy = world;
+        copy->bodies.push_back(4);
+        expect(world->bodies.size() == 3u && copy->bodies.size() == 4u) << "no aliasing between copies";
+        copy = world;
+        expect(copy->bodies.size() == 3u && static_cast<bool>(copy));
+        const mlibs::simulation::Branching<Native> empty, also = empty;
+        expect(!static_cast<bool>(also));
+    };
 }};

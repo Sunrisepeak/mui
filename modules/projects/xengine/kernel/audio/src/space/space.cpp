@@ -66,29 +66,41 @@ std::size_t Space::sounding() const noexcept {
     return static_cast<std::size_t>(std::ranges::count_if(emitters_, [](const Emitter& emitter) { return emitter.active; }));
 }
 
-Space::Between Space::between(Vec3 from, Vec3 to) const noexcept {
-    std::uint32_t count = 0;
-    float through = 1, bright = highest;
-    for (const Wall& wall : walls_) {
+Reach reach(const Listener& listener, Vec3 at, std::span<const Wall> walls, const Options& options) noexcept {
+    Reach out;
+    const Vec3 forward = math::normalized(listener.forward);
+    const Vec3 right = math::normalized(math::cross(forward, listener.up));
+    const Vec3 up = math::cross(right, forward);
+    const Vec3 toward = at - listener.at;
+    out.distance = math::length(toward);
+    const Vec3 way = out.distance > 0 ? toward * (1 / out.distance) : forward;
+    const float across = math::dot(way, right), ahead = math::dot(way, forward), above = std::clamp(math::dot(way, up), -1.0f, 1.0f);
+    out.azimuth = static_cast<float>(det::atan2(across, ahead) * 180.0 / pi);
+    out.elevation = static_cast<float>(det::atan2(above, std::sqrt(std::max(0.0f, 1 - above * above))) * 180.0 / pi);
+    out.delay = out.distance / options.speed;
+    // Every surface along the way, one after another (a little past each before looking for the next).
+    out.bright = highest;
+    for (const Wall& wall : walls) {
         if (!wall.mesh || !wall.tree) continue;
         const std::optional<Mat4> back = math::inverse(wall.place);
         if (!back) continue;
-        Vec3 start = math::point(*back, from);
-        const Vec3 end = math::point(*back, to);
-        // Every surface along the way, one after another (a little past each before looking for the next).
-        while (count < options_.most_walls) {
-            const Vec3 way = end - start;
-            const float length = math::length(way);
+        Vec3 start = math::point(*back, listener.at);
+        const Vec3 end = math::point(*back, at);
+        while (out.walls < options.most_walls) {
+            const Vec3 between = end - start;
+            const float length = math::length(between);
             if (!(length > 1e-4f)) break;
-            const Vec3 along = way * (1 / length);
+            const Vec3 along = between * (1 / length);
             const auto hit = geom::meet(geom::Ray{start, along}, *wall.mesh, *wall.tree, length);
             if (!hit) break;
-            bright = count == 0 ? std::min(bright, wall.bright) : std::min(bright, wall.bright) * 0.5f;
-            ++count, through *= wall.through;
+            out.bright = out.walls == 0 ? std::min(out.bright, wall.bright) : std::min(out.bright, wall.bright) * 0.5f;
+            ++out.walls, out.through *= wall.through;
             start = start + along * (hit->distance + 1e-4f);
         }
     }
-    return {count, through, bright};
+    const float gain = options.reference / std::max(out.distance, options.reference) * out.through;
+    out.level = gain > 0 ? static_cast<float>(20.0 * det::log(gain) / det::log(10.0)) : -200.0f;
+    return out;
 }
 
 Vec3 Space::where(const Emitter& emitter, double when) noexcept {
@@ -130,7 +142,6 @@ void Space::render(std::int64_t clock, std::int32_t frames, std::span<const BusB
     // The listener's frame and ears.
     const Vec3 forward = math::normalized(listener_.forward);
     const Vec3 right = math::normalized(math::cross(forward, listener_.up));
-    const Vec3 up = math::cross(right, forward);
     const std::array<Vec3, 2> ears{listener_.at - right * listener_.head, listener_.at + right * listener_.head};
     const std::array<Vec3, 2> sides{right * -1.0f, right};
     for (Emitter& emitter : emitters_) {
@@ -144,7 +155,8 @@ void Space::render(std::int64_t clock, std::int32_t frames, std::span<const BusB
         }
         const std::vector<float>& made = sounds_[emitter.sound];
         const auto length = static_cast<std::int64_t>(made.size());
-        const auto [walls, through, bright] = between(listener_.at, emitter.at);
+        const Reach reached = reach(listener_, emitter.at, walls_, options_);
+        const float through = reached.through, bright = reached.bright;
         // Each ear at the block's end: the sample it hears, and how loud and how bright.
         std::array<Ear, 2> target{};
         for (std::size_t ear = 0; ear < 2; ++ear) {
@@ -192,21 +204,17 @@ void Space::render(std::int64_t clock, std::int32_t frames, std::span<const BusB
             out.left[static_cast<std::size_t>(frame)] += sample[0], out.right[static_cast<std::size_t>(frame)] += sample[1];
         }
         // What was heard, from where.
-        const Vec3 toward = emitter.at - listener_.at;
-        const float distance = math::length(toward);
-        const Vec3 way = distance > 0 ? toward * (1 / distance) : forward;
-        const float across = math::dot(way, right), ahead = math::dot(way, forward), above = std::clamp(math::dot(way, up), -1.0f, 1.0f);
         const double advanced = ((target[0].read - emitter.ears[0].read) + (target[1].read - emitter.ears[1].read)) * 0.5;
         heard_.push_back({.id = emitter.id,
                           .sound = emitter.sound,
                           .name = names_[emitter.sound],
                           .cause = emitter.cause,
-                          .distance = distance,
-                          .azimuth = static_cast<float>(det::atan2(across, ahead) * 180.0 / pi),
-                          .elevation = static_cast<float>(det::atan2(above, std::sqrt(std::max(0.0f, 1 - above * above))) * 180.0 / pi),
+                          .distance = reached.distance,
+                          .azimuth = reached.azimuth,
+                          .elevation = reached.elevation,
                           .delay = (target[0].distance + target[1].distance) * 0.5f / options_.speed,
                           .doppler = static_cast<float>(advanced / static_cast<double>(frames)),
-                          .walls = walls,
+                          .walls = reached.walls,
                           .left = decibels(energy[0], frames),
                           .right = decibels(energy[1], frames),
                           .arrived = target[0].read >= 0 || target[1].read >= 0});

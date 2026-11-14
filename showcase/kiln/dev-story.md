@@ -23,7 +23,7 @@ How Kiln was made, and what making it changed below it. Kiln is the vertical sli
 | The player | `xengine.playtest` | a turn of trying ahead by branching; Kiln gives it a table |
 | The game | `showcase/kiln/sim`, `headless`, `picture`, `sound` | the cat, the wand, the cavern as rows of characters; the game with no interface; its display list; its world's events handed to the mixer |
 
-- **The state is a value.** `kiln::State` holds a `WorldValue`; a copy is a branch of the whole world. The timeline, the playtest's look-ahead and a seek back are all the same thing: copies.
+- **The state is a value.** `kiln::State` holds a `mlibs::simulation::Branching<MatterWorld>` (at first a `WorldValue` of its own); a copy is a branch of the whole world. The timeline, the playtest's look-ahead and a seek back are all the same thing: copies.
 - **The game never sees the picture.** `Picture::show` takes the state as `const`. What the level calls scenery — roots by the barricade, brush on the ledge — is not in the simulation at all: where the picture has room it is simulated beside the world by the same laws and catches from the barricade's fire; where it has not it is drawn as placed. The game's checksum is the same at each of 520 frames wherever the ladders stand (D-178).
 - **No omui in the game.** `headless` links the runtime and the kernels only (lint `closure`); an agent finds it at a kernel endpoint and plays it.
 

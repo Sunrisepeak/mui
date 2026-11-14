@@ -156,6 +156,9 @@ UTest cases{"xengine.audio.space", [] {
         expect(eq(none, 0u) && eq(one, 1u) && eq(none_high, 0u) && eq(one_high, 1u));
         expect(lt(std::abs(low_down + 20), 0.5)) << "the low tone: the wall's share";
         expect(lt(high_down, low_down - 3)) << "the high one darker still";
+        // What a game's own ears are told, by the same rule: 4 m (−12.04 dB) through one wall (−20 dB).
+        const space::Reach reached = space::reach({}, {0, 0, -4}, wall);
+        expect(eq(reached.walls, 1u) && lt(std::abs(reached.level + 32.04f), 0.01f) && lt(std::abs(reached.azimuth), 0.01f) && eq(reached.bright, 1000.0f)) << reached.level;
     };
 
     "the same emissions are the same samples; heard is a block's own"_test = [] {

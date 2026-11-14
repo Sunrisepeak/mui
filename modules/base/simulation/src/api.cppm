@@ -45,6 +45,41 @@ private:
     double       owed_ = 0;   // steps owed, fractional
 };
 
+// A world that is not a value itself — a native engine's, held behind a pointer (Jolt's bodies, Detour's crowd,
+// a lattice with its bodies) — made one: a copy is the world's own `branch()` (the whole world, bit for bit), so a
+// game's state holds it and a timeline keeps it (a Model's state) with no aliasing between copies. `branch()` gives
+// `std::expected` of the world, or of a pointer to it. Empty: made so, or a copy whose branch failed.
+template <class World>
+    requires requires(const World& world) { world.branch(); }
+class Branching {
+public:
+    Branching() noexcept = default;
+    explicit Branching(World world) : world_(std::make_unique<World>(std::move(world))) {}
+    explicit Branching(std::unique_ptr<World> world) noexcept : world_(std::move(world)) {}
+    Branching(const Branching& other) { copy(other); }
+    Branching& operator=(const Branching& other) {
+        if (this != &other) copy(other);
+        return *this;
+    }
+    Branching(Branching&&) noexcept = default;
+    Branching& operator=(Branching&&) noexcept = default;
+    ~Branching() = default;
+    [[nodiscard]] explicit operator bool() const noexcept { return world_ != nullptr; }
+    [[nodiscard]] World& operator*() const noexcept { return *world_; }
+    [[nodiscard]] World* operator->() const noexcept { return world_.get(); }
+
+private:
+    void copy(const Branching& other) {
+        world_.reset();
+        if (!other.world_) return;
+        auto branch = other.world_->branch();
+        if (!branch) return;
+        if constexpr (requires { std::unique_ptr<World>(std::move(*branch)); }) world_ = std::move(*branch);
+        else world_ = std::make_unique<World>(std::move(*branch));
+    }
+    std::unique_ptr<World> world_;
+};
+
 template <class G>
 concept Model = std::copy_constructible<typename G::State> && std::is_copy_assignable_v<typename G::State> &&
                std::is_trivially_copyable_v<typename G::Input> &&

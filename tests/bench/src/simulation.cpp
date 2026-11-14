@@ -606,10 +606,10 @@ void add_simulation_benchmarks() {
             if (!program) { s.fail("the standard definition was refused"); return; }
             auto made = cavern(s, *program);
             if (!made) return;
-            const rigid::WorldValue world(std::move(made));
+            const mlibs::simulation::Branching<rigid::MatterWorld> world(std::move(made));
             std::uint64_t kept = 0;
             while (s.next()) {
-                const rigid::WorldValue branch = world;
+                const mlibs::simulation::Branching<rigid::MatterWorld> branch = world;
                 kept += static_cast<bool>(branch);
             }
             if (!kept) s.fail("the world did not branch");

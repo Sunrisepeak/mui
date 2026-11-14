@@ -44,7 +44,7 @@ struct Bolt {
 enum class Outcome : std::uint8_t { playing, won, lost };
 
 struct State {
-    rigid::WorldValue world;
+    mlibs::simulation::Branching<rigid::MatterWorld> world;
     Cat cat;
     std::vector<Bolt> bolts;
     xengine::cellular::Tile exit;

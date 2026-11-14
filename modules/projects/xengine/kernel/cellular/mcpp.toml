@@ -74,6 +74,8 @@ xengine.matter = { path = "../matter", default-features = false }
 
 [feature-deps.rigid]
 xengine.dynamics = { path = "../dynamics", features = ["rigid"] }
+# A world of matter as a value (a copy a branch): its `Branching`.
+mlibs.simulation = { path = "../../../../base/simulation" }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"

@@ -426,6 +426,60 @@ void sampling(Bench& b, Rgba tint, const std::function<Rgba(Rgba)>& tinted) {
 
 void texture_nearest(Bench& b) { sampling(b, white, [](Rgba c) { return c; }); }
 
+// Levels of a texture (TextureDesc::levels): each uploaded on its own, and read by how many texels a pixel
+// covers — one texel a pixel the first, two the second, four the third, eight the fourth — the nearer level
+// through a sampler that takes one, the two about the place mixed through one that mixes (√2 texels a pixel:
+// half the first and half the second).
+void levels(Bench& b) {
+    const std::uint32_t side = 32;
+    const std::array<Rgba, 6> colours{red, green, blue, white, Rgba{128, 128, 0, 255}, Rgba{0, 128, 128, 255}};
+    Texture image = b.must(b.d.create(TextureDesc{.format = Format::rgba8_unorm, .width = side, .height = side, .usage = TextureUsage::sampled, .label = "cts.levels", .levels = 6}),
+                           "a 32×32 texture of six levels");
+    if (b.failed()) return;
+    b.release.push_back([&b, image] { b.d.destroy(image); });
+    const Sampler one_level = b.must(b.d.create(SamplerDesc{Filter::nearest, Filter::nearest, AddressMode::clamp, AddressMode::clamp, Filter::nearest}), "a sampler taking the nearer level");
+    const Sampler two_levels = b.must(b.d.create(SamplerDesc{Filter::linear, Filter::linear, AddressMode::clamp, AddressMode::clamp, Filter::linear}), "a sampler mixing two levels");
+    if (b.failed()) return;
+    b.release.push_back([&b, one_level, two_levels] { b.d.destroy(one_level), b.d.destroy(two_levels); });
+    CommandList up;
+    std::vector<std::uint8_t> texels;
+    for (std::uint32_t level = 0; level < 6; ++level) {
+        const std::uint32_t across = level_extent(side, level);
+        texels.clear();
+        for (std::uint32_t texel = 0; texel < across * across; ++texel) texels.insert(texels.end(), colours[level].begin(), colours[level].end());
+        up.upload(image, Region{0, 0, across, across}, std::as_bytes(std::span(texels)), 0, level);
+    }
+    b.submit(up);
+    if (b.failed()) return;
+    // The target's left half and its right, each with so many texels a pixel both ways.
+    const auto halves = [&](float left_texels, float right_texels) {
+        const float wide = static_cast<float>(W) / 2, high = static_cast<float>(H);
+        const float lu = left_texels * wide / static_cast<float>(side), lv = left_texels * high / static_cast<float>(side);
+        const float ru = right_texels * wide / static_cast<float>(side), rv = right_texels * high / static_cast<float>(side);
+        return std::array<T, 12>{T{-1, 1, 0, 0}, T{0, 1, lu, 0}, T{-1, -1, 0, lv}, T{0, 1, lu, 0}, T{0, -1, lu, lv}, T{-1, -1, 0, lv},
+                                 T{0, 1, 0, 0},  T{1, 1, ru, 0}, T{0, -1, 0, rv},  T{1, 1, ru, 0}, T{1, -1, ru, rv}, T{0, -1, 0, rv}};
+    };
+    const auto drawn = [&](float left_texels, float right_texels, Sampler through) {
+        const Buffer vb = b.vertices(halves(left_texels, right_texels));
+        b.pass(LoadOp::clear, black, [&](CommandList& l) {
+            l.set_pipeline(b.textured);
+            l.bind_vertex_buffer(0, vb);
+            l.bind_texture(Stage::fragment, 0, image, through);
+            l.push_uniforms(Stage::fragment, 0, unit(white));
+            l.draw(12);
+        });
+    };
+    drawn(1, 2, one_level);
+    expect(b, b.pixels(), W, [](auto x, auto) { return x < 4 ? red : green; });
+    if (b.failed()) return;
+    drawn(4, 8, one_level);
+    expect(b, b.pixels(), W, [](auto x, auto) { return x < 4 ? blue : white; });
+    if (b.failed()) return;
+    // Between two levels: half of each, as near as the device counts the share (16 parts of a level at the coarsest).
+    drawn(std::numbers::sqrt2_v<float>, 2 * std::numbers::sqrt2_v<float>, two_levels);
+    expect(b, b.pixels(), W, [](auto x, auto) { return x < 4 ? Rgba{128, 128, 0, 255} : Rgba{0, 128, 128, 255}; }, 18);
+}
+
 // A 32-bit float texture read through a nearest sampler: a shadow map, an id kept as a float. Cleared to 1 it
 // is red over the whole target (its one channel; the others 0 and 1). The pipeline is the one `texture_nearest`
 // samples an rgba8 texture with: a backend that tells the two kinds of texture apart in a pipeline's layout
@@ -585,7 +639,7 @@ struct Case {
     mlibs::cts::Level         level = mlibs::cts::Level::exact;
 };
 constexpr auto within = mlibs::cts::Level::tolerance;  // blending and resolving round: ±1
-constexpr std::array<Case, 21> all{{
+constexpr std::array<Case, 22> all{{
     {"clear", clear},
     {"orientation", orientation},
     {"instancing", instancing},
@@ -607,6 +661,7 @@ constexpr std::array<Case, 21> all{{
     {"depth_kept", depth_kept},
     {"multisample", multisample, within},
     {"several_targets", several_targets, within},
+    {"levels", levels, within},
 }};
 
 }  // namespace

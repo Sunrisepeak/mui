@@ -112,6 +112,9 @@ std::string check(const TextureDesc& d, const Caps& caps) {
                          has(d.usage, TextureUsage::compute_write);
     if (storage && (d.format == Format::bgra8_unorm))
         return std::format("{} cannot be a storage texture (rgba8_unorm, rgba16_float, r32_float or r32_uint can)", name(d.format));
+    if (d.levels == 0 || d.levels > levels_of(d.width, d.height))
+        return std::format("a texture of {}×{} with {} levels (1 to {})", d.width, d.height, d.levels, levels_of(d.width, d.height));
+    if (d.levels > 1 && d.usage != TextureUsage::sampled) return "a texture of several levels is uploaded and sampled; nothing else";
     return {};
 }
 

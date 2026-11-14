@@ -396,7 +396,7 @@ addToLibrary({
             at = G.align(at, 256);
             for (var r = 0; r < height; ++r) stagingBytes.set(data.subarray(r * from, r * from + row), at + r * pitch);
             encoder.copyBufferToTexture({ buffer: G.staging, offset: at, bytesPerRow: pitch, rowsPerImage: height },
-                                        { texture: tex.texture, origin: { x: x, y: y } }, { width: width, height: height });
+                                        { texture: tex.texture, mipLevel: len > 9 ? w[k + 9] : 0, origin: { x: x, y: y } }, { width: width, height: height });
             at += pitch * height;
             break;
           }
@@ -606,12 +606,12 @@ addToLibrary({
   },
 
   omui_webgpu_texture__deps: ['$omuiGpu', '$UTF8ToString'],
-  omui_webgpu_texture: function (id, format, width, height, usage, samples, label) {
+  omui_webgpu_texture: function (id, format, width, height, usage, samples, levels, label) {
     var G = omuiGpu;
     try {
       var f = G.FORMATS[format];
       var texture = G.device.createTexture({
-        size: { width: width, height: height }, format: f, usage: G.textureUsage(usage, samples), sampleCount: samples, label: UTF8ToString(label),
+        size: { width: width, height: height }, format: f, usage: G.textureUsage(usage, samples), sampleCount: samples, mipLevelCount: levels, label: UTF8ToString(label),
       });
       G.textures[id] = { texture: texture, view: texture.createView(), format: f, formatIndex: format, width: width, height: height, samples: samples };
       return 1;
@@ -619,11 +619,11 @@ addToLibrary({
   },
 
   omui_webgpu_sampler__deps: ['$omuiGpu'],
-  omui_webgpu_sampler: function (id, min, mag, u, v) {
+  omui_webgpu_sampler: function (id, min, mag, u, v, between) {
     var G = omuiGpu;
     try {
       G.samplers[id] = G.device.createSampler({
-        minFilter: G.FILTERS[min], magFilter: G.FILTERS[mag], mipmapFilter: 'nearest', addressModeU: G.ADDRESS[u], addressModeV: G.ADDRESS[v],
+        minFilter: G.FILTERS[min], magFilter: G.FILTERS[mag], mipmapFilter: G.FILTERS[between], addressModeU: G.ADDRESS[u], addressModeV: G.ADDRESS[v],
       });
       return 1;
     } catch (e) { return G.fail(e); }

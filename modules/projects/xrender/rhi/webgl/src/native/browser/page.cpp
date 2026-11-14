@@ -13,8 +13,8 @@ void  omui_webgl_close();
 char* omui_webgl_name();
 char* omui_webgl_why();
 int   omui_webgl_buffer(std::uint32_t id, std::uint32_t size, std::uint32_t usage);
-int   omui_webgl_texture(std::uint32_t id, std::uint32_t format, std::uint32_t width, std::uint32_t height, std::uint32_t samples);
-int   omui_webgl_sampler(std::uint32_t id, std::uint32_t min, std::uint32_t mag, std::uint32_t u, std::uint32_t v);
+int   omui_webgl_texture(std::uint32_t id, std::uint32_t format, std::uint32_t width, std::uint32_t height, std::uint32_t samples, std::uint32_t levels);
+int   omui_webgl_sampler(std::uint32_t id, std::uint32_t min, std::uint32_t mag, std::uint32_t u, std::uint32_t v, std::uint32_t between);
 int   omui_webgl_graphics(std::uint32_t id, const std::uint32_t* words, std::uint32_t count, const std::byte* vs, std::uint32_t vs_length,
                           const std::byte* fs, std::uint32_t fs_length, const char* label);
 void  omui_webgl_destroy(std::uint32_t kind, std::uint32_t id);
@@ -53,12 +53,12 @@ void close() { omui_webgl_close(); }
 
 bool buffer(std::uint32_t id, std::uint32_t size, std::uint32_t usage) { return omui_webgl_buffer(id, size, usage) != 0; }
 
-bool texture(std::uint32_t id, std::uint32_t format, std::uint32_t width, std::uint32_t height, std::uint32_t samples) {
-    return omui_webgl_texture(id, format, width, height, samples) != 0;
+bool texture(std::uint32_t id, std::uint32_t format, std::uint32_t width, std::uint32_t height, std::uint32_t samples, std::uint32_t levels) {
+    return omui_webgl_texture(id, format, width, height, samples, levels) != 0;
 }
 
-bool sampler(std::uint32_t id, std::uint32_t min, std::uint32_t mag, std::uint32_t u, std::uint32_t v) {
-    return omui_webgl_sampler(id, min, mag, u, v) != 0;
+bool sampler(std::uint32_t id, std::uint32_t min, std::uint32_t mag, std::uint32_t u, std::uint32_t v, std::uint32_t between) {
+    return omui_webgl_sampler(id, min, mag, u, v, between) != 0;
 }
 
 bool graphics(std::uint32_t id, std::span<const std::uint32_t> words, std::span<const std::byte> vs, std::span<const std::byte> fs,

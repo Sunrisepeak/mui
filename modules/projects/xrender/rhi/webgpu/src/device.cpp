@@ -88,8 +88,8 @@ protected:
     Result<Texture> make(const TextureDesc& d) override {
         if (d.samples != 1 && d.samples != 4)
             return fail(Errc::unsupported, std::format("WebGPU multisamples 4 samples a texel, not {}", d.samples));
-        const Texture t = textures_.insert({d.format, d.width, d.height, d.usage, {}, d.samples});
-        if (!page::texture(t.index, static_cast<std::uint32_t>(d.format), d.width, d.height, static_cast<std::uint32_t>(d.usage), d.samples, d.label)) {
+        const Texture t = textures_.insert({d.format, d.width, d.height, d.usage, {}, d.samples, d.levels});
+        if (!page::texture(t.index, static_cast<std::uint32_t>(d.format), d.width, d.height, static_cast<std::uint32_t>(d.usage), d.samples, d.levels, d.label)) {
             textures_.erase(t);
             return fail(Errc::backend, std::format("WebGPU: creating a {}×{} {} texture: {}", d.width, d.height, name(d.format), page::error()));
         }
@@ -99,7 +99,7 @@ protected:
     Result<Sampler> make(const SamplerDesc& d) override {
         const Sampler s = samplers_.insert(d);
         if (!page::sampler(s.index, static_cast<std::uint32_t>(d.min), static_cast<std::uint32_t>(d.mag), static_cast<std::uint32_t>(d.u),
-                           static_cast<std::uint32_t>(d.v))) {
+                           static_cast<std::uint32_t>(d.v), static_cast<std::uint32_t>(d.between))) {
             samplers_.erase(s);
             return fail(Errc::backend, std::format("WebGPU: creating a sampler: {}", page::error()));
         }

@@ -11,8 +11,8 @@ namespace xrender::rhi::webgpu::page {
 std::expected<Adapter, std::string> device() { return std::unexpected(std::string("WebGPU is the Web's: this program runs in no page")); }
 bool suspends() { return false; }
 bool buffer(std::uint32_t, std::uint32_t, std::uint32_t, std::string_view) { return false; }
-bool texture(std::uint32_t, std::uint32_t, std::uint32_t, std::uint32_t, std::uint32_t, std::uint32_t, std::string_view) { return false; }
-bool sampler(std::uint32_t, std::uint32_t, std::uint32_t, std::uint32_t, std::uint32_t) { return false; }
+bool texture(std::uint32_t, std::uint32_t, std::uint32_t, std::uint32_t, std::uint32_t, std::uint32_t, std::uint32_t, std::string_view) { return false; }
+bool sampler(std::uint32_t, std::uint32_t, std::uint32_t, std::uint32_t, std::uint32_t, std::uint32_t) { return false; }
 bool graphics(std::uint32_t, std::span<const std::uint32_t>, std::span<const std::byte>, std::string_view, std::span<const std::byte>, std::string_view,
               std::string_view) {
     return false;

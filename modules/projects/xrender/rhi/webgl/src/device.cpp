@@ -85,8 +85,8 @@ protected:
             if ((half && !context_.color_half_float) || (single && !context_.color_float))
                 return fail(Errc::unsupported, std::format("{} renders to no {} target (EXT_color_buffer_float)", caps_.device, name(d.format)));
         }
-        const Texture t = textures_.insert({d.format, d.width, d.height, d.usage, {}, d.samples});
-        if (!page::texture(t.index, static_cast<std::uint32_t>(d.format), d.width, d.height, d.samples)) {
+        const Texture t = textures_.insert({d.format, d.width, d.height, d.usage, {}, d.samples, d.levels});
+        if (!page::texture(t.index, static_cast<std::uint32_t>(d.format), d.width, d.height, d.samples, d.levels)) {
             textures_.erase(t);
             return fail(Errc::backend, std::format("WebGL2: creating a {}×{} {} texture: {}", d.width, d.height, name(d.format), page::error()));
         }
@@ -96,7 +96,7 @@ protected:
     Result<Sampler> make(const SamplerDesc& d) override {
         const Sampler s = samplers_.insert(d);
         if (!page::sampler(s.index, static_cast<std::uint32_t>(d.min), static_cast<std::uint32_t>(d.mag), static_cast<std::uint32_t>(d.u),
-                           static_cast<std::uint32_t>(d.v))) {
+                           static_cast<std::uint32_t>(d.v), static_cast<std::uint32_t>(d.between))) {
             samplers_.erase(s);
             return fail(Errc::backend, std::format("WebGL2: creating a sampler: {}", page::error()));
         }

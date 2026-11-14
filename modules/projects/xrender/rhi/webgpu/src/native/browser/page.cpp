@@ -14,8 +14,8 @@ char* omui_webgpu_why();
 int   omui_webgpu_suspends();
 int   omui_webgpu_buffer(std::uint32_t id, std::uint32_t size, std::uint32_t usage, const char* label);
 int   omui_webgpu_texture(std::uint32_t id, std::uint32_t format, std::uint32_t width, std::uint32_t height, std::uint32_t usage,
-                          std::uint32_t samples, const char* label);
-int   omui_webgpu_sampler(std::uint32_t id, std::uint32_t min, std::uint32_t mag, std::uint32_t u, std::uint32_t v);
+                          std::uint32_t samples, std::uint32_t levels, const char* label);
+int   omui_webgpu_sampler(std::uint32_t id, std::uint32_t min, std::uint32_t mag, std::uint32_t u, std::uint32_t v, std::uint32_t between);
 int   omui_webgpu_graphics(std::uint32_t id, const std::uint32_t* words, std::uint32_t count, const std::byte* vs, std::uint32_t vs_length,
                            const char* vs_entry, const std::byte* fs, std::uint32_t fs_length, const char* fs_entry, const char* label);
 int   omui_webgpu_compute(std::uint32_t id, const std::uint32_t* words, std::uint32_t count, const std::byte* cs, std::uint32_t cs_length,
@@ -63,12 +63,12 @@ bool buffer(std::uint32_t id, std::uint32_t size, std::uint32_t usage, std::stri
 }
 
 bool texture(std::uint32_t id, std::uint32_t format, std::uint32_t width, std::uint32_t height, std::uint32_t usage, std::uint32_t samples,
-             std::string_view label) {
-    return omui_webgpu_texture(id, format, width, height, usage, samples, z(label).c_str()) != 0;
+             std::uint32_t levels, std::string_view label) {
+    return omui_webgpu_texture(id, format, width, height, usage, samples, levels, z(label).c_str()) != 0;
 }
 
-bool sampler(std::uint32_t id, std::uint32_t min, std::uint32_t mag, std::uint32_t u, std::uint32_t v) {
-    return omui_webgpu_sampler(id, min, mag, u, v) != 0;
+bool sampler(std::uint32_t id, std::uint32_t min, std::uint32_t mag, std::uint32_t u, std::uint32_t v, std::uint32_t between) {
+    return omui_webgpu_sampler(id, min, mag, u, v, between) != 0;
 }
 
 bool graphics(std::uint32_t id, std::span<const std::uint32_t> words, std::span<const std::byte> vs, std::string_view vs_entry,

@@ -70,6 +70,7 @@ Result<Submission> Device::submit(const CommandList& list) {
 Result<void> Device::read(Texture t, Region region, std::span<std::byte> out) {
     const auto d = describe(t);
     if (!d) return fail(Errc::invalid, "read: a stale texture handle");
+    if (d->levels > 1) return fail(Errc::invalid, "read: a texture of several levels is not read back");
     if (!inside(region, d->width, d->height))
         return fail(Errc::invalid, std::format("read: the region {}+{} {}×{} is not inside the {}×{} texture", region.x, region.y,
                                                region.width, region.height, d->width, d->height));
@@ -81,6 +82,7 @@ Result<void> Device::read(Texture t, Region region, std::span<std::byte> out) {
 Result<std::vector<std::byte>> Device::read(Texture t, Region region) {
     const auto d = describe(t);
     if (!d) return fail(Errc::invalid, "read: a stale texture handle");
+    if (d->levels > 1) return fail(Errc::invalid, "read: a texture of several levels is not read back");
     std::vector<std::byte> out(std::size_t{region.width} * region.height * bytes_per_pixel(d->format));
     if (auto r = read(t, region, out); !r) return std::unexpected(r.error());
     return out;
@@ -161,7 +163,10 @@ std::string validate(const CommandList& list, const Device& device) {
                     if (auto e = outside(); !e.empty()) return e;
                     auto d = texture(x.texture, TextureUsage::none, "");
                     if (!d) return d.error();
-                    if (!inside(x.region, d->width, d->height)) return at("the region is not inside the texture");
+                    if (x.level >= d->levels) return at(std::format("level {} of a texture of {}", x.level, d->levels));
+                    if (!inside(x.region, level_extent(d->width, x.level), level_extent(d->height, x.level)))
+                        return at(x.level ? std::format("the region is not inside the texture's level {} ({}×{})", x.level, level_extent(d->width, x.level), level_extent(d->height, x.level))
+                                          : std::string("the region is not inside the texture"));
                     const std::size_t row = std::size_t{x.region.width} * bytes_per_pixel(d->format);
                     const std::size_t pitch = x.row_bytes ? x.row_bytes : row;
                     if (pitch < row) return at(std::format("rows {} bytes apart, each {} long", pitch, row));
@@ -174,6 +179,7 @@ std::string validate(const CommandList& list, const Device& device) {
                     auto to = texture(x.to, TextureUsage::none, "");
                     if (!to) return to.error();
                     if (from->format != to->format) return at(std::format("from {} to {}", name(from->format), name(to->format)));
+                    if (from->levels > 1 || to->levels > 1) return at("a texture of several levels is not copied");
                     if (!inside(x.region, from->width, from->height)) return at("the region is not inside the source");
                     if (!inside({x.x, x.y, x.region.width, x.region.height}, to->width, to->height)) return at("the copy does not fit the destination");
                 } else if constexpr (std::is_same_v<T, cmd::BeginRender>) {

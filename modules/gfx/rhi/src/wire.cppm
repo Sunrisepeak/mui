@@ -12,7 +12,7 @@
 // while the list lives.
 //
 //   upload_buffer         buffer offset addr.lo addr.hi length
-//   upload_texture        texture x y width height addr.lo addr.hi length row_bytes (0: tight)
+//   upload_texture        texture x y width height addr.lo addr.hi length row_bytes (0: tight) [level, where not 0]
 //   copy_texture          from x y width height to to.x to.y
 //   begin_render          texture load clear.r clear.g clear.b clear.a resolve
 //                         depth depth.load clear_depth clear_stencil store

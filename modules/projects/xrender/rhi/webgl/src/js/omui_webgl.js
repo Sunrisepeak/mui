@@ -378,7 +378,7 @@ addToLibrary({
             break;
           }
           case O.upload_texture:
-            G.upload(G.textures[w[k]], w[k + 1], w[k + 2], w[k + 3], w[k + 4], w[k + 5], w[k + 8]);
+            G.upload(G.textures[w[k]], w[k + 1], w[k + 2], w[k + 3], w[k + 4], w[k + 5], w[k + 8], len > 9 ? w[k + 9] : 0);
             break;
           case O.copy_texture: {
             var source = G.framebuffer(w[k], NONE), destination = G.framebuffer(w[k + 5], NONE);
@@ -506,7 +506,7 @@ addToLibrary({
     },
 
     // Rows of a region from the program's memory, `pitch` bytes apart (0: tight).
-    upload: function (t, x, y, width, height, at, pitch) {
+    upload: function (t, x, y, width, height, at, pitch, level) {
       var G = omuiGl, gl = G.gl, f = t.f, bpp = f[3], row = width * bpp;
       pitch = pitch || row;
       gl.bindTexture(gl.TEXTURE_2D, t.texture);
@@ -528,7 +528,7 @@ addToLibrary({
                : type === gl.FLOAT ? new Float32Array(data.buffer, data.byteOffset)
                : new Uint32Array(data.buffer, data.byteOffset);
       var unit = type === gl.UNSIGNED_BYTE ? 1 : type === gl.HALF_FLOAT ? 2 : 4;
-      gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, width, height, gl[f[1]], type, view, offset / unit);
+      gl.texSubImage2D(gl.TEXTURE_2D, level || 0, x, y, width, height, gl[f[1]], type, view, offset / unit);
       gl.pixelStorei(gl.UNPACK_ROW_LENGTH, 0);
     },
 
@@ -630,7 +630,7 @@ addToLibrary({
   },
 
   omui_webgl_texture__deps: ['$omuiGl'],
-  omui_webgl_texture: function (id, format, width, height, samples) {
+  omui_webgl_texture: function (id, format, width, height, samples, levels) {
     var G = omuiGl, gl = G.gl;
     try {
       var f = G.FORMATS[format];
@@ -642,7 +642,7 @@ addToLibrary({
       } else {
         t.texture = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, t.texture);
-        gl.texStorage2D(gl.TEXTURE_2D, 1, gl[f[0]], width, height);
+        gl.texStorage2D(gl.TEXTURE_2D, levels, gl[f[0]], width, height);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
       }
@@ -652,11 +652,12 @@ addToLibrary({
   },
 
   omui_webgl_sampler__deps: ['$omuiGl'],
-  omui_webgl_sampler: function (id, min, mag, u, v) {
+  omui_webgl_sampler: function (id, min, mag, u, v, between) {
     var G = omuiGl, gl = G.gl;
     try {
       var s = gl.createSampler();
-      gl.samplerParameteri(s, gl.TEXTURE_MIN_FILTER, gl[G.FILTERS[min]]);
+      // Smaller than its texels: within a level as `min` says, between levels as `between` (a texture of one level has that one).
+      gl.samplerParameteri(s, gl.TEXTURE_MIN_FILTER, gl[G.FILTERS[min] + '_MIPMAP_' + G.FILTERS[between]]);
       gl.samplerParameteri(s, gl.TEXTURE_MAG_FILTER, gl[G.FILTERS[mag]]);
       gl.samplerParameteri(s, gl.TEXTURE_WRAP_S, gl[G.ADDRESS[u]]);
       gl.samplerParameteri(s, gl.TEXTURE_WRAP_T, gl[G.ADDRESS[v]]);

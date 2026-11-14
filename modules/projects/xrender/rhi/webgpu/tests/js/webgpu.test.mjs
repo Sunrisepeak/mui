@@ -191,17 +191,17 @@ test('resources by slot: usages, formats, samples; a pipeline from its words, "a
   assert.equal(c.omui_webgpu_buffer(0, 6, G.BUF.index, 'indices'), 1);
   assert.equal(gpu.calls('createBuffer')[0][1].size, 8, 'rounded up to 4 bytes');
   assert.equal(gpu.calls('createBuffer')[0][1].usage, GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST | GPUBufferUsage.INDEX);
-  assert.equal(c.omui_webgpu_texture(1, 0, 8, 8, G.TEX.color_target | G.TEX.sampled, 1, 'target'), 1);
+  assert.equal(c.omui_webgpu_texture(1, 0, 8, 8, G.TEX.color_target | G.TEX.sampled, 1, 1, 'target'), 1);
   let t = gpu.calls('createTexture').at(-1)[1];
   assert.equal(t.format, 'rgba8unorm');
   assert.equal(t.usage, GPUTextureUsage.COPY_SRC | GPUTextureUsage.COPY_DST | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT);
-  c.omui_webgpu_texture(2, 0, 8, 8, G.TEX.color_target, 4, 'msaa');
+  c.omui_webgpu_texture(2, 0, 8, 8, G.TEX.color_target, 4, 1, 'msaa');
   t = gpu.calls('createTexture').at(-1)[1];
   assert.equal(t.sampleCount, 4);
   assert.equal(t.usage, GPUTextureUsage.RENDER_ATTACHMENT, 'a multisampled target is only rendered to');
-  c.omui_webgpu_texture(3, 0, 8, 8, G.TEX.compute_write, 1, 'written');
+  c.omui_webgpu_texture(3, 0, 8, 8, G.TEX.compute_write, 1, 1, 'written');
   assert.ok(gpu.calls('createTexture').at(-1)[1].usage & GPUTextureUsage.STORAGE_BINDING);
-  c.omui_webgpu_sampler(0, 0, 1, 1, 2);
+  c.omui_webgpu_sampler(0, 0, 1, 1, 2, 0);
   same((gpu.calls('createSampler')[0][1]),
                    { minFilter: 'nearest', magFilter: 'linear', mipmapFilter: 'nearest', addressModeU: 'repeat', addressModeV: 'mirror-repeat' });
 
@@ -239,9 +239,9 @@ test('a submission is one command encoder: uploads staged and copied in the list
   const { context: c, G, gpu } = await load();
   const heap = new Heap(c);
   c.omui_webgpu_buffer(0, 64, G.BUF.vertex, 'quad');
-  c.omui_webgpu_texture(0, 0, 8, 8, G.TEX.color_target, 1, 'target');
-  c.omui_webgpu_texture(1, 2, 3, 2, G.TEX.sampled, 1, 'mask');
-  c.omui_webgpu_sampler(0, 0, 0, 0, 0);
+  c.omui_webgpu_texture(0, 0, 8, 8, G.TEX.color_target, 1, 1, 'target');
+  c.omui_webgpu_texture(1, 2, 3, 2, G.TEX.sampled, 1, 1, 'mask');
+  c.omui_webgpu_sampler(0, 0, 0, 0, 0, 0);
   const vs = 'v', fs = 'f';
   c.omui_webgpu_graphics(0, heap.words(quadWords()), quadWords().length, heap.text(vs), 1, 'quad_vs', heap.text(fs), 1, 'quad_fs', 'quad');
   gpu.log = [];
@@ -308,9 +308,9 @@ test('a submission is one command encoder: uploads staged and copied in the list
 test('multisampled targets resolve and drop their samples; depth is cleared, kept when asked', async () => {
   const { context: c, G, gpu } = await load();
   const heap = new Heap(c);
-  c.omui_webgpu_texture(0, 0, 8, 8, G.TEX.color_target, 4, 'msaa');
-  c.omui_webgpu_texture(1, 0, 8, 8, G.TEX.color_target | G.TEX.sampled, 1, 'resolved');
-  c.omui_webgpu_texture(2, 7, 8, 8, G.TEX.depth_target, 4, 'depth');
+  c.omui_webgpu_texture(0, 0, 8, 8, G.TEX.color_target, 4, 1, 'msaa');
+  c.omui_webgpu_texture(1, 0, 8, 8, G.TEX.color_target | G.TEX.sampled, 1, 1, 'resolved');
+  c.omui_webgpu_texture(2, 7, 8, 8, G.TEX.depth_target, 4, 1, 'depth');
   const w = wire(G).begin_render(0, G.LOAD.clear, [0, 0, 0, 0], 1, 2, G.LOAD.clear, 0.5, 1).end_render().words;
   assert.equal(c.omui_webgpu_run(heap.words(w), w.length), 1);
   const d = gpu.calls('beginRenderPass')[0][1];
@@ -324,9 +324,9 @@ test('multisampled targets resolve and drop their samples; depth is cleared, kep
 test('several colour targets: a pipeline\'s targets after the first from its words, a pass\'s attachments each cleared its own way', async () => {
   const { context: c, G, gpu } = await load();
   const heap = new Heap(c);
-  c.omui_webgpu_texture(0, 0, 8, 8, G.TEX.color_target | G.TEX.sampled, 1, 'first');
-  c.omui_webgpu_texture(1, 0, 8, 8, G.TEX.color_target | G.TEX.sampled, 1, 'second');
-  c.omui_webgpu_texture(2, 4, 8, 8, G.TEX.color_target | G.TEX.sampled, 1, 'third');
+  c.omui_webgpu_texture(0, 0, 8, 8, G.TEX.color_target | G.TEX.sampled, 1, 1, 'first');
+  c.omui_webgpu_texture(1, 0, 8, 8, G.TEX.color_target | G.TEX.sampled, 1, 1, 'second');
+  c.omui_webgpu_texture(2, 4, 8, 8, G.TEX.color_target | G.TEX.sampled, 1, 1, 'third');
   // Two more after the quad's: rgba8 blending premultiplied, r32_float replacing.
   const three = [...quadWords(), 2, 0, 1, 1, 7, 0, 1, 7, 0, 4, 0, 1, 0, 0, 1, 0, 0];
   const vs = 'vertex code', fs = 'fragment code';
@@ -350,10 +350,29 @@ test('several colour targets: a pipeline\'s targets after the first from its wor
     ['third', 'load', 'store', { r: 7.5, g: 0, b: 0, a: 0 }]]);
 });
 
+test('levels of a texture: made with them all, an upload to the one it names, the sampler\'s filter between them', async () => {
+  const { context: c, G, gpu } = await load();
+  const heap = new Heap(c);
+  c.omui_webgpu_texture(0, 0, 8, 4, G.TEX.sampled, 1, 4, 'levels');
+  assert.equal(gpu.calls('createTexture')[0][1].mipLevelCount, 4);
+  c.omui_webgpu_texture(1, 0, 8, 4, G.TEX.sampled, 1, 1, 'one');
+  assert.equal(gpu.calls('createTexture')[1][1].mipLevelCount, 1);
+  c.omui_webgpu_sampler(0, 0, 1, 0, 0, 1);
+  c.omui_webgpu_sampler(1, 1, 1, 0, 0, 0);
+  same(gpu.calls('createSampler').map((x) => [x[1].minFilter, x[1].mipmapFilter]), [['nearest', 'linear'], ['linear', 'nearest']]);
+  const texels = heap.bytes(Array.from({ length: 8 }, (_, i) => i));
+  const O = G.OP;
+  // Level 2 is 2 × 1: the word after the row's pitch names it; without it, level 0.
+  const w = [O.upload_texture | (10 << 8), 0, 0, 0, 2, 1, texels, 0, 8, 0, 2, O.upload_texture | (9 << 8), 0, 0, 0, 2, 1, texels, 0, 8, 0];
+  assert.equal(c.omui_webgpu_run(heap.words(w), w.length), 1);
+  same(gpu.calls('copyBufferToTexture').map((x) => [x[2].mipLevel, x[2].origin, x[3]]),
+       [[2, { x: 0, y: 0 }, { width: 2, height: 1 }], [0, { x: 0, y: 0 }, { width: 2, height: 1 }]]);
+});
+
 test('a compute pass: what it writes in group 1, its uniforms in group 2, the work groups', async () => {
   const { context: c, G, gpu } = await load();
   const heap = new Heap(c);
-  c.omui_webgpu_texture(0, 0, 8, 8, G.TEX.compute_write, 1, 'out');
+  c.omui_webgpu_texture(0, 0, 8, 8, G.TEX.compute_write, 1, 1, 'out');
   c.omui_webgpu_buffer(0, 256, G.BUF.compute_write, 'values');
   const cs = 'compute code';
   c.omui_webgpu_compute(0, heap.words([0, 0, 0, 1, 1, 1]), 6, heap.text(cs), cs.length, 'pattern', 'pattern');
@@ -369,13 +388,13 @@ test('a compute pass: what it writes in group 1, its uniforms in group 2, the wo
 
 test('waiting and reading back: -1 where the program cannot suspend; rows packed where it can', async () => {
   const plainLib = await load();
-  plainLib.context.omui_webgpu_texture(0, 0, 4, 4, plainLib.G.TEX.sampled, 1, 't');
+  plainLib.context.omui_webgpu_texture(0, 0, 4, 4, plainLib.G.TEX.sampled, 1, 1, 't');
   assert.equal(plainLib.context.omui_webgpu_wait(), -1);
   assert.equal(plainLib.context.omui_webgpu_read_texture(0, 0, 0, 4, 4, 0), -1);
 
   const { context: c, G, gpu } = await load({ asyncify: true });
   assert.equal(c.omui_webgpu_suspends(), 1);
-  c.omui_webgpu_texture(0, 0, 4, 4, G.TEX.sampled, 1, 't');
+  c.omui_webgpu_texture(0, 0, 4, 4, G.TEX.sampled, 1, 1, 't');
   assert.equal(await c.omui_webgpu_wait(), 1);
   assert.equal(gpu.calls('onSubmittedWorkDone').length, 1);
   const out = 8192;
@@ -425,7 +444,7 @@ test('present: the frame drawn over the canvas, nearest at the same size; nothin
   assert.equal(c.omui_webgpu_canvas('#canvas'), 1);
   assert.equal(context2.configured.format, 'bgra8unorm');
   assert.equal(context2.configured.alphaMode, 'premultiplied');
-  c.omui_webgpu_texture(0, 0, 8, 8, G.TEX.sampled | G.TEX.color_target, 1, 'frame');
+  c.omui_webgpu_texture(0, 0, 8, 8, G.TEX.sampled | G.TEX.color_target, 1, 1, 'frame');
   assert.equal(c.omui_webgpu_present(0), 1);
   const p = gpu.calls('createRenderPipeline').at(-1)[1];
   assert.equal(p.fragment.targets[0].format, 'bgra8unorm');

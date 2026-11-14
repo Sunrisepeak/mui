@@ -51,12 +51,12 @@ void CommandList::upload(Buffer buffer, std::uint32_t offset, std::span<const st
     commands_.emplace_back(cmd::UploadBuffer{buffer, offset, own(data)});
 }
 
-void CommandList::upload(Texture texture, Region region, std::span<const std::byte> data, std::uint32_t row_bytes) {
-    commands_.emplace_back(cmd::UploadTexture{texture, region, own(data), row_bytes});
+void CommandList::upload(Texture texture, Region region, std::span<const std::byte> data, std::uint32_t row_bytes, std::uint32_t level) {
+    commands_.emplace_back(cmd::UploadTexture{texture, region, own(data), row_bytes, level});
 }
 
-void CommandList::upload_borrowed(Texture texture, Region region, std::span<const std::byte> data, std::uint32_t row_bytes) {
-    commands_.emplace_back(cmd::UploadTexture{texture, region, data, row_bytes});
+void CommandList::upload_borrowed(Texture texture, Region region, std::span<const std::byte> data, std::uint32_t row_bytes, std::uint32_t level) {
+    commands_.emplace_back(cmd::UploadTexture{texture, region, data, row_bytes, level});
 }
 
 void CommandList::copy(Texture from, Region region, Texture to, std::uint32_t x, std::uint32_t y) {
@@ -125,6 +125,7 @@ std::uint64_t CommandList::hash() const noexcept {
                     handle(f, x.buffer), f.value(x.offset), f.span(x.data);
                 } else if constexpr (std::is_same_v<T, cmd::UploadTexture>) {
                     handle(f, x.texture), region(f, x.region), f.span(x.data), f.value(x.row_bytes);
+                    if (x.level) f.value(x.level);  // level 0 hashes as a texture of one level always has
                 } else if constexpr (std::is_same_v<T, cmd::CopyTexture>) {
                     handle(f, x.from), region(f, x.region), handle(f, x.to), f.value(x.x), f.value(x.y);
                 } else if constexpr (std::is_same_v<T, cmd::BeginRender>) {

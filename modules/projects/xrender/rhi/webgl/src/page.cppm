@@ -28,8 +28,9 @@ enum class Kind : std::uint32_t { buffer, texture, sampler, graphics, compute };
 
 // Each false: the page failed (error() says why).
 bool buffer(std::uint32_t id, std::uint32_t size, std::uint32_t usage);
-bool texture(std::uint32_t id, std::uint32_t format, std::uint32_t width, std::uint32_t height, std::uint32_t samples);
-bool sampler(std::uint32_t id, std::uint32_t min, std::uint32_t mag, std::uint32_t u, std::uint32_t v);
+bool texture(std::uint32_t id, std::uint32_t format, std::uint32_t width, std::uint32_t height, std::uint32_t samples, std::uint32_t levels);
+// `between`: the filter between a texture's levels.
+bool sampler(std::uint32_t id, std::uint32_t min, std::uint32_t mag, std::uint32_t u, std::uint32_t v, std::uint32_t between);
 // `words`: the pipeline's (rhi::wire::encode); the code ESSL.
 bool graphics(std::uint32_t id, std::span<const std::uint32_t> words, std::span<const std::byte> vs, std::span<const std::byte> fs,
               std::string_view label);

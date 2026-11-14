@@ -54,6 +54,7 @@ void encode(const CommandList& list, std::vector<std::uint32_t>& out) {
                     w.h(x.buffer), w.u(x.offset), w.payload(x.data);
                 } else if constexpr (std::is_same_v<T, cmd::UploadTexture>) {
                     w.h(x.texture), w.region(x.region), w.payload(x.data), w.u(x.row_bytes);
+                    if (x.level) w.u(x.level);  // a level after the first: one word more (a reader stops by the command's length)
                 } else if constexpr (std::is_same_v<T, cmd::CopyTexture>) {
                     w.h(x.from), w.region(x.region), w.h(x.to), w.u(x.x), w.u(x.y);
                 } else if constexpr (std::is_same_v<T, cmd::BeginRender>) {

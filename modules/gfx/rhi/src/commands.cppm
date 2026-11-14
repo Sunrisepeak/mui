@@ -43,7 +43,7 @@ namespace cmd {
 // Outside passes.
 struct UploadBuffer  { Buffer buffer; std::uint32_t offset = 0; std::span<const std::byte> data; };
 // Rows of `region` from `data`, `row_bytes` apart (0: tightly packed).
-struct UploadTexture { Texture texture; Region region; std::span<const std::byte> data; std::uint32_t row_bytes = 0; };
+struct UploadTexture { Texture texture; Region region; std::span<const std::byte> data; std::uint32_t row_bytes = 0; std::uint32_t level = 0; };  // region: of that level
 struct CopyTexture   { Texture from; Region region; Texture to; std::uint32_t x = 0, y = 0; };
 
 // Render passes.
@@ -92,12 +92,13 @@ public:
     CommandList& operator=(CommandList&&) noexcept = default;
 
     void upload(Buffer buffer, std::uint32_t offset, std::span<const std::byte> data);
-    void upload(Texture texture, Region region, std::span<const std::byte> data, std::uint32_t row_bytes = 0);
+    // `level`: which of the texture's levels (TextureDesc::levels) the region is of.
+    void upload(Texture texture, Region region, std::span<const std::byte> data, std::uint32_t row_bytes = 0, std::uint32_t level = 0);
     // As upload, the bytes not copied into the list: read where they are when
     // the list is submitted, so they must stay as they are until then (an
     // image's pixels the caller holds through the submission — megabytes a
     // frame not copied twice).
-    void upload_borrowed(Texture texture, Region region, std::span<const std::byte> data, std::uint32_t row_bytes = 0);
+    void upload_borrowed(Texture texture, Region region, std::span<const std::byte> data, std::uint32_t row_bytes = 0, std::uint32_t level = 0);
     template <class T>
         requires std::is_trivially_copyable_v<T>
     void upload(Buffer buffer, std::uint32_t offset, std::span<const T> data) {

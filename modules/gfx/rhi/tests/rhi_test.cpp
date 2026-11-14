@@ -49,7 +49,7 @@ public:
 
 protected:
     Result<Buffer> make(const BufferDesc& d) override { return buffers_.insert({d.size, d.usage, {}}); }
-    Result<Texture> make(const TextureDesc& d) override { return textures_.insert({d.format, d.width, d.height, d.usage, {}, d.samples}); }
+    Result<Texture> make(const TextureDesc& d) override { return textures_.insert({d.format, d.width, d.height, d.usage, {}, d.samples, d.levels}); }
     Result<Sampler> make(const SamplerDesc& d) override { return samplers_.insert(d); }
     Result<GraphicsPipeline> make(const GraphicsPipelineDesc& d) override {
         GraphicsPipelineInfo info{counts(*d.vertex), counts(*d.fragment), static_cast<std::uint32_t>(d.vertex_buffers.size()), d.target, d.depth_target, d.samples, {}, 0};
@@ -394,6 +394,51 @@ UTest cases{"rhi", [] {
         const std::array<MoreTarget, 2> alike{MoreTarget{Format::rgba8_unorm, Blend::replace()}, MoreTarget{Format::r32_float, Blend::replace()}};
         expect(sc.d.create(GraphicsPipelineDesc{.vertex = &vs, .fragment = &fs, .blend = Blend::replace(), .more_targets = alike}).has_value());
         sc.d.caps_.independent_blend = true;
+    };
+
+    "levels of a texture: as many as its size has, uploaded a level at a time and sampled, nothing else"_test = [] {
+        Recorder d;
+        using U = TextureUsage;
+        expect(eq(levels_of(32, 32), 6u) && eq(levels_of(8, 4), 4u) && eq(levels_of(1, 1), 1u) && eq(levels_of(5, 3), 3u));
+        expect(eq(level_extent(8, 1), 4u) && eq(level_extent(8, 3), 1u) && eq(level_extent(8, 5), 1u) && eq(level_extent(5, 1), 2u));
+        const auto said = [&](const TextureDesc& desc) {
+            const auto made = d.create(desc);
+            return made ? std::string("made") : made.error().message;
+        };
+        expect(eq(said({.width = 8, .height = 4, .levels = 0}), std::string("a texture of 8×4 with 0 levels (1 to 4)")));
+        expect(eq(said({.width = 8, .height = 4, .levels = 5}), std::string("a texture of 8×4 with 5 levels (1 to 4)")));
+        expect(eq(said({.width = 8, .height = 4, .usage = U::sampled | U::color_target, .levels = 2}), std::string("a texture of several levels is uploaded and sampled; nothing else")));
+        const auto made = d.create(TextureDesc{.width = 8, .height = 4, .levels = 4});
+        expect(fatal(made.has_value()));
+        expect(eq(d.describe(*made)->levels, 4u));
+        const Texture plain = *d.create(TextureDesc{.width = 8, .height = 4});
+        const std::array<std::byte, 8 * 4 * 4> texels{};
+        const auto refused = [&](auto&& record) {
+            CommandList list;
+            record(list);
+            const auto submitted = d.submit(list);
+            return submitted ? std::string("taken") : submitted.error().message;
+        };
+        // Level 2 of 8 × 4 is 2 × 1.
+        expect(eq(refused([&](CommandList& list) { list.upload(*made, Region{0, 0, 2, 1}, std::span(texels).first(8), 0, 2); }), std::string("taken")));
+        expect(eq(refused([&](CommandList& list) { list.upload(*made, Region{0, 0, 4, 2}, std::span(texels).first(32), 0, 2); }),
+                  std::string("command 0 (upload_texture): the region is not inside the texture's level 2 (2×1)")));
+        expect(eq(refused([&](CommandList& list) { list.upload(*made, Region{0, 0, 1, 1}, std::span(texels).first(4), 0, 4); }),
+                  std::string("command 0 (upload_texture): level 4 of a texture of 4")));
+        expect(eq(refused([&](CommandList& list) { list.copy(*made, Region{0, 0, 8, 4}, plain); }), std::string("command 0 (copy_texture): a texture of several levels is not copied")));
+        const auto read = d.read(*made, Region{0, 0, 8, 4});
+        expect(!read && eq(read.error().message, std::string("read: a texture of several levels is not read back")));
+        // Level 0 is said as it always was: the same hash, the same words; a level after it is one word more.
+        CommandList before, first, third;
+        before.upload(plain, Region{0, 0, 2, 1}, std::span(texels).first(8));
+        first.upload(plain, Region{0, 0, 2, 1}, std::span(texels).first(8), 0, 0);
+        third.upload(*made, Region{0, 0, 2, 1}, std::span(texels).first(8), 0, 2);
+        expect(before.hash() == first.hash());
+        std::vector<std::uint32_t> first_words, third_words;
+        wire::encode(first, first_words);
+        wire::encode(third, third_words);
+        expect(eq(third_words.size(), first_words.size() + 1) && eq(third_words.back(), 2u));
+        expect(eq(wire::length(first_words[0]), 9u) && eq(wire::length(third_words[0]), 10u));
     };
 
     "compute passes: outputs declared, the shader's writes covered, reads bound"_test = [] {

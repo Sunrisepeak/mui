@@ -48,7 +48,7 @@ public:
 
 protected:
     mlibs::rhi::Result<mlibs::rhi::Buffer> make(const mlibs::rhi::BufferDesc&) override { return mlibs::rhi::fail(mlibs::rhi::Errc::unsupported, "textures only"); }
-    mlibs::rhi::Result<mlibs::rhi::Texture> make(const mlibs::rhi::TextureDesc& d) override { return textures_.insert({d.format, d.width, d.height, d.usage, {}}); }
+    mlibs::rhi::Result<mlibs::rhi::Texture> make(const mlibs::rhi::TextureDesc& d) override { return textures_.insert({d.format, d.width, d.height, d.usage, {}, d.samples, d.levels}); }
     mlibs::rhi::Result<mlibs::rhi::Sampler> make(const mlibs::rhi::SamplerDesc&) override { return mlibs::rhi::fail(mlibs::rhi::Errc::unsupported, "textures only"); }
     mlibs::rhi::Result<mlibs::rhi::GraphicsPipeline> make(const mlibs::rhi::GraphicsPipelineDesc&) override { return mlibs::rhi::fail(mlibs::rhi::Errc::unsupported, "textures only"); }
     mlibs::rhi::Result<mlibs::rhi::ComputePipeline> make(const mlibs::rhi::ComputePipelineDesc&) override { return mlibs::rhi::fail(mlibs::rhi::Errc::unsupported, "textures only"); }

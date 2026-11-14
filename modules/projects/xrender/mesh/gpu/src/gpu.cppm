@@ -137,12 +137,13 @@ private:
     mlibs::rhi::Device*          device_ = nullptr;
     mlibs::rhi::GraphicsPipeline pipeline_, ids_pipeline_, sky_pipeline_, shadow_pipeline_, lamp_shadow_pipeline_, who_pipeline_, velocity_pipeline_, velocity_who_pipeline_, surface_pipeline_;
     mlibs::rhi::Sampler          nearest_;
+    mlibs::rhi::Sampler          pictures_;  // a material's picture: between texels and between levels, repeating
     mlibs::rhi::Texture          no_shadow_;  // a texel, for the map's place when there is no map
     mlibs::rhi::Buffer           cover_;  // three corners over the picture: what the sky is drawn with
     std::vector<Loaded>          meshes_;
     struct Sheet {
         mlibs::rhi::Texture texture;
-        float               width = 0, height = 0, sizes = 0, sheet_width = 1, sheet_height = 1;
+        float               width = 0, height = 0, sizes = 0;  // its finest size; how many sizes (the texture's levels)
     };
     std::vector<Sheet>           textures_;
     bool                         reversed_ = false, light_ = false;

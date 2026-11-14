@@ -319,7 +319,7 @@ protected:
         info.width = d.width;
         info.height = d.height;
         info.layer_count_or_depth = 1;
-        info.num_levels = 1;
+        info.num_levels = d.levels;
         info.sample_count = sample_count(d.samples);
         if (!SDL_GPUTextureSupportsFormat(device_, info.format, info.type, info.usage))
             return fail(Errc::unsupported, std::format("{} cannot make a {} texture for that use", caps_.device, name(d.format)));
@@ -328,18 +328,18 @@ protected:
         SDL_GPUTexture* t = SDL_CreateGPUTexture(device_, &info);
         if (!t) return fail(Errc::out_of_memory, sdl_error("creating a texture"));
         if (!d.label.empty()) SDL_SetGPUTextureName(device_, t, std::string(d.label).c_str());
-        return textures_.insert({t, {d.format, d.width, d.height, d.usage, {}, d.samples}});
+        return textures_.insert({t, {d.format, d.width, d.height, d.usage, {}, d.samples, d.levels}});
     }
 
     Result<Sampler> make(const SamplerDesc& d) override {
         SDL_GPUSamplerCreateInfo info{};
         info.min_filter = filter(d.min);
         info.mag_filter = filter(d.mag);
-        info.mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_NEAREST;
+        info.mipmap_mode = d.between == Filter::linear ? SDL_GPU_SAMPLERMIPMAPMODE_LINEAR : SDL_GPU_SAMPLERMIPMAPMODE_NEAREST;
         info.address_mode_u = address(d.u);
         info.address_mode_v = address(d.v);
         info.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
-        info.max_lod = 0;
+        info.max_lod = 32;  // every level a texture has (one: its only level)
         SDL_GPUSampler* s = SDL_CreateGPUSampler(device_, &info);
         if (!s) return fail(Errc::backend, sdl_error("creating a sampler"));
         return samplers_.insert(s);
@@ -659,6 +659,7 @@ Result<Submission> SdlDevice::run(const CommandList& list) {
                     from.rows_per_layer = x.region.height;
                     SDL_GPUTextureRegion to{};
                     to.texture = textures_.get(x.texture)->texture;
+                    to.mip_level = x.level;
                     to.x = x.region.x, to.y = x.region.y, to.w = x.region.width, to.h = x.region.height, to.d = 1;
                     if (auto* p = copy_pass()) SDL_UploadToGPUTexture(p, &from, &to, false);
                 } else if constexpr (std::is_same_v<T, cmd::CopyTexture>) {

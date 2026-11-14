@@ -52,8 +52,7 @@ struct Surface {
     float4 shadow;       // x: which lamp the map is of (−1: none); y: how far along its normal a point is lifted
                          // before it is looked up; z: how much nearer the map must say for a shadow
     float4 lamp_shadow;  // x: a face's side of the lamps' map, in texels; zw: one over the map's width and height
-    float4 picture;      // the draw's texture: xy its width and height; z how many sizes it is kept at (0: none)
-    float4 picture_sheet; // xy: one over the width and height of the sheet its sizes are laid on
+    float4 picture;      // the draw's texture: xy its width and height; z how many sizes (levels) it has (0: none)
     float4 open;         // x: over 0.5 — there is a picture of how open each pixel is; zw: one over its width and height
     Lamp   lamps[8];
 };
@@ -66,24 +65,9 @@ struct Surface {
 // The surface's own colour at this pixel: the material's, times its picture's light where it has one.
 static float3 base_colour;
 
-// A texture's light at `uv` in one of its sizes (xrender.mesh's `Texture::at`): between the four texels about
-// the place, repeating. The sizes lie on one sheet: the finest at its corner, the others in a column beside it.
-float3 picture_within(int size, float2 uv) {
-    float2 extent = surface.picture.xy;
-    float2 corner = float2(0, 0);
-    for (int smaller = 0; smaller < size; ++smaller) {
-        corner = smaller == 0 ? float2(surface.picture.x, 0) : corner + float2(0, extent.y);
-        extent = max(floor(extent * 0.5), float2(1, 1));
-    }
-    const float2 at = (uv - floor(uv)) * extent - 0.5;
-    const float2 first = floor(at), share = at - first;
-    const float2 low = first - floor(first / extent) * extent, high = (first + 1) - floor((first + 1) / extent) * extent;
-    const float2 sheet = surface.picture_sheet.xy;
-    const float3 top = lerp(picture_map.SampleLevel((corner + float2(low.x, low.y) + 0.5) * sheet, 0).rgb, picture_map.SampleLevel((corner + float2(high.x, low.y) + 0.5) * sheet, 0).rgb, share.x);
-    const float3 bottom = lerp(picture_map.SampleLevel((corner + float2(low.x, high.y) + 0.5) * sheet, 0).rgb, picture_map.SampleLevel((corner + float2(high.x, high.y) + 0.5) * sheet, 0).rgb, share.x);
-    return lerp(top, bottom, share.y);
-}
-// The size whose texels are about a pixel across, mixed with the next.
+// A texture's light at `uv` for a pixel that covers `footprint` texels of its finest size (xrender.mesh's
+// `Texture::at`): the size whose texels are about a pixel across mixed with the next — its sizes are the
+// texture's levels, read between four texels of each and between the two, repeating, in one read.
 float3 picture_at(float2 uv, float footprint) {
     const int sizes = int(surface.picture.z);
     int size = 0;
@@ -93,8 +77,7 @@ float3 picture_at(float2 uv, float footprint) {
         ++size;
     }
     const float toward_next = size + 1 < sizes ? covers - 1.0 : 0.0;
-    const float3 here = picture_within(size, uv);
-    return toward_next > 0 ? lerp(here, picture_within(size + 1, uv), toward_next) : here;
+    return picture_map.SampleLevel(uv, float(size) + toward_next).rgb;
 }
 
 // Whether something stands between a point and a lamp, by the lamp's six views about itself (a row of the

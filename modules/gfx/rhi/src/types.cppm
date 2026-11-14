@@ -185,7 +185,21 @@ struct TextureDesc {
     // Samples per texel: 1, or 2, 4, 8 for a multisampled target (rendered
     // to and resolved, never sampled; Caps::max_samples).
     std::uint32_t    samples = 1;
+    // How many levels it has: level 0 its whole size, each after it half the one before (never under 1
+    // texel a side; `levels_of` is the most a size has). A texture of several is uploaded a level at a time
+    // and sampled — the level by how many texels a pixel covers, or the one a shader names — and is
+    // nothing else: not a target, not read back, not copied.
+    std::uint32_t    levels = 1;
 };
+
+// A side of `extent` texels at `level`.
+[[nodiscard]] constexpr std::uint32_t level_extent(std::uint32_t extent, std::uint32_t level) noexcept {
+    return level >= 32 ? 1u : std::max(extent >> level, 1u);
+}
+// The most levels a texture of this size has: down to 1 × 1.
+[[nodiscard]] constexpr std::uint32_t levels_of(std::uint32_t width, std::uint32_t height) noexcept {
+    return static_cast<std::uint32_t>(std::bit_width(std::max({width, height, 1u})));
+}
 
 enum class Filter : std::uint8_t { nearest, linear };
 enum class AddressMode : std::uint8_t { clamp, repeat, mirror };
@@ -195,6 +209,8 @@ struct SamplerDesc {
     Filter      mag = Filter::linear;
     AddressMode u = AddressMode::clamp;
     AddressMode v = AddressMode::clamp;
+    // Between a texture's levels: the nearer one, or the two about the place mixed.
+    Filter      between = Filter::nearest;
 };
 
 // A rectangle of texels.

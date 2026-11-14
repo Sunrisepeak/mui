@@ -166,13 +166,13 @@ test('resources by slot: buffers by their kind, immutable textures, renderbuffer
   c.omui_webgl_buffer(1, 6, G.BUF.index);
   same(gl.calls('bindBuffer').map((x) => x[1]), ['COPY_WRITE_BUFFER', 'ELEMENT_ARRAY_BUFFER'], 'an index buffer bound as one from the start');
   same(gl.calls('bufferData').map((x) => x.slice(1)), [['COPY_WRITE_BUFFER', 64, 'DYNAMIC_DRAW'], ['ELEMENT_ARRAY_BUFFER', 6, 'DYNAMIC_DRAW']]);
-  c.omui_webgl_texture(0, 1, 8, 4, 1);
+  c.omui_webgl_texture(0, 1, 8, 4, 1, 1);
   same(gl.calls('texStorage2D')[0].slice(1), ['TEXTURE_2D', 1, 'RGBA8', 8, 4], 'bgra8 as RGBA8');
-  c.omui_webgl_texture(1, 7, 8, 4, 4);
+  c.omui_webgl_texture(1, 7, 8, 4, 4, 1);
   same(gl.calls('renderbufferStorageMultisample')[0].slice(1), ['RENDERBUFFER', 4, 'DEPTH32F_STENCIL8', 8, 4]);
-  c.omui_webgl_sampler(0, 0, 1, 1, 2);
+  c.omui_webgl_sampler(0, 0, 1, 1, 2, 0);
   same(gl.calls('samplerParameteri').map((x) => x.slice(2)),
-       [['TEXTURE_MIN_FILTER', 'NEAREST'], ['TEXTURE_MAG_FILTER', 'LINEAR'], ['TEXTURE_WRAP_S', 'REPEAT'], ['TEXTURE_WRAP_T', 'MIRRORED_REPEAT']]);
+       [['TEXTURE_MIN_FILTER', 'NEAREST_MIPMAP_NEAREST'], ['TEXTURE_MAG_FILTER', 'LINEAR'], ['TEXTURE_WRAP_S', 'REPEAT'], ['TEXTURE_WRAP_T', 'MIRRORED_REPEAT']]);
   c.omui_webgl_destroy(G.KIND.texture, 1);
   assert.equal(gl.calls('deleteRenderbuffer').length, 1);
   assert.equal(G.textures[1], null);
@@ -201,9 +201,9 @@ test('a submission in its order: uploads, a cleared pass on its framebuffer, the
   const { c, G, gl, heap } = l;
   c.omui_webgl_buffer(0, 96, G.BUF.vertex);
   c.omui_webgl_buffer(1, 24, G.BUF.vertex);
-  c.omui_webgl_texture(0, 0, 8, 8, 1);
-  c.omui_webgl_texture(1, 0, 2, 2, 1);
-  c.omui_webgl_sampler(0, 0, 0, 0, 0);
+  c.omui_webgl_texture(0, 0, 8, 8, 1, 1);
+  c.omui_webgl_texture(1, 0, 2, 2, 1, 1);
+  c.omui_webgl_sampler(0, 0, 0, 0, 0, 0);
   pipeline(l);
   gl.log = [];
   gl.raw = [];
@@ -250,9 +250,9 @@ test('several colour targets: one framebuffer of them all, each cleared its own 
   const l = opened({ gl: new FakeGl({ extensions: ['EXT_color_buffer_float', 'OES_draw_buffers_indexed'] }) });
   const { c, G, gl, heap, info } = l;
   same([...c.HEAPU32.slice((info >> 2) + 5, (info >> 2) + 7)], [4, 1], 'four draw buffers, each blending its own way');
-  c.omui_webgl_texture(0, 0, 8, 8, 1);
-  c.omui_webgl_texture(1, 0, 8, 8, 1);
-  c.omui_webgl_texture(2, 4, 8, 8, 1);
+  c.omui_webgl_texture(0, 0, 8, 8, 1, 1);
+  c.omui_webgl_texture(1, 0, 8, 8, 1, 1);
+  c.omui_webgl_texture(2, 4, 8, 8, 1, 1);
   // The quad's first target replacing; then rgba8 blending premultiplied, r32_float replacing.
   const three = [...quadWords({ blend: [0, 1, 0, 0, 1, 0, 0] }), 2, 0, 1, 1, 7, 0, 1, 7, 0, 4, 0, 1, 0, 0, 1, 0, 0];
   assert.equal(pipeline(l, three), 1);
@@ -282,8 +282,8 @@ test('several colour targets: one framebuffer of them all, each cleared its own 
   // A context without the extension says so (the device then refuses a pipeline whose targets blend differently), and asks it nothing.
   const plain = opened();
   same([...plain.c.HEAPU32.slice((plain.info >> 2) + 5, (plain.info >> 2) + 7)], [4, 0]);
-  plain.c.omui_webgl_texture(0, 0, 8, 8, 1);
-  plain.c.omui_webgl_texture(1, 0, 8, 8, 1);
+  plain.c.omui_webgl_texture(0, 0, 8, 8, 1, 1);
+  plain.c.omui_webgl_texture(1, 0, 8, 8, 1, 1);
   const alike = [...quadWords({ blend: [0, 1, 0, 0, 1, 0, 0] }), 1, 0, 0, 1, 0, 0, 1, 0, 0];
   assert.equal(pipeline(plain, alike), 1);
   const begin2 = [0, G.LOAD.clear, f(0), f(0), f(0), f(1), NONE, NONE, 0, f(1), 0, 0, 1, 1, G.LOAD.load, f(0), f(0), f(0), f(0)];
@@ -293,12 +293,29 @@ test('several colour targets: one framebuffer of them all, each cleared its own 
   assert.equal(plain.c.omui_webgl_error(), 0, 'no error');
 });
 
+test('levels of a texture: its storage of them all, an upload to the one it names, the sampler\'s filter between them', () => {
+  const l = opened();
+  const { c, G, gl, heap } = l;
+  c.omui_webgl_texture(0, 0, 8, 4, 1, 4);
+  same(gl.calls('texStorage2D')[0].slice(1), ['TEXTURE_2D', 4, 'RGBA8', 8, 4]);
+  // Nearest within a level, the two levels about the place mixed; then linear within, the nearer level.
+  c.omui_webgl_sampler(0, 0, 1, 0, 0, 1);
+  c.omui_webgl_sampler(1, 1, 1, 0, 0, 0);
+  same(gl.calls('samplerParameteri').filter((x) => x[2] === 'TEXTURE_MIN_FILTER').map((x) => x[3]), ['NEAREST_MIPMAP_LINEAR', 'LINEAR_MIPMAP_NEAREST']);
+  const texels = heap.bytes(Array.from({ length: 8 }, (_, i) => i));
+  const O = G.OP;
+  // Level 2 is 2 × 1: the word after the row's pitch names it; without it, level 0.
+  const w = [O.upload_texture | (10 << 8), 0, 0, 0, 2, 1, texels, 0, 8, 0, 2, O.upload_texture | (9 << 8), 0, 0, 0, 2, 1, texels, 0, 8, 0];
+  assert.equal(c.omui_webgl_run(heap.words(w), w.length), 1);
+  same(gl.calls('texSubImage2D').map((x) => x.slice(1, 7)), [['TEXTURE_2D', 2, 0, 0, 2, 1], ['TEXTURE_2D', 0, 0, 0, 2, 1]]);
+});
+
 test('copies and resolves read one framebuffer and draw another, both made before either is bound', () => {
   const l = opened();
   const { c, G, gl, heap } = l;
-  c.omui_webgl_texture(0, 0, 8, 8, 1);
-  c.omui_webgl_texture(1, 0, 8, 8, 1);
-  c.omui_webgl_texture(2, 0, 8, 8, 4);
+  c.omui_webgl_texture(0, 0, 8, 8, 1, 1);
+  c.omui_webgl_texture(1, 0, 8, 8, 1, 1);
+  c.omui_webgl_texture(2, 0, 8, 8, 4, 1);
   gl.log = [];
   const w = wire(G).copy_texture(0, 1, 1, 2, 2, 1, 5, 5).begin_render(2, G.LOAD.clear, [0, 0, 0, 0], 0).end_render().words;
   assert.equal(c.omui_webgl_run(heap.words(w), w.length), 1);
@@ -315,7 +332,7 @@ test('copies and resolves read one framebuffer and draw another, both made befor
 test('textures: bgra8\'s bytes swapped both ways, rows at their pitch; r8, half floats and words read back as rhi lays them', () => {
   const l = opened();
   const { c, G, gl, heap } = l;
-  c.omui_webgl_texture(0, 1, 2, 1, 1);  // bgra8
+  c.omui_webgl_texture(0, 1, 2, 1, 1, 1);  // bgra8
   const bgra = heap.bytes([10, 20, 30, 255, 40, 50, 60, 128]);
   const w = wire(G).upload_texture(0, 0, 0, 2, 1, bgra, 8).words;
   c.omui_webgl_run(heap.words(w), w.length);
@@ -326,7 +343,7 @@ test('textures: bgra8\'s bytes swapped both ways, rows at their pitch; r8, half 
   // The fake's pattern: pixel (x, y) channel k is x + 16y + k; swapped back to B G R A.
   same([...c.HEAPU8.subarray(out, out + 8)], [2, 1, 0, 3, 3, 2, 1, 4]);
   // r8 with rows 4 bytes apart: in place, the row length in texels.
-  c.omui_webgl_texture(1, 2, 3, 2, 1);
+  c.omui_webgl_texture(1, 2, 3, 2, 1, 1);
   const r8 = heap.bytes([1, 2, 3, 0, 4, 5, 6, 0]);
   const w2 = wire(G).upload_texture(1, 0, 0, 3, 2, r8, 8, 4).words;
   c.omui_webgl_run(heap.words(w2), w2.length);
@@ -337,12 +354,12 @@ test('textures: bgra8\'s bytes swapped both ways, rows at their pitch; r8, half 
   c.omui_webgl_read_texture(1, 1, 0, 2, 1, out);
   same([...c.HEAPU8.subarray(out, out + 2)], [1, 2], 'red of each RGBA');
   // rgba16f: read as floats, written as halves.
-  c.omui_webgl_texture(2, 3, 1, 1, 1);
+  c.omui_webgl_texture(2, 3, 1, 1, 1, 1);
   c.omui_webgl_read_texture(2, 0, 0, 1, 1, out);
   same([...new Uint16Array(c.HEAPU8.buffer.slice(out, out + 8))], [0, 0x1c00, 0x2000, 0x2200], '0, 1/256, 2/256, 3/256 as halves');
   same([G.half(0.5), G.half(0.25), G.half(1), G.half(0), G.half(-2), G.half(65504), G.half(1e9)], [0x3800, 0x3400, 0x3c00, 0, 0xc000, 0x7bff, 0x7c00]);
   // r32ui: RGBA_INTEGER, the red word of each.
-  c.omui_webgl_texture(3, 5, 2, 1, 1);
+  c.omui_webgl_texture(3, 5, 2, 1, 1, 1);
   c.omui_webgl_read_texture(3, 0, 0, 2, 1, out);
   same(gl.calls('readPixels').at(-1).slice(5, 7), ['RGBA_INTEGER', 'UNSIGNED_INT']);
   same([...new Uint32Array(c.HEAPU8.buffer.slice(out, out + 8))], [0, 1]);
@@ -373,7 +390,7 @@ test('present: the frame blitted onto the canvas flipped, texel for pixel at the
   const heap = new Heap(l.c);
   assert.equal(l.c.omui_webgl_open('#canvas', heap.words([0, 0, 0, 0, 0])), 1);
   const { c, gl } = l;
-  c.omui_webgl_texture(0, 0, 16, 12, 1);
+  c.omui_webgl_texture(0, 0, 16, 12, 1, 1);
   assert.equal(c.omui_webgl_present(0), 1);
   same(gl.calls('blitFramebuffer').at(-1).slice(1), [0, 0, 16, 12, 0, 12, 16, 0, 'COLOR_BUFFER_BIT', 'NEAREST'], 'flipped: GL\'s canvas is bottom-up');
   const draw = gl.calls('bindFramebuffer').find((b) => b[1] === 'DRAW_FRAMEBUFFER');

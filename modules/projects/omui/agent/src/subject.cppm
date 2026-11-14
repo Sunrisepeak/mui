@@ -49,6 +49,9 @@ public:
     [[nodiscard]] mlibs::control::Guide guide() const noexcept override { return omui::agent::guide; }
     // What `ui.state` answers, hashed: what was set in the interface — text, switches, values, scroll, focus.
     [[nodiscard]] std::uint64_t state_hash() const override;
+    // What the application names, for `find`: every node a person or an agent can act on — its role, its name
+    // and its actions — each with the request that reads it (its path is what `ui.act` takes as `node`).
+    [[nodiscard]] std::vector<mlibs::agent::Term> terms() const override;
     [[nodiscard]] std::string recorded_at() const override;  // the action journal's last entry (`ui.timeline`'s `actions`)
     void operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) override;
 

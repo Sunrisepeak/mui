@@ -16,6 +16,22 @@ InterfaceSubject::InterfaceSubject(Runtime& runtime, Protocol& protocol, Interfa
 
 std::uint64_t InterfaceSubject::state_hash() const { return mlibs::hash::fnv1a(tree_.state().json()); }
 
+std::vector<mlibs::agent::Term> InterfaceSubject::terms() const {
+    std::vector<mlibs::agent::Term> out;
+    semantic::Query interactive;
+    interactive.interactive = true;
+    for (const spec::SemanticNode& node : tree_.find(interactive)) {
+        std::string actions;
+        for (const spec::ActionDesc& action : node.actions) actions += std::format("{}{}", actions.empty() ? "" : ", ", action.name);
+        const std::string role(spec::name(node.role));
+        out.push_back({"node", node.id,
+                       std::format("A {}{}{}{}{}{}", role, node.name.empty() ? "" : " named ", node.name, node.description.empty() ? "" : ": ", node.description,
+                                   actions.empty() ? std::string() : std::format(" — actions: {}", actions)),
+                       std::format("{{\"op\":\"ui.snapshot\",\"root\":{},\"depth\":0}}", mlibs::agent::json_text(node.id))});
+    }
+    return out;
+}
+
 std::string InterfaceSubject::recorded_at() const {
     const auto journal = runtime_.action_journal();
     return journal.empty() ? std::string() : std::format("{{\"id\":{}}}", journal.back().id);

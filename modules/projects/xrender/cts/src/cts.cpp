@@ -793,6 +793,88 @@ void add(Cases& suite) {
         device->destroy(*target);
     });
 
+    // Deep magnification (D-188, plan §5.9 gap 4): content in its own coordinates under a camera's
+    // translation and scale, against the same shapes written where they land (worked out in doubles).
+    // The bound: while the magnified content is no more than 2^18 pixels across, every path of the
+    // renderer — the reference, a primitive each, the frame's run, a kept run — puts it within a
+    // sixty-fourth of a pixel of there, and within a thirteenth up to 2^20; beyond, a float's last place
+    // is what is lost (content and transforms are single precision), and the measure says how much. A
+    // drawing larger than that is divided into nodes: a canvas places each in doubles.
+    add_case(suite, "render.vector.deep-zoom", mlibs::cts::Level::tolerance, [](Bench& bench) {
+        constexpr std::uint32_t W = 160, H = 60;
+        rhi::Device* device = &bench.device;
+        auto gpu = render::GpuRenderer::create(*device); check(gpu.has_value()); if (!gpu) return;
+        auto target = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, W, H,
+            rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "test.deep-zoom"});
+        check(target.has_value()); if (!target) return;
+        Rig rig{*device, std::move(*gpu), {}, *target, {}, {}, {}};
+        const geom::Color background = geom::Color::white();
+        const double extent = 1000;  // the content's own width, in its units
+        // The worst channel difference between two images.
+        auto apart = [&](const std::vector<std::byte>& one, const std::vector<std::byte>& other) {
+            int worst = 0;
+            for (std::size_t at = 0; at < one.size(); ++at) worst = std::max(worst, std::abs(static_cast<int>(one[at]) - static_cast<int>(other[at])));
+            return worst;
+        };
+        for (const double across : {1.0e4, 262144.0, 1048576.0, 1.6e7}) {
+            const double zoom = across / extent;
+            const double middle = extent / 2, origin_x = 12.3 - middle * zoom, origin_y = 9.6 - middle * zoom;
+            // The content: a line of glyphs and a bar at its middle, a few device pixels in size.
+            render::DisplayList content, there;
+            std::array<render::Glyph, 10> run{}, landed{};
+            for (std::uint32_t index = 0; index < run.size(); ++index) {
+                run[index] = {index % 6, {static_cast<float>(index * 13.7 / zoom), 0}, index, index, 0, 0};
+                landed[index] = {index % 6, {static_cast<float>(index * 13.7), 0}, index, index, 0, 0};
+            }
+            const auto ink = render::Paint::solid(geom::Color::hex(0x0f172a));
+            content.draw_glyphs({1}, static_cast<float>(16 / zoom), {static_cast<float>(middle), static_cast<float>(middle + 20 / zoom)}, run, ink);
+            content.fill_rect({static_cast<float>(middle + 0.25 / zoom), static_cast<float>(middle + 30.5 / zoom), static_cast<float>(100.5 / zoom), static_cast<float>(6.25 / zoom)},
+                              geom::Color::hex(0x1d4ed8));
+            there.draw_glyphs({1}, 16, {12.3f, 29.6f}, landed, ink);
+            there.fill_rect({12.55f, 40.1f, 100.5f, 6.25f}, geom::Color::hex(0x1d4ed8));
+            const geom::Affine camera = geom::Affine::translate(static_cast<float>(origin_x), static_cast<float>(origin_y)) * geom::Affine::scale(static_cast<float>(zoom), static_cast<float>(zoom));
+            render::DisplayList magnified, kept;
+            magnified.push_transform(camera);
+            magnified.append(content);
+            magnified.pop_transform();
+            kept.push_transform(camera);
+            kept.append(content, 77, static_cast<std::uint64_t>(across));
+            kept.pop_transform();
+            // The reference.
+            raster::Surface cpu_there(W, H), cpu_magnified(W, H);
+            rig.cpu.render(there, cpu_there, {&rig.images, &rig.glyphs}, {.scale = 1, .background = background});
+            rig.cpu.render(magnified, cpu_magnified, {&rig.images, &rig.glyphs}, {.scale = 1, .background = background});
+            int on_cpu = 0;
+            for (std::uint32_t y = 0; y < H; ++y)
+                for (std::uint32_t x = 0; x < W; ++x) {
+                    const raster::Rgba8 one = cpu_there.at(static_cast<int>(x), static_cast<int>(y)), other = cpu_magnified.at(static_cast<int>(x), static_cast<int>(y));
+                    on_cpu = std::max({on_cpu, std::abs(one.r - other.r), std::abs(one.g - other.g), std::abs(one.b - other.b)});
+                }
+            // The device, a host's frames: where they land, a primitive each, the frame's run, a kept run.
+            auto draw = [&](const render::DisplayList& list, bool frame_glyphs) -> std::optional<std::vector<std::byte>> {
+                auto report = rig.gpu.render(list, rig.target, {&rig.images, &rig.glyphs}, {.scale = 1, .background = background, .glyph_masks = 0, .frame_glyphs = frame_glyphs});
+                if (!report) return std::nullopt;
+                rig.last = *report;
+                auto bytes = rig.d.read(rig.target, {0, 0, W, H});
+                if (!bytes) return std::nullopt;
+                return std::move(*bytes);
+            };
+            const auto gpu_there = draw(there, true), each = draw(magnified, false), framed = draw(magnified, true), held = draw(kept, true);
+            check(gpu_there && each && framed && held, "the device's frames read back");
+            if (!gpu_there || !each || !framed || !held) continue;
+            check(rig.last.glyphs_kept + rig.last.glyphs_kept_made > 0, "the kept run's glyphs were kept");
+            const int primitive = apart(*gpu_there, *each), run_of_frame = apart(*gpu_there, *framed), run_kept = apart(*gpu_there, *held);
+            if (current) current->evidence(std::format("content {:.0f} px across", across),
+                                           std::format("levels apart from where it lands — the reference {}, a primitive each {}, the frame's run {}, a kept run {}", on_cpu, primitive, run_of_frame, run_kept));
+            // A sixty-fourth of a pixel is four levels of an edge's coverage; the device's own arithmetic adds one.
+            const int allowed = across <= 262144.0 ? 5 : across <= 1048576.0 ? 20 : 255;
+            if (allowed < 255)
+                check(on_cpu <= allowed && primitive <= allowed && run_of_frame <= allowed && run_kept <= allowed,
+                      std::format("{:.0f} px across: the reference {} levels, a primitive each {}, the frame's run {}, a kept run {}", across, on_cpu, primitive, run_of_frame, run_kept));
+        }
+        device->destroy(*target);
+    });
+
     add_case(suite, "render.vector.pixelate-dpi", mlibs::cts::Level::tolerance, [](Bench& bench) {  // pixel grid units strength and identity on the real compute backend at multiple DPI
         rhi::Device* device = &bench.device;
         auto gpu = render::GpuRenderer::create(*device); check(gpu.has_value()); if (!gpu) return;

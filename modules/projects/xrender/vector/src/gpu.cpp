@@ -53,7 +53,7 @@ static_assert(sizeof(KeptGlyph) == 4 * 16);
 
 // ui.slang's Kept: where a run's space lies this frame, and the clip.
 struct KeptUniforms {
-    std::array<float, 4> across{}, origin{}, clip{};
+    std::array<float, 4> across{}, origin{}, clip{}, anchor{};
     friend bool operator==(const KeptUniforms&, const KeptUniforms&) = default;
 };
 
@@ -2070,7 +2070,21 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
             const Affine& mm = m();
             const Clip&   clip = clips.back();
             const int     flags = (clip.mask ? flag_clip_mask : 0) | static_cast<int>(clip.record) << clip_record_shift;
-            const KeptUniforms uniforms{{mm.a, mm.b, mm.c, mm.d}, {mm.e, mm.f, static_cast<float>(flags), 0}, {clip.x0, clip.y0, clip.x1, clip.y1}};
+            // The anchor: the point of the run's space under the middle of the clip, and where it lies on
+            // the device — both worked out in doubles, so the vertex stage adds a small offset to a small
+            // number however far the run's own origin is from the frame.
+            KeptUniforms uniforms{{mm.a, mm.b, mm.c, mm.d}, {mm.e, mm.f, static_cast<float>(flags), 0}, {clip.x0, clip.y0, clip.x1, clip.y1}, {}};
+            const mlibs::geom::AffineD exact = mlibs::geom::AffineD::from({mm.a, mm.b, mm.c, mm.d, mm.e, mm.f});
+            if (const auto back = exact.inverse()) {
+                const auto  under = back->apply((static_cast<double>(clip.x0) + clip.x1) / 2, (static_cast<double>(clip.y0) + clip.y1) / 2);
+                const float anchor_x = static_cast<float>(under[0]), anchor_y = static_cast<float>(under[1]);
+                if (std::isfinite(anchor_x) && std::isfinite(anchor_y)) {
+                    const auto lies = exact.apply(anchor_x, anchor_y);
+                    uniforms.anchor = {anchor_x, anchor_y, 0, 0};
+                    uniforms.origin[0] = static_cast<float>(lies[0]);
+                    uniforms.origin[1] = static_cast<float>(lies[1]);
+                }
+            }
             g.glyphs_outlined += part.count;
             if (!making) report.glyphs_kept += part.count;
             auto& draws = g.passes[current].draws;
@@ -2127,7 +2141,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                 const float top = Impl::level_top(scale * 2);
                 most = std::min(most, top / scale);
                 least = std::max(least, top / (4 * scale));
-                const Affine local = *back * pl.outline;
+                const Affine local = place(c, i, Affine{}).outline;  // the glyph in the command's space, as written
                 g.kept_staging.push_back({{local.a, local.b, local.c, local.d},
                                           {local.e, local.f, static_cast<float>(outline->first), static_cast<float>(outline->count)},
                                           {outline->bounds.x, outline->bounds.y, outline->bounds.width, outline->bounds.height},
@@ -2187,7 +2201,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
             const auto count = static_cast<std::uint32_t>(g.frame_staging.size() - first);
             if (count == 0) return true;
             const int          flags = (clip.mask ? flag_clip_mask : 0) | static_cast<int>(clip.record) << clip_record_shift;
-            const KeptUniforms uniforms{{1, 0, 0, 1}, {0, 0, static_cast<float>(flags), 0}, {clip.x0, clip.y0, clip.x1, clip.y1}};
+            const KeptUniforms uniforms{{1, 0, 0, 1}, {0, 0, static_cast<float>(flags), 0}, {clip.x0, clip.y0, clip.x1, clip.y1}, {}};
             g.glyphs_outlined += count;
             report.glyphs_framed += count;
             auto& draws = g.passes[current].draws;

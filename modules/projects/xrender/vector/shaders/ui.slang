@@ -34,8 +34,10 @@ struct KeptGlyph {
 };
 struct Kept {
     float4 across;  // the run's space → device: a, b, c, d
-    float4 origin;  // e, f; flags (the clip's mask, its record above them); -
+    float4 origin;  // where the anchor lies on the device: x, y; flags (the clip's mask, its record above them); -
     float4 clip;    // the device clip rectangle
+    float4 anchor;  // a point of the run's space near what shows: x, y — positions are taken from it, so a
+                    // deep magnification subtracts two near numbers and scales a small one (D-188)
 };
 [[vk::binding(1, 1)]] ConstantBuffer<Kept> vkept : register(b1, space1);
 
@@ -48,7 +50,8 @@ VOut ui_kept_vs(KeptGlyph i, uint vertex : SV_VertexID) {
     const float4 m = vkept.across;
     const float4 to = float4(m.x * i.across.x + m.z * i.across.y, m.y * i.across.x + m.w * i.across.y,
                              m.x * i.across.z + m.z * i.across.w, m.y * i.across.z + m.w * i.across.w);
-    const float2 at = float2(m.x * i.origin.x + m.z * i.origin.y + vkept.origin.x, m.y * i.origin.x + m.w * i.origin.y + vkept.origin.y);
+    const float2 from = i.origin.xy - vkept.anchor.xy;
+    const float2 at = float2(m.x * from.x + m.z * from.y + vkept.origin.x, m.y * from.x + m.w * from.y + vkept.origin.y);
     // Its outline's bounds there, a pixel around them (as a glyph encoded a frame has them).
     const float2 p0 = apply(to, at, i.bounds.xy), p1 = apply(to, at, i.bounds.xy + float2(i.bounds.z, 0));
     const float2 p2 = apply(to, at, i.bounds.xy + float2(0, i.bounds.w)), p3 = apply(to, at, i.bounds.xy + i.bounds.zw);

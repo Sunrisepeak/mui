@@ -468,6 +468,39 @@ Cases suite_of() {
         expect(lt(static_cast<double>(with_behind.off), 0.001 * static_cast<double>(with_behind.compared)));
         expect(lt(with_behind.mean, 0.1));
         expect(gt(other_than_bare, std::size_t{1000}));
+        // A ball of brushed steel before the yard: its highlight drawn out, what it mirrors of the picture asked
+        // along its lobe 64 ways (xrender.mesh's `mirrored_drawn_out`), on the device as in the reference.
+        Yard brushed(true, true);
+        brushed.materials.push_back({.base = {0.9f, 0.9f, 0.92f}, .roughness = 0.3f, .metallic = 1, .anisotropy = 0.8f, .anisotropy_rotation = 0.3f});
+        expect(brushed.world.add({.id = 50, .mesh = 2, .material = static_cast<std::uint32_t>(brushed.materials.size() - 1), .world = math::Transform{{1.2f, -0.1f, 2.0f}, {}, {0.8f, 0.8f, 0.8f}}.matrix(),
+                                  .bounds = geom::bounds(brushed.made[2].mesh)})
+                   .has_value());
+        const auto steel = both(*device, brushed, lit_by, &*surroundings);
+        if (!steel) return;
+        keep(steel->device, "yard-about-brushed");
+        std::vector<std::byte> steel_reference(steel->reference.colour.size());
+        std::memcpy(steel_reference.data(), steel->reference.colour.data(), steel->reference.colour.size());
+        keep(steel_reference, "yard-about-brushed-reference");
+        const Apart with_steel = apart(steel->reference, steel->device, false, 6);
+        std::size_t steel_seen = 0, steel_off = 0;
+        for (std::size_t pixel = 0; pixel < steel->reference.ids.size(); ++pixel) {
+            const std::uint32_t is = steel->reference.ids[pixel].draw;
+            if (is == mesh::none || steel->reference.draws[is].id != 50) continue;
+            ++steel_seen;
+            for (std::size_t channel = 0; channel < 3; ++channel)
+                if (std::abs(static_cast<int>(steel->reference.colour[pixel * 4 + channel]) - std::to_integer<int>(steel->device[pixel * 4 + channel])) > 6) {
+                    ++steel_off;
+                    break;
+                }
+        }
+        std::println("with a ball of brushed steel: {} of {} pixels further than 6 levels from the reference, mean {:.3f}, worst {}; of the ball's {}, {}", with_steel.off, with_steel.compared, with_steel.mean,
+                     with_steel.worst, steel_seen, steel_off);
+        expect(gt(steel_seen, std::size_t{2000})) << steel_seen;
+        // Measured on an RTX 4080 and on lavapipe: 2 pixels elsewhere; of the ball's 3,662, 148 and 150 (4.0%) — on
+        // the edges of its drawn-out rings, where the horizon's edge stretched over it moves a pixel with the
+        // device's single precision in a way's direction (the reference chooses its ways in double).
+        expect(lt(static_cast<double>(with_steel.off - steel_off), 0.001 * static_cast<double>(with_steel.compared)));
+        expect(lt(static_cast<double>(steel_off), 0.045 * static_cast<double>(steel_seen)));
     });
     // a lamp brighter than the display glows on the device as in the reference: the light kept before the curve, what is above it spread, then shown
     add(suite, "mesh.glow", [](Rig& rig) {

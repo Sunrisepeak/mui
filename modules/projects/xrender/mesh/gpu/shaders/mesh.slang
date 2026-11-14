@@ -295,11 +295,22 @@ interface IAbout {
     static float3 falling(float3 normal);
     static float3 takes(float metal);
     static float3 mirrors(float3 normal, float3 toward_eye, float shaded);
+    // With the highlight drawn out along `along` (xrender.mesh's `mirrored_drawn_out`).
+    static float3 mirrors_drawn_out(float3 normal, float3 along, float3 toward_eye, float shaded);
 }
 struct Plain : IAbout {
     static float3 falling(float3 normal) { return surface.ambient.rgb; }
     static float3 takes(float metal) { return base_colour * ((1.0 - metal) * (1.0 - lets_here)) + head_here; }
     static float3 mirrors(float3 normal, float3 toward_eye, float shaded) { return surface.above.w > 0.5 ? mirrored(normal, toward_eye) : float3(0, 0, 0); }
+    static float3 mirrors_drawn_out(float3 normal, float3 along, float3 toward_eye, float shaded) { return mirrors(drawn_out_normal(normal, along, toward_eye), toward_eye, shaded); }
+}
+// The surroundings' picture along `way` blurred by `rough`: between the two roughnesses kept about it
+// (xrender.mesh's `Surroundings::blurred`).
+float3 blurred_at(float3 way, float rough) {
+    const float2 place = square_of(way);
+    const float which = clamp(rough, 0.0, 1.0) * about.shape.z, first = min(floor(which), about.shape.z - 1.0);
+    const float3 nearer = about_at(about.squares[int(first)], place), further = about_at(about.squares[int(first) + 1], place);
+    return nearer + (further - nearer) * (which - first);
 }
 struct Pictured : IAbout {
     static float3 falling(float3 normal) { return about_at(about.squares[16], square_of(normal)); }
@@ -321,6 +332,45 @@ struct Pictured : IAbout {
         float3 shared = head_here * share.x + share.y * edge_here;
         if (surface.film.x > 0) shared += (film_mirrors(surface.film.y, surface.film.z, seen, head_here) * (share.x + share.y) - shared) * clamp(surface.film.x, 0.0, 1.0);
         return shared * kept(seen) * (nearer + (further - nearer) * (which - first)) * shaded;
+    }
+    // The lobe asked 64 fixed ways (Hammersley's), each chosen by the drawn-out spread, read blurred by the share of
+    // ways it stands for, weighed by what the lobe throws there over how likely it was (xrender.mesh's
+    // `mirrored_drawn_out`; Colbert and Křivánek 2007).
+    static float3 mirrors_drawn_out(float3 normal, float3 along, float3 toward_eye, float shaded) {
+        const float seen = dot(normal, toward_eye);
+        if (!(seen > 0)) return mirrors(drawn_out_normal(normal, along, toward_eye), toward_eye, shaded);
+        const float rough = rough_here, strength = clamp(surface.drawn.x, 0.0, 1.0);
+        const float alpha = rough * rough, along_alpha = alpha + (1.0 - alpha) * strength * strength, across_alpha = alpha;
+        const float3 across = cross(normal, along);
+        const int ways = 64;
+        float3 sum = float3(0, 0, 0);
+        for (int which = 0; which < ways; ++which) {
+            uint bits = uint(which);
+            bits = (bits << 16u) | (bits >> 16u);
+            bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
+            bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
+            bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
+            bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
+            const float first = (float(which) + 0.5) / float(ways), turn = float(bits) * (1.0 / 4294967296.0) * 6.2831853;
+            const float slope = sqrt(first / (1.0 - first));
+            const float3 halfway = normalize(normal - along * (slope * cos(turn) * along_alpha) - across * (slope * sin(turn) * across_alpha));
+            const float eye_half = dot(toward_eye, halfway), up = dot(normal, halfway);
+            if (!(eye_half > 0) || !(up > 0)) continue;
+            const float3 way = halfway * (2.0 * eye_half) - toward_eye;
+            const float facing = dot(normal, way);
+            if (!(facing > 0)) continue;
+            const float3 eye_on = float3(dot(along, toward_eye) * along_alpha, dot(across, toward_eye) * across_alpha, seen);
+            const float3 light_on = float3(dot(along, way) * along_alpha, dot(across, way) * across_alpha, facing);
+            const float visible = 0.5 / (facing * length(eye_on) + seen * length(light_on));
+            const float glance = 1.0 - eye_half, glance5 = glance * glance * glance * glance * glance;
+            const float weight = visible * facing * 4.0 * eye_half / up;
+            const float on_along = dot(along, halfway) / along_alpha, on_across = dot(across, halfway) / across_alpha;
+            const float stretched = on_along * on_along + on_across * on_across + up * up;
+            const float likelihood = up / (3.14159265 * along_alpha * across_alpha * stretched * stretched * 4.0 * eye_half);
+            const float read_rough = clamp(sqrt(sqrt(1.0 / (float(ways) * likelihood) / 3.14159265)), 0.0, 1.0);
+            sum += mirrors_at(glance5, seen) * blurred_at(way, read_rough) * weight;
+        }
+        return sum / float(ways) * kept(seen) * shaded;
     }
 }
 float encoded(float linear) {
@@ -738,7 +788,7 @@ Lit lit_at<A : IAbout>(VOut point) {
     }
     float3 colour = base_colour * (1.0 - lets_here) * light + given_off;
     if (!matt) {
-        colour = A::takes(metal_here) * everywhere_in + given_off + sent + A::mirrors(drawn ? drawn_out_normal(normal, drawn_way, toward_eye) : normal, toward_eye, shaded);
+        colour = A::takes(metal_here) * everywhere_in + given_off + sent + (drawn ? A::mirrors_drawn_out(normal, drawn_way, toward_eye, shaded) : A::mirrors(normal, toward_eye, shaded));
         if (sheened) colour = given_off + (colour - given_off) * (1.0 - max(surface.sheen.r, max(surface.sheen.g, surface.sheen.b)) * sheen_share(max(dot(normal, toward_eye), 0.0))) + sheen;
         if (surface.coat.x > 0) colour = given_off + (colour - given_off) * (1.0 - surface.coat.x * coat_mirrors(coat_normal, toward_eye)) + coated<A>(coat_normal, normal, toward_eye, point.place, everywhere_in, shaded) * surface.coat.x;
     }

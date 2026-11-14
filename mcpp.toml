@@ -180,6 +180,7 @@ members = [
     "showcase/quay/headless",
     "showcase/quay/picture",
     "showcase/quay/play",
+    "showcase/quay/sound",
     "showcase/swarm/headless",
     "showcase/swarm/play",
     "site",

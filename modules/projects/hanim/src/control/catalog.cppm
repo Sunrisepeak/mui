@@ -107,8 +107,25 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 13> catalog{{
 inline constexpr std::array<std::string_view, 1> steps_see_what_is_playing{{
     "{\"op\":\"animation.list\"}",
 }};
-inline constexpr std::array<mlibs::control::Task, 1> guide_tasks{{
+inline constexpr std::array<std::string_view, 2> steps_inspect_a_playback{{
+    "{\"op\":\"animation.list\"}",
+    "{\"op\":\"animation.inspect\",\"playback\":{\"$last\":\"/playbacks/0/playback\"}}",
+}};
+inline constexpr std::array<std::string_view, 3> steps_scrub_to_the_middle{{
+    "{\"op\":\"animation.list\"}",
+    "{\"op\":\"animation.seek-progress\",\"playback\":{\"$last\":\"/playbacks/0/playback\"},\"progress\":0.5}",
+    "{\"op\":\"animation.list\"}",
+}};
+inline constexpr std::array<std::string_view, 3> steps_pause_a_playback{{
+    "{\"op\":\"animation.list\"}",
+    "{\"op\":\"animation.pause\",\"playback\":{\"$last\":\"/playbacks/0/playback\"}}",
+    "{\"op\":\"animation.list\"}",
+}};
+inline constexpr std::array<mlibs::control::Task, 4> guide_tasks{{
     {"see-what-is-playing", "List the playbacks here: each one's handle (what every other operation takes as `playback`), its program and where its transport is", steps_see_what_is_playing},
+    {"inspect-a-playback", "List the playbacks and read the first one whole: its transport, tracks and segments (`$last` takes its handle from the list's answer)", steps_inspect_a_playback},
+    {"scrub-to-the-middle", "Put the first playback at half its length and see where its transport is", steps_scrub_to_the_middle},
+    {"pause-a-playback", "Pause the first playback and see its state", steps_pause_a_playback},
 }};
 inline constexpr mlibs::control::Guide guide{"Prepare, play, inspect and steer animations on a host's one Engine.", guide_tasks};
 
@@ -162,6 +179,20 @@ inline constexpr std::string_view listing = R"listing({
   "tiers": [],
   "tasks": [
     {"name": "see-what-is-playing", "summary": "List the playbacks here: each one's handle (what every other operation takes as `playback`), its program and where its transport is", "steps": [
+      {"op":"animation.list"}
+    ]},
+    {"name": "inspect-a-playback", "summary": "List the playbacks and read the first one whole: its transport, tracks and segments (`$last` takes its handle from the list's answer)", "steps": [
+      {"op":"animation.list"},
+      {"op":"animation.inspect","playback":{"$last":"/playbacks/0/playback"}}
+    ]},
+    {"name": "scrub-to-the-middle", "summary": "Put the first playback at half its length and see where its transport is", "steps": [
+      {"op":"animation.list"},
+      {"op":"animation.seek-progress","playback":{"$last":"/playbacks/0/playback"},"progress":0.5},
+      {"op":"animation.list"}
+    ]},
+    {"name": "pause-a-playback", "summary": "Pause the first playback and see its state", "steps": [
+      {"op":"animation.list"},
+      {"op":"animation.pause","playback":{"$last":"/playbacks/0/playback"}},
       {"op":"animation.list"}
     ]}
   ]

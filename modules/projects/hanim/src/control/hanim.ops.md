@@ -29,3 +29,26 @@ Each step is a request as it is sent; `describe` gives the same to an agent.
 ```json
 {"op":"animation.list"}
 ```
+
+**inspect-a-playback** — List the playbacks and read the first one whole: its transport, tracks and segments (`$last` takes its handle from the list's answer)
+
+```json
+{"op":"animation.list"}
+{"op":"animation.inspect","playback":{"$last":"/playbacks/0/playback"}}
+```
+
+**scrub-to-the-middle** — Put the first playback at half its length and see where its transport is
+
+```json
+{"op":"animation.list"}
+{"op":"animation.seek-progress","playback":{"$last":"/playbacks/0/playback"},"progress":0.5}
+{"op":"animation.list"}
+```
+
+**pause-a-playback** — Pause the first playback and see its state
+
+```json
+{"op":"animation.list"}
+{"op":"animation.pause","playback":{"$last":"/playbacks/0/playback"}}
+{"op":"animation.list"}
+```

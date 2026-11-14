@@ -122,5 +122,31 @@ export default defineOps({
         { op: "animation.list" },
       ],
     },
+    {
+      name: "inspect-a-playback",
+      summary: "List the playbacks and read the first one whole: its transport, tracks and segments (`$last` takes its handle from the list's answer)",
+      steps: [
+        { op: "animation.list" },
+        { op: "animation.inspect", playback: { $last: "/playbacks/0/playback" } },
+      ],
+    },
+    {
+      name: "scrub-to-the-middle",
+      summary: "Put the first playback at half its length and see where its transport is",
+      steps: [
+        { op: "animation.list" },
+        { op: "animation.seek-progress", playback: { $last: "/playbacks/0/playback" }, progress: 0.5 },
+        { op: "animation.list" },
+      ],
+    },
+    {
+      name: "pause-a-playback",
+      summary: "Pause the first playback and see its state",
+      steps: [
+        { op: "animation.list" },
+        { op: "animation.pause", playback: { $last: "/playbacks/0/playback" } },
+        { op: "animation.list" },
+      ],
+    },
   ],
 });

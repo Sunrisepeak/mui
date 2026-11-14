@@ -239,6 +239,27 @@ UTest cases{"agent.subject", [] {
                kept[1]["outcome"].text() == "invalid-argument" && kept[1]["text"].text().value_or("").contains("needs `to`") && kept[2]["by"]["name"].text() == "ben");
     };
 
+    "a request takes a value from the answer before it: {\"$last\": pointer}, put in before it is decided (D-186)"_test = [] {
+        Counter counter;
+        agent::SubjectSession session({&counter});
+        (void)ask(session, R"({"op":"counter.add","by":4})");                              // answers {"count":4}
+        const auto set = ask(session, R"({"op":"counter.set","to":{"$last":"/count"},"re":9})");  // … which this one sets again
+        expect(eq(set.exit_code(), std::int64_t{0}) && eq(counter.count, std::int64_t{4}) && set.records[0].root()["re"].integer() == 9);
+        (void)ask(session, R"({"op":"describe","subject":"counter"})");
+        // A place deep in the answer, and inside an argument that is a list: the first task's first step, sent as found.
+        const auto step = ask(session, R"({"op":"counter.add","by":{"$last":"/tasks/0/steps/0/by"}})");
+        expect(step.records[0].root()["data"]["count"].integer() == 6) << "the step's `by` is 2";
+        // A place that is not there is said, with what was looked for; nothing ran.
+        const int before = counter.operated;
+        const auto missing = ask(session, R"({"op":"counter.set","to":{"$last":"/total"}})");
+        expect(missing.error() == "invalid-argument" && !missing.next().empty() && eq(counter.operated, before));
+        // The record keeps the request as it was decided: the value, not the reference.
+        const auto log = ask(session, R"({"op":"log","limit":3})");
+        expect(log.records[0].root()["data"]["facts"][1]["request"]["to"].integer() == 4) << log.records[0].root()["data"]["facts"][1].dump();
+        agent::SubjectSession fresh({&counter});
+        expect(ask(fresh, R"({"op":"counter.set","to":{"$last":"/count"}})").error() == "invalid-argument") << "no answer before it";
+    };
+
     "every error carries its ways out, requests to send as they are (D-186)"_test = [] {
         Counter counter;
         agent::SubjectSession session({&counter});

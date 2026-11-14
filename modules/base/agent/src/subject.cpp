@@ -155,7 +155,85 @@ void SubjectSession::poll() {
     for (Subject* subject : subjects_) subject->poll();
 }
 
+namespace {
+
+// The value at a JSON pointer in `root` (absent when it leads nowhere).
+mlibs::json::Node at_pointer(mlibs::json::Node root, std::string_view pointer) {
+    while (root && !pointer.empty()) {
+        if (pointer.front() != '/') return {};
+        pointer.remove_prefix(1);
+        const std::size_t end = pointer.find('/');
+        std::string key(pointer.substr(0, end));
+        pointer = end == std::string_view::npos ? std::string_view{} : pointer.substr(end);
+        // ~1 is "/", ~0 is "~" (RFC 6901).
+        for (std::size_t at = 0; (at = key.find('~', at)) != std::string::npos; ++at)
+            if (at + 1 < key.size() && (key[at + 1] == '0' || key[at + 1] == '1')) key.replace(at, 2, key[at + 1] == '1' ? "/" : "~");
+        if (root.is_array()) {
+            std::size_t index = 0;
+            const auto read = std::from_chars(key.data(), key.data() + key.size(), index);
+            if (read.ec != std::errc{} || read.ptr != key.data() + key.size()) return {};
+            root = root[index];
+        } else {
+            root = root[key];
+        }
+    }
+    return root;
+}
+
+// `value` as JSON, each {"$last": pointer} in it replaced by that place in `last`; the pointer that led nowhere
+// is left in `missing`.
+std::string with_last(mlibs::json::Node value, mlibs::json::Node last, std::string& missing) {
+    if (value.is_object()) {
+        const auto members = value.members();
+        if (members.size() == 1 && members.front().first == "$last") {
+            const std::string pointer = members.front().second.text().value_or("?");
+            const mlibs::json::Node found = at_pointer(last, pointer);
+            if (!found && missing.empty()) missing = pointer;
+            return found ? found.dump() : std::string("null");
+        }
+        std::string out = "{";
+        for (const auto& [key, member] : members) out += std::format("{}{}:{}", out.size() > 1 ? "," : "", json_text(key), with_last(member, last, missing));
+        return out + "}";
+    }
+    if (value.is_array()) {
+        std::string out = "[";
+        for (const auto& item : value.items()) out += std::format("{}{}", out.size() > 1 ? "," : "", with_last(item, last, missing));
+        return out + "]";
+    }
+    return value.dump();
+}
+
+}  // namespace
+
 void SubjectSession::request(std::string_view line, const Reply& reply) {
+    if (!last_) last_ = std::make_shared<std::string>();
+    // What this answers is what the next request may take a value from.
+    const Reply kept = [reply, last = last_](std::string_view record) {
+        if (record.starts_with("{\"kind\":\"data\"")) *last = std::string(record);
+        if (reply) reply(record);
+    };
+    // A value from the answer before: put in before anything is decided.
+    if (line.contains("\"$last\"")) {
+        auto asked = mlibs::json::Document::parse(line, "request");
+        auto before = mlibs::json::Document::parse(*last_, "record");
+        if (asked && asked->root().is_object()) {
+            std::string missing;
+            const std::string resolved = with_last(asked->root(), before ? before->root()["data"] : mlibs::json::Node{}, missing);
+            if (!missing.empty()) {
+                Answer answer(kept, asked->root()["re"] ? asked->root()["re"].dump() : std::string());
+                answer.fail(openas::error_code::invalid_argument,
+                            before ? std::format("`$last` names `{}`, and the answer before this request has nothing there", missing)
+                                   : std::format("`$last` names `{}`, and no request before this one answered data", missing),
+                            openas::exit_code::failed, ways({way_out("who is here, and the session's own requests", who_is_here)}));
+                return;
+            }
+            return dispatch(resolved, kept);
+        }
+    }
+    dispatch(line, kept);
+}
+
+void SubjectSession::dispatch(std::string_view line, const Reply& reply) {
     auto parsed = parse_request(line);
     if (!parsed) {
         Answer answer(reply, {});

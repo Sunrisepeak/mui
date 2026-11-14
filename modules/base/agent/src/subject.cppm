@@ -32,6 +32,13 @@
 // code 2) until the request carries the answer; one it refuses is `refused`
 // and does not run. Nothing reaches a subject without that decision.
 //
+// A request takes a value from the answer before it: an argument written
+// {"$last":"/playbacks/0/playback"} is that place (a JSON pointer) in the data
+// the conversation's latest answer gave — a handle listed, an id found — put
+// in before the request is decided. So a task is a line of requests sent as
+// they are, each using what the one before answered, with no step in between
+// where the agent copies a value across.
+//
 // An agent needs no more than this to begin (D-186): `subjects`, then
 // `describe` — the guide is the catalog's own data (its doc, tasks and
 // examples), and every error carries `next`, requests that lead out of it:
@@ -127,8 +134,10 @@ public:
     void poll() override;
 
 private:
-    std::vector<Subject*> subjects_;
-    SessionOptions        options_;
+    void dispatch(std::string_view line, const Reply& reply);
+    std::vector<Subject*>        subjects_;
+    SessionOptions               options_;
+    std::shared_ptr<std::string> last_;  // the latest data record of this conversation, as it was sent
 };
 
 }  // namespace mlibs::agent

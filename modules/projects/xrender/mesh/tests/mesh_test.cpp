@@ -1376,6 +1376,51 @@ static UTest cases{"xrender.mesh", [] {
             (void)keep(pair, "surroundings-gold");
         }
     };
+    "light followed along rays reads a surface's pictures: an even picture of roughness and metal is the material that says those numbers, bit for bit; what it gives off is by its picture; a picture of its normal turns what it mirrors"_test = [] {
+        constexpr int width = 48, height = 48;
+        const Camera camera{.eye = {0, 0, 4}};
+        const auto even = [](std::uint8_t red, std::uint8_t green, std::uint8_t blue) {
+            std::vector<std::uint8_t> bytes(2 * 2 * 4, 255);
+            for (std::size_t texel = 0; texel < 4; ++texel) bytes[texel * 4] = red, bytes[texel * 4 + 1] = green, bytes[texel * 4 + 2] = blue;
+            return *mesh::Texture::made(bytes, 2, 2, mesh::Coding::plain);
+        };
+        const mesh::Texture halves = even(128, 128, 128), flat = even(128, 128, 255), tilted = even(128, 200, 230);
+        const std::array<const mesh::Texture*, 3> pictures{&halves, &flat, &tilted};
+        const mesh::Options sky{.background = {0.5f, 0.6f, 0.7f}, .environment = {.on = true}};  // a sky above, the ground below: what is mirrored says which way a surface faces
+        const auto followed = [&](const mesh::Material& material, const mesh::Options& options) {
+            std::vector<mesh::Material> materials(library().materials.begin(), library().materials.end());
+            materials[gold] = material;
+            scene::Scene world;
+            put(world, 1, sheet, gold, math::Transform{{0, 0, 0}, math::Quat::about({1, 0, 0}, 1.5707964f), {1, 1, 1}}.matrix());
+            mesh::Assets assets = library().assets(true);
+            assets.materials = materials, assets.textures = pictures;
+            mesh::Targets targets;
+            targets.resize(width, height);
+            (void)mesh::traced(world, camera.view(), assets, targets, options, {.samples = 16, .bounces = 1});
+            return targets;
+        };
+        const mesh::Material plain{.base = {0.9f, 0.7f, 0.3f}, .roughness = 0.6f, .metallic = 1, .two_sided = true};
+        // Roughness and metal by an even picture of a half: the material that says a half of each.
+        mesh::Material by_picture = plain, by_numbers = plain;
+        by_picture.surface = 0;
+        by_numbers.roughness = 0.6f * (128.0f / 255.0f), by_numbers.metallic = 128.0f / 255.0f;
+        const mesh::Targets pictured = followed(by_picture, sky);
+        expect(pictured.light == followed(by_numbers, sky).light && pictured.light != followed(plain, sky).light);
+        // What it gives off, by its picture: in the dark a surface with no colour is that alone.
+        mesh::Material glowing{.base = {0, 0, 0}, .emissive = {2, 1, 0.5f}, .two_sided = true};
+        glowing.glow = 0;
+        const math::Vec3 given_off = followed(glowing, {.background = {0, 0, 0}}).light[static_cast<std::size_t>(height / 2) * width + width / 2];
+        expect(near(given_off.x, 2 * 128.0f / 255.0f, 1e-6f) && near(given_off.z, 0.5f * 128.0f / 255.0f, 1e-6f)) << given_off.x;
+        // Its normal by a picture: one that says straight out changes nothing to speak of; one that tilts it up mirrors another part of the sky.
+        mesh::Material smooth = plain, straight = plain, leaning = plain;
+        smooth.roughness = straight.roughness = leaning.roughness = 0.05f;
+        straight.normal = 1, leaning.normal = 2;
+        const mesh::Targets unturned = followed(smooth, sky), turned = followed(leaning, sky);
+        const std::size_t middle = static_cast<std::size_t>(height / 2) * width + width / 2;
+        // (A byte cannot say straight out exactly: 128 of 255 leans by a quarter of a degree.)
+        expect(lt(std::abs(followed(straight, sky).light[middle].z - unturned.light[middle].z), 0.01f));
+        expect(gt(std::abs(turned.light[middle].z - unturned.light[middle].z), 0.02f)) << turned.light[middle].z << " " << unturned.light[middle].z;
+    };
     "a mirror followed along rays shows what is over it: a floor of white metal under an even sky is the sky; where a red ball stands on it, the ball's image is red"_test = [] {
         constexpr int width = 160, height = 90;
         const mesh::Options even_sky{.background = {0.5f, 0.6f, 0.7f}};

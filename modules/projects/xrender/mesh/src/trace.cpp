@@ -19,6 +19,12 @@ struct Thing {
     Material           material;
     const Texture*     texture = nullptr;
     bool               casts = true;
+    Mat4               world;     // the mesh to the world
+    // The surface's other pictures: roughness and metal, which way it faces, what it gives off. Its shade picture
+    // is not asked: how much of the light from about reaches a place is what the rays themselves find.
+    const Texture*     surface = nullptr;
+    const Texture*     normal_picture = nullptr;
+    const Texture*     glow = nullptr;
 };
 struct Lamp {
     scene::LightKind kind = scene::LightKind::sun;
@@ -30,6 +36,7 @@ struct Met {
     float        distance = 0;
     Vec3         place, normal;
     Vec2         uv{0, 0};
+    Vec3         face;  // the normal before the surface's picture of it turned it: the side a ray leaves by
 };
 
 struct Tracing {
@@ -70,9 +77,37 @@ struct Tracing {
         Vec3 normal = !mesh.normals.empty() ? mesh.normals[corner[0]] * share[0] + mesh.normals[corner[1]] * share[1] + mesh.normals[corner[2]] * share[2] : face;
         normal = math::normalized(math::direction(best->thing->normals, normal));
         if (math::dot(normal, toward) > 0) normal = normal * -1.0f;  // met from behind: the side that was met
-        best->place = from + toward * best->distance, best->normal = normal;
+        best->place = from + toward * best->distance, best->normal = normal, best->face = normal;
         if (!mesh.uvs.empty()) best->uv = {mesh.uvs[corner[0]].x * share[0] + mesh.uvs[corner[1]].x * share[1] + mesh.uvs[corner[2]].x * share[2],
                                            mesh.uvs[corner[0]].y * share[0] + mesh.uvs[corner[1]].y * share[1] + mesh.uvs[corner[2]].y * share[2]};
+        // Which way the surface faces by its picture (as the pass reads it): about the mesh's tangent, or the way
+        // the surface goes as the picture's first coordinate grows over this triangle.
+        if (const Texture* picture = best->thing->normal_picture; picture && !mesh.uvs.empty()) {
+            Vec3 right_way{0, 0, 0}, up_way{0, 0, 0};
+            if (!mesh.tangents.empty()) {
+                const math::Vec4 one = mesh.tangents[corner[0]], two = mesh.tangents[corner[1]], three = mesh.tangents[corner[2]];
+                right_way = math::direction(best->thing->world, Vec3{one.x * share[0] + two.x * share[1] + three.x * share[2], one.y * share[0] + two.y * share[1] + three.y * share[2],
+                                                                     one.z * share[0] + two.z * share[1] + three.z * share[2]});
+                up_way = math::cross(normal, right_way) * one.w;
+            } else {
+                const Vec3 first = math::direction(best->thing->world, b - a), second = math::direction(best->thing->world, c - a);
+                const Vec2 first_uv{mesh.uvs[corner[1]].x - mesh.uvs[corner[0]].x, mesh.uvs[corner[1]].y - mesh.uvs[corner[0]].y},
+                           second_uv{mesh.uvs[corner[2]].x - mesh.uvs[corner[0]].x, mesh.uvs[corner[2]].y - mesh.uvs[corner[0]].y};
+                const float turn = first_uv.x * second_uv.y - second_uv.x * first_uv.y;
+                if (turn != 0) right_way = (first * second_uv.y - second * first_uv.y) * (1.0f / turn), up_way = (second * first_uv.x - first * second_uv.x) * (1.0f / turn);
+            }
+            right_way = right_way - normal * math::dot(normal, right_way);
+            if (math::dot(right_way, right_way) > 0) {
+                right_way = math::normalized(right_way);
+                const Vec3 other = math::cross(normal, right_way);
+                up_way = math::dot(other, up_way) < 0 ? other * -1.0f : other;
+                const Vec3 said = picture->at(best->uv, 1);
+                const float scale = best->thing->material.normal_scale;
+                const Vec3 turned = right_way * ((said.x * 2 - 1) * scale) + up_way * ((said.y * 2 - 1) * scale) + normal * (said.z * 2 - 1);
+                // Turned past the eye's ray it would be a side that cannot be seen: the surface's own is kept.
+                if (math::dot(turned, turned) > 0 && math::dot(turned, toward) < 0) best->normal = math::normalized(turned);
+            }
+        }
         return best;
     }
     [[nodiscard]] bool hidden(Vec3 from, Vec3 toward, float reach) const {
@@ -113,7 +148,15 @@ struct Tracing {
         }
         // Its picture at the place (a pixel a texel: the finest size).
         if (met->thing->texture) material.base = math::scaled(material.base, met->thing->texture->at(met->uv, 1));
-        const Vec3 lifted = met->place + met->normal * 2e-3f, toward_eye = toward * -1.0f;
+        // Its other pictures there: how rough and how much a metal, and what it gives off.
+        if (met->thing->surface) {
+            const Vec3 said = met->thing->surface->at(met->uv, 1);
+            material.roughness = material.roughness * said.y, material.metallic = material.metallic * said.z;
+        }
+        if (met->thing->glow) material.emissive = math::scaled(material.emissive, met->thing->glow->at(met->uv, 1));
+        // A ray leaves by the surface's own side, whatever way its picture turned the normal; a way the turned
+        // normal throws under the surface brings nothing.
+        const Vec3 lifted = met->place + met->face * 2e-3f, toward_eye = toward * -1.0f;
         Vec3 arriving{0, 0, 0}, sent{0, 0, 0};  // on a matt surface the lights are summed; else each by `reflected`
         const bool matt = material.matt();
         for (const Lamp& lamp : lamps) {
@@ -129,7 +172,7 @@ struct Tracing {
                 colour = colour * (near * near);
             }
             const float facing = math::dot(met->normal, way);
-            if (!(facing > 0) || hidden(lifted, way, reach)) continue;
+            if (!(facing > 0) || !(math::dot(met->face, way) > 0) || hidden(lifted, way, reach)) continue;
             if (matt) arriving = arriving + colour * facing;
             else sent = sent + math::scaled(reflected(material, met->normal, toward_eye, way, facing), colour);
         }
@@ -148,7 +191,7 @@ struct Tracing {
             const float first = static_cast<float>(math::unit24(random.next())), second = static_cast<float>(math::unit24(random.next()));
             const Surroundings::Chosen asked = picture()->chosen(first, second);
             const float facing = math::dot(met->normal, asked.way);
-            if (asked.likelihood > 0 && facing > 0 && !hidden(lifted, asked.way, std::numeric_limits<float>::max())) {
+            if (asked.likelihood > 0 && facing > 0 && math::dot(met->face, asked.way) > 0 && !hidden(lifted, asked.way, std::numeric_limits<float>::max())) {
                 constexpr float pi = 3.14159265f;
                 const Vec3 light = picture()->toward(asked.way);
                 // For the surface's own colour: facing ÷ π of the ways is how likely the surface was to ask this one.
@@ -176,7 +219,7 @@ struct Tracing {
             const float first = static_cast<float>(math::unit24(random.next())), second = static_cast<float>(math::unit24(random.next()));
             if (!mirror) {
                 const Vec3 way = about_normal(std::sqrt(first), second * 6.2831853f, std::sqrt(std::max(1.0f - first, 0.0f)));
-                around = along(lifted, way, bounces_left - 1, random, false, std::sqrt(std::max(1.0f - first, 0.0f)) / 3.14159265f) * (1.0f / (1.0f - mirrors));
+                if (math::dot(met->face, way) > 0) around = along(lifted, way, bounces_left - 1, random, false, std::sqrt(std::max(1.0f - first, 0.0f)) / 3.14159265f) * (1.0f / (1.0f - mirrors));
             } else {
                 const float spread = rough * rough * rough * rough;
                 const float up = std::sqrt((1.0f - first) / (1.0f + (spread - 1.0f) * first));
@@ -184,7 +227,7 @@ struct Tracing {
                 const float eye_half = math::dot(toward_eye, half), seen = math::dot(met->normal, toward_eye);
                 const Vec3 way = half * (2 * eye_half) - toward_eye;
                 const float facing = math::dot(met->normal, way);
-                if (eye_half > 0 && seen > 0 && facing > 0 && up > 0) {
+                if (eye_half > 0 && seen > 0 && facing > 0 && up > 0 && math::dot(met->face, way) > 0) {
                     const float k = rough * rough * 0.5f;
                     const float unhidden = 1.0f / ((facing * (1.0f - k) + k) * (seen * (1.0f - k) + k));
                     const float glance = 1.0f - eye_half, glance5 = glance * glance * glance * glance * glance;
@@ -225,7 +268,10 @@ Traced traced(const scene::Scene& scene, const scene::View& view, const Assets& 
         const geom::Mesh& mesh = assets.meshes[instance.mesh]->mesh;
         const Material& material = assets.materials[instance.material];
         things.push_back({*back, math::transposed(*back), geom::moved(instance.world, instance.bounds), &mesh, assets.trees[instance.mesh], material,
-                          (material.texture < assets.textures.size() && !mesh.uvs.empty()) ? assets.textures[material.texture] : nullptr, instance.casts});
+                          (material.texture < assets.textures.size() && !mesh.uvs.empty()) ? assets.textures[material.texture] : nullptr, instance.casts, instance.world,
+                          (material.surface < assets.textures.size() && !mesh.uvs.empty()) ? assets.textures[material.surface] : nullptr,
+                          (material.normal < assets.textures.size() && !mesh.uvs.empty()) ? assets.textures[material.normal] : nullptr,
+                          (material.glow < assets.textures.size() && !mesh.uvs.empty()) ? assets.textures[material.glow] : nullptr});
     }
     std::vector<Lamp> lamps;
     for (const scene::Light& light : scene.lights())

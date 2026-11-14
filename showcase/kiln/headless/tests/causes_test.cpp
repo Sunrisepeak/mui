@@ -66,6 +66,28 @@ void bomb(kiln::Standalone& game, int after) {
 }  // namespace
 
 UTest cases{"kiln.causes", [] {
+    "the game says what its controls mean and what to begin with; its tasks, sent as written, do what they say (D-186)"_test = [] {
+        kiln::Standalone game(cavern(), {.keep = 600});  // an agent in the seat, on a person's tier
+        agent::SubjectSession session({&game});
+        const auto state = told(session, R"({"op":"world.state"})");
+        expect(eq(state["controls"].size(), std::size_t{6}) && state["controls"][2].dump().contains(R"("name":"jump")") &&
+               state["controls"][2]["act"].dump() == R"({"buttons":[0]})")
+            << state["controls"].dump();
+        const auto found = told(session, R"({"op":"find","q":"swim up in water"})");
+        expect(found["found"][0]["kind"].text() == "control" && found["found"][0]["name"].text() == "jump") << found.text;
+
+        const auto described = told(session, R"({"op":"describe","subject":"world"})");
+        const auto walk = described["tasks"][0], cast = described["tasks"][1];
+        expect(walk["name"].text() == "walk-right-and-jump" && cast["name"].text() == "cast-a-spell") << described["tasks"].dump();
+        const float from = game.state().cat.x;
+        for (std::size_t index = 0; index < walk["steps"].size(); ++index) told(session, walk["steps"][index].dump());
+        expect(game.state().cat.x > from + 5.0f) << "she walked right: " << from << " → " << game.state().cat.x;
+        expect(cast["steps"][0].dump() == R"({"op":"world.act","buttons":[1],"pointer":[0.9,0.5]})") << cast["steps"][0].dump();
+        const std::int32_t mana = game.state().cat.mana;
+        for (std::size_t index = 0; index < cast["steps"].size(); ++index) told(session, cast["steps"][index].dump());
+        expect(eq(game.state().casts, 1u) && game.state().cat.mana < mana) << "one spell, paid for";
+    };
+
     "Mui throws a bomb; of a grain of the sand it left, an agent shown everything is told: it landed, thrown by pressure, where stone had shattered by the law — under pressure the player applied"_test = [] {
         kiln::Standalone game(cavern(), options(true));
         kiln::Causes causes(game);

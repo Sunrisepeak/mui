@@ -122,6 +122,39 @@ Played play(Table& table, int seconds) {
 }  // namespace
 
 UTest cases{"breakout.headless", [] {
+    "the game says what its controls mean and what to begin with; its tasks, sent as written, do what they say (D-186)"_test = [] {
+        bo::Standalone game(bo::start(wall_of_bricks()));
+        agent::SubjectSession session({&game});
+        const auto ask = [&](std::string_view line) {
+            std::optional<mlibs::json::Document> data;
+            std::string error;
+            session.request(line, [&](std::string_view record) {
+                auto parsed = mlibs::json::Document::parse(record, "record");
+                expect(fatal(parsed.has_value())) << record;
+                if (parsed->root()["kind"].text() == "error") error = record;
+                if (parsed->root()["kind"].text() == "data" && !data) data.emplace(std::move(*parsed));
+            });
+            expect(fatal(data.has_value() && error.empty())) << line << " → " << error;
+            return std::move(*data);
+        };
+        const auto state = ask(R"({"op":"world.state"})");
+        expect(state.root()["data"]["controls"][0].dump() == R"({"name":"launch","summary":"Launch the ball waiting on the paddle","act":{"buttons":[0]}})")
+            << state.root()["data"]["controls"].dump();
+        const auto found = ask(R"({"op":"find","q":"launch the waiting ball"})");
+        expect(found.root()["data"]["found"][0]["name"].text() == "launch" || found.root()["data"]["found"][0]["name"].text() == "launch-the-ball") << found.root().dump();
+
+        const auto described = ask(R"({"op":"describe","subject":"world"})");
+        const auto tasks = described.root()["data"]["tasks"];
+        expect(fatal(tasks[0]["name"].text() == "launch-the-ball" && tasks[1]["name"].text() == "move-the-paddle")) << tasks.dump();
+        std::optional<mlibs::json::Document> last;
+        for (std::size_t index = 0; index < tasks[0]["steps"].size(); ++index) last.emplace(ask(tasks[0]["steps"][index].dump()));
+        expect(last->root()["data"]["view"]["balls"][0]["waiting"].boolean() == false) << "the ball is in play";
+        const double before = last->root()["data"]["view"]["paddle"]["x"].number().value_or(0);
+        for (std::size_t index = 0; index < tasks[1]["steps"].size(); ++index) last.emplace(ask(tasks[1]["steps"][index].dump()));
+        const double after = last->root()["data"]["view"]["paddle"]["x"].number().value_or(0);
+        expect(after < before) << "the paddle went left: " << before << " → " << after;
+    };
+
     "the game is found by name and says what it is: a world, what it can do, what a player is shown"_test = [] {
         const auto directory = scratch_dir("breakout-headless");
         Table table("breakout", directory);

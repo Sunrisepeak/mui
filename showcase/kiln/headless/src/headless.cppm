@@ -25,6 +25,21 @@ struct Play {
     [[nodiscard]] static bool over(const State& state) noexcept { return state.outcome != Outcome::playing; }
     // What a player is shown: Mui, the exit, the cells around her by what they are; the full view adds the hash.
     [[nodiscard]] static std::string observe(const State& state, bool full) { return kiln::observe(state, full); }
+    // What the controls mean, and what to begin with (D-186): `world.state` lists them, `find` answers "jump".
+    static constexpr std::array<xengine::runtime::Control, 6> controls{{
+        {.name = "left", .summary = "Mui walks left", .axis = 0, .toward = -1},
+        {.name = "right", .summary = "Mui walks right", .axis = 0, .toward = 1},
+        {.name = "jump", .summary = "Jump from the ground; held in water, swim up", .button = jump_button},
+        {.name = "cast", .summary = "Cast the chosen spell once, toward `aim` (with no aim: the way she faces); it costs mana", .button = cast_button},
+        {.name = "next-spell", .summary = "Choose the next of her spells: fire, water, a bomb", .button = next_spell_button},
+        {.name = "aim", .summary = "Where a spell is cast toward: a place in the cavern, [x, y], each 0 to 1 of it", .pointer = true},
+    }};
+    static constexpr std::array<xengine::runtime::Move, 3> walk_and_jump{{{.hold = {"right"}, .steps = 40}, {.hold = {"right", "jump"}, .steps = 20}, {.steps = 20}}};
+    static constexpr std::array<xengine::runtime::Move, 2> cast_once{{{.hold = {"aim", "cast"}, .steps = 20, .pointer = {0.9, 0.5}}, {.steps = 30}}};
+    static constexpr std::array<xengine::runtime::Task, 2> tasks{{
+        {"walk-right-and-jump", "Walk right, jump while walking, and see where Mui stands", walk_and_jump},
+        {"cast-a-spell", "Cast the chosen spell toward the right of the cavern and see what it left", cast_once},
+    }};
 };
 
 using Standalone = xengine::runtime::Runtime<Play>;

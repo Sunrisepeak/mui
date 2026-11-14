@@ -148,7 +148,7 @@ UTest cases{"gongfu", [] {
         expect(eq((-(1.5_fx)).floor(), -2));
         expect(eq(Fixed::ratio(1, 3).bits(), 21845));
         expect(((-1.5_fx) * Fixed::ratio(1, 3)).bits() == -32768) << "a negative product floors (−32767.5 steps is −32768)";
-        const Rect right = place({10_fx, 0_fx, 20_fx, 5_fx}, {100_fx, 0_fx}, 1), left = place({10_fx, 0_fx, 20_fx, 5_fx}, {100_fx, 0_fx}, -1);
+        const Rect right = gongfu::place({10_fx, 0_fx, 20_fx, 5_fx}, {100_fx, 0_fx}, 1), left = gongfu::place({10_fx, 0_fx, 20_fx, 5_fx}, {100_fx, 0_fx}, -1);
         expect(right.left == 110_fx && right.right == 130_fx && left.left == 70_fx && left.right == 90_fx) << "a box is mirrored for the other side";
     };
 

@@ -137,7 +137,7 @@ std::string_view code_name(mpal::Error::Code code) {
 }
 
 // What the system's centre says to a program: opened and shown, or why not.
-std::string probe() {
+std::string centre_says() {
     auto notes = mpal::Notifier::open();
     if (!notes) return std::format("open {}: {}", code_name(notes.error().code), notes.error().text);
     auto shown = notes->show({.application = "mpal probe", .title = "mpal", .body = "a probe of the system's notifications", .actions = {{"open", "Open"}}});
@@ -152,7 +152,7 @@ std::string probe() {
 
 // A copy of this program (inside an .app on macOS): what the centre said, on its output.
 child notify_probe{"notify-probe", [](std::vector<std::string>) {
-    std::println("{}", probe());
+    std::println("{}", centre_says());
     return 0;
 }};
 
@@ -347,7 +347,7 @@ UTest cases{"mpal.notify", [] {
     "Windows: the application named by its Start menu shortcut; a toast shown, or refused with its reason; no answer without a person"_test = [] {
         namespace os = mcpplibs::os;
         if constexpr (os::is_windows) {
-            const std::string said = probe();
+            const std::string said = centre_says();
             expect(said.starts_with("shown ") || said.starts_with("show refused: ")) << said;
             const auto roaming = os::env::get("APPDATA");
             expect(roaming && std::filesystem::exists(os::fs::from_utf8(*roaming) / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "mpal probe.lnk"))

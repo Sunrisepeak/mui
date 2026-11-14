@@ -56,7 +56,20 @@ struct Chase {
     }
     static void play(Input& input, const xengine::Actions& actions) { input.player = actions; }
     static bool over(const State& state) noexcept { return state.caught >= 5; }
+    // What the game says of itself: what its controls mean, and a task to begin with.
+    static constexpr std::array<runtime::Control, 2> controls{{{.name = "left", .summary = "Walk toward lower numbers", .axis = 0, .toward = -1},
+                                                               {.name = "right", .summary = "Walk toward higher numbers", .axis = 0, .toward = 1}}};
+    static constexpr std::array<runtime::Move, 2>    to_the_mark{{{.hold = {"right"}, .steps = 60}, {.steps = 1}}};
+    static constexpr std::array<runtime::Task, 1>    tasks{{{"catch-the-first-mark", "Walk right to the first mark (it stands at 40) and stop", to_the_mark}}};
 };
+// What a game must not get compiled with: a move holding a control the game has not, a control that is two things.
+constexpr std::array<runtime::Control, 1> only_right{{{.name = "right", .summary = "Walk right", .axis = 0, .toward = 1}}};
+constexpr std::array<runtime::Move, 1>    holds_jump{{{.hold = {"jump"}, .steps = 3}}};
+constexpr std::array<runtime::Task, 1>    jumps{{{"jump", "Jump", holds_jump}}};
+static_assert(runtime::told_well(Chase::controls, Chase::tasks));
+static_assert(!runtime::told_well(only_right, jumps));
+static_assert(!runtime::told_well(std::array<runtime::Control, 1>{{{.name = "both", .summary = "A button and an axis", .button = 0, .axis = 0, .toward = 1}}}, {}));
+static_assert(!runtime::told_well(std::array<runtime::Control, 1>{{{.name = "Right", .summary = "Not a name", .button = 0}}}, {}));
 using Game = runtime::Runtime<Chase>;
 
 constexpr xengine::PlayTier assist{.name = "assist", .reaction_steps = 0, .actions_per_second = 0, .full_view = true};
@@ -118,6 +131,32 @@ UTest cases{"runtime", [] {
         const std::vector<std::string> unsupported = contract::unsupported(probe.make()->capabilities());
         expect(unsupported == std::vector<std::string>{"agent.source.chain", "agent.actor.recorded", "agent.observe.budget", "agent.causes.explained"})
             << "causes, the source of what it puts out, a budget: not yet, and said so";
+    };
+
+    "a game says what its controls mean and what to begin with: listed, found by intent, played as written (D-186)"_test = [] {
+        Game game(Chase::State{});
+        agent::SubjectSession session({&game});
+        // The controls, each with what a `world.act` holds it by: no button or axis is a number to guess.
+        const auto state = ask(session, R"({"op":"world.state"})");
+        expect(state.data()["controls"].dump() ==
+               R"([{"name":"left","summary":"Walk toward lower numbers","act":{"axis":[-1]}},{"name":"right","summary":"Walk toward higher numbers","act":{"axis":[1]}}])")
+            << state.data().dump();
+        const auto found = ask(session, R"({"op":"find","q":"walk to higher numbers"})");
+        expect(found.data()["found"][0]["kind"].text() == "control" && found.data()["found"][0]["name"].text() == "right" &&
+               found.data()["found"][0]["requests"][0].dump() == R"({"op":"world.act","axis":[1]})")
+            << found.data().dump();
+        // The game's task before the runtime's own, its moves as the requests that play them.
+        const auto described = ask(session, R"({"op":"describe","subject":"world"})");
+        const auto first = described.data()["tasks"][0];
+        expect(first["name"].text() == "catch-the-first-mark" && eq(described.data()["tasks"].size(), std::size_t{4})) << described.data()["tasks"].dump();
+        expect(first["steps"].dump() ==
+               R"([{"op":"world.act","axis":[1]},{"op":"world.step","steps":60},{"op":"world.act"},{"op":"world.step","steps":1},{"op":"world.observe"}])")
+            << first["steps"].dump();
+        for (std::size_t index = 0; index < first["steps"].size(); ++index) {
+            const auto answered = ask(session, first["steps"][index].dump());
+            expect(eq(answered.exit_code(), std::int64_t{0})) << first["steps"][index].dump();
+            if (index + 1 == first["steps"].size()) expect(answered.data()["view"]["caught"].integer() == 1) << "the task does what it says: " << answered.data().dump();
+        }
     };
 
     "a game is a subject: what it can do, its operations, what a player on its tier is shown"_test = [] {

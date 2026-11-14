@@ -16,6 +16,10 @@
 //       static std::string   observe(const State&, bool full); // what a player is shown, as JSON
 //       static void          play(Input&, const xengine::Actions&);  // an agent player's actions into a step's input
 //       static bool          over(const State&);
+//       // optional (D-186) — what its controls mean, and tasks to begin with, in the game's own words:
+//       static constexpr std::array<Control, 2> controls{{{"left", "walk left", .axis = 0, .toward = -1}, {"jump", "leave the ground", .button = 0}}};
+//       static constexpr std::array<Move, 1>    jump_once{{{.hold = {"jump"}, .steps = 30}}};
+//       static constexpr std::array<Task, 1>    tasks{{{"jump-once", "Jump and land", jump_once}}};
 //   };
 //   xengine::runtime::Runtime<Play> game(initial);
 //   mlibs::agent::Endpoint endpoint({.name = "breakout", .session = [&] {
@@ -44,6 +48,102 @@ concept Playable = mlibs::simulation::Model<G> &&
                        { G::play(input, actions) };
                        { G::over(state) } -> std::convertible_to<bool>;
                    };
+
+// What a control means (D-186): a button, an axis pushed one way, or the pointer, by the name a player knows it
+// by. Without it a request's `buttons: [0]` is a number an agent has to try to learn; with it `world.state` lists
+// the controls, each with the `world.act` that holds it, and `find` answers "jump".
+struct Control {
+    std::string_view name;      // "jump", "left": lower-case words joined by hyphens
+    std::string_view summary;   // what it does in the game
+    int              button = -1;      // a button's index (0 … 31) …
+    int              axis = -1;        // … or an axis (0 … 3)
+    int              toward = 0;       //     pushed this way (−1 or 1)
+    bool             pointer = false;  // … or the pointer: a place in the game's area
+};
+// One move of a task: controls held, by name (none: let go of everything), for so many steps.
+struct Move {
+    std::array<std::string_view, 4> hold{};
+    std::int32_t                    steps = 1;
+    std::array<double, 2>           pointer{0.5, 0.5};  // where the pointer is, when a pointer control is held
+};
+// A task to begin with, said by the game: what it gets done, and the moves that do it. The runtime writes each
+// move as the requests that play it (`world.act`, `world.step`) and ends with `world.observe`; it is listed by
+// `describe` before the runtime's own tasks, found by intent, and run as written by the contract suite.
+struct Task {
+    std::string_view      name;     // "catch-the-mark"
+    std::string_view      summary;
+    std::span<const Move> moves;
+};
+
+template <class G>
+concept SaysControls = requires {
+    { G::controls } -> std::convertible_to<std::span<const Control>>;
+};
+template <class G>
+concept SaysTasks = SaysControls<G> && requires {
+    { G::tasks } -> std::convertible_to<std::span<const Task>>;
+};
+
+// Whether what a game says of itself holds together: each control is one thing with a name of its own, and
+// each move holds controls the game has. Checked when the game is compiled (Runtime's static_assert).
+[[nodiscard]] constexpr bool told_well(std::span<const Control> controls, std::span<const Task> tasks) noexcept {
+    const auto named = [](std::string_view name) {
+        if (name.empty() || name.front() == '-' || name.back() == '-') return false;
+        for (const char letter : name)
+            if (!(letter >= 'a' && letter <= 'z') && !(letter >= '0' && letter <= '9') && letter != '-') return false;
+        return true;
+    };
+    for (std::size_t index = 0; index < controls.size(); ++index) {
+        const Control& control = controls[index];
+        if (!named(control.name) || control.summary.empty()) return false;
+        const int kinds = (control.button >= 0 ? 1 : 0) + (control.axis >= 0 ? 1 : 0) + (control.pointer ? 1 : 0);
+        if (kinds != 1 || control.button > 31 || control.axis > 3) return false;
+        if (control.axis >= 0 && control.toward != -1 && control.toward != 1) return false;
+        for (std::size_t other = 0; other < index; ++other)
+            if (controls[other].name == control.name) return false;
+    }
+    for (std::size_t index = 0; index < tasks.size(); ++index) {
+        const Task& task = tasks[index];
+        if (!named(task.name) || task.summary.empty() || task.moves.empty()) return false;
+        for (std::size_t other = 0; other < index; ++other)
+            if (tasks[other].name == task.name) return false;
+        for (const Move& move : task.moves) {
+            if (move.steps < 1) return false;
+            for (const std::string_view held : move.hold) {
+                if (held.empty()) continue;
+                bool known = false;
+                for (const Control& control : controls) known = known || control.name == held;
+                if (!known) return false;
+            }
+        }
+    }
+    return true;
+}
+
+// The members of a `world.act` that holds these controls: `"buttons":[0],"axis":[0,1]` (nothing held: empty).
+[[nodiscard]] inline std::string held_as_written(std::span<const Control> controls, std::span<const std::string_view> hold, std::array<double, 2> pointer) {
+    std::string buttons;
+    std::array<int, 4> axes{};
+    int highest = -1;
+    bool pointed = false;
+    for (const std::string_view held : hold)
+        for (const Control& control : controls) {
+            if (held.empty() || control.name != held) continue;
+            if (control.button >= 0) buttons += std::format("{}{}", buttons.empty() ? "" : ",", control.button);
+            if (control.axis >= 0) axes[static_cast<std::size_t>(control.axis)] = control.toward, highest = std::max(highest, control.axis);
+            pointed = pointed || control.pointer;
+        }
+    std::string out;
+    const auto member = [&](std::string text) { out += std::format("{}{}", out.empty() ? "" : ",", text); };
+    if (!buttons.empty()) member(std::format("\"buttons\":[{}]", buttons));
+    if (highest >= 0) {
+        std::string values;
+        for (int index = 0; index <= highest; ++index) values += std::format("{}{}", index ? "," : "", axes[static_cast<std::size_t>(index)]);
+        member(std::format("\"axis\":[{}]", values));
+    }
+    if (pointed) member(std::format("\"pointer\":[{},{}]", pointer[0], pointer[1]));
+    return out;
+}
 
 // Who steps the game: its owner's loop (a host's clock, a server's), or the
 // agent that plays it (nothing moves between its requests: a playtest, a test).
@@ -125,7 +225,40 @@ public:
     }
     [[nodiscard]] std::span<const mlibs::control::CatalogEntry> operations() const noexcept override { return catalog; }
     [[nodiscard]] std::string_view listing() const noexcept override { return xengine::runtime::listing; }
-    [[nodiscard]] mlibs::control::Guide guide() const noexcept override { return xengine::runtime::guide; }
+    // What a game hosted here is, and the tasks to begin with: the game's own first (G::tasks, each move
+    // written as the requests that play it), then the runtime's. Stays as it is until asked again.
+    [[nodiscard]] mlibs::control::Guide guide() const noexcept override {
+        const std::span<const Task> own = said_tasks();
+        if (own.empty()) return xengine::runtime::guide;
+        step_texts_.clear();
+        std::vector<std::size_t> counts;
+        for (const Task& task : own) {
+            const std::size_t before = step_texts_.size();
+            for (const Move& move : task.moves) {
+                const std::string held = held_as_written(said_controls(), move.hold, move.pointer);
+                step_texts_.push_back(held.empty() ? std::string(R"({"op":"world.act"})") : std::format("{{\"op\":\"world.act\",{}}}", held));
+                step_texts_.push_back(std::format("{{\"op\":\"world.step\",\"steps\":{}}}", move.steps));
+            }
+            step_texts_.emplace_back(R"({"op":"world.observe"})");
+            counts.push_back(step_texts_.size() - before);
+        }
+        steps_.assign(step_texts_.begin(), step_texts_.end());
+        tasks_.clear();
+        std::size_t first = 0;
+        for (std::size_t index = 0; index < own.size(); ++index) {
+            tasks_.push_back({own[index].name, own[index].summary, std::span<const std::string_view>(steps_).subspan(first, counts[index])});
+            first += counts[index];
+        }
+        tasks_.append_range(xengine::runtime::guide.tasks);
+        return {xengine::runtime::guide.about, tasks_};
+    }
+    // What the game names, for `find`: its controls, each with the request that holds it.
+    [[nodiscard]] std::vector<mlibs::agent::Term> terms() const override {
+        std::vector<mlibs::agent::Term> out;
+        for (const Control& control : said_controls())
+            out.push_back({"control", std::string(control.name), std::string(control.summary), std::format("{{\"op\":\"world.act\",{}}}", held_alone(control))});
+        return out;
+    }
     [[nodiscard]] std::uint64_t state_hash() const override { return G::checksum(timeline_.state()); }
 
     void operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) override {
@@ -142,9 +275,35 @@ private:
         return std::format("{{\"frame\":{},\"hash\":\"{:016x}\",\"over\":{},\"tier\":{},\"view\":{}}}", frame, G::checksum(state), G::over(state),
                            mlibs::agent::json_text(lane_.tier().name), G::observe(state, lane_.tier().full_view));
     }
+    [[nodiscard]] static constexpr std::span<const Control> said_controls() noexcept {
+        if constexpr (SaysControls<G>) return G::controls;
+        else return {};
+    }
+    [[nodiscard]] static constexpr std::span<const Task> said_tasks() noexcept {
+        if constexpr (SaysTasks<G>) return G::tasks;
+        else return {};
+    }
+    static_assert(told_well(said_controls(), said_tasks()),
+                  "what the game says of itself does not hold together: a control is one of a button (0 … 31), an axis (0 … 3) pushed −1 or 1, or the "
+                  "pointer, with a name of its own (lower-case words joined by hyphens) and a summary; a task has a name, a summary and moves, each "
+                  "holding controls the game has, for one step or more");
+    [[nodiscard]] static std::string held_alone(const Control& control) {
+        const std::array<std::string_view, 1> hold{control.name};
+        return held_as_written(said_controls(), hold, {0.5, 0.5});
+    }
+    // Where the game's time is; and, where the game says them, what its controls mean — each with the members
+    // of the `world.act` that holds it.
     [[nodiscard]] std::string status() const {
-        return std::format("{{\"frame\":{},\"hash\":\"{:016x}\",\"over\":{},\"earliest\":{},\"latest\":{}}}", timeline_.frame(),
-                           G::checksum(timeline_.state()), G::over(timeline_.state()), timeline_.earliest(), timeline_.latest());
+        std::string out = std::format("{{\"frame\":{},\"hash\":\"{:016x}\",\"over\":{},\"earliest\":{},\"latest\":{}", timeline_.frame(),
+                                      G::checksum(timeline_.state()), G::over(timeline_.state()), timeline_.earliest(), timeline_.latest());
+        if (const std::span<const Control> controls = said_controls(); !controls.empty()) {
+            out += ",\"controls\":[";
+            for (std::size_t index = 0; index < controls.size(); ++index)
+                out += std::format("{}{{\"name\":{},\"summary\":{},\"act\":{{{}}}}}", index ? "," : "", mlibs::agent::json_text(controls[index].name),
+                                   mlibs::agent::json_text(controls[index].summary), held_alone(controls[index]));
+            out += ']';
+        }
+        return out + "}";
     }
     // A player's actions as a request writes them: `buttons` held (their indices), `axis` (−1 … 1 each), `pointer` ([x, y], 0 … 1).
     [[nodiscard]] static std::expected<xengine::Actions, std::string> actions_of(const mlibs::agent::Request& request) { return actions_of(request.document->root()); }
@@ -266,6 +425,10 @@ private:
     std::function<void(const State&)> stepped_, rewound_;
     xengine::AgentLane             lane_;
     std::vector<Input>             recorded_;
+    // The guide as last asked: the game's tasks as requests, and what views them.
+    mutable std::vector<std::string>          step_texts_;
+    mutable std::vector<std::string_view>     steps_;
+    mutable std::vector<mlibs::control::Task> tasks_;
 };
 
 }  // namespace xengine::runtime

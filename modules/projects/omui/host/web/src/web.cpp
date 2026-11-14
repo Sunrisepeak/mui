@@ -81,6 +81,7 @@ struct Web::Impl {
     std::optional<xrender::GpuFrame>          gpu;
     mlibs::rhi::Texture                             target{};
     int                                      target_w = 0, target_h = 0;
+    ShownPictures                            shown_pictures;  // the viewports' pictures as textures on the device
     std::string_view                         drawn_by = "cpu";
     xrender::DamageTracker                    damage;
     xrender::raster::Surface                          frame;
@@ -268,6 +269,7 @@ struct Web::Impl {
             }
             device = std::move(*made);
             gpu.emplace(std::move(*renderer));
+            if (runtime) runtime->set_device(device.get());  // worlds drawn on it, shown as they are
             drawn_by = kind == Renderer::webgpu ? "webgpu" : "webgl";
             return true;
         };
@@ -291,7 +293,14 @@ struct Web::Impl {
             mlibs::trace::Span span("render", "host");
             const xrender::Resources resources{&runtime->images(), glyphs.get()};
             const xrender::FrameLayer ui_layer{.name = "ui", .list = &list, .resources = resources, .scale = scale};
-            if (auto r = gpu->render({&ui_layer, 1}, target, static_cast<std::uint32_t>(w), static_cast<std::uint32_t>(hgt), {.background = options.background}); !r)
+            xrender::GpuFrameOptions how;
+            how.background = options.background;
+            how.external = [this](std::uint64_t number) {  // a world in a viewport
+                auto texture = shown_pictures.texture(*runtime, *device, number);
+                if (!shown_pictures.failed().empty()) warn("host.web: {}", shown_pictures.failed());
+                return texture;
+            };
+            if (auto r = gpu->render({&ui_layer, 1}, target, static_cast<std::uint32_t>(w), static_cast<std::uint32_t>(hgt), how); !r)
                 return gpu_failed(r.error().message);
         }
         if (!options.present) return true;
@@ -550,6 +559,19 @@ Web::Web(WebOptions options) : impl_(std::make_unique<Impl>()) {
 
 Web::~Web() {
     if (impl_->page_store && &omui::store() == impl_->page_store.get()) use_store(nullptr);
+    // The components drawn on the device (a world's targets) before the device: what reads the runtime, then an
+    // own runtime; a borrowed one is told there is no device any more.
+    Impl& d = *impl_;
+    d.protocol.reset();
+    d.mirror.reset();
+    if (d.device) d.shown_pictures.release(*d.device);
+    if (d.own_runtime) {
+        d.tree.reset();
+        d.runtime = nullptr;
+        d.own_runtime.reset();
+    } else if (d.runtime) {
+        d.runtime->set_device(nullptr);
+    }
 }
 
 Runtime& Web::runtime() noexcept { return *impl_->runtime; }

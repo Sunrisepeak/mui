@@ -1201,4 +1201,43 @@ std::optional<Rect> Runtime::text_input_rect() const noexcept {
     return node.world.map(*d.text_input);
 }
 
+std::optional<mlibs::rhi::Texture> ShownPictures::texture(const Runtime& runtime, mlibs::rhi::Device& device, std::uint64_t number) {
+    failed_.clear();
+    if (const auto drawn_here = runtime.device_picture(number)) return drawn_here;  // drawn on this device: as it is
+    const std::optional<xrender::raster::ImageView> picture = runtime.picture(number);
+    if (!picture || !picture->pixels || picture->width <= 0 || picture->height <= 0) return std::nullopt;
+    const auto handle = static_cast<std::uint32_t>(number >> 32);
+    const auto wide = static_cast<std::uint32_t>(picture->width), high = static_cast<std::uint32_t>(picture->height);
+    auto found = std::ranges::find(held_, handle, &Held::handle);
+    if (found == held_.end()) found = held_.insert(held_.end(), Held{.handle = handle});
+    if (!found->texture || found->width != wide || found->height != high) {
+        if (found->texture) device.destroy(found->texture);
+        auto made = device.create(mlibs::rhi::TextureDesc{mlibs::rhi::Format::rgba8_unorm, wide, high, mlibs::rhi::TextureUsage::sampled, "host.shown"});
+        if (!made) {
+            failed_ = std::format("a shown picture's texture: {}", made.error().message);
+            found->texture = {};
+            return std::nullopt;
+        }
+        found->texture = *made, found->width = wide, found->height = high, found->number = ~number;
+    }
+    if (found->number != number) {
+        const std::size_t row = static_cast<std::size_t>(picture->stride) * 4;
+        mlibs::rhi::CommandList sent;
+        sent.upload(found->texture, mlibs::rhi::Region{0, 0, wide, high},
+                    std::span(reinterpret_cast<const std::byte*>(picture->pixels), row * (high - 1) + static_cast<std::size_t>(wide) * 4), static_cast<std::uint32_t>(row));
+        if (auto submitted = device.submit(sent); !submitted || !device.wait(*submitted)) {
+            failed_ = "a shown picture's pixels could not be put on the device";
+            return std::nullopt;
+        }
+        found->number = number;
+    }
+    return found->texture;
+}
+
+void ShownPictures::release(mlibs::rhi::Device& device) noexcept {
+    for (const Held& one : held_)
+        if (one.texture) device.destroy(one.texture);
+    held_.clear();
+}
+
 }  // namespace omui

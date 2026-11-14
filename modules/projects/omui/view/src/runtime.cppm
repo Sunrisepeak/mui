@@ -903,4 +903,26 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
+// The pictures a runtime's viewports show, as textures on a host's device (what its GPU frame takes for them,
+// `GpuFrameOptions::external`): one drawn on that device is shown as it is; one of pixels is put on a texture of
+// its own, again only when its number changes. Each host that draws on a device keeps one; `release` before the
+// device goes.
+class ShownPictures {
+public:
+    [[nodiscard]] std::optional<mlibs::rhi::Texture> texture(const Runtime& runtime, mlibs::rhi::Device& device, std::uint64_t number);
+    void release(mlibs::rhi::Device& device) noexcept;
+    // Why the last picture could not be shown (empty: it was).
+    [[nodiscard]] const std::string& failed() const noexcept { return failed_; }
+
+private:
+    struct Held {
+        std::uint32_t       handle = 0;
+        mlibs::rhi::Texture texture;
+        std::uint64_t       number = 0;
+        std::uint32_t       width = 0, height = 0;
+    };
+    std::vector<Held> held_;
+    std::string       failed_;
+};
+
 }  // namespace omui

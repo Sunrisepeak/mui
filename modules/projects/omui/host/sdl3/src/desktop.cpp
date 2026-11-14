@@ -288,40 +288,11 @@ struct Desktop::Impl final : WindowHost {
 
     // A picture a component shows from elsewhere (Services::add_picture: a world in a viewport), as a texture of
     // this device: its pixels sent when the number it is drawn by changes, kept until it is another size.
-    struct ShownTexture {
-        std::uint32_t       handle = 0;
-        mlibs::rhi::Texture texture;
-        std::uint64_t       number = 0;
-        std::uint32_t       width = 0, height = 0;
-    };
-    std::vector<ShownTexture> shown_textures;
+    ShownPictures shown_pictures;  // the viewports' pictures as textures on the device
     std::optional<mlibs::rhi::Texture> shown_texture(std::uint64_t number) {
-        if (const auto drawn_here = runtime->device_picture(number)) return drawn_here;  // drawn on this device: as it is
-        const std::optional<xrender::raster::ImageView> picture = runtime->picture(number);
-        if (!picture || !picture->pixels || picture->width <= 0 || picture->height <= 0) return std::nullopt;
-        const auto handle = static_cast<std::uint32_t>(number >> 32);
-        const auto wide = static_cast<std::uint32_t>(picture->width), high = static_cast<std::uint32_t>(picture->height);
-        auto found = std::ranges::find(shown_textures, handle, &ShownTexture::handle);
-        if (found == shown_textures.end()) found = shown_textures.insert(shown_textures.end(), ShownTexture{.handle = handle});
-        if (!found->texture || found->width != wide || found->height != high) {
-            if (found->texture) device->destroy(found->texture);
-            auto made = device->create(mlibs::rhi::TextureDesc{mlibs::rhi::Format::rgba8_unorm, wide, high, mlibs::rhi::TextureUsage::sampled, "host.shown"});
-            if (!made) {
-                warn("a shown picture's texture: {}", made.error().message);
-                found->texture = {};
-                return std::nullopt;
-            }
-            found->texture = *made, found->width = wide, found->height = high, found->number = ~number;
-        }
-        if (found->number != number) {
-            const std::size_t row = static_cast<std::size_t>(picture->stride) * 4;
-            mlibs::rhi::CommandList sent;
-            sent.upload(found->texture, mlibs::rhi::Region{0, 0, wide, high},
-                        std::span(reinterpret_cast<const std::byte*>(picture->pixels), row * (high - 1) + static_cast<std::size_t>(wide) * 4), static_cast<std::uint32_t>(row));
-            if (auto submitted = device->submit(sent); !submitted || !device->wait(*submitted)) return std::nullopt;
-            found->number = number;
-        }
-        return found->texture;
+        auto texture = shown_pictures.texture(*runtime, *device, number);
+        if (!shown_pictures.failed().empty()) warn("{}", shown_pictures.failed());
+        return texture;
     }
 
     void show_gpu(const xrender::DisplayList& list, std::uint64_t h, float scale, int w, int hgt) {
@@ -430,10 +401,7 @@ Desktop::~Desktop() {
     }
     // The GPU's before the window it claimed.
     if (impl_->device && impl_->gpu_frame) impl_->device->destroy(impl_->gpu_frame);
-    if (impl_->device)
-        for (const auto& one : impl_->shown_textures)
-            if (one.texture) impl_->device->destroy(one.texture);
-    impl_->shown_textures.clear();
+    if (impl_->device) impl_->shown_pictures.release(*impl_->device);
     impl_->gpu.reset();
     impl_->device.reset();
     impl_->window.reset();

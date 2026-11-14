@@ -165,6 +165,8 @@ members = [
     "showcase/kiln/play",
     "showcase/kiln/picture",
     "showcase/kiln/sound",
+    "showcase/swarm/headless",
+    "showcase/swarm/play",
     "site",
 ]
 

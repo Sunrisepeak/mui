@@ -1,0 +1,32 @@
+# Swarm as a game on its own (D-162): a small top-down shooter — its rules (src/sim.cpp) and the game as
+# xengine.runtime plays it (the Playable in the interface): stepped without omui, sought back and branched
+# ahead, played by an agent through the agent kernel as a person plays. One package: the rules are one file
+# and have no other consumer (D-99).
+[package]
+namespace   = "omui.showcase.swarm"
+name        = "headless"
+version     = "0.1.0"
+description = "Swarm on its own: a top-down shooter's deterministic rules as a game the runtime steps, rewinds and branches, and an agent plays; no interface"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[targets.swarm-headless]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+xengine.runtime = { path = "../../../modules/projects/xengine/game/runtime" }
+xengine.input   = { path = "../../../modules/projects/xengine/game/input" }
+xengine.world   = { path = "../../../modules/projects/xengine/game/world" }
+mlibs.math      = { path = "../../../modules/base/math" }
+mlibs.utils     = { path = "../../../modules/base/utils" }
+
+[dev-dependencies]
+mcpplibs.mtest  = "0.8.4"
+mlibs.agent     = { path = "../../../modules/base/agent" }
+"mlibs.agent.cts" = { path = "../../../modules/base/agent/cts" }
+mlibs.json      = { path = "../../../modules/base/json" }

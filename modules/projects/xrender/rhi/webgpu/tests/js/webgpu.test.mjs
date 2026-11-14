@@ -321,6 +321,35 @@ test('multisampled targets resolve and drop their samples; depth is cleared, kep
   });
 });
 
+test('several colour targets: a pipeline\'s targets after the first from its words, a pass\'s attachments each cleared its own way', async () => {
+  const { context: c, G, gpu } = await load();
+  const heap = new Heap(c);
+  c.omui_webgpu_texture(0, 0, 8, 8, G.TEX.color_target | G.TEX.sampled, 1, 'first');
+  c.omui_webgpu_texture(1, 0, 8, 8, G.TEX.color_target | G.TEX.sampled, 1, 'second');
+  c.omui_webgpu_texture(2, 4, 8, 8, G.TEX.color_target | G.TEX.sampled, 1, 'third');
+  // Two more after the quad's: rgba8 blending premultiplied, r32_float replacing.
+  const three = [...quadWords(), 2, 0, 1, 1, 7, 0, 1, 7, 0, 4, 0, 1, 0, 0, 1, 0, 0];
+  const vs = 'vertex code', fs = 'fragment code';
+  assert.equal(c.omui_webgpu_graphics(0, heap.words(three), three.length, heap.text(vs), vs.length, 'vs', heap.text(fs), fs.length, 'fs', 'three'), 1);
+  same(gpu.calls('createRenderPipeline')[0][1].fragment.targets, [
+    { format: 'rgba8unorm' },
+    { format: 'rgba8unorm', blend: { color: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' },
+                                     alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' } } },
+    { format: 'r32float' }]);
+  // A pipeline of one target is its words as before: nothing read past them.
+  assert.equal(c.omui_webgpu_graphics(1, heap.words(quadWords()), quadWords().length, heap.text(vs), vs.length, 'vs', heap.text(fs), fs.length, 'fs', 'one'), 1);
+  assert.equal(gpu.calls('createRenderPipeline')[1][1].fragment.targets.length, 1);
+
+  const O = G.OP;
+  const begin = [0, G.LOAD.clear, f(0), f(0), f(0), f(1), NONE, NONE, 0, f(1), 0, 0, 2, 1, G.LOAD.clear, f(0), f(1), f(0), f(1), 2, G.LOAD.load, f(7.5), f(0), f(0), f(0)];
+  const w = [O.begin_render | (begin.length << 8), ...begin, O.set_pipeline | (1 << 8), 0, O.end_render];
+  assert.equal(c.omui_webgpu_run(heap.words(w), w.length), 1);
+  const attachments = gpu.calls('beginRenderPass')[0][1].colorAttachments;
+  same(attachments.map((a) => [a.view.texture.desc.label, a.loadOp, a.storeOp, a.clearValue]), [
+    ['first', 'clear', 'store', { r: 0, g: 0, b: 0, a: 1 }], ['second', 'clear', 'store', { r: 0, g: 1, b: 0, a: 1 }],
+    ['third', 'load', 'store', { r: 7.5, g: 0, b: 0, a: 0 }]]);
+});
+
 test('a compute pass: what it writes in group 1, its uniforms in group 2, the work groups', async () => {
   const { context: c, G, gpu } = await load();
   const heap = new Heap(c);

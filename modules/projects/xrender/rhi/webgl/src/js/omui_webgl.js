@@ -73,7 +73,8 @@ addToLibrary({
     textures: [],         // by slot: {texture | renderbuffer, f (FORMATS entry), width, height, samples}
     samplers: [],
     pipelines: [],
-    framebuffers: null,   // "color:depth" -> WebGLFramebuffer
+    framebuffers: null,   // "color:depth" (then ":more" for each target after the first) -> WebGLFramebuffer
+    indexed: null,        // OES_draw_buffers_indexed, where the context has it
     vao: null,
     ubo: null,
     uboSize: 0,
@@ -110,6 +111,8 @@ addToLibrary({
       var colorFloat = !!gl.getExtension('EXT_color_buffer_float');
       var halfFloat = colorFloat || !!gl.getExtension('EXT_color_buffer_half_float');
       gl.getExtension('EXT_float_blend');
+      // Each draw buffer blending its own way: without it they all blend as the first.
+      G.indexed = gl.getExtension('OES_draw_buffers_indexed');
       gl.getExtension('OES_texture_float_linear');
       var debug = gl.getExtension('WEBGL_debug_renderer_info');
       var name = (debug && gl.getParameter(debug.UNMASKED_RENDERER_WEBGL)) || gl.getParameter(gl.RENDERER) || 'WebGL2';
@@ -120,6 +123,8 @@ addToLibrary({
         maxSamples: gl.getParameter(gl.MAX_SAMPLES),
         colorFloat: colorFloat,
         halfFloat: halfFloat,
+        drawBuffers: gl.getParameter(gl.MAX_DRAW_BUFFERS) || 1,
+        indexedBlend: !!G.indexed,
       };
       G.uboAlign = gl.getParameter(gl.UNIFORM_BUFFER_OFFSET_ALIGNMENT) || 256;
       G.blockSlack = gl.getParameter(gl.MAX_UNIFORM_BLOCK_SIZE) || 16384;
@@ -139,7 +144,7 @@ addToLibrary({
       G.framebuffers.forEach(function (f) { gl.deleteFramebuffer(f); });
       if (G.ubo) gl.deleteBuffer(G.ubo);
       gl.deleteVertexArray(G.vao);
-      G.gl = null; G.canvas = null; G.ubo = null; G.uboSize = 0; G.framebuffers = null;
+      G.gl = null; G.canvas = null; G.ubo = null; G.uboSize = 0; G.framebuffers = null; G.indexed = null;
       G.buffers = []; G.textures = []; G.samplers = []; G.pipelines = []; G.errors = []; G.lost = '';
     },
 
@@ -157,8 +162,10 @@ addToLibrary({
     // The framebuffer of a colour target and a depth target (ids; NONE:
     // none). Making one binds it (to FRAMEBUFFER, read and draw): a caller
     // that binds two gets both first.
-    framebuffer: function (color, depth) {
+    // `more`: the ids of the colour targets after the first (a pass of several), each at the next point.
+    framebuffer: function (color, depth, more) {
       var G = omuiGl, gl = G.gl, key = color + ':' + depth;
+      if (more) for (var o = 0; o < more.length; ++o) key += ':' + more[o];
       var f = G.framebuffers.get(key);
       if (f) return f;
       f = gl.createFramebuffer();
@@ -168,6 +175,14 @@ addToLibrary({
         else gl.framebufferTexture2D(gl.FRAMEBUFFER, point, gl.TEXTURE_2D, t.texture, 0);
       };
       if (color !== G.NONE) attach(gl.COLOR_ATTACHMENT0, G.textures[color]);
+      if (more && more.length) {
+        var points = [gl.COLOR_ATTACHMENT0];
+        for (var a = 0; a < more.length; ++a) {
+          attach(gl.COLOR_ATTACHMENT0 + 1 + a, G.textures[more[a]]);
+          points.push(gl.COLOR_ATTACHMENT0 + 1 + a);
+        }
+        gl.drawBuffers(points);  // the framebuffer's own state: set once
+      }
       if (depth !== G.NONE) {
         var z = G.textures[depth];
         attach(z.f[1] === 'DEPTH_STENCIL' ? gl.DEPTH_STENCIL_ATTACHMENT : gl.DEPTH_ATTACHMENT, z);
@@ -185,7 +200,7 @@ addToLibrary({
       var G = omuiGl;
       G.framebuffers.forEach(function (f, key) {
         var parts = key.split(':');
-        if (Number(parts[0]) === id || Number(parts[1]) === id) { G.gl.deleteFramebuffer(f); G.framebuffers.delete(key); }
+        if (parts.some(function (part) { return Number(part) === id; })) { G.gl.deleteFramebuffer(f); G.framebuffers.delete(key); }
       });
     },
 
@@ -236,10 +251,13 @@ addToLibrary({
         }
       }
       p.base = gl.getUniformLocation(program, 'omui_base');
-      p.blend = w[9] ? {
-        src: gl[G.BLEND_FACTORS[w[10]]], dst: gl[G.BLEND_FACTORS[w[11]]], op: gl[G.BLEND_OPS[w[12]]],
-        srcAlpha: gl[G.BLEND_FACTORS[w[13]]], dstAlpha: gl[G.BLEND_FACTORS[w[14]]], opAlpha: gl[G.BLEND_OPS[w[15]]],
-      } : null;
+      var blend = function (from) {
+        return w[from] ? {
+          src: gl[G.BLEND_FACTORS[w[from + 1]]], dst: gl[G.BLEND_FACTORS[w[from + 2]]], op: gl[G.BLEND_OPS[w[from + 3]]],
+          srcAlpha: gl[G.BLEND_FACTORS[w[from + 4]]], dstAlpha: gl[G.BLEND_FACTORS[w[from + 5]]], opAlpha: gl[G.BLEND_OPS[w[from + 6]]],
+        } : null;
+      };
+      p.blend = blend(9);
       p.mode = gl[G.TOPOLOGIES[w[16]]];
       p.depth = w[17] !== G.NONE ? { test: w[18] !== 0, write: w[18] !== 0 && w[19] !== 0, func: gl[G.COMPARES[w[20]]] } : null;
       var at = 22, n = w[at++];
@@ -252,6 +270,9 @@ addToLibrary({
         }
         p.buffers.push(layout);
       }
+      // The targets after the first, where the words go on: how each blends (their formats are their textures').
+      p.more = [];
+      if (at < w.length) for (var more = w[at++]; more > 0; --more, at += 8) p.more.push(blend(at + 1));
       return p;
     },
 
@@ -371,15 +392,21 @@ addToLibrary({
           case O.begin_render: {
             target = G.textures[w[k]];
             resolve = w[k + 6] !== NONE ? { id: w[k + 6], from: w[k] } : null;
-            gl.bindFramebuffer(gl.FRAMEBUFFER, G.framebuffer(w[k], w[k + 7]));
+            // The targets after the first, where the command goes on: how many, each with how it begins.
+            var others = [], m;
+            if (len > 12) for (m = 0; m < w[k + 12]; ++m) others.push(w[k + 13 + 6 * m]);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, G.framebuffer(w[k], w[k + 7], others));
             gl.viewport(0, 0, target.width, target.height);
             gl.disable(gl.SCISSOR_TEST);
-            if (w[k + 1] === G.LOAD.clear) {
+            var cleared = function (texture, point, at) {
+              if (w[at] !== G.LOAD.clear) return;
               gl.colorMask(true, true, true, true);
-              var clear = [f32[k + 2], f32[k + 3], f32[k + 4], f32[k + 5]];
-              if (target.f[4] === 'uint') gl.clearBufferuiv(gl.COLOR, 0, new Uint32Array(clear));
-              else gl.clearBufferfv(gl.COLOR, 0, clear);
-            }
+              var clear = [f32[at + 1], f32[at + 2], f32[at + 3], f32[at + 4]];
+              if (texture.f[4] === 'uint') gl.clearBufferuiv(gl.COLOR, point, new Uint32Array(clear));
+              else gl.clearBufferfv(gl.COLOR, point, clear);
+            };
+            cleared(target, 0, k + 1);
+            for (m = 0; m < others.length; ++m) cleared(G.textures[others[m]], 1 + m, k + 14 + 6 * m);
             if (w[k + 7] !== NONE && w[k + 8] === G.LOAD.clear) {
               gl.depthMask(true);
               if (G.textures[w[k + 7]].f[1] === 'DEPTH_STENCIL') gl.clearBufferfi(gl.DEPTH_STENCIL, 0, f32[k + 9], w[k + 10]);
@@ -411,6 +438,18 @@ addToLibrary({
               gl.blendFuncSeparate(bl.src, bl.dst, bl.srcAlpha, bl.dstAlpha);
               gl.blendEquationSeparate(bl.op, bl.opAlpha);
             } else gl.disable(gl.BLEND);
+            // What was just set is every draw buffer's; then each target after the first its own way, where
+            // the context can (without OES_draw_buffers_indexed the device refuses a pipeline that asks).
+            if (G.indexed) {
+              for (var mb = 0; mb < pipeline.more.length; ++mb) {
+                var its = pipeline.more[mb];
+                if (its) {
+                  G.indexed.enableiOES(gl.BLEND, 1 + mb);
+                  G.indexed.blendFuncSeparateiOES(1 + mb, its.src, its.dst, its.srcAlpha, its.dstAlpha);
+                  G.indexed.blendEquationSeparateiOES(1 + mb, its.op, its.opAlpha);
+                } else G.indexed.disableiOES(gl.BLEND, 1 + mb);
+              }
+            }
             var d = pipeline.depth;
             if (d && d.test) {
               gl.enable(gl.DEPTH_TEST);
@@ -560,6 +599,8 @@ addToLibrary({
     HEAPU32[(out >> 2) + 2] = G.info.maxSamples;
     HEAPU32[(out >> 2) + 3] = G.info.colorFloat ? 1 : 0;
     HEAPU32[(out >> 2) + 4] = G.info.halfFloat ? 1 : 0;
+    HEAPU32[(out >> 2) + 5] = G.info.drawBuffers;
+    HEAPU32[(out >> 2) + 6] = G.info.indexedBlend ? 1 : 0;
     return 1;
   },
 

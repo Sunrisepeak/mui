@@ -44,9 +44,9 @@ std::uint32_t length(std::span<const std::byte> b) { return static_cast<std::uin
 }  // namespace
 
 std::expected<Context, std::string> open(std::string_view selector) {
-    std::array<std::uint32_t, 5> info{};
+    std::array<std::uint32_t, 7> info{};
     if (!omui_webgl_open(std::string(selector).c_str(), info.data())) return std::unexpected(take(omui_webgl_why()));
-    return Context{take(omui_webgl_name()), info[0] != 0, info[1], info[2], info[3] != 0, info[4] != 0};
+    return Context{take(omui_webgl_name()), info[0] != 0, info[1], info[2], info[3] != 0, info[4] != 0, info[5], info[6] != 0};
 }
 
 void close() { omui_webgl_close(); }

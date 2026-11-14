@@ -113,8 +113,9 @@ protected:
         const ShaderCode* fs = d.fragment->code_for(ShaderFormat::wgsl);
         words_.clear();
         wire::encode(d, words_);
-        const GraphicsPipeline p = graphics_.insert(
-            {counts(*d.vertex), counts(*d.fragment), static_cast<std::uint32_t>(d.vertex_buffers.size()), d.target, d.depth_target, d.samples});
+        GraphicsPipelineInfo described{counts(*d.vertex), counts(*d.fragment), static_cast<std::uint32_t>(d.vertex_buffers.size()), d.target, d.depth_target, d.samples, {}, 0};
+        for (const MoreTarget& another : d.more_targets) described.more_targets[described.more++] = another.format;
+        const GraphicsPipeline p = graphics_.insert(described);
         const std::string_view label = d.label.empty() ? d.fragment->entry : d.label;
         if (!page::graphics(p.index, words_, vs->bytes, d.vertex->entry, fs->bytes, d.fragment->entry, label)) {
             graphics_.erase(p);
@@ -224,6 +225,8 @@ Result<std::unique_ptr<Device>> create(const Options& options) {
     caps.max_texture_size = adapter->max_texture;
     caps.max_samples = 4;  // WebGPU's one count beside 1
     caps.depth = adapter->depth_stencil;
+    // Every WebGPU has eight colour attachments a pass and 32 bytes a sample of them: rhi's four of any of its formats fit.
+    caps.max_color_targets = max_color_targets;
     return std::unique_ptr<Device>(std::make_unique<WebGpuDevice>(std::move(caps), !options.canvas.empty()));
 }
 

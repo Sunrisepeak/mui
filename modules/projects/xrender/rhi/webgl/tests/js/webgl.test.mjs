@@ -89,7 +89,7 @@ function quadWords({ vertex = [0, 0, 0, 1], fragment = [1, 0, 0, 1], blend = [1,
 function opened(options = {}) {
   const l = load(options);
   const heap = new Heap(l.c);
-  const info = heap.words([0, 0, 0, 0, 0]);
+  const info = heap.words([0, 0, 0, 0, 0, 0, 0]);
   assert.equal(l.c.omui_webgl_open('', info), 1);
   return { ...l, heap, info };
 }
@@ -244,6 +244,53 @@ test('a submission in its order: uploads, a cleared pass on its framebuffer, the
   same(gl.calls('vertexAttribPointer').map((x) => x[6]), [48, 56, 0], 'two vertices of 24 bytes on');
   same(gl.calls('drawElementsInstanced')[0].slice(1), [gl.TRIANGLES, 6, 'UNSIGNED_INT', 12, 1]);
   assert.equal(gl.calls('clearBufferfv').length, 0, 'a pass that loads clears nothing');
+});
+
+test('several colour targets: one framebuffer of them all, each cleared its own way, each blending its own where the context can', () => {
+  const l = opened({ gl: new FakeGl({ extensions: ['EXT_color_buffer_float', 'OES_draw_buffers_indexed'] }) });
+  const { c, G, gl, heap, info } = l;
+  same([...c.HEAPU32.slice((info >> 2) + 5, (info >> 2) + 7)], [4, 1], 'four draw buffers, each blending its own way');
+  c.omui_webgl_texture(0, 0, 8, 8, 1);
+  c.omui_webgl_texture(1, 0, 8, 8, 1);
+  c.omui_webgl_texture(2, 4, 8, 8, 1);
+  // The quad's first target replacing; then rgba8 blending premultiplied, r32_float replacing.
+  const three = [...quadWords({ blend: [0, 1, 0, 0, 1, 0, 0] }), 2, 0, 1, 1, 7, 0, 1, 7, 0, 4, 0, 1, 0, 0, 1, 0, 0];
+  assert.equal(pipeline(l, three), 1);
+  same(G.pipelines[0].more, [{ src: 1, dst: 0x303, op: 0x8006, srcAlpha: 1, dstAlpha: 0x303, opAlpha: 0x8006 }, null]);
+  gl.log = [];
+  const O = G.OP;
+  const begin = [0, G.LOAD.clear, f(0), f(0), f(0), f(1), NONE, NONE, 0, f(1), 0, 0, 2, 1, G.LOAD.clear, f(0), f(1), f(0), f(1), 2, G.LOAD.clear, f(7.5), f(0), f(0), f(0)];
+  const w = [O.begin_render | (begin.length << 8), ...begin, O.set_pipeline | (1 << 8), 0, O.end_render];
+  assert.equal(c.omui_webgl_run(heap.words(w), w.length), 1);
+  same(gl.calls('framebufferTexture2D').map((x) => x[2]), ['COLOR_ATTACHMENT0', 'COLOR_ATTACHMENT1', 'COLOR_ATTACHMENT2']);
+  same(gl.calls('drawBuffers', true).map((x) => x[1]), [[gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2]]);
+  same(gl.calls('clearBufferfv').map((x) => [x[1], x[2], [...x[3]]]), [['COLOR', 0, [0, 0, 0, 1]], ['COLOR', 1, [0, 1, 0, 1]], ['COLOR', 2, [7.5, 0, 0, 0]]]);
+  // Every buffer as the first (not blending), then the second its own way and the third said again.
+  const names = gl.log.map((x) => x[0]);
+  assert.ok(names.indexOf('disable', names.indexOf('useProgram')) < names.indexOf('enableiOES'), 'the first target\'s state, then the others\'');
+  same(gl.calls('enableiOES').map((x) => x.slice(1)), [['BLEND', 1]]);
+  same(gl.calls('blendFuncSeparateiOES').map((x) => x.slice(1)), [[1, 1, 'ONE_MINUS_SRC_ALPHA', 1, 'ONE_MINUS_SRC_ALPHA']]);
+  same(gl.calls('blendEquationSeparateiOES').map((x) => x.slice(1)), [[1, 'FUNC_ADD', 'FUNC_ADD']]);
+  same(gl.calls('disableiOES').map((x) => x.slice(1)), [['BLEND', 2]]);
+  // The same targets again are the same framebuffer; it goes with any of its textures.
+  gl.log = [];
+  assert.equal(c.omui_webgl_run(heap.words(w), w.length), 1);
+  assert.equal(gl.calls('createFramebuffer').length, 0);
+  c.omui_webgl_destroy(G.KIND.texture, 2);
+  assert.equal(gl.calls('deleteFramebuffer').length, 1, 'a framebuffer goes with a target after its first too');
+
+  // A context without the extension says so (the device then refuses a pipeline whose targets blend differently), and asks it nothing.
+  const plain = opened();
+  same([...plain.c.HEAPU32.slice((plain.info >> 2) + 5, (plain.info >> 2) + 7)], [4, 0]);
+  plain.c.omui_webgl_texture(0, 0, 8, 8, 1);
+  plain.c.omui_webgl_texture(1, 0, 8, 8, 1);
+  const alike = [...quadWords({ blend: [0, 1, 0, 0, 1, 0, 0] }), 1, 0, 0, 1, 0, 0, 1, 0, 0];
+  assert.equal(pipeline(plain, alike), 1);
+  const begin2 = [0, G.LOAD.clear, f(0), f(0), f(0), f(1), NONE, NONE, 0, f(1), 0, 0, 1, 1, G.LOAD.load, f(0), f(0), f(0), f(0)];
+  const w2 = [O.begin_render | (begin2.length << 8), ...begin2, O.set_pipeline | (1 << 8), 0, O.end_render];
+  assert.equal(plain.c.omui_webgl_run(plain.heap.words(w2), w2.length), 1);
+  assert.equal(plain.gl.calls('clearBufferfv').length, 1, 'a target that loads is not cleared');
+  assert.equal(plain.c.omui_webgl_error(), 0, 'no error');
 });
 
 test('copies and resolves read one framebuffer and draw another, both made before either is bound', () => {

@@ -252,7 +252,25 @@ void multisample(Bench& b) {
 // its own format, cleared to its own colour; what one target's blending does is that target's. A device
 // that says it has one refuses a pipeline of more as unsupported, which is what holds for it.
 void several_targets(Bench& b) {
-    const std::array<MoreTarget, 2> more{MoreTarget{Format::rgba8_unorm, Blend::premultiplied()}, MoreTarget{Format::r32_float, Blend::replace()}};
+    // Where every target blends as the first (Caps::independent_blend false), a target blending its own way
+    // is refused as unsupported, and the pass is checked with the three replacing what they had.
+    const bool own_way = b.d.caps().independent_blend;
+    const std::array<MoreTarget, 2> each_its_own{MoreTarget{Format::rgba8_unorm, Blend::premultiplied()}, MoreTarget{Format::r32_float, Blend::replace()}};
+    const std::array<MoreTarget, 2> alike{MoreTarget{Format::rgba8_unorm, Blend::replace()}, MoreTarget{Format::r32_float, Blend::replace()}};
+    if (!own_way && b.d.caps().max_color_targets >= 3) {
+        auto refused = b.d.create(GraphicsPipelineDesc{.vertex = &shaders::several::several_vs, .fragment = &shaders::several::several_fs, .vertex_buffers = b.fill_layout,
+                                                       .blend = Blend::replace(), .more_targets = each_its_own, .label = "cts.several.own"});
+        if (refused) {
+            b.d.destroy(*refused);
+            b.fail("the device says its targets all blend as the first (Caps::independent_blend), and made a pipeline whose second blends its own way");
+            return;
+        }
+        if (refused.error().code != Errc::unsupported) {
+            b.fail(std::format("a pipeline whose second target blends its own way is refused as {}, not rhi.unsupported", refused.error().text()));
+            return;
+        }
+    }
+    const std::span<const MoreTarget> more = own_way ? std::span<const MoreTarget>(each_its_own) : std::span<const MoreTarget>(alike);
     auto made = b.d.create(GraphicsPipelineDesc{.vertex = &shaders::several::several_vs, .fragment = &shaders::several::several_fs, .vertex_buffers = b.fill_layout,
                                                 .blend = Blend::replace(), .more_targets = more, .label = "cts.several"});
     if (b.d.caps().max_color_targets < 3) {
@@ -287,7 +305,8 @@ void several_targets(Bench& b) {
     if (b.failed()) return;
     expect(b, b.pixels(), W, [&](auto x, auto) { return x < 4 ? half_red : black; });
     // Blue 128/255 at alpha 128/255 over opaque green: green's 255 × (1 − 128/255) = 127.
-    expect(b, b.pixels(second), W, [](auto x, auto) { return x < 4 ? Rgba{0, 127, 128, 255} : green; }, 1);
+    // Replacing, where the device blends them all alike: the turned-about colour as it is.
+    expect(b, b.pixels(second), W, [&](auto x, auto) { return x < 4 ? (own_way ? Rgba{0, 127, 128, 255} : Rgba{0, 0, 128, 128}) : green; }, 1);
     const auto bytes = b.must(b.d.read(third, Region{0, 0, W, H}), "read the float target back");
     if (b.failed()) return;
     for (std::uint32_t at = 0; at < W * H && !b.failed(); ++at) {

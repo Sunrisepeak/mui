@@ -100,6 +100,10 @@ struct Caps {
     // How many colour targets one render pass may write (1…max_color_targets): a fragment's outputs
     // 0, 1, … each to its own texture. 1: a pass has one.
     std::uint32_t max_color_targets = 1;
+    // Whether each colour target of a pass blends its own way. false: the targets after the first blend
+    // as the first does, and a pipeline that asks otherwise is refused as unsupported (WebGL2 without
+    // OES_draw_buffers_indexed).
+    bool independent_blend = true;
 };
 
 // The most colour targets of a pass on any device: the first, and this many more.

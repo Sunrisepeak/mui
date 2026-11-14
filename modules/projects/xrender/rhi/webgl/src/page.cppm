@@ -15,6 +15,8 @@ struct Context {
     std::uint32_t max_samples = 4;
     bool          color_float = false;       // EXT_color_buffer_float: float colour targets
     bool          color_half_float = false;  // or at least half-float ones
+    std::uint32_t draw_buffers = 1;          // MAX_DRAW_BUFFERS: the colour targets of a framebuffer
+    bool          indexed_blend = false;     // OES_draw_buffers_indexed: each blending its own way
 };
 
 // A context on the canvas `selector` names ("": one nobody sees), or why

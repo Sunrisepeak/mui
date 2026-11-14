@@ -111,8 +111,9 @@ protected:
         const ShaderCode* fs = d.fragment->code_for(ShaderFormat::essl);
         words_.clear();
         wire::encode(d, words_);
-        const GraphicsPipeline p = graphics_.insert(
-            {counts(*d.vertex), counts(*d.fragment), static_cast<std::uint32_t>(d.vertex_buffers.size()), d.target, d.depth_target, d.samples});
+        GraphicsPipelineInfo described{counts(*d.vertex), counts(*d.fragment), static_cast<std::uint32_t>(d.vertex_buffers.size()), d.target, d.depth_target, d.samples, {}, 0};
+        for (const MoreTarget& another : d.more_targets) described.more_targets[described.more++] = another.format;
+        const GraphicsPipeline p = graphics_.insert(described);
         const std::string_view label = d.label.empty() ? d.fragment->entry : d.label;
         if (!page::graphics(p.index, words_, vs->bytes, fs->bytes, label)) {
             graphics_.erase(p);
@@ -191,6 +192,8 @@ Result<std::unique_ptr<Device>> create(const Options& options) {
     const std::uint32_t n = context->max_samples;  // rhi's counts: 1, 2, 4, 8
     caps.max_samples = n >= 8 ? 8 : n >= 4 ? 4 : n >= 2 ? 2 : 1;
     caps.depth = true;  // DEPTH_COMPONENT32F and DEPTH32F_STENCIL8 are WebGL2's own
+    caps.max_color_targets = std::clamp(context->draw_buffers, 1u, max_color_targets);  // WebGL2 has four at the least
+    caps.independent_blend = context->indexed_blend;
     return std::unique_ptr<Device>(std::make_unique<WebGlDevice>(std::move(caps), std::move(*context), !options.canvas.empty()));
 }
 

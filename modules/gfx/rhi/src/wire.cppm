@@ -16,6 +16,7 @@
 //   copy_texture          from x y width height to to.x to.y
 //   begin_render          texture load clear.r clear.g clear.b clear.a resolve
 //                         depth depth.load clear_depth clear_stencil store
+//                         [n, then each target after the first: texture load clear.r clear.g clear.b clear.a]
 //   end_render
 //   set_pipeline          pipeline
 //   set_viewport          x y width height (floats)
@@ -43,6 +44,8 @@
 //             18–20 DepthState: test, write, Compare
 //             21    samples                   22    vertex buffers, then each: stride, per instance,
 //                                                   attributes, then each: location, VertexFormat, offset
+//             then, where the pipeline has colour targets after the first: how many, and each as 8–15
+//             (Format, Blend)
 //   compute   0–5   samplers, storage textures, storage buffers, uniform buffers, read-write textures, read-write buffers
 export module mlibs.rhi.api:wire;
 

@@ -199,11 +199,20 @@ addToLibrary({
       var target = { format: G.FORMATS[w[8]] };
       var blend = G.blend(w, 9);
       if (blend) target.blend = blend;
+      // The targets after the first, where the words go on: how many, each a format and its blend.
+      var targets = [target];
+      if (at < w.length) {
+        for (var more = w[at++]; more > 0; --more, at += 8) {
+          var another = { format: G.FORMATS[w[at]] }, its = G.blend(w, at + 1);
+          if (its) another.blend = its;
+          targets.push(another);
+        }
+      }
       var desc = {
         label: label,
         layout: 'auto',
         vertex: { module: G.module(vs), entryPoint: vsEntry, buffers: buffers },
-        fragment: { module: G.module(fs), entryPoint: fsEntry, targets: [target] },
+        fragment: { module: G.module(fs), entryPoint: fsEntry, targets: targets },
         primitive: { topology: G.TOPOLOGIES[w[16]] },
         multisample: { count: w[21] },
       };
@@ -415,6 +424,17 @@ addToLibrary({
                 ds.stencilClearValue = w[k + 10];
               }
               desc.depthStencilAttachment = ds;
+            }
+            // The targets after the first, where the command goes on: how many, each with how it begins.
+            if (len > 12) {
+              for (var others = w[k + 12], m = k + 13; others > 0; --others, m += 6) {
+                desc.colorAttachments.push({
+                  view: G.textures[w[m]].view,
+                  loadOp: w[m + 1] === G.LOAD.load ? 'load' : 'clear',
+                  storeOp: 'store',
+                  clearValue: { r: f32[m + 2], g: f32[m + 3], b: f32[m + 4], a: f32[m + 5] },
+                });
+              }
             }
             pass = encoder.beginRenderPass(desc);
             compute = false;

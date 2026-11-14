@@ -375,6 +375,25 @@ UTest cases{"rhi", [] {
         wire::encode(more, more_words);
         expect(eq(more_words.size(), plain_words.size() + 1 + 6));
         expect(eq(more_words[plain_words.size()], std::uint32_t{1}));
+        // A pipeline's words the same way: of one target as before, the others after — how many, each a format and its blend.
+        std::vector<std::uint32_t> of_one, of_three;
+        wire::encode(GraphicsPipelineDesc{.vertex = &vs, .fragment = &fs}, of_one);
+        wire::encode(GraphicsPipelineDesc{.vertex = &vs, .fragment = &fs, .more_targets = two_more}, of_three);
+        expect(eq(of_three.size(), of_one.size() + 1 + 2 * 8));
+        expect(std::ranges::equal(of_one, std::span(of_three).first(of_one.size())));
+        const std::span<const std::uint32_t> others = std::span(of_three).subspan(of_one.size());
+        expect(eq(others[0], 2u) && eq(others[1], static_cast<std::uint32_t>(Format::rgba8_unorm)) && eq(others[2], 1u));
+        expect(eq(others[9], static_cast<std::uint32_t>(Format::r32_float)) && eq(others[10], 0u));
+        // A device whose targets all blend as the first (Caps::independent_blend false): a target blending its own way is unsupported.
+        sc.d.caps_.independent_blend = false;
+        const auto own_way = sc.d.create(GraphicsPipelineDesc{.vertex = &vs, .fragment = &fs, .blend = Blend::replace(), .more_targets = two_more});
+        expect(!own_way && own_way.error().code == Errc::unsupported);
+        if (!own_way)
+            expect(eq(own_way.error().message,
+                      std::string("recorder blends every colour target of a pass as the first (Caps::independent_blend); the pipeline's target 1 blends its own way")));
+        const std::array<MoreTarget, 2> alike{MoreTarget{Format::rgba8_unorm, Blend::replace()}, MoreTarget{Format::r32_float, Blend::replace()}};
+        expect(sc.d.create(GraphicsPipelineDesc{.vertex = &vs, .fragment = &fs, .blend = Blend::replace(), .more_targets = alike}).has_value());
+        sc.d.caps_.independent_blend = true;
     };
 
     "compute passes: outputs declared, the shader's writes covered, reads bound"_test = [] {

@@ -48,6 +48,11 @@ Result<GraphicsPipeline> Device::create(const GraphicsPipelineDesc& d) {
     if (1 + d.more_targets.size() > caps().max_color_targets)
         return fail(Errc::unsupported, std::format("{} has {} colour target{} a pass; the pipeline renders {}", caps().device, caps().max_color_targets,
                                                     caps().max_color_targets == 1 ? "" : "s", 1 + d.more_targets.size()));
+    if (!caps().independent_blend)
+        for (std::size_t index = 0; index < d.more_targets.size(); ++index)
+            if (d.more_targets[index].blend != d.blend)
+                return fail(Errc::unsupported, std::format("{} blends every colour target of a pass as the first (Caps::independent_blend); the pipeline's target {} blends its own way",
+                                                            caps().device, index + 1));
     return make(d);
 }
 

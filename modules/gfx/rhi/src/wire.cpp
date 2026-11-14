@@ -123,6 +123,14 @@ void encode(const GraphicsPipelineDesc& d, std::vector<std::uint32_t>& w) {
         w.insert(w.end(), {b.stride, b.per_instance ? 1u : 0u, static_cast<std::uint32_t>(b.attributes.size())});
         for (const VertexAttribute& a : b.attributes) w.insert(w.end(), {a.location, u(a.format), a.offset});
     }
+    // The targets after the first, where the pipeline has them: how many, then each as the first is at 8–15
+    // (a reader of one target stops before them, by the words' count).
+    if (!d.more_targets.empty()) {
+        w.push_back(static_cast<std::uint32_t>(d.more_targets.size()));
+        for (const MoreTarget& more : d.more_targets)
+            w.insert(w.end(), {u(more.format), more.blend.enabled ? 1u : 0u, u(more.blend.src_color), u(more.blend.dst_color), u(more.blend.color_op), u(more.blend.src_alpha),
+                               u(more.blend.dst_alpha), u(more.blend.alpha_op)});
+    }
 }
 
 void encode(const ComputePipelineDesc& d, std::vector<std::uint32_t>& w) {

@@ -21,6 +21,7 @@ const ENUMS = {
   RGBA_INTEGER: 0x8D99, DEPTH_COMPONENT32F: 0x8CAC, DEPTH32F_STENCIL8: 0x8CAD, FLOAT_32_UNSIGNED_INT_24_8_REV: 0x8DAD,
   VERTEX_SHADER: 0x8B31, FRAGMENT_SHADER: 0x8B30, COMPILE_STATUS: 0x8B81, LINK_STATUS: 0x8B82, INVALID_INDEX: 0xFFFFFFFF,
   UNIFORM_BLOCK_DATA_SIZE: 0x8A40, TEXTURE0: 0x84C0, UNPACK_ALIGNMENT: 0x0CF5, PACK_ALIGNMENT: 0x0D05, UNPACK_ROW_LENGTH: 0x0CF2,
+  MAX_DRAW_BUFFERS: 0x8824, COLOR_ATTACHMENT1: 0x8CE1, COLOR_ATTACHMENT2: 0x8CE2, COLOR_ATTACHMENT3: 0x8CE3,
   MAX_TEXTURE_SIZE: 0x0D33, MAX_SAMPLES: 0x8D57, RENDERER: 0x1F01, UNIFORM_BUFFER_OFFSET_ALIGNMENT: 0x8A34, MAX_UNIFORM_BLOCK_SIZE: 0x8A30,
 };
 const NAMES = new Map(Object.entries(ENUMS).map(([k, v]) => [v, k]));
@@ -41,10 +42,12 @@ export class FakeGl {
       gl.log.push([name, ...args.map((a) => (typeof a === 'number' && NAMES.has(a) && a > 0x100 ? NAMES.get(a) : a))]);
       gl.raw.push([name, ...args]);
     };
-    const params = { MAX_TEXTURE_SIZE: 4096, MAX_SAMPLES: 4, RENDERER: renderer, UNIFORM_BUFFER_OFFSET_ALIGNMENT: 256, MAX_UNIFORM_BLOCK_SIZE: 16384 };
+    const params = { MAX_DRAW_BUFFERS: 4, MAX_TEXTURE_SIZE: 4096, MAX_SAMPLES: 4, RENDERER: renderer, UNIFORM_BUFFER_OFFSET_ALIGNMENT: 256, MAX_UNIFORM_BLOCK_SIZE: 16384 };
+    // OES_draw_buffers_indexed: what it is asked lands in the same log.
+    const indexed = new Proxy({}, { get: (target, key) => (...args) => { record(key, args); } });
     const special = {
       getError: () => gl.errors.shift() ?? 0,
-      getExtension: (name) => (extensions.includes(name) ? {} : null),
+      getExtension: (name) => (extensions.includes(name) ? (name === 'OES_draw_buffers_indexed' ? indexed : {}) : null),
       getParameter: (p) => params[NAMES.get(p)],
       getShaderParameter: () => compiles,
       getShaderInfoLog: () => 'ERROR: 0:3: syntax error',

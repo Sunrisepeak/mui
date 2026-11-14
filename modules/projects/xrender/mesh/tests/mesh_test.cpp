@@ -638,6 +638,60 @@ static UTest cases{"xrender.mesh", [] {
         expect(eq(ball_of(polished).bits, shiny.bits));
     };
 
+    "a clear coat mirrors over a matt surface and the surface under it is a little less; what a surface that is not metal mirrors is by its specular strength and colour"_test = [] {
+        const Camera camera{.eye = {0, 0.5f, 5}, .target = {0, 0, 0}};
+        const math::Vec3 toward_sun = math::normalized(math::Vec3{0.5f, 1, 0.6f});
+        struct Seen {
+            float brightest = 0;
+            std::size_t at = 0;
+            math::Vec3 light_at_rim, light_at_peak;
+        };
+        const auto ball_of = [&](const mesh::Material& material) {
+            std::vector<mesh::Material> materials{material};
+            scene::Scene world;
+            put(world, 1, ball, 0, math::translation({0, 0, 0}));
+            expect(world.add(scene::Light{.id = 1, .kind = scene::LightKind::sun, .colour = {1, 1, 1}, .intensity = 1, .toward = -toward_sun}).has_value());
+            mesh::Targets targets;
+            targets.resize(256, 256);
+            scene::Extracted seen;
+            scene::extract(world, camera.view(), seen);
+            mesh::Pass pass;
+            pass.draw(world, seen, camera.view(), {library().meshes, materials, {}, {}}, targets, {.ambient = {0.1f, 0.1f, 0.1f}});
+            Seen found;
+            for (std::size_t pixel = 0; pixel < targets.light.size(); ++pixel) {
+                const math::Vec3 light = targets.light[pixel];
+                if (targets.ids[pixel].draw != mesh::none && light.x + light.y + light.z > found.brightest) found.brightest = light.x + light.y + light.z, found.at = pixel;
+            }
+            found.light_at_peak = targets.light[found.at];
+            found.light_at_rim = targets.light[static_cast<std::size_t>(128) * 256 + 100];  // left of the middle, away from the highlight
+            return found;
+        };
+        const mesh::Material red{.base = {0.8f, 0.2f, 0.15f}};
+        mesh::Material coated = red;
+        coated.clearcoat = 1, coated.clearcoat_roughness = 0.05f;
+        const Seen matt = ball_of(red), with_coat = ball_of(coated);
+        std::println("a matt red ball, 256²: brightest {:.3f}; with a clear coat {:.3f}; away from the highlight red over green {:.4f} → {:.4f}", matt.brightest, with_coat.brightest, matt.light_at_rim.x - matt.light_at_rim.y, with_coat.light_at_rim.x - with_coat.light_at_rim.y);
+        expect(gt(with_coat.brightest, matt.brightest * 2)) << "the coat's highlight";
+        const float red_over_green = matt.light_at_rim.x - matt.light_at_rim.y, coated_over_green = with_coat.light_at_rim.x - with_coat.light_at_rim.y;
+        expect(lt(coated_over_green, red_over_green) && gt(coated_over_green, red_over_green * 0.9f)) << "under the coat a little less of the red comes up, and the coat's own is white";
+        mesh::Material half = coated;
+        half.clearcoat = 0.5f;
+        expect(lt(ball_of(half).brightest, with_coat.brightest) && gt(ball_of(half).brightest, matt.brightest)) << "half a coat: between";
+
+        const mesh::Material polished_blue{.base = {0.15f, 0.4f, 0.8f}, .roughness = 0.25f};
+        mesh::Material none_mirrored = polished_blue, red_mirrored = polished_blue;
+        none_mirrored.specular = 0;
+        red_mirrored.specular_colour = {1, 0, 0};
+        const Seen shiny = ball_of(polished_blue), dull = ball_of(none_mirrored), reddish = ball_of(red_mirrored);
+        std::println("a polished blue ball: brightest {:.3f}; with no specular strength {:.3f}; mirroring red at its highlight ({:.3f}, {:.3f}, {:.3f}) against ({:.3f}, {:.3f}, {:.3f})", shiny.brightest, dull.brightest,
+                     reddish.light_at_peak.x, reddish.light_at_peak.y, reddish.light_at_peak.z, shiny.light_at_peak.x, shiny.light_at_peak.y, shiny.light_at_peak.z);
+        expect(lt(dull.brightest, shiny.brightest * 0.5f)) << "a strength of 0 mirrors nothing";
+        expect(lt(std::abs(reddish.light_at_peak.x - shiny.light_at_peak.x), 1e-6f) && lt(reddish.light_at_peak.z, shiny.light_at_peak.z * 0.7f)) << "a red head-on: the red as before, less blue";
+        mesh::Material same = polished_blue;
+        same.ior = 1.5f, same.specular = 1, same.specular_colour = {1, 1, 1};
+        expect(eq(ball_of(same).brightest, shiny.brightest)) << "an index of 1.5 at full strength is the 4% as it was";
+    };
+
     "a metal has no colour of its own but its highlight's: away from the highlight it is dark, and the highlight is the metal's colour"_test = [] {
         const Camera camera{.eye = {0, 0.5f, 5}, .target = {0, 0, 0}};
         scene::Scene world;

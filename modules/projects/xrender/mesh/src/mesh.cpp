@@ -124,6 +124,12 @@ struct Raster {
     float          shaded = 1;  // the share of the light from everywhere the shade picture lets through here
     bool           turned_over = false;  // the instance's place mirrors it: its triangles go round the other way as seen
     bool           coloured = false;     // the mesh has a colour at each corner
+    // The clear coat's pictures (`Material::coat`, `coat_rough`, `coat_normal`), or none, and the coat's normal at
+    // the pixel being shaded: the surface's own before its normal picture, or the coat's own picture's.
+    const Texture* coat = nullptr;
+    const Texture* coat_rough = nullptr;
+    const Texture* coat_normal_picture = nullptr;
+    Vec3           coat_normal{0, 0, 1};
     // What lets light through shows the light of what is whole behind it (`Material::transmission`): that light
     // at every size, the view's clip space (unjittered) and the instance's place and its inverse.
     const Texture* behind = nullptr;
@@ -258,28 +264,47 @@ struct Raster {
         // constant is given to both (and the three colours mirrored besides).
         const bool pictured = options.environment.on && options.environment.picture;
         const Vec3 takes = pictured ? material.base * ((1.0f - std::clamp(material.metallic, 0.0f, 1.0f)) * (1.0f - std::clamp(material.transmission, 0.0f, 1.0f))) : reflected_ambient(material);
-        Vec3 sent = math::scaled(math::scaled(takes, from_all_about(normal)), reaching(open_to(normal, place))) * shaded + material.emissive;
+        const float open = open_to(normal, place);
+        // A clear coat: the same lights on a layer of its own over the surface (`Material::clearcoat`), mirroring
+        // 4% head on, by its own normal and roughness; what comes up from under it is less by what it mirrors.
+        const float coated = std::clamp(material.clearcoat, 0.0f, 1.0f);
+        Material layer;
+        layer.base = {0, 0, 0}, layer.roughness = material.clearcoat_roughness, layer.metallic = 0;
+        Vec3 coat{0, 0, 0};
+        const Vec3 under = math::scaled(math::scaled(takes, from_all_about(normal)), reaching(open)) * shaded;
+        Vec3 sent = coated > 0 ? under : under + material.emissive;
         if (options.environment.on) sent = sent + mirrored(material, options.environment, normal, toward_eye) * (pictured ? shaded : 1.0f);
+        if (coated > 0) {
+            if (!pictured) coat = math::scaled(math::scaled(reflected_ambient(layer), from_all_about(coat_normal)), reaching(open)) * shaded;
+            if (options.environment.on) coat = coat + mirrored(layer, options.environment, coat_normal, toward_eye) * (pictured ? shaded : 1.0f);
+        }
         const Vec3 lifted = place + normal * 2e-3f;
         for (const Lamp& lamp : lamps) {
             if (lamp.kind == scene::LightKind::sun) {
-                const float facing = -math::dot(normal, lamp.toward);
-                if (facing > 0 && !(!casters.empty() && hidden_from(lifted, -lamp.toward, std::numeric_limits<float>::max())))
-                    sent = sent + math::scaled(reflected(material, normal, toward_eye, -lamp.toward, facing), lamp.colour);
+                const float facing = -math::dot(normal, lamp.toward), coat_facing = coated > 0 ? -math::dot(coat_normal, lamp.toward) : 0.0f;
+                if (!(facing > 0) && !(coat_facing > 0)) continue;
+                if (!casters.empty() && hidden_from(lifted, -lamp.toward, std::numeric_limits<float>::max())) continue;
+                if (facing > 0) sent = sent + math::scaled(reflected(material, normal, toward_eye, -lamp.toward, facing), lamp.colour);
+                if (coat_facing > 0) coat = coat + math::scaled(reflected(layer, coat_normal, toward_eye, -lamp.toward, coat_facing), lamp.colour);
                 continue;
             }
             const Vec3 to = lamp.at - place;
             const float apart = math::length(to);
             if (!(apart < lamp.range) || !(apart > 0)) continue;
             const Vec3 along = to * (1.0f / apart);
-            const float facing = math::dot(normal, along);
-            if (!(facing > 0)) continue;
+            const float facing = math::dot(normal, along), coat_facing = coated > 0 ? math::dot(coat_normal, along) : 0.0f;
+            if (!(facing > 0) && !(coat_facing > 0)) continue;
             if (lamp.kind == scene::LightKind::spot && -math::dot(along, lamp.toward) < lamp.cone_cosine) continue;
             if (!casters.empty() && hidden_from(lifted, along, apart)) continue;
             const float near = 1.0f - (apart / lamp.range) * (apart / lamp.range);
-            sent = sent + math::scaled(reflected(material, normal, toward_eye, along, facing), lamp.colour * (near * near));
+            if (facing > 0) sent = sent + math::scaled(reflected(material, normal, toward_eye, along, facing), lamp.colour * (near * near));
+            if (coat_facing > 0) coat = coat + math::scaled(reflected(layer, coat_normal, toward_eye, along, coat_facing), lamp.colour * (near * near));
         }
-        return sent;
+        if (!(coated > 0)) return sent;
+        // How much the coat mirrors of the eye's way (Schlick, 4% head on): that much less comes up through it.
+        const float glance = 1.0f - std::clamp(math::dot(coat_normal, toward_eye), 0.0f, 1.0f), glance5 = glance * glance * glance * glance * glance;
+        const float coat_mirrors = 0.04f + 0.96f * glance5;
+        return material.emissive + sent * (1.0f - coated * coat_mirrors) + coat * coated;
     }
 
     // One triangle, its corners inside the view's volume. True where it faces the view (and so was filled).
@@ -364,7 +389,8 @@ struct Raster {
                     const auto at = [&](float Vec4::* part_of) { return (*corners[0]).colour.*part_of * part[0] + (*corners[1]).colour.*part_of * part[1] + (*corners[2]).colour.*part_of * part[2]; };
                     material.base = math::scaled(base, Vec3{at(&Vec4::x), at(&Vec4::y), at(&Vec4::z)}), hides = own.opacity * at(&Vec4::w);
                 }
-                if (texture || surface || normal_picture || glow || shade || clearness || thick) {
+                coat_normal = normal;
+                if (texture || surface || normal_picture || glow || shade || clearness || thick || coat || coat_rough || coat_normal_picture) {
                     // The surface's place in the picture here, a pixel to the right and a pixel down: how many texels
                     // a pixel covers is how far apart they are.
                     const auto uv_at = [&](double at_x, double at_y) {
@@ -418,28 +444,39 @@ struct Raster {
                         const Place at = laid(own.placing.shade);
                         shaded = 1.0f + own.shade_strength * (shade->over(at.here, at.across, at.along).x - 1.0f);
                     }
-                    if (normal_picture) {
-                        // The picture's three ways in the world here: along it (the mesh's tangent, or the way the
-                        // surface goes as the picture's first coordinate grows), up it, and out (the normal).
+                    // A normal picture's say about `about`: the picture's three ways in the world here — along it (the
+                    // mesh's tangent, or the way the surface goes as the picture's first coordinate grows), up it, and
+                    // out (the normal) — and the normal it turns them to.
+                    const auto bent_by = [&](const Texture& picture, const Placing& placing, float scale, Vec3 about) {
                         Vec3 right_way = bent[0], up_way = bent[1];
                         if (tangents) {
                             const Vec3 said{corners[0]->tangent.x * part[0] + corners[1]->tangent.x * part[1] + corners[2]->tangent.x * part[2],
                                             corners[0]->tangent.y * part[0] + corners[1]->tangent.y * part[1] + corners[2]->tangent.y * part[2],
                                             corners[0]->tangent.z * part[0] + corners[1]->tangent.z * part[1] + corners[2]->tangent.z * part[2]};
-                            right_way = said, up_way = math::cross(normal, said) * corners[0]->tangent.w;
+                            right_way = said, up_way = math::cross(about, said) * corners[0]->tangent.w;
                         }
-                        right_way = right_way - normal * math::dot(normal, right_way);
-                        if (math::dot(right_way, right_way) > 0) {
-                            right_way = math::normalized(right_way);
-                            const Vec3 other = math::cross(normal, right_way);
-                            up_way = math::dot(other, up_way) < 0 ? other * -1.0f : other;
-                            const Place at = laid(own.placing.normal);
-                            const Vec3 said = normal_picture->over(at.here, at.across, at.along);
-                            const Vec3 about{(said.x * 2 - 1) * own.normal_scale, (said.y * 2 - 1) * own.normal_scale, said.z * 2 - 1};
-                            const Vec3 turned = right_way * about.x + up_way * about.y + normal * about.z;
-                            if (math::dot(turned, turned) > 0) normal = math::normalized(turned);
-                        }
+                        right_way = right_way - about * math::dot(about, right_way);
+                        if (!(math::dot(right_way, right_way) > 0)) return about;
+                        right_way = math::normalized(right_way);
+                        const Vec3 other = math::cross(about, right_way);
+                        up_way = math::dot(other, up_way) < 0 ? other * -1.0f : other;
+                        const Place at = laid(placing);
+                        const Vec3 said = picture.over(at.here, at.across, at.along);
+                        const Vec3 way{(said.x * 2 - 1) * scale, (said.y * 2 - 1) * scale, said.z * 2 - 1};
+                        const Vec3 turned = right_way * way.x + up_way * way.y + about * way.z;
+                        return math::dot(turned, turned) > 0 ? math::normalized(turned) : about;
+                    };
+                    if (coat) {
+                        const Place at = laid(own.placing.coat);
+                        material.clearcoat = own.clearcoat * coat->over(at.here, at.across, at.along).x;
                     }
+                    if (coat_rough) {
+                        const Place at = laid(own.placing.coat_rough);
+                        material.clearcoat_roughness = own.clearcoat_roughness * coat_rough->over(at.here, at.across, at.along).y;
+                    }
+                    // The coat's normal is the surface's own, before its normal picture — or its own picture's.
+                    if (coat_normal_picture) coat_normal = bent_by(*coat_normal_picture, own.placing.coat_normal, own.coat_normal_scale, normal);
+                    if (normal_picture) normal = bent_by(*normal_picture, own.placing.normal, own.normal_scale, normal);
                     ++stats.textured;
                 }
                 if (own.cutout > 0 && hides < own.cutout) {  // with no picture: the material's own opacity alone
@@ -490,6 +527,14 @@ Placing Placing::made(Vec2 offset, float turn, Vec2 scale, std::uint8_t set) noe
     return {{cosine * scale.x, sine * scale.y, offset.x}, {-sine * scale.x, cosine * scale.y, offset.y}, set};
 }
 
+Mirrors mirrors_of(const Material& material) noexcept {
+    const float metal = std::clamp(material.metallic, 0.0f, 1.0f), strength = std::clamp(material.specular, 0.0f, 1.0f);
+    // Worked out in double: at an index of 1.5 exactly the float nearest 4%.
+    const double ratio = (static_cast<double>(material.ior) - 1.0) / (static_cast<double>(material.ior) + 1.0);
+    const float own = static_cast<float>(ratio * ratio);
+    const Vec3 dielectric{std::min(own * material.specular_colour.x, 1.0f) * strength, std::min(own * material.specular_colour.y, 1.0f) * strength, std::min(own * material.specular_colour.z, 1.0f) * strength};
+    return {dielectric * (1.0f - metal) + material.base * metal, 1.0f - (1.0f - strength) * (1.0f - metal)};
+}
 Vec3 reflected(const Material& material, Vec3 normal, Vec3 toward_eye, Vec3 toward_light, float facing) noexcept {
     const float rough = std::clamp(material.roughness, 0.04f, 1.0f), metal = std::clamp(material.metallic, 0.0f, 1.0f);
     // What goes on through the surface (`transmission`) is not scattered back.
@@ -508,8 +553,8 @@ Vec3 reflected(const Material& material, Vec3 normal, Vec3 toward_eye, Vec3 towa
     const float unhidden = 1.0f / ((facing * (1.0f - k) + k) * (seen * (1.0f - k) + k));
     // How much is mirrored rather than taken in: more at a glancing look.
     const float glance = 1.0f - eye_half, glance5 = glance * glance * glance * glance * glance;
-    const Vec3 head_on = Vec3{0.04f, 0.04f, 0.04f} * (1.0f - metal) + material.base * metal;
-    const Vec3 mirrored = head_on + (Vec3{1, 1, 1} - head_on) * glance5;
+    const Mirrors ends = mirrors_of(material);
+    const Vec3 mirrored = ends.head_on + (Vec3{ends.edge, ends.edge, ends.edge} - ends.head_on) * glance5;
     return matt + math::scaled(mirrored, kept(material, seen)) * (facets * unhidden * 0.25f * facing);
 }
 Vec3 mirrored(const Material& material, const Environment& environment, Vec3 normal, Vec3 toward_eye) noexcept {
@@ -518,7 +563,7 @@ Vec3 mirrored(const Material& material, const Environment& environment, Vec3 nor
     const Vec3 way = normal * (2.0f * seen) - toward_eye;  // the eye's way, turned about the normal
     const float size = math::length(way);
     if (environment.picture) {
-        const Vec3 head_on = Vec3{0.04f, 0.04f, 0.04f} * (1.0f - metal) + material.base * metal;
+        const Mirrors ends = mirrors_of(material);
         const Vec2 share = environment.picture->share(seen, rough);
         // A rough surface's highlight is not about the eye's way turned over: its small faces lean it toward
         // the normal — by the highlight's own spread (the roughness to the fourth: nothing to speak of below
@@ -528,19 +573,19 @@ Vec3 mirrored(const Material& material, const Environment& environment, Vec3 nor
         const Vec3 turned = size > 0 ? way * (1.0f / size) : normal;
         const Vec3 leaned = normal + (turned - normal) * toward_way;
         const float leaned_size = math::length(leaned);
-        return math::scaled(math::scaled(head_on * share.x + Vec3{share.y, share.y, share.y}, kept(material, seen)), environment.picture->blurred(leaned_size > 0 ? leaned * (1.0f / leaned_size) : normal, rough));
+        return math::scaled(math::scaled(ends.head_on * share.x + Vec3{share.y * ends.edge, share.y * ends.edge, share.y * ends.edge}, kept(material, seen)), environment.picture->blurred(leaned_size > 0 ? leaned * (1.0f / leaned_size) : normal, rough));
     }
     const Vec3 there = environment.toward(size > 0 ? way * (1.0f / size) : normal);
     const Vec3 blurred = there + (environment.level - there) * rough;
     const float glance = 1.0f - seen, glance5 = glance * glance * glance * glance * glance;
-    const Vec3 head_on = Vec3{0.04f, 0.04f, 0.04f} * (1.0f - metal) + material.base * metal;
+    const Mirrors ends = mirrors_of(material);
     // A rough surface mirrors less of a glancing look than a smooth one does.
-    const Vec3 share = head_on + (Vec3{1, 1, 1} - head_on) * (glance5 * (1.0f - rough));
+    const Vec3 share = ends.head_on + (Vec3{ends.edge, ends.edge, ends.edge} - ends.head_on) * (glance5 * (1.0f - rough));
     return math::scaled(share, blurred);
 }
 Vec3 reflected_ambient(const Material& material) noexcept {
     const float metal = std::clamp(material.metallic, 0.0f, 1.0f);
-    return material.base * ((1.0f - metal) * (1.0f - std::clamp(material.transmission, 0.0f, 1.0f))) + (Vec3{0.04f, 0.04f, 0.04f} * (1.0f - metal) + material.base * metal);
+    return material.base * ((1.0f - metal) * (1.0f - std::clamp(material.transmission, 0.0f, 1.0f))) + mirrors_of(material).head_on;
 }
 
 float through(const Fog& fog, Vec3 eye, Vec3 toward, float length) noexcept {
@@ -717,6 +762,8 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
         raster.texture = picture(raster.material.texture, placing.base), raster.surface = picture(raster.material.surface, placing.surface), raster.normal_picture = picture(raster.material.normal, placing.normal);
         raster.glow = picture(raster.material.glow, placing.glow), raster.shade = picture(raster.material.shade, placing.shade);
         raster.clearness = picture(raster.material.clearness, placing.clearness), raster.thick = picture(raster.material.thick, placing.thick);
+        raster.coat = picture(raster.material.coat, placing.coat), raster.coat_rough = picture(raster.material.coat_rough, placing.coat_rough);
+        raster.coat_normal_picture = picture(raster.material.coat_normal, placing.coat_normal);
         raster.coloured = !mesh.colours.empty();
         raster.world = instance.world, raster.back = math::inverse(instance.world).value_or(Mat4{});
         const Mat4 to_clip = clip * instance.world;

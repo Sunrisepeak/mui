@@ -44,8 +44,8 @@ struct Placing {
 };
 // How each of a surface's pictures is laid over it.
 struct Placings {
-    Placing base, surface, normal, glow, shade, clearness, thick;
-    [[nodiscard]] static constexpr Placings all(Placing placing) noexcept { return {placing, placing, placing, placing, placing, placing, placing}; }
+    Placing base, surface, normal, glow, shade, clearness, thick, coat, coat_rough, coat_normal;
+    [[nodiscard]] static constexpr Placings all(Placing placing) noexcept { return {placing, placing, placing, placing, placing, placing, placing, placing, placing, placing}; }
 };
 // A surface, as data. The reference's shading is the least that shows a form: what a light gives a matt surface,
 // and what it gives off itself. (The full model — roughness, metal, textures — is the material interface's,
@@ -106,9 +106,32 @@ struct Material {
     // one multiplies `transmission`, the green of the other `thickness`.
     std::uint32_t clearness = 0xffffffffu;
     std::uint32_t thick = 0xffffffffu;
+    // What a surface that is not metal mirrors (KHR_materials_specular, with `ior`): head on ((ior − 1) / (ior + 1))²
+    // times `specular_colour` (each held to 1), all of it times `specular`, and at a glancing look `specular` of
+    // the light — so 1 and white at an index of 1.5 are the 4% and all of it as before. A metal mirrors its colour
+    // head on and all of the light at a glance, whatever these say.
+    float specular = 1;
+    Vec3  specular_colour{1, 1, 1};
+    // A clear coat over the surface (KHR_materials_clearcoat): a layer `clearcoat` thick in effect (0 none … 1),
+    // `clearcoat_roughness` rough, mirroring 4% head on and all at a glance by its own normal — the surface's own
+    // before its normal picture, or its own picture's (`coat_normal`) — and taking what it mirrors from what comes
+    // up from below it; what the surface gives off is not under it. Pictures, numbers (`Coding::plain`): the red
+    // of `coat` multiplies `clearcoat`, the green of `coat_rough` `clearcoat_roughness`.
+    float clearcoat = 0, clearcoat_roughness = 0;
+    std::uint32_t coat = 0xffffffffu;
+    std::uint32_t coat_rough = 0xffffffffu;
+    std::uint32_t coat_normal = 0xffffffffu;
+    float coat_normal_scale = 1;
     Placings placing;  // how each picture of the surface is laid over it
-    [[nodiscard]] constexpr bool matt() const noexcept { return roughness >= 1 && metallic <= 0; }
+    [[nodiscard]] constexpr bool matt() const noexcept { return roughness >= 1 && metallic <= 0 && !(clearcoat > 0); }
 };
+// What a material mirrors head on, a channel, and of the light at a glancing look (Schlick's two ends; the
+// `specular`, `specular_colour` and `ior` of a surface that is not metal, its colour and all for a metal).
+struct Mirrors {
+    Vec3  head_on;
+    float edge = 1;
+};
+[[nodiscard]] Mirrors mirrors_of(const Material& material) noexcept;
 // What a surface sends toward the eye of light arriving along `toward_light` (all of length 1; `facing` the
 // normal's part of it, above 0), as a share of that light a channel: what `Pass` and a device's shader both do.
 [[nodiscard]] Vec3 reflected(const Material& material, Vec3 normal, Vec3 toward_eye, Vec3 toward_light, float facing) noexcept;

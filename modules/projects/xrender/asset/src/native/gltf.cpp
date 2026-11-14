@@ -266,9 +266,29 @@ struct Maker {
                     made.thick = picture(from.volume.thickness_texture, where + "/extensions/KHR_materials_volume/thicknessTexture", mesh::Coding::plain, "the factor over the whole surface", made.placing.thick);
             }
             if (from.has_ior) made.ior = from.ior.ior;
-            const std::array<std::pair<bool, std::string_view>, 8> more{{{from.has_pbr_specular_glossiness != 0, "KHR_materials_pbrSpecularGlossiness"},
-                                                                          {from.has_clearcoat != 0, "KHR_materials_clearcoat"},
-                                                                          {from.has_specular != 0, "KHR_materials_specular"},
+            // What it mirrors (KHR_materials_specular): its strength and its colour head on; their pictures noted.
+            if (from.has_specular) {
+                made.specular = from.specular.specular_factor;
+                made.specular_colour = {from.specular.specular_color_factor[0], from.specular.specular_color_factor[1], from.specular.specular_color_factor[2]};
+                if (from.specular.specular_texture.texture)
+                    note(where + "/extensions/KHR_materials_specular/specularTexture", "a picture of the specular strength", "left out: the factor over the whole surface");
+                if (from.specular.specular_color_texture.texture)
+                    note(where + "/extensions/KHR_materials_specular/specularColorTexture", "a picture of the specular colour", "left out: the factor over the whole surface");
+            }
+            // A clear coat over it (KHR_materials_clearcoat), with its three pictures.
+            if (from.has_clearcoat) {
+                const cgltf_clearcoat& coat = from.clearcoat;
+                made.clearcoat = coat.clearcoat_factor, made.clearcoat_roughness = coat.clearcoat_roughness_factor;
+                const std::string at = where + "/extensions/KHR_materials_clearcoat";
+                if (coat.clearcoat_texture.texture) made.coat = picture(coat.clearcoat_texture, at + "/clearcoatTexture", mesh::Coding::plain, "the factor over the whole surface", made.placing.coat);
+                if (coat.clearcoat_roughness_texture.texture)
+                    made.coat_rough = picture(coat.clearcoat_roughness_texture, at + "/clearcoatRoughnessTexture", mesh::Coding::plain, "the factor over the whole surface", made.placing.coat_rough);
+                if (coat.clearcoat_normal_texture.texture) {
+                    made.coat_normal = picture(coat.clearcoat_normal_texture, at + "/clearcoatNormalTexture", mesh::Coding::plain, "the surface's own normals", made.placing.coat_normal);
+                    made.coat_normal_scale = coat.clearcoat_normal_texture.scale;
+                }
+            }
+            const std::array<std::pair<bool, std::string_view>, 6> more{{{from.has_pbr_specular_glossiness != 0, "KHR_materials_pbrSpecularGlossiness"},
                                                                           {from.has_sheen != 0, "KHR_materials_sheen"},
                                                                           {from.has_iridescence != 0, "KHR_materials_iridescence"},
                                                                           {from.has_diffuse_transmission != 0, "KHR_materials_diffuse_transmission"},

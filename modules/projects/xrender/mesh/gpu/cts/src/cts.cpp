@@ -391,6 +391,22 @@ Cases suite_of() {
         expect(lt(turned_all.mean, 0.1));
         expect(lt(static_cast<double>(other), 0.001 * static_cast<double>(turned_all.compared)));
     });
+    // a clear coat and what a surface mirrors by its specular strength and colour, on the device: a coated box and
+    // a polished ball mirroring a red, the reference's
+    add(suite, "mesh.coat", [](Rig& rig) {
+        rhi::Device* const device = &rig.device;
+        Yard yard(false, true);
+        yard.materials[0].clearcoat = 1, yard.materials[0].clearcoat_roughness = 0.15f;
+        yard.materials[2].specular = 0.8f, yard.materials[2].specular_colour = {1, 0.3f, 0.3f}, yard.materials[2].ior = 1.7f;
+        const auto drawn = both(*device, yard, {.environment = {.on = true}});
+        if (!drawn) return;
+        keep(drawn->device, "yard-coat");
+        const Apart all = apart(drawn->reference, drawn->device, false, 6);
+        std::println("a coated box and a ball mirroring red: {} of {} pixels further than 6 levels from the reference ({:.2f}%), mean {:.3f}, worst {}", all.off, all.compared,
+                     100.0 * static_cast<double>(all.off) / static_cast<double>(all.compared), all.mean, all.worst);
+        expect(lt(static_cast<double>(all.off), 0.001 * static_cast<double>(all.compared)));
+        expect(lt(all.mean, 0.1));
+    });
     // lit by a picture of the surroundings — a sky, a ground and a lamp — the yard's matt floor and box, its polished ball and its gold post are on the device what the reference draws: the same numbers, read the same way
     add(suite, "mesh.about", [](Rig& rig) {
         rhi::Device* const device = &rig.device;

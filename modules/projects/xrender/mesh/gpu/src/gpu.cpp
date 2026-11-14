@@ -60,6 +60,8 @@ struct SurfaceUniforms {
     Row          behind;             // x: 1 — the sheet of what is whole is bound; y: how many sizes; zw: one over its width and height
     Row          background;
     Row          behind_squares[16];
+    Row          mirrors{0.04f, 0.04f, 0.04f, 1};  // what a surface that is not metal mirrors head on; w: at a glance
+    Row          coat;                             // x: the clear coat; y: its roughness
     LampUniforms lamps[most_lamps];
 };
 // What the passes that draw no colour ask of a draw's material (the shaders' `Whole`).
@@ -881,6 +883,12 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
         // (Where the target does not hold the light itself nothing is read behind: the surface lets nothing through.)
         surface.lets = {light_ && behind_.drawn ? std::clamp(material.transmission, 0.0f, 1.0f) : 0.0f, std::max(material.thickness, 0.0f), material.ior, infinite ? 0.0f : material.attenuation_distance};
         surface.attenuation = of(material.attenuation);
+        // What it mirrors, as the reference works it out (a metal's part is the shader's, by its picture).
+        Material dielectric = material;
+        dielectric.metallic = 0;
+        const Mirrors ends = mirrors_of(dielectric);
+        surface.mirrors = of(ends.head_on, ends.edge);
+        surface.coat = {std::clamp(material.clearcoat, 0.0f, 1.0f), std::clamp(material.clearcoat_roughness, 0.04f, 1.0f), 0, 0};
         surface.clearness_picture = said(clearness[0], 0), surface.thick_picture = said(clearness[1], 0);
         surface.placing[10] = across_of(material.placing.clearness), surface.placing[11] = down_of(material.placing.clearness);
         surface.placing[12] = across_of(material.placing.thick), surface.placing[13] = down_of(material.placing.thick);

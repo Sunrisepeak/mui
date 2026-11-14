@@ -90,6 +90,10 @@ struct Surface {
     float4 behind;              // x: over 0.5 — the light of what is whole is on the sheet; y: how many sizes; zw: one over its width and height
     float4 background;          // what is behind everything where nothing is drawn (xrender.mesh's `Options::background`)
     float4 behind_squares[16];  // a size each: xy where its first texel is, zw its width and height
+    // What a surface that is not metal mirrors head on (xrender.mesh's `mirrors_of`: by its ior, specular colour
+    // and strength), and w: the strength — what it mirrors at a glancing look.
+    float4 mirrors;
+    float4 coat;                // a clear coat (xrender.mesh's `Material::clearcoat`): x how much, y its roughness (0.04 … 1)
     Lamp   lamps[8];
 };
 [[vk::binding(0, 2)]] Sampler2D shadow_map : register(t0, space2) : register(s0, space2);
@@ -144,6 +148,8 @@ static float  metal_here;
 static float  lets_here;   // how much goes through
 static float  thick_here;  // how thick it is
 static float  rough_said;  // the roughness as the material and its picture say it, not held to 0.04
+static float3 head_here;   // what the surface mirrors head on, a channel
+static float  edge_here;   // and at a glancing look
 
 // A texture's light at `uv` for a pixel that covers `footprint` texels of its finest size (xrender.mesh's
 // `Texture::at`): the size whose texels are about a pixel across mixed with the next — its sizes are the
@@ -223,8 +229,7 @@ float through(float3 toward, float length) {
 float3 kept(float seen) {
     const float2 once = share_map.SampleLevel((float2(clamp(seen, 0.0, 1.0), rough_here) * 31.0 + 0.5) / 32.0, 0).rg;
     const float all = once.x + once.y;
-    const float3 head_on = float3(0.04, 0.04, 0.04) * (1.0 - metal_here) + base_colour * metal_here;
-    return all > 0 ? float3(1, 1, 1) + head_on * (1.0 / all - 1.0) : float3(1, 1, 1);
+    return all > 0 ? float3(1, 1, 1) + head_here * (1.0 / all - 1.0) : float3(1, 1, 1);
 }
 // What the surface sends toward the eye of light arriving along `toward_light` (xrender.mesh's `reflected`).
 float3 reflected(float3 normal, float3 toward_eye, float3 toward_light, float facing) {
@@ -240,8 +245,7 @@ float3 reflected(float3 normal, float3 toward_eye, float3 toward_light, float fa
     const float k = (rough + 1.0) * (rough + 1.0) * 0.125;
     const float unhidden = 1.0 / ((facing * (1.0 - k) + k) * (seen * (1.0 - k) + k));
     const float glance = 1.0 - eye_half, glance5 = glance * glance * glance * glance * glance;
-    const float3 head_on = float3(0.04, 0.04, 0.04) * (1.0 - metal) + base_colour * metal;
-    const float3 mirrored = head_on + (float3(1, 1, 1) - head_on) * glance5;
+    const float3 mirrored = head_here + (float3(edge_here, edge_here, edge_here) - head_here) * glance5;
     return matt + mirrored * kept(seen) * (facets * unhidden * 0.25 * facing);
 }
 // What the surface mirrors of what is about the scene (xrender.mesh's `mirrored`).
@@ -255,8 +259,7 @@ float3 mirrored(float3 normal, float3 toward_eye) {
     const float3 there = surface.level.rgb + (far - surface.level.rgb) * abs(along.y);
     const float3 blurred = there + (surface.level.rgb - there) * rough;
     const float glance = 1.0 - seen, glance5 = glance * glance * glance * glance * glance;
-    const float3 head_on = float3(0.04, 0.04, 0.04) * (1.0 - metal) + base_colour * metal;
-    const float3 share = head_on + (float3(1, 1, 1) - head_on) * (glance5 * (1.0 - rough));
+    const float3 share = head_here + (float3(edge_here, edge_here, edge_here) - head_here) * (glance5 * (1.0 - rough));
     return share * blurred;
 }
 // A way's place in a square: an octahedron's eight faces unfolded (xrender.mesh's `Surroundings`).
@@ -276,7 +279,7 @@ interface IAbout {
 }
 struct Plain : IAbout {
     static float3 falling(float3 normal) { return surface.ambient.rgb; }
-    static float3 takes(float metal) { return base_colour * ((1.0 - metal) * (1.0 - lets_here)) + (float3(0.04, 0.04, 0.04) * (1.0 - metal) + base_colour * metal); }
+    static float3 takes(float metal) { return base_colour * ((1.0 - metal) * (1.0 - lets_here)) + head_here; }
     static float3 mirrors(float3 normal, float3 toward_eye, float shaded) { return surface.above.w > 0.5 ? mirrored(normal, toward_eye) : float3(0, 0, 0); }
 }
 struct Pictured : IAbout {
@@ -296,8 +299,7 @@ struct Pictured : IAbout {
         const float3 nearer = about_at(about.squares[int(first)], place), further = about_at(about.squares[int(first) + 1], place);
         const float4 table = about.squares[17];
         const float2 share = about_map.SampleLevel((table.xy + float2(seen, rough) * (table.z - 1.0) + 0.5) * about.shape.xy, 0).rg;
-        const float3 head_on = float3(0.04, 0.04, 0.04) * (1.0 - metal) + base_colour * metal;
-        return (head_on * share.x + share.y) * kept(seen) * (nearer + (further - nearer) * (which - first)) * shaded;
+        return (head_here * share.x + share.y * edge_here) * kept(seen) * (nearer + (further - nearer) * (which - first)) * shaded;
     }
 }
 float encoded(float linear) {
@@ -362,6 +364,42 @@ float4 transmitted(float3 normal, float3 place) {
 
 // The surface's light at a pixel, and how much it hides of what is behind it; `gone`: nothing of it is drawn there
 // (turned away, beyond the view, cut out).
+// How much a clear coat mirrors of the eye's way (Schlick, 4% head on): that much less comes up through it.
+float coat_mirrors(float3 coat_normal, float3 toward_eye) {
+    const float glance = 1.0 - clamp(dot(coat_normal, toward_eye), 0.0, 1.0), glance5 = glance * glance * glance * glance * glance;
+    return 0.04 + 0.96 * glance5;
+}
+// What a clear coat over the surface sends toward the eye (xrender.mesh's `shone`, its layer): the same lights and
+// what is about, on a layer of no colour that mirrors 4% head on, as rough as the coat, by the coat's normal;
+// shadows asked by the surface's own.
+float3 coated<A : IAbout>(float3 coat_normal, float3 normal, float3 toward_eye, float3 place, float3 everywhere_in, float shaded) {
+    const float3 was_base = base_colour, was_head = head_here;
+    const float was_rough = rough_here, was_metal = metal_here, was_lets = lets_here, was_edge = edge_here;
+    base_colour = float3(0, 0, 0), metal_here = 0, lets_here = 0, rough_here = surface.coat.y, head_here = float3(0.04, 0.04, 0.04), edge_here = 1;
+    float3 sent = A::takes(0) * everywhere_in + A::mirrors(coat_normal, toward_eye, shaded);
+    const int count = int(surface.eye.w);
+    for (int index = 0; index < count; ++index) {
+        const Lamp lamp = surface.lamps[index];
+        float3 along = -lamp.toward_cone.xyz;
+        float3 arriving = lamp.colour_kind.rgb;
+        if (lamp.colour_kind.w < 0.5) {
+            if (float(index) == surface.shadow.x && dot(coat_normal, along) > 0 && in_shadow(place, normal)) continue;
+        } else {
+            const float3 to = lamp.at_range.xyz - place;
+            const float apart = length(to);
+            if (!(apart < lamp.at_range.w) || !(apart > 0)) continue;
+            along = to / apart;
+            if (lamp.colour_kind.w > 1.5 && -dot(along, lamp.toward_cone.xyz) < lamp.toward_cone.w) continue;
+            const float near = 1.0 - (apart / lamp.at_range.w) * (apart / lamp.at_range.w);
+            arriving *= near * near;
+            if (lamp.shadow.x >= 0 && dot(coat_normal, along) > 0 && lamp_hidden(lamp, place, normal, apart)) continue;
+        }
+        const float facing = dot(coat_normal, along);
+        if (facing > 0) sent += reflected(coat_normal, toward_eye, along, facing) * arriving;
+    }
+    base_colour = was_base, head_here = was_head, rough_here = was_rough, metal_here = was_metal, lets_here = was_lets, edge_here = was_edge;
+    return sent;
+}
 struct Lit {
     float3 light;
     float  hides;
@@ -416,6 +454,7 @@ Lit lit_at<A : IAbout>(VOut point) {
     if (surface.glow_picture.z > 0.5) given_off *= picture_over(glow_map, surface.glow_picture, placed(point.uv, glow_laid), moved_by(right_both, glow_laid), moved_by(down_both, glow_laid)).rgb;
     if (surface.shade_picture.z > 0.5)
         shaded = 1.0 + surface.shade_picture.w * (picture_over(shade_map, surface.shade_picture, placed(point.uv, shade_laid), moved_by(right_both, shade_laid), moved_by(down_both, shade_laid)).r - 1.0);
+    const float3 coat_normal = normal;  // the coat's: the surface's own before its normal picture
     if (surface.normal_picture.z > 0.5) {
         const float2 right = moved_by(right_both, normal_laid), down = moved_by(down_both, normal_laid);
         // The picture's three ways in the world here: along it (the mesh's tangent, or the way the surface goes as
@@ -442,6 +481,7 @@ Lit lit_at<A : IAbout>(VOut point) {
         }
     }
     const float3 toward_eye = normalize(to_eye);
+    head_here = surface.mirrors.rgb * (1.0 - metal_here) + base_colour * metal_here, edge_here = 1.0 - (1.0 - surface.mirrors.w) * (1.0 - metal_here);
     // Matt: the lights summed, then the surface's colour. Otherwise each light's share by `reflected`.
     // The light from everywhere, by how open the place is (xrender.mesh's `reaching`): the open share, and by the
     // ways that are shut what a surface of this colour sends back.
@@ -478,6 +518,7 @@ Lit lit_at<A : IAbout>(VOut point) {
     float3 colour = base_colour * (1.0 - lets_here) * light + given_off;
     if (!matt) {
         colour = A::takes(metal_here) * everywhere_in + given_off + sent + A::mirrors(normal, toward_eye, shaded);
+        if (surface.coat.x > 0) colour = given_off + (colour - given_off) * (1.0 - surface.coat.x * coat_mirrors(coat_normal, toward_eye)) + coated<A>(coat_normal, normal, toward_eye, point.place, everywhere_in, shaded) * surface.coat.x;
     }
     if (surface.own.z > 0.5) colour = base_colour + given_off;
     else {

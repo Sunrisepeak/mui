@@ -50,12 +50,13 @@ struct Shape {
     std::vector<std::uint32_t> corners;  // mesh: three a triangle, wound counter-clockwise seen from outside
     std::vector<Part> parts;             // compound: its parts, each placed in the body
     bool movable_parts = false;          // compound: its parts can be moved after it is made (World::move_part)
-    [[nodiscard]] static Shape box(Vec half) { return {.form = Form::box, .half = half}; }
-    [[nodiscard]] static Shape sphere(float radius) { return {.form = Form::sphere, .radius = radius}; }
-    [[nodiscard]] static Shape capsule(float half_height, float radius) { return {.form = Form::capsule, .radius = radius, .half_height = half_height}; }
-    [[nodiscard]] static Shape hull(std::vector<Vec> points) { return {.form = Form::hull, .points = std::move(points)}; }
+    // Defined after `Part`: a Shape made here holds a vector of parts, and libc++ wants its element whole.
+    [[nodiscard]] static Shape box(Vec half);
+    [[nodiscard]] static Shape sphere(float radius);
+    [[nodiscard]] static Shape capsule(float half_height, float radius);
+    [[nodiscard]] static Shape hull(std::vector<Vec> points);
     // A triangle mesh: terrain and buildings, on a fixed body only.
-    [[nodiscard]] static Shape mesh(std::vector<Vec> points, std::vector<std::uint32_t> corners) { return {.form = Form::mesh, .points = std::move(points), .corners = std::move(corners)}; }
+    [[nodiscard]] static Shape mesh(std::vector<Vec> points, std::vector<std::uint32_t> corners);
     // Several shapes as one body: fixed in place (Jolt's static compound), or movable (its mutable compound).
     [[nodiscard]] static Shape compound(std::vector<Part> parts, bool movable = false);
 };
@@ -64,6 +65,11 @@ struct Part {
     Vec at;
     Turn turn;
 };
+inline Shape Shape::box(Vec half) { return {.form = Form::box, .half = half}; }
+inline Shape Shape::sphere(float radius) { return {.form = Form::sphere, .radius = radius}; }
+inline Shape Shape::capsule(float half_height, float radius) { return {.form = Form::capsule, .radius = radius, .half_height = half_height}; }
+inline Shape Shape::hull(std::vector<Vec> points) { return {.form = Form::hull, .points = std::move(points)}; }
+inline Shape Shape::mesh(std::vector<Vec> points, std::vector<std::uint32_t> corners) { return {.form = Form::mesh, .points = std::move(points), .corners = std::move(corners)}; }
 inline Shape Shape::compound(std::vector<Part> parts, bool movable) {
     Shape made;
     made.form = Form::compound;

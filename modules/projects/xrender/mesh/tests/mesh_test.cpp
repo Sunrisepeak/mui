@@ -1946,8 +1946,8 @@ static UTest cases{"xrender.mesh", [] {
         // The layers over a surface, each against its own gathering along rays: a clear coat over a rough red, a
         // sheen over dark blue, brushed steel (its highlight drawn out), a thin film over near black. Measured:
         // the coat 1.1%, the film 1.1%; the sheen 14.1% (the pass lights it by what falls on the surface, not by
-        // its own lobe: red 88); brushed steel 77.6% (the pass's one lookup about a bent normal, as glTF's sample
-        // viewer has it: red 89) — each bound is its measure, to be lowered by the work.
+        // its own lobe: red 88); brushed steel 10.3% (64 filtered lookups along the lobe; 77.6% with the one
+        // lookup about a bent normal glTF's sample viewer has: red 89) — each bound is its measure, to be lowered by the work.
         mesh::Material coated{.base = {0.6f, 0.05f, 0.04f}, .roughness = 0.6f, .metallic = 0};
         coated.clearcoat = 1, coated.clearcoat_roughness = 0.05f;
         mesh::Material velvet{.base = {0.05f, 0.08f, 0.3f}, .roughness = 0.8f, .metallic = 0};
@@ -1958,7 +1958,7 @@ static UTest cases{"xrender.mesh", [] {
         filmed.iridescence = 1, filmed.film_ior = 1.3f, filmed.film_thickness = 400;
         for (const Held& held : {Held{made[matt_grey], "matt", 0.008f}, Held{made[polished], "polished", 0.015f}, Held{made[satin], "satin", 0.015f}, Held{made[gold], "gold", 0.075f},
                                  Held{made[iron], "iron", 0.062f}, Held{made[dull_copper], "dull-copper", 0.067f}, Held{made[roughest_copper], "roughest-copper", 0.04f},
-                                 Held{coated, "coated", 0.015f}, Held{velvet, "velvet", 0.15f}, Held{brushed, "brushed", 0.8f}, Held{filmed, "film", 0.015f}}) {
+                                 Held{coated, "coated", 0.015f}, Held{velvet, "velvet", 0.15f}, Held{brushed, "brushed", 0.11f}, Held{filmed, "film", 0.015f}}) {
             std::vector<mesh::Material> materials(made.begin(), made.end());
             materials.push_back(held.material);
             const std::uint32_t own = static_cast<std::uint32_t>(materials.size() - 1);

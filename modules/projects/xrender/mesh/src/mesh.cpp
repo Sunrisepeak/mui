@@ -401,7 +401,7 @@ struct Raster {
         if (sheened) sheen = math::scaled(math::scaled(from_all_about(normal), material.sheen), reaching(open)) * (sheen_share(std::max(math::dot(normal, toward_eye), 0.0f), material.sheen_roughness) * shaded);
         Vec3 sent = coated > 0 || sheened ? under : under + material.emissive;
         const bool drawn = material.anisotropy > 0 && math::dot(drawn_out, drawn_out) > 0;
-        if (options.environment.on) sent = sent + mirrored(material, options.environment, drawn ? drawn_out_normal(material, normal, drawn_out, toward_eye) : normal, toward_eye) * (pictured ? shaded : 1.0f);
+        if (options.environment.on) sent = sent + (drawn ? mirrored_drawn_out(material, options.environment, normal, drawn_out, toward_eye) : mirrored(material, options.environment, normal, toward_eye)) * (pictured ? shaded : 1.0f);
         const auto highlight = [&](Vec3 toward_light, float facing) { return drawn ? reflected_drawn_out(material, normal, drawn_out, toward_eye, toward_light, facing) : reflected(material, normal, toward_eye, toward_light, facing); };
         if (coated > 0) {
             if (!pictured) coat = math::scaled(math::scaled(reflected_ambient(layer), from_all_about(coat_normal)), reaching(open)) * shaded;
@@ -835,6 +835,50 @@ Vec3 drawn_out_normal(const Material& material, Vec3 normal, Vec3 along, Vec3 to
     const float bend = 1.0f - strength * (1.0f - rough), bend4 = bend * bend * bend * bend;
     const Vec3 bent = toward + (normal - toward) * bend4;
     return math::dot(bent, bent) > 0 ? math::normalized(bent) : normal;
+}
+Vec3 mirrored_drawn_out(const Material& material, const Environment& environment, Vec3 normal, Vec3 along, Vec3 toward_eye) noexcept {
+    const float seen = math::dot(normal, toward_eye);
+    if (!environment.picture || !(seen > 0)) return mirrored(material, environment, drawn_out_normal(material, normal, along, toward_eye), toward_eye);
+    const float rough = std::clamp(material.roughness, 0.04f, 1.0f), strength = std::clamp(material.anisotropy, 0.0f, 1.0f);
+    const float alpha = rough * rough, along_alpha = alpha + (1.0f - alpha) * strength * strength, across_alpha = alpha;
+    const Vec3 across = math::cross(normal, along);
+    const auto reach = [&](Vec3 way, float up) {
+        const float on_along = math::dot(along, way) * along_alpha, on_across = math::dot(across, way) * across_alpha;
+        return std::sqrt(on_along * on_along + on_across * on_across + up * up);
+    };
+    constexpr int ways = 64;
+    Vec3 sum{0, 0, 0};
+    for (int which = 0; which < ways; ++which) {
+        // Hammersley's set: (i + ½)/n, and i's bits turned about.
+        std::uint32_t bits = static_cast<std::uint32_t>(which);
+        bits = (bits << 16) | (bits >> 16), bits = ((bits & 0x55555555u) << 1) | ((bits & 0xAAAAAAAAu) >> 1), bits = ((bits & 0x33333333u) << 2) | ((bits & 0xCCCCCCCCu) >> 2);
+        bits = ((bits & 0x0F0F0F0Fu) << 4) | ((bits & 0xF0F0F0F0u) >> 4), bits = ((bits & 0x00FF00FFu) << 8) | ((bits & 0xFF00FF00u) >> 8);
+        const double first = (static_cast<double>(which) + 0.5) / ways, turn = static_cast<double>(bits) * (1.0 / 4294967296.0) * math::det::two_pi;
+        // A small face's slope, of a spread of 1, stretched by the lobe's own along and across.
+        const double slope = math::det::sqrt(first / (1.0 - first));
+        const float slope_along = static_cast<float>(slope * math::det::cos(turn)) * along_alpha, slope_across = static_cast<float>(slope * math::det::sin(turn)) * across_alpha;
+        const Vec3 half = math::normalized(normal - along * slope_along - across * slope_across);
+        const float eye_half = math::dot(toward_eye, half), up = math::dot(normal, half);
+        if (!(eye_half > 0) || !(up > 0)) continue;
+        const Vec3 way = half * (2.0f * eye_half) - toward_eye;
+        const float facing = math::dot(normal, way);
+        if (!(facing > 0)) continue;
+        // What the lobe throws over how likely the way was: the faces' count cancels, leaving how much of them is
+        // seen (height-correlated) and what they mirror.
+        const float visible = 0.5f / (facing * reach(toward_eye, seen) + seen * reach(way, facing));
+        const float glance = 1.0f - eye_half, glance5 = glance * glance * glance * glance * glance;
+        const float weight = visible * facing * 4.0f * eye_half / up;
+        // Read as blurred as the share of all ways this one stands for (one over their count times how likely it
+        // was): the roughness whose spread covers that much (its α² that over π). The lobe's own spread is in the
+        // ways chosen, so it is not read in again.
+        const float on_along = math::dot(along, half) / along_alpha, on_across = math::dot(across, half) / across_alpha;
+        const float stretched = on_along * on_along + on_across * on_across + up * up;
+        const float likelihood = up / (3.14159265f * along_alpha * across_alpha * stretched * stretched * 4.0f * eye_half);
+        const float stands_for = 1.0f / (static_cast<float>(ways) * likelihood);
+        const float read_rough = std::clamp(std::sqrt(std::sqrt(stands_for / 3.14159265f)), 0.0f, 1.0f);
+        sum = sum + math::scaled(mirrors_at(material, glance5, seen), environment.picture->blurred(way, read_rough)) * weight;
+    }
+    return math::scaled(sum * (1.0f / ways), kept(material, seen));
 }
 Vec3 mirrored(const Material& material, const Environment& environment, Vec3 normal, Vec3 toward_eye) noexcept {
     const float rough = std::clamp(material.roughness, 0.04f, 1.0f), metal = std::clamp(material.metallic, 0.0f, 1.0f);

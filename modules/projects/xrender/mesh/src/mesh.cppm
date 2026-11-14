@@ -341,6 +341,12 @@ struct Environment {
 // blurred by the roughness, times the surface's share of an even light (`Surroundings::share`) — the two taken
 // apart, as Karis did in 2013; how far that is from the light followed way by way is measured (the README).
 [[nodiscard]] Vec3 mirrored(const Material& material, const Environment& environment, Vec3 normal, Vec3 toward_eye) noexcept;
+// The same for a highlight drawn out along `along` (`Material::anisotropy`; of length 1, in the surface): the
+// lobe itself asked a fixed set of 64 ways (Hammersley's), each chosen by the drawn-out spread (its slope
+// stretched), the picture read along each blurred by the share of all ways it stands for, weighed by what the lobe
+// throws there over how likely the way was (Colbert and Křivánek's filtered importance sampling, 2007). The same
+// ways at every pixel: no grain, the same bits. Without a picture: `mirrored` about `drawn_out_normal`.
+[[nodiscard]] Vec3 mirrored_drawn_out(const Material& material, const Environment& environment, Vec3 normal, Vec3 along, Vec3 toward_eye) noexcept;
 // How much of an even light from all about a surface mirrors at the first of its small faces the light meets,
 // by how it is looked at (`seen`: the normal · the way to the eye) and how rough it is: (times what it mirrors
 // head on, added whatever that is). Their sum is under 1 — the rougher the further (a third at the roughest,

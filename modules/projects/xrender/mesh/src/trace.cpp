@@ -382,7 +382,7 @@ struct Tracing {
         } else {
             const Environment& about = options.environment.on ? options.environment : Environment{true, options.background, options.background, options.background};
             around = options.environment.on ? options.environment.falling(met->normal) : options.background;
-            if (!matt) thrown = mirrored(material, about, drawn ? drawn_out_normal(material, met->normal, met->drawn_out, toward_eye) : met->normal, toward_eye);
+            if (!matt) thrown = drawn ? mirrored_drawn_out(material, about, met->normal, met->drawn_out, toward_eye) : mirrored(material, about, met->normal, toward_eye);
             if (sheened) sheen = sheen + math::scaled(material.sheen, around) * sheen_share(std::max(math::dot(met->normal, toward_eye), 0.0f), material.sheen_roughness);
             if (coated > 0) coat = coat + mirrored(layer, about, met->coat_normal, toward_eye);
         }

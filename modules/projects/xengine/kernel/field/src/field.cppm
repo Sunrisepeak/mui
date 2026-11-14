@@ -71,6 +71,23 @@ public:
     // How warm the air is at a place, in kelvin (where there are no cells, the air about).
     [[nodiscard]] float kelvin_at(Vec3 at) const noexcept;
 
+    // ── regions (streaming) ──
+    // A block far from anything that matters, parked: its cells become one coarse instance holding their mean
+    // (capacity 512: it changes as slowly as the whole block would), still under the laws with its neighbours —
+    // the cells beside it and other parked blocks — and each cell's difference from the mean kept, exactly. A
+    // parked block expanded again is each cell's kept difference over the coarse value now: the block's total
+    // (512 × coarse + the differences) the same before and after, bit for bit. The wind is not solved in it (the
+    // cells beside it see the far wind there). False: no such block, or already so.
+    bool park(Vec3 at);
+    bool expand(Vec3 at);
+    // Streaming: blocks with any part within `near` of `centre` expanded (made where none was), blocks wholly
+    // beyond `far` parked; between, as they are (so a walker on a border does not flicker).
+    void follow(Vec3 centre, float near, float far);
+    [[nodiscard]] std::size_t parked() const noexcept { return coarse_keys_.size(); }
+    // A channel's total over the field — each cell, and each parked block as 512 × its coarse value plus its
+    // cells' kept differences: what a switch between the two keeps exactly.
+    [[nodiscard]] std::int64_t total(std::uint32_t channel) const noexcept;
+
     // One tick: the laws across the cells and the guests in them, then the wind moved and the heat carried.
     [[nodiscard]] std::expected<matter::Report, matter::Failure> step(std::span<const Guests> guests = {});
     // What happened to an instance of the last step (cells first, then each group of guests in turn).
@@ -102,7 +119,19 @@ private:
     std::vector<std::uint32_t> state_;            // the cells', channel-major
     std::vector<float>         wind_x_, wind_y_, wind_z_, scratch_x_, scratch_y_, scratch_z_, pressure_, pressure_next_, divergence_;
     std::vector<std::uint32_t> heat_;             // the temperature carried, a step's scratch
-    std::vector<matter::Pair>  links_;            // between neighbouring cells
+    std::vector<matter::Pair>  links_;            // between neighbouring cells, and cells beside a parked block with its coarse instance
+    // Parked blocks: each a coarse instance (after the cells in a step's numbering) and its cells' differences.
+    struct Parked {
+        std::uint32_t             coarse = 0;
+        std::vector<std::int64_t> difference;  // [channel][cell of the block]
+        Vec3                      wind{0, 0, 0};
+    };
+    std::map<Key, Parked>      parked_;
+    std::vector<Key>           coarse_keys_;      // a coarse instance each, in the order parked
+    std::vector<std::uint32_t> coarse_state_;     // channel-major, a coarse instance each
+    std::vector<matter::Pair>  coarse_links_;     // between parked blocks beside each other (coarse numbers)
+    [[nodiscard]] std::optional<std::uint32_t> coarse_at(Vec3 at) const noexcept;
+    void drop_block(std::uint32_t block);         // a block's cells out of the arrays (its number given to the last)
     static constexpr std::uint32_t nobody = 0xffffffffu;
     std::vector<std::array<std::uint32_t, 6>> near_;  // each cell's neighbours: +x, −x, +y, −y, +z, −z (nobody: none)
     std::vector<matter::Pair>  pairs_;            // a step's: links, then guests

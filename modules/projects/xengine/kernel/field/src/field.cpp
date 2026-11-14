@@ -79,15 +79,177 @@ void Field::cover(Vec3 at, float radius) {
 void Field::link() {
     links_.clear();
     near_.assign(cells(), {nobody, nobody, nobody, nobody, nobody, nobody});
+    const auto fine = static_cast<std::uint32_t>(cells());
     constexpr std::array<std::array<std::int64_t, 3>, 6> ways{{{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}}};
     for (std::uint32_t cell = 0; cell < cells(); ++cell) {
         const auto [x, y, z] = place_of(cell);
-        for (std::size_t way = 0; way < ways.size(); ++way)
-            if (const auto beside = cell_of(x + ways[way][0], y + ways[way][1], z + ways[way][2])) {
+        for (std::size_t way = 0; way < ways.size(); ++way) {
+            const std::int64_t beside_x = x + ways[way][0], beside_y = y + ways[way][1], beside_z = z + ways[way][2];
+            if (const auto beside = cell_of(beside_x, beside_y, beside_z)) {
                 near_[cell][way] = *beside;
                 if (way % 2 == 0) links_.push_back({cell, *beside, 1});  // each pair once: from its lower side
+                continue;
             }
+            // Beside a parked block: the cell and that block's coarse instance.
+            const Key key{static_cast<std::int32_t>(floor_div(beside_x, block_side)), static_cast<std::int32_t>(floor_div(beside_y, block_side)), static_cast<std::int32_t>(floor_div(beside_z, block_side))};
+            if (const auto found = parked_.find(key); found != parked_.end()) links_.push_back({cell, fine + found->second.coarse, 1});
+        }
     }
+    // Parked blocks beside each other.
+    for (const auto& [key, held] : parked_)
+        for (const Key beside : {Key{key[0] + 1, key[1], key[2]}, Key{key[0], key[1] + 1, key[2]}, Key{key[0], key[1], key[2] + 1}})
+            if (const auto found = parked_.find(beside); found != parked_.end()) links_.push_back({fine + held.coarse, fine + found->second.coarse, 1});
+}
+
+std::optional<std::uint32_t> Field::coarse_at(Vec3 at) const noexcept {
+    const float block = options_.cell * block_side;
+    const Key key{static_cast<std::int32_t>(std::floor(at.x / block)), static_cast<std::int32_t>(std::floor(at.y / block)), static_cast<std::int32_t>(std::floor(at.z / block))};
+    const auto found = parked_.find(key);
+    if (found == parked_.end()) return std::nullopt;
+    return found->second.coarse;
+}
+
+void Field::drop_block(std::uint32_t block) {
+    const std::size_t channels = program_->channels().size(), before = cells(), after = before - block_cells;
+    const std::uint32_t last = static_cast<std::uint32_t>(blocks_.size() - 1);
+    // The last block's cells into this one's place, then every channel to the shorter stride.
+    std::vector<std::uint32_t> narrowed(channels * after);
+    for (std::size_t channel = 0; channel < channels; ++channel) {
+        const auto from = state_.begin() + static_cast<std::ptrdiff_t>(channel * before);
+        if (block != last) std::copy_n(from + static_cast<std::ptrdiff_t>(last * block_cells), block_cells, from + static_cast<std::ptrdiff_t>(block * block_cells));
+        std::copy_n(from, after, narrowed.begin() + static_cast<std::ptrdiff_t>(channel * after));
+    }
+    state_ = std::move(narrowed);
+    for (std::vector<float>* wind : {&wind_x_, &wind_y_, &wind_z_}) {
+        if (block != last) std::copy_n(wind->begin() + static_cast<std::ptrdiff_t>(last * block_cells), block_cells, wind->begin() + static_cast<std::ptrdiff_t>(block * block_cells));
+        wind->resize(after);
+    }
+    index_.erase(blocks_[block]);
+    if (block != last) blocks_[block] = blocks_[last], index_[blocks_[block]] = block;
+    blocks_.pop_back();
+}
+
+bool Field::park(Vec3 at) {
+    const float size = options_.cell * block_side;
+    const Key key{static_cast<std::int32_t>(std::floor(at.x / size)), static_cast<std::int32_t>(std::floor(at.y / size)), static_cast<std::int32_t>(std::floor(at.z / size))};
+    const auto found = index_.find(key);
+    if (found == index_.end()) return false;
+    const std::uint32_t block = found->second;
+    const std::size_t channels = program_->channels().size(), count = cells(), coarse = coarse_keys_.size();
+    Parked held;
+    held.coarse = static_cast<std::uint32_t>(coarse);
+    held.difference.resize(channels * block_cells);
+    std::vector<std::uint32_t> value(channels);
+    for (std::size_t channel = 0; channel < channels; ++channel) {
+        const std::uint32_t* cell = state_.data() + channel * count + static_cast<std::size_t>(block) * block_cells;
+        std::uint64_t sum = 0;
+        for (std::size_t local = 0; local < block_cells; ++local) sum += cell[local];
+        const std::uint64_t mean = sum / block_cells;
+        value[channel] = static_cast<std::uint32_t>(mean);
+        for (std::size_t local = 0; local < block_cells; ++local) held.difference[channel * block_cells + local] = static_cast<std::int64_t>(cell[local]) - static_cast<std::int64_t>(mean);
+    }
+    // Material: what most of it is made of is the coarse instance's (a block of air is air; the differences keep the rest).
+    double wind_x = 0, wind_y = 0, wind_z = 0;
+    for (std::size_t local = 0; local < block_cells; ++local) {
+        const std::size_t cell = static_cast<std::size_t>(block) * block_cells + local;
+        wind_x += wind_x_[cell], wind_y += wind_y_[cell], wind_z += wind_z_[cell];
+    }
+    held.wind = {static_cast<float>(wind_x / block_cells), static_cast<float>(wind_y / block_cells), static_cast<float>(wind_z / block_cells)};
+    if (!value.empty()) {  // the material channel is a name, not a mean: the block's first cell's (the differences restore each)
+        value[0] = state_[static_cast<std::size_t>(block) * block_cells];
+        for (std::size_t local = 0; local < block_cells; ++local) held.difference[local] = static_cast<std::int64_t>(state_[static_cast<std::size_t>(block) * block_cells + local]) - value[0];
+    }
+    std::vector<std::uint32_t> widened(channels * (coarse + 1));
+    for (std::size_t channel = 0; channel < channels; ++channel) {
+        std::copy_n(coarse_state_.begin() + static_cast<std::ptrdiff_t>(channel * coarse), coarse, widened.begin() + static_cast<std::ptrdiff_t>(channel * (coarse + 1)));
+        widened[channel * (coarse + 1) + coarse] = value[channel];
+    }
+    coarse_state_ = std::move(widened);
+    coarse_keys_.push_back(key);
+    parked_.emplace(key, std::move(held));
+    drop_block(block);
+    link();
+    return true;
+}
+
+bool Field::expand(Vec3 at) {
+    const float size = options_.cell * block_side;
+    const Key key{static_cast<std::int32_t>(std::floor(at.x / size)), static_cast<std::int32_t>(std::floor(at.y / size)), static_cast<std::int32_t>(std::floor(at.z / size))};
+    if (index_.contains(key)) return false;
+    const auto found = parked_.find(key);
+    if (found == parked_.end()) {
+        cover({(static_cast<float>(key[0]) + 0.5f) * size, (static_cast<float>(key[1]) + 0.5f) * size, (static_cast<float>(key[2]) + 0.5f) * size}, 0);
+        return true;
+    }
+    const Parked held = std::move(found->second);
+    parked_.erase(found);
+    const std::size_t channels = program_->channels().size(), coarse = coarse_keys_.size();
+    // Its coarse instance out (the last one into its place), its cells back: the kept difference over the value now.
+    std::vector<std::uint32_t> value(channels);
+    for (std::size_t channel = 0; channel < channels; ++channel) value[channel] = coarse_state_[channel * coarse + held.coarse];
+    const std::uint32_t last = static_cast<std::uint32_t>(coarse - 1);
+    std::vector<std::uint32_t> narrowed(channels * (coarse - 1));
+    for (std::size_t channel = 0; channel < channels; ++channel) {
+        const auto from = coarse_state_.begin() + static_cast<std::ptrdiff_t>(channel * coarse);
+        if (held.coarse != last) *(from + held.coarse) = *(from + last);
+        std::copy_n(from, coarse - 1, narrowed.begin() + static_cast<std::ptrdiff_t>(channel * (coarse - 1)));
+    }
+    coarse_state_ = std::move(narrowed);
+    if (held.coarse != last) coarse_keys_[held.coarse] = coarse_keys_[last], parked_.at(coarse_keys_[held.coarse]).coarse = held.coarse;
+    coarse_keys_.pop_back();
+    const std::size_t before = cells(), after = before + block_cells;
+    std::vector<std::uint32_t> widened(channels * after);
+    for (std::size_t channel = 0; channel < channels; ++channel) {
+        std::copy_n(state_.begin() + static_cast<std::ptrdiff_t>(channel * before), before, widened.begin() + static_cast<std::ptrdiff_t>(channel * after));
+        for (std::size_t local = 0; local < block_cells; ++local) {
+            const std::int64_t made = static_cast<std::int64_t>(value[channel]) + held.difference[channel * block_cells + local];
+            widened[channel * after + before + local] = static_cast<std::uint32_t>(std::clamp<std::int64_t>(made, 0, 0xffffffffLL));
+        }
+    }
+    state_ = std::move(widened);
+    index_.emplace(key, static_cast<std::uint32_t>(blocks_.size()));
+    blocks_.push_back(key);
+    wind_x_.resize(after, held.wind.x), wind_y_.resize(after, held.wind.y), wind_z_.resize(after, held.wind.z);
+    link();
+    return true;
+}
+
+void Field::follow(Vec3 centre, float near, float far) {
+    const float size = options_.cell * block_side;
+    // Beyond `far`: the nearest point of the block's box farther than that.
+    const auto beyond = [&](const Key& key) {
+        double sum = 0;
+        for (std::size_t axis = 0; axis < 3; ++axis) {
+            const double low = static_cast<double>(key[axis]) * size, high = low + size, point = axis == 0 ? centre.x : axis == 1 ? centre.y : centre.z;
+            const double gap = point < low ? low - point : point > high ? point - high : 0.0;
+            sum += gap * gap;
+        }
+        return sum > static_cast<double>(far) * far;
+    };
+    std::vector<Key> leaving;
+    for (const Key& key : blocks_)
+        if (beyond(key)) leaving.push_back(key);
+    std::ranges::sort(leaving);
+    for (const Key& key : leaving) (void)park({(static_cast<float>(key[0]) + 0.5f) * size, (static_cast<float>(key[1]) + 0.5f) * size, (static_cast<float>(key[2]) + 0.5f) * size});
+    const auto low = [&](float value) { return static_cast<std::int32_t>(std::floor((value - near) / size)); };
+    const auto high = [&](float value) { return static_cast<std::int32_t>(std::floor((value + near) / size)); };
+    for (std::int32_t z = low(centre.z); z <= high(centre.z); ++z)
+        for (std::int32_t y = low(centre.y); y <= high(centre.y); ++y)
+            for (std::int32_t x = low(centre.x); x <= high(centre.x); ++x)
+                (void)expand({(static_cast<float>(x) + 0.5f) * size, (static_cast<float>(y) + 0.5f) * size, (static_cast<float>(z) + 0.5f) * size});
+}
+
+std::int64_t Field::total(std::uint32_t channel) const noexcept {
+    if (channel >= program_->channels().size()) return 0;
+    std::int64_t sum = 0;
+    const std::size_t count = cells(), coarse = coarse_keys_.size();
+    for (std::size_t cell = 0; cell < count; ++cell) sum += state_[channel * count + cell];
+    for (std::size_t one = 0; one < coarse; ++one) {
+        sum += static_cast<std::int64_t>(block_cells) * coarse_state_[channel * coarse + one];
+        const Parked& held = parked_.at(coarse_keys_[one]);
+        for (std::size_t local = 0; local < block_cells; ++local) sum += held.difference[channel * block_cells + local];
+    }
+    return sum;
 }
 
 std::optional<std::uint32_t> Field::get(std::uint32_t cell, std::uint32_t channel) const noexcept {
@@ -144,16 +306,19 @@ float Field::kelvin_at(Vec3 at) const noexcept {
 }
 
 std::expected<matter::Report, matter::Failure> Field::step(std::span<const Guests> guests) {
-    const std::size_t channels = program_->channels().size(), count = cells();
-    std::size_t instances = count;
+    const std::size_t channels = program_->channels().size(), count = cells(), coarse = coarse_keys_.size();
+    std::size_t instances = count + coarse;
     firsts_.clear();
     for (const Guests& group : guests) firsts_.push_back(static_cast<std::uint32_t>(instances)), instances += group.at.size();
     // The input: the cells, then each group's guests; the pairs: between cells, among each group, each guest and its cell.
     input_.assign(channels * instances, 0);
-    for (std::size_t channel = 0; channel < channels; ++channel)
+    for (std::size_t channel = 0; channel < channels; ++channel) {
         std::copy_n(state_.begin() + static_cast<std::ptrdiff_t>(channel * count), count, input_.begin() + static_cast<std::ptrdiff_t>(channel * instances));
+        std::copy_n(coarse_state_.begin() + static_cast<std::ptrdiff_t>(channel * coarse), coarse, input_.begin() + static_cast<std::ptrdiff_t>(channel * instances + count));
+    }
     pairs_.assign(links_.begin(), links_.end());
     capacity_.assign(instances, 1);
+    std::fill_n(capacity_.begin() + static_cast<std::ptrdiff_t>(count), coarse, static_cast<std::uint32_t>(block_cells));  // a coarse instance holds a block
     for (std::size_t group = 0; group < guests.size(); ++group)
         if (!guests[group].capacity.empty()) std::copy_n(guests[group].capacity.begin(), guests[group].at.size(), capacity_.begin() + firsts_[group]);
     for (std::size_t group = 0; group < guests.size(); ++group) {
@@ -162,15 +327,19 @@ std::expected<matter::Report, matter::Failure> Field::step(std::span<const Guest
         for (std::size_t channel = 0; channel < channels; ++channel)
             std::copy_n(these.state.begin() + static_cast<std::ptrdiff_t>(channel * many), many, input_.begin() + static_cast<std::ptrdiff_t>(channel * instances + first));
         for (const matter::Pair& pair : these.pairs) pairs_.push_back({static_cast<std::uint32_t>(first + pair.first), static_cast<std::uint32_t>(first + pair.second), pair.weight});
-        for (std::size_t guest = 0; guest < many; ++guest)
+        for (std::size_t guest = 0; guest < many; ++guest) {
             if (const auto cell = cell_at(these.at[guest])) pairs_.push_back({*cell, static_cast<std::uint32_t>(first + guest), these.weight});
+            else if (const auto parked_in = coarse_at(these.at[guest])) pairs_.push_back({static_cast<std::uint32_t>(count + *parked_in), static_cast<std::uint32_t>(first + guest), these.weight});
+        }
     }
     output_.resize(input_.size());
     events_.clear();
     auto stepped = program_->step({instances, pairs_, true, capacity_}, input_, output_, workspace_, &events_);  // a cell and all in it: crowded
     if (!stepped) return stepped;
-    for (std::size_t channel = 0; channel < channels; ++channel)
+    for (std::size_t channel = 0; channel < channels; ++channel) {
         std::copy_n(output_.begin() + static_cast<std::ptrdiff_t>(channel * instances), count, state_.begin() + static_cast<std::ptrdiff_t>(channel * count));
+        std::copy_n(output_.begin() + static_cast<std::ptrdiff_t>(channel * instances + count), coarse, coarse_state_.begin() + static_cast<std::ptrdiff_t>(channel * coarse));
+    }
     for (std::size_t group = 0; group < guests.size(); ++group) {
         const Guests& these = guests[group];
         const std::size_t many = these.at.size(), first = firsts_[group];
@@ -251,6 +420,8 @@ std::uint64_t Field::state_hash() const noexcept {
     mlibs::hash::Fnv1a hash;
     for (const Key& key : blocks_) hash.le(static_cast<std::uint32_t>(key[0]), 4), hash.le(static_cast<std::uint32_t>(key[1]), 4), hash.le(static_cast<std::uint32_t>(key[2]), 4);
     for (const std::uint32_t value : state_) hash.le(value, 4);
+    for (const Key& key : coarse_keys_) hash.le(static_cast<std::uint32_t>(key[0]), 4), hash.le(static_cast<std::uint32_t>(key[1]), 4), hash.le(static_cast<std::uint32_t>(key[2]), 4);
+    for (const std::uint32_t value : coarse_state_) hash.le(value, 4);
     for (const std::vector<float>* wind : {&wind_x_, &wind_y_, &wind_z_})
         for (const float value : *wind) hash.le(std::bit_cast<std::uint32_t>(value), 4);
     return hash.value();

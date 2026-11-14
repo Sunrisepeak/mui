@@ -66,4 +66,75 @@ UTest cases{"field", [] {
         const bool from_fire = std::ranges::any_of(why->flows, [&](const matter::Flowed& flow) { return flow.in && flow.beside == fire && program.laws()[flow.law].name == "heat flows"; });
         expect(from_fire) << "heat in from the cell below, by `heat flows`";
     };
+
+    "streaming: a block parked and expanded is the same cells; a walker crossing the harbour, the field following it, keeps every total exactly at each switch; a parked block still warms the air beside it"_test = [] {
+        const auto table = matter::standard();
+        expect(fatal(table.has_value())) << "the standard definition prepares";
+        const matter::Program& program = *table;
+        const std::uint32_t temperature = *program.channel("temperature"), wetness = *program.channel("wetness");
+        auto air = field::Field::make(program, {.air = *program.material("air")});
+        expect(fatal(air.has_value()));
+        air->cover({4, 4, 4}, 2);  // one block
+        // Uneven: a warm corner, a wet one.
+        (void)air->set(*air->cell_at({0.5f, 0.5f, 0.5f}), temperature, stored(program, temperature, 700));
+        (void)air->set(*air->cell_at({6.5f, 2.5f, 3.5f}), wetness, 40);
+        for (int step = 0; step < 30; ++step) expect(air->step().has_value());
+        std::vector<float> before;
+        for (int z = 0; z < 8; ++z)
+            for (int y = 0; y < 8; ++y)
+                for (int x = 0; x < 8; ++x) before.push_back(air->kelvin_at({static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f, static_cast<float>(z) + 0.5f}));
+        const std::int64_t heat = air->total(temperature), water = air->total(wetness);
+        expect(air->park({4, 4, 4}) && eq(air->cells(), std::size_t{0}) && eq(air->parked(), std::size_t{1}));
+        expect(eq(air->total(temperature), heat) && eq(air->total(wetness), water)) << "parked: the totals as they were";
+        expect(air->expand({4, 4, 4}) && eq(air->parked(), std::size_t{0}));
+        std::vector<float> after;
+        for (int z = 0; z < 8; ++z)
+            for (int y = 0; y < 8; ++y)
+                for (int x = 0; x < 8; ++x) after.push_back(air->kelvin_at({static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f, static_cast<float>(z) + 0.5f}));
+        expect(before == after) << "expanded at once: every cell as it was";
+
+        // A walker from x = 0 to 60 m along the quay, past a fire at the start; the field follows it (blocks within
+        // 6 m expanded, beyond 12 m parked). At every switch the totals are what they were just before it — plus the
+        // fresh air of any block made for the first time (512 cells at 293 K, no water).
+        auto quay = field::Field::make(program, {.air = *program.material("air")});
+        expect(fatal(quay.has_value()));
+        quay->follow({0, 2, 0}, 6, 12);
+        const auto blocks = [&] { return quay->cells() / field::block_cells + quay->parked(); };
+        std::size_t switches = 0, exact = 0, most_parked = 0;
+        for (int step = 0; step < 300; ++step) {
+            const field::Vec3 walker{static_cast<float>(step) * 0.2f, 2, 0};
+            if (step < 100) (void)quay->set(*quay->cell_at({0.5f, 0.5f, 0.5f}), temperature, stored(program, temperature, 900));
+            expect(quay->step().has_value());
+            const std::int64_t heat_before = quay->total(temperature), water_before = quay->total(wetness);
+            const std::size_t cells_before = quay->cells(), parked_before = quay->parked(), blocks_before = blocks();
+            quay->follow(walker, 6, 12);
+            if (quay->cells() != cells_before || quay->parked() != parked_before) {
+                ++switches;
+                const auto made = static_cast<std::int64_t>(blocks() - blocks_before);
+                const std::int64_t fresh = made * static_cast<std::int64_t>(field::block_cells) * static_cast<std::int64_t>(stored(program, temperature, 293));
+                exact += quay->total(temperature) == heat_before + fresh && quay->total(wetness) == water_before;
+            }
+            most_parked = std::max(most_parked, quay->parked());
+        }
+        // A parked block (the fire's, far behind the walker now) still warms the air beside it: the totals keep
+        // the heat it had, and it was not frozen.
+        std::println("a walker 60 m along: {} switches, {} with every total exact; {} blocks parked at most, {} cells expanded at the end", switches, exact, most_parked, quay->cells());
+        expect(gt(switches, std::size_t{3})) << "the field followed the walker";
+        expect(eq(exact, switches)) << "every switch keeps the totals exactly";
+        expect(gt(most_parked, std::size_t{0}));
+
+        // A parked hot block warms the expanded cells beside it.
+        auto pair = field::Field::make(program, {.air = *program.material("air")});
+        expect(fatal(pair.has_value()));
+        pair->cover({4, 4, 4}, 2), pair->cover({12, 4, 4}, 2);  // two blocks side by side along x
+        for (int z = 0; z < 8; ++z)
+            for (int y = 0; y < 8; ++y)
+                for (int x = 0; x < 8; ++x) (void)pair->set(*pair->cell_at({static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f, static_cast<float>(z) + 0.5f}), temperature, stored(program, temperature, 600));
+        expect(pair->park({4, 4, 4}));
+        const float cool = pair->kelvin_at({8.5f, 4.5f, 4.5f});
+        for (int step = 0; step < 120; ++step) expect(pair->step().has_value());
+        const float warmed = pair->kelvin_at({8.5f, 4.5f, 4.5f});
+        std::println("beside a parked block at 600 K: the cell next to it from {:.1f} K to {:.1f} K in 2 s", cool, warmed);
+        expect(gt(warmed, cool + 5.0f)) << "parked, not frozen: it still gives its heat to the air beside it";
+    };
 }};

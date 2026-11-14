@@ -40,6 +40,7 @@ struct Whole {
     float4 picture;  // the draw's base picture: xy its width and height; z how many sizes it has (0: none)
     float4 cut;      // x: where the surface hides less than this it is not there (0: whole); y: how much it hides;
                      // z: over 0.5 — it is seen from both sides
+    float4 placing[2];  // how the picture is laid over the surface (xrender.mesh's `Placing`): its place across, and down, each of (u, v, 1)
 };
 float cover_over(Sampler2D map, float4 picture, float2 uv, float2 right, float2 down) {
     const float across = length(right * picture.xy), along = length(down * picture.xy);
@@ -69,6 +70,9 @@ struct Moved {
 [[vk::binding(0, 2)]] Sampler2D picture_map : register(t0, space2) : register(s0, space2);
 [[vk::binding(0, 3)]] ConstantBuffer<Moved> moved : register(b0, space3);
 
+// The mesh's texture coordinates as the material lays its pictures (xrender.mesh's `Placing`).
+float2 placed(float2 uv) { return float2(dot(moved.whole.placing[0].xyz, float3(uv, 1)), dot(moved.whole.placing[1].xyz, float3(uv, 1))); }
+
 // True where nothing of the surface is drawn at this pixel: turned away (and of one side), beyond the view's far
 // cut, or cut out.
 bool left_out(VOut point, float2 right, float2 down) {
@@ -76,7 +80,7 @@ bool left_out(VOut point, float2 right, float2 down) {
     if ((point.clip.z - 0.5) * moved.eye.w > 0) return true;
     if (moved.whole.cut.x > 0) {
         float hides = moved.whole.cut.y;
-        if (moved.whole.picture.z > 0.5) hides *= cover_over(picture_map, moved.whole.picture, point.uv, right, down);
+        if (moved.whole.picture.z > 0.5) hides *= cover_over(picture_map, moved.whole.picture, placed(point.uv), right, down);
         if (hides < moved.whole.cut.x) return true;
     }
     return false;
@@ -84,7 +88,7 @@ bool left_out(VOut point, float2 right, float2 down) {
 
 [shader("fragment")]
 float4 velocity_fs(VOut point) : SV_Target {
-    const float2 right = ddx(point.uv), down = ddy(point.uv);
+    const float2 right = ddx(placed(point.uv)), down = ddy(placed(point.uv));
     if (left_out(point, right, down)) discard;
     if (moved.still.x > 0.5 || !(point.before.w > 0)) return float4(0, 0, 0, 1);
     const float2 was = float2(point.before.x / point.before.w * 0.5 + 0.5, 0.5 - point.before.y / point.before.w * 0.5) * moved.size_jitter.xy;
@@ -100,7 +104,7 @@ struct MovedAndWho {
 };
 [shader("fragment")]
 MovedAndWho velocity_who_fs(VOut point) {
-    const float2 right = ddx(point.uv), down = ddy(point.uv);
+    const float2 right = ddx(placed(point.uv)), down = ddy(placed(point.uv));
     if (left_out(point, right, down)) discard;
     MovedAndWho made;
     made.who = float4(moved.still.y, 0, 0, 1);

@@ -139,6 +139,12 @@ struct Maker {
     // as colours that hide everywhere (a picture used more than one way is a texture each): not asked for yet
     // (~0), not carried (~0 − 1), or its place in `out.textures`.
     std::vector<std::array<std::uint32_t, 3>> texture_of_image;
+    std::vector<bool> edges_said;  // of `out.textures`: a texture has said what the picture is past its edges
+    struct Edged {
+        std::uint32_t of = 0, as = 0;  // the texture first made of a picture, and one of the same picture with other edges
+    };
+    std::vector<Edged> edged;
+    std::optional<mesh::Placing> placing_said;  // of the material being read: how its first picture is laid
     static constexpr std::uint32_t unasked = 0xffffffffu, refused = 0xfffffffeu;
 
     void note(std::string where, std::string what, std::string instead) { out.notes.push_back({std::move(where), std::move(what), std::move(instead)}); }
@@ -180,10 +186,34 @@ struct Maker {
         }
         if (std::ranges::contains(made_as, refused) || made_as[as] == unasked) return mesh::Material{}.texture;
         if (view.texcoord != 0) note(where + "/texCoord", std::format("texture coordinates {}", view.texcoord), "the mesh's first (TEXCOORD_0)");
-        if (view.has_transform) note(where + "/extensions/KHR_texture_transform", "the picture moved, turned or scaled over the surface", "laid as the texture coordinates say");
-        if (texture.sampler && (texture.sampler->wrap_s != cgltf_wrap_mode_repeat || texture.sampler->wrap_t != cgltf_wrap_mode_repeat))
-            note(std::format("/samplers/{}", cgltf_sampler_index(&data, texture.sampler)), "a picture that stops or mirrors at its edge", "it repeats");
-        return made_as[as];
+        // How the picture is laid over the surface (KHR_texture_transform). A material's pictures are laid one
+        // way here: the first of them says it, and one that says another is noted.
+        const mesh::Placing laid = view.has_transform ? mesh::Placing::made({view.transform.offset[0], view.transform.offset[1]}, view.transform.rotation, {view.transform.scale[0], view.transform.scale[1]})
+                                                      : mesh::Placing{};
+        const auto same = [](const mesh::Placing& one, const mesh::Placing& other) {
+            return one.across.x == other.across.x && one.across.y == other.across.y && one.across.z == other.across.z && one.down.x == other.down.x && one.down.y == other.down.y && one.down.z == other.down.z;
+        };
+        if (!placing_said) placing_said = laid;
+        else if (!same(*placing_said, laid))
+            note(where + (view.has_transform ? "/extensions/KHR_texture_transform" : ""), "a picture laid over the surface another way than the material's first", "laid as the first is");
+        // What the picture is past its edges, as the texture's sampler says (none: it repeats). The picture is
+        // kept once for each way it is given edges: a texture that gives it other edges than the first has its own.
+        const auto edge = [](cgltf_wrap_mode mode) { return mode == cgltf_wrap_mode_clamp_to_edge ? mesh::Edge::stops : mode == cgltf_wrap_mode_mirrored_repeat ? mesh::Edge::mirrors : mesh::Edge::repeats; };
+        const mesh::Edge across = texture.sampler ? edge(texture.sampler->wrap_s) : mesh::Edge::repeats, down = texture.sampler ? edge(texture.sampler->wrap_t) : mesh::Edge::repeats;
+        if (edges_said.size() < out.textures.size()) edges_said.resize(out.textures.size(), false);
+        if (!edges_said[made_as[as]]) {
+            out.textures[made_as[as]].across = across, out.textures[made_as[as]].down = down, edges_said[made_as[as]] = true;
+            return made_as[as];
+        }
+        if (out.textures[made_as[as]].across == across && out.textures[made_as[as]].down == down) return made_as[as];
+        for (const Edged& other : edged)
+            if (other.of == made_as[as] && out.textures[other.as].across == across && out.textures[other.as].down == down) return other.as;
+        const std::uint32_t own = static_cast<std::uint32_t>(out.textures.size());
+        out.textures.push_back(out.textures[made_as[as]]);
+        out.textures.back().across = across, out.textures.back().down = down;
+        edges_said.push_back(true);
+        edged.push_back({made_as[as], own});
+        return own;
     }
 
     void materials() {
@@ -192,6 +222,7 @@ struct Maker {
             const std::string where = std::format("/materials/{}", index);
             // glTF's own defaults where the document says nothing: white, fully rough, fully metal.
             mesh::Material made{.base = {1, 1, 1}, .roughness = 1, .metallic = 1};
+            placing_said.reset();
             if (from.has_pbr_metallic_roughness) {
                 const cgltf_pbr_metallic_roughness& pbr = from.pbr_metallic_roughness;
                 made.base = {pbr.base_color_factor[0], pbr.base_color_factor[1], pbr.base_color_factor[2]};
@@ -222,7 +253,8 @@ struct Maker {
             if (from.alpha_mode == cgltf_alpha_mode_mask && !from.has_pbr_metallic_roughness) made.cutout = from.alpha_cutoff;
             made.see_through = from.alpha_mode == cgltf_alpha_mode_blend;
             made.two_sided = from.double_sided != 0;
-            if (from.unlit) note(where + "/extensions/KHR_materials_unlit", "a surface no light changes", "lit as any other");
+            made.unlit = from.unlit != 0;
+            if (placing_said) made.placing = *placing_said;
             const std::array<std::pair<bool, std::string_view>, 11> more{{{from.has_pbr_specular_glossiness != 0, "KHR_materials_pbrSpecularGlossiness"},
                                                                           {from.has_clearcoat != 0, "KHR_materials_clearcoat"},
                                                                           {from.has_transmission != 0, "KHR_materials_transmission"},

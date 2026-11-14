@@ -357,8 +357,11 @@ int look(const cmdline::ParsedArgs& args) {
     if (const auto saved = image::save_png(path_of(*out), ours); !saved) return failed(saved.error());
     std::size_t whole = 0, partly = 0;
     for (std::size_t pixel = 0; pixel < static_cast<std::size_t>(width) * static_cast<std::size_t>(height); ++pixel) whole += picture->rgba[pixel * 4 + 3] == 255, partly += picture->rgba[pixel * 4 + 3] != 0 && picture->rgba[pixel * 4 + 3] != 255;
+    // What the model says that was not drawn as it says: each with where in the document, what, and what instead.
+    Json left_out = Json::array();
+    for (const asset::Note& note : model->notes) left_out.push_back({{"where", note.where}, {"what", note.what}, {"instead", note.instead}});
     Json said{{"ok", true},
-              {"model", {{"meshes", model->meshes.size()}, {"triangles", model->triangles()}, {"materials", model->materials.size()}, {"textures", model->textures.size()}, {"notes", model->notes.size()}}},
+              {"model", {{"meshes", model->meshes.size()}, {"triangles", model->triangles()}, {"materials", model->materials.size()}, {"textures", model->textures.size()}, {"notes", model->notes.size()}, {"left_out", std::move(left_out)}}},
               {"orbit", {{"theta", orbit.theta / degree}, {"phi", orbit.phi / degree}, {"radius", orbit.radius}, {"target", {orbit.target.x, orbit.target.y, orbit.target.z}}, {"upright", orbit.upright / degree}}},
               {"light", light_said},
               {"out", *out},

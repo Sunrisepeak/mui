@@ -185,7 +185,10 @@ private:
     struct Sheet {
         mlibs::rhi::Texture texture;
         float               width = 0, height = 0, sizes = 0;  // its finest size; how many sizes (the texture's levels)
+        mlibs::rhi::Sampler through;  // `pictures_`, or the one of `edged_` its edges ask
     };
+    // A sampler for each pair of edges but repeating both ways (`pictures_`): made when a picture first asks it.
+    std::array<mlibs::rhi::Sampler, 9> edged_{};
     std::vector<Sheet>           textures_;
     std::vector<Material>        materials_;  // what `use` was given
     // The surroundings' picture: the pass's two pipelines with the shader that reads it, the sheet, a sampler

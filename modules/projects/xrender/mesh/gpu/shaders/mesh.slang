@@ -65,9 +65,12 @@ struct Surface {
     float4 normal_picture;   // which way the surface faces about its own normal; w: its red and green by this much
     float4 glow_picture;     // multiplies what the surface gives off
     float4 shade_picture;    // its red: the share of the light from everywhere that reaches the surface; w: how much of that is taken
-    float4 own;              // x: the roughness as the material says it; y: the metal (what the surface picture multiplies)
+    float4 own;              // x: the roughness as the material says it; y: the metal (what the surface picture multiplies);
+                             // z: over 0.5 — no light changes the surface (xrender.mesh's `Material::unlit`)
     float4 through;          // x: over 0.5 — a layer of the surfaces seen through is drawn; y: a layer was laid before this one;
                              // zw: one over the frame's width and height
+    float4 placing[2];       // how the surface's pictures are laid over it (xrender.mesh's `Placing`): the place across a
+                             // picture, and down it, each of (u, v, 1)
     Lamp   lamps[8];
 };
 [[vk::binding(0, 2)]] Sampler2D shadow_map : register(t0, space2) : register(s0, space2);
@@ -84,6 +87,9 @@ struct Surface {
 // across by how it is looked at, down by its roughness; red times what it mirrors head on, green added).
 [[vk::binding(10, 2)]] Sampler2D share_map : register(t10, space2) : register(s10, space2);
 [[vk::binding(0, 3)]] ConstantBuffer<Surface> surface : register(b0, space3);
+
+// The mesh's texture coordinates as the material lays its pictures (xrender.mesh's `Placing`).
+float2 placed(float2 uv) { return float2(dot(surface.placing[0].xyz, float3(uv, 1)), dot(surface.placing[1].xyz, float3(uv, 1))); }
 // The surroundings as a picture of light (xrender.mesh's `Surroundings`), every square of it on one sheet with a
 // texel about each square that is the texel across its edge (a read between four texels at an edge is then the
 // reference's). Only `mesh_about_fs` asks them.
@@ -274,7 +280,7 @@ Lit lit_at<A : IAbout>(VOut point) {
     // how many texels a pixel covers. And how far the surface itself goes. Both taken here, before anything turns
     // on what a pixel is: a difference between pixels is one only where every pixel takes the same way through
     // the code.
-    const float2 right = ddx(point.uv), down = ddy(point.uv);
+    const float2 right = ddx(placed(point.uv)), down = ddy(placed(point.uv));
     const float3 place_right = ddx(point.place), place_down = ddy(point.place);
     float3 normal = normalize(point.normal);
     const float3 to_eye = surface.eye.xyz - point.place;
@@ -292,7 +298,7 @@ Lit lit_at<A : IAbout>(VOut point) {
     float shaded = 1.0;
     float hides = surface.cut.z;
     if (surface.picture.z > 0.5) {
-        const float4 there = picture_over(picture_map, surface.picture, point.uv, right, down);
+        const float4 there = picture_over(picture_map, surface.picture, placed(point.uv), right, down);
         base_colour *= there.a > 0 ? there.rgb / there.a : there.rgb;
         hides *= there.a;
     }
@@ -301,13 +307,13 @@ Lit lit_at<A : IAbout>(VOut point) {
     if (surface.surface_picture.z > 0.5) {
         // The material's own numbers ride in the draw's `shine` already held to what the model takes; the
         // picture's share is taken of what the material says, then held the same way (xrender.mesh's `reflected`).
-        const float3 said = picture_over(surface_map, surface.surface_picture, point.uv, right, down).rgb;
+        const float3 said = picture_over(surface_map, surface.surface_picture, placed(point.uv), right, down).rgb;
         const float rough = surface.own.x * said.g, metal = surface.own.y * said.b;
         matt = rough >= 1 && metal <= 0;
         rough_here = clamp(rough, 0.04, 1.0), metal_here = clamp(metal, 0.0, 1.0);
     }
-    if (surface.glow_picture.z > 0.5) given_off *= picture_over(glow_map, surface.glow_picture, point.uv, right, down).rgb;
-    if (surface.shade_picture.z > 0.5) shaded = 1.0 + surface.shade_picture.w * (picture_over(shade_map, surface.shade_picture, point.uv, right, down).r - 1.0);
+    if (surface.glow_picture.z > 0.5) given_off *= picture_over(glow_map, surface.glow_picture, placed(point.uv), right, down).rgb;
+    if (surface.shade_picture.z > 0.5) shaded = 1.0 + surface.shade_picture.w * (picture_over(shade_map, surface.shade_picture, placed(point.uv), right, down).r - 1.0);
     if (surface.normal_picture.z > 0.5) {
         // The picture's three ways in the world here: along it (the mesh's tangent, or the way the surface goes as
         // the picture's first coordinate grows), up it, and out (the normal).
@@ -326,7 +332,7 @@ Lit lit_at<A : IAbout>(VOut point) {
             right_way = normalize(right_way);
             const float3 other = cross(normal, right_way);
             up_way = dot(other, up_way) < 0 ? -other : other;
-            const float3 said = picture_over(normal_map, surface.normal_picture, point.uv, right, down).rgb;
+            const float3 said = picture_over(normal_map, surface.normal_picture, placed(point.uv), right, down).rgb;
             const float3 about = float3((said.xy * 2 - 1) * surface.normal_picture.w, said.z * 2 - 1);
             const float3 turned = right_way * about.x + up_way * about.y + normal * about.z;
             if (dot(turned, turned) > 0) normal = normalize(turned);
@@ -370,6 +376,7 @@ Lit lit_at<A : IAbout>(VOut point) {
     if (!matt) {
         colour = A::takes(metal_here) * everywhere_in + given_off + sent + A::mirrors(normal, toward_eye, shaded);
     }
+    if (surface.own.z > 0.5) colour = base_colour + given_off;
     if (surface.fog.w > 0) {
         const float apart = length(to_eye);
         const float share = apart > 0 ? through(-to_eye / apart, apart) : 1.0;

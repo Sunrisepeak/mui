@@ -78,8 +78,9 @@ struct Tracing {
         normal = math::normalized(math::direction(best->thing->normals, normal));
         if (math::dot(normal, toward) > 0) normal = normal * -1.0f;  // met from behind: the side that was met
         best->place = from + toward * best->distance, best->normal = normal, best->face = normal;
-        if (!mesh.uvs.empty()) best->uv = {mesh.uvs[corner[0]].x * share[0] + mesh.uvs[corner[1]].x * share[1] + mesh.uvs[corner[2]].x * share[2],
-                                           mesh.uvs[corner[0]].y * share[0] + mesh.uvs[corner[1]].y * share[1] + mesh.uvs[corner[2]].y * share[2]};
+        const Placing& placing = best->thing->material.placing;
+        if (!mesh.uvs.empty()) best->uv = placing.of({mesh.uvs[corner[0]].x * share[0] + mesh.uvs[corner[1]].x * share[1] + mesh.uvs[corner[2]].x * share[2],
+                                                      mesh.uvs[corner[0]].y * share[0] + mesh.uvs[corner[1]].y * share[1] + mesh.uvs[corner[2]].y * share[2]});
         // Which way the surface faces by its picture (as the pass reads it): about the mesh's tangent, or the way
         // the surface goes as the picture's first coordinate grows over this triangle.
         if (const Texture* picture = best->thing->normal_picture; picture && !mesh.uvs.empty()) {
@@ -91,8 +92,8 @@ struct Tracing {
                 up_way = math::cross(normal, right_way) * one.w;
             } else {
                 const Vec3 first = math::direction(best->thing->world, b - a), second = math::direction(best->thing->world, c - a);
-                const Vec2 first_uv{mesh.uvs[corner[1]].x - mesh.uvs[corner[0]].x, mesh.uvs[corner[1]].y - mesh.uvs[corner[0]].y},
-                           second_uv{mesh.uvs[corner[2]].x - mesh.uvs[corner[0]].x, mesh.uvs[corner[2]].y - mesh.uvs[corner[0]].y};
+                const Vec2 uv_first = placing.of(mesh.uvs[corner[0]]), uv_second = placing.of(mesh.uvs[corner[1]]), uv_third = placing.of(mesh.uvs[corner[2]]);
+                const Vec2 first_uv{uv_second.x - uv_first.x, uv_second.y - uv_first.y}, second_uv{uv_third.x - uv_first.x, uv_third.y - uv_first.y};
                 const float turn = first_uv.x * second_uv.y - second_uv.x * first_uv.y;
                 if (turn != 0) right_way = (first * second_uv.y - second * first_uv.y) * (1.0f / turn), up_way = (second * first_uv.x - first * second_uv.x) * (1.0f / turn);
             }
@@ -156,6 +157,7 @@ struct Tracing {
         if (met->thing->glow) material.emissive = math::scaled(material.emissive, met->thing->glow->at(met->uv, 1));
         // A ray leaves by the surface's own side, whatever way its picture turned the normal; a way the turned
         // normal throws under the surface brings nothing.
+        if (material.unlit) return material.base + material.emissive;  // no light changes it, and the ray goes no further
         const Vec3 lifted = met->place + met->face * 2e-3f, toward_eye = toward * -1.0f;
         Vec3 arriving{0, 0, 0}, sent{0, 0, 0};  // on a matt surface the lights are summed; else each by `reflected`
         const bool matt = material.matt();

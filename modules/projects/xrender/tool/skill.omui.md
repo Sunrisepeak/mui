@@ -21,7 +21,7 @@ How an Agent (or a person at a terminal) works with the renderer without a GUI: 
 
 ## A model beside another renderer's picture
 
-1. `model.look` with the model, `--light` an HDR picture of the surroundings, and the other picture's camera (`--orbit`, `--target`, `--upright`, `--size`): look at the PNG written.
+1. `model.look` with the model, `--light` an HDR picture of the surroundings, and the other picture's camera (`--orbit`, `--target`, `--upright`, `--size`): look at the PNG written. The answer's `left_out` (under `model`) lists what the model says that was not drawn as it says — where in the document, what, and what was done instead: read it before judging the picture.
 2. With `--golden`: the distance in the render-fidelity suite's measure, and how many of the golden's pixels were not drawn — more than a rim's worth says the camera is not the same, not that the shading differs — or that the golden shows the surroundings behind the model (a skybox): then `--behind`.
 3. Where the distance is over the suite's bound (−22 dB), add `--follow` (64 rays a pixel is a first look, more for a verdict): the drawn picture and the golden each beside the light followed way by way. The one nearer it is the better approximation; the distance between the two alone does not say which.
 

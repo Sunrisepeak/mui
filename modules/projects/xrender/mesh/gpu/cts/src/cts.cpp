@@ -900,46 +900,54 @@ Cases suite_of() {
                 const std::uint8_t level = ((x / 8) + (y / 8)) % 2 ? 235 : 70;
                 bytes[static_cast<std::size_t>(y * 64 + x) * 4] = level, bytes[static_cast<std::size_t>(y * 64 + x) * 4 + 1] = level, bytes[static_cast<std::size_t>(y * 64 + x) * 4 + 2] = level;
             }
-        const mesh::Texture tiles = *mesh::Texture::made(bytes, 64, 64);
+        mesh::Texture tiles = *mesh::Texture::made(bytes, 64, 64);
         const std::array<const mesh::Texture*, 1> textures{&tiles};
         yard.materials.push_back({{1, 1, 1}, {}, 1, 0, 0});
         scene::Instance floor = *yard.world.find(1);
         floor.material = static_cast<std::uint32_t>(yard.materials.size() - 1);
         expect(yard.world.set(floor).has_value());
-        scene::Extracted seen;
-        scene::extract(yard.world, yard.view(), seen);
-        mesh::Targets reference;
-        reference.resize(static_cast<int>(width), static_cast<int>(height));
-        mesh::Pass on_cpu;
-        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}, textures}, reference, {.shadows = false});
+        // Drawn by both and held: as the picture repeats (`edged` false), and with it turned about past its edge
+        // one way and stopped at its edge the other, the box a surface no light changes.
+        const auto held = [&](bool edged) {
+            // … and the floor's material laying the picture its own way: coarser, turned and moved.
+            if (edged) tiles.across = mesh::Edge::mirrors, tiles.down = mesh::Edge::stops, yard.materials[0].unlit = true, yard.materials.back().placing = mesh::Placing::made({0.3f, 0.6f}, 0.5f, {0.3f, 0.2f});
+            scene::Extracted seen;
+            scene::extract(yard.world, yard.view(), seen);
+            mesh::Targets reference;
+            reference.resize(static_cast<int>(width), static_cast<int>(height));
+            mesh::Pass on_cpu;
+            on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}, textures}, reference, {.shadows = false});
 
-        auto pass = mesh::gpu::Pass::make(*device);
-        if (!(expect(pass.has_value()) << (pass ? "" : pass.error().message))) return;
-        if (!(expect(pass->load(yard.meshes).has_value()))) return;
-        const auto loaded = pass->load_textures(textures);
-        if (!(expect(loaded.has_value()) << (loaded ? "" : loaded.error().message))) return;
-        const auto colour = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, width, height, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "mesh.colour"});
-        const auto depth = device->create(rhi::TextureDesc{rhi::Format::d32_float, width, height, rhi::TextureUsage::depth_target, "mesh.depth"});
-        if (!(expect(colour.has_value() && depth.has_value()))) return;
-        rhi::CommandList list;
-        pass->record(list, yard.world, seen, yard.view(), yard.materials, *colour, *depth, width, height, {.shadows = false});
-        const auto submitted = device->submit(list);
-        if (!(expect(submitted.has_value()) << (submitted ? "" : submitted.error().message))) return;
-        expect(device->wait(*submitted).has_value());
-        const auto pixels = device->read(*colour, rhi::Region{0, 0, width, height});
-        if (!(expect(pixels.has_value()) << (pixels ? "" : pixels.error().message))) return;
-        keep(*pixels, "yard-tiles");
-        const Apart all = apart(reference, *pixels, false, 6), loosely = apart(reference, *pixels, false, 16);
-        std::println("a floor of tiles: {} draw textured; {} of {} pixels further than 6 levels from the reference ({:.2f}%), {} further than 16; mean {:.3f}, worst {}", pass->last().textured, all.off,
-                     all.compared, 100.0 * static_cast<double>(all.off) / static_cast<double>(all.compared), loosely.off, all.mean, all.worst);
-        expect(eq(pass->last().textured, 1u));
-        // How many places are taken along a pixel's strip turns on the screen's differences of the texture coordinate,
-        // which a device takes over two pixels by two and the reference from each pixel to the next: where the
-        // count steps, a few pixels step a pixel apart, a few levels off.
-        expect(lt(static_cast<double>(all.off), 0.01 * static_cast<double>(all.compared)));
-        expect(lt(static_cast<double>(loosely.off), 0.0005 * static_cast<double>(loosely.compared)));
-        static_cast<void>(device->wait_idle());
-        device->destroy(*colour), device->destroy(*depth);
+            auto pass = mesh::gpu::Pass::make(*device);
+            if (!(expect(pass.has_value()) << (pass ? "" : pass.error().message))) return;
+            if (!(expect(pass->load(yard.meshes).has_value()))) return;
+            const auto loaded = pass->load_textures(textures);
+            if (!(expect(loaded.has_value()) << (loaded ? "" : loaded.error().message))) return;
+            const auto colour = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, width, height, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "mesh.colour"});
+            const auto depth = device->create(rhi::TextureDesc{rhi::Format::d32_float, width, height, rhi::TextureUsage::depth_target, "mesh.depth"});
+            if (!(expect(colour.has_value() && depth.has_value()))) return;
+            rhi::CommandList list;
+            pass->record(list, yard.world, seen, yard.view(), yard.materials, *colour, *depth, width, height, {.shadows = false});
+            const auto submitted = device->submit(list);
+            if (!(expect(submitted.has_value()) << (submitted ? "" : submitted.error().message))) return;
+            expect(device->wait(*submitted).has_value());
+            const auto pixels = device->read(*colour, rhi::Region{0, 0, width, height});
+            if (!(expect(pixels.has_value()) << (pixels ? "" : pixels.error().message))) return;
+            keep(*pixels, edged ? "yard-tiles-edged" : "yard-tiles");
+            const Apart all = apart(reference, *pixels, false, 6), loosely = apart(reference, *pixels, false, 16);
+            std::println("a floor of tiles{}: {} draw textured; {} of {} pixels further than 6 levels from the reference ({:.2f}%), {} further than 16; mean {:.3f}, worst {}",
+                         edged ? ", laid coarser, turned and moved by its material, turned about past its edge one way and stopped at it the other, the box unlit" : "", pass->last().textured, all.off, all.compared, 100.0 * static_cast<double>(all.off) / static_cast<double>(all.compared), loosely.off, all.mean, all.worst);
+            expect(eq(pass->last().textured, 1u));
+            // The reference takes the screen's differences of the texture coordinate as a device does (within a
+            // pixel's own two by two), so both take the same places along a pixel's strip: what is left is the
+            // few pixels at the edges of things.
+            expect(lt(static_cast<double>(all.off), 0.002 * static_cast<double>(all.compared)));
+            expect(lt(static_cast<double>(loosely.off), 0.0002 * static_cast<double>(loosely.compared)));
+            static_cast<void>(device->wait_idle());
+            device->destroy(*colour), device->destroy(*depth);
+        };
+        held(false);
+        held(true);
     });
     // the surface's other pictures on the device are the reference's: roughness and metal, the normal (by the mesh's tangents and, on a mesh with none, worked out at the pixel), emission and shade from pictures
     add(suite, "mesh.surface", [](Rig& rig) {
@@ -1038,8 +1046,8 @@ Cases suite_of() {
                      box.compared, box.mean, ball.off, ball.compared, ball.mean);
         expect(eq(pass->last().textured, 3u));
         expect(gt(floor.compared, 10000u) && gt(box.compared, 1500u) && gt(ball.compared, 1500u));
-        expect(lt(static_cast<double>(all.off), 0.02 * static_cast<double>(all.compared)));
-        expect(lt(floor.mean, 1.0) && lt(box.mean, 1.0) && lt(ball.mean, 1.0));
+        expect(lt(static_cast<double>(all.off), 0.004 * static_cast<double>(all.compared)));
+        expect(lt(floor.mean, 0.8) && lt(box.mean, 0.8) && lt(ball.mean, 0.8));
         static_cast<void>(device->wait_idle());
         device->destroy(*colour), device->destroy(*depth);
     });

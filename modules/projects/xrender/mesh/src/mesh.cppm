@@ -25,6 +25,17 @@ using mlibs::math::Vec2;
 using mlibs::math::Vec3;
 using xrender::scene::Id;
 
+// How a surface's pictures are laid over it: the mesh's texture coordinates moved, turned and scaled before any
+// picture is asked (glTF's KHR_texture_transform — a sheet of several pictures cut by offset and scale, a label
+// turned). Two rows: the place across the picture and the place down it, each of (u, v, 1).
+struct Placing {
+    Vec3 across{1, 0, 0}, down{0, 1, 0};
+    [[nodiscard]] constexpr Vec2 of(Vec2 uv) const noexcept { return {across.x * uv.x + across.y * uv.y + across.z, down.x * uv.x + down.y * uv.y + down.z}; }
+    [[nodiscard]] constexpr bool plain() const noexcept { return across.x == 1 && across.y == 0 && across.z == 0 && down.x == 0 && down.y == 1 && down.z == 0; }
+    // Scaled, then turned by `turn` radians (counter-clockwise as the picture is looked at), then moved: the
+    // format's order. The same bits everywhere (`mlibs.math`'s sin and cos).
+    [[nodiscard]] static Placing made(Vec2 offset, float turn, Vec2 scale) noexcept;
+};
 // A surface, as data. The reference's shading is the least that shows a form: what a light gives a matt surface,
 // and what it gives off itself. (The full model — roughness, metal, textures — is the material interface's,
 // with the GPU path.)
@@ -63,6 +74,11 @@ struct Material {
     // share of the pixel (`Targets::through`). The pixel's depth, normal, velocity and `ids` stay those of what
     // stops the eye behind them. It hides nothing from a light: it casts no shadow.
     bool see_through = false;
+    // No light changes it: it sends its own colour (times its picture) and what it gives off, whatever falls on
+    // it and wherever it is looked at from — a sign, a screen's picture, a drawing (glTF's KHR_materials_unlit).
+    // Fog is still between it and the eye; a ray that meets it goes no further.
+    bool unlit = false;
+    Placing placing;  // how every picture of the surface is laid over it
     [[nodiscard]] constexpr bool matt() const noexcept { return roughness >= 1 && metallic <= 0; }
 };
 // What a surface sends toward the eye of light arriving along `toward_light` (all of length 1; `facing` the
@@ -80,8 +96,12 @@ struct Material {
 // What a picture's bytes are: colours as a display shows them (sRGB: the display's curve is taken off once), or
 // plain numbers — a normal, a roughness — kept as they are (a byte ÷ 255).
 enum class Coding : std::uint8_t { colour, plain };
+// What a picture is past its edge, each way: itself again, itself turned about (each time the other way round),
+// or its edge's texels for ever (a label that must not show twice). glTF's sampler says it.
+enum class Edge : std::uint8_t { repeats, mirrors, stops };
 struct Texture {
     int width = 0, height = 0;
+    Edge across = Edge::repeats, down = Edge::repeats;  // set after `made`
     std::vector<Vec3>        light;   // every size's texels, a row after a row, the finest size first
     std::vector<std::uint32_t> sizes; // where each size begins in `light`
     // How much of what is behind it each texel hides (the picture's fourth byte ÷ 255), laid out as `light` is —

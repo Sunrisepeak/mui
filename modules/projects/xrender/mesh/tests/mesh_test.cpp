@@ -806,7 +806,7 @@ static UTest cases{"xrender.mesh", [] {
         expect(lt(std::abs(far_mean / near_mean - 1), 0.25)) << "and as light on the whole as the near floor (the sun's angle is the same)";
         expect(eq(same_who, tiled.targets.ids.size())) << "a texture changes no depth";
         expect(gt(tiled.stats.textured, 60000u) && eq(plain.stats.textured, 0u));
-        expect(eq(bits(tiled.targets), std::uint64_t{0xb6962b046d17007d})) << std::format("{:016x}", bits(tiled.targets));
+        expect(eq(bits(tiled.targets), std::uint64_t{0x8ddd11cb90d8fc73})) << std::format("{:016x}", bits(tiled.targets));
     };
     "the surface's other pictures: an even picture of roughness and metal, of emission, is the material that says the same numbers, bit for bit; a normal picture turns the surface toward a light or away, the same with the mesh's tangents as without; a shade picture takes its share of the light from everywhere"_test = [] {
         // A sheet facing the eye, a sun from the eye's right and a little before it, light from everywhere.
@@ -1245,6 +1245,115 @@ static UTest cases{"xrender.mesh", [] {
         expect(eq(bits_of(*pinned), bits_of(*again)));
         expect(eq(bits_of(*pinned), std::uint64_t{0x25ba775538c8df7e})) << std::format("{:016x}", bits_of(*pinned));
     };
+    "what a picture is past its edge — itself again, itself turned about, or its edge for ever — each way on its own; and a surface no light changes sends its own colour, drawn and along rays"_test = [] {
+        // Four columns: red, green, blue, white; two rows: as said, and half as bright.
+        std::vector<std::uint8_t> rgba;
+        for (int row = 0; row < 2; ++row)
+            for (const std::array<int, 3> column : {std::array<int, 3>{255, 0, 0}, std::array<int, 3>{0, 255, 0}, std::array<int, 3>{0, 0, 255}, std::array<int, 3>{255, 255, 255}})
+                for (int part = 0; part < 4; ++part) rgba.push_back(static_cast<std::uint8_t>(part == 3 ? 255 : column[static_cast<std::size_t>(part)] / (row + 1)));
+        auto picture = mesh::Texture::made(rgba, 4, 2, mesh::Coding::plain);
+        expect(fatal(picture.has_value()));
+        const auto close = [](math::Vec3 one, math::Vec3 other) { return std::abs(one.x - other.x) < 1e-5f && std::abs(one.y - other.y) < 1e-5f && std::abs(one.z - other.z) < 1e-5f; };
+        const math::Vec3 red{1, 0, 0}, green{0, 1, 0}, blue{0, 0, 1}, white{1, 1, 1};
+        // A texel's middle, inside: the same whatever the edges.
+        for (const mesh::Edge edge : {mesh::Edge::repeats, mesh::Edge::mirrors, mesh::Edge::stops}) {
+            picture->across = picture->down = edge;
+            expect(close(picture->at({0.125f, 0.25f}, 1), red) && close(picture->at({0.625f, 0.25f}, 1), blue) && close(picture->at({0.875f, 0.75f}, 1), white * (127.0f / 255.0f)));
+        }
+        // Past the right edge by a texel and a half, and before the left by half a texel.
+        picture->across = mesh::Edge::repeats;
+        expect(close(picture->at({1.375f, 0.25f}, 1), green) && close(picture->at({-0.125f, 0.25f}, 1), white));
+        picture->across = mesh::Edge::mirrors;
+        expect(close(picture->at({1.375f, 0.25f}, 1), blue) && close(picture->at({-0.125f, 0.25f}, 1), red) && close(picture->at({2.125f, 0.25f}, 1), red));
+        picture->across = mesh::Edge::stops;
+        expect(close(picture->at({1.375f, 0.25f}, 1), white) && close(picture->at({-0.125f, 0.25f}, 1), red) && close(picture->at({7.0f, 0.25f}, 1), white));
+        // At the very edge a picture that stops is its edge's texel, not half the far one's (which repeating gives).
+        expect(close(picture->at({0.0f, 0.25f}, 1), red));
+        picture->across = mesh::Edge::repeats;
+        expect(close(picture->at({0.0f, 0.25f}, 1), (red + white) * 0.5f));
+        // Each way on its own: stopping down, repeating across.
+        picture->down = mesh::Edge::stops;
+        expect(close(picture->at({1.125f, 1.6f}, 1), red * (127.0f / 255.0f)));
+        picture->down = mesh::Edge::repeats;
+        expect(close(picture->at({1.125f, 1.25f}, 1), red));
+
+        // No light changes it: a ball of one colour under a sun and a sky is that colour at every pixel, and along rays.
+        std::vector<mesh::Material> materials(library().materials);
+        const std::uint32_t sign = static_cast<std::uint32_t>(materials.size());
+        materials.push_back({.base = {0.2f, 0.5f, 0.8f}, .emissive = {0.1f, 0, 0}, .roughness = 0.3f, .metallic = 1, .unlit = true});
+        mesh::Assets assets = library().assets(true);
+        assets.materials = materials;
+        scene::Scene world;
+        expect(fatal(world.add({.id = 1, .mesh = ball, .material = sign, .world = math::translation({0, 0, 0}), .bounds = library().bounds(ball)}).has_value()));
+        expect(world.add(scene::Light{.id = 1, .kind = scene::LightKind::sun, .colour = {1, 1, 1}, .intensity = 2, .toward = {-0.4f, -1, -0.5f}}).has_value());
+        const Camera camera{.eye = {0, 0, 4}};
+        constexpr int side = 48;
+        const mesh::Options lit_by{.background = {0, 0, 0}, .environment = {.on = true}};
+        mesh::Targets frame, followed;
+        frame.resize(side, side), followed.resize(side, side);
+        scene::Extracted seen;
+        scene::extract(world, camera.view(), seen);
+        mesh::Pass pass;
+        pass.draw(world, seen, camera.view(), assets, frame, lit_by);
+        (void)mesh::traced(world, camera.view(), assets, followed, lit_by, {.samples = 4, .bounces = 2});
+        int on_ball = 0;
+        for (int y = 0; y < side; ++y)
+            for (int x = 0; x < side; ++x) {
+                const std::size_t at = static_cast<std::size_t>(y) * side + x;
+                if (frame.ids[at].draw == mesh::none) continue;
+                ++on_ball;
+                expect(close(frame.light[at], {0.3f, 0.5f, 0.8f})) << frame.light[at].x;
+                const float across = (static_cast<float>(x) + 0.5f) / side * 2 - 1, down = (static_cast<float>(y) + 0.5f) / side * 2 - 1;
+                if (across * across + down * down < 0.04f) expect(close(followed.light[at], {0.3f, 0.5f, 0.8f})) << followed.light[at].y;
+            }
+        expect(gt(on_ball, 200));
+    };
+
+    "a material lays its pictures over the surface: the mesh's texture coordinates scaled, turned and moved — a floor laid twice as fine is the floor whose own coordinates are doubled, bit for bit, drawn and along rays"_test = [] {
+        const mesh::Placing placed = mesh::Placing::made({0.25f, 0.5f}, 0, {2, 3});
+        expect(eq(placed.of({1, 1}).x, 2.25f) && eq(placed.of({1, 1}).y, 3.5f) && !placed.plain() && mesh::Placing{}.plain());
+        // A quarter turn counter-clockwise as the picture is looked at: across becomes up.
+        const mesh::Placing turned = mesh::Placing::made({0, 0}, 1.5707964f, {1, 1});
+        expect(near(turned.of({1, 0}).x, 0.0f, 1e-6f) && near(turned.of({1, 0}).y, -1.0f, 1e-6f) && near(turned.of({0, 1}).x, 1.0f, 1e-6f));
+        // Scaled first, then turned, then moved.
+        const mesh::Placing all = mesh::Placing::made({10, 20}, 1.5707964f, {2, 3});
+        expect(near(all.of({1, 1}).x, 13.0f, 1e-5f) && near(all.of({1, 1}).y, 18.0f, 1e-5f));
+
+        // The tiled floor, a ball on it: with the material laying its picture twice as fine, and with the mesh's
+        // own coordinates doubled.
+        std::vector<mesh::Material> materials(library().materials);
+        materials[tiles].placing = mesh::Placing::made({0, 0}, 0, {2, 2});
+        geom::ClusteredMesh doubled = library().made[tiled_floor];
+        for (math::Vec2& uv : doubled.mesh.uvs) uv = {uv.x * 2, uv.y * 2};
+        const geom::Bvh doubled_tree = geom::bvh_of(doubled.mesh);
+        std::vector<const geom::ClusteredMesh*> meshes(library().meshes);
+        std::vector<const geom::Bvh*> trees(library().trees);
+        meshes[tiled_floor] = &doubled, trees[tiled_floor] = &doubled_tree;
+        scene::Scene world;
+        put(world, 1, tiled_floor, tiles, math::translation({0, -1, 0}));
+        put(world, 2, ball, matt_red, math::translation({0, 0, 0}));
+        expect(world.add(scene::Light{.id = 1, .kind = scene::LightKind::sun, .colour = {1, 1, 1}, .intensity = 1, .toward = {-0.4f, -1, -0.5f}}).has_value());
+        const Camera camera{.eye = {0, 2, 6}};
+        constexpr int width = 96, height = 64;
+        const auto both = [&](const mesh::Assets& assets) {
+            std::pair<mesh::Targets, mesh::Targets> out;
+            out.first.resize(width, height), out.second.resize(width, height);
+            scene::Extracted seen;
+            scene::extract(world, camera.view(), seen);
+            mesh::Pass pass;
+            pass.draw(world, seen, camera.view(), assets, out.first, {});
+            (void)mesh::traced(world, camera.view(), assets, out.second, {}, {.samples = 4, .bounces = 1});
+            return out;
+        };
+        const mesh::Assets plain = library().assets(true);
+        const auto by_material = both({plain.meshes, materials, plain.trees, plain.textures});
+        const auto by_mesh = both({meshes, plain.materials, trees, plain.textures});
+        const auto unlaid = both(plain);
+        expect(bits(by_material.first) == bits(by_mesh.first)) << "drawn";
+        expect(bits(by_material.second) == bits(by_mesh.second)) << "along rays";
+        expect(bits(by_material.first) != bits(unlaid.first) && bits(by_material.second) != bits(unlaid.second));
+    };
+
     "an instance its place mirrors (a negative scale) is not inside out: a box and a ball, their own mirror images, are drawn as unmirrored — the same pixels theirs, the same light"_test = [] {
         const Camera camera{.eye = {3, 2.5f, 6}};
         const auto frame_of = [&](math::Vec3 box_scale, math::Vec3 ball_scale) {

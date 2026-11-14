@@ -37,6 +37,7 @@ struct Whole {
     float4 picture;  // the draw's base picture: xy its width and height; z how many sizes it has (0: none)
     float4 cut;      // x: where the surface hides less than this it is not there (0: whole); y: how much it hides;
                      // z: over 0.5 — it is seen from both sides
+    float4 placing[2];  // how the picture is laid over the surface (xrender.mesh's `Placing`): its place across, and down, each of (u, v, 1)
 };
 float cover_over(Sampler2D map, float4 picture, float2 uv, float2 right, float2 down) {
     const float across = length(right * picture.xy), along = length(down * picture.xy);
@@ -66,6 +67,9 @@ struct Who {
 [[vk::binding(0, 2)]] Sampler2D picture_map : register(t0, space2) : register(s0, space2);
 [[vk::binding(0, 3)]] ConstantBuffer<Who> who : register(b0, space3);
 
+// The mesh's texture coordinates as the material lays its pictures (xrender.mesh's `Placing`).
+float2 placed(float2 uv) { return float2(dot(who.whole.placing[0].xyz, float3(uv, 1)), dot(who.whole.placing[1].xyz, float3(uv, 1))); }
+
 // True where nothing of the surface is drawn at this pixel: turned away (and of one side), beyond the view's far
 // cut, or cut out. `right` and `down`: how far its place in its picture moves to the next pixel across and below.
 bool left_out(VOut point, float2 right, float2 down) {
@@ -73,7 +77,7 @@ bool left_out(VOut point, float2 right, float2 down) {
     if ((point.clip.z - 0.5) * who.eye.w > 0) return true;
     if (who.whole.cut.x > 0) {
         float hides = who.whole.cut.y;
-        if (who.whole.picture.z > 0.5) hides *= cover_over(picture_map, who.whole.picture, point.uv, right, down);
+        if (who.whole.picture.z > 0.5) hides *= cover_over(picture_map, who.whole.picture, placed(point.uv), right, down);
         if (hides < who.whole.cut.x) return true;
     }
     return false;
@@ -81,7 +85,7 @@ bool left_out(VOut point, float2 right, float2 down) {
 
 [shader("fragment")]
 uint ids_fs(VOut point) : SV_Target {
-    const float2 right = ddx(point.uv), down = ddy(point.uv);
+    const float2 right = ddx(placed(point.uv)), down = ddy(placed(point.uv));
     if (left_out(point, right, down)) discard;
     return who.number;
 }
@@ -90,7 +94,7 @@ uint ids_fs(VOut point) : SV_Target {
 // read as any other picture is.
 [shader("fragment")]
 float4 who_fs(VOut point) : SV_Target {
-    const float2 right = ddx(point.uv), down = ddy(point.uv);
+    const float2 right = ddx(placed(point.uv)), down = ddy(placed(point.uv));
     if (left_out(point, right, down)) discard;
     return float4(float(who.number), 0, 0, 1);
 }
@@ -100,7 +104,7 @@ float4 who_fs(VOut point) : SV_Target {
 // which it then holds to a few hundred-thousandths. Nothing there: 0 far.
 [shader("fragment")]
 float4 surface_fs(VOut point) : SV_Target {
-    const float2 right = ddx(point.uv), down = ddy(point.uv);
+    const float2 right = ddx(placed(point.uv)), down = ddy(placed(point.uv));
     const float3 to_eye = who.eye.xyz - point.place;
     if (left_out(point, right, down)) discard;
     float3 normal = normalize(point.normal);
@@ -117,7 +121,7 @@ float4 surface_fs(VOut point) : SV_Target {
 // pass's own depth at the pixel. Nothing there: what the picture was cleared to.
 [shader("fragment")]
 float4 deep_fs(VOut point) : SV_Target {
-    const float2 right = ddx(point.uv), down = ddy(point.uv);
+    const float2 right = ddx(placed(point.uv)), down = ddy(placed(point.uv));
     if (left_out(point, right, down)) discard;
     return float4(point.clip.z, 0, 0, 1);
 }

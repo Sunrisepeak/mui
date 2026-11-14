@@ -38,9 +38,13 @@ struct Casting {
     float4 at_range;  // a lamp's view: where the lamp is; w: how far it reaches
     float4 picture;   // the caster's base picture: z over 0.5 — it has one
     float4 cut;       // x: where the surface hides less than this it is not there (0: whole); y: how much it hides
+    float4 placing[2];  // how the picture is laid over the surface (xrender.mesh's `Placing`)
 };
 [[vk::binding(0, 2)]] Sampler2D picture_map : register(t0, space2) : register(s0, space2);
 [[vk::binding(0, 3)]] ConstantBuffer<Casting> casting : register(b0, space3);
+
+// The mesh's texture coordinates as the material lays its pictures (xrender.mesh's `Placing`).
+float2 placed(float2 uv) { return float2(dot(casting.placing[0].xyz, float3(uv, 1)), dot(casting.placing[1].xyz, float3(uv, 1))); }
 
 bool cut_out(float2 uv) {
     if (!(casting.cut.x > 0)) return false;
@@ -51,7 +55,7 @@ bool cut_out(float2 uv) {
 
 [shader("fragment")]
 float4 shadow_fs(VOut point) : SV_Target {
-    if (cut_out(point.uv)) discard;
+    if (cut_out(placed(point.uv))) discard;
     return float4(point.seen.w, 0, 0, 1);
 }
 
@@ -69,6 +73,6 @@ VOut lamp_vs(VIn corner) {
 
 [shader("fragment")]
 float4 lamp_fs(VOut point) : SV_Target {
-    if (cut_out(point.uv)) discard;
+    if (cut_out(placed(point.uv))) discard;
     return float4(length(point.seen.xyz - casting.at_range.xyz) / casting.at_range.w, 0, 0, 1);
 }

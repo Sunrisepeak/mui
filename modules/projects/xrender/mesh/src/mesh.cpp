@@ -174,6 +174,7 @@ struct Raster {
     }
 
     Vec3 lit(Vec3 normal, Vec3 place) noexcept {
+        if (material.unlit) return material.base + material.emissive;
         if (!material.matt()) return shone(normal, place);
         Vec3 light = math::scaled(from_all_about(normal), reaching(open_to(normal, place))) * shaded;
         // A ray starts a little off the surface, or it meets the surface it left.
@@ -316,8 +317,12 @@ struct Raster {
                         return Vec2{(corners[0]->uv.x * there[0] + corners[1]->uv.x * there[1] + corners[2]->uv.x * there[2]) * all,
                                     (corners[0]->uv.y * there[0] + corners[1]->uv.y * there[1] + corners[2]->uv.y * there[2]) * all};
                     };
-                    const Vec2 here = uv_at(px, py), right = uv_at(px + 256.0, py), down = uv_at(px, py + 256.0);
-                    const Vec2 across{right.x - here.x, right.y - here.y}, along{down.x - here.x, down.y - here.y};
+                    // The differences are taken as a device takes them: within the pixel's own two by two (columns
+                    // and rows paired from the first), so an odd pixel looks back to its pair and an even one ahead.
+                    const double to_pair_x = column % 2 ? -256.0 : 256.0, to_pair_y = row % 2 ? -256.0 : 256.0;
+                    const Vec2 here = uv_at(px, py), beside = uv_at(px + to_pair_x, py), below = uv_at(px, py + to_pair_y);
+                    const float way_x = column % 2 ? -1.0f : 1.0f, way_y = row % 2 ? -1.0f : 1.0f;
+                    const Vec2 across{(beside.x - here.x) * way_x, (beside.y - here.y) * way_x}, along{(below.x - here.x) * way_y, (below.y - here.y) * way_y};
                     if (texture) {
                         const Texture::Seen there = texture->seen(here, across, along);
                         material.base = math::scaled(base, there.light), hides = own.opacity * there.cover;
@@ -391,6 +396,11 @@ void Targets::resize(int new_width, int new_height) {
     width = std::max(new_width, 0), height = std::max(new_height, 0);
     const std::size_t pixels = static_cast<std::size_t>(width) * height;
     colour.resize(pixels * 4), light.resize(pixels), depth.resize(pixels), normal.resize(pixels), velocity.resize(pixels), ids.resize(pixels);
+}
+
+Placing Placing::made(Vec2 offset, float turn, Vec2 scale) noexcept {
+    const float cosine = static_cast<float>(math::det::cos(static_cast<double>(turn))), sine = static_cast<float>(math::det::sin(static_cast<double>(turn)));
+    return {{cosine * scale.x, sine * scale.y, offset.x}, {-sine * scale.x, cosine * scale.y, offset.y}};
 }
 
 Vec3 reflected(const Material& material, Vec3 normal, Vec3 toward_eye, Vec3 toward_light, float facing) noexcept {
@@ -477,8 +487,8 @@ bool there(const geom::Ray& ray, const geom::Mesh& mesh, const std::array<std::u
         if (whole > 0) {
             const float share_second = math::dot(math::cross(met - first, third - first), face) / whole, share_third = math::dot(math::cross(second - first, met - first), face) / whole;
             const float share_first = 1 - share_second - share_third;
-            hides *= cover->cover_at({mesh.uvs[corner[0]].x * share_first + mesh.uvs[corner[1]].x * share_second + mesh.uvs[corner[2]].x * share_third,
-                                      mesh.uvs[corner[0]].y * share_first + mesh.uvs[corner[1]].y * share_second + mesh.uvs[corner[2]].y * share_third});
+            hides *= cover->cover_at(material.placing.of({mesh.uvs[corner[0]].x * share_first + mesh.uvs[corner[1]].x * share_second + mesh.uvs[corner[2]].x * share_third,
+                                                          mesh.uvs[corner[0]].y * share_first + mesh.uvs[corner[1]].y * share_second + mesh.uvs[corner[2]].y * share_third}));
         }
     }
     return !(hides < material.cutout);
@@ -612,7 +622,7 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
                     at[corner] = vertex < mesh.positions.size() ? mesh.positions[vertex] : Vec3{};
                     polygon[corner] = {moved(to_clip, at[corner]), moved(before, at[corner]),
                                        vertex < mesh.normals.size() ? math::direction(for_normals, mesh.normals[vertex]) : Vec3{}, math::point(instance.world, at[corner]),
-                                       vertex < mesh.uvs.size() ? mesh.uvs[vertex] : Vec2{0, 0}, {}};
+                                       vertex < mesh.uvs.size() ? raster.material.placing.of(mesh.uvs[vertex]) : Vec2{0, 0}, {}};
                     if (raster.normal_picture && vertex < mesh.tangents.size()) {
                         const Vec3 along = math::direction(instance.world, {mesh.tangents[vertex].x, mesh.tangents[vertex].y, mesh.tangents[vertex].z});
                         polygon[corner].tangent = {along.x, along.y, along.z, mesh.tangents[vertex].w};
@@ -975,13 +985,28 @@ Texture::Seen held(const Texture& texture, Vec2 uv, float footprint) noexcept {
     const bool covered = !texture.cover.empty();
     const auto within = [&](std::size_t which) {
         const int wide = std::max(texture.width >> which, 1), high = std::max(texture.height >> which, 1);
-        // Between the four texels about the place; a texel's middle is its own colour. It repeats.
-        const float at_x = (uv.x - std::floor(uv.x)) * static_cast<float>(wide) - 0.5f, at_y = (uv.y - std::floor(uv.y)) * static_cast<float>(high) - 0.5f;
-        const float floor_x = std::floor(at_x), floor_y = std::floor(at_y);
-        const float share_x = at_x - floor_x, share_y = at_y - floor_y;
-        const auto wrapped = [](int value, int count) { return ((value % count) + count) % count; };
-        const int x0 = wrapped(static_cast<int>(floor_x), wide), x1 = wrapped(static_cast<int>(floor_x) + 1, wide), y0 = wrapped(static_cast<int>(floor_y), high),
-                  y1 = wrapped(static_cast<int>(floor_y) + 1, high);
+        // Between the four texels about the place; a texel's middle is its own colour. Past an edge: the picture
+        // again, the picture turned about, or the edge's texels (`Edge`).
+        struct Along {
+            int   first = 0, second = 0;
+            float share = 0;
+        };
+        const auto along = [](float coordinate, int count, Edge edge) {
+            float within = coordinate - std::floor(coordinate);
+            if (edge == Edge::mirrors) {
+                const float twice = coordinate - 2.0f * std::floor(coordinate * 0.5f);  // 0 … 2
+                within = twice > 1.0f ? 2.0f - twice : twice;
+            } else if (edge == Edge::stops) {
+                within = std::clamp(coordinate, 0.0f, 1.0f);
+            }
+            const float at = within * static_cast<float>(count) - 0.5f, floor_at = std::floor(at);
+            const int   first = static_cast<int>(floor_at);
+            if (edge == Edge::repeats) return Along{((first % count) + count) % count, (((first + 1) % count) + count) % count, at - floor_at};
+            return Along{std::clamp(first, 0, count - 1), std::clamp(first + 1, 0, count - 1), at - floor_at};
+        };
+        const Along across = along(uv.x, wide, texture.across), down = along(uv.y, high, texture.down);
+        const float share_x = across.share, share_y = down.share;
+        const int   x0 = across.first, x1 = across.second, y0 = down.first, y1 = down.second;
         const auto place = [&](int tx, int ty) { return texture.sizes[which] + static_cast<std::size_t>(ty) * static_cast<std::size_t>(wide) + static_cast<std::size_t>(tx); };
         const auto of = [&](int tx, int ty) { return texture.light[place(tx, ty)]; };
         Texture::Seen found{math::mix(math::mix(of(x0, y0), of(x1, y0), share_x), math::mix(of(x0, y1), of(x1, y1), share_x), share_y), 1};

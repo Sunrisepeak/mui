@@ -46,16 +46,19 @@ struct SurfaceUniforms {
     Row          surface_picture, normal_picture, glow_picture, shade_picture;
     Row          own;  // x: the roughness as the material says it; y: the metal
     Row          through;  // x: 1 — a layer of the surfaces seen through is drawn; y: 1 — a layer was laid before; zw: one over the frame's size
+    Row          placing_across{1, 0, 0, 0}, placing_down{0, 1, 0, 0};  // how the surface's pictures are laid over it
     LampUniforms lamps[most_lamps];
 };
 // What the passes that draw no colour ask of a draw's material (the shaders' `Whole`).
 struct WholeUniforms {
     Row picture;  // the base picture: xy its width and height, z how many sizes (0: none)
     Row cut;      // x: the cut (0: whole); y: how much the surface hides; z: 1 — seen from both sides
+    Row placing_across{1, 0, 0, 0}, placing_down{0, 1, 0, 0};  // how the picture is laid over the surface
 };
 // A shadow view's question of a caster (the shader's `Casting`).
 struct CastingUniforms {
     Row at_range, picture, cut;
+    Row placing_across{1, 0, 0, 0}, placing_down{0, 1, 0, 0};
 };
 Row row_of(const Mat4& matrix, int row) { return {matrix.at(0, row), matrix.at(1, row), matrix.at(2, row), matrix.at(3, row)}; }
 Row of(Vec3 value, float last = 0) { return {value.x, value.y, value.z, last}; }
@@ -287,11 +290,12 @@ Pass::Pass(Pass&& other) noexcept
     : device_(std::exchange(other.device_, nullptr)), pipeline_(std::exchange(other.pipeline_, {})), ids_pipeline_(std::exchange(other.ids_pipeline_, {})), sky_pipeline_(std::exchange(other.sky_pipeline_, {})), shadow_pipeline_(std::exchange(other.shadow_pipeline_, {})), lamp_shadow_pipeline_(std::exchange(other.lamp_shadow_pipeline_, {})), who_pipeline_(std::exchange(other.who_pipeline_, {})), velocity_pipeline_(std::exchange(other.velocity_pipeline_, {})), velocity_who_pipeline_(std::exchange(other.velocity_who_pipeline_, {})), surface_pipeline_(std::exchange(other.surface_pipeline_, {})), through_pipeline_(std::exchange(other.through_pipeline_, {})), deep_pipeline_(std::exchange(other.deep_pipeline_, {})), under_pipeline_(std::exchange(other.under_pipeline_, {})), laid_pipeline_(std::exchange(other.laid_pipeline_, {})), nearest_(std::exchange(other.nearest_, {})), pictures_(std::exchange(other.pictures_, {})), no_shadow_(std::exchange(other.no_shadow_, {})), cover_(std::exchange(other.cover_, {})), meshes_(std::move(other.meshes_)), textures_(std::move(other.textures_)), materials_(std::move(other.materials_)), about_{other.about_.pipeline, other.about_.through, other.about_.sheet, other.about_.between, other.about_.said}, reversed_(other.reversed_), light_(other.light_), last_(other.last_) {
     other.about_.pipeline = {}, other.about_.through = {}, other.about_.sheet = {}, other.about_.between = {};
     shares_ = std::exchange(other.shares_, {}), share_between_ = std::exchange(other.share_between_, {}), about_sky_ = std::exchange(other.about_sky_, {});
+    edged_ = std::exchange(other.edged_, {});
 }
 Pass& Pass::operator=(Pass&& other) noexcept {
     if (this != &other) {
         release();
-        device_ = std::exchange(other.device_, nullptr), pipeline_ = std::exchange(other.pipeline_, {}), ids_pipeline_ = std::exchange(other.ids_pipeline_, {}), sky_pipeline_ = std::exchange(other.sky_pipeline_, {}), shadow_pipeline_ = std::exchange(other.shadow_pipeline_, {}), lamp_shadow_pipeline_ = std::exchange(other.lamp_shadow_pipeline_, {}), who_pipeline_ = std::exchange(other.who_pipeline_, {}), velocity_pipeline_ = std::exchange(other.velocity_pipeline_, {}), velocity_who_pipeline_ = std::exchange(other.velocity_who_pipeline_, {}), surface_pipeline_ = std::exchange(other.surface_pipeline_, {}), through_pipeline_ = std::exchange(other.through_pipeline_, {}), deep_pipeline_ = std::exchange(other.deep_pipeline_, {}), under_pipeline_ = std::exchange(other.under_pipeline_, {}), laid_pipeline_ = std::exchange(other.laid_pipeline_, {}), nearest_ = std::exchange(other.nearest_, {}), pictures_ = std::exchange(other.pictures_, {}), no_shadow_ = std::exchange(other.no_shadow_, {}), cover_ = std::exchange(other.cover_, {}), meshes_ = std::move(other.meshes_), textures_ = std::move(other.textures_), materials_ = std::move(other.materials_), about_.pipeline = std::exchange(other.about_.pipeline, {}), about_.through = std::exchange(other.about_.through, {}), about_.sheet = std::exchange(other.about_.sheet, {}), about_.between = std::exchange(other.about_.between, {}), about_.said = other.about_.said, about_sky_ = std::exchange(other.about_sky_, {}), shares_ = std::exchange(other.shares_, {}), share_between_ = std::exchange(other.share_between_, {}), reversed_ = other.reversed_, light_ = other.light_, last_ = other.last_;
+        device_ = std::exchange(other.device_, nullptr), pipeline_ = std::exchange(other.pipeline_, {}), ids_pipeline_ = std::exchange(other.ids_pipeline_, {}), sky_pipeline_ = std::exchange(other.sky_pipeline_, {}), shadow_pipeline_ = std::exchange(other.shadow_pipeline_, {}), lamp_shadow_pipeline_ = std::exchange(other.lamp_shadow_pipeline_, {}), who_pipeline_ = std::exchange(other.who_pipeline_, {}), velocity_pipeline_ = std::exchange(other.velocity_pipeline_, {}), velocity_who_pipeline_ = std::exchange(other.velocity_who_pipeline_, {}), surface_pipeline_ = std::exchange(other.surface_pipeline_, {}), through_pipeline_ = std::exchange(other.through_pipeline_, {}), deep_pipeline_ = std::exchange(other.deep_pipeline_, {}), under_pipeline_ = std::exchange(other.under_pipeline_, {}), laid_pipeline_ = std::exchange(other.laid_pipeline_, {}), nearest_ = std::exchange(other.nearest_, {}), pictures_ = std::exchange(other.pictures_, {}), no_shadow_ = std::exchange(other.no_shadow_, {}), cover_ = std::exchange(other.cover_, {}), meshes_ = std::move(other.meshes_), textures_ = std::move(other.textures_), materials_ = std::move(other.materials_), about_.pipeline = std::exchange(other.about_.pipeline, {}), about_.through = std::exchange(other.about_.through, {}), about_.sheet = std::exchange(other.about_.sheet, {}), about_.between = std::exchange(other.about_.between, {}), about_.said = other.about_.said, edged_ = std::exchange(other.edged_, {}), about_sky_ = std::exchange(other.about_sky_, {}), shares_ = std::exchange(other.shares_, {}), share_between_ = std::exchange(other.share_between_, {}), reversed_ = other.reversed_, light_ = other.light_, last_ = other.last_;
     }
     return *this;
 }
@@ -325,6 +329,10 @@ void Pass::release() noexcept {
     if (shares_) device_->destroy(shares_);
     if (share_between_) device_->destroy(share_between_);
     if (about_sky_) device_->destroy(about_sky_);
+    for (rhi::Sampler& one : edged_) {
+        if (one) device_->destroy(one);
+        one = {};
+    }
     shares_ = {}, share_between_ = {}, about_sky_ = {};
     if (about_.pipeline) device_->destroy(about_.pipeline);
     if (about_.through) device_->destroy(about_.through);
@@ -491,7 +499,19 @@ rhi::Result<void> Pass::load_textures(std::span<const Texture* const> textures) 
         const std::uint32_t sizes = std::min(static_cast<std::uint32_t>(picture.sizes.size()), rhi::levels_of(wide, high));
         auto made = device_->create(rhi::TextureDesc{.format = rhi::Format::rgba16_float, .width = wide, .height = high, .usage = rhi::TextureUsage::sampled, .label = "xrender.mesh.picture", .levels = sizes});
         if (!made) return std::unexpected(made.error());
-        textures_[which] = {*made, static_cast<float>(wide), static_cast<float>(high), static_cast<float>(sizes)};
+        // Its sampler: by what the picture is past its edges.
+        rhi::Sampler through = pictures_;
+        if (picture.across != Edge::repeats || picture.down != Edge::repeats) {
+            const auto mode = [](Edge edge) { return edge == Edge::mirrors ? rhi::AddressMode::mirror : edge == Edge::stops ? rhi::AddressMode::clamp : rhi::AddressMode::repeat; };
+            rhi::Sampler& edged = edged_[static_cast<std::size_t>(picture.across) * 3 + static_cast<std::size_t>(picture.down)];
+            if (!edged) {
+                auto sampler = device_->create(rhi::SamplerDesc{rhi::Filter::linear, rhi::Filter::linear, mode(picture.across), mode(picture.down), rhi::Filter::linear});
+                if (!sampler) return std::unexpected(sampler.error());
+                edged = *sampler;
+            }
+            through = edged;
+        }
+        textures_[which] = {*made, static_cast<float>(wide), static_cast<float>(high), static_cast<float>(sizes), through};
         for (std::uint32_t size = 0; size < sizes; ++size) {
             const std::uint32_t size_wide = rhi::level_extent(wide, size), size_high = rhi::level_extent(high, size);
             texels.resize(static_cast<std::size_t>(size_wide) * size_high * 4);
@@ -551,8 +571,9 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
             const Material& material = materials[instance.material];
             sheet = cover_of(material, instance.mesh);
             asked.picture = {0, 0, sheet ? 1.0f : 0.0f, 0}, asked.cut = {material.cutout, material.opacity, 0, 0};
+            asked.placing_across = of(material.placing.across), asked.placing_down = of(material.placing.down);
         }
-        list.bind_texture(rhi::Stage::fragment, 0, sheet ? sheet->texture : no_shadow_, sheet ? pictures_ : nearest_);
+        list.bind_texture(rhi::Stage::fragment, 0, sheet ? sheet->texture : no_shadow_, sheet ? sheet->through : nearest_);
         list.push_uniforms(rhi::Stage::fragment, 0, asked);
     };
     surface.fog = of(options.fog.colour, options.fog.density);
@@ -729,7 +750,8 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
         const std::array<const Sheet*, 4> more{sheet_of(material.surface), sheet_of(material.normal), sheet_of(material.glow), sheet_of(material.shade)};
         surface.surface_picture = said(more[0], 0), surface.normal_picture = said(more[1], material.normal_scale);
         surface.glow_picture = said(more[2], 0), surface.shade_picture = said(more[3], material.shade_strength);
-        surface.own = {material.roughness, material.metallic, 0, 0};
+        surface.own = {material.roughness, material.metallic, material.unlit ? 1.0f : 0.0f, 0};
+        surface.placing_across = of(material.placing.across), surface.placing_down = of(material.placing.down);
         surface.cut = {cut_of(reversed_), material.cutout, material.opacity, material.two_sided ? 1.0f : 0.0f};
         // Its clusters that may show: one outside the view or wholly facing away is left out (as the reference
         // leaves it out), and those that follow one another in the corners are one draw call.
@@ -737,8 +759,8 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
         // (A surface seen from both sides has no side to be turned away.)
         runs_for(loaded, instance.world, material.two_sided ? std::nullopt : back, frustum, eye, options.cull_clusters, counted);
         if (runs_.empty()) return;  // nothing of it may show: no draw, nothing bound
-        list.bind_texture(rhi::Stage::fragment, 2, sheet ? sheet->texture : no_shadow_, sheet ? pictures_ : nearest_);
-        for (std::uint32_t slot = 0; slot < more.size(); ++slot) list.bind_texture(rhi::Stage::fragment, 4 + slot, more[slot] ? more[slot]->texture : no_shadow_, more[slot] ? pictures_ : nearest_);
+        list.bind_texture(rhi::Stage::fragment, 2, sheet ? sheet->texture : no_shadow_, sheet ? sheet->through : nearest_);
+        for (std::uint32_t slot = 0; slot < more.size(); ++slot) list.bind_texture(rhi::Stage::fragment, 4 + slot, more[slot] ? more[slot]->texture : no_shadow_, more[slot] ? more[slot]->through : nearest_);
         if (counted && (sheet || more[0] || more[1] || more[2] || more[3])) ++last_.textured;
         list.push_uniforms(rhi::Stage::vertex, 0, uniforms);
         list.push_uniforms(rhi::Stage::fragment, 0, surface);
@@ -787,10 +809,10 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
             for (int row = 0; row < 4; ++row) uniforms.to_clip[row] = row_of(to_clip, row);
             for (int row = 0; row < 3; ++row) uniforms.to_world[row] = row_of(instance.world, row), uniforms.normals[row] = row_of(for_normals, row);
             const Sheet* sheet = cover_of(material, draw.mesh);
-            const WholeUniforms whole{sheet ? Row{sheet->width, sheet->height, sheet->sizes, 0} : Row{}, {material.cutout, material.opacity, material.two_sided ? 1.0f : 0.0f, 0}};
+            const WholeUniforms whole{sheet ? Row{sheet->width, sheet->height, sheet->sizes, 0} : Row{}, {material.cutout, material.opacity, material.two_sided ? 1.0f : 0.0f, 0}, of(material.placing.across), of(material.placing.down)};
             runs_for(meshes_[draw.mesh], instance.world, material.two_sided ? std::nullopt : back, frustum, eye, options.cull_clusters, false);
             if (runs_.empty()) continue;
-            list.bind_texture(rhi::Stage::fragment, 0, sheet ? sheet->texture : no_shadow_, sheet ? pictures_ : nearest_);
+            list.bind_texture(rhi::Stage::fragment, 0, sheet ? sheet->texture : no_shadow_, sheet ? sheet->through : nearest_);
             list.push_uniforms(rhi::Stage::vertex, 0, uniforms);
             list.push_uniforms(rhi::Stage::fragment, 0, Who{of(eye, cut_of(reversed_)), 0, {}, whole});
             list.bind_vertex_buffer(0, meshes_[draw.mesh].corners);
@@ -1003,10 +1025,10 @@ void Pass::who_pass(rhi::CommandList& list, const scene::Scene& scene, const sce
         if (material && material->see_through) continue;  // not what stops the eye
         const Sheet* sheet = material ? cover_of(*material, draw.mesh) : nullptr;
         WholeUniforms whole{};
-        if (material) whole = {sheet ? Row{sheet->width, sheet->height, sheet->sizes, 0} : Row{}, {material->cutout, material->opacity, material->two_sided ? 1.0f : 0.0f, 0}};
+        if (material) whole = {sheet ? Row{sheet->width, sheet->height, sheet->sizes, 0} : Row{}, {material->cutout, material->opacity, material->two_sided ? 1.0f : 0.0f, 0}, of(material->placing.across), of(material->placing.down)};
         runs_for(meshes_[draw.mesh], instance.world, material && material->two_sided ? std::nullopt : back, frustum, eye, camera.has_value(), false);
         if (runs_.empty()) continue;
-        list.bind_texture(rhi::Stage::fragment, 0, sheet ? sheet->texture : no_shadow_, sheet ? pictures_ : nearest_);
+        list.bind_texture(rhi::Stage::fragment, 0, sheet ? sheet->texture : no_shadow_, sheet ? sheet->through : nearest_);
         list.push_uniforms(rhi::Stage::vertex, 0, uniforms);
         list.push_uniforms(rhi::Stage::fragment, 0, Who{of(eye, cut_of(reversed_)), by_instance ? static_cast<std::uint32_t>(instance.id & 0xffffffu) + 1 : number + 1, {}, whole});
         list.bind_vertex_buffer(0, meshes_[draw.mesh].corners);
@@ -1066,10 +1088,10 @@ void Pass::velocity_pass(rhi::CommandList& list, const scene::Scene& scene, cons
         if (material && material->see_through) continue;  // not what stops the eye
         const Sheet* sheet = material ? cover_of(*material, draw.mesh) : nullptr;
         WholeUniforms whole{};
-        if (material) whole = {sheet ? Row{sheet->width, sheet->height, sheet->sizes, 0} : Row{}, {material->cutout, material->opacity, material->two_sided ? 1.0f : 0.0f, 0}};
+        if (material) whole = {sheet ? Row{sheet->width, sheet->height, sheet->sizes, 0} : Row{}, {material->cutout, material->opacity, material->two_sided ? 1.0f : 0.0f, 0}, of(material->placing.across), of(material->placing.down)};
         runs_for(meshes_[draw.mesh], instance.world, material && material->two_sided ? std::nullopt : back, frustum, eye, options.cull_clusters && camera.has_value(), false);
         if (runs_.empty()) continue;
-        list.bind_texture(rhi::Stage::fragment, 0, sheet ? sheet->texture : no_shadow_, sheet ? pictures_ : nearest_);
+        list.bind_texture(rhi::Stage::fragment, 0, sheet ? sheet->texture : no_shadow_, sheet ? sheet->through : nearest_);
         VelocityDraw uniforms{};
         for (int row = 0; row < 4; ++row) uniforms.to_clip[row] = row_of(jittered, row), uniforms.before[row] = row_of(before, row);
         for (int row = 0; row < 3; ++row) uniforms.to_world[row] = row_of(instance.world, row), uniforms.normals[row] = row_of(for_normals, row);

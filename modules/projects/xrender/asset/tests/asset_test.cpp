@@ -291,6 +291,47 @@ static UTest cases{"xrender.asset", [] {
         expect(near(covering.at({0.25f, 0.75f}, 1).z, 1.0f, 1e-5f)) << "a texel half there is its own colour, whole";
     };
 
+    "what a sampler says a picture is past its edges, and a surface no light changes, are carried: no note"_test = [] {
+        // A 2 × 1 picture: red, then blue.
+        mlibs::image::Image image{.width = 2, .height = 1, .rgba = {255, 0, 0, 255, 0, 0, 255, 255}};
+        const std::string png = uri_of(*mlibs::image::encode_png(mlibs::image::view(image)), "image/png");
+        // 33071 stops at the edge, 33648 mirrors, 10497 repeats. Two pictures, so that each keeps its own edges;
+        // a third texture gives the first picture other edges than the first said, and has its own.
+        const std::string text = with_uri(std::format(R"(,
+  "scenes": [{{"nodes": [0, 1, 2]}}],
+  "nodes": [{{"mesh": 0}}, {{"mesh": 1}}, {{"mesh": 2}}],
+  "meshes": [{{"primitives": [{{"attributes": {{"POSITION": 0, "NORMAL": 1, "TEXCOORD_0": 2}}, "indices": 3, "material": 0}}]}},
+             {{"primitives": [{{"attributes": {{"POSITION": 0, "NORMAL": 1, "TEXCOORD_0": 2}}, "indices": 3, "material": 1}}]}},
+             {{"primitives": [{{"attributes": {{"POSITION": 0, "NORMAL": 1, "TEXCOORD_0": 2}}, "indices": 3, "material": 2}}]}}],
+  "materials": [{{"pbrMetallicRoughness": {{"baseColorTexture": {{"index": 0}}}}, "extensions": {{"KHR_materials_unlit": {{}}}}}},
+                {{"pbrMetallicRoughness": {{"baseColorTexture": {{"index": 1, "extensions": {{"KHR_texture_transform": {{"offset": [0.5, 0.25], "scale": [2, 4]}}}}}}}}}},
+                {{"pbrMetallicRoughness": {{"baseColorTexture": {{"index": 2}}}}}}],
+  "samplers": [{{"wrapS": 33071, "wrapT": 33648}}, {{"wrapS": 10497, "wrapT": 33071}}],
+  "textures": [{{"source": 0, "sampler": 0}}, {{"source": 1, "sampler": 1}}, {{"source": 0}}],
+  "images": [{{"uri": "{}"}}, {{"uri": "{}"}}],
+  "extensionsUsed": ["KHR_materials_unlit", "KHR_texture_transform"])",
+                                                      png, png));
+        const auto model = asset::gltf(bytes_of(text));
+        expect(fatal(model.has_value())) << (model ? "" : model.error());
+        expect(fatal(eq(model->materials.size(), std::size_t{3}) && eq(model->textures.size(), std::size_t{3})));
+        using xrender::mesh::Edge;
+        const xrender::mesh::Texture& first = model->textures[model->materials[0].texture];
+        const xrender::mesh::Texture& second = model->textures[model->materials[1].texture];
+        expect(first.across == Edge::stops && first.down == Edge::mirrors && second.across == Edge::repeats && second.down == Edge::stops);
+        expect(model->materials[0].unlit && !model->materials[1].unlit);
+        // The second material's picture is laid its own way (KHR_texture_transform): twice and four times as fine, moved.
+        expect(model->materials[0].placing.plain() && !model->materials[1].placing.plain());
+        expect(eq(model->materials[1].placing.of({1, 1}).x, 2.5f) && eq(model->materials[1].placing.of({1, 1}).y, 4.25f));
+        // Past the right edge: the first stops at its blue, the second is red again.
+        expect(near(first.at({1.25f, 0.5f}, 1).z, 1.0f, 1e-6f) && near(first.at({1.25f, 0.5f}, 1).x, 0.0f, 1e-6f));
+        expect(near(second.at({1.25f, 0.5f}, 1).x, 1.0f, 1e-6f) && near(second.at({1.25f, 0.5f}, 1).z, 0.0f, 1e-6f));
+        // The third texture says the first picture repeats: it has a texture of its own, the same picture, and no note.
+        expect(eq(model->notes.size(), std::size_t{0})) << (model->notes.empty() ? "" : model->notes.front().where);
+        expect(fatal(model->materials[2].texture != model->materials[0].texture));
+        const xrender::mesh::Texture& third = model->textures[model->materials[2].texture];
+        expect(third.across == Edge::repeats && third.down == Edge::repeats);
+        expect(near(third.at({1.25f, 0.5f}, 1).x, 1.0f, 1e-6f) && near(third.at({0.75f, 0.5f}, 1).z, 1.0f, 1e-6f));
+    };
     "a KTX2 picture (KHR_texture_basisu) is read: the texture an extension names, with no other to fall back on"_test = [] {
         // Basis Universal's own test photograph (mlibs.image.ktx2's tests/data), beside the document.
         const std::filesystem::path beside = std::filesystem::path(std::source_location::current().file_name()).parent_path() / "../../../../base/image/ktx2/tests/data";

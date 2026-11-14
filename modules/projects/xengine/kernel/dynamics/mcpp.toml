@@ -48,6 +48,9 @@ rigid = { sources = ["src/rigid/*.cppm", "src/rigid/native/*.cpp"] }
 rigid3 = { sources = ["src/rigid3/*.cppm", "src/rigid3/native/*.cpp"] }
 # A 3D rigid world as an agent's subject (src/rigid3/agent/, module xengine.dynamics.rigid3.agent; D-174).
 rigid3-agent = { implies = ["rigid3", "agent"], sources = ["src/rigid3/agent/*.cppm", "src/rigid3/agent/*.cpp"] }
+# Matter carried by 3D bodies (src/objects/, module xengine.dynamics.objects; M6.5 T5.1): each body an instance of
+# xengine.matter, the bodies touching now its pairs — the object carrier of the plan's §6.4.
+rigid3-matter = { implies = ["rigid3", "matter"], sources = ["src/objects/*.cppm", "src/objects/*.cpp"] }
 
 [feature-deps.agent]
 mlibs.simulation = { path = "../../../../base/simulation" }

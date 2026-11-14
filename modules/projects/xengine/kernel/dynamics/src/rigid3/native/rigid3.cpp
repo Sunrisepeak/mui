@@ -455,6 +455,45 @@ std::optional<RayHit> World::ray(Vec from, Vec to) const {
     return RayHit{native_->named(hit.mBodyID), hit.mFraction, vec(point), normal};
 }
 
+namespace {
+// The area of a face Jolt gives (a convex polygon in the world, its corners in order).
+float face_area(const JPH::CollideShapeResult::Face& face) {
+    if (face.size() < 3) return 0;
+    JPH::Vec3 sum = JPH::Vec3::sZero();
+    for (std::size_t corner = 1; corner + 1 < face.size(); ++corner) sum += (face[corner] - face[0]).Cross(face[corner + 1] - face[0]);
+    return 0.5f * sum.Length();
+}
+}  // namespace
+
+void World::touching(std::vector<Touch>& out, float margin) const {
+    out.clear();
+    const JPH::BodyLockInterfaceNoLock& locks = native_->system->GetBodyLockInterfaceNoLock();
+    JPH::CollideShapeSettings settings;
+    settings.mMaxSeparationDistance = margin;
+    settings.mCollectFacesMode = JPH::ECollectFacesMode::CollectFaces;
+    for (const auto& [id, record] : native_->records) {
+        if (record.sensor) continue;
+        const JPH::BodyID native_id(record.native);
+        const JPH::BodyLockRead lock(locks, native_id);
+        if (!lock.Succeeded()) continue;
+        const JPH::Body& body = lock.GetBody();
+        JPH::AllHitCollisionCollector<JPH::CollideShapeCollector> hits;
+        const JPH::IgnoreSingleBodyFilter itself(native_id);
+        native_->system->GetNarrowPhaseQuery().CollideShape(body.GetShape(), JPH::Vec3::sOne(), body.GetCenterOfMassTransform(), settings, JPH::RVec3::sZero(), hits, {}, {}, itself);
+        const std::size_t first = out.size();
+        for (const JPH::CollideShapeResult& hit : hits.mHits) {
+            const BodyId other = native_->named(hit.mBodyID2);
+            if (!other || !(id < other) || native_->records.at(other).sensor) continue;  // each pair once: from its lower id
+            const float one_face = face_area(hit.mShape1Face), other_face = face_area(hit.mShape2Face);
+            const float area = one_face > 0 && other_face > 0 ? std::min(one_face, other_face) : std::max(one_face, other_face);
+            const auto found = std::find_if(out.begin() + static_cast<std::ptrdiff_t>(first), out.end(), [&](const Touch& touch) { return touch.other == other; });
+            if (found != out.end()) found->area += area;
+            else out.push_back({id, other, area, vec(hit.mContactPointOn1)});
+        }
+        std::sort(out.begin() + static_cast<std::ptrdiff_t>(first), out.end(), [](const Touch& one, const Touch& other) { return one.other < other.other; });
+    }
+}
+
 void World::overlapping(const Shape& shape, Vec at, Turn turned, std::vector<BodyId>& out) const {
     if (!finite(at)) return;
     const auto query = shape_of(shape, {}, Kind::fixed);

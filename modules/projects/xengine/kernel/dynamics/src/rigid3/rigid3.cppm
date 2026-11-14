@@ -112,6 +112,14 @@ struct Contact {
     Vec point, normal;
     float approach = 0;  // speed along the normal as they met (began only)
 };
+// Two bodies touching now (or within `margin` of it), `one` < `other`: how much surface they share, roughly — the
+// smaller of the two faces that meet, summed over the parts that meet — and a point where they do. What a carrier
+// of matter between bodies reads each step (heat and wetness flow across it); asleep or awake, the same.
+struct Touch {
+    BodyId one, other;
+    float  area = 0;  // m²: 0 where the shapes give no faces (a sphere's point)
+    Vec    point;
+};
 struct RayHit {
     BodyId body;
     float fraction = 0;  // along the ray, 0 at its start, 1 at its end
@@ -225,6 +233,10 @@ public:
     // One fixed step; what began and ended touching in it.
     void step() noexcept;
     [[nodiscard]] std::span<const Contact> contacts() const noexcept { return contacts_; }
+    // Every pair of bodies touching now (sensors aside), in the order of their ids, into `out` (emptied first):
+    // asked of the shapes where they are, not of what began or ended — a stack that has gone to sleep still
+    // touches, and a world restored or branched says the same.
+    void touching(std::vector<Touch>& out, float margin = 0.02f) const;
     [[nodiscard]] std::uint64_t steps() const noexcept { return steps_; }
     [[nodiscard]] const Options& options() const noexcept { return options_; }
 

@@ -181,7 +181,7 @@ std::map<std::string, std::string> History::refs(std::string_view kind) const {
     std::map<std::string, std::string> out;
     const auto root = directory_ / "refs" / kind;
     std::error_code error;
-    for (auto it = std::filesystem::recursive_directory_iterator(root, error); !error && it != std::filesystem::recursive_directory_iterator(); it.increment(error)) {
+    for (auto it = std::filesystem::recursive_directory_iterator(root, error); !error && it != std::default_sentinel; it.increment(error)) {  // the sentinel: two iterators compared is a function the NDK's std module does not always give
         if (!it->is_regular_file()) continue;
         const std::string name = generic_utf8(it->path().lexically_relative(root));
         if (auto commit = ref(kind, name)) out.emplace(name, std::move(*commit));
@@ -236,7 +236,8 @@ std::expected<std::string, std::string> History::resolve(std::string_view name) 
         // A commit's id, or a prefix of one that only it has.
         std::vector<std::string> matches;
         std::error_code error;
-        for (const auto& entry : std::filesystem::directory_iterator(directory_ / "commits", error)) {
+        for (auto each = std::filesystem::directory_iterator(directory_ / "commits", error); !error && each != std::default_sentinel; each.increment(error)) {
+            const auto& entry = *each;
             const std::string stem = generic_utf8(entry.path().stem());
             if (stem.starts_with(name)) matches.push_back(stem);
         }

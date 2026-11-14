@@ -41,7 +41,8 @@ std::filesystem::path default_directory() {
 std::vector<EndpointInfo> list(const std::filesystem::path& directory) {
     std::vector<EndpointInfo> out;
     std::error_code ec;
-    for (const auto& entry : std::filesystem::directory_iterator(directory, ec)) {
+    for (auto each = std::filesystem::directory_iterator(directory, ec); !ec && each != std::default_sentinel; each.increment(ec)) {
+        const auto& entry = *each;
         const std::string file = utf8(entry.path().filename());
         if (!file.ends_with(descriptor_suffix)) continue;
         auto text = mcpplibs::os::fs::read(entry.path());

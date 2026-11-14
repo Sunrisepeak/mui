@@ -166,7 +166,7 @@ std::expected<matter::Report, matter::Failure> Objects::step(const World& world)
     output_.resize(input_.size());
     events_.clear();
     weigh(world, instances);
-    auto stepped = program_->step({instances, pairs_, false, capacity_}, input_, output_, workspace_, &events_);
+    auto stepped = program_->step({instances, pairs_, false, capacity_, exposed_}, input_, output_, workspace_, &events_);
     if (!stepped) return stepped;
     // What became of the air is not kept: it is a bath.
     std::erase_if(events_, [&](const matter::Event& event) { return event.instance >= count; });
@@ -177,7 +177,7 @@ std::expected<matter::Report, matter::Failure> Objects::step(const World& world)
     joined_ = nullptr;
     ++steps_;
     if (!events_.empty())
-        witness([&](std::uint32_t instance) { return program_->why({instances, pairs_, false, capacity_}, before_, instance); },
+        witness([&](std::uint32_t instance) { return program_->why({instances, pairs_, false, capacity_, exposed_}, before_, instance); },
                 [](std::uint32_t) -> std::optional<std::pair<BodyId, Vec>> { return std::nullopt; });
     return stepped;
 }
@@ -199,7 +199,7 @@ std::expected<matter::Report, matter::Failure> Objects::step(const World& world,
         air.cover(centre, 2);
     }
     weigh(world, bodies_.size());
-    const std::array<xengine::field::Guests, 1> guests{xengine::field::Guests{.state = state_, .pairs = pairs_, .at = at_, .capacity = capacity_}};
+    const std::array<xengine::field::Guests, 1> guests{xengine::field::Guests{.state = state_, .pairs = pairs_, .at = at_, .capacity = capacity_, .exposed = exposed_}};
     auto stepped = air.step(guests);
     if (!stepped) return stepped;
     // What happened to the bodies (the field's events are by instance: cells first, then these).
@@ -262,10 +262,26 @@ void Objects::impacts(const World& world, std::vector<matter::Impact>& out) cons
 
 void Objects::weigh(const World& world, std::size_t instances) {
     capacity_.assign(instances, 1);
+    exposed_.assign(instances, 1);
     if (!(options_.capacity_unit > 0)) return;
-    for (std::size_t at = 0; at < bodies_.size(); ++at)
-        if (const auto pose = world.pose(bodies_[at]); pose && pose->mass > 0)
-            capacity_[at] = static_cast<std::uint32_t>(std::max(1L, std::lround(pose->mass / options_.capacity_unit)));
+    for (std::size_t at = 0; at < bodies_.size(); ++at) {
+        const auto pose = world.pose(bodies_[at]);
+        if (!pose || !(pose->mass > 0)) continue;
+        const std::uint32_t held = static_cast<std::uint32_t>(std::max(1L, std::lround(pose->mass / options_.capacity_unit)));
+        capacity_[at] = exposed_[at] = held;
+        // Its surface over one unit's (a cube of the body's volume ÷ capacity): exposed³ = A³ C² ÷ (216 V²) — a
+        // compact body of C units shows C^⅔ of them, a plank more. Only × and ÷, then a whole cube root: the same
+        // bits everywhere. The box is the world's bounds (a tilted body's a little larger).
+        const auto box = world.bounds(bodies_[at]);
+        if (!box || held == 1) continue;
+        const double across = box->high.x - box->low.x, up = box->high.y - box->low.y, deep = box->high.z - box->low.z;
+        const double volume = across * up * deep, area = 2 * (across * up + up * deep + deep * across);
+        if (!(volume > 0)) continue;
+        const double cubed = area * area * area * held * held / (216 * volume * volume);
+        std::uint32_t root = 1;
+        while (root < held && static_cast<double>(root + 1) * (root + 1) * (root + 1) <= cubed) ++root;
+        exposed_[at] = root;
+    }
 }
 
 bool Objects::open_to_sky(const World& world, BodyId body, float sky) const noexcept {

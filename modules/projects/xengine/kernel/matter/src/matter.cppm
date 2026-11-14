@@ -46,6 +46,10 @@ struct Column {
     std::uint32_t fraction = 0;  // bits after the point in the integer a law reads
     double        least = 0, most = 4294967295.0;
     double        initial = 0;   // a material that does not say has this
+    // How much there is of it, not what it is like: fuel. An instance holding more than one (a carrier's
+    // capacity) whose reactions run over only a part of it (its `exposed`: a crate burns at its surface) reads it
+    // as the value × capacity ÷ exposed — a 600 kg crate has the fuel of all its wood, burned a face at a time.
+    bool          extensive = false;
 };
 
 using MaterialId = std::uint32_t;
@@ -254,6 +258,9 @@ struct Carrier {
     // a crate warms by its mass, a coarse cell standing for a block of the air by its volume. The flow is what
     // goes between them, as before; the quantity it moves in each is that, shared over what it has to warm.
     std::span<const std::uint32_t> capacity;
+    // How much of each instance its reactions run over (none: all it holds) — a body's surface, in the units of
+    // its capacity. An extensive property is read as the value × capacity ÷ exposed; nothing else changes.
+    std::span<const std::uint32_t> exposed;
 };
 enum class EventKind : std::uint8_t { became, rose, fell };
 // What happened to an instance in a step, for whoever plays a sound or keeps a score: it became another
@@ -398,6 +405,10 @@ private:
     std::vector<std::uint32_t> flags_;      // the channels some law flags
     std::uint32_t              phase_column_ = 0;
     bool                       adjusts_ = false;
+    std::vector<std::uint32_t> extensive_;  // the columns that are extensive
+    // An instance's properties as written, its extensive ones scaled by the carrier (into `row`; the written row
+    // itself when nothing is scaled).
+    [[nodiscard]] std::span<const std::uint32_t> scaled(const Carrier& carrier, std::size_t instance, std::uint32_t material, std::span<std::uint32_t> row) const noexcept;
 };
 
 }  // namespace xengine::matter

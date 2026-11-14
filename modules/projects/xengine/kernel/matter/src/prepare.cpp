@@ -347,6 +347,7 @@ Definition Definition::standard() {
     number("latent", "K", "the heat its boiling takes and its condensing gives back, as the kelvin it would have warmed by", 0, 100000, 0, 8);
     // burning
     number("fuel", "", "how much of it there is to burn", 0, 1000000000, 0);
+    out.columns.back().extensive = true;  // a bigger thing has more to burn
     number("burn_rate", "a step", "how fast its fuel burns", 0, 1000000, 1);
     number("heat", "K a step", "the heat its burning gives off", 0, 100000, 0, 8);
     number("flame", "K", "as hot as its own burning makes it: above this its burning adds no heat", 0, 100000, 1100, 8);
@@ -417,6 +418,7 @@ std::expected<Program, Failure> Program::prepare(const Definition& definition, L
                 return fail(Errc::value, where, std::format("column `{}`: its default {} is outside {} … {}", column.name, column.initial, column.least, column.most));
         }
         if (column.kind == ColumnKind::phase) program.phase_column_ = static_cast<std::uint32_t>(program.columns_.size());
+        if (column.extensive) program.extensive_.push_back(static_cast<std::uint32_t>(program.columns_.size()));
         program.columns_.push_back(column);
     }
     for (const ChannelSpec& channel : definition.channels) {

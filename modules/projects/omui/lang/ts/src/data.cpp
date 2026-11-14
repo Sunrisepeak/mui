@@ -525,6 +525,8 @@ export interface MatterColumn {
     default?: number;
     /** Bits after the point in the whole number a law reads (0: the number itself). */
     fraction?: number;
+    /** How much there is of it (fuel), not what it is like: an instance holding more has more of it. */
+    extensive?: boolean;
 }
 /** A state channel the definition adds: a whole number every instance carries. */
 export interface MatterChannel {

@@ -93,6 +93,18 @@ std::uint32_t Program::flow_of(const Law& law, std::uint32_t difference, std::ui
     return static_cast<std::uint32_t>((std::uint64_t{product} * room / load) >> law.shift);
 }
 
+std::span<const std::uint32_t> Program::scaled(const Carrier& carrier, std::size_t instance, std::uint32_t material, std::span<std::uint32_t> row) const noexcept {
+    const std::size_t width = columns_.size();
+    const std::span<const std::uint32_t> written(values_.data() + material * width, width);
+    const std::uint64_t held = carrier.capacity.size() > instance ? std::max(1u, carrier.capacity[instance]) : 1u;
+    const std::uint64_t exposed = carrier.exposed.size() > instance ? std::clamp<std::uint64_t>(carrier.exposed[instance], 1, held) : held;
+    if (extensive_.empty() || held == exposed || row.size() < width) return written;
+    std::ranges::copy(written, row.begin());
+    for (const std::uint32_t column : extensive_)
+        row[column] = static_cast<std::uint32_t>(std::min<std::uint64_t>(std::uint64_t{written[column]} * held / exposed, 0xffffffffu));
+    return row.first(width);
+}
+
 std::expected<Report, Failure> Program::step(Carrier carrier, std::span<const std::uint32_t> input, std::span<std::uint32_t> output, Workspace& workspace,
                                              std::vector<Event>* events) const noexcept {
     mlibs::trace::Span span("simulation.matter.step", "simulation");
@@ -111,6 +123,8 @@ std::expected<Report, Failure> Program::step(Carrier carrier, std::span<const st
 
     if (!carrier.capacity.empty() && carrier.capacity.size() != instances)
         return fail(Errc::shape, "/capacity", std::format("{} capacities for {} instances: one each, or none", carrier.capacity.size(), instances));
+    if (!carrier.exposed.empty() && carrier.exposed.size() != instances)
+        return fail(Errc::shape, "/exposed", std::format("{} exposures for {} instances: one each, or none", carrier.exposed.size(), instances));
     // How much is beside each instance: what a transfer's share must leave room for.
     workspace.degree_.assign(instances, 0);
     for (const Pair& pair : carrier.pairs) {
@@ -198,10 +212,10 @@ std::expected<Report, Failure> Program::step(Carrier carrier, std::span<const st
             for (std::size_t channel = 0; channel < channels; ++channel) output[channel * instances + instance] = input[channel * instances + instance];
             continue;
         }
-        std::span<const std::uint32_t> properties(values_.data() + material * width, width);
+        std::span<const std::uint32_t> properties = scaled(carrier, instance, material, workspace.row_);
         if (adjusts_) {
             // The adjustments, in the laws' order, each judged on the properties as written.
-            std::ranges::copy(properties, workspace.row_.begin());
+            if (properties.data() != workspace.row_.data()) std::ranges::copy(properties, workspace.row_.begin());
             for (const Law& law : laws_) {
                 if (law.kind != LawKind::adjust || !holds(law, properties, input, instances, instance, near)) continue;
                 for (const Write& write : law.writes) {
@@ -276,6 +290,7 @@ std::string Program::describe() const {
         out += std::format("{}{{\"name\":{},\"kind\":\"{}\",\"unit\":{},\"doc\":{}", index ? "," : "", json_text(column.name),
                            column.kind == ColumnKind::number ? "number" : column.kind == ColumnKind::phase ? "phase" : "material", json_text(column.unit), json_text(column.doc));
         if (column.kind == ColumnKind::number) out += std::format(",\"least\":{},\"most\":{},\"fraction\":{}", column.least, column.most, column.fraction);
+        if (column.extensive) out += ",\"extensive\":true";
         out += "}";
     }
     out += "],\"channels\":[";

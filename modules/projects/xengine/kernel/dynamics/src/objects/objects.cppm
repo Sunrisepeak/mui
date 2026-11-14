@@ -151,7 +151,7 @@ private:
     std::vector<matter::Event> events_;
     matter::Workspace          workspace_;
     std::vector<xengine::field::Vec3> at_;          // where each body is (a field step's guests)
-    std::vector<std::uint32_t> capacity_;            // a step's: each instance's
+    std::vector<std::uint32_t> capacity_, exposed_;  // a step's: each instance's (exposed: of it, what reactions run over)
     const xengine::field::Field* joined_ = nullptr; // the field of the last step (none: a bath)
     std::uint64_t              steps_ = 0;
     static constexpr std::size_t kept_causes = 8;    // a body's latest causes

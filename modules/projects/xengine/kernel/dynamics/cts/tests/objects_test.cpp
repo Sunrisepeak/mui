@@ -109,6 +109,42 @@ UTest cases{"dynamics.objects", [] {
         expect(eq(again.objects->state_hash(), played.objects->state_hash()));
     };
 
+    "what is bigger has more to burn: a crate, a block and a plank of the same wood, lit alike, burn out by how much wood each has and how much of it shows"_test = [] {
+        const auto table = matter::standard();
+        expect(fatal(table.has_value())) << "the standard definition prepares";
+        const matter::Program& program = *table;
+        const std::uint32_t temperature = *program.channel("temperature");
+        auto world = rigid3::World::make({});
+        expect(fatal(world.has_value()));
+        (void)world->add({.kind = rigid3::Kind::fixed, .at = {0, -0.5f, 0}}, rigid3::Shape::box({20, 0.5f, 20}));
+        // A crate of 1 m (600 kg: 12 units of 50 kg, a cube of them showing 12^⅔ ≈ 5), a block of 0.3 m (16 kg: one
+        // unit), a plank 4 m × 0.1 m × 1 m (240 kg: 5 units, all of them at its faces).
+        const rigid3::BodyId crate = *world->add({.at = {0, 0.5f, 0}}, rigid3::Shape::box({0.5f, 0.5f, 0.5f}), {.density = 600});
+        const rigid3::BodyId block = *world->add({.at = {5, 0.15f, 0}}, rigid3::Shape::box({0.15f, 0.15f, 0.15f}), {.density = 600});
+        const rigid3::BodyId plank = *world->add({.at = {10, 0.05f, 0}}, rigid3::Shape::box({2, 0.05f, 0.5f}), {.density = 600});
+        auto objects = rigid3::Objects::make(program, {.ambient = *program.material("air")});
+        expect(fatal(objects.has_value()));
+        const std::array bodies{crate, block, plank};
+        for (const rigid3::BodyId body : bodies) (void)objects->add(body, *program.material("wood"));
+        std::array<int, 3> out{0, 0, 0};
+        for (int step = 1; step <= 2400 && std::ranges::count(out, 0) > 0; ++step) {
+            world->step();
+            for (const rigid3::BodyId body : bodies)  // held at a torch's heat for the first second, alike
+                if (step < 60 && *objects->material(body) == *program.material("wood"))
+                    (void)objects->set(body, temperature, std::max(*objects->get(body, temperature), stored(program, temperature, 900)));
+            expect(fatal(objects->step(*world).has_value()));
+            for (std::size_t at = 0; at < bodies.size(); ++at)
+                if (!out[at] && *objects->material(bodies[at]) != *program.material("wood")) out[at] = step;
+        }
+        std::println("burned out: the crate at step {} ({:.1f} s), the block at {} ({:.1f} s), the plank at {} ({:.1f} s)", out[0], out[0] / 60.0, out[1], out[1] / 60.0, out[2], out[2] / 60.0);
+        expect(fatal(gt(out[0], 0) && gt(out[1], 0) && gt(out[2], 0))) << "each burned out";
+        // The block is one unit: its 400 of fuel at 1 a step. The crate has 12 units' fuel burned over 5 at a time:
+        // 960 steps. The plank shows all it has: as fast as the block.
+        expect(ge(out[0], 900) && le(out[0], 1020)) << "the crate: 400 × 12 ÷ 5 steps of burning";
+        expect(ge(out[1], 380) && le(out[1], 460)) << "the block: 400 steps";
+        expect(lt(std::abs(out[2] - out[1]), 30)) << "the plank burns as fast as the block: all of it shows";
+    };
+
     "in the air of a field: a burning crate warms the air over it, and its updraft lifts a sheet of cloth held over it (the emergence set's 9, in 3D)"_test = [] {
         const auto table = matter::standard();
         expect(fatal(table.has_value())) << "the standard definition prepares";

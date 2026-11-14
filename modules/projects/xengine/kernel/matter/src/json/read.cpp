@@ -119,7 +119,7 @@ struct Parsed {
     if (const Node columns = root["columns"]) {
         if (!columns.is_object()) reader.wrong(columns, "`columns` is an object: each property by its name");
         for (const auto& [name, node] : columns.members()) {
-            static constexpr std::array<std::string_view, 7> column_keys{"kind", "unit", "doc", "least", "most", "default", "fraction"};
+            static constexpr std::array<std::string_view, 8> column_keys{"kind", "unit", "doc", "least", "most", "default", "fraction", "extensive"};
             if (!node.is_object()) {
                 reader.wrong(node, std::format("column `{}` is an object", name));
                 continue;
@@ -144,6 +144,10 @@ struct Parsed {
                 column.most = reader.number(node["most"], "`most`").value_or(4294967295.0);
                 column.initial = reader.number(node["default"], "`default`").value_or(column.least);
                 column.fraction = reader.whole(node["fraction"], "`fraction`").value_or(0);
+                if (const Node extensive = node["extensive"]) {
+                    if (const auto value = extensive.boolean()) column.extensive = *value;
+                    else reader.wrong(extensive, "`extensive` is true or false");
+                }
             }
             definition.columns.push_back(std::move(column));
         }

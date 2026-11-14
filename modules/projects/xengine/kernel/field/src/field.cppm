@@ -51,6 +51,7 @@ struct Guests {
     std::span<const Vec3>       at;
     std::uint32_t               weight = 1;
     std::span<const std::uint32_t> capacity;  // how much each holds (none: 1 each), as matter's Carrier says
+    std::span<const std::uint32_t> exposed;   // how much of each its reactions run over (none: all it holds)
 };
 
 class Field {
@@ -135,7 +136,7 @@ private:
     static constexpr std::uint32_t nobody = 0xffffffffu;
     std::vector<std::array<std::uint32_t, 6>> near_;  // each cell's neighbours: +x, −x, +y, −y, +z, −z (nobody: none)
     std::vector<matter::Pair>  pairs_;            // a step's: links, then guests
-    std::vector<std::uint32_t> capacity_;         // a step's: each instance's
+    std::vector<std::uint32_t> capacity_, exposed_;  // a step's: each instance's
     std::vector<std::uint32_t> input_, output_, before_;
     std::vector<std::uint32_t> firsts_;
     std::vector<matter::Event> events_;

@@ -321,6 +321,9 @@ std::expected<matter::Report, matter::Failure> Field::step(std::span<const Guest
     std::fill_n(capacity_.begin() + static_cast<std::ptrdiff_t>(count), coarse, static_cast<std::uint32_t>(block_cells));  // a coarse instance holds a block
     for (std::size_t group = 0; group < guests.size(); ++group)
         if (!guests[group].capacity.empty()) std::copy_n(guests[group].capacity.begin(), guests[group].at.size(), capacity_.begin() + firsts_[group]);
+    exposed_.assign(capacity_.begin(), capacity_.end());  // all of each, unless a group says
+    for (std::size_t group = 0; group < guests.size(); ++group)
+        if (!guests[group].exposed.empty()) std::copy_n(guests[group].exposed.begin(), guests[group].at.size(), exposed_.begin() + firsts_[group]);
     for (std::size_t group = 0; group < guests.size(); ++group) {
         const Guests& these = guests[group];
         const std::size_t many = these.at.size(), first = firsts_[group];
@@ -334,7 +337,7 @@ std::expected<matter::Report, matter::Failure> Field::step(std::span<const Guest
     }
     output_.resize(input_.size());
     events_.clear();
-    auto stepped = program_->step({instances, pairs_, true, capacity_}, input_, output_, workspace_, &events_);  // a cell and all in it: crowded
+    auto stepped = program_->step({instances, pairs_, true, capacity_, exposed_}, input_, output_, workspace_, &events_);  // a cell and all in it: crowded
     if (!stepped) return stepped;
     for (std::size_t channel = 0; channel < channels; ++channel) {
         std::copy_n(output_.begin() + static_cast<std::ptrdiff_t>(channel * instances), count, state_.begin() + static_cast<std::ptrdiff_t>(channel * count));
@@ -413,7 +416,7 @@ void Field::move_wind() {
 std::optional<matter::Why> Field::why(std::uint32_t instance) const {
     const std::size_t channels = program_->channels().size();
     if (before_.empty() || instance >= before_.size() / channels) return std::nullopt;
-    return program_->why({before_.size() / channels, pairs_, true, capacity_}, before_, instance);
+    return program_->why({before_.size() / channels, pairs_, true, capacity_, exposed_}, before_, instance);
 }
 
 std::uint64_t Field::state_hash() const noexcept {

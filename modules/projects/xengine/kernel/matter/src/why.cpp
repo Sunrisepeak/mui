@@ -90,8 +90,9 @@ Why Program::why(Carrier carrier, std::span<const std::uint32_t> input, std::siz
         }
     }
     // 3 Its properties as its state leaves them, every law judged, the commit.
-    const std::span<const std::uint32_t> written(values_.data() + material * width, width);
-    out.properties.assign(written.begin(), written.end());
+    std::vector<std::uint32_t> written(width, 0);  // as the material says, its extensive ones scaled by the carrier
+    if (const auto read = scaled(carrier, instance, material, written); read.data() != written.data()) std::ranges::copy(read, written.begin());
+    out.properties = written;
     const auto judged = [&](std::uint32_t index, std::span<const std::uint32_t> properties) {
         const Law& law = laws_[index];
         Judged judgement{.law = index, .holds = true};

@@ -7,7 +7,7 @@
 // shell's virtual time runs no animation frames: a program paced by them
 // stops there, so this one runs in real time.)
 //
-//   CHROME=<chromium> [CHROME_FLAGS=…] node tools/ci/drive-page.mjs <url> <out.png> [seconds] [width] [height] [script]
+//   CHROME=<chromium> [CHROME_FLAGS=…] [CLICK=x,y] node tools/ci/drive-page.mjs <url> <out.png> [seconds] [width] [height] [script]
 //   CHROME=… node tools/ci/drive-page.mjs 'http://localhost:8000/#/overview' overview.png 8
 //   CHROME=… node tools/ci/drive-page.mjs http://localhost:8000/ f.png 6 1280 800 \
 //       "window.omui.act('main/bar/nav/to_features', 'activate').then(r => r.exitCode)"
@@ -32,6 +32,12 @@ await b.call('Runtime.enable');
 await b.call('Emulation.setDeviceMetricsOverride', { width: +w, height: +h, deviceScaleFactor: 1, mobile: false });
 await b.call('Page.navigate', { url });
 await sleep(+secs * 1000);
+// CLICK=x,y: a person's click there first (trusted, as DevTools gives it): what lets a page start its sound.
+if (process.env.CLICK) {
+  const [x, y] = process.env.CLICK.split(',').map(Number);
+  for (const type of ['mousePressed', 'mouseReleased']) await b.call('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1 });
+  await sleep(1500);
+}
 if (script) { const r = await b.call('Runtime.evaluate', { expression: script, awaitPromise: true, returnByValue: true }); logs.push('EVAL ' + JSON.stringify(r.result?.result?.value ?? r.result).slice(0, 2000)); await sleep(3000); }
 const shot = await b.call('Page.captureScreenshot', { format: 'png' });
 writeFileSync(out, Buffer.from(shot.result.data, 'base64'));

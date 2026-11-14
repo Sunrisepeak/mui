@@ -169,7 +169,7 @@ UTest cases{"agent.contract", [] {
     "a subject that keeps the contract passes every case"_test = [&whole] {
         const auto tally = counted(whole);
         expect(tally.ok()) << tally.text();
-        expect(eq(tally.count(Status::passed), contract::case_count()) && contract::case_count() >= 14u) << "all eight properties and the two norms over them, none skipped";
+        expect(eq(tally.count(Status::passed), contract::case_count()) && contract::case_count() >= 15u) << "all eight properties and the three norms over them, none skipped";
         expect(contract::unsupported(everything).empty());
     };
 

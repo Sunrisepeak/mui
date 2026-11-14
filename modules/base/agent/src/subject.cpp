@@ -173,6 +173,34 @@ void SubjectSession::request(std::string_view line, const Reply& reply) {
         answer.result();
         return;
     }
+    // `find`: what answers an intent, across the subjects.
+    if (request.op == "find") {
+        const auto query = request["q"].text();
+        if (!query || query->empty())
+            return answer.fail(openas::error_code::invalid_argument, "`find` says what is wanted, in words: `q`", openas::exit_code::failed,
+                               ways({way_out("an intent in a few words", R"({"op":"find","q":"what can I read here"})"), way_out("who is here", who_is_here)}));
+        const auto limit = static_cast<std::size_t>(std::clamp<std::int64_t>(request["limit"].integer().value_or(5), 1, 20));
+        std::string out = "{\"found\":[";
+        bool first = true;
+        for (const Found& found : find(subjects_, *query, limit)) {
+            std::string sent = "[";
+            for (std::size_t index = 0; index < found.requests.size(); ++index) sent += std::format("{}{}", index ? "," : "", found.requests[index]);
+            out += std::format("{}{{\"kind\":{},\"subject\":{},\"name\":{},\"summary\":{},\"requests\":{}]}}", first ? "" : ",", json_text(found.kind), json_text(found.subject),
+                               json_text(found.name), json_text(found.text), sent);
+            first = false;
+        }
+        out += "]";
+        // Nothing found is answered with where to look: each subject, described.
+        if (first) {
+            out += ",\"next\":[";
+            for (std::size_t index = 0; index < subjects_.size(); ++index)
+                out += std::format("{}{}", index ? "," : "", way_out(std::format("what `{}` can do, and the tasks to begin with", subjects_[index]->name()), describing_subject(subjects_[index]->name())));
+            out += "]";
+        }
+        answer.data(out + "}");
+        answer.result();
+        return;
+    }
     // `describe`: what one of ours can do, in tiers — a subject briefly, one operation whole, the whole listing.
     if (request.op == "describe") {
         const auto operation = request["operation"].text();

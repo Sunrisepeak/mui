@@ -355,6 +355,58 @@ void errors_next(const Probe& probe, Check& check) {
     check.evidence("lacking", std::to_string(lacking));
 }
 
+// 12 what it can do is found by intent: asked for in its own words, each operation and task is among the first.
+void find_own(const Probe& probe, Check& check) {
+    const auto subject = probe.make();
+    SubjectSession session({subject.get()});
+    const std::uint64_t before = subject->state_hash();
+    // Where `name` stands in what a query finds (from 1; 0: not among them), and that each has requests.
+    const auto place = [&](std::string_view query, std::string_view kind, std::string_view name) -> std::size_t {
+        const Answered answered = ask(session, std::format(R"({{"op":"find","q":{},"limit":3}})", json_text(query)));
+        auto parsed = mlibs::json::Document::parse(answered.data, "record");
+        if (!check.that(answered.exit == 0 && parsed.has_value(), std::format("`find` answers ({})", query))) return 0;
+        const auto found = parsed->root()["data"]["found"];
+        std::size_t at = 0;
+        for (std::size_t index = 0; index < found.size(); ++index) {
+            check.that(found[index]["requests"].size() > 0 && !found[index]["summary"].text().value_or("").empty(), std::format("what `find` gives has a line and requests ({})", query));
+            if (!at && found[index]["kind"].text() == kind && found[index]["name"].text() == name) at = index + 1;
+        }
+        return at;
+    };
+    std::size_t first = 0, asked = 0;
+    for (const mlibs::control::CatalogEntry& entry : subject->operations()) {
+        const std::size_t at = place(entry.summary, "operation", entry.operation.name);
+        check.that(at != 0, std::format("`{}` is among the first three found by what it says it does", entry.operation.name));
+        first += at == 1;
+        ++asked;
+    }
+    for (const mlibs::control::Task& task : subject->guide().tasks) {
+        const std::size_t at = place(task.summary, "task", task.name);
+        check.that(at != 0, std::format("task `{}` is among the first three found by what it gets done", task.name));
+        first += at == 1;
+        ++asked;
+    }
+    // What its content names is found by name, and leads to a request of the catalog.
+    const std::vector<Term> terms = subject->terms();
+    for (std::size_t index = 0; index < std::min<std::size_t>(terms.size(), 8); ++index) {
+        check.that(place(terms[index].name, terms[index].kind, terms[index].name) != 0, std::format("{} `{}` is found by its name", terms[index].kind, terms[index].name));
+        check.that(entry_of(*subject, operation_of(terms[index].request)) != nullptr, std::format("{} `{}` leads to a request of the catalog", terms[index].kind, terms[index].name));
+    }
+    // Nothing found says so, and where to look.
+    const Answered nothing = ask(session, R"({"op":"find","q":"zzqxv wwkpj"})");
+    if (auto parsed = mlibs::json::Document::parse(nothing.data, "record"); check.that(nothing.exit == 0 && parsed.has_value(), "words nothing here has are answered, not failed")) {
+        const auto data = parsed->root()["data"];
+        check.that(data["found"].size() == 0 && data["next"].size() > 0, "nothing found, and where to look instead (`next`)");
+        for (const auto& way : data["next"].items()) check.that(ask(session, way["request"].dump()).exit == 0, std::format("{} runs as given", way["request"].dump()));
+    }
+    const Answered lacking = ask(session, R"({"op":"find"})");
+    check.that(lacking.code == openas::error_code::invalid_argument && !lacking.next.empty(), "`find` without what is wanted is `invalid-argument`, with a way out");
+    check.equal(hex(subject->state_hash()), hex(before), "finding touched nothing");
+    check.evidence("asked", std::to_string(asked));
+    check.evidence("first", std::to_string(first));
+    check.evidence("terms", std::to_string(terms.size()));
+}
+
 struct Entry {
     std::string_view              id;
     Level                         level;
@@ -362,7 +414,7 @@ struct Entry {
     void (*body)(const Probe&, Check&);
 };
 
-// The eight properties and the norms over them (D-186: 9 it guides itself, 10 every error carries a way out), as cases.
+// The eight properties and the norms over them (D-186: 9 it guides itself, 10 every error carries a way out, 12 found by intent), as cases.
 const std::vector<Entry>& entries() {
     static const std::vector<Entry> all{
         // 1 one source: what it can do is its catalog; what can be named has a stable address.
@@ -389,6 +441,8 @@ const std::vector<Entry>& entries() {
         {"agent.guide.runs", Level::semantic, {}, guide_runs},
         // 10 every error carries a way out.
         {"agent.errors.next", Level::semantic, {}, errors_next},
+        // 12 what it can do is found by intent.
+        {"agent.find.own", Level::semantic, {}, find_own},
     };
     return all;
 }

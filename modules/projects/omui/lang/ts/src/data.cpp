@@ -95,6 +95,8 @@ export interface Operation {
     undoable?: boolean;
     /** Its arguments as they are sent, the plainest first (`{}`: none): `describe` shows them as requests. */
     examples?: Record<string, unknown>[];
+    /** Words an intent may use for it that the summary does not (`"fire"` for a heat): `find` reads them. */
+    keywords?: string[];
 }
 /** A request as it is sent: an operation of the catalog by its whole name, and its arguments. */
 export type Step = { op: string } & Record<string, unknown>;

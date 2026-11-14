@@ -194,6 +194,8 @@ struct CatalogEntry {
     // Requests of it as they are sent (a JSON object a line), the plainest first: what `describe` shows with
     // the operation, and what a refused or malformed request is answered with (D-186).
     std::span<const std::string_view> examples;
+    // Words an intent may use for it that its summary does not ("fire" for a heat), a space between: `find` reads them.
+    std::string_view keywords;
 };
 // A task to begin with: what it gets done, and the requests that do it, in order, each as it is sent.
 struct Task {

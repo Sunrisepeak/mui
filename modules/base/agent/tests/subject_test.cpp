@@ -26,7 +26,7 @@ public:
         static constexpr std::array<control::CatalogEntry, 4> all{{
             {{"counter.read", openas::Effect::read, false}, "The count", {}, "json", control::Cost::instant, "", false, false, false},
             {{"counter.add", openas::Effect::reversible, false}, "Adds to the count", add_parameters, "json", control::Cost::instant, "counter.add with the opposite", false, false, false},
-            {{"counter.reset", openas::Effect::irreversible, false}, "Forgets the count", {}, "json", control::Cost::instant, "", false, false, false},
+            {{"counter.reset", openas::Effect::irreversible, false}, "Forgets the count", {}, "json", control::Cost::instant, "", false, false, false, {}, "zero clear"},
             {{"counter.set", openas::Effect::reversible, false}, "Sets the count", set_parameters, "json", control::Cost::instant, "counter.set to what it was", false, false, false, set_examples},
         }};
         return all;
@@ -36,6 +36,7 @@ public:
         static constexpr std::array<control::Task, 1> tasks{{{"count-up", "Add to the count and read it", steps}}};
         return {"A count.", tasks};
     }
+    std::vector<agent::Term> terms() const override { return {{"page", "three", "The page the counter is on", R"({"op":"counter.read"})"}}; }
     std::uint64_t state_hash() const override { return static_cast<std::uint64_t>(count) + 1; }
     void operate(std::string_view operation, const agent::Request& request, agent::Answer& answer) override {
         ++operated;
@@ -132,6 +133,36 @@ UTest cases{"agent.subject", [] {
         expect(eq(whole["examples"].size(), std::size_t{1}));
         expect(eq(ask(session, whole["examples"][0].dump()).exit_code(), std::int64_t{0}) && eq(counter.count, std::int64_t{3}));
         expect(!ask(session, R"({"op":"describe","operation":"counter.read"})").records[0].root()["data"]["examples"]) << "none declared, none shown";
+    };
+
+    "what is here is found by intent: operations, tasks and what a subject's content names, the best first, each with requests (D-186)"_test = [] {
+        Counter counter;
+        agent::SubjectSession session({&counter});
+        const auto names = [&](std::string_view query) {
+            std::vector<std::string> out;
+            const auto found = ask(session, std::format(R"({{"op":"find","q":"{}"}})", query));
+            for (const auto& each : found.records[0].root()["data"]["found"].items()) out.push_back(each["kind"].text().value_or("") + " " + each["name"].text().value_or(""));
+            return out;
+        };
+        using Names = std::vector<std::string>;
+        expect(names("forget the count").front() == "operation counter.reset") << "the word only it has outweighs the one all have";
+        expect(names("adding").front() == "operation counter.add") << "a word's ending does not matter";
+        expect(names("I want to add to it and read").front() == "task count-up") << "a task by what it gets done";
+        expect(names("ZERO") == Names{"operation counter.reset"}) << "a keyword: a word an intent uses that the summary does not";
+        expect(names("the page I am on") == Names{"page three"}) << "what the content names (terms)";
+        const auto found = ask(session, R"({"op":"find","q":"set the count"})");
+        const auto best = found.records[0].root()["data"]["found"][0];
+        expect(best["name"].text() == "counter.set" && best["subject"].text() == "counter" && best["requests"][0].dump() == R"({"op":"counter.set","to":3})") << "its example, to send as it is";
+        const auto task = ask(session, R"({"op":"find","q":"count up"})");
+        expect(eq(task.records[0].root()["data"]["found"][0]["requests"].size(), std::size_t{2})) << "a task's steps";
+        const auto read = ask(session, R"({"op":"find","q":"read","limit":1})");
+        expect(eq(read.records[0].root()["data"]["found"].size(), std::size_t{1}));
+        expect(read.records[0].root()["data"]["found"][0]["requests"][0].dump() == R"({"op":"describe","operation":"counter.read"})") << "no example: its description";
+        // Nothing found: where to look. Nothing asked: said so.
+        const auto nothing = ask(session, R"({"op":"find","q":"xyzzy"})");
+        expect(eq(nothing.exit_code(), std::int64_t{0}) && nothing.records[0].root()["data"]["next"][0]["request"].dump() == R"({"op":"describe","subject":"counter"})");
+        expect(ask(session, R"({"op":"find"})").error() == "invalid-argument");
+        expect(eq(counter.operated, 0)) << "finding reaches no subject's state";
     };
 
     "every error carries its ways out, requests to send as they are (D-186)"_test = [] {

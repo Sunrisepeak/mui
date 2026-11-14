@@ -34,6 +34,7 @@ struct Operation {
     bool delegated = false;
     std::vector<OpParameter> parameters;
     std::vector<std::string> examples;  // requests of it, each a JSON object on one line
+    std::vector<std::string> keywords;  // words an intent may use for it that its summary does not
     int line = 0;
 };
 // A task to begin with (D-186): the requests that do it, in order, each a JSON object on one line.

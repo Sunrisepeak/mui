@@ -44,6 +44,7 @@ export default defineOps({
     },
     {
       name: "matter.place",
+      keywords: ["put", "add", "build", "draw", "create", "wall", "remove", "erase"],
       effect: "reversible",
       summary: "Makes a region of a material anew — every channel as a new instance of it has — in one frame, recorded with who placed it",
       params: [
@@ -56,6 +57,7 @@ export default defineOps({
     },
     {
       name: "matter.apply",
+      keywords: ["fire", "burn", "heat", "cool", "freeze", "wet", "dry", "charge", "change"],
       effect: "reversible",
       summary: "A quantity applied to a region — a channel set to, raised by or lowered by an amount in its unit (heat: temperature add 400) — in one frame, recorded with who applied it",
       params: [
@@ -71,6 +73,7 @@ export default defineOps({
     },
     {
       name: "matter.explode",
+      keywords: ["blast", "bomb", "blow", "break", "destroy", "shatter"],
       examples: [{ cell: [5, 3], radius: 2, pressure: 40000, heat: 900 }],
       effect: "reversible",
       summary: "An explosion at a cell: a pressure over a disc and a heat at its middle — each row of it an edit of the field's, recorded with who made it. What follows is the laws' — what is brittle shatters, what is loose is thrown, what burns is lit; nothing is turned into anything by the operation",
@@ -87,6 +90,7 @@ export default defineOps({
     },
     {
       name: "matter.heat",
+      keywords: ["fire", "burn", "ignite", "light", "hot", "warm", "melt", "boil"],
       examples: [{ cell: [5, 3], radius: 1, kelvin: 900 }],
       effect: "reversible",
       summary: "A temperature set over the square about a cell, recorded with who set it",
@@ -101,6 +105,7 @@ export default defineOps({
     },
     {
       name: "matter.pour",
+      keywords: ["fill", "flood", "spill", "liquid", "add"],
       examples: [{ material: "water", cell: [5, 0], radius: 1 }],
       effect: "reversible",
       summary: "A material placed about a cell wherever there is only gas — nothing that is there is replaced — each cell an edit of the field's, recorded with who poured it; says how many cells it filled",
@@ -116,6 +121,7 @@ export default defineOps({
     },
     {
       name: "matter.explain",
+      keywords: ["why", "cause", "reason", "who", "blame"],
       effect: "read",
       summary: "Why a cell is what it is: what is on record of it, the latest first — the law that held (its name, its condition, its place in the definition), what the law read, and the neighbours' parts: who gave what it needed, who took it away, what was beside it when something ran short, each followed to its own cause and to who placed or applied what — and, for a law named, whether it holds now and which comparison fails",
       params: [
@@ -129,6 +135,7 @@ export default defineOps({
     },
     {
       name: "matter.events",
+      keywords: ["log", "history", "happened", "timeline"],
       effect: "read",
       summary: "What happened, oldest first: cells that became another material (by which law), named states begun and ended (ignite, go_out), edits and their actors — since a frame, of a name, in a region",
       params: [
@@ -142,6 +149,7 @@ export default defineOps({
     },
     {
       name: "matter.branch",
+      keywords: ["predict", "preview", "future", "simulate", "try", "whatif"],
       effect: "read",
       summary: "What would be: the field some steps ahead — a material placed or a quantity applied first when given — as the materials of a region with their change, and the events that would happen, counted by name; the field itself untouched",
       params: [

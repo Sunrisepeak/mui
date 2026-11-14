@@ -12,9 +12,11 @@
 //                                                     send as it is), and its operations briefly: name, effect, a line
 //   → {"op":"describe","operation":"world.act"}       one of them whole: its parameters, cost, how it is undone, examples
 //   → {"op":"describe","subject":"world","detail":"full"}   the whole catalog (its listing: <product>.ops.json)
+//   → {"op":"find","q":"set something on fire"}       what answers an intent, across the subjects: operations, tasks,
+//                                                     what a subject's content names — each with requests to send
 //   → {"op":"world.observe","re":7, …}                one of them — decided first (mlibs.control, openas)
 //
-// The session's own two requests have no dot in their names; a subject's
+// The session's own three requests have no dot in their names; a subject's
 // operations are addressed under it (`world.…`), so neither can take the
 // other's name.
 //
@@ -57,6 +59,12 @@ struct Capabilities {
     bool history = false;      // commits, branches, what was undone
 };
 
+// Something of a subject's content an agent may be looking for besides its operations and tasks — a
+// material, a law, a channel, a node: its kind, its name, a line of what it is, and a request that shows or uses it.
+struct Term {
+    std::string kind, name, text, request;
+};
+
 class Subject {
 public:
     virtual ~Subject() = default;
@@ -70,6 +78,8 @@ public:
     [[nodiscard]] virtual std::string_view listing() const noexcept { return {}; }
     // What it tells an agent that knows nothing of it: what it is, and the tasks to begin with (its catalog's `guide`).
     [[nodiscard]] virtual mlibs::control::Guide guide() const noexcept { return {}; }
+    // What `find` looks through besides the catalog: what its content names. Asked when a `find` is, never a frame.
+    [[nodiscard]] virtual std::vector<Term> terms() const { return {}; }
     // A hash of its whole state: the same state, the same hash. 0: it has none to give.
     [[nodiscard]] virtual std::uint64_t state_hash() const { return 0; }
     // One of its operations (its whole name), already decided: its data, then
@@ -85,6 +95,19 @@ struct SessionOptions {
     std::shared_ptr<const mlibs::control::Session> session;
     openas::Actor actor{openas::Kind::agent, {}, {}};
 };
+
+// What `find` found: an operation (its example, or its `describe`), a task (its steps), or a term of a subject's
+// content (its request). `score`: whole numbers, the same on every machine.
+struct Found {
+    std::string              kind, subject, name, text;
+    std::vector<std::string> requests;
+    std::uint64_t            score = 0;
+};
+// What answers an intent — a few words, or a sentence — across the subjects, the best first; of equals, as the
+// subjects list them. Words are matched as written (lowercase, without endings): no model, nothing learnt, the
+// same answer everywhere. A word in a name weighs most, then in what it says, then in its parameters and
+// keywords; a word few things have weighs more than one many have; what has more of the words wanted comes first.
+[[nodiscard]] std::vector<Found> find(std::span<Subject* const> subjects, std::string_view query, std::size_t limit = 5);
 
 // One connection's conversation with a process's subjects.
 class SubjectSession final : public Session {

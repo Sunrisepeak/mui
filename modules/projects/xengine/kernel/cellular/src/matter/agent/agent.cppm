@@ -130,6 +130,8 @@ public:
     [[nodiscard]] std::span<const mlibs::control::CatalogEntry> operations() const noexcept override { return catalog; }
     [[nodiscard]] std::string_view listing() const noexcept override { return xengine::cellular::matter_agent::listing; }
     [[nodiscard]] mlibs::control::Guide guide() const noexcept override { return xengine::cellular::matter_agent::guide; }
+    // What this world names, for `find`: its materials, channels and laws, each with the request that describes it.
+    [[nodiscard]] std::vector<mlibs::agent::Term> terms() const override;
     [[nodiscard]] std::uint64_t state_hash() const override { return field_->lattice_hash(); }
     void operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) override;
 

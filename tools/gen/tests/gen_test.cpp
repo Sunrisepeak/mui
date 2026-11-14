@@ -339,7 +339,7 @@ UTest cases{"gen", [] {
      "examples": [{"at": [1, 2]}]},
     {"name": "x.move", "effect": "reversible", "summary": "moves", "undo": "x.move back", "params": [
       {"name": "by", "type": "number"}, {"name": "note", "type": "string", "optional": true}]},
-    {"name": "x.rest", "effect": "read", "summary": "rests"}
+    {"name": "x.rest", "effect": "read", "summary": "rests", "keywords": ["sleep", "idle"]}
   ],
   "tasks": [
     {"name": "look-then-move", "summary": "Look at a place, move, look again", "steps": [
@@ -358,7 +358,9 @@ UTest cases{"gen", [] {
                                               "{\"look-then-move\", \"Look at a place, move, look again\", steps_look_then_move},",
                                               "inline constexpr mlibs::control::Guide guide{\"A thing to look at and move.\", guide_tasks};"})
             expect(table.contains(wanted)) << wanted << "\n" << table;
+        expect(table.contains("examples_x_rest, \"sleep idle\"},")) << "words an intent may use for it: what find reads";
         const std::string listing = gen::emit_catalog_json(*catalog);
+        expect(listing.contains(R"("keywords": ["sleep", "idle"],)"));
         expect(listing.contains(R"("examples": [{"op":"x.look","at":[1,2]}],)") && listing.contains(R"("tasks": [)") && listing.contains(R"({"name": "look-then-move", "summary": "Look at a place, move, look again", "steps": [)"))
             << listing;
         expect(gen::emit_catalog_markdown(*catalog).contains("## Tasks to begin with") && gen::emit_catalog_markdown(*catalog).contains("**look-then-move** — Look at a place, move, look again"));

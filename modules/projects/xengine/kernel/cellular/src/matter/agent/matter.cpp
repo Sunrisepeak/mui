@@ -577,6 +577,25 @@ std::string Matter::said(const Record& record, std::span<const Record> among, in
     return out + "}";
 }
 
+std::vector<mlibs::agent::Term> Matter::terms() const {
+    const matter::Program& program = *program_;
+    std::vector<mlibs::agent::Term> out;
+    for (std::uint32_t material = 0; material < program.materials().size(); ++material) {
+        const std::string& name = program.materials()[material].name;
+        out.push_back({"material", name, std::format("A material of this world, a {}", matter::phase_names[static_cast<std::size_t>(program.phase(material))]),
+                       std::format("{{\"op\":\"matter.describe\",\"material\":{}}}", json_text(name))});
+    }
+    for (const auto& channel : program.channels())
+        out.push_back({"channel", channel.name, std::format("A quantity every cell has{}{}{}{}", channel.unit.empty() ? "" : ", in ", channel.unit, channel.doc.empty() ? "" : ": ", channel.doc), R"({"op":"matter.describe"})"});
+    for (const matter::Law& law : program.laws()) {
+        std::string text = std::format("A law of this world ({})", matter::law_kind_names[static_cast<std::size_t>(law.kind)]);
+        if (!law.text.empty()) text += std::format(", when {}", law.text);
+        if (law.event) text += std::format("; its event: {}", program.event_names()[*law.event]);
+        out.push_back({"law", law.name, std::move(text), std::format("{{\"op\":\"matter.describe\",\"law\":{}}}", json_text(law.name))});
+    }
+    return out;
+}
+
 void Matter::operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) {
     const auto invalid = [&](std::string_view why) { answer.fail(openas::error_code::invalid_argument, why); };
     const matter::Program& program = *program_;

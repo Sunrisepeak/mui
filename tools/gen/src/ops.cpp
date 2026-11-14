@@ -56,6 +56,11 @@ std::string json_string(std::string_view text) {
     }
     return out + "\"";
 }
+std::string joined(const std::vector<std::string>& words) {
+    std::string out;
+    for (const std::string& word : words) out += (out.empty() ? "" : " ") + word;
+    return out;
+}
 std::string identifier(std::string_view name) {
     std::string out;
     for (const char c : name)
@@ -211,6 +216,12 @@ std::expected<Catalog, std::vector<std::string>> read_root(const mlibs::json::Do
         for (const Node& entry : head["operations"].items()) {
             if (!entry.is_object()) continue;
             Operation& operation = catalog.operations[index++];
+            for (const Node& keyword : entry["keywords"].items()) {
+                const std::string word = text_or(keyword);
+                if (word.empty() || !std::ranges::all_of(word, [](char c) { return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-'; }))
+                    problem(at(keyword), std::format("`{}`: a keyword is one lowercase word (`{}`)", operation.name, word));
+                operation.keywords.push_back(word);
+            }
             for (const Node& example : entry["examples"].items()) {
                 if (!example.is_object()) {
                     problem(at(example), std::format("`{}`: an example is its arguments, an object ({{}} for none)", operation.name));
@@ -350,7 +361,7 @@ std::string emit_catalog_cpp(const Catalog& catalog, std::string_view source) {
                        catalog.doc, catalog.operations.size());
     for (const auto& operation : catalog.operations)
         out +=
-            std::format("    {{{{{}, {}, {}}}, {}, {}, {}, mlibs::control::Cost::{}, {}, {}, {}, {}, {}}},\n",
+            std::format("    {{{{{}, {}, {}}}, {}, {}, {}, mlibs::control::Cost::{}, {}, {}, {}, {}, {}{}}},\n",
                         cpp_string(operation.name), effect_enum(operation.effect),
                         operation.person ? "true" : "false", cpp_string(operation.summary),
                         operation.parameters.empty() ? std::string("{}")
@@ -359,7 +370,8 @@ std::string emit_catalog_cpp(const Catalog& catalog, std::string_view source) {
                         operation.cancellable ? "true" : "false",
                         operation.undoable ? "true" : "false",
                         operation.delegated ? "true" : "false",
-                        operation.examples.empty() ? std::string("{}") : "examples_" + identifier(operation.name));
+                        operation.examples.empty() ? std::string("{}") : "examples_" + identifier(operation.name),
+                        operation.keywords.empty() ? std::string() : ", " + cpp_string(joined(operation.keywords)));
     out += "}};\n";
     // What an agent that knows nothing of it begins with (D-186): what it is, and its tasks.
     for (const auto& task : catalog.tasks) {
@@ -406,6 +418,12 @@ std::string emit_catalog_json(const Catalog& catalog) {
             examples += std::format("{}{}", examples.empty() ? "\n     \"examples\": [" : ", ", example);
         if (!examples.empty())
             examples += "],";
+        if (!operation.keywords.empty()) {
+            std::string words;
+            for (const auto& word : operation.keywords)
+                words += std::format("{}{}", words.empty() ? "" : ", ", json_string(word));
+            examples += std::format("\n     \"keywords\": [{}],", words);
+        }
         out += std::format("    {{\"name\": {}, \"description\": {}, \"effect\": {}, \"person\": "
                            "{}, \"delegated\": {}, \"cost\": {}, \"undo\": {}, "
                            "\"undoable\": {}, \"cancellable\": {}, \"result\": {},{}\n     \"inputSchema\": {{\"type\": \"object\", "

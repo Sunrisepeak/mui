@@ -73,8 +73,9 @@ private:
 // A connection's conversation with an application: openmui.tree@0.1 as ever ({"op":"snapshot"}), and — on the
 // same lines — the agent kernel's requests for everything the process holds: `subjects`, `describe` a subject
 // or an operation, and any operation by its whole name (`ui.snapshot`, `world.observe`, `frame.at`). The two
-// cannot be taken for each other: the protocol's requests have no dot in their names, and its own `describe`
-// names neither a `subject` nor an `operation`.
+// cannot be taken for each other: the protocol's requests have no dot in their names; its own `describe` names
+// neither a `subject` nor an `operation`; its `find` takes a query that is an object (the kernel's `find` takes
+// what is wanted, in words); and it has no `log` or `help` (its own are `logs`, `describe`).
 //
 // The interface is the first subject; the rest are the runtime's (Runtime::subjects: a game shown in a
 // viewport, the host's frame). Each is decided by the application's own access, in this connection's session.
@@ -85,10 +86,14 @@ public:
     void request(std::string_view line, const mlibs::agent::Reply& reply) override;
     void poll() override { protocol_.poll(); }
     [[nodiscard]] Protocol& protocol() noexcept { return protocol_; }
+    // Where what is asked goes on record (`log`): the connection's own book, or the one its host gives every
+    // connection, so that a request a connection (`omui agent call`) reads what the ones before it did.
+    void keep_facts_in(std::shared_ptr<mlibs::agent::Facts> facts) { facts_ = std::move(facts); }
 
 private:
     Runtime&         runtime_;
     std::string      default_actor_;
+    std::shared_ptr<mlibs::agent::Facts> facts_ = std::make_shared<mlibs::agent::Facts>();
     Protocol         protocol_;
     InterfaceSubject interface_;
 };

@@ -79,6 +79,14 @@ struct Model {
                        m.notes.set({});
                        return omui::Value{}.set("deleted", n);
                    }}},
+        // What an agent that has never seen the application can get done here, said by the application
+        // (D-186): `describe` lists them first, `find` finds them, the requests are sent as they are.
+        .tasks = {{"add-a-note", "Write a note in the box and add it to the list; the count under the list says how many there are",
+                   {{.node = "main/compose/draft", .action = "set_value", .args = omui::Value{}.set("value", "Buy oat milk")},
+                    {.node = "main/compose/add", .action = "activate"}}},
+                  {"see-what-deleting-everything-does",
+                   "Ask what deleting every note would do — it cannot be taken back, and asks for a person's answer — with nothing deleted",
+                   {{.verb = "notes.delete_all", .dry_run = true}}}},
     };
 }
 

@@ -141,6 +141,35 @@ static UTest cases{"agent.interface-subject", [] {
         expect(dark.data()["nodes"][0]["value"].dump() == "true") << dark.data().dump();
     };
 
+    "at an application's endpoint the kernel's own requests are reached: `log`, `find` in words, `help` — and the protocol's `find` is still its own"_test = [] {
+        register_base_components();
+        Page page;
+        // Two connections of one endpoint: a session each, one book of what was asked.
+        const auto book = std::make_shared<mlibs::agent::Facts>();
+        agent::ProcessSession first(page.rt, agent::ProtocolOptions{.app = "settings", .default_actor = "agent:reviewer"});
+        agent::ProcessSession second(page.rt, agent::ProtocolOptions{.app = "settings", .default_actor = "agent:reviewer"});
+        first.keep_facts_in(book), second.keep_facts_in(book);
+        const auto ask_of = [](agent::ProcessSession& session, std::string_view line) {
+            Answered out;
+            session.request(line, [&](std::string_view record) {
+                auto parsed = mlibs::json::Document::parse(record, "record");
+                expect(fatal(parsed.has_value())) << record;
+                out.records.push_back(std::move(*parsed));
+            });
+            return out;
+        };
+        expect(ask_of(first, R"({"op":"help"})").data()["subjects"][0]["name"].text() == "ui") << "asked first by one who knows nothing";
+        expect(eq(ask_of(first, R"({"op":"ui.act","node":"main/dark","action":"toggle"})").exit_code(), std::int64_t{0}));
+        // In words: the kernel's, across what the application names. As an object: the protocol's, over the tree.
+        const auto wanted = ask_of(second, R"({"op":"find","q":"share the settings as a file"})");
+        expect(wanted.data()["found"][0]["name"].text() == "settings.export" || wanted.data()["found"][0]["name"].text() == "export-with-the-dark-look") << wanted.data().dump();
+        const auto queried = ask_of(second, R"({"op":"find","q":{"role":"switch"}})");
+        expect(queried.error().empty() && queried.data().dump().contains("main/dark")) << queried.data().dump();
+        // What the first connection did, read by the second.
+        const auto logged = ask_of(second, R"({"op":"log"})");
+        expect(logged.error().empty() && logged.data().dump().contains("ui.act") && logged.data().dump().contains("main/dark")) << logged.data().dump();
+    };
+
     "found in a kernel session: who is here, then the protocol's own operations by their catalog names, answered in its own records"_test = [] {
         register_base_components();
         Shown shown;

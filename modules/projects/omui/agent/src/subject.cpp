@@ -117,12 +117,17 @@ ProcessSession::ProcessSession(Runtime& runtime, ProtocolOptions options)
       interface_(runtime, protocol_, {.traces_pixels = static_cast<bool>(options.pixel_owner)}) {}
 
 void ProcessSession::request(std::string_view line, const mlibs::agent::Reply& reply) {
-    // The kernel's requests: `subjects`, an operation by its whole name (a dot), `describe` a subject or an
-    // operation. Everything else — what is no request too — is the protocol's, answered as it always was.
+    // The kernel's requests: `subjects` (and `help`, which is asked first), an operation by its whole name (a
+    // dot), `describe` a subject or an operation, `log`, and `find` by what is wanted (a `q` in words; the
+    // protocol's `find` takes a query that is an object). Everything else — what is no request too — is the
+    // protocol's, answered as it always was. A cold start at an application found `log` and `find` answered by
+    // the protocol, which has neither: what `subjects` says is there must be.
     bool kernels = false;
     if (auto parsed = mlibs::json::Document::parse(line, "request"); parsed && parsed->root().is_object()) {
-        const std::string op = parsed->root()["op"].text().value_or("");
-        kernels = op == "subjects" || op.contains('.') || (op == "describe" && (parsed->root()["subject"] || parsed->root()["operation"]));
+        const mlibs::json::Node asked = parsed->root();
+        const std::string op = asked["op"].text().value_or("");
+        kernels = op == "subjects" || op == "help" || op == "log" || op.contains('.') || (op == "describe" && (asked["subject"] || asked["operation"])) ||
+                  (op == "find" && asked["q"].is_string());
     }
     if (!kernels) return protocol_.request(line, reply);
 
@@ -133,6 +138,7 @@ void ProcessSession::request(std::string_view line, const mlibs::agent::Reply& r
     options.access = runtime_.agent_access().control_binding();
     if (session) options.session = session->control_session();
     if (const auto actor = Actor::parse(default_actor_)) options.actor = to_openas(*actor);
+    options.facts = facts_;
     mlibs::agent::SubjectSession(std::move(subjects), std::move(options)).request(line, reply);
 }
 

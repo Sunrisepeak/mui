@@ -26,6 +26,7 @@ struct Endpoint::Impl {
     public:
         TreeSession(Impl& owner, Runtime& runtime, const ProtocolOptions& options) : owner_(owner), session_(runtime, options) {
             owner_.live.push_back(&session_.protocol());
+            session_.keep_facts_in(owner_.facts);  // one book for the endpoint: `log` reads what any connection asked
         }
         ~TreeSession() override { std::erase(owner_.live, &session_.protocol()); }
         void request(std::string_view line, const kernel::Reply& reply) override { session_.request(line, reply); }
@@ -39,6 +40,7 @@ struct Endpoint::Impl {
     Runtime&               runtime;
     EndpointOptions        options;
     std::vector<Protocol*> live;  // the sessions' protocols, for the input they hold; outlives the endpoint below
+    std::shared_ptr<kernel::Facts> facts = std::make_shared<kernel::Facts>();  // what was asked of the application's subjects, by any connection
     kernel::Endpoint       endpoint;
 
     Impl(Runtime& given, EndpointOptions asked)

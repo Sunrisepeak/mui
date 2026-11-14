@@ -34,6 +34,10 @@ UTest cases{"math.linear", [] {
         static_assert(scaled({1, 2, 3}, {2, 3, 4}) == Vec3{2, 6, 12} && mix(Vec3{0, 0, 0}, Vec3{2, 4, 8}, 0.25f) == Vec3{0.5f, 1, 2});
         expect(eq(length(Vec3{3, 4, 12}), 13.0f));
         expect(near_to(length(normalized(Vec3{3, -4, 12})), 1.0f) && normalized(Vec3{}) == Vec3{});
+        // In the plane, the same: 3-4-5, a direction of length 1, none invented for zero.
+        using mlibs::math::Vec2;
+        expect(length(Vec2{3, -4}) == 5.0f && normalized(Vec2{0, -2}) == Vec2{0, -1} && normalized(Vec2{}) == Vec2{});
+        static_assert(Vec2::no_padding && sizeof(Vec2) == 2 * sizeof(float));
         static_assert(Vec4{Vec3{1, 2, 3}, 1}.xyz() == Vec3{1, 2, 3});
     };
 

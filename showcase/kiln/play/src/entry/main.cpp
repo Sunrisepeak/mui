@@ -5,70 +5,22 @@
 //       their answers on standard output. With --session, the game goes on from where the file's requests
 //       left it: the game is a function of what it was asked, so the file is the game.
 //
-// Exit 0 done, 1 a request failed (said why), 2 a wrong command.
+// Exit 0 done, 1 a request failed (said why), 2 a wrong command. The program is the runtime's
+// (xengine.runtime.lines); what is Kiln's is the cavern it begins and what stands beside the game.
 import std;
-import openas;
 import mlibs.agent;
+import xengine.runtime.lines;
 import omui.showcase.kiln.headless;
-import mcpplibs.os;
-import mcpplibs.cmdline;
-
-namespace {
-
-namespace cmdline = mcpplibs::cmdline;
-using mlibs::agent::json_text;
-
-constexpr std::string_view usage = "usage: kiln-play run [--session FILE] [--tier human|assist] [--actor ACTOR]";
-
-int wrong(std::string_view text) {
-    std::println("{{\"ok\":false,\"error\":{},\"usage\":{}}}", json_text(text), json_text(usage));
-    return 2;
-}
-int failed(std::string_view text) {
-    std::println("{{\"ok\":false,\"error\":{}}}", json_text(text));
-    return 1;
-}
-
-int run(const cmdline::ParsedArgs& args) {
-    xengine::runtime::Options options{.keep = 3600};
-    if (const auto tier = args.value("tier")) {
-        if (*tier == "assist") options.tier = {.name = "assist", .reaction_steps = 0, .actions_per_second = 0, .full_view = true};
-        else if (*tier != "human") return wrong("--tier is human (as a person plays) or assist (shown everything, no limit)");
-    }
-    mlibs::agent::SessionOptions asked_by;
-    if (const auto actor = args.value("actor")) {
-        auto said = openas::parse(*actor);
-        if (!said) return wrong("--actor is an actor as openas writes one: agent:name, person:name");
-        asked_by.actor = std::move(*said);
-    }
-    auto begun = kiln::start(kiln::level::first());
-    if (!begun) return failed(begun.error());
-    kiln::Standalone game(std::move(*begun), options);
-    kiln::Causes causes(game);
-    mlibs::agent::SubjectSession session(kiln::subjects(game, &causes), std::move(asked_by));
-    const auto kept = args.value("session");
-    const auto conversed = mlibs::agent::converse(session, std::cin, std::cout, kept ? mcpplibs::os::fs::from_utf8(*kept) : std::filesystem::path());
-    if (!conversed) return failed(conversed.error());
-    return conversed->done ? 0 : 1;
-}
-
-cmdline::App command_line() {
-    using cmdline::App, cmdline::Option;
-    return App("kiln-play")
-        .description("Kiln without a window, for agents, playtests and CI: JSON lines in, records out, exit 0 done / 1 failed / 2 a wrong command")
-        .subcommand(App("run")
-                        .description("requests, a JSON line each, answered in records; the first cavern, from its beginning or from a session's file")
-                        .option(Option("session").takes_value().value_name("FILE").help("the requests so far: played again first, the new ones added"))
-                        .option(Option("tier").takes_value().value_name("TIER").help("human (default: what a person is shown, a person's reactions) or assist"))
-                        .option(Option("actor").takes_value().value_name("ACTOR").help("who asks: agent:name, person:name (an agent with no name when none)")));
-}
-
-}  // namespace
 
 int main(int argc, char** argv) {
-    const cmdline::App app = command_line();
-    auto parsed = app.parse(argc, argv);
-    if (!parsed) return parsed.error().is_error() ? wrong(parsed.error().message) : 0;
-    if (!parsed->has_subcommand()) return wrong("a command: run");
-    return run(parsed->subcommand()->get());
+    return xengine::runtime::play_over_lines<kiln::Play>(
+        argc, argv,
+        {.program = {.name = "kiln-play", .about = "Kiln without a window"},
+         .begin = [](std::optional<std::uint64_t>) { return kiln::start(kiln::level::first()); },
+         // The matter of the game's world beside the game, where the tier is shown it.
+         .subjects = [](kiln::Standalone& game, std::shared_ptr<void>& kept) {
+             auto causes = std::make_shared<kiln::Causes>(game);
+             kept = causes;
+             return kiln::subjects(game, causes.get());
+         }});
 }

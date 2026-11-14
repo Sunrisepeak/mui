@@ -1335,7 +1335,33 @@ def check_matter(root: Path) -> list[Problem]:
     return problems
 
 
+def check_readable(root: Path) -> list[Problem]:
+    """Every manifest is TOML: the rules below read them, and one that is not is a problem said with
+    its place, not the end of the lint in a traceback. The usual cause is a child dependency key
+    beside its parent, unquoted (`mlibs.agent` and `mlibs.agent.cts`: AGENTS §5)."""
+    problems = []
+    manifests = [root / "mcpp.toml"]
+    try:
+        manifests += [root / m / "mcpp.toml" for m in workspace_members(root)]
+    except tomllib.TOMLDecodeError:
+        pass  # the root's own: said below
+    for manifest in manifests:
+        if not manifest.exists():
+            continue
+        try:
+            tomllib.loads(manifest.read_text(encoding="utf-8"))
+        except tomllib.TOMLDecodeError as error:
+            line = getattr(error, "lineno", None)
+            where = manifest.relative_to(root).as_posix() + (f":{line}" if line else "")
+            problems.append(Problem("toml", where, f"is not TOML ({error}). Where a package and one below it are both dependencies "
+                                                       f"(`a.b` and `a.b.c`), the child's key is quoted: `\"a.b.c\" = …` (AGENTS §5)"))
+    return problems
+
+
 def run(root: Path) -> list[Problem]:
+    unreadable = check_readable(root)
+    if unreadable:
+        return unreadable  # the other rules read the manifests
     return (check_sources(root) + check_manifests(root) + check_projects(root) + check_layout(root) + check_licences(root) + check_platforms(root) + check_pins(root)
             + check_documents(root) + check_media(root) + check_closures(root) + check_operations(root) + check_skills(root) + check_agent_surface(root)
             + check_lead(root) + check_typescript_data(root) + check_imports(root) + check_matter(root))
@@ -1345,6 +1371,7 @@ def self_test() -> int:
     """Each rule must reject a violation planted in a copy of a minimal tree."""
     cases = {
         "macros": ("modules/base/hanim/core/src/bad.cpp", "module x;\n#define BAD 1\n"),
+        "toml": ("modules/ui/core/mcpp.toml", "[package]\nnamespace = \"omui\"\nname = \"core\"\n[dependencies]\na.b = \"1\"\na.b.c = \"2\"\n"),
         "headers": ("modules/ui/core/src/util.h", "int f();\n"),
         "naming": ("modules/ui/core/src/a.cpp", "namespace mui { }\n"),
         "exceptions": ("modules/base/hanim/core/src/e.cpp", "void f() { throw 1; }\n"),

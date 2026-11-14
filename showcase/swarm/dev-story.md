@@ -74,7 +74,19 @@ By its report; each is a finding about what is below the game.
 | Why a game is over, in the runtime's answers | the view's `outcome` | the game's view is the right place; the runtime knows only `over` |
 | A picture | none | a host and a display list, as Kiln's `picture` |
 
-## 6. Self-review
+## 6. What changed below it afterwards
+
+Each from the two tables above, in the mainline, in the checkpoint after the one that added this directory:
+
+- `mlibs.math` has `length(Vec2)` and `normalized(Vec2)`, and `Vec2` says `no_padding`; `src/sim.cpp` uses the library's `length` (its own is gone).
+- The lint reports a manifest that is not TOML as a problem (rule `toml`: the file, what the parser said, and the quoting rule), and goes on to nothing else.
+- Kiln's manifest lost the needless quotes.
+- The program is the runtime's: `xengine.runtime`'s `lines` feature (`play_over_lines`). `play/src/entry/main.cpp` was 78 lines, a copy of Kiln's with the names changed; it is one call now, as Kiln's is.
+- `find` says what a control is (a button, an axis, the pointer) beside what it does.
+
+Not changed: a circle test in `mlibs.geom` (one game asks; the substitute is one line), and components of `xengine.world` seeing through their members (needs reflection).
+
+## 7. Self-review
 
 - It plays: the test's own player (aims at the nearest enemy, backs away from it) clears waves; a player that does nothing loses in 612 steps.
 - The difficulty is gentle: that player reaches wave 11 in a minute without losing a life, because enemies are always slower than the player.

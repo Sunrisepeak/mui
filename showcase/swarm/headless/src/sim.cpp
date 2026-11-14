@@ -12,9 +12,10 @@ namespace swarm {
 
 namespace {
 
+using mlibs::math::length;
+
 constexpr float per_step = 1.0f / static_cast<float>(steps_per_second);
 
-[[nodiscard]] float length(Vec2 vector) noexcept { return std::sqrt(dot(vector, vector)); }
 [[nodiscard]] float clamped(float value, float low, float high) noexcept { return value < low ? low : value > high ? high : value; }
 
 // Where the next enemy of a wave enters: just outside the side the wave comes from, somewhere along its middle

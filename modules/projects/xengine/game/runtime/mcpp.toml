@@ -22,6 +22,15 @@ kind = "lib"
 [build]
 sources = ["src/*.cppm"]
 
+# A game as a program played over lines (src/lines/, module xengine.runtime.lines): `<name> run --session FILE`.
+# A feature: a command line and standard input are the native systems', and the runtime also builds for the Web.
+[features]
+lines = { sources = ["src/lines/*.cppm", "src/lines/*.cpp"] }
+
+[feature-deps.lines]
+mcpplibs.os      = "0.4.4"
+mcpplibs.cmdline = "0.0.3"
+
 [dependencies]
 mlibs.agent      = { path = "../../../../base/agent" }
 mlibs.control    = { path = "../../../../base/control" }

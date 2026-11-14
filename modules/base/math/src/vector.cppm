@@ -14,6 +14,9 @@ export namespace mlibs::math {
 // Two components, single precision: a position, a velocity, an impulse, a direction in the plane.
 struct Vec2 {
     float x = 0, y = 0;
+    // Two floats and nothing between or after them: what stores or hashes one as bytes (a component
+    // of xengine.world) is told so here, once.
+    static constexpr bool no_padding = true;
     // Written out: a defaulted comparison here, used in a constant expression by an importer, ends
     // gcc 16.1.
     friend constexpr bool operator==(const Vec2& one, const Vec2& other) noexcept {
@@ -39,6 +42,12 @@ struct Vec2 {
 // `one`.
 [[nodiscard]] constexpr float cross(Vec2 one, Vec2 other) noexcept {
     return one.x * other.y - one.y * other.x;
+}
+[[nodiscard]] inline float length(Vec2 vector) noexcept { return std::sqrt(dot(vector, vector)); }
+// Of length 1; the zero vector stays zero (no direction is invented).
+[[nodiscard]] inline Vec2 normalized(Vec2 vector) noexcept {
+    const float size = length(vector);
+    return size > 0 ? vector * (1.0f / size) : Vec2{};
 }
 
 }  // namespace mlibs::math

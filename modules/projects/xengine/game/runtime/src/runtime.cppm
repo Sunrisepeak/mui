@@ -255,8 +255,14 @@ public:
     // What the game names, for `find`: its controls, each with the request that holds it.
     [[nodiscard]] std::vector<mlibs::agent::Term> terms() const override {
         std::vector<mlibs::agent::Term> out;
-        for (const Control& control : said_controls())
-            out.push_back({"control", std::string(control.name), std::string(control.summary), std::format("{{\"op\":\"world.act\",{}}}", held_alone(control))});
+        for (const Control& control : said_controls()) {
+            // And what it is — a button, an axis, the pointer — for one who asks what the buttons mean.
+            const std::string what = control.button >= 0 ? std::format("button {}", control.button)
+                                     : control.axis >= 0 ? std::format("axis {} pushed {}", control.axis, control.toward)
+                                                         : std::string("the pointer");
+            out.push_back({"control", std::string(control.name), std::format("{} — a control of the game: {}", control.summary, what),
+                           std::format("{{\"op\":\"world.act\",{}}}", held_alone(control))});
+        }
         return out;
     }
     [[nodiscard]] std::uint64_t state_hash() const override { return G::checksum(timeline_.state()); }
@@ -361,14 +367,7 @@ private:
         const auto watch = request["watch"].text();
         const std::int64_t every = request["every"].integer().value_or(1);
         if (watch) {
-            if (!watch->empty() && watch->front() != '/')
-                return answer.fail(openas::error_code::invalid_argument, "`watch` is a JSON pointer into the view: \"/cat\", \"/cat/y\" (\"\" is the whole view)");
-            if (every < 1) return answer.fail(openas::error_code::invalid_argument, "`every` is 1 or more steps");
-            if ((steps + every - 1) / every > most_watched)
-                return answer.fail(openas::error_code::invalid_argument, std::format("{} steps read every {} are more than {} readings: `every` at least {}", steps, every,
-                                                                                     most_watched, (steps + most_watched - 1) / most_watched));
-            if (!read_of(timeline_.state(), *watch))
-                return answer.fail(openas::error_code::not_found, std::format("the view has nothing at `{}` (world.observe shows what it has)", *watch));
+            if (const auto refused = unwatchable(*watch, every, steps)) return answer.fail(refused->first, refused->second);
         } else if (request["every"]) {
             return answer.fail(openas::error_code::invalid_argument, "`every` goes with `watch`: what to read as the steps go by");
         }
@@ -392,6 +391,18 @@ private:
         return found ? std::optional(found.dump()) : std::nullopt;
     }
     static constexpr std::int64_t most_watched = 600;  // readings one request answers
+    // Why a place cannot be read over these steps (nothing when it can): asked before a step is played.
+    [[nodiscard]] std::optional<std::pair<std::string_view, std::string>> unwatchable(std::string_view watch, std::int64_t every, std::int64_t steps) const {
+        if (!watch.empty() && watch.front() != '/')
+            return {{openas::error_code::invalid_argument, "`watch` is a JSON pointer into the view: \"/cat\", \"/cat/y\" (\"\" is the whole view)"}};
+        if (every < 1) return {{openas::error_code::invalid_argument, "`every` is 1 or more steps"}};
+        if ((steps + every - 1) / every > most_watched)
+            return {{openas::error_code::invalid_argument, std::format("{} steps read every {} are more than {} readings: `every` at least {}", steps, every, most_watched,
+                                                                       (steps + most_watched - 1) / most_watched)}};
+        if (!read_of(timeline_.state(), watch))
+            return {{openas::error_code::not_found, std::format("the view has nothing at `{}` (world.observe shows what it has)", watch)}};
+        return std::nullopt;
+    }
 
     void seek(const mlibs::agent::Request& request, mlibs::agent::Answer& answer) {
         const auto frame = request["frame"].integer();
@@ -432,6 +443,15 @@ private:
             if (!later) return answer.fail(openas::error_code::invalid_argument, later.error());
             then.push_back({*after, *later});
         }
+        // A place of the future's view read as its steps go by (`watch`, `every`: as world.step reads the game's).
+        const auto watch = request["watch"].text();
+        const std::int64_t every = request["every"].integer().value_or(1);
+        if (watch) {
+            if (const auto refused = unwatchable(*watch, every, steps)) return answer.fail(refused->first, refused->second);
+        } else if (request["every"]) {
+            return answer.fail(openas::error_code::invalid_argument, "`every` goes with `watch`: what to read as the steps go by");
+        }
+        std::string watched;
         State future = timeline_.state();  // a copy: the game is not touched
         std::int64_t played = 0;
         std::size_t next = 0;
@@ -448,8 +468,13 @@ private:
             // what its actions would do: they are played here.
             G::play(input, lane.take(timeline_.frame() + played));
             G::step(future, input);
+            if (watch && ((played + 1) % every == 0 || played + 1 == steps || G::over(future)))
+                watched += std::format("{}{{\"frame\":{},\"value\":{}}}", watched.empty() ? "" : ",", timeline_.frame() + played + 1,
+                                       read_of(future, *watch).value_or("null"));
         }
-        answer.data(view(future, timeline_.frame() + played));
+        std::string seen = view(future, timeline_.frame() + played);
+        if (watch) seen.insert(seen.size() - 1, std::format(",\"watched\":[{}]", watched));
+        answer.data(seen);
     }
 
     Options                        options_;

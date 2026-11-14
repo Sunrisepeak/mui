@@ -19,11 +19,8 @@ sources  = []
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-omui.showcase.swarm.headless ={ path = "../headless" }
-mlibs.agent      = { path = "../../../modules/base/agent" }
-openlifa.openas  = "0.2.0"
-mcpplibs.os      = "0.4.4"
-mcpplibs.cmdline = "0.0.3"
+omui.showcase.swarm.headless = { path = "../headless" }
+xengine.runtime  = { path = "../../../modules/projects/xengine/game/runtime", features = ["lines"] }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"

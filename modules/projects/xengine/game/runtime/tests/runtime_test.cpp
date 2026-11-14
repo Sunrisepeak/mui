@@ -177,6 +177,18 @@ UTest cases{"runtime", [] {
         expect(ask(session, R"({"op":"world.step","steps":3600,"watch":"/player"})").error() == "invalid-argument") << "more readings than one answer holds: it says the `every` that fits";
         expect(ask(session, R"({"op":"world.step","steps":5,"every":2})").error() == "invalid-argument");
         expect(ask(session, R"({"op":"world.step","steps":5,"watch":"player"})").error() == "invalid-argument");
+        // What would be, read the same way: the future's view at a place as its steps go by, the game untouched.
+        const std::int64_t now = ask(session, R"({"op":"world.state"})").data()["frame"].integer().value_or(-1);
+        const auto ahead = ask(session, R"({"op":"world.branch","steps":20,"axis":[-1],"watch":"/player","every":10})");
+        expect(eq(ahead.data()["watched"].size(), std::size_t{2}) && ahead.data()["watched"][1]["frame"].integer() == now + 20 &&
+               ahead.data()["watched"][1]["value"].integer() == ahead.data()["view"]["player"].integer())
+            << ahead.data().dump();
+        expect(ahead.data()["watched"][1]["value"].integer().value_or(0) < ahead.data()["watched"][0]["value"].integer().value_or(0)) << "walking left, as asked";
+        expect(ask(session, R"({"op":"world.state"})").data()["hash"].text() == hash);
+        expect(ask(session, R"({"op":"world.branch","steps":5,"watch":"/enemy"})").error() == "not-found");
+        // A control found by what it is, not only by what it does.
+        const auto meant = ask(session, R"({"op":"find","q":"which control is an axis pushed","limit":8})");
+        expect(meant.data().dump().contains(R"("kind":"control")") && meant.data().dump().contains("a control of the game: axis 0 pushed 1")) << meant.data().dump();
         // A player as a person is read what a person is shown: not the generator.
         Game shown(Chase::State{});
         agent::SubjectSession person({&shown});

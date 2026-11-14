@@ -9,8 +9,8 @@ export namespace xengine::runtime {
 
 inline constexpr std::array<mlibs::control::Parameter, 4> parameters_world_act{{
     {"seen", "integer", "the frame they were decided on (the latest played when none is given)", true},
-    {"buttons", "json", "the buttons held, by index: [0]", true},
-    {"axis", "json", "up to four axes, each -1 to 1: [1]", true},
+    {"buttons", "json", "the buttons held, by index: [0] (what each is, where the game says: `controls` in the answer of world.state)", true},
+    {"axis", "json", "up to four axes, each -1 to 1: [1] (what each is, where the game says: `controls` in the answer of world.state)", true},
     {"pointer", "json", "[x, y], each 0 to 1 of the game's area", true},
 }};
 inline constexpr std::array<mlibs::control::Parameter, 3> parameters_world_step{{
@@ -21,12 +21,14 @@ inline constexpr std::array<mlibs::control::Parameter, 3> parameters_world_step{
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_world_seek{{
     {"frame", "integer", "the frame to return to", false},
 }};
-inline constexpr std::array<mlibs::control::Parameter, 5> parameters_world_branch{{
+inline constexpr std::array<mlibs::control::Parameter, 7> parameters_world_branch{{
     {"steps", "integer", "how far ahead (1 when none is given)", true},
     {"buttons", "json", "held from when the action takes effect, pressed as it does", true},
     {"axis", "json", "", true},
     {"pointer", "json", "", true},
     {"then", "json", "what follows: actions each with `after`, the step of the branch it is given at (a press and its release)", true},
+    {"watch", "string", "a place in the future's view, read as its steps go by: a JSON pointer (\"/score\"). The answer's `watched` is [{frame, value}]", true},
+    {"every", "integer", "with `watch`: read every this many steps (1 when none is given), and after the last; at most 600 readings", true},
 }};
 inline constexpr std::array<std::string_view, 1> examples_world_observe{{
     "{\"op\":\"world.observe\"}",
@@ -108,7 +110,7 @@ inline constexpr std::string_view listing = R"listing({
     {"name": "world.act", "description": "A player's actions, as a person's: the state shows them from `effective`, no sooner than the tier's reaction after `seen`, and they hold until the next", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "world.seek to the frame before it took effect", "undoable": false, "cancellable": false, "result": "json",
      "then": [{"why": "play steps on: the action shows from `effective`", "request": {"op":"world.step"}}, {"why": "read what a player is shown now", "request": {"op":"world.observe"}}],
      "examples": [{"op":"world.act","axis":[1]}],
-     "inputSchema": {"type": "object", "properties": {"seen": {"type": "integer", "description": "the frame they were decided on (the latest played when none is given)"}, "buttons": {"description": "the buttons held, by index: [0]"}, "axis": {"description": "up to four axes, each -1 to 1: [1]"}, "pointer": {"description": "[x, y], each 0 to 1 of the game's area", "x-space": "plane"}}, "required": []}},
+     "inputSchema": {"type": "object", "properties": {"seen": {"type": "integer", "description": "the frame they were decided on (the latest played when none is given)"}, "buttons": {"description": "the buttons held, by index: [0] (what each is, where the game says: `controls` in the answer of world.state)"}, "axis": {"description": "up to four axes, each -1 to 1: [1] (what each is, where the game says: `controls` in the answer of world.state)"}, "pointer": {"description": "[x, y], each 0 to 1 of the game's area", "x-space": "plane"}}, "required": []}},
     {"name": "world.step", "description": "Plays steps; only where the agent steps the game (an owner's clock refuses it)", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "world.seek to the frame it began at", "undoable": false, "cancellable": false, "result": "json",
      "then": [{"why": "read what a player is shown now", "request": {"op":"world.observe"}}],
      "examples": [{"op":"world.step","steps":30}],
@@ -120,7 +122,7 @@ inline constexpr std::string_view listing = R"listing({
      "inputSchema": {"type": "object", "properties": {"frame": {"type": "integer", "description": "the frame to return to"}}, "required": ["frame"]}},
     {"name": "world.branch", "description": "What would be if given actions were given now: the future's view and hash some steps ahead — the actions taking effect as the tier's reaction allows, as `world.act` would have them; the game itself untouched", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "examples": [{"op":"world.branch","steps":30,"axis":[1]}],
-     "inputSchema": {"type": "object", "properties": {"steps": {"type": "integer", "description": "how far ahead (1 when none is given)"}, "buttons": {"description": "held from when the action takes effect, pressed as it does"}, "axis": {}, "pointer": {"x-space": "plane"}, "then": {"description": "what follows: actions each with `after`, the step of the branch it is given at (a press and its release)"}}, "required": []}}
+     "inputSchema": {"type": "object", "properties": {"steps": {"type": "integer", "description": "how far ahead (1 when none is given)"}, "buttons": {"description": "held from when the action takes effect, pressed as it does"}, "axis": {}, "pointer": {"x-space": "plane"}, "then": {"description": "what follows: actions each with `after`, the step of the branch it is given at (a press and its release)"}, "watch": {"type": "string", "description": "a place in the future's view, read as its steps go by: a JSON pointer (\"/score\"). The answer's `watched` is [{frame, value}]"}, "every": {"type": "integer", "description": "with `watch`: read every this many steps (1 when none is given), and after the last; at most 600 readings"}}, "required": []}}
   ],
   "tiers": [
     {"name": "human", "view": "drawn", "reaction_ms": 100, "actions_per_second": 10, "doc": "As a person plays: shown what is drawn, a tenth of a second's reaction, ten actions a second.", "operations": ["world.observe", "world.state", "world.act", "world.step", "world.seek", "world.branch"]},

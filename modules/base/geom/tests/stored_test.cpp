@@ -97,4 +97,23 @@ static UTest cases{"geom.stored", [] {
         refused("clusters hold", [&](auto& b) { put32(b, clusters_at + 4, 11); });
         std::println("a box: {} bytes; cut at each of {} lengths it is refused", bytes.size(), bytes.size());
     };
+
+    "a mesh put into another at a place: moved, its normals turned as a surface is, its triangles after; kinds that differ refused"_test = [] {
+        namespace math = mlibs::math;
+        geom::Mesh level;
+        expect(geom::append(level, geom::box({1, 1, 1}), math::Mat4{}).has_value());
+        const std::size_t first = level.positions.size(), triangles = level.triangles();
+        // Twice as wide along x, turned a quarter about y, 5 m along z.
+        const math::Mat4 place = math::translation({0, 0, 5}) * math::rotation(math::Quat::about({0, 1, 0}, 1.5707964f)) * math::scaling({2, 1, 1});
+        expect(geom::append(level, geom::box({1, 1, 1}), place).has_value());
+        expect(eq(level.positions.size(), 2 * first) && eq(level.triangles(), 2 * triangles) && geom::check(level).has_value());
+        const geom::Box3 bounds = geom::bounds(level);
+        expect(lt(std::abs(bounds.high.z - 7.0f), 1e-5f) && lt(std::abs(bounds.low.z + 1.0f), 1e-5f)) << "the second box 2 m deep along z (its x turned onto z), at 5";
+        for (std::size_t corner = first; corner < level.positions.size(); ++corner) expect(lt(std::abs(math::length(level.normals[corner]) - 1), 1e-5f));
+        for (std::size_t index = triangles * 3; index < level.indices.size(); ++index) expect(ge(level.indices[index], static_cast<std::uint32_t>(first)));
+        geom::Mesh bare;
+        bare.positions = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}}, bare.indices = {0, 1, 2};
+        const std::size_t before = level.positions.size();
+        expect(!geom::append(level, bare, math::Mat4{}).has_value() && eq(level.positions.size(), before)) << "no normals against normals";
+    };
 }};

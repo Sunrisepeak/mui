@@ -17,6 +17,32 @@ void quad(Mesh& mesh, std::uint32_t first, std::uint32_t second, std::uint32_t t
 }
 }  // namespace
 
+std::expected<void, std::string> append(Mesh& into, const Mesh& from, const Mat4& place) {
+    if (from.positions.empty()) return {};
+    const bool fresh = into.positions.empty();
+    const auto same = [&](const auto& mine, const auto& theirs) { return fresh || mine.empty() == theirs.empty(); };
+    if (!same(into.normals, from.normals) || !same(into.tangents, from.tangents) || !same(into.uvs, from.uvs) || !same(into.second_uvs, from.second_uvs) ||
+        !same(into.colours, from.colours) || !same(into.joints, from.joints) || !same(into.weights, from.weights))
+        return std::unexpected(std::string("the two meshes carry different kinds of corner data"));
+    const std::optional<Mat4> back = math::inverse(place);
+    if (!back) return std::unexpected(std::string("a place that cannot be undone (no normals for it)"));
+    const Mat4 normals = math::transposed(*back);
+    const auto first = static_cast<std::uint32_t>(into.positions.size());
+    for (const Vec3& at : from.positions) into.positions.push_back(math::point(place, at));
+    for (const Vec3& normal : from.normals) into.normals.push_back(math::normalized(math::direction(normals, normal)));
+    for (const Vec4& tangent : from.tangents) {
+        const Vec3 turned = math::normalized(math::direction(place, Vec3{tangent.x, tangent.y, tangent.z}));
+        into.tangents.push_back({turned.x, turned.y, turned.z, tangent.w});
+    }
+    into.uvs.insert(into.uvs.end(), from.uvs.begin(), from.uvs.end());
+    into.second_uvs.insert(into.second_uvs.end(), from.second_uvs.begin(), from.second_uvs.end());
+    into.colours.insert(into.colours.end(), from.colours.begin(), from.colours.end());
+    into.joints.insert(into.joints.end(), from.joints.begin(), from.joints.end());
+    into.weights.insert(into.weights.end(), from.weights.begin(), from.weights.end());
+    for (const std::uint32_t index : from.indices) into.indices.push_back(first + index);
+    return {};
+}
+
 std::expected<void, std::string> check(const Mesh& mesh) {
     const std::size_t count = mesh.positions.size();
     if (!mesh.normals.empty() && mesh.normals.size() != count) return std::unexpected(std::format("{} normals for {} positions (one each, or none)", mesh.normals.size(), count));

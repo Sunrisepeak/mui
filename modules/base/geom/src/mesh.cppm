@@ -22,6 +22,7 @@ export namespace mlibs::geom {
 
 using mlibs::math::Vec2;
 using mlibs::math::Vec4;
+using mlibs::math::Mat4;
 
 struct Mesh {
     std::vector<Vec3> positions;
@@ -45,6 +46,11 @@ struct Mesh {
 // What is wrong with a mesh, or nothing: its attributes one a position or absent, its indices three a triangle and
 // each naming a position, every number a number.
 [[nodiscard]] std::expected<void, std::string> check(const Mesh& mesh);
+// `from` put into `into` at `place`: its positions moved, its normals turned as a surface is (the inverse's
+// transpose), its tangents' directions turned, everything else as it is, its triangles after `into`'s. A level of
+// parts made one mesh. Refused (and `into` unchanged) where one has a kind of corner data the other has not (an
+// empty `into` takes `from`'s kinds), or `place` cannot be undone.
+[[nodiscard]] std::expected<void, std::string> append(Mesh& into, const Mesh& from, const Mat4& place);
 [[nodiscard]] Box3 bounds(const Mesh& mesh) noexcept;
 // Normals from the triangles: each position's the sum of its triangles' (so weighted by their area), of length 1.
 void compute_normals(Mesh& mesh);

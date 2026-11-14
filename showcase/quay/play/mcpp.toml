@@ -1,19 +1,15 @@
-# Quay on this machine's device (the FPS slice design, F3 and F5): the game drawn by xrender.mesh.gpu through
-# SDL_GPU — a signature shot played by the guide and written frame by frame, the same every run (`quay-play shot`),
-# and the window to play it in, heard through the system's output (xengine.audio.device). A member of its own beside `picture` (which also builds for the Web): SDL_GPU is
-# the native systems' device here.
+# Quay on this machine's device (the FPS slice design, F3): the game drawn by xrender.mesh.gpu through SDL_GPU —
+# a signature shot played by the guide and written frame by frame, the same every run (`quay-play shot`); a window's
+# recording replayed (`quay-play replay`); the device held to the reference, and the window (`window`) on a real
+# SDL3 window's device. SDL_GPU is the native systems' device here, so this member is the desktop's.
 [package]
 namespace   = "omui.showcase.quay"
 name        = "play"
 version     = "0.1.0"
-description = "Quay played: a window (quay) with the picture on the host's device, and quay-play — the signature shot, a window's recording replayed"
+description = "quay-play: the signature shot on this machine's device, a window's recording replayed; the device held to the reference"
 license     = "Apache-2.0"
 platforms   = ["linux", "macos", "windows"]
 repo        = "https://github.com/Sunrisepeak/mui"
-
-[targets.quay]
-kind = "bin"
-main = "src/entry/window.cpp"
 
 [targets.quay-play]
 kind = "bin"
@@ -24,14 +20,8 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-omui.showcase.quay.picture = { path = "../picture" }
-omui.showcase.quay.headless = { path = "../headless" }
-omui.showcase.quay.sound = { path = "../sound" }
+omui.showcase.quay.window = { path = "../window" }
 omui.sdk         = { path = "../../../modules/projects/omui/sdk" }
-xengine.ui       = { path = "../../../modules/projects/xengine/game/ui" }
-xengine.input    = { path = "../../../modules/projects/xengine/game/input" }
-"xengine.audio.device" = { path = "../../../modules/projects/xengine/kernel/audio/device" }
-xrender.raster   = { path = "../../../modules/projects/xrender/raster" }
 xrender.rhi.sdl  = { path = "../../../modules/projects/xrender/rhi/sdl" }
 mlibs.rhi        = { path = "../../../modules/gfx/rhi" }
 mlibs.image      = { path = "../../../modules/base/image" }
@@ -40,5 +30,4 @@ mcpplibs.os      = "0.4.4"
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
-omui.host.headless = { path = "../../../modules/projects/omui/host/headless" }
 omui.host.sdl3     = { path = "../../../modules/projects/omui/host/sdl3" }

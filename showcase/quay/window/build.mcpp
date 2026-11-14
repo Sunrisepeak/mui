@@ -1,0 +1,6 @@
+// Quay for a page: `mcpp pack -p omui.showcase.quay.window --target wasm32-emscripten --release --pkg-format dist-toy`
+// makes a static page of the `quay` program and its fonts (omui.build.toy).
+import mcpp;
+import omui.build.toy;
+
+int main() { return omui::build::dist_toy({.target = "quay", .title = "Quay", .sdk = false}) ? 0 : 1; }

@@ -2,15 +2,15 @@
 # (or miniaudio's null backend: the clock runs, nothing sounds — headless
 # programs and tests) pulling blocks from an xengine.audio Mixer on its own
 # audio thread. A plugin: the mixer does not know of it. miniaudio comes
-# through mcpplibs.mwrap.miniaudio, in its native unit only (D-83). The Web's
-# output (Web Audio) comes with the Web host.
+# through mcpplibs.mwrap.miniaudio, in its native unit only (D-83); on the Web
+# it is miniaudio's Web Audio backend.
 [package]
 namespace   = "xengine.audio"
 name        = "device"
 version     = "0.1.0"
 description = "A Mixer heard: the system's default output through miniaudio, or its null backend for headless runs"
 license     = "Apache-2.0"
-platforms   = ["linux", "macos", "windows"]
+platforms   = ["linux", "macos", "windows", "emscripten"]
 repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]

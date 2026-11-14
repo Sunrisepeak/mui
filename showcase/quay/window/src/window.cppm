@@ -1,6 +1,6 @@
 // Quay in a window (the FPS slice design, F5): the harbour shown in an interface, played with keys and the mouse.
 //
-//   return omui::run(quay::play::app({.record = "session.quay"}), options);
+//   return omui::run(quay::window::app({.record = "session.quay"}), options);
 //
 // The component `Harbour` is the game's window: it holds the same `quay::Standalone` a headless program holds,
 // steps it on the interface's clock (`xengine.ui`'s pacer, 60 steps a second) and gives each step the person's
@@ -11,7 +11,7 @@
 // renders them a block at a time on its own thread and keeps the system's output a little ahead (a `Feed`).
 // Every step's input is recorded: what the window played is the game with no window — the recording
 // played by the runtime alone gives the same bits (`quay-play replay`).
-export module omui.showcase.quay.play;
+export module omui.showcase.quay.window;
 
 import std;
 export import omui;
@@ -21,7 +21,7 @@ export import omui.showcase.quay.picture;
 export import omui.showcase.quay.sound;
 export import xengine.audio.device;
 
-export namespace quay::play {
+export namespace quay::window {
 
 // What the interface shows beside the world, kept by the harbour as it steps.
 struct Hud {
@@ -102,4 +102,4 @@ private:
 // Those lines played by the game with no window, from the harbour's start: its state after them, or why not.
 [[nodiscard]] std::expected<State, std::string> replayed(std::string_view lines);
 
-}  // namespace quay::play
+}  // namespace quay::window

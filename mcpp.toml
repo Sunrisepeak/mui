@@ -181,6 +181,7 @@ members = [
     "showcase/quay/picture",
     "showcase/quay/play",
     "showcase/quay/sound",
+    "showcase/quay/window",
     "showcase/swarm/headless",
     "showcase/swarm/play",
     "site",

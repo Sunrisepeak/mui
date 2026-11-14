@@ -31,9 +31,6 @@ rhi::Result<OnDevice> OnDevice::make(rhi::Device& device, const Picture& picture
         }
         return *texture;
     };
-    made.colour_ = target(rhi::Format::rgba8_unorm, width, height, "quay.colour"), made.depth_ = target(rhi::Format::d32_float, width, height, "quay.depth");
-    made.light_ = target(rhi::Format::rgba16_float, width, height, "quay.light"), made.surface_ = target(rhi::Format::rgba16_float, width, height, "quay.surface");
-    made.one_ = target(rhi::Format::rgba16_float, width, height, "quay.glow.one"), made.other_ = target(rhi::Format::rgba16_float, width, height, "quay.glow.other");
     // The moon's map over the quay about the eye; the lamps', the beacon's, the floodlight's and a flash's.
     made.shadows_ = {.size = 2048, .distance = 60, .lamp_size = 512, .lamps = static_cast<std::uint32_t>(mesh::gpu::most_lamps)};
     made.shadows_.map = target(rhi::Format::r32_float, made.shadows_.size, made.shadows_.size, "quay.shadow"),
@@ -41,7 +38,29 @@ rhi::Result<OnDevice> OnDevice::make(rhi::Device& device, const Picture& picture
     made.shadows_.lamps_map = target(rhi::Format::r32_float, made.shadows_.lamp_size * 6, made.shadows_.lamp_size * made.shadows_.lamps, "quay.shadow.lamps");
     made.shadows_.lamps_depth = target(rhi::Format::d32_float, made.shadows_.lamp_size * 6, made.shadows_.lamp_size * made.shadows_.lamps, "quay.shadow.lamps.depth");
     if (failed) return std::unexpected(*failed);
+    if (auto sized = made.resize(width, height); !sized) return std::unexpected(sized.error());
     return made;
+}
+
+rhi::Result<void> OnDevice::resize(std::uint32_t width, std::uint32_t height) {
+    if (width == 0 || height == 0) return rhi::fail(rhi::Errc::invalid, "a frame of no pixels");
+    if (colour_ && width == width_ && height == height_) return {};
+    static_cast<void>(device_->wait_idle());
+    for (rhi::Texture* made : {&colour_, &depth_, &light_, &one_, &other_, &surface_})
+        if (*made) device_->destroy(*made), *made = {};
+    width_ = width, height_ = height;
+    const auto target = [&](rhi::Format format, std::string_view label) -> rhi::Result<rhi::Texture> {
+        const bool deep = format == rhi::Format::d32_float;
+        return device_->create(rhi::TextureDesc{format, width, height, deep ? rhi::TextureUsage::depth_target : rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, label});
+    };
+    for (auto [made, format, label] : {std::tuple{&colour_, rhi::Format::rgba8_unorm, "quay.colour"}, std::tuple{&depth_, rhi::Format::d32_float, "quay.depth"},
+                                       std::tuple{&light_, rhi::Format::rgba16_float, "quay.light"}, std::tuple{&surface_, rhi::Format::rgba16_float, "quay.surface"},
+                                       std::tuple{&one_, rhi::Format::rgba16_float, "quay.glow.one"}, std::tuple{&other_, rhi::Format::rgba16_float, "quay.glow.other"}}) {
+        auto texture = target(format, label);
+        if (!texture) return std::unexpected(texture.error());
+        *made = *texture;
+    }
+    return {};
 }
 
 OnDevice::OnDevice(OnDevice&& other) noexcept

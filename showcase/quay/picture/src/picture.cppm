@@ -116,6 +116,9 @@ public:
     ~OnDevice();
     // The frame `picture` last prepared, recorded on `list`.
     [[nodiscard]] mlibs::rhi::Result<void> record(mlibs::rhi::CommandList& list, const Picture& picture);
+    // Drawn at another size from now on (a window's node resized, its pixels' ratio changed): the frame's own
+    // targets made again; the passes and the lights' maps kept.
+    [[nodiscard]] mlibs::rhi::Result<void> resize(std::uint32_t width, std::uint32_t height);
     [[nodiscard]] mlibs::rhi::Texture colour() const noexcept { return colour_; }
     [[nodiscard]] const mesh::gpu::Stats& last() const noexcept { return pass_->last(); }
     [[nodiscard]] std::uint32_t width() const noexcept { return width_; }

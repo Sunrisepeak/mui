@@ -1,10 +1,10 @@
-module omui.showcase.quay.play;
+module omui.showcase.quay.window;
 
 import std;
 import mlibs.rhi;
 import xrender.raster;
 
-namespace quay::play {
+namespace quay::window {
 
 namespace {
 
@@ -58,7 +58,7 @@ void Harbour::mount(omui::Services& services, omui::NodeId node) {
     if (auto made = picture::Picture::make(level::harbour())) picture_.emplace(std::move(*made));
     xengine::ui::Viewport::Shown shown{.label = "the harbour", .subject = &*game_, .width = 960, .height = 540, .look = true};
     if (mlibs::rhi::Device* device = services.device(); device && picture_) {
-        if (auto made = picture::OnDevice::make(*device, *picture_, 1920, 1080)) {
+        if (auto made = picture::OnDevice::make(*device, *picture_, 960, 540)) {  // sized to the node at each frame
             on_device_.emplace(std::move(*made));
             shown.texture = [this]() -> std::optional<mlibs::rhi::Texture> { return on_device_ ? std::optional(on_device_->colour()) : std::nullopt; };
         }
@@ -124,6 +124,11 @@ void Harbour::draw() {
     if (!game_ || !picture_) return;
     const State& state = game_->state();
     if (on_device_) {
+        // The node's own pixels: no more drawn than are shown, none stretched.
+        const omui::Rect box = services_->bounds(node_);
+        const float scale = services_->pixel_scale();
+        const auto across = static_cast<std::uint32_t>(std::max(1L, std::lround(box.width * scale))), down = static_cast<std::uint32_t>(std::max(1L, std::lround(box.height * scale)));
+        if (box.width > 0 && box.height > 0 && (across != on_device_->width() || down != on_device_->height())) (void)on_device_->resize(across, down);
         picture_->prepare(state);
         list_.clear();
         if (on_device_->record(list_, *picture_)) (void)services_->device()->submit(list_);  // ahead of the host's frame on the same device
@@ -200,4 +205,4 @@ std::expected<State, std::string> replayed(std::string_view lines) {
     return state;
 }
 
-}  // namespace quay::play
+}  // namespace quay::window

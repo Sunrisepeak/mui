@@ -16,7 +16,7 @@ import mlibs.rhi;
 import mlibs.image;
 import xrender.rhi.sdl;
 import omui.showcase.quay.picture;
-import omui.showcase.quay.play;
+import omui.showcase.quay.window;
 import mcpplibs.cmdline;
 import mcpplibs.os;
 
@@ -115,7 +115,7 @@ int replay(const cmd::ParsedArgs& parsed) {
     std::ifstream file(mcpplibs::os::fs::from_utf8(parsed.positional(0)), std::ios::binary);
     if (!file) return fail(std::format("{} could not be read", parsed.positional(0)));
     const std::string lines((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-    const auto state = quay::play::replayed(lines);
+    const auto state = quay::window::replayed(lines);
     if (!state) return fail(state.error());
     std::println(R"({{"frames":{},"outcome":"{}","why":"{}","health":{},"rounds":{},"standing":{},"hash":"{:016x}"}})", state->frame, quay::outcome_names[static_cast<std::size_t>(state->outcome)],
                  state->why, state->keeper.health, state->keeper.rounds, quay::standing(*state), quay::checksum(*state));

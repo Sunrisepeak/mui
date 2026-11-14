@@ -136,6 +136,7 @@ struct Web::Impl {
 
     void attach() {
         runtime->set_renderer(std::string(drawn_by));
+        if (device) runtime->set_device(device.get());  // chosen before the runtime was: worlds drawn on it, shown as they are
         // The Web (performance tiers §1: T2), and the governor on where a page shows the frames to a person.
         runtime->set_device_tier(mlibs::pipeline::Tier::t2, "the Web");
         if (opened) runtime->set_governor(true);
@@ -269,7 +270,6 @@ struct Web::Impl {
             }
             device = std::move(*made);
             gpu.emplace(std::move(*renderer));
-            if (runtime) runtime->set_device(device.get());  // worlds drawn on it, shown as they are
             drawn_by = kind == Renderer::webgpu ? "webgpu" : "webgl";
             return true;
         };

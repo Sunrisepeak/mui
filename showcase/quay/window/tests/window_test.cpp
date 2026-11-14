@@ -5,7 +5,7 @@
 import std;
 import omui;
 import omui.host.headless;
-import omui.showcase.quay.play;
+import omui.showcase.quay.window;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
@@ -32,12 +32,12 @@ UTest cases{"quay.window", [] {
         options.size = {1280, 760};
         options.fonts = &fonts();
         omui::Headless host(options);
-        const omui::AppSpec spec = quay::play::app({.hearing = quay::play::Hearing::silent});
+        const omui::AppSpec spec = quay::window::app({.hearing = quay::window::Hearing::silent});
         spec.setup(host.runtime());
         host.mount("main", spec.view());
         host.step();
         const omui::NodeId node = host.runtime().find("main/harbour");
-        const auto* harbour = host.runtime().component<quay::play::Harbour>(node);
+        const auto* harbour = host.runtime().component<quay::window::Harbour>(node);
         expect(fatal(harbour != nullptr && harbour->game() != nullptr));
         const float yaw_before = harbour->game()->state().keeper.yaw;
 
@@ -64,11 +64,11 @@ UTest cases{"quay.window", [] {
         const quay::State& played = harbour->game()->state();
         const float walked = std::hypot(after_walk.x - before_walk.x, after_walk.z - before_walk.z);
         std::println("in the window: {} steps; turned {:.2f} rad by the hand; walked {:.2f} m in two seconds; {} rounds fired; HUD: {} | {} | {}", played.frame, yaw_turned - yaw_before, walked,
-                     rounds_before - played.keeper.rounds, quay::play::hud()->health.get(), quay::play::hud()->rounds.get(), quay::play::hud()->tide.get());
+                     rounds_before - played.keeper.rounds, quay::window::hud()->health.get(), quay::window::hud()->rounds.get(), quay::window::hud()->tide.get());
         expect(gt(yaw_turned - yaw_before, 0.3f)) << "the hand to the right turns the watchkeeper right";
         expect(gt(walked, 5.0f)) << "walking at 3.5 m/s";
         expect(gt(rounds_before - played.keeper.rounds, 2u)) << "held, the rifle fires again and again";
-        expect(quay::play::hud()->rounds.get() == std::format("Rounds {}", played.keeper.rounds)) << quay::play::hud()->rounds.get();
+        expect(quay::window::hud()->rounds.get() == std::format("Rounds {}", played.keeper.rounds)) << quay::window::hud()->rounds.get();
         // Heard as it was played: each shot and step a sound at the watchkeeper's ears, the output (the null one
         // here) draining what the window renders.
         expect(fatal(harbour->sound() != nullptr && harbour->output() != nullptr));
@@ -77,8 +77,8 @@ UTest cases{"quay.window", [] {
         expect(gt(harbour->output()->frames(), std::int64_t{0}));
 
         // What the window played is the game with no window.
-        const std::string lines = quay::play::recorded(*harbour->game());
-        const auto alone = quay::play::replayed(lines);
+        const std::string lines = quay::window::recorded(*harbour->game());
+        const auto alone = quay::window::replayed(lines);
         expect(fatal(alone.has_value())) << (alone ? "" : alone.error());
         std::println("the recording, {} steps, played alone: hash {:016x}, the window's {:016x}", alone->frame, quay::checksum(*alone), quay::checksum(played));
         expect(eq(alone->frame, played.frame) && eq(quay::checksum(*alone), quay::checksum(played)));

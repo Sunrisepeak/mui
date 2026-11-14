@@ -5,7 +5,7 @@
 import std;
 import omui;
 import omui.host.sdl3;
-import omui.showcase.quay.play;
+import omui.showcase.quay.window;
 import mlibs.image;
 import mcpplibs.os;
 import mcpplibs.mtest;
@@ -46,7 +46,7 @@ UTest cases{"quay.desktop", [] {
             else std::println("no GPU device here ({}); set OMUI_REQUIRE_GPU=1 to make that a failure", why);
             return;
         }
-        const omui::AppSpec spec = quay::play::app({.hearing = quay::play::Hearing::silent});
+        const omui::AppSpec spec = quay::window::app({.hearing = quay::window::Hearing::silent});
         spec.setup(desktop.runtime());
         desktop.mount("main", spec.view());
         // Half a second of the game on the window's own clock, and 30 frames shown at least (a software device
@@ -54,7 +54,7 @@ UTest cases{"quay.desktop", [] {
         const auto began = std::chrono::steady_clock::now();
         while (std::chrono::steady_clock::now() - began < std::chrono::milliseconds(500) || desktop.frames_shown() < 30) expect(desktop.step());
         const omui::NodeId node = desktop.runtime().find("main/harbour");
-        const auto* harbour = desktop.runtime().component<quay::play::Harbour>(node);
+        const auto* harbour = desktop.runtime().component<quay::window::Harbour>(node);
         expect(fatal(harbour != nullptr && harbour->game() != nullptr));
         expect(harbour->drawn_on_device()) << "the host draws on a device: the harbour is drawn on it";
 

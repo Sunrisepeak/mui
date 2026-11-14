@@ -7,7 +7,7 @@
 // shell's virtual time runs no animation frames: a program paced by them
 // stops there, so this one runs in real time.)
 //
-//   CHROME=<chromium> node tools/ci/drive-page.mjs <url> <out.png> [seconds] [width] [height] [script]
+//   CHROME=<chromium> [CHROME_FLAGS=…] node tools/ci/drive-page.mjs <url> <out.png> [seconds] [width] [height] [script]
 //   CHROME=… node tools/ci/drive-page.mjs 'http://localhost:8000/#/overview' overview.png 8
 //   CHROME=… node tools/ci/drive-page.mjs http://localhost:8000/ f.png 6 1280 800 \
 //       "window.omui.act('main/bar/nav/to_features', 'activate').then(r => r.exitCode)"
@@ -19,7 +19,10 @@ if (!chrome || !url || !out) {
   console.error('usage: CHROME=<chromium> node drive-page.mjs <url> <out.png> [seconds] [width] [height] [script]');
   process.exit(2);
 }
-const b = await browser(chrome, { width: +w, height: +h, flags: ['--disable-gpu'] });
+// CHROME_FLAGS (space-separated) instead of the default --disable-gpu: a page on this machine's GPU, e.g.
+// CHROME_FLAGS='--enable-unsafe-webgpu --enable-features=Vulkan --use-angle=vulkan --ignore-gpu-blocklist'.
+const flags = process.env.CHROME_FLAGS ? process.env.CHROME_FLAGS.split(' ').filter(Boolean) : ['--disable-gpu'];
+const b = await browser(chrome, { width: +w, height: +h, flags });
 const logs = [];
 b.on((method, params) => {
   if (method === 'Runtime.consoleAPICalled') logs.push(params.type + ' ' + params.args.map((a) => a.value ?? a.description).join(' '));

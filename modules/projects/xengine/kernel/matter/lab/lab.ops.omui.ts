@@ -14,7 +14,7 @@ export default defineOps({
   module: "xengine.matter.lab",
   namespace: "xengine::matter::lab",
   generated: "src",
-  doc: "Design matter: change a material's row or a law and see the same scene under the new definition, try a change before making it, keep every step as a commit, and hold the part you are working on.",
+  doc: "Design matter: change a material's row or a law and see the same scene under the new definition, try a change before making it, keep every step as a commit, and hold the part you are working on. The scene is its edits — what was placed and applied, each at its step: a change of the definition plays it again to its last edit, and steps run on after that are the running world's, not the scene's.",
   operations: [
     {
       name: "lab.describe",
@@ -34,6 +34,7 @@ export default defineOps({
     },
     {
       name: "lab.edit",
+      then: [{ why: "read what the change was, against the commit before", request: { op: "lab.diff", from: "HEAD~1" } }, { why: "see the commit it made", request: { op: "lab.history", limit: 1 } }],
       examples: [{ path: "materials/wood.json", text: "{\"density\":600,\"friction\":0.45,\"restitution\":0.35,\"shape_stiffness\":1,\"thermal\":1,\"porous\":2,\"ignition\":600,\"fuel\":400,\"heat\":80,\"burnt\":\"ash\",\"tags\":[\"plant\"],\"look\":{\"color\":\"#8a5a2b\",\"grain\":0.12}}" }],
       effect: "reversible",
       summary: "One source's text replaced, made or removed: the definition is prepared, the look checked and the scene played again under them, to the same step, before anything is replaced — a text with a problem changes nothing and says where. Answers what changed in the world (cells that differ, materials then and now) and its commit",
@@ -49,6 +50,7 @@ export default defineOps({
     },
     {
       name: "lab.material",
+      then: [{ why: "read what the change was, against the commit before", request: { op: "lab.diff", from: "HEAD~1" } }, { why: "see the commit it made", request: { op: "lab.history", limit: 1 } }],
       effect: "reversible",
       summary: "One material's row: made when it is not there, properties set (null takes one away) or the row removed — its own source changed and nothing else, the scene played again. Answers as lab.edit",
       params: [
@@ -63,6 +65,7 @@ export default defineOps({
     },
     {
       name: "lab.law",
+      then: [{ why: "read what the change was, against the commit before", request: { op: "lab.diff", from: "HEAD~1" } }, { why: "see the commit it made", request: { op: "lab.history", limit: 1 } }],
       examples: [{ name: "embers warm", law: { when: "temperature > 800", add: { temperature: 5 } } }],
       effect: "reversible",
       summary: "One law by its name: replaced where it stands, added after the last when it is new, or removed. A law reads properties and never a material's name (refused otherwise). Answers as lab.edit",

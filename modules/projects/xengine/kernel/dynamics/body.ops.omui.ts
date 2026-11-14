@@ -29,6 +29,7 @@ export default defineOps({
     },
     {
       name: "body.push",
+      then: [{ why: "step the body: the push acts from the next step", request: { op: "body.step" } }],
       effect: "reversible",
       summary: "What acts on the body from the next step on, held until the next push: a force on the whole of it, a walk along what it stands on; and once, on the next step alone, a kick",
       params: [
@@ -41,6 +42,7 @@ export default defineOps({
     },
     {
       name: "body.step",
+      then: [{ why: "read where the body is now", request: { op: "body.observe" } }],
       effect: "reversible",
       summary: "Steps the body under what is held",
       params: [{ name: "steps", type: "integer", doc: "how many (1 when none is given)", optional: true }],
@@ -50,6 +52,7 @@ export default defineOps({
     },
     {
       name: "body.seek",
+      then: [{ why: "read the body at the frame returned to", request: { op: "body.observe" } }],
       examples: [{ frame: 240 }],
       effect: "reversible",
       summary: "Returns to a frame within the history kept; what is stepped from there is a new branch",

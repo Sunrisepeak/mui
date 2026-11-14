@@ -35,6 +35,7 @@ struct Operation {
     std::vector<OpParameter> parameters;
     std::vector<std::string> examples;  // requests of it, each a JSON object on one line
     std::vector<std::string> keywords;  // words an intent may use for it that its summary does not
+    std::vector<std::pair<std::string, std::string>> then;  // what follows it: why, and the request (a JSON object on one line)
     int line = 0;
 };
 // A task to begin with (D-186): the requests that do it, in order, each a JSON object on one line.

@@ -27,6 +27,7 @@ export default defineOps({
     },
     {
       name: "world.act",
+      then: [{ why: "play steps on: the action shows from `effective`", request: { op: "world.step" } }, { why: "read what a player is shown now", request: { op: "world.observe" } }],
       effect: "reversible",
       summary: "A player's actions, as a person's: the state shows them from `effective`, no sooner than the tier's reaction after `seen`, and they hold until the next",
       params: [
@@ -40,6 +41,7 @@ export default defineOps({
     },
     {
       name: "world.step",
+      then: [{ why: "read what a player is shown now", request: { op: "world.observe" } }],
       effect: "reversible",
       summary: "Plays steps; only where the agent steps the game (an owner's clock refuses it)",
       params: [{ name: "steps", type: "integer", doc: "how many (1 when none is given)", optional: true }],
@@ -49,6 +51,7 @@ export default defineOps({
     },
     {
       name: "world.seek",
+      then: [{ why: "read where the game's time is", request: { op: "world.state" } }],
       examples: [{ frame: 0 }],
       effect: "reversible",
       summary: "Returns to a frame within the history kept; what is played from there is a new branch",

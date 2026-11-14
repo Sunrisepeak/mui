@@ -231,6 +231,24 @@ std::expected<Catalog, std::vector<std::string>> read_root(const mlibs::json::Do
             }
         }
     }
+    // What follows an operation: requests of the catalog, checked as a task's steps are.
+    {
+        std::size_t index = 0;
+        for (const Node& entry : head["operations"].items()) {
+            if (!entry.is_object()) continue;
+            const std::size_t mine = index++;
+            for (const Node& follow : entry["then"].items()) {
+                const std::string why = text_or(follow["why"]), name = text_or(follow["request"]["op"]);
+                const auto operation = std::ranges::find_if(catalog.operations, [&](const Operation& listed) { return listed.name == name; });
+                if (why.empty() || operation == catalog.operations.end()) {
+                    problem(at(follow), std::format("`{}`: what follows is {{ why, request: {{ op, … }} }}, a request of the catalog (`{}` is not one of its operations)",
+                                                    catalog.operations[mine].name, name));
+                    continue;
+                }
+                catalog.operations[mine].then.emplace_back(why, request_of(*operation, follow["request"], std::format("`{}` then", catalog.operations[mine].name)));
+            }
+        }
+    }
     std::set<std::string> task_names;
     for (const Node& entry : head["tasks"].items()) {
         const int line = at(entry);
@@ -356,6 +374,14 @@ std::string emit_catalog_cpp(const Catalog& catalog, std::string_view source) {
             out += std::format("    {},\n", cpp_string(example));
         out += "}};\n";
     }
+    for (const auto& operation : catalog.operations) {
+        if (operation.then.empty())
+            continue;
+        out += std::format("inline constexpr std::array<mlibs::control::Way, {}> then_{}{{{{\n", operation.then.size(), identifier(operation.name));
+        for (const auto& [why, request] : operation.then)
+            out += std::format("    {{{}, {}}},\n", cpp_string(why), cpp_string(request));
+        out += "}};\n";
+    }
     out += std::format("\n// {}\ninline constexpr std::array<mlibs::control::CatalogEntry, {}> "
                        "catalog{{{{\n",
                        catalog.doc, catalog.operations.size());
@@ -371,7 +397,8 @@ std::string emit_catalog_cpp(const Catalog& catalog, std::string_view source) {
                         operation.undoable ? "true" : "false",
                         operation.delegated ? "true" : "false",
                         operation.examples.empty() ? std::string("{}") : "examples_" + identifier(operation.name),
-                        operation.keywords.empty() ? std::string() : ", " + cpp_string(joined(operation.keywords)));
+                        operation.then.empty() ? (operation.keywords.empty() ? std::string() : ", " + cpp_string(joined(operation.keywords)))
+                                               : std::format(", {}, then_{}", cpp_string(joined(operation.keywords)), identifier(operation.name)));
     out += "}};\n";
     // What an agent that knows nothing of it begins with (D-186): what it is, and its tasks.
     for (const auto& task : catalog.tasks) {
@@ -414,10 +441,17 @@ std::string emit_catalog_json(const Catalog& catalog) {
         }
         // Requests of it, as they are sent.
         std::string examples;
+        if (!operation.then.empty()) {
+            std::string follows;
+            for (const auto& [why, request] : operation.then)
+                follows += std::format("{}{{\"why\": {}, \"request\": {}}}", follows.empty() ? "" : ", ", json_string(why), request);
+            examples += std::format("\n     \"then\": [{}],", follows);
+        }
+        std::string shown;
         for (const auto& example : operation.examples)
-            examples += std::format("{}{}", examples.empty() ? "\n     \"examples\": [" : ", ", example);
-        if (!examples.empty())
-            examples += "],";
+            shown += std::format("{}{}", shown.empty() ? "\n     \"examples\": [" : ", ", example);
+        if (!shown.empty())
+            examples += shown + "],";
         if (!operation.keywords.empty()) {
             std::string words;
             for (const auto& word : operation.keywords)

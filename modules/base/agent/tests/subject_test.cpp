@@ -23,11 +23,12 @@ public:
         static constexpr std::array<control::Parameter, 1> add_parameters{{{"by", "integer", "how much (1 when none is given)", true}}};
         static constexpr std::array<control::Parameter, 1> set_parameters{{{"to", "integer", "the count from now on", false}}};
         static constexpr std::array<std::string_view, 1> set_examples{R"({"op":"counter.set","to":3})"};
+        static constexpr std::array<control::Way, 1> set_then{{{"read the count it has now", R"({"op":"counter.read"})"}}};
         static constexpr std::array<control::CatalogEntry, 4> all{{
             {{"counter.read", openas::Effect::read, false}, "The count", {}, "json", control::Cost::instant, "", false, false, false},
             {{"counter.add", openas::Effect::reversible, false}, "Adds to the count", add_parameters, "json", control::Cost::instant, "counter.add with the opposite", false, false, false},
             {{"counter.reset", openas::Effect::irreversible, false}, "Forgets the count", {}, "json", control::Cost::instant, "", false, false, false, {}, "zero clear"},
-            {{"counter.set", openas::Effect::reversible, false}, "Sets the count", set_parameters, "json", control::Cost::instant, "counter.set to what it was", false, false, false, set_examples},
+            {{"counter.set", openas::Effect::reversible, false}, "Sets the count", set_parameters, "json", control::Cost::instant, "counter.set to what it was", false, false, false, set_examples, "", set_then},
         }};
         return all;
     }
@@ -102,6 +103,9 @@ UTest cases{"agent.subject", [] {
         expect(eq(subject["capabilities"].size(), std::size_t{8})) << "observation, budget, control, time, causes, provenance, preview, history";
         expect(subject["hash"].text() == "0000000000000001");
         expect(who.records[0].root()["re"].integer() == 1) << "every record echoes the request's re";
+        const auto own = who.records[0].root()["data"]["session"];
+        expect(eq(own.size(), std::size_t{3}) && own[0]["request"].dump() == R"({"op":"describe","subject":"counter"})" && own[2]["request"]["op"].text() == "find")
+            << "the session's own requests: nothing but this answer is needed to go on";
 
         const auto described = ask(session, R"({"op":"describe","subject":"counter"})");
         const auto operations = described.records[0].root()["data"]["operations"];
@@ -182,6 +186,11 @@ UTest cases{"agent.subject", [] {
         expect(lacking.error() == "invalid-argument" && eq(counter.operated, before)) << "it did not reach the subject";
         expect(lacking.next() == Ways{R"({"op":"describe","operation":"counter.set"})", R"({"op":"counter.set","to":3})"});
         for (const std::string& way : lacking.next()) expect(eq(ask(session, way).exit_code(), std::int64_t{0})) << way;
+        // Done, it says what follows: the reading that shows what the change did. A failure says none.
+        const auto done = ask(session, R"({"op":"counter.set","to":5})");
+        const auto then = done.records.back().root()["then"];
+        expect(eq(then.size(), std::size_t{1}) && then[0]["why"].text() == "read the count it has now" && then[0]["request"].dump() == R"({"op":"counter.read"})");
+        expect(!ask(session, R"({"op":"counter.set","to":-1})").records.back().root()["then"] && !ask(session, R"({"op":"counter.read"})").records.back().root()["then"]);
         // The subject's own failure, which names no way out, carries the operation's.
         expect(ask(session, R"({"op":"counter.set","to":-1})").next() == lacking.next());
 

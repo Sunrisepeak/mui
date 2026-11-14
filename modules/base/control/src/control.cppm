@@ -181,6 +181,11 @@ struct Parameter {
     bool optional = false;
 };
 enum class Cost : std::uint8_t { instant, frame, bounded, heavy };
+// A request that leads on from an answer, and why it does: a way out of an error, what to do after a change.
+struct Way {
+    std::string_view why;
+    std::string_view request;  // a JSON object, as it is sent
+};
 struct CatalogEntry {
     Operation operation;
     std::string_view summary;
@@ -196,6 +201,9 @@ struct CatalogEntry {
     std::span<const std::string_view> examples;
     // Words an intent may use for it that its summary does not ("fire" for a heat), a space between: `find` reads them.
     std::string_view keywords;
+    // What follows it when it is done — the reading that shows what a change did: the session gives these with
+    // the result (`then`), so an agent checks its work without knowing the catalog.
+    std::span<const Way> then;
 };
 // A task to begin with: what it gets done, and the requests that do it, in order, each as it is sent.
 struct Task {

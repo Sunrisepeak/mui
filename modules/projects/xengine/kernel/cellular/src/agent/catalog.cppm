@@ -57,14 +57,24 @@ inline constexpr std::array<std::string_view, 1> examples_field_branch{{
 inline constexpr std::array<std::string_view, 1> examples_field_explain{{
     "{\"op\":\"field.explain\",\"cell\":[11,3]}",
 }};
+inline constexpr std::array<mlibs::control::Way, 2> then_field_place{{
+    {"step the rules on to see what becomes of it", "{\"op\":\"field.step\"}"},
+    {"read the field as it is now", "{\"op\":\"field.observe\"}"},
+}};
+inline constexpr std::array<mlibs::control::Way, 1> then_field_step{{
+    {"read the field as it is now", "{\"op\":\"field.observe\"}"},
+}};
+inline constexpr std::array<mlibs::control::Way, 1> then_field_seek{{
+    {"read the field at the frame returned to", "{\"op\":\"field.observe\"}"},
+}};
 
 // Read a field of cells as numbers, place values in it, step it, return to a frame, ask what would be, and who changed a cell.
 inline constexpr std::array<mlibs::control::CatalogEntry, 7> catalog{{
     {{"field.observe", openas::Effect::read, false}, "The frame, the steps run, the state's hash, the field's shape, and each channel of a region as numbers: least, most, sum, cells not zero", parameters_field_observe, "json", mlibs::control::Cost::bounded, "", false, false, false, examples_field_observe},
     {{"field.cells", openas::Effect::read, false}, "One channel's values in a region, row by row; at most 4096 cells a request", parameters_field_cells, "json", mlibs::control::Cost::bounded, "", false, false, false, examples_field_cells},
-    {{"field.place", openas::Effect::reversible, false}, "Sets one channel to a value over a region; a frame of its own, recorded like a step", parameters_field_place, "json", mlibs::control::Cost::bounded, "field.seek to the frame before it", false, false, false, examples_field_place},
-    {{"field.step", openas::Effect::reversible, false}, "Runs the program a number of steps over the field: the tiles awake (what is at rest sleeps, the result the same); answers where the field is and how many of its tiles sleep", parameters_field_step, "json", mlibs::control::Cost::bounded, "field.seek to the frame it began at", false, false, false, examples_field_step},
-    {{"field.seek", openas::Effect::reversible, false}, "Returns to a frame within the history kept; what is run from there is a new branch", parameters_field_seek, "json", mlibs::control::Cost::bounded, "none within the field: what came after the frame is another branch's", false, false, false, examples_field_seek},
+    {{"field.place", openas::Effect::reversible, false}, "Sets one channel to a value over a region; a frame of its own, recorded like a step", parameters_field_place, "json", mlibs::control::Cost::bounded, "field.seek to the frame before it", false, false, false, examples_field_place, "", then_field_place},
+    {{"field.step", openas::Effect::reversible, false}, "Runs the program a number of steps over the field: the tiles awake (what is at rest sleeps, the result the same); answers where the field is and how many of its tiles sleep", parameters_field_step, "json", mlibs::control::Cost::bounded, "field.seek to the frame it began at", false, false, false, examples_field_step, "", then_field_step},
+    {{"field.seek", openas::Effect::reversible, false}, "Returns to a frame within the history kept; what is run from there is a new branch", parameters_field_seek, "json", mlibs::control::Cost::bounded, "none within the field: what came after the frame is another branch's", false, false, false, examples_field_seek, "", then_field_seek},
     {{"field.branch", openas::Effect::read, false}, "What would be: the field some steps ahead, a value placed first when one is given, observed as field.observe does; the field itself untouched", parameters_field_branch, "json", mlibs::control::Cost::bounded, "", false, false, false, examples_field_branch},
     {{"field.explain", openas::Effect::read, false}, "Why a cell holds what it holds, as far as the field knows: its values, the edits on record that cover it — what was written, at which frame, by whom — the latest first, and what the program changed of it in the last step", parameters_field_explain, "json", mlibs::control::Cost::bounded, "", false, false, false, examples_field_explain},
 }};
@@ -107,12 +117,15 @@ inline constexpr std::string_view listing = R"listing({
      "examples": [{"op":"field.cells","channel":0,"region":[0,0,4,4]}],
      "inputSchema": {"type": "object", "properties": {"channel": {"type": "integer", "description": "which channel"}, "region": {"description": "[x, y, width, height] in cells", "x-space": "lattice-2d"}}, "required": ["channel", "region"]}},
     {"name": "field.place", "description": "Sets one channel to a value over a region; a frame of its own, recorded like a step", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "field.seek to the frame before it", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "step the rules on to see what becomes of it", "request": {"op":"field.step"}}, {"why": "read the field as it is now", "request": {"op":"field.observe"}}],
      "examples": [{"op":"field.place","channel":0,"value":1,"region":[9,0,1,3]}],
      "inputSchema": {"type": "object", "properties": {"channel": {"type": "integer", "description": "which channel"}, "value": {"type": "integer", "description": "0 … 4294967295"}, "region": {"description": "[x, y, width, height] in cells", "x-space": "lattice-2d"}}, "required": ["channel", "value", "region"]}},
     {"name": "field.step", "description": "Runs the program a number of steps over the field: the tiles awake (what is at rest sleeps, the result the same); answers where the field is and how many of its tiles sleep", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "field.seek to the frame it began at", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "read the field as it is now", "request": {"op":"field.observe"}}],
      "examples": [{"op":"field.step","steps":5}],
      "inputSchema": {"type": "object", "properties": {"steps": {"type": "integer", "description": "how many (1 when none is given)"}}, "required": []}},
     {"name": "field.seek", "description": "Returns to a frame within the history kept; what is run from there is a new branch", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "none within the field: what came after the frame is another branch's", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "read the field at the frame returned to", "request": {"op":"field.observe"}}],
      "examples": [{"op":"field.seek","frame":1}],
      "inputSchema": {"type": "object", "properties": {"frame": {"type": "integer", "description": "the frame to return to"}}, "required": ["frame"]}},
     {"name": "field.branch", "description": "What would be: the field some steps ahead, a value placed first when one is given, observed as field.observe does; the field itself untouched", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",

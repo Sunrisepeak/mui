@@ -37,6 +37,7 @@ export default defineOps({
     },
     {
       name: "field.place",
+      then: [{ why: "step the rules on to see what becomes of it", request: { op: "field.step" } }, { why: "read the field as it is now", request: { op: "field.observe" } }],
       effect: "reversible",
       summary: "Sets one channel to a value over a region; a frame of its own, recorded like a step",
       params: [
@@ -50,6 +51,7 @@ export default defineOps({
     },
     {
       name: "field.step",
+      then: [{ why: "read the field as it is now", request: { op: "field.observe" } }],
       effect: "reversible",
       summary: "Runs the program a number of steps over the field: the tiles awake (what is at rest sleeps, the result the same); answers where the field is and how many of its tiles sleep",
       params: [{ name: "steps", type: "integer", doc: "how many (1 when none is given)", optional: true }],
@@ -59,6 +61,7 @@ export default defineOps({
     },
     {
       name: "field.seek",
+      then: [{ why: "read the field at the frame returned to", request: { op: "field.observe" } }],
       examples: [{ frame: 1 }],
       effect: "reversible",
       summary: "Returns to a frame within the history kept; what is run from there is a new branch",

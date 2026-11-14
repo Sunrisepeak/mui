@@ -44,6 +44,7 @@ export default defineOps({
     },
     {
       name: "matter.place",
+      then: [{ why: "read what the field holds now", request: { op: "matter.observe" } }, { why: "read what happened because of it", request: { op: "matter.events" } }],
       keywords: ["put", "add", "build", "draw", "create", "wall", "remove", "erase"],
       effect: "reversible",
       summary: "Makes a region of a material anew — every channel as a new instance of it has — in one frame, recorded with who placed it",
@@ -57,6 +58,7 @@ export default defineOps({
     },
     {
       name: "matter.apply",
+      then: [{ why: "read what the field holds now", request: { op: "matter.observe" } }, { why: "read what happened because of it", request: { op: "matter.events" } }],
       keywords: ["fire", "burn", "heat", "cool", "freeze", "wet", "dry", "charge", "change"],
       effect: "reversible",
       summary: "A quantity applied to a region — a channel set to, raised by or lowered by an amount in its unit (heat: temperature add 400) — in one frame, recorded with who applied it",
@@ -73,6 +75,7 @@ export default defineOps({
     },
     {
       name: "matter.explode",
+      then: [{ why: "read what the field holds now", request: { op: "matter.observe" } }, { why: "read what happened because of it", request: { op: "matter.events" } }],
       keywords: ["blast", "bomb", "blow", "break", "destroy", "shatter"],
       examples: [{ cell: [5, 3], radius: 2, pressure: 40000, heat: 900 }],
       effect: "reversible",
@@ -90,6 +93,7 @@ export default defineOps({
     },
     {
       name: "matter.heat",
+      then: [{ why: "read what the field holds now", request: { op: "matter.observe" } }, { why: "read what happened because of it", request: { op: "matter.events" } }],
       keywords: ["fire", "burn", "ignite", "light", "hot", "warm", "melt", "boil"],
       examples: [{ cell: [5, 3], radius: 1, kelvin: 900 }],
       effect: "reversible",
@@ -105,6 +109,7 @@ export default defineOps({
     },
     {
       name: "matter.pour",
+      then: [{ why: "read what the field holds now", request: { op: "matter.observe" } }, { why: "read what happened because of it", request: { op: "matter.events" } }],
       keywords: ["fill", "flood", "spill", "liquid", "add"],
       examples: [{ material: "water", cell: [5, 0], radius: 1 }],
       effect: "reversible",

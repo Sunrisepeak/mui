@@ -168,7 +168,12 @@ void SubjectSession::request(std::string_view line, const Reply& reply) {
     if (request.op == "subjects") {
         std::string out = "{\"subjects\":[";
         for (std::size_t index = 0; index < subjects_.size(); ++index) out += (index ? "," : "") + described(*subjects_[index]);
-        out += "]}";
+        // The session's own requests, so that nothing but this answer is needed to go on.
+        out += std::format("],\"session\":[{},{},{}]}}",
+                           way_out("what a subject is, the tasks to begin with and its operations", describing_subject(subjects_.empty() ? std::string_view("…") : subjects_.front()->name())),
+                           way_out("one operation whole (this one, or any by its name): its parameters and examples",
+                                   describing(subjects_.empty() || subjects_.front()->operations().empty() ? std::string_view("…") : subjects_.front()->operations().front().operation.name)),
+                           way_out("what answers an intent, in words, across the subjects", R"({"op":"find","q":"what you want to do"})"));
         answer.data(out);
         answer.result();
         return;
@@ -279,6 +284,11 @@ void SubjectSession::request(std::string_view line, const Reply& reply) {
         }
     // A failure the subject answers without a way out still carries the operation's.
     answer.otherwise(ways_of(*found));
+    if (!found->then.empty()) {
+        std::string follows = "[";
+        for (const mlibs::control::Way& way : found->then) follows += std::format("{}{}", follows.size() > 1 ? "," : "", way_out(way.why, way.request));
+        answer.then(follows + "]");
+    }
     // Who asks is the session's to say: its owner when it has one, never the line's own claim.
     Request decided = request;
     decided.actor = options_.session ? options_.session->attribute(options_.actor) : options_.actor;

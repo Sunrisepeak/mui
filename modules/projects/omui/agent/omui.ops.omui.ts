@@ -71,6 +71,7 @@ export default defineOps({
     },
     {
       name: "ui.act",
+      then: [{ why: "read what changed in the tree, without reading it all again", request: { op: "ui.changes" } }],
       examples: [{ node: "main/save", action: "activate" }],
       effect: "irreversible",
       delegated: true,
@@ -88,6 +89,7 @@ export default defineOps({
     },
     {
       name: "ui.invoke",
+      then: [{ why: "read what changed in the tree, without reading it all again", request: { op: "ui.changes" } }],
       examples: [{ verb: "save" }],
       effect: "irreversible",
       delegated: true,
@@ -104,6 +106,7 @@ export default defineOps({
     },
     {
       name: "ui.undo",
+      then: [{ why: "read what changed in the tree, without reading it all again", request: { op: "ui.changes" } }],
       effect: "reversible",
       summary: "Take back the last change in a history scope",
       params: [{ name: "scope", type: "node", doc: "a node's undo scope (the window's when absent)", optional: true }],
@@ -112,6 +115,7 @@ export default defineOps({
     },
     {
       name: "ui.redo",
+      then: [{ why: "read what changed in the tree, without reading it all again", request: { op: "ui.changes" } }],
       effect: "reversible",
       summary: "Do again what ui.undo took back",
       params: [{ name: "scope", type: "node", optional: true }],
@@ -120,6 +124,7 @@ export default defineOps({
     },
     {
       name: "ui.transaction",
+      then: [{ why: "read what changed in the tree, without reading it all again", request: { op: "ui.changes" } }],
       examples: [{ steps: [{ node: "main/name", action: "set_value", args: { value: "Ada" } }] }],
       effect: "reversible",
       summary: "Steps performed as one: all done, or all taken back",
@@ -197,6 +202,7 @@ export default defineOps({
     },
     {
       name: "ui.input",
+      then: [{ why: "read what changed in the tree, without reading it all again", request: { op: "ui.changes" } }],
       examples: [{ events: [{ type: "click", at: [24, 24] }] }],
       effect: "reversible",
       summary: "A person's input as their devices give it (pointer, keys, text), delivered a frame at a time; answers what each press hit",

@@ -97,6 +97,8 @@ export interface Operation {
     examples?: Record<string, unknown>[];
     /** Words an intent may use for it that the summary does not (`"fire"` for a heat): `find` reads them. */
     keywords?: string[];
+    /** What follows it when it is done (the reading that shows what a change did): given with its result. */
+    then?: { why: string; request: Step }[];
 }
 /** A request as it is sent: an operation of the catalog by its whole name, and its arguments. */
 export type Step = { op: string } & Record<string, unknown>;

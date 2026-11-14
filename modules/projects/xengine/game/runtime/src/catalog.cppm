@@ -44,14 +44,24 @@ inline constexpr std::array<std::string_view, 1> examples_world_seek{{
 inline constexpr std::array<std::string_view, 1> examples_world_branch{{
     "{\"op\":\"world.branch\",\"steps\":30,\"axis\":[1]}",
 }};
+inline constexpr std::array<mlibs::control::Way, 2> then_world_act{{
+    {"play steps on: the action shows from `effective`", "{\"op\":\"world.step\"}"},
+    {"read what a player is shown now", "{\"op\":\"world.observe\"}"},
+}};
+inline constexpr std::array<mlibs::control::Way, 1> then_world_step{{
+    {"read what a player is shown now", "{\"op\":\"world.observe\"}"},
+}};
+inline constexpr std::array<mlibs::control::Way, 1> then_world_seek{{
+    {"read where the game's time is", "{\"op\":\"world.state\"}"},
+}};
 
 // Observe a game running on its own, play it as a person does, step and seek its time, and ask what would be.
 inline constexpr std::array<mlibs::control::CatalogEntry, 6> catalog{{
     {{"world.observe", openas::Effect::read, false}, "What a player on this tier is shown at this frame, with the frame and the state's hash", {}, "json", mlibs::control::Cost::instant, "", false, false, false, examples_world_observe},
     {{"world.state", openas::Effect::read, false}, "The frame, the state's hash, whether the game is over, and the frames it can be sought within", {}, "json", mlibs::control::Cost::instant, "", false, false, false, examples_world_state},
-    {{"world.act", openas::Effect::reversible, false}, "A player's actions, as a person's: the state shows them from `effective`, no sooner than the tier's reaction after `seen`, and they hold until the next", parameters_world_act, "json", mlibs::control::Cost::instant, "world.seek to the frame before it took effect", false, false, false, examples_world_act},
-    {{"world.step", openas::Effect::reversible, false}, "Plays steps; only where the agent steps the game (an owner's clock refuses it)", parameters_world_step, "json", mlibs::control::Cost::bounded, "world.seek to the frame it began at", false, false, false, examples_world_step},
-    {{"world.seek", openas::Effect::reversible, false}, "Returns to a frame within the history kept; what is played from there is a new branch", parameters_world_seek, "json", mlibs::control::Cost::bounded, "none within the runtime: what came after the frame is another branch's", false, false, false, examples_world_seek},
+    {{"world.act", openas::Effect::reversible, false}, "A player's actions, as a person's: the state shows them from `effective`, no sooner than the tier's reaction after `seen`, and they hold until the next", parameters_world_act, "json", mlibs::control::Cost::instant, "world.seek to the frame before it took effect", false, false, false, examples_world_act, "", then_world_act},
+    {{"world.step", openas::Effect::reversible, false}, "Plays steps; only where the agent steps the game (an owner's clock refuses it)", parameters_world_step, "json", mlibs::control::Cost::bounded, "world.seek to the frame it began at", false, false, false, examples_world_step, "", then_world_step},
+    {{"world.seek", openas::Effect::reversible, false}, "Returns to a frame within the history kept; what is played from there is a new branch", parameters_world_seek, "json", mlibs::control::Cost::bounded, "none within the runtime: what came after the frame is another branch's", false, false, false, examples_world_seek, "", then_world_seek},
     {{"world.branch", openas::Effect::read, false}, "What would be if given actions were given now: the future's view and hash some steps ahead — the actions taking effect as the tier's reaction allows, as `world.act` would have them; the game itself untouched", parameters_world_branch, "json", mlibs::control::Cost::bounded, "", false, false, false, examples_world_branch},
 }};
 
@@ -89,12 +99,15 @@ inline constexpr std::string_view listing = R"listing({
      "examples": [{"op":"world.state"}],
      "inputSchema": {"type": "object", "properties": {}, "required": []}},
     {"name": "world.act", "description": "A player's actions, as a person's: the state shows them from `effective`, no sooner than the tier's reaction after `seen`, and they hold until the next", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "world.seek to the frame before it took effect", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "play steps on: the action shows from `effective`", "request": {"op":"world.step"}}, {"why": "read what a player is shown now", "request": {"op":"world.observe"}}],
      "examples": [{"op":"world.act","axis":[1]}],
      "inputSchema": {"type": "object", "properties": {"seen": {"type": "integer", "description": "the frame they were decided on (the latest played when none is given)"}, "buttons": {"description": "the buttons held, by index: [0]"}, "axis": {"description": "up to four axes, each -1 to 1: [1]"}, "pointer": {"description": "[x, y], each 0 to 1 of the game's area", "x-space": "plane"}}, "required": []}},
     {"name": "world.step", "description": "Plays steps; only where the agent steps the game (an owner's clock refuses it)", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "world.seek to the frame it began at", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "read what a player is shown now", "request": {"op":"world.observe"}}],
      "examples": [{"op":"world.step","steps":30}],
      "inputSchema": {"type": "object", "properties": {"steps": {"type": "integer", "description": "how many (1 when none is given)"}}, "required": []}},
     {"name": "world.seek", "description": "Returns to a frame within the history kept; what is played from there is a new branch", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "none within the runtime: what came after the frame is another branch's", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "read where the game's time is", "request": {"op":"world.state"}}],
      "examples": [{"op":"world.seek","frame":0}],
      "inputSchema": {"type": "object", "properties": {"frame": {"type": "integer", "description": "the frame to return to"}}, "required": ["frame"]}},
     {"name": "world.branch", "description": "What would be if given actions were given now: the future's view and hash some steps ahead — the actions taking effect as the tier's reaction allows, as `world.act` would have them; the game itself untouched", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",

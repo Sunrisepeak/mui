@@ -45,14 +45,23 @@ inline constexpr std::array<std::string_view, 1> examples_body_branch{{
 inline constexpr std::array<std::string_view, 1> examples_body_contacts{{
     "{\"op\":\"body.contacts\"}",
 }};
+inline constexpr std::array<mlibs::control::Way, 1> then_body_push{{
+    {"step the body: the push acts from the next step", "{\"op\":\"body.step\"}"},
+}};
+inline constexpr std::array<mlibs::control::Way, 1> then_body_step{{
+    {"read where the body is now", "{\"op\":\"body.observe\"}"},
+}};
+inline constexpr std::array<mlibs::control::Way, 1> then_body_seek{{
+    {"read the body at the frame returned to", "{\"op\":\"body.observe\"}"},
+}};
 
 // Read a soft body's place, squash, speed and contacts, push it, step it, return to a frame, and ask what would be.
 inline constexpr std::array<mlibs::control::CatalogEntry, 7> catalog{{
     {{"body.observe", openas::Effect::read, false}, "The frame, the state's hash, the body's centre, bounds, area against its rest area, its fastest particle's speed, and what it touches", parameters_body_observe, "json", mlibs::control::Cost::instant, "", false, false, false, examples_body_observe},
     {{"body.particles", openas::Effect::read, false}, "Each particle's place and velocity, in order around the ring", {}, "json", mlibs::control::Cost::bounded, "", false, false, false, {}},
-    {{"body.push", openas::Effect::reversible, false}, "What acts on the body from the next step on, held until the next push: a force on the whole of it, a walk along what it stands on; and once, on the next step alone, a kick", parameters_body_push, "json", mlibs::control::Cost::instant, "body.seek to the frame before it took effect", false, false, false, examples_body_push},
-    {{"body.step", openas::Effect::reversible, false}, "Steps the body under what is held", parameters_body_step, "json", mlibs::control::Cost::bounded, "body.seek to the frame it began at", false, false, false, examples_body_step},
-    {{"body.seek", openas::Effect::reversible, false}, "Returns to a frame within the history kept; what is stepped from there is a new branch", parameters_body_seek, "json", mlibs::control::Cost::bounded, "none within the body: what came after the frame is another branch's", false, false, false, examples_body_seek},
+    {{"body.push", openas::Effect::reversible, false}, "What acts on the body from the next step on, held until the next push: a force on the whole of it, a walk along what it stands on; and once, on the next step alone, a kick", parameters_body_push, "json", mlibs::control::Cost::instant, "body.seek to the frame before it took effect", false, false, false, examples_body_push, "", then_body_push},
+    {{"body.step", openas::Effect::reversible, false}, "Steps the body under what is held", parameters_body_step, "json", mlibs::control::Cost::bounded, "body.seek to the frame it began at", false, false, false, examples_body_step, "", then_body_step},
+    {{"body.seek", openas::Effect::reversible, false}, "Returns to a frame within the history kept; what is stepped from there is a new branch", parameters_body_seek, "json", mlibs::control::Cost::bounded, "none within the body: what came after the frame is another branch's", false, false, false, examples_body_seek, "", then_body_seek},
     {{"body.branch", openas::Effect::read, false}, "What would be: the body some steps ahead under a given push, observed as body.observe does; the body itself untouched", parameters_body_branch, "json", mlibs::control::Cost::bounded, "", false, false, false, examples_body_branch},
     {{"body.contacts", openas::Effect::read, false}, "What the last step touched, in words: its place, its squash, its speed, its contacts by kind, and the stages a step goes through", {}, "string", mlibs::control::Cost::instant, "", false, false, false, examples_body_contacts},
 }};
@@ -90,12 +99,15 @@ inline constexpr std::string_view listing = R"listing({
     {"name": "body.particles", "description": "Each particle's place and velocity, in order around the ring", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {}, "required": []}},
     {"name": "body.push", "description": "What acts on the body from the next step on, held until the next push: a force on the whole of it, a walk along what it stands on; and once, on the next step alone, a kick", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "body.seek to the frame before it took effect", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "step the body: the push acts from the next step", "request": {"op":"body.step"}}],
      "examples": [{"op":"body.push","kick":[120,-380]}],
      "inputSchema": {"type": "object", "properties": {"force": {"description": "[x, y], an acceleration added to gravity"}, "walk": {"type": "number", "description": "along the ground, signed"}, "kick": {"description": "[x, y], a velocity added once"}}, "required": []}},
     {"name": "body.step", "description": "Steps the body under what is held", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "body.seek to the frame it began at", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "read where the body is now", "request": {"op":"body.observe"}}],
      "examples": [{"op":"body.step","steps":30}],
      "inputSchema": {"type": "object", "properties": {"steps": {"type": "integer", "description": "how many (1 when none is given)"}}, "required": []}},
     {"name": "body.seek", "description": "Returns to a frame within the history kept; what is stepped from there is a new branch", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "none within the body: what came after the frame is another branch's", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "read the body at the frame returned to", "request": {"op":"body.observe"}}],
      "examples": [{"op":"body.seek","frame":240}],
      "inputSchema": {"type": "object", "properties": {"frame": {"type": "integer", "description": "the frame to return to"}}, "required": ["frame"]}},
     {"name": "body.branch", "description": "What would be: the body some steps ahead under a given push, observed as body.observe does; the body itself untouched", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",

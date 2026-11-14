@@ -307,6 +307,26 @@ void guide_runs(const Probe& probe, Check& check) {
                        std::format("`{}`: {} is well formed ({} {})", entry.operation.name, example, answered.code, answered.message));
         }
     }
+    // What follows an operation when it is done (`then`) is a request of the catalog; given with a result, it runs.
+    std::size_t follows = 0;
+    for (const mlibs::control::CatalogEntry& entry : subject->operations())
+        for (const mlibs::control::Way& way : entry.then) {
+            ++follows;
+            check.that(!way.why.empty() && entry_of(*subject, operation_of(way.request)) != nullptr, std::format("`{}`: what follows it, {}, is a request of the catalog, with why", entry.operation.name, way.request));
+        }
+    if (!probe.change.empty())
+        if (const auto* changing = entry_of(*subject, operation_of(probe.change)); changing && !changing->then.empty()) {
+            const auto fresh = probe.make();
+            SubjectSession session({fresh.get()});
+            const Answered changed = ask(session, probe.change);
+            auto parsed = mlibs::json::Document::parse(changed.lines.empty() ? std::string_view{} : std::string_view{changed.lines.back()}, "record");
+            if (check.that(changed.exit == 0 && parsed.has_value(), "the change runs")) {
+                const auto then = parsed->root()["then"];
+                check.equal(then.size(), changing->then.size(), "done, the change says what follows it (`then`, with its result)");
+                for (const auto& way : then.items()) check.that(ask(session, way["request"].dump()).exit == 0, std::format("{} runs as given", way["request"].dump()));
+            }
+        }
+    check.evidence("follows", std::to_string(follows));
     check.evidence("tasks", std::to_string(guide.tasks.size()));
     check.evidence("steps", std::to_string(steps));
     check.evidence("examples", std::to_string(examples));

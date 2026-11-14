@@ -337,7 +337,7 @@ UTest cases{"gen", [] {
   "operations": [
     {"name": "x.look", "effect": "read", "summary": "looks", "result": "json", "params": [{"name": "at", "type": "json"}],
      "examples": [{"at": [1, 2]}]},
-    {"name": "x.move", "effect": "reversible", "summary": "moves", "undo": "x.move back", "params": [
+    {"name": "x.move", "effect": "reversible", "summary": "moves", "undo": "x.move back", "then": [{"why": "see where it is", "request": {"op": "x.look", "at": [0, 0]}}], "params": [
       {"name": "by", "type": "number"}, {"name": "note", "type": "string", "optional": true}]},
     {"name": "x.rest", "effect": "read", "summary": "rests", "keywords": ["sleep", "idle"]}
   ],
@@ -353,13 +353,15 @@ UTest cases{"gen", [] {
         expect(catalog->operations[2].examples == std::vector<std::string>{R"({"op":"x.rest"})"});
         const std::string table = gen::emit_catalog_cpp(*catalog, "x.ops.omui.json");
         for (const std::string_view wanted : {"inline constexpr std::array<std::string_view, 1> examples_x_look{{", "\"{\\\"op\\\":\\\"x.look\\\",\\\"at\\\":[1,2]}\",",
-                                              "false, examples_x_move},", "inline constexpr std::array<std::string_view, 3> steps_look_then_move{{",
+                                              "false, examples_x_move, ", "inline constexpr std::array<std::string_view, 3> steps_look_then_move{{",
                                               "inline constexpr std::array<mlibs::control::Task, 1> guide_tasks{{",
                                               "{\"look-then-move\", \"Look at a place, move, look again\", steps_look_then_move},",
                                               "inline constexpr mlibs::control::Guide guide{\"A thing to look at and move.\", guide_tasks};"})
             expect(table.contains(wanted)) << wanted << "\n" << table;
         expect(table.contains("examples_x_rest, \"sleep idle\"},")) << "words an intent may use for it: what find reads";
+        expect(table.contains("inline constexpr std::array<mlibs::control::Way, 1> then_x_move{{") && table.contains("examples_x_move, \"\", then_x_move},")) << table;
         const std::string listing = gen::emit_catalog_json(*catalog);
+        expect(listing.contains(R"("then": [{"why": "see where it is", "request": {"op":"x.look","at":[0,0]}}],)")) << listing;
         expect(listing.contains(R"("keywords": ["sleep", "idle"],)"));
         expect(listing.contains(R"("examples": [{"op":"x.look","at":[1,2]}],)") && listing.contains(R"("tasks": [)") && listing.contains(R"({"name": "look-then-move", "summary": "Look at a place, move, look again", "steps": [)"))
             << listing;

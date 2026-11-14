@@ -189,6 +189,24 @@ inline constexpr std::array<std::string_view, 1> examples_ui_drew{{
 inline constexpr std::array<std::string_view, 1> examples_ui_profile{{
     "{\"op\":\"ui.profile\",\"action\":\"start\"}",
 }};
+inline constexpr std::array<mlibs::control::Way, 1> then_ui_act{{
+    {"read what changed in the tree, without reading it all again", "{\"op\":\"ui.changes\"}"},
+}};
+inline constexpr std::array<mlibs::control::Way, 1> then_ui_invoke{{
+    {"read what changed in the tree, without reading it all again", "{\"op\":\"ui.changes\"}"},
+}};
+inline constexpr std::array<mlibs::control::Way, 1> then_ui_undo{{
+    {"read what changed in the tree, without reading it all again", "{\"op\":\"ui.changes\"}"},
+}};
+inline constexpr std::array<mlibs::control::Way, 1> then_ui_redo{{
+    {"read what changed in the tree, without reading it all again", "{\"op\":\"ui.changes\"}"},
+}};
+inline constexpr std::array<mlibs::control::Way, 1> then_ui_transaction{{
+    {"read what changed in the tree, without reading it all again", "{\"op\":\"ui.changes\"}"},
+}};
+inline constexpr std::array<mlibs::control::Way, 1> then_ui_input{{
+    {"read what changed in the tree, without reading it all again", "{\"op\":\"ui.changes\"}"},
+}};
 
 // Read, find, act on, wait for, capture and inspect a running application's semantic tree.
 inline constexpr std::array<mlibs::control::CatalogEntry, 32> catalog{{
@@ -198,18 +216,18 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 32> catalog{{
     {{"ui.snapshot", openas::Effect::read, false}, "The semantic tree, or a part of it", parameters_ui_snapshot, "tree", mlibs::control::Cost::bounded, "", false, false, false, examples_ui_snapshot},
     {{"ui.changes", openas::Effect::read, false}, "What changed in the tree since the last snapshot or changes", {}, "json", mlibs::control::Cost::instant, "", false, false, false, examples_ui_changes},
     {{"ui.find", openas::Effect::read, false}, "Nodes matching a query (role, name, id, state; wildcards)", parameters_ui_find, "json", mlibs::control::Cost::bounded, "", false, false, false, examples_ui_find},
-    {{"ui.act", openas::Effect::irreversible, false}, "Perform a node's action, under that action's effect (an irreversible one asks the person)", parameters_ui_act, "json", mlibs::control::Cost::frame, "the action's own: ui.undo for a reversible one; an irreversible one cannot be taken back", false, false, true, examples_ui_act},
-    {{"ui.invoke", openas::Effect::irreversible, false}, "Call one of the application's verbs, under its declared effect", parameters_ui_invoke, "json", mlibs::control::Cost::bounded, "the verb's own (an undoable verb: ui.undo)", false, false, true, examples_ui_invoke},
-    {{"ui.undo", openas::Effect::reversible, false}, "Take back the last change in a history scope", parameters_ui_undo, "json", mlibs::control::Cost::instant, "ui.redo", false, false, false, {}},
-    {{"ui.redo", openas::Effect::reversible, false}, "Do again what ui.undo took back", parameters_ui_redo, "json", mlibs::control::Cost::instant, "ui.undo", false, false, false, {}},
-    {{"ui.transaction", openas::Effect::reversible, false}, "Steps performed as one: all done, or all taken back", parameters_ui_transaction, "json", mlibs::control::Cost::bounded, "ui.undo takes the whole transaction back", false, false, false, examples_ui_transaction},
+    {{"ui.act", openas::Effect::irreversible, false}, "Perform a node's action, under that action's effect (an irreversible one asks the person)", parameters_ui_act, "json", mlibs::control::Cost::frame, "the action's own: ui.undo for a reversible one; an irreversible one cannot be taken back", false, false, true, examples_ui_act, "", then_ui_act},
+    {{"ui.invoke", openas::Effect::irreversible, false}, "Call one of the application's verbs, under its declared effect", parameters_ui_invoke, "json", mlibs::control::Cost::bounded, "the verb's own (an undoable verb: ui.undo)", false, false, true, examples_ui_invoke, "", then_ui_invoke},
+    {{"ui.undo", openas::Effect::reversible, false}, "Take back the last change in a history scope", parameters_ui_undo, "json", mlibs::control::Cost::instant, "ui.redo", false, false, false, {}, "", then_ui_undo},
+    {{"ui.redo", openas::Effect::reversible, false}, "Do again what ui.undo took back", parameters_ui_redo, "json", mlibs::control::Cost::instant, "ui.undo", false, false, false, {}, "", then_ui_redo},
+    {{"ui.transaction", openas::Effect::reversible, false}, "Steps performed as one: all done, or all taken back", parameters_ui_transaction, "json", mlibs::control::Cost::bounded, "ui.undo takes the whole transaction back", false, false, false, examples_ui_transaction, "", then_ui_transaction},
     {{"ui.preview", openas::Effect::read, false}, "What steps would make, shown before it is allowed: pictures before and after, the semantic changes; nothing stays", parameters_ui_preview, "json", mlibs::control::Cost::bounded, "", false, false, false, examples_ui_preview},
     {{"ui.history", openas::Effect::read, false}, "A history scope's changes, what can be undone and redone", parameters_ui_history, "json", mlibs::control::Cost::instant, "", false, false, false, examples_ui_history},
     {{"ui.state", openas::Effect::read, false}, "What a person has set in the interface, by semantic id: the values of what takes one, what is checked, where the focus is (not a password) — for another instance to take back (ui.restore)", {}, "json", mlibs::control::Cost::instant, "", false, false, false, {}},
     {{"ui.restore", openas::Effect::reversible, false}, "ui.state's values put back where the same id with the same role takes them (a new build, a restart): what was restored, what is not there any more, what could not be; not a step of the history", parameters_ui_restore, "json", mlibs::control::Cost::instant, "ui.restore with the state before", false, false, false, examples_ui_restore},
     {{"ui.wait", openas::Effect::read, false}, "Answer when a condition holds: a node present or absent, the tree settled", parameters_ui_wait, "json", mlibs::control::Cost::heavy, "", false, false, false, {}},
     {{"ui.capture", openas::Effect::read, false}, "The picture as drawn: the window, a node, or a region of it, as PNG pixels or as SVG with every node's drawing marked", parameters_ui_capture, "image", mlibs::control::Cost::frame, "", false, false, false, {}},
-    {{"ui.input", openas::Effect::reversible, false}, "A person's input as their devices give it (pointer, keys, text), delivered a frame at a time; answers what each press hit", parameters_ui_input, "json", mlibs::control::Cost::heavy, "what the input performed is the actions' own (ui.undo for reversible ones)", false, false, false, examples_ui_input},
+    {{"ui.input", openas::Effect::reversible, false}, "A person's input as their devices give it (pointer, keys, text), delivered a frame at a time; answers what each press hit", parameters_ui_input, "json", mlibs::control::Cost::heavy, "what the input performed is the actions' own (ui.undo for reversible ones)", false, false, false, examples_ui_input, "", then_ui_input},
     {{"ui.intend", openas::Effect::read, false}, "Say to the person what you are about to do (the steps, or a note) — or, handing the task back, what you did, what is left, what you were unsure of: shown by your presence until you say another; nothing in the application changes", parameters_ui_intend, "json", mlibs::control::Cost::instant, "", false, false, false, examples_ui_intend},
     {{"ui.claim", openas::Effect::reversible, false}, "Hold a part of the interface while you design it (D-160), so another agent's change there is refused (conflict: who holds it, what for, retry_after) — a node itself, one of its properties, or the node and everything inside it; as small as the work. Shown with your presence; claiming it again renews it; the person is never held, and taking over releases every claim", parameters_ui_claim, "json", mlibs::control::Cost::instant, "ui.release", false, false, false, examples_ui_claim},
     {{"ui.release", openas::Effect::reversible, false}, "Let go of a part you hold (ui.claim): another may claim and change it", parameters_ui_release, "json", mlibs::control::Cost::instant, "ui.claim", false, false, false, examples_ui_release},
@@ -273,16 +291,21 @@ inline constexpr std::string_view listing = R"listing({
      "examples": [{"op":"ui.find","q":{"role":"button"}}],
      "inputSchema": {"type": "object", "properties": {"q": {"description": "a query: {\"role\": \"button\", \"name\": \"Save*\"}"}}, "required": ["q"]}},
     {"name": "ui.act", "description": "Perform a node's action, under that action's effect (an irreversible one asks the person)", "effect": "irreversible", "person": false, "delegated": true, "cost": "frame", "undo": "the action's own: ui.undo for a reversible one; an irreversible one cannot be taken back", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "read what changed in the tree, without reading it all again", "request": {"op":"ui.changes"}}],
      "examples": [{"op":"ui.act","node":"main/save","action":"activate"}],
      "inputSchema": {"type": "object", "properties": {"node": {"type": "string", "description": "a node (its id)"}, "action": {"type": "string", "description": "one of the node's actions (activate, toggle, set_value, …)"}, "args": {"description": "the action's arguments"}, "answer": {"type": "string", "description": "the person's answer, when the action asks"}, "dry_run": {"type": "boolean", "description": "only say what would happen"}}, "required": ["node", "action"]}},
     {"name": "ui.invoke", "description": "Call one of the application's verbs, under its declared effect", "effect": "irreversible", "person": false, "delegated": true, "cost": "bounded", "undo": "the verb's own (an undoable verb: ui.undo)", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "read what changed in the tree, without reading it all again", "request": {"op":"ui.changes"}}],
      "examples": [{"op":"ui.invoke","verb":"save"}],
      "inputSchema": {"type": "object", "properties": {"verb": {"type": "string", "description": "a verb ui.describe lists"}, "args": {"description": "its arguments"}, "answer": {"type": "string", "description": "the person's answer, when the verb asks"}, "dry_run": {"type": "boolean", "description": "only say what would happen"}}, "required": ["verb"]}},
     {"name": "ui.undo", "description": "Take back the last change in a history scope", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "ui.redo", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "read what changed in the tree, without reading it all again", "request": {"op":"ui.changes"}}],
      "inputSchema": {"type": "object", "properties": {"scope": {"type": "string", "description": "a node (its id): a node's undo scope (the window's when absent)"}}, "required": []}},
     {"name": "ui.redo", "description": "Do again what ui.undo took back", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "ui.undo", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "read what changed in the tree, without reading it all again", "request": {"op":"ui.changes"}}],
      "inputSchema": {"type": "object", "properties": {"scope": {"type": "string", "description": "a node (its id)"}}, "required": []}},
     {"name": "ui.transaction", "description": "Steps performed as one: all done, or all taken back", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "ui.undo takes the whole transaction back", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "read what changed in the tree, without reading it all again", "request": {"op":"ui.changes"}}],
      "examples": [{"op":"ui.transaction","steps":[{"node":"main/name","action":"set_value","args":{"value":"Ada"}}]}],
      "inputSchema": {"type": "object", "properties": {"steps": {"description": "a list of {node, action, args, answer}"}, "label": {"type": "string", "description": "what the history calls it"}}, "required": ["steps"]}},
     {"name": "ui.preview", "description": "What steps would make, shown before it is allowed: pictures before and after, the semantic changes; nothing stays", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
@@ -301,6 +324,7 @@ inline constexpr std::string_view listing = R"listing({
     {"name": "ui.capture", "description": "The picture as drawn: the window, a node, or a region of it, as PNG pixels or as SVG with every node's drawing marked", "effect": "read", "person": false, "delegated": false, "cost": "frame", "undo": "", "undoable": false, "cancellable": false, "result": "image",
      "inputSchema": {"type": "object", "properties": {"node": {"type": "string", "description": "a node (its id)"}, "region": {"description": "[x, y, width, height] from the node's corner, in logical pixels"}, "format": {"type": "string", "description": "png (pixels, the default) or svg (vectors at any size; each node's drawing a group marked data-node with its path; what SVG cannot say kept as pixels, listed in `islands`)"}}, "required": []}},
     {"name": "ui.input", "description": "A person's input as their devices give it (pointer, keys, text), delivered a frame at a time; answers what each press hit", "effect": "reversible", "person": false, "delegated": false, "cost": "heavy", "undo": "what the input performed is the actions' own (ui.undo for reversible ones)", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "read what changed in the tree, without reading it all again", "request": {"op":"ui.changes"}}],
      "examples": [{"op":"ui.input","events":[{"type":"click","at":[24,24]}]}],
      "inputSchema": {"type": "object", "properties": {"events": {"description": "a list of {type: move, click, drag, wheel, key, keys, text, wait, …}"}}, "required": ["events"]}},
     {"name": "ui.intend", "description": "Say to the person what you are about to do (the steps, or a note) — or, handing the task back, what you did, what is left, what you were unsure of: shown by your presence until you say another; nothing in the application changes", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",

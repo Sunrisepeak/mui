@@ -50,6 +50,9 @@ void Answer::record(std::string_view kind, std::string_view members) {
         line += ',';
         line += members;
     }
+    // A success says what follows it — whoever writes the result (a subject that speaks records writes its own).
+    if (kind == "result" && !then_.empty() && (members.contains("\"exitCode\":0,") || members.ends_with("\"exitCode\":0")) && !members.contains("\"then\":"))
+        line += std::format(",\"then\":{}", then_);
     line += '}';
     reply_(line);
     if (kind == "result") finished_ = true;

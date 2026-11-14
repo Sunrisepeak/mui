@@ -11,6 +11,8 @@
 // an array of {"why": …, "request": {…}} — each request one that can be sent
 // as it is. A subject that knows the way out gives it; one that gives none
 // still answers with the session's (the operation described, an example of it).
+// A result that is a success carries what follows it, when its catalog says so:
+// `then`, in the same form (after a change, the reading that shows what it did).
 export module mlibs.agent:envelope;
 
 import std;
@@ -54,6 +56,8 @@ public:
     void fail(std::string_view code, std::string_view text, int exit_code = openas::exit_code::failed, std::string_view next = {});
     // The ways out an error of this answer carries when it gives none itself (a JSON array, as `next`).
     void otherwise(std::string next) { otherwise_ = std::move(next); }
+    // What follows when it is done: given with a result that is a success (a JSON array, as `next`: `then`).
+    void then(std::string follows) { then_ = std::move(follows); }
     [[nodiscard]] bool finished() const noexcept { return finished_; }
 
     // A record as a subject that already speaks records gives it: its kind and its members (JSON, without
@@ -71,6 +75,7 @@ private:
     Reply       reply_;
     std::string re_;
     std::string otherwise_;
+    std::string then_;
     bool        finished_ = false;
     bool        deferred_ = false;
 };

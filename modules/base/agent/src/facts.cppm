@@ -3,7 +3,8 @@
 // failed, each one record with a number — who asked, of which subject, what,
 // how it ended and why, recorded when its answer ends (a subject may end one
 // at a later safe point: it is on record then, under the number it was given). A log line, a trace and a diagnostic are readings of
-// such a record, not other records: the line `mlibs.log` keeps carries the
+// such a record, not other records: the line `mlibs.log` keeps and the
+// instant a trace being taken has (`mlibs.trace`, `args.fact`) carry the
 // same number (`fact`, its book's: a process with several books tells them
 // by who asked), and so does the result the one who asked was answered with. An agent reads them as they are, by what they are about:
 //

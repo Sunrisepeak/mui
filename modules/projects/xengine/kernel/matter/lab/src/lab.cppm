@@ -117,7 +117,7 @@ public:
     [[nodiscard]] std::string_view listing() const noexcept override { return xengine::matter::lab::listing; }
     [[nodiscard]] mlibs::control::Guide guide() const noexcept override { return xengine::matter::lab::guide; }
     [[nodiscard]] std::uint64_t state_hash() const override;
-    [[nodiscard]] std::string recorded() const override;  // the commit its history stands at
+    [[nodiscard]] std::string recorded_at() const override;  // the commit its history stands at
     void operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) override;
 
 private:

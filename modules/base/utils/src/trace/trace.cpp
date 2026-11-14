@@ -167,8 +167,9 @@ std::string Trace::chrome_json() const {
                                 json_string(e.name), json_string(e.category), us, e.thread, e.value));
                 break;
             case Kind::mark:
-                add(std::format("{{\"name\":{},\"cat\":{},\"ph\":\"i\",\"s\":\"t\",\"ts\":{},\"pid\":1,\"tid\":{}}}", json_string(e.name),
-                                json_string(e.category), us, e.thread));
+                add(std::format("{{\"name\":{},\"cat\":{},\"ph\":\"i\",\"s\":\"t\",\"ts\":{},\"pid\":1,\"tid\":{}{}}}", json_string(e.name),
+                                json_string(e.category), us, e.thread,
+                                e.value != 0 ? std::format(",\"args\":{{\"fact\":{}}}", static_cast<std::uint64_t>(e.value)) : std::string()));
                 break;
         }
     }

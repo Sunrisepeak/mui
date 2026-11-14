@@ -30,7 +30,7 @@ struct Event {
     const char*       name = "";
     const char*       category = "";
     std::int64_t      ns = 0;      // since the session started
-    double            value = 0;   // counters
+    double            value = 0;   // counters; of a mark: the number of the fact it is a reading of (0: none)
     std::uint32_t     thread = 0;
 };
 
@@ -78,6 +78,12 @@ inline void count(const char* name, double value, const char* category = "app") 
 
 inline void mark(const char* name, const char* category = "app") noexcept {
     if (enabled()) detail::record(Kind::mark, name, category, 0);
+}
+
+// An instant that is the reading of a fact on record (mlibs.agent's facts): it carries the fact's number
+// (`args.fact` in the exported trace), so what the trace shows at a moment is found in the record, and back.
+inline void fact(const char* name, std::uint64_t number, const char* category = "agent") noexcept {
+    if (enabled()) detail::record(Kind::mark, name, category, static_cast<double>(number));
 }
 
 // Names a thread in the trace ("ui", "render", "worker 3").

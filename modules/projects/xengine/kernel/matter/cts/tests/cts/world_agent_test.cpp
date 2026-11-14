@@ -91,7 +91,7 @@ public:
     [[nodiscard]] mlibs::control::Guide guide() const noexcept override { return game_->matter.guide(); }
     [[nodiscard]] std::vector<mlibs::agent::Term> terms() const override { return game_->matter.terms(); }
     [[nodiscard]] std::uint64_t state_hash() const override { return game_->matter.state_hash(); }
-    [[nodiscard]] std::string recorded() const override { return game_->matter.recorded(); }
+    [[nodiscard]] std::string recorded_at() const override { return game_->matter.recorded_at(); }
     void operate(std::string_view operation, const agent::Request& request, agent::Answer& answer) override { game_->matter.operate(operation, request, answer); }
 
 private:

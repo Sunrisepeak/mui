@@ -3,6 +3,7 @@ module mlibs.agent;
 import std;
 import openas;
 import mlibs.log.api;
+import mlibs.trace.api;
 
 namespace mlibs::agent {
 
@@ -30,6 +31,8 @@ std::uint64_t Facts::record(Fact fact) {
     const std::string category = fact.subject.empty() ? std::string("agent") : std::format("agent.{}", fact.subject);
     // A request that failed is an agent's ordinary traffic, not the program's trouble: info, as one that was done.
     mlibs::log::log(mlibs::log::Level::info, category, line_of(fact), std::source_location::current(), fact.id);
+    // … and, while a trace is being taken, an instant in it with the same number.
+    if (mlibs::trace::enabled()) mlibs::trace::fact(mlibs::trace::intern(fact.operation), id, "agent");
     if (capacity_ == 0) return id;
     if (kept_.size() >= capacity_) kept_.pop_front();
     // In the order of their numbers: one answered later is recorded after those that came after it.

@@ -7,6 +7,7 @@ import mlibs.agent;
 import mlibs.control;
 import mlibs.json;
 import mlibs.log.api;
+import mlibs.trace.api;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
@@ -39,7 +40,7 @@ public:
         return {"A count.", tasks};
     }
     std::vector<agent::Term> terms() const override { return {{"page", "three", "The page the counter is on", R"({"op":"counter.read"})"}}; }
-    std::string recorded() const override { return std::format("{{\"change\":{}}}", operated); }
+    std::string recorded_at() const override { return std::format("{{\"change\":{}}}", operated); }
     std::uint64_t state_hash() const override { return static_cast<std::uint64_t>(count) + 1; }
     void operate(std::string_view operation, const agent::Request& request, agent::Answer& answer) override {
         ++operated;
@@ -105,6 +106,7 @@ UTest cases{"agent.subject", [] {
         expect(eq(subject["capabilities"].size(), std::size_t{8})) << "observation, budget, control, time, causes, provenance, preview, history";
         expect(subject["hash"].text() == "0000000000000001");
         expect(who.records[0].root()["re"].integer() == 1) << "every record echoes the request's re";
+        expect(ask(session, R"({"op":"help"})").records[0].root()["data"]["subjects"][0]["name"].text() == "counter") << "what is asked first when nothing is known";
         const auto own = who.records[0].root()["data"]["session"];
         expect(eq(own.size(), std::size_t{4}) && own[3]["request"].dump() == R"({"op":"log"})" && eq(own.size(), std::size_t{4}) && own[0]["request"].dump() == R"({"op":"describe","subject":"counter"})" && own[2]["request"]["op"].text() == "find")
             << "the session's own requests: nothing but this answer is needed to go on";
@@ -174,6 +176,7 @@ UTest cases{"agent.subject", [] {
     "what was asked is on record as facts: a change and a failure each one, with a number its result and its log line carry (D-186, norm 11)"_test = [] {
         mlibs::log::set_log_history(64);
         mlibs::log::set_log_filter("agent.counter=info").value();
+        mlibs::trace::start();
         Counter counter;
         agent::SubjectSession session({&counter}, {.actor = {openas::Kind::agent, "ada", {}}});
         const auto read = ask(session, R"({"op":"counter.read"})");
@@ -208,6 +211,9 @@ UTest cases{"agent.subject", [] {
         const auto done = std::ranges::find_if(lines, [](const auto& each) { return each.fact == 1 && each.message.starts_with("agent:ada "); });
         expect(fatal(done != lines.end()));
         expect(done->message == "agent:ada counter.add → done" && done->level == mlibs::log::Level::info) << mlibs::log::to_json(*done);
+        // … and so is the trace's instant, while one is taken.
+        const std::string trace = mlibs::trace::stop().chrome_json();
+        expect(trace.contains(R"("name":"counter.add","cat":"agent","ph":"i")") && trace.contains(R"("args":{"fact":1})") && trace.contains(R"("args":{"fact":3})")) << trace;
         // A book given to two sessions: each reads what the other did.
         auto book = std::make_shared<agent::Facts>();
         agent::SubjectSession one({&counter}, {.actor = {openas::Kind::agent, "one", {}}, .facts = book}), two({&counter}, {.actor = {openas::Kind::person, "two", {}}, .facts = book});

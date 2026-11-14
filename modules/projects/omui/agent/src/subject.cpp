@@ -16,7 +16,7 @@ InterfaceSubject::InterfaceSubject(Runtime& runtime, Protocol& protocol, Interfa
 
 std::uint64_t InterfaceSubject::state_hash() const { return mlibs::hash::fnv1a(tree_.state().json()); }
 
-std::string InterfaceSubject::recorded() const {
+std::string InterfaceSubject::recorded_at() const {
     const auto journal = runtime_.action_journal();
     return journal.empty() ? std::string() : std::format("{{\"id\":{}}}", journal.back().id);
 }

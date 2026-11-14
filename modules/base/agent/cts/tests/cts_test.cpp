@@ -70,7 +70,7 @@ public:
         if (fault_ == Fault::no_guide) return {};
         return {"Amounts added by someone, at a tick of its own clock.", fault_ == Fault::task_stops ? std::span<const control::Task>(stops) : std::span<const control::Task>(tasks)};
     }
-    std::string recorded() const override { return std::format("{{\"entry\":{}}}", entries_.size()); }
+    std::string recorded_at() const override { return std::format("{{\"entry\":{}}}", entries_.size()); }
     std::uint64_t state_hash() const override {
         std::vector<std::uint64_t> parts{static_cast<std::uint64_t>(tick_), static_cast<std::uint64_t>(entries_.size())};
         for (const Entry& entry : entries_) parts.push_back(static_cast<std::uint64_t>(entry.amount) * 31 + static_cast<std::uint64_t>(entry.tick));

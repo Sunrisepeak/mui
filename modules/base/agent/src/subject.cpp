@@ -166,7 +166,8 @@ void SubjectSession::request(std::string_view line, const Reply& reply) {
     const Request& request = *parsed;
     Answer answer(reply, request.re);
 
-    if (request.op == "subjects") {
+    // `help`: what an agent that knows nothing asks first — answered as `subjects` is.
+    if (request.op == "subjects" || request.op == "help") {
         std::string out = "{\"subjects\":[";
         for (std::size_t index = 0; index < subjects_.size(); ++index) out += (index ? "," : "") + described(*subjects_[index]);
         // The session's own requests, so that nothing but this answer is needed to go on.
@@ -326,7 +327,7 @@ void SubjectSession::request(std::string_view line, const Reply& reply) {
         if (!changes && code.empty()) return;
         fact.outcome = code.empty() ? std::string("done") : std::string(code);
         fact.text = std::string(text);
-        if (changes && code.empty()) fact.at = subject->recorded();  // where its own record has it: the two found from each other
+        if (changes && code.empty()) fact.at = subject->recorded_at();  // where its own record has it: the two found from each other
         facts->record(std::move(fact));
     });
     subject->operate(decided.op, decided, answer);

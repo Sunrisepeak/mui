@@ -190,7 +190,7 @@ public:
     [[nodiscard]] std::string_view listing() const noexcept override { return xengine::cellular::agent::listing; }
     [[nodiscard]] mlibs::control::Guide guide() const noexcept override { return xengine::cellular::agent::guide; }
     [[nodiscard]] std::uint64_t state_hash() const override { return hash_of(timeline_.state()); }
-    [[nodiscard]] std::string recorded() const override { return std::format("{{\"frame\":{}}}", timeline_.frame()); }
+    [[nodiscard]] std::string recorded_at() const override { return std::format("{{\"frame\":{}}}", timeline_.frame()); }
     void operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) override;
 
     [[nodiscard]] static std::uint64_t hash_of(const FieldState& state) noexcept;

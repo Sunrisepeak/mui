@@ -138,6 +138,8 @@ struct Raster {
     const Texture* coat_rough = nullptr;
     const Texture* coat_normal_picture = nullptr;
     const Texture* sheen_picture = nullptr;
+    const Texture* anisotropy_picture = nullptr;
+    Vec3           drawn_out{0, 0, 0};  // the way the highlight is drawn out along at this pixel, or none
     Vec3           coat_normal{0, 0, 1};
     // What lets light through shows the light of what is whole behind it (`Material::transmission`): that light
     // at every size, the view's clip space (unjittered) and the instance's place and its inverse.
@@ -286,7 +288,9 @@ struct Raster {
         Vec3 sheen{0, 0, 0};
         if (sheened) sheen = math::scaled(math::scaled(from_all_about(normal), material.sheen), reaching(open)) * (sheen_share(std::max(math::dot(normal, toward_eye), 0.0f), material.sheen_roughness) * shaded);
         Vec3 sent = coated > 0 || sheened ? under : under + material.emissive;
-        if (options.environment.on) sent = sent + mirrored(material, options.environment, normal, toward_eye) * (pictured ? shaded : 1.0f);
+        const bool drawn = material.anisotropy > 0 && math::dot(drawn_out, drawn_out) > 0;
+        if (options.environment.on) sent = sent + mirrored(material, options.environment, drawn ? drawn_out_normal(material, normal, drawn_out, toward_eye) : normal, toward_eye) * (pictured ? shaded : 1.0f);
+        const auto highlight = [&](Vec3 toward_light, float facing) { return drawn ? reflected_drawn_out(material, normal, drawn_out, toward_eye, toward_light, facing) : reflected(material, normal, toward_eye, toward_light, facing); };
         if (coated > 0) {
             if (!pictured) coat = math::scaled(math::scaled(reflected_ambient(layer), from_all_about(coat_normal)), reaching(open)) * shaded;
             if (options.environment.on) coat = coat + mirrored(layer, options.environment, coat_normal, toward_eye) * (pictured ? shaded : 1.0f);
@@ -297,7 +301,7 @@ struct Raster {
                 const float facing = -math::dot(normal, lamp.toward), coat_facing = coated > 0 ? -math::dot(coat_normal, lamp.toward) : 0.0f;
                 if (!(facing > 0) && !(coat_facing > 0)) continue;
                 if (!casters.empty() && hidden_from(lifted, -lamp.toward, std::numeric_limits<float>::max())) continue;
-                if (facing > 0) sent = sent + math::scaled(reflected(material, normal, toward_eye, -lamp.toward, facing), lamp.colour);
+                if (facing > 0) sent = sent + math::scaled(highlight(-lamp.toward, facing), lamp.colour);
                 if (sheened && facing > 0) sheen = sheen + math::scaled(material.sheen, lamp.colour) * sheen_reflected(material.sheen_roughness, normal, toward_eye, -lamp.toward, facing);
                 if (coat_facing > 0) coat = coat + math::scaled(reflected(layer, coat_normal, toward_eye, -lamp.toward, coat_facing), lamp.colour);
                 continue;
@@ -312,7 +316,7 @@ struct Raster {
             if (!casters.empty() && hidden_from(lifted, along, apart)) continue;
             const float near = 1.0f - (apart / lamp.range) * (apart / lamp.range);
             const Vec3 arriving = lamp.colour * (lamp.physical ? lamp.physical_share(apart, along) : near * near);
-            if (facing > 0) sent = sent + math::scaled(reflected(material, normal, toward_eye, along, facing), arriving);
+            if (facing > 0) sent = sent + math::scaled(highlight(along, facing), arriving);
             if (sheened && facing > 0) sheen = sheen + math::scaled(material.sheen, arriving) * sheen_reflected(material.sheen_roughness, normal, toward_eye, along, facing);
             if (coat_facing > 0) coat = coat + math::scaled(reflected(layer, coat_normal, toward_eye, along, coat_facing), arriving);
         }
@@ -338,7 +342,7 @@ struct Raster {
         // coordinate grows, and against its second (up the picture), from this triangle's own corners.
         const bool tangents = !(first.tangent.x == 0 && first.tangent.y == 0 && first.tangent.z == 0);
         std::array<Vec3, 2> bent{};
-        if (normal_picture && !tangents) {
+        if ((normal_picture || own.anisotropy > 0) && !tangents) {
             const Vec3 one = corners[1]->place - corners[0]->place, two = corners[2]->place - corners[0]->place;
             const Placing& laid_so = own.placing.normal;
             const Vec2 first_uv = set_of(corners[0]->uv, laid_so.set), second_uv = set_of(corners[1]->uv, laid_so.set), third_uv = set_of(corners[2]->uv, laid_so.set);
@@ -411,7 +415,8 @@ struct Raster {
                     material.base = math::scaled(base, Vec3{at(&Vec4::x), at(&Vec4::y), at(&Vec4::z)}), hides = own.opacity * at(&Vec4::w);
                 }
                 coat_normal = normal;
-                if (texture || surface || normal_picture || glow || shade || clearness || thick || coat || coat_rough || coat_normal_picture || sheen_picture) {
+                Vec3 drawn_said{1, 0.5f, 1};  // the anisotropy picture's say here: along the tangent, whole
+                if (texture || surface || normal_picture || glow || shade || clearness || thick || coat || coat_rough || coat_normal_picture || sheen_picture || anisotropy_picture) {
                     // The surface's place in the picture here, a pixel to the right and a pixel down: how many texels
                     // a pixel covers is how far apart they are.
                     const auto uv_at = [&](double at_x, double at_y) {
@@ -495,6 +500,10 @@ struct Raster {
                         const Place at = laid(own.placing.coat_rough);
                         material.clearcoat_roughness = own.clearcoat_roughness * coat_rough->over(at.here, at.across, at.along).y;
                     }
+                    if (anisotropy_picture) {
+                        const Place at = laid(own.placing.anisotropy);
+                        drawn_said = anisotropy_picture->over(at.here, at.across, at.along);
+                    }
                     if (sheen_picture) {
                         const Place at = laid(own.placing.sheen);
                         material.sheen = math::scaled(own.sheen, sheen_picture->over(at.here, at.across, at.along));
@@ -511,6 +520,30 @@ struct Raster {
                 if (laid && !(hides > 0)) continue;  // seen through wholly: nothing of it
                 if (!laid) ++stats.written;
                 at_pixel = pixel;
+                // The way the highlight is drawn out along: the tangent (the mesh's, or the way the picture's first
+                // coordinate grows) turned by the material's rotation and its picture's way, in the surface.
+                drawn_out = {0, 0, 0};
+                if (own.anisotropy > 0) {
+                    material.anisotropy = own.anisotropy * drawn_said.z;
+                    Vec3 right_way = bent[0], up_way = bent[1];
+                    if (tangents) {
+                        right_way = {corners[0]->tangent.x * part[0] + corners[1]->tangent.x * part[1] + corners[2]->tangent.x * part[2],
+                                     corners[0]->tangent.y * part[0] + corners[1]->tangent.y * part[1] + corners[2]->tangent.y * part[2],
+                                     corners[0]->tangent.z * part[0] + corners[1]->tangent.z * part[1] + corners[2]->tangent.z * part[2]};
+                        up_way = math::cross(normal, right_way) * corners[0]->tangent.w;
+                    }
+                    right_way = right_way - normal * math::dot(normal, right_way);
+                    if (math::dot(right_way, right_way) > 0) {
+                        right_way = math::normalized(right_way);
+                        const Vec3 other = math::cross(normal, right_way);
+                        up_way = math::dot(other, up_way) < 0 ? other * -1.0f : other;
+                        const Vec2 said{drawn_said.x * 2 - 1, drawn_said.y * 2 - 1};
+                        const float turn_cos = static_cast<float>(math::det::cos(static_cast<double>(own.anisotropy_rotation))), turn_sin = static_cast<float>(math::det::sin(static_cast<double>(own.anisotropy_rotation)));
+                        const Vec2 way{said.x * turn_cos - said.y * turn_sin, said.x * turn_sin + said.y * turn_cos};
+                        const Vec3 along = right_way * way.x + up_way * way.y;
+                        if (math::dot(along, along) > 0) drawn_out = math::normalized(along);
+                    }
+                }
                 Vec3 colour = lit(normal, place);
                 float clear = 0;  // how much of the background shows through it
                 if (behind && !material.unlit) {
@@ -599,6 +632,35 @@ Vec3 reflected(const Material& material, Vec3 normal, Vec3 toward_eye, Vec3 towa
     const Mirrors ends = mirrors_of(material);
     const Vec3 mirrored = ends.head_on + (Vec3{ends.edge, ends.edge, ends.edge} - ends.head_on) * glance5;
     return matt + math::scaled(mirrored, kept(material, seen)) * (facets * unhidden * 0.25f * facing);
+}
+Vec3 reflected_drawn_out(const Material& material, Vec3 normal, Vec3 along, Vec3 toward_eye, Vec3 toward_light, float facing) noexcept {
+    const float rough = std::clamp(material.roughness, 0.04f, 1.0f), metal = std::clamp(material.metallic, 0.0f, 1.0f);
+    const Vec3 matt = material.base * ((1.0f - metal) * (1.0f - std::clamp(material.transmission, 0.0f, 1.0f)) * facing);
+    const float seen = math::dot(normal, toward_eye);
+    if (!(seen > 0)) return matt;
+    const float strength = std::clamp(material.anisotropy, 0.0f, 1.0f);
+    const float alpha = rough * rough, along_alpha = alpha + (1.0f - alpha) * strength * strength, across_alpha = alpha;
+    const Vec3 across = math::cross(normal, along);
+    const Vec3 half = math::normalized(toward_eye + toward_light);
+    const float half_along = math::dot(along, half) / along_alpha, half_across = math::dot(across, half) / across_alpha, half_up = math::dot(normal, half);
+    const float spread = half_along * half_along + half_across * half_across + half_up * half_up;
+    const float facets = 1.0f / (along_alpha * across_alpha * spread * spread);
+    const auto reach = [&](Vec3 way, float up) {
+        const float on_along = math::dot(along, way) * along_alpha, on_across = math::dot(across, way) * across_alpha;
+        return std::sqrt(on_along * on_along + on_across * on_across + up * up);
+    };
+    const float visible = 0.5f / (facing * reach(toward_eye, seen) + seen * reach(toward_light, facing));
+    const float eye_half = std::max(math::dot(toward_eye, half), 0.0f), glance = 1.0f - eye_half, glance5 = glance * glance * glance * glance * glance;
+    const Mirrors ends = mirrors_of(material);
+    const Vec3 mirrored = ends.head_on + (Vec3{ends.edge, ends.edge, ends.edge} - ends.head_on) * glance5;
+    return matt + math::scaled(mirrored, kept(material, seen)) * (facets * visible * facing);
+}
+Vec3 drawn_out_normal(const Material& material, Vec3 normal, Vec3 along, Vec3 toward_eye) noexcept {
+    const float rough = std::clamp(material.roughness, 0.04f, 1.0f), strength = std::clamp(material.anisotropy, 0.0f, 1.0f);
+    const Vec3 across_eye = math::cross(along, toward_eye), toward = math::cross(across_eye, along);
+    const float bend = 1.0f - strength * (1.0f - rough), bend4 = bend * bend * bend * bend;
+    const Vec3 bent = toward + (normal - toward) * bend4;
+    return math::dot(bent, bent) > 0 ? math::normalized(bent) : normal;
 }
 Vec3 mirrored(const Material& material, const Environment& environment, Vec3 normal, Vec3 toward_eye) noexcept {
     const float rough = std::clamp(material.roughness, 0.04f, 1.0f), metal = std::clamp(material.metallic, 0.0f, 1.0f);
@@ -807,6 +869,7 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
         raster.clearness = picture(raster.material.clearness, placing.clearness), raster.thick = picture(raster.material.thick, placing.thick);
         raster.coat = picture(raster.material.coat, placing.coat), raster.coat_rough = picture(raster.material.coat_rough, placing.coat_rough);
         raster.coat_normal_picture = picture(raster.material.coat_normal, placing.coat_normal), raster.sheen_picture = picture(raster.material.sheen_picture, placing.sheen);
+        raster.anisotropy_picture = picture(raster.material.anisotropy_picture, placing.anisotropy);
         raster.coloured = !mesh.colours.empty();
         raster.world = instance.world, raster.back = math::inverse(instance.world).value_or(Mat4{});
         const Mat4 to_clip = clip * instance.world;

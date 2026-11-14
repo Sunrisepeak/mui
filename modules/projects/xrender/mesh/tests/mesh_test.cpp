@@ -768,6 +768,40 @@ static UTest cases{"xrender.mesh", [] {
         expect(gt(whole, 3) && gt(softened, 3) && gt(none, 20)) << whole << ' ' << softened << ' ' << none;
     };
 
+    "a highlight drawn out along the surface's tangent: a ball brushed around its axis has a highlight wider than high, a ball that is not as wide as high; turned a quarter it is the other way"_test = [] {
+        const Camera camera{.eye = {0, 0, 5}, .target = {0, 0, 0}};
+        const auto extent_of = [&](const mesh::Material& material) {
+            std::vector<mesh::Material> materials{material};
+            scene::Scene world;
+            put(world, 1, ball, 0, math::translation({0, 0, 0}));
+            expect(world.add(scene::Light{.id = 1, .kind = scene::LightKind::sun, .colour = {1, 1, 1}, .intensity = 1, .toward = {0, 0, -1}}).has_value());
+            mesh::Targets targets;
+            targets.resize(256, 256);
+            scene::Extracted seen;
+            scene::extract(world, camera.view(), seen);
+            mesh::Pass pass;
+            pass.draw(world, seen, camera.view(), {library().meshes, materials, {}, {}}, targets, {.ambient = {0, 0, 0}});
+            float brightest = 0;
+            for (const math::Vec3& light : targets.light) brightest = std::max(brightest, light.y);
+            int left = 256, right = -1, top = 256, bottom = -1;
+            for (int y = 0; y < 256; ++y)
+                for (int x = 0; x < 256; ++x)
+                    if (targets.light[static_cast<std::size_t>(y) * 256 + x].y >= 0.5f * brightest) left = std::min(left, x), right = std::max(right, x), top = std::min(top, y), bottom = std::max(bottom, y);
+            return std::pair{right - left + 1, bottom - top + 1};
+        };
+        const mesh::Material steel{.base = {0.9f, 0.9f, 0.9f}, .roughness = 0.3f, .metallic = 1};
+        mesh::Material brushed = steel, turned = steel;
+        brushed.anisotropy = 0.8f;
+        turned.anisotropy = 0.8f, turned.anisotropy_rotation = 1.5707964f;
+        const auto [plain_wide, plain_high] = extent_of(steel);
+        const auto [brushed_wide, brushed_high] = extent_of(brushed);
+        const auto [turned_wide, turned_high] = extent_of(turned);
+        std::println("a steel ball's highlight, 256²: {} × {} plain; {} × {} brushed around its axis; {} × {} turned a quarter", plain_wide, plain_high, brushed_wide, brushed_high, turned_wide, turned_high);
+        expect(le(std::abs(plain_wide - plain_high), 2)) << "as wide as high";
+        expect(gt(brushed_wide, brushed_high * 2)) << "drawn out around the axis";
+        expect(gt(turned_high, turned_wide * 2)) << "turned: drawn out up and down";
+    };
+
     "a metal has no colour of its own but its highlight's: away from the highlight it is dark, and the highlight is the metal's colour"_test = [] {
         const Camera camera{.eye = {0, 0.5f, 5}, .target = {0, 0, 0}};
         scene::Scene world;

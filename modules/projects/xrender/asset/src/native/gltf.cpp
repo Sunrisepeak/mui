@@ -305,10 +305,16 @@ struct Maker {
                     made.sheen_picture = picture(sheen.sheen_color_texture, at + "/sheenColorTexture", mesh::Coding::colour, "the colour factor over the whole surface", made.placing.sheen);
                 if (sheen.sheen_roughness_texture.texture) note(at + "/sheenRoughnessTexture", "a picture of the sheen's roughness (its alpha)", "left out: the factor over the whole surface");
             }
-            const std::array<std::pair<bool, std::string_view>, 5> more{{{from.has_pbr_specular_glossiness != 0, "KHR_materials_pbrSpecularGlossiness"},
+            // A highlight drawn out (KHR_materials_anisotropy): its strength, rotation and picture.
+            if (from.has_anisotropy) {
+                made.anisotropy = from.anisotropy.anisotropy_strength, made.anisotropy_rotation = from.anisotropy.anisotropy_rotation;
+                if (from.anisotropy.anisotropy_texture.texture)
+                    made.anisotropy_picture = picture(from.anisotropy.anisotropy_texture, where + "/extensions/KHR_materials_anisotropy/anisotropyTexture", mesh::Coding::plain,
+                                                      "the strength and rotation over the whole surface", made.placing.anisotropy);
+            }
+            const std::array<std::pair<bool, std::string_view>, 4> more{{{from.has_pbr_specular_glossiness != 0, "KHR_materials_pbrSpecularGlossiness"},
                                                                           {from.has_iridescence != 0, "KHR_materials_iridescence"},
                                                                           {from.has_diffuse_transmission != 0, "KHR_materials_diffuse_transmission"},
-                                                                          {from.has_anisotropy != 0, "KHR_materials_anisotropy"},
                                                                           {from.has_dispersion != 0, "KHR_materials_dispersion"}}};
             for (const auto& [has, name] : more)
                 if (has) note(std::format("{}/extensions/{}", where, name), "a part of the surface model this does not draw", "left out: base colour, roughness, metal and emission are what is kept");

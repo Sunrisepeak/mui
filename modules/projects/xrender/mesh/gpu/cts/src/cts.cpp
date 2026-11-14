@@ -399,6 +399,11 @@ Cases suite_of() {
         yard.materials[0].clearcoat = 1, yard.materials[0].clearcoat_roughness = 0.15f;
         yard.materials[2].specular = 0.8f, yard.materials[2].specular_colour = {1, 0.3f, 0.3f}, yard.materials[2].ior = 1.7f;
         yard.materials[3].sheen = {1, 0.5f, 0.7f}, yard.materials[3].sheen_roughness = 0.5f, yard.materials[3].metallic = 0;  // the post: cloth
+        // A drawn-out highlight on a second ball of steel, brushed around its axis.
+        yard.materials.push_back({.base = {0.9f, 0.9f, 0.92f}, .roughness = 0.3f, .metallic = 1, .anisotropy = 0.8f, .anisotropy_rotation = 0.3f});
+        expect(yard.world.add({.id = 14, .mesh = 2, .material = static_cast<std::uint32_t>(yard.materials.size() - 1), .world = math::Transform{{-0.9f, -0.4f, 2.2f}, {}, {0.6f, 0.6f, 0.6f}}.matrix(),
+                               .bounds = geom::bounds(yard.made[2].mesh)})
+                   .has_value());
         // And a physical spot (glTF's), soft between its two cones, over the box.
         expect(yard.world.add(scene::Light{.id = 4, .kind = scene::LightKind::spot, .colour = {1, 0.9f, 0.7f}, .intensity = 40, .at = {-2.2f, 3, 0.5f}, .toward = {0, -1, -0.1f}, .range = 12, .cone = 0.7f,
                                            .falloff = scene::Falloff::physical, .inner_cone = 0.3f})
@@ -407,8 +412,9 @@ Cases suite_of() {
         if (!drawn) return;
         keep(drawn->device, "yard-coat");
         const Apart all = apart(drawn->reference, drawn->device, false, 6);
-        std::println("a coated box, a ball mirroring red and a post with a sheen: {} of {} pixels further than 6 levels from the reference ({:.2f}%), mean {:.3f}, worst {}", all.off, all.compared,
+        std::println("a coated box, a ball mirroring red, a post with a sheen and a ball of brushed steel: {} of {} pixels further than 6 levels from the reference ({:.2f}%), mean {:.3f}, worst {}", all.off, all.compared,
                      100.0 * static_cast<double>(all.off) / static_cast<double>(all.compared), all.mean, all.worst);
+        // Measured: 42 and 41 of 129,600 pixels on lavapipe and an RTX 4080 (5 and 4 before the brushed ball).
         expect(lt(static_cast<double>(all.off), 0.001 * static_cast<double>(all.compared)));
         expect(lt(all.mean, 0.1));
     });

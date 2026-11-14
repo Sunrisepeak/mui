@@ -44,8 +44,8 @@ struct Placing {
 };
 // How each of a surface's pictures is laid over it.
 struct Placings {
-    Placing base, surface, normal, glow, shade, clearness, thick, coat, coat_rough, coat_normal, sheen;
-    [[nodiscard]] static constexpr Placings all(Placing placing) noexcept { return {placing, placing, placing, placing, placing, placing, placing, placing, placing, placing, placing}; }
+    Placing base, surface, normal, glow, shade, clearness, thick, coat, coat_rough, coat_normal, sheen, anisotropy;
+    [[nodiscard]] static constexpr Placings all(Placing placing) noexcept { return {placing, placing, placing, placing, placing, placing, placing, placing, placing, placing, placing, placing}; }
 };
 // A surface, as data. The reference's shading is the least that shows a form: what a light gives a matt surface,
 // and what it gives off itself. (The full model — roughness, metal, textures — is the material interface's,
@@ -129,6 +129,12 @@ struct Material {
     Vec3  sheen{0, 0, 0};
     float sheen_roughness = 0;
     std::uint32_t sheen_picture = 0xffffffffu;
+    // A highlight drawn out along a way in the surface (KHR_materials_anisotropy): brushed metal, a record's
+    // grooves, hair. `anisotropy` (0 … 1) is how far the roughness along that way goes toward 1; the way is the
+    // mesh's tangent turned `anisotropy_rotation` radians toward its other way. Its picture (`Coding::plain`): red
+    // and green the way in the tangent's frame (each × 2 − 1), turned as well; blue multiplies `anisotropy`.
+    float anisotropy = 0, anisotropy_rotation = 0;
+    std::uint32_t anisotropy_picture = 0xffffffffu;
     Placings placing;  // how each picture of the surface is laid over it
     [[nodiscard]] constexpr bool matt() const noexcept { return roughness >= 1 && metallic <= 0 && !(clearcoat > 0) && !(sheen.x > 0 || sheen.y > 0 || sheen.z > 0); }
 };
@@ -159,6 +165,12 @@ struct LampShape {
 [[nodiscard]] Vec3 reflected(const Material& material, Vec3 normal, Vec3 toward_eye, Vec3 toward_light, float facing) noexcept;
 // And of the light from everywhere.
 [[nodiscard]] Vec3 reflected_ambient(const Material& material) noexcept;
+// `reflected` with the highlight drawn out along `along` (in the surface, of length 1; `Material::anisotropy`):
+// GGX stretched (Burley 2012), its visibility height-correlated (Heitz 2014), as glTF's sample viewer has it.
+[[nodiscard]] Vec3 reflected_drawn_out(const Material& material, Vec3 normal, Vec3 along, Vec3 toward_eye, Vec3 toward_light, float facing) noexcept;
+// The normal an anisotropic surface mirrors what is about it by: bent toward the plane across `along` the more the
+// smoother and the more drawn out it is.
+[[nodiscard]] Vec3 drawn_out_normal(const Material& material, Vec3 normal, Vec3 along, Vec3 toward_eye) noexcept;
 // What the scene's numbers name: a draw's `mesh` and `material` are places here. One that names nothing is not
 // drawn, and counted.
 // A picture laid over a surface by its mesh's texture coordinates (`mlibs.geom`'s `Mesh::uvs`, or its `second_uvs`). It is

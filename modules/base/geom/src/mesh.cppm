@@ -34,6 +34,11 @@ struct Mesh {
     // A colour at each corner, linear (red, green, blue, and how much it hides), that the surface's own colour
     // and cover are multiplied by between them (glTF's COLOR_0): none, or one a position.
     std::vector<Vec4> colours;
+    // What bends it (a skin): each position's four joints, by their numbers in the skin, and how much each moves
+    // it (glTF's JOINTS_0 and WEIGHTS_0) — both, or neither; one a position. A renderer that is given the skin's
+    // matrices bends the positions, normals and tangents by them (xrender.mesh's `bend`).
+    std::vector<std::array<std::uint16_t, 4>> joints;
+    std::vector<Vec4>                         weights;
     std::vector<std::uint32_t> indices;  // three a triangle
     [[nodiscard]] std::size_t triangles() const noexcept { return indices.size() / 3; }
 };
@@ -76,6 +81,9 @@ inline constexpr std::uint32_t most_cluster_triangles = 124;
 // The mesh in clusters of at most `triangles` triangles each, in the order its triangles are in. Refused where
 // `check` refuses it, or `triangles` is 0.
 [[nodiscard]] std::expected<ClusteredMesh, std::string> clustered(Mesh mesh, std::uint32_t triangles = most_cluster_triangles);
+// Each cluster's bounds and cone worked out again from where its triangles are now, as `clustered` works them out:
+// after its positions have moved (a skin bent them) and its triangles have not. `corners` is room it reuses.
+void refit(ClusteredMesh& mesh, std::vector<Vec3>& corners);
 // The mesh in clusters of the sizes given, in the order its triangles are in: `runs[n]` triangles are cluster n.
 // For an optimiser that has put the triangles of a cluster together (meshlets: `xrender.asset`'s `optimised`);
 // the bounds and the cone are worked out here as above, so a cluster is the same thing whoever cut it. Refused

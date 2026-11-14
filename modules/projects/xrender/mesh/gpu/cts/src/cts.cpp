@@ -166,7 +166,10 @@ struct Drawn {
     std::vector<std::byte>   device;
     mesh::gpu::Stats         stats;
 };
-std::optional<Drawn> both(rhi::Device& device, const Yard& yard, mesh::Options options, const mesh::Surroundings* about = nullptr) {
+// `loaded`: what the device is given at first, where it is not the yard's meshes; `before`: recorded first on the
+// frame's list.
+std::optional<Drawn> both(rhi::Device& device, const Yard& yard, mesh::Options options, const mesh::Surroundings* about = nullptr, std::span<const geom::ClusteredMesh* const> loaded_first = {},
+                          const std::function<void(rhi::CommandList&, mesh::gpu::Pass&)>& before = {}) {
     Drawn out;
     scene::Extracted seen;
     scene::extract(yard.world, yard.view(), seen);
@@ -177,7 +180,7 @@ std::optional<Drawn> both(rhi::Device& device, const Yard& yard, mesh::Options o
 
     auto pass = mesh::gpu::Pass::make(device);
     if (!(expect(pass.has_value()) << (pass ? "" : pass.error().message))) return std::nullopt;
-    const auto loaded = pass->load(yard.meshes);
+    const auto loaded = pass->load(loaded_first.empty() ? std::span<const geom::ClusteredMesh* const>(yard.meshes) : loaded_first);
     if (!(expect(loaded.has_value()) << (loaded ? "" : loaded.error().message))) return std::nullopt;
     if (about) {
         const auto wrapped = pass->load_surroundings(about);
@@ -187,6 +190,7 @@ std::optional<Drawn> both(rhi::Device& device, const Yard& yard, mesh::Options o
     const auto depth = device.create(rhi::TextureDesc{rhi::Format::d32_float, width, height, rhi::TextureUsage::depth_target, "mesh.depth"});
     if (!(expect(colour.has_value() && depth.has_value()) << (colour ? (depth ? "" : depth.error().message) : colour.error().message))) return std::nullopt;
     rhi::CommandList list;
+    if (before) before(list, *pass);
     pass->record(list, yard.world, seen, yard.view(), yard.materials, *colour, *depth, width, height, options);
     out.stats = pass->last();
     const auto submitted = device.submit(list);
@@ -239,6 +243,104 @@ Cases suite_of() {
         expect(eq(differing, std::size_t{0}) && eq(drawn->device.size(), whole->device.size()));
         expect(eq(kept.clusters, whole->stats.clusters) && eq(whole->stats.clusters_outside + whole->stats.clusters_away, 0u) && eq(whole->stats.runs, whole->stats.draws));
         expect(gt(kept.clusters_away, 0u) && lt(kept.triangles, whole->stats.triangles)) << "the far sides of the ball and the post face away (nothing of the yard is outside this view)";
+    });
+
+    // a mesh a skin bends, given to the device each frame: the post leaning, drawn as the reference draws the same bent post — and not the post at rest; bent further, its velocity the reference's
+    add(suite, "mesh.bent", [](Rig& rig) {
+        rhi::Device* const device = &rig.device;
+        Yard yard;
+        // The post (2 high about its middle): its lower half on the first joint, its upper turning to the second.
+        geom::ClusteredMesh rest = yard.made[3];
+        for (const math::Vec3& at : rest.mesh.positions) {
+            const float upper = std::clamp(at.y + 0.5f, 0.0f, 1.0f);
+            rest.mesh.joints.push_back({0, 1, 0, 0}), rest.mesh.weights.push_back({1 - upper, upper, 0, 0});
+        }
+        // The second joint turned about the post's middle, toward +x.
+        const std::array<math::Mat4, 2> skin{math::Mat4{}, math::Transform{{0, 0, 0}, math::Quat::about({0, 0, 1}, -0.55f), {1, 1, 1}}.matrix()};
+        std::vector<math::Vec3> room;
+        mesh::bend(rest, skin, yard.made[3], room);
+        std::vector<const geom::ClusteredMesh*> at_rest = yard.meshes;
+        at_rest[3] = &rest;
+        std::string refused;
+        const auto drawn = both(*device, yard, {}, nullptr, at_rest, [&](rhi::CommandList& list, mesh::gpu::Pass& pass) {
+            if (auto bent = pass.bend(list, 3, yard.made[3]); !bent) refused = bent.error().message;
+        });
+        if (!drawn) return;
+        expect(refused.empty()) << refused;
+        keep(drawn->device, "bent");
+        const Apart all = apart(drawn->reference, drawn->device, false, 6);
+        std::println("the yard with its post bent on the device, {} × {}: {} of {} pixels further than 6 levels from the reference ({:.2f}%), mean {:.3f}, worst {}", width, height, all.off,
+                     all.compared, 100.0 * static_cast<double>(all.off) / static_cast<double>(all.compared), all.mean, all.worst);
+        expect(lt(static_cast<double>(all.off), 0.001 * static_cast<double>(all.compared)));
+        expect(lt(all.mean, 0.1));
+        // The device drew the bent post: its picture is not the post at rest.
+        const Yard upright;
+        const auto unbent = both(*device, upright, {});
+        if (!unbent) return;
+        std::size_t differing = 0;
+        for (std::size_t at = 0; at + 3 < drawn->device.size() && at < unbent->device.size(); at += 4) differing += drawn->device[at] != unbent->device[at] || drawn->device[at + 1] != unbent->device[at + 1];
+        std::println("    {} pixels differ from the post at rest", differing);
+        expect(gt(differing, std::size_t{500}));
+        // The velocity: bent further the next frame, each corner of the post moves from where it was bent before —
+        // on the screen as the reference has it, though the post's own place did not change.
+        {
+            Yard moving(true);
+            geom::ClusteredMesh first, second;
+            const std::array<math::Mat4, 2> leaning{math::Mat4{}, math::Transform{{0, 0, 0}, math::Quat::about({0, 0, 1}, -0.3f), {1, 1, 1}}.matrix()};
+            mesh::bend(rest, leaning, first, room), mesh::bend(rest, skin, second, room);
+            auto on_device = mesh::gpu::Pass::make(*device, false, true);
+            if (!expect(on_device.has_value() && on_device->load(at_rest).has_value())) return;
+            const auto velocity = device->create(rhi::TextureDesc{rhi::Format::rgba16_float, width, height, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "velocity.bent"});
+            const auto depth = device->create(rhi::TextureDesc{rhi::Format::d32_float, width, height, rhi::TextureUsage::depth_target, "velocity.bent.depth"});
+            if (!expect(velocity.has_value() && depth.has_value())) return;
+            mesh::Pass on_cpu;
+            mesh::Targets reference;
+            reference.resize(static_cast<int>(width), static_cast<int>(height));
+            scene::Extracted seen;
+            scene::extract(moving.world, moving.view(), seen);
+            const mesh::Options options{.shadows = false};
+            for (const geom::ClusteredMesh* now : {&first, &second}) {
+                std::vector<const geom::ClusteredMesh*> drawn_meshes = moving.meshes, before(moving.meshes.size(), nullptr);
+                drawn_meshes[3] = now;
+                if (now == &second) before[3] = &first;
+                on_cpu.draw(moving.world, seen, moving.view(), {.meshes = drawn_meshes, .materials = moving.materials, .before = before}, reference, options);
+                rhi::CommandList list;
+                expect(on_device->bend(list, 3, *now).has_value());
+                on_device->record_velocity(list, moving.world, seen, moving.view(), *velocity, *depth, width, height, options);
+                const auto submitted = device->submit(list);
+                if (!expect(submitted.has_value() && device->wait(*submitted).has_value())) return;
+            }
+            const auto read = device->read(*velocity, rhi::Region{0, 0, width, height});
+            if (!expect(read.has_value())) return;
+            const auto of_half = [](std::uint16_t half) {
+                const std::uint32_t sign = (half & 0x8000u) << 16, exponent = (half >> 10) & 0x1fu, fraction = half & 0x3ffu;
+                if (exponent == 0) return (sign ? -1.0f : 1.0f) * std::ldexp(static_cast<float>(fraction), -24);
+                return std::bit_cast<float>(sign | ((exponent + 112) << 23) | (fraction << 13));
+            };
+            std::size_t moved = 0, off = 0;
+            double sum = 0, longest = 0;
+            for (std::size_t pixel = 0; pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+                const math::Vec2 truth = reference.velocity[pixel];
+                if (math::length(math::Vec3{truth.x, truth.y, 0}) < 0.5f) continue;
+                std::array<std::uint16_t, 2> halves{};
+                std::memcpy(halves.data(), read->data() + pixel * 8, 4);
+                const float apart_by = math::length(math::Vec3{of_half(halves[0]) - truth.x, of_half(halves[1]) - truth.y, 0});
+                ++moved, sum += apart_by, off += apart_by > 0.25f;
+                longest = std::max(longest, static_cast<double>(math::length(math::Vec3{truth.x, truth.y, 0})));
+            }
+            std::println("    bent further: {} pixels of the post moved (up to {:.1f} px) in the reference; the device's {:.4f} px from it on average, {} further than a quarter of a pixel", moved, longest,
+                         moved ? sum / static_cast<double>(moved) : 0.0, off);
+            expect(gt(moved, std::size_t{300})) << "the joints' movement is the post's velocity";
+            expect(lt(static_cast<double>(off), 0.01 * static_cast<double>(moved)) && lt(moved ? sum / static_cast<double>(moved) : 0.0, 0.05));
+            static_cast<void>(device->wait_idle());
+            device->destroy(*velocity), device->destroy(*depth);
+        }
+        // A mesh of other triangles is refused, and a mesh not loaded.
+        rhi::CommandList list;
+        auto pass = mesh::gpu::Pass::make(*device);
+        if (!expect(pass.has_value())) return;
+        expect(pass->load(at_rest).has_value());
+        expect(!pass->bend(list, 3, yard.made[2]).has_value() && !pass->bend(list, 9, yard.made[3]).has_value());
     });
 
     // and in fog: what is drawn is the reference's, surface by surface, and the sky behind it clears upward as the reference's does

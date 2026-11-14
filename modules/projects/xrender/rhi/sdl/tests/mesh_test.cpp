@@ -26,7 +26,7 @@ UTest cases{"mesh.gpu.sdl", [] {
             else std::println("no GPU device here ({}); set OMUI_REQUIRE_GPU=1 to make that a failure", device.error().message);
             return;
         }
-        expect(eq(xrender::mesh::gpu::cts::cases().size(), std::size_t{19}));
+        expect(eq(xrender::mesh::gpu::cts::cases().size(), std::size_t{20}));
         // The suite's cases, this program's own: <device>/mesh.yard, …
         xrender::mesh::gpu::cts::declare(**device, {.subject = (*device)->caps().device}, {.scratch = scratch_dir("xrender-mesh-gpu")});
     };

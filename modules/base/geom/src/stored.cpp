@@ -7,7 +7,7 @@ namespace mlibs::geom {
 
 namespace {
 
-enum Kind : std::uint32_t { positions = 1, normals = 2, tangents = 3, uvs = 4, indices = 5, clusters = 6, second_uvs = 7, colours = 8 };
+enum Kind : std::uint32_t { positions = 1, normals = 2, tangents = 3, uvs = 4, indices = 5, clusters = 6, second_uvs = 7, colours = 8, joints = 9, weights = 10 };
 constexpr std::size_t header_bytes = 16, entry_bytes = 24, cluster_bytes = 52;
 
 struct Writer {
@@ -18,6 +18,7 @@ struct Writer {
     void u64(std::uint64_t value) {
         for (int shift = 0; shift < 64; shift += 8) bytes.push_back(static_cast<std::uint8_t>(value >> shift));
     }
+    void u16(std::uint16_t value) { bytes.push_back(static_cast<std::uint8_t>(value)), bytes.push_back(static_cast<std::uint8_t>(value >> 8)); }
     void f32(float value) { u32(std::bit_cast<std::uint32_t>(value)); }
     void vec3(Vec3 value) { f32(value.x), f32(value.y), f32(value.z); }
 };
@@ -34,6 +35,11 @@ struct Reader {
         for (int index = 0; index < 8; ++index) value |= static_cast<std::uint64_t>(bytes[at++]) << (8 * index);
         return value;
     }
+    std::uint16_t u16() noexcept {
+        const std::uint16_t value = static_cast<std::uint16_t>(bytes[at] | bytes[at + 1] << 8);
+        at += 2;
+        return value;
+    }
     float f32() noexcept { return std::bit_cast<float>(u32()); }
     Vec3 vec3() noexcept {
         const float x = f32(), y = f32(), z = f32();
@@ -48,6 +54,8 @@ std::string_view name_of(std::uint32_t kind) noexcept {
         case uvs: return "uvs";
         case second_uvs: return "second_uvs";
         case colours: return "colours";
+        case joints: return "joints";
+        case weights: return "weights";
         case indices: return "indices";
         case clusters: return "clusters";
     }
@@ -58,7 +66,9 @@ std::uint32_t element_of(std::uint32_t kind) noexcept {
         case positions:
         case normals: return 12;
         case tangents:
-        case colours: return 16;
+        case colours:
+        case weights: return 16;
+        case joints: return 8;
         case uvs:
         case second_uvs: return 8;
         case indices: return 4;
@@ -80,6 +90,7 @@ std::vector<std::uint8_t> stored(const ClusteredMesh& mesh) {
     };
     add(positions, mesh.mesh.positions.size()), add(normals, mesh.mesh.normals.size()), add(tangents, mesh.mesh.tangents.size()), add(uvs, mesh.mesh.uvs.size());
     add(second_uvs, mesh.mesh.second_uvs.size()), add(colours, mesh.mesh.colours.size());
+    add(joints, mesh.mesh.joints.size()), add(weights, mesh.mesh.weights.size());
     add(indices, mesh.mesh.indices.size()), add(clusters, mesh.clusters.size());
     Writer out;
     out.bytes.insert(out.bytes.end(), stored_magic.begin(), stored_magic.end());
@@ -108,6 +119,12 @@ std::vector<std::uint8_t> stored(const ClusteredMesh& mesh) {
                 break;
             case colours:
                 for (const Vec4& value : mesh.mesh.colours) out.f32(value.x), out.f32(value.y), out.f32(value.z), out.f32(value.w);
+                break;
+            case joints:
+                for (const auto& four : mesh.mesh.joints) out.u16(four[0]), out.u16(four[1]), out.u16(four[2]), out.u16(four[3]);
+                break;
+            case weights:
+                for (const Vec4& value : mesh.mesh.weights) out.f32(value.x), out.f32(value.y), out.f32(value.z), out.f32(value.w);
                 break;
             case indices:
                 for (const std::uint32_t value : mesh.mesh.indices) out.u32(value);
@@ -169,6 +186,14 @@ std::expected<ClusteredMesh, std::string> read_stored(std::span<const std::uint8
             case colours:
                 out.mesh.colours.resize(many);
                 for (Vec4& value : out.mesh.colours) value.x = in.f32(), value.y = in.f32(), value.z = in.f32(), value.w = in.f32();
+                break;
+            case joints:
+                out.mesh.joints.resize(many);
+                for (auto& four : out.mesh.joints) four[0] = in.u16(), four[1] = in.u16(), four[2] = in.u16(), four[3] = in.u16();
+                break;
+            case weights:
+                out.mesh.weights.resize(many);
+                for (Vec4& value : out.mesh.weights) value.x = in.f32(), value.y = in.f32(), value.z = in.f32(), value.w = in.f32();
                 break;
             case indices:
                 out.mesh.indices.resize(many);

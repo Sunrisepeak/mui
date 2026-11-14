@@ -9,9 +9,7 @@ namespace math = mlibs::math;
 using math::Mat4;
 using math::Vec3;
 
-namespace {
-
-struct Corner {
+struct Pass::Corner {
     float position[3];
     float normal[3];
     float uv[2]{0, 0};
@@ -19,6 +17,10 @@ struct Corner {
     float second[2]{0, 0};         // the mesh's second set of texture coordinates, or 0
     float colour[4]{1, 1, 1, 1};   // the mesh's own at the corner, or white
 };
+
+namespace {
+
+using Corner = Pass::Corner;
 struct Row {
     float x = 0, y = 0, z = 0, w = 0;
 };
@@ -113,6 +115,8 @@ constexpr float cut_of(bool reversed) noexcept { return reversed ? -1.0f : 1.0f;
 constexpr std::array<rhi::VertexAttribute, 6> attributes{rhi::VertexAttribute{0, rhi::VertexFormat::float3, 0},  rhi::VertexAttribute{1, rhi::VertexFormat::float3, 12},
                                                          rhi::VertexAttribute{2, rhi::VertexFormat::float2, 24}, rhi::VertexAttribute{3, rhi::VertexFormat::float4, 32},
                                                          rhi::VertexAttribute{4, rhi::VertexFormat::float2, 48}, rhi::VertexAttribute{5, rhi::VertexFormat::float4, 56}};
+// The velocity's second stream: where each corner was a frame ago — a bent mesh's last corners, else its own.
+constexpr std::array<rhi::VertexAttribute, 1> was_attributes{rhi::VertexAttribute{6, rhi::VertexFormat::float3, 0}};
 
 // A number as a device's half float (rgba16_float): the nearest it has, what is too large its largest.
 std::uint16_t half_of(float value) noexcept {
@@ -190,9 +194,10 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
                                                        .depth_target = rhi::Format::d32_float,
                                                        .depth = {.test = true, .write = true, .compare = reversed_depth ? rhi::Compare::greater : rhi::Compare::less},
                                                        .label = "xrender.mesh.who"});
+    const std::array<rhi::VertexBufferLayout, 2> moving{rhi::VertexBufferLayout{sizeof(Corner), false, attributes}, rhi::VertexBufferLayout{sizeof(Corner), false, was_attributes}};
     auto velocity = device.create(rhi::GraphicsPipelineDesc{.vertex = &shaders::velocity::velocity_vs,
                                                             .fragment = &shaders::velocity::velocity_fs,
-                                                            .vertex_buffers = layout,
+                                                            .vertex_buffers = moving,
                                                             .target = rhi::Format::rgba16_float,
                                                             .blend = rhi::Blend::replace(),
                                                             .depth_target = rhi::Format::d32_float,
@@ -204,7 +209,7 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
     if (device.caps().max_color_targets >= 2)
         velocity_who = device.create(rhi::GraphicsPipelineDesc{.vertex = &shaders::velocity::velocity_vs,
                                                                .fragment = &shaders::velocity::velocity_who_fs,
-                                                               .vertex_buffers = layout,
+                                                               .vertex_buffers = moving,
                                                                .target = rhi::Format::rgba16_float,
                                                                .blend = rhi::Blend::replace(),
                                                                .depth_target = rhi::Format::d32_float,
@@ -385,8 +390,10 @@ Pass::~Pass() { release(); }
 void Pass::release() noexcept {
     if (!device_) return;
     static_cast<void>(device_->wait_idle());
-    for (const Loaded& mesh : meshes_)
+    for (const Loaded& mesh : meshes_) {
         if (mesh.corners) device_->destroy(mesh.corners);
+        if (mesh.before) device_->destroy(mesh.before);
+    }
     meshes_.clear();
     for (const Sheet& sheet : textures_)
         if (sheet.texture) device_->destroy(sheet.texture);
@@ -436,32 +443,61 @@ void Pass::release() noexcept {
     device_ = nullptr;
 }
 
+namespace {
+// A mesh's corners as the device takes them: a triangle's three, with the mesh's normals or the face's.
+void corners_of(const mlibs::geom::Mesh& mesh, std::vector<Corner>& corners) {
+    corners.clear();
+    for (std::size_t first = 0; first + 2 < mesh.indices.size(); first += 3) {
+        std::array<Vec3, 3> at{};
+        for (std::size_t corner = 0; corner < 3; ++corner) at[corner] = mesh.indices[first + corner] < mesh.positions.size() ? mesh.positions[mesh.indices[first + corner]] : Vec3{};
+        const Vec3 face = math::cross(at[1] - at[0], at[2] - at[0]);
+        for (std::size_t corner = 0; corner < 3; ++corner) {
+            const std::uint32_t vertex = mesh.indices[first + corner];
+            const Vec3 normal = !mesh.normals.empty() && vertex < mesh.normals.size() ? mesh.normals[vertex] : face;
+            const math::Vec2 uv = vertex < mesh.uvs.size() ? mesh.uvs[vertex] : math::Vec2{0, 0};
+            const math::Vec4 tangent = vertex < mesh.tangents.size() ? mesh.tangents[vertex] : math::Vec4{0, 0, 0, 0};
+            const math::Vec2 second = vertex < mesh.second_uvs.size() ? mesh.second_uvs[vertex] : math::Vec2{0, 0};
+            const math::Vec4 colour = vertex < mesh.colours.size() ? mesh.colours[vertex] : math::Vec4{1, 1, 1, 1};
+            corners.push_back({{at[corner].x, at[corner].y, at[corner].z}, {normal.x, normal.y, normal.z}, {uv.x, uv.y}, {tangent.x, tangent.y, tangent.z, tangent.w}, {second.x, second.y},
+                               {colour.x, colour.y, colour.z, colour.w}});
+        }
+    }
+}
+}  // namespace
+
+rhi::Result<void> Pass::bend(rhi::CommandList& list, std::uint32_t which, const mlibs::geom::ClusteredMesh& mesh) {
+    if (which >= meshes_.size() || !meshes_[which].corners) return rhi::fail(rhi::Errc::invalid, std::format("mesh {} is not loaded", which));
+    Loaded& loaded = meshes_[which];
+    if (mesh.mesh.indices.size() != loaded.count)
+        return rhi::fail(rhi::Errc::invalid, std::format("mesh {} was loaded with {} corners and is given {}: a bent mesh has its rest's triangles", which, loaded.count, mesh.mesh.indices.size()));
+    corners_of(mesh.mesh, bent_);
+    // Two buffers in turn: the last frame's corners stay as they were, for the velocity, and the other is written.
+    if (!loaded.before) {
+        auto made = device_->create(rhi::BufferDesc{static_cast<std::uint32_t>(bent_.size() * sizeof(Corner)), rhi::BufferUsage::vertex, "xrender.mesh.corners.before"});
+        if (!made) return std::unexpected(made.error());
+        loaded.before = *made;
+    }
+    std::swap(loaded.corners, loaded.before);
+    loaded.bent = true;
+    list.upload(loaded.corners, 0, std::span<const Corner>(bent_));
+    if (loaded.clusters.size() == mesh.clusters.size()) std::ranges::copy(mesh.clusters, loaded.clusters.begin());
+    else loaded.clusters = mesh.clusters;
+    return {};
+}
+
 rhi::Result<void> Pass::load(std::span<const mlibs::geom::ClusteredMesh* const> meshes) {
     static_cast<void>(device_->wait_idle());
-    for (const Loaded& mesh : meshes_)
+    for (const Loaded& mesh : meshes_) {
         if (mesh.corners) device_->destroy(mesh.corners);
+        if (mesh.before) device_->destroy(mesh.before);
+    }
     meshes_.assign(meshes.size(), Loaded{});
     rhi::CommandList list;
     std::vector<Corner> corners;
     for (std::size_t which = 0; which < meshes.size(); ++which) {
         if (!meshes[which]) continue;
         const mlibs::geom::Mesh& mesh = meshes[which]->mesh;
-        corners.clear();
-        for (std::size_t first = 0; first + 2 < mesh.indices.size(); first += 3) {
-            std::array<Vec3, 3> at{};
-            for (std::size_t corner = 0; corner < 3; ++corner) at[corner] = mesh.indices[first + corner] < mesh.positions.size() ? mesh.positions[mesh.indices[first + corner]] : Vec3{};
-            const Vec3 face = math::cross(at[1] - at[0], at[2] - at[0]);
-            for (std::size_t corner = 0; corner < 3; ++corner) {
-                const std::uint32_t vertex = mesh.indices[first + corner];
-                const Vec3 normal = !mesh.normals.empty() && vertex < mesh.normals.size() ? mesh.normals[vertex] : face;
-                const math::Vec2 uv = vertex < mesh.uvs.size() ? mesh.uvs[vertex] : math::Vec2{0, 0};
-                const math::Vec4 tangent = vertex < mesh.tangents.size() ? mesh.tangents[vertex] : math::Vec4{0, 0, 0, 0};
-                const math::Vec2 second = vertex < mesh.second_uvs.size() ? mesh.second_uvs[vertex] : math::Vec2{0, 0};
-                const math::Vec4 colour = vertex < mesh.colours.size() ? mesh.colours[vertex] : math::Vec4{1, 1, 1, 1};
-                corners.push_back({{at[corner].x, at[corner].y, at[corner].z}, {normal.x, normal.y, normal.z}, {uv.x, uv.y}, {tangent.x, tangent.y, tangent.z, tangent.w}, {second.x, second.y},
-                                   {colour.x, colour.y, colour.z, colour.w}});
-            }
-        }
+        corners_of(mesh, corners);
         if (corners.empty()) continue;
         auto buffer = device_->create(rhi::BufferDesc{static_cast<std::uint32_t>(corners.size() * sizeof(Corner)), rhi::BufferUsage::vertex, "xrender.mesh.corners"});
         if (!buffer) return std::unexpected(buffer.error());
@@ -1429,6 +1465,9 @@ void Pass::velocity_pass(rhi::CommandList& list, const scene::Scene& scene, cons
             const auto found = std::ranges::lower_bound(before_ids_, instance.id);
             before = before_clip_ * (found != before_ids_.end() && *found == instance.id ? before_world_[static_cast<std::size_t>(found - before_ids_.begin())] : instance.world);
         }
+        // A mesh bent since the last velocity: each corner from where it was bent then.
+        const Loaded& loaded = meshes_[draw.mesh];
+        const bool bent = remembered_ && loaded.bent && loaded.before;
         const std::optional<Mat4> back = math::inverse(instance.world);
         const Mat4 for_normals = back ? math::transposed(*back) : instance.world;
         const Material* material = draw.material < materials_.size() ? &materials_[draw.material] : nullptr;
@@ -1446,12 +1485,14 @@ void Pass::velocity_pass(rhi::CommandList& list, const scene::Scene& scene, cons
         list.push_uniforms(rhi::Stage::fragment, 0,
                            Moved{of(eye, cut_of(reversed_)),
                                  {static_cast<float>(width), static_cast<float>(height), options.jitter.x, options.jitter.y},
-                                 {before.values == to_clip.values ? 1.0f : 0.0f, static_cast<float>(static_cast<std::uint32_t>(instance.id & 0xffffffu) + 1), 0, 0},
+                                 {before.values == to_clip.values && !bent ? 1.0f : 0.0f, static_cast<float>(static_cast<std::uint32_t>(instance.id & 0xffffffu) + 1), 0, 0},
                                  whole});
-        list.bind_vertex_buffer(0, meshes_[draw.mesh].corners);
+        list.bind_vertex_buffer(0, loaded.corners);
+        list.bind_vertex_buffer(1, bent ? loaded.before : loaded.corners);
         for (const Run& run : runs_) list.draw(run.count, 1, run.first);
     }
     list.end_render();
+    for (Loaded& loaded : meshes_) loaded.bent = false;
     // The scene's instances are in id order: what the next frame looks its things up in.
     before_ids_.clear(), before_world_.clear();
     for (const scene::Instance& instance : instances) before_ids_.push_back(instance.id), before_world_.push_back(instance.world);

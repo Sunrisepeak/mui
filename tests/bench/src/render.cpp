@@ -80,6 +80,32 @@ void add_render_benchmarks() {
             }
             s.note("scope", std::format("the tree keeps its shape and its boxes are refitted; after 64 refits a new one is made beside it, {} things looked at a frame, and takes its place: {} times in this run", scene::Spatial::rebuild_things, spatial.remade()));
         });
+    add("render/mesh-bend-16k", "a mesh a skin bends, bent for a frame: 16,641 corners on four joints each (a ball of 128 x 128 quads, its weights spread over 9 joints), positions, normals and tangents, then its 256 clusters' bounds and cones — what xrender.mesh's `bend` costs a character before a device is given it",
+        [](State& s) {
+            namespace mesh = xrender::mesh;
+            namespace geom = mlibs::geom;
+            geom::ClusteredMesh rest = *geom::clustered(geom::sphere(1, 128, 128), 128);
+            for (const math::Vec3& at : rest.mesh.positions) {
+                const float height = std::clamp((at.y + 1) * 4, 0.0f, 7.999f);
+                const auto below = static_cast<std::uint16_t>(height);
+                const float up = height - static_cast<float>(below);
+                rest.mesh.joints.push_back({below, static_cast<std::uint16_t>(below + 1), 8, 0});
+                rest.mesh.weights.push_back({(1 - up) * 0.8f, up * 0.8f, 0.2f, 0});
+            }
+            std::array<math::Mat4, 9> skin{};
+            geom::ClusteredMesh bent;
+            std::vector<math::Vec3> room;
+            mesh::bend(rest, skin, bent, room);
+            s.items(rest.mesh.positions.size());
+            std::uint64_t frame = 0;
+            while (s.next()) {
+                const float turn = 0.01f * static_cast<float>(++frame % 100);
+                for (std::size_t joint = 0; joint < skin.size(); ++joint)
+                    skin[joint] = math::Transform{{0, 0.1f * turn, 0}, math::Quat::about({0, 0, 1}, turn * static_cast<float>(joint) * 0.1f), {1, 1, 1}}.matrix();
+                mesh::bend(rest, skin, bent, room);
+            }
+            s.note("scope", "one thread; nothing allocated after the first bending; the upload to a device is not timed");
+        });
     add("render/mesh-reference-yard", "the CPU reference of the mesh pass: a floor, a box, two balls and a post (6,092 triangles in 256 clusters) drawn at 480x270 with colour, depth, normal, velocity and ids",
         [](State& s) {
             namespace mesh = xrender::mesh;

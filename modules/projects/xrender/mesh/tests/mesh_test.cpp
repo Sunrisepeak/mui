@@ -158,6 +158,63 @@ const Camera yard_camera{.eye = {0.5f, 2.2f, 7.5f}, .target = {0.2f, 0, 0}, .asp
 }  // namespace
 
 static UTest cases{"xrender.mesh", [] {
+    "a skin bends a mesh: by the identity it is where it was, a joint moves what it holds, a normal stays across a stretched surface, a mirror turns it over, and the clusters hold where it went — the second time nothing allocated"_test = [] {
+        geom::ClusteredMesh rest = *geom::clustered(geom::sphere(1, 12, 24), 24);
+        for (const math::Vec3& at : rest.mesh.positions) {
+            const float upper = std::clamp(at.y + 0.5f, 0.0f, 1.0f);
+            rest.mesh.joints.push_back({0, 1, 7, 0}), rest.mesh.weights.push_back({1 - upper, upper, 0, 0});  // joint 7 the skin has not, of no weight
+        }
+        expect(geom::check(rest.mesh).has_value());
+        geom::ClusteredMesh bent;
+        std::vector<math::Vec3> room;
+        const std::array<math::Mat4, 2> still{};
+        mesh::bend(rest, still, bent, room);
+        float drift = 0;
+        for (std::size_t at = 0; at < rest.mesh.positions.size(); ++at)
+            drift = std::max({drift, math::length(bent.mesh.positions[at] - rest.mesh.positions[at]), math::length(bent.mesh.normals[at] - rest.mesh.normals[at])});
+        expect(lt(drift, 1e-6f)) << "by the identity, where it was (to a float's last bits: the weights' sum, a normal made of length 1 again)";
+        // The second joint 3 up: what it holds wholly is 3 up, what neither holds is where it was.
+        const std::array<math::Mat4, 2> lifted{math::Mat4{}, math::translation({0, 3, 0})};
+        const math::Vec3* const where = bent.mesh.positions.data();
+        mesh::bend(rest, lifted, bent, room);
+        expect(eq(static_cast<const void*>(bent.mesh.positions.data()), static_cast<const void*>(where))) << "written over, not made again";
+        float worst = 0;
+        for (std::size_t at = 0; at < rest.mesh.positions.size(); ++at) {
+            const math::Vec4 share = rest.mesh.weights[at];
+            worst = std::max(worst, math::length(bent.mesh.positions[at] - (rest.mesh.positions[at] + math::Vec3{0, 3 * share.y, 0})));
+        }
+        expect(lt(worst, 1e-5f));
+        for (const geom::Cluster& cluster : bent.clusters)
+            for (std::uint32_t index = cluster.first_index; index < cluster.first_index + cluster.triangle_count * 3; ++index)
+                expect(le(math::length(bent.mesh.positions[bent.mesh.indices[index]] - cluster.bounds.centre), cluster.bounds.radius * 1.0001f + 1e-5f));
+        // Stretched twice along x: each normal is still square to its triangles (the cofactor's, not the matrix's).
+        const std::array<math::Mat4, 2> stretched{math::scaling({2, 1, 1}), math::scaling({2, 1, 1})};
+        mesh::bend(rest, stretched, bent, room);
+        float least = 1;
+        for (std::size_t first = 0; first + 2 < bent.mesh.indices.size(); first += 3) {
+            const std::uint32_t one = bent.mesh.indices[first], two = bent.mesh.indices[first + 1], three = bent.mesh.indices[first + 2];
+            const math::Vec3 face = math::cross(bent.mesh.positions[two] - bent.mesh.positions[one], bent.mesh.positions[three] - bent.mesh.positions[one]);
+            if (math::length(face) < 1e-4f) continue;
+            least = std::min(least, math::dot(math::normalized(face), math::normalized(bent.mesh.normals[one] + bent.mesh.normals[two] + bent.mesh.normals[three])));
+        }
+        std::println("stretched: the least agreement of a triangle with its corners' normals {:.4f}", least);
+        expect(gt(least, 0.98f)) << "the matrix's own turn of a normal leans it toward the stretch";
+        // Mirrored: the normal still points out.
+        const std::array<math::Mat4, 2> mirrored{math::scaling({-1, 1, 1}), math::scaling({-1, 1, 1})};
+        mesh::bend(rest, mirrored, bent, room);
+        float inward = 1;
+        for (std::size_t at = 0; at < bent.mesh.positions.size(); ++at) inward = std::min(inward, math::dot(bent.mesh.normals[at], bent.mesh.positions[at]));
+        expect(gt(inward, 0.9f)) << "out of the ball, mirrored or not";
+        // A mesh with no joints is as it is.
+        const geom::ClusteredMesh plain = *geom::clustered(geom::box({1, 1, 1}));
+        geom::ClusteredMesh still_plain;
+        mesh::bend(plain, lifted, still_plain, room);
+        expect(still_plain.mesh.positions == plain.mesh.positions);
+        // And stored with its joints and weights.
+        const auto again = geom::read_stored(geom::stored(rest));
+        expect(again.has_value() && again->mesh.joints == rest.mesh.joints && again->mesh.weights == rest.mesh.weights);
+    };
+
     "a pixel says who drew it: the instance, the triangle facing the camera, its normal and its depth; where nothing is, nothing"_test = [] {
         scene::Scene world;
         put(world, 42, box, 0, {});

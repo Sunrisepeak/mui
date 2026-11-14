@@ -5,8 +5,10 @@ struct VIn {
     float3 position : TEXCOORD0;
     float3 normal : TEXCOORD1;
     float2 uv : TEXCOORD2;
+    float4 tangent : TEXCOORD3;  // not read here; declared so the inputs after it keep their places (Slang numbers them in order)
     float2 second : TEXCOORD4;  // the mesh's second set of texture coordinates
     float4 colour : TEXCOORD5;  // the mesh's own at the corner: its fourth is what it hides
+    float3 was : TEXCOORD6;     // where the corner was a frame ago in the mesh (a bent mesh's last; else `position`)
 };
 struct VOut {
     float4 clip : SV_Position;
@@ -31,7 +33,8 @@ VOut velocity_vs(VIn corner) {
     made.clip = float4(dot(draw.to_clip[0], at), dot(draw.to_clip[1], at), dot(draw.to_clip[2], at), dot(draw.to_clip[3], at));
     made.place = float3(dot(draw.to_world[0], at), dot(draw.to_world[1], at), dot(draw.to_world[2], at));
     made.normal = float3(dot(draw.normals[0].xyz, corner.normal), dot(draw.normals[1].xyz, corner.normal), dot(draw.normals[2].xyz, corner.normal));
-    made.before = float4(dot(draw.before[0], at), dot(draw.before[1], at), dot(draw.before[2], at), dot(draw.before[3], at));
+    const float4 was = float4(corner.was, 1);
+    made.before = float4(dot(draw.before[0], was), dot(draw.before[1], was), dot(draw.before[2], was), dot(draw.before[3], was));
     made.uv = float4(corner.uv, corner.second), made.hides = corner.colour.a;
     return made;
 }

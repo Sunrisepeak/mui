@@ -1147,7 +1147,10 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
             const auto found = std::ranges::lower_bound(before_ids_, instance.id);
             before = before_clip_ * (found != before_ids_.end() && *found == instance.id ? before_world_[static_cast<std::size_t>(found - before_ids_.begin())] : instance.world);
         }
-        raster.still = before.values == to_clip.values;
+        // A mesh bent since: each corner from where it was bent then (the same corners in the same order).
+        const geom::Mesh* was = remembered_ && draw.mesh < assets.before.size() && assets.before[draw.mesh] ? &assets.before[draw.mesh]->mesh : nullptr;
+        if (was && was->positions.size() != mesh.positions.size()) was = nullptr;
+        raster.still = before.values == to_clip.values && !was;
         // Normals go by the inverse transposed; a world that cannot be inverted has no surface to light.
         const std::optional<Mat4> back = math::inverse(instance.world);
         const Mat4 for_normals = back ? math::transposed(*back) : instance.world;
@@ -1180,7 +1183,7 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
                 for (int corner = 0; corner < 3; ++corner) {
                     const std::uint32_t vertex = mesh.indices[first + static_cast<std::size_t>(corner)];
                     at[corner] = vertex < mesh.positions.size() ? mesh.positions[vertex] : Vec3{};
-                    polygon[corner] = {moved(to_clip, at[corner]), moved(before, at[corner]),
+                    polygon[corner] = {moved(to_clip, at[corner]), moved(before, was && vertex < was->positions.size() ? was->positions[vertex] : at[corner]),
                                        vertex < mesh.normals.size() ? math::direction(for_normals, mesh.normals[vertex]) : Vec3{}, math::point(instance.world, at[corner]),
                                        {vertex < mesh.uvs.size() ? mesh.uvs[vertex].x : 0.0f, vertex < mesh.uvs.size() ? mesh.uvs[vertex].y : 0.0f,
                                         vertex < mesh.second_uvs.size() ? mesh.second_uvs[vertex].x : 0.0f, vertex < mesh.second_uvs.size() ? mesh.second_uvs[vertex].y : 0.0f},
@@ -1679,6 +1682,52 @@ Glow::Told Glow::show(std::span<const Vec3> light, int width, int height, const 
         colour[pixel * 4] = encoded(shown.x), colour[pixel * 4 + 1] = encoded(shown.y), colour[pixel * 4 + 2] = encoded(shown.z), colour[pixel * 4 + 3] = 255;
     }
     return told;
+}
+
+
+void bend(const geom::Mesh& rest, std::span<const Mat4> skin, geom::Mesh& out) {
+    const std::size_t count = rest.positions.size();
+    if (out.positions.size() != count || out.indices.size() != rest.indices.size() || out.normals.size() != rest.normals.size() || out.tangents.size() != rest.tangents.size()) out = rest;
+    const bool bends = rest.joints.size() == count && rest.weights.size() == count;
+    for (std::size_t corner = 0; corner < count; ++corner) {
+        if (!bends) {
+            out.positions[corner] = rest.positions[corner];
+            if (!rest.normals.empty()) out.normals[corner] = rest.normals[corner];
+            if (!rest.tangents.empty()) out.tangents[corner] = rest.tangents[corner];
+            continue;
+        }
+        // The joints' matrices weighed: what moves this corner.
+        std::array<float, 12> sum{};
+        const std::array<float, 4> shares{rest.weights[corner].x, rest.weights[corner].y, rest.weights[corner].z, rest.weights[corner].w};
+        for (std::size_t which = 0; which < 4; ++which) {
+            const std::uint16_t joint = rest.joints[corner][which];
+            if (shares[which] == 0 || joint >= skin.size()) continue;
+            for (std::size_t column = 0; column < 4; ++column)
+                for (std::size_t row = 0; row < 3; ++row) sum[column * 3 + row] += skin[joint].at(column, row) * shares[which];
+        }
+        const Vec3 across{sum[0], sum[1], sum[2]}, up{sum[3], sum[4], sum[5]}, out_of{sum[6], sum[7], sum[8]};
+        const Vec3 at = rest.positions[corner];
+        out.positions[corner] = across * at.x + up * at.y + out_of * at.z + Vec3{sum[9], sum[10], sum[11]};
+        if (!rest.normals.empty()) {
+            // The cofactor: det × the inverse transposed, turned the right way where the matrix turns a surface over.
+            const Vec3 normal = rest.normals[corner];
+            const Vec3 first = math::cross(up, out_of), second = math::cross(out_of, across), third = math::cross(across, up);
+            const float determinant = math::dot(across, first);
+            const Vec3 bent = (first * normal.x + second * normal.y + third * normal.z) * (determinant < 0 ? -1.0f : 1.0f);
+            out.normals[corner] = math::dot(bent, bent) > 0 ? math::normalized(bent) : normal;
+        }
+        if (!rest.tangents.empty()) {
+            const Vec4 tangent = rest.tangents[corner];
+            const Vec3 bent = across * tangent.x + up * tangent.y + out_of * tangent.z;
+            out.tangents[corner] = math::dot(bent, bent) > 0 ? Vec4{math::normalized(bent), tangent.w} : tangent;
+        }
+    }
+}
+
+void bend(const geom::ClusteredMesh& rest, std::span<const Mat4> skin, geom::ClusteredMesh& out, std::vector<Vec3>& room) {
+    bend(rest.mesh, skin, out.mesh);
+    if (out.clusters.size() != rest.clusters.size()) out.clusters = rest.clusters;
+    geom::refit(out, room);
 }
 
 }  // namespace xrender::mesh

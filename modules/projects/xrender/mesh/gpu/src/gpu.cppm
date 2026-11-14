@@ -97,6 +97,7 @@ struct Layers {
 
 class Pass {
 public:
+    struct Corner;  // a corner as the device takes it
     // The pipeline: the pass's shader, a depth test (`reversed`: the nearest at 1), an rgba8 target. `light`: the
     // target is rgba16_float instead and holds the light before the display's curve — what `Glow` takes.
     [[nodiscard]] static mlibs::rhi::Result<Pass> make(mlibs::rhi::Device& device, bool reversed_depth = false, bool light = false);
@@ -108,6 +109,13 @@ public:
     // uploaded and waited for. A mesh of no triangles has no buffer and is not drawn. Called again it replaces
     // what was loaded.
     [[nodiscard]] mlibs::rhi::Result<void> load(std::span<const mlibs::geom::ClusteredMesh* const> meshes);
+    // A loaded mesh's corners written over with `mesh`'s — the same triangles moved: a skinned mesh bent for this
+    // frame by xrender.mesh's `bend` — recorded on `list` (before the frame's passes on it, so every pass of the
+    // frame, its shadows' too, draws the bent one), its clusters' bounds with them. The corners it had are kept
+    // for the next velocity (each corner from where it was: what joints moved moves on the screen), so a skinned
+    // mesh is bent once a frame. Nothing is waited for and, after the first, nothing allocated. Refused where the mesh was not loaded or its corners are not as
+    // many as those loaded.
+    [[nodiscard]] mlibs::rhi::Result<void> bend(mlibs::rhi::CommandList& list, std::uint32_t which, const mlibs::geom::ClusteredMesh& mesh);
     // The pictures materials name (`Material::texture`), as the device takes them: each one's sizes laid on one
     // sheet of light (rgba16_float), which the shader reads as the reference reads its own — between four texels,
     // between two sizes. Called again it replaces what was loaded. A mesh with no texture coordinates is plain.
@@ -180,6 +188,8 @@ private:
         std::uint32_t      count = 0;
         std::array<bool, 2> placed{};      // it has texture coordinates: its first set, its second
         std::vector<mlibs::geom::Cluster> clusters;  // each a run of the corners: three a triangle from 3 × its first triangle
+        mlibs::rhi::Buffer before;        // a bent mesh's: its corners as the frame before had them (`bend` writes the two in turn)
+        bool               bent = false;  // bent since the last velocity
     };
     mlibs::rhi::Device*          device_ = nullptr;
     mlibs::rhi::GraphicsPipeline through_pipeline_, deep_pipeline_, under_pipeline_, laid_pipeline_;  // a layer of what is seen through; how deep what stops the eye is; a layer under those before it; all over the frame
@@ -192,6 +202,7 @@ private:
     mlibs::rhi::GraphicsPipeline about_sky_;  // behind everything, the surroundings' picture (made with the first picture loaded)
     mlibs::rhi::Buffer           cover_;  // three corners over the picture: what the sky is drawn with
     std::vector<Loaded>          meshes_;
+    std::vector<Corner>          bent_;  // a bent mesh's corners, as `bend` lays them out
     struct Sheet {
         mlibs::rhi::Texture texture;
         float               width = 0, height = 0, sizes = 0;  // its finest size; how many sizes (the texture's levels)

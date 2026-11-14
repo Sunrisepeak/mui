@@ -70,6 +70,15 @@ struct Animation {
     std::vector<Channel> channels;  // a channel whose sampler cannot be read is a note, and not here
 };
 
+// An instance a skin bends: each frame its mesh (`Instance::mesh`, made at rest) is `rest` bent by the skin's
+// matrices — xrender.mesh's `bend(imported.meshes[rest], skin_matrices, its mesh, room)` — and its place stays the
+// identity (the joints place it). `rest` holds the joints and weights; it is not itself placed.
+struct Skinning {
+    std::uint32_t instance = 0;  // in `Imported::instances`
+    std::uint32_t skin = 0;      // in `Imported::skins`
+    std::uint32_t rest = 0;      // in `Imported::meshes`
+};
+
 struct Imported {
     std::vector<mlibs::geom::ClusteredMesh> meshes;     // one a primitive carried, in the document's order
     std::vector<mesh::Material>             materials;  // the document's, in its order; then the one a primitive with none is given
@@ -82,6 +91,7 @@ struct Imported {
     std::vector<std::string>     material_names;
     std::vector<Node>            nodes;  // every node of the document, by its number
     std::vector<Skin>            skins;
+    std::vector<Skinning>        skinned;  // in instance order
     std::vector<Animation>       animations;
     std::vector<Note>            notes;
     // Triangles in all the meshes, and the instances' box in the world.

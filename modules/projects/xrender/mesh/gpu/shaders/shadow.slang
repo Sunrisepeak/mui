@@ -5,6 +5,7 @@ struct VIn {
     float3 position : TEXCOORD0;
     float3 normal : TEXCOORD1;
     float2 uv : TEXCOORD2;
+    float4 tangent : TEXCOORD3;  // not read here; declared so the inputs after it keep their places (Slang numbers them in order)
     float2 second : TEXCOORD4;  // the mesh's second set of texture coordinates
     float4 colour : TEXCOORD5;  // the mesh's own at the corner: its fourth is what it hides
 };

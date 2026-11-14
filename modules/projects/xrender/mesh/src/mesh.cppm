@@ -240,6 +240,20 @@ struct Texture {
     [[nodiscard]] std::size_t size_count() const noexcept { return sizes.size(); }
 };
 
+// A mesh bent by a skin (linear blend skinning, glTF's): each position by the sum of its joints' matrices weighed
+// by its weights (`geom::Mesh::joints`, `weights`), its normal by that sum's cofactor (what keeps a normal across a
+// surface stretched one way and not another), its tangent by the sum itself. `skin` is the skin's matrices, one a
+// joint: where the joint is times its inverse bind (hanim.skeleton's `skin`, a player's `skin()`). A joint the
+// skin does not have is passed over, and a mesh with no joints is as it is. The weights are the mesh's as given
+// (glTF's sum to 1). `out` is made like `rest` the first time and after that only its positions, normals and
+// tangents are written: a frame's bending allocates nothing. The one bending there is — the reference draws
+// what it makes, a device is given what it makes (xrender.mesh.gpu's `bend`), and xrender.asset poses a file's
+// skins at rest with it.
+void bend(const mlibs::geom::Mesh& rest, std::span<const Mat4> skin, mlibs::geom::Mesh& out);
+// The same, and its clusters' bounds and cones worked out again for where it now is (`geom::refit`; `room` is
+// what that reuses). A tree of its triangles (`Assets::trees`) is the caller's to build again.
+void bend(const mlibs::geom::ClusteredMesh& rest, std::span<const Mat4> skin, mlibs::geom::ClusteredMesh& out, std::vector<Vec3>& room);
+
 struct Assets {
     std::span<const mlibs::geom::ClusteredMesh* const> meshes;
     std::span<const Material> materials;
@@ -248,6 +262,9 @@ struct Assets {
     // query is geometry's). A mesh with no tree casts no shadow.
     std::span<const mlibs::geom::Bvh* const> trees;
     std::span<const Texture* const> textures;  // what `Material::texture` names
+    // None, or a mesh each (none for one that did not move): where a mesh a skin bends was bent a frame ago, its
+    // positions in the same order (`bend` into another) — each corner's velocity from there, what its joints moved.
+    std::span<const mlibs::geom::ClusteredMesh* const> before;
 };
 // Fog: what is between the eye and a surface, taken as a share of the surface's light and given the fog's own.
 // Its density is `density` a unit of length at the height `base` and thinner by e each 1/`falloff` above it

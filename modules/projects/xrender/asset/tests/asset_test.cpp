@@ -13,6 +13,7 @@ namespace asset = xrender::asset;
 namespace scene = xrender::scene;
 namespace geom = mlibs::geom;
 namespace math = mlibs::math;
+namespace mesh = xrender::mesh;
 
 namespace {
 
@@ -503,6 +504,21 @@ static UTest cases{"xrender.asset", [] {
         expect(has({1, 0, 0.5f})) << "the second on the bone at rest";
         expect(has({0, 1.5f, 0.5f})) << "the third a quarter on the bone 2 up: half a unit up";
         expect(!noted(*model, "/nodes/0/skin") && !noted(*model, "/meshes/0/primitives/0/targets"));
+        // What a frame bends it from: the mesh at rest with its joints, whose bending by the same matrices is the
+        // mesh drawn; by others, the corners move with their bones.
+        expect(fatal(eq(model->skinned.size(), std::size_t{1})));
+        const asset::Skinning& skinning = model->skinned[0];
+        expect(eq(skinning.instance, 0u) && eq(skinning.skin, 0u) && skinning.rest != placed.mesh);
+        const geom::ClusteredMesh& rest = model->meshes[skinning.rest];
+        expect(eq(rest.mesh.joints.size(), rest.mesh.positions.size()) && eq(rest.mesh.weights.size(), rest.mesh.positions.size()));
+        geom::ClusteredMesh bent;
+        std::vector<math::Vec3> room;
+        const std::array<math::Mat4, 2> bones{math::Mat4{}, math::translation({0, 2, 0})};
+        mesh::bend(rest, bones, bent, room);
+        expect(bent.mesh.positions == at) << "the same bending: the same bits";
+        const std::array<math::Mat4, 2> higher{math::Mat4{}, math::translation({0, 6, 0})};
+        mesh::bend(rest, higher, bent, room);
+        expect(std::ranges::any_of(bent.mesh.positions, [](math::Vec3 one) { return math::length(one - math::Vec3{0, 6, 0.5f}) < 1e-6f; }));
     };
 
     "strips and fans are triangles with their fronts kept; lamps have a reach"_test = [] {

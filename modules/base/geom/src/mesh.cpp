@@ -24,6 +24,8 @@ std::expected<void, std::string> check(const Mesh& mesh) {
     if (!mesh.uvs.empty() && mesh.uvs.size() != count) return std::unexpected(std::format("{} uvs for {} positions (one each, or none)", mesh.uvs.size(), count));
     if (!mesh.second_uvs.empty() && mesh.second_uvs.size() != count) return std::unexpected(std::format("{} second uvs for {} positions (one each, or none)", mesh.second_uvs.size(), count));
     if (!mesh.colours.empty() && mesh.colours.size() != count) return std::unexpected(std::format("{} colours for {} positions (one each, or none)", mesh.colours.size(), count));
+    if (mesh.joints.size() != mesh.weights.size()) return std::unexpected(std::format("{} joints and {} weights (both, or neither)", mesh.joints.size(), mesh.weights.size()));
+    if (!mesh.joints.empty() && mesh.joints.size() != count) return std::unexpected(std::format("{} joints for {} positions (one each, or none)", mesh.joints.size(), count));
     if (mesh.indices.size() % 3) return std::unexpected(std::format("{} indices: three a triangle", mesh.indices.size()));
     for (std::size_t index = 0; index < mesh.indices.size(); ++index)
         if (mesh.indices[index] >= count) return std::unexpected(std::format("index {} names position {}, of {}", index, mesh.indices[index], count));
@@ -64,16 +66,24 @@ std::expected<ClusteredMesh, std::string> clustered(Mesh mesh, std::span<const s
     }
     if (said != mesh.triangles()) return std::unexpected(std::format("the clusters hold {} triangles; the mesh has {}", said, mesh.triangles()));
     ClusteredMesh out;
-    std::vector<Vec3> corners;
     std::size_t first = 0;
     for (const std::uint32_t run : runs) {
-        Cluster cluster{.first_index = static_cast<std::uint32_t>(first * 3), .triangle_count = run};
+        out.clusters.push_back({.first_index = static_cast<std::uint32_t>(first * 3), .triangle_count = run});
         first += run;
+    }
+    out.mesh = std::move(mesh);
+    std::vector<Vec3> corners;
+    refit(out, corners);
+    return out;
+}
+
+void refit(ClusteredMesh& mesh, std::vector<Vec3>& corners) {
+    for (Cluster& cluster : mesh.clusters) {
         corners.clear();
         Vec3 facing{};
         for (std::uint32_t triangle = 0; triangle < cluster.triangle_count; ++triangle) {
             const std::size_t at = cluster.first_index + static_cast<std::size_t>(triangle) * 3;
-            const Vec3 one = mesh.positions[mesh.indices[at]], two = mesh.positions[mesh.indices[at + 1]], three = mesh.positions[mesh.indices[at + 2]];
+            const Vec3 one = mesh.mesh.positions[mesh.mesh.indices[at]], two = mesh.mesh.positions[mesh.mesh.indices[at + 1]], three = mesh.mesh.positions[mesh.mesh.indices[at + 2]];
             corners.push_back(one), corners.push_back(two), corners.push_back(three);
             facing = facing + math::normalized(math::cross(two - one, three - one));
         }
@@ -87,14 +97,12 @@ std::expected<ClusteredMesh, std::string> clustered(Mesh mesh, std::span<const s
             if (normal == Vec3{}) continue;  // a triangle of no area faces nowhere
             least = std::min(least, math::dot(axis, normal));
         }
+        cluster.cone_axis = {0, 0, 1}, cluster.cone_cutoff = 2;
         if (!(axis == Vec3{}) && least > 0.1f) {
             cluster.cone_axis = axis;
             cluster.cone_cutoff = std::sqrt(1 - least * least);
         }
-        out.clusters.push_back(cluster);
     }
-    out.mesh = std::move(mesh);
-    return out;
 }
 
 Mesh box(Vec3 half) {

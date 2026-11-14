@@ -1337,6 +1337,24 @@ def check_matter(root: Path) -> list[Problem]:
     return problems
 
 
+def check_shader_inputs(root: Path) -> list[Problem]:
+    """A shader's vertex inputs name their places with TEXCOORD0, 1, 2 … with none left out: Slang numbers
+    a struct's inputs in the order they are declared, not by the number, so an input after a gap reads the
+    attribute of the place before it (a corner's colour read from its second set of coordinates)."""
+    problems = []
+    struct = re.compile(r"struct\s+VIn\s*\{(.*?)\};", re.S)
+    for path in sorted(root.glob("modules/**/*.slang")):
+        text = path.read_text(encoding="utf-8")
+        for found in struct.finditer(text):
+            numbers = [int(n) for n in re.findall(r":\s*TEXCOORD(\d+)", found.group(1))]
+            if numbers != list(range(len(numbers))):
+                line = text.count("\n", 0, found.start()) + 1
+                problems.append(Problem("shader-inputs", f"{path.relative_to(root).as_posix()}:{line}",
+                                        f"vertex inputs at TEXCOORD {numbers}: declare each place from 0 in order, unread ones too "
+                                        f"(Slang numbers them as declared, so one after a gap reads the place before it)"))
+    return problems
+
+
 def check_readable(root: Path) -> list[Problem]:
     """Every manifest is TOML: the rules below read them, and one that is not is a problem said with
     its place, not the end of the lint in a traceback. The usual cause is a child dependency key
@@ -1366,7 +1384,7 @@ def run(root: Path) -> list[Problem]:
         return unreadable  # the other rules read the manifests
     return (check_sources(root) + check_manifests(root) + check_projects(root) + check_layout(root) + check_licences(root) + check_platforms(root) + check_pins(root)
             + check_documents(root) + check_media(root) + check_closures(root) + check_operations(root) + check_skills(root) + check_agent_surface(root)
-            + check_lead(root) + check_typescript_data(root) + check_imports(root) + check_matter(root))
+            + check_lead(root) + check_typescript_data(root) + check_imports(root) + check_matter(root) + check_shader_inputs(root))
 
 
 def self_test() -> int:
@@ -1401,6 +1419,7 @@ def self_test() -> int:
         "documents": ("examples/x/ui/bad.view.omui.json", '{"omui": "0.1", "view": {"root": {"typ": "text"}}}'),
         "skills": ("modules/ui/core/skill.omui.md", "# x\n\nSee [x.ops.omui.ts](x.ops.omui.ts); then `ui.wipe`.\n"),
         "matter": ("modules/ui/core/x.matter.omui.json", '{"matter": {"materials": {"wood": {}, "ash": {}}, "laws": [{"when": "material == wood && temperature >= 500", "become": "burnt"}]}}'),
+        "shader-inputs": ("modules/ui/core/x.slang", "struct VIn {\n    float3 position : TEXCOORD0;\n    float2 second : TEXCOORD4;\n};\n"),
         "lead": (LEAD_FEATURES, '{"feature": [{"id": "A", "project": "omui", "line": "use-safely", "title": "x", "status": "claimed"}]}\n'),
     }
     try:

@@ -145,14 +145,6 @@ struct Maker {
     };
     std::vector<Edged> edged;
     static constexpr std::uint32_t unasked = 0xffffffffu, refused = 0xfffffffeu;
-    // A primitive with a skin's bones and weights, as it was read (before its corners were put in order for
-    // drawing): what a node with a skin makes its own mesh of. By the document's mesh and primitive.
-    struct Skinnable {
-        mlibs::geom::Mesh                         mesh;
-        std::vector<std::array<std::uint32_t, 4>> joints;
-        std::vector<Vec4>                         weights;
-    };
-    std::vector<std::vector<std::optional<Skinnable>>> skinnable;
 
     void note(std::string where, std::string what, std::string instead) { out.notes.push_back({std::move(where), std::move(what), std::move(instead)}); }
 
@@ -333,8 +325,7 @@ struct Maker {
     }
 
     // A primitive as a mesh in clusters, or none (with a note of why) — or the document refused, with the reason.
-    std::expected<std::optional<mlibs::geom::ClusteredMesh>, std::string> primitive(const cgltf_primitive& from, const std::string& where, std::span<const float> weights,
-                                                                                    std::optional<Skinnable>& keep) {
+    std::expected<std::optional<mlibs::geom::ClusteredMesh>, std::string> primitive(const cgltf_primitive& from, const std::string& where, std::span<const float> weights) {
         if (from.type != cgltf_primitive_type_triangles && from.type != cgltf_primitive_type_triangle_strip && from.type != cgltf_primitive_type_triangle_fan) {
             note(where + "/mode", std::string(mode_name(from.type)), "left out: triangles, strips and fans of them are drawn");
             return std::nullopt;
@@ -368,7 +359,10 @@ struct Maker {
                     for (std::size_t corner = 0; corner < bones.size(); ++corner)
                         if (!cgltf_accessor_read_uint(attribute.data, corner, bones[corner].data(), 4)) bones.clear();
                 }
-                if (bones.empty()) note(at, "bones that cannot be read", "left out: the mesh as it is at rest");
+                if (std::ranges::any_of(bones, [](const auto& four) { return std::ranges::any_of(four, [](std::uint32_t joint) { return joint > 0xffff; }); })) {
+                    bones.clear();
+                    note(at, "bones numbered past 65,535", "left out: the mesh as it is at rest");
+                } else if (bones.empty()) note(at, "bones that cannot be read", "left out: the mesh as it is at rest");
                 continue;
             }
             if (attribute.type == cgltf_attribute_type_weights && first) {
@@ -453,15 +447,21 @@ struct Maker {
             mlibs::geom::compute_normals(made);
             note(where + "/attributes/NORMAL", "no normals (glTF then asks for flat faces)", "smooth normals worked out from the triangles");
         }
-        if (!bones.empty() && !bone_weights.empty()) keep = Skinnable{made, std::move(bones), std::move(bone_weights)};
+        // Kept with the mesh: what a skin bends it by (xrender.mesh's `bend`), at rest and each frame after.
+        if (!bones.empty() && !bone_weights.empty()) {
+            made.joints.reserve(bones.size());
+            for (const auto& four : bones) made.joints.push_back({static_cast<std::uint16_t>(four[0]), static_cast<std::uint16_t>(four[1]), static_cast<std::uint16_t>(four[2]), static_cast<std::uint16_t>(four[3])});
+            made.weights = std::move(bone_weights);
+        }
         auto clustered = options.optimise ? optimised(std::move(made)) : mlibs::geom::clustered(std::move(made));
         if (!clustered) return std::unexpected(std::format("{}: {}", where, clustered.error()));
         return std::optional<mlibs::geom::ClusteredMesh>(std::move(*clustered));
     }
 
     // A skinned primitive as a node's skin bends it where its bones are at rest: each corner by its bones' places
-    // times their inverse binds, weighed (glTF: the node's own place is not applied — the bones place it).
-    std::expected<std::optional<mlibs::geom::ClusteredMesh>, std::string> skinned(const Skinnable& from, const cgltf_skin& skin, const std::string& where) {
+    // times their inverse binds, weighed (glTF: the node's own place is not applied — the bones place it), by the
+    // one bending there is (xrender.mesh's `bend`). In the order of `rest`, so a frame's bending writes over it.
+    std::expected<std::optional<mlibs::geom::ClusteredMesh>, std::string> skinned(const mlibs::geom::ClusteredMesh& rest, const cgltf_skin& skin, const std::string& where) {
         std::vector<Mat4> bends(skin.joints_count);
         std::vector<float> inverse_binds;
         if (skin.inverse_bind_matrices && (!readable(skin.inverse_bind_matrices) || skin.inverse_bind_matrices->type != cgltf_type_mat4 || skin.inverse_bind_matrices->count < skin.joints_count)) {
@@ -478,27 +478,10 @@ struct Maker {
             if (!inverse_binds.empty()) std::copy_n(inverse_binds.begin() + static_cast<std::ptrdiff_t>(joint * 16), 16, inverse_bind.values.begin());
             bends[joint] = at * inverse_bind;
         }
-        mlibs::geom::Mesh made = from.mesh;
-        for (std::size_t corner = 0; corner < made.positions.size(); ++corner) {
-            Vec3 place{0, 0, 0}, normal{0, 0, 0}, along{0, 0, 0};
-            const std::array<float, 4> shares{from.weights[corner].x, from.weights[corner].y, from.weights[corner].z, from.weights[corner].w};
-            for (std::size_t which = 0; which < 4; ++which) {
-                const std::uint32_t joint = from.joints[corner][which];
-                if (shares[which] == 0 || joint >= bends.size()) continue;
-                place = place + mlibs::math::point(bends[joint], from.mesh.positions[corner]) * shares[which];
-                if (!made.normals.empty()) normal = normal + mlibs::math::direction(bends[joint], from.mesh.normals[corner]) * shares[which];
-                if (!made.tangents.empty()) along = along + mlibs::math::direction(bends[joint], Vec3{from.mesh.tangents[corner].x, from.mesh.tangents[corner].y, from.mesh.tangents[corner].z}) * shares[which];
-            }
-            made.positions[corner] = place;
-            if (!made.normals.empty() && mlibs::math::dot(normal, normal) > 0) made.normals[corner] = mlibs::math::normalized(normal);
-            if (!made.tangents.empty() && mlibs::math::dot(along, along) > 0) {
-                const Vec3 unit = mlibs::math::normalized(along);
-                made.tangents[corner] = {unit.x, unit.y, unit.z, made.tangents[corner].w};
-            }
-        }
-        auto clustered = options.optimise ? optimised(std::move(made)) : mlibs::geom::clustered(std::move(made));
-        if (!clustered) return std::unexpected(std::format("{}: {}", where, clustered.error()));
-        return std::optional<mlibs::geom::ClusteredMesh>(std::move(*clustered));
+        mlibs::geom::ClusteredMesh made;
+        std::vector<Vec3> room;
+        mesh::bend(rest, bends, made, room);
+        return std::optional<mlibs::geom::ClusteredMesh>(std::move(made));
     }
 
     // Whether a node is under one of the scene's roots.
@@ -527,13 +510,11 @@ struct Maker {
 
         // A mesh a primitive; which of `out.meshes` each of the document's primitives became.
         std::vector<std::vector<std::uint32_t>> made_of(data.meshes_count);
-        skinnable.assign(data.meshes_count, {});
         for (std::size_t mesh = 0; mesh < data.meshes_count; ++mesh) {
             const cgltf_mesh& from = data.meshes[mesh];
             if (from.primitives_count >= ids_a_node) return std::unexpected(std::format("/meshes/{} has {} primitives (fewer than {} are numbered)", mesh, from.primitives_count, ids_a_node));
-            skinnable[mesh].resize(from.primitives_count);
             for (std::size_t part = 0; part < from.primitives_count; ++part) {
-                auto made = primitive(from.primitives[part], std::format("/meshes/{}/primitives/{}", mesh, part), std::span<const float>(from.weights, from.weights_count), skinnable[mesh][part]);
+                auto made = primitive(from.primitives[part], std::format("/meshes/{}/primitives/{}", mesh, part), std::span<const float>(from.weights, from.weights_count));
                 if (!made) return std::unexpected(made.error());
                 made_of[mesh].push_back(*made ? static_cast<std::uint32_t>(out.meshes.size()) : mesh::none);
                 if (*made) out.meshes.push_back(std::move(**made));
@@ -572,17 +553,21 @@ struct Maker {
                     // A skinned node: its own mesh, bent by its skin's bones; the bones place it.
                     std::uint32_t drawn = made_of[mesh][part];
                     Mat4 placed_at = world;
+                    std::optional<Skinning> skinning;
                     if (node.skin) {
-                        if (!skinnable[mesh][part]) note(where + "/skin", "a skin over a primitive with no bones and weights that can be read", "the mesh as it is at rest");
+                        if (out.meshes[drawn].mesh.joints.empty()) note(where + "/skin", "a skin over a primitive with no bones and weights that can be read", "the mesh as it is at rest");
                         else {
-                            auto bent = skinned(*skinnable[mesh][part], *node.skin, std::format("/skins/{}", cgltf_skin_index(&data, node.skin)));
+                            const auto skin = static_cast<std::uint32_t>(cgltf_skin_index(&data, node.skin));
+                            auto bent = skinned(out.meshes[drawn], *node.skin, std::format("/skins/{}", skin));
                             if (!bent) return std::unexpected(bent.error());
                             if (*bent) {
+                                skinning = Skinning{.instance = static_cast<std::uint32_t>(out.instances.size()), .skin = skin, .rest = drawn};
                                 drawn = static_cast<std::uint32_t>(out.meshes.size()), placed_at = Mat4{};
                                 out.meshes.push_back(std::move(**bent));
                             }
                         }
                     }
+                    if (skinning) out.skinned.push_back(*skinning);
                     out.instances.push_back({.id = options.base + (index + 1) * ids_a_node + part + 1,
                                              .mesh = drawn,
                                              .material = material ? static_cast<std::uint32_t>(cgltf_material_index(&data, material)) : unnamed,

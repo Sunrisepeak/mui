@@ -71,6 +71,20 @@ public:
     // The wind's push on each body for the world's next step (before `world.step()`): the field's wind where it is
     // against how it moves — an updraft lifts a light thing, a gale shoves a crate.
     void blow(World& world, const xengine::field::Field& air) const;
+
+    // Weather, each by what things are and where (no material named): rain wets each body open to the sky (a ray
+    // straight up from its top meets nothing) by `wetness` (as stored) a step, up to `most` (none: as wet as the
+    // wettest material holds — water's `moist`); lightning strikes the highest body open to
+    // the sky among those whose material conducts (its `conduct` above 0), giving it `charge` and `kelvin` of heat
+    // — none where nothing conducts (it goes to the ground). The body struck, or none.
+    void rain(const World& world, std::uint32_t wetness, std::optional<std::uint32_t> most = std::nullopt);
+    struct Strike {
+        std::uint32_t charge = 1000;
+        float         kelvin = 800;   // heat added
+        float         sky = 60;       // m: how far up a body's way to the sky must be clear
+    };
+    std::optional<BodyId> lightning(const World& world, Strike strike);
+    std::optional<BodyId> lightning(const World& world) { return lightning(world, Strike{}); }
     [[nodiscard]] std::span<const matter::Event> events() const noexcept { return events_; }
     // The body an instance of the last step is (none: the air beside one).
     [[nodiscard]] BodyId body_of(std::uint32_t instance) const noexcept { return instance < bodies_before_.size() ? bodies_before_[instance] : BodyId{}; }
@@ -85,6 +99,7 @@ public:
 
 private:
     [[nodiscard]] std::optional<std::size_t> index(BodyId body) const noexcept;
+    [[nodiscard]] bool open_to_sky(const World& world, BodyId body, float sky) const noexcept;
 
     const matter::Program*     program_ = nullptr;
     ObjectsOptions             options_;

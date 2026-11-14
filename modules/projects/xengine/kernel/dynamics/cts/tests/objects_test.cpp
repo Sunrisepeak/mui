@@ -131,6 +131,47 @@ UTest cases{"dynamics.objects", [] {
         expect(gt(highest, start.y + 0.25f)) << "the updraft lifts a light thing";
     };
 
+    "in the rain, lightning strikes the iron pole and not the wooden one as tall; wet wood heated as dry wood is does not catch (the emergence set's 11, and 2's wet half)"_test = [] {
+        const auto table = matter::standard();
+        expect(fatal(table.has_value())) << "the standard definition prepares";
+        const matter::Program& program = *table;
+        const std::uint32_t temperature = *program.channel("temperature"), burning = *program.channel("burning"), charge = *program.channel("charge");
+        auto world = rigid3::World::make({});
+        (void)world->add({.kind = rigid3::Kind::fixed, .at = {0, -0.5f, 0}}, rigid3::Shape::box({20, 0.5f, 20}));
+        // Two poles stood in the ground, as tall as each other; two crates, one under a roof.
+        const auto pole = [&](float x) { return *world->add({.kind = rigid3::Kind::fixed, .at = {x, 1, 0}}, rigid3::Shape::box({0.05f, 1, 0.05f})); };
+        const auto iron = pole(-2), wooden = pole(2);
+        const auto out = *world->add({.kind = rigid3::Kind::fixed, .at = {-2, 0.5f, 5}}, rigid3::Shape::box({0.5f, 0.5f, 0.5f}));
+        const auto sheltered = *world->add({.kind = rigid3::Kind::fixed, .at = {2, 0.5f, 5}}, rigid3::Shape::box({0.5f, 0.5f, 0.5f}));
+        (void)world->add({.kind = rigid3::Kind::fixed, .at = {2, 3, 5}}, rigid3::Shape::box({1.5f, 0.1f, 1.5f}));  // the roof
+        auto objects = rigid3::Objects::make(program, {.ambient = *program.material("air")});
+        expect(fatal(objects.has_value()));
+        (void)objects->add(iron, *program.material("iron")), (void)objects->add(wooden, *program.material("wood"));
+        (void)objects->add(out, *program.material("wood")), (void)objects->add(sheltered, *program.material("wood"));
+        // Ten seconds of rain: what is open to the sky wets.
+        for (int step = 0; step < 600; ++step) {
+            objects->rain(*world, 1);
+            world->step();
+            expect(objects->step(*world).has_value());
+        }
+        const std::uint32_t wet = *objects->get(out, *program.channel("wetness")), dry = *objects->get(sheltered, *program.channel("wetness"));
+        const auto struck = objects->lightning(*world);
+        std::println("after ten seconds of rain: the crate in it wetness {}, the one under the roof {}; lightning struck {} (iron pole {}, wooden {}); the iron pole's charge {}, {:.0f} K",
+                     wet, dry, struck ? struck->value : 0u, iron.value, wooden.value, *objects->get(iron, charge),
+                     std::ldexp(static_cast<double>(*objects->get(iron, temperature)), -static_cast<int>(program.channels()[temperature].fraction)));
+        expect(gt(wet, dry)) << "the rain wets what is open to the sky";
+        expect(struck.has_value() && *struck == iron) << "it strikes what conducts, and not wood as tall";
+        expect(gt(*objects->get(iron, charge), 0u) && eq(*objects->get(wooden, charge), 0u));
+        // The same heat on both crates for a second: the dry one catches, the wet one does not.
+        for (int step = 0; step < 60; ++step) {
+            for (const rigid3::BodyId crate : {out, sheltered}) (void)objects->set(crate, temperature, stored(program, temperature, 650));
+            world->step();
+            expect(objects->step(*world).has_value());
+        }
+        std::println("held at 650 K a second: the wet crate burning {}, the dry one {}", *objects->get(out, burning), *objects->get(sheltered, burning));
+        expect(eq(*objects->get(out, burning), 0u) && gt(*objects->get(sheltered, burning), 0u)) << "wet wood is harder to light";
+    };
+
     "a strip of grass lit in the middle burns faster downwind than upwind (the emergence set's 10)"_test = [] {
         const auto table = matter::standard();
         expect(fatal(table.has_value())) << "the standard definition prepares";

@@ -159,6 +159,51 @@ void Objects::blow(World& world, const xengine::field::Field& air) const {
     }
 }
 
+bool Objects::open_to_sky(const World& world, BodyId body, float sky) const noexcept {
+    const auto box = world.bounds(body);
+    if (!box) return false;
+    const Vec top{(box->low.x + box->high.x) / 2, box->high.y + 0.01f, (box->low.z + box->high.z) / 2};
+    return !world.ray(top, {top.x, top.y + sky, top.z});
+}
+
+void Objects::rain(const World& world, std::uint32_t wetness, std::optional<std::uint32_t> most) {
+    const auto channel = program_->channel("wetness");
+    if (!channel) return;
+    if (!most) {  // as wet as the wettest material holds
+        most = 0;
+        if (const auto moist = program_->column("moist"))
+            for (std::uint32_t material = 0; material < program_->materials().size(); ++material) most = std::max(*most, program_->value(material, *moist));
+    }
+    for (const BodyId body : bodies_)
+        if (open_to_sky(world, body, 60)) {
+            std::uint32_t& value = state_[*channel * bodies_.size() + *index(body)];
+            if (value < *most) value = std::min(*most, value + std::min(wetness, *most - value));
+        }
+}
+
+std::optional<BodyId> Objects::lightning(const World& world, Strike strike) {
+    const auto conduct = program_->column("conduct");
+    const auto charge = program_->channel("charge"), temperature = program_->channel("temperature");
+    if (!conduct || !charge || !temperature) return std::nullopt;
+    std::optional<BodyId> struck;
+    float highest = -std::numeric_limits<float>::infinity();
+    for (const BodyId body : bodies_) {  // in the order of their ids: a tie goes to the first
+        const auto material = this->material(body);
+        if (!material || *material >= program_->materials().size() || program_->value(*material, *conduct) == 0) continue;
+        const auto box = world.bounds(body);
+        if (!box || !(box->high.y > highest) || !open_to_sky(world, body, strike.sky)) continue;
+        highest = box->high.y, struck = body;
+    }
+    if (!struck) return std::nullopt;
+    const std::size_t at = *index(*struck), count = bodies_.size();
+    std::uint32_t& charged = state_[*charge * count + at];
+    charged = charged > std::numeric_limits<std::uint32_t>::max() - strike.charge ? std::numeric_limits<std::uint32_t>::max() : charged + strike.charge;
+    const auto heat = static_cast<std::uint32_t>(std::lround(std::ldexp(static_cast<double>(strike.kelvin), static_cast<int>(program_->channels()[*temperature].fraction))));
+    std::uint32_t& warm = state_[*temperature * count + at];
+    warm = warm > std::numeric_limits<std::uint32_t>::max() - heat ? std::numeric_limits<std::uint32_t>::max() : warm + heat;
+    return struck;
+}
+
 std::optional<matter::Why> Objects::why(BodyId body) const {
     const auto found = std::ranges::lower_bound(bodies_before_, body);
     if (found == bodies_before_.end() || *found != body) return std::nullopt;

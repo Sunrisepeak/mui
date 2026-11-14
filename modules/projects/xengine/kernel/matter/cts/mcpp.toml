@@ -53,3 +53,6 @@ xengine.dynamics = { path = "../../dynamics", features = ["matter"] }
 # xengine.cellular.present), drawn by the renderer and read back as pixels; the pictures kept as PNG.
 "xengine.cellular.present" = { path = "../../cellular/present", features = ["world"] }
 mlibs.image = { path = "../../../../../base/image" }
+# tests/cloud_agent_test.cpp: a cloud of particles in 3D as an agent's subject (xengine.particles' feature
+# `agent`) — under the agent contract's suite, then sparks emitted, sought back to and branched.
+xengine.particles = { path = "../../particles", features = ["agent"] }

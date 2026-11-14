@@ -1,0 +1,50 @@
+{
+  "kind": "omui.ops",
+  "version": 1,
+  "product": "particles",
+  "doc": "Read a cloud of particles in flight — where each is, what it is made of, how hot — and what struck the world, find those near a place, emit more, step it, return to a frame, and ask what would be.",
+  "tools": [
+    {"name": "particles.observe", "description": "The frame, the cloud's fingerprint, how many are in flight (by material), what struck the world in the last step (fastest first) and how many things matter's laws did", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"particles.observe"}],
+     "inputSchema": {"type": "object", "properties": {"budget": {"type": "integer", "description": "the most bytes of answer: strikes are left out from the slowest, and `more` says how many"}}, "required": []}},
+    {"name": "particles.list", "description": "Particles in the order emitted: id, material, place, velocity, age, life left and temperature in kelvin", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"particles.list","first":0,"most":16}],
+     "inputSchema": {"type": "object", "properties": {"first": {"type": "integer", "description": "from this place in the order (0 when none is given)"}, "most": {"type": "integer", "description": "at most this many (64 when none is given; 1024 at most)"}}, "required": []}},
+    {"name": "particles.near", "description": "The particles within a distance of a place, the nearest first, as particles.list gives them", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"particles.near","at":[0,0,0],"radius":0.5}],
+     "inputSchema": {"type": "object", "properties": {"at": {"description": "[x, y, z]"}, "radius": {"type": "number", "description": "m (1 when none is given)"}, "most": {"type": "integer", "description": "at most this many (64 when none is given; 1024 at most)"}}, "required": ["at"]}},
+    {"name": "particles.emit", "description": "Particles of a material emitted on the next step: at a place, at a speed — `count` of them, their speeds spread by up to `spread` m/s each way, the same spread every run", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "particles.seek to the frame before it took effect", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "step the cloud: they are emitted on the next step", "request": {"op":"particles.step","steps":30}}],
+     "examples": [{"op":"particles.emit","at":[0,1,0],"velocity":[0,3,0],"material":"iron","kelvin":1500,"count":20,"spread":1}],
+     "inputSchema": {"type": "object", "properties": {"at": {"description": "[x, y, z]"}, "velocity": {"description": "[x, y, z] in m/s ([0, 0, 0] when none is given)"}, "material": {"type": "string", "description": "a material of the world's definition (particles.observe's `materials` lists those in flight)"}, "kelvin": {"type": "number", "description": "how hot (the material's own start when none is given)"}, "life": {"type": "number", "description": "seconds (1 when none is given)"}, "size": {"type": "number", "description": "m across (0.02 when none is given)"}, "count": {"type": "integer", "description": "how many (1 when none is given; 4096 at most)"}, "spread": {"type": "number", "description": "m/s each way added to each one's velocity (0 when none is given)"}}, "required": ["at", "material"]}},
+    {"name": "particles.step", "description": "Steps the cloud: flight, the world's surfaces met, one tick of matter's laws", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "particles.seek to the frame it began at", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "read what happened", "request": {"op":"particles.observe"}}],
+     "examples": [{"op":"particles.step","steps":60}],
+     "inputSchema": {"type": "object", "properties": {"steps": {"type": "integer", "description": "how many (1 when none is given)"}}, "required": []}},
+    {"name": "particles.seek", "description": "Returns to a frame within the history kept, bit for bit (a copy of the cloud and the emissions since, played again); what is stepped from there is a new branch", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "none within the cloud: what came after the frame is another branch's", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "read the cloud at the frame returned to", "request": {"op":"particles.observe"}}],
+     "examples": [{"op":"particles.seek","frame":60}],
+     "inputSchema": {"type": "object", "properties": {"frame": {"type": "integer", "description": "the frame to return to"}}, "required": ["frame"]}},
+    {"name": "particles.branch", "description": "What would be: the cloud some steps ahead, particles emitted first if `at` and `material` are given (as particles.emit takes them), observed as particles.observe does; the cloud itself untouched", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"particles.branch","steps":60,"at":[0,1,0],"velocity":[0,3,0],"material":"iron","kelvin":1500,"count":20,"spread":1}],
+     "inputSchema": {"type": "object", "properties": {"steps": {"type": "integer", "description": "how far ahead (1 when none is given)"}, "at": {}, "velocity": {}, "material": {"type": "string"}, "kelvin": {"type": "number"}, "life": {"type": "number"}, "size": {"type": "number"}, "count": {"type": "integer"}, "spread": {"type": "number"}}, "required": []}}
+  ],
+  "tiers": [],
+  "tasks": [
+    {"name": "see-what-is-in-flight", "summary": "Read the cloud, then the first particles and those near the middle", "steps": [
+      {"op":"particles.observe"},
+      {"op":"particles.list","first":0,"most":16},
+      {"op":"particles.near","at":[0,0,0],"radius":1}
+    ]},
+    {"name": "throw-sparks", "summary": "Emit hot iron sparks, step a second, and read what struck the world and how hot they are now", "steps": [
+      {"op":"particles.emit","at":[0,1,0],"velocity":[0,3,0],"material":"iron","kelvin":1500,"count":20,"spread":1},
+      {"op":"particles.step","steps":60},
+      {"op":"particles.observe"},
+      {"op":"particles.list","most":4}
+    ]},
+    {"name": "ask-before-emitting", "summary": "See what an emission would do a second ahead, the cloud itself untouched", "steps": [
+      {"op":"particles.branch","steps":60,"at":[0,1,0],"velocity":[0,3,0],"material":"iron","kelvin":1500,"count":20,"spread":1},
+      {"op":"particles.observe"}
+    ]}
+  ]
+}

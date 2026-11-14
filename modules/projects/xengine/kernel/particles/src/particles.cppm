@@ -76,6 +76,7 @@ public:
     [[nodiscard]] std::span<const Vec3> velocity() const noexcept { return velocity_; }
     [[nodiscard]] std::span<const float> sizes() const noexcept { return size_; }
     [[nodiscard]] std::span<const float> ages() const noexcept { return age_; }
+    [[nodiscard]] std::span<const float> lives() const noexcept { return life_; }  // seconds each is given
     [[nodiscard]] std::span<const std::uint32_t> ids() const noexcept { return id_; }
     // Its state as matter keeps it: channel-major ([channel][particle]), `size()` a channel.
     [[nodiscard]] std::span<const std::uint32_t> state() const noexcept { return state_; }

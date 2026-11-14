@@ -22,7 +22,7 @@ particles::Cloud branch = *cloud;          // a copy is a branch
 
 ## Agent surface
 
-A carrier: its owner's subject reaches it — what is in flight (`at`, `velocity`, `ages`, `ids`, `state`), what struck what (`landed`), what the laws did (`events`), the agreement of two runs (`fingerprint`); control is `emit` and `step`; a branch is a copy (D-169: the world is a value). Drawn by [xrender.particle](../../../xrender/particle) (a particle's place, size and colour), which also says which one is at a point (`pick`) — the colour from the state by the appearance recipe (D-168).
+A subject of its own, `particles` (the feature `agent`, module `xengine.particles.agent`; catalog [particles.ops.omui.ts](particles.ops.omui.ts), order of use [skill.omui.md](skill.omui.md)): `observe` (the frame, the fingerprint, how many by material, what struck the world fastest first, within a budget), `list`, `near`, `emit` (a material by name, how many, a spread the same every run), `step`, `seek` (a copy of the cloud every 60 steps and the emissions since, played again — bit for bit), `branch` (what would be, the cloud untouched). Under the agent contract's suite in `xengine.matter.cts` beside the lattice's subjects: everything it says it has passes; causes and the source of what it puts out are said unsupported. The cloud itself is a value: `at`, `velocity`, `ages`, `lives`, `ids`, `state`, `landed`, `events`, `fingerprint`; a branch is a copy (D-169). Drawn by [xrender.particle](../../../xrender/particle) (a particle's place, size and colour), which also says which one is at a point (`pick`) — the colour from the state by the appearance recipe (D-168).
 
 ## Against the strongest
 

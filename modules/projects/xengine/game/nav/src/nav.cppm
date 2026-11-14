@@ -113,12 +113,23 @@ enum class Going : std::uint8_t {
     crossing,     // carried along a link
     off_mesh,     // not on the mesh (its ground built away): waits
 };
+// The next corners a walker steers for: at most four, held in place (asking a walker allocates nothing).
+struct Corners {
+    static constexpr std::size_t most = 4;
+    std::array<Vec, most> points{};
+    std::uint32_t         count = 0;
+    [[nodiscard]] const Vec* begin() const noexcept { return points.data(); }
+    [[nodiscard]] const Vec* end() const noexcept { return points.data() + count; }
+    [[nodiscard]] std::size_t size() const noexcept { return count; }
+    [[nodiscard]] bool empty() const noexcept { return count == 0; }
+    [[nodiscard]] const Vec& operator[](std::size_t index) const noexcept { return points[index]; }
+};
 struct WalkerState {
     WalkerId id;
     Vec at, velocity;
     Going going = Going::idle;
     std::optional<Vec> target;
-    std::vector<Vec> ahead;  // the next corners it steers for (at most four)
+    Corners ahead;  // the next corners it steers for
     WalkerDef def;
 };
 

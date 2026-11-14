@@ -136,6 +136,7 @@ struct World::Native {
     dtCrowd* crowd = nullptr;
     dtQueryFilter filter;
     std::vector<WalkerRecord> walkers;  // in the order of their ids
+    std::vector<Vec>          before;   // each walker's place before a step (a step's scratch)
 
     Native() = default;
     Native(const Native&) = delete;
@@ -786,7 +787,8 @@ std::optional<WalkerState> World::walker(WalkerId id) const {
     else if (agent.partial) state.going = Going::unreachable;
     else if (dtVdist2D(agent.npos, agent.targetPos) <= agent.params.radius) state.going = Going::arrived;
     else state.going = Going::walking;
-    for (int corner = 0; corner < agent.ncorners; ++corner) state.ahead.push_back(vec(&agent.cornerVerts[corner * 3]));
+    static_assert(std::extent_v<decltype(dtCrowdAgent::cornerVerts)> / 3 <= Corners::most);  // Detour's most corners
+    for (int corner = 0; corner < agent.ncorners; ++corner) state.ahead.points[state.ahead.count++] = vec(&agent.cornerVerts[corner * 3]);
     return state;
 }
 
@@ -794,8 +796,8 @@ std::span<const WalkerId> World::walkers() const noexcept { return walkers_; }
 
 void World::step() {
     Native& native = *native_;
-    std::vector<Vec> before;
-    before.reserve(native.walkers.size());
+    std::vector<Vec>& before = native.before;  // kept: a steady step allocates nothing
+    before.clear();
     for (const WalkerRecord& walker : native.walkers) before.push_back(vec(native.crowd->getAgent(walker.index)->npos));
     native.before_step();
     native.crowd->update(native.options.step, nullptr);

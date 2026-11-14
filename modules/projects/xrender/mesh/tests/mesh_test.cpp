@@ -1712,6 +1712,26 @@ static UTest cases{"xrender.mesh", [] {
         expect(gt(pane_pixels, std::size_t{100}) && gt(ball_pixels, std::size_t{300}));
         expect(gt(bent * 2, ball_pixels)) << "most of the ball shows another place than straight behind it";
         expect(lt(red_tinted / red, 0.5) && lt(red_traced_tinted / red_traced, 0.5)) << "the inside takes the red";
+        // A ball of glass is a lens: what is behind it is seen turned over. The red box stands to the left, so
+        // through the ball its red is to the right of the ball's middle — drawn (through the mesh's own tree) as
+        // along rays. Where the red is: its excess over green and blue, weighed by column, against the middle.
+        const auto red_side = [&](const mesh::Targets& frame) {
+            double weight = 0, sum = 0, column_sum = 0;
+            std::size_t count = 0;
+            for (std::size_t pixel = 0; pixel < frame.ids.size(); ++pixel) {
+                const mesh::Pixel& id = ball_frame.first.ids[pixel];
+                if (id.draw >= ball_frame.first.draws.size() || ball_frame.first.draws[id.draw].instance != 3) continue;
+                const double column = static_cast<double>(pixel % width);
+                column_sum += column, ++count;
+                const math::Vec3 light = frame.light[pixel];
+                const double redness = std::max(0.0, static_cast<double>(light.x) - std::max(light.y, light.z));
+                weight += redness, sum += redness * column;
+            }
+            return weight > 0 && count ? sum / weight - column_sum / static_cast<double>(count) : 0.0;
+        };
+        const double drawn_side = red_side(ball_frame.first), traced_side = red_side(ball_frame.second);
+        std::println("    the box's red through the ball, columns right of its middle: {:.2f} drawn, {:.2f} along rays", drawn_side, traced_side);
+        expect(gt(traced_side, 0.0) && gt(drawn_side, 0.0)) << "turned over, as along rays";
     };
 
     "an instance its place mirrors (a negative scale) is not inside out: a box and a ball, their own mirror images, are drawn as unmirrored — the same pixels theirs, the same light"_test = [] {

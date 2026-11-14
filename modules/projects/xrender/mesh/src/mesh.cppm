@@ -468,6 +468,7 @@ private:
     std::vector<Mat4> before_world_;
     Mat4              before_clip_;    // its world to clip
     std::vector<Caster> casters_;      // a frame's: every instance of the scene that can cast, seen or not
+    std::vector<Caster> whole_;        // a frame's: every whole instance with a tree, what light leaving a solid meets
     std::vector<Laid>   laid_;         // a frame's samples of surfaces seen through, kept between frames
     Texture             behind_;       // a frame's light of what is whole, at every size, where something lets light through
     std::vector<float>  there_;        // how much is drawn at each pixel, for it

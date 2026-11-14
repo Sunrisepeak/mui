@@ -147,6 +147,102 @@ struct Raster {
     // at every size, the view's clip space (unjittered) and the instance's place and its inverse.
     const Texture* behind = nullptr;
     Mat4           clip, world, back;
+    // The draw's own mesh and its tree, or none: a solid that lets light through is gone through along them — the
+    // ray bent in, met again where it leaves (bent back in at each face it cannot leave by), bent out — and where it
+    // goes then is traced through `whole` (D-184: the ray query is geometry's).
+    const geom::Mesh* inside = nullptr;
+    const geom::Bvh*  inside_tree = nullptr;
+    std::span<const Caster> whole;
+
+    // Where a ray in the draw's own mesh (`from`, `along` of length 1, its own space) meets it next, beyond `beyond`:
+    // how far, and the mesh's normal there (its corners' between them, or the face's), in its own space.
+    struct Inside {
+        float distance;
+        Vec3  normal;
+    };
+    [[nodiscard]] std::optional<Inside> inside_meet(Vec3 from, Vec3 along, float beyond) const noexcept {
+        const geom::Mesh& mesh = *inside;
+        const geom::Ray ray{from, along};
+        const auto corners_of = [&](std::uint32_t triangle) -> std::optional<std::array<std::uint32_t, 3>> {
+            const std::size_t at = static_cast<std::size_t>(triangle) * 3;
+            if (at + 2 >= mesh.indices.size()) return std::nullopt;
+            const std::array<std::uint32_t, 3> corner{mesh.indices[at], mesh.indices[at + 1], mesh.indices[at + 2]};
+            if (corner[0] >= mesh.positions.size() || corner[1] >= mesh.positions.size() || corner[2] >= mesh.positions.size()) return std::nullopt;
+            return corner;
+        };
+        const std::optional<geom::RayHit> hit = geom::nearest(*inside_tree, ray, [&](std::uint32_t triangle) -> std::optional<float> {
+            const auto corner = corners_of(triangle);
+            if (!corner) return std::nullopt;
+            const std::optional<float> distance = geom::meet(ray, mesh.positions[(*corner)[0]], mesh.positions[(*corner)[1]], mesh.positions[(*corner)[2]]);
+            return distance && *distance > beyond ? distance : std::nullopt;
+        });
+        if (!hit) return std::nullopt;
+        const std::array<std::uint32_t, 3> corner = *corners_of(hit->item);
+        const Vec3 first = mesh.positions[corner[0]], one = mesh.positions[corner[1]] - first, other = mesh.positions[corner[2]] - first;
+        Vec3 normal = math::cross(one, other);
+        if (mesh.normals.size() == mesh.positions.size()) {
+            // Where on the triangle: the corners' shares, from the place met.
+            const Vec3 to = from + along * hit->distance - first;
+            const float oo = math::dot(one, one), ot = math::dot(one, other), tt = math::dot(other, other);
+            const float po = math::dot(to, one), pt = math::dot(to, other), whole_area = oo * tt - ot * ot;
+            if (whole_area > 0) {
+                const float second = (tt * po - ot * pt) / whole_area, third = (oo * pt - ot * po) / whole_area;
+                const Vec3 smooth = mesh.normals[corner[0]] * (1.0f - second - third) + mesh.normals[corner[1]] * second + mesh.normals[corner[2]] * third;
+                if (math::dot(smooth, smooth) > 0) normal = smooth;
+            }
+        }
+        return Inside{hit->distance, normal};
+    }
+
+    // Where a ray in the world (`along` not made of length 1 again in each mesh) first meets what is whole: how far
+    // in lengths of `along`, or none.
+    [[nodiscard]] std::optional<float> whole_meet(Vec3 from, Vec3 along) const noexcept {
+        const geom::Ray ray{from, along};
+        std::optional<float> nearest;
+        for (const Caster& thing : whole) {
+            const std::optional<float> box = geom::meet(ray, thing.bounds);
+            if (!box || (nearest && *box > *nearest)) continue;
+            const geom::Ray within{math::point(thing.back, from), math::direction(thing.back, along)};
+            if (const std::optional<geom::RayHit> hit = meet(within, *thing.mesh, *thing.tree, thing.material, thing.picture, nearest.value_or(std::numeric_limits<float>::max())))
+                if (!nearest || hit->distance < *nearest) nearest = hit->distance;
+        }
+        return nearest;
+    }
+
+    // The way through a solid: from `place` (in the world) bent in along `way` (of length 1), to where it leaves
+    // and the way it goes on. Light that meets a face at more than the critical angle is mirrored back in (at most
+    // `bounces` times); a ray that finds no way out, or a mesh not closed where it was entered, gives none.
+    struct Way {
+        Vec3  leaves, onward;
+        float length;  // in the world, inside
+    };
+    [[nodiscard]] std::optional<Way> gone_through(Vec3 place, Vec3 way) const noexcept {
+        constexpr int bounces = 4;
+        const float ior = std::max(material.ior, 1e-3f);
+        Vec3 at = place, along = way;
+        float length = 0;
+        for (int bounce = 0; bounce <= bounces; ++bounce) {
+            const Vec3 own_from = math::point(back, at), own_way = math::normalized(math::direction(back, along));
+            // Not the face it was entered or mirrored at: a thousandth of the mesh's own size on.
+            const Vec3 size = inside_tree->nodes.empty() ? Vec3{1, 1, 1} : inside_tree->nodes[0].bounds.high - inside_tree->nodes[0].bounds.low;
+            const float beyond = 1e-4f * std::max({size.x, size.y, size.z});
+            const std::optional<Inside> met = inside_meet(own_from, own_way, beyond);
+            if (!met) return std::nullopt;
+            const Vec3 next = math::point(world, own_from + own_way * met->distance);
+            length += math::length(next - at);
+            Vec3 out = math::normalized(math::direction(math::transposed(back), met->normal));
+            float leaving = math::dot(out, along);
+            if (leaving < 0) out = out * -1.0f, leaving = -leaving;  // the face's own way out, whichever way it was wound
+            const float under = 1.0f - ior * ior * (1.0f - leaving * leaving);
+            at = next;
+            if (under < 0) {
+                along = math::normalized(along - out * (2.0f * leaving));  // mirrored back in
+                continue;
+            }
+            return Way{next, math::normalized(along * ior - out * (ior * leaving - std::sqrt(under))), length};
+        }
+        return std::nullopt;
+    }
 
     // The light that comes through the surface at `place` (facing the eye along `normal`) from what is behind
     // it: where the eye's ray, bent into the surface (by `ior`) and gone its thickness, leaves it — straight
@@ -161,29 +257,43 @@ struct Raster {
         const float share = std::clamp(material.transmission, 0.0f, 1.0f) * (1.0f - std::clamp(material.metallic, 0.0f, 1.0f));
         if (!behind || behind->sizes.empty() || !(share > 0)) return {};
         Vec3 leaves = place, through{1, 1, 1};
+        std::optional<Vec2> there;
         if (material.thickness > 0) {
             const Vec3 in = math::normalized(place - eye);
             const float bends = 1.0f / std::max(material.ior, 1e-3f), facing = -math::dot(normal, in);
             const float under = 1.0f - bends * bends * (1.0f - facing * facing);
-            const Vec3 way = under < 0 ? in : in * bends + normal * (bends * facing - std::sqrt(under));
-            // The thickness is the mesh's own: the way taken into the mesh, so long there, and back to the world.
-            const Vec3 own_way = math::normalized(math::direction(back, way));
-            const Vec3 gone = math::direction(world, own_way * material.thickness);
-            leaves = place + gone;
-            const float length = math::length(gone);
+            const Vec3 way = under < 0 ? in : math::normalized(in * bends + normal * (bends * facing - std::sqrt(under)));
+            float length = 0;
+            // With the mesh's tree, the true way: through the solid and out, and on to what it meets there (or the
+            // surroundings, infinitely far along it). Without, the thickness the material gives, straight on.
+            const std::optional<Way> gone = inside && inside_tree ? gone_through(place, way) : std::nullopt;
+            if (gone) {
+                length = gone->length, leaves = gone->leaves;
+                const std::optional<float> far = whole_meet(gone->leaves, gone->onward);
+                const Vec4 seen = far ? clip * Vec4{gone->leaves + gone->onward * *far, 1.0f} : clip * Vec4{gone->onward, 0.0f};
+                if (seen.w > 0) there = Vec2{seen.x / seen.w * 0.5f + 0.5f, 0.5f - seen.y / seen.w * 0.5f};
+            } else {
+                // The thickness is the mesh's own: the way taken into the mesh, so long there, and back to the world.
+                const Vec3 own_way = math::normalized(math::direction(back, way));
+                const Vec3 straight = math::direction(world, own_way * material.thickness);
+                leaves = place + straight;
+                length = math::length(straight);
+            }
             if (material.attenuation_distance > 0 && material.attenuation_distance < std::numeric_limits<float>::infinity() && length > 0) {
                 const double times = static_cast<double>(length) / static_cast<double>(material.attenuation_distance);
                 const auto of = [&](float colour) { return colour >= 1 ? 1.0f : colour <= 0 ? 0.0f : static_cast<float>(math::det::pow(static_cast<double>(colour), times)); };
                 through = {of(material.attenuation.x), of(material.attenuation.y), of(material.attenuation.z)};
             }
         }
-        const Vec4 at = clip * Vec4{leaves, 1.0f};
-        const Vec2 there = at.w > 0 ? Vec2{at.x / at.w * 0.5f + 0.5f, 0.5f - at.y / at.w * 0.5f} : own;
+        if (!there) {
+            const Vec4 at = clip * Vec4{leaves, 1.0f};
+            there = at.w > 0 ? Vec2{at.x / at.w * 0.5f + 0.5f, 0.5f - at.y / at.w * 0.5f} : own;
+        }
         // As rough as the surface, the more so the more it bends (none at an index of 1, all at 1.5 and up): its
         // footprint the frame's side to that power (three.js's measure, as a texel count).
         const float rough = std::clamp(material.roughness, 0.0f, 1.0f) * std::clamp(material.ior * 2.0f - 2.0f, 0.0f, 1.0f);
         const float footprint = static_cast<float>(math::det::pow(static_cast<double>(std::max(behind->width, behind->height)), static_cast<double>(rough)));
-        const Texture::Seen seen = behind->seen_at(there, footprint);
+        const Texture::Seen seen = behind->seen_at(*there, footprint);
         const Vec3 tint = math::scaled(material.base, through);
         return {math::scaled(tint, seen.light) * (share * seen.cover), share * (1.0f - seen.cover) * (tint.x + tint.y + tint.z) / 3.0f};
     }
@@ -917,6 +1027,18 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
             for (std::size_t pixel = 0; pixel < out.ids.size(); ++pixel) there_[pixel] = 1.0f - out.clear[pixel];
             behind_ = Texture::of_light(out.light, there_, out.width, out.height).value_or(Texture{});
             raster.behind = &behind_;
+            // What light leaving a solid can meet: every whole instance with a tree.
+            whole_.clear();
+            for (const scene::Instance& thing : instances) {
+                if (thing.hidden || thing.mesh >= assets.meshes.size() || thing.mesh >= assets.trees.size() || !assets.meshes[thing.mesh] || !assets.trees[thing.mesh]) continue;
+                const Material* made_of = thing.material < assets.materials.size() ? &assets.materials[thing.material] : nullptr;
+                if (made_of && stage_of(*made_of) != 0) continue;
+                const std::optional<Mat4> into = math::inverse(thing.world);
+                if (!into) continue;
+                const Texture* cover = made_of && made_of->texture < assets.textures.size() ? assets.textures[made_of->texture] : nullptr;
+                whole_.push_back({*into, geom::moved(thing.world, thing.bounds), &assets.meshes[thing.mesh]->mesh, assets.trees[thing.mesh], made_of, cover});
+            }
+            raster.whole = whole_;
         }
         raster.laid = seen_through ? &laid_ : nullptr;
         ++last_.draws;
@@ -941,6 +1063,7 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
         raster.film = picture(raster.material.film, placing.film), raster.film_thick = picture(raster.material.film_thick, placing.film_thick);
         raster.coloured = !mesh.colours.empty();
         raster.world = instance.world, raster.back = math::inverse(instance.world).value_or(Mat4{});
+        raster.inside = &mesh, raster.inside_tree = draw.mesh < assets.trees.size() ? assets.trees[draw.mesh] : nullptr;
         const Mat4 to_clip = clip * instance.world;
         // Where it was a frame ago: its own place then, through the view then. New this frame: where it is.
         Mat4 before = to_clip;

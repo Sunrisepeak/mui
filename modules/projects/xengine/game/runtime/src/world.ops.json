@@ -17,7 +17,8 @@
     {"name": "world.step", "description": "Plays steps; only where the agent steps the game (an owner's clock refuses it)", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "world.seek to the frame it began at", "undoable": false, "cancellable": false, "result": "json",
      "then": [{"why": "read what a player is shown now", "request": {"op":"world.observe"}}],
      "examples": [{"op":"world.step","steps":30}],
-     "inputSchema": {"type": "object", "properties": {"steps": {"type": "integer", "description": "how many (1 when none is given)"}}, "required": []}},
+     "keywords": ["trace", "sample", "follow", "changes", "rises", "falls", "during", "while"],
+     "inputSchema": {"type": "object", "properties": {"steps": {"type": "integer", "description": "how many (1 when none is given)"}, "watch": {"type": "string", "description": "a place in what the player is shown, read as the steps go by: a JSON pointer into the view (\"/score\"; \"\" is the whole view). The answer's `watched` is [{frame, value}]"}, "every": {"type": "integer", "description": "with `watch`: read every this many steps (1 when none is given), and after the last; at most 600 readings"}}, "required": []}},
     {"name": "world.seek", "description": "Returns to a frame within the history kept; what is played from there is a new branch", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "none within the runtime: what came after the frame is another branch's", "undoable": false, "cancellable": false, "result": "json",
      "then": [{"why": "read where the game's time is", "request": {"op":"world.state"}}],
      "examples": [{"op":"world.seek","frame":0}],
@@ -39,6 +40,10 @@
       {"op":"world.act","axis":[1]},
       {"op":"world.step","steps":30},
       {"op":"world.observe"}
+    ]},
+    {"name": "watch-it-change", "summary": "Hold an axis and read what the player is shown every ten steps while half a second is played: one request for the whole stretch (`watch` takes a place in the view, as \"/score\"; \"\" is all of it)", "steps": [
+      {"op":"world.act","axis":[1]},
+      {"op":"world.step","steps":30,"watch":"","every":10}
     ]},
     {"name": "ask-before-acting", "summary": "See where an action would lead some steps ahead, the game itself untouched", "steps": [
       {"op":"world.branch","steps":30,"axis":[1]},

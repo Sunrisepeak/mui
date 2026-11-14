@@ -28,6 +28,16 @@ UTest cases{"json", [] {
         expect(eq(root["a"].size(), std::size_t{3}) && root["a"].items()[1].pointer() == "/a/1");
     };
 
+    "a value by its pointer, from any node: members, elements, escapes; nowhere is absent"_test = [] {
+        auto parsed = mlibs::json::Document::parse(R"({"playbacks":[{"id":7,"a/b":{"~":true}}],"n":1})", "pointers");
+        expect(fatal(parsed.has_value()));
+        const auto root = parsed->root();
+        expect(root.at("/playbacks/0/id").integer() == 7 && root.at("").dump() == root.dump());
+        expect(root.at("/playbacks/0/a~1b/~0").boolean() == true) << "~1 is a slash, ~0 a tilde";
+        expect(root["playbacks"].at("/0/id").integer() == 7 && root["playbacks"].at("/0/id").pointer() == "/playbacks/0/id") << "from a node, and it says where it is";
+        expect(!root.at("/playbacks/1") && !root.at("/playbacks/x") && !root.at("playbacks") && !root.at("/n/deeper"));
+    };
+
     "problems at their line and column; an absent member at its object"_test = [] {
         const std::string text = "{\n  \"music\": {\n    \"tempo\": \"fast\"\n  }\n}\n";
         const auto doc = json::Document::parse(text, "piece.music.omui.json");

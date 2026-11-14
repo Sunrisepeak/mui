@@ -148,7 +148,7 @@ UTest cases{"runtime", [] {
         // The game's task before the runtime's own, its moves as the requests that play them.
         const auto described = ask(session, R"({"op":"describe","subject":"world"})");
         const auto first = described.data()["tasks"][0];
-        expect(first["name"].text() == "catch-the-first-mark" && eq(described.data()["tasks"].size(), std::size_t{4})) << described.data()["tasks"].dump();
+        expect(first["name"].text() == "catch-the-first-mark" && eq(described.data()["tasks"].size(), std::size_t{5})) << described.data()["tasks"].dump();
         expect(first["steps"].dump() ==
                R"([{"op":"world.act","axis":[1]},{"op":"world.step","steps":60},{"op":"world.act"},{"op":"world.step","steps":1},{"op":"world.observe"}])")
             << first["steps"].dump();
@@ -157,6 +157,30 @@ UTest cases{"runtime", [] {
             expect(eq(answered.exit_code(), std::int64_t{0})) << first["steps"][index].dump();
             if (index + 1 == first["steps"].size()) expect(answered.data()["view"]["caught"].integer() == 1) << "the task does what it says: " << answered.data().dump();
         }
+    };
+
+    "a place of the view read as the steps go by: one request for how it changed"_test = [] {
+        Game game(Chase::State{}, runtime::Options{.tier = assist});
+        agent::SubjectSession session({&game});
+        expect(eq(ask(session, R"({"op":"world.act","axis":[1]})").exit_code(), std::int64_t{0}));
+        const auto walked = ask(session, R"({"op":"world.step","steps":45,"watch":"/player","every":10})");
+        expect(walked.data()["watched"].dump() ==
+               R"([{"frame":10,"value":10},{"frame":20,"value":20},{"frame":30,"value":30},{"frame":40,"value":40},{"frame":45,"value":45}])")
+            << "every ten steps, and after the last: " << walked.data().dump();
+        expect(walked.data()["played"].integer() == 45 && walked.data()["frame"].integer() == 45);
+        // The whole view, a deeper place, and what is not there.
+        const auto whole = ask(session, R"({"op":"world.step","steps":2,"watch":""})");
+        expect(eq(whole.data()["watched"].size(), std::size_t{2}) && whole.data()["watched"][1]["value"]["caught"].integer() == 1) << whole.data().dump();
+        const std::string hash(ask(session, R"({"op":"world.state"})").data()["hash"].text().value_or(""));
+        const auto nowhere = ask(session, R"({"op":"world.step","steps":5,"watch":"/enemy"})");
+        expect(nowhere.error() == "not-found" && ask(session, R"({"op":"world.state"})").data()["hash"].text() == hash) << "refused before a step is played";
+        expect(ask(session, R"({"op":"world.step","steps":3600,"watch":"/player"})").error() == "invalid-argument") << "more readings than one answer holds: it says the `every` that fits";
+        expect(ask(session, R"({"op":"world.step","steps":5,"every":2})").error() == "invalid-argument");
+        expect(ask(session, R"({"op":"world.step","steps":5,"watch":"player"})").error() == "invalid-argument");
+        // A player as a person is read what a person is shown: not the generator.
+        Game shown(Chase::State{});
+        agent::SubjectSession person({&shown});
+        expect(ask(person, R"({"op":"world.step","steps":1,"watch":"/rng"})").error() == "not-found");
     };
 
     "a game is a subject: what it can do, its operations, what a player on its tier is shown"_test = [] {

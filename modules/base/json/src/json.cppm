@@ -55,6 +55,9 @@ public:
     // A member (of an object) or an element (of an array); absent when not there.
     [[nodiscard]] Node operator[](std::string_view key) const;
     [[nodiscard]] Node operator[](std::size_t index) const;
+    // The value at a JSON pointer from here (RFC 6901: "/playbacks/0/id", "~1" a slash, "~0" a tilde; ""
+    // is this value); absent when it leads nowhere.
+    [[nodiscard]] Node at(std::string_view pointer) const;
 
     [[nodiscard]] bool is_object() const noexcept;
     [[nodiscard]] bool is_array() const noexcept;

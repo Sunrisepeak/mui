@@ -355,11 +355,43 @@ private:
         const std::int64_t steps = request["steps"].integer().value_or(1);
         if (steps < 1 || steps > options_.most_steps)
             return answer.fail(openas::error_code::invalid_argument, std::format("`steps` is 1 … {}", options_.most_steps));
+        // What to read as the steps go by: a place in what the player is shown (`watch`, a JSON pointer into
+        // the view), read every so many steps (`every`) and after the last — how a jump rises and lands, in
+        // one request instead of a step and a look in turn (a cold start at a game sent 191 of those).
+        const auto watch = request["watch"].text();
+        const std::int64_t every = request["every"].integer().value_or(1);
+        if (watch) {
+            if (!watch->empty() && watch->front() != '/')
+                return answer.fail(openas::error_code::invalid_argument, "`watch` is a JSON pointer into the view: \"/cat\", \"/cat/y\" (\"\" is the whole view)");
+            if (every < 1) return answer.fail(openas::error_code::invalid_argument, "`every` is 1 or more steps");
+            if ((steps + every - 1) / every > most_watched)
+                return answer.fail(openas::error_code::invalid_argument, std::format("{} steps read every {} are more than {} readings: `every` at least {}", steps, every,
+                                                                                     most_watched, (steps + most_watched - 1) / most_watched));
+            if (!read_of(timeline_.state(), *watch))
+                return answer.fail(openas::error_code::not_found, std::format("the view has nothing at `{}` (world.observe shows what it has)", *watch));
+        } else if (request["every"]) {
+            return answer.fail(openas::error_code::invalid_argument, "`every` goes with `watch`: what to read as the steps go by");
+        }
+        std::string watched;
         std::int64_t played = 0;
-        for (; played < steps && !G::over(timeline_.state()); ++played) step();
-        answer.data(std::format("{{\"played\":{},\"frame\":{},\"hash\":\"{:016x}\",\"over\":{}}}", played, timeline_.frame(), G::checksum(timeline_.state()),
-                                G::over(timeline_.state())));
+        for (; played < steps && !G::over(timeline_.state());) {
+            step();
+            ++played;
+            if (watch && (played % every == 0 || played == steps || G::over(timeline_.state())))
+                watched += std::format("{}{{\"frame\":{},\"value\":{}}}", watched.empty() ? "" : ",", timeline_.frame(),
+                                       read_of(timeline_.state(), *watch).value_or("null"));
+        }
+        answer.data(std::format("{{\"played\":{},\"frame\":{},\"hash\":\"{:016x}\",\"over\":{}{}}}", played, timeline_.frame(), G::checksum(timeline_.state()),
+                                G::over(timeline_.state()), watch ? std::format(",\"watched\":[{}]", watched) : std::string()));
     }
+    // What the player's tier is shown at a place of the view, as JSON (nothing when the view has no such place).
+    [[nodiscard]] std::optional<std::string> read_of(const State& state, std::string_view pointer) const {
+        const auto view = mlibs::json::Document::parse(G::observe(state, lane_.tier().full_view), "view");
+        if (!view) return std::nullopt;
+        const mlibs::json::Node found = view->root().at(pointer);
+        return found ? std::optional(found.dump()) : std::nullopt;
+    }
+    static constexpr std::int64_t most_watched = 600;  // readings one request answers
 
     void seek(const mlibs::agent::Request& request, mlibs::agent::Answer& answer) {
         const auto frame = request["frame"].integer();

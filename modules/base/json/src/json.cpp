@@ -255,6 +255,28 @@ Node Node::operator[](std::size_t index) const {
     return Node(&(*value_)[index], pointer);
 }
 
+Node Node::at(std::string_view pointer) const {
+    Node found = *this;
+    while (found && !pointer.empty()) {
+        if (pointer.front() != '/') return {};
+        pointer.remove_prefix(1);
+        const std::size_t end = pointer.find('/');
+        std::string key(pointer.substr(0, end));
+        pointer = end == std::string_view::npos ? std::string_view{} : pointer.substr(end);
+        for (std::size_t place = 0; (place = key.find('~', place)) != std::string::npos; ++place)
+            if (place + 1 < key.size() && (key[place + 1] == '0' || key[place + 1] == '1')) key.replace(place, 2, key[place + 1] == '1' ? "/" : "~");
+        if (found.is_array()) {
+            std::size_t index = 0;
+            const auto read = std::from_chars(key.data(), key.data() + key.size(), index);
+            if (read.ec != std::errc{} || read.ptr != key.data() + key.size()) return {};
+            found = found[index];
+        } else {
+            found = found[std::string_view(key)];
+        }
+    }
+    return found;
+}
+
 bool Node::is_object() const noexcept { return value_ && value_->is_object(); }
 bool Node::is_array() const noexcept { return value_ && value_->is_array(); }
 bool Node::is_string() const noexcept { return value_ && value_->is_string(); }

@@ -44,7 +44,12 @@ export default defineOps({
       then: [{ why: "read what a player is shown now", request: { op: "world.observe" } }],
       effect: "reversible",
       summary: "Plays steps; only where the agent steps the game (an owner's clock refuses it)",
-      params: [{ name: "steps", type: "integer", doc: "how many (1 when none is given)", optional: true }],
+      params: [
+        { name: "steps", type: "integer", doc: "how many (1 when none is given)", optional: true },
+        { name: "watch", type: "string", doc: "a place in what the player is shown, read as the steps go by: a JSON pointer into the view (\"/score\"; \"\" is the whole view). The answer's `watched` is [{frame, value}]", optional: true },
+        { name: "every", type: "integer", doc: "with `watch`: read every this many steps (1 when none is given), and after the last; at most 600 readings", optional: true },
+      ],
+      keywords: ["trace", "sample", "follow", "changes", "rises", "falls", "during", "while"],
       result: "json",
       cost: "bounded",
       undo: "world.seek to the frame it began at",
@@ -95,6 +100,14 @@ export default defineOps({
         { op: "world.act", axis: [1] },
         { op: "world.step", steps: 30 },
         { op: "world.observe" },
+      ],
+    },
+    {
+      name: "watch-it-change",
+      summary: "Hold an axis and read what the player is shown every ten steps while half a second is played: one request for the whole stretch (`watch` takes a place in the view, as \"/score\"; \"\" is all of it)",
+      steps: [
+        { op: "world.act", axis: [1] },
+        { op: "world.step", steps: 30, watch: "", every: 10 },
       ],
     },
     {

@@ -109,6 +109,9 @@ struct Surface {
     float4 sheen;               // a sheen (xrender.mesh's `Material::sheen`): its colour; w its roughness
     float4 film;                // a thin film (xrender.mesh's `Material::iridescence`): x how much, y its index, z how thick (nanometres)
     float4 drawn;               // a highlight drawn out (xrender.mesh's `Material::anisotropy`): x how much; y, z the way's turn (cosine, sine)
+    // x: over 0.5 — the far sides of the solids that let light through are drawn (`before_map`) and how far what is
+    // whole is (`behind_map`), each as ids.slang's `folded_far`; zw: one over the frame's width and height.
+    float4 solid;
     Lamp   lamps[8];
 };
 [[vk::binding(0, 2)]] Sampler2D shadow_map : register(t0, space2) : register(s0, space2);
@@ -119,8 +122,10 @@ struct Surface {
 [[vk::binding(5, 2)]] Sampler2D normal_map : register(t5, space2) : register(s5, space2);
 [[vk::binding(6, 2)]] Sampler2D glow_map : register(t6, space2) : register(s6, space2);
 [[vk::binding(7, 2)]] Sampler2D shade_map : register(t7, space2) : register(s7, space2);
-[[vk::binding(8, 2)]] Sampler2D behind_map : register(t8, space2) : register(s8, space2);  // how deep what stops the eye is
-[[vk::binding(9, 2)]] Sampler2D before_map : register(t9, space2) : register(s9, space2);  // how deep the layer laid before is
+// How deep what stops the eye is; how deep the layer laid before is. Where solids that let light through are drawn
+// (`Surface::solid`): how far what is whole is, and the solids' far sides.
+[[vk::binding(8, 2)]] Sampler2D behind_map : register(t8, space2) : register(s8, space2);
+[[vk::binding(9, 2)]] Sampler2D before_map : register(t9, space2) : register(s9, space2);
 // How much of an even light a surface mirrors at the first of its small faces (xrender.mesh's `share_table`: 32 × 32,
 // across by how it is looked at, down by its roughness; red times what it mirrors head on, green added).
 [[vk::binding(10, 2)]] Sampler2D share_map : register(t10, space2) : register(s10, space2);
@@ -345,35 +350,122 @@ float4 behind_at(float2 uv, float footprint) {
     return toward_next > 0 ? here + (behind_size(size + 1, uv) - here) * toward_next : here;
 }
 float through_inside(float colour, float times) { return colour >= 1 ? 1.0 : colour <= 0 ? 0.0 : pow(colour, times); }
+// A place in the world on the frame (0 … 1 across and down; unjittered), and whether it is before the eye.
+float3 on_frame(float4 place) {
+    const float4 at = float4(dot(surface.to_screen[0], place), dot(surface.to_screen[1], place), dot(surface.to_screen[2], place), dot(surface.to_screen[3], place));
+    return at.w > 0 ? float3(at.x / at.w * 0.5 + 0.5, 0.5 - at.y / at.w * 0.5, 1) : float3(0, 0, 0);
+}
+// A picture of ids.slang's `folded_far` at a place on the frame: the normal unfolded (of length 1), and how far (0: nothing there).
+float4 unfolded_at(Sampler2D map, float2 uv) {
+    const float4 held = map.SampleLevel(uv, 0);
+    float3 normal = float3(held.xy, 1.0 - abs(held.x) - abs(held.y));
+    if (normal.z < 0) normal.xy = (1.0 - abs(normal.yx)) * float2(normal.x >= 0 ? 1 : -1, normal.y >= 0 ? 1 : -1);
+    return float4(normalize(normal), held.z + held.w);
+}
 // The light that comes through the surface at `place` from what is whole behind it, and how much of the
-// background shows through it (xrender.mesh's `transmitted`): read where the eye's ray, bent into the surface and
-// gone its thickness, leaves it, blurred as rough as it is, through its colour and its inside.
+// background shows through it (xrender.mesh's `transmitted`): read where the eye's ray, bent into the surface,
+// leaves it, blurred as rough as it is, through its colour and its inside. Where the solids' far sides are drawn
+// (Wyman's image-space refraction, 2005): the far side met along the bent ray (the eye's distance to it read where
+// the ray is, twice over), its normal bending the ray out (mirrored where it cannot leave), and what is whole met
+// along that (how far it is read where the ray is, twice over; the surroundings infinitely far where nothing is) —
+// the reference follows the same way exactly through the mesh's own tree. Else gone the thickness straight on.
 float4 transmitted(float3 normal, float3 place) {
     const float share = lets_here * (1.0 - metal_here);
     if (!(surface.behind.x > 0.5) || !(share > 0)) return float4(0, 0, 0, 0);
     float3 leaves = place;
     float3 through = float3(1, 1, 1);
+    float3 there = float3(0, 0, 0);
     if (thick_here > 0) {
         const float3 into = normalize(place - surface.eye.xyz);
         const float bends = 1.0 / max(surface.lets.z, 1e-3), facing = -dot(normal, into);
         const float under = 1.0 - bends * bends * (1.0 - facing * facing);
-        const float3 way = under < 0 ? into : into * bends + normal * (bends * facing - sqrt(under));
-        const float3 own_way = normalize(float3(dot(surface.back[0].xyz, way), dot(surface.back[1].xyz, way), dot(surface.back[2].xyz, way)));
-        const float3 in_mesh = own_way * thick_here;
-        const float3 gone = float3(dot(surface.world[0].xyz, in_mesh), dot(surface.world[1].xyz, in_mesh), dot(surface.world[2].xyz, in_mesh));
-        leaves = place + gone;
-        const float length_gone = length(gone);
+        const float3 way = normalize(under < 0 ? into : into * bends + normal * (bends * facing - sqrt(under)));
+        float length_gone = 0;
+        bool found = false;
+        if (surface.solid.x > 0.5) {
+            const float3 own = on_frame(float4(place, 1));
+            const float4 far_side = unfolded_at(before_map, own.xy);
+            if (own.z > 0 && far_side.w > 0) {
+                // How far along the bent ray: first the eye's own ray's way through, then the far side where the ray
+                // is, over again. Mirrored back in where it cannot leave (at most twice), from there the same way.
+                const float ior = max(surface.lets.z, 1e-3);
+                float3 from = place, along = way, onward = way, out_at = place;
+                float gone = max(far_side.w - length(place - surface.eye.xyz), 0.0);
+                for (int bounce = 0; bounce < 3; ++bounce) {
+                    float4 exit_side = far_side;
+                    for (int step = 0; step < 4; ++step) {
+                        const float3 at = on_frame(float4(from + along * gone, 1));
+                        if (!(at.z > 0)) break;
+                        const float4 met = unfolded_at(before_map, at.xy);
+                        if (!(met.w > 0)) break;
+                        const float3 toward = normalize(from + along * gone - surface.eye.xyz);
+                        gone = length(surface.eye.xyz + toward * met.w - from);
+                        exit_side = met;
+                    }
+                    out_at = from + along * gone;
+                    length_gone += gone;
+                    float3 out_normal = exit_side.xyz;
+                    float leaving = dot(out_normal, along);
+                    if (leaving < 0) out_normal = -out_normal, leaving = -leaving;
+                    const float out_under = 1.0 - ior * ior * (1.0 - leaving * leaving);
+                    if (out_under >= 0) {
+                        onward = normalize(along * ior - out_normal * (ior * leaving - sqrt(out_under)));
+                        break;
+                    }
+                    from = out_at, along = normalize(along - out_normal * (2.0 * leaving)), onward = along;
+                }
+                // What is whole along the way on: the ray walked over the frame (each step further by a share, from
+                // a hundredth of the way gone through to some hundreds of it), until it is just further from the eye
+                // than what is whole where it is — then the crossing is halved down to; off the frame or never crossing,
+                // it goes on to the surroundings, infinitely far along it.
+                float3 onward_at = on_frame(float4(onward, 0));
+                const float first = max(gone, 1e-3) * 0.01;
+                float before = 0, ahead = first;
+                bool crossed = false;
+                for (int step = 0; step < 24 && !crossed; ++step) {
+                    const float3 seen_at = out_at + onward * ahead;
+                    const float3 frame_at = on_frame(float4(seen_at, 1));
+                    if (!(frame_at.z > 0) || any(frame_at.xy < 0) || any(frame_at.xy > 1)) break;
+                    // Behind what is whole there by no more than the step it took: it met it; further behind, it
+                    // passes behind it (what stands before it as the eye sees it) and walks on.
+                    const float far_off = unfolded_at(behind_map, frame_at.xy).w, behind_by = length(seen_at - surface.eye.xyz) - far_off;
+                    if (far_off > 0 && behind_by >= 0 && behind_by <= (ahead - before) * 1.5 + 1e-3) {
+                        crossed = true;
+                        break;
+                    }
+                    before = ahead, ahead *= 1.6;
+                }
+                if (crossed) {
+                    for (int halving = 0; halving < 5; ++halving) {
+                        const float middle = (before + ahead) * 0.5;
+                        const float3 seen_at = out_at + onward * middle;
+                        const float far_off = unfolded_at(behind_map, on_frame(float4(seen_at, 1)).xy).w;
+                        if (far_off > 0 && length(seen_at - surface.eye.xyz) >= far_off) ahead = middle;
+                        else before = middle;
+                    }
+                    onward_at = on_frame(float4(out_at + onward * ahead, 1));
+                }
+                if (onward_at.z > 0) there = onward_at, leaves = out_at, found = true;
+                else length_gone = 0;
+            }
+        }
+        if (!found) {
+            const float3 own_way = normalize(float3(dot(surface.back[0].xyz, way), dot(surface.back[1].xyz, way), dot(surface.back[2].xyz, way)));
+            const float3 in_mesh = own_way * thick_here;
+            const float3 gone = float3(dot(surface.world[0].xyz, in_mesh), dot(surface.world[1].xyz, in_mesh), dot(surface.world[2].xyz, in_mesh));
+            leaves = place + gone;
+            length_gone = length(gone);
+        }
         if (surface.lets.w > 0 && length_gone > 0) {
             const float times = length_gone / surface.lets.w;
             through = float3(through_inside(surface.attenuation.r, times), through_inside(surface.attenuation.g, times), through_inside(surface.attenuation.b, times));
         }
     }
-    float4 at = float4(dot(surface.to_screen[0], float4(leaves, 1)), dot(surface.to_screen[1], float4(leaves, 1)), dot(surface.to_screen[2], float4(leaves, 1)), dot(surface.to_screen[3], float4(leaves, 1)));
-    if (!(at.w > 0)) at = float4(dot(surface.to_screen[0], float4(place, 1)), dot(surface.to_screen[1], float4(place, 1)), dot(surface.to_screen[2], float4(place, 1)), dot(surface.to_screen[3], float4(place, 1)));
-    const float2 there = float2(at.x / at.w * 0.5 + 0.5, 0.5 - at.y / at.w * 0.5);
+    if (!(there.z > 0)) there = on_frame(float4(leaves, 1));
+    if (!(there.z > 0)) there = on_frame(float4(place, 1));
     const float rough = clamp(rough_said, 0.0, 1.0) * clamp(surface.lets.z * 2.0 - 2.0, 0.0, 1.0);
     const float4 square = surface.behind_squares[0];
-    const float4 seen = behind_at(there, pow(max(square.z, square.w), rough));
+    const float4 seen = behind_at(there.xy, pow(max(square.z, square.w), rough));
     const float3 tint = base_colour * through;
     return float4(tint * seen.rgb * share, share * (1.0 - seen.a) * (tint.r + tint.g + tint.b) / 3.0);
 }

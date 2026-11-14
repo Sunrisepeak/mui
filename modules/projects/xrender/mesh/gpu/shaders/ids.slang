@@ -109,6 +109,14 @@ float4 who_fs(VOut point) : SV_Target {
 // The surface at a pixel, in a picture of half floats: the normal folded onto a square (two numbers), and how
 // far from the eye in two parts — eighths, which a half float holds exactly to 256, and what is left over,
 // which it then holds to a few hundred-thousandths. Nothing there: 0 far.
+float4 folded_far(float3 normal, float far_off) {
+    const float3 folded = normal / (abs(normal.x) + abs(normal.y) + abs(normal.z));
+    float2 on_square = folded.xy;
+    if (folded.z < 0) on_square = (1.0 - abs(folded.yx)) * float2(folded.x >= 0 ? 1 : -1, folded.y >= 0 ? 1 : -1);
+    const float far = min(far_off, 250.0);
+    const float eighths = floor(far * 8.0) * 0.125;
+    return float4(on_square, eighths, far - eighths);
+}
 [shader("fragment")]
 float4 surface_fs(VOut point) : SV_Target {
     const float2 right = ddx(placed(point.uv)), down = ddy(placed(point.uv));
@@ -116,12 +124,18 @@ float4 surface_fs(VOut point) : SV_Target {
     if (left_out(point, right, down)) discard;
     float3 normal = normalize(point.normal);
     if (dot(normal, to_eye) < 0) normal = -normal;  // seen from behind (a surface of both sides): it faces the eye
-    const float3 folded = normal / (abs(normal.x) + abs(normal.y) + abs(normal.z));
-    float2 on_square = folded.xy;
-    if (folded.z < 0) on_square = (1.0 - abs(folded.yx)) * float2(folded.x >= 0 ? 1 : -1, folded.y >= 0 ? 1 : -1);
-    const float far = min(length(to_eye), 250.0);
-    const float eighths = floor(far * 8.0) * 0.125;
-    return float4(on_square, eighths, far - eighths);
+    return folded_far(normal, length(to_eye));
+}
+
+// The far side of a solid that lets light through (xrender.mesh's `Material::thickness`), where a ray bent into
+// it leaves (Wyman's image-space refraction, 2005): only the faces turned away from the eye, the nearest of them
+// at each pixel, their normal as the mesh says it (out of the solid) and how far from the eye, as `surface_fs`.
+[shader("fragment")]
+float4 solid_fs(VOut point) : SV_Target {
+    const float3 to_eye = who.eye.xyz - point.place;
+    if (!(dot(point.normal, to_eye) < 0)) discard;
+    if ((point.clip.z - 0.5) * who.eye.w > 0) discard;
+    return folded_far(normalize(point.normal), length(to_eye));
 }
 
 // How deep what stops the eye is, as a picture a later pass reads (the depth target itself is not read): the

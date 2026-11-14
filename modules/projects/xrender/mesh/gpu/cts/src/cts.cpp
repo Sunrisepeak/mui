@@ -1205,7 +1205,8 @@ Cases suite_of() {
     });
     // light through a surface, on the device: a thin amber pane and a ball of glass whose inside takes the red's
     // complement by the way gone, before the yard — what is whole drawn first, its light kept at every size, the
-    // glass reading it where the eye's ray, bent in and gone its thickness, leaves — are the reference's
+    // glass reading it where the eye's ray, bent in, leaves (the ball's way out estimated from its far sides) —
+    // against the reference, which follows the ball's way exactly
     add(suite, "mesh.glass", [](Rig& rig) {
         rhi::Device* const device = &rig.device;
         Yard yard(true);
@@ -1227,7 +1228,9 @@ Cases suite_of() {
         mesh::Targets reference;
         reference.resize(static_cast<int>(width), static_cast<int>(height));
         mesh::Pass on_cpu;
-        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}}, reference, {.shadows = false});
+        // The reference with the meshes' trees: the ball's way through it is the exact one (the device estimates it
+        // from the far sides it draws).
+        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, yard.trees}, reference, {.shadows = false});
         mesh::Glow shown_on_cpu;
         shown_on_cpu.show(reference.light, static_cast<int>(width), static_cast<int>(height), {}, reference.colour);
 
@@ -1261,26 +1264,43 @@ Cases suite_of() {
         std::memcpy(of_reference.data(), reference.colour.data(), reference.colour.size());
         keep(of_reference, "yard-glass-reference");
         expect(eq(told.glass, 2u) && gt(told.behind_sizes, 8u)) << told.glass << ' ' << told.behind_sizes;
-        // Over all of it, and over the pixels the glass is seen at (the reference's own).
+        // Over all of it, and over the pixels the pane and the ball are seen at (the reference's own).
         const Apart all = apart(reference, *pixels, false, 6);
-        std::size_t glass = 0, glass_off = 0;
+        std::array<std::size_t, 2> seen_at{}, off_at{};  // the pane's, the ball's
+        std::array<double, 2> levels{};                   // their summed largest channel's difference
         for (std::size_t pixel = 0; pixel < reference.ids.size(); ++pixel) {
             const std::uint32_t is = reference.ids[pixel].draw;
             if (is == mesh::none || reference.draws[is].id < 40) continue;
-            ++glass;
+            const std::size_t which = reference.draws[is].id == 40 ? 0 : 1;
+            ++seen_at[which];
+            int largest = 0;
+            for (std::size_t channel = 0; channel < 3; ++channel)
+                largest = std::max(largest, std::abs(static_cast<int>(reference.colour[pixel * 4 + channel]) - std::to_integer<int>((*pixels)[pixel * 4 + channel])));
+            levels[which] += largest;
             for (std::size_t channel = 0; channel < 3; ++channel)
                 if (std::abs(static_cast<int>(reference.colour[pixel * 4 + channel]) - std::to_integer<int>((*pixels)[pixel * 4 + channel])) > 6) {
-                    ++glass_off;
+                    ++off_at[which];
                     break;
                 }
         }
-        std::println("light through a pane and a ball of glass: {} of {} pixels further than 6 levels from the reference ({:.2f}%), mean {:.3f}, worst {}; of the {} the glass is seen at, {} ({:.2f}%); {} sizes kept",
-                     all.off, all.compared, 100.0 * static_cast<double>(all.off) / static_cast<double>(all.compared), all.mean, all.worst, glass, glass_off,
-                     100.0 * static_cast<double>(glass_off) / static_cast<double>(std::max<std::size_t>(glass, 1)), told.behind_sizes);
-        expect(gt(glass, std::size_t{4000})) << glass;
-        // Measured: 3 of 129,600 pixels and none of the glass's on an RTX 4080 and on lavapipe; 33 and 21 on SwiftShader (WebGPU, WebGL2).
-        expect(lt(static_cast<double>(all.off), 0.0005 * static_cast<double>(all.compared)));
-        expect(lt(static_cast<double>(glass_off), 0.002 * static_cast<double>(glass)));
+        const std::size_t elsewhere = all.off - off_at[0] - off_at[1];
+        const auto percent = [](std::size_t part, std::size_t whole) { return 100.0 * static_cast<double>(part) / static_cast<double>(std::max<std::size_t>(whole, 1)); };
+        std::println("light through a pane and a ball of glass: {} of {} pixels further than 6 levels from the reference, mean {:.3f}, worst {}; elsewhere {}; the pane {} of {} ({:.2f}%); the ball {} of {} ({:.2f}%), mean {:.2f} levels; {} sizes kept",
+                     all.off, all.compared, all.mean, all.worst, elsewhere, off_at[0], seen_at[0], percent(off_at[0], seen_at[0]), off_at[1], seen_at[1], percent(off_at[1], seen_at[1]),
+                     levels[1] / static_cast<double>(std::max<std::size_t>(seen_at[1], 1)), told.behind_sizes);
+        expect(gt(seen_at[0] + seen_at[1], std::size_t{4000})) << seen_at[0] + seen_at[1];
+        // What is whole and the thin pane are the reference's: 3 of 129,600 pixels and none of the pane's on an RTX
+        // 4080 and on lavapipe; 33 and 21 on SwiftShader (WebGPU, WebGL2) before the far sides were drawn.
+        expect(lt(static_cast<double>(elsewhere), 0.0005 * static_cast<double>(all.compared)));
+        expect(lt(static_cast<double>(off_at[0]), 0.002 * static_cast<double>(seen_at[0])));
+        // The ball: the device estimates the way through from the far sides it draws and walks the way out over the
+        // frame (Wyman 2005 and a march); the reference follows it exactly through the mesh's tree. Measured on an
+        // RTX 4080 and on lavapipe alike: 688 of its 3,674 pixels further than 6 levels (18.7%), mean 11.9 levels —
+        // read at the straight exit (as before the far sides) 2,547 (69.3%), mean 46.2. The rest is at its rim, where
+        // the far side's picture runs out under the bent ray, and where the true ray meets the side of a thing the
+        // eye does not see: red 87.
+        expect(lt(static_cast<double>(off_at[1]), 0.19 * static_cast<double>(seen_at[1])));
+        expect(lt(levels[1], 12.0 * static_cast<double>(seen_at[1])));
         static_cast<void>(device->wait_idle());
         for (const rhi::Texture made : all_made) device->destroy(made);
     });

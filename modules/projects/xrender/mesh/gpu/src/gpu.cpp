@@ -66,6 +66,7 @@ struct SurfaceUniforms {
     Row          sheen;                            // its colour; w: its roughness
     Row          film;                             // x: iridescence; y: the film's index; z: its thickness (nanometres)
     Row          drawn;                            // x: anisotropy; y, z: its way's turn (cosine, sine)
+    Row          solid;                            // x: 1 — the solids' far sides and how far what is whole is are drawn; zw: one over the frame's size
     LampUniforms lamps[most_lamps];
 };
 // What the passes that draw no colour ask of a draw's material (the shaders' `Whole`).
@@ -269,6 +270,17 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
                                                          .blend = rhi::Blend::replace(),
                                                          .label = "xrender.mesh.behind.halved"});
     }
+    // The far sides of the solids that let light through: the nearest face turned away at each pixel.
+    rhi::Result<rhi::GraphicsPipeline> solid = rhi::GraphicsPipeline{};
+    if (light)
+        solid = device.create(rhi::GraphicsPipelineDesc{.vertex = &shaders::ids::ids_vs,
+                                                        .fragment = &shaders::ids::solid_fs,
+                                                        .vertex_buffers = layout,
+                                                        .target = rhi::Format::rgba16_float,
+                                                        .blend = rhi::Blend::replace(),
+                                                        .depth_target = rhi::Format::d32_float,
+                                                        .depth = {.test = true, .write = true, .compare = reversed_depth ? rhi::Compare::greater : rhi::Compare::less},
+                                                        .label = "xrender.mesh.behind.solid"});
     auto nearest = device.create(rhi::SamplerDesc{rhi::Filter::nearest, rhi::Filter::nearest});
     // A material's picture: between four texels, between two levels, repeating.
     auto pictures = device.create(rhi::SamplerDesc{rhi::Filter::linear, rhi::Filter::linear, rhi::AddressMode::repeat, rhi::AddressMode::repeat, rhi::Filter::linear});
@@ -291,6 +303,7 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
     if (laid) pass.laid_pipeline_ = *laid;
     if (drawn) pass.behind_.drawn = *drawn;
     if (halved) pass.behind_.halved = *halved;
+    if (solid) pass.behind_.solid = *solid;
     if (nearest) pass.nearest_ = *nearest;
     if (pictures) pass.pictures_ = *pictures;
     if (no_shadow) pass.no_shadow_ = *no_shadow;
@@ -333,6 +346,8 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
 void Pass::take_behind(Behind& into, Behind& from) noexcept {
     into.drawn = std::exchange(from.drawn, {}), into.halved = std::exchange(from.halved, {}), into.sheet = std::exchange(from.sheet, {}), into.scratch = std::exchange(from.scratch, {});
     into.width = std::exchange(from.width, 0u), into.height = std::exchange(from.height, 0u);
+    into.solid = std::exchange(from.solid, {}), into.whole = std::exchange(from.whole, {}), into.far_sides = std::exchange(from.far_sides, {}), into.depth = std::exchange(from.depth, {});
+    into.solid_width = std::exchange(from.solid_width, 0u), into.solid_height = std::exchange(from.solid_height, 0u);
 }
 Pass::Pass(Pass&& other) noexcept
     : device_(std::exchange(other.device_, nullptr)), pipeline_(std::exchange(other.pipeline_, {})), ids_pipeline_(std::exchange(other.ids_pipeline_, {})), sky_pipeline_(std::exchange(other.sky_pipeline_, {})), shadow_pipeline_(std::exchange(other.shadow_pipeline_, {})), lamp_shadow_pipeline_(std::exchange(other.lamp_shadow_pipeline_, {})), who_pipeline_(std::exchange(other.who_pipeline_, {})), velocity_pipeline_(std::exchange(other.velocity_pipeline_, {})), velocity_who_pipeline_(std::exchange(other.velocity_who_pipeline_, {})), surface_pipeline_(std::exchange(other.surface_pipeline_, {})), through_pipeline_(std::exchange(other.through_pipeline_, {})), deep_pipeline_(std::exchange(other.deep_pipeline_, {})), under_pipeline_(std::exchange(other.under_pipeline_, {})), laid_pipeline_(std::exchange(other.laid_pipeline_, {})), nearest_(std::exchange(other.nearest_, {})), pictures_(std::exchange(other.pictures_, {})), no_shadow_(std::exchange(other.no_shadow_, {})), cover_(std::exchange(other.cover_, {})), meshes_(std::move(other.meshes_)), textures_(std::move(other.textures_)), materials_(std::move(other.materials_)), about_{other.about_.pipeline, other.about_.through, other.about_.sheet, other.about_.between, other.about_.said}, reversed_(other.reversed_), light_(other.light_), last_(other.last_) {
@@ -394,6 +409,10 @@ void Pass::release() noexcept {
     if (behind_.sheet) device_->destroy(behind_.sheet);
     if (behind_.scratch) device_->destroy(behind_.scratch);
     behind_.drawn = {}, behind_.halved = {}, behind_.sheet = {}, behind_.scratch = {}, behind_.width = 0, behind_.height = 0;
+    if (behind_.solid) device_->destroy(behind_.solid);
+    for (const rhi::Texture made : {behind_.whole, behind_.far_sides, behind_.depth})
+        if (made) device_->destroy(made);
+    behind_.solid = {}, behind_.whole = {}, behind_.far_sides = {}, behind_.depth = {}, behind_.solid_width = 0, behind_.solid_height = 0;
     device_ = nullptr;
 }
 
@@ -592,6 +611,27 @@ const Pass::Sheet* Pass::cover_of(const Material& material, std::uint32_t mesh) 
     if (!(material.cutout > 0) || material.texture >= textures_.size() || !textures_[material.texture].texture || mesh >= meshes_.size() || !meshes_[mesh].placed[material.placing.base.set ? 1 : 0])
         return nullptr;
     return &textures_[material.texture];
+}
+
+bool Pass::keep_solids(rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, std::uint32_t width, std::uint32_t height, math::Vec2 jitter) {
+    if (!behind_.solid || !surface_pipeline_ || width == 0 || height == 0) return false;
+    if (behind_.solid_width != width || behind_.solid_height != height || !behind_.whole) {
+        static_cast<void>(device_->wait_idle());
+        for (const rhi::Texture made : {behind_.whole, behind_.far_sides, behind_.depth})
+            if (made) device_->destroy(made);
+        behind_.whole = {}, behind_.far_sides = {}, behind_.depth = {}, behind_.solid_width = 0, behind_.solid_height = 0;
+        auto whole = device_->create(rhi::TextureDesc{rhi::Format::rgba16_float, width, height, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "xrender.mesh.behind.whole"});
+        auto far_sides = device_->create(rhi::TextureDesc{rhi::Format::rgba16_float, width, height, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "xrender.mesh.behind.far-sides"});
+        auto depth = device_->create(rhi::TextureDesc{rhi::Format::d32_float, width, height, rhi::TextureUsage::depth_target, "xrender.mesh.behind.depth"});
+        if (whole) behind_.whole = *whole;
+        if (far_sides) behind_.far_sides = *far_sides;
+        if (depth) behind_.depth = *depth;
+        if (!whole || !far_sides || !depth) return false;
+        behind_.solid_width = width, behind_.solid_height = height;
+    }
+    who_pass(list, scene, extracted, view, behind_.whole, behind_.depth, width, height, surface_pipeline_, false, jitter, Which::whole);
+    who_pass(list, scene, extracted, view, behind_.far_sides, behind_.depth, width, height, behind_.solid, false, jitter, Which::solids);
+    return true;
 }
 
 std::uint32_t Pass::keep_behind(rhi::CommandList& list, rhi::Texture colour, std::uint32_t width, std::uint32_t height, std::span<std::array<float, 4>, 16> squares) {
@@ -952,6 +992,10 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
             surface.behind = {1, static_cast<float>(last_.behind_sizes), 1.0f / static_cast<float>(sheet_width), 1.0f / static_cast<float>(sheet_height)};
             for (std::size_t size = 0; size < squares.size(); ++size) surface.behind_squares[size] = {squares[size][0], squares[size][1], squares[size][2], squares[size][3]};
         }
+        // Where a solid lets light through: how far what is whole is and the solids' far sides, for the way out.
+        const bool solids = std::ranges::any_of(extracted.draws, [&](const scene::Draw& draw) { return there(draw) && lets_through(draw) && !materials[draw.material].see_through && materials[draw.material].thickness > 0; }) &&
+                            keep_solids(list, scene, extracted, view, width, height, options.jitter);
+        surface.solid = solids ? Row{1, 0, 1.0f / static_cast<float>(width), 1.0f / static_cast<float>(height)} : Row{};
         list.begin_render({colour, rhi::LoadOp::load}, {.texture = depth, .load = rhi::LoadOp::load});
         list.set_viewport(0, 0, static_cast<float>(width), static_cast<float>(height));
         list.set_pipeline(pictured ? about_.pipeline : pipeline_);
@@ -960,8 +1004,8 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
         list.bind_texture(rhi::Stage::fragment, 0, map, nearest_);
         list.bind_texture(rhi::Stage::fragment, 1, lamp_map, nearest_);
         list.bind_texture(rhi::Stage::fragment, 3, opened ? shadows->open : no_shadow_, nearest_);
-        list.bind_texture(rhi::Stage::fragment, 8, no_shadow_, nearest_);
-        list.bind_texture(rhi::Stage::fragment, 9, no_shadow_, nearest_);
+        list.bind_texture(rhi::Stage::fragment, 8, solids ? behind_.whole : no_shadow_, nearest_);
+        list.bind_texture(rhi::Stage::fragment, 9, solids ? behind_.far_sides : no_shadow_, nearest_);
         list.bind_texture(rhi::Stage::fragment, 11, behind_sheet, share_between_);
         for (const scene::Draw& draw : extracted.draws)
             if (there(draw) && !materials[draw.material].see_through && lets_through(draw)) put(draw, true);
@@ -1181,7 +1225,7 @@ void Pass::record_surface(rhi::CommandList& list, const scene::Scene& scene, con
     who_pass(list, scene, extracted, view, surface, depth, width, height, surface_pipeline_, false, options.jitter);
 }
 void Pass::who_pass(rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, rhi::Texture ids, rhi::Texture depth, std::uint32_t width,
-                    std::uint32_t height, rhi::GraphicsPipeline pipeline, bool by_instance, math::Vec2 jitter) {
+                    std::uint32_t height, rhi::GraphicsPipeline pipeline, bool by_instance, math::Vec2 jitter, Which which) {
     struct Who {
         Row           eye;
         std::uint32_t number = 0, spare[3]{};
@@ -1207,10 +1251,13 @@ void Pass::who_pass(rhi::CommandList& list, const scene::Scene& scene, const sce
         for (int row = 0; row < 3; ++row) uniforms.to_world[row] = row_of(instance.world, row), uniforms.normals[row] = row_of(for_normals, row);
         const Material* material = draw.material < materials_.size() ? &materials_[draw.material] : nullptr;
         if (material && material->see_through) continue;  // not what stops the eye
+        const bool solid = material && material->transmission > 0 && material->thickness > 0;
+        if ((which == Which::whole && material && material->transmission > 0) || (which == Which::solids && !solid)) continue;
         const Sheet* sheet = material ? cover_of(*material, draw.mesh) : nullptr;
         WholeUniforms whole{};
         if (material) whole = {sheet ? Row{sheet->width, sheet->height, sheet->sizes, 0} : Row{}, {material->cutout, material->opacity, material->two_sided ? 1.0f : 0.0f, 0}, across_of(material->placing.base), down_of(material->placing.base)};
-        runs_for(meshes_[draw.mesh], instance.world, material && material->two_sided ? std::nullopt : back, frustum, eye, camera.has_value(), false);
+        // (A solid's far side is wanted: no cluster is left out for facing away.)
+        runs_for(meshes_[draw.mesh], instance.world, (material && material->two_sided) || which == Which::solids ? std::nullopt : back, frustum, eye, camera.has_value(), false);
         if (runs_.empty()) continue;
         list.bind_texture(rhi::Stage::fragment, 0, sheet ? sheet->texture : no_shadow_, sheet ? sheet->through : nearest_);
         list.push_uniforms(rhi::Stage::vertex, 0, uniforms);

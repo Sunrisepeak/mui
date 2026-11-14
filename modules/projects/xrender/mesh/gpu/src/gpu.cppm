@@ -167,8 +167,11 @@ private:
     void release() noexcept;
     void velocity_pass(mlibs::rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, mlibs::rhi::Texture velocity,
                        mlibs::rhi::Texture who, mlibs::rhi::Texture depth, std::uint32_t width, std::uint32_t height, const Options& options);
+    // Which draws a pass of no colour draws: all that stop the eye; those of them that let no light through; or
+    // the solids that let light through (their faces turned away kept: the pipeline chooses).
+    enum class Which : std::uint8_t { all, whole, solids };
     void who_pass(mlibs::rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, mlibs::rhi::Texture target, mlibs::rhi::Texture depth,
-                  std::uint32_t width, std::uint32_t height, mlibs::rhi::GraphicsPipeline pipeline, bool by_instance, mlibs::math::Vec2 jitter);
+                  std::uint32_t width, std::uint32_t height, mlibs::rhi::GraphicsPipeline pipeline, bool by_instance, mlibs::math::Vec2 jitter, Which which = Which::all);
     struct Loaded {
         mlibs::rhi::Buffer corners;
         std::uint32_t      count = 0;
@@ -212,6 +215,11 @@ private:
         mlibs::rhi::GraphicsPipeline drawn, halved;
         mlibs::rhi::Texture          sheet, scratch;
         std::uint32_t                width = 0, height = 0;  // the frame's
+        // Where a solid lets light through: how far what is whole is, the solids' far sides (ids.slang's
+        // `surface_fs`, `solid_fs`), and the depth they are drawn with; the frame's size.
+        mlibs::rhi::GraphicsPipeline solid;
+        mlibs::rhi::Texture          whole, far_sides, depth;
+        std::uint32_t                solid_width = 0, solid_height = 0;
     };
     Behind                       behind_;
     static void take_behind(Behind& into, Behind& from) noexcept;
@@ -219,6 +227,8 @@ private:
     // sizes, each one's square in `squares` (where its first texel is, its width and height); 0 where a device
     // could not make it.
     std::uint32_t keep_behind(mlibs::rhi::CommandList& list, mlibs::rhi::Texture colour, std::uint32_t width, std::uint32_t height, std::span<std::array<float, 4>, 16> squares);
+    // How far what is whole is and the solids' far sides, for a frame of `width` × `height`: whether they were drawn.
+    bool keep_solids(mlibs::rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, std::uint32_t width, std::uint32_t height, mlibs::math::Vec2 jitter);
     // A draw's base picture where its material cuts the surface out by it: none for a material that is whole.
     [[nodiscard]] const Sheet* cover_of(const Material& material, std::uint32_t mesh) const noexcept;
     bool                         reversed_ = false, light_ = false;

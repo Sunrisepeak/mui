@@ -67,7 +67,7 @@ UTest cases{"field", [] {
         expect(from_fire) << "heat in from the cell below, by `heat flows`";
     };
 
-    "streaming: a block parked and expanded is the same cells; a walker crossing the harbour, the field following it, keeps every total exactly at each switch; a parked block still warms the air beside it"_test = [] {
+    "streaming: a block parked and expanded is the same cells; a walker crossing the harbour, the field following it, keeps every total exactly at each switch with nothing to see change about the walker; regions are values (taken, written, read, put back) and a field copied is a branch; a parked block still warms the air beside it"_test = [] {
         const auto table = matter::standard();
         expect(fatal(table.has_value())) << "the standard definition prepares";
         const matter::Program& program = *table;
@@ -99,15 +99,39 @@ UTest cases{"field", [] {
         auto quay = field::Field::make(program, {.air = *program.material("air")});
         expect(fatal(quay.has_value()));
         quay->follow({0, 2, 0}, 6, 12);
+        // The same walk with nothing ever parked: what the streamed field is measured against near the walker.
+        auto whole = *quay;
+        // What is seen about the walker: the air's warmth and wind at 27 points within 4 m.
+        const auto seen = [](const field::Field& air, field::Vec3 at) {
+            std::vector<float> out;
+            for (int z = -1; z <= 1; ++z)
+                for (int y = -1; y <= 1; ++y)
+                    for (int x = -1; x <= 1; ++x) {
+                        const field::Vec3 point{at.x + 4.0f * static_cast<float>(x), at.y + 2.0f * static_cast<float>(y), at.z + 4.0f * static_cast<float>(z)};
+                        const field::Vec3 wind = air.wind_at(point);
+                        out.insert(out.end(), {air.kelvin_at(point), wind.x, wind.y, wind.z});
+                    }
+            return out;
+        };
+        float jump = 0, drift = 0;
         const auto blocks = [&] { return quay->cells() / field::block_cells + quay->parked(); };
         std::size_t switches = 0, exact = 0, most_parked = 0;
         for (int step = 0; step < 300; ++step) {
             const field::Vec3 walker{static_cast<float>(step) * 0.2f, 2, 0};
-            if (step < 100) (void)quay->set(*quay->cell_at({0.5f, 0.5f, 0.5f}), temperature, stored(program, temperature, 900));
+            if (step < 100) {
+                (void)quay->set(*quay->cell_at({0.5f, 0.5f, 0.5f}), temperature, stored(program, temperature, 900));
+                (void)whole.set(*whole.cell_at({0.5f, 0.5f, 0.5f}), temperature, stored(program, temperature, 900));
+            }
             expect(quay->step().has_value());
+            expect(whole.step().has_value());
+            whole.follow(walker, 6, 1e9f);
+            const std::vector<float> before_switch = seen(*quay, walker);
             const std::int64_t heat_before = quay->total(temperature), water_before = quay->total(wetness);
             const std::size_t cells_before = quay->cells(), parked_before = quay->parked(), blocks_before = blocks();
             quay->follow(walker, 6, 12);
+            const std::vector<float> after_switch = seen(*quay, walker), unstreamed = seen(whole, walker);
+            for (std::size_t value = 0; value < after_switch.size(); ++value)
+                jump = std::max(jump, std::abs(after_switch[value] - before_switch[value])), drift = std::max(drift, std::abs(after_switch[value] - unstreamed[value]));
             if (quay->cells() != cells_before || quay->parked() != parked_before) {
                 ++switches;
                 const auto made = static_cast<std::int64_t>(blocks() - blocks_before);
@@ -122,6 +146,40 @@ UTest cases{"field", [] {
         expect(gt(switches, std::size_t{3})) << "the field followed the walker";
         expect(eq(exact, switches)) << "every switch keeps the totals exactly";
         expect(gt(most_parked, std::size_t{0}));
+        std::println("about the walker: the most a switch changed what is seen {} (K or m/s); the most it differs from the field never parked {:.4f}", jump, drift);
+        expect(eq(jump, 0.0f)) << "a switch changes nothing within 4 m of the walker: no jump to see";
+        expect(lt(drift, 0.05f)) << "streamed or not, the air about the walker is the same to a twentieth";
+
+        // Regions are values: one taken out, written, read and put back is the field as it was; a copy is a branch.
+        {
+            auto air = field::Field::make(program, {.air = *program.material("air"), .wind = {1, 0, 0}});
+            expect(fatal(air.has_value()));
+            air->cover({4, 4, 4}, 2), air->cover({12, 4, 4}, 2);
+            (void)air->set(*air->cell_at({10.5f, 3.5f, 2.5f}), temperature, stored(program, temperature, 650));
+            (void)air->set(*air->cell_at({9.5f, 1.5f, 6.5f}), wetness, 30);
+            for (int step = 0; step < 20; ++step) expect(air->step().has_value());
+            expect(air->park({12, 4, 4}));
+            const std::uint64_t parked_hash = air->state_hash();
+            const std::int64_t heat = air->total(temperature);
+            auto region = air->take({12, 4, 4});
+            expect(fatal(region.has_value()));
+            expect(eq(air->parked(), std::size_t{0}) && ne(air->total(temperature), heat)) << "taken out: its heat went with it";
+            const std::vector<std::uint8_t> written = region->bytes();
+            const auto read = field::Region::read(written);
+            expect(fatal(read.has_value())) << (read ? "" : read.error());
+            expect(*read == *region) << "read as written";
+            expect(!field::Region::read(std::span(written).first(written.size() - 1)).has_value()) << "a region cut short is refused";
+            expect(air->put(*read) && eq(air->state_hash(), parked_hash) && eq(air->total(temperature), heat)) << "put back: the field as it was, bit for bit";
+            expect(!air->put(*read)) << "not twice";
+            std::println("a region: {} bytes; put back, the field's hash {:016x} as before", written.size(), air->state_hash());
+
+            field::Field branch = *air;  // a value: copied, it goes its own way
+            for (int step = 0; step < 10; ++step) expect(air->step().has_value() && branch.step().has_value());
+            expect(eq(branch.state_hash(), air->state_hash())) << "the same steps, the same bits";
+            (void)branch.set(*branch.cell_at({4.5f, 0.5f, 4.5f}), temperature, stored(program, temperature, 900));
+            for (int step = 0; step < 10; ++step) expect(air->step().has_value() && branch.step().has_value());
+            expect(ne(branch.state_hash(), air->state_hash()) && gt(branch.kelvin_at({4.5f, 1.5f, 4.5f}), air->kelvin_at({4.5f, 1.5f, 4.5f}) + 1.0f)) << "a fire on the branch alone";
+        }
 
         // A parked hot block warms the expanded cells beside it.
         auto pair = field::Field::make(program, {.air = *program.material("air")});

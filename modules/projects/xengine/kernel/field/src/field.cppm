@@ -54,6 +54,25 @@ struct Guests {
     std::span<const std::uint32_t> exposed;   // how much of each its reactions run over (none: all it holds)
 };
 
+// A parked block as a value: where it is, its coarse value of each channel, each cell's difference from it, its
+// wind. What a region is to save, send and put back — the same bits read as written (`bytes`, `read`: "OMFR",
+// version 1, little-endian).
+struct Region {
+    std::array<std::int32_t, 3> block{0, 0, 0};    // in blocks of 8³ cells
+    std::vector<std::uint32_t>  coarse;            // a value each channel
+    std::vector<std::int64_t>   difference;        // [channel][cell of the block]
+    Vec3                        wind{0, 0, 0};
+
+    [[nodiscard]] std::vector<std::uint8_t> bytes() const;
+    [[nodiscard]] static std::expected<Region, std::string> read(std::span<const std::uint8_t> bytes);
+    // Written out (a defaulted == here crashes GCC 16.1 importing the module): every part, the wind by its bits.
+    [[nodiscard]] bool operator==(const Region& other) const noexcept {
+        const auto bits = [](Vec3 at) { return std::array{std::bit_cast<std::uint32_t>(at.x), std::bit_cast<std::uint32_t>(at.y), std::bit_cast<std::uint32_t>(at.z)}; };
+        return block == other.block && coarse == other.coarse && difference == other.difference && bits(wind) == bits(other.wind);
+    }
+};
+
+// A field is a value: a copy is a branch that goes its own way from here (the program shared, read only).
 class Field {
 public:
     [[nodiscard]] static std::expected<Field, std::string> make(const matter::Program& program, FieldOptions options);
@@ -85,6 +104,11 @@ public:
     // beyond `far` parked; between, as they are (so a walker on a border does not flicker).
     void follow(Vec3 centre, float near, float far);
     [[nodiscard]] std::size_t parked() const noexcept { return coarse_keys_.size(); }
+    // A region out of the field (parked first if it is expanded): it and its totals leave with it, the cells beside
+    // it now at the field's edge. None: nothing there.
+    [[nodiscard]] std::optional<Region> take(Vec3 at);
+    // A region put back, parked, where it was: false if a block is there or it is not of this program's channels.
+    bool put(Region region);
     // A channel's total over the field — each cell, and each parked block as 512 × its coarse value plus its
     // cells' kept differences: what a switch between the two keeps exactly.
     [[nodiscard]] std::int64_t total(std::uint32_t channel) const noexcept;

@@ -239,6 +239,93 @@ void Field::follow(Vec3 centre, float near, float far) {
                 (void)expand({(static_cast<float>(x) + 0.5f) * size, (static_cast<float>(y) + 0.5f) * size, (static_cast<float>(z) + 0.5f) * size});
 }
 
+std::optional<Region> Field::take(Vec3 at) {
+    const float size = options_.cell * block_side;
+    const Key key{static_cast<std::int32_t>(std::floor(at.x / size)), static_cast<std::int32_t>(std::floor(at.y / size)), static_cast<std::int32_t>(std::floor(at.z / size))};
+    if (index_.contains(key)) (void)park(at);
+    const auto found = parked_.find(key);
+    if (found == parked_.end()) return std::nullopt;
+    const std::size_t channels = program_->channels().size(), coarse = coarse_keys_.size();
+    const std::uint32_t one = found->second.coarse, last = static_cast<std::uint32_t>(coarse - 1);
+    Region out{.block = key, .coarse = std::vector<std::uint32_t>(channels), .difference = std::move(found->second.difference), .wind = found->second.wind};
+    for (std::size_t channel = 0; channel < channels; ++channel) out.coarse[channel] = coarse_state_[channel * coarse + one];
+    parked_.erase(found);
+    // Its coarse instance out, the last one into its place.
+    std::vector<std::uint32_t> narrowed(channels * (coarse - 1));
+    for (std::size_t channel = 0; channel < channels; ++channel) {
+        const auto from = coarse_state_.begin() + static_cast<std::ptrdiff_t>(channel * coarse);
+        if (one != last) *(from + one) = *(from + last);
+        std::copy_n(from, coarse - 1, narrowed.begin() + static_cast<std::ptrdiff_t>(channel * (coarse - 1)));
+    }
+    coarse_state_ = std::move(narrowed);
+    if (one != last) coarse_keys_[one] = coarse_keys_[last], parked_.at(coarse_keys_[one]).coarse = one;
+    coarse_keys_.pop_back();
+    link();
+    return out;
+}
+
+bool Field::put(Region region) {
+    const std::size_t channels = program_->channels().size(), coarse = coarse_keys_.size();
+    if (index_.contains(region.block) || parked_.contains(region.block) || region.coarse.size() != channels || region.difference.size() != channels * block_cells) return false;
+    std::vector<std::uint32_t> widened(channels * (coarse + 1));
+    for (std::size_t channel = 0; channel < channels; ++channel) {
+        std::copy_n(coarse_state_.begin() + static_cast<std::ptrdiff_t>(channel * coarse), coarse, widened.begin() + static_cast<std::ptrdiff_t>(channel * (coarse + 1)));
+        widened[channel * (coarse + 1) + coarse] = region.coarse[channel];
+    }
+    coarse_state_ = std::move(widened);
+    coarse_keys_.push_back(region.block);
+    parked_.emplace(region.block, Parked{.coarse = static_cast<std::uint32_t>(coarse), .difference = std::move(region.difference), .wind = region.wind});
+    link();
+    return true;
+}
+
+namespace {
+constexpr std::array<std::uint8_t, 4> region_magic{'O', 'M', 'F', 'R'};
+constexpr std::uint32_t region_version = 1;
+void put_le(std::vector<std::uint8_t>& out, std::uint64_t value, std::size_t width) {
+    for (std::size_t byte = 0; byte < width; ++byte) out.push_back(static_cast<std::uint8_t>(value >> (8 * byte)));
+}
+}  // namespace
+
+std::vector<std::uint8_t> Region::bytes() const {
+    std::vector<std::uint8_t> out(region_magic.begin(), region_magic.end());
+    put_le(out, region_version, 4);
+    for (const std::int32_t axis : block) put_le(out, static_cast<std::uint32_t>(axis), 4);
+    put_le(out, coarse.size(), 4);
+    for (const std::uint32_t value : coarse) put_le(out, value, 4);
+    for (const std::int64_t value : difference) put_le(out, static_cast<std::uint64_t>(value), 8);
+    for (const float value : {wind.x, wind.y, wind.z}) put_le(out, std::bit_cast<std::uint32_t>(value), 4);
+    return out;
+}
+
+std::expected<Region, std::string> Region::read(std::span<const std::uint8_t> bytes) {
+    std::size_t at = 0;
+    const auto take = [&](std::size_t width) -> std::optional<std::uint64_t> {
+        if (bytes.size() - at < width) return std::nullopt;
+        std::uint64_t value = 0;
+        for (std::size_t byte = 0; byte < width; ++byte) value |= std::uint64_t{bytes[at + byte]} << (8 * byte);
+        at += width;
+        return value;
+    };
+    if (bytes.size() < 12 || !std::ranges::equal(bytes.first(4), region_magic)) return std::unexpected(std::string("not a region: it begins with \"OMFR\""));
+    at = 4;
+    if (const auto version = take(4); *version != region_version) return std::unexpected(std::format("a region of version {}: this reads version {}", *version, region_version));
+    Region out;
+    for (std::int32_t& axis : out.block) {
+        const auto value = take(4);
+        if (!value) return std::unexpected(std::string("a region cut short in its place"));
+        axis = static_cast<std::int32_t>(static_cast<std::uint32_t>(*value));
+    }
+    const auto channels = take(4);
+    if (!channels || *channels > 4096 || bytes.size() - at != *channels * 4 + *channels * block_cells * 8 + 12)
+        return std::unexpected(std::format("a region's size is not {} channels' (4 + 8 × 512 bytes each, and 12 of wind)", channels.value_or(0)));
+    for (std::uint64_t channel = 0; channel < *channels; ++channel) out.coarse.push_back(static_cast<std::uint32_t>(*take(4)));
+    out.difference.reserve(*channels * block_cells);
+    for (std::uint64_t value = 0; value < *channels * block_cells; ++value) out.difference.push_back(static_cast<std::int64_t>(*take(8)));
+    out.wind = {std::bit_cast<float>(static_cast<std::uint32_t>(*take(4))), std::bit_cast<float>(static_cast<std::uint32_t>(*take(4))), std::bit_cast<float>(static_cast<std::uint32_t>(*take(4)))};
+    return out;
+}
+
 std::int64_t Field::total(std::uint32_t channel) const noexcept {
     if (channel >= program_->channels().size()) return 0;
     std::int64_t sum = 0;
@@ -425,6 +512,11 @@ std::uint64_t Field::state_hash() const noexcept {
     for (const std::uint32_t value : state_) hash.le(value, 4);
     for (const Key& key : coarse_keys_) hash.le(static_cast<std::uint32_t>(key[0]), 4), hash.le(static_cast<std::uint32_t>(key[1]), 4), hash.le(static_cast<std::uint32_t>(key[2]), 4);
     for (const std::uint32_t value : coarse_state_) hash.le(value, 4);
+    for (const Key& key : coarse_keys_) {
+        const Parked& held = parked_.at(key);
+        for (const std::int64_t value : held.difference) hash.le(static_cast<std::uint64_t>(value), 8);
+        for (const float value : {held.wind.x, held.wind.y, held.wind.z}) hash.le(std::bit_cast<std::uint32_t>(value), 4);
+    }
     for (const std::vector<float>* wind : {&wind_x_, &wind_y_, &wind_z_})
         for (const float value : *wind) hash.le(std::bit_cast<std::uint32_t>(value), 4);
     return hash.value();

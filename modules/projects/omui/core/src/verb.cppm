@@ -28,6 +28,24 @@ struct VerbDesc {
     bool        undoable = false;
 };
 
+// One request of a task: a verb invoked, or one of a node's actions. The application says it in its own
+// words (verbs, nodes); the request an agent sends is written from it by the interface's subject.
+struct TaskStep {
+    std::string verb;            // a registered verb …
+    std::string node;            // … or a node's path ("main/dark")
+    std::string action;          //   and one of its actions ("toggle")
+    Value       args;            // the verb's or the action's arguments
+    bool        dry_run = false; // only what it would do
+};
+// A task to begin with (D-186): something an agent that has never seen the application can get done here,
+// and the steps that do it, in order. It is listed by `describe` beside the interface's own tasks, found by
+// intent, and run as written by the contract suite — a task that does not run is a failure of the application.
+struct TaskDesc {
+    std::string           name;     // lower-case words joined by hyphens: "export-the-settings"
+    std::string           summary;  // what it gets done
+    std::vector<TaskStep> steps;
+};
+
 class AgentAccess;
 class AgentSession;
 
@@ -98,6 +116,14 @@ public:
     [[nodiscard]] const VerbDesc* find(std::string_view name) const noexcept;
     [[nodiscard]] std::vector<const VerbDesc*> list() const;
 
+    // A task to begin with, made of the verbs registered and of nodes' actions. Refused (with the reason) when
+    // its name is malformed or taken, it says nothing of what it gets done, it has no step, a step is neither a
+    // verb nor a node's action (or both), a step's verb is not registered or is the person's alone, or a step
+    // would ask for an answer and is not a dry run: a task to begin with runs as written, and nothing in it
+    // waits for a person. Removing a verb removes the tasks that invoke it.
+    std::expected<void, std::string> add_task(TaskDesc task);
+    [[nodiscard]] std::span<const TaskDesc> tasks() const noexcept { return tasks_; }
+
     // Runs a verb and answers with an envelope: `needs-answer` (exit 2) when
     // an answer is required and not given or wrong; `not-found` (exit 1) for
     // an unknown verb; otherwise the verb's data and exit 0, or its error and
@@ -125,6 +151,7 @@ private:
         VerbFn   fn;
     };
     std::vector<Slot>  verbs_;
+    std::vector<TaskDesc> tasks_;
     std::vector<Entry> journal_;
 };
 

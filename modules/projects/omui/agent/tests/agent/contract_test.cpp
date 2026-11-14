@@ -44,6 +44,11 @@ struct Page {
             ++exported;
             return Value{};
         });
+        // What an agent new to it can get done here, said by the application: a verb, then a node's action.
+        Value where;
+        where.set("path", "settings.json");
+        (void)rt.verbs().add_task({"export-with-the-dark-look", "Turn the dark look on and write the settings to a file a person can share",
+                                   {{.node = "main/dark", .action = "toggle"}, {.verb = "settings.export", .args = where}}});
         rt.mount("main", column({.padding = 8, .gap = 8}, {text_box({.id = "name", .label = "Name"}), toggle({.id = "dark", .label = "Dark"}),
                                                            slider({.id = "volume", .max = 100.0, .value = 20.0})}));
         (void)rt.frame({seconds(0), {}});
@@ -113,6 +118,27 @@ static UTest cases{"agent.interface-subject", [] {
         expect(found["kind"].text() == "node" && found["name"].text() == "main/dark" && found["summary"].text().value_or("").contains("toggle")) << node.data().dump();
         const auto read = ask(session, found["requests"][0].dump());
         expect(eq(read.exit_code(), std::int64_t{0}) && read.data().dump().contains("main/dark")) << "its request reads the node";
+    };
+
+    "the application's own tasks to begin with: described first, found by intent, run as written (D-186)"_test = [] {
+        register_base_components();
+        Shown shown;
+        mlibs::agent::SubjectSession session({&shown}, {.actor = {openas::Kind::agent, "reviewer", {}}});
+        const auto described = ask(session, R"({"op":"describe","subject":"ui"})");
+        const auto first = described.data()["tasks"][0];
+        expect(first["name"].text() == "export-with-the-dark-look") << "the application's before the interface's: " << described.data()["tasks"].dump();
+        expect(described.data()["tasks"].size() > std::size_t{1}) << "the interface's own tasks are still there";
+        expect(first["steps"][0].dump() == R"({"op":"ui.act","node":"main/dark","action":"toggle"})" &&
+               first["steps"][1].dump() == R"({"op":"ui.invoke","verb":"settings.export","args":{"path":"settings.json"}})")
+            << first.dump();
+        // By what it is for, in other words than its name.
+        const auto found = ask(session, R"({"op":"find","q":"write the settings so a person can share them, dark"})");
+        expect(found.data()["found"][0]["kind"].text() == "task" && found.data()["found"][0]["name"].text() == "export-with-the-dark-look") << found.data().dump();
+        // Its requests, sent as they are, do it.
+        for (std::size_t index = 0; index < first["steps"].size(); ++index) expect(eq(ask(session, first["steps"][index].dump()).exit_code(), std::int64_t{0}));
+        expect(eq(shown.exported, 1));
+        const auto dark = ask(session, R"({"op":"ui.snapshot","root":"main/dark","depth":0})");
+        expect(dark.data()["nodes"][0]["value"].dump() == "true") << dark.data().dump();
     };
 
     "found in a kernel session: who is here, then the protocol's own operations by their catalog names, answered in its own records"_test = [] {

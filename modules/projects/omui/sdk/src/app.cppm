@@ -32,6 +32,9 @@ struct AppSpec {
     Size                   size{960, 640};
     std::function<View()>  view;                 // what the window shows (mounted at "main")
     std::vector<VerbSpec>  verbs;                // the application's verbs (S-1: their effects classify actions)
+    // Tasks to begin with (D-186): what an agent that has never seen the application can get done here, each
+    // made of the verbs above and of nodes' actions; listed by `describe`, found by intent, run as written.
+    std::vector<TaskDesc>  tasks;
     Theme                  theme = Theme::light();
     // A directory of the application's own effects (*.effect.omui.ts, or their
     // JSON): loaded with the window, loaded again when one changes

@@ -58,7 +58,57 @@ std::expected<void, std::string> Verbs::add(VerbDesc desc, VerbFn fn) {
 }
 
 bool Verbs::remove(std::string_view name) {
-    return std::erase_if(verbs_, [&](const Slot& s) { return s.desc.name == name; }) > 0;
+    if (std::erase_if(verbs_, [&](const Slot& slot) { return slot.desc.name == name; }) == 0) return false;
+    // A task whose step is no longer there is not a task.
+    std::erase_if(tasks_, [&](const TaskDesc& task) { return std::ranges::any_of(task.steps, [&](const TaskStep& step) { return step.verb == name; }); });
+    return true;
+}
+
+namespace {
+
+// Lower-case words joined by hyphens, as a catalog's tasks are named.
+bool valid_task_name(std::string_view name) noexcept {
+    if (name.empty() || name.size() > 128) return false;
+    bool word_start = true;
+    for (const char letter : name) {
+        if (letter == '-') {
+            if (word_start) return false;
+            word_start = true;
+            continue;
+        }
+        if (!(letter >= 'a' && letter <= 'z') && !(letter >= '0' && letter <= '9')) return false;
+        word_start = false;
+    }
+    return !word_start;
+}
+
+}  // namespace
+
+std::expected<void, std::string> Verbs::add_task(TaskDesc task) {
+    if (!valid_task_name(task.name))
+        return std::unexpected(std::format("`{}` is not a task name: lower-case words joined by hyphens", task.name));
+    if (std::ranges::contains(tasks_, task.name, &TaskDesc::name)) return std::unexpected(std::format("task `{}` is already registered", task.name));
+    if (task.summary.empty()) return std::unexpected(std::format("task `{}` does not say what it gets done (summary)", task.name));
+    if (task.steps.empty()) return std::unexpected(std::format("task `{}` has no step", task.name));
+    for (std::size_t index = 0; index < task.steps.size(); ++index) {
+        const TaskStep& step = task.steps[index];
+        const bool of_node = !step.node.empty() || !step.action.empty();
+        if (step.verb.empty() == !of_node)
+            return std::unexpected(std::format("task `{}`, step {}: a step is a verb, or a node and one of its actions", task.name, index + 1));
+        if (of_node) {
+            if (step.node.empty() || step.action.empty())
+                return std::unexpected(std::format("task `{}`, step {}: a node's action names both the node and the action", task.name, index + 1));
+            continue;
+        }
+        const VerbDesc* verb = find(step.verb);
+        if (!verb) return std::unexpected(std::format("task `{}`, step {}: verb `{}` is not registered (add the verb first)", task.name, index + 1, step.verb));
+        if (verb->person) return std::unexpected(std::format("task `{}`, step {}: verb `{}` is the person's alone, never a request's", task.name, index + 1, step.verb));
+        if (spec::requires_answer(verb->effect) && !step.dry_run)
+            return std::unexpected(std::format("task `{}`, step {}: verb `{}` is {} and asks for an answer; a task to begin with runs as written — make the step a dry run",
+                                               task.name, index + 1, step.verb, spec::name(verb->effect)));
+    }
+    tasks_.push_back(std::move(task));
+    return {};
 }
 
 const VerbDesc* Verbs::find(std::string_view name) const noexcept {

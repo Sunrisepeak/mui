@@ -16,6 +16,36 @@ static UTest cases{"core.verb", [] {
         expect(!omui::valid_verb_name("note.1st"));
     };
 
+    "a task to begin with is made of what is registered, and runs as written (D-186)"_test = [] {
+        omui::Verbs verbs;
+        const auto done = [](const omui::Value&) -> omui::VerbResult { return omui::Value{}; };
+        expect(verbs.add({.name = "settings.export", .summary = "Write the settings to a file"}, done).has_value());
+        expect(verbs.add({.name = "settings.reset", .summary = "Forget every setting", .effect = omui::Effect::irreversible, .answer = "yes"}, done).has_value());
+        expect(verbs.add({.name = "permission.grant", .summary = "Allow it", .person = true}, done).has_value());
+
+        expect(verbs.add_task({"export-the-settings", "Write the settings to a file and turn the dark look on", {{.verb = "settings.export"}, {.node = "main/dark", .action = "toggle"}}})
+                   .has_value());
+        expect(eq(verbs.tasks().size(), std::size_t{1}) && verbs.tasks()[0].steps[1].action == "toggle");
+
+        const auto refused = [&](omui::TaskDesc task) { return verbs.add_task(std::move(task)).error_or(""); };
+        expect(refused({"Export Settings", "Write them", {{.verb = "settings.export"}}}).contains("not a task name"));
+        expect(refused({"export-the-settings", "Write them", {{.verb = "settings.export"}}}).contains("already registered"));
+        expect(refused({"say-nothing", "", {{.verb = "settings.export"}}}).contains("what it gets done"));
+        expect(refused({"do-nothing", "Nothing", {}}).contains("no step"));
+        expect(refused({"both", "A verb and a node", {{.verb = "settings.export", .node = "main/dark", .action = "toggle"}}}).contains("step 1: a step is a verb, or a node"));
+        expect(refused({"half", "A node without its action", {{.node = "main/dark"}}}).contains("both the node and the action"));
+        expect(refused({"unknown", "A verb nobody added", {{.verb = "settings.export"}, {.verb = "settings.import"}}}).contains("step 2: verb `settings.import` is not registered"));
+        expect(refused({"persons", "The person's own", {{.verb = "permission.grant"}}}).contains("the person's alone"));
+        // Nothing in a task waits for a person: what asks for an answer is in it as a dry run.
+        expect(refused({"reset", "Forget the settings", {{.verb = "settings.reset"}}}).contains("make the step a dry run"));
+        expect(verbs.add_task({"see-what-a-reset-does", "See what forgetting the settings would do, nothing done", {{.verb = "settings.reset", .dry_run = true}}}).has_value());
+        expect(eq(verbs.tasks().size(), std::size_t{2}));
+
+        // A verb taken away takes the tasks that invoke it.
+        expect(verbs.remove("settings.export"));
+        expect(eq(verbs.tasks().size(), std::size_t{1}) && verbs.tasks()[0].name == "see-what-a-reset-does");
+    };
+
     "S-1: an irreversible verb states its answer"_test = [] {
         omui::Verbs verbs;
         auto r = verbs.add({.name = "note.delete", .effect = omui::Effect::irreversible},

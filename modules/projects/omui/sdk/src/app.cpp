@@ -276,6 +276,8 @@ Prepared prepare(Runtime& rt, AppSpec& app, const std::shared_ptr<AgentAccess>& 
     rt.set_agent_players(app.agent_players);
     for (VerbSpec& v : app.verbs)
         if (auto r = rt.verbs().add(std::move(v.desc), std::move(v.fn)); !r) warn("verb not added: {}", r.error());
+    for (TaskDesc& task : app.tasks)
+        if (auto added = rt.verbs().add_task(std::move(task)); !added) warn("task not added: {}", added.error());
     if (app.setup) app.setup(rt);
     if (app.view) rt.mount("main", app.view());
     Prepared kept;

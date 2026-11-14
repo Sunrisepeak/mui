@@ -112,6 +112,14 @@ struct Surface {
     // x: over 0.5 — the far sides of the solids that let light through are drawn (`before_map`) and how far what is
     // whole is (`behind_map`), each as ids.slang's `folded_far`; zw: one over the frame's width and height.
     float4 solid;
+    // The materials' other pictures on one sheet (`more_map`; xrender.mesh.gpu's `More`): x over 0.5 — it is there;
+    // zw one over its width and height. A picture each — a clear coat's, its roughness's and its normal's, a sheen's
+    // colour, a drawn-out way, a film's and its thickness's — two rows: where its tile's first texel is and its finest
+    // width and height (0: none); how many sizes, its edges across and down (0 repeats, 1 mirrors, 2 stops). And
+    // how each is laid (as `placing`).
+    float4 more_shape;
+    float4 more[14];
+    float4 more_placing[14];
     Lamp   lamps[8];
 };
 [[vk::binding(0, 2)]] Sampler2D shadow_map : register(t0, space2) : register(s0, space2);
@@ -135,6 +143,80 @@ struct Surface {
 [[vk::binding(12, 2)]] Sampler2D clearness_map : register(t12, space2) : register(s12, space2);
 [[vk::binding(13, 2)]] Sampler2D thick_map : register(t13, space2) : register(s13, space2);
 [[vk::binding(0, 3)]] ConstantBuffer<Surface> surface : register(b0, space3);
+[[vk::binding(14, 2)]] Sampler2D more_map : register(t14, space2) : register(s14, space2);
+// Which of the other pictures (`Surface::more`).
+static const int coat_more = 0, coat_rough_more = 1, coat_normal_more = 2, sheen_more = 3, drawn_more = 4, film_more = 5, film_thick_more = 6;
+float2 more_placed(float4 both, int which) {
+    const float2 uv = surface.more_placing[which * 2].w > 0.5 ? both.zw : both.xy;
+    return float2(dot(surface.more_placing[which * 2].xyz, float3(uv, 1)), dot(surface.more_placing[which * 2 + 1].xyz, float3(uv, 1)));
+}
+float2 more_moved(float4 difference, int which) {
+    const float2 by = surface.more_placing[which * 2].w > 0.5 ? difference.zw : difference.xy;
+    return float2(dot(surface.more_placing[which * 2].xy, by), dot(surface.more_placing[which * 2 + 1].xy, by));
+}
+// A place past a picture's edge, as the edge has it: repeating, mirrored, or stopped.
+float edged(float place, float edge) {
+    if (edge < 0.5) return place - floor(place);
+    if (edge < 1.5) {
+        const float twice = place * 0.5 - floor(place * 0.5);
+        return 1.0 - abs(twice * 2.0 - 1.0);
+    }
+    return clamp(place, 0.0, 1.0);
+}
+// One of the other pictures at size `size` (between four texels of its square; the texel about it is past its edge).
+float4 more_size(int which, int size, float2 uv) {
+    const float4 tile = surface.more[which * 2], said = surface.more[which * 2 + 1];
+    float2 at = tile.xy, wide = tile.zw;
+    if (size > 0) {
+        at.x += tile.z + 2.0;
+        for (int finer = 1; finer < size; ++finer) at.y += max(floor(tile.w / float(1 << finer)), 1.0) + 2.0;
+        wide = max(floor(tile.zw / float(1 << size)), float2(1, 1));
+    }
+    const float2 folded = float2(edged(uv.x, said.y), edged(uv.y, said.z));
+    return more_map.SampleLevel((at + 1.0 + folded * wide) * surface.more_shape.zw, 0);
+}
+// At a footprint, as `picture_at` reads a picture's levels; over the strip a pixel covers, as `picture_over`.
+float4 more_at(int which, float2 uv, float footprint) {
+    const int sizes = int(surface.more[which * 2 + 1].x);
+    int size = 0;
+    float covers = max(footprint, 1.0);
+    while (covers >= 2 && size + 1 < sizes) {
+        covers *= 0.5;
+        ++size;
+    }
+    const float toward_next = size + 1 < sizes ? covers - 1.0 : 0.0;
+    const float4 here = more_size(which, size, uv);
+    return toward_next > 0 ? here + (more_size(which, size + 1, uv) - here) * toward_next : here;
+}
+float4 more_over(int which, float2 uv, float2 right, float2 down) {
+    const float2 shape = surface.more[which * 2].zw;
+    const float across = length(right * shape), along = length(down * shape);
+    const float2 lengthwise = across >= along ? right : down;
+    const float longer = max(across, along), shorter = max(min(across, along), 1e-6);
+    const float places = clamp(ceil(longer / shorter), 1.0, 8.0);
+    const float footprint = longer / places;
+    float4 sum = float4(0, 0, 0, 0);
+    for (float place = 0; place < places; place += 1) sum += more_at(which, uv + lengthwise * ((place + 0.5) / places - 0.5), footprint);
+    return sum / places;
+}
+bool has_more(int which) { return surface.more_shape.x > 0.5 && surface.more[which * 2].z > 0; }
+// A picture's two ways in the world here, in the surface about `normal`: along it (the mesh's tangent, or the way
+// the surface goes as the picture's first coordinate grows: `right` and `down` its place's steps to the next pixels,
+// `place_right` and `place_down` the surface's) and up it. False where neither is known.
+bool picture_frame(float3 normal, float4 tangent, float3 place_right, float3 place_down, float2 right, float2 down, out float3 right_way, out float3 up_way) {
+    right_way = tangent.xyz;
+    up_way = cross(normal, right_way) * tangent.w;
+    if (!(dot(right_way, right_way) > 0)) {
+        const float turn = right.x * down.y - down.x * right.y;
+        if (turn != 0) right_way = (place_right * down.y - place_down * right.y) / turn, up_way = (place_right * down.x - place_down * right.x) / turn;
+    }
+    right_way -= normal * dot(normal, right_way);
+    if (!(dot(right_way, right_way) > 0)) return false;
+    right_way = normalize(right_way);
+    const float3 other = cross(normal, right_way);
+    up_way = dot(other, up_way) < 0 ? -other : other;
+    return true;
+}
 
 // Which picture a placing is of: its two rows in `placing`.
 static const int base_laid = 0, surface_laid = 2, normal_laid = 4, glow_laid = 6, shade_laid = 8, clearness_laid = 10, thick_laid = 12;
@@ -157,7 +239,7 @@ struct About {
     float4 shape;        // xy: one over the sheet's width and height; z: the last roughness's number
     float4 squares[18];  // xy: where a square's first texel is; z: how far across it is — 0 … 15 the roughnesses, 16 what falls on a matt surface, 17 the shares
 };
-[[vk::binding(14, 2)]] Sampler2D about_map : register(t14, space2) : register(s14, space2);
+[[vk::binding(15, 2)]] Sampler2D about_map : register(t15, space2) : register(s15, space2);
 [[vk::binding(1, 3)]] ConstantBuffer<About> about : register(b1, space3);
 
 // The surface at this pixel: the material's own, times its pictures where it has them.
@@ -170,6 +252,12 @@ static float  thick_here;  // how thick it is
 static float  rough_said;  // the roughness as the material and its picture say it, not held to 0.04
 static float3 head_here;   // what the surface mirrors head on, a channel
 static float  edge_here;   // and at a glancing look
+// The layers' own numbers here, the material's times their pictures (`Surface::more`): how much clear coat and its
+// roughness; the sheen's colour; how much film and how thick; how far the highlight is drawn out.
+static float2 coat_here;
+static float3 sheen_here;
+static float2 film_here;
+static float  drawn_here;
 
 // A texture's light at `uv` for a pixel that covers `footprint` texels of its finest size (xrender.mesh's
 // `Texture::at`): the size whose texels are about a pixel across mixed with the next — its sizes are the
@@ -347,7 +435,7 @@ struct Pictured : IAbout {
         const float4 table = about.squares[17];
         const float2 share = about_map.SampleLevel((table.xy + float2(seen, rough) * (table.z - 1.0) + 0.5) * about.shape.xy, 0).rg;
         float3 shared = head_here * share.x + share.y * edge_here;
-        if (surface.film.x > 0) shared += (film_mirrors(surface.film.y, surface.film.z, seen, head_here) * (share.x + share.y) - shared) * clamp(surface.film.x, 0.0, 1.0);
+        if (film_here.x > 0) shared += (film_mirrors(surface.film.y, film_here.y, seen, head_here) * (share.x + share.y) - shared) * clamp(film_here.x, 0.0, 1.0);
         return shared * kept(seen) * (nearer + (further - nearer) * (which - first)) * shaded;
     }
     // The lobe asked 64 fixed ways (Hammersley's), each chosen by the drawn-out spread, read blurred by the share of
@@ -356,7 +444,7 @@ struct Pictured : IAbout {
     static float3 mirrors_drawn_out(float3 normal, float3 along, float3 toward_eye, float shaded) {
         const float seen = dot(normal, toward_eye);
         if (!(seen > 0)) return mirrors(drawn_out_normal(normal, along, toward_eye), toward_eye, shaded);
-        const float rough = rough_here, strength = clamp(surface.drawn.x, 0.0, 1.0);
+        const float rough = rough_here, strength = clamp(drawn_here, 0.0, 1.0);
         const float alpha = rough * rough, along_alpha = alpha + (1.0 - alpha) * strength * strength, across_alpha = alpha;
         const float3 across = cross(normal, along);
         const int ways = 64;
@@ -608,8 +696,8 @@ float3 film_mirrors(float film_ior, float thickness, float seen, float3 head_on)
 // What the surface mirrors at a look (xrender.mesh's `mirrors_at`).
 float3 mirrors_at(float glance5, float seen) {
     const float3 plain = head_here + (float3(edge_here, edge_here, edge_here) - head_here) * glance5;
-    if (!(surface.film.x > 0)) return plain;
-    return plain + (film_mirrors(surface.film.y, surface.film.z, seen, head_here) - plain) * clamp(surface.film.x, 0.0, 1.0);
+    if (!(film_here.x > 0)) return plain;
+    return plain + (film_mirrors(surface.film.y, film_here.y, seen, head_here) - plain) * clamp(film_here.x, 0.0, 1.0);
 }
 // `reflected` with the highlight drawn out along `along` (xrender.mesh's `reflected_drawn_out`).
 float3 reflected_drawn_out(float3 normal, float3 along, float3 toward_eye, float3 toward_light, float facing) {
@@ -617,7 +705,7 @@ float3 reflected_drawn_out(float3 normal, float3 along, float3 toward_eye, float
     const float3 matt = base_colour * ((1.0 - metal) * (1.0 - lets_here) * facing);
     const float seen = dot(normal, toward_eye);
     if (!(seen > 0)) return matt;
-    const float strength = clamp(surface.drawn.x, 0.0, 1.0);
+    const float strength = clamp(drawn_here, 0.0, 1.0);
     const float alpha = rough * rough, along_alpha = alpha + (1.0 - alpha) * strength * strength, across_alpha = alpha;
     const float3 across = cross(normal, along);
     const float3 halfway = normalize(toward_eye + toward_light);
@@ -632,7 +720,7 @@ float3 reflected_drawn_out(float3 normal, float3 along, float3 toward_eye, float
 }
 // The normal an anisotropic surface mirrors what is about it by (xrender.mesh's `drawn_out_normal`).
 float3 drawn_out_normal(float3 normal, float3 along, float3 toward_eye) {
-    const float strength = clamp(surface.drawn.x, 0.0, 1.0);
+    const float strength = clamp(drawn_here, 0.0, 1.0);
     const float3 toward = cross(cross(along, toward_eye), along);
     const float bend = 1.0 - strength * (1.0 - rough_here), bend4 = bend * bend * bend * bend;
     const float3 bent = toward + (normal - toward) * bend4;
@@ -649,7 +737,7 @@ float coat_mirrors(float3 coat_normal, float3 toward_eye) {
 float3 coated<A : IAbout>(float3 coat_normal, float3 normal, float3 toward_eye, float3 place, float3 everywhere_in, float shaded) {
     const float3 was_base = base_colour, was_head = head_here;
     const float was_rough = rough_here, was_metal = metal_here, was_lets = lets_here, was_edge = edge_here;
-    base_colour = float3(0, 0, 0), metal_here = 0, lets_here = 0, rough_here = surface.coat.y, head_here = float3(0.04, 0.04, 0.04), edge_here = 1;
+    base_colour = float3(0, 0, 0), metal_here = 0, lets_here = 0, rough_here = coat_here.y, head_here = float3(0.04, 0.04, 0.04), edge_here = 1;
     float3 sent = A::takes(0) * everywhere_in + A::mirrors(coat_normal, toward_eye, shaded);
     const int count = int(surface.eye.w);
     for (int index = 0; index < count; ++index) {
@@ -728,49 +816,51 @@ Lit lit_at<A : IAbout>(VOut point) {
     if (surface.glow_picture.z > 0.5) given_off *= picture_over(glow_map, surface.glow_picture, placed(point.uv, glow_laid), moved_by(right_both, glow_laid), moved_by(down_both, glow_laid)).rgb;
     if (surface.shade_picture.z > 0.5)
         shaded = 1.0 + surface.shade_picture.w * (picture_over(shade_map, surface.shade_picture, placed(point.uv, shade_laid), moved_by(right_both, shade_laid), moved_by(down_both, shade_laid)).r - 1.0);
-    const float3 coat_normal = normal;  // the coat's: the surface's own before its normal picture
+    // The layers' numbers, times their pictures where the material has them (xrender.mesh's pass).
+    coat_here = surface.coat.xy, sheen_here = surface.sheen.rgb, film_here = float2(surface.film.x, surface.film.z), drawn_here = surface.drawn.x;
+    if (has_more(coat_more)) coat_here.x *= more_over(coat_more, more_placed(point.uv, coat_more), more_moved(right_both, coat_more), more_moved(down_both, coat_more)).r;
+    if (has_more(coat_rough_more))
+        coat_here.y = clamp(surface.coat.z * more_over(coat_rough_more, more_placed(point.uv, coat_rough_more), more_moved(right_both, coat_rough_more), more_moved(down_both, coat_rough_more)).g, 0.04, 1.0);
+    if (has_more(sheen_more)) sheen_here *= more_over(sheen_more, more_placed(point.uv, sheen_more), more_moved(right_both, sheen_more), more_moved(down_both, sheen_more)).rgb;
+    if (has_more(film_more)) film_here.x *= more_over(film_more, more_placed(point.uv, film_more), more_moved(right_both, film_more), more_moved(down_both, film_more)).r;
+    if (has_more(film_thick_more))
+        film_here.y = surface.film.w + (surface.film.z - surface.film.w) * more_over(film_thick_more, more_placed(point.uv, film_thick_more), more_moved(right_both, film_thick_more), more_moved(down_both, film_thick_more)).g;
+    float3 coat_normal = normal;  // the coat's: the surface's own before its normal picture, or its own picture's
+    if (has_more(coat_normal_more) && coat_here.x > 0) {
+        const float2 right = more_moved(right_both, coat_normal_more), down = more_moved(down_both, coat_normal_more);
+        float3 right_way, up_way;
+        if (picture_frame(normal, point.tangent, place_right, place_down, right, down, right_way, up_way)) {
+            const float3 said = more_over(coat_normal_more, more_placed(point.uv, coat_normal_more), right, down).rgb;
+            const float3 about = float3((said.xy * 2 - 1) * surface.more[coat_normal_more * 2 + 1].w, said.z * 2 - 1);
+            const float3 turned = right_way * about.x + up_way * about.y + normal * about.z;
+            if (dot(turned, turned) > 0) coat_normal = normalize(turned);
+        }
+    }
     if (surface.normal_picture.z > 0.5) {
         const float2 right = moved_by(right_both, normal_laid), down = moved_by(down_both, normal_laid);
-        // The picture's three ways in the world here: along it (the mesh's tangent, or the way the surface goes as
-        // the picture's first coordinate grows), up it, and out (the normal).
-        float3 right_way = point.tangent.xyz;
-        float3 up_way = cross(normal, right_way) * point.tangent.w;
-        if (!(dot(right_way, right_way) > 0)) {
-            const float3 one = place_right, two = place_down;
-            const float turn = right.x * down.y - down.x * right.y;
-            if (turn != 0) {
-                right_way = (one * down.y - two * right.y) / turn;
-                up_way = (one * down.x - two * right.x) / turn;
-            }
-        }
-        right_way -= normal * dot(normal, right_way);
-        if (dot(right_way, right_way) > 0) {
-            right_way = normalize(right_way);
-            const float3 other = cross(normal, right_way);
-            up_way = dot(other, up_way) < 0 ? -other : other;
+        float3 right_way, up_way;
+        if (picture_frame(normal, point.tangent, place_right, place_down, right, down, right_way, up_way)) {
             const float3 said = picture_over(normal_map, surface.normal_picture, placed(point.uv, normal_laid), right, down).rgb;
             const float3 about = float3((said.xy * 2 - 1) * surface.normal_picture.w, said.z * 2 - 1);
             const float3 turned = right_way * about.x + up_way * about.y + normal * about.z;
             if (dot(turned, turned) > 0) normal = normalize(turned);
         }
     }
-    // The way the highlight is drawn out along: the tangent turned by the material's rotation (xrender.mesh's pass).
+    // The way the highlight is drawn out along: the tangent turned by the material's rotation and its picture's
+    // way, its strength times the picture's blue (xrender.mesh's pass).
     float3 drawn_way = float3(0, 0, 0);
     if (surface.drawn.x > 0) {
         const float2 right = moved_by(right_both, normal_laid), down = moved_by(down_both, normal_laid);
-        float3 right_way = point.tangent.xyz;
-        float3 up_way = cross(normal, right_way) * point.tangent.w;
-        if (!(dot(right_way, right_way) > 0)) {
-            const float turn = right.x * down.y - down.x * right.y;
-            if (turn != 0) right_way = (place_right * down.y - place_down * right.y) / turn, up_way = (place_right * down.x - place_down * right.x) / turn;
+        float2 said = float2(1, 0);
+        if (has_more(drawn_more)) {
+            const float3 picture = more_over(drawn_more, more_placed(point.uv, drawn_more), more_moved(right_both, drawn_more), more_moved(down_both, drawn_more)).rgb;
+            said = picture.rg * 2 - 1, drawn_here *= picture.b;
         }
-        right_way -= normal * dot(normal, right_way);
-        if (dot(right_way, right_way) > 0) {
-            right_way = normalize(right_way);
-            const float3 other = cross(normal, right_way);
-            up_way = dot(other, up_way) < 0 ? -other : other;
-            const float3 along = right_way * surface.drawn.y + up_way * surface.drawn.z;
-            if (dot(along, along) > 0) drawn_way = normalize(along);
+        float3 right_way, up_way;
+        if (picture_frame(normal, point.tangent, place_right, place_down, right, down, right_way, up_way)) {
+            const float2 way = float2(said.x * surface.drawn.y - said.y * surface.drawn.z, said.x * surface.drawn.z + said.y * surface.drawn.y);
+            const float3 along = right_way * way.x + up_way * way.y;
+            if (dot(along, along) > 0 && drawn_here > 0) drawn_way = normalize(along);
         }
     }
     const bool drawn = dot(drawn_way, drawn_way) > 0;
@@ -787,8 +877,8 @@ Lit lit_at<A : IAbout>(VOut point) {
     float3 everywhere_in = A::falling(normal) * reaching;
     float3 light = everywhere_in;
     float3 sent = float3(0, 0, 0);
-    const bool sheened = any(surface.sheen.rgb > 0);
-    float3 sheen = sheened ? surface.sheen.rgb * A::sheen_about(normal, normalize(to_eye)) * reaching : float3(0, 0, 0);
+    const bool sheened = any(sheen_here > 0);
+    float3 sheen = sheened ? sheen_here * A::sheen_about(normal, normalize(to_eye)) * reaching : float3(0, 0, 0);
     const int count = int(surface.eye.w);
     for (int index = 0; index < count; ++index) {
         const Lamp lamp = surface.lamps[index];
@@ -810,13 +900,13 @@ Lit lit_at<A : IAbout>(VOut point) {
         if (!(facing > 0)) continue;
         if (matt) light += arriving * facing;
         else sent += (drawn ? reflected_drawn_out(normal, drawn_way, toward_eye, along, facing) : reflected(normal, toward_eye, along, facing)) * arriving;
-        if (sheened) sheen += surface.sheen.rgb * arriving * sheen_reflected(normal, toward_eye, along, facing);
+        if (sheened) sheen += sheen_here * arriving * sheen_reflected(normal, toward_eye, along, facing);
     }
     float3 colour = base_colour * (1.0 - lets_here) * light + given_off;
     if (!matt) {
         colour = A::takes(metal_here) * everywhere_in + given_off + sent + (drawn ? A::mirrors_drawn_out(normal, drawn_way, toward_eye, shaded) : A::mirrors(normal, toward_eye, shaded));
-        if (sheened) colour = given_off + (colour - given_off) * (1.0 - max(surface.sheen.r, max(surface.sheen.g, surface.sheen.b)) * sheen_share(max(dot(normal, toward_eye), 0.0))) + sheen;
-        if (surface.coat.x > 0) colour = given_off + (colour - given_off) * (1.0 - surface.coat.x * coat_mirrors(coat_normal, toward_eye)) + coated<A>(coat_normal, normal, toward_eye, point.place, everywhere_in, shaded) * surface.coat.x;
+        if (sheened) colour = given_off + (colour - given_off) * (1.0 - max(sheen_here.r, max(sheen_here.g, sheen_here.b)) * sheen_share(max(dot(normal, toward_eye), 0.0))) + sheen;
+        if (coat_here.x > 0) colour = given_off + (colour - given_off) * (1.0 - coat_here.x * coat_mirrors(coat_normal, toward_eye)) + coated<A>(coat_normal, normal, toward_eye, point.place, everywhere_in, shaded) * coat_here.x;
     }
     if (surface.own.z > 0.5) colour = base_colour + given_off;
     else {

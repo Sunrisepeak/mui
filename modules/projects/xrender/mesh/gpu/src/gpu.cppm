@@ -131,7 +131,10 @@ public:
     // seen from both sides or cut out by its picture (`Material::two_sided`, `cutout`) those passes leave out the
     // very pixels the colour pass leaves out. Kept until called again; without it every surface is whole and of
     // one side there. (`record` takes its own, for the colour and for the shadows it draws.)
-    void use(std::span<const Material> materials) { materials_.assign(materials.begin(), materials.end()); }
+    void use(std::span<const Material> materials) {
+        materials_.assign(materials.begin(), materials.end());
+        static_cast<void>(keep_more(materials_));
+    }
     // Who drew each pixel, recorded: a pass of its own on `ids` (r32_uint, a colour target) and `depth` — for
     // every pixel the place of its draw in `extracted.draws` and one more; 0 where nothing is. What an agent
     // asks of a pixel of the device's picture (`who`), with nothing of the CPU's drawn.
@@ -193,7 +196,28 @@ private:
         mlibs::rhi::Texture texture;
         float               width = 0, height = 0, sizes = 0;  // its finest size; how many sizes (the texture's levels)
         mlibs::rhi::Sampler through;  // `pictures_`, or the one of `edged_` its edges ask
+        float               across = 0, down = 0;  // its edges (`Edge`: 0 repeats, 1 mirrors, 2 stops)
     };
+    // The materials' other pictures — a clear coat's three, a sheen's colour, a drawn-out way, a film's two — on one
+    // sheet, so that a device of 16 samplers (WebGL2) reads them all by one: each picture's sizes on a tile of its
+    // own, the finest at its corner and the others in a column beside it, each with a texel about it read past the
+    // picture's edges as its own sampler reads them. Made when the materials and the textures are both given.
+    struct More {
+        mlibs::rhi::GraphicsPipeline tiled;
+        mlibs::rhi::Texture          sheet;
+        float                        width = 0, height = 0;
+        // A texture's tile, or none (all 0): where its finest size's first texel (the one about it) is, its width
+        // and height; how many sizes, its edges across and down.
+        std::vector<std::array<float, 8>> tiles;
+        std::vector<bool>                 wanted;  // which textures it was made for
+    };
+    // Which loaded textures `materials` name for their other pictures.
+    [[nodiscard]] std::vector<bool> wanted_more(std::span<const Material> materials) const;
+    More                         more_;
+    static void take_more(More& into, More& from) noexcept;
+    // (Re)makes the sheet of `materials`' other pictures: whether it holds them all. `record` makes it again
+    // where its materials name a loaded picture the sheet has not.
+    bool keep_more(std::span<const Material> materials);
     // A sampler for each pair of edges but repeating both ways (`pictures_`): made when a picture first asks it.
     std::array<mlibs::rhi::Sampler, 9> edged_{};
     std::vector<Sheet>           textures_;

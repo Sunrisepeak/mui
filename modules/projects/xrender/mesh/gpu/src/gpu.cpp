@@ -67,6 +67,9 @@ struct SurfaceUniforms {
     Row          film;                             // x: iridescence; y: the film's index; z: its thickness (nanometres)
     Row          drawn;                            // x: anisotropy; y, z: its way's turn (cosine, sine)
     Row          solid;                            // x: 1 — the solids' far sides and how far what is whole is are drawn; zw: one over the frame's size
+    Row          more_shape;                       // x: 1 — the sheet of the other pictures is there; zw: one over its width and height
+    Row          more[14];                         // a picture each (coat, coat roughness, coat normal, sheen, drawn-out way, film, film thickness): its tile, then its sizes, edges and scale
+    Row          more_placing[14];                 // how each is laid over the surface: two rows a picture
     LampUniforms lamps[most_lamps];
 };
 // What the passes that draw no colour ask of a draw's material (the shaders' `Whole`).
@@ -270,6 +273,13 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
                                                          .blend = rhi::Blend::replace(),
                                                          .label = "xrender.mesh.behind.halved"});
     }
+    // A picture's size onto its tile of the sheet of the materials' other pictures.
+    auto tiled = device.create(rhi::GraphicsPipelineDesc{.vertex = &shaders::behind::behind_vs,
+                                                        .fragment = &shaders::behind::tiled_fs,
+                                                        .vertex_buffers = layout,
+                                                        .target = rhi::Format::rgba16_float,
+                                                        .blend = rhi::Blend::replace(),
+                                                        .label = "xrender.mesh.more.tiled"});
     // The far sides of the solids that let light through: the nearest face turned away at each pixel.
     rhi::Result<rhi::GraphicsPipeline> solid = rhi::GraphicsPipeline{};
     if (light)
@@ -304,6 +314,7 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
     if (drawn) pass.behind_.drawn = *drawn;
     if (halved) pass.behind_.halved = *halved;
     if (solid) pass.behind_.solid = *solid;
+    if (tiled) pass.more_.tiled = *tiled;
     if (nearest) pass.nearest_ = *nearest;
     if (pictures) pass.pictures_ = *pictures;
     if (no_shadow) pass.no_shadow_ = *no_shadow;
@@ -343,6 +354,10 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
     if (auto waited = device.wait(*submitted); !waited) return std::unexpected(waited.error());
     return pass;
 }
+void Pass::take_more(More& into, More& from) noexcept {
+    into.tiled = std::exchange(from.tiled, {}), into.sheet = std::exchange(from.sheet, {}), into.width = std::exchange(from.width, 0.0f), into.height = std::exchange(from.height, 0.0f);
+    into.tiles = std::move(from.tiles), into.wanted = std::move(from.wanted);
+}
 void Pass::take_behind(Behind& into, Behind& from) noexcept {
     into.drawn = std::exchange(from.drawn, {}), into.halved = std::exchange(from.halved, {}), into.sheet = std::exchange(from.sheet, {}), into.scratch = std::exchange(from.scratch, {});
     into.width = std::exchange(from.width, 0u), into.height = std::exchange(from.height, 0u);
@@ -355,12 +370,14 @@ Pass::Pass(Pass&& other) noexcept
     shares_ = std::exchange(other.shares_, {}), share_between_ = std::exchange(other.share_between_, {}), about_sky_ = std::exchange(other.about_sky_, {});
     edged_ = std::exchange(other.edged_, {});
     take_behind(behind_, other.behind_);
+    take_more(more_, other.more_);
 }
 Pass& Pass::operator=(Pass&& other) noexcept {
     if (this != &other) {
         release();
         device_ = std::exchange(other.device_, nullptr), pipeline_ = std::exchange(other.pipeline_, {}), ids_pipeline_ = std::exchange(other.ids_pipeline_, {}), sky_pipeline_ = std::exchange(other.sky_pipeline_, {}), shadow_pipeline_ = std::exchange(other.shadow_pipeline_, {}), lamp_shadow_pipeline_ = std::exchange(other.lamp_shadow_pipeline_, {}), who_pipeline_ = std::exchange(other.who_pipeline_, {}), velocity_pipeline_ = std::exchange(other.velocity_pipeline_, {}), velocity_who_pipeline_ = std::exchange(other.velocity_who_pipeline_, {}), surface_pipeline_ = std::exchange(other.surface_pipeline_, {}), through_pipeline_ = std::exchange(other.through_pipeline_, {}), deep_pipeline_ = std::exchange(other.deep_pipeline_, {}), under_pipeline_ = std::exchange(other.under_pipeline_, {}), laid_pipeline_ = std::exchange(other.laid_pipeline_, {}), nearest_ = std::exchange(other.nearest_, {}), pictures_ = std::exchange(other.pictures_, {}), no_shadow_ = std::exchange(other.no_shadow_, {}), cover_ = std::exchange(other.cover_, {}), meshes_ = std::move(other.meshes_), textures_ = std::move(other.textures_), materials_ = std::move(other.materials_), about_.pipeline = std::exchange(other.about_.pipeline, {}), about_.through = std::exchange(other.about_.through, {}), about_.sheet = std::exchange(other.about_.sheet, {}), about_.between = std::exchange(other.about_.between, {}), about_.said = other.about_.said, edged_ = std::exchange(other.edged_, {}), about_sky_ = std::exchange(other.about_sky_, {}), shares_ = std::exchange(other.shares_, {}), share_between_ = std::exchange(other.share_between_, {}), reversed_ = other.reversed_, light_ = other.light_, last_ = other.last_;
         take_behind(behind_, other.behind_);
+        take_more(more_, other.more_);
     }
     return *this;
 }
@@ -413,6 +430,9 @@ void Pass::release() noexcept {
     for (const rhi::Texture made : {behind_.whole, behind_.far_sides, behind_.depth})
         if (made) device_->destroy(made);
     behind_.solid = {}, behind_.whole = {}, behind_.far_sides = {}, behind_.depth = {}, behind_.solid_width = 0, behind_.solid_height = 0;
+    if (more_.tiled) device_->destroy(more_.tiled);
+    if (more_.sheet) device_->destroy(more_.sheet);
+    more_.tiled = {}, more_.sheet = {}, more_.width = 0, more_.height = 0, more_.tiles.clear(), more_.wanted.clear();
     device_ = nullptr;
 }
 
@@ -588,7 +608,7 @@ rhi::Result<void> Pass::load_textures(std::span<const Texture* const> textures) 
             }
             through = edged;
         }
-        textures_[which] = {*made, static_cast<float>(wide), static_cast<float>(high), static_cast<float>(sizes), through};
+        textures_[which] = {*made, static_cast<float>(wide), static_cast<float>(high), static_cast<float>(sizes), through, static_cast<float>(picture.across), static_cast<float>(picture.down)};
         for (std::uint32_t size = 0; size < sizes; ++size) {
             const std::uint32_t size_wide = rhi::level_extent(wide, size), size_high = rhi::level_extent(high, size);
             texels.resize(static_cast<std::size_t>(size_wide) * size_high * 4);
@@ -601,10 +621,86 @@ rhi::Result<void> Pass::load_textures(std::span<const Texture* const> textures) 
             list.upload(*made, rhi::Region{0, 0, size_wide, size_high}, std::as_bytes(std::span<const std::uint16_t>(texels)), 0, size);
         }
     }
-    if (list.empty()) return {};
+    if (!list.empty()) {
+        auto submitted = device_->submit(list);
+        if (!submitted) return std::unexpected(submitted.error());
+        auto waited = device_->wait(*submitted);
+        if (!waited) return waited;
+    }
+    static_cast<void>(keep_more(materials_));
+    return {};
+}
+
+std::vector<bool> Pass::wanted_more(std::span<const Material> materials) const {
+    std::vector<bool> wanted(textures_.size(), false);
+    for (const Material& material : materials)
+        for (const std::uint32_t which : {material.coat, material.coat_rough, material.coat_normal, material.sheen_picture, material.anisotropy_picture, material.film, material.film_thick})
+            if (which < textures_.size() && textures_[which].texture) wanted[which] = true;
+    return wanted;
+}
+bool Pass::keep_more(std::span<const Material> materials) {
+    if (!device_ || !more_.tiled || !cover_) return false;
+    std::vector<bool> wanted = wanted_more(materials);
+    more_.wanted = wanted;
+    std::vector<std::array<float, 8>> tiles(textures_.size(), std::array<float, 8>{});
+    // Laid in rows, the tallest first, no row wider than the device's largest texture.
+    std::vector<std::uint32_t> order;
+    for (std::uint32_t which = 0; which < wanted.size(); ++which)
+        if (wanted[which]) order.push_back(which);
+    const auto extent = [](float side, std::uint32_t size) { return std::max(static_cast<float>(static_cast<std::uint32_t>(side) >> size), 1.0f); };
+    const auto tile_size = [&](const Sheet& sheet) {
+        float column = 0;
+        for (std::uint32_t size = 1; size < static_cast<std::uint32_t>(sheet.sizes); ++size) column += extent(sheet.height, size) + 2;
+        return std::array<float, 2>{sheet.width + 2 + (sheet.sizes > 1 ? extent(sheet.width, 1) + 2 : 0), std::max(sheet.height + 2, column)};
+    };
+    std::ranges::stable_sort(order, [&](std::uint32_t one, std::uint32_t other) { return tile_size(textures_[one])[1] > tile_size(textures_[other])[1]; });
+    const float limit = static_cast<float>(std::min(device_->caps().max_texture_size, 8192u));
+    float x = 0, y = 0, row_height = 0, width = 0;
+    for (const std::uint32_t which : order) {
+        const auto [wide, high] = tile_size(textures_[which]);
+        if (wide > limit) continue;
+        if (x + wide > limit) y += row_height, x = 0, row_height = 0;
+        if (y + high > limit) continue;  // past the largest texture: that picture is not on the sheet
+        tiles[which] = {x, y, textures_[which].width, textures_[which].height, textures_[which].sizes, textures_[which].across, textures_[which].down, 0};
+        x += wide, row_height = std::max(row_height, high), width = std::max(width, x);
+    }
+    const float height = y + row_height;
+    static_cast<void>(device_->wait_idle());
+    if (more_.sheet) device_->destroy(more_.sheet);
+    more_.sheet = {}, more_.width = 0, more_.height = 0, more_.tiles = std::move(tiles);
+    if (!(width > 0) || !(height > 0)) return order.empty();
+    auto sheet = device_->create(rhi::TextureDesc{rhi::Format::rgba16_float, static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height), rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "xrender.mesh.more"});
+    if (!sheet) return false;
+    more_.sheet = *sheet, more_.width = width, more_.height = height;
+    // Each size of each picture onto its square of the tile, a texel about it, by the picture's own sampler.
+    struct TiledUniforms {
+        Row from, size;
+    };
+    rhi::CommandList list;
+    bool first = true;
+    for (std::uint32_t which = 0; which < more_.tiles.size(); ++which) {
+        const std::array<float, 8>& tile = more_.tiles[which];
+        if (!(tile[2] > 0)) continue;
+        float at_y = tile[1];
+        for (std::uint32_t size = 0; size < static_cast<std::uint32_t>(tile[4]); ++size) {
+            const float wide = extent(tile[2], size), high = extent(tile[3], size);
+            const float at_x = size == 0 ? tile[0] : tile[0] + tile[2] + 2;
+            list.begin_render({more_.sheet, first ? rhi::LoadOp::clear : rhi::LoadOp::load, {0, 0, 0, 0}});
+            first = false;
+            list.set_viewport(0, 0, width, height);
+            list.set_scissor(rhi::Region{static_cast<std::uint32_t>(at_x), static_cast<std::uint32_t>(at_y), static_cast<std::uint32_t>(wide + 2), static_cast<std::uint32_t>(high + 2)});
+            list.set_pipeline(more_.tiled);
+            list.push_uniforms(rhi::Stage::fragment, 0, TiledUniforms{{at_x, at_y, wide, high}, {static_cast<float>(size), 0, 0, 0}});
+            list.bind_texture(rhi::Stage::fragment, 0, textures_[which].texture, textures_[which].through);
+            list.bind_vertex_buffer(0, cover_);
+            list.draw(3);
+            list.end_render();
+            if (size > 0) at_y += high + 2;
+        }
+    }
+    if (list.empty()) return true;
     auto submitted = device_->submit(list);
-    if (!submitted) return std::unexpected(submitted.error());
-    return device_->wait(*submitted);
+    return submitted && device_->wait(*submitted).has_value();
 }
 
 const Pass::Sheet* Pass::cover_of(const Material& material, std::uint32_t mesh) const noexcept {
@@ -693,6 +789,8 @@ std::uint32_t Pass::keep_behind(rhi::CommandList& list, rhi::Texture colour, std
 void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, std::span<const Material> materials, rhi::Texture colour,
                   rhi::Texture depth, std::uint32_t width, std::uint32_t height, const Options& options, const Shadows* shadows, const Layers* layers) {
     last_ = {};
+    // The sheet of the materials' other pictures is made for the pictures these materials name; else again.
+    if (more_.tiled && wanted_more(materials) != more_.wanted) static_cast<void>(keep_more(materials));
     const Mat4 clip = view.projection * view.view;
     const std::optional<Mat4> camera = math::inverse(view.view);
     const Vec3 eye = camera ? math::point(*camera, {0, 0, 0}) : Vec3{};
@@ -877,8 +975,9 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
     }
     last_.about = pictured ? 1 : 0;
     list.set_pipeline(pictured ? about_.pipeline : pipeline_);
-    if (pictured) list.bind_texture(rhi::Stage::fragment, 14, about_.sheet, about_.between), list.push_uniforms(rhi::Stage::fragment, 1, about_.said);
+    if (pictured) list.bind_texture(rhi::Stage::fragment, 15, about_.sheet, about_.between), list.push_uniforms(rhi::Stage::fragment, 1, about_.said);
     list.bind_texture(rhi::Stage::fragment, 10, shares_, share_between_);
+    list.bind_texture(rhi::Stage::fragment, 14, more_.sheet ? more_.sheet : no_shadow_, more_.sheet ? share_between_ : nearest_);
     list.bind_texture(rhi::Stage::fragment, 0, map, nearest_);
     list.bind_texture(rhi::Stage::fragment, 1, lamp_map, nearest_);
     const bool opened = shadows && shadows->open && width > 0 && height > 0;
@@ -935,10 +1034,25 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
         const Mirrors ends = mirrors_of(dielectric);
         surface.mirrors = of(ends.head_on, ends.edge);
         surface.sheen = of(material.sheen, material.sheen_roughness);
-        surface.film = {std::clamp(material.iridescence, 0.0f, 1.0f), material.film_ior, material.film_thickness, 0};
+        surface.film = {std::clamp(material.iridescence, 0.0f, 1.0f), material.film_ior, material.film_thickness, material.film_thinnest};
         surface.drawn = {std::clamp(material.anisotropy, 0.0f, 1.0f), static_cast<float>(math::det::cos(static_cast<double>(material.anisotropy_rotation))),
                          static_cast<float>(math::det::sin(static_cast<double>(material.anisotropy_rotation))), 0};
-        surface.coat = {std::clamp(material.clearcoat, 0.0f, 1.0f), std::clamp(material.clearcoat_roughness, 0.04f, 1.0f), 0, 0};
+        surface.coat = {std::clamp(material.clearcoat, 0.0f, 1.0f), std::clamp(material.clearcoat_roughness, 0.04f, 1.0f), material.clearcoat_roughness, 0};
+        // Its other pictures, where they are on the sheet and the mesh says where its corners are in them.
+        surface.more_shape = more_.sheet ? Row{1, 0, 1.0f / more_.width, 1.0f / more_.height} : Row{};
+        const std::array<std::pair<std::uint32_t, const Placing*>, 7> others{std::pair{material.coat, &material.placing.coat}, std::pair{material.coat_rough, &material.placing.coat_rough},
+                                                                             std::pair{material.coat_normal, &material.placing.coat_normal}, std::pair{material.sheen_picture, &material.placing.sheen},
+                                                                             std::pair{material.anisotropy_picture, &material.placing.anisotropy}, std::pair{material.film, &material.placing.film},
+                                                                             std::pair{material.film_thick, &material.placing.film_thick}};
+        for (std::size_t which = 0; which < others.size(); ++which) {
+            const auto [texture, laid_by] = others[which];
+            const bool there = more_.sheet && texture < more_.tiles.size() && more_.tiles[texture][2] > 0 && meshes_[draw.mesh].placed[laid_by->set ? 1 : 0];
+            const std::array<float, 8> tile = there ? more_.tiles[texture] : std::array<float, 8>{};
+            surface.more[which * 2] = {tile[0], tile[1], tile[2], tile[3]};
+            surface.more[which * 2 + 1] = {tile[4], tile[5], tile[6], which == 2 ? material.coat_normal_scale : 0.0f};
+            surface.more_placing[which * 2] = across_of(*laid_by), surface.more_placing[which * 2 + 1] = down_of(*laid_by);
+            if (counted && there) ++last_.textured;
+        }
         surface.clearness_picture = said(clearness[0], 0), surface.thick_picture = said(clearness[1], 0);
         surface.placing[10] = across_of(material.placing.clearness), surface.placing[11] = down_of(material.placing.clearness);
         surface.placing[12] = across_of(material.placing.thick), surface.placing[13] = down_of(material.placing.thick);
@@ -999,8 +1113,9 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
         list.begin_render({colour, rhi::LoadOp::load}, {.texture = depth, .load = rhi::LoadOp::load});
         list.set_viewport(0, 0, static_cast<float>(width), static_cast<float>(height));
         list.set_pipeline(pictured ? about_.pipeline : pipeline_);
-        if (pictured) list.bind_texture(rhi::Stage::fragment, 14, about_.sheet, about_.between), list.push_uniforms(rhi::Stage::fragment, 1, about_.said);
+        if (pictured) list.bind_texture(rhi::Stage::fragment, 15, about_.sheet, about_.between), list.push_uniforms(rhi::Stage::fragment, 1, about_.said);
         list.bind_texture(rhi::Stage::fragment, 10, shares_, share_between_);
+        list.bind_texture(rhi::Stage::fragment, 14, more_.sheet ? more_.sheet : no_shadow_, more_.sheet ? share_between_ : nearest_);
         list.bind_texture(rhi::Stage::fragment, 0, map, nearest_);
         list.bind_texture(rhi::Stage::fragment, 1, lamp_map, nearest_);
         list.bind_texture(rhi::Stage::fragment, 3, opened ? shadows->open : no_shadow_, nearest_);
@@ -1067,8 +1182,9 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
         list.begin_render({layers->layer, rhi::LoadOp::clear, {0, 0, 0, 0}}, {layers->depth, rhi::LoadOp::clear, far}, and_deep);
         list.set_viewport(0, 0, static_cast<float>(width), static_cast<float>(height));
         list.set_pipeline(pictured && about_.through ? about_.through : through_pipeline_);
-        if (pictured && about_.through) list.bind_texture(rhi::Stage::fragment, 14, about_.sheet, about_.between), list.push_uniforms(rhi::Stage::fragment, 1, about_.said);
+        if (pictured && about_.through) list.bind_texture(rhi::Stage::fragment, 15, about_.sheet, about_.between), list.push_uniforms(rhi::Stage::fragment, 1, about_.said);
         list.bind_texture(rhi::Stage::fragment, 10, shares_, share_between_);
+        list.bind_texture(rhi::Stage::fragment, 14, more_.sheet ? more_.sheet : no_shadow_, more_.sheet ? share_between_ : nearest_);
         list.bind_texture(rhi::Stage::fragment, 0, map, nearest_);
         list.bind_texture(rhi::Stage::fragment, 1, lamp_map, nearest_);
         list.bind_texture(rhi::Stage::fragment, 3, opened ? shadows->open : no_shadow_, nearest_);

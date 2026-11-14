@@ -42,3 +42,13 @@ float4 halved_fs(VOut point) : SV_Target {
     const float4 sum = texel(halved.from.xy + first) + texel(halved.from.xy + float2(second.x, first.y)) + texel(halved.from.xy + float2(first.x, second.y)) + texel(halved.from.xy + second);
     return sum * 0.25;
 }
+
+// A picture's size onto its square of the sheet of the materials' other pictures, with a texel about it: each
+// texel the picture there, read by the picture's own sampler (repeating, mirrored or stopped past its edges, as
+// the texel about the square then is). `halved.from`: xy where the square's first texel (the one about it) is on
+// the sheet, zw the size's width and height; `halved.size.x`: which size.
+[shader("fragment")]
+float4 tiled_fs(VOut point) : SV_Target {
+    const float2 within = floor(point.clip.xy) - halved.from.xy - 1.0;
+    return finer_map.SampleLevel((within + 0.5) / halved.from.zw, halved.size.x);
+}

@@ -1043,6 +1043,109 @@ Cases suite_of() {
         held(Kind::edged);
         held(Kind::cornered);
     });
+    // the layers' own pictures on the device are the reference's, all read through one sheet (WebGL2's 16 samplers):
+    // a clear coat's amount, roughness and normal, a sheen's colour, a drawn-out highlight's way and strength, a
+    // film's amount and thickness — four balls before the yard, under the plain surroundings and under a picture
+    add(suite, "mesh.layers", [](Rig& rig) {
+        rhi::Device* const device = &rig.device;
+        // Stripes: red across, green down, blue in squares; and bumps: a normal leaning around in rings.
+        std::vector<std::uint8_t> striped(64 * 64 * 4, 255), bumped(64 * 64 * 4, 255);
+        for (int y = 0; y < 64; ++y)
+            for (int x = 0; x < 64; ++x) {
+                const std::size_t at = static_cast<std::size_t>(y * 64 + x) * 4;
+                striped[at] = static_cast<std::uint8_t>(40 + x * 3), striped[at + 1] = static_cast<std::uint8_t>(30 + y * 3), striped[at + 2] = ((x / 16) + (y / 16)) % 2 ? 230 : 60;
+                const double turn = math::det::two_pi * (x + y) / 32.0;
+                bumped[at] = static_cast<std::uint8_t>(128 + 60 * math::det::cos(turn)), bumped[at + 1] = static_cast<std::uint8_t>(128 + 60 * math::det::sin(turn)), bumped[at + 2] = 230;
+            }
+        mesh::Texture stripes = *mesh::Texture::made(striped, 64, 64), mirrored_stripes = stripes, stopped_stripes = stripes;
+        mirrored_stripes.across = mesh::Edge::mirrors, stopped_stripes.down = mesh::Edge::stops;
+        const mesh::Texture bumps = *mesh::Texture::made(bumped, 64, 64, mesh::Coding::plain);
+        const std::array<const mesh::Texture*, 4> textures{&stripes, &mirrored_stripes, &stopped_stripes, &bumps};
+        Yard yard(true, true);
+        const mesh::Placings twice = mesh::Placings::all(mesh::Placing::made({0, 0}, 0, {2, 2}));
+        mesh::Material coated{.base = {0.6f, 0.05f, 0.04f}, .roughness = 0.6f, .metallic = 0};
+        coated.clearcoat = 1, coated.clearcoat_roughness = 0.5f, coated.coat = 0, coated.coat_rough = 1, coated.coat_normal = 3, coated.coat_normal_scale = 0.8f, coated.placing = twice;
+        mesh::Material velvet{.base = {0.05f, 0.08f, 0.3f}, .roughness = 0.8f, .metallic = 0};
+        velvet.sheen = {0.9f, 0.9f, 0.9f}, velvet.sheen_roughness = 0.4f, velvet.sheen_picture = 2;
+        mesh::Material brushed{.base = {0.9f, 0.9f, 0.92f}, .roughness = 0.3f, .metallic = 1};
+        brushed.anisotropy = 0.9f, brushed.anisotropy_rotation = 0.4f, brushed.anisotropy_picture = 0;
+        mesh::Material filmed{.base = {0.1f, 0.1f, 0.1f}, .roughness = 0.2f, .metallic = 0};
+        filmed.iridescence = 1, filmed.film_ior = 1.3f, filmed.film_thinnest = 100, filmed.film_thickness = 600, filmed.film = 1, filmed.film_thick = 0;
+        const std::array<std::pair<mesh::Material, math::Vec3>, 4> balls{std::pair{coated, math::Vec3{-2.4f, -0.1f, 1.8f}}, std::pair{velvet, math::Vec3{-0.8f, -0.1f, 2.2f}},
+                                                                          std::pair{brushed, math::Vec3{0.8f, -0.1f, 2.2f}}, std::pair{filmed, math::Vec3{2.4f, -0.1f, 1.8f}}};
+        for (std::uint32_t which = 0; which < balls.size(); ++which) {
+            yard.materials.push_back(balls[which].first);
+            expect(yard.world.add({.id = 60 + which, .mesh = 2, .material = static_cast<std::uint32_t>(yard.materials.size() - 1), .world = math::Transform{balls[which].second, {}, {0.7f, 0.7f, 0.7f}}.matrix(),
+                                   .bounds = geom::bounds(yard.made[2].mesh)})
+                       .has_value());
+        }
+        // A sky brighter overhead and a warm ground, for the pictured surroundings.
+        std::vector<float> rgb(128 * 64 * 3);
+        for (int row = 0; row < 64; ++row)
+            for (int column = 0; column < 128; ++column) {
+                const double down = (row + 0.5) / 64 * math::det::pi;
+                const math::Vec3 light = math::det::cos(down) > 0 ? math::Vec3{0.3f, 0.5f, 0.9f} * static_cast<float>(0.5 + 0.9 * math::det::cos(down)) : math::Vec3{0.3f, 0.24f, 0.18f};
+                const std::size_t at = (static_cast<std::size_t>(row) * 128 + static_cast<std::size_t>(column)) * 3;
+                rgb[at] = light.x, rgb[at + 1] = light.y, rgb[at + 2] = light.z;
+            }
+        const auto surroundings = mesh::Surroundings::made(rgb, 128, 64);
+        if (!(expect(surroundings.has_value()))) return;
+        for (const bool pictured : {false, true}) {
+            const mesh::Options lit_by{.shadows = false, .environment = pictured ? mesh::Environment{.on = true, .picture = &*surroundings} : mesh::Environment{.on = true}};
+            scene::Extracted seen;
+            scene::extract(yard.world, yard.view(), seen);
+            mesh::Targets reference;
+            reference.resize(static_cast<int>(width), static_cast<int>(height));
+            mesh::Pass on_cpu;
+            on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}, textures}, reference, lit_by);
+            auto pass = mesh::gpu::Pass::make(*device);
+            if (!(expect(pass.has_value()) << (pass ? "" : pass.error().message))) return;
+            if (!(expect(pass->load(yard.meshes).has_value()))) return;
+            const auto loaded = pass->load_textures(textures);
+            if (!(expect(loaded.has_value()) << (loaded ? "" : loaded.error().message))) return;
+            if (pictured && !(expect(pass->load_surroundings(&*surroundings).has_value()))) return;
+            const auto colour = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, width, height, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "mesh.colour"});
+            const auto depth = device->create(rhi::TextureDesc{rhi::Format::d32_float, width, height, rhi::TextureUsage::depth_target, "mesh.depth"});
+            if (!(expect(colour.has_value() && depth.has_value()))) return;
+            rhi::CommandList list;
+            pass->record(list, yard.world, seen, yard.view(), yard.materials, *colour, *depth, width, height, lit_by);
+            const mesh::gpu::Stats told = pass->last();
+            const auto submitted = device->submit(list);
+            if (!(expect(submitted.has_value()) << (submitted ? "" : submitted.error().message))) return;
+            expect(device->wait(*submitted).has_value());
+            const auto pixels = device->read(*colour, rhi::Region{0, 0, width, height});
+            if (!(expect(pixels.has_value()) << (pixels ? "" : pixels.error().message))) return;
+            keep(*pixels, pictured ? "yard-layers-pictured" : "yard-layers");
+            std::vector<std::byte> of_reference(reference.colour.size());
+            std::memcpy(of_reference.data(), reference.colour.data(), reference.colour.size());
+            keep(of_reference, pictured ? "yard-layers-pictured-reference" : "yard-layers-reference");
+            const Apart all = apart(reference, *pixels, false, 6);
+            std::array<std::size_t, 4> ball_seen{}, ball_off{};
+            for (std::size_t pixel = 0; pixel < reference.ids.size(); ++pixel) {
+                const std::uint32_t is = reference.ids[pixel].draw;
+                if (is == mesh::none || reference.draws[is].id < 60) continue;
+                const std::size_t ball = reference.draws[is].id - 60;
+                ++ball_seen[ball];
+                for (std::size_t channel = 0; channel < 3; ++channel)
+                    if (std::abs(static_cast<int>(reference.colour[pixel * 4 + channel]) - std::to_integer<int>((*pixels)[pixel * 4 + channel])) > 6) {
+                        ++ball_off[ball];
+                        break;
+                    }
+            }
+            std::println("the layers' own pictures{}: {} draws with pictures; {} of {} pixels further than 6 levels from the reference, mean {:.3f}, worst {}; coat {} of {}, sheen {} of {}, drawn out {} of {}, film {} of {}",
+                         pictured ? " under a picture" : "", told.textured, all.off, all.compared, all.mean, all.worst, ball_off[0], ball_seen[0], ball_off[1], ball_seen[1], ball_off[2], ball_seen[2], ball_off[3], ball_seen[3]);
+            expect(ge(told.textured, 6u)) << told.textured;
+            // Measured on lavapipe and an RTX 4080: of each ball's 2,700–2,950 pixels at most 3 further than 6
+            // levels, the drawn-out one's 8 and 14 (its rings' edges, as `mesh.about`'s); 13–19 over the frame.
+            for (std::size_t ball = 0; ball < 4; ++ball) {
+                expect(gt(ball_seen[ball], std::size_t{1000})) << ball;
+                expect(lt(static_cast<double>(ball_off[ball]), 0.008 * static_cast<double>(ball_seen[ball]))) << ball << ": " << ball_off[ball] << " of " << ball_seen[ball];
+            }
+            expect(lt(static_cast<double>(all.off), 0.0005 * static_cast<double>(all.compared)));
+            static_cast<void>(device->wait_idle());
+            device->destroy(*colour), device->destroy(*depth);
+        }
+    });
     // the surface's other pictures on the device are the reference's: roughness and metal, the normal (by the mesh's tangents and, on a mesh with none, worked out at the pixel), emission and shade from pictures
     add(suite, "mesh.surface", [](Rig& rig) {
         rhi::Device* const device = &rig.device;

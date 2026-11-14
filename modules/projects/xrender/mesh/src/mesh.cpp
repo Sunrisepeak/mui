@@ -456,11 +456,12 @@ struct Raster {
         // corners are taken the other way round: a front is above 0, and "inside" is above 0 for every edge.
         // An instance its place mirrors (a negative scale) shows its fronts the other way round.
         std::array<const Corner*, 3> corners{&first, turned_over ? &second : &third, turned_over ? &third : &second};
-        // For a normal picture on a mesh with no tangents: the way the surface goes as the picture's first
-        // coordinate grows, and against its second (up the picture), from this triangle's own corners.
+        // For a normal picture (the surface's or its clear coat's) on a mesh with no tangents: the way the surface
+        // goes as the picture's first coordinate grows, and against its second (up the picture), from this
+        // triangle's own corners.
         const bool tangents = !(first.tangent.x == 0 && first.tangent.y == 0 && first.tangent.z == 0);
         std::array<Vec3, 2> bent{};
-        if ((normal_picture || own.anisotropy > 0) && !tangents) {
+        if ((normal_picture || coat_normal_picture || own.anisotropy > 0) && !tangents) {
             const Vec3 one = corners[1]->place - corners[0]->place, two = corners[2]->place - corners[0]->place;
             const Placing& laid_so = own.placing.normal;
             const Vec2 first_uv = set_of(corners[0]->uv, laid_so.set), second_uv = set_of(corners[1]->uv, laid_so.set), third_uv = set_of(corners[2]->uv, laid_so.set);

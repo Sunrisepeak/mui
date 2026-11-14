@@ -39,7 +39,7 @@ struct Placed {
 struct Imported {
     std::vector<mlibs::geom::ClusteredMesh> meshes;     // one a primitive carried, in the document's order
     std::vector<mesh::Material>             materials;  // the document's, in its order; then the one a primitive with none is given
-    std::vector<mesh::Texture>              textures;   // the pictures a material's base colour names
+    std::vector<mesh::Texture>              textures;   // the pictures the materials name: colours (base, emission) and plain numbers (the surface's, the normal, shade)
     // `mesh` and `material` are places in the two above (`place` adds where its caller keeps them); `bounds` the
     // mesh's. In id order.
     std::vector<scene::Instance> instances;

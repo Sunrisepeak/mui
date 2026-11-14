@@ -39,6 +39,14 @@ struct Material {
     float roughness = 1;  // 1 matt … 0 a mirror (held to 0.04 at least: a point of light has no size)
     float metallic = 0;   // 0 … 1
     std::uint32_t texture = 0xffffffffu;  // none, or which of `Assets::textures` its base colour is multiplied by
+    // The surface's other pictures (glTF's set): each none, or one of `Assets::textures`, laid by the same texture
+    // coordinates as the base colour's. The first, the second and the fourth are numbers and not colours (`Coding::plain`).
+    std::uint32_t surface = 0xffffffffu;  // its green multiplies `roughness`, its blue `metallic`
+    std::uint32_t normal = 0xffffffffu;   // which way the surface faces about its own normal: red along the picture, green up it, blue out (each × 2 − 1)
+    std::uint32_t glow = 0xffffffffu;     // a colour: multiplies `emissive`
+    std::uint32_t shade = 0xffffffffu;    // its red is the share of the light from everywhere that reaches the surface (often the same picture as `surface`)
+    float normal_scale = 1;    // the normal picture's red and green by this much
+    float shade_strength = 1;  // 0: the shade picture says nothing … 1: all it says
     [[nodiscard]] constexpr bool matt() const noexcept { return roughness >= 1 && metallic <= 0; }
 };
 // What a surface sends toward the eye of light arriving along `toward_light` (all of length 1; `facing` the
@@ -53,12 +61,16 @@ struct Material {
 // of four of the one before: a surface far away or seen at a slant takes its colour from the size whose texels
 // are about a pixel across, mixed with the next, so a pattern does not shimmer or band where it is small; at a slant several places along
 // the pixel's strip are taken (`over`).
+// What a picture's bytes are: colours as a display shows them (sRGB: the display's curve is taken off once), or
+// plain numbers — a normal, a roughness — kept as they are (a byte ÷ 255).
+enum class Coding : std::uint8_t { colour, plain };
 struct Texture {
     int width = 0, height = 0;
     std::vector<Vec3>        light;   // every size's texels, a row after a row, the finest size first
     std::vector<std::uint32_t> sizes; // where each size begins in `light`
-    // From rgba8 in sRGB (`width` × `height` × 4, rows from the top). Nothing: no size, no pixels, or too few bytes.
-    [[nodiscard]] static std::optional<Texture> made(std::span<const std::uint8_t> rgba, int width, int height);
+    // From rgba8 (`width` × `height` × 4, rows from the top), colours in sRGB unless said plain. Nothing: no size,
+    // no pixels, or too few bytes.
+    [[nodiscard]] static std::optional<Texture> made(std::span<const std::uint8_t> rgba, int width, int height, Coding coding = Coding::colour);
     // Its light at `uv` (0 … 1 across and down, repeating), for a pixel that covers `footprint` texels of the finest
     // size across. Between four texels of a size, between two sizes. The same bits everywhere.
     [[nodiscard]] Vec3 at(Vec2 uv, float footprint) const noexcept;

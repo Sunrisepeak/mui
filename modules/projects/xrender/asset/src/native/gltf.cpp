@@ -140,44 +140,47 @@ struct Maker {
     const cgltf_data& data;
     const Options&    options;
     Imported          out;
-    std::vector<std::uint32_t> texture_of_image;  // by the document's image number: none yet (~0), not carried (~0 − 1), or its place
+    // By the document's image number, as colours and as plain numbers (a picture used both ways is two textures):
+    // not asked for yet (~0), not carried (~0 − 1), or its place in `out.textures`.
+    std::vector<std::array<std::uint32_t, 2>> texture_of_image;
     static constexpr std::uint32_t unasked = 0xffffffffu, refused = 0xfffffffeu;
 
     void note(std::string where, std::string what, std::string instead) { out.notes.push_back({std::move(where), std::move(what), std::move(instead)}); }
 
-    // The texture a material's base colour names: its place in `out.textures`, or none (with a note of why).
-    std::uint32_t base_texture(const cgltf_texture_view& view, std::size_t material) {
-        const std::string where = std::format("/materials/{}/pbrMetallicRoughness/baseColorTexture", material);
+    // The texture a material names for one of its pictures: its place in `out.textures`, or none (with a note of
+    // why). `where` is the document's place of the naming; `instead` what the material is left with.
+    std::uint32_t picture(const cgltf_texture_view& view, const std::string& where, mesh::Coding coding, std::string_view instead) {
         const cgltf_texture& texture = *view.texture;
         const std::size_t texture_index = cgltf_texture_index(&data, &texture);
         const cgltf_image* image = texture.image ? texture.image : texture.has_webp ? texture.webp_image : nullptr;
         if (!image) {
-            note(std::format("/textures/{}", texture_index), texture.has_basisu ? "a KTX2 picture (KHR_texture_basisu), which is not decoded yet" : "a texture with no picture",
-                 "the material's base colour factor alone");
+            note(std::format("/textures/{}", texture_index), texture.has_basisu ? "a KTX2 picture (KHR_texture_basisu), which is not decoded yet" : "a texture with no picture", std::string(instead));
             return mesh::Material{}.texture;
         }
         const std::size_t image_index = cgltf_image_index(&data, image);
-        if (texture_of_image[image_index] == unasked) {
-            texture_of_image[image_index] = refused;
+        std::array<std::uint32_t, 2>& made_as = texture_of_image[image_index];
+        const std::size_t as = coding == mesh::Coding::colour ? 0 : 1;
+        if (made_as[as] == unasked && made_as[1 - as] != refused) {
+            made_as[as] = refused;
             const auto bytes = picture_bytes(*image, options);
             auto decoded = bytes ? mlibs::image::decode(*bytes) : std::unexpected(bytes.error());
             std::optional<mesh::Texture> made;
-            if (decoded) made = mesh::Texture::made(decoded->rgba, decoded->width, decoded->height);
+            if (decoded) made = mesh::Texture::made(decoded->rgba, decoded->width, decoded->height, coding);
             if (made) {
-                texture_of_image[image_index] = static_cast<std::uint32_t>(out.textures.size());
+                made_as[as] = static_cast<std::uint32_t>(out.textures.size());
                 out.textures.push_back(std::move(*made));
             } else {
                 note(std::format("/images/{}", image_index),
                      std::format("a picture that is not read{}: {}", image->mime_type ? std::format(" ({})", image->mime_type) : std::string(), decoded ? "it has no pixels" : decoded.error()),
-                     "the base colour factor alone, for every material that names it (PNG and WebP are read)");
+                     "every material that names it is left with its own numbers alone (PNG and WebP are read)");
             }
         }
-        if (texture_of_image[image_index] == refused) return mesh::Material{}.texture;
+        if (made_as[as] == refused || made_as[as] == unasked) return mesh::Material{}.texture;
         if (view.texcoord != 0) note(where + "/texCoord", std::format("texture coordinates {}", view.texcoord), "the mesh's first (TEXCOORD_0)");
         if (view.has_transform) note(where + "/extensions/KHR_texture_transform", "the picture moved, turned or scaled over the surface", "laid as the texture coordinates say");
         if (texture.sampler && (texture.sampler->wrap_s != cgltf_wrap_mode_repeat || texture.sampler->wrap_t != cgltf_wrap_mode_repeat))
             note(std::format("/samplers/{}", cgltf_sampler_index(&data, texture.sampler)), "a picture that stops or mirrors at its edge", "it repeats");
-        return texture_of_image[image_index];
+        return made_as[as];
     }
 
     void materials() {
@@ -190,15 +193,22 @@ struct Maker {
                 const cgltf_pbr_metallic_roughness& pbr = from.pbr_metallic_roughness;
                 made.base = {pbr.base_color_factor[0], pbr.base_color_factor[1], pbr.base_color_factor[2]};
                 made.roughness = pbr.roughness_factor, made.metallic = pbr.metallic_factor;
-                if (pbr.base_color_texture.texture) made.texture = base_texture(pbr.base_color_texture, index);
+                if (pbr.base_color_texture.texture)
+                    made.texture = picture(pbr.base_color_texture, where + "/pbrMetallicRoughness/baseColorTexture", mesh::Coding::colour, "the material's base colour factor alone");
                 if (pbr.metallic_roughness_texture.texture)
-                    note(where + "/pbrMetallicRoughness/metallicRoughnessTexture", "roughness and metal from a picture", "the two factors over the whole surface");
+                    made.surface = picture(pbr.metallic_roughness_texture, where + "/pbrMetallicRoughness/metallicRoughnessTexture", mesh::Coding::plain, "the two factors over the whole surface");
             }
             const float strength = from.has_emissive_strength ? from.emissive_strength.emissive_strength : 1.0f;
             made.emissive = {from.emissive_factor[0] * strength, from.emissive_factor[1] * strength, from.emissive_factor[2] * strength};
-            if (from.normal_texture.texture) note(where + "/normalTexture", "a normal map", "the mesh's own normals");
-            if (from.occlusion_texture.texture) note(where + "/occlusionTexture", "ambient occlusion from a picture", "left out (the pass has its own occlusion)");
-            if (from.emissive_texture.texture) note(where + "/emissiveTexture", "what it gives off from a picture", "the emissive factor over the whole surface");
+            if (from.normal_texture.texture) {
+                made.normal = picture(from.normal_texture, where + "/normalTexture", mesh::Coding::plain, "the mesh's own normals");
+                made.normal_scale = from.normal_texture.scale;
+            }
+            if (from.occlusion_texture.texture) {
+                made.shade = picture(from.occlusion_texture, where + "/occlusionTexture", mesh::Coding::plain, "all of the light from everywhere");
+                made.shade_strength = from.occlusion_texture.scale;
+            }
+            if (from.emissive_texture.texture) made.glow = picture(from.emissive_texture, where + "/emissiveTexture", mesh::Coding::colour, "the emissive factor over the whole surface");
             if (from.alpha_mode != cgltf_alpha_mode_opaque)
                 note(where + "/alphaMode", from.alpha_mode == cgltf_alpha_mode_mask ? "cut out by its alpha (MASK)" : "seen through by its alpha (BLEND)", "drawn solid");
             if (from.double_sided) note(where + "/doubleSided", "a surface seen from both sides", "seen from its front");
@@ -315,7 +325,7 @@ struct Maker {
             for (std::size_t other = 0; other < data.extensions_required_count; ++other) required = required || name == data.extensions_required[other];
             note(std::format("/extensionsUsed/{}", index), std::format("the extension {}{}", name, required ? " (the document requires it)" : ""), "what it adds is left out");
         }
-        texture_of_image.assign(data.images_count, unasked);
+        texture_of_image.assign(data.images_count, {unasked, unasked});
         materials();
 
         // A mesh a primitive; which of `out.meshes` each of the document's primitives became.

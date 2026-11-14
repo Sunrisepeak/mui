@@ -15,9 +15,9 @@ for (const asset::Note& note : model->notes)                 // /materials/0/nor
 
 | | |
 |---|---|
-| **What is made** | A mesh in clusters a primitive (`mlibs.geom`'s `ClusteredMesh`: positions, normals, tangents, the first texture coordinates, indices; triangles, strips and fans), the materials (base colour, roughness, metal, emission with `KHR_materials_emissive_strength`; glTF's own defaults where the document is silent), the pictures a base colour names as `xrender.mesh` textures (PNG and WebP, `EXT_texture_webp`; in a buffer, in the document as base64, or in a file beside it), an instance for each primitive of each node of the scene at the node's place in the world, and `KHR_lights_punctual`'s lights. Numbers packed as `KHR_mesh_quantization` allows are read |
+| **What is made** | A mesh in clusters a primitive (`mlibs.geom`'s `ClusteredMesh`: positions, normals, tangents, the first texture coordinates, indices; triangles, strips and fans), the materials (base colour, roughness, metal, emission with `KHR_materials_emissive_strength`; glTF's own defaults where the document is silent) with all five of their pictures — base colour, metal-roughness, normal, occlusion, emission — as `xrender.mesh` textures, colours as colours and numbers as plain numbers (PNG and WebP, `EXT_texture_webp`; in a buffer, in the document as base64, or in a file beside it), an instance for each primitive of each node of the scene at the node's place in the world, and `KHR_lights_punctual`'s lights. Numbers packed as `KHR_mesh_quantization` allows are read |
 | **Stable ids** | An instance's id is the file's place: `base + (node + 1) × 65,536 + primitive + 1`; a light's `base + node + 1`. The same document gives the same ids in every run, and `Options::base` keeps two documents apart in one scene. `Imported::placed` says each instance's node, mesh, primitive and name |
-| **Notes** | What the document says that is not in what was made is never dropped in silence: a `Note` each, with where it is in the document (a JSON pointer: `/materials/2/normalTexture`), what it is, and what was done instead. Today: normal, occlusion, emissive and metal-roughness pictures; alpha modes; two-sided surfaces; the `KHR_materials_*` extensions beyond emission's strength; texture transforms and further sets of coordinates; colours a corner; skins, morph targets, animations, cameras; points and lines; pictures that are not PNG or WebP (JPEG, KTX2); Draco and meshopt packing; any other extension. The list is the measure of what stands between this and the Khronos sample set drawn whole |
+| **Notes** | What the document says that is not in what was made is never dropped in silence: a `Note` each, with where it is in the document (a JSON pointer: `/materials/2/normalTexture`), what it is, and what was done instead. Today: alpha modes; two-sided surfaces; the `KHR_materials_*` extensions beyond emission's strength; texture transforms and further sets of coordinates; colours a corner; skins, morph targets, animations, cameras; points and lines; pictures that are not PNG or WebP (JPEG, KTX2); Draco and meshopt packing; any other extension. The list is the measure of what stands between this and the Khronos sample set drawn whole |
 | **Refusals** | What cannot be read is refused with its reason and nothing is made: JSON that does not parse, a number that names what is not there, accessors that reach past their buffers, an index that names no position, a file beside the document that cannot be read (or no way given to read one), a document that requires Draco or meshopt packing. Nothing of a file is trusted: the parser's validation first, then `mlibs.geom`'s `check` on every mesh; an accessor with no bytes behind it (a length nobody vouches for) is not read |
 | **Files beside the document** | `gltf_file` reads them from the document's directory and nowhere else (a name that climbs out, or an absolute one, is refused); `gltf` reads them through `Options::read`, by the name the document has |
 | **Ordered for drawing** | `optimised(mesh)` (on by default for what is brought in; of use for a mesh made by code too): the triangles in the order a vertex cache serves best, cut into clusters of up to 124 that lie together and face alike, the corners in the order the clusters use them. The clusters' bounds and cones are `mlibs.geom`'s own (`clustered` by runs), so a cluster is the same thing whoever cut it |
@@ -32,10 +32,16 @@ Khronos' sample models, read whole from their `.glb` (a debug build, 2026-11-14;
 | BoxTextured | 12 | 1 | 1 | none |
 | Duck | 4,212 | 35 | 1 | a camera |
 | Fox | 576 | 7 | 1 | a skin, its bones and weights, 3 animations; no normals (worked out) |
-| Avocado | 682 | 6 | 1 | a normal map; roughness and metal from a picture |
-| Lantern | 5,394 | 46 | 3 | those two; emission from a picture |
-| DamagedHelmet | 15,452 | 130 | 1 | those three; occlusion from a picture; its base colour is a JPEG |
-| AntiqueCamera | 20,066 | 167 | 2 | a normal map and roughness and metal from a picture, each twice |
+| Avocado | 682 | 6 | 1 | none (3 textures) |
+| Lantern | 5,394 | 46 | 3 | none (4 textures) |
+| AntiqueCamera | 20,066 | 167 | 2 | none (6 textures) |
+| DamagedHelmet | 15,452 | 130 | 1 | its five pictures are JPEGs, which are not read: its own numbers alone |
+
+Two of them drawn by the CPU reference from what was brought in — every picture of their materials, a sun, a sky to mirror:
+
+| | |
+|---|---|
+| ![Lantern](media/lantern.png) | ![AntiqueCamera](media/antique-camera.png) |
 
 A sheet of 4,608 triangles in a scattered order: cut as they come, a cluster spans the sheet (the widest 5.66 across its bounds); ordered, the widest is 1.39 in as many clusters (38). The plain meshlet builder fills every cluster and gathers what is left at the end into one 4.04 across — one culling can never leave out; the builder used closes a cluster early where it would grow wide.
 
@@ -43,7 +49,7 @@ A sheet of 4,608 triangles in a scattered order: cut as they come, a cluster spa
 
 1. *From this system's own ground.* An import is a value with its own account: the notes are data an agent reads (where, what, instead), not a log line — so "why does the helmet look flat" has an answer without a person looking. Ids are the file's places, so a pixel traced to an instance ([xrender.frame](../frame)) is traced on to a node of the document. A cluster's bounds and cone are worked out by the one owner of clusters (`mlibs.geom`), whatever tool ordered the triangles.
 2. *What exists, combined.* Parsing is cgltf's and the ordering meshoptimizer's, each through its module wrap ([mcpplibs/cgltf-m](https://github.com/mcpplibs/cgltf-m), [mcpplibs/meshoptimizer-m](https://github.com/mcpplibs/meshoptimizer-m); D-56, D-83), each named in one native unit. Pictures are `mlibs.image`'s.
-3. *The level of the best.* Against the reference loaders (Khronos' sample viewer, Filament's gltfio, Godot's importer): behind — they carry every texture of the surface model, skins, animations, morph targets, JPEG and KTX2, which here are notes. Ahead in one thing those do not give: what was not carried, as data with its place. What comes next is in the notes' order of weight: the surface's other pictures (with the mesh pass's material), JPEG and KTX2, then skins and animations to hanim.
+3. *The level of the best.* Against the reference loaders (Khronos' sample viewer, Filament's gltfio, Godot's importer): behind — they carry skins, animations, morph targets, alpha, the further `KHR_materials_*` models, JPEG and KTX2, which here are notes. Ahead in one thing those do not give: what was not carried, as data with its place. What comes next is in the notes' order of weight: JPEG and KTX2, alpha, then skins and animations to hanim.
 
 ## Agent surface
 

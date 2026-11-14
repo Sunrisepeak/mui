@@ -15,6 +15,7 @@ struct Corner {
     float position[3];
     float normal[3];
     float uv[2]{0, 0};
+    float tangent[4]{0, 0, 0, 0};  // the mesh's, or all 0: it has none
 };
 struct Row {
     float x = 0, y = 0, z = 0, w = 0;
@@ -38,6 +39,10 @@ struct SurfaceUniforms {
     Row          picture;
     Row          open;
     Row          cut;  // x: 1 or −1 — a pixel whose depth is past the half that way is beyond the view
+    // The surface's other pictures: xy a picture's width and height, z how many sizes it has (0: none);
+    // w: the normal picture's scale, the shade picture's strength.
+    Row          surface_picture, normal_picture, glow_picture, shade_picture;
+    Row          own;  // x: the roughness as the material says it; y: the metal
     LampUniforms lamps[most_lamps];
 };
 Row row_of(const Mat4& matrix, int row) { return {matrix.at(0, row), matrix.at(1, row), matrix.at(2, row), matrix.at(3, row)}; }
@@ -64,8 +69,8 @@ Mat4 further_of(bool reversed) {
 // Which way past the half is beyond the view: the shaders' `cut`.
 constexpr float cut_of(bool reversed) noexcept { return reversed ? -1.0f : 1.0f; }
 
-constexpr std::array<rhi::VertexAttribute, 3> attributes{rhi::VertexAttribute{0, rhi::VertexFormat::float3, 0}, rhi::VertexAttribute{1, rhi::VertexFormat::float3, 12},
-                                                         rhi::VertexAttribute{2, rhi::VertexFormat::float2, 24}};
+constexpr std::array<rhi::VertexAttribute, 4> attributes{rhi::VertexAttribute{0, rhi::VertexFormat::float3, 0}, rhi::VertexAttribute{1, rhi::VertexFormat::float3, 12},
+                                                         rhi::VertexAttribute{2, rhi::VertexFormat::float2, 24}, rhi::VertexAttribute{3, rhi::VertexFormat::float4, 32}};
 
 // A number as a device's half float (rgba16_float): the nearest it has, what is too large its largest.
 std::uint16_t half_of(float value) noexcept {
@@ -264,7 +269,8 @@ rhi::Result<void> Pass::load(std::span<const mlibs::geom::ClusteredMesh* const> 
                 const std::uint32_t vertex = mesh.indices[first + corner];
                 const Vec3 normal = !mesh.normals.empty() && vertex < mesh.normals.size() ? mesh.normals[vertex] : face;
                 const math::Vec2 uv = vertex < mesh.uvs.size() ? mesh.uvs[vertex] : math::Vec2{0, 0};
-                corners.push_back({{at[corner].x, at[corner].y, at[corner].z}, {normal.x, normal.y, normal.z}, {uv.x, uv.y}});
+                const math::Vec4 tangent = vertex < mesh.tangents.size() ? mesh.tangents[vertex] : math::Vec4{0, 0, 0, 0};
+                corners.push_back({{at[corner].x, at[corner].y, at[corner].z}, {normal.x, normal.y, normal.z}, {uv.x, uv.y}, {tangent.x, tangent.y, tangent.z, tangent.w}});
             }
         }
         if (corners.empty()) continue;
@@ -491,15 +497,23 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
         surface.base = of(material.base), surface.emissive = of(material.emissive);
         surface.shine = {std::clamp(material.roughness, 0.04f, 1.0f), std::clamp(material.metallic, 0.0f, 1.0f), material.matt() ? 1.0f : 0.0f, light_ ? 1.0f : 0.0f};
         // Its picture, where the material names one that is loaded and the mesh says where its corners are in it.
-        const Sheet* sheet = material.texture < textures_.size() && textures_[material.texture].texture && meshes_[draw.mesh].placed ? &textures_[material.texture] : nullptr;
-        surface.picture = sheet ? Row{sheet->width, sheet->height, sheet->sizes, 0} : Row{};
+        const auto sheet_of = [&](std::uint32_t which) { return which < textures_.size() && textures_[which].texture && meshes_[draw.mesh].placed ? &textures_[which] : nullptr; };
+        const auto said = [](const Sheet* named, float last) { return named ? Row{named->width, named->height, named->sizes, last} : Row{}; };
+        const Sheet* sheet = sheet_of(material.texture);
+        surface.picture = said(sheet, 0);
+        // The surface's other pictures (roughness and metal, the normal, emission, shade), as the reference reads them.
+        const std::array<const Sheet*, 4> more{sheet_of(material.surface), sheet_of(material.normal), sheet_of(material.glow), sheet_of(material.shade)};
+        surface.surface_picture = said(more[0], 0), surface.normal_picture = said(more[1], material.normal_scale);
+        surface.glow_picture = said(more[2], 0), surface.shade_picture = said(more[3], material.shade_strength);
+        surface.own = {material.roughness, material.metallic, 0, 0};
         // Its clusters that may show: one outside the view or wholly facing away is left out (as the reference
         // leaves it out), and those that follow one another in the corners are one draw call.
         const Loaded& loaded = meshes_[draw.mesh];
         runs_for(loaded, instance.world, back, frustum, eye, options.cull_clusters, true);
         if (runs_.empty()) continue;  // nothing of it may show: no draw, nothing bound
         list.bind_texture(rhi::Stage::fragment, 2, sheet ? sheet->texture : no_shadow_, sheet ? pictures_ : nearest_);
-        if (sheet) ++last_.textured;
+        for (std::uint32_t slot = 0; slot < more.size(); ++slot) list.bind_texture(rhi::Stage::fragment, 4 + slot, more[slot] ? more[slot]->texture : no_shadow_, more[slot] ? pictures_ : nearest_);
+        if (sheet || more[0] || more[1] || more[2] || more[3]) ++last_.textured;
         list.push_uniforms(rhi::Stage::vertex, 0, uniforms);
         list.push_uniforms(rhi::Stage::fragment, 0, surface);
         list.bind_vertex_buffer(0, loaded.corners);

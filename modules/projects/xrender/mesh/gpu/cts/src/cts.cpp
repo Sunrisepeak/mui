@@ -858,6 +858,108 @@ Cases suite_of() {
         static_cast<void>(device->wait_idle());
         device->destroy(*colour), device->destroy(*depth);
     });
+    // the surface's other pictures on the device are the reference's: roughness and metal, the normal (by the mesh's tangents and, on a mesh with none, worked out at the pixel), emission and shade from pictures
+    add(suite, "mesh.surface", [](Rig& rig) {
+        rhi::Device* const device = &rig.device;
+        Yard yard;
+        for (math::Vec2& uv : yard.made[1].mesh.uvs) uv = {uv.x * 50, uv.y * 50};
+        // The box's faces with no tangents: the picture's ways are worked out from where its corners are.
+        yard.made[0].mesh.tangents.clear();
+        const auto picture = [](mesh::Coding coding, auto&& texel) {
+            std::vector<std::uint8_t> bytes(64 * 64 * 4, 255);
+            for (int y = 0; y < 64; ++y)
+                for (int x = 0; x < 64; ++x) {
+                    const std::array<std::uint8_t, 3> said = texel(x, y);
+                    for (std::size_t channel = 0; channel < 3; ++channel) bytes[static_cast<std::size_t>(y * 64 + x) * 4 + channel] = said[channel];
+                }
+            return *mesh::Texture::made(bytes, 64, 64, coding);
+        };
+        // Tiles; bumps (a dome a tile, as a normal); the surface's numbers — shade in red toward a tile's edge,
+        // rough and smooth tiles in green, strips of metal in blue; and a glow of two colours.
+        const mesh::Texture tiles = picture(mesh::Coding::colour, [](int x, int y) {
+            const std::uint8_t level = ((x / 8) + (y / 8)) % 2 ? 235 : 110;
+            return std::array<std::uint8_t, 3>{level, level, level};
+        });
+        const mesh::Texture bumps = picture(mesh::Coding::plain, [](int x, int y) {
+            const float across = (static_cast<float>(x % 16) + 0.5f) / 8.0f - 1.0f, down = (static_cast<float>(y % 16) + 0.5f) / 8.0f - 1.0f;
+            const math::Vec3 way = math::normalized(math::Vec3{across * 0.7f, -down * 0.7f, 1});
+            const auto byte = [](float value) { return static_cast<std::uint8_t>(std::clamp((value * 0.5f + 0.5f) * 255.0f + 0.5f, 0.0f, 255.0f)); };
+            return std::array<std::uint8_t, 3>{byte(way.x), byte(way.y), byte(way.z)};
+        });
+        const mesh::Texture numbers = picture(mesh::Coding::plain, [](int x, int y) {
+            const int from_edge = std::min({x % 16, 15 - x % 16, y % 16, 15 - y % 16});
+            return std::array<std::uint8_t, 3>{static_cast<std::uint8_t>(95 + from_edge * 20), static_cast<std::uint8_t>(((x / 16) + (y / 16)) % 2 ? 230 : 70), static_cast<std::uint8_t>((x / 8) % 2 ? 255 : 0)};
+        });
+        const mesh::Texture lit = picture(mesh::Coding::colour, [](int x, int y) {
+            return (x / 8 + y / 4) % 2 ? std::array<std::uint8_t, 3>{255, 160, 40} : std::array<std::uint8_t, 3>{20, 40, 200};
+        });
+        const std::array<const mesh::Texture*, 4> textures{&tiles, &bumps, &numbers, &lit};
+        // The floor: all of them but the glow. The box: bumps, half again as steep. The ball: its roughness and
+        // metal from the picture, and what it gives off.
+        yard.materials.push_back({.base = {1, 1, 1}, .roughness = 1, .metallic = 1, .texture = 0, .surface = 2, .normal = 1, .shade = 2, .shade_strength = 0.8f});
+        yard.materials.push_back({.base = {0.8f, 0.2f, 0.15f}, .normal = 1, .normal_scale = 1.5f});
+        yard.materials.push_back({.base = {0.15f, 0.4f, 0.8f}, .emissive = {0.5f, 0.5f, 0.5f}, .roughness = 0.9f, .metallic = 1, .surface = 2, .glow = 3});
+        const std::array<std::pair<scene::Id, std::uint32_t>, 3> given{{{1, 5}, {10, 6}, {11, 7}}};
+        for (const auto& [id, material] : given) {
+            scene::Instance instance = *yard.world.find(id);
+            instance.material = material;
+            expect(yard.world.set(instance).has_value());
+        }
+        scene::Extracted seen;
+        scene::extract(yard.world, yard.view(), seen);
+        const mesh::Options options{.shadows = false, .environment = {.on = true}};
+        mesh::Targets reference;
+        reference.resize(static_cast<int>(width), static_cast<int>(height));
+        mesh::Pass on_cpu;
+        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}, textures}, reference, options);
+
+        auto pass = mesh::gpu::Pass::make(*device);
+        if (!(expect(pass.has_value()) << (pass ? "" : pass.error().message))) return;
+        if (!(expect(pass->load(yard.meshes).has_value()))) return;
+        const auto loaded = pass->load_textures(textures);
+        if (!(expect(loaded.has_value()) << (loaded ? "" : loaded.error().message))) return;
+        const auto colour = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, width, height, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "mesh.colour"});
+        const auto depth = device->create(rhi::TextureDesc{rhi::Format::d32_float, width, height, rhi::TextureUsage::depth_target, "mesh.depth"});
+        if (!(expect(colour.has_value() && depth.has_value()))) return;
+        rhi::CommandList list;
+        pass->record(list, yard.world, seen, yard.view(), yard.materials, *colour, *depth, width, height, options);
+        const auto submitted = device->submit(list);
+        if (!(expect(submitted.has_value()) << (submitted ? "" : submitted.error().message))) return;
+        expect(device->wait(*submitted).has_value());
+        const auto pixels = device->read(*colour, rhi::Region{0, 0, width, height});
+        if (!(expect(pixels.has_value()) << (pixels ? "" : pixels.error().message))) return;
+        keep(*pixels, "yard-surface");
+        std::vector<std::byte> of_reference(reference.colour.size());
+        std::memcpy(of_reference.data(), reference.colour.data(), reference.colour.size());
+        keep(of_reference, "yard-surface-reference");
+        // Each thing by itself: the pixels the reference says it drew.
+        const auto apart_of = [&](scene::Id id, int near) {
+            Apart one;
+            double sum = 0;
+            for (std::size_t pixel = 0; pixel < reference.ids.size(); ++pixel) {
+                if (reference.ids[pixel].draw == mesh::none || reference.draws[reference.ids[pixel].draw].id != id) continue;
+                ++one.compared;
+                int most = 0;
+                for (std::size_t channel = 0; channel < 3; ++channel) {
+                    const int difference = std::abs(static_cast<int>(reference.colour[pixel * 4 + channel]) - std::to_integer<int>((*pixels)[pixel * 4 + channel]));
+                    most = std::max(most, difference), sum += difference;
+                }
+                one.off += most > near, one.worst = std::max(one.worst, most);
+            }
+            one.mean = one.compared ? sum / (static_cast<double>(one.compared) * 3) : 0;
+            return one;
+        };
+        const Apart all = apart(reference, *pixels, false, 6), floor = apart_of(1, 6), box = apart_of(10, 6), ball = apart_of(11, 6);
+        std::println("the surface's pictures: {} draws with pictures; {} of {} pixels further than 6 levels from the reference ({:.2f}%), mean {:.3f}, worst {}; the floor {} of {} (mean {:.3f}), the box {} of {} (mean {:.3f}), the ball {} of {} (mean {:.3f})",
+                     pass->last().textured, all.off, all.compared, 100.0 * static_cast<double>(all.off) / static_cast<double>(all.compared), all.mean, all.worst, floor.off, floor.compared, floor.mean, box.off,
+                     box.compared, box.mean, ball.off, ball.compared, ball.mean);
+        expect(eq(pass->last().textured, 3u));
+        expect(gt(floor.compared, 10000u) && gt(box.compared, 1500u) && gt(ball.compared, 1500u));
+        expect(lt(static_cast<double>(all.off), 0.02 * static_cast<double>(all.compared)));
+        expect(lt(floor.mean, 1.0) && lt(box.mean, 1.0) && lt(ball.mean, 1.0));
+        static_cast<void>(device->wait_idle());
+        device->destroy(*colour), device->destroy(*depth);
+    });
     return suite;
 }
 

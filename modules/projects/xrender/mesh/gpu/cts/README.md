@@ -21,6 +21,7 @@ xrender::mesh::gpu::cts::declare(**device, {.subject = (*device)->caps().device}
 | `mesh.temporal` | sixteen frames gathered, then a thing moved a long way in one: the reference's resolve, kept by the render graph's histories |
 | `mesh.open` | how open a place is: darker where the reference's rays find it shut |
 | `mesh.textures` | a floor of tiles: sharp near, the mean of its tiles far away |
+| `mesh.surface` | the surface's other pictures: roughness and metal, the normal (by the mesh's tangents and, on a mesh with none, worked out at the pixel), emission and shade |
 
 Where it runs, and what it measured there (480 × 270; pixels further than 6 levels from the reference, of 129,600):
 

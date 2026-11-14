@@ -16,13 +16,16 @@ struct Corner {
     Vec4 clip, before;
     Vec3 normal, place;
     Vec2 uv{0, 0};
+    Vec4 tangent{0, 0, 0, 0};  // in the world; all 0: the mesh has none
 };
 Vec4 mixed(const Vec4& from, const Vec4& to, float share) noexcept {
     return {from.x + (to.x - from.x) * share, from.y + (to.y - from.y) * share, from.z + (to.z - from.z) * share, from.w + (to.w - from.w) * share};
 }
 Corner mixed(const Corner& from, const Corner& to, float share) noexcept {
     return {mixed(from.clip, to.clip, share), mixed(from.before, to.before, share), math::mix(from.normal, to.normal, share), math::mix(from.place, to.place, share),
-            {from.uv.x + (to.uv.x - from.uv.x) * share, from.uv.y + (to.uv.y - from.uv.y) * share}};
+            {from.uv.x + (to.uv.x - from.uv.x) * share, from.uv.y + (to.uv.y - from.uv.y) * share},
+            {from.tangent.x + (to.tangent.x - from.tangent.x) * share, from.tangent.y + (to.tangent.y - from.tangent.y) * share, from.tangent.z + (to.tangent.z - from.tangent.z) * share,
+             from.tangent.w}};
 }
 // The view's volume and a guard band about it: the depth's two planes, and eight widths to each side — past
 // which a corner's place on the screen would be too large a number to snap exactly.
@@ -105,6 +108,13 @@ struct Raster {
     std::uint64_t  at_pixel = 0;       // the pixel being shaded: what its own rays are drawn from
     Vec3           base{};             // the draw's own base colour: what a texture's light multiplies
     const Texture* texture = nullptr;  // the draw's, or none
+    // The draw's other pictures, or none, and what of the material they multiply.
+    const Texture* surface = nullptr;
+    const Texture* normal_picture = nullptr;
+    const Texture* glow = nullptr;
+    const Texture* shade = nullptr;
+    Material       own;         // the draw's material as it says, before any picture
+    float          shaded = 1;  // the share of the light from everywhere the shade picture lets through here
 
     // Whether anything is between `from` and a light `reach` away along `toward` (of length 1). The ray is taken
     // into each mesh's own space as it is — not made of length 1 again — so a distance along it is the world's.
@@ -157,7 +167,7 @@ struct Raster {
 
     Vec3 lit(Vec3 normal, Vec3 place) noexcept {
         if (!material.matt()) return shone(normal, place);
-        Vec3 light = math::scaled(options.ambient, reaching(open_to(normal, place)));
+        Vec3 light = math::scaled(options.ambient, reaching(open_to(normal, place))) * shaded;
         // A ray starts a little off the surface, or it meets the surface it left.
         const Vec3 lifted = place + normal * 2e-3f;
         for (const Lamp& lamp : lamps) {
@@ -183,7 +193,7 @@ struct Raster {
     // The same lights on a surface that is not matt: each light's share by `reflected`.
     Vec3 shone(Vec3 normal, Vec3 place) noexcept {
         const Vec3 toward_eye = math::normalized(eye - place);
-        Vec3 sent = math::scaled(math::scaled(reflected_ambient(material), options.ambient), reaching(open_to(normal, place))) + material.emissive;
+        Vec3 sent = math::scaled(math::scaled(reflected_ambient(material), options.ambient), reaching(open_to(normal, place))) * shaded + material.emissive;
         if (options.environment.on) sent = sent + mirrored(material, options.environment, normal, toward_eye);
         const Vec3 lifted = place + normal * 2e-3f;
         for (const Lamp& lamp : lamps) {
@@ -212,6 +222,16 @@ struct Raster {
         // Counter-clockwise as seen is its front. With y down that is a negative area by the rule below, so the
         // corners are taken the other way round: a front is above 0, and "inside" is above 0 for every edge.
         const std::array<const Corner*, 3> corners{&first, &third, &second};
+        // For a normal picture on a mesh with no tangents: the way the surface goes as the picture's first
+        // coordinate grows, and against its second (up the picture), from this triangle's own corners.
+        const bool tangents = !(first.tangent.x == 0 && first.tangent.y == 0 && first.tangent.z == 0);
+        std::array<Vec3, 2> bent{};
+        if (normal_picture && !tangents) {
+            const Vec3 one = corners[1]->place - corners[0]->place, two = corners[2]->place - corners[0]->place;
+            const Vec2 uv_one{corners[1]->uv.x - corners[0]->uv.x, corners[1]->uv.y - corners[0]->uv.y}, uv_two{corners[2]->uv.x - corners[0]->uv.x, corners[2]->uv.y - corners[0]->uv.y};
+            const float turn = uv_one.x * uv_two.y - uv_two.x * uv_one.y;
+            if (turn != 0) bent = {(one * uv_two.y - two * uv_one.y) * (1.0f / turn), (one * uv_two.x - two * uv_one.x) * (1.0f / turn)};
+        }
         std::array<double, 3> x{}, y{};
         std::array<float, 3> z{}, inverse{};
         for (int index = 0; index < 3; ++index) {
@@ -253,7 +273,7 @@ struct Raster {
                 const std::array<float, 3> scaled{share[0] * inverse[0], share[1] * inverse[1], share[2] * inverse[2]};
                 const float whole = 1.0f / (scaled[0] + scaled[1] + scaled[2]);
                 const std::array<float, 3> part{scaled[0] * whole, scaled[1] * whole, scaled[2] * whole};
-                const Vec3 normal = math::normalized(corners[0]->normal * part[0] + corners[1]->normal * part[1] + corners[2]->normal * part[2]);
+                Vec3 normal = math::normalized(corners[0]->normal * part[0] + corners[1]->normal * part[1] + corners[2]->normal * part[2]);
                 const Vec3 place = corners[0]->place * part[0] + corners[1]->place * part[1] + corners[2]->place * part[2];
                 const Vec4 before{corners[0]->before.x * part[0] + corners[1]->before.x * part[1] + corners[2]->before.x * part[2],
                                   corners[0]->before.y * part[0] + corners[1]->before.y * part[1] + corners[2]->before.y * part[2], 0,
@@ -264,7 +284,7 @@ struct Raster {
                     // The sample is `jitter` aside of the pixel's middle; the surface there, seen without it, is not.
                     moved = {static_cast<float>(column) + 0.5f - options.jitter.x - was_x, static_cast<float>(row) + 0.5f - options.jitter.y - was_y};
                 }
-                if (texture) {
+                if (texture || surface || normal_picture || glow || shade) {
                     // The surface's place in the picture here, a pixel to the right and a pixel down: how many texels
                     // a pixel covers is how far apart they are.
                     const auto uv_at = [&](double at_x, double at_y) {
@@ -275,7 +295,35 @@ struct Raster {
                                     (corners[0]->uv.y * there[0] + corners[1]->uv.y * there[1] + corners[2]->uv.y * there[2]) * all};
                     };
                     const Vec2 here = uv_at(px, py), right = uv_at(px + 256.0, py), down = uv_at(px, py + 256.0);
-                    material.base = math::scaled(base, texture->over(here, {right.x - here.x, right.y - here.y}, {down.x - here.x, down.y - here.y}));
+                    const Vec2 across{right.x - here.x, right.y - here.y}, along{down.x - here.x, down.y - here.y};
+                    if (texture) material.base = math::scaled(base, texture->over(here, across, along));
+                    if (surface) {
+                        const Vec3 said = surface->over(here, across, along);
+                        material.roughness = own.roughness * said.y, material.metallic = own.metallic * said.z;
+                    }
+                    if (glow) material.emissive = math::scaled(own.emissive, glow->over(here, across, along));
+                    if (shade) shaded = 1.0f + own.shade_strength * (shade->over(here, across, along).x - 1.0f);
+                    if (normal_picture) {
+                        // The picture's three ways in the world here: along it (the mesh's tangent, or the way the
+                        // surface goes as the picture's first coordinate grows), up it, and out (the normal).
+                        Vec3 right_way = bent[0], up_way = bent[1];
+                        if (tangents) {
+                            const Vec3 said{corners[0]->tangent.x * part[0] + corners[1]->tangent.x * part[1] + corners[2]->tangent.x * part[2],
+                                            corners[0]->tangent.y * part[0] + corners[1]->tangent.y * part[1] + corners[2]->tangent.y * part[2],
+                                            corners[0]->tangent.z * part[0] + corners[1]->tangent.z * part[1] + corners[2]->tangent.z * part[2]};
+                            right_way = said, up_way = math::cross(normal, said) * corners[0]->tangent.w;
+                        }
+                        right_way = right_way - normal * math::dot(normal, right_way);
+                        if (math::dot(right_way, right_way) > 0) {
+                            right_way = math::normalized(right_way);
+                            const Vec3 other = math::cross(normal, right_way);
+                            up_way = math::dot(other, up_way) < 0 ? other * -1.0f : other;
+                            const Vec3 said = normal_picture->over(here, across, along);
+                            const Vec3 about{(said.x * 2 - 1) * own.normal_scale, (said.y * 2 - 1) * own.normal_scale, said.z * 2 - 1};
+                            const Vec3 turned = right_way * about.x + up_way * about.y + normal * about.z;
+                            if (math::dot(turned, turned) > 0) normal = math::normalized(turned);
+                        }
+                    }
                     ++stats.textured;
                 }
                 at_pixel = pixel;
@@ -413,7 +461,10 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
         const geom::Mesh& mesh = clustered.mesh;
         raster.material = assets.materials[draw.material];
         raster.base = raster.material.base;
-        raster.texture = (raster.material.texture < assets.textures.size() && !mesh.uvs.empty()) ? assets.textures[raster.material.texture] : nullptr;
+        raster.own = raster.material, raster.shaded = 1;
+        const auto picture = [&](std::uint32_t which) { return (which < assets.textures.size() && !mesh.uvs.empty()) ? assets.textures[which] : nullptr; };
+        raster.texture = picture(raster.material.texture), raster.surface = picture(raster.material.surface), raster.normal_picture = picture(raster.material.normal);
+        raster.glow = picture(raster.material.glow), raster.shade = picture(raster.material.shade);
         const Mat4 to_clip = clip * instance.world;
         // Where it was a frame ago: its own place then, through the view then. New this frame: where it is.
         Mat4 before = to_clip;
@@ -456,7 +507,11 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
                     at[corner] = vertex < mesh.positions.size() ? mesh.positions[vertex] : Vec3{};
                     polygon[corner] = {moved(to_clip, at[corner]), moved(before, at[corner]),
                                        vertex < mesh.normals.size() ? math::direction(for_normals, mesh.normals[vertex]) : Vec3{}, math::point(instance.world, at[corner]),
-                                       vertex < mesh.uvs.size() ? mesh.uvs[vertex] : Vec2{0, 0}};
+                                       vertex < mesh.uvs.size() ? mesh.uvs[vertex] : Vec2{0, 0}, {}};
+                    if (raster.normal_picture && vertex < mesh.tangents.size()) {
+                        const Vec3 along = math::direction(instance.world, {mesh.tangents[vertex].x, mesh.tangents[vertex].y, mesh.tangents[vertex].z});
+                        polygon[corner].tangent = {along.x, along.y, along.z, mesh.tangents[vertex].w};
+                    }
                 }
                 if (mesh.normals.empty()) {
                     const Vec3 face = math::direction(for_normals, math::cross(at[1] - at[0], at[2] - at[0]));
@@ -676,7 +731,7 @@ Temporal::Told Temporal::resolve(const Targets& frame, std::vector<std::uint8_t>
     return told;
 }
 
-std::optional<Texture> Texture::made(std::span<const std::uint8_t> rgba, int width, int height) {
+std::optional<Texture> Texture::made(std::span<const std::uint8_t> rgba, int width, int height, Coding coding) {
     if (width <= 0 || height <= 0 || rgba.size() < static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4) return std::nullopt;
     // The display's curve taken off, by a table made once with mlibs.math's own powers.
     static const std::array<float, 256> decoded = [] {
@@ -692,7 +747,8 @@ std::optional<Texture> Texture::made(std::span<const std::uint8_t> rgba, int wid
     texture.sizes.push_back(0);
     texture.light.reserve(static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4 / 3 + 2);
     for (std::size_t texel = 0; texel < static_cast<std::size_t>(width) * static_cast<std::size_t>(height); ++texel)
-        texture.light.push_back({decoded[rgba[texel * 4]], decoded[rgba[texel * 4 + 1]], decoded[rgba[texel * 4 + 2]]});
+        texture.light.push_back(coding == Coding::colour ? Vec3{decoded[rgba[texel * 4]], decoded[rgba[texel * 4 + 1]], decoded[rgba[texel * 4 + 2]]}
+                                                         : Vec3{static_cast<float>(rgba[texel * 4]) / 255.0f, static_cast<float>(rgba[texel * 4 + 1]) / 255.0f, static_cast<float>(rgba[texel * 4 + 2]) / 255.0f});
     // Each next size: half as wide and as high (one at least), a texel the mean of those it covers.
     for (int wide = width, high = height; wide > 1 || high > 1;) {
         const int next_wide = std::max(wide / 2, 1), next_high = std::max(high / 2, 1);

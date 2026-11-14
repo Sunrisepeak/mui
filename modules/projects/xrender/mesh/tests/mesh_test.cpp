@@ -806,6 +806,86 @@ static UTest cases{"xrender.mesh", [] {
         expect(gt(tiled.stats.textured, 60000u) && eq(plain.stats.textured, 0u));
         expect(eq(bits(tiled.targets), std::uint64_t{0xb6962b046d17007d})) << std::format("{:016x}", bits(tiled.targets));
     };
+    "the surface's other pictures: an even picture of roughness and metal, of emission, is the material that says the same numbers, bit for bit; a normal picture turns the surface toward a light or away, the same with the mesh's tangents as without; a shade picture takes its share of the light from everywhere"_test = [] {
+        // A sheet facing the eye, a sun from the eye's right and a little before it, light from everywhere.
+        const geom::ClusteredMesh sheet_mesh = *geom::clustered(geom::sheet(4, 4, 2, 2));
+        geom::Mesh bare = sheet_mesh.mesh;
+        bare.tangents.clear();
+        const geom::ClusteredMesh no_tangents = *geom::clustered(bare);
+        const std::array<const geom::ClusteredMesh*, 2> meshes{&sheet_mesh, &no_tangents};
+        const auto even = [](std::uint8_t red, std::uint8_t green, std::uint8_t blue, mesh::Coding coding) {
+            std::vector<std::uint8_t> bytes(8 * 8 * 4, 255);
+            for (std::size_t texel = 0; texel < 64; ++texel) bytes[texel * 4] = red, bytes[texel * 4 + 1] = green, bytes[texel * 4 + 2] = blue;
+            return *mesh::Texture::made(bytes, 8, 8, coding);
+        };
+        // 0: roughness 102/255, metal 51/255. 1: a colour. 2: the surface turned toward the picture's right.
+        // 3: toward its left. 4: half the light from everywhere. 5: straight out (as near as a byte says).
+        const std::array<mesh::Texture, 6> pictures{even(255, 102, 51, mesh::Coding::plain), even(200, 120, 40, mesh::Coding::colour), even(230, 128, 200, mesh::Coding::plain),
+                                                     even(26, 128, 200, mesh::Coding::plain),  even(128, 0, 0, mesh::Coding::plain),    even(128, 128, 255, mesh::Coding::plain)};
+        std::array<const mesh::Texture*, 6> textures{};
+        for (std::size_t index = 0; index < pictures.size(); ++index) textures[index] = &pictures[index];
+        const auto frame_of = [&](mesh::Material material, std::uint32_t which = 0) {
+            scene::Scene world;
+            // The sheet stood up to face +z: its picture's right is the world's +x, its up the world's +y.
+            expect(fatal(world.add({.id = 1, .mesh = which, .material = 0, .world = math::Transform{{0, 0, 0}, math::Quat::about({1, 0, 0}, 1.5707964f), {1, 1, 1}}.matrix(), .bounds = geom::bounds(sheet_mesh.mesh)}).has_value()));
+            expect(world.add(scene::Light{.id = 1, .kind = scene::LightKind::sun, .intensity = 1, .toward = {-0.8f, 0, -0.6f}}).has_value());
+            const Camera camera{.eye = {0, 0, 6}};
+            Frame frame;
+            frame.targets.resize(96, 96);
+            scene::Extracted seen;
+            scene::extract(world, camera.view(), seen);
+            mesh::Pass pass;
+            const std::array<mesh::Material, 1> materials{material};
+            pass.draw(world, seen, camera.view(), {meshes, materials, {}, textures}, frame.targets, {.ambient = {0.2f, 0.2f, 0.2f}});
+            frame.stats = pass.last();
+            return frame;
+        };
+        const auto middle = [](const Frame& frame) { return frame.targets.light[48 * 96 + 48]; };
+
+        // Roughness and metal from an even picture: the material that says the products.
+        const Frame from_picture = frame_of({.base = {0.7f, 0.5f, 0.3f}, .roughness = 1, .metallic = 1, .surface = 0});
+        const Frame from_numbers = frame_of({.base = {0.7f, 0.5f, 0.3f}, .roughness = 102.0f / 255.0f, .metallic = 51.0f / 255.0f});
+        expect(eq(bits(from_picture.targets), bits(from_numbers.targets)) && gt(from_picture.stats.textured, 1000u) && eq(from_numbers.stats.textured, 0u));
+        // Emission from an even picture of a colour: the emission that is that colour's light.
+        const math::Vec3 light = pictures[1].at({0.5f, 0.5f}, 1);
+        const Frame glow_picture = frame_of({.base = {0.1f, 0.1f, 0.1f}, .emissive = {2, 1, 0.5f}, .glow = 1});
+        const Frame glow_numbers = frame_of({.base = {0.1f, 0.1f, 0.1f}, .emissive = {2 * light.x, 1 * light.y, 0.5f * light.z}});
+        expect(eq(bits(glow_picture.targets), bits(glow_numbers.targets)));
+
+        // A normal picture: turned toward the sun (which is to the right) the sheet is lighter than flat, turned
+        // away darker; as near straight out as a byte says, as good as flat. The G-buffer's normal is the turned one.
+        const mesh::Material matt{.base = {0.8f, 0.8f, 0.8f}};
+        const auto with_normal = [&](std::uint32_t picture, std::uint32_t which = 0, float scale = 1) {
+            mesh::Material material = matt;
+            material.normal = picture, material.normal_scale = scale;
+            return frame_of(material, which);
+        };
+        const Frame flat = frame_of(matt), toward = with_normal(2), away = with_normal(3), out = with_normal(5);
+        expect(gt(middle(toward).x, middle(flat).x * 1.2f) && lt(middle(away).x, middle(flat).x * 0.8f)) << middle(toward).x << " " << middle(flat).x << " " << middle(away).x;
+        expect(lt(std::abs(middle(out).x - middle(flat).x), 0.01f));
+        expect(gt(toward.targets.normal[48 * 96 + 48].x, 0.5f) && lt(away.targets.normal[48 * 96 + 48].x, -0.5f) && lt(std::abs(flat.targets.normal[48 * 96 + 48].x), 1e-6f));
+        // Twice as far by the scale; none at 0.
+        expect(gt(with_normal(2, 0, 2).targets.normal[48 * 96 + 48].x, toward.targets.normal[48 * 96 + 48].x + 0.1f));
+        expect(lt(std::abs(with_normal(2, 0, 0).targets.normal[48 * 96 + 48].x), 1e-6f));
+        // A mesh with no tangents: the picture's ways are worked out from its triangles — the same surface.
+        const Frame worked_out = with_normal(2, 1);
+        float apart = 0;
+        for (std::size_t pixel = 0; pixel < toward.targets.light.size(); ++pixel) apart = std::max(apart, std::abs(toward.targets.light[pixel].x - worked_out.targets.light[pixel].x));
+        expect(lt(apart, 1e-4f)) << apart;
+
+        // Shade: half the light from everywhere, none of the sun's taken.
+        mesh::Material shaded = matt;
+        shaded.shade = 4;
+        const Frame in_shade = frame_of(shaded);
+        const float ambient = 0.8f * 0.2f, sun = middle(flat).x - ambient;
+        expect(lt(std::abs(middle(in_shade).x - (ambient * (128.0f / 255.0f) + sun)), 1e-5f)) << middle(in_shade).x;
+        shaded.shade_strength = 0;
+        expect(eq(bits(frame_of(shaded).targets), bits(flat.targets))) << "a strength of 0: the picture says nothing";
+        // A picture a material names that is not there, or a mesh with no texture coordinates: as if not named.
+        mesh::Material absent = matt;
+        absent.normal = 77, absent.surface = 77, absent.glow = 77, absent.shade = 77;
+        expect(eq(bits(frame_of(absent).targets), bits(flat.targets)));
+    };
     "light followed along rays: an open floor under an even sky sends back the sky's light times its colour, exactly; beside a ball it is darker; before a red box in the sun it is redder — the same bits twice, pinned, and kept"_test = [] {
         constexpr int width = 160, height = 90;
         const auto place_of = [&](const Camera& camera, math::Vec3 at) {

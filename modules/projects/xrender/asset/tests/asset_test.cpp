@@ -63,9 +63,10 @@ std::string whole() {
             {{"name": "the sun", "rotation": [-0.7071068, 0, 0, 0.7071068], "extensions": {{"KHR_lights_punctual": {{"light": 0}}}}}}],
   "meshes": [{{"name": "square", "primitives": [{{"attributes": {{"POSITION": 0, "NORMAL": 1, "TEXCOORD_0": 2}}, "indices": 3, "material": 0}}]}}],
   "materials": [{{"name": "painted", "pbrMetallicRoughness": {{"baseColorFactor": [0.5, 0.25, 1, 1], "metallicFactor": 0.25, "roughnessFactor": 0.5,
-                 "baseColorTexture": {{"index": 0}}}}, "emissiveFactor": [0.1, 0.2, 0.3]}}],
-  "textures": [{{"source": 0}}],
-  "images": [{{"uri": "{}"}}],
+                 "baseColorTexture": {{"index": 0}}, "metallicRoughnessTexture": {{"index": 1}}}}, "emissiveFactor": [0.1, 0.2, 0.3],
+                 "normalTexture": {{"index": 1, "scale": 0.5}}, "occlusionTexture": {{"index": 1, "strength": 0.75}}, "emissiveTexture": {{"index": 0}}}}],
+  "textures": [{{"source": 0}}, {{"source": 1}}],
+  "images": [{{"uri": "{0}"}}, {{"uri": "{0}"}}],
   "extensionsUsed": ["KHR_lights_punctual"],
   "extensions": {{"KHR_lights_punctual": {{"lights": [{{"type": "directional", "color": [1, 0.5, 0.25], "intensity": 3}}]}}}})",
                                 uri_of(picture_png(), "image/png")));
@@ -111,12 +112,17 @@ static UTest cases{"xrender.asset", [] {
         const std::string text = whole();
         const auto model = asset::gltf(bytes_of(text));
         expect(fatal(model.has_value())) << (model ? "" : model.error());
-        expect(fatal(eq(model->meshes.size(), std::size_t{1}) && eq(model->materials.size(), std::size_t{1}) && eq(model->textures.size(), std::size_t{1})));
+        // Two pictures: the first as colours (the base colour and what is given off name it), the second as plain
+        // numbers (roughness and metal, the normal and shade name it) — a texture each.
+        expect(fatal(eq(model->meshes.size(), std::size_t{1}) && eq(model->materials.size(), std::size_t{1}) && eq(model->textures.size(), std::size_t{2})));
         expect(eq(model->triangles(), std::size_t{2}) && geom::check(model->meshes[0].mesh).has_value());
         expect(eq(model->meshes[0].mesh.positions.size(), std::size_t{4}) && eq(model->meshes[0].mesh.uvs.size(), std::size_t{4}) && eq(model->meshes[0].clusters.size(), std::size_t{1}));
         const xrender::mesh::Material& painted = model->materials[0];
         expect(painted.base == math::Vec3{0.5f, 0.25f, 1} && eq(painted.metallic, 0.25f) && eq(painted.roughness, 0.5f) && painted.emissive == math::Vec3{0.1f, 0.2f, 0.3f});
         expect(eq(painted.texture, 0u) && eq(model->textures[0].width, 2) && eq(model->textures[0].height, 2) && model->material_names[0] == "painted");
+        expect(eq(painted.surface, 1u) && eq(painted.normal, 1u) && eq(painted.shade, 1u) && eq(painted.glow, 0u) && eq(painted.normal_scale, 0.5f) && eq(painted.shade_strength, 0.75f));
+        // The first texel is red: as a colour its light is 1, 0, 0; as plain numbers the same bytes ÷ 255.
+        expect(model->textures[0].light[0] == math::Vec3{1, 0, 0} && model->textures[1].light[1] == math::Vec3{0, 1, 0});
 
         // Ids are the file's places: node 0 and node 1, each their mesh's first primitive.
         expect(fatal(eq(model->instances.size(), std::size_t{2})));
@@ -218,17 +224,18 @@ static UTest cases{"xrender.asset", [] {
         const auto model = asset::gltf(bytes_of(text));
         expect(fatal(model.has_value())) << (model ? "" : model.error());
         for (const std::string_view where :
-             {"/images/0", "/materials/0/pbrMetallicRoughness/metallicRoughnessTexture", "/materials/0/normalTexture", "/materials/0/occlusionTexture", "/materials/0/emissiveTexture",
-              "/materials/0/alphaMode", "/materials/0/doubleSided", "/materials/0/extensions/KHR_materials_clearcoat", "/materials/1/alphaMode",
+             {"/images/0", "/materials/0/alphaMode", "/materials/0/doubleSided", "/materials/0/extensions/KHR_materials_clearcoat", "/materials/1/alphaMode",
               "/meshes/0/primitives/0/attributes/TEXCOORD_1", "/meshes/0/primitives/0/attributes/COLOR_0", "/meshes/0/primitives/0/attributes/NORMAL", "/meshes/0/primitives/1/mode",
               "/nodes/0/camera", "/nodes/1", "/animations", "/extensionsUsed/2"})
             expect(noted(*model, where)) << where;
-        expect(eq(model->notes.size(), std::size_t{17}));
+        expect(eq(model->notes.size(), std::size_t{13}));
         // What is carried is carried: the first primitive (its normals worked out), not the lines; the picture that
         // is not read leaves the material its factor; emission by its strength.
         expect(eq(model->meshes.size(), std::size_t{2}) && eq(model->instances.size(), std::size_t{2}) && eq(model->textures.size(), std::size_t{0}));
         expect(eq(model->meshes[0].mesh.normals.size(), std::size_t{4}) && model->meshes[0].mesh.normals[0] == math::Vec3{0, 0, 1});
-        expect(eq(model->materials[0].texture, xrender::mesh::Material{}.texture) && model->materials[1].emissive == math::Vec3{4, 4, 4});
+        const xrender::mesh::Material none;
+        expect(eq(model->materials[0].texture, none.texture) && eq(model->materials[0].surface, none.surface) && eq(model->materials[0].normal, none.normal) && eq(model->materials[0].glow, none.glow));
+        expect(model->materials[1].emissive == math::Vec3{4, 4, 4});
         expect(eq(model->instances[0].id, scene::Id{asset::ids_a_node + 1}) && eq(model->instances[1].id, scene::Id{2 * asset::ids_a_node + 1}));
     };
 

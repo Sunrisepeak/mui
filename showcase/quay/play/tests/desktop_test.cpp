@@ -46,7 +46,7 @@ UTest cases{"quay.desktop", [] {
             else std::println("no GPU device here ({}); set OMUI_REQUIRE_GPU=1 to make that a failure", why);
             return;
         }
-        const omui::AppSpec spec = quay::play::app();
+        const omui::AppSpec spec = quay::play::app({.hearing = quay::play::Hearing::silent});
         spec.setup(desktop.runtime());
         desktop.mount("main", spec.view());
         // Half a second of the game on the window's own clock, and 30 frames shown at least (a software device

@@ -32,7 +32,7 @@ UTest cases{"quay.window", [] {
         options.size = {1280, 760};
         options.fonts = &fonts();
         omui::Headless host(options);
-        const omui::AppSpec spec = quay::play::app();
+        const omui::AppSpec spec = quay::play::app({.hearing = quay::play::Hearing::silent});
         spec.setup(host.runtime());
         host.mount("main", spec.view());
         host.step();
@@ -69,6 +69,12 @@ UTest cases{"quay.window", [] {
         expect(gt(walked, 5.0f)) << "walking at 3.5 m/s";
         expect(gt(rounds_before - played.keeper.rounds, 2u)) << "held, the rifle fires again and again";
         expect(quay::play::hud()->rounds.get() == std::format("Rounds {}", played.keeper.rounds)) << quay::play::hud()->rounds.get();
+        // Heard as it was played: each shot and step a sound at the watchkeeper's ears, the output (the null one
+        // here) draining what the window renders.
+        expect(fatal(harbour->sound() != nullptr && harbour->output() != nullptr));
+        std::println("heard: {} sounds begun; the output drained {} frames ({} short)", harbour->sounds_begun(), harbour->output()->frames(), harbour->feed()->starved());
+        expect(gt(harbour->sounds_begun(), std::uint64_t{rounds_before - played.keeper.rounds})) << "every shot, and the steps";
+        expect(gt(harbour->output()->frames(), std::int64_t{0}));
 
         // What the window played is the game with no window.
         const std::string lines = quay::play::recorded(*harbour->game());

@@ -13,6 +13,7 @@ using omui::Key;
 constexpr double turn_rate = 2.6, look_rate = 1.8;    // radians a second at a full axis (the sim's)
 constexpr double look_per_pixel = 0.0022;              // radians a logical pixel of the hand's movement
 constexpr int    cpu_width = 320, cpu_height = 180;    // the reference's picture where the host has no device
+constexpr std::int32_t sound_lead = 2048;              // frames the output is kept ahead (43 ms at 48 kHz): a frame's wait and some
 
 xengine::Bindings bindings() {
     xengine::Bindings made;
@@ -36,10 +37,16 @@ const std::shared_ptr<Hud>& hud() {
     return made;
 }
 
+Options& options() {
+    static Options made;
+    return made;
+}
+
 Harbour::Harbour() : sampler_(bindings()) {}
 
 Harbour::~Harbour() {
     pacer_.stop();
+    output_.reset();  // the output's thread stops before what it drains goes
     view_.clear();
     on_device_.reset();  // before the host's device goes
 }
@@ -62,6 +69,15 @@ void Harbour::mount(omui::Services& services, omui::NodeId node) {
             return xrender::raster::ImageView{reinterpret_cast<const xrender::raster::Rgba8*>(picture_->shown().data()), cpu_width, cpu_height, cpu_width};
         };
     view_.show(std::move(shown));
+    if (const Hearing hearing = options().hearing; hearing != Hearing::none) {
+        if (auto made = Sound::make(game_->state())) {
+            sound_.emplace(std::move(*made));
+            feed_ = std::make_unique<xengine::audio::Feed>(sound_->mixer().rate());
+            feed_->fill(sound_->mixer(), sound_lead);  // ahead before the output starts
+            if (auto opened = xengine::audio::Device::open(*feed_, {.null = hearing == Hearing::silent})) output_.emplace(std::move(*opened));
+            else std::println(std::cerr, "quay: no sound ({})", opened.error());
+        }
+    }
     services.focus(node);
     draw();
     pacer_.start(services, steps_per_second, [this](std::int32_t steps) { run(steps); });
@@ -90,7 +106,11 @@ Input Harbour::input() {
 
 void Harbour::run(std::int32_t steps) {
     if (!game_) return;
-    while (steps-- > 0 && !Play::over(game_->state())) game_->step(input());
+    while (steps-- > 0 && !Play::over(game_->state())) {
+        game_->step(input());
+        if (sound_) sounds_begun_ += sound_->hear(game_->state());
+    }
+    if (sound_ && output_) feed_->fill(sound_->mixer(), sound_lead);
     const State& state = game_->state();
     const auto& shown = hud();
     shown->health.set(std::format("Health {}", std::max(0, state.keeper.health)));
@@ -113,7 +133,8 @@ void Harbour::draw() {
     view_.changed();
 }
 
-omui::AppSpec app(Options options) {
+omui::AppSpec app(Options given) {
+    options() = given;
     omui::AppSpec made;
     made.id = "org.openmui.quay";
     made.title = "Quay";
@@ -135,7 +156,7 @@ omui::AppSpec app(Options options) {
                                         omui::text({.id = "hud.said", .text = shown->said, .style = "caption", .color = omui::Color::hex(0xc7cde0)})})});
     };
     // Each step's input, when the window closes: what plays the same game with no window.
-    made.teardown = [record = std::move(options.record)](omui::Runtime& runtime) {
+    made.teardown = [record = std::move(given.record)](omui::Runtime& runtime) {
         if (record.empty()) return;
         const auto* harbour = runtime.component<Harbour>(runtime.find("main/harbour"));
         if (!harbour || !harbour->game()) return;

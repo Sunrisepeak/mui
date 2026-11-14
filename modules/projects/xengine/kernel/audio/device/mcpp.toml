@@ -21,7 +21,7 @@ agent = { part = "xengine.audio" }
 kind = "lib"
 
 [build]
-sources = ["src/*.cppm", "src/native/*.cpp"]
+sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 
 [dependencies]
 xengine.audio            = { path = ".." }

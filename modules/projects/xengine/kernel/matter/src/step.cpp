@@ -109,6 +109,8 @@ std::expected<Report, Failure> Program::step(Carrier carrier, std::span<const st
             return fail(Errc::pair, std::format("/pairs/{}", index), std::format("pair {}: {} beside {}, of {} instances", index, pair.first, pair.second, instances));
     }
 
+    if (!carrier.capacity.empty() && carrier.capacity.size() != instances)
+        return fail(Errc::shape, "/capacity", std::format("{} capacities for {} instances: one each, or none", carrier.capacity.size(), instances));
     // How much is beside each instance: what a transfer's share must leave room for.
     workspace.degree_.assign(instances, 0);
     for (const Pair& pair : carrier.pairs) {
@@ -175,8 +177,9 @@ std::expected<Report, Failure> Program::step(Carrier carrier, std::span<const st
             }
             const std::uint32_t flow = flow_of(law, difference, conductance, pair.weight, load);
             const std::uint32_t from = one > other ? pair.first : pair.second, to = one > other ? pair.second : pair.first;
-            lost[from] = saturating_add(lost[from], flow);
-            gained[to] = saturating_add(gained[to], flow);
+            const auto held = [&](std::uint32_t end) { return carrier.capacity.empty() ? 1u : std::max(1u, carrier.capacity[end]); };
+            lost[from] = saturating_add(lost[from], flow / held(from));
+            gained[to] = saturating_add(gained[to], flow / held(to));
         }
     }
 

@@ -84,7 +84,8 @@ Why Program::why(Carrier carrier, std::span<const std::uint32_t> input, std::siz
             const std::uint32_t flow = flow_of(law, difference, conductance, pair.weight, load);
             if (!flow) continue;
             const bool in = theirs > mine;
-            (in ? gained : lost)[slot] = saturating_add((in ? gained : lost)[slot], flow);
+            const std::uint32_t mine_held = carrier.capacity.size() == instances ? std::max(1u, carrier.capacity[instance]) : 1u;
+            (in ? gained : lost)[slot] = saturating_add((in ? gained : lost)[slot], flow / mine_held);
             out.flows.push_back({transfers_[slot], *other, flow, in});
         }
     }

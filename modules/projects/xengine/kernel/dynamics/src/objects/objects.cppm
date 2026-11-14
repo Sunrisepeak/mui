@@ -40,6 +40,9 @@ struct ObjectsOptions {
     matter::MaterialId ambient = matter::none;
     float              ambient_kelvin = 293;
     std::uint32_t      ambient_weight = 1;
+    // How much a body holds (matter's capacity): its mass over this, at least 1 — a 600 kg crate warms twelve times
+    // slower than a cell of the laws' scale does; a tuft of grass as fast. 0: every body 1.
+    float              capacity_unit = 50;  // kg
     // How the wind pushes a body (`blow`): F = ½ ρ C A |w − v| (w − v), A the area its box shows to the wind.
     float              air_density = 1.2f;  // kg/m³
     float              drag = 1.0f;         // C
@@ -131,6 +134,7 @@ public:
 private:
     [[nodiscard]] std::optional<std::size_t> index(BodyId body) const noexcept;
     [[nodiscard]] bool open_to_sky(const World& world, BodyId body, float sky) const noexcept;
+    void weigh(const World& world, std::size_t instances);  // capacity_: the bodies' by mass, then 1 each
     void keep(BodyId body, Cause cause);
     // After a step: each event of a body judged again, its cause kept (`why` gives the law and the inflows).
     void witness(const std::function<std::optional<matter::Why>(std::uint32_t instance)>& why_of, const std::function<std::optional<std::pair<BodyId, Vec>>(std::uint32_t instance)>& source_of);
@@ -147,6 +151,7 @@ private:
     std::vector<matter::Event> events_;
     matter::Workspace          workspace_;
     std::vector<xengine::field::Vec3> at_;          // where each body is (a field step's guests)
+    std::vector<std::uint32_t> capacity_;            // a step's: each instance's
     const xengine::field::Field* joined_ = nullptr; // the field of the last step (none: a bath)
     std::uint64_t              steps_ = 0;
     static constexpr std::size_t kept_causes = 8;    // a body's latest causes

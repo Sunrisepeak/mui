@@ -165,7 +165,8 @@ std::expected<matter::Report, matter::Failure> Objects::step(const World& world)
     }
     output_.resize(input_.size());
     events_.clear();
-    auto stepped = program_->step({instances, pairs_}, input_, output_, workspace_, &events_);
+    weigh(world, instances);
+    auto stepped = program_->step({instances, pairs_, false, capacity_}, input_, output_, workspace_, &events_);
     if (!stepped) return stepped;
     // What became of the air is not kept: it is a bath.
     std::erase_if(events_, [&](const matter::Event& event) { return event.instance >= count; });
@@ -176,7 +177,7 @@ std::expected<matter::Report, matter::Failure> Objects::step(const World& world)
     joined_ = nullptr;
     ++steps_;
     if (!events_.empty())
-        witness([&](std::uint32_t instance) { return program_->why({instances, pairs_}, before_, instance); },
+        witness([&](std::uint32_t instance) { return program_->why({instances, pairs_, false, capacity_}, before_, instance); },
                 [](std::uint32_t) -> std::optional<std::pair<BodyId, Vec>> { return std::nullopt; });
     return stepped;
 }
@@ -197,7 +198,8 @@ std::expected<matter::Report, matter::Failure> Objects::step(const World& world,
         at_.push_back(centre);
         air.cover(centre, 2);
     }
-    const std::array<xengine::field::Guests, 1> guests{xengine::field::Guests{.state = state_, .pairs = pairs_, .at = at_}};
+    weigh(world, bodies_.size());
+    const std::array<xengine::field::Guests, 1> guests{xengine::field::Guests{.state = state_, .pairs = pairs_, .at = at_, .capacity = capacity_}};
     auto stepped = air.step(guests);
     if (!stepped) return stepped;
     // What happened to the bodies (the field's events are by instance: cells first, then these).
@@ -256,6 +258,14 @@ void Objects::impacts(const World& world, std::vector<matter::Impact>& out) cons
             if (const auto at = index(body))
                 out.push_back({static_cast<std::uint32_t>(*at), state_[*at], contact.approach});
     }
+}
+
+void Objects::weigh(const World& world, std::size_t instances) {
+    capacity_.assign(instances, 1);
+    if (!(options_.capacity_unit > 0)) return;
+    for (std::size_t at = 0; at < bodies_.size(); ++at)
+        if (const auto pose = world.pose(bodies_[at]); pose && pose->mass > 0)
+            capacity_[at] = static_cast<std::uint32_t>(std::max(1L, std::lround(pose->mass / options_.capacity_unit)));
 }
 
 bool Objects::open_to_sky(const World& world, BodyId body, float sky) const noexcept {

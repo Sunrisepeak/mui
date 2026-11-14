@@ -250,6 +250,10 @@ struct Carrier {
     // share. A field's cell with the bodies and particles in it is crowded. Integer arithmetic, the same on both
     // ends of a pair: nothing made or lost, the same bits everywhere; where nothing is crowded, as if refused-free.
     bool                  crowded = false;
+    // How much each instance holds (none: 1 each): a transfer's flow changes each end by the flow ÷ its capacity —
+    // a crate warms by its mass, a coarse cell standing for a block of the air by its volume. The flow is what
+    // goes between them, as before; the quantity it moves in each is that, shared over what it has to warm.
+    std::span<const std::uint32_t> capacity;
 };
 enum class EventKind : std::uint8_t { became, rose, fell };
 // What happened to an instance in a step, for whoever plays a sound or keeps a score: it became another

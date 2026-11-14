@@ -1,22 +1,18 @@
-// openmui.bench:harness — what runs a benchmark and reports it.
+// omui.bench:harness — how a benchmark's body is measured, and its budgets.
 //
 // A benchmark is a named body that loops on `State::next()`; each pass of the
 // loop is one timed iteration (setup inside the loop goes between `pause()`
-// and `resume()`). The harness warms up, iterates until it has both enough
-// iterations and enough time, and reports per iteration: min, mean, p50,
-// p95, p99 and max (nearest rank), the cost per item when the body counts
-// items, heap allocations per iteration (when the program counts them), and
-// the body's own counters (node counts, phase times).
-//
-// A report is JSON (`openmui.bench@0.1`, written as `<name>.bench.omui.json`)
-// and a table; budgets (`budgets.bench.omui.json`) turn it into a gate: each
-// names a benchmark, a metric and its limit, and says why.
+// and `resume()`). The measuring is mtest's (`mcpplibs.mtest.bench`'s `laps`:
+// each call timed by itself, less what it paused for, with the quantities the
+// body states and the allocations the program counts); `State` is the scene's
+// side of it, and `run_one` gives what one benchmark measured under the names
+// its budgets use. Running them, keeping the numbers and judging the budgets
+// is the test runner's (tests/budgets_test.cpp: a case a benchmark, its
+// budgets the case's bounds).
 //
 //     omui::bench::add("frame/one-label", "…", [](omui::bench::State& s) {
 //         while (s.next()) step();
 //     });
-//     auto report = omui::bench::run({.filter = "frame/"});
-//     std::print("{}", report.table());
 export module omui.bench:harness;
 
 import std;
@@ -24,21 +20,22 @@ import std;
 export namespace omui::bench {
 
 struct Options {
-    std::string  filter;                 // run the benchmarks whose name contains it (all when empty)
     double       min_time_ms = 400;      // per benchmark, after the warm-up
     std::size_t  min_iterations = 12;
     std::size_t  max_iterations = 100'000;
     std::size_t  warmup = 3;
-    std::string  label;                  // what was measured: the toolchain and profile, a machine name
-    std::vector<std::string> notes;      // what a reader should know of the run (the report's notes)
-    std::vector<std::string> notes_zh;   // the same, for the Chinese report
 };
 
 // The loop a benchmark's body runs: `while (state.next()) { … }`.
 class State {
 public:
+    explicit State(const Options& options);
+    ~State();
+    State(const State&) = delete;
+    State& operator=(const State&) = delete;
+
     // Ends the iteration that was running (if any) and starts the next one;
-    // false when the harness has what it needs.
+    // false when what the options ask has been measured.
     [[nodiscard]] bool next();
 
     // Time between pause() and resume() is not part of the iteration.
@@ -46,62 +43,40 @@ public:
     void resume() noexcept;
 
     // The iteration did `n` things (spans, glyphs, nodes): the report gives the cost of one.
-    void items(std::uint64_t n) noexcept { items_ = n; }
+    void items(std::uint64_t n) noexcept;
 
     // A figure the body measured itself, reported as the mean over the timed iterations.
     void counter(std::string_view name, double value);
 
-    // A fact about the run that is not a number (the GPU it ran on), in the report beside it.
+    // A fact about the run that is not a number (the GPU it ran on), in the case's output.
     void note(std::string_view name, std::string text);
 
-    // The benchmark cannot run here (no GPU, say): reported as skipped, with
-    // the reason, and never as numbers; its budgets do not apply. The body
+    // The benchmark cannot run here (no GPU, say): its case is skipped, with
+    // the reason, and never numbers; its budgets do not apply. The body
     // returns after it.
     void skip(std::string reason);
-    // What it measures did not happen (a GPU frame that failed): reported as
-    // failed, never as numbers — and a check against the budgets fails. The
-    // body returns after it.
+    // What it measures did not happen (a GPU frame that failed): its case
+    // fails, never numbers. The body returns after it.
     void fail(std::string reason);
 
-    [[nodiscard]] std::size_t iteration() const noexcept { return done_; }
-
-    struct Config {
-        std::size_t warmup, min_iterations, max_iterations;
-        double      min_time_ms;
-    };
-    explicit State(Config config) : config_(config) {}
+    // Iterations ended, the warm-up's counted.
+    [[nodiscard]] std::size_t iteration() const noexcept;
 
 private:
     friend struct Access;
-    using clock = std::chrono::steady_clock;
-    Config                                      config_;
-    bool                                        running_ = false;
-    std::size_t                                 done_ = 0;       // iterations ended, warm-up included
-    clock::time_point                           started_{};
-    clock::time_point                           paused_at_{};
-    clock::duration                             paused_{};
-    clock::duration                             measured_total_{};
-    std::uint64_t                               allocs_at_ = 0;
-    std::uint64_t                               allocs_paused_ = 0;
-    std::uint64_t                               allocs_pause_at_ = 0;
-    std::uint64_t                               items_ = 0;
-    std::vector<double>                         samples_ms_;
-    std::vector<std::uint64_t>                  allocations_;
-    std::vector<std::pair<std::string, double>> counters_;       // sums over the timed iterations
-    std::string                                 skipped_;
-    std::string                                 failed_;
-    std::vector<std::pair<std::string, std::string>> notes_;
-    std::vector<std::pair<std::string, std::size_t>> counter_n_;
+    struct Impl;
+    std::unique_ptr<Impl> impl_;
 };
 
 struct Result {
     std::string  name;
     std::string  description;
     std::size_t  iterations = 0;
+    // Where the iterations lie, nearest rank.
     double       min_ms = 0, mean_ms = 0, p50_ms = 0, p95_ms = 0, p99_ms = 0, max_ms = 0;
     std::uint64_t items = 0;             // per iteration; 0: the body counted none
     double       ns_per_item = 0;        // mean / items
-    double       allocations = -1;       // per iteration (mean); -1: not counted
+    double       allocations = -1;       // per iteration (mean), of the thread that ran it; -1: the program counts none
     std::uint64_t max_allocations = 0;
     std::vector<std::pair<std::string, double>> counters;
     std::vector<double> samples_ms;      // each measured iteration, in the order run
@@ -125,40 +100,6 @@ struct Budget {
     std::string unless;
 };
 
-struct Violation {
-    Budget budget;
-    double value = 0;                    // NaN: the benchmark or the metric was not in the report
-};
-
-// What the numbers were measured on.
-struct Machine {
-    std::string                  cpu;        // the processor's model ("" when the system does not say)
-    std::string                  arch;       // x86_64, aarch64…
-    std::string                  system;     // the operating system and its version
-    std::optional<std::uint64_t> memory;     // bytes
-};
-[[nodiscard]] Machine this_machine();
-
-struct Report {
-    std::string          label;
-    std::string          platform;
-    unsigned             hardware_threads = 0;
-    std::string          started;        // UTC, ISO 8601
-    Machine              machine;
-    Options              options;        // how it was measured
-    std::vector<Result>  results;
-
-    [[nodiscard]] const Result* find(std::string_view name) const noexcept;
-    [[nodiscard]] std::string json() const;
-    [[nodiscard]] std::string table() const;
-    // The report for people (docs/en/benchmarks/): the machine, the method,
-    // every result by group beside its budgets, and why each budget is there.
-    // `language`: "en", or "zh" (the docs' two).
-    [[nodiscard]] std::string markdown(std::span<const Budget> budgets, std::string_view language = "en") const;
-    // Budgets of benchmarks that did not run are skipped unless `require_all`.
-    [[nodiscard]] std::vector<Violation> check(std::span<const Budget> budgets, bool require_all = false) const;
-};
-
 using Body = std::function<void(State&)>;
 
 struct Case {
@@ -170,16 +111,11 @@ struct Case {
 void add(std::string name, std::string description, Body body);
 [[nodiscard]] std::span<const Case> cases() noexcept;
 
-[[nodiscard]] Report run(const Options& options);
+// One benchmark measured: inside a test's case the measurement is also the
+// case's metrics (mtest's `iteration`, `iteration.p99`, …).
 [[nodiscard]] Result run_one(const Case& c, const Options& options);
 
 // budgets.bench.omui.json: {"format":"openmui.bench.budgets@0.1","budgets":[{"name":…,"metric":…,"max":…,"why":…,"unless":…}]}
 [[nodiscard]] std::expected<std::vector<Budget>, std::string> parse_budgets(std::string_view json);
-
-// Heap allocations: a program that replaces the global operator new calls
-// count_allocation() from it; until one does, allocations are not reported.
-void count_allocation() noexcept;
-[[nodiscard]] std::uint64_t allocations() noexcept;
-[[nodiscard]] bool counting_allocations() noexcept;
 
 }  // namespace omui::bench

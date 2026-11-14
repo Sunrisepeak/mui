@@ -31,7 +31,7 @@ step "llvm@23.1.3 dev"
 mcpp test "${select[@]}" --toolchain llvm@23.1.3 2>&1 | grep -E 'result|FAIL' || true
 
 step "benchmarks against their budgets (release)"
-mcpp run -p omui.bench --profile release -- --check tests/bench/budgets.bench.omui.json 2>&1 | grep -E '^(over budget|budgets)' || true
+OMUI_BENCH=1 mcpp test -p omui.bench --profile release budgets 2>&1 | grep -E 'result|FAIL' || true
 
 step "feature selection (M0 ⑤)"
 tools/ci/features.sh 2>&1 | grep -E '^(ok|FAIL)|features' || true

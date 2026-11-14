@@ -114,7 +114,7 @@ The same laws with cells that move — the emergence set, nine phenomena and one
 
 **A carrier is held to this step.** [cts](cts) (`xengine.matter.cts`, contract `xengine.matter.carrier@1`) steps eleven small worlds by the reference and by a carrier from the same state and compares every value after every step — heat, fire, wet and dry, the changes of phase, charge, soups of every material (wrapped edges too, and a grid two wide), instances that are no material, values at the ends of 32 bits, a material added as rows, and a definition of its own using every kind of read and write. A carrier one pair wrong fails it; the pairs in another order do not. The lattice passes it whole, in small tiles and run sparsely (`mcpp test -p xengine.matter.cts`), and the same file has what the lattice adds — cells that move — on the standard definition.
 
-`tests/prepare_test.cpp` is the preparation contract on it (12 cases). The reference step on 4096 instances each beside four is 2.3 ms in a debug build with nothing allocated (`omui-bench --filter simulation/matter`); it is the reference, not the path a large world runs.
+`tests/prepare_test.cpp` is the preparation contract on it (12 cases). The reference step on 4096 instances each beside four is 2.3 ms in a debug build with nothing allocated (the cases `simulation/matter-*` of [tests/bench](../../../../../tests/bench)); it is the reference, not the path a large world runs.
 
 ## What it looks like
 

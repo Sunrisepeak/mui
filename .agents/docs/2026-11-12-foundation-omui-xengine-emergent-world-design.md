@@ -1124,7 +1124,7 @@ burning: ladder({
 | 步 | 内容 | 状态 |
 |---|---|---|
 | 7a | `tests/bench/tests/budgets_test.cpp`：每个基准是一个 `bench` 种类的用例；量经 `metric` 上报（名字就是预算里用的名字：`p95_ms`、`max_allocations`、`ns_per_item`、各自的计数器），分位数由 `bench::distribute` 算；预算是用例的边界（`at_most`），带 `unless` 的预算（软件 GPU 上不适用的帧预算）在用例里按本次的计数器判定；一条预算指向不存在的基准时失败。只在 `OMUI_BENCH=1`（release、独占机器）下运行，否则跳过并说明；`OMUI_BENCH=quick` 每个跑一遍、不判定 | 本检查点 |
-| 7b | CI 的基准一步改成 `OMUI_BENCH=1 mcpp test -p omui.bench --profile release budgets`；与旧的一步并行跑一轮，102 条预算逐条对上后删除 `omui-bench` 的 `--check`、报告、表格、JSON 格式与 `main`，只留场景与取样循环 | 待 7a 的一轮 CI |
+| 7b | **完成（2026-11-14）**：`omui::bench::State` 的取样循环就是 mtest 的 `bench::laps`（暂停、每次的量、分配计数都是它的）；`omui-bench` 程序及其 `--check`、报告、表格、JSON 格式与 `main` 删除，CI 的基准一步只剩 `OMUI_BENCH=1 mcpp test -p omui.bench --profile release budgets`。预算仍在 `budgets.bench.omui.json`（一处数据，D-139），分位数仍按最近秩取（不因换框架而放宽）。为此 mtest 补了通用能力并发布为 0.8.1–0.8.3：一次调用的组成部分、量、最慢的几次、上限计数、分配计数（按线程）、循环形式 `laps`、单独运行时打印数字、单独运行时按标识／名字／`*` 模式选择。RTX 4080 上冷机（能耗偏好 performance）的一轮：109 条用例全过 | 完成 |
 
 发现的一处上游缺口（小，未提）：`metric` 的方向只有 `lower`／`higher`，没有“无所谓”（节点数这类计数器），趋势判定会把它当成越低越好。
 

@@ -1932,6 +1932,9 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                     step.cell_y = (*corner)[1];
                     step.uniforms.shape_info[1] = cx;
                     step.uniforms.shape_info[2] = cy;
+                    // What the source's pixels are counted in: the shared surface's extent (source_extent).
+                    step.uniforms.size[3] = static_cast<float>(shared.w);
+                    step.uniforms.shape_info[3] = static_cast<float>(shared.h);
                     const Affine before = m();
                     open.push_back({current, shared.source, push.opacity, push.blend, true, step, {x0, y0, static_cast<float>(w), static_cast<float>(h)},
                                     shared.effect_pass, shared.w, shared.h});

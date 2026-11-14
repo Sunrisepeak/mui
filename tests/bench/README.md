@@ -1,14 +1,21 @@
 # omui.bench
 
-The framework's benchmarks, and the gate made of them. `omui-bench` runs
-them, prints a table, writes the report as JSON (`openmui.bench@0.1`,
-`<name>.bench.omui.json`) and checks it against `budgets.bench.omui.json`:
+The framework's benchmarks, and the gate made of them. Each benchmark is a
+case of mtest's (`tests/budgets_test.cpp`); what it measured is the case's
+metrics, and its budgets (`budgets.bench.omui.json`) are the case's bounds:
 
 ```text
-mcpp run -p omui.bench --profile release -- --check tests/bench/budgets.bench.omui.json --json results.bench.omui.json
-mcpp run -p omui.bench --profile release -- --filter ui/frame     # some of them
-mcpp run -p omui.bench -- --list                                  # what there is
+OMUI_BENCH=1 mcpp test -p omui.bench --profile release budgets        # every benchmark, judged
+OMUI_BENCH=quick mcpp test -p omui.bench budgets                       # one pass of each, nothing judged
+OMUI_BENCH=1 <the built budgets_test> 'bench.budgets/wall/*-gpu*'       # run alone: a case, a group (bench.budgets/wall) or a pattern; numbers printed
 ```
+
+The measuring is mtest's (`mcpplibs.mtest.bench`'s `laps`): each iteration
+timed by itself, less what it paused for, with the counters the body states
+and the allocations this program counts. A scene writes `while (s.next()) …`
+(`:harness`); run alone the program prints each benchmark's median, p95, p99
+and max and its counters, and under a runner they are in the run's record
+(`mtest analyze bench`, `mtest analyze trend`).
 
 Against the competitors: [competitors](competitors) (`omui.bench.competitors`)
 does the same work in our engines and in the best of each field — hanim
@@ -52,7 +59,7 @@ counts and the runtime's phase times for the frame benchmarks.
 
 A budget names a benchmark, a metric (`p95_ms`, `ns_per_item`,
 `max_allocations`, a counter …), its limit, and why. Budgets are for release
-builds; CI's release row checks them and keeps the report as an artifact.
+builds; CI's release row runs the cases, and one over its budget fails.
 
 Writing one:
 
@@ -80,7 +87,7 @@ All nine measure **CPU wall-clock work**. They neither submit GPU work nor
 measure GPU execution, and say so in each result's notes.
 
 ```text
-mcpp run -p omui.bench --profile release -- --filter public-motion/ --json public-motion.bench.omui.json
+OMUI_BENCH=1 <the built budgets_test> bench.budgets/public-motion/program-seek-100x2
 ```
 
 | Case (`public-motion/` prefix) | One iteration / reported item |

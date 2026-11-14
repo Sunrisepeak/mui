@@ -1,6 +1,6 @@
 # openmui benchmarks
 
-Measured 2026-10-27T22:29:40Z (Linux x86_64, GCC 16.1, release; GPU: Vulkan through SDL_GPU). Every number is the wall-clock time of one iteration on the machine below; a GPU benchmark's includes submitting the frame and waiting for the GPU to finish it. `omui-bench --report` wrote this page from the same run as its JSON (`--json`).
+Measured 2026-10-27T22:29:40Z (Linux x86_64, GCC 16.1, release; GPU: Vulkan through SDL_GPU). Every number is the wall-clock time of one iteration on the machine below; a GPU benchmark's includes submitting the frame and waiting for the GPU to finish it. The benchmark program of that date wrote this page; the benchmarks now run as mtest cases (`OMUI_BENCH=1 mcpp test -p omui.bench --profile release budgets`, [tests/bench](../../../tests/bench)).
 
 ## The machine
 

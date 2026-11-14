@@ -19,7 +19,7 @@ import mcpplibs.mtest;
 import mcpplibs.mtest.bench;
 
 void* operator new(std::size_t size) {
-    omui::bench::count_allocation();
+    mcpplibs::mtest::bench::allocated(size);
     if (void* memory = std::malloc(size ? size : 1)) return memory;
     std::abort();  // core code uses no exceptions; running out of memory ends the run
 }

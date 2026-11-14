@@ -1,10 +1,9 @@
 # omui.bench — the framework's benchmarks: what a frame of the 1000-node
 # dashboard costs at 1080p on the CPU (M1 acceptance ⑤), the pieces alone,
-# and what tracing and logging cost when off. `omui-bench` prints a table,
-# writes `<name>.bench.omui.json`, and checks budgets.bench.omui.json (CI's
-# release row; the budgets are for release builds).
+# and what tracing and logging cost when off. Each is a case of mtest's whose
+# budgets (budgets.bench.omui.json, for release builds) are the case's bounds:
 #
-#   mcpp run -p omui.bench --profile release -- --check tests/bench/budgets.bench.omui.json
+#   OMUI_BENCH=1 mcpp test -p omui.bench --profile release budgets
 [package]
 namespace   = "omui"
 name        = "bench"
@@ -18,15 +17,12 @@ kind = "tool"
 [targets.openmui-bench]
 kind = "lib"
 
-[targets.omui-bench]
-kind = "bin"
-main = "src/main.cpp"
-
 [build]
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-mcpplibs.cmdline = "0.0.3"
+# The measuring is mtest's (bench::laps): the scenes' loop is its, in the library and in its tests.
+mcpplibs.mtest = "0.8.3"
 xrender.text = { path = "../../modules/projects/xrender/text" }
 xrender.scene = { path = "../../modules/projects/xrender/scene" }
 "xrender.mesh"  = { path = "../../modules/projects/xrender/mesh" }
@@ -64,5 +60,3 @@ mlibs.rhi           = { path = "../../modules/gfx/rhi" }
 xrender.rhi.sdl       = { path = "../../modules/projects/xrender/rhi/sdl" }
 mcpplibs.os           = "0.4.4"
 
-[dev-dependencies]
-mcpplibs.mtest = "0.7.2"

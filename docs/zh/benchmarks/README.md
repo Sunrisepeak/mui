@@ -1,6 +1,6 @@
 # openmui 基准报告
 
-测量于 2026-10-27T22:29:40Z (Linux x86_64, GCC 16.1, release; GPU: Vulkan through SDL_GPU)。每个数字都是下面这台机器上一次迭代的墙钟时间；GPU 基准的时间包括提交一帧并等待 GPU 完成。本页由 `omui-bench --report` 从生成 JSON（`--json`）的同一次运行写出。
+测量于 2026-10-27T22:29:40Z (Linux x86_64, GCC 16.1, release; GPU: Vulkan through SDL_GPU)。每个数字都是下面这台机器上一次迭代的墙钟时间；GPU 基准的时间包括提交一帧并等待 GPU 完成。本页由当时的基准程序写出；基准现在作为 mtest 用例运行（`OMUI_BENCH=1 mcpp test -p omui.bench --profile release budgets`，见 [tests/bench](../../../tests/bench)）。
 
 ## 机器
 

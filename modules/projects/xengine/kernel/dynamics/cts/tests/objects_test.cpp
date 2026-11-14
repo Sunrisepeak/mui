@@ -4,6 +4,7 @@
 // and still touch; the same world twice is the same bits; and the carrier says why the second crate caught.
 import std;
 import xengine.dynamics.objects;
+import xengine.field;
 import xengine.matter.json;
 import mcpplibs.mtest;
 
@@ -91,5 +92,73 @@ UTest cases{"dynamics.objects", [] {
         // The same world played again: the same bits.
         Yard again = run(1200, nullptr, nullptr);
         expect(eq(again.objects->state_hash(), played.objects->state_hash()));
+    };
+
+    "in the air of a field: a burning crate warms the air over it, and its updraft lifts a sheet of cloth held over it (the emergence set's 9, in 3D)"_test = [] {
+        const auto table = matter::standard();
+        expect(fatal(table.has_value())) << "the standard definition prepares";
+        const matter::Program& program = *table;
+        const std::uint32_t temperature = *program.channel("temperature");
+        auto world = rigid3::World::make({});
+        const auto floor = *world->add({.kind = rigid3::Kind::fixed, .at = {0, -0.5f, 0}}, rigid3::Shape::box({20, 0.5f, 20}));
+        (void)floor;
+        const auto crate = *world->add({.kind = rigid3::Kind::fixed, .at = {0.5f, 0.5f, 0.5f}}, rigid3::Shape::box({0.5f, 0.5f, 0.5f}));
+        const rigid3::Vec start{0.5f, 2.6f, 0.5f};
+        // As light as a sheet of paper: 20 cm square, 8 g.
+        const auto sheet = *world->add({.at = start}, rigid3::Shape::box({0.1f, 0.005f, 0.1f}), {.density = 20});
+        auto objects = rigid3::Objects::make(program);
+        auto air = xengine::field::Field::make(program, {.air = *program.material("air")});
+        expect(fatal(objects.has_value() && air.has_value()));
+        (void)objects->add(crate, *program.material("wood")), (void)objects->add(sheet, *program.material("cloth"));
+        air->cover({0.5f, 3, 0.5f}, 4);
+        float highest = start.y, warmest = 0;
+        for (int step = 0; step < 240; ++step) {
+            (void)objects->set(crate, temperature, std::max(*objects->get(crate, temperature), stored(program, temperature, 900)));  // alight
+            objects->blow(*world, *air);
+            world->step();
+            const auto stepped = objects->step(*world, *air);
+            expect(fatal(stepped.has_value())) << (stepped ? "" : stepped.error().message);
+            highest = std::max(highest, world->pose(sheet)->centre.y);
+            warmest = std::max(warmest, air->kelvin_at({0.5f, 1.5f, 0.5f}));
+        }
+        const auto lift = air->wind_at({0.5f, 2, 0.5f});
+        std::println("over the burning crate: the air 1 m above as warm as {:.0f} K, the wind 1.5 m above ({:.2f}, {:.2f}, {:.2f}) m/s; the sheet of cloth from {:.2f} m up to {:.2f} m", warmest, lift.x, lift.y,
+                     lift.z, start.y, highest);
+        expect(gt(warmest, 320.0f)) << "the crate warms the air over it";
+        expect(gt(lift.y, 1.0f)) << "warm air rises";
+        // Lifted against its weight while it is in the plume's core (a quarter metre and more is no wobble); out of
+        // the core it falls again.
+        expect(gt(highest, start.y + 0.25f)) << "the updraft lifts a light thing";
+    };
+
+    "a strip of grass lit in the middle burns faster downwind than upwind (the emergence set's 10)"_test = [] {
+        const auto table = matter::standard();
+        expect(fatal(table.has_value())) << "the standard definition prepares";
+        const matter::Program& program = *table;
+        const std::uint32_t temperature = *program.channel("temperature"), burning = *program.channel("burning");
+        auto world = rigid3::World::make({});
+        auto objects = rigid3::Objects::make(program);
+        auto air = xengine::field::Field::make(program, {.air = *program.material("air"), .wind = {2, 0, 0}});
+        expect(fatal(objects.has_value() && air.has_value()));
+        // Tufts 0.25 m long end to end along x (fixed: grass does not fall over), from −3.5 m to 3.5 m.
+        std::vector<rigid3::BodyId> tufts;
+        for (int tuft = -14; tuft <= 14; ++tuft) {
+            tufts.push_back(*world->add({.kind = rigid3::Kind::fixed, .at = {static_cast<float>(tuft) * 0.25f, 0.15f, 0.5f}}, rigid3::Shape::box({0.125f, 0.15f, 0.05f})));
+            (void)objects->add(tufts.back(), *program.material("wood"));
+        }
+        air->cover({0, 2, 0.5f}, 6);
+        const rigid3::BodyId middle = tufts[14], downwind = tufts[14 + 12], upwind = tufts[14 - 12];
+        std::uint64_t down_at = 0, up_at = 0;
+        for (int step = 1; step <= 1800 && (!down_at || !up_at); ++step) {
+            if (step < 30) (void)objects->set(middle, temperature, stored(program, temperature, 900));
+            world->step();
+            const auto stepped = objects->step(*world, *air);
+            expect(fatal(stepped.has_value())) << (stepped ? "" : stepped.error().message);
+            if (!down_at && *objects->get(downwind, burning) > 0) down_at = static_cast<std::uint64_t>(step);
+            if (!up_at && *objects->get(upwind, burning) > 0) up_at = static_cast<std::uint64_t>(step);
+        }
+        std::println("a 2 m/s wind: the fire 3 m downwind at step {}, 3 m upwind at step {} (0: not in 30 s)", down_at, up_at);
+        expect(gt(down_at, std::uint64_t{0})) << "it spreads downwind";
+        expect(up_at == 0 || lt(down_at, up_at)) << "faster downwind than upwind";
     };
 }};

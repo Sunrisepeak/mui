@@ -224,6 +224,11 @@ public:
     void remove(BodyId body) noexcept;
     [[nodiscard]] bool has(BodyId body) const noexcept;
     [[nodiscard]] std::optional<Pose> pose(BodyId body) const noexcept;
+    // The box a body fills in the world now (its shape where it is).
+    struct Bounds {
+        Vec low, high;
+    };
+    [[nodiscard]] std::optional<Bounds> bounds(BodyId body) const noexcept;
     // In the order made: what a hash and a save go through.
     [[nodiscard]] std::span<const BodyId> bodies() const noexcept;
     // An impulse (N·s) at a point in the world, or through the centre of mass.

@@ -1,0 +1,33 @@
+# xengine.field — the air and what moves it, as one more carrier of matter (the M6.5 design's T5.2; the foundation
+# plan's §6.4: the field carrier): a sparse lattice of coarse cells where the standard laws run as on any carrier,
+# and the wind — warm air rising, carried along by itself, kept from piling up — that carries the heat. Bodies and
+# particles join a step as guests in the cell they are in. Deterministic: the same bits every run; a copy is a branch.
+[package]
+namespace   = "xengine"
+name        = "field"
+version     = "0.1.0"
+description = "The air as a carrier of matter: coarse cells under the same laws, and the wind that warm air makes and carries the heat by"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "module"
+# A carrier for now; its subject (observe, explain across carriers, branch, apply) comes with the M6.5 design's T5.5.
+agent = { library = "a carrier of matter: state, why and a branch by copy now; its subject with T5.5" }
+
+[targets.xengine-field]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-fno-fast-math", "-ffp-contract=off"]
+
+[dependencies]
+xengine.matter = { path = "../matter", default-features = false }
+mlibs.math     = { path = "../../../../base/math" }
+mlibs.utils    = { path = "../../../../base/utils" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+xengine.matter = { path = "../matter" }  # with its default features: the standard definition (json)

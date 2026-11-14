@@ -51,7 +51,15 @@ Why Program::why(Carrier carrier, std::span<const std::uint32_t> input, std::siz
             if (amount) out.near.push_back({what.source, what.index, *other, amount});
         }
     }
-    // 2 What flows, between this instance and each beside it.
+    // 2 What flows, between this instance and each beside it (on a crowded carrier, as step() shares it: by how
+    // much is beside each end).
+    std::vector<std::uint32_t> degree;
+    if (carrier.crowded) {
+        degree.assign(instances, 0);
+        for (const Pair& pair : carrier.pairs)
+            if (pair.first < instances && pair.second < instances && pair.first != pair.second)
+                degree[pair.first] = saturating_add(degree[pair.first], pair.weight), degree[pair.second] = saturating_add(degree[pair.second], pair.weight);
+    }
     std::vector<std::uint32_t> gained(transfers_.size(), 0), lost(transfers_.size(), 0);
     for (std::size_t slot = 0; slot < transfers_.size(); ++slot) {
         const Law& law = laws_[transfers_[slot]];
@@ -68,7 +76,12 @@ Why Program::why(Carrier carrier, std::span<const std::uint32_t> input, std::siz
             if (mine == theirs) continue;
             const std::uint32_t conductance = std::min(conducts(static_cast<std::uint32_t>(instance)), conducts(*other));
             const std::uint32_t difference = mine > theirs ? mine - theirs : theirs - mine;
-            const std::uint32_t flow = saturating_multiply(saturating_multiply(saturating_multiply(difference, conductance), pair.weight), law.multiply) >> law.shift;
+            std::uint64_t load = 0;
+            if (carrier.crowded) {
+                const auto load_of = [&](std::uint32_t end) { return std::uint64_t{conducts(end)} * law.multiply * degree[end]; };
+                load = std::max(load_of(static_cast<std::uint32_t>(instance)), load_of(*other));
+            }
+            const std::uint32_t flow = flow_of(law, difference, conductance, pair.weight, load);
             if (!flow) continue;
             const bool in = theirs > mine;
             (in ? gained : lost)[slot] = saturating_add((in ? gained : lost)[slot], flow);

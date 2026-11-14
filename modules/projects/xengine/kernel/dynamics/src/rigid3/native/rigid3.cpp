@@ -465,6 +465,15 @@ float face_area(const JPH::CollideShapeResult::Face& face) {
 }
 }  // namespace
 
+std::optional<World::Bounds> World::bounds(BodyId body) const noexcept {
+    const auto found = native_->records.find(body);
+    if (found == native_->records.end()) return std::nullopt;
+    const JPH::BodyLockRead lock(native_->system->GetBodyLockInterfaceNoLock(), JPH::BodyID(found->second.native));
+    if (!lock.Succeeded()) return std::nullopt;
+    const JPH::AABox box = lock.GetBody().GetWorldSpaceBounds();
+    return Bounds{vec(box.mMin), vec(box.mMax)};
+}
+
 void World::touching(std::vector<Touch>& out, float margin) const {
     out.clear();
     const JPH::BodyLockInterfaceNoLock& locks = native_->system->GetBodyLockInterfaceNoLock();

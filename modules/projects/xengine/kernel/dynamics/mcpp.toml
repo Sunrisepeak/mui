@@ -68,6 +68,10 @@ mcpplibs.mwrap.box2d = "3.2.0"
 # The vector type (mlibs.math's: one definition for the family, the particles and what couples them).
 mlibs.math = { path = "../../../../base/math" }
 
+[feature-deps.rigid3-matter]
+# The air bodies stand in (xengine.field): their guests' cell, the wind that pushes them.
+xengine.field = { path = "../field" }
+
 [feature-deps.rigid3]
 mcpplibs.mwrap.jolt = "5.6.0"
 mlibs.math = { path = "../../../../base/math" }

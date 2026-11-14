@@ -19,6 +19,7 @@ export module xengine.dynamics.objects;
 import std;
 export import xengine.dynamics.rigid3;
 export import xengine.matter;
+export import xengine.field;
 
 export namespace xengine::dynamics::rigid3 {
 
@@ -39,6 +40,9 @@ struct ObjectsOptions {
     matter::MaterialId ambient = matter::none;
     float              ambient_kelvin = 293;
     std::uint32_t      ambient_weight = 1;
+    // How the wind pushes a body (`blow`): F = ½ ρ C A |w − v| (w − v), A the area its box shows to the wind.
+    float              air_density = 1.2f;  // kg/m³
+    float              drag = 1.0f;         // C
 };
 
 class Objects {
@@ -61,6 +65,12 @@ public:
     // One tick of matter between the bodies touching now in `world` (after its step). What became of each body
     // is in `events`, by body (`body_of`).
     [[nodiscard]] std::expected<matter::Report, matter::Failure> step(const World& world);
+    // The same, in the air of a field instead of a bath: each body a guest of the cell it is in (cells made about
+    // it as needed), the field's laws and wind stepped with it — what is about a body is the air where it is.
+    [[nodiscard]] std::expected<matter::Report, matter::Failure> step(const World& world, xengine::field::Field& air);
+    // The wind's push on each body for the world's next step (before `world.step()`): the field's wind where it is
+    // against how it moves — an updraft lifts a light thing, a gale shoves a crate.
+    void blow(World& world, const xengine::field::Field& air) const;
     [[nodiscard]] std::span<const matter::Event> events() const noexcept { return events_; }
     // The body an instance of the last step is (none: the air beside one).
     [[nodiscard]] BodyId body_of(std::uint32_t instance) const noexcept { return instance < bodies_before_.size() ? bodies_before_[instance] : BodyId{}; }
@@ -87,6 +97,8 @@ private:
     std::vector<Touch>         touches_;
     std::vector<matter::Event> events_;
     matter::Workspace          workspace_;
+    std::vector<xengine::field::Vec3> at_;          // where each body is (a field step's guests)
+    const xengine::field::Field* joined_ = nullptr; // the field of the last step (none: a bath)
 };
 
 }  // namespace xengine::dynamics::rigid3

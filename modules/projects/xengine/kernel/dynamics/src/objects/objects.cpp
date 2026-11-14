@@ -107,12 +107,63 @@ std::expected<matter::Report, matter::Failure> Objects::step(const World& world)
         std::copy_n(output_.begin() + static_cast<std::ptrdiff_t>(channel * instances), count, state_.begin() + static_cast<std::ptrdiff_t>(channel * count));
     before_.assign(input_.begin(), input_.end());
     bodies_before_.assign(bodies_.begin(), bodies_.end());
+    joined_ = nullptr;
     return stepped;
+}
+
+std::expected<matter::Report, matter::Failure> Objects::step(const World& world, xengine::field::Field& air) {
+    world.touching(touches_, options_.margin);
+    pairs_.clear();
+    for (const Touch& touch : touches_) {
+        const auto one = index(touch.one), other = index(touch.other);
+        if (!one || !other) continue;
+        const auto weight = static_cast<std::uint32_t>(std::clamp<long>(std::lround(touch.area / options_.unit), 1, static_cast<long>(options_.most)));
+        pairs_.push_back({static_cast<std::uint32_t>(*one), static_cast<std::uint32_t>(*other), weight});
+    }
+    at_.clear();
+    for (const BodyId body : bodies_) {
+        const auto pose = world.pose(body);
+        const xengine::field::Vec3 centre = pose ? pose->centre : xengine::field::Vec3{};
+        at_.push_back(centre);
+        air.cover(centre, 2);
+    }
+    const std::array<xengine::field::Guests, 1> guests{xengine::field::Guests{.state = state_, .pairs = pairs_, .at = at_}};
+    auto stepped = air.step(guests);
+    if (!stepped) return stepped;
+    // What happened to the bodies (the field's events are by instance: cells first, then these).
+    const std::uint32_t first = air.first_guest(0);
+    events_.clear();
+    for (matter::Event event : air.events())
+        if (event.instance >= first && event.instance < first + bodies_.size()) event.instance -= first, events_.push_back(event);
+    bodies_before_.assign(bodies_.begin(), bodies_.end());
+    before_.clear();
+    joined_ = &air;
+    return stepped;
+}
+
+void Objects::blow(World& world, const xengine::field::Field& air) const {
+    const float dt = world.options().step;
+    for (const BodyId body : bodies_) {
+        const auto pose = world.pose(body);
+        const auto box = world.bounds(body);
+        if (!pose || !box || !(pose->mass > 0)) continue;
+        const xengine::field::Vec3 wind = air.wind_at(pose->centre);
+        const xengine::field::Vec3 relative{wind.x - pose->velocity.x, wind.y - pose->velocity.y, wind.z - pose->velocity.z};
+        const float speed = std::sqrt(relative.x * relative.x + relative.y * relative.y + relative.z * relative.z);
+        const float across_x = box->high.x - box->low.x, across_y = box->high.y - box->low.y, across_z = box->high.z - box->low.z;
+        if (!(speed > 0)) continue;
+        // The area the box shows to the wind: each face's area by how squarely the wind meets it.
+        const float area = (std::abs(relative.x) * across_y * across_z + std::abs(relative.y) * across_x * across_z + std::abs(relative.z) * across_x * across_y) / speed;
+        const float push = 0.5f * options_.air_density * options_.drag * area * speed * dt;
+        if (push > 0) world.push(body, {relative.x * push, relative.y * push, relative.z * push});
+    }
 }
 
 std::optional<matter::Why> Objects::why(BodyId body) const {
     const auto found = std::ranges::lower_bound(bodies_before_, body);
-    if (found == bodies_before_.end() || *found != body || before_.empty()) return std::nullopt;
+    if (found == bodies_before_.end() || *found != body) return std::nullopt;
+    if (joined_) return joined_->why(joined_->first_guest(0) + static_cast<std::uint32_t>(found - bodies_before_.begin()));
+    if (before_.empty()) return std::nullopt;
     const std::size_t instances = before_.size() / program_->channels().size();
     return program_->why({instances, pairs_}, before_, static_cast<std::size_t>(found - bodies_before_.begin()));
 }

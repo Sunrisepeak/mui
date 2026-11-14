@@ -244,6 +244,12 @@ struct Pair {
 struct Carrier {
     std::size_t           instances = 0;
     std::span<const Pair> pairs;
+    // Where what is beside an instance could take more than it has (a transfer's share times all its neighbours'
+    // weight): refused (the default: a lattice's laws are made for its neighbourhood, and more is a mistake), or —
+    // crowded — each pair's flow scaled so that neither end gives more than it has, by the more crowded end's
+    // share. A field's cell with the bodies and particles in it is crowded. Integer arithmetic, the same on both
+    // ends of a pair: nothing made or lost, the same bits everywhere; where nothing is crowded, as if refused-free.
+    bool                  crowded = false;
 };
 enum class EventKind : std::uint8_t { became, rose, fell };
 // What happened to an instance in a step, for whoever plays a sound or keeps a score: it became another
@@ -362,6 +368,10 @@ public:
     [[nodiscard]] Why why(Carrier carrier, std::span<const std::uint32_t> input, std::size_t instance) const;
 
 private:
+    // A transfer's flow across a pair: the difference times the smaller conductance, the pair's weight and the
+    // law's rate — scaled down, on a crowded carrier, by the more crowded end (`load`: its own conductance × the
+    // rate × all its neighbours' weight, against 2^shift).
+    [[nodiscard]] static std::uint32_t flow_of(const Law& law, std::uint32_t difference, std::uint32_t conductance, std::uint32_t weight, std::uint64_t load) noexcept;
     [[nodiscard]] std::uint32_t evaluate(const Sum& sum, std::span<const std::uint32_t> properties, std::span<const std::uint32_t> input,
                                          std::size_t instances, std::size_t instance, std::span<const std::uint32_t> near) const noexcept;
     [[nodiscard]] bool holds(const Law& law, std::span<const std::uint32_t> properties, std::span<const std::uint32_t> input, std::size_t instances,

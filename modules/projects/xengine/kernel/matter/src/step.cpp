@@ -86,6 +86,13 @@ bool Program::holds(const Law& law, std::span<const std::uint32_t> properties, s
     return true;
 }
 
+std::uint32_t Program::flow_of(const Law& law, std::uint32_t difference, std::uint32_t conductance, std::uint32_t weight, std::uint64_t load) noexcept {
+    const std::uint32_t product = saturating_multiply(saturating_multiply(saturating_multiply(difference, conductance), weight), law.multiply);
+    const std::uint64_t room = std::uint64_t{1} << law.shift;
+    if (load <= room) return product >> law.shift;
+    return static_cast<std::uint32_t>((std::uint64_t{product} * room / load) >> law.shift);
+}
+
 std::expected<Report, Failure> Program::step(Carrier carrier, std::span<const std::uint32_t> input, std::span<std::uint32_t> output, Workspace& workspace,
                                              std::vector<Event>* events) const noexcept {
     mlibs::trace::Span span("simulation.matter.step", "simulation");
@@ -108,14 +115,21 @@ std::expected<Report, Failure> Program::step(Carrier carrier, std::span<const st
         workspace.degree_[pair.first] = saturating_add(workspace.degree_[pair.first], pair.weight);
         workspace.degree_[pair.second] = saturating_add(workspace.degree_[pair.second], pair.weight);
     }
+    // A flow out of an instance is at most the difference times the smaller of the two conductances — never more
+    // than its own — so its own material's conductance bounds what all that is beside it can take: air, which
+    // conducts little, may have many beside it; iron few.
     for (const std::uint32_t index : transfers_) {
+        if (carrier.crowded) break;  // shared, not refused
         const Law& law = laws_[index];
-        const std::uint64_t most = law.by == none ? 1 : static_cast<std::uint64_t>(columns_[law.by].most);
-        for (std::size_t instance = 0; instance < instances; ++instance)
+        for (std::size_t instance = 0; instance < instances; ++instance) {
+            const std::uint32_t material = input[instance];
+            if (material >= materials_.size()) continue;  // conducts nothing: takes no part
+            const std::uint64_t most = law.by == none ? 1 : static_cast<std::uint64_t>(values_[material * width + law.by]);
             if (most * law.multiply * workspace.degree_[instance] > (std::uint64_t{1} << law.shift))
                 return fail(Errc::unstable, std::format("/laws/{}", index),
                             std::format("`{}`: instance {} has {} beside it; with a share of {} × {} / {} to each, they could together take more than it has", law.name, instance,
                                         workspace.degree_[instance], most, law.multiply, std::uint64_t{1} << law.shift));
+        }
     }
 
     const auto material_of = [&](std::size_t instance) { return input[instance]; };
@@ -154,7 +168,12 @@ std::expected<Report, Failure> Program::step(Carrier carrier, std::span<const st
             if (one == other) continue;
             const std::uint32_t conductance = std::min(conducts(pair.first), conducts(pair.second));
             const std::uint32_t difference = one > other ? one - other : other - one;
-            const std::uint32_t flow = saturating_multiply(saturating_multiply(saturating_multiply(difference, conductance), pair.weight), law.multiply) >> law.shift;
+            std::uint64_t load = 0;
+            if (carrier.crowded) {
+                const auto load_of = [&](std::uint32_t end) { return std::uint64_t{conducts(end)} * law.multiply * workspace.degree_[end]; };
+                load = std::max(load_of(pair.first), load_of(pair.second));
+            }
+            const std::uint32_t flow = flow_of(law, difference, conductance, pair.weight, load);
             const std::uint32_t from = one > other ? pair.first : pair.second, to = one > other ? pair.second : pair.first;
             lost[from] = saturating_add(lost[from], flow);
             gained[to] = saturating_add(gained[to], flow);

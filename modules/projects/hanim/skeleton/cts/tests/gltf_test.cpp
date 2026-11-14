@@ -10,6 +10,7 @@ import mlibs.base64;
 import hanim.skeleton;
 import hanim.skeleton.gltf;
 import xrender.asset;
+import mlibs.image;
 import mcpplibs.mtest;
 import mcpplibs.os;
 
@@ -63,6 +64,49 @@ std::string document() {
     {{"bufferView": 3, "componentType": 5126, "count": 2, "type": "VEC3"}},
     {{"bufferView": 4, "componentType": 5126, "count": 6, "type": "VEC3"}},
     {{"bufferView": 5, "componentType": 5126, "count": 3, "type": "MAT4"}}]
+}})",
+                       bytes.size(), data);
+}
+
+// A strip of two quads on two bones (the second 1 up), its upper corners on the second; the clip turns the
+// second bone a quarter about z in a second.
+std::string skinned_document() {
+    std::vector<float> numbers;
+    const auto put = [&](std::initializer_list<float> values) { numbers.insert(numbers.end(), values); };
+    put({0, 0, 0, 1, 0, 0, 0, 2, 0, 1, 2, 0});                             // 0: positions
+    put({1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0});                 // 48: weights, each wholly its first joint's
+    put({1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1});                 // 112: inverse binds
+    put({1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, -1, 0, 1});
+    put({0, 1});                                                           // 240: times
+    put({0, 0, 0, 1, 0, 0, 0.70710678f, 0.70710678f});                     // 248: a quarter turn about z
+    std::string bytes(numbers.size() * 4, '\0');
+    std::memcpy(bytes.data(), numbers.data(), bytes.size());
+    const std::array<std::uint8_t, 16> joints{0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0};          // 280
+    const std::array<std::uint16_t, 6> indices{0, 1, 2, 1, 3, 2};                                         // 296
+    bytes.append(reinterpret_cast<const char*>(joints.data()), joints.size());
+    bytes.append(reinterpret_cast<const char*>(indices.data()), indices.size() * 2);
+    const std::string data = mlibs::base64::encode(std::span(reinterpret_cast<const std::uint8_t*>(bytes.data()), bytes.size()));
+    return std::format(R"({{
+  "asset": {{"version": "2.0"}},
+  "scene": 0, "scenes": [{{"nodes": [0, 1]}}],
+  "nodes": [{{"mesh": 0, "skin": 0}}, {{"name": "lower", "children": [2]}}, {{"name": "upper", "translation": [0, 1, 0]}}],
+  "meshes": [{{"primitives": [{{"attributes": {{"POSITION": 0, "JOINTS_0": 5, "WEIGHTS_0": 1}}, "indices": 6}}]}}],
+  "skins": [{{"joints": [1, 2], "inverseBindMatrices": 2}}],
+  "animations": [{{"name": "turn", "samplers": [{{"input": 3, "output": 4}}], "channels": [{{"sampler": 0, "target": {{"node": 2, "path": "rotation"}}}}]}}],
+  "buffers": [{{"byteLength": {}, "uri": "data:application/octet-stream;base64,{}"}}],
+  "bufferViews": [
+    {{"buffer": 0, "byteOffset": 0, "byteLength": 48}}, {{"buffer": 0, "byteOffset": 48, "byteLength": 64}},
+    {{"buffer": 0, "byteOffset": 112, "byteLength": 128}}, {{"buffer": 0, "byteOffset": 240, "byteLength": 8}},
+    {{"buffer": 0, "byteOffset": 248, "byteLength": 32}}, {{"buffer": 0, "byteOffset": 280, "byteLength": 16}},
+    {{"buffer": 0, "byteOffset": 296, "byteLength": 12}}],
+  "accessors": [
+    {{"bufferView": 0, "componentType": 5126, "count": 4, "type": "VEC3", "min": [0, 0, 0], "max": [1, 2, 0]}},
+    {{"bufferView": 1, "componentType": 5126, "count": 4, "type": "VEC4"}},
+    {{"bufferView": 2, "componentType": 5126, "count": 2, "type": "MAT4"}},
+    {{"bufferView": 3, "componentType": 5126, "count": 2, "type": "SCALAR", "min": [0], "max": [1]}},
+    {{"bufferView": 4, "componentType": 5126, "count": 2, "type": "VEC4"}},
+    {{"bufferView": 5, "componentType": 5121, "count": 4, "type": "VEC4"}},
+    {{"bufferView": 6, "componentType": 5123, "count": 6, "type": "SCALAR"}}]
 }})",
                        bytes.size(), data);
 }
@@ -129,6 +173,42 @@ UTest cases{"hanim.skeleton.gltf", [] {
         expect(!skeleton::gltf::rig(*imported, {.root_motion = "tail"}).has_value());
     };
 
+    "a document's skinned mesh kept bent by the clip played: the corners where the bones put them, the frame before kept, nothing made after the first"_test = [] {
+        const std::string text = skinned_document();
+        const auto imported = asset::gltf(std::span(reinterpret_cast<const std::uint8_t*>(text.data()), text.size()));
+        expect(fatal(imported.has_value())) << (imported ? "" : imported.error());
+        expect(fatal(eq(imported->skinned.size(), std::size_t{1})));
+        const auto made = skeleton::gltf::rig(*imported);
+        expect(fatal(made.has_value())) << (made ? "" : made.error().text);
+        auto bent = skeleton::gltf::Bent::of(*imported, *made);
+        expect(fatal(bent.has_value())) << (bent ? "" : bent.error().text);
+        const std::uint32_t drawn = imported->instances[imported->skinned[0].instance].mesh;
+        expect(eq(bent->changed().size(), std::size_t{1}) && eq(bent->changed()[0], drawn));
+        skeleton::Player player(std::make_shared<const skeleton::Rig>(made->rig));
+        const auto at = [&](float seconds) {
+            skeleton::Choice choice;
+            choice.push({.clip = 0, .time = seconds, .before = seconds, .weight = 1});
+            player.apply(choice, 0);
+            bent->bend(player.skin());
+        };
+        at(0);
+        expect(bent->before()[drawn] == nullptr) << "no frame before the first";
+        const mlibs::geom::ClusteredMesh* const first = bent->meshes()[drawn];
+        at(0.5f);
+        expect(bent->before()[drawn] == first) << "the frame before's, kept";
+        const auto has = [&](mlibs::math::Vec3 wanted) {
+            return std::ranges::any_of(bent->meshes()[drawn]->mesh.positions, [&](mlibs::math::Vec3 one) { return mlibs::math::length(one - wanted) < 2e-4f; });
+        };
+        // Half way (an eighth of a turn): the upper corners (0, 2) and (1, 2) are (0, 1) and (1, 1) from the second
+        // bone, turned (−0.7071, 0.7071) and (0, 1.4142), and the bone 1 up. Its spherical path is kept within 1e-4.
+        expect(has({-0.70710678f, 1.70710678f, 0}) && has({0, 2.41421356f, 0})) << "the upper corners where the turned bone puts them";
+        expect(has({0, 0, 0}) && has({1, 0, 0})) << "the lower ones where they were";
+        const mlibs::math::Vec3* const kept = bent->meshes()[drawn]->mesh.positions.data();
+        at(0.25f), at(0.5f);
+        expect(bent->meshes()[drawn]->mesh.positions.data() == kept) << "the same two meshes in turn";
+        expect(!skeleton::gltf::Bent::of(*imported, *made, 4).has_value()) << "a skin the document has not";
+    };
+
     "Khronos' Fox, when the fidelity cache has it: three clips compressed by ACL, measured"_test = [] {
         const std::filesystem::path file = std::filesystem::path(mcpplibs::os::env::get("HOME").value_or(".")) / ".cache/omui/fidelity/models/Fox/glTF-Binary/Fox.glb";
         if (!std::filesystem::exists(file)) {
@@ -156,5 +236,44 @@ UTest cases{"hanim.skeleton.gltf", [] {
             if (clip.name != "Run") expect(fidelity.worst < 0.001f * size) << clip.name << ": between samples, within 0.1% of the model's size";
         }
         expect(made->rig.clip("Walk").has_value() && made->rig.clip("Run").has_value() && made->rig.clip("Survey").has_value());
+
+        // Walking, drawn: its mesh bent each frame by what the player gives, by xrender's one bending, and drawn by
+        // the reference — four moments of the step, their outlines not the same.
+        auto bent = skeleton::gltf::Bent::of(*imported, *made);
+        expect(fatal(bent.has_value()));
+        skeleton::Player player(std::make_shared<const skeleton::Rig>(made->rig));
+        asset::Imported shown = *imported;
+        const std::uint32_t walk = *made->rig.clip("Walk");
+        const float length = made->rig.clips[walk].duration;
+        const auto view = asset::view_of({.theta = 1.1f, .phi = 1.35f, .radius = size * 1.2f, .target = (box.low + box.high) * 0.5f}, box, 1);
+        std::vector<std::vector<std::uint8_t>> outlines;
+        std::vector<std::uint8_t> strip(static_cast<std::size_t>(4 * 256 * 256 * 4));
+        for (int moment = 0; moment < 4; ++moment) {
+            const float time = length * static_cast<float>(moment) / 4;
+            skeleton::Choice choice;
+            choice.push({.clip = walk, .time = time, .before = time, .weight = 1});
+            player.apply(choice, 0);
+            bent->bend(player.skin());
+            for (const std::uint32_t mesh : bent->changed()) shown.meshes[mesh] = *bent->meshes()[mesh];
+            const auto drawn = asset::looked(shown, view, {.width = 256, .height = 256, .samples = 1});
+            expect(fatal(drawn.has_value())) << (drawn ? "" : drawn.error());
+            std::vector<std::uint8_t> outline(256 * 256);
+            for (std::size_t pixel = 0; pixel < outline.size(); ++pixel) outline[pixel] = drawn->rgba[pixel * 4 + 3] > 0;
+            outlines.push_back(std::move(outline));
+            for (int row = 0; row < 256; ++row)
+                std::copy_n(drawn->rgba.begin() + row * 256 * 4, 256 * 4, strip.begin() + (static_cast<std::ptrdiff_t>(row) * 4 * 256 + moment * 256) * 4);
+        }
+        std::size_t least = outlines[0].size(), covered = 0;
+        for (int moment = 1; moment < 4; ++moment) {
+            std::size_t differing = 0;
+            for (std::size_t pixel = 0; pixel < outlines[0].size(); ++pixel) differing += outlines[moment][pixel] != outlines[moment - 1][pixel];
+            least = std::min(least, differing);
+        }
+        for (const std::uint8_t one : outlines[0]) covered += one;
+        const std::filesystem::path kept = std::filesystem::temp_directory_path() / "openmui-tests" / "hanim-skeleton" / "fox-walk.png";
+        std::filesystem::create_directories(kept.parent_path());
+        expect(mlibs::image::save_png(kept, {strip.data(), 4 * 256, 256, 4 * 256 * 4, mlibs::image::Alpha::straight}).has_value());
+        std::println("Fox walking, drawn at four moments of its step ({}): {} pixels of fox, the outlines of two moments apart by {} pixels at the least", kept.string(), covered, least);
+        expect(gt(covered, std::size_t{2000}) && gt(least, std::size_t{100})) << "the legs move";
     };
 }};

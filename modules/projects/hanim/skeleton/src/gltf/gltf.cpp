@@ -218,4 +218,34 @@ std::expected<Made, Error> rig(const asset::Imported& imported, const Options& o
     return made;
 }
 
+
+std::expected<Bent, Error> Bent::of(const asset::Imported& imported, const Made& made, std::uint32_t skin) {
+    if (skin >= imported.skins.size()) return std::unexpected(Error{std::format("skin {} was asked for; the document has {}", skin, imported.skins.size())});
+    if (made.skin_joints.size() != imported.skins[skin].joints.size())
+        return std::unexpected(Error{std::format("/skins/{}: {} joints, and the skeleton was made of a skin of {}", skin, imported.skins[skin].joints.size(), made.skin_joints.size())});
+    Bent out;
+    for (const mlibs::geom::ClusteredMesh& mesh : imported.meshes) out.meshes_.push_back(&mesh);
+    out.before_.assign(imported.meshes.size(), nullptr);
+    out.kept_.reserve(imported.skinned.size());
+    for (const asset::Skinning& skinning : imported.skinned) {
+        if (skinning.skin != skin || skinning.instance >= imported.instances.size() || skinning.rest >= imported.meshes.size()) continue;
+        out.kept_.push_back({.rest = &imported.meshes[skinning.rest], .mesh = imported.instances[skinning.instance].mesh});
+        out.changed_.push_back(out.kept_.back().mesh);
+    }
+    out.skin_joints_ = made.skin_joints;
+    out.matrices_.resize(made.skin_joints.size());
+    return out;
+}
+
+void Bent::bend(std::span<const Mat4> skin) {
+    for (std::size_t joint = 0; joint < skin_joints_.size(); ++joint) matrices_[joint] = skin_joints_[joint] < skin.size() ? skin[skin_joints_[joint]] : Mat4{};
+    const std::size_t now = frames_ % 2;
+    for (Kept& one : kept_) {
+        xrender::mesh::bend(*one.rest, matrices_, one.turns[now], room_);
+        meshes_[one.mesh] = &one.turns[now];
+        before_[one.mesh] = frames_ ? &one.turns[1 - now] : nullptr;
+    }
+    ++frames_;
+}
+
 }  // namespace hanim::skeleton::gltf

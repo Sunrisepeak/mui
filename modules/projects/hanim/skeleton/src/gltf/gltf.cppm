@@ -34,4 +34,39 @@ struct Made {
 
 [[nodiscard]] std::expected<Made, Error> rig(const xrender::asset::Imported& asset, const Options& options = {});
 
+// The document's instances its skin bends, kept bent by the skeleton's pose — what joins the two owners: hanim
+// plays, xrender draws (its `bend`, the one bending; D-93). Each frame:
+//
+//     player.step(dt);
+//     bent.bend(player.skin());                 // one a joint of the skeleton, as a player gives them
+//     reference.draw(world, seen, view, {.meshes = bent.meshes(), .materials = …, .before = bent.before()}, frame);
+//     for (const std::uint32_t mesh : bent.changed()) device_pass.bend(list, mesh, *bent.meshes()[mesh]);
+//
+// `meshes()` is the document's, each skinned instance's in place of the one posed at rest; `before()` is the
+// frame before's of each bent mesh (none for the others, and none before the second frame) — its velocity.
+// Two meshes an instance in turn: after the first frame nothing is allocated.
+class Bent {
+public:
+    // The instances of `asset` that `made`'s skin (`Options::skin`, `skin`) bends.
+    [[nodiscard]] static std::expected<Bent, Error> of(const xrender::asset::Imported& asset, const Made& made, std::uint32_t skin = 0);
+    void bend(std::span<const Mat4> skin);
+    [[nodiscard]] std::span<const mlibs::geom::ClusteredMesh* const> meshes() const noexcept { return meshes_; }
+    [[nodiscard]] std::span<const mlibs::geom::ClusteredMesh* const> before() const noexcept { return before_; }
+    [[nodiscard]] std::span<const std::uint32_t> changed() const noexcept { return changed_; }  // the meshes bent: the asset's numbers
+    [[nodiscard]] std::uint64_t frames() const noexcept { return frames_; }
+
+private:
+    struct Kept {
+        const mlibs::geom::ClusteredMesh* rest = nullptr;
+        std::uint32_t                     mesh = 0;  // what its instance draws
+        std::array<mlibs::geom::ClusteredMesh, 2> turns;
+    };
+    std::vector<Kept>                              kept_;
+    std::vector<const mlibs::geom::ClusteredMesh*> meshes_, before_;
+    std::vector<std::uint32_t>                     changed_, skin_joints_;
+    std::vector<Mat4>                              matrices_;
+    std::vector<Vec3>                              room_;
+    std::uint64_t                                  frames_ = 0;
+};
+
 }  // namespace hanim::skeleton::gltf

@@ -32,5 +32,6 @@ mlibs.math     = { path = "../../../../base/math" }
 mcpplibs.mtest  = "0.8.4"
 mlibs.agent.cts = { path = "../../../../base/agent/cts" }
 mlibs.json      = { path = "../../../../base/json" }
+mlibs.image     = { path = "../../../../base/image" }
 mlibs.utils     = { path = "../../../../base/utils" }
 mcpplibs.os     = "0.4.4"

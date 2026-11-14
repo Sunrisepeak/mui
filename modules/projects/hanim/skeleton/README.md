@@ -26,6 +26,10 @@ A crowd of characters is a `Subject` of the agent kernel ([mlibs.agent](../../..
 
 ## What it is
 
+![Khronos' Fox at four moments of its walk: its mesh bent each frame by the player's skin through xrender's bend, drawn by the reference](media/fox-walk.png)
+
+Khronos' Fox walking: `gltf::rig` made its skeleton and clips, a player samples Walk, `gltf::Bent` bends the file's skinned mesh by the player's skin through xrender.mesh's `bend`, and xrender's reference draws it (`cts/tests/gltf_test.cpp`, the outlines of two moments apart by 3,330 pixels at the least).
+
 ```cpp
 namespace skeleton = hanim::skeleton;
 auto bones = skeleton::Skeleton::make({{"hips", -1, {.translation = {0, 1, 0}}}, {"spine", 0, {}}});  // parents first
@@ -48,6 +52,7 @@ draw(crowd.characters()[hero].player.skin());              // each joint's model
 - **The stage that chooses the next pose** is a concept, `PoseStage` (`advance`, `save`, `restore`): an `Actor<Stage>` steps any. The state machine is the first: states playing clips, transitions by a parameter above or below a value, a trigger, or a clip played through, from a state or from any; a fade keeps the shares of what fades out, so a fade interrupted carries on without a jump. Motion matching (a pose database searched each step) and learned controllers are the same concept's next implementations; the reserved points are random access to any clip at any time, markers and tags, root motion and velocity as channels, and transitions as blend operators (§9.4).
 - **Output**: `model()` — each joint in the model's space — and `skin()` — each joint's model matrix times its inverse bind — and `world(joint)` with the character's place.
 - **glTF** (feature `gltf`): `gltf::rig(imported)` makes a skin's joints (and every node between two of them) a skeleton, parents first, with the skin's inverse binds and what is above its root as the base, and each animation a clip; the skin's order is kept for its vertices (`skin_joints`). xrender.asset reads skins and animations as numbers ([its README](../../xrender/asset)); the conversion is here, as the project DAG has it (hanim may reach xrender; xrender reaches only mlibs). glTF's linear rotation is spherical: keys are added where a normalised mix strays from it by more than `tolerance` (0.1 mrad). Morph target weights, channels of nodes outside the skeleton and joints placed by a matrix are notes.
+- **Drawn** (feature `gltf`): `gltf::Bent::of(imported, made)` keeps each instance the skin bends; `bent.bend(player.skin())` bends its mesh at rest by the player's matrices through xrender.mesh's `bend` (the one bending; hanim gives matrices, xrender draws), into two meshes in turn so the frame before is kept for the velocity. `meshes()` is the document's meshes with the bent ones in place, `before()` the frame before's, `changed()` what to give a device (`xrender.mesh.gpu`'s `Pass::bend`). Nothing allocated after the first frame
 
 ## Determinism
 
@@ -66,7 +71,7 @@ This package and the wrap build with no contraction of `a*b+c` into an FMA and n
 **Open items** (measured, with what decides them):
 
 - Khronos' Fox, its Walk and Run (short clips keyed at 24 a second): ACL leaves 0.0235 and 0.0005 units at its samples where 0.0001 was asked (0.013% of the model's 176 units); between samples Run is 1.0 unit off at the right hand near 0.58 s, against the channels read spherically. What decides it is a trace of that joint's keys (a turn near a half between two keys is the suspicion) and of ACL's choice of bit rates on it.
-- The mesh pass does not yet bend a mesh by the skin's matrices (xrender's step: a skinned vertex source); xrender.asset draws a skinned mesh at rest.
+- A crowd's bent meshes cross to the device whole each frame (`Pass::bend`): bending on the device by a compute shader from the same numbers is xrender's next rung.
 - Blend spaces, inertialised transitions, IK and motion matching: each a later implementation of an interface reserved here.
 
 ## Running it

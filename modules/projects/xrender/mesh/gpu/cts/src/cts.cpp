@@ -1138,6 +1138,29 @@ Cases suite_of() {
             // few pixels at the edges of things.
             expect(lt(static_cast<double>(all.off), 0.002 * static_cast<double>(all.compared)));
             expect(lt(static_cast<double>(loosely.off), 0.0002 * static_cast<double>(loosely.compared)));
+            if (kind == Kind::cornered) {
+                // Who drew each pixel leaves out what the colour pass left out: the box cut by its corners' own,
+                // read by the ids pass's inputs as the colour pass reads them (each input at its own place).
+                pass->use(yard.materials);
+                const auto ids = device->create(rhi::TextureDesc{rhi::Format::r32_uint, width, height, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "mesh.ids"});
+                if (!expect(ids.has_value())) return;
+                rhi::CommandList named;
+                pass->record_ids(named, yard.world, seen, yard.view(), *ids, *depth, width, height);
+                const auto done = device->submit(named);
+                if (!expect(done.has_value() && device->wait(*done).has_value())) return;
+                const auto said = device->read(*ids, rhi::Region{0, 0, width, height});
+                if (!expect(said.has_value())) return;
+                std::size_t other = 0, box = 0;
+                for (std::uint32_t y = 0; y < height; ++y)
+                    for (std::uint32_t x = 0; x < width; ++x) {
+                        const std::uint32_t one = mesh::gpu::who(*said, width, x, y), is = reference.ids[static_cast<std::size_t>(y) * width + x].draw;
+                        other += one != is;
+                        box += is != mesh::none && is < seen.draws.size() && yard.world.instances()[seen.draws[is].instance].id == 10;
+                    }
+                std::println("    who drew each pixel, the box cut by its corners: {} pixels of the box; {} of {} name another draw than the reference", box, other, std::size_t{width} * height);
+                expect(gt(box, std::size_t{200}) && lt(static_cast<double>(other), 0.001 * width * height));
+                device->destroy(*ids);
+            }
             static_cast<void>(device->wait_idle());
             device->destroy(*colour), device->destroy(*depth);
         };

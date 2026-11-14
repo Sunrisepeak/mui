@@ -7,7 +7,7 @@ export module mlibs.testing.api;
 
 import std;
 export import mlibs.hash;
-export import mlibs.target;
+export import :target;
 
 export namespace mlibs::testing {
 
@@ -16,9 +16,6 @@ export namespace mlibs::testing {
 // single, comparable line in the CI log (mlibs.hash's: bytes, u64, f64,
 // f32, str, value, hex).
 using Hash = ::mlibs::hash::Fnv1a;
-
-// Whether the program can start threads: the target's (mlibs.target).
-using ::mlibs::target::threads;
 
 // A directory a test may write into, removed when the program starts again.
 [[nodiscard]] std::filesystem::path scratch_dir(std::string_view test_name);

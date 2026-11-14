@@ -29,6 +29,8 @@ cxxflags = ["-fno-fast-math", "-ffp-contract=off"]
 hanim.core         = { path = "../core" }
 mlibs.math         = { path = "../../../base/math" }
 mlibs.utils        = { path = "../../../base/utils" }
+# Whether the target can start threads (the Web cannot): step_all's workers.
+mcpplibs.os        = "0.4.4"
 mcpplibs.mwrap.acl = "2.1.0"
 
 [features]

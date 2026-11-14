@@ -125,7 +125,7 @@ The scene the session left, as it is kept:
 
 ```sh
 matter-lab new DIR [--matter FILE] [--look FILE] [--shape WxH] [--filled NAME]   # the standard definition and look, or snapshots given
-matter-lab run DIR [--script FILE] [--actor ACTOR]      # requests a line each (a file, or standard input), answered in records
+matter-lab run DIR [--script FILE] [--actor ACTOR]      # requests a line each (a file, or standard input), answered in records; what is asked stays on record in DIR/.lab/facts.jsonl, so `{"op":"log"}` answers what earlier runs did
 matter-lab serve DIR [--name NAME]                      # an endpoint Agents connect to, until it is stopped
 matter-lab picture DIR --out PNG [--steps N] [--scale N]
 ```

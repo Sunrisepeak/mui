@@ -13,7 +13,7 @@
 //   → {"op":"log","subject":"matter","limit":5}      a subject's latest
 //
 // A book keeps the latest (256 by default); numbers go on from 1 and are not
-// used again. Recording is a cold path: a request is one, never a cell's or a
+// used again. One kept in a file (`kept_in`) is the same book across runs. Recording is a cold path: a request is one, never a cell's or a
 // pixel's step.
 export module mlibs.agent:facts;
 
@@ -42,6 +42,11 @@ struct Fact {
 class Facts {
 public:
     explicit Facts(std::size_t capacity = 256) : capacity_(capacity) {}
+    // A book kept in a file, a fact a JSON line: what was asked stays on record across the runs of a program
+    // that answers a request a run (a command with a pipe). The latest are read back and the numbers go on
+    // from the last; a line that is no fact is passed over. A file that cannot be written keeps nothing —
+    // the book still works for the run.
+    [[nodiscard]] static std::shared_ptr<Facts> kept_in(std::filesystem::path file, std::size_t capacity = 256);
     // A number taken for a fact before it is whole: given with the result, then recorded under it.
     [[nodiscard]] std::uint64_t reserve() noexcept { return ++last_; }
     // Kept — under the number it has, or the next when it has none — and written to the log (category
@@ -60,6 +65,7 @@ private:
     std::size_t      capacity_;
     std::uint64_t    last_ = 0;
     std::deque<Fact> kept_;
+    std::filesystem::path file_;  // empty: kept for the run alone
 };
 
 }  // namespace mlibs::agent

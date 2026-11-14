@@ -364,8 +364,14 @@ std::expected<std::unique_ptr<Lab>, std::string> Lab::open(std::filesystem::path
 
 std::vector<mlibs::agent::Subject*> Lab::subjects() { return {this, field_stand_.get(), matter_stand_.get(), &picture_}; }
 
+std::shared_ptr<mlibs::agent::Facts> Lab::facts() {
+    if (!facts_) facts_ = mlibs::agent::Facts::kept_in(directory_ / ".lab" / "facts.jsonl");
+    return facts_;
+}
+
 std::unique_ptr<mlibs::agent::Session> Lab::session() {
-    return std::make_unique<mlibs::agent::SubjectSession>(subjects(), mlibs::agent::SessionOptions{.actor = {openas::Kind::agent, std::format("session-{}", ++sessions_), {}}});
+    return std::make_unique<mlibs::agent::SubjectSession>(
+        subjects(), mlibs::agent::SessionOptions{.actor = {openas::Kind::agent, std::format("session-{}", ++sessions_), {}}, .facts = facts()});
 }
 
 // ── sources into a world ──────────────────────────────────────────────────────

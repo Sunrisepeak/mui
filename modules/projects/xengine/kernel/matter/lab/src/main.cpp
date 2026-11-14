@@ -97,6 +97,7 @@ int run(const cmdline::ParsedArgs& args) {
         if (!said) return wrong("--actor is an actor as openas writes one: agent:name, person:name");
         options.actor = std::move(*said);
     }
+    options.facts = (*opened)->facts();  // the lab's own book: what an earlier run asked is on record for this one
     mlibs::agent::SubjectSession session((*opened)->subjects(), std::move(options));
     std::ifstream file;
     if (const auto script = args.value("script")) {

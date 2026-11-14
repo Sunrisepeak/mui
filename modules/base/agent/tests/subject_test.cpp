@@ -222,6 +222,21 @@ UTest cases{"agent.subject", [] {
         const auto both = ask(one, R"({"op":"log"})");
         expect(both.records[0].root()["data"]["facts"][1]["by"]["kind"].text() == "person" && both.records[0].root()["data"]["facts"][1]["fact"].integer() == 2);
         mlibs::log::set_log_filter("").value();
+
+        // A book kept in a file is the same book in the next run: its facts read back, its numbers going on.
+        const auto file = std::filesystem::temp_directory_path() / "openmui-tests" / "agent-facts" / "facts.jsonl";
+        std::filesystem::remove(file);
+        {
+            agent::SubjectSession first({&counter}, {.actor = {openas::Kind::agent, "ada", {}}, .facts = agent::Facts::kept_in(file)});
+            (void)ask(first, R"({"op":"counter.add","by":7})");
+            (void)ask(first, R"({"op":"counter.set"})");
+        }
+        agent::SubjectSession next({&counter}, {.actor = {openas::Kind::agent, "ben", {}}, .facts = agent::Facts::kept_in(file)});
+        expect(ask(next, R"({"op":"counter.add"})").records.back().root()["fact"].integer() == 3) << "the numbers go on";
+        const auto across = ask(next, R"({"op":"log"})");
+        const auto kept = across.records[0].root()["data"]["facts"];
+        expect(eq(kept.size(), std::size_t{3}) && kept[0]["by"]["name"].text() == "ada" && kept[0]["request"]["by"].integer() == 7 && kept[0]["at"]["change"].integer().has_value() &&
+               kept[1]["outcome"].text() == "invalid-argument" && kept[1]["text"].text().value_or("").contains("needs `to`") && kept[2]["by"]["name"].text() == "ben");
     };
 
     "every error carries its ways out, requests to send as they are (D-186)"_test = [] {

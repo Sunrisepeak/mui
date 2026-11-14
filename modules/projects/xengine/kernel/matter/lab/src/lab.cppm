@@ -84,6 +84,9 @@ public:
     // A session for one who connects (an endpoint's): the same subjects, and an identity of its own —
     // `agent:session-<n>`, in the order they came — so that claims and commits tell those at the lab apart.
     [[nodiscard]] std::unique_ptr<mlibs::agent::Session> session();
+    // What was asked of this lab, kept in its directory (`.lab/facts.jsonl`): the same book for every session
+    // and every run, so `log` answers what an earlier run did.
+    [[nodiscard]] std::shared_ptr<mlibs::agent::Facts> facts();
     [[nodiscard]] const std::filesystem::path& directory() const noexcept { return directory_; }
     [[nodiscard]] cellular::agent::Field& field() noexcept { return *world_.field; }
     [[nodiscard]] cellular::matter_agent::Matter& matter() noexcept { return *world_.matter; }
@@ -179,6 +182,7 @@ private:
     std::uint64_t                  drawn_ = 0;  // the field's hash the picture is of (0: none drawn)
     xrender::FrameSubject          picture_;
     mlibs::agent::History          history_;
+    std::shared_ptr<mlibs::agent::Facts> facts_;
     mlibs::agent::HistoryOperations operations_;
     mlibs::agent::Claims           claims_;
     std::unique_ptr<Stand>         field_stand_, matter_stand_;

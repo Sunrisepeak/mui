@@ -1,0 +1,30 @@
+# xrender.particle.gpu — particles drawn on a device (the foundation plan's §5.1, M6.4): the same batches as
+# xrender.particle's CPU reference, drawn through mlibs.rhi alone over the light a mesh pass drew and held to the
+# reference. A package of its own: its build program compiles a Slang shader (D-99's build-stage isolation).
+[package]
+namespace   = "xrender.particle"
+name        = "gpu"
+version     = "0.1.0"
+description = "Particles drawn on a device through mlibs.rhi: one Slang shader, held to the CPU reference"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind  = "module"
+agent = { part = "xrender.frame" }
+
+[targets.xrender-particle-gpu]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[build-dependencies]
+mlibs.shader.rules = { path = "../../../../gfx/shader/rules", host-module = true }
+
+[dependencies]
+"xrender.particle" = { path = ".." }
+mlibs.rhi          = { path = "../../../../gfx/rhi" }
+mlibs.math         = { path = "../../../../base/math" }

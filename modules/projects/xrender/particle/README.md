@@ -35,7 +35,7 @@ Part of the frame's subject ([xrender.frame](../frame)); what this package gives
 
 ## Against the strongest
 
-The engines' particle renderers (Unreal's Niagara sprite renderer, Unity's VFX Graph, Godot's GPUParticles3D) draw camera-facing quads on the device, soft by the depth buffer, sorted per system. Here: the same model, and a CPU reference they do not have — each pixel's answer is the same bits on every machine, so a device's path is held to it pixel by pixel, and an agent can ask which particle is at a point (`pick`) without a frame. Behind: no device path yet (next: `xrender.particle.gpu`, instanced squares through `mlibs.rhi`, held to these pixels), no light falling on a particle from the scene's lamps (a particle gives its own), no sorting cost measured.
+The engines' particle renderers (Unreal's Niagara sprite renderer, Unity's VFX Graph, Godot's GPUParticles3D) draw camera-facing quads on the device, soft by the depth buffer, sorted per system. Here: the same model, and a CPU reference they do not have — each pixel's answer is the same bits on every machine, so a device's path is held to it pixel by pixel, and an agent can ask which particle is at a point (`pick`) without a frame. Its device path is [gpu](gpu) (`xrender.particle.gpu`), held to these pixels by its suite. Behind: a picture's particles on a device, no light falling on a particle from the scene's lamps (a particle gives its own), no sorting cost measured.
 
 ```sh
 mcpp test -p xrender.particle

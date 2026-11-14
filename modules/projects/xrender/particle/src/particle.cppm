@@ -12,7 +12,7 @@
 // cover how much is there). A batch's particles are added to the light (`add`: sparks, fire, glints — their
 // order does not change what is seen) or laid over it by how much they hide (`over`: smoke, dust — the farthest
 // first, then nearer; at one distance, in the batch's order). Where a particle comes within `soft` of what is
-// behind it (the frame's depth) it fades to nothing, so a puff meeting a wall has no hard line. Nothing is
+// behind it along the eye's ray (the frame's depth) it fades to nothing, so a puff meeting a wall has no hard line. Nothing is
 // written but `light` and `clear`: particles are not a surface — they leave the depth, the normal, the velocity
 // and who drew a pixel to the meshes.
 //
@@ -58,7 +58,7 @@ Drawn draw(std::span<const Batch> batches, const scene::View& view, mesh::Target
 struct Picked {
     scene::Id     batch = 0;
     std::uint32_t particle = 0;  // its id
-    float         distance = 0;  // from the eye
+    float         distance = 0;  // from the eye, along the ray
 };
 [[nodiscard]] std::optional<Picked> pick(std::span<const Batch> batches, const scene::View& view, float x, float y, int width, int height);
 

@@ -31,8 +31,12 @@ struct Rays {
 };
 
 // Where the eye's ray through (x, y) meets the particle's square, in the square's own measure (−1 … 1 each way
-// inside): u to the right, v up.
-std::optional<Vec2> on_square(const Rays& rays, const Placed& placed, float x, float y) noexcept {
+// inside): u to the right, v up; and how far along the ray that is.
+struct Met {
+    Vec2  at;
+    float far = 0;
+};
+std::optional<Met> on_square(const Rays& rays, const Placed& placed, float x, float y) noexcept {
     const Vec4 way = rays.through(x, y, 0.5f);
     if (!(way.w != 0)) return std::nullopt;
     const Vec3 along{way.x / way.w, way.y / way.w, way.z / way.w};
@@ -41,7 +45,7 @@ std::optional<Vec2> on_square(const Rays& rays, const Placed& placed, float x, f
     const float right = along.x * reach - placed.middle.x, up = along.y * reach - placed.middle.y;
     // Turned back by the particle's turn.
     const float u = (right * placed.cos_turn + up * placed.sin_turn) / placed.half, v = (up * placed.cos_turn - right * placed.sin_turn) / placed.half;
-    return Vec2{u, v};
+    return Met{{u, v}, math::length(along) * reach};
 }
 
 // A round spot: whole to half its radius, then down to nothing at its edge (smoothly).
@@ -125,19 +129,19 @@ Drawn draw(std::span<const Batch> batches, const scene::View& view, mesh::Target
         for (int y = first_y; y <= last_y; ++y)
             for (int x = first_x; x <= last_x; ++x) {
                 const float middle_x = static_cast<float>(x) + 0.5f, middle_y = static_cast<float>(y) + 0.5f;
-                const std::optional<Vec2> at = on_square(rays, one, middle_x, middle_y);
-                if (!at) continue;
-                const Shape shape = shape_at(batch, *at, footprint);
+                const std::optional<Met> met = on_square(rays, one, middle_x, middle_y);
+                if (!met) continue;
+                const Shape shape = shape_at(batch, met->at, footprint);
                 if (!(shape.cover > 0)) continue;
                 const std::size_t pixel = static_cast<std::size_t>(y) * static_cast<std::size_t>(frame.width) + static_cast<std::size_t>(x);
-                // Faded by how near it is to what is behind it here.
+                // Faded by how near it is to what is behind it here, along the eye's ray.
                 float fade = 1;
                 if (deep) {
                     const Vec4 surface = rays.through(middle_x, middle_y, frame.depth[pixel]);
                     if (surface.w != 0) {
-                        const float behind = -surface.z / surface.w;  // how far ahead of the eye the surface is
+                        const float behind = math::length(Vec3{surface.x / surface.w, surface.y / surface.w, surface.z / surface.w});  // how far the surface is
                         if (std::isfinite(behind) && behind > 0) {
-                            const float gap = behind - one.distance;
+                            const float gap = behind - met->far;
                             fade = batch.soft > 0 ? std::clamp(gap / batch.soft, 0.0f, 1.0f) : (gap > 0 ? 1.0f : 0.0f);
                         }
                     }
@@ -167,11 +171,11 @@ std::optional<Picked> pick(std::span<const Batch> batches, const scene::View& vi
     // The nearest last: the list is farthest first.
     for (auto one = placed.rbegin(); one != placed.rend(); ++one) {
         const Batch& batch = batches[one->batch];
-        const std::optional<Vec2> at = on_square(rays, *one, x, y);
-        if (!at) continue;
+        const std::optional<Met> met = on_square(rays, *one, x, y);
+        if (!met) continue;
         const float across_pixels = 2 * one->half * pixels_a_unit / one->distance;
         const float footprint = batch.sprite && across_pixels > 0 ? static_cast<float>(batch.sprite->width) / across_pixels : 1;
-        if (shape_at(batch, *at, footprint).cover > 0.5f) return Picked{batch.id, batch.particles[one->index].id, one->distance};
+        if (shape_at(batch, met->at, footprint).cover > 0.5f) return Picked{batch.id, batch.particles[one->index].id, met->far};
     }
     return std::nullopt;
 }

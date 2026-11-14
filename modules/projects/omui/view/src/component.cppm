@@ -16,6 +16,7 @@ import hanim.engine;
 import mlibs.layout;
 import xrender.vector;
 import xrender.raster;
+import mlibs.rhi;
 import mlibs.text;
 import :element;
 import :theme;
@@ -276,7 +277,14 @@ public:
     // content changes, draw it by `picture_changed(number)` from then on, so whoever keeps a frame by its list
     // sees that it changed. 0: this host shows no such pictures. Whoever adds it removes it before it goes.
     virtual std::uint64_t add_picture(std::function<std::optional<xrender::raster::ImageView>()>) { return 0; }
+    // The same, drawn on the host's own device (`device()`): its texture (rgba8, sampled; none while it has
+    // nothing), shown as it is — nothing copied, nothing read back. 0: this host draws on no device. Removed as a
+    // picture of pixels is.
+    virtual std::uint64_t add_device_picture(std::function<std::optional<mlibs::rhi::Texture>()>) { return 0; }
     virtual void remove_picture(std::uint64_t) {}
+    // The device the host draws its frames on, where it draws them on one (none: on the CPU): what a component draws
+    // a world on to show it by `add_device_picture`. It outlives every component.
+    [[nodiscard]] virtual mlibs::rhi::Device* device() const { return nullptr; }
     [[nodiscard]] static constexpr std::uint64_t picture_changed(std::uint64_t number) noexcept {
         return number == 0 ? 0 : (number & ~std::uint64_t{0xffffffffu}) | ((number + 1) & 0xffffffffu);
     }

@@ -6,6 +6,7 @@ import std;
 import omui.core;
 import mlibs.agent;
 import mlibs.layout;
+import mlibs.rhi;
 import hanim.core;
 import hanim.effect;
 import hanim.engine;
@@ -388,10 +389,12 @@ struct Runtime::Impl {
     std::vector<mlibs::agent::Subject*>   subjects;  // beside the interface, for agents (Services::add_subject)
     struct ShownPicture {
         std::uint32_t                                                 handle = 0;
-        std::function<std::optional<xrender::raster::ImageView>()>    pixels;
+        std::function<std::optional<xrender::raster::ImageView>()>    pixels;   // or
+        std::function<std::optional<mlibs::rhi::Texture>()>           texture;  // on the host's device
     };
     std::vector<ShownPicture>             pictures;  // drawn elsewhere, shown here (Services::add_picture)
     std::uint32_t                         next_picture = 1;
+    mlibs::rhi::Device*                   device = nullptr;  // the host's, where it draws on one (Runtime::set_device)
 
     // input
     NodeId               capture;

@@ -19,6 +19,7 @@ import mlibs.agent;
 import mlibs.layout;
 import xrender.vector;
 import xrender.raster;
+import mlibs.rhi;
 import mlibs.pipeline;
 import mlibs.text;
 import :element;
@@ -687,8 +688,14 @@ public:
     // The pictures components show from elsewhere (Services::add_picture): what a host that draws on the CPU
     // gives its renderer for external_texture() commands (`CpuOptions::external`). Whatever its content's count.
     std::uint64_t add_picture(std::function<std::optional<xrender::raster::ImageView>()> pixels) override;
+    // And those drawn on the host's device: what a host that draws on it gives its renderer (`GpuFrameOptions::external`).
+    std::uint64_t add_device_picture(std::function<std::optional<mlibs::rhi::Texture>()> texture) override;
     void remove_picture(std::uint64_t number) override;
     [[nodiscard]] std::optional<xrender::raster::ImageView> picture(std::uint64_t number) const;
+    [[nodiscard]] std::optional<mlibs::rhi::Texture> device_picture(std::uint64_t number) const;
+    // The device the host draws on (none: the CPU) — the host's to say, once it has one; it outlives the runtime's components.
+    void set_device(mlibs::rhi::Device* device) noexcept;
+    [[nodiscard]] mlibs::rhi::Device* device() const override;
     [[nodiscard]] bool motion_reduced() const override;
     [[nodiscard]] float pixel_scale() const override { return scale(); }
     [[nodiscard]] bool deterministic() const override;

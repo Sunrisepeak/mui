@@ -29,6 +29,7 @@ mlibs.agent = { path = "../../../../base/agent" }
 mlibs.layout = { path = "../../../../content/layout" }
 xrender.raster = { path = "../../../xrender/raster" }
 xrender.vector = { path = "../../../xrender/vector" }
+mlibs.rhi = { path = "../../../../gfx/rhi" }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"

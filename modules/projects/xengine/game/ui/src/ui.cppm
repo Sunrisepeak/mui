@@ -21,6 +21,7 @@ import mlibs.agent;
 import mlibs.layout;
 import xrender.raster;
 import xrender.vector;
+import mlibs.rhi;
 
 export namespace xengine::ui {
 
@@ -75,6 +76,9 @@ struct Viewport {
         std::string            label;               // what a person is told it is
         mlibs::agent::Subject* subject = nullptr;   // the world's own subject: found beside the interface while this is mounted
         std::function<std::optional<xrender::raster::ImageView>()> pixels;  // its picture (premultiplied); none: nothing yet
+        // Or its picture drawn on the host's device (`omui::Services::device`): the texture, shown as it is. Taken
+        // where the host draws on a device; elsewhere `pixels` is.
+        std::function<std::optional<mlibs::rhi::Texture>()> texture;
         float                  width = 480, height = 270;  // its size when the layout does not say
         bool                   pixels_stay = false;        // shown by the nearest pixel (a field of cells), not smoothed
         // None, or what the world says is at a place of its picture (0 to 1 across and down): an object's members —

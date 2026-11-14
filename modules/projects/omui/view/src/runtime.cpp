@@ -721,7 +721,7 @@ std::span<mlibs::agent::Subject* const> Runtime::subjects() const noexcept { ret
 std::uint64_t Runtime::add_picture(std::function<std::optional<xrender::raster::ImageView>()> pixels) {
     if (!pixels) return 0;
     const std::uint32_t handle = impl_->next_picture++;
-    impl_->pictures.push_back({handle, std::move(pixels)});
+    impl_->pictures.push_back({.handle = handle, .pixels = std::move(pixels)});
     return static_cast<std::uint64_t>(handle) << 32;
 }
 void Runtime::remove_picture(std::uint64_t number) {
@@ -729,9 +729,22 @@ void Runtime::remove_picture(std::uint64_t number) {
 }
 std::optional<xrender::raster::ImageView> Runtime::picture(std::uint64_t number) const {
     for (const Impl::ShownPicture& one : impl_->pictures)
-        if (one.handle == static_cast<std::uint32_t>(number >> 32)) return one.pixels();
+        if (one.handle == static_cast<std::uint32_t>(number >> 32)) return one.pixels ? one.pixels() : std::nullopt;
     return std::nullopt;
 }
+std::uint64_t Runtime::add_device_picture(std::function<std::optional<mlibs::rhi::Texture>()> texture) {
+    if (!texture || !impl_->device) return 0;
+    const std::uint32_t handle = impl_->next_picture++;
+    impl_->pictures.push_back({.handle = handle, .texture = std::move(texture)});
+    return static_cast<std::uint64_t>(handle) << 32;
+}
+std::optional<mlibs::rhi::Texture> Runtime::device_picture(std::uint64_t number) const {
+    for (const Impl::ShownPicture& one : impl_->pictures)
+        if (one.handle == static_cast<std::uint32_t>(number >> 32)) return one.texture ? one.texture() : std::nullopt;
+    return std::nullopt;
+}
+void Runtime::set_device(mlibs::rhi::Device* device) noexcept { impl_->device = device; }
+mlibs::rhi::Device* Runtime::device() const { return impl_->device; }
 bool Runtime::motion_reduced() const { return impl_->reduce_motion || impl_->motion_now() != MotionLevel::full; }
 bool Runtime::reduce_motion() const noexcept { return impl_->reduce_motion; }
 

@@ -2,7 +2,7 @@
 
 A watchkeeper on a harbour at night, in the rain, has to light the beacon at the end of the breakwater before the tide covers it; rusted wardens patrol between the containers, and they find people only by what they hear and see. An original first-person game, M6.4's vertical slice ([the design](../../.agents/docs/2026-11-15-fps-slice-quay-design.md); the plan's §12).
 
-**State of it**: the simulation (F1), the game as the runtime plays it with an agent at a person's tier (F2), the picture on the CPU reference and on a device with its frame budget (F3) and the sound (F4) are done and tested; rain and marks of shots, and the window to play in (F5), are next.
+**State of it**: the simulation (F1), the game as the runtime plays it with an agent at a person's tier (F2), the picture on the CPU reference and on a device with its frame budget (F3) the sound (F4) and the window to play in (F5) are done and tested; rain and marks of shots are next.
 
 | Package | What |
 |---|---|
@@ -10,7 +10,7 @@ A watchkeeper on a harbour at night, in the rain, has to light the beacon at the
 | [headless](headless) | Quay as `xengine.runtime` plays it (`quay::Standalone`): stepped without omui, sought back, branched ahead, its controls and first tasks said for an agent (D-186). What a person is shown (`quay::observe`) is what the watchkeeper sees and hears — the wardens in view, the beacon's light, the last half second's sounds as they reach the ears by `reach`, how far the eye meets something across the view — never where anything is; the `assist` tier adds places, minds and the hash |
 | [picture](picture) | The harbour at night from the watchkeeper's eye, drawn from the state by `xrender.mesh` (the CPU reference): the wet quay, painted containers, crates where their bodies are, lamps on posts and a floodlight, the beacon on its 9 m mast brightening as it is worked; the wardens bent by `hanim.skeleton` skeletons (`xrender.mesh::bend`) — walking, looking about, aiming, lying where they fell — their eyes the colour of their minds; the watchkeeper's rifle and the flashes of shots; fog, the light from everywhere, the glow. Which warden drew a pixel is the game's number (`warden_at`); `OnDevice` draws the same frame on a device (xrender.mesh.gpu: bodies bent on the device, shadows by maps, the glow) |
 | [sound](sound) | Quay heard: each step's events — the rifle, a warden's shot, steps on wet concrete, a walking warden's servos (which go with it), a warden falling, a hit taken, the beacon catching — as sounds in a place (`xengine.audio.space`) at the watchkeeper's ears, through the containers' steel (the rule the wardens hear by); the sounds are data (`sounds/quay.sound.omui.ts`, embedded). It only reads the state |
-| [play](play) | Quay on this machine's device (desktop): `quay-play shot --out DIR` writes the guide's game frame by frame — the signature shot, the same pixels every run (`--reference`: the CPU reference, no device); the device held to the reference; the window to play in is next |
+| [play](play) | Quay on this machine's device (desktop): `quay-play shot --out DIR` writes the guide's game frame by frame — the signature shot, the same pixels every run (`--reference`: the CPU reference, no device); the device held to the reference. `quay [--record FILE]` is the window to play in: W A S D, the mouse to look (click the harbour; Escape lets go), the left button to fire, Space, E to work the beacon, Shift to run; the picture drawn on the window's own device; what was played, recorded, plays the same bits with no window (`quay-play replay FILE`) |
 
 ## How the wardens know
 
@@ -26,7 +26,7 @@ The picture and the person's view are drawn from the same state by different mea
 
 ```sh
 mcpp test -p omui.showcase.quay.sound      # a shot on the right: the right ear first (24 samples) and 4.2 dB louder; behind a container as far off: 35 dB down and darker; the game's sound the same samples twice
-mcpp test -p omui.showcase.quay.play       # on the device (lavapipe in CI): the start, a warden near, the lit beacon within 0.4% of the reference's pixels
+mcpp test -p omui.showcase.quay.play       # on the device (lavapipe in CI): the start, a warden near, the lit beacon within 0.4% of the reference's pixels; played in a window by keys and the mouse, the recording the same bits with no window
 mcpp test -p omui.showcase.quay.picture    # from the start: containers, lamps glowing, the beacon over them; one tree, two views; the lit beacon brighter than the display
 mcpp test -p omui.showcase.quay.headless   # the person's view holds no places; the agent wins as a person; the planted mistake is found and said
 mcpp test -p omui.showcase.quay.sim   # the harbour; a copy is a branch; a warden hears a shot through the containers and goes to look, the one 60 m off does not; a player that walks the paths and shoots what it sees lights the beacon at 27.9 s, the same frames every run

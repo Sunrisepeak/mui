@@ -237,7 +237,7 @@ struct Desktop::Impl final : WindowHost {
         }
         device = std::move(*made);
         gpu.emplace(std::move(*r));
-        if (runtime) runtime->set_on_device(true);  // content as lists where it may be (a canvas's `content: auto`)
+        if (runtime) runtime->set_on_device(true), runtime->set_device(device.get());  // content as lists where it may be (a canvas's `content: auto`); worlds drawn on it
         return {};
     }
 
@@ -296,6 +296,7 @@ struct Desktop::Impl final : WindowHost {
     };
     std::vector<ShownTexture> shown_textures;
     std::optional<mlibs::rhi::Texture> shown_texture(std::uint64_t number) {
+        if (const auto drawn_here = runtime->device_picture(number)) return drawn_here;  // drawn on this device: as it is
         const std::optional<xrender::raster::ImageView> picture = runtime->picture(number);
         if (!picture || !picture->pixels || picture->width <= 0 || picture->height <= 0) return std::nullopt;
         const auto handle = static_cast<std::uint32_t>(number >> 32);
@@ -417,6 +418,16 @@ Desktop::~Desktop() {
     // The adapter lets go of the window before the window goes.
     impl_->access.reset();
     impl_->mirror.reset();
+    // The components drawn on the device (a world's targets) before the device: an own runtime goes now, with
+    // what reads it; a borrowed one is told there is no device any more.
+    if (impl_->own_runtime) {
+        impl_->endpoint.reset();
+        impl_->tree.reset();
+        impl_->runtime = nullptr;
+        impl_->own_runtime.reset();
+    } else if (impl_->runtime) {
+        impl_->runtime->set_device(nullptr);
+    }
     // The GPU's before the window it claimed.
     if (impl_->device && impl_->gpu_frame) impl_->device->destroy(impl_->gpu_frame);
     if (impl_->device)

@@ -69,7 +69,8 @@ void Viewport::show(Shown what) {
     shown_ = std::move(what);
     if (!services_) return;
     if (shown_.subject) services_->add_subject(*shown_.subject);
-    if (shown_.pixels) number_ = services_->add_picture(shown_.pixels);
+    if (shown_.texture && services_->device()) number_ = services_->add_device_picture(shown_.texture);
+    else if (shown_.pixels) number_ = services_->add_picture(shown_.pixels);
     services_->invalidate_layout(node_);
 }
 void Viewport::clear() {

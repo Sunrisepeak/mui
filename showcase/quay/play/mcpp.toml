@@ -6,21 +6,30 @@
 namespace   = "omui.showcase.quay"
 name        = "play"
 version     = "0.1.0"
-description = "Quay on a device: quay-play shot writes the guide's game frame by frame, drawn by xrender.mesh.gpu"
+description = "Quay played: a window (quay) with the picture on the host's device, and quay-play — the signature shot, a window's recording replayed"
 license     = "Apache-2.0"
 platforms   = ["linux", "macos", "windows"]
 repo        = "https://github.com/Sunrisepeak/mui"
+
+[targets.quay]
+kind = "bin"
+main = "src/entry/window.cpp"
 
 [targets.quay-play]
 kind = "bin"
 main = "src/entry/main.cpp"
 
 [build]
-sources  = []
+sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 omui.showcase.quay.picture = { path = "../picture" }
+omui.showcase.quay.headless = { path = "../headless" }
+omui.sdk         = { path = "../../../modules/projects/omui/sdk" }
+xengine.ui       = { path = "../../../modules/projects/xengine/game/ui" }
+xengine.input    = { path = "../../../modules/projects/xengine/game/input" }
+xrender.raster   = { path = "../../../modules/projects/xrender/raster" }
 xrender.rhi.sdl  = { path = "../../../modules/projects/xrender/rhi/sdl" }
 mlibs.rhi        = { path = "../../../modules/gfx/rhi" }
 mlibs.image      = { path = "../../../modules/base/image" }
@@ -29,3 +38,5 @@ mcpplibs.os      = "0.4.4"
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
+omui.host.headless = { path = "../../../modules/projects/omui/host/headless" }
+omui.host.sdl3     = { path = "../../../modules/projects/omui/host/sdl3" }

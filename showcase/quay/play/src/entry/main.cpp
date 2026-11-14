@@ -6,12 +6,17 @@
 //       its reference. --reference draws with the CPU reference instead (no device needed). Says what it did as
 //       one JSON line.
 //
+//   quay-play replay FILE
+//       a window's recording (quay --record FILE: each step's input) played by the game with no window; says where
+//       it ended, and its hash — the window's own, bit for bit.
+//
 // Exit 0 done, 1 the device or a frame failed (said why), 2 a wrong command.
 import std;
 import mlibs.rhi;
 import mlibs.image;
 import xrender.rhi.sdl;
 import omui.showcase.quay.picture;
+import omui.showcase.quay.play;
 import mcpplibs.cmdline;
 import mcpplibs.os;
 
@@ -105,6 +110,18 @@ int shot(const cmd::ParsedArgs& parsed) {
     return 0;
 }
 
+int replay(const cmd::ParsedArgs& parsed) {
+    if (parsed.positional(0).empty()) return fail("replay needs FILE", 2);
+    std::ifstream file(mcpplibs::os::fs::from_utf8(parsed.positional(0)), std::ios::binary);
+    if (!file) return fail(std::format("{} could not be read", parsed.positional(0)));
+    const std::string lines((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    const auto state = quay::play::replayed(lines);
+    if (!state) return fail(state.error());
+    std::println(R"({{"frames":{},"outcome":"{}","why":"{}","health":{},"rounds":{},"standing":{},"hash":"{:016x}"}})", state->frame, quay::outcome_names[static_cast<std::size_t>(state->outcome)],
+                 state->why, state->keeper.health, state->keeper.rounds, quay::standing(*state), quay::checksum(*state));
+    return 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -117,7 +134,10 @@ int main(int argc, char** argv) {
             .option(Option("size").takes_value().value_name("WxH").help("pixels (default 960x540)"))
             .option(Option("every").takes_value().value_name("N").help("write every Nth frame (default 30), and the last"))
             .option(Option("to").takes_value().value_name("N").help("stop at this frame (default: the game's end)"))
-            .option(Option("reference").help("draw with the CPU reference, no device")));
+            .option(Option("reference").help("draw with the CPU reference, no device")))
+        .subcommand(cmd::App("replay")
+            .description("A window's recording (quay --record FILE) played with no window: where it ended, and its hash")
+            .arg(cmd::Arg("file").required().help("the recording")));
     cmd::Argv args(argv, argv + argc);
     auto parsed = app.parse_from(args);
     if (!parsed) {
@@ -125,9 +145,10 @@ int main(int argc, char** argv) {
         return fail(parsed.error().message, 2);
     }
     if (!parsed->has_subcommand()) {
-        std::println("quay-play shot --out DIR …   (quay-play <command> --help)");
+        std::println("quay-play shot --out DIR … | replay FILE   (quay-play <command> --help)");
         return 0;
     }
     if (parsed->subcommand_name() == "shot") return shot(parsed->subcommand()->get());
+    if (parsed->subcommand_name() == "replay") return replay(parsed->subcommand()->get());
     return 2;
 }

@@ -38,6 +38,8 @@ xrender.vector   = { path = "../../xrender/vector" }
 mlibs.image    = { path = "../../../base/image" }
 mlibs.text     = { path = "../../../content/text" }
 mlibs.pipeline = { path = "../../../base/pipeline" }
+# A world drawn on the host's device and shown as it is (Services::device, add_device_picture).
+mlibs.rhi      = { path = "../../../gfx/rhi" }
 # What else a process holds for agents beside the interface (Services::add_subject): the kernel's Subject (D-173).
 mlibs.agent    = { path = "../../../base/agent" }
 mlibs.i18n     = { path = "../../../content/i18n" }

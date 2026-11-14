@@ -43,7 +43,7 @@ omui.build.contracts = { path = "../../../../../mcpp/contracts", host-module = t
 programs = "directory"
 
 [dev-dependencies]
-mcpplibs.mtest = "0.7.1"
+mcpplibs.mtest = "0.8.3"
 xrender.text = { path = "../../../xrender/text" }
 omui.host.headless = { path = "../../host/headless" }
 # platform_styles_test: the platform packs (fluent, cupertino, material) over the components.

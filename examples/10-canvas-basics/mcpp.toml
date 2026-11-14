@@ -32,4 +32,4 @@ omui.sdk       = { path = "../../modules/projects/omui/sdk" }
 omui.ui.canvas = { path = "../../modules/projects/omui/components/canvas" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.7.1"
+mcpplibs.mtest = "0.8.3"

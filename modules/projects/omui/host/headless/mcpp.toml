@@ -36,7 +36,7 @@ mlibs.image    = { path = "../../../../base/image" }
 mlibs.utils    = { path = "../../../../base/utils" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.7.1"
+mcpplibs.mtest = "0.8.3"
 # headless_test: the agent contract's suite on the interface where a host draws (a pixel's source).
 mlibs.agent.cts = { path = "../../../../base/agent/cts" }
 # tests/component_motion_sweep_test.cpp: every component from a view document, swept through its motions here.

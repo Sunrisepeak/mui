@@ -29,7 +29,7 @@ xrender.rhi.sdl = { path = "../../../../xrender/rhi/sdl" }
 mcpplibs.os     = "0.4.4"
 
 [dev-dependencies]
-mcpplibs.mtest = "0.7.1"
+mcpplibs.mtest = "0.8.3"
 xengine.cellular = { path = ".." }
 "xengine.cellular.rhi" = { path = "../rhi" }
 "xengine.cellular.rhi.cts" = { path = "../rhi/cts" }

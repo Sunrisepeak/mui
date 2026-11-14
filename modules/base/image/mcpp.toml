@@ -30,5 +30,5 @@ mcpplibs.mwrap.libpng = "1.6.43"
 mcpplibs.mwrap.libwebp = { version = "1.5.0", features = ["demux", "mux"] }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.7.1"
+mcpplibs.mtest = "0.8.3"
 mlibs.utils = { path = "../utils" }

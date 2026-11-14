@@ -27,6 +27,6 @@ mlibs.agent      = { path = "../../../modules/base/agent" }
 openlifa.openas  = "0.2.0"
 
 [dev-dependencies]
-mcpplibs.mtest = "0.7.1"
+mcpplibs.mtest = "0.8.3"
 mlibs.json     = { path = "../../../modules/base/json" }
 xengine.playtest = { path = "../../../modules/projects/xengine/game/playtest" }

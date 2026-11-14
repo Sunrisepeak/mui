@@ -31,6 +31,6 @@ xengine.input    = { path = "../input" }
 openlifa.openas  = "0.2.0"
 
 [dev-dependencies]
-mcpplibs.mtest = "0.7.1"
+mcpplibs.mtest = "0.8.3"
 mlibs.utils    = { path = "../../../../base/utils" }
 mlibs.agent.cts = { path = "../../../../base/agent/cts" }

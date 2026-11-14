@@ -40,7 +40,7 @@ mcpplibs.mwrap.quickjs_ng = "0.17.0"
 
 [dev-dependencies]
 # Tests are mtest's (D-147).
-mcpplibs.mtest = "0.7.1"
+mcpplibs.mtest = "0.8.3"
 
 # esbuild is the oracle of the stripper's tests (strip_test), nothing else:
 # installed from xlings while this package is developed on its own (`dev`

@@ -68,7 +68,7 @@ sources = ["src/host/web/*.cppm", "src/host/web/*.cpp"]
 # SDK startup CTS exercise the actual generated profile and AppSpec run path.
 [dev-dependencies]
 # Tests are mtest's (D-147).
-mcpplibs.mtest = "0.7.1"
+mcpplibs.mtest = "0.8.3"
 
 [test]
 discover = ["tests/*_test.cpp"]

@@ -25,4 +25,4 @@ xengine.cellular = { path = "../../../modules/projects/xengine/kernel/cellular",
 xengine.matter   = { path = "../../../modules/projects/xengine/kernel/matter" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.7.1"
+mcpplibs.mtest = "0.8.3"

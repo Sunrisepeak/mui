@@ -31,5 +31,5 @@ nlohmann.json       = "3.12.0"
 mlibs.json          = { path = "../../base/json" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.7.1"
+mcpplibs.mtest = "0.8.3"
 mlibs.utils = { path = "../../base/utils" }

@@ -34,7 +34,7 @@ omui.ui.base = { path = "../base" }
 omui.build.contracts = { path = "../../../../../mcpp/contracts", host-module = true }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.7.1"
+mcpplibs.mtest = "0.8.3"
 mlibs.utils       = { path = "../../../../base/utils" }
 omui.host.headless = { path = "../../host/headless" }
 omui.semantic      = { path = "../../semantic" }

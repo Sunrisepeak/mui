@@ -28,6 +28,6 @@ mlibs.agent = { path = "../../../../base/agent" }
 mlibs.json  = { path = "../../../../base/json" }
 
 [dev-dependencies]
-mcpplibs.mtest  = "0.7.1"
+mcpplibs.mtest  = "0.8.3"
 xengine.runtime = { path = "../runtime" }
 xengine.input   = { path = "../input" }

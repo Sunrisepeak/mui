@@ -35,7 +35,7 @@ main = { from = "omui.entry.player/player" }
 omui.entry.player = { path = "../../src/entry/player" }
 
 [dev-dependencies]
-mcpplibs.mtest     = "0.7.1"
+mcpplibs.mtest     = "0.8.3"
 omui.player        = { path = "../../modules/projects/omui/player" }
 omui.designer      = { path = "../../modules/projects/omui/designer" }
 omui.lang.js       = { path = "../../modules/projects/omui/lang/js" }

@@ -26,5 +26,5 @@ mlibs.utils = { path = "../../base/utils" }
 mcpplibs.mwrap.md4c = "0.5.3"
 
 [dev-dependencies]
-mcpplibs.mtest = "0.7.1"
+mcpplibs.mtest = "0.8.3"
 mlibs.math = { path = "../../base/math" }

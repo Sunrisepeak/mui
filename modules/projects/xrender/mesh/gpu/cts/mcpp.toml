@@ -34,7 +34,7 @@ mlibs.math       = { path = "../../../../../base/math" }
 mlibs.image      = { path = "../../../../../base/image" }
 
 [dev-dependencies]
-mcpplibs.mtest     = "0.7.1"
+mcpplibs.mtest     = "0.8.3"
 mcpplibs.os        = "0.4.4"
 # The page's backends: the suite on WebGPU and on WebGL2 (tests/, run in a browser by tools/ci/browser.sh).
 xrender.rhi.webgpu = { path = "../../../rhi/webgpu" }

@@ -19,5 +19,5 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dev-dependencies]
-mcpplibs.mtest = "0.7.1"
+mcpplibs.mtest = "0.8.3"
 mlibs.utils = { path = "../utils" }

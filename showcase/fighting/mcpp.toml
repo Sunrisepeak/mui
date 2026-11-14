@@ -61,5 +61,5 @@ gongfu.rules            = { path = "../../modules/projects/gongfu/rules", host-m
 programs = "directory"
 
 [dev-dependencies]
-mcpplibs.mtest = "0.7.1"
+mcpplibs.mtest = "0.8.3"
 mlibs.utils = { path = "../../modules/base/utils" }

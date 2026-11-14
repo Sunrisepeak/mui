@@ -25,4 +25,4 @@ mlibs.memory = { path = "../../base/memory" }
 mlibs.utils   = { path = "../../base/utils" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.7.1"
+mcpplibs.mtest = "0.8.3"

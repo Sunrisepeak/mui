@@ -47,4 +47,4 @@ mcpplibs.os                    = "0.4.4"
 programs = "directory"
 
 [dev-dependencies]
-mcpplibs.mtest = "0.7.1"
+mcpplibs.mtest = "0.8.3"

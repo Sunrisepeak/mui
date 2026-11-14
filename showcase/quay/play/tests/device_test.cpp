@@ -2,7 +2,8 @@
 // a game the guide plays — from the start, a warden near, the beacon lit — drawn by xrender.mesh.gpu as the
 // reference draws them (the wardens bent on the device, shadows by maps for the reference's traced ones, the
 // glow), each within the tolerance of the harbour's own case. With OMUI_REQUIRE_GPU=1 a missing device fails;
-// otherwise it is said and the case passes vacuously. The device's pictures are kept beside the reference's.
+// otherwise it is said and the case passes vacuously. The device's pictures are kept beside the reference's. A test
+// of `play`, the desktop member: SDL_GPU is the native systems' device here.
 import std;
 import mlibs.rhi;
 import mlibs.image;

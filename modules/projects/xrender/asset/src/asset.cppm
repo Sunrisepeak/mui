@@ -87,4 +87,32 @@ struct Base {
 // (`clustered` by runs). Refused where `mlibs.geom`'s `check` refuses it.
 [[nodiscard]] std::expected<mlibs::geom::ClusteredMesh, std::string> optimised(mlibs::geom::Mesh mesh);
 
+// A model looked at as a viewer of products frames it (model-viewer's orbit, and its render-fidelity scenarios'):
+// the eye `radius` from `target`, `theta` about the way up from +z toward +x and `phi` down from the way up
+// (radians), looking at the target, `upright` its angle of view up and down.
+struct Orbit {
+    float            theta = 0, phi = 1.5707964f, radius = 1;
+    mlibs::math::Vec3 target{0, 0, 0};
+    float            upright = 0.7853982f;
+};
+// The view of it: the near and far cuts set about `bounds` as the eye sees it.
+[[nodiscard]] scene::View view_of(const Orbit& orbit, const mlibs::geom::Box3& bounds, float aspect) noexcept;
+
+// A model drawn by the reference, as a picture to stand beside another renderer's: lit by `surroundings` (and
+// by the document's own lights), `samples` × `samples` samples a pixel, through `tone`. The picture is
+// straight: a pixel's colour is the mean of its samples that drew anything, and its fourth byte how many did —
+// where nothing is, nothing (as such a viewer's picture with no background is).
+struct Look {
+    int                       width = 768, height = 768;
+    int                       samples = 2;  // each way, 1 … 4
+    const mesh::Surroundings* surroundings = nullptr;
+    mesh::Tone                tone{.neutral = true};
+};
+struct Looked {
+    int                       width = 0, height = 0;
+    std::vector<std::uint8_t> rgba;
+    mesh::Stats               stats;
+};
+[[nodiscard]] std::expected<Looked, std::string> looked(const Imported& imported, const scene::View& view, const Look& how = {});
+
 }  // namespace xrender::asset

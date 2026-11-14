@@ -320,6 +320,39 @@ static UTest cases{"xrender.asset", [] {
         expect(noted(*cut, "/images/0") && eq(cut->textures.size(), std::size_t{0}) && eq(cut->materials[0].texture, xrender::mesh::Material{}.texture));
     };
 
+    "a model looked at as a viewer frames it: the eye where the orbit says, the picture whole where the model is and nothing where it is not, its rim by how many samples drew"_test = [] {
+        const auto model = asset::gltf(bytes_of(whole()));
+        expect(fatal(model.has_value())) << (model ? "" : model.error());
+        // The eye: at phi a quarter turn and theta none, straight before the target along +z; at theta a quarter turn, along +x; at phi none, above.
+        const auto eye_of = [&](const asset::Orbit& orbit) {
+            const auto back = math::inverse(asset::view_of(orbit, model->bounds(), 1).view);
+            return back ? math::point(*back, {0, 0, 0}) : math::Vec3{};
+        };
+        const auto close = [](math::Vec3 one, math::Vec3 other) { return math::length(one - other) < 1e-4f; };
+        expect(close(eye_of({.radius = 5, .target = {1, 2, 3}}), {1, 2, 8}) && close(eye_of({.theta = 1.5707964f, .radius = 5, .target = {1, 2, 3}}), {6, 2, 3}));
+        expect(close(eye_of({.phi = 0.5235988f, .radius = 2}), {0, 1.7320508f, 1}));
+        // The model before the eye, lit by an even picture of the surroundings.
+        std::vector<float> even(16 * 8 * 3, 1.0f);
+        const auto surroundings = xrender::mesh::Surroundings::made(even, 16, 8);
+        expect(fatal(surroundings.has_value()));
+        const auto box = model->bounds();
+        const asset::Orbit orbit{.theta = 0.6f, .phi = 0.9f, .radius = math::length(box.half()) * 3, .target = box.centre()};
+        const auto picture = asset::looked(*model, asset::view_of(orbit, box, 1), {.width = 64, .height = 64, .surroundings = &*surroundings});
+        expect(fatal(picture.has_value())) << (picture ? "" : picture.error());
+        std::size_t whole_pixels = 0, none = 0, rim = 0;
+        for (std::size_t pixel = 0; pixel < 64 * 64; ++pixel) {
+            const std::uint8_t cover = picture->rgba[pixel * 4 + 3];
+            whole_pixels += cover == 255, none += cover == 0, rim += cover != 0 && cover != 255;
+            if (cover == 0) expect(picture->rgba[pixel * 4] == 0 && picture->rgba[pixel * 4 + 1] == 0);
+        }
+        expect(gt(whole_pixels, std::size_t{100}) && gt(none, std::size_t{100}) && gt(rim, std::size_t{4}) && lt(rim, whole_pixels)) << whole_pixels << ' ' << none << ' ' << rim;
+        expect(eq(picture->stats.draws, 2u) && eq(picture->rgba[3], std::uint8_t{0}));
+        // One sample a pixel: no rim. And no size: refused.
+        const auto hard = asset::looked(*model, asset::view_of(orbit, box, 1), {.width = 64, .height = 64, .samples = 1, .surroundings = &*surroundings});
+        expect(fatal(hard.has_value()));
+        for (std::size_t pixel = 0; pixel < 64 * 64; ++pixel) expect(hard->rgba[pixel * 4 + 3] == 0 || hard->rgba[pixel * 4 + 3] == 255);
+        expect(!asset::looked(*model, asset::view_of(orbit, box, 1), {.width = 0}).has_value());
+    };
     "strips and fans are triangles with their fronts kept; lamps have a reach"_test = [] {
         const std::string text = with_uri(R"(,
   "scenes": [{"nodes": [0, 1, 2]}],

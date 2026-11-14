@@ -167,6 +167,19 @@ struct Light {
 [[nodiscard]] std::expected<void, std::string> save_hdr(const std::filesystem::path& file, const Light& light);
 
 // Any of the three, told by its signature (PNG's eight bytes, WebP's RIFF/WEBP, JPEG's FF D8 FF).
+// How far a picture is from another of its size, as model-viewer's render-fidelity suite says it (its
+// ImageComparator): over the pixels the candidate has anything at, pixelmatch's colour distance — both laid over
+// white by their alpha, the difference in YIQ, 0.5053 Y² + 0.299 I² + 0.1957 Q² — and of those distances the root
+// of the mean of their squares over the most that distance can be (35,215; black from white is 0.933 of it): `ratio`. The suite says it in
+// decibels, 10 log10 of the ratio, and holds model-viewer to −22 against its own golden. Nothing: the two are
+// not of one size, or the candidate has nothing anywhere. Both straight alpha.
+struct Apart {
+    std::uint64_t compared = 0;  // pixels
+    double        ratio = 0;
+    [[nodiscard]] double decibels() const noexcept;  // of a ratio of 0: minus infinity
+};
+[[nodiscard]] std::optional<Apart> apart(const View& candidate, const View& golden);
+
 [[nodiscard]] std::expected<Image, std::string> decode(std::span<const std::uint8_t> bytes);
 [[nodiscard]] std::expected<Image, std::string> load(const std::filesystem::path& file);
 

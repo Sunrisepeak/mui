@@ -9,6 +9,13 @@
 //   xrender cts [--report FILE]                  the render contract's conformance suite on this
 //                                                machine's device, case by case
 //   xrender device                               the device: backend, name, formats, limits
+//   xrender look MODEL --out PNG [--light HDR] [--orbit THETA,PHI,RADIUS] [--target X,Y,Z] [--size WxH]
+//                [--upright DEGREES] [--samples N] [--golden PNG] [--follow RAYS]
+//                                                a glTF model drawn by the reference as a viewer of products
+//                                                frames it, lit by an HDR picture of the surroundings; beside
+//                                                another renderer's picture of the same (its distance in the
+//                                                render-fidelity suite's measure), and beside the light
+//                                                followed way by way
 //
 // One JSON answer on standard output; exit 0 done, 1 failed (said why), 2 a
 // wrong command. The device is SDL_GPU's (OMUI_VULKAN_LIBRARY and
@@ -23,6 +30,7 @@ import xrender.vector;
 import xrender.effect;
 import xrender.cts;
 import xrender.rhi.sdl;
+import xrender.asset;
 import mcpplibs.os;
 import mcpplibs.cmdline;
 import nlohmann.json;
@@ -39,7 +47,8 @@ using Json = nlohmann::json;
 
 constexpr std::string_view usage =
     "usage: xrender effect check FILE… | xrender effect preview FILE --out PNG [--image PNG] [--size WxH] [--param NAME=VALUE …] | "
-    "xrender cts [--report FILE] | xrender device";
+    "xrender cts [--report FILE] | xrender device | "
+    "xrender look MODEL --out PNG [--light HDR] [--orbit THETA,PHI,RADIUS] [--target X,Y,Z] [--size WxH] [--upright DEGREES] [--samples N] [--golden PNG] [--follow RAYS]";
 
 int answer(const Json& json, int code) {
     std::println("{}", json.dump());
@@ -275,7 +284,166 @@ int device_info() {
                   0);
 }
 
-// The command line (mcpplibs.cmdline): effect check | preview, cts, device.
+// Numbers apart by commas: exactly `count` of them, or nothing.
+std::optional<std::vector<float>> numbers(std::string_view text, std::size_t count) {
+    std::vector<float> all;
+    for (const auto part : std::views::split(text, ',')) {
+        const std::string one(part.begin(), part.end());
+        float value = 0;
+        const auto read = std::from_chars(one.data(), one.data() + one.size(), value);
+        if (read.ec != std::errc{} || read.ptr != one.data() + one.size()) return std::nullopt;
+        all.push_back(value);
+    }
+    if (all.size() != count) return std::nullopt;
+    return all;
+}
+
+// A model looked at: drawn by the CPU reference, written, and stood beside what it is asked to stand beside.
+int look(const cmdline::ParsedArgs& args) {
+    namespace asset = xrender::asset;
+    namespace mesh = xrender::mesh;
+    namespace image = mlibs::image;
+    constexpr float degree = 0.017453292f;
+    if (args.positional_count() != 1) return wrong("look takes one model");
+    const auto out = args.value("out");
+    if (!out) return wrong("look needs --out PNG");
+    int width = 768, height = 768, samples = 2;
+    if (const auto size = args.value("size")) {
+        const std::size_t by = size->find('x');
+        const auto wide = by == std::string::npos ? std::nullopt : numbers(std::string_view(*size).substr(0, by), 1), high = by == std::string::npos ? std::nullopt : numbers(std::string_view(*size).substr(by + 1), 1);
+        if (!wide || !high || (*wide)[0] < 8 || (*wide)[0] > 4096 || (*high)[0] < 8 || (*high)[0] > 4096) return wrong("--size WxH, 8 … 4096 each");
+        width = static_cast<int>((*wide)[0]), height = static_cast<int>((*high)[0]);
+    }
+    if (const auto said = args.value("samples")) {
+        const auto count = numbers(*said, 1);
+        if (!count || (*count)[0] < 1 || (*count)[0] > 4) return wrong("--samples 1 … 4 (each way)");
+        samples = static_cast<int>((*count)[0]);
+    }
+    const auto model = asset::gltf_file(path_of(args.positional(0)));
+    if (!model) return failed(model.error());
+    const mlibs::geom::Box3 box = model->bounds();
+    // As a viewer shows a model it was told nothing about: from before and a little above, all of it in the picture.
+    asset::Orbit orbit{.theta = 0, .phi = 75 * degree, .radius = mlibs::math::length(box.half()) * 2.6f, .target = box.centre()};
+    if (const auto said = args.value("orbit")) {
+        const auto three = numbers(*said, 3);
+        if (!three || !((*three)[2] > 0)) return wrong("--orbit THETA,PHI,RADIUS: degrees about the way up from +z, degrees down from the way up, how far");
+        orbit.theta = (*three)[0] * degree, orbit.phi = (*three)[1] * degree, orbit.radius = (*three)[2], orbit.target = {0, 0, 0};
+    }
+    if (const auto said = args.value("target")) {
+        const auto three = numbers(*said, 3);
+        if (!three) return wrong("--target X,Y,Z");
+        orbit.target = {(*three)[0], (*three)[1], (*three)[2]};
+    }
+    if (const auto said = args.value("upright")) {
+        const auto angle = numbers(*said, 1);
+        if (!angle || !((*angle)[0] > 1) || !((*angle)[0] < 170)) return wrong("--upright DEGREES, 1 … 170");
+        orbit.upright = (*angle)[0] * degree;
+    }
+    std::optional<mesh::Surroundings> surroundings;
+    Json light_said = nullptr;
+    if (const auto file = args.value("light")) {
+        const auto light = image::load_hdr(path_of(*file));
+        if (!light) return failed(light.error());
+        surroundings = mesh::Surroundings::made(light->rgb, light->width, light->height);
+        if (!surroundings) return failed("the picture of the surroundings could not be made");
+        light_said = Json{{"file", *file}, {"width", light->width}, {"height", light->height}, {"across", surroundings->sizes[0].side}, {"cut", surroundings->clamped}};
+    }
+    const xrender::scene::View view = asset::view_of(orbit, box, static_cast<float>(width) / static_cast<float>(height));
+    const auto begun = std::chrono::steady_clock::now();
+    const auto picture = asset::looked(*model, view, {.width = width, .height = height, .samples = samples, .surroundings = surroundings ? &*surroundings : nullptr});
+    if (!picture) return failed(picture.error());
+    const double drawn_in = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - begun).count();
+    const image::View ours{picture->rgba.data(), width, height, width * 4, image::Alpha::straight};
+    if (const auto saved = image::save_png(path_of(*out), ours); !saved) return failed(saved.error());
+    std::size_t whole = 0, partly = 0;
+    for (std::size_t pixel = 0; pixel < static_cast<std::size_t>(width) * static_cast<std::size_t>(height); ++pixel) whole += picture->rgba[pixel * 4 + 3] == 255, partly += picture->rgba[pixel * 4 + 3] != 0 && picture->rgba[pixel * 4 + 3] != 255;
+    Json said{{"ok", true},
+              {"model", {{"meshes", model->meshes.size()}, {"triangles", model->triangles()}, {"materials", model->materials.size()}, {"textures", model->textures.size()}, {"notes", model->notes.size()}}},
+              {"orbit", {{"theta", orbit.theta / degree}, {"phi", orbit.phi / degree}, {"radius", orbit.radius}, {"target", {orbit.target.x, orbit.target.y, orbit.target.z}}, {"upright", orbit.upright / degree}}},
+              {"light", light_said},
+              {"out", *out},
+              {"width", width},
+              {"height", height},
+              {"samples", samples * samples},
+              {"draws", picture->stats.draws},
+              {"pixels", {{"whole", whole}, {"partly", partly}}},
+              {"drawn_ms", drawn_in}};
+    // Beside another renderer's picture of the same.
+    std::optional<image::Image> golden;
+    if (const auto file = args.value("golden")) {
+        auto read = image::load_png(path_of(*file));
+        if (!read) return failed(read.error());
+        if (read->width != width || read->height != height) return failed(std::format("the golden is {} × {}, the picture {} × {}: --size {}x{}", read->width, read->height, width, height, read->width, read->height));
+        golden = std::move(*read);
+        const auto distance = image::apart(ours, image::view(*golden));
+        if (!distance) return failed("nothing of the model is in the picture");
+        std::size_t undrawn = 0;
+        for (std::size_t pixel = 0; pixel < static_cast<std::size_t>(width) * static_cast<std::size_t>(height); ++pixel) undrawn += golden->rgba[pixel * 4 + 3] == 255 && picture->rgba[pixel * 4 + 3] == 0;
+        said["golden"] = {{"file", *file}, {"compared", distance->compared}, {"ratio", distance->ratio}, {"decibels", distance->decibels()}, {"suite_bound_decibels", -22}, {"its_pixels_not_drawn", undrawn}};
+    }
+    // Beside the light followed way by way, a quarter as large each way: where every sample of both is whole.
+    if (const auto rays = args.value("follow")) {
+        const auto count = numbers(*rays, 1);
+        if (!count || (*count)[0] < 1 || (*count)[0] > 65536) return wrong("--follow RAYS a pixel, 1 … 65536");
+        if (width % 4 != 0 || height % 4 != 0) return wrong("--follow takes a picture whose sides are multiples of 4");
+        const int small_width = width / 4, small_height = height / 4;
+        xrender::scene::Scene world;
+        if (const auto put = asset::place(*model, world); !put) return failed(put.error());
+        std::vector<const mlibs::geom::ClusteredMesh*> meshes;
+        std::vector<const mesh::Texture*> textures;
+        std::vector<mlibs::geom::Bvh> grown;
+        std::vector<const mlibs::geom::Bvh*> trees;
+        for (const auto& one : model->meshes) meshes.push_back(&one), grown.push_back(mlibs::geom::bvh_of(one.mesh));
+        for (const auto& tree : grown) trees.push_back(&tree);
+        for (const auto& one : model->textures) textures.push_back(&one);
+        mesh::Targets followed;
+        followed.resize(small_width, small_height);
+        mesh::Options options{.background = {0, 0, 0}};
+        if (surroundings) options.environment = {.on = true, .picture = &*surroundings};
+        const auto from = std::chrono::steady_clock::now();
+        const mesh::Traced told = mesh::traced(world, view, {meshes, model->materials, trees, textures}, followed, options, {.samples = static_cast<std::uint32_t>((*count)[0]), .bounces = 3});
+        const double followed_in = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - from).count();
+        mesh::Glow glow;
+        std::vector<std::uint8_t> truth;
+        (void)glow.show(followed.light, small_width, small_height, {}, truth, {.neutral = true});
+        for (std::size_t pixel = 0; pixel < truth.size() / 4; ++pixel) truth[pixel * 4 + 3] = 255;
+        const std::string beside = *out + ".followed.png";
+        const image::View truth_view{truth.data(), small_width, small_height, small_width * 4, image::Alpha::straight};
+        if (const auto saved = image::save_png(path_of(beside), truth_view); !saved) return failed(saved.error());
+        // A picture a quarter as large: a pixel the mean of sixteen, and there at all only where all sixteen are whole in both.
+        const auto quarter = [&](const std::uint8_t* rgba) {
+            std::vector<std::uint8_t> made(static_cast<std::size_t>(small_width) * static_cast<std::size_t>(small_height) * 4, 0);
+            for (int y = 0; y < small_height; ++y)
+                for (int x = 0; x < small_width; ++x) {
+                    std::array<int, 3> sum{0, 0, 0};
+                    bool all_whole = true;
+                    for (int below = 0; below < 4; ++below)
+                        for (int along = 0; along < 4; ++along) {
+                            const std::size_t at = (static_cast<std::size_t>(y * 4 + below) * static_cast<std::size_t>(width) + static_cast<std::size_t>(x * 4 + along)) * 4;
+                            all_whole = all_whole && picture->rgba[at + 3] == 255 && (!golden || golden->rgba[at + 3] == 255);
+                            for (std::size_t channel = 0; channel < 3; ++channel) sum[channel] += rgba[at + channel];
+                        }
+                    std::uint8_t* pixel = made.data() + (static_cast<std::size_t>(y) * static_cast<std::size_t>(small_width) + static_cast<std::size_t>(x)) * 4;
+                    for (std::size_t channel = 0; channel < 3; ++channel) pixel[channel] = static_cast<std::uint8_t>((sum[channel] + 8) / 16);
+                    pixel[3] = all_whole ? 255 : 0;
+                }
+            return made;
+        };
+        const std::vector<std::uint8_t> ours_small = quarter(picture->rgba.data());
+        const auto of_ours = image::apart({ours_small.data(), small_width, small_height, small_width * 4, image::Alpha::straight}, truth_view);
+        Json beside_truth{{"file", beside}, {"width", small_width}, {"height", small_height}, {"rays_a_pixel", static_cast<int>((*count)[0])}, {"bounces", 3}, {"rays", told.rays}, {"followed_ms", followed_in}};
+        if (of_ours) beside_truth["drawn"] = {{"compared", of_ours->compared}, {"ratio", of_ours->ratio}, {"decibels", of_ours->decibels()}};
+        if (golden) {
+            const std::vector<std::uint8_t> theirs_small = quarter(golden->rgba.data());
+            if (const auto of_theirs = image::apart({theirs_small.data(), small_width, small_height, small_width * 4, image::Alpha::straight}, truth_view))
+                beside_truth["golden"] = {{"compared", of_theirs->compared}, {"ratio", of_theirs->ratio}, {"decibels", of_theirs->decibels()}};
+        }
+        said["followed"] = std::move(beside_truth);
+    }
+    return answer(said, 0);
+}
+
+// The command line (mcpplibs.cmdline): effect check | preview, cts, device, look.
 cmdline::App command_line() {
     using cmdline::App, cmdline::Arg, cmdline::Option;
     return App("xrender")
@@ -291,7 +459,19 @@ cmdline::App command_line() {
                                         .option(Option("size").takes_value().value_name("WxH").help("8 … 4096 each (default 320x200)"))
                                         .option(Option("param").takes_value().multiple().value_name("NAME=VALUE").help("a parameter's value"))))
         .subcommand(App("cts").description("the render contract's conformance suite on this device").option(Option("report").takes_value().value_name("FILE")))
-        .subcommand(App("device").description("the device: backend, name, formats, limits"));
+        .subcommand(App("device").description("the device: backend, name, formats, limits"))
+        .subcommand(App("look")
+                        .description("a glTF model drawn by the reference as a viewer frames it; beside another renderer's picture, and beside the light followed way by way")
+                        .arg(Arg("model").required().help("a .gltf or .glb"))
+                        .option(Option("out").takes_value().value_name("PNG").help("the picture written (nothing where the model is not)"))
+                        .option(Option("light").takes_value().value_name("HDR").help("a Radiance picture of the surroundings the model is lit by"))
+                        .option(Option("orbit").takes_value().value_name("THETA,PHI,RADIUS").help("degrees about the way up from +z, degrees down from it, how far (model-viewer's)"))
+                        .option(Option("target").takes_value().value_name("X,Y,Z").help("what the eye looks at"))
+                        .option(Option("size").takes_value().value_name("WxH").help("8 … 4096 each (default 768x768)"))
+                        .option(Option("upright").takes_value().value_name("DEGREES").help("the angle of view up and down (default 45)"))
+                        .option(Option("samples").takes_value().value_name("N").help("N × N samples a pixel, 1 … 4 (default 2)"))
+                        .option(Option("golden").takes_value().value_name("PNG").help("another renderer's picture of the same, of the same size"))
+                        .option(Option("follow").takes_value().value_name("RAYS").help("follow the light way by way, RAYS a pixel, a quarter as large each way")));
 }
 
 }  // namespace
@@ -300,10 +480,11 @@ int main(int argc, char** argv) {
     const cmdline::App app = command_line();
     auto parsed = app.parse(argc, argv);
     if (!parsed) return parsed.error().is_error() ? wrong(parsed.error().message) : 0;
-    if (!parsed->has_subcommand()) return wrong("a command: effect, cts or device");
+    if (!parsed->has_subcommand()) return wrong("a command: effect, cts, device or look");
     const cmdline::ParsedArgs& args = parsed->subcommand()->get();
     if (parsed->subcommand_name() == "cts") return cts(args);
     if (parsed->subcommand_name() == "device") return device_info();
+    if (parsed->subcommand_name() == "look") return look(args);
     if (!args.has_subcommand()) return wrong("effect check or effect preview");
     if (args.subcommand_name() == "check") return effect_check(args.subcommand()->get());
     return effect_preview(args.subcommand()->get());

@@ -818,4 +818,30 @@ UTest cases{"image", [] {
         past.insert(past.end(), {2, 2, 0, 8, 128 + 9, 5});
         expect(refused(past, "a run past its end"));
     };
+    "how far a picture is from another, in the render-fidelity suite's measure: the same picture 0, black from white 0.933 of the most there is, and only where the candidate has anything"_test = [] {
+        const auto picture = [](std::array<std::uint8_t, 4> left, std::array<std::uint8_t, 4> right) {
+            mlibs::image::Image made{.width = 2, .height = 1};
+            made.rgba = {left[0], left[1], left[2], left[3], right[0], right[1], right[2], right[3]};
+            return made;
+        };
+        const mlibs::image::Image black = picture({0, 0, 0, 255}, {0, 0, 0, 255}), white = picture({255, 255, 255, 255}, {255, 255, 255, 255});
+        const auto same = mlibs::image::apart(view(black), view(black)), all_the_way = mlibs::image::apart(view(black), view(white));
+        expect(fatal(same.has_value() && all_the_way.has_value()));
+        expect(eq(same->ratio, 0.0) && eq(same->compared, std::uint64_t{2}) && lt(std::abs(all_the_way->ratio - 0.5053 * 255.0 * 255.0 / 35215.0), 1e-6) && lt(std::abs(all_the_way->decibels() + 0.301), 1e-3)) << all_the_way->ratio;
+        // A golden with nothing at a pixel is white there; a candidate with nothing there is not asked.
+        const auto over_white = mlibs::image::apart(view(white), view(picture({0, 0, 0, 0}, {0, 0, 0, 0})));
+        expect(fatal(over_white.has_value()));
+        expect(eq(over_white->ratio, 0.0));
+        const auto half = mlibs::image::apart(view(picture({0, 0, 0, 255}, {9, 9, 9, 0})), view(white));
+        expect(fatal(half.has_value()));
+        expect(eq(half->compared, std::uint64_t{1}) && lt(std::abs(half->ratio - all_the_way->ratio), 1e-9));
+        // A grey ten levels off: 0.5053 × 10² and the like — (10² × (0.5053 + 0·…)) over 35,215.
+        const auto near_by = mlibs::image::apart(view(picture({100, 100, 100, 255}, {100, 100, 100, 255})), view(picture({110, 110, 110, 255}, {110, 110, 110, 255})));
+        expect(fatal(near_by.has_value()));
+        expect(lt(std::abs(near_by->ratio - 0.5053 * 100.0 / 35215.0), 1e-6) && lt(near_by->decibels(), -28.0)) << near_by->ratio;
+        // Not of one size, or nothing to ask: no answer.
+        mlibs::image::Image other{.width = 1, .height = 1};
+        other.rgba = {0, 0, 0, 255};
+        expect(!mlibs::image::apart(view(black), view(other)).has_value() && !mlibs::image::apart(view(picture({1, 2, 3, 0}, {4, 5, 6, 0})), view(white)).has_value());
+    };
 }};

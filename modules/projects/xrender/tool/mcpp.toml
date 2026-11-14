@@ -30,6 +30,9 @@ xrender.vector  = { path = "../vector" }
 xrender.raster  = { path = "../raster" }
 xrender.effect  = { path = "../effect" }
 xrender.cts   = { path = "../cts" }
+xrender.asset = { path = "../asset" }
+xrender.mesh  = { path = "../mesh" }
+xrender.scene = { path = "../scene" }
 xrender.rhi.sdl = { path = "../rhi/sdl" }
 mlibs.rhi       = { path = "../../../gfx/rhi" }
 mlibs.cts       = { path = "../../../base/cts" }

@@ -19,6 +19,12 @@ How an Agent (or a person at a terminal) works with the renderer without a GUI: 
 - A renderer change: `conformance.run` passes on this device (every case within its tolerance of the CPU reference); failing cases leave both pictures to look at.
 - Record the commands and the pictures' paths.
 
+## A model beside another renderer's picture
+
+1. `model.look` with the model, `--light` an HDR picture of the surroundings, and the other picture's camera (`--orbit`, `--target`, `--upright`, `--size`): look at the PNG written.
+2. With `--golden`: the distance in the render-fidelity suite's measure, and how many of the golden's pixels were not drawn — more than a rim's worth says the camera is not the same, not that the shading differs.
+3. Where the distance is over the suite's bound (−22 dB), add `--follow` (64 rays a pixel is a first look, more for a verdict): the drawn picture and the golden each beside the light followed way by way. The one nearer it is the better approximation; the distance between the two alone does not say which.
+
 ## Not here
 
 Drawing an application is its host's (its `capture`); the renderer's API is the library's. Effects are compiled by mlibs.shader.

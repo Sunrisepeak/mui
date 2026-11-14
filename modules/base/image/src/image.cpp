@@ -513,5 +513,29 @@ Axis principal_axis(const Image& img, std::uint8_t alpha) {
     return a;
 }
 
+double Apart::decibels() const noexcept { return 10.0 * std::log10(ratio); }
+std::optional<Apart> apart(const View& candidate, const View& golden) {
+    if (!candidate.rgba || !golden.rgba || candidate.width <= 0 || candidate.height <= 0 || candidate.width != golden.width || candidate.height != golden.height) return std::nullopt;
+    Apart all;
+    double squares = 0;
+    for (int y = 0; y < candidate.height; ++y) {
+        const std::uint8_t* ours = candidate.rgba + static_cast<std::size_t>(y) * static_cast<std::size_t>(candidate.stride);
+        const std::uint8_t* theirs = golden.rgba + static_cast<std::size_t>(y) * static_cast<std::size_t>(golden.stride);
+        for (int x = 0; x < candidate.width; ++x, ours += 4, theirs += 4) {
+            if (ours[3] == 0) continue;
+            const double cover = ours[3] / 255.0, their_cover = theirs[3] / 255.0;
+            std::array<double, 3> off{};
+            for (std::size_t channel = 0; channel < 3; ++channel) off[channel] = (255.0 + (ours[channel] - 255.0) * cover) - (255.0 + (theirs[channel] - 255.0) * their_cover);
+            const double luma = off[0] * 0.29889531 + off[1] * 0.58662247 + off[2] * 0.11448223, in_phase = off[0] * 0.59597799 - off[1] * 0.27417610 - off[2] * 0.32180189,
+                         quadrature = off[0] * 0.21147017 - off[1] * 0.52261711 + off[2] * 0.31114694;
+            const double distance = 0.5053 * luma * luma + 0.299 * in_phase * in_phase + 0.1957 * quadrature * quadrature;
+            squares += distance * distance, ++all.compared;
+        }
+    }
+    if (all.compared == 0) return std::nullopt;
+    all.ratio = std::sqrt(squares / static_cast<double>(all.compared)) / 35215.0;
+    return all;
+}
+
 }  // namespace mlibs::image
 

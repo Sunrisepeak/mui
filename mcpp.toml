@@ -98,6 +98,8 @@ members = [
     "modules/projects/hanim/visual",
     "modules/projects/hanim/rhi",
     "modules/projects/hanim/studio",
+    "modules/projects/hanim/skeleton",
+    "modules/projects/hanim/skeleton/cts",
     "modules/projects/omui/theme",
     "modules/projects/omui/theme/compact",
     "modules/projects/omui/theme/default",

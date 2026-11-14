@@ -10,6 +10,8 @@ import xengine.dynamics.rigid;
 import xengine.dynamics.rigid3;
 import xengine.nav;
 import xengine.nav.cts;
+import hanim.skeleton;
+import hanim.skeleton.cts;
 import xengine.matter.json;
 import xengine.cellular.matter;
 import xengine.cellular.matter.agent;
@@ -534,6 +536,68 @@ void add_simulation_benchmarks() {
             s.note("scope", std::format("64 walkers, {} steps a round from the same start; the median round: Detour's crowd directly {:.3f} ms, through the World {:.3f} ms. "
                                         "Not the same walk bit for bit: Detour plans paths in its queue across steps, the World plans each whole when asked",
                                         steps, plain_ms, through));
+        });
+    // M6.4: skeletal animation — 64 characters of 50 joints sampled from ACL's compressed bytes beside the same clip's
+    // raw channels (what compression costs at playback), and a crowd's whole step.
+    add("motion/skeleton-sample-64x50", "64 characters of 50 joints, each the walk at its own time: a pose decompressed by ACL beside the same pose from the raw channels (keys found by search, mixed), taking turns",
+        [](State& s) {
+            using clock = std::chrono::steady_clock;
+            constexpr std::size_t characters = 64, joints = 50;
+            const auto rig = hanim::skeleton::cts::rig(joints, true);
+            const hanim::skeleton::Clip& walk = rig->clips[*rig->clip("walk")];
+            std::vector<hanim::skeleton::Pose> poses(characters, hanim::skeleton::Pose(joints));
+            std::vector<double> packed, raw;
+            double checksum = 0;
+            s.items(characters * joints);
+            while (s.next()) {
+                const float base = static_cast<float>(s.iteration() % 600) / 600.0f;
+                const auto from = clock::now();
+                for (std::size_t index = 0; index < characters; ++index)
+                    walk.compressed->sample(std::fmod(base + static_cast<float>(index) * 0.013f, walk.duration), poses[index]);
+                const auto between = clock::now();
+                s.pause();
+                for (std::size_t index = 0; index < characters; ++index)
+                    hanim::skeleton::sample_raw(walk, rig->skeleton, std::fmod(base + static_cast<float>(index) * 0.013f, walk.duration), poses[index]);
+                const auto to = clock::now();
+                checksum += poses[characters - 1][joints - 1].rotation.w;
+                packed.push_back(std::chrono::duration<double, std::nano>(between - from).count());
+                raw.push_back(std::chrono::duration<double, std::nano>(to - between).count());
+                s.resume();
+            }
+            const auto median = [](std::vector<double>& values) {
+                if (values.empty()) return 0.0;
+                std::ranges::sort(values);
+                return values[values.size() / 2];
+            };
+            const double acl_ns = median(packed), raw_ns = median(raw);
+            if (!(raw_ns > 0) || !std::isfinite(checksum)) return;
+            const double each = static_cast<double>(characters * joints);
+            s.counter("acl_ns_per_joint", acl_ns / each);
+            s.counter("raw_ns_per_joint", raw_ns / each);
+            s.counter("acl_over_raw", acl_ns / raw_ns);
+            s.note("scope", std::format("{} joints a pose, {} poses a round; the median round: ACL {:.1f} ns a joint ({} bytes for the 1 s walk), the raw channels {:.1f} ns a joint ({} bytes). "
+                                        "ACL here is built without SIMD (the same bits on every platform)",
+                                        joints, characters, acl_ns / each, walk.compressed->bytes(), raw_ns / each, walk.bytes()));
+        });
+    add("motion/skeleton-crowd-64x50", "64 characters of 50 joints stepped once: each machine chooses (fades among idle, walk and run), its clips decompressed and mixed, a wave layered on half of them, root motion applied, joints to the model's space and the skin's matrices",
+        [](State& s) {
+            const auto rig = hanim::skeleton::cts::rig(50, true);
+            hanim::skeleton::Crowd crowd(rig, hanim::skeleton::cts::machine(*rig));
+            for (std::size_t index = 0; index < 64; ++index) {
+                const std::uint32_t added = crowd.add({.moved = {static_cast<float>(index % 8) * 2.0f, 0, static_cast<float>(index / 8) * 3.0f}});
+                hanim::skeleton::Character& character = crowd.characters()[added];
+                (void)character.stage.set("speed", static_cast<float>(index % 3) * 1.6f);
+                if (index % 2 == 0) (void)character.player.layer(0, {.clip = *rig->clip("wave"), .weight = 1, .mask = rig->skeleton.find("upper_chest")});
+            }
+            s.items(64 * 50);
+            std::size_t step = 0;
+            while (s.next()) {
+                // Speeds change now and then: fades are part of what is timed.
+                if (++step % 90 == 0)
+                    for (std::size_t index = 0; index < 64; index += 5) (void)crowd.characters()[index].stage.set("speed", static_cast<float>((step / 90 + index) % 3) * 1.6f);
+                crowd.step();
+            }
+            s.note("scope", "one thread; a step is 1/60 s; what a frame of 64 animated characters costs before drawing");
         });
     add("simulation/world-128x64-branch", "the same cavern branched: the whole world copied — the field, what flies, the coupling, the rigid world from its own image — what a timeline's snapshot and an agent's `world.branch` cost before a frame is run",
         [cavern](State& s) {

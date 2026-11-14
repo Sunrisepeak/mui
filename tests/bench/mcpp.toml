@@ -32,6 +32,9 @@ xengine.dynamics = { path = "../../modules/projects/xengine/kernel/dynamics", fe
 # Navigation beside Detour called directly (simulation/nav-crowd-64), on the scenes of its conformance package.
 xengine.nav = { path = "../../modules/projects/xengine/game/nav" }
 "xengine.nav.cts" = { path = "../../modules/projects/xengine/game/nav/cts" }
+# Skeletal animation (motion/skeleton-*): ACL's playback beside the raw channels, and a crowd's whole step.
+"hanim.skeleton" = { path = "../../modules/projects/hanim/skeleton" }
+"hanim.skeleton.cts" = { path = "../../modules/projects/hanim/skeleton/cts" }
 # With the lattice as a carrier of matter (simulation/matter-lattice-*), and a field of it as an agent's subject
 # with its record of causes (simulation/matter-256-causes; the feature implies `matter` and `agent`); and the
 # whole 2D world, its bodies made of the lattice's cells (simulation/world-128x64-frame; the feature `rigid`).

@@ -1,0 +1,47 @@
+# hanim.skeleton — skeletal animation as hanim's channels (the foundation plan's M6.4, §9.4; D-93): skeletons,
+# clips of per-joint translation, rotation and scale channels sampled at any time, compressed by ACL (through
+# mwrap: mcpplibs.mwrap.acl, D-83, in one native unit) within an error said and measured, blending by weight, by
+# joint and by difference, root motion as a channel, the step that chooses the next pose as a stage that plugs in
+# (a state machine with cross-fades built in), the joints in the model's space and the skin's matrices. A package
+# of its own: ACL is a dependency a consumer of hanim's engine does not carry (D-99), and glTF's clips reach
+# xrender.asset (feature `gltf`). No contraction and no fast math: the same bits everywhere.
+[package]
+namespace   = "hanim"
+name        = "skeleton"
+version     = "0.1.0"
+description = "Skeletal animation as hanim's channels: skeletons, clips compressed by ACL, blending, root motion, a pluggable pose-choosing stage, skin matrices"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind  = "module"
+agent = "subject"
+
+[targets.hanim-skeleton]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+cxxflags = ["-fno-fast-math", "-ffp-contract=off"]
+
+[dependencies]
+hanim.core         = { path = "../core" }
+mlibs.math         = { path = "../../../base/math" }
+mlibs.utils        = { path = "../../../base/utils" }
+mcpplibs.mwrap.acl = "2.1.0"
+
+[features]
+# glTF's skins and animations (xrender.asset reads them as numbers) as skeletons and clips: module hanim.skeleton.gltf.
+gltf  = { sources = ["src/gltf/*.cppm", "src/gltf/*.cpp"] }
+# Characters as an agent's subject (src/agent/, module hanim.skeleton.agent; D-174).
+agent = { sources = ["src/agent/*.cppm", "src/agent/*.cpp"] }
+
+[feature-deps.gltf]
+xrender.asset = { path = "../../xrender/asset" }
+
+[feature-deps.agent]
+mlibs.agent     = { path = "../../../base/agent" }
+mlibs.control   = { path = "../../../base/control" }
+mlibs.json      = { path = "../../../base/json" }
+openlifa.openas = "0.2.0"

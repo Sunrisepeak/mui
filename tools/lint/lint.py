@@ -806,6 +806,8 @@ CLOSURES: dict[str, dict[str, set[str]]] = {
                                  "mlibs.agent", "mlibs.json", "mlibs.control", "xengine.matter"}},
     # hanim by default is its engine: control and the stage as an agent's subject are features a consumer asks for
     "hanim": {"not": {"omui", "mlibs.agent", "mlibs.json", "mlibs.control", "xrender", "xengine.matter", "xengine.cellular"}},
+    # skeletal animation by default is its channels, ACL and the player: glTF (xrender.asset) and the subject are features
+    "hanim.skeleton": {"not": {"omui", "xrender", "mlibs.agent", "mlibs.json", "mlibs.control", "xengine"}},
     "xengine.cellular.rhi": {"not": {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "xrender"}},
     # the field on screen (its tests draw it through the frame's entry, read by an agent): the renderer's resources
     # (and what they reach), no UI, game, animation, effect loader or shader compiler

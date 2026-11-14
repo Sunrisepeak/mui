@@ -36,6 +36,40 @@ struct Placed {
     std::string   name;                               // the node's, or none
 };
 
+// What moves, read as numbers and not played (what is drawn stays at rest): the nodes as a hierarchy, the skins
+// and the animations as the document has them. Their owner (hanim, D-93; hanim.skeleton's `gltf`) makes skeletons
+// and clips of them.
+struct Node {
+    std::string       name;         // the node's, or none
+    std::int32_t      parent = -1;  // a node's number; −1: a root
+    mlibs::math::Vec3 translation{0, 0, 0};
+    mlibs::math::Quat rotation{};
+    mlibs::math::Vec3 scale{1, 1, 1};
+    Mat4              local;           // the same place as a matrix (the document's own where it gives one)
+    bool              matrix = false;  // the document gives a matrix, not the three (such a node is not animated)
+};
+struct Skin {
+    std::string                  name;
+    std::vector<std::uint32_t>   joints;         // nodes
+    std::vector<Mat4>            inverse_binds;  // one a joint (the identity where the document gives none)
+    std::optional<std::uint32_t> skeleton;       // the node the document names as its root
+};
+enum class Path : std::uint8_t { translation, rotation, scale, weights };
+enum class Interpolation : std::uint8_t { linear, step, cubic };
+struct Channel {
+    std::uint32_t      node = 0;
+    Path               path = Path::translation;
+    Interpolation      interpolation = Interpolation::linear;
+    std::vector<float> times;   // seconds, rising
+    // A key's numbers one after another: 3 (translation, scale), 4 (rotation: x, y, z, w) or a weight a morph
+    // target; for `cubic`, three such a key: the tangent in, the value, the tangent out.
+    std::vector<float> values;
+};
+struct Animation {
+    std::string          name;
+    std::vector<Channel> channels;  // a channel whose sampler cannot be read is a note, and not here
+};
+
 struct Imported {
     std::vector<mlibs::geom::ClusteredMesh> meshes;     // one a primitive carried, in the document's order
     std::vector<mesh::Material>             materials;  // the document's, in its order; then the one a primitive with none is given
@@ -46,6 +80,9 @@ struct Imported {
     std::vector<Placed>          placed;  // one an instance, in the same order
     std::vector<scene::Light>    lights;  // KHR_lights_punctual's, a node each
     std::vector<std::string>     material_names;
+    std::vector<Node>            nodes;  // every node of the document, by its number
+    std::vector<Skin>            skins;
+    std::vector<Animation>       animations;
     std::vector<Note>            notes;
     // Triangles in all the meshes, and the instances' box in the world.
     [[nodiscard]] std::size_t triangles() const noexcept;

@@ -616,9 +616,79 @@ struct Maker {
                 out.lights.push_back(light);
             }
         }
-        if (data.animations_count) note("/animations", std::format("{} animations", data.animations_count), "left out: everything is where it is at rest");
-        if (data.skins_count && data.animations_count) note("/skins", std::format("{} skins", data.skins_count), "bent where their bones are at rest");
+        moving();
+        if (data.animations_count) note("/animations", std::format("{} animations", data.animations_count), "read as numbers (Imported::animations), not played: what is drawn is at rest");
+        if (data.skins_count && data.animations_count) note("/skins", std::format("{} skins", data.skins_count), "bent where their bones are at rest; read as numbers (Imported::skins)");
         return {};
+    }
+
+    // The nodes, skins and animations as numbers: what an animation's owner makes skeletons and clips of.
+    void moving() {
+        out.nodes.reserve(data.nodes_count);
+        for (std::size_t index = 0; index < data.nodes_count; ++index) {
+            const cgltf_node& node = data.nodes[index];
+            Node made{.name = node.name ? node.name : "", .parent = node.parent ? static_cast<std::int32_t>(cgltf_node_index(&data, node.parent)) : -1, .matrix = node.has_matrix != 0};
+            if (node.has_translation) made.translation = {node.translation[0], node.translation[1], node.translation[2]};
+            if (node.has_rotation) made.rotation = {node.rotation[0], node.rotation[1], node.rotation[2], node.rotation[3]};
+            if (node.has_scale) made.scale = {node.scale[0], node.scale[1], node.scale[2]};
+            cgltf_node_transform_local(&node, made.local.values.data());
+            out.nodes.push_back(std::move(made));
+        }
+        for (std::size_t index = 0; index < data.skins_count; ++index) {
+            const cgltf_skin& skin = data.skins[index];
+            Skin made{.name = skin.name ? skin.name : ""};
+            if (skin.skeleton) made.skeleton = static_cast<std::uint32_t>(cgltf_node_index(&data, skin.skeleton));
+            for (std::size_t joint = 0; joint < skin.joints_count; ++joint) made.joints.push_back(static_cast<std::uint32_t>(cgltf_node_index(&data, skin.joints[joint])));
+            made.inverse_binds.assign(skin.joints_count, Mat4{});
+            if (readable(skin.inverse_bind_matrices) && skin.inverse_bind_matrices->type == cgltf_type_mat4 && skin.inverse_bind_matrices->count >= skin.joints_count) {
+                std::vector<float> numbers(skin.inverse_bind_matrices->count * 16);
+                cgltf_accessor_unpack_floats(skin.inverse_bind_matrices, numbers.data(), numbers.size());
+                for (std::size_t joint = 0; joint < skin.joints_count; ++joint)
+                    std::copy_n(numbers.begin() + static_cast<std::ptrdiff_t>(joint * 16), 16, made.inverse_binds[joint].values.begin());
+            } else if (skin.inverse_bind_matrices) {
+                note(std::format("/skins/{}/inverseBindMatrices", index), "inverse binds that cannot be read", "the identity a joint");
+            }
+            out.skins.push_back(std::move(made));
+        }
+        for (std::size_t index = 0; index < data.animations_count; ++index) {
+            const cgltf_animation& animation = data.animations[index];
+            Animation made{.name = animation.name ? animation.name : ""};
+            for (std::size_t channel = 0; channel < animation.channels_count; ++channel) {
+                const cgltf_animation_channel& from = animation.channels[channel];
+                const std::string where = std::format("/animations/{}/channels/{}", index, channel);
+                const cgltf_animation_sampler* sampler = from.sampler;
+                if (!from.target_node || !sampler || !readable(sampler->input) || !readable(sampler->output) || sampler->input->type != cgltf_type_scalar) {
+                    note(where, "a channel whose node, times or values cannot be read", "left out");
+                    continue;
+                }
+                Channel read{.node = static_cast<std::uint32_t>(cgltf_node_index(&data, from.target_node))};
+                switch (from.target_path) {
+                    case cgltf_animation_path_type_translation: read.path = Path::translation; break;
+                    case cgltf_animation_path_type_rotation: read.path = Path::rotation; break;
+                    case cgltf_animation_path_type_scale: read.path = Path::scale; break;
+                    case cgltf_animation_path_type_weights: read.path = Path::weights; break;
+                    default: note(where + "/target/path", "a path that is not translation, rotation, scale or weights", "left out"); continue;
+                }
+                read.interpolation = sampler->interpolation == cgltf_interpolation_type_step           ? Interpolation::step
+                                     : sampler->interpolation == cgltf_interpolation_type_cubic_spline ? Interpolation::cubic
+                                                                                                       : Interpolation::linear;
+                read.times.resize(sampler->input->count);
+                cgltf_accessor_unpack_floats(sampler->input, read.times.data(), read.times.size());
+                const std::size_t parts = cgltf_num_components(sampler->output->type);
+                read.values.resize(sampler->output->count * parts);
+                // Rotations may be packed as normalised integers: unpacking gives them as numbers either way.
+                cgltf_accessor_unpack_floats(sampler->output, read.values.data(), read.values.size());
+                const std::size_t each = read.path == Path::rotation ? 4 : read.path == Path::weights ? 0 : 3;
+                const std::size_t keys = read.times.size() * (read.interpolation == Interpolation::cubic ? 3 : 1);
+                const bool rising = std::ranges::is_sorted(read.times) && std::ranges::all_of(read.times, [](float time) { return std::isfinite(time); });
+                if ((each && (parts != each || sampler->output->count != keys)) || (!each && read.values.size() % keys != 0) || !rising) {
+                    note(where, "a channel whose times and values do not agree (counts, shape, or times that do not rise)", "left out");
+                    continue;
+                }
+                made.channels.push_back(std::move(read));
+            }
+            out.animations.push_back(std::move(made));
+        }
     }
 };
 

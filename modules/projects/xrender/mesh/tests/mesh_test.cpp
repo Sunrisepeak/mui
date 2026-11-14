@@ -1330,6 +1330,33 @@ static UTest cases{"xrender.mesh", [] {
                          held.name, pixels, 100 * off, 100 * apart / light, 100 * grain / light, levels / (pixels * 3.0), most_levels, file.generic_string());
             expect(gt(pixels, 1200) && lt(off, static_cast<double>(held.within))) << held.name << ": " << off;
         }
+        // A surface's shade (glTF's occlusion) is of all the light from about: what falls on it and what it mirrors.
+        {
+            // A material of its own, drawn through the library's assets with one more material.
+            std::vector<mesh::Material> materials(library().materials.begin(), library().materials.end());
+            mesh::Material plain_gold = materials[gold], shaded_gold = materials[gold];
+            plain_gold.two_sided = true, shaded_gold = plain_gold, shaded_gold.shade = 0;
+            const std::vector<std::uint8_t> half(2 * 2 * 4, 128);
+            const auto even_shade = mesh::Texture::made(half, 2, 2, mesh::Coding::plain);
+            expect(fatal(even_shade.has_value()));
+            const std::array<const mesh::Texture*, 1> shades{&*even_shade};
+            const auto centre_of = [&](const mesh::Material& material) {
+                materials[gold] = material;
+                scene::Scene world;
+                put(world, 1, sheet, gold, math::Transform{{0, 0, 0}, math::Quat::about({1, 0, 0}, 1.5707964f), {1, 1, 1}}.matrix());  // upright, before the eye: a mesh with a place in pictures
+                scene::Extracted seen;
+                scene::extract(world, camera.view(), seen);
+                mesh::Targets targets;
+                targets.resize(width, height);
+                mesh::Pass pass;
+                mesh::Assets assets = library().assets(false);
+                assets.materials = materials, assets.textures = shades;
+                pass.draw(world, seen, camera.view(), assets, targets, lit_by);
+                return targets.light[static_cast<std::size_t>(height / 2) * width + width / 2];
+            };
+            const math::Vec3 whole = centre_of(plain_gold), in_shade = centre_of(shaded_gold);
+            expect(gt(whole.x, 0.05f) && lt(std::abs(in_shade.x / whole.x - 128.0f / 255.0f), 1e-3f) && lt(std::abs(in_shade.z / whole.z - 128.0f / 255.0f), 1e-3f)) << in_shade.x << " of " << whole.x;
+        }
         // Kept larger for the README: the gold ball drawn, and beside it followed.
         {
             constexpr int side = 160;

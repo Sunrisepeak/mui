@@ -201,11 +201,12 @@ struct Raster {
     Vec3 shone(Vec3 normal, Vec3 place) noexcept {
         const Vec3 toward_eye = math::normalized(eye - place);
         // With a picture the surface's own colour takes what falls on it and what it mirrors is `mirrored`'s
-        // alone; without, the constant is given to both (and the three colours mirrored besides).
+        // alone — by the surface's shade too, as glTF's occlusion is of all the light from about; without, the
+        // constant is given to both (and the three colours mirrored besides).
         const bool pictured = options.environment.on && options.environment.picture;
         const Vec3 takes = pictured ? material.base * (1.0f - std::clamp(material.metallic, 0.0f, 1.0f)) : reflected_ambient(material);
         Vec3 sent = math::scaled(math::scaled(takes, from_all_about(normal)), reaching(open_to(normal, place))) * shaded + material.emissive;
-        if (options.environment.on) sent = sent + mirrored(material, options.environment, normal, toward_eye);
+        if (options.environment.on) sent = sent + mirrored(material, options.environment, normal, toward_eye) * (pictured ? shaded : 1.0f);
         const Vec3 lifted = place + normal * 2e-3f;
         for (const Lamp& lamp : lamps) {
             if (lamp.kind == scene::LightKind::sun) {

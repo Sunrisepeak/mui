@@ -201,7 +201,9 @@ struct Maker {
             if (from.has_pbr_metallic_roughness) {
                 const cgltf_pbr_metallic_roughness& pbr = from.pbr_metallic_roughness;
                 made.base = {pbr.base_color_factor[0], pbr.base_color_factor[1], pbr.base_color_factor[2]};
-                made.roughness = pbr.roughness_factor, made.metallic = pbr.metallic_factor;
+                // glTF's surface always mirrors its 4%: a roughness of 1 is held a step under it, where this model's
+                // surfaces of roughness 1 and no metal are matt and mirror nothing.
+                made.roughness = std::min(pbr.roughness_factor, 0.99999994f), made.metallic = pbr.metallic_factor;
                 // Cut out by its alpha (MASK): where the factor's alpha times the picture's is below the cutoff, the
                 // surface is not there. Seen through by it (BLEND): that much of what is behind it is hidden.
                 if (from.alpha_mode == cgltf_alpha_mode_mask) made.opacity = pbr.base_color_factor[3], made.cutout = from.alpha_cutoff;

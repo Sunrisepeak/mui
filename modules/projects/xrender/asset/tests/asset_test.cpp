@@ -119,6 +119,13 @@ static UTest cases{"xrender.asset", [] {
         expect(eq(model->meshes[0].mesh.positions.size(), std::size_t{4}) && eq(model->meshes[0].mesh.uvs.size(), std::size_t{4}) && eq(model->meshes[0].clusters.size(), std::size_t{1}));
         const xrender::mesh::Material& painted = model->materials[0];
         expect(painted.base == math::Vec3{0.5f, 0.25f, 1} && eq(painted.metallic, 0.25f) && eq(painted.roughness, 0.5f) && painted.emissive == math::Vec3{0.1f, 0.2f, 0.3f});
+        // glTF's surface always mirrors its 4%: fully rough and no metal is still not this model's matt.
+        const auto rough = asset::gltf(bytes_of(with_uri(R"(,
+  "scenes": [{"nodes": [0]}], "nodes": [{"mesh": 0}],
+  "meshes": [{"primitives": [{"attributes": {"POSITION": 0}, "indices": 3, "material": 0}]}],
+  "materials": [{"pbrMetallicRoughness": {"metallicFactor": 0, "roughnessFactor": 1}}])")));
+        expect(fatal(rough.has_value())) << (rough ? "" : rough.error());
+        expect(!rough->materials[0].matt() && lt(rough->materials[0].roughness, 1.0f) && gt(rough->materials[0].roughness, 0.9999f));
         expect(eq(painted.texture, 0u) && eq(model->textures[0].width, 2) && eq(model->textures[0].height, 2) && model->material_names[0] == "painted");
         expect(eq(painted.surface, 1u) && eq(painted.normal, 1u) && eq(painted.shade, 1u) && eq(painted.glow, 0u) && eq(painted.normal_scale, 0.5f) && eq(painted.shade_strength, 0.75f));
         // The first texel is red: as a colour its light is 1, 0, 0; as plain numbers the same bytes ÷ 255.

@@ -217,19 +217,19 @@ float3 about_at(float4 square, float2 place) { return about_map.SampleLevel((squ
 interface IAbout {
     static float3 falling(float3 normal);
     static float3 takes(float metal);
-    static float3 mirrors(float3 normal, float3 toward_eye);
+    static float3 mirrors(float3 normal, float3 toward_eye, float shaded);
 }
 struct Plain : IAbout {
     static float3 falling(float3 normal) { return surface.ambient.rgb; }
     static float3 takes(float metal) { return base_colour * (1.0 - metal) + (float3(0.04, 0.04, 0.04) * (1.0 - metal) + base_colour * metal); }
-    static float3 mirrors(float3 normal, float3 toward_eye) { return surface.above.w > 0.5 ? mirrored(normal, toward_eye) : float3(0, 0, 0); }
+    static float3 mirrors(float3 normal, float3 toward_eye, float shaded) { return surface.above.w > 0.5 ? mirrored(normal, toward_eye) : float3(0, 0, 0); }
 }
 struct Pictured : IAbout {
     static float3 falling(float3 normal) { return about_at(about.squares[16], square_of(normal)); }
     static float3 takes(float metal) { return base_colour * (1.0 - metal); }
     // The picture blurred by the roughness — between the two roughnesses kept about it — times the surface's share
-    // of an even light (xrender.mesh's `mirrored`, with a picture).
-    static float3 mirrors(float3 normal, float3 toward_eye) {
+    // of an even light (xrender.mesh's `mirrored`, with a picture), and by the surface's shade as what falls on it is.
+    static float3 mirrors(float3 normal, float3 toward_eye, float shaded) {
         const float rough = rough_here, metal = metal_here;
         const float seen = max(dot(normal, toward_eye), 0.0);
         const float3 way = normal * (2.0 * seen) - toward_eye;
@@ -239,7 +239,7 @@ struct Pictured : IAbout {
         const float4 table = about.squares[17];
         const float2 share = about_map.SampleLevel((table.xy + float2(seen, rough) * (table.z - 1.0) + 0.5) * about.shape.xy, 0).rg;
         const float3 head_on = float3(0.04, 0.04, 0.04) * (1.0 - metal) + base_colour * metal;
-        return (head_on * share.x + share.y) * (nearer + (further - nearer) * (which - first));
+        return (head_on * share.x + share.y) * (nearer + (further - nearer) * (which - first)) * shaded;
     }
 }
 float encoded(float linear) {
@@ -355,7 +355,7 @@ Lit lit_at<A : IAbout>(VOut point) {
     }
     float3 colour = base_colour * light + given_off;
     if (!matt) {
-        colour = A::takes(metal_here) * everywhere_in + given_off + sent + A::mirrors(normal, toward_eye);
+        colour = A::takes(metal_here) * everywhere_in + given_off + sent + A::mirrors(normal, toward_eye, shaded);
     }
     if (surface.fog.w > 0) {
         const float apart = length(to_eye);

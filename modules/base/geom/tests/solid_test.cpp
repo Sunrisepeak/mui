@@ -149,6 +149,25 @@ UTest cases{"geom.solid", [] {
         expect(!geom::clustered(mesh).has_value() && !geom::clustered(geom::box({1, 1, 1}), 0).has_value());
     };
 
+    "clusters of sizes given: the same clusters as cut in order where the sizes are the same; sizes that are not the mesh's triangles are refused"_test = [] {
+        const geom::Mesh ball = geom::sphere(2, 12, 24);
+        const auto in_order = geom::clustered(ball, 50);
+        expect(fatal(in_order.has_value()));
+        std::vector<std::uint32_t> runs;
+        for (const geom::Cluster& cluster : in_order->clusters) runs.push_back(cluster.triangle_count);
+        const auto by_runs = geom::clustered(ball, runs);
+        expect(fatal(by_runs.has_value()));
+        expect(geom::stored(*by_runs) == geom::stored(*in_order));
+        // Uneven sizes: each cluster begins where the one before ended.
+        const std::array<std::uint32_t, 3> uneven{7, 100, static_cast<std::uint32_t>(ball.triangles()) - 107};
+        const auto cut = geom::clustered(ball, uneven);
+        expect(fatal(cut.has_value()));
+        expect(eq(cut->clusters.size(), std::size_t{3}) && eq(cut->clusters[1].first_index, 21u) && eq(cut->clusters[2].first_index, 321u) && eq(cut->clusters[1].triangle_count, 100u));
+        expect(geom::clustered(ball, std::array<std::uint32_t, 2>{7, 100}).error() == std::format("the clusters hold 107 triangles; the mesh has {}", ball.triangles()));
+        expect(geom::clustered(ball, std::array<std::uint32_t, 2>{0, static_cast<std::uint32_t>(ball.triangles())}).error() == "a cluster has a triangle at least");
+        expect(geom::clustered(geom::Mesh{}, std::span<const std::uint32_t>{}).has_value());
+    };
+
     "stored in clusters: every triangle in one cluster, each within its bounds; where a cluster is said to face away, no triangle of it shows its front"_test = [] {
         const auto stored = geom::clustered(geom::sphere(2, 24, 48), 64);
         expect(fatal(stored.has_value()));

@@ -47,12 +47,26 @@ void compute_normals(Mesh& mesh) {
 
 std::expected<ClusteredMesh, std::string> clustered(Mesh mesh, std::uint32_t triangles) {
     if (!triangles) return std::unexpected(std::string("a cluster has a triangle at least"));
-    if (auto checked = check(mesh); !checked) return std::unexpected(checked.error());
-    ClusteredMesh out;
     const std::size_t total = mesh.triangles();
+    std::vector<std::uint32_t> runs;
+    for (std::size_t first = 0; first < total; first += triangles) runs.push_back(static_cast<std::uint32_t>(std::min<std::size_t>(triangles, total - first)));
+    return clustered(std::move(mesh), runs);
+}
+
+std::expected<ClusteredMesh, std::string> clustered(Mesh mesh, std::span<const std::uint32_t> runs) {
+    if (auto checked = check(mesh); !checked) return std::unexpected(checked.error());
+    std::size_t said = 0;
+    for (const std::uint32_t run : runs) {
+        if (!run) return std::unexpected(std::string("a cluster has a triangle at least"));
+        said += run;
+    }
+    if (said != mesh.triangles()) return std::unexpected(std::format("the clusters hold {} triangles; the mesh has {}", said, mesh.triangles()));
+    ClusteredMesh out;
     std::vector<Vec3> corners;
-    for (std::size_t first = 0; first < total; first += triangles) {
-        Cluster cluster{.first_index = static_cast<std::uint32_t>(first * 3), .triangle_count = static_cast<std::uint32_t>(std::min<std::size_t>(triangles, total - first))};
+    std::size_t first = 0;
+    for (const std::uint32_t run : runs) {
+        Cluster cluster{.first_index = static_cast<std::uint32_t>(first * 3), .triangle_count = run};
+        first += run;
         corners.clear();
         Vec3 facing{};
         for (std::uint32_t triangle = 0; triangle < cluster.triangle_count; ++triangle) {

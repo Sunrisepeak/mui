@@ -44,6 +44,7 @@
 "marzer.tomlplusplus" = ["MIT"]
 "mcpplibs.cmdline" = ["Apache-2.0"]
 "mcpplibs.mwrap.box2d" = ["Apache-2.0"]
+"mcpplibs.mwrap.cgltf" = ["Apache-2.0"]  # the wrap; it vendors and links cgltf, MIT (which embeds jsmn, MIT)
 "mcpplibs.mwrap.concurrentqueue" = ["Apache-2.0"]
 "mcpplibs.mwrap.harfbuzz" = ["Apache-2.0"]
 "mcpplibs.mwrap.libpng" = ["Apache-2.0"]
@@ -51,6 +52,7 @@
 "mcpplibs.mwrap.libwebp" = ["Apache-2.0"]
 "mcpplibs.mwrap.accesskit" = ["Apache-2.0"]
 "mcpplibs.mwrap.md4c" = ["Apache-2.0"]
+"mcpplibs.mwrap.meshoptimizer" = ["Apache-2.0"]  # the wrap; it vendors and links meshoptimizer, MIT
 "mcpplibs.mwrap.miniaudio" = ["Apache-2.0"]
 "mcpplibs.mwrap.opus" = ["Apache-2.0"]
 "mcpplibs.mwrap.quickjs_ng" = ["Apache-2.0"]

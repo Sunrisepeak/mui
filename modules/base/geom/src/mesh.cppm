@@ -70,6 +70,11 @@ inline constexpr std::uint32_t most_cluster_triangles = 124;
 // The mesh in clusters of at most `triangles` triangles each, in the order its triangles are in. Refused where
 // `check` refuses it, or `triangles` is 0.
 [[nodiscard]] std::expected<ClusteredMesh, std::string> clustered(Mesh mesh, std::uint32_t triangles = most_cluster_triangles);
+// The mesh in clusters of the sizes given, in the order its triangles are in: `runs[n]` triangles are cluster n.
+// For an optimiser that has put the triangles of a cluster together (meshlets: `xrender.asset`'s `optimised`);
+// the bounds and the cone are worked out here as above, so a cluster is the same thing whoever cut it. Refused
+// where `check` refuses the mesh, a run is 0, or the runs are not all of its triangles.
+[[nodiscard]] std::expected<ClusteredMesh, std::string> clustered(Mesh mesh, std::span<const std::uint32_t> runs);
 
 // ── shapes made by code: positions, normals, tangents, uvs; the same bits everywhere ──
 // A box about the origin.

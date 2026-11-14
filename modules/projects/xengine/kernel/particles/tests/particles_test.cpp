@@ -131,7 +131,7 @@ UTest cases{"xengine.particles", [] {
             std::vector<particles::Spawn> spawns;
             for (int index = 0; index < 400; ++index) {
                 const float turn = static_cast<float>(index) * 0.7f;
-                spawns.push_back({.at = {0, 0.5f, 0}, .velocity = {math::det::cos(turn) * 2, 3 + static_cast<float>(index % 7) * 0.2f, math::det::sin(turn) * 2}, .life = 3, .material = *program->material(index % 3 ? "iron" : "stone"), .kelvin = 1200.0f});
+                spawns.push_back({.at = {0, 0.5f, 0}, .velocity = {static_cast<float>(math::det::cos(turn)) * 2, 3 + static_cast<float>(index % 7) * 0.2f, static_cast<float>(math::det::sin(turn)) * 2}, .life = 3, .material = *program->material(index % 3 ? "iron" : "stone"), .kelvin = 1200.0f});
             }
             cloud->emit(spawns);
             return std::move(*cloud);

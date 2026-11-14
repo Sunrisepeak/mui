@@ -25,6 +25,12 @@ struct Play {
     [[nodiscard]] static bool over(const State& state) noexcept { return state.outcome != Outcome::playing; }
     // What a player is shown: Mui, the exit, the cells around her by what they are; the full view adds the hash.
     [[nodiscard]] static std::string observe(const State& state, bool full) { return kiln::observe(state, full); }
+    // The rules a player is told before playing.
+    static constexpr std::string_view about =
+        "Kiln: Mui, a cat with a wand, crosses a cavern to its exit. Everything is matter and nothing is scripted — wood burns, water puts fire out and "
+        "boils, stone breaks under a bomb's pressure, lava kills — and her three spells (fire, water, a bomb; bombs are few) open the way by what they do "
+        "to it. Fire, heat and lava cost health; water over her head costs breath; mana pays for spells and comes back. Reaching the exit wins; no "
+        "health loses";
     // What the controls mean, and what to begin with (D-186): `world.state` lists them, `find` answers "jump".
     static constexpr std::array<xengine::runtime::Control, 6> controls{{
         {.name = "left", .summary = "Mui walks left", .axis = 0, .toward = -1},

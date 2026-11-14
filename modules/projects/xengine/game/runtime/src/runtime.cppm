@@ -17,6 +17,7 @@
 //       static void          play(Input&, const xengine::Actions&);  // an agent player's actions into a step's input
 //       static bool          over(const State&);
 //       // optional (D-186) — what its controls mean, and tasks to begin with, in the game's own words:
+//       static constexpr std::string_view about = "Catch the mark five times; walking is all there is";
 //       static constexpr std::array<Control, 2> controls{{{"left", "walk left", .axis = 0, .toward = -1}, {"jump", "leave the ground", .button = 0}}};
 //       static constexpr std::array<Move, 1>    jump_once{{{.hold = {"jump"}, .steps = 30}}};
 //       static constexpr std::array<Task, 1>    tasks{{{"jump-once", "Jump and land", jump_once}}};
@@ -75,6 +76,12 @@ struct Task {
     std::span<const Move> moves;
 };
 
+// What the game is, in its own words: what the player is for, how it is scored, how it ends — the rules a player
+// is told before playing (`static constexpr std::string_view about`). `describe` says it before what the runtime is.
+template <class G>
+concept SaysAbout = requires {
+    { G::about } -> std::convertible_to<std::string_view>;
+};
 template <class G>
 concept SaysControls = requires {
     { G::controls } -> std::convertible_to<std::span<const Control>>;
@@ -226,10 +233,15 @@ public:
     [[nodiscard]] std::span<const mlibs::control::CatalogEntry> operations() const noexcept override { return catalog; }
     [[nodiscard]] std::string_view listing() const noexcept override { return xengine::runtime::listing; }
     // What a game hosted here is, and the tasks to begin with: the game's own first (G::tasks, each move
-    // written as the requests that play it), then the runtime's. Stays as it is until asked again.
+    // written as the requests that play it), then the runtime's. What is returned stays valid while the game does.
     [[nodiscard]] mlibs::control::Guide guide() const noexcept override {
         const std::span<const Task> own = said_tasks();
-        if (own.empty()) return xengine::runtime::guide;
+        const std::string_view rules = said_about();
+        if (own.empty() && rules.empty()) return xengine::runtime::guide;
+        // What the game says is static: written once, so what an earlier call returned still views it.
+        if (told_) return {about_, tasks_};
+        told_ = true;
+        about_ = rules.empty() ? std::string(xengine::runtime::guide.about) : std::format("{} — {}", rules, xengine::runtime::guide.about);
         step_texts_.clear();
         std::vector<std::size_t> counts;
         for (const Task& task : own) {
@@ -250,7 +262,7 @@ public:
             first += counts[index];
         }
         tasks_.append_range(xengine::runtime::guide.tasks);
-        return {xengine::runtime::guide.about, tasks_};
+        return {about_, tasks_};
     }
     // What the game names, for `find`: its controls, each with the request that holds it.
     [[nodiscard]] std::vector<mlibs::agent::Term> terms() const override {
@@ -280,6 +292,10 @@ private:
     [[nodiscard]] std::string view(const State& state, std::int64_t frame) const {
         return std::format("{{\"frame\":{},\"hash\":\"{:016x}\",\"over\":{},\"tier\":{},\"view\":{}}}", frame, G::checksum(state), G::over(state),
                            mlibs::agent::json_text(lane_.tier().name), G::observe(state, lane_.tier().full_view));
+    }
+    [[nodiscard]] static constexpr std::string_view said_about() noexcept {
+        if constexpr (SaysAbout<G>) return G::about;
+        else return {};
     }
     [[nodiscard]] static constexpr std::span<const Control> said_controls() noexcept {
         if constexpr (SaysControls<G>) return G::controls;
@@ -483,6 +499,8 @@ private:
     xengine::AgentLane             lane_;
     std::vector<Input>             recorded_;
     // The guide as last asked: the game's tasks as requests, and what views them.
+    mutable bool                              told_ = false;
+    mutable std::string                       about_;
     mutable std::vector<std::string>          step_texts_;
     mutable std::vector<std::string_view>     steps_;
     mutable std::vector<mlibs::control::Task> tasks_;

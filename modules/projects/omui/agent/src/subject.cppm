@@ -48,7 +48,7 @@ public:
     [[nodiscard]] std::string_view listing() const noexcept override { return omui::agent::listing; }
     // What the interface is, and the tasks to begin with: the application's own first (Verbs::add_task — its
     // verbs and its nodes' actions, written here as the requests that do them), then the interface's (the
-    // catalog's). What is returned stays as it is until this is asked again.
+    // catalog's). What is returned stays valid until the application's tasks change.
     [[nodiscard]] mlibs::control::Guide guide() const noexcept override;
     // What `ui.state` answers, hashed: what was set in the interface — text, switches, values, scroll, focus.
     [[nodiscard]] std::uint64_t state_hash() const override;
@@ -64,7 +64,7 @@ private:
     Protocol&              protocol_;
     InterfaceOptions       options_;
     mutable semantic::Tree tree_;
-    // The guide as last asked: the application's tasks as requests, and what views them.
+    // The guide as written: each of the application's tasks as its name, its summary and its requests, and what views them.
     mutable std::vector<std::string>                   step_texts_;
     mutable std::vector<std::string_view>              steps_;
     mutable std::vector<mlibs::control::Task>          tasks_;

@@ -107,6 +107,12 @@ struct Play {
     static void play(Input& input, const xengine::Actions& actions) noexcept { input.player = actions; }
     [[nodiscard]] static bool over(const State& state) noexcept { return swarm::over(state); }
 
+    // The rules a player is told before playing (a cold start at the game had to infer each of them from previews).
+    static constexpr std::string_view about =
+        "Swarm, a top-down shooter: enemies arrive in waves from one side of the arena and walk straight at the player; one bullet removes an enemy; an "
+        "enemy that touches the player costs one of three lives and is gone. Wave n has 2 + 2n enemies (at most 40), each worth 10n, a little faster than "
+        "the wave before and always slower than the player; the first wave comes from the east, the side of each later one is not known until it "
+        "arrives. There is no winning: the waves go on, and the game ends when the lives are gone";
     // What the controls mean, and what to begin with (D-186): `world.state` lists them, `find` answers "shoot".
     static constexpr std::array<xengine::runtime::Control, 6> controls{{
         {.name = "left", .summary = "Move the player left (toward x = 0)", .axis = 0, .toward = -1},

@@ -57,6 +57,7 @@ struct Chase {
     static void play(Input& input, const xengine::Actions& actions) { input.player = actions; }
     static bool over(const State& state) noexcept { return state.caught >= 5; }
     // What the game says of itself: what its controls mean, and a task to begin with.
+    static constexpr std::string_view about = "A chase on a line: walk onto the mark and it jumps elsewhere; five catches end the game";
     static constexpr std::array<runtime::Control, 2> controls{{{.name = "left", .summary = "Walk toward lower numbers", .axis = 0, .toward = -1},
                                                                {.name = "right", .summary = "Walk toward higher numbers", .axis = 0, .toward = 1}}};
     static constexpr std::array<runtime::Move, 2>    to_the_mark{{{.hold = {"right"}, .steps = 60}, {.steps = 1}}};
@@ -147,6 +148,8 @@ UTest cases{"runtime", [] {
             << found.data().dump();
         // The game's task before the runtime's own, its moves as the requests that play them.
         const auto described = ask(session, R"({"op":"describe","subject":"world"})");
+        expect(described.data()["about"].text().value_or("").starts_with("A chase on a line: walk onto the mark and it jumps elsewhere; five catches end the game — "))
+            << "the game's rules first, then what the runtime is: " << described.data()["about"].dump();
         const auto first = described.data()["tasks"][0];
         expect(first["name"].text() == "catch-the-first-mark" && eq(described.data()["tasks"].size(), std::size_t{5})) << described.data()["tasks"].dump();
         expect(first["steps"].dump() ==

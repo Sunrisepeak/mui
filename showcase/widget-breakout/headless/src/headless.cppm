@@ -24,6 +24,11 @@ struct Play {
     // What a player is shown: the paddle, the balls, the bricks standing, the score. A player as a
     // person is not shown the hidden caches; the full view shows them and the state's generator.
     [[nodiscard]] static std::string observe(const State& state, bool full);
+    // The rules a player is told before playing.
+    static constexpr std::string_view about =
+        "Breakout: keep the ball in play with the paddle and break every brick; a ball that falls past the paddle costs a life; some bricks are "
+        "hidden until hit, and a broken brick may give a gift (a wider paddle, more balls, slow motion, a ball that goes through). Three lives. The game is "
+        "over when the bricks are cleared or the lives are gone";
     // What the controls mean, and what to begin with (D-186): `world.state` lists them, `find` answers "launch".
     static constexpr std::array<xengine::runtime::Control, 5> controls{{
         {.name = "launch", .summary = "Launch the ball waiting on the paddle", .button = launch_button},

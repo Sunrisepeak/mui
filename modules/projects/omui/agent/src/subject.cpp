@@ -19,9 +19,12 @@ std::uint64_t InterfaceSubject::state_hash() const { return mlibs::hash::fnv1a(t
 mlibs::control::Guide InterfaceSubject::guide() const noexcept {
     const std::span<const TaskDesc> own = runtime_.verbs().tasks();
     if (own.empty()) return omui::agent::guide;
-    // A step as the request that does it: a verb by `ui.invoke`, a node's action by `ui.act`.
-    step_texts_.clear();
-    for (const TaskDesc& task : own)
+    // A step as the request that does it: a verb by `ui.invoke`, a node's action by `ui.act`. A task's name and
+    // summary go first, so that what is written is all of what the application said.
+    std::vector<std::string> written;
+    for (const TaskDesc& task : own) {
+        written.push_back(task.name);
+        written.push_back(task.summary);
         for (const TaskStep& step : task.steps) {
             std::string request = step.verb.empty()
                                       ? std::format("{{\"op\":\"ui.act\",\"node\":{},\"action\":{}", mlibs::agent::json_text(step.node), mlibs::agent::json_text(step.action))
@@ -29,16 +32,21 @@ mlibs::control::Guide InterfaceSubject::guide() const noexcept {
             if (!step.args.is_null()) request += std::format(",\"args\":{}", step.args.json());
             if (step.dry_run) request += ",\"dry_run\":true";
             request += '}';
-            step_texts_.push_back(std::move(request));
+            written.push_back(std::move(request));
         }
-    steps_.assign(step_texts_.begin(), step_texts_.end());
-    tasks_.clear();
-    std::size_t first = 0;
-    for (const TaskDesc& task : own) {
-        tasks_.push_back({task.name, task.summary, std::span<const std::string_view>(steps_).subspan(first, task.steps.size())});
-        first += task.steps.size();
     }
-    tasks_.append_range(omui::agent::guide.tasks);
+    // Written again only when the application's tasks changed: what an earlier call returned views this.
+    if (written != step_texts_) {
+        step_texts_ = std::move(written);
+        steps_.assign(step_texts_.begin(), step_texts_.end());
+        tasks_.clear();
+        std::size_t first = 0;
+        for (const TaskDesc& task : own) {
+            tasks_.push_back({steps_[first], steps_[first + 1], std::span<const std::string_view>(steps_).subspan(first + 2, task.steps.size())});
+            first += 2 + task.steps.size();
+        }
+        tasks_.append_range(omui::agent::guide.tasks);
+    }
     return {omui::agent::guide.about, tasks_};
 }
 

@@ -34,8 +34,14 @@ static UTest cases{"geom.stored", [] {
         geom::Mesh bare;
         bare.positions = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0.5f}};
         bare.indices = {0, 1, 2, 2, 1, 3};
-        const std::array<geom::ClusteredMesh, 5> meshes{*geom::clustered(geom::box({1, 2, 3})), *geom::clustered(geom::sheet(4, 4, 8, 8), 16), *geom::clustered(geom::sphere(1, 16, 32), 32),
-                                                        *geom::clustered(geom::cylinder(0.5f, 2, 24)), *geom::clustered(bare)};
+        // And a box with a second set of coordinates and a colour at each corner.
+        geom::Mesh coloured = geom::box({1, 1, 1});
+        for (std::size_t corner = 0; corner < coloured.positions.size(); ++corner) {
+            const float share = static_cast<float>(corner) / static_cast<float>(coloured.positions.size());
+            coloured.second_uvs.push_back({share, 1 - share}), coloured.colours.push_back({share, 0.5f, 1 - share, 0.25f + share * 0.5f});
+        }
+        const std::array<geom::ClusteredMesh, 6> meshes{*geom::clustered(geom::box({1, 2, 3})), *geom::clustered(geom::sheet(4, 4, 8, 8), 16), *geom::clustered(geom::sphere(1, 16, 32), 32),
+                                                        *geom::clustered(geom::cylinder(0.5f, 2, 24)), *geom::clustered(bare), *geom::clustered(coloured)};
         for (const geom::ClusteredMesh& mesh : meshes) {
             const std::vector<std::uint8_t> bytes = geom::stored(mesh);
             const auto back = geom::read_stored(bytes);
@@ -44,6 +50,7 @@ static UTest cases{"geom.stored", [] {
             expect(geom::stored(*back) == bytes);
             expect(eq(back->mesh.positions.size(), mesh.mesh.positions.size()) && eq(back->mesh.indices.size(), mesh.mesh.indices.size()) && eq(back->clusters.size(), mesh.clusters.size()));
             expect(eq(back->mesh.normals.size(), mesh.mesh.normals.size()) && eq(back->mesh.tangents.size(), mesh.mesh.tangents.size()) && eq(back->mesh.uvs.size(), mesh.mesh.uvs.size()));
+            expect(eq(back->mesh.second_uvs.size(), mesh.mesh.second_uvs.size()) && eq(back->mesh.colours.size(), mesh.mesh.colours.size()));
             expect(std::isinf(back->clusters[0].parent_error)) << "what a number is, it stays: one level has no parent";
         }
     };

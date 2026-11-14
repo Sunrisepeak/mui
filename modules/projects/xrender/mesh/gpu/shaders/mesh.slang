@@ -7,13 +7,16 @@ struct VIn {
     float3 normal : TEXCOORD1;
     float2 uv : TEXCOORD2;
     float4 tangent : TEXCOORD3;  // the way a picture's first coordinate grows over the surface; w: the side its second is on (all 0: none)
+    float2 second : TEXCOORD4;   // the mesh's second set of texture coordinates (0 where it has none)
+    float4 colour : TEXCOORD5;   // the mesh's own at the corner, linear; its fourth what it hides (white where it has none)
 };
 struct VOut {
     float4 clip : SV_Position;
     float3 place : TEXCOORD0;   // in the world
     float3 normal : TEXCOORD1;  // in the world, not of length 1
-    float2 uv : TEXCOORD2;      // the mesh's place in a picture
+    float4 uv : TEXCOORD2;      // the mesh's place in a picture: by its first set of texture coordinates, and by its second
     float4 tangent : TEXCOORD3; // in the world, not of length 1; w as given
+    float4 colour : TEXCOORD4;  // the mesh's own
 };
 struct Draw {
     float4 to_clip[4];   // rows: the corner, in the mesh's own space, to clip space
@@ -29,7 +32,8 @@ VOut mesh_vs(VIn corner) {
     made.clip = float4(dot(draw.to_clip[0], at), dot(draw.to_clip[1], at), dot(draw.to_clip[2], at), dot(draw.to_clip[3], at));
     made.place = float3(dot(draw.to_world[0], at), dot(draw.to_world[1], at), dot(draw.to_world[2], at));
     made.normal = float3(dot(draw.normals[0].xyz, corner.normal), dot(draw.normals[1].xyz, corner.normal), dot(draw.normals[2].xyz, corner.normal));
-    made.uv = corner.uv;
+    made.uv = float4(corner.uv, corner.second);
+    made.colour = corner.colour;
     made.tangent = float4(dot(draw.to_world[0].xyz, corner.tangent.xyz), dot(draw.to_world[1].xyz, corner.tangent.xyz), dot(draw.to_world[2].xyz, corner.tangent.xyz), corner.tangent.w);
     return made;
 }
@@ -69,8 +73,10 @@ struct Surface {
                              // z: over 0.5 — no light changes the surface (xrender.mesh's `Material::unlit`)
     float4 through;          // x: over 0.5 — a layer of the surfaces seen through is drawn; y: a layer was laid before this one;
                              // zw: one over the frame's width and height
-    float4 placing[2];       // how the surface's pictures are laid over it (xrender.mesh's `Placing`): the place across a
-                             // picture, and down it, each of (u, v, 1)
+    float4 placing[10];      // how each of the surface's pictures is laid over it (xrender.mesh's `Placings`): two rows a
+                             // picture — the base colour's, the surface's, the normal's, the glow's, the shade's —
+                             // the place across it and down it, each of (u, v, 1) of a set; the first's w: 1 the
+                             // second set (xrender.mesh's `Placing::set`)
     Lamp   lamps[8];
 };
 [[vk::binding(0, 2)]] Sampler2D shadow_map : register(t0, space2) : register(s0, space2);
@@ -88,8 +94,20 @@ struct Surface {
 [[vk::binding(10, 2)]] Sampler2D share_map : register(t10, space2) : register(s10, space2);
 [[vk::binding(0, 3)]] ConstantBuffer<Surface> surface : register(b0, space3);
 
-// The mesh's texture coordinates as the material lays its pictures (xrender.mesh's `Placing`).
-float2 placed(float2 uv) { return float2(dot(surface.placing[0].xyz, float3(uv, 1)), dot(surface.placing[1].xyz, float3(uv, 1))); }
+// Which picture a placing is of: its two rows in `placing`.
+static const int base_laid = 0, surface_laid = 2, normal_laid = 4, glow_laid = 6, shade_laid = 8;
+// Of the mesh's two sets of texture coordinates (or of their differences), the one the picture is laid by.
+float2 set_of(float4 both, int laid) { return surface.placing[laid].w > 0.5 ? both.zw : both.xy; }
+// The picture's place, as its placing lays it (xrender.mesh's `Placing::of`).
+float2 placed(float4 both, int laid) {
+    const float2 uv = set_of(both, laid);
+    return float2(dot(surface.placing[laid].xyz, float3(uv, 1)), dot(surface.placing[laid + 1].xyz, float3(uv, 1)));
+}
+// How far that place moves as the coordinates move by `difference` (xrender.mesh's `Placing::moved`).
+float2 moved_by(float4 difference, int laid) {
+    const float2 by = set_of(difference, laid);
+    return float2(dot(surface.placing[laid].xy, by), dot(surface.placing[laid + 1].xy, by));
+}
 // The surroundings as a picture of light (xrender.mesh's `Surroundings`), every square of it on one sheet with a
 // texel about each square that is the texel across its edge (a read between four texels at an edge is then the
 // reference's). Only `mesh_about_fs` asks them.
@@ -280,7 +298,7 @@ Lit lit_at<A : IAbout>(VOut point) {
     // how many texels a pixel covers. And how far the surface itself goes. Both taken here, before anything turns
     // on what a pixel is: a difference between pixels is one only where every pixel takes the same way through
     // the code.
-    const float2 right = ddx(placed(point.uv)), down = ddy(placed(point.uv));
+    const float4 right_both = ddx(point.uv), down_both = ddy(point.uv);
     const float3 place_right = ddx(point.place), place_down = ddy(point.place);
     float3 normal = normalize(point.normal);
     const float3 to_eye = surface.eye.xyz - point.place;
@@ -292,13 +310,13 @@ Lit lit_at<A : IAbout>(VOut point) {
     }
     // Beyond the view: the far cut, taken at the pixel (the device's own far plane lies further off).
     if ((point.clip.z - 0.5) * surface.cut.x > 0) return lit;
-    base_colour = surface.base.rgb, given_off = surface.emissive.rgb;
+    base_colour = surface.base.rgb * point.colour.rgb, given_off = surface.emissive.rgb;
     rough_here = surface.shine.x, metal_here = surface.shine.y;
     bool matt = surface.shine.z > 0.5;
     float shaded = 1.0;
-    float hides = surface.cut.z;
+    float hides = surface.cut.z * point.colour.a;
     if (surface.picture.z > 0.5) {
-        const float4 there = picture_over(picture_map, surface.picture, placed(point.uv), right, down);
+        const float4 there = picture_over(picture_map, surface.picture, placed(point.uv, base_laid), moved_by(right_both, base_laid), moved_by(down_both, base_laid));
         base_colour *= there.a > 0 ? there.rgb / there.a : there.rgb;
         hides *= there.a;
     }
@@ -307,14 +325,16 @@ Lit lit_at<A : IAbout>(VOut point) {
     if (surface.surface_picture.z > 0.5) {
         // The material's own numbers ride in the draw's `shine` already held to what the model takes; the
         // picture's share is taken of what the material says, then held the same way (xrender.mesh's `reflected`).
-        const float3 said = picture_over(surface_map, surface.surface_picture, placed(point.uv), right, down).rgb;
+        const float3 said = picture_over(surface_map, surface.surface_picture, placed(point.uv, surface_laid), moved_by(right_both, surface_laid), moved_by(down_both, surface_laid)).rgb;
         const float rough = surface.own.x * said.g, metal = surface.own.y * said.b;
         matt = rough >= 1 && metal <= 0;
         rough_here = clamp(rough, 0.04, 1.0), metal_here = clamp(metal, 0.0, 1.0);
     }
-    if (surface.glow_picture.z > 0.5) given_off *= picture_over(glow_map, surface.glow_picture, placed(point.uv), right, down).rgb;
-    if (surface.shade_picture.z > 0.5) shaded = 1.0 + surface.shade_picture.w * (picture_over(shade_map, surface.shade_picture, placed(point.uv), right, down).r - 1.0);
+    if (surface.glow_picture.z > 0.5) given_off *= picture_over(glow_map, surface.glow_picture, placed(point.uv, glow_laid), moved_by(right_both, glow_laid), moved_by(down_both, glow_laid)).rgb;
+    if (surface.shade_picture.z > 0.5)
+        shaded = 1.0 + surface.shade_picture.w * (picture_over(shade_map, surface.shade_picture, placed(point.uv, shade_laid), moved_by(right_both, shade_laid), moved_by(down_both, shade_laid)).r - 1.0);
     if (surface.normal_picture.z > 0.5) {
+        const float2 right = moved_by(right_both, normal_laid), down = moved_by(down_both, normal_laid);
         // The picture's three ways in the world here: along it (the mesh's tangent, or the way the surface goes as
         // the picture's first coordinate grows), up it, and out (the normal).
         float3 right_way = point.tangent.xyz;
@@ -332,7 +352,7 @@ Lit lit_at<A : IAbout>(VOut point) {
             right_way = normalize(right_way);
             const float3 other = cross(normal, right_way);
             up_way = dot(other, up_way) < 0 ? -other : other;
-            const float3 said = picture_over(normal_map, surface.normal_picture, placed(point.uv), right, down).rgb;
+            const float3 said = picture_over(normal_map, surface.normal_picture, placed(point.uv, normal_laid), right, down).rgb;
             const float3 about = float3((said.xy * 2 - 1) * surface.normal_picture.w, said.z * 2 - 1);
             const float3 turned = right_way * about.x + up_way * about.y + normal * about.z;
             if (dot(turned, turned) > 0) normal = normalize(turned);

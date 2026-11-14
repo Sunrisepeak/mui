@@ -1322,7 +1322,7 @@ static UTest cases{"xrender.mesh", [] {
         // The tiled floor, a ball on it: with the material laying its picture twice as fine, and with the mesh's
         // own coordinates doubled.
         std::vector<mesh::Material> materials(library().materials);
-        materials[tiles].placing = mesh::Placing::made({0, 0}, 0, {2, 2});
+        materials[tiles].placing = mesh::Placings::all(mesh::Placing::made({0, 0}, 0, {2, 2}));
         geom::ClusteredMesh doubled = library().made[tiled_floor];
         for (math::Vec2& uv : doubled.mesh.uvs) uv = {uv.x * 2, uv.y * 2};
         const geom::Bvh doubled_tree = geom::bvh_of(doubled.mesh);
@@ -1352,6 +1352,93 @@ static UTest cases{"xrender.mesh", [] {
         expect(bits(by_material.first) == bits(by_mesh.first)) << "drawn";
         expect(bits(by_material.second) == bits(by_mesh.second)) << "along rays";
         expect(bits(by_material.first) != bits(unlaid.first) && bits(by_material.second) != bits(unlaid.second));
+    };
+
+    "a picture laid by the mesh's second set of coordinates is the picture laid by its first when they are the same; a colour at each corner multiplies the surface's own, and its fourth what it hides — drawn and along rays"_test = [] {
+        // The tiled floor, a ball on it: with the floor's coordinates doubled as its first set, and as its second
+        // with its pictures laid by the second.
+        const geom::ClusteredMesh& floor = library().made[tiled_floor];
+        geom::ClusteredMesh first = floor, second = floor;
+        for (math::Vec2& uv : first.mesh.uvs) uv = {uv.x * 2, uv.y * 2};
+        second.mesh.second_uvs = first.mesh.uvs;
+        const geom::Bvh first_tree = geom::bvh_of(first.mesh), second_tree = geom::bvh_of(second.mesh);
+        std::vector<mesh::Material> materials(library().materials);
+        materials[tiles].placing = mesh::Placings::all(mesh::Placing{.set = 1});
+        scene::Scene world;
+        put(world, 1, tiled_floor, tiles, math::translation({0, -1, 0}));
+        put(world, 2, ball, matt_red, math::translation({0, 0, 0}));
+        expect(world.add(scene::Light{.id = 1, .kind = scene::LightKind::sun, .colour = {1, 1, 1}, .intensity = 1, .toward = {-0.4f, -1, -0.5f}}).has_value());
+        const Camera camera{.eye = {0, 2, 6}};
+        constexpr int width = 96, height = 64;
+        const auto both = [&](const mesh::Assets& assets) {
+            std::pair<mesh::Targets, mesh::Targets> out;
+            out.first.resize(width, height), out.second.resize(width, height);
+            scene::Extracted seen;
+            scene::extract(world, camera.view(), seen);
+            mesh::Pass pass;
+            pass.draw(world, seen, camera.view(), assets, out.first, {});
+            (void)mesh::traced(world, camera.view(), assets, out.second, {}, {.samples = 4, .bounces = 1});
+            return out;
+        };
+        const mesh::Assets plain = library().assets(true);
+        const auto with = [&](const geom::ClusteredMesh& made, const geom::Bvh& tree) {
+            std::pair<std::vector<const geom::ClusteredMesh*>, std::vector<const geom::Bvh*>> out{library().meshes, library().trees};
+            out.first[tiled_floor] = &made, out.second[tiled_floor] = &tree;
+            return out;
+        };
+        const auto by_first = with(first, first_tree), by_second = with(second, second_tree);
+        const auto drawn_first = both({by_first.first, plain.materials, by_first.second, plain.textures});
+        const auto drawn_second = both({by_second.first, materials, by_second.second, plain.textures});
+        expect(bits(drawn_first.first) == bits(drawn_second.first)) << "drawn";
+        expect(bits(drawn_first.second) == bits(drawn_second.second)) << "along rays";
+        // Laid by the second set where the mesh has none: the picture is not asked, as with no coordinates.
+        const auto none = both({library().meshes, materials, library().trees, plain.textures});
+        expect(bits(none.first) != bits(drawn_second.first));
+
+        // A colour at each corner: an even one is the material whose own colour is multiplied by it (to the last
+        // bits a sum of three shares can differ by).
+        geom::ClusteredMesh tinted = floor;
+        tinted.mesh.colours.assign(tinted.mesh.positions.size(), math::Vec4{0.5f, 0.25f, 1, 1});
+        const geom::Bvh tinted_tree = geom::bvh_of(tinted.mesh);
+        std::vector<mesh::Material> by_material(library().materials);
+        by_material[tiles].base = math::scaled(by_material[tiles].base, math::Vec3{0.5f, 0.25f, 1});
+        const auto by_tint = with(tinted, tinted_tree);
+        const auto drawn_tinted = both({by_tint.first, plain.materials, by_tint.second, plain.textures});
+        const auto drawn_by_material = both({library().meshes, by_material, library().trees, plain.textures});
+        float furthest = 0, furthest_traced = 0;
+        for (std::size_t pixel = 0; pixel < drawn_tinted.first.light.size(); ++pixel)
+            for (const auto part : {&math::Vec3::x, &math::Vec3::y, &math::Vec3::z}) {
+                furthest = std::max(furthest, std::abs(drawn_tinted.first.light[pixel].*part - drawn_by_material.first.light[pixel].*part));
+                furthest_traced = std::max(furthest_traced, std::abs(drawn_tinted.second.light[pixel].*part - drawn_by_material.second.light[pixel].*part));
+            }
+        std::println("    an even colour at the corners against the material's: {:.2e} drawn, {:.2e} along rays at most", furthest, furthest_traced);
+        expect(furthest < 1e-6f && furthest_traced < 1e-6f);
+        expect(std::ranges::equal(drawn_tinted.first.ids, drawn_by_material.first.ids, [](const mesh::Pixel& one, const mesh::Pixel& other) { return one.draw == other.draw && one.triangle == other.triangle; }));
+        // Colours that differ across the floor: the pixels between two corners are between their colours.
+        geom::ClusteredMesh graded = floor;
+        const geom::Box3 extent = geom::bounds(floor.mesh);
+        for (const math::Vec3& at : graded.mesh.positions) {
+            const float share = (at.x - extent.low.x) / (extent.high.x - extent.low.x);
+            graded.mesh.colours.push_back({1 - share, 0, share, 1});
+        }
+        const geom::Bvh graded_tree = geom::bvh_of(graded.mesh);
+        const auto by_grade = with(graded, graded_tree);
+        const auto drawn_graded = both({by_grade.first, plain.materials, by_grade.second, plain.textures});
+        // On the floor's row nearest the eye, the left is redder than it is blue and the right bluer than red.
+        const std::size_t row = static_cast<std::size_t>(height - 2) * width;
+        const math::Vec3 left = drawn_graded.first.light[row + 4], right = drawn_graded.first.light[row + width - 5];
+        expect(left.x > left.z && right.z > right.x) << std::format("left {} {} right {} {}", left.x, left.z, right.x, right.z);
+        // The fourth: what the floor hides. Under a cut of a half, a floor that hides a quarter is not there.
+        geom::ClusteredMesh faint = floor;
+        faint.mesh.colours.assign(faint.mesh.positions.size(), math::Vec4{1, 1, 1, 0.25f});
+        const geom::Bvh faint_tree = geom::bvh_of(faint.mesh);
+        std::vector<mesh::Material> cut(library().materials);
+        cut[tiles].cutout = 0.5f;
+        const auto by_faint = with(faint, faint_tree);
+        const auto drawn_faint = both({by_faint.first, cut, by_faint.second, plain.textures});
+        std::size_t floor_pixels = 0;
+        for (const mesh::Pixel& pixel : drawn_faint.first.ids) floor_pixels += pixel.draw < drawn_faint.first.draws.size() && drawn_faint.first.draws[pixel.draw].instance == 0;
+        expect(eq(floor_pixels, std::size_t{0})) << "the floor is cut out wholly";
     };
 
     "an instance its place mirrors (a negative scale) is not inside out: a box and a ball, their own mirror images, are drawn as unmirrored — the same pixels theirs, the same light"_test = [] {

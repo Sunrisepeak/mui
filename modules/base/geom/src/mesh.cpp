@@ -22,6 +22,8 @@ std::expected<void, std::string> check(const Mesh& mesh) {
     if (!mesh.normals.empty() && mesh.normals.size() != count) return std::unexpected(std::format("{} normals for {} positions (one each, or none)", mesh.normals.size(), count));
     if (!mesh.tangents.empty() && mesh.tangents.size() != count) return std::unexpected(std::format("{} tangents for {} positions (one each, or none)", mesh.tangents.size(), count));
     if (!mesh.uvs.empty() && mesh.uvs.size() != count) return std::unexpected(std::format("{} uvs for {} positions (one each, or none)", mesh.uvs.size(), count));
+    if (!mesh.second_uvs.empty() && mesh.second_uvs.size() != count) return std::unexpected(std::format("{} second uvs for {} positions (one each, or none)", mesh.second_uvs.size(), count));
+    if (!mesh.colours.empty() && mesh.colours.size() != count) return std::unexpected(std::format("{} colours for {} positions (one each, or none)", mesh.colours.size(), count));
     if (mesh.indices.size() % 3) return std::unexpected(std::format("{} indices: three a triangle", mesh.indices.size()));
     for (std::size_t index = 0; index < mesh.indices.size(); ++index)
         if (mesh.indices[index] >= count) return std::unexpected(std::format("index {} names position {}, of {}", index, mesh.indices[index], count));

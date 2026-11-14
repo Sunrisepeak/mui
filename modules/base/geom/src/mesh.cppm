@@ -28,6 +28,12 @@ struct Mesh {
     std::vector<Vec3> normals;    // none, or one a position
     std::vector<Vec4> tangents;   // none, or one a position
     std::vector<Vec2> uvs;        // none, or one a position
+    // A second set of texture coordinates, for pictures laid another way than the first (glTF's TEXCOORD_1: a
+    // shade picture over a whole building while its colour repeats): none, or one a position.
+    std::vector<Vec2> second_uvs;
+    // A colour at each corner, linear (red, green, blue, and how much it hides), that the surface's own colour
+    // and cover are multiplied by between them (glTF's COLOR_0): none, or one a position.
+    std::vector<Vec4> colours;
     std::vector<std::uint32_t> indices;  // three a triangle
     [[nodiscard]] std::size_t triangles() const noexcept { return indices.size() / 3; }
 };

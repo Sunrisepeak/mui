@@ -35,8 +35,11 @@ struct Met {
     const Thing* thing = nullptr;
     float        distance = 0;
     Vec3         place, normal;
-    Vec2         uv{0, 0};
+    math::Vec4   uv{0, 0, 0, 0};  // the mesh's two sets of texture coordinates there
     Vec3         face;  // the normal before the surface's picture of it turned it: the side a ray leaves by
+    math::Vec4   colour{1, 1, 1, 1};  // the mesh's own there (`Mesh::colours`), or white
+    // A picture's place there, as `placing` lays it.
+    [[nodiscard]] Vec2 at(const Placing& placing) const noexcept { return placing.of(placing.set ? Vec2{uv.z, uv.w} : Vec2{uv.x, uv.y}); }
 };
 
 struct Tracing {
@@ -59,7 +62,7 @@ struct Tracing {
             // Taken into the mesh's own space as it is — not made of length 1 again — so a distance along it is the world's.
             const geom::Ray within{math::point(thing.back, from), math::direction(thing.back, toward)};
             if (const auto hit = xrender::mesh::meet(within, *thing.mesh, *thing.tree, &thing.material, thing.texture, farthest); hit && (!best || hit->distance < best->distance))
-                best = Met{&thing, hit->distance, {}, {}, {}}, triangle = hit->item;
+                best = Met{&thing, hit->distance, {}, {}, {}, {}}, triangle = hit->item;
         }
         if (!best) return best;
         // Where on the triangle: each corner's share is the area across from it.
@@ -78,12 +81,16 @@ struct Tracing {
         normal = math::normalized(math::direction(best->thing->normals, normal));
         if (math::dot(normal, toward) > 0) normal = normal * -1.0f;  // met from behind: the side that was met
         best->place = from + toward * best->distance, best->normal = normal, best->face = normal;
-        const Placing& placing = best->thing->material.placing;
-        if (!mesh.uvs.empty()) best->uv = placing.of({mesh.uvs[corner[0]].x * share[0] + mesh.uvs[corner[1]].x * share[1] + mesh.uvs[corner[2]].x * share[2],
-                                                      mesh.uvs[corner[0]].y * share[0] + mesh.uvs[corner[1]].y * share[1] + mesh.uvs[corner[2]].y * share[2]});
+        const auto mixed = [&](const auto& values, auto part_of) { return values[corner[0]].*part_of * share[0] + values[corner[1]].*part_of * share[1] + values[corner[2]].*part_of * share[2]; };
+        if (!mesh.uvs.empty()) best->uv.x = mixed(mesh.uvs, &Vec2::x), best->uv.y = mixed(mesh.uvs, &Vec2::y);
+        if (!mesh.second_uvs.empty()) best->uv.z = mixed(mesh.second_uvs, &Vec2::x), best->uv.w = mixed(mesh.second_uvs, &Vec2::y);
+        if (!mesh.colours.empty())
+            best->colour = {mixed(mesh.colours, &math::Vec4::x), mixed(mesh.colours, &math::Vec4::y), mixed(mesh.colours, &math::Vec4::z), mixed(mesh.colours, &math::Vec4::w)};
         // Which way the surface faces by its picture (as the pass reads it): about the mesh's tangent, or the way
         // the surface goes as the picture's first coordinate grows over this triangle.
-        if (const Texture* picture = best->thing->normal_picture; picture && !mesh.uvs.empty()) {
+        if (const Texture* picture = best->thing->normal_picture) {
+            const Placing& placing = best->thing->material.placing.normal;
+            const std::vector<Vec2>& uvs = placing.set ? mesh.second_uvs : mesh.uvs;
             Vec3 right_way{0, 0, 0}, up_way{0, 0, 0};
             if (!mesh.tangents.empty()) {
                 const math::Vec4 one = mesh.tangents[corner[0]], two = mesh.tangents[corner[1]], three = mesh.tangents[corner[2]];
@@ -92,8 +99,8 @@ struct Tracing {
                 up_way = math::cross(normal, right_way) * one.w;
             } else {
                 const Vec3 first = math::direction(best->thing->world, b - a), second = math::direction(best->thing->world, c - a);
-                const Vec2 uv_first = placing.of(mesh.uvs[corner[0]]), uv_second = placing.of(mesh.uvs[corner[1]]), uv_third = placing.of(mesh.uvs[corner[2]]);
-                const Vec2 first_uv{uv_second.x - uv_first.x, uv_second.y - uv_first.y}, second_uv{uv_third.x - uv_first.x, uv_third.y - uv_first.y};
+                const Vec2 uv_first = uvs[corner[0]], uv_second = uvs[corner[1]], uv_third = uvs[corner[2]];
+                const Vec2 first_uv = placing.moved({uv_second.x - uv_first.x, uv_second.y - uv_first.y}), second_uv = placing.moved({uv_third.x - uv_first.x, uv_third.y - uv_first.y});
                 const float turn = first_uv.x * second_uv.y - second_uv.x * first_uv.y;
                 if (turn != 0) right_way = (first * second_uv.y - second * first_uv.y) * (1.0f / turn), up_way = (second * first_uv.x - first * second_uv.x) * (1.0f / turn);
             }
@@ -102,7 +109,7 @@ struct Tracing {
                 right_way = math::normalized(right_way);
                 const Vec3 other = math::cross(normal, right_way);
                 up_way = math::dot(other, up_way) < 0 ? other * -1.0f : other;
-                const Vec3 said = picture->at(best->uv, 1);
+                const Vec3 said = picture->at(best->at(placing), 1);
                 const float scale = best->thing->material.normal_scale;
                 const Vec3 turned = right_way * ((said.x * 2 - 1) * scale) + up_way * ((said.y * 2 - 1) * scale) + normal * (said.z * 2 - 1);
                 // Turned past the eye's ray it would be a side that cannot be seen: the surface's own is kept.
@@ -144,17 +151,18 @@ struct Tracing {
         Material material = met->thing->material;
         // A surface seen through: as often as it does not hide what is behind it, the ray goes on through it.
         if (material.see_through) {
-            const float hides = material.opacity * (met->thing->texture ? met->thing->texture->cover_at(met->uv) : 1.0f);
+            const float hides = material.opacity * met->colour.w * (met->thing->texture ? met->thing->texture->cover_at(met->at(material.placing.base)) : 1.0f);
             if (!(static_cast<float>(math::unit24(random.next())) < hides)) return along(met->place + toward * 2e-3f, toward, bounces_left, random, from_eye, likelihood);
         }
         // Its picture at the place (a pixel a texel: the finest size).
-        if (met->thing->texture) material.base = math::scaled(material.base, met->thing->texture->at(met->uv, 1));
+        material.base = math::scaled(material.base, Vec3{met->colour.x, met->colour.y, met->colour.z});
+        if (met->thing->texture) material.base = math::scaled(material.base, met->thing->texture->at(met->at(material.placing.base), 1));
         // Its other pictures there: how rough and how much a metal, and what it gives off.
         if (met->thing->surface) {
-            const Vec3 said = met->thing->surface->at(met->uv, 1);
+            const Vec3 said = met->thing->surface->at(met->at(material.placing.surface), 1);
             material.roughness = material.roughness * said.y, material.metallic = material.metallic * said.z;
         }
-        if (met->thing->glow) material.emissive = math::scaled(material.emissive, met->thing->glow->at(met->uv, 1));
+        if (met->thing->glow) material.emissive = math::scaled(material.emissive, met->thing->glow->at(met->at(material.placing.glow), 1));
         // A ray leaves by the surface's own side, whatever way its picture turned the normal; a way the turned
         // normal throws under the surface brings nothing.
         if (material.unlit) return material.base + material.emissive;  // no light changes it, and the ray goes no further
@@ -269,11 +277,13 @@ Traced traced(const scene::Scene& scene, const scene::View& view, const Assets& 
         if (!back) continue;
         const geom::Mesh& mesh = assets.meshes[instance.mesh]->mesh;
         const Material& material = assets.materials[instance.material];
+        // A picture is asked where the mesh has the texture coordinates it is laid by.
+        const auto picture = [&](std::uint32_t which, const Placing& placing) {
+            return (which < assets.textures.size() && !(placing.set ? mesh.second_uvs : mesh.uvs).empty()) ? assets.textures[which] : nullptr;
+        };
         things.push_back({*back, math::transposed(*back), geom::moved(instance.world, instance.bounds), &mesh, assets.trees[instance.mesh], material,
-                          (material.texture < assets.textures.size() && !mesh.uvs.empty()) ? assets.textures[material.texture] : nullptr, instance.casts, instance.world,
-                          (material.surface < assets.textures.size() && !mesh.uvs.empty()) ? assets.textures[material.surface] : nullptr,
-                          (material.normal < assets.textures.size() && !mesh.uvs.empty()) ? assets.textures[material.normal] : nullptr,
-                          (material.glow < assets.textures.size() && !mesh.uvs.empty()) ? assets.textures[material.glow] : nullptr});
+                          picture(material.texture, material.placing.base), instance.casts, instance.world, picture(material.surface, material.placing.surface),
+                          picture(material.normal, material.placing.normal), picture(material.glow, material.placing.glow)});
     }
     std::vector<Lamp> lamps;
     for (const scene::Light& light : scene.lights())

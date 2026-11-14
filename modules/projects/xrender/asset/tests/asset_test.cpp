@@ -216,7 +216,7 @@ static UTest cases{"xrender.asset", [] {
   "scenes": [{{"nodes": [0, 1]}}],
   "nodes": [{{"mesh": 0, "camera": 0}}, {{"mesh": 1, "scale": [-1, 1, 1]}}],
   "cameras": [{{"type": "perspective", "perspective": {{"yfov": 1, "znear": 0.1}}}}],
-  "meshes": [{{"primitives": [{{"attributes": {{"POSITION": 0, "TEXCOORD_0": 2, "TEXCOORD_1": 2, "COLOR_0": 1}}, "indices": 3, "material": 0}},
+  "meshes": [{{"primitives": [{{"attributes": {{"POSITION": 0, "TEXCOORD_0": 2, "TEXCOORD_1": 2, "TEXCOORD_2": 2, "COLOR_0": 1, "COLOR_1": 1}}, "indices": 3, "material": 0}},
                               {{"attributes": {{"POSITION": 0}}, "mode": 1}}]}},
              {{"primitives": [{{"attributes": {{"POSITION": 0, "NORMAL": 1}}, "indices": 3, "material": 1}}]}}],
   "materials": [{{"pbrMetallicRoughness": {{"baseColorTexture": {{"index": 0}}, "metallicRoughnessTexture": {{"index": 0}}}},
@@ -232,7 +232,7 @@ static UTest cases{"xrender.asset", [] {
         expect(fatal(model.has_value())) << (model ? "" : model.error());
         for (const std::string_view where :
              {"/images/0", "/materials/0/extensions/KHR_materials_clearcoat",
-              "/meshes/0/primitives/0/attributes/TEXCOORD_1", "/meshes/0/primitives/0/attributes/COLOR_0", "/meshes/0/primitives/0/attributes/NORMAL", "/meshes/0/primitives/1/mode",
+              "/meshes/0/primitives/0/attributes/TEXCOORD_2", "/meshes/0/primitives/0/attributes/COLOR_1", "/meshes/0/primitives/0/attributes/NORMAL", "/meshes/0/primitives/1/mode",
               "/nodes/0/camera", "/animations", "/extensionsUsed/2"})
             expect(noted(*model, where)) << where;
         expect(eq(model->notes.size(), std::size_t{9}));
@@ -248,6 +248,11 @@ static UTest cases{"xrender.asset", [] {
         // is not read leaves the material its factor; emission by its strength.
         expect(eq(model->meshes.size(), std::size_t{2}) && eq(model->instances.size(), std::size_t{2}) && eq(model->textures.size(), std::size_t{0}));
         expect(eq(model->meshes[0].mesh.normals.size(), std::size_t{4}) && model->meshes[0].mesh.normals[0] == math::Vec3{0, 0, 1});
+        // Its second set of texture coordinates and its colours (three numbers a corner: all of it hidden) are carried.
+        expect(!noted(*model, "/meshes/0/primitives/0/attributes/TEXCOORD_1") && !noted(*model, "/meshes/0/primitives/0/attributes/COLOR_0"));
+        expect(fatal(eq(model->meshes[0].mesh.second_uvs.size(), std::size_t{4}) && eq(model->meshes[0].mesh.colours.size(), std::size_t{4})));
+        expect(model->meshes[0].mesh.second_uvs == model->meshes[0].mesh.uvs);
+        for (const math::Vec4& colour : model->meshes[0].mesh.colours) expect(colour.x == 0 && colour.y == 0 && colour.z == 1 && colour.w == 1);
         const xrender::mesh::Material none;
         expect(eq(model->materials[0].texture, none.texture) && eq(model->materials[0].surface, none.surface) && eq(model->materials[0].normal, none.normal) && eq(model->materials[0].glow, none.glow));
         expect(model->materials[1].emissive == math::Vec3{4, 4, 4});
@@ -320,8 +325,8 @@ static UTest cases{"xrender.asset", [] {
         expect(first.across == Edge::stops && first.down == Edge::mirrors && second.across == Edge::repeats && second.down == Edge::stops);
         expect(model->materials[0].unlit && !model->materials[1].unlit);
         // The second material's picture is laid its own way (KHR_texture_transform): twice and four times as fine, moved.
-        expect(model->materials[0].placing.plain() && !model->materials[1].placing.plain());
-        expect(eq(model->materials[1].placing.of({1, 1}).x, 2.5f) && eq(model->materials[1].placing.of({1, 1}).y, 4.25f));
+        expect(model->materials[0].placing.base.plain() && !model->materials[1].placing.base.plain());
+        expect(eq(model->materials[1].placing.base.of({1, 1}).x, 2.5f) && eq(model->materials[1].placing.base.of({1, 1}).y, 4.25f));
         // Past the right edge: the first stops at its blue, the second is red again.
         expect(near(first.at({1.25f, 0.5f}, 1).z, 1.0f, 1e-6f) && near(first.at({1.25f, 0.5f}, 1).x, 0.0f, 1e-6f));
         expect(near(second.at({1.25f, 0.5f}, 1).x, 1.0f, 1e-6f) && near(second.at({1.25f, 0.5f}, 1).z, 0.0f, 1e-6f));
@@ -331,6 +336,33 @@ static UTest cases{"xrender.asset", [] {
         const xrender::mesh::Texture& third = model->textures[model->materials[2].texture];
         expect(third.across == Edge::repeats && third.down == Edge::repeats);
         expect(near(third.at({1.25f, 0.5f}, 1).x, 1.0f, 1e-6f) && near(third.at({0.75f, 0.5f}, 1).z, 1.0f, 1e-6f));
+    };
+
+    "each picture of a material is laid its own way: by the set of texture coordinates it names (or its transform names), moved, turned and scaled as its transform says — no note"_test = [] {
+        mlibs::image::Image image{.width = 2, .height = 1, .rgba = {255, 0, 0, 255, 0, 0, 255, 255}};
+        const std::string png = uri_of(*mlibs::image::encode_png(mlibs::image::view(image)), "image/png");
+        // The base colour by the second set; the normal by the first, twice as fine; what it gives off by the set
+        // its transform names (the second), turned a quarter; the shade by a third set, which is not carried.
+        const std::string text = with_uri(std::format(R"(,
+  "scenes": [{{"nodes": [0]}}],
+  "nodes": [{{"mesh": 0}}],
+  "meshes": [{{"primitives": [{{"attributes": {{"POSITION": 0, "NORMAL": 1, "TEXCOORD_0": 2, "TEXCOORD_1": 2}}, "indices": 3, "material": 0}}]}}],
+  "materials": [{{"pbrMetallicRoughness": {{"baseColorTexture": {{"index": 0, "texCoord": 1}}}},
+                 "normalTexture": {{"index": 0, "extensions": {{"KHR_texture_transform": {{"scale": [2, 2]}}}}}},
+                 "emissiveTexture": {{"index": 0, "extensions": {{"KHR_texture_transform": {{"rotation": 1.5707964, "texCoord": 1}}}}}},
+                 "occlusionTexture": {{"index": 0, "texCoord": 2}}, "emissiveFactor": [1, 1, 1]}}],
+  "textures": [{{"source": 0}}],
+  "images": [{{"uri": "{}"}}],
+  "extensionsUsed": ["KHR_texture_transform"])",
+                                                      png));
+        const auto model = asset::gltf(bytes_of(text));
+        expect(fatal(model.has_value())) << (model ? "" : model.error());
+        const xrender::mesh::Placings& laid = model->materials[0].placing;
+        expect(eq(laid.base.set, std::uint8_t{1}) && laid.base.of({0.25f, 0.5f}) == math::Vec2{0.25f, 0.5f});
+        expect(eq(laid.normal.set, std::uint8_t{0}) && laid.normal.of({0.25f, 0.5f}) == math::Vec2{0.5f, 1.0f});
+        expect(eq(laid.glow.set, std::uint8_t{1}) && near(laid.glow.of({1, 0}).x, 0.0f, 1e-6f) && near(laid.glow.of({1, 0}).y, -1.0f, 1e-6f));
+        expect(eq(laid.shade.set, std::uint8_t{0}) && laid.surface.plain());
+        expect(eq(model->notes.size(), std::size_t{1}) && noted(*model, "/materials/0/occlusionTexture/texCoord")) << (model->notes.empty() ? "" : model->notes.front().where);
     };
     "a KTX2 picture (KHR_texture_basisu) is read: the texture an extension names, with no other to fall back on"_test = [] {
         // Basis Universal's own test photograph (mlibs.image.ktx2's tests/data), beside the document.

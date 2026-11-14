@@ -13,8 +13,10 @@ using Solid = manifold::Manifold;
 
 // Which attributes ride along, and how many numbers a corner is.
 struct Carried {
-    bool normals = false, tangents = false, uvs = false;
-    [[nodiscard]] std::uint32_t numbers() const noexcept { return 3u + (normals ? 3u : 0u) + (tangents ? 4u : 0u) + (uvs ? 2u : 0u); }
+    bool normals = false, tangents = false, uvs = false, second_uvs = false, colours = false;
+    [[nodiscard]] std::uint32_t numbers() const noexcept {
+        return 3u + (normals ? 3u : 0u) + (tangents ? 4u : 0u) + (uvs ? 2u : 0u) + (second_uvs ? 2u : 0u) + (colours ? 4u : 0u);
+    }
 };
 
 std::string_view wrong(Solid::Error error) noexcept {
@@ -39,6 +41,8 @@ std::expected<Solid, std::string> solid_of(const Mesh& mesh, Carried carried, st
         if (carried.normals) given.vertProperties.insert(given.vertProperties.end(), {mesh.normals[corner].x, mesh.normals[corner].y, mesh.normals[corner].z});
         if (carried.tangents) given.vertProperties.insert(given.vertProperties.end(), {mesh.tangents[corner].x, mesh.tangents[corner].y, mesh.tangents[corner].z, mesh.tangents[corner].w});
         if (carried.uvs) given.vertProperties.insert(given.vertProperties.end(), {mesh.uvs[corner].x, mesh.uvs[corner].y});
+        if (carried.second_uvs) given.vertProperties.insert(given.vertProperties.end(), {mesh.second_uvs[corner].x, mesh.second_uvs[corner].y});
+        if (carried.colours) given.vertProperties.insert(given.vertProperties.end(), {mesh.colours[corner].x, mesh.colours[corner].y, mesh.colours[corner].z, mesh.colours[corner].w});
     }
     given.triVerts.assign(mesh.indices.begin(), mesh.indices.end());
     given.Merge();  // corners at one place are one corner of the solid, whatever else they carry
@@ -89,7 +93,9 @@ Mesh mesh_of(const Solid& solid, Carried carried) {
             std::size_t at = 3;
             if (carried.normals) out.normals.push_back({from[at], from[at + 1], from[at + 2]}), at += 3;
             if (carried.tangents) out.tangents.push_back({from[at], from[at + 1], from[at + 2], from[at + 3]}), at += 4;
-            if (carried.uvs) out.uvs.push_back({from[at], from[at + 1]});
+            if (carried.uvs) out.uvs.push_back({from[at], from[at + 1]}), at += 2;
+            if (carried.second_uvs) out.second_uvs.push_back({from[at], from[at + 1]}), at += 2;
+            if (carried.colours) out.colours.push_back({from[at], from[at + 1], from[at + 2], from[at + 3]});
             ++kept;
         }
         place[order[index]] = kept - 1;
@@ -115,7 +121,7 @@ std::expected<Mesh, std::string> combined(const Mesh& one, const Mesh& other, Co
         const bool first = one.indices.empty() || !(one.*member).empty(), second = other.indices.empty() || !(other.*member).empty();
         return first && second && !(one.indices.empty() && other.indices.empty());
     };
-    const Carried carried{.normals = has(&Mesh::normals), .tangents = has(&Mesh::tangents), .uvs = has(&Mesh::uvs)};
+    const Carried carried{.normals = has(&Mesh::normals), .tangents = has(&Mesh::tangents), .uvs = has(&Mesh::uvs), .second_uvs = has(&Mesh::second_uvs), .colours = has(&Mesh::colours)};
     const auto first = solid_of(one, carried, "the first");
     if (!first) return std::unexpected(first.error());
     const auto second = solid_of(other, carried, "the second");

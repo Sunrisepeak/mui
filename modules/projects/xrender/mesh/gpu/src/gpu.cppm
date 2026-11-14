@@ -168,7 +168,7 @@ private:
     struct Loaded {
         mlibs::rhi::Buffer corners;
         std::uint32_t      count = 0;
-        bool               placed = false;  // it has texture coordinates
+        std::array<bool, 2> placed{};      // it has texture coordinates: its first set, its second
         std::vector<mlibs::geom::Cluster> clusters;  // each a run of the corners: three a triangle from 3 × its first triangle
     };
     mlibs::rhi::Device*          device_ = nullptr;

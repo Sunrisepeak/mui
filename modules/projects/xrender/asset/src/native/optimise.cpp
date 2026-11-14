@@ -58,7 +58,7 @@ std::expected<mlibs::geom::ClusteredMesh, std::string> optimised(mlibs::geom::Me
     std::vector<unsigned int> remap(corners);
     const std::size_t kept = meshopt_optimizeVertexFetchRemap(remap.data(), indices.data(), count, corners);
     meshopt_remapIndexBuffer(indices.data(), indices.data(), count, remap.data());
-    moved(mesh.positions, remap, kept), moved(mesh.normals, remap, kept), moved(mesh.tangents, remap, kept), moved(mesh.uvs, remap, kept);
+    moved(mesh.positions, remap, kept), moved(mesh.normals, remap, kept), moved(mesh.tangents, remap, kept), moved(mesh.uvs, remap, kept), moved(mesh.second_uvs, remap, kept), moved(mesh.colours, remap, kept);
     mesh.indices = std::move(indices);
     return mlibs::geom::clustered(std::move(mesh), runs);
 }

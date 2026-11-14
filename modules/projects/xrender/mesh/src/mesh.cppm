@@ -25,16 +25,27 @@ using mlibs::math::Vec2;
 using mlibs::math::Vec3;
 using xrender::scene::Id;
 
-// How a surface's pictures are laid over it: the mesh's texture coordinates moved, turned and scaled before any
-// picture is asked (glTF's KHR_texture_transform — a sheet of several pictures cut by offset and scale, a label
-// turned). Two rows: the place across the picture and the place down it, each of (u, v, 1).
+// How a picture is laid over a surface: which of the mesh's sets of texture coordinates it goes by (glTF's
+// texCoord: a shade picture over a whole building by the second while its colour repeats by the first), moved,
+// turned and scaled before the picture is asked (glTF's KHR_texture_transform — a sheet of several pictures cut by
+// offset and scale, a label turned). Two rows: the place across the picture and the place down it, each of
+// (u, v, 1) of that set.
 struct Placing {
     Vec3 across{1, 0, 0}, down{0, 1, 0};
+    std::uint8_t set = 0;  // 0: the mesh's `uvs`; 1: its `second_uvs`
     [[nodiscard]] constexpr Vec2 of(Vec2 uv) const noexcept { return {across.x * uv.x + across.y * uv.y + across.z, down.x * uv.x + down.y * uv.y + down.z}; }
-    [[nodiscard]] constexpr bool plain() const noexcept { return across.x == 1 && across.y == 0 && across.z == 0 && down.x == 0 && down.y == 1 && down.z == 0; }
+    // How far the place in the picture moves as the set's coordinates move by `difference` (the rows without
+    // their last number).
+    [[nodiscard]] constexpr Vec2 moved(Vec2 difference) const noexcept { return {across.x * difference.x + across.y * difference.y, down.x * difference.x + down.y * difference.y}; }
+    [[nodiscard]] constexpr bool plain() const noexcept { return set == 0 && across.x == 1 && across.y == 0 && across.z == 0 && down.x == 0 && down.y == 1 && down.z == 0; }
     // Scaled, then turned by `turn` radians (counter-clockwise as the picture is looked at), then moved: the
     // format's order. The same bits everywhere (`mlibs.math`'s sin and cos).
-    [[nodiscard]] static Placing made(Vec2 offset, float turn, Vec2 scale) noexcept;
+    [[nodiscard]] static Placing made(Vec2 offset, float turn, Vec2 scale, std::uint8_t set = 0) noexcept;
+};
+// How each of a surface's pictures is laid over it.
+struct Placings {
+    Placing base, surface, normal, glow, shade;
+    [[nodiscard]] static constexpr Placings all(Placing placing) noexcept { return {placing, placing, placing, placing, placing}; }
 };
 // A surface, as data. The reference's shading is the least that shows a form: what a light gives a matt surface,
 // and what it gives off itself. (The full model — roughness, metal, textures — is the material interface's,
@@ -45,13 +56,13 @@ struct Placing {
 // +, ×, ÷ and a square root alone, so its bits are the same everywhere. A metal has no colour of its own but
 // its highlight's.
 struct Material {
-    Vec3  base{0.8f, 0.8f, 0.8f};  // linear
+    Vec3  base{0.8f, 0.8f, 0.8f};  // linear; times the mesh's colour at each corner where it has them (`Mesh::colours`, whose fourth multiplies `opacity`)
     Vec3  emissive;
     float roughness = 1;  // 1 matt … 0 a mirror (held to 0.04 at least: a point of light has no size)
     float metallic = 0;   // 0 … 1
     std::uint32_t texture = 0xffffffffu;  // none, or which of `Assets::textures` its base colour is multiplied by
-    // The surface's other pictures (glTF's set): each none, or one of `Assets::textures`, laid by the same texture
-    // coordinates as the base colour's. The first, the second and the fourth are numbers and not colours (`Coding::plain`).
+    // The surface's other pictures (glTF's set): each none, or one of `Assets::textures`, each laid as its own
+    // placing says. The first, the second and the fourth are numbers and not colours (`Coding::plain`).
     std::uint32_t surface = 0xffffffffu;  // its green multiplies `roughness`, its blue `metallic`
     std::uint32_t normal = 0xffffffffu;   // which way the surface faces about its own normal: red along the picture, green up it, blue out (each × 2 − 1)
     std::uint32_t glow = 0xffffffffu;     // a colour: multiplies `emissive`
@@ -78,7 +89,7 @@ struct Material {
     // it and wherever it is looked at from — a sign, a screen's picture, a drawing (glTF's KHR_materials_unlit).
     // Fog is still between it and the eye; a ray that meets it goes no further.
     bool unlit = false;
-    Placing placing;  // how every picture of the surface is laid over it
+    Placings placing;  // how each picture of the surface is laid over it
     [[nodiscard]] constexpr bool matt() const noexcept { return roughness >= 1 && metallic <= 0; }
 };
 // What a surface sends toward the eye of light arriving along `toward_light` (all of length 1; `facing` the
@@ -88,7 +99,7 @@ struct Material {
 [[nodiscard]] Vec3 reflected_ambient(const Material& material) noexcept;
 // What the scene's numbers name: a draw's `mesh` and `material` are places here. One that names nothing is not
 // drawn, and counted.
-// A picture laid over a surface by its mesh's texture coordinates (`mlibs.geom`'s `Mesh::uvs`; it repeats). It is
+// A picture laid over a surface by its mesh's texture coordinates (`mlibs.geom`'s `Mesh::uvs`, or its `second_uvs`). It is
 // kept as light — the display's curve taken off once, by a table — at every size down to one texel, each the mean
 // of four of the one before: a surface far away or seen at a slant takes its colour from the size whose texels
 // are about a pixel across, mixed with the next, so a pattern does not shimmer or band where it is small; at a slant several places along

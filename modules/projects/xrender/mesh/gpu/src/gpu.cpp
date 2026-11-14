@@ -16,6 +16,8 @@ struct Corner {
     float normal[3];
     float uv[2]{0, 0};
     float tangent[4]{0, 0, 0, 0};  // the mesh's, or all 0: it has none
+    float second[2]{0, 0};         // the mesh's second set of texture coordinates, or 0
+    float colour[4]{1, 1, 1, 1};   // the mesh's own at the corner, or white
 };
 struct Row {
     float x = 0, y = 0, z = 0, w = 0;
@@ -46,14 +48,16 @@ struct SurfaceUniforms {
     Row          surface_picture, normal_picture, glow_picture, shade_picture;
     Row          own;  // x: the roughness as the material says it; y: the metal
     Row          through;  // x: 1 — a layer of the surfaces seen through is drawn; y: 1 — a layer was laid before; zw: one over the frame's size
-    Row          placing_across{1, 0, 0, 0}, placing_down{0, 1, 0, 0};  // how the surface's pictures are laid over it
+    // How each picture is laid over the surface, two rows a picture (the base colour's, the surface's, the normal's,
+    // the glow's, the shade's): across, w 1 by the mesh's second set; down.
+    Row          placing[10]{{1, 0, 0, 0}, {0, 1, 0, 0}, {1, 0, 0, 0}, {0, 1, 0, 0}, {1, 0, 0, 0}, {0, 1, 0, 0}, {1, 0, 0, 0}, {0, 1, 0, 0}, {1, 0, 0, 0}, {0, 1, 0, 0}};
     LampUniforms lamps[most_lamps];
 };
 // What the passes that draw no colour ask of a draw's material (the shaders' `Whole`).
 struct WholeUniforms {
     Row picture;  // the base picture: xy its width and height, z how many sizes (0: none)
     Row cut;      // x: the cut (0: whole); y: how much the surface hides; z: 1 — seen from both sides
-    Row placing_across{1, 0, 0, 0}, placing_down{0, 1, 0, 0};  // how the picture is laid over the surface
+    Row placing_across{1, 0, 0, 0}, placing_down{0, 1, 0, 0};  // how the picture is laid over the surface (across's w: 1 by the second set)
 };
 // A shadow view's question of a caster (the shader's `Casting`).
 struct CastingUniforms {
@@ -62,6 +66,9 @@ struct CastingUniforms {
 };
 Row row_of(const Mat4& matrix, int row) { return {matrix.at(0, row), matrix.at(1, row), matrix.at(2, row), matrix.at(3, row)}; }
 Row of(Vec3 value, float last = 0) { return {value.x, value.y, value.z, last}; }
+// A placing's two rows as the shaders take them: across, its w 1 where the picture goes by the second set; down.
+Row across_of(const Placing& placing) { return of(placing.across, placing.set ? 1.0f : 0.0f); }
+Row down_of(const Placing& placing) { return of(placing.down); }
 
 // A frame's jitter: every corner moved by so much of a pixel — in clip space, by so much of its own w.
 Mat4 aside_of(math::Vec2 jitter, std::uint32_t width, std::uint32_t height) {
@@ -84,8 +91,9 @@ Mat4 further_of(bool reversed) {
 // Which way past the half is beyond the view: the shaders' `cut`.
 constexpr float cut_of(bool reversed) noexcept { return reversed ? -1.0f : 1.0f; }
 
-constexpr std::array<rhi::VertexAttribute, 4> attributes{rhi::VertexAttribute{0, rhi::VertexFormat::float3, 0}, rhi::VertexAttribute{1, rhi::VertexFormat::float3, 12},
-                                                         rhi::VertexAttribute{2, rhi::VertexFormat::float2, 24}, rhi::VertexAttribute{3, rhi::VertexFormat::float4, 32}};
+constexpr std::array<rhi::VertexAttribute, 6> attributes{rhi::VertexAttribute{0, rhi::VertexFormat::float3, 0},  rhi::VertexAttribute{1, rhi::VertexFormat::float3, 12},
+                                                         rhi::VertexAttribute{2, rhi::VertexFormat::float2, 24}, rhi::VertexAttribute{3, rhi::VertexFormat::float4, 32},
+                                                         rhi::VertexAttribute{4, rhi::VertexFormat::float2, 48}, rhi::VertexAttribute{5, rhi::VertexFormat::float4, 56}};
 
 // A number as a device's half float (rgba16_float): the nearest it has, what is too large its largest.
 std::uint16_t half_of(float value) noexcept {
@@ -362,13 +370,16 @@ rhi::Result<void> Pass::load(std::span<const mlibs::geom::ClusteredMesh* const> 
                 const Vec3 normal = !mesh.normals.empty() && vertex < mesh.normals.size() ? mesh.normals[vertex] : face;
                 const math::Vec2 uv = vertex < mesh.uvs.size() ? mesh.uvs[vertex] : math::Vec2{0, 0};
                 const math::Vec4 tangent = vertex < mesh.tangents.size() ? mesh.tangents[vertex] : math::Vec4{0, 0, 0, 0};
-                corners.push_back({{at[corner].x, at[corner].y, at[corner].z}, {normal.x, normal.y, normal.z}, {uv.x, uv.y}, {tangent.x, tangent.y, tangent.z, tangent.w}});
+                const math::Vec2 second = vertex < mesh.second_uvs.size() ? mesh.second_uvs[vertex] : math::Vec2{0, 0};
+                const math::Vec4 colour = vertex < mesh.colours.size() ? mesh.colours[vertex] : math::Vec4{1, 1, 1, 1};
+                corners.push_back({{at[corner].x, at[corner].y, at[corner].z}, {normal.x, normal.y, normal.z}, {uv.x, uv.y}, {tangent.x, tangent.y, tangent.z, tangent.w}, {second.x, second.y},
+                                   {colour.x, colour.y, colour.z, colour.w}});
             }
         }
         if (corners.empty()) continue;
         auto buffer = device_->create(rhi::BufferDesc{static_cast<std::uint32_t>(corners.size() * sizeof(Corner)), rhi::BufferUsage::vertex, "xrender.mesh.corners"});
         if (!buffer) return std::unexpected(buffer.error());
-        meshes_[which] = {*buffer, static_cast<std::uint32_t>(corners.size()), !mesh.uvs.empty(), meshes[which]->clusters};
+        meshes_[which] = {*buffer, static_cast<std::uint32_t>(corners.size()), {!mesh.uvs.empty(), !mesh.second_uvs.empty()}, meshes[which]->clusters};
         list.upload(*buffer, 0, std::span<const Corner>(corners));
     }
     if (list.empty()) return {};
@@ -531,7 +542,8 @@ rhi::Result<void> Pass::load_textures(std::span<const Texture* const> textures) 
 }
 
 const Pass::Sheet* Pass::cover_of(const Material& material, std::uint32_t mesh) const noexcept {
-    if (!(material.cutout > 0) || material.texture >= textures_.size() || !textures_[material.texture].texture || mesh >= meshes_.size() || !meshes_[mesh].placed) return nullptr;
+    if (!(material.cutout > 0) || material.texture >= textures_.size() || !textures_[material.texture].texture || mesh >= meshes_.size() || !meshes_[mesh].placed[material.placing.base.set ? 1 : 0])
+        return nullptr;
     return &textures_[material.texture];
 }
 
@@ -571,7 +583,7 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
             const Material& material = materials[instance.material];
             sheet = cover_of(material, instance.mesh);
             asked.picture = {0, 0, sheet ? 1.0f : 0.0f, 0}, asked.cut = {material.cutout, material.opacity, 0, 0};
-            asked.placing_across = of(material.placing.across), asked.placing_down = of(material.placing.down);
+            asked.placing_across = across_of(material.placing.base), asked.placing_down = down_of(material.placing.base);
         }
         list.bind_texture(rhi::Stage::fragment, 0, sheet ? sheet->texture : no_shadow_, sheet ? sheet->through : nearest_);
         list.push_uniforms(rhi::Stage::fragment, 0, asked);
@@ -741,17 +753,22 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
         const Material& material = materials[draw.material];
         surface.base = of(material.base), surface.emissive = of(material.emissive);
         surface.shine = {std::clamp(material.roughness, 0.04f, 1.0f), std::clamp(material.metallic, 0.0f, 1.0f), material.matt() ? 1.0f : 0.0f, light_ ? 1.0f : 0.0f};
-        // Its picture, where the material names one that is loaded and the mesh says where its corners are in it.
-        const auto sheet_of = [&](std::uint32_t which) { return which < textures_.size() && textures_[which].texture && meshes_[draw.mesh].placed ? &textures_[which] : nullptr; };
+        // Its picture, where the material names one that is loaded and the mesh says where its corners are in it
+        // by the set the picture is laid by.
+        const auto sheet_of = [&](std::uint32_t which, const Placing& placing) {
+            return which < textures_.size() && textures_[which].texture && meshes_[draw.mesh].placed[placing.set ? 1 : 0] ? &textures_[which] : nullptr;
+        };
         const auto said = [](const Sheet* named, float last) { return named ? Row{named->width, named->height, named->sizes, last} : Row{}; };
-        const Sheet* sheet = sheet_of(material.texture);
+        const Sheet* sheet = sheet_of(material.texture, material.placing.base);
         surface.picture = said(sheet, 0);
         // The surface's other pictures (roughness and metal, the normal, emission, shade), as the reference reads them.
-        const std::array<const Sheet*, 4> more{sheet_of(material.surface), sheet_of(material.normal), sheet_of(material.glow), sheet_of(material.shade)};
+        const std::array<const Sheet*, 4> more{sheet_of(material.surface, material.placing.surface), sheet_of(material.normal, material.placing.normal), sheet_of(material.glow, material.placing.glow),
+                                               sheet_of(material.shade, material.placing.shade)};
         surface.surface_picture = said(more[0], 0), surface.normal_picture = said(more[1], material.normal_scale);
         surface.glow_picture = said(more[2], 0), surface.shade_picture = said(more[3], material.shade_strength);
         surface.own = {material.roughness, material.metallic, material.unlit ? 1.0f : 0.0f, 0};
-        surface.placing_across = of(material.placing.across), surface.placing_down = of(material.placing.down);
+        const std::array<const Placing*, 5> laid{&material.placing.base, &material.placing.surface, &material.placing.normal, &material.placing.glow, &material.placing.shade};
+        for (std::size_t which = 0; which < laid.size(); ++which) surface.placing[which * 2] = across_of(*laid[which]), surface.placing[which * 2 + 1] = down_of(*laid[which]);
         surface.cut = {cut_of(reversed_), material.cutout, material.opacity, material.two_sided ? 1.0f : 0.0f};
         // Its clusters that may show: one outside the view or wholly facing away is left out (as the reference
         // leaves it out), and those that follow one another in the corners are one draw call.
@@ -809,7 +826,7 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
             for (int row = 0; row < 4; ++row) uniforms.to_clip[row] = row_of(to_clip, row);
             for (int row = 0; row < 3; ++row) uniforms.to_world[row] = row_of(instance.world, row), uniforms.normals[row] = row_of(for_normals, row);
             const Sheet* sheet = cover_of(material, draw.mesh);
-            const WholeUniforms whole{sheet ? Row{sheet->width, sheet->height, sheet->sizes, 0} : Row{}, {material.cutout, material.opacity, material.two_sided ? 1.0f : 0.0f, 0}, of(material.placing.across), of(material.placing.down)};
+            const WholeUniforms whole{sheet ? Row{sheet->width, sheet->height, sheet->sizes, 0} : Row{}, {material.cutout, material.opacity, material.two_sided ? 1.0f : 0.0f, 0}, across_of(material.placing.base), down_of(material.placing.base)};
             runs_for(meshes_[draw.mesh], instance.world, material.two_sided ? std::nullopt : back, frustum, eye, options.cull_clusters, false);
             if (runs_.empty()) continue;
             list.bind_texture(rhi::Stage::fragment, 0, sheet ? sheet->texture : no_shadow_, sheet ? sheet->through : nearest_);
@@ -1025,7 +1042,7 @@ void Pass::who_pass(rhi::CommandList& list, const scene::Scene& scene, const sce
         if (material && material->see_through) continue;  // not what stops the eye
         const Sheet* sheet = material ? cover_of(*material, draw.mesh) : nullptr;
         WholeUniforms whole{};
-        if (material) whole = {sheet ? Row{sheet->width, sheet->height, sheet->sizes, 0} : Row{}, {material->cutout, material->opacity, material->two_sided ? 1.0f : 0.0f, 0}, of(material->placing.across), of(material->placing.down)};
+        if (material) whole = {sheet ? Row{sheet->width, sheet->height, sheet->sizes, 0} : Row{}, {material->cutout, material->opacity, material->two_sided ? 1.0f : 0.0f, 0}, across_of(material->placing.base), down_of(material->placing.base)};
         runs_for(meshes_[draw.mesh], instance.world, material && material->two_sided ? std::nullopt : back, frustum, eye, camera.has_value(), false);
         if (runs_.empty()) continue;
         list.bind_texture(rhi::Stage::fragment, 0, sheet ? sheet->texture : no_shadow_, sheet ? sheet->through : nearest_);
@@ -1088,7 +1105,7 @@ void Pass::velocity_pass(rhi::CommandList& list, const scene::Scene& scene, cons
         if (material && material->see_through) continue;  // not what stops the eye
         const Sheet* sheet = material ? cover_of(*material, draw.mesh) : nullptr;
         WholeUniforms whole{};
-        if (material) whole = {sheet ? Row{sheet->width, sheet->height, sheet->sizes, 0} : Row{}, {material->cutout, material->opacity, material->two_sided ? 1.0f : 0.0f, 0}, of(material->placing.across), of(material->placing.down)};
+        if (material) whole = {sheet ? Row{sheet->width, sheet->height, sheet->sizes, 0} : Row{}, {material->cutout, material->opacity, material->two_sided ? 1.0f : 0.0f, 0}, across_of(material->placing.base), down_of(material->placing.base)};
         runs_for(meshes_[draw.mesh], instance.world, material && material->two_sided ? std::nullopt : back, frustum, eye, options.cull_clusters && camera.has_value(), false);
         if (runs_.empty()) continue;
         list.bind_texture(rhi::Stage::fragment, 0, sheet ? sheet->texture : no_shadow_, sheet ? sheet->through : nearest_);

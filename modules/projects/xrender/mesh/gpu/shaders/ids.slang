@@ -5,12 +5,15 @@ struct VIn {
     float3 position : TEXCOORD0;
     float3 normal : TEXCOORD1;
     float2 uv : TEXCOORD2;
+    float2 second : TEXCOORD4;  // the mesh's second set of texture coordinates
+    float4 colour : TEXCOORD5;  // the mesh's own at the corner: its fourth is what it hides
 };
 struct VOut {
     float4 clip : SV_Position;
     float3 place : TEXCOORD0;
     float3 normal : TEXCOORD1;
-    float2 uv : TEXCOORD2;
+    float4 uv : TEXCOORD2;  // by the mesh's first set of texture coordinates, and by its second
+    float  hides : TEXCOORD3;  // the mesh's own colour's fourth
 };
 struct Draw {
     float4 to_clip[4];
@@ -26,7 +29,7 @@ VOut ids_vs(VIn corner) {
     made.clip = float4(dot(draw.to_clip[0], at), dot(draw.to_clip[1], at), dot(draw.to_clip[2], at), dot(draw.to_clip[3], at));
     made.place = float3(dot(draw.to_world[0], at), dot(draw.to_world[1], at), dot(draw.to_world[2], at));
     made.normal = float3(dot(draw.normals[0].xyz, corner.normal), dot(draw.normals[1].xyz, corner.normal), dot(draw.normals[2].xyz, corner.normal));
-    made.uv = corner.uv;
+    made.uv = float4(corner.uv, corner.second), made.hides = corner.colour.a;
     return made;
 }
 
@@ -38,6 +41,7 @@ struct Whole {
     float4 cut;      // x: where the surface hides less than this it is not there (0: whole); y: how much it hides;
                      // z: over 0.5 — it is seen from both sides
     float4 placing[2];  // how the picture is laid over the surface (xrender.mesh's `Placing`): its place across, and down, each of (u, v, 1)
+                        // of a set; the first's w: 1 the mesh's second set
 };
 float cover_over(Sampler2D map, float4 picture, float2 uv, float2 right, float2 down) {
     const float across = length(right * picture.xy), along = length(down * picture.xy);
@@ -68,7 +72,10 @@ struct Who {
 [[vk::binding(0, 3)]] ConstantBuffer<Who> who : register(b0, space3);
 
 // The mesh's texture coordinates as the material lays its pictures (xrender.mesh's `Placing`).
-float2 placed(float2 uv) { return float2(dot(who.whole.placing[0].xyz, float3(uv, 1)), dot(who.whole.placing[1].xyz, float3(uv, 1))); }
+float2 placed(float4 both) {
+    const float2 uv = who.whole.placing[0].w > 0.5 ? both.zw : both.xy;
+    return float2(dot(who.whole.placing[0].xyz, float3(uv, 1)), dot(who.whole.placing[1].xyz, float3(uv, 1)));
+}
 
 // True where nothing of the surface is drawn at this pixel: turned away (and of one side), beyond the view's far
 // cut, or cut out. `right` and `down`: how far its place in its picture moves to the next pixel across and below.
@@ -76,7 +83,7 @@ bool left_out(VOut point, float2 right, float2 down) {
     if (who.whole.cut.z < 0.5 && dot(point.normal, who.eye.xyz - point.place) < 0) return true;
     if ((point.clip.z - 0.5) * who.eye.w > 0) return true;
     if (who.whole.cut.x > 0) {
-        float hides = who.whole.cut.y;
+        float hides = who.whole.cut.y * point.hides;
         if (who.whole.picture.z > 0.5) hides *= cover_over(picture_map, who.whole.picture, placed(point.uv), right, down);
         if (hides < who.whole.cut.x) return true;
     }

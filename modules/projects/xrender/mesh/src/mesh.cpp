@@ -15,17 +15,21 @@ namespace geom = mlibs::geom;
 struct Corner {
     Vec4 clip, before;
     Vec3 normal, place;
-    Vec2 uv{0, 0};
+    Vec4 uv{0, 0, 0, 0};       // the mesh's place in its pictures: its first texture coordinates, and its second
     Vec4 tangent{0, 0, 0, 0};  // in the world; all 0: the mesh has none
+    Vec4 colour{1, 1, 1, 1};   // the mesh's own at the corner (`Mesh::colours`), or white
 };
 Vec4 mixed(const Vec4& from, const Vec4& to, float share) noexcept {
     return {from.x + (to.x - from.x) * share, from.y + (to.y - from.y) * share, from.z + (to.z - from.z) * share, from.w + (to.w - from.w) * share};
 }
+// Of a corner's (or a difference's) two sets of texture coordinates, the one `set` names.
+Vec2 set_of(const Vec4& uv, std::uint8_t set) noexcept { return set ? Vec2{uv.z, uv.w} : Vec2{uv.x, uv.y}; }
 Corner mixed(const Corner& from, const Corner& to, float share) noexcept {
     return {mixed(from.clip, to.clip, share), mixed(from.before, to.before, share), math::mix(from.normal, to.normal, share), math::mix(from.place, to.place, share),
-            {from.uv.x + (to.uv.x - from.uv.x) * share, from.uv.y + (to.uv.y - from.uv.y) * share},
+            mixed(from.uv, to.uv, share),
             {from.tangent.x + (to.tangent.x - from.tangent.x) * share, from.tangent.y + (to.tangent.y - from.tangent.y) * share, from.tangent.z + (to.tangent.z - from.tangent.z) * share,
-             from.tangent.w}};
+             from.tangent.w},
+            mixed(from.colour, to.colour, share)};
 }
 // The view's volume and a guard band about it: the depth's two planes, and eight widths to each side — past
 // which a corner's place on the screen would be too large a number to snap exactly.
@@ -117,6 +121,7 @@ struct Raster {
     std::vector<Laid>* laid = nullptr;  // the draw is seen through: its samples are kept here, to be laid over the frame
     float          shaded = 1;  // the share of the light from everywhere the shade picture lets through here
     bool           turned_over = false;  // the instance's place mirrors it: its triangles go round the other way as seen
+    bool           coloured = false;     // the mesh has a colour at each corner
 
     // Whether anything is between `from` and a light `reach` away along `toward` (of length 1). The ray is taken
     // into each mesh's own space as it is — not made of length 1 again — so a distance along it is the world's.
@@ -243,7 +248,9 @@ struct Raster {
         std::array<Vec3, 2> bent{};
         if (normal_picture && !tangents) {
             const Vec3 one = corners[1]->place - corners[0]->place, two = corners[2]->place - corners[0]->place;
-            const Vec2 uv_one{corners[1]->uv.x - corners[0]->uv.x, corners[1]->uv.y - corners[0]->uv.y}, uv_two{corners[2]->uv.x - corners[0]->uv.x, corners[2]->uv.y - corners[0]->uv.y};
+            const Placing& laid_so = own.placing.normal;
+            const Vec2 first_uv = set_of(corners[0]->uv, laid_so.set), second_uv = set_of(corners[1]->uv, laid_so.set), third_uv = set_of(corners[2]->uv, laid_so.set);
+            const Vec2 uv_one = laid_so.moved({second_uv.x - first_uv.x, second_uv.y - first_uv.y}), uv_two = laid_so.moved({third_uv.x - first_uv.x, third_uv.y - first_uv.y});
             const float turn = uv_one.x * uv_two.y - uv_two.x * uv_one.y;
             if (turn != 0) bent = {(one * uv_two.y - two * uv_one.y) * (1.0f / turn), (one * uv_two.x - two * uv_one.x) * (1.0f / turn)};
         }
@@ -307,6 +314,10 @@ struct Raster {
                     moved = {static_cast<float>(column) + 0.5f - options.jitter.x - was_x, static_cast<float>(row) + 0.5f - options.jitter.y - was_y};
                 }
                 float hides = own.opacity;  // how much of what is behind it the surface hides here
+                if (coloured) {
+                    const auto at = [&](float Vec4::* part_of) { return (*corners[0]).colour.*part_of * part[0] + (*corners[1]).colour.*part_of * part[1] + (*corners[2]).colour.*part_of * part[2]; };
+                    material.base = math::scaled(base, Vec3{at(&Vec4::x), at(&Vec4::y), at(&Vec4::z)}), hides = own.opacity * at(&Vec4::w);
+                }
                 if (texture || surface || normal_picture || glow || shade) {
                     // The surface's place in the picture here, a pixel to the right and a pixel down: how many texels
                     // a pixel covers is how far apart they are.
@@ -314,29 +325,45 @@ struct Raster {
                         const std::array<float, 3> there{static_cast<float>(edge(1, 2, at_x, at_y) / area) * inverse[0], static_cast<float>(edge(2, 0, at_x, at_y) / area) * inverse[1],
                                                          static_cast<float>(edge(0, 1, at_x, at_y) / area) * inverse[2]};
                         const float all = 1.0f / (there[0] + there[1] + there[2]);
-                        return Vec2{(corners[0]->uv.x * there[0] + corners[1]->uv.x * there[1] + corners[2]->uv.x * there[2]) * all,
-                                    (corners[0]->uv.y * there[0] + corners[1]->uv.y * there[1] + corners[2]->uv.y * there[2]) * all};
+                        const auto of = [&](float Vec4::* part_of) { return ((*corners[0]).uv.*part_of * there[0] + (*corners[1]).uv.*part_of * there[1] + (*corners[2]).uv.*part_of * there[2]) * all; };
+                        return Vec4{of(&Vec4::x), of(&Vec4::y), of(&Vec4::z), of(&Vec4::w)};
                     };
                     // The differences are taken as a device takes them: within the pixel's own two by two (columns
                     // and rows paired from the first), so an odd pixel looks back to its pair and an even one ahead.
                     const double to_pair_x = column % 2 ? -256.0 : 256.0, to_pair_y = row % 2 ? -256.0 : 256.0;
-                    const Vec2 here = uv_at(px, py), beside = uv_at(px + to_pair_x, py), below = uv_at(px, py + to_pair_y);
+                    const Vec4 here_both = uv_at(px, py), beside = uv_at(px + to_pair_x, py), below = uv_at(px, py + to_pair_y);
                     const float way_x = column % 2 ? -1.0f : 1.0f, way_y = row % 2 ? -1.0f : 1.0f;
-                    const Vec2 across{(beside.x - here.x) * way_x, (beside.y - here.y) * way_x}, along{(below.x - here.x) * way_y, (below.y - here.y) * way_y};
+                    const Vec4 across_both{(beside.x - here_both.x) * way_x, (beside.y - here_both.y) * way_x, (beside.z - here_both.z) * way_x, (beside.w - here_both.w) * way_x};
+                    const Vec4 along_both{(below.x - here_both.x) * way_y, (below.y - here_both.y) * way_y, (below.z - here_both.z) * way_y, (below.w - here_both.w) * way_y};
+                    // A picture's place here and its two differences, as its placing lays it.
+                    struct Place {
+                        Vec2 here, across, along;
+                    };
+                    const auto laid = [&](const Placing& placing) {
+                        return Place{placing.of(set_of(here_both, placing.set)), placing.moved(set_of(across_both, placing.set)), placing.moved(set_of(along_both, placing.set))};
+                    };
                     if (texture) {
-                        const Texture::Seen there = texture->seen(here, across, along);
-                        material.base = math::scaled(base, there.light), hides = own.opacity * there.cover;
+                        const Place at = laid(own.placing.base);
+                        const Texture::Seen there = texture->seen(at.here, at.across, at.along);
+                        material.base = math::scaled(coloured ? material.base : base, there.light), hides *= there.cover;
                     }
                     if (own.cutout > 0 && hides < own.cutout) {
                         ++stats.cut;
                         continue;
                     }
                     if (surface) {
-                        const Vec3 said = surface->over(here, across, along);
+                        const Place at = laid(own.placing.surface);
+                        const Vec3 said = surface->over(at.here, at.across, at.along);
                         material.roughness = own.roughness * said.y, material.metallic = own.metallic * said.z;
                     }
-                    if (glow) material.emissive = math::scaled(own.emissive, glow->over(here, across, along));
-                    if (shade) shaded = 1.0f + own.shade_strength * (shade->over(here, across, along).x - 1.0f);
+                    if (glow) {
+                        const Place at = laid(own.placing.glow);
+                        material.emissive = math::scaled(own.emissive, glow->over(at.here, at.across, at.along));
+                    }
+                    if (shade) {
+                        const Place at = laid(own.placing.shade);
+                        shaded = 1.0f + own.shade_strength * (shade->over(at.here, at.across, at.along).x - 1.0f);
+                    }
                     if (normal_picture) {
                         // The picture's three ways in the world here: along it (the mesh's tangent, or the way the
                         // surface goes as the picture's first coordinate grows), up it, and out (the normal).
@@ -352,7 +379,8 @@ struct Raster {
                             right_way = math::normalized(right_way);
                             const Vec3 other = math::cross(normal, right_way);
                             up_way = math::dot(other, up_way) < 0 ? other * -1.0f : other;
-                            const Vec3 said = normal_picture->over(here, across, along);
+                            const Place at = laid(own.placing.normal);
+                            const Vec3 said = normal_picture->over(at.here, at.across, at.along);
                             const Vec3 about{(said.x * 2 - 1) * own.normal_scale, (said.y * 2 - 1) * own.normal_scale, said.z * 2 - 1};
                             const Vec3 turned = right_way * about.x + up_way * about.y + normal * about.z;
                             if (math::dot(turned, turned) > 0) normal = math::normalized(turned);
@@ -398,9 +426,9 @@ void Targets::resize(int new_width, int new_height) {
     colour.resize(pixels * 4), light.resize(pixels), depth.resize(pixels), normal.resize(pixels), velocity.resize(pixels), ids.resize(pixels);
 }
 
-Placing Placing::made(Vec2 offset, float turn, Vec2 scale) noexcept {
+Placing Placing::made(Vec2 offset, float turn, Vec2 scale, std::uint8_t set) noexcept {
     const float cosine = static_cast<float>(math::det::cos(static_cast<double>(turn))), sine = static_cast<float>(math::det::sin(static_cast<double>(turn)));
-    return {{cosine * scale.x, sine * scale.y, offset.x}, {-sine * scale.x, cosine * scale.y, offset.y}};
+    return {{cosine * scale.x, sine * scale.y, offset.x}, {-sine * scale.x, cosine * scale.y, offset.y}, set};
 }
 
 Vec3 reflected(const Material& material, Vec3 normal, Vec3 toward_eye, Vec3 toward_light, float facing) noexcept {
@@ -476,10 +504,13 @@ float through(const Fog& fog, Vec3 eye, Vec3 toward, float length) noexcept {
 namespace {
 
 // Whether a surface that cuts itself out is there where a ray met triangle `corner` of `mesh`, `distance` along:
-// its opacity, by its picture's cover at the place, against the cut.
+// its opacity, by the mesh's colour and its picture's cover at the place, against the cut.
 bool there(const geom::Ray& ray, const geom::Mesh& mesh, const std::array<std::uint32_t, 3>& corner, float distance, const Material& material, const Texture* cover) noexcept {
     float hides = material.opacity;
-    if (cover && corner[0] < mesh.uvs.size() && corner[1] < mesh.uvs.size() && corner[2] < mesh.uvs.size()) {
+    const std::vector<Vec2>& uvs = material.placing.base.set ? mesh.second_uvs : mesh.uvs;
+    const bool pictured = cover && corner[0] < uvs.size() && corner[1] < uvs.size() && corner[2] < uvs.size();
+    const bool coloured = corner[0] < mesh.colours.size() && corner[1] < mesh.colours.size() && corner[2] < mesh.colours.size();
+    if (pictured || coloured) {
         // Where on the triangle: each corner's share is the area across from it.
         const Vec3 first = mesh.positions[corner[0]], second = mesh.positions[corner[1]], third = mesh.positions[corner[2]];
         const Vec3 met = ray.from + ray.along * distance, face = math::cross(second - first, third - first);
@@ -487,14 +518,16 @@ bool there(const geom::Ray& ray, const geom::Mesh& mesh, const std::array<std::u
         if (whole > 0) {
             const float share_second = math::dot(math::cross(met - first, third - first), face) / whole, share_third = math::dot(math::cross(second - first, met - first), face) / whole;
             const float share_first = 1 - share_second - share_third;
-            hides *= cover->cover_at(material.placing.of({mesh.uvs[corner[0]].x * share_first + mesh.uvs[corner[1]].x * share_second + mesh.uvs[corner[2]].x * share_third,
-                                                          mesh.uvs[corner[0]].y * share_first + mesh.uvs[corner[1]].y * share_second + mesh.uvs[corner[2]].y * share_third}));
+            if (coloured) hides *= mesh.colours[corner[0]].w * share_first + mesh.colours[corner[1]].w * share_second + mesh.colours[corner[2]].w * share_third;
+            if (pictured)
+                hides *= cover->cover_at(material.placing.base.of({uvs[corner[0]].x * share_first + uvs[corner[1]].x * share_second + uvs[corner[2]].x * share_third,
+                                                                   uvs[corner[0]].y * share_first + uvs[corner[1]].y * share_second + uvs[corner[2]].y * share_third}));
         }
     }
     return !(hides < material.cutout);
 }
 const Texture* cover_of(const Material& material, const Texture* picture, const geom::Mesh& mesh) noexcept {
-    return material.cutout > 0 && picture && !picture->cover.empty() && !mesh.uvs.empty() ? picture : nullptr;
+    return material.cutout > 0 && picture && !picture->cover.empty() && !(material.placing.base.set ? mesh.second_uvs : mesh.uvs).empty() ? picture : nullptr;
 }
 
 }  // namespace
@@ -577,9 +610,14 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
         raster.base = raster.material.base;
         raster.own = raster.material, raster.shaded = 1;
         raster.turned_over = math::dot(math::cross(math::direction(instance.world, {1, 0, 0}), math::direction(instance.world, {0, 1, 0})), math::direction(instance.world, {0, 0, 1})) < 0;
-        const auto picture = [&](std::uint32_t which) { return (which < assets.textures.size() && !mesh.uvs.empty()) ? assets.textures[which] : nullptr; };
-        raster.texture = picture(raster.material.texture), raster.surface = picture(raster.material.surface), raster.normal_picture = picture(raster.material.normal);
-        raster.glow = picture(raster.material.glow), raster.shade = picture(raster.material.shade);
+        // A picture is drawn where the mesh has the texture coordinates it is laid by.
+        const auto picture = [&](std::uint32_t which, const Placing& placing) {
+            return (which < assets.textures.size() && !(placing.set ? mesh.second_uvs : mesh.uvs).empty()) ? assets.textures[which] : nullptr;
+        };
+        const Placings& placing = raster.material.placing;
+        raster.texture = picture(raster.material.texture, placing.base), raster.surface = picture(raster.material.surface, placing.surface), raster.normal_picture = picture(raster.material.normal, placing.normal);
+        raster.glow = picture(raster.material.glow, placing.glow), raster.shade = picture(raster.material.shade, placing.shade);
+        raster.coloured = !mesh.colours.empty();
         const Mat4 to_clip = clip * instance.world;
         // Where it was a frame ago: its own place then, through the view then. New this frame: where it is.
         Mat4 before = to_clip;
@@ -622,7 +660,9 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
                     at[corner] = vertex < mesh.positions.size() ? mesh.positions[vertex] : Vec3{};
                     polygon[corner] = {moved(to_clip, at[corner]), moved(before, at[corner]),
                                        vertex < mesh.normals.size() ? math::direction(for_normals, mesh.normals[vertex]) : Vec3{}, math::point(instance.world, at[corner]),
-                                       vertex < mesh.uvs.size() ? raster.material.placing.of(mesh.uvs[vertex]) : Vec2{0, 0}, {}};
+                                       {vertex < mesh.uvs.size() ? mesh.uvs[vertex].x : 0.0f, vertex < mesh.uvs.size() ? mesh.uvs[vertex].y : 0.0f,
+                                        vertex < mesh.second_uvs.size() ? mesh.second_uvs[vertex].x : 0.0f, vertex < mesh.second_uvs.size() ? mesh.second_uvs[vertex].y : 0.0f},
+                                       {}, vertex < mesh.colours.size() ? mesh.colours[vertex] : Vec4{1, 1, 1, 1}};
                     if (raster.normal_picture && vertex < mesh.tangents.size()) {
                         const Vec3 along = math::direction(instance.world, {mesh.tangents[vertex].x, mesh.tangents[vertex].y, mesh.tangents[vertex].z});
                         polygon[corner].tangent = {along.x, along.y, along.z, mesh.tangents[vertex].w};

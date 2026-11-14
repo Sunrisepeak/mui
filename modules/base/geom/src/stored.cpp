@@ -7,7 +7,7 @@ namespace mlibs::geom {
 
 namespace {
 
-enum Kind : std::uint32_t { positions = 1, normals = 2, tangents = 3, uvs = 4, indices = 5, clusters = 6 };
+enum Kind : std::uint32_t { positions = 1, normals = 2, tangents = 3, uvs = 4, indices = 5, clusters = 6, second_uvs = 7, colours = 8 };
 constexpr std::size_t header_bytes = 16, entry_bytes = 24, cluster_bytes = 52;
 
 struct Writer {
@@ -46,6 +46,8 @@ std::string_view name_of(std::uint32_t kind) noexcept {
         case normals: return "normals";
         case tangents: return "tangents";
         case uvs: return "uvs";
+        case second_uvs: return "second_uvs";
+        case colours: return "colours";
         case indices: return "indices";
         case clusters: return "clusters";
     }
@@ -55,8 +57,10 @@ std::uint32_t element_of(std::uint32_t kind) noexcept {
     switch (kind) {
         case positions:
         case normals: return 12;
-        case tangents: return 16;
-        case uvs: return 8;
+        case tangents:
+        case colours: return 16;
+        case uvs:
+        case second_uvs: return 8;
         case indices: return 4;
         case clusters: return cluster_bytes;
     }
@@ -75,6 +79,7 @@ std::vector<std::uint8_t> stored(const ClusteredMesh& mesh) {
         if (count) sections.push_back({kind, count});
     };
     add(positions, mesh.mesh.positions.size()), add(normals, mesh.mesh.normals.size()), add(tangents, mesh.mesh.tangents.size()), add(uvs, mesh.mesh.uvs.size());
+    add(second_uvs, mesh.mesh.second_uvs.size()), add(colours, mesh.mesh.colours.size());
     add(indices, mesh.mesh.indices.size()), add(clusters, mesh.clusters.size());
     Writer out;
     out.bytes.insert(out.bytes.end(), stored_magic.begin(), stored_magic.end());
@@ -97,6 +102,12 @@ std::vector<std::uint8_t> stored(const ClusteredMesh& mesh) {
                 break;
             case uvs:
                 for (const Vec2 value : mesh.mesh.uvs) out.f32(value.x), out.f32(value.y);
+                break;
+            case second_uvs:
+                for (const Vec2 value : mesh.mesh.second_uvs) out.f32(value.x), out.f32(value.y);
+                break;
+            case colours:
+                for (const Vec4& value : mesh.mesh.colours) out.f32(value.x), out.f32(value.y), out.f32(value.z), out.f32(value.w);
                 break;
             case indices:
                 for (const std::uint32_t value : mesh.mesh.indices) out.u32(value);
@@ -150,6 +161,14 @@ std::expected<ClusteredMesh, std::string> read_stored(std::span<const std::uint8
             case uvs:
                 out.mesh.uvs.resize(many);
                 for (Vec2& value : out.mesh.uvs) value.x = in.f32(), value.y = in.f32();
+                break;
+            case second_uvs:
+                out.mesh.second_uvs.resize(many);
+                for (Vec2& value : out.mesh.second_uvs) value.x = in.f32(), value.y = in.f32();
+                break;
+            case colours:
+                out.mesh.colours.resize(many);
+                for (Vec4& value : out.mesh.colours) value.x = in.f32(), value.y = in.f32(), value.z = in.f32(), value.w = in.f32();
                 break;
             case indices:
                 out.mesh.indices.resize(many);

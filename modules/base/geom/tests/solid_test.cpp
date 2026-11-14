@@ -140,6 +140,10 @@ UTest cases{"geom.solid", [] {
         geom::Mesh mesh = geom::box({1, 1, 1});
         mesh.normals.pop_back();
         expect(geom::check(mesh).error() == "23 normals for 24 positions (one each, or none)");
+        mesh = geom::box({1, 1, 1}), mesh.second_uvs.assign(3, {0, 0});
+        expect(geom::check(mesh).error() == "3 second uvs for 24 positions (one each, or none)");
+        mesh = geom::box({1, 1, 1}), mesh.colours.assign(25, {1, 1, 1, 1});
+        expect(geom::check(mesh).error() == "25 colours for 24 positions (one each, or none)");
         mesh = geom::box({1, 1, 1}), mesh.indices.push_back(0);
         expect(geom::check(mesh).error() == "37 indices: three a triangle");
         mesh = geom::box({1, 1, 1}), mesh.indices[5] = 99;

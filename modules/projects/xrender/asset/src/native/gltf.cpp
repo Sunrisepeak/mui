@@ -144,7 +144,6 @@ struct Maker {
         std::uint32_t of = 0, as = 0;  // the texture first made of a picture, and one of the same picture with other edges
     };
     std::vector<Edged> edged;
-    std::optional<mesh::Placing> placing_said;  // of the material being read: how its first picture is laid
     static constexpr std::uint32_t unasked = 0xffffffffu, refused = 0xfffffffeu;
 
     void note(std::string where, std::string what, std::string instead) { out.notes.push_back({std::move(where), std::move(what), std::move(instead)}); }
@@ -152,8 +151,9 @@ struct Maker {
     // The texture a material names for one of its pictures: its place in `out.textures`, or none (with a note of
     // why). `where` is the document's place of the naming; `instead` what the material is left with. `covering`:
     // the picture's fourth byte is how much the surface hides there (a material that is cut out by it); without,
-    // the byte says nothing, as the format has it for a surface that is whole.
-    std::uint32_t picture(const cgltf_texture_view& view, const std::string& where, mesh::Coding coding, std::string_view instead, bool covering = false) {
+    // the byte says nothing, as the format has it for a surface that is whole. `laid`: how the material lays it —
+    // the set of texture coordinates it names and its KHR_texture_transform.
+    std::uint32_t picture(const cgltf_texture_view& view, const std::string& where, mesh::Coding coding, std::string_view instead, mesh::Placing& laid, bool covering = false) {
         const cgltf_texture& texture = *view.texture;
         const std::size_t texture_index = cgltf_texture_index(&data, &texture);
         // The texture's own picture where it has one (PNG or JPEG: the document's fallback, read exactly); else the
@@ -185,17 +185,14 @@ struct Maker {
             }
         }
         if (std::ranges::contains(made_as, refused) || made_as[as] == unasked) return mesh::Material{}.texture;
-        if (view.texcoord != 0) note(where + "/texCoord", std::format("texture coordinates {}", view.texcoord), "the mesh's first (TEXCOORD_0)");
-        // How the picture is laid over the surface (KHR_texture_transform). A material's pictures are laid one
-        // way here: the first of them says it, and one that says another is noted.
-        const mesh::Placing laid = view.has_transform ? mesh::Placing::made({view.transform.offset[0], view.transform.offset[1]}, view.transform.rotation, {view.transform.scale[0], view.transform.scale[1]})
-                                                      : mesh::Placing{};
-        const auto same = [](const mesh::Placing& one, const mesh::Placing& other) {
-            return one.across.x == other.across.x && one.across.y == other.across.y && one.across.z == other.across.z && one.down.x == other.down.x && one.down.y == other.down.y && one.down.z == other.down.z;
-        };
-        if (!placing_said) placing_said = laid;
-        else if (!same(*placing_said, laid))
-            note(where + (view.has_transform ? "/extensions/KHR_texture_transform" : ""), "a picture laid over the surface another way than the material's first", "laid as the first is");
+        // How the picture is laid over the surface: by the set of texture coordinates it names (the transform's
+        // own where that names one), moved, turned and scaled as KHR_texture_transform says.
+        const bool named_by_transform = view.has_transform && view.transform.has_texcoord;
+        const cgltf_int set = named_by_transform ? view.transform.texcoord : view.texcoord;
+        std::uint8_t carried = set == 1 ? 1 : 0;
+        if (set > 1) note(where + (named_by_transform ? "/extensions/KHR_texture_transform/texCoord" : "/texCoord"), std::format("texture coordinates {}", set), "the mesh's first (TEXCOORD_0)");
+        laid = view.has_transform ? mesh::Placing::made({view.transform.offset[0], view.transform.offset[1]}, view.transform.rotation, {view.transform.scale[0], view.transform.scale[1]}, carried)
+                                  : mesh::Placing{.set = carried};
         // What the picture is past its edges, as the texture's sampler says (none: it repeats). The picture is
         // kept once for each way it is given edges: a texture that gives it other edges than the first has its own.
         const auto edge = [](cgltf_wrap_mode mode) { return mode == cgltf_wrap_mode_clamp_to_edge ? mesh::Edge::stops : mode == cgltf_wrap_mode_mirrored_repeat ? mesh::Edge::mirrors : mesh::Edge::repeats; };
@@ -222,7 +219,6 @@ struct Maker {
             const std::string where = std::format("/materials/{}", index);
             // glTF's own defaults where the document says nothing: white, fully rough, fully metal.
             mesh::Material made{.base = {1, 1, 1}, .roughness = 1, .metallic = 1};
-            placing_said.reset();
             if (from.has_pbr_metallic_roughness) {
                 const cgltf_pbr_metallic_roughness& pbr = from.pbr_metallic_roughness;
                 made.base = {pbr.base_color_factor[0], pbr.base_color_factor[1], pbr.base_color_factor[2]};
@@ -235,26 +231,25 @@ struct Maker {
                 if (from.alpha_mode == cgltf_alpha_mode_blend) made.opacity = pbr.base_color_factor[3];
                 if (pbr.base_color_texture.texture)
                     made.texture = picture(pbr.base_color_texture, where + "/pbrMetallicRoughness/baseColorTexture", mesh::Coding::colour, "the material's base colour factor alone",
-                                           from.alpha_mode != cgltf_alpha_mode_opaque);
+                                           made.placing.base, from.alpha_mode != cgltf_alpha_mode_opaque);
                 if (pbr.metallic_roughness_texture.texture)
-                    made.surface = picture(pbr.metallic_roughness_texture, where + "/pbrMetallicRoughness/metallicRoughnessTexture", mesh::Coding::plain, "the two factors over the whole surface");
+                    made.surface = picture(pbr.metallic_roughness_texture, where + "/pbrMetallicRoughness/metallicRoughnessTexture", mesh::Coding::plain, "the two factors over the whole surface", made.placing.surface);
             }
             const float strength = from.has_emissive_strength ? from.emissive_strength.emissive_strength : 1.0f;
             made.emissive = {from.emissive_factor[0] * strength, from.emissive_factor[1] * strength, from.emissive_factor[2] * strength};
             if (from.normal_texture.texture) {
-                made.normal = picture(from.normal_texture, where + "/normalTexture", mesh::Coding::plain, "the mesh's own normals");
+                made.normal = picture(from.normal_texture, where + "/normalTexture", mesh::Coding::plain, "the mesh's own normals", made.placing.normal);
                 made.normal_scale = from.normal_texture.scale;
             }
             if (from.occlusion_texture.texture) {
-                made.shade = picture(from.occlusion_texture, where + "/occlusionTexture", mesh::Coding::plain, "all of the light from everywhere");
+                made.shade = picture(from.occlusion_texture, where + "/occlusionTexture", mesh::Coding::plain, "all of the light from everywhere", made.placing.shade);
                 made.shade_strength = from.occlusion_texture.scale;
             }
-            if (from.emissive_texture.texture) made.glow = picture(from.emissive_texture, where + "/emissiveTexture", mesh::Coding::colour, "the emissive factor over the whole surface");
+            if (from.emissive_texture.texture) made.glow = picture(from.emissive_texture, where + "/emissiveTexture", mesh::Coding::colour, "the emissive factor over the whole surface", made.placing.glow);
             if (from.alpha_mode == cgltf_alpha_mode_mask && !from.has_pbr_metallic_roughness) made.cutout = from.alpha_cutoff;
             made.see_through = from.alpha_mode == cgltf_alpha_mode_blend;
             made.two_sided = from.double_sided != 0;
             made.unlit = from.unlit != 0;
-            if (placing_said) made.placing = *placing_said;
             const std::array<std::pair<bool, std::string_view>, 11> more{{{from.has_pbr_specular_glossiness != 0, "KHR_materials_pbrSpecularGlossiness"},
                                                                           {from.has_clearcoat != 0, "KHR_materials_clearcoat"},
                                                                           {from.has_transmission != 0, "KHR_materials_transmission"},
@@ -302,8 +297,18 @@ struct Maker {
             if (attribute.type == cgltf_attribute_type_normal && first) read = floats(attribute.data, cgltf_type_vec3, made.normals) && made.normals.size() == made.positions.size();
             else if (attribute.type == cgltf_attribute_type_tangent && first) read = floats(attribute.data, cgltf_type_vec4, made.tangents) && made.tangents.size() == made.positions.size();
             else if (attribute.type == cgltf_attribute_type_texcoord && first) read = floats(attribute.data, cgltf_type_vec2, made.uvs) && made.uvs.size() == made.positions.size();
-            else {
-                note(at, attribute.type == cgltf_attribute_type_color      ? "a colour a corner"
+            else if (attribute.type == cgltf_attribute_type_texcoord && attribute.index == 1)
+                read = floats(attribute.data, cgltf_type_vec2, made.second_uvs) && made.second_uvs.size() == made.positions.size();
+            else if (attribute.type == cgltf_attribute_type_color && first) {
+                // Red, green, blue and what it hides, or the first three and all hidden; floats, or whole numbers
+                // read as shares of their largest.
+                if (attribute.data && attribute.data->type == cgltf_type_vec3) {
+                    std::vector<Vec3> three;
+                    read = floats(attribute.data, cgltf_type_vec3, three) && three.size() == made.positions.size();
+                    for (const Vec3& colour : three) made.colours.push_back({colour.x, colour.y, colour.z, 1});
+                } else read = floats(attribute.data, cgltf_type_vec4, made.colours) && made.colours.size() == made.positions.size();
+            } else {
+                note(at, attribute.type == cgltf_attribute_type_color      ? "a further colour a corner"
                          : attribute.type == cgltf_attribute_type_joints || attribute.type == cgltf_attribute_type_weights ? "a skin's bones and weights"
                          : attribute.type == cgltf_attribute_type_texcoord ? "a further set of texture coordinates"
                                                                            : "an attribute this does not carry",
@@ -313,7 +318,8 @@ struct Maker {
             if (!read) {
                 if (attribute.type == cgltf_attribute_type_normal) made.normals.clear();
                 if (attribute.type == cgltf_attribute_type_tangent) made.tangents.clear();
-                if (attribute.type == cgltf_attribute_type_texcoord) made.uvs.clear();
+                if (attribute.type == cgltf_attribute_type_texcoord) (first ? made.uvs : made.second_uvs).clear();
+                if (attribute.type == cgltf_attribute_type_color) made.colours.clear();
                 note(at, "an attribute that cannot be read (not one a position, or no bytes behind it)", "left out");
             }
         }

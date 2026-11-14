@@ -906,11 +906,31 @@ Cases suite_of() {
         scene::Instance floor = *yard.world.find(1);
         floor.material = static_cast<std::uint32_t>(yard.materials.size() - 1);
         expect(yard.world.set(floor).has_value());
-        // Drawn by both and held: as the picture repeats (`edged` false), and with it turned about past its edge
-        // one way and stopped at its edge the other, the box a surface no light changes.
-        const auto held = [&](bool edged) {
+        // Drawn by both and held: as the picture repeats, and with it turned about past its edge one way and
+        // stopped at its edge the other, the box a surface no light changes; then besides with a colour at each
+        // corner and the picture laid by the floor's second set of coordinates.
+        enum class Kind { repeated, edged, cornered };
+        const auto held = [&](Kind kind) {
+            const bool edged = kind != Kind::repeated;
             // … and the floor's material laying the picture its own way: coarser, turned and moved.
-            if (edged) tiles.across = mesh::Edge::mirrors, tiles.down = mesh::Edge::stops, yard.materials[0].unlit = true, yard.materials.back().placing = mesh::Placing::made({0.3f, 0.6f}, 0.5f, {0.3f, 0.2f});
+            if (kind == Kind::edged) tiles.across = mesh::Edge::mirrors, tiles.down = mesh::Edge::stops, yard.materials[0].unlit = true, yard.materials.back().placing = mesh::Placings::all(mesh::Placing::made({0.3f, 0.6f}, 0.5f, {0.3f, 0.2f}));
+            if (kind == Kind::cornered) {
+                // The floor's coordinates moved to its second set (its first all 0), the picture laid by that; its
+                // corners red to blue across it. The box hides by its corners from none at its foot to all at its
+                // top, and is cut where it hides less than half.
+                geom::Mesh& ground = yard.made[1].mesh;
+                ground.second_uvs = ground.uvs, ground.uvs.assign(ground.uvs.size(), {0, 0});
+                const geom::Box3 extent = geom::bounds(ground);
+                for (const math::Vec3& at : ground.positions) {
+                    const float share = (at.x - extent.low.x) / (extent.high.x - extent.low.x);
+                    ground.colours.push_back({1 - share * 0.8f, 0.6f, 0.2f + share * 0.8f, 1});
+                }
+                yard.materials.back().placing = mesh::Placings::all(mesh::Placing::made({0.3f, 0.6f}, 0.5f, {0.3f, 0.2f}, 1));
+                geom::Mesh& box = yard.made[0].mesh;
+                const geom::Box3 tall = geom::bounds(box);
+                for (const math::Vec3& at : box.positions) box.colours.push_back({1, 1, 1, (at.y - tall.low.y) / (tall.high.y - tall.low.y)});
+                yard.materials[0].cutout = 0.5f;
+            }
             scene::Extracted seen;
             scene::extract(yard.world, yard.view(), seen);
             mesh::Targets reference;
@@ -933,10 +953,11 @@ Cases suite_of() {
             expect(device->wait(*submitted).has_value());
             const auto pixels = device->read(*colour, rhi::Region{0, 0, width, height});
             if (!(expect(pixels.has_value()) << (pixels ? "" : pixels.error().message))) return;
-            keep(*pixels, edged ? "yard-tiles-edged" : "yard-tiles");
+            keep(*pixels, kind == Kind::cornered ? "yard-tiles-cornered" : edged ? "yard-tiles-edged" : "yard-tiles");
             const Apart all = apart(reference, *pixels, false, 6), loosely = apart(reference, *pixels, false, 16);
-            std::println("a floor of tiles{}: {} draw textured; {} of {} pixels further than 6 levels from the reference ({:.2f}%), {} further than 16; mean {:.3f}, worst {}",
-                         edged ? ", laid coarser, turned and moved by its material, turned about past its edge one way and stopped at it the other, the box unlit" : "", pass->last().textured, all.off, all.compared, 100.0 * static_cast<double>(all.off) / static_cast<double>(all.compared), loosely.off, all.mean, all.worst);
+            std::println("a floor of tiles{}{}: {} draw textured; {} of {} pixels further than 6 levels from the reference ({:.2f}%), {} further than 16; mean {:.3f}, worst {}",
+                         edged ? ", laid coarser, turned and moved by its material, turned about past its edge one way and stopped at it the other, the box unlit" : "",
+                         kind == Kind::cornered ? "; laid by its second set of coordinates, coloured at its corners, the box cut out by its corners' own" : "", pass->last().textured, all.off, all.compared, 100.0 * static_cast<double>(all.off) / static_cast<double>(all.compared), loosely.off, all.mean, all.worst);
             expect(eq(pass->last().textured, 1u));
             // The reference takes the screen's differences of the texture coordinate as a device does (within a
             // pixel's own two by two), so both take the same places along a pixel's strip: what is left is the
@@ -946,8 +967,9 @@ Cases suite_of() {
             static_cast<void>(device->wait_idle());
             device->destroy(*colour), device->destroy(*depth);
         };
-        held(false);
-        held(true);
+        held(Kind::repeated);
+        held(Kind::edged);
+        held(Kind::cornered);
     });
     // the surface's other pictures on the device are the reference's: roughness and metal, the normal (by the mesh's tangents and, on a mesh with none, worked out at the pixel), emission and shade from pictures
     add(suite, "mesh.surface", [](Rig& rig) {

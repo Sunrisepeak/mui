@@ -29,6 +29,8 @@ for (const auto& o : mlibs::rhi::cts::run(**device)) check(o.passed, o.name + ":
 | `depth_test` | the depth test (`less`): a quad drawn behind another is not drawn, one in front is, whatever the order |
 | `depth_kept` | depths a pass stores are loaded and tested by the next pass |
 | `multisample` | four samples a texel, resolved: a texel half inside an edge is half covered (128 ±1) — the standard 4× positions, the same on Vulkan, Metal and Direct3D 12; every backend must take 4 |
+| `levels` | six levels of a texture, each uploaded on its own: a pixel covering one, two, four, eight texels reads the first, second, third, fourth; between two, half of each |
+| `blocks` | pictures kept as blocks: for each kind the device says it samples (`Caps::bc7`, `etc2`, `astc`), a texture of 8 × 8 and three levels whose blocks are written bit by bit as the kind's own rules say (BC7's mode 6, ETC2's two halves with EAC's cover, ASTC's block of one colour — no packer is asked), sampled at each level: plain, byte for byte; as a display's colours, their light (±1); half a block uploaded is a wrong list. A kind the device says it has not is refused as `unsupported` (the outcome's note says which were drawn and which refused) |
 
 A failure names the first difference (`pixel (0, 0) is (255, 0, 0, 255); it should be (0, 0, 0, 255)`).
 

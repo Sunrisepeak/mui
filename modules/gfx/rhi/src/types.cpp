@@ -37,6 +37,12 @@ std::string_view name(Format format) noexcept {
         case Format::r32_uint: return "r32_uint";
         case Format::d32_float: return "d32_float";
         case Format::d32_float_s8: return "d32_float_s8";
+        case Format::bc7_unorm: return "bc7_unorm";
+        case Format::bc7_srgb: return "bc7_srgb";
+        case Format::etc2_rgba8_unorm: return "etc2_rgba8_unorm";
+        case Format::etc2_rgba8_srgb: return "etc2_rgba8_srgb";
+        case Format::astc_4x4_unorm: return "astc_4x4_unorm";
+        case Format::astc_4x4_srgb: return "astc_4x4_srgb";
     }
     return "?";
 }
@@ -56,8 +62,13 @@ std::uint32_t bytes_per_pixel(Format format) noexcept {
         case Format::d32_float_s8: return 8;
         case Format::r8_unorm: return 1;
         case Format::rgba16_float: return 8;
+        default: return 0;  // blocks
     }
-    return 0;
+}
+
+std::size_t row_bytes(Format format, std::uint32_t width) noexcept {
+    if (is_blocks(format)) return std::size_t{(width + block_side - 1) / block_side} * block_bytes;
+    return std::size_t{width} * bytes_per_pixel(format);
 }
 
 std::string_view name(Stage stage) noexcept {
@@ -99,6 +110,12 @@ std::string check(const TextureDesc& d, const Caps& caps) {
     if (d.samples > 1 && (!target || has(d.usage, TextureUsage::sampled) || has(d.usage, TextureUsage::storage_read) ||
                           has(d.usage, TextureUsage::compute_read) || has(d.usage, TextureUsage::compute_write)))
         return "a multisampled texture is only a render target (resolve it into one that is sampled)";
+    if (is_blocks(d.format)) {
+        if (d.usage != TextureUsage::sampled || d.samples != 1)
+            return std::format("a {} texture is uploaded and sampled; nothing else", name(d.format));
+        if (d.width % block_side || d.height % block_side)
+            return std::format("a {} texture of {}×{}: its sides are whole blocks ({} texels)", name(d.format), d.width, d.height, block_side);
+    }
     if (is_depth(d.format)) {
         if (!caps.depth) return std::format("this device has no {} depth targets", name(d.format));
         if (!has(d.usage, TextureUsage::depth_target)) return std::format("a {} texture is a depth target", name(d.format));

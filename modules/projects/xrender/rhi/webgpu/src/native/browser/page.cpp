@@ -51,9 +51,9 @@ std::uint32_t length(std::span<const std::byte> b) { return static_cast<std::uin
 }  // namespace
 
 std::expected<Adapter, std::string> device() {
-    std::array<std::uint32_t, 3> info{};
+    std::array<std::uint32_t, 4> info{};
     if (!omui_webgpu_device(info.data())) return std::unexpected(take(omui_webgpu_why()));
-    return Adapter{take(omui_webgpu_name()), info[0] != 0, info[1], info[2] != 0};
+    return Adapter{take(omui_webgpu_name()), info[0] != 0, info[1], info[2] != 0, (info[3] & 1u) != 0, (info[3] & 2u) != 0, (info[3] & 4u) != 0};
 }
 
 bool suspends() { return omui_webgpu_suspends() != 0; }

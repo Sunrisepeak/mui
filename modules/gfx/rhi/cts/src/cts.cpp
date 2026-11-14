@@ -633,13 +633,150 @@ void buffers(Bench& b) {
     if (!b.failed() && back != words) b.fail(std::format("read back {}; it should be {}", back, words));
 }
 
+// Pictures kept as blocks (Format::bc7_*, etc2_rgba8_*, astc_4x4_*; Caps::bc7, etc2, astc): a texture of 8 × 8
+// texels — four blocks — its second level of one block and its third of 2 × 2 texels (a block a level's edge
+// goes through), each block one colour, written here bit by bit as each kind's own rules say (no packer is asked), uploaded and
+// sampled; the `_srgb` coding is the same bytes read as a display's colours (their light, ±1). A kind the device
+// says it has not is refused as unsupported, which is what holds for it.
+struct Solid {
+    std::array<std::uint8_t, block_bytes> bytes{};
+    Rgba                                  shown{};  // what the block unpacks to: the nearest this kind says in one colour
+};
+// BC7's mode 6: one pair of ends, each part seven bits and a bit shared by the four parts; every texel the first end.
+Solid bc7_solid(Rgba wanted) {
+    Solid out;
+    std::uint32_t at = 0;
+    const auto put = [&](std::uint32_t value, std::uint32_t bits) {
+        for (std::uint32_t bit = 0; bit < bits; ++bit, ++at)
+            if ((value >> bit) & 1u) out.bytes[at / 8] |= static_cast<std::uint8_t>(1u << (at % 8));
+    };
+    put(1u << 6, 7);
+    for (int part = 0; part < 4; ++part) put(static_cast<std::uint32_t>(wanted[part]) >> 1, 7), put(static_cast<std::uint32_t>(wanted[part]) >> 1, 7);
+    put(1, 1), put(1, 1);
+    for (int part = 0; part < 4; ++part) out.shown[part] = wanted[part] | 1;
+    return out;
+}
+// ETC2 with EAC's cover: the cover 255 (its base, and a step up that stops there); the colour two halves of the
+// same four bits a part, each texel the first of the first table's steps (+2).
+Solid etc2_solid(Rgba wanted) {
+    Solid out;
+    out.bytes[0] = 255, out.bytes[1] = 0x10;
+    for (int byte = 2; byte < 8; ++byte) out.bytes[byte] = std::array<std::uint8_t, 3>{0x92, 0x49, 0x24}[(byte - 2) % 3];
+    for (int part = 0; part < 3; ++part) {
+        const int four = std::clamp((wanted[part] - 2 + 8) / 17, 0, 15);
+        out.bytes[8 + part] = static_cast<std::uint8_t>(four << 4 | four);
+        out.shown[part] = std::min(four * 17 + 2, 255);
+    }
+    out.shown[3] = 255;
+    return out;
+}
+// ASTC's block of one colour: its mark, then the four parts in sixteen bits each.
+Solid astc_solid(Rgba wanted) {
+    Solid out;
+    out.bytes = {0xFC, 0xFD, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+    for (int part = 0; part < 4; ++part) out.bytes[8 + 2 * part] = out.bytes[9 + 2 * part] = static_cast<std::uint8_t>(wanted[part]);
+    out.shown = wanted;
+    return out;
+}
+int light_of(int byte) {
+    const double coded = byte / 255.0;
+    const double light = coded <= 0.04045 ? coded / 12.92 : std::pow((coded + 0.055) / 1.055, 2.4);
+    return static_cast<int>(std::lround(light * 255.0));
+}
+
+void blocks(Bench& b) {
+    struct Kind {
+        std::string_view name;
+        Format           plain, colours;
+        bool             here;
+        Solid (*solid)(Rgba);
+    };
+    const Caps& caps = b.d.caps();
+    const std::array<Kind, 3> kinds{Kind{"bc7", Format::bc7_unorm, Format::bc7_srgb, caps.bc7, bc7_solid},
+                                    Kind{"etc2", Format::etc2_rgba8_unorm, Format::etc2_rgba8_srgb, caps.etc2, etc2_solid},
+                                    Kind{"astc", Format::astc_4x4_unorm, Format::astc_4x4_srgb, caps.astc, astc_solid}};
+    const std::uint32_t side = 8;
+    const std::array<Rgba, 6> wanted{Rgba{201, 101, 51, 255}, Rgba{51, 201, 101, 255}, Rgba{101, 51, 201, 255},
+                                     Rgba{255, 255, 255, 255}, Rgba{151, 151, 51, 255}, Rgba{51, 151, 201, 255}};
+    const Sampler one_level = b.must(b.d.create(SamplerDesc{Filter::nearest, Filter::nearest, AddressMode::clamp, AddressMode::clamp, Filter::nearest}), "a sampler taking the nearer level");
+    if (b.failed()) return;
+    b.release.push_back([&b, one_level] { b.d.destroy(one_level); });
+    std::string drawn, absent;
+    for (const Kind& kind : kinds) {
+        for (const Format format : {kind.plain, kind.colours}) {
+            auto made = b.d.create(TextureDesc{.format = format, .width = side, .height = side, .usage = TextureUsage::sampled, .label = "cts.blocks", .levels = 3});
+            if (!kind.here) {
+                if (made) {
+                    b.d.destroy(*made);
+                    b.fail(std::format("a {} texture was made on a device that says it samples none (Caps::{})", name(format), kind.name));
+                } else if (made.error().code != Errc::unsupported) {
+                    b.fail(std::format("a {} texture is refused as {}, not rhi.unsupported", name(format), made.error().text()));
+                }
+                if (b.failed()) return;
+                continue;
+            }
+            const Texture image = b.must(std::move(made), std::format("a {} texture of 8×8 and three levels", name(format)));
+            if (b.failed()) return;
+            b.release.push_back([&b, image] { b.d.destroy(image); });
+            std::array<Solid, 6> solid;
+            for (std::size_t which = 0; which < solid.size(); ++which) solid[which] = kind.solid(wanted[which]);
+            std::vector<std::uint8_t> first, second(solid[4].bytes.begin(), solid[4].bytes.end()), third(solid[5].bytes.begin(), solid[5].bytes.end());
+            for (std::size_t which = 0; which < 4; ++which) first.insert(first.end(), solid[which].bytes.begin(), solid[which].bytes.end());
+            CommandList up;
+            up.upload(image, Region{0, 0, side, side}, std::as_bytes(std::span(first)));
+            up.upload(image, Region{0, 0, side / 2, side / 2}, std::as_bytes(std::span(second)), 0, 1);
+            up.upload(image, Region{0, 0, side / 4, side / 4}, std::as_bytes(std::span(third)), 0, 2);
+            b.submit(up);
+            if (b.failed()) return;
+            const bool colours = format == kind.colours;
+            const auto shown = [&](std::size_t which) {
+                Rgba out = solid[which].shown;
+                if (colours)
+                    for (int part = 0; part < 3; ++part) out[part] = light_of(out[part]);
+                return out;
+            };
+            // A texel a pixel (the whole picture over the whole target), then two (the second level) and four (the third).
+            for (const float texels : {1.0f, 2.0f, 4.0f}) {
+                const float across = texels * static_cast<float>(W) / static_cast<float>(side), down = texels * static_cast<float>(H) / static_cast<float>(side);
+                const std::array<T, 6> corners{T{-1, 1, 0, 0}, T{1, 1, across, 0}, T{-1, -1, 0, down}, T{1, 1, across, 0}, T{1, -1, across, down}, T{-1, -1, 0, down}};
+                const Buffer vb = b.vertices(corners);
+                b.pass(LoadOp::clear, black, [&](CommandList& l) {
+                    l.set_pipeline(b.textured);
+                    l.bind_vertex_buffer(0, vb);
+                    l.bind_texture(Stage::fragment, 0, image, one_level);
+                    l.push_uniforms(Stage::fragment, 0, unit(white));
+                    l.draw(6);
+                });
+                if (b.failed()) return;
+                if (texels < 1.5f)
+                    expect(b, b.pixels(), W, [&](auto x, auto y) { return shown((y < 4 ? 0u : 2u) + (x < 4 ? 0u : 1u)); }, colours ? 1 : 0);
+                else
+                    expect(b, b.pixels(), W, [&](auto, auto) { return shown(texels < 3 ? 4 : 5); }, colours ? 1 : 0);
+                if (b.failed()) {
+                    b.failure = std::format("{}: {}", name(format), b.failure);
+                    return;
+                }
+            }
+            // A region that is not whole blocks is a wrong list.
+            CommandList part;
+            part.upload(image, Region{0, 0, 2, 4}, std::as_bytes(std::span(second)));  // at the first level 2 × 4 is half a block
+            if (auto refused = b.d.submit(part); refused || refused.error().code != Errc::invalid) {
+                b.fail(std::format("{}: an upload of half a block is {}, not rhi.invalid", name(format), refused ? std::string("taken") : refused.error().text()));
+                return;
+            }
+        }
+        (kind.here ? drawn : absent) += std::format("{}{}", (kind.here ? drawn : absent).empty() ? "" : ", ", kind.name);
+    }
+    b.note = std::format("blocks sampled: {}; refused as unsupported: {}", drawn.empty() ? "none" : drawn, absent.empty() ? "none" : absent);
+}
+
 struct Case {
     std::string_view          name;
     void (*run)(Bench&);
     mlibs::cts::Level         level = mlibs::cts::Level::exact;
 };
 constexpr auto within = mlibs::cts::Level::tolerance;  // blending and resolving round: ±1
-constexpr std::array<Case, 22> all{{
+constexpr std::array<Case, 23> all{{
     {"clear", clear},
     {"orientation", orientation},
     {"instancing", instancing},
@@ -662,6 +799,7 @@ constexpr std::array<Case, 22> all{{
     {"multisample", multisample, within},
     {"several_targets", several_targets, within},
     {"levels", levels, within},
+    {"blocks", blocks, within},
 }};
 
 }  // namespace

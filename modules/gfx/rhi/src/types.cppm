@@ -86,6 +86,7 @@ struct ShaderFormats {
     return s;
 }
 
+enum class Format : std::uint8_t;
 struct Caps {
     Backend       backend = Backend::vulkan;
     std::string   device;                 // what the backend calls the adapter
@@ -104,6 +105,13 @@ struct Caps {
     // as the first does, and a pipeline that asks otherwise is refused as unsupported (WebGL2 without
     // OES_draw_buffers_indexed).
     bool independent_blend = true;
+    // Which pictures kept as blocks it samples (`is_blocks`): BC7 (desktop devices), ETC2 with EAC's cover and
+    // ASTC's 4 × 4 (phones; a software device often all three). A picture packed once (KTX2, mlibs.image.ktx2)
+    // is unpacked to whichever is here, and to rgba8_unorm where none is.
+    bool bc7 = false;
+    bool etc2 = false;
+    bool astc = false;
+    [[nodiscard]] constexpr bool samples_blocks(Format format) const noexcept;
 };
 
 // The most colour targets of a pass on any device: the first, and this many more.
@@ -132,11 +140,45 @@ enum class Format : std::uint8_t {
     r32_uint,       // object ids (pixel provenance)
     d32_float,      // depth
     d32_float_s8,   // depth and an 8-bit stencil
+    // Pictures kept as blocks: 4 × 4 texels of four parts in 16 bytes (a byte a texel), unpacked by the device
+    // as it samples. `_srgb`: the bytes are colours as a display shows them, and a sample is their light (the
+    // curve taken off each texel before any are mixed). Uploaded and sampled, nothing else (`Caps::bc7`,
+    // `etc2`, `astc`); its sides are whole blocks (WebGPU's and Direct3D's rule: a picture of another size is
+    // uploaded unpacked), its smaller levels whatever halving gives.
+    bc7_unorm,
+    bc7_srgb,
+    etc2_rgba8_unorm,
+    etc2_rgba8_srgb,
+    astc_4x4_unorm,
+    astc_4x4_srgb,
 };
-inline constexpr std::size_t format_count = 8;
+inline constexpr std::size_t format_count = 14;
+// A side of a block in texels, and a block's bytes.
+inline constexpr std::uint32_t block_side = 4;
+inline constexpr std::uint32_t block_bytes = 16;
+[[nodiscard]] constexpr bool is_blocks(Format format) noexcept { return format >= Format::bc7_unorm && format <= Format::astc_4x4_srgb; }
 [[nodiscard]] constexpr bool is_depth(Format format) noexcept { return format == Format::d32_float || format == Format::d32_float_s8; }
 [[nodiscard]] std::string_view name(Format format) noexcept;
+// A texel's bytes; 0 for a format of blocks (`row_bytes`, `rows_of`).
 [[nodiscard]] std::uint32_t bytes_per_pixel(Format format) noexcept;
+// What an upload of a region holds: `rows_of(format, height)` rows, each of `row_bytes(format, width)` bytes —
+// a row of texels, or of blocks (a region of blocks is whole blocks: a width or a height that is not a
+// multiple of four is the last block's, at a level's edge).
+[[nodiscard]] constexpr std::uint32_t rows_of(Format format, std::uint32_t height) noexcept {
+    return is_blocks(format) ? (height + block_side - 1) / block_side : height;
+}
+[[nodiscard]] std::size_t row_bytes(Format format, std::uint32_t width) noexcept;
+constexpr bool Caps::samples_blocks(Format format) const noexcept {
+    switch (format) {
+        case Format::bc7_unorm:
+        case Format::bc7_srgb: return bc7;
+        case Format::etc2_rgba8_unorm:
+        case Format::etc2_rgba8_srgb: return etc2;
+        case Format::astc_4x4_unorm:
+        case Format::astc_4x4_srgb: return astc;
+        default: return false;
+    }
+}
 
 // Usage flags: what a resource will be used for, declared up front.
 enum class TextureUsage : std::uint8_t {

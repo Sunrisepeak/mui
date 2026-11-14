@@ -36,6 +36,15 @@ addToLibrary({
       ['R32UI', 'RED_INTEGER', 'UNSIGNED_INT', 4, 'uint', false],
       ['DEPTH_COMPONENT32F', 'DEPTH_COMPONENT', 'FLOAT', 4, 'depth', false],
       ['DEPTH32F_STENCIL8', 'DEPTH_STENCIL', 'FLOAT_32_UNSIGNED_INT_24_8_REV', 8, 'depth', false],
+      // Pictures kept as blocks (4 × 4 texels in 16 bytes), by their extensions' numbers: BPTC's BC7
+      // (EXT_texture_compression_bptc), ETC2 with EAC's cover (WEBGL_compressed_texture_etc), ASTC's 4 × 4
+      // (WEBGL_compressed_texture_astc) — each plain and as a display's colours.
+      [0x8E8C, null, null, 0, 'blocks', false],
+      [0x8E8D, null, null, 0, 'blocks', false],
+      [0x9278, null, null, 0, 'blocks', false],
+      [0x9279, null, null, 0, 'blocks', false],
+      [0x93B0, null, null, 0, 'blocks', false],
+      [0x93D0, null, null, 0, 'blocks', false],
     ],
     // rhi's VertexFormat: components, type, normalised, integer.
     VERTEX_FORMATS: [[1, 'FLOAT', false, false], [2, 'FLOAT', false, false], [3, 'FLOAT', false, false], [4, 'FLOAT', false, false],
@@ -114,6 +123,8 @@ addToLibrary({
       // Each draw buffer blending its own way: without it they all blend as the first.
       G.indexed = gl.getExtension('OES_draw_buffers_indexed');
       gl.getExtension('OES_texture_float_linear');
+      var bptc = gl.getExtension('EXT_texture_compression_bptc'), etc = gl.getExtension('WEBGL_compressed_texture_etc');
+      var astc = gl.getExtension('WEBGL_compressed_texture_astc');
       var debug = gl.getExtension('WEBGL_debug_renderer_info');
       var name = (debug && gl.getParameter(debug.UNMASKED_RENDERER_WEBGL)) || gl.getParameter(gl.RENDERER) || 'WebGL2';
       G.info = {
@@ -125,6 +136,7 @@ addToLibrary({
         halfFloat: halfFloat,
         drawBuffers: gl.getParameter(gl.MAX_DRAW_BUFFERS) || 1,
         indexedBlend: !!G.indexed,
+        blocks: (bptc ? 1 : 0) | (etc ? 2 : 0) | (astc ? 4 : 0),
       };
       G.uboAlign = gl.getParameter(gl.UNIFORM_BUFFER_OFFSET_ALIGNMENT) || 256;
       G.blockSlack = gl.getParameter(gl.MAX_UNIFORM_BLOCK_SIZE) || 16384;
@@ -508,8 +520,20 @@ addToLibrary({
     // Rows of a region from the program's memory, `pitch` bytes apart (0: tight).
     upload: function (t, x, y, width, height, at, pitch, level) {
       var G = omuiGl, gl = G.gl, f = t.f, bpp = f[3], row = width * bpp;
-      pitch = pitch || row;
       gl.bindTexture(gl.TEXTURE_2D, t.texture);
+      if (f[4] === 'blocks') {
+        // Rows of blocks, packed tight for the call.
+        var across = ((width + 3) >> 2) * 16, rows = (height + 3) >> 2, blocks;
+        pitch = pitch || across;
+        if (pitch === across) blocks = HEAPU8.subarray(at, at + across * rows);
+        else {
+          blocks = new Uint8Array(across * rows);
+          for (var br = 0; br < rows; ++br) blocks.set(HEAPU8.subarray(at + br * pitch, at + br * pitch + across), br * across);
+        }
+        gl.compressedTexSubImage2D(gl.TEXTURE_2D, level || 0, x, y, width, height, f[0], blocks);
+        return;
+      }
+      pitch = pitch || row;
       var data, offset = 0;
       if (f[5] || pitch % bpp || at % Math.min(bpp, 4)) {
         // bgra8's bytes swapped, an odd pitch, data a typed array cannot start at: copied tight.
@@ -601,6 +625,7 @@ addToLibrary({
     HEAPU32[(out >> 2) + 4] = G.info.halfFloat ? 1 : 0;
     HEAPU32[(out >> 2) + 5] = G.info.drawBuffers;
     HEAPU32[(out >> 2) + 6] = G.info.indexedBlend ? 1 : 0;
+    HEAPU32[(out >> 2) + 7] = G.info.blocks;
     return 1;
   },
 
@@ -642,7 +667,7 @@ addToLibrary({
       } else {
         t.texture = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, t.texture);
-        gl.texStorage2D(gl.TEXTURE_2D, levels, gl[f[0]], width, height);
+        gl.texStorage2D(gl.TEXTURE_2D, levels, f[4] === 'blocks' ? f[0] : gl[f[0]], width, height);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
       }

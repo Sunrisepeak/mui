@@ -23,8 +23,14 @@ addToLibrary({
   $omuiGpu__postset: 'omuiGpu.start();',
   $omuiGpu: {
     // rhi's enumerations, in their order (tests/js checks them against the C++).
-    FORMATS: ['rgba8unorm', 'bgra8unorm', 'r8unorm', 'rgba16float', 'r32float', 'r32uint', 'depth32float', 'depth32float-stencil8'],
+    FORMATS: ['rgba8unorm', 'bgra8unorm', 'r8unorm', 'rgba16float', 'r32float', 'r32uint', 'depth32float', 'depth32float-stencil8',
+              'bc7-rgba-unorm', 'bc7-rgba-unorm-srgb', 'etc2-rgba8unorm', 'etc2-rgba8unorm-srgb', 'astc-4x4-unorm', 'astc-4x4-unorm-srgb'],
     BYTES: [4, 4, 1, 8, 4, 4, 4, 8],
+    // A format of blocks (rhi's is_blocks): 4 × 4 texels in 16 bytes. An upload's rows are rows of blocks, and
+    // what is copied is whole blocks (a level's last block goes past its edge: WebGPU counts it whole).
+    BLOCKS: 8,
+    rowBytes: function (format, width) { return format >= omuiGpu.BLOCKS ? ((width + 3) >> 2) * 16 : width * omuiGpu.BYTES[format]; },
+    rowsOf: function (format, height) { return format >= omuiGpu.BLOCKS ? (height + 3) >> 2 : height; },
     VERTEX_FORMATS: ['float32', 'float32x2', 'float32x3', 'float32x4', 'unorm8x4', 'uint32'],
     BLEND_FACTORS: ['zero', 'one', 'src', 'one-minus-src', 'dst', 'one-minus-dst', 'src-alpha', 'one-minus-src-alpha', 'dst-alpha', 'one-minus-dst-alpha'],
     BLEND_OPS: ['add', 'subtract', 'reverse-subtract', 'min', 'max'],
@@ -94,6 +100,10 @@ addToLibrary({
         // feature. Without it such a texture can be loaded and not sampled, and binding one where a shader
         // samples is the page's validation error.
         if (adapter.features.has('float32-filterable')) features.push('float32-filterable');
+        // Pictures kept as blocks, whichever kinds the adapter samples (Caps::bc7, etc2, astc).
+        ['texture-compression-bc', 'texture-compression-etc2', 'texture-compression-astc'].forEach(function (kind) {
+          if (adapter.features.has(kind)) features.push(kind);
+        });
         var limits = { maxTextureDimension2D: adapter.limits.maxTextureDimension2D };
         return adapter.requestDevice({ requiredFeatures: features, requiredLimits: limits }).then(function (device) {
           G.adapter = adapter;
@@ -107,6 +117,9 @@ addToLibrary({
             maxTexture: device.limits.maxTextureDimension2D,
             depthStencil: device.features.has('depth32float-stencil8'),
             float32Filterable: device.features.has('float32-filterable'),
+            bc7: device.features.has('texture-compression-bc'),
+            etc2: device.features.has('texture-compression-etc2'),
+            astc: device.features.has('texture-compression-astc'),
           };
           device.addEventListener('uncapturederror', function (e) { G.errors.push(e.error && e.error.message || String(e)); });
           device.lost.then(function (l) { G.lost = l.message || l.reason || 'the device was lost'; });
@@ -321,7 +334,7 @@ addToLibrary({
         if (op === O.upload_buffer) staged += G.align(w[i + 5], 4);
         else if (op === O.upload_texture) {
           var t = G.textures[w[i + 1]];
-          staged = G.align(staged, 256) + G.align(w[i + 4] * G.BYTES[t.formatIndex], 256) * w[i + 5];
+          staged = G.align(staged, 256) + G.align(G.rowBytes(t.formatIndex, w[i + 4]), 256) * G.rowsOf(t.formatIndex, w[i + 5]);
         } else if (op === O.push_uniforms) pushed += G.align(w[i + 5], 256);
       }
       var stagingBytes = staged ? G.bytes('stagingBytes', staged) : null;
@@ -391,13 +404,14 @@ addToLibrary({
           }
           case O.upload_texture: {
             var tex = G.textures[w[k]], x = w[k + 1], y = w[k + 2], width = w[k + 3], height = w[k + 4];
-            var row = width * G.BYTES[tex.formatIndex], pitch = G.align(row, 256), from = w[k + 8] || row;
+            var row = G.rowBytes(tex.formatIndex, width), rows = G.rowsOf(tex.formatIndex, height), pitch = G.align(row, 256), from = w[k + 8] || row;
             var data = HEAPU8.subarray(w[k + 5], w[k + 5] + w[k + 7]);
             at = G.align(at, 256);
-            for (var r = 0; r < height; ++r) stagingBytes.set(data.subarray(r * from, r * from + row), at + r * pitch);
-            encoder.copyBufferToTexture({ buffer: G.staging, offset: at, bytesPerRow: pitch, rowsPerImage: height },
+            for (var r = 0; r < rows; ++r) stagingBytes.set(data.subarray(r * from, r * from + row), at + r * pitch);
+            if (tex.formatIndex >= G.BLOCKS) width = (width + 3) & ~3, height = (height + 3) & ~3;
+            encoder.copyBufferToTexture({ buffer: G.staging, offset: at, bytesPerRow: pitch, rowsPerImage: rows },
                                         { texture: tex.texture, mipLevel: len > 9 ? w[k + 9] : 0, origin: { x: x, y: y } }, { width: width, height: height });
-            at += pitch * height;
+            at += pitch * rows;
             break;
           }
           case O.copy_texture:
@@ -569,8 +583,8 @@ addToLibrary({
     },
   },
 
-  // 1 and the adapter's [software, largest texture, depth32float-stencil8]
-  // in `out` (3 words), or 0: no device (omui_webgpu_why says why).
+  // 1 and the adapter's [software, largest texture, depth32float-stencil8, the kinds of blocks it samples
+  // (bit 0 BC7, bit 1 ETC2, bit 2 ASTC)] in `out` (4 words), or 0: no device (omui_webgpu_why says why).
   omui_webgpu_device__deps: ['$omuiGpu'],
   omui_webgpu_device: function (out) {
     var G = omuiGpu;
@@ -578,6 +592,7 @@ addToLibrary({
     HEAPU32[out >> 2] = G.info.software ? 1 : 0;
     HEAPU32[(out >> 2) + 1] = G.info.maxTexture;
     HEAPU32[(out >> 2) + 2] = G.info.depthStencil ? 1 : 0;
+    HEAPU32[(out >> 2) + 3] = (G.info.bc7 ? 1 : 0) | (G.info.etc2 ? 2 : 0) | (G.info.astc ? 4 : 0);
     return 1;
   },
 

@@ -13,6 +13,7 @@ struct Adapter {
     bool          software = false;
     std::uint32_t max_texture = 8192;
     bool          depth_stencil = false;  // depth32float-stencil8
+    bool          bc7 = false, etc2 = false, astc = false;  // texture-compression-bc, -etc2, -astc
 };
 
 // The device the page made as the program loaded, or why there is none.

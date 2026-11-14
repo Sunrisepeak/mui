@@ -396,6 +396,52 @@ UTest cases{"rhi", [] {
         sc.d.caps_.independent_blend = true;
     };
 
+    "pictures kept as blocks: made where the device samples the kind, whole blocks uploaded, nothing else"_test = [] {
+        Recorder d;
+        using U = TextureUsage;
+        expect(is_blocks(Format::bc7_unorm) && is_blocks(Format::astc_4x4_srgb) && !is_blocks(Format::rgba8_unorm) && !is_blocks(Format::d32_float_s8));
+        expect(eq(row_bytes(Format::bc7_unorm, 8), std::size_t{32}) && eq(row_bytes(Format::etc2_rgba8_srgb, 2), std::size_t{16}) && eq(row_bytes(Format::rgba16_float, 3), std::size_t{24}));
+        expect(eq(rows_of(Format::astc_4x4_unorm, 8), 2u) && eq(rows_of(Format::astc_4x4_unorm, 1), 1u) && eq(rows_of(Format::r8_unorm, 5), 5u));
+        expect(eq(name(Format::bc7_srgb), std::string_view("bc7_srgb")) && eq(name(Format::etc2_rgba8_unorm), std::string_view("etc2_rgba8_unorm")));
+        // A device that says nothing samples none: refused as unsupported, by name.
+        const auto none = d.create(TextureDesc{.format = Format::bc7_unorm, .width = 8, .height = 8});
+        expect(fatal(!none.has_value()));
+        expect(none.error().code == Errc::unsupported && eq(none.error().message, std::string("recorder samples no bc7_unorm blocks")));
+        d.caps_.bc7 = true;
+        const auto other = d.create(TextureDesc{.format = Format::astc_4x4_srgb, .width = 8, .height = 8});
+        expect(!other && other.error().code == Errc::unsupported);
+        const auto said = [&](const TextureDesc& desc) {
+            const auto made = d.create(desc);
+            return made ? std::string("made") : made.error().message;
+        };
+        expect(eq(said({.format = Format::bc7_srgb, .width = 8, .height = 8, .usage = U::sampled | U::color_target}), std::string("a bc7_srgb texture is uploaded and sampled; nothing else")));
+        expect(eq(said({.format = Format::bc7_srgb, .width = 6, .height = 8}), std::string("a bc7_srgb texture of 6×8: its sides are whole blocks (4 texels)")));
+        const auto made = d.create(TextureDesc{.format = Format::bc7_srgb, .width = 8, .height = 8, .levels = 4});
+        expect(fatal(made.has_value()));
+        const std::array<std::byte, 64> packed{};
+        const auto refused = [&](auto&& record) {
+            CommandList list;
+            record(list);
+            const auto submitted = d.submit(list);
+            return submitted ? std::string("taken") : submitted.error().message;
+        };
+        expect(eq(refused([&](CommandList& list) { list.upload(*made, Region{0, 0, 8, 8}, std::span(packed)); }), std::string("taken")));
+        expect(eq(refused([&](CommandList& list) { list.upload(*made, Region{4, 0, 4, 8}, std::span(packed).first(32)); }), std::string("taken")));
+        // The third level is 2 × 2: one block, the level's edge through it.
+        expect(eq(refused([&](CommandList& list) { list.upload(*made, Region{0, 0, 2, 2}, std::span(packed).first(16), 0, 2); }), std::string("taken")));
+        expect(eq(refused([&](CommandList& list) { list.upload(*made, Region{0, 0, 8, 8}, std::span(packed).first(48)); }),
+                  std::string("command 0 (upload_texture): 48 bytes for a region that needs 64")));
+        expect(eq(refused([&](CommandList& list) { list.upload(*made, Region{2, 0, 4, 4}, std::span(packed).first(16)); }),
+                  std::string("command 0 (upload_texture): the region 2+0 4×4 of a bc7_srgb texture is not whole blocks (4 texels a side, the last at the level's edge)")));
+        expect(eq(refused([&](CommandList& list) { list.upload(*made, Region{0, 0, 2, 4}, std::span(packed).first(16)); }),
+                  std::string("command 0 (upload_texture): the region 0+0 2×4 of a bc7_srgb texture is not whole blocks (4 texels a side, the last at the level's edge)")));
+        const Texture one = *d.create(TextureDesc{.format = Format::bc7_srgb, .width = 8, .height = 8});
+        const Texture another = *d.create(TextureDesc{.format = Format::bc7_srgb, .width = 8, .height = 8});
+        expect(eq(refused([&](CommandList& list) { list.copy(one, Region{0, 0, 8, 8}, another); }), std::string("command 0 (copy_texture): a bc7_srgb texture is not copied")));
+        const auto read = d.read(one, Region{0, 0, 8, 8});
+        expect(!read && eq(read.error().message, std::string("read: a bc7_srgb texture is not read back")));
+    };
+
     "levels of a texture: as many as its size has, uploaded a level at a time and sampled, nothing else"_test = [] {
         Recorder d;
         using U = TextureUsage;

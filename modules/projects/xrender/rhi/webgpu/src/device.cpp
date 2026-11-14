@@ -225,6 +225,7 @@ Result<std::unique_ptr<Device>> create(const Options& options) {
     caps.max_texture_size = adapter->max_texture;
     caps.max_samples = 4;  // WebGPU's one count beside 1
     caps.depth = adapter->depth_stencil;
+    caps.bc7 = adapter->bc7, caps.etc2 = adapter->etc2, caps.astc = adapter->astc;
     // Every WebGPU has eight colour attachments a pass and 32 bytes a sample of them: rhi's four of any of its formats fit.
     caps.max_color_targets = max_color_targets;
     return std::unique_ptr<Device>(std::make_unique<WebGpuDevice>(std::move(caps), !options.canvas.empty()));

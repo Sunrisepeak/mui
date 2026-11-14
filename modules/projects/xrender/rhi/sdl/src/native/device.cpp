@@ -72,6 +72,12 @@ SDL_GPUTextureFormat texture_format(Format f) {
         case Format::r32_uint: return SDL_GPU_TEXTUREFORMAT_R32_UINT;
         case Format::d32_float: return SDL_GPU_TEXTUREFORMAT_D32_FLOAT;
         case Format::d32_float_s8: return SDL_GPU_TEXTUREFORMAT_D32_FLOAT_S8_UINT;
+        case Format::bc7_unorm: return SDL_GPU_TEXTUREFORMAT_BC7_RGBA_UNORM;
+        case Format::bc7_srgb: return SDL_GPU_TEXTUREFORMAT_BC7_RGBA_UNORM_SRGB;
+        case Format::astc_4x4_unorm: return SDL_GPU_TEXTUREFORMAT_ASTC_4x4_UNORM;
+        case Format::astc_4x4_srgb: return SDL_GPU_TEXTUREFORMAT_ASTC_4x4_UNORM_SRGB;
+        case Format::etc2_rgba8_unorm:
+        case Format::etc2_rgba8_srgb: break;  // SDL_GPU names no ETC2 format (Caps::etc2 is false)
     }
     return SDL_GPU_TEXTUREFORMAT_INVALID;
 }
@@ -597,8 +603,10 @@ Result<Submission> SdlDevice::run(const CommandList& list) {
     for (const Command& c : commands) {
         std::uint32_t size = 0;
         if (const auto* u = std::get_if<cmd::UploadBuffer>(&c)) size = static_cast<std::uint32_t>(u->data.size());
-        if (const auto* u = std::get_if<cmd::UploadTexture>(&c))
-            size = u->region.width * u->region.height * bytes_per_pixel(textures_.get(u->texture)->desc.format);
+        if (const auto* u = std::get_if<cmd::UploadTexture>(&c)) {
+            const Format format = textures_.get(u->texture)->desc.format;
+            size = static_cast<std::uint32_t>(row_bytes(format, u->region.width) * rows_of(format, u->region.height));
+        }
         if (size) {
             total = align_up(total, staging_alignment);
             staged_.push_back(total);
@@ -619,9 +627,10 @@ Result<Submission> SdlDevice::run(const CommandList& list) {
                 std::memcpy(mapped + staged_[n++], u->data.data(), u->data.size());
             } else if (const auto* t = std::get_if<cmd::UploadTexture>(&c)) {
                 // Rows packed tightly, whatever their pitch in the list.
-                const std::size_t row = std::size_t{t->region.width} * bytes_per_pixel(textures_.get(t->texture)->desc.format);
+                const Format format = textures_.get(t->texture)->desc.format;
+                const std::size_t row = row_bytes(format, t->region.width);
                 const std::size_t pitch = t->row_bytes ? t->row_bytes : row;
-                for (std::uint32_t y = 0; y < t->region.height; ++y)
+                for (std::uint32_t y = 0; y < rows_of(format, t->region.height); ++y)
                     std::memcpy(mapped + staged_[n] + y * row, t->data.data() + y * pitch, row);
                 ++n;
             }
@@ -876,6 +885,14 @@ Result<std::unique_ptr<Device>> create(const Options& options) {
                                               SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET) &&
                  SDL_GPUTextureSupportsFormat(device, SDL_GPU_TEXTUREFORMAT_D32_FLOAT_S8_UINT, SDL_GPU_TEXTURETYPE_2D,
                                               SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET);
+    // Blocks: both of a kind's codings, sampled.
+    const auto sampled = [device](SDL_GPUTextureFormat plain, SDL_GPUTextureFormat colours) {
+        return SDL_GPUTextureSupportsFormat(device, plain, SDL_GPU_TEXTURETYPE_2D, SDL_GPU_TEXTUREUSAGE_SAMPLER) &&
+               SDL_GPUTextureSupportsFormat(device, colours, SDL_GPU_TEXTURETYPE_2D, SDL_GPU_TEXTUREUSAGE_SAMPLER);
+    };
+    caps.bc7 = sampled(SDL_GPU_TEXTUREFORMAT_BC7_RGBA_UNORM, SDL_GPU_TEXTUREFORMAT_BC7_RGBA_UNORM_SRGB);
+    caps.astc = sampled(SDL_GPU_TEXTUREFORMAT_ASTC_4x4_UNORM, SDL_GPU_TEXTUREFORMAT_ASTC_4x4_UNORM_SRGB);
+    caps.etc2 = false;  // SDL_GPU names no ETC2 format
     auto made = std::make_unique<SdlDevice>(device, std::move(caps));
     if (options.window != 0) {
         SDL_Window* window = SDL_GetWindowFromID(static_cast<SDL_WindowID>(options.window));

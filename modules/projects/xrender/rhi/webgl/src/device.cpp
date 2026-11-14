@@ -194,6 +194,7 @@ Result<std::unique_ptr<Device>> create(const Options& options) {
     caps.depth = true;  // DEPTH_COMPONENT32F and DEPTH32F_STENCIL8 are WebGL2's own
     caps.max_color_targets = std::clamp(context->draw_buffers, 1u, max_color_targets);  // WebGL2 has four at the least
     caps.independent_blend = context->indexed_blend;
+    caps.bc7 = context->bc7, caps.etc2 = context->etc2, caps.astc = context->astc;
     return std::unique_ptr<Device>(std::make_unique<WebGlDevice>(std::move(caps), std::move(*context), !options.canvas.empty()));
 }
 

@@ -17,6 +17,7 @@ struct Context {
     bool          color_half_float = false;  // or at least half-float ones
     std::uint32_t draw_buffers = 1;          // MAX_DRAW_BUFFERS: the colour targets of a framebuffer
     bool          indexed_blend = false;     // OES_draw_buffers_indexed: each blending its own way
+    bool          bc7 = false, etc2 = false, astc = false;  // EXT_texture_compression_bptc, WEBGL_compressed_texture_etc, _astc
 };
 
 // A context on the canvas `selector` names ("": one nobody sees), or why

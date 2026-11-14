@@ -1,0 +1,34 @@
+# xengine.particles — things that fly in 3D (the foundation plan's §6.4, D-166: particles are one of matter's
+# four carriers): sparks, embers, drops, grit. Each flies under gravity and drag, meets the world's triangles and
+# bounces off them by its material's restitution and friction, and carries its material's state — the same laws
+# as a lattice's cells or a body, its neighbours those near it and the air about it. Deterministic: two clouds of
+# the same spawns are the same bits, and a copy is a branch.
+[package]
+namespace   = "xengine"
+name        = "particles"
+version     = "0.1.0"
+description = "Particles in 3D as a carrier of matter: they fly, meet the world's triangles, and take part in the same laws — the same bits every run"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "module"
+agent = { library = "a carrier: its owner's subject reaches it (emit, step, read, branch by copying); fingerprint() for agreement" }
+
+[targets.xengine-particles]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-fno-fast-math", "-ffp-contract=off"]
+
+[dependencies]
+xengine.matter = { path = "../matter", default-features = false }
+mlibs.math     = { path = "../../../../base/math" }
+mlibs.geom     = { path = "../../../../base/geom" }
+mlibs.utils    = { path = "../../../../base/utils" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+xengine.matter = { path = "../matter" }  # with its default features: the standard definition (json)

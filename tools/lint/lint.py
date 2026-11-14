@@ -114,6 +114,7 @@ PATH_LAYERS: dict[str, str] = {
     "modules/projects/xengine/kernel/audio": "media",
     "modules/projects/xengine/kernel/video": "media",
     "modules/projects/xengine/kernel/matter": "base",  # materials, their states and laws (D-165)
+    "modules/projects/xengine/kernel/particles": "base",  # things that fly in 3D, a carrier of matter (D-166)
     "modules/projects/xengine/kernel/matter/lab": "gfx",  # the material lab: the lattice's presenter and the renderer's frame
     "modules/projects/xengine/game": "game",  # above the interface: world, input, net, ui (the bridge), runtime
     "modules/projects/gongfu": "gongfu",
@@ -177,6 +178,7 @@ PROJECT_PATHS: dict[str, str] = {
     "modules/projects/xengine/kernel/dynamics": "xengine.sim",
     "modules/projects/xengine/kernel/cellular": "xengine.sim",
     "modules/projects/xengine/kernel/matter": "xengine.sim",
+    "modules/projects/xengine/kernel/particles": "xengine.sim",
     "modules/projects/hanim": "hanim",
     "modules/projects/xengine/kernel/audio": "xengine.media",
     "modules/projects/xengine/kernel/video": "xengine.media",
@@ -203,7 +205,7 @@ PROJECT_DEPS: dict[str, set[str]] = {
 OMUI_BRIDGE = "modules/projects/xengine/game/ui"
 
 # Members whose results are part of A-level conformance (identical bits).
-DETERMINISTIC = ["modules/base/math", "modules/base/utils", "modules/projects/omui/native/fuzzy", "modules/projects/xengine/kernel/audio", "modules/projects/xengine/kernel/video", "modules/projects/xengine/kernel/dynamics", "showcase/widget-breakout/sim", "modules/projects/hanim/core", "modules/projects/hanim", "modules/projects/xrender/raster", "modules/content/layout", "modules/base/geom", "modules/projects/xrender/graph", "modules/projects/xrender/vector", "modules/projects/xrender/text", "modules/content/text",
+DETERMINISTIC = ["modules/base/math", "modules/base/utils", "modules/projects/omui/native/fuzzy", "modules/projects/xengine/kernel/audio", "modules/projects/xengine/kernel/video", "modules/projects/xengine/kernel/dynamics", "modules/projects/xengine/kernel/particles", "showcase/widget-breakout/sim", "modules/projects/hanim/core", "modules/projects/hanim", "modules/projects/xrender/raster", "modules/content/layout", "modules/base/geom", "modules/projects/xrender/graph", "modules/projects/xrender/vector", "modules/projects/xrender/text", "modules/content/text",
                  "modules/content/i18n", "modules/projects/omui/view", "showcase/promo-video"]
 
 # The forwarders M1 removed (D-106): the old module names and the omui::

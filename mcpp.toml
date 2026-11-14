@@ -162,6 +162,7 @@ members = [
     "showcase/widget-breakout/headless",
     "showcase/kiln/sim",
     "showcase/kiln/headless",
+    "showcase/kiln/play",
     "showcase/kiln/picture",
     "showcase/kiln/sound",
     "site",

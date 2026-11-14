@@ -140,4 +140,20 @@ private:
     std::shared_ptr<std::string> last_;  // the latest data record of this conversation, as it was sent
 };
 
+// A conversation over lines (a pipe, a file, a terminal): each line of `in` a request, each record of its
+// answer a line of `out`. What it answers: whether every request was done, and how many were sent.
+//
+// `kept` names a file holding the conversation so far: its requests are sent again first, in order, their
+// answers not written; then the new ones are answered and added to it. A subject that is a function of what
+// it was asked — a game stepped by the agent that plays it, the same requests the same bits — is thus the same
+// subject in the next process: the file is the game, and a copy of it is a branch. A subject with a store of its
+// own (a lab's directory) needs none. Fails, saying why, when the file cannot be read or written; a request
+// is added to it before it is answered, so what the file holds is what the subject was asked.
+struct Conversed {
+    bool        done = true;  // no answer was an error (those sent again are not counted)
+    std::size_t again = 0;    // requests sent again from the file
+    std::size_t asked = 0;    // requests of `in`
+};
+[[nodiscard]] std::expected<Conversed, std::string> converse(Session& session, std::istream& in, std::ostream& out, const std::filesystem::path& kept = {});
+
 }  // namespace mlibs::agent

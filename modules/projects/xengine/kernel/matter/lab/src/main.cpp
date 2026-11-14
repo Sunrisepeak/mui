@@ -105,16 +105,9 @@ int run(const cmdline::ParsedArgs& args) {
         if (!file) return failed(std::format("{} cannot be read", *script));
     }
     std::istream& in = file.is_open() ? static_cast<std::istream&>(file) : std::cin;
-    bool all_done = true;
-    for (std::string line; std::getline(in, line);) {
-        if (line.find_first_not_of(" \t\r") == std::string::npos) continue;
-        session.request(line, [&](std::string_view record) {
-            std::println("{}", record);
-            if (record.contains("\"kind\":\"error\"")) all_done = false;
-        });
-        session.poll();
-    }
-    return all_done ? 0 : 1;
+    // The lab keeps itself (its directory): nothing of the conversation is kept beside it.
+    const auto conversed = mlibs::agent::converse(session, in, std::cout);
+    return conversed && conversed->done ? 0 : 1;
 }
 
 int serve(const cmdline::ParsedArgs& args) {

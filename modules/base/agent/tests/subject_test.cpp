@@ -94,6 +94,44 @@ Answered ask(agent::SubjectSession& session, std::string_view line) {
 }  // namespace
 
 UTest cases{"agent.subject", [] {
+    "a conversation over lines; kept in a file, the next process's subject is where this one left it"_test = [] {
+        const auto file = std::filesystem::temp_directory_path() / "openmui-tests" / "agent-converse" / "kept.jsonl";
+        std::filesystem::create_directories(file.parent_path());
+        std::filesystem::remove(file);
+        {
+            Counter counter;
+            agent::SubjectSession session({&counter});
+            std::istringstream in("{\"op\":\"counter.add\",\"by\":2}\n\n{\"op\":\"counter.add\",\"by\":5}\r\n");
+            std::ostringstream out;
+            const auto conversed = agent::converse(session, in, out, file);
+            expect(fatal(conversed.has_value())) << (conversed ? "" : conversed.error());
+            expect(conversed->done && eq(conversed->again, std::size_t{0}) && eq(conversed->asked, std::size_t{2}) && eq(counter.count, std::int64_t{7}));
+            expect(out.str().contains(R"("count":7)")) << out.str();
+        }
+        {
+            // Another process: a subject as it is made, the same file. What was asked is asked again, unanswered.
+            Counter counter;
+            agent::SubjectSession session({&counter});
+            std::istringstream in("{\"op\":\"counter.read\"}\n{\"op\":\"counter.set\",\"to\":-1}\n");
+            std::ostringstream out;
+            const auto conversed = agent::converse(session, in, out, file);
+            expect(fatal(conversed.has_value()));
+            expect(eq(conversed->again, std::size_t{2}) && eq(conversed->asked, std::size_t{2}) && !conversed->done) << "the refused request is said";
+            expect(out.str().starts_with(R"({"kind":"data","data":{"count":7})")) << "only the new requests are answered, from where it was left: " << out.str();
+            expect(!out.str().contains(R"("count":2)"));
+        }
+        std::ifstream kept(file);
+        const std::string lines{std::istreambuf_iterator<char>(kept), std::istreambuf_iterator<char>()};
+        expect(eq(std::ranges::count(lines, '\n'), std::ptrdiff_t{4}) && !lines.contains('\r')) << lines;
+        // Without a file: lines in, records out, nothing kept.
+        Counter counter;
+        agent::SubjectSession session({&counter});
+        std::istringstream in("{\"op\":\"counter.add\"}\n");
+        std::ostringstream out;
+        expect(agent::converse(session, in, out).value_or({}).asked == 1 && eq(counter.count, std::int64_t{1}));
+        expect(!agent::converse(session, in, out, std::filesystem::temp_directory_path() / "openmui-tests" / "no-such-directory" / "kept.jsonl").has_value());
+    };
+
     "who is here, what each can do, and its operations with their effects"_test = [] {
         Counter counter;
         agent::SubjectSession session({&counter});

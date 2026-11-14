@@ -363,6 +363,12 @@ inline constexpr int share_table_side = 32;
 // under it is less by (times the sheen's brightest channel). One table (`sheen_table`: 32 × 32 like
 // `share_table`, a row a roughness, a column how it is looked at), summed once over the half of the ways above.
 [[nodiscard]] float sheen_share(float seen, float roughness) noexcept;
+// What a white sheen of `roughness` sends to the eye of a picture of the surroundings: its lobe asked a fixed set
+// of 32 ways about the normal (Hammersley's, chosen as they face it), each read blurred by the share of ways it
+// stands for, weighed by the lobe there over how likely the way was (Colbert and Křivánek's filtered importance
+// sampling, 2007). Under an even light it is the sheen's share of it (`sheen_share`, unclamped); under an uneven
+// one it weighs the ways the sheen leans to — the grazing ones — as the light gathered along rays does.
+[[nodiscard]] Vec3 sheen_about(const Surroundings& picture, float roughness, Vec3 normal, Vec3 toward_eye) noexcept;
 [[nodiscard]] std::span<const float> sheen_table() noexcept;
 // What the highlight is multiplied by so that light is kept between a rough surface's small faces: what met a
 // second face is sent on as what the surface mirrors head on would have it, 1 + head on × (1 ÷ the share's sum − 1).

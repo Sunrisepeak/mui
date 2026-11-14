@@ -398,7 +398,13 @@ struct Raster {
         // A sheen: the fibres' own light, and what comes from under them less by what they take of an even light.
         const bool sheened = material.sheen.x > 0 || material.sheen.y > 0 || material.sheen.z > 0;
         Vec3 sheen{0, 0, 0};
-        if (sheened) sheen = math::scaled(math::scaled(from_all_about(normal), material.sheen), reaching(open)) * (sheen_share(std::max(math::dot(normal, toward_eye), 0.0f), material.sheen_roughness) * shaded);
+        if (sheened) {
+            // Under a picture: the sheen's own lobe asks it (`sheen_about`); else what falls on the surface times the
+            // sheen's share of an even light.
+            const Vec3 about = pictured ? sheen_about(*options.environment.picture, material.sheen_roughness, normal, toward_eye)
+                                        : from_all_about(normal) * sheen_share(std::max(math::dot(normal, toward_eye), 0.0f), material.sheen_roughness);
+            sheen = math::scaled(math::scaled(about, material.sheen), reaching(open)) * shaded;
+        }
         Vec3 sent = coated > 0 || sheened ? under : under + material.emissive;
         const bool drawn = material.anisotropy > 0 && math::dot(drawn_out, drawn_out) > 0;
         if (options.environment.on) sent = sent + (drawn ? mirrored_drawn_out(material, options.environment, normal, drawn_out, toward_eye) : mirrored(material, options.environment, normal, toward_eye)) * (pictured ? shaded : 1.0f);
@@ -836,6 +842,35 @@ Vec3 drawn_out_normal(const Material& material, Vec3 normal, Vec3 along, Vec3 to
     const Vec3 bent = toward + (normal - toward) * bend4;
     return math::dot(bent, bent) > 0 ? math::normalized(bent) : normal;
 }
+namespace {
+// The `which`th of `count` fixed ways' two numbers (Hammersley's): (which + ½) / count, and which's bits turned about.
+std::pair<double, double> hammersley(int which, int count) noexcept {
+    std::uint32_t bits = static_cast<std::uint32_t>(which);
+    bits = (bits << 16) | (bits >> 16), bits = ((bits & 0x55555555u) << 1) | ((bits & 0xAAAAAAAAu) >> 1), bits = ((bits & 0x33333333u) << 2) | ((bits & 0xCCCCCCCCu) >> 2);
+    bits = ((bits & 0x0F0F0F0Fu) << 4) | ((bits & 0xF0F0F0F0u) >> 4), bits = ((bits & 0x00FF00FFu) << 8) | ((bits & 0xFF00FF00u) >> 8);
+    return {(static_cast<double>(which) + 0.5) / count, static_cast<double>(bits) * (1.0 / 4294967296.0)};
+}
+// The roughness whose spread covers `stands_for` of all ways (its α² that over π).
+float covering(float stands_for) noexcept { return std::clamp(std::sqrt(std::sqrt(stands_for / 3.14159265f)), 0.0f, 1.0f); }
+}  // namespace
+
+Vec3 sheen_about(const Surroundings& picture, float roughness, Vec3 normal, Vec3 toward_eye) noexcept {
+    constexpr int ways = 32;
+    const Vec3 aside = math::normalized(math::cross(std::abs(normal.y) < 0.9f ? Vec3{0, 1, 0} : Vec3{1, 0, 0}, normal)), other = math::cross(normal, aside);
+    Vec3 sum{0, 0, 0};
+    for (int which = 0; which < ways; ++which) {
+        const auto [first, turn] = hammersley(which, ways);
+        const double out = math::det::sqrt(first), around = turn * math::det::two_pi;
+        const float up = static_cast<float>(math::det::sqrt(1.0 - first));
+        const Vec3 way = math::normalized(aside * static_cast<float>(out * math::det::cos(around)) + other * static_cast<float>(out * math::det::sin(around)) + normal * up);
+        if (!(up > 0)) continue;
+        // How likely: facing ÷ π; the lobe's measure is the pass's (π in), so over it the facing alone is left.
+        const float likelihood = up / 3.14159265f;
+        sum = sum + picture.blurred(way, covering(1.0f / (static_cast<float>(ways) * likelihood))) * (sheen_reflected(roughness, normal, toward_eye, way, up) / up);
+    }
+    return sum * (1.0f / ways);
+}
+
 Vec3 mirrored_drawn_out(const Material& material, const Environment& environment, Vec3 normal, Vec3 along, Vec3 toward_eye) noexcept {
     const float seen = math::dot(normal, toward_eye);
     if (!environment.picture || !(seen > 0)) return mirrored(material, environment, drawn_out_normal(material, normal, along, toward_eye), toward_eye);
@@ -849,11 +884,8 @@ Vec3 mirrored_drawn_out(const Material& material, const Environment& environment
     constexpr int ways = 64;
     Vec3 sum{0, 0, 0};
     for (int which = 0; which < ways; ++which) {
-        // Hammersley's set: (i + ½)/n, and i's bits turned about.
-        std::uint32_t bits = static_cast<std::uint32_t>(which);
-        bits = (bits << 16) | (bits >> 16), bits = ((bits & 0x55555555u) << 1) | ((bits & 0xAAAAAAAAu) >> 1), bits = ((bits & 0x33333333u) << 2) | ((bits & 0xCCCCCCCCu) >> 2);
-        bits = ((bits & 0x0F0F0F0Fu) << 4) | ((bits & 0xF0F0F0F0u) >> 4), bits = ((bits & 0x00FF00FFu) << 8) | ((bits & 0xFF00FF00u) >> 8);
-        const double first = (static_cast<double>(which) + 0.5) / ways, turn = static_cast<double>(bits) * (1.0 / 4294967296.0) * math::det::two_pi;
+        const auto [first, share_of_turn] = hammersley(which, ways);
+        const double turn = share_of_turn * math::det::two_pi;
         // A small face's slope, of a spread of 1, stretched by the lobe's own along and across.
         const double slope = math::det::sqrt(first / (1.0 - first));
         const float slope_along = static_cast<float>(slope * math::det::cos(turn)) * along_alpha, slope_across = static_cast<float>(slope * math::det::sin(turn)) * across_alpha;
@@ -874,8 +906,7 @@ Vec3 mirrored_drawn_out(const Material& material, const Environment& environment
         const float on_along = math::dot(along, half) / along_alpha, on_across = math::dot(across, half) / across_alpha;
         const float stretched = on_along * on_along + on_across * on_across + up * up;
         const float likelihood = up / (3.14159265f * along_alpha * across_alpha * stretched * stretched * 4.0f * eye_half);
-        const float stands_for = 1.0f / (static_cast<float>(ways) * likelihood);
-        const float read_rough = std::clamp(std::sqrt(std::sqrt(stands_for / 3.14159265f)), 0.0f, 1.0f);
+        const float read_rough = covering(1.0f / (static_cast<float>(ways) * likelihood));
         sum = sum + math::scaled(mirrors_at(material, glance5, seen), environment.picture->blurred(way, read_rough)) * weight;
     }
     return math::scaled(sum * (1.0f / ways), kept(material, seen));

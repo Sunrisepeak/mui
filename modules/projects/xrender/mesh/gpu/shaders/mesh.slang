@@ -297,13 +297,30 @@ interface IAbout {
     static float3 mirrors(float3 normal, float3 toward_eye, float shaded);
     // With the highlight drawn out along `along` (xrender.mesh's `mirrored_drawn_out`).
     static float3 mirrors_drawn_out(float3 normal, float3 along, float3 toward_eye, float shaded);
+    // What a white sheen sends to the eye of it (xrender.mesh's `sheen_about` under a picture; else what falls
+    // times the sheen's share of an even light).
+    static float3 sheen_about(float3 normal, float3 toward_eye);
 }
 struct Plain : IAbout {
     static float3 falling(float3 normal) { return surface.ambient.rgb; }
     static float3 takes(float metal) { return base_colour * ((1.0 - metal) * (1.0 - lets_here)) + head_here; }
     static float3 mirrors(float3 normal, float3 toward_eye, float shaded) { return surface.above.w > 0.5 ? mirrored(normal, toward_eye) : float3(0, 0, 0); }
     static float3 mirrors_drawn_out(float3 normal, float3 along, float3 toward_eye, float shaded) { return mirrors(drawn_out_normal(normal, along, toward_eye), toward_eye, shaded); }
+    static float3 sheen_about(float3 normal, float3 toward_eye) { return falling(normal) * sheen_share(max(dot(normal, toward_eye), 0.0)); }
 }
+// Hammersley's `which`th of `count` fixed ways: (which + ½) / count, and which's bits turned about (by hand:
+// WebGL2's shading language has no bit reversal).
+float2 hammersley(int which, int count) {
+    uint bits = uint(which);
+    bits = (bits << 16u) | (bits >> 16u);
+    bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
+    bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
+    bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
+    bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
+    return float2((float(which) + 0.5) / float(count), float(bits) * (1.0 / 4294967296.0));
+}
+// The roughness whose spread covers `stands_for` of all ways (its α² that over π).
+float covering(float stands_for) { return clamp(sqrt(sqrt(stands_for / 3.14159265)), 0.0, 1.0); }
 // The surroundings' picture along `way` blurred by `rough`: between the two roughnesses kept about it
 // (xrender.mesh's `Surroundings::blurred`).
 float3 blurred_at(float3 way, float rough) {
@@ -345,13 +362,8 @@ struct Pictured : IAbout {
         const int ways = 64;
         float3 sum = float3(0, 0, 0);
         for (int which = 0; which < ways; ++which) {
-            uint bits = uint(which);
-            bits = (bits << 16u) | (bits >> 16u);
-            bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
-            bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
-            bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
-            bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
-            const float first = (float(which) + 0.5) / float(ways), turn = float(bits) * (1.0 / 4294967296.0) * 6.2831853;
+            const float2 fixed_way = hammersley(which, ways);
+            const float first = fixed_way.x, turn = fixed_way.y * 6.2831853;
             const float slope = sqrt(first / (1.0 - first));
             const float3 halfway = normalize(normal - along * (slope * cos(turn) * along_alpha) - across * (slope * sin(turn) * across_alpha));
             const float eye_half = dot(toward_eye, halfway), up = dot(normal, halfway);
@@ -367,10 +379,24 @@ struct Pictured : IAbout {
             const float on_along = dot(along, halfway) / along_alpha, on_across = dot(across, halfway) / across_alpha;
             const float stretched = on_along * on_along + on_across * on_across + up * up;
             const float likelihood = up / (3.14159265 * along_alpha * across_alpha * stretched * stretched * 4.0 * eye_half);
-            const float read_rough = clamp(sqrt(sqrt(1.0 / (float(ways) * likelihood) / 3.14159265)), 0.0, 1.0);
+            const float read_rough = covering(1.0 / (float(ways) * likelihood));
             sum += mirrors_at(glance5, seen) * blurred_at(way, read_rough) * weight;
         }
         return sum / float(ways) * kept(seen) * shaded;
+    }
+    // The sheen's lobe asked 32 fixed ways about the normal, chosen as they face it (xrender.mesh's `sheen_about`).
+    static float3 sheen_about(float3 normal, float3 toward_eye) {
+        const float3 aside = normalize(cross(abs(normal.y) < 0.9 ? float3(0, 1, 0) : float3(1, 0, 0), normal)), other = cross(normal, aside);
+        const int ways = 32;
+        float3 sum = float3(0, 0, 0);
+        for (int which = 0; which < ways; ++which) {
+            const float2 fixed_way = hammersley(which, ways);
+            const float out = sqrt(fixed_way.x), around = fixed_way.y * 6.2831853, up = sqrt(1.0 - fixed_way.x);
+            if (!(up > 0)) continue;
+            const float3 way = normalize(aside * (out * cos(around)) + other * (out * sin(around)) + normal * up);
+            sum += blurred_at(way, covering(3.14159265 / (float(ways) * up))) * (sheen_reflected(normal, toward_eye, way, up) / up);
+        }
+        return sum / float(ways);
     }
 }
 float encoded(float linear) {
@@ -753,16 +779,16 @@ Lit lit_at<A : IAbout>(VOut point) {
     // Matt: the lights summed, then the surface's colour. Otherwise each light's share by `reflected`.
     // The light from everywhere, by how open the place is (xrender.mesh's `reaching`): the open share, and by the
     // ways that are shut what a surface of this colour sends back.
-    float3 everywhere_in = A::falling(normal);
+    float3 reaching = float3(shaded, shaded, shaded);
     if (surface.open.x > 0.5) {
         const float open = open_map.SampleLevel(point.clip.xy * surface.open.zw, 0).r;
-        if (open < 1) everywhere_in *= open / (1.0 - clamp(surface.base.rgb, 0.0, 0.98) * (1.0 - open));
+        if (open < 1) reaching *= open / (1.0 - clamp(surface.base.rgb, 0.0, 0.98) * (1.0 - open));
     }
-    everywhere_in *= shaded;
+    float3 everywhere_in = A::falling(normal) * reaching;
     float3 light = everywhere_in;
     float3 sent = float3(0, 0, 0);
     const bool sheened = any(surface.sheen.rgb > 0);
-    float3 sheen = sheened ? surface.sheen.rgb * everywhere_in * sheen_share(max(dot(normal, normalize(to_eye)), 0.0)) : float3(0, 0, 0);
+    float3 sheen = sheened ? surface.sheen.rgb * A::sheen_about(normal, normalize(to_eye)) * reaching : float3(0, 0, 0);
     const int count = int(surface.eye.w);
     for (int index = 0; index < count; ++index) {
         const Lamp lamp = surface.lamps[index];

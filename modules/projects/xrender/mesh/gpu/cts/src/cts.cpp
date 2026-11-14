@@ -475,6 +475,13 @@ Cases suite_of() {
         expect(brushed.world.add({.id = 50, .mesh = 2, .material = static_cast<std::uint32_t>(brushed.materials.size() - 1), .world = math::Transform{{1.2f, -0.1f, 2.0f}, {}, {0.8f, 0.8f, 0.8f}}.matrix(),
                                   .bounds = geom::bounds(brushed.made[2].mesh)})
                    .has_value());
+        // And a ball of velvet: its sheen asks the picture along its own lobe (xrender.mesh's `sheen_about`).
+        mesh::Material velvet{.base = {0.05f, 0.08f, 0.3f}, .roughness = 0.8f, .metallic = 0};
+        velvet.sheen = {0.8f, 0.8f, 0.8f}, velvet.sheen_roughness = 0.4f;
+        brushed.materials.push_back(velvet);
+        expect(brushed.world.add({.id = 51, .mesh = 2, .material = static_cast<std::uint32_t>(brushed.materials.size() - 1), .world = math::Transform{{-1.6f, -0.1f, 1.6f}, {}, {0.8f, 0.8f, 0.8f}}.matrix(),
+                                  .bounds = geom::bounds(brushed.made[2].mesh)})
+                   .has_value());
         const auto steel = both(*device, brushed, lit_by, &*surroundings);
         if (!steel) return;
         keep(steel->device, "yard-about-brushed");
@@ -482,24 +489,27 @@ Cases suite_of() {
         std::memcpy(steel_reference.data(), steel->reference.colour.data(), steel->reference.colour.size());
         keep(steel_reference, "yard-about-brushed-reference");
         const Apart with_steel = apart(steel->reference, steel->device, false, 6);
-        std::size_t steel_seen = 0, steel_off = 0;
+        std::size_t steel_seen = 0, steel_off = 0, velvet_seen = 0, velvet_off = 0;
         for (std::size_t pixel = 0; pixel < steel->reference.ids.size(); ++pixel) {
             const std::uint32_t is = steel->reference.ids[pixel].draw;
-            if (is == mesh::none || steel->reference.draws[is].id != 50) continue;
-            ++steel_seen;
+            if (is == mesh::none || steel->reference.draws[is].id < 50) continue;
+            const bool of_steel = steel->reference.draws[is].id == 50;
+            ++(of_steel ? steel_seen : velvet_seen);
             for (std::size_t channel = 0; channel < 3; ++channel)
                 if (std::abs(static_cast<int>(steel->reference.colour[pixel * 4 + channel]) - std::to_integer<int>(steel->device[pixel * 4 + channel])) > 6) {
-                    ++steel_off;
+                    ++(of_steel ? steel_off : velvet_off);
                     break;
                 }
         }
-        std::println("with a ball of brushed steel: {} of {} pixels further than 6 levels from the reference, mean {:.3f}, worst {}; of the ball's {}, {}", with_steel.off, with_steel.compared, with_steel.mean,
-                     with_steel.worst, steel_seen, steel_off);
+        std::println("with a ball of brushed steel and one of velvet: {} of {} pixels further than 6 levels from the reference, mean {:.3f}, worst {}; of the steel's {}, {}; of the velvet's {}, {}", with_steel.off,
+                     with_steel.compared, with_steel.mean, with_steel.worst, steel_seen, steel_off, velvet_seen, velvet_off);
         expect(gt(steel_seen, std::size_t{2000})) << steel_seen;
         // Measured on an RTX 4080 and on lavapipe: 2 pixels elsewhere; of the ball's 3,662, 148 and 150 (4.0%) — on
         // the edges of its drawn-out rings, where the horizon's edge stretched over it moves a pixel with the
         // device's single precision in a way's direction (the reference chooses its ways in double).
-        expect(lt(static_cast<double>(with_steel.off - steel_off), 0.001 * static_cast<double>(with_steel.compared)));
+        expect(gt(velvet_seen, std::size_t{2000})) << velvet_seen;
+        expect(lt(static_cast<double>(with_steel.off - steel_off - velvet_off), 0.001 * static_cast<double>(with_steel.compared)));
+        expect(lt(static_cast<double>(velvet_off), 0.005 * static_cast<double>(velvet_seen)));
         expect(lt(static_cast<double>(steel_off), 0.045 * static_cast<double>(steel_seen)));
     });
     // a lamp brighter than the display glows on the device as in the reference: the light kept before the curve, what is above it spread, then shown

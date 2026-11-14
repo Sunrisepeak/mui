@@ -26,5 +26,5 @@ sources = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm"]
 omui.theme = { path = ".." }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.3"
+mcpplibs.mtest = "0.8.4"
 mlibs.utils = { path = "../../../../base/utils" }

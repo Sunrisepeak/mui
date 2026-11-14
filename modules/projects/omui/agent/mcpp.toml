@@ -47,7 +47,7 @@ programs = "directory"
 
 [dev-dependencies]
 # Tests are mtest's (D-147).
-mcpplibs.mtest = "0.8.3"
+mcpplibs.mtest = "0.8.4"
 # contract_test: the agent contract's suite on the interface as a subject (D-174).
 mlibs.agent.cts = { path = "../../../base/agent/cts" }
 # state_test, contract_test: pages of the official components (text_box, toggle, slider).

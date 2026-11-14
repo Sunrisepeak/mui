@@ -29,6 +29,6 @@ hanim.core            = { path = "../../hanim/core" }
 mlibs.i18n     = { path = "../../../content/i18n" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.3"
+mcpplibs.mtest = "0.8.4"
 mlibs.math = { path = "../../../base/math" }
 mlibs.utils = { path = "../../../base/utils" }

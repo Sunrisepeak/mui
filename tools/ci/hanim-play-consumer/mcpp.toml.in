@@ -25,4 +25,4 @@ nlohmann.json = "3.12.0"
 mcpplibs.cmdline = "0.0.3"
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.3"
+mcpplibs.mtest = "0.8.4"

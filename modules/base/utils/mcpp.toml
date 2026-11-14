@@ -43,5 +43,5 @@ sources = ["src/testing/targets/threads.cppm"]
 sources = ["src/testing/targets/web.cppm"]
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.3"
+mcpplibs.mtest = "0.8.4"
 mcpplibs.os = "0.4.4"

@@ -46,7 +46,7 @@ omui.ui.markdown   = { path = "../../modules/projects/omui/components/markdown" 
 omui.build.embed = { path = "../../mcpp/embed", host-module = true }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.3"
+mcpplibs.mtest = "0.8.4"
 omui.abi      = { path = "../../modules/projects/omui/abi" }
 omui.lang.js  = { path = "../../modules/projects/omui/lang/js" }
 mcpplibs.os      = "0.4.4"

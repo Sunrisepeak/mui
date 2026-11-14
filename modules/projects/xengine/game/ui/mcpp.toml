@@ -31,7 +31,7 @@ xrender.raster = { path = "../../../xrender/raster" }
 xrender.vector = { path = "../../../xrender/vector" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.3"
+mcpplibs.mtest = "0.8.4"
 mlibs.utils = { path = "../../../../base/utils" }
 omui.host.headless = { path = "../../../omui/host/headless" }
 omui.semantic = { path = "../../../omui/semantic" }

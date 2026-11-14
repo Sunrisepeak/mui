@@ -22,7 +22,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
 # The measuring is mtest's (bench::laps): the scenes' loop is its, in the library and in its tests.
-mcpplibs.mtest = "0.8.3"
+mcpplibs.mtest = "0.8.4"
 xrender.text = { path = "../../modules/projects/xrender/text" }
 xrender.scene = { path = "../../modules/projects/xrender/scene" }
 "xrender.mesh"  = { path = "../../modules/projects/xrender/mesh" }

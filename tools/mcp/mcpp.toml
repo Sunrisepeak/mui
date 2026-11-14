@@ -33,7 +33,7 @@ omui.agent = { path = "../../modules/projects/omui/agent" }
 mcpplibs.os   = "0.4.4"
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.3"
+mcpplibs.mtest = "0.8.4"
 mlibs.utils       = { path = "../../modules/base/utils" }
 omui.host.headless = { path = "../../modules/projects/omui/host/headless" }
 omui.ui.base       = { path = "../../modules/projects/omui/components/base" }

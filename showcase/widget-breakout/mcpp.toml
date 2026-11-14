@@ -59,4 +59,4 @@ omui.build.embed     = { path = "../../mcpp/embed", host-module = true }
 omui.build.toy       = { path = "../../mcpp/toy", host-module = true }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.3"
+mcpplibs.mtest = "0.8.4"

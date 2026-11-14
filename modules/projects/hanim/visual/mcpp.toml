@@ -40,7 +40,7 @@ xrender.vector = { path = "../../xrender/vector" }
 programs = "directory"
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.3"
+mcpplibs.mtest = "0.8.4"
 xrender.raster  = { path = "../../xrender/raster" }
 # shape_morph_test: a prepared morph drawn by the renderer, written out as pictures.
 mlibs.image     = { path = "../../../base/image" }

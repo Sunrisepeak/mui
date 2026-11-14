@@ -34,4 +34,4 @@ openlifa.openas = "0.2.0"
 mcpplibs.os   = "0.4.4"
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.3"
+mcpplibs.mtest = "0.8.4"

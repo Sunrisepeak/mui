@@ -29,7 +29,7 @@ omui.expr  = { path = "../expr" }
 mlibs.utils = { path = "../../../base/utils" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.3"
+mcpplibs.mtest = "0.8.4"
 mlibs.math = { path = "../../../base/math" }
 omui.ui.base       = { path = "../components/base" }
 # A host of the tests' own (tests/viewdoc_test.cpp): omui.host.headless depends on

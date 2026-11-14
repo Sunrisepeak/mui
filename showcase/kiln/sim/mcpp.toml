@@ -26,4 +26,4 @@ xengine.matter   = { path = "../../../modules/projects/xengine/kernel/matter" }
 mlibs.utils      = { path = "../../../modules/base/utils" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.3"
+mcpplibs.mtest = "0.8.4"

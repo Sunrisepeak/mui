@@ -59,6 +59,6 @@ mcpplibs.mwrap.box2d = "3.2.0"
 mlibs.math = { path = "../../../../base/math" }
 
 [dev-dependencies]
-mcpplibs.mtest   = "0.8.3"
+mcpplibs.mtest   = "0.8.4"
 # The solver stepped at the clock library's fixed steps (xpbd_test).
 mlibs.simulation = { path = "../../../../base/simulation" }

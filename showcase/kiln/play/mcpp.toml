@@ -26,5 +26,5 @@ mcpplibs.os      = "0.4.4"
 mcpplibs.cmdline = "0.0.3"
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.3"
+mcpplibs.mtest = "0.8.4"
 mlibs.json     = { path = "../../../modules/base/json" }

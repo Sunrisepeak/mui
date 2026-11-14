@@ -29,4 +29,4 @@ mcpplibs.os = "0.4.4"
 
 [dev-dependencies]
 # Tests are mtest's (D-147).
-mcpplibs.mtest = "0.8.3"
+mcpplibs.mtest = "0.8.4"

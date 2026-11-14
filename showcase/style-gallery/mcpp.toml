@@ -36,5 +36,5 @@ mlibs.math         = { path = "../../modules/base/math" }
 mcpplibs.os          = "0.4.4"
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.3"
+mcpplibs.mtest = "0.8.4"
 mlibs.utils = { path = "../../modules/base/utils" }

@@ -15,14 +15,34 @@ namespace rigid3 = xengine::dynamics::rigid3;
 
 namespace {
 
-// A floor, three boxes stacked and a ball rolling slowly toward them, 120 steps on: the same each time.
+// A floor, three boxes stacked and a ball rolling slowly toward them; aside, a paddle on a hinge to the world (joint
+// 1) and a character standing (character 1); 120 steps on: the same each time.
 std::unique_ptr<rigid3::agent::Scene> settled() {
     auto world = rigid3::World::make();
     expect(fatal(world.has_value()));
     (void)world->add({.kind = rigid3::Kind::fixed, .at = {0, -0.5f, 0}}, rigid3::Shape::box({20, 0.5f, 20}));
     for (int level = 0; level < 3; ++level) (void)world->add({.at = {0, 0.5f + static_cast<float>(level) * 1.01f, 0}}, rigid3::Shape::box({0.5f, 0.5f, 0.5f}), {.density = 500});
     (void)world->add({.at = {-8, 0.5f, 0}, .velocity = {1, 0, 0}, .spin = {0, 0, -2}}, rigid3::Shape::sphere(0.5f), {.density = 2000});
+    const auto paddle = *world->add({.at = {8, 2, 8}}, rigid3::Shape::box({0.8f, 0.1f, 0.1f}));
+    rigid3::Joint hinge = rigid3::Joint::hinge(paddle, {}, {8, 2, 8}, {0, 0, 1});
+    hinge.motor.most = 500;
+    expect(fatal(world->join(hinge).has_value()));
+    expect(fatal(world->add(rigid3::CharacterDef{.at = {-8, 0, 8}}).has_value()));
     for (int step = 0; step < 120; ++step) world->step();
+    return std::make_unique<rigid3::agent::Scene>(std::move(*world));
+}
+
+// A floor, a wheel on a hinge to the world (joint 1) and a character standing (character 1), 30 steps on.
+std::unique_ptr<rigid3::agent::Scene> jointed() {
+    auto world = rigid3::World::make();
+    expect(fatal(world.has_value()));
+    (void)world->add({.kind = rigid3::Kind::fixed, .at = {0, -0.5f, 0}}, rigid3::Shape::box({20, 0.5f, 20}));
+    const auto wheel = *world->add({.at = {0, 2, 4}}, rigid3::Shape::compound({{rigid3::Shape::box({0.8f, 0.1f, 0.1f}), {}, {}}, {rigid3::Shape::box({0.1f, 0.8f, 0.1f}), {}, {}}}));
+    rigid3::Joint hinge = rigid3::Joint::hinge(wheel, {}, {0, 2, 4}, {0, 0, 1});
+    hinge.motor.most = 500;
+    expect(fatal(world->join(hinge).has_value()));
+    expect(fatal(world->add(rigid3::CharacterDef{.at = {-4, 0, 0}}).has_value()));
+    for (int step = 0; step < 30; ++step) world->step();
     return std::make_unique<rigid3::agent::Scene>(std::move(*world));
 }
 
@@ -46,7 +66,7 @@ Answered ask(agent::SubjectSession& session, std::string_view line) {
 }  // namespace
 
 UTest cases{"dynamics.rigid3.agent", [] {
-    // Body ids: the floor 1, the boxes 2 to 4 (bottom to top), the ball 5 — the world's, in the order made.
+    // Body ids: the floor 1, the boxes 2 to 4 (bottom to top), the ball 5, the paddle 6 — the world's, in the order made.
     "the agent contract on a 3D rigid world: what it has passes, what it says it has not is unsupported"_test = [] {
         const contract::Probe probe{
             .make = []() -> std::unique_ptr<agent::Subject> { return settled(); },
@@ -69,9 +89,9 @@ UTest cases{"dynamics.rigid3.agent", [] {
         auto scene = settled();
         agent::SubjectSession session({scene.get()});
         const auto seen = ask(session, R"({"op":"rigid3.observe"})");
-        expect(seen["frame"].integer() == 120 && seen["bodies"].integer() == 5);
+        expect(seen["frame"].integer() == 120 && seen["bodies"].integer() == 6 && seen["joints"].integer() == 1 && seen["characters"].integer() == 1);
         const auto listed = ask(session, R"({"op":"rigid3.bodies"})");
-        expect(listed["bodies"].size() == 5u && listed["bodies"][0]["mass"].number() == 0.0) << "the floor is fixed";
+        expect(listed["bodies"].size() == 6u && listed["bodies"][0]["mass"].number() == 0.0) << "the floor is fixed";
         const auto down = ask(session, R"({"op":"rigid3.ray","from":[0,20,0],"to":[0,-20,0]})");
         expect(down["hit"].boolean() == true && down["body"].integer() == 4) << "straight down: the top box";
         expect(std::abs(down["at"][1].number().value_or(0) - 3.0) < 0.02) << "at its top face, the three settled on each other";
@@ -118,5 +138,46 @@ UTest cases{"dynamics.rigid3.agent", [] {
         expect(ask(session, R"({"op":"rigid3.seek","frame":120})")["frame"].integer() == 120 && eq(scene->state_hash(), settled_hash));
         expect(ask(session, R"({"op":"rigid3.seek","frame":99999})").error == "stale");
         expect(ask(session, R"({"op":"rigid3.seek","frame":10})").error == "stale") << "before the history kept";
+    };
+
+    "joints and characters through the session: a motor driven, a character walked and jumped, each played again by a seek; a shape cast"_test = [] {
+        auto scene = jointed();
+        agent::SubjectSession session({scene.get()});
+        const auto joints = ask(session, R"({"op":"rigid3.joints"})");
+        expect(joints["joints"].size() == 1u && joints["joints"][0]["form"].text() == "hinge" && joints["joints"][0]["other"].integer() == 0) << "a hinge to the world";
+        const auto standing = ask(session, R"({"op":"rigid3.ground"})");
+        expect(standing["grounds"].size() == 1u && standing["grounds"][0]["ground"].text() == "on_ground" && standing["grounds"][0]["standing_on"].integer() == 1);
+
+        expect(ask(session, R"({"op":"rigid3.drive","joint":1,"mode":"velocity","target":2})")["effective"].integer() == 31);
+        expect(ask(session, R"({"op":"rigid3.move","character":1,"velocity":[2,0,0]})")["effective"].integer() == 31);
+        (void)ask(session, R"({"op":"rigid3.step","steps":60})");
+        const auto turning = ask(session, R"({"op":"rigid3.joints"})");
+        expect(turning["joints"][0]["motor"].text() == "velocity" && turning["joints"][0]["target"].number() == 2.0);
+        expect(std::abs(scene->world().pose(rigid3::BodyId{2})->spin.z - 2) < 0.05f) << "the wheel turns at its motor's speed";
+        const auto walked = ask(session, R"({"op":"rigid3.where","character":1})");
+        expect(walked["at"][0].number().value_or(0) > -2.2 && walked["ground"].text() == "on_ground") << "walked 2 m in a second, on the floor";
+        expect(ask(session, R"({"op":"rigid3.jump","character":1,"speed":5})")["ground"].text() == "on_ground");
+        (void)ask(session, R"({"op":"rigid3.step","steps":20})");
+        expect(ask(session, R"({"op":"rigid3.ground"})")["grounds"][0]["ground"].text() == "in_air") << "in the air a third of a second after";
+        (void)ask(session, R"({"op":"rigid3.step","steps":40})");
+        // Back to frame 100 (between the jump at 90 and now): the drive, the walk and the jump played again.
+        const std::uint64_t at_100 = [&] {
+            auto again = jointed();
+            agent::SubjectSession other({again.get()});
+            (void)ask(other, R"({"op":"rigid3.drive","joint":1,"mode":"velocity","target":2})");
+            (void)ask(other, R"({"op":"rigid3.move","character":1,"velocity":[2,0,0]})");
+            (void)ask(other, R"({"op":"rigid3.step","steps":60})");
+            (void)ask(other, R"({"op":"rigid3.jump","character":1,"speed":5})");
+            (void)ask(other, R"({"op":"rigid3.step","steps":10})");
+            return again->state_hash();
+        }();
+        expect(ask(session, R"({"op":"rigid3.seek","frame":100})")["frame"].integer() == 100 && eq(scene->state_hash(), at_100)) << "sought back: the same bits";
+
+        const auto cast = ask(session, R"({"op":"rigid3.cast","shape":"box","half":[0.5,0.5,0.5],"from":[6,10,0],"to":[6,-10,0]})");
+        expect(cast["hit"].boolean() == true && cast["body"].integer() == 1 && std::abs(cast["fraction"].number().value_or(0) - 0.475) < 1e-3) << "a box swept down meets the floor";
+        expect(ask(session, R"({"op":"rigid3.drive","joint":9,"target":1})").error == "invalid-argument") << "no such joint";
+        expect(ask(session, R"({"op":"rigid3.drive","joint":1,"mode":"spin"})").error == "invalid-argument");
+        expect(ask(session, R"({"op":"rigid3.move","character":7,"velocity":[1,0,0]})").error == "invalid-argument") << "no such character";
+        expect(ask(session, R"({"op":"rigid3.cast","shape":"cone","from":[0,1,0],"to":[0,0,0]})").error == "invalid-argument");
     };
 }};

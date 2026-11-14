@@ -14,6 +14,30 @@ inline constexpr std::array<mlibs::control::Parameter, 2> parameters_rigid3_ray{
     {"from", "json", "[x, y, z]", false},
     {"to", "json", "[x, y, z]", false},
 }};
+inline constexpr std::array<mlibs::control::Parameter, 6> parameters_rigid3_cast{{
+    {"shape", "string", "sphere (the default), box or capsule", true},
+    {"radius", "number", "sphere, capsule: m (0.5 when none is given)", true},
+    {"half", "json", "box: [x, y, z], its half extents", true},
+    {"half_height", "number", "capsule: half the length of its middle, along y (0.5 when none is given)", true},
+    {"from", "json", "[x, y, z], where the shape's centre starts", false},
+    {"to", "json", "[x, y, z], where it would end", false},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 3> parameters_rigid3_drive{{
+    {"joint", "integer", "the joint's id", false},
+    {"mode", "string", "off, velocity (the default) or position", true},
+    {"target", "number", "rad/s or m/s (velocity), rad or m (position)", true},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 2> parameters_rigid3_move{{
+    {"character", "integer", "the character's id", false},
+    {"velocity", "json", "[x, y, z] in m/s; y is left to gravity and jumps", false},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 2> parameters_rigid3_jump{{
+    {"character", "integer", "the character's id", false},
+    {"speed", "number", "m/s upward (5 when none is given)", true},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 1> parameters_rigid3_where{{
+    {"character", "integer", "the character's id (every one when none is given)", true},
+}};
 inline constexpr std::array<mlibs::control::Parameter, 3> parameters_rigid3_push{{
     {"body", "integer", "the body's id", false},
     {"impulse", "json", "[x, y, z], in newton seconds", false},
@@ -39,6 +63,27 @@ inline constexpr std::array<std::string_view, 1> examples_rigid3_bodies{{
 inline constexpr std::array<std::string_view, 1> examples_rigid3_ray{{
     "{\"op\":\"rigid3.ray\",\"from\":[0,20,0],\"to\":[0,-20,0]}",
 }};
+inline constexpr std::array<std::string_view, 1> examples_rigid3_cast{{
+    "{\"op\":\"rigid3.cast\",\"shape\":\"sphere\",\"radius\":0.5,\"from\":[0,20,0],\"to\":[0,-20,0]}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_rigid3_joints{{
+    "{\"op\":\"rigid3.joints\"}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_rigid3_drive{{
+    "{\"op\":\"rigid3.drive\",\"joint\":1,\"mode\":\"velocity\",\"target\":2}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_rigid3_move{{
+    "{\"op\":\"rigid3.move\",\"character\":1,\"velocity\":[2,0,0]}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_rigid3_jump{{
+    "{\"op\":\"rigid3.jump\",\"character\":1,\"speed\":5}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_rigid3_where{{
+    "{\"op\":\"rigid3.where\",\"character\":1}",
+}};
+inline constexpr std::array<std::string_view, 1> examples_rigid3_ground{{
+    "{\"op\":\"rigid3.ground\"}",
+}};
 inline constexpr std::array<std::string_view, 1> examples_rigid3_push{{
     "{\"op\":\"rigid3.push\",\"body\":1,\"impulse\":[0,400,0]}",
 }};
@@ -51,6 +96,15 @@ inline constexpr std::array<std::string_view, 1> examples_rigid3_seek{{
 inline constexpr std::array<std::string_view, 1> examples_rigid3_branch{{
     "{\"op\":\"rigid3.branch\",\"steps\":30,\"body\":1,\"impulse\":[0,400,0]}",
 }};
+inline constexpr std::array<mlibs::control::Way, 1> then_rigid3_drive{{
+    {"step the world: the motor drives from the next step", "{\"op\":\"rigid3.step\"}"},
+}};
+inline constexpr std::array<mlibs::control::Way, 1> then_rigid3_move{{
+    {"step the world: the character walks from the next step", "{\"op\":\"rigid3.step\"}"},
+}};
+inline constexpr std::array<mlibs::control::Way, 1> then_rigid3_jump{{
+    {"step the world and see where it lands", "{\"op\":\"rigid3.step\",\"steps\":60}"},
+}};
 inline constexpr std::array<mlibs::control::Way, 1> then_rigid3_push{{
     {"step the world: the push acts on the next step", "{\"op\":\"rigid3.step\"}"},
 }};
@@ -61,11 +115,18 @@ inline constexpr std::array<mlibs::control::Way, 1> then_rigid3_seek{{
     {"read the world at the frame returned to", "{\"op\":\"rigid3.observe\"}"},
 }};
 
-// Read a 3D rigid world's bodies and what touched what, cast a ray into it, push a body, step it, return to a frame, and ask what would be.
-inline constexpr std::array<mlibs::control::CatalogEntry, 7> catalog{{
-    {{"rigid3.observe", openas::Effect::read, false}, "The frame, the state's hash, how many bodies and how many awake, and what began and ended touching in the last step", parameters_rigid3_observe, "json", mlibs::control::Cost::instant, "", false, false, false, examples_rigid3_observe},
+// Read a 3D rigid world's bodies, joints, characters and what touched what, cast a ray or a shape into it, push a body, drive a joint's motor, walk and jump a character, step it, return to a frame, and ask what would be.
+inline constexpr std::array<mlibs::control::CatalogEntry, 14> catalog{{
+    {{"rigid3.observe", openas::Effect::read, false}, "The frame, the state's hash, how many bodies (and how many awake), joints and characters, and what began and ended touching in the last step (a sensor's overlaps marked `sensor`)", parameters_rigid3_observe, "json", mlibs::control::Cost::instant, "", false, false, false, examples_rigid3_observe},
     {{"rigid3.bodies", openas::Effect::read, false}, "Each body's id, kind, place, turn, velocity and whether it is awake, in the order made", {}, "json", mlibs::control::Cost::bounded, "", false, false, false, examples_rigid3_bodies},
     {{"rigid3.ray", openas::Effect::read, false}, "The first body a segment meets: which, how far along, where and the surface's normal there", parameters_rigid3_ray, "json", mlibs::control::Cost::instant, "", false, false, false, examples_rigid3_ray},
+    {{"rigid3.cast", openas::Effect::read, false}, "The first body a shape swept along a segment meets: which, how far along, where and the surface's normal there", parameters_rigid3_cast, "json", mlibs::control::Cost::instant, "", false, false, false, examples_rigid3_cast},
+    {{"rigid3.joints", openas::Effect::read, false}, "Each joint's id, form, bodies (0: the world), value (a hinge's angle, a slider's place, a distance joint's length) and motor, in the order made", {}, "json", mlibs::control::Cost::bounded, "", false, false, false, examples_rigid3_joints},
+    {{"rigid3.drive", openas::Effect::reversible, false}, "A hinge's or a slider's motor, from the next step: off, toward a speed, or toward an angle or a place", parameters_rigid3_drive, "json", mlibs::control::Cost::instant, "rigid3.seek to the frame before it took effect", false, false, false, examples_rigid3_drive, "", then_rigid3_drive},
+    {{"rigid3.move", openas::Effect::reversible, false}, "A character's walk, from the next step until told otherwise: up steps and the slopes it can climb, stuck to the floor going down", parameters_rigid3_move, "json", mlibs::control::Cost::instant, "rigid3.seek to the frame before it took effect", false, false, false, examples_rigid3_move, "", then_rigid3_move},
+    {{"rigid3.jump", openas::Effect::reversible, false}, "A character's jump on the next step, when it stands on the ground (the answer says whether it does now)", parameters_rigid3_jump, "json", mlibs::control::Cost::instant, "rigid3.seek to the frame before it took effect", false, false, false, examples_rigid3_jump, "", then_rigid3_jump},
+    {{"rigid3.where", openas::Effect::read, false}, "Where a character is (or every one): its feet, its velocity and walk, and what it stands on", parameters_rigid3_where, "json", mlibs::control::Cost::instant, "", false, false, false, examples_rigid3_where},
+    {{"rigid3.ground", openas::Effect::read, false}, "What each character stood on after the last step, in the order of their ids: on the ground, on steep ground, not supported or in the air, and which body", {}, "json", mlibs::control::Cost::bounded, "", false, false, false, examples_rigid3_ground},
     {{"rigid3.push", openas::Effect::reversible, false}, "An impulse on a body, given on the next step: through its centre of mass, or at a point in the world", parameters_rigid3_push, "json", mlibs::control::Cost::instant, "rigid3.seek to the frame before it took effect", false, false, false, examples_rigid3_push, "", then_rigid3_push},
     {{"rigid3.step", openas::Effect::reversible, false}, "Steps the world", parameters_rigid3_step, "json", mlibs::control::Cost::bounded, "rigid3.seek to the frame it began at", false, false, false, examples_rigid3_step, "", then_rigid3_step},
     {{"rigid3.seek", openas::Effect::reversible, false}, "Returns to a frame within the history kept, bit for bit (a checkpoint and the pushes since, played again); what is stepped from there is a new branch", parameters_rigid3_seek, "json", mlibs::control::Cost::bounded, "none within the world: what came after the frame is another branch's", false, false, false, examples_rigid3_seek, "", then_rigid3_seek},
@@ -82,25 +143,39 @@ inline constexpr std::array<std::string_view, 3> steps_push_and_watch{{
     "{\"op\":\"rigid3.step\",\"steps\":30}",
     "{\"op\":\"rigid3.observe\"}",
 }};
+inline constexpr std::array<std::string_view, 4> steps_walk_a_character{{
+    "{\"op\":\"rigid3.where\"}",
+    "{\"op\":\"rigid3.move\",\"character\":1,\"velocity\":[2,0,0]}",
+    "{\"op\":\"rigid3.step\",\"steps\":60}",
+    "{\"op\":\"rigid3.ground\"}",
+}};
+inline constexpr std::array<std::string_view, 4> steps_turn_a_motor{{
+    "{\"op\":\"rigid3.joints\"}",
+    "{\"op\":\"rigid3.drive\",\"joint\":1,\"mode\":\"velocity\",\"target\":2}",
+    "{\"op\":\"rigid3.step\",\"steps\":60}",
+    "{\"op\":\"rigid3.joints\"}",
+}};
 inline constexpr std::array<std::string_view, 2> steps_ask_before_pushing{{
     "{\"op\":\"rigid3.branch\",\"steps\":30,\"body\":1,\"impulse\":[0,400,0]}",
     "{\"op\":\"rigid3.observe\"}",
 }};
-inline constexpr std::array<mlibs::control::Task, 3> guide_tasks{{
+inline constexpr std::array<mlibs::control::Task, 5> guide_tasks{{
     {"see-what-is-there", "Read the bodies, then what lies straight down from above", steps_see_what_is_there},
     {"push-and-watch", "Push a body, step the world, and read what it struck", steps_push_and_watch},
+    {"walk-a-character", "Walk a character, step, and read where it stands", steps_walk_a_character},
+    {"turn-a-motor", "Read the joints, drive a hinge's motor, step, and read its angle", steps_turn_a_motor},
     {"ask-before-pushing", "See what a push would do some steps ahead, the world itself untouched", steps_ask_before_pushing},
 }};
-inline constexpr mlibs::control::Guide guide{"Read a 3D rigid world's bodies and what touched what, cast a ray into it, push a body, step it, return to a frame, and ask what would be.", guide_tasks};
+inline constexpr mlibs::control::Guide guide{"Read a 3D rigid world's bodies, joints, characters and what touched what, cast a ray or a shape into it, push a body, drive a joint's motor, walk and jump a character, step it, return to a frame, and ask what would be.", guide_tasks};
 
 // The listing (rigid3.ops.json), as written beside this file.
 inline constexpr std::string_view listing = R"listing({
   "kind": "omui.ops",
   "version": 1,
   "product": "rigid3",
-  "doc": "Read a 3D rigid world's bodies and what touched what, cast a ray into it, push a body, step it, return to a frame, and ask what would be.",
+  "doc": "Read a 3D rigid world's bodies, joints, characters and what touched what, cast a ray or a shape into it, push a body, drive a joint's motor, walk and jump a character, step it, return to a frame, and ask what would be.",
   "tools": [
-    {"name": "rigid3.observe", "description": "The frame, the state's hash, how many bodies and how many awake, and what began and ended touching in the last step", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+    {"name": "rigid3.observe", "description": "The frame, the state's hash, how many bodies (and how many awake), joints and characters, and what began and ended touching in the last step (a sensor's overlaps marked `sensor`)", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "examples": [{"op":"rigid3.observe"}],
      "inputSchema": {"type": "object", "properties": {"budget": {"type": "integer", "description": "the most bytes of answer: contacts are left out from the last, and `more` says how many"}}, "required": []}},
     {"name": "rigid3.bodies", "description": "Each body's id, kind, place, turn, velocity and whether it is awake, in the order made", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
@@ -109,6 +184,30 @@ inline constexpr std::string_view listing = R"listing({
     {"name": "rigid3.ray", "description": "The first body a segment meets: which, how far along, where and the surface's normal there", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "examples": [{"op":"rigid3.ray","from":[0,20,0],"to":[0,-20,0]}],
      "inputSchema": {"type": "object", "properties": {"from": {"description": "[x, y, z]"}, "to": {"description": "[x, y, z]"}}, "required": ["from", "to"]}},
+    {"name": "rigid3.cast", "description": "The first body a shape swept along a segment meets: which, how far along, where and the surface's normal there", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"rigid3.cast","shape":"sphere","radius":0.5,"from":[0,20,0],"to":[0,-20,0]}],
+     "inputSchema": {"type": "object", "properties": {"shape": {"type": "string", "description": "sphere (the default), box or capsule"}, "radius": {"type": "number", "description": "sphere, capsule: m (0.5 when none is given)"}, "half": {"description": "box: [x, y, z], its half extents"}, "half_height": {"type": "number", "description": "capsule: half the length of its middle, along y (0.5 when none is given)"}, "from": {"description": "[x, y, z], where the shape's centre starts"}, "to": {"description": "[x, y, z], where it would end"}}, "required": ["from", "to"]}},
+    {"name": "rigid3.joints", "description": "Each joint's id, form, bodies (0: the world), value (a hinge's angle, a slider's place, a distance joint's length) and motor, in the order made", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"rigid3.joints"}],
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "rigid3.drive", "description": "A hinge's or a slider's motor, from the next step: off, toward a speed, or toward an angle or a place", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "rigid3.seek to the frame before it took effect", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "step the world: the motor drives from the next step", "request": {"op":"rigid3.step"}}],
+     "examples": [{"op":"rigid3.drive","joint":1,"mode":"velocity","target":2}],
+     "inputSchema": {"type": "object", "properties": {"joint": {"type": "integer", "description": "the joint's id"}, "mode": {"type": "string", "description": "off, velocity (the default) or position"}, "target": {"type": "number", "description": "rad/s or m/s (velocity), rad or m (position)"}}, "required": ["joint"]}},
+    {"name": "rigid3.move", "description": "A character's walk, from the next step until told otherwise: up steps and the slopes it can climb, stuck to the floor going down", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "rigid3.seek to the frame before it took effect", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "step the world: the character walks from the next step", "request": {"op":"rigid3.step"}}],
+     "examples": [{"op":"rigid3.move","character":1,"velocity":[2,0,0]}],
+     "inputSchema": {"type": "object", "properties": {"character": {"type": "integer", "description": "the character's id"}, "velocity": {"description": "[x, y, z] in m/s; y is left to gravity and jumps"}}, "required": ["character", "velocity"]}},
+    {"name": "rigid3.jump", "description": "A character's jump on the next step, when it stands on the ground (the answer says whether it does now)", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "rigid3.seek to the frame before it took effect", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "step the world and see where it lands", "request": {"op":"rigid3.step","steps":60}}],
+     "examples": [{"op":"rigid3.jump","character":1,"speed":5}],
+     "inputSchema": {"type": "object", "properties": {"character": {"type": "integer", "description": "the character's id"}, "speed": {"type": "number", "description": "m/s upward (5 when none is given)"}}, "required": ["character"]}},
+    {"name": "rigid3.where", "description": "Where a character is (or every one): its feet, its velocity and walk, and what it stands on", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"rigid3.where","character":1}],
+     "inputSchema": {"type": "object", "properties": {"character": {"type": "integer", "description": "the character's id (every one when none is given)"}}, "required": []}},
+    {"name": "rigid3.ground", "description": "What each character stood on after the last step, in the order of their ids: on the ground, on steep ground, not supported or in the air, and which body", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"rigid3.ground"}],
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
     {"name": "rigid3.push", "description": "An impulse on a body, given on the next step: through its centre of mass, or at a point in the world", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "rigid3.seek to the frame before it took effect", "undoable": false, "cancellable": false, "result": "json",
      "then": [{"why": "step the world: the push acts on the next step", "request": {"op":"rigid3.step"}}],
      "examples": [{"op":"rigid3.push","body":1,"impulse":[0,400,0]}],
@@ -136,6 +235,18 @@ inline constexpr std::string_view listing = R"listing({
       {"op":"rigid3.push","body":1,"impulse":[0,400,0]},
       {"op":"rigid3.step","steps":30},
       {"op":"rigid3.observe"}
+    ]},
+    {"name": "walk-a-character", "summary": "Walk a character, step, and read where it stands", "steps": [
+      {"op":"rigid3.where"},
+      {"op":"rigid3.move","character":1,"velocity":[2,0,0]},
+      {"op":"rigid3.step","steps":60},
+      {"op":"rigid3.ground"}
+    ]},
+    {"name": "turn-a-motor", "summary": "Read the joints, drive a hinge's motor, step, and read its angle", "steps": [
+      {"op":"rigid3.joints"},
+      {"op":"rigid3.drive","joint":1,"mode":"velocity","target":2},
+      {"op":"rigid3.step","steps":60},
+      {"op":"rigid3.joints"}
     ]},
     {"name": "ask-before-pushing", "summary": "See what a push would do some steps ahead, the world itself untouched", "steps": [
       {"op":"rigid3.branch","steps":30,"body":1,"impulse":[0,400,0]},

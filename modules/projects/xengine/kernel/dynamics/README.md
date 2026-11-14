@@ -22,7 +22,7 @@ history.step({});
 | materials | Not here: what a body is made of is [xengine.matter](../matter)'s table (D-165 — the one table physics, chemistry and the lattice share). `params_of(table, material, area)` reads its mechanical columns (`density` over water's × the area as the mass, `friction`, `restitution`, `compliance`, `shape_stiffness`); it is the package's feature `matter` (module `xengine.dynamics.matter`, taking the matter kernel alone, no JSON): a solver takes numbers, and only a consumer that has materials takes the table — hanim's engine does not | moved from `xengine.dynamics.material` (2026-11-13); the standard table has its rows (rubber, wood, stone, jelly, cloth, sand, water), the same numbers |
 | `xpbd` | Soft bodies: rings of particles held by edges, area and shape matching (optionally upright); gravity, push, walk, hop, a dragging hand; half-planes and ledges with restitution and friction; `stages()` says a step's stages in order | from the former `xengine.simulation.bodies` |
 | `rigid` | 2D rigid bodies: Box2D v3.2 under this contract — fixed steps, contacts, save / restore / branch bit for bit (the feature `rigid`) | P1, M6.2 |
-| `rigid3` | 3D rigid bodies: Jolt Physics 5.6 under the same contract — boxes, spheres, capsules, hulls, meshes as ground; contacts as a step's output; rays and shapes asked; save / restore / branch bit for bit; an agent's subject (the features `rigid3`, `rigid3-agent`) | M6.4 |
+| `rigid3` | 3D rigid bodies: Jolt Physics 5.6 under the same contract — boxes, spheres, capsules, hulls, meshes as ground, compounds, sensors; joints (fixed, hinge, slider, distance, point, cone) and walking characters as data on the world; contacts and where characters stand as a step's output; rays, shapes and shape casts asked; save / restore / branch bit for bit; an agent's subject (the features `rigid3`, `rigid3-agent`) | M6.4 |
 | `articulation`, fluids, FEM, MPM | Later solver families (each its own feature) | P2–P3 of the design |
 
 ## Collision
@@ -75,14 +75,27 @@ world->overlapping(rigid3::Shape::sphere(1), {0, 1, 0}, {}, found);             
 const auto saved = world->save();                                                      // every body as made, and Jolt's state
 auto branch = world->branch();
 world->restore(saved);                                                                 // a body removed since is back, one added since gone
+
+rigid3::Joint door = rigid3::Joint::hinge(panel, {}, {-7, 1, 0}, {0, 1, 0});         // `panel` turns about y on a hinge to the world
+door.lower = -0.5f, door.upper = 0.5f, door.motor = {.mode = rigid3::Motor::Mode::velocity, .target = 1, .most = 200};
+const auto hinge = *world->join(door);
+world->drive(hinge, rigid3::Motor::Mode::position, 0.3f);                             // from the next step
+const auto walker = *world->add(rigid3::CharacterDef{.at = {1, 0, 0}});              // its feet; 1.8 m tall, climbs 50°, steps 0.4 m
+world->walk(walker, {2, 0, 0}), world->jump(walker, 5);
+world->step();
+for (const rigid3::CharacterState& c : world->grounds()) { /* on the ground or in the air, on which body, the ground's normal */ }
+const auto first = world->cast(rigid3::Shape::sphere(0.5f), {}, {0, 10, 0}, {0, -10, 0}); // the first body a shape swept meets
 ```
 
 - **Bodies**: boxes, spheres, capsules, convex hulls; a triangle mesh on a fixed body (terrain, buildings). `Kind::kinematic` is moved by its velocity alone. `bullet` sweeps a fast body against what it would pass through.
+- **Compounds and sensors**: `Shape::compound(parts)` makes several shapes one body (Jolt's static compound); `compound(parts, true)` a mutable one whose parts `move_part` moves later (the image carries the shape as it is). A body made with `.sensor = true` pushes nothing and reports what overlaps it as contacts marked `sensor`; it senses moving bodies.
+- **Joints are data on the world**: `join(Joint)` — fixed, hinge (limits, a motor toward a speed or an angle), slider (limits, a motor), distance (a rope: lower and upper lengths), point (a ball joint), cone — between two bodies or a body and the world; `joint(id)` reads a hinge's angle, a slider's place, a distance joint's length and the motor; `drive` changes the motor; removing a body removes its joints. The image carries each joint's settings in the bodies' own frames as Jolt writes them, and Jolt's order of them, so a restore and a branch made from bytes alone step on to the same bits. A limit is met in the step a body arrives at it: past it by at most that step's travel, back within 1% as the solver settles (the parts test bounds both).
+- **Characters**: `add(CharacterDef)` — Jolt's CharacterVirtual: a capsule walked by `walk(velocity)` and `jump(speed)`, up steps and the slopes it can climb, held back by steeper ones, stuck to the floor going down; it pushes bodies and is not pushed by them, and a ray does not meet it. Where each stands is a step's output (`grounds()`, in id order). Its place, velocity, ground state and walk are in the image.
 - **Materials from the table**: `material_of(table, material)` reads the mechanical columns (`density` in kg/m³, `friction`, `restitution`) — a cubic metre of stone weighs its density.
 - **Contacts are a step's output**: what began and ended touching in the step, named by the world's ids (`one` < `other`), in their order, each pair once a kind — the same list with any number of workers.
 - **Ids are the world's**: 1 upwards in the order made, carried by the image with how each body was made (its kind, material and shape's bytes), so a restore brings back a body removed since under its id and a branch made from bytes alone has every body.
 - **The family's hard constraints** (`xengine.dynamics.cts`' `declare_rigid`, contract `xengine.dynamics.rigid@1`): 10 of 10 pass on Jolt — the world contract and the ids across an image and in a branch, `canonical-image` among them (two worlds at one state write one image, byte for byte; Jolt writes its state value by value, where Box2D's family reports it unsupported).
-- **The same bits everywhere**: the wrap's CI checks one scene on Linux x86-64 and arm64, macOS, Windows and wasm32, in the dev and release profiles, with 0, 1 and 4 workers; here a run with 1 and 3 workers is the single-threaded run's bits.
+- **The same bits everywhere**: the wrap's CI checks one scene on Linux x86-64 and arm64, macOS, Windows and wasm32, in the dev and release profiles, with 0, 1 and 4 workers; here a run with 1 and 3 workers is the single-threaded run's bits — with every joint form, a character, compounds and a sensor in the world too (`rigid3_parts_test`).
 - Beside the solver it wraps: `simulation/rigid3-tower-512` in `tests/bench` steps the same bodies on a `World` and on Jolt called directly (`rigid3::Direct`), taking turns.
 
 ## Soft bodies (xpbd)
@@ -96,7 +109,7 @@ A `SoftBody` is a ring of particles held by its edges' lengths, its enclosed are
 - The rigid family beside the solver it wraps: `simulation/rigid-pyramid-20` and `simulation/rigid-rain-1000` in `tests/bench` step the same bodies on a `World` and on Box2D called directly (`rigid::Direct`), in the same run and taking turns, every body at the same place in both — the wrapper costs 1.6% and 3.4% (release, locally); a budget holds it under 10%.
 - Benchmarks: `dynamics/softbody-24` and `-96` in `tests/bench` (zero allocations a step; a frame's budget for a figure's softness).
 
-Run `mcpp test -p xengine.dynamics -p xengine.dynamics.cts`: swept collision to the same bits, soft bodies dropped, landed on ledges, walked, kept upright and replayed bit for bit, the material table; both rigid families held to their hard constraints (`rigid_test`, `rigid3_test`).
+Run `mcpp test -p xengine.dynamics -p xengine.dynamics.cts`: swept collision to the same bits, soft bodies dropped, landed on ledges, walked, kept upright and replayed bit for bit, the material table; both rigid families held to their hard constraints (`rigid_test`, `rigid3_test`, and `rigid3_parts_test` with joints, a character, compounds and a sensor).
 
 ## Agent surface
 
@@ -119,15 +132,15 @@ A 3D rigid world is a subject too, module `xengine.dynamics.rigid3.agent` — th
 |---|---|
 | Subject and addresses | `rigid3`, interface `xengine.dynamics.rigid3@0.1`. A body is its id (a number, 1 upwards in the order made); a place is the world's metres, `[x, y, z]` with y up; a frame is a step played |
 | State | The `World`; the hash covers every body's place, turn and velocities, bit for bit |
-| Observation | `rigid3.observe`: the frame, the hash, how many bodies and how many awake, what began and ended touching in the last step (where, along which normal, how fast); `rigid3.bodies` for each body; `rigid3.ray`: the first body a segment meets |
-| Control | `rigid3.push`: an impulse on a body, through its centre of mass or at a point, given on the next step; taken back by seeking |
-| Time | `rigid3.step`, `rigid3.seek` back within the steps kept — a checkpoint (the world's image) every 60 steps and the pushes given since, played again: the same bits as the run that stopped there |
+| Observation | `rigid3.observe`: the frame, the hash, how many bodies (and how many awake), joints and characters, what began and ended touching in the last step (where, along which normal, how fast; a sensor's overlaps marked `sensor`); `rigid3.bodies` for each body; `rigid3.joints` for each joint's form, bodies, value and motor; `rigid3.where` for a character's feet, velocity, walk and ground; `rigid3.ground`: what each character stood on after the last step; `rigid3.ray` and `rigid3.cast` (a sphere, box or capsule swept): the first body met |
+| Control | `rigid3.push`: an impulse on a body, through its centre of mass or at a point; `rigid3.drive`: a hinge's or slider's motor; `rigid3.move` and `rigid3.jump`: a character's walk and jump — each given on the next step, taken back by seeking |
+| Time | `rigid3.step`, `rigid3.seek` back within the steps kept — a checkpoint (the world's image) every 60 steps and the inputs given since (pushes, drives, walks, jumps), played again: the same bits as the run that stopped there |
 | Preview | `rigid3.branch`: the world some steps ahead, a body pushed first if one is given, observed as `rigid3.observe` does; the world itself untouched (a branch of it is stepped) |
 | Budgets and tiers | `rigid3.observe` within a `budget` of bytes (contacts left out from the last, `more` says how many); `Options`: `keep` steps of history, a checkpoint `every` so many, `most_steps` a request |
 | Not here | **Causes** and **source**, as for the soft body: reported unsupported by the contract suite (10 passed, 3 unsupported) |
 
 ```sh
-mcpp test -p xengine.dynamics.cts     # agent_test, rigid3_agent_test: the agent contract's suite on a body and on a 3D world, then pushes, seeks and branches
+mcpp test -p xengine.dynamics.cts     # agent_test, rigid3_agent_test: the agent contract's suite on a body and on a 3D world, then pushes, motors, characters, seeks and branches
 ```
 
 The subject's tests are [cts](cts)'s, which turns the feature on: a feature is tested where it is on.

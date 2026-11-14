@@ -37,9 +37,13 @@ How an Agent examines and tries a 3D rigid world the rigid3 family steps (`xengi
 3. Before pushing, ask `rigid3.branch` with the same `body` and `impulse`: the world some steps ahead, itself untouched. Compare branches rather than trying one and seeking back.
 4. `rigid3.push` gives an impulse on the next step; `rigid3.step` plays it on. What the push struck is in the contacts of the steps after `effective`.
 5. To try otherwise, `rigid3.seek` back to a frame within the history kept.
+6. Joints: `rigid3.joints` lists each with its value (a hinge's angle, a slider's place, a rope's length); `rigid3.drive` sets a hinge's or slider's motor (`velocity` or `position`, a `target`) from the next step. A rope, a point, a cone or a fixed joint has no motor and says so.
+7. Characters: `rigid3.where` first (its id, feet, ground); `rigid3.move` sets the walk it keeps until told otherwise; `rigid3.jump` acts only from the ground — its answer says whether it stands now, and `rigid3.ground` after the steps says where it is.
+8. To ask whether something fits along a path, `rigid3.cast` the shape rather than a ray.
 
 ## Verifying
 
 - The same requests give the same hash, on every platform and with any number of workers.
 - A branch's hash is the hash of the same steps played; a seek reaches a frame's hash again exactly.
 - Rest is `awake` falling to 0 over several steps, not one reading.
+- A character's state is a step's output: read `rigid3.ground` after `rigid3.step`, not right after `rigid3.move` or `rigid3.jump`.

@@ -45,6 +45,7 @@ WebAssembly, with the method and the numbers.
 | `wall/workspace-drag-100`, `wall/selection-drag-1000` | moving many windows at once: a workspace of 100 by its label, 1000 chosen ones by a title |
 | `wall/stream-20` | 20 windows written into at 50 tokens a second |
 | `gongfu/frame` | one frame of the fighting game's simulation, two scripted players (and its allocations: none) |
+| `game/quay-frame-1080p-gpu` | **D-187**: a frame of Quay (the FPS slice) as a game plays it, on this machine's device at 1920×1080 — the step, the picture prepared, the device's frame (bodies bent, the moon's map, eight lights' views, the light, the glow) submitted and waited for; p99 within 8.3 ms on a desktop GPU, not held on a software device |
 | `gongfu/rollback-8` | eight frames rolled back: the state restored, the frames simulated again, each saved (per frame) |
 | `breakout/step` | a step of the widget breakout's simulation over a full wall (many balls swept among 96 bricks, capsules) |
 | `breakout/seek` | a rewind of the widget breakout: the timeline seeking 0.5–30 s back |

@@ -16,6 +16,7 @@ export module omui.showcase.quay.picture;
 import std;
 export import omui.showcase.quay.sim;
 export import xrender.mesh;
+export import xrender.mesh.gpu;
 export import hanim.skeleton;
 
 export namespace quay::picture {
@@ -36,7 +37,10 @@ class Picture {
 public:
     [[nodiscard]] static std::expected<Picture, std::string> make(const Level& level);
 
-    // The state as the watchkeeper sees it.
+    // The frame of a state made ready to draw — the wardens posed and bent, the lights, the view, what it sees —
+    // for the reference here or a device (`OnDevice`).
+    void prepare(const State& state);
+    // The state as the watchkeeper sees it: prepared, then drawn by the reference and glowing.
     const mesh::Targets& draw(const State& state, const Frame& frame = {});
     [[nodiscard]] const mesh::Targets& targets() const noexcept { return targets_; }
     [[nodiscard]] std::span<const std::uint8_t> shown() const noexcept { return shown_; }  // rgba8 after the glow
@@ -47,12 +51,18 @@ public:
 
     [[nodiscard]] const scene::Scene& world() const noexcept { return world_; }
     [[nodiscard]] const scene::View& view() const noexcept { return view_; }
+    [[nodiscard]] const scene::Extracted& seen() const noexcept { return seen_; }
     [[nodiscard]] mesh::Assets assets(bool shadows = true) const noexcept;
     [[nodiscard]] const mesh::Options& options() const noexcept { return options_; }
+    [[nodiscard]] static mesh::Bloom bloom(int width) noexcept { return {.threshold = 1, .radius = 7.0f * static_cast<float>(width) / 480, .strength = 0.6f}; }
+    // The wardens' bodies as this frame bent them: the mesh each is (its number in `assets().meshes`).
+    [[nodiscard]] std::size_t bodies() const noexcept { return made_.size() - first_body_; }
+    [[nodiscard]] std::uint32_t body_mesh(std::size_t warden) const noexcept { return static_cast<std::uint32_t>(first_body_ + warden); }
 
 private:
     void pose(const State& state);
     void lights(const State& state);
+    static constexpr std::size_t first_body_ = 5;
 
     std::vector<mlibs::geom::ClusteredMesh>       made_;    // box, sphere, post, sea, then a warden's bent body each
     std::vector<const mlibs::geom::ClusteredMesh*> meshes_;
@@ -75,6 +85,33 @@ private:
     mesh::Glow                                    glow_;
     std::vector<std::uint8_t>                     shown_;
     std::uint32_t                                 bright_ = 0;
+};
+
+// The picture on a device (mlibs.rhi; xrender.mesh.gpu): the frame a `Picture` prepared, drawn by the pass the
+// reference is held to — the wardens bent on the device, the lamps' and the moon's shadows by maps, the glow — to
+// an rgba8 target of its own. What a window shows and the frame budget is measured on.
+class OnDevice {
+public:
+    [[nodiscard]] static mlibs::rhi::Result<OnDevice> make(mlibs::rhi::Device& device, const Picture& picture, std::uint32_t width, std::uint32_t height);
+    OnDevice(OnDevice&& other) noexcept;
+    OnDevice& operator=(OnDevice&& other) noexcept;
+    ~OnDevice();
+    // The frame `picture` last prepared, recorded on `list`.
+    [[nodiscard]] mlibs::rhi::Result<void> record(mlibs::rhi::CommandList& list, const Picture& picture);
+    [[nodiscard]] mlibs::rhi::Texture colour() const noexcept { return colour_; }
+    [[nodiscard]] const mesh::gpu::Stats& last() const noexcept { return pass_->last(); }
+    [[nodiscard]] std::uint32_t width() const noexcept { return width_; }
+    [[nodiscard]] std::uint32_t height() const noexcept { return height_; }
+
+private:
+    OnDevice() = default;
+    void release() noexcept;
+    mlibs::rhi::Device*            device_ = nullptr;
+    std::optional<mesh::gpu::Pass> pass_;
+    std::optional<mesh::gpu::Glow> glow_;
+    mesh::gpu::Shadows             shadows_;
+    mlibs::rhi::Texture            colour_, depth_, light_, one_, other_;
+    std::uint32_t                  width_ = 0, height_ = 0;
 };
 
 }  // namespace quay::picture

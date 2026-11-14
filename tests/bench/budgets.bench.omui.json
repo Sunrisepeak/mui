@@ -48,6 +48,8 @@
      "why": "M6.3: the mirror following a frame in which 100 of 10,000 instances moved — the tree's boxes refitted, its shape kept; after 64 refits a new tree is made beside it 4,096 things a frame and takes its place, so no frame makes the whole tree (a debug build locally, 2026-11-14: median 0.63 ms, p95 1.43 ms, p99 1.95 ms, the largest 2.8 ms — where the whole tree every 64th frame was 34 ms)"},
     {"name": "render/scene-follow-10k", "metric": "p99_ms", "max": 8.33,
      "why": "D-187: no frame of following a moving scene of 10,000 things is over a 120th of a second (it was 31 ms when the tree was made again whole)"},
+    {"name": "game/quay-frame-1080p-gpu", "metric": "p99_ms", "max": 8.3, "unless": "software",
+     "why": "D-187: a frame of a game at 120 frames a second on a desktop GPU (an RTX 4080 class) — its p99, the CPU's and the GPU's time together, here one after the other (nothing overlapped): the FPS slice's step, its picture prepared and drawn at 1920x1080 with eight lights' shadows by maps and the glow"},
     {"name": "render/mesh-reference-yard", "metric": "p95_ms", "max": 25,
      "why": "M6.3, D-184: the CPU reference of the mesh pass — 6,092 triangles, 480x270, five outputs a pixel, one thread: 3.2 ms p50 locally (31 ns a pixel; the package builds at -O2), 15.7 ms p95 on a machine doing other work. A reference is held to its bits, not to a frame; the bound is there so that a change that makes it several times dearer is seen"},
     {"name": "render/mesh-reference-yard", "metric": "max_allocations", "max": 0,

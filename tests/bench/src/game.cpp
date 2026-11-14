@@ -7,6 +7,10 @@ import gongfu;
 import gongfu.present2d;
 import omui.showcase.widget_breakout.sim;
 import xengine.world;
+import omui.showcase.quay.picture;
+import xrender.rhi.sdl;
+import mlibs.rhi;
+import mcpplibs.os;
 
 namespace omui::bench {
 
@@ -116,6 +120,67 @@ World made() {
 }  // namespace chunked
 
 void add_game_benchmarks() {
+    add("game/quay-frame-1080p-gpu", "a frame of Quay, the FPS slice, at 1920x1080 on this machine's device as a game plays it: the step (Jolt's world, Detour's crowd, what the wardens hear and see), the guide's choice, the picture prepared (four wardens posed by their skeletons and bent, the lights, the view, what it sees), and on the device the bodies bent, the moon's map, eight lights' six views each, the light, the glow and the curve — submitted and waited for (D-187: p99 within 8.3 ms on a desktop GPU)",
+        [](State& s) {
+            namespace rhi = mlibs::rhi;
+            constexpr std::uint32_t width = 1920, height = 1080;
+            xrender::rhi::sdl::Options options;
+            options.formats = xrender::mesh::gpu::Pass::shader_formats();
+            if (auto library = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) options.vulkan_library = *library;
+            if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) options.video_driver = *video;
+            auto device = xrender::rhi::sdl::create(options);
+            if (!device) {
+                s.skip(std::format("no GPU device ({})", device.error().message));
+                return;
+            }
+            rhi::Device& on = **device;
+            s.note("device", std::format("{} ({}{})", on.caps().device, rhi::name(on.caps().backend), on.caps().software ? ", software" : ""));
+            auto picture = quay::picture::Picture::make(quay::level::harbour());
+            if (!picture) {
+                s.fail(picture.error());
+                return;
+            }
+            auto drawn = quay::picture::OnDevice::make(on, *picture, width, height);
+            if (!drawn) {
+                s.fail(std::format("Quay's picture on the device: {}", drawn.error().message));
+                return;
+            }
+            // A second in, untimed: what is measured has the first warden in view and the first shots.
+            quay::State state = quay::start(quay::level::harbour());
+            quay::Guide guide;
+            while (state.frame < 60) quay::step(state, guide(state));
+            rhi::CommandList list;  // kept: a list cleared keeps its room
+            std::uint64_t games = 0;
+            const auto frame = [&] {
+                if (state.outcome != quay::Outcome::playing) {
+                    s.pause();
+                    state = quay::start(quay::level::harbour()), guide = {}, ++games;
+                    s.resume();
+                }
+                const auto begun = std::chrono::steady_clock::now();
+                quay::step(state, guide(state));
+                picture->prepare(state);
+                list.clear();
+                if (!drawn->record(list, *picture)) {
+                    s.fail("the frame could not be recorded");
+                    return;
+                }
+                const auto submitted = on.submit(list);
+                s.counter("encode_ms", std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - begun).count());
+                const auto waited = on.wait_idle();
+                if (!submitted || !waited) {
+                    s.fail(std::format("the frame failed: {}", !submitted ? submitted.error().message : waited.error().message));
+                    return;
+                }
+                s.counter("software", on.caps().software ? 1 : 0);
+            };
+            frame();
+            s.items(width * height);
+            while (s.next()) frame();
+            const auto& last = drawn->last();
+            s.note("scope", std::format("one thread; {} draws, {} lights, {} views of lamps, {} casters in the moon's map; {} games played to the end and begun again (not timed); the same frames the device suite holds to the reference at 480x270",
+                                        last.draws, last.lamps, last.lamp_views, last.casters, games));
+        });
     add("world/chunked-branch-100k", "a branch of a world of 100,000 entities (xengine.world's Chunked, 1,565 chunks): the copy, one entity written in it, the two compared — what a snapshot, a rewind point or an agent's what-if costs (D-169)",
         [](State& s) {
             const chunked::World world = chunked::made();

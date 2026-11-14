@@ -21,6 +21,9 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 omui.showcase.quay.sim = { path = "../sim" }
 xrender.mesh   = { path = "../../../modules/projects/xrender/mesh" }
+# The same frame on a device (OnDevice): the mesh pass the reference is held to, through mlibs.rhi.
+"xrender.mesh.gpu" = { path = "../../../modules/projects/xrender/mesh/gpu" }
+mlibs.rhi      = { path = "../../../modules/gfx/rhi" }
 xrender.scene  = { path = "../../../modules/projects/xrender/scene" }
 hanim.skeleton = { path = "../../../modules/projects/hanim/skeleton" }
 mlibs.geom     = { path = "../../../modules/base/geom" }
@@ -32,3 +35,6 @@ mlibs.utils    = { path = "../../../modules/base/utils" }
 mlibs.image    = { path = "../../../modules/base/image" }
 mlibs.json     = { path = "../../../modules/base/json" }
 omui.showcase.quay.headless = { path = "../headless" }
+# A device to draw on in the tests: SDL_GPU (lavapipe in CI, tools/ci/gpu.sh; the real GPU by tools/dev/gpu-real.sh).
+xrender.rhi.sdl = { path = "../../../modules/projects/xrender/rhi/sdl" }
+mcpplibs.os     = "0.4.4"

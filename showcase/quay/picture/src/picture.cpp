@@ -16,7 +16,7 @@ using math::Quat;
 
 constexpr double pi = 3.14159265358979323846;
 // The meshes, by number.
-constexpr std::uint32_t box_mesh = 0, ball_mesh = 1, post_mesh = 2, sea_mesh = 3, gun_mesh = 4, first_body = 5;
+constexpr std::uint32_t box_mesh = 0, ball_mesh = 1, post_mesh = 2, sea_mesh = 3, gun_mesh = 4, first_body = 5;  // Picture::first_body_ too
 // The materials, by number.
 enum Material : std::uint32_t {
     wet_quay, concrete, rust_red, steel_blue, sea_green, ochre, dull_grey, wood, iron, warden_rust, warm_globe, cold_globe, eye_patrol, eye_search, eye_chase, beacon_glass, gun_metal,
@@ -206,7 +206,6 @@ void Picture::pose(const State& state) {
         skeleton::skin(skeleton_, model_, skin_);
         geom::ClusteredMesh& bent = made_[first_body + index];
         mesh::bend(body_, skin_, bent, room_);
-        grown_[first_body + index] = geom::bvh_of(bent.mesh);
         const math::Mat4 where = placed(warden.at, {1, 1, 1}, facing_turn(warden.facing));
         put(world_, {.id = warden_ids + index + 1, .mesh = first_body + static_cast<std::uint32_t>(index), .material = warden_rust, .world = where, .bounds = geom::bounds(bent.mesh)});
         // Its eye: on the head's front, the colour of its mind; gone when it is down.
@@ -229,14 +228,19 @@ void Picture::lights(const State& state) {
     (void)world_.add(scene::Light{.id = 3, .kind = scene::LightKind::point, .colour = {1, 0.55f, 0.2f}, .intensity = 0.6f + 5 * lit, .at = lamp, .range = 30});
     for (const scene::Id id : flashes_) (void)world_.remove_light(id);
     flashes_.clear();
-    for (const Shot& shot : state.shots) {
+    // One flash a frame — the watchkeeper's shot first — so the lights are eight at most: what a device lights by.
+    const auto keeper_shot = std::ranges::find_if(state.shots, [](const Shot& shot) { return shot.by == 0; });
+    const Shot* const first = keeper_shot != state.shots.end() ? &*keeper_shot : state.shots.empty() ? nullptr : &state.shots.front();
+    if (first) {
+        const Shot& shot = *first;
         const scene::Id id = 20 + flashes_.size();
         const math::Vec3 at = shot.by == 0 ? shot.from + looking(state) * 0.6f + math::Vec3{0, -0.1f, 0} : shot.from;
         if (world_.add(scene::Light{.id = id, .kind = scene::LightKind::point, .colour = {1, 0.75f, 0.4f}, .intensity = 4, .at = at, .range = 9})) flashes_.push_back(id);
     }
 }
 
-const mesh::Targets& Picture::draw(const State& state, const Frame& frame) {
+void Picture::prepare(const State& state) {
+    world_.settle();  // the last frame's changes: this frame's are kept for whichever pass draws it
     pose(state);
     lights(state);
     // The view from the watchkeeper's eye, 100° across.
@@ -251,15 +255,20 @@ const mesh::Targets& Picture::draw(const State& state, const Frame& frame) {
     put(world_, {.id = flash_id, .mesh = ball_mesh, .material = flash, .world = from_eye * placed({0.075f, -0.064f, -0.4f}, {0.025f, 0.025f, 0.035f}), .bounds = geom::bounds(made_[ball_mesh].mesh),
                       .hidden = !fired, .casts = false});
 
-    seen_ = {};
-    scene::extract(world_, view_, seen_);
+    scene::extract(world_, view_, seen_);  // its lists emptied and filled again: no allocation on a steady frame
+}
+
+const mesh::Targets& Picture::draw(const State& state, const Frame& frame) {
+    prepare(state);
+    // The reference's shadows are traced through each mesh's tree: the bent bodies' made again (a device's maps need none).
+    if (frame.shadows)
+        for (std::size_t warden = 0; warden < bodies(); ++warden) grown_[body_mesh(warden)] = geom::bvh_of(made_[body_mesh(warden)].mesh);
     targets_.resize(frame.width, frame.height);
     mesh::Options options = options_;
     options.shadows = frame.shadows;
     pass_.draw(world_, seen_, view_, assets(frame.shadows), targets_, options);
-    world_.settle();
     shown_ = targets_.colour;
-    bright_ = frame.glow ? glow_.show(targets_.light, frame.width, frame.height, {.threshold = 1, .radius = 7.0f * static_cast<float>(frame.width) / 480, .strength = 0.6f}, shown_).bright : 0;
+    bright_ = frame.glow ? glow_.show(targets_.light, frame.width, frame.height, bloom(frame.width), shown_).bright : 0;
     return targets_;
 }
 

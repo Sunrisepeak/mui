@@ -135,6 +135,10 @@ std::expected<Look, Failure> Look::prepare(const Program& program, const Appeara
         // The colour's own alpha and the mix together: the most of it.
         state.color = (*color & 0x00ffffffu) | static_cast<std::uint32_t>(std::lround(spec.mix * static_cast<double>(*color >> 24))) << 24;
         state.emits = spec.emits;
+        if (spec.rough) {
+            if (!(*spec.rough >= 0 && *spec.rough <= 1)) return fail(Errc::value, where + "/rough", std::format("a roughness is 0 … 1; this is {}", *spec.rough));
+            state.rough = static_cast<float>(*spec.rough);
+        }
 
         std::array<bool, 5> shows{};
         shows.fill(spec.of.empty());
@@ -167,6 +171,7 @@ std::expected<Look, Failure> Look::prepare(const Program& program, const Appeara
         }
         look.states_.push_back(std::move(state));
     }
+    look.shade_ = look.shade();
     return look;
 }
 
@@ -209,4 +214,34 @@ mlibs::math::color::Shade Look::shade() const {
     return out;
 }
 
+namespace {
+// sRGB-encoded to linear (the transfer function's two pieces; det's pow: the same bits everywhere).
+float linear(std::uint32_t byte) noexcept {
+    const double encoded = static_cast<double>(byte) / 255;
+    return static_cast<float>(encoded <= 0.04045 ? encoded / 12.92 : mlibs::math::det::pow((encoded + 0.055) / 1.055, 2.4));
+}
+}  // namespace
+
+Surface Look::surface(std::span<const std::uint32_t> cells, std::size_t area, std::size_t index, float roughness) const noexcept {
+    Surface out;
+    const mlibs::math::color::Shaded shaded = mlibs::math::color::shade_of(shade_, cells, area, index);
+    out.base = {linear(shaded.pixel & 0xffu), linear((shaded.pixel >> 8) & 0xffu), linear((shaded.pixel >> 16) & 0xffu)};
+    out.light = {linear(shaded.light & 0xffu), linear((shaded.light >> 8) & 0xffu), linear((shaded.light >> 16) & 0xffu)};
+    // Each state with a roughness of its own: the surface moved toward it by how far along the state the thing is.
+    const std::uint32_t material = index < area ? cells[index] : 0xffffffffu;
+    out.roughness = roughness;
+    for (const StateLook& state : states_) {
+        if (state.rough < 0 || material >= state.to.size()) continue;
+        const std::uint32_t from = state.from, to = state.to[material];
+        if (to == from) continue;
+        const std::uint32_t value = cells[static_cast<std::size_t>(state.channel) * area + index];
+        const double along = to > from ? (value <= from ? 0.0 : value >= to ? 1.0 : static_cast<double>(value - from) / static_cast<double>(to - from))
+                                       : (value >= from ? 0.0 : value <= to ? 1.0 : static_cast<double>(from - value) / static_cast<double>(from - to));
+        // By how far along the state it is, not by its colour's mix: a surface half-tinted by water is all wet.
+        out.roughness = static_cast<float>(static_cast<double>(out.roughness) + (static_cast<double>(state.rough) - static_cast<double>(out.roughness)) * along);
+    }
+    return out;
+}
+
 }  // namespace xengine::matter
+

@@ -66,3 +66,5 @@ mcpplibs.cmdline    = "0.0.3"
 mcpplibs.mtest = "0.8.4"
 # tests/matter_test.cpp: the standard definition, read, with the pack of acoustics over it.
 xengine.matter = { path = "../matter" }
+# tests/bodies_test.cpp: bodies land and are heard by their material (M6.5 T5.4).
+xengine.dynamics = { path = "../dynamics", features = ["rigid3-matter"] }

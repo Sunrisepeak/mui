@@ -39,9 +39,9 @@ export default defineAppearance({
   },
   // In order: each over what the ones before it left.
   states: [
-    { name: "charred", by: "burned", to: "fuel", color: "#15100c", mix: 0.85, of: ["solid", "soft", "granular"] },
-    { name: "wet", by: "wetness", to: 48, color: "#0d2238", mix: 0.42, of: ["solid", "soft", "granular"] },
-    { name: "frosted", by: "temperature", from: 273, to: 213, color: "#dff1ff", mix: 0.4, of: ["solid", "soft", "granular"] },
+    { name: "charred", by: "burned", to: "fuel", color: "#15100c", mix: 0.85, rough: 1, of: ["solid", "soft", "granular"] },
+    { name: "wet", by: "wetness", to: 48, color: "#0d2238", mix: 0.42, rough: 0.12, of: ["solid", "soft", "granular"] },
+    { name: "frosted", by: "temperature", from: 273, to: 213, color: "#dff1ff", mix: 0.4, rough: 0.7, of: ["solid", "soft", "granular"] },
     // The air over a fire: nothing burns in it, and it is where the flames are seen.
     { name: "hot air", by: "temperature", from: 420, to: 900, color: "#ff7a1a", mix: 0.6, emits: true, of: ["gas"] },
     { name: "glows with heat", by: "temperature", from: 800, to: 1500, color: "#ff4a0c", mix: 0.85, emits: true },

@@ -88,6 +88,10 @@ public:
     [[nodiscard]] std::span<const matter::Event> events() const noexcept { return events_; }
     // The body an instance of the last step is (none: the air beside one).
     [[nodiscard]] BodyId body_of(std::uint32_t instance) const noexcept { return instance < bodies_before_.size() ? bodies_before_[instance] : BodyId{}; }
+    // What met something in the world's last step (contacts that began, sensors aside), each carried body that
+    // did, its material and how fast it closed (m/s), into `out` (emptied first): what a sound of matter hears
+    // as landings (`xengine.audio.matter`'s `hear(impacts, …)`) — a new material has its own without new code.
+    void impacts(const World& world, std::vector<matter::Impact>& out) const;
     // The pairs the last step read, by instance: who was touching whom, and how much.
     [[nodiscard]] std::span<const matter::Pair> pairs() const noexcept { return pairs_; }
     // Why a body is what it is after the last step: every law judged, every flow named by the body it came from

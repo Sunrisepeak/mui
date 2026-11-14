@@ -51,6 +51,7 @@ struct StateSpec {
     std::string                       color;
     double                            mix = 1;                 // 0 … 1
     bool                              emits = false;           // light of its own
+    std::optional<double>             rough;                   // a surface's roughness it moves toward, 0 … 1
     std::vector<std::string>          of;                      // phases it shows on (none said: all)
 };
 struct Appearance {
@@ -70,6 +71,13 @@ struct StateLook {
     std::vector<std::uint32_t> to;         // a material each, as stored; `from`: the state does not show on it
     std::uint32_t              color = 0;  // its alpha: the most of it (`mix`)
     bool                       emits = false;
+    float                      rough = -1; // a roughness it moves a surface toward (−1: says none)
+};
+// What a renderer of surfaces takes of a thing's look: its colour and its light in linear terms (0 … 1), and how
+// rough it is.
+struct Surface {
+    mlibs::math::Vec3 base{0, 0, 0}, light{0, 0, 0};
+    float             roughness = 1;
 };
 class Look {
 public:
@@ -92,8 +100,13 @@ public:
     // As a shade (`mlibs::math::color`): the key is the material (channel 0, where every carrier keeps it), a
     // row a material, a state a tint — its range's end by row. What is no material is the shade's fallback.
     [[nodiscard]] mlibs::math::color::Shade shade() const;
+    // A thing's surface (`index` of channel-major `cells`, `area` a channel) — what a body's material takes in 3D:
+    // the shade's colour and light (the same arithmetic as every carrier's presenter), and `roughness` moved
+    // toward each state's `rough` by how far along it the thing is. Allocates nothing.
+    [[nodiscard]] Surface surface(std::span<const std::uint32_t> cells, std::size_t area, std::size_t index, float roughness) const noexcept;
 
 private:
+    mlibs::math::color::Shade  shade_;  // the look as a shade, made once
     std::vector<std::uint32_t> base_;
     std::vector<std::uint8_t>  grain_, named_;
     std::vector<StateLook>     states_;

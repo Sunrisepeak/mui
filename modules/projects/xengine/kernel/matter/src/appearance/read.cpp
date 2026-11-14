@@ -112,7 +112,7 @@ struct Parsed {
     if (const Node states = root["states"]) {
         if (!states.is_array()) reader.wrong(states, "`states` is a list");
         for (const Node& node : states.items()) {
-            static constexpr std::array<std::string_view, 8> state_keys{"name", "by", "from", "to", "color", "mix", "emits", "of"};
+            static constexpr std::array<std::string_view, 9> state_keys{"name", "by", "from", "to", "color", "mix", "emits", "rough", "of"};
             if (!node.is_object()) {
                 reader.wrong(node, "a state is an object: {by, from, to, color …}");
                 appearance.states.emplace_back();  // keeps the states' places
@@ -137,6 +137,7 @@ struct Parsed {
                 if (const auto value = emits.boolean()) state.emits = *value;
                 else reader.wrong(emits, "`emits` is true or false");
             }
+            if (node["rough"]) state.rough = reader.number(node["rough"], "`rough`");
             if (const Node of = node["of"]) {
                 if (!of.is_array()) reader.wrong(of, "`of` is a list of phases");
                 for (const Node& phase : of.items()) {

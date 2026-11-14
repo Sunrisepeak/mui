@@ -159,6 +159,16 @@ void Objects::blow(World& world, const xengine::field::Field& air) const {
     }
 }
 
+void Objects::impacts(const World& world, std::vector<matter::Impact>& out) const {
+    out.clear();
+    for (const Contact& contact : world.contacts()) {
+        if (!contact.began || contact.sensor || !(contact.approach > 0)) continue;
+        for (const BodyId body : {contact.one, contact.other})
+            if (const auto at = index(body))
+                out.push_back({static_cast<std::uint32_t>(*at), state_[*at], contact.approach});
+    }
+}
+
 bool Objects::open_to_sky(const World& world, BodyId body, float sky) const noexcept {
     const auto box = world.bounds(body);
     if (!box) return false;

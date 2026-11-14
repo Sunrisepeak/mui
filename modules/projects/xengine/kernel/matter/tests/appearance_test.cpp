@@ -223,4 +223,47 @@ UTest cases{"simulation.matter.appearance", [] {
             << "against its own `moist`, and only on what is soft";
         expect(eq(own->states()[0].color, 0x80401000u));
     };
+
+    "a body's surface by its state (what a 3D material takes): wet is darker and glossy, charred near black and matt, alight gives light; a new material too"_test = [] {
+        const matter::Program program = prepared(standard_definition());
+        const auto look = matter::standard_look(program);
+        expect(fatal(look.has_value()));
+        const std::uint32_t wood = *program.material("wood");
+        const std::size_t channels = program.channels().size();
+        // One body's channels (channel-major for one instance: a channel a value).
+        const auto body = [&](std::uint32_t material, auto&& change) {
+            std::vector<std::uint32_t> cells = program.fresh(1, material);
+            change(cells);
+            return look->surface(cells, 1, 0, 0.8f);
+        };
+        const auto stored = [&](std::string_view channel, double value) {
+            return static_cast<std::uint32_t>(std::lround(std::ldexp(value, static_cast<int>(program.channels()[*program.channel(channel)].fraction))));
+        };
+        const auto set = [&](std::string_view channel, std::uint32_t value) { return [&program, channel, value](std::vector<std::uint32_t>& cells) { cells[*program.channel(channel)] = value; }; };
+        const auto dry = body(wood, [](std::vector<std::uint32_t>&) {});
+        const auto wet = body(wood, set("wetness", 48));
+        const auto charred = body(wood, set("burned", static_cast<std::uint32_t>(program.value(wood, *program.column("fuel")))));
+        const auto alight = body(wood, set("burning", 1));
+        const auto glowing = body(wood, set("temperature", stored("temperature", 1200)));
+        const auto brightness = [](const matter::Surface& surface) { return surface.base.x + surface.base.y + surface.base.z; };
+        const auto light = [](const matter::Surface& surface) { return surface.light.x + surface.light.y + surface.light.z; };
+        std::println("wood dry: base {:.3f}, rough {:.2f}; wet {:.3f}, {:.2f}; charred {:.3f}, {:.2f}; alight light {:.3f}; at 1200 K light {:.3f}", brightness(dry), dry.roughness,
+                     brightness(wet), wet.roughness, brightness(charred), charred.roughness, light(alight), light(glowing));
+        expect(eq(light(dry), 0.0f) && eq(dry.roughness, 0.8f)) << "dry and cool: its own colour, not glowing, as rough as given";
+        expect(lt(brightness(wet), brightness(dry)) && lt(wet.roughness, 0.4f)) << "wet: darker, glossy";
+        expect(lt(brightness(charred), brightness(dry) * 0.4f) && gt(charred.roughness, 0.95f)) << "charred: near black, matt";
+        expect(gt(light(alight), 0.1f) && gt(light(glowing), 0.1f)) << "alight or red-hot: light of its own";
+        (void)channels;
+
+        // A material the pack has never heard of, made by a pack of properties only, is wet and glossy as wood is.
+        matter::Definition definition = standard_definition();
+        definition.materials.push_back(matter::MaterialSpec{.name = "cork", .properties = {{"density", 240.0}, {"porous", 3.0}}});
+        const matter::Program with_cork = prepared(definition);
+        const auto cork_look = matter::standard_look(with_cork);
+        expect(fatal(cork_look.has_value()));
+        std::vector<std::uint32_t> cells = with_cork.fresh(1, *with_cork.material("cork"));
+        cells[*with_cork.channel("wetness")] = 48;
+        const auto cork = cork_look->surface(cells, 1, 0, 0.9f);
+        expect(lt(cork.roughness, 0.4f)) << "a new material is wet like the rest";
+    };
 }};

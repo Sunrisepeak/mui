@@ -612,6 +612,8 @@ export interface AppearanceState {
     mix?: number;
     /** Light of its own: whoever draws a glow draws it from this. */
     emits?: boolean;
+    /** How rough a surface it moves toward, 0 (a mirror) … 1 (matt), by how far along the state it is (not by `mix`): wet is glossy, charred matt. */
+    rough?: number;
     /** The phases it shows on (all unless said). */
     of?: MatterPhase[];
 }

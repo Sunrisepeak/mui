@@ -1441,6 +1441,102 @@ static UTest cases{"xrender.mesh", [] {
         expect(eq(floor_pixels, std::size_t{0})) << "the floor is cut out wholly";
     };
 
+    "light that goes through a surface: a thin pane shows what is behind it, tinted by its colour; a solid of glass bends what is behind it and its inside takes of the light by the way gone — drawn, and along rays, the distance said"_test = [] {
+        // A red box and a blue ball behind where the glass stands, on a grey floor, under a sun and a sky.
+        std::vector<mesh::Material> materials(library().materials);
+        const auto glass = [&](mesh::Material made) {
+            materials.push_back(made);
+            return static_cast<std::uint32_t>(materials.size() - 1);
+        };
+        const std::uint32_t clear = glass({.base = {1, 1, 1}, .roughness = 0, .metallic = 0, .two_sided = true, .transmission = 1});
+        const std::uint32_t amber = glass({.base = {1, 0.5f, 0.25f}, .roughness = 0, .metallic = 0, .two_sided = true, .transmission = 1});
+        const std::uint32_t solid = glass({.base = {1, 1, 1}, .roughness = 0, .metallic = 0, .transmission = 1, .thickness = 2});
+        const std::uint32_t tinted = glass({.base = {1, 1, 1}, .roughness = 0, .metallic = 0, .transmission = 1, .thickness = 2, .attenuation = {0.25f, 1, 1}, .attenuation_distance = 1});
+        const mesh::Options options{.environment = {true, {0.6f, 0.7f, 0.9f}, {0.5f, 0.5f, 0.5f}, {0.25f, 0.2f, 0.15f}}};
+        constexpr int width = 96, height = 64;
+        const Camera camera{.eye = {0, 0.5f, 5}, .aspect = 1.5f};
+        const auto world_with = [&](std::optional<std::pair<std::uint32_t, std::uint32_t>> front) {
+            scene::Scene world;
+            put(world, 1, floor_mesh, matt_grey, math::translation({0, -1, 0}));
+            put(world, 2, box, matt_red, math::translation({-0.8f, 0, -2.5f}));
+            put(world, 3, ball, matt_blue, math::translation({1.0f, 0, -2.5f}));
+            if (front) put(world, 4, front->first, front->second, front->first == sheet ? math::Transform{{0, 0, 0.5f}, math::Quat::about({1, 0, 0}, 1.5707964f), {0.25f, 1, 0.25f}}.matrix() : math::translation({0, 0, 0.5f}));
+            expect(world.add(scene::Light{.id = 1, .kind = scene::LightKind::sun, .colour = {1, 1, 1}, .intensity = 1, .toward = {-0.4f, -1, -0.5f}}).has_value());
+            return world;
+        };
+        const auto both = [&](const scene::Scene& world) {
+            std::pair<mesh::Targets, mesh::Targets> out;
+            out.first.resize(width, height), out.second.resize(width, height);
+            scene::Extracted seen;
+            scene::extract(world, camera.view(), seen);
+            mesh::Pass pass;
+            const mesh::Assets assets{library().meshes, materials, library().trees, library().textures};
+            pass.draw(world, seen, camera.view(), assets, out.first, options);
+            (void)mesh::traced(world, camera.view(), assets, out.second, options, {.samples = 16, .bounces = 4});
+            return out;
+        };
+        const auto none = both(world_with(std::nullopt));
+        // Where the pane or the glass is, and how far the drawn light is from the light followed (mean of each
+        // pixel's largest channel's difference, over the pixels of the glass).
+        const auto apart = [&](const std::pair<mesh::Targets, mesh::Targets>& frame, const std::pair<mesh::Targets, mesh::Targets>* where = nullptr) {
+            double sum = 0;
+            std::size_t count = 0;
+            const mesh::Targets& mask = where ? where->first : frame.first;
+            for (std::size_t pixel = 0; pixel < frame.first.ids.size(); ++pixel) {
+                const mesh::Pixel& id = mask.ids[pixel];
+                if (id.draw >= mask.draws.size() || mask.draws[id.draw].instance != 3) continue;
+                const math::Vec3 one = frame.first.light[pixel], other = frame.second.light[pixel];
+                sum += std::max({std::abs(one.x - other.x), std::abs(one.y - other.y), std::abs(one.z - other.z)}), ++count;
+            }
+            return std::pair{count ? sum / static_cast<double>(count) : 0.0, count};
+        };
+        // A clear pane: what is behind it, and what it mirrors of the sky — at the pane's middle, over the box.
+        const auto pane = both(world_with(std::pair{sheet, clear}));
+        const auto amber_pane = both(world_with(std::pair{sheet, amber}));
+        const std::size_t middle = static_cast<std::size_t>(height / 2) * width + width / 2 - 8;
+        const math::Vec3 bare = none.first.light[middle], through = pane.first.light[middle], tint = amber_pane.first.light[middle];
+        std::println("    a clear pane over the box: {:.3f} {:.3f} {:.3f} against {:.3f} {:.3f} {:.3f} without; amber {:.3f} {:.3f} {:.3f}", through.x, through.y, through.z, bare.x, bare.y, bare.z, tint.x, tint.y, tint.z);
+        expect(gt(through.x, bare.x * 0.98f) && lt(through.x, bare.x * 1.1f + 0.05f)) << "what is behind, and a little of the sky mirrored";
+        expect(lt(std::abs((tint.y - (through.y - bare.y)) - bare.y * 0.5f), 0.01f) && lt(std::abs((tint.z - (through.z - bare.z)) - bare.z * 0.25f), 0.01f)) << "tinted by its colour";
+        const auto [pane_off, pane_pixels] = apart(pane);
+        // A solid ball of glass: it bends what is behind it, so its pixels are not what is straight behind them.
+        const auto ball_frame = both(world_with(std::pair{ball, solid}));
+        const auto tinted_frame = both(world_with(std::pair{ball, tinted}));
+        const auto [ball_off, ball_pixels] = apart(ball_frame);
+        // What the glass changes, drawn against followed: the frame without it taken from each (the two paths'
+        // own difference — the pass's constant light from everywhere — is then out of it), and how much it changes.
+        const auto changes = [&](const std::pair<mesh::Targets, mesh::Targets>& frame) {
+            double off = 0, size = 0;
+            std::size_t count = 0;
+            for (std::size_t pixel = 0; pixel < frame.first.ids.size(); ++pixel) {
+                const mesh::Pixel& id = frame.first.ids[pixel];
+                if (id.draw >= frame.first.draws.size() || frame.first.draws[id.draw].instance != 3) continue;
+                const math::Vec3 drawn = frame.first.light[pixel] - none.first.light[pixel], followed = frame.second.light[pixel] - none.second.light[pixel];
+                off += std::max({std::abs(drawn.x - followed.x), std::abs(drawn.y - followed.y), std::abs(drawn.z - followed.z)});
+                size += std::max({std::abs(followed.x), std::abs(followed.y), std::abs(followed.z)}), ++count;
+            }
+            return std::pair{off / static_cast<double>(std::max<std::size_t>(count, 1)), size / static_cast<double>(std::max<std::size_t>(count, 1))};
+        };
+        const auto [pane_change_off, pane_change] = changes(pane);
+        const auto [ball_change_off, ball_change] = changes(ball_frame);
+        std::println("    without glass, over the same pixels: {:.4f} (pane's), {:.4f} (ball's); what the glass changes, drawn against followed: the pane {:.4f} of {:.4f}, the ball {:.4f} of {:.4f}",
+                     apart(none, &pane).first, apart(none, &ball_frame).first, pane_change_off, pane_change, ball_change_off, ball_change);
+        std::size_t bent = 0;
+        double red = 0, red_tinted = 0, red_traced = 0, red_traced_tinted = 0;
+        for (std::size_t pixel = 0; pixel < ball_frame.first.ids.size(); ++pixel) {
+            const mesh::Pixel& id = ball_frame.first.ids[pixel];
+            if (id.draw >= ball_frame.first.draws.size() || ball_frame.first.draws[id.draw].instance != 3) continue;
+            bent += math::length(ball_frame.first.light[pixel] - none.first.light[pixel]) > 0.05f;
+            red += ball_frame.first.light[pixel].x, red_tinted += tinted_frame.first.light[pixel].x;
+            red_traced += ball_frame.second.light[pixel].x, red_traced_tinted += tinted_frame.second.light[pixel].x;
+        }
+        std::println("    from the light followed: a pane {:.4f} over {} pixels, a ball of glass {:.4f} over {}; {} of its pixels not what is straight behind them; its red tinted {:.2f} of untinted drawn, {:.2f} along rays",
+                     pane_off, pane_pixels, ball_off, ball_pixels, bent, red_tinted / red, red_traced_tinted / red_traced);
+        expect(gt(pane_pixels, std::size_t{100}) && gt(ball_pixels, std::size_t{300}));
+        expect(gt(bent * 2, ball_pixels)) << "most of the ball shows another place than straight behind it";
+        expect(lt(red_tinted / red, 0.5) && lt(red_traced_tinted / red_traced, 0.5)) << "the inside takes the red";
+    };
+
     "an instance its place mirrors (a negative scale) is not inside out: a box and a ball, their own mirror images, are drawn as unmirrored — the same pixels theirs, the same light"_test = [] {
         const Camera camera{.eye = {3, 2.5f, 6}};
         const auto frame_of = [&](math::Vec3 box_scale, math::Vec3 ball_scale) {

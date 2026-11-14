@@ -25,6 +25,8 @@ struct Thing {
     const Texture*     surface = nullptr;
     const Texture*     normal_picture = nullptr;
     const Texture*     glow = nullptr;
+    const Texture*     clearness = nullptr;  // how much goes through, how thick it is
+    const Texture*     thick = nullptr;
 };
 struct Lamp {
     scene::LightKind kind = scene::LightKind::sun;
@@ -139,14 +141,44 @@ struct Tracing {
     // every surface, not waited for.
     [[nodiscard]] const Surroundings* picture() const noexcept { return options.environment.on ? options.environment.picture : nullptr; }
 
+    // The way a ray along `toward` goes on through a boundary whose normal `normal` faces it, from an index of
+    // refraction to one `bends` times as low (Snell); none where all of it is thrown back.
+    [[nodiscard]] static std::optional<Vec3> bent(Vec3 toward, Vec3 normal, float bends) noexcept {
+        const float facing = -math::dot(normal, toward), under = 1.0f - bends * bends * (1.0f - facing * facing);
+        if (under < 0) return std::nullopt;
+        return math::normalized(toward * bends + normal * (bends * facing - std::sqrt(under)));
+    }
+    // What a way gone `length` through `material`'s inside lets through (Beer's law).
+    [[nodiscard]] static Vec3 let_through(const Material& material, float length) noexcept {
+        if (!(material.attenuation_distance > 0) || !(material.attenuation_distance < std::numeric_limits<float>::infinity()) || !(length > 0)) return {1, 1, 1};
+        const double times = static_cast<double>(length) / static_cast<double>(material.attenuation_distance);
+        const auto of = [&](float colour) { return colour >= 1 ? 1.0f : colour <= 0 ? 0.0f : static_cast<float>(math::det::pow(static_cast<double>(colour), times)); };
+        return {of(material.attenuation.x), of(material.attenuation.y), of(material.attenuation.z)};
+    }
+
     // The light a ray from `from` along `toward` brings back. `likelihood`: how likely the surface it left was to
-    // throw it this way (a way's share of all ways), or 0 where that is not weighed (from the eye).
-    [[nodiscard]] Vec3 along(Vec3 from, Vec3 toward, std::uint32_t bounces_left, math::SplitMix64& random, bool from_eye, float likelihood = 0) const {
+    // throw it this way (a way's share of all ways), or 0 where that is not weighed (from the eye). `inside`: the
+    // thing whose inside the ray goes through (a solid that lets light through, `Material::thickness` above 0) —
+    // where it meets that thing again it leaves it, bent, and what it brings is what the way gone lets through.
+    [[nodiscard]] Vec3 along(Vec3 from, Vec3 toward, std::uint32_t bounces_left, math::SplitMix64& random, bool from_eye, float likelihood = 0, const Thing* inside = nullptr) const {
         const std::optional<Met> met = meet(from, toward, std::numeric_limits<float>::max(), from_eye);
         if (!met) {
             ++told.into_open;
             if (likelihood > 0 && picture()) return sky(toward) * (likelihood / (likelihood + picture()->likelihood(toward)));
             return sky(toward);
+        }
+        if (inside) {
+            const Vec3 through = let_through(inside->material, met->distance);
+            if (met->thing != inside) return math::scaled(along(from, toward, bounces_left, random, from_eye, likelihood), through);  // something within it
+            // Out of it: bent the other way (the normal faces the ray, so inward); all thrown back, on inside.
+            const std::optional<Vec3> out = bent(toward, met->face, std::max(inside->material.ior, 1e-3f));
+            if (!out) {
+                if (bounces_left == 0) return {0, 0, 0};
+                const Vec3 back = toward - met->face * (2 * math::dot(met->face, toward));
+                return math::scaled(along(met->place + met->face * 2e-3f, back, bounces_left - 1, random, from_eye, 0, inside), through);
+            }
+            if (bounces_left == 0) return math::scaled(sky(*out), through);
+            return math::scaled(along(met->place - met->face * 2e-3f, *out, bounces_left - 1, random, from_eye), through);
         }
         Material material = met->thing->material;
         // A surface seen through: as often as it does not hide what is behind it, the ray goes on through it.
@@ -162,6 +194,8 @@ struct Tracing {
             const Vec3 said = met->thing->surface->at(met->at(material.placing.surface), 1);
             material.roughness = material.roughness * said.y, material.metallic = material.metallic * said.z;
         }
+        if (met->thing->clearness) material.transmission = material.transmission * met->thing->clearness->at(met->at(material.placing.clearness), 1).x;
+        if (met->thing->thick) material.thickness = material.thickness * met->thing->thick->at(met->at(material.placing.thick), 1).y;
         if (met->thing->glow) material.emissive = math::scaled(material.emissive, met->thing->glow->at(met->at(material.placing.glow), 1));
         // A ray leaves by the surface's own side, whatever way its picture turned the normal; a way the turned
         // normal throws under the surface brings nothing.
@@ -191,7 +225,9 @@ struct Tracing {
         // by one of its small faces, chosen as the highlight spreads them (GGX), weighed by how much is mirrored
         // there (Schlick) and how much the faces hide of one another (Smith; the measure for light from all about).
         const float rough = std::clamp(material.roughness, 0.04f, 1.0f), metal = std::clamp(material.metallic, 0.0f, 1.0f);
-        const Vec3 colour = matt ? material.base : material.base * (1.0f - metal);
+        // What goes on through the surface is not scattered back (`Material::transmission`).
+        const float lets = std::clamp(material.transmission, 0.0f, 1.0f);
+        const Vec3 colour = (matt ? material.base : material.base * (1.0f - metal)) * (1.0f - lets);
         const Vec3 aside = math::normalized(math::cross(std::abs(met->normal.y) < 0.9f ? Vec3{0, 1, 0} : Vec3{1, 0, 0}, met->normal)), other = math::cross(met->normal, aside);
         const auto about_normal = [&](float out, float turn, float up) {
             return math::normalized(aside * (out * static_cast<float>(math::det::cos(static_cast<double>(turn)))) + other * (out * static_cast<float>(math::det::sin(static_cast<double>(turn)))) + met->normal * up);
@@ -251,7 +287,31 @@ struct Tracing {
             around = options.environment.on ? options.environment.falling(met->normal) : options.background;
             if (!matt) thrown = mirrored(material, options.environment.on ? options.environment : Environment{true, options.background, options.background, options.background}, met->normal, toward_eye);
         }
-        return material.emissive + math::scaled(colour, arriving + around) + sent + thrown;
+        // What comes through it: the eye's ray goes on through one of its small faces (chosen as the highlight
+        // spreads them, as rough as the surface bends: none at an index of 1) — out of a thin wall again at once,
+        // the same way a flat one would leave it; into a solid, across its inside to where it leaves.
+        Vec3 come_through{0, 0, 0};
+        if (lets * (1.0f - metal) > 0) {
+            const float bends = 1.0f / std::max(material.ior, 1e-3f);
+            const float rough_through = std::clamp(material.roughness, 0.0f, 1.0f) * std::clamp(material.ior * 2.0f - 2.0f, 0.0f, 1.0f);
+            Vec3 face = met->normal;
+            if (rough_through > 0) {
+                const float first = static_cast<float>(math::unit24(random.next())), second = static_cast<float>(math::unit24(random.next()));
+                const float spread = rough_through * rough_through * rough_through * rough_through;
+                const float up = std::sqrt((1.0f - first) / (1.0f + (spread - 1.0f) * first));
+                face = about_normal(std::sqrt(std::max(1.0f - up * up, 0.0f)), second * 6.2831853f, up);
+            }
+            const std::optional<Vec3> in = bent(toward, face, bends);
+            const Vec3 under = met->place - met->face * 2e-3f;
+            if (in && material.thickness > 0) {
+                come_through = bounces_left > 0 ? along(under, *in, bounces_left - 1, random, from_eye, 0, met->thing) : sky(*in);
+            } else if (in) {
+                const Vec3 out = bent(*in, met->face, 1.0f / bends).value_or(toward);
+                come_through = bounces_left > 0 ? along(under, out, bounces_left - 1, random, from_eye) : sky(out);
+            }
+            come_through = math::scaled(material.base, come_through) * (lets * (1.0f - metal));
+        }
+        return material.emissive + math::scaled(colour, arriving + around) + sent + thrown + come_through;
     }
 };
 
@@ -283,7 +343,8 @@ Traced traced(const scene::Scene& scene, const scene::View& view, const Assets& 
         };
         things.push_back({*back, math::transposed(*back), geom::moved(instance.world, instance.bounds), &mesh, assets.trees[instance.mesh], material,
                           picture(material.texture, material.placing.base), instance.casts, instance.world, picture(material.surface, material.placing.surface),
-                          picture(material.normal, material.placing.normal), picture(material.glow, material.placing.glow)});
+                          picture(material.normal, material.placing.normal), picture(material.glow, material.placing.glow), picture(material.clearness, material.placing.clearness),
+                          picture(material.thick, material.placing.thick)});
     }
     std::vector<Lamp> lamps;
     for (const scene::Light& light : scene.lights())

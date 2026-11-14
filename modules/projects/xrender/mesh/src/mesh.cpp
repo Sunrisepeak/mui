@@ -117,11 +117,57 @@ struct Raster {
     const Texture* normal_picture = nullptr;
     const Texture* glow = nullptr;
     const Texture* shade = nullptr;
+    const Texture* clearness = nullptr;  // how much goes through (red), and how thick it is (green)
+    const Texture* thick = nullptr;
     Material       own;         // the draw's material as it says, before any picture
     std::vector<Laid>* laid = nullptr;  // the draw is seen through: its samples are kept here, to be laid over the frame
     float          shaded = 1;  // the share of the light from everywhere the shade picture lets through here
     bool           turned_over = false;  // the instance's place mirrors it: its triangles go round the other way as seen
     bool           coloured = false;     // the mesh has a colour at each corner
+    // What lets light through shows the light of what is whole behind it (`Material::transmission`): that light
+    // at every size, the view's clip space (unjittered) and the instance's place and its inverse.
+    const Texture* behind = nullptr;
+    Mat4           clip, world, back;
+
+    // The light that comes through the surface at `place` (facing the eye along `normal`) from what is behind
+    // it: where the eye's ray, bent into the surface (by `ior`) and gone its thickness, leaves it — straight
+    // behind for a thin wall — read from the light of what is whole there, blurred as rough as the surface is,
+    // through its colour and what its inside takes of the way gone. `own`: the pixel's place in the frame. Where
+    // nothing is drawn behind, the background shows through: `clear`, how much of the pixel it is.
+    struct ComeThrough {
+        Vec3  light;
+        float clear = 0;
+    };
+    [[nodiscard]] ComeThrough transmitted(Vec3 normal, Vec3 place, Vec2 own) const noexcept {
+        const float share = std::clamp(material.transmission, 0.0f, 1.0f) * (1.0f - std::clamp(material.metallic, 0.0f, 1.0f));
+        if (!behind || behind->sizes.empty() || !(share > 0)) return {};
+        Vec3 leaves = place, through{1, 1, 1};
+        if (material.thickness > 0) {
+            const Vec3 in = math::normalized(place - eye);
+            const float bends = 1.0f / std::max(material.ior, 1e-3f), facing = -math::dot(normal, in);
+            const float under = 1.0f - bends * bends * (1.0f - facing * facing);
+            const Vec3 way = under < 0 ? in : in * bends + normal * (bends * facing - std::sqrt(under));
+            // The thickness is the mesh's own: the way taken into the mesh, so long there, and back to the world.
+            const Vec3 own_way = math::normalized(math::direction(back, way));
+            const Vec3 gone = math::direction(world, own_way * material.thickness);
+            leaves = place + gone;
+            const float length = math::length(gone);
+            if (material.attenuation_distance > 0 && material.attenuation_distance < std::numeric_limits<float>::infinity() && length > 0) {
+                const double times = static_cast<double>(length) / static_cast<double>(material.attenuation_distance);
+                const auto of = [&](float colour) { return colour >= 1 ? 1.0f : colour <= 0 ? 0.0f : static_cast<float>(math::det::pow(static_cast<double>(colour), times)); };
+                through = {of(material.attenuation.x), of(material.attenuation.y), of(material.attenuation.z)};
+            }
+        }
+        const Vec4 at = clip * Vec4{leaves, 1.0f};
+        const Vec2 there = at.w > 0 ? Vec2{at.x / at.w * 0.5f + 0.5f, 0.5f - at.y / at.w * 0.5f} : own;
+        // As rough as the surface, the more so the more it bends (none at an index of 1, all at 1.5 and up): its
+        // footprint the frame's side to that power (three.js's measure, as a texel count).
+        const float rough = std::clamp(material.roughness, 0.0f, 1.0f) * std::clamp(material.ior * 2.0f - 2.0f, 0.0f, 1.0f);
+        const float footprint = static_cast<float>(math::det::pow(static_cast<double>(std::max(behind->width, behind->height)), static_cast<double>(rough)));
+        const Texture::Seen seen = behind->seen_at(there, footprint);
+        const Vec3 tint = math::scaled(material.base, through);
+        return {math::scaled(tint, seen.light) * (share * seen.cover), share * (1.0f - seen.cover) * (tint.x + tint.y + tint.z) / 3.0f};
+    }
 
     // Whether anything is between `from` and a light `reach` away along `toward` (of length 1). The ray is taken
     // into each mesh's own space as it is — not made of length 1 again — so a distance along it is the world's.
@@ -201,7 +247,7 @@ struct Raster {
             const float near = 1.0f - (apart / lamp.range) * (apart / lamp.range);
             light = light + lamp.colour * (facing * near * near);
         }
-        return math::scaled(material.base, light) + material.emissive;
+        return math::scaled(material.base * (1.0f - std::clamp(material.transmission, 0.0f, 1.0f)), light) + material.emissive;
     }
 
     // The same lights on a surface that is not matt: each light's share by `reflected`.
@@ -211,7 +257,7 @@ struct Raster {
         // alone — by the surface's shade too, as glTF's occlusion is of all the light from about; without, the
         // constant is given to both (and the three colours mirrored besides).
         const bool pictured = options.environment.on && options.environment.picture;
-        const Vec3 takes = pictured ? material.base * (1.0f - std::clamp(material.metallic, 0.0f, 1.0f)) : reflected_ambient(material);
+        const Vec3 takes = pictured ? material.base * ((1.0f - std::clamp(material.metallic, 0.0f, 1.0f)) * (1.0f - std::clamp(material.transmission, 0.0f, 1.0f))) : reflected_ambient(material);
         Vec3 sent = math::scaled(math::scaled(takes, from_all_about(normal)), reaching(open_to(normal, place))) * shaded + material.emissive;
         if (options.environment.on) sent = sent + mirrored(material, options.environment, normal, toward_eye) * (pictured ? shaded : 1.0f);
         const Vec3 lifted = place + normal * 2e-3f;
@@ -318,7 +364,7 @@ struct Raster {
                     const auto at = [&](float Vec4::* part_of) { return (*corners[0]).colour.*part_of * part[0] + (*corners[1]).colour.*part_of * part[1] + (*corners[2]).colour.*part_of * part[2]; };
                     material.base = math::scaled(base, Vec3{at(&Vec4::x), at(&Vec4::y), at(&Vec4::z)}), hides = own.opacity * at(&Vec4::w);
                 }
-                if (texture || surface || normal_picture || glow || shade) {
+                if (texture || surface || normal_picture || glow || shade || clearness || thick) {
                     // The surface's place in the picture here, a pixel to the right and a pixel down: how many texels
                     // a pixel covers is how far apart they are.
                     const auto uv_at = [&](double at_x, double at_y) {
@@ -360,6 +406,14 @@ struct Raster {
                         const Place at = laid(own.placing.glow);
                         material.emissive = math::scaled(own.emissive, glow->over(at.here, at.across, at.along));
                     }
+                    if (clearness) {
+                        const Place at = laid(own.placing.clearness);
+                        material.transmission = own.transmission * clearness->over(at.here, at.across, at.along).x;
+                    }
+                    if (thick) {
+                        const Place at = laid(own.placing.thick);
+                        material.thickness = own.thickness * thick->over(at.here, at.across, at.along).y;
+                    }
                     if (shade) {
                         const Place at = laid(own.placing.shade);
                         shaded = 1.0f + own.shade_strength * (shade->over(at.here, at.across, at.along).x - 1.0f);
@@ -396,6 +450,11 @@ struct Raster {
                 if (!laid) ++stats.written;
                 at_pixel = pixel;
                 Vec3 colour = lit(normal, place);
+                float clear = 0;  // how much of the background shows through it
+                if (behind && !material.unlit) {
+                    const ComeThrough came = transmitted(normal, place, {(static_cast<float>(column) + 0.5f) / static_cast<float>(out.width), (static_cast<float>(row) + 0.5f) / static_cast<float>(out.height)});
+                    colour = colour + came.light + options.background * came.clear, clear = came.clear;
+                }
                 if (fog) {
                     const Vec3 to = place - eye;
                     const float apart = math::length(to);
@@ -408,7 +467,7 @@ struct Raster {
                     laid->push_back({{static_cast<std::uint32_t>(pixel), id, depth, std::min(hides, 1.0f)}, colour});
                     continue;
                 }
-                out.depth[pixel] = depth, out.normal[pixel] = normal, out.velocity[pixel] = moved, out.ids[pixel] = id, out.light[pixel] = colour;
+                out.depth[pixel] = depth, out.normal[pixel] = normal, out.velocity[pixel] = moved, out.ids[pixel] = id, out.light[pixel] = colour, out.clear[pixel] = clear;
                 out.colour[pixel * 4] = encoded(colour.x), out.colour[pixel * 4 + 1] = encoded(colour.y), out.colour[pixel * 4 + 2] = encoded(colour.z), out.colour[pixel * 4 + 3] = 255;
             }
         }
@@ -423,7 +482,7 @@ Vec4 moved(const Mat4& matrix, Vec3 point) noexcept { return matrix * Vec4{point
 void Targets::resize(int new_width, int new_height) {
     width = std::max(new_width, 0), height = std::max(new_height, 0);
     const std::size_t pixels = static_cast<std::size_t>(width) * height;
-    colour.resize(pixels * 4), light.resize(pixels), depth.resize(pixels), normal.resize(pixels), velocity.resize(pixels), ids.resize(pixels);
+    colour.resize(pixels * 4), light.resize(pixels), depth.resize(pixels), normal.resize(pixels), velocity.resize(pixels), ids.resize(pixels), clear.resize(pixels);
 }
 
 Placing Placing::made(Vec2 offset, float turn, Vec2 scale, std::uint8_t set) noexcept {
@@ -433,7 +492,8 @@ Placing Placing::made(Vec2 offset, float turn, Vec2 scale, std::uint8_t set) noe
 
 Vec3 reflected(const Material& material, Vec3 normal, Vec3 toward_eye, Vec3 toward_light, float facing) noexcept {
     const float rough = std::clamp(material.roughness, 0.04f, 1.0f), metal = std::clamp(material.metallic, 0.0f, 1.0f);
-    const Vec3 matt = material.base * ((1.0f - metal) * facing);
+    // What goes on through the surface (`transmission`) is not scattered back.
+    const Vec3 matt = material.base * ((1.0f - metal) * (1.0f - std::clamp(material.transmission, 0.0f, 1.0f)) * facing);
     const float seen = math::dot(normal, toward_eye);
     if (!(seen > 0)) return matt;  // seen from behind (a smooth normal at a rim): nothing mirrored
     const Vec3 half = math::normalized(toward_eye + toward_light);
@@ -480,7 +540,7 @@ Vec3 mirrored(const Material& material, const Environment& environment, Vec3 nor
 }
 Vec3 reflected_ambient(const Material& material) noexcept {
     const float metal = std::clamp(material.metallic, 0.0f, 1.0f);
-    return material.base * (1.0f - metal) + (Vec3{0.04f, 0.04f, 0.04f} * (1.0f - metal) + material.base * metal);
+    return material.base * ((1.0f - metal) * (1.0f - std::clamp(material.transmission, 0.0f, 1.0f))) + (Vec3{0.04f, 0.04f, 0.04f} * (1.0f - metal) + material.base * metal);
 }
 
 float through(const Fog& fog, Vec3 eye, Vec3 toward, float length) noexcept {
@@ -556,6 +616,7 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
     std::ranges::fill(out.depth, options.reversed_depth ? 0.0f : 1.0f);
     std::ranges::fill(out.normal, Vec3{}), std::ranges::fill(out.velocity, Vec2{0, 0}), std::ranges::fill(out.ids, Pixel{}), std::ranges::fill(out.light, options.background);
     out.through.clear(), laid_.clear();
+    std::ranges::fill(out.clear, options.environment.on && options.environment.behind && options.environment.picture ? 0.0f : 1.0f);
     const std::array<std::uint8_t, 4> clear{encoded(options.background.x), encoded(options.background.y), encoded(options.background.z), 255};
     for (std::size_t pixel = 0; pixel < pixels; ++pixel) std::copy_n(clear.begin(), 4, out.colour.begin() + static_cast<std::ptrdiff_t>(pixel * 4));
 
@@ -592,15 +653,53 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
     raster.fog = options.fog.density > 0 && camera.has_value();
     if (camera) raster.eye = math::point(*camera, {0, 0, 0});
 
-    // Everything whole first; then the surfaces seen through, their samples kept to be laid over it.
-    for (const bool seen_through : {false, true})
+    // Everything whole first; then what lets light through, over the light of what is behind it; then the surfaces
+    // seen through, their samples kept to be laid over it.
+    raster.clip = clip, raster.behind = nullptr;
+    const auto stage_of = [](const Material& material) { return material.see_through ? 2 : material.transmission > 0 ? 1 : 0; };
+    // The background through the fog: a surface infinitely far along each pixel's own ray — the picture of the
+    // surroundings there, where that is what is behind.
+    const auto paint_background = [&] {
+    const bool pictured_behind = options.environment.on && options.environment.picture && options.environment.behind;
+    if (const std::optional<Mat4> back = raster.fog || pictured_behind ? math::inverse(clip) : std::nullopt) {
+        for (int row = 0; row < out.height; ++row)
+            for (int column = 0; column < out.width; ++column) {
+                const std::size_t pixel = static_cast<std::size_t>(row) * out.width + column;
+                if (out.ids[pixel].draw != none) continue;
+                const Vec3 through_pixel = math::point(*back, {(static_cast<float>(column) + 0.5f) / static_cast<float>(out.width) * 2 - 1,
+                                                               1 - (static_cast<float>(row) + 0.5f) / static_cast<float>(out.height) * 2, 0.5f});
+                const Vec3 to = through_pixel - raster.eye;
+                const float apart = math::length(to);
+                if (!(apart > 0)) continue;
+                const Vec3 way = to * (1.0f / apart);
+                const Vec3 far = pictured_behind ? options.environment.picture->toward(way) : options.background;
+                const float share = raster.fog ? through(options.fog, raster.eye, way, std::numeric_limits<float>::infinity()) : 1.0f;
+                const Vec3 colour = raster.fog ? options.fog.colour + (far - options.fog.colour) * share : far;
+                out.light[pixel] = colour;
+                out.colour[pixel * 4] = encoded(colour.x), out.colour[pixel * 4 + 1] = encoded(colour.y), out.colour[pixel * 4 + 2] = encoded(colour.z);
+                if (raster.fog) ++last_.fogged;
+            }
+    }
+    };
+
+    for (const int stage : {0, 1, 2}) {
+    // What is whole is drawn: the background behind it now, so that what lets light through sees it.
+    if (stage == 1) paint_background();
     for (std::uint32_t number = 0; number < extracted.draws.size() && pixels; ++number) {
         const scene::Draw& draw = extracted.draws[number];
         if (draw.instance >= instances.size() || draw.mesh >= assets.meshes.size() || !assets.meshes[draw.mesh] || draw.material >= assets.materials.size()) {
-            if (!seen_through) ++last_.missing;
+            if (stage == 0) ++last_.missing;
             continue;
         }
-        if (assets.materials[draw.material].see_through != seen_through) continue;
+        if (stage_of(assets.materials[draw.material]) != stage) continue;
+        const bool seen_through = stage == 2;
+        // The light of what is whole, at every size, once: what a surface that lets light through shows behind it.
+        if (stage == 1 && !raster.behind) {
+            there_.resize(out.ids.size());
+            for (std::size_t pixel = 0; pixel < out.ids.size(); ++pixel) there_[pixel] = 1.0f - out.clear[pixel];
+            behind_ = Texture::of_light(out.light, there_, out.width, out.height).value_or(Texture{});
+            raster.behind = &behind_;
+        }
         raster.laid = seen_through ? &laid_ : nullptr;
         ++last_.draws;
         const scene::Instance& instance = instances[draw.instance];
@@ -617,7 +716,9 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
         const Placings& placing = raster.material.placing;
         raster.texture = picture(raster.material.texture, placing.base), raster.surface = picture(raster.material.surface, placing.surface), raster.normal_picture = picture(raster.material.normal, placing.normal);
         raster.glow = picture(raster.material.glow, placing.glow), raster.shade = picture(raster.material.shade, placing.shade);
+        raster.clearness = picture(raster.material.clearness, placing.clearness), raster.thick = picture(raster.material.thick, placing.thick);
         raster.coloured = !mesh.colours.empty();
+        raster.world = instance.world, raster.back = math::inverse(instance.world).value_or(Mat4{});
         const Mat4 to_clip = clip * instance.world;
         // Where it was a frame ago: its own place then, through the view then. New this frame: where it is.
         Mat4 before = to_clip;
@@ -699,27 +800,6 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
         }
     }
 
-    // The background through the fog: a surface infinitely far along each pixel's own ray — the picture of the
-    // surroundings there, where that is what is behind.
-    const bool pictured_behind = options.environment.on && options.environment.picture && options.environment.behind;
-    if (const std::optional<Mat4> back = raster.fog || pictured_behind ? math::inverse(clip) : std::nullopt) {
-        for (int row = 0; row < out.height; ++row)
-            for (int column = 0; column < out.width; ++column) {
-                const std::size_t pixel = static_cast<std::size_t>(row) * out.width + column;
-                if (out.ids[pixel].draw != none) continue;
-                const Vec3 through_pixel = math::point(*back, {(static_cast<float>(column) + 0.5f) / static_cast<float>(out.width) * 2 - 1,
-                                                               1 - (static_cast<float>(row) + 0.5f) / static_cast<float>(out.height) * 2, 0.5f});
-                const Vec3 to = through_pixel - raster.eye;
-                const float apart = math::length(to);
-                if (!(apart > 0)) continue;
-                const Vec3 way = to * (1.0f / apart);
-                const Vec3 far = pictured_behind ? options.environment.picture->toward(way) : options.background;
-                const float share = raster.fog ? through(options.fog, raster.eye, way, std::numeric_limits<float>::infinity()) : 1.0f;
-                const Vec3 colour = raster.fog ? options.fog.colour + (far - options.fog.colour) * share : far;
-                out.light[pixel] = colour;
-                out.colour[pixel * 4] = encoded(colour.x), out.colour[pixel * 4 + 1] = encoded(colour.y), out.colour[pixel * 4 + 2] = encoded(colour.z);
-                if (raster.fog) ++last_.fogged;
-            }
     }
 
     // The surfaces seen through, laid over what is behind them: each pixel's from the nearest on, each taking of
@@ -747,7 +827,7 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
                 out.through.push_back(what);
             }
             const Vec3 colour = sum + out.light[pixel] * let;
-            out.light[pixel] = colour;
+            out.light[pixel] = colour, out.clear[pixel] *= let;
             out.colour[std::size_t{pixel} * 4] = encoded(colour.x), out.colour[std::size_t{pixel} * 4 + 1] = encoded(colour.y), out.colour[std::size_t{pixel} * 4 + 2] = encoded(colour.z);
             first = next;
         }
@@ -957,6 +1037,30 @@ Temporal::Told Temporal::resolve(const Targets& frame, std::vector<std::uint8_t>
     return told;
 }
 
+namespace {
+// Each next size of a texture whose finest is made: half as wide and as high (one at least), a texel the mean of
+// those it covers.
+void sized(Texture& texture, bool covered) {
+    // Each next size: half as wide and as high (one at least), a texel the mean of those it covers.
+    for (int wide = texture.width, high = texture.height; wide > 1 || high > 1;) {
+        const int next_wide = std::max(wide / 2, 1), next_high = std::max(high / 2, 1);
+        const std::uint32_t from = texture.sizes.back();
+        texture.sizes.push_back(static_cast<std::uint32_t>(texture.light.size()));
+        for (int y = 0; y < next_high; ++y)
+            for (int x = 0; x < next_wide; ++x) {
+                const int x0 = std::min(x * 2, wide - 1), x1 = std::min(x * 2 + 1, wide - 1), y0 = std::min(y * 2, high - 1), y1 = std::min(y * 2 + 1, high - 1);
+                const auto of = [&](int at_x, int at_y) { return texture.light[from + static_cast<std::size_t>(at_y) * static_cast<std::size_t>(wide) + static_cast<std::size_t>(at_x)]; };
+                texture.light.push_back((of(x0, y0) + of(x1, y0) + of(x0, y1) + of(x1, y1)) * 0.25f);
+                if (covered) {
+                    const auto hides = [&](int at_x, int at_y) { return texture.cover[from + static_cast<std::size_t>(at_y) * static_cast<std::size_t>(wide) + static_cast<std::size_t>(at_x)]; };
+                    texture.cover.push_back((hides(x0, y0) + hides(x1, y0) + hides(x0, y1) + hides(x1, y1)) * 0.25f);
+                }
+            }
+        wide = next_wide, high = next_high;
+    }
+}
+}  // namespace
+
 std::optional<Texture> Texture::made(std::span<const std::uint8_t> rgba, int width, int height, Coding coding) {
     if (width <= 0 || height <= 0 || rgba.size() < static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4) return std::nullopt;
     // The display's curve taken off, by a table made once with mlibs.math's own powers.
@@ -987,23 +1091,33 @@ std::optional<Texture> Texture::made(std::span<const std::uint8_t> rgba, int wid
             texture.light[texel] = texture.light[texel] * hides;
         }
     }
-    // Each next size: half as wide and as high (one at least), a texel the mean of those it covers.
-    for (int wide = width, high = height; wide > 1 || high > 1;) {
-        const int next_wide = std::max(wide / 2, 1), next_high = std::max(high / 2, 1);
-        const std::uint32_t from = texture.sizes.back();
-        texture.sizes.push_back(static_cast<std::uint32_t>(texture.light.size()));
-        for (int y = 0; y < next_high; ++y)
-            for (int x = 0; x < next_wide; ++x) {
-                const int x0 = std::min(x * 2, wide - 1), x1 = std::min(x * 2 + 1, wide - 1), y0 = std::min(y * 2, high - 1), y1 = std::min(y * 2 + 1, high - 1);
-                const auto of = [&](int at_x, int at_y) { return texture.light[from + static_cast<std::size_t>(at_y) * static_cast<std::size_t>(wide) + static_cast<std::size_t>(at_x)]; };
-                texture.light.push_back((of(x0, y0) + of(x1, y0) + of(x0, y1) + of(x1, y1)) * 0.25f);
-                if (covered) {
-                    const auto hides = [&](int at_x, int at_y) { return texture.cover[from + static_cast<std::size_t>(at_y) * static_cast<std::size_t>(wide) + static_cast<std::size_t>(at_x)]; };
-                    texture.cover.push_back((hides(x0, y0) + hides(x1, y0) + hides(x0, y1) + hides(x1, y1)) * 0.25f);
-                }
-            }
-        wide = next_wide, high = next_high;
+    sized(texture, covered);
+    return texture;
+}
+
+std::optional<Texture> Texture::of_light(std::span<const Vec3> light, int width, int height) {
+    if (width <= 0 || height <= 0 || light.size() < static_cast<std::size_t>(width) * static_cast<std::size_t>(height)) return std::nullopt;
+    Texture texture;
+    texture.width = width, texture.height = height, texture.across = Edge::stops, texture.down = Edge::stops;
+    texture.sizes.push_back(0);
+    texture.light.reserve(static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4 / 3 + 2);
+    texture.light.assign(light.begin(), light.begin() + static_cast<std::ptrdiff_t>(width) * height);
+    sized(texture, false);
+    return texture;
+}
+
+std::optional<Texture> Texture::of_light(std::span<const Vec3> light, std::span<const float> there, int width, int height) {
+    const std::size_t texels = static_cast<std::size_t>(std::max(width, 0)) * static_cast<std::size_t>(std::max(height, 0));
+    if (width <= 0 || height <= 0 || light.size() < texels || there.size() < texels) return std::nullopt;
+    Texture texture;
+    texture.width = width, texture.height = height, texture.across = Edge::stops, texture.down = Edge::stops;
+    texture.sizes.push_back(0);
+    texture.light.reserve(texels * 4 / 3 + 2), texture.cover.reserve(texels * 4 / 3 + 2);
+    for (std::size_t texel = 0; texel < texels; ++texel) {
+        const float held = std::clamp(there[texel], 0.0f, 1.0f);
+        texture.light.push_back(light[texel] * held), texture.cover.push_back(held);
     }
+    sized(texture, true);
     return texture;
 }
 
@@ -1071,6 +1185,7 @@ Texture::Seen parted(const Texture& texture, Texture::Seen sum) noexcept {
 }  // namespace
 
 Vec3 Texture::at(Vec2 uv, float footprint) const noexcept { return parted(*this, held(*this, uv, footprint)).light; }
+Texture::Seen Texture::seen_at(Vec2 uv, float footprint) const noexcept { return parted(*this, held(*this, uv, footprint)); }
 
 float Texture::cover_at(Vec2 uv) const noexcept { return cover.empty() ? 1.0f : held(*this, uv, 1).cover; }
 

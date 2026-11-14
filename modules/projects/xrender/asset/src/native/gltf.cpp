@@ -250,11 +250,24 @@ struct Maker {
             made.see_through = from.alpha_mode == cgltf_alpha_mode_blend;
             made.two_sided = from.double_sided != 0;
             made.unlit = from.unlit != 0;
-            const std::array<std::pair<bool, std::string_view>, 11> more{{{from.has_pbr_specular_glossiness != 0, "KHR_materials_pbrSpecularGlossiness"},
+            // What goes on through it (KHR_materials_transmission), its inside (KHR_materials_volume) and how it bends
+            // light (KHR_materials_ior), with their pictures.
+            if (from.has_transmission) {
+                made.transmission = from.transmission.transmission_factor;
+                if (from.transmission.transmission_texture.texture)
+                    made.clearness = picture(from.transmission.transmission_texture, where + "/extensions/KHR_materials_transmission/transmissionTexture", mesh::Coding::plain,
+                                             "the factor over the whole surface", made.placing.clearness);
+            }
+            if (from.has_volume) {
+                made.thickness = from.volume.thickness_factor;
+                made.attenuation = {from.volume.attenuation_color[0], from.volume.attenuation_color[1], from.volume.attenuation_color[2]};
+                made.attenuation_distance = from.volume.attenuation_distance;
+                if (from.volume.thickness_texture.texture)
+                    made.thick = picture(from.volume.thickness_texture, where + "/extensions/KHR_materials_volume/thicknessTexture", mesh::Coding::plain, "the factor over the whole surface", made.placing.thick);
+            }
+            if (from.has_ior) made.ior = from.ior.ior;
+            const std::array<std::pair<bool, std::string_view>, 8> more{{{from.has_pbr_specular_glossiness != 0, "KHR_materials_pbrSpecularGlossiness"},
                                                                           {from.has_clearcoat != 0, "KHR_materials_clearcoat"},
-                                                                          {from.has_transmission != 0, "KHR_materials_transmission"},
-                                                                          {from.has_volume != 0, "KHR_materials_volume"},
-                                                                          {from.has_ior != 0, "KHR_materials_ior"},
                                                                           {from.has_specular != 0, "KHR_materials_specular"},
                                                                           {from.has_sheen != 0, "KHR_materials_sheen"},
                                                                           {from.has_iridescence != 0, "KHR_materials_iridescence"},

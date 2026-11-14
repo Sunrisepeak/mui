@@ -43,18 +43,22 @@ std::expected<Looked, std::string> looked(const Imported& imported, const scene:
     Looked out{how.width, how.height, std::vector<std::uint8_t>(static_cast<std::size_t>(how.width) * static_cast<std::size_t>(how.height) * 4, 0), pass.last()};
     for (int y = 0; y < how.height; ++y)
         for (int x = 0; x < how.width; ++x) {
-            std::array<int, 3> sum{0, 0, 0};
-            int drew = 0;
+            // Each sample covers the pixel but for what of the background shows through it (`Targets::clear`: all
+            // where nothing is drawn, some under a surface seen through or one light goes through with nothing
+            // behind it); its light is then of what covers it alone, the background being black.
+            std::array<double, 3> sum{0, 0, 0};
+            double covered = 0;
             for (int below = 0; below < samples; ++below)
                 for (int beside = 0; beside < samples; ++beside) {
                     const std::size_t at = static_cast<std::size_t>(y * samples + below) * static_cast<std::size_t>(frame.width) + static_cast<std::size_t>(x * samples + beside);
-                    if (!behind && frame.ids[at].draw == mesh::none) continue;
-                    ++drew;
+                    const double here = 1.0 - std::clamp(static_cast<double>(frame.clear[at]), 0.0, 1.0);
+                    if (!(here > 0)) continue;
+                    covered += here;
                     for (std::size_t channel = 0; channel < 3; ++channel) sum[channel] += large[at * 4 + channel];
                 }
             std::uint8_t* pixel = out.rgba.data() + (static_cast<std::size_t>(y) * static_cast<std::size_t>(how.width) + static_cast<std::size_t>(x)) * 4;
-            for (std::size_t channel = 0; channel < 3; ++channel) pixel[channel] = drew ? static_cast<std::uint8_t>((sum[channel] + drew / 2) / drew) : std::uint8_t{0};
-            pixel[3] = static_cast<std::uint8_t>(drew * 255 / (samples * samples));
+            for (std::size_t channel = 0; channel < 3; ++channel) pixel[channel] = covered > 0 ? static_cast<std::uint8_t>(std::min(sum[channel] / covered + 0.5, 255.0)) : std::uint8_t{0};
+            pixel[3] = static_cast<std::uint8_t>(covered * 255.0 / static_cast<double>(samples * samples) + 1e-9);
         }
     return out;
 }

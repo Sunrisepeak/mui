@@ -338,6 +338,27 @@ static UTest cases{"xrender.asset", [] {
         expect(near(third.at({1.25f, 0.5f}, 1).x, 1.0f, 1e-6f) && near(third.at({0.75f, 0.5f}, 1).z, 1.0f, 1e-6f));
     };
 
+    "what goes through a surface, its inside and how it bends light are carried: KHR_materials_transmission, volume and ior — no note"_test = [] {
+        const std::string text = with_uri(R"(,
+  "scenes": [{"nodes": [0]}],
+  "nodes": [{"mesh": 0}],
+  "meshes": [{"primitives": [{"attributes": {"POSITION": 0, "NORMAL": 1, "TEXCOORD_0": 2}, "indices": 3, "material": 0}]}],
+  "materials": [{"pbrMetallicRoughness": {"baseColorFactor": [0.9, 0.8, 0.7, 1], "metallicFactor": 0, "roughnessFactor": 0.1},
+                 "extensions": {"KHR_materials_transmission": {"transmissionFactor": 0.75},
+                                "KHR_materials_volume": {"thicknessFactor": 0.5, "attenuationDistance": 2, "attenuationColor": [0.5, 0.75, 1]},
+                                "KHR_materials_ior": {"ior": 1.33}}}],
+  "extensionsUsed": ["KHR_materials_transmission", "KHR_materials_volume", "KHR_materials_ior"])");
+        const auto model = asset::gltf(bytes_of(text));
+        expect(fatal(model.has_value())) << (model ? "" : model.error());
+        expect(eq(model->notes.size(), std::size_t{0})) << (model->notes.empty() ? "" : model->notes.front().where);
+        const xrender::mesh::Material& glass = model->materials[0];
+        expect(eq(glass.transmission, 0.75f) && eq(glass.thickness, 0.5f) && eq(glass.attenuation_distance, 2.0f) && eq(glass.ior, 1.33f));
+        expect(glass.attenuation == math::Vec3{0.5f, 0.75f, 1});
+        // Said nothing of: glTF's own — none goes through, a thin wall, 1.5.
+        const xrender::mesh::Material plain;
+        expect(eq(plain.transmission, 0.0f) && eq(plain.thickness, 0.0f) && eq(plain.ior, 1.5f) && std::isinf(plain.attenuation_distance));
+    };
+
     "each picture of a material is laid its own way: by the set of texture coordinates it names (or its transform names), moved, turned and scaled as its transform says — no note"_test = [] {
         mlibs::image::Image image{.width = 2, .height = 1, .rgba = {255, 0, 0, 255, 0, 0, 255, 255}};
         const std::string png = uri_of(*mlibs::image::encode_png(mlibs::image::view(image)), "image/png");

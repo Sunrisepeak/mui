@@ -44,8 +44,8 @@ struct Placing {
 };
 // How each of a surface's pictures is laid over it.
 struct Placings {
-    Placing base, surface, normal, glow, shade;
-    [[nodiscard]] static constexpr Placings all(Placing placing) noexcept { return {placing, placing, placing, placing, placing}; }
+    Placing base, surface, normal, glow, shade, clearness, thick;
+    [[nodiscard]] static constexpr Placings all(Placing placing) noexcept { return {placing, placing, placing, placing, placing, placing, placing}; }
 };
 // A surface, as data. The reference's shading is the least that shows a form: what a light gives a matt surface,
 // and what it gives off itself. (The full model — roughness, metal, textures — is the material interface's,
@@ -89,6 +89,23 @@ struct Material {
     // it and wherever it is looked at from — a sign, a screen's picture, a drawing (glTF's KHR_materials_unlit).
     // Fog is still between it and the eye; a ray that meets it goes no further.
     bool unlit = false;
+    // How much of the light that goes into the surface goes on through it rather than being scattered back (glTF's
+    // KHR_materials_transmission): glass, a soap film, a lamp's shade. What is behind it is seen through it, tinted
+    // by its colour and blurred by its roughness; what it mirrors is as it was. A metal lets nothing through. Unlike
+    // `see_through` it hides what is behind it from nothing: it is drawn whole, and what shows through is light.
+    float transmission = 0;
+    // Its inside (KHR_materials_volume): how thick it is, in the mesh's own units — 0 a thin wall, light going
+    // straight through; more, a solid that bends what is seen through it as `ior` says — and what white light
+    // becomes having gone `attenuation_distance` through it (Beer's law: the colour to the power of the distance
+    // gone over that one).
+    float thickness = 0;
+    Vec3  attenuation{1, 1, 1};
+    float attenuation_distance = std::numeric_limits<float>::infinity();
+    float ior = 1.5f;  // its index of refraction (KHR_materials_ior; glTF's 1.5 where none is said)
+    // Pictures of those, numbers not colours (`Coding::plain`), each none or one of `Assets::textures`: the red of
+    // one multiplies `transmission`, the green of the other `thickness`.
+    std::uint32_t clearness = 0xffffffffu;
+    std::uint32_t thick = 0xffffffffu;
     Placings placing;  // how each picture of the surface is laid over it
     [[nodiscard]] constexpr bool matt() const noexcept { return roughness >= 1 && metallic <= 0; }
 };
@@ -123,6 +140,12 @@ struct Texture {
     // From rgba8 (`width` × `height` × 4, rows from the top), colours in sRGB unless said plain. Nothing: no size,
     // no pixels, or too few bytes. A picture of colours with a fourth byte below 255 anywhere has a `cover`.
     [[nodiscard]] static std::optional<Texture> made(std::span<const std::uint8_t> rgba, int width, int height, Coding coding = Coding::colour);
+    // Of light itself (`width` × `height`, rows from the top), every size made as `made` makes them: a frame's
+    // light, read blurred. Its edges stop. Nothing: no size, or too few.
+    [[nodiscard]] static std::optional<Texture> of_light(std::span<const Vec3> light, int width, int height);
+    // And with how much is there at each texel (0 … 1; `light` is then of what is there): a frame's light where
+    // something is drawn.
+    [[nodiscard]] static std::optional<Texture> of_light(std::span<const Vec3> light, std::span<const float> there, int width, int height);
     // Its light at `uv` (0 … 1 across and down, repeating), for a pixel that covers `footprint` texels of the finest
     // size across. Between four texels of a size, between two sizes. The same bits everywhere.
     [[nodiscard]] Vec3 at(Vec2 uv, float footprint) const noexcept;
@@ -137,6 +160,8 @@ struct Texture {
         float cover = 1;
     };
     [[nodiscard]] Seen seen(Vec2 uv, Vec2 right, Vec2 down) const noexcept;
+    // Both, at a place for a pixel that covers `footprint` texels of the finest size (as `at`).
+    [[nodiscard]] Seen seen_at(Vec2 uv, float footprint) const noexcept;
     // How much it hides at a place alone, between the four texels of its finest size: what a ray asks.
     [[nodiscard]] float cover_at(Vec2 uv) const noexcept;
     [[nodiscard]] std::size_t size_count() const noexcept { return sizes.size(); }
@@ -304,6 +329,12 @@ struct Targets {
     std::vector<Pixel>        ids;
     std::vector<scene::Draw>  draws;     // the frame's, as extracted: what `Pixel::draw` names
     std::vector<Through>      through;   // the surfaces seen through, in pixel order; of one pixel, the nearest first
+    // How much of the background shows at the pixel through everything drawn there: 1 where nothing is (0 where
+    // the picture of the surroundings is drawn behind), 0 under a whole surface; less than 1 under surfaces seen
+    // through, more than 0 under one that light goes through with nothing drawn behind it. `light` holds the
+    // background's share as well: a page that lays the frame over its own background takes this as the pixel's
+    // clear part and `light` less the background's share as what is over it.
+    std::vector<float>        clear;
     void resize(int new_width, int new_height);
 };
 struct Stats {
@@ -356,6 +387,8 @@ private:
     Mat4              before_clip_;    // its world to clip
     std::vector<Caster> casters_;      // a frame's: every instance of the scene that can cast, seen or not
     std::vector<Laid>   laid_;         // a frame's samples of surfaces seen through, kept between frames
+    Texture             behind_;       // a frame's light of what is whole, at every size, where something lets light through
+    std::vector<float>  there_;        // how much is drawn at each pixel, for it
     bool              remembered_ = false;
 };
 

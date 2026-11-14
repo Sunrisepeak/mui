@@ -138,6 +138,8 @@ test('the page and the C++ agree: rhi\'s enumerations, the wire\'s ops, the kind
   const webgpu = {
     rgba8_unorm: 'rgba8unorm', bgra8_unorm: 'bgra8unorm', r8_unorm: 'r8unorm', rgba16_float: 'rgba16float', r32_float: 'r32float',
     r32_uint: 'r32uint', d32_float: 'depth32float', d32_float_s8: 'depth32float-stencil8',
+    bc7_unorm: 'bc7-rgba-unorm', bc7_srgb: 'bc7-rgba-unorm-srgb', etc2_rgba8_unorm: 'etc2-rgba8unorm', etc2_rgba8_srgb: 'etc2-rgba8unorm-srgb',
+    astc_4x4_unorm: 'astc-4x4-unorm', astc_4x4_srgb: 'astc-4x4-unorm-srgb',
   };
   same(G.FORMATS, enumerators(types, 'Format').map((f) => webgpu[f]));
   same(G.VERTEX_FORMATS, enumerators(types, 'VertexFormat').map((v) =>

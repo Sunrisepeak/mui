@@ -25,7 +25,7 @@ addToLibrary({
     // rhi's enumerations, in their order (tests/js checks them against the C++).
     FORMATS: ['rgba8unorm', 'bgra8unorm', 'r8unorm', 'rgba16float', 'r32float', 'r32uint', 'depth32float', 'depth32float-stencil8',
               'bc7-rgba-unorm', 'bc7-rgba-unorm-srgb', 'etc2-rgba8unorm', 'etc2-rgba8unorm-srgb', 'astc-4x4-unorm', 'astc-4x4-unorm-srgb'],
-    BYTES: [4, 4, 1, 8, 4, 4, 4, 8],
+    BYTES: [4, 4, 1, 8, 4, 4, 4, 8, 1, 1, 1, 1, 1, 1],  // a block format: 16 bytes for 4 × 4 texels, a byte a texel
     // A format of blocks (rhi's is_blocks): 4 × 4 texels in 16 bytes. An upload's rows are rows of blocks, and
     // what is copied is whole blocks (a level's last block goes past its edge: WebGPU counts it whole).
     BLOCKS: 8,

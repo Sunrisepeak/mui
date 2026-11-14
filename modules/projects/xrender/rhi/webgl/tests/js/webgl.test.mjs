@@ -115,7 +115,9 @@ const types = '../../../../../../gfx/rhi/src/types.cppm';
 
 test('the page and the C++ agree: rhi\'s enumerations, the wire\'s ops, the kinds of resource', () => {
   const { G } = load();
-  same(G.FORMATS.map((x) => x[0]), ['RGBA8', 'RGBA8', 'R8', 'RGBA16F', 'R32F', 'R32UI', 'DEPTH_COMPONENT32F', 'DEPTH32F_STENCIL8']);
+  // The block formats by their extensions' numbers: BC7, ETC2 with EAC's cover, ASTC 4 × 4, each plain and sRGB.
+  same(G.FORMATS.map((x) => x[0]), ['RGBA8', 'RGBA8', 'R8', 'RGBA16F', 'R32F', 'R32UI', 'DEPTH_COMPONENT32F', 'DEPTH32F_STENCIL8',
+    0x8E8C, 0x8E8D, 0x9278, 0x9279, 0x93B0, 0x93D0]);
   assert.equal(G.FORMATS.length, enumerators(types, 'Format').length);
   assert.equal(G.FORMATS[enumerators(types, 'Format').indexOf('bgra8_unorm')][5], true, 'bgra8 kept as RGBA8, its bytes swapped');
   assert.equal(G.VERTEX_FORMATS.length, enumerators(types, 'VertexFormat').length);

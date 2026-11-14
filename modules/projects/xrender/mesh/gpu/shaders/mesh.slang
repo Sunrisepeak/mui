@@ -81,6 +81,15 @@ struct Surface {
 [[vk::binding(8, 2)]] Sampler2D behind_map : register(t8, space2) : register(s8, space2);  // how deep what stops the eye is
 [[vk::binding(9, 2)]] Sampler2D before_map : register(t9, space2) : register(s9, space2);  // how deep the layer laid before is
 [[vk::binding(0, 3)]] ConstantBuffer<Surface> surface : register(b0, space3);
+// The surroundings as a picture of light (xrender.mesh's `Surroundings`), every square of it on one sheet with a
+// texel about each square that is the texel across its edge (a read between four texels at an edge is then the
+// reference's). Only `mesh_about_fs` asks them.
+struct About {
+    float4 shape;        // xy: one over the sheet's width and height; z: the last roughness's number
+    float4 squares[18];  // xy: where a square's first texel is; z: how far across it is — 0 … 15 the roughnesses, 16 what falls on a matt surface, 17 the shares
+};
+[[vk::binding(10, 2)]] Sampler2D about_map : register(t10, space2) : register(s10, space2);
+[[vk::binding(1, 3)]] ConstantBuffer<About> about : register(b1, space3);
 
 // The surface at this pixel: the material's own, times its pictures where it has them.
 static float3 base_colour;
@@ -195,6 +204,44 @@ float3 mirrored(float3 normal, float3 toward_eye) {
     const float3 share = head_on + (float3(1, 1, 1) - head_on) * (glance5 * (1.0 - rough));
     return share * blurred;
 }
+// A way's place in a square: an octahedron's eight faces unfolded (xrender.mesh's `Surroundings`).
+float2 square_of(float3 way) {
+    const float3 size = abs(way);
+    float2 at = way.xz / (size.x + size.y + size.z);
+    if (way.y < 0) at = (float2(1, 1) - abs(at.yx)) * float2(at.x < 0 ? -1.0 : 1.0, at.y < 0 ? -1.0 : 1.0);
+    return at * 0.5 + 0.5;
+}
+float3 about_at(float4 square, float2 place) { return about_map.SampleLevel((square.xy + place * square.z) * about.shape.xy, 0).rgb; }
+// From all about a surface: what falls on it, what of that its own colour and its head-on share take, and what
+// it mirrors. `Plain`: a constant and three colours. `Pictured`: the surroundings' picture.
+interface IAbout {
+    static float3 falling(float3 normal);
+    static float3 takes(float metal);
+    static float3 mirrors(float3 normal, float3 toward_eye);
+}
+struct Plain : IAbout {
+    static float3 falling(float3 normal) { return surface.ambient.rgb; }
+    static float3 takes(float metal) { return base_colour * (1.0 - metal) + (float3(0.04, 0.04, 0.04) * (1.0 - metal) + base_colour * metal); }
+    static float3 mirrors(float3 normal, float3 toward_eye) { return surface.above.w > 0.5 ? mirrored(normal, toward_eye) : float3(0, 0, 0); }
+}
+struct Pictured : IAbout {
+    static float3 falling(float3 normal) { return about_at(about.squares[16], square_of(normal)); }
+    static float3 takes(float metal) { return base_colour * (1.0 - metal); }
+    // The picture blurred by the roughness — between the two roughnesses kept about it — times the surface's share
+    // of an even light (xrender.mesh's `mirrored`, with a picture).
+    static float3 mirrors(float3 normal, float3 toward_eye) {
+        const float rough = rough_here, metal = metal_here;
+        const float seen = max(dot(normal, toward_eye), 0.0);
+        const float3 way = normal * (2.0 * seen) - toward_eye;
+        const float2 place = square_of(dot(way, way) > 0 ? way : normal);
+        const float which = rough * about.shape.z, first = min(floor(which), about.shape.z - 1.0);
+        const float3 nearer = about_at(about.squares[int(first)], place), further = about_at(about.squares[int(first) + 1], place);
+        const float4 table = about.squares[17];
+        const float2 share = about_map.SampleLevel((table.xy + float2(seen, rough) * (table.z - 1.0) + 0.5) * about.shape.xy, 0).rg;
+        const float3 head_on = float3(0.04, 0.04, 0.04) * (1.0 - metal) + base_colour * metal;
+        return (head_on * share.x + share.y) * (nearer + (further - nearer) * (which - first));
+    }
+}
 float encoded(float linear) {
     const float held = clamp(linear, 0.0, 1.0);
     return held <= 0.0031308 ? held * 12.92 : 1.055 * pow(held, 1.0 / 2.4) - 0.055;
@@ -207,7 +254,7 @@ struct Lit {
     float  hides;
     bool   gone;
 };
-Lit lit_at(VOut point) {
+Lit lit_at<A : IAbout>(VOut point) {
     Lit lit;
     lit.light = float3(0, 0, 0), lit.hides = 0, lit.gone = true;
     // How far the surface's place in its pictures moves from this pixel to the next across and to the next below:
@@ -276,7 +323,7 @@ Lit lit_at(VOut point) {
     // Matt: the lights summed, then the surface's colour. Otherwise each light's share by `reflected`.
     // The light from everywhere, by how open the place is (xrender.mesh's `reaching`): the open share, and by the
     // ways that are shut what a surface of this colour sends back.
-    float3 everywhere_in = surface.ambient.rgb;
+    float3 everywhere_in = A::falling(normal);
     if (surface.open.x > 0.5) {
         const float open = open_map.SampleLevel(point.clip.xy * surface.open.zw, 0).r;
         if (open < 1) everywhere_in *= open / (1.0 - clamp(surface.base.rgb, 0.0, 0.98) * (1.0 - open));
@@ -308,10 +355,7 @@ Lit lit_at(VOut point) {
     }
     float3 colour = base_colour * light + given_off;
     if (!matt) {
-        const float metal = metal_here;
-        const float3 everywhere = base_colour * (1.0 - metal) + (float3(0.04, 0.04, 0.04) * (1.0 - metal) + base_colour * metal);
-        colour = everywhere * everywhere_in + given_off + sent;
-        if (surface.above.w > 0.5) colour += mirrored(normal, toward_eye);
+        colour = A::takes(metal_here) * everywhere_in + given_off + sent + A::mirrors(normal, toward_eye);
     }
     if (surface.fog.w > 0) {
         const float apart = length(to_eye);
@@ -331,9 +375,8 @@ struct Layer {
     float4 light : SV_Target0;
     float4 deep : SV_Target1;
 };
-[shader("fragment")]
-Layer mesh_fs(VOut point) {
-    const Lit lit = lit_at(point);
+Layer shown<A : IAbout>(VOut point) {
+    const Lit lit = lit_at<A>(point);
     Layer made;
     made.deep = float4(point.clip.z, 0, 0, 1);
     if (surface.through.x > 0.5) {
@@ -353,3 +396,9 @@ Layer mesh_fs(VOut point) {
     else made.light = float4(encoded(lit.light.r), encoded(lit.light.g), encoded(lit.light.b), 1);
     return made;
 }
+[shader("fragment")]
+Layer mesh_fs(VOut point) { return shown<Plain>(point); }
+// The same pass under a picture of the surroundings (`Pass::load_surroundings`): a shader of its own, so that a
+// program that never loads one carries none of it.
+[shader("fragment")]
+Layer mesh_about_fs(VOut point) { return shown<Pictured>(point); }

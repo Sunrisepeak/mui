@@ -274,11 +274,13 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
     return pass;
 }
 Pass::Pass(Pass&& other) noexcept
-    : device_(std::exchange(other.device_, nullptr)), pipeline_(std::exchange(other.pipeline_, {})), ids_pipeline_(std::exchange(other.ids_pipeline_, {})), sky_pipeline_(std::exchange(other.sky_pipeline_, {})), shadow_pipeline_(std::exchange(other.shadow_pipeline_, {})), lamp_shadow_pipeline_(std::exchange(other.lamp_shadow_pipeline_, {})), who_pipeline_(std::exchange(other.who_pipeline_, {})), velocity_pipeline_(std::exchange(other.velocity_pipeline_, {})), velocity_who_pipeline_(std::exchange(other.velocity_who_pipeline_, {})), surface_pipeline_(std::exchange(other.surface_pipeline_, {})), through_pipeline_(std::exchange(other.through_pipeline_, {})), deep_pipeline_(std::exchange(other.deep_pipeline_, {})), under_pipeline_(std::exchange(other.under_pipeline_, {})), laid_pipeline_(std::exchange(other.laid_pipeline_, {})), nearest_(std::exchange(other.nearest_, {})), pictures_(std::exchange(other.pictures_, {})), no_shadow_(std::exchange(other.no_shadow_, {})), cover_(std::exchange(other.cover_, {})), meshes_(std::move(other.meshes_)), textures_(std::move(other.textures_)), materials_(std::move(other.materials_)), reversed_(other.reversed_), light_(other.light_), last_(other.last_) {}
+    : device_(std::exchange(other.device_, nullptr)), pipeline_(std::exchange(other.pipeline_, {})), ids_pipeline_(std::exchange(other.ids_pipeline_, {})), sky_pipeline_(std::exchange(other.sky_pipeline_, {})), shadow_pipeline_(std::exchange(other.shadow_pipeline_, {})), lamp_shadow_pipeline_(std::exchange(other.lamp_shadow_pipeline_, {})), who_pipeline_(std::exchange(other.who_pipeline_, {})), velocity_pipeline_(std::exchange(other.velocity_pipeline_, {})), velocity_who_pipeline_(std::exchange(other.velocity_who_pipeline_, {})), surface_pipeline_(std::exchange(other.surface_pipeline_, {})), through_pipeline_(std::exchange(other.through_pipeline_, {})), deep_pipeline_(std::exchange(other.deep_pipeline_, {})), under_pipeline_(std::exchange(other.under_pipeline_, {})), laid_pipeline_(std::exchange(other.laid_pipeline_, {})), nearest_(std::exchange(other.nearest_, {})), pictures_(std::exchange(other.pictures_, {})), no_shadow_(std::exchange(other.no_shadow_, {})), cover_(std::exchange(other.cover_, {})), meshes_(std::move(other.meshes_)), textures_(std::move(other.textures_)), materials_(std::move(other.materials_)), about_{other.about_.pipeline, other.about_.through, other.about_.sheet, other.about_.between, other.about_.said}, reversed_(other.reversed_), light_(other.light_), last_(other.last_) {
+    other.about_.pipeline = {}, other.about_.through = {}, other.about_.sheet = {}, other.about_.between = {};
+}
 Pass& Pass::operator=(Pass&& other) noexcept {
     if (this != &other) {
         release();
-        device_ = std::exchange(other.device_, nullptr), pipeline_ = std::exchange(other.pipeline_, {}), ids_pipeline_ = std::exchange(other.ids_pipeline_, {}), sky_pipeline_ = std::exchange(other.sky_pipeline_, {}), shadow_pipeline_ = std::exchange(other.shadow_pipeline_, {}), lamp_shadow_pipeline_ = std::exchange(other.lamp_shadow_pipeline_, {}), who_pipeline_ = std::exchange(other.who_pipeline_, {}), velocity_pipeline_ = std::exchange(other.velocity_pipeline_, {}), velocity_who_pipeline_ = std::exchange(other.velocity_who_pipeline_, {}), surface_pipeline_ = std::exchange(other.surface_pipeline_, {}), through_pipeline_ = std::exchange(other.through_pipeline_, {}), deep_pipeline_ = std::exchange(other.deep_pipeline_, {}), under_pipeline_ = std::exchange(other.under_pipeline_, {}), laid_pipeline_ = std::exchange(other.laid_pipeline_, {}), nearest_ = std::exchange(other.nearest_, {}), pictures_ = std::exchange(other.pictures_, {}), no_shadow_ = std::exchange(other.no_shadow_, {}), cover_ = std::exchange(other.cover_, {}), meshes_ = std::move(other.meshes_), textures_ = std::move(other.textures_), materials_ = std::move(other.materials_), reversed_ = other.reversed_, light_ = other.light_, last_ = other.last_;
+        device_ = std::exchange(other.device_, nullptr), pipeline_ = std::exchange(other.pipeline_, {}), ids_pipeline_ = std::exchange(other.ids_pipeline_, {}), sky_pipeline_ = std::exchange(other.sky_pipeline_, {}), shadow_pipeline_ = std::exchange(other.shadow_pipeline_, {}), lamp_shadow_pipeline_ = std::exchange(other.lamp_shadow_pipeline_, {}), who_pipeline_ = std::exchange(other.who_pipeline_, {}), velocity_pipeline_ = std::exchange(other.velocity_pipeline_, {}), velocity_who_pipeline_ = std::exchange(other.velocity_who_pipeline_, {}), surface_pipeline_ = std::exchange(other.surface_pipeline_, {}), through_pipeline_ = std::exchange(other.through_pipeline_, {}), deep_pipeline_ = std::exchange(other.deep_pipeline_, {}), under_pipeline_ = std::exchange(other.under_pipeline_, {}), laid_pipeline_ = std::exchange(other.laid_pipeline_, {}), nearest_ = std::exchange(other.nearest_, {}), pictures_ = std::exchange(other.pictures_, {}), no_shadow_ = std::exchange(other.no_shadow_, {}), cover_ = std::exchange(other.cover_, {}), meshes_ = std::move(other.meshes_), textures_ = std::move(other.textures_), materials_ = std::move(other.materials_), about_.pipeline = std::exchange(other.about_.pipeline, {}), about_.through = std::exchange(other.about_.through, {}), about_.sheet = std::exchange(other.about_.sheet, {}), about_.between = std::exchange(other.about_.between, {}), about_.said = other.about_.said, reversed_ = other.reversed_, light_ = other.light_, last_ = other.last_;
     }
     return *this;
 }
@@ -309,6 +311,11 @@ void Pass::release() noexcept {
     if (nearest_) device_->destroy(nearest_);
     if (pictures_) device_->destroy(pictures_);
     if (no_shadow_) device_->destroy(no_shadow_);
+    if (about_.pipeline) device_->destroy(about_.pipeline);
+    if (about_.through) device_->destroy(about_.through);
+    if (about_.sheet) device_->destroy(about_.sheet);
+    if (about_.between) device_->destroy(about_.between);
+    about_.pipeline = {}, about_.through = {}, about_.sheet = {}, about_.between = {};
     device_ = nullptr;
 }
 
@@ -342,6 +349,103 @@ rhi::Result<void> Pass::load(std::span<const mlibs::geom::ClusteredMesh* const> 
         list.upload(*buffer, 0, std::span<const Corner>(corners));
     }
     if (list.empty()) return {};
+    auto submitted = device_->submit(list);
+    if (!submitted) return std::unexpected(submitted.error());
+    return device_->wait(*submitted);
+}
+
+rhi::Result<void> Pass::load_surroundings(const Surroundings* surroundings) {
+    static_cast<void>(device_->wait_idle());
+    if (about_.sheet) device_->destroy(about_.sheet);
+    about_.sheet = {};
+    if (!surroundings || surroundings->sizes.empty() || surroundings->falls.side <= 0 || surroundings->shares_side <= 0) return {};
+    if (!about_.pipeline) {
+        // The pass's own pipelines, with the shader that asks the picture.
+        const std::array<rhi::VertexBufferLayout, 1> layout{rhi::VertexBufferLayout{sizeof(Corner), false, attributes}};
+        const rhi::DepthState nearest_wins{.test = true, .write = true, .compare = reversed_ ? rhi::Compare::greater : rhi::Compare::less};
+        auto pipeline = device_->create(rhi::GraphicsPipelineDesc{.vertex = &shaders::mesh::mesh_vs,
+                                                                 .fragment = &shaders::mesh::mesh_about_fs,
+                                                                 .vertex_buffers = layout,
+                                                                 .target = light_ ? rhi::Format::rgba16_float : rhi::Format::rgba8_unorm,
+                                                                 .blend = rhi::Blend::replace(),
+                                                                 .depth_target = rhi::Format::d32_float,
+                                                                 .depth = nearest_wins,
+                                                                 .label = "xrender.mesh.about"});
+        if (!pipeline) return std::unexpected(pipeline.error());
+        about_.pipeline = *pipeline;
+        if (through_pipeline_) {
+            const std::array<rhi::MoreTarget, 1> and_deep{rhi::MoreTarget{rhi::Format::r32_float, rhi::Blend::replace()}};
+            auto through = device_->create(rhi::GraphicsPipelineDesc{.vertex = &shaders::mesh::mesh_vs,
+                                                                    .fragment = &shaders::mesh::mesh_about_fs,
+                                                                    .vertex_buffers = layout,
+                                                                    .target = rhi::Format::rgba16_float,
+                                                                    .blend = rhi::Blend::replace(),
+                                                                    .depth_target = rhi::Format::d32_float,
+                                                                    .depth = nearest_wins,
+                                                                    .more_targets = and_deep,
+                                                                    .label = "xrender.mesh.about.through"});
+            if (!through) return std::unexpected(through.error());
+            about_.through = *through;
+        }
+        auto between = device_->create(rhi::SamplerDesc{rhi::Filter::linear, rhi::Filter::linear});
+        if (!between) return std::unexpected(between.error());
+        about_.between = *between;
+    }
+    // Where each square lies on the sheet: a row after a row, each square with a texel about it.
+    struct Placed {
+        const Vec3*   light = nullptr;  // or the shares
+        const Vec2*   shares = nullptr;
+        std::uint32_t side = 0, left = 0, top = 0;  // of its first texel proper
+    };
+    std::vector<Placed> squares;
+    const std::size_t sizes = std::min<std::size_t>(surroundings->sizes.size(), 16);
+    for (std::size_t which = 0; which < sizes; ++which) squares.push_back({surroundings->sizes[which].light.data(), nullptr, static_cast<std::uint32_t>(surroundings->sizes[which].side)});
+    squares.push_back({surroundings->falls.light.data(), nullptr, static_cast<std::uint32_t>(surroundings->falls.side)});
+    squares.push_back({nullptr, surroundings->shares.data(), static_cast<std::uint32_t>(surroundings->shares_side)});
+    std::uint32_t wide = 0;
+    for (const Placed& square : squares) wide = std::max(wide, square.side + 2);
+    std::uint32_t across = 0, down = 0, row_high = 0;
+    for (Placed& square : squares) {
+        if (across + square.side + 2 > wide) across = 0, down += row_high, row_high = 0;
+        square.left = across + 1, square.top = down + 1;
+        across += square.side + 2, row_high = std::max(row_high, square.side + 2);
+    }
+    const std::uint32_t high = down + row_high;
+    std::vector<std::uint16_t> texels(static_cast<std::size_t>(wide) * high * 4, half_of(0.0f));
+    for (const Placed& square : squares) {
+        const int side = static_cast<int>(square.side);
+        for (int row = -1; row <= side; ++row)
+            for (int column = -1; column <= side; ++column) {
+                float red = 0, green = 0, blue = 0;
+                if (square.light) {
+                    // The texel across an edge: the one beside the edge as far from the edge's middle on its other side.
+                    int from_column = column, from_row = row;
+                    if (from_column < 0) from_column = 0, from_row = side - 1 - from_row;
+                    else if (from_column >= side) from_column = side - 1, from_row = side - 1 - from_row;
+                    if (from_row < 0) from_row = 0, from_column = side - 1 - from_column;
+                    else if (from_row >= side) from_row = side - 1, from_column = side - 1 - from_column;
+                    const Vec3& light = square.light[static_cast<std::size_t>(from_row) * square.side + static_cast<std::size_t>(from_column)];
+                    red = light.x, green = light.y, blue = light.z;
+                } else {
+                    const Vec2& share = square.shares[static_cast<std::size_t>(std::clamp(row, 0, side - 1)) * square.side + static_cast<std::size_t>(std::clamp(column, 0, side - 1))];
+                    red = share.x, green = share.y;
+                }
+                const std::size_t at = (static_cast<std::size_t>(static_cast<int>(square.top) + row) * wide + static_cast<std::size_t>(static_cast<int>(square.left) + column)) * 4;
+                texels[at] = half_of(red), texels[at + 1] = half_of(green), texels[at + 2] = half_of(blue), texels[at + 3] = half_of(1.0f);
+            }
+    }
+    about_.said = {};
+    about_.said[0] = 1.0f / static_cast<float>(wide), about_.said[1] = 1.0f / static_cast<float>(high), about_.said[2] = static_cast<float>(sizes - 1);
+    const auto say = [&](std::size_t number, const Placed& square) {
+        about_.said[4 + number * 4] = static_cast<float>(square.left), about_.said[4 + number * 4 + 1] = static_cast<float>(square.top), about_.said[4 + number * 4 + 2] = static_cast<float>(square.side);
+    };
+    for (std::size_t which = 0; which < sizes; ++which) say(which, squares[which]);
+    say(16, squares[sizes]), say(17, squares[sizes + 1]);
+    auto sheet = device_->create(rhi::TextureDesc{.format = rhi::Format::rgba16_float, .width = wide, .height = high, .usage = rhi::TextureUsage::sampled, .label = "xrender.mesh.about"});
+    if (!sheet) return std::unexpected(sheet.error());
+    about_.sheet = *sheet;
+    rhi::CommandList list;
+    list.upload(*sheet, rhi::Region{0, 0, wide, high}, std::as_bytes(std::span<const std::uint16_t>(texels)), 0, 0);
     auto submitted = device_->submit(list);
     if (!submitted) return std::unexpected(submitted.error());
     return device_->wait(*submitted);
@@ -557,7 +661,11 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
         list.bind_vertex_buffer(0, cover_);
         list.draw(3);
     }
-    list.set_pipeline(pipeline_);
+    // Lit by the surroundings' picture: the options name one and one is loaded.
+    const bool pictured = options.environment.on && options.environment.picture && about_.sheet && about_.pipeline;
+    last_.about = pictured ? 1 : 0;
+    list.set_pipeline(pictured ? about_.pipeline : pipeline_);
+    if (pictured) list.bind_texture(rhi::Stage::fragment, 10, about_.sheet, about_.between), list.push_uniforms(rhi::Stage::fragment, 1, about_.said);
     list.bind_texture(rhi::Stage::fragment, 0, map, nearest_);
     list.bind_texture(rhi::Stage::fragment, 1, lamp_map, nearest_);
     const bool opened = shadows && shadows->open && width > 0 && height > 0;
@@ -680,7 +788,8 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
         const std::array<rhi::ColorTarget, 1> and_deep{rhi::ColorTarget{layers->deep[layer % 2], rhi::LoadOp::clear, {far, 0, 0, 0}}};
         list.begin_render({layers->layer, rhi::LoadOp::clear, {0, 0, 0, 0}}, {layers->depth, rhi::LoadOp::clear, far}, and_deep);
         list.set_viewport(0, 0, static_cast<float>(width), static_cast<float>(height));
-        list.set_pipeline(through_pipeline_);
+        list.set_pipeline(pictured && about_.through ? about_.through : through_pipeline_);
+        if (pictured && about_.through) list.bind_texture(rhi::Stage::fragment, 10, about_.sheet, about_.between), list.push_uniforms(rhi::Stage::fragment, 1, about_.said);
         list.bind_texture(rhi::Stage::fragment, 0, map, nearest_);
         list.bind_texture(rhi::Stage::fragment, 1, lamp_map, nearest_);
         list.bind_texture(rhi::Stage::fragment, 3, opened ? shadows->open : no_shadow_, nearest_);

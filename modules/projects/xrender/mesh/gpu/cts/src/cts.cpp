@@ -166,7 +166,7 @@ struct Drawn {
     std::vector<std::byte>   device;
     mesh::gpu::Stats         stats;
 };
-std::optional<Drawn> both(rhi::Device& device, const Yard& yard, mesh::Options options) {
+std::optional<Drawn> both(rhi::Device& device, const Yard& yard, mesh::Options options, const mesh::Surroundings* about = nullptr) {
     Drawn out;
     scene::Extracted seen;
     scene::extract(yard.world, yard.view(), seen);
@@ -179,6 +179,10 @@ std::optional<Drawn> both(rhi::Device& device, const Yard& yard, mesh::Options o
     if (!(expect(pass.has_value()) << (pass ? "" : pass.error().message))) return std::nullopt;
     const auto loaded = pass->load(yard.meshes);
     if (!(expect(loaded.has_value()) << (loaded ? "" : loaded.error().message))) return std::nullopt;
+    if (about) {
+        const auto wrapped = pass->load_surroundings(about);
+        if (!(expect(wrapped.has_value()) << (wrapped ? "" : wrapped.error().message))) return std::nullopt;
+    }
     const auto colour = device.create(rhi::TextureDesc{rhi::Format::rgba8_unorm, width, height, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "mesh.colour"});
     const auto depth = device.create(rhi::TextureDesc{rhi::Format::d32_float, width, height, rhi::TextureUsage::depth_target, "mesh.depth"});
     if (!(expect(colour.has_value() && depth.has_value()) << (colour ? (depth ? "" : depth.error().message) : colour.error().message))) return std::nullopt;
@@ -366,6 +370,39 @@ Cases suite_of() {
                      100.0 * static_cast<double>(all.off) / static_cast<double>(all.compared), all.mean, all.worst);
         expect(lt(static_cast<double>(all.off), 0.001 * static_cast<double>(all.compared)));
         expect(lt(all.mean, 0.1));
+    });
+    // lit by a picture of the surroundings — a sky, a ground and a lamp — the yard's matt floor and box, its polished ball and its gold post are on the device what the reference draws: the same numbers, read the same way
+    add(suite, "mesh.about", [](Rig& rig) {
+        rhi::Device* const device = &rig.device;
+        const Yard yard(true, true);
+        // A sky brighter overhead, a warm ground, and a lamp eight degrees wide up to the right.
+        const math::Vec3 lamp_way = math::normalized(math::Vec3{1, 1, 0.6f});
+        std::vector<float> rgb(256 * 128 * 3);
+        for (int row = 0; row < 128; ++row)
+            for (int column = 0; column < 256; ++column) {
+                const double down = (row + 0.5) / 128 * math::det::pi, turn = ((column + 0.5) / 256 - 0.5) * math::det::two_pi;
+                const math::Vec3 way{static_cast<float>(math::det::sin(down) * math::det::cos(turn)), static_cast<float>(math::det::cos(down)), static_cast<float>(math::det::sin(down) * math::det::sin(turn))};
+                math::Vec3 light = way.y > 0 ? math::Vec3{0.3f, 0.5f, 0.9f} * (0.5f + 0.9f * way.y) : math::Vec3{0.3f, 0.24f, 0.18f};
+                light = light + math::Vec3{12, 10, 7} * static_cast<float>(math::det::exp(-(1.0 - static_cast<double>(math::dot(way, lamp_way))) / 0.01));
+                const std::size_t at = (static_cast<std::size_t>(row) * 256 + static_cast<std::size_t>(column)) * 3;
+                rgb[at] = light.x, rgb[at + 1] = light.y, rgb[at + 2] = light.z;
+            }
+        const auto surroundings = mesh::Surroundings::made(rgb, 256, 128);
+        if (!(expect(surroundings.has_value()))) return;
+        const mesh::Options lit_by{.environment = {.on = true, .picture = &*surroundings}};
+        const auto drawn = both(*device, yard, lit_by, &*surroundings);
+        if (!drawn) return;
+        keep(drawn->device, "yard-about");
+        const Apart all = apart(drawn->reference, drawn->device, false, 6);
+        std::println("the yard lit by a picture of the surroundings: {} of {} pixels further than 6 levels from the reference ({:.2f}%), mean {:.3f}, worst {}", all.off, all.compared,
+                     100.0 * static_cast<double>(all.off) / static_cast<double>(all.compared), all.mean, all.worst);
+        expect(eq(drawn->stats.about, 1u));
+        expect(lt(static_cast<double>(all.off), 0.001 * static_cast<double>(all.compared)));
+        expect(lt(all.mean, 0.1));
+        // With a picture named and none loaded the frame is drawn as with no picture, and says so.
+        const auto without = both(*device, yard, lit_by);
+        if (!without) return;
+        expect(eq(without->stats.about, 0u));
     });
     // a lamp brighter than the display glows on the device as in the reference: the light kept before the curve, what is above it spread, then shown
     add(suite, "mesh.glow", [](Rig& rig) {

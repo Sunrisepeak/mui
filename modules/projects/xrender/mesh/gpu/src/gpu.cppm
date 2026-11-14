@@ -51,6 +51,8 @@ struct Stats {
     // were drawn for them; or — with no `Layers` given, or a target that does not hold the light itself — drawn
     // whole, as surfaces that hide all.
     std::uint32_t through = 0, layers = 0, through_whole = 0;
+    // 1: the frame was lit by the surroundings' picture (`Options::environment` names one and one is loaded).
+    std::uint32_t about = 0;
 };
 
 // The sun's shadows by a map (the reference traces a ray; a device looks up what the sun saw): two textures of
@@ -106,6 +108,15 @@ public:
     // sheet of light (rgba16_float), which the shader reads as the reference reads its own — between four texels,
     // between two sizes. Called again it replaces what was loaded. A mesh with no texture coordinates is plain.
     [[nodiscard]] mlibs::rhi::Result<void> load_textures(std::span<const Texture* const> textures);
+    // The surroundings as a picture of light (`Environment::picture`), as the device takes them: every square of
+    // a `Surroundings` — the picture, it at each roughness, what falls on a matt surface, the shares — on one
+    // sheet of light (rgba16_float), each with a texel about it that is the texel across its edge, so that the
+    // shader's one read between four texels is the reference's lookup. The numbers are the reference's own: the
+    // device gathers nothing. A frame whose options name a picture is lit by the one loaded here (taken to be
+    // the one named); with none loaded it is drawn as with no picture (`Stats::about` says which). Called again
+    // it replaces what was loaded; nothing: none is loaded. The shader that reads it is made at the first call:
+    // a program that never calls this carries none of it.
+    [[nodiscard]] mlibs::rhi::Result<void> load_surroundings(const Surroundings* surroundings);
     // The frame, recorded: one pass on `colour` (rgba8_unorm, or rgba16_float for a pass of light; a colour target) and `depth` (d32_float, a depth
     // target) of `width` × `height`, cleared to the background; where there is fog the background is drawn
     // through it first, each pixel along its own ray — the sky that clears upward, as the reference has it.
@@ -174,6 +185,15 @@ private:
     };
     std::vector<Sheet>           textures_;
     std::vector<Material>        materials_;  // what `use` was given
+    // The surroundings' picture: the pass's two pipelines with the shader that reads it, the sheet, a sampler
+    // between texels held at the sheet's rim, and what the shader is told of where each square lies.
+    struct About {
+        mlibs::rhi::GraphicsPipeline pipeline, through;
+        mlibs::rhi::Texture          sheet;
+        mlibs::rhi::Sampler          between;
+        std::array<float, 4 * 19>    said{};
+    };
+    About                        about_;
     // A draw's base picture where its material cuts the surface out by it: none for a material that is whole.
     [[nodiscard]] const Sheet* cover_of(const Material& material, std::uint32_t mesh) const noexcept;
     bool                         reversed_ = false, light_ = false;

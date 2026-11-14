@@ -111,7 +111,8 @@ void add_render_benchmarks() {
             s.note("scope", std::format("{} pixels written, {} hidden; {} of {} triangles filled; one thread", pass.last().written, pass.last().hidden, pass.last().filled, pass.last().triangles));
         });
     // The yard on this machine's device, as a frame is made of it. `panes`: four sheets of glass before it, laid over the frame in four layers.
-    const auto yard_on_device = [](State& s, bool panes) {
+    // `about`: lit by a picture of the surroundings (a sky, a ground, a lamp: 1024 × 512, its squares from 512 across).
+    const auto yard_on_device = [](State& s, bool panes, bool about) {
         namespace mesh = xrender::mesh;
         namespace geom = mlibs::geom;
         namespace rhi = mlibs::rhi;
@@ -166,6 +167,26 @@ void add_render_benchmarks() {
             return;
         }
         pass->use(materials);
+        std::optional<mesh::Surroundings> surroundings;
+        if (about) {
+            constexpr int across = 1024, down_rows = 512;
+            const math::Vec3 lamp_way = math::normalized(math::Vec3{1, 1, 0.6f});
+            std::vector<float> rgb(static_cast<std::size_t>(across) * down_rows * 3);
+            for (int row = 0; row < down_rows; ++row)
+                for (int column = 0; column < across; ++column) {
+                    const double down = (row + 0.5) / down_rows * math::det::pi, turn = ((column + 0.5) / across - 0.5) * math::det::two_pi;
+                    const math::Vec3 way{static_cast<float>(math::det::sin(down) * math::det::cos(turn)), static_cast<float>(math::det::cos(down)), static_cast<float>(math::det::sin(down) * math::det::sin(turn))};
+                    math::Vec3 from = way.y > 0 ? math::Vec3{0.3f, 0.5f, 0.9f} * (0.5f + 0.9f * way.y) : math::Vec3{0.3f, 0.24f, 0.18f};
+                    from = from + math::Vec3{12, 10, 7} * static_cast<float>(math::det::exp(-(1.0 - static_cast<double>(math::dot(way, lamp_way))) / 0.01));
+                    const std::size_t at = (static_cast<std::size_t>(row) * across + static_cast<std::size_t>(column)) * 3;
+                    rgb[at] = from.x, rgb[at + 1] = from.y, rgb[at + 2] = from.z;
+                }
+            surroundings = mesh::Surroundings::made(rgb, across, down_rows);
+            if (!surroundings || !pass->load_surroundings(&*surroundings)) {
+                s.fail("the surroundings could not be loaded on this device");
+                return;
+            }
+        }
         std::vector<rhi::Texture> textures;
         const auto target = [&](rhi::Format format, std::uint32_t across, std::uint32_t down, std::string_view label) {
             const auto one = on.create(rhi::TextureDesc{format, across, down, rhi::is_depth(format) ? rhi::TextureUsage::depth_target : rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, label});
@@ -186,7 +207,7 @@ void add_render_benchmarks() {
             layers.deep[1] = target(rhi::Format::r32_float, width, height, "bench.through.deep.1"), layers.depth = target(rhi::Format::d32_float, width, height, "bench.through.depth");
             layers.layer = target(rhi::Format::rgba16_float, width, height, "bench.through.layer"), layers.gathered = target(rhi::Format::rgba16_float, width, height, "bench.through.gathered");
         }
-        const mesh::Options options_of{.background = {0.5f, 0.6f, 0.7f}, .ambient = {0.2f, 0.24f, 0.3f}, .shadows = true, .occlusion_rays = 8, .occlusion_reach = 1.5f, .environment = {.on = true}};
+        const mesh::Options options_of{.background = {0.5f, 0.6f, 0.7f}, .ambient = {0.2f, 0.24f, 0.3f}, .shadows = true, .occlusion_rays = 8, .occlusion_reach = 1.5f, .environment = {.on = true, .picture = surroundings ? &*surroundings : nullptr}};
         const mesh::Bloom bloom{.threshold = 1, .radius = 7, .strength = 0.6f};
         rhi::CommandList list;  // kept: a list cleared keeps its room, so a frame allocates nothing for it
         const auto frame = [&] {
@@ -209,15 +230,18 @@ void add_render_benchmarks() {
         frame();
         s.items(width * height);
         while (s.next()) frame();
-        s.note("scope", std::format("{} draws, {} casters in the sun's map, {} views of lamps; {} draws seen through, laid in {} layers; {} passes a frame; the same frame the device suite holds to the reference at 480x270",
-                                    pass->last().draws, pass->last().casters, pass->last().lamp_views, pass->last().through, pass->last().layers, 12 + (pass->last().layers ? 2 + 2 * pass->last().layers : 0)));
+        s.note("scope", std::format("{} draws, {} casters in the sun's map, {} views of lamps; {} draws seen through, laid in {} layers; {} passes a frame; {}the same frame the device suite holds to the reference at 480x270",
+                                    pass->last().draws, pass->last().casters, pass->last().lamp_views, pass->last().through, pass->last().layers, 12 + (pass->last().layers ? 2 + 2 * pass->last().layers : 0),
+                                    pass->last().about ? "lit by a picture of the surroundings; " : ""));
         static_cast<void>(on.wait_idle());
         for (const rhi::Texture made_one : textures) on.destroy(made_one);
     };
     add("render/mesh-device-yard-1080p", "the mesh pass on this machine's device (xrender.mesh.gpu through SDL_GPU): the yard at 1920x1080 as a frame is made of it — the surface for occlusion, how open each place is (8 rays of 12 steps), the sun's map (2048²), a lamp's and a spot's six views (512²), the light, the glow and the display's curve — submitted and waited for",
-        [yard_on_device](State& s) { yard_on_device(s, false); });
+        [yard_on_device](State& s) { yard_on_device(s, false, false); });
     add("render/mesh-device-panes-1080p", "the same frame with four panes of glass before the yard, each most of the picture across and up to four over one another (xrender.mesh.gpu's `Layers`): how deep what stops the eye is, four layers each drawn and put under the ones before, and all of them over the frame — submitted and waited for",
-        [yard_on_device](State& s) { yard_on_device(s, true); });
+        [yard_on_device](State& s) { yard_on_device(s, true, false); });
+    add("render/mesh-device-about-1080p", "the same frame, panes and all, lit by a picture of the surroundings (xrender.mesh.gpu's `load_surroundings`): what falls on each surface and what it mirrors read from the picture's squares on one sheet — at most five reads a pixel a layer more than the constant light takes",
+        [yard_on_device](State& s) { yard_on_device(s, true, true); });
     add("render/mesh-device-tiles-1080p", "a textured floor on this machine's device (xrender.mesh.gpu through SDL_GPU): tiles of a 64x64 texture of seven levels to the horizon at 1920x1080, every pixel up to eight places of its strip each one read between texels and between levels, under a sun",
         [](State& s) {
             namespace mesh = xrender::mesh;

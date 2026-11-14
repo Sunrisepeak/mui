@@ -29,6 +29,7 @@ mlibs::text::FontCollection& fonts() {
 struct Page {
     Runtime                        rt;
     std::optional<agent::Protocol> protocol;
+    int                            exported = 0;
     Page()
         : rt([] {
               RuntimeOptions options;
@@ -39,6 +40,10 @@ struct Page {
         auto access = std::make_shared<AgentAccess>();
         access->set_policy({.mode = AgentMode::development, .source = "contract-test"});
         rt.set_agent_access(std::move(access));
+        (void)rt.verbs().add({"settings.export", "Write the settings to a file a person can share", Effect::reversible, "", {{"path", "string"}}}, [this](const Value&) -> VerbResult {
+            ++exported;
+            return Value{};
+        });
         rt.mount("main", column({.padding = 8, .gap = 8}, {text_box({.id = "name", .label = "Name"}), toggle({.id = "dark", .label = "Dark"}),
                                                            slider({.id = "volume", .max = 100.0, .value = 20.0})}));
         (void)rt.frame({seconds(0), {}});
@@ -91,6 +96,23 @@ static UTest cases{"agent.interface-subject", [] {
         const std::vector<std::string> unsupported = contract::unsupported(probe.make()->capabilities());
         expect(unsupported == std::vector<std::string>{"agent.time.replays", "agent.source.chain", "agent.observe.budget"})
             << "no host draws here (a pixel's source is the host's); a budget of bytes and replayed time are not its";
+    };
+
+    "what the application names is found by intent: its verbs and its nodes, each with a request to send as it is (D-186)"_test = [] {
+        register_base_components();
+        Shown shown;
+        mlibs::agent::SubjectSession session({&shown}, {.actor = {openas::Kind::agent, "reviewer", {}}});
+        const auto verb = ask(session, R"({"op":"find","q":"share the settings as a file"})");
+        const auto first = verb.data()["found"][0];
+        expect(first["kind"].text() == "verb" && first["name"].text() == "settings.export" && first["summary"].text().value_or("").contains("takes path: string")) << verb.data().dump();
+        // Its request tries it — a dry run: what it would do, nothing done.
+        expect(first["requests"][0].dump() == R"({"op":"ui.invoke","verb":"settings.export","dry_run":true})");
+        expect(eq(ask(session, first["requests"][0].dump()).exit_code(), std::int64_t{0}) && eq(shown.exported, 0));
+        const auto node = ask(session, R"({"op":"find","q":"the dark toggle"})");
+        const auto found = node.data()["found"][0];
+        expect(found["kind"].text() == "node" && found["name"].text() == "main/dark" && found["summary"].text().value_or("").contains("toggle")) << node.data().dump();
+        const auto read = ask(session, found["requests"][0].dump());
+        expect(eq(read.exit_code(), std::int64_t{0}) && read.data().dump().contains("main/dark")) << "its request reads the node";
     };
 
     "found in a kernel session: who is here, then the protocol's own operations by their catalog names, answered in its own records"_test = [] {

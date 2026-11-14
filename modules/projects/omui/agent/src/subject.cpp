@@ -18,6 +18,15 @@ std::uint64_t InterfaceSubject::state_hash() const { return mlibs::hash::fnv1a(t
 
 std::vector<mlibs::agent::Term> InterfaceSubject::terms() const {
     std::vector<mlibs::agent::Term> out;
+    // What the application says it can do: its verbs, each with the request that runs it as far as a dry run
+    // (what it would do, and whether it would be allowed — nothing done).
+    for (const VerbDesc* verb : runtime_.verbs().list()) {
+        if (verb->person) continue;  // a person's alone: never a request's
+        std::string takes;
+        for (const auto& [name, type] : verb->args) takes += std::format("{}{}: {}", takes.empty() ? "" : ", ", name, type);
+        out.push_back({"verb", verb->name, std::format("{}{}", verb->summary, takes.empty() ? std::string() : std::format(" — takes {}", takes)),
+                       std::format("{{\"op\":\"ui.invoke\",\"verb\":{},\"dry_run\":true}}", mlibs::agent::json_text(verb->name))});
+    }
     semantic::Query interactive;
     interactive.interactive = true;
     for (const spec::SemanticNode& node : tree_.find(interactive)) {

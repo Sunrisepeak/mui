@@ -3,6 +3,7 @@ module mlibs.agent;
 import std;
 import openas;
 import mlibs.control;
+import mlibs.json;
 
 namespace mlibs::agent {
 

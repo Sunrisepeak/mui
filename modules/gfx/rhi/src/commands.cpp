@@ -63,7 +63,13 @@ void CommandList::copy(Texture from, Region region, Texture to, std::uint32_t x,
     commands_.emplace_back(cmd::CopyTexture{from, region, to, x, y});
 }
 
-void CommandList::begin_render(const ColorTarget& target, const DepthTarget& depth) { commands_.emplace_back(cmd::BeginRender{target, depth}); }
+void CommandList::begin_render(const ColorTarget& target, const DepthTarget& depth) { commands_.emplace_back(cmd::BeginRender{target, depth, {}, 0}); }
+void CommandList::begin_render(const ColorTarget& target, const DepthTarget& depth, std::span<const ColorTarget> more) {
+    cmd::BeginRender begin{target, depth, {}, static_cast<std::uint32_t>(more.size())};
+    // More than a pass can have are not kept: validation says so from `asked`.
+    for (std::size_t index = 0; index < more.size() && index < begin.more.size(); ++index) begin.more[index] = more[index];
+    commands_.emplace_back(begin);
+}
 void CommandList::end_render() { commands_.emplace_back(cmd::EndRender{}); }
 void CommandList::set_pipeline(GraphicsPipeline pipeline) { commands_.emplace_back(cmd::SetPipeline{pipeline}); }
 void CommandList::set_viewport(float x, float y, float width, float height) {
@@ -128,6 +134,8 @@ std::uint64_t CommandList::hash() const noexcept {
                     if (x.depth.texture)
                         handle(f, x.depth.texture), f.value(x.depth.load), f.value(x.depth.clear_depth), f.value(x.depth.clear_stencil),
                             f.value(x.depth.store);
+                    for (const ColorTarget& another : x.more)
+                        if (another.texture) handle(f, another.texture), f.value(another.load), f.value(another.clear);
                 } else if constexpr (std::is_same_v<T, cmd::SetPipeline> || std::is_same_v<T, cmd::SetComputePipeline>) {
                     handle(f, x.pipeline);
                 } else if constexpr (std::is_same_v<T, cmd::SetViewport>) {

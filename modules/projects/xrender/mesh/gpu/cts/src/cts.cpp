@@ -555,7 +555,7 @@ Cases suite_of() {
             const xrender::TextureNeed of_light{width, height, rhi::Format::rgba16_float, sampled_target}, of_who{width, height, rhi::Format::r32_float, sampled_target},
                 of_depth{width, height, rhi::Format::d32_float, rhi::TextureUsage::depth_target};
             std::uint32_t last_past = 0;
-            // One frame on both: the reference's draw and resolve; the device's five passes in a graph.
+            // One frame on both: the reference's draw and resolve; the device's four passes in a graph.
             const auto frame = [&](std::uint32_t number) {
                 const mesh::Options options{.shadows = false, .jitter = mesh::jitter_of(number)};
                 scene::Extracted seen;
@@ -572,9 +572,10 @@ Cases suite_of() {
                 last_past = gathered->past;
                 graph.pass({.name = "mesh.light", .writes = {*light, *depth}},
                            [&](rhi::CommandList& list) { pass->record(list, yard.world, seen, yard.view(), yard.materials, *light, *depth, width, height, options); });
-                graph.pass({.name = "mesh.who", .writes = {who->now, *depth}}, [&](rhi::CommandList& list) { pass->record_who(list, yard.world, seen, yard.view(), who->now, *depth, width, height, options); });
-                graph.pass({.name = "mesh.velocity", .writes = {*velocity, *depth}},
-                           [&](rhi::CommandList& list) { pass->record_velocity(list, yard.world, seen, yard.view(), *velocity, *depth, width, height, options); });
+                // Who and how far, of one drawing of the scene where the device has two colour targets a pass.
+                graph.pass({.name = "mesh.velocity-who", .writes = {*velocity, who->now, *depth}}, [&](rhi::CommandList& list) {
+                    pass->record_velocity_and_who(list, yard.world, seen, yard.view(), *velocity, who->now, *depth, width, height, options);
+                });
                 std::vector<rhi::Texture> reads{*light, *velocity, who->now};
                 if (begun) reads.push_back(who->before), reads.push_back(gathered->before);
                 graph.pass({.name = "mesh.resolve", .reads = reads, .writes = {gathered->now}},
@@ -584,7 +585,7 @@ Cases suite_of() {
                 rhi::CommandList list;
                 const auto report = graph.record(list, {&*colour, 1});
                 if (!(expect(report.has_value()) << (report ? "" : report.error().front().text))) return mesh::Temporal::Told{};
-                expect(eq(report->recorded, std::size_t{5}) && eq(report->histories, std::size_t{2}));
+                expect(eq(report->recorded, std::size_t{4}) && eq(report->histories, std::size_t{2}));
                 const auto submitted = device->submit(list);
                 if (!(expect(submitted.has_value()) << (submitted ? "" : submitted.error().message))) return mesh::Temporal::Told{};
                 expect(device->wait(*submitted).has_value());
@@ -619,6 +620,71 @@ Cases suite_of() {
             static_cast<void>(device->wait_idle());
         }
         device->destroy(*colour);
+    });
+    // who drew a pixel and how far it moved, of one drawing of the scene: the same two pictures, byte for byte, as a pass each gives — after a still frame and after the box has moved
+    add(suite, "mesh.velocity-who", [](Rig& rig) {
+        rhi::Device* const device = &rig.device;
+        Yard yard(true);
+        auto together = mesh::gpu::Pass::make(*device, false, true), apart = mesh::gpu::Pass::make(*device, false, true);
+        if (!(expect(together.has_value() && apart.has_value()) << (together ? "" : together.error().message))) return;
+        if (!(expect(together->load(yard.meshes).has_value() && apart->load(yard.meshes).has_value()))) return;
+        const auto sampled_target = rhi::TextureUsage::color_target | rhi::TextureUsage::sampled;
+        std::array<rhi::Texture, 5> made{};
+        const std::array<rhi::TextureDesc, 5> wanted{rhi::TextureDesc{rhi::Format::rgba16_float, width, height, sampled_target, "velocity.together"},
+                                                     rhi::TextureDesc{rhi::Format::r32_float, width, height, sampled_target, "who.together"},
+                                                     rhi::TextureDesc{rhi::Format::rgba16_float, width, height, sampled_target, "velocity.apart"},
+                                                     rhi::TextureDesc{rhi::Format::r32_float, width, height, sampled_target, "who.apart"},
+                                                     rhi::TextureDesc{rhi::Format::d32_float, width, height, rhi::TextureUsage::depth_target, "depth"}};
+        bool all = true;
+        for (std::size_t index = 0; index < made.size(); ++index) {
+            const auto one = device->create(wanted[index]);
+            all = all && one.has_value();
+            if (one) made[index] = *one;
+        }
+        if (expect(all)) {
+            std::size_t moving = 0, named = 0;
+            for (std::uint32_t number = 0; number < 3; ++number) {
+                // The third frame: the box has gone to the left, and the view is aside by its jitter.
+                if (number == 2) {
+                    const math::Mat4 was = yard.world.find(10)->world;
+                    expect(yard.world.move(10, math::translation({-0.4f, 0, 0}) * was).has_value());
+                }
+                const mesh::Options options{.shadows = false, .jitter = mesh::jitter_of(number)};
+                scene::Extracted seen;
+                scene::extract(yard.world, yard.view(), seen);
+                rhi::CommandList list;
+                together->record_velocity_and_who(list, yard.world, seen, yard.view(), made[0], made[1], made[4], width, height, options);
+                apart->record_who(list, yard.world, seen, yard.view(), made[3], made[4], width, height, options);
+                apart->record_velocity(list, yard.world, seen, yard.view(), made[2], made[4], width, height, options);
+                const auto submitted = device->submit(list);
+                if (!(expect(submitted.has_value()) << (submitted ? "" : submitted.error().message))) break;
+                expect(device->wait(*submitted).has_value());
+                const auto velocity_one = device->read(made[0], rhi::Region{0, 0, width, height}), velocity_two = device->read(made[2], rhi::Region{0, 0, width, height});
+                const auto who_one = device->read(made[1], rhi::Region{0, 0, width, height}), who_two = device->read(made[3], rhi::Region{0, 0, width, height});
+                if (!(expect(velocity_one.has_value() && velocity_two.has_value() && who_one.has_value() && who_two.has_value()))) break;
+                std::size_t velocity_differs = 0, who_differs = 0;
+                for (std::size_t at = 0; at < velocity_one->size(); ++at) velocity_differs += (*velocity_one)[at] != (*velocity_two)[at];
+                for (std::size_t at = 0; at < who_one->size(); ++at) who_differs += (*who_one)[at] != (*who_two)[at];
+                expect(eq(velocity_differs, std::size_t{0}) && eq(who_differs, std::size_t{0})) << std::format("frame {}: {} bytes of the velocity and {} of who differ", number, velocity_differs, who_differs);
+                if (number == 2) {
+                    // The pictures say something: pixels that moved (a half float's x that is not 0), pixels someone drew.
+                    for (std::size_t pixel = 0; pixel < static_cast<std::size_t>(width) * height; ++pixel) {
+                        std::uint16_t across = 0;
+                        float         who = 0;
+                        std::memcpy(&across, velocity_one->data() + pixel * 8, 2);
+                        std::memcpy(&who, who_one->data() + pixel * 4, 4);
+                        moving += (across & 0x7fffu) != 0;
+                        named += who > 0;
+                    }
+                }
+            }
+            std::println("    who and how far of one drawing ({} colour targets a pass): the same bytes as a pass each over three frames; {} pixels moved in the third, {} drawn by someone",
+                         device->caps().max_color_targets, moving, named);
+            expect(gt(moving, std::size_t{100}) && gt(named, std::size_t{1000}));
+        }
+        static_cast<void>(device->wait_idle());
+        for (const rhi::Texture texture : made)
+            if (texture) device->destroy(texture);
     });
     // how open a place is, on the device: rays stepped through what the eye sees darken the yard where the reference's rays through the scene do — under the ball, by the box and the post
     add(suite, "mesh.open", [](Rig& rig) {

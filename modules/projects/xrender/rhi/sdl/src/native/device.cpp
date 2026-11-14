@@ -362,15 +362,30 @@ protected:
             for (const VertexAttribute& a : l.attributes)
                 attributes.push_back({a.location, static_cast<Uint32>(slot), vertex_format(a.format), a.offset});
         }
-        SDL_GPUColorTargetDescription target{};
-        target.format = texture_format(d.target);
-        target.blend_state.enable_blend = d.blend.enabled;
-        target.blend_state.src_color_blendfactor = blend_factor(d.blend.src_color);
-        target.blend_state.dst_color_blendfactor = blend_factor(d.blend.dst_color);
-        target.blend_state.color_blend_op = blend_op(d.blend.color_op);
-        target.blend_state.src_alpha_blendfactor = blend_factor(d.blend.src_alpha);
-        target.blend_state.dst_alpha_blendfactor = blend_factor(d.blend.dst_alpha);
-        target.blend_state.alpha_blend_op = blend_op(d.blend.alpha_op);
+        if (d.more_targets.size() > max_more_targets || 1 + d.more_targets.size() > caps_.max_color_targets) {
+            SDL_ReleaseGPUShader(device_, *vs);
+            SDL_ReleaseGPUShader(device_, *fs);
+            return fail(Errc::unsupported, std::format("a pipeline of {} colour targets; the device has {} a pass", 1 + d.more_targets.size(), caps_.max_color_targets));
+        }
+        auto described = [](Format format, const Blend& blend) {
+            SDL_GPUColorTargetDescription one{};
+            one.format = texture_format(format);
+            one.blend_state.enable_blend = blend.enabled;
+            one.blend_state.src_color_blendfactor = blend_factor(blend.src_color);
+            one.blend_state.dst_color_blendfactor = blend_factor(blend.dst_color);
+            one.blend_state.color_blend_op = blend_op(blend.color_op);
+            one.blend_state.src_alpha_blendfactor = blend_factor(blend.src_alpha);
+            one.blend_state.dst_alpha_blendfactor = blend_factor(blend.dst_alpha);
+            one.blend_state.alpha_blend_op = blend_op(blend.alpha_op);
+            return one;
+        };
+        std::array<SDL_GPUColorTargetDescription, max_color_targets> targets{};
+        targets[0] = described(d.target, d.blend);
+        GraphicsPipelineInfo described_info{counts(*d.vertex), counts(*d.fragment), static_cast<std::uint32_t>(d.vertex_buffers.size()), d.target, d.depth_target, d.samples, {}, 0};
+        for (const MoreTarget& another : d.more_targets) {
+            targets[1 + described_info.more] = described(another.format, another.blend);
+            described_info.more_targets[described_info.more++] = another.format;
+        }
 
         SDL_GPUGraphicsPipelineCreateInfo info{};
         info.vertex_shader = *vs;
@@ -384,8 +399,8 @@ protected:
         info.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_NONE;
         info.rasterizer_state.front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE;
         info.multisample_state.sample_count = sample_count(d.samples);
-        info.target_info.color_target_descriptions = &target;
-        info.target_info.num_color_targets = 1;
+        info.target_info.color_target_descriptions = targets.data();
+        info.target_info.num_color_targets = 1 + described_info.more;
         if (d.depth_target) {
             info.target_info.has_depth_stencil_target = true;
             info.target_info.depth_stencil_format = texture_format(*d.depth_target);
@@ -397,8 +412,7 @@ protected:
         SDL_ReleaseGPUShader(device_, *vs);
         SDL_ReleaseGPUShader(device_, *fs);
         if (!p) return fail(Errc::backend, sdl_error(std::format("creating the pipeline {}", d.label.empty() ? d.fragment->entry : d.label)));
-        return graphics_.insert(
-            {p, {counts(*d.vertex), counts(*d.fragment), static_cast<std::uint32_t>(d.vertex_buffers.size()), d.target, d.depth_target, d.samples}});
+        return graphics_.insert({p, described_info});
     }
 
     Result<ComputePipeline> make(const ComputePipelineDesc& d) override {
@@ -656,17 +670,24 @@ Result<Submission> SdlDevice::run(const CommandList& list) {
                     if (auto* p = copy_pass()) SDL_CopyGPUTextureToTexture(p, &from, &to, x.region.width, x.region.height, 1, false);
                 } else if constexpr (std::is_same_v<T, cmd::BeginRender>) {
                     end_copy();
-                    SDL_GPUColorTargetInfo target{};
-                    target.texture = textures_.get(x.target.texture)->texture;
-                    target.clear_color = {x.target.clear[0], x.target.clear[1], x.target.clear[2], x.target.clear[3]};
-                    target.load_op = x.target.load == LoadOp::clear  ? SDL_GPU_LOADOP_CLEAR
-                                     : x.target.load == LoadOp::load ? SDL_GPU_LOADOP_LOAD
-                                                                     : SDL_GPU_LOADOP_DONT_CARE;
-                    target.store_op = SDL_GPU_STOREOP_STORE;
-                    if (x.target.resolve) {
-                        target.resolve_texture = textures_.get(x.target.resolve)->texture;
-                        target.store_op = SDL_GPU_STOREOP_RESOLVE;
-                    }
+                    std::array<SDL_GPUColorTargetInfo, max_color_targets> targets{};
+                    Uint32                                                count = 0;
+                    auto colour = [&](const ColorTarget& one) {
+                        SDL_GPUColorTargetInfo& target = targets[count++];
+                        target.texture = textures_.get(one.texture)->texture;
+                        target.clear_color = {one.clear[0], one.clear[1], one.clear[2], one.clear[3]};
+                        target.load_op = one.load == LoadOp::clear  ? SDL_GPU_LOADOP_CLEAR
+                                         : one.load == LoadOp::load ? SDL_GPU_LOADOP_LOAD
+                                                                    : SDL_GPU_LOADOP_DONT_CARE;
+                        target.store_op = SDL_GPU_STOREOP_STORE;
+                        if (one.resolve) {
+                            target.resolve_texture = textures_.get(one.resolve)->texture;
+                            target.store_op = SDL_GPU_STOREOP_RESOLVE;
+                        }
+                    };
+                    colour(x.target);
+                    for (const ColorTarget& another : x.more)
+                        if (another.texture) colour(another);
                     SDL_GPUDepthStencilTargetInfo depth{};
                     if (x.depth.texture) {
                         depth.texture = textures_.get(x.depth.texture)->texture;
@@ -677,7 +698,7 @@ Result<Submission> SdlDevice::run(const CommandList& list) {
                         depth.stencil_store_op = x.depth.store ? SDL_GPU_STOREOP_STORE : SDL_GPU_STOREOP_DONT_CARE;
                         depth.clear_stencil = x.depth.clear_stencil;
                     }
-                    render = SDL_BeginGPURenderPass(cb, &target, 1, x.depth.texture ? &depth : nullptr);
+                    render = SDL_BeginGPURenderPass(cb, targets.data(), count, x.depth.texture ? &depth : nullptr);
                     if (!render) failure = sdl_error("beginning a render pass");
                 } else if constexpr (std::is_same_v<T, cmd::EndRender>) {
                     if (render) SDL_EndGPURenderPass(render), render = nullptr;
@@ -844,6 +865,7 @@ Result<std::unique_ptr<Device>> create(const Options& options) {
     caps.software = software_device(caps.device);
     caps.compute = true;
     caps.max_texture_size = 8192;
+    caps.max_color_targets = max_color_targets;  // every backend of SDL_GPU has four and more a pass
     for (const auto& [n, count] : {std::pair{8u, SDL_GPU_SAMPLECOUNT_8}, std::pair{4u, SDL_GPU_SAMPLECOUNT_4}, std::pair{2u, SDL_GPU_SAMPLECOUNT_2}})
         if (SDL_GPUTextureSupportsSampleCount(device, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, count)) {
             caps.max_samples = n;

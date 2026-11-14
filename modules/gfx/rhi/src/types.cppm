@@ -97,7 +97,14 @@ struct Caps {
     // depth target) can have: 1 when the device cannot multisample.
     std::uint32_t max_samples = 1;
     bool          depth = false;  // d32_float and d32_float_s8 depth targets
+    // How many colour targets one render pass may write (1…max_color_targets): a fragment's outputs
+    // 0, 1, … each to its own texture. 1: a pass has one.
+    std::uint32_t max_color_targets = 1;
 };
+
+// The most colour targets of a pass on any device: the first, and this many more.
+inline constexpr std::uint32_t max_color_targets = 4;
+inline constexpr std::uint32_t max_more_targets = max_color_targets - 1;
 
 // ── resources ────────────────────────────────────────────────────────────
 
@@ -293,6 +300,12 @@ struct DepthState {
     friend constexpr bool operator==(DepthState, DepthState) = default;
 };
 
+// A colour target of a pipeline after its first.
+struct MoreTarget {
+    Format format = Format::rgba8_unorm;
+    Blend  blend = Blend::premultiplied();
+};
+
 struct GraphicsPipelineDesc {
     const ShaderDesc*                   vertex = nullptr;
     const ShaderDesc*                   fragment = nullptr;
@@ -305,6 +318,9 @@ struct GraphicsPipelineDesc {
     std::optional<Format>               depth_target;
     DepthState                          depth;
     std::uint32_t                       samples = 1;
+    // The colour targets after the first (Caps::max_color_targets): the fragment's outputs 1, 2, …,
+    // each with its format and how it is blended.
+    std::span<const MoreTarget>         more_targets;
     std::string_view                    label;
 };
 
@@ -332,6 +348,9 @@ struct GraphicsPipelineInfo {
     Format                target = Format::rgba8_unorm;
     std::optional<Format> depth;
     std::uint32_t         samples = 1;
+    // The formats of the targets after the first, `more` of them.
+    std::array<Format, max_more_targets> more_targets{};
+    std::uint32_t                        more = 0;
 };
 struct ComputePipelineInfo {
     Counts shader;

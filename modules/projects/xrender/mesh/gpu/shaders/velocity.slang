@@ -44,3 +44,23 @@ float4 velocity_fs(VOut point) : SV_Target {
     const float2 was = float2(point.before.x / point.before.w * 0.5 + 0.5, 0.5 - point.before.y / point.before.w * 0.5) * moved.size_jitter.xy;
     return float4(point.clip.xy - moved.size_jitter.zw - was, 0, 1);
 }
+
+// Both pictures of one drawing of the scene, where a pass has two colour targets: how far the pixel's point
+// moved, and who drew it (`still.y`: the draw's instance and one more, a number a float holds exactly) —
+// what velocity_fs and ids.slang's who_fs each write.
+struct MovedAndWho {
+    float4 velocity : SV_Target0;
+    float4 who : SV_Target1;
+};
+[shader("fragment")]
+MovedAndWho velocity_who_fs(VOut point) {
+    if (dot(point.normal, moved.eye.xyz - point.place) < 0) discard;
+    MovedAndWho made;
+    made.who = float4(moved.still.y, 0, 0, 1);
+    made.velocity = float4(0, 0, 0, 1);
+    if (!(moved.still.x > 0.5 || !(point.before.w > 0))) {
+        const float2 was = float2(point.before.x / point.before.w * 0.5 + 0.5, 0.5 - point.before.y / point.before.w * 0.5) * moved.size_jitter.xy;
+        made.velocity = float4(point.clip.xy - moved.size_jitter.zw - was, 0, 1);
+    }
+    return made;
+}

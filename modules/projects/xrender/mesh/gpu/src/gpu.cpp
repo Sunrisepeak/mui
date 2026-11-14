@@ -136,6 +136,19 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
                                                             .depth_target = rhi::Format::d32_float,
                                                             .depth = {.test = true, .write = true, .compare = reversed_depth ? rhi::Compare::greater : rhi::Compare::less},
                                                             .label = "xrender.mesh.velocity"});
+    // Both of them in one drawing of the scene, where the device has two colour targets a pass.
+    const std::array<rhi::MoreTarget, 1> and_who{rhi::MoreTarget{rhi::Format::r32_float, rhi::Blend::replace()}};
+    rhi::Result<rhi::GraphicsPipeline> velocity_who = rhi::GraphicsPipeline{};
+    if (device.caps().max_color_targets >= 2)
+        velocity_who = device.create(rhi::GraphicsPipelineDesc{.vertex = &shaders::velocity::velocity_vs,
+                                                               .fragment = &shaders::velocity::velocity_who_fs,
+                                                               .vertex_buffers = layout,
+                                                               .target = rhi::Format::rgba16_float,
+                                                               .blend = rhi::Blend::replace(),
+                                                               .depth_target = rhi::Format::d32_float,
+                                                               .depth = {.test = true, .write = true, .compare = reversed_depth ? rhi::Compare::greater : rhi::Compare::less},
+                                                               .more_targets = and_who,
+                                                               .label = "xrender.mesh.velocity-who"});
     auto surface = device.create(rhi::GraphicsPipelineDesc{.vertex = &shaders::ids::ids_vs,
                                                            .fragment = &shaders::ids::surface_fs,
                                                            .vertex_buffers = layout,
@@ -154,6 +167,7 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
     if (lamp_shadow) pass.lamp_shadow_pipeline_ = *lamp_shadow;
     if (who) pass.who_pipeline_ = *who;
     if (velocity) pass.velocity_pipeline_ = *velocity;
+    if (velocity_who) pass.velocity_who_pipeline_ = *velocity_who;
     if (surface) pass.surface_pipeline_ = *surface;
     if (nearest) pass.nearest_ = *nearest;
     if (no_shadow) pass.no_shadow_ = *no_shadow;
@@ -163,6 +177,7 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
     if (!lamp_shadow) return std::unexpected(lamp_shadow.error());
     if (!who) return std::unexpected(who.error());
     if (!velocity) return std::unexpected(velocity.error());
+    if (!velocity_who) return std::unexpected(velocity_who.error());
     if (!surface) return std::unexpected(surface.error());
     if (!nearest) return std::unexpected(nearest.error());
     if (!no_shadow) return std::unexpected(no_shadow.error());
@@ -178,11 +193,11 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
     return pass;
 }
 Pass::Pass(Pass&& other) noexcept
-    : device_(std::exchange(other.device_, nullptr)), pipeline_(std::exchange(other.pipeline_, {})), ids_pipeline_(std::exchange(other.ids_pipeline_, {})), sky_pipeline_(std::exchange(other.sky_pipeline_, {})), shadow_pipeline_(std::exchange(other.shadow_pipeline_, {})), lamp_shadow_pipeline_(std::exchange(other.lamp_shadow_pipeline_, {})), who_pipeline_(std::exchange(other.who_pipeline_, {})), velocity_pipeline_(std::exchange(other.velocity_pipeline_, {})), surface_pipeline_(std::exchange(other.surface_pipeline_, {})), nearest_(std::exchange(other.nearest_, {})), no_shadow_(std::exchange(other.no_shadow_, {})), cover_(std::exchange(other.cover_, {})), meshes_(std::move(other.meshes_)), textures_(std::move(other.textures_)), reversed_(other.reversed_), light_(other.light_), last_(other.last_) {}
+    : device_(std::exchange(other.device_, nullptr)), pipeline_(std::exchange(other.pipeline_, {})), ids_pipeline_(std::exchange(other.ids_pipeline_, {})), sky_pipeline_(std::exchange(other.sky_pipeline_, {})), shadow_pipeline_(std::exchange(other.shadow_pipeline_, {})), lamp_shadow_pipeline_(std::exchange(other.lamp_shadow_pipeline_, {})), who_pipeline_(std::exchange(other.who_pipeline_, {})), velocity_pipeline_(std::exchange(other.velocity_pipeline_, {})), velocity_who_pipeline_(std::exchange(other.velocity_who_pipeline_, {})), surface_pipeline_(std::exchange(other.surface_pipeline_, {})), nearest_(std::exchange(other.nearest_, {})), no_shadow_(std::exchange(other.no_shadow_, {})), cover_(std::exchange(other.cover_, {})), meshes_(std::move(other.meshes_)), textures_(std::move(other.textures_)), reversed_(other.reversed_), light_(other.light_), last_(other.last_) {}
 Pass& Pass::operator=(Pass&& other) noexcept {
     if (this != &other) {
         release();
-        device_ = std::exchange(other.device_, nullptr), pipeline_ = std::exchange(other.pipeline_, {}), ids_pipeline_ = std::exchange(other.ids_pipeline_, {}), sky_pipeline_ = std::exchange(other.sky_pipeline_, {}), shadow_pipeline_ = std::exchange(other.shadow_pipeline_, {}), lamp_shadow_pipeline_ = std::exchange(other.lamp_shadow_pipeline_, {}), who_pipeline_ = std::exchange(other.who_pipeline_, {}), velocity_pipeline_ = std::exchange(other.velocity_pipeline_, {}), surface_pipeline_ = std::exchange(other.surface_pipeline_, {}), nearest_ = std::exchange(other.nearest_, {}), no_shadow_ = std::exchange(other.no_shadow_, {}), cover_ = std::exchange(other.cover_, {}), meshes_ = std::move(other.meshes_), textures_ = std::move(other.textures_), reversed_ = other.reversed_, light_ = other.light_, last_ = other.last_;
+        device_ = std::exchange(other.device_, nullptr), pipeline_ = std::exchange(other.pipeline_, {}), ids_pipeline_ = std::exchange(other.ids_pipeline_, {}), sky_pipeline_ = std::exchange(other.sky_pipeline_, {}), shadow_pipeline_ = std::exchange(other.shadow_pipeline_, {}), lamp_shadow_pipeline_ = std::exchange(other.lamp_shadow_pipeline_, {}), who_pipeline_ = std::exchange(other.who_pipeline_, {}), velocity_pipeline_ = std::exchange(other.velocity_pipeline_, {}), velocity_who_pipeline_ = std::exchange(other.velocity_who_pipeline_, {}), surface_pipeline_ = std::exchange(other.surface_pipeline_, {}), nearest_ = std::exchange(other.nearest_, {}), no_shadow_ = std::exchange(other.no_shadow_, {}), cover_ = std::exchange(other.cover_, {}), meshes_ = std::move(other.meshes_), textures_ = std::move(other.textures_), reversed_ = other.reversed_, light_ = other.light_, last_ = other.last_;
     }
     return *this;
 }
@@ -204,6 +219,7 @@ void Pass::release() noexcept {
     if (lamp_shadow_pipeline_) device_->destroy(lamp_shadow_pipeline_);
     if (who_pipeline_) device_->destroy(who_pipeline_);
     if (velocity_pipeline_) device_->destroy(velocity_pipeline_);
+    if (velocity_who_pipeline_) device_->destroy(velocity_who_pipeline_);
     if (surface_pipeline_) device_->destroy(surface_pipeline_);
     if (nearest_) device_->destroy(nearest_);
     if (no_shadow_) device_->destroy(no_shadow_);
@@ -596,6 +612,19 @@ void Pass::who_pass(rhi::CommandList& list, const scene::Scene& scene, const sce
 
 void Pass::record_velocity(rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, rhi::Texture velocity, rhi::Texture depth,
                            std::uint32_t width, std::uint32_t height, const Options& options) {
+    velocity_pass(list, scene, extracted, view, velocity, {}, depth, width, height, options);
+}
+void Pass::record_velocity_and_who(rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, rhi::Texture velocity, rhi::Texture who,
+                                   rhi::Texture depth, std::uint32_t width, std::uint32_t height, const Options& options) {
+    if (velocity_who_pipeline_) {
+        velocity_pass(list, scene, extracted, view, velocity, who, depth, width, height, options);
+        return;
+    }
+    record_who(list, scene, extracted, view, who, depth, width, height, options);
+    record_velocity(list, scene, extracted, view, velocity, depth, width, height, options);
+}
+void Pass::velocity_pass(rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, rhi::Texture velocity, rhi::Texture who,
+                         rhi::Texture depth, std::uint32_t width, std::uint32_t height, const Options& options) {
     struct VelocityDraw {
         Row to_clip[4];
         Row to_world[3];
@@ -609,9 +638,11 @@ void Pass::record_velocity(rhi::CommandList& list, const scene::Scene& scene, co
     const std::optional<Mat4> camera = math::inverse(view.view);
     const Vec3 eye = camera ? math::point(*camera, {0, 0, 0}) : Vec3{};
     const std::span<const scene::Instance> instances = scene.instances();
-    list.begin_render({velocity, rhi::LoadOp::clear, {0, 0, 0, 1}}, {depth, rhi::LoadOp::clear, reversed_ ? 0.0f : 1.0f});
+    const rhi::DepthTarget cleared{depth, rhi::LoadOp::clear, reversed_ ? 0.0f : 1.0f};
+    if (who) list.begin_render({velocity, rhi::LoadOp::clear, {0, 0, 0, 1}}, cleared, std::array<rhi::ColorTarget, 1>{rhi::ColorTarget{who, rhi::LoadOp::clear, {0, 0, 0, 0}}});
+    else list.begin_render({velocity, rhi::LoadOp::clear, {0, 0, 0, 1}}, cleared);
     list.set_viewport(0, 0, static_cast<float>(width), static_cast<float>(height));
-    list.set_pipeline(velocity_pipeline_);
+    list.set_pipeline(who ? velocity_who_pipeline_ : velocity_pipeline_);
     for (const scene::Draw& draw : extracted.draws) {
         if (draw.instance >= instances.size() || draw.mesh >= meshes_.size() || !meshes_[draw.mesh].corners) continue;
         const scene::Instance& instance = instances[draw.instance];
@@ -629,7 +660,9 @@ void Pass::record_velocity(rhi::CommandList& list, const scene::Scene& scene, co
         for (int row = 0; row < 3; ++row) uniforms.to_world[row] = row_of(instance.world, row), uniforms.normals[row] = row_of(for_normals, row);
         list.push_uniforms(rhi::Stage::vertex, 0, uniforms);
         list.push_uniforms(rhi::Stage::fragment, 0,
-                           Moved{of(eye), {static_cast<float>(width), static_cast<float>(height), options.jitter.x, options.jitter.y}, {before.values == to_clip.values ? 1.0f : 0.0f, 0, 0, 0}});
+                           Moved{of(eye),
+                                 {static_cast<float>(width), static_cast<float>(height), options.jitter.x, options.jitter.y},
+                                 {before.values == to_clip.values ? 1.0f : 0.0f, static_cast<float>(static_cast<std::uint32_t>(instance.id & 0xffffffu) + 1), 0, 0}});
         list.bind_vertex_buffer(0, meshes_[draw.mesh].corners);
         list.draw(meshes_[draw.mesh].count);
     }

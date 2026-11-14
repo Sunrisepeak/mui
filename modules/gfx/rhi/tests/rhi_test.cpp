@@ -18,7 +18,7 @@ namespace {
 class Recorder final : public Device {
 public:
     Caps caps_{.backend = Backend::vulkan, .device = "recorder", .formats = formats({ShaderFormat::spirv}), .max_texture_size = 4096,
-               .max_samples = 4, .depth = true};
+               .max_samples = 4, .depth = true, .max_color_targets = 3};
     std::vector<std::uint64_t> ran;
 
     const Caps& caps() const noexcept override { return caps_; }
@@ -52,8 +52,9 @@ protected:
     Result<Texture> make(const TextureDesc& d) override { return textures_.insert({d.format, d.width, d.height, d.usage, {}, d.samples}); }
     Result<Sampler> make(const SamplerDesc& d) override { return samplers_.insert(d); }
     Result<GraphicsPipeline> make(const GraphicsPipelineDesc& d) override {
-        return graphics_.insert(
-            {counts(*d.vertex), counts(*d.fragment), static_cast<std::uint32_t>(d.vertex_buffers.size()), d.target, d.depth_target, d.samples});
+        GraphicsPipelineInfo info{counts(*d.vertex), counts(*d.fragment), static_cast<std::uint32_t>(d.vertex_buffers.size()), d.target, d.depth_target, d.samples, {}, 0};
+        for (const MoreTarget& another : d.more_targets) info.more_targets[info.more++] = another.format;
+        return graphics_.insert(info);
     }
     Result<ComputePipeline> make(const ComputePipelineDesc& d) override { return compute_.insert({counts(*d.shader)}); }
     Result<Submission> run(const CommandList& list) override {
@@ -309,6 +310,71 @@ UTest cases{"rhi", [] {
         plain.begin_render({sc.target});
         again.begin_render({sc.target}, {});
         expect(plain.hash() == again.hash());
+    };
+
+    "several colour targets a pass: as many as the device has, alike in size, each its pipeline's format"_test = [] {
+        Scene sc;
+        using U = TextureUsage;
+        const ShaderDesc vs{.stage = Stage::vertex, .entry = "vs", .code = spirv};
+        const ShaderDesc fs{.stage = Stage::fragment, .entry = "fs", .code = spirv};
+        const auto size = *sc.d.describe(sc.target);
+        const Texture second = *sc.d.create(TextureDesc{.width = size.width, .height = size.height, .usage = U::color_target});
+        const Texture number = *sc.d.create(TextureDesc{.format = Format::r32_float, .width = size.width, .height = size.height, .usage = U::color_target});
+        const Texture fourth = *sc.d.create(TextureDesc{.width = size.width, .height = size.height, .usage = U::color_target});
+        const Texture small = *sc.d.create(TextureDesc{.width = size.width / 2, .height = size.height, .usage = U::color_target});
+        const std::array<MoreTarget, 2> two_more{MoreTarget{Format::rgba8_unorm, Blend::premultiplied()}, MoreTarget{Format::r32_float, Blend::replace()}};
+        const std::array<MoreTarget, 3> three_more{MoreTarget{}, MoreTarget{}, MoreTarget{}};
+        const std::array<MoreTarget, 4> four_more{};
+        const auto three = sc.d.create(GraphicsPipelineDesc{.vertex = &vs, .fragment = &fs, .more_targets = two_more});
+        expect(fatal(three.has_value()));
+        // More than this device has a pass is unsupported; more than any has is not a pipeline.
+        const auto four = sc.d.create(GraphicsPipelineDesc{.vertex = &vs, .fragment = &fs, .more_targets = three_more});
+        expect(!four && four.error().code == Errc::unsupported) << "four targets on a device of three";
+        if (!four) expect(eq(four.error().message, std::string("recorder has 3 colour targets a pass; the pipeline renders 4")));
+        const auto five = sc.d.create(GraphicsPipelineDesc{.vertex = &vs, .fragment = &fs, .more_targets = four_more});
+        expect(!five && five.error().code == Errc::invalid);
+        if (!five) expect(eq(five.error().message, std::string("a pipeline of 5 colour targets; a pass has 4 at the most")));
+        auto list = [&](auto&& record) {
+            CommandList l;
+            record(l);
+            return invalid(sc, l);
+        };
+        const std::string where = "rhi.invalid (invalid-argument): command ";
+        auto pass = [&](std::initializer_list<ColorTarget> more, GraphicsPipeline pipeline = {}) {
+            return list([&](CommandList& l) {
+                l.begin_render({sc.target}, {}, std::span<const ColorTarget>(more.begin(), more.size()));
+                if (pipeline) l.set_pipeline(pipeline);
+                l.end_render();
+            });
+        };
+        expect(eq(pass({{second}, {small}}), where + std::format("0 (begin_render): colour target 2 is {}×{} (1 samples); the first is {}×{} (1 samples)", size.width / 2,
+                                                                   size.height, size.width, size.height)));
+        expect(eq(pass({{second}, {second}}), where + "0 (begin_render): one texture as two colour targets of a pass"));
+        expect(eq(pass({{sc.target}}), where + "0 (begin_render): one texture as two colour targets of a pass"));
+        expect(eq(pass({{second}, {number}, {fourth}}), where + "0 (begin_render): a pass of 4 colour targets; the device has 3 a pass"));
+        expect(eq(pass({{second}, {number}, {fourth}, {small}}), where + "0 (begin_render): a pass of 5 colour targets; a pass has 4 at the most"));
+        expect(eq(pass({{second}, {number}}, sc.pipeline), where + "1 (set_pipeline): the pipeline renders 1 colour targets; the pass has 3"));
+        expect(eq(pass({{number}, {second}}, *three), where + "1 (set_pipeline): the pipeline renders rgba8_unorm to colour target 1; the pass's is r32_float"));
+        expect(eq(pass({}, *three), where + "1 (set_pipeline): the pipeline renders 3 colour targets; the pass has 1"));
+        expect(eq(pass({{second}, {number}}, *three), std::string("<accepted>")));
+        // A gap among them, written into the command itself.
+        CommandList gapped;
+        gapped.begin_render({sc.target}, {}, std::array<ColorTarget, 2>{ColorTarget{}, ColorTarget{second}});
+        gapped.end_render();
+        expect(eq(invalid(sc, gapped), where + "0 (begin_render): a pass's colour targets have a gap"));
+        // A pass of one target hashes as it always did; another target is another list.
+        CommandList one, also_one, more;
+        one.begin_render({sc.target});
+        also_one.begin_render({sc.target}, {}, {});
+        more.begin_render({sc.target}, {}, std::array<ColorTarget, 1>{ColorTarget{second}});
+        expect(one.hash() == also_one.hash());
+        expect(one.hash() != more.hash());
+        // On the wire: the targets after the first follow the command's fields, counted.
+        std::vector<std::uint32_t> plain_words, more_words;
+        wire::encode(one, plain_words);
+        wire::encode(more, more_words);
+        expect(eq(more_words.size(), plain_words.size() + 1 + 6));
+        expect(eq(more_words[plain_words.size()], std::uint32_t{1}));
     };
 
     "compute passes: outputs declared, the shader's writes covered, reads bound"_test = [] {

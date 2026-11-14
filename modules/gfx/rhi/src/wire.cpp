@@ -62,6 +62,17 @@ void encode(const CommandList& list, std::vector<std::uint32_t>& out) {
                     w.h(x.target.resolve);
                     w.h(x.depth.texture), w.u(static_cast<std::uint32_t>(x.depth.load)), w.f(x.depth.clear_depth);
                     w.u(x.depth.clear_stencil), w.u(x.depth.store ? 1u : 0u);
+                    // The targets after the first, where a pass has them: how many, then each (a reader
+                    // of one target stops before them, by the command's length).
+                    if (x.more[0].texture) {
+                        std::uint32_t count = 0;
+                        while (count < x.more.size() && x.more[count].texture) ++count;
+                        w.u(count);
+                        for (std::uint32_t index = 0; index < count; ++index) {
+                            w.h(x.more[index].texture), w.u(static_cast<std::uint32_t>(x.more[index].load));
+                            for (float v : x.more[index].clear) w.f(v);
+                        }
+                    }
                 } else if constexpr (std::is_same_v<T, cmd::SetPipeline>) {
                     w.h(x.pipeline);
                 } else if constexpr (std::is_same_v<T, cmd::SetViewport>) {

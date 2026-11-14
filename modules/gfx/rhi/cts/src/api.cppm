@@ -18,6 +18,7 @@ export import :fill_shaders;
 export import :textured_shaders;
 export import :compute_shaders;
 export import :depth_shaders;
+export import :several_shaders;
 
 export namespace mlibs::rhi::cts {
 

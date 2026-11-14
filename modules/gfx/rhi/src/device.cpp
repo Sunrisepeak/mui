@@ -43,6 +43,11 @@ Result<Texture> Device::create(const TextureDesc& d) {
 
 Result<GraphicsPipeline> Device::create(const GraphicsPipelineDesc& d) {
     if (auto e = check(d, caps().formats); !e.empty()) return fail(Errc::invalid, std::move(e));
+    if (d.more_targets.size() > max_more_targets)
+        return fail(Errc::invalid, std::format("a pipeline of {} colour targets; a pass has {} at the most", 1 + d.more_targets.size(), max_color_targets));
+    if (1 + d.more_targets.size() > caps().max_color_targets)
+        return fail(Errc::unsupported, std::format("{} has {} colour target{} a pass; the pipeline renders {}", caps().device, caps().max_color_targets,
+                                                    caps().max_color_targets == 1 ? "" : "s", 1 + d.more_targets.size()));
     return make(d);
 }
 
@@ -100,6 +105,8 @@ std::string validate(const CommandList& list, const Device& device) {
     Pass                                 pass = Pass::none;
     std::optional<TextureDesc>           target;
     std::optional<Format>                depth;  // the pass's depth attachment
+    std::array<Format, max_more_targets> more_formats{};  // the pass's colour targets after the first
+    std::uint32_t                        more_targets = 0;
     std::optional<GraphicsPipelineInfo>  graphics;
     std::optional<ComputePipelineInfo>   compute;
     std::uint32_t                        vertex_buffers = 0;
@@ -186,6 +193,28 @@ std::string validate(const CommandList& list, const Device& device) {
                                                   z->samples, d->width, d->height, d->samples));
                         depth = z->format;
                     }
+                    if (x.asked > x.more.size()) return at(std::format("a pass of {} colour targets; a pass has {} at the most", 1 + x.asked, max_color_targets));
+                    more_targets = 0;
+                    for (std::size_t index = 0; index < x.more.size(); ++index) {
+                        if (!x.more[index].texture) {
+                            for (std::size_t after = index + 1; after < x.more.size(); ++after)
+                                if (x.more[after].texture) return at("a pass's colour targets have a gap");
+                            break;
+                        }
+                        auto another = texture(x.more[index].texture, TextureUsage::color_target, "a colour target");
+                        if (!another) return another.error();
+                        if (x.more[index].resolve) return at("a resolve target for a colour target after the first");
+                        if (another->width != d->width || another->height != d->height || another->samples != d->samples)
+                            return at(std::format("colour target {} is {}×{} ({} samples); the first is {}×{} ({} samples)", index + 1, another->width, another->height,
+                                                  another->samples, d->width, d->height, d->samples));
+                        for (std::size_t before = 0; before < index; ++before)
+                            if (x.more[before].texture == x.more[index].texture) return at("one texture as two colour targets of a pass");
+                        if (x.more[index].texture == x.target.texture) return at("one texture as two colour targets of a pass");
+                        more_formats[index] = another->format;
+                        ++more_targets;
+                    }
+                    if (1 + more_targets > device.caps().max_color_targets)
+                        return at(std::format("a pass of {} colour targets; the device has {} a pass", 1 + more_targets, device.caps().max_color_targets));
                     pass = Pass::render;
                     target = *d;
                     graphics.reset();
@@ -201,6 +230,12 @@ std::string validate(const CommandList& list, const Device& device) {
                     if (!graphics) return at("a stale pipeline handle");
                     if (graphics->target != target->format)
                         return at(std::format("the pipeline renders {}; the pass's target is {}", name(graphics->target), name(target->format)));
+                    if (graphics->more != more_targets)
+                        return at(std::format("the pipeline renders {} colour targets; the pass has {}", 1 + graphics->more, 1 + more_targets));
+                    for (std::uint32_t index = 0; index < more_targets; ++index)
+                        if (graphics->more_targets[index] != more_formats[index])
+                            return at(std::format("the pipeline renders {} to colour target {}; the pass's is {}", name(graphics->more_targets[index]), index + 1,
+                                                  name(more_formats[index])));
                     if (graphics->samples != target->samples)
                         return at(std::format("the pipeline renders {} samples a texel; the pass's target has {}", graphics->samples, target->samples));
                     if (graphics->depth != depth)

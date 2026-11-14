@@ -248,6 +248,56 @@ void multisample(Bench& b) {
     expect(b, b.pixels(), W, [](auto x, auto) { return x < 4 ? red : x == 4 ? Rgba{128, 0, 0, 255} : black; }, 1);
 }
 
+// Several colour targets a pass (Caps::max_color_targets): a fragment's outputs each in its own texture, of
+// its own format, cleared to its own colour; what one target's blending does is that target's. A device
+// that says it has one refuses a pipeline of more as unsupported, which is what holds for it.
+void several_targets(Bench& b) {
+    const std::array<MoreTarget, 2> more{MoreTarget{Format::rgba8_unorm, Blend::premultiplied()}, MoreTarget{Format::r32_float, Blend::replace()}};
+    auto made = b.d.create(GraphicsPipelineDesc{.vertex = &shaders::several::several_vs, .fragment = &shaders::several::several_fs, .vertex_buffers = b.fill_layout,
+                                                .blend = Blend::replace(), .more_targets = more, .label = "cts.several"});
+    if (b.d.caps().max_color_targets < 3) {
+        if (made) {
+            b.d.destroy(*made);
+            b.fail(std::format("the device says it has {} colour targets a pass (Caps::max_color_targets), and made a pipeline of three", b.d.caps().max_color_targets));
+        } else if (made.error().code != Errc::unsupported) {
+            b.fail(std::format("a pipeline of three colour targets is refused as {}, not rhi.unsupported", made.error().text()));
+        } else {
+            b.note = std::format("{} colour target a pass on this device (Caps::max_color_targets): a pipeline of three refused as unsupported", b.d.caps().max_color_targets);
+        }
+        return;
+    }
+    const GraphicsPipeline pipeline = b.must(std::move(made), "the pipeline of three colour targets");
+    if (b.failed()) return;
+    b.release.push_back([&b, pipeline] { b.d.destroy(pipeline); });
+    const Texture second = b.texture(Format::rgba8_unorm, W, H, TextureUsage::color_target | TextureUsage::sampled, "cts.several.second");
+    const Texture third = b.texture(Format::r32_float, W, H, TextureUsage::color_target | TextureUsage::sampled, "cts.several.third");
+    // The left half, half-transparent red (premultiplied): the first and third targets take it as it is,
+    // the second blends its turned-about colour over what it was cleared to.
+    const Rgba half_red{128, 0, 0, 128};
+    const Buffer q = b.vertices(quad(-1, -1, 0, 1, half_red));
+    const std::array<ColorTarget, 2> others{ColorTarget{second, LoadOp::clear, unit(green)}, ColorTarget{third, LoadOp::clear, {7.5f, 0, 0, 0}}};
+    CommandList l;
+    l.begin_render({b.target, LoadOp::clear, unit(black)}, {}, others);
+    l.set_pipeline(pipeline);
+    l.bind_vertex_buffer(0, q);
+    l.bind_vertex_buffer(1, b.one_instance);
+    l.draw(6);
+    l.end_render();
+    b.submit(l);
+    if (b.failed()) return;
+    expect(b, b.pixels(), W, [&](auto x, auto) { return x < 4 ? half_red : black; });
+    // Blue 128/255 at alpha 128/255 over opaque green: green's 255 × (1 − 128/255) = 127.
+    expect(b, b.pixels(second), W, [](auto x, auto) { return x < 4 ? Rgba{0, 127, 128, 255} : green; }, 1);
+    const auto bytes = b.must(b.d.read(third, Region{0, 0, W, H}), "read the float target back");
+    if (b.failed()) return;
+    for (std::uint32_t at = 0; at < W * H && !b.failed(); ++at) {
+        float value = 0;
+        std::memcpy(&value, bytes.data() + at * 4, 4);
+        const float want = at % W < 4 ? 128.0f / 255.0f * 2.0f + 0.25f : 7.5f;
+        if (std::abs(value - want) > 1e-3f) b.fail(std::format("the float target at ({}, {}) is {}; it should be {}", at % W, at / W, value, want));
+    }
+}
+
 void clear(Bench& b) {
     b.pass(LoadOp::clear, {51, 102, 153, 204});
     expect(b, b.pixels(), W, [](auto, auto) { return Rgba{51, 102, 153, 204}; });
@@ -516,7 +566,7 @@ struct Case {
     mlibs::cts::Level         level = mlibs::cts::Level::exact;
 };
 constexpr auto within = mlibs::cts::Level::tolerance;  // blending and resolving round: ±1
-constexpr std::array<Case, 20> all{{
+constexpr std::array<Case, 21> all{{
     {"clear", clear},
     {"orientation", orientation},
     {"instancing", instancing},
@@ -537,6 +587,7 @@ constexpr std::array<Case, 20> all{{
     {"depth_test", depth_test},
     {"depth_kept", depth_kept},
     {"multisample", multisample, within},
+    {"several_targets", several_targets, within},
 }};
 
 }  // namespace

@@ -43,7 +43,7 @@ Part of [xrender.frame](../../frame)'s (`agent = { part = "xrender.frame" }`): t
 
 ## Not yet
 
-- **Several targets a pass**: the interface has one colour target a pass, so the ids, who and the velocity are each a pass of their own over the same corners; normals and the triangle of a pixel are not drawn.
+- **Several targets a pass**: who and the velocity are one drawing of the scene where the device has two colour targets a pass (`record_velocity_and_who`; the two passes where it has one — the same bytes either way, CTS `mesh.velocity-who`); the ids and the surface are still a pass each; normals and the triangle of a pixel are not drawn.
 - **Shadows' cost**: every caster is drawn into every view of every lamp; nothing is left out by what a view can see, and a map is drawn again each frame whether or not anything moved.
 - **The device's own levels of a texture** (and filtering at a slant): `mlibs.rhi` has one level a texture; with levels the eight reads become one.
 - **Faces by winding**: the interface has no culling state; a face turned away is discarded by its normal in the shader.

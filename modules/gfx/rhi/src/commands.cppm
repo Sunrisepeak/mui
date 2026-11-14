@@ -47,7 +47,9 @@ struct UploadTexture { Texture texture; Region region; std::span<const std::byte
 struct CopyTexture   { Texture from; Region region; Texture to; std::uint32_t x = 0, y = 0; };
 
 // Render passes.
-struct BeginRender   { ColorTarget target; DepthTarget depth; };
+// `more`: the colour targets after the first, without a gap (a pass of several: Caps::max_color_targets) —
+// the same size and samples as the first.
+struct BeginRender   { ColorTarget target; DepthTarget depth; std::array<ColorTarget, max_more_targets> more{}; std::uint32_t asked = 0; };  // asked: how many more the caller gave
 struct EndRender     {};
 struct SetPipeline   { GraphicsPipeline pipeline; };
 struct SetViewport   { float x = 0, y = 0, width = 0, height = 0; };
@@ -104,6 +106,8 @@ public:
     void copy(Texture from, Region region, Texture to, std::uint32_t x = 0, std::uint32_t y = 0);
 
     void begin_render(const ColorTarget& target, const DepthTarget& depth = {});
+    // A pass of several colour targets: `more` after the first (at most max_more_targets).
+    void begin_render(const ColorTarget& target, const DepthTarget& depth, std::span<const ColorTarget> more);
     void end_render();
     void set_pipeline(GraphicsPipeline pipeline);
     void set_viewport(float x, float y, float width, float height);

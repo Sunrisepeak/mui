@@ -98,6 +98,11 @@ public:
     // the next. What stood still under a still view says exactly 0; the jitter is not a movement.
     void record_velocity(mlibs::rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, mlibs::rhi::Texture velocity,
                          mlibs::rhi::Texture depth, std::uint32_t width, std::uint32_t height, const Options& options = {});
+    // Both of them — `record_velocity`'s picture and `record_who`'s — in one drawing of the scene where the
+    // device has two colour targets a pass (Caps::max_color_targets), and as the two passes where it has one:
+    // the same pictures either way.
+    void record_velocity_and_who(mlibs::rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, mlibs::rhi::Texture velocity,
+                                 mlibs::rhi::Texture who, mlibs::rhi::Texture depth, std::uint32_t width, std::uint32_t height, const Options& options = {});
     // The surface at each pixel, for `Open`: a pass on `surface` (rgba16_float, a colour target that can be
     // sampled) — which way it faces and how far from the eye it is (to 250; further is as nothing there).
     void record_surface(mlibs::rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, mlibs::rhi::Texture surface,
@@ -111,6 +116,8 @@ public:
 private:
     Pass() = default;
     void release() noexcept;
+    void velocity_pass(mlibs::rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, mlibs::rhi::Texture velocity,
+                       mlibs::rhi::Texture who, mlibs::rhi::Texture depth, std::uint32_t width, std::uint32_t height, const Options& options);
     void who_pass(mlibs::rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, mlibs::rhi::Texture target, mlibs::rhi::Texture depth,
                   std::uint32_t width, std::uint32_t height, mlibs::rhi::GraphicsPipeline pipeline, bool by_instance, mlibs::math::Vec2 jitter);
     struct Loaded {
@@ -119,7 +126,7 @@ private:
         bool               placed = false;  // it has texture coordinates
     };
     mlibs::rhi::Device*          device_ = nullptr;
-    mlibs::rhi::GraphicsPipeline pipeline_, ids_pipeline_, sky_pipeline_, shadow_pipeline_, lamp_shadow_pipeline_, who_pipeline_, velocity_pipeline_, surface_pipeline_;
+    mlibs::rhi::GraphicsPipeline pipeline_, ids_pipeline_, sky_pipeline_, shadow_pipeline_, lamp_shadow_pipeline_, who_pipeline_, velocity_pipeline_, velocity_who_pipeline_, surface_pipeline_;
     mlibs::rhi::Sampler          nearest_;
     mlibs::rhi::Texture          no_shadow_;  // a texel, for the map's place when there is no map
     mlibs::rhi::Buffer           cover_;  // three corners over the picture: what the sky is drawn with

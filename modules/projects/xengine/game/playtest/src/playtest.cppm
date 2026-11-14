@@ -67,7 +67,8 @@ struct Report {
 class Hands {
 public:
     explicit Hands(mlibs::agent::SubjectSession& session) : session_(&session) {}
-    void act(std::string_view what);                    // `what`: an action's members, as JSON (`"axis":[1]`)
+    // `what`: an action's members, as JSON (`"axis":[1]`). The record's `data`: from which frame it holds (`effective`).
+    mlibs::json::Document act(std::string_view what);
     void step(int steps);
     // What is shown now; and what would be after `steps` of `what`, with nothing done. The record's `data`.
     [[nodiscard]] mlibs::json::Document observe();

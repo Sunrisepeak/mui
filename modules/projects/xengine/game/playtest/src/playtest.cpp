@@ -21,7 +21,7 @@ mlibs::json::Document Hands::ask(std::string_view line) {
     ok_ = false;
     return std::move(*mlibs::json::Document::parse("{}", "none"));
 }
-void Hands::act(std::string_view what) { (void)ask(std::format(R"({{"op":"world.act",{}}})", what)); }
+mlibs::json::Document Hands::act(std::string_view what) { return ask(std::format(R"({{"op":"world.act",{}}})", what)); }
 void Hands::step(int steps) { (void)ask(std::format(R"({{"op":"world.step","steps":{}}})", steps)); }
 mlibs::json::Document Hands::observe() { return ask(R"({"op":"world.observe"})"); }
 mlibs::json::Document Hands::branch(int steps, std::string_view what) { return ask(std::format(R"({{"op":"world.branch","steps":{},{}}})", steps, what)); }

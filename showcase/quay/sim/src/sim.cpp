@@ -85,6 +85,12 @@ Level harbour() {
     made.wardens = {{{-15, 0, -10}, {-15, 0, 10}}, {{0, 0, -11}, {0, 0, 11}}, {{16, 0, -11}, {16, 0, 11}}, {{34, 0, 0}, {47, 0, 0}}};
     return made;
 }
+Level flawed() {
+    Level made = harbour();
+    made.name = "flawed";
+    made.boxes.push_back({{40, 1.3f, 0}, {1.2f, 1.3f, 2.3f}});
+    return made;
+}
 }  // namespace level
 
 State start(const Level& level) {
@@ -274,6 +280,10 @@ void step(State& state, const Input& input) {
         if (warden.sees) warden.facing = math::normalized(flat(keeper.at - warden.at));
         else if (math::length(flat(walking->velocity)) > 0.2f) warden.facing = math::normalized(flat(walking->velocity));
     }
+
+    // What was heard lately: this step's noises join, those older than half a second leave.
+    for (Noise noise : state.noises) noise.frame = state.frame, state.recent.push_back(noise);
+    std::erase_if(state.recent, [&](const Noise& noise) { return noise.frame + recent_steps <= state.frame; });
 
     // ── the beacon, the tide, the end ──
     keeper.lighting = horizontal(keeper.at, state.beacon) < beacon_reach && actions.down(use_button) ? keeper.lighting + 1 : 0;

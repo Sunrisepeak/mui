@@ -60,6 +60,8 @@ namespace level {
 // The harbour: a quay of rows of containers with crates between them, four wardens on their rounds, and the
 // breakwater out to the beacon.
 [[nodiscard]] Level harbour();
+// The harbour with a mistake planted: a container dropped across the breakwater, so the beacon cannot be reached.
+[[nodiscard]] Level flawed();
 }  // namespace level
 
 enum class Mind : std::uint8_t { patrol, search, chase };
@@ -94,7 +96,9 @@ struct Noise {
     float            loudness = 0;
     std::uint32_t    by = 0;
     std::string_view what;
+    std::uint64_t    frame = 0;  // the step it was made in
 };
+inline constexpr std::uint64_t recent_steps = steps_per_second / 2;  // how long a noise stays in `State::recent`
 // A shot this step: from, to where it stopped, what it met (a warden by number, a body, nothing).
 struct Shot {
     Vec3          from, to;
@@ -120,6 +124,7 @@ struct State {
     std::vector<Warden>                          wardens;
     std::vector<rigid3::BodyId>                  crates;
     std::vector<Noise>                           noises;  // this step's
+    std::vector<Noise>                           recent;  // the last half second's, oldest first: what was heard lately
     std::vector<Shot>                            shots;   // this step's
     Vec3                                         beacon;
     float                                        tide = 0;  // seconds left

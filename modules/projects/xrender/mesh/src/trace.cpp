@@ -51,7 +51,7 @@ struct Tracing {
             if (!box || *box > farthest) continue;
             // Taken into the mesh's own space as it is — not made of length 1 again — so a distance along it is the world's.
             const geom::Ray within{math::point(thing.back, from), math::direction(thing.back, toward)};
-            if (const auto hit = geom::meet(within, *thing.mesh, *thing.tree, farthest); hit && (!best || hit->distance < best->distance))
+            if (const auto hit = xrender::mesh::meet(within, *thing.mesh, *thing.tree, &thing.material, thing.texture, farthest); hit && (!best || hit->distance < best->distance))
                 best = Met{&thing, hit->distance, {}, {}, {}}, triangle = hit->item;
         }
         if (!best) return best;
@@ -83,7 +83,7 @@ struct Tracing {
             const std::optional<float> box = geom::meet(ray, thing.bounds);
             if (!box || *box > reach) continue;
             const geom::Ray within{math::point(thing.back, from), math::direction(thing.back, toward)};
-            if (geom::meet(within, *thing.mesh, *thing.tree, reach)) return true;
+            if (xrender::mesh::meet(within, *thing.mesh, *thing.tree, &thing.material, thing.texture, reach)) return true;
         }
         return false;
     }

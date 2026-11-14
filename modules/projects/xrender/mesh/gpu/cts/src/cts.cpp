@@ -960,6 +960,107 @@ Cases suite_of() {
         static_cast<void>(device->wait_idle());
         device->destroy(*colour), device->destroy(*depth);
     });
+    // surfaces seen from both sides and cut out by their picture, on the device: a fence of pickets seen from before and one seen from behind are the reference's — in the colour, in the shadows the pickets throw and the gaps do not, in who drew each pixel
+    add(suite, "mesh.cut", [](Rig& rig) {
+        rhi::Device* const device = &rig.device;
+        Yard yard(true);
+        // A sheet stood up, three long and one and a half high, its picture across it once.
+        yard.made.push_back(*geom::clustered(geom::sheet(3, 1.5f, 6, 3)));
+        yard.meshes.clear(), yard.grown.clear(), yard.trees.clear();
+        for (const geom::ClusteredMesh& one : yard.made) yard.meshes.push_back(&one), yard.grown.push_back(geom::bvh_of(one.mesh));
+        for (const geom::Bvh& tree : yard.grown) yard.trees.push_back(&tree);
+        // Pickets: eight across, each pointed at its top, two rails behind them; between them nothing (clear, and
+        // black as clear texels are kept).
+        std::vector<std::uint8_t> bytes(128 * 64 * 4, 0);
+        for (int y = 0; y < 64; ++y)
+            for (int x = 0; x < 128; ++x) {
+                const int across = x % 16, from_middle = std::abs(across * 2 - 15);
+                const bool picket = across >= 3 && across <= 12 && y >= 6 + from_middle, rail = (y >= 20 && y < 25) || (y >= 48 && y < 53);
+                if (!picket && !rail) continue;
+                const std::size_t at = static_cast<std::size_t>(y * 128 + x) * 4;
+                bytes[at] = picket ? 222 : 150, bytes[at + 1] = picket ? 184 : 110, bytes[at + 2] = picket ? 120 : 70, bytes[at + 3] = 255;
+            }
+        const mesh::Texture pickets = *mesh::Texture::made(bytes, 128, 64);
+        const std::array<const mesh::Texture*, 1> textures{&pickets};
+        yard.materials.push_back({.base = {1, 1, 1}, .texture = 0, .cutout = 0.5f, .two_sided = true});
+        const std::uint32_t fence = static_cast<std::uint32_t>(yard.materials.size() - 1), sheet = static_cast<std::uint32_t>(yard.made.size() - 1);
+        // One facing the eye, before the ball; one seen from behind, to the right, turned a little.
+        const math::Quat upright = math::Quat::about({1, 0, 0}, 1.5707964f);
+        expect(yard.world.add({.id = 20, .mesh = sheet, .material = fence, .world = math::Transform{{-0.9f, -0.25f, 2.6f}, upright, {1, 1, 1}}.matrix(), .bounds = geom::bounds(yard.made[sheet].mesh)}).has_value());
+        expect(yard.world.add({.id = 21, .mesh = sheet, .material = fence, .world = math::Transform{{2.9f, -0.25f, 1.9f}, math::Quat::about({0, 1, 0}, 2.7f) * upright, {1, 1, 1}}.matrix(), .bounds = geom::bounds(yard.made[sheet].mesh)}).has_value());
+        scene::Extracted seen;
+        scene::extract(yard.world, yard.view(), seen);
+        mesh::Targets reference;
+        reference.resize(static_cast<int>(width), static_cast<int>(height));
+        mesh::Pass on_cpu;
+        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, yard.trees, textures}, reference, {.shadows = true});
+        const std::uint64_t cut_by_reference = on_cpu.last().cut;
+        std::size_t front = 0, back = 0;
+        for (const mesh::Pixel& pixel : reference.ids)
+            if (pixel.draw != mesh::none) front += reference.draws[pixel.draw].id == 20, back += reference.draws[pixel.draw].id == 21;
+        expect(gt(cut_by_reference, std::uint64_t{3000}) && gt(front, std::size_t{3000}) && gt(back, std::size_t{2000})) << cut_by_reference << ' ' << front << ' ' << back;
+
+        auto pass = mesh::gpu::Pass::make(*device);
+        if (!(expect(pass.has_value()) << (pass ? "" : pass.error().message))) return;
+        if (!(expect(pass->load(yard.meshes).has_value()))) return;
+        const auto loaded = pass->load_textures(textures);
+        if (!(expect(loaded.has_value()) << (loaded ? "" : loaded.error().message))) return;
+        pass->use(yard.materials);
+        mesh::gpu::Shadows shadows{.size = 2048, .distance = 30};
+        const auto target = [&](rhi::Format format, std::uint32_t wide, std::uint32_t high, std::string_view label) {
+            const auto made = device->create(rhi::TextureDesc{format, wide, high, rhi::is_depth(format) ? rhi::TextureUsage::depth_target : rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, label});
+            if (!(expect(made.has_value()) << (made ? "" : made.error().message))) return rhi::Texture{};
+            return *made;
+        };
+        const rhi::Texture colour = target(rhi::Format::rgba8_unorm, width, height, "mesh.colour"), depth = target(rhi::Format::d32_float, width, height, "mesh.depth");
+        const rhi::Texture ids = target(rhi::Format::r32_uint, width, height, "mesh.ids"), who = target(rhi::Format::r32_float, width, height, "mesh.who");
+        shadows.map = target(rhi::Format::r32_float, shadows.size, shadows.size, "mesh.shadow"), shadows.depth = target(rhi::Format::d32_float, shadows.size, shadows.size, "mesh.shadow.depth");
+        if (!colour || !depth || !ids || !who || !shadows.map || !shadows.depth) return;
+        rhi::CommandList list;
+        pass->record(list, yard.world, seen, yard.view(), yard.materials, colour, depth, width, height, {.shadows = true}, &shadows);
+        pass->record_ids(list, yard.world, seen, yard.view(), ids, depth, width, height);
+        pass->record_who(list, yard.world, seen, yard.view(), who, depth, width, height);
+        const auto submitted = device->submit(list);
+        if (!(expect(submitted.has_value()) << (submitted ? "" : submitted.error().message))) return;
+        expect(device->wait(*submitted).has_value());
+        const auto pixels = device->read(colour, rhi::Region{0, 0, width, height}), named = device->read(ids, rhi::Region{0, 0, width, height}), by_instance = device->read(who, rhi::Region{0, 0, width, height});
+        if (!(expect(pixels.has_value() && named.has_value() && by_instance.has_value()) << (pixels ? "" : pixels.error().message))) return;
+        keep(*pixels, "yard-fence");
+        std::vector<std::byte> of_reference(reference.colour.size());
+        std::memcpy(of_reference.data(), reference.colour.data(), reference.colour.size());
+        keep(of_reference, "yard-fence-reference");
+
+        // Who drew each pixel: the device's names against the reference's, and of the fences' own pixels how many
+        // the two agree on (a picket's outline is the picture's, read by each as it reads it). The pass that names
+        // instances leaves out the same pixels as the one that names draws.
+        std::size_t other = 0, fence_either = 0, fence_both = 0, passes_differ = 0;
+        for (std::uint32_t y = 0; y < height; ++y)
+            for (std::uint32_t x = 0; x < width; ++x) {
+                const std::size_t pixel = static_cast<std::size_t>(y) * width + x;
+                const std::uint32_t said = mesh::gpu::who(*named, width, x, y), is = reference.ids[pixel].draw;
+                other += said != is;
+                const bool fence_said = said != mesh::none && said < seen.draws.size() && seen.draws[said].id >= 20, fence_is = is != mesh::none && reference.draws[is].id >= 20;
+                fence_either += fence_said || fence_is, fence_both += fence_said && fence_is;
+                float instance = 0;
+                std::memcpy(&instance, by_instance->data() + pixel * 4, 4);
+                passes_differ += (instance > 0) != (said != mesh::none) || (said != mesh::none && said < seen.draws.size() && instance != static_cast<float>((seen.draws[said].id & 0xffffffu) + 1));
+            }
+        const Apart all = apart(reference, *pixels, false, 6), loosely = apart(reference, *pixels, false, 24);
+        std::println("fences cut out by their picture, one seen from behind: the reference leaves {} samples out; {} of {} pixels name another draw than the reference ({:.3f}%); of {} pixels either says are a "
+                     "fence's, both say {} ({:.2f}%); {} of {} pixels further than 6 levels from the reference ({:.2f}%), {} further than 24, mean {:.3f}; the two passes that name differ at {} pixels",
+                     cut_by_reference, other, std::size_t{width} * height, 100.0 * static_cast<double>(other) / (static_cast<double>(width) * height), fence_either, fence_both,
+                     100.0 * static_cast<double>(fence_both) / static_cast<double>(std::max<std::size_t>(fence_either, 1)), all.off, all.compared,
+                     100.0 * static_cast<double>(all.off) / static_cast<double>(all.compared), loosely.off, all.mean, passes_differ);
+        expect(eq(passes_differ, std::size_t{0}));
+        // Measured on an RTX 4080: 6 pixels name another draw; of 9,297 fence pixels the two agree on 9,295; 138
+        // pixels further than 6 levels (a texel's width along the shadows' edges), mean 0.13.
+        expect(lt(static_cast<double>(other), 0.001 * width * height)) << "an edge's pixels, and a picket's";
+        expect(gt(static_cast<double>(fence_both), 0.99 * static_cast<double>(fence_either)));
+        expect(lt(static_cast<double>(all.off), 0.004 * static_cast<double>(all.compared)));
+        expect(lt(all.mean, 0.3));
+        static_cast<void>(device->wait_idle());
+        for (const rhi::Texture made : {colour, depth, ids, who, shadows.map, shadows.depth}) device->destroy(made);
+    });
     return suite;
 }
 

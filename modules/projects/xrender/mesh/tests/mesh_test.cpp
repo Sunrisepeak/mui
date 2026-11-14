@@ -886,6 +886,104 @@ static UTest cases{"xrender.mesh", [] {
         absent.normal = 77, absent.surface = 77, absent.glow = 77, absent.shade = 77;
         expect(eq(bits(frame_of(absent).targets), bits(flat.targets)));
     };
+    "a surface seen from both sides, and one cut out by its picture: behind a leaf's outline there is no leaf — not in the colour, not in who drew the pixel, not in its shadow, not for a ray — and no dark rim about it"_test = [] {
+        const geom::ClusteredMesh sheet_mesh = *geom::clustered(geom::sheet(4, 4, 2, 2));
+        const geom::Bvh sheet_tree = geom::bvh_of(sheet_mesh.mesh);
+        const std::array<const geom::ClusteredMesh*, 1> meshes{&sheet_mesh};
+        const std::array<const geom::Bvh*, 1> trees{&sheet_tree};
+        // A picture whose left half is red and whole, whose right half is clear (and black, as clear texels are kept).
+        std::vector<std::uint8_t> bytes(8 * 8 * 4, 0);
+        for (int y = 0; y < 8; ++y)
+            for (int x = 0; x < 4; ++x) bytes[static_cast<std::size_t>(y * 8 + x) * 4] = 255, bytes[static_cast<std::size_t>(y * 8 + x) * 4 + 3] = 255;
+        const mesh::Texture half = *mesh::Texture::made(bytes, 8, 8);
+        const std::array<const mesh::Texture*, 1> textures{&half};
+        // The picture itself: what is clear weighs nothing in a mean — the coarsest size is red, half there.
+        expect(eq(half.cover.size(), half.light.size()) && near(half.cover_at({0.25f, 0.5f}), 1.0f, 1e-6f) && near(half.cover_at({0.75f, 0.5f}), 0.0f, 1e-6f));
+        const math::Vec3 coarsest = half.at({0.5f, 0.5f}, 8);
+        expect(near(coarsest.x, 1.0f, 1e-5f) && near(coarsest.y, 0.0f, 1e-6f) && near(half.cover.back(), 0.5f, 1e-6f)) << coarsest.x;
+        std::vector<std::uint8_t> solid(8 * 8 * 4, 255);
+        expect(mesh::Texture::made(solid, 8, 8)->cover.empty()) << "a picture that hides everywhere carries no cover";
+
+        // A sheet stood up to face +z at the middle (id 1); behind it a wall three times its size (id 2).
+        const math::Mat4 upright = math::Transform{{0, 0, 0}, math::Quat::about({1, 0, 0}, 1.5707964f), {1, 1, 1}}.matrix();
+        const math::Mat4 wall = math::Transform{{0, 0, -2}, math::Quat::about({1, 0, 0}, 1.5707964f), {3, 1, 3}}.matrix();
+        struct Seen {
+            Frame                       frame;
+            std::optional<mesh::Source> left, through;  // what a ray finds through (30, 48) and through (59, 48)
+        };
+        const auto frame_of = [&](mesh::Material material, math::Vec3 eye, math::Vec3 sun, bool with_wall = false) {
+            scene::Scene world;
+            expect(fatal(world.add({.id = 1, .mesh = 0, .material = 0, .world = upright, .bounds = geom::bounds(sheet_mesh.mesh)}).has_value()));
+            if (with_wall) expect(fatal(world.add({.id = 2, .mesh = 0, .material = 1, .world = wall, .bounds = geom::bounds(sheet_mesh.mesh)}).has_value()));
+            expect(world.add(scene::Light{.id = 1, .kind = scene::LightKind::sun, .intensity = 1, .toward = sun}).has_value());
+            const Camera camera{.eye = eye};
+            Seen seen;
+            seen.frame.targets.resize(96, 96);
+            scene::Extracted extracted;
+            scene::extract(world, camera.view(), extracted);
+            mesh::Pass pass;
+            const std::array<mesh::Material, 2> materials{material, mesh::Material{.base = {0.6f, 0.6f, 0.6f}}};
+            const mesh::Assets assets{meshes, materials, with_wall ? std::span<const geom::Bvh* const>(trees) : std::span<const geom::Bvh* const>(), textures};
+            pass.draw(world, extracted, camera.view(), assets, seen.frame.targets, {.background = {0, 0, 0.5f}, .ambient = {0.1f, 0.1f, 0.1f}});
+            seen.frame.stats = pass.last();
+            if (with_wall) {
+                const mesh::Assets with_trees{meshes, materials, trees, textures};
+                seen.left = mesh::pick(world, camera.view(), with_trees, 30.5f, 48.5f, 96, 96), seen.through = mesh::pick(world, camera.view(), with_trees, 59.5f, 48.5f, 96, 96);
+            }
+            return seen;
+        };
+        const auto who = [](const Frame& frame, int x, int y) { return mesh::at(frame.targets, x, y); };
+        const auto light = [](const Frame& frame, int x, int y) { return frame.targets.light[static_cast<std::size_t>(y) * 96 + static_cast<std::size_t>(x)]; };
+        const math::Vec3 before{0, 0, 6}, behind{0, 0, -6};
+
+        // From behind, lit from behind: a surface of one side is not there; one of both is, facing the eye, and lit.
+        const Seen one_side = frame_of({.base = {0.8f, 0.8f, 0.8f}}, behind, {0, 0, 1});
+        const Seen both = frame_of({.base = {0.8f, 0.8f, 0.8f}, .two_sided = true}, behind, {0, 0, 1});
+        expect(!who(one_side.frame, 48, 48).has_value() && eq(one_side.frame.stats.written, 0u) && gt(one_side.frame.stats.facing_away + one_side.frame.stats.clusters_away, 0u));
+        const auto back_side = who(both.frame, 48, 48);
+        expect(fatal(back_side.has_value()));
+        expect(near(back_side->normal.z, -1.0f, 1e-5f) && near(light(both.frame, 48, 48).x, 0.8f * 1.1f, 1e-4f)) << back_side->normal.z << ' ' << light(both.frame, 48, 48).x;
+        // From the front it is the surface it was: the same bits with and without.
+        expect(eq(bits(frame_of({.base = {0.8f, 0.8f, 0.8f}, .two_sided = true}, before, {0, 0, -1}).frame.targets), bits(frame_of({.base = {0.8f, 0.8f, 0.8f}}, before, {0, 0, -1}).frame.targets)));
+
+        // Cut out by its picture: the left half is there and red to its very edge; the right half is not.
+        const mesh::Material leaf{.base = {1, 1, 1}, .texture = 0, .cutout = 0.5f};
+        const Seen cut = frame_of(leaf, before, {0, 0, -1});
+        expect(who(cut.frame, 30, 48).has_value() && !who(cut.frame, 60, 48).has_value() && gt(cut.frame.stats.cut, 500u));
+        expect(near(light(cut.frame, 60, 48).z, 0.5f, 1e-6f)) << "the background shows through";
+        int last = 0;
+        for (int column = 0; column < 96; ++column)
+            if (who(cut.frame, column, 48).has_value()) last = column;
+        expect(ge(last, 46) && le(last, 49)) << last;
+        expect(eq(std::bit_cast<std::uint32_t>(light(cut.frame, last, 48).x), std::bit_cast<std::uint32_t>(light(cut.frame, 30, 48).x)) && eq(light(cut.frame, last, 48).y, 0.0f))
+            << "the last pixel of the leaf is as red as its middle: no dark rim";
+        // Without the cut the surface is whole whatever its picture's cover says.
+        const Seen whole = frame_of({.base = {1, 1, 1}, .texture = 0}, before, {0, 0, -1});
+        expect(who(whole.frame, 60, 48).has_value() && eq(whole.frame.stats.cut, 0u));
+        // By its own opacity alone: below the cut it is not there at all, above it is whole.
+        expect(eq(frame_of({.opacity = 0.3f, .cutout = 0.5f}, before, {0, 0, -1}).frame.stats.written, 0u) && gt(frame_of({.opacity = 0.6f, .cutout = 0.5f}, before, {0, 0, -1}).frame.stats.written, 1000u));
+
+        // Its shadow and a ray: a sun from the eye's left lays the leaf's shadow on the wall behind, a unit and a half
+        // to the right — seen through the hole. The wall is dark where the leaf's red half is between it and the
+        // sun, lit where the sun came through the hole.
+        const math::Vec3 slanted{0.6f, 0, -0.8f};
+        const Seen shadowed = frame_of(leaf, before, slanted, true);
+        const auto in_shadow = who(shadowed.frame, 59, 48), in_light = who(shadowed.frame, 69, 48);
+        expect(fatal(in_shadow.has_value() && in_light.has_value()));
+        expect(eq(in_shadow->instance, scene::Id{2}) && eq(in_light->instance, scene::Id{2}));
+        expect(near(light(shadowed.frame, 59, 48).x, 0.6f * 0.1f, 1e-4f) && near(light(shadowed.frame, 69, 48).x, 0.6f * (0.1f + 0.8f), 1e-4f))
+            << light(shadowed.frame, 59, 48).x << ' ' << light(shadowed.frame, 69, 48).x;
+        expect(fatal(shadowed.left.has_value() && shadowed.through.has_value()));
+        expect(eq(shadowed.left->instance, scene::Id{1}) && eq(shadowed.through->instance, scene::Id{2})) << "a ray goes through the hole to the wall";
+        // The same leaf whole: a ray stops at it.
+        const Seen solid_leaf = frame_of({.base = {1, 1, 1}, .texture = 0}, before, slanted, true);
+        expect(fatal(solid_leaf.through.has_value()));
+        expect(eq(solid_leaf.through->instance, scene::Id{1}));
+        // Seen from behind, a leaf of both sides is found by a ray there too, facing it.
+        const Seen leaf_behind = frame_of({.base = {1, 1, 1}, .texture = 0, .cutout = 0.5f, .two_sided = true}, {0, 0, -1.5f}, {0, 0, 1}, true);
+        expect(gt(leaf_behind.frame.stats.written, 100u) && gt(leaf_behind.frame.stats.cut, 100u));
+    };
+
     "light followed along rays: an open floor under an even sky sends back the sky's light times its colour, exactly; beside a ball it is darker; before a red box in the sun it is redder — the same bits twice, pinned, and kept"_test = [] {
         constexpr int width = 160, height = 90;
         const auto place_of = [&](const Camera& camera, math::Vec3 at) {

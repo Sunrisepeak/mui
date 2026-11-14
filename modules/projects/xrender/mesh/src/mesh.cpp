@@ -125,7 +125,7 @@ struct Raster {
             const std::optional<float> box = geom::meet(ray, caster.bounds);
             if (!box || *box > reach) continue;
             const geom::Ray within{math::point(caster.back, from), math::direction(caster.back, toward)};
-            if (geom::meet(within, *caster.mesh, *caster.tree, reach)) {
+            if (meet(within, *caster.mesh, *caster.tree, caster.material, caster.picture, reach)) {
                 ++stats.shadowed;
                 return true;
             }
@@ -221,7 +221,7 @@ struct Raster {
     bool fill(const Corner& first, const Corner& second, const Corner& third) noexcept {
         // Counter-clockwise as seen is its front. With y down that is a negative area by the rule below, so the
         // corners are taken the other way round: a front is above 0, and "inside" is above 0 for every edge.
-        const std::array<const Corner*, 3> corners{&first, &third, &second};
+        std::array<const Corner*, 3> corners{&first, &third, &second};
         // For a normal picture on a mesh with no tangents: the way the surface goes as the picture's first
         // coordinate grows, and against its second (up the picture), from this triangle's own corners.
         const bool tangents = !(first.tangent.x == 0 && first.tangent.y == 0 && first.tangent.z == 0);
@@ -242,7 +242,12 @@ struct Raster {
             x[index] = std::floor((static_cast<double>(clip.x * inverse[index]) * 0.5 + 0.5) * out.width * 256.0 + 0.5);
             y[index] = std::floor((0.5 - static_cast<double>(clip.y * inverse[index]) * 0.5) * out.height * 256.0 + 0.5);
         }
-        const double area = (x[1] - x[0]) * (y[2] - y[0]) - (y[1] - y[0]) * (x[2] - x[0]);
+        double area = (x[1] - x[0]) * (y[2] - y[0]) - (y[1] - y[0]) * (x[2] - x[0]);
+        if (area < 0 && own.two_sided) {
+            // Seen from behind and to be seen: the same triangle gone round the other way.
+            std::swap(corners[1], corners[2]), std::swap(x[1], x[2]), std::swap(y[1], y[2]), std::swap(z[1], z[2]), std::swap(inverse[1], inverse[2]);
+            area = -area;
+        }
         if (!(area > 0)) return false;  // seen from behind, or no area
         const int left = std::max(0, static_cast<int>(std::floor(std::min({x[0], x[1], x[2]}) / 256.0)));
         const int right = std::min(out.width - 1, static_cast<int>(std::floor(std::max({x[0], x[1], x[2]}) / 256.0)));
@@ -268,13 +273,15 @@ struct Raster {
                     ++stats.hidden;
                     continue;
                 }
-                ++stats.written;
                 // What varies across the surface varies with 1/w across the screen.
                 const std::array<float, 3> scaled{share[0] * inverse[0], share[1] * inverse[1], share[2] * inverse[2]};
                 const float whole = 1.0f / (scaled[0] + scaled[1] + scaled[2]);
                 const std::array<float, 3> part{scaled[0] * whole, scaled[1] * whole, scaled[2] * whole};
                 Vec3 normal = math::normalized(corners[0]->normal * part[0] + corners[1]->normal * part[1] + corners[2]->normal * part[2]);
                 const Vec3 place = corners[0]->place * part[0] + corners[1]->place * part[1] + corners[2]->place * part[2];
+                // A surface seen from both sides faces the eye wherever it is seen: by its own normal at the pixel,
+                // whichever way round its triangle goes (what a device's shader can ask as well).
+                if (own.two_sided && math::dot(normal, eye - place) < 0) normal = normal * -1.0f;
                 const Vec4 before{corners[0]->before.x * part[0] + corners[1]->before.x * part[1] + corners[2]->before.x * part[2],
                                   corners[0]->before.y * part[0] + corners[1]->before.y * part[1] + corners[2]->before.y * part[2], 0,
                                   corners[0]->before.w * part[0] + corners[1]->before.w * part[1] + corners[2]->before.w * part[2]};
@@ -284,6 +291,7 @@ struct Raster {
                     // The sample is `jitter` aside of the pixel's middle; the surface there, seen without it, is not.
                     moved = {static_cast<float>(column) + 0.5f - options.jitter.x - was_x, static_cast<float>(row) + 0.5f - options.jitter.y - was_y};
                 }
+                float hides = own.opacity;  // how much of what is behind it the surface hides here
                 if (texture || surface || normal_picture || glow || shade) {
                     // The surface's place in the picture here, a pixel to the right and a pixel down: how many texels
                     // a pixel covers is how far apart they are.
@@ -296,7 +304,14 @@ struct Raster {
                     };
                     const Vec2 here = uv_at(px, py), right = uv_at(px + 256.0, py), down = uv_at(px, py + 256.0);
                     const Vec2 across{right.x - here.x, right.y - here.y}, along{down.x - here.x, down.y - here.y};
-                    if (texture) material.base = math::scaled(base, texture->over(here, across, along));
+                    if (texture) {
+                        const Texture::Seen there = texture->seen(here, across, along);
+                        material.base = math::scaled(base, there.light), hides = own.opacity * there.cover;
+                    }
+                    if (own.cutout > 0 && hides < own.cutout) {
+                        ++stats.cut;
+                        continue;
+                    }
                     if (surface) {
                         const Vec3 said = surface->over(here, across, along);
                         material.roughness = own.roughness * said.y, material.metallic = own.metallic * said.z;
@@ -326,6 +341,11 @@ struct Raster {
                     }
                     ++stats.textured;
                 }
+                if (own.cutout > 0 && hides < own.cutout) {  // with no picture: the material's own opacity alone
+                    ++stats.cut;
+                    continue;
+                }
+                ++stats.written;
                 at_pixel = pixel;
                 Vec3 colour = lit(normal, place);
                 if (fog) {
@@ -410,6 +430,48 @@ float through(const Fog& fog, Vec3 eye, Vec3 toward, float length) noexcept {
     return depth > 60 ? 0.0f : static_cast<float>(math::det::exp(-depth));
 }
 
+namespace {
+
+// Whether a surface that cuts itself out is there where a ray met triangle `corner` of `mesh`, `distance` along:
+// its opacity, by its picture's cover at the place, against the cut.
+bool there(const geom::Ray& ray, const geom::Mesh& mesh, const std::array<std::uint32_t, 3>& corner, float distance, const Material& material, const Texture* cover) noexcept {
+    float hides = material.opacity;
+    if (cover && corner[0] < mesh.uvs.size() && corner[1] < mesh.uvs.size() && corner[2] < mesh.uvs.size()) {
+        // Where on the triangle: each corner's share is the area across from it.
+        const Vec3 first = mesh.positions[corner[0]], second = mesh.positions[corner[1]], third = mesh.positions[corner[2]];
+        const Vec3 met = ray.from + ray.along * distance, face = math::cross(second - first, third - first);
+        const float whole = math::dot(face, face);
+        if (whole > 0) {
+            const float share_second = math::dot(math::cross(met - first, third - first), face) / whole, share_third = math::dot(math::cross(second - first, met - first), face) / whole;
+            const float share_first = 1 - share_second - share_third;
+            hides *= cover->cover_at({mesh.uvs[corner[0]].x * share_first + mesh.uvs[corner[1]].x * share_second + mesh.uvs[corner[2]].x * share_third,
+                                      mesh.uvs[corner[0]].y * share_first + mesh.uvs[corner[1]].y * share_second + mesh.uvs[corner[2]].y * share_third});
+        }
+    }
+    return !(hides < material.cutout);
+}
+const Texture* cover_of(const Material& material, const Texture* picture, const geom::Mesh& mesh) noexcept {
+    return material.cutout > 0 && picture && !picture->cover.empty() && !mesh.uvs.empty() ? picture : nullptr;
+}
+
+}  // namespace
+
+std::optional<geom::RayHit> meet(const geom::Ray& ray, const geom::Mesh& mesh, const geom::Bvh& tree, const Material* material, const Texture* picture, float farthest) {
+    if (!material || !(material->cutout > 0)) return geom::meet(ray, mesh, tree, farthest);
+    const Texture* cover = cover_of(*material, picture, mesh);
+    return geom::nearest(
+        tree, ray,
+        [&](std::uint32_t triangle) -> std::optional<float> {
+            const std::size_t at = static_cast<std::size_t>(triangle) * 3;
+            if (at + 2 >= mesh.indices.size()) return std::nullopt;
+            const std::array<std::uint32_t, 3> corner{mesh.indices[at], mesh.indices[at + 1], mesh.indices[at + 2]};
+            if (corner[0] >= mesh.positions.size() || corner[1] >= mesh.positions.size() || corner[2] >= mesh.positions.size()) return std::nullopt;
+            const std::optional<float> distance = geom::meet(ray, mesh.positions[corner[0]], mesh.positions[corner[1]], mesh.positions[corner[2]]);
+            return distance && there(ray, mesh, corner, *distance, *material, cover) ? distance : std::nullopt;
+        },
+        farthest);
+}
+
 void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, const Assets& assets, Targets& out, const Options& options) {
     last_ = {};
     out.draws.assign(extracted.draws.begin(), extracted.draws.end());
@@ -439,7 +501,10 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
         for (const scene::Instance& instance : instances) {
             if (instance.hidden || !instance.casts || instance.mesh >= assets.meshes.size() || instance.mesh >= assets.trees.size() || !assets.meshes[instance.mesh] || !assets.trees[instance.mesh]) continue;
             const std::optional<Mat4> back = math::inverse(instance.world);
-            if (back) casters_.push_back({*back, geom::moved(instance.world, instance.bounds), &assets.meshes[instance.mesh]->mesh, assets.trees[instance.mesh]});
+            if (!back) continue;
+            const Material* material = instance.material < assets.materials.size() ? &assets.materials[instance.material] : nullptr;
+            const Texture* picture = material && material->texture < assets.textures.size() ? assets.textures[material->texture] : nullptr;
+            casters_.push_back({*back, geom::moved(instance.world, instance.bounds), &assets.meshes[instance.mesh]->mesh, assets.trees[instance.mesh], material, picture});
         }
     // The jitter: every corner moved by so much of a pixel — in clip space, by so much of its own w.
     Mat4 aside;
@@ -491,7 +556,7 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
                     ++last_.clusters_outside;
                     continue;
                 }
-                if (even && geom::faces_away(cluster, eye)) {
+                if (even && !raster.own.two_sided && geom::faces_away(cluster, eye)) {
                     ++last_.clusters_away;
                     continue;
                 }
@@ -618,21 +683,27 @@ std::optional<Source> pick(const scene::Scene& scene, const scene::View& view, c
         const std::optional<Mat4> into = math::inverse(instance.world);
         if (!into) continue;
         const geom::Mesh& mesh = assets.meshes[instance.mesh]->mesh;
-        // In the mesh's own space, not made of length 1 again: a distance along it is the world's. Fronts only, as
-        // the frame draws: a triangle met from behind is passed through.
+        // In the mesh's own space, not made of length 1 again: a distance along it is the world's. What the frame
+        // draws: fronts only unless the material is seen from both sides — a triangle met from behind is passed
+        // through — and not where the material cuts the surface out.
         const geom::Ray within{math::point(*into, ray.from), math::direction(*into, ray.along)};
+        const Material* material = instance.material < assets.materials.size() ? &assets.materials[instance.material] : nullptr;
+        const Texture* cover = material ? cover_of(*material, material->texture < assets.textures.size() ? assets.textures[material->texture] : nullptr, mesh) : nullptr;
         const auto front = [&](std::uint32_t triangle) -> std::optional<float> {
-            const Vec3 a = mesh.positions[mesh.indices[triangle * 3]], b = mesh.positions[mesh.indices[triangle * 3 + 1]], c = mesh.positions[mesh.indices[triangle * 3 + 2]];
-            if (math::dot(math::cross(b - a, c - a), within.along) >= 0) return std::nullopt;
-            return geom::meet(within, a, b, c);
+            const std::array<std::uint32_t, 3> corner{mesh.indices[triangle * 3], mesh.indices[triangle * 3 + 1], mesh.indices[triangle * 3 + 2]};
+            const Vec3 a = mesh.positions[corner[0]], b = mesh.positions[corner[1]], c = mesh.positions[corner[2]];
+            if (!(material && material->two_sided) && math::dot(math::cross(b - a, c - a), within.along) >= 0) return std::nullopt;
+            const std::optional<float> distance = geom::meet(within, a, b, c);
+            return distance && material && material->cutout > 0 && !there(within, mesh, corner, *distance, *material, cover) ? std::nullopt : distance;
         };
         const std::optional<geom::RayHit> hit = geom::nearest(*assets.trees[instance.mesh], within, front, nearest);
         if (!hit || hit->distance >= nearest) continue;
         nearest = hit->distance;
         const Vec3 a = mesh.positions[mesh.indices[hit->item * 3]], b = mesh.positions[mesh.indices[hit->item * 3 + 1]], c = mesh.positions[mesh.indices[hit->item * 3 + 2]];
         const Vec4 clip = view.projection * view.view * Vec4{ray.from + ray.along * hit->distance, 1};
-        found = Source{instance.id, instance.mesh, instance.material, none, hit->item, clip.w != 0 ? clip.z / clip.w : 0.0f,
-                       math::normalized(math::direction(math::transposed(*into), math::cross(b - a, c - a)))};
+        Vec3 faces = math::normalized(math::direction(math::transposed(*into), math::cross(b - a, c - a)));
+        if (math::dot(faces, ray.along) > 0) faces = faces * -1.0f;  // met from behind (a surface seen from both sides): the side that was met
+        found = Source{instance.id, instance.mesh, instance.material, none, hit->item, clip.w != 0 ? clip.z / clip.w : 0.0f, faces};
     }
     return found;
 }
@@ -746,9 +817,21 @@ std::optional<Texture> Texture::made(std::span<const std::uint8_t> rgba, int wid
     texture.width = width, texture.height = height;
     texture.sizes.push_back(0);
     texture.light.reserve(static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4 / 3 + 2);
-    for (std::size_t texel = 0; texel < static_cast<std::size_t>(width) * static_cast<std::size_t>(height); ++texel)
+    const std::size_t texels = static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
+    bool covered = false;
+    if (coding == Coding::colour)
+        for (std::size_t texel = 0; texel < texels && !covered; ++texel) covered = rgba[texel * 4 + 3] != 255;
+    for (std::size_t texel = 0; texel < texels; ++texel)
         texture.light.push_back(coding == Coding::colour ? Vec3{decoded[rgba[texel * 4]], decoded[rgba[texel * 4 + 1]], decoded[rgba[texel * 4 + 2]]}
                                                          : Vec3{static_cast<float>(rgba[texel * 4]) / 255.0f, static_cast<float>(rgba[texel * 4 + 1]) / 255.0f, static_cast<float>(rgba[texel * 4 + 2]) / 255.0f});
+    if (covered) {
+        texture.cover.reserve(texels * 4 / 3 + 2);
+        for (std::size_t texel = 0; texel < texels; ++texel) {
+            const float hides = static_cast<float>(rgba[texel * 4 + 3]) / 255.0f;
+            texture.cover.push_back(hides);
+            texture.light[texel] = texture.light[texel] * hides;
+        }
+    }
     // Each next size: half as wide and as high (one at least), a texel the mean of those it covers.
     for (int wide = width, high = height; wide > 1 || high > 1;) {
         const int next_wide = std::max(wide / 2, 1), next_high = std::max(high / 2, 1);
@@ -759,22 +842,34 @@ std::optional<Texture> Texture::made(std::span<const std::uint8_t> rgba, int wid
                 const int x0 = std::min(x * 2, wide - 1), x1 = std::min(x * 2 + 1, wide - 1), y0 = std::min(y * 2, high - 1), y1 = std::min(y * 2 + 1, high - 1);
                 const auto of = [&](int at_x, int at_y) { return texture.light[from + static_cast<std::size_t>(at_y) * static_cast<std::size_t>(wide) + static_cast<std::size_t>(at_x)]; };
                 texture.light.push_back((of(x0, y0) + of(x1, y0) + of(x0, y1) + of(x1, y1)) * 0.25f);
+                if (covered) {
+                    const auto hides = [&](int at_x, int at_y) { return texture.cover[from + static_cast<std::size_t>(at_y) * static_cast<std::size_t>(wide) + static_cast<std::size_t>(at_x)]; };
+                    texture.cover.push_back((hides(x0, y0) + hides(x1, y0) + hides(x0, y1) + hides(x1, y1)) * 0.25f);
+                }
             }
         wide = next_wide, high = next_high;
     }
     return texture;
 }
 
-Vec3 Texture::at(Vec2 uv, float footprint) const noexcept {
-    if (sizes.empty()) return {1, 1, 1};
+namespace {
+
+constexpr float between(float from, float to, float share) noexcept { return from + (to - from) * share; }
+
+// A picture's light at `uv` for a pixel covering `footprint` texels across — between four texels of a size,
+// between two sizes — and with it, where the picture has one, its cover there by the same shares. With a cover
+// the light is each texel's times its cover (`Texture::cover`): what comes back is that sum, not yet divided.
+Texture::Seen held(const Texture& texture, Vec2 uv, float footprint) noexcept {
+    if (texture.sizes.empty()) return {{1, 1, 1}, 1};
     // The size whose texels are a pixel across or just under, and how far toward the next: a footprint of 1 or
     // less is the finest, of 2 the next, of 3 halfway between that and the one of 4.
     std::size_t size = 0;
     float covers = footprint > 1 ? footprint : 1.0f;
-    while (covers >= 2 && size + 1 < sizes.size()) covers *= 0.5f, ++size;
-    const float toward_next = size + 1 < sizes.size() ? covers - 1.0f : 0.0f;
+    while (covers >= 2 && size + 1 < texture.sizes.size()) covers *= 0.5f, ++size;
+    const float toward_next = size + 1 < texture.sizes.size() ? covers - 1.0f : 0.0f;
+    const bool covered = !texture.cover.empty();
     const auto within = [&](std::size_t which) {
-        const int wide = std::max(width >> which, 1), high = std::max(height >> which, 1);
+        const int wide = std::max(texture.width >> which, 1), high = std::max(texture.height >> which, 1);
         // Between the four texels about the place; a texel's middle is its own colour. It repeats.
         const float at_x = (uv.x - std::floor(uv.x)) * static_cast<float>(wide) - 0.5f, at_y = (uv.y - std::floor(uv.y)) * static_cast<float>(high) - 0.5f;
         const float floor_x = std::floor(at_x), floor_y = std::floor(at_y);
@@ -782,30 +877,53 @@ Vec3 Texture::at(Vec2 uv, float footprint) const noexcept {
         const auto wrapped = [](int value, int count) { return ((value % count) + count) % count; };
         const int x0 = wrapped(static_cast<int>(floor_x), wide), x1 = wrapped(static_cast<int>(floor_x) + 1, wide), y0 = wrapped(static_cast<int>(floor_y), high),
                   y1 = wrapped(static_cast<int>(floor_y) + 1, high);
-        const auto of = [&](int tx, int ty) { return light[sizes[which] + static_cast<std::size_t>(ty) * static_cast<std::size_t>(wide) + static_cast<std::size_t>(tx)]; };
-        return math::mix(math::mix(of(x0, y0), of(x1, y0), share_x), math::mix(of(x0, y1), of(x1, y1), share_x), share_y);
+        const auto place = [&](int tx, int ty) { return texture.sizes[which] + static_cast<std::size_t>(ty) * static_cast<std::size_t>(wide) + static_cast<std::size_t>(tx); };
+        const auto of = [&](int tx, int ty) { return texture.light[place(tx, ty)]; };
+        Texture::Seen found{math::mix(math::mix(of(x0, y0), of(x1, y0), share_x), math::mix(of(x0, y1), of(x1, y1), share_x), share_y), 1};
+        if (covered) {
+            const auto hides = [&](int tx, int ty) { return texture.cover[place(tx, ty)]; };
+            found.cover = between(between(hides(x0, y0), hides(x1, y0), share_x), between(hides(x0, y1), hides(x1, y1), share_x), share_y);
+        }
+        return found;
     };
-    const Vec3 here = within(size);
-    return toward_next > 0 ? math::mix(here, within(size + 1), toward_next) : here;
+    const Texture::Seen here = within(size);
+    if (!(toward_next > 0)) return here;
+    const Texture::Seen next = within(size + 1);
+    return {math::mix(here.light, next.light, toward_next), covered ? between(here.cover, next.cover, toward_next) : 1.0f};
 }
 
-Vec3 Texture::over(Vec2 uv, Vec2 right, Vec2 down) const noexcept {
+// The light of what is there: the sum over its cover (a place wholly clear has no light of its own).
+Texture::Seen parted(const Texture& texture, Texture::Seen sum) noexcept {
+    if (texture.cover.empty()) return sum;
+    return {sum.cover > 0 ? sum.light * (1.0f / sum.cover) : sum.light, sum.cover};
+}
+
+}  // namespace
+
+Vec3 Texture::at(Vec2 uv, float footprint) const noexcept { return parted(*this, held(*this, uv, footprint)).light; }
+
+float Texture::cover_at(Vec2 uv) const noexcept { return cover.empty() ? 1.0f : held(*this, uv, 1).cover; }
+
+Vec3 Texture::over(Vec2 uv, Vec2 right, Vec2 down) const noexcept { return seen(uv, right, down).light; }
+
+Texture::Seen Texture::seen(Vec2 uv, Vec2 right, Vec2 down) const noexcept {
     const float wide = static_cast<float>(width), high = static_cast<float>(height);
     const float across = std::sqrt(right.x * right.x * wide * wide + right.y * right.y * high * high);
     const float along = std::sqrt(down.x * down.x * wide * wide + down.y * down.y * high * high);
-    if (!(across == across) || !(along == along)) return at(uv, 1);
+    if (!(across == across) || !(along == along)) return parted(*this, held(*this, uv, 1));
     // The strip a pixel covers: its length the longer of the two ways, its width the shorter.
     const Vec2 lengthwise = across >= along ? right : down;
     const float longer = std::max(across, along), shorter = std::max(std::min(across, along), 1e-6f);
     const float places = std::clamp(std::ceil(longer / shorter), 1.0f, 8.0f);
     const float footprint = longer / places;
-    if (places <= 1) return at(uv, footprint);
-    Vec3 sum{0, 0, 0};
+    if (places <= 1) return parted(*this, held(*this, uv, footprint));
+    Seen sum{{0, 0, 0}, 0};
     for (float place = 0; place < places; place += 1) {
         const float aside = (place + 0.5f) / places - 0.5f;
-        sum = sum + at({uv.x + lengthwise.x * aside, uv.y + lengthwise.y * aside}, footprint);
+        const Seen there = held(*this, {uv.x + lengthwise.x * aside, uv.y + lengthwise.y * aside}, footprint);
+        sum.light = sum.light + there.light, sum.cover += there.cover;
     }
-    return sum * (1.0f / places);
+    return parted(*this, {sum.light * (1.0f / places), sum.cover * (1.0f / places)});
 }
 
 namespace {

@@ -4,6 +4,7 @@
 struct VIn {
     float3 position : TEXCOORD0;
     float3 normal : TEXCOORD1;
+    float2 uv : TEXCOORD2;
 };
 // What a corner carries to its texel, the same for both views (a file's vertex entries link with its fragment
 // entries on the Web: one shape between the stages): xyz where it is in the world (a lamp's view asks), w how
@@ -11,6 +12,7 @@ struct VIn {
 struct VOut {
     float4 clip : SV_Position;
     float4 seen : TEXCOORD0;
+    float2 uv : TEXCOORD1;
 };
 struct Draw {
     float4 to_clip[4];   // rows: the corner to the light's clip space
@@ -25,27 +27,48 @@ VOut shadow_vs(VIn corner) {
     VOut made;
     made.clip = float4(dot(draw.to_clip[0], at), dot(draw.to_clip[1], at), dot(draw.to_clip[2], at), dot(draw.to_clip[3], at));
     made.seen = float4(0, 0, 0, made.clip.z);
+    made.uv = corner.uv;
     return made;
 }
 
+// What casts: where the caster's material cuts its surface out (xrender.mesh's `Material::cutout`) it casts
+// nothing — its opacity, by its picture's cover at the place between the four texels of its finest size, as the
+// reference's ray asks it (`Texture::cover_at`).
+struct Casting {
+    float4 at_range;  // a lamp's view: where the lamp is; w: how far it reaches
+    float4 picture;   // the caster's base picture: z over 0.5 — it has one
+    float4 cut;       // x: where the surface hides less than this it is not there (0: whole); y: how much it hides
+};
+[[vk::binding(0, 2)]] Sampler2D picture_map : register(t0, space2) : register(s0, space2);
+[[vk::binding(0, 3)]] ConstantBuffer<Casting> casting : register(b0, space3);
+
+bool cut_out(float2 uv) {
+    if (!(casting.cut.x > 0)) return false;
+    float hides = casting.cut.y;
+    if (casting.picture.z > 0.5) hides *= picture_map.SampleLevel(uv, 0).a;
+    return hides < casting.cut.x;
+}
+
 [shader("fragment")]
-float4 shadow_fs(VOut point) : SV_Target { return float4(point.seen.w, 0, 0, 1); }
+float4 shadow_fs(VOut point) : SV_Target {
+    if (cut_out(point.uv)) discard;
+    return float4(point.seen.w, 0, 0, 1);
+}
 
 // A lamp's or a spot's view, one of six faces about it: the same corners through the face's projection, and for
 // each texel how far from the lamp the nearest thing is, as a share of the lamp's reach.
-struct LampAt {
-    float4 at_range;  // where the lamp is; w: how far it reaches
-};
-[[vk::binding(0, 3)]] ConstantBuffer<LampAt> lamp : register(b0, space3);
-
 [shader("vertex")]
 VOut lamp_vs(VIn corner) {
     const float4 at = float4(corner.position, 1);
     VOut made;
     made.clip = float4(dot(draw.to_clip[0], at), dot(draw.to_clip[1], at), dot(draw.to_clip[2], at), dot(draw.to_clip[3], at));
     made.seen = float4(dot(draw.to_world[0], at), dot(draw.to_world[1], at), dot(draw.to_world[2], at), 0);
+    made.uv = corner.uv;
     return made;
 }
 
 [shader("fragment")]
-float4 lamp_fs(VOut point) : SV_Target { return float4(length(point.seen.xyz - lamp.at_range.xyz) / lamp.at_range.w, 0, 0, 1); }
+float4 lamp_fs(VOut point) : SV_Target {
+    if (cut_out(point.uv)) discard;
+    return float4(length(point.seen.xyz - casting.at_range.xyz) / casting.at_range.w, 0, 0, 1);
+}

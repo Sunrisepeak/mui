@@ -57,7 +57,9 @@ struct Surface {
     float4 lamp_shadow;  // x: a face's side of the lamps' map, in texels; zw: one over the map's width and height
     float4 picture;      // the draw's texture: xy its width and height; z how many sizes (levels) it has (0: none)
     float4 open;         // x: over 0.5 — there is a picture of how open each pixel is; zw: one over its width and height
-    float4 cut;          // x: 1 or −1 — a pixel whose depth is past the half that way is beyond the view's far cut
+    float4 cut;          // x: 1 or −1 — a pixel whose depth is past the half that way is beyond the view's far cut;
+                         // y: where the surface hides less than this it is not there (0: it is whole); z: how much it
+                         // hides, before its picture's own say; w: over 0.5 — it is seen from both sides
     // The surface's other pictures: xy a picture's width and height, z how many sizes it has (0: none).
     float4 surface_picture;  // its green multiplies the roughness, its blue the metal
     float4 normal_picture;   // which way the surface faces about its own normal; w: its red and green by this much
@@ -85,7 +87,7 @@ static float  metal_here;
 // A texture's light at `uv` for a pixel that covers `footprint` texels of its finest size (xrender.mesh's
 // `Texture::at`): the size whose texels are about a pixel across mixed with the next — its sizes are the
 // texture's levels, read between four texels of each and between the two, repeating, in one read.
-float3 picture_at(Sampler2D map, float sizes_said, float2 uv, float footprint) {
+float4 picture_at(Sampler2D map, float sizes_said, float2 uv, float footprint) {
     const int sizes = int(sizes_said);
     int size = 0;
     float covers = max(footprint, 1.0);
@@ -94,18 +96,20 @@ float3 picture_at(Sampler2D map, float sizes_said, float2 uv, float footprint) {
         ++size;
     }
     const float toward_next = size + 1 < sizes ? covers - 1.0 : 0.0;
-    return map.SampleLevel(uv, float(size) + toward_next).rgb;
+    return map.SampleLevel(uv, float(size) + toward_next);
 }
 // A picture over the strip a pixel covers of it (xrender.mesh's `Texture::over`): up to eight places along the
 // strip's length, each at the size its width asks. `right` and `down`: how far the surface's place in the
-// picture moves from this pixel to the next across and to the next below.
-float3 picture_over(Sampler2D map, float4 picture, float2 uv, float2 right, float2 down) {
+// picture moves from this pixel to the next across and to the next below. The fourth number is how much the
+// picture hides there (its cover; 1 for a picture that has none), and the first three are then the light times
+// it: what `Texture::seen` divides.
+float4 picture_over(Sampler2D map, float4 picture, float2 uv, float2 right, float2 down) {
     const float across = length(right * picture.xy), along = length(down * picture.xy);
     const float2 lengthwise = across >= along ? right : down;
     const float longer = max(across, along), shorter = max(min(across, along), 1e-6);
     const float places = clamp(ceil(longer / shorter), 1.0, 8.0);
     const float footprint = longer / places;
-    float3 sum = float3(0, 0, 0);
+    float4 sum = float4(0, 0, 0, 0);
     for (float place = 0; place < places; place += 1) sum += picture_at(map, picture.z, uv + lengthwise * ((place + 0.5) / places - 0.5), footprint);
     return sum / places;
 }
@@ -196,8 +200,12 @@ float encoded(float linear) {
 float4 mesh_fs(VOut point) : SV_Target {
     float3 normal = normalize(point.normal);
     const float3 to_eye = surface.eye.xyz - point.place;
-    // A face turned away is not drawn (the reference leaves it out by its winding; a closed thing's far side).
-    if (dot(normal, to_eye) < 0) discard;
+    // A face turned away is not drawn (the reference leaves it out by its winding; a closed thing's far side) —
+    // unless the surface is seen from both sides: then it faces the eye wherever it is seen.
+    if (dot(normal, to_eye) < 0) {
+        if (surface.cut.w > 0.5) normal = -normal;
+        else discard;
+    }
     // Beyond the view: the far cut, taken at the pixel (the device's own far plane lies further off).
     if ((point.clip.z - 0.5) * surface.cut.x > 0) discard;
     base_colour = surface.base.rgb, given_off = surface.emissive.rgb;
@@ -210,16 +218,23 @@ float4 mesh_fs(VOut point) : SV_Target {
     // And how far the surface itself goes (taken here, before anything turns on what a pixel is: a difference
     // between pixels is one only where every pixel takes the same way through the code).
     const float3 place_right = ddx(point.place), place_down = ddy(point.place);
-    if (surface.picture.z > 0.5) base_colour *= picture_over(picture_map, surface.picture, point.uv, right, down);
+    float hides = surface.cut.z;
+    if (surface.picture.z > 0.5) {
+        const float4 there = picture_over(picture_map, surface.picture, point.uv, right, down);
+        base_colour *= there.a > 0 ? there.rgb / there.a : there.rgb;
+        hides *= there.a;
+    }
+    // Cut out: where it hides less than the cut, the surface is not there.
+    if (surface.cut.y > 0 && hides < surface.cut.y) discard;
     if (surface.surface_picture.z > 0.5) {
         // The material's own numbers ride in the draw's `shine` already held to what the model takes; the
         // picture's share is taken of what the material says, then held the same way (xrender.mesh's `reflected`).
-        const float3 said = picture_over(surface_map, surface.surface_picture, point.uv, right, down);
+        const float3 said = picture_over(surface_map, surface.surface_picture, point.uv, right, down).rgb;
         const float rough = surface.own.x * said.g, metal = surface.own.y * said.b;
         matt = rough >= 1 && metal <= 0;
         rough_here = clamp(rough, 0.04, 1.0), metal_here = clamp(metal, 0.0, 1.0);
     }
-    if (surface.glow_picture.z > 0.5) given_off *= picture_over(glow_map, surface.glow_picture, point.uv, right, down);
+    if (surface.glow_picture.z > 0.5) given_off *= picture_over(glow_map, surface.glow_picture, point.uv, right, down).rgb;
     if (surface.shade_picture.z > 0.5) shaded = 1.0 + surface.shade_picture.w * (picture_over(shade_map, surface.shade_picture, point.uv, right, down).r - 1.0);
     if (surface.normal_picture.z > 0.5) {
         // The picture's three ways in the world here: along it (the mesh's tangent, or the way the surface goes as
@@ -239,7 +254,7 @@ float4 mesh_fs(VOut point) : SV_Target {
             right_way = normalize(right_way);
             const float3 other = cross(normal, right_way);
             up_way = dot(other, up_way) < 0 ? -other : other;
-            const float3 said = picture_over(normal_map, surface.normal_picture, point.uv, right, down);
+            const float3 said = picture_over(normal_map, surface.normal_picture, point.uv, right, down).rgb;
             const float3 about = float3((said.xy * 2 - 1) * surface.normal_picture.w, said.z * 2 - 1);
             const float3 turned = right_way * about.x + up_way * about.y + normal * about.z;
             if (dot(turned, turned) > 0) normal = normalize(turned);

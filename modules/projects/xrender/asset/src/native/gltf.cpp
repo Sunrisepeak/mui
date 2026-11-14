@@ -140,16 +140,19 @@ struct Maker {
     const cgltf_data& data;
     const Options&    options;
     Imported          out;
-    // By the document's image number, as colours and as plain numbers (a picture used both ways is two textures):
-    // not asked for yet (~0), not carried (~0 − 1), or its place in `out.textures`.
-    std::vector<std::array<std::uint32_t, 2>> texture_of_image;
+    // By the document's image number, as colours whose fourth byte says how much they hide, as plain numbers, and
+    // as colours that hide everywhere (a picture used more than one way is a texture each): not asked for yet
+    // (~0), not carried (~0 − 1), or its place in `out.textures`.
+    std::vector<std::array<std::uint32_t, 3>> texture_of_image;
     static constexpr std::uint32_t unasked = 0xffffffffu, refused = 0xfffffffeu;
 
     void note(std::string where, std::string what, std::string instead) { out.notes.push_back({std::move(where), std::move(what), std::move(instead)}); }
 
     // The texture a material names for one of its pictures: its place in `out.textures`, or none (with a note of
-    // why). `where` is the document's place of the naming; `instead` what the material is left with.
-    std::uint32_t picture(const cgltf_texture_view& view, const std::string& where, mesh::Coding coding, std::string_view instead) {
+    // why). `where` is the document's place of the naming; `instead` what the material is left with. `covering`:
+    // the picture's fourth byte is how much the surface hides there (a material that is cut out by it); without,
+    // the byte says nothing, as the format has it for a surface that is whole.
+    std::uint32_t picture(const cgltf_texture_view& view, const std::string& where, mesh::Coding coding, std::string_view instead, bool covering = false) {
         const cgltf_texture& texture = *view.texture;
         const std::size_t texture_index = cgltf_texture_index(&data, &texture);
         const cgltf_image* image = texture.image ? texture.image : texture.has_webp ? texture.webp_image : nullptr;
@@ -158,13 +161,15 @@ struct Maker {
             return mesh::Material{}.texture;
         }
         const std::size_t image_index = cgltf_image_index(&data, image);
-        std::array<std::uint32_t, 2>& made_as = texture_of_image[image_index];
-        const std::size_t as = coding == mesh::Coding::colour ? 0 : 1;
-        if (made_as[as] == unasked && made_as[1 - as] != refused) {
+        std::array<std::uint32_t, 3>& made_as = texture_of_image[image_index];
+        const std::size_t as = coding == mesh::Coding::plain ? 1 : covering ? 0 : 2;
+        if (made_as[as] == unasked && !std::ranges::contains(made_as, refused)) {
             made_as[as] = refused;
             const auto bytes = picture_bytes(*image, options);
             auto decoded = bytes ? mlibs::image::decode(*bytes) : std::unexpected(bytes.error());
             std::optional<mesh::Texture> made;
+            if (decoded && as == 2)
+                for (std::size_t byte = 3; byte < decoded->rgba.size(); byte += 4) decoded->rgba[byte] = 255;
             if (decoded) made = mesh::Texture::made(decoded->rgba, decoded->width, decoded->height, coding);
             if (made) {
                 made_as[as] = static_cast<std::uint32_t>(out.textures.size());
@@ -172,10 +177,10 @@ struct Maker {
             } else {
                 note(std::format("/images/{}", image_index),
                      std::format("a picture that is not read{}: {}", image->mime_type ? std::format(" ({})", image->mime_type) : std::string(), decoded ? "it has no pixels" : decoded.error()),
-                     "every material that names it is left with its own numbers alone (PNG and WebP are read)");
+                     "every material that names it is left with its own numbers alone (PNG, WebP and JPEG are read)");
             }
         }
-        if (made_as[as] == refused || made_as[as] == unasked) return mesh::Material{}.texture;
+        if (std::ranges::contains(made_as, refused) || made_as[as] == unasked) return mesh::Material{}.texture;
         if (view.texcoord != 0) note(where + "/texCoord", std::format("texture coordinates {}", view.texcoord), "the mesh's first (TEXCOORD_0)");
         if (view.has_transform) note(where + "/extensions/KHR_texture_transform", "the picture moved, turned or scaled over the surface", "laid as the texture coordinates say");
         if (texture.sampler && (texture.sampler->wrap_s != cgltf_wrap_mode_repeat || texture.sampler->wrap_t != cgltf_wrap_mode_repeat))
@@ -193,8 +198,12 @@ struct Maker {
                 const cgltf_pbr_metallic_roughness& pbr = from.pbr_metallic_roughness;
                 made.base = {pbr.base_color_factor[0], pbr.base_color_factor[1], pbr.base_color_factor[2]};
                 made.roughness = pbr.roughness_factor, made.metallic = pbr.metallic_factor;
+                // Cut out by its alpha (MASK): where the factor's alpha times the picture's is below the cutoff, the
+                // surface is not there.
+                if (from.alpha_mode == cgltf_alpha_mode_mask) made.opacity = pbr.base_color_factor[3], made.cutout = from.alpha_cutoff;
                 if (pbr.base_color_texture.texture)
-                    made.texture = picture(pbr.base_color_texture, where + "/pbrMetallicRoughness/baseColorTexture", mesh::Coding::colour, "the material's base colour factor alone");
+                    made.texture = picture(pbr.base_color_texture, where + "/pbrMetallicRoughness/baseColorTexture", mesh::Coding::colour, "the material's base colour factor alone",
+                                           from.alpha_mode == cgltf_alpha_mode_mask);
                 if (pbr.metallic_roughness_texture.texture)
                     made.surface = picture(pbr.metallic_roughness_texture, where + "/pbrMetallicRoughness/metallicRoughnessTexture", mesh::Coding::plain, "the two factors over the whole surface");
             }
@@ -209,9 +218,9 @@ struct Maker {
                 made.shade_strength = from.occlusion_texture.scale;
             }
             if (from.emissive_texture.texture) made.glow = picture(from.emissive_texture, where + "/emissiveTexture", mesh::Coding::colour, "the emissive factor over the whole surface");
-            if (from.alpha_mode != cgltf_alpha_mode_opaque)
-                note(where + "/alphaMode", from.alpha_mode == cgltf_alpha_mode_mask ? "cut out by its alpha (MASK)" : "seen through by its alpha (BLEND)", "drawn solid");
-            if (from.double_sided) note(where + "/doubleSided", "a surface seen from both sides", "seen from its front");
+            if (from.alpha_mode == cgltf_alpha_mode_mask && !from.has_pbr_metallic_roughness) made.cutout = from.alpha_cutoff;
+            if (from.alpha_mode == cgltf_alpha_mode_blend) note(where + "/alphaMode", "seen through by its alpha (BLEND)", "drawn solid");
+            made.two_sided = from.double_sided != 0;
             if (from.unlit) note(where + "/extensions/KHR_materials_unlit", "a surface no light changes", "lit as any other");
             const std::array<std::pair<bool, std::string_view>, 11> more{{{from.has_pbr_specular_glossiness != 0, "KHR_materials_pbrSpecularGlossiness"},
                                                                           {from.has_clearcoat != 0, "KHR_materials_clearcoat"},
@@ -325,7 +334,7 @@ struct Maker {
             for (std::size_t other = 0; other < data.extensions_required_count; ++other) required = required || name == data.extensions_required[other];
             note(std::format("/extensionsUsed/{}", index), std::format("the extension {}{}", name, required ? " (the document requires it)" : ""), "what it adds is left out");
         }
-        texture_of_image.assign(data.images_count, {unasked, unasked});
+        texture_of_image.assign(data.images_count, {unasked, unasked, unasked});
         materials();
 
         // A mesh a primitive; which of `out.meshes` each of the document's primitives became.

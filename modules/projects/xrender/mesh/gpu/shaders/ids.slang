@@ -4,11 +4,13 @@
 struct VIn {
     float3 position : TEXCOORD0;
     float3 normal : TEXCOORD1;
+    float2 uv : TEXCOORD2;
 };
 struct VOut {
     float4 clip : SV_Position;
     float3 place : TEXCOORD0;
     float3 normal : TEXCOORD1;
+    float2 uv : TEXCOORD2;
 };
 struct Draw {
     float4 to_clip[4];
@@ -24,20 +26,63 @@ VOut ids_vs(VIn corner) {
     made.clip = float4(dot(draw.to_clip[0], at), dot(draw.to_clip[1], at), dot(draw.to_clip[2], at), dot(draw.to_clip[3], at));
     made.place = float3(dot(draw.to_world[0], at), dot(draw.to_world[1], at), dot(draw.to_world[2], at));
     made.normal = float3(dot(draw.normals[0].xyz, corner.normal), dot(draw.normals[1].xyz, corner.normal), dot(draw.normals[2].xyz, corner.normal));
+    made.uv = corner.uv;
     return made;
+}
+
+// What these passes ask of the draw's material (xrender.mesh's `Material::cutout`, `opacity`, `two_sided`), the
+// colour pass's own questions asked the same way: whether the surface is there at this pixel — its opacity, by
+// its picture's cover over the strip the pixel covers of it, against the cut — and whether it is seen from behind.
+struct Whole {
+    float4 picture;  // the draw's base picture: xy its width and height; z how many sizes it has (0: none)
+    float4 cut;      // x: where the surface hides less than this it is not there (0: whole); y: how much it hides;
+                     // z: over 0.5 — it is seen from both sides
+};
+float cover_over(Sampler2D map, float4 picture, float2 uv, float2 right, float2 down) {
+    const float across = length(right * picture.xy), along = length(down * picture.xy);
+    const float2 lengthwise = across >= along ? right : down;
+    const float longer = max(across, along), shorter = max(min(across, along), 1e-6);
+    const float places = clamp(ceil(longer / shorter), 1.0, 8.0);
+    const float footprint = longer / places;
+    const int sizes = int(picture.z);
+    int size = 0;
+    float covers = max(footprint, 1.0);
+    while (covers >= 2 && size + 1 < sizes) {
+        covers *= 0.5;
+        ++size;
+    }
+    const float level = float(size) + (size + 1 < sizes ? covers - 1.0 : 0.0);
+    float sum = 0;
+    for (float place = 0; place < places; place += 1) sum += map.SampleLevel(uv + lengthwise * ((place + 0.5) / places - 0.5), level).a;
+    return sum / places;
 }
 
 struct Who {
     float4 eye;     // w: 1 or −1 — a pixel whose depth is past the half that way is beyond the view's far cut
     uint   number;  // the draw's place and one more
     uint   spare0, spare1, spare2;
+    Whole  whole;
 };
+[[vk::binding(0, 2)]] Sampler2D picture_map : register(t0, space2) : register(s0, space2);
 [[vk::binding(0, 3)]] ConstantBuffer<Who> who : register(b0, space3);
+
+// True where nothing of the surface is drawn at this pixel: turned away (and of one side), beyond the view's far
+// cut, or cut out. `right` and `down`: how far its place in its picture moves to the next pixel across and below.
+bool left_out(VOut point, float2 right, float2 down) {
+    if (who.whole.cut.z < 0.5 && dot(point.normal, who.eye.xyz - point.place) < 0) return true;
+    if ((point.clip.z - 0.5) * who.eye.w > 0) return true;
+    if (who.whole.cut.x > 0) {
+        float hides = who.whole.cut.y;
+        if (who.whole.picture.z > 0.5) hides *= cover_over(picture_map, who.whole.picture, point.uv, right, down);
+        if (hides < who.whole.cut.x) return true;
+    }
+    return false;
+}
 
 [shader("fragment")]
 uint ids_fs(VOut point) : SV_Target {
-    if (dot(point.normal, who.eye.xyz - point.place) < 0) discard;
-    if ((point.clip.z - 0.5) * who.eye.w > 0) discard;  // beyond the view's far cut
+    const float2 right = ddx(point.uv), down = ddy(point.uv);
+    if (left_out(point, right, down)) discard;
     return who.number;
 }
 
@@ -45,8 +90,8 @@ uint ids_fs(VOut point) : SV_Target {
 // read as any other picture is.
 [shader("fragment")]
 float4 who_fs(VOut point) : SV_Target {
-    if (dot(point.normal, who.eye.xyz - point.place) < 0) discard;
-    if ((point.clip.z - 0.5) * who.eye.w > 0) discard;  // beyond the view's far cut
+    const float2 right = ddx(point.uv), down = ddy(point.uv);
+    if (left_out(point, right, down)) discard;
     return float4(float(who.number), 0, 0, 1);
 }
 
@@ -55,10 +100,11 @@ float4 who_fs(VOut point) : SV_Target {
 // which it then holds to a few hundred-thousandths. Nothing there: 0 far.
 [shader("fragment")]
 float4 surface_fs(VOut point) : SV_Target {
+    const float2 right = ddx(point.uv), down = ddy(point.uv);
     const float3 to_eye = who.eye.xyz - point.place;
-    if (dot(point.normal, to_eye) < 0) discard;
-    if ((point.clip.z - 0.5) * who.eye.w > 0) discard;  // beyond the view's far cut
-    const float3 normal = normalize(point.normal);
+    if (left_out(point, right, down)) discard;
+    float3 normal = normalize(point.normal);
+    if (dot(normal, to_eye) < 0) normal = -normal;  // seen from behind (a surface of both sides): it faces the eye
     const float3 folded = normal / (abs(normal.x) + abs(normal.y) + abs(normal.z));
     float2 on_square = folded.xy;
     if (folded.z < 0) on_square = (1.0 - abs(folded.yx)) * float2(folded.x >= 0 ? 1 : -1, folded.y >= 0 ? 1 : -1);

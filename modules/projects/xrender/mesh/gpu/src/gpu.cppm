@@ -91,6 +91,11 @@ public:
     // through it first, each pixel along its own ray — the sky that clears upward, as the reference has it.
     void record(mlibs::rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, std::span<const Material> materials,
                 mlibs::rhi::Texture colour, mlibs::rhi::Texture depth, std::uint32_t width, std::uint32_t height, const Options& options = {}, const Shadows* shadows = nullptr);
+    // The materials, for the passes that take none (who drew each pixel, the surface, the velocity): where one is
+    // seen from both sides or cut out by its picture (`Material::two_sided`, `cutout`) those passes leave out the
+    // very pixels the colour pass leaves out. Kept until called again; without it every surface is whole and of
+    // one side there. (`record` takes its own, for the colour and for the shadows it draws.)
+    void use(std::span<const Material> materials) { materials_.assign(materials.begin(), materials.end()); }
     // Who drew each pixel, recorded: a pass of its own on `ids` (r32_uint, a colour target) and `depth` — for
     // every pixel the place of its draw in `extracted.draws` and one more; 0 where nothing is. What an agent
     // asks of a pixel of the device's picture (`who`), with nothing of the CPU's drawn.
@@ -146,6 +151,9 @@ private:
         float               width = 0, height = 0, sizes = 0;  // its finest size; how many sizes (the texture's levels)
     };
     std::vector<Sheet>           textures_;
+    std::vector<Material>        materials_;  // what `use` was given
+    // A draw's base picture where its material cuts the surface out by it: none for a material that is whole.
+    [[nodiscard]] const Sheet* cover_of(const Material& material, std::uint32_t mesh) const noexcept;
     bool                         reversed_ = false, light_ = false;
     std::vector<Id>              before_ids_;    // the scene's instances a frame ago, in id order
     std::vector<mlibs::math::Mat4> before_world_;

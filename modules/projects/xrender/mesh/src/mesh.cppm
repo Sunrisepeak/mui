@@ -47,6 +47,16 @@ struct Material {
     std::uint32_t shade = 0xffffffffu;    // its red is the share of the light from everywhere that reaches the surface (often the same picture as `surface`)
     float normal_scale = 1;    // the normal picture's red and green by this much
     float shade_strength = 1;  // 0: the shade picture says nothing … 1: all it says
+    // How much of what is behind it the surface hides: 1 all of it. The base colour's picture may say so too, a
+    // texel at a time (its fourth byte, `Texture::cover`), and the two multiply.
+    float opacity = 1;
+    // Above 0: where the surface hides less than this, it is not there — a leaf's outline, the holes of a fence,
+    // cut out of two triangles by a picture. Not in the colour, not in who drew the pixel, not in the shadow it
+    // casts, not for a ray. At 0 the surface is whole whatever `opacity` says.
+    float cutout = 0;
+    // Seen from behind too — a leaf, a sheet of cloth, a pane — its normal there turned to face the eye. Without
+    // it a face turned away is not drawn (a closed thing's far side never shows).
+    bool two_sided = false;
     [[nodiscard]] constexpr bool matt() const noexcept { return roughness >= 1 && metallic <= 0; }
 };
 // What a surface sends toward the eye of light arriving along `toward_light` (all of length 1; `facing` the
@@ -68,8 +78,13 @@ struct Texture {
     int width = 0, height = 0;
     std::vector<Vec3>        light;   // every size's texels, a row after a row, the finest size first
     std::vector<std::uint32_t> sizes; // where each size begins in `light`
+    // How much of what is behind it each texel hides (the picture's fourth byte ÷ 255), laid out as `light` is —
+    // or empty: every texel hides all. Where it is there `light` holds each texel's light times its cover, so the
+    // mean of four texels, and what lies between texels, is the light of what is there and not of the clear
+    // texels beside it (no dark rim about a leaf).
+    std::vector<float>       cover;
     // From rgba8 (`width` × `height` × 4, rows from the top), colours in sRGB unless said plain. Nothing: no size,
-    // no pixels, or too few bytes.
+    // no pixels, or too few bytes. A picture of colours with a fourth byte below 255 anywhere has a `cover`.
     [[nodiscard]] static std::optional<Texture> made(std::span<const std::uint8_t> rgba, int width, int height, Coding coding = Coding::colour);
     // Its light at `uv` (0 … 1 across and down, repeating), for a pixel that covers `footprint` texels of the finest
     // size across. Between four texels of a size, between two sizes. The same bits everywhere.
@@ -79,6 +94,14 @@ struct Texture {
     // strip: up to eight places along the strip's length are taken, each at the size the strip's width asks —
     // so a floor stays sharp across the way it is looked along instead of going soft both ways.
     [[nodiscard]] Vec3 over(Vec2 uv, Vec2 right, Vec2 down) const noexcept;
+    // Both at once: the light as `over` gives it, and how much the picture hides there (1 where it has no cover).
+    struct Seen {
+        Vec3  light;
+        float cover = 1;
+    };
+    [[nodiscard]] Seen seen(Vec2 uv, Vec2 right, Vec2 down) const noexcept;
+    // How much it hides at a place alone, between the four texels of its finest size: what a ray asks.
+    [[nodiscard]] float cover_at(Vec2 uv) const noexcept;
     [[nodiscard]] std::size_t size_count() const noexcept { return sizes.size(); }
 };
 
@@ -166,6 +189,7 @@ struct Stats {
     std::uint32_t clusters = 0, clusters_outside = 0, clusters_away = 0;
     std::uint64_t triangles = 0, facing_away = 0, outside = 0, clipped = 0, filled = 0;
     std::uint64_t written = 0, hidden = 0;                  // pixels that passed the depth, and that did not
+    std::uint64_t cut = 0;                                  // samples a cut-out left out (`Material::cutout`): before the depth, so not in either
     std::uint64_t rays = 0, shadowed = 0;                   // rays sent toward a light, and those that met something
     std::uint64_t occlusion_rays = 0, occluded = 0;         // rays sent for the light from everywhere, and those that met something
     std::uint64_t textured = 0;                             // samples whose colour was looked up in a texture
@@ -179,7 +203,14 @@ struct Caster {
     mlibs::geom::Box3        bounds;
     const mlibs::geom::Mesh* mesh = nullptr;
     const mlibs::geom::Bvh*  tree = nullptr;
+    const Material*          material = nullptr;  // where it cuts the surface out, with its picture: what a ray passes through
+    const Texture*           picture = nullptr;
 };
+// What a ray meets first of a mesh (through its tree, as mlibs.geom's `meet`), the surface being `material`'s:
+// where the material cuts it out (`Material::cutout`, by `opacity` and `picture`'s cover at the place met) the ray
+// goes on through. `material` none, or one that cuts nothing out: geom's answer as it is.
+[[nodiscard]] std::optional<mlibs::geom::RayHit> meet(const mlibs::geom::Ray& ray, const mlibs::geom::Mesh& mesh, const mlibs::geom::Bvh& tree, const Material* material, const Texture* picture,
+                                                      float farthest = std::numeric_limits<float>::max());
 
 class Pass {
 public:

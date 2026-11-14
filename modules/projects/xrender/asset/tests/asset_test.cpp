@@ -224,11 +224,15 @@ static UTest cases{"xrender.asset", [] {
         const auto model = asset::gltf(bytes_of(text));
         expect(fatal(model.has_value())) << (model ? "" : model.error());
         for (const std::string_view where :
-             {"/images/0", "/materials/0/alphaMode", "/materials/0/doubleSided", "/materials/0/extensions/KHR_materials_clearcoat", "/materials/1/alphaMode",
+             {"/images/0", "/materials/0/alphaMode", "/materials/0/extensions/KHR_materials_clearcoat",
               "/meshes/0/primitives/0/attributes/TEXCOORD_1", "/meshes/0/primitives/0/attributes/COLOR_0", "/meshes/0/primitives/0/attributes/NORMAL", "/meshes/0/primitives/1/mode",
               "/nodes/0/camera", "/nodes/1", "/animations", "/extensionsUsed/2"})
             expect(noted(*model, where)) << where;
-        expect(eq(model->notes.size(), std::size_t{13}));
+        expect(eq(model->notes.size(), std::size_t{11}));
+        // Seen from both sides and cut out are carried, so they leave no note: the second material's cut is the
+        // format's own (0.5) where the document names none.
+        expect(!noted(*model, "/materials/0/doubleSided") && !noted(*model, "/materials/1/alphaMode"));
+        expect(model->materials[0].two_sided && !model->materials[1].two_sided && eq(model->materials[1].cutout, 0.5f) && eq(model->materials[0].cutout, 0.0f));
         // What is carried is carried: the first primitive (its normals worked out), not the lines; the picture that
         // is not read leaves the material its factor; emission by its strength.
         expect(eq(model->meshes.size(), std::size_t{2}) && eq(model->instances.size(), std::size_t{2}) && eq(model->textures.size(), std::size_t{0}));
@@ -237,6 +241,37 @@ static UTest cases{"xrender.asset", [] {
         expect(eq(model->materials[0].texture, none.texture) && eq(model->materials[0].surface, none.surface) && eq(model->materials[0].normal, none.normal) && eq(model->materials[0].glow, none.glow));
         expect(model->materials[1].emissive == math::Vec3{4, 4, 4});
         expect(eq(model->instances[0].id, scene::Id{asset::ids_a_node + 1}) && eq(model->instances[1].id, scene::Id{2 * asset::ids_a_node + 1}));
+    };
+
+    "cut out by its alpha, seen from both sides: the picture's fourth byte is how much the surface hides where the material is cut out by it, and says nothing where it is whole"_test = [] {
+        // A 2 × 2 picture: red and whole, green and clear, blue and half there, white and whole.
+        mlibs::image::Image image{.width = 2, .height = 2, .rgba = {255, 0, 0, 255, 0, 255, 0, 0, 0, 0, 255, 128, 255, 255, 255, 255}};
+        const std::string text = with_uri(std::format(R"(,
+  "scenes": [{{"nodes": [0, 1]}}],
+  "nodes": [{{"mesh": 0}}, {{"mesh": 1}}],
+  "meshes": [{{"primitives": [{{"attributes": {{"POSITION": 0, "NORMAL": 1, "TEXCOORD_0": 2}}, "indices": 3, "material": 0}}]}},
+             {{"primitives": [{{"attributes": {{"POSITION": 0, "NORMAL": 1, "TEXCOORD_0": 2}}, "indices": 3, "material": 1}}]}}],
+  "materials": [{{"pbrMetallicRoughness": {{"baseColorFactor": [1, 1, 1, 0.8], "baseColorTexture": {{"index": 0}}}}, "alphaMode": "MASK", "alphaCutoff": 0.3, "doubleSided": true}},
+                {{"pbrMetallicRoughness": {{"baseColorFactor": [1, 1, 1, 0.8], "baseColorTexture": {{"index": 0}}}}}}],
+  "textures": [{{"source": 0}}],
+  "images": [{{"uri": "{}"}}])",
+                                                      uri_of(*mlibs::image::encode_png(mlibs::image::view(image)), "image/png")));
+        const auto model = asset::gltf(bytes_of(text));
+        expect(fatal(model.has_value())) << (model ? "" : model.error());
+        expect(eq(model->notes.size(), std::size_t{0})) << (model->notes.empty() ? "" : model->notes.front().where);
+        expect(fatal(eq(model->materials.size(), std::size_t{2}) && eq(model->textures.size(), std::size_t{2})));
+        const xrender::mesh::Material& leaf = model->materials[0];
+        const xrender::mesh::Material& plain = model->materials[1];
+        expect(eq(leaf.cutout, 0.3f) && eq(leaf.opacity, 0.8f) && leaf.two_sided && eq(plain.cutout, 0.0f) && eq(plain.opacity, 1.0f) && !plain.two_sided);
+        // One picture, a texture each way: with its cover for the material it cuts out, without for the whole one —
+        // there the clear texel is green, as the format says (alpha is not looked at).
+        expect(fatal(leaf.texture != plain.texture && leaf.texture < 2 && plain.texture < 2));
+        const xrender::mesh::Texture& covering = model->textures[leaf.texture];
+        const xrender::mesh::Texture& solid = model->textures[plain.texture];
+        expect(eq(covering.cover.size(), covering.light.size()) && solid.cover.empty());
+        expect(near(covering.cover_at({0.75f, 0.25f}), 0.0f, 1e-6f) && near(covering.cover_at({0.25f, 0.75f}), 128.0f / 255.0f, 1e-6f) && near(covering.cover_at({0.25f, 0.25f}), 1.0f, 1e-6f));
+        expect(near(solid.at({0.75f, 0.25f}, 1).y, 1.0f, 1e-6f) && near(solid.at({0.75f, 0.25f}, 1).x, 0.0f, 1e-6f));
+        expect(near(covering.at({0.25f, 0.75f}, 1).z, 1.0f, 1e-5f)) << "a texel half there is its own colour, whole";
     };
 
     "strips and fans are triangles with their fronts kept; lamps have a reach"_test = [] {

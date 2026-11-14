@@ -4,12 +4,14 @@
 struct VIn {
     float3 position : TEXCOORD0;
     float3 normal : TEXCOORD1;
+    float2 uv : TEXCOORD2;
 };
 struct VOut {
     float4 clip : SV_Position;
     float3 place : TEXCOORD0;
     float3 normal : TEXCOORD1;
     float4 before : TEXCOORD2;  // where the corner was a frame ago, in that frame's clip space
+    float2 uv : TEXCOORD3;
 };
 struct Draw {
     float4 to_clip[4];
@@ -27,20 +29,63 @@ VOut velocity_vs(VIn corner) {
     made.place = float3(dot(draw.to_world[0], at), dot(draw.to_world[1], at), dot(draw.to_world[2], at));
     made.normal = float3(dot(draw.normals[0].xyz, corner.normal), dot(draw.normals[1].xyz, corner.normal), dot(draw.normals[2].xyz, corner.normal));
     made.before = float4(dot(draw.before[0], at), dot(draw.before[1], at), dot(draw.before[2], at), dot(draw.before[3], at));
+    made.uv = corner.uv;
     return made;
+}
+
+// What these passes ask of the draw's material (xrender.mesh's `Material::cutout`, `opacity`, `two_sided`), the
+// colour pass's own questions asked the same way: whether the surface is there at this pixel — its opacity, by
+// its picture's cover over the strip the pixel covers of it, against the cut — and whether it is seen from behind.
+struct Whole {
+    float4 picture;  // the draw's base picture: xy its width and height; z how many sizes it has (0: none)
+    float4 cut;      // x: where the surface hides less than this it is not there (0: whole); y: how much it hides;
+                     // z: over 0.5 — it is seen from both sides
+};
+float cover_over(Sampler2D map, float4 picture, float2 uv, float2 right, float2 down) {
+    const float across = length(right * picture.xy), along = length(down * picture.xy);
+    const float2 lengthwise = across >= along ? right : down;
+    const float longer = max(across, along), shorter = max(min(across, along), 1e-6);
+    const float places = clamp(ceil(longer / shorter), 1.0, 8.0);
+    const float footprint = longer / places;
+    const int sizes = int(picture.z);
+    int size = 0;
+    float covers = max(footprint, 1.0);
+    while (covers >= 2 && size + 1 < sizes) {
+        covers *= 0.5;
+        ++size;
+    }
+    const float level = float(size) + (size + 1 < sizes ? covers - 1.0 : 0.0);
+    float sum = 0;
+    for (float place = 0; place < places; place += 1) sum += map.SampleLevel(uv + lengthwise * ((place + 0.5) / places - 0.5), level).a;
+    return sum / places;
 }
 
 struct Moved {
     float4 eye;          // w: 1 or −1 — a pixel whose depth is past the half that way is beyond the view's far cut
     float4 size_jitter;  // xy: the picture's width and height; zw: this frame's jitter, in pixels
     float4 still;        // x: over 0.5 — this thing and the view are where they were: exactly 0
+    Whole  whole;
 };
+[[vk::binding(0, 2)]] Sampler2D picture_map : register(t0, space2) : register(s0, space2);
 [[vk::binding(0, 3)]] ConstantBuffer<Moved> moved : register(b0, space3);
+
+// True where nothing of the surface is drawn at this pixel: turned away (and of one side), beyond the view's far
+// cut, or cut out.
+bool left_out(VOut point, float2 right, float2 down) {
+    if (moved.whole.cut.z < 0.5 && dot(point.normal, moved.eye.xyz - point.place) < 0) return true;
+    if ((point.clip.z - 0.5) * moved.eye.w > 0) return true;
+    if (moved.whole.cut.x > 0) {
+        float hides = moved.whole.cut.y;
+        if (moved.whole.picture.z > 0.5) hides *= cover_over(picture_map, moved.whole.picture, point.uv, right, down);
+        if (hides < moved.whole.cut.x) return true;
+    }
+    return false;
+}
 
 [shader("fragment")]
 float4 velocity_fs(VOut point) : SV_Target {
-    if (dot(point.normal, moved.eye.xyz - point.place) < 0) discard;
-    if ((point.clip.z - 0.5) * moved.eye.w > 0) discard;  // beyond the view's far cut
+    const float2 right = ddx(point.uv), down = ddy(point.uv);
+    if (left_out(point, right, down)) discard;
     if (moved.still.x > 0.5 || !(point.before.w > 0)) return float4(0, 0, 0, 1);
     const float2 was = float2(point.before.x / point.before.w * 0.5 + 0.5, 0.5 - point.before.y / point.before.w * 0.5) * moved.size_jitter.xy;
     return float4(point.clip.xy - moved.size_jitter.zw - was, 0, 1);
@@ -55,8 +100,8 @@ struct MovedAndWho {
 };
 [shader("fragment")]
 MovedAndWho velocity_who_fs(VOut point) {
-    if (dot(point.normal, moved.eye.xyz - point.place) < 0) discard;
-    if ((point.clip.z - 0.5) * moved.eye.w > 0) discard;  // beyond the view's far cut
+    const float2 right = ddx(point.uv), down = ddy(point.uv);
+    if (left_out(point, right, down)) discard;
     MovedAndWho made;
     made.who = float4(moved.still.y, 0, 0, 1);
     made.velocity = float4(0, 0, 0, 1);

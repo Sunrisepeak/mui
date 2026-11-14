@@ -43,7 +43,19 @@ struct Lamp {
     float4 at_range;     // where; w: how far it reaches
     float4 toward_cone;  // the way it shines (of length 1); w: the cone's cosine
     float4 shadow;       // x: its row of the lamps' map (−1: it has none)
+    float4 shape;        // x: over 0.5 — physical (xrender.mesh's `LampShape`); y: a spot's inner cosine (above 1: a hard edge)
 };
+// What of a physical lamp's light comes `apart` away along `along` (xrender.mesh's `physical_reach`, `soft_edge`).
+float physical_share(Lamp lamp, float apart, float3 along) {
+    const float share = apart / lamp.at_range.w, fourth = share * share * share * share;
+    const float window = clamp(1.0 - fourth, 0.0, 1.0);
+    float reach = window * window / max(apart * apart, 1e-4);
+    if (lamp.colour_kind.w > 1.5 && lamp.shape.y <= 1) {
+        const float edge = clamp((-dot(along, lamp.toward_cone.xyz) - lamp.toward_cone.w) / max(lamp.shape.y - lamp.toward_cone.w, 1e-6), 0.0, 1.0);
+        reach *= edge * edge;
+    }
+    return reach;
+}
 struct Surface {
     float4 base;       // linear
     float4 emissive;
@@ -412,7 +424,7 @@ float3 coated<A : IAbout>(float3 coat_normal, float3 normal, float3 toward_eye, 
             along = to / apart;
             if (lamp.colour_kind.w > 1.5 && -dot(along, lamp.toward_cone.xyz) < lamp.toward_cone.w) continue;
             const float near = 1.0 - (apart / lamp.at_range.w) * (apart / lamp.at_range.w);
-            arriving *= near * near;
+            arriving *= lamp.shape.x > 0.5 ? physical_share(lamp, apart, along) : near * near;
             if (lamp.shadow.x >= 0 && dot(coat_normal, along) > 0 && lamp_hidden(lamp, place, normal, apart)) continue;
         }
         const float facing = dot(coat_normal, along);
@@ -530,7 +542,7 @@ Lit lit_at<A : IAbout>(VOut point) {
             along = to / apart;
             if (lamp.colour_kind.w > 1.5 && -dot(along, lamp.toward_cone.xyz) < lamp.toward_cone.w) continue;
             const float near = 1.0 - (apart / lamp.at_range.w) * (apart / lamp.at_range.w);
-            arriving *= near * near;
+            arriving *= lamp.shape.x > 0.5 ? physical_share(lamp, apart, along) : near * near;
             if (lamp.shadow.x >= 0 && dot(normal, along) > 0 && lamp_hidden(lamp, point.place, normal, apart)) continue;
         }
         const float facing = dot(normal, along);

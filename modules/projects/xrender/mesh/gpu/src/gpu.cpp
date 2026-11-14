@@ -30,6 +30,7 @@ struct DrawUniforms {
 struct LampUniforms {
     Row colour_kind, at_range, toward_cone;
     Row shadow{-1, 0, 0, 0};
+    Row shape{0, 2, 0, 0};  // x: 1 physical; y: a spot's inner cosine (above 1: a hard edge)
 };
 struct SurfaceUniforms {
     Row          base, emissive, ambient, eye, fog, fog_shape;
@@ -666,8 +667,9 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
         const scene::Light& light = scene.lights()[index];
         const float kind = light.kind == scene::LightKind::sun ? 0.0f : light.kind == scene::LightKind::spot ? 2.0f : 1.0f;
         cones[last_.lamps] = light.cone;
-        surface.lamps[last_.lamps++] = {of(light.colour * light.intensity, kind), of(light.at, std::max(light.range, 1e-6f)),
-                                        of(math::normalized(light.toward), static_cast<float>(math::det::cos(static_cast<double>(light.cone))))};
+        const LampShape shape = lamp_shape(light);
+        surface.lamps[last_.lamps++] = {of(shape.colour, kind), of(light.at, std::max(light.range, 1e-6f)), of(math::normalized(light.toward), shape.cone_cosine), {-1, 0, 0, 0},
+                                        {shape.physical ? 1.0f : 0.0f, shape.inner_cosine, 0, 0}};
     }
     surface.ambient = of(options.ambient);
     surface.above = of(options.environment.above, options.environment.on ? 1.0f : 0.0f), surface.level = of(options.environment.level), surface.below = of(options.environment.below);

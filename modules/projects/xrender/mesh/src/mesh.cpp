@@ -94,6 +94,14 @@ struct Lamp {
     Vec3  colour;        // times its intensity
     Vec3  at, toward;    // toward: of length 1
     float range = 1, cone_cosine = 0;
+    bool  physical = false;
+    float inner_cosine = 2;
+    // What of its light comes `apart` away along `along` (of length 1, from the place toward the lamp): `near` is
+    // windowed's 1 − (apart / range)², the passes taking its square as before.
+    [[nodiscard]] float physical_share(float apart, Vec3 along) const noexcept {
+        const float edge = kind == scene::LightKind::spot ? soft_edge(cone_cosine, inner_cosine, -math::dot(along, toward)) : 1.0f;
+        return physical_reach(range, apart) * edge;
+    }
 };
 constexpr std::size_t most_lamps = 32;
 
@@ -252,7 +260,7 @@ struct Raster {
             if (lamp.kind == scene::LightKind::spot && -math::dot(along, lamp.toward) < lamp.cone_cosine) continue;
             if (!casters.empty() && hidden_from(lifted, along, apart)) continue;
             const float near = 1.0f - (apart / lamp.range) * (apart / lamp.range);
-            light = light + lamp.colour * (facing * near * near);
+            light = light + lamp.colour * (lamp.physical ? facing * lamp.physical_share(apart, along) : facing * near * near);
         }
         return math::scaled(material.base * (1.0f - std::clamp(material.transmission, 0.0f, 1.0f)), light) + material.emissive;
     }
@@ -303,9 +311,10 @@ struct Raster {
             if (lamp.kind == scene::LightKind::spot && -math::dot(along, lamp.toward) < lamp.cone_cosine) continue;
             if (!casters.empty() && hidden_from(lifted, along, apart)) continue;
             const float near = 1.0f - (apart / lamp.range) * (apart / lamp.range);
-            if (facing > 0) sent = sent + math::scaled(reflected(material, normal, toward_eye, along, facing), lamp.colour * (near * near));
-            if (sheened && facing > 0) sheen = sheen + math::scaled(material.sheen, lamp.colour * (near * near)) * sheen_reflected(material.sheen_roughness, normal, toward_eye, along, facing);
-            if (coat_facing > 0) coat = coat + math::scaled(reflected(layer, coat_normal, toward_eye, along, coat_facing), lamp.colour * (near * near));
+            const Vec3 arriving = lamp.colour * (lamp.physical ? lamp.physical_share(apart, along) : near * near);
+            if (facing > 0) sent = sent + math::scaled(reflected(material, normal, toward_eye, along, facing), arriving);
+            if (sheened && facing > 0) sheen = sheen + math::scaled(material.sheen, arriving) * sheen_reflected(material.sheen_roughness, normal, toward_eye, along, facing);
+            if (coat_facing > 0) coat = coat + math::scaled(reflected(layer, coat_normal, toward_eye, along, coat_facing), arriving);
         }
         if (!(coated > 0) && !sheened) return sent;
         if (sheened) {
@@ -543,6 +552,24 @@ Placing Placing::made(Vec2 offset, float turn, Vec2 scale, std::uint8_t set) noe
     return {{cosine * scale.x, sine * scale.y, offset.x}, {-sine * scale.x, cosine * scale.y, offset.y}, set};
 }
 
+LampShape lamp_shape(const scene::Light& light) noexcept {
+    LampShape shape;
+    shape.physical = light.falloff == scene::Falloff::physical;
+    shape.colour = shape.physical ? light.colour * static_cast<float>(static_cast<double>(light.intensity) / math::det::pi) : light.colour * light.intensity;
+    shape.cone_cosine = static_cast<float>(math::det::cos(static_cast<double>(light.cone)));
+    if (shape.physical && light.inner_cone >= 0 && light.inner_cone < light.cone) shape.inner_cosine = static_cast<float>(math::det::cos(static_cast<double>(light.inner_cone)));
+    return shape;
+}
+float physical_reach(float range, float apart) noexcept {
+    const float share = apart / range, fourth = share * share * share * share;
+    const float window = std::clamp(1.0f - fourth, 0.0f, 1.0f);
+    return window * window / std::max(apart * apart, 1e-4f);
+}
+float soft_edge(float cone_cosine, float inner_cosine, float cosine) noexcept {
+    if (!(inner_cosine <= 1)) return cosine >= cone_cosine ? 1.0f : 0.0f;
+    const float share = std::clamp((cosine - cone_cosine) / std::max(inner_cosine - cone_cosine, 1e-6f), 0.0f, 1.0f);
+    return share * share;
+}
 Mirrors mirrors_of(const Material& material) noexcept {
     const float metal = std::clamp(material.metallic, 0.0f, 1.0f), strength = std::clamp(material.specular, 0.0f, 1.0f);
     // Worked out in double: at an index of 1.5 exactly the float nearest 4%.
@@ -691,8 +718,8 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
     for (const std::uint32_t index : extracted.lights) {
         if (lamp_count == lamps.size() || index >= scene.lights().size()) break;
         const scene::Light& light = scene.lights()[index];
-        lamps[lamp_count++] = {light.kind, light.colour * light.intensity, light.at, math::normalized(light.toward), std::max(light.range, 1e-6f),
-                               static_cast<float>(math::det::cos(static_cast<double>(light.cone)))};
+        const LampShape shape = lamp_shape(light);
+        lamps[lamp_count++] = {light.kind, shape.colour, light.at, math::normalized(light.toward), std::max(light.range, 1e-6f), shape.cone_cosine, shape.physical, shape.inner_cosine};
     }
     // What can cast a shadow: every instance of the scene with a tree, seen by this view or not.
     casters_.clear();

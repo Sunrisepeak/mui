@@ -139,6 +139,21 @@ struct Mirrors {
     float edge = 1;
 };
 [[nodiscard]] Mirrors mirrors_of(const Material& material) noexcept;
+// A lamp as the passes take it from the scene's light (`scene::Light`, `Falloff`): its colour times its intensity —
+// over π for a physical light, the model's surfaces sending back light with no 1/π — its reach, its spot's two
+// cosines (`inner` above 1: the edge is hard).
+struct LampShape {
+    Vec3  colour;
+    bool  physical = false;
+    float cone_cosine = 0, inner_cosine = 2;
+};
+[[nodiscard]] LampShape lamp_shape(const scene::Light& light) noexcept;
+// How much of a point's or a spot's light comes `apart` away: windowed, the square of 1 − (apart / range)² (the
+// passes multiply by that `near` twice themselves, as before); physical, the inverse square in its window.
+[[nodiscard]] float physical_reach(float range, float apart) noexcept;
+// How much of a spot's light is `cosine` off its axis, between its two cosines (1 inside the inner, 0 outside the
+// cone, the square of the share between).
+[[nodiscard]] float soft_edge(float cone_cosine, float inner_cosine, float cosine) noexcept;
 // What a surface sends toward the eye of light arriving along `toward_light` (all of length 1; `facing` the
 // normal's part of it, above 0), as a share of that light a channel: what `Pass` and a device's shader both do.
 [[nodiscard]] Vec3 reflected(const Material& material, Vec3 normal, Vec3 toward_eye, Vec3 toward_light, float facing) noexcept;

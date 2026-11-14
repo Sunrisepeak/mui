@@ -476,7 +476,10 @@ struct Maker {
                                    .at = {world.at(3, 0), world.at(3, 1), world.at(3, 2)},
                                    // A light shines down its node's −z.
                                    .toward = mlibs::math::normalized(Vec3{-world.at(2, 0), -world.at(2, 1), -world.at(2, 2)}),
-                                   .cone = from.spot_outer_cone_angle};
+                                   .cone = from.spot_outer_cone_angle,
+                                   // glTF's units: lux, candela; the inverse square; a spot soft from its inner cone.
+                                   .falloff = scene::Falloff::physical,
+                                   .inner_cone = from.type == cgltf_light_type_spot ? from.spot_inner_cone_angle : -1.0f};
                 if (from.type != cgltf_light_type_directional) {
                     if (from.range > 0) light.range = from.range;
                     else {

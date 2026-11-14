@@ -32,6 +32,8 @@ struct Lamp {
     scene::LightKind kind = scene::LightKind::sun;
     Vec3  colour, at, toward;
     float range = 1, cone_cosine = 0;
+    bool  physical = false;
+    float inner_cosine = 2;
 };
 struct Met {
     const Thing* thing = nullptr;
@@ -213,7 +215,8 @@ struct Tracing {
                 way = to * (1.0f / apart), reach = apart;
                 if (lamp.kind == scene::LightKind::spot && -math::dot(way, lamp.toward) < lamp.cone_cosine) continue;
                 const float near = 1.0f - (apart / lamp.range) * (apart / lamp.range);
-                colour = colour * (near * near);
+                colour = colour * (lamp.physical ? physical_reach(lamp.range, apart) * (lamp.kind == scene::LightKind::spot ? soft_edge(lamp.cone_cosine, lamp.inner_cosine, -math::dot(way, lamp.toward)) : 1.0f)
+                                                 : near * near);
             }
             const float facing = math::dot(met->normal, way);
             if (!(facing > 0) || !(math::dot(met->face, way) > 0) || hidden(lifted, way, reach)) continue;
@@ -348,8 +351,10 @@ Traced traced(const scene::Scene& scene, const scene::View& view, const Assets& 
     }
     std::vector<Lamp> lamps;
     for (const scene::Light& light : scene.lights())
-        if (!light.hidden && (light.layers & view.layers) != 0)
-            lamps.push_back({light.kind, light.colour * light.intensity, light.at, math::normalized(light.toward), std::max(light.range, 1e-6f), static_cast<float>(math::det::cos(static_cast<double>(light.cone)))});
+        if (!light.hidden && (light.layers & view.layers) != 0) {
+            const LampShape shape = lamp_shape(light);
+            lamps.push_back({light.kind, shape.colour, light.at, math::normalized(light.toward), std::max(light.range, 1e-6f), shape.cone_cosine, shape.physical, shape.inner_cosine});
+        }
     const Tracing tracing{things, lamps, options, told};
     const Vec3 eye = math::point(*camera, {0, 0, 0});
     for (int y = 0; y < out.height; ++y)

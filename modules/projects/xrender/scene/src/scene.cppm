@@ -39,6 +39,11 @@ struct Instance {
     bool          casts = true;            // it stands between a light and what is behind it (a lamp's own glass does not)
 };
 enum class LightKind : std::uint8_t { sun, point, spot };
+// How a light's numbers are read. `windowed`: its colour times its intensity, a point's or a spot's falling to
+// nothing at its range as (1 − (d / range)²)². `physical` (glTF's KHR_lights_punctual): a sun's intensity in lux,
+// a point's or a spot's in candela falling as the square of the distance — inside a window that ends it at its
+// range, (1 − (d / range)⁴)² — and a spot's edge soft between `inner_cone` and `cone`.
+enum class Falloff : std::uint8_t { windowed, physical };
 struct Light {
     Id            id = 0;
     LightKind     kind = LightKind::sun;
@@ -48,6 +53,8 @@ struct Light {
     Vec3          toward{0, -1, 0};    // a sun's and a spot's direction
     float         range = 10;          // how far a point or a spot reaches
     float         cone = 0.5f;         // a spot's half angle, radians
+    Falloff       falloff = Falloff::windowed;
+    float         inner_cone = -1;     // a spot's half angle within which it is whole (radians; below 0: its edge is hard)
     std::uint32_t layers = 1;
     bool          hidden = false;
 };

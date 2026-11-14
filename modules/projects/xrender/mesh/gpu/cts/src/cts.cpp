@@ -399,6 +399,10 @@ Cases suite_of() {
         yard.materials[0].clearcoat = 1, yard.materials[0].clearcoat_roughness = 0.15f;
         yard.materials[2].specular = 0.8f, yard.materials[2].specular_colour = {1, 0.3f, 0.3f}, yard.materials[2].ior = 1.7f;
         yard.materials[3].sheen = {1, 0.5f, 0.7f}, yard.materials[3].sheen_roughness = 0.5f, yard.materials[3].metallic = 0;  // the post: cloth
+        // And a physical spot (glTF's), soft between its two cones, over the box.
+        expect(yard.world.add(scene::Light{.id = 4, .kind = scene::LightKind::spot, .colour = {1, 0.9f, 0.7f}, .intensity = 40, .at = {-2.2f, 3, 0.5f}, .toward = {0, -1, -0.1f}, .range = 12, .cone = 0.7f,
+                                           .falloff = scene::Falloff::physical, .inner_cone = 0.3f})
+                   .has_value());
         const auto drawn = both(*device, yard, {.environment = {.on = true}});
         if (!drawn) return;
         keep(drawn->device, "yard-coat");

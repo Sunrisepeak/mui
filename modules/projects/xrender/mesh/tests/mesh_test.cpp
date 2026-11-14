@@ -725,6 +725,49 @@ static UTest cases{"xrender.mesh", [] {
         expect(gt(mesh::sheen_share(0.05f, 0.4f), mesh::sheen_share(1, 0.4f))) << "more at a glance";
     };
 
+    "a physical lamp (glTF's): what reaches a matt floor falls as the square of the distance, over π; a physical spot's edge is soft between its inner cone and its cone"_test = [] {
+        const Camera camera{.eye = {0, 6, 0.01f}, .target = {0, 0, 0}};
+        const auto lit_by = [&](const scene::Light& light) {
+            std::vector<mesh::Material> materials{mesh::Material{.base = {1, 1, 1}}};
+            scene::Scene world;
+            put(world, 1, floor_mesh, 0, math::translation({0, 0, 0}));
+            expect(world.add(light).has_value());
+            mesh::Targets targets;
+            targets.resize(129, 129);
+            scene::Extracted seen;
+            scene::extract(world, camera.view(), seen);
+            mesh::Pass pass;
+            pass.draw(world, seen, camera.view(), {library().meshes, materials, {}, {}}, targets, {.ambient = {0, 0, 0}});
+            return targets;
+        };
+        const auto below = [](const mesh::Targets& targets) { return targets.light[static_cast<std::size_t>(64) * 129 + 64].x; };
+        const scene::Light near{.id = 1, .kind = scene::LightKind::point, .intensity = 10, .at = {0, 1, 0}, .range = 100, .falloff = scene::Falloff::physical};
+        scene::Light far = near;
+        far.at = {0, 2, 0};
+        const float at_one = below(lit_by(near)), at_two = below(lit_by(far));
+        std::println("a physical lamp of 10 cd over a white floor: {:.5f} at 1 (10/π: {:.5f}), {:.5f} at 2", at_one, 10.0 / 3.14159265358979, at_two);
+        expect(lt(std::abs(at_one - 10.0f / 3.14159265f), 1e-3f)) << "intensity over π over the distance squared, head on";
+        expect(lt(std::abs(at_one / at_two - 4.0f), 0.01f)) << "twice as far: a quarter";
+        // A spot straight down, its cone 0.6 and whole within 0.3: on the floor at 1 below it, a radius of tan 0.3 is
+        // whole, tan 0.6 nothing, between less and less.
+        const scene::Light spot{.id = 2, .kind = scene::LightKind::spot, .intensity = 10, .at = {0, 1, 0}, .toward = {0, -1, 0}, .range = 100, .cone = 0.6f, .falloff = scene::Falloff::physical, .inner_cone = 0.3f};
+        const mesh::Targets spotted = lit_by(spot);
+        std::array<float, 64> along{};
+        for (int column = 0; column < 64; ++column) along[static_cast<std::size_t>(column)] = spotted.light[static_cast<std::size_t>(64) * 129 + 64 + column].x;
+        // Within the inner cone it is the lamp's own falling (a lamp without a cone, the same there); past it, less.
+        scene::Light bare = spot;
+        bare.kind = scene::LightKind::point;
+        const mesh::Targets lamp_alone = lit_by(bare);
+        int whole = 0, softened = 0, none = 0;
+        for (std::size_t column = 0; column < along.size(); ++column) {
+            if (column > 0) expect(le(along[column], along[column - 1] + 1e-6f)) << "less and less away from its axis";
+            const float own = lamp_alone.light[static_cast<std::size_t>(64) * 129 + 64 + column].x;
+            whole += along[column] == own, softened += along[column] > 0 && along[column] < own, none += !(along[column] > 0);
+        }
+        std::println("a physical spot down a floor's middle row: {} pixels whole, {} softened, {} past its cone", whole, softened, none);
+        expect(gt(whole, 3) && gt(softened, 3) && gt(none, 20)) << whole << ' ' << softened << ' ' << none;
+    };
+
     "a metal has no colour of its own but its highlight's: away from the highlight it is dark, and the highlight is the metal's colour"_test = [] {
         const Camera camera{.eye = {0, 0.5f, 5}, .target = {0, 0, 0}};
         scene::Scene world;

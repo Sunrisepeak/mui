@@ -105,6 +105,7 @@ int main(int argc, char** argv) {
         options.formats = target_os.empty() ? mlibs::rhi::formats({mlibs::rhi::ShaderFormat::spirv})
                                             : mlibs::shader::formats_for(target_os, host_os.empty() ? target_os : host_os);
 
+    options.compact = true;  // what a program carries
     auto program = mlibs::shader::compile(source, options);
     if (!program) {
         std::println(std::cerr, "{}", program.error());

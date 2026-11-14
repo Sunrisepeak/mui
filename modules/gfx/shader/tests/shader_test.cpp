@@ -313,6 +313,38 @@ UTest cases{"shader", [] {
         std::filesystem::remove_all(dir, ec);
     };
 
+    "compact text: the same tokens with nothing between them that a compiler does not read"_test = [] {
+        using mlibs::shader::compact;
+        expect(eq(compact("#version 300 es\nprecision highp float;\n\nstruct Lamp_0\n{\n    vec4 colour_0;  // its light\n};\n"), std::string("#version 300 es\nprecision highp float;struct Lamp_0{vec4 colour_0;};")));
+        // Two words stay two words; two operator characters stay two operators.
+        expect(eq(compact("return a - -b;"), std::string("return a- -b;")));
+        expect(eq(compact("x = y / *p + + z;\nconst  highp   float w = 1.0 - .5;"), std::string("x=y/ *p+ +z;const highp float w=1.0-.5;")));
+        expect(eq(compact("var<uniform> mix_0 : Mix_std140_0;\nfn main( a : vec4<f32>) -> @location(0) vec4<f32>\n{\n}\n"), std::string("var<uniform>mix_0:Mix_std140_0;fn main(a:vec4<f32>)->@location(0)vec4<f32>{}")));
+        // A word at a line's end and one at the next line's start are two words.
+        expect(eq(compact("else\nreturn"), std::string("else return")));
+        // A directive is a line of its own wherever it stands.
+        expect(eq(compact("a;\n  #define B 1  \nb;"), std::string("a;\n#define B 1\nb;")));
+        expect(eq(compact(""), std::string()) && eq(compact(" \n\t\n"), std::string()));
+        // What a build carries: the compiled text, compact — and compacting it again changes nothing.
+        const auto both = mlibs::rhi::formats({mlibs::rhi::ShaderFormat::wgsl, mlibs::rhi::ShaderFormat::essl});
+        auto plain = mlibs::shader::compile(data("quad.slang"), {.formats = both});
+        auto small = mlibs::shader::compile(data("quad.slang"), {.formats = both, .compact = true});
+        expect(fatal(plain.has_value() && small.has_value())) << (plain ? (small ? "" : small.error()) : plain.error());
+        std::size_t before = 0, after = 0;
+        for (const mlibs::shader::Entry& entry : plain->entries)
+            for (const mlibs::shader::Entry::Code& code : entry.code) {
+                const mlibs::shader::Entry* other = small->entry(entry.name);
+                const auto* same = other ? other->code_for(code.format) : nullptr;
+                if (!(expect(same != nullptr))) continue;
+                const std::string was = text(code.bytes), is = text(same->bytes);
+                expect(eq(is, compact(was)) && eq(compact(is), is)) << is;
+                expect(!is.contains("  ") && !is.contains("\n\n") && (!is.contains('\n') || is.starts_with("#version 300 es\n"))) << is;
+                before += was.size(), after += is.size();
+            }
+        // A quad's two small shaders: 2,795 characters become 2,394 (the mesh pass's, with bodies to indent: 30% fewer).
+        expect(gt(before, std::size_t{0}) && lt(after * 100, before * 90)) << before << ' ' << after;
+    };
+
     "the formats a build compiles to, by target and host"_test = [] {
         using enum mlibs::rhi::ShaderFormat;
         expect(mlibs::shader::formats_for("linux", "linux") == mlibs::rhi::formats({spirv}));

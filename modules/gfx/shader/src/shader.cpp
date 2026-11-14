@@ -542,13 +542,16 @@ std::expected<std::string, std::string> essl_for_rhi(std::string_view text, rhi:
         names["main"] = "omui_main";
     }
     names["precise"] = "";  // HLSL's, and GLSL ES 3.20's: not 3.00's
-    std::string out =
-        "#version 300 es\n"
-        "precision highp float;\nprecision highp int;\nprecision highp sampler2D;\nprecision highp isampler2D;\n"
-        "precision highp usampler2D;\nprecision highp sampler3D;\nprecision highp samplerCube;\nprecision highp sampler2DArray;\n"
-        "precision highp sampler2DShadow;\n";
+    std::string written = renamed(body, names);
+    // Columns first is what GLSL ES has where nothing is said: Slang's line saying so is not carried.
+    if (const auto said = written.find("layout(column_major) uniform;\n"); said != std::string::npos) written.erase(said, 30);
+    // Every number at its full precision; a kind of sampler only where the shader has one (the text is carried
+    // by the program, a byte a character).
+    std::string out = "#version 300 es\nprecision highp float;\nprecision highp int;\n";
+    for (const std::string_view kind : {"sampler2D", "isampler2D", "usampler2D", "sampler3D", "samplerCube", "sampler2DArray", "sampler2DShadow"})
+        if (std::regex_search(written, std::regex(std::format("\\b{}\\b", kind)))) out += std::format("precision highp {};\n", kind);
     if (base) out += "uniform highp ivec4 omui_base;\n";
-    out += renamed(body, names);
+    out += written;
     if (stage == rhi::Stage::vertex)
         out += "void main()\n{\n    omui_main();\n    gl_Position.y = -gl_Position.y;\n    gl_Position.z = 2.0 * gl_Position.z - gl_Position.w;\n}\n";
     return out;
@@ -834,6 +837,7 @@ std::expected<Program, std::string> compile(const std::filesystem::path& source,
                 const std::string_view source_text(reinterpret_cast<const char*>(bytes->data()), bytes->size());
                 auto text = format == rhi::ShaderFormat::wgsl ? wgsl_for_rhi(source_text, entry.stage) : essl_for_rhi(source_text, entry.stage);
                 if (!text) return std::unexpected(std::format("{} ({} for {}): {}", file_name, entry.name, name(format), text.error()));
+                if (options.compact) *text = compact(*text);
                 const auto b = std::as_bytes(std::span(*text));
                 bytes->assign(b.begin(), b.end());
             }
@@ -846,6 +850,39 @@ std::expected<Program, std::string> compile(const std::filesystem::path& source,
                                            os::fs::utf8(source.filename())));
     for (const std::string& d : run.dependencies) program.dependencies.push_back(os::fs::from_utf8(d));
     return program;
+}
+
+std::string compact(std::string_view text) {
+    constexpr auto word = [](char character) {
+        return (character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z') || (character >= '0' && character <= '9') || character == '_' || character == '.';
+    };
+    constexpr auto sign = [](char character) { return std::string_view("+-*/<>=&|!%^:").contains(character); };
+    std::string out;
+    out.reserve(text.size());
+    // Whether a space must stand between what is written and what comes next.
+    const auto apart = [&](char next) { return !out.empty() && ((word(out.back()) && word(next)) || (sign(out.back()) && sign(next))); };
+    for (const auto part : std::views::split(text, '\n')) {
+        std::string_view line(part.begin(), part.end());
+        const auto blank = [](char character) { return character == ' ' || character == '\t' || character == '\r'; };
+        while (!line.empty() && blank(line.front())) line.remove_prefix(1);
+        if (line.starts_with('#')) {  // a directive is a line by itself
+            while (!line.empty() && blank(line.back())) line.remove_suffix(1);
+            if (!out.empty() && out.back() != '\n') out += '\n';
+            out += line, out += '\n';
+            continue;
+        }
+        if (const auto comment = line.find("//"); comment != std::string_view::npos) line = line.substr(0, comment);
+        bool gap = !out.empty() && out.back() != '\n';  // a line's end parts two tokens as a space does
+        for (const char character : line) {
+            if (blank(character)) {
+                gap = true;
+                continue;
+            }
+            if (gap && apart(character)) out += ' ';
+            gap = false, out += character;
+        }
+    }
+    return out;
 }
 
 rhi::ShaderDesc desc(const Entry& e, std::vector<rhi::ShaderCode>& codes, std::string_view label) {

@@ -76,7 +76,20 @@ struct Options {
     // of slangc's time (a hot reload's budget). The same files either way;
     // false (or OMUI_SLANGC_PROCESS=1): run slangc.
     bool                               in_process = true;
+    // The text formats (WGSL, ESSL) written compact (`compact`): a program
+    // carries them as they are, a byte a character. What a build embeds
+    // (omui-shader) is compact; false here, for text a person reads.
+    bool                               compact = false;
 };
+
+// Shader text (WGSL or GLSL ES) with what a compiler does not read taken out:
+// indentation, line ends, comments, and the spaces between tokens that are
+// still two tokens without them. A space stays between two words or numbers
+// and between two operator characters (`a - -b`, `x / *y`), and a line that
+// begins with `#` stays a line of its own. The same tokens in the same order:
+// the shader a device compiles is the same shader. About 30% smaller for
+// what Slang writes.
+[[nodiscard]] std::string compact(std::string_view text);
 
 // slangc: OMUI_SLANGC, else the one mcpp provisioned for this build
 // (provisioned_slangc), else the PATH's; an error says how to get it.

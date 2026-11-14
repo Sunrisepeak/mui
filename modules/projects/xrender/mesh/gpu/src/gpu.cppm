@@ -27,6 +27,7 @@ export import :velocity_shaders;
 export import :resolve_shaders;
 export import :open_shaders;
 export import :laid_shaders;
+export import :behind_shaders;
 
 export namespace xrender::mesh::gpu {
 
@@ -53,6 +54,9 @@ struct Stats {
     std::uint32_t through = 0, layers = 0, through_whole = 0;
     // 1: the frame was lit by the surroundings' picture (`Options::environment` names one and one is loaded).
     std::uint32_t about = 0;
+    // Draws of surfaces that let light through (`Material::transmission`), drawn after what is whole; and how many
+    // sizes of the light of what is whole were kept for them (0: none was asked).
+    std::uint32_t glass = 0, behind_sizes = 0;
 };
 
 // The sun's shadows by a map (the reference traces a ray; a device looks up what the sun saw): two textures of
@@ -200,6 +204,21 @@ private:
         std::array<float, 4 * 19>    said{};
     };
     About                        about_;
+    // The light of what is whole at every size, for the surfaces that let light through: one square a size on one
+    // sheet (the finest at its corner, the others in a column beside it), the frame's light copied whole and each
+    // next size made into `scratch` and copied to its square; made when a frame first has such a surface, again
+    // when its size changes.
+    struct Behind {
+        mlibs::rhi::GraphicsPipeline drawn, halved;
+        mlibs::rhi::Texture          sheet, scratch;
+        std::uint32_t                width = 0, height = 0;  // the frame's
+    };
+    Behind                       behind_;
+    static void take_behind(Behind& into, Behind& from) noexcept;
+    // The sheet for a frame of `width` × `height`, the frame's light copied onto it and each size made: how many
+    // sizes, each one's square in `squares` (where its first texel is, its width and height); 0 where a device
+    // could not make it.
+    std::uint32_t keep_behind(mlibs::rhi::CommandList& list, mlibs::rhi::Texture colour, std::uint32_t width, std::uint32_t height, std::span<std::array<float, 4>, 16> squares);
     // A draw's base picture where its material cuts the surface out by it: none for a material that is whole.
     [[nodiscard]] const Sheet* cover_of(const Material& material, std::uint32_t mesh) const noexcept;
     bool                         reversed_ = false, light_ = false;

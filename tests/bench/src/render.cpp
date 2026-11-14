@@ -112,7 +112,9 @@ void add_render_benchmarks() {
         });
     // The yard on this machine's device, as a frame is made of it. `panes`: four sheets of glass before it, laid over the frame in four layers.
     // `about`: lit by a picture of the surroundings (a sky, a ground, a lamp: 1024 × 512, its squares from 512 across).
-    const auto yard_on_device = [](State& s, bool panes, bool about) {
+    // `glass`: an amber pane and a ball of glass whose inside takes of the light by the way gone, drawn after what is
+    // whole, which is kept at every size for them to read.
+    const auto yard_on_device = [](State& s, bool panes, bool about, bool glass) {
         namespace mesh = xrender::mesh;
         namespace geom = mlibs::geom;
         namespace rhi = mlibs::rhi;
@@ -136,6 +138,8 @@ void add_render_benchmarks() {
         materials.push_back({.base = {0.9f, 0.25f, 0.2f}, .roughness = 0.5f, .opacity = 0.6f, .two_sided = true, .see_through = true});
         materials.push_back({.base = {0.3f, 0.85f, 0.4f}, .roughness = 0.5f, .opacity = 0.5f, .two_sided = true, .see_through = true});
         materials.push_back({.base = {0.95f, 0.9f, 0.8f}, .roughness = 0.2f, .opacity = 0.25f, .two_sided = true, .see_through = true});
+        materials.push_back({.base = {1.0f, 0.8f, 0.45f}, .roughness = 0.05f, .two_sided = true, .transmission = 1});
+        materials.push_back({.base = {1, 1, 1}, .roughness = 0.08f, .transmission = 1, .thickness = 2, .attenuation = {0.95f, 0.55f, 0.3f}, .attenuation_distance = 2.5f});
         scene::Scene world;
         const auto put = [&](scene::Id id, std::uint32_t which, std::uint32_t material, const math::Mat4& where, bool casts = true) {
             (void)world.add({.id = id, .mesh = which, .material = material, .world = where, .bounds = geom::bounds(made[which].mesh), .casts = casts});
@@ -151,6 +155,11 @@ void add_render_benchmarks() {
             put(31, 4, 5, math::Transform{{-0.2f, 0.5f, 4.2f}, math::Quat::about({0, 1, 0}, 0.15f) * upright, {1, 1, 1}}.matrix());
             put(32, 4, 6, math::Transform{{0.3f, 0.8f, 3.0f}, upright, {1, 1, 1}}.matrix());
             put(33, 4, 8, math::Transform{{0.9f, 0.4f, 5.0f}, math::Quat::about({0, 1, 0}, -0.3f) * upright, {1, 1, 1}}.matrix());
+        }
+        if (glass) {
+            const math::Quat upright = math::Quat::about({1, 0, 0}, 1.5707964f);
+            put(40, 4, 9, math::Transform{{-1.6f, 0.4f, 2.6f}, math::Quat::about({0, 1, 0}, 0.3f) * upright, {0.5f, 0.5f, 0.5f}}.matrix());
+            put(41, 2, 10, math::Transform{{1.6f, -0.2f, 2.2f}, {}, {0.8f, 0.8f, 0.8f}}.matrix());
         }
         (void)world.add(scene::Light{.id = 1, .kind = scene::LightKind::sun, .colour = {1, 0.96f, 0.9f}, .intensity = 0.9f, .toward = {-0.4f, -1, -0.5f}});
         (void)world.add(scene::Light{.id = 2, .kind = scene::LightKind::point, .colour = {1, 0.6f, 0.2f}, .intensity = 2.5f, .at = {1.2f, 1.6f, -1.5f}, .range = 6});
@@ -230,18 +239,21 @@ void add_render_benchmarks() {
         frame();
         s.items(width * height);
         while (s.next()) frame();
-        s.note("scope", std::format("{} draws, {} casters in the sun's map, {} views of lamps; {} draws seen through, laid in {} layers; {} passes a frame; {}the same frame the device suite holds to the reference at 480x270",
-                                    pass->last().draws, pass->last().casters, pass->last().lamp_views, pass->last().through, pass->last().layers, 12 + (pass->last().layers ? 2 + 2 * pass->last().layers : 0),
-                                    pass->last().about ? "lit by a picture of the surroundings; " : ""));
+        const std::uint32_t sizes = pass->last().behind_sizes;
+        s.note("scope", std::format("{} draws, {} casters in the sun's map, {} views of lamps; {} draws seen through, laid in {} layers; {} letting light through over {} sizes of what is whole; {} passes a frame; {}the same frame the device suite holds to the reference at 480x270",
+                                    pass->last().draws, pass->last().casters, pass->last().lamp_views, pass->last().through, pass->last().layers, pass->last().glass, sizes,
+                                    12 + (pass->last().layers ? 2 + 2 * pass->last().layers : 0) + (sizes ? sizes + 1 : 0), pass->last().about ? "lit by a picture of the surroundings; " : ""));
         static_cast<void>(on.wait_idle());
         for (const rhi::Texture made_one : textures) on.destroy(made_one);
     };
     add("render/mesh-device-yard-1080p", "the mesh pass on this machine's device (xrender.mesh.gpu through SDL_GPU): the yard at 1920x1080 as a frame is made of it — the surface for occlusion, how open each place is (8 rays of 12 steps), the sun's map (2048²), a lamp's and a spot's six views (512²), the light, the glow and the display's curve — submitted and waited for",
-        [yard_on_device](State& s) { yard_on_device(s, false, false); });
+        [yard_on_device](State& s) { yard_on_device(s, false, false, false); });
     add("render/mesh-device-panes-1080p", "the same frame with four panes of glass before the yard, each most of the picture across and up to four over one another (xrender.mesh.gpu's `Layers`): how deep what stops the eye is, four layers each drawn and put under the ones before, and all of them over the frame — submitted and waited for",
-        [yard_on_device](State& s) { yard_on_device(s, true, false); });
+        [yard_on_device](State& s) { yard_on_device(s, true, false, false); });
     add("render/mesh-device-about-1080p", "the same frame, panes and all, lit by a picture of the surroundings (xrender.mesh.gpu's `load_surroundings`): what falls on each surface and what it mirrors read from the picture's squares on one sheet — at most five reads a pixel a layer more than the constant light takes",
-        [yard_on_device](State& s) { yard_on_device(s, true, true); });
+        [yard_on_device](State& s) { yard_on_device(s, true, true, false); });
+    add("render/mesh-device-glass-1080p", "the yard with an amber pane and a ball of glass whose inside takes of the light by the way gone (xrender.mesh's `Material::transmission`, `thickness`): what is whole drawn, its light kept at every size on one sheet (a copy and a pass a size), then the glass reading it where the eye's ray, bent in and gone its thickness, leaves — submitted and waited for",
+        [yard_on_device](State& s) { yard_on_device(s, false, false, true); });
     add("render/mesh-device-tiles-1080p", "a textured floor on this machine's device (xrender.mesh.gpu through SDL_GPU): tiles of a 64x64 texture of seven levels to the horizon at 1920x1080, every pixel up to eight places of its strip each one read between texels and between levels, under a sun",
         [](State& s) {
             namespace mesh = xrender::mesh;

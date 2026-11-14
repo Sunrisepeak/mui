@@ -1174,6 +1174,87 @@ Cases suite_of() {
         static_cast<void>(device->wait_idle());
         for (const rhi::Texture made : {colour, depth, ids, who, shadows.map, shadows.depth}) device->destroy(made);
     });
+    // light through a surface, on the device: a thin amber pane and a ball of glass whose inside takes the red's
+    // complement by the way gone, before the yard — what is whole drawn first, its light kept at every size, the
+    // glass reading it where the eye's ray, bent in and gone its thickness, leaves — are the reference's
+    add(suite, "mesh.glass", [](Rig& rig) {
+        rhi::Device* const device = &rig.device;
+        Yard yard(true);
+        yard.made.push_back(*geom::clustered(geom::sheet(2.4f, 1.6f, 4, 4)));
+        yard.meshes.clear(), yard.grown.clear(), yard.trees.clear();
+        for (const geom::ClusteredMesh& one : yard.made) yard.meshes.push_back(&one), yard.grown.push_back(geom::bvh_of(one.mesh));
+        for (const geom::Bvh& tree : yard.grown) yard.trees.push_back(&tree);
+        const std::uint32_t first = static_cast<std::uint32_t>(yard.materials.size()), sheet = static_cast<std::uint32_t>(yard.made.size() - 1);
+        yard.materials.push_back({.base = {1.0f, 0.8f, 0.45f}, .roughness = 0.05f, .two_sided = true, .transmission = 1});
+        yard.materials.push_back({.base = {1, 1, 1}, .roughness = 0.08f, .transmission = 1, .thickness = 2, .attenuation = {0.95f, 0.55f, 0.3f}, .attenuation_distance = 2.5f});
+        const math::Quat upright = math::Quat::about({1, 0, 0}, 1.5707964f);
+        expect(yard.world.add({.id = 40, .mesh = sheet, .material = first, .world = math::Transform{{-1.3f, 0.1f, 2.2f}, math::Quat::about({0, 1, 0}, 0.3f) * upright, {1, 1, 1}}.matrix(),
+                               .bounds = geom::bounds(yard.made[sheet].mesh)})
+                   .has_value());
+        expect(yard.world.add({.id = 41, .mesh = 2, .material = first + 1, .world = math::Transform{{1.5f, -0.2f, 2.0f}, {}, {0.8f, 0.8f, 0.8f}}.matrix(), .bounds = geom::bounds(yard.made[2].mesh)})
+                   .has_value());
+        scene::Extracted seen;
+        scene::extract(yard.world, yard.view(), seen);
+        mesh::Targets reference;
+        reference.resize(static_cast<int>(width), static_cast<int>(height));
+        mesh::Pass on_cpu;
+        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}}, reference, {.shadows = false});
+        mesh::Glow shown_on_cpu;
+        shown_on_cpu.show(reference.light, static_cast<int>(width), static_cast<int>(height), {}, reference.colour);
+
+        auto pass = mesh::gpu::Pass::make(*device, false, true);
+        if (!(expect(pass.has_value()) << (pass ? "" : pass.error().message))) return;
+        if (!(expect(pass->load(yard.meshes).has_value()))) return;
+        pass->use(yard.materials);
+        auto glow = mesh::gpu::Glow::make(*device);
+        if (!(expect(glow.has_value()) << (glow ? "" : glow.error().message))) return;
+        std::vector<rhi::Texture> all_made;
+        const auto target = [&](rhi::Format format, std::string_view label) {
+            const auto made = device->create(rhi::TextureDesc{format, width, height, rhi::is_depth(format) ? rhi::TextureUsage::depth_target : rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, label});
+            if (!(expect(made.has_value()) << (made ? "" : made.error().message))) return rhi::Texture{};
+            all_made.push_back(*made);
+            return *made;
+        };
+        const rhi::Texture light = target(rhi::Format::rgba16_float, "mesh.light"), one = target(rhi::Format::rgba16_float, "mesh.glow.one"), other = target(rhi::Format::rgba16_float, "mesh.glow.other"),
+                           colour = target(rhi::Format::rgba8_unorm, "mesh.colour"), depth = target(rhi::Format::d32_float, "mesh.depth");
+        if (std::ranges::any_of(all_made, [](rhi::Texture made) { return !made; })) return;
+        rhi::CommandList list;
+        pass->record(list, yard.world, seen, yard.view(), yard.materials, light, depth, width, height, {.shadows = false});
+        const mesh::gpu::Stats told = pass->last();
+        glow->record(list, light, one, other, colour, width, height, {}, {});
+        const auto submitted = device->submit(list);
+        if (!(expect(submitted.has_value()) << (submitted ? "" : submitted.error().message))) return;
+        expect(device->wait(*submitted).has_value());
+        const auto pixels = device->read(colour, rhi::Region{0, 0, width, height});
+        if (!(expect(pixels.has_value()) << (pixels ? "" : pixels.error().message))) return;
+        keep(*pixels, "yard-glass");
+        std::vector<std::byte> of_reference(reference.colour.size());
+        std::memcpy(of_reference.data(), reference.colour.data(), reference.colour.size());
+        keep(of_reference, "yard-glass-reference");
+        expect(eq(told.glass, 2u) && gt(told.behind_sizes, 8u)) << told.glass << ' ' << told.behind_sizes;
+        // Over all of it, and over the pixels the glass is seen at (the reference's own).
+        const Apart all = apart(reference, *pixels, false, 6);
+        std::size_t glass = 0, glass_off = 0;
+        for (std::size_t pixel = 0; pixel < reference.ids.size(); ++pixel) {
+            const std::uint32_t is = reference.ids[pixel].draw;
+            if (is == mesh::none || reference.draws[is].id < 40) continue;
+            ++glass;
+            for (std::size_t channel = 0; channel < 3; ++channel)
+                if (std::abs(static_cast<int>(reference.colour[pixel * 4 + channel]) - std::to_integer<int>((*pixels)[pixel * 4 + channel])) > 6) {
+                    ++glass_off;
+                    break;
+                }
+        }
+        std::println("light through a pane and a ball of glass: {} of {} pixels further than 6 levels from the reference ({:.2f}%), mean {:.3f}, worst {}; of the {} the glass is seen at, {} ({:.2f}%); {} sizes kept",
+                     all.off, all.compared, 100.0 * static_cast<double>(all.off) / static_cast<double>(all.compared), all.mean, all.worst, glass, glass_off,
+                     100.0 * static_cast<double>(glass_off) / static_cast<double>(std::max<std::size_t>(glass, 1)), told.behind_sizes);
+        expect(gt(glass, std::size_t{4000})) << glass;
+        // Measured: 3 of 129,600 pixels and none of the glass's on an RTX 4080 and on lavapipe; 33 and 21 on SwiftShader (WebGPU, WebGL2).
+        expect(lt(static_cast<double>(all.off), 0.0005 * static_cast<double>(all.compared)));
+        expect(lt(static_cast<double>(glass_off), 0.002 * static_cast<double>(glass)));
+        static_cast<void>(device->wait_idle());
+        for (const rhi::Texture made : all_made) device->destroy(made);
+    });
     // surfaces seen through, on the device: panes of glass before the yard and before one another, one of them thinning across its picture, are the reference's — each pixel's light what the nearest hides of it, then the next of what is left, whatever order they are drawn in; they throw no shadow and are not who stops the eye
     add(suite, "mesh.through", [](Rig& rig) {
         rhi::Device* const device = &rig.device;

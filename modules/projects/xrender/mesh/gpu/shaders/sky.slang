@@ -38,10 +38,12 @@ float3 way_through(VOut point) {
     const float4 there = float4(dot(sky.from_clip[0], through_pixel), dot(sky.from_clip[1], through_pixel), dot(sky.from_clip[2], through_pixel), dot(sky.from_clip[3], through_pixel));
     return normalize(there.xyz / there.w - sky.eye.xyz);
 }
-// What is infinitely far along `toward`, `far`, as it shows through the fog (none: as it is).
-float4 through_fog(float3 toward, float3 far) {
+// What is infinitely far along `toward`, `far`, as it shows through the fog (none: as it is). Where the target
+// holds the light itself its fourth is how much is drawn there (xrender.mesh's `Targets::clear`, one less it):
+// `drawn`, 1 for the picture of the surroundings, 0 for the background.
+float4 through_fog(float3 toward, float3 far, float drawn) {
     if (!(sky.fog.w > 0)) {
-        if (sky.background.w > 0.5) return float4(far, 1);
+        if (sky.background.w > 0.5) return float4(far, drawn);
         return float4(encoded(far.r), encoded(far.g), encoded(far.b), 1);
     }
     const float falloff = sky.fog_shape.y;
@@ -54,12 +56,12 @@ float4 through_fog(float3 toward, float3 far) {
         share = depth > 60 ? 0.0 : exp(-depth);
     }
     const float3 colour = sky.fog.rgb + (far - sky.fog.rgb) * share;
-    if (sky.background.w > 0.5) return float4(colour, 1);  // the target holds the light itself
+    if (sky.background.w > 0.5) return float4(colour, drawn);  // the target holds the light itself
     return float4(encoded(colour.r), encoded(colour.g), encoded(colour.b), 1);
 }
 
 [shader("fragment")]
-float4 sky_fs(VOut point) : SV_Target { return through_fog(way_through(point), sky.background.rgb); }
+float4 sky_fs(VOut point) : SV_Target { return through_fog(way_through(point), sky.background.rgb, 0); }
 
 // Behind everything the picture of the surroundings, as the eye sees it (xrender.mesh's `Environment::behind`):
 // the pass's sheet of squares (mesh.slang's `About`), its first square the picture itself.
@@ -79,5 +81,5 @@ float2 square_of(float3 way) {
 float4 sky_about_fs(VOut point) : SV_Target {
     const float3 toward = way_through(point);
     const float4 square = about.squares[0];
-    return through_fog(toward, about_map.SampleLevel((square.xy + square_of(toward) * square.z) * about.shape.xy, 0).rgb);
+    return through_fog(toward, about_map.SampleLevel((square.xy + square_of(toward) * square.z) * about.shape.xy, 0).rgb, 1);
 }

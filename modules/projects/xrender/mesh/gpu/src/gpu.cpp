@@ -49,8 +49,17 @@ struct SurfaceUniforms {
     Row          own;  // x: the roughness as the material says it; y: the metal
     Row          through;  // x: 1 — a layer of the surfaces seen through is drawn; y: 1 — a layer was laid before; zw: one over the frame's size
     // How each picture is laid over the surface, two rows a picture (the base colour's, the surface's, the normal's,
-    // the glow's, the shade's): across, w 1 by the mesh's second set; down.
-    Row          placing[10]{{1, 0, 0, 0}, {0, 1, 0, 0}, {1, 0, 0, 0}, {0, 1, 0, 0}, {1, 0, 0, 0}, {0, 1, 0, 0}, {1, 0, 0, 0}, {0, 1, 0, 0}, {1, 0, 0, 0}, {0, 1, 0, 0}};
+    // the glow's, the shade's, how much goes through, how thick it is): across, w 1 by the mesh's second set; down.
+    Row          placing[14]{{1, 0, 0, 0}, {0, 1, 0, 0}, {1, 0, 0, 0}, {0, 1, 0, 0}, {1, 0, 0, 0}, {0, 1, 0, 0}, {1, 0, 0, 0}, {0, 1, 0, 0}, {1, 0, 0, 0}, {0, 1, 0, 0},
+                             {1, 0, 0, 0}, {0, 1, 0, 0}, {1, 0, 0, 0}, {0, 1, 0, 0}};
+    // What goes through: transmission, thickness, ior, attenuation distance (0: none); the attenuation; the two
+    // pictures of it.
+    Row          lets, attenuation, clearness_picture, thick_picture;
+    Row          world[3], back[3];  // the mesh to the world, and back
+    Row          to_screen[4];       // the world to the view's clip space, with no jitter
+    Row          behind;             // x: 1 — the sheet of what is whole is bound; y: how many sizes; zw: one over its width and height
+    Row          background;
+    Row          behind_squares[16];
     LampUniforms lamps[most_lamps];
 };
 // What the passes that draw no colour ask of a draw's material (the shaders' `Whole`).
@@ -238,6 +247,22 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
                                                        .blend = rhi::Blend::premultiplied(),
                                                        .label = "xrender.mesh.through.laid"});
     }
+    // The light of what is whole at every size, for the surfaces that let light through.
+    rhi::Result<rhi::GraphicsPipeline> drawn = rhi::GraphicsPipeline{}, halved = rhi::GraphicsPipeline{};
+    if (light) {
+        drawn = device.create(rhi::GraphicsPipelineDesc{.vertex = &shaders::behind::behind_vs,
+                                                        .fragment = &shaders::behind::drawn_fs,
+                                                        .vertex_buffers = layout,
+                                                        .target = rhi::Format::rgba16_float,
+                                                        .blend = rhi::Blend::replace(),
+                                                        .label = "xrender.mesh.behind.drawn"});
+        halved = device.create(rhi::GraphicsPipelineDesc{.vertex = &shaders::behind::behind_vs,
+                                                         .fragment = &shaders::behind::halved_fs,
+                                                         .vertex_buffers = layout,
+                                                         .target = rhi::Format::rgba16_float,
+                                                         .blend = rhi::Blend::replace(),
+                                                         .label = "xrender.mesh.behind.halved"});
+    }
     auto nearest = device.create(rhi::SamplerDesc{rhi::Filter::nearest, rhi::Filter::nearest});
     // A material's picture: between four texels, between two levels, repeating.
     auto pictures = device.create(rhi::SamplerDesc{rhi::Filter::linear, rhi::Filter::linear, rhi::AddressMode::repeat, rhi::AddressMode::repeat, rhi::Filter::linear});
@@ -258,6 +283,8 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
     if (deep) pass.deep_pipeline_ = *deep;
     if (under) pass.under_pipeline_ = *under;
     if (laid) pass.laid_pipeline_ = *laid;
+    if (drawn) pass.behind_.drawn = *drawn;
+    if (halved) pass.behind_.halved = *halved;
     if (nearest) pass.nearest_ = *nearest;
     if (pictures) pass.pictures_ = *pictures;
     if (no_shadow) pass.no_shadow_ = *no_shadow;
@@ -275,6 +302,8 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
     if (!deep) return std::unexpected(deep.error());
     if (!under) return std::unexpected(under.error());
     if (!laid) return std::unexpected(laid.error());
+    if (!drawn) return std::unexpected(drawn.error());
+    if (!halved) return std::unexpected(halved.error());
     if (!nearest) return std::unexpected(nearest.error());
     if (!no_shadow) return std::unexpected(no_shadow.error());
     if (!shares) return std::unexpected(shares.error());
@@ -294,16 +323,22 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
     if (auto waited = device.wait(*submitted); !waited) return std::unexpected(waited.error());
     return pass;
 }
+void Pass::take_behind(Behind& into, Behind& from) noexcept {
+    into.drawn = std::exchange(from.drawn, {}), into.halved = std::exchange(from.halved, {}), into.sheet = std::exchange(from.sheet, {}), into.scratch = std::exchange(from.scratch, {});
+    into.width = std::exchange(from.width, 0u), into.height = std::exchange(from.height, 0u);
+}
 Pass::Pass(Pass&& other) noexcept
     : device_(std::exchange(other.device_, nullptr)), pipeline_(std::exchange(other.pipeline_, {})), ids_pipeline_(std::exchange(other.ids_pipeline_, {})), sky_pipeline_(std::exchange(other.sky_pipeline_, {})), shadow_pipeline_(std::exchange(other.shadow_pipeline_, {})), lamp_shadow_pipeline_(std::exchange(other.lamp_shadow_pipeline_, {})), who_pipeline_(std::exchange(other.who_pipeline_, {})), velocity_pipeline_(std::exchange(other.velocity_pipeline_, {})), velocity_who_pipeline_(std::exchange(other.velocity_who_pipeline_, {})), surface_pipeline_(std::exchange(other.surface_pipeline_, {})), through_pipeline_(std::exchange(other.through_pipeline_, {})), deep_pipeline_(std::exchange(other.deep_pipeline_, {})), under_pipeline_(std::exchange(other.under_pipeline_, {})), laid_pipeline_(std::exchange(other.laid_pipeline_, {})), nearest_(std::exchange(other.nearest_, {})), pictures_(std::exchange(other.pictures_, {})), no_shadow_(std::exchange(other.no_shadow_, {})), cover_(std::exchange(other.cover_, {})), meshes_(std::move(other.meshes_)), textures_(std::move(other.textures_)), materials_(std::move(other.materials_)), about_{other.about_.pipeline, other.about_.through, other.about_.sheet, other.about_.between, other.about_.said}, reversed_(other.reversed_), light_(other.light_), last_(other.last_) {
     other.about_.pipeline = {}, other.about_.through = {}, other.about_.sheet = {}, other.about_.between = {};
     shares_ = std::exchange(other.shares_, {}), share_between_ = std::exchange(other.share_between_, {}), about_sky_ = std::exchange(other.about_sky_, {});
     edged_ = std::exchange(other.edged_, {});
+    take_behind(behind_, other.behind_);
 }
 Pass& Pass::operator=(Pass&& other) noexcept {
     if (this != &other) {
         release();
         device_ = std::exchange(other.device_, nullptr), pipeline_ = std::exchange(other.pipeline_, {}), ids_pipeline_ = std::exchange(other.ids_pipeline_, {}), sky_pipeline_ = std::exchange(other.sky_pipeline_, {}), shadow_pipeline_ = std::exchange(other.shadow_pipeline_, {}), lamp_shadow_pipeline_ = std::exchange(other.lamp_shadow_pipeline_, {}), who_pipeline_ = std::exchange(other.who_pipeline_, {}), velocity_pipeline_ = std::exchange(other.velocity_pipeline_, {}), velocity_who_pipeline_ = std::exchange(other.velocity_who_pipeline_, {}), surface_pipeline_ = std::exchange(other.surface_pipeline_, {}), through_pipeline_ = std::exchange(other.through_pipeline_, {}), deep_pipeline_ = std::exchange(other.deep_pipeline_, {}), under_pipeline_ = std::exchange(other.under_pipeline_, {}), laid_pipeline_ = std::exchange(other.laid_pipeline_, {}), nearest_ = std::exchange(other.nearest_, {}), pictures_ = std::exchange(other.pictures_, {}), no_shadow_ = std::exchange(other.no_shadow_, {}), cover_ = std::exchange(other.cover_, {}), meshes_ = std::move(other.meshes_), textures_ = std::move(other.textures_), materials_ = std::move(other.materials_), about_.pipeline = std::exchange(other.about_.pipeline, {}), about_.through = std::exchange(other.about_.through, {}), about_.sheet = std::exchange(other.about_.sheet, {}), about_.between = std::exchange(other.about_.between, {}), about_.said = other.about_.said, edged_ = std::exchange(other.edged_, {}), about_sky_ = std::exchange(other.about_sky_, {}), shares_ = std::exchange(other.shares_, {}), share_between_ = std::exchange(other.share_between_, {}), reversed_ = other.reversed_, light_ = other.light_, last_ = other.last_;
+        take_behind(behind_, other.behind_);
     }
     return *this;
 }
@@ -347,6 +382,11 @@ void Pass::release() noexcept {
     if (about_.sheet) device_->destroy(about_.sheet);
     if (about_.between) device_->destroy(about_.between);
     about_.pipeline = {}, about_.through = {}, about_.sheet = {}, about_.between = {};
+    if (behind_.drawn) device_->destroy(behind_.drawn);
+    if (behind_.halved) device_->destroy(behind_.halved);
+    if (behind_.sheet) device_->destroy(behind_.sheet);
+    if (behind_.scratch) device_->destroy(behind_.scratch);
+    behind_.drawn = {}, behind_.halved = {}, behind_.sheet = {}, behind_.scratch = {}, behind_.width = 0, behind_.height = 0;
     device_ = nullptr;
 }
 
@@ -547,6 +587,62 @@ const Pass::Sheet* Pass::cover_of(const Material& material, std::uint32_t mesh) 
     return &textures_[material.texture];
 }
 
+std::uint32_t Pass::keep_behind(rhi::CommandList& list, rhi::Texture colour, std::uint32_t width, std::uint32_t height, std::span<std::array<float, 4>, 16> squares) {
+    if (!behind_.drawn || !behind_.halved || width == 0 || height == 0) return 0;
+    // Where each size goes: the finest at the sheet's corner, the others one under another beside it.
+    std::uint32_t sizes = 0, sheet_height = height;
+    for (std::uint32_t wide = width, high = height, below = 0; sizes < squares.size(); ++sizes) {
+        squares[sizes] = sizes == 0 ? std::array<float, 4>{0, 0, static_cast<float>(wide), static_cast<float>(high)}
+                                    : std::array<float, 4>{static_cast<float>(width), static_cast<float>(below), static_cast<float>(wide), static_cast<float>(high)};
+        if (sizes > 0) below += high, sheet_height = std::max(sheet_height, below);
+        if (wide == 1 && high == 1) {
+            ++sizes;
+            break;
+        }
+        wide = std::max(wide / 2, 1u), high = std::max(high / 2, 1u);
+    }
+    const std::uint32_t sheet_width = width + std::max(width / 2, 1u);
+    if (behind_.width != width || behind_.height != height || !behind_.sheet) {
+        static_cast<void>(device_->wait_idle());
+        if (behind_.sheet) device_->destroy(behind_.sheet);
+        if (behind_.scratch) device_->destroy(behind_.scratch);
+        behind_.sheet = {}, behind_.scratch = {}, behind_.width = 0, behind_.height = 0;
+        auto sheet = device_->create(rhi::TextureDesc{rhi::Format::rgba16_float, sheet_width, sheet_height, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "xrender.mesh.behind"});
+        auto scratch = device_->create(rhi::TextureDesc{rhi::Format::rgba16_float, width, height, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "xrender.mesh.behind.scratch"});
+        if (sheet) behind_.sheet = *sheet;
+        if (scratch) behind_.scratch = *scratch;
+        if (!sheet || !scratch) return 0;
+        behind_.width = width, behind_.height = height;
+    }
+    struct HalvedUniforms {
+        Row from, size;
+    };
+    const auto one_over = [](std::uint32_t wide, std::uint32_t high) { return Row{0, 0, 1.0f / static_cast<float>(wide), 1.0f / static_cast<float>(high)}; };
+    const auto cover = [&](rhi::GraphicsPipeline pipeline, rhi::Texture onto, rhi::LoadOp load, std::uint32_t wide, std::uint32_t high, rhi::Texture from, const HalvedUniforms& said) {
+        list.begin_render({onto, load, {0, 0, 0, 0}});
+        list.set_viewport(0, 0, static_cast<float>(wide), static_cast<float>(high));
+        list.set_scissor(rhi::Region{0, 0, wide, high});
+        list.set_pipeline(pipeline);
+        list.push_uniforms(rhi::Stage::fragment, 0, said);
+        list.bind_texture(rhi::Stage::fragment, 0, from, nearest_);
+        list.bind_vertex_buffer(0, cover_);
+        list.draw(3);
+        list.end_render();
+    };
+    // The frame's light, then times how much is drawn onto the sheet's corner; each next size from the one before.
+    list.copy(colour, rhi::Region{0, 0, width, height}, behind_.scratch);
+    cover(behind_.drawn, behind_.sheet, rhi::LoadOp::clear, width, height, behind_.scratch, HalvedUniforms{{}, one_over(width, height)});
+    for (std::uint32_t size = 1; size < sizes; ++size) {
+        const std::array<float, 4>& finer = squares[size - 1];
+        const std::array<float, 4>& here = squares[size];
+        const auto whole = [](float value) { return static_cast<std::uint32_t>(value); };
+        cover(behind_.halved, behind_.scratch, rhi::LoadOp::clear, whole(here[2]), whole(here[3]), behind_.sheet,
+              HalvedUniforms{{finer[0], finer[1], finer[2], finer[3]}, one_over(sheet_width, sheet_height)});
+        list.copy(behind_.scratch, rhi::Region{0, 0, whole(here[2]), whole(here[3])}, behind_.sheet, whole(here[0]), whole(here[1]));
+    }
+    return sizes;
+}
+
 void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, std::span<const Material> materials, rhi::Texture colour,
                   rhi::Texture depth, std::uint32_t width, std::uint32_t height, const Options& options, const Shadows* shadows, const Layers* layers) {
     last_ = {};
@@ -703,8 +799,15 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
         const float held = std::clamp(linear, 0.0f, 1.0f);
         return held <= 0.0031308f ? held * 12.92f : 1.055f * static_cast<float>(math::det::pow(static_cast<double>(held), 1.0 / 2.4)) - 0.055f;
     };
-    list.begin_render({colour, rhi::LoadOp::clear, {shown(options.background.x), shown(options.background.y), shown(options.background.z), 1.0f}},
-                      {depth, rhi::LoadOp::clear, reversed_ ? 0.0f : 1.0f});
+    // Surfaces that let light through are drawn after what is whole, reading its light at every size (the
+    // reference's second stage) — where the target holds the light itself; else as what lets nothing through.
+    const auto lets_through = [&](const scene::Draw& draw) { return light_ && behind_.drawn && materials[draw.material].transmission > 0 && materials[draw.material].metallic < 1; };
+    const auto there = [&](const scene::Draw& draw) { return draw.instance < instances.size() && draw.mesh < meshes_.size() && meshes_[draw.mesh].corners && draw.material < materials.size(); };
+    const bool glass = std::ranges::any_of(extracted.draws, [&](const scene::Draw& draw) { return there(draw) && lets_through(draw); });
+    // Where the target holds the light itself its fourth is how much is drawn at a pixel (the reference's
+    // `Targets::clear`, one less it): nothing yet. The depth is kept where the glass is drawn after.
+    list.begin_render({colour, rhi::LoadOp::clear, {shown(options.background.x), shown(options.background.y), shown(options.background.z), light_ ? 0.0f : 1.0f}},
+                      {.texture = depth, .load = rhi::LoadOp::clear, .clear_depth = reversed_ ? 0.0f : 1.0f, .store = glass});
     list.set_viewport(0, 0, static_cast<float>(width), static_cast<float>(height));
     // Lit by the surroundings' picture: the options name one and one is loaded.
     const bool pictured = options.environment.on && options.environment.picture && about_.sheet && about_.pipeline;
@@ -726,7 +829,7 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
     }
     last_.about = pictured ? 1 : 0;
     list.set_pipeline(pictured ? about_.pipeline : pipeline_);
-    if (pictured) list.bind_texture(rhi::Stage::fragment, 11, about_.sheet, about_.between), list.push_uniforms(rhi::Stage::fragment, 1, about_.said);
+    if (pictured) list.bind_texture(rhi::Stage::fragment, 14, about_.sheet, about_.between), list.push_uniforms(rhi::Stage::fragment, 1, about_.said);
     list.bind_texture(rhi::Stage::fragment, 10, shares_, share_between_);
     list.bind_texture(rhi::Stage::fragment, 0, map, nearest_);
     list.bind_texture(rhi::Stage::fragment, 1, lamp_map, nearest_);
@@ -735,9 +838,11 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
     if (opened) surface.open = {1, 0, 1.0f / static_cast<float>(width), 1.0f / static_cast<float>(height)};
     list.bind_texture(rhi::Stage::fragment, 8, no_shadow_, nearest_);
     list.bind_texture(rhi::Stage::fragment, 9, no_shadow_, nearest_);
+    list.bind_texture(rhi::Stage::fragment, 11, no_shadow_, nearest_);
+    surface.background = of(options.background);
+    for (int row = 0; row < 4; ++row) surface.to_screen[row] = row_of(clip, row);
     // What the frame's view holds, aside by its jitter as the corners are drawn.
     const mlibs::geom::Frustum frustum = mlibs::geom::Frustum::of(aside_of(options.jitter, width, height) * clip);
-    const auto there = [&](const scene::Draw& draw) { return draw.instance < instances.size() && draw.mesh < meshes_.size() && meshes_[draw.mesh].corners && draw.material < materials.size(); };
     // The surfaces seen through are laid over the frame afterwards, where the caller gave the layers' textures
     // and the target holds the light itself; else they are drawn here, whole.
     const bool layered = layers && light_ && through_pipeline_ && layers->count > 0 && layers->behind && layers->deep[0] && layers->deep[1] && layers->depth && layers->layer && layers->gathered;
@@ -770,6 +875,16 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
         const std::array<const Placing*, 5> laid{&material.placing.base, &material.placing.surface, &material.placing.normal, &material.placing.glow, &material.placing.shade};
         for (std::size_t which = 0; which < laid.size(); ++which) surface.placing[which * 2] = across_of(*laid[which]), surface.placing[which * 2 + 1] = down_of(*laid[which]);
         surface.cut = {cut_of(reversed_), material.cutout, material.opacity, material.two_sided ? 1.0f : 0.0f};
+        // What goes through it, and its pictures of that.
+        const std::array<const Sheet*, 2> clearness{sheet_of(material.clearness, material.placing.clearness), sheet_of(material.thick, material.placing.thick)};
+        const bool infinite = !(material.attenuation_distance < std::numeric_limits<float>::infinity());
+        // (Where the target does not hold the light itself nothing is read behind: the surface lets nothing through.)
+        surface.lets = {light_ && behind_.drawn ? std::clamp(material.transmission, 0.0f, 1.0f) : 0.0f, std::max(material.thickness, 0.0f), material.ior, infinite ? 0.0f : material.attenuation_distance};
+        surface.attenuation = of(material.attenuation);
+        surface.clearness_picture = said(clearness[0], 0), surface.thick_picture = said(clearness[1], 0);
+        surface.placing[10] = across_of(material.placing.clearness), surface.placing[11] = down_of(material.placing.clearness);
+        surface.placing[12] = across_of(material.placing.thick), surface.placing[13] = down_of(material.placing.thick);
+        for (int row = 0; row < 3; ++row) surface.world[row] = row_of(instance.world, row), surface.back[row] = row_of(back ? *back : instance.world, row);
         // Its clusters that may show: one outside the view or wholly facing away is left out (as the reference
         // leaves it out), and those that follow one another in the corners are one draw call.
         const Loaded& loaded = meshes_[draw.mesh];
@@ -778,7 +893,10 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
         if (runs_.empty()) return;  // nothing of it may show: no draw, nothing bound
         list.bind_texture(rhi::Stage::fragment, 2, sheet ? sheet->texture : no_shadow_, sheet ? sheet->through : nearest_);
         for (std::uint32_t slot = 0; slot < more.size(); ++slot) list.bind_texture(rhi::Stage::fragment, 4 + slot, more[slot] ? more[slot]->texture : no_shadow_, more[slot] ? more[slot]->through : nearest_);
-        if (counted && (sheet || more[0] || more[1] || more[2] || more[3])) ++last_.textured;
+        for (std::uint32_t slot = 0; slot < clearness.size(); ++slot)
+            list.bind_texture(rhi::Stage::fragment, 12 + slot, clearness[slot] ? clearness[slot]->texture : no_shadow_, clearness[slot] ? clearness[slot]->through : nearest_);
+        if (counted && (sheet || more[0] || more[1] || more[2] || more[3] || clearness[0] || clearness[1])) ++last_.textured;
+        if (counted && material.transmission > 0) ++last_.glass;
         list.push_uniforms(rhi::Stage::vertex, 0, uniforms);
         list.push_uniforms(rhi::Stage::fragment, 0, surface);
         list.bind_vertex_buffer(0, loaded.corners);
@@ -797,10 +915,40 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
             ++last_.through;
             if (layered) continue;
             ++last_.through_whole;
+        } else if (lets_through(draw)) {
+            continue;
         }
         put(draw, true);
     }
     list.end_render();
+    // The light of what is whole at every size, then what lets light through over it.
+    rhi::Texture behind_sheet = no_shadow_;
+    if (glass) {
+        std::array<std::array<float, 4>, 16> squares{};
+        last_.behind_sizes = keep_behind(list, colour, width, height, squares);
+        if (last_.behind_sizes > 0) {
+            behind_sheet = behind_.sheet;
+            const std::uint32_t sheet_width = width + std::max(width / 2, 1u);
+            std::uint32_t sheet_height = height;
+            for (std::uint32_t size = 1; size < last_.behind_sizes; ++size) sheet_height = std::max(sheet_height, static_cast<std::uint32_t>(squares[size][1] + squares[size][3]));
+            surface.behind = {1, static_cast<float>(last_.behind_sizes), 1.0f / static_cast<float>(sheet_width), 1.0f / static_cast<float>(sheet_height)};
+            for (std::size_t size = 0; size < squares.size(); ++size) surface.behind_squares[size] = {squares[size][0], squares[size][1], squares[size][2], squares[size][3]};
+        }
+        list.begin_render({colour, rhi::LoadOp::load}, {.texture = depth, .load = rhi::LoadOp::load});
+        list.set_viewport(0, 0, static_cast<float>(width), static_cast<float>(height));
+        list.set_pipeline(pictured ? about_.pipeline : pipeline_);
+        if (pictured) list.bind_texture(rhi::Stage::fragment, 14, about_.sheet, about_.between), list.push_uniforms(rhi::Stage::fragment, 1, about_.said);
+        list.bind_texture(rhi::Stage::fragment, 10, shares_, share_between_);
+        list.bind_texture(rhi::Stage::fragment, 0, map, nearest_);
+        list.bind_texture(rhi::Stage::fragment, 1, lamp_map, nearest_);
+        list.bind_texture(rhi::Stage::fragment, 3, opened ? shadows->open : no_shadow_, nearest_);
+        list.bind_texture(rhi::Stage::fragment, 8, no_shadow_, nearest_);
+        list.bind_texture(rhi::Stage::fragment, 9, no_shadow_, nearest_);
+        list.bind_texture(rhi::Stage::fragment, 11, behind_sheet, share_between_);
+        for (const scene::Draw& draw : extracted.draws)
+            if (there(draw) && !materials[draw.material].see_through && lets_through(draw)) put(draw, true);
+        list.end_render();
+    }
     if (!layered || last_.through == 0) return;
 
     // How deep what stops the eye is, as a picture the layers read: the same corners through the same view, the
@@ -857,13 +1005,14 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
         list.begin_render({layers->layer, rhi::LoadOp::clear, {0, 0, 0, 0}}, {layers->depth, rhi::LoadOp::clear, far}, and_deep);
         list.set_viewport(0, 0, static_cast<float>(width), static_cast<float>(height));
         list.set_pipeline(pictured && about_.through ? about_.through : through_pipeline_);
-        if (pictured && about_.through) list.bind_texture(rhi::Stage::fragment, 11, about_.sheet, about_.between), list.push_uniforms(rhi::Stage::fragment, 1, about_.said);
+        if (pictured && about_.through) list.bind_texture(rhi::Stage::fragment, 14, about_.sheet, about_.between), list.push_uniforms(rhi::Stage::fragment, 1, about_.said);
         list.bind_texture(rhi::Stage::fragment, 10, shares_, share_between_);
         list.bind_texture(rhi::Stage::fragment, 0, map, nearest_);
         list.bind_texture(rhi::Stage::fragment, 1, lamp_map, nearest_);
         list.bind_texture(rhi::Stage::fragment, 3, opened ? shadows->open : no_shadow_, nearest_);
         list.bind_texture(rhi::Stage::fragment, 8, layers->behind, nearest_);
         list.bind_texture(rhi::Stage::fragment, 9, layer > 0 ? layers->deep[(layer + 1) % 2] : no_shadow_, nearest_);
+        list.bind_texture(rhi::Stage::fragment, 11, behind_sheet, share_between_);
         surface.through = {1, layer > 0 ? 1.0f : 0.0f, laid.size.z, laid.size.w};
         for (const scene::Draw& draw : extracted.draws)
             if (there(draw) && materials[draw.material].see_through) put(draw, layer == 0);

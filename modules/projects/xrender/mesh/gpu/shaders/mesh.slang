@@ -73,10 +73,23 @@ struct Surface {
                              // z: over 0.5 — no light changes the surface (xrender.mesh's `Material::unlit`)
     float4 through;          // x: over 0.5 — a layer of the surfaces seen through is drawn; y: a layer was laid before this one;
                              // zw: one over the frame's width and height
-    float4 placing[10];      // how each of the surface's pictures is laid over it (xrender.mesh's `Placings`): two rows a
-                             // picture — the base colour's, the surface's, the normal's, the glow's, the shade's —
+    float4 placing[14];      // how each of the surface's pictures is laid over it (xrender.mesh's `Placings`): two rows a
+                             // picture — the base colour's, the surface's, the normal's, the glow's, the shade's, how much
+                             // goes through it, how thick it is —
                              // the place across it and down it, each of (u, v, 1) of a set; the first's w: 1 the
                              // second set (xrender.mesh's `Placing::set`)
+    // What goes through the surface (xrender.mesh's `Material::transmission`, `thickness`, `ior`,
+    // `attenuation_distance` — 0 for none — and `attenuation`), and its pictures (red; green).
+    float4 lets;
+    float4 attenuation;
+    float4 clearness_picture;
+    float4 thick_picture;
+    float4 world[3];      // rows: the mesh to the world
+    float4 back[3];       // rows: the world to the mesh
+    float4 to_screen[4];  // rows: the world to the view's clip space, with no jitter
+    float4 behind;              // x: over 0.5 — the light of what is whole is on the sheet; y: how many sizes; zw: one over its width and height
+    float4 background;          // what is behind everything where nothing is drawn (xrender.mesh's `Options::background`)
+    float4 behind_squares[16];  // a size each: xy where its first texel is, zw its width and height
     Lamp   lamps[8];
 };
 [[vk::binding(0, 2)]] Sampler2D shadow_map : register(t0, space2) : register(s0, space2);
@@ -92,10 +105,15 @@ struct Surface {
 // How much of an even light a surface mirrors at the first of its small faces (xrender.mesh's `share_table`: 32 × 32,
 // across by how it is looked at, down by its roughness; red times what it mirrors head on, green added).
 [[vk::binding(10, 2)]] Sampler2D share_map : register(t10, space2) : register(s10, space2);
+// The light of what is whole, at every size, one square a size on one sheet — each texel times how much is drawn
+// there, and that in its fourth (xrender.mesh's `Texture::of_light`); and the pictures of what goes through.
+[[vk::binding(11, 2)]] Sampler2D light_behind_map : register(t11, space2) : register(s11, space2);
+[[vk::binding(12, 2)]] Sampler2D clearness_map : register(t12, space2) : register(s12, space2);
+[[vk::binding(13, 2)]] Sampler2D thick_map : register(t13, space2) : register(s13, space2);
 [[vk::binding(0, 3)]] ConstantBuffer<Surface> surface : register(b0, space3);
 
 // Which picture a placing is of: its two rows in `placing`.
-static const int base_laid = 0, surface_laid = 2, normal_laid = 4, glow_laid = 6, shade_laid = 8;
+static const int base_laid = 0, surface_laid = 2, normal_laid = 4, glow_laid = 6, shade_laid = 8, clearness_laid = 10, thick_laid = 12;
 // Of the mesh's two sets of texture coordinates (or of their differences), the one the picture is laid by.
 float2 set_of(float4 both, int laid) { return surface.placing[laid].w > 0.5 ? both.zw : both.xy; }
 // The picture's place, as its placing lays it (xrender.mesh's `Placing::of`).
@@ -115,7 +133,7 @@ struct About {
     float4 shape;        // xy: one over the sheet's width and height; z: the last roughness's number
     float4 squares[18];  // xy: where a square's first texel is; z: how far across it is — 0 … 15 the roughnesses, 16 what falls on a matt surface, 17 the shares
 };
-[[vk::binding(11, 2)]] Sampler2D about_map : register(t11, space2) : register(s11, space2);
+[[vk::binding(14, 2)]] Sampler2D about_map : register(t14, space2) : register(s14, space2);
 [[vk::binding(1, 3)]] ConstantBuffer<About> about : register(b1, space3);
 
 // The surface at this pixel: the material's own, times its pictures where it has them.
@@ -123,6 +141,9 @@ static float3 base_colour;
 static float3 given_off;
 static float  rough_here;
 static float  metal_here;
+static float  lets_here;   // how much goes through
+static float  thick_here;  // how thick it is
+static float  rough_said;  // the roughness as the material and its picture say it, not held to 0.04
 
 // A texture's light at `uv` for a pixel that covers `footprint` texels of its finest size (xrender.mesh's
 // `Texture::at`): the size whose texels are about a pixel across mixed with the next — its sizes are the
@@ -208,7 +229,7 @@ float3 kept(float seen) {
 // What the surface sends toward the eye of light arriving along `toward_light` (xrender.mesh's `reflected`).
 float3 reflected(float3 normal, float3 toward_eye, float3 toward_light, float facing) {
     const float rough = rough_here, metal = metal_here;
-    const float3 matt = base_colour * ((1.0 - metal) * facing);
+    const float3 matt = base_colour * ((1.0 - metal) * (1.0 - lets_here) * facing);
     const float seen = dot(normal, toward_eye);
     if (!(seen > 0)) return matt;
     const float3 halfway = normalize(toward_eye + toward_light);
@@ -255,12 +276,12 @@ interface IAbout {
 }
 struct Plain : IAbout {
     static float3 falling(float3 normal) { return surface.ambient.rgb; }
-    static float3 takes(float metal) { return base_colour * (1.0 - metal) + (float3(0.04, 0.04, 0.04) * (1.0 - metal) + base_colour * metal); }
+    static float3 takes(float metal) { return base_colour * ((1.0 - metal) * (1.0 - lets_here)) + (float3(0.04, 0.04, 0.04) * (1.0 - metal) + base_colour * metal); }
     static float3 mirrors(float3 normal, float3 toward_eye, float shaded) { return surface.above.w > 0.5 ? mirrored(normal, toward_eye) : float3(0, 0, 0); }
 }
 struct Pictured : IAbout {
     static float3 falling(float3 normal) { return about_at(about.squares[16], square_of(normal)); }
-    static float3 takes(float metal) { return base_colour * (1.0 - metal); }
+    static float3 takes(float metal) { return base_colour * ((1.0 - metal) * (1.0 - lets_here)); }
     // The picture blurred by the roughness — between the two roughnesses kept about it — times the surface's share
     // of an even light (xrender.mesh's `mirrored`, with a picture), and by the surface's shade as what falls on it is.
     static float3 mirrors(float3 normal, float3 toward_eye, float shaded) {
@@ -284,16 +305,72 @@ float encoded(float linear) {
     return held <= 0.0031308 ? held * 12.92 : 1.055 * pow(held, 1.0 / 2.4) - 0.055;
 }
 
+// The light of what is whole at size `size` at `uv` (0 … 1 across the frame), between four texels of its square,
+// held inside it (its edges stop): light times how much is drawn, and that.
+float4 behind_size(int size, float2 uv) {
+    const float4 square = surface.behind_squares[size];
+    const float2 texel = clamp(uv * square.zw, float2(0.5, 0.5), square.zw - 0.5);
+    return light_behind_map.SampleLevel((square.xy + texel) * surface.behind.zw, 0);
+}
+// At a footprint (xrender.mesh's `Texture::seen_at`): the size whose texels are about that many across mixed with
+// the next.
+float4 behind_at(float2 uv, float footprint) {
+    const int sizes = int(surface.behind.y);
+    int size = 0;
+    float covers = max(footprint, 1.0);
+    while (covers >= 2 && size + 1 < sizes) {
+        covers *= 0.5;
+        ++size;
+    }
+    const float toward_next = size + 1 < sizes ? covers - 1.0 : 0.0;
+    const float4 here = behind_size(size, uv);
+    return toward_next > 0 ? here + (behind_size(size + 1, uv) - here) * toward_next : here;
+}
+float through_inside(float colour, float times) { return colour >= 1 ? 1.0 : colour <= 0 ? 0.0 : pow(colour, times); }
+// The light that comes through the surface at `place` from what is whole behind it, and how much of the
+// background shows through it (xrender.mesh's `transmitted`): read where the eye's ray, bent into the surface and
+// gone its thickness, leaves it, blurred as rough as it is, through its colour and its inside.
+float4 transmitted(float3 normal, float3 place) {
+    const float share = lets_here * (1.0 - metal_here);
+    if (!(surface.behind.x > 0.5) || !(share > 0)) return float4(0, 0, 0, 0);
+    float3 leaves = place;
+    float3 through = float3(1, 1, 1);
+    if (thick_here > 0) {
+        const float3 into = normalize(place - surface.eye.xyz);
+        const float bends = 1.0 / max(surface.lets.z, 1e-3), facing = -dot(normal, into);
+        const float under = 1.0 - bends * bends * (1.0 - facing * facing);
+        const float3 way = under < 0 ? into : into * bends + normal * (bends * facing - sqrt(under));
+        const float3 own_way = normalize(float3(dot(surface.back[0].xyz, way), dot(surface.back[1].xyz, way), dot(surface.back[2].xyz, way)));
+        const float3 in_mesh = own_way * thick_here;
+        const float3 gone = float3(dot(surface.world[0].xyz, in_mesh), dot(surface.world[1].xyz, in_mesh), dot(surface.world[2].xyz, in_mesh));
+        leaves = place + gone;
+        const float length_gone = length(gone);
+        if (surface.lets.w > 0 && length_gone > 0) {
+            const float times = length_gone / surface.lets.w;
+            through = float3(through_inside(surface.attenuation.r, times), through_inside(surface.attenuation.g, times), through_inside(surface.attenuation.b, times));
+        }
+    }
+    float4 at = float4(dot(surface.to_screen[0], float4(leaves, 1)), dot(surface.to_screen[1], float4(leaves, 1)), dot(surface.to_screen[2], float4(leaves, 1)), dot(surface.to_screen[3], float4(leaves, 1)));
+    if (!(at.w > 0)) at = float4(dot(surface.to_screen[0], float4(place, 1)), dot(surface.to_screen[1], float4(place, 1)), dot(surface.to_screen[2], float4(place, 1)), dot(surface.to_screen[3], float4(place, 1)));
+    const float2 there = float2(at.x / at.w * 0.5 + 0.5, 0.5 - at.y / at.w * 0.5);
+    const float rough = clamp(rough_said, 0.0, 1.0) * clamp(surface.lets.z * 2.0 - 2.0, 0.0, 1.0);
+    const float4 square = surface.behind_squares[0];
+    const float4 seen = behind_at(there, pow(max(square.z, square.w), rough));
+    const float3 tint = base_colour * through;
+    return float4(tint * seen.rgb * share, share * (1.0 - seen.a) * (tint.r + tint.g + tint.b) / 3.0);
+}
+
 // The surface's light at a pixel, and how much it hides of what is behind it; `gone`: nothing of it is drawn there
 // (turned away, beyond the view, cut out).
 struct Lit {
     float3 light;
     float  hides;
     bool   gone;
+    float  clear;  // how much of the background shows through it
 };
 Lit lit_at<A : IAbout>(VOut point) {
     Lit lit;
-    lit.light = float3(0, 0, 0), lit.hides = 0, lit.gone = true;
+    lit.light = float3(0, 0, 0), lit.hides = 0, lit.gone = true, lit.clear = 0;
     // How far the surface's place in its pictures moves from this pixel to the next across and to the next below:
     // how many texels a pixel covers. And how far the surface itself goes. Both taken here, before anything turns
     // on what a pixel is: a difference between pixels is one only where every pixel takes the same way through
@@ -311,7 +388,8 @@ Lit lit_at<A : IAbout>(VOut point) {
     // Beyond the view: the far cut, taken at the pixel (the device's own far plane lies further off).
     if ((point.clip.z - 0.5) * surface.cut.x > 0) return lit;
     base_colour = surface.base.rgb * point.colour.rgb, given_off = surface.emissive.rgb;
-    rough_here = surface.shine.x, metal_here = surface.shine.y;
+    rough_here = surface.shine.x, metal_here = surface.shine.y, rough_said = surface.own.x;
+    lets_here = surface.lets.x, thick_here = surface.lets.y;
     bool matt = surface.shine.z > 0.5;
     float shaded = 1.0;
     float hides = surface.cut.z * point.colour.a;
@@ -327,9 +405,14 @@ Lit lit_at<A : IAbout>(VOut point) {
         // picture's share is taken of what the material says, then held the same way (xrender.mesh's `reflected`).
         const float3 said = picture_over(surface_map, surface.surface_picture, placed(point.uv, surface_laid), moved_by(right_both, surface_laid), moved_by(down_both, surface_laid)).rgb;
         const float rough = surface.own.x * said.g, metal = surface.own.y * said.b;
+        rough_said = rough;
         matt = rough >= 1 && metal <= 0;
         rough_here = clamp(rough, 0.04, 1.0), metal_here = clamp(metal, 0.0, 1.0);
     }
+    if (surface.clearness_picture.z > 0.5)
+        lets_here *= picture_over(clearness_map, surface.clearness_picture, placed(point.uv, clearness_laid), moved_by(right_both, clearness_laid), moved_by(down_both, clearness_laid)).r;
+    if (surface.thick_picture.z > 0.5)
+        thick_here *= picture_over(thick_map, surface.thick_picture, placed(point.uv, thick_laid), moved_by(right_both, thick_laid), moved_by(down_both, thick_laid)).g;
     if (surface.glow_picture.z > 0.5) given_off *= picture_over(glow_map, surface.glow_picture, placed(point.uv, glow_laid), moved_by(right_both, glow_laid), moved_by(down_both, glow_laid)).rgb;
     if (surface.shade_picture.z > 0.5)
         shaded = 1.0 + surface.shade_picture.w * (picture_over(shade_map, surface.shade_picture, placed(point.uv, shade_laid), moved_by(right_both, shade_laid), moved_by(down_both, shade_laid)).r - 1.0);
@@ -392,11 +475,16 @@ Lit lit_at<A : IAbout>(VOut point) {
         if (matt) light += arriving * facing;
         else sent += reflected(normal, toward_eye, along, facing) * arriving;
     }
-    float3 colour = base_colour * light + given_off;
+    float3 colour = base_colour * (1.0 - lets_here) * light + given_off;
     if (!matt) {
         colour = A::takes(metal_here) * everywhere_in + given_off + sent + A::mirrors(normal, toward_eye, shaded);
     }
     if (surface.own.z > 0.5) colour = base_colour + given_off;
+    else {
+        const float4 came = transmitted(normal, point.place);
+        colour += came.rgb + surface.background.rgb * came.a;
+        lit.clear = came.a;
+    }
     if (surface.fog.w > 0) {
         const float apart = length(to_eye);
         const float share = apart > 0 ? through(-to_eye / apart, apart) : 1.0;
@@ -432,7 +520,7 @@ Layer shown<A : IAbout>(VOut point) {
     }
     if (lit.gone) discard;
     // The light itself where the target holds it (what `Glow` takes); else through the display's curve.
-    if (surface.shine.w > 0.5) made.light = float4(lit.light, 1);
+    if (surface.shine.w > 0.5) made.light = float4(lit.light, 1.0 - lit.clear);
     else made.light = float4(encoded(lit.light.r), encoded(lit.light.g), encoded(lit.light.b), 1);
     return made;
 }

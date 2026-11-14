@@ -53,6 +53,7 @@
 "mcpplibs.mwrap.accesskit" = ["Apache-2.0"]
 "mcpplibs.mwrap.md4c" = ["Apache-2.0"]
 "mcpplibs.mwrap.manifold" = ["Apache-2.0"]  # the wrap; it vendors and links Manifold, Apache-2.0 (its linalg.h from a public-domain library)
+"mcpplibs.mwrap.jolt" = ["Apache-2.0"]  # the wrap; it vendors and links Jolt Physics, MIT
 "mcpplibs.mwrap.basis_universal" = ["Apache-2.0"]  # the wrap; it vendors and links Basis Universal's transcoder, Apache-2.0 (the Zstandard decoder beside it BSD-3-Clause)
 "mcpplibs.mwrap.libjpeg_turbo" = ["Apache-2.0"]  # the wrap; it vendors and links libjpeg-turbo (IJG and BSD-3-Clause; its libspng BSD-2-Clause)
 "mcpplibs.mwrap.meshoptimizer" = ["Apache-2.0"]  # the wrap; it vendors and links meshoptimizer, MIT

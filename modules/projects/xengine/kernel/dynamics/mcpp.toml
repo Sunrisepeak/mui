@@ -41,6 +41,13 @@ matter = { sources = ["src/matter/*.cppm", "src/matter/*.cpp"] }
 # under this package's contract — fixed steps, ids that survive a restore and a branch, the state as bytes.
 # A feature: a consumer that does not take it links no Box2D.
 rigid = { sources = ["src/rigid/*.cppm", "src/rigid/native/*.cpp"] }
+# The 3D rigid family (src/rigid3/, module xengine.dynamics.rigid3; M6.4, D-170, D-176): Jolt Physics through
+# mwrap, under the same contract as the 2D family — fixed steps, contacts as a step's output, rays and shapes
+# asked, ids that survive a restore and a branch, the state as bytes. A feature: a consumer that does not take
+# it links no Jolt.
+rigid3 = { sources = ["src/rigid3/*.cppm", "src/rigid3/native/*.cpp"] }
+# A 3D rigid world as an agent's subject (src/rigid3/agent/, module xengine.dynamics.rigid3.agent; D-174).
+rigid3-agent = { implies = ["rigid3", "agent"], sources = ["src/rigid3/agent/*.cppm", "src/rigid3/agent/*.cpp"] }
 
 [feature-deps.agent]
 mlibs.simulation = { path = "../../../../base/simulation" }
@@ -57,6 +64,12 @@ xengine.matter = { path = "../matter", default-features = false }
 mcpplibs.mwrap.box2d = "3.2.0"
 # The vector type (mlibs.math's: one definition for the family, the particles and what couples them).
 mlibs.math = { path = "../../../../base/math" }
+
+[feature-deps.rigid3]
+mcpplibs.mwrap.jolt = "5.6.0"
+mlibs.math = { path = "../../../../base/math" }
+# What a body is made of: a material's mechanical columns (material_of), the matter kernel alone.
+xengine.matter = { path = "../matter", default-features = false }
 
 [dev-dependencies]
 mcpplibs.mtest   = "0.8.4"

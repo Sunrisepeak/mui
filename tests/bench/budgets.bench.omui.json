@@ -259,6 +259,8 @@
     {"name": "public-motion/shape-sample-500", "metric": "max_allocations", "max": 0,
      "why": "the public prepared shape sampling contract: after setup, 500 objects times 32 cubics write caller-owned buffers with no heap allocation; the exact official release workload was measured at zero"},
     {"name": "public-motion/paint-sample-record-500", "metric": "max_allocations", "max": 0,
-     "why": "the public prepared material sampling/recording contract: 500 sixteen-leaf sample calls plus 500 arena record calls reuse warmed caller storage with no heap allocation; the exact official release workload was measured at zero"}
+     "why": "the public prepared material sampling/recording contract: 500 sixteen-leaf sample calls plus 500 arena record calls reuse warmed caller storage with no heap allocation; the exact official release workload was measured at zero"},
+    {"name": "simulation/rigid3-tower-512", "metric": "overhead_percent", "max": 10,
+     "why": "M6.4, D-176: the 3D rigid family is Jolt 5.6 under our contract, so its speed is Jolt's — the same 514 bodies (a block of 8 × 8 × 8 boxes struck by a ball) stepped 240 times on a World and on Jolt called directly, in the same run and taking turns, every body at the same place in both: 1.3% over on one thread locally (310 ms against 306, 1.29 ms a step), 1.8% with 4 workers (154 ms against 151); the limit leaves room for a shared runner's noise"}
   ]
 }

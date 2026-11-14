@@ -7,6 +7,7 @@ import xengine.cellular;
 import xengine.cellular.present;
 import xengine.dynamics;
 import xengine.dynamics.rigid;
+import xengine.dynamics.rigid3;
 import xengine.matter.json;
 import xengine.cellular.matter;
 import xengine.cellular.matter.agent;
@@ -420,6 +421,72 @@ void add_simulation_benchmarks() {
                 pieces.push_back({{.at = {x, y}, .angle = static_cast<float>(index % 7) * 0.2f}, index % 3 ? solid::Shape::box(0.4f, 0.4f) : solid::Shape::circle(0.45f), {}});
             }
             beside(s, pieces, 240);
+        });
+    // M6.4: the 3D rigid family beside the solver it wraps — the same bodies on a rigid3 World and on Jolt called
+    // directly, taking turns from the same start, as the 2D rows do; every body at the same place in both.
+    namespace solid3 = xengine::dynamics::rigid3;
+    add("simulation/rigid3-tower-512", "a block of 8 × 8 × 8 boxes on a floor struck by a heavy ball, 240 steps from the moment it is built — xengine.dynamics.rigid3's World beside Jolt called directly on the same bodies",
+        [](State& s) {
+            using clock = std::chrono::steady_clock;
+            std::vector<solid3::Piece> pieces{{{.kind = solid3::Kind::fixed, .at = {0, -0.5f, 0}}, solid3::Shape::box({40, 0.5f, 40}), {}}};
+            for (int level = 0; level < 8; ++level)
+                for (int row = 0; row < 8; ++row)
+                    for (int column = 0; column < 8; ++column)
+                        pieces.push_back({{.at = {static_cast<float>(column) * 1.02f - 3.57f, 0.5f + static_cast<float>(level) * 1.01f, static_cast<float>(row) * 1.02f - 3.57f}},
+                                          solid3::Shape::box({0.5f, 0.5f, 0.5f}), {.density = 600}});
+            pieces.push_back({{.at = {-16, 3, 0}, .velocity = {30, 2, 0}, .bullet = true}, solid3::Shape::sphere(1), {.density = 7800}});
+            constexpr int steps = 240;
+            std::vector<double> ours, direct;
+            std::size_t rounds = 0;
+            bool same = true;
+            s.items(static_cast<std::uint64_t>(steps));
+            while (s.next()) {
+                s.pause();
+                auto world = solid3::World::make();
+                auto plain = solid3::Direct::make(pieces);
+                if (!world || !plain) { s.fail("the scene was refused"); return; }
+                std::vector<solid3::BodyId> ids;
+                for (const solid3::Piece& piece : pieces) {
+                    const auto made = world->add(piece.body, piece.shape, piece.material);
+                    if (!made) { s.fail("a body was refused"); return; }
+                    ids.push_back(*made);
+                }
+                // Jolt directly (outside what the row times) and the World (what the row times), which goes first
+                // taking turns: whichever is second finds the caches warm.
+                const bool world_first = rounds % 2 == 1;
+                const auto run_world = [&] {
+                    s.resume();
+                    const auto from = clock::now();
+                    for (int step = 0; step < steps; ++step) world->step();
+                    const auto to = clock::now();
+                    s.pause();
+                    ours.push_back(std::chrono::duration<double, std::milli>(to - from).count());
+                };
+                if (world_first) run_world();
+                const auto began = clock::now();
+                for (int step = 0; step < steps; ++step) plain->step();
+                const auto between = clock::now();
+                if (!world_first) run_world();
+                direct.push_back(std::chrono::duration<double, std::milli>(between - began).count());
+                ++rounds;
+                for (std::size_t index = 0; index < ids.size() && same; ++index) {
+                    const auto pose = world->pose(ids[index]);
+                    same = pose && pose->at == plain->at(index);
+                }
+                s.resume();
+            }
+            if (!same) { s.fail("the two worlds parted: not the same scene, so not a comparison"); return; }
+            const auto median = [](std::vector<double>& values) {
+                if (values.empty()) return 0.0;
+                std::ranges::sort(values);
+                return values[values.size() / 2];
+            };
+            const double through = median(ours), plain_ms = median(direct);
+            if (!rounds || !(plain_ms > 0)) return;
+            s.counter("direct_ms", plain_ms);
+            s.counter("overhead_percent", (through - plain_ms) / plain_ms * 100.0);
+            s.note("scope", std::format("{} bodies, {} steps a round from the same start, one thread; the median round: Jolt directly {:.3f} ms, through the World {:.3f} ms; every body at the same place in both, bit for bit",
+                                        pieces.size(), steps, plain_ms, through));
         });
     add("simulation/world-128x64-branch", "the same cavern branched: the whole world copied — the field, what flies, the coupling, the rigid world from its own image — what a timeline's snapshot and an agent's `world.branch` cost before a frame is run",
         [cavern](State& s) {

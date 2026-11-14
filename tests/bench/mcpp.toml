@@ -28,7 +28,7 @@ xrender.scene = { path = "../../modules/projects/xrender/scene" }
 "xrender.mesh"  = { path = "../../modules/projects/xrender/mesh" }
 "xrender.mesh.gpu" = { path = "../../modules/projects/xrender/mesh/gpu" }
 mlibs.simulation = { path = "../../modules/base/simulation" }
-xengine.dynamics = { path = "../../modules/projects/xengine/kernel/dynamics", features = ["rigid"] }
+xengine.dynamics = { path = "../../modules/projects/xengine/kernel/dynamics", features = ["rigid", "rigid3"] }
 # With the lattice as a carrier of matter (simulation/matter-lattice-*), and a field of it as an agent's subject
 # with its record of causes (simulation/matter-256-causes; the feature implies `matter` and `agent`); and the
 # whole 2D world, its bodies made of the lattice's cells (simulation/world-128x64-frame; the feature `rigid`).

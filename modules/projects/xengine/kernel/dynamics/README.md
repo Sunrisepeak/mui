@@ -22,6 +22,7 @@ history.step({});
 | materials | Not here: what a body is made of is [xengine.matter](../matter)'s table (D-165 — the one table physics, chemistry and the lattice share). `params_of(table, material, area)` reads its mechanical columns (`density` over water's × the area as the mass, `friction`, `restitution`, `compliance`, `shape_stiffness`); it is the package's feature `matter` (module `xengine.dynamics.matter`, taking the matter kernel alone, no JSON): a solver takes numbers, and only a consumer that has materials takes the table — hanim's engine does not | moved from `xengine.dynamics.material` (2026-11-13); the standard table has its rows (rubber, wood, stone, jelly, cloth, sand, water), the same numbers |
 | `xpbd` | Soft bodies: rings of particles held by edges, area and shape matching (optionally upright); gravity, push, walk, hop, a dragging hand; half-planes and ledges with restitution and friction; `stages()` says a step's stages in order | from the former `xengine.simulation.bodies` |
 | `rigid` | 2D rigid bodies: Box2D v3.2 under this contract — fixed steps, contacts, save / restore / branch bit for bit (the feature `rigid`) | P1, M6.2 |
+| `rigid3` | 3D rigid bodies: Jolt Physics 5.6 under the same contract — boxes, spheres, capsules, hulls, meshes as ground; contacts as a step's output; rays and shapes asked; save / restore / branch bit for bit; an agent's subject (the features `rigid3`, `rigid3-agent`) | M6.4 |
 | `articulation`, fluids, FEM, MPM | Later solver families (each its own feature) | P2–P3 of the design |
 
 ## Collision
@@ -59,6 +60,31 @@ world->restore(saved);                     // rollback: every id still names its
 - **The same bits everywhere**: Box2D is cross-platform deterministic built as here (no contraction, no fast math, its own trigonometry): the wrap's CI checks one scene on Linux x86-64 and arm64, macOS, Windows and wasm32 with 1 to 8 workers.
 - **Numbers in**: a material's mechanical columns (`Material`: density, friction, restitution) — what `params_of` reads from xengine.matter's table.
 
+## Rigid bodies in three dimensions (rigid3)
+
+The 3D rigid family is Jolt Physics 5.6 (MIT; `mcpplibs.mwrap.jolt`, built cross-platform deterministic) under the same contract as the 2D one — the feature `rigid3`, module `xengine.dynamics.rigid3`, so a consumer that does not take it links no Jolt (D-170, D-176). Its numbers are `mlibs.math`'s `Vec3` and `Quat`.
+
+```cpp
+namespace rigid3 = xengine::dynamics::rigid3;
+auto world = rigid3::World::make();                                                    // 1/60 s, gravity −9.81 along y
+const auto crate = world->add({.at = {0, 4, 0}}, rigid3::Shape::box({0.5f, 0.5f, 0.5f}), rigid3::material_of(*table, *table->material("wood")));
+world->step();
+for (const rigid3::Contact& c : world->contacts()) { /* who met whom (ids in order), where, along which normal, how fast */ }
+const auto hit = world->ray({0, 20, 0}, {0, -20, 0});                                 // the first body a segment meets
+world->overlapping(rigid3::Shape::sphere(1), {0, 1, 0}, {}, found);                  // what a shape placed there overlaps
+const auto saved = world->save();                                                      // every body as made, and Jolt's state
+auto branch = world->branch();
+world->restore(saved);                                                                 // a body removed since is back, one added since gone
+```
+
+- **Bodies**: boxes, spheres, capsules, convex hulls; a triangle mesh on a fixed body (terrain, buildings). `Kind::kinematic` is moved by its velocity alone. `bullet` sweeps a fast body against what it would pass through.
+- **Materials from the table**: `material_of(table, material)` reads the mechanical columns (`density` in kg/m³, `friction`, `restitution`) — a cubic metre of stone weighs its density.
+- **Contacts are a step's output**: what began and ended touching in the step, named by the world's ids (`one` < `other`), in their order, each pair once a kind — the same list with any number of workers.
+- **Ids are the world's**: 1 upwards in the order made, carried by the image with how each body was made (its kind, material and shape's bytes), so a restore brings back a body removed since under its id and a branch made from bytes alone has every body.
+- **The family's hard constraints** (`xengine.dynamics.cts`' `declare_rigid`, contract `xengine.dynamics.rigid@1`): 10 of 10 pass on Jolt — the world contract and the ids across an image and in a branch, `canonical-image` among them (two worlds at one state write one image, byte for byte; Jolt writes its state value by value, where Box2D's family reports it unsupported).
+- **The same bits everywhere**: the wrap's CI checks one scene on Linux x86-64 and arm64, macOS, Windows and wasm32, in the dev and release profiles, with 0, 1 and 4 workers; here a run with 1 and 3 workers is the single-threaded run's bits.
+- Beside the solver it wraps: `simulation/rigid3-tower-512` in `tests/bench` steps the same bodies on a `World` and on Jolt called directly (`rigid3::Direct`), taking turns.
+
 ## Soft bodies (xpbd)
 
 A `SoftBody` is a ring of particles held by its edges' lengths, its enclosed area and the shape it was made in (shape matching; `upright` keeps the shape it springs back to unturned), stepped by small-step XPBD under gravity against half-planes and one-way ledges, with restitution and friction toward a walking speed at its feet, a push and a hop; a `Pin` is a dragging hand. `SoftBodyModel` is a `mlibs::simulation` model, so a body runs in a `Timeline` with checkpoints and exact replay; stepping allocates nothing. hanim's `Engine::simulate` makes any part of any object such a body and carries its geometry (and another figure later: `Engine::carry`) on a cage over the ring.
@@ -70,7 +96,7 @@ A `SoftBody` is a ring of particles held by its edges' lengths, its enclosed are
 - The rigid family beside the solver it wraps: `simulation/rigid-pyramid-20` and `simulation/rigid-rain-1000` in `tests/bench` step the same bodies on a `World` and on Box2D called directly (`rigid::Direct`), in the same run and taking turns, every body at the same place in both — the wrapper costs 1.6% and 3.4% (release, locally); a budget holds it under 10%.
 - Benchmarks: `dynamics/softbody-24` and `-96` in `tests/bench` (zero allocations a step; a frame's budget for a figure's softness).
 
-Run `mcpp test -p xengine.dynamics -p xengine.dynamics.cts`: swept collision to the same bits, soft bodies dropped, landed on ledges, walked, kept upright and replayed bit for bit, the material table.
+Run `mcpp test -p xengine.dynamics -p xengine.dynamics.cts`: swept collision to the same bits, soft bodies dropped, landed on ledges, walked, kept upright and replayed bit for bit, the material table; both rigid families held to their hard constraints (`rigid_test`, `rigid3_test`).
 
 ## Agent surface
 
@@ -85,10 +111,23 @@ A soft body is a `Subject` of the agent kernel ([mlibs.agent](../../../../base/a
 | Time | `body.step`, `body.seek` back within the steps kept (what is stepped from there is a new branch); the same requests, the same bits |
 | Preview | `body.branch`: the body some steps ahead under a given push, observed as `body.observe` does; the body itself untouched (a copy is stepped) |
 | Budgets and tiers | `body.observe` within a `budget` of bytes (contacts left out from the last, `more` says how many; a budget below the least answer is refused with that size); `Options`: `most_steps` a request, `keep` steps of history |
-| Not here | **Causes** as a record — who pushed it, which contact turned it — and **source** (from a particle's place back to what moved it): `capabilities` says so, and the contract suite reports them unsupported; `body.contacts` says what the last step touched, which is not that. They come with the kernels' record of causes (the plan's T1.11). The rigid families get their own subject when they land (M6.2) |
+| Not here | **Causes** as a record — who pushed it, which contact turned it — and **source** (from a particle's place back to what moved it): `capabilities` says so, and the contract suite reports them unsupported; `body.contacts` says what the last step touched, which is not that. They come with the kernels' record of causes (the plan's T1.11). The 2D rigid family has no subject of its own: its worlds are reached through what holds them (`xengine.cellular`'s `MatterWorld`) |
+
+A 3D rigid world is a subject too, module `xengine.dynamics.rigid3.agent` — the feature `rigid3-agent` (it implies `rigid3` and `agent`). Its catalog is [rigid3.ops.omui.ts](rigid3.ops.omui.ts) (the table `src/rigid3/agent/catalog.cppm` and the listings `rigid3.ops.json`, `.md` are `omui-gen ops`'s).
+
+| | |
+|---|---|
+| Subject and addresses | `rigid3`, interface `xengine.dynamics.rigid3@0.1`. A body is its id (a number, 1 upwards in the order made); a place is the world's metres, `[x, y, z]` with y up; a frame is a step played |
+| State | The `World`; the hash covers every body's place, turn and velocities, bit for bit |
+| Observation | `rigid3.observe`: the frame, the hash, how many bodies and how many awake, what began and ended touching in the last step (where, along which normal, how fast); `rigid3.bodies` for each body; `rigid3.ray`: the first body a segment meets |
+| Control | `rigid3.push`: an impulse on a body, through its centre of mass or at a point, given on the next step; taken back by seeking |
+| Time | `rigid3.step`, `rigid3.seek` back within the steps kept — a checkpoint (the world's image) every 60 steps and the pushes given since, played again: the same bits as the run that stopped there |
+| Preview | `rigid3.branch`: the world some steps ahead, a body pushed first if one is given, observed as `rigid3.observe` does; the world itself untouched (a branch of it is stepped) |
+| Budgets and tiers | `rigid3.observe` within a `budget` of bytes (contacts left out from the last, `more` says how many); `Options`: `keep` steps of history, a checkpoint `every` so many, `most_steps` a request |
+| Not here | **Causes** and **source**, as for the soft body: reported unsupported by the contract suite (10 passed, 3 unsupported) |
 
 ```sh
-mcpp test -p xengine.dynamics.cts     # agent_test: the agent contract's suite on a resting body, then kicks, seeks and branches
+mcpp test -p xengine.dynamics.cts     # agent_test, rigid3_agent_test: the agent contract's suite on a body and on a 3D world, then pushes, seeks and branches
 ```
 
 The subject's tests are [cts](cts)'s, which turns the feature on: a feature is tested where it is on.

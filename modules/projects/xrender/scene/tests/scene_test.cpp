@@ -244,4 +244,46 @@ static UTest cases{"xrender.scene", [] {
         std::println("800 things, 40 moved a frame for 150 frames: the tree kept its shape {} frames and was made again {}", kept, remade);
         expect(eq(differing, 0u) && gt(kept, 140u) && ge(remade, 1u) && le(remade, 3u));
     };
+
+    "a tree of many things is made again over several frames beside the one in use; something coming or going ends that"_test = [] {
+        scene::Scene world;
+        const std::vector<scene::Instance> things = field(6000, 9);
+        for (const scene::Instance& thing : things) expect(fatal(world.add(thing).has_value()));
+        scene::Spatial spatial;
+        expect(spatial.follow(world) == scene::Spatial::Followed::rebuilt);
+        world.settle();
+        math::SplitMix64 random{41};
+        scene::Extracted reference, by_tree;
+        std::uint32_t differing = 0, beside = 0, first_beside = 0, taken_at = 0;
+        const auto frame = [&](std::uint32_t number) {
+            for (int moved = 0; moved < 30; ++moved) {
+                const scene::Instance& thing = things[random.next() % things.size()];
+                expect(world.move(thing.id, math::translation({unit(random) * 200 - 100, unit(random) * 40 - 20, unit(random) * 200 - 100})).has_value());
+            }
+            expect(spatial.follow(world) == scene::Spatial::Followed::changes) << "never the whole tree in a frame";
+            if (spatial.remaking()) {
+                if (!beside) first_beside = number;
+                ++beside;
+            }
+            if (spatial.remade() == 1 && !taken_at) taken_at = number;
+            differing += !geom::check(spatial.tree(), spatial.boxes()).has_value();
+            const scene::View from = looking({unit(random) * 100 - 50, 5, 90}, {0, 0, 0});
+            scene::extract(world, from, reference), scene::extract(world, spatial, from, by_tree);
+            differing += !same(reference, by_tree);
+            world.settle();
+        };
+        for (std::uint32_t number = 1; number <= 100; ++number) frame(number);
+        std::println("6000 things, 30 moved a frame: a new tree begun at frame {}, in use from frame {} ({} frames beside the old one)", first_beside, taken_at, beside);
+        expect(eq(differing, 0u));
+        expect(eq(first_beside, scene::Spatial::most_refits + 1)) << "begun when the shape has been refitted so often";
+        expect(gt(taken_at, first_beside) && ge(beside, 8u) && le(beside, 40u)) << "made over frames, not in one";
+        expect(eq(spatial.remade(), 1u) && !spatial.remaking());
+        // Refitted so often again, another is begun; then a thing goes: the tree of what is left at once, the other dropped.
+        for (std::uint32_t number = 101; !spatial.remaking() && number <= 260; ++number) frame(number);
+        expect(fatal(spatial.remaking()));
+        expect(world.remove(things[17].id).has_value());
+        expect(spatial.follow(world) == scene::Spatial::Followed::changes);
+        expect(!spatial.remaking() && eq(spatial.remade(), 1u));
+        expect(geom::check(spatial.tree(), spatial.boxes()).has_value() && eq(spatial.boxes().size(), things.size() - 1));
+    };
 }};

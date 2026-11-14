@@ -104,11 +104,17 @@ private:
 };
 
 // The instances' boxes in the world as a tree: a scene's mirror, built once and then following its change list.
-// Where things only moved the tree keeps its shape and its boxes are refitted; where something came or went, and
-// after so many refits, it is made again.
+// Where things only moved the tree keeps its shape and its boxes are refitted; where something came or went it is
+// made again. A tree refitted many times over things that moved far is a poor one (its boxes overlap): after so
+// many refits a new one is made beside it a part a frame — `rebuild_things` things looked at each time it follows —
+// and takes its place when it is whole, so no frame pays for the whole tree (counted in things, not in time: the
+// same frames on every machine).
 class Spatial {
 public:
     enum class Followed : std::uint8_t { nothing, changes, rebuilt };
+    // How many refits a tree's shape is kept for before a new one is begun, and how much of the new one a frame makes.
+    static constexpr std::uint32_t most_refits = 64;
+    static constexpr std::size_t   rebuild_things = 4096;
     // Brings it to the scene as it is now: by the changes since it last followed, or — made new, or having missed
     // a settled frame — from the whole scene. Call it after a frame's edits and before `settle`.
     Followed follow(const Scene& scene);
@@ -116,6 +122,9 @@ public:
     [[nodiscard]] std::span<const Id> ids() const noexcept { return ids_; }
     [[nodiscard]] std::span<const Box3> boxes() const noexcept { return boxes_; }
     [[nodiscard]] const mlibs::geom::Bvh& tree() const noexcept { return tree_; }
+    // Whether a new tree is being made beside the one in use, and how many times one has taken its place.
+    [[nodiscard]] bool remaking() const noexcept { return remaking_.begun(); }
+    [[nodiscard]] std::uint32_t remade() const noexcept { return remade_; }
 
 private:
     void rebuild(const Scene& scene);
@@ -124,8 +133,11 @@ private:
     std::vector<Box3> boxes_;
     mlibs::geom::Bvh  tree_;
     std::uint64_t     followed_ = 0;  // Scene::changed() when it last followed
-    std::uint32_t     refits_ = 0;
+    std::uint32_t     refits_ = 0, remade_ = 0;
     bool              made_ = false;
+    std::vector<Box3>     remaking_boxes_;  // the boxes as they were when the new tree was begun
+    mlibs::geom::Bvh      spare_;           // the tree last replaced: the next one is made in its room
+    mlibs::geom::BvhBuild remaking_;
 };
 
 struct Draw {

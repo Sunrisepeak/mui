@@ -9,58 +9,78 @@ namespace {
 
 float along(Vec3 value, int axis) noexcept { return axis == 0 ? value.x : axis == 1 ? value.y : value.z; }
 
-struct Builder {
-    std::span<const Box3> boxes;
-    std::uint32_t         leaf;
-    Bvh&                  tree;
+}  // namespace
 
-    // The node `at` over order[first … first + count): a leaf if small enough, else cut at the middle thing along
-    // the longest axis of the centres' box — by centre, then by number, so equal centres still fall one way.
-    void build(std::uint32_t at, std::uint32_t first, std::uint32_t count, std::uint32_t depth) {
+void BvhBuild::begin(std::span<const Box3> boxes, const BvhOptions& options, Bvh room) {
+    boxes_ = boxes, leaf_ = std::max<std::uint32_t>(1, options.leaf), begun_ = true;
+    if (room.nodes.capacity() || room.order.capacity()) tree_ = std::move(room);
+    tree_.version = bvh_version, tree_.depth = 0;
+    tree_.nodes.clear(), tree_.order.clear(), waiting_.clear();
+    if (boxes.empty()) return;
+    tree_.order.resize(boxes.size());
+    std::iota(tree_.order.begin(), tree_.order.end(), std::uint32_t{0});
+    tree_.nodes.reserve(boxes.size() * 2);
+    tree_.nodes.emplace_back();
+    waiting_.reserve(64);
+    waiting_.push_back({0, 0, static_cast<std::uint32_t>(boxes.size()), 1});
+}
+
+// A node over order[first … first + count): a leaf if small enough, else cut at the middle thing along the longest
+// axis of the centres' box — by centre, then by number, so equal centres still fall one way. Its two children are
+// made next, the first before the second and all that is under it: the nodes are numbered as one walk down the
+// tree numbers them, however many steps it is made in.
+bool BvhBuild::step(std::size_t things) {
+    std::size_t looked = 0;
+    while (!waiting_.empty() && (looked == 0 || looked < things)) {
+        const Part part = waiting_.back();
+        waiting_.pop_back();
+        looked += part.count;
         Box3 bounds, centres;
-        for (std::uint32_t index = first; index < first + count; ++index) {
-            const Box3& box = boxes[tree.order[index]];
+        for (std::uint32_t index = part.first; index < part.first + part.count; ++index) {
+            const Box3& box = boxes_[tree_.order[index]];
             bounds.join(box);
             if (!box.empty()) centres.grow(box.centre());
         }
-        tree.nodes[at].bounds = bounds;
-        tree.depth = std::max(tree.depth, depth);
-        if (count <= leaf) {
-            tree.nodes[at].first = first, tree.nodes[at].count = count;
-            return;
+        tree_.nodes[part.node].bounds = bounds;
+        tree_.depth = std::max(tree_.depth, part.depth);
+        if (part.count <= leaf_) {
+            tree_.nodes[part.node].first = part.first, tree_.nodes[part.node].count = part.count;
+            continue;
         }
         int axis = 0;
         if (!centres.empty()) {
             const Vec3 size = centres.high - centres.low;
             axis = size.y > size.x ? (size.z > size.y ? 2 : 1) : (size.z > size.x ? 2 : 0);
         }
-        const auto begin = tree.order.begin() + first, middle = begin + count / 2, end = begin + count;
+        const auto begin = tree_.order.begin() + part.first, middle = begin + part.count / 2, end = begin + part.count;
         std::nth_element(begin, middle, end, [&](std::uint32_t one, std::uint32_t other) {
-            const float left = boxes[one].empty() ? 0.0f : along(boxes[one].centre(), axis), right = boxes[other].empty() ? 0.0f : along(boxes[other].centre(), axis);
+            const float left = boxes_[one].empty() ? 0.0f : along(boxes_[one].centre(), axis), right = boxes_[other].empty() ? 0.0f : along(boxes_[other].centre(), axis);
             return left != right ? left < right : one < other;
         });
         // nth_element leaves each half in an order of its own making: by number, so the tree is the same wherever
         // it is built.
         std::sort(begin, middle), std::sort(middle, end);
-        const std::uint32_t children = static_cast<std::uint32_t>(tree.nodes.size());
-        tree.nodes.emplace_back(), tree.nodes.emplace_back();
-        tree.nodes[at].first = children, tree.nodes[at].count = 0;
-        build(children, first, count / 2, depth + 1);
-        build(children + 1, first + count / 2, count - count / 2, depth + 1);
+        const std::uint32_t children = static_cast<std::uint32_t>(tree_.nodes.size());
+        tree_.nodes.emplace_back(), tree_.nodes.emplace_back();
+        tree_.nodes[part.node].first = children, tree_.nodes[part.node].count = 0;
+        waiting_.push_back({children + 1, part.first + part.count / 2, part.count - part.count / 2, part.depth + 1});
+        waiting_.push_back({children, part.first, part.count / 2, part.depth + 1});
     }
-};
+    return waiting_.empty();
+}
 
-}  // namespace
+Bvh BvhBuild::take() noexcept {
+    Bvh made = std::move(tree_);
+    tree_ = {}, boxes_ = {}, begun_ = false;
+    waiting_.clear();
+    return made;
+}
 
+// The whole tree at once: the same steps, all of them.
 Bvh bvh_of(std::span<const Box3> boxes, const BvhOptions& options) {
-    Bvh tree;
-    if (boxes.empty()) return tree;
-    tree.order.resize(boxes.size());
-    std::iota(tree.order.begin(), tree.order.end(), std::uint32_t{0});
-    tree.nodes.reserve(boxes.size() * 2);
-    tree.nodes.emplace_back();
-    Builder{boxes, std::max<std::uint32_t>(1, options.leaf), tree}.build(0, 0, static_cast<std::uint32_t>(boxes.size()), 1);
-    return tree;
+    BvhBuild build(boxes, options);
+    static_cast<void>(build.step(std::numeric_limits<std::size_t>::max()));
+    return build.take();
 }
 
 Bvh bvh_of(const Mesh& mesh, const BvhOptions& options) {

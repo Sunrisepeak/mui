@@ -173,11 +173,9 @@ void Spatial::rebuild(const Scene& scene) {
     for (const Instance& instance : scene.instances()) ids_.push_back(instance.id), boxes_.push_back(mlibs::geom::moved(instance.world, instance.bounds));
 }
 // The same tree over the boxes as they are now: each leaf the box of its things, each node within the box of its
-// two children — which come after it, so one pass from the last node to the first. A tree refitted many times
-// over things that moved far is a poor one (its boxes overlap): after so many it is made again.
+// two children — which come after it, so one pass from the last node to the first. False: not a tree of these.
 bool Spatial::refit() {
-    constexpr std::uint32_t most_refits = 64;
-    if (tree_.nodes.empty() || tree_.order.size() != boxes_.size() || ++refits_ > most_refits) return false;
+    if (tree_.nodes.empty() || tree_.order.size() != boxes_.size()) return false;
     for (std::size_t index = tree_.nodes.size(); index-- > 0;) {
         mlibs::geom::Bvh::Node& node = tree_.nodes[index];
         Box3 bounds;
@@ -226,7 +224,23 @@ Spatial::Followed Spatial::follow(const Scene& scene) {
             did = Followed::changes;
         }
     }
-    if (did != Followed::nothing && (reshaped || !refit())) tree_ = mlibs::geom::bvh_of(boxes_), refits_ = 0;
+    if (did != Followed::nothing) {
+        if (reshaped || !refit()) {
+            // Another set of things: the tree of them at once, and a new one that was being made is of the old set.
+            tree_ = mlibs::geom::bvh_of(boxes_), refits_ = 0;
+            remaking_.drop();
+        } else if (++refits_ > most_refits && !remaking_.begun()) {
+            // Refitted often enough: a new tree is begun over the boxes as they are now, beside this one.
+            remaking_boxes_.assign(boxes_.begin(), boxes_.end());
+            remaking_.begin(remaking_boxes_, {}, std::move(spare_));
+        }
+    }
+    // A part of the new tree a frame; whole, it is fitted to the boxes as they are by now and takes the old one's place.
+    if (remaking_.begun() && remaking_.step(rebuild_things)) {
+        spare_ = std::exchange(tree_, remaking_.take());
+        if (!refit()) tree_ = mlibs::geom::bvh_of(boxes_);
+        refits_ = 0, ++remade_;
+    }
     followed_ = scene.changed();
     made_ = true;
     return did;

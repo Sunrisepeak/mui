@@ -46,6 +46,36 @@ struct BvhOptions {
 };
 [[nodiscard]] Bvh bvh_of(std::span<const Box3> boxes, const BvhOptions& options = {});
 [[nodiscard]] Bvh bvh_of(const Mesh& mesh, const BvhOptions& options = {});
+// A tree made a part at a time: when it is done it is the tree `bvh_of` makes of the same boxes, node for node —
+// so a tree of many things can be made over several frames, the same on every machine (the work is counted in
+// things looked at, not in time). The boxes are the caller's and stay as they are until it is done.
+class BvhBuild {
+public:
+    BvhBuild() = default;
+    explicit BvhBuild(std::span<const Box3> boxes, const BvhOptions& options = {}) { begin(boxes, options); }
+    // Begins a tree over `boxes` (one being made is given up). `room`: a tree no longer needed, in whose room the
+    // new one is made — of as many things, nothing is allocated.
+    void begin(std::span<const Box3> boxes, const BvhOptions& options = {}, Bvh room = {});
+    // Gives up the tree being made.
+    void drop() noexcept { begun_ = false, waiting_.clear(); }
+    // Makes nodes until `things` things have been looked at — one node at the least, and a node is never made in
+    // two parts (the root looks at every thing). True when the tree is whole.
+    bool step(std::size_t things);
+    [[nodiscard]] bool begun() const noexcept { return begun_; }
+    [[nodiscard]] bool done() const noexcept { return begun_ && waiting_.empty(); }
+    // The tree — whole once done — leaving this as it was before it began.
+    [[nodiscard]] Bvh take() noexcept;
+
+private:
+    struct Part {
+        std::uint32_t node = 0, first = 0, count = 0, depth = 0;
+    };
+    std::span<const Box3> boxes_;
+    std::uint32_t         leaf_ = 4;
+    Bvh                   tree_;
+    std::vector<Part>     waiting_;  // the nodes still to make, the next one last
+    bool                  begun_ = false;
+};
 // What is wrong with a tree over these boxes, or nothing: every thing in one leaf once, each node's box holding
 // what is under it, no leaf over the size, no node unreached.
 [[nodiscard]] std::expected<void, std::string> check(const Bvh& tree, std::span<const Box3> boxes, const BvhOptions& options = {});

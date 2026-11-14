@@ -39,6 +39,36 @@ std::uint64_t bits(const geom::Bvh& tree) {
 }  // namespace
 
 static UTest cases{"geom.bvh", [] {
+    "a tree made a part at a time is the tree made at once, node for node, however the parts are cut"_test = [] {
+        const auto boxes = scattered(1000, 7);
+        const geom::Bvh whole = geom::bvh_of(boxes);
+        for (const std::size_t things : {std::size_t{0}, std::size_t{1}, std::size_t{100}, std::size_t{1000}, std::size_t{5000}}) {
+            geom::BvhBuild build(boxes);
+            expect(build.begun() && !build.done());
+            std::uint32_t steps = 1;
+            while (!build.step(things)) ++steps;
+            expect(build.done());
+            const geom::Bvh made = build.take();
+            expect(!build.begun()) << "taken: as before it began";
+            expect(eq(bits(made), bits(whole)) && eq(made.depth, whole.depth) && eq(made.nodes.size(), whole.nodes.size())) << std::format("{} things a step", things);
+            // A step makes a node at the least; the root alone looks at every thing.
+            if (things == 0) expect(eq(steps, static_cast<std::uint32_t>(whole.nodes.size()))) << "a node a step";
+            if (things == 1000) expect(gt(steps, 5u) && lt(steps, 20u)) << std::format("{} steps", steps);
+            if (things == 5000) expect(eq(steps, 2u)) << std::format("{} steps", steps);
+        }
+        // Of nothing: done as it begins, a tree of no nodes.
+        geom::BvhBuild none{std::span<const geom::Box3>{}};
+        expect(none.begun() && none.done() && none.step(10) && none.take().nodes.empty());
+        expect(!geom::BvhBuild{}.begun());
+        // Begun again in the room of a tree no longer needed: the same tree; one given up is not begun.
+        geom::BvhBuild again(boxes);
+        static_cast<void>(again.step(300));
+        again.drop();
+        expect(!again.begun());
+        again.begin(boxes, {}, geom::bvh_of(scattered(1000, 3)));
+        while (!again.step(700)) {}
+        expect(eq(bits(again.take()), bits(whole)));
+    };
     "a tree over boxes: every thing in one leaf, each node holding what is under it; of nothing, nothing; the same things, the same tree"_test = [] {
         const auto boxes = scattered(1000, 7);
         const geom::Bvh tree = geom::bvh_of(boxes);

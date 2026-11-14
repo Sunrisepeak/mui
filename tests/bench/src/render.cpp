@@ -78,7 +78,7 @@ void add_render_benchmarks() {
                 (void)spatial.follow(world);
                 world.settle();
             }
-            s.note("scope", "the tree keeps its shape and its boxes are refitted; it is made again every 64th frame (the largest time)");
+            s.note("scope", std::format("the tree keeps its shape and its boxes are refitted; after 64 refits a new one is made beside it, {} things looked at a frame, and takes its place: {} times in this run", scene::Spatial::rebuild_things, spatial.remade()));
         });
     add("render/mesh-reference-yard", "the CPU reference of the mesh pass: a floor, a box, two balls and a post (6,092 triangles in 256 clusters) drawn at 480x270 with colour, depth, normal, velocity and ids",
         [](State& s) {
@@ -195,6 +195,77 @@ void add_render_benchmarks() {
                                         pass->last().casters, pass->last().lamp_views));
             static_cast<void>(on.wait_idle());
             for (const rhi::Texture made_one : textures) on.destroy(made_one);
+        });
+    add("render/mesh-device-tiles-1080p", "a textured floor on this machine's device (xrender.mesh.gpu through SDL_GPU): tiles of a 64x64 texture of seven levels to the horizon at 1920x1080, every pixel up to eight places of its strip each one read between texels and between levels, under a sun",
+        [](State& s) {
+            namespace mesh = xrender::mesh;
+            namespace geom = mlibs::geom;
+            namespace rhi = mlibs::rhi;
+            constexpr std::uint32_t width = 1920, height = 1080;
+            xrender::rhi::sdl::Options options;
+            options.formats = mesh::gpu::Pass::shader_formats();
+            if (auto library = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) options.vulkan_library = *library;
+            if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) options.video_driver = *video;
+            auto device = xrender::rhi::sdl::create(options);
+            if (!device) {
+                s.skip(std::format("no GPU device ({})", device.error().message));
+                return;
+            }
+            rhi::Device& on = **device;
+            s.note("device", std::format("{} ({}{})", on.caps().device, rhi::name(on.caps().backend), on.caps().software ? ", software" : ""));
+            // The floor's texture coordinates repeat every four units.
+            geom::ClusteredMesh floor = *geom::clustered(geom::sheet(200, 200, 4, 4));
+            for (math::Vec2& uv : floor.mesh.uvs) uv = {uv.x * 50, uv.y * 50};
+            const std::array<const geom::ClusteredMesh*, 1> meshes{&floor};
+            std::vector<std::uint8_t> bytes(64 * 64 * 4, 255);
+            for (int y = 0; y < 64; ++y)
+                for (int x = 0; x < 64; ++x) {
+                    const std::uint8_t level = ((x / 8) + (y / 8)) % 2 ? 235 : 70;
+                    const std::size_t at = static_cast<std::size_t>(y * 64 + x) * 4;
+                    bytes[at] = level, bytes[at + 1] = level, bytes[at + 2] = level;
+                }
+            const mesh::Texture tiles = *mesh::Texture::made(bytes, 64, 64);
+            const std::array<const mesh::Texture*, 1> pictures{&tiles};
+            const std::array<mesh::Material, 1> materials{{{{1, 1, 1}, {}, 1, 0, 0}}};
+            scene::Scene world;
+            (void)world.add({.id = 1, .mesh = 0, .material = 0, .world = math::translation({0, -1, 0}), .bounds = geom::bounds(floor.mesh)});
+            (void)world.add(scene::Light{.id = 1, .kind = scene::LightKind::sun, .colour = {1, 0.96f, 0.9f}, .intensity = 0.9f, .toward = {-0.4f, -1, -0.5f}});
+            const scene::View view{.view = math::look_at({0.5f, 2.2f, 7.5f}, {0.2f, 0, 0}, {0, 1, 0}), .projection = math::perspective(1.0f, 16.0f / 9.0f, 0.5f, 100.0f)};
+            scene::Extracted seen;
+            scene::extract(world, view, seen);
+            auto pass = mesh::gpu::Pass::make(on);
+            if (!pass || !pass->load(meshes) || !pass->load_textures(pictures)) {
+                s.fail("the mesh pass and its texture could not be made on this device");
+                return;
+            }
+            const auto colour = on.create(rhi::TextureDesc{rhi::Format::rgba8_unorm, width, height, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "bench.colour"});
+            const auto depth = on.create(rhi::TextureDesc{rhi::Format::d32_float, width, height, rhi::TextureUsage::depth_target, "bench.depth"});
+            if (!colour || !depth) {
+                s.fail("the frame's targets could not be made");
+                return;
+            }
+            const mesh::Options options_of{.background = {0.5f, 0.6f, 0.7f}, .ambient = {0.2f, 0.24f, 0.3f}, .shadows = false};
+            rhi::CommandList list;
+            const auto frame = [&] {
+                const auto begun = std::chrono::steady_clock::now();
+                list.clear();
+                pass->record(list, world, seen, view, materials, *colour, *depth, width, height, options_of);
+                const auto submitted = on.submit(list);
+                s.counter("encode_ms", std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - begun).count());
+                const auto waited = on.wait_idle();
+                if (!submitted || !waited) {
+                    s.fail(std::format("the frame failed: {}", !submitted ? submitted.error().message : waited.error().message));
+                    return;
+                }
+                s.counter("gpu_ms", std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - begun).count());
+                s.counter("software", on.caps().software ? 1 : 0);
+            };
+            frame();
+            s.items(width * height);
+            while (s.next()) frame();
+            s.note("scope", std::format("{} draw textured; one pass a frame; the picture the device suite holds to the reference at 480x270 (mesh.textures)", pass->last().textured));
+            static_cast<void>(on.wait_idle());
+            on.destroy(*colour), on.destroy(*depth);
         });
     add("render/mesh-reference-glow", "the CPU reference of the glow: a picture of light, 480x270 with a lamp's globe and its pool of light brighter than the display, spread by 7 pixels three times each way and shown",
         [](State& s) {

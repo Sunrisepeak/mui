@@ -33,7 +33,7 @@ xengine.matter   = { path = ".." }
 # The lattice's world of matter as an agent's subjects (`matter-agent`: the field and the matter subject).
 xengine.cellular = { path = "../../cellular", features = ["matter-agent"] }
 # Its picture: cells shaded by the look into an image, drawn through the renderer's frame entry.
-"xengine.cellular.present" = { path = "../../cellular/present", features = ["matter"] }
+"xengine.cellular.present" = { path = "../../cellular/present" }
 xrender.frame    = { path = "../../../../xrender/frame" }
 xrender.vector   = { path = "../../../../xrender/vector" }
 xrender.raster   = { path = "../../../../xrender/raster" }

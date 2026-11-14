@@ -22,12 +22,13 @@
 //     auto look = matter::look_document(program, text, "world.appearance.omui.json");   // or standard_look(program)
 //
 // A Look is numbers — a colour a material, each state's channel, range and colour as the channel is stored —
-// and knows no renderer: a carrier's presenter lowers it to its own path (the lattice's: a cellular::Shade,
-// by xengine.cellular.present's feature `matter`), and whoever draws bodies reads the same Look.
+// and knows no renderer. `shade()` gives it as `mlibs.math`'s colour of a state, the one arithmetic every
+// carrier's presenter draws by — the lattice's cells, a cloud's particles, a body's parts alike.
 export module xengine.matter.appearance;
 
 import std;
 import mlibs.json;
+export import mlibs.math;
 export import xengine.matter;
 export import :standard_appearance_snapshot;
 
@@ -88,6 +89,9 @@ public:
     // The look as JSON: each material's colour and where it is from, each state with its range in units —
     // what an agent reads to know why a thing looks as it does.
     [[nodiscard]] std::string describe(const Program& program) const;
+    // As a shade (`mlibs::math::color`): the key is the material (channel 0, where every carrier keeps it), a
+    // row a material, a state a tint — its range's end by row. What is no material is the shade's fallback.
+    [[nodiscard]] mlibs::math::color::Shade shade() const;
 
 private:
     std::vector<std::uint32_t> base_;

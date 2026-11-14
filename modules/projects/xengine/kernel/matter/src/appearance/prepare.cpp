@@ -198,4 +198,15 @@ std::string Look::describe(const Program& program) const {
     return out + "]}";
 }
 
+mlibs::math::color::Shade Look::shade() const {
+    mlibs::math::color::Shade out;
+    out.key = 0;
+    out.base.assign(base_.begin(), base_.end());
+    out.grain.assign(grain_.begin(), grain_.end());
+    out.fallback = nothing_;
+    for (const StateLook& state : states_)
+        out.tints.push_back({.channel = state.channel, .from = state.from, .to = state.from, .to_by_row = state.to, .color = state.color, .emits = state.emits});
+    return out;
+}
+
 }  // namespace xengine::matter

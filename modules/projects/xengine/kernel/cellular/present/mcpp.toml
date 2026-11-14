@@ -28,24 +28,20 @@ xrender.vector = { path = "../../../../xrender/vector" }
 xrender.raster = { path = "../../../../xrender/raster" }
 mlibs.geom     = { path = "../../../../../base/geom" }
 mlibs.utils    = { path = "../../../../../base/utils" }
+mlibs.math     = { path = "../../../../../base/math" }
 
-# What matter looks like on the lattice (src/matter/, module xengine.cellular.present.matter; D-168): a look
-# — xengine.matter's appearance, prepared against a program — lowered to the lattice's shade. A feature: the
-# presenter alone knows a key and numbers, and that a row is a material only here.
 [features]
-matter = { sources = ["src/matter/*.cppm", "src/matter/*.cpp"] }
 # A world of matter on screen by a ladder (src/world/, module xengine.cellular.present.world; D-178): rich (the
 # decorative layer stepped, a glow), lit, baked (frames of a flame baked from the rich form), plain — a ladder of
 # mlibs.pipeline's governor, with what each step is doing said back. A feature: it joins the kernel's world of
 # matter with bodies (`rigid`) and its decorative layer (`decor`) with the presenter.
-world = { implies = ["matter"], sources = ["src/world/*.cppm", "src/world/*.cpp"] }
+world = { sources = ["src/world/*.cppm", "src/world/*.cpp"] }
 
 [feature-deps.world]
+xengine.matter   = { path = "../../matter", default-features = false, features = ["appearance"] }
 xengine.cellular = { path = "..", features = ["rigid", "decor"] }
 mlibs.pipeline   = { path = "../../../../../base/pipeline" }
 
-[feature-deps.matter]
-xengine.matter = { path = "../../matter", default-features = false, features = ["appearance"] }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"

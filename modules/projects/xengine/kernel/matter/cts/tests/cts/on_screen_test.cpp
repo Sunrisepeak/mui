@@ -6,7 +6,8 @@
 import std;
 import xengine.matter.json;
 import xengine.cellular.matter;
-import xengine.cellular.present.matter;
+import xengine.cellular.present;
+import xengine.matter.appearance;
 import mlibs.image;
 import mlibs.testing;
 import mcpplibs.mtest;
@@ -30,13 +31,13 @@ struct Scene {
     std::vector<std::uint32_t> cells, next, outside;
     std::uint64_t tick = 0;
     xrender::ImageStore images;
-    ca::Shade shade;
+    mlibs::math::color::Shade shade;
     ca::FieldPresenter view;
     xrender::DisplayList list;
 
     Scene(matter::Program of, const matter::Look& look, ca::Shape size)
         : program(std::move(of)), plan(*ca::lower(program, {.seed = 7})), shape(size), cells(program.fresh(area(), *program.material("air"))), next(cells.size()),
-          outside(program.fresh(1, *program.material("air"))), shade(ca::lower(look)),
+          outside(program.fresh(1, *program.material("air"))), shade(look.shade()),
           view(ca::FieldPresenter::make(images, size, static_cast<std::uint32_t>(program.channels().size()), shade, {16, 16}).value()) {}
 
     [[nodiscard]] std::size_t area() const { return static_cast<std::size_t>(shape.width) * shape.height; }
@@ -57,7 +58,7 @@ struct Scene {
             cells.swap(next);
         }
     }
-    [[nodiscard]] ca::Shaded shaded(std::uint32_t x, std::uint32_t y) const { return view.shaded(cells, x, y); }
+    [[nodiscard]] mlibs::math::color::Shaded shaded(std::uint32_t x, std::uint32_t y) const { return view.shaded(cells, x, y); }
     // The frame: a dark backdrop, the field a cell to `scale` pixels, and — asked for — its light as a glow.
     [[nodiscard]] raster::Surface frame(bool glow = true) {
         expect(view.present(cells).has_value());
@@ -121,7 +122,7 @@ static UTest cases{"matter.on-screen", [] {
         std::size_t alight = 0, hot_air = 0;
         for (std::uint32_t y = 0; y < scene.shape.height; ++y)
             for (std::uint32_t x = 0; x < scene.shape.width; ++x) {
-                const ca::Shaded shaded = scene.shaded(x, y);
+                const mlibs::math::color::Shaded shaded = scene.shaded(x, y);
                 if (scene.cells[burning + scene.at(x, y)]) {
                     ++alight;
                     expect(shaded.light != 0u && brightness(shaded.pixel) > brightness(wood_before)) << std::format("the burning cell {}, {}: {:08x}", x, y, shaded.pixel);
@@ -181,7 +182,7 @@ static UTest cases{"matter.on-screen", [] {
         scene.fill(21, 14, 21, 17, "stone");   // held there by a wall
         const raster::Surface poured = scene.frame();
         std::println("    lava and water, poured: {}", keep(poured, "lava-0").generic_string());
-        const ca::Shaded lava = scene.shaded(8, 20);
+        const mlibs::math::color::Shaded lava = scene.shaded(8, 20);
         expect(lava.light != 0u && brightness(lava.pixel) > brightness(look->base()[*program.material("lava")])) << std::format("{:08x}", lava.pixel);
         scene.step(40);
         std::println("    after 40 ticks: {}", keep(scene.frame(), "lava-40").generic_string());
@@ -191,7 +192,7 @@ static UTest cases{"matter.on-screen", [] {
         std::size_t set_and_dark = 0, molten_and_lit = 0, steam = scene.count("steam");
         for (std::uint32_t y = 12; y < 22; ++y)
             for (std::uint32_t x = 2; x < 38; ++x) {
-                const ca::Shaded shaded = scene.shaded(x, y);
+                const mlibs::math::color::Shaded shaded = scene.shaded(x, y);
                 if (scene.is(x, y, "stone") && scene.kelvin(x, y) < 800 && !(x == 21 && y < 18)) {
                     expect(eq(shaded.light, 0u)) << std::format("stone at {:.0f} K gives no light", scene.kelvin(x, y));
                     ++set_and_dark;
@@ -245,7 +246,7 @@ static UTest cases{"matter.on-screen", [] {
         for (std::size_t cell = 0; cell < scene.area(); ++cell)
             if (scene.cells[burning + cell] && scene.cells[cell] == peat) {
                 ++alight;
-                expect(ca::shade_of(scene.shade, scene.cells, scene.area(), cell).light != 0u) << "peat alight gives light: no one wrote how peat burns";
+                expect(mlibs::math::color::shade_of(scene.shade, scene.cells, scene.area(), cell).light != 0u) << "peat alight gives light: no one wrote how peat burns";
             }
         expect(alight >= 2u) << std::format("{} cells of peat alight", alight);
         const raster::Surface by_standard = scene.frame();
@@ -260,8 +261,8 @@ static UTest cases{"matter.on-screen", [] {
         const auto other = matter::look_document(program, night, "night.appearance.omui.json");
         expect(fatal(other.has_value())) << (other ? "" : other.error().front().text());
         const std::vector<std::uint32_t> cells_before = scene.cells;
-        expect(scene.view.reshade(ca::lower(*other)).has_value());
-        scene.shade = ca::lower(*other);
+        expect(scene.view.reshade(other->shade()).has_value());
+        scene.shade = other->shade();
         const raster::Surface by_night = scene.frame();
         std::println("    the same cells by another pack: {}", keep(by_night, "peat-night").generic_string());
         expect(scene.cells == cells_before) << "a look changes no cell";

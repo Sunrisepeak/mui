@@ -15,7 +15,8 @@ import hanim.skeleton.cts;
 import xengine.matter.json;
 import xengine.cellular.matter;
 import xengine.cellular.matter.agent;
-import xengine.cellular.present.matter;
+import xengine.cellular.present;
+import xengine.matter.appearance;
 import xengine.cellular.rigid;
 import mlibs.trace;
 
@@ -682,7 +683,7 @@ void add_simulation_benchmarks() {
                 cells.swap(cells_next);
             }
             xrender::ImageStore store;
-            auto view = ca::FieldPresenter::make(store, shape, static_cast<std::uint32_t>(program->channels().size()), ca::lower(*look), tile);
+            auto view = ca::FieldPresenter::make(store, shape, static_cast<std::uint32_t>(program->channels().size()), look->shade(), tile);
             if (!view) { s.fail(view.error()); return; }
             const ca::Shape grid = ca::tiles(shape, tile);
             const std::vector<std::uint8_t> every(static_cast<std::size_t>(grid.width) * grid.height, 1);

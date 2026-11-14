@@ -40,8 +40,8 @@ xengine.nav = { path = "../../modules/projects/xengine/game/nav" }
 # whole 2D world, its bodies made of the lattice's cells (simulation/world-128x64-frame; the feature `rigid`).
 xengine.cellular = { path = "../../modules/projects/xengine/kernel/cellular", features = ["matter-agent", "rigid"] }
 xengine.matter = { path = "../../modules/projects/xengine/kernel/matter" }
-# With matter's look lowered to the lattice's shade (simulation/matter-256-shade).
-"xengine.cellular.present" = { path = "../../modules/projects/xengine/kernel/cellular/present", features = ["matter"] }
+# With matter's look as a shade on the lattice's presenter (simulation/matter-256-shade).
+"xengine.cellular.present" = { path = "../../modules/projects/xengine/kernel/cellular/present" }
 "hanim.core" = { path = "../../modules/projects/hanim/core" }
 "hanim" = { path = "../../modules/projects/hanim", features = ["render-vector"] }
 omui.sdk             = { path = "../../modules/projects/omui/sdk" }

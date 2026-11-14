@@ -4,6 +4,7 @@
 import std;
 import xengine.particles;
 import xengine.matter.json;
+import xengine.matter.appearance;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
@@ -96,6 +97,28 @@ UTest cases{"xengine.particles", [] {
         std::println("two sparks 2 cm apart: {:.1f} K and {:.1f} K; 50 cm apart: {:.1f} K and {:.1f} K", near_hot, near_cold, far_hot, far_cold);
         expect(lt(near_hot, 1000.0) && gt(near_cold, 300.0) && lt(std::abs(near_hot + near_cold - 1300.0), 1.0)) << "the heat shared, none made";
         expect(eq(far_hot, 1000.0) && eq(far_cold, 300.0));
+    };
+
+    "coloured by the world's look, the lattice's rule: a hot spark glows and stops glowing as it cools"_test = [] {
+        const auto program = standard();
+        const auto look = matter::standard_look(*program);
+        expect(fatal(look.has_value()));
+        const auto shade = look->shade();
+        expect(fatal(mlibs::math::color::check(shade, static_cast<std::uint32_t>(program->channels().size())).has_value()));
+        auto cloud = particles::Cloud::make(program, {.gravity = {0, 0, 0}, .ambient = *program->material("air"), .ambient_kelvin = 293});
+        const auto iron = *program->material("iron");
+        const std::array<particles::Spawn, 2> two{{{.at = {0, 0, 0}, .life = 100, .material = iron, .kelvin = 1500.0f}, {.at = {1, 0, 0}, .life = 100, .material = iron}}};
+        cloud->emit(two);
+        std::array<std::uint32_t, 2> pixels{}, light{};
+        mlibs::math::color::shade_run(shade, cloud->state(), cloud->size(), 0, pixels, light);
+        const std::uint32_t hot = pixels[0], glow = light[0];
+        std::println("iron at 1500 K: pixel {:08x}, light {:08x}; at its start: pixel {:08x}, light {:08x}", hot, glow, pixels[1], light[1]);
+        expect(ne(glow, 0u) && eq(light[1], 0u)) << "the hot one gives light, the cold one none";
+        expect(ne(hot, pixels[1]));
+        for (int step = 0; step < 600; ++step) expect(cloud->step({}).has_value());
+        mlibs::math::color::shade_run(shade, cloud->state(), cloud->size(), 0, pixels, light);
+        std::println("after 10 s in the air: pixel {:08x}, light {:08x}", pixels[0], light[0]);
+        expect(lt(light[0] >> 24, glow >> 24)) << "cooled: less light";
     };
 
     "the same spawns are the same bits; a copy taken half way is a branch that agrees"_test = [] {

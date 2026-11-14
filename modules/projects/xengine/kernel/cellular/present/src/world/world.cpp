@@ -43,7 +43,7 @@ std::expected<WorldPicture, std::string> WorldPicture::make(xrender::ImageStore&
     data->look = look;
     data->shape = shape;
     data->options = options;
-    auto view = FieldPresenter::make(store, shape, static_cast<std::uint32_t>(program.channels().size()), lower(look), options.tile);
+    auto view = FieldPresenter::make(store, shape, static_cast<std::uint32_t>(program.channels().size()), look.shade(), options.tile);
     if (!view) return std::unexpected(view.error());
     data->view.emplace(std::move(*view));
     auto layer = decor::Decor::make(program, shape, {.tile = options.tile, .seed = options.seed, .fill = options.fill});
@@ -159,7 +159,7 @@ std::expected<void, std::string> WorldPicture::bake(const rigid::MatterWorld& sc
     const Shape shape = world.shape();
     constexpr int scale = 4;  // pixels a cell in a baked frame
     xrender::ImageStore images;
-    auto view = FieldPresenter::make(images, shape, static_cast<std::uint32_t>(d.program->channels().size()), lower(d.look), d.options.tile);
+    auto view = FieldPresenter::make(images, shape, static_cast<std::uint32_t>(d.program->channels().size()), d.look.shade(), d.options.tile);
     if (!view) return std::unexpected(view.error());
     if (!view->glows()) return std::unexpected(std::string("the look emits no light: nothing to bake"));
     for (int frame = 0; frame < warm; ++frame) world.step();

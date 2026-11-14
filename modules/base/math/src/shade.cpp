@@ -1,10 +1,10 @@
-// A field's shade (D-168): the base colour of a cell's row, its grain, the tints in turn, and the light — in
-// whole numbers, the arithmetic CONTRACT.md states and a device's painter is held to.
-module xengine.cellular.api;
-import std;
-import mlibs.math;
+// A shade (D-168): the base colour of an item's row, its grain, the tints in turn, and the light — in whole
+// numbers, the arithmetic xengine.cellular's CONTRACT.md states and a device's painter is held to.
+module mlibs.math.api;
 
-namespace xengine::cellular {
+import std;
+
+namespace mlibs::math::color {
 namespace {
 
 struct Channels {
@@ -31,12 +31,12 @@ struct Channels {
     return (component * (256 - amount) + target * amount + 128) >> 8;
 }
 
-[[nodiscard]] Shaded shade_cell(const Shade& shade, std::span<const std::uint32_t> cells, std::size_t area, std::size_t index) noexcept {
+[[nodiscard]] Shaded shade_item(const Shade& shade, std::span<const std::uint32_t> cells, std::size_t area, std::size_t index) noexcept {
     const std::uint32_t row = cells[shade.key * area + index];
     Channels color = unpack(row < shade.base.size() ? shade.base[row] : shade.fallback);
     if (row < shade.grain.size() && shade.grain[row]) {
-        // Lighter or darker by a number of the cell's place: the same cell the same, whatever is in it.
-        const int roll = static_cast<int>(mlibs::math::mix32(static_cast<std::uint32_t>(index)) & 0xff) - 128;
+        // Lighter or darker by a number of the item's place: the same item the same, whatever is in it.
+        const int roll = static_cast<int>(mix32(static_cast<std::uint32_t>(index)) & 0xff) - 128;
         const int shift = roll * static_cast<int>(shade.grain[row]) / 128;
         const auto shifted = [shift](std::uint32_t component) { return static_cast<std::uint32_t>(std::clamp(static_cast<int>(component) + shift, 0, 255)); };
         color = {shifted(color.red), shifted(color.green), shifted(color.blue), color.alpha};
@@ -64,13 +64,13 @@ struct Channels {
 }  // namespace
 
 std::expected<void, std::string> check(const Shade& shade, std::uint32_t channels) {
-    if (shade.key >= channels) return std::unexpected(std::format("the shade's key is channel {}; the field has {}", shade.key, channels));
+    if (shade.key >= channels) return std::unexpected(std::format("the shade's key is channel {}; there are {} channels", shade.key, channels));
     if (shade.base.empty()) return std::unexpected(std::string("a shade has a row at least: the colour of the key's value 0"));
     if (!shade.grain.empty() && shade.grain.size() != shade.base.size())
         return std::unexpected(std::format("grain for {} rows; the shade has {}", shade.grain.size(), shade.base.size()));
     for (std::size_t index = 0; index < shade.tints.size(); ++index) {
         const Tint& tint = shade.tints[index];
-        if (tint.channel >= channels) return std::unexpected(std::format("tint {} reads channel {}; the field has {}", index, tint.channel, channels));
+        if (tint.channel >= channels) return std::unexpected(std::format("tint {} reads channel {}; there are {} channels", index, tint.channel, channels));
         if (!tint.to_by_row.empty() && tint.to_by_row.size() != shade.base.size())
             return std::unexpected(std::format("tint {} has an end for {} rows; the shade has {}", index, tint.to_by_row.size(), shade.base.size()));
     }
@@ -78,16 +78,16 @@ std::expected<void, std::string> check(const Shade& shade, std::uint32_t channel
 }
 
 Shaded shade_of(const Shade& shade, std::span<const std::uint32_t> cells, std::size_t area, std::size_t index) noexcept {
-    return shade_cell(shade, cells, area, index);
+    return shade_item(shade, cells, area, index);
 }
 
 void shade_run(const Shade& shade, std::span<const std::uint32_t> cells, std::size_t area, std::size_t first, std::span<std::uint32_t> pixels,
                std::span<std::uint32_t> light) noexcept {
     for (std::size_t offset = 0; offset < pixels.size(); ++offset) {
-        const Shaded shaded = shade_cell(shade, cells, area, first + offset);
+        const Shaded shaded = shade_item(shade, cells, area, first + offset);
         pixels[offset] = shaded.pixel;
         if (!light.empty()) light[offset] = shaded.light;
     }
 }
 
-}  // namespace xengine::cellular
+}  // namespace mlibs::math::color

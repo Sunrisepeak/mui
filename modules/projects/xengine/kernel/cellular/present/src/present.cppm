@@ -14,7 +14,7 @@
 //     view->draw(list, {x, y, width, height});       // one DrawImage, nearest sampling
 //
 // By a shade instead of a palette (D-168), a cell's colour is computed — its row's base, tints along its
-// channels (cellular::Shade) — and what glows is a second image, the field's light, kept by the same tiles:
+// channels (`mlibs::math::color::Shade`) — and what glows is a second image, the field's light, kept by the same tiles:
 //
 //     auto view = FieldPresenter::make(store, shape, channels, shade);
 //     view->draw(list, dest);
@@ -26,6 +26,7 @@ export import xengine.cellular;
 export import xrender.vector;
 export import xrender.raster;
 export import mlibs.geom;
+export import mlibs.math;
 
 export namespace xengine::cellular {
 
@@ -58,7 +59,7 @@ public:
                                                                          Palette palette, Shape tile = {32, 32});
     // The same by a shade: each cell's colour computed (shade_of), and — where a tint emits — the field's
     // light as a second image in the store. Fails as above, and on a shade the field cannot be shaded by (check).
-    [[nodiscard]] static std::expected<FieldPresenter, std::string> make(xrender::ImageStore& store, Shape shape, std::uint32_t channels, Shade shade,
+    [[nodiscard]] static std::expected<FieldPresenter, std::string> make(xrender::ImageStore& store, Shape shape, std::uint32_t channels, mlibs::math::color::Shade shade,
                                                                          Shape tile = {32, 32});
     FieldPresenter(FieldPresenter&&) noexcept;
     FieldPresenter& operator=(FieldPresenter&&) noexcept;
@@ -77,7 +78,7 @@ public:
     // A new shade for a presenter made by one (another style pack: the look changes, the cells do not);
     // every tile recoloured at the next present. One that emits where the last did not, or the reverse, is
     // refused: the light is an image the presenter has or has not.
-    std::expected<void, std::string> reshade(Shade shade);
+    std::expected<void, std::string> reshade(mlibs::math::color::Shade shade);
 
     // The image, drawn into `dest` with nearest sampling: one command.
     void draw(xrender::DisplayList& list, mlibs::geom::Rect dest, float opacity = 1) const;
@@ -93,7 +94,7 @@ public:
     [[nodiscard]] xrender::ImageRef light() const noexcept;
     [[nodiscard]] bool glows() const noexcept;
     // The shade of one cell of `cells` (what the two images hold there); nothing for a presenter by a palette.
-    [[nodiscard]] Shaded shaded(std::span<const std::uint32_t> cells, std::uint32_t x, std::uint32_t y) const noexcept;
+    [[nodiscard]] mlibs::math::color::Shaded shaded(std::span<const std::uint32_t> cells, std::uint32_t x, std::uint32_t y) const noexcept;
     [[nodiscard]] Shape shape() const noexcept;
     [[nodiscard]] Shape tiles() const noexcept;
     // The palette as pixels (premultiplied RGBA8, red lowest): what a device's

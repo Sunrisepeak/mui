@@ -14,7 +14,8 @@ import mlibs.json;
 import xengine.matter.json;
 import xengine.matter.appearance;
 import xengine.cellular.matter.agent;
-import xengine.cellular.present.matter;
+import xengine.cellular.present;
+import xengine.matter.appearance;
 import xrender.frame;
 import :text;
 
@@ -433,7 +434,7 @@ void Lab::install(Built built, Texts texts) {
 
     // The picture of this world: its own image and surface (the shape may be another).
     auto screen = std::make_unique<Screen>();
-    auto presenter = cellular::FieldPresenter::make(screen->images, shape_, static_cast<std::uint32_t>(world_.matter->program().channels().size()), cellular::lower(look_), {16, 16});
+    auto presenter = cellular::FieldPresenter::make(screen->images, shape_, static_cast<std::uint32_t>(world_.matter->program().channels().size()), look_.shade(), {16, 16});
     if (presenter) screen->presenter.emplace(std::move(*presenter));
     screen->surface = xrender::raster::Surface(static_cast<int>(shape_.width) * options_.scale, static_cast<int>(shape_.height) * options_.scale);
     screen_ = std::move(screen);

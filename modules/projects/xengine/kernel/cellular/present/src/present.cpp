@@ -9,6 +9,7 @@ import std;
 namespace xengine::cellular {
 
 namespace {
+namespace color = mlibs::math::color;
 using Surface = xrender::raster::Surface;
 using Pixel = xrender::raster::Rgba8;
 }  // namespace
@@ -21,7 +22,7 @@ struct FieldPresenter::Data {
     Palette palette;
     std::vector<PixelSwatch> pixels;                // the palette as pixels (the rule pixel_of keeps)
     std::uint32_t fallback = 0;
-    std::optional<Shade> shade;                     // by a shade instead (shade_of)
+    std::optional<color::Shade> shade;              // by a shade instead (shade_of)
     xrender::ImageRef light_ref;                    // the field's light, where the shade emits
     std::array<std::shared_ptr<Surface>, 2> lights; // taking turns with the surfaces
     std::vector<std::uint32_t> run, run_light;      // scratch: one row of a tile
@@ -48,7 +49,7 @@ struct FieldPresenter::Data {
             }
             const std::span<std::uint32_t> pixels_of_row(run.data(), x1 - x0);
             const std::span<std::uint32_t> light_of_row(run_light.data(), light ? x1 - x0 : 0);
-            shade_run(*shade, cells, area(), static_cast<std::size_t>(y) * shape.width + x0, pixels_of_row, light_of_row);
+            color::shade_run(*shade, cells, area(), static_cast<std::size_t>(y) * shape.width + x0, pixels_of_row, light_of_row);
             for (std::uint32_t x = x0; x < x1; ++x) row[x] = std::bit_cast<Pixel>(pixels_of_row[x - x0]);
             if (light) {
                 Pixel* lit = light->row(static_cast<int>(y));
@@ -56,10 +57,10 @@ struct FieldPresenter::Data {
             }
         }
     }
-    [[nodiscard]] static bool emits(const Shade& of) noexcept {
-        return std::ranges::any_of(of.tints, [](const Tint& tint) { return tint.emits; });
+    [[nodiscard]] static bool emits(const color::Shade& of) noexcept {
+        return std::ranges::any_of(of.tints, [](const color::Tint& tint) { return tint.emits; });
     }
-    std::expected<void, std::string> prepare(Shade next) {
+    std::expected<void, std::string> prepare(color::Shade next) {
         if (auto checked = check(next, channels); !checked) return std::unexpected(checked.error());
         shade = std::move(next);
         run.assign(tile.width, 0);
@@ -122,7 +123,7 @@ std::expected<FieldPresenter, std::string> FieldPresenter::make(xrender::ImageSt
     return FieldPresenter(std::move(data));
 }
 
-std::expected<FieldPresenter, std::string> FieldPresenter::make(xrender::ImageStore& store, Shape shape, std::uint32_t channels, Shade shade, Shape tile) {
+std::expected<FieldPresenter, std::string> FieldPresenter::make(xrender::ImageStore& store, Shape shape, std::uint32_t channels, color::Shade shade, Shape tile) {
     if (auto fits = field_fits(shape, channels, tile); !fits) return std::unexpected(fits.error());
     auto data = std::make_unique<Data>();
     data->store = &store;
@@ -233,7 +234,7 @@ std::expected<void, std::string> FieldPresenter::recolor(Palette palette) {
     return data_->prepare(palette);
 }
 
-std::expected<void, std::string> FieldPresenter::reshade(Shade shade) {
+std::expected<void, std::string> FieldPresenter::reshade(color::Shade shade) {
     Data& d = *data_;
     if (!d.shade) return std::unexpected(std::string("a presenter by a palette takes a new palette (recolor), not a shade"));
     if (Data::emits(shade) != (d.lights[0] != nullptr))
@@ -258,10 +259,10 @@ void FieldPresenter::draw_glow(xrender::DisplayList& list, mlibs::geom::Rect des
 
 xrender::ImageRef FieldPresenter::light() const noexcept { return data_->light_ref; }
 bool FieldPresenter::glows() const noexcept { return data_->lights[0] != nullptr; }
-Shaded FieldPresenter::shaded(std::span<const std::uint32_t> cells, std::uint32_t x, std::uint32_t y) const noexcept {
+color::Shaded FieldPresenter::shaded(std::span<const std::uint32_t> cells, std::uint32_t x, std::uint32_t y) const noexcept {
     const Data& d = *data_;
     if (!d.shade || x >= d.shape.width || y >= d.shape.height || cells.size() != d.area() * d.channels) return {};
-    return shade_of(*d.shade, cells, d.area(), static_cast<std::size_t>(y) * d.shape.width + x);
+    return color::shade_of(*d.shade, cells, d.area(), static_cast<std::size_t>(y) * d.shape.width + x);
 }
 
 void FieldPresenter::draw(xrender::DisplayList& list, mlibs::geom::Rect dest, float opacity) const {
@@ -275,7 +276,7 @@ void FieldPresenter::draw_loose(xrender::DisplayList& list, mlibs::geom::Rect de
     const float across = dest.width / static_cast<float>(d.shape.width), down = dest.height / static_cast<float>(d.shape.height);
     for (std::size_t cell = 0; cell < centres.size() / 2; ++cell) {
         // One cell's channels are a field of one cell, channel-major.
-        const std::uint32_t pixel = shade_of(*d.shade, values.subspan(cell * d.channels, d.channels), 1, 0).pixel;
+        const std::uint32_t pixel = color::shade_of(*d.shade, values.subspan(cell * d.channels, d.channels), 1, 0).pixel;
         const std::uint32_t alpha = pixel >> 24;
         if (!alpha) continue;
         const auto straight = [alpha](std::uint32_t component) { return static_cast<std::uint8_t>(std::min<std::uint32_t>(255, (component * 255 + alpha / 2) / alpha)); };
@@ -296,7 +297,7 @@ mlibs::geom::Color FieldPresenter::color(std::span<const std::uint32_t> cells, s
     if (x >= d.shape.width || y >= d.shape.height || cells.size() != d.area() * d.channels) return d.palette.fallback;
     const std::size_t index = static_cast<std::size_t>(y) * d.shape.width + x;
     if (d.shade) {
-        const std::uint32_t pixel = shade_of(*d.shade, cells, d.area(), index).pixel;
+        const std::uint32_t pixel = color::shade_of(*d.shade, cells, d.area(), index).pixel;
         const std::uint32_t alpha = pixel >> 24;
         if (!alpha) return mlibs::geom::Color::transparent();
         const auto straight = [alpha](std::uint32_t component) { return static_cast<std::uint8_t>(std::min<std::uint32_t>(255, (component * 255 + alpha / 2) / alpha)); };

@@ -23,7 +23,8 @@
 export module xengine.cellular.present.world;
 
 import std;
-export import xengine.cellular.present.matter;
+export import xengine.cellular.present;
+export import xengine.matter.appearance;
 export import xengine.cellular.rigid;
 export import xengine.cellular.decor;
 export import mlibs.pipeline;

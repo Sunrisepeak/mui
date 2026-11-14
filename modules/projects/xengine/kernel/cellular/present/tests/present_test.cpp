@@ -46,22 +46,22 @@ bool image_is(const xrender::ImageStore& store, const ca::FieldPresenter& view, 
 }
 // The same field by a shade: the path's colour by its row, uneven; what has burnt charred; what burns, by its
 // age, aflame — and that is the field's light.
-ca::Shade shade() {
-    ca::Shade out;
+mlibs::math::color::Shade shade() {
+    mlibs::math::color::Shade out;
     out.base = {0xff20180b, 0xffb8a38f};  // straight 0xAABBGGRR
     out.grain = {0, 24};
     out.tints.push_back({.channel = 1, .from = 1, .to = 2, .color = 0xe0101418});
     out.tints.push_back({.channel = 2, .from = 0, .to_by_row = {0, 3}, .color = 0xff28b4ff, .emits = true});
     return out;
 }
-bool images_are(const xrender::ImageStore& store, const ca::FieldPresenter& view, std::span<const std::uint32_t> cells, const ca::Shade& by) {
+bool images_are(const xrender::ImageStore& store, const ca::FieldPresenter& view, std::span<const std::uint32_t> cells, const mlibs::math::color::Shade& by) {
     const raster::Surface* image = store.get(view.image());
     const raster::Surface* light = store.get(view.light());
     if (!image || !light) return false;
     const std::size_t area = static_cast<std::size_t>(view.shape().width) * view.shape().height;
     for (std::uint32_t y = 0; y < view.shape().height; ++y)
         for (std::uint32_t x = 0; x < view.shape().width; ++x) {
-            const ca::Shaded want = ca::shade_of(by, cells, area, static_cast<std::size_t>(y) * view.shape().width + x);
+            const mlibs::math::color::Shaded want = mlibs::math::color::shade_of(by, cells, area, static_cast<std::size_t>(y) * view.shape().width + x);
             if (std::bit_cast<std::uint32_t>(image->at(static_cast<int>(x), static_cast<int>(y))) != want.pixel) return false;
             if (std::bit_cast<std::uint32_t>(light->at(static_cast<int>(x), static_cast<int>(y))) != want.light) return false;
             if (view.shaded(cells, x, y) != want) return false;
@@ -162,7 +162,7 @@ UTest cases{"simulation.cellular.present", [] {
         const auto program = ca::Program::prepare(3, rule_list);
         expect(fatal(program.has_value()));
         xrender::ImageStore store;
-        const ca::Shade by = shade();
+        const mlibs::math::color::Shade by = shade();
         auto view = ca::FieldPresenter::make(store, shape, 3, by, {16, 16});
         expect(fatal(view.has_value())) << (view ? "" : view.error());
         expect(view->glows() && eq(store.size(), std::size_t{2})) << "the field and its light";
@@ -242,22 +242,22 @@ UTest cases{"simulation.cellular.present", [] {
         }
 
         // Another pack: the look changes and the cells do not.
-        ca::Shade night = by;
+        mlibs::math::color::Shade night = by;
         night.base = {0xff000000, 0xff404040};
         expect(view->reshade(night).has_value());
         const auto report = view->present(cells);
         expect(report && report->whole && report->tiles == 7 * 5) << "every tile recoloured";
         expect(images_are(store, *view, cells, night)) << "in the new shade";
-        ca::Shade dark = by;
+        mlibs::math::color::Shade dark = by;
         for (auto& tint : dark.tints) tint.emits = false;
         expect(!view->reshade(dark)) << "a shade without light for a presenter with one";
         expect(!view->recolor(palette())) << "a palette for a presenter by a shade";
-        ca::Shade bad = by;
+        mlibs::math::color::Shade bad = by;
         bad.tints[0].channel = 3;
         expect(!view->reshade(bad) && !ca::FieldPresenter::make(store, shape, 3, bad)) << "a tint reading a channel the field has not";
         auto flat = ca::FieldPresenter::make(store, shape, 3, palette());
         expect(!flat->reshade(by)) << "a shade for a presenter by a palette";
-        expect(!flat->glows() && eq(flat->light().id, 0u) && flat->shaded(cells, 1, 1) == ca::Shaded{});
+        expect(!flat->glows() && eq(flat->light().id, 0u) && flat->shaded(cells, 1, 1) == mlibs::math::color::Shaded{});
         // Without light, one image; released, both are gone.
         const auto images = store.size();
         auto unlit = ca::FieldPresenter::make(store, shape, 3, dark);

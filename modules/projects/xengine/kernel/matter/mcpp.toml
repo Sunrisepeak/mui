@@ -40,6 +40,7 @@ mlibs.json = { path = "../../../../base/json" }
 
 [feature-deps.appearance]
 mlibs.json = { path = "../../../../base/json" }
+mlibs.math = { path = "../../../../base/math" }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"

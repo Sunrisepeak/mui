@@ -469,6 +469,18 @@ void log_fact(const Probe& probe, Check& check) {
             check.that(found->second.contains(std::format("\"operation\":\"{}\"", changing)) && found->second.contains("\"outcome\":\"done\"") && found->second.contains(actor_id) &&
                            found->second.contains("\"request\":{"),
                        "its record says what was asked — the request itself — how it ended, and who asked");
+    // A subject that explains its changes keeps a record of its own: the fact says where the change is in it
+    // (`at`), and what `explain` answers has that place — one change, found from either.
+    if (changed > 0 && subject->capabilities().causes && !probe.explain.empty())
+        if (auto parsed = mlibs::json::Document::parse(facts.at(changed), "fact")) {
+            const auto at = parsed->root()["at"];
+            if (check.that(at.is_object() && at.size() > 0, "the change's fact says where the subject's own record has it (`at`)")) {
+                const Answered explained = ask(session, probe.explain);
+                for (const auto& [key, value] : at.members())
+                    check.that(explained.data.contains(std::format("\"{}\":{}", key, value.dump())),
+                               std::format("what `explain` answers has the change at the same place ({}: {})", key, value.dump()));
+            }
+        }
     // Asked by what they are about.
     check.that(on_record(R"({"op":"log","failed":true})").contains(failed) && !on_record(R"({"op":"log","failed":true})").contains(changed), "asked for what failed: the failure, not the change");
     check.that(!on_record(std::format(R"({{"op":"log","since":{}}})", failed)).contains(failed), "asked for what came after a number: not that one");

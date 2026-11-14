@@ -75,6 +75,7 @@ public:
     [[nodiscard]] mlibs::control::Guide guide() const noexcept override { return world_.matter->guide(); }
     [[nodiscard]] std::vector<mlibs::agent::Term> terms() const override { return world_.matter->terms(); }
     [[nodiscard]] std::uint64_t state_hash() const override { return world_.matter->state_hash(); }
+    [[nodiscard]] std::string recorded() const override { return world_.matter->recorded(); }
     void operate(std::string_view operation, const agent::Request& request, agent::Answer& answer) override { world_.matter->operate(operation, request, answer); }
 
 private:

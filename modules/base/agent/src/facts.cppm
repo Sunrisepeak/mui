@@ -30,6 +30,7 @@ struct Fact {
     std::string    outcome;      // "done", or the error's code
     std::string    text;         // what the error said (empty when done)
     std::string    request;      // the request as it came: one JSON object
+    std::string    at;           // where the subject's own record has the change (Subject::recorded): a JSON object, or empty
 };
 
 // A fact as a line a person reads: "agent:ada matter.place → done", "agent matter.heat → invalid-argument: …".

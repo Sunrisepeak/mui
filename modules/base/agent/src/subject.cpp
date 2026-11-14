@@ -320,12 +320,13 @@ void SubjectSession::request(std::string_view line, const Reply& reply) {
     const bool changes = found->operation.effect != openas::Effect::read;
     const std::uint64_t number = changes ? options_.facts->reserve() : 0;
     answer.fact(number);
-    answer.ended([facts = options_.facts, changes,
+    answer.ended([facts = options_.facts, changes, subject,
                   fact = Fact{.id = number, .subject = std::string(subject->name()), .operation = decided.op, .effect = found->operation.effect, .actor = decided.actor, .outcome = {},
                               .text = {}, .request = std::string(line)}](std::string_view code, std::string_view text) mutable {
         if (!changes && code.empty()) return;
         fact.outcome = code.empty() ? std::string("done") : std::string(code);
         fact.text = std::string(text);
+        if (changes && code.empty()) fact.at = subject->recorded();  // where its own record has it: the two found from each other
         facts->record(std::move(fact));
     });
     subject->operate(decided.op, decided, answer);

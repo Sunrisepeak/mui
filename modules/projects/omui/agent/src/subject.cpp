@@ -16,6 +16,11 @@ InterfaceSubject::InterfaceSubject(Runtime& runtime, Protocol& protocol, Interfa
 
 std::uint64_t InterfaceSubject::state_hash() const { return mlibs::hash::fnv1a(tree_.state().json()); }
 
+std::string InterfaceSubject::recorded() const {
+    const auto journal = runtime_.action_journal();
+    return journal.empty() ? std::string() : std::format("{{\"id\":{}}}", journal.back().id);
+}
+
 void InterfaceSubject::operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) {
     // The protocol's own request: the operation without its subject, who asks as the session says (never as
     // the line claimed), no `re` (the kernel's answer echoes it).

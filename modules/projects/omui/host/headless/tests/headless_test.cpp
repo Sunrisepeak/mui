@@ -339,6 +339,7 @@ UTest cases{"headless", [] {
             mlibs::control::Guide guide() const noexcept override { return subject->guide(); }
             std::vector<mlibs::agent::Term> terms() const override { return subject->terms(); }
             std::uint64_t state_hash() const override { return subject->state_hash(); }
+            std::string recorded() const override { return subject->recorded(); }
             void operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) override {
                 subject->operate(operation, request, answer);
             }

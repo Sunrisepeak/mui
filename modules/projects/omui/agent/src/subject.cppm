@@ -49,6 +49,7 @@ public:
     [[nodiscard]] mlibs::control::Guide guide() const noexcept override { return omui::agent::guide; }
     // What `ui.state` answers, hashed: what was set in the interface — text, switches, values, scroll, focus.
     [[nodiscard]] std::uint64_t state_hash() const override;
+    [[nodiscard]] std::string recorded() const override;  // the action journal's last entry (`ui.timeline`'s `actions`)
     void operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) override;
 
 private:

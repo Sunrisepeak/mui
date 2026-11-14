@@ -274,6 +274,7 @@ public:
     [[nodiscard]] mlibs::control::Guide guide() const noexcept override { return target().guide(); }
     [[nodiscard]] std::vector<mlibs::agent::Term> terms() const override { return target().terms(); }
     [[nodiscard]] std::uint64_t state_hash() const override { return target().state_hash(); }
+    [[nodiscard]] std::string recorded() const override { return target().recorded(); }
     void poll() override { target().poll(); }
     // What changes the field changes the scene: held while another has claimed it.
     void operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) override {
@@ -477,6 +478,11 @@ Texts Lab::texts() {
 }
 
 std::string Lab::state() { return std::format("{:016x}", state_hash()); }
+
+std::string Lab::recorded() const {
+    const auto head = history_.resolve("HEAD");
+    return head ? std::format("{{\"commit\":{}}}", mlibs::agent::json_text(*head)) : std::string();
+}
 
 std::uint64_t Lab::state_hash() const {
     mlibs::hash::Fnv1a hash;

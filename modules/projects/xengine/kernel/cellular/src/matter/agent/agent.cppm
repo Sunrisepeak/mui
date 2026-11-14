@@ -133,6 +133,7 @@ public:
     // What this world names, for `find`: its materials, channels and laws, each with the request that describes it.
     [[nodiscard]] std::vector<mlibs::agent::Term> terms() const override;
     [[nodiscard]] std::uint64_t state_hash() const override { return field_->lattice_hash(); }
+    [[nodiscard]] std::string recorded() const override { return std::format("{{\"frame\":{}}}", field_->lattice_frame()); }
     void operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) override;
 
     // ── as the field's witness ──────────────────────────────────────────────

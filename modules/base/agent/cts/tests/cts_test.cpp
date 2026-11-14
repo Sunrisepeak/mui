@@ -70,6 +70,7 @@ public:
         if (fault_ == Fault::no_guide) return {};
         return {"Amounts added by someone, at a tick of its own clock.", fault_ == Fault::task_stops ? std::span<const control::Task>(stops) : std::span<const control::Task>(tasks)};
     }
+    std::string recorded() const override { return std::format("{{\"entry\":{}}}", entries_.size()); }
     std::uint64_t state_hash() const override {
         std::vector<std::uint64_t> parts{static_cast<std::uint64_t>(tick_), static_cast<std::uint64_t>(entries_.size())};
         for (const Entry& entry : entries_) parts.push_back(static_cast<std::uint64_t>(entry.amount) * 31 + static_cast<std::uint64_t>(entry.tick));
@@ -104,7 +105,8 @@ public:
         } else if (operation == "ledger.why") {
             if (entries_.empty()) return answer.data("{\"causes\":[]}");
             const Entry& last = entries_.back();
-            answer.data(std::format("{{\"causes\":[{{\"operation\":\"ledger.add\",\"by\":{},\"tick\":{},\"actor\":{}}}]}}", last.amount, last.tick, agent::json_text(last.actor)));
+            answer.data(std::format("{{\"causes\":[{{\"operation\":\"ledger.add\",\"entry\":{},\"by\":{},\"tick\":{},\"actor\":{}}}]}}", entries_.size(), last.amount, last.tick,
+                                    agent::json_text(last.actor)));
         } else if (operation == "ledger.source") {
             std::string out = "{\"total\":[";
             for (std::size_t index = 0; index < entries_.size(); ++index)

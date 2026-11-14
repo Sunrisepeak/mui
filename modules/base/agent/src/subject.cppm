@@ -82,6 +82,11 @@ public:
     [[nodiscard]] virtual mlibs::control::Guide guide() const noexcept { return {}; }
     // What `find` looks through besides the catalog: what its content names. Asked when a `find` is, never a frame.
     [[nodiscard]] virtual std::vector<Term> terms() const { return {}; }
+    // Where its own record of changes stands — the place the change just made has in it, as that record names it
+    // (a field: `{"frame":12}`; a design: `{"commit":"3ad3…"}`; an interface: `{"id":5}`): a JSON object, asked
+    // when a change's answer ends and kept with its fact (`at`), so the fact and what `explain` answers are
+    // found from each other. Empty: it keeps no record of its own.
+    [[nodiscard]] virtual std::string recorded() const { return {}; }
     // A hash of its whole state: the same state, the same hash. 0: it has none to give.
     [[nodiscard]] virtual std::uint64_t state_hash() const { return 0; }
     // One of its operations (its whole name), already decided: its data, then

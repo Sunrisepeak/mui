@@ -20,6 +20,7 @@ std::string json_of(const Fact& fact) {
                                   json_text(fact.operation), json_text(openas::name(fact.effect)), json_text(openas::name(fact.actor.kind)), json_text(fact.actor.name),
                                   json_text(fact.outcome));
     if (!fact.text.empty()) out += std::format(",\"text\":{}", json_text(fact.text));
+    if (!fact.at.empty()) out += std::format(",\"at\":{}", fact.at);
     return out + std::format(",\"request\":{}}}", fact.request.empty() ? std::string_view("null") : std::string_view(fact.request));
 }
 

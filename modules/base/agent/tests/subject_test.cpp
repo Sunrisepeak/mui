@@ -39,6 +39,7 @@ public:
         return {"A count.", tasks};
     }
     std::vector<agent::Term> terms() const override { return {{"page", "three", "The page the counter is on", R"({"op":"counter.read"})"}}; }
+    std::string recorded() const override { return std::format("{{\"change\":{}}}", operated); }
     std::uint64_t state_hash() const override { return static_cast<std::uint64_t>(count) + 1; }
     void operate(std::string_view operation, const agent::Request& request, agent::Answer& answer) override {
         ++operated;
@@ -190,6 +191,7 @@ UTest cases{"agent.subject", [] {
         expect(eq(facts.size(), std::size_t{4}) && log.records[0].root()["data"]["last"].integer() == 4);
         expect(facts[0]["fact"].integer() == 1 && facts[0]["subject"].text() == "counter" && facts[0]["operation"].text() == "counter.add" && facts[0]["effect"].text() == "reversible" &&
                facts[0]["outcome"].text() == "done" && facts[0]["by"]["name"].text() == "ada" && facts[0]["request"]["by"].integer() == 2);
+        expect(facts[0]["at"]["change"].integer() == 2 && !facts[1]["at"]) << "where the subject's own record has the change; a failure changed nothing";
         expect(facts[1]["outcome"].text() == "invalid-argument" && facts[1]["text"].text().value_or("").contains("needs `to`"));
         expect(facts[2]["outcome"].text() == "invalid-argument" && facts[2]["text"].text() == "a count is not negative");
         expect(facts[3]["outcome"].text() == "not-found" && facts[3]["subject"].text() == "");

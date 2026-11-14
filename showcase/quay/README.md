@@ -2,7 +2,7 @@
 
 A watchkeeper on a harbour at night, in the rain, has to light the beacon at the end of the breakwater before the tide covers it; rusted wardens patrol between the containers, and they find people only by what they hear and see. An original first-person game, M6.4's vertical slice ([the design](../../.agents/docs/2026-11-15-fps-slice-quay-design.md); the plan's §12).
 
-**State of it**: the simulation (F1), the game as the runtime plays it with an agent at a person's tier (F2), the picture on the CPU reference and on a device with its frame budget (F3) the sound (F4) and the window to play in (F5) are done and tested; rain and marks of shots are next.
+**State of it**: the simulation (F1), the game as the runtime plays it with an agent at a person's tier (F2), the picture on the CPU reference and on a device with its frame budget (F3) the sound (F4) and the window to play in (F5) are done and tested, and so are the rain and the marks of shots; the containers' corrugated surfaces are next.
 
 | Package | What |
 |---|---|

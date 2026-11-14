@@ -20,7 +20,7 @@ constexpr std::uint32_t box_mesh = 0, ball_mesh = 1, post_mesh = 2, sea_mesh = 3
 // The materials, by number.
 enum Material : std::uint32_t {
     wet_quay, concrete, rust_red, steel_blue, sea_green, ochre, dull_grey, wood, iron, warden_rust, warm_globe, cold_globe, eye_patrol, eye_search, eye_chase, beacon_glass, gun_metal,
-    flash, stone, sea, materials_count
+    flash, stone, sea, scorch, hole, materials_count
 };
 constexpr std::array<Material, 5> paints{rust_red, steel_blue, sea_green, ochre, dull_grey};
 // The warden's joints.
@@ -40,6 +40,25 @@ void put(scene::Scene& world, const scene::Instance& instance) {
     (void)world.set(instance);
     (void)world.move(instance.id, instance.world);
 }
+// The turn that takes the way up (0, 1, 0) to `normal`.
+Quat up_to(math::Vec3 normal) {
+    const math::Vec3 axis{normal.z, 0, -normal.x};  // up × normal
+    const float across = math::length(axis);
+    if (across < 1e-6f) return normal.y >= 0 ? Quat{} : Quat::about({1, 0, 0}, static_cast<float>(pi));
+    return Quat::about(axis * (1 / across), static_cast<float>(det::atan2(static_cast<double>(across), static_cast<double>(normal.y))));
+}
+// A number in [0, 1) from a drop's number and a key: the same everywhere.
+float unit(std::uint64_t number, std::uint64_t key) noexcept { return static_cast<float>(math::unit24(math::mix64(math::mix64(number) ^ key))); }
+// `value` brought into [low, low + span), as a tiling repeats it.
+float wrapped(float value, float low, float span) noexcept {
+    const float into = std::fmod(value - low, span);
+    return low + (into < 0 ? into + span : into);
+}
+// The rain: a box of it that goes with the eye, each drop fixed in the world as the box moves (it repeats every
+// `rain_across` m), falling `fall` m/s from `rain_top` to the ground.
+constexpr float rain_across = 40, rain_top = 16, rain_bottom = -1.5f, fall = 9, drop_size = 0.6f, slant = 0.1f;  // radians the wind leans it
+constexpr std::uint64_t splash_steps = 10;  // a splash lasts a sixth of a second
+
 // The turn about the way up that faces −z toward `facing` (the game's: forward is (sin yaw, 0, −cos yaw)).
 Quat facing_turn(math::Vec3 facing) {
     const double yaw = det::atan2(static_cast<double>(facing.x), static_cast<double>(-facing.z));
@@ -129,6 +148,8 @@ std::expected<Picture, std::string> Picture::make(const Level& level) {
     materials[flash] = {{1, 1, 1}, {30.0f, 18.0f, 6.0f}};
     materials[stone] = {{0.12f, 0.12f, 0.13f}, {}, 0.95f, 0};
     materials[sea] = {{0.01f, 0.014f, 0.02f}, {}, 0.08f, 0};
+    materials[scorch] = {{0.02f, 0.018f, 0.016f}, {}, 0.95f, 0};
+    materials[hole] = {{0.003f, 0.003f, 0.003f}, {}, 1, 0};
 
     // The fixed boxes: the quay's slab wet, the breakwater stone, low walls and the warehouse concrete, the
     // containers painted (by their place: the same each run); crates are the bodies' and placed each frame.
@@ -174,7 +195,27 @@ std::expected<Picture, std::string> Picture::make(const Level& level) {
     }
     fine = fine && add(gun_id, gun_mesh, gun_metal, math::Mat4{}, false);
     fine = fine && add(flash_id, ball_mesh, flash, math::Mat4{}, false);
+    // The marks of shots, each a scorch and its hole: there to be placed (hidden until a shot leaves one).
+    for (std::size_t index = 0; index < kept_marks; ++index) {
+        fine = fine && world.add({.id = mark_ids + index * 2, .mesh = post_mesh, .material = scorch, .bounds = geom::bounds(made.made_[post_mesh].mesh), .hidden = true, .casts = false}).has_value();
+        fine = fine && world.add({.id = mark_ids + index * 2 + 1, .mesh = post_mesh, .material = hole, .bounds = geom::bounds(made.made_[post_mesh].mesh), .hidden = true, .casts = false}).has_value();
+    }
     if (!fine) return std::unexpected(std::string("the scene refused an instance or a light"));
+
+    // A drop's shape: a line down the middle of a square, soft at its sides and fading at its ends.
+    constexpr int streak_size = 32;
+    std::vector<std::uint8_t> streak(static_cast<std::size_t>(streak_size * streak_size * 4), 0);
+    for (int row = 0; row < streak_size; ++row)
+        for (int column = 0; column < streak_size; ++column) {
+            const float across = std::abs(static_cast<float>(column) + 0.5f - streak_size / 2.0f), along = std::abs(static_cast<float>(row) + 0.5f - streak_size / 2.0f) / (streak_size / 2.0f);
+            const float cover = std::clamp(1.8f - across, 0.0f, 1.0f) * std::clamp(1 - along * along, 0.0f, 1.0f);
+            const std::size_t at = static_cast<std::size_t>((row * streak_size + column) * 4);
+            streak[at] = streak[at + 1] = streak[at + 2] = 255, streak[at + 3] = static_cast<std::uint8_t>(std::lround(cover * 255));
+        }
+    auto shape = mesh::Texture::made(streak, streak_size, streak_size);
+    if (!shape) return std::unexpected(std::string("the drop's shape"));
+    made.streak_ = std::move(*shape);
+    made.drops_.resize(drops), made.splashes_.resize(splashes);
 
     made.options_ = {.background = {0.004f, 0.005f, 0.01f}, .ambient = {0.006f, 0.007f, 0.012f}, .fog = {.colour = {0.02f, 0.026f, 0.04f}, .density = 0.03f, .base = 0, .falloff = 0.3f},
                      .environment = {.on = true, .above = {0.01f, 0.014f, 0.03f}, .level = {0.035f, 0.04f, 0.06f}, .below = {0.004f, 0.004f, 0.005f}}};
@@ -239,10 +280,72 @@ void Picture::lights(const State& state) {
     }
 }
 
+// Each mark among the last shots' — a scorch on the surface, its hole in the middle — the rest hidden.
+void Picture::marks(const State& state) {
+    const auto& bounds = geom::bounds(made_[post_mesh].mesh);
+    for (std::size_t index = 0; index < kept_marks; ++index) {
+        const bool there = index < state.marks.size();
+        const Mark mark = there ? state.marks[index] : Mark{};
+        const Quat turn = up_to(mark.normal);
+        const float size = 0.07f + 0.05f * unit(mark.frame, 7);
+        put(world_, {.id = mark_ids + index * 2, .mesh = post_mesh, .material = scorch, .world = placed(mark.at + mark.normal * 0.004f, {size, 0.002f, size}, turn), .bounds = bounds,
+                     .hidden = !there, .casts = false});
+        put(world_, {.id = mark_ids + index * 2 + 1, .mesh = post_mesh, .material = hole, .world = placed(mark.at + mark.normal * 0.008f, {0.018f, 0.002f, 0.018f}, turn), .bounds = bounds,
+                     .hidden = !there, .casts = false});
+    }
+}
+
+// The rain about the eye: drops falling in the box that goes with it and splashes where drops meet the ground, each
+// lit by the lamps (and the beacon) as far as it is from them — rain is seen where light falls through it.
+void Picture::weather(const State& state) {
+    const math::Vec3 eye = quay::eye(state);
+    const float seconds = static_cast<float>(state.frame) / steps_per_second;
+    const float worked = std::min(1.0f, static_cast<float>(state.keeper.lighting) / steps_per_second), lit = state.outcome == Outcome::won ? 1.0f : worked;
+    const math::Vec3 beacon = state.beacon + math::Vec3{0, beacon_height, 0};
+    const auto light_at = [&](math::Vec3 at) {
+        math::Vec3 sum{0.012f, 0.014f, 0.02f};  // the light from everywhere
+        for (const Lamp& lamp : lamps) {
+            const math::Vec3 way = at - math::Vec3{lamp.x, lamp_height, lamp.z};
+            const float near = 1 / (1 + math::dot(way, way) * 0.12f);
+            sum = sum + (lamp.warm ? math::Vec3{1, 0.62f, 0.25f} : math::Vec3{0.55f, 0.75f, 1}) * (0.5f * near);
+        }
+        const math::Vec3 way = at - beacon;
+        sum = sum + math::Vec3{1, 0.55f, 0.2f} * ((0.05f + 0.6f * lit) / (1 + math::dot(way, way) * 0.05f));
+        return sum;
+    };
+    const float half = rain_across / 2, height = rain_top - rain_bottom;
+    for (std::uint32_t number = 0; number < drops; ++number) {
+        const float x = wrapped(unit(number, 1) * rain_across, eye.x - half, rain_across), z = wrapped(unit(number, 2) * rain_across, eye.z - half, rain_across);
+        const float y = rain_top - std::fmod(unit(number, 3) * height + seconds * fall, height);
+        const math::Vec3 at{x, y, z};
+        const math::Vec3 light = light_at(at);
+        drops_[number] = {.at = at, .size = drop_size, .colour = {light.x, light.y, light.z, 1}, .turn = slant, .id = number};
+    }
+    // Splashes: each lasts `splash_steps` and then is somewhere else, where the ground under it is.
+    for (std::uint32_t number = 0; number < splashes; ++number) {
+        const std::uint64_t offset = static_cast<std::uint64_t>(unit(number, 4) * splash_steps), cycle = (state.frame + offset) / splash_steps;
+        const float age = static_cast<float>((state.frame + offset) % splash_steps) / splash_steps;
+        const std::uint64_t key = cycle * 1000003ull + number;
+        const float x = eye.x + (unit(key, 5) - 0.5f) * 24, z = eye.z + (unit(key, 6) - 0.5f) * 24;
+        const auto ground = state.bodies ? state.bodies->ray({x, 6, z}, {x, -0.5f, z}) : std::nullopt;
+        if (!ground || ground->normal.y < 0.7f) {
+            splashes_[number] = {.at = {x, -100, z}, .size = 0, .colour = {0, 0, 0, 0}, .id = number};
+            continue;
+        }
+        const math::Vec3 at = ground->point + math::Vec3{0, 0.03f, 0};
+        const math::Vec3 light = light_at(at) * ((1 - age) * 1.4f);
+        splashes_[number] = {.at = at, .size = 0.04f + 0.12f * age, .colour = {light.x, light.y, light.z, 1}, .id = number};
+    }
+    batches_ = {xrender::particle::Batch{.particles = drops_, .blend = xrender::particle::Blend::add, .soft = 0.2f, .sprite = &streak_, .id = rain_id},
+                xrender::particle::Batch{.particles = splashes_, .blend = xrender::particle::Blend::add, .soft = 0.02f, .id = splash_id}};
+}
+
 void Picture::prepare(const State& state) {
     world_.settle();  // the last frame's changes: this frame's are kept for whichever pass draws it
     pose(state);
     lights(state);
+    marks(state);
+    weather(state);
     // The view from the watchkeeper's eye, 100° across.
     const math::Vec3 eye = quay::eye(state), look = looking(state);
     const double half_across = static_cast<double>(view_half_angle) * pi / 180;
@@ -267,6 +370,7 @@ const mesh::Targets& Picture::draw(const State& state, const Frame& frame) {
     mesh::Options options = options_;
     options.shadows = frame.shadows;
     pass_.draw(world_, seen_, view_, assets(frame.shadows), targets_, options);
+    rained_ = xrender::particle::draw(batches_, view_, targets_);
     shown_ = targets_.colour;
     bright_ = frame.glow ? glow_.show(targets_.light, frame.width, frame.height, bloom(frame.width), shown_).bright : 0;
     return targets_;

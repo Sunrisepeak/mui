@@ -23,7 +23,7 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-O2", "-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-"xrender.mesh" = { path = "../mesh" }
+xrender.mesh = { path = "../mesh" }
 mlibs.math     = { path = "../../../base/math" }
 
 [dev-dependencies]

@@ -92,12 +92,8 @@ rhi::Result<void> Pass::record(rhi::CommandList& list, std::span<const Batch> ba
     last_ = {};
     // The reference's order: every particle in front of the eye, the farthest first; at one distance, in the
     // batches' order.
-    struct Placed {
-        math::Vec3    middle;
-        float         distance = 0;
-        std::uint32_t batch = 0, index = 0;
-    };
-    std::vector<Placed> placed;
+    std::vector<Placed>& placed = placed_;  // kept: a steady frame allocates nothing
+    placed.clear();
     for (std::uint32_t batch = 0; batch < batches.size(); ++batch)
         for (std::uint32_t index = 0; index < batches[batch].particles.size(); ++index) {
             ++last_.particles;
@@ -110,7 +106,11 @@ rhi::Result<void> Pass::record(rhi::CommandList& list, std::span<const Batch> ba
             if (batches[batch].sprite) ++last_.pictured;
             placed.push_back({{middle.x, middle.y, middle.z}, -middle.z, batch, index});
         }
-    std::ranges::stable_sort(placed, [](const Placed& one, const Placed& other) { return one.distance > other.distance; });
+    // At one distance, the batches' order and each batch's: what a stable sort gives, with no buffer of its own.
+    std::ranges::sort(placed, [](const Placed& one, const Placed& other) {
+        if (one.distance != other.distance) return one.distance > other.distance;
+        return one.batch != other.batch ? one.batch < other.batch : one.index < other.index;
+    });
     laid_out_.clear(), runs_.clear();
     const float pixels_a_unit = std::abs(view.projection.at(1, 1)) * static_cast<float>(height) * 0.5f;  // at a distance of 1
     for (const Placed& one : placed) {

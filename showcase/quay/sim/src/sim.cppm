@@ -111,6 +111,13 @@ struct Shot {
     std::uint32_t warden = 0;     // the warden it struck (1 …), or 0
     bool          struck = false; // the watchkeeper, for a warden's shot
 };
+// Where a shot of the watchkeeper's stopped on something that stays (a container, the quay, a lamp's post — not a
+// warden, not a crate that moves): the mark it left, kept as long as it is among the last `kept_marks`.
+struct Mark {
+    Vec3          at, normal;
+    std::uint64_t frame = 0;  // the step it was made in
+};
+inline constexpr std::size_t kept_marks = 48;
 enum class Outcome : std::uint8_t { playing, won, lost };
 inline constexpr std::array<std::string_view, 3> outcome_names{"playing", "won", "lost"};
 
@@ -131,6 +138,7 @@ struct State {
     std::vector<Noise>                           noises;  // this step's
     std::vector<Noise>                           recent;  // the last half second's, oldest first: what was heard lately
     std::vector<Shot>                            shots;   // this step's
+    std::vector<Mark>                            marks;   // the last `kept_marks`, oldest first
     Vec3                                         beacon;
     float                                        tide = 0;  // seconds left
     std::uint64_t                                frame = 0;

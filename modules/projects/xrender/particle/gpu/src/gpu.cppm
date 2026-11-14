@@ -66,6 +66,11 @@ private:
     struct Run {
         std::uint32_t batch = 0, first = 0, count = 0;  // corners
     };
+    struct Placed {
+        mlibs::math::Vec3 middle;
+        float             distance = 0;
+        std::uint32_t     batch = 0, index = 0;
+    };
     Held                         device_;
     mlibs::rhi::GraphicsPipeline added_, laid_;
     mlibs::rhi::Sampler          nearest_;
@@ -73,6 +78,7 @@ private:
     std::uint32_t                room_ = 0;  // corners the buffer holds
     std::vector<Corner>          laid_out_;
     std::vector<Run>             runs_;
+    std::vector<Placed>          placed_;
     struct Sprite {
         mlibs::rhi::Texture texture;
         mlibs::rhi::Sampler sampler;

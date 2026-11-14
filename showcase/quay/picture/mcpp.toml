@@ -24,6 +24,8 @@ xrender.mesh   = { path = "../../../modules/projects/xrender/mesh" }
 # The same frame on a device (OnDevice): the mesh pass the reference is held to, through mlibs.rhi.
 "xrender.mesh.gpu" = { path = "../../../modules/projects/xrender/mesh/gpu" }
 mlibs.rhi      = { path = "../../../modules/gfx/rhi" }
+xrender.particle = { path = "../../../modules/projects/xrender/particle" }
+"xrender.particle.gpu" = { path = "../../../modules/projects/xrender/particle/gpu" }
 xrender.scene  = { path = "../../../modules/projects/xrender/scene" }
 hanim.skeleton = { path = "../../../modules/projects/hanim/skeleton" }
 mlibs.geom     = { path = "../../../modules/base/geom" }

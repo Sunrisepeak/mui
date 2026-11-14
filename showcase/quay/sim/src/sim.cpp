@@ -191,6 +191,9 @@ void step(State& state, const Input& input) {
             if (--warden.health <= 0) state.ground->remove(warden.walker);
         } else if (wall && std::ranges::contains(state.crates, wall->body)) {
             state.bodies->push(wall->body, way * 30.0f, wall->point);
+        } else if (wall) {
+            if (state.marks.size() == kept_marks) state.marks.erase(state.marks.begin());
+            state.marks.push_back({wall->point, wall->normal, state.frame});
         }
         state.shots.push_back({from, from + way * nearest, 0, struck, false});
         state.noises.push_back({from, 0, 0, "shot"});
@@ -353,6 +356,7 @@ std::uint64_t checksum(const State& state) noexcept {
     for (const Warden& warden : state.wardens) {
         add(warden.health), add(static_cast<std::uint32_t>(warden.mind)), add_vec(warden.at), add_vec(warden.facing), add_vec(warden.heading_for), add(warden.searching), add(warden.cooldown);
     }
+    for (const Mark& mark : state.marks) add_vec(mark.at), add_vec(mark.normal), add(mark.frame);
     add(std::bit_cast<std::uint32_t>(state.tide)), add(state.frame), add(static_cast<std::uint32_t>(state.outcome));
     return hash.value();
 }

@@ -17,6 +17,9 @@ rhi::Result<OnDevice> OnDevice::make(rhi::Device& device, const Picture& picture
     auto glow = mesh::gpu::Glow::make(device);
     if (!glow) return std::unexpected(glow.error());
     made.glow_.emplace(std::move(*glow));
+    auto rain = xrender::particle::gpu::Pass::make(device);
+    if (!rain) return std::unexpected(rain.error());
+    made.rain_.emplace(std::move(*rain));
     std::optional<rhi::Error> failed;
     const auto target = [&](rhi::Format format, std::uint32_t across, std::uint32_t down, std::string_view label) {
         const bool deep = format == rhi::Format::d32_float;
@@ -28,7 +31,7 @@ rhi::Result<OnDevice> OnDevice::make(rhi::Device& device, const Picture& picture
         return *texture;
     };
     made.colour_ = target(rhi::Format::rgba8_unorm, width, height, "quay.colour"), made.depth_ = target(rhi::Format::d32_float, width, height, "quay.depth");
-    made.light_ = target(rhi::Format::rgba16_float, width, height, "quay.light");
+    made.light_ = target(rhi::Format::rgba16_float, width, height, "quay.light"), made.surface_ = target(rhi::Format::rgba16_float, width, height, "quay.surface");
     made.one_ = target(rhi::Format::rgba16_float, width, height, "quay.glow.one"), made.other_ = target(rhi::Format::rgba16_float, width, height, "quay.glow.other");
     // The moon's map over the quay about the eye; the lamps', the beacon's, the floodlight's and a flash's.
     made.shadows_ = {.size = 2048, .distance = 60, .lamp_size = 512, .lamps = static_cast<std::uint32_t>(mesh::gpu::most_lamps)};
@@ -41,13 +44,13 @@ rhi::Result<OnDevice> OnDevice::make(rhi::Device& device, const Picture& picture
 }
 
 OnDevice::OnDevice(OnDevice&& other) noexcept
-    : device_(std::exchange(other.device_, nullptr)), pass_(std::move(other.pass_)), glow_(std::move(other.glow_)), shadows_(other.shadows_), colour_(other.colour_), depth_(other.depth_),
-      light_(other.light_), one_(other.one_), other_(other.other_), width_(other.width_), height_(other.height_) {}
+    : device_(std::exchange(other.device_, nullptr)), pass_(std::move(other.pass_)), glow_(std::move(other.glow_)), rain_(std::move(other.rain_)), shadows_(other.shadows_), colour_(other.colour_), depth_(other.depth_),
+      light_(other.light_), one_(other.one_), other_(other.other_), surface_(other.surface_), width_(other.width_), height_(other.height_) {}
 OnDevice& OnDevice::operator=(OnDevice&& other) noexcept {
     if (this != &other) {
         release();
-        device_ = std::exchange(other.device_, nullptr), pass_ = std::move(other.pass_), glow_ = std::move(other.glow_), shadows_ = other.shadows_;
-        colour_ = other.colour_, depth_ = other.depth_, light_ = other.light_, one_ = other.one_, other_ = other.other_, width_ = other.width_, height_ = other.height_;
+        device_ = std::exchange(other.device_, nullptr), pass_ = std::move(other.pass_), glow_ = std::move(other.glow_), rain_ = std::move(other.rain_), shadows_ = other.shadows_;
+        colour_ = other.colour_, depth_ = other.depth_, light_ = other.light_, one_ = other.one_, other_ = other.other_, surface_ = other.surface_, width_ = other.width_, height_ = other.height_;
     }
     return *this;
 }
@@ -56,9 +59,9 @@ OnDevice::~OnDevice() { release(); }
 void OnDevice::release() noexcept {
     if (!device_) return;
     static_cast<void>(device_->wait_idle());
-    for (const rhi::Texture made : {colour_, depth_, light_, one_, other_, shadows_.map, shadows_.depth, shadows_.lamps_map, shadows_.lamps_depth})
+    for (const rhi::Texture made : {colour_, depth_, light_, one_, other_, surface_, shadows_.map, shadows_.depth, shadows_.lamps_map, shadows_.lamps_depth})
         if (made) device_->destroy(made);
-    pass_.reset(), glow_.reset();
+    pass_.reset(), glow_.reset(), rain_.reset();
     device_ = nullptr;
 }
 
@@ -68,6 +71,9 @@ rhi::Result<void> OnDevice::record(rhi::CommandList& list, const Picture& pictur
         if (auto bent = pass_->bend(list, which, *picture.assets().meshes[which]); !bent) return bent;
     }
     pass_->record(list, picture.world(), picture.seen(), picture.view(), picture.assets().materials, light_, depth_, width_, height_, picture.options(), &shadows_);
+    // The rain over the light, faded at the surfaces behind it.
+    pass_->record_surface(list, picture.world(), picture.seen(), picture.view(), surface_, depth_, width_, height_, picture.options());
+    if (auto rained = rain_->record(list, picture.rain(), picture.view(), light_, surface_, width_, height_); !rained) return rained;
     glow_->record(list, light_, one_, other_, colour_, width_, height_, Picture::bloom(static_cast<int>(width_)));
     return {};
 }

@@ -1,8 +1,9 @@
 // Quay's picture: the harbour at night as the watchkeeper sees it, drawn from the game's state by xrender — the
 // quay wet after rain, rows of containers, crates, lamps on posts and a floodlight, the beacon at the end of the
 // breakwater (brighter as it is worked), the wardens bent by their skeletons as they walk, aim or lie where they
-// fell, their eyes the colour of their minds, the watchkeeper's gun and the flashes of shots; fog, the light from
-// everywhere and the glow of what is brighter than the display.
+// fell, their eyes the colour of their minds, the watchkeeper's gun and the flashes of shots, the marks shots left
+// on what they met; rain falling through the lamps' light and splashing on the quay; fog, the light from everywhere
+// and the glow of what is brighter than the display.
 //
 //   auto picture = quay::picture::Picture::make(quay::level::harbour());
 //   picture->draw(state);                        // the CPU reference (xrender.mesh's Pass), then the glow
@@ -17,6 +18,8 @@ import std;
 export import omui.showcase.quay.sim;
 export import xrender.mesh;
 export import xrender.mesh.gpu;
+export import xrender.particle;
+export import xrender.particle.gpu;
 export import hanim.skeleton;
 
 export namespace quay::picture {
@@ -32,6 +35,9 @@ struct Frame {
 
 // The instances' ids: what drew a pixel, by number.
 inline constexpr scene::Id sea_id = 1, box_ids = 100, crate_ids = 300, warden_ids = 400, eye_ids = 500, lamp_ids = 600, beacon_ids = 700, gun_id = 800, flash_id = 801;
+inline constexpr scene::Id mark_ids = 900;                    // a mark of a shot: 900 + its place among `State::marks` × 2 (+1 its hole)
+inline constexpr scene::Id rain_id = 1000, splash_id = 1001;  // the rain's batches
+inline constexpr std::uint32_t drops = 900, splashes = 160;   // falling at once, splashing at once
 
 class Picture {
 public:
@@ -58,10 +64,16 @@ public:
     // The wardens' bodies as this frame bent them: the mesh each is (its number in `assets().meshes`).
     [[nodiscard]] std::size_t bodies() const noexcept { return made_.size() - first_body_; }
     [[nodiscard]] std::uint32_t body_mesh(std::size_t warden) const noexcept { return static_cast<std::uint32_t>(first_body_ + warden); }
+    // The rain this frame: the drops and the splashes, each lit by the lamps near it (drawn over the light).
+    [[nodiscard]] std::span<const xrender::particle::Batch> rain() const noexcept { return batches_; }
+    // What the reference drew of it the last frame.
+    [[nodiscard]] const xrender::particle::Drawn& rained() const noexcept { return rained_; }
 
 private:
     void pose(const State& state);
     void lights(const State& state);
+    void marks(const State& state);
+    void weather(const State& state);
     static constexpr std::size_t first_body_ = 5;
 
     std::vector<mlibs::geom::ClusteredMesh>       made_;    // box, sphere, post, sea, then a warden's bent body each
@@ -76,6 +88,10 @@ private:
     std::vector<mlibs::math::Vec3>                room_;
     std::vector<mlibs::math::Vec3>                crate_halves_;
     std::vector<scene::Id>                        flashes_;  // the lights of this frame's shots
+    std::vector<xrender::particle::Particle>      drops_, splashes_;
+    mesh::Texture                                 streak_;   // a drop's shape: a thin line down the middle
+    std::array<xrender::particle::Batch, 2>       batches_{};
+    xrender::particle::Drawn                      rained_;
     scene::Scene                                  world_;
     scene::View                                   view_;
     scene::Extracted                              seen_;
@@ -109,8 +125,9 @@ private:
     mlibs::rhi::Device*            device_ = nullptr;
     std::optional<mesh::gpu::Pass> pass_;
     std::optional<mesh::gpu::Glow> glow_;
+    std::optional<xrender::particle::gpu::Pass> rain_;
     mesh::gpu::Shadows             shadows_;
-    mlibs::rhi::Texture            colour_, depth_, light_, one_, other_;
+    mlibs::rhi::Texture            colour_, depth_, light_, one_, other_, surface_;
     std::uint32_t                  width_ = 0, height_ = 0;
 };
 

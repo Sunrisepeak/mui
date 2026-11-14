@@ -122,4 +122,41 @@ UTest cases{"quay.picture", [] {
         expect(gt(glass, std::size_t{100})) << "it burns above the watchkeeper";
         expect(gt(drawn->bright(), 100u)) << "lit, brighter than white";
     };
+
+    "a shot leaves its mark where it met the harbour; rain falls through the lamps' light and splashes on the quay, a frame later lower"_test = [] {
+        quay::State state = quay::start(quay::level::harbour());
+        auto drawn = picture::Picture::make(quay::level::harbour());
+        expect(fatal(drawn.has_value()));
+        quay::Input fire;
+        fire.player.held = 1u << quay::fire_button;
+        quay::step(state, fire);
+        expect(fatal(eq(state.marks.size(), std::size_t{1}))) << "the shot met what stays";
+        const quay::Mark mark = state.marks.front();
+        // Walked up to it (only the picture's view), looking at it from a metre and a half.
+        quay::State near = state;
+        near.shots.clear();  // its flash gone
+        const quay::Vec3 back = mark.at + mark.normal * 1.5f;
+        near.keeper.at = {back.x, near.keeper.at.y, back.z};
+        const quay::Vec3 way = mark.at - quay::eye(near);
+        near.keeper.yaw = std::atan2(way.x, -way.z), near.keeper.pitch = std::atan2(way.y, std::sqrt(way.x * way.x + way.z * way.z));
+        drawn->draw(near);
+        const std::size_t scorched = drawn_by(*drawn, picture::mark_ids, picture::rain_id);
+        const auto close = keep(*drawn, "quay-mark");
+        // The rain from the start, and a frame later.
+        for (int frame = 0; frame < 5; ++frame) quay::step(state, {});
+        drawn->draw(state);
+        const xrender::particle::Drawn rained = drawn->rained();
+        const std::uint64_t before = bits(drawn->shown());
+        const auto file = keep(*drawn, "quay-rain");
+        quay::step(state, {});
+        drawn->draw(state);
+        std::println("a mark at ({:.1f}, {:.1f}, {:.1f}) facing ({:.1f}, {:.1f}, {:.1f}): {} pixels of it from 1.5 m ({}); the rain: {} drops and splashes looked at, {} off the frame, {} pixels reached; {}",
+                     mark.at.x, mark.at.y, mark.at.z, mark.normal.x, mark.normal.y, mark.normal.z, scorched, close.generic_string(), rained.particles, rained.outside, rained.pixels,
+                     file.generic_string());
+        // From 1.5 m, 100° across 480 pixels: 134 pixels a metre — the smallest scorch (0.07 m across its half) 275.
+        expect(ge(scorched, std::size_t{250})) << "the scorch and its hole, close";
+        expect(eq(rained.particles, picture::drops + picture::splashes));
+        expect(gt(rained.pixels, std::uint64_t{5000})) << "rain across the view";
+        expect(bits(drawn->shown()) != before) << "a frame later the drops have fallen";
+    };
 }};

@@ -16,7 +16,7 @@ using math::Quat;
 
 constexpr double pi = 3.14159265358979323846;
 // The meshes, by number.
-constexpr std::uint32_t box_mesh = 0, ball_mesh = 1, post_mesh = 2, sea_mesh = 3, gun_mesh = 4, first_body = 5;  // Picture::first_body_ too
+constexpr std::uint32_t box_mesh = 0, ball_mesh = 1, post_mesh = 2, sea_mesh = 3, gun_mesh = 4, container_mesh = 5, first_body = 6;  // Picture::first_body_ too
 // The materials, by number.
 enum Material : std::uint32_t {
     wet_quay, concrete, rust_red, steel_blue, sea_green, ochre, dull_grey, wood, iron, warden_rust, warm_globe, cold_globe, eye_patrol, eye_search, eye_chase, beacon_glass, gun_metal,
@@ -84,6 +84,40 @@ geom::Mesh warden_body() {
     return body;
 }
 
+// A shipping container's box lying along z (half 1.2 × 1.3 × 3), its pictures laid in metres across each face — so
+// the corrugation's ridges are as far apart on a side as on an end, whatever the face's size.
+constexpr math::Vec3 container_half{1.2f, 1.3f, 3};
+geom::Mesh container() {
+    geom::Mesh made = geom::box(container_half);
+    for (std::size_t index = 0; index < made.positions.size(); ++index) {
+        const math::Vec3 at = made.positions[index], normal = made.normals[index];
+        const math::Vec3 right{made.tangents[index].x, made.tangents[index].y, made.tangents[index].z}, up = math::cross(normal, right);
+        made.uvs[index] = {math::dot(at, right), -math::dot(at, up)};
+    }
+    return made;
+}
+// The corrugation as a normal picture, one ridge across it: flat crests and troughs, sloping flanks between
+// (a trapezoid, as the steel is pressed), its red the slope across, blue out.
+constexpr int ridge_texels = 64;
+constexpr float ridge_period = 0.28f;  // m from a crest to the next
+std::vector<std::uint8_t> ridges() {
+    std::vector<std::uint8_t> rgba(static_cast<std::size_t>(ridge_texels * 4 * 4));
+    for (int column = 0; column < ridge_texels; ++column) {
+        const float phase = (static_cast<float>(column) + 0.5f) / ridge_texels;  // 0 … 1 across a ridge
+        // Crest [0, 0.3), down [0.3, 0.5), trough [0.5, 0.8), up [0.8, 1): the slope of the height across.
+        const float slope = phase < 0.3f ? 0.0f : phase < 0.5f ? -1.0f : phase < 0.8f ? 0.0f : 1.0f;
+        const float across = -slope * 0.55f, length = std::sqrt(across * across + 1);
+        for (int row = 0; row < 4; ++row) {
+            const std::size_t at = static_cast<std::size_t>((row * ridge_texels + column) * 4);
+            rgba[at] = static_cast<std::uint8_t>(std::lround((across / length * 0.5f + 0.5f) * 255));
+            rgba[at + 1] = 128;
+            rgba[at + 2] = static_cast<std::uint8_t>(std::lround((1 / length * 0.5f + 0.5f) * 255));
+            rgba[at + 3] = 255;
+        }
+    }
+    return rgba;
+}
+
 // The watchkeeper's rifle as held, its muzzle at the origin's −z end: a receiver, a barrel, a grip, a sight.
 geom::Mesh rifle() {
     geom::Mesh gun;
@@ -100,7 +134,7 @@ geom::Mesh rifle() {
 std::expected<Picture, std::string> Picture::make(const Level& level) {
     Picture made;
     // Meshes: a box of half 1, a ball of radius 1, a post (radius 1, height 2), the sea, then a body per warden.
-    for (geom::Mesh shape : {geom::box({1, 1, 1}), geom::sphere(1, 16, 32), geom::cylinder(1, 2, 24), geom::sheet(600, 600, 4, 4), rifle()}) {
+    for (geom::Mesh shape : {geom::box({1, 1, 1}), geom::sphere(1, 16, 32), geom::cylinder(1, 2, 24), geom::sheet(600, 600, 4, 4), rifle(), container()}) {
         auto clustered = geom::clustered(shape);
         if (!clustered) return std::unexpected(std::string("a mesh of the picture"));
         made.made_.push_back(std::move(*clustered));
@@ -148,6 +182,16 @@ std::expected<Picture, std::string> Picture::make(const Level& level) {
     materials[flash] = {{1, 1, 1}, {30.0f, 18.0f, 6.0f}};
     materials[stone] = {{0.12f, 0.12f, 0.13f}, {}, 0.95f, 0};
     materials[sea] = {{0.01f, 0.014f, 0.02f}, {}, 0.08f, 0};
+    // The containers' paint over corrugated steel: a ridge every 0.28 m across each face.
+    const std::vector<std::uint8_t> ridge_picture = ridges();
+    auto ridged = mesh::Texture::made(ridge_picture, ridge_texels, 4, mesh::Coding::plain);
+    if (!ridged) return std::unexpected(std::string("the corrugation's picture"));
+    made.pictures_.push_back(std::move(*ridged));
+    made.textures_ = {&made.pictures_.front()};
+    for (const Material paint : paints) {
+        materials[paint].normal = 0;
+        materials[paint].placing.normal = mesh::Placing::made({0, 0}, 0, {1 / ridge_period, 1});
+    }
     materials[scorch] = {{0.02f, 0.018f, 0.016f}, {}, 0.95f, 0};
     materials[hole] = {{0.003f, 0.003f, 0.003f}, {}, 1, 0};
 
@@ -169,6 +213,14 @@ std::expected<Picture, std::string> Picture::make(const Level& level) {
         if (box_number == 0) material = wet_quay;
         else if (box_number == 1) material = stone;
         else if (box.half.y > 1.2f && box.half.y < 1.4f) material = paints[static_cast<std::size_t>(std::abs(static_cast<int>(box.at.x * 3 + box.at.z * 7 + box.at.y))) % paints.size()];
+        if (std::ranges::contains(paints, material)) {
+            // A container: the container's box, turned a quarter about the way up when it lies along x.
+            const bool along_x = box.half.x > box.half.z;
+            const math::Vec3 size = along_x ? math::Vec3{box.half.z / container_half.x, box.half.y / container_half.y, box.half.x / container_half.z}
+                                            : math::Vec3{box.half.x / container_half.x, box.half.y / container_half.y, box.half.z / container_half.z};
+            fine = fine && add(box_ids + box_number++, container_mesh, material, placed(box.at, size, along_x ? Quat::about({0, 1, 0}, static_cast<float>(pi / 2)) : Quat{}));
+            continue;
+        }
         fine = fine && add(box_ids + box_number++, box_mesh, material, placed(box.at, box.half));
     }
     // Lamps: an iron post, a globe that does not stand in its own light's way.
@@ -223,7 +275,7 @@ std::expected<Picture, std::string> Picture::make(const Level& level) {
 }
 
 mesh::Assets Picture::assets(bool shadows) const noexcept {
-    return {meshes_, materials_, shadows ? std::span<const geom::Bvh* const>(trees_) : std::span<const geom::Bvh* const>()};
+    return {meshes_, materials_, shadows ? std::span<const geom::Bvh* const>(trees_) : std::span<const geom::Bvh* const>(), textures_};
 }
 
 // The wardens bent by their skeletons: walking (legs and arms swinging, the hips bobbing), standing to look about,

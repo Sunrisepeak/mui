@@ -14,6 +14,7 @@ rhi::Result<OnDevice> OnDevice::make(rhi::Device& device, const Picture& picture
     if (!pass) return std::unexpected(pass.error());
     made.pass_.emplace(std::move(*pass));
     if (auto loaded = made.pass_->load(picture.assets().meshes); !loaded) return std::unexpected(loaded.error());
+    if (auto loaded = made.pass_->load_textures(picture.assets().textures); !loaded) return std::unexpected(loaded.error());
     auto glow = mesh::gpu::Glow::make(device);
     if (!glow) return std::unexpected(glow.error());
     made.glow_.emplace(std::move(*glow));

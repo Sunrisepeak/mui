@@ -74,13 +74,15 @@ private:
     void lights(const State& state);
     void marks(const State& state);
     void weather(const State& state);
-    static constexpr std::size_t first_body_ = 5;
+    static constexpr std::size_t first_body_ = 6;
 
     std::vector<mlibs::geom::ClusteredMesh>       made_;    // box, sphere, post, sea, then a warden's bent body each
     std::vector<const mlibs::geom::ClusteredMesh*> meshes_;
     std::vector<mlibs::geom::Bvh>                 grown_;
     std::vector<const mlibs::geom::Bvh*>          trees_;
     std::vector<mesh::Material>                   materials_;
+    std::vector<mesh::Texture>                    pictures_; // the containers' corrugated steel (which way it faces): on the heap, kept where it is as the picture moves
+    std::vector<const mesh::Texture*>             textures_;
     mlibs::geom::ClusteredMesh                    body_;    // a warden at rest
     hanim::skeleton::Skeleton                     skeleton_;
     hanim::skeleton::Pose                         posed_;

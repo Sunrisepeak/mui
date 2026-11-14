@@ -50,6 +50,8 @@ struct Library {
         textures.push_back(&pictures.front());
         materials.push_back({{1, 1, 1}, {}, 1, 0, 0});  // the tiles' own colours
         materials.push_back({{1, 1, 1}, {}, 0.05f, 1});  // a mirror: white metal, all but smooth
+        materials.push_back({{0.9f, 0.6f, 0.4f}, {}, 0.7f, 1});  // copper gone dull
+        materials.push_back({{0.9f, 0.6f, 0.4f}, {}, 1.0f, 1});  // and as rough as a metal gets
         for (const geom::ClusteredMesh& one : made) meshes.push_back(&one), grown.push_back(geom::bvh_of(one.mesh));
         for (const geom::Bvh& tree : grown) trees.push_back(&tree);
     }
@@ -58,7 +60,7 @@ struct Library {
     [[nodiscard]] geom::Box3 bounds(std::uint32_t which) const { return geom::bounds(made[which].mesh); }
 };
 constexpr std::uint32_t box = 0, floor_mesh = 1, ball = 2, post = 3, sheet = 4, tiled_floor = 5;
-constexpr std::uint32_t matt_red = 0, matt_grey = 1, matt_blue = 2, polished = 5, gold = 6, satin = 7, wet = 8, warm_glow = 9, cold_glow = 10, iron = 11, tiles = 12, mirror = 13;  // materials
+constexpr std::uint32_t matt_red = 0, matt_grey = 1, matt_blue = 2, polished = 5, gold = 6, satin = 7, wet = 8, warm_glow = 9, cold_glow = 10, iron = 11, tiles = 12, mirror = 13, dull_copper = 14, roughest_copper = 15;  // materials
 const Library& library() {
     static const Library made;
     return made;
@@ -668,7 +670,7 @@ static UTest cases{"xrender.mesh", [] {
         const Frame frame = drawn(world, yard_camera, 480, 270, {}, true);
         const auto file = keep(frame.targets, "yard-polished");
         std::println("the yard with a polished ball and a gold post: bits {:016x}; {}", bits(frame.targets), file.generic_string());
-        expect(eq(bits(frame.targets), std::uint64_t{0x329f4ce273cd0cf1})) << std::format("{:016x}", bits(frame.targets));
+        expect(eq(bits(frame.targets), std::uint64_t{0xf62fc6be63209375})) << std::format("{:016x}", bits(frame.targets));
     };
     "a metal mirrors what is about it: a gold ball under a sky and over the ground is the sky's colour through gold above and the ground's below; a matt ball asks nothing of it"_test = [] {
         const Camera camera{.eye = {0, 0, 5}, .target = {0, 0, 0}};
@@ -749,7 +751,7 @@ static UTest cases{"xrender.mesh", [] {
         expect(eq(lighter, 0u)) << "a shadow only takes light away";
         expect(gt(told.bright, 50u) && gt(glowing, told.bright * 4)) << "the globes are brighter than white, and it shows about them";
         expect(gt(wet_bright, 200u)) << "the wet quay throws the lamps back";
-        expect(eq(bits(shown), std::uint64_t{0x754074c9761c2350})) << std::format("{:016x}", bits(shown));
+        expect(eq(bits(shown), std::uint64_t{0xb5a90f073cb76ae2})) << std::format("{:016x}", bits(shown));
     };
     "a texture is its picture at every size: a texel's middle is the texel, a pixel that covers many takes their mean, and between two sizes it is between them"_test = [] {
         // Four by four: black and white squares of two.
@@ -1243,6 +1245,84 @@ static UTest cases{"xrender.mesh", [] {
         expect(eq(bits_of(*pinned), bits_of(*again)));
         expect(eq(bits_of(*pinned), std::uint64_t{0x25ba775538c8df7e})) << std::format("{:016x}", bits_of(*pinned));
     };
+    "light kept between a rough surface's small faces: a white metal sends back all of an even light however rough it is — by the pass's lookup and along rays; a surface that mirrors 4% is all but as it was"_test = [] {
+        // The table's sum times what is kept is all, for a surface that mirrors everything.
+        for (const float roughness : {0.04f, 0.3f, 0.6f, 1.0f})
+            for (const float seen : {1.0f, 0.7f, 0.3f, 0.05f}) {
+                const mesh::Material white{{1, 1, 1}, {}, roughness, 1};
+                const math::Vec2 once = mesh::share(seen, roughness);
+                expect(near((once.x + once.y) * mesh::kept(white, seen).x, 1.0f, 1e-4f)) << roughness << " " << seen;
+                const mesh::Material plastic{{0.5f, 0.5f, 0.5f}, {}, roughness, 0};
+                expect(ge(mesh::kept(plastic, seen).x, 1.0f) && lt(mesh::kept(plastic, seen).x, 1.11f)) << mesh::kept(plastic, seen).x;
+                const mesh::Material red{{0.8f, 0, 0}, {}, roughness, 1};
+                expect(near(mesh::kept(red, seen).y, 1.0f, 1e-6f) && ge(mesh::kept(red, seen).x, 1.0f) && le(mesh::kept(red, seen).x, mesh::kept(white, seen).x));
+            }
+        // The roughest, looked at straight: 2 (1 − ln 2) ÷ 2 of an even light at the first face (the sum in closed form).
+        const math::Vec2 roughest = mesh::share(1, 1);
+        expect(near(roughest.x + roughest.y, 0.30685f, 2e-3f)) << roughest.x + roughest.y;
+        float least = 1;
+        for (const math::Vec2 one : mesh::share_table()) least = std::min(least, one.x + one.y);
+        // Under an even picture the pass's lookup gives the light back.
+        const math::Vec3 one_light{0.5f, 0.6f, 0.7f};
+        std::vector<float> one_colour(64 * 32 * 3);
+        for (std::size_t texel = 0; texel < 64 * 32; ++texel) one_colour[texel * 3] = one_light.x, one_colour[texel * 3 + 1] = one_light.y, one_colour[texel * 3 + 2] = one_light.z;
+        const auto even = mesh::Surroundings::made(one_colour, 64, 32);
+        expect(fatal(even.has_value()));
+        const mesh::Environment about{.on = true, .picture = &*even};
+        float furthest = 0;
+        for (const float roughness : {0.04f, 0.3f, 0.6f, 1.0f})
+            for (const float seen : {1.0f, 0.7f, 0.3f}) {
+                const math::Vec3 eye{std::sqrt(1 - seen * seen), 0, seen};
+                const math::Vec3 back = mesh::mirrored({{1, 1, 1}, {}, roughness, 1}, about, {0, 0, 1}, eye);
+                furthest = std::max({furthest, std::abs(back.x / one_light.x - 1), std::abs(back.y / one_light.y - 1), std::abs(back.z / one_light.z - 1)});
+            }
+        expect(lt(furthest, 2e-3f)) << furthest;
+        // A lamp's highlight summed over every way a light can come from (the lights' own measure of how the faces
+        // hide one another is not the table's, so this is near all and not all): said.
+        std::string by_lights;
+        for (const float roughness : {0.3f, 0.6f, 1.0f}) {
+            const mesh::Material white{{1, 1, 1}, {}, roughness, 1};
+            const math::Vec3 eye = math::normalized(math::Vec3{0.6f, 0, 0.8f});
+            double sum = 0;
+            constexpr int rings = 256, turns = 512;
+            for (int ring = 0; ring < rings; ++ring)
+                for (int turn = 0; turn < turns; ++turn) {
+                    const float up = (static_cast<float>(ring) + 0.5f) / rings, out = std::sqrt(1 - up * up), angle = (static_cast<float>(turn) + 0.5f) / turns * 6.2831853f;
+                    sum += mesh::reflected(white, {0, 0, 1}, eye, {out * std::cos(angle), out * std::sin(angle), up}, up).x;
+                }
+            // Ways even in height are even over the half sphere (2π); `reflected` is without the 1/π a matt surface has not either.
+            const double back = sum / (rings * turns) * 2;
+            by_lights += std::format("{}{:.3f} at roughness {}", by_lights.empty() ? "" : ", ", back, roughness);
+            expect(gt(back, 0.8) && lt(back, 1.25)) << back;
+        }
+        // Along rays: a ball of the roughest white metal in the even light is the light.
+        std::vector<mesh::Material> materials(library().materials);
+        const std::uint32_t white_rough = static_cast<std::uint32_t>(materials.size());
+        materials.push_back({{1, 1, 1}, {}, 1, 1});
+        mesh::Assets assets = library().assets(true);
+        assets.materials = materials;
+        scene::Scene world;
+        expect(fatal(world.add({.id = 1, .mesh = ball, .material = white_rough, .world = math::translation({0, 0, 0}), .bounds = library().bounds(ball)}).has_value()));
+        constexpr int width = 48, height = 48;
+        const Camera camera{.eye = {0, 0, 4}};
+        mesh::Targets followed;
+        followed.resize(width, height);
+        const mesh::Options lit_by{.background = {0, 0, 0}, .environment = about};
+        (void)mesh::traced(world, camera.view(), assets, followed, lit_by, {.samples = 256, .bounces = 2});
+        double green = 0;
+        int pixels = 0;
+        for (int y = 0; y < height; ++y)
+            for (int x = 0; x < width; ++x) {
+                const float across = (static_cast<float>(x) + 0.5f) / width * 2 - 1, down = (static_cast<float>(y) + 0.5f) / height * 2 - 1;
+                if (across * across + down * down > 0.04f) continue;  // the ball's middle
+                green += followed.light[static_cast<std::size_t>(y) * width + x].y, ++pixels;
+            }
+        const double along_rays = green / pixels / one_light.y;
+        std::println("light kept between small faces: the table's least sum {:.3f}; a white metal under an even picture is the light to {:.2f}%; by a lamp's highlight over every way {}; along rays the roughest white ball's middle is {:.3f} of the light ({} pixels)",
+                     least, 100 * furthest, by_lights, along_rays, pixels);
+        expect(gt(pixels, 20) && near(along_rays, 1.0, 0.03)) << along_rays;
+    };
+
     "a ball under a picture of light, drawn and followed along rays: the pass's one lookup a surface is held to the light gathered way by way — matt, polished, satin, gold — and the error is said"_test = [] {
         constexpr int width = 96, height = 96;
         // A sky brighter overhead, a warm ground, and a lamp eight degrees wide up to the right.
@@ -1291,7 +1371,7 @@ static UTest cases{"xrender.mesh", [] {
             std::string_view name;
             float within;  // root mean square, of the mean light
         };
-        for (const Held& held : {Held{matt_grey, "matt", 0.008f}, Held{polished, "polished", 0.015f}, Held{satin, "satin", 0.015f}, Held{gold, "gold", 0.08f}}) {
+        for (const Held& held : {Held{matt_grey, "matt", 0.008f}, Held{polished, "polished", 0.015f}, Held{satin, "satin", 0.015f}, Held{gold, "gold", 0.075f}, Held{iron, "iron", 0.062f}, Held{dull_copper, "dull-copper", 0.067f}, Held{roughest_copper, "roughest-copper", 0.04f}}) {
             scene::Scene world;
             put(world, 1, ball, held.material, math::translation({0, 0, 0}));
             mesh::Pass pass;

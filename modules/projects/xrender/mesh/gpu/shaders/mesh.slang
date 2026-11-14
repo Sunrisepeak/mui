@@ -80,6 +80,9 @@ struct Surface {
 [[vk::binding(7, 2)]] Sampler2D shade_map : register(t7, space2) : register(s7, space2);
 [[vk::binding(8, 2)]] Sampler2D behind_map : register(t8, space2) : register(s8, space2);  // how deep what stops the eye is
 [[vk::binding(9, 2)]] Sampler2D before_map : register(t9, space2) : register(s9, space2);  // how deep the layer laid before is
+// How much of an even light a surface mirrors at the first of its small faces (xrender.mesh's `share_table`: 32 × 32,
+// across by how it is looked at, down by its roughness; red times what it mirrors head on, green added).
+[[vk::binding(10, 2)]] Sampler2D share_map : register(t10, space2) : register(s10, space2);
 [[vk::binding(0, 3)]] ConstantBuffer<Surface> surface : register(b0, space3);
 // The surroundings as a picture of light (xrender.mesh's `Surroundings`), every square of it on one sheet with a
 // texel about each square that is the texel across its edge (a read between four texels at an edge is then the
@@ -88,7 +91,7 @@ struct About {
     float4 shape;        // xy: one over the sheet's width and height; z: the last roughness's number
     float4 squares[18];  // xy: where a square's first texel is; z: how far across it is — 0 … 15 the roughnesses, 16 what falls on a matt surface, 17 the shares
 };
-[[vk::binding(10, 2)]] Sampler2D about_map : register(t10, space2) : register(s10, space2);
+[[vk::binding(11, 2)]] Sampler2D about_map : register(t11, space2) : register(s11, space2);
 [[vk::binding(1, 3)]] ConstantBuffer<About> about : register(b1, space3);
 
 // The surface at this pixel: the material's own, times its pictures where it has them.
@@ -171,6 +174,13 @@ float through(float3 toward, float length) {
     if (abs(thins * length) >= 1e-5) depth = here * (1.0 - exp(clamp(-thins * length, -60.0, 60.0))) / thins;
     return depth > 60 ? 0.0 : exp(-depth);
 }
+// What the highlight is multiplied by so that light is kept between a rough surface's small faces (xrender.mesh's `kept`).
+float3 kept(float seen) {
+    const float2 once = share_map.SampleLevel((float2(clamp(seen, 0.0, 1.0), rough_here) * 31.0 + 0.5) / 32.0, 0).rg;
+    const float all = once.x + once.y;
+    const float3 head_on = float3(0.04, 0.04, 0.04) * (1.0 - metal_here) + base_colour * metal_here;
+    return all > 0 ? float3(1, 1, 1) + head_on * (1.0 / all - 1.0) : float3(1, 1, 1);
+}
 // What the surface sends toward the eye of light arriving along `toward_light` (xrender.mesh's `reflected`).
 float3 reflected(float3 normal, float3 toward_eye, float3 toward_light, float facing) {
     const float rough = rough_here, metal = metal_here;
@@ -187,7 +197,7 @@ float3 reflected(float3 normal, float3 toward_eye, float3 toward_light, float fa
     const float glance = 1.0 - eye_half, glance5 = glance * glance * glance * glance * glance;
     const float3 head_on = float3(0.04, 0.04, 0.04) * (1.0 - metal) + base_colour * metal;
     const float3 mirrored = head_on + (float3(1, 1, 1) - head_on) * glance5;
-    return matt + mirrored * (facets * unhidden * 0.25 * facing);
+    return matt + mirrored * kept(seen) * (facets * unhidden * 0.25 * facing);
 }
 // What the surface mirrors of what is about the scene (xrender.mesh's `mirrored`).
 float3 mirrored(float3 normal, float3 toward_eye) {
@@ -233,13 +243,16 @@ struct Pictured : IAbout {
         const float rough = rough_here, metal = metal_here;
         const float seen = max(dot(normal, toward_eye), 0.0);
         const float3 way = normal * (2.0 * seen) - toward_eye;
-        const float2 place = square_of(dot(way, way) > 0 ? way : normal);
+        // Leaned toward the normal by the highlight's own spread (xrender.mesh's `mirrored`).
+        const float3 turned = dot(way, way) > 0 ? normalize(way) : normal;
+        const float3 leaned = normal + (turned - normal) * (1.0 - rough * rough * rough * rough);
+        const float2 place = square_of(dot(leaned, leaned) > 0 ? normalize(leaned) : normal);
         const float which = rough * about.shape.z, first = min(floor(which), about.shape.z - 1.0);
         const float3 nearer = about_at(about.squares[int(first)], place), further = about_at(about.squares[int(first) + 1], place);
         const float4 table = about.squares[17];
         const float2 share = about_map.SampleLevel((table.xy + float2(seen, rough) * (table.z - 1.0) + 0.5) * about.shape.xy, 0).rg;
         const float3 head_on = float3(0.04, 0.04, 0.04) * (1.0 - metal) + base_colour * metal;
-        return (head_on * share.x + share.y) * (nearer + (further - nearer) * (which - first)) * shaded;
+        return (head_on * share.x + share.y) * kept(seen) * (nearer + (further - nearer) * (which - first)) * shaded;
     }
 }
 float encoded(float linear) {

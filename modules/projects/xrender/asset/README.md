@@ -57,7 +57,7 @@ A sheet of 4,608 triangles in a scattered order: cut as they come, a cluster spa
 
 ## Beside model-viewer
 
-Every scenario of [model-viewer's render-fidelity suite](https://github.com/google/model-viewer/tree/master/packages/render-fidelity-tools) whose model the samples hold as one `.glb` and whose surroundings are an HDR picture, drawn by the CPU reference (`xrender look`: the scenario's orbit, target and angle of view, its HDR as the surroundings, four samples a pixel, Khronos' neutral tone curve) and measured against model-viewer's golden in the suite's own measure — the root of the mean squared distance in YIQ over the most it can be, in decibels; the suite holds model-viewer against itself to −22 dB. `tools/dev/fidelity.py --xrender PATH` makes the table again (it fetches the scenarios, goldens, surroundings and models once into a cache outside the repository). 2026-11-14: of 90 scenarios 63 drawn, 21 within −22 dB.
+Every scenario of [model-viewer's render-fidelity suite](https://github.com/google/model-viewer/tree/master/packages/render-fidelity-tools) whose model the samples hold as one `.glb` and whose surroundings are an HDR picture, drawn by the CPU reference (`xrender look`: the scenario's orbit, target and angle of view, its HDR as the surroundings, four samples a pixel, Khronos' neutral tone curve) and measured against model-viewer's golden in the suite's own measure — the root of the mean squared distance in YIQ over the most it can be, in decibels; the suite holds model-viewer against itself to −22 dB. `tools/dev/fidelity.py --xrender PATH` makes the table again (it fetches the scenarios, goldens, surroundings and models once into a cache outside the repository). 2026-11-14: of 90 scenarios 63 drawn, 23 within −22 dB (21 before light was kept between a rough surface's small faces — [xrender.mesh](../mesh) — which brought BoxInterleaved, a fully rough metal, from −13.6 to −27.5 dB and Lantern to the bound; nine rows are of that later run, the others of the first).
 
 "The golden's pixels not drawn": where the golden has something and the picture drawn has nothing (the model stands elsewhere than the scenario expects — bones or shapes not applied — or is seen through and left out). "Left out": what the importer's notes say it did not bring in.
 
@@ -65,15 +65,16 @@ Every scenario of [model-viewer's render-fidelity suite](https://github.com/goog
 |---|---|---|---|
 | khronos-TextureLinearInterpolationTest | -30.9 | 0 | 1 left out |
 | khronos-TextureCoordinateTest | -30.3 | 0 |  |
-| khronos-Duck | -29.2 | 0 | 1 left out |
-| khronos-Avocado | -28.8 | 0 |  |
+| khronos-Duck | -29.3 | 0 | 1 left out |
+| khronos-Avocado | -29.0 | 0 |  |
 | khronos-RiggedSimple | -28.1 | 0 | 5 left out |
 | khronos-BoxAnimated | -28.0 | 0 | 1 left out |
 | khronos-RiggedFigure | -27.8 | 0 | 5 left out |
 | khronos-Fox | -27.6 | 0 | 6 left out |
+| khronos-BoxInterleaved | -27.5 | 0 |  |
 | khronos-CesiumMan | -27.3 | 0 | 5 left out |
 | khronos-EmissiveStrengthTest | -27.2 | 0 |  |
-| khronos-Box | -26.4 | 0 |  |
+| khronos-Box | -27.1 | 0 |  |
 | khronos-BoxTextured | -26.2 | 0 |  |
 | khronos-BoxTexturedNonPowerOfTwo | -26.2 | 0 |  |
 | khronos-MaterialsVariantsShoe | -25.8 | 0 |  |
@@ -82,15 +83,15 @@ Every scenario of [model-viewer's render-fidelity suite](https://github.com/goog
 | khronos-BrainStem | -25.0 | 0 | 121 left out |
 | khronos-NormalTangentMirrorTest | -23.5 | 0 |  |
 | khronos-NormalTangentTest | -22.9 | 0 |  |
-| khronos-Corset | -22.6 | 0 |  |
-| khronos-AntiqueCamera | -22.4 | 0 |  |
-| khronos-Lantern | -21.9 | 0 |  |
+| khronos-Corset | -22.8 | 0 |  |
+| khronos-AntiqueCamera | -22.5 | 0 |  |
+| khronos-Lantern | -22.0 | 0 |  |
 | khronos-AlphaBlendModeTest | -21.0 | 0 |  |
 | khronos-OrientationTest | -20.2 | 0 |  |
 | khronos-DamagedHelmet | -19.1 | 0 |  |
 | khronos-BarramundiFish | -19.0 | 0 |  |
 | khronos-TextureEncodingTest | -17.8 | 0 | 4 left out |
-| khronos-MetalRoughSpheres | -17.5 | 1318058 | 2 left out |
+| khronos-MetalRoughSpheres | -17.6 | 1318058 | 2 left out |
 | khronos-NegativeScaleTest | -17.4 | 0 | 4 left out |
 | khronos-GlamVelvetSofa | -16.5 | 0 | 15 left out |
 | khronos-ClearCoatTest | -16.3 | 12855 | 6 left out |
@@ -102,9 +103,8 @@ Every scenario of [model-viewer's render-fidelity suite](https://github.com/goog
 | khronos-TextureSettingsTest | -15.5 | 0 | 6 left out |
 | khronos-TransmissionTest | -15.3 | 0 | 14 left out |
 | khronos-ToyCar | -15.1 | 0 | 14 left out |
-| khronos-BoomBox | -14.9 | 0 |  |
+| khronos-BoomBox | -14.8 | 0 |  |
 | khronos-TransmissionRoughnessTest | -14.3 | 0 | 14 left out |
-| khronos-BoxInterleaved | -13.6 | 0 |  |
 | khronos-AnisotropyStrengthTest | -13.4 | 0 | 49 left out |
 | khronos-SpecularTest | -13.3 | 0 | 23 left out |
 | khronos-AnisotropyRotationTest | -13.3 | 0 | 4 left out |

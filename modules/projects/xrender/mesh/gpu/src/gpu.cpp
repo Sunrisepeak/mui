@@ -231,6 +231,8 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
     // A material's picture: between four texels, between two levels, repeating.
     auto pictures = device.create(rhi::SamplerDesc{rhi::Filter::linear, rhi::Filter::linear, rhi::AddressMode::repeat, rhi::AddressMode::repeat, rhi::Filter::linear});
     auto no_shadow = device.create(rhi::TextureDesc{rhi::Format::r32_float, 1, 1, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "xrender.mesh.no-shadow"});
+    auto shares = device.create(rhi::TextureDesc{.format = rhi::Format::rgba16_float, .width = static_cast<std::uint32_t>(share_table_side), .height = static_cast<std::uint32_t>(share_table_side), .usage = rhi::TextureUsage::sampled, .label = "xrender.mesh.shares"});
+    auto share_between = device.create(rhi::SamplerDesc{rhi::Filter::linear, rhi::Filter::linear, rhi::AddressMode::clamp, rhi::AddressMode::clamp});
     Pass pass;
     pass.device_ = &device, pass.pipeline_ = *pipeline, pass.ids_pipeline_ = *ids, pass.reversed_ = reversed_depth, pass.light_ = light;
     if (sky) pass.sky_pipeline_ = *sky;
@@ -248,6 +250,8 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
     if (nearest) pass.nearest_ = *nearest;
     if (pictures) pass.pictures_ = *pictures;
     if (no_shadow) pass.no_shadow_ = *no_shadow;
+    if (shares) pass.shares_ = *shares;
+    if (share_between) pass.share_between_ = *share_between;
     if (!sky) return std::unexpected(sky.error());  // `pass` releases what was made
     if (!cover) return std::unexpected(cover.error());
     if (!shadow) return std::unexpected(shadow.error());
@@ -262,10 +266,16 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
     if (!laid) return std::unexpected(laid.error());
     if (!nearest) return std::unexpected(nearest.error());
     if (!no_shadow) return std::unexpected(no_shadow.error());
+    if (!shares) return std::unexpected(shares.error());
+    if (!share_between) return std::unexpected(share_between.error());
     // One triangle past the picture's corners covers it.
     const std::array<Corner, 3> corners{Corner{{-1, -1, 0}, {}}, Corner{{3, -1, 0}, {}}, Corner{{-1, 3, 0}, {}}};
     rhi::CommandList list;
     list.upload(*cover, 0, std::span<const Corner>(corners));
+    std::vector<std::uint16_t> table;
+    table.reserve(share_table().size() * 4);
+    for (const math::Vec2 one : share_table()) table.insert(table.end(), {half_of(one.x), half_of(one.y), half_of(0.0f), half_of(1.0f)});
+    list.upload(*shares, rhi::Region{0, 0, static_cast<std::uint32_t>(share_table_side), static_cast<std::uint32_t>(share_table_side)}, std::as_bytes(std::span<const std::uint16_t>(table)));
     list.begin_render({*no_shadow, rhi::LoadOp::clear, {1, 0, 0, 1}});
     list.end_render();
     auto submitted = device.submit(list);
@@ -276,11 +286,12 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
 Pass::Pass(Pass&& other) noexcept
     : device_(std::exchange(other.device_, nullptr)), pipeline_(std::exchange(other.pipeline_, {})), ids_pipeline_(std::exchange(other.ids_pipeline_, {})), sky_pipeline_(std::exchange(other.sky_pipeline_, {})), shadow_pipeline_(std::exchange(other.shadow_pipeline_, {})), lamp_shadow_pipeline_(std::exchange(other.lamp_shadow_pipeline_, {})), who_pipeline_(std::exchange(other.who_pipeline_, {})), velocity_pipeline_(std::exchange(other.velocity_pipeline_, {})), velocity_who_pipeline_(std::exchange(other.velocity_who_pipeline_, {})), surface_pipeline_(std::exchange(other.surface_pipeline_, {})), through_pipeline_(std::exchange(other.through_pipeline_, {})), deep_pipeline_(std::exchange(other.deep_pipeline_, {})), under_pipeline_(std::exchange(other.under_pipeline_, {})), laid_pipeline_(std::exchange(other.laid_pipeline_, {})), nearest_(std::exchange(other.nearest_, {})), pictures_(std::exchange(other.pictures_, {})), no_shadow_(std::exchange(other.no_shadow_, {})), cover_(std::exchange(other.cover_, {})), meshes_(std::move(other.meshes_)), textures_(std::move(other.textures_)), materials_(std::move(other.materials_)), about_{other.about_.pipeline, other.about_.through, other.about_.sheet, other.about_.between, other.about_.said}, reversed_(other.reversed_), light_(other.light_), last_(other.last_) {
     other.about_.pipeline = {}, other.about_.through = {}, other.about_.sheet = {}, other.about_.between = {};
+    shares_ = std::exchange(other.shares_, {}), share_between_ = std::exchange(other.share_between_, {});
 }
 Pass& Pass::operator=(Pass&& other) noexcept {
     if (this != &other) {
         release();
-        device_ = std::exchange(other.device_, nullptr), pipeline_ = std::exchange(other.pipeline_, {}), ids_pipeline_ = std::exchange(other.ids_pipeline_, {}), sky_pipeline_ = std::exchange(other.sky_pipeline_, {}), shadow_pipeline_ = std::exchange(other.shadow_pipeline_, {}), lamp_shadow_pipeline_ = std::exchange(other.lamp_shadow_pipeline_, {}), who_pipeline_ = std::exchange(other.who_pipeline_, {}), velocity_pipeline_ = std::exchange(other.velocity_pipeline_, {}), velocity_who_pipeline_ = std::exchange(other.velocity_who_pipeline_, {}), surface_pipeline_ = std::exchange(other.surface_pipeline_, {}), through_pipeline_ = std::exchange(other.through_pipeline_, {}), deep_pipeline_ = std::exchange(other.deep_pipeline_, {}), under_pipeline_ = std::exchange(other.under_pipeline_, {}), laid_pipeline_ = std::exchange(other.laid_pipeline_, {}), nearest_ = std::exchange(other.nearest_, {}), pictures_ = std::exchange(other.pictures_, {}), no_shadow_ = std::exchange(other.no_shadow_, {}), cover_ = std::exchange(other.cover_, {}), meshes_ = std::move(other.meshes_), textures_ = std::move(other.textures_), materials_ = std::move(other.materials_), about_.pipeline = std::exchange(other.about_.pipeline, {}), about_.through = std::exchange(other.about_.through, {}), about_.sheet = std::exchange(other.about_.sheet, {}), about_.between = std::exchange(other.about_.between, {}), about_.said = other.about_.said, reversed_ = other.reversed_, light_ = other.light_, last_ = other.last_;
+        device_ = std::exchange(other.device_, nullptr), pipeline_ = std::exchange(other.pipeline_, {}), ids_pipeline_ = std::exchange(other.ids_pipeline_, {}), sky_pipeline_ = std::exchange(other.sky_pipeline_, {}), shadow_pipeline_ = std::exchange(other.shadow_pipeline_, {}), lamp_shadow_pipeline_ = std::exchange(other.lamp_shadow_pipeline_, {}), who_pipeline_ = std::exchange(other.who_pipeline_, {}), velocity_pipeline_ = std::exchange(other.velocity_pipeline_, {}), velocity_who_pipeline_ = std::exchange(other.velocity_who_pipeline_, {}), surface_pipeline_ = std::exchange(other.surface_pipeline_, {}), through_pipeline_ = std::exchange(other.through_pipeline_, {}), deep_pipeline_ = std::exchange(other.deep_pipeline_, {}), under_pipeline_ = std::exchange(other.under_pipeline_, {}), laid_pipeline_ = std::exchange(other.laid_pipeline_, {}), nearest_ = std::exchange(other.nearest_, {}), pictures_ = std::exchange(other.pictures_, {}), no_shadow_ = std::exchange(other.no_shadow_, {}), cover_ = std::exchange(other.cover_, {}), meshes_ = std::move(other.meshes_), textures_ = std::move(other.textures_), materials_ = std::move(other.materials_), about_.pipeline = std::exchange(other.about_.pipeline, {}), about_.through = std::exchange(other.about_.through, {}), about_.sheet = std::exchange(other.about_.sheet, {}), about_.between = std::exchange(other.about_.between, {}), about_.said = other.about_.said, shares_ = std::exchange(other.shares_, {}), share_between_ = std::exchange(other.share_between_, {}), reversed_ = other.reversed_, light_ = other.light_, last_ = other.last_;
     }
     return *this;
 }
@@ -311,6 +322,9 @@ void Pass::release() noexcept {
     if (nearest_) device_->destroy(nearest_);
     if (pictures_) device_->destroy(pictures_);
     if (no_shadow_) device_->destroy(no_shadow_);
+    if (shares_) device_->destroy(shares_);
+    if (share_between_) device_->destroy(share_between_);
+    shares_ = {}, share_between_ = {};
     if (about_.pipeline) device_->destroy(about_.pipeline);
     if (about_.through) device_->destroy(about_.through);
     if (about_.sheet) device_->destroy(about_.sheet);
@@ -665,7 +679,8 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
     const bool pictured = options.environment.on && options.environment.picture && about_.sheet && about_.pipeline;
     last_.about = pictured ? 1 : 0;
     list.set_pipeline(pictured ? about_.pipeline : pipeline_);
-    if (pictured) list.bind_texture(rhi::Stage::fragment, 10, about_.sheet, about_.between), list.push_uniforms(rhi::Stage::fragment, 1, about_.said);
+    if (pictured) list.bind_texture(rhi::Stage::fragment, 11, about_.sheet, about_.between), list.push_uniforms(rhi::Stage::fragment, 1, about_.said);
+    list.bind_texture(rhi::Stage::fragment, 10, shares_, share_between_);
     list.bind_texture(rhi::Stage::fragment, 0, map, nearest_);
     list.bind_texture(rhi::Stage::fragment, 1, lamp_map, nearest_);
     const bool opened = shadows && shadows->open && width > 0 && height > 0;
@@ -789,7 +804,8 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
         list.begin_render({layers->layer, rhi::LoadOp::clear, {0, 0, 0, 0}}, {layers->depth, rhi::LoadOp::clear, far}, and_deep);
         list.set_viewport(0, 0, static_cast<float>(width), static_cast<float>(height));
         list.set_pipeline(pictured && about_.through ? about_.through : through_pipeline_);
-        if (pictured && about_.through) list.bind_texture(rhi::Stage::fragment, 10, about_.sheet, about_.between), list.push_uniforms(rhi::Stage::fragment, 1, about_.said);
+        if (pictured && about_.through) list.bind_texture(rhi::Stage::fragment, 11, about_.sheet, about_.between), list.push_uniforms(rhi::Stage::fragment, 1, about_.said);
+        list.bind_texture(rhi::Stage::fragment, 10, shares_, share_between_);
         list.bind_texture(rhi::Stage::fragment, 0, map, nearest_);
         list.bind_texture(rhi::Stage::fragment, 1, lamp_map, nearest_);
         list.bind_texture(rhi::Stage::fragment, 3, opened ? shadows->open : no_shadow_, nearest_);

@@ -213,6 +213,41 @@ Vec3 small_face(float roughness, std::uint32_t count, std::uint32_t of) noexcept
     return {out * static_cast<float>(math::det::cos(static_cast<double>(turn))), out * static_cast<float>(math::det::sin(static_cast<double>(turn))), up};
 }
 
+// How much a surface mirrors of an even light from all about, by how it is looked at and how rough it is:
+// (the share of what it mirrors head on, and what is added whatever that is) — the tracer's own highlight
+// (GGX, Smith for light from all about, Schlick), summed over 256 of its small faces. A row a roughness
+// (0 … 1), a column how it is looked at (the normal · the way to the eye, 0 … 1). Summed once.
+constexpr int shares_across = 32;
+std::array<Vec2, shares_across * shares_across> shares_summed() noexcept {
+    std::array<Vec2, shares_across * shares_across> summed{};
+    constexpr std::uint32_t faces = 256;
+    for (int row = 0; row < shares_across; ++row) {
+        const float roughness = static_cast<float>(row) / static_cast<float>(shares_across - 1);
+        const float hides = roughness * roughness * 0.5f;
+        for (int column = 0; column < shares_across; ++column) {
+            const float seen = std::max(static_cast<float>(column) / static_cast<float>(shares_across - 1), 1.0f / 1024.0f);
+            const Vec3 toward_eye{std::sqrt(std::max(1.0f - seen * seen, 0.0f)), 0, seen};
+            float scaled = 0, added = 0;
+            for (std::uint32_t count = 0; count < faces; ++count) {
+                const Vec3 face = small_face(roughness, count, faces);
+                const float eye_half = math::dot(toward_eye, face);
+                const float facing = 2.0f * eye_half * face.z - toward_eye.z;
+                if (!(eye_half > 0) || !(facing > 0) || !(face.z > 0)) continue;
+                const float unhidden = 1.0f / ((facing * (1.0f - hides) + hides) * (seen * (1.0f - hides) + hides));
+                const float weight = unhidden * facing * eye_half / face.z;
+                const float glance = 1.0f - eye_half, glance5 = glance * glance * glance * glance * glance;
+                scaled += (1.0f - glance5) * weight, added += glance5 * weight;
+            }
+            summed[static_cast<std::size_t>(row) * shares_across + static_cast<std::size_t>(column)] = {scaled / static_cast<float>(faces), added / static_cast<float>(faces)};
+        }
+    }
+    return summed;
+}
+const std::array<Vec2, shares_across * shares_across>& shares_table() noexcept {
+    static const std::array<Vec2, shares_across * shares_across> table = shares_summed();
+    return table;
+}
+
 }  // namespace
 
 std::optional<Surroundings> Surroundings::made(std::span<const float> rgb, int width, int height, const Wrapping& how) {
@@ -366,32 +401,8 @@ std::optional<Surroundings> Surroundings::made(std::span<const float> rgb, int w
             made.chosen_up_to.push_back(running);
         }
 
-    // How much a surface mirrors of an even light from all about, by how it is looked at and how rough it is:
-    // (the share of what it mirrors head on, and what is added whatever that is) — the tracer's own highlight
-    // (GGX, Smith for light from all about, Schlick), summed over 256 of its small faces.
-    made.shares_side = 32;
-    made.shares.resize(static_cast<std::size_t>(made.shares_side) * static_cast<std::size_t>(made.shares_side));
-    constexpr std::uint32_t faces = 256;
-    for (int row = 0; row < made.shares_side; ++row) {
-        const float roughness = static_cast<float>(row) / static_cast<float>(made.shares_side - 1);
-        const float hides = roughness * roughness * 0.5f;
-        for (int column = 0; column < made.shares_side; ++column) {
-            const float seen = std::max(static_cast<float>(column) / static_cast<float>(made.shares_side - 1), 1.0f / 1024.0f);
-            const Vec3 toward_eye{std::sqrt(std::max(1.0f - seen * seen, 0.0f)), 0, seen};
-            float scaled = 0, added = 0;
-            for (std::uint32_t count = 0; count < faces; ++count) {
-                const Vec3 face = small_face(roughness, count, faces);
-                const float eye_half = math::dot(toward_eye, face);
-                const float facing = 2.0f * eye_half * face.z - toward_eye.z;
-                if (!(eye_half > 0) || !(facing > 0) || !(face.z > 0)) continue;
-                const float unhidden = 1.0f / ((facing * (1.0f - hides) + hides) * (seen * (1.0f - hides) + hides));
-                const float weight = unhidden * facing * eye_half / face.z;
-                const float glance = 1.0f - eye_half, glance5 = glance * glance * glance * glance * glance;
-                scaled += (1.0f - glance5) * weight, added += glance5 * weight;
-            }
-            made.shares[static_cast<std::size_t>(row) * static_cast<std::size_t>(made.shares_side) + static_cast<std::size_t>(column)] = {scaled / static_cast<float>(faces), added / static_cast<float>(faces)};
-        }
-    }
+    made.shares_side = shares_across;
+    made.shares.assign(shares_table().begin(), shares_table().end());
     return made;
 }
 
@@ -423,16 +434,28 @@ float Surroundings::likelihood(Vec3 way) const noexcept {
     return static_cast<float>(here / chosen_up_to.back() * static_cast<double>(chosen_side) * chosen_side * static_cast<double>(length * length * length) / 4.0);
 }
 Vec3 Surroundings::falling(Vec3 normal) const noexcept { return between(falls, normal); }
-Vec2 Surroundings::share(float seen, float roughness) const noexcept {
-    if (shares_side <= 0) return {1, 0};
-    const float last = static_cast<float>(shares_side - 1);
+Vec2 Surroundings::share(float seen, float roughness) const noexcept { return mesh::share(seen, roughness); }
+
+Vec2 share(float seen, float roughness) noexcept {
+    const auto& table = shares_table();
+    const float last = static_cast<float>(shares_across - 1);
     const float column = std::clamp(seen, 0.0f, 1.0f) * last, row = std::clamp(roughness, 0.0f, 1.0f) * last;
-    const int first_column = std::min(static_cast<int>(column), shares_side - 2), first_row = std::min(static_cast<int>(row), shares_side - 2);
+    const int first_column = std::min(static_cast<int>(column), shares_across - 2), first_row = std::min(static_cast<int>(row), shares_across - 2);
     const float along_row = column - static_cast<float>(first_column), below = row - static_cast<float>(first_row);
-    const auto at = [&](int column_at, int row_at) { return shares[static_cast<std::size_t>(row_at) * static_cast<std::size_t>(shares_side) + static_cast<std::size_t>(column_at)]; };
+    const auto at = [&](int column_at, int row_at) { return table[static_cast<std::size_t>(row_at) * shares_across + static_cast<std::size_t>(column_at)]; };
     const Vec2 upper = at(first_column, first_row) + (at(first_column + 1, first_row) - at(first_column, first_row)) * along_row;
     const Vec2 lower = at(first_column, first_row + 1) + (at(first_column + 1, first_row + 1) - at(first_column, first_row + 1)) * along_row;
     return upper + (lower - upper) * below;
+}
+std::span<const Vec2> share_table() noexcept { return shares_table(); }
+
+Vec3 kept(const Material& material, float seen) noexcept {
+    const float rough = std::clamp(material.roughness, 0.04f, 1.0f), metal = std::clamp(material.metallic, 0.0f, 1.0f);
+    const Vec2 once = share(seen, rough);
+    const float all = once.x + once.y;
+    if (!(all > 0)) return {1, 1, 1};
+    const Vec3 head_on = Vec3{0.04f, 0.04f, 0.04f} * (1.0f - metal) + material.base * metal;
+    return Vec3{1, 1, 1} + head_on * (1.0f / all - 1.0f);
 }
 
 }  // namespace xrender::mesh

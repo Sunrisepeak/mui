@@ -177,6 +177,8 @@ private:
     mlibs::rhi::Sampler          nearest_;
     mlibs::rhi::Sampler          pictures_;  // a material's picture: between texels and between levels, repeating
     mlibs::rhi::Texture          no_shadow_;  // a texel, for the map's place when there is no map
+    mlibs::rhi::Texture          shares_;     // xrender.mesh's `share_table`: what `kept` asks
+    mlibs::rhi::Sampler          share_between_;
     mlibs::rhi::Buffer           cover_;  // three corners over the picture: what the sky is drawn with
     std::vector<Loaded>          meshes_;
     struct Sheet {

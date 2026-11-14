@@ -208,7 +208,7 @@ struct Tracing {
                         const float glance = 1.0f - eye_half, glance5 = glance * glance * glance * glance * glance;
                         const Vec3 head_on = Vec3{0.04f, 0.04f, 0.04f} * (1.0f - metal) + material.base * metal;
                         const float thrown_so = faces * up / (4.0f * eye_half);  // how likely the highlight was to throw the eye's way there
-                        sent = sent + math::scaled(head_on + (Vec3{1, 1, 1} - head_on) * glance5, light) * (faces * unhidden * facing * 0.25f / (asked.likelihood + thrown_so));
+                        sent = sent + math::scaled(math::scaled(head_on + (Vec3{1, 1, 1} - head_on) * glance5, kept(material, seen)), light) * (faces * unhidden * facing * 0.25f / (asked.likelihood + thrown_so));
                     }
                 }
             }
@@ -232,7 +232,7 @@ struct Tracing {
                     const float unhidden = 1.0f / ((facing * (1.0f - k) + k) * (seen * (1.0f - k) + k));
                     const float glance = 1.0f - eye_half, glance5 = glance * glance * glance * glance * glance;
                     const Vec3 head_on = Vec3{0.04f, 0.04f, 0.04f} * (1.0f - metal) + material.base * metal;
-                    const Vec3 share = (head_on + (Vec3{1, 1, 1} - head_on) * glance5) * (unhidden * facing * eye_half / up / mirrors);
+                    const Vec3 share = math::scaled(head_on + (Vec3{1, 1, 1} - head_on) * glance5, kept(material, seen)) * (unhidden * facing * eye_half / up / mirrors);
                     const float under = up * up * (spread - 1.0f) + 1.0f;
                     thrown = math::scaled(share, along(lifted, way, bounces_left - 1, random, false, spread / (3.14159265f * under * under) * up / (4.0f * eye_half)));
                 }

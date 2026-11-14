@@ -410,7 +410,7 @@ Vec3 reflected(const Material& material, Vec3 normal, Vec3 toward_eye, Vec3 towa
     const float glance = 1.0f - eye_half, glance5 = glance * glance * glance * glance * glance;
     const Vec3 head_on = Vec3{0.04f, 0.04f, 0.04f} * (1.0f - metal) + material.base * metal;
     const Vec3 mirrored = head_on + (Vec3{1, 1, 1} - head_on) * glance5;
-    return matt + mirrored * (facets * unhidden * 0.25f * facing);
+    return matt + math::scaled(mirrored, kept(material, seen)) * (facets * unhidden * 0.25f * facing);
 }
 Vec3 mirrored(const Material& material, const Environment& environment, Vec3 normal, Vec3 toward_eye) noexcept {
     const float rough = std::clamp(material.roughness, 0.04f, 1.0f), metal = std::clamp(material.metallic, 0.0f, 1.0f);
@@ -420,7 +420,15 @@ Vec3 mirrored(const Material& material, const Environment& environment, Vec3 nor
     if (environment.picture) {
         const Vec3 head_on = Vec3{0.04f, 0.04f, 0.04f} * (1.0f - metal) + material.base * metal;
         const Vec2 share = environment.picture->share(seen, rough);
-        return math::scaled(head_on * share.x + Vec3{share.y, share.y, share.y}, environment.picture->blurred(size > 0 ? way : normal, rough));
+        // A rough surface's highlight is not about the eye's way turned over: its small faces lean it toward
+        // the normal — by the highlight's own spread (the roughness to the fourth: nothing to speak of below
+        // 0.3, wholly at the roughest), the lean that is nearest the light followed along rays at every
+        // roughness tried (README: the lean, measured).
+        const float spread = rough * rough, toward_way = 1.0f - spread * spread;
+        const Vec3 turned = size > 0 ? way * (1.0f / size) : normal;
+        const Vec3 leaned = normal + (turned - normal) * toward_way;
+        const float leaned_size = math::length(leaned);
+        return math::scaled(math::scaled(head_on * share.x + Vec3{share.y, share.y, share.y}, kept(material, seen)), environment.picture->blurred(leaned_size > 0 ? leaned * (1.0f / leaned_size) : normal, rough));
     }
     const Vec3 there = environment.toward(size > 0 ? way * (1.0f / size) : normal);
     const Vec3 blurred = there + (environment.level - there) * rough;

@@ -209,6 +209,19 @@ struct Environment {
 // blurred by the roughness, times the surface's share of an even light (`Surroundings::share`) — the two taken
 // apart, as Karis did in 2013; how far that is from the light followed way by way is measured (the README).
 [[nodiscard]] Vec3 mirrored(const Material& material, const Environment& environment, Vec3 normal, Vec3 toward_eye) noexcept;
+// How much of an even light from all about a surface mirrors at the first of its small faces the light meets,
+// by how it is looked at (`seen`: the normal · the way to the eye) and how rough it is: (times what it mirrors
+// head on, added whatever that is). Their sum is under 1 — the rougher the further (a third at the roughest,
+// looked at straight): the rest met a second face. One table for every surface (`share_table`: 32 × 32, a row a
+// roughness, a column how it is looked at), summed once from the tracer's own highlight.
+[[nodiscard]] Vec2 share(float seen, float roughness) noexcept;
+[[nodiscard]] std::span<const Vec2> share_table() noexcept;
+inline constexpr int share_table_side = 32;
+// What the highlight is multiplied by so that light is kept between a rough surface's small faces: what met a
+// second face is sent on as what the surface mirrors head on would have it, 1 + head on × (1 ÷ the share's sum − 1).
+// A white metal sends back all of an even light however rough it is (the furnace's rule); a surface that
+// mirrors 4% is all but as it was. In `reflected`, in `mirrored` under a picture, and along the tracer's rays.
+[[nodiscard]] Vec3 kept(const Material& material, float seen) noexcept;
 
 struct Options {
     Vec3 background{0.02f, 0.02f, 0.03f};

@@ -9,6 +9,7 @@ Small domain-agnostic tools that are not libraries of their own yet, one directo
 | [names](src/names/README.md) | `mlibs.names` | The nearest name for a typo ("did you mean `x`?") — the one implementation, for every reader of names a person or an agent wrote |
 | [log](src/log/README.md) | `mlibs.log` | Categories, filters, sinks, record history and invariants |
 | [trace](src/trace/README.md) | `mlibs.trace` | Spans, counters and marks; Chrome trace JSON; per-span statistics; near-free while off |
+| [target](src/target/README.md) | `mlibs.target` | What the target the program is built for can do, as constants the manifest chooses per target (`threads`: none on the Web) — what work meant for workers checks before starting one |
 | [testing](src/testing/README.md) | `mlibs.testing` | The checks test programs share: suites, `check*` with source locations, pinned hashes |
 
 Depends on: the standard library alone (an independent component, D-55); it is the bottom of the base layer, so any package may use it.

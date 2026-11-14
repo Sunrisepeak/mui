@@ -34,13 +34,13 @@ sources = ["src/*/*.cppm", "src/*/*.cpp"]
 # time's conversions are the same bits everywhere (lint `determinism`).
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
-# What the target can do, as constants (mlibs.testing:target): the Web row runs
+# What the target can do, as constants (module mlibs.target): the Web row runs
 # no threads.
 [target.'cfg(not(os = "emscripten"))'.build]
-sources = ["src/testing/targets/threads.cppm"]
+sources = ["src/target/threads/target.cppm"]
 
 [target.'cfg(os = "emscripten")'.build]
-sources = ["src/testing/targets/web.cppm"]
+sources = ["src/target/web/target.cppm"]
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"

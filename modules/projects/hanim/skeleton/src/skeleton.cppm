@@ -21,6 +21,7 @@ export module hanim.skeleton;
 import std;
 export import mlibs.math;
 export import hanim.core;
+import mlibs.target;
 
 export namespace hanim::skeleton {
 
@@ -427,11 +428,11 @@ struct Actor {
 };
 using Character = Actor<StateMachine>;
 
-// Every actor stepped, on `workers` threads (0 or 1: this one): each actor is its own, so the bits are the same
-// for any number.
+// Every actor stepped, on `workers` threads (0 or 1, or a target with no threads: this one): each actor is its
+// own, so the bits are the same for any number.
 template <PoseStage Stage>
 void step_all(std::span<Actor<Stage>> actors, float seconds, unsigned workers = 0) {
-    if (workers <= 1 || actors.size() < 2) {
+    if (workers <= 1 || actors.size() < 2 || !mlibs::target::threads) {
         for (auto& actor : actors) actor.step(seconds);
         return;
     }

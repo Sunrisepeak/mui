@@ -359,30 +359,11 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
     if (auto waited = device.wait(*submitted); !waited) return std::unexpected(waited.error());
     return pass;
 }
-void Pass::take_more(More& into, More& from) noexcept {
-    into.tiled = std::exchange(from.tiled, {}), into.sheet = std::exchange(from.sheet, {}), into.width = std::exchange(from.width, 0.0f), into.height = std::exchange(from.height, 0.0f);
-    into.tiles = std::move(from.tiles), into.wanted = std::move(from.wanted);
-}
-void Pass::take_behind(Behind& into, Behind& from) noexcept {
-    into.drawn = std::exchange(from.drawn, {}), into.halved = std::exchange(from.halved, {}), into.sheet = std::exchange(from.sheet, {}), into.scratch = std::exchange(from.scratch, {});
-    into.width = std::exchange(from.width, 0u), into.height = std::exchange(from.height, 0u);
-    into.solid = std::exchange(from.solid, {}), into.whole = std::exchange(from.whole, {}), into.far_sides = std::exchange(from.far_sides, {}), into.depth = std::exchange(from.depth, {});
-    into.solid_width = std::exchange(from.solid_width, 0u), into.solid_height = std::exchange(from.solid_height, 0u);
-}
-Pass::Pass(Pass&& other) noexcept
-    : device_(std::exchange(other.device_, nullptr)), pipeline_(std::exchange(other.pipeline_, {})), ids_pipeline_(std::exchange(other.ids_pipeline_, {})), sky_pipeline_(std::exchange(other.sky_pipeline_, {})), shadow_pipeline_(std::exchange(other.shadow_pipeline_, {})), lamp_shadow_pipeline_(std::exchange(other.lamp_shadow_pipeline_, {})), who_pipeline_(std::exchange(other.who_pipeline_, {})), velocity_pipeline_(std::exchange(other.velocity_pipeline_, {})), velocity_who_pipeline_(std::exchange(other.velocity_who_pipeline_, {})), surface_pipeline_(std::exchange(other.surface_pipeline_, {})), through_pipeline_(std::exchange(other.through_pipeline_, {})), deep_pipeline_(std::exchange(other.deep_pipeline_, {})), under_pipeline_(std::exchange(other.under_pipeline_, {})), laid_pipeline_(std::exchange(other.laid_pipeline_, {})), nearest_(std::exchange(other.nearest_, {})), pictures_(std::exchange(other.pictures_, {})), no_shadow_(std::exchange(other.no_shadow_, {})), cover_(std::exchange(other.cover_, {})), meshes_(std::move(other.meshes_)), textures_(std::move(other.textures_)), materials_(std::move(other.materials_)), about_{other.about_.pipeline, other.about_.through, other.about_.sheet, other.about_.between, other.about_.said}, reversed_(other.reversed_), light_(other.light_), last_(other.last_) {
-    other.about_.pipeline = {}, other.about_.through = {}, other.about_.sheet = {}, other.about_.between = {};
-    shares_ = std::exchange(other.shares_, {}), share_between_ = std::exchange(other.share_between_, {}), about_sky_ = std::exchange(other.about_sky_, {});
-    edged_ = std::exchange(other.edged_, {});
-    take_behind(behind_, other.behind_);
-    take_more(more_, other.more_);
-}
+Pass::Pass(Pass&& other) noexcept = default;
 Pass& Pass::operator=(Pass&& other) noexcept {
     if (this != &other) {
-        release();
-        device_ = std::exchange(other.device_, nullptr), pipeline_ = std::exchange(other.pipeline_, {}), ids_pipeline_ = std::exchange(other.ids_pipeline_, {}), sky_pipeline_ = std::exchange(other.sky_pipeline_, {}), shadow_pipeline_ = std::exchange(other.shadow_pipeline_, {}), lamp_shadow_pipeline_ = std::exchange(other.lamp_shadow_pipeline_, {}), who_pipeline_ = std::exchange(other.who_pipeline_, {}), velocity_pipeline_ = std::exchange(other.velocity_pipeline_, {}), velocity_who_pipeline_ = std::exchange(other.velocity_who_pipeline_, {}), surface_pipeline_ = std::exchange(other.surface_pipeline_, {}), through_pipeline_ = std::exchange(other.through_pipeline_, {}), deep_pipeline_ = std::exchange(other.deep_pipeline_, {}), under_pipeline_ = std::exchange(other.under_pipeline_, {}), laid_pipeline_ = std::exchange(other.laid_pipeline_, {}), nearest_ = std::exchange(other.nearest_, {}), pictures_ = std::exchange(other.pictures_, {}), no_shadow_ = std::exchange(other.no_shadow_, {}), cover_ = std::exchange(other.cover_, {}), meshes_ = std::move(other.meshes_), textures_ = std::move(other.textures_), materials_ = std::move(other.materials_), about_.pipeline = std::exchange(other.about_.pipeline, {}), about_.through = std::exchange(other.about_.through, {}), about_.sheet = std::exchange(other.about_.sheet, {}), about_.between = std::exchange(other.about_.between, {}), about_.said = other.about_.said, edged_ = std::exchange(other.edged_, {}), about_sky_ = std::exchange(other.about_sky_, {}), shares_ = std::exchange(other.shares_, {}), share_between_ = std::exchange(other.share_between_, {}), reversed_ = other.reversed_, light_ = other.light_, last_ = other.last_;
-        take_behind(behind_, other.behind_);
-        take_more(more_, other.more_);
+        std::destroy_at(this);  // releases what it holds
+        std::construct_at(this, std::move(other));
     }
     return *this;
 }

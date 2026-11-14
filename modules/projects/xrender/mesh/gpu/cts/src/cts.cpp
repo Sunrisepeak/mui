@@ -340,7 +340,14 @@ Cases suite_of() {
         auto pass = mesh::gpu::Pass::make(*device);
         if (!expect(pass.has_value())) return;
         expect(pass->load(at_rest).has_value());
+        // Moved, a pass keeps what was loaded (and the one moved from releases nothing); moved back, the same.
+        mesh::gpu::Pass taken = std::move(*pass);
+        expect(taken.bend(list, 3, yard.made[3]).has_value()) << "moved, it keeps its meshes";
+        *pass = std::move(taken);
+        expect(pass->bend(list, 3, yard.made[3]).has_value()) << "moved back";
         expect(!pass->bend(list, 3, yard.made[2]).has_value() && !pass->bend(list, 9, yard.made[3]).has_value());
+        const auto submitted = device->submit(list);
+        expect(submitted.has_value() && device->wait(*submitted).has_value());
     });
 
     // and in fog: what is drawn is the reference's, surface by surface, and the sky behind it clears upward as the reference's does

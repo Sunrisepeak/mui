@@ -191,7 +191,21 @@ private:
         mlibs::rhi::Buffer before;        // a bent mesh's: its corners as the frame before had them (`bend` writes the two in turn)
         bool               bent = false;  // bent since the last velocity
     };
-    mlibs::rhi::Device*          device_ = nullptr;
+    // The device, as the one that releases what was made on it: moved, the one moved from no longer holds it — so
+    // a pass moves member by member (its handles are values) and only the one holding the device releases them.
+    struct Held {
+        mlibs::rhi::Device* device = nullptr;
+        Held() = default;
+        Held(mlibs::rhi::Device* on) noexcept : device(on) {}
+        Held(Held&& other) noexcept : device(std::exchange(other.device, nullptr)) {}
+        Held& operator=(Held&& other) noexcept {
+            device = std::exchange(other.device, nullptr);
+            return *this;
+        }
+        mlibs::rhi::Device* operator->() const noexcept { return device; }
+        operator mlibs::rhi::Device*() const noexcept { return device; }
+    };
+    Held                         device_;
     mlibs::rhi::GraphicsPipeline through_pipeline_, deep_pipeline_, under_pipeline_, laid_pipeline_;  // a layer of what is seen through; how deep what stops the eye is; a layer under those before it; all over the frame
     mlibs::rhi::GraphicsPipeline pipeline_, ids_pipeline_, sky_pipeline_, shadow_pipeline_, lamp_shadow_pipeline_, who_pipeline_, velocity_pipeline_, velocity_who_pipeline_, surface_pipeline_;
     mlibs::rhi::Sampler          nearest_;
@@ -225,7 +239,6 @@ private:
     // Which loaded textures `materials` name for their other pictures.
     [[nodiscard]] std::vector<bool> wanted_more(std::span<const Material> materials) const;
     More                         more_;
-    static void take_more(More& into, More& from) noexcept;
     // (Re)makes the sheet of `materials`' other pictures: whether it holds them all. `record` makes it again
     // where its materials name a loaded picture the sheet has not.
     bool keep_more(std::span<const Material> materials);
@@ -257,7 +270,6 @@ private:
         std::uint32_t                solid_width = 0, solid_height = 0;
     };
     Behind                       behind_;
-    static void take_behind(Behind& into, Behind& from) noexcept;
     // The sheet for a frame of `width` × `height`, the frame's light copied onto it and each size made: how many
     // sizes, each one's square in `squares` (where its first texel is, its width and height); 0 where a device
     // could not make it.

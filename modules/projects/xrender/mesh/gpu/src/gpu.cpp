@@ -251,7 +251,7 @@ rhi::Result<void> Pass::load(std::span<const mlibs::geom::ClusteredMesh* const> 
         if (corners.empty()) continue;
         auto buffer = device_->create(rhi::BufferDesc{static_cast<std::uint32_t>(corners.size() * sizeof(Corner)), rhi::BufferUsage::vertex, "xrender.mesh.corners"});
         if (!buffer) return std::unexpected(buffer.error());
-        meshes_[which] = {*buffer, static_cast<std::uint32_t>(corners.size()), !mesh.uvs.empty()};
+        meshes_[which] = {*buffer, static_cast<std::uint32_t>(corners.size()), !mesh.uvs.empty(), meshes[which]->clusters};
         list.upload(*buffer, 0, std::span<const Corner>(corners));
     }
     if (list.empty()) return {};
@@ -453,6 +453,8 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
     const bool opened = shadows && shadows->open && width > 0 && height > 0;
     list.bind_texture(rhi::Stage::fragment, 3, opened ? shadows->open : no_shadow_, nearest_);
     if (opened) surface.open = {1, 0, 1.0f / static_cast<float>(width), 1.0f / static_cast<float>(height)};
+    // What the frame's view holds, aside by its jitter as the corners are drawn.
+    const mlibs::geom::Frustum frustum = mlibs::geom::Frustum::of(aside_of(options.jitter, width, height) * clip);
     for (const scene::Draw& draw : extracted.draws) {
         if (draw.instance >= instances.size() || draw.mesh >= meshes_.size() || !meshes_[draw.mesh].corners || draw.material >= materials.size()) {
             ++last_.missing;
@@ -472,13 +474,47 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
         const Sheet* sheet = material.texture < textures_.size() && textures_[material.texture].texture && meshes_[draw.mesh].placed ? &textures_[material.texture] : nullptr;
         surface.picture = sheet ? Row{sheet->width, sheet->height, sheet->sizes, 0} : Row{};
         surface.picture_sheet = sheet ? Row{1.0f / sheet->sheet_width, 1.0f / sheet->sheet_height, 0, 0} : Row{};
+        // Its clusters that may show: one outside the view or wholly facing away is left out (as the reference
+        // leaves it out), and those that follow one another in the corners are one draw call.
+        const Loaded& loaded = meshes_[draw.mesh];
+        const std::array<float, 3> stretch{math::length(math::direction(instance.world, {1, 0, 0})), math::length(math::direction(instance.world, {0, 1, 0})),
+                                           math::length(math::direction(instance.world, {0, 0, 1}))};
+        const float largest = std::max({stretch[0], stretch[1], stretch[2]}), smallest = std::min({stretch[0], stretch[1], stretch[2]});
+        // A cluster's cone is a cone still only where the instance is stretched the same every way.
+        const bool even = back && camera && largest - smallest <= largest * 1e-4f;
+        const Vec3 eye_in_mesh = even ? math::point(*back, eye) : Vec3{};
+        runs_.clear();
+        if (!options.cull_clusters || loaded.clusters.empty()) {
+            runs_.push_back({0, loaded.count});
+            last_.clusters += static_cast<std::uint32_t>(loaded.clusters.size());
+        } else {
+            for (const mlibs::geom::Cluster& cluster : loaded.clusters) {
+                ++last_.clusters;
+                if (!frustum.holds(mlibs::geom::Sphere{math::point(instance.world, cluster.bounds.centre), cluster.bounds.radius * largest})) {
+                    ++last_.clusters_outside;
+                    continue;
+                }
+                if (even && mlibs::geom::faces_away(cluster, eye_in_mesh)) {
+                    ++last_.clusters_away;
+                    continue;
+                }
+                const std::uint32_t first = std::min(cluster.first_index, loaded.count), count = std::min(cluster.triangle_count * 3, loaded.count - first);
+                if (count == 0) continue;
+                if (!runs_.empty() && runs_.back().first + runs_.back().count == first) runs_.back().count += count;
+                else runs_.push_back({first, count});
+            }
+        }
+        if (runs_.empty()) continue;  // nothing of it may show: no draw, nothing bound
         list.bind_texture(rhi::Stage::fragment, 2, sheet ? sheet->texture : no_shadow_, nearest_);
         if (sheet) ++last_.textured;
         list.push_uniforms(rhi::Stage::vertex, 0, uniforms);
         list.push_uniforms(rhi::Stage::fragment, 0, surface);
-        list.bind_vertex_buffer(0, meshes_[draw.mesh].corners);
-        list.draw(meshes_[draw.mesh].count);
-        ++last_.draws, last_.triangles += meshes_[draw.mesh].count / 3;
+        list.bind_vertex_buffer(0, loaded.corners);
+        for (const Run& run : runs_) {
+            list.draw(run.count, 1, run.first);
+            last_.triangles += run.count / 3;
+        }
+        ++last_.draws, last_.runs += static_cast<std::uint32_t>(runs_.size());
     }
     list.end_render();
 }

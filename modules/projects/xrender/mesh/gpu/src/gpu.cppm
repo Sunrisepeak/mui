@@ -38,6 +38,9 @@ struct Stats {
     std::uint32_t casters = 0;                    // drawn into the sun's map
     std::uint32_t textured = 0;                   // draws whose colour is looked up in a picture
     std::uint32_t lamps_shadowed = 0, lamp_views = 0;  // lamps and spots with a row of the lamps' map; views drawn for them
+    // The colour pass's clusters: looked at, and left out — outside the view, or every triangle facing away
+    // (`Options::cull_clusters`; no pixel changes) — and the draw calls their runs took.
+    std::uint32_t clusters = 0, clusters_outside = 0, clusters_away = 0, runs = 0;
 };
 
 // The sun's shadows by a map (the reference traces a ray; a device looks up what the sun saw): two textures of
@@ -124,6 +127,7 @@ private:
         mlibs::rhi::Buffer corners;
         std::uint32_t      count = 0;
         bool               placed = false;  // it has texture coordinates
+        std::vector<mlibs::geom::Cluster> clusters;  // each a run of the corners: three a triangle from 3 × its first triangle
     };
     mlibs::rhi::Device*          device_ = nullptr;
     mlibs::rhi::GraphicsPipeline pipeline_, ids_pipeline_, sky_pipeline_, shadow_pipeline_, lamp_shadow_pipeline_, who_pipeline_, velocity_pipeline_, velocity_who_pipeline_, surface_pipeline_;
@@ -142,6 +146,10 @@ private:
     mlibs::math::Mat4            before_clip_;
     bool                         remembered_ = false;
     Stats                        last_;
+    struct Run {
+        std::uint32_t first = 0, count = 0;  // corners
+    };
+    std::vector<Run>             runs_;  // a draw's, kept between draws
 };
 
 // The frame as shown, on a device (the reference: `xrender::mesh::Glow`): the light a pass of light drew, what of

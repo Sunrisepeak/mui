@@ -223,6 +223,18 @@ Cases suite_of() {
         // Measured on lavapipe: 5 pixels, mean 0.008. The bound is a thousandth of the picture, and a tenth of a level.
         expect(lt(static_cast<double>(all.off), 0.001 * static_cast<double>(all.compared))) << "edges: a device samples a pixel at its middle by its own rule";
         expect(lt(all.mean, 0.1));
+        // Clusters outside the view or wholly facing away are left out, as the reference leaves them out — and no
+        // pixel changes: the same bytes as every cluster drawn.
+        const auto whole = both(*device, yard, {.cull_clusters = false});
+        if (!whole) return;
+        std::size_t differing = 0;
+        for (std::size_t at = 0; at < drawn->device.size() && at < whole->device.size(); ++at) differing += drawn->device[at] != whole->device[at];
+        const auto& kept = drawn->stats;
+        std::println("    clusters: {} looked at, {} outside the view, {} facing away; {} triangles in {} runs, where every cluster is {} triangles in {}; {} bytes differ", kept.clusters,
+                     kept.clusters_outside, kept.clusters_away, kept.triangles, kept.runs, whole->stats.triangles, whole->stats.runs, differing);
+        expect(eq(differing, std::size_t{0}) && eq(drawn->device.size(), whole->device.size()));
+        expect(eq(kept.clusters, whole->stats.clusters) && eq(whole->stats.clusters_outside + whole->stats.clusters_away, 0u) && eq(whole->stats.runs, whole->stats.draws));
+        expect(gt(kept.clusters_away, 0u) && lt(kept.triangles, whole->stats.triangles)) << "the far sides of the ball and the post face away (nothing of the yard is outside this view)";
     });
 
     // and in fog: what is drawn is the reference's, surface by surface, and the sky behind it clears upward as the reference's does

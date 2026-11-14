@@ -48,7 +48,7 @@ Part of [xrender.frame](../../frame)'s (`agent = { part = "xrender.frame" }`): t
 - **The device's own levels of a texture** (and filtering at a slant): `mlibs.rhi` has one level a texture; with levels the eight reads become one.
 - **Faces by winding**: the interface has no culling state; a face turned away is discarded by its normal in the shader.
 - **What the eye does not see shuts nothing**: a ray is stepped through the picture of the frame, so the far side of a thing, and things off the picture or behind others, do not darken (the device darkens the yard by 1.45 levels a block where the reference's rays darken it by 1.69). Rays through the scene itself on a device are D-184's step d.
-- **Clusters**: each mesh is drawn whole; leaving clusters out on the device (and levels of detail) is RN5's.
+- **Clusters**: the colour pass leaves out a cluster outside the view or wholly facing away, as the reference does (`Options::cull_clusters`; the clusters that follow one another are one draw call; `Stats::clusters`, `clusters_outside`, `clusters_away`, `runs`) — on the CPU, a draw at a time, and no pixel changes (the yard: 6,092 triangles where every cluster is 8,172, the same bytes). The shadows', who's and velocity's passes still draw each mesh whole; leaving out on the device itself and levels of detail are RN5's.
 
 ```sh
 tools/ci/gpu.sh            # a device for this machine (lavapipe on Linux)

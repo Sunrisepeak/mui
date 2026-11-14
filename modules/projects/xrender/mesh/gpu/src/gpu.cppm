@@ -150,6 +150,8 @@ private:
         std::uint32_t first = 0, count = 0;  // corners
     };
     std::vector<Run>             runs_;  // a draw's, kept between draws
+    void runs_for(const Loaded& loaded, const mlibs::math::Mat4& world, const std::optional<mlibs::math::Mat4>& back, const mlibs::geom::Frustum& frustum, mlibs::math::Vec3 eye,
+                  bool cull, bool counted);
 };
 
 // The frame as shown, on a device (the reference: `xrender::mesh::Glow`): the light a pass of light drew, what of

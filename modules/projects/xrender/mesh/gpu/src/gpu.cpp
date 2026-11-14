@@ -477,33 +477,7 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
         // Its clusters that may show: one outside the view or wholly facing away is left out (as the reference
         // leaves it out), and those that follow one another in the corners are one draw call.
         const Loaded& loaded = meshes_[draw.mesh];
-        const std::array<float, 3> stretch{math::length(math::direction(instance.world, {1, 0, 0})), math::length(math::direction(instance.world, {0, 1, 0})),
-                                           math::length(math::direction(instance.world, {0, 0, 1}))};
-        const float largest = std::max({stretch[0], stretch[1], stretch[2]}), smallest = std::min({stretch[0], stretch[1], stretch[2]});
-        // A cluster's cone is a cone still only where the instance is stretched the same every way.
-        const bool even = back && camera && largest - smallest <= largest * 1e-4f;
-        const Vec3 eye_in_mesh = even ? math::point(*back, eye) : Vec3{};
-        runs_.clear();
-        if (!options.cull_clusters || loaded.clusters.empty()) {
-            runs_.push_back({0, loaded.count});
-            last_.clusters += static_cast<std::uint32_t>(loaded.clusters.size());
-        } else {
-            for (const mlibs::geom::Cluster& cluster : loaded.clusters) {
-                ++last_.clusters;
-                if (!frustum.holds(mlibs::geom::Sphere{math::point(instance.world, cluster.bounds.centre), cluster.bounds.radius * largest})) {
-                    ++last_.clusters_outside;
-                    continue;
-                }
-                if (even && mlibs::geom::faces_away(cluster, eye_in_mesh)) {
-                    ++last_.clusters_away;
-                    continue;
-                }
-                const std::uint32_t first = std::min(cluster.first_index, loaded.count), count = std::min(cluster.triangle_count * 3, loaded.count - first);
-                if (count == 0) continue;
-                if (!runs_.empty() && runs_.back().first + runs_.back().count == first) runs_.back().count += count;
-                else runs_.push_back({first, count});
-            }
-        }
+        runs_for(loaded, instance.world, back, frustum, eye, options.cull_clusters, true);
         if (runs_.empty()) continue;  // nothing of it may show: no draw, nothing bound
         list.bind_texture(rhi::Stage::fragment, 2, sheet ? sheet->texture : no_shadow_, nearest_);
         if (sheet) ++last_.textured;
@@ -603,6 +577,37 @@ void Glow::record(rhi::CommandList& list, rhi::Texture light, rhi::Texture one, 
     pass(shown_, colour, light, spreads ? other : light);
 }
 
+// A mesh's runs of corners that may show in a view: every cluster but those outside it or wholly facing away
+// from the eye (the reference's rule), the clusters that follow one another joined.
+void Pass::runs_for(const Loaded& loaded, const Mat4& world, const std::optional<Mat4>& back, const mlibs::geom::Frustum& frustum, Vec3 eye, bool cull, bool counted) {
+    runs_.clear();
+    if (!cull || loaded.clusters.empty()) {
+        runs_.push_back({0, loaded.count});
+        if (counted) last_.clusters += static_cast<std::uint32_t>(loaded.clusters.size());
+        return;
+    }
+    const std::array<float, 3> stretch{math::length(math::direction(world, {1, 0, 0})), math::length(math::direction(world, {0, 1, 0})), math::length(math::direction(world, {0, 0, 1}))};
+    const float largest = std::max({stretch[0], stretch[1], stretch[2]}), smallest = std::min({stretch[0], stretch[1], stretch[2]});
+    // A cluster's cone is a cone still only where the instance is stretched the same every way.
+    const bool even = back && largest - smallest <= largest * 1e-4f;
+    const Vec3 eye_in_mesh = even ? math::point(*back, eye) : Vec3{};
+    for (const mlibs::geom::Cluster& cluster : loaded.clusters) {
+        if (counted) ++last_.clusters;
+        if (!frustum.holds(mlibs::geom::Sphere{math::point(world, cluster.bounds.centre), cluster.bounds.radius * largest})) {
+            if (counted) ++last_.clusters_outside;
+            continue;
+        }
+        if (even && mlibs::geom::faces_away(cluster, eye_in_mesh)) {
+            if (counted) ++last_.clusters_away;
+            continue;
+        }
+        const std::uint32_t first = std::min(cluster.first_index, loaded.count), count = std::min(cluster.triangle_count * 3, loaded.count - first);
+        if (count == 0) continue;
+        if (!runs_.empty() && runs_.back().first + runs_.back().count == first) runs_.back().count += count;
+        else runs_.push_back({first, count});
+    }
+}
+
 void Pass::record_ids(rhi::CommandList& list, const scene::Scene& scene, const scene::Extracted& extracted, const scene::View& view, rhi::Texture ids, rhi::Texture depth, std::uint32_t width,
                       std::uint32_t height) {
     who_pass(list, scene, extracted, view, ids, depth, width, height, ids_pipeline_, false, {0, 0});
@@ -625,6 +630,7 @@ void Pass::who_pass(rhi::CommandList& list, const scene::Scene& scene, const sce
     const std::optional<Mat4> camera = math::inverse(view.view);
     const Vec3 eye = camera ? math::point(*camera, {0, 0, 0}) : Vec3{};
     const std::span<const scene::Instance> instances = scene.instances();
+    const mlibs::geom::Frustum frustum = mlibs::geom::Frustum::of(clip);
     list.begin_render({ids, rhi::LoadOp::clear, {0, 0, 0, 0}}, {depth, rhi::LoadOp::clear, reversed_ ? 0.0f : 1.0f});
     list.set_viewport(0, 0, static_cast<float>(width), static_cast<float>(height));
     list.set_pipeline(pipeline);
@@ -638,10 +644,12 @@ void Pass::who_pass(rhi::CommandList& list, const scene::Scene& scene, const sce
         DrawUniforms uniforms{};
         for (int row = 0; row < 4; ++row) uniforms.to_clip[row] = row_of(to_clip, row);
         for (int row = 0; row < 3; ++row) uniforms.to_world[row] = row_of(instance.world, row), uniforms.normals[row] = row_of(for_normals, row);
+        runs_for(meshes_[draw.mesh], instance.world, back, frustum, eye, camera.has_value(), false);
+        if (runs_.empty()) continue;
         list.push_uniforms(rhi::Stage::vertex, 0, uniforms);
         list.push_uniforms(rhi::Stage::fragment, 0, Who{of(eye), by_instance ? static_cast<std::uint32_t>(instance.id & 0xffffffu) + 1 : number + 1, {}});
         list.bind_vertex_buffer(0, meshes_[draw.mesh].corners);
-        list.draw(meshes_[draw.mesh].count);
+        for (const Run& run : runs_) list.draw(run.count, 1, run.first);
     }
     list.end_render();
 }
@@ -674,6 +682,7 @@ void Pass::velocity_pass(rhi::CommandList& list, const scene::Scene& scene, cons
     const std::optional<Mat4> camera = math::inverse(view.view);
     const Vec3 eye = camera ? math::point(*camera, {0, 0, 0}) : Vec3{};
     const std::span<const scene::Instance> instances = scene.instances();
+    const mlibs::geom::Frustum frustum = mlibs::geom::Frustum::of(drawn_clip);
     const rhi::DepthTarget cleared{depth, rhi::LoadOp::clear, reversed_ ? 0.0f : 1.0f};
     if (who) list.begin_render({velocity, rhi::LoadOp::clear, {0, 0, 0, 1}}, cleared, std::array<rhi::ColorTarget, 1>{rhi::ColorTarget{who, rhi::LoadOp::clear, {0, 0, 0, 0}}});
     else list.begin_render({velocity, rhi::LoadOp::clear, {0, 0, 0, 1}}, cleared);
@@ -691,6 +700,8 @@ void Pass::velocity_pass(rhi::CommandList& list, const scene::Scene& scene, cons
         }
         const std::optional<Mat4> back = math::inverse(instance.world);
         const Mat4 for_normals = back ? math::transposed(*back) : instance.world;
+        runs_for(meshes_[draw.mesh], instance.world, back, frustum, eye, options.cull_clusters && camera.has_value(), false);
+        if (runs_.empty()) continue;
         VelocityDraw uniforms{};
         for (int row = 0; row < 4; ++row) uniforms.to_clip[row] = row_of(jittered, row), uniforms.before[row] = row_of(before, row);
         for (int row = 0; row < 3; ++row) uniforms.to_world[row] = row_of(instance.world, row), uniforms.normals[row] = row_of(for_normals, row);
@@ -700,7 +711,7 @@ void Pass::velocity_pass(rhi::CommandList& list, const scene::Scene& scene, cons
                                  {static_cast<float>(width), static_cast<float>(height), options.jitter.x, options.jitter.y},
                                  {before.values == to_clip.values ? 1.0f : 0.0f, static_cast<float>(static_cast<std::uint32_t>(instance.id & 0xffffffu) + 1), 0, 0}});
         list.bind_vertex_buffer(0, meshes_[draw.mesh].corners);
-        list.draw(meshes_[draw.mesh].count);
+        for (const Run& run : runs_) list.draw(run.count, 1, run.first);
     }
     list.end_render();
     // The scene's instances are in id order: what the next frame looks its things up in.

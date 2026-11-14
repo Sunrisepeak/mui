@@ -57,7 +57,7 @@ A sheet of 4,608 triangles in a scattered order: cut as they come, a cluster spa
 
 ## Beside model-viewer
 
-Every scenario of [model-viewer's render-fidelity suite](https://github.com/google/model-viewer/tree/master/packages/render-fidelity-tools) whose model the samples hold as one `.glb` and whose surroundings are an HDR picture, drawn by the CPU reference (`xrender look`: the scenario's orbit, target and angle of view, its HDR as the surroundings, four samples a pixel, Khronos' neutral tone curve) and measured against model-viewer's golden in the suite's own measure — the root of the mean squared distance in YIQ over the most it can be, in decibels; the suite holds model-viewer against itself to −22 dB. `tools/dev/fidelity.py --xrender PATH` makes the table again (it fetches the scenarios, goldens, surroundings and models once into a cache outside the repository). 2026-11-14: of 90 scenarios 63 drawn, 23 within −22 dB (21 before light was kept between a rough surface's small faces — [xrender.mesh](../mesh) — which brought BoxInterleaved, a fully rough metal, from −13.6 to −27.5 dB and Lantern to the bound; nine rows are of that later run, the others of the first).
+Every scenario of [model-viewer's render-fidelity suite](https://github.com/google/model-viewer/tree/master/packages/render-fidelity-tools) whose model the samples hold as one `.glb` and whose surroundings are an HDR picture, drawn by the CPU reference (`xrender look`: the scenario's orbit, target and angle of view, its HDR as the surroundings, four samples a pixel, Khronos' neutral tone curve) and measured against model-viewer's golden in the suite's own measure — the root of the mean squared distance in YIQ over the most it can be, in decibels; the suite holds model-viewer against itself to −22 dB. `tools/dev/fidelity.py --xrender PATH` makes the table again (it fetches the scenarios, goldens, surroundings and models once into a cache outside the repository). 2026-11-14: of 90 scenarios 63 drawn, 27 within −22 dB — 21 at the first run; 23 once light was kept between a rough surface's small faces ([xrender.mesh](../mesh): BoxInterleaved, a fully rough metal, from −13.6 to −27.5 dB, and Lantern to the bound); 25 with the surroundings drawn behind the model where the scenario shows them (`--behind`: MetalRoughSpheres −17.6 → −28.1, its HDR variant −15.8 → −22.9, and six more nearer by 2 to 4 dB with no pixel of the golden left undrawn); 27 with an instance its place mirrors drawn the right way round (NegativeScaleTest −17.4 → −27.4, OrientationTest −20.2 → −24.5). The rows of those scenarios are of the later runs, the others of the first.
 
 "The golden's pixels not drawn": where the golden has something and the picture drawn has nothing (the model stands elsewhere than the scenario expects — bones or shapes not applied — or is seen through and left out). "Left out": what the importer's notes say it did not bring in.
 
@@ -68,10 +68,12 @@ Every scenario of [model-viewer's render-fidelity suite](https://github.com/goog
 | khronos-Duck | -29.3 | 0 | 1 left out |
 | khronos-Avocado | -29.0 | 0 |  |
 | khronos-RiggedSimple | -28.1 | 0 | 5 left out |
+| khronos-MetalRoughSpheres | -28.1 | 0 | 2 left out |
 | khronos-BoxAnimated | -28.0 | 0 | 1 left out |
 | khronos-RiggedFigure | -27.8 | 0 | 5 left out |
 | khronos-Fox | -27.6 | 0 | 6 left out |
 | khronos-BoxInterleaved | -27.5 | 0 |  |
+| khronos-NegativeScaleTest | -27.4 | 0 | 4 left out |
 | khronos-CesiumMan | -27.3 | 0 | 5 left out |
 | khronos-EmissiveStrengthTest | -27.2 | 0 |  |
 | khronos-Box | -27.1 | 0 |  |
@@ -81,24 +83,23 @@ Every scenario of [model-viewer's render-fidelity suite](https://github.com/goog
 | khronos-AnimatedMorphCube | -25.6 | 0 | 2 left out |
 | khronos-CesiumMilkTruck | -25.0 | 0 | 1 left out |
 | khronos-BrainStem | -25.0 | 0 | 121 left out |
+| khronos-OrientationTest | -24.5 | 0 |  |
 | khronos-NormalTangentMirrorTest | -23.5 | 0 |  |
 | khronos-NormalTangentTest | -22.9 | 0 |  |
+| khronos-MetalRoughSpheres-HDR | -22.9 | 0 | 2 left out |
 | khronos-Corset | -22.8 | 0 |  |
 | khronos-AntiqueCamera | -22.5 | 0 |  |
 | khronos-Lantern | -22.0 | 0 |  |
 | khronos-AlphaBlendModeTest | -21.0 | 0 |  |
-| khronos-OrientationTest | -20.2 | 0 |  |
 | khronos-DamagedHelmet | -19.1 | 0 |  |
 | khronos-BarramundiFish | -19.0 | 0 |  |
+| khronos-MosquitoInAmber | -18.9 | 0 | 5 left out |
+| khronos-ABeautifulGame | -18.0 | 0 | 4 left out |
 | khronos-TextureEncodingTest | -17.8 | 0 | 4 left out |
-| khronos-MetalRoughSpheres | -17.6 | 1318058 | 2 left out |
-| khronos-NegativeScaleTest | -17.4 | 0 | 4 left out |
+| khronos-LightsPunctualLamp | -17.1 | 0 | 16 left out |
 | khronos-GlamVelvetSofa | -16.5 | 0 | 15 left out |
 | khronos-ClearCoatTest | -16.3 | 12855 | 6 left out |
-| khronos-MosquitoInAmber | -16.1 | 1310638 | 5 left out |
 | khronos-ClearCoatCarPaint | -15.9 | 0 | 2 left out |
-| khronos-MetalRoughSpheres-HDR | -15.8 | 1318058 | 2 left out |
-| khronos-ABeautifulGame | -15.8 | 1484955 | 4 left out |
 | khronos-InterpolationTest | -15.6 | 20320 | 1 left out |
 | khronos-TextureSettingsTest | -15.5 | 0 | 6 left out |
 | khronos-TransmissionTest | -15.3 | 0 | 14 left out |
@@ -108,28 +109,27 @@ Every scenario of [model-viewer's render-fidelity suite](https://github.com/goog
 | khronos-AnisotropyStrengthTest | -13.4 | 0 | 49 left out |
 | khronos-SpecularTest | -13.3 | 0 | 23 left out |
 | khronos-AnisotropyRotationTest | -13.3 | 0 | 4 left out |
-| khronos-LightsPunctualLamp | -13.0 | 1443641 | 16 left out |
+| khronos-IridescenceLamp | -13.0 | 0 | 5 left out |
 | khronos-SpecGlossVsMetalRough | -12.7 | 0 | 2 left out |
+| khronos-IridescentDishWithOlives | -12.5 | 0 | 12 left out |
 | khronos-SheenChair | -12.3 | 0 | 27 left out |
 | khronos-VertexColorTest | -11.8 | 0 | 1 left out |
 | khronos-BoxVertexColors | -11.1 | 0 | 1 left out |
 | khronos-AttenuationTest | -10.9 | 0 | 27 left out |
 | khronos-TextureTransformMultiTest | -10.9 | 0 | 48 left out |
 | khronos-GlassVaseFlowers | -10.8 | 0 | 2 left out |
-| khronos-IridescentDishWithOlives | -10.6 | 987925 | 12 left out |
-| khronos-IridescenceLamp | -10.5 | 1340626 | 5 left out |
 | khronos-MorphPrimitivesTest | -10.4 | 1054 | 2 left out |
+| khronos-IridescenceSuzanne | -10.0 | 0 | 11 left out |
 | khronos-GlassHurricaneCandleHolder | -9.8 | 0 | 2 left out |
 | khronos-MultiUVTest | -9.8 | 0 | 3 left out |
 | khronos-UnlitTest | -9.6 | 0 | 2 left out |
 | khronos-MorphStressTest | -9.2 | 0 | 6 left out |
 | khronos-DragonAttenuation | -8.3 | 0 | 4 left out |
-| khronos-IridescenceSuzanne | -6.5 | 1279090 | 11 left out |
 | khronos-RecursiveSkeletons | -5.1 | 486318 | 90 left out |
 
 Not drawn (27): 21 — the samples have no one-file (.glb) form of its model; 2 — its eye is at its target; 2 — its model is not one of Khronos' samples; 1 — its surroundings are not an HDR picture; 1 — its golden could not be fetched.
 
-What the table says is missing, most scenarios first: what a material says beyond the base five pictures (`KHR_materials_transmission`, `volume`, `clearcoat`, `sheen`, `iridescence`, `anisotropy`, `specular`, `emissive_strength`, `unlit`, `pbrSpecularGlossiness`), a picture's own placing and reading (`KHR_texture_transform`, a second set of coordinates, a sampler's wrap and filter), colours at corners, bones and shapes applied where the model's rest is not its pose, the model's own lights, and the models the samples hold only as several files.
+What the table says is missing, most scenarios first: what a material says beyond the base five pictures (`KHR_materials_transmission`, `volume`, `clearcoat`, `sheen`, `iridescence`, `anisotropy`, `specular`, `emissive_strength`, `unlit`, `pbrSpecularGlossiness`), a picture's own placing and reading (`KHR_texture_transform`, a second set of coordinates, a sampler's wrap and filter), colours at corners, bones and shapes applied where the model's rest is not its pose, the model's own lights. (The 21 models the samples hold only as several files are fetched by the script since; their rows come with the next whole run.)
 
 ## How it was designed (D-185)
 

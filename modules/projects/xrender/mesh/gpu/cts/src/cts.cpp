@@ -370,6 +370,26 @@ Cases suite_of() {
                      100.0 * static_cast<double>(all.off) / static_cast<double>(all.compared), all.mean, all.worst);
         expect(lt(static_cast<double>(all.off), 0.001 * static_cast<double>(all.compared)));
         expect(lt(all.mean, 0.1));
+        // Instances their places mirror (a negative scale): the box and the ball are their own mirror images, so
+        // the frame is the one above — in the reference and on the device, neither thing inside out or left out.
+        Yard mirrored(false, true);
+        expect(mirrored.world.move(10, math::Transform{{-2.2f, 0, 0}, math::Quat::about({0, 1, 0}, 0.6f), {1, 1, -1}}.matrix()).has_value());
+        expect(mirrored.world.move(11, math::Transform{{0.4f, 0, 0.8f}, {}, {-1, 1, 1}}.matrix()).has_value());
+        const auto turned = both(*device, mirrored, {.environment = {.on = true}});
+        if (!turned) return;
+        const Apart turned_all = apart(turned->reference, turned->device, false, 6);
+        std::size_t other = 0;
+        for (std::size_t byte = 0; byte + 3 < turned->reference.colour.size(); byte += 4)
+            for (std::size_t channel = 0; channel < 3; ++channel)
+                if (std::abs(static_cast<int>(turned->reference.colour[byte + channel]) - static_cast<int>(drawn->reference.colour[byte + channel])) > 6) {
+                    ++other;
+                    break;
+                }
+        std::println("with the box and the ball mirrored by their places: {} of {} pixels further than 6 levels from the reference, mean {:.3f}; {} pixels of the reference other than unmirrored", turned_all.off,
+                     turned_all.compared, turned_all.mean, other);
+        expect(lt(static_cast<double>(turned_all.off), 0.001 * static_cast<double>(turned_all.compared)));
+        expect(lt(turned_all.mean, 0.1));
+        expect(lt(static_cast<double>(other), 0.001 * static_cast<double>(turned_all.compared)));
     });
     // lit by a picture of the surroundings — a sky, a ground and a lamp — the yard's matt floor and box, its polished ball and its gold post are on the device what the reference draws: the same numbers, read the same way
     add(suite, "mesh.about", [](Rig& rig) {
@@ -403,6 +423,22 @@ Cases suite_of() {
         const auto without = both(*device, yard, lit_by);
         if (!without) return;
         expect(eq(without->stats.about, 0u));
+        // With the picture behind everything as well (`Environment::behind`): where nothing is drawn, the picture
+        // along the pixel's own way, on the device as in the reference.
+        mesh::Options and_behind = lit_by;
+        and_behind.environment.behind = true;
+        const auto whole = both(*device, yard, and_behind, &*surroundings);
+        if (!whole) return;
+        keep(whole->device, "yard-about-behind");
+        const Apart with_behind = apart(whole->reference, whole->device, false, 6);
+        std::size_t other_than_bare = 0;
+        for (std::size_t byte = 0; byte + 3 < whole->reference.colour.size(); byte += 4)
+            other_than_bare += std::abs(static_cast<int>(whole->reference.colour[byte + 2]) - static_cast<int>(drawn->reference.colour[byte + 2])) > 6;
+        std::println("with the picture behind everything: {} of {} pixels further than 6 levels from the reference ({:.2f}%), mean {:.3f}, worst {}; {} pixels of the reference are other than without it", with_behind.off,
+                     with_behind.compared, 100.0 * static_cast<double>(with_behind.off) / static_cast<double>(with_behind.compared), with_behind.mean, with_behind.worst, other_than_bare);
+        expect(lt(static_cast<double>(with_behind.off), 0.001 * static_cast<double>(with_behind.compared)));
+        expect(lt(with_behind.mean, 0.1));
+        expect(gt(other_than_bare, std::size_t{1000}));
     });
     // a lamp brighter than the display glows on the device as in the reference: the light kept before the curve, what is above it spread, then shown
     add(suite, "mesh.glow", [](Rig& rig) {

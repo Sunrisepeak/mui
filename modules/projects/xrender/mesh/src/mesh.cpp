@@ -116,6 +116,7 @@ struct Raster {
     Material       own;         // the draw's material as it says, before any picture
     std::vector<Laid>* laid = nullptr;  // the draw is seen through: its samples are kept here, to be laid over the frame
     float          shaded = 1;  // the share of the light from everywhere the shade picture lets through here
+    bool           turned_over = false;  // the instance's place mirrors it: its triangles go round the other way as seen
 
     // Whether anything is between `from` and a light `reach` away along `toward` (of length 1). The ray is taken
     // into each mesh's own space as it is — not made of length 1 again — so a distance along it is the world's.
@@ -233,7 +234,8 @@ struct Raster {
     bool fill(const Corner& first, const Corner& second, const Corner& third) noexcept {
         // Counter-clockwise as seen is its front. With y down that is a negative area by the rule below, so the
         // corners are taken the other way round: a front is above 0, and "inside" is above 0 for every edge.
-        std::array<const Corner*, 3> corners{&first, &third, &second};
+        // An instance its place mirrors (a negative scale) shows its fronts the other way round.
+        std::array<const Corner*, 3> corners{&first, turned_over ? &second : &third, turned_over ? &third : &second};
         // For a normal picture on a mesh with no tangents: the way the surface goes as the picture's first
         // coordinate grows, and against its second (up the picture), from this triangle's own corners.
         const bool tangents = !(first.tangent.x == 0 && first.tangent.y == 0 && first.tangent.z == 0);
@@ -564,6 +566,7 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
         raster.material = assets.materials[draw.material];
         raster.base = raster.material.base;
         raster.own = raster.material, raster.shaded = 1;
+        raster.turned_over = math::dot(math::cross(math::direction(instance.world, {1, 0, 0}), math::direction(instance.world, {0, 1, 0})), math::direction(instance.world, {0, 0, 1})) < 0;
         const auto picture = [&](std::uint32_t which) { return (which < assets.textures.size() && !mesh.uvs.empty()) ? assets.textures[which] : nullptr; };
         raster.texture = picture(raster.material.texture), raster.surface = picture(raster.material.surface), raster.normal_picture = picture(raster.material.normal);
         raster.glow = picture(raster.material.glow), raster.shade = picture(raster.material.shade);
@@ -646,8 +649,10 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
         }
     }
 
-    // The background through the fog: a surface infinitely far along each pixel's own ray.
-    if (const std::optional<Mat4> back = raster.fog ? math::inverse(clip) : std::nullopt) {
+    // The background through the fog: a surface infinitely far along each pixel's own ray — the picture of the
+    // surroundings there, where that is what is behind.
+    const bool pictured_behind = options.environment.on && options.environment.picture && options.environment.behind;
+    if (const std::optional<Mat4> back = raster.fog || pictured_behind ? math::inverse(clip) : std::nullopt) {
         for (int row = 0; row < out.height; ++row)
             for (int column = 0; column < out.width; ++column) {
                 const std::size_t pixel = static_cast<std::size_t>(row) * out.width + column;
@@ -657,11 +662,13 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
                 const Vec3 to = through_pixel - raster.eye;
                 const float apart = math::length(to);
                 if (!(apart > 0)) continue;
-                const float share = through(options.fog, raster.eye, to * (1.0f / apart), std::numeric_limits<float>::infinity());
-                const Vec3 colour = options.fog.colour + (options.background - options.fog.colour) * share;
+                const Vec3 way = to * (1.0f / apart);
+                const Vec3 far = pictured_behind ? options.environment.picture->toward(way) : options.background;
+                const float share = raster.fog ? through(options.fog, raster.eye, way, std::numeric_limits<float>::infinity()) : 1.0f;
+                const Vec3 colour = raster.fog ? options.fog.colour + (far - options.fog.colour) * share : far;
                 out.light[pixel] = colour;
                 out.colour[pixel * 4] = encoded(colour.x), out.colour[pixel * 4 + 1] = encoded(colour.y), out.colour[pixel * 4 + 2] = encoded(colour.z);
-                ++last_.fogged;
+                if (raster.fog) ++last_.fogged;
             }
     }
 

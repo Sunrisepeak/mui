@@ -6,7 +6,8 @@ against the suite's golden pictures in the suite's own measure.
     tools/dev/fidelity.py --xrender PATH [--cache DIR] [--follow RAYS] [--out DIR] [NAME …]
 
 Names are the scenarios' (`khronos-Duck`), or the models' (`Duck`); none: every scenario whose model is one
-file (a .glb in the samples) and whose surroundings are an HDR picture. What it reads is fetched once into the
+of Khronos' samples (the file the scenario names: a .glb, or a .gltf with the files it names beside it) and
+whose surroundings are an HDR picture. What it reads is fetched once into the
 cache (default ~/.cache/omui/fidelity): the suite's list, each scenario's golden and surroundings from
 google/model-viewer, each model from KhronosGroup/glTF-Sample-Assets. Those files are other people's: nothing
 of them is run, and nothing of them is put in this repository. Prints a Markdown table; exit 1 if a scenario
@@ -18,6 +19,7 @@ import pathlib
 import subprocess
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 
 SUITE = "https://raw.githubusercontent.com/google/model-viewer/master/packages"
@@ -39,6 +41,35 @@ def fetched(url: str, to: pathlib.Path) -> bool:
         return False
     to.write_bytes(data)
     return True
+
+
+def model_fetched(said: str, cache: pathlib.Path) -> tuple[pathlib.Path | None, str]:
+    """The scenario's model in the cache — the file it names under the samples' Models/, and for a .gltf every
+    file that names by a relative path (buffers, pictures) beside it. (None, why) where it could not be had."""
+    parts = pathlib.PurePosixPath(said).parts
+    under = parts[parts.index("Models") + 1:]  # Name/glTF-Binary/Name.glb, Name/glTF/Name.gltf, …
+    if len(under) != 3 or any(part in ("", ".", "..") for part in under):
+        return None, "its model is not where the samples keep one"
+    model = cache / "models" / pathlib.Path(*under)
+    if not fetched(f"{SAMPLES}/{'/'.join(under)}", model):
+        return None, "its model could not be fetched"
+    if model.suffix != ".gltf":
+        return model, ""
+    try:
+        document = json.loads(model.read_text(encoding="utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None, "its model is not a glTF document"
+    for named in list(document.get("buffers", [])) + list(document.get("images", [])):
+        uri = named.get("uri") if isinstance(named, dict) else None
+        if not isinstance(uri, str) or uri.startswith("data:"):
+            continue
+        beside = pathlib.PurePosixPath(urllib.parse.unquote(uri))
+        # Another's file names these: only a plain path below the model's own directory is fetched.
+        if beside.is_absolute() or ":" in uri or any(part in ("", ".", "..") for part in beside.parts):
+            return None, f"its model names a file outside its directory ({uri})"
+        if not fetched(f"{SAMPLES}/{under[0]}/{under[1]}/{urllib.parse.quote(str(beside))}", model.parent / pathlib.Path(*beside.parts)):
+            return None, f"a file its model names could not be fetched ({uri})"
+    return model, ""
 
 
 def main() -> int:
@@ -68,16 +99,15 @@ def main() -> int:
         for part in ("dimensions", "target", "orbit"):
             said[part] = {**DEFAULTS[part], **scenario.get(part, {})}
         skipped = None
-        model_name = pathlib.PurePosixPath(said["model"]).parts[-3] if "glTF-Sample-Assets" in said["model"] else None
+        model = None
         if not said["lighting"].endswith(".hdr"):
             skipped = "its surroundings are not an HDR picture"
-        elif model_name is None:
+        elif "glTF-Sample-Assets/Models/" not in said["model"]:
             skipped = "its model is not one of Khronos' samples"
         elif said["orbit"]["radius"] <= 0:
             skipped = "its eye is at its target"
-        model = cache / "models" / f"{model_name}.glb"
-        if not skipped and not fetched(f"{SAMPLES}/{model_name}/glTF-Binary/{model_name}.glb", model):
-            skipped = "the samples have no one-file (.glb) form of its model"
+        if not skipped:
+            model, skipped = model_fetched(said["model"], cache)
         light = cache / "environments" / pathlib.PurePosixPath(said["lighting"]).name
         if not skipped and not fetched(f"{SUITE}/shared-assets/environments/{light.name}", light):
             skipped = "its surroundings could not be fetched"
@@ -96,6 +126,8 @@ def main() -> int:
         command = [args.xrender, "look", str(model), "--out", str(out / f"{name}.png"), "--light", str(light), "--golden", str(golden), "--size", f"{width}x{height}",
                    "--orbit", f"{said['orbit']['theta']},{said['orbit']['phi']},{said['orbit']['radius']}",
                    "--target", f"{said['target']['x']},{said['target']['y']},{said['target']['z']}", "--upright", str(said["verticalFoV"])]
+        if said.get("renderSkybox"):
+            command += ["--behind"]
         if args.follow:
             command += ["--follow", str(args.follow)]
         done = subprocess.run(command, capture_output=True, text=True, check=False)

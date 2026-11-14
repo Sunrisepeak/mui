@@ -286,12 +286,12 @@ rhi::Result<Pass> Pass::make(rhi::Device& device, bool reversed_depth, bool ligh
 Pass::Pass(Pass&& other) noexcept
     : device_(std::exchange(other.device_, nullptr)), pipeline_(std::exchange(other.pipeline_, {})), ids_pipeline_(std::exchange(other.ids_pipeline_, {})), sky_pipeline_(std::exchange(other.sky_pipeline_, {})), shadow_pipeline_(std::exchange(other.shadow_pipeline_, {})), lamp_shadow_pipeline_(std::exchange(other.lamp_shadow_pipeline_, {})), who_pipeline_(std::exchange(other.who_pipeline_, {})), velocity_pipeline_(std::exchange(other.velocity_pipeline_, {})), velocity_who_pipeline_(std::exchange(other.velocity_who_pipeline_, {})), surface_pipeline_(std::exchange(other.surface_pipeline_, {})), through_pipeline_(std::exchange(other.through_pipeline_, {})), deep_pipeline_(std::exchange(other.deep_pipeline_, {})), under_pipeline_(std::exchange(other.under_pipeline_, {})), laid_pipeline_(std::exchange(other.laid_pipeline_, {})), nearest_(std::exchange(other.nearest_, {})), pictures_(std::exchange(other.pictures_, {})), no_shadow_(std::exchange(other.no_shadow_, {})), cover_(std::exchange(other.cover_, {})), meshes_(std::move(other.meshes_)), textures_(std::move(other.textures_)), materials_(std::move(other.materials_)), about_{other.about_.pipeline, other.about_.through, other.about_.sheet, other.about_.between, other.about_.said}, reversed_(other.reversed_), light_(other.light_), last_(other.last_) {
     other.about_.pipeline = {}, other.about_.through = {}, other.about_.sheet = {}, other.about_.between = {};
-    shares_ = std::exchange(other.shares_, {}), share_between_ = std::exchange(other.share_between_, {});
+    shares_ = std::exchange(other.shares_, {}), share_between_ = std::exchange(other.share_between_, {}), about_sky_ = std::exchange(other.about_sky_, {});
 }
 Pass& Pass::operator=(Pass&& other) noexcept {
     if (this != &other) {
         release();
-        device_ = std::exchange(other.device_, nullptr), pipeline_ = std::exchange(other.pipeline_, {}), ids_pipeline_ = std::exchange(other.ids_pipeline_, {}), sky_pipeline_ = std::exchange(other.sky_pipeline_, {}), shadow_pipeline_ = std::exchange(other.shadow_pipeline_, {}), lamp_shadow_pipeline_ = std::exchange(other.lamp_shadow_pipeline_, {}), who_pipeline_ = std::exchange(other.who_pipeline_, {}), velocity_pipeline_ = std::exchange(other.velocity_pipeline_, {}), velocity_who_pipeline_ = std::exchange(other.velocity_who_pipeline_, {}), surface_pipeline_ = std::exchange(other.surface_pipeline_, {}), through_pipeline_ = std::exchange(other.through_pipeline_, {}), deep_pipeline_ = std::exchange(other.deep_pipeline_, {}), under_pipeline_ = std::exchange(other.under_pipeline_, {}), laid_pipeline_ = std::exchange(other.laid_pipeline_, {}), nearest_ = std::exchange(other.nearest_, {}), pictures_ = std::exchange(other.pictures_, {}), no_shadow_ = std::exchange(other.no_shadow_, {}), cover_ = std::exchange(other.cover_, {}), meshes_ = std::move(other.meshes_), textures_ = std::move(other.textures_), materials_ = std::move(other.materials_), about_.pipeline = std::exchange(other.about_.pipeline, {}), about_.through = std::exchange(other.about_.through, {}), about_.sheet = std::exchange(other.about_.sheet, {}), about_.between = std::exchange(other.about_.between, {}), about_.said = other.about_.said, shares_ = std::exchange(other.shares_, {}), share_between_ = std::exchange(other.share_between_, {}), reversed_ = other.reversed_, light_ = other.light_, last_ = other.last_;
+        device_ = std::exchange(other.device_, nullptr), pipeline_ = std::exchange(other.pipeline_, {}), ids_pipeline_ = std::exchange(other.ids_pipeline_, {}), sky_pipeline_ = std::exchange(other.sky_pipeline_, {}), shadow_pipeline_ = std::exchange(other.shadow_pipeline_, {}), lamp_shadow_pipeline_ = std::exchange(other.lamp_shadow_pipeline_, {}), who_pipeline_ = std::exchange(other.who_pipeline_, {}), velocity_pipeline_ = std::exchange(other.velocity_pipeline_, {}), velocity_who_pipeline_ = std::exchange(other.velocity_who_pipeline_, {}), surface_pipeline_ = std::exchange(other.surface_pipeline_, {}), through_pipeline_ = std::exchange(other.through_pipeline_, {}), deep_pipeline_ = std::exchange(other.deep_pipeline_, {}), under_pipeline_ = std::exchange(other.under_pipeline_, {}), laid_pipeline_ = std::exchange(other.laid_pipeline_, {}), nearest_ = std::exchange(other.nearest_, {}), pictures_ = std::exchange(other.pictures_, {}), no_shadow_ = std::exchange(other.no_shadow_, {}), cover_ = std::exchange(other.cover_, {}), meshes_ = std::move(other.meshes_), textures_ = std::move(other.textures_), materials_ = std::move(other.materials_), about_.pipeline = std::exchange(other.about_.pipeline, {}), about_.through = std::exchange(other.about_.through, {}), about_.sheet = std::exchange(other.about_.sheet, {}), about_.between = std::exchange(other.about_.between, {}), about_.said = other.about_.said, about_sky_ = std::exchange(other.about_sky_, {}), shares_ = std::exchange(other.shares_, {}), share_between_ = std::exchange(other.share_between_, {}), reversed_ = other.reversed_, light_ = other.light_, last_ = other.last_;
     }
     return *this;
 }
@@ -324,7 +324,8 @@ void Pass::release() noexcept {
     if (no_shadow_) device_->destroy(no_shadow_);
     if (shares_) device_->destroy(shares_);
     if (share_between_) device_->destroy(share_between_);
-    shares_ = {}, share_between_ = {};
+    if (about_sky_) device_->destroy(about_sky_);
+    shares_ = {}, share_between_ = {}, about_sky_ = {};
     if (about_.pipeline) device_->destroy(about_.pipeline);
     if (about_.through) device_->destroy(about_.through);
     if (about_.sheet) device_->destroy(about_.sheet);
@@ -387,6 +388,16 @@ rhi::Result<void> Pass::load_surroundings(const Surroundings* surroundings) {
                                                                  .label = "xrender.mesh.about"});
         if (!pipeline) return std::unexpected(pipeline.error());
         about_.pipeline = *pipeline;
+        auto behind = device_->create(rhi::GraphicsPipelineDesc{.vertex = &shaders::sky::sky_vs,
+                                                               .fragment = &shaders::sky::sky_about_fs,
+                                                               .vertex_buffers = layout,
+                                                               .target = light_ ? rhi::Format::rgba16_float : rhi::Format::rgba8_unorm,
+                                                               .blend = rhi::Blend::replace(),
+                                                               .depth_target = rhi::Format::d32_float,
+                                                               .depth = {.test = false, .write = false},
+                                                               .label = "xrender.mesh.about.sky"});
+        if (!behind) return std::unexpected(behind.error());
+        about_sky_ = *behind;
         if (through_pipeline_) {
             const std::array<rhi::MoreTarget, 1> and_deep{rhi::MoreTarget{rhi::Format::r32_float, rhi::Blend::replace()}};
             auto through = device_->create(rhi::GraphicsPipelineDesc{.vertex = &shaders::mesh::mesh_vs,
@@ -662,21 +673,24 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
     list.begin_render({colour, rhi::LoadOp::clear, {shown(options.background.x), shown(options.background.y), shown(options.background.z), 1.0f}},
                       {depth, rhi::LoadOp::clear, reversed_ ? 0.0f : 1.0f});
     list.set_viewport(0, 0, static_cast<float>(width), static_cast<float>(height));
-    // The background through the fog, before anything: each pixel along its own ray.
-    if (const std::optional<Mat4> from_clip = options.fog.density > 0 ? math::inverse(clip) : std::nullopt) {
+    // Lit by the surroundings' picture: the options name one and one is loaded.
+    const bool pictured = options.environment.on && options.environment.picture && about_.sheet && about_.pipeline;
+    // The background through the fog, before anything: each pixel along its own ray — the surroundings' picture
+    // there, where that is what is behind.
+    const bool behind = pictured && options.environment.behind && about_sky_;
+    if (const std::optional<Mat4> from_clip = options.fog.density > 0 || behind ? math::inverse(clip) : std::nullopt) {
         struct SkyUniforms {
             Row from_clip[4];
             Row eye, background, fog, fog_shape;
         } sky{};
         for (int row = 0; row < 4; ++row) sky.from_clip[row] = row_of(*from_clip, row);
         sky.eye = of(eye), sky.background = of(options.background, light_ ? 1.0f : 0.0f), sky.fog = surface.fog, sky.fog_shape = surface.fog_shape;
-        list.set_pipeline(sky_pipeline_);
+        list.set_pipeline(behind ? about_sky_ : sky_pipeline_);
         list.push_uniforms(rhi::Stage::fragment, 0, sky);
+        if (behind) list.bind_texture(rhi::Stage::fragment, 0, about_.sheet, about_.between), list.push_uniforms(rhi::Stage::fragment, 1, about_.said);
         list.bind_vertex_buffer(0, cover_);
         list.draw(3);
     }
-    // Lit by the surroundings' picture: the options name one and one is loaded.
-    const bool pictured = options.environment.on && options.environment.picture && about_.sheet && about_.pipeline;
     last_.about = pictured ? 1 : 0;
     list.set_pipeline(pictured ? about_.pipeline : pipeline_);
     if (pictured) list.bind_texture(rhi::Stage::fragment, 11, about_.sheet, about_.between), list.push_uniforms(rhi::Stage::fragment, 1, about_.said);

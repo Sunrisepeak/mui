@@ -34,7 +34,8 @@ std::expected<Looked, std::string> looked(const Imported& imported, const scene:
     scene::extract(world, view, seen);
     mesh::Pass pass;
     mesh::Options options{.background = {0, 0, 0}};
-    if (how.surroundings) options.environment = {.on = true, .picture = how.surroundings};
+    const bool behind = how.behind && how.surroundings;
+    if (how.surroundings) options.environment = {.on = true, .picture = how.surroundings, .behind = behind};
     pass.draw(world, seen, view, {meshes, imported.materials, {}, textures}, frame, options);
     mesh::Glow glow;
     std::vector<std::uint8_t> large;
@@ -47,7 +48,7 @@ std::expected<Looked, std::string> looked(const Imported& imported, const scene:
             for (int below = 0; below < samples; ++below)
                 for (int beside = 0; beside < samples; ++beside) {
                     const std::size_t at = static_cast<std::size_t>(y * samples + below) * static_cast<std::size_t>(frame.width) + static_cast<std::size_t>(x * samples + beside);
-                    if (frame.ids[at].draw == mesh::none) continue;
+                    if (!behind && frame.ids[at].draw == mesh::none) continue;
                     ++drew;
                     for (std::size_t channel = 0; channel < 3; ++channel) sum[channel] += large[at * 4 + channel];
                 }

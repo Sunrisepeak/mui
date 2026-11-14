@@ -233,9 +233,12 @@ static UTest cases{"xrender.asset", [] {
         for (const std::string_view where :
              {"/images/0", "/materials/0/extensions/KHR_materials_clearcoat",
               "/meshes/0/primitives/0/attributes/TEXCOORD_1", "/meshes/0/primitives/0/attributes/COLOR_0", "/meshes/0/primitives/0/attributes/NORMAL", "/meshes/0/primitives/1/mode",
-              "/nodes/0/camera", "/nodes/1", "/animations", "/extensionsUsed/2"})
+              "/nodes/0/camera", "/animations", "/extensionsUsed/2"})
             expect(noted(*model, where)) << where;
-        expect(eq(model->notes.size(), std::size_t{10}));
+        expect(eq(model->notes.size(), std::size_t{9}));
+        // A place that mirrors its mesh (the second node's scale below 0) is carried as it is — the pass draws
+        // such an instance the right way round — so it leaves no note.
+        expect(!noted(*model, "/nodes/1"));
         // Seen from both sides, cut out and seen through are carried, so they leave no note: the second material's
         // cut is the format's own (0.5) where the document names none.
         expect(!noted(*model, "/materials/0/doubleSided") && !noted(*model, "/materials/0/alphaMode") && !noted(*model, "/materials/1/alphaMode"));
@@ -352,6 +355,18 @@ static UTest cases{"xrender.asset", [] {
         expect(fatal(hard.has_value()));
         for (std::size_t pixel = 0; pixel < 64 * 64; ++pixel) expect(hard->rgba[pixel * 4 + 3] == 0 || hard->rgba[pixel * 4 + 3] == 255);
         expect(!asset::looked(*model, asset::view_of(orbit, box, 1), {.width = 0}).has_value());
+        // With what is behind: the picture is whole, and where the model is not it is the surroundings (an even
+        // light here: one colour, the corner's and every other clear pixel's); where the model is, as it was.
+        const auto whole = asset::looked(*model, asset::view_of(orbit, box, 1), {.width = 64, .height = 64, .surroundings = &*surroundings, .behind = true});
+        expect(fatal(whole.has_value()));
+        std::size_t same_behind = 0, same_model = 0;
+        for (std::size_t pixel = 0; pixel < 64 * 64; ++pixel) {
+            expect(whole->rgba[pixel * 4 + 3] == 255);
+            const bool clear = picture->rgba[pixel * 4 + 3] == 0, covered = picture->rgba[pixel * 4 + 3] == 255;
+            same_behind += clear && whole->rgba[pixel * 4] == whole->rgba[0] && whole->rgba[pixel * 4 + 1] == whole->rgba[1] && whole->rgba[pixel * 4 + 2] == whole->rgba[2];
+            same_model += covered && whole->rgba[pixel * 4] == picture->rgba[pixel * 4] && whole->rgba[pixel * 4 + 1] == picture->rgba[pixel * 4 + 1] && whole->rgba[pixel * 4 + 2] == picture->rgba[pixel * 4 + 2];
+        }
+        expect(eq(same_behind, none) && eq(same_model, whole_pixels) && gt(whole->rgba[1], std::uint8_t{0}));
     };
     "strips and fans are triangles with their fronts kept; lamps have a reach"_test = [] {
         const std::string text = with_uri(R"(,

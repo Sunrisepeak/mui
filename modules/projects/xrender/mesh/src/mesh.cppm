@@ -195,6 +195,9 @@ struct Environment {
     bool on = false;
     Vec3 above{0.35f, 0.5f, 0.8f}, level{0.6f, 0.6f, 0.6f}, below{0.15f, 0.13f, 0.1f};
     const Surroundings* picture = nullptr;  // not owned: it outlives what is drawn with it
+    // Where nothing is drawn: the picture as the eye sees it there (what a viewer calls its skybox), through
+    // the fog as the background is. false, or no picture: `Options::background`.
+    bool behind = false;
     [[nodiscard]] constexpr Vec3 toward(Vec3 way) const noexcept {  // `way` of length 1
         if (picture) return picture->toward(way);
         const float up = way.y > 0 ? way.y : -way.y;

@@ -1245,6 +1245,88 @@ static UTest cases{"xrender.mesh", [] {
         expect(eq(bits_of(*pinned), bits_of(*again)));
         expect(eq(bits_of(*pinned), std::uint64_t{0x25ba775538c8df7e})) << std::format("{:016x}", bits_of(*pinned));
     };
+    "an instance its place mirrors (a negative scale) is not inside out: a box and a ball, their own mirror images, are drawn as unmirrored — the same pixels theirs, the same light"_test = [] {
+        const Camera camera{.eye = {3, 2.5f, 6}};
+        const auto frame_of = [&](math::Vec3 box_scale, math::Vec3 ball_scale) {
+            scene::Scene world;
+            put(world, 1, floor_mesh, matt_grey, math::translation({0, -1, 0}));
+            put(world, 2, box, matt_red, math::Transform{{-1.2f, 0, 0}, math::Quat::about({0, 1, 0}, 0.6f), box_scale}.matrix());
+            put(world, 3, ball, polished, math::Transform{{1.2f, 0, 0.5f}, {}, ball_scale}.matrix());
+            expect(world.add(scene::Light{.id = 1, .kind = scene::LightKind::sun, .colour = {1, 1, 1}, .intensity = 1, .toward = {-0.4f, -1, -0.5f}}).has_value());
+            return drawn(world, camera, 160, 120, {.environment = {.on = true}});
+        };
+        const Frame plain = frame_of({1, 1, 1}, {1, 1, 1}), mirrored = frame_of({1, 1, -1}, {-1, 1, 1});
+        // The draws are in the order the things were put: the floor, the box, the ball.
+        constexpr std::uint32_t box_draw = 1, ball_draw = 2;
+        int box_pixels = 0, ball_pixels = 0, other_owner = 0, other_light = 0;
+        for (std::size_t pixel = 0; pixel < plain.targets.ids.size(); ++pixel) {
+            box_pixels += plain.targets.ids[pixel].draw == box_draw, ball_pixels += plain.targets.ids[pixel].draw == ball_draw;
+            other_owner += plain.targets.ids[pixel].draw != mirrored.targets.ids[pixel].draw;
+            const math::Vec3 one = plain.targets.light[pixel], two = mirrored.targets.light[pixel];
+            other_light += std::abs(one.x - two.x) > 0.02f || std::abs(one.y - two.y) > 0.02f || std::abs(one.z - two.z) > 0.02f;
+        }
+        std::println("mirrored by their places: the box {} pixels, the ball {}; {} pixels another thing's than unmirrored, {} of another light", box_pixels, ball_pixels, other_owner, other_light);
+        expect(gt(box_pixels, 500) && gt(ball_pixels, 500));
+        expect(le(other_owner, 12) && le(other_light, 40)) << other_owner << ' ' << other_light;
+        expect(eq(plain.stats.draws, mirrored.stats.draws));
+    };
+
+    "behind everything the picture of the surroundings, where that is asked: a pixel nothing is drawn at is the picture along its own way — through the fog as the background is — and without the asking the background"_test = [] {
+        // A sky above, a ground below, a lamp straight ahead of the eye.
+        std::vector<float> rgb(128 * 64 * 3);
+        for (int row = 0; row < 64; ++row)
+            for (int column = 0; column < 128; ++column) {
+                const float down = (static_cast<float>(row) + 0.5f) / 64 * 3.14159265f, about = ((static_cast<float>(column) + 0.5f) / 128 - 0.5f) * 6.2831853f;
+                const math::Vec3 way{std::sin(down) * std::cos(about), std::cos(down), std::sin(down) * std::sin(about)};
+                math::Vec3 light = way.y > 0 ? math::Vec3{0.2f, 0.4f, 0.9f} : math::Vec3{0.3f, 0.2f, 0.1f};
+                light = light + math::Vec3{6, 5, 4} * std::exp(-(1 - math::dot(way, math::Vec3{0, 0, -1})) / 0.02f);
+                const std::size_t at = (static_cast<std::size_t>(row) * 128 + column) * 3;
+                rgb[at] = light.x, rgb[at + 1] = light.y, rgb[at + 2] = light.z;
+            }
+        const auto surroundings = mesh::Surroundings::made(rgb, 128, 64);
+        expect(fatal(surroundings.has_value()));
+        // A small ball before the eye, a little to the left: most of the picture is clear.
+        scene::Scene world;
+        put(world, 1, ball, matt_grey, math::Transform{{-1.5f, 0, 0}, {}, {0.4f, 0.4f, 0.4f}}.matrix());
+        const Camera camera{.eye = {0, 0, 5}};
+        constexpr int side = 33;
+        const mesh::Options asked{.background = {0.9f, 0, 0.9f}, .environment = {.on = true, .picture = &*surroundings, .behind = true}};
+        mesh::Options unasked = asked;
+        unasked.environment.behind = false;
+        const Frame with = drawn(world, camera, side, side, asked), without = drawn(world, camera, side, side, unasked);
+        const auto at = [&](int x, int y) { return static_cast<std::size_t>(y) * side + static_cast<std::size_t>(x); };
+        const auto close = [](math::Vec3 one, math::Vec3 other, float within) {
+            return std::abs(one.x - other.x) <= within && std::abs(one.y - other.y) <= within && std::abs(one.z - other.z) <= within;
+        };
+        // The middle pixel looks straight along the eye's way: the lamp. The top is the sky, the bottom the ground.
+        expect(with.targets.ids[at(16, 16)].draw == mesh::none);
+        expect(close(with.targets.light[at(16, 16)], surroundings->toward({0, 0, -1}), 1e-4f)) << with.targets.light[at(16, 16)].x;
+        expect(gt(with.targets.light[at(16, 16)].x, 3.0f));
+        expect(close(with.targets.light[at(16, 1)], {0.2f, 0.4f, 0.9f}, 0.08f) && close(with.targets.light[at(16, 31)], {0.3f, 0.2f, 0.1f}, 0.08f)) << with.targets.light[at(16, 1)].z;
+        // Not asked: the background; and where the ball is, the same either way.
+        int clear = 0, covered = 0;
+        for (int y = 0; y < side; ++y)
+            for (int x = 0; x < side; ++x) {
+                if (with.targets.ids[at(x, y)].draw == mesh::none) {
+                    ++clear;
+                    expect(close(without.targets.light[at(x, y)], {0.9f, 0, 0.9f}, 0.0f));
+                } else {
+                    ++covered;
+                    expect(close(with.targets.light[at(x, y)], without.targets.light[at(x, y)], 0.0f));
+                }
+            }
+        expect(gt(clear, 900) && gt(covered, 8)) << clear << ' ' << covered;
+        // Through fog: toward the fog's colour, the more the lower the way looks.
+        mesh::Options foggy = asked;
+        foggy.fog = {.colour = {0.5f, 0.5f, 0.5f}, .density = 0.2f, .base = 0, .falloff = 0.5f};
+        const Frame fogged = drawn(world, camera, side, side, foggy);
+        expect(close(fogged.targets.light[at(16, 31)], {0.5f, 0.5f, 0.5f}, 1e-4f));  // downward nothing comes through
+        const math::Vec3 up_there = fogged.targets.light[at(16, 1)], bare = with.targets.light[at(16, 1)];
+        expect(gt(up_there.z, 0.5f) && lt(up_there.z, bare.z)) << up_there.z;
+        std::println("behind everything: {} clear pixels of {} are the picture along their ways (the lamp ahead {:.2f}); through the fog the sky above is {:.3f} of blue where it was {:.3f}", clear, side * side,
+                     with.targets.light[at(16, 16)].x, up_there.z, bare.z);
+    };
+
     "light kept between a rough surface's small faces: a white metal sends back all of an even light however rough it is — by the pass's lookup and along rays; a surface that mirrors 4% is all but as it was"_test = [] {
         // The table's sum times what is kept is all, for a surface that mirrors everything.
         for (const float roughness : {0.04f, 0.3f, 0.6f, 1.0f})

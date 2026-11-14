@@ -109,12 +109,6 @@ constexpr std::array<std::string_view, 2> packed_geometry{"KHR_draco_mesh_compre
 bool finite(const Mat4& matrix) noexcept {
     return std::ranges::all_of(matrix.values, [](float value) { return std::isfinite(value); });
 }
-// Whether a matrix turns a thing inside out (the volume its three axes span is below 0).
-bool mirrors(const Mat4& matrix) noexcept {
-    const Vec3 right{matrix.at(0, 0), matrix.at(0, 1), matrix.at(0, 2)}, up{matrix.at(1, 0), matrix.at(1, 1), matrix.at(1, 2)}, back{matrix.at(2, 0), matrix.at(2, 1), matrix.at(2, 2)};
-    return mlibs::math::dot(mlibs::math::cross(right, up), back) < 0;
-}
-
 // The bytes of a picture: in a buffer, in the document as base64, or in a file beside it.
 std::expected<std::vector<std::uint8_t>, std::string> picture_bytes(const cgltf_image& image, const Options& options) {
     if (image.buffer_view) {
@@ -378,7 +372,6 @@ struct Maker {
             if (node.has_mesh_gpu_instancing) note(where + "/extensions/EXT_mesh_gpu_instancing", "many of the mesh by a table", "the one the node itself places");
             if (node.mesh) {
                 const std::size_t mesh = cgltf_mesh_index(&data, node.mesh);
-                if (mirrors(world)) note(where, "a mesh turned inside out by its place (a scale below 0)", "placed as said: its fronts face inward");
                 for (std::size_t part = 0; part < made_of[mesh].size(); ++part) {
                     if (made_of[mesh][part] == mesh::none) continue;
                     const cgltf_material* material = node.mesh->primitives[part].material;

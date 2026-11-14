@@ -107,6 +107,9 @@ struct Look {
     int                       samples = 2;  // each way, 1 … 4
     const mesh::Surroundings* surroundings = nullptr;
     mesh::Tone                tone{.neutral = true};
+    // Where the model is not: the surroundings as the eye sees them (a viewer's skybox), and the picture whole —
+    // every pixel's fourth byte 255. false: nothing there.
+    bool                      behind = false;
 };
 struct Looked {
     int                       width = 0, height = 0;

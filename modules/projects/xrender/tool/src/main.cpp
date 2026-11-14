@@ -10,7 +10,7 @@
 //                                                machine's device, case by case
 //   xrender device                               the device: backend, name, formats, limits
 //   xrender look MODEL --out PNG [--light HDR] [--orbit THETA,PHI,RADIUS] [--target X,Y,Z] [--size WxH]
-//                [--upright DEGREES] [--samples N] [--golden PNG] [--follow RAYS]
+//                [--upright DEGREES] [--samples N] [--behind] [--golden PNG] [--follow RAYS]
 //                                                a glTF model drawn by the reference as a viewer of products
 //                                                frames it, lit by an HDR picture of the surroundings; beside
 //                                                another renderer's picture of the same (its distance in the
@@ -48,7 +48,7 @@ using Json = nlohmann::json;
 constexpr std::string_view usage =
     "usage: xrender effect check FILE… | xrender effect preview FILE --out PNG [--image PNG] [--size WxH] [--param NAME=VALUE …] | "
     "xrender cts [--report FILE] | xrender device | "
-    "xrender look MODEL --out PNG [--light HDR] [--orbit THETA,PHI,RADIUS] [--target X,Y,Z] [--size WxH] [--upright DEGREES] [--samples N] [--golden PNG] [--follow RAYS]";
+    "xrender look MODEL --out PNG [--light HDR] [--orbit THETA,PHI,RADIUS] [--target X,Y,Z] [--size WxH] [--upright DEGREES] [--samples N] [--behind] [--golden PNG] [--follow RAYS]";
 
 int answer(const Json& json, int code) {
     std::println("{}", json.dump());
@@ -350,7 +350,7 @@ int look(const cmdline::ParsedArgs& args) {
     }
     const xrender::scene::View view = asset::view_of(orbit, box, static_cast<float>(width) / static_cast<float>(height));
     const auto begun = std::chrono::steady_clock::now();
-    const auto picture = asset::looked(*model, view, {.width = width, .height = height, .samples = samples, .surroundings = surroundings ? &*surroundings : nullptr});
+    const auto picture = asset::looked(*model, view, {.width = width, .height = height, .samples = samples, .surroundings = surroundings ? &*surroundings : nullptr, .behind = args.is_flag_set("behind")});
     if (!picture) return failed(picture.error());
     const double drawn_in = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - begun).count();
     const image::View ours{picture->rgba.data(), width, height, width * 4, image::Alpha::straight};
@@ -470,6 +470,7 @@ cmdline::App command_line() {
                         .option(Option("size").takes_value().value_name("WxH").help("8 … 4096 each (default 768x768)"))
                         .option(Option("upright").takes_value().value_name("DEGREES").help("the angle of view up and down (default 45)"))
                         .option(Option("samples").takes_value().value_name("N").help("N × N samples a pixel, 1 … 4 (default 2)"))
+                        .option(Option("behind").help("where the model is not, the surroundings as the eye sees them (a viewer's skybox); with --light"))
                         .option(Option("golden").takes_value().value_name("PNG").help("another renderer's picture of the same, of the same size"))
                         .option(Option("follow").takes_value().value_name("RAYS").help("follow the light way by way, RAYS a pixel, a quarter as large each way")));
 }

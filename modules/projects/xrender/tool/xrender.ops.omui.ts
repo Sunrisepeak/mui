@@ -56,6 +56,7 @@ export default defineOps({
         { name: "size", type: "string", doc: "WxH, 8 to 4096 each", optional: true },
         { name: "upright", type: "string", doc: "the angle of view up and down, degrees", optional: true },
         { name: "samples", type: "string", doc: "N by N samples a pixel, 1 to 4", optional: true },
+        { name: "behind", type: "bool", doc: "where the model is not, the surroundings as the eye sees them (a viewer's skybox); with light", optional: true },
         { name: "golden", type: "path", doc: "another renderer's PNG of the same size to stand beside", optional: true },
         { name: "follow", type: "string", doc: "rays a pixel for the light followed way by way, a quarter as large each way", optional: true },
       ],

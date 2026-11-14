@@ -179,6 +179,7 @@ private:
     mlibs::rhi::Texture          no_shadow_;  // a texel, for the map's place when there is no map
     mlibs::rhi::Texture          shares_;     // xrender.mesh's `share_table`: what `kept` asks
     mlibs::rhi::Sampler          share_between_;
+    mlibs::rhi::GraphicsPipeline about_sky_;  // behind everything, the surroundings' picture (made with the first picture loaded)
     mlibs::rhi::Buffer           cover_;  // three corners over the picture: what the sky is drawn with
     std::vector<Loaded>          meshes_;
     struct Sheet {

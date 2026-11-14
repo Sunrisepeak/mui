@@ -1135,6 +1135,220 @@ static UTest cases{"xrender.mesh", [] {
         (void)mesh::traced(world, yard_camera.view(), library().assets(true), large, even_sky, {.samples = 48, .bounces = 2});
         (void)keep(large, "yard-traced-large");
     };
+    "the surroundings as a picture of light: an even one is the same light whatever is asked; a sky over a dark ground falls whole on what faces up, half on what faces the level; a lamp's light falls by its share of the ways and turns with the picture — the same bits, pinned"_test = [] {
+        const auto picture_of = [](int width, int height, auto&& light) {
+            std::vector<float> rgb(static_cast<std::size_t>(width) * height * 3);
+            for (int row = 0; row < height; ++row)
+                for (int column = 0; column < width; ++column) {
+                    const math::Vec3 here = light(column, row);
+                    const std::size_t at = (static_cast<std::size_t>(row) * width + column) * 3;
+                    rgb[at] = here.x, rgb[at + 1] = here.y, rgb[at + 2] = here.z;
+                }
+            return rgb;
+        };
+        const auto close = [](math::Vec3 one, math::Vec3 other, float within) {
+            return std::abs(one.x - other.x) <= within && std::abs(one.y - other.y) <= within && std::abs(one.z - other.z) <= within;
+        };
+        const std::array<math::Vec3, 7> ways{{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}, {-1, 0, 0}, {0, -1, 0}, {0, 0, -1}, {0.3f, -0.8f, 0.52f}}};
+        // Even: every question's answer is the one light.
+        const math::Vec3 one_light{0.5f, 0.6f, 0.7f};
+        const auto even = mesh::Surroundings::made(picture_of(64, 32, [&](int, int) { return one_light; }), 64, 32);
+        expect(fatal(even.has_value()));
+        expect(eq(even->sizes.size(), std::size_t{11}) && eq(even->sizes[0].side, 32) && eq(even->sizes[10].side, 16) && eq(even->sizes[1].side, 32) && eq(even->falls.side, 32) && eq(even->clamped, std::uint64_t{0}));
+        for (const math::Vec3 way : ways) {
+            expect(close(even->toward(way), one_light, 1e-5f) && close(even->falling(way), one_light, 2e-3f)) << even->falling(way).y;
+            for (const float roughness : {0.0f, 0.1f, 0.5f, 1.0f}) expect(close(even->blurred(way, roughness), one_light, 1e-4f)) << even->blurred(way, roughness).y;
+        }
+        // A white sky over a ground with no light.
+        const auto halves = mesh::Surroundings::made(picture_of(256, 128, [](int, int row) { return row < 64 ? math::Vec3{1, 1, 1} : math::Vec3{0, 0, 0}; }), 256, 128);
+        expect(fatal(halves.has_value()));
+        expect(eq(halves->sizes[0].side, 128));
+        expect(close(halves->toward({0, 1, 0}), {1, 1, 1}, 1e-6f) && close(halves->toward({0, -1, 0}), {0, 0, 0}, 1e-6f));
+        expect(close(halves->falling({0, 1, 0}), {1, 1, 1}, 0.01f) && close(halves->falling({0, -1, 0}), {0, 0, 0}, 0.01f)) << halves->falling({0, 1, 0}).x;
+        for (const math::Vec3 way : {math::Vec3{1, 0, 0}, math::Vec3{0, 0, -1}, math::Vec3{-0.6f, 0, 0.8f}}) expect(close(halves->falling(way), {0.5f, 0.5f, 0.5f}, 0.02f)) << halves->falling(way).x;
+        expect(gt(halves->blurred({0, 1, 0}, 1).x, 0.9f) && lt(halves->blurred({0, -1, 0}, 1).x, 0.1f) && close(halves->blurred({1, 0, 0}, 1), {0.5f, 0.5f, 0.5f}, 0.05f))
+            << halves->blurred({0, 1, 0}, 1).x << " " << halves->blurred({0, -1, 0}, 1).x << " " << halves->blurred({1, 0, 0}, 1).x;
+        // A lamp at the picture's middle, at the level: toward +x. Four texels by four of 256 × 128: (4 · 2π / 256)²
+        // of the ways, and what falls on a surface facing it is its light by that share ÷ π.
+        const auto lamp_picture = picture_of(256, 128, [](int column, int row) { return column >= 126 && column < 130 && row >= 62 && row < 66 ? math::Vec3{100, 80, 60} : math::Vec3{0, 0, 0}; });
+        const auto lamp = mesh::Surroundings::made(lamp_picture, 256, 128);
+        expect(fatal(lamp.has_value()));
+        const float share = (4 * 6.2831853f / 256) * (4 * 6.2831853f / 256);
+        expect(gt(lamp->toward({1, 0, 0}).x, 90.0f) && close(lamp->toward({0, 0, 1}), {0, 0, 0}, 1e-6f));
+        expect(lt(std::abs(lamp->falling({1, 0, 0}).x / (100 * share / 3.14159265f) - 1), 0.03f)) << lamp->falling({1, 0, 0}).x << " against " << 100 * share / 3.14159265f;
+        expect(close(lamp->falling({-1, 0, 0}), {0, 0, 0}, 1e-6f));
+        expect(lt(std::abs(lamp->falling(math::normalized(math::Vec3{1, 1, 0})).y / (80 * share / 3.14159265f * 0.70710678f) - 1), 0.03f));
+        // The rougher, the wider and the dimmer the lamp is mirrored.
+        float before = lamp->toward({1, 0, 0}).x;
+        for (const float roughness : {0.2f, 0.4f, 0.6f, 0.8f, 1.0f}) {
+            const float now = lamp->blurred({1, 0, 0}, roughness).x;
+            expect(lt(now, before) && gt(now, 0.0f)) << roughness << ": " << now << " after " << before;
+            before = now;
+        }
+        expect(gt(lamp->blurred(math::normalized(math::Vec3{1, 0.5f, 0}), 0.8f).x, 0.0f) && eq(lamp->toward(math::normalized(math::Vec3{1, 0.5f, 0})).x, 0.0f));
+        // Turned a quarter about the way up: the lamp is toward +z.
+        const auto turned = mesh::Surroundings::made(lamp_picture, 256, 128, {.turn = 1.57079632f});
+        expect(fatal(turned.has_value()));
+        expect(gt(turned->toward({0, 0, 1}).x, 90.0f) && eq(turned->toward({1, 0, 0}).x, 0.0f));
+        // Twice as strong; and no light above the most.
+        const auto strong = mesh::Surroundings::made(lamp_picture, 256, 128, {.strength = 2, .most = 150});
+        expect(fatal(strong.has_value()));
+        expect(eq(strong->clamped, std::uint64_t{16}) && eq(strong->toward({1, 0, 0}).x, 150.0f) && eq(strong->toward({1, 0, 0}).z, 120.0f));
+        // A picture finer than is asked for is gathered, not skipped through: the lamp's light is all there.
+        const auto coarse = mesh::Surroundings::made(lamp_picture, 256, 128, {.side = 32});
+        expect(fatal(coarse.has_value()));
+        expect(eq(coarse->sizes[0].side, 32));
+        expect(lt(std::abs(coarse->falling({1, 0, 0}).x / lamp->falling({1, 0, 0}).x - 1), 0.05f)) << coarse->falling({1, 0, 0}).x << " against " << lamp->falling({1, 0, 0}).x;
+        // A way chosen by where the light is: under the white sky always up, and how likely it was is what the
+        // picture says of that way; the light along the ways chosen, each over how likely it was, is all the light
+        // (a half of the ways: 2π). The lamp is all that is chosen of its picture.
+        double gathered = 0;
+        bool up_only = true, agreed = true, lamp_only = true;
+        for (int count = 0; count < 4096; ++count) {
+            const float first = (static_cast<float>(count) + 0.5f) / 4096, second = static_cast<float>((count * 2654435761u) >> 8 & 0xffffff) / 16777216.0f;
+            const auto way = halves->chosen(first, second);
+            up_only = up_only && way.way.y > -0.05f && way.likelihood > 0;
+            agreed = agreed && std::abs(halves->likelihood(way.way) / way.likelihood - 1) < 0.02f;
+            gathered += static_cast<double>(halves->toward(way.way).x) / way.likelihood;
+            lamp_only = lamp_only && lamp->chosen(first, second).way.x > 0.98f;
+        }
+        expect(up_only && agreed && lamp_only) << up_only << agreed << lamp_only;
+        expect(lt(std::abs(gathered / 4096 / 6.2831853 - 1), 0.02)) << gathered / 4096;
+        expect(eq(halves->likelihood({0, -1, 0}), 0.0f) && eq(even->chosen_side, 32) && lt(std::abs(even->likelihood({0.6f, 0.0f, 0.8f}) * 12.566371f - 1), 0.05f)) << even->likelihood({0.6f, 0.0f, 0.8f});
+        // How much of an even light is mirrored: all of it by a smooth surface looked at straight on (times what
+        // it mirrors head on), never more than all, less the rougher.
+        const math::Vec2 smooth = even->share(1, 0), rough = even->share(1, 1), glancing = even->share(0.05f, 0.3f);
+        std::println("of an even light a surface mirrors (times head-on, added): smooth, straight on ({:.4f}, {:.4f}); rough ({:.4f}, {:.4f}); roughness 0.3 at a glance ({:.4f}, {:.4f})", smooth.x, smooth.y, rough.x, rough.y,
+                     glancing.x, glancing.y);
+        expect(near(smooth.x, 1.0f, 1e-3f) && near(smooth.y, 0.0f, 1e-3f) && lt(rough.x + rough.y, 0.7f) && gt(rough.x + rough.y, 0.3f) && gt(glancing.y, 0.2f));
+        for (const math::Vec2 one : even->shares) expect(one.x >= 0 && one.y >= 0 && one.x + one.y <= 1.0001f);
+        // Nothing from nothing.
+        expect(!mesh::Surroundings::made({}, 0, 0).has_value() && !mesh::Surroundings::made(lamp_picture, 256, 129).has_value());
+        // The same bits: a picture of whole numbers, every number made of it.
+        const auto bits_of = [](const mesh::Surroundings& surroundings) {
+            mlibs::hash::Fnv1a hash;
+            const auto take = [&](math::Vec3 light) { hash.le(std::bit_cast<std::uint32_t>(light.x), 4).le(std::bit_cast<std::uint32_t>(light.y), 4).le(std::bit_cast<std::uint32_t>(light.z), 4); };
+            for (const auto& square : surroundings.sizes)
+                for (const math::Vec3 light : square.light) take(light);
+            for (const math::Vec3 light : surroundings.falls.light) take(light);
+            for (const math::Vec2 one : surroundings.shares) hash.le(std::bit_cast<std::uint32_t>(one.x), 4).le(std::bit_cast<std::uint32_t>(one.y), 4);
+            return hash.value();
+        };
+        const auto numbers = picture_of(96, 40, [](int column, int row) {
+            return math::Vec3{static_cast<float>((column * 7 + row * 13) % 32) / 8.0f, static_cast<float>((column * 3 + row * 5) % 17) / 4.0f, static_cast<float>((column + row * 11) % 9)};
+        });
+        const auto pinned = mesh::Surroundings::made(numbers, 96, 40, {.turn = 0.7f}), again = mesh::Surroundings::made(numbers, 96, 40, {.turn = 0.7f});
+        expect(fatal(pinned.has_value() && again.has_value()));
+        expect(eq(pinned->sizes[0].side, 32));
+        expect(eq(bits_of(*pinned), bits_of(*again)));
+        expect(eq(bits_of(*pinned), std::uint64_t{0x25ba775538c8df7e})) << std::format("{:016x}", bits_of(*pinned));
+    };
+    "a ball under a picture of light, drawn and followed along rays: the pass's one lookup a surface is held to the light gathered way by way — matt, polished, satin, gold — and the error is said"_test = [] {
+        constexpr int width = 96, height = 96;
+        // A sky brighter overhead, a warm ground, and a lamp eight degrees wide up to the right.
+        const math::Vec3 lamp_way = math::normalized(math::Vec3{1, 1, 0.6f});
+        std::vector<float> rgb(256 * 128 * 3);
+        for (int row = 0; row < 128; ++row)
+            for (int column = 0; column < 256; ++column) {
+                const float down = (static_cast<float>(row) + 0.5f) / 128 * 3.14159265f, about = ((static_cast<float>(column) + 0.5f) / 256 - 0.5f) * 6.2831853f;
+                const math::Vec3 way{std::sin(down) * std::cos(about), std::cos(down), std::sin(down) * std::sin(about)};
+                math::Vec3 light = way.y > 0 ? math::Vec3{0.3f, 0.5f, 0.9f} * (0.5f + 0.9f * way.y) : math::Vec3{0.3f, 0.24f, 0.18f};
+                light = light + math::Vec3{12, 10, 7} * std::exp(-(1 - math::dot(way, lamp_way)) / 0.01f);
+                const std::size_t at = (static_cast<std::size_t>(row) * 256 + column) * 3;
+                rgb[at] = light.x, rgb[at + 1] = light.y, rgb[at + 2] = light.z;
+            }
+        const auto from = std::chrono::steady_clock::now();
+        const auto surroundings = mesh::Surroundings::made(rgb, 256, 128);
+        const double made_in = std::chrono::duration<double>(std::chrono::steady_clock::now() - from).count();
+        expect(fatal(surroundings.has_value()));
+        // What a surface of each roughness mirrors, looked at straight on, against the sum over every texel of the
+        // picture as it came: toward the lamp, beside it, and away from it.
+        float worst = 0;
+        for (const float roughness : {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.8f, 1.0f})
+            for (const math::Vec3 about : {lamp_way, math::normalized(lamp_way + math::Vec3{0, -0.2f, 0}), math::Vec3{0, 0, 1}}) {
+                const float spread = roughness * roughness * roughness * roughness;
+                double sum = 0, weight = 0;
+                for (int row = 0; row < 128; ++row)
+                    for (int column = 0; column < 256; ++column) {
+                        const float down = (static_cast<float>(row) + 0.5f) / 128 * 3.14159265f, turn = ((static_cast<float>(column) + 0.5f) / 256 - 0.5f) * 6.2831853f;
+                        const math::Vec3 way{std::sin(down) * std::cos(turn), std::cos(down), std::sin(down) * std::sin(turn)};
+                        const float facing = math::dot(about, way);
+                        if (!(facing > 0)) continue;
+                        const float under = (1 + facing) * 0.5f * (spread - 1) + 1;
+                        const double counts = static_cast<double>(facing) / (under * under) * std::sin(down);
+                        sum += counts * rgb[(static_cast<std::size_t>(row) * 256 + column) * 3 + 1], weight += counts;
+                    }
+                const float off = std::abs(surroundings->blurred(about, roughness).y / static_cast<float>(sum / weight) - 1);
+                worst = std::max(worst, off);
+                expect(lt(off, 0.06f)) << roughness << ": " << surroundings->blurred(about, roughness).y << " against " << sum / weight;
+            }
+        std::println("mirrored straight on, eight roughnesses by three ways, against the sum over every texel: {:.1f}% off at most", 100 * worst);
+        const mesh::Options lit_by{.background = {0, 0, 0}, .environment = {.on = true, .picture = &*surroundings}};
+        const Camera camera{.eye = {0, 0, 4}};
+        std::println("the surroundings made of 256 × 128 in {:.2f} s ({} sizes from {} across; what falls, {} across)", made_in, surroundings->sizes.size(), surroundings->sizes[0].side, surroundings->falls.side);
+        struct Held {
+            std::uint32_t material;
+            std::string_view name;
+            float within;  // root mean square, of the mean light
+        };
+        for (const Held& held : {Held{matt_grey, "matt", 0.008f}, Held{polished, "polished", 0.015f}, Held{satin, "satin", 0.015f}, Held{gold, "gold", 0.08f}}) {
+            scene::Scene world;
+            put(world, 1, ball, held.material, math::translation({0, 0, 0}));
+            mesh::Pass pass;
+            const Frame drawn_frame = drawn(world, camera, width, height, pass, lit_by);
+            mesh::Targets followed, other;
+            followed.resize(width, height), other.resize(width, height);
+            (void)mesh::traced(world, camera.view(), library().assets(true), followed, lit_by, {.samples = 1024, .bounces = 1});
+            (void)mesh::traced(world, camera.view(), library().assets(true), other, lit_by, {.samples = 1024, .bounces = 1, .seed = 7});
+            // Where the ball is, a pixel in from its rim.
+            // Two followings with other rays: the product of the drawn light's distances from the two has the
+            // rays' grain in neither, so its mean is the square of how far the drawn light is from the truth.
+            double apart = 0, grain = 0, light = 0, levels = 0, squared = 0;
+            int most_levels = 0, pixels = 0;
+            for (int y = 1; y + 1 < height; ++y)
+                for (int x = 1; x + 1 < width; ++x) {
+                    bool inside = true;
+                    for (int dy = -1; dy <= 1 && inside; ++dy)
+                        for (int dx = -1; dx <= 1 && inside; ++dx) inside = drawn_frame.targets.ids[static_cast<std::size_t>(y + dy) * width + (x + dx)].draw != mesh::none;
+                    if (!inside) continue;
+                    const std::size_t at = static_cast<std::size_t>(y) * width + x;
+                    const math::Vec3 here = drawn_frame.targets.light[at], truth = followed.light[at], twice = other.light[at];
+                    apart += (std::abs(here.x - truth.x) + std::abs(here.y - truth.y) + std::abs(here.z - truth.z)) / 3;
+                    grain += (std::abs(twice.x - truth.x) + std::abs(twice.y - truth.y) + std::abs(twice.z - truth.z)) / 3;
+                    light += (truth.x + truth.y + truth.z) / 3;
+                    squared += (static_cast<double>(here.x - truth.x) * (here.x - twice.x) + static_cast<double>(here.y - truth.y) * (here.y - twice.y) + static_cast<double>(here.z - truth.z) * (here.z - twice.z)) / 3;
+                    for (int channel = 0; channel < 3; ++channel) {
+                        const int level = std::abs(static_cast<int>(drawn_frame.targets.colour[at * 4 + channel]) - static_cast<int>(followed.colour[at * 4 + channel]));
+                        levels += level, most_levels = std::max(most_levels, level);
+                    }
+                    ++pixels;
+                }
+            (void)keep(drawn_frame.targets, std::format("surroundings-{}-drawn", held.name));
+            const auto file = keep(followed, std::format("surroundings-{}-followed", held.name));
+            const double off = std::sqrt(std::max(squared / pixels, 0.0)) / (light / pixels);
+            std::println("  {}: over {} pixels the drawn light is {:.2f}% of the mean light from the truth (root mean square, the rays' grain taken out; against one following {:.2f}% at the mean, two followings {:.2f}% apart); as shown {:.2f} levels at the mean, {} at most; {}",
+                         held.name, pixels, 100 * off, 100 * apart / light, 100 * grain / light, levels / (pixels * 3.0), most_levels, file.generic_string());
+            expect(gt(pixels, 1200) && lt(off, static_cast<double>(held.within))) << held.name << ": " << off;
+        }
+        // Kept larger for the README: the gold ball drawn, and beside it followed.
+        {
+            constexpr int side = 160;
+            scene::Scene world;
+            put(world, 1, ball, gold, math::translation({0, 0, 0}));
+            mesh::Pass pass;
+            const Frame drawn_frame = drawn(world, Camera{.eye = {0, 0, 3}}, side, side, pass, lit_by);
+            mesh::Targets followed, pair;
+            followed.resize(side, side), pair.resize(side * 2, side);
+            (void)mesh::traced(world, Camera{.eye = {0, 0, 3}}.view(), library().assets(true), followed, lit_by, {.samples = 96, .bounces = 1});
+            for (int y = 0; y < side; ++y)
+                for (int x = 0; x < side; ++x)
+                    for (int channel = 0; channel < 4; ++channel) {
+                        pair.colour[(static_cast<std::size_t>(y) * side * 2 + x) * 4 + channel] = drawn_frame.targets.colour[(static_cast<std::size_t>(y) * side + x) * 4 + channel];
+                        pair.colour[(static_cast<std::size_t>(y) * side * 2 + side + x) * 4 + channel] = followed.colour[(static_cast<std::size_t>(y) * side + x) * 4 + channel];
+                    }
+            (void)keep(pair, "surroundings-gold");
+        }
+    };
     "a mirror followed along rays shows what is over it: a floor of white metal under an even sky is the sky; where a red ball stands on it, the ball's image is red"_test = [] {
         constexpr int width = 160, height = 90;
         const mesh::Options even_sky{.background = {0.5f, 0.6f, 0.7f}};

@@ -166,9 +166,15 @@ struct Raster {
         return {of(material.base.x), of(material.base.y), of(material.base.z)};
     }
 
+    // The light from everywhere: the picture's about this normal where the surroundings are a picture, else the
+    // one constant.
+    [[nodiscard]] Vec3 from_all_about(Vec3 normal) const noexcept {
+        return options.environment.on && options.environment.picture ? options.environment.picture->falling(normal) : options.ambient;
+    }
+
     Vec3 lit(Vec3 normal, Vec3 place) noexcept {
         if (!material.matt()) return shone(normal, place);
-        Vec3 light = math::scaled(options.ambient, reaching(open_to(normal, place))) * shaded;
+        Vec3 light = math::scaled(from_all_about(normal), reaching(open_to(normal, place))) * shaded;
         // A ray starts a little off the surface, or it meets the surface it left.
         const Vec3 lifted = place + normal * 2e-3f;
         for (const Lamp& lamp : lamps) {
@@ -194,7 +200,11 @@ struct Raster {
     // The same lights on a surface that is not matt: each light's share by `reflected`.
     Vec3 shone(Vec3 normal, Vec3 place) noexcept {
         const Vec3 toward_eye = math::normalized(eye - place);
-        Vec3 sent = math::scaled(math::scaled(reflected_ambient(material), options.ambient), reaching(open_to(normal, place))) * shaded + material.emissive;
+        // With a picture the surface's own colour takes what falls on it and what it mirrors is `mirrored`'s
+        // alone; without, the constant is given to both (and the three colours mirrored besides).
+        const bool pictured = options.environment.on && options.environment.picture;
+        const Vec3 takes = pictured ? material.base * (1.0f - std::clamp(material.metallic, 0.0f, 1.0f)) : reflected_ambient(material);
+        Vec3 sent = math::scaled(math::scaled(takes, from_all_about(normal)), reaching(open_to(normal, place))) * shaded + material.emissive;
         if (options.environment.on) sent = sent + mirrored(material, options.environment, normal, toward_eye);
         const Vec3 lifted = place + normal * 2e-3f;
         for (const Lamp& lamp : lamps) {
@@ -406,6 +416,11 @@ Vec3 mirrored(const Material& material, const Environment& environment, Vec3 nor
     const float seen = std::max(math::dot(normal, toward_eye), 0.0f);
     const Vec3 way = normal * (2.0f * seen) - toward_eye;  // the eye's way, turned about the normal
     const float size = math::length(way);
+    if (environment.picture) {
+        const Vec3 head_on = Vec3{0.04f, 0.04f, 0.04f} * (1.0f - metal) + material.base * metal;
+        const Vec2 share = environment.picture->share(seen, rough);
+        return math::scaled(head_on * share.x + Vec3{share.y, share.y, share.y}, environment.picture->blurred(size > 0 ? way : normal, rough));
+    }
     const Vec3 there = environment.toward(size > 0 ? way * (1.0f / size) : normal);
     const Vec3 blurred = there + (environment.level - there) * rough;
     const float glance = 1.0f - seen, glance5 = glance * glance * glance * glance * glance;

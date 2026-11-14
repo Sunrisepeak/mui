@@ -90,17 +90,26 @@ struct Tracing {
     [[nodiscard]] Vec3 sky(Vec3 toward) const { return options.environment.on ? options.environment.toward(toward) : options.background; }
 
     // The light a ray from `from` along `toward` brings back.
-    [[nodiscard]] Vec3 along(Vec3 from, Vec3 toward, std::uint32_t bounces_left, math::SplitMix64& random, bool from_eye) const {
+    // The surroundings as a picture, or none: with one, a surface also asks the picture for a way — chosen as
+    // often as there is light along it — besides the way its own surface throws, and each is counted by how
+    // likely it was against the other (Veach's weights, a lobe at a time). A small bright sun is then found from
+    // every surface, not waited for.
+    [[nodiscard]] const Surroundings* picture() const noexcept { return options.environment.on ? options.environment.picture : nullptr; }
+
+    // The light a ray from `from` along `toward` brings back. `likelihood`: how likely the surface it left was to
+    // throw it this way (a way's share of all ways), or 0 where that is not weighed (from the eye).
+    [[nodiscard]] Vec3 along(Vec3 from, Vec3 toward, std::uint32_t bounces_left, math::SplitMix64& random, bool from_eye, float likelihood = 0) const {
         const std::optional<Met> met = meet(from, toward, std::numeric_limits<float>::max(), from_eye);
         if (!met) {
             ++told.into_open;
+            if (likelihood > 0 && picture()) return sky(toward) * (likelihood / (likelihood + picture()->likelihood(toward)));
             return sky(toward);
         }
         Material material = met->thing->material;
         // A surface seen through: as often as it does not hide what is behind it, the ray goes on through it.
         if (material.see_through) {
             const float hides = material.opacity * (met->thing->texture ? met->thing->texture->cover_at(met->uv) : 1.0f);
-            if (!(static_cast<float>(math::unit24(random.next())) < hides)) return along(met->place + toward * 2e-3f, toward, bounces_left, random, from_eye);
+            if (!(static_cast<float>(math::unit24(random.next())) < hides)) return along(met->place + toward * 2e-3f, toward, bounces_left, random, from_eye, likelihood);
         }
         // Its picture at the place (a pixel a texel: the finest size).
         if (met->thing->texture) material.base = math::scaled(material.base, met->thing->texture->at(met->uv, 1));
@@ -135,13 +144,39 @@ struct Tracing {
             return math::normalized(aside * (out * static_cast<float>(math::det::cos(static_cast<double>(turn)))) + other * (out * static_cast<float>(math::det::sin(static_cast<double>(turn)))) + met->normal * up);
         };
         Vec3 around{0, 0, 0}, thrown{0, 0, 0};  // what arrives for the surface's own colour; what it mirrors
+        if (bounces_left > 0 && picture()) {
+            const float first = static_cast<float>(math::unit24(random.next())), second = static_cast<float>(math::unit24(random.next()));
+            const Surroundings::Chosen asked = picture()->chosen(first, second);
+            const float facing = math::dot(met->normal, asked.way);
+            if (asked.likelihood > 0 && facing > 0 && !hidden(lifted, asked.way, std::numeric_limits<float>::max())) {
+                constexpr float pi = 3.14159265f;
+                const Vec3 light = picture()->toward(asked.way);
+                // For the surface's own colour: facing ÷ π of the ways is how likely the surface was to ask this one.
+                sent = sent + math::scaled(colour, light) * (facing / (pi * asked.likelihood + facing));
+                const float seen = math::dot(met->normal, toward_eye);
+                if (!matt && seen > 0) {
+                    const Vec3 half = math::normalized(toward_eye + asked.way);
+                    const float up = math::dot(met->normal, half), eye_half = math::dot(toward_eye, half);
+                    if (up > 0 && eye_half > 0) {
+                        const float spread = rough * rough * rough * rough, under = up * up * (spread - 1.0f) + 1.0f;
+                        const float faces = spread / (pi * under * under);  // how many small faces look along `half`
+                        const float k = rough * rough * 0.5f;
+                        const float unhidden = 1.0f / ((facing * (1.0f - k) + k) * (seen * (1.0f - k) + k));
+                        const float glance = 1.0f - eye_half, glance5 = glance * glance * glance * glance * glance;
+                        const Vec3 head_on = Vec3{0.04f, 0.04f, 0.04f} * (1.0f - metal) + material.base * metal;
+                        const float thrown_so = faces * up / (4.0f * eye_half);  // how likely the highlight was to throw the eye's way there
+                        sent = sent + math::scaled(head_on + (Vec3{1, 1, 1} - head_on) * glance5, light) * (faces * unhidden * facing * 0.25f / (asked.likelihood + thrown_so));
+                    }
+                }
+            }
+        }
         if (bounces_left > 0) {
             const float mirrors = matt ? 0.0f : metal + (1.0f - metal) * 0.5f;  // how often the mirrored way is taken
             const bool mirror = !matt && static_cast<float>(math::unit24(random.next())) < mirrors;
             const float first = static_cast<float>(math::unit24(random.next())), second = static_cast<float>(math::unit24(random.next()));
             if (!mirror) {
                 const Vec3 way = about_normal(std::sqrt(first), second * 6.2831853f, std::sqrt(std::max(1.0f - first, 0.0f)));
-                around = along(lifted, way, bounces_left - 1, random, false) * (1.0f / (1.0f - mirrors));
+                around = along(lifted, way, bounces_left - 1, random, false, std::sqrt(std::max(1.0f - first, 0.0f)) / 3.14159265f) * (1.0f / (1.0f - mirrors));
             } else {
                 const float spread = rough * rough * rough * rough;
                 const float up = std::sqrt((1.0f - first) / (1.0f + (spread - 1.0f) * first));
@@ -155,11 +190,12 @@ struct Tracing {
                     const float glance = 1.0f - eye_half, glance5 = glance * glance * glance * glance * glance;
                     const Vec3 head_on = Vec3{0.04f, 0.04f, 0.04f} * (1.0f - metal) + material.base * metal;
                     const Vec3 share = (head_on + (Vec3{1, 1, 1} - head_on) * glance5) * (unhidden * facing * eye_half / up / mirrors);
-                    thrown = math::scaled(share, along(lifted, way, bounces_left - 1, random, false));
+                    const float under = up * up * (spread - 1.0f) + 1.0f;
+                    thrown = math::scaled(share, along(lifted, way, bounces_left - 1, random, false, spread / (3.14159265f * under * under) * up / (4.0f * eye_half)));
                 }
             }
         } else {
-            around = sky(met->normal);
+            around = options.environment.on ? options.environment.falling(met->normal) : options.background;
             if (!matt) thrown = mirrored(material, options.environment.on ? options.environment : Environment{true, options.background, options.background, options.background}, met->normal, toward_eye);
         }
         return material.emissive + math::scaled(colour, arriving + around) + sent + thrown;

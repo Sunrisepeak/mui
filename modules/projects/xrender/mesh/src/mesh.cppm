@@ -133,21 +133,81 @@ struct Fog {
 // length 1) for `length` (which may be infinite). Deterministic (`mlibs.math`'s exp): the same bits everywhere.
 [[nodiscard]] float through(const Fog& fog, Vec3 eye, Vec3 toward, float length) noexcept;
 
-// What is about the scene, for a surface with a highlight to mirror: a sky above, the land at eye level, the
-// ground below — three colours, and a way looked along is between two of them by how far up or down it goes.
-// The least an environment can be; a picture of one (a map) is the same question asked of a texture. A matt
-// surface does not ask it. Off: nothing is mirrored but the lights.
+// What is about the scene as a picture of light (an HDR environment: a sky photographed, a studio's lamps),
+// kept so that every question a surface asks of it is one lookup — on the CPU and, the same numbers, on a device:
+//   · `sizes[0]`: the picture, for a way looked along (`toward`) — what a ray into the open and a mirror see;
+//   · `sizes[n]`: it as a surface of roughness n / (sizes − 1) mirrors it (`blurred`);
+//   · `falls`: what falls on a matt surface about each normal (`falling`): every way's light by how it faces;
+//   · `shares`: how much of an even light a surface mirrors, by how it is looked at and how rough it is (`share`).
+// Each picture is a square: the eight faces of an octahedron about the scene unfolded (y up: the upper four the
+// diamond in the middle). A way's place in it is three divisions — no angle is taken, so the reference's lookup is
+// the same bits everywhere and a shader's is the same arithmetic; one flat picture serves a device with no cube
+// maps to spare. Made once from the picture as it comes (`made`), by deterministic sums — no grain, the same
+// bits everywhere: a device is handed these numbers and gathers nothing itself.
+struct Wrapping {
+    int   side = 0;        // how far across `sizes[0]` is: a power of two, 16 … 4096; 0: as fine as the picture, at most 1024
+    int   sizes = 11;      // how many roughnesses, evenly from 0 to 1; each as far across as its highlight is narrow
+    int   samples = 64;    // the ways taken about each texel of a narrow highlight's size (a wide one is summed over every way)
+    float turn = 0;        // the picture turned about the way up, radians: its middle column is toward +x, then on toward +z
+    float strength = 1;    // every light times this
+    float most = 65504.0f; // no light above this (what a half float holds); how many texels were cut: `clamped`
+};
+struct Surroundings {
+    struct Square {
+        int side = 0;
+        std::vector<Vec3> light;  // side × side, a row after a row
+    };
+    std::vector<Square> sizes;
+    Square              falls;
+    int                 shares_side = 0;
+    std::vector<Vec2>   shares;  // shares_side × shares_side: a row a roughness (0 … 1), a column how it is looked at (the normal · the way to the eye, 0 … 1)
+    std::uint64_t       clamped = 0;
+    // For following light way by way: one of the picture's sizes (at most 256 across) as a running sum of each
+    // texel's light by its share of the ways, so that a way is chosen as often as there is light along it.
+    int                 chosen_side = 0;
+    std::vector<double> chosen_up_to;
+    // From a picture a row an angle down from straight up and a column an angle about (equirectangular, as HDR
+    // environments come; `mlibs.image`'s `Light` is one): `width` × `height` × 3 floats, rows from the top.
+    // Nothing: no size, or too few numbers.
+    [[nodiscard]] static std::optional<Surroundings> made(std::span<const float> rgb, int width, int height, const Wrapping& how = {});
+    [[nodiscard]] Vec3 toward(Vec3 way) const noexcept;                   // `way` of any length but none
+    [[nodiscard]] Vec3 blurred(Vec3 way, float roughness) const noexcept;
+    [[nodiscard]] Vec3 falling(Vec3 normal) const noexcept;
+    [[nodiscard]] Vec2 share(float seen, float roughness) const noexcept; // (times what is mirrored head on, added)
+    // A way chosen by two numbers of 0 … 1, likelier the more light the picture has there, and how likely it
+    // was (a way's share of all ways: over every way it sums to 1; 0 where the picture has no light) — what a
+    // tracer weighs a small sun by instead of waiting to meet it.
+    struct Chosen {
+        Vec3  way;
+        float likelihood = 0;
+    };
+    [[nodiscard]] Chosen chosen(float first, float second) const noexcept;
+    [[nodiscard]] float likelihood(Vec3 way) const noexcept;
+};
+
+// What is about the scene. The least it can be: a sky above, the land at eye level, the ground below — three
+// colours, and a way looked along is between two of them by how far up or down it goes; a surface with a
+// highlight mirrors it, a matt one does not ask it (it takes `Options::ambient`). With a `picture` the picture
+// is asked instead, by every surface: what falls on a matt one is the picture's (`ambient` is not added), a
+// mirroring one takes the picture blurred by its roughness, and a ray into the open sees the picture itself.
+// Off: nothing is mirrored but the lights.
 struct Environment {
     bool on = false;
     Vec3 above{0.35f, 0.5f, 0.8f}, level{0.6f, 0.6f, 0.6f}, below{0.15f, 0.13f, 0.1f};
+    const Surroundings* picture = nullptr;  // not owned: it outlives what is drawn with it
     [[nodiscard]] constexpr Vec3 toward(Vec3 way) const noexcept {  // `way` of length 1
+        if (picture) return picture->toward(way);
         const float up = way.y > 0 ? way.y : -way.y;
         const Vec3 far = way.y > 0 ? above : below;
         return level + (far - level) * up;
     }
+    // What falls on a surface from all about its normal (the mean of the ways, each by how it faces).
+    [[nodiscard]] constexpr Vec3 falling(Vec3 normal) const noexcept { return picture ? picture->falling(normal) : toward(normal); }
 };
 // What a surface mirrors of the environment toward the eye: what lies along the eye's way turned about the
-// normal, less sharply the rougher it is (toward the level's colour), by how much the surface mirrors there.
+// normal, less sharply the rougher it is, by how much the surface mirrors there. With a picture: the picture
+// blurred by the roughness, times the surface's share of an even light (`Surroundings::share`) — the two taken
+// apart, as Karis did in 2013; how far that is from the light followed way by way is measured (the README).
 [[nodiscard]] Vec3 mirrored(const Material& material, const Environment& environment, Vec3 normal, Vec3 toward_eye) noexcept;
 
 struct Options {

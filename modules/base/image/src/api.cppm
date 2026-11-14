@@ -139,6 +139,33 @@ struct JpegOptions {
 [[nodiscard]] std::expected<void, std::string> save_jpeg(const std::filesystem::path& file, const View& pixels, JpegOptions options = {});
 [[nodiscard]] std::expected<Image, std::string> load_jpeg(const std::filesystem::path& file);
 
+// A picture of light: three numbers a pixel (red, green, blue), a row after a row from the top — light as it is,
+// not through a display's curve and not held to a display's white (the sun in a picture of the sky is thousands
+// of times its blue). What lights a scene from all around is one of these.
+struct Light {
+    int                width = 0;
+    int                height = 0;
+    std::vector<float> rgb;  // width × height × 3
+
+    [[nodiscard]] bool empty() const noexcept { return width <= 0 || height <= 0; }
+    [[nodiscard]] std::span<const float, 3> at(int x, int y) const noexcept {
+        return std::span<const float, 3>(rgb.data() + (static_cast<std::size_t>(y) * static_cast<std::size_t>(width) + static_cast<std::size_t>(x)) * 3, 3);
+    }
+};
+
+// Radiance pictures (.hdr; "RGBE"): each pixel three bytes and a power of two they share, so light over a range
+// of 2^±127 at about 1% a step. Read: rows from the top or the bottom, packed in runs or not; a pixel's light is
+// each byte times two to the (power − 136), as Ward's rgbe.c and the common readers have it (a header's EXPOSURE
+// line is not applied). Refused with the reason: what does not begin as one, another format (XYZE), a layout
+// that is not rows, a file cut short or with a run past a row's end, more than 2^28 pixels. Written: packed in
+// runs, each pixel the nearest the format holds below it (light below 0 or that is no number: none; more than
+// the format holds: its most). The same bytes on every machine, both ways.
+[[nodiscard]] bool is_hdr(std::span<const std::uint8_t> bytes) noexcept;
+[[nodiscard]] std::expected<Light, std::string> decode_hdr(std::span<const std::uint8_t> bytes);
+[[nodiscard]] std::vector<std::uint8_t> encode_hdr(const Light& light);  // empty: no picture, or one whose numbers are not its size's
+[[nodiscard]] std::expected<Light, std::string> load_hdr(const std::filesystem::path& file);
+[[nodiscard]] std::expected<void, std::string> save_hdr(const std::filesystem::path& file, const Light& light);
+
 // Any of the three, told by its signature (PNG's eight bytes, WebP's RIFF/WEBP, JPEG's FF D8 FF).
 [[nodiscard]] std::expected<Image, std::string> decode(std::span<const std::uint8_t> bytes);
 [[nodiscard]] std::expected<Image, std::string> load(const std::filesystem::path& file);

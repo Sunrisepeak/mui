@@ -745,4 +745,77 @@ UTest cases{"image", [] {
         expect(eq(fnv(dome.rgba), 0x0019b8211cd1a2a5ull));
         expect(eq(fnv(folds.rgba), 0xa9643c1106092cbbull));
     };
+
+    "a Radiance picture of light: read and written, light far over a display's white kept, the same bytes everywhere"_test = [] {
+        // A sky: dim blue, a sun of 40,000 in one corner, a black edge, runs and rows that do not repeat.
+        image::Light sky{.width = 64, .height = 24};
+        sky.rgb.resize(64 * 24 * 3);
+        for (int y = 0; y < 24; ++y)
+            for (int x = 0; x < 64; ++x) {
+                float* const pixel = sky.rgb.data() + (static_cast<std::size_t>(y) * 64 + static_cast<std::size_t>(x)) * 3;
+                const float up = 1.0f - static_cast<float>(y) / 24.0f;
+                pixel[0] = 0.05f + 0.1f * up, pixel[1] = 0.1f + 0.25f * up, pixel[2] = 0.3f + 0.6f * up + (x % 7 == 0 ? 0.013f * static_cast<float>(x) : 0.0f);
+                if (x >= 50 && x < 53 && y < 3) pixel[0] = 40000.0f, pixel[1] = 38000.0f, pixel[2] = 30000.0f;
+                if (x == 63) pixel[0] = pixel[1] = pixel[2] = 0.0f;
+            }
+        const std::vector<std::uint8_t> file = image::encode_hdr(sky);
+        expect(fatal(image::is_hdr(file) && gt(file.size(), std::size_t{100})));
+        expect(lt(file.size(), std::size_t{64} * 24 * 4)) << "runs are packed: " << file.size();
+        const auto back = image::decode_hdr(file);
+        expect(fatal(back.has_value())) << (back ? "" : back.error());
+        expect(eq(back->width, 64) && eq(back->height, 24) && eq(back->rgb.size(), sky.rgb.size()));
+        // Each number comes back just below what it was: within a 128th of the pixel's largest.
+        float worst = 0;
+        for (std::size_t pixel = 0; pixel < sky.rgb.size() / 3; ++pixel) {
+            const float most = std::max({sky.rgb[pixel * 3], sky.rgb[pixel * 3 + 1], sky.rgb[pixel * 3 + 2]});
+            for (std::size_t channel = 0; channel < 3; ++channel) {
+                const float was = sky.rgb[pixel * 3 + channel], is = back->rgb[pixel * 3 + channel];
+                expect(is <= was && (most == 0 ? is == 0 : was - is <= most / 128.0f)) << pixel << ' ' << was << ' ' << is;
+                if (most > 0) worst = std::max(worst, (was - is) / most);
+            }
+        }
+        expect(eq(back->at(51, 1)[0], 39936.0f) && eq(back->at(63, 5)[2], 0.0f)) << back->at(51, 1)[0];
+        // What was read writes the same file again, and the file is pinned.
+        expect(image::encode_hdr(*back) == file);
+        std::println("radiance pins: file {:#018x} ({} bytes), light {:#018x}; worst loss {:.4f} of a pixel's largest", fnv(file), file.size(),
+                     fnv(std::span(reinterpret_cast<const std::uint8_t*>(back->rgb.data()), back->rgb.size() * sizeof(float))), worst);
+        expect(eq(fnv(file), 0xb2bd43392a14e281ull));
+        expect(eq(fnv(std::span(reinterpret_cast<const std::uint8_t*>(back->rgb.data()), back->rgb.size() * sizeof(float))), 0x9614881222744b30ull));
+
+        // Not packed, rows from the bottom, a narrow picture (under 8 across: never packed): two pixels, the lower first.
+        const std::string_view head = "#?RADIANCE\n# made by hand\nFORMAT=32-bit_rle_rgbe\nEXPOSURE=2.0\n\n+Y 2 +X 1\n";
+        std::vector<std::uint8_t> by_hand(head.begin(), head.end());
+        by_hand.insert(by_hand.end(), {128, 64, 32, 129, 0, 0, 0, 0});
+        const auto two = image::decode_hdr(by_hand);
+        expect(fatal(two.has_value())) << (two ? "" : two.error());
+        expect(eq(two->width, 1) && eq(two->height, 2));
+        expect(eq(two->at(0, 1)[0], 1.0f) && eq(two->at(0, 1)[1], 0.5f) && eq(two->at(0, 1)[2], 0.25f) && eq(two->at(0, 0)[0], 0.0f)) << "the first row of the file is the bottom one";
+        // Light that is no light: below 0 and not a number are none; more than the format holds is its most.
+        image::Light odd{.width = 1, .height = 1, .rgb = {-3.0f, std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity()}};
+        const auto held = image::decode_hdr(image::encode_hdr(odd));
+        expect(fatal(held.has_value()));
+        expect(eq(held->rgb[0], 0.0f) && eq(held->rgb[1], 0.0f) && eq(held->rgb[2], 0.0f)) << held->rgb[2];
+        image::Light bright{.width = 1, .height = 1, .rgb = {1e38f, 1.0f, 0.0f}};
+        const auto most = image::decode_hdr(image::encode_hdr(bright));
+        expect(most.has_value() && gt(most->rgb[0], 1e37f) && std::isfinite(most->rgb[0]));
+        expect(image::encode_hdr(image::Light{}).empty() && image::encode_hdr(image::Light{.width = 2, .height = 2, .rgb = {1, 2, 3}}).empty());
+
+        // Refusals, each with its reason.
+        const auto refused = [](std::span<const std::uint8_t> bytes, std::string_view why) {
+            const auto read = image::decode_hdr(bytes);
+            return !read.has_value() && read.error().contains(why);
+        };
+        expect(!image::is_hdr(std::vector<std::uint8_t>{0x89, 'P', 'N', 'G'}) && refused(std::vector<std::uint8_t>(64, 7), "does not begin"));
+        for (const std::size_t kept : {std::size_t{12}, std::size_t{30}, std::size_t{48}, file.size() / 2, file.size() - 1})
+            expect(refused(std::span(file).first(kept), "cut short")) << kept;
+        const auto with_head = [](std::string_view text) { return std::vector<std::uint8_t>(text.begin(), text.end()); };
+        expect(refused(with_head("#?RADIANCE\nFORMAT=32-bit_rle_xyze\n\n-Y 1 +X 1\nabcd"), "only 32-bit_rle_rgbe"));
+        expect(refused(with_head("#?RADIANCE\n\n-Y 1 +X 1\nabcd"), "does not say its format"));
+        expect(refused(with_head("#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n+X 1 -Y 1\nabcd"), "only rows of +X"));
+        expect(refused(with_head("#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y 0 +X 4\n"), "of no size"));
+        expect(refused(with_head("#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y 70000 +X 70000\n"), "more than 2^28"));
+        std::vector<std::uint8_t> past = with_head("#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y 1 +X 8\n");
+        past.insert(past.end(), {2, 2, 0, 8, 128 + 9, 5});
+        expect(refused(past, "a run past its end"));
+    };
 }};

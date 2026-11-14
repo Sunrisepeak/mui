@@ -94,6 +94,12 @@ bool is_jpeg(std::span<const std::uint8_t> b) { return b.size() >= 3 && b[0] == 
 std::expected<void, std::string> save_jpeg(const std::filesystem::path& file, const View& pixels, JpegOptions options) { return write_file(file, encode_jpeg(pixels, options)); }
 
 std::expected<Image, std::string> load_jpeg(const std::filesystem::path& file) { return read_file(file).and_then([](const auto& b) { return decode_jpeg(b); }); }
+std::expected<Light, std::string> load_hdr(const std::filesystem::path& file) { return read_file(file).and_then([](const auto& b) { return decode_hdr(b); }); }
+std::expected<void, std::string> save_hdr(const std::filesystem::path& file, const Light& light) {
+    std::vector<std::uint8_t> bytes = encode_hdr(light);
+    if (bytes.empty()) return std::unexpected(std::string("no picture of light to write"));
+    return write_file(file, std::move(bytes));
+}
 
 std::expected<void, std::string> save_png(const std::filesystem::path& file, const View& pixels) { return write_file(file, encode_png(pixels)); }
 

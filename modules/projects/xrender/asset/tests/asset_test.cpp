@@ -465,6 +465,46 @@ static UTest cases{"xrender.asset", [] {
         }
         expect(eq(same_behind, none) && eq(same_model, whole_pixels) && gt(whole->rgba[1], std::uint8_t{0}));
     };
+    "a mesh is posed as it is at rest: its morph targets by its weights, and a node's skin bending it by where its bones are — the node's own place not applied"_test = [] {
+        // A triangle; one morph target lifting it 1 along z (weight 0.5); its corners on the second bone, the
+        // first, and three quarters on the first and a quarter on the second; the second bone 2 up. The skinned node is 5 across, which the bones replace.
+        std::vector<std::uint8_t> buffer;
+        const auto put_floats = [&](std::initializer_list<float> values) {
+            for (const float value : values) {
+                std::array<std::uint8_t, 4> bytes{};
+                std::memcpy(bytes.data(), &value, 4);
+                buffer.insert(buffer.end(), bytes.begin(), bytes.end());
+            }
+        };
+        put_floats({0, 0, 0, 1, 0, 0, 0, 1, 0});                    // positions: 36 bytes
+        buffer.insert(buffer.end(), {1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0});  // bones: 12 bytes
+        put_floats({1, 0, 0, 0, 1, 0, 0, 0, 0.75f, 0.25f, 0, 0});   // weights: 48 bytes
+        put_floats({0, 0, 1, 0, 0, 1, 0, 0, 1});                    // the target: 36 bytes
+        const std::string text = std::format(R"({{"asset": {{"version": "2.0"}}, "buffers": [{{"byteLength": 132, "uri": "{}"}}],
+  "bufferViews": [{{"buffer": 0, "byteOffset": 0, "byteLength": 36}}, {{"buffer": 0, "byteOffset": 36, "byteLength": 12}},
+                  {{"buffer": 0, "byteOffset": 48, "byteLength": 48}}, {{"buffer": 0, "byteOffset": 96, "byteLength": 36}}],
+  "accessors": [{{"bufferView": 0, "componentType": 5126, "count": 3, "type": "VEC3", "min": [0, 0, 0], "max": [1, 1, 0]}},
+                {{"bufferView": 1, "componentType": 5121, "count": 3, "type": "VEC4"}},
+                {{"bufferView": 2, "componentType": 5126, "count": 3, "type": "VEC4"}},
+                {{"bufferView": 3, "componentType": 5126, "count": 3, "type": "VEC3", "min": [0, 0, 1], "max": [0, 0, 1]}}],
+  "meshes": [{{"primitives": [{{"attributes": {{"POSITION": 0, "JOINTS_0": 1, "WEIGHTS_0": 2}}, "targets": [{{"POSITION": 3}}]}}], "weights": [0.5]}}],
+  "skins": [{{"joints": [1, 2]}}],
+  "nodes": [{{"mesh": 0, "skin": 0, "translation": [5, 0, 0]}}, {{}}, {{"translation": [0, 2, 0]}}],
+  "scenes": [{{"nodes": [0, 1, 2]}}], "scene": 0}})",
+                                             uri_of(buffer));
+        const auto model = asset::gltf(bytes_of(text));
+        expect(fatal(model.has_value())) << (model ? "" : model.error());
+        expect(fatal(eq(model->instances.size(), std::size_t{1})));
+        const scene::Instance& placed = model->instances[0];
+        expect(placed.world == math::Mat4{}) << "the bones place it";
+        const std::vector<math::Vec3>& at = model->meshes[placed.mesh].mesh.positions;
+        const auto has = [&](math::Vec3 wanted) { return std::ranges::any_of(at, [&](math::Vec3 one) { return math::length(one - wanted) < 1e-6f; }); };
+        expect(has({0, 2, 0.5f})) << "the first corner on the bone 2 up";
+        expect(has({1, 0, 0.5f})) << "the second on the bone at rest";
+        expect(has({0, 1.5f, 0.5f})) << "the third a quarter on the bone 2 up: half a unit up";
+        expect(!noted(*model, "/nodes/0/skin") && !noted(*model, "/meshes/0/primitives/0/targets"));
+    };
+
     "strips and fans are triangles with their fronts kept; lamps have a reach"_test = [] {
         const std::string text = with_uri(R"(,
   "scenes": [{"nodes": [0, 1, 2]}],

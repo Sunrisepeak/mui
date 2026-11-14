@@ -165,6 +165,11 @@ static UTest cases{"agent.interface-subject", [] {
         expect(wanted.data()["found"][0]["name"].text() == "settings.export" || wanted.data()["found"][0]["name"].text() == "export-with-the-dark-look") << wanted.data().dump();
         const auto queried = ask_of(second, R"({"op":"find","q":{"role":"switch"}})");
         expect(queried.error().empty() && queried.data().dump().contains("main/dark")) << queried.data().dump();
+        // A request takes a value from the answer before it on the same connection, as in any kernel session.
+        const auto found_node = ask_of(second, R"({"op":"ui.find","q":{"role":"switch"}})");
+        expect(found_node.error().empty()) << found_node.data().dump();
+        const auto read_it = ask_of(second, R"({"op":"ui.snapshot","root":{"$last":"/nodes/0/id"},"depth":0})");
+        expect(read_it.error().empty() && read_it.data()["nodes"][0]["id"].text() == "main/dark") << read_it.data().dump();
         // What the first connection did, read by the second.
         const auto logged = ask_of(second, R"({"op":"log"})");
         expect(logged.error().empty() && logged.data().dump().contains("ui.act") && logged.data().dump().contains("main/dark")) << logged.data().dump();

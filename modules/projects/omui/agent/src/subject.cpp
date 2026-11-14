@@ -139,6 +139,7 @@ void ProcessSession::request(std::string_view line, const mlibs::agent::Reply& r
     if (session) options.session = session->control_session();
     if (const auto actor = Actor::parse(default_actor_)) options.actor = to_openas(*actor);
     options.facts = facts_;
+    options.last = last_;
     mlibs::agent::SubjectSession(std::move(subjects), std::move(options)).request(line, reply);
 }
 

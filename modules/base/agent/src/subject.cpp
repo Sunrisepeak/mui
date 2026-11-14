@@ -149,6 +149,7 @@ std::string answered(const Request& request) {
 
 SubjectSession::SubjectSession(std::vector<Subject*> subjects, SessionOptions options) : subjects_(std::move(subjects)), options_(std::move(options)) {
     if (!options_.facts) options_.facts = std::make_shared<Facts>();
+    last_ = options_.last;
 }
 
 void SubjectSession::poll() {

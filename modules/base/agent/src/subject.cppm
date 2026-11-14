@@ -111,6 +111,10 @@ struct SessionOptions {
     // Where what is asked goes on record (norm 11). None: the session keeps a book of its own; a host that
     // gives every session the same one lets each read what the others did.
     std::shared_ptr<Facts> facts;
+    // The conversation's latest data record, as it was sent: what `{"$last": pointer}` reads. None: the
+    // session's own. A host that makes a session for each request of one connection gives them the same
+    // one, so a request there takes a value from the answer before it as anywhere else.
+    std::shared_ptr<std::string> last;
 };
 
 // What `find` found: an operation (its example, or its `describe`), a task (its steps), or a term of a subject's

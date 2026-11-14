@@ -94,6 +94,9 @@ private:
     Runtime&         runtime_;
     std::string      default_actor_;
     std::shared_ptr<mlibs::agent::Facts> facts_ = std::make_shared<mlibs::agent::Facts>();
+    // The connection's latest answer from the kernel's side, kept across its requests (a kernel session is made
+    // for each): what `{"$last": pointer}` reads.
+    std::shared_ptr<std::string> last_ = std::make_shared<std::string>();
     Protocol         protocol_;
     InterfaceSubject interface_;
 };

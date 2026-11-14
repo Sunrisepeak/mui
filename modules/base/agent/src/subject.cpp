@@ -147,8 +147,9 @@ std::string answered(const Request& request) {
 
 }  // namespace
 
-SubjectSession::SubjectSession(std::vector<Subject*> subjects, SessionOptions options)
-    : subjects_(std::move(subjects)), options_(std::move(options)) {}
+SubjectSession::SubjectSession(std::vector<Subject*> subjects, SessionOptions options) : subjects_(std::move(subjects)), options_(std::move(options)) {
+    if (!options_.facts) options_.facts = std::make_shared<Facts>();
+}
 
 void SubjectSession::poll() {
     for (Subject* subject : subjects_) subject->poll();
@@ -169,12 +170,26 @@ void SubjectSession::request(std::string_view line, const Reply& reply) {
         std::string out = "{\"subjects\":[";
         for (std::size_t index = 0; index < subjects_.size(); ++index) out += (index ? "," : "") + described(*subjects_[index]);
         // The session's own requests, so that nothing but this answer is needed to go on.
-        out += std::format("],\"session\":[{},{},{}]}}",
+        out += std::format("],\"session\":[{},{},{},{}]}}",
                            way_out("what a subject is, the tasks to begin with and its operations", describing_subject(subjects_.empty() ? std::string_view("…") : subjects_.front()->name())),
                            way_out("one operation whole (this one, or any by its name): its parameters and examples",
                                    describing(subjects_.empty() || subjects_.front()->operations().empty() ? std::string_view("…") : subjects_.front()->operations().front().operation.name)),
-                           way_out("what answers an intent, in words, across the subjects", R"({"op":"find","q":"what you want to do"})"));
+                           way_out("what answers an intent, in words, across the subjects", R"({"op":"find","q":"what you want to do"})"),
+                           way_out("what was asked here, as facts: every change, and every request that failed and why", R"({"op":"log"})"));
         answer.data(out);
+        answer.result();
+        return;
+    }
+    // `log`: what was asked here, as facts.
+    if (request.op == "log") {
+        const auto subject = request["subject"].text();
+        const std::vector<Fact> facts = options_.facts->read({.since = static_cast<std::uint64_t>(std::max<std::int64_t>(0, request["since"].integer().value_or(0))),
+                                                              .subject = subject ? std::string_view(*subject) : std::string_view{},
+                                                              .failed = request["failed"].boolean().value_or(false),
+                                                              .limit = static_cast<std::size_t>(std::clamp<std::int64_t>(request["limit"].integer().value_or(50), 1, 256))});
+        std::string out = "{\"facts\":[";
+        for (std::size_t index = 0; index < facts.size(); ++index) out += (index ? "," : "") + json_of(facts[index]);
+        answer.data(out + std::format("],\"last\":{}}}", options_.facts->last()));
         answer.result();
         return;
     }
@@ -249,9 +264,17 @@ void SubjectSession::request(std::string_view line, const Reply& reply) {
             }
         if (found) break;
     }
+    // What is asked of a subject goes on record (norm 11): a failure with why, under the number its result carries.
+    const auto fail = [&](openas::Effect effect, std::string_view code, const std::string& text, int exit_code, const std::string& next) {
+        const std::uint64_t number = options_.facts->reserve();
+        answer.fact(number);
+        answer.fail(code, text, exit_code, next);
+        options_.facts->record({.id = number, .subject = subject ? std::string(subject->name()) : std::string(), .operation = request.op, .effect = effect, .actor = options_.actor,
+                                .outcome = std::string(code), .text = text, .request = std::string(line)});
+    };
     if (!found) {
-        answer.fail(openas::error_code::not_found, std::format("no subject here has an operation `{}` (ask `subjects`, then `describe` one)", request.op),
-                    openas::exit_code::failed, nearest(subjects_, request.op));
+        fail(openas::Effect::read, openas::error_code::not_found, std::format("no subject here has an operation `{}` (ask `subjects`, then `describe` one)", request.op),
+             openas::exit_code::failed, nearest(subjects_, request.op));
         return;
     }
     // Authority first: nothing reaches a subject undecided.
@@ -263,23 +286,23 @@ void SubjectSession::request(std::string_view line, const Reply& reply) {
         const openas::Decision decision = options_.access->decide(request.op, effect, found->operation.person, options_.actor, options_.session.get(), request.op);
         if (decision == openas::Decision::refuse) {
             // What is declared is described whatever is allowed: an agent sees what else there is (a reading, a preview).
-            answer.fail(openas::error_code::refused, std::format("`{}` is not allowed here", request.op), openas::exit_code::failed,
-                        ways({way_out(std::format("what else `{}` can do: a reading or a preview may be allowed", subject->name()), describing_subject(subject->name()))}));
+            fail(found->operation.effect, openas::error_code::refused, std::format("`{}` is not allowed here", request.op), openas::exit_code::failed,
+                 ways({way_out(std::format("what else `{}` can do: a reading or a preview may be allowed", subject->name()), describing_subject(subject->name()))}));
             return;
         }
         if (decision == openas::Decision::ask && request.answer != "yes") {
-            answer.fail(openas::error_code::needs_answer, std::format("`{}` ({}) asks its person first: send it again with \"answer\":\"yes\" once they agree",
-                                                                      request.op, openas::name(found->operation.effect)),
-                        openas::exit_code::needs_answer, ways({way_out("the same request, once its person agrees", answered(request))}));
+            fail(found->operation.effect, openas::error_code::needs_answer,
+                 std::format("`{}` ({}) asks its person first: send it again with \"answer\":\"yes\" once they agree", request.op, openas::name(found->operation.effect)),
+                 openas::exit_code::needs_answer, ways({way_out("the same request, once its person agrees", answered(request))}));
             return;
         }
     }
     // What it needs is in its catalog: a request without it is answered here, with what would be accepted.
     for (const mlibs::control::Parameter& parameter : found->parameters)
         if (!parameter.optional && !request[parameter.name]) {
-            answer.fail(openas::error_code::invalid_argument,
-                        std::format("`{}` needs `{}` ({}{}{})", request.op, parameter.name, parameter.type, parameter.doc.empty() ? "" : ": ", parameter.doc),
-                        openas::exit_code::failed, ways_of(*found));
+            fail(found->operation.effect, openas::error_code::invalid_argument,
+                 std::format("`{}` needs `{}` ({}{}{})", request.op, parameter.name, parameter.type, parameter.doc.empty() ? "" : ": ", parameter.doc), openas::exit_code::failed,
+                 ways_of(*found));
             return;
         }
     // A failure the subject answers without a way out still carries the operation's.
@@ -292,6 +315,19 @@ void SubjectSession::request(std::string_view line, const Reply& reply) {
     // Who asks is the session's to say: its owner when it has one, never the line's own claim.
     Request decided = request;
     decided.actor = options_.session ? options_.session->attribute(options_.actor) : options_.actor;
+    // A change is on record under the number its result carries; a reading only when it failed.
+    // … recorded when the answer ends, which a subject may do at a later safe point (an action shown a frame on).
+    const bool changes = found->operation.effect != openas::Effect::read;
+    const std::uint64_t number = changes ? options_.facts->reserve() : 0;
+    answer.fact(number);
+    answer.ended([facts = options_.facts, changes,
+                  fact = Fact{.id = number, .subject = std::string(subject->name()), .operation = decided.op, .effect = found->operation.effect, .actor = decided.actor, .outcome = {},
+                              .text = {}, .request = std::string(line)}](std::string_view code, std::string_view text) mutable {
+        if (!changes && code.empty()) return;
+        fact.outcome = code.empty() ? std::string("done") : std::string(code);
+        fact.text = std::string(text);
+        facts->record(std::move(fact));
+    });
     subject->operate(decided.op, decided, answer);
     if (!answer.finished() && !answer.deferred()) answer.result();
 }

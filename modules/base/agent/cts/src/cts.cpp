@@ -427,6 +427,56 @@ void find_own(const Probe& probe, Check& check) {
     check.evidence("terms", std::to_string(terms.size()));
 }
 
+// 11 what was asked is a fact: a change and a failure are each on record, under the number the result carries.
+void log_fact(const Probe& probe, Check& check) {
+    const auto subject = probe.make();
+    SubjectSession session({subject.get()}, {.actor = {openas::Kind::agent, std::string(actor_id), {}}});
+    // The number a request's result carries (0: none).
+    const auto number = [](const Answered& answered) -> std::int64_t {
+        if (answered.lines.empty()) return 0;
+        auto parsed = mlibs::json::Document::parse(answered.lines.back(), "record");
+        return parsed ? parsed->root()["fact"].integer().value_or(0) : 0;
+    };
+    // The facts on record, by number.
+    const auto on_record = [&](std::string_view asked) {
+        std::map<std::int64_t, std::string> out;
+        const Answered answered = ask(session, asked);
+        check.that(answered.exit == 0, std::format("{} answers", asked));
+        if (auto parsed = mlibs::json::Document::parse(answered.data, "record"))
+            for (const auto& fact : parsed->root()["data"]["facts"].items()) out.emplace(fact["fact"].integer().value_or(0), fact.dump());
+        return out;
+    };
+    // A failure: a name that is no operation's.
+    const std::string missing = std::format("{}.no-such-operation", subject->name());
+    const std::int64_t failed = number(ask(session, std::format(R"({{"op":"{}"}})", missing)));
+    check.that(failed > 0, "a request that failed is answered with the number it is on record as (`fact`, with its result)");
+    std::int64_t changed = 0;
+    std::string changing;
+    if (subject->capabilities().control && shown(check, probe.change, "a request that changes it", *subject)) {
+        changing = operation_of(probe.change);
+        const Answered answered = ask(session, probe.change);
+        changed = number(answered);
+        check.that(answered.exit == 0 && changed > failed, "a change is answered with its number, after the one before");
+    }
+    if (!probe.read.empty() && entry_of(*subject, operation_of(probe.read)) != nullptr) check.that(number(ask(session, probe.read)) == 0, "a reading that answers is no fact");
+    const std::uint64_t before = subject->state_hash();
+    const auto facts = on_record(R"({"op":"log"})");
+    if (const auto found = facts.find(failed); check.that(found != facts.end(), "the failure is on record under its number"))
+        check.that(found->second.contains(std::format("\"operation\":\"{}\"", missing)) && found->second.contains("\"outcome\":\"not-found\"") && found->second.contains(actor_id),
+                   "its record says what was asked, how it ended, and who asked");
+    if (changed > 0)
+        if (const auto found = facts.find(changed); check.that(found != facts.end(), "the change is on record under its number"))
+            check.that(found->second.contains(std::format("\"operation\":\"{}\"", changing)) && found->second.contains("\"outcome\":\"done\"") && found->second.contains(actor_id) &&
+                           found->second.contains("\"request\":{"),
+                       "its record says what was asked — the request itself — how it ended, and who asked");
+    // Asked by what they are about.
+    check.that(on_record(R"({"op":"log","failed":true})").contains(failed) && !on_record(R"({"op":"log","failed":true})").contains(changed), "asked for what failed: the failure, not the change");
+    check.that(!on_record(std::format(R"({{"op":"log","since":{}}})", failed)).contains(failed), "asked for what came after a number: not that one");
+    check.that(on_record(R"({"op":"log"})") == facts, "asked again with nothing between: the same facts");
+    check.equal(hex(subject->state_hash()), hex(before), "reading the record touched nothing");
+    check.evidence("facts", std::to_string(facts.size()));
+}
+
 struct Entry {
     std::string_view              id;
     Level                         level;
@@ -434,7 +484,7 @@ struct Entry {
     void (*body)(const Probe&, Check&);
 };
 
-// The eight properties and the norms over them (D-186: 9 it guides itself, 10 every error carries a way out, 12 found by intent), as cases.
+// The eight properties and the norms over them (D-186: 9 it guides itself, 10 every error carries a way out, 11 what was asked is a fact, 12 found by intent), as cases.
 const std::vector<Entry>& entries() {
     static const std::vector<Entry> all{
         // 1 one source: what it can do is its catalog; what can be named has a stable address.
@@ -461,6 +511,8 @@ const std::vector<Entry>& entries() {
         {"agent.guide.runs", Level::semantic, {}, guide_runs},
         // 10 every error carries a way out.
         {"agent.errors.next", Level::semantic, {}, errors_next},
+        // 11 what was asked is a fact on record.
+        {"agent.log.fact", Level::semantic, {}, log_fact},
         // 12 what it can do is found by intent.
         {"agent.find.own", Level::semantic, {}, find_own},
     };

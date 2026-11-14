@@ -14,9 +14,10 @@
 //   → {"op":"describe","subject":"world","detail":"full"}   the whole catalog (its listing: <product>.ops.json)
 //   → {"op":"find","q":"set something on fire"}       what answers an intent, across the subjects: operations, tasks,
 //                                                     what a subject's content names — each with requests to send
+//   → {"op":"log","since":12}                          what was asked here, as facts: every change, every failure (:facts)
 //   → {"op":"world.observe","re":7, …}                one of them — decided first (mlibs.control, openas)
 //
-// The session's own three requests have no dot in their names; a subject's
+// The session's own four requests have no dot in their names; a subject's
 // operations are addressed under it (`world.…`), so neither can take the
 // other's name.
 //
@@ -44,6 +45,7 @@ import openas;
 import mlibs.control;
 import :endpoint;
 import :envelope;
+import :facts;
 
 export namespace mlibs::agent {
 
@@ -94,6 +96,9 @@ struct SessionOptions {
     std::shared_ptr<const mlibs::control::Access>  access;
     std::shared_ptr<const mlibs::control::Session> session;
     openas::Actor actor{openas::Kind::agent, {}, {}};
+    // Where what is asked goes on record (norm 11). None: the session keeps a book of its own; a host that
+    // gives every session the same one lets each read what the others did.
+    std::shared_ptr<Facts> facts;
 };
 
 // What `find` found: an operation (its example, or its `describe`), a task (its steps), or a term of a subject's

@@ -6,6 +6,7 @@ import openas;
 import mlibs.agent;
 import mlibs.control;
 import mlibs.json;
+import mlibs.log.api;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
@@ -104,7 +105,7 @@ UTest cases{"agent.subject", [] {
         expect(subject["hash"].text() == "0000000000000001");
         expect(who.records[0].root()["re"].integer() == 1) << "every record echoes the request's re";
         const auto own = who.records[0].root()["data"]["session"];
-        expect(eq(own.size(), std::size_t{3}) && own[0]["request"].dump() == R"({"op":"describe","subject":"counter"})" && own[2]["request"]["op"].text() == "find")
+        expect(eq(own.size(), std::size_t{4}) && own[3]["request"].dump() == R"({"op":"log"})" && eq(own.size(), std::size_t{4}) && own[0]["request"].dump() == R"({"op":"describe","subject":"counter"})" && own[2]["request"]["op"].text() == "find")
             << "the session's own requests: nothing but this answer is needed to go on";
 
         const auto described = ask(session, R"({"op":"describe","subject":"counter"})");
@@ -167,6 +168,52 @@ UTest cases{"agent.subject", [] {
         expect(eq(nothing.exit_code(), std::int64_t{0}) && nothing.records[0].root()["data"]["next"][0]["request"].dump() == R"({"op":"describe","subject":"counter"})");
         expect(ask(session, R"({"op":"find"})").error() == "invalid-argument");
         expect(eq(counter.operated, 0)) << "finding reaches no subject's state";
+    };
+
+    "what was asked is on record as facts: a change and a failure each one, with a number its result and its log line carry (D-186, norm 11)"_test = [] {
+        mlibs::log::set_log_history(64);
+        mlibs::log::set_log_filter("agent.counter=info").value();
+        Counter counter;
+        agent::SubjectSession session({&counter}, {.actor = {openas::Kind::agent, "ada", {}}});
+        const auto read = ask(session, R"({"op":"counter.read"})");
+        expect(!read.records.back().root()["fact"]) << "a reading that answers is no fact";
+        const auto added = ask(session, R"({"op":"counter.add","by":2})");
+        expect(added.records.back().root()["fact"].integer() == 1) << "a change: its number, with its result";
+        const auto lacking = ask(session, R"({"op":"counter.set"})");
+        expect(lacking.records.back().root()["fact"].integer() == 2) << "a failure too";
+        const auto refused = ask(session, R"({"op":"counter.set","to":-1})");
+        expect(refused.records.back().root()["fact"].integer() == 3) << "and one the subject itself refused";
+        (void)ask(session, R"({"op":"counter.fly"})");
+
+        const auto log = ask(session, R"({"op":"log"})");
+        const auto facts = log.records[0].root()["data"]["facts"];
+        expect(eq(facts.size(), std::size_t{4}) && log.records[0].root()["data"]["last"].integer() == 4);
+        expect(facts[0]["fact"].integer() == 1 && facts[0]["subject"].text() == "counter" && facts[0]["operation"].text() == "counter.add" && facts[0]["effect"].text() == "reversible" &&
+               facts[0]["outcome"].text() == "done" && facts[0]["by"]["name"].text() == "ada" && facts[0]["request"]["by"].integer() == 2);
+        expect(facts[1]["outcome"].text() == "invalid-argument" && facts[1]["text"].text().value_or("").contains("needs `to`"));
+        expect(facts[2]["outcome"].text() == "invalid-argument" && facts[2]["text"].text() == "a count is not negative");
+        expect(facts[3]["outcome"].text() == "not-found" && facts[3]["subject"].text() == "");
+        // Asked by what they are about.
+        const auto failed = ask(session, R"({"op":"log","failed":true,"since":2})");
+        expect(eq(failed.records[0].root()["data"]["facts"].size(), std::size_t{2}));
+        const auto latest = ask(session, R"({"op":"log","subject":"counter","limit":1})");
+        expect(latest.records[0].root()["data"]["facts"][0]["fact"].integer() == 3);
+        // The log's line is a reading of the same record: its number, and the words made of it.
+        const auto lines = mlibs::log::recent_logs(64);
+        const auto line = std::ranges::find_if(lines, [](const auto& each) { return each.fact == 2 && each.message.starts_with("agent:ada "); });
+        expect(fatal(line != lines.end()));
+        expect(line->category == "agent.counter" && line->message.starts_with("agent:ada counter.set → invalid-argument: ") && mlibs::log::to_json(*line).contains("\"fact\":2")) << mlibs::log::to_json(*line);
+        const auto done = std::ranges::find_if(lines, [](const auto& each) { return each.fact == 1 && each.message.starts_with("agent:ada "); });
+        expect(fatal(done != lines.end()));
+        expect(done->message == "agent:ada counter.add → done" && done->level == mlibs::log::Level::info) << mlibs::log::to_json(*done);
+        // A book given to two sessions: each reads what the other did.
+        auto book = std::make_shared<agent::Facts>();
+        agent::SubjectSession one({&counter}, {.actor = {openas::Kind::agent, "one", {}}, .facts = book}), two({&counter}, {.actor = {openas::Kind::person, "two", {}}, .facts = book});
+        (void)ask(one, R"({"op":"counter.add"})");
+        (void)ask(two, R"({"op":"counter.add"})");
+        const auto both = ask(one, R"({"op":"log"})");
+        expect(both.records[0].root()["data"]["facts"][1]["by"]["kind"].text() == "person" && both.records[0].root()["data"]["facts"][1]["fact"].integer() == 2);
+        mlibs::log::set_log_filter("").value();
     };
 
     "every error carries its ways out, requests to send as they are (D-186)"_test = [] {

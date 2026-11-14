@@ -58,6 +58,11 @@ public:
     void otherwise(std::string next) { otherwise_ = std::move(next); }
     // What follows when it is done: given with a result that is a success (a JSON array, as `next`: `then`).
     void then(std::string follows) { then_ = std::move(follows); }
+    // The fact this request is on record as (mlibs.agent:facts): given with its result, `"fact":N`. 0: none.
+    void fact(std::uint64_t number) { fact_ = number; }
+    // Told once, when the answer ends — now, or at the later safe point a subject ends it at: the error's code
+    // and text (empty: it was done). How the session puts what was asked on record whoever ends the answer.
+    void ended(std::function<void(std::string_view code, std::string_view text)> told) { ended_ = std::move(told); }
     [[nodiscard]] bool finished() const noexcept { return finished_; }
 
     // A record as a subject that already speaks records gives it: its kind and its members (JSON, without
@@ -76,6 +81,9 @@ private:
     std::string re_;
     std::string otherwise_;
     std::string then_;
+    std::string code_, text_;
+    std::function<void(std::string_view, std::string_view)> ended_;
+    std::uint64_t fact_ = 0;
     bool        finished_ = false;
     bool        deferred_ = false;
 };

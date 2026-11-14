@@ -31,6 +31,7 @@ struct LogRecord {
     std::string_view     message;
     std::source_location where;
     std::string_view     category = "omui";  // the part of openmui (or of the app) it is about: layout, text, agent …
+    std::uint64_t        fact = 0;           // the record it is a reading of (mlibs.agent's facts), by its number; 0: none
 };
 
 // Where log records go. The default sink writes warnings and errors to
@@ -47,6 +48,8 @@ std::expected<void, std::string> set_log_filter(std::string_view spec);
 
 void log(Level level, std::string_view message, std::source_location where = std::source_location::current());
 void log(Level level, std::string_view category, std::string_view message, std::source_location where);
+// A line that is the reading of a fact on record: it carries the fact's number, so the two are found from each other.
+void log(Level level, std::string_view category, std::string_view message, std::source_location where, std::uint64_t fact);
 
 // The last records, kept for tools (`omui agent logs`, the devtools), with
 // their time and thread; `set_log_history(0)` keeps none.
@@ -58,6 +61,7 @@ struct LoggedRecord {
     std::uint32_t line = 0;
     std::int64_t  unix_ms = 0;
     std::uint64_t thread = 0;
+    std::uint64_t fact = 0;  // the record it is a reading of; 0: none
 };
 void set_log_history(std::size_t records);
 [[nodiscard]] std::vector<LoggedRecord> recent_logs(std::size_t at_most = 200, Level at_least = Level::trace);

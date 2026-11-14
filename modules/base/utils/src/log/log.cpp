@@ -121,7 +121,9 @@ bool log_enabled(Level level, std::string_view category) noexcept {
 
 void log(Level level, std::string_view message, std::source_location where) { log(level, "omui", message, where); }
 
-void log(Level level, std::string_view category, std::string_view message, std::source_location where) {
+void log(Level level, std::string_view category, std::string_view message, std::source_location where) { log(level, category, message, where, 0); }
+
+void log(Level level, std::string_view category, std::string_view message, std::source_location where, std::uint64_t fact) {
     if (!log_enabled(level, category)) return;
     {
         History& h = history();
@@ -131,10 +133,10 @@ void log(Level level, std::string_view category, std::string_view message, std::
             h.records.push_back(LoggedRecord{
                 level, std::string(category), std::string(message), std::string(where.file_name()), static_cast<std::uint32_t>(where.line()),
                 std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count(),
-                static_cast<std::uint64_t>(std::hash<std::thread::id>{}(std::this_thread::get_id()))});
+                static_cast<std::uint64_t>(std::hash<std::thread::id>{}(std::this_thread::get_id())), fact});
         }
     }
-    sink_fn.load()(sink_user.load(), LogRecord{level, message, where, category});
+    sink_fn.load()(sink_user.load(), LogRecord{level, message, where, category, fact});
 }
 
 void set_log_history(std::size_t records) {
@@ -155,8 +157,9 @@ std::vector<LoggedRecord> recent_logs(std::size_t at_most, Level at_least) {
 }
 
 std::string to_json(const LoggedRecord& r) {
-    return std::format("{{\"level\":\"{}\",\"category\":{},\"message\":{},\"file\":{},\"line\":{},\"time\":{},\"thread\":{}}}",
-                       name(r.level), json_text(r.category), json_text(r.message), json_text(r.file), r.line, r.unix_ms, r.thread);
+    return std::format("{{\"level\":\"{}\",\"category\":{},\"message\":{},\"file\":{},\"line\":{},\"time\":{},\"thread\":{}{}}}",
+                       name(r.level), json_text(r.category), json_text(r.message), json_text(r.file), r.line, r.unix_ms, r.thread,
+                       r.fact ? std::format(",\"fact\":{}", r.fact) : std::string());
 }
 
 void invariant(bool ok, std::string_view what, std::source_location where) {

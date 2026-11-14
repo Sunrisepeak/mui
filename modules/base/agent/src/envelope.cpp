@@ -50,12 +50,23 @@ void Answer::record(std::string_view kind, std::string_view members) {
         line += ',';
         line += members;
     }
+    if (kind == "result" && fact_ != 0 && !members.contains("\"fact\":")) line += std::format(",\"fact\":{}", fact_);
+    if (kind == "error") {
+        // Kept for the record of what was asked: a subject that writes its own records is read here.
+        if (auto parsed = mlibs::json::Document::parse(std::format("{{{}}}", members), "record")) {
+            code_ = parsed->root()["code"].text().value_or("");
+            text_ = parsed->root()["text"].text().value_or("");
+        }
+    }
     // A success says what follows it — whoever writes the result (a subject that speaks records writes its own).
     if (kind == "result" && !then_.empty() && (members.contains("\"exitCode\":0,") || members.ends_with("\"exitCode\":0")) && !members.contains("\"then\":"))
         line += std::format(",\"then\":{}", then_);
     line += '}';
     reply_(line);
-    if (kind == "result") finished_ = true;
+    if (kind == "result") {
+        finished_ = true;
+        if (ended_) ended_(code_, text_);
+    }
 }
 
 void Answer::data(std::string_view json) { record("data", std::format("\"data\":{}", json)); }

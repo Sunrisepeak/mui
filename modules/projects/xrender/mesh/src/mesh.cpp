@@ -139,6 +139,8 @@ struct Raster {
     const Texture* coat_normal_picture = nullptr;
     const Texture* sheen_picture = nullptr;
     const Texture* anisotropy_picture = nullptr;
+    const Texture* film = nullptr;        // how much film (red), how thick (green)
+    const Texture* film_thick = nullptr;
     Vec3           drawn_out{0, 0, 0};  // the way the highlight is drawn out along at this pixel, or none
     Vec3           coat_normal{0, 0, 1};
     // What lets light through shows the light of what is whole behind it (`Material::transmission`): that light
@@ -416,7 +418,7 @@ struct Raster {
                 }
                 coat_normal = normal;
                 Vec3 drawn_said{1, 0.5f, 1};  // the anisotropy picture's say here: along the tangent, whole
-                if (texture || surface || normal_picture || glow || shade || clearness || thick || coat || coat_rough || coat_normal_picture || sheen_picture || anisotropy_picture) {
+                if (texture || surface || normal_picture || glow || shade || clearness || thick || coat || coat_rough || coat_normal_picture || sheen_picture || anisotropy_picture || film || film_thick) {
                     // The surface's place in the picture here, a pixel to the right and a pixel down: how many texels
                     // a pixel covers is how far apart they are.
                     const auto uv_at = [&](double at_x, double at_y) {
@@ -499,6 +501,14 @@ struct Raster {
                     if (coat_rough) {
                         const Place at = laid(own.placing.coat_rough);
                         material.clearcoat_roughness = own.clearcoat_roughness * coat_rough->over(at.here, at.across, at.along).y;
+                    }
+                    if (film) {
+                        const Place at = laid(own.placing.film);
+                        material.iridescence = own.iridescence * film->over(at.here, at.across, at.along).x;
+                    }
+                    if (film_thick) {
+                        const Place at = laid(own.placing.film_thick);
+                        material.film_thickness = own.film_thinnest + (own.film_thickness - own.film_thinnest) * film_thick->over(at.here, at.across, at.along).y;
                     }
                     if (anisotropy_picture) {
                         const Place at = laid(own.placing.anisotropy);
@@ -611,6 +621,62 @@ Mirrors mirrors_of(const Material& material) noexcept {
     const Vec3 dielectric{std::min(own * material.specular_colour.x, 1.0f) * strength, std::min(own * material.specular_colour.y, 1.0f) * strength, std::min(own * material.specular_colour.z, 1.0f) * strength};
     return {dielectric * (1.0f - metal) + material.base * metal, 1.0f - (1.0f - strength) * (1.0f - metal)};
 }
+Vec3 film_mirrors(float film_ior, float thickness, float seen, Vec3 head_on) noexcept {
+    const auto square = [](double value) { return value * value; };
+    const auto schlick = [](double head, double cosine) { const double glance = 1.0 - cosine; return head + (1.0 - head) * glance * glance * glance * glance * glance; };
+    const double outside = 1.0, cosine = std::clamp(static_cast<double>(seen), 0.0, 1.0);
+    // A film no thickness is the air (a smooth step to the film's index over the first 0.03 nanometres).
+    const double step = std::clamp(static_cast<double>(thickness) / 0.03, 0.0, 1.0), smooth = step * step * (3.0 - 2.0 * step);
+    const double film = outside + (static_cast<double>(film_ior) - outside) * smooth;
+    const double under_squared = 1.0 - square(outside / film) * (1.0 - cosine * cosine);
+    if (under_squared < 0) return {1, 1, 1};  // all of it thrown back within the film
+    const double under = math::det::sqrt(under_squared);
+    const double first = schlick(square((film - outside) / (film + outside)), cosine), through = 1.0 - first;
+    const double film_turn = film < outside ? math::det::pi : 0.0, back_turn = math::det::pi - film_turn;
+    const double optical = 2.0 * film * static_cast<double>(thickness) * under;  // nanometres
+    const std::array<double, 3> head{head_on.x, head_on.y, head_on.z};
+    std::array<double, 3> out{};
+    std::array<double, 3> base_index{}, second{}, turn{};
+    for (int channel = 0; channel < 3; ++channel) {
+        const double root = math::det::sqrt(std::clamp(head[static_cast<std::size_t>(channel)], 0.0, 0.9999));
+        base_index[static_cast<std::size_t>(channel)] = (1.0 + root) / (1.0 - root);
+        second[static_cast<std::size_t>(channel)] = schlick(square((base_index[static_cast<std::size_t>(channel)] - film) / (base_index[static_cast<std::size_t>(channel)] + film)), under);
+        turn[static_cast<std::size_t>(channel)] = back_turn + (base_index[static_cast<std::size_t>(channel)] < film ? math::det::pi : 0.0);
+    }
+    // The eye's three colours' sensitivity to a path `difference` nanometres longer, turned by `shift`, as sRGB.
+    const auto sensed = [](double difference, const std::array<double, 3>& shift) {
+        const double phase = math::det::two_pi * difference * 1.0e-9;
+        constexpr std::array<double, 3> value{5.4856e-13, 4.4201e-13, 5.2481e-13}, place{1.6810e+06, 1.7953e+06, 2.2084e+06}, spread{4.3278e+09, 9.3046e+09, 6.6121e+09};
+        std::array<double, 3> xyz{};
+        for (std::size_t channel = 0; channel < 3; ++channel)
+            xyz[channel] = value[channel] * math::det::sqrt(math::det::two_pi * spread[channel]) * math::det::cos(place[channel] * phase + shift[channel]) * math::det::exp(-phase * phase * spread[channel]);
+        xyz[0] += 9.7470e-14 * math::det::sqrt(math::det::two_pi * 4.5282e+09) * math::det::cos(2.2399e+06 * phase + shift[0]) * math::det::exp(-4.5282e+09 * phase * phase);
+        for (double& one : xyz) one /= 1.0685e-7;
+        return std::array<double, 3>{3.2404542 * xyz[0] - 1.5371385 * xyz[1] - 0.4985314 * xyz[2], -0.9692660 * xyz[0] + 1.8760108 * xyz[1] + 0.0415560 * xyz[2],
+                                     0.0556434 * xyz[0] - 0.2040259 * xyz[1] + 1.0572252 * xyz[2]};
+    };
+    std::array<double, 3> compound{}, reflected_twice{}, order{};
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        compound[channel] = std::clamp(first * second[channel], 1e-5, 0.9999);
+        reflected_twice[channel] = square(through) * second[channel] / (1.0 - compound[channel]);
+        out[channel] = first + reflected_twice[channel];
+        order[channel] = reflected_twice[channel] - through;
+    }
+    for (int times = 1; times <= 2; ++times) {
+        std::array<double, 3> shift{};
+        for (std::size_t channel = 0; channel < 3; ++channel) order[channel] *= math::det::sqrt(compound[channel]), shift[channel] = static_cast<double>(times) * turn[channel];
+        const std::array<double, 3> felt = sensed(static_cast<double>(times) * optical, shift);
+        for (std::size_t channel = 0; channel < 3; ++channel) out[channel] += order[channel] * 2.0 * felt[channel];
+    }
+    return {static_cast<float>(std::max(out[0], 0.0)), static_cast<float>(std::max(out[1], 0.0)), static_cast<float>(std::max(out[2], 0.0))};
+}
+Vec3 mirrors_at(const Material& material, float glance5, float seen) noexcept {
+    const Mirrors ends = mirrors_of(material);
+    const Vec3 plain = ends.head_on + (Vec3{ends.edge, ends.edge, ends.edge} - ends.head_on) * glance5;
+    const float iridescent = std::clamp(material.iridescence, 0.0f, 1.0f);
+    if (!(iridescent > 0)) return plain;
+    return plain + (film_mirrors(material.film_ior, material.film_thickness, seen, ends.head_on) - plain) * iridescent;
+}
 Vec3 reflected(const Material& material, Vec3 normal, Vec3 toward_eye, Vec3 toward_light, float facing) noexcept {
     const float rough = std::clamp(material.roughness, 0.04f, 1.0f), metal = std::clamp(material.metallic, 0.0f, 1.0f);
     // What goes on through the surface (`transmission`) is not scattered back.
@@ -629,8 +695,7 @@ Vec3 reflected(const Material& material, Vec3 normal, Vec3 toward_eye, Vec3 towa
     const float unhidden = 1.0f / ((facing * (1.0f - k) + k) * (seen * (1.0f - k) + k));
     // How much is mirrored rather than taken in: more at a glancing look.
     const float glance = 1.0f - eye_half, glance5 = glance * glance * glance * glance * glance;
-    const Mirrors ends = mirrors_of(material);
-    const Vec3 mirrored = ends.head_on + (Vec3{ends.edge, ends.edge, ends.edge} - ends.head_on) * glance5;
+    const Vec3 mirrored = mirrors_at(material, glance5, seen);
     return matt + math::scaled(mirrored, kept(material, seen)) * (facets * unhidden * 0.25f * facing);
 }
 Vec3 reflected_drawn_out(const Material& material, Vec3 normal, Vec3 along, Vec3 toward_eye, Vec3 toward_light, float facing) noexcept {
@@ -651,8 +716,7 @@ Vec3 reflected_drawn_out(const Material& material, Vec3 normal, Vec3 along, Vec3
     };
     const float visible = 0.5f / (facing * reach(toward_eye, seen) + seen * reach(toward_light, facing));
     const float eye_half = std::max(math::dot(toward_eye, half), 0.0f), glance = 1.0f - eye_half, glance5 = glance * glance * glance * glance * glance;
-    const Mirrors ends = mirrors_of(material);
-    const Vec3 mirrored = ends.head_on + (Vec3{ends.edge, ends.edge, ends.edge} - ends.head_on) * glance5;
+    const Vec3 mirrored = mirrors_at(material, glance5, seen);
     return matt + math::scaled(mirrored, kept(material, seen)) * (facets * visible * facing);
 }
 Vec3 drawn_out_normal(const Material& material, Vec3 normal, Vec3 along, Vec3 toward_eye) noexcept {
@@ -678,14 +742,18 @@ Vec3 mirrored(const Material& material, const Environment& environment, Vec3 nor
         const Vec3 turned = size > 0 ? way * (1.0f / size) : normal;
         const Vec3 leaned = normal + (turned - normal) * toward_way;
         const float leaned_size = math::length(leaned);
-        return math::scaled(math::scaled(ends.head_on * share.x + Vec3{share.y * ends.edge, share.y * ends.edge, share.y * ends.edge}, kept(material, seen)), environment.picture->blurred(leaned_size > 0 ? leaned * (1.0f / leaned_size) : normal, rough));
+        Vec3 shared = ends.head_on * share.x + Vec3{share.y * ends.edge, share.y * ends.edge, share.y * ends.edge};
+        // A film: what it mirrors at this look in place of Schlick's, over the share of an even light.
+        if (material.iridescence > 0)
+            shared = shared + (film_mirrors(material.film_ior, material.film_thickness, seen, ends.head_on) * (share.x + share.y) - shared) * std::clamp(material.iridescence, 0.0f, 1.0f);
+        return math::scaled(math::scaled(shared, kept(material, seen)), environment.picture->blurred(leaned_size > 0 ? leaned * (1.0f / leaned_size) : normal, rough));
     }
     const Vec3 there = environment.toward(size > 0 ? way * (1.0f / size) : normal);
     const Vec3 blurred = there + (environment.level - there) * rough;
     const float glance = 1.0f - seen, glance5 = glance * glance * glance * glance * glance;
     const Mirrors ends = mirrors_of(material);
     // A rough surface mirrors less of a glancing look than a smooth one does.
-    const Vec3 share = ends.head_on + (Vec3{ends.edge, ends.edge, ends.edge} - ends.head_on) * (glance5 * (1.0f - rough));
+    const Vec3 share = mirrors_at(material, glance5 * (1.0f - rough), seen);
     return math::scaled(share, blurred);
 }
 Vec3 reflected_ambient(const Material& material) noexcept {
@@ -870,6 +938,7 @@ void Pass::draw(const scene::Scene& scene, const scene::Extracted& extracted, co
         raster.coat = picture(raster.material.coat, placing.coat), raster.coat_rough = picture(raster.material.coat_rough, placing.coat_rough);
         raster.coat_normal_picture = picture(raster.material.coat_normal, placing.coat_normal), raster.sheen_picture = picture(raster.material.sheen_picture, placing.sheen);
         raster.anisotropy_picture = picture(raster.material.anisotropy_picture, placing.anisotropy);
+        raster.film = picture(raster.material.film, placing.film), raster.film_thick = picture(raster.material.film_thick, placing.film_thick);
         raster.coloured = !mesh.colours.empty();
         raster.world = instance.world, raster.back = math::inverse(instance.world).value_or(Mat4{});
         const Mat4 to_clip = clip * instance.world;

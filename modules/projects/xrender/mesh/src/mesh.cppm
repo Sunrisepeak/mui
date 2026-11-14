@@ -44,8 +44,10 @@ struct Placing {
 };
 // How each of a surface's pictures is laid over it.
 struct Placings {
-    Placing base, surface, normal, glow, shade, clearness, thick, coat, coat_rough, coat_normal, sheen, anisotropy;
-    [[nodiscard]] static constexpr Placings all(Placing placing) noexcept { return {placing, placing, placing, placing, placing, placing, placing, placing, placing, placing, placing, placing}; }
+    Placing base, surface, normal, glow, shade, clearness, thick, coat, coat_rough, coat_normal, sheen, anisotropy, film, film_thick;
+    [[nodiscard]] static constexpr Placings all(Placing placing) noexcept {
+        return {placing, placing, placing, placing, placing, placing, placing, placing, placing, placing, placing, placing, placing, placing};
+    }
 };
 // A surface, as data. The reference's shading is the least that shows a form: what a light gives a matt surface,
 // and what it gives off itself. (The full model — roughness, metal, textures — is the material interface's,
@@ -135,6 +137,13 @@ struct Material {
     // and green the way in the tangent's frame (each × 2 − 1), turned as well; blue multiplies `anisotropy`.
     float anisotropy = 0, anisotropy_rotation = 0;
     std::uint32_t anisotropy_picture = 0xffffffffu;
+    // A thin film over it (KHR_materials_iridescence): a soap bubble, oil on water, a beetle — what it mirrors
+    // coloured by the film's light meeting itself (Belcour and Barla 2017), `iridescence` of it (0 … 1), the film's
+    // index `film_ior`, as thick as `film_thickness` nanometres; pictures (`Coding::plain`): the red of `film`
+    // multiplies `iridescence`, the green of `film_thick` goes from `film_thinnest` to `film_thickness`.
+    float iridescence = 0, film_ior = 1.3f, film_thinnest = 100, film_thickness = 400;
+    std::uint32_t film = 0xffffffffu;
+    std::uint32_t film_thick = 0xffffffffu;
     Placings placing;  // how each picture of the surface is laid over it
     [[nodiscard]] constexpr bool matt() const noexcept { return roughness >= 1 && metallic <= 0 && !(clearcoat > 0) && !(sheen.x > 0 || sheen.y > 0 || sheen.z > 0); }
 };
@@ -145,6 +154,13 @@ struct Mirrors {
     float edge = 1;
 };
 [[nodiscard]] Mirrors mirrors_of(const Material& material) noexcept;
+// What a thin film over a surface that mirrors `head_on` mirrors, a channel, looked at with `seen` (the normal ·
+// the way to the eye): Belcour and Barla's two orders of the film's light, through the eye's three colours, as
+// glTF's sample viewer has it.
+[[nodiscard]] Vec3 film_mirrors(float film_ior, float thickness, float seen, Vec3 head_on) noexcept;
+// What a surface mirrors at a look: Schlick's between its two ends by `glance5` ((1 − the half-way's ·)⁵), mixed
+// toward its film's by its iridescence (`seen`: the normal · the way to the eye).
+[[nodiscard]] Vec3 mirrors_at(const Material& material, float glance5, float seen) noexcept;
 // A lamp as the passes take it from the scene's light (`scene::Light`, `Falloff`): its colour times its intensity —
 // over π for a physical light, the model's surfaces sending back light with no 1/π — its reach, its spot's two
 // cosines (`inner` above 1: the edge is hard).

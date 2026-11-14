@@ -802,6 +802,19 @@ static UTest cases{"xrender.mesh", [] {
         expect(gt(turned_high, turned_wide * 2)) << "turned: drawn out up and down";
     };
 
+    "a thin film colours what a surface mirrors: none thick is all but the surface's own 4%; 400 nanometres of index 1.3 are coloured and change with the look"_test = [] {
+        const mesh::Vec3 none = mesh::film_mirrors(1.3f, 0, 1, {0.04f, 0.04f, 0.04f});
+        const mesh::Vec3 head_on = mesh::film_mirrors(1.3f, 400, 1, {0.04f, 0.04f, 0.04f}), slanted = mesh::film_mirrors(1.3f, 400, 0.5f, {0.04f, 0.04f, 0.04f});
+        std::println("a film over 4%: none thick ({:.4f}, {:.4f}, {:.4f}); 400 nm head on ({:.3f}, {:.3f}, {:.3f}), at 60° ({:.3f}, {:.3f}, {:.3f})", none.x, none.y, none.z, head_on.x, head_on.y, head_on.z, slanted.x,
+                     slanted.y, slanted.z);
+        // All but the 4%: the model holds the two interfaces' product above 1e-5, which leaves under a hundredth.
+        expect(lt(std::abs(none.x - 0.04f), 0.01f) && lt(std::abs(none.y - 0.04f), 0.01f) && lt(std::abs(none.z - 0.04f), 0.01f));
+        const auto spread = [](mesh::Vec3 colour) { return std::max({colour.x, colour.y, colour.z}) - std::min({colour.x, colour.y, colour.z}); };
+        expect(gt(spread(head_on), 0.02f) && gt(spread(slanted), 0.02f)) << "coloured";
+        expect(gt(std::abs(head_on.x - slanted.x) + std::abs(head_on.y - slanted.y) + std::abs(head_on.z - slanted.z), 0.02f)) << "changing with the look";
+        expect(eq(mesh::film_mirrors(1.3f, 400, 1, {0.04f, 0.04f, 0.04f}), head_on)) << "the same bits twice";
+    };
+
     "a metal has no colour of its own but its highlight's: away from the highlight it is dark, and the highlight is the metal's colour"_test = [] {
         const Camera camera{.eye = {0, 0.5f, 5}, .target = {0, 0, 0}};
         scene::Scene world;

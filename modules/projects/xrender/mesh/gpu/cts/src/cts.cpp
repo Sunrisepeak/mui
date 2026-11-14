@@ -399,6 +399,8 @@ Cases suite_of() {
         yard.materials[0].clearcoat = 1, yard.materials[0].clearcoat_roughness = 0.15f;
         yard.materials[2].specular = 0.8f, yard.materials[2].specular_colour = {1, 0.3f, 0.3f}, yard.materials[2].ior = 1.7f;
         yard.materials[3].sheen = {1, 0.5f, 0.7f}, yard.materials[3].sheen_roughness = 0.5f, yard.materials[3].metallic = 0;  // the post: cloth
+        // A thin film on the polished ball.
+        yard.materials[2].iridescence = 1, yard.materials[2].film_thickness = 380;
         // A drawn-out highlight on a second ball of steel, brushed around its axis.
         yard.materials.push_back({.base = {0.9f, 0.9f, 0.92f}, .roughness = 0.3f, .metallic = 1, .anisotropy = 0.8f, .anisotropy_rotation = 0.3f});
         expect(yard.world.add({.id = 14, .mesh = 2, .material = static_cast<std::uint32_t>(yard.materials.size() - 1), .world = math::Transform{{-0.9f, -0.4f, 2.2f}, {}, {0.6f, 0.6f, 0.6f}}.matrix(),

@@ -221,17 +221,17 @@ static UTest cases{"xrender.asset", [] {
              {{"primitives": [{{"attributes": {{"POSITION": 0, "NORMAL": 1}}, "indices": 3, "material": 1}}]}}],
   "materials": [{{"pbrMetallicRoughness": {{"baseColorTexture": {{"index": 0}}, "metallicRoughnessTexture": {{"index": 0}}}},
                  "normalTexture": {{"index": 0}}, "occlusionTexture": {{"index": 0}}, "emissiveTexture": {{"index": 0}},
-                 "alphaMode": "BLEND", "doubleSided": true, "extensions": {{"KHR_materials_iridescence": {{"iridescenceFactor": 1}}, "KHR_materials_sheen": {{"sheenColorFactor": [1, 1, 1]}}, "KHR_materials_clearcoat": {{"clearcoatFactor": 1}}}}}},
+                 "alphaMode": "BLEND", "doubleSided": true, "extensions": {{"KHR_materials_dispersion": {{"dispersion": 1}}, "KHR_materials_sheen": {{"sheenColorFactor": [1, 1, 1]}}, "KHR_materials_clearcoat": {{"clearcoatFactor": 1}}}}}},
                 {{"alphaMode": "MASK", "emissiveFactor": [1, 1, 1], "extensions": {{"KHR_materials_emissive_strength": {{"emissiveStrength": 4}}}}}}],
   "textures": [{{"source": 0}}],
   "images": [{{"uri": "{}", "mimeType": "image/jpeg"}}],
   "animations": [{{"channels": [], "samplers": []}}],
-  "extensionsUsed": ["KHR_materials_iridescence", "KHR_materials_sheen", "KHR_materials_clearcoat", "KHR_materials_emissive_strength", "VENDOR_something"])",
+  "extensionsUsed": ["KHR_materials_dispersion", "KHR_materials_sheen", "KHR_materials_clearcoat", "KHR_materials_emissive_strength", "VENDOR_something"])",
                                                       uri_of(not_a_picture, "image/jpeg")));
         const auto model = asset::gltf(bytes_of(text));
         expect(fatal(model.has_value())) << (model ? "" : model.error());
         for (const std::string_view where :
-             {"/images/0", "/materials/0/extensions/KHR_materials_iridescence",
+             {"/images/0", "/materials/0/extensions/KHR_materials_dispersion",
               "/meshes/0/primitives/0/attributes/TEXCOORD_2", "/meshes/0/primitives/0/attributes/COLOR_1", "/meshes/0/primitives/0/attributes/NORMAL", "/meshes/0/primitives/1/mode",
               "/nodes/0/camera", "/animations", "/extensionsUsed/4"})
             expect(noted(*model, where)) << where;

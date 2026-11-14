@@ -312,8 +312,17 @@ struct Maker {
                     made.anisotropy_picture = picture(from.anisotropy.anisotropy_texture, where + "/extensions/KHR_materials_anisotropy/anisotropyTexture", mesh::Coding::plain,
                                                       "the strength and rotation over the whole surface", made.placing.anisotropy);
             }
-            const std::array<std::pair<bool, std::string_view>, 4> more{{{from.has_pbr_specular_glossiness != 0, "KHR_materials_pbrSpecularGlossiness"},
-                                                                          {from.has_iridescence != 0, "KHR_materials_iridescence"},
+            // A thin film (KHR_materials_iridescence): how much, its index, its thickness between two ends, two pictures.
+            if (from.has_iridescence) {
+                const cgltf_iridescence& film = from.iridescence;
+                made.iridescence = film.iridescence_factor, made.film_ior = film.iridescence_ior;
+                made.film_thinnest = film.iridescence_thickness_min, made.film_thickness = film.iridescence_thickness_max;
+                const std::string at = where + "/extensions/KHR_materials_iridescence";
+                if (film.iridescence_texture.texture) made.film = picture(film.iridescence_texture, at + "/iridescenceTexture", mesh::Coding::plain, "the factor over the whole surface", made.placing.film);
+                if (film.iridescence_thickness_texture.texture)
+                    made.film_thick = picture(film.iridescence_thickness_texture, at + "/iridescenceThicknessTexture", mesh::Coding::plain, "the greatest thickness over the whole surface", made.placing.film_thick);
+            }
+            const std::array<std::pair<bool, std::string_view>, 3> more{{{from.has_pbr_specular_glossiness != 0, "KHR_materials_pbrSpecularGlossiness"},
                                                                           {from.has_diffuse_transmission != 0, "KHR_materials_diffuse_transmission"},
                                                                           {from.has_dispersion != 0, "KHR_materials_dispersion"}}};
             for (const auto& [has, name] : more)

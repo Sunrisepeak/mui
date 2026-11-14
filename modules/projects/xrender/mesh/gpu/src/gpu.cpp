@@ -64,6 +64,7 @@ struct SurfaceUniforms {
     Row          mirrors{0.04f, 0.04f, 0.04f, 1};  // what a surface that is not metal mirrors head on; w: at a glance
     Row          coat;                             // x: the clear coat; y: its roughness
     Row          sheen;                            // its colour; w: its roughness
+    Row          film;                             // x: iridescence; y: the film's index; z: its thickness (nanometres)
     Row          drawn;                            // x: anisotropy; y, z: its way's turn (cosine, sine)
     LampUniforms lamps[most_lamps];
 };
@@ -894,6 +895,7 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
         const Mirrors ends = mirrors_of(dielectric);
         surface.mirrors = of(ends.head_on, ends.edge);
         surface.sheen = of(material.sheen, material.sheen_roughness);
+        surface.film = {std::clamp(material.iridescence, 0.0f, 1.0f), material.film_ior, material.film_thickness, 0};
         surface.drawn = {std::clamp(material.anisotropy, 0.0f, 1.0f), static_cast<float>(math::det::cos(static_cast<double>(material.anisotropy_rotation))),
                          static_cast<float>(math::det::sin(static_cast<double>(material.anisotropy_rotation))), 0};
         surface.coat = {std::clamp(material.clearcoat, 0.0f, 1.0f), std::clamp(material.clearcoat_roughness, 0.04f, 1.0f), 0, 0};

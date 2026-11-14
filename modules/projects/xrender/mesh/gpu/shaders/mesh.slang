@@ -107,6 +107,7 @@ struct Surface {
     float4 mirrors;
     float4 coat;                // a clear coat (xrender.mesh's `Material::clearcoat`): x how much, y its roughness (0.04 … 1)
     float4 sheen;               // a sheen (xrender.mesh's `Material::sheen`): its colour; w its roughness
+    float4 film;                // a thin film (xrender.mesh's `Material::iridescence`): x how much, y its index, z how thick (nanometres)
     float4 drawn;               // a highlight drawn out (xrender.mesh's `Material::anisotropy`): x how much; y, z the way's turn (cosine, sine)
     Lamp   lamps[8];
 };
@@ -259,8 +260,7 @@ float3 reflected(float3 normal, float3 toward_eye, float3 toward_light, float fa
     const float k = (rough + 1.0) * (rough + 1.0) * 0.125;
     const float unhidden = 1.0 / ((facing * (1.0 - k) + k) * (seen * (1.0 - k) + k));
     const float glance = 1.0 - eye_half, glance5 = glance * glance * glance * glance * glance;
-    const float3 mirrored = head_here + (float3(edge_here, edge_here, edge_here) - head_here) * glance5;
-    return matt + mirrored * kept(seen) * (facets * unhidden * 0.25 * facing);
+    return matt + mirrors_at(glance5, seen) * kept(seen) * (facets * unhidden * 0.25 * facing);
 }
 // What the surface mirrors of what is about the scene (xrender.mesh's `mirrored`).
 float3 mirrored(float3 normal, float3 toward_eye) {
@@ -273,7 +273,7 @@ float3 mirrored(float3 normal, float3 toward_eye) {
     const float3 there = surface.level.rgb + (far - surface.level.rgb) * abs(along.y);
     const float3 blurred = there + (surface.level.rgb - there) * rough;
     const float glance = 1.0 - seen, glance5 = glance * glance * glance * glance * glance;
-    const float3 share = head_here + (float3(edge_here, edge_here, edge_here) - head_here) * (glance5 * (1.0 - rough));
+    const float3 share = mirrors_at(glance5 * (1.0 - rough), seen);
     return share * blurred;
 }
 // A way's place in a square: an octahedron's eight faces unfolded (xrender.mesh's `Surroundings`).
@@ -313,7 +313,9 @@ struct Pictured : IAbout {
         const float3 nearer = about_at(about.squares[int(first)], place), further = about_at(about.squares[int(first) + 1], place);
         const float4 table = about.squares[17];
         const float2 share = about_map.SampleLevel((table.xy + float2(seen, rough) * (table.z - 1.0) + 0.5) * about.shape.xy, 0).rg;
-        return (head_here * share.x + share.y * edge_here) * kept(seen) * (nearer + (further - nearer) * (which - first)) * shaded;
+        float3 shared = head_here * share.x + share.y * edge_here;
+        if (surface.film.x > 0) shared += (film_mirrors(surface.film.y, surface.film.z, seen, head_here) * (share.x + share.y) - shared) * clamp(surface.film.x, 0.0, 1.0);
+        return shared * kept(seen) * (nearer + (further - nearer) * (which - first)) * shaded;
     }
 }
 float encoded(float linear) {
@@ -398,6 +400,49 @@ float sheen_reflected(float3 normal, float3 toward_eye, float3 toward_light, flo
 }
 // How much of an even light a white sheen sends back (xrender.mesh's `sheen_share`: the share table's blue).
 float sheen_share(float seen) { return share_map.SampleLevel((float2(clamp(seen, 0.0, 1.0), clamp(surface.sheen.w, 0.0, 1.0)) * 31.0 + 0.5) / 32.0, 0).b; }
+// What a thin film over a surface that mirrors `head_on` mirrors (xrender.mesh's `film_mirrors`).
+float3 film_sensed(float difference, float3 shift) {
+    const float phase = 6.28318530717958 * difference * 1.0e-9;
+    const float3 value = float3(5.4856e-13, 4.4201e-13, 5.2481e-13), place = float3(1.6810e+06, 1.7953e+06, 2.2084e+06), spread = float3(4.3278e+09, 9.3046e+09, 6.6121e+09);
+    float3 xyz = value * sqrt(6.28318530717958 * spread) * cos(place * phase + shift) * exp(-phase * phase * spread);
+    xyz.x += 9.7470e-14 * sqrt(6.28318530717958 * 4.5282e+09) * cos(2.2399e+06 * phase + shift.x) * exp(-4.5282e+09 * phase * phase);
+    xyz /= 1.0685e-7;
+    return float3(3.2404542 * xyz.x - 1.5371385 * xyz.y - 0.4985314 * xyz.z, -0.9692660 * xyz.x + 1.8760108 * xyz.y + 0.0415560 * xyz.z, 0.0556434 * xyz.x - 0.2040259 * xyz.y + 1.0572252 * xyz.z);
+}
+float film_schlick(float head, float cosine) { const float glance = 1.0 - cosine; return head + (1.0 - head) * glance * glance * glance * glance * glance; }
+float3 film_mirrors(float film_ior, float thickness, float seen, float3 head_on) {
+    const float cosine = clamp(seen, 0.0, 1.0);
+    const float step = clamp(thickness / 0.03, 0.0, 1.0), smooth = step * step * (3.0 - 2.0 * step);
+    const float film = 1.0 + (film_ior - 1.0) * smooth;
+    const float under_squared = 1.0 - (1.0 / film) * (1.0 / film) * (1.0 - cosine * cosine);
+    if (under_squared < 0) return float3(1, 1, 1);
+    const float under = sqrt(under_squared);
+    const float first_head = (film - 1.0) / (film + 1.0);
+    const float first = film_schlick(first_head * first_head, cosine), through = 1.0 - first;
+    const float pi = 3.14159265358979;
+    const float back_turn = pi - (film < 1.0 ? pi : 0.0);
+    const float optical = 2.0 * film * thickness * under;
+    const float3 root = sqrt(clamp(head_on, 0.0, 0.9999));
+    const float3 base_index = (1.0 + root) / (1.0 - root);
+    const float3 second_head = (base_index - film) / (base_index + film);
+    const float3 second = float3(film_schlick(second_head.x * second_head.x, under), film_schlick(second_head.y * second_head.y, under), film_schlick(second_head.z * second_head.z, under));
+    const float3 turn = back_turn + float3(base_index.x < film ? pi : 0.0, base_index.y < film ? pi : 0.0, base_index.z < film ? pi : 0.0);
+    const float3 compound = clamp(first * second, 1e-5, 0.9999);
+    const float3 twice = through * through * second / (1.0 - compound);
+    float3 out = first + twice;
+    float3 order = twice - through;
+    for (int times = 1; times <= 2; ++times) {
+        order *= sqrt(compound);
+        out += order * 2.0 * film_sensed(float(times) * optical, float(times) * turn);
+    }
+    return max(out, float3(0, 0, 0));
+}
+// What the surface mirrors at a look (xrender.mesh's `mirrors_at`).
+float3 mirrors_at(float glance5, float seen) {
+    const float3 plain = head_here + (float3(edge_here, edge_here, edge_here) - head_here) * glance5;
+    if (!(surface.film.x > 0)) return plain;
+    return plain + (film_mirrors(surface.film.y, surface.film.z, seen, head_here) - plain) * clamp(surface.film.x, 0.0, 1.0);
+}
 // `reflected` with the highlight drawn out along `along` (xrender.mesh's `reflected_drawn_out`).
 float3 reflected_drawn_out(float3 normal, float3 along, float3 toward_eye, float3 toward_light, float facing) {
     const float rough = rough_here, metal = metal_here;
@@ -415,8 +460,7 @@ float3 reflected_drawn_out(float3 normal, float3 along, float3 toward_eye, float
     const float3 light_on = float3(dot(along, toward_light) * along_alpha, dot(across, toward_light) * across_alpha, facing);
     const float visible = 0.5 / (facing * length(eye_on) + seen * length(light_on));
     const float glance = 1.0 - max(dot(toward_eye, halfway), 0.0), glance5 = glance * glance * glance * glance * glance;
-    const float3 mirrored = head_here + (float3(edge_here, edge_here, edge_here) - head_here) * glance5;
-    return matt + mirrored * kept(seen) * (facets * visible * facing);
+    return matt + mirrors_at(glance5, seen) * kept(seen) * (facets * visible * facing);
 }
 // The normal an anisotropic surface mirrors what is about it by (xrender.mesh's `drawn_out_normal`).
 float3 drawn_out_normal(float3 normal, float3 along, float3 toward_eye) {

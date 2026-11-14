@@ -19,7 +19,7 @@ VOut glow_vs(VIn corner) {
 struct Glow {
     float4 size;    // xy: the picture's width and height; zw: one over them
     float4 along;   // xy: one texel along the pass (1, 0) or (0, 1); z: the radius; w: over 0.5 — take only what is above the threshold
-    float4 amount;  // x: the threshold; y: the strength; z: the exposure; w: over 0.5 — the filmic curve
+    float4 amount;  // x: the threshold; y: the strength; z: the exposure; w: 1 — the filmic curve; 2 — the neutral one
 };
 [[vk::binding(0, 3)]] ConstantBuffer<Glow> glow : register(b0, space3);
 [[vk::binding(0, 2)]] Sampler2D first : register(t0, space2) : register(s0, space2);
@@ -55,7 +55,19 @@ float encoded(float linear) {
 float4 shown_fs(VOut point) : SV_Target {
     const float2 at = (floor(point.clip.xy) + 0.5) * glow.size.zw;
     float3 colour = (first.SampleLevel(at, 0).rgb + second.SampleLevel(at, 0).rgb * glow.amount.y) * glow.amount.z;
-    // xrender.mesh's `Tone`: bent toward white as it grows.
-    if (glow.amount.w > 0.5) colour = max(colour, float3(0, 0, 0)) * (2.51 * max(colour, float3(0, 0, 0)) + 0.03) / (max(colour, float3(0, 0, 0)) * (2.43 * max(colour, float3(0, 0, 0)) + 0.59) + 0.14);
+    // xrender.mesh's `Tone`. Neutral: as it is but for a lift off black, and above 0.76 the brightest part drawn toward 1.
+    if (glow.amount.w > 1.5) {
+        colour = max(colour, float3(0, 0, 0));
+        const float least = min(colour.r, min(colour.g, colour.b));
+        colour -= least < 0.08 ? least - 6.25 * least * least : 0.04;
+        const float peak = max(colour.r, max(colour.g, colour.b));
+        if (peak >= 0.76) {
+            const float drawn = 1.0 - 0.24 * 0.24 / (peak + 0.24 - 0.76);
+            colour *= drawn / peak;
+            colour = lerp(colour, float3(drawn, drawn, drawn), 1.0 - 1.0 / (0.15 * (peak - drawn) + 1.0));
+        }
+    }
+    // Filmic: bent toward white as it grows.
+    else if (glow.amount.w > 0.5) colour = max(colour, float3(0, 0, 0)) * (2.51 * max(colour, float3(0, 0, 0)) + 0.03) / (max(colour, float3(0, 0, 0)) * (2.43 * max(colour, float3(0, 0, 0)) + 0.59) + 0.14);
     return float4(encoded(colour.r), encoded(colour.g), encoded(colour.b), 1);
 }

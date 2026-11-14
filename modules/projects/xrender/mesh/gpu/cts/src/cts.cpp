@@ -473,6 +473,16 @@ Cases suite_of() {
         std::println("    through a tone: {} of {} pixels further than 6 levels, mean {:.3f}", with_tone.off, with_tone.compared, with_tone.mean);
         expect(lt(static_cast<double>(with_tone.off), 0.001 * static_cast<double>(with_tone.compared)));
         expect(toned.colour != reference.colour);
+        // And through the neutral curve, at the exposure the lamp was made for.
+        const mesh::Tone neutral{.neutral = true};
+        mesh::Targets plainly = reference;
+        static_cast<void>(glow_on_cpu.show(reference.light, static_cast<int>(width), static_cast<int>(height), bloom, plainly.colour, neutral));
+        const std::vector<std::byte> plainly_on_device = shown_with(bloom, neutral);
+        keep(plainly_on_device, "yard-glow-neutral");
+        const Apart with_neutral = apart(plainly, plainly_on_device, false, 6);
+        std::println("    through the neutral curve: {} of {} pixels further than 6 levels, mean {:.3f}", with_neutral.off, with_neutral.compared, with_neutral.mean);
+        expect(lt(static_cast<double>(with_neutral.off), 0.001 * static_cast<double>(with_neutral.compared)));
+        expect(plainly.colour != reference.colour && plainly.colour != toned.colour);
         static_cast<void>(device->wait_idle());
         device->destroy(light), device->destroy(one), device->destroy(other), device->destroy(*colour), device->destroy(*depth);
     });

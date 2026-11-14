@@ -1058,7 +1058,7 @@ Glow::Told Glow::show(std::span<const Vec3> light, int width, int height, const 
     for (std::size_t pixel = 0; pixel < pixels; ++pixel) {
         Vec3 shown = light[pixel];
         if (spreads) shown = shown + spread_[pixel] * bloom.strength;
-        if (tone.filmic || tone.exposure != 1) shown = tone.of(shown);
+        if (tone.filmic || tone.neutral || tone.exposure != 1) shown = tone.of(shown);
         colour[pixel * 4] = encoded(shown.x), colour[pixel * 4 + 1] = encoded(shown.y), colour[pixel * 4 + 2] = encoded(shown.z), colour[pixel * 4 + 3] = 255;
     }
     return told;

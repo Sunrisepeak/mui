@@ -1437,6 +1437,20 @@ static UTest cases{"xrender.mesh", [] {
         mesh::Glow glow;
         std::vector<std::uint8_t> cut, bent, plain, same;
         (void)glow.show(lamp, 4, 4, {}, cut);
+        // The neutral curve: a colour below 0.76 is its own but for the lift off black (0.04 where the least part is over 0.08);
+        // above, the brightest part nears 1 and never passes it, and the colour goes toward white.
+        const mesh::Tone neutral{.neutral = true};
+        expect(eq(neutral.of({0, 0, 0}).x, 0.0f) && near(neutral.of({0.5f, 0.3f, 0.2f}).x, 0.46f, 1e-6f) && near(neutral.of({0.5f, 0.3f, 0.2f}).z, 0.16f, 1e-6f));
+        expect(near(neutral.of({0.04f, 0.04f, 0.04f}).x, 0.04f - (0.04f - 6.25f * 0.04f * 0.04f), 1e-7f));
+        float neutral_before = 0;
+        for (const float light : {0.5f, 0.8f, 1.0f, 2.0f, 8.0f, 64.0f, 1000.0f}) {
+            const float shown = neutral.of({light, light, light}).x;
+            expect(gt(shown, neutral_before) && lt(shown, 1.0f)) << light << ": " << shown;
+            neutral_before = shown;
+        }
+        const math::Vec3 hot = neutral.of({9, 5, 1.6f});
+        expect(gt(hot.x, hot.y) && gt(hot.y, hot.z) && lt(hot.x, 1.0f) && gt(hot.z, 0.5f)) << std::format("{} {} {}", hot.x, hot.y, hot.z);
+        expect(neutral.of({-1, 0.5f, 0.5f}).x == 0.0f);
         (void)glow.show(lamp, 4, 4, {}, bent, {.exposure = 0.25f, .filmic = true});
         expect(eq(int(cut[0]), 255) && eq(int(cut[1]), 255) && eq(int(cut[2]), 255)) << "flat white";
         expect(gt(int(bent[0]), int(bent[1]) + 4) && gt(int(bent[1]), int(bent[2]) + 20)) << std::format("{} {} {}", bent[0], bent[1], bent[2]);

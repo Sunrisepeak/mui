@@ -374,15 +374,34 @@ struct Bloom {
     float radius = 0;        // pixels, about a third of how far it reaches; below 1: none
     float strength = 0.5f;   // how much of what spread is added
 };
-// How light becomes what a display can show. `exposure` scales it first. Without `filmic` what is above the
-// display's white is cut off there, each part by itself — a bright lamp goes flat and its colour with it. With
-// it the light is bent toward white as it grows (the fitted curve games use, Narkowicz's of ACES: +, × and ÷
-// only), so a highlight keeps its shape and a little of its colour.
+// How light becomes what a display can show. `exposure` scales it first. With neither curve what is above the
+// display's white is cut off there, each part by itself — a bright lamp goes flat and its colour with it.
+// `filmic`: the light is bent toward white as it grows (the fitted curve games use, Narkowicz's of ACES: +, ×
+// and ÷ only), so a highlight keeps its shape and a little of its colour — and everything below it is changed
+// too. `neutral` (taken where both are said): Khronos' PBR Neutral (2024), what a viewer of products shows by —
+// light up to 0.76 is as it is but for a small lift off black, so a colour is the material's own; above, the
+// brightest part is drawn toward 1 without reaching it and the colour toward white by how much was taken.
 struct Tone {
     float exposure = 1;
     bool  filmic = false;
+    bool  neutral = false;
     [[nodiscard]] constexpr Vec3 of(Vec3 light) const noexcept {
         const Vec3 scaled = light * exposure;
+        if (neutral) {
+            const auto least_of = [](float one, float other) { return one < other ? one : other; };
+            const auto most_of = [](float one, float other) { return one > other ? one : other; };
+            const Vec3 held{most_of(scaled.x, 0.0f), most_of(scaled.y, 0.0f), most_of(scaled.z, 0.0f)};
+            const float least = least_of(held.x, least_of(held.y, held.z));
+            const float lift = least < 0.08f ? least - 6.25f * least * least : 0.04f;
+            const Vec3 lifted{held.x - lift, held.y - lift, held.z - lift};
+            const float peak = most_of(lifted.x, most_of(lifted.y, lifted.z));
+            constexpr float begins = 0.8f - 0.04f, room = 1.0f - begins, fades = 0.15f;
+            if (peak < begins) return lifted;
+            const float drawn = 1.0f - room * room / (peak + room - begins);
+            const Vec3 bent = lifted * (drawn / peak);
+            const float toward_white = 1.0f - 1.0f / (fades * (peak - drawn) + 1.0f);
+            return bent + (Vec3{drawn, drawn, drawn} - bent) * toward_white;
+        }
         if (!filmic) return scaled;
         const auto bent = [](float value) { return value <= 0 ? 0.0f : (value * (2.51f * value + 0.03f)) / (value * (2.43f * value + 0.59f) + 0.14f); };
         return {bent(scaled.x), bent(scaled.y), bent(scaled.z)};

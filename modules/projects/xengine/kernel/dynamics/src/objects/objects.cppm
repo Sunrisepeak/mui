@@ -45,6 +45,26 @@ struct ObjectsOptions {
     float              drag = 1.0f;         // C
 };
 
+// A cause kept for a body (the record an agent's `explain` reads): what happened to it at a step and what made it
+// — a law that held, with the most of what flowed in for it and from where (another body, or the air of a field's
+// cell and the body that warmed that air), or a quantity applied from outside.
+enum class CauseKind : std::uint8_t { became, rose, fell, applied, struck };
+struct Cause {
+    std::uint64_t step = 0;
+    CauseKind     kind = CauseKind::applied;
+    std::uint32_t law = 0;      // became, rose, fell: the law judged to have made it
+    std::uint32_t channel = 0;  // rose, fell, applied: the channel
+    std::uint32_t event = 0;    // the event's name (Program::event_names), where the law names one
+    std::uint32_t inflow = 0;   // the law (a transfer) the most came in by; none: nothing came in
+    BodyId        from;         // the body it came from (none: the air, or nothing)
+    std::optional<Vec> through; // the air's cell it came through (a field's), where it did
+};
+// A link of an explanation: a body and the cause kept for it.
+struct Explained {
+    BodyId body;
+    Cause  cause;
+};
+
 class Objects {
 public:
     [[nodiscard]] static std::expected<Objects, std::string> make(const matter::Program& program, ObjectsOptions options = {});
@@ -58,8 +78,9 @@ public:
 
     // A channel of a body, as stored (× 2^fraction); none: not carried, or no such channel.
     [[nodiscard]] std::optional<std::uint32_t> get(BodyId body, std::uint32_t channel) const noexcept;
-    // A quantity applied to a body (heat, water, charge): its channel set; false where `get` would say none.
-    bool set(BodyId body, std::uint32_t channel, std::uint32_t value) noexcept;
+    // A quantity applied to a body (heat, water, charge): its channel set, kept as a cause (`applied`); false where
+    // `get` would say none.
+    bool set(BodyId body, std::uint32_t channel, std::uint32_t value);
     [[nodiscard]] std::optional<matter::MaterialId> material(BodyId body) const noexcept;
 
     // One tick of matter between the bodies touching now in `world` (after its step). What became of each body
@@ -98,12 +119,21 @@ public:
     // (instances: `body_of`). None before a step, or for a body not carried then.
     [[nodiscard]] std::optional<matter::Why> why(BodyId body) const;
 
+    // What made a body what it is now, back to where it began: its latest cause, then the cause of the body that
+    // gave it what it needed (before that step), and so on — at most `depth` links, none twice.
+    [[nodiscard]] std::vector<Explained> explain(BodyId body, std::size_t depth = 16) const;
+    [[nodiscard]] std::span<const Cause> causes(BodyId body) const noexcept;
+    [[nodiscard]] std::uint64_t steps() const noexcept { return steps_; }
+
     [[nodiscard]] std::uint64_t state_hash() const noexcept;
     [[nodiscard]] const matter::Program& program() const noexcept { return *program_; }
 
 private:
     [[nodiscard]] std::optional<std::size_t> index(BodyId body) const noexcept;
     [[nodiscard]] bool open_to_sky(const World& world, BodyId body, float sky) const noexcept;
+    void keep(BodyId body, Cause cause);
+    // After a step: each event of a body judged again, its cause kept (`why` gives the law and the inflows).
+    void witness(const std::function<std::optional<matter::Why>(std::uint32_t instance)>& why_of, const std::function<std::optional<std::pair<BodyId, Vec>>(std::uint32_t instance)>& source_of);
 
     const matter::Program*     program_ = nullptr;
     ObjectsOptions             options_;
@@ -118,6 +148,9 @@ private:
     matter::Workspace          workspace_;
     std::vector<xengine::field::Vec3> at_;          // where each body is (a field step's guests)
     const xengine::field::Field* joined_ = nullptr; // the field of the last step (none: a bath)
+    std::uint64_t              steps_ = 0;
+    static constexpr std::size_t kept_causes = 8;    // a body's latest causes
+    std::map<BodyId, std::vector<Cause>> causes_;
 };
 
 }  // namespace xengine::dynamics::rigid3

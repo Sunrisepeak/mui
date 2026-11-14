@@ -307,6 +307,11 @@ struct GpuRenderer::Impl {
         KeptUniforms   uniforms;
     };
     std::vector<KeptDraw> kept_draws;  // the frame's
+    // The frame's own run: glyphs no run of the list keeps, as the same small instances (a third of a
+    // primitive's bytes) in the device's space, sent once a frame and drawn by the kept pipeline — a
+    // command's glyphs one draw, and those of commands that follow under the same clip the same draw.
+    KeptRun                frame_run;
+    std::vector<KeptGlyph> frame_staging;
     mlibs::rhi::GraphicsPipeline material_pipeline, material_lit_pipeline; // lazy rgba16_float accumulation
     mlibs::rhi::Sampler          nearest;  // every texture is read texel by texel; bilinear images are weighed in the shader
     mlibs::rhi::Texture          white, white_mask, zero_row;
@@ -453,6 +458,7 @@ struct GpuRenderer::Impl {
         for (mlibs::rhi::Texture t : retired) d.destroy(t);
         for (mlibs::rhi::Texture t : {white, white_mask, zero_row, ramps, atlas, outlines}) d.destroy(t);
         d.destroy(instances);
+        if (frame_run.buffer) d.destroy(frame_run.buffer);
         for (auto& [id, run] : kept_runs)
             if (run.buffer) d.destroy(run.buffer);
         d.destroy(nearest);
@@ -1142,6 +1148,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
         g.clip_records.clear();
         g.clip_shapes.clear();
         g.kept_draws.clear();
+        g.frame_staging.clear();
         // The surface drawn into: the target, or an effect layer's own.
         struct Surface {
             std::uint32_t w, h;
@@ -2140,6 +2147,65 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
             return true;
         };
 
+        // A DrawGlyphs no run keeps, in the frame's own run: true when its glyphs were drawn so. False:
+        // encoded a primitive each — few glyphs (a draw costs more than they save), a paint that is not one
+        // colour, a glyph without an outline at its scale, inside a layer; and where masks are made (a readback).
+        constexpr std::size_t frame_run_least = 8;
+        auto frame_glyphs = [&](const DrawGlyphs& c) -> bool {
+            if (!options.frame_glyphs || g.glyph_masks != 0 || !g.kept_pipeline || !open.empty() || g.passes[current].material_mix || c.paint.kind != Paint::Kind::solid ||
+                c.glyphs.size() < frame_run_least)
+                return false;
+            const Affine&     mm = m();
+            const Clip&       clip = clips.back();
+            const std::size_t first = g.frame_staging.size();
+            for (std::size_t i = 0; i < c.glyphs.size(); ++i) {
+                const Placed pl = place(c, i, mm);
+                Color        colour = c.paint.color;
+                if (pl.style) {
+                    const float opacity = std::clamp(pl.style->opacity, 0.0f, 1.0f);
+                    if (opacity <= 0) continue;
+                    const Color tint = pl.style->tint;
+                    const float by = std::clamp(tint.a, 0.0f, 1.0f);
+                    colour = {colour.r + (tint.r - colour.r) * by, colour.g + (tint.g - colour.g) * by, colour.b + (tint.b - colour.b) * by, colour.a * opacity};
+                }
+                const Impl::Outlined* outline = g.outline_of(*res.glyphs, c.font, c.glyphs[i].id, g.scale_of(pl.outline));
+                if (!outline) {
+                    g.frame_staging.resize(first);
+                    return false;
+                }
+                if (outline->count == 0) continue;
+                // Wholly outside the clip: not sent (as a primitive's is not).
+                if (const Rect box = pl.outline.map(outline->bounds);
+                    box.x - 1 >= clip.x1 || box.y - 1 >= clip.y1 || box.right() + 1 <= clip.x0 || box.bottom() + 1 <= clip.y0)
+                    continue;
+                const Affine& to = pl.outline;
+                g.frame_staging.push_back({{to.a, to.b, to.c, to.d},
+                                           {to.e, to.f, static_cast<float>(outline->first), static_cast<float>(outline->count)},
+                                           {outline->bounds.x, outline->bounds.y, outline->bounds.width, outline->bounds.height},
+                                           premultiplied(colour)});
+            }
+            const auto count = static_cast<std::uint32_t>(g.frame_staging.size() - first);
+            if (count == 0) return true;
+            const int          flags = (clip.mask ? flag_clip_mask : 0) | static_cast<int>(clip.record) << clip_record_shift;
+            const KeptUniforms uniforms{{1, 0, 0, 1}, {0, 0, static_cast<float>(flags), 0}, {clip.x0, clip.y0, clip.x1, clip.y1}};
+            g.glyphs_outlined += count;
+            report.glyphs_framed += count;
+            auto& draws = g.passes[current].draws;
+            if (!draws.empty() && draws.back().kept >= 0 && draws.back().mask == clip.mask) {
+                Impl::KeptDraw& last = g.kept_draws[static_cast<std::size_t>(draws.back().kept)];
+                if (last.run == &g.frame_run && last.first + last.count == first && last.uniforms == uniforms) {
+                    last.count += count;
+                    return true;
+                }
+            }
+            Draw d;
+            d.kept = static_cast<std::int32_t>(g.kept_draws.size());
+            d.mask = clip.mask;
+            g.kept_draws.push_back({&g.frame_run, static_cast<std::uint32_t>(first), count, uniforms});
+            emit(std::move(d));
+            return true;
+        };
+
         const auto& all = dl.commands();
         for (std::size_t index = 0; index < all.size() && !failed; ++index) {
             if (in_run && index >= in_run->first + in_run->count) run_ends();
@@ -2258,6 +2324,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                             return;
                         }
                         if (keeping && kept_glyphs(c, index - in_run->first)) return;
+                        if (frame_glyphs(c)) return;
                         const Affine& mm = m();
                         for (std::size_t i = 0; i < c.glyphs.size(); ++i) {
                             const Glyph& gl = c.glyphs[i];
@@ -2390,6 +2457,23 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                 all[index]);
         }
         if (in_run) run_ends();
+        if (!g.frame_staging.empty() && !failed) {
+            const auto bytes = static_cast<std::uint32_t>(g.frame_staging.size() * sizeof(KeptGlyph));
+            if (bytes > g.frame_run.capacity) {
+                if (g.frame_run.buffer) g.d.destroy(g.frame_run.buffer);
+                g.frame_run.buffer = {};
+                std::uint32_t capacity = std::max<std::uint32_t>(1024 * sizeof(KeptGlyph), g.frame_run.capacity);
+                while (capacity < bytes) capacity *= 2;
+                auto made = g.d.create(mlibs::rhi::BufferDesc{capacity, mlibs::rhi::BufferUsage::vertex, "render.frame-glyphs"});
+                if (!made) {
+                    fail(made.error());
+                } else {
+                    g.frame_run.buffer = *made;
+                    g.frame_run.capacity = capacity;
+                }
+            }
+            if (g.frame_run.buffer) g.list.upload(g.frame_run.buffer, 0, std::span<const KeptGlyph>(g.frame_staging));
+        }
     };
     encode();
     if (!failed && g.atlas_overflow) {

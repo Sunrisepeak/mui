@@ -594,6 +594,49 @@ void add_framework_benchmarks() {
         s.note("slowest", slowest);
         s.note("list", made_of(w.h.runtime().display_list()));
     });
+    // Plan §5.9 step c: the frame new content enters in — a 1080p page of small text over cards, tens of
+    // thousands of glyphs none of which the renderer has: as plain commands (every glyph an instance of the
+    // frame), and as a kept run of a new revision each frame (its glyphs made and sent, as a host's arrive).
+    for (const bool kept : {false, true})
+    add(kept ? "render/arrive-page-gpu-kept" : "render/arrive-page-gpu",
+        kept ? "the same page as a kept run, new each frame: its glyphs made for the device and sent in that frame"
+             : "a 1080p page of small text over cards the renderer has not seen: encoded and drawn in one frame", [kept](State& s) {
+        Gpu gpu(full_hd);
+        if (!gpu.ready(s)) return;
+        mlibs::text::FontCollection fonts;
+        if (auto loaded = fonts.add_defaults(); !loaded) warn("the default fonts did not load: {}", loaded.error());
+        std::string text;
+        for (int copy = 0; copy < 14; ++copy) text += paragraph_text();
+        mlibs::text::ParagraphStyle style;
+        style.style.size = 9;
+        mlibs::text::Paragraph page(fonts, text, style);
+        page.layout(1880);
+        xrender::DisplayList content;
+        for (int card = 0; card < 4000; ++card)
+            content.fill_round_rect({20.0f + static_cast<float>(card % 80) * 23.5f, 20.0f + static_cast<float>(card / 80) * 20.8f, 21, 18}, CornerRadii::all(4),
+                                    xrender::Paint::solid(Color::hex(0xf0f2f7)));
+        xrender::text::paint(page, content, {20, 20});
+        std::size_t glyph_count = 0;
+        for (const auto& command : content.commands())
+            if (const auto* run = std::get_if<xrender::DrawGlyphs>(&command)) glyph_count += run->glyphs.size();
+        xrender::text::GlyphCache glyphs(fonts);
+        xrender::DisplayList      frame;
+        std::uint64_t             revision = 0;
+        s.items(glyph_count + 4000);
+        while (s.next()) {
+            s.pause();
+            frame.clear();
+            ++revision;
+            frame.push_transform(Affine::translate(static_cast<float>(revision % 7) * 0.25f, 0));
+            if (kept) frame.append(content, 1, revision);
+            else frame.append(content);
+            frame.pop_transform();
+            s.resume();
+            gpu.draw(s, frame, {nullptr, &glyphs}, Color::white());
+            s.counter("glyphs_made", static_cast<double>(gpu.last.glyphs_kept_made));
+        }
+        s.note("page", std::format("{} glyphs, 4000 cards", glyph_count));
+    });
     add("wall/pan-1000", "1000 windows as textures (about 160 px each), a trackpad pans every frame", [](State& s) {
         Wall w(1000, 40, "bench-wall-pan");
         const auto b = world::scene("bench-wall-pan").bounds();

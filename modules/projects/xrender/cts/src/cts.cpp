@@ -742,6 +742,57 @@ void add(Cases& suite) {
         device->destroy(*target);
     });
 
+    // Glyphs no run keeps, where no mask is made of a glyph, go as the frame's own run (plan §5.9 step c):
+    // a small instance each through the kept pipeline — and every byte what a primitive each gave.
+    add_case(suite, "render.vector.frame-glyphs", mlibs::cts::Level::tolerance, [](Bench& bench) {
+        constexpr std::uint32_t W = 200, H = 150;
+        rhi::Device* device = &bench.device;
+        auto gpu = render::GpuRenderer::create(*device); check(gpu.has_value()); if (!gpu) return;
+        auto target = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, W, H,
+            rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "test.frame-glyphs"});
+        check(target.has_value()); if (!target) return;
+        Rig rig{*device, std::move(*gpu), {}, *target, {}, {}, {}};
+        std::array<render::Glyph, 12> run{};
+        for (std::uint32_t i = 0; i < run.size(); ++i) run[i] = {i % 6, {static_cast<float>(i) * 14.3f, 0}, i, i, 0, 0};
+        std::array<render::GlyphStyle, 12> styles{};
+        styles[1].opacity = 0.5f;
+        styles[2].tint = geom::Color{1, 0, 0, 1};
+        styles[3].transform = geom::Affine::translate(0, -6);
+        styles[4].transform = render::rotate(0.4f);
+        styles[7].opacity = 0;
+        for (float scale : {1.f, 1.5f}) {
+            render::DisplayList dl;
+            dl.fill_rect({0, 0, 200, 150}, geom::Color::hex(0xf8fafc));
+            // Two runs one after the other (one draw), a rectangle between them and the next, a run cut by
+            // its clip (some glyphs wholly outside), one under a turned transform, one too short to be framed.
+            dl.draw_glyphs({1}, 16, {8.4f, 24.6f}, run, render::Paint::solid(geom::Color::hex(0x0f172a)));
+            dl.draw_glyphs({1}, 12, {8, 44}, run, render::Paint::solid(geom::Color{0.1f, 0.3f, 0.8f, 0.7f}), styles);
+            dl.fill_round_rect({6, 52, 150, 30}, geom::CornerRadii::all(6), render::Paint::solid(geom::Color::hex(0xe0e7ff)));
+            dl.push_clip({20, 54, 70, 26});
+            dl.draw_glyphs({1}, 18, {8, 76}, run, render::Paint::solid(geom::Color::hex(0x1d4ed8)));
+            dl.pop_clip();
+            dl.push_transform(geom::Affine::translate(30, 100) * render::rotate(-0.2f) * geom::Affine::scale(1.3f, 0.9f));
+            dl.draw_glyphs({1}, 14, {0, 0}, run, render::Paint::solid(geom::Color::hex(0x7c2d12)), styles);
+            dl.pop_transform();
+            dl.draw_glyphs({1}, 14, {8, 140}, std::span(run).first(6), render::Paint::solid(geom::Color::hex(0x14532d)));
+            const geom::Color background = geom::Color::white();
+            auto apart = rig.gpu.render(dl, rig.target, {&rig.images, &rig.glyphs}, {.scale = scale, .background = background, .glyph_masks = 0, .frame_glyphs = false});
+            auto each = rig.d.read(rig.target, {0, 0, W, H});
+            auto together = rig.gpu.render(dl, rig.target, {&rig.images, &rig.glyphs}, {.scale = scale, .background = background, .glyph_masks = 0});
+            auto framed = rig.d.read(rig.target, {0, 0, W, H});
+            check(apart.has_value() && together.has_value() && each.has_value() && framed.has_value(), "both renders read back");
+            if (!apart || !together || !each || !framed) continue;
+            std::size_t differing = 0;
+            for (std::size_t at = 0; at < each->size(); ++at) differing += (*each)[at] != (*framed)[at];
+            check(differing == 0, std::format("scale {}: {} bytes differ between a primitive each and the frame's run", scale, differing));
+            check(apart->glyphs_framed == 0 && together->glyphs_framed > 20 && together->glyphs_framed < 48,
+                  std::format("scale {}: {} glyphs framed (none where it is off; the faded, the cut and the short run are not)", scale, together->glyphs_framed));
+            check(together->instances + together->glyphs_framed <= apart->instances && together->uploaded < apart->uploaded,
+                  std::format("scale {}: {} primitives and {} bytes with the run, {} and {} without", scale, together->instances, together->uploaded, apart->instances, apart->uploaded));
+        }
+        device->destroy(*target);
+    });
+
     add_case(suite, "render.vector.pixelate-dpi", mlibs::cts::Level::tolerance, [](Bench& bench) {  // pixel grid units strength and identity on the real compute backend at multiple DPI
         rhi::Device* device = &bench.device;
         auto gpu = render::GpuRenderer::create(*device); check(gpu.has_value()); if (!gpu) return;

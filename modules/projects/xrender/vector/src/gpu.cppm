@@ -80,6 +80,11 @@ struct GpuOptions {
     // all, where a surface each is three passes a layer — the same bytes (RenderReport::layers_folded).
     // False: a surface each, what the shared one is checked against.
     bool fold_layers = true;
+    // Where no glyph mask is made (glyph_masks 0), the glyphs no kept run holds go as the frame's own
+    // run: a small instance each (a third of a primitive's bytes) drawn as a kept run's are, the commands
+    // that follow one another under one clip in one draw — the same bytes (RenderReport::glyphs_framed).
+    // False: a primitive each, what the run is checked against.
+    bool frame_glyphs = true;
 };
 
 class GpuRenderer {

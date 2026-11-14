@@ -48,6 +48,7 @@ members = [
     "modules/projects/xrender/scene",
     "modules/projects/xrender/sprite",
     "modules/projects/xrender/mesh",
+    "modules/projects/xrender/particle",
     "modules/projects/xrender/mesh/gpu",
     "modules/projects/xrender/mesh/gpu/cts",
     "modules/projects/xrender/asset",

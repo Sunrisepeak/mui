@@ -16,6 +16,7 @@ A CPU/GPU same-source, Web-first renderer whose pixels agents can review (intern
 | [vector](vector) | 2D vector rendering: the display list, its CPU reference renderer and its GPU renderer |
 | [scene](scene) | `xrender.scene`: what there is to draw in three dimensions and what a view of it sees — instances and lights by stable id, a change list a mirror follows, deterministic culling, sorting and batching; no device |
 | [mesh](mesh) | `xrender.mesh`: meshes drawn, the CPU reference — colour, depth, normal, velocity and an id buffer down to the triangle, the same bits everywhere; what the GPU path is compared with |
+| [particle](particle) | `xrender.particle`: particles drawn, the CPU reference — squares facing the eye over a frame's light, added or laid over (the farthest first), soft at the surfaces behind them; which particle is at a point without a frame |
 | [mesh/gpu](mesh/gpu) | The mesh pass on a device through `mlibs.rhi`: one Slang shader, held to the CPU reference pixel by pixel (5 of 129,600 pixels apart on lavapipe) |
 | [asset](asset) | `xrender.asset`: glTF 2.0 brought in — meshes in clusters, materials, textures, instances and lights under ids that are the file's places, and what was not carried as notes with their place in the document; a mesh ordered for drawing (cgltf and meshoptimizer through their module wraps) |
 | [sprite](sprite) | Pictures on bones in 2D: a region skinned over a grid of cells to a bone and the bones it bends to (gongfu's fighters are its consumer); batching and atlases to come |

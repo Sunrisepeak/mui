@@ -1,0 +1,32 @@
+# xrender.particle — particles drawn (the foundation plan's §5.1, M6.4; D-164, D-184): sparks, embers, smoke,
+# drops — many small squares facing the eye, laid over the light a mesh pass drew, faded where they near what is
+# behind them. This is the CPU reference: the same bits everywhere. A device's path is the same contract's other
+# target and is held to these pixels. What moves them is not here: a carrier steps them (xengine), this draws.
+[package]
+namespace   = "xrender"
+name        = "particle"
+version     = "0.1.0"
+description = "Particles drawn, the CPU reference: squares facing the eye over a frame's light, added or laid over, softened at the surfaces behind them"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+
+[package.metadata.openmui]
+kind  = "module"
+agent = { part = "xrender.frame" }
+
+[targets.xrender-particle]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-O2", "-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+"xrender.mesh" = { path = "../mesh" }
+mlibs.math     = { path = "../../../base/math" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+mlibs.geom     = { path = "../../../base/geom" }
+mlibs.image    = { path = "../../../base/image" }

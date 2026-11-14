@@ -41,10 +41,15 @@ Part of [xrender.frame](../../frame)'s (`agent = { part = "xrender.frame" }`): t
 | Numbers | `Pass::last()`: draws, draws naming nothing loaded, triangles, lamps and lamps left out, casters in the sun's map, lamps with shadows and the views drawn for them |
 | Source | `record_ids`: a pass of its own on an `r32_uint` target — each pixel the place of its draw in the frame's draws (`who(pixels, width, x, y)`), from which the scene gives the instance's stable id. On lavapipe 4 of 129,600 pixels name another draw than the reference's id buffer (an edge's). The triangle under a point is `xrender.mesh`'s `pick`, by a ray |
 
+## The far cut
+
+What lies beyond the view's far plane is cut at each pixel, not by the device's far plane: the pass draws through a projection whose far plane lies beyond the view's (what the eye sees keeps half of the depth's range) and a pixel whose own depth is past the half is not drawn — in the colour pass and in the ids', who's, surface's and velocity's alike, so their pictures cover the same pixels. A device cuts a triangle at its far plane as exactly as it chooses: on Apple's paravirtual device the far edge of the yard's floor fell on a row of the picture differently in one to three frames of sixteen jittered ones (183 pixels of row 70 in the frames gathered, 10 to 19 levels off; red 74), while the same row in a still frame matched. A pixel's depth is worked out at the pixel on every device, as the reference works out its cut. The depth target the pass leaves holds the view in half of its range (0 to 0.5; reversed, 0.5 to 1).
+
 ## Not yet
 
 - **Several targets a pass**: who and the velocity are one drawing of the scene where the device has two colour targets a pass (`record_velocity_and_who`; the two passes where it has one — the same bytes either way, CTS `mesh.velocity-who`); the ids and the surface are still a pass each; normals and the triangle of a pixel are not drawn.
-- **Shadows' cost**: every caster is drawn into every view of every lamp; nothing is left out by what a view can see, and a map is drawn again each frame whether or not anything moved.
+- **Shadows' cost**: a map is drawn again each frame whether or not anything moved (what a light's view cannot hold is left out, cluster by cluster).
+- **The near cut** is the device's own near plane still; the far cut is every pixel's own (below).
 - **The device's own filtering at a slant**: a pixel's strip is still up to eight places taken by the shader, each one read of the texture's levels; the device's own filter along a strip is not in `mlibs.rhi`.
 - **Faces by winding**: the interface has no culling state; a face turned away is discarded by its normal in the shader.
 - **What the eye does not see shuts nothing**: a ray is stepped through the picture of the frame, so the far side of a thing, and things off the picture or behind others, do not darken (the device darkens the yard by 1.45 levels a block where the reference's rays darken it by 1.69). Rays through the scene itself on a device are D-184's step d.

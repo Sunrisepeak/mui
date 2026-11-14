@@ -31,7 +31,7 @@ VOut velocity_vs(VIn corner) {
 }
 
 struct Moved {
-    float4 eye;
+    float4 eye;          // w: 1 or −1 — a pixel whose depth is past the half that way is beyond the view's far cut
     float4 size_jitter;  // xy: the picture's width and height; zw: this frame's jitter, in pixels
     float4 still;        // x: over 0.5 — this thing and the view are where they were: exactly 0
 };
@@ -40,6 +40,7 @@ struct Moved {
 [shader("fragment")]
 float4 velocity_fs(VOut point) : SV_Target {
     if (dot(point.normal, moved.eye.xyz - point.place) < 0) discard;
+    if ((point.clip.z - 0.5) * moved.eye.w > 0) discard;  // beyond the view's far cut
     if (moved.still.x > 0.5 || !(point.before.w > 0)) return float4(0, 0, 0, 1);
     const float2 was = float2(point.before.x / point.before.w * 0.5 + 0.5, 0.5 - point.before.y / point.before.w * 0.5) * moved.size_jitter.xy;
     return float4(point.clip.xy - moved.size_jitter.zw - was, 0, 1);
@@ -55,6 +56,7 @@ struct MovedAndWho {
 [shader("fragment")]
 MovedAndWho velocity_who_fs(VOut point) {
     if (dot(point.normal, moved.eye.xyz - point.place) < 0) discard;
+    if ((point.clip.z - 0.5) * moved.eye.w > 0) discard;  // beyond the view's far cut
     MovedAndWho made;
     made.who = float4(moved.still.y, 0, 0, 1);
     made.velocity = float4(0, 0, 0, 1);

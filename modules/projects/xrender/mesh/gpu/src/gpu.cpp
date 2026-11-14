@@ -37,6 +37,7 @@ struct SurfaceUniforms {
     Row          lamp_shadow;
     Row          picture;
     Row          open;
+    Row          cut;  // x: 1 or −1 — a pixel whose depth is past the half that way is beyond the view
     LampUniforms lamps[most_lamps];
 };
 Row row_of(const Mat4& matrix, int row) { return {matrix.at(0, row), matrix.at(1, row), matrix.at(2, row), matrix.at(3, row)}; }
@@ -48,6 +49,20 @@ Mat4 aside_of(math::Vec2 jitter, std::uint32_t width, std::uint32_t height) {
     if (width > 0 && height > 0) aside.at(3, 0) = 2.0f * jitter.x / static_cast<float>(width), aside.at(3, 1) = -2.0f * jitter.y / static_cast<float>(height);
     return aside;
 }
+
+// The far cut is every pixel's own. The device's far plane is put beyond the view's — what the eye sees keeps the
+// half of the depth's range on its side — and a pixel past the half is not drawn (the shaders' `cut`). Where a
+// device's own far plane cuts a triangle is as exact as the device makes it: on one, the far edge of a floor fell
+// a pixel's row differently in a few frames of sixteen. A pixel's depth is worked out at the pixel on every device,
+// as the reference works out its cut.
+Mat4 further_of(bool reversed) {
+    Mat4 further;
+    further.at(2, 2) = 0.5f;
+    if (reversed) further.at(3, 2) = 0.5f;
+    return further;
+}
+// Which way past the half is beyond the view: the shaders' `cut`.
+constexpr float cut_of(bool reversed) noexcept { return reversed ? -1.0f : 1.0f; }
 
 constexpr std::array<rhi::VertexAttribute, 3> attributes{rhi::VertexAttribute{0, rhi::VertexFormat::float3, 0}, rhi::VertexAttribute{1, rhi::VertexFormat::float3, 12},
                                                          rhi::VertexAttribute{2, rhi::VertexFormat::float2, 24}};
@@ -321,6 +336,7 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
     surface.ambient = of(options.ambient);
     surface.above = of(options.environment.above, options.environment.on ? 1.0f : 0.0f), surface.level = of(options.environment.level), surface.below = of(options.environment.below);
     surface.eye = of(eye, static_cast<float>(last_.lamps));
+    surface.cut = {cut_of(reversed_), 0, 0, 0};
     surface.fog = of(options.fog.colour, options.fog.density);
     surface.fog_shape = {options.fog.base, options.fog.falloff, 0, 0};
 
@@ -465,7 +481,7 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
             continue;
         }
         const scene::Instance& instance = instances[draw.instance];
-        const Mat4 to_clip = aside_of(options.jitter, width, height) * clip * instance.world;
+        const Mat4 to_clip = aside_of(options.jitter, width, height) * further_of(reversed_) * clip * instance.world;
         const std::optional<Mat4> back = math::inverse(instance.world);
         const Mat4 for_normals = back ? math::transposed(*back) : instance.world;
         DrawUniforms uniforms{};
@@ -654,7 +670,7 @@ void Pass::who_pass(rhi::CommandList& list, const scene::Scene& scene, const sce
         const scene::Draw& draw = extracted.draws[number];
         if (draw.instance >= instances.size() || draw.mesh >= meshes_.size() || !meshes_[draw.mesh].corners) continue;
         const scene::Instance& instance = instances[draw.instance];
-        const Mat4 to_clip = clip * instance.world;
+        const Mat4 to_clip = further_of(reversed_) * clip * instance.world;
         const std::optional<Mat4> back = math::inverse(instance.world);
         const Mat4 for_normals = back ? math::transposed(*back) : instance.world;
         DrawUniforms uniforms{};
@@ -663,7 +679,7 @@ void Pass::who_pass(rhi::CommandList& list, const scene::Scene& scene, const sce
         runs_for(meshes_[draw.mesh], instance.world, back, frustum, eye, camera.has_value(), false);
         if (runs_.empty()) continue;
         list.push_uniforms(rhi::Stage::vertex, 0, uniforms);
-        list.push_uniforms(rhi::Stage::fragment, 0, Who{of(eye), by_instance ? static_cast<std::uint32_t>(instance.id & 0xffffffu) + 1 : number + 1, {}});
+        list.push_uniforms(rhi::Stage::fragment, 0, Who{of(eye, cut_of(reversed_)), by_instance ? static_cast<std::uint32_t>(instance.id & 0xffffffu) + 1 : number + 1, {}});
         list.bind_vertex_buffer(0, meshes_[draw.mesh].corners);
         for (const Run& run : runs_) list.draw(run.count, 1, run.first);
     }
@@ -694,7 +710,7 @@ void Pass::velocity_pass(rhi::CommandList& list, const scene::Scene& scene, cons
     struct Moved {
         Row eye, size_jitter, still;
     };
-    const Mat4 clip = view.projection * view.view, drawn_clip = aside_of(options.jitter, width, height) * clip;
+    const Mat4 clip = view.projection * view.view, drawn_clip = aside_of(options.jitter, width, height) * further_of(reversed_) * clip;
     const std::optional<Mat4> camera = math::inverse(view.view);
     const Vec3 eye = camera ? math::point(*camera, {0, 0, 0}) : Vec3{};
     const std::span<const scene::Instance> instances = scene.instances();
@@ -723,7 +739,7 @@ void Pass::velocity_pass(rhi::CommandList& list, const scene::Scene& scene, cons
         for (int row = 0; row < 3; ++row) uniforms.to_world[row] = row_of(instance.world, row), uniforms.normals[row] = row_of(for_normals, row);
         list.push_uniforms(rhi::Stage::vertex, 0, uniforms);
         list.push_uniforms(rhi::Stage::fragment, 0,
-                           Moved{of(eye),
+                           Moved{of(eye, cut_of(reversed_)),
                                  {static_cast<float>(width), static_cast<float>(height), options.jitter.x, options.jitter.y},
                                  {before.values == to_clip.values ? 1.0f : 0.0f, static_cast<float>(static_cast<std::uint32_t>(instance.id & 0xffffffu) + 1), 0, 0}});
         list.bind_vertex_buffer(0, meshes_[draw.mesh].corners);

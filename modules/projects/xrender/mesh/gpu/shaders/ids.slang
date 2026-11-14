@@ -28,7 +28,7 @@ VOut ids_vs(VIn corner) {
 }
 
 struct Who {
-    float4 eye;
+    float4 eye;     // w: 1 or −1 — a pixel whose depth is past the half that way is beyond the view's far cut
     uint   number;  // the draw's place and one more
     uint   spare0, spare1, spare2;
 };
@@ -37,6 +37,7 @@ struct Who {
 [shader("fragment")]
 uint ids_fs(VOut point) : SV_Target {
     if (dot(point.normal, who.eye.xyz - point.place) < 0) discard;
+    if ((point.clip.z - 0.5) * who.eye.w > 0) discard;  // beyond the view's far cut
     return who.number;
 }
 
@@ -45,6 +46,7 @@ uint ids_fs(VOut point) : SV_Target {
 [shader("fragment")]
 float4 who_fs(VOut point) : SV_Target {
     if (dot(point.normal, who.eye.xyz - point.place) < 0) discard;
+    if ((point.clip.z - 0.5) * who.eye.w > 0) discard;  // beyond the view's far cut
     return float4(float(who.number), 0, 0, 1);
 }
 
@@ -55,6 +57,7 @@ float4 who_fs(VOut point) : SV_Target {
 float4 surface_fs(VOut point) : SV_Target {
     const float3 to_eye = who.eye.xyz - point.place;
     if (dot(point.normal, to_eye) < 0) discard;
+    if ((point.clip.z - 0.5) * who.eye.w > 0) discard;  // beyond the view's far cut
     const float3 normal = normalize(point.normal);
     const float3 folded = normal / (abs(normal.x) + abs(normal.y) + abs(normal.z));
     float2 on_square = folded.xy;

@@ -54,6 +54,7 @@ struct Surface {
     float4 lamp_shadow;  // x: a face's side of the lamps' map, in texels; zw: one over the map's width and height
     float4 picture;      // the draw's texture: xy its width and height; z how many sizes (levels) it has (0: none)
     float4 open;         // x: over 0.5 — there is a picture of how open each pixel is; zw: one over its width and height
+    float4 cut;          // x: 1 or −1 — a pixel whose depth is past the half that way is beyond the view's far cut
     Lamp   lamps[8];
 };
 [[vk::binding(0, 2)]] Sampler2D shadow_map : register(t0, space2) : register(s0, space2);
@@ -168,6 +169,8 @@ float4 mesh_fs(VOut point) : SV_Target {
     const float3 to_eye = surface.eye.xyz - point.place;
     // A face turned away is not drawn (the reference leaves it out by its winding; a closed thing's far side).
     if (dot(normal, to_eye) < 0) discard;
+    // Beyond the view: the far cut, taken at the pixel (the device's own far plane lies further off).
+    if ((point.clip.z - 0.5) * surface.cut.x > 0) discard;
     base_colour = surface.base.rgb;
     if (surface.picture.z > 0.5) {
         // How many texels a pixel covers: how far apart the surface's places in the picture are at this pixel and the next.

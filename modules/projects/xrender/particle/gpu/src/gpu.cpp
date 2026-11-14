@@ -13,12 +13,13 @@ struct Pass::Corner {
     float eye[3];
     float square[2];
     float colour[4];
+    float footprint;
 };
 
 namespace {
 
-constexpr std::array<rhi::VertexAttribute, 3> attributes{rhi::VertexAttribute{0, rhi::VertexFormat::float3, 0}, rhi::VertexAttribute{1, rhi::VertexFormat::float2, 12},
-                                                         rhi::VertexAttribute{2, rhi::VertexFormat::float4, 20}};
+constexpr std::array<rhi::VertexAttribute, 4> attributes{rhi::VertexAttribute{0, rhi::VertexFormat::float3, 0}, rhi::VertexAttribute{1, rhi::VertexFormat::float2, 12},
+                                                         rhi::VertexAttribute{2, rhi::VertexFormat::float4, 20}, rhi::VertexAttribute{3, rhi::VertexFormat::float1, 36}};
 struct Row {
     float x = 0, y = 0, z = 0, w = 0;
 };
@@ -73,7 +74,17 @@ void Pass::release() noexcept {
     if (laid_) device_->destroy(laid_);
     if (nearest_) device_->destroy(nearest_);
     if (corners_) device_->destroy(corners_);
+    for (const auto& [picture, sprite] : sprites_) device_->destroy(sprite.texture), device_->destroy(sprite.sampler);
+    sprites_.clear();
     device_ = nullptr;
+}
+
+void Pass::forget(const mesh::Texture* sprite) noexcept {
+    const auto found = sprites_.find(sprite);
+    if (found == sprites_.end() || !device_) return;
+    static_cast<void>(device_->wait_idle());
+    device_->destroy(found->second.texture), device_->destroy(found->second.sampler);
+    sprites_.erase(found);
 }
 
 rhi::Result<void> Pass::record(rhi::CommandList& list, std::span<const Batch> batches, const scene::View& view, rhi::Texture light, rhi::Texture surface, std::uint32_t width,
@@ -96,20 +107,22 @@ rhi::Result<void> Pass::record(rhi::CommandList& list, std::span<const Batch> ba
                 ++last_.outside;
                 continue;
             }
-            if (batches[batch].sprite) {
-                ++last_.pictured;
-                continue;
-            }
+            if (batches[batch].sprite) ++last_.pictured;
             placed.push_back({{middle.x, middle.y, middle.z}, -middle.z, batch, index});
         }
     std::ranges::stable_sort(placed, [](const Placed& one, const Placed& other) { return one.distance > other.distance; });
     laid_out_.clear(), runs_.clear();
+    const float pixels_a_unit = std::abs(view.projection.at(1, 1)) * static_cast<float>(height) * 0.5f;  // at a distance of 1
     for (const Placed& one : placed) {
-        const Particle& particle = batches[one.batch].particles[one.index];
+        const Batch& batch = batches[one.batch];
+        const Particle& particle = batch.particles[one.index];
         const float half = particle.size * 0.5f, cos_turn = math::det::cos(particle.turn), sin_turn = math::det::sin(particle.turn);
+        // The reference's: texels of the picture a pixel covers, its width over the particle's width in pixels.
+        const float across_pixels = 2 * half * pixels_a_unit / one.distance;
+        const float footprint = batch.sprite && across_pixels > 0 ? static_cast<float>(batch.sprite->width) / across_pixels : 1;
         const auto corner = [&](float across, float up) {
             const float right = (across * cos_turn - up * sin_turn) * half, above = (across * sin_turn + up * cos_turn) * half;
-            return Corner{{one.middle.x + right, one.middle.y + above, one.middle.z}, {across, up}, {particle.colour.x, particle.colour.y, particle.colour.z, particle.colour.w}};
+            return Corner{{one.middle.x + right, one.middle.y + above, one.middle.z}, {across, up}, {particle.colour.x, particle.colour.y, particle.colour.z, particle.colour.w}, footprint};
         };
         const Corner low_left = corner(-1, -1), low_right = corner(1, -1), high_right = corner(1, 1), high_left = corner(-1, 1);
         if (runs_.empty() || runs_.back().batch != one.batch) runs_.push_back({one.batch, static_cast<std::uint32_t>(laid_out_.size()), 0});
@@ -130,6 +143,20 @@ rhi::Result<void> Pass::record(rhi::CommandList& list, std::span<const Batch> ba
         corners_ = *buffer, room_ = room;
     }
     list.upload(corners_, 0, std::span<const Corner>(laid_out_));
+    // Each picture a run reads, on the device the first time it is seen.
+    for (const Run& run : runs_) {
+        const mesh::Texture* picture = batches[run.batch].sprite;
+        if (!picture || sprites_.contains(picture)) continue;
+        auto texture = mesh::gpu::picture_on(*device_, list, *picture, "xrender.particle.sprite");
+        if (!texture) return std::unexpected(texture.error());
+        auto sampler = device_->create(mesh::gpu::sampler_of(*picture));
+        if (!sampler) {
+            device_->destroy(*texture);
+            return std::unexpected(sampler.error());
+        }
+        sprites_.emplace(picture, Sprite{*texture, *sampler});
+        ++last_.uploaded;
+    }
     struct ViewUniforms {
         Row projection[4];
     } seen{};
@@ -141,8 +168,17 @@ rhi::Result<void> Pass::record(rhi::CommandList& list, std::span<const Batch> ba
         const bool over = batch.blend == Blend::over;
         list.set_pipeline(over ? laid_ : added_);
         list.push_uniforms(rhi::Stage::vertex, 0, seen);
-        list.push_uniforms(rhi::Stage::fragment, 0, Row{static_cast<float>(width), static_cast<float>(height), batch.soft, over ? 1.0f : 0.0f});
+        const Sprite* sprite = batch.sprite ? &sprites_.at(batch.sprite) : nullptr;
+        const float sizes = batch.sprite ? static_cast<float>(std::min(static_cast<std::uint32_t>(batch.sprite->sizes.size()),
+                                                                        rhi::levels_of(static_cast<std::uint32_t>(batch.sprite->width), static_cast<std::uint32_t>(batch.sprite->height))))
+                                         : 0.0f;
+        const struct {
+            Row frame, picture;
+        } told{{static_cast<float>(width), static_cast<float>(height), batch.soft, over ? 1.0f : 0.0f}, {sprite ? 1.0f : 0.0f, sizes, 0, 0}};
+        list.push_uniforms(rhi::Stage::fragment, 0, told);
         list.bind_texture(rhi::Stage::fragment, 0, surface, nearest_);
+        // A run with no picture reads none: the surface stands in the slot.
+        list.bind_texture(rhi::Stage::fragment, 1, sprite ? sprite->texture : surface, sprite ? sprite->sampler : nearest_);
         list.bind_vertex_buffer(0, corners_);
         list.draw(run.count, 1, run.first);
     }

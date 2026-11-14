@@ -17,7 +17,7 @@ const auto spark = particle::pick(batches, view, x, y, frame.width, frame.height
 | | |
 |---|---|
 | **A particle** | Its middle in the world, its width, its light (linear, not held to 1: a spark brighter than white glows through `Glow`) and how much it hides, a turn about the way to the eye, its carrier's number for it |
-| **Shape** | A round spot, whole to half its radius and smooth to nothing at its edge; or a picture (`Batch::sprite`, an `xrender.mesh` `Texture`): its light times the particle's, its cover how much is there, read at the size the particle is on the screen |
+| **Shape** | A round spot, whole to half its radius and smooth to nothing at its edge; or a picture (`Batch::sprite`, an `xrender.mesh` `Texture`): its light times its cover times the particle's light, its cover how much is there, read at the size the particle is on the screen — a half-clear texel gives half its light, as a spot's edge does |
 | **Where a pixel takes it** | The eye's ray through the pixel's middle meets the particle's square (in the plane facing the eye at its middle): inside, the shape there. Exact for any projection; a turn turns the shape and the square |
 | **Order** | Every particle of every batch, the farthest first; at one distance, in the batches' order. `add` puts its light on; `over` lays it on by what it hides (the light under it and `Targets::clear` less by that share) — the same picture whatever order a carrier gives them in |
 | **Soft at surfaces** | Within `soft` of what the frame's depth says is behind it, a particle fades in proportion; behind a surface it is not there; `soft` 0 cuts it where it goes in |
@@ -35,7 +35,7 @@ Part of the frame's subject ([xrender.frame](../frame)); what this package gives
 
 ## Against the strongest
 
-The engines' particle renderers (Unreal's Niagara sprite renderer, Unity's VFX Graph, Godot's GPUParticles3D) draw camera-facing quads on the device, soft by the depth buffer, sorted per system. Here: the same model, and a CPU reference they do not have — each pixel's answer is the same bits on every machine, so a device's path is held to it pixel by pixel, and an agent can ask which particle is at a point (`pick`) without a frame. Its device path is [gpu](gpu) (`xrender.particle.gpu`), held to these pixels by its suite. Behind: a picture's particles on a device, no light falling on a particle from the scene's lamps (a particle gives its own), no sorting cost measured.
+The engines' particle renderers (Unreal's Niagara sprite renderer, Unity's VFX Graph, Godot's GPUParticles3D) draw camera-facing quads on the device, soft by the depth buffer, sorted per system. Here: the same model, and a CPU reference they do not have — each pixel's answer is the same bits on every machine, so a device's path is held to it pixel by pixel, and an agent can ask which particle is at a point (`pick`) without a frame. Its device path is [gpu](gpu) (`xrender.particle.gpu`), held to these pixels by its suite. Behind: no light falling on a particle from the scene's lamps (a particle gives its own), no sorting cost measured.
 
 ```sh
 mcpp test -p xrender.particle

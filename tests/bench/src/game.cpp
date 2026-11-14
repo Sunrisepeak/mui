@@ -6,6 +6,7 @@ import omui.showcase.fighting;
 import gongfu;
 import gongfu.present2d;
 import omui.showcase.widget_breakout.sim;
+import xengine.world;
 
 namespace omui::bench {
 
@@ -88,7 +89,59 @@ bo::Input breakout_player(const bo::State& s) {
 
 }  // namespace
 
+namespace chunked {
+struct Position {
+    float x = 0, y = 0, z = 0;
+    static constexpr bool no_padding = true;
+};
+struct Velocity {
+    float x = 0, y = 0, z = 0;
+    static constexpr bool no_padding = true;
+};
+struct Health {
+    std::uint32_t points = 0;
+};
+using World = xengine::Chunked<Position, Velocity, Health>;
+// 100,000 entities, all with a place, two in three moving, one in five with health.
+World made() {
+    World world;
+    for (std::uint32_t index = 0; index < 100000; ++index) {
+        const auto id = world.create();
+        world.add(id, Position{static_cast<float>(index % 1000), 0, static_cast<float>(index / 1000)});
+        if (index % 3) world.add(id, Velocity{1, 0, 0.5f});
+        if (index % 5 == 0) world.add(id, Health{100});
+    }
+    return world;
+}
+}  // namespace chunked
+
 void add_game_benchmarks() {
+    add("world/chunked-branch-100k", "a branch of a world of 100,000 entities (xengine.world's Chunked, 1,565 chunks): the copy, one entity written in it, the two compared — what a snapshot, a rewind point or an agent's what-if costs (D-169)",
+        [](State& s) {
+            const chunked::World world = chunked::made();
+            std::uint64_t which = 0;
+            while (s.next()) {
+                chunked::World branch = world;
+                which = which % 100000 + 1;
+                branch.edit<chunked::Position>(which)->y += 1;
+                if (branch.changed_since(world).chunks_own != 1) s.note("wrong", "a write made more than one chunk its own");
+            }
+            s.note("scope", "one thread; the copy shares every chunk and directory page, the write copies one chunk; World<N>'s block form copies every byte instead");
+        });
+    add("world/chunked-step-100k", "a step over a branched world of 100,000 entities: each moving entity's place by its speed (66,667 of them), every chunk they are in copied once since the branch shares it",
+        [](State& s) {
+            const chunked::World world = chunked::made();
+            while (s.next()) {
+                s.pause();
+                chunked::World branch = world;
+                s.resume();
+                branch.each<chunked::Position, const chunked::Velocity>([](chunked::World::Id, chunked::Position& at, const chunked::Velocity& by) {
+                    at.x += by.x * (1.0f / 60), at.z += by.z * (1.0f / 60);
+                });
+            }
+            s.items(66667);
+            s.note("scope", "one thread; the first write to each shared chunk copies it (the worst case of a branch: all of them), the copy itself not timed");
+        });
     add("breakout/step", "one step of the widget breakout's simulation over a full wall: paddles, swept balls (several), bricks, capsules (xengine S4 design §5)", [](State& s) {
         bo::State st = bo::start(breakout_wall());
         for (int i = 0; i < 600; ++i) bo::step(st, breakout_player(st));  // under way: balls in the wall

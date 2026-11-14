@@ -26,5 +26,7 @@ mlibs.shader.rules = { path = "../../../../gfx/shader/rules", host-module = true
 
 [dependencies]
 "xrender.particle" = { path = ".." }
+# A batch's picture on the device: the one way pictures are put there (`picture_on`, `sampler_of`).
+"xrender.mesh.gpu" = { path = "../../mesh/gpu" }
 mlibs.rhi          = { path = "../../../../gfx/rhi" }
 mlibs.math         = { path = "../../../../base/math" }

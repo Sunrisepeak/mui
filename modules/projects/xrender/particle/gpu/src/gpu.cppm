@@ -9,12 +9,14 @@
 // first) as squares facing the eye: one buffer of corners a frame, drawn in runs of one batch. A pixel takes a
 // particle where its middle is inside the square, its shape the reference's round spot at its place there, faded
 // by how near it is along the eye's ray to the surface behind (`record_surface`'s distance). `add` adds its light;
-// `over` lays it on by how much it hides (premultiplied). A batch with a picture (`Batch::sprite`) is not drawn
-// here yet: `Stats::pictured` counts its particles.
+// `over` lays it on by how much it hides (premultiplied). A batch's picture (`Batch::sprite`) is put on the device
+// the first time it is seen (`xrender.mesh.gpu`'s `picture_on`, on the frame's list) and read at the size the
+// reference reads it — each particle's texels a pixel, the same mix between two sizes.
 export module xrender.particle.gpu;
 
 import std;
 export import xrender.particle;
+export import xrender.mesh.gpu;
 export import mlibs.rhi;
 export import :particle_shaders;
 
@@ -22,7 +24,8 @@ export namespace xrender::particle::gpu {
 
 struct Stats {
     std::uint32_t particles = 0, outside = 0, runs = 0;
-    std::uint32_t pictured = 0;  // of a batch with a sprite: left out on a device for now
+    std::uint32_t pictured = 0;  // of a batch with a sprite
+    std::uint32_t uploaded = 0;  // pictures put on the device this frame (each the first time it is seen)
 };
 
 class Pass {
@@ -41,6 +44,9 @@ public:
     [[nodiscard]] mlibs::rhi::Result<void> record(mlibs::rhi::CommandList& list, std::span<const Batch> batches, const scene::View& view, mlibs::rhi::Texture light,
                                                   mlibs::rhi::Texture surface, std::uint32_t width, std::uint32_t height);
     [[nodiscard]] const Stats& last() const noexcept { return last_; }
+    // A picture is kept on the device by its address; one changed in place (or gone) is let go here and put there
+    // again the next time it is seen.
+    void forget(const mesh::Texture* sprite) noexcept;
 
 private:
     Pass() = default;
@@ -67,6 +73,11 @@ private:
     std::uint32_t                room_ = 0;  // corners the buffer holds
     std::vector<Corner>          laid_out_;
     std::vector<Run>             runs_;
+    struct Sprite {
+        mlibs::rhi::Texture texture;
+        mlibs::rhi::Sampler sampler;
+    };
+    std::map<const mesh::Texture*, Sprite> sprites_;
     Stats                        last_;
 };
 

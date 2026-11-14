@@ -369,4 +369,13 @@ private:
 // least first): its place in the frame's draws, or `none`.
 [[nodiscard]] std::uint32_t who(std::span<const std::byte> pixels, std::uint32_t width, std::uint32_t x, std::uint32_t y) noexcept;
 
+// A picture (`xrender.mesh`'s `Texture`) on a device, the one way every pass puts one there: each of its sizes a
+// level (the finest the first), rgba16_float — its light times its cover, and its cover — written on `list`.
+// Read between texels and between sizes, it is what `Texture::seen_at` sums before it parts the light from the
+// cover. The texture is the caller's to destroy.
+[[nodiscard]] mlibs::rhi::Result<mlibs::rhi::Texture> picture_on(mlibs::rhi::Device& device, mlibs::rhi::CommandList& list, const Texture& picture,
+                                                                  std::string_view label = "xrender.mesh.picture");
+// How a picture is read: linear between texels and sizes, past its edges as it says (`Texture::across`, `down`).
+[[nodiscard]] mlibs::rhi::SamplerDesc sampler_of(const Texture& picture) noexcept;
+
 }  // namespace xrender::mesh::gpu

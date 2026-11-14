@@ -59,6 +59,8 @@ omui.showcase.markdown_wall   = { path = "../../showcase/markdown-wall" }
 omui.showcase.style_gallery = { path = "../../showcase/style-gallery" }
 omui.showcase.fighting = { path = "../../showcase/fighting" }
 omui.showcase.widget_breakout.sim = { path = "../../showcase/widget-breakout/sim" }
+# A chunked world branched and stepped (world/chunked-*).
+xengine.world = { path = "../../modules/projects/xengine/game/world" }
 "gongfu"                  = { path = "../../modules/projects/gongfu" }
 "gongfu.present2d"      = { path = "../../modules/projects/gongfu/present2d" }
 omui.theme.styles    = { path = "../../modules/projects/omui/theme/styles" }

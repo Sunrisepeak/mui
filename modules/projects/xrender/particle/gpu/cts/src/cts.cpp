@@ -137,6 +137,52 @@ std::vector<math::Vec3> on_cpu(const Room& room, std::span<const particle::Batch
 struct Rig {
     rhi::Device& device;
 };
+// What the particles change on the device against what they change in the reference: pixels changed, those further
+// than 2% (of the change's largest part, at least 0.02), the mean and the worst.
+struct Compared {
+    std::size_t changed = 0, off = 0;
+    double      mean = 0, worst = 0;
+};
+std::optional<Compared> compared(Rig& rig, const Room& room, std::span<const particle::Batch> batches, std::string_view what) {
+    const auto bare = on_device(rig.device, room, {}), drawn = on_device(rig.device, room, batches);
+    if (!bare || !drawn) return std::nullopt;
+    const std::vector<math::Vec3> reference_bare = on_cpu(room, {}), reference = on_cpu(room, batches);
+    Compared out;
+    double sum = 0;
+    for (std::size_t pixel = 0; pixel < reference.size(); ++pixel) {
+        const math::Vec3 truth = reference[pixel] - reference_bare[pixel], device_change = (*drawn)[pixel] - (*bare)[pixel];
+        if (math::length(truth) < 1e-3f && math::length(device_change) < 1e-3f) continue;
+        ++out.changed;
+        const float apart = std::max({std::abs(truth.x - device_change.x), std::abs(truth.y - device_change.y), std::abs(truth.z - device_change.z)});
+        const float allowed = 0.02f + 0.02f * std::max({std::abs(truth.x), std::abs(truth.y), std::abs(truth.z)});
+        out.off += apart > allowed, sum += apart, out.worst = std::max(out.worst, static_cast<double>(apart));
+    }
+    out.mean = out.changed ? sum / static_cast<double>(out.changed) : 0.0;
+    std::println("{} on {}: {} pixels changed; {} further than 2% from the reference's change ({:.2f}%), mean {:.4f}, worst {:.3f}", what, rig.device.caps().device, out.changed, out.off,
+                 out.changed ? 100.0 * static_cast<double>(out.off) / static_cast<double>(out.changed) : 0.0, out.mean, out.worst);
+    return out;
+}
+
+// A puff (a soft round cloud, its cover falling from the middle out, grey with a lighter top) and a spark's ring,
+// 64 × 64 — read at many sizes as the particles near and leave the eye.
+struct Pictures {
+    mesh::Texture puff, ring;
+    Pictures() {
+        std::vector<std::uint8_t> puffed(64 * 64 * 4, 0), ringed(64 * 64 * 4, 0);
+        for (int y = 0; y < 64; ++y)
+            for (int x = 0; x < 64; ++x) {
+                const float radius = std::hypot(x + 0.5f - 32, y + 0.5f - 32) / 32;
+                const std::size_t at = static_cast<std::size_t>(y * 64 + x) * 4;
+                const float there = std::clamp(1 - radius, 0.0f, 1.0f);
+                const auto byte = [](float value) { return static_cast<std::uint8_t>(std::clamp(value, 0.0f, 1.0f) * 255 + 0.5f); };
+                puffed[at] = puffed[at + 1] = byte(0.55f + 0.35f * (1 - static_cast<float>(y) / 63)), puffed[at + 2] = byte(0.65f), puffed[at + 3] = byte(there * there * 1.4f);
+                const float band = std::clamp(1 - std::abs(radius - 0.7f) * 6, 0.0f, 1.0f);
+                ringed[at] = ringed[at + 1] = ringed[at + 2] = 255, ringed[at + 3] = byte(band);
+            }
+        puff = *mesh::Texture::made(puffed, 64, 64), ring = *mesh::Texture::made(ringed, 64, 64);
+    }
+};
+
 struct Listed {
     std::string               id;
     std::function<void(Rig&)> body;
@@ -151,25 +197,13 @@ Cases suite_of() {
         const Particles made;
         const std::array<particle::Batch, 2> batches{particle::Batch{.particles = made.sparks, .blend = particle::Blend::add, .soft = 0.05f, .id = 40},
                                                      particle::Batch{.particles = made.puffs, .blend = particle::Blend::over, .soft = 0.4f, .id = 41}};
-        const auto bare = on_device(rig.device, room, {}), drawn = on_device(rig.device, room, batches);
-        if (!bare || !drawn) return;
-        const std::vector<math::Vec3> reference_bare = on_cpu(room, {}), reference = on_cpu(room, batches);
-        // What the particles changed, on each side.
-        std::size_t changed = 0, off = 0;
-        double sum = 0, worst = 0;
-        for (std::size_t pixel = 0; pixel < reference.size(); ++pixel) {
-            const math::Vec3 truth = reference[pixel] - reference_bare[pixel], device_change = (*drawn)[pixel] - (*bare)[pixel];
-            if (math::length(truth) < 1e-3f && math::length(device_change) < 1e-3f) continue;
-            ++changed;
-            const float apart = std::max({std::abs(truth.x - device_change.x), std::abs(truth.y - device_change.y), std::abs(truth.z - device_change.z)});
-            const float allowed = 0.02f + 0.02f * std::max({std::abs(truth.x), std::abs(truth.y), std::abs(truth.z)});
-            off += apart > allowed, sum += apart, worst = std::max(worst, static_cast<double>(apart));
-        }
-        std::println("particles over a room on {}: {} pixels changed; {} further than 2% from the reference's change ({:.2f}%), mean {:.4f}, worst {:.3f}", rig.device.caps().device, changed, off,
-                     changed ? 100.0 * static_cast<double>(off) / static_cast<double>(changed) : 0.0, changed ? sum / static_cast<double>(changed) : 0.0, worst);
-        expect(changed > 2000) << changed << " pixels changed";
-        expect(static_cast<double>(off) < 0.01 * static_cast<double>(changed)) << off << " of " << changed;
-        expect((changed ? sum / static_cast<double>(changed) : 0.0) < 0.01);
+        const auto found = compared(rig, room, batches, "particles over a room");
+        if (!found) return;
+        expect(found->changed > 2000) << found->changed << " pixels changed";
+        expect(static_cast<double>(found->off) < 0.01 * static_cast<double>(found->changed)) << found->off << " of " << found->changed;
+        expect(found->mean < 0.01);
+        const auto drawn = on_device(rig.device, room, batches);
+        if (!drawn) return;
         // In any order given, the same picture: the device lays them out as the reference does.
         std::vector<particle::Particle> backwards(made.puffs.rbegin(), made.puffs.rend()), sparks_backwards(made.sparks.rbegin(), made.sparks.rend());
         const std::array<particle::Batch, 2> reordered{particle::Batch{.particles = sparks_backwards, .blend = particle::Blend::add, .soft = 0.05f, .id = 40},
@@ -179,6 +213,25 @@ Cases suite_of() {
         std::size_t differing = 0;
         for (std::size_t pixel = 0; pixel < again->size(); ++pixel) differing += math::length((*again)[pixel] - (*drawn)[pixel]) > 2e-3f;
         expect(differing < 50) << differing << " pixels differ with the particles given backwards";
+    }});
+    // a picture's particles on the device are the reference's: smoke laid over by its soft cover, rings added, read at the size the reference reads, between two sizes as it does
+    suite.push_back({"particle.pictured", [](Rig& rig) {
+        const Room room;
+        const Particles made;
+        const Pictures pictures;
+        // Rings near and far (their texels a pixel from under 1 to over 8), the puffs as the room's.
+        std::vector<particle::Particle> rings;
+        for (std::uint32_t index = 0; index < 16; ++index) {
+            const float far = static_cast<float>(index) / 15;
+            rings.push_back({.at = {-1.6f + 3.2f * far, 0.4f + 0.6f * far, -0.4f - 2.2f * far}, .size = 0.12f + 0.5f * (1 - far), .colour = {1.6f, 1.2f, 0.5f, 1}, .turn = static_cast<float>(index), .id = index});
+        }
+        const std::array<particle::Batch, 2> batches{particle::Batch{.particles = rings, .blend = particle::Blend::add, .soft = 0.05f, .sprite = &pictures.ring, .id = 50},
+                                                     particle::Batch{.particles = made.puffs, .blend = particle::Blend::over, .soft = 0.4f, .sprite = &pictures.puff, .id = 51}};
+        const auto found = compared(rig, room, batches, "pictured particles over a room");
+        if (!found) return;
+        expect(found->changed > 2000) << found->changed << " pixels changed";
+        expect(static_cast<double>(found->off) < 0.01 * static_cast<double>(found->changed)) << found->off << " of " << found->changed;
+        expect(found->mean < 0.01);
     }});
     return suite;
 }

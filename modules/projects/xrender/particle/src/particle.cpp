@@ -67,8 +67,10 @@ Shape shape_at(const Batch& batch, Vec2 at, float footprint) noexcept {
         const float cover = spot(at);
         return {{cover, cover, cover}, cover};
     }
+    // `seen_at` gives the light of what is there; the shape's light is what it gives, so times its cover — as the
+    // spot's (a half-clear texel adds half its light, and lays on half).
     const mesh::Texture::Seen seen = batch.sprite->seen_at({(at.x + 1) * 0.5f, (1 - at.y) * 0.5f}, footprint);
-    return {seen.light, seen.cover};
+    return {seen.light * seen.cover, seen.cover};
 }
 
 std::vector<Placed> placed_of(std::span<const Batch> batches, const Mat4& view, std::uint32_t& outside) {

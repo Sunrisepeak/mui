@@ -154,5 +154,22 @@ UTest cases{"xrender.particle", [] {
         const int quarter = static_cast<int>(across * 0.25f);
         expect(gt(stripe_at(0, -quarter, 0), 0.9f) && eq(stripe_at(0, quarter, 0), 0.0f)) << "left, not right";
         expect(gt(stripe_at(1.5707964f, 0, quarter), 0.9f) && eq(stripe_at(1.5707964f, 0, -quarter), 0.0f)) << "turned a quarter: below, not above";
+
+        // Half clear: a white picture whose every texel hides half. Added, it gives half its light; laid over a
+        // light of 1, it hides half of it and gives half of its own — the same as a spot's middle at half its alpha.
+        std::vector<std::uint8_t> half(16 * 16 * 4, 255);
+        for (std::size_t texel = 0; texel < 16 * 16; ++texel) half[texel * 4 + 3] = 128;
+        const mesh::Texture misty = *mesh::Texture::made(half, 16, 16);
+        const auto middle_of = [&](particle::Blend blend, const mesh::Texture* sprite, float alpha) {
+            mesh::Targets drawn = room.frame();
+            for (math::Vec3& light : drawn.light) light = {1, 1, 1};
+            const std::array<particle::Particle, 1> lone{{{.at = {0, 0, -3}, .size = 1, .colour = {0.5f, 0.5f, 0.5f, alpha}}}};
+            particle::draw(std::array<particle::Batch, 1>{{{.particles = lone, .blend = blend, .sprite = sprite}}}, room.view, drawn);
+            return drawn.light[static_cast<std::size_t>(height / 2) * width + static_cast<std::size_t>(width / 2)].x;
+        };
+        const float share = 128.0f / 255;
+        expect(lt(std::abs(middle_of(particle::Blend::add, &misty, 1) - (1 + 0.5f * share)), 1e-4f)) << "added: half its light";
+        expect(lt(std::abs(middle_of(particle::Blend::over, &misty, 1) - (1 - share + 0.5f * share)), 1e-4f)) << "laid over: half hidden, half given";
+        expect(lt(std::abs(middle_of(particle::Blend::over, &misty, 1) - middle_of(particle::Blend::over, nullptr, share)), 1e-4f)) << "as a spot at that alpha";
     };
 }};

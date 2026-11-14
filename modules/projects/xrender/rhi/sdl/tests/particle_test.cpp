@@ -23,7 +23,7 @@ UTest cases{"particle.gpu.sdl", [] {
             else std::println("no GPU device here ({}); set OMUI_REQUIRE_GPU=1 to make that a failure", device.error().message);
             return;
         }
-        expect(eq(xrender::particle::gpu::cts::cases().size(), std::size_t{1}));
+        expect(eq(xrender::particle::gpu::cts::cases().size(), std::size_t{2}));
         xrender::particle::gpu::cts::declare(**device, {.subject = (*device)->caps().device});
     };
 }};

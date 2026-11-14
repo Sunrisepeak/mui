@@ -598,45 +598,57 @@ rhi::Result<void> Pass::load_surroundings(const Surroundings* surroundings) {
     return device_->wait(*submitted);
 }
 
+rhi::Result<rhi::Texture> picture_on(rhi::Device& device, rhi::CommandList& list, const Texture& picture, std::string_view label) {
+    const std::uint32_t wide = static_cast<std::uint32_t>(picture.width), high = static_cast<std::uint32_t>(picture.height);
+    const std::uint32_t sizes = std::min(static_cast<std::uint32_t>(picture.sizes.size()), rhi::levels_of(wide, high));
+    if (!sizes) return std::unexpected(rhi::fail(rhi::Errc::invalid, "a picture with no sizes"));
+    auto made = device.create(rhi::TextureDesc{.format = rhi::Format::rgba16_float, .width = wide, .height = high, .usage = rhi::TextureUsage::sampled, .label = label, .levels = sizes});
+    if (!made) return std::unexpected(made.error());
+    std::vector<std::uint16_t> texels;
+    for (std::uint32_t size = 0; size < sizes; ++size) {
+        const std::uint32_t size_wide = rhi::level_extent(wide, size), size_high = rhi::level_extent(high, size);
+        texels.resize(static_cast<std::size_t>(size_wide) * size_high * 4);
+        for (std::size_t texel = 0; texel < static_cast<std::size_t>(size_wide) * size_high; ++texel) {
+            const Vec3 light = picture.light[picture.sizes[size] + texel];
+            // The fourth: how much the texel hides (the light is already times it, `Texture::cover`).
+            const float hides = picture.cover.empty() ? 1.0f : picture.cover[picture.sizes[size] + texel];
+            texels[texel * 4] = half_of(light.x), texels[texel * 4 + 1] = half_of(light.y), texels[texel * 4 + 2] = half_of(light.z), texels[texel * 4 + 3] = half_of(hides);
+        }
+        list.upload(*made, rhi::Region{0, 0, size_wide, size_high}, std::as_bytes(std::span<const std::uint16_t>(texels)), 0, size);
+    }
+    return *made;
+}
+
+rhi::SamplerDesc sampler_of(const Texture& picture) noexcept {
+    const auto mode = [](Edge edge) { return edge == Edge::mirrors ? rhi::AddressMode::mirror : edge == Edge::stops ? rhi::AddressMode::clamp : rhi::AddressMode::repeat; };
+    return rhi::SamplerDesc{rhi::Filter::linear, rhi::Filter::linear, mode(picture.across), mode(picture.down), rhi::Filter::linear};
+}
+
 rhi::Result<void> Pass::load_textures(std::span<const Texture* const> textures) {
     static_cast<void>(device_->wait_idle());
     for (const Sheet& sheet : textures_)
         if (sheet.texture) device_->destroy(sheet.texture);
     textures_.assign(textures.size(), {});
     rhi::CommandList list;
-    std::vector<std::uint16_t> texels;
     for (std::size_t which = 0; which < textures.size(); ++which) {
         if (!textures[which] || textures[which]->sizes.empty()) continue;
         const Texture& picture = *textures[which];
-        // Each of its sizes a level of the texture: the finest the first.
-        const std::uint32_t wide = static_cast<std::uint32_t>(picture.width), high = static_cast<std::uint32_t>(picture.height);
-        const std::uint32_t sizes = std::min(static_cast<std::uint32_t>(picture.sizes.size()), rhi::levels_of(wide, high));
-        auto made = device_->create(rhi::TextureDesc{.format = rhi::Format::rgba16_float, .width = wide, .height = high, .usage = rhi::TextureUsage::sampled, .label = "xrender.mesh.picture", .levels = sizes});
+        auto made = picture_on(*device_, list, picture);
         if (!made) return std::unexpected(made.error());
         // Its sampler: by what the picture is past its edges.
         rhi::Sampler through = pictures_;
         if (picture.across != Edge::repeats || picture.down != Edge::repeats) {
-            const auto mode = [](Edge edge) { return edge == Edge::mirrors ? rhi::AddressMode::mirror : edge == Edge::stops ? rhi::AddressMode::clamp : rhi::AddressMode::repeat; };
             rhi::Sampler& edged = edged_[static_cast<std::size_t>(picture.across) * 3 + static_cast<std::size_t>(picture.down)];
             if (!edged) {
-                auto sampler = device_->create(rhi::SamplerDesc{rhi::Filter::linear, rhi::Filter::linear, mode(picture.across), mode(picture.down), rhi::Filter::linear});
+                auto sampler = device_->create(sampler_of(picture));
                 if (!sampler) return std::unexpected(sampler.error());
                 edged = *sampler;
             }
             through = edged;
         }
+        const std::uint32_t wide = static_cast<std::uint32_t>(picture.width), high = static_cast<std::uint32_t>(picture.height);
+        const std::uint32_t sizes = std::min(static_cast<std::uint32_t>(picture.sizes.size()), rhi::levels_of(wide, high));
         textures_[which] = {*made, static_cast<float>(wide), static_cast<float>(high), static_cast<float>(sizes), through, static_cast<float>(picture.across), static_cast<float>(picture.down)};
-        for (std::uint32_t size = 0; size < sizes; ++size) {
-            const std::uint32_t size_wide = rhi::level_extent(wide, size), size_high = rhi::level_extent(high, size);
-            texels.resize(static_cast<std::size_t>(size_wide) * size_high * 4);
-            for (std::size_t texel = 0; texel < static_cast<std::size_t>(size_wide) * size_high; ++texel) {
-                const Vec3 light = picture.light[picture.sizes[size] + texel];
-                // The fourth: how much the texel hides (the light is already times it, `Texture::cover`).
-                const float hides = picture.cover.empty() ? 1.0f : picture.cover[picture.sizes[size] + texel];
-                texels[texel * 4] = half_of(light.x), texels[texel * 4 + 1] = half_of(light.y), texels[texel * 4 + 2] = half_of(light.z), texels[texel * 4 + 3] = half_of(hides);
-            }
-            list.upload(*made, rhi::Region{0, 0, size_wide, size_high}, std::as_bytes(std::span<const std::uint16_t>(texels)), 0, size);
-        }
     }
     if (!list.empty()) {
         auto submitted = device_->submit(list);

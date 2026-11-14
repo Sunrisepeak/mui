@@ -1,0 +1,68 @@
+# xengine.audio — sound for openmui and its games (D-86): sounds as data
+# (*.sound.omui.ts: layered oscillators and noise, gliding pitch and
+# filters, envelopes) and music as data (*.music.omui.ts: synthesised
+# instruments, patterns as text, sections whose layers play by intensity, an
+# arrangement), voices mixed into buses through their effects into a limited
+# master, a block at a time with nothing allocated, every sample a function
+# of what was played and when: an offline render is the same bits on every
+# platform. Devices and codecs are plugins (xengine.audio.device).
+# An independent component (D-55): the standard library, mlibs.math (its
+# deterministic math), mlibs.trace (spans in category "audio"), mlibs.json
+# (the files' JSON, as their modules evaluate to) and, for the omui-music
+# tool's JSON, nlohmann.json.
+#
+#   mcpp run --release omui-music -- render piece.music.omui.json --out x.wav --seconds 60
+[package]
+namespace   = "xengine"
+name        = "audio"
+version     = "0.1.0"
+description = "Sounds and music as data, mixed in blocks with nothing allocated, rendered the same bits everywhere"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+
+[targets.openmui-audio]
+kind = "lib"
+
+[targets.omui-music]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+# What matter sounds like, made from what it is (src/matter/, module xengine.audio.matter; D-183): an event's
+# shape of sound, each material's from its own properties. A feature, on by default (so the package's own tests
+# build it); one that wants audio and no matter says `default-features = false`.
+[features]
+default = ["matter", "space"]
+matter = { sources = ["src/matter/*.cppm", "src/matter/*.cpp"] }
+# Sound in a place and what the ears hear of it (src/space/, module xengine.audio.space; the plan's M6.4, S2 and S5):
+# each ear reads the sound a distance behind the clock — arrival, Doppler and the ears' time difference from one
+# rule — with level, air, head shade and walls; `heard()` is what reached each ear, as data. On by default: it adds
+# only `mlibs.geom` (the walls' rays).
+space = { sources = ["src/space/*.cppm", "src/space/*.cpp"] }
+
+[feature-deps.matter]
+# The kernel alone — the table and its plan, no JSON.
+xengine.matter = { path = "../matter", default-features = false }
+
+[feature-deps.space]
+mlibs.geom = { path = "../../../../base/geom" }
+
+[dependencies]
+mlibs.math = { path = "../../../../base/math" }
+mlibs.utils = { path = "../../../../base/utils" }
+mlibs.json = { path = "../../../../base/json" }
+nlohmann.json       = "3.12.0"
+# omui-music's command line (the tool target).
+mcpplibs.cmdline    = "0.0.3"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+# tests/matter_test.cpp: the standard definition, read, with the pack of acoustics over it.
+xengine.matter = { path = "../matter" }

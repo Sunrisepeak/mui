@@ -1,0 +1,25 @@
+# Shared authorization and call authority for UI and independent engines.
+[package]
+namespace = "mlibs"
+name = "control"
+version = "0.1.0"
+description = "Independent openas policy, trusted sessions and invocation authority"
+license = "Apache-2.0"
+platforms = ["linux", "macos", "windows", "emscripten"]
+repo = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "module"
+
+[targets.mlibs-control]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+openlifa.openas = "0.2.0"
+mlibs.utils = { path = "../utils" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"

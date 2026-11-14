@@ -1,0 +1,32 @@
+# Quay's simulation (M6.4's slice; the FPS slice design, F1): a watchkeeper on a harbour at night, wardens on their
+# rounds, the beacon at the end of the breakwater. The quay is a 3D rigid world (xengine.dynamics' rigid3), the
+# wardens walk its navigation mesh (xengine.nav) and know only what they hear (xengine.audio.space's `reach`) and
+# see (rays). A pure function of the state and the step's actions; the state is a value (a copy is a branch).
+[package]
+namespace   = "omui.showcase.quay"
+name        = "sim"
+version     = "0.1.0"
+description = "Quay's deterministic simulation: a watchkeeper, wardens that hear and see, the beacon to light before the tide; rewindable"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[targets.quay-sim]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+xengine.input    = { path = "../../../modules/projects/xengine/game/input" }
+xengine.nav      = { path = "../../../modules/projects/xengine/game/nav" }
+xengine.dynamics = { path = "../../../modules/projects/xengine/kernel/dynamics", features = ["rigid3"] }
+xengine.audio    = { path = "../../../modules/projects/xengine/kernel/audio" }
+mlibs.simulation = { path = "../../../modules/base/simulation" }
+mlibs.geom       = { path = "../../../modules/base/geom" }
+mlibs.math       = { path = "../../../modules/base/math" }
+mlibs.utils      = { path = "../../../modules/base/utils" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"

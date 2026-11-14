@@ -1,0 +1,18 @@
+{"native": {"Bad": {
+  "spec": "0.1",
+  "doc": "A module with every mistake.",
+  "types": {
+    "point": {"fields": {"x": "f64"}},
+    "Node": {
+      "fields": {
+        "next": "Node?",
+
+        "weight": "decimal"
+      }
+    }
+  },
+  "functions": {
+    "erase": {"doc": "Erases everything.", "effect": "irreversible", "args": {"all": "bool"}},
+    "find": {"doc": "Finds.", "args": {"limit": "u32?", "query": "string"}, "returns": "Hit[]"}
+  }
+}}}

@@ -1,0 +1,83 @@
+[package]
+namespace = "xengine"
+name = "cellular"
+version = "0.1.0"
+description = "Prepared integer field rules with immutable reads, bounded neighborhoods and tiled writes"
+license = "Apache-2.0"
+platforms = ["linux", "macos", "windows", "emscripten"]
+repo = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "module"
+agent = "subject"
+
+[targets.xengine-cellular]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+# Integer kernels; the feature `rigid` maps cells through bodies' poses in floats: the same bits everywhere.
+# Optimised in every profile (the last -O wins): a field stepped at -O0 costs several times as much, which a
+# game, a playtest branching ahead and every consumer's tests would pay; the results are the same bits.
+cxxflags = ["-fno-fast-math", "-ffp-contract=off", "-O2"]
+
+[dependencies]
+mlibs.utils = { path = "../../../../base/utils" }
+# The numbers an exchange chooses by (mix32: what a shader computes alike).
+mlibs.math  = { path = "../../../../base/math" }
+# The host's parallel-for a step may be given (FunctionRef: no allocation, no thread of the kernel's own).
+mlibs.memory = { path = "../../../../base/memory" }
+
+# The field as an agent's subject (src/agent/, module xengine.cellular.agent; D-174): its frames on the
+# clock and history library, its operations through the agent kernel. A feature, so that the kernel alone
+# stays what it was — no clock, no transport, the small tools and nothing more.
+[features]
+agent = { sources = ["src/agent/*.cppm", "src/agent/*.cpp"] }
+# The lattice as a carrier of matter (src/matter/, module xengine.cellular.matter; D-165): a matter program
+# lowered to a lattice program — its table, its transfers and reactions, cells moving by density and phase.
+# A feature: the kernel knows a key and numbers, and that a row is a material only here.
+matter = { sources = ["src/matter/*.cppm", "src/matter/*.cpp"] }
+# A field of matter as an agent's subject (src/matter/agent/, module xengine.cellular.matter.agent; D-169):
+# materials by name, channels in units, a quantity applied, and why a cell is what it is — the record of causes
+# made at each frame's commit from the matter kernel's `why`. Both of the above, and nothing more.
+# Rigid bodies made of the lattice's cells (src/rigid/, module xengine.cellular.rigid; the plan's §6.7): a body
+# of solid cells that moves with xengine.dynamics' rigid family while the lattice keeps simulating its cells —
+# it burns away, is re-made, splits; a liquid holds it up and drags it, a blast pushes it; the field's own solid
+# cells are fixed collision. It joins the lattice of matter and the rigid family, and nothing more.
+rigid = { implies = ["matter", "particles", "verbs"], sources = ["src/rigid/*.cppm", "src/rigid/*.cpp"] }
+# Cells in flight (src/particles/, module xengine.cellular.particles; the plan's §6.7, lattice ↔ particles):
+# thrown by a pressure or a blast, carrying their whole state, a cell again where they land. Conserving.
+particles = { implies = ["matter"], sources = ["src/particles/*.cppm", "src/particles/*.cpp"] }
+# Matter that is only for show (src/decor/, module xengine.cellular.decor; D-178): a second field beside a world
+# of matter, stepped by the same laws, that reads the authoritative field and is never read by it — scenery that
+# catches from a real fire. A feature: a world that shows none pays nothing, and nothing authoritative names it.
+# What is done to a world of matter, as parts any work uses (src/verbs/, module xengine.cellular.verbs; D-183,
+# the engine's standard library): an explosion, a heat, a pour, a vent — each only places matter where there is
+# none and applies quantities; what follows is the laws'.
+verbs = { implies = ["matter"], sources = ["src/verbs/*.cppm", "src/verbs/*.cpp"] }
+decor = { implies = ["matter"], sources = ["src/decor/*.cppm", "src/decor/*.cpp"] }
+matter-agent = { implies = ["agent", "matter", "verbs"], sources = ["src/matter/agent/*.cppm", "src/matter/agent/*.cpp"] }
+# A world's lattice as what the matter subject stands on (src/rigid/agent/, module xengine.cellular.rigid.agent;
+# the plan's §6.10.1): the record of causes on a world whose cells also fly and are bodies' — where a cell landed
+# from, what threw it, whose blast. The two it joins, and nothing more.
+world-agent = { implies = ["matter-agent", "rigid"], sources = ["src/rigid/agent/*.cppm", "src/rigid/agent/*.cpp"] }
+
+[feature-deps.agent]
+mlibs.simulation = { path = "../../../../base/simulation" }
+mlibs.agent      = { path = "../../../../base/agent" }
+mlibs.control    = { path = "../../../../base/control" }
+mlibs.json       = { path = "../../../../base/json" }
+openlifa.openas  = "0.2.0"
+
+[feature-deps.matter]
+xengine.matter = { path = "../matter", default-features = false }
+
+[feature-deps.rigid]
+xengine.dynamics = { path = "../dynamics", features = ["rigid"] }
+# A world of matter as a value (a copy a branch): its `Branching`.
+mlibs.simulation = { path = "../../../../base/simulation" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+mlibs.simulation   = { path = "../../../../base/simulation" }
+mlibs.cts          = { path = "../../../../base/cts" }

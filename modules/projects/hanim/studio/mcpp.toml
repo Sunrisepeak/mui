@@ -1,0 +1,56 @@
+# hanim.studio — animation as a document an Agent or a person writes
+# (`<name>.animation.omui.json`), and the `hanim` command that checks,
+# samples and renders it without a GUI. Its own package: the CLI's
+# dependencies (JSON, image encoding, the CPU raster) stay out of hanim's.
+[package]
+namespace   = "hanim"
+name        = "studio"
+version     = "0.1.0"
+description = "hanim's animation tool: animation documents checked, sampled and rendered headless (the hanim command)"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "tool"
+agent = "tool"
+
+[targets.hanim-studio]
+kind = "lib"
+
+[targets.hanim]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+mcpplibs.cmdline = "0.0.3"
+# `agent`: the stage as an agent's subject — this package's tests hold it to the agent contract (stage_test).
+hanim          = { path = "..", features = ["render-vector", "control", "agent"] }
+# The hanim command writes frames as SVG (xrender.vector.svg).
+xrender.vector = { path = "../../xrender/vector" }
+xrender.raster = { path = "../../xrender/raster" }
+mlibs.control  = { path = "../../../base/control" }
+mlibs.image    = { path = "../../../base/image" }
+mlibs.utils    = { path = "../../../base/utils" }
+openlifa.openas = "0.2.0"
+mcpplibs.os    = "0.4.4"
+nlohmann.json  = "3.12.0"
+
+[dev-dependencies]
+# Tests are mtest's (D-147).
+mcpplibs.mtest = "0.8.4"
+# stage_test: the agent contract's suite on hanim's stage.
+mlibs.agent.cts = { path = "../../../base/agent/cts" }
+mlibs.json      = { path = "../../../base/json" }
+mlibs.utils = { path = "../../../base/utils" }
+mlibs.rhi = { path = "../../../gfx/rhi" }
+xrender.rhi.sdl = { path = "../../xrender/rhi/sdl" }
+# rhi_sdl_test: hanim.rhi's suite on SDL_GPU. The owner runs its suite against a backend (D-161);
+# here, because hanim.rhi runs on the Web too and this backend does not.
+hanim.rhi = { path = "../rhi" }
+mlibs.cts = { path = "../../../base/cts" }
+mcpplibs.os = "0.4.4"

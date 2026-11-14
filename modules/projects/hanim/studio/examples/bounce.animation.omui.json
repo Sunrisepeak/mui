@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "size": [480, 320],
+  "background": "#101820",
+  "objects": [
+    { "id": "ground", "shape": { "rect": { "size": [440, 6], "radius": 3 } }, "fill": "#2a3a4a", "at": [240, 283] },
+    { "id": "ball", "shape": { "circle": 28 }, "fill": "#ff6a3d", "at": [120, 70] },
+    { "id": "box", "shape": { "rect": { "size": [64, 64], "radius": 10 } }, "fill": "#3db8ff", "hidden": true, "at": [360, 248] },
+    { "id": "star", "shape": { "star": { "points": 5, "outer": 26, "inner": 11 } }, "fill": "#ffd23d", "at": [380, 60], "scale": 0.2 }
+  ],
+  "program": {
+    "do": "sequence",
+    "items": [
+      { "do": "drop", "object": "ball", "by": [0, 182], "duration": 1.2, "bounces": 2 },
+      { "do": "marker", "name": "landed" },
+      { "do": "parallel", "items": [
+        { "do": "move_to", "object": "ball", "to": [360, 252], "duration": 0.6, "ease": "in_out_cubic" },
+        { "do": "scale_to", "object": "star", "to": 1, "spring": { "stiffness": 220, "damping": 14 } }
+      ] },
+      { "do": "marker", "name": "arrived" },
+      { "do": "morph", "object": "ball", "into": "box", "duration": 0.7, "ease": "out_back" },
+      { "do": "wobble", "object": "star", "degrees": 12 }
+    ]
+  }
+}

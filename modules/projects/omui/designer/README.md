@@ -1,0 +1,10 @@
+# omui.designer
+
+The designer of Live Design (D-149, D-151): the design.* verbs, the design's history, previews and variants in stand-ins, and the timeline of an application in development mode.
+
+- **What it adds.** A program that links it has the `design.*` verbs of Live Design's catalog (`modules/projects/omui/agent/design.ops.omui.ts`, served by `omui-mcp` as `design_*` tools). Nothing has to start it: the designer registers itself as the program starts, and every player in development mode (`omui dev`) has one.
+- **Why a package of its own.** A release is built without it (D-149: the designer is left out at build time). The entry player links it only under its `design` feature, which `omui dev` turns on. The player itself knows only that a designer may be linked (`omui::player::provide_designer`). It gives the designer its sources through its API: `sources`, `text`, `edit`, `commit_edits`, `discard_edits`, `language_of`.
+- **Whose history.** The history's verbs (`design.history` and its seven) work on `DesignSources` (`:history_verbs`): the player's TypeScript, which an edit runs at once, or — in `omui-devhost` (W16) — a C++ application's files, which a build runs. There the host holds the history, so it goes on while the application's process comes and goes. The verbs are an adapter: the store and the operations themselves are the agent kernel's ([mlibs.agent](../../../base/agent) `:history` — `History`, `HistoryOperations`; D-173), the same for every domain that is designed; what is the interface's own is how a change is presented (a switch as a switch, an undo as one) and that a commit's state is the semantic tree's hash (`tree`).
+- **What it keeps.** The history lives beside the application in `.omui/design/`: texts addressed by content, commits, branches, tags and pictures (`mlibs::agent::History`). `omui design sync` carries it into git as `design/<branch>`.
+
+Tests: `mcpp test -p omui.designer` (design edits, built_at both ways, structured edits, history, merge, previews, variants, timeline, scenarios).

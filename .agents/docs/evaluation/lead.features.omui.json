@@ -1,0 +1,359 @@
+{
+  "doc": "The signature features (Part 2 plan §1.5, §4; D-135, D-136): two to four headline features a project, the rest foundations. lint `lead` (tools/eval/lead.py check) holds this list to the ledger: status = \"planned\"    designed, no signature scene yet \"evidence\"   its signature scene (`scene`, a test) exists and runs in CI \"claimed\"    and the ledger has a far_ahead capability or task record: only now may it be called far ahead in public line   = \"use-safely\" | \"build-reliably\" | \"together\"   the three lines (§1.5) \"craft\"        a headline feature of quality or engineering \"foundation\"   under the headline features, not counted as one",
+  "feature": [
+    {
+      "id": "A",
+      "project": "omui",
+      "line": "use-safely",
+      "title": "先预演，再授权：Agent 的操作先在分支里执行并画出来，人同意才提交",
+      "status": "evidence",
+      "scene": "tools/mcp/tests/mcp_test.cpp",
+      "competitors": [
+        "webmcp",
+        "playwright-mcp",
+        "app-intents"
+      ],
+      "doc": "--- omui -------------------------------------------------------------------"
+    },
+    {
+      "id": "B",
+      "project": "omui",
+      "line": "build-reliably",
+      "title": "用 AI 写 UI 最顺手：确定的像素与语义、像素到源码，写看改闭环",
+      "status": "evidence",
+      "scene": "tools/mcp/tests/mcp_test.cpp",
+      "competitors": [
+        "react-vite-playwright",
+        "flutter"
+      ]
+    },
+    {
+      "id": "C",
+      "project": "omui",
+      "line": "use-safely",
+      "title": "零代码的 Agent 接口：语义树自动投影为 MCP、WebMCP 的类型化操作，授权由 openas 判定",
+      "status": "evidence",
+      "scene": "tools/mcp/tests/mcp_test.cpp",
+      "competitors": [
+        "webmcp",
+        "playwright-mcp",
+        "mcp-apps"
+      ]
+    },
+    {
+      "id": "D",
+      "project": "omui",
+      "line": "together",
+      "title": "人机同屏共在：Agent 的身体与意图可见，人随时接管，冲突有规则",
+      "status": "evidence",
+      "scene": "modules/projects/omui/view/tests/view/person_first_test.cpp",
+      "competitors": [
+        "webmcp",
+        "a2ui"
+      ]
+    },
+    {
+      "id": "omui.one-tree",
+      "project": "omui",
+      "line": "foundation",
+      "title": "一棵语义树驱动像素、读屏、Agent 和测试四种视图",
+      "status": "planned",
+      "competitors": [
+        "flutter-semantics",
+        "react-aria"
+      ]
+    },
+    {
+      "id": "omui.universal-motion",
+      "project": "omui",
+      "line": "foundation",
+      "title": "通用动效：0 声明过渡，打断时速度连续",
+      "status": "planned",
+      "competitors": [
+        "swiftui",
+        "framer-motion",
+        "view-transitions"
+      ]
+    },
+    {
+      "id": "omui.pixel-audit",
+      "project": "omui",
+      "line": "foundation",
+      "title": "像素可审查、可回放：CPU 像素五平台逐位，像素归属到节点",
+      "status": "planned",
+      "competitors": [
+        "snapshot-testing"
+      ]
+    },
+    {
+      "id": "omui.liquid-glass",
+      "project": "omui.components",
+      "line": "craft",
+      "title": "真正液态的玻璃，所有平台（含 Web）",
+      "status": "planned",
+      "competitors": [
+        "ios-26-liquid-glass"
+      ],
+      "doc": "--- omui components --------------------------------------------------------"
+    },
+    {
+      "id": "omui.canvas-objects",
+      "project": "omui.components",
+      "line": "craft",
+      "title": "组件即画布对象：缩小后依然是活的",
+      "status": "planned",
+      "competitors": [
+        "figma",
+        "tldraw"
+      ]
+    },
+    {
+      "id": "omui.style-packs",
+      "project": "omui.components",
+      "line": "craft",
+      "title": "风格包同时改变质感和动效配方",
+      "status": "planned",
+      "competitors": [
+        "material-3",
+        "fluent-2"
+      ]
+    },
+    {
+      "id": "H.components",
+      "project": "omui.components",
+      "line": "build-reliably",
+      "title": "Agent 批量做出带全部状态、动效、无障碍和契约的组件变体，人并排挑选和微调",
+      "status": "planned",
+      "competitors": [
+        "figma-make",
+        "v0",
+        "google-stitch"
+      ]
+    },
+    {
+      "id": "F",
+      "project": "hanim",
+      "line": "build-reliably",
+      "title": "AI 产出可编辑的动画程序：读回计划、精确修改、确定、可嵌入",
+      "status": "evidence",
+      "scene": "modules/projects/hanim/studio/tests/studio_test.cpp",
+      "competitors": [
+        "ai-video",
+        "lottie-json-agent",
+        "ae-script-agent"
+      ],
+      "doc": "--- hanim ------------------------------------------------------------------"
+    },
+    {
+      "id": "H",
+      "project": "hanim",
+      "line": "build-reliably",
+      "title": "Agent 驱动的设计与动效工作台：分支方案、画面指认、参数微调",
+      "status": "evidence",
+      "scene": "tools/inspector/tests/motion_test.cpp",
+      "competitors": [
+        "figma",
+        "rive-editor",
+        "after-effects",
+        "jitter"
+      ]
+    },
+    {
+      "id": "hanim.one-engine",
+      "project": "hanim",
+      "line": "craft",
+      "title": "一个引擎服务 UI、视频和游戏，三处逐位一致",
+      "status": "planned",
+      "competitors": [
+        "gsap",
+        "rive",
+        "lottie"
+      ]
+    },
+    {
+      "id": "hanim.morph",
+      "project": "hanim",
+      "line": "craft",
+      "title": "跨表示、拓扑对齐的形变",
+      "status": "evidence",
+      "scene": "modules/projects/hanim/studio/tests/signature_test.cpp",
+      "competitors": [
+        "gsap-morphsvg",
+        "flubber"
+      ]
+    },
+    {
+      "id": "hanim.composable",
+      "project": "hanim",
+      "line": "foundation",
+      "title": "可组合：叶子、组合、配方同一种值；配方 id 进入规范",
+      "status": "planned",
+      "competitors": [
+        "gsap",
+        "framer-motion"
+      ]
+    },
+    {
+      "id": "B.pixels",
+      "project": "xrender",
+      "line": "build-reliably",
+      "title": "为 Agent 审查而生的像素：像素归属到节点，带语义的矢量截图",
+      "status": "evidence",
+      "scene": "modules/projects/xrender/vector/tests/vector/svg_test.cpp",
+      "competitors": [
+        "skia",
+        "resvg"
+      ],
+      "doc": "--- xrender ----------------------------------------------------------------"
+    },
+    {
+      "id": "xrender.same-source",
+      "project": "xrender",
+      "line": "craft",
+      "title": "CPU 与 GPU 同源：CPU 参考逐位，GPU 差 ≤ 1/255",
+      "status": "evidence",
+      "scene": "modules/projects/hanim/studio/tests/signature_test.cpp",
+      "competitors": [
+        "skia",
+        "vello"
+      ]
+    },
+    {
+      "id": "xrender.web-first",
+      "project": "xrender",
+      "line": "craft",
+      "title": "Web 优先：每次提交只跨一次 wasm 边界",
+      "status": "planned",
+      "competitors": [
+        "canvaskit"
+      ]
+    },
+    {
+      "id": "G",
+      "project": "xengine",
+      "line": "together",
+      "title": "Agent 是一等执行者：开发引擎、做游戏、试玩与平衡、游玩",
+      "status": "evidence",
+      "scene": "showcase/widget-breakout/tests/agent_player_test.cpp",
+      "competitors": [
+        "godot-mcp",
+        "unity-ai"
+      ],
+      "doc": "--- xengine ----------------------------------------------------------------"
+    },
+    {
+      "id": "xengine.equal-play",
+      "project": "xengine",
+      "line": "together",
+      "title": "人与 Agent 平等游玩：同一套感知和反应约束，逐位回放",
+      "status": "evidence",
+      "scene": "showcase/widget-breakout/tests/agent_player_test.cpp",
+      "competitors": [
+        "godot",
+        "unity-ml-agents"
+      ]
+    },
+    {
+      "id": "xengine.native",
+      "project": "xengine",
+      "line": "build-reliably",
+      "title": "原生胜过适配：场景是数据、编辑是事务、模拟确定、离屏同源",
+      "status": "planned",
+      "competitors": [
+        "godot-mcp"
+      ]
+    },
+    {
+      "id": "xengine.rollback",
+      "project": "xengine",
+      "line": "foundation",
+      "title": "全游戏可回滚、可分支",
+      "status": "planned",
+      "competitors": [
+        "godot",
+        "bevy"
+      ]
+    },
+    {
+      "id": "gongfu.rollback-kernel",
+      "project": "gongfu",
+      "line": "craft",
+      "title": "确定性回滚内核，可以原样拆出",
+      "status": "evidence",
+      "scene": "modules/projects/gongfu/tests/gongfu_test.cpp",
+      "competitors": [
+        "ggpo",
+        "ggrs"
+      ],
+      "doc": "--- gongfu -----------------------------------------------------------------"
+    },
+    {
+      "id": "gongfu.characters-as-data",
+      "project": "gongfu",
+      "line": "build-reliably",
+      "title": "角色即数据，由 Agent 制作，诊断带行列号",
+      "status": "planned",
+      "competitors": [
+        "mugen",
+        "fighter-creator"
+      ]
+    },
+    {
+      "id": "gongfu.sparring",
+      "project": "gongfu",
+      "line": "together",
+      "title": "Agent 陪练：人类档约束，能解释自己的选择",
+      "status": "planned",
+      "competitors": [
+        "sf6-cpu"
+      ]
+    },
+    {
+      "id": "gongfu.replay-tutor",
+      "project": "gongfu",
+      "line": "together",
+      "title": "回放即教程：逐帧解释判定框、帧优势与取消",
+      "status": "planned",
+      "competitors": [
+        "sf6-replay"
+      ]
+    },
+    {
+      "id": "spec.model",
+      "project": "spec",
+      "line": "use-safely",
+      "title": "模型完整度：事务、预演、撤销、执行者、授权、存在、接管、确定性（openas + openmui）",
+      "status": "planned",
+      "competitors": [
+        "mcp",
+        "mcp-apps",
+        "webmcp",
+        "a2ui",
+        "ag-ui",
+        "app-intents"
+      ],
+      "doc": "--- the standards ----------------------------------------------------------"
+    },
+    {
+      "id": "spec.second-implementation",
+      "project": "spec",
+      "line": "craft",
+      "title": "第二个实现：只按规范文本写的 DOM 语义适配器",
+      "status": "planned",
+      "competitors": [
+        "wai-aria"
+      ]
+    },
+    {
+      "id": "E",
+      "project": "spec",
+      "line": "together",
+      "title": "生成式 UI 的安全运行时（候选）：Agent 生成的界面以 omui 树渲染",
+      "status": "planned",
+      "competitors": [
+        "a2ui",
+        "mcp-apps"
+      ]
+    }
+  ]
+}

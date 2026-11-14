@@ -1,0 +1,33 @@
+# Example 03 — a tally counter, written three times (canvas-markdown §5): in
+# C++ (src/tally.cpp), as a view document (ui/tally.view.omui.json) and in
+# TypeScript (ts/tally.ts). They make the same semantic tree and the same
+# pixels (CTS S level).
+# Count people at a door, laps, reps — with a goal and its progress.
+#
+#   mcpp run                                  the C++ view
+#   mcpp run -- --doc ui/tally.view.omui.json  the document; edits show as you save
+[package]
+namespace   = "omui.example"
+name        = "counter"
+version     = "0.1.0"
+description = "openmui example 03: a tally counter in C++ and as a view document, one semantic tree"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+kind = "example"
+
+[targets.tally]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+mcpplibs.cmdline = "0.0.3"
+omui.sdk = { path = "../../modules/projects/omui/sdk" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+mlibs.utils  = { path = "../../modules/base/utils" }
+omui.lang.js  = { path = "../../modules/projects/omui/lang/js" }

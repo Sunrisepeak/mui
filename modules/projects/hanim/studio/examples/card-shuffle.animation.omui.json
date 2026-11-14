@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "size": [480, 240],
+  "background": "#1e1b4b",
+  "objects": [
+    { "id": "a", "shape": { "rect": { "size": [90, 120], "radius": 12 } }, "fill": "#a78bfa", "at": [120, 120] },
+    { "id": "b", "shape": { "rect": { "size": [90, 120], "radius": 12 } }, "fill": "#f472b6", "at": [240, 120] },
+    { "id": "c", "shape": { "rect": { "size": [90, 120], "radius": 12 } }, "fill": "#38bdf8", "at": [360, 120] }
+  ],
+  "program": {
+    "do": "sequence",
+    "items": [
+      { "do": "stagger", "step": 0.08, "items": [
+        { "do": "rise_in", "object": "a" }, { "do": "rise_in", "object": "b" }, { "do": "rise_in", "object": "c" }
+      ] },
+      { "do": "marker", "name": "dealt" },
+      { "do": "reorder", "objects": ["a", "b", "c"], "by": [[240, 0], [-120, 0], [-120, 0]], "step": 0.08 },
+      { "do": "marker", "name": "shuffled" },
+      { "do": "swap", "object": "b", "with": "c", "by": [120, 0] }
+    ]
+  }
+}

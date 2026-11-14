@@ -1,7 +1,7 @@
 # openmui 画布、Markdown 与旗舰示例设计
 
-> 状态：**草案 v0.1**（2026-10-26），待 review
-> 范围：`openmui-ui-canvas`（高性能画布核心）、`openmui-ui-canvas-kit`（可选行为）、`openmui-ui-markdown`、旗舰示例和基准测试 **markdown-wall**。
+> 状态：**草案 v0.3**（2026-10-26），待 review
+> 范围：`openmui-ui-canvas`（高性能画布核心）、`openmui-ui-canvas-kit`（可选行为）、`openmui.ui.markdown`、旗舰示例和基准测试 **markdown-wall**。
 > 约束：**完全不碰 xdesk**；只借用 WuXian 的交互**概念**（工作区分组、相机、两种视图、小地图），而且这些都放在示例层实现，不进组件。
 
 ---
@@ -44,7 +44,7 @@
 **C++ 行为**（每帧都要执行的复杂交互）：
 
 ```cpp
-export namespace openmui::canvas {
+export namespace omui::canvas {
 
 struct PointerEvent { Vec2 screen; DVec2 world; Buttons buttons; Modifiers mods; std::optional<NodeRef> hit; };
 
@@ -60,18 +60,20 @@ public:
 }
 ```
 
-**声明式行为**（用 DSL 写，由 C++ 执行；脚本和 DSL 用户也能定义交互，但不进入每帧路径）：
+**声明式行为**：用数据化的 statechart 文件 `*.behavior.omui.toml` 描述，由 C++ 执行。脚本用户和视图文档也能定义交互，但每帧的工作不进入脚本。格式见 [view-data-files](2026-10-26-openmui-view-data-files-design.md) §5：
 
-```text
-behavior GroupDrag on Canvas {
-    state idle {
-        on pointer_down(hit.kind == "group.label") => dragging { capture(); }
-    }
-    state dragging {
-        on pointer_move => self { move(hit.node, delta.world); }      // 每帧在 C++ 里执行
-        on pointer_up   => idle { commit("group.moved", hit.node); }   // 只在提交时通知脚本
-    }
-}
+```toml
+# group-drag.behavior.omui.toml
+[behavior.group-drag]
+on      = "canvas"
+initial = "idle"
+
+[behavior.group-drag.states.idle]
+on.pointer_down = { when = "hit.kind == 'group.label'", to = "dragging", do = ["capture()"] }
+
+[behavior.group-drag.states.dragging]
+on.pointer_move = { do = ["move(hit.node, delta.world)"] }                     # 每帧在 C++ 里执行
+on.pointer_up   = { to = "idle", do = ["commit('group.moved', hit.node)"] }     # 只在提交时通知脚本
 ```
 
 ### 1.4 注册节点类型（示意）
@@ -89,7 +91,8 @@ canvas.register_kind("md.window", {
 
 | 内容 | 技术 |
 |---|---|
-| 节点框（圆角、边框、阴影、选中高亮） | SDF 片段着色器 + 实例化：同一种图元一次 draw call |
+| 节点框（圆角、边框、阴影、选中高亮） | SDF 片段着色器 + 实例化：同一种图元一次 draw call（通过 `omui.rhi` 实现，所有 GPU 后端共用一套渲染器） |
+| 自定义节点外观 | **材质**：节点类型可以带自己的 Slang 顶点和片段着色器，使用 openmui 提供的实例化顶点布局（自定义渲染的第 ② 级） |
 | 连线 | GPU 细分或 SDF 曲线；按 LOD 降低段数 |
 | 文字 | msdf 图集；小于阈值时退化为灰条（greeking） |
 | 缩略图 / 图片 | 纹理图集 + mipmap |
@@ -103,7 +106,7 @@ canvas.register_kind("md.window", {
 
 **120Hz 下的预算（目标值）**：平移缩放的帧 CPU 小于 1ms；内容有变化的帧 CPU 小于 3ms；GPU 小于 4ms（核显）。
 
-### 1.6 语义：`MUI_EXT_canvas`
+### 1.6 语义：`OMUI_EXT_canvas`
 
 - 虚拟化语义树：只为可见、聚焦、选中的节点生成完整的语义节点；其余通过查询按需生成。
 - 空间查询：`find({in_rect, near, name, role, kind})`，**覆盖整个场景**。
@@ -120,7 +123,7 @@ canvas.on("group.moved", ({ node }) => save(node));                    // 只在
 
 ---
 
-## 2. Markdown 组件：`openmui-ui-markdown`
+## 2. Markdown 组件：`openmui.ui.markdown`
 
 ### 2.1 定位
 
@@ -152,28 +155,28 @@ IR ──► 块布局（段落 / 标题 / 列表 / 引用 / 代码块 / 表格 
 ### 2.4 契约
 
 ```toml
-# contract/markdown.contract.toml
-[component.markdown]
+# contract/markdown.contract.omui.toml
+[contract.markdown]
 role = "document"
 spec = "0.1"
 
-[props]
+[contract.markdown.props]
 source     = { type = "string" }
 base_url   = { type = "string" }
 origin     = { type = "enum", values = ["app", "user_content", "remote"], default = "user_content" }
 extensions = { type = "string[]", default = ["gfm"] }
 selectable = { type = "bool", default = true }
 
-[methods]
+[contract.markdown.methods]
 append           = { args = { chunk = "string" } }     # 流式追加
 scroll_to_anchor = { args = { anchor = "string" } }
 
-[events]
+[contract.markdown.events]
 link_activated  = { args = { href = "string" } }
 task_toggled    = { args = { index = "u32", checked = "bool" } }
 heading_visible = { args = { anchor = "string" }, coalesce = "frame" }
 
-[actions]
+[contract.markdown.actions]
 open_link   = { effect = "external", answer = "yes" }
 toggle_task = { effect = "reversible" }
 copy        = { effect = "read" }
@@ -189,7 +192,7 @@ find        = { effect = "read", args = { query = "string" } }
 ```
 openmui-ui-canvas
 ├── 工作区分组：示例里自定义的节点类型 group（底板、标签、颜色）
-│     └── N 个 md.window 节点（标题栏、边框、内容槽位 → openmui-ui-markdown）
+│     └── N 个 md.window 节点（标题栏、边框、内容槽位 → openmui.ui.markdown）
 │            文档内容混合：README 风格、长文档、大量代码、大量中文、表格、图片
 ├── 示例里自定义的行为：GroupDrag、WindowDrag；从 kit 中启用：选择、小地图
 ├── 两个相机预设：“1:1 聚焦”和“总览”，之间用 spring 过渡
@@ -263,7 +266,7 @@ bench.report();
 | 渲染到纹理 / 图层缓存、图集、mipmap、上传预算 | T1 / T2 档位 | M4 |
 | 实例化 SDF、msdf 文字、相机 uniform | 画布 | M4 |
 | 空间索引、LOD 策略、组件晋升 | 画布 | M4 |
-| 语义虚拟化 + 空间查询（`MUI_EXT_canvas`） | agent 和测试 | M4 |
+| 语义虚拟化 + 空间查询（`OMUI_EXT_canvas`） | agent 和测试 | M4 |
 | 基准测试和遥测接口 | 报告 | M4–M5 |
 
 **提前验证**：M1 期间就做一个最小的 GPU 原型（1 万个矩形加标签，支持平移缩放，带帧时间面板），用实测数据校准 §3.5 的目标。
@@ -275,8 +278,8 @@ bench.report();
 | # | 示例 | 展示的内容 | 里程碑 |
 |---|---|---|---|
 | 01 | hello-im | C++ 立即模式，最短路径 | M1 |
-| 02 | hello-dsl-ts | DSL + TS，不需要写 C++ | M3 |
-| 03 | counter ×3 | TS、Python、Lua 各写一遍，语义树完全相同 | M3 |
+| 02 | hello-ts | TS builder（可选 TSX），不需要写 C++（模板 `openmui:app-ts`） | M3 |
+| 03 | counter ×4 + 视图文档 | C++、TS、Python、Lua 各写一遍，再加一份 `*.view.omui.json`，语义树完全相同 | M3 |
 | 04 | custom-component | 契约 → C++ → 三种语言自动可用 | M3 |
 | 05 | native-module | `kind=native` | M3 |
 | 06 | theming | token、暗色、密度、动效 | M3 |

@@ -1,0 +1,330 @@
+{
+  "format": "hanim.relative-properties-checkpoint@0.1",
+  "recorded_at": "2026-11-05T22:43:20.225007+00:00",
+  "ok": true,
+  "base_commit": "b25783c2267b43368aadd4e9c14673a078a8c62a",
+  "scope": [
+    "Relative angle addition and signed componentwise scale multiplication during common property preparation.",
+    "Existing actual-source sequence/channel/snapshot/retarget semantics; shared conflict keys and finite endpoint validation.",
+    "Public property recipes reused by named UI parts and the site note, including the copied C++ recipe."
+  ],
+  "source_files_sha256": {
+    ".agents/docs/2026-11-05-system-implementation-checkpoints-design.md": "f731407715efd160335dc57f1d4c05d3f11c336529282dac203f5226aa432c6a",
+    ".agents/docs/2026-11-05-system-subsystem-architecture-and-api-design.md": "3ee9ff47a7629a6255b428879b45b4798097210df2bee060b1f6cda05bab8f1a",
+    ".agents/docs/README.md": "3369c07b186044970ad9d3689ac2075f4766ae2a86eda189760995972c26d70a",
+    "modules/gfx/hanim/README.md": "3c6a9259a46ff32bd74e2df480114ab6a322f5cbb9d20d040af4316a70f5278b",
+    "modules/gfx/hanim/src/library/CONTRACT.md": "c62567c82fd154619424236ad7c888910a880b8177d22743070cd06dabe0b670",
+    "modules/gfx/hanim/src/library/library.cpp": "459221c5b321d1f7a0c13d25ff996a957bb33d7036be8915bb9d0c44e42f392f",
+    "modules/gfx/hanim/src/library/library.cppm": "9f20a2ab12a4dc2a67ddce0caad9921566acbbba6d8a9df62b00da75000ecfc6",
+    "modules/gfx/hanim/src/program/CONTRACT.md": "e682c5ffebb467f97fafbf6db4fca60c2c6d6b3f398234578f5152479c68128c",
+    "modules/gfx/hanim/src/program/program.cpp": "874de5d1c219c8ca50f2a1baf79fbf552ac7c1baa5fc2975b041eddd79594c7f",
+    "modules/gfx/hanim/src/program/program.cppm": "643fd647b744ab04a1d7b7e195c738f1871c8f82d67e27298fff47732ca755e7",
+    "modules/gfx/hanim/tests/program/program_test.cpp": "f04f7fb01783bc3ed49cd352d38257d72cdda274234bae194a1b89b532b43819",
+    "site/src/component_motion.cpp": "c1ce2783442f9fc5ccd55e50ec2fbd488b93f719cc9638a91305546be7a05937",
+    "tools/ci/hanim-api-probe/src/main.cpp": "c6de648112a21c54433a31baaf12ba22fd5ef84c99a7b77e2abd6549366a0f46",
+    "tools/ci/omui-hanim-consumer/src/main.cpp": "6229457a0d3b1a9748cc914182cdc67127fe2fac037b470463a0429f6e302521",
+    "tools/ci/site-motion.mjs": "631bc36281bf136ad07146b3d21525e0cb5f704557b62b3ed9d7e88de7c8a7df"
+  },
+  "source_lock": {
+    "sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "before": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "after": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "preexisting_user_change_preserved": true,
+    "staged": false
+  },
+  "validation": {
+    "tests": {
+      "hanim-dev": {
+        "programs": 9,
+        "cases": 102,
+        "failed": 0,
+        "log": "target/omui-relative-motion/hanim-dev.log",
+        "sha256": "e096f42b9191654f10115e502d5bb3df84294dd3f80fbbb4956f87910caad714"
+      },
+      "hanim-release": {
+        "programs": 9,
+        "cases": 102,
+        "failed": 0,
+        "log": "target/omui-relative-motion/hanim-release.log",
+        "sha256": "bb3b7ebecdbe8fd01d481340b6717b054260729259e907411aee6f2ba41727f3"
+      },
+      "hanim-web": {
+        "programs": 9,
+        "cases": 100,
+        "failed": 0,
+        "log": "target/omui-relative-motion/hanim-web.log",
+        "sha256": "e9b61edcedb9424f17ed4fe7a3899cc27b7556c5cec1e3a550c0bb6374b8278e"
+      },
+      "site-native": {
+        "programs": 21,
+        "cases": 136,
+        "failed": 0,
+        "log": "target/omui-relative-motion/site-native.log",
+        "sha256": "fa34cee15eb72024445a5fef2430852eaa46216213911db1b4b9dae0a3eeafdb"
+      }
+    },
+    "public_consumer": {
+      "path": "target/omui-relative-motion/api.report.omui.json",
+      "sha256": "457b2391cce605a8b18ed5a00eeb194811f69cbe58a70184815e726909748d08",
+      "profiles": [
+        {
+          "profile": "dev",
+          "checks": 156,
+          "ok": true
+        },
+        {
+          "profile": "release",
+          "checks": 156,
+          "ok": true
+        }
+      ]
+    },
+    "ui_consumer": {
+      "path": "target/omui-relative-motion/ui.report.omui.json",
+      "sha256": "bc9e187e795a48fa8c2c878c628650086ee4028319e4d8d6e571953341b60fbd",
+      "profiles": [
+        {
+          "profile": "dev",
+          "checks": 90,
+          "ok": true
+        },
+        {
+          "profile": "release",
+          "checks": 90,
+          "ok": true
+        },
+        {
+          "profile": "wasm-test",
+          "checks": 90,
+          "ok": true
+        }
+      ],
+      "png_count": 549,
+      "reverse_and_cross_profile_pixels_identical": true,
+      "unchanged_default_pose_images_against_previous_checkpoint": 549,
+      "previous_report_sha256": "67b71eb49e35a8f63e139c7997a2eec3001ce021d9259a12cf38c7ce6adecbef",
+      "missing_fonts_refused": true,
+      "feature_off": {
+        "ok": true,
+        "compiled_units": 704,
+        "adapter_and_engine_absent": true,
+        "source_sha256": "331faa035bb0cac51739e871b24d18ebe8a4b4158edd99813a414cce1bf5f9ae"
+      }
+    },
+    "browser": {
+      "path": "target/omui-relative-motion/browser/report.json",
+      "sha256": "f661357c22360d5e7f1dacd905b5ba8e4deb5ab288babfb3918657b43a01274a",
+      "checks": 153,
+      "screenshots": 9,
+      "exceptions": [],
+      "ok": true
+    },
+    "delivery": {
+      "url": "http://127.0.0.1:35809/",
+      "size": [
+        1280,
+        800
+      ],
+      "network": "20/40",
+      "cache": "enabled",
+      "browser": "HeadlessChrome/156.0.8078.4",
+      "transfer": {
+        "total": 4869838,
+        "before_first_frame": 2967609,
+        "by_kind": {
+          "document": 61031,
+          "fetch": 4749784,
+          "image": 11922,
+          "script": 47101
+        }
+      },
+      "first_frame_ms": 1694.3999999761581,
+      "ready_ms": 1658.3999999761581,
+      "frames": {
+        "acted": [
+          {
+            "node": "main/bar/nav/to_docs",
+            "exitCode": 0
+          },
+          {
+            "node": "main/body/view/docs/page/directory/to_features",
+            "exitCode": 0
+          },
+          {
+            "node": "main/bar/mark",
+            "exitCode": 0
+          }
+        ],
+        "frames": 319,
+        "p50": 16.699999999999818,
+        "p95": 16.799999999999272,
+        "p99": 16.800000000000182,
+        "max": 66.69999999999982,
+        "long": 1
+      },
+      "memory": {
+        "heap": 13400000,
+        "wasm": 28704768
+      },
+      "errors": [],
+      "budgets": [
+        {
+          "metric": "transfer.total",
+          "value": 4869838,
+          "max": 5000000,
+          "pass": true
+        },
+        {
+          "metric": "transfer.before_first_frame",
+          "value": 2967609,
+          "max": 3800000,
+          "pass": true
+        },
+        {
+          "metric": "first_frame_ms",
+          "value": 1694.3999999761581,
+          "max": 4500,
+          "pass": true
+        },
+        {
+          "metric": "ready_ms",
+          "value": 1658.3999999761581,
+          "max": 4500,
+          "pass": true
+        },
+        {
+          "metric": "frames.p95",
+          "value": 16.799999999999272,
+          "max": 34,
+          "pass": true
+        },
+        {
+          "metric": "frames.long",
+          "value": 1,
+          "max": 15,
+          "pass": true
+        },
+        {
+          "metric": "errors.length",
+          "value": 0,
+          "max": 0,
+          "pass": true
+        }
+      ]
+    },
+    "lint": {
+      "log": "/tmp/omui-relative-lint.log",
+      "sha256": "b4824ada9a3b226dd0374ce17b0a73d59d52424ef1b6dd6e76da9547b8365a77",
+      "problems": 0
+    },
+    "commands": [
+      {
+        "label": "hanim-release",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "test",
+          "-p",
+          "hanim",
+          "--profile",
+          "release",
+          "--locked"
+        ],
+        "exit": 0,
+        "seconds": 13.479749131947756,
+        "log": "/home/speak/workspace/mui/target/omui-relative-motion/hanim-release.log"
+      },
+      {
+        "label": "hanim-web",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "test",
+          "-p",
+          "hanim",
+          "--profile",
+          "wasm-test",
+          "--target",
+          "wasm32-emscripten",
+          "--locked"
+        ],
+        "exit": 0,
+        "seconds": 10.613584853010252,
+        "log": "/home/speak/workspace/mui/target/omui-relative-motion/hanim-web.log"
+      },
+      {
+        "label": "site-native",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "test",
+          "-p",
+          "openmui.site",
+          "--locked"
+        ],
+        "exit": 0,
+        "seconds": 380.2962715489557,
+        "log": "/home/speak/workspace/mui/target/omui-relative-motion/site-native.log"
+      },
+      {
+        "label": "site-pack",
+        "argv": [
+          "bash",
+          "tools/ci/site.sh"
+        ],
+        "exit": 0,
+        "seconds": 69.99554167792667,
+        "log": "/home/speak/workspace/mui/target/omui-relative-motion/site-pack.log"
+      },
+      {
+        "label": "browser",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-node/24.15.0/bin/node",
+          "tools/ci/site-motion.mjs",
+          "target/site"
+        ],
+        "exit": 0,
+        "seconds": 30.87536850303877,
+        "log": "/home/speak/workspace/mui/target/omui-relative-motion/browser.log"
+      },
+      {
+        "label": "delivery",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-node/24.15.0/bin/node",
+          "tools/ci/site-perf.mjs",
+          "--serve",
+          "target/site",
+          "--network",
+          "20/40",
+          "--budget",
+          "site/delivery.budget.omui.json",
+          "--request-log",
+          "target/omui-relative-motion/delivery-requests.json"
+        ],
+        "exit": 0,
+        "seconds": 9.022504008025862,
+        "log": "/home/speak/workspace/mui/target/omui-relative-motion/delivery.log"
+      },
+      {
+        "label": "browser",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-node/24.15.0/bin/node",
+          "tools/ci/site-motion.mjs",
+          "target/site"
+        ],
+        "exit": 0,
+        "seconds": 30.633960537961684,
+        "log": "/home/speak/workspace/mui/target/omui-relative-motion/browser-relative-copy.log"
+      }
+    ],
+    "source_fingerprints_match": true,
+    "documentation_links_resolve": true
+  },
+  "limits": [
+    "Property convenience APIs do not count as new independent animation designs toward 40/20.",
+    "Prepare computes relative endpoints; scale interpolation remains the existing lane, not exponential or accumulated per-frame multiplication.",
+    "Signed/singular geometry scales follow the existing representation; UI input inversion may refuse unsupported poses.",
+    "No general channel blending, arbitrary property/3D adapter, new GPU performance result or global completion claim.",
+    "Delivery is one local cold-browser 20 Mbit/s, 40 ms sample; first-frame proxy is not FCP/LCP and rAF intervals are not GPU frame cost."
+  ],
+  "development_findings": [
+    "Initial added test used the wrong channel-query owner and then assumed a single compiler segment. Corrected to the existing public per-segment channel query and checked retained channel count plus actual samples; compiler behavior was not changed."
+  ]
+}

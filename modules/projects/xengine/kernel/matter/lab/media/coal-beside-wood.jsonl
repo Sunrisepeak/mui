@@ -1,0 +1,17 @@
+{"op":"matter.place","material":"stone","region":[0,29,64,3]}
+{"op":"matter.place","material":"stone","region":[30,22,2,7]}
+{"op":"matter.place","material":"wood","region":[4,27,22,2]}
+{"op":"matter.apply","channel":"temperature","set":900,"region":[4,27,2,1]}
+{"op":"lab.commit","message":"a hearth of wood, a wall beside it"}
+{"op":"lab.material","name":"coal","properties":{"density":1400,"thermal":1,"ignition":700,"fuel":900,"heat":120,"burnt":"ash","look":{"color":"#4a4540","grain":0.14}},"intent":"a 13th material: coal — harder to light than wood, burns longer and hotter"}
+{"op":"matter.place","material":"coal","region":[36,27,22,2]}
+{"op":"matter.apply","channel":"temperature","set":650,"region":[36,27,2,1]}
+{"op":"field.step","steps":200}
+{"op":"matter.explain","cell":[36,27],"law":"burns"}
+{"op":"matter.apply","channel":"temperature","set":1100,"region":[36,27,2,1]}
+{"op":"field.step","steps":400}
+{"op":"matter.explain","cell":[39,27],"depth":1}
+{"op":"lab.commit","message":"coal beside wood: lit at 1100 K, not at 650"}
+{"op":"lab.try","material":"coal","properties":{"ignition":560}}
+{"op":"lab.explain","part":"materials/coal","property":"ignition"}
+{"op":"lab.picture","scale":8}

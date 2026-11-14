@@ -1,0 +1,113 @@
+// The contrast checker as its user and an agent use it: the player runs
+// logic/main.ts over the application's native module; typing a colour
+// updates the ratio, the levels, the simulations and — from a worker — the
+// nearest passing colour; a half-typed colour says why and keeps the last
+// answer; the pixels are pinned. The native module's own answers are
+// checked against WCAG's published values.
+import std;
+import nlohmann.json;
+import omui;
+import omui.player;
+import omui.entry.player;
+import omui.lang.js;
+import omui.native;
+import colors;
+import mlibs.testing;
+import mcpplibs.mtest;
+
+using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
+using namespace omui;
+using nlohmann::json;
+
+namespace {
+
+std::filesystem::path here() { return std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path(); }
+
+std::string name_of(Headless& h, std::string_view id) {
+    auto n = h.tree().node(id);
+    return n ? n->name : std::string("<none>");
+}
+
+void settle(Headless& h, player::Player& p) {
+    for (int i = 0; i < 4000 && !p.idle(); ++i) {
+        h.step();
+        std::this_thread::sleep_for(std::chrono::microseconds(250));
+    }
+    h.settle();
+}
+
+std::int64_t set_value(Headless& h, std::string_view node, std::string_view text) {
+    Invocation call;
+    call.actor = {"agent", "test", {}};
+    call.args = Value{}.set("value", std::string(text));
+    return h.tree().act(node, "set_value", call).exit_code().value_or(-1);
+}
+
+}  // namespace
+
+UTest cases{"example.contrast", [] {
+    register_base_components();
+    expect(colors::contrast::define().has_value()) << "the application's native module";
+
+    "the native module: WCAG's ratios, the levels, the simulations, a suggestion"_test = [] {
+        auto bw = native::call("contrast", "check", json::array({"#000", "#ffffff"}));
+        expect(bw && (*bw)["text"] == "21.00:1" && (*bw)["aaa"] == true) << (bw ? bw->dump() : bw.error().message);
+        auto gray = native::call("contrast", "check", json::array({"#777777", "#fff"}));
+        expect(gray && (*gray)["text"] == "4.47:1" && (*gray)["aa"] == false && (*gray)["aa_large"] == true) << (gray ? gray->dump() : "");
+        auto views = native::call("contrast", "simulate", json::array({"#ff0000", "#00ff00"}));
+        expect(views && views->size() == 4 && (*views)[3]["kind"] == "achromatopsia") << (views ? views->dump() : "");
+        auto fix = native::call("contrast", "suggest", json::array({"#777777", "#ffffff", 4.5}));
+        expect(fix && fix->is_string()) << (fix ? fix->dump() : fix.error().message);
+        if (fix && fix->is_string()) {
+            auto again = native::call("contrast", "check", json::array({*fix, "#ffffff"}));
+            expect(again && (*again)["aa"] == true) << "the suggestion meets the target it was asked for";
+        }
+        auto bad = native::call("contrast", "check", json::array({"blue", "#fff"}));
+        expect(!bad && bad.error().code == "failed" && bad.error().message.find("`blue` is not a colour") != std::string::npos) << (bad ? "" : bad.error().message);
+    };
+
+    "the TypeScript interface, run by the player: typing, a worker's suggestion, a half-typed colour, pixels"_test = [] {
+        auto m = read_manifest(here() / "mcpp.toml");
+        expect(m.has_value()) << (m ? "" : m.error());
+        if (!m) return;
+        expect(eq(m->id, std::string("org.openmui.contrast")));
+        Headless h(HeadlessOptions{.size = m->size});
+        player::Player p(h.runtime(), *m, {lang::js::typescript()});
+        auto started = p.start();
+        expect(started.has_value()) << (started ? "" : started.error());
+        settle(h, p);
+        expect(p.problems().empty()) << (p.problems().empty() ? "" : p.problems()[0]);
+        expect(eq(name_of(h, "main/ratio"), std::string("4.83:1")));
+        expect(eq(name_of(h, "main/levels/aa"), std::string("✓ AA")));
+        expect(eq(name_of(h, "main/levels/aaa"), std::string("✗ AAA")));
+        expect(eq(name_of(h, "main/suggestion"), std::string("Meets AA as it is")));
+        expect(name_of(h, "main/views/protanopia/column:0/text:1").ends_with(":1")) << name_of(h, "main/views/protanopia/column:0/text:1");
+
+        expect(eq(set_value(h, "main/colours/fg/foreground", "#9ca3af"), std::int64_t{0}));
+        settle(h, p);
+        expect(eq(name_of(h, "main/ratio"), std::string("2.53:1")));
+        expect(eq(name_of(h, "main/levels/aa"), std::string("✗ AA")));
+        const std::string suggested = name_of(h, "main/suggestion");
+        expect(suggested.starts_with("Nearest that meets AA: #")) << suggested;
+
+        expect(eq(set_value(h, "main/colours/fg/foreground", "#12"), std::int64_t{0}));
+        settle(h, p);
+        expect(eq(name_of(h, "main/problem"), std::string("`#12` is not a colour: write #rgb or #rrggbb")));
+        expect(eq(name_of(h, "main/ratio"), std::string("2.53:1")));
+
+        expect(eq(set_value(h, "main/colours/fg/foreground", "#1f2937"), std::int64_t{0}));
+        settle(h, p);
+        expect(!h.tree().node("main/problem")) << "a colour again: the problem leaves";
+        expect(eq(name_of(h, "main/ratio"), std::string("14.67:1")));
+
+        h.runtime().focus(NodeId{});
+        h.settle();
+        Hash hash;
+        const auto& px = h.pixels();
+        for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
+        std::println("example.contrast pixels {}", hash.hex());
+        expect(h.save_png(scratch_dir("example-contrast") / "contrast.png").has_value());
+        expect(eq(hash.hex(), std::string("53adbee3e3975e1a")));
+    };
+}};

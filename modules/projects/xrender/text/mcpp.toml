@@ -1,0 +1,35 @@
+# xrender.text — text as the renderer draws it: mlibs.text's glyphs rasterised
+# (outlines and COLR layers into coverage and colour images, cached per size
+# and subpixel phase: the renderer's GlyphSource) and its laid-out paragraphs
+# painted into display lists. mlibs.text knows no renderer (convergence plan
+# §5.3); this adapter is the renderer's side of text. Its layer is content
+# (tools/lint's path table): it depends on text, which is above graphics.
+[package]
+namespace   = "xrender"
+name        = "text"
+version     = "0.1.0"
+description = "Text drawn by xrender: mlibs.text's glyphs rasterised and cached, its paragraphs painted into display lists"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "module"
+agent = { part = "xrender.frame" }
+
+[targets.xrender-text]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+mlibs.geom     = { path = "../../../base/geom" }
+mlibs.text     = { path = "../../../content/text" }
+xrender.raster = { path = "../raster" }
+xrender.vector = { path = "../vector" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+mlibs.utils = { path = "../../../base/utils" }
+mlibs.image = { path = "../../../base/image" }

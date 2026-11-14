@@ -1,0 +1,2626 @@
+{
+  "format": "omui.gfx-namespace-checkpoint@0.1",
+  "ok": true,
+  "recorded_utc": "2026-11-05T03:47:16.707330+00:00",
+  "base_commit": "33e1f73738319b96e7366df0e46100f0318feeb6",
+  "scope": "N1 RHI/backends/CTS, raster, shader and its host rules: canonical ownership, same-package legacy entries, generated shaders, independent source/archive consumers and actual backend/website regressions.",
+  "migrated_packages": [
+    "mlibs.rhi",
+    "mlibs.rhi.sdl",
+    "mlibs.rhi.webgpu",
+    "mlibs.rhi.webgl",
+    "mlibs.rhi.cts",
+    "mlibs.raster",
+    "mlibs.shader",
+    "mlibs.shader.rules"
+  ],
+  "workspace_members": 129,
+  "new_workspace_members": 0,
+  "source_lock_sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+  "tests": [
+    {
+      "profile": "dev",
+      "target": "native",
+      "successful_program_exits": 4,
+      "programs": [
+        "dash_test",
+        "raster_test",
+        "gradient_shader_test",
+        "rhi_test"
+      ],
+      "reported_suite_cases_passed": 42,
+      "suites": [
+        {
+          "name": "raster.dash",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "raster",
+          "passed": 15,
+          "failed": 0
+        },
+        {
+          "name": "raster.gradient-setup",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "rhi",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "shader",
+          "passed": 10,
+          "failed": 1
+        }
+      ],
+      "log": {
+        "path": "target/namespace-gfx-validation/logs/omui-n1d-base-dev.log",
+        "sha256": "a9b89631e6ff454459dcf951c6abd1d49185f932cf4b7232d4bc9ba3f18f412e"
+      },
+      "initial_failure": {
+        "program": "shader_test",
+        "cause": "An emitted C++ string assertion still expected omui::rhi after the emitter migrated to mlibs::rhi.",
+        "resolution": "Updated the expected canonical generated API; shader-dev-final passes all 11 shader cases."
+      }
+    },
+    {
+      "profile": "dev",
+      "target": "native",
+      "successful_program_exits": 1,
+      "programs": [
+        "shader_test"
+      ],
+      "reported_suite_cases_passed": 11,
+      "suites": [
+        {
+          "name": "shader",
+          "passed": 11,
+          "failed": 0
+        }
+      ],
+      "log": {
+        "path": "target/namespace-gfx-validation/logs/omui-n1d-shader-dev-final.log",
+        "sha256": "cb096e26c3f623f242bc5c83ceeaaaca1ef05af23d6fe277574291235819f449"
+      }
+    },
+    {
+      "profile": "release",
+      "target": "native",
+      "successful_program_exits": 5,
+      "programs": [
+        "dash_test",
+        "raster_test",
+        "gradient_shader_test",
+        "rhi_test",
+        "shader_test"
+      ],
+      "reported_suite_cases_passed": 43,
+      "suites": [
+        {
+          "name": "raster.dash",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "raster",
+          "passed": 15,
+          "failed": 0
+        },
+        {
+          "name": "raster.gradient-setup",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "rhi",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "shader",
+          "passed": 11,
+          "failed": 0
+        }
+      ],
+      "log": {
+        "path": "target/namespace-gfx-validation/logs/omui-n1d-base-release.log",
+        "sha256": "29414ed70f5c3af706e8f8e079d594eb3689b87aa9e210b5739f1a900fa6971f"
+      }
+    },
+    {
+      "profile": "wasm-test",
+      "target": "wasm32-emscripten/Node",
+      "successful_program_exits": 4,
+      "programs": [
+        "dash_test",
+        "gradient_shader_test",
+        "raster_test",
+        "rhi_test"
+      ],
+      "reported_suite_cases_passed": 32,
+      "suites": [
+        {
+          "name": "raster.dash",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "raster.gradient-setup",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "raster",
+          "passed": 15,
+          "failed": 0
+        },
+        {
+          "name": "rhi",
+          "passed": 8,
+          "failed": 0
+        }
+      ],
+      "log": {
+        "path": "target/namespace-gfx-validation/logs/omui-n1d-base-wasm.log",
+        "sha256": "de2e2c298cc35d782ff53361cb0727530216e5cd8eec6f7e66e14f4557a275e0"
+      }
+    },
+    {
+      "profile": "dev",
+      "target": "native/offscreen Vulkan",
+      "successful_program_exits": 2,
+      "programs": [
+        "lifetime_probe_test",
+        "sdl_test"
+      ],
+      "reported_suite_cases_passed": 10,
+      "suites": [
+        {
+          "name": "rhi.sdl-lifetime-probe",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "rhi.sdl",
+          "passed": 6,
+          "failed": 0
+        }
+      ],
+      "log": {
+        "path": "target/namespace-gfx-validation/logs/omui-n1d-sdl-dev-final.log",
+        "sha256": "3d60b0476b655a00e73543e814f2aa546349be639d64518ce66818d13fffd33a"
+      }
+    },
+    {
+      "profile": "dev",
+      "target": "native",
+      "successful_program_exits": 58,
+      "programs": [
+        "engine_test",
+        "composite_test",
+        "visual_test",
+        "graph_test",
+        "blank_glyph_test",
+        "cpu_test",
+        "display_test",
+        "damage_test",
+        "effect_output_bounds_test",
+        "paint_mix_cpu_test",
+        "paint_mix_test",
+        "path_recording_test",
+        "pixelate_test",
+        "shape_morph_test",
+        "effects_test",
+        "c_abi_test",
+        "abi_test",
+        "agent_control_policy_test",
+        "agent_policy_test",
+        "agent_test",
+        "presentation_input_test",
+        "agent_session_test",
+        "agent_policy_test",
+        "headless_test",
+        "agent_context_test",
+        "adapt_test",
+        "constraint_placement_test",
+        "agent_policy_test",
+        "input_attribution_test",
+        "motion_test",
+        "path_policy_test",
+        "presentation_geometry_test",
+        "effect_animation_test",
+        "theme_motion_test",
+        "text_policy_test",
+        "view_test",
+        "inspector_test",
+        "cellular_test",
+        "agent_guard_test",
+        "agent_preview_test",
+        "agent_contrast_test",
+        "agent_transition_layout_test",
+        "brand_test",
+        "basic_motion_test",
+        "feature_examples_test",
+        "first_frame_test",
+        "creative_motion_test",
+        "frames_test",
+        "guide_access_test",
+        "home_landing_test",
+        "gallery_redesign_test",
+        "navigation_redesign_test",
+        "motion_gallery_test",
+        "reactions_test",
+        "p0_layout_test",
+        "static_gallery_test",
+        "text_motion_quality_test",
+        "site_test"
+      ],
+      "reported_suite_cases_passed": 407,
+      "suites": [
+        {
+          "name": "hanim.engine",
+          "passed": 23,
+          "failed": 0
+        },
+        {
+          "name": "hanim.composite",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "hanim.engine.visual",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "render.graph",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.blank-glyph",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.cpu",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "render.display",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.damage",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "render.effect_output_bounds",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "render.paint-mix-cpu",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.paint-mix",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "render.path-recording",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.pixelate",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "render.shape-morph",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "render.effects",
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "name": "abi",
+          "passed": 12,
+          "failed": 0
+        },
+        {
+          "name": "agent.control_policy",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "agent.policy",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "agent",
+          "passed": 15,
+          "failed": 0
+        },
+        {
+          "name": "agent.presentation-input",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "agent.session",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "host.headless.agent_policy",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "headless",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "view.agent_context",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "view.adapt",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "view.constraint_placement",
+          "passed": 13,
+          "failed": 0
+        },
+        {
+          "name": "view.agent_policy",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "view.input_attribution",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "view.motion",
+          "passed": 10,
+          "failed": 0
+        },
+        {
+          "name": "view.path-policy",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "view.presentation_geometry",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "view.effect-animation",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "view.theme_motion",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "view.text-policy",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "name": "view",
+          "passed": 52,
+          "failed": 0
+        },
+        {
+          "name": "inspector",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "inspector.cellular",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "site.agent_guard",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.agent-preview",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "name": "site.agent-contrast",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "site.agent-transition-layout",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.brand",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.basic_motion",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "site.feature_examples",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "site.first_frame",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "site.creative_motion",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "site.frames",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.guide_access",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "site.home_landing",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "site.gallery",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "site.navigation_redesign",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "site.motion_gallery",
+          "passed": 12,
+          "failed": 0
+        },
+        {
+          "name": "site.reactions",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "site.p0_layout",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.static_gallery",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "site.text-motion-quality",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "site",
+          "passed": 37,
+          "failed": 0
+        }
+      ],
+      "log": {
+        "path": "target/namespace-gfx-validation/logs/omui-n1d-regression-dev.log",
+        "sha256": "18116618cebcf007bc4c68b0c00d2a27ffb392c5875c22b1355e1b65345c2b3a"
+      }
+    },
+    {
+      "profile": "release",
+      "target": "native/offscreen Vulkan",
+      "successful_program_exits": 60,
+      "programs": [
+        "engine_test",
+        "composite_test",
+        "visual_test",
+        "graph_test",
+        "blank_glyph_test",
+        "cpu_test",
+        "damage_test",
+        "display_test",
+        "effect_output_bounds_test",
+        "paint_mix_cpu_test",
+        "paint_mix_test",
+        "path_recording_test",
+        "pixelate_test",
+        "shape_morph_test",
+        "effects_test",
+        "lifetime_probe_test",
+        "sdl_test",
+        "c_abi_test",
+        "abi_test",
+        "agent_control_policy_test",
+        "agent_policy_test",
+        "agent_session_test",
+        "presentation_input_test",
+        "agent_test",
+        "agent_policy_test",
+        "headless_test",
+        "adapt_test",
+        "agent_context_test",
+        "constraint_placement_test",
+        "agent_policy_test",
+        "input_attribution_test",
+        "motion_test",
+        "path_policy_test",
+        "presentation_geometry_test",
+        "text_policy_test",
+        "theme_motion_test",
+        "view_test",
+        "effect_animation_test",
+        "cellular_test",
+        "inspector_test",
+        "agent_guard_test",
+        "agent_preview_test",
+        "agent_contrast_test",
+        "agent_transition_layout_test",
+        "brand_test",
+        "basic_motion_test",
+        "feature_examples_test",
+        "first_frame_test",
+        "frames_test",
+        "gallery_redesign_test",
+        "guide_access_test",
+        "home_landing_test",
+        "motion_gallery_test",
+        "navigation_redesign_test",
+        "p0_layout_test",
+        "reactions_test",
+        "creative_motion_test",
+        "static_gallery_test",
+        "text_motion_quality_test",
+        "site_test"
+      ],
+      "reported_suite_cases_passed": 417,
+      "suites": [
+        {
+          "name": "hanim.engine",
+          "passed": 23,
+          "failed": 0
+        },
+        {
+          "name": "hanim.composite",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "hanim.engine.visual",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "render.graph",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.blank-glyph",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.cpu",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "render.damage",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "render.display",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.effect_output_bounds",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "render.paint-mix-cpu",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.paint-mix",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "render.path-recording",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.pixelate",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "render.shape-morph",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "render.effects",
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "name": "rhi.sdl-lifetime-probe",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "rhi.sdl",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "abi",
+          "passed": 12,
+          "failed": 0
+        },
+        {
+          "name": "agent.control_policy",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "agent.policy",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "agent.session",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "agent.presentation-input",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "agent",
+          "passed": 15,
+          "failed": 0
+        },
+        {
+          "name": "host.headless.agent_policy",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "headless",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "view.adapt",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "view.agent_context",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "view.constraint_placement",
+          "passed": 13,
+          "failed": 0
+        },
+        {
+          "name": "view.agent_policy",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "view.input_attribution",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "view.motion",
+          "passed": 10,
+          "failed": 0
+        },
+        {
+          "name": "view.path-policy",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "view.presentation_geometry",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "view.text-policy",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "name": "view.theme_motion",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "view",
+          "passed": 52,
+          "failed": 0
+        },
+        {
+          "name": "view.effect-animation",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "inspector.cellular",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "inspector",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "site.agent_guard",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.agent-preview",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "name": "site.agent-contrast",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "site.agent-transition-layout",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.brand",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.basic_motion",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "site.feature_examples",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "site.first_frame",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "site.frames",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.gallery",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "site.guide_access",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "site.home_landing",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "site.motion_gallery",
+          "passed": 12,
+          "failed": 0
+        },
+        {
+          "name": "site.navigation_redesign",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "site.p0_layout",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.reactions",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "site.creative_motion",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "site.static_gallery",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "site.text-motion-quality",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "site",
+          "passed": 37,
+          "failed": 0
+        }
+      ],
+      "log": {
+        "path": "target/namespace-gfx-validation/logs/omui-n1d-regression-release.log",
+        "sha256": "ad923300e9cc6f201c9b62d82094367fd90e10a6dffc6bb6c9574c2df0dbf625"
+      }
+    }
+  ],
+  "totals": {
+    "native_program_results_per_profile_for_final_selection": 65,
+    "native_reported_suite_cases_per_profile_for_final_selection": 460,
+    "wasm_node_program_results": 4,
+    "wasm_node_reported_suite_cases": 32,
+    "note": "Final native selection combines the three gfx libraries, SDL backend and nine consumers. Repeated shader assertions from the initial failing invocation are not double-counted. Program basenames can repeat in different packages; counts are program executions, not unique feature counts. Browser and external consumers are separate."
+  },
+  "implementation_normalization": {
+    "report": {
+      "path": "target/namespace-gfx-validation/source-normalization.report.omui.json",
+      "sha256": "c85f6845e7ecbf0a950ab06da60dba688a65f690e33e93f7b4dc1b99dd63c5db"
+    },
+    "ok": true,
+    "source_units": [
+      {
+        "path": "modules/gfx/rhi/src/wire.cppm",
+        "sha256": "86e1a971ac89bc5f717bd398e0cab6261c62461d419628f3e69cba53b90b8a56",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/rhi/src/types.cpp",
+        "sha256": "85cecd02827718242466999428c8562d7013efbd5382749c7a20187e6bbe6679",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/rhi/src/commands.cpp",
+        "sha256": "fe2496bcaf09abc3fb15eec631201f7ecca7a1dbcfc25bfc7b723d0f5d4a3844",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/rhi/src/commands.cppm",
+        "sha256": "2bf5e70fab3d814122d694e6ebb50806093fab2208af91268bf7d0e15819397e",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/rhi/src/types.cppm",
+        "sha256": "1a564e632710e211a31ee6ebe00141229ef5caeef471bef85440cd4aabf44d8e",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/rhi/src/wire.cpp",
+        "sha256": "00887071bb289de66cf7b485f556df32c23eb8e251bc3968a1f680ff853c43a8",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/rhi/src/device.cppm",
+        "sha256": "27cee4573e89a47e0d5691fb598c818cecf506d515842e5d19bbea4f8b3147e0",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/rhi/src/device.cpp",
+        "sha256": "bb15909d10d7fe86fea0048e90dab51f43a41ce44044fa9c2c2d7e51810f63f7",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/rhi/src/api.cppm",
+        "sha256": "027f3b78e7e288dd64c219af81a8d8449c67151b5d6af5bdba3b878682fd5087",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/rhi/sdl/src/api.cppm",
+        "sha256": "9dca387948c308eeffe634a31c545cec9bcc4aad994acd546f34b1a6a2dfabd1",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/rhi/sdl/src/native/device.cpp",
+        "sha256": "fd5a370bcb621a922c40d7f22d39cb0c16a8bc210179ef17e245b3807d685081",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/rhi/webgpu/src/page.cppm",
+        "sha256": "9f800a04594d73eba8e2c061dc07554230445356c3d7ac24e59084fbd1cabb7f",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/rhi/webgpu/src/device.cpp",
+        "sha256": "2471d9df729635a195a7079b9133e646b7083f46fb42e31b015ba980d2b15ae4",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/rhi/webgpu/src/api.cppm",
+        "sha256": "e1f065a7a91a28b12207344a5eb6c6711e53bccbc117de2f45cefdfbb7998659",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/rhi/webgpu/src/native/browser/page.cpp",
+        "sha256": "ffd8b261dd30a4dd82938699a2e0e6e4e6daa71426056878506ae77561bc34d3",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/rhi/webgpu/src/native/elsewhere/none.cpp",
+        "sha256": "1eb5946e30c82f401a5456d5f6e57522847516cc18ba322eb6f9d0b27fd644db",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/rhi/webgl/src/page.cppm",
+        "sha256": "7eda0b808cdbaadaf302d4ab9b3846c909e6ef794b374ca773cd96a3b2be20f0",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/rhi/webgl/src/device.cpp",
+        "sha256": "a8aff5a6f37cb31e7c0d8ecf3aa5af84ad57c695dcc75765ea71b3eeb5c8e097",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/rhi/webgl/src/api.cppm",
+        "sha256": "707430ec763b70a1a8d130ffff3ba0a1ffa9e49b8d9ba571564158d2202960a7",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/rhi/webgl/src/native/browser/page.cpp",
+        "sha256": "c8110e8fb7187b5db3ff7da000c313aeb5ccf51310f381b0949a10bb3c9088c4",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/rhi/webgl/src/native/elsewhere/none.cpp",
+        "sha256": "cd49aa69644e8d371b3b4aea60331a1a112b3a930536ea93a12a98939093981c",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/rhi/cts/src/cts.cpp",
+        "sha256": "a8ba3389529db3205d1f52740b5f5e62de2e185c3b57cc00fb8e84eeec92d6ea",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/rhi/cts/src/api.cppm",
+        "sha256": "c839b64fe6786f2a6ce2230254bbe6f8a436d10b2665516aefa92a7fd9461d9d",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/raster/src/surface.cpp",
+        "sha256": "2958482b96ca8446b0c579185ed44464879acdc0e76e623ea4c11f2624e25ff1",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/raster/src/paint.cppm",
+        "sha256": "2bbff074afd87ad0d394dc84ff07194585f1ebdc885d831ee033178c8258d04b",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/raster/src/surface.cppm",
+        "sha256": "6407b58caa8ffa0ac697dfbd228e8e938e3140dba905dcbda222b6bbccb72bac",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/raster/src/canvas.cppm",
+        "sha256": "d0a5debabdbb62e2c7b8c6e648fb1e680b3a6f20fbf1cd9cad6cd27e636df112",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/raster/src/canvas.cpp",
+        "sha256": "cc7781fe68d82cf20b267036860547d41caf1ce820624eaad610e518cace8fc3",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/raster/src/paint.cpp",
+        "sha256": "d9bca543130f76a55bd461a43128d4a629bdf4ee8e0e0b471c1165c6b9ef57dc",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/raster/src/stroke.cppm",
+        "sha256": "84fe2c37d4f0f6fab2bed49978c270848702ab31ad248192f203207ae34c03a0",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/raster/src/stroke.cpp",
+        "sha256": "04eaf816994d611532768a8c8bf23d990ccb83d623e4c9c8efad786d964f59d5",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/raster/src/rasterizer.cpp",
+        "sha256": "3df1a3649c9bd9649a8e8a3042d358177afdbd967173255daa4c8e17bd1b5972",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/raster/src/api.cppm",
+        "sha256": "e7490b8ca06a55e082230b4e744e336caeac68b29226bce35af7cdde6dffa2c0",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/raster/src/rasterizer.cppm",
+        "sha256": "a54a209afaf02ed6399b83d4740362a3f32d869bee4cec79c4bffb7d6d6f401e",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/shader/src/emit.cpp",
+        "sha256": "494b236ad5d06cf47c41739cd54dd35b6f543b2ef662ced97aa27c4fbbe940b4",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/shader/src/session.cppm",
+        "sha256": "0821fe61b178b6ffcb321dfa80726f41d5c9d14a4c22211c02804347c28d60d5",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/shader/src/session.cpp",
+        "sha256": "1fa934a78e2bfcee3075294d29b64e8486e07b55f5c7bf04ef754475a9d46482",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/shader/src/main.cpp",
+        "sha256": "faf20e18029be88c73e186ebdf124d15ba250ff75baabb6b23d912a9ce8e60c6",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/shader/src/api.cppm",
+        "sha256": "fa84724dcaa792acb5a00ad09a74d65529a2e393ef3556473ead1ef0f35c6252",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/shader/src/shader.cpp",
+        "sha256": "68222597dde21eabea57d6ad69563125e481d80533b93db55ee5162e28344e4a",
+        "same_after_identity_normalization": true
+      },
+      {
+        "path": "modules/gfx/shader/rules/src/api.cppm",
+        "sha256": "c4a346d38dda6d4564dfd65474f9090b8efa3677f10dfc9f3aca9736ba01eb80",
+        "same_after_identity_normalization": true
+      }
+    ],
+    "different": [],
+    "scope": "Runtime and rule implementation bodies compared to HEAD after explicit module/namespace/memory qualification/generated path normalization. Public forwarding entries are new; manifests and generator build.mcpp are reviewed separately."
+  },
+  "foundation": {
+    "report": {
+      "path": "target/namespace-gfx-consumers/report.omui.json",
+      "sha256": "bceec37ab83b3a820af994b00b93acc5a4700673213505680b972e76d1243f9e"
+    },
+    "packs": [
+      {
+        "name": "mlibs.hash",
+        "archive": "/home/speak/workspace/mui/modules/base/hash/target/dist/hash-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "06b22acf5b53f1accd1a4217f5563df7214b9e73c4f069d9ba5cf45649a7fbd3",
+        "archive_bytes": 72262,
+        "library_bytes": 214492,
+        "interfaces": [
+          "api.cppm",
+          "hash.cppm",
+          "legacy.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.math",
+        "archive": "/home/speak/workspace/mui/modules/base/math/target/dist/math-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "706472343e6a5865cb76b2f4f4f9875e9a099e0d73d2aeeaa7390d2c61ccf95f",
+        "archive_bytes": 10540,
+        "library_bytes": 15516,
+        "interfaces": [
+          "api.cppm",
+          "color.cppm",
+          "det.cppm",
+          "legacy.cppm",
+          "math.cppm",
+          "random.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.log",
+        "archive": "/home/speak/workspace/mui/modules/base/log/target/dist/log-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "6ab8304b6ed506a712996819b47c06898547d32d9208607378fc6b5744a678ea",
+        "archive_bytes": 82271,
+        "library_bytes": 241574,
+        "interfaces": [
+          "api.cppm",
+          "legacy.cppm",
+          "log.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.trace",
+        "archive": "/home/speak/workspace/mui/modules/base/trace/target/dist/trace-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "430bd8e4fd0472f946bee50decd7bc86bce25f59a6eb978b115fb0175fe8d5c5",
+        "archive_bytes": 106229,
+        "library_bytes": 312876,
+        "interfaces": [
+          "api.cppm",
+          "legacy.cppm",
+          "trace.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.testing",
+        "archive": "/home/speak/workspace/mui/modules/base/testing/target/dist/testing-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "481b31902f9921446c877c042007060f04d10cb0de26b42723d80e758c40ee00",
+        "archive_bytes": 75646,
+        "library_bytes": 225104,
+        "interfaces": [
+          "api.cppm",
+          "legacy.cppm",
+          "testing.cppm",
+          "threads.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.geom",
+        "archive": "/home/speak/workspace/mui/modules/base/geom/target/dist/geom-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "364e29a3e6e7cb73b4df34d9fcab88ab4cae72968d4caf763c53954e13f9f741",
+        "archive_bytes": 4995,
+        "library_bytes": 8,
+        "interfaces": [
+          "api.cppm",
+          "geom.cppm",
+          "legacy.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.memory",
+        "archive": "/home/speak/workspace/mui/modules/base/memory/target/dist/memory-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "5e71096d348617d6b2522a3a0b3fee92cad4fdc0806397b6496326c0586550d7",
+        "archive_bytes": 9549,
+        "library_bytes": 5720,
+        "interfaces": [
+          "api.cppm",
+          "arena.cppm",
+          "function.cppm",
+          "handle.cppm",
+          "legacy.cppm",
+          "memory.cppm",
+          "slots.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.unicode",
+        "archive": "/home/speak/workspace/mui/modules/base/unicode/target/dist/unicode-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "319ad906cda46e8d44db5247c34cd5e71b4152fbb8c65fa87bf65dafb4a74dbe",
+        "archive_bytes": 69849,
+        "library_bytes": 345766,
+        "interfaces": [
+          "api.cppm",
+          "legacy.cppm",
+          "tables.cppm",
+          "unicode.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.fuzzy",
+        "archive": "/home/speak/workspace/mui/modules/base/fuzzy/target/dist/fuzzy-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "8116189eaaa86dcf648cc443c0d9dbdec8c890a8e2f1d83c2e026218c4465332",
+        "archive_bytes": 27675,
+        "library_bytes": 60700,
+        "interfaces": [
+          "api.cppm",
+          "fuzzy.cppm",
+          "legacy.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.session",
+        "archive": "/home/speak/workspace/mui/modules/base/session/target/dist/session-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "80c36e0f395500fdb7c9fb347bd2175aeba2c43fbc2d549c652bc7a4d8716a14",
+        "archive_bytes": 155445,
+        "library_bytes": 564414,
+        "interfaces": [
+          "api.cppm",
+          "legacy.cppm",
+          "session.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.pipeline",
+        "archive": "/home/speak/workspace/mui/modules/base/pipeline/target/dist/pipeline-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "4459a32a8481c5c96d8a0a3bfba1c57e3af039a086005cc9127a910ff720806e",
+        "archive_bytes": 114949,
+        "library_bytes": 345606,
+        "interfaces": [
+          "api.cppm",
+          "legacy.cppm",
+          "pipeline.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.image",
+        "archive": "/home/speak/workspace/mui/modules/base/image/target/dist/image-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "1bdd8ef3ea8e2e5e3f77e1679ccb25417ae9b1ca321e54f0454f9036c733db08",
+        "archive_bytes": 191042,
+        "library_bytes": 560528,
+        "interfaces": [
+          "api.cppm",
+          "image.cppm",
+          "legacy.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.rhi",
+        "archive": "/home/speak/workspace/mui/modules/gfx/rhi/target/dist/rhi-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "04dd61195f4c81d28f1887f5e6745e16f3d29ea1d72736fe7fb652c2618b29f1",
+        "archive_bytes": 189287,
+        "library_bytes": 645860,
+        "interfaces": [
+          "api.cppm",
+          "commands.cppm",
+          "device.cppm",
+          "legacy.cppm",
+          "rhi.cppm",
+          "types.cppm",
+          "wire.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.raster",
+        "archive": "/home/speak/workspace/mui/modules/gfx/raster/target/dist/raster-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "8084284bc4e872d19ccad731a50884d98c34a669087b2b473f89beab9a6e24ae",
+        "archive_bytes": 83947,
+        "library_bytes": 201260,
+        "interfaces": [
+          "api.cppm",
+          "canvas.cppm",
+          "legacy.cppm",
+          "paint.cppm",
+          "raster.cppm",
+          "rasterizer.cppm",
+          "stroke.cppm",
+          "surface.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.shader",
+        "archive": "/home/speak/workspace/mui/modules/gfx/shader/target/dist/shader-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "76ffafc0602eb65b4cf4129e8b2d5bc6e6e1a5621c2b3581d6b500cc94439176",
+        "archive_bytes": 424463,
+        "library_bytes": 1509200,
+        "interfaces": [
+          "api.cppm",
+          "legacy.cppm",
+          "shader.cppm",
+          "slang_provisioned.cppm"
+        ]
+      },
+      {
+        "name": "hanim.core",
+        "archive": "/home/speak/workspace/mui/modules/base/hanim/core/target/dist/core-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "e6b7b29bae62bba64108868e3b7240e28313586d3a009ade7172b01483865b8b",
+        "archive_bytes": 155654,
+        "library_bytes": 401594,
+        "interfaces": [
+          "core.cppm",
+          "ease.cppm",
+          "math.cppm",
+          "motion.cppm",
+          "path.cppm",
+          "set.cppm",
+          "shape.cppm",
+          "time.cppm",
+          "timeline.cppm",
+          "value.cppm"
+        ]
+      }
+    ],
+    "runs": [
+      {
+        "kind": "source",
+        "style": "canonical",
+        "cases": 15,
+        "packages": [
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.zlib",
+          "hanim.core",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.fuzzy",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.image",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.pipeline",
+          "mlibs.raster",
+          "mlibs.rhi",
+          "mlibs.session",
+          "mlibs.shader",
+          "mlibs.testing",
+          "mlibs.trace",
+          "mlibs.unicode",
+          "mlibs.validation.namespace_consumer",
+          "nlohmann.json"
+        ],
+        "local_compilation_units": 113,
+        "external_compilation_units": 244,
+        "generated_sources": [
+          {
+            "path": "/tmp/mlibs-namespace-consumer-xvyrzkry/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/mlibs.shader/mlibs/slang_provisioned.cppm",
+            "sha256": "b1b097f9d6a29f7403b49f4876874515e05fdecddaedb209642837dbc632a239"
+          }
+        ],
+        "declared_tool_sources_excluded_from_consumer_link": [
+          "/home/speak/workspace/mui/modules/gfx/shader/src/main.cpp"
+        ]
+      },
+      {
+        "kind": "source",
+        "style": "legacy",
+        "cases": 15,
+        "packages": [
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.zlib",
+          "hanim.core",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.fuzzy",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.image",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.pipeline",
+          "mlibs.raster",
+          "mlibs.rhi",
+          "mlibs.session",
+          "mlibs.shader",
+          "mlibs.testing",
+          "mlibs.trace",
+          "mlibs.unicode",
+          "mlibs.validation.namespace_consumer",
+          "nlohmann.json"
+        ],
+        "local_compilation_units": 113,
+        "external_compilation_units": 244,
+        "generated_sources": [
+          {
+            "path": "/tmp/mlibs-namespace-consumer-xvyrzkry/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/mlibs.shader/mlibs/slang_provisioned.cppm",
+            "sha256": "b1b097f9d6a29f7403b49f4876874515e05fdecddaedb209642837dbc632a239"
+          }
+        ],
+        "declared_tool_sources_excluded_from_consumer_link": [
+          "/home/speak/workspace/mui/modules/gfx/shader/src/main.cpp"
+        ]
+      },
+      {
+        "kind": "source",
+        "style": "mixed",
+        "cases": 15,
+        "packages": [
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.zlib",
+          "hanim.core",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.fuzzy",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.image",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.pipeline",
+          "mlibs.raster",
+          "mlibs.rhi",
+          "mlibs.session",
+          "mlibs.shader",
+          "mlibs.testing",
+          "mlibs.trace",
+          "mlibs.unicode",
+          "mlibs.validation.namespace_consumer",
+          "nlohmann.json"
+        ],
+        "local_compilation_units": 113,
+        "external_compilation_units": 244,
+        "generated_sources": [
+          {
+            "path": "/tmp/mlibs-namespace-consumer-xvyrzkry/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/mlibs.shader/mlibs/slang_provisioned.cppm",
+            "sha256": "b1b097f9d6a29f7403b49f4876874515e05fdecddaedb209642837dbc632a239"
+          }
+        ],
+        "declared_tool_sources_excluded_from_consumer_link": [
+          "/home/speak/workspace/mui/modules/gfx/shader/src/main.cpp"
+        ]
+      },
+      {
+        "kind": "packed",
+        "style": "canonical",
+        "cases": 15,
+        "packages": [
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.zlib",
+          "hanim.core",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.fuzzy",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.image",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.pipeline",
+          "mlibs.raster",
+          "mlibs.rhi",
+          "mlibs.session",
+          "mlibs.shader",
+          "mlibs.testing",
+          "mlibs.trace",
+          "mlibs.unicode",
+          "mlibs.validation.namespace_consumer",
+          "nlohmann.json"
+        ],
+        "local_compilation_units": 75,
+        "external_compilation_units": 244,
+        "generated_sources": [],
+        "declared_tool_sources_excluded_from_consumer_link": []
+      },
+      {
+        "kind": "packed",
+        "style": "legacy",
+        "cases": 15,
+        "packages": [
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.zlib",
+          "hanim.core",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.fuzzy",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.image",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.pipeline",
+          "mlibs.raster",
+          "mlibs.rhi",
+          "mlibs.session",
+          "mlibs.shader",
+          "mlibs.testing",
+          "mlibs.trace",
+          "mlibs.unicode",
+          "mlibs.validation.namespace_consumer",
+          "nlohmann.json"
+        ],
+        "local_compilation_units": 75,
+        "external_compilation_units": 244,
+        "generated_sources": [],
+        "declared_tool_sources_excluded_from_consumer_link": []
+      },
+      {
+        "kind": "packed",
+        "style": "mixed",
+        "cases": 15,
+        "packages": [
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.zlib",
+          "hanim.core",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.fuzzy",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.image",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.pipeline",
+          "mlibs.raster",
+          "mlibs.rhi",
+          "mlibs.session",
+          "mlibs.shader",
+          "mlibs.testing",
+          "mlibs.trace",
+          "mlibs.unicode",
+          "mlibs.validation.namespace_consumer",
+          "nlohmann.json"
+        ],
+        "local_compilation_units": 75,
+        "external_compilation_units": 244,
+        "generated_sources": [],
+        "declared_tool_sources_excluded_from_consumer_link": []
+      }
+    ],
+    "rule_runs": [
+      {
+        "style": "canonical",
+        "result": {
+          "kind": "mlibs.rules-consumer",
+          "ok": true,
+          "entries": 2
+        },
+        "generated_sha256": "289329002faa223dfff2e618e2191d26a501da0b8e4ce775b4d4eb193f0648b1"
+      },
+      {
+        "style": "legacy",
+        "result": {
+          "kind": "mlibs.rules-consumer",
+          "ok": true,
+          "entries": 2
+        },
+        "generated_sha256": "289329002faa223dfff2e618e2191d26a501da0b8e4ce775b4d4eb193f0648b1"
+      },
+      {
+        "style": "mixed",
+        "result": {
+          "kind": "mlibs.rules-consumer",
+          "ok": true,
+          "entries": 2
+        },
+        "generated_sha256": "289329002faa223dfff2e618e2191d26a501da0b8e4ce775b4d4eb193f0648b1"
+      }
+    ],
+    "commands": [
+      {
+        "label": "pack-hash",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "pack",
+          "-p",
+          "mlibs.hash",
+          "--profile",
+          "release",
+          "--message-format",
+          "json"
+        ],
+        "seconds": 0.17594936396926641,
+        "exit_code": 0
+      },
+      {
+        "label": "pack-math",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "pack",
+          "-p",
+          "mlibs.math",
+          "--profile",
+          "release",
+          "--message-format",
+          "json"
+        ],
+        "seconds": 0.16272779903374612,
+        "exit_code": 0
+      },
+      {
+        "label": "pack-log",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "pack",
+          "-p",
+          "mlibs.log",
+          "--profile",
+          "release",
+          "--message-format",
+          "json"
+        ],
+        "seconds": 0.1748629449866712,
+        "exit_code": 0
+      },
+      {
+        "label": "pack-trace",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "pack",
+          "-p",
+          "mlibs.trace",
+          "--profile",
+          "release",
+          "--message-format",
+          "json"
+        ],
+        "seconds": 0.1764092619996518,
+        "exit_code": 0
+      },
+      {
+        "label": "pack-testing",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "pack",
+          "-p",
+          "mlibs.testing",
+          "--profile",
+          "release",
+          "--message-format",
+          "json"
+        ],
+        "seconds": 0.17542662704363465,
+        "exit_code": 0
+      },
+      {
+        "label": "pack-geom",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "pack",
+          "-p",
+          "mlibs.geom",
+          "--profile",
+          "release",
+          "--message-format",
+          "json"
+        ],
+        "seconds": 0.15918197704013437,
+        "exit_code": 0
+      },
+      {
+        "label": "pack-memory",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "pack",
+          "-p",
+          "mlibs.memory",
+          "--profile",
+          "release",
+          "--message-format",
+          "json"
+        ],
+        "seconds": 0.17725237202830613,
+        "exit_code": 0
+      },
+      {
+        "label": "pack-unicode",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "pack",
+          "-p",
+          "mlibs.unicode",
+          "--profile",
+          "release",
+          "--message-format",
+          "json"
+        ],
+        "seconds": 0.17419453302863985,
+        "exit_code": 0
+      },
+      {
+        "label": "pack-fuzzy",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "pack",
+          "-p",
+          "mlibs.fuzzy",
+          "--profile",
+          "release",
+          "--message-format",
+          "json"
+        ],
+        "seconds": 0.17145296395756304,
+        "exit_code": 0
+      },
+      {
+        "label": "pack-session",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "pack",
+          "-p",
+          "mlibs.session",
+          "--profile",
+          "release",
+          "--message-format",
+          "json"
+        ],
+        "seconds": 0.5786951160989702,
+        "exit_code": 0
+      },
+      {
+        "label": "pack-pipeline",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "pack",
+          "-p",
+          "mlibs.pipeline",
+          "--profile",
+          "release",
+          "--message-format",
+          "json"
+        ],
+        "seconds": 0.18338873703032732,
+        "exit_code": 0
+      },
+      {
+        "label": "pack-image",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "pack",
+          "-p",
+          "mlibs.image",
+          "--profile",
+          "release",
+          "--message-format",
+          "json"
+        ],
+        "seconds": 0.5676813620375469,
+        "exit_code": 0
+      },
+      {
+        "label": "pack-rhi",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "pack",
+          "-p",
+          "mlibs.rhi",
+          "--profile",
+          "release",
+          "--message-format",
+          "json"
+        ],
+        "seconds": 0.2259065608959645,
+        "exit_code": 0
+      },
+      {
+        "label": "pack-raster",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "pack",
+          "-p",
+          "mlibs.raster",
+          "--profile",
+          "release",
+          "--message-format",
+          "json"
+        ],
+        "seconds": 0.23092411295510828,
+        "exit_code": 0
+      },
+      {
+        "label": "pack-shader",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "pack",
+          "mlibs-shader",
+          "-p",
+          "mlibs.shader",
+          "--profile",
+          "release",
+          "--message-format",
+          "json"
+        ],
+        "seconds": 0.8242426059441641,
+        "exit_code": 0
+      },
+      {
+        "label": "pack-hanim.core",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "pack",
+          "-p",
+          "hanim.core",
+          "--profile",
+          "release",
+          "--message-format",
+          "json"
+        ],
+        "seconds": 0.18329452897887677,
+        "exit_code": 0
+      },
+      {
+        "label": "source-canonical",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--profile",
+          "release"
+        ],
+        "seconds": 36.88219295896124,
+        "exit_code": 0
+      },
+      {
+        "label": "source-canonical-incremental",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--profile",
+          "release",
+          "--locked"
+        ],
+        "seconds": 1.7955573379294947,
+        "exit_code": 0
+      },
+      {
+        "label": "source-canonical-metadata",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "build",
+          "--profile",
+          "release",
+          "--locked",
+          "--configure-only"
+        ],
+        "seconds": 0.9015053799375892,
+        "exit_code": 0
+      },
+      {
+        "label": "source-legacy",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--profile",
+          "release"
+        ],
+        "seconds": 36.456534340046346,
+        "exit_code": 0
+      },
+      {
+        "label": "source-legacy-incremental",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--profile",
+          "release",
+          "--locked"
+        ],
+        "seconds": 1.6010620860615745,
+        "exit_code": 0
+      },
+      {
+        "label": "source-legacy-metadata",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "build",
+          "--profile",
+          "release",
+          "--locked",
+          "--configure-only"
+        ],
+        "seconds": 1.009158461005427,
+        "exit_code": 0
+      },
+      {
+        "label": "source-mixed",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--profile",
+          "release"
+        ],
+        "seconds": 36.31891058397014,
+        "exit_code": 0
+      },
+      {
+        "label": "source-mixed-incremental",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--profile",
+          "release",
+          "--locked"
+        ],
+        "seconds": 1.802051127073355,
+        "exit_code": 0
+      },
+      {
+        "label": "source-mixed-metadata",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "build",
+          "--profile",
+          "release",
+          "--locked",
+          "--configure-only"
+        ],
+        "seconds": 0.9818337369943038,
+        "exit_code": 0
+      },
+      {
+        "label": "packed-canonical",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--profile",
+          "release"
+        ],
+        "seconds": 11.657825769041665,
+        "exit_code": 0
+      },
+      {
+        "label": "packed-canonical-incremental",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--profile",
+          "release",
+          "--locked"
+        ],
+        "seconds": 2.2004005279159173,
+        "exit_code": 0
+      },
+      {
+        "label": "packed-canonical-metadata",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "build",
+          "--profile",
+          "release",
+          "--locked",
+          "--configure-only"
+        ],
+        "seconds": 1.0623729369835928,
+        "exit_code": 0
+      },
+      {
+        "label": "packed-legacy",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--profile",
+          "release"
+        ],
+        "seconds": 12.361244995961897,
+        "exit_code": 0
+      },
+      {
+        "label": "packed-legacy-incremental",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--profile",
+          "release",
+          "--locked"
+        ],
+        "seconds": 2.4944182470208034,
+        "exit_code": 0
+      },
+      {
+        "label": "packed-legacy-metadata",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "build",
+          "--profile",
+          "release",
+          "--locked",
+          "--configure-only"
+        ],
+        "seconds": 1.1088296779198572,
+        "exit_code": 0
+      },
+      {
+        "label": "packed-mixed",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--profile",
+          "release"
+        ],
+        "seconds": 13.747103611007333,
+        "exit_code": 0
+      },
+      {
+        "label": "packed-mixed-incremental",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--profile",
+          "release",
+          "--locked"
+        ],
+        "seconds": 2.1172941150143743,
+        "exit_code": 0
+      },
+      {
+        "label": "packed-mixed-metadata",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "build",
+          "--profile",
+          "release",
+          "--locked",
+          "--configure-only"
+        ],
+        "seconds": 1.0401152250124142,
+        "exit_code": 0
+      },
+      {
+        "label": "rules-canonical",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--profile",
+          "release"
+        ],
+        "seconds": 17.06777340301778,
+        "exit_code": 0
+      },
+      {
+        "label": "rules-canonical-incremental",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--profile",
+          "release",
+          "--locked"
+        ],
+        "seconds": 0.3631314520025626,
+        "exit_code": 0
+      },
+      {
+        "label": "rules-legacy",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--profile",
+          "release"
+        ],
+        "seconds": 17.12085289694369,
+        "exit_code": 0
+      },
+      {
+        "label": "rules-legacy-incremental",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--profile",
+          "release",
+          "--locked"
+        ],
+        "seconds": 0.3759971659164876,
+        "exit_code": 0
+      },
+      {
+        "label": "rules-mixed",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--profile",
+          "release"
+        ],
+        "seconds": 17.42952082597185,
+        "exit_code": 0
+      },
+      {
+        "label": "rules-mixed-incremental",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--profile",
+          "release",
+          "--locked"
+        ],
+        "seconds": 0.4387269760482013,
+        "exit_code": 0
+      }
+    ],
+    "limits": [
+      "Source compatibility after rebuild; not C++ binary ABI compatibility or registry aliases.",
+      "Native release source and archive consumers; this gate does not test other targets.",
+      "Fresh consumer build times can reuse global toolchain caches; they are not clean-machine benchmarks.",
+      "The packed consumer explicitly declares foundation dependencies, hanim.core and external index dependencies.",
+      "Shader provisioning is tested on this machine; relocation of the recorded Slang tool path is not verified.",
+      "mcpp index lock hashes describe namespace/name/version, not downloaded artifact content.",
+      "No package publication or claim that mcpp pack preserves dependency metadata."
+    ]
+  },
+  "consumer_audit_corrections": [
+    "Allow only the shader package outDir/mlibs/slang_provisioned.cppm generated module, with its expected exported partition and recorded hash.",
+    "Classify the shader CLI entry separately from runtime implementation units and require its object to be absent from the actual consumer link. The CLI is compiled by mcpp even when consuming the library.",
+    "Parse Ninja output tokens before the colon rather than assuming no whitespace before it; runtime consumer assertions were already passing when this audit assumption failed."
+  ],
+  "consumer_gate_logs": [
+    {
+      "path": "target/namespace-gfx-validation/logs/omui-n1d-foundation-consumers-diagnostic.log",
+      "sha256": "67488ec5d2dad34980026bd50a38e631d0854d6dd899da91e8a94c073dc31cd1"
+    },
+    {
+      "path": "target/namespace-gfx-validation/logs/omui-n1d-foundation-consumers-final.log",
+      "sha256": "8d9f07b64d5df4f8e4cfe6c36038fe49dada134c78acb0a19bd551699544225b"
+    },
+    {
+      "path": "target/namespace-gfx-validation/logs/omui-n1d-foundation-consumers-final2.log",
+      "sha256": "040f2bfc677e53ad984c666192b0dde72b9cfe8046452b9d2ffbfbfb5ad11f47"
+    }
+  ],
+  "native_gpu": {
+    "log": {
+      "path": "target/namespace-gfx-validation/logs/omui-n1d-sdl-dev-final.log",
+      "sha256": "3d60b0476b655a00e73543e814f2aa546349be639d64518ce66818d13fffd33a"
+    },
+    "device": "llvmpipe / LLVM 22.1.8 software Vulkan (lavapipe)",
+    "window_system": "SDL offscreen; OMUI_REQUIRE_GPU=1",
+    "cts": [
+      "clear",
+      "orientation",
+      "instancing",
+      "firsts",
+      "indexed",
+      "blending",
+      "scissor",
+      "viewport",
+      "texture_nearest",
+      "uniforms",
+      "load_keeps",
+      "copy",
+      "compute",
+      "formats",
+      "ordering",
+      "buffers",
+      "depth_test",
+      "depth_kept",
+      "multisample"
+    ],
+    "cellular_process": "16 scenarios, 266 steps, 168 comparisons / 61320 values, 129 validation checks, process 0769cee00d2cbf3a",
+    "initial_setup_failure": "Without OMUI_GPU_VIDEO_DRIVER=offscreen the headless machine could not initialize SDL video. The final run required a real created device and passed; no production code was changed to skip it.",
+    "hardware_performance_claim": false
+  },
+  "browser_gpu": {
+    "log": {
+      "path": "target/namespace-gfx-validation/logs/omui-n1d-browser-backends.log",
+      "sha256": "20a473d7ea98c595f7f3305fb41365c83bcea8ef4521c999c13784d6fa7c83d6"
+    },
+    "browser": "Google Chrome for Testing 156.0.8078.4",
+    "devices": "SwiftShader WebGPU; ANGLE/Vulkan SwiftShader WebGL2",
+    "rhi_cts_per_backend": 19,
+    "webgl_compute_case": "Tests explicit unsupported rejection; not compute execution.",
+    "reported_backend_suite_cases_per_backend": 7,
+    "backend_suite_count_limit": "The unavailable-backend probe returns early when the actual backend exists; CTS and actual draw/compute cases provide the device evidence.",
+    "cellular_process": "16 scenarios, 266 steps, 168 comparisons / 61320 values, 129 validation checks, process 0769cee00d2cbf3a",
+    "host_drawing": {
+      "webgpu": {
+        "max_diff_u8": 4,
+        "pixels_diff_over_1": 64,
+        "pixels": 76800
+      },
+      "webgl": {
+        "max_diff_u8": 4,
+        "pixels_diff_over_1": 64,
+        "pixels": 76800
+      }
+    },
+    "shader_checks": 70,
+    "wgsl_entry_points": 33,
+    "essl_entry_points": 30,
+    "partitions": 25,
+    "initial_webgpu_present_failure": "Default Chromium switches lost the canvas device (Device was destroyed). The existing runner retried with --enable-features=Vulkan --use-vulkan=swiftshader --use-angle=vulkan and passed the same real present/readback check. The offscreen fallback was not needed.",
+    "physical_gpu_performance_claim": false
+  },
+  "authoring": {
+    "report": {
+      "path": "target/namespace-gfx-validation/authoring/report.omui.json",
+      "sha256": "77561ac65600848b69e235ef282a1f1d52161b0b24e2b789f8f21198bcbb54ac"
+    },
+    "profiles": [
+      {
+        "profile": "dev",
+        "checks": 104,
+        "packages": [
+          "hanim.core",
+          "hanim.effect",
+          "hanim.engine",
+          "hanim.library",
+          "hanim.object",
+          "hanim.program",
+          "hanim.validation.api_probe",
+          "mcpplibs.hanim",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.trace"
+        ]
+      },
+      {
+        "profile": "release",
+        "checks": 104,
+        "packages": [
+          "hanim.core",
+          "hanim.effect",
+          "hanim.engine",
+          "hanim.library",
+          "hanim.object",
+          "hanim.program",
+          "hanim.validation.api_probe",
+          "mcpplibs.hanim",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.trace"
+        ]
+      }
+    ]
+  },
+  "play": {
+    "report": {
+      "path": "target/namespace-gfx-validation/play/report.omui.json",
+      "sha256": "9b6ddc4486d703c8bb0742a5368454236d982636fd32fda3f5f72dadc485235e"
+    },
+    "profiles": [
+      {
+        "profile": "dev",
+        "sampled_frames": 122,
+        "denied_capture_published_no_files": true,
+        "display_environment_removed": true,
+        "packages": [
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.zlib",
+          "hanim.core",
+          "hanim.effect",
+          "hanim.engine",
+          "hanim.library",
+          "hanim.object",
+          "hanim.program",
+          "hanim.render.vector",
+          "hanim.validation.play_consumer",
+          "mcpplibs.hanim",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.control",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.image",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.raster",
+          "mlibs.rhi",
+          "mlibs.shader",
+          "mlibs.shader.rules",
+          "mlibs.trace",
+          "nlohmann.json",
+          "openlifa.openas",
+          "openmui.render",
+          "openmui.render.vector"
+        ]
+      },
+      {
+        "profile": "release",
+        "sampled_frames": 122,
+        "denied_capture_published_no_files": true,
+        "display_environment_removed": true,
+        "packages": [
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.zlib",
+          "hanim.core",
+          "hanim.effect",
+          "hanim.engine",
+          "hanim.library",
+          "hanim.object",
+          "hanim.program",
+          "hanim.render.vector",
+          "hanim.validation.play_consumer",
+          "mcpplibs.hanim",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.control",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.image",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.raster",
+          "mlibs.rhi",
+          "mlibs.shader",
+          "mlibs.shader.rules",
+          "mlibs.trace",
+          "nlohmann.json",
+          "openlifa.openas",
+          "openmui.render",
+          "openmui.render.vector"
+        ]
+      }
+    ],
+    "same_process_pixels_and_png_as_prior": {
+      "matched": 244,
+      "prior": "target/namespace-session-validation/play/report.omui.json",
+      "current": "target/namespace-gfx-validation/play/report.omui.json"
+    }
+  },
+  "website": {
+    "report": {
+      "path": "target/namespace-gfx-validation/site-browser.report.omui.json",
+      "sha256": "91646230fc5df3ef2b0b79ab5eee178611628f1de969efcf0e3c66088c8ba7eb"
+    },
+    "browser": "HeadlessChrome/156.0.8078.4",
+    "checks": [
+      {
+        "ok": true,
+        "what": "the website opens the shared reaction workspace"
+      },
+      {
+        "ok": true,
+        "what": "rules and project details start closed"
+      },
+      {
+        "ok": true,
+        "what": "a real pointer paints the intended cell"
+      },
+      {
+        "ok": true,
+        "what": "Agent and pointer produce identical material state"
+      },
+      {
+        "ok": true,
+        "what": "all 25 intermediate states differ"
+      },
+      {
+        "ok": true,
+        "what": "all 25 actual canvas images differ"
+      },
+      {
+        "ok": true,
+        "what": "reverse seek reproduces state and actual canvas pixels at frame 17"
+      },
+      {
+        "ok": true,
+        "what": "reverse seek reproduces state and actual canvas pixels at frame 8"
+      },
+      {
+        "ok": true,
+        "what": "reverse seek reproduces state and actual canvas pixels at frame 0"
+      },
+      {
+        "ok": true,
+        "what": "real keyboard input edits and applies the rule configuration"
+      },
+      {
+        "ok": true,
+        "what": "real Play input advances the live simulation"
+      },
+      {
+        "ok": true,
+        "what": "leaving the route cancels ongoing playback"
+      },
+      {
+        "ok": true,
+        "what": "navigation and language changes preserve the edited project"
+      },
+      {
+        "ok": true,
+        "what": "the real resized phone canvas fits its viewport"
+      }
+    ],
+    "fixed_canvas_samples_matched": 25,
+    "comparison_reference": "tools/ci/2026-11-05-cellular-workbench.report.omui.json",
+    "native_prerender_and_guide": {
+      "path": "target/namespace-gfx-validation/site-native.report.omui.json",
+      "sha256": "80a2f28a64bb5f391e940e7aae7ad04ca2ea68e66de31a871c1b4e186e819a41"
+    },
+    "pack": {
+      "path": "target/namespace-gfx-validation/site-pack.report.omui.json",
+      "sha256": "368920641a878101456d44b7d582d58dad3f0fa3b3b10d48f5ff8b9a571a0ed1"
+    },
+    "wasm": [
+      {
+        "path": "target/namespace-gfx-validation/site/omui-site-b1192c5c9f3f.wasm",
+        "sha256": "32d94f5dee6829431968a58609e8ed7d169817797a829c99fbc20d5169f18fad",
+        "bytes": 7074930
+      }
+    ],
+    "visually_inspected": [
+      {
+        "path": "target/site-reactions/phone-zh.png",
+        "sha256": "cdca481fe841e12b0dc70933ae9c2a51e3b76df21e54fb4c1ed2296a977cdb9e"
+      },
+      {
+        "path": "target/site-reactions/tick-12.png",
+        "sha256": "7d45f68196988cc2cf3b3c4acd4def193639d5240e536e927b225feefa9e4819"
+      },
+      {
+        "path": "target/namespace-gfx-validation/play/report.omui-artifacts/dev-agent-linear.png.agent-030.png",
+        "sha256": "28063a6a46d2ed919c6ead3392f9a2236188224e8c224d61e6db1a385833d4ff"
+      }
+    ],
+    "visual_scope": "No new visual design acceptance; fixed state/pixel regression and an actual Chinese narrow viewport and process samples inspected."
+  },
+  "source_files_sha256": {
+    "components/canvas/kit/mcpp.toml": "ac5ee7572e8a656c1886334afc9c15fa20780bab7a88ef182bebccec4a3032ca",
+    "components/canvas/mcpp.toml": "a702358d7698352633ec229acdaced3be9fc8b6ffb2f1129a25f90e7b93db6a6",
+    "mgame/gongfu/present2d/mcpp.toml": "20523be99749c370591b5d5f9f54717ce7b6f198eba77ef8755cb61215930c3e",
+    "mgame/gongfu/studio/mcpp.toml": "7861b10485f05121d966457b2eebe6714ec9c6678612efcb0c8eb88b13a599f3",
+    "modules/content/text/mcpp.toml": "a214b25f6524f0186239eee3ac95e4869a3ee066914d2a7003dcffb229078e54",
+    "modules/gfx/hanim/engine/mcpp.toml": "a50b093a498f4a2ff4182dd581a02f329fef0a021497b1b85837189fe728ffeb",
+    "modules/gfx/hanim/render/vector/mcpp.toml": "3b3bca45f5a4a8789543f4bf1771b861d66c0c45a6c56f181c315726a3b07bd3",
+    "modules/gfx/raster/mcpp.toml": "3b5182cc6e9b09d2d9dee21dfa9e122587a77f0dff13b91286ca0d0b804d640e",
+    "modules/gfx/raster/src/api.cppm": "e7490b8ca06a55e082230b4e744e336caeac68b29226bce35af7cdde6dffa2c0",
+    "modules/gfx/raster/src/canvas.cpp": "cc7781fe68d82cf20b267036860547d41caf1ce820624eaad610e518cace8fc3",
+    "modules/gfx/raster/src/canvas.cppm": "d0a5debabdbb62e2c7b8c6e648fb1e680b3a6f20fbf1cd9cad6cd27e636df112",
+    "modules/gfx/raster/src/legacy.cppm": "51fd7edd6e48e2796d8b98757f4df32a5342319cf890f3620896db74686e7a45",
+    "modules/gfx/raster/src/paint.cpp": "d9bca543130f76a55bd461a43128d4a629bdf4ee8e0e0b471c1165c6b9ef57dc",
+    "modules/gfx/raster/src/paint.cppm": "2bbff074afd87ad0d394dc84ff07194585f1ebdc885d831ee033178c8258d04b",
+    "modules/gfx/raster/src/raster.cppm": "bcd2741a58b3c21aea7efd6220a6977fee753a97cd22c80996256eed1a16d1db",
+    "modules/gfx/raster/src/rasterizer.cpp": "3df1a3649c9bd9649a8e8a3042d358177afdbd967173255daa4c8e17bd1b5972",
+    "modules/gfx/raster/src/rasterizer.cppm": "a54a209afaf02ed6399b83d4740362a3f32d869bee4cec79c4bffb7d6d6f401e",
+    "modules/gfx/raster/src/stroke.cpp": "04eaf816994d611532768a8c8bf23d990ccb83d623e4c9c8efad786d964f59d5",
+    "modules/gfx/raster/src/stroke.cppm": "84fe2c37d4f0f6fab2bed49978c270848702ab31ad248192f203207ae34c03a0",
+    "modules/gfx/raster/src/surface.cpp": "2958482b96ca8446b0c579185ed44464879acdc0e76e623ea4c11f2624e25ff1",
+    "modules/gfx/raster/src/surface.cppm": "6407b58caa8ffa0ac697dfbd228e8e938e3140dba905dcbda222b6bbccb72bac",
+    "modules/gfx/render/cts/mcpp.toml": "241a00592c6842875c82001e7a8806350c192c462bad85e3e7375ac0f68418e9",
+    "modules/gfx/render/effect/mcpp.toml": "d412d3f552e98a87286917fefd659e4c9fa07bcff647e0e7f7be75f564bd6cb9",
+    "modules/gfx/render/mcpp.toml": "ee2e8162e76019c4e1965473280528356fe51099fb3c823b14d74907caa63626",
+    "modules/gfx/render/vector/build.mcpp": "327b8dc0cd559a34fb5d19a0bedf8772e8d8061dbfe5dc3d99959ea0b628643e",
+    "modules/gfx/render/vector/mcpp.toml": "c6b9cf1c02369f81f16663fc282e14071ec6f55d9b6bd2da3180fa3e14381b31",
+    "modules/gfx/rhi/cts/build.mcpp": "dbfdb707d5a2f134e2eb5b37a0dff7ba5baaa90cecf1f5f5fbc0c75eaa287956",
+    "modules/gfx/rhi/cts/mcpp.toml": "6321d8434990b1079b264f5a151d431f6886ee608588764786b815fa2a1419db",
+    "modules/gfx/rhi/cts/src/api.cppm": "c839b64fe6786f2a6ce2230254bbe6f8a436d10b2665516aefa92a7fd9461d9d",
+    "modules/gfx/rhi/cts/src/cts.cpp": "a8ba3389529db3205d1f52740b5f5e62de2e185c3b57cc00fb8e84eeec92d6ea",
+    "modules/gfx/rhi/cts/src/cts.cppm": "c157b7cabf7d6e8e3ea92cc145639d89c1e712b26d5000e73d9dbfa49fe81927",
+    "modules/gfx/rhi/cts/src/legacy.cppm": "a796b5cf094eea3f0ff6d4de0088fa409967f21fdb595a4b9907dcabfab06f1d",
+    "modules/gfx/rhi/mcpp.toml": "3c443ebcaea88c525cbd51b85252b5db1e182fb327967d6d2cb6ca1b8e4e4436",
+    "modules/gfx/rhi/sdl/mcpp.toml": "0e5e195f87840ac7e9db26302581173943e092546d85e97478f150ab54fc6785",
+    "modules/gfx/rhi/sdl/src/api.cppm": "9dca387948c308eeffe634a31c545cec9bcc4aad994acd546f34b1a6a2dfabd1",
+    "modules/gfx/rhi/sdl/src/legacy.cppm": "ea6dd85678b3d66484d00b28e6d50f7f6fda6e1dcab73cbbd57128850cd01b9a",
+    "modules/gfx/rhi/sdl/src/native/device.cpp": "fd5a370bcb621a922c40d7f22d39cb0c16a8bc210179ef17e245b3807d685081",
+    "modules/gfx/rhi/sdl/src/sdl.cppm": "f9c5945eb98604df5f2152b82bc2b805a72ca19ed589c96cc8320dde671ed42a",
+    "modules/gfx/rhi/src/api.cppm": "027f3b78e7e288dd64c219af81a8d8449c67151b5d6af5bdba3b878682fd5087",
+    "modules/gfx/rhi/src/commands.cpp": "fe2496bcaf09abc3fb15eec631201f7ecca7a1dbcfc25bfc7b723d0f5d4a3844",
+    "modules/gfx/rhi/src/commands.cppm": "2bf5e70fab3d814122d694e6ebb50806093fab2208af91268bf7d0e15819397e",
+    "modules/gfx/rhi/src/device.cpp": "bb15909d10d7fe86fea0048e90dab51f43a41ce44044fa9c2c2d7e51810f63f7",
+    "modules/gfx/rhi/src/device.cppm": "27cee4573e89a47e0d5691fb598c818cecf506d515842e5d19bbea4f8b3147e0",
+    "modules/gfx/rhi/src/legacy.cppm": "e801d80752d47f5183a08a364f80deae05e0e27a5ea18638b1152abc99bd0cdf",
+    "modules/gfx/rhi/src/rhi.cppm": "b923dba0756d9f5c23774ccb7479615f2bd7db9f4d01f064aee213c7e392cab1",
+    "modules/gfx/rhi/src/types.cpp": "85cecd02827718242466999428c8562d7013efbd5382749c7a20187e6bbe6679",
+    "modules/gfx/rhi/src/types.cppm": "1a564e632710e211a31ee6ebe00141229ef5caeef471bef85440cd4aabf44d8e",
+    "modules/gfx/rhi/src/wire.cpp": "00887071bb289de66cf7b485f556df32c23eb8e251bc3968a1f680ff853c43a8",
+    "modules/gfx/rhi/src/wire.cppm": "86e1a971ac89bc5f717bd398e0cab6261c62461d419628f3e69cba53b90b8a56",
+    "modules/gfx/rhi/webgl/mcpp.toml": "e388683eb57917af03cad70f0b69cab648d8cec23dbf48099a5c28aa29a0ffb9",
+    "modules/gfx/rhi/webgl/src/api.cppm": "707430ec763b70a1a8d130ffff3ba0a1ffa9e49b8d9ba571564158d2202960a7",
+    "modules/gfx/rhi/webgl/src/device.cpp": "a8aff5a6f37cb31e7c0d8ecf3aa5af84ad57c695dcc75765ea71b3eeb5c8e097",
+    "modules/gfx/rhi/webgl/src/legacy.cppm": "d9b78074b3742e7527bb8a6e97d3fc281993f0f8f61895233588508b651aa098",
+    "modules/gfx/rhi/webgl/src/native/browser/page.cpp": "c8110e8fb7187b5db3ff7da000c313aeb5ccf51310f381b0949a10bb3c9088c4",
+    "modules/gfx/rhi/webgl/src/native/elsewhere/none.cpp": "cd49aa69644e8d371b3b4aea60331a1a112b3a930536ea93a12a98939093981c",
+    "modules/gfx/rhi/webgl/src/page.cppm": "7eda0b808cdbaadaf302d4ab9b3846c909e6ef794b374ca773cd96a3b2be20f0",
+    "modules/gfx/rhi/webgl/src/webgl.cppm": "bb46ad721a18494a240cc29d9fad81979757239c5b04767d934c47d1b8c2d72b",
+    "modules/gfx/rhi/webgpu/mcpp.toml": "596ea6c46751d3ae0d29b6345a489c55d1b0eb30132fc8d6f021ba5b9d6a0013",
+    "modules/gfx/rhi/webgpu/src/api.cppm": "e1f065a7a91a28b12207344a5eb6c6711e53bccbc117de2f45cefdfbb7998659",
+    "modules/gfx/rhi/webgpu/src/device.cpp": "2471d9df729635a195a7079b9133e646b7083f46fb42e31b015ba980d2b15ae4",
+    "modules/gfx/rhi/webgpu/src/legacy.cppm": "b994f6534149dfd76fceadc799f65994d2b54181447ed7f65bd7b905d9ffe601",
+    "modules/gfx/rhi/webgpu/src/native/browser/page.cpp": "ffd8b261dd30a4dd82938699a2e0e6e4e6daa71426056878506ae77561bc34d3",
+    "modules/gfx/rhi/webgpu/src/native/elsewhere/none.cpp": "1eb5946e30c82f401a5456d5f6e57522847516cc18ba322eb6f9d0b27fd644db",
+    "modules/gfx/rhi/webgpu/src/page.cppm": "9f800a04594d73eba8e2c061dc07554230445356c3d7ac24e59084fbd1cabb7f",
+    "modules/gfx/rhi/webgpu/src/webgpu.cppm": "a755423c1b667834f3bb0315cfa722fc69ebed2a3808d22e85eb9ecba902370a",
+    "modules/gfx/shader/build.mcpp": "a13279e428a27d2743348d36fd86deee5ef05b3ef71b51e09593830a10bc5a71",
+    "modules/gfx/shader/mcpp.toml": "6b943b9a4b69216c7d33186a9afb51686a35bcff6dd3c51f640ed9adbd48150c",
+    "modules/gfx/shader/rules/mcpp.toml": "57d566e6df7bd3b8412663d27ea3a48c8592c9753687e570bf0a14c4ff70bb56",
+    "modules/gfx/shader/rules/src/api.cppm": "c4a346d38dda6d4564dfd65474f9090b8efa3677f10dfc9f3aca9736ba01eb80",
+    "modules/gfx/shader/rules/src/legacy.cppm": "a4da89e278f35387c1187091983a4ed703b24fd977e210256eb778a0a7c5f635",
+    "modules/gfx/shader/rules/src/rules.cppm": "8b16ed16e784906f01072f80ce10ed8625894462d89134e3c10c705c9722e049",
+    "modules/gfx/shader/src/api.cppm": "fa84724dcaa792acb5a00ad09a74d65529a2e393ef3556473ead1ef0f35c6252",
+    "modules/gfx/shader/src/emit.cpp": "494b236ad5d06cf47c41739cd54dd35b6f543b2ef662ced97aa27c4fbbe940b4",
+    "modules/gfx/shader/src/legacy.cppm": "e46892cb551f6fa1ecac0a06a04125a231caa203fbb3f453834d5e8ebec892ce",
+    "modules/gfx/shader/src/main.cpp": "faf20e18029be88c73e186ebdf124d15ba250ff75baabb6b23d912a9ce8e60c6",
+    "modules/gfx/shader/src/session.cpp": "1fa934a78e2bfcee3075294d29b64e8486e07b55f5c7bf04ef754475a9d46482",
+    "modules/gfx/shader/src/session.cppm": "0821fe61b178b6ffcb321dfa80726f41d5c9d14a4c22211c02804347c28d60d5",
+    "modules/gfx/shader/src/shader.cpp": "68222597dde21eabea57d6ad69563125e481d80533b93db55ee5162e28344e4a",
+    "modules/gfx/shader/src/shader.cppm": "999b99d8e57d4aa6a0ff859f46810865a1b943e74b2d0114041edd5c5b068a34",
+    "modules/gfx/shader/tests/shader_test.cpp": "27f9cdd40b1f8a8fadf7958b05beeb4d175d070cc186fd6e1b308484d373a80a",
+    "modules/gfx/simulation/cellular/rhi/build.mcpp": "d01f7f6296dbbc059f54cd534d59a26c955d4b4c73f32557fefa994941993e67",
+    "modules/gfx/simulation/cellular/rhi/cts/mcpp.toml": "402e40c6463d39cb0f42a01ab76ab722812e44bf658c9a33c42c3ba030d18ce6",
+    "modules/gfx/simulation/cellular/rhi/mcpp.toml": "a2cdc3f8fed2064f49e4aef7a495e2736422912f54352604f3902eba625e0adf",
+    "modules/ui/abi/mcpp.toml": "0eea086924e8f924080740d366ff11d98eeaaa5249e2a8f11815d492159d29f0",
+    "modules/ui/host/headless/mcpp.toml": "5715c2983ebe1b6bb2c333d3f82b968306608219492f5b4c7ffc1dfa705bff73",
+    "modules/ui/host/sdl3/mcpp.toml": "918ebfe7281474b70af7cca3453df7b80132dedc491489a0910a8dc3e3e9b69f",
+    "modules/ui/host/web/mcpp.toml": "dd14dff420bf5d8266a24200ac1d059193d80cb6ecf6d31e73697a8b4b0c72f1",
+    "modules/ui/motion/mcpp.toml": "9bdcec9af1bac94a34226b375229cabf51543d865ed5af1a947a02da945357cc",
+    "modules/ui/view/mcpp.toml": "4157ceedc9a51247d1a67b268a58f235c976e148ce43bf2b72ed2b5356f0b5ca",
+    "showcase/fighting/mcpp.toml": "5571443ba1d58f078dd17d5e1ee743d63f4c66487cdcd2f84808c4c65ca108c8",
+    "tests/bench/mcpp.toml": "07102a25c0eece7b39bbb3531cdb91f6d2abde1d5b1be1f435ef1971ee5fea1b",
+    "tools/ci/browser.sh": "a7187458547fb6d7a6f47806c2e59de321dfca7293cad40579e32e8371ceea50",
+    "tools/ci/foundation-migration/consumer.slang": "78d7ec26ebacd29f00e206429771463916617cd7c3de5143aa3cd864f0bfe58f",
+    "tools/ci/foundation-migration/main.cpp.in": "e57521744914a0b9934b1b6d828f55f7851a033c2a243a94a8320b572b1c4885",
+    "tools/ci/foundation-migration/rules/consumer.cppm": "22cb1ffdd3e6351174488aeca13be2821919a0ddc2aa3da5029b21bc0269464b",
+    "tools/ci/foundation-migration/rules/main.cpp": "a27b3ba2f8f9ab4c727acd6dc1dababa5bf32d2bc286db97ca7c01626193516b",
+    "tools/ci/foundation-migration/rules/mcpp.toml.in": "750877356a479a161d9d37ceac25df3f3b659354575af5ac8dbc3829e04865f8",
+    "tools/ci/foundation-migration/run.py": "31aded2f76f07f7d8ce8f5a7a7d40ebd78f74fd8938763d2ba251e3dc5c29fb7",
+    "tools/ci/hanim-api-probe/run.py": "34394adb9c164a66258783e3130520aa81a4b942550b1d2f30b29ba0783c41a6",
+    "tools/ci/hanim-play-consumer/mcpp.toml.in": "58bc9faf120789ea368bf2e16dc1b8d52d730f5fdd76bffcfdb79a2463511d5d",
+    "tools/ci/hanim-play-consumer/run.py": "fae26329c9acdb7cc3f4dae21c103cbda27f19945e81da3d8523877540bee345",
+    "tools/ci/hanim-play-consumer/src/main.cpp": "a518cfd67875ba6dcee3c6ca853afb9c77c446c559010924476c0952e3d5af34",
+    "tools/ci/shaders.mjs": "e6fb955e94b12493abb5c78ebf75f2e765d6d120558414b3c35593317f50be73"
+  },
+  "static_checks": {
+    "lint": "0 problems",
+    "git_diff_check": "pass",
+    "python_syntax": "pass",
+    "manifest_toml": "pass",
+    "javascript_and_shell_syntax": "pass",
+    "local_document_links": "pass",
+    "spec_submodule_unchanged": true
+  },
+  "limits": [
+    "N1 content, N2 engines and N3 UI/spec migration remain incomplete. No S1-S10 or 40/20 functional acceptance is added by renaming.",
+    "Legacy namespace aliases cannot be reopened. Source compatibility requires rebuilding; no C++ ABI/BMI, old CLI selector or registry alias guarantee.",
+    "Packed dependencies are explicit in the fixture; top-level-only package installation and relocated Slang compiler provisioning remain unverified.",
+    "Linux GCC16 and Emscripten/Chromium checked locally. Windows, macOS, mobile and hardware GPU qualification are not claimed.",
+    "GPU checks use software Vulkan/SwiftShader. The documented WebGPU presentation retry is an environment-specific limitation.",
+    "Native shader compiler/process loading is tested on the build host; generated WGSL/ESSL run in the browser. No claim that this compiler runs inside Wasm.",
+    "Process sampling does not alone prove realtime cadence or aesthetic quality. Whole-page screenshots contain live timing; only fixed canvas samples and hanim PNGs are compared byte-for-byte.",
+    "Fresh external projects may reuse global compiler caches; timings and package/wasm sizes are observations, not a clean-machine performance comparison."
+  ]
+}

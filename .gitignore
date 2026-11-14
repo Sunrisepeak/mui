@@ -4,3 +4,15 @@ build/
 compile_commands.json
 *.swp
 .DS_Store
+.xlings/
+.template-check/
+__pycache__/
+*.pyc
+dist/
+python-probe.log
+reflect-canary.log
+.openmui/
+mcpp.lock
+
+# omui check and omui dev: the tools' local state (D-156)
+.omui/

@@ -1,0 +1,31 @@
+# Quay on this machine's device (the FPS slice design, F3 and F5): the game drawn by xrender.mesh.gpu through
+# SDL_GPU — a signature shot played by the guide and written frame by frame, the same every run (`quay-play shot`),
+# and the window to play it in. A member of its own beside `picture` (which also builds for the Web): SDL_GPU is
+# the native systems' device here.
+[package]
+namespace   = "omui.showcase.quay"
+name        = "play"
+version     = "0.1.0"
+description = "Quay on a device: quay-play shot writes the guide's game frame by frame, drawn by xrender.mesh.gpu"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[targets.quay-play]
+kind = "bin"
+main = "src/entry/main.cpp"
+
+[build]
+sources  = []
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+omui.showcase.quay.picture = { path = "../picture" }
+xrender.rhi.sdl  = { path = "../../../modules/projects/xrender/rhi/sdl" }
+mlibs.rhi        = { path = "../../../modules/gfx/rhi" }
+mlibs.image      = { path = "../../../modules/base/image" }
+mcpplibs.cmdline = "0.0.3"
+mcpplibs.os      = "0.4.4"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"

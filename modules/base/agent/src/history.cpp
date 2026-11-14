@@ -1,0 +1,410 @@
+// A subject's history, kept by content (mlibs.agent:history; D-151, D-160).
+module mlibs.agent;
+
+import std;
+import mcpplibs.os;
+import mlibs.hash;
+import mlibs.json;
+
+namespace mlibs::agent {
+
+namespace {
+
+std::string hash_of(std::string_view text) { return std::format("{:016x}", mlibs::hash::Fnv1a{}.text(text).value()); }
+
+std::filesystem::path path_of(std::string_view utf8) {
+    return std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(utf8.data()), utf8.size()));
+}
+
+std::string generic_utf8(const std::filesystem::path& path) { return mcpplibs::os::fs::generic_utf8(path); }
+
+bool hex_id(std::string_view word) {
+    return word.size() >= 4 && std::ranges::all_of(word, [](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || c == '-'; });
+}
+
+// A commit as it is kept: its id is this text's hash.
+std::string text_of(const Commit& commit) {
+    std::string out = "{\"parents\":[";
+    for (std::size_t index = 0; index < commit.parents.size(); ++index) out += (index ? "," : "") + json_text(commit.parents[index]);
+    out += std::format("],\"message\":{},\"actor\":{},\"branch\":{},\"time\":{},\"state\":{},\"files\":{{", json_text(commit.message), json_text(commit.actor),
+                       json_text(commit.branch), commit.time, json_text(commit.state));
+    bool first = true;
+    for (const auto& [path, object] : commit.files) out += std::format("{}{}:{}", first ? "" : ",", json_text(path), json_text(object)), first = false;
+    // What changed is the subject's own JSON: kept as it is when it parses, else left out.
+    const bool parses = !commit.changes.empty() && mlibs::json::Document::parse(commit.changes, "changes").has_value();
+    return out + std::format("}},\"changes\":{}}}", parses ? commit.changes : std::string("null"));
+}
+
+std::vector<std::string_view> lines_of(std::string_view text) {
+    std::vector<std::string_view> out;
+    for (const auto line : std::views::split(text, '\n')) out.emplace_back(line.begin(), line.end());
+    return out;
+}
+
+// What a side did to the base: each change a range of base lines replaced.
+struct Hunk {
+    std::size_t from = 0, to = 0;  // base lines [from, to)
+    std::vector<std::string_view> lines;
+    friend bool operator==(const Hunk&, const Hunk&) = default;
+};
+
+std::vector<Hunk> hunks(const std::vector<std::string_view>& base, const std::vector<std::string_view>& side) {
+    // The longest common subsequence, then the runs between its matches.
+    const std::size_t rows = base.size(), columns = side.size();
+    std::vector<std::uint32_t> table((rows + 1) * (columns + 1), 0);
+    const auto cell = [&](std::size_t row, std::size_t column) -> std::uint32_t& { return table[row * (columns + 1) + column]; };
+    for (std::size_t row = rows; row-- > 0;)
+        for (std::size_t column = columns; column-- > 0;)
+            cell(row, column) = base[row] == side[column] ? cell(row + 1, column + 1) + 1 : std::max(cell(row + 1, column), cell(row, column + 1));
+    std::vector<Hunk> out;
+    std::size_t row = 0, column = 0;
+    Hunk open{0, 0, {}};
+    bool changing = false;
+    const auto flush = [&] {
+        if (changing) out.push_back(open);
+        changing = false;
+    };
+    while (row < rows || column < columns) {
+        if (row < rows && column < columns && base[row] == side[column]) {
+            flush();
+            ++row;
+            ++column;
+            continue;
+        }
+        if (!changing) open = Hunk{row, row, {}}, changing = true;
+        if (column < columns && (row == rows || cell(row, column + 1) >= cell(row + 1, column))) {
+            open.lines.push_back(side[column++]);
+        } else {
+            open.to = ++row;
+        }
+    }
+    flush();
+    return out;
+}
+
+}  // namespace
+
+bool valid_ref_name(std::string_view name) {
+    if (name.empty() || name.size() > 100 || name == "HEAD" || name.front() == '/' || name.back() == '/' || name.contains("//") || name.contains(".."))
+        return false;
+    if (hex_id(name) && name.size() >= 16) return false;
+    return std::ranges::all_of(name, [](char c) {
+        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.' || c == '/';
+    });
+}
+
+TextMerge merge_text(std::string_view base, std::string_view ours, std::string_view theirs) {
+    if (ours == theirs || theirs == base) return {std::string(ours), false};
+    if (ours == base) return {std::string(theirs), false};
+    const auto base_lines = lines_of(base);
+    auto our_hunks = hunks(base_lines, lines_of(ours)), their_hunks = hunks(base_lines, lines_of(theirs));
+    // Both sides' changes in base order; two that touch the same lines are one change or a conflict.
+    std::vector<Hunk> all;
+    std::size_t mine = 0, other = 0;
+    while (mine < our_hunks.size() || other < their_hunks.size()) {
+        if (other == their_hunks.size() || (mine < our_hunks.size() && our_hunks[mine].from < their_hunks[other].from)) {
+            all.push_back(our_hunks[mine++]);
+        } else if (mine == our_hunks.size() || their_hunks[other].from < our_hunks[mine].from) {
+            all.push_back(their_hunks[other++]);
+        } else if (our_hunks[mine] == their_hunks[other]) {
+            all.push_back(our_hunks[mine++]);
+            ++other;
+        } else {
+            return {std::string(ours), true};
+        }
+        if (all.size() >= 2) {
+            const Hunk& before = all[all.size() - 2];
+            const Hunk& last = all.back();
+            if (last.from < before.to || (last.from == before.from && last.from == last.to)) return {std::string(ours), true};
+        }
+    }
+    std::string out;
+    std::size_t line = 0;
+    bool first = true;
+    const auto put = [&](std::string_view text) {
+        out += std::format("{}{}", first ? "" : "\n", text);
+        first = false;
+    };
+    for (const Hunk& hunk : all) {
+        for (; line < hunk.from; ++line) put(base_lines[line]);
+        for (const auto added : hunk.lines) put(added);
+        line = hunk.to;
+    }
+    for (; line < base_lines.size(); ++line) put(base_lines[line]);
+    return {std::move(out), false};
+}
+
+History::History(std::filesystem::path directory) : directory_(std::move(directory)) {}
+
+std::optional<std::string> History::read(const std::filesystem::path& file) const {
+    std::ifstream in(file, std::ios::binary);
+    if (!in) return std::nullopt;
+    return std::string{std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
+}
+
+std::expected<void, std::string> History::write(const std::filesystem::path& file, std::string_view text) const {
+    std::error_code error;
+    std::filesystem::create_directories(file.parent_path(), error);
+    const auto partial = std::filesystem::path(file).concat(".partial");
+    {
+        std::ofstream out(partial, std::ios::binary | std::ios::trunc);
+        out << text;
+        if (!out) return std::unexpected(std::format("{} cannot be written", generic_utf8(file)));
+    }
+    std::filesystem::rename(partial, file, error);
+    if (error) return std::unexpected(std::format("{}: {}", generic_utf8(file), error.message()));
+    return {};
+}
+
+std::expected<std::string, std::string> History::put_object(std::string_view text) {
+    const std::string hash = hash_of(text);
+    for (int attempt = 0; attempt < 64; ++attempt) {
+        const std::string id = attempt == 0 ? hash : std::format("{}-{}", hash, attempt);
+        const auto file = directory_ / "objects" / id;
+        const auto there = read(file);
+        if (there && *there == text) return id;
+        if (there) continue;  // the same hash, another text: the next id
+        if (auto written = write(file, text); !written) return std::unexpected(written.error());
+        return id;
+    }
+    return std::unexpected(std::string("the store has too many texts of one hash"));
+}
+
+std::optional<std::string> History::ref(std::string_view kind, std::string_view name) const {
+    auto text = read(directory_ / "refs" / kind / path_of(name));
+    if (!text) return std::nullopt;
+    while (!text->empty() && (text->back() == '\n' || text->back() == '\r')) text->pop_back();
+    return text;
+}
+
+std::map<std::string, std::string> History::refs(std::string_view kind) const {
+    std::map<std::string, std::string> out;
+    const auto root = directory_ / "refs" / kind;
+    std::error_code error;
+    for (auto it = std::filesystem::recursive_directory_iterator(root, error); !error && it != std::default_sentinel; it.increment(error)) {  // the sentinel: two iterators compared is a function the NDK's std module does not always give
+        if (!it->is_regular_file()) continue;
+        const std::string name = generic_utf8(it->path().lexically_relative(root));
+        if (auto commit = ref(kind, name)) out.emplace(name, std::move(*commit));
+    }
+    return out;
+}
+
+std::string History::head_branch() const {
+    auto head = read(directory_ / "HEAD");
+    if (!head) return "main";
+    while (!head->empty() && (head->back() == '\n' || head->back() == '\r')) head->pop_back();
+    return head->empty() ? std::string("main") : *head;
+}
+
+std::map<std::string, std::string> History::branches() const { return refs("heads"); }
+std::map<std::string, std::string> History::tags() const { return refs("tags"); }
+
+std::expected<Commit, std::string> History::commit_of(std::string_view id) const {
+    const auto text = read(directory_ / "commits" / path_of(std::format("{}.json", id)));
+    if (!text) return std::unexpected(std::format("no commit `{}`", id));
+    const auto document = mlibs::json::Document::parse(*text, std::format("commits/{}.json", id));
+    if (!document) return std::unexpected(std::format("commit {}: {}", id, document.error().text()));
+    const mlibs::json::Node value = document->root();
+    Commit commit;
+    commit.id = std::string(id);
+    for (const mlibs::json::Node& parent : value["parents"].items())
+        if (auto name = parent.text()) commit.parents.push_back(std::move(*name));
+    commit.message = value["message"].text().value_or("");
+    commit.actor = value["actor"].text().value_or("");
+    commit.branch = value["branch"].text().value_or("");
+    commit.state = value["state"].text().value_or("");
+    commit.time = value["time"].number().value_or(0);
+    if (const auto changes = value["changes"]; changes && !changes.is_null()) commit.changes = changes.dump();
+    for (const auto& [path, object] : value["files"].members())
+        if (auto name = object.text()) commit.files.emplace(path, std::move(*name));
+    return commit;
+}
+
+std::expected<std::string, std::string> History::resolve(std::string_view name) const {
+    std::size_t back = 0;
+    if (const auto tilde = name.find('~'); tilde != std::string_view::npos) {
+        const auto count = name.substr(tilde + 1);
+        if (count.empty()) back = 1;
+        else if (std::from_chars(count.data(), count.data() + count.size(), back).ec != std::errc{}) return std::unexpected(std::format("`{}`: ~ takes a count", name));
+        name = name.substr(0, tilde);
+    }
+    std::optional<std::string> found;
+    if (name == "HEAD") found = ref("heads", head_branch());
+    if (!found && valid_ref_name(name)) found = ref("heads", name);
+    if (!found && valid_ref_name(name)) found = ref("tags", name);
+    if (!found && hex_id(name)) {
+        // A commit's id, or a prefix of one that only it has.
+        std::vector<std::string> matches;
+        std::error_code error;
+        for (auto each = std::filesystem::directory_iterator(directory_ / "commits", error); !error && each != std::default_sentinel; each.increment(error)) {
+            const auto& entry = *each;
+            const std::string stem = generic_utf8(entry.path().stem());
+            if (stem.starts_with(name)) matches.push_back(stem);
+        }
+        if (matches.size() > 1) return std::unexpected(std::format("`{}` names {} commits: give more of the id", name, matches.size()));
+        if (matches.size() == 1) found = matches.front();
+    }
+    if (!found) return std::unexpected(std::format("no branch, tag or commit `{}`", name));
+    for (; back > 0; --back) {
+        auto commit = commit_of(*found);
+        if (!commit) return std::unexpected(commit.error());
+        if (commit->parents.empty()) return std::unexpected(std::format("`{}` goes back past the first commit", name));
+        found = commit->parents.front();
+    }
+    return *found;
+}
+
+std::expected<std::map<std::string, std::string>, std::string> History::texts_of(std::string_view name) const {
+    auto id = resolve(name);
+    if (!id) return std::unexpected(id.error());
+    auto commit = commit_of(*id);
+    if (!commit) return std::unexpected(commit.error());
+    std::map<std::string, std::string> out;
+    for (const auto& [path, object] : commit->files) {
+        auto text = read(directory_ / "objects" / path_of(object));
+        if (!text) return std::unexpected(std::format("commit {}: the text of {} is missing ({})", *id, path, object));
+        out.emplace(path, std::move(*text));
+    }
+    return out;
+}
+
+std::expected<Commit, std::string> History::commit(const std::map<std::string, std::string>& texts, std::string message, std::string actor,
+                                                               std::string state, std::optional<std::vector<std::string>> parents, std::string changes) {
+    return commit_to(head_branch(), texts, std::move(message), std::move(actor), std::move(state), std::move(parents), std::move(changes));
+}
+
+std::expected<Commit, std::string> History::commit_on(std::string_view branch, const std::map<std::string, std::string>& texts,
+                                                                  std::string message, std::string actor, std::string state) {
+    if (!valid_ref_name(branch)) return std::unexpected(std::format("`{}` cannot name a branch (letters, digits, - _ . /)", branch));
+    if (!ref("heads", branch))
+        if (const auto at = resolve("HEAD"))
+            if (auto made = write(directory_ / "refs" / "heads" / path_of(branch), *at + "\n"); !made) return std::unexpected(made.error());
+    return commit_to(std::string(branch), texts, std::move(message), std::move(actor), std::move(state), std::nullopt, {});
+}
+
+std::expected<std::filesystem::path, std::string> History::keep_picture(std::span<const std::uint8_t> png) {
+    const std::string_view bytes(reinterpret_cast<const char*>(png.data()), png.size());
+    const auto file = directory_ / "pictures" / path_of(hash_of(bytes) + ".png");
+    if (const auto there = read(file); there && *there == bytes) return file;
+    if (auto written = write(file, bytes); !written) return std::unexpected(written.error());
+    return file;
+}
+
+std::optional<std::filesystem::path> History::thumbnail(std::string_view commit) const {
+    const auto text = read(directory_ / "thumbnails.json");
+    if (!text) return std::nullopt;
+    const auto map = mlibs::json::Document::parse(*text, "thumbnails.json");
+    const auto name = map ? map->root()[commit].text() : std::nullopt;
+    if (!name) return std::nullopt;
+    auto file = directory_ / "pictures" / path_of(*name);
+    std::error_code error;
+    return std::filesystem::exists(file, error) ? std::optional(std::move(file)) : std::nullopt;
+}
+
+std::expected<void, std::string> History::set_thumbnail(std::string_view commit, const std::filesystem::path& picture) {
+    // The map again, this commit's picture set: kept by key.
+    std::map<std::string, std::string> names;
+    if (const auto text = read(directory_ / "thumbnails.json"))
+        if (const auto map = mlibs::json::Document::parse(*text, "thumbnails.json"))
+            for (const auto& [key, value] : map->root().members())
+                if (auto name = value.text()) names.insert_or_assign(key, std::move(*name));
+    names.insert_or_assign(std::string(commit), generic_utf8(picture.filename()));
+    std::string out = "{";
+    for (const auto& [key, name] : names) out += std::format("{}{}:{}", out.size() > 1 ? "," : "", json_text(key), json_text(name));
+    return write(directory_ / "thumbnails.json", out + "}");
+}
+
+std::expected<Commit, std::string> History::commit_to(const std::string& branch_name, const std::map<std::string, std::string>& texts,
+                                                                  std::string message, std::string actor, std::string state,
+                                                                  std::optional<std::vector<std::string>> parents, std::string changes) {
+    Commit commit;
+    commit.message = std::move(message);
+    commit.actor = std::move(actor);
+    commit.branch = branch_name;
+    commit.state = std::move(state);
+    commit.changes = std::move(changes);
+    commit.time = std::chrono::duration<double>(std::chrono::system_clock::now().time_since_epoch()).count();
+    const auto last = ref("heads", branch_name);
+    if (parents) commit.parents = std::move(*parents);
+    else if (last) commit.parents.push_back(*last);
+    for (const auto& [path, text] : texts) {
+        auto object = put_object(text);
+        if (!object) return std::unexpected(object.error());
+        commit.files.emplace(path, std::move(*object));
+    }
+    if (last && commit.parents.size() <= 1)
+        if (auto previous = commit_of(*last); previous && previous->files == commit.files)
+            return std::unexpected(std::format("nothing changed since {}", *last));
+    const std::string text = text_of(commit);
+    commit.id = hash_of(text);
+    if (auto written = write(directory_ / "commits" / path_of(commit.id + ".json"), text); !written) return std::unexpected(written.error());
+    if (auto moved = write(directory_ / "refs" / "heads" / path_of(branch_name), commit.id + "\n"); !moved) return std::unexpected(moved.error());
+    if (!read(directory_ / "HEAD") && branch_name == head_branch())
+        if (auto head = write(directory_ / "HEAD", branch_name + "\n"); !head) return std::unexpected(head.error());
+    return commit;
+}
+
+std::expected<std::string, std::string> History::branch(std::string_view name, std::optional<std::string_view> at) {
+    if (!valid_ref_name(name)) return std::unexpected(std::format("`{}` cannot name a branch (letters, digits, - _ . /)", name));
+    if (ref("heads", name)) return std::unexpected(std::format("a branch `{}` is there already", name));
+    auto commit = resolve(at.value_or("HEAD"));
+    if (!commit) return std::unexpected(commit.error());
+    if (auto written = write(directory_ / "refs" / "heads" / path_of(name), *commit + "\n"); !written) return std::unexpected(written.error());
+    return *commit;
+}
+
+std::expected<std::string, std::string> History::switch_to(std::string_view branch_name) {
+    const auto last = ref("heads", branch_name);
+    if (!last) return std::unexpected(std::format("no branch `{}`", branch_name));
+    if (auto written = write(directory_ / "HEAD", std::format("{}\n", branch_name)); !written) return std::unexpected(written.error());
+    return *last;
+}
+
+std::expected<std::string, std::string> History::tag(std::string_view name, std::optional<std::string_view> at) {
+    if (!valid_ref_name(name)) return std::unexpected(std::format("`{}` cannot name a tag (letters, digits, - _ . /)", name));
+    if (ref("tags", name)) return std::unexpected(std::format("a tag `{}` is there already", name));
+    auto commit = resolve(at.value_or("HEAD"));
+    if (!commit) return std::unexpected(commit.error());
+    if (auto written = write(directory_ / "refs" / "tags" / path_of(name), *commit + "\n"); !written) return std::unexpected(written.error());
+    return *commit;
+}
+
+std::vector<Commit> History::log(std::string_view name, std::size_t limit) const {
+    std::vector<Commit> out;
+    auto id = resolve(name);
+    for (std::optional<std::string> next = id ? std::optional(*id) : std::nullopt; next && out.size() < limit;) {
+        auto commit = commit_of(*next);
+        if (!commit) break;
+        next = commit->parents.empty() ? std::nullopt : std::optional(commit->parents.front());
+        out.push_back(std::move(*commit));
+    }
+    return out;
+}
+
+std::optional<std::string> History::common_ancestor(std::string_view first, std::string_view second) const {
+    auto from = resolve(first), to = resolve(second);
+    if (!from || !to) return std::nullopt;
+    // Every commit the first reaches, then the second's nearest among them (breadth first).
+    std::set<std::string> reached;
+    std::deque<std::string> queue{*from};
+    while (!queue.empty()) {
+        const std::string id = queue.front();
+        queue.pop_front();
+        if (!reached.insert(id).second) continue;
+        if (auto commit = commit_of(id))
+            for (const auto& parent : commit->parents) queue.push_back(parent);
+    }
+    std::set<std::string> seen;
+    queue = {*to};
+    while (!queue.empty()) {
+        const std::string id = queue.front();
+        queue.pop_front();
+        if (reached.contains(id)) return id;
+        if (!seen.insert(id).second) continue;
+        if (auto commit = commit_of(id))
+            for (const auto& parent : commit->parents) queue.push_back(parent);
+    }
+    return std::nullopt;
+}
+
+}  // namespace mlibs::agent

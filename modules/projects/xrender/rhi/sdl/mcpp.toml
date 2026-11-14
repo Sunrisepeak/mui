@@ -1,0 +1,37 @@
+# xrender.rhi.sdl — the first mlibs.rhi backend: a thin mapping onto SDL_GPU,
+# which runs on Vulkan (Linux, Windows, Android; lavapipe on a machine with
+# no GPU), Metal (macOS, iOS) and Direct3D 12 (Windows). SDL's headers stay
+# in src/native.
+[package]
+namespace   = "xrender.rhi"
+name        = "sdl"
+version     = "0.1.0"
+description = "mlibs.rhi on SDL_GPU: Vulkan, Metal and Direct3D 12"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "backend"
+agent = { part = "xrender.frame" }
+
+[targets.xrender-rhi-sdl]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+
+[dependencies]
+mlibs.rhi    = { path = "../../../../gfx/rhi" }
+mlibs.memory = { path = "../../../../base/memory" }
+mcpplibs.mwrap.sdl3 = "3.4.18"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+mlibs.utils = { path = "../../../../base/utils" }
+mlibs.rhi.cts = { path = "../../../../gfx/rhi/cts" }
+xrender.cts = { path = "../../cts" }
+xrender.mesh.gpu.cts = { path = "../../mesh/gpu/cts" }
+xrender.particle.gpu.cts = { path = "../../particle/gpu/cts" }
+xrender.graph = { path = "../../graph" }
+mlibs.image = { path = "../../../../base/image" }
+mcpplibs.os     = "0.4.4"

@@ -1,0 +1,5 @@
+import mcpp;
+import mlibs.shader.rules;
+int main() {
+    return mlibs::shader::rules::shaders({.module="xengine.cellular.rhi.api",.ns="xengine::cellular::gpu::shaders"}) ? 0 : 1;
+}

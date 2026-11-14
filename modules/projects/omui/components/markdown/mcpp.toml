@@ -1,0 +1,38 @@
+# omui.ui.markdown — the Markdown component (canvas-markdown §2): a
+# document of semantic nodes over openmui.markdown's model, with block nodes
+# keyed by content so streaming re-lays out only the tail. Contract-first:
+# contract/markdown.contract.omui.ts becomes the base class, the builder,
+# the stubs and the schema when it builds (omui.build.contracts). An official
+# component package, not in the umbrella's defaults.
+[package]
+namespace   = "omui.ui"
+name        = "markdown"
+version     = "0.1.0"
+description = "The Markdown component: CommonMark + GFM rendered as semantic nodes, links with external effects, tasks, code, tables, streaming"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "component"
+agent = { part = "omui.agent" }
+
+[targets.openmui-ui-markdown]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+xrender.text = { path = "../../../xrender/text" }
+mlibs.utils = { path = "../../../../base/utils" }
+omui.core     = { path = "../../core" }
+omui.view     = { path = "../../view" }
+mlibs.markdown = { path = "../../../../content/markdown" }
+
+[build-dependencies]
+omui.build.contracts = { path = "../../../../../mcpp/contracts", host-module = true }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+omui.host.headless = { path = "../../host/headless" }

@@ -1,0 +1,57 @@
+{
+  "kind": "omui.ops",
+  "version": 1,
+  "product": "skeleton",
+  "doc": "Play skeletal characters: read the rig and each character's state, send one to a state or set its parameters, layer a clip on part of it, ask where a joint is, sample any clip at any time, step, return to a frame, and ask what would be.",
+  "tools": [
+    {"name": "skeleton.observe", "description": "The frame, the state's hash, the rig (joints; clips with their length, raw and compressed bytes and compression error; the machine's states and parameters) and each character: its state, how far its fade is, the last transition and why, its parameters, layers and where it stands", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"skeleton.observe"}],
+     "inputSchema": {"type": "object", "properties": {"budget": {"type": "integer", "description": "the most bytes of answer; characters are left out from the last, and `more` says how many"}}, "required": []}},
+    {"name": "skeleton.play", "description": "Sends a character to a state of its machine now, fading over some seconds (no condition asked)", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "skeleton.seek to the frame it was given at", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "see the fade begin", "request": {"op":"skeleton.observe"}}],
+     "examples": [{"op":"skeleton.play","character":0,"state":"run","fade":0.3}],
+     "inputSchema": {"type": "object", "properties": {"character": {"type": "integer"}, "state": {"type": "string", "description": "a state of the machine (skeleton.observe lists them)"}, "fade": {"type": "number", "description": "seconds (0.2 when none is given)"}}, "required": ["character", "state"]}},
+    {"name": "skeleton.set", "description": "Sets a parameter of a character's machine (a trigger: 1); its transitions read it from the next step", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "skeleton.seek to the frame it was given at", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"skeleton.set","character":0,"parameter":"speed","value":3}],
+     "inputSchema": {"type": "object", "properties": {"character": {"type": "integer"}, "parameter": {"type": "string"}, "value": {"type": "number"}}, "required": ["character", "parameter", "value"]}},
+    {"name": "skeleton.blend", "description": "Layers a clip over what the machine plays: mixed in by a weight (on a joint's subtree when a mask is given) or added (its difference from its own start); a weight of 0 takes the layer away", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "skeleton.blend with weight 0, or skeleton.seek", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"skeleton.blend","character":0,"layer":0,"clip":"wave","weight":1,"mask":"upper_chest"}],
+     "inputSchema": {"type": "object", "properties": {"character": {"type": "integer"}, "layer": {"type": "integer", "description": "0 … 3 (0 when none is given)"}, "clip": {"type": "string", "description": "a clip of the rig"}, "weight": {"type": "number", "description": "0 … 1"}, "mask": {"type": "string", "description": "the joint whose subtree it plays on (every joint when none is given)"}, "additive": {"type": "string", "description": "a boolean (its id): added rather than mixed (false when none is given)"}, "speed": {"type": "number", "description": "1 when none is given"}}, "required": ["character", "weight"]}},
+    {"name": "skeleton.joint", "description": "Where a joint is: in the world (the character's place, then the joint in the model's space), its turn and its place relative to the model", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"skeleton.joint","character":0,"joint":"hand_r"}],
+     "inputSchema": {"type": "object", "properties": {"character": {"type": "integer"}, "joint": {"type": "string"}}, "required": ["character", "joint"]}},
+    {"name": "skeleton.sample", "description": "Any clip at any time, as a pure function of it: a joint's place in the model (or every joint's, within a budget), the root motion from the clip's start, and the error compression left there", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"skeleton.sample","clip":"walk","time":0.5,"joint":"foot_l"}],
+     "inputSchema": {"type": "object", "properties": {"clip": {"type": "string"}, "time": {"type": "number", "description": "seconds (clamped to the clip)"}, "joint": {"type": "string", "description": "every joint when none is given"}, "budget": {"type": "integer", "description": "every joint: the most bytes of answer"}}, "required": ["clip", "time"]}},
+    {"name": "skeleton.step", "description": "Steps every character (1/60 s a step): machines choose, clips play, root motion carries them", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "skeleton.seek to the frame it began at", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "see where the characters got to", "request": {"op":"skeleton.observe"}}],
+     "examples": [{"op":"skeleton.step","steps":60}],
+     "inputSchema": {"type": "object", "properties": {"steps": {"type": "integer", "description": "1 when none is given"}}, "required": []}},
+    {"name": "skeleton.seek", "description": "Returns to a frame within the history kept, bit for bit (a checkpoint and the inputs since, given again); what is stepped from there is a new branch", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "none within the world: what came after the frame is another branch's", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "read the characters at the frame returned to", "request": {"op":"skeleton.observe"}}],
+     "examples": [{"op":"skeleton.seek","frame":60}],
+     "inputSchema": {"type": "object", "properties": {"frame": {"type": "integer", "description": "the frame to return to"}}, "required": ["frame"]}},
+    {"name": "skeleton.branch", "description": "What would be: the characters some steps ahead, one sent to a state first if one is given, observed as skeleton.observe does; the characters themselves untouched", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"skeleton.branch","steps":60,"character":0,"state":"run"}],
+     "inputSchema": {"type": "object", "properties": {"steps": {"type": "integer", "description": "how far ahead (1 when none is given)"}, "character": {"type": "integer"}, "state": {"type": "string"}}, "required": []}}
+  ],
+  "tiers": [],
+  "tasks": [
+    {"name": "read-the-rig", "summary": "Read the rig and the characters, then sample a clip where a foot lands", "steps": [
+      {"op":"skeleton.observe"},
+      {"op":"skeleton.sample","clip":"walk","time":0.5,"joint":"foot_r"}
+    ]},
+    {"name": "make-one-run", "summary": "Set a character's speed, step through the fade, and check where its hand is and that it moved forward", "steps": [
+      {"op":"skeleton.set","character":0,"parameter":"speed","value":3},
+      {"op":"skeleton.step","steps":60},
+      {"op":"skeleton.observe"},
+      {"op":"skeleton.joint","character":0,"joint":"hand_r"}
+    ]},
+    {"name": "wave-while-walking", "summary": "Ask what a wave on the upper body would look like before giving it: a branch ahead, then the layer and a step", "steps": [
+      {"op":"skeleton.branch","steps":30},
+      {"op":"skeleton.blend","character":1,"layer":0,"clip":"wave","weight":1,"mask":"upper_chest"},
+      {"op":"skeleton.step","steps":30},
+      {"op":"skeleton.joint","character":1,"joint":"hand_r"}
+    ]}
+  ]
+}

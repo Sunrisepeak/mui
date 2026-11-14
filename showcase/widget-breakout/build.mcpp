@@ -1,0 +1,23 @@
+// The field's contract becomes code (openmui.build.contracts); what the game sounds like
+// and the contraptions' scripts are carried in the program.
+import std;
+import mcpp;
+import omui.build.contracts;
+import omui.build.embed;
+import omui.build.toy;
+
+int main() {
+    const bool field = omui::build::components({.module = "omui.showcase.widget_breakout", .ns = "omui::breakout"});
+    const bool sounds = omui::build::embed({.module = "omui.showcase.widget_breakout", .ns = "omui::breakout::files", .dir = "sounds",
+                                               .suffix = ".sound.omui.ts", .tag = "sound"});
+    // Its theme (xengine.audio's music, adaptive: the game sets its intensity).
+    const bool music = omui::build::embed({.module = "omui.showcase.widget_breakout", .ns = "omui::breakout::files", .dir = "music",
+                                              .suffix = ".music.omui.ts", .tag = "music"});
+    // The contraptions' scripts, as shipped (their casings edit copies).
+    const bool gifts = omui::build::embed({.module = "omui.showcase.widget_breakout", .ns = "omui::breakout::files", .dir = "gifts",
+                                           .suffix = ".ts", .tag = "ts"});
+    // On the Web, a Bilibili Toy package: mcpp pack --target wasm32-emscripten --pkg-format dist-toy.
+    const bool toy = omui::build::dist_toy({.target = "omui-breakout", .title = "组件打砖块",
+                                               .fonts = {"Inter", "NotoSansSC", "TwemojiMozilla", "JetBrainsMono"}, .background = "#0b0f1a"});
+    return field && sounds && music && gifts && toy ? 0 : 1;
+}

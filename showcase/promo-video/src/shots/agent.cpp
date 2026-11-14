@@ -1,0 +1,459 @@
+// The agent (0:36–0:46): an agent works a notes panel through its semantic
+// tree, never its pixels. It looks (a query over the tree), stars a note —
+// reversible, so the window's history can take it back, and the agent
+// does — then asks to delete every note. That is irreversible: the runtime
+// stops it with `needs-answer` (S-1, S-2) until a person answers, and the
+// person does. On the right, the tree as the agent reads it, and every
+// request and answer as the protocol's records; at the end, the journal of
+// who did what (openas).
+module omui.showcase.promo_video;
+
+import std;
+import hanim.core;
+import omui;
+import omui.theme;
+import xrender.text;
+
+namespace omui::promo {
+
+namespace {
+
+struct Note {
+    std::string id, text;
+    bool        starred = false;
+    bool operator==(const Note&) const = default;
+};
+
+// The notes panel: notes to star, a draft to add, and "Delete all" (an
+// irreversible verb that states its answer).
+struct Notes {
+    Signal<std::vector<Note>> notes{std::vector<Note>{{"n1", "Render the film at 4K", false},
+                                                      {"n2", "Check every subtitle's reading time", true},
+                                                      {"n3", "Pin frame hashes on every platform", false}}};
+    Signal<std::string> draft{std::string{}};
+    Signal<bool>        starred_only{false};
+};
+
+Element notes_view(Notes& m) {
+    return column({.id = "notes", .width = 470, .padding = 22, .gap = 12, .background = "surface", .border_color = "border", .border_width = 1, .radius = 12},
+                  {text({.id = "title", .text = "Release notes", .style = "title"}),
+                   row({.id = "compose", .gap = 8},
+                       {text_box({.id = "draft", .label = "New note", .placeholder = "Write a note", .text = m.draft, .grow = 1}),
+                        button({.id = "add", .text = "Add", .variant = ButtonVariant::primary})}),
+                   toggle({.id = "starred-only", .checked = m.starred_only, .label = "Starred only"}),
+                   column({.id = "list", .gap = 6},
+                          {dynamic([&m] {
+                              std::vector<Element> rows;
+                              const auto& all = m.notes.get();
+                              untracked([&] {
+                                  for (const Note& n : all) {
+                                      Element r = row({.id = n.id, .gap = 8},
+                                                      {checkbox({.id = "star", .checked = n.starred, .label = n.text,
+                                                                 .on_changed = [&m, id = n.id](bool v) {
+                                                                     auto list = m.notes.peek();
+                                                                     for (Note& x : list)
+                                                                         if (x.id == id) x.starred = v;
+                                                                     m.notes.set(std::move(list));
+                                                                 }})});
+                                      r.key = n.id;
+                                      rows.push_back(std::move(r));
+                                  }
+                              });
+                              return rows;
+                          })}),
+                   text({.id = "count", .text = derive([&m] { return std::format("{} notes", m.notes.get().size()); }), .style = "caption"}),
+                   button({.id = "delete-all", .text = "Delete all", .variant = ButtonVariant::danger, .verb = "notes.delete_all"})});
+}
+
+// A line of the protocol: a request (→) or a record of its answer (←), from a time.
+struct LogLine {
+    double      at = 0;
+    std::string text;
+    std::uint32_t colour = ink::ice;
+};
+
+struct Row {
+    std::string label, id;
+    int         depth = 0;
+    bool        lit = false;
+};
+
+struct State {
+    double t = 0;
+    float  app_scale = 1.25f;
+    Point  app_at;            // the panel's top left on the screen
+    Rect   tree_area, log_area;
+    Rect   panel;             // the notes panel on the screen
+    Size   card;              // the answer's card, laid out
+    std::vector<Row>     rows;  // the semantic tree, as it is now
+    std::vector<LogLine> log;
+    std::string          focus;      // the node the agent is at
+    std::vector<std::pair<double, Point>> path;  // where the agent's cursor is at each step
+    double asked = -1, answered = -1;
+    Labels labels;
+    Choreography timing;          // the shot's spans, sampled at t; the events' added at their moments
+    std::size_t  log_timed = 0;   // the log lines given their typing span so far
+};
+
+class Agent final : public Shot {
+public:
+    explicit Agent(const ShotContext& c) : c_(c), s_(std::make_shared<State>()) {
+        for (const auto& [t, v] : c.steps("step")) {
+            const auto f = static_cast<std::int64_t>(std::llround(t * c.rate()));
+            if (f > 0 && v > 0) steps_.push_back({f, static_cast<int>(std::lround(v))});
+        }
+        const Size screen = c.size;
+        State& s = *s_;
+        // The camera leans in, slowly, as the stakes rise; the agent's cursor
+        // appears before its first step and glides to each next one, there a
+        // quarter second before it acts.
+        s.timing.span("camera.lean", 0.0, 9.5, hanim::ease::smoothstep);
+        if (!steps_.empty()) {
+            const double first = static_cast<double>(steps_.front().first) / c.rate();
+            s.timing.span("cursor.appear", first - 0.6, first - 0.2, hanim::ease::smoothstep);
+        }
+        for (std::size_t k = 1; k < steps_.size(); ++k) {
+            const double from = static_cast<double>(steps_[k - 1].first) / c.rate(), to = static_cast<double>(steps_[k].first) / c.rate() - 0.25;
+            s.timing.span(std::format("cursor.{}", k), from + 0.1, std::max(from + 0.2, to), hanim::ease::in_out_cubic);
+        }
+        if (c.portrait()) {
+            s.app_scale = 1.4f;
+            s.app_at = {screen.width / 2 - 470 * s.app_scale / 2, 150};
+            s.tree_area = {54, 880, screen.width - 108, 330};
+            s.log_area = {54, 1240, screen.width - 108, 340};
+        } else {
+            // The panel on the left; on the right, the tree above and the protocol under it, each as wide as
+            // the half the panel leaves, so their lines are large enough to read at 480 across.
+            s.app_scale = 1.4f;
+            s.app_at = {116, 236};
+            s.tree_area = {830, 150, screen.width - 96 - 830, 320};
+            s.log_area = {830, 500, screen.width - 96 - 830, 340};
+        }
+    }
+
+    const Choreography* choreography() const override { return &s_->timing; }
+
+    View view() override {
+        auto st = s_;
+        Element back = painter({.id = "backdrop",
+                                .width = Dim(mlibs::layout::pct(100)),
+                                .height = Dim(mlibs::layout::pct(100)),
+                                .role = Role::none,
+                                .paint = [st](PaintContext& p) { paint_back(p, *st); }});
+        // The panel at its own size, scaled about its middle into place.
+        Element app = box({.id = "app",
+                           .width = 470,
+                           .height = 470,
+                           .align = "start",
+                           .translate_x = s_->app_at.x - 470 * (1 - s_->app_scale) / 2,
+                           .translate_y = s_->app_at.y - 470 * (1 - s_->app_scale) / 2,
+                           .scale = s_->app_scale},
+                          {notes_view(notes_)});
+        Element front = painter({.id = "front",
+                                 .width = Dim(mlibs::layout::pct(100)),
+                                 .height = Dim(mlibs::layout::pct(100)),
+                                 .role = Role::figure,
+                                 .label = "The semantic tree as the agent reads it, and the protocol's records",
+                                 .paint = [st](PaintContext& p) { paint_front(p, *st); }});
+        // The person's answer, asked for by the runtime (needs-answer): a card over the panel, at its scale.
+        Element card = column({.id = "card", .width = 420, .padding = 20, .gap = 12, .background = Fill(hex(0x1a1030, 0.96f)), .border_color = Fill(hex(ink::amber)),
+                               .border_width = 1.5f, .radius = 12, .opacity = 0.0f, .translate_x = s_->app_at.x,
+                               .translate_y = s_->app_at.y, .scale = s_->app_scale, .visible = false},
+                              {text({.id = "ask", .text = "An agent asks to delete every note", .style = "heading", .color = Fill(hex(ink::ice))}),
+                               text({.id = "why", .text = "notes.delete_all is irreversible:\nit cannot be undone.", .style = "code",
+                                     .color = Fill(hex(ink::amber)), .size = 16.0f}),
+                               row({.id = "answers", .gap = 10, .justify = "end"},
+                                   {button({.id = "keep", .text = "Keep them", .variant = ButtonVariant::secondary}),
+                                    button({.id = "delete", .text = "Delete", .variant = ButtonVariant::danger})})});
+        // What the last step was, as large as the point it makes.
+        Element status = text({.id = "status", .text = "", .style = "title", .color = Fill(hex(ink::ice)), .wrap = false, .size = 32.0f, .weight = 700.0f});
+        Element type = stack({.id = "type", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .align = "start"},
+                             {std::move(card), box({.id = "head", .translate_x = s_->app_at.x + 20, .translate_y = s_->app_at.y - 74}, {std::move(status)})});
+        return stack({.id = "agent", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .align = "start"},
+                     {std::move(back), std::move(app), std::move(front), std::move(type)});
+    }
+
+    void mounted(Runtime& rt) override {
+        (void)theme::apply_style(rt, look_style, false);
+        register_base_components();
+        Notes& m = notes_;
+        (void)rt.verbs().add({"notes.delete_all", "Delete every note", Effect::irreversible, "delete", {}}, [&m](const Value&) -> VerbResult {
+            const auto n = static_cast<std::int64_t>(m.notes.peek().size());
+            m.notes.set({});
+            return Value{}.set("deleted", n);
+        });
+        // The card laid out once, to stand in the panel's middle.
+        const NodeId card = rt.find("main/type/card");
+        rt.set(card, "visible", Value(true));
+        rt.frame({hanim::seconds(0), {}});
+        s_->card = {rt.bounds(card).width, rt.bounds(card).height};
+        rt.set(card, "visible", Value(false));
+        rt.frame({hanim::seconds(0), {}});
+        // Where the agent goes, step by step: the node it acts on, on the screen.
+        auto centre = [&](std::string_view path) {
+            const NodeId n = rt.find(path);
+            const Rect b = n ? rt.drawn_bounds(n) : Rect{};
+            return Point{b.x + b.width / 2, b.y + b.height / 2};
+        };
+        if (const NodeId notes = rt.find("main/app/notes")) s_->panel = rt.drawn_bounds(notes);
+        targets_ = {centre("main/app/notes/title"), centre("main/app/notes/list/n3/star"), centre("main/app/notes/list/n3/star"), centre("main/app/notes/delete-all"),
+                    centre("main/app/notes/delete-all"), centre("main/app/notes/count")};
+        refresh(rt);
+    }
+
+    std::vector<std::int64_t> moments() const override {
+        std::vector<std::int64_t> out;
+        for (const auto& [f, k] : steps_) out.push_back(f);
+        return out;
+    }
+
+    void moment(Runtime& rt, std::int64_t frame) override {
+        State& s = *s_;
+        const double at = static_cast<double>(frame) / c_.rate();
+        Invocation agent;
+        agent.actor = {"agent", "promo", {}};
+        auto records = [&](const Envelope& e, std::uint32_t colour) {
+            for (const auto& r : e.records()) {
+                s.log.push_back({at + 0.18, "← " + r.json(), colour});
+            }
+        };
+        for (const auto& [f, step] : steps_) {
+            if (f != frame) continue;
+            switch (step) {
+                case 1: {  // looks: every button, by the tree
+                    s.log.push_back({at, R"(→ find {"role":"button"})", ink::cyan});
+                    std::size_t n = 0;
+                    rt.walk([&](NodeId id, int) { n += rt.semantic_node(id).role == Role::button; });
+                    s.log.push_back({at + 0.18, std::format(R"(← {} nodes: add, delete-all, …)", n), ink::muted});
+                    s.focus = "main/app/notes/title";
+                    break;
+                }
+                case 2: {  // stars a note: reversible
+                    s.log.push_back({at, R"(→ act main/…/n3/star toggle)", ink::cyan});
+                    records(rt.act(rt.find("main/app/notes/list/n3/star"), "toggle", agent), ink::mint);
+                    s.log.push_back({at + 0.3, "  effect reversible · the history can undo it", ink::muted});
+                    s.focus = "main/app/notes/list/n3/star";
+                    break;
+                }
+                case 3: {  // and takes it back
+                    s.log.push_back({at, "→ undo (the window's history)", ink::cyan});
+                    records(rt.undo(rt.root(), agent), ink::mint);
+                    break;
+                }
+                case 4: {  // asks to delete them all: stopped until answered
+                    s.log.push_back({at, "→ act main/delete-all activate", ink::cyan});
+                    records(rt.act(rt.find("main/app/notes/delete-all"), "activate", agent), ink::amber);
+                    s.asked = at;
+                    s.timing.span("card.in", at, at + 0.25, hanim::ease::smoothstep).span("card.rise", at, at + 0.3, hanim::ease::smoothstep);
+                    s.focus = "main/app/notes/delete-all";
+                    break;
+                }
+                case 5: {  // the person answers
+                    Invocation person;
+                    person.actor = {"person", "reviewer", {}};
+                    person.answer = "delete";
+                    s.log.push_back({at, "⇢ the person answers: delete", ink::ice});
+                    records(rt.act(rt.find("main/app/notes/delete-all"), "activate", person), ink::mint);
+                    s.answered = at;
+                    s.timing.span("card.out", at + 0.1, at + 0.35, hanim::ease::smoothstep);
+                    break;
+                }
+                case 6: {  // the journal: who did what
+                    s.log.push_back({at, "→ journal", ink::cyan});
+                    for (const ActionEntry& e : rt.action_journal())
+                        s.log.push_back({at + 0.15, std::format("  {} · {} · {} · exit {}", e.actor, e.action, e.path.substr(e.path.rfind('/') + 1), e.exit_code),
+                                         e.exit_code == 0 ? ink::muted : ink::amber});
+                    s.focus = "main/app/notes/count";
+                    break;
+                }
+                default: break;
+            }
+        }
+        // Each new log line is typed out in a quarter second from its moment.
+        for (; s.log_timed < s.log.size(); ++s.log_timed)
+            s.timing.span(std::format("log.{}", s.log_timed), s.log[s.log_timed].at, s.log[s.log_timed].at + 0.25);
+        refresh(rt);
+    }
+
+    void at(Runtime& rt, double t) override {
+        State& s = *s_;
+        s.t = t;
+        s.timing.sample(t);
+        // The agent's cursor: from step to step, there a quarter second before it acts.
+        s.path.clear();
+        for (std::size_t k = 0; k < steps_.size() && k < targets_.size(); ++k) s.path.push_back({static_cast<double>(steps_[k].first) / c_.rate(), targets_[k]});
+        const NodeId card = rt.find("main/type/card");
+        const bool up = s.asked >= 0 && (s.answered < 0 || t < s.answered + 0.35);
+        rt.set(card, "visible", Value(up));
+        rt.set(card, "opacity", Value(up ? s.timing["card.in"] * (1 - s.timing["card.out"]) : 0.0));
+        // A modal over the panel, in its middle.
+        rt.set(card, "translate_x", Value(static_cast<double>(s.panel.x + (s.panel.width - s.card.width) / 2)));
+        rt.set(card, "translate_y", Value(static_cast<double>(s.panel.y + (s.panel.height - s.card.height) / 2) + (1 - s.timing["card.rise"]) * 24));
+        // The headline: what the agent's last step means.
+        {
+            int last = 0;
+            for (const auto& [f, k] : steps_)
+                if (static_cast<double>(f) / c_.rate() <= t + 1e-9) last = k;
+            constexpr std::array<std::pair<std::string_view, std::uint32_t>, 7> said{{{"", ink::ice},
+                                                                                      {"An agent reads the tree", ink::ice},
+                                                                                      {"Reversible: it can be undone", ink::mint},
+                                                                                      {"…and it is", ink::mint},
+                                                                                      {"Irreversible: stopped, needs an answer", ink::amber},
+                                                                                      {"A person answers", ink::ice},
+                                                                                      {"Every step in the journal", ink::cyan}}};
+            const auto& [words, colour] = said[static_cast<std::size_t>(std::clamp(last, 0, 6))];
+            const NodeId status = rt.find("main/type/head/status");
+            rt.set(status, "text", Value(std::string(words)));
+            rt.set(status, "color", Value(std::format("#{:06x}", colour)));
+        }
+        // The camera leans in, slowly, as the stakes rise.
+        rt.set(rt.find("main"), "scale", Value(1 + 0.025 * s.timing["camera.lean"]));
+        rt.invalidate_paint(rt.find("main/front"));
+        rt.invalidate_paint(rt.find("main/backdrop"));
+    }
+
+    std::vector<Cue> cues(double seconds) override {
+        std::vector<Cue> out;
+        for (const auto& [f, step] : steps_) {
+            const double at = static_cast<double>(f) / c_.rate();
+            if (at >= seconds) continue;
+            if (step == 4) out.push_back({at, "warn", 1, 0, 1});
+            else if (step == 5) {
+                out.push_back({at, "confirm", 1, 0, 1});
+                out.push_back({at + 0.12, "crumple", 0.9f, 0, 1});
+            } else out.push_back({at, "touch", 0.9f, static_cast<float>(step % 3 - 1) * 0.2f, 1});
+        }
+        return out;
+    }
+
+private:
+    // The tree as the agent reads it now: the panel's nodes, indented.
+    void refresh(Runtime& rt) {
+        State& s = *s_;
+        s.rows.clear();
+        const NodeId root = rt.find("main/app/notes");
+        std::function<void(NodeId, int)> walk = [&](NodeId n, int depth) {
+            const spec::SemanticNode sn = rt.semantic_node(n);
+            if (sn.role != Role::generic || depth == 0) {
+                std::string label = std::format("{} {}", spec::name(sn.role), sn.id.substr(sn.id.rfind('/') + 1));
+                if (!sn.name.empty() && sn.name.size() < 40) label += std::format("  \"{}\"", sn.name);
+                if (sn.states.has(spec::State::checked)) label += "  ✓";
+                s.rows.push_back({label, sn.id, depth, sn.id == s.focus});
+                ++depth;
+            }
+            for (const NodeId c : rt.children(n)) walk(c, depth);
+        };
+        if (root) walk(root, 0);
+    }
+
+    static void paint_back(PaintContext& p, State& s) {
+        paint_paper(p.list, p.size, {static_cast<float>(s.t * -5), 0}, 1);
+        const Rect app{s.app_at.x, s.app_at.y, 470 * s.app_scale, 0};
+        (void)app;
+    }
+    static void paint_front(PaintContext& p, State& s);
+
+    ShotContext                               c_;
+    std::shared_ptr<State>                    s_;
+    Notes                                     notes_;
+    std::vector<std::pair<std::int64_t, int>> steps_;
+    std::vector<Point>                        targets_;
+};
+
+void Agent::paint_front(PaintContext& p, State& s) {
+    auto& list = p.list;
+    auto& fonts = p.services.fonts();
+    constexpr float type = 21, pitch = 34;  // the lines on the right: legible at 480 across
+    const float advance = type * 0.6f;      // JetBrains Mono's
+    // Behind the person's answer, the panel dims.
+    if (s.asked >= 0) {
+        const double up = s.timing["card.in"] * (1 - s.timing["card.out"]);
+        if (up > 0) list.fill_round_rect(s.panel, CornerRadii::all(12 * s.app_scale), xrender::Paint::solid(hex(0x020814, 0.55f * static_cast<float>(up))));
+    }
+    // The tree, as an inspector shows it: the rows about the node the agent is at.
+    const Rect ta = s.tree_area;
+    list.fill_round_rect(ta, CornerRadii::all(10), xrender::Paint::solid(hex(ink::panel, 0.9f)));
+    list.stroke_round_rect(ta, CornerRadii::all(10), 1, xrender::Paint::solid(hex(ink::line, 0.8f)));
+    xrender::text::paint(s.labels.get(fonts, "SEMANTIC TREE · what the agent reads", 18, hex(ink::cyan), 600, "JetBrains Mono"), list, {ta.x + 20, ta.y + 16});
+    {
+        const std::size_t room = static_cast<std::size_t>((ta.height - 66) / pitch);
+        std::size_t lit = 0;
+        for (std::size_t i = 0; i < s.rows.size(); ++i)
+            if (s.rows[i].lit) lit = i;
+        const std::size_t first = s.rows.size() <= room ? 0 : std::min(s.rows.size() - room, lit > room / 2 ? lit - room / 2 : 0);
+        float y = ta.y + 58;
+        for (std::size_t i = first; i < s.rows.size() && i < first + room; ++i) {
+            const Row& r = s.rows[i];
+            const float x = ta.x + 20 + static_cast<float>(r.depth) * 24;
+            if (r.depth > 0) list.fill_rect({x - 16, y + 13, 9, 1.5f}, hex(ink::line));
+            if (r.lit) list.fill_round_rect({ta.x + 8, y - 4, ta.width - 16, pitch - 2}, CornerRadii::all(5), xrender::Paint::solid(hex(ink::cyan, 0.16f)));
+            const auto& l = s.labels.get(fonts, r.label, type, hex(r.lit ? ink::ice : ink::muted), r.lit ? 600 : 450, "JetBrains Mono");
+            list.push_clip({x, y - 4, ta.x + ta.width - 16 - x, pitch});
+            xrender::text::paint(l, list, {x, y});
+            list.pop_clip();
+            y += pitch;
+        }
+    }
+    // The protocol's records, each written out as it comes, wrapped to the panel; the latest kept in view.
+    const Rect la = s.log_area;
+    list.fill_round_rect(la, CornerRadii::all(10), xrender::Paint::solid(hex(0x040d1f, 0.92f)));
+    list.stroke_round_rect(la, CornerRadii::all(10), 1, xrender::Paint::solid(hex(ink::line, 0.8f)));
+    xrender::text::paint(s.labels.get(fonts, "openmui.tree@0.1 · agent:promo", 18, hex(ink::cyan), 600, "JetBrains Mono"), list, {la.x + 20, la.y + 16});
+    {
+        const std::size_t columns = static_cast<std::size_t>((la.width - 40) / advance);
+        struct Shown {
+            std::string text;
+            std::uint32_t colour;
+        };
+        std::vector<Shown> lines;
+        for (std::size_t index = 0; index < s.log.size(); ++index) {
+            const LogLine& l = s.log[index];
+            if (l.at > s.t) continue;
+            const double typed = s.timing[std::format("log.{}", index)];
+            std::size_t cut = static_cast<std::size_t>(static_cast<double>(l.text.size()) * typed);
+            while (cut < l.text.size() && (static_cast<unsigned char>(l.text[cut]) & 0xC0) == 0x80) ++cut;
+            // Into lines of `columns` characters (code points), the ones after the first indented under it.
+            std::string_view rest = std::string_view(l.text).substr(0, cut);
+            bool first = true;
+            while (!rest.empty()) {
+                const std::size_t width = first ? columns : columns - 2;
+                std::size_t at = 0, n = 0;
+                while (at < rest.size() && n < width) {
+                    ++at;
+                    while (at < rest.size() && (static_cast<unsigned char>(rest[at]) & 0xC0) == 0x80) ++at;
+                    ++n;
+                }
+                lines.push_back({(first ? "" : "  ") + std::string(rest.substr(0, at)), l.colour});
+                rest.remove_prefix(at);
+                first = false;
+            }
+        }
+        const std::size_t room = static_cast<std::size_t>((la.height - 66) / pitch);
+        float y = la.y + 58;
+        for (std::size_t i = lines.size() > room ? lines.size() - room : 0; i < lines.size(); ++i) {
+            xrender::text::paint(s.labels.get(fonts, lines[i].text, type, hex(lines[i].colour), 450, "JetBrains Mono"), list, {la.x + 20, y});
+            y += pitch;
+        }
+    }
+    // The agent's cursor: the agent's corners gliding to each node it acts on.
+    if (!s.path.empty() && s.t >= s.path.front().first - 0.6) {
+        Point at = s.path.front().second;
+        for (std::size_t k = 1; k < s.path.size(); ++k) {
+            if (s.t <= s.path[k - 1].first) break;
+            const double u = s.timing[std::format("cursor.{}", k)];
+            at = {static_cast<float>(hanim::dm::mix(s.path[k - 1].second.x, s.path[k].second.x, u)), static_cast<float>(hanim::dm::mix(s.path[k - 1].second.y, s.path[k].second.y, u))};
+        }
+        const float appear = static_cast<float>(s.timing["cursor.appear"]);
+        const Color c = hex(ink::cyan, appear);
+        // The framework's mark of an agent's attention (omui.ui.base, agent presence).
+        parts::agent_corners(list, {at.x - 16, at.y - 16, 32, 32}, c, 9);
+        const auto& tag = s.labels.get(fonts, "agent:promo", 18, c, 600, "JetBrains Mono");
+        xrender::text::paint(tag, list, {at.x + 22, at.y + 14});
+    }
+}
+
+}  // namespace
+
+std::unique_ptr<Shot> agent_shot(const ShotContext& c) { return std::make_unique<Agent>(c); }
+
+}  // namespace omui::promo

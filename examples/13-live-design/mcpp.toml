@@ -1,0 +1,42 @@
+# Example 13 — Live Design (D-149, D-151, W14's signature scene): a
+# subscription settings page designed by an agent while it runs. The agent
+# writes the page and adds to it through the design verbs — every step a
+# commit, its TypeScript written where each node was built; it says what the
+# person expects, including how the renewal details spring open; the person
+# tries it; the agent reports the facts (the spring springs too far), fixes
+# it, keeps the person's demonstration as a test, goes back through the
+# history, and films the whole design. The application starts as `omui new`
+# leaves one.
+#
+#   omui dev                       design it (the designer linked)
+#   mcpp run                       the application, as a release runs it
+#   mcpp test                      the whole design, played and checked
+[package]
+namespace   = "omui.example"
+name        = "live-design"
+version     = "0.1.0"
+description = "openmui example 13: a subscription settings page designed live by an agent, checked against the person's expectations"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+kind  = "app"
+id    = "org.openmui.subscription"
+title = "Subscription"
+size  = "480x420"
+
+[package.metadata.openmui.scripts]
+main = "app/main.ts"
+
+[targets.subscription]
+kind = "bin"
+main = { from = "omui.entry.player/player" }
+
+[dependencies]
+omui.entry.player = { path = "../../src/entry/player" }
+
+[dev-dependencies]
+mcpplibs.mtest     = "0.8.4"
+omui.player        = { path = "../../modules/projects/omui/player" }
+omui.designer      = { path = "../../modules/projects/omui/designer" }
+omui.lang.js       = { path = "../../modules/projects/omui/lang/js" }
+omui.lang.ts     = { path = "../../modules/projects/omui/lang/ts" }

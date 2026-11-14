@@ -1,0 +1,58 @@
+# Example 01 — hello, immediate mode: the shortest path from nothing to an
+# openmui window (canvas-markdown design §5). The interface is declared every
+# build in plain C++; ids come from explicit `.id`s where it matters.
+#
+#   mcpp run                      a window
+#   mcpp run -- --headless --png hello.png
+#   mcpp run -- --serve           headless, for agents (omui agent ls)
+#   mcpp run --target x86_64-linux-android --pkg-format apk
+#                                 on Android (W10): an APK, run on the emulator or a phone
+[package]
+namespace   = "omui.example"
+name        = "hello-im"
+version     = "0.1.0"
+description = "openmui example 01: hello, immediate mode"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+kind = "example"
+
+# The application as a library too: openmui's site runs it live in a place,
+# beside its own source (`hello::hello_source`, embedded by build.mcpp).
+[targets.openmui-example-hello-im]
+kind = "lib"
+
+# An application (`app`): a program on the desktop, the library the platform
+# loads on Android (its NativeActivity, packed into an APK by dist-apk).
+[targets.hello-im]
+kind = "app"
+main = "src/main.cpp"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+# Its pixels are pinned on every platform (and the site shows it): no fused multiply-adds.
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+omui.sdk = { path = "../../modules/projects/omui/sdk" }
+
+[build-dependencies]
+omui.build.embed = { path = "../../mcpp/embed", host-module = true }
+# The APK (Android's package: NativeActivity, no Java; signed with the published debug key).
+mcpp.plugins = { version = "0.20.0", features = ["dist-apk"], host-module = true }
+
+# Android, from API level 24 (7.0); run through adb on the emulator or a phone.
+[target.x86_64-linux-android]
+min_api_level = 24
+runner = ["adb-run"]
+
+[target.aarch64-linux-android]
+min_api_level = 24
+runner = ["adb-run"]
+
+[target.'cfg(env = "android")'.runtime]
+libraries = ["android", "log"]
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+mlibs.utils = { path = "../../modules/base/utils" }

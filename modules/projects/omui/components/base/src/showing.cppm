@@ -1,0 +1,81 @@
+// openmui.ui.base:showing — what is shown to be looked at: numbers over
+// labelled steps (chart) and one of several slides at a time (carousel).
+export module omui.ui.base:showing;
+
+import std;
+import omui.core;
+import omui.view;
+import :parts;
+import :chart_contract;
+import :carousel_contract;
+
+export namespace omui {
+
+class Chart : public ChartContract<Chart> {
+public:
+    struct Series {
+        std::string         name;
+        std::vector<double> values;
+        std::optional<Color> color;
+    };
+    // The series a `series` value describes ([{name, values, color?}]); what is not a number is skipped.
+    [[nodiscard]] static std::vector<Series> read(const Value& series);
+    // Round steps for a scale from `low` to `high`: about `count` of them (1, 2, 2.5, 5 × 10ⁿ).
+    [[nodiscard]] static double step_for(double low, double high, int count = 4);
+
+    void mounted();
+    void prop_changed(ChartProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(std::string_view path) const;
+    [[nodiscard]] std::optional<spec::SemanticNode> virtual_item(std::string_view path, std::string_view key) const;
+
+private:
+    struct Scale {
+        double low = 0, high = 1, step = 1;
+    };
+    [[nodiscard]] Scale scale() const;
+    [[nodiscard]] Rect plot(Size size) const;
+    [[nodiscard]] Point at(std::size_t series, std::size_t step, Size size) const;
+    [[nodiscard]] Color color_of(const Theme& theme, std::size_t series) const;
+    [[nodiscard]] std::string number(double value) const;
+    [[nodiscard]] spec::SemanticNode point(std::string_view path, std::size_t series, std::size_t step) const;
+    std::vector<Series>         series_;
+    mutable Size                drawn_;  // the size it was last painted at
+    std::optional<std::size_t>  pointed_;  // the step the pointer is at
+};
+
+class Carousel : public CarouselContract<Carousel> {
+public:
+    static constexpr bool focusable = true;
+    static constexpr bool clips = true;  // the slides out of view are not drawn
+
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    void laid_out();
+    [[nodiscard]] Point scroll_offset() const;
+    void paint_over(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(std::string_view path) const;
+    [[nodiscard]] std::optional<spec::SemanticNode> virtual_item(std::string_view path, std::string_view key) const;
+    ActResult act_item(ActContext& ctx, std::string_view key, std::string_view action);
+
+    ActResult set_index(ActContext& ctx, const Value& index);
+    ActResult next(ActContext& ctx);
+    ActResult previous(ActContext& ctx);
+
+private:
+    ActResult go(std::int64_t index);
+    [[nodiscard]] std::size_t slides() const;
+    [[nodiscard]] Rect arrow(bool forward, Size size) const;
+    [[nodiscard]] Rect dot(std::size_t index, Size size) const;
+    float              width_ = 0;        // a slide's width: its own
+    float              dragged_ = 0;      // how far a swipe has moved it
+    std::optional<float> pressed_at_;     // where a swipe began
+    bool               swiping_ = false;
+};
+
+}  // namespace omui

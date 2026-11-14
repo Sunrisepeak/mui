@@ -1,0 +1,147 @@
+// openmui.render:cpu — the CPU reference backend: display lists to pixels with
+// openmui.raster, byte-for-byte the same on every platform (spec R-2).
+//
+// Effects (D-68): a layer with an effect from render::effects() is drawn
+// offscreen first — whole, whatever bands are asked for, since an effect may
+// move pixels across rows — the effect's CPU reference runs on it, and the
+// result is composited where the layer is. A layer whose effect is not
+// registered is drawn without it and counted in the report (R-3). External
+// textures are drawn as nothing and counted the same way.
+//
+// Given bands of rows (CpuOptions::rows, from a DamageTracker), it draws only
+// those rows of a surface that still holds the previous frame, and the result
+// is byte-for-byte the full render (xrender::raster::Canvas::restrict_rows). The
+// canvas and its buffers live as long as the renderer: a frame of the same
+// shape as the last allocates nothing.
+export module xrender.vector.api:cpu;
+
+import std;
+import mlibs.geom;
+import mlibs.memory;
+import xrender.raster;
+import :display;
+import :resources;
+import :damage;
+
+export namespace xrender {
+
+struct RenderReport {
+    std::size_t commands = 0;
+    std::size_t effects_skipped = 0;
+    std::size_t uploaded = 0;  // GPU: bytes the frame sent to the device (images once, coverage, instances)
+    std::size_t external_skipped = 0;
+    std::size_t missing_images = 0;
+    std::size_t invalid_paints = 0; // invalid flat mixture; never silently accepted
+    std::size_t missing_glyphs = 0;
+    std::size_t rows = 0;      // rows drawn
+    std::size_t skipped = 0;   // draw commands outside every band
+    // GPU: coverage masks (glyphs, paths, shadows) rasterised and uploaded
+    // this frame, and drawn from the atlas as an earlier frame left them;
+    // `atlas_emptied` when the frame was encoded again with the atlas emptied.
+    std::size_t masks_made = 0;
+    std::size_t masks_reused = 0;
+    bool        atlas_emptied = false;
+    // GPU: glyphs covered on the device from their outlines this frame
+    // (GpuOptions::glyph_masks); none when every glyph was its mask.
+    std::size_t glyphs_outlined = 0;
+    // GPU: the points of outlines kept for the device this frame (flattened
+    // and sent; a shape's once a level of scale), and whether the store of
+    // them had outgrown its size and was begun again.
+    // GPU: rounded clips covered on the device from their outlines this frame (no mask made of them).
+    std::size_t clips_outlined = 0;
+    // GPU: glyphs drawn from instances kept on the device (a kept run's, DisplayList::append with an id):
+    // nothing encoded or sent for them this frame — and those encoded and sent this frame to be kept.
+    std::size_t glyphs_kept = 0;
+    std::size_t glyphs_kept_made = 0;
+    // GPU: glyphs sent as the frame's own run (GpuOptions::frame_glyphs): 64 bytes each, not a primitive.
+    std::size_t glyphs_framed = 0;
+    std::size_t layers_folded = 0;     // effect layers drawn as cells of one shared surface: three passes for them all (GPU)
+    // GPU: the frame's instances (a primitive each: 192 bytes sent).
+    std::size_t instances = 0;
+    std::size_t outline_points = 0;
+    bool        outlines_restarted = false;
+    // GPU: the frame's passes (render::Graph) that ran, and those left out
+    // because nothing reads what they make.
+    std::size_t gpu_passes = 0;
+    std::size_t gpu_passes_culled = 0;
+    // With CpuOptions::measure: per kind of command (the index of Command's
+    // alternative, command_kind_name), how many and how long — where a
+    // frame's raster time goes.
+    struct Kind {
+        std::size_t count = 0;
+        double      ms = 0;
+    };
+    std::array<Kind, std::variant_size_v<Command>> kinds{};
+};
+
+// The name of a command kind: "fill_rect", "draw_glyphs" …
+[[nodiscard]] std::string_view command_kind_name(std::size_t index) noexcept;
+
+// Runs body(0) … body(count − 1) at the same time, in any order, and returns
+// when all have run: the host's thread pool (openmui.core's Tasks, or any
+// other). This package has none of its own.
+class Parallel {
+public:
+    virtual void run(std::size_t count, mlibs::memory::FunctionRef<void(std::size_t)> body) = 0;
+
+protected:
+    ~Parallel() = default;
+};
+
+struct CpuOptions {
+    float scale = 1.0f;        // physical pixels per logical pixel
+    bool  object_ids = false;  // fill the object-id buffer (pixel provenance)
+    bool  clear = true;
+    Color background = Color::transparent();
+    // Only these rows (sorted, not overlapping), over what the surface holds;
+    // empty: the whole surface.
+    std::span<const RowSpan> rows;
+    // Bands of at most `rows_per_task` rows drawn at the same time. The bytes
+    // are those of a serial render: every band is exact (restrict_rows).
+    Parallel*    parallel = nullptr;
+    std::int32_t rows_per_task = 64;
+    bool         measure = false;  // fill RenderReport::kinds (a clock read per command)
+    // The device transform the list starts under (default: scale). An
+    // effect's layer renders offscreen under its own (D-68).
+    std::optional<Affine> transform;
+    // Output logical-pixel scale for image filters. Offscreen recursion
+    // preserves this instead of treating a node's geometry scale as DPI.
+    std::optional<float> effect_scale;
+    // The pictures external_texture() commands name, as pixels (premultiplied, the renderer's): what on a device
+    // is a texture of the host's — a world drawn elsewhere, a video frame — shown here the same, over the
+    // command's rectangle. None, or one it does not know: the command is skipped and counted. The pixels are
+    // the caller's, alive while the frame is drawn; with `parallel` it is asked from several threads.
+    std::function<std::optional<xrender::raster::ImageView>(std::uint64_t id)> external;
+};
+
+class CpuRenderer {
+public:
+    CpuRenderer();
+
+    RenderReport render(const DisplayList& list, xrender::raster::Surface& target, const Resources& resources,
+                        const CpuOptions& options = {});
+
+    CpuRenderer(CpuRenderer&&) noexcept;
+    CpuRenderer& operator=(CpuRenderer&&) noexcept;
+    ~CpuRenderer();
+
+    // After a render with object_ids: the node that drew each pixel (0: none);
+    // a partial render updates its rows and keeps the others.
+    [[nodiscard]] std::span<const std::uint32_t> object_ids() const noexcept;
+    [[nodiscard]] std::uint32_t object_at(int x, int y, int width) const noexcept {
+        const auto ids = object_ids();
+        std::size_t i = static_cast<std::size_t>(y) * static_cast<std::size_t>(width) + static_cast<std::size_t>(x);
+        return i < ids.size() ? ids[i] : 0;
+    }
+
+private:
+    struct Scratch;
+    struct Impl;
+    void draw(Scratch& scratch, const DisplayList& list, xrender::raster::Surface& target, const Resources& resources, const CpuOptions& options,
+              RowSpan band, bool whole, RenderReport& report);
+    void prepare_effects(const DisplayList& list, const xrender::raster::Surface& target, const Resources& resources, const CpuOptions& options,
+                         RenderReport& report);
+    std::unique_ptr<Impl> impl_;
+};
+
+}  // namespace xrender

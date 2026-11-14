@@ -1,0 +1,87 @@
+{
+  "set": "motion",
+  "doc": "Editable animation (Part 2 §4.3, F and H): a person's words about an animation — what looks wrong, at which moment — and a fresh agent with only the motion workbench's tools (omui mcp: the stage, its motion.* verbs). The outcome is checked on the document the workbench holds (`state`: motion.document's value at a JSON pointer), never on the agent's word. Each task gets a fresh copy of the example.",
+  "run": "omui-inspector",
+  "args": [
+    "--motion",
+    "{copy:modules/projects/hanim/studio/examples/bounce.animation.omui.json}"
+  ],
+  "agent_mode": "dual-user",
+  "package": "omui.inspector",
+  "tasks": [
+    {
+      "id": "bounces",
+      "difficulty": 1,
+      "goal": "When the ball drops it should bounce three times, not twice. Change the animation so it does.",
+      "check": {
+        "state": [
+          {
+            "verb": "motion.document",
+            "at": "/program/items/0/bounces",
+            "equals": 3
+          }
+        ]
+      }
+    },
+    {
+      "id": "slower-drop",
+      "difficulty": 1,
+      "goal": "The ball falls too fast: make its drop take one and a half seconds.",
+      "check": {
+        "state": [
+          {
+            "verb": "motion.document",
+            "at": "/program/items/0/duration",
+            "equals": 1.5
+          }
+        ]
+      }
+    },
+    {
+      "id": "what-moves-the-star",
+      "difficulty": 2,
+      "goal": "Two seconds into the animation, what kind of step is moving the star? Answer with the step's kind as the document names it.",
+      "check": {
+        "answer": "scale_to"
+      }
+    },
+    {
+      "id": "calmer-star",
+      "difficulty": 2,
+      "goal": "Near the end the star wobbles in too springily when it grows. Calm it: its spring's damping should be 20, and leave everything else as it is.",
+      "check": {
+        "state": [
+          {
+            "verb": "motion.document",
+            "at": "/program/items/2/items/1/spring/damping",
+            "equals": 20
+          },
+          {
+            "verb": "motion.document",
+            "at": "/program/items/2/items/1/spring/stiffness",
+            "equals": 220
+          },
+          {
+            "verb": "motion.document",
+            "at": "/program/items/0/bounces",
+            "equals": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "travel-later",
+      "difficulty": 3,
+      "goal": "After the ball lands it moves to the right too quickly. Make that move take one second instead.",
+      "check": {
+        "state": [
+          {
+            "verb": "motion.document",
+            "at": "/program/items/2/items/0/duration",
+            "equals": 1
+          }
+        ]
+      }
+    }
+  ]
+}

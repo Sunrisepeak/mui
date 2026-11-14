@@ -1,0 +1,35 @@
+# xengine.nav.cts — navigation's conformance (mlibs.cts): a navigation world
+# held to the world contract (the same steps, the same bits; an image restored
+# runs on; a branch runs alike) on a scene of walls, a doorway, a link,
+# obstacles and a crowd, and the subject held to the agent contract. A package
+# of its own so the navigation core carries no test framework.
+[package]
+namespace   = "xengine.nav"
+name        = "cts"
+version     = "0.1.0"
+description = "Conformance of xengine.nav: the world contract on a navigation world with a crowd, obstacles and links; its scenes for tests and benchmarks"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "module"
+agent = { library = "conformance suite of navigation worlds: for tests only" }
+
+[targets.xengine-nav-cts]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-fno-fast-math", "-ffp-contract=off"]
+
+[dependencies]
+# With the world as an agent's subject: this package's tests hold it to the agent contract too.
+xengine.nav = { path = "..", features = ["agent"] }
+mlibs.cts   = { path = "../../../../../base/cts" }
+mlibs.utils = { path = "../../../../../base/utils" }
+
+[dev-dependencies]
+mcpplibs.mtest  = "0.8.4"
+mlibs.agent.cts = { path = "../../../../../base/agent/cts" }
+mlibs.json      = { path = "../../../../../base/json" }

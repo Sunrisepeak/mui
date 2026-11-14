@@ -1,0 +1,72 @@
+# omui.bench — the framework's benchmarks: what a frame of the 1000-node
+# dashboard costs at 1080p on the CPU (M1 acceptance ⑤), the pieces alone,
+# and what tracing and logging cost when off. Each is a case of mtest's whose
+# budgets (budgets.bench.omui.json, for release builds) are the case's bounds:
+#
+#   OMUI_BENCH=1 mcpp test -p omui.bench --profile release budgets
+[package]
+namespace   = "omui"
+name        = "bench"
+version     = "0.1.0"
+description = "openmui benchmarks: frame costs, pieces alone, reports and budgets"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+kind = "tool"
+
+[targets.openmui-bench]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+# The measuring is mtest's (bench::laps): the scenes' loop is its, in the library and in its tests.
+mcpplibs.mtest = "0.8.4"
+xrender.text = { path = "../../modules/projects/xrender/text" }
+xrender.scene = { path = "../../modules/projects/xrender/scene" }
+"xrender.mesh"  = { path = "../../modules/projects/xrender/mesh" }
+"xrender.mesh.gpu" = { path = "../../modules/projects/xrender/mesh/gpu" }
+mlibs.simulation = { path = "../../modules/base/simulation" }
+xengine.dynamics = { path = "../../modules/projects/xengine/kernel/dynamics", features = ["rigid", "rigid3"] }
+# Navigation beside Detour called directly (simulation/nav-crowd-64), on the scenes of its conformance package.
+xengine.nav = { path = "../../modules/projects/xengine/game/nav" }
+"xengine.nav.cts" = { path = "../../modules/projects/xengine/game/nav/cts" }
+# Skeletal animation (motion/skeleton-*): ACL's playback beside the raw channels, and a crowd's whole step.
+"hanim.skeleton" = { path = "../../modules/projects/hanim/skeleton" }
+"hanim.skeleton.cts" = { path = "../../modules/projects/hanim/skeleton/cts" }
+# With the lattice as a carrier of matter (simulation/matter-lattice-*), and a field of it as an agent's subject
+# with its record of causes (simulation/matter-256-causes; the feature implies `matter` and `agent`); and the
+# whole 2D world, its bodies made of the lattice's cells (simulation/world-128x64-frame; the feature `rigid`).
+xengine.cellular = { path = "../../modules/projects/xengine/kernel/cellular", features = ["matter-agent", "rigid"] }
+xengine.matter = { path = "../../modules/projects/xengine/kernel/matter" }
+# With matter's look as a shade on the lattice's presenter (simulation/matter-256-shade).
+"xengine.cellular.present" = { path = "../../modules/projects/xengine/kernel/cellular/present" }
+"hanim.core" = { path = "../../modules/projects/hanim/core" }
+"hanim" = { path = "../../modules/projects/hanim", features = ["render-vector"] }
+omui.sdk             = { path = "../../modules/projects/omui/sdk" }
+omui.view            = { path = "../../modules/projects/omui/view", features = ["hanim"] }
+mlibs.utils           = { path = "../../modules/base/utils" }
+# The host's parallel-for a cellular step takes (simulation/matter-1024-*).
+mlibs.memory          = { path = "../../modules/base/memory" }
+mlibs.markdown        = { path = "../../modules/content/markdown" }
+xengine.audio           = { path = "../../modules/projects/xengine/kernel/audio" }
+"hanim.timeline"       = { path = "../../modules/projects/hanim/timeline" }
+"xengine.audio.timeline" = { path = "../../modules/projects/xengine/kernel/audio/timeline" }
+omui.ui.canvas       = { path = "../../modules/projects/omui/components/canvas" }
+"omui.ui.canvas.kit"   = { path = "../../modules/projects/omui/components/canvas/kit" }
+omui.showcase.markdown_wall   = { path = "../../showcase/markdown-wall" }
+omui.showcase.style_gallery = { path = "../../showcase/style-gallery" }
+omui.showcase.fighting = { path = "../../showcase/fighting" }
+omui.showcase.widget_breakout.sim = { path = "../../showcase/widget-breakout/sim" }
+# A frame of the FPS slice on a device (game/quay-frame-1080p-gpu, D-187).
+omui.showcase.quay.picture = { path = "../../showcase/quay/picture" }
+# A chunked world branched and stepped (world/chunked-*).
+xengine.world = { path = "../../modules/projects/xengine/game/world" }
+"gongfu"                  = { path = "../../modules/projects/gongfu" }
+"gongfu.present2d"      = { path = "../../modules/projects/gongfu/present2d" }
+omui.theme.styles    = { path = "../../modules/projects/omui/theme/styles" }
+mlibs.rhi           = { path = "../../modules/gfx/rhi" }
+xrender.rhi.sdl       = { path = "../../modules/projects/xrender/rhi/sdl" }
+mcpplibs.os           = "0.4.4"
+

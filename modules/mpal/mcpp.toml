@@ -1,0 +1,32 @@
+# mpal — the services an operating system gives an application, as one contract
+# on every platform, above mcpplibs.os (openkal → os → mpal). README.md.
+[package]
+name        = "mpal"
+version     = "0.1.0"
+description = "The services an operating system gives an application (notifications, …) as one contract on every platform, above mcpplibs.os"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[targets.mpal]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/dbus/*.cppm", "src/dbus/*.cpp"]
+
+# One build for every system: backends are chosen with mcpplibs.os's platform
+# questions (if constexpr; host() for an ok image). A service a system gives
+# as objects (macOS's notification centre, Windows's toasts) is spoken through
+# mcpplibs.os's object models (macos::objc, windows::com) in that system's own
+# unit, built for it alone (mpal:native); no system header anywhere.
+[target.macos.build]
+sources = ["src/macos/*.cpp"]
+
+[target.windows.build]
+sources = ["src/windows/*.cpp"]
+
+[dependencies]
+mcpplibs.os = "0.4.4"
+
+[dev-dependencies]
+# Tests are mtest's (D-147).
+mcpplibs.mtest = "0.8.4"

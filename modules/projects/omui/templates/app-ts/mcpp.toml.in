@@ -1,0 +1,32 @@
+[package]
+name    = "{{project.name}}"
+version = "0.1.0"
+
+# The player reads this: the application's id, title and size, and its
+# scripts (run in their names' order; the language is the extension's).
+[package.metadata.openmui]
+kind  = "app"
+id    = "org.example.{{project.name}}"
+title = "{{project.name}}"
+size  = "480x320"
+
+[package.metadata.openmui.scripts]
+main = "app/main.ts"
+
+# No C++ to write: the program's main is the player's (an entry target of
+# omui.entry.player); the application is app/.
+[targets.{{project.name}}]
+kind = "bin"
+main = { from = "omui.entry.player/player" }
+
+[dependencies]
+omui.entry.player = "{{self.version}}"
+
+[dev-dependencies]
+omui.player  = "{{self.version}}"
+omui.lang.js = "{{self.version}}"
+
+# `omui check` type-checks app/ with tsc (TypeScript 7, native): installed
+# from xlings for this project.
+[xlings.workspace]
+"xim:typescript" = { version = "7.0.2", when = "dev" }

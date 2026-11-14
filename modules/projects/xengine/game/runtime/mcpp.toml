@@ -1,0 +1,45 @@
+# xengine.runtime — a game running on its own (D-162): its steps on a
+# timeline, an agent's actions on its tier's lane, and the game as a subject
+# of the agent kernel (observe, act, step, seek, branch), with no interface:
+# a server, a thousand playtests, CI. omui shows and plays the same game
+# through xengine.ui, the bridge; nothing here knows it.
+[package]
+namespace   = "xengine"
+name        = "runtime"
+version     = "0.1.0"
+description = "A game on its own: its steps, an agent player's lane and the game as a subject of the agent kernel — no interface needed"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+agent = "subject"
+
+[targets.xengine-runtime]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm"]
+
+# A game as a program played over lines (src/lines/, module xengine.runtime.lines): `<name> run --session FILE`.
+# A feature: a command line and standard input are the native systems', and the runtime also builds for the Web.
+[features]
+lines = { sources = ["src/lines/*.cppm", "src/lines/*.cpp"] }
+
+[feature-deps.lines]
+mcpplibs.os      = "0.4.4"
+mcpplibs.cmdline = "0.0.3"
+
+[dependencies]
+mlibs.agent      = { path = "../../../../base/agent" }
+mlibs.control    = { path = "../../../../base/control" }
+mlibs.simulation = { path = "../../../../base/simulation" }
+mlibs.json       = { path = "../../../../base/json" }
+xengine.input    = { path = "../input" }
+openlifa.openas  = "0.2.0"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+mlibs.utils    = { path = "../../../../base/utils" }
+mlibs.agent.cts = { path = "../../../../base/agent/cts" }

@@ -1,0 +1,1442 @@
+{
+  "format": "hanim.process-path-checkpoint@0.1",
+  "ok": true,
+  "base_commit": "de6e15e1d9e3ffe16bc8a4f837d7507f9e2e26f3",
+  "scope": [
+    "S2 partial: PointPath operator, typed vertex/translation process effects, existing Program/Engine and C++ UI path adapter.",
+    "No new public recipe count; no general channel mixing, group scopes, UI MotionSpec/script exposure, website opening, GPU or browser acceptance."
+  ],
+  "source_lock_sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+  "source_files_sha256": {
+    "modules/base/hanim/core/src/core.cppm": "ecdc0172eddf8448fafcaed48175e40ac58edf8bbe0e8bc0d3e7cd18bab8a458",
+    "modules/base/hanim/core/src/ease.cpp": "df318b3d47ba56252d60858d85e8d9e01d68360b2ea2fe91a95013a68a9f2de4",
+    "modules/base/hanim/core/src/ease.cppm": "b43599eee8e3642e1609777af5be4890a082cddb953aff73a705cb4c87aba044",
+    "modules/base/hanim/core/src/math.cppm": "2cf5c0f7b2d61516ba4464d126fa9a921c19076b13cad0221404cb706d8693e9",
+    "modules/base/hanim/core/src/motion.cpp": "39457ec62bfa40cd0715b0c2f45434868ed0bf0aef0f168a8b1ee6770c954618",
+    "modules/base/hanim/core/src/motion.cppm": "3741d1351824a869d5af96b644eaecc44476256c2c6458eee28be5b4c0f3e436",
+    "modules/base/hanim/core/src/path.cpp": "7f4f8627d762fed3d90852f4df159a0a56f93ac1c034fb97bc0fe5452994718d",
+    "modules/base/hanim/core/src/path.cppm": "61a9c541a47e71a6ee8763584c1d99bf22e1af3d3638f6e56cb3a5e42a455035",
+    "modules/base/hanim/core/src/set.cpp": "555c887d0aaf7bfdae97d46633c9fb577ac0ad44da1bdf2d27836614636ebbdf",
+    "modules/base/hanim/core/src/set.cppm": "5df90d61b8f4c9d4721fca9a79048be7face5a3b1c471a7805242f4f022957cc",
+    "modules/base/hanim/core/src/shape.cpp": "30968d4f2b799545b0903ec9e3e8fb2a5ce684fff17f065ae295d931adc3ad80",
+    "modules/base/hanim/core/src/shape.cppm": "8f2b8d443409f581eb0eb1c06c5327245a3c6cdba29ac06c249469b5b02fc463",
+    "modules/base/hanim/core/src/time.cpp": "e22baaca35c596c9c4d5565c05b4928e1730f4204b0dec453e4705ab82d070a5",
+    "modules/base/hanim/core/src/time.cppm": "a7e8d6ecfca6e593484f59a2661557d551db4afd7f9b6cf55b3604fc30a7aaaa",
+    "modules/base/hanim/core/src/timeline.cpp": "4f8928509e45533448107e1cf94579ecb29bbeafdbc1976071b02638c58505a7",
+    "modules/base/hanim/core/src/timeline.cppm": "f91bb2e4c10289705dcd2f995edc5237a9df320ceaa32c67819a2caabc7a131f",
+    "modules/base/hanim/core/src/value.cpp": "04e35cdd9e386067f63649a05c015e2760a123e1630b356ee08cb2b6a20c1fc3",
+    "modules/base/hanim/core/src/value.cppm": "dccbb6e135146983b3dfaf719d792fa12bddd5fa6b2cfc26201874ad7545f926",
+    "modules/base/hanim/core/tests/shape_test.cpp": "4fea4030098262a6f9d0b6a3df1341782cb149c0bb17e20f721386eb4189eb16",
+    "modules/base/log/src/log.cpp": "e53a904664ef4aedd8427afe687f79a7de9a0b0ed93237fc0d49a9854a52ac43",
+    "modules/base/log/src/log.cppm": "5e9dc5bf1ec327ac8050f8d298d85bccd2b01bc88da695449c9c96784f6b7c35",
+    "modules/base/math/src/color.cppm": "0bf26bcd84c5317c0d992dc02ddd92c38b1d4e8e365d6caa1a870f8587b07d49",
+    "modules/base/math/src/det.cpp": "4f475be69a518141e005a45b0b0d06540ba96e61eb83c7cb4cacc05ed7d8c64e",
+    "modules/base/math/src/det.cppm": "44f2a3ee6a2c2e98a680725bd1d527bd9f2c2690bd67150c476bad78e11100bd",
+    "modules/base/math/src/math.cppm": "16104515ed5113c10f4c7bb33f13b5b8af7e7917b7c58f367e68749723cac1c6",
+    "modules/base/math/src/random.cppm": "46df72cbc1ad333a21330d9b93727bda2f131f3d83601b62592e5dfc3bb9c562",
+    "modules/base/memory/src/arena.cpp": "971d79859651edcf92cbeb2ab4ff2560eaa7ceeda3790b17b27051abc42b144b",
+    "modules/base/memory/src/arena.cppm": "84d4ceab9fc36c8eac2398b9b94d6acbdb0c827640f808f7db4405c879f7f6fd",
+    "modules/base/memory/src/function.cppm": "c02058a7572c1890d26bcafdb71a6a0f23b0382399a87364a169ecf1d80d7dbd",
+    "modules/base/memory/src/handle.cppm": "b43d8e7d00a816dd961c8a93c25fd3ff47d25fe44d671cd883b316f9df2bb41d",
+    "modules/base/memory/src/memory.cppm": "0ab605950b5d8016abb26d6fb4e9708798343cb130a4907a8ccc1f3c8facf4ff",
+    "modules/base/memory/src/slots.cppm": "35a479cc40ab294652b521ea3656e74a057f71520066cae36c195c5a6ec09cbc",
+    "modules/base/trace/src/trace.cpp": "6ac0d632a395568de2ba87eda1cb922a524ab1d06ae04d9002a9aedeba57fda4",
+    "modules/base/trace/src/trace.cppm": "1985ccf2b3f5536b3ade39163b4d565bc300ce6d0c9b898e46195b69271b57be",
+    "modules/gfx/hanim/effect/src/effect.cpp": "a8ee5d32965ec21bc5ba45e840466dc36f13e47c7c9afc86d3147233990e3144",
+    "modules/gfx/hanim/effect/src/effect.cppm": "d76de3a89fe4b07b91d787243487a25c56071d0cc46fc0af983f9e7bd1491978",
+    "modules/gfx/hanim/engine/src/engine.cpp": "594eeb639c9527715b4cbccb1cfe559718daa2318ed92f05ff5c2b28a35220f8",
+    "modules/gfx/hanim/engine/src/engine.cppm": "14793740166df0cc16f2ee7ac8c5521007c03c0b1e4f7909bb1ee3e0692d9cfd",
+    "modules/gfx/hanim/library/src/library.cpp": "b28925e3747ce392bd19696fe287b78be9d0cde6ea68840aa07f8d69bb935c4b",
+    "modules/gfx/hanim/library/src/library.cppm": "bc2eb5dd721d2dcb8f53f39958a8f0ee4314ab9932a3ef2c1635e40b34b7cb7f",
+    "modules/gfx/hanim/library/tests/morph_test.cpp": "ba3df7e44bc3d556ea05aa88e553b97e9bd896bfd282cfc22163984b713d58b7",
+    "modules/gfx/hanim/object/src/object.cpp": "f7b882e962f57e813b37a08c418a823fa9f7e08d3a910974175c23c4a1e09eeb",
+    "modules/gfx/hanim/object/src/object.cppm": "65ba64989e4e14557a6d9cf41a74011c00a959d1b2cbea0f0253086b48ba07c2",
+    "modules/gfx/hanim/program/src/program.cpp": "2815d65c0f2dc1a26305f9d2fa54ba918791bf593daf143c7735f30686359b6d",
+    "modules/gfx/hanim/program/src/program.cppm": "0236f6295094edaec23f6175d43369235b53ab15b74b1a8d04ae1d8592f03eb4",
+    "modules/gfx/hanim/program/tests/program_test.cpp": "b6702b3b18e7a4a377a8f01065d4c5043a8d98904cd5bd90f5312d117614762c",
+    "modules/gfx/hanim/src/hanim.cppm": "f37667dee4bc780775aa365ad452ec4386eb3c63ac21e299ab0c1e48bf458c18",
+    "modules/gfx/hanim/tests/compatibility_test.cpp": "cc6415cc3ca2953b54dcabefb8537eb43f04b29d8a82bb09e72bfef32ebd88f3",
+    "modules/ui/motion/src/morph.cpp": "f071c899aa8f2d5210ecf534823d38db68de32d5de1f6c75c6d08daab7dab48d",
+    "modules/ui/motion/src/morph.cppm": "336191ce9d72e796c966691965368a5aa54f9c0f575ce810b632f7ffe056716f",
+    "modules/ui/motion/tests/path_morph_test.cpp": "4d499c5596107953bac6c667c95a41a222d740841f8ea9a7e9290fafc2e8797d",
+    "tools/ci/hanim-api-probe/src/main.cpp": "36e6bb661986c63fbdd870efe474a883dbe3a38d33c029fba28eb5e3d271f44a",
+    "tools/ci/hanim-play-consumer/run.py": "859561449e6e3ae76ccc062d7578c2d4330b0b5c4a6b090d1ef170c7792041e7",
+    "tools/ci/hanim-play-consumer/src/main.cpp": "23e9611627ea32ae9daf83c60b09ab31cd1eadb8f7ce56522e8b00657aef3c37"
+  },
+  "native": {
+    "toolchain": {
+      "abi": "glibc",
+      "spec": "gcc 16.1.0 (x86_64-linux-gnu)",
+      "stdlib": "libstdc++",
+      "triple": "x86_64-linux-gnu"
+    },
+    "mcpp": "2026.11.2.2",
+    "results": [
+      {
+        "profile": "dev",
+        "cases": 178,
+        "suites": {
+          "hanim.golden": 3,
+          "hanim.ease": 7,
+          "hanim.motion": 13,
+          "hanim.set": 6,
+          "hanim.math": 4,
+          "hanim.timeline": 7,
+          "hanim.value": 7,
+          "hanim.shape": 18,
+          "hanim.compatibility": 3,
+          "hanim.library.morph": 12,
+          "hanim.program": 16,
+          "hanim.engine": 20,
+          "hanim.engine.visual": 2,
+          "ui.motion": 9,
+          "motion.path-material-retarget-probe": 1,
+          "motion.references": 4,
+          "motion.path-morph": 11,
+          "motion.text-contrast": 21,
+          "motion.text-transition": 8,
+          "nested travel scratch lifetime": 6
+        },
+        "logs": [
+          {
+            "path": "/tmp/omui-point-path-dev.log",
+            "sha256": "35250606dd39585f603b8a6fdf103f024b367d6fc60b4e5429e7f1d09c2fe3cb"
+          },
+          {
+            "path": "/tmp/omui-point-path-final-dev.log",
+            "sha256": "3ed73d8ab7c90d67dcce8156ec337f812c8f7595827b881839173e2b8f0fe51e"
+          }
+        ]
+      },
+      {
+        "profile": "release",
+        "cases": 178,
+        "suites": {
+          "hanim.golden": 3,
+          "hanim.ease": 7,
+          "hanim.motion": 13,
+          "hanim.math": 4,
+          "hanim.set": 6,
+          "hanim.timeline": 7,
+          "hanim.value": 7,
+          "hanim.shape": 18,
+          "hanim.compatibility": 3,
+          "hanim.library.morph": 12,
+          "hanim.program": 16,
+          "hanim.engine": 20,
+          "hanim.engine.visual": 2,
+          "ui.motion": 9,
+          "motion.path-material-retarget-probe": 1,
+          "motion.references": 4,
+          "motion.text-contrast": 21,
+          "motion.text-transition": 8,
+          "motion.path-morph": 11,
+          "nested travel scratch lifetime": 6
+        },
+        "logs": [
+          {
+            "path": "/tmp/omui-point-path-release.log",
+            "sha256": "ffe42f7a000130d7957f1babedc5ab8a9b1e90c77841db238ed5930b5ef72c46"
+          },
+          {
+            "path": "/tmp/omui-point-path-final-release.log",
+            "sha256": "1220124eeec03378b4c85c4021c0026229a5c5fac2968236a9e332a20aec0361"
+          }
+        ]
+      }
+    ]
+  },
+  "wasm": {
+    "toolchain": "emsdk 6.0.9",
+    "target": "wasm32-emscripten",
+    "profile": "wasm-test",
+    "execution": "node, real Wasm execution with NODERAWFS fixture access",
+    "cases": 68,
+    "suites": {
+      "hanim.golden": 3,
+      "hanim.ease": 7,
+      "hanim.motion": 13,
+      "hanim.math": 4,
+      "hanim.set": 6,
+      "hanim.shape": 18,
+      "hanim.timeline": 7,
+      "hanim.value": 7,
+      "hanim.compatibility": 3
+    },
+    "log": {
+      "path": "/tmp/omui-point-path-web-fixtures.log",
+      "sha256": "23f22d4bbc44ac1fca14e57484d9d4006e2c7617515adde9c06c3ef55cc38255"
+    },
+    "earlier_attempt": "Default profile lacked filesystem fixtures: math reference test read 0 rows. All targeted cases passed with the repository-defined wasm-test profile; no implementation failure was hidden."
+  },
+  "public_authoring": {
+    "report_sha256": "3593a0f6e7e0ce0c648e52ae3949358d8c2cecb6f2e3babccaf4b70a30fb1e87",
+    "local_report": "/tmp/omui-point-path/authoring.report.omui.json",
+    "profiles": [
+      {
+        "profile": "dev",
+        "assertions": 94,
+        "checks": [
+          {
+            "name": "registry_and_engine_created",
+            "ok": true
+          },
+          {
+            "name": "public_contours_created",
+            "ok": true
+          },
+          {
+            "name": "object_refs_created",
+            "ok": true
+          },
+          {
+            "name": "owned_snapshots_created",
+            "ok": true
+          },
+          {
+            "name": "description_construction_has_no_playback_or_object_side_effect",
+            "ok": true
+          },
+          {
+            "name": "fluent_values_reuse_without_mutating_recipe",
+            "ok": true
+          },
+          {
+            "name": "explicit_prepare_succeeds",
+            "ok": true
+          },
+          {
+            "name": "prepare_does_not_start_clock",
+            "ok": true
+          },
+          {
+            "name": "convenient_play_uses_public_engine",
+            "ok": true
+          },
+          {
+            "name": "convenient_pose_t0",
+            "ok": true
+          },
+          {
+            "name": "convenient_pose_t015",
+            "ok": true
+          },
+          {
+            "name": "convenient_pose_t030",
+            "ok": true
+          },
+          {
+            "name": "convenient_pose_t045",
+            "ok": true
+          },
+          {
+            "name": "convenient_pose_t060",
+            "ok": true
+          },
+          {
+            "name": "true_cubic_geometry_transform_effect_midpoint",
+            "ok": true
+          },
+          {
+            "name": "playback_never_writes_business_object",
+            "ok": true
+          },
+          {
+            "name": "release_convenient_instance",
+            "ok": true
+          },
+          {
+            "name": "prepared_play_succeeds",
+            "ok": true
+          },
+          {
+            "name": "convenient_and_explicit_prepare_identical_under_unordered_seek",
+            "ok": true
+          },
+          {
+            "name": "occupied_source_error_is_preserved",
+            "ok": true
+          },
+          {
+            "name": "release_prepared_instance",
+            "ok": true
+          },
+          {
+            "name": "released_handle_is_stale",
+            "ok": true
+          },
+          {
+            "name": "typed_process_paths_prepare",
+            "ok": true
+          },
+          {
+            "name": "typed_process_paths_play",
+            "ok": true
+          },
+          {
+            "name": "typed_process_paths_expose_frame",
+            "ok": true
+          },
+          {
+            "name": "translation_path_is_typed_and_image_effect_is_retained",
+            "ok": true
+          },
+          {
+            "name": "vertex_path_changes_geometry_before_renderer",
+            "ok": true
+          },
+          {
+            "name": "process_paths_preserve_exact_endpoint_channels",
+            "ok": true
+          },
+          {
+            "name": "release_process_path_instance",
+            "ok": true
+          },
+          {
+            "name": "prepared_process_path_replay",
+            "ok": true
+          },
+          {
+            "name": "process_path_convenient_and_prepared_equal",
+            "ok": true
+          },
+          {
+            "name": "release_process_path_replay",
+            "ok": true
+          },
+          {
+            "name": "ordered_effect_chain_prepares",
+            "ok": true
+          },
+          {
+            "name": "ordered_effect_chain_samples",
+            "ok": true
+          },
+          {
+            "name": "leaf_effects_preserve_order_values_and_fluent_reuse",
+            "ok": true
+          },
+          {
+            "name": "release_layered_effects",
+            "ok": true
+          },
+          {
+            "name": "sequence_prepares_on_existing_compiler",
+            "ok": true
+          },
+          {
+            "name": "sequence_plays",
+            "ok": true
+          },
+          {
+            "name": "sequence_boundary_seek",
+            "ok": true
+          },
+          {
+            "name": "sequence_second_segment_seek",
+            "ok": true
+          },
+          {
+            "name": "sequence_second_source_is_preceding_endpoint",
+            "ok": true
+          },
+          {
+            "name": "release_sequence",
+            "ok": true
+          },
+          {
+            "name": "nested_parallel_plays",
+            "ok": true
+          },
+          {
+            "name": "parallel_retains_two_tracks_three_segments",
+            "ok": true
+          },
+          {
+            "name": "multitrack_requires_explicit_frame_selection",
+            "ok": true
+          },
+          {
+            "name": "release_parallel",
+            "ok": true
+          },
+          {
+            "name": "stagger_prepares",
+            "ok": true
+          },
+          {
+            "name": "stagger_before_second_start",
+            "ok": true
+          },
+          {
+            "name": "stagger_holds_unstarted_track_source",
+            "ok": true
+          },
+          {
+            "name": "release_stagger",
+            "ok": true
+          },
+          {
+            "name": "invalid_duration_keeps_structured_program_error_and_no_playback",
+            "ok": true
+          },
+          {
+            "name": "invalid_snapshot_is_rejected",
+            "ok": true
+          },
+          {
+            "name": "same_object_overlap_is_not_silently_blended",
+            "ok": true
+          },
+          {
+            "name": "prepare_respects_node_budget",
+            "ok": true
+          },
+          {
+            "name": "convenient_prepare_respects_configured_limits",
+            "ok": true
+          },
+          {
+            "name": "explicit_prepare_uses_same_limits_as_convenient_play",
+            "ok": true
+          },
+          {
+            "name": "effect_validation_error_is_preserved",
+            "ok": true
+          },
+          {
+            "name": "snapshot_stays_frozen_after_host_update",
+            "ok": true
+          },
+          {
+            "name": "host_objects_destroyed",
+            "ok": true
+          },
+          {
+            "name": "prepared_plan_survives_destroyed_host_objects",
+            "ok": true
+          },
+          {
+            "name": "frozen_geometry_retains_owned_inputs",
+            "ok": true
+          },
+          {
+            "name": "release_frozen_snapshot_playback",
+            "ok": true
+          },
+          {
+            "name": "live_engine_objects_created",
+            "ok": true
+          },
+          {
+            "name": "object_ref_description_has_no_capture_or_play_side_effect",
+            "ok": true
+          },
+          {
+            "name": "live_source_updated_after_description",
+            "ok": true
+          },
+          {
+            "name": "object_ref_prepare_captures_current_revision",
+            "ok": true
+          },
+          {
+            "name": "standalone_compiler_requires_registry_for_live_inputs",
+            "ok": true
+          },
+          {
+            "name": "snapshot_recipe_prepares_without_engine_or_registry",
+            "ok": true
+          },
+          {
+            "name": "explicit_registry_rejects_foreign_live_ref",
+            "ok": true
+          },
+          {
+            "name": "live_source_accepts_frozen_external_target",
+            "ok": true
+          },
+          {
+            "name": "legacy_snapshot_program_composes_with_public_recipe",
+            "ok": true
+          },
+          {
+            "name": "object_ref_convenient_play",
+            "ok": true
+          },
+          {
+            "name": "capture_is_deferred_until_prepare_not_description_creation",
+            "ok": true
+          },
+          {
+            "name": "release_live_convenient",
+            "ok": true
+          },
+          {
+            "name": "object_ref_prepared_play",
+            "ok": true
+          },
+          {
+            "name": "object_ref_convenient_and_prepared_equivalent",
+            "ok": true
+          },
+          {
+            "name": "release_live_prepared",
+            "ok": true
+          },
+          {
+            "name": "object_ref_sequence_plays",
+            "ok": true
+          },
+          {
+            "name": "object_ref_sequence_uses_previous_endpoint",
+            "ok": true
+          },
+          {
+            "name": "release_live_sequence",
+            "ok": true
+          },
+          {
+            "name": "explicit_reset_sequence_plays",
+            "ok": true
+          },
+          {
+            "name": "explicit_source_mode_resets_to_captured_pose",
+            "ok": true
+          },
+          {
+            "name": "release_reset_sequence",
+            "ok": true
+          },
+          {
+            "name": "authoring_lowering_depth_is_bounded",
+            "ok": true
+          },
+          {
+            "name": "foreign_owner_error_is_preserved",
+            "ok": true
+          },
+          {
+            "name": "live_objects_destroyed",
+            "ok": true
+          },
+          {
+            "name": "stale_description_rejected_without_partial_playback",
+            "ok": true
+          },
+          {
+            "name": "new_generation_objects_created",
+            "ok": true
+          },
+          {
+            "name": "destroyed_source_slot_was_reused_with_new_generation",
+            "ok": true
+          },
+          {
+            "name": "old_ref_does_not_rebind_after_slot_reuse",
+            "ok": true
+          },
+          {
+            "name": "new_generation_objects_destroyed",
+            "ok": true
+          },
+          {
+            "name": "prepared_ref_plan_survives_object_destruction",
+            "ok": true
+          },
+          {
+            "name": "prepared_ref_plan_keeps_owned_geometry",
+            "ok": true
+          },
+          {
+            "name": "all_playback_resources_released",
+            "ok": true
+          }
+        ],
+        "packages": [
+          "hanim.core",
+          "hanim.effect",
+          "hanim.engine",
+          "hanim.library",
+          "hanim.object",
+          "hanim.program",
+          "hanim.validation.api_probe",
+          "mcpplibs.hanim",
+          "openmui.log",
+          "openmui.math",
+          "openmui.memory",
+          "openmui.trace"
+        ]
+      },
+      {
+        "profile": "release",
+        "assertions": 94,
+        "checks": [
+          {
+            "name": "registry_and_engine_created",
+            "ok": true
+          },
+          {
+            "name": "public_contours_created",
+            "ok": true
+          },
+          {
+            "name": "object_refs_created",
+            "ok": true
+          },
+          {
+            "name": "owned_snapshots_created",
+            "ok": true
+          },
+          {
+            "name": "description_construction_has_no_playback_or_object_side_effect",
+            "ok": true
+          },
+          {
+            "name": "fluent_values_reuse_without_mutating_recipe",
+            "ok": true
+          },
+          {
+            "name": "explicit_prepare_succeeds",
+            "ok": true
+          },
+          {
+            "name": "prepare_does_not_start_clock",
+            "ok": true
+          },
+          {
+            "name": "convenient_play_uses_public_engine",
+            "ok": true
+          },
+          {
+            "name": "convenient_pose_t0",
+            "ok": true
+          },
+          {
+            "name": "convenient_pose_t015",
+            "ok": true
+          },
+          {
+            "name": "convenient_pose_t030",
+            "ok": true
+          },
+          {
+            "name": "convenient_pose_t045",
+            "ok": true
+          },
+          {
+            "name": "convenient_pose_t060",
+            "ok": true
+          },
+          {
+            "name": "true_cubic_geometry_transform_effect_midpoint",
+            "ok": true
+          },
+          {
+            "name": "playback_never_writes_business_object",
+            "ok": true
+          },
+          {
+            "name": "release_convenient_instance",
+            "ok": true
+          },
+          {
+            "name": "prepared_play_succeeds",
+            "ok": true
+          },
+          {
+            "name": "convenient_and_explicit_prepare_identical_under_unordered_seek",
+            "ok": true
+          },
+          {
+            "name": "occupied_source_error_is_preserved",
+            "ok": true
+          },
+          {
+            "name": "release_prepared_instance",
+            "ok": true
+          },
+          {
+            "name": "released_handle_is_stale",
+            "ok": true
+          },
+          {
+            "name": "typed_process_paths_prepare",
+            "ok": true
+          },
+          {
+            "name": "typed_process_paths_play",
+            "ok": true
+          },
+          {
+            "name": "typed_process_paths_expose_frame",
+            "ok": true
+          },
+          {
+            "name": "translation_path_is_typed_and_image_effect_is_retained",
+            "ok": true
+          },
+          {
+            "name": "vertex_path_changes_geometry_before_renderer",
+            "ok": true
+          },
+          {
+            "name": "process_paths_preserve_exact_endpoint_channels",
+            "ok": true
+          },
+          {
+            "name": "release_process_path_instance",
+            "ok": true
+          },
+          {
+            "name": "prepared_process_path_replay",
+            "ok": true
+          },
+          {
+            "name": "process_path_convenient_and_prepared_equal",
+            "ok": true
+          },
+          {
+            "name": "release_process_path_replay",
+            "ok": true
+          },
+          {
+            "name": "ordered_effect_chain_prepares",
+            "ok": true
+          },
+          {
+            "name": "ordered_effect_chain_samples",
+            "ok": true
+          },
+          {
+            "name": "leaf_effects_preserve_order_values_and_fluent_reuse",
+            "ok": true
+          },
+          {
+            "name": "release_layered_effects",
+            "ok": true
+          },
+          {
+            "name": "sequence_prepares_on_existing_compiler",
+            "ok": true
+          },
+          {
+            "name": "sequence_plays",
+            "ok": true
+          },
+          {
+            "name": "sequence_boundary_seek",
+            "ok": true
+          },
+          {
+            "name": "sequence_second_segment_seek",
+            "ok": true
+          },
+          {
+            "name": "sequence_second_source_is_preceding_endpoint",
+            "ok": true
+          },
+          {
+            "name": "release_sequence",
+            "ok": true
+          },
+          {
+            "name": "nested_parallel_plays",
+            "ok": true
+          },
+          {
+            "name": "parallel_retains_two_tracks_three_segments",
+            "ok": true
+          },
+          {
+            "name": "multitrack_requires_explicit_frame_selection",
+            "ok": true
+          },
+          {
+            "name": "release_parallel",
+            "ok": true
+          },
+          {
+            "name": "stagger_prepares",
+            "ok": true
+          },
+          {
+            "name": "stagger_before_second_start",
+            "ok": true
+          },
+          {
+            "name": "stagger_holds_unstarted_track_source",
+            "ok": true
+          },
+          {
+            "name": "release_stagger",
+            "ok": true
+          },
+          {
+            "name": "invalid_duration_keeps_structured_program_error_and_no_playback",
+            "ok": true
+          },
+          {
+            "name": "invalid_snapshot_is_rejected",
+            "ok": true
+          },
+          {
+            "name": "same_object_overlap_is_not_silently_blended",
+            "ok": true
+          },
+          {
+            "name": "prepare_respects_node_budget",
+            "ok": true
+          },
+          {
+            "name": "convenient_prepare_respects_configured_limits",
+            "ok": true
+          },
+          {
+            "name": "explicit_prepare_uses_same_limits_as_convenient_play",
+            "ok": true
+          },
+          {
+            "name": "effect_validation_error_is_preserved",
+            "ok": true
+          },
+          {
+            "name": "snapshot_stays_frozen_after_host_update",
+            "ok": true
+          },
+          {
+            "name": "host_objects_destroyed",
+            "ok": true
+          },
+          {
+            "name": "prepared_plan_survives_destroyed_host_objects",
+            "ok": true
+          },
+          {
+            "name": "frozen_geometry_retains_owned_inputs",
+            "ok": true
+          },
+          {
+            "name": "release_frozen_snapshot_playback",
+            "ok": true
+          },
+          {
+            "name": "live_engine_objects_created",
+            "ok": true
+          },
+          {
+            "name": "object_ref_description_has_no_capture_or_play_side_effect",
+            "ok": true
+          },
+          {
+            "name": "live_source_updated_after_description",
+            "ok": true
+          },
+          {
+            "name": "object_ref_prepare_captures_current_revision",
+            "ok": true
+          },
+          {
+            "name": "standalone_compiler_requires_registry_for_live_inputs",
+            "ok": true
+          },
+          {
+            "name": "snapshot_recipe_prepares_without_engine_or_registry",
+            "ok": true
+          },
+          {
+            "name": "explicit_registry_rejects_foreign_live_ref",
+            "ok": true
+          },
+          {
+            "name": "live_source_accepts_frozen_external_target",
+            "ok": true
+          },
+          {
+            "name": "legacy_snapshot_program_composes_with_public_recipe",
+            "ok": true
+          },
+          {
+            "name": "object_ref_convenient_play",
+            "ok": true
+          },
+          {
+            "name": "capture_is_deferred_until_prepare_not_description_creation",
+            "ok": true
+          },
+          {
+            "name": "release_live_convenient",
+            "ok": true
+          },
+          {
+            "name": "object_ref_prepared_play",
+            "ok": true
+          },
+          {
+            "name": "object_ref_convenient_and_prepared_equivalent",
+            "ok": true
+          },
+          {
+            "name": "release_live_prepared",
+            "ok": true
+          },
+          {
+            "name": "object_ref_sequence_plays",
+            "ok": true
+          },
+          {
+            "name": "object_ref_sequence_uses_previous_endpoint",
+            "ok": true
+          },
+          {
+            "name": "release_live_sequence",
+            "ok": true
+          },
+          {
+            "name": "explicit_reset_sequence_plays",
+            "ok": true
+          },
+          {
+            "name": "explicit_source_mode_resets_to_captured_pose",
+            "ok": true
+          },
+          {
+            "name": "release_reset_sequence",
+            "ok": true
+          },
+          {
+            "name": "authoring_lowering_depth_is_bounded",
+            "ok": true
+          },
+          {
+            "name": "foreign_owner_error_is_preserved",
+            "ok": true
+          },
+          {
+            "name": "live_objects_destroyed",
+            "ok": true
+          },
+          {
+            "name": "stale_description_rejected_without_partial_playback",
+            "ok": true
+          },
+          {
+            "name": "new_generation_objects_created",
+            "ok": true
+          },
+          {
+            "name": "destroyed_source_slot_was_reused_with_new_generation",
+            "ok": true
+          },
+          {
+            "name": "old_ref_does_not_rebind_after_slot_reuse",
+            "ok": true
+          },
+          {
+            "name": "new_generation_objects_destroyed",
+            "ok": true
+          },
+          {
+            "name": "prepared_ref_plan_survives_object_destruction",
+            "ok": true
+          },
+          {
+            "name": "prepared_ref_plan_keeps_owned_geometry",
+            "ok": true
+          },
+          {
+            "name": "all_playback_resources_released",
+            "ok": true
+          }
+        ],
+        "packages": [
+          "hanim.core",
+          "hanim.effect",
+          "hanim.engine",
+          "hanim.library",
+          "hanim.object",
+          "hanim.program",
+          "hanim.validation.api_probe",
+          "mcpplibs.hanim",
+          "openmui.log",
+          "openmui.math",
+          "openmui.memory",
+          "openmui.trace"
+        ]
+      }
+    ]
+  },
+  "pixels": {
+    "report_sha256": "9cd753c5e363f425fd873fe88766fe2952c1fad94f22bea24195ef93728c1a83",
+    "local_report": "/tmp/omui-point-path/visual.report.omui.json",
+    "backend": "cpu-reference",
+    "profiles": [
+      {
+        "profile": "dev",
+        "runs": [
+          {
+            "file": "dev-start.png",
+            "png_sha256": "58d203704f219e1d0f4dd2ae35770f1ff3c9d0e222cab2039814c74474ac0df6",
+            "time": 0.0,
+            "region": {
+              "height": 240,
+              "width": 320,
+              "x": 0,
+              "y": 0
+            },
+            "pixel_fnv1a": "e613ac5267363865",
+            "vertex_path": {
+              "bend": 0.0,
+              "space": "endpoint-chord",
+              "stage": "after-correspondence"
+            },
+            "image_effects": [
+              "blur",
+              "tone"
+            ],
+            "retarget": false,
+            "continuity_max_u8": 0,
+            "coverage_off_boundary": 0,
+            "styled_off_boundary": 0
+          },
+          {
+            "file": "dev-middle.png",
+            "png_sha256": "28063a6a46d2ed919c6ead3392f9a2236188224e8c224d61e6db1a385833d4ff",
+            "time": 0.5,
+            "region": {
+              "height": 240,
+              "width": 320,
+              "x": 0,
+              "y": 0
+            },
+            "pixel_fnv1a": "4b1cb0ea4369212f",
+            "vertex_path": {
+              "bend": 0.0,
+              "space": "endpoint-chord",
+              "stage": "after-correspondence"
+            },
+            "image_effects": [
+              "blur",
+              "tone"
+            ],
+            "retarget": false,
+            "continuity_max_u8": 0,
+            "coverage_off_boundary": 0,
+            "styled_off_boundary": 0
+          },
+          {
+            "file": "dev-end.png",
+            "png_sha256": "e3143e64134d91b98997bc9cbc7c9877eb67845c420ffb99d2de3138fff5d8d2",
+            "time": 1.0,
+            "region": {
+              "height": 240,
+              "width": 320,
+              "x": 0,
+              "y": 0
+            },
+            "pixel_fnv1a": "d085e2e1f4dff977",
+            "vertex_path": {
+              "bend": 0.0,
+              "space": "endpoint-chord",
+              "stage": "after-correspondence"
+            },
+            "image_effects": [
+              "blur",
+              "tone"
+            ],
+            "retarget": false,
+            "continuity_max_u8": 0,
+            "coverage_off_boundary": 0,
+            "styled_off_boundary": 0
+          },
+          {
+            "file": "dev-crop.png",
+            "png_sha256": "b8f610c9ea19089442983aef189fbb8c487638edf92beb7001a19e5b4e660a4e",
+            "time": 0.5,
+            "region": {
+              "height": 160,
+              "width": 160,
+              "x": 80,
+              "y": 40
+            },
+            "pixel_fnv1a": "0e5623dc8de67daf",
+            "vertex_path": {
+              "bend": 0.0,
+              "space": "endpoint-chord",
+              "stage": "after-correspondence"
+            },
+            "image_effects": [
+              "blur",
+              "tone"
+            ],
+            "retarget": false,
+            "continuity_max_u8": 0,
+            "coverage_off_boundary": 0,
+            "styled_off_boundary": 0
+          },
+          {
+            "file": "dev-retarget.png",
+            "png_sha256": "31c6d551615261e59e4505a55629143aebeb4567d9c14d102e81a38173671f9d",
+            "time": 0.5,
+            "region": {
+              "height": 240,
+              "width": 320,
+              "x": 0,
+              "y": 0
+            },
+            "pixel_fnv1a": "a04df51ecddc3c91",
+            "vertex_path": {
+              "bend": 0.0,
+              "space": "endpoint-chord",
+              "stage": "after-correspondence"
+            },
+            "image_effects": [
+              "blur",
+              "tone"
+            ],
+            "retarget": true,
+            "continuity_max_u8": 3,
+            "coverage_off_boundary": 0,
+            "styled_off_boundary": 0
+          },
+          {
+            "file": "dev-path-start.png",
+            "png_sha256": "58d203704f219e1d0f4dd2ae35770f1ff3c9d0e222cab2039814c74474ac0df6",
+            "time": 0.0,
+            "region": {
+              "height": 240,
+              "width": 320,
+              "x": 0,
+              "y": 0
+            },
+            "pixel_fnv1a": "e613ac5267363865",
+            "vertex_path": {
+              "bend": 0.35,
+              "space": "endpoint-chord",
+              "stage": "after-correspondence"
+            },
+            "image_effects": [
+              "blur",
+              "tone"
+            ],
+            "retarget": false,
+            "continuity_max_u8": 0,
+            "coverage_off_boundary": 0,
+            "styled_off_boundary": 0
+          },
+          {
+            "file": "dev-path-middle.png",
+            "png_sha256": "3a02f00bf742fd71f8cb201f79f552d6e0de467d15f23970f1e27d475b024477",
+            "time": 0.5,
+            "region": {
+              "height": 240,
+              "width": 320,
+              "x": 0,
+              "y": 0
+            },
+            "pixel_fnv1a": "c9ad583d905987c5",
+            "vertex_path": {
+              "bend": 0.35,
+              "space": "endpoint-chord",
+              "stage": "after-correspondence"
+            },
+            "image_effects": [
+              "blur",
+              "tone"
+            ],
+            "retarget": false,
+            "continuity_max_u8": 0,
+            "coverage_off_boundary": 0,
+            "styled_off_boundary": 0
+          },
+          {
+            "file": "dev-path-end.png",
+            "png_sha256": "e3143e64134d91b98997bc9cbc7c9877eb67845c420ffb99d2de3138fff5d8d2",
+            "time": 1.0,
+            "region": {
+              "height": 240,
+              "width": 320,
+              "x": 0,
+              "y": 0
+            },
+            "pixel_fnv1a": "d085e2e1f4dff977",
+            "vertex_path": {
+              "bend": 0.35,
+              "space": "endpoint-chord",
+              "stage": "after-correspondence"
+            },
+            "image_effects": [
+              "blur",
+              "tone"
+            ],
+            "retarget": false,
+            "continuity_max_u8": 0,
+            "coverage_off_boundary": 0,
+            "styled_off_boundary": 0
+          },
+          {
+            "file": "dev-path-retarget.png",
+            "png_sha256": "5ddcb34a9167c38bfd506201eedae36e72e2d8533d4373ea3385731fc353e17d",
+            "time": 0.5,
+            "region": {
+              "height": 240,
+              "width": 320,
+              "x": 0,
+              "y": 0
+            },
+            "pixel_fnv1a": "8239760dbfcad8eb",
+            "vertex_path": {
+              "bend": 0.35,
+              "space": "endpoint-chord",
+              "stage": "after-correspondence"
+            },
+            "image_effects": [
+              "blur",
+              "tone"
+            ],
+            "retarget": true,
+            "continuity_max_u8": 4,
+            "coverage_off_boundary": 0,
+            "styled_off_boundary": 0
+          }
+        ]
+      },
+      {
+        "profile": "release",
+        "runs": [
+          {
+            "file": "release-start.png",
+            "png_sha256": "58d203704f219e1d0f4dd2ae35770f1ff3c9d0e222cab2039814c74474ac0df6",
+            "time": 0.0,
+            "region": {
+              "height": 240,
+              "width": 320,
+              "x": 0,
+              "y": 0
+            },
+            "pixel_fnv1a": "e613ac5267363865",
+            "vertex_path": {
+              "bend": 0.0,
+              "space": "endpoint-chord",
+              "stage": "after-correspondence"
+            },
+            "image_effects": [
+              "blur",
+              "tone"
+            ],
+            "retarget": false,
+            "continuity_max_u8": 0,
+            "coverage_off_boundary": 0,
+            "styled_off_boundary": 0
+          },
+          {
+            "file": "release-middle.png",
+            "png_sha256": "28063a6a46d2ed919c6ead3392f9a2236188224e8c224d61e6db1a385833d4ff",
+            "time": 0.5,
+            "region": {
+              "height": 240,
+              "width": 320,
+              "x": 0,
+              "y": 0
+            },
+            "pixel_fnv1a": "4b1cb0ea4369212f",
+            "vertex_path": {
+              "bend": 0.0,
+              "space": "endpoint-chord",
+              "stage": "after-correspondence"
+            },
+            "image_effects": [
+              "blur",
+              "tone"
+            ],
+            "retarget": false,
+            "continuity_max_u8": 0,
+            "coverage_off_boundary": 0,
+            "styled_off_boundary": 0
+          },
+          {
+            "file": "release-end.png",
+            "png_sha256": "e3143e64134d91b98997bc9cbc7c9877eb67845c420ffb99d2de3138fff5d8d2",
+            "time": 1.0,
+            "region": {
+              "height": 240,
+              "width": 320,
+              "x": 0,
+              "y": 0
+            },
+            "pixel_fnv1a": "d085e2e1f4dff977",
+            "vertex_path": {
+              "bend": 0.0,
+              "space": "endpoint-chord",
+              "stage": "after-correspondence"
+            },
+            "image_effects": [
+              "blur",
+              "tone"
+            ],
+            "retarget": false,
+            "continuity_max_u8": 0,
+            "coverage_off_boundary": 0,
+            "styled_off_boundary": 0
+          },
+          {
+            "file": "release-crop.png",
+            "png_sha256": "b8f610c9ea19089442983aef189fbb8c487638edf92beb7001a19e5b4e660a4e",
+            "time": 0.5,
+            "region": {
+              "height": 160,
+              "width": 160,
+              "x": 80,
+              "y": 40
+            },
+            "pixel_fnv1a": "0e5623dc8de67daf",
+            "vertex_path": {
+              "bend": 0.0,
+              "space": "endpoint-chord",
+              "stage": "after-correspondence"
+            },
+            "image_effects": [
+              "blur",
+              "tone"
+            ],
+            "retarget": false,
+            "continuity_max_u8": 0,
+            "coverage_off_boundary": 0,
+            "styled_off_boundary": 0
+          },
+          {
+            "file": "release-retarget.png",
+            "png_sha256": "31c6d551615261e59e4505a55629143aebeb4567d9c14d102e81a38173671f9d",
+            "time": 0.5,
+            "region": {
+              "height": 240,
+              "width": 320,
+              "x": 0,
+              "y": 0
+            },
+            "pixel_fnv1a": "a04df51ecddc3c91",
+            "vertex_path": {
+              "bend": 0.0,
+              "space": "endpoint-chord",
+              "stage": "after-correspondence"
+            },
+            "image_effects": [
+              "blur",
+              "tone"
+            ],
+            "retarget": true,
+            "continuity_max_u8": 3,
+            "coverage_off_boundary": 0,
+            "styled_off_boundary": 0
+          },
+          {
+            "file": "release-path-start.png",
+            "png_sha256": "58d203704f219e1d0f4dd2ae35770f1ff3c9d0e222cab2039814c74474ac0df6",
+            "time": 0.0,
+            "region": {
+              "height": 240,
+              "width": 320,
+              "x": 0,
+              "y": 0
+            },
+            "pixel_fnv1a": "e613ac5267363865",
+            "vertex_path": {
+              "bend": 0.35,
+              "space": "endpoint-chord",
+              "stage": "after-correspondence"
+            },
+            "image_effects": [
+              "blur",
+              "tone"
+            ],
+            "retarget": false,
+            "continuity_max_u8": 0,
+            "coverage_off_boundary": 0,
+            "styled_off_boundary": 0
+          },
+          {
+            "file": "release-path-middle.png",
+            "png_sha256": "3a02f00bf742fd71f8cb201f79f552d6e0de467d15f23970f1e27d475b024477",
+            "time": 0.5,
+            "region": {
+              "height": 240,
+              "width": 320,
+              "x": 0,
+              "y": 0
+            },
+            "pixel_fnv1a": "c9ad583d905987c5",
+            "vertex_path": {
+              "bend": 0.35,
+              "space": "endpoint-chord",
+              "stage": "after-correspondence"
+            },
+            "image_effects": [
+              "blur",
+              "tone"
+            ],
+            "retarget": false,
+            "continuity_max_u8": 0,
+            "coverage_off_boundary": 0,
+            "styled_off_boundary": 0
+          },
+          {
+            "file": "release-path-end.png",
+            "png_sha256": "e3143e64134d91b98997bc9cbc7c9877eb67845c420ffb99d2de3138fff5d8d2",
+            "time": 1.0,
+            "region": {
+              "height": 240,
+              "width": 320,
+              "x": 0,
+              "y": 0
+            },
+            "pixel_fnv1a": "d085e2e1f4dff977",
+            "vertex_path": {
+              "bend": 0.35,
+              "space": "endpoint-chord",
+              "stage": "after-correspondence"
+            },
+            "image_effects": [
+              "blur",
+              "tone"
+            ],
+            "retarget": false,
+            "continuity_max_u8": 0,
+            "coverage_off_boundary": 0,
+            "styled_off_boundary": 0
+          },
+          {
+            "file": "release-path-retarget.png",
+            "png_sha256": "5ddcb34a9167c38bfd506201eedae36e72e2d8533d4373ea3385731fc353e17d",
+            "time": 0.5,
+            "region": {
+              "height": 240,
+              "width": 320,
+              "x": 0,
+              "y": 0
+            },
+            "pixel_fnv1a": "8239760dbfcad8eb",
+            "vertex_path": {
+              "bend": 0.35,
+              "space": "endpoint-chord",
+              "stage": "after-correspondence"
+            },
+            "image_effects": [
+              "blur",
+              "tone"
+            ],
+            "retarget": true,
+            "continuity_max_u8": 4,
+            "coverage_off_boundary": 0,
+            "styled_off_boundary": 0
+          }
+        ]
+      }
+    ]
+  },
+  "lint": {
+    "problems": 0,
+    "log": "/tmp/omui-point-path-lint.log",
+    "sha256": "b4824ada9a3b226dd0374ce17b0a73d59d52424ef1b6dd6e76da9547b8365a77"
+  }
+}

@@ -1,0 +1,34 @@
+# omui.gen — the generator: spec/registry and *.contract.omui.ts to
+# openmui.h, the openmui.spec partitions, component partitions, script
+# builders, schemas and reference tables (implementation plan §4.2).
+#
+# A build-machine tool: openmui's build plugins (mcpp/) run it from component and application
+# builds; spec/ commits its outputs and CI checks they are current.
+[package]
+namespace   = "omui"
+name        = "gen"
+version     = "0.1.0"
+description = "The openmui generator: registry and contracts to C ABI, C++ partitions, script stubs, schemas and docs"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+kind = "tool"
+
+[targets.omui-gen]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+mlibs.utils = { path = "../../modules/base/utils" }
+omui.lang.ts = { path = "../../modules/projects/omui/lang/ts" }
+mlibs.json = { path = "../../modules/base/json" }
+nlohmann.json       = "3.12.0"
+mcpplibs.cmdline    = "0.0.3"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+xrender.text = { path = "../../modules/projects/xrender/text" }
+mlibs.text    = { path = "../../modules/content/text" }

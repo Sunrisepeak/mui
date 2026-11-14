@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "size": [320, 320],
+  "background": "#18181b",
+  "objects": [
+    { "id": "panel", "shape": { "rect": { "size": [220, 230], "radius": 16 } }, "fill": "#27272a", "at": [160, 175] },
+    { "id": "item1", "shape": { "rect": { "size": [170, 30], "radius": 8 } }, "fill": "#3f3f46", "at": [160, 100] },
+    { "id": "item2", "shape": { "rect": { "size": [170, 30], "radius": 8 } }, "fill": "#3f3f46", "at": [160, 145] },
+    { "id": "item3", "shape": { "rect": { "size": [170, 30], "radius": 8 } }, "fill": "#3f3f46", "at": [160, 190] },
+    { "id": "item4", "shape": { "rect": { "size": [170, 30], "radius": 8 } }, "fill": "#f43f5e", "at": [160, 245] }
+  ],
+  "program": {
+    "do": "sequence",
+    "items": [
+      { "do": "unfold_in", "object": "panel", "duration": 0.3 },
+      { "do": "stagger", "step": 0.06, "items": [
+        { "do": "slide_in", "object": "item1", "from": [0, -10], "duration": 0.25 },
+        { "do": "slide_in", "object": "item2", "from": [0, -10], "duration": 0.25 },
+        { "do": "slide_in", "object": "item3", "from": [0, -10], "duration": 0.25 },
+        { "do": "slide_in", "object": "item4", "from": [0, -10], "duration": 0.25 }
+      ] },
+      { "do": "marker", "name": "open" },
+      { "do": "wait", "duration": 0.8 },
+      { "do": "parallel", "items": [
+        { "do": "fold_out", "object": "panel" }, { "do": "fade_out", "object": "item1" }, { "do": "fade_out", "object": "item2" },
+        { "do": "fade_out", "object": "item3" }, { "do": "fade_out", "object": "item4" }
+      ] }
+    ]
+  }
+}

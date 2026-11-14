@@ -1,0 +1,20 @@
+// A short status or count beside something: a label ("New"), a number ("12",
+// "99+" past its max) or only a dot (an unread mark). Its tone is the
+// theme's: neutral, accent, success, warning, danger.
+import { defineContract } from "openmui/define";
+
+export default defineContract({
+  badge: {
+    role: "status",
+    spec: "0.1",
+    doc: "A short status or count beside something: a label, a number (max+ past max) or a dot.",
+    props: {
+      text: { type: "string", default: "", bindable: true, doc: "The label, also the accessible name." },
+      count: { type: "i64", default: -1, bindable: true, doc: "A number shown instead of the text; negative: none." },
+      max: { type: "i64", default: 99, doc: "Past it, the count shows as max+ (99+)." },
+      tone: { type: "enum", values: ["neutral", "accent", "success", "warning", "danger"], default: "neutral" },
+      dot: { type: "bool", default: false, doc: "Only a dot: an unread mark; its name says what it marks." },
+    },
+    parts: { pill: {}, label: {} },
+  },
+});

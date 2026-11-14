@@ -1,0 +1,53 @@
+# omui.entry.player — the player's main (component-binding §10.2): what a
+# script-first application's one-line src/main.cpp calls. It reads the
+# application's [package.metadata.openmui], registers the official components
+# and the script languages (TypeScript, and JavaScript), and runs
+# the player with openmui's options; saved files reload in place.
+#
+# A package of its own rather than a feature of the umbrella: a workspace
+# builds each package once, so a feature one member enables would reach every
+# member that depends on the umbrella, without the feature's dependencies.
+[package]
+namespace   = "omui.entry"
+name        = "player"
+version     = "0.1.0"
+description = "The player's main for script-first openmui applications (entry-player)"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "entry"
+
+[targets.openmui-entry-player]
+kind = "lib"
+
+# The program's main for a TypeScript application (D-156: it writes no C++):
+# `main = { from = "omui.entry.player/player" }` in its manifest.
+[targets.player]
+kind = "entry"
+main = "src/entry/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+omui.sdk           = { path = "../../../modules/projects/omui/sdk" }
+omui.player        = { path = "../../../modules/projects/omui/player" }
+omui.lang.js       = { path = "../../../modules/projects/omui/lang/js" }
+omui.ui.markdown   = { path = "../../../modules/projects/omui/components/markdown" }
+omui.native.fuzzy  = { path = "../../../modules/projects/omui/native/fuzzy" }
+omui.theme.default = { path = "../../../modules/projects/omui/theme/default" }
+omui.theme.compact = { path = "../../../modules/projects/omui/theme/compact" }
+marzer.tomlplusplus = "3.4.0"
+mcpplibs.os = "0.4.4"
+mcpplibs.cmdline = "0.0.3"
+
+# Live Design's designer (D-149): linked by `omui dev`
+# (`mcpp run --features omui.entry.player/design -- --dev`), left out of a
+# release. It says it is there as the program starts; nothing here names it.
+[features]
+default = []
+design  = { sources = [] }
+
+[feature-deps.design]
+omui.designer = { path = "../../../modules/projects/omui/designer" }

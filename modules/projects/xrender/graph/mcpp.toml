@@ -1,0 +1,32 @@
+# openmui.render — the rendering architecture (D-81): a frame as a graph of
+# passes over the device's textures, and the textures it makes, pooled from
+# frame to frame. Every rendering feature — 2D vector (render.vector), and
+# later sprites, meshes, particles — records its passes into one graph, so
+# 2D and 3D share the device, the pool, the order and the tracing.
+[package]
+namespace   = "xrender"
+name        = "graph"
+version     = "0.1.0"
+description = "The rendering architecture: a frame as a checked graph of passes over device textures, transient textures pooled across frames, a trace span per pass"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+
+[package.metadata.openmui]
+kind = "module"
+agent = { part = "xrender.frame" }
+
+[targets.xrender-graph]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+mlibs.rhi   = { path = "../../../gfx/rhi" }
+mlibs.utils = { path = "../../../base/utils" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+mlibs.memory  = { path = "../../../base/memory" }

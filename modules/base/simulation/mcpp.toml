@@ -1,0 +1,29 @@
+# mlibs.simulation — the stepping substrate every simulation runs on (D-133):
+# a fixed-step clock, a timeline of owned checkpoints and recorded inputs
+# (seek, replay, rollback, branches) and the tiers a simulation declares.
+# It holds no solver: physics is xengine.dynamics, cellular rules
+# xengine.cellular, a game its own model. Domain-agnostic, so in mlibs.
+[package]
+namespace   = "mlibs"
+name        = "simulation"
+version     = "0.1.0"
+description = "Fixed-step clocks, owned checkpoint/input timelines (seek, replay, rollback) and simulation tiers; no solver"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "module"
+
+[targets.mlibs-simulation]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-fno-fast-math", "-ffp-contract=off"]
+
+[dependencies]
+mlibs.utils = { path = "../utils" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"

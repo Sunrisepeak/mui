@@ -1,0 +1,34 @@
+# omui.expr — the expression language of bindings (view-data-files §4,
+# registry/expr.toml): one AST, built by combinators in code and parsed from
+# CEL-compatible text in data files; evaluated synchronously by native code,
+# without side effects, always terminating, an error giving null and a
+# diagnostic, never an exception.
+[package]
+namespace   = "omui"
+name        = "expr"
+version     = "0.1.0"
+description = "openmui expressions: a CEL-compatible AST, parser, printer and evaluator for bindings"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+agent = { library = "expressions evaluated: a function of the expression and its scope" }
+
+[targets.openmui-expr]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+openlifa.openmui = { path = "../../../../spec" }
+mlibs.unicode  = { path = "../../../base/unicode" }
+hanim.core            = { path = "../../hanim/core" }
+mlibs.i18n     = { path = "../../../content/i18n" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+mlibs.math = { path = "../../../base/math" }
+mlibs.utils = { path = "../../../base/utils" }

@@ -1,0 +1,831 @@
+{
+  "format": "project-progress-review-evidence-v1",
+  "review_date": "2026-11-05",
+  "checked_at_utc": "2026-11-04T16:12:11.401739+00:00",
+  "reviewed_commit": "e492836dd02e31b4d6937c0e9cb623c01d36eb0f",
+  "runtime_evidence_commit": "79081cc5b4af6216b72c70f1b405f17788cb0619",
+  "verification": "Existing source/artifact hashes rechecked; runtime tests not rerun in this review. Aggregate runtime report is not tracked in git.",
+  "runtime_aggregate": {
+    "path": "target/hanim-program-site.report.omui.json",
+    "sha256": "95228603e0ef29532fc75a4a688ccc8ccfd628059945e48b66e6d200a23a7921"
+  },
+  "files_changed_since_runtime_evidence": [
+    ".agents/docs/2026-11-03-openmui-site-redesign-implementation-design.md",
+    ".agents/docs/2026-11-04-hanim-animation-library-playback-design.md",
+    ".agents/docs/2026-11-04-hanim-generality-style-gpu-review-design.md",
+    ".agents/docs/2026-11-04-hanim-play-api-design.md",
+    ".agents/docs/2026-11-04-multi-engine-product-architecture-design.md",
+    ".agents/docs/2026-11-05-hanim-composable-operators-reactions-ir-design.md",
+    ".agents/docs/2026-11-05-local-global-composable-architecture-design.md",
+    ".agents/docs/README.md",
+    "AGENTS.md"
+  ],
+  "hash_checks": [
+    {
+      "path": "modules/gfx/hanim/program/mcpp.toml",
+      "category": "runtime_source",
+      "expected_sha256": "4fa9b0d24c117fa5f96e4478b8564da997e86bacdbcb53b6ac2cbbdc242295c3",
+      "actual_sha256": "4fa9b0d24c117fa5f96e4478b8564da997e86bacdbcb53b6ac2cbbdc242295c3",
+      "match": true
+    },
+    {
+      "path": "modules/gfx/hanim/program/src/program.cppm",
+      "category": "runtime_source",
+      "expected_sha256": "07dad4df4b35dc82c289738dfe6d8038adc34894b6697274933da4c71d8188df",
+      "actual_sha256": "07dad4df4b35dc82c289738dfe6d8038adc34894b6697274933da4c71d8188df",
+      "match": true
+    },
+    {
+      "path": "modules/gfx/hanim/program/src/program.cpp",
+      "category": "runtime_source",
+      "expected_sha256": "dc12581981e29e2d2c63dfa0969a614e01e4844f4c84bacee5b67969840a6445",
+      "actual_sha256": "dc12581981e29e2d2c63dfa0969a614e01e4844f4c84bacee5b67969840a6445",
+      "match": true
+    },
+    {
+      "path": "modules/gfx/hanim/program/tests/program_test.cpp",
+      "category": "runtime_source",
+      "expected_sha256": "408ec136a0a8cfa8af21518221912ae5e92decf41253e40dd07ded14932ecda3",
+      "actual_sha256": "408ec136a0a8cfa8af21518221912ae5e92decf41253e40dd07ded14932ecda3",
+      "match": true
+    },
+    {
+      "path": "modules/gfx/hanim/engine/mcpp.toml",
+      "category": "runtime_source",
+      "expected_sha256": "eaa252aa559d092d06e2350f2b625d8d76b31f1b4f1bc5933ec84aac7f9e64ea",
+      "actual_sha256": "eaa252aa559d092d06e2350f2b625d8d76b31f1b4f1bc5933ec84aac7f9e64ea",
+      "match": true
+    },
+    {
+      "path": "modules/gfx/hanim/engine/src/engine.cppm",
+      "category": "runtime_source",
+      "expected_sha256": "12db1af2541d5a39bedd4f8f0a20ad507ebbcbf4e137214dcc60c2dca6ccac34",
+      "actual_sha256": "12db1af2541d5a39bedd4f8f0a20ad507ebbcbf4e137214dcc60c2dca6ccac34",
+      "match": true
+    },
+    {
+      "path": "modules/gfx/hanim/engine/src/engine.cpp",
+      "category": "runtime_source",
+      "expected_sha256": "f0db708f33e0f72f50c5c1fb65495df2054fee31c99dee51c8440ab00cda17ce",
+      "actual_sha256": "f0db708f33e0f72f50c5c1fb65495df2054fee31c99dee51c8440ab00cda17ce",
+      "match": true
+    },
+    {
+      "path": "modules/gfx/hanim/engine/tests/engine_test.cpp",
+      "category": "runtime_source",
+      "expected_sha256": "780059230d4a9ab27724d2a0afaf571e563dbe2d4e3f94f214348233f0c0793c",
+      "actual_sha256": "780059230d4a9ab27724d2a0afaf571e563dbe2d4e3f94f214348233f0c0793c",
+      "match": true
+    },
+    {
+      "path": "modules/gfx/hanim/engine/tests/visual_test.cpp",
+      "category": "runtime_source",
+      "expected_sha256": "9cd82c3185d919caf8c9fac7e8392314c1dd3c2cd387651882d8c78213e78319",
+      "actual_sha256": "9cd82c3185d919caf8c9fac7e8392314c1dd3c2cd387651882d8c78213e78319",
+      "match": true
+    },
+    {
+      "path": "tools/ci/hanim-play-consumer/run.py",
+      "category": "runtime_source",
+      "expected_sha256": "fdcac052a825f84dce6ff636f03adf9658505778f7d3bfb02789c1c8cf4d3a8d",
+      "actual_sha256": "fdcac052a825f84dce6ff636f03adf9658505778f7d3bfb02789c1c8cf4d3a8d",
+      "match": true
+    },
+    {
+      "path": "tools/ci/hanim-play-consumer/src/main.cpp",
+      "category": "runtime_source",
+      "expected_sha256": "1d7c20ef200e6cc4d1820df19d022de4527e6eddee7289181c47c921d13c4ec4",
+      "actual_sha256": "1d7c20ef200e6cc4d1820df19d022de4527e6eddee7289181c47c921d13c4ec4",
+      "match": true
+    },
+    {
+      "path": "mcpp.toml",
+      "category": "root_manifest",
+      "expected_sha256": "2215547da0cebcc5e2c0f7903fe4d67119f325122d905491480040078657b36d",
+      "actual_sha256": "2215547da0cebcc5e2c0f7903fe4d67119f325122d905491480040078657b36d",
+      "match": true
+    },
+    {
+      "path": "/tmp/omui-program-compiled-time-dev.log",
+      "category": "profiles",
+      "expected_sha256": "2ee5ac41549cd47443eaa2bf159266ba0c3837b136025f2c4453ef5ae5b899c5",
+      "actual_sha256": "2ee5ac41549cd47443eaa2bf159266ba0c3837b136025f2c4453ef5ae5b899c5",
+      "match": true
+    },
+    {
+      "path": "/tmp/omui-program-compiled-time-release.log",
+      "category": "profiles",
+      "expected_sha256": "2c1e442bf7a2d51994a23b1640f24061b534c29b66cce2a93d9fcc3418985822",
+      "actual_sha256": "2c1e442bf7a2d51994a23b1640f24061b534c29b66cce2a93d9fcc3418985822",
+      "match": true
+    },
+    {
+      "path": "/tmp/omui-program-compiled-time-sanitize.log",
+      "category": "profiles",
+      "expected_sha256": "d4db53c0c5972d96a362a8312fed1358368313b1721e7b1bc9a2ec5ca94987b5",
+      "actual_sha256": "d4db53c0c5972d96a362a8312fed1358368313b1721e7b1bc9a2ec5ca94987b5",
+      "match": true
+    },
+    {
+      "path": "/tmp/omui-program-compiled-time-web.log",
+      "category": "profiles",
+      "expected_sha256": "6c3577c839113287d6f45fbdde62998cdc66578eddffe1d813145b28842aba90",
+      "actual_sha256": "6c3577c839113287d6f45fbdde62998cdc66578eddffe1d813145b28842aba90",
+      "match": true
+    },
+    {
+      "path": "target/hanim-program-evidence/program-dev.png",
+      "category": "visual",
+      "expected_sha256": "fbe6d99174561d9777175c67681980242add24592daf8b51ee613651ac581c0e",
+      "actual_sha256": "fbe6d99174561d9777175c67681980242add24592daf8b51ee613651ac581c0e",
+      "match": true
+    },
+    {
+      "path": "target/hanim-program-evidence/program-release.png",
+      "category": "visual",
+      "expected_sha256": "fbe6d99174561d9777175c67681980242add24592daf8b51ee613651ac581c0e",
+      "actual_sha256": "fbe6d99174561d9777175c67681980242add24592daf8b51ee613651ac581c0e",
+      "match": true
+    },
+    {
+      "path": "target/hanim-program-evidence/program-sanitize.png",
+      "category": "visual",
+      "expected_sha256": "fbe6d99174561d9777175c67681980242add24592daf8b51ee613651ac581c0e",
+      "actual_sha256": "fbe6d99174561d9777175c67681980242add24592daf8b51ee613651ac581c0e",
+      "match": true
+    },
+    {
+      "path": "target/hanim-program-evidence/program-web.png",
+      "category": "visual",
+      "expected_sha256": "fbe6d99174561d9777175c67681980242add24592daf8b51ee613651ac581c0e",
+      "actual_sha256": "fbe6d99174561d9777175c67681980242add24592daf8b51ee613651ac581c0e",
+      "match": true
+    },
+    {
+      "path": "target/hanim-program-compiled-consumer.report.omui.json",
+      "category": "independent_consumers",
+      "expected_sha256": "bb1b8a971176595cd0872a1b8c4f4c2a85a2d34d307337b88b82a4bb97cae444",
+      "actual_sha256": "bb1b8a971176595cd0872a1b8c4f4c2a85a2d34d307337b88b82a4bb97cae444",
+      "match": true
+    },
+    {
+      "path": "target/hanim-program-full-sanitize.report.omui.json",
+      "category": "independent_consumers",
+      "expected_sha256": "00e8a3d37e1c58b6783a4be3f23e08f566e97df16d053b938a180dafe9034bc2",
+      "actual_sha256": "00e8a3d37e1c58b6783a4be3f23e08f566e97df16d053b938a180dafe9034bc2",
+      "match": true
+    },
+    {
+      "path": "target/site-program-oz-browser/a11y.report.omui.json",
+      "category": "browser",
+      "expected_sha256": "952472641b3b5253a7d084e60b405c8d9ac995f826a0224f2e130511bb04e98d",
+      "actual_sha256": "952472641b3b5253a7d084e60b405c8d9ac995f826a0224f2e130511bb04e98d",
+      "match": true
+    },
+    {
+      "path": "target/site-program-oz-browser/structure-current.report.omui.json",
+      "category": "browser",
+      "expected_sha256": "558ac7d63dff5d09800a820c893a55a2aa9260e48fdf62639769f53101819603",
+      "actual_sha256": "558ac7d63dff5d09800a820c893a55a2aa9260e48fdf62639769f53101819603",
+      "match": true
+    },
+    {
+      "path": "target/site-program-oz-browser/fonts.report.omui.json",
+      "category": "browser",
+      "expected_sha256": "a5fcaae912a7657b40f5fa88c7f0a7d126a771a551b4c564d2270ccdc11eb04c",
+      "actual_sha256": "a5fcaae912a7657b40f5fa88c7f0a7d126a771a551b4c564d2270ccdc11eb04c",
+      "match": true
+    },
+    {
+      "path": "target/site-program-oz-browser/catalog.report.omui.json",
+      "category": "browser",
+      "expected_sha256": "823e74a8f08203303f65ecd0d55cfdd294060cb49f91af9c14cd889528be4136",
+      "actual_sha256": "823e74a8f08203303f65ecd0d55cfdd294060cb49f91af9c14cd889528be4136",
+      "match": true
+    },
+    {
+      "path": "target/site-program-oz-browser/workspace.report.omui.json",
+      "category": "browser",
+      "expected_sha256": "b707e2b972970d29c8d904af2dbe11a58ee03bcd76ec1f7748b62506e3ce307a",
+      "actual_sha256": "b707e2b972970d29c8d904af2dbe11a58ee03bcd76ec1f7748b62506e3ce307a",
+      "match": true
+    },
+    {
+      "path": "target/site-program-oz-browser/motion.report.omui.json",
+      "category": "browser",
+      "expected_sha256": "08ee081a61c91be8ca3c23092287bfb7553cc79344afecdab7b2f3c10754b83a",
+      "actual_sha256": "08ee081a61c91be8ca3c23092287bfb7553cc79344afecdab7b2f3c10754b83a",
+      "match": true
+    },
+    {
+      "path": "target/site-program-oz-browser/presentation.report.omui.json",
+      "category": "browser",
+      "expected_sha256": "57ed256f0f2a612589ed56cfba5b105ab1d9e77e8906f9e1305049f91c0ba3eb",
+      "actual_sha256": "57ed256f0f2a612589ed56cfba5b105ab1d9e77e8906f9e1305049f91c0ba3eb",
+      "match": true
+    },
+    {
+      "path": "target/site-program-oz-browser/loading.report.omui.json",
+      "category": "browser",
+      "expected_sha256": "3714df94a9cd572537b7d7029a47d0010e3aa9aa34afa712ee7cd315b1ea65f7",
+      "actual_sha256": "3714df94a9cd572537b7d7029a47d0010e3aa9aa34afa712ee7cd315b1ea65f7",
+      "match": true
+    },
+    {
+      "path": "target/site-program-oz-browser/font-sharing.report.omui.json",
+      "category": "browser",
+      "expected_sha256": "fe9e5a85b28c6ca4e630f3470600c31445aafaf422b7707a49d1ca29db1d0392",
+      "actual_sha256": "fe9e5a85b28c6ca4e630f3470600c31445aafaf422b7707a49d1ca29db1d0392",
+      "match": true
+    },
+    {
+      "path": "target/site-program-oz-perf-cache.report.omui.json",
+      "category": "performance",
+      "expected_sha256": "6e62b6c47a5d831ef1e18ed2716c1affc5bf650c66887a19db91e9c2beac8d85",
+      "actual_sha256": "6e62b6c47a5d831ef1e18ed2716c1affc5bf650c66887a19db91e9c2beac8d85",
+      "match": true
+    },
+    {
+      "path": "target/site-program-oz-perf-no-cache.report.omui.json",
+      "category": "performance",
+      "expected_sha256": "7e0f0118791c1b62951bb3313110671adf3636f384204dd8d853987cbd556d92",
+      "actual_sha256": "7e0f0118791c1b62951bb3313110671adf3636f384204dd8d853987cbd556d92",
+      "match": true
+    },
+    {
+      "path": "target/hanim-program-compiled-seek.bench.omui.json",
+      "category": "benchmarks",
+      "expected_sha256": "b8255e8a00d082b1b750d0288088dcc14ac84d0b16aabd30dadd1b1a75d531e3",
+      "actual_sha256": "b8255e8a00d082b1b750d0288088dcc14ac84d0b16aabd30dadd1b1a75d531e3",
+      "match": true
+    },
+    {
+      "path": "target/hanim-program-compiled-advance.bench.omui.json",
+      "category": "benchmarks",
+      "expected_sha256": "ab4698696d222f2c3bf4097b993693563bbaaf550277efefbb9758e98189bd1c",
+      "actual_sha256": "ab4698696d222f2c3bf4097b993693563bbaaf550277efefbb9758e98189bd1c",
+      "match": true
+    },
+    {
+      "path": "target/site-program-oz-flags.report.omui.json",
+      "category": "site_flags",
+      "expected_sha256": "72c6f4ba0db9e0e36c819a5ac4b78c1c203c996b8e6aa402c1db8db729fa923c",
+      "actual_sha256": "72c6f4ba0db9e0e36c819a5ac4b78c1c203c996b8e6aa402c1db8db729fa923c",
+      "match": true
+    }
+  ],
+  "all_hash_checks_pass": true,
+  "counts": {
+    "declared_workspace_members_excluding_root": 123,
+    "site_components": 36,
+    "site_basic_motion_designs": 40,
+    "site_creative_designs": 20,
+    "ui_motion_primitives": 11,
+    "ui_default_named_recipes": 13,
+    "ui_default_type_mappings": 37,
+    "public_hanim_library_recipe_kinds": 1
+  },
+  "runtime_profiles": [
+    {
+      "profile": "dev",
+      "programs": 3,
+      "cases": 35
+    },
+    {
+      "profile": "release",
+      "programs": 3,
+      "cases": 35
+    },
+    {
+      "profile": "sanitize",
+      "programs": 3,
+      "cases": 35
+    },
+    {
+      "profile": "web",
+      "programs": 3,
+      "cases": 34
+    }
+  ],
+  "browser_checks": 602,
+  "browser_suites": [
+    {
+      "suite": "a11y",
+      "checks": 15,
+      "report": "target/site-program-oz-browser/a11y.report.omui.json"
+    },
+    {
+      "suite": "structure",
+      "checks": 18,
+      "report": "target/site-program-oz-browser/structure-current.report.omui.json"
+    },
+    {
+      "suite": "fonts",
+      "checks": 19,
+      "report": "target/site-program-oz-browser/fonts.report.omui.json"
+    },
+    {
+      "suite": "catalog",
+      "checks": 40,
+      "report": "target/site-program-oz-browser/catalog.report.omui.json"
+    },
+    {
+      "suite": "workspace",
+      "checks": 24,
+      "report": "target/site-program-oz-browser/workspace.report.omui.json"
+    },
+    {
+      "suite": "motion",
+      "checks": 123,
+      "report": "target/site-program-oz-browser/motion.report.omui.json"
+    },
+    {
+      "suite": "presentation",
+      "checks": 129,
+      "report": "target/site-program-oz-browser/presentation.report.omui.json"
+    },
+    {
+      "suite": "loading",
+      "checks": 88,
+      "report": "target/site-program-oz-browser/loading.report.omui.json"
+    },
+    {
+      "suite": "font-sharing",
+      "checks": 146,
+      "report": "target/site-program-oz-browser/font-sharing.report.omui.json"
+    }
+  ],
+  "orchestration_failure_retained": {
+    "suite": "structure",
+    "exit": -15,
+    "checks": 0,
+    "failed": [
+      "invalid JSON report"
+    ],
+    "report": "target/site-program-oz-browser/structure.report.omui.json"
+  },
+  "orchestration_resolution": "site-structure.mjs expects a positional directory, not --serve; only the wrongly invoked process and its children were stopped; corrected 18-case run passed. Product assertions unchanged.",
+  "performance": [
+    {
+      "condition": "cache",
+      "report": "target/site-program-oz-perf-cache.report.omui.json",
+      "sha256": "6e62b6c47a5d831ef1e18ed2716c1affc5bf650c66887a19db91e9c2beac8d85",
+      "data": {
+        "url": "http://127.0.0.1:35221/",
+        "size": [
+          1280,
+          800
+        ],
+        "network": "20/40",
+        "cache": "enabled",
+        "browser": "HeadlessChrome/156.0.8078.4",
+        "transfer": {
+          "total": 4718757,
+          "before_first_frame": 2817083,
+          "by_kind": {
+            "document": 57878,
+            "fetch": 4601941,
+            "image": 11922,
+            "script": 47016
+          }
+        },
+        "first_frame_ms": 1744,
+        "ready_ms": 1707.6000000238419,
+        "frames": {
+          "acted": [
+            {
+              "node": "main/bar/nav/to_docs",
+              "exitCode": 0
+            },
+            {
+              "node": "main/body/view/docs/page/directory/to_features",
+              "exitCode": 0
+            },
+            {
+              "node": "main/bar/mark",
+              "exitCode": 0
+            }
+          ],
+          "frames": 320,
+          "p50": 16.699999999999818,
+          "p95": 16.700000000000728,
+          "p99": 16.800000000000182,
+          "max": 50,
+          "long": 1
+        },
+        "memory": {
+          "heap": 11900000,
+          "wasm": 23855104
+        },
+        "errors": [],
+        "budgets": [
+          {
+            "metric": "transfer.total",
+            "value": 4718757,
+            "max": 5000000,
+            "pass": true
+          },
+          {
+            "metric": "transfer.before_first_frame",
+            "value": 2817083,
+            "max": 3800000,
+            "pass": true
+          },
+          {
+            "metric": "first_frame_ms",
+            "value": 1744,
+            "max": 4500,
+            "pass": true
+          },
+          {
+            "metric": "ready_ms",
+            "value": 1707.6000000238419,
+            "max": 4500,
+            "pass": true
+          },
+          {
+            "metric": "frames.p95",
+            "value": 16.700000000000728,
+            "max": 34,
+            "pass": true
+          },
+          {
+            "metric": "frames.long",
+            "value": 1,
+            "max": 15,
+            "pass": true
+          },
+          {
+            "metric": "errors.length",
+            "value": 0,
+            "max": 0,
+            "pass": true
+          }
+        ]
+      }
+    },
+    {
+      "condition": "no-cache",
+      "report": "target/site-program-oz-perf-no-cache.report.omui.json",
+      "sha256": "7e0f0118791c1b62951bb3313110671adf3636f384204dd8d853987cbd556d92",
+      "data": {
+        "url": "http://127.0.0.1:41687/",
+        "size": [
+          1280,
+          800
+        ],
+        "network": "20/40",
+        "cache": "disabled",
+        "browser": "HeadlessChrome/156.0.8078.4",
+        "transfer": {
+          "total": 4718757,
+          "before_first_frame": 2817083,
+          "by_kind": {
+            "document": 57878,
+            "fetch": 4601941,
+            "image": 11922,
+            "script": 47016
+          }
+        },
+        "first_frame_ms": 1672.6000000238419,
+        "ready_ms": 1637.199999988079,
+        "frames": {
+          "acted": [
+            {
+              "node": "main/bar/nav/to_docs",
+              "exitCode": 0
+            },
+            {
+              "node": "main/body/view/docs/page/directory/to_features",
+              "exitCode": 0
+            },
+            {
+              "node": "main/bar/mark",
+              "exitCode": 0
+            }
+          ],
+          "frames": 320,
+          "p50": 16.699999999999818,
+          "p95": 16.700000000000728,
+          "p99": 16.800000000000182,
+          "max": 50.09999999999991,
+          "long": 1
+        },
+        "memory": {
+          "heap": 12700000,
+          "wasm": 23855104
+        },
+        "errors": [],
+        "budgets": [
+          {
+            "metric": "transfer.total",
+            "value": 4718757,
+            "max": 5000000,
+            "pass": true
+          },
+          {
+            "metric": "transfer.before_first_frame",
+            "value": 2817083,
+            "max": 3800000,
+            "pass": true
+          },
+          {
+            "metric": "first_frame_ms",
+            "value": 1672.6000000238419,
+            "max": 4500,
+            "pass": true
+          },
+          {
+            "metric": "ready_ms",
+            "value": 1637.199999988079,
+            "max": 4500,
+            "pass": true
+          },
+          {
+            "metric": "frames.p95",
+            "value": 16.700000000000728,
+            "max": 34,
+            "pass": true
+          },
+          {
+            "metric": "frames.long",
+            "value": 1,
+            "max": 15,
+            "pass": true
+          },
+          {
+            "metric": "errors.length",
+            "value": 0,
+            "max": 0,
+            "pass": true
+          }
+        ]
+      }
+    }
+  ],
+  "benchmarks": [
+    {
+      "file": "target/hanim-program-compiled-seek.bench.omui.json",
+      "sha256": "b8255e8a00d082b1b750d0288088dcc14ac84d0b16aabd30dadd1b1a75d531e3",
+      "applicable_budgets_checked": 1,
+      "result": {
+        "name": "public-motion/program-seek-100x2",
+        "description": "100 independent instances of a shared nested two-track three-segment program; arbitrary seeks cross phases; setup excluded",
+        "iterations": 14557,
+        "notes": {
+          "timing": "CPU wall-clock only; no GPU submission, device execution or physical-GPU performance measured",
+          "work": "One immutable nested schedule reused by 100 separately owned Engine instances. Each seek samples both object tracks, selects the active phase and atomically publishes geometry/effects. Seventeen changing times exercise both stages and endpoints. Source matching, compilation, allocation and rendering excluded. One item is one object-track update including its share of selection/publication; not an entire rendered frame."
+        },
+        "min_ms": 0.026521,
+        "mean_ms": 0.02747876107714505,
+        "p50_ms": 0.026856,
+        "p95_ms": 0.02849,
+        "p99_ms": 0.052206,
+        "max_ms": 0.132662,
+        "items": 200,
+        "ns_per_item": 137.39380538572527,
+        "allocations": 0,
+        "max_allocations": 0,
+        "counters": {
+          "tracks": 200,
+          "segments_per_instance": 3,
+          "checksum": 4149.491488989366
+        }
+      }
+    },
+    {
+      "file": "target/hanim-program-compiled-advance.bench.omui.json",
+      "sha256": "ab4698696d222f2c3bf4097b993693563bbaaf550277efefbb9758e98189bd1c",
+      "applicable_budgets_checked": 1,
+      "result": {
+        "name": "public-motion/engine-advance-500",
+        "description": "500 public object morph playbacks and blur parameters advanced and committed as one native batch; setup excluded",
+        "iterations": 4399,
+        "notes": {
+          "timing": "CPU wall-clock only; no GPU submission, device execution or physical-GPU performance measured",
+          "work": "500 independent strict contour/transform/fill morphs plus blur parameters per iteration. All active playbacks prepare into preallocated scratch then commit as a batch. Duration 3600s keeps every handle active even at maximum harness iterations. Preparation, matching, rendering, GPU and business setters excluded. ns/item is per complete playback update, not per cubic or pixel."
+        },
+        "min_ms": 0.084789,
+        "mean_ms": 0.09095027938167756,
+        "p50_ms": 0.087578,
+        "p95_ms": 0.102022,
+        "p99_ms": 0.107109,
+        "max_ms": 0.14037,
+        "items": 500,
+        "ns_per_item": 181.90055876335512,
+        "allocations": 0,
+        "max_allocations": 0,
+        "counters": {
+          "playbacks": 500,
+          "cubics_per_playback": 6,
+          "checksum": -0.018409012930687533
+        }
+      }
+    }
+  ],
+  "benchmark_scope": "Two selected allocation budgets only; not all 65 loaded budgets. CPU wall-clock; preparation, rendering and GPU excluded. No claim of overall superiority or stable relative speed.",
+  "images_inspected": [
+    {
+      "path": "site/media/landing-home-en-desktop.png",
+      "current_sha256": "ad02ee5dc3e4702e385abab20e32a8f693671b9f3c51f72b8a28a395a7f09723",
+      "last_tracked_change": "074e3bdb327c9f6c6bd00d2be397e22383665774",
+      "provenance": "versioned historical reference"
+    },
+    {
+      "path": "site/media/components-workspace-en-desktop.png",
+      "current_sha256": "1685f62594b5d47d6d6dea32e5c8476e762df66067daec8c1767fbde31d9ff4e",
+      "last_tracked_change": "074e3bdb327c9f6c6bd00d2be397e22383665774",
+      "provenance": "versioned historical reference"
+    },
+    {
+      "path": "site/media/motion-basic-gallery-700.png",
+      "current_sha256": "cf200c8929b67bce5d061e00d11f6ceace87658bd1d7dc2f229a46c6e98ef1e2",
+      "last_tracked_change": "074e3bdb327c9f6c6bd00d2be397e22383665774",
+      "provenance": "versioned historical reference"
+    },
+    {
+      "path": "site/media/presentation-agent-design-zh-phone.png",
+      "current_sha256": "40bdf6467c0b9a0302d1524cf7c08b0ca2770da1dedef19e045547196a44b4aa",
+      "last_tracked_change": "d03145ab39afac3aaf0cb5379ef9fae25e6d00d0",
+      "provenance": "versioned historical reference"
+    },
+    {
+      "path": "target/site-presentation/home-en-1280.png",
+      "current_sha256": "4a2d4f8fbc2e2ecda650f5d67d7884555cbaf2c1f6be00d6007671d1747b6d3d",
+      "last_tracked_change": null,
+      "provenance": "existing candidate-report image; this review does not establish original build provenance"
+    },
+    {
+      "path": "target/site-presentation/home-zh-390.png",
+      "current_sha256": "4dad0b37cd9524204d65a924082dbc51799fbe5773a440af685f5e88d12335c0",
+      "last_tracked_change": null,
+      "provenance": "existing candidate-report image; this review does not establish original build provenance"
+    },
+    {
+      "path": "target/site-presentation/agent-design-zh-390.png",
+      "current_sha256": "34123496b67b0a0902c04bb56f3b239e82bd55c57a686d3605da9f75295339f2",
+      "last_tracked_change": null,
+      "provenance": "existing candidate-report image; this review does not establish original build provenance"
+    },
+    {
+      "path": "target/site-motion/creative-palette.png",
+      "current_sha256": "b2205eae23054d44fbab421d22fcae7c3adcd5c6b4f7a6a75cc37da3b367eba0",
+      "last_tracked_change": null,
+      "provenance": "existing candidate-report image; this review does not establish original build provenance"
+    }
+  ],
+  "historical_evaluations_not_current_scores": {
+    "site": {
+      "date": "2026-11-01",
+      "subject": "site",
+      "evaluator": "codex",
+      "rubric": "v2",
+      "commit": "333a68e",
+      "overall": 62,
+      "mean": 71.1,
+      "dimensions": {
+        "first_impression_identity": 72,
+        "artistic_expression": 62,
+        "innovation": 83,
+        "storytelling_ia": 74,
+        "reading_typography": 68,
+        "live_works": 78,
+        "interactions": 72,
+        "motion": 73,
+        "performance": 64,
+        "detail_polish": 66,
+        "accessibility_seo": 70
+      },
+      "report": "reports/2026-11-01-site-4.md",
+      "used": {
+        "tool_calls": 338,
+        "inputs": 108
+      }
+    },
+    "ui-framework": {
+      "date": "2026-11-01",
+      "subject": "ui-framework",
+      "evaluator": "codex",
+      "rubric": "v2",
+      "commit": "7a6873e",
+      "overall": 63,
+      "mean": 73.2,
+      "dimensions": {
+        "architecture": 81,
+        "app_api": 70,
+        "component_model": 80,
+        "component_library": 65,
+        "layout_text": 79,
+        "accessibility": 70,
+        "agent_native": 82,
+        "determinism_testing": 81,
+        "performance": 67,
+        "platforms_web": 63,
+        "tooling_dx": 70,
+        "code_quality": 74,
+        "docs_spec": 70
+      },
+      "report": "reports/2026-11-01-ui-framework-2.md",
+      "used": {
+        "tool_calls": 66,
+        "inputs": 10
+      }
+    },
+    "animation": {
+      "date": "2026-10-31",
+      "subject": "animation",
+      "evaluator": "codex",
+      "rubric": "v2",
+      "commit": "2f04e46",
+      "overall": 62,
+      "mean": 74.1,
+      "dimensions": {
+        "model": 84,
+        "expressiveness": 78,
+        "authoring": 62,
+        "skeletal_character": 66,
+        "integration": 76,
+        "performance": 70,
+        "determinism_tooling": 83
+      },
+      "report": "reports/2026-10-31-animation-2.md",
+      "used": {
+        "tool_calls": 143,
+        "inputs": 19
+      }
+    },
+    "renderer": {
+      "date": "2026-10-31",
+      "subject": "renderer",
+      "evaluator": "codex",
+      "rubric": "v2",
+      "commit": "2f04e46",
+      "overall": 65,
+      "mean": 74.25,
+      "dimensions": {
+        "quality": 74,
+        "features": 78,
+        "cpu_performance": 65,
+        "gpu_performance": 65,
+        "determinism": 82,
+        "architecture": 76,
+        "portability": 78,
+        "code_quality": 76
+      },
+      "report": "reports/2026-10-31-renderer-2.md",
+      "used": {
+        "tool_calls": 115,
+        "inputs": 18
+      }
+    }
+  },
+  "remote_snapshot": {
+    "repository": "Sunrisepeak/mui",
+    "pr": 1,
+    "head": "e492836dd02e31b4d6937c0e9cb623c01d36eb0f",
+    "state": "open",
+    "merged": false,
+    "source": "GitHub plugin get_pr_info/fetch_commit_workflow_runs; pull_request runs first page only",
+    "workflows": [
+      {
+        "id": 41861093288,
+        "name": "CI",
+        "status": "queued",
+        "conclusion": null
+      },
+      {
+        "id": 41861093159,
+        "name": "omui",
+        "status": "queued",
+        "conclusion": null
+      },
+      {
+        "id": 41861093166,
+        "name": "Pages",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "id": 41861093365,
+        "name": "Nightly",
+        "status": "queued",
+        "conclusion": null
+      }
+    ],
+    "scope": "Observed before review commit; no waiting, no conclusion on unreturned runs or subsequent commits."
+  },
+  "user_lock_sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+  "review_validation": {
+    "status": "passed",
+    "lint": {
+      "problems": 0,
+      "log": "/tmp/omui-project-progress-review-lint.log",
+      "sha256": "b4824ada9a3b226dd0374ce17b0a73d59d52424ef1b6dd6e76da9547b8365a77"
+    },
+    "markdown_local_links_checked": 29,
+    "markdown_files_checked": 3,
+    "json_parse": "pass",
+    "diff_check": "pass",
+    "runtime_tests_rerun": false
+  }
+}

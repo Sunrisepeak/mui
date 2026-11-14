@@ -1,0 +1,39 @@
+# xrender.asset — things made elsewhere, brought in (the foundation plan's §5.5, M6.3; D-171): a glTF 2.0
+# document as meshes in clusters, materials, textures, instances and lights, with a list of what the document
+# said that was not carried. Parsing is cgltf's and the ordering of a mesh for clusters is meshoptimizer's, both
+# through their module wraps (D-56, D-83: mcpplibs.mwrap.cgltf, mcpplibs.mwrap.meshoptimizer), each in a native
+# unit only. A package of its own so that what draws (xrender.mesh, the scene) does not carry what only reads
+# files (D-99: dependency isolation).
+[package]
+namespace   = "xrender"
+name        = "asset"
+version     = "0.1.0"
+description = "glTF 2.0 brought in: meshes in clusters, materials, textures, instances and lights, and what was not carried, as data"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+
+[package.metadata.openmui]
+kind  = "module"
+agent = { part = "xrender.frame" }
+
+[targets.xrender-asset]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+xrender.mesh  = { path = "../mesh" }
+xrender.scene = { path = "../scene" }
+mlibs.math    = { path = "../../../base/math" }
+mlibs.geom    = { path = "../../../base/geom" }
+mlibs.image   = { path = "../../../base/image" }
+"mlibs.image.ktx2" = { path = "../../../base/image/ktx2" }
+mlibs.utils   = { path = "../../../base/utils" }
+mcpplibs.mwrap.cgltf         = "1.15"
+mcpplibs.mwrap.meshoptimizer = "1.3.1"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"

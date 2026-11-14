@@ -1,0 +1,23 @@
+// Content over the page beside what opened it (the element before it, as a
+// tooltip's): not modal — a press outside or Escape closes it, focus moves
+// into it when it opens and back when it closes.
+import { defineContract } from "openmui/define";
+
+export default defineContract({
+  popover: {
+    children: "any",
+    role: "dialog",
+    spec: "0.1",
+    doc: "Content beside what opened it, over the page; not modal: a press outside or Escape closes it.",
+    props: {
+      open: { type: "bool", default: false, bindable: true },
+      side: { type: "enum", values: ["below", "above", "end", "start"], default: "below" },
+      label: { type: "string", default: "", doc: "The accessible name." },
+      arrow: { type: "bool", default: true, doc: "A point toward what opened it." },
+    },
+    events: { closed: { args: {} } },
+    actions: { dismiss: { effect: "reversible" } },
+    keys: { Escape: "dismiss" },
+    parts: { surface: {}, arrow: {} },
+  },
+});

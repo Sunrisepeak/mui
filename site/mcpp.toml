@@ -1,0 +1,78 @@
+# openmui's website (D-84 §6.6): the framework's thesis shown, not told —
+# one semantic tree, many renderings. Places in a bar (the home, every
+# component live, the docs in English and 中文, example 01 beside its
+# source, a live timeline editor), each a page in the site's own theme; a
+# lens moving the same page from its pixels to the semantic tree's
+# wireframe, the JSON an agent reads and the assertions a test writes; the
+# tree's hash in your browser beside CI's. Built for the Web (dist-toy's
+# package, which a Pages subpath serves as it is), its places pre-rendered to
+# static HTML from the same documents so a reader without JavaScript and a
+# search engine see them.
+#
+#   mcpp run -p omui.site                       the site in a window
+#   mcpp run -p omui.site -- --prerender out/index.html   its places into a packed page
+[package]
+namespace   = "omui"
+name        = "site"
+version     = "0.1.0"
+description = "omui's website: the implementation of the openmui specification, one tree and many renderings"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind      = "site"
+contracts = ["contract/*.contract.omui.ts"]
+
+[targets.openmui-site]
+kind = "lib"
+
+[targets.omui-site]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[target.'cfg(not(os = "emscripten"))'.build]
+sources = ["src/targets/native.cppm"]
+
+[target.'cfg(os = "emscripten")'.build]
+sources = ["src/targets/web.cppm"]
+
+[dependencies]
+mcpplibs.cmdline = "0.0.3"
+omui.sdk         = { path = "../modules/projects/omui/sdk" }
+omui.view        = { path = "../modules/projects/omui/view", features = ["hanim"] }
+# The site also authors Hanim programs directly. Declared here as well because
+# mcpp does not yet apply omui.view's [feature-deps.hanim] when the view is
+# selected together with this package (the Web row: -p omui.view -p omui.site).
+hanim               = { path = "../modules/projects/hanim", default-features = false, features = ["engine", "render-vector"] }
+omui.ui.markdown = { path = "../modules/projects/omui/components/markdown" }
+omui.ui.timeline = { path = "../modules/projects/omui/components/timeline" }
+omui.ui.canvas   = { path = "../modules/projects/omui/components/canvas" }  # the components page's wall
+omui.ui.liquid_glass = { path = "../modules/projects/omui/components/liquid-glass" }  # a signature work: glass that flows
+"hanim.timeline"    = { path = "../modules/projects/hanim/timeline" }  # the monitor: what plays at the playhead
+"omui.theme.styles" = { path = "../modules/projects/omui/theme/styles" }
+omui.theme      = { path = "../modules/projects/omui/theme" }
+omui.example.hello-im       = { path = "../examples/01-hello-im" }  # getting started: example 01, running beside its source
+omui.semantic    = { path = "../modules/projects/omui/semantic" }
+mlibs.utils       = { path = "../modules/base/utils" }
+omui.inspector   = { path = "../tools/inspector" }
+mcpplibs.os         = "0.4.4"
+
+[build-dependencies]
+omui.build.contracts = { path = "../mcpp/contracts", host-module = true }
+omui.build.embed     = { path = "../mcpp/embed", host-module = true }
+omui.build.toy       = { path = "../mcpp/toy", host-module = true }
+
+# The files of tests/site/ are one program (`site`), run a file at a time: one link of the site's closure, not
+# thirty. tests/frames_test.cpp has a beginning of its own and stays a program.
+[test]
+programs = "directory"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+omui.theme.default = { path = "../modules/projects/omui/theme/default" }  # the staged theme's snapshot (quality_lab_test)
+xrender.text = { path = "../modules/projects/xrender/text" }
+mlibs.math = { path = "../modules/base/math" }

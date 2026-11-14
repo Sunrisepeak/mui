@@ -1,0 +1,47 @@
+[package]
+namespace = "xengine"
+name = "matter"
+version = "0.1.0"
+description = "Materials as rows of properties, their states as channels, and laws that read properties only — prepared once, stepped on any set of instances and their neighbours"
+license = "Apache-2.0"
+platforms = ["linux", "macos", "windows", "emscripten"]
+repo = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "module"
+# To an agent: a definition and its plan hold no state of their own — the state is the carrier's, reached through
+# the carrier's subject; what a plan holds it says as JSON (Program::describe), and one instance's step it says
+# aloud (Program::why). The catalog of a world of matter — materials by region, a quantity applied, why a cell
+# is what it is — is the carrier's that holds the state: on the lattice, xengine.cellular's subject `matter`.
+agent = { library = "a definition and its plan: the state it steps is the carrier's, reached through the carrier's subject (the lattice's `matter`); Program::describe says what the plan holds, Program::why one instance's step" }
+
+[targets.xengine-matter]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+mlibs.utils = { path = "../../../../base/utils" }
+
+# A definition from its JSON snapshot (src/json/, module xengine.matter.json), and the standard one carried
+# in the program. A feature, on by default: the kernel alone — what a carrier's adapter takes (the lattice's,
+# dynamics') — stays the small tools, no JSON.
+[features]
+default = ["json", "appearance"]
+json = { sources = ["src/json/*.cppm", "src/json/*.cpp", "src/json/generated/*.cppm"] }
+# What a state looks like, as data (src/appearance/, module xengine.matter.appearance; D-168): a style pack's
+# colours by material and by phase, and states that read a channel along a range — prepared against a program
+# into numbers a carrier's presenter lowers. Colours are numbers here: no renderer.
+appearance = { sources = ["src/appearance/*.cppm", "src/appearance/*.cpp", "src/appearance/generated/*.cppm"] }
+
+[feature-deps.json]
+mlibs.json = { path = "../../../../base/json" }
+
+[feature-deps.appearance]
+mlibs.json = { path = "../../../../base/json" }
+mlibs.math = { path = "../../../../base/math" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+mlibs.cts      = { path = "../../../../base/cts" }

@@ -1,0 +1,34 @@
+# modules/base
+
+The lowest layer group: **domain-agnostic foundations** (`mlibs.*`) that know nothing of interfaces, graphics or games.
+
+Depends on: the standard library and third-party libraries. Used by: every other layer.
+
+What belongs here: general-purpose libraries with no domain semantics. Small tools that are not yet a library of their own go to [utils](utils) as directories of one package (`mlibs.utils`, module names such as `mlibs.hash` unchanged; every tool is built, see its README), and move out into their own library once they grow a cohesive API or need their own third-party dependencies. Domain code does not belong here: it lives in the project that owns it under `modules/projects/` (target layout, see [modules](../README.md)). `hanim.core` and the solvers (`xengine.simulation`, later `xengine.dynamics`) are in their projects ([hanim](../projects/hanim), [xengine](../projects/xengine)).
+
+| Package | |
+|---|---|
+| [cts](cts) | `mlibs.cts`: what a conformance suite is written with, on mtest's conformance kind — cases with stable ids and levels S/A/B declared against a subject, passed/failed/unsupported (from capabilities only), comparisons with evidence, the preparation contract; suites live with their contract's owner, the runner and reports are mtest's |
+| [simulation](simulation) | `mlibs.simulation`: the stepping substrate — fixed-step clocks, timelines of checkpoints and inputs (seek, replay, rollback), simulation tiers; no solver (D-133) |
+| [control](control) | Independent openas policy, trusted sessions and invocation authority; shared by UI and standalone engines |
+| [agent](agent) | `mlibs.agent`: the agent kernel (D-173) — where agents find a program and talk to it (a named local endpoint, lines in and out, sessions served at the owner's safe point), for any subject: an interface, a world, a renderer's frame. Authority is `control`'s |
+| [geom](geom) | 2D geometry: points, rectangles, colours, affine transforms, pixel snapping |
+| [memory](memory) | Frame arena, generational handles, slot maps, `FunctionRef` |
+| [unicode](unicode) | Line breaking (UAX #14) and segmentation (UAX #29) without ICU |
+| [session](session) | Recorded sessions (`*.session.omui.jsonl`): timestamped, seekable, mergeable |
+| [pipeline](pipeline) | Pipelines of stage plugins over typed resources: checked, deterministic, traced, replaceable while running |
+| [json](json) | `mlibs.json`: JSON documents with their places — nodes with JSON pointers, problems at line and column, did-you-mean; how the data files' JSON snapshots are read |
+| [image](image) | Image buffers, premultiplication, PNG, animated PNG, WebP and JPEG |
+| [image/ktx2](image/ktx2) | `mlibs.image.ktx2`: KTX2 textures (Basis Universal's codecs) as pixels and as a GPU's blocks; a package of its own so that `mlibs.image` does not carry the transcoder |
+| [math](math) | Deterministic mathematics: elementary functions with the same bits everywhere (`det`), splitmix64 (`random`) |
+| [utils](utils) | `mlibs.utils`: small tools, one directory each — hash (FNV-1a), log (categories, sinks, invariants), trace (spans, Chrome trace), testing (the checks of test programs) |
+
+Start with [utils](utils/README.md) and [math](math/README.md).
+
+The current canonical packages are `mlibs.control`, `mlibs.utils` (modules
+`mlibs.hash`, `mlibs.log`, `mlibs.trace`, `mlibs.testing`), `mlibs.math`,
+`mlibs.geom`, `mlibs.memory`, `mlibs.unicode`, `mlibs.session`,
+`mlibs.pipeline` and `mlibs.image`. Except control, these retain their old
+`openmui.*` import within the same package until milestone M1 removes them. Other foundations are still being
+migrated; use their manifest identity. `mlibs` is a grouping, not an umbrella
+dependency. See the [migration plan](../../.agents/docs/2026-11-05-product-namespace-migration-design.md).

@@ -1,0 +1,39 @@
+# xengine.dynamics.cts — the solver families' conformance (mlibs.cts; D-133):
+# a subject (the CPU reference today; a SIMD or GPU tier later) is run
+# through each family's cases, every result passed, failed or unsupported.
+# A package of its own so the dynamics core carries no test framework.
+[package]
+namespace   = "xengine.dynamics"
+name        = "cts"
+version     = "0.1.0"
+description = "Conformance of xengine.dynamics' solver families (collision, xpbd, materials) on mlibs.cts"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "module"
+agent = { library = "conformance suite of the solver families: for tests only" }
+
+[targets.xengine-dynamics-cts]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-fno-fast-math", "-ffp-contract=off"]
+
+[dependencies]
+# With the body as an agent's subject (this package's tests hold it to the agent contract too) and with
+# materials from xengine.matter's table (the suite's material case; tests/material_test.cpp).
+xengine.dynamics = { path = "..", features = ["agent", "matter", "rigid", "rigid3", "rigid3-agent"] }
+mlibs.simulation = { path = "../../../../../base/simulation" }
+mlibs.cts        = { path = "../../../../../base/cts" }
+mlibs.utils      = { path = "../../../../../base/utils" }
+# The standard table a body's material is read from (the suite's material case).
+xengine.matter   = { path = "../../matter" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+# tests/agent_test.cpp: the agent contract's suite on a body (mlibs.agent.cts), then kicks, seeks and branches.
+mlibs.agent.cts = { path = "../../../../../base/agent/cts" }
+mlibs.json      = { path = "../../../../../base/json" }

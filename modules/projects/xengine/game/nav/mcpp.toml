@@ -1,0 +1,43 @@
+# xengine.nav — navigation for games (M6.4; D-161, D-176): Recast & Detour
+# through mwrap under this package's contract — a navigation mesh built in
+# tiles from the ground's triangles, paths and rays across it, obstacles and
+# links building only the tiles they touch again, and a crowd of walkers at a
+# fixed step; the mesh and the crowd one world that saves, restores and
+# branches to the same bits. The game layer's: the ground comes in as data
+# (triangles), so it depends on no physics and on no interface.
+# No contraction and no fast math: the same bits everywhere.
+[package]
+namespace   = "xengine"
+name        = "nav"
+version     = "0.1.0"
+description = "Navigation for games: navmeshes built in tiles from triangles, paths, crowds, obstacles and links, as one deterministic world (Recast & Detour)"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "module"
+agent = "subject"
+
+[targets.xengine-nav]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/native/*.cpp"]
+cxxflags = ["-fno-fast-math", "-ffp-contract=off"]
+
+[dependencies]
+mcpplibs.mwrap.recastnavigation = "1.6.0"
+mlibs.math  = { path = "../../../../base/math" }
+mlibs.utils = { path = "../../../../base/utils" }
+
+# The world as an agent's subject (src/agent/, module xengine.nav.agent; D-174). A feature, so that a game that
+# only asks paths links no agent kernel.
+[features]
+agent = { sources = ["src/agent/*.cppm", "src/agent/*.cpp"] }
+
+[feature-deps.agent]
+mlibs.agent     = { path = "../../../../base/agent" }
+mlibs.control   = { path = "../../../../base/control" }
+mlibs.json      = { path = "../../../../base/json" }
+openlifa.openas = "0.2.0"

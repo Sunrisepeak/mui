@@ -1,0 +1,40 @@
+# xrender.raster — a deterministic CPU 2D rasterizer: exact integer coverage,
+# gradients, images, strokes, clips, layers with blend modes, shadows (D-43).
+# The same drawing is the same bytes on every platform.
+[package]
+namespace   = "xrender"
+name        = "raster"
+version     = "0.1.0"
+description = "Deterministic CPU 2D rasterizer: paths, strokes, gradients, images, clips, layers, blend modes, shadows"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "backend"
+agent = { part = "xrender.frame" }
+
+[targets.xrender-raster]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+# The compositing loops (:blend): AVX2 chosen at run time on x86-64, the
+# scalar reference elsewhere — the same bytes either way (W6, D-143).
+[target.'cfg(arch = "x86_64")'.build]
+sources = ["src/native/x86/*.cpp"]
+
+[target.'cfg(not(arch = "x86_64"))'.build]
+sources = ["src/native/portable/*.cpp"]
+
+[dependencies]
+mlibs.utils = { path = "../../../base/utils" }
+mlibs.geom = { path = "../../../base/geom" }
+mlibs.math = { path = "../../../base/math" }
+mlibs.memory = { path = "../../../base/memory" }
+
+[dev-dependencies]
+# Tests are mtest's (D-147).
+mcpplibs.mtest = "0.8.4"

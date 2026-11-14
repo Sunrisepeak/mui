@@ -1,0 +1,56 @@
+# xengine.cellular.present — a cellular field on screen (D-132):
+# its cells coloured by a palette, or by a shade that computes each (D-168), into one image of an xrender ImageStore,
+# a pixel a cell, drawn by one command; only the tiles that changed are
+# recoloured, re-uploaded and redrawn. Its own package: the renderer knows no
+# cells and the rules know no drawing.
+[package]
+namespace   = "xengine.cellular"
+name        = "present"
+version     = "0.1.0"
+description = "A cellular field as one image: palette, changed tiles, one draw command"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+agent = { part = "xengine.cellular" }
+
+[targets.xengine-cellular-present]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+xengine.cellular = { path = ".." }
+xrender.vector = { path = "../../../../xrender/vector" }
+xrender.raster = { path = "../../../../xrender/raster" }
+mlibs.geom     = { path = "../../../../../base/geom" }
+mlibs.utils    = { path = "../../../../../base/utils" }
+mlibs.math     = { path = "../../../../../base/math" }
+
+[features]
+# A world of matter on screen by a ladder (src/world/, module xengine.cellular.present.world; D-178): rich (the
+# decorative layer stepped, a glow), lit, baked (frames of a flame baked from the rich form), plain — a ladder of
+# mlibs.pipeline's governor, with what each step is doing said back. A feature: it joins the kernel's world of
+# matter with bodies (`rigid`) and its decorative layer (`decor`) with the presenter.
+world = { sources = ["src/world/*.cppm", "src/world/*.cpp"] }
+
+[feature-deps.world]
+xengine.matter   = { path = "../../matter", default-features = false, features = ["appearance"] }
+xengine.cellular = { path = "..", features = ["rigid", "decor"] }
+mlibs.pipeline   = { path = "../../../../../base/pipeline" }
+
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+mlibs.utils = { path = "../../../../../base/utils" }
+# offscreen_test, agent_test: a field an agent operates (the kernel's `agent` feature) — under the agent contract's
+# suite, and drawn through the frame's entry and read back with no interface in the program.
+xengine.cellular = { path = "..", features = ["agent"] }
+"mlibs.agent.cts" = { path = "../../../../../base/agent/cts" }
+xrender.frame = { path = "../../../../xrender/frame" }
+mlibs.agent   = { path = "../../../../../base/agent" }
+mlibs.json    = { path = "../../../../../base/json" }
+mlibs.image   = { path = "../../../../../base/image" }

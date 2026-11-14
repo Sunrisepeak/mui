@@ -1,0 +1,33 @@
+# xengine.playtest — a game played by trying ahead (the foundation plan's §6.14, D-179: a general part): a
+# player that reads what a person is shown and does what a person can, through the agent kernel's requests on a
+# world (observe, act, step, branch). It tries each way forward on a branch and takes the one that gets
+# furthest unharmed; blocked, it tries each tool it has at each aim on a branch and keeps the first that clears
+# the way; where the way would hurt it backs off and waits; and where nothing helps it stops and says where and
+# why. A game gives it a table — its ways forward, its tools, what "in the way" means — and nothing else.
+[package]
+namespace   = "xengine"
+name        = "playtest"
+version     = "0.1.0"
+description = "A game played by branching ahead, as a part any game can be given: ways forward, tools at aims, backing off, and where and why it is stuck"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind  = "module"
+agent = { part = "xengine.runtime" }
+
+[targets.xengine-playtest]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+mlibs.agent = { path = "../../../../base/agent" }
+mlibs.json  = { path = "../../../../base/json" }
+
+[dev-dependencies]
+mcpplibs.mtest  = "0.8.4"
+xengine.runtime = { path = "../runtime" }
+xengine.input   = { path = "../input" }

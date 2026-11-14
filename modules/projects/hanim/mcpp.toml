@@ -1,0 +1,68 @@
+# One product package; internal language modules are selected by features.
+[package]
+name = "hanim"
+version = "0.1.0"
+description = "Independent composable animation engine with optional vector rendering"
+license = "Apache-2.0"
+platforms = ["linux", "macos", "windows", "emscripten"]
+repo = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+agent = "subject"
+
+[targets.hanim]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+hanim.core = { path = "core" }
+
+[features]
+default = ["engine"]
+object = { sources = ["src/object/*.cppm", "src/object/*.cpp"] }
+effect = { sources = ["src/effect/*.cppm", "src/effect/*.cpp"] }
+library = { implies = ["object"], sources = ["src/library/*.cppm", "src/library/*.cpp"] }
+program = { implies = ["library", "effect"], sources = ["src/program/*.cppm", "src/program/*.cpp"] }
+engine = { implies = ["program"], sources = ["src/engine/*.cppm", "src/engine/*.cpp"] }
+render-vector = { implies = ["program"], sources = ["src/render/vector/*.cppm", "src/render/vector/*.cpp"] }
+control = { implies = ["engine"], sources = ["src/control/*.cppm", "src/control/*.cpp"] }
+# The stage as an agent's subject (module hanim.agent; D-174). A feature, like control: what a consumer of the
+# engine alone links stays what it was.
+agent = { implies = ["control"], sources = ["src/agent/*.cppm", "src/agent/*.cpp"] }
+
+# The engine steps simulated bodies with xengine.dynamics' xpbd solver on mlibs.simulation's timeline (D-131, D-133).
+[feature-deps.engine]
+xengine.dynamics = { path = "../xengine/kernel/dynamics" }
+mlibs.simulation = { path = "../../base/simulation" }
+
+[feature-deps.object]
+mlibs.geom = { path = "../../base/geom" }
+mlibs.memory = { path = "../../base/memory" }
+mlibs.utils = { path = "../../base/utils" }
+
+[feature-deps.effect]
+mlibs.utils = { path = "../../base/utils" }
+
+[feature-deps.render-vector]
+xrender.vector = { path = "../xrender/vector" }
+mlibs.geom = { path = "../../base/geom" }
+
+[feature-deps.control]
+mlibs.control = { path = "../../base/control" }
+
+# The stage among a process's subjects (src/agent/, module hanim.agent): the kernel's requests read, its records written.
+[feature-deps.agent]
+mlibs.agent     = { path = "../../base/agent" }
+mlibs.json      = { path = "../../base/json" }
+mlibs.utils     = { path = "../../base/utils" }
+openlifa.openas = "0.2.0"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+mlibs.utils = { path = "../../base/utils" }
+mlibs.cts   = { path = "../../base/cts" }
+mcpplibs.os = "0.4.4"

@@ -1,0 +1,730 @@
+module omui.host.sdl3;
+
+import std;
+import omui.core;
+import omui.view;
+import omui.semantic;
+import omui.agent;
+import omui.accessibility;
+import mpal;
+import xrender.raster;
+import xrender.vector;
+import xrender.frame;
+import mlibs.text;
+import mlibs.image;
+import mlibs.trace;
+import mlibs.rhi;
+import xrender.rhi.sdl;
+import xrender.effect;
+import mcpplibs.os;
+import :platform;
+import :web;
+import xrender.text;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::debug;
+using mlibs::log::error;
+using mlibs::log::info;
+using mlibs::log::warn;
+}
+
+namespace omui {
+
+namespace {
+
+// A file choice as mpal asks the system for it.
+mpal::Pick pick_of(const Runtime::FileChoice& choice) {
+    mpal::Pick asked;
+    asked.kind = choice.kind == Runtime::FileChoice::Kind::save     ? mpal::Pick::Kind::save
+                 : choice.kind == Runtime::FileChoice::Kind::folder ? mpal::Pick::Kind::folder
+                                                                    : mpal::Pick::Kind::open;
+    asked.title = choice.title;
+    asked.many = choice.many;
+    asked.start = choice.start;
+    asked.name = choice.name;
+    for (const Runtime::FileFilter& filter : choice.filters) {
+        mpal::Filter made{.name = filter.name, .extensions = {}};
+        for (const auto part : std::views::split(std::string_view(filter.pattern), ';'))
+            if (const std::string_view extension(part.begin(), part.end()); !extension.empty() && extension != "*") made.extensions.emplace_back(extension);
+        asked.filters.push_back(std::move(made));
+    }
+    return asked;
+}
+
+// The system's notifications (mpal) and the person's answers: shown from the
+// interface's thread, heard on a thread of its own over a second connection
+// (a read waits there, never in a frame); a pressed notice's callback is run
+// there, and posts its verb to the interface.
+class NativeNotices {
+public:
+    // None where the system has no notification service.
+    static std::unique_ptr<NativeNotices> open() {
+        auto shower = mpal::Notifier::open();
+        if (!shower) {
+            info("desktop: system notifications: {} (drawn instead)", shower.error().text);
+            return nullptr;
+        }
+        auto notices = std::make_unique<NativeNotices>();
+        notices->shower_.emplace(std::move(*shower));
+        notices->listener_ = std::jthread([raw = notices.get()](std::stop_token stop) { raw->hear(stop); });
+        return notices;
+    }
+
+    bool show(std::string_view application, const Runtime::Notice& notice, std::function<void()> pressed) {
+        mpal::Notification shown{.application = std::string(application), .title = notice.title, .body = notice.body};
+        // "default": the notice itself, clicked.
+        if (!notice.verb.empty()) shown.actions = {{"default", notice.title}};
+        auto id = shower_->show(shown);
+        if (!id) return false;
+        if (!notice.verb.empty()) {
+            const std::scoped_lock lock(mutex_);
+            pressed_[*id] = std::move(pressed);
+        }
+        return true;
+    }
+
+private:
+    void hear(std::stop_token stop) {
+        auto listener = mpal::Notifier::listen();
+        if (!listener) return;
+        while (!stop.stop_requested()) {
+            auto answer = listener->next(std::chrono::milliseconds(500));
+            if (!answer) return;  // the bus gone
+            if (!*answer) continue;
+            std::function<void()> pressed;
+            {
+                const std::scoped_lock lock(mutex_);
+                const auto found = pressed_.find((*answer)->id);
+                if (found == pressed_.end()) continue;  // not one of ours
+                if ((*answer)->kind == mpal::Answer::Kind::chosen) pressed = found->second;
+                else pressed_.erase(found);
+            }
+            if (pressed) {
+                pressed();
+                platform::wake();
+            }
+        }
+    }
+
+    std::optional<mpal::Notifier>                    shower_;
+    std::mutex                                       mutex_;
+    std::map<std::uint32_t, std::function<void()>>   pressed_;
+    std::jthread                                     listener_;  // last: stopped first
+};
+
+}  // namespace
+
+struct Desktop::Impl final : WindowHost {
+    DesktopOptions                           options;
+    std::unique_ptr<mlibs::text::FontCollection> own_fonts;
+    std::unique_ptr<Runtime>                 own_runtime;
+    Runtime*                                 runtime = nullptr;  // own_runtime's, or the one adopted
+    std::unique_ptr<semantic::Tree>          tree;
+    std::unique_ptr<xrender::text::GlyphCache>     glyphs;
+    std::unique_ptr<agent::Endpoint>         endpoint;
+    // Assistive technology's view of the tree (D-21).
+    std::unique_ptr<accessibility::Mirror>   mirror;
+    std::unique_ptr<accessibility::Adapter>  access;
+    // The system's notifications, opened when the first is shown (none: drawn instead).
+    std::optional<std::unique_ptr<NativeNotices>> notices;
+    platform::WindowPtr                      window;
+    // Web pages in the system's own view over the window (D-141; macOS's WKWebView), gone before it.
+    std::unique_ptr<web::Pages, void (*)(web::Pages*)> web_pages{nullptr, [](web::Pages*) {}};
+    xrender::CpuFrame                         composed;  // the frame's entry (xrender.frame): the host composes nothing itself
+    xrender::DamageTracker                    damage;     // what the next list changes
+    xrender::raster::Surface                          frame;
+    std::uint64_t                            shown = 0;   // the list hash on screen
+    std::size_t                              frames_shown = 0;
+    std::size_t                              failed_frames = 0;  // in a row: a stage failed, the last good frame kept on screen
+    bool                                     quitting = false;
+    int                                      exit_code = 0;
+    bool                                     idle = false;  // the last frame wanted no other
+    FrameDemand                              demand;        // what the last frame said frames are wanted for (D-70)
+    std::chrono::steady_clock::time_point    last_frame{};
+
+    // The GPU path: a device that claimed the window, the renderer, and the
+    // frame texture the swapchain shows.
+    std::unique_ptr<mlibs::rhi::Device>             device;
+    std::optional<xrender::GpuFrame>          gpu;
+    mlibs::rhi::Texture                             gpu_frame;
+    std::uint32_t                            gpu_w = 0, gpu_h = 0;
+    std::optional<xrender::effect::Library>           effects;
+
+    // The window as a window (D-75): who draws its frame, and its close.
+    bool                                     framework = false;
+    bool                                     close_requested = false;
+    std::optional<std::chrono::steady_clock::time_point> closed_at;  // closed, dissolving until then
+
+    bool framework_drawn() const noexcept override { return framework; }
+    void minimize() override {
+        if (window) platform::minimize(*window);
+    }
+    void toggle_maximize() override {
+        if (window) platform::toggle_maximize(*window);
+    }
+    void set_fullscreen(bool on) override {
+        if (window) platform::set_fullscreen(*window, on);
+    }
+    void request_close() override {
+        close_requested = true;
+        platform::wake();
+    }
+    bool pass_through(bool on) override { return window && platform::pass_through(*window, on); }
+    bool set_framework_drawn(bool on) override {
+        if (!window) return false;
+        if (on == framework) return true;
+        framework = on;
+        platform::set_framed(*window, !on);
+        hit_test();
+        window_state();
+        return true;
+    }
+
+    // The system asks what lies under a point of a frameless window.
+    void hit_test() {
+        if (!window) return;
+        if (!framework) {
+            (void)platform::set_hit_test(*window, {});
+            return;
+        }
+        if (!platform::set_hit_test(*window, [this](Point p) { return window_area_at(*runtime, p, runtime->size()); }))
+            debug("this system does not ask a frameless window what lies under the pointer: it cannot be moved or resized by its frame");
+    }
+
+    // What the system says of the window, for the interface.
+    void window_state() {
+        if (!window) return;
+        omui::window().set_transparent(framework && platform::transparent(*window));
+        omui::window().set_state(platform::state(*window));
+    }
+
+    // Closed at once, and gone when the dissolve ends: input from now on is
+    // not the application's (it goes to what is beneath, where the system
+    // can send it there), and the agent's requests see a closing window.
+    void begin_close() {
+        if (closed_at) return;
+        const double d = options.close_dissolve;
+        if (!framework || d <= 0 || runtime->reduce_motion()) {
+            quitting = true;
+            return;
+        }
+        omui::window().set_closing(true);
+        (void)pass_through(true);
+        runtime->set(runtime->root(), "pixel_effect", Value{}.set("name", "dissolve").set("duration", d));
+        closed_at = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(d));
+    }
+
+    // A device for the window, when the options and the machine say the GPU
+    // draws: none for a software rasteriser unless the GPU is insisted on.
+    std::expected<void, std::string> open_gpu() {
+        using R = DesktopOptions::Renderer;
+        if (options.renderer == R::cpu) return {};
+        xrender::rhi::sdl::Options o;
+        o.formats = xrender::gpu_shader_formats();
+        o.window = platform::window_id(*window);
+        o.vsync = options.vsync;
+        o.vulkan_library = options.vulkan_library;
+        auto made = xrender::rhi::sdl::create(o);
+        if (!made) {
+            if (options.renderer == R::gpu) return std::unexpected(std::format("no GPU device for the window: {}", made.error().message));
+            return {};
+        }
+        if ((*made)->caps().software && options.renderer == R::automatic) return {};  // the CPU renderer is faster
+        auto r = xrender::GpuFrame::create(**made);
+        if (!r) {
+            if (options.renderer == R::gpu) return std::unexpected(std::format("the GPU renderer: {}", r.error().message));
+            return {};
+        }
+        device = std::move(*made);
+        gpu.emplace(std::move(*r));
+        if (runtime) runtime->set_on_device(true);  // content as lists where it may be (a canvas's `content: auto`)
+        return {};
+    }
+
+    // The frame as shown, read back (the GPU's texture, or the CPU's surface).
+    std::expected<xrender::raster::Surface, std::string> pixels() {
+        if (!gpu) {
+            if (frame.width() <= 0) return std::unexpected("nothing shown yet");
+            return frame;
+        }
+        if (!gpu_frame) return std::unexpected("nothing shown yet");
+        auto bytes = device->read(gpu_frame, mlibs::rhi::Region{0, 0, gpu_w, gpu_h});
+        if (!bytes) return std::unexpected(bytes.error().message);
+        xrender::raster::Surface out(static_cast<int>(gpu_w), static_cast<int>(gpu_h));
+        std::memcpy(out.pixels().data(), bytes->data(), bytes->size());
+        return out;
+    }
+
+    void show() {
+        const xrender::DisplayList& list = runtime->display_list();
+        const std::uint64_t h = list.hash();
+        const float scale = runtime->scale();
+        const int w = static_cast<int>(std::lround(runtime->size().width * scale));
+        const int hgt = static_cast<int>(std::lround(runtime->size().height * scale));
+        if (gpu) {
+            show_gpu(list, h, scale, w, hgt);
+            return;
+        }
+        if (h == shown && frame.width() == w && frame.height() == hgt) return;
+        if (frame.width() != w || frame.height() != hgt) frame = xrender::raster::Surface(w, hgt);
+        {
+            mlibs::trace::Span span("render", "host");
+            const xrender::Resources resources{&runtime->images(), glyphs.get()};
+            // Only the rows the new list can change: the same bytes as a full render.
+            const auto rows = damage.update(list, w, hgt, scale, resources);
+            const xrender::FrameLayer ui_layer{.name = "ui", .list = &list, .resources = resources, .scale = scale};
+            xrender::FrameOptions how;
+            how.background = options.background;
+            how.rows = rows;
+            if (options.parallel_raster) how.parallel = &raster_parallel();
+            how.external = [this](std::uint64_t number) { return runtime->picture(number); };  // a world in a viewport
+            if (!rows.empty()) (void)composed.render({&ui_layer, 1}, frame, how);
+        }
+        mlibs::trace::Span span("present", "host");
+        platform::present(*window, frame);
+        shown = h;
+        ++frames_shown;
+    }
+
+    // A picture a component shows from elsewhere (Services::add_picture: a world in a viewport), as a texture of
+    // this device: its pixels sent when the number it is drawn by changes, kept until it is another size.
+    struct ShownTexture {
+        std::uint32_t       handle = 0;
+        mlibs::rhi::Texture texture;
+        std::uint64_t       number = 0;
+        std::uint32_t       width = 0, height = 0;
+    };
+    std::vector<ShownTexture> shown_textures;
+    std::optional<mlibs::rhi::Texture> shown_texture(std::uint64_t number) {
+        const std::optional<xrender::raster::ImageView> picture = runtime->picture(number);
+        if (!picture || !picture->pixels || picture->width <= 0 || picture->height <= 0) return std::nullopt;
+        const auto handle = static_cast<std::uint32_t>(number >> 32);
+        const auto wide = static_cast<std::uint32_t>(picture->width), high = static_cast<std::uint32_t>(picture->height);
+        auto found = std::ranges::find(shown_textures, handle, &ShownTexture::handle);
+        if (found == shown_textures.end()) found = shown_textures.insert(shown_textures.end(), ShownTexture{.handle = handle});
+        if (!found->texture || found->width != wide || found->height != high) {
+            if (found->texture) device->destroy(found->texture);
+            auto made = device->create(mlibs::rhi::TextureDesc{mlibs::rhi::Format::rgba8_unorm, wide, high, mlibs::rhi::TextureUsage::sampled, "host.shown"});
+            if (!made) {
+                warn("a shown picture's texture: {}", made.error().message);
+                found->texture = {};
+                return std::nullopt;
+            }
+            found->texture = *made, found->width = wide, found->height = high, found->number = ~number;
+        }
+        if (found->number != number) {
+            const std::size_t row = static_cast<std::size_t>(picture->stride) * 4;
+            mlibs::rhi::CommandList sent;
+            sent.upload(found->texture, mlibs::rhi::Region{0, 0, wide, high},
+                        std::span(reinterpret_cast<const std::byte*>(picture->pixels), row * (high - 1) + static_cast<std::size_t>(wide) * 4), static_cast<std::uint32_t>(row));
+            if (auto submitted = device->submit(sent); !submitted || !device->wait(*submitted)) return std::nullopt;
+            found->number = number;
+        }
+        return found->texture;
+    }
+
+    void show_gpu(const xrender::DisplayList& list, std::uint64_t h, float scale, int w, int hgt) {
+        if (w <= 0 || hgt <= 0) return;
+        const auto uw = static_cast<std::uint32_t>(w), uh = static_cast<std::uint32_t>(hgt);
+        if (h == shown && uw == gpu_w && uh == gpu_h) return;
+        if (uw != gpu_w || uh != gpu_h) {
+            if (gpu_frame) device->destroy(gpu_frame);
+            auto t = device->create(mlibs::rhi::TextureDesc{mlibs::rhi::Format::rgba8_unorm, uw, uh, mlibs::rhi::TextureUsage::color_target | mlibs::rhi::TextureUsage::sampled,
+                                                     "host.frame"});
+            if (!t) {
+                warn("the frame texture: {}", t.error().message);
+                return;
+            }
+            gpu_frame = *t;
+            gpu_w = uw;
+            gpu_h = uh;
+        }
+        {
+            mlibs::trace::Span span("render", "host");
+            const xrender::Resources resources{&runtime->images(), glyphs.get()};
+            const xrender::FrameLayer ui_layer{.name = "ui", .list = &list, .resources = resources, .scale = scale};
+            xrender::GpuFrameOptions how;
+            how.background = options.background;
+            how.external = [this](std::uint64_t number) { return shown_texture(number); };
+            how.glyph_masks = xrender::glyph_masks_a_live_frame;  // a window's frames: text is its outlines', in motion and at rest
+            auto r = gpu->render({&ui_layer, 1}, gpu_frame, uw, uh, how);
+            if (!r) {
+                warn("the GPU renderer: {}", r.error().message);
+                return;
+            }
+        }
+        mlibs::trace::Span span("present", "host");
+        auto p = device->present(gpu_frame);
+        if (!p) warn("present: {}", p.error().message);
+        shown = h;
+        ++frames_shown;
+    }
+
+    // Effects whose files changed, loaded again; the next frame redrawn.
+    void reload_effects() {
+        if (!effects) return;
+        for (const xrender::effect::Reload& r : effects->poll()) {
+            if (r.ok()) {
+                info("effect {} reloaded in {} ms", r.name, static_cast<double>(r.took.count()) / 1000.0);
+                shown = 0;
+            } else {
+                for (const xrender::effect::Diagnostic& d : r.problems) warn("effect {}: {}", r.name, d.text());
+            }
+        }
+    }
+};
+
+Desktop::Desktop(DesktopOptions options) : impl_(std::make_unique<Impl>()) {
+    Impl& d = *impl_;
+    d.options = std::move(options);
+    // The interface answers as the platform it runs on does (D6): Command for shortcuts, a scroll's
+    // edges, when a right button asks for a context menu.
+    if constexpr (mcpplibs::os::is_macos) set_platform(Platform::macos);
+    else if constexpr (mcpplibs::os::is_windows) set_platform(Platform::windows);
+    else set_platform(Platform::freedesktop);
+    if (d.options.runtime) {
+        // A runtime the caller made (a script binding's, which existed first):
+        // the window shows it, on the interactive clock.
+        d.runtime = d.options.runtime;
+        d.runtime->clock() = hanim::Clock::interactive();
+        d.runtime->resize(d.options.size, d.runtime->scale());
+        d.tree = std::make_unique<semantic::Tree>(*d.runtime);
+        d.glyphs = std::make_unique<xrender::text::GlyphCache>(d.runtime->fonts());
+        return;
+    }
+    mlibs::text::FontCollection* fonts = d.options.fonts;
+    if (!fonts) {
+        d.own_fonts = std::make_unique<mlibs::text::FontCollection>();
+        if (auto r = d.own_fonts->add_defaults(); !r) warn("the default fonts did not load: {}", r.error());
+        fonts = d.own_fonts.get();
+    }
+    RuntimeOptions ro;
+    ro.theme = d.options.theme;
+    ro.fonts = fonts;
+    ro.clock = hanim::Clock::interactive();
+    ro.size = d.options.size;
+    ro.reduce_motion = d.options.reduce_motion;
+    ro.reduce_transparency = d.options.reduce_transparency;
+    d.own_runtime = std::make_unique<Runtime>(std::move(ro));
+    d.runtime = d.own_runtime.get();
+    d.tree = std::make_unique<semantic::Tree>(*d.runtime);
+    d.glyphs = std::make_unique<xrender::text::GlyphCache>(*fonts);
+}
+
+Desktop::~Desktop() {
+    if (omui::window().host() == impl_.get()) omui::window().detach();
+    if (impl_->endpoint) impl_->endpoint->stop();
+    // The adapter lets go of the window before the window goes.
+    impl_->access.reset();
+    impl_->mirror.reset();
+    // The GPU's before the window it claimed.
+    if (impl_->device && impl_->gpu_frame) impl_->device->destroy(impl_->gpu_frame);
+    if (impl_->device)
+        for (const auto& one : impl_->shown_textures)
+            if (one.texture) impl_->device->destroy(one.texture);
+    impl_->shown_textures.clear();
+    impl_->gpu.reset();
+    impl_->device.reset();
+    impl_->window.reset();
+}
+
+std::expected<void, std::string> Desktop::open() {
+    Impl& d = *impl_;
+    if (d.window) return {};
+    // A window for the GPU first (when it may draw); the CPU's otherwise.
+    const bool try_gpu = d.options.renderer != DesktopOptions::Renderer::cpu;
+    d.framework = d.options.frame == DesktopOptions::Frame::framework;
+    platform::WindowOptions wo{d.options.title, d.options.size, d.options.resizable, d.options.vsync, d.options.video_driver,
+                               d.options.render_driver, try_gpu, d.framework, true};
+    // Where the interface draws nothing, a frameless window shows what is behind it.
+    if (d.framework) d.options.background = Color::transparent();
+    auto w = platform::open(wo);
+    if (!w) return std::unexpected(w.error());
+    d.window = std::move(*w);
+    if (try_gpu) {
+        if (auto g = d.open_gpu(); !g) return std::unexpected(g.error());
+        if (!d.gpu) {
+            // No GPU after all: the window again, with an SDL renderer for the CPU's frames.
+            d.window.reset();
+            wo.gpu = false;
+            auto again = platform::open(wo);
+            if (!again) return std::unexpected(again.error());
+            d.window = std::move(*again);
+        }
+    }
+    if (!d.options.effects.empty()) {
+        d.effects.emplace(xrender::effect::Options{.formats = d.device ? d.device->caps().formats : xrender::gpu_shader_formats(), .data = d.options.effect_data});
+        if (auto loaded = d.effects->load_directory(d.options.effects); !loaded)
+            for (const xrender::effect::Diagnostic& p : loaded.error()) warn("effect: {}", p.text());
+        if (!d.gpu) warn("effects in {} are drawn by the GPU renderer; the CPU renderer draws their layers without them", mcpplibs::os::fs::utf8(d.options.effects));
+    }
+    d.runtime->resize(platform::logical_size(*d.window), platform::pixel_scale(*d.window));
+    d.runtime->set_renderer(d.gpu ? std::string(mlibs::rhi::name(d.device->caps().backend)) : std::string("cpu"));
+    // The machine's tier (performance tiers §1): a discrete GPU T4; integrated graphics T3; the CPU drawing, T2.
+    // And the governor on: these frames are a person's.
+    {
+        mlibs::pipeline::Tier tier = mlibs::pipeline::Tier::t2;
+        std::string why = "the CPU draws";
+        if (d.gpu) {
+            const std::string name = d.device->caps().device;
+            const bool integrated = std::ranges::any_of(std::array<std::string_view, 6>{"Intel", "UHD", "Iris", "Mali", "Adreno", "Vega"},
+                                                        [&](std::string_view s) { return name.find(s) != std::string::npos; });
+            tier = integrated ? mlibs::pipeline::Tier::t3 : mlibs::pipeline::Tier::t4;
+            why = std::format("{}: {}", integrated ? "integrated graphics" : "a GPU", name);
+        }
+        d.runtime->set_device_tier(tier, std::move(why));
+        d.runtime->set_governor(true);
+    }
+    // The window's operations are verbs (window.*), its state the interface's to read.
+    omui::window().attach(&d, d.runtime->verbs());
+    d.window_state();
+    d.hit_test();
+    d.runtime->set_clipboard([] { return platform::clipboard(); }, [](std::string_view t) { platform::set_clipboard(t); });
+    d.runtime->set_pointer_lock([](bool held) { return platform::lock_pointer(held); });
+    d.runtime->set_url_opener([](std::string_view url) { return platform::open_url(url); });
+    d.runtime->set_file_offer([](const Runtime::OfferedFile& file) { return platform::save_download(file.name, file.bytes); });
+    // The system's file chooser and tray (W7: the SDK's System draws what is missing).
+    d.runtime->set_native_surfaces({.choose_files = [&d](const Runtime::FileChoice& choice, Runtime::FilesChosen chosen) {
+                                        // The system's chooser through mpal where it is here (Linux's desktop portal),
+                                        // the person answering on a thread of its own; else SDL's.
+                                        if (mpal::can_pick()) {
+                                            std::thread([asked = pick_of(choice), chosen = std::move(chosen)] {
+                                                auto picked = mpal::pick(asked);
+                                                if (!picked) warn("desktop: choosing files: {}", picked.error().text);
+                                                chosen(picked ? std::move(*picked) : std::vector<std::filesystem::path>{});
+                                                platform::wake();
+                                            }).detach();
+                                            return true;
+                                        }
+                                        return d.window && platform::choose_files(*d.window, choice, std::move(chosen));
+                                    },
+                                    // The system's notification (mpal); the person pressing it runs its verb.
+                                    .notify = [&d](const Runtime::Notice& notice, std::function<void()> pressed) {
+                                        if (!d.notices) d.notices = NativeNotices::open();
+                                        return *d.notices && (*d.notices)->show(d.options.title, notice, std::move(pressed));
+                                    },
+                                    .tray = [](const std::vector<Runtime::MenuEntry>& entries, std::string_view tooltip,
+                                               std::function<void(std::string_view)> chosen) { return platform::tray(entries, tooltip, std::move(chosen)); }});
+    // Web pages in the system's own view (D-141), where it has one: macOS's WKWebView.
+    if constexpr (mcpplibs::os::is_macos) {
+        if (d.window) d.web_pages = web::open_pages(platform::native_window(*d.window));
+        if (d.web_pages) {
+            Runtime::NativeSurfaces surfaces = d.runtime->native_surfaces();
+            surfaces.web_open = [&d](std::string_view url, std::function<void(const WebPage&)> changed) {
+                return web::open(*d.web_pages, url, std::move(changed));
+            };
+            surfaces.web_place = [&d](std::uint64_t page, Rect bounds, bool shown) { web::place(*d.web_pages, page, bounds, shown, d.runtime->size().height); };
+            surfaces.web_command = [&d](std::uint64_t page, std::string_view what, std::string_view argument) {
+                return web::command(*d.web_pages, page, what, argument);
+            };
+            surfaces.web_close = [&d](std::uint64_t page) { web::close(*d.web_pages, page); };
+            d.runtime->set_native_surfaces(std::move(surfaces));
+        }
+    }
+    d.runtime->set_svg_capture([&d](Rect region) -> std::expected<std::string, std::string> {
+        const xrender::Resources resources{&d.runtime->images(), d.glyphs.get()};
+        auto capture = agent::vector_capture(*d.runtime, resources, region, d.runtime->scale(), std::nullopt);
+        if (!capture) return std::unexpected(capture.error());
+        return std::move(capture->svg);
+    });
+    // The frame on screen as PNG, cut to a region: the runtime's capture_png and the agent's capture.
+    const auto shown_png = [&d](Rect region) -> std::expected<std::vector<std::uint8_t>, std::string> {
+        // The frame on screen, cut to the region (logical pixels).
+        auto shown_frame = d.pixels();
+        if (!shown_frame) return std::unexpected(shown_frame.error());
+        const xrender::raster::Surface& f = *shown_frame;
+        const PixelRect r = mlibs::geom::snap(region, d.runtime->scale());
+        const int x0 = std::clamp(r.x, 0, f.width()), y0 = std::clamp(r.y, 0, f.height());
+        const int x1 = std::clamp(r.x + r.width, x0, f.width()), y1 = std::clamp(r.y + r.height, y0, f.height());
+        if (x1 <= x0 || y1 <= y0) return std::unexpected("the region is outside the window");
+        mlibs::image::View v{reinterpret_cast<const std::uint8_t*>(f.row(y0) + x0), x1 - x0, y1 - y0, f.width() * 4, mlibs::image::Alpha::premultiplied};
+        return mlibs::image::encode_png(v);
+    };
+    d.runtime->set_png_capture(shown_png);
+    if (d.options.agent) {
+        agent::EndpointOptions eo;
+        eo.name = d.options.app;
+        eo.directory = d.options.agent_directory;
+        eo.protocol.app = d.options.app;
+        eo.protocol.input = d.options.agent_input;
+        eo.protocol.capture = shown_png;
+        eo.protocol.capture_svg = [&d](Rect region) {
+            const xrender::Resources resources{&d.runtime->images(), d.glyphs.get()};
+            return agent::vector_capture(*d.runtime, resources, region, d.runtime->scale(), std::nullopt);
+        };
+        eo.wake = [] { platform::wake(); };
+        d.endpoint = std::make_unique<agent::Endpoint>(*d.runtime, std::move(eo));
+        if (auto r = d.endpoint->start(); !r) {
+            warn("the agent endpoint did not start: {}", r.error());
+            d.endpoint.reset();
+        }
+    }
+    // Assistive technology's adapter, attached before the window is shown.
+    if (d.options.accessibility && accessibility::available) {
+        d.mirror = std::make_unique<accessibility::Mirror>(*d.runtime, accessibility::MirrorOptions{.name = d.options.title});
+        d.mirror->set_wake([] { platform::wake(); });
+        auto adapter = accessibility::Adapter::attach(*d.mirror, platform::native_window(*d.window), {.scale = d.runtime->scale()});
+        if (adapter) {
+            d.access = std::move(*adapter);
+        } else {
+            warn("assistive technology is not served: {}", adapter.error());
+            d.mirror.reset();
+        }
+    }
+    platform::show(*d.window);
+    return {};
+}
+
+bool Desktop::is_open() const noexcept { return impl_->window != nullptr; }
+Runtime& Desktop::runtime() noexcept { return *impl_->runtime; }
+semantic::Tree& Desktop::tree() noexcept { return *impl_->tree; }
+agent::Endpoint* Desktop::endpoint() noexcept { return impl_->endpoint.get(); }
+accessibility::Mirror* Desktop::accessibility_mirror() noexcept { return impl_->mirror.get(); }
+accessibility::Adapter* Desktop::accessibility_adapter() noexcept { return impl_->access.get(); }
+std::size_t Desktop::frames_shown() const noexcept { return impl_->frames_shown; }
+bool Desktop::gpu() const noexcept { return impl_->gpu.has_value(); }
+xrender::effect::Library* Desktop::effects() noexcept { return impl_->effects ? &*impl_->effects : nullptr; }
+float Desktop::scale() const noexcept { return impl_->runtime->scale(); }
+NodeId Desktop::mount(std::string_view slot, View view) { return impl_->runtime->mount(slot, std::move(view)); }
+
+void Desktop::quit(int code) {
+    impl_->quitting = true;
+    impl_->exit_code = code;
+}
+
+bool Desktop::step(bool wait) {
+    Impl& d = *impl_;
+    if (!d.window) {
+        if (auto r = open(); !r) {
+            error("the window did not open: {}", r.error());
+            d.exit_code = 1;
+            return false;
+        }
+    }
+    // Frames as often as they are wanted (D-70): none while nothing moves —
+    // sleep until an event or the next timer —, and while something does, at
+    // the rate its demand asks within the display's (a stream's 60 on a 120 Hz
+    // panel: half the frames, and the display may follow down).
+    const double display = d.window ? platform::refresh_hz(*d.window) : 0;
+    const double interval = frame_interval(d.demand, display);
+    std::optional<std::chrono::milliseconds> timeout;
+    bool sleep = wait && d.idle;
+    if (sleep) {
+        if (auto next = d.runtime->next_timer()) {
+            const double left = (*next - d.runtime->now()).count();
+            timeout = std::chrono::milliseconds(static_cast<std::int64_t>(std::max(0.0, std::ceil(left * 1000))));
+        }
+    } else if (wait && interval > 0) {
+        // Slower than the display — or with no vsync to hold the loop to it:
+        // wait out the interval (an event still wakes it).
+        const double period = display > 0 ? 1.0 / display : 1.0 / 60;
+        const auto due = d.last_frame + std::chrono::duration<double>(interval);
+        const auto now = std::chrono::steady_clock::now();
+        if ((interval > period * 1.5 || !d.options.vsync) && due > now) {
+            sleep = true;
+            timeout = std::chrono::milliseconds(static_cast<std::int64_t>(std::ceil(std::chrono::duration<double, std::milli>(due - now).count())));
+        }
+    }
+    if (d.closed_at) {
+        // Dissolving: frames as fast as the display shows them, until it is gone.
+        sleep = false;
+        timeout.reset();
+    }
+    platform::Polled polled = platform::poll(*d.window, sleep, timeout);
+    if (polled.state) omui::window().set_state(*polled.state);
+    if (polled.quit || d.close_requested) {
+        d.close_requested = false;
+        polled.quit = false;
+        d.begin_close();
+    }
+    if (d.closed_at) {
+        // Closed: the application takes no more input.
+        polled.events.clear();
+        if (std::chrono::steady_clock::now() >= *d.closed_at) d.quitting = true;
+    }
+    std::optional<agent::AgentInput> given;
+    const auto agent_begin = polled.events.size();
+    if (d.endpoint) {
+        d.endpoint->pump();
+        // An agent's input, a frame's worth, after the person's own.
+        given = d.endpoint->take_input();
+        if (given) polled.events.insert(polled.events.end(), std::make_move_iterator(given->events.begin()), std::make_move_iterator(given->events.end()));
+    }
+    d.reload_effects();
+    // What the system's web views show now, told where it changed (posted to the runtime).
+    if constexpr (mcpplibs::os::is_macos)
+        if (d.web_pages) web::poll(*d.web_pages);
+    FrameInput in;
+    in.events = std::move(polled.events);
+    // Evaluated where it will be seen: the next refresh (D-70).
+    const auto start = std::chrono::steady_clock::now();
+    in.present_at = start + std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(display > 0 ? 1.0 / display : 1.0 / 60));
+    in.display_hz = display;
+    d.last_frame = start;
+    if (d.access) {
+        // What a screen reader asked, performed as the person's input before
+        // the frame shows it; the window's focus, as assistive technology
+        // must know it.
+        for (const InputEvent& e : in.events)
+            if (const auto* f = std::get_if<FocusEvent>(&e)) d.access->window_focus(f->gained);
+        if (!d.closed_at) (void)d.mirror->serve();
+    }
+    std::array<InputAttribution, 1> attribution;
+    if (given && in.events.size() > agent_begin) {
+        attribution[0] = {agent_begin, in.events.size(), given->actor, given->session};
+        in.attribution = attribution;
+    }
+    FrameOutput out = d.runtime->frame(in);
+    if (d.access) {
+        d.access->set_scale(d.runtime->scale());
+        d.access->update();
+    }
+    d.demand = out.demand;
+    const std::size_t before = d.frames_shown;
+    // A stage failed: what it would show is not finished — the last frame shown stays, and it is said once
+    // (and again if it keeps failing for a second), not every frame.
+    if (!out.failure.empty()) {
+        if (d.failed_frames++ % 60 == 0)
+            warn("a frame failed ({}{}): the last frame shown stays", out.failure,
+                 d.failed_frames > 1 ? std::format(", {} in a row", d.failed_frames) : std::string());
+    } else {
+        if (d.failed_frames > 0) warn("frames are drawn again after {} that failed", d.failed_frames);
+        d.failed_frames = 0;
+    }
+    if (out.failure.empty()) d.show();
+    // A frame shown: when, and what it cost from taking the input to presenting it (D-59).
+    if (d.frames_shown != before)
+        d.runtime->frame_shown({d.runtime->clock().now(), std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count()});
+    platform::text_input(*d.window, d.runtime->text_input_rect());
+    platform::cursor(*d.window, d.runtime->cursor());
+    d.idle = !out.animating && out.demand.idle() && !d.closed_at;
+    return !d.quitting;
+}
+
+void Desktop::wake() { platform::wake(); }
+
+void Desktop::close() {
+    impl_->close_requested = true;
+    platform::wake();
+}
+
+bool Desktop::closing() const noexcept { return impl_->closed_at.has_value(); }
+
+int Desktop::run() {
+    while (step(true)) {}
+    return impl_->exit_code;
+}
+
+void Desktop::synthesize(std::span<const InputEvent> events) {
+    if (impl_->window) platform::synthesize(*impl_->window, events);
+}
+
+std::expected<xrender::raster::Surface, std::string> Desktop::window_pixels() {
+    if (!impl_->window) return std::unexpected("the window is not open");
+    if (impl_->gpu) return impl_->pixels();  // the frame the swapchain was given, exactly
+    return platform::read_back(*impl_->window);
+}
+
+std::vector<std::string> preferred_locales() { return platform::preferred_locales(); }
+
+}  // namespace omui

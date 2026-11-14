@@ -1,0 +1,10 @@
+{
+  "name": "omui-compare-material3",
+  "private": true,
+  "description": "Material 3's controls (Google's @material/web) for the side-by-side review (compare-v1, D-135): the competitor's side, pinned",
+  "type": "module",
+  "dependencies": {
+    "@fontsource/roboto": "5.2.8",
+    "@material/web": "2.5.0"
+  }
+}

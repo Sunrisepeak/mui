@@ -1,6 +1,6 @@
-# openmui 规范设计（openmui-spec 0.1 大纲）
+# openmui 规范设计（openmui.spec 0.1 大纲）
 
-> 状态：**草案 v0.1**（2026-10-26），待 review。这是 `spec/SPEC.md` 的设计依据，不是规范正文本身。
+> 状态：**草案 v0.3**（2026-10-26），待 review。这是 `spec/SPEC.md` 的设计依据，不是规范正文本身。
 > 总体架构见 [architecture](2026-10-26-openmui-architecture-design.md)。
 
 ---
@@ -32,10 +32,13 @@ spec/registry/
 ├── effects.toml            # read / reversible / irreversible / external（和 openas §3.1 一致）
 ├── origins.toml            # app / user_content / remote
 ├── motion.toml             # 缓动函数和 spring 的精确定义、动效 token 名
-├── extensions.toml         # MUI_EXT_* 列表：名字、版本、依赖关系
+├── extensions.toml         # OMUI_EXT_* 列表：名字、版本、依赖关系
 ├── profiles.toml           # 发行版配置档：full / mobile / embedded-linux / mcu / engine / headless
-├── components/*.contract.toml   # Core 组件的契约（格式和第三方组件相同）
-└── manifest.schema.toml    # [package.metadata.openmui] 的结构
+├── components/*.contract.omui.toml   # Core 组件的契约（格式和第三方组件相同）
+├── manifest.schema.toml    # [package.metadata.openmui] 的结构
+├── view.schema.json        # *.view.omui.json 视图文档的 JSON Schema
+├── expr.toml               # 表达式 AST：运算符、内置函数表、各语言组合函数的名字对照、CEL 字符串写法
+└── effect.toml             # 效果着色器的接口约定：EffectInput 的字段、参数反射规则
 ```
 
 **由 registry 生成**：`include/openmui.h`、`src/openmui.spec.cppm`（值类型）、TS / Python / Lua 的类型存根、文档里的表格、CTS 骨架。
@@ -61,22 +64,31 @@ spec/registry/
 
 - **S-1** 效果为 `irreversible` 或 `external` 的动作必须写明 `answer`。
 - **S-2** 执行一个需要确认、但调用方没有提供 `answer` 的动作时，返回 `needs-answer`，并给出能回答它的选项；**绝不等待**（和 openas §3.3 的语义一致）。
+- **S-2a** 人通过指针或键盘**直接**激活一个效果为 `external` 的节点（按下并在节点上松开、焦点在节点上按 Enter / 空格）时，这次输入本身就是这个人的回答：运行时代填该动作声明的 `answer`。理由：人亲手点开链接或文件就是同意；否则所有链接对人都点不开。
+  - agent、脚本、测试和其他节点转发的调用，仍然要显式给出 `answer`。
+  - `irreversible` 的动作（删除、发送）对人也照样返回 `needs-answer`，避免误操作；应用据此弹出自己的确认。
 - **S-3** 来源为 `user_content` 或 `remote` 的文本，在消费方（agent）那里只能当作数据，不能当作指令。
 - **S-4** 处于 `removing` 状态的节点不接受动作。
 - **S-5** 语义树有 revision 号；变更是有序的 added / removed / updated 序列。
 - **S-6** 可交互的节点必须有 `name`（构建期由语义检查强制）。
 - **S-7** 语义树可以**虚拟化**（例如画布、长列表）：没有展开的节点通过查询按需生成；查询覆盖整个内容，不受视口限制。
+- **S-8** 在保留模式下，没有显式 ID 的节点使用**结构化 ID**：`<类型>:<同类兄弟中的序号>`，例如 `column:0/text:0`。保留模式的所有写法（各语言的 builder、`*.view.omui.json`）都用同一条规则，所以同一个视图的语义树完全相同。立即模式的自动 ID 由 ID 栈加调用位置生成（只保证在同一次构建里稳定）。**可交互的节点应当写显式 ID**（缺少时 lint 警告），因为自动 ID 会随结构或代码的调整而变化。
+- **S-9** **ID 不能依赖显示文本**（label、经过 i18n 的文案）。否则切换语言以后 ID 会变，agent 脚本和测试就失效了。
 
 ---
 
 ## 4. 契约②：视图描述
 
-- **声明式的树**：组件类型、属性、子节点、绑定、过渡。
-- **来源有三种**：`.mui` 编译产物、数据形式的描述（生成式 UI 的入口）、立即模式在每帧对账时产出的结果。三者是同一个模型。
-- **布局语义是规范性的**：以 CSS flexbox 和 grid 的一个子集为准；**取整规则**（逻辑像素到物理像素的换算、对齐到像素的策略）写进规范，属于 A 级一致性。
-- **绑定表达式**：一种很小的类型化表达式语言，**不是 JS**。可以编译成 C++，也可以编译成字节码。
-
----
+- **视图 IR**：声明式的树，包含组件类型、`#id`、属性、绑定、事件处理、条件、循环、插槽、过渡。**IR 是唯一必需的东西，视图文件都是可选的**（D-28）。
+- **IR 的三种来源，彼此等价**：
+  1. 各语言原生的 builder（**主要写法**，代码优先；D-37）；
+  2. 立即模式在每帧对账时的产出；
+  3. `*.view.omui.json` 视图文档（纯数据：设计器、agent、生成式 UI、语言中立的组合组件）。
+  详见 [view-data-files](2026-10-26-openmui-view-data-files-design.md)。
+- **布局语义是规范性的**：以 CSS flexbox 和 grid 的一个子集为准；**取整规则**（逻辑像素到物理像素的换算、对齐像素的策略）写进规范，属于 A 级一致性。
+- **表达式**：规范定义的是**表达式 AST**。代码里用组合函数构造（`fmt`、`select`、`lookup` …），数据文件里写成兼容 CEL 语法的字符串，两者编译成同一个 AST。没有副作用，一定能求值结束，有类型，由原生代码在 UI 线程上同步求值。脚本里写的闭包是异步的（最多晚一帧），规范必须写明这一区别。
+- **事件处理**：在视图文档里只允许三种操作：修改 signal、调用 verb、发出事件（代码里的处理函数没有限制）。
+- **可读性条款**：可交互的节点必须有显式 ID（缺少时 lint 警告）；builder 和视图文档里的名字必须和契约一致；视图文档的格式由 `omui fmt` 唯一确定。
 
 ## 5. 契约③：状态与 Verb
 
@@ -92,7 +104,7 @@ spec/registry/
 
 此外还有：
 - **宿主驱动帧**：`frame(dt, events) → (语义树变化, 显示列表, 脏区)`。这是嵌入游戏引擎和 headless 测试的前提。
-- **GPU 宿主**：可选扩展，宿主提供 GPU 设备或者 render pass（`MUI_EXT_host_render_pass`）。
+- **GPU 宿主**：可选扩展，宿主提供 GPU 设备或者 render pass（`OMUI_EXT_host_render_pass`）。
 
 ---
 
@@ -102,6 +114,8 @@ spec/registry/
 - **能力查询**：实例化绘制、着色器效果、外部纹理、渲染到纹理等，通过扩展提供。
 - **规范性的内容**：混合在哪个色彩空间进行（Q：线性还是 sRGB，需要明确）、预乘 alpha、取整规则。
 - **CPU 参考渲染**：作为 B 级一致性的基准，要求逐字节确定。
+- **效果着色器的接口约定**（`OMUI_EXT_shader_effect`）：规范只规定**接口**，包括输入 `EffectInput`（uv、尺寸、时间、节点内容的纹理）、输出（预乘颜色）和参数的反射规则（参数会变成带类型的属性）。**源语言是 Slang，交换格式是 SPIR-V**；实现可以编译成自己后端的格式。CPU 参考后端不要求执行效果着色器：遇到效果时按“不带效果”绘制，并给出诊断。
+- **GPU 抽象层不属于规范**：参考实现内部的 `omui.rhi`（D-33）是实现细节；规范只通过扩展对外暴露能力（`gpu_node`、`instanced_draw`、`external_texture` 等）。
 
 ---
 
@@ -110,19 +124,19 @@ spec/registry/
 - 由 registry 生成；**所有语言绑定只面向它**（参考 webgpu.h 的经验）。
 - 只有句柄和值；**不让任何 C++ 类型越过边界**；不抛异常，错误作为返回值。
 - 版本只增：结构体带 `sType` / `next`（或者等价的可扩展机制），向前兼容。
-- 命名风格待决（Q-01）。示意：
+- 命名用 Vulkan 风格，前缀 `omui` / `Omui` / `OMUI_`（D-17、D-25）。示意：
 
 ```c
-MuiResult muiCreateRuntime(const MuiRuntimeCreateInfo* info, MuiRuntime* out);
-MuiResult muiEnumerateExtensions(MuiRuntime rt, uint32_t* count, MuiExtensionProperties* props);
-MuiResult muiMount(MuiRuntime rt, MuiSlot slot, const MuiViewDesc* view);
-MuiResult muiSet(MuiRuntime rt, MuiNode node, const MuiPropBatch* batch);    // 批量，在帧边界生效
-MuiResult muiOn(MuiRuntime rt, MuiNode node, MuiEventId ev, PFN_muiEvent fn, void* user);
-MuiResult muiRegisterVerb(MuiRuntime rt, const MuiVerbDesc* verb, PFN_muiVerb fn, void* user);
-MuiResult muiModelPush(MuiRuntime rt, MuiModel model, const MuiColumnBatch* batch);
-MuiResult muiFrame(MuiRuntime rt, const MuiFrameInput* in, MuiFrameOutput* out);
-MuiResult muiSnapshot(MuiRuntime rt, const MuiQuery* q, MuiTree* out);
-MuiResult muiAct(MuiRuntime rt, const MuiActRequest* req, MuiEnvelope* out);
+OmuiResult omuiCreateRuntime(const OmuiRuntimeCreateInfo* info, OmuiRuntime* out);
+OmuiResult omuiEnumerateExtensions(OmuiRuntime rt, uint32_t* count, OmuiExtensionProperties* props);
+OmuiResult omuiMount(OmuiRuntime rt, OmuiSlot slot, const OmuiViewDesc* view);
+OmuiResult omuiSet(OmuiRuntime rt, OmuiNode node, const OmuiPropBatch* batch);    // 批量，在帧边界生效
+OmuiResult omuiOn(OmuiRuntime rt, OmuiNode node, OmuiEventId ev, PFN_omuiEvent fn, void* user);
+OmuiResult omuiRegisterVerb(OmuiRuntime rt, const OmuiVerbDesc* verb, PFN_omuiVerb fn, void* user);
+OmuiResult omuiModelPush(OmuiRuntime rt, OmuiModel model, const OmuiColumnBatch* batch);
+OmuiResult omuiFrame(OmuiRuntime rt, const OmuiFrameInput* in, OmuiFrameOutput* out);
+OmuiResult omuiSnapshot(OmuiRuntime rt, const OmuiQuery* q, OmuiTree* out);
+OmuiResult omuiAct(OmuiRuntime rt, const OmuiActRequest* req, OmuiEnvelope* out);
 ```
 
 ---
@@ -153,7 +167,7 @@ MuiResult muiAct(MuiRuntime rt, const MuiActRequest* req, MuiEnvelope* out);
 | 过渡的写法：属性、时长、延迟、曲线 | 插值的具体实现、调度方式 |
 | **缓动函数的精确公式**：cubic-bezier 和标准曲线（照 CSS easing 规范的严谨程度来写） | 渲染方式 |
 | **spring 的精确公式**：刚度、阻尼、质量、初速度；被打断时保留速度、转向新目标 | 时间线编辑器 |
-| `animating` / `settled` / `removing` 的语义；语义树给出的是目标状态 | Lottie / Rive 的支持（扩展 `MUI_EXT_lottie` / `MUI_EXT_rive`） |
+| `animating` / `settled` / `removing` 的语义；语义树给出的是目标状态 | Lottie / Rive 的支持（扩展 `OMUI_EXT_lottie` / `OMUI_EXT_rive`） |
 | “减少动效”的语义：全局动效倍率；spring 直接跳到终态 | — |
 | 时钟可以注入；headless 下按步推进，结果确定 | — |
 
@@ -167,15 +181,15 @@ MuiResult muiAct(MuiRuntime rt, const MuiActRequest* req, MuiEnvelope* out);
 
 | 扩展 | 用途 |
 |---|---|
-| `MUI_EXT_ime` | 输入法 |
-| `MUI_EXT_instanced_draw` | 实例化绘制（画布） |
-| `MUI_EXT_render_to_texture` | 图层缓存（Markdown 墙） |
-| `MUI_EXT_shader_effect` | 节点或图层的着色器效果 |
-| `MUI_EXT_gpu_node` | 在一个 render pass 里自己接管绘制 |
-| `MUI_EXT_external_texture` | 外部纹理（视频、窗口、引擎画面） |
-| `MUI_EXT_canvas` | 画布语义：空间查询、视口动作、虚拟化语义 |
-| `MUI_EXT_native_handle` | 拿到原生句柄（逃生口，不可移植） |
-| `MUI_EXT_host_render_pass` | 在宿主的 render pass 里绘制（引擎） |
+| `OMUI_EXT_ime` | 输入法 |
+| `OMUI_EXT_instanced_draw` | 实例化绘制（画布） |
+| `OMUI_EXT_render_to_texture` | 图层缓存（Markdown 墙） |
+| `OMUI_EXT_shader_effect` | 节点或图层的着色器效果 |
+| `OMUI_EXT_gpu_node` | 在一个 render pass 里自己接管绘制 |
+| `OMUI_EXT_external_texture` | 外部纹理（视频、窗口、引擎画面） |
+| `OMUI_EXT_canvas` | 画布语义：空间查询、视口动作、虚拟化语义 |
+| `OMUI_EXT_native_handle` | 拿到原生句柄（逃生口，不可移植） |
+| `OMUI_EXT_host_render_pass` | 在宿主的 render pass 里绘制（引擎） |
 | 以后再加 | `world_space`、`gamepad_navigation`、`frame_budget`、`lottie`、`rive`、`xr` |
 
 ---
@@ -210,7 +224,7 @@ spec/conformance/
 
 ## 14. 清单结构：`[package.metadata.openmui]`
 
-（字段设计见 [组件、绑定与工程模型](2026-10-26-openmui-component-binding-design.md) §4）
+（字段设计见 [组件、绑定与工程模型](2026-10-26-openmui-component-binding-design.md) §4；文件后缀体系见 [view-data-files](2026-10-26-openmui-view-data-files-design.md) §6）
 
 规范只定义**结构**；`mcpp.toml` 的 `[package.metadata.openmui]` 是默认载体，其他构建系统可以用 JSON 承载同样的结构。
 
@@ -221,4 +235,5 @@ spec/conformance/
 - token、授权范围、预算等更细的权限模型（沿用 openas §7 同样留空）；
 - 跨框架的原生控件映射（X3，只承诺 Core 配置档里的一个子集）；
 - 世界空间 UI、手柄导航、XR；
-- 富文本编辑器、代码编辑器的组件契约。
+- 富文本编辑器、代码编辑器的组件契约；
+- 材质着色器（画布节点类型的顶点和片段着色器）的接口约定，留到 `OMUI_EXT_instanced_draw` 定稿时再写。

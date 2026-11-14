@@ -1,0 +1,60 @@
+# omui.view — the retained view runtime: elements (contract ②), the
+# component function tables, design tokens, the runtime (tree, bindings,
+# regions, transitions, layout, paint, input, focus, actions, semantics) and
+# the primitives (box, column, row, stack, grid, spacer, text, image,
+# scroll view, painter).
+[package]
+namespace   = "omui"
+name        = "view"
+version     = "0.1.0"
+description = "openmui retained view runtime: elements, components, theme tokens, frames, input, actions and semantics"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+agent = { part = "omui.agent" }
+
+[targets.openmui-view]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+xrender.text = { path = "../../xrender/text" }
+mlibs.math = { path = "../../../base/math" }
+mlibs.utils = { path = "../../../base/utils" }
+omui.core     = { path = "../core" }
+mlibs.geom     = { path = "../../../base/geom" }
+mlibs.memory   = { path = "../../../base/memory" }
+"hanim.core"          = { path = "../../hanim/core" }
+"hanim"               = { path = "../../hanim", default-features = false, features = ["engine"] }
+mlibs.layout   = { path = "../../../content/layout" }
+xrender.raster   = { path = "../../xrender/raster" }
+xrender.vector   = { path = "../../xrender/vector" }
+"hanim.visual" = { path = "../../hanim/visual" }
+mlibs.image    = { path = "../../../base/image" }
+mlibs.text     = { path = "../../../content/text" }
+mlibs.pipeline = { path = "../../../base/pipeline" }
+# What else a process holds for agents beside the interface (Services::add_subject): the kernel's Subject (D-173).
+mlibs.agent    = { path = "../../../base/agent" }
+mlibs.i18n     = { path = "../../../content/i18n" }
+mcpplibs.os      = "0.4.4"
+
+# The files of tests/view/ are one program, run a file at a time: one link of the closure for all of them.
+[test]
+programs = "directory"
+
+[dev-dependencies]
+# Tests are mtest's (D-147).
+mcpplibs.mtest = "0.8.4"
+
+# Optional native adapter. Ordinary views do not force the full Hanim player.
+[features]
+default = []
+hanim = { sources = ["src/hanim/*.cppm", "src/hanim/*.cpp"] }
+
+[feature-deps.hanim]
+hanim = { path = "../../hanim", default-features = false, features = ["engine", "render-vector"] }

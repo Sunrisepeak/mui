@@ -1,0 +1,168 @@
+{
+  "format": "hanim.timeline-waits-checkpoint@0.1",
+  "ok": true,
+  "recorded_at": "2026-11-06T03:36:08.542229+00:00",
+  "base_commit": "5cb2afd5963dc7b587f87c397a9ded05b62ba6b0",
+  "scope": [
+    "Object-free wait time node and delay lowered to ordinary sequence; no new package, runtime clock, renderer or UI sampler.",
+    "Prepared contract version 6 appends kind while preserving old values; node/depth/time validation and shared sampling remain in force.",
+    "Same public API powers independently timed parts in the real website note; not counted toward the 40/20 catalog requirement."
+  ],
+  "source_files_sha256": {
+    ".agents/docs/2026-11-05-system-implementation-checkpoints-design.md": "b1c1b7ac79698cbc4d589f073f598bc7d7be73265897cf028c5f0c9a0df44cc6",
+    ".agents/docs/2026-11-05-system-subsystem-architecture-and-api-design.md": "11c3d2224d40c4aeef569fc777765306eceea12e039a3b2db7301c0139ca3fbb",
+    ".agents/docs/README.md": "ebd83c19ad21fa00c169b8c77ce33d01b81313c7ba01ab1c4e9d5a540a4212dd",
+    "modules/gfx/hanim/README.md": "46580c2f8ec5e179a64eca52038e2b334cc96178a818682f6a33a1e361ad1016",
+    "modules/gfx/hanim/src/program/CONTRACT.md": "39073a152299de5c59b75115ffd330a8873124382de0473ca28f1880ec319dde",
+    "modules/gfx/hanim/src/program/README.md": "b044bf141a2046c7360b6ce86c34daa7877c8ba8fd258803766690740bf0db80",
+    "modules/gfx/hanim/src/program/program.cpp": "3be5691658e85af169e8937e6fd70a5669e321184c42b7d0667a3ad14bf57083",
+    "modules/gfx/hanim/src/program/program.cppm": "0026a1399df8f7249e2e30a0bd387e504c8f0e19f1df858c768bba6c83286bf0",
+    "modules/gfx/hanim/tests/program/program_test.cpp": "0734b8c0dc1fff9aff5fc4c2b7e84ba79344d3038900d27e045751559ee00418",
+    "site/README.md": "8a633476712fa2faaa9486fbf2a0f87998455c7d0007635a7abfa4d8899e68d5",
+    "site/src/component_motion.cpp": "b46bb47ef8eaddeaf37a9151348c2c16f98ce3e6b71641bfbe772f1d2c0b670f",
+    "site/src/motion_gallery.cpp": "97be5a20433e8570e32f4afc7ba809ebb0d4e205cae82b249eb2b569c6a676b2",
+    "site/tests/component_motion_test.cpp": "c2ca4a4dfbc6b28b1fe7ae27eeae67b7780ac531618a541c6a8ff5b0115f64e9",
+    "tools/ci/hanim-api-probe/src/main.cpp": "ba5f6423690147543d97d6512939b42ecc24fca8310d7b5bb36f4dfddbf2ead6",
+    "tools/ci/site-motion.mjs": "f605839b7da83962fa36febd8c8289a957db3c6dbbf725a71676202fe007c586"
+  },
+  "tests": [
+    {
+      "profile": "native-dev",
+      "programs": 9,
+      "cases": 110,
+      "log": {
+        "path": "target/hanim-wait/native-dev.log",
+        "sha256": "35c7a9f91a43aba300df7b10c4704572141865524cbc02a19f0fe43791fcf2f4"
+      }
+    },
+    {
+      "profile": "native-release",
+      "programs": 9,
+      "cases": 110,
+      "log": {
+        "path": "target/hanim-wait/native-release.log",
+        "sha256": "e41dee04f7cb31de14dc07ee9c512ccbb966150a950b373240e4af4b584d7998"
+      }
+    },
+    {
+      "profile": "wasm",
+      "programs": 9,
+      "cases": 108,
+      "log": {
+        "path": "target/hanim-wait/wasm.log",
+        "sha256": "6ee87fe44a022ec2fb155ce8b958072c568ebe901d84338b6f4307e01e5d4611"
+      }
+    }
+  ],
+  "public_consumer": {
+    "report": {
+      "path": "target/hanim-wait/public.report.omui.json",
+      "sha256": "b1b5809bf210e17ff42758b09ed9d55cf34479915ebc50aed09ae033f3851c31"
+    },
+    "profiles": [
+      {
+        "profile": "dev",
+        "checks": 178,
+        "ok": true,
+        "packages": [
+          "hanim.core",
+          "hanim.validation.api_probe",
+          "mcpplibs.hanim",
+          "mlibs.geom",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.trace"
+        ]
+      },
+      {
+        "profile": "release",
+        "checks": 178,
+        "ok": true,
+        "packages": [
+          "hanim.core",
+          "hanim.validation.api_probe",
+          "mcpplibs.hanim",
+          "mlibs.geom",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.trace"
+        ]
+      }
+    ]
+  },
+  "ui_process": {
+    "cases": 10,
+    "log": {
+      "path": "target/hanim-wait/site-native.log",
+      "sha256": "db3a94fdc8370b7e547c48003d7d1bbf825fb04a01a08ac0d2c8ee06851f6dff"
+    },
+    "frames": 677,
+    "new_frames": 62,
+    "old_frames_identical": 615,
+    "reverse_frames_exact": true,
+    "frames_manifest": {
+      "path": "target/hanim-wait/frames.sha256.json",
+      "sha256": "0d29be30fe2bac6e47ce9614e930bc1371ab0d3e634859b28cea058600478243"
+    },
+    "reviewed_frames": [
+      "rhythm-025.png",
+      "rhythm-030.png",
+      "rhythm-pixel-midpoint.png"
+    ],
+    "interaction": "real copy button usable with pixel effect; independent title moves during card hold"
+  },
+  "browser": {
+    "report": {
+      "path": "target/hanim-wait/browser-artifacts/report.json",
+      "sha256": "65df8324849c890534344318e0c6876d364b2f4c4538545bd39d8ef9eb2c4125"
+    },
+    "checks": 181,
+    "screenshots": 15,
+    "exceptions": [],
+    "reviewed_screenshot": {
+      "path": "target/hanim-wait/browser-artifacts/component-motion-rhythm.png",
+      "sha256": "7863254003fcd4beed8a247032b9c1f253382b270b961ac8d20ba969354abed6"
+    },
+    "screenshot_framing_corrected_and_gate_rerun": true
+  },
+  "delivery": {
+    "report": {
+      "path": "target/hanim-wait/perf.report.omui.json",
+      "sha256": "4965443ec7818a9895aedd30ea97dd5f40be2c9d4565887e84012ee1a18ea633"
+    },
+    "transfer_bytes": {
+      "total": 4881447,
+      "before_first_frame": 2979218,
+      "by_kind": {
+        "document": 61030,
+        "fetch": 4761388,
+        "image": 11922,
+        "script": 47107
+      }
+    },
+    "first_frame_proxy_ms": 1645.5,
+    "ready_ms": 1601.1000000238419,
+    "raf_p95_ms": 16.700000000000728,
+    "budgets_passed": 7,
+    "total_budget_headroom_bytes": 118553,
+    "method": "20 Mbit/s, 40 ms, 1280x800, fresh profile and in-visit cache enabled; shared machine concurrent with browser interaction gate, not isolated performance proof"
+  },
+  "lint": {
+    "path": "target/hanim-wait/lint.log",
+    "sha256": "b4824ada9a3b226dd0374ce17b0a73d59d52424ef1b6dd6e76da9547b8365a77"
+  },
+  "source_lock": {
+    "sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "unchanged": true,
+    "user_changes_excluded": true
+  },
+  "limits": [
+    "Wait does not freeze external state or release existing playback ownership.",
+    "No automatic reverse/repeat expression, arbitrary time remapping, event callbacks or new blending policy.",
+    "Process samples and browser interaction do not constitute full real-time aesthetic acceptance.",
+    "GPU renderer implementation unchanged; no new GPU throughput claim.",
+    "Physical device/mobile/TUI and complete 40/20 public library/default component migration remain open."
+  ]
+}

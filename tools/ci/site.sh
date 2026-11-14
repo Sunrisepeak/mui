@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# The website (D-84 §6.6, W3): omui.site built for wasm32-emscripten and
+# packed as a static page (dist-toy's package without Toy's SDK — a Pages
+# subpath serves it as it is), then its places pre-rendered into that page by
+# the same program built natively (`omui-site --prerender`): the documents as
+# md4c-html writes them, in a section a reader without JavaScript and a
+# search engine read, hidden when the program starts; and what an agent needs
+# to operate it (`omui-site --agent-guide`: agent.md beside the page). The page is checked
+# for what it must carry, and copied to target/site/ — what Pages uploads,
+# and what a person serves to look at it (python3 -m http.server -d target/site).
+#
+#   tools/ci/site.sh              MCPP=<path to mcpp> (default: mcpp on PATH)
+set -euo pipefail
+cd "$(dirname "$0")/../.."
+mcpp=${MCPP:-mcpp}
+out=target/site
+mkdir -p target
+
+envelope=target/site.pack.json
+"$mcpp" pack -p omui.site --target wasm32-emscripten --profile site-web --pkg-format dist-toy --message-format json > "$envelope" \
+  || { echo "::error::omui.site did not pack for the Web"; exit 1; }
+index=$(python3 -c 'import json,sys; print(next(a["path"] for a in json.load(open(sys.argv[1]))["data"]["artifacts"] if a["format"] == "dist-toy"))' "$envelope")
+rm -rf "$out"
+cp -r "$(dirname "$index")" "$out"
+
+# The actual native program draws each opening. The launch envelope preserves
+# mcpp's selected executable/environment; physical paths are stripped from
+# published geometry, and hidden pages have no image src to prefetch.
+"$mcpp" run omui-site -p omui.site --print-launch > target/site-native.launch.json
+python3 tools/ci/site-frames.py --launch target/site-native.launch.json --out "$out"
+
+"$mcpp" run omui-site -p omui.site -- --prerender "$out/index.html" --opening-assets "$out/first-frames.assets.omui.json" \
+  || { echo "::error::the site's places were not pre-rendered"; exit 1; }
+# What an agent needs to operate it (agent connect §5.2), as every openmui
+# application writes it: agent.md, .well-known/openmui-agent.json, the page's link.
+"$mcpp" run omui-site -p omui.site -- --agent-guide "$out" \
+  || { echo "::error::the site's agent guide was not written"; exit 1; }
+# The program cut in two by what its first screen runs (D5): the first half
+# before the first frame, the rest compiled after it (tools/ci/site-split.sh).
+MCPP="$mcpp" tools/ci/site-split.sh "$out"
+
+python3 - "$out" <<'PY'
+import os, sys
+out = sys.argv[1]
+page = open(os.path.join(out, "index.html"), encoding="utf-8").read()
+need = ['var omuiDeferred = {' if os.environ.get("OMUI_REQUIRE_BROWSER") == "1" else 'var omuiDeferred', '<main id="omui-static"', '<section id="/home"', '<section id="/docs/features"', 'aria-label="One interface. Every perspective."',
+        "window.omuiHasPresented", "@font-face", '<canvas id="canvas"', '<link rel="openmui-agent" href="agent.md">',
+        'id="omui-first-frames"']
+missing = [n for n in need if n not in page]
+if missing:
+    sys.exit(f"::error::the page lacks {missing}")
+for f in ("agent.md", os.path.join(".well-known", "openmui-agent.json"), "first-frames.assets.omui.json"):
+    if not os.path.isfile(os.path.join(out, f)):
+        sys.exit(f"::error::the site has no {f}")
+if "toy-sdk" in page:
+    sys.exit("::error::the site loads Toy's SDK")
+files = [(os.path.join(d, f)) for d, _, fs in os.walk(out) for f in fs]
+total = sum(os.path.getsize(f) for f in files)
+print(f"site: index.html {len(page.encode())} bytes; {len(files)} files, {total / 1048576:.2f} MiB")
+for f in sorted(files, key=os.path.getsize, reverse=True)[:4]:
+    print(f"  {os.path.getsize(f) / 1048576:>8.2f} MiB  {os.path.relpath(f, out)}")
+PY

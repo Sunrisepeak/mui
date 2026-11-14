@@ -1,0 +1,628 @@
+// openmui.rhi without a GPU: descriptions checked before a backend sees
+// them, command lists recorded as data (payloads owned, hashed by content),
+// and every kind of mistake in a list caught by validation with the command
+// that made it — against a device that only remembers what it created.
+import std;
+import mlibs.rhi;
+import mlibs.memory;
+import mlibs.testing;
+import mcpplibs.mtest;
+
+using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
+using namespace mlibs::rhi;
+
+namespace {
+
+// Remembers resources; runs nothing.
+class Recorder final : public Device {
+public:
+    Caps caps_{.backend = Backend::vulkan, .device = "recorder", .formats = formats({ShaderFormat::spirv}), .max_texture_size = 4096,
+               .max_samples = 4, .depth = true, .max_color_targets = 3};
+    std::vector<std::uint64_t> ran;
+
+    const Caps& caps() const noexcept override { return caps_; }
+    void destroy(Buffer b) noexcept override { buffers_.erase(b); }
+    void destroy(Texture t) noexcept override { textures_.erase(t); }
+    void destroy(Sampler s) noexcept override { samplers_.erase(s); }
+    void destroy(GraphicsPipeline p) noexcept override { graphics_.erase(p); }
+    void destroy(ComputePipeline p) noexcept override { compute_.erase(p); }
+    std::optional<BufferDesc> describe(Buffer b) const noexcept override {
+        auto* d = buffers_.get(b);
+        return d ? std::optional(*d) : std::nullopt;
+    }
+    std::optional<TextureDesc> describe(Texture t) const noexcept override {
+        auto* d = textures_.get(t);
+        return d ? std::optional(*d) : std::nullopt;
+    }
+    bool exists(Sampler s) const noexcept override { return samplers_.contains(s); }
+    std::optional<GraphicsPipelineInfo> describe(GraphicsPipeline p) const noexcept override {
+        auto* d = graphics_.get(p);
+        return d ? std::optional(*d) : std::nullopt;
+    }
+    std::optional<ComputePipelineInfo> describe(ComputePipeline p) const noexcept override {
+        auto* d = compute_.get(p);
+        return d ? std::optional(*d) : std::nullopt;
+    }
+    Result<void> wait(Submission) override { return {}; }
+    Result<void> wait_idle() override { return {}; }
+
+protected:
+    Result<Buffer> make(const BufferDesc& d) override { return buffers_.insert({d.size, d.usage, {}}); }
+    Result<Texture> make(const TextureDesc& d) override { return textures_.insert({d.format, d.width, d.height, d.usage, {}, d.samples, d.levels}); }
+    Result<Sampler> make(const SamplerDesc& d) override { return samplers_.insert(d); }
+    Result<GraphicsPipeline> make(const GraphicsPipelineDesc& d) override {
+        GraphicsPipelineInfo info{counts(*d.vertex), counts(*d.fragment), static_cast<std::uint32_t>(d.vertex_buffers.size()), d.target, d.depth_target, d.samples, {}, 0};
+        for (const MoreTarget& another : d.more_targets) info.more_targets[info.more++] = another.format;
+        return graphics_.insert(info);
+    }
+    Result<ComputePipeline> make(const ComputePipelineDesc& d) override { return compute_.insert({counts(*d.shader)}); }
+    Result<Submission> run(const CommandList& list) override {
+        ran.push_back(list.hash());
+        return Submission{ran.size()};
+    }
+    Result<void> fetch(Texture, Region, std::span<std::byte> out) override {
+        std::ranges::fill(out, std::byte{7});
+        return {};
+    }
+    Result<void> fetch(Buffer, std::uint32_t, std::span<std::byte> out) override {
+        std::ranges::fill(out, std::byte{9});
+        return {};
+    }
+
+private:
+    mlibs::memory::SlotMap<BufferDesc, BufferTag>                         buffers_;
+    mlibs::memory::SlotMap<TextureDesc, TextureTag>                       textures_;
+    mlibs::memory::SlotMap<SamplerDesc, SamplerTag>                       samplers_;
+    mlibs::memory::SlotMap<GraphicsPipelineInfo, GraphicsPipelineTag>     graphics_;
+    mlibs::memory::SlotMap<ComputePipelineInfo, ComputePipelineTag>       compute_;
+};
+
+constexpr std::array<std::byte, 4> code{std::byte{3}, std::byte{2}, std::byte{0x23}, std::byte{7}};
+constexpr std::array<ShaderCode, 1> spirv{ShaderCode{ShaderFormat::spirv, code}};
+constexpr std::array<ShaderCode, 1> msl_only{ShaderCode{ShaderFormat::msl, code}};
+
+// The pieces of a textured-quad pipeline.
+struct Scene {
+    Recorder         d;
+    ShaderDesc       vs{.stage = Stage::vertex, .entry = "vs_main", .code = spirv, .uniform_buffers = 1};
+    ShaderDesc       fs{.stage = Stage::fragment, .entry = "fs_main", .code = spirv, .samplers = 1};
+    std::array<VertexAttribute, 2> attrs{VertexAttribute{0, VertexFormat::float2, 0}, VertexAttribute{1, VertexFormat::float2, 8}};
+    std::array<VertexBufferLayout, 1> layout{VertexBufferLayout{16, false, attrs}};
+    Texture          target, image;
+    Buffer           quad;
+    Sampler          sampler;
+    GraphicsPipeline pipeline;
+
+    Scene() {
+        target = *d.create(TextureDesc{.width = 64, .height = 32, .usage = TextureUsage::color_target});
+        image = *d.create(TextureDesc{.width = 8, .height = 8, .usage = TextureUsage::sampled});
+        quad = *d.create(BufferDesc{.size = 64, .usage = BufferUsage::vertex});
+        sampler = *d.create(SamplerDesc{});
+        pipeline = *d.create(GraphicsPipelineDesc{.vertex = &vs, .fragment = &fs, .vertex_buffers = layout});
+    }
+
+    // A complete, valid frame: upload, then a pass drawing the quad.
+    void frame(CommandList& l) {
+        const std::array<float, 16> vertices{};
+        l.upload(quad, 0, std::span<const float>(vertices));
+        l.begin_render({target, LoadOp::clear, {0, 0, 0, 1}});
+        l.set_pipeline(pipeline);
+        l.bind_vertex_buffer(0, quad);
+        l.bind_texture(Stage::fragment, 0, image, sampler);
+        l.push_uniforms(Stage::vertex, 0, std::array<float, 4>{1, 1, 1, 1});
+        l.draw(4);
+        l.end_render();
+    }
+};
+
+std::string invalid(Scene& s, const CommandList& l) {
+    auto r = s.d.submit(l);
+    if (r) return "<accepted>";
+    return r.error().text();
+}
+
+}  // namespace
+
+UTest cases{"rhi", [] {
+
+    "descriptions are checked before a backend sees them"_test = [] {
+        Recorder d;
+        auto bad = [&](auto desc) {
+            auto r = d.create(desc);
+            return r ? std::string("<made>") : r.error().message;
+        };
+        expect(eq(bad(BufferDesc{.size = 0}), std::string("a buffer of 0 bytes")));
+        expect(eq(bad(TextureDesc{.width = 5000, .height = 10}), std::string("a texture of 5000×10: this device's largest is 4096")));
+        expect(eq(bad(TextureDesc{.format = Format::bgra8_unorm, .width = 4, .height = 4, .usage = TextureUsage::compute_write}),
+                 std::string("bgra8_unorm cannot be a storage texture (rgba8_unorm, rgba16_float, r32_float or r32_uint can)")));
+        const ShaderDesc metal_vs{.stage = Stage::vertex, .entry = "vs", .code = msl_only};
+        const ShaderDesc fs{.stage = Stage::fragment, .entry = "fs", .code = spirv};
+        expect(eq(bad(GraphicsPipelineDesc{.vertex = &metal_vs, .fragment = &fs}), std::string("the shader `vs` is compiled to msl; this device takes spirv")));
+        expect(eq(bad(GraphicsPipelineDesc{.vertex = &fs, .fragment = &fs}), std::string("`fs` is a fragment shader, not a vertex shader")));
+        const ShaderDesc vs{.stage = Stage::vertex, .entry = "vs", .code = spirv};
+        const std::array<VertexAttribute, 1> wide{VertexAttribute{0, VertexFormat::float4, 8}};
+        const std::array<VertexBufferLayout, 1> layout{VertexBufferLayout{16, false, wide}};
+        expect(eq(bad(GraphicsPipelineDesc{.vertex = &vs, .fragment = &fs, .vertex_buffers = layout}),
+                 std::string("the attribute at location 0 ends at byte 24, past the stride 16 of vertex buffer 0")));
+        const ShaderDesc writes{.stage = Stage::fragment, .entry = "fs", .code = spirv, .rw_storage_buffers = 1};
+        expect(eq(bad(GraphicsPipelineDesc{.vertex = &vs, .fragment = &writes}),
+                 std::string("the fragment shader `fs` declares read-write storage; only compute shaders write storage")));
+        const ShaderDesc cs{.stage = Stage::compute, .entry = "cs", .code = spirv, .threads = {8, 0, 1}};
+        expect(eq(bad(ComputePipelineDesc{.shader = &cs}), std::string("the compute shader `cs` has a work group of 8×0×1")));
+    };
+
+    "a list is data: payloads owned, hashed by content, cleared without freeing"_test = [] {
+        Scene sc;
+        CommandList a, b;
+        sc.frame(a);
+        sc.frame(b);
+        expect(eq(a.size(), std::size_t{8}));
+        expect(eq(command_name(a.commands()[6]), std::string_view("draw")));
+        expect(a.hash() == b.hash()) << "the same frame, the same hash";
+        std::vector<float> uniforms{1, 2, 3, 4};
+        b.push_uniforms(Stage::fragment, 0, std::as_bytes(std::span(uniforms)));
+        const auto before = b.hash();
+        uniforms[0] = 99;  // the list kept its own copy
+        expect(b.hash() == before && a.hash() != before);
+        b.clear();
+        sc.frame(b);
+        expect(a.hash() == b.hash()) << "cleared and recorded again";
+        expect(sc.d.submit(a).has_value()) << "a valid frame is accepted";
+        expect(eq(sc.d.ran.size(), std::size_t{1}));
+    };
+
+    "validation names the command and what is wrong with it"_test = [] {
+        Scene sc;
+        auto list = [&](auto&& record) {
+            CommandList l;
+            record(l);
+            return invalid(sc, l);
+        };
+        expect(eq(list([&](CommandList& l) { l.draw(3); }), std::string("rhi.invalid (invalid-argument): command 0 (draw): only inside a render pass")));
+        expect(eq(list([&](CommandList& l) {
+                     l.begin_render({sc.target});
+                     l.draw(3);
+                     l.end_render();
+                 }),
+                 std::string("rhi.invalid (invalid-argument): command 1 (draw): no pipeline is set")));
+        expect(eq(list([&](CommandList& l) {
+                     l.begin_render({sc.target});
+                     l.set_pipeline(sc.pipeline);
+                     l.bind_texture(Stage::fragment, 0, sc.image, sc.sampler);
+                     l.draw(3);
+                     l.end_render();
+                 }),
+                 std::string("rhi.invalid (invalid-argument): command 3 (draw): the pipeline reads vertex buffer 0, and none is bound")));
+        expect(eq(list([&](CommandList& l) {
+                     l.begin_render({sc.target});
+                     l.set_pipeline(sc.pipeline);
+                     l.bind_vertex_buffer(0, sc.quad);
+                     l.draw(3);
+                     l.end_render();
+                 }),
+                 std::string("rhi.invalid (invalid-argument): command 3 (draw): the fragment shader reads a sampled texture at slot 0, and nothing is bound there")));
+        expect(eq(list([&](CommandList& l) { l.begin_render({sc.image}); l.end_render(); }),
+                 std::string("rhi.invalid (invalid-argument): command 0 (begin_render): the texture was not created for use as a colour target")));
+        expect(eq(list([&](CommandList& l) { l.begin_render({sc.target}); }), std::string("rhi.invalid (invalid-argument): the list ends inside a render pass")));
+        expect(eq(list([&](CommandList& l) {
+                     l.begin_render({sc.target});
+                     l.begin_render({sc.target});
+                 }),
+                 std::string("rhi.invalid (invalid-argument): command 1 (begin_render): a render pass inside a pass")));
+        expect(eq(list([&](CommandList& l) {
+                     const std::array<std::byte, 100> bytes{};
+                     l.upload(sc.quad, 0, bytes);
+                 }),
+                 std::string("rhi.invalid (invalid-argument): command 0 (upload_buffer): bytes 0–100 of a buffer of 64")));
+        expect(eq(list([&](CommandList& l) {
+                     const std::array<std::byte, 16> bytes{};
+                     l.upload(sc.image, Region{0, 0, 2, 3}, bytes);
+                 }),
+                 std::string("rhi.invalid (invalid-argument): command 0 (upload_texture): 16 bytes for a region that needs 24")));
+        expect(eq(list([&](CommandList& l) { l.push_uniforms(Stage::vertex, 0, std::span<const std::byte>(code.data(), 3)); }),
+                 std::string("rhi.invalid (invalid-argument): command 0 (push_uniforms): 3 bytes of uniforms (a multiple of 4)")));
+        // A stale handle: destroyed, then named.
+        const Buffer gone = *sc.d.create(BufferDesc{.size = 16, .usage = BufferUsage::vertex});
+        sc.d.destroy(gone);
+        expect(eq(list([&](CommandList& l) {
+                     const std::array<std::byte, 4> bytes{};
+                     l.upload(gone, 0, bytes);
+                 }),
+                 std::string("rhi.invalid (invalid-argument): command 0 (upload_buffer): a stale buffer handle")));
+        // A pipeline for another target format.
+        const Texture wide = *sc.d.create(TextureDesc{.format = Format::rgba16_float, .width = 4, .height = 4, .usage = TextureUsage::color_target});
+        expect(eq(list([&](CommandList& l) {
+                     l.begin_render({wide});
+                     l.set_pipeline(sc.pipeline);
+                     l.end_render();
+                 }),
+                 std::string("rhi.invalid (invalid-argument): command 1 (set_pipeline): the pipeline renders rgba8_unorm; the pass's target is rgba16_float")));
+        expect(sc.d.ran.empty()) << "nothing invalid reached the backend";
+    };
+
+    "depth and multisampling: formats, usages, samples, and passes that match their pipelines"_test = [] {
+        Scene sc;
+        auto bad = [&](auto desc) {
+            auto r = sc.d.create(desc);
+            return r ? std::string("<made>") : r.error().message;
+        };
+        using U = TextureUsage;
+        expect(eq(bad(TextureDesc{.format = Format::d32_float, .width = 4, .height = 4, .usage = U::sampled}),
+                 std::string("a d32_float texture is a depth target")));
+        expect(eq(bad(TextureDesc{.format = Format::d32_float, .width = 4, .height = 4, .usage = U::depth_target | U::color_target}),
+                 std::string("a d32_float texture is a depth target, and may be sampled; nothing else")));
+        expect(eq(bad(TextureDesc{.format = Format::rgba8_unorm, .width = 4, .height = 4, .usage = U::depth_target}),
+                 std::string("rgba8_unorm is not a depth format (d32_float, d32_float_s8)")));
+        expect(eq(bad(TextureDesc{.width = 4, .height = 4, .usage = U::color_target, .samples = 3}), std::string("3 samples a texel (1, 2, 4 or 8)")));
+        expect(eq(bad(TextureDesc{.width = 4, .height = 4, .usage = U::color_target, .samples = 8}),
+                 std::string("8 samples a texel: this device multisamples to 4 at most")));
+        expect(eq(bad(TextureDesc{.width = 4, .height = 4, .usage = U::color_target | U::sampled, .samples = 4}),
+                 std::string("a multisampled texture is only a render target (resolve it into one that is sampled)")));
+        const ShaderDesc vs{.stage = Stage::vertex, .entry = "vs", .code = spirv};
+        const ShaderDesc fs{.stage = Stage::fragment, .entry = "fs", .code = spirv};
+        expect(eq(bad(GraphicsPipelineDesc{.vertex = &vs, .fragment = &fs, .depth = {.test = true}}),
+                 std::string("a depth test or write needs the pipeline's depth_target format")));
+        expect(eq(bad(GraphicsPipelineDesc{.vertex = &vs, .fragment = &fs, .depth_target = Format::r32_float}),
+                 std::string("r32_float is not a depth format (d32_float, d32_float_s8)")));
+
+        const Texture z = *sc.d.create(TextureDesc{.format = Format::d32_float, .width = 64, .height = 32, .usage = U::depth_target});
+        const Texture msaa = *sc.d.create(TextureDesc{.width = 64, .height = 32, .usage = U::color_target, .samples = 4});
+        const Texture big = *sc.d.create(TextureDesc{.width = 128, .height = 64, .usage = U::color_target});
+        const GraphicsPipeline deep = *sc.d.create(GraphicsPipelineDesc{.vertex = &vs, .fragment = &fs, .depth_target = Format::d32_float,
+                                                                        .depth = {.test = true, .write = true}});
+        auto list = [&](auto&& record) {
+            CommandList l;
+            record(l);
+            return invalid(sc, l);
+        };
+        expect(eq(list([&](CommandList& l) {
+                     l.begin_render({sc.target}, {z});
+                     l.set_pipeline(sc.pipeline);
+                     l.end_render();
+                 }),
+                 std::string("rhi.invalid (invalid-argument): command 1 (set_pipeline): the pipeline renders with no depth; the pass has d32_float")));
+        expect(eq(list([&](CommandList& l) {
+                     l.begin_render({sc.target});
+                     l.set_pipeline(deep);
+                     l.end_render();
+                 }),
+                 std::string("rhi.invalid (invalid-argument): command 1 (set_pipeline): the pipeline renders with d32_float; the pass has no depth target")));
+        expect(eq(list([&](CommandList& l) {
+                     l.begin_render({msaa, LoadOp::clear, {}, sc.target});
+                     l.set_pipeline(sc.pipeline);
+                     l.end_render();
+                 }),
+                 std::string("rhi.invalid (invalid-argument): command 1 (set_pipeline): the pipeline renders 1 samples a texel; the pass's target has 4")));
+        expect(eq(list([&](CommandList& l) { l.begin_render({sc.target, LoadOp::clear, {}, big}); l.end_render(); }),
+                 std::string("rhi.invalid (invalid-argument): command 0 (begin_render): a resolve target for a target that is not multisampled")));
+        expect(eq(list([&](CommandList& l) { l.begin_render({msaa, LoadOp::clear, {}, big}); l.end_render(); }),
+                 std::string("rhi.invalid (invalid-argument): command 0 (begin_render): resolving rgba8_unorm 64×32 into rgba8_unorm 128×64")));
+        expect(eq(list([&](CommandList& l) { l.begin_render({big}, {z}); l.end_render(); }),
+                 std::string("rhi.invalid (invalid-argument): command 0 (begin_render): a depth target of 64×32 (1 samples) for a colour target of 128×64 (1 samples)")));
+        CommandList ok;
+        ok.begin_render({sc.target}, {z, LoadOp::clear, 1.0f, 0, true});
+        ok.set_pipeline(deep);
+        ok.end_render();
+        expect(sc.d.submit(ok).has_value()) << "a pass and its pipeline with the same depth";
+        // A pass without depth or resolve hashes as it always did.
+        CommandList plain, again;
+        plain.begin_render({sc.target});
+        again.begin_render({sc.target}, {});
+        expect(plain.hash() == again.hash());
+    };
+
+    "several colour targets a pass: as many as the device has, alike in size, each its pipeline's format"_test = [] {
+        Scene sc;
+        using U = TextureUsage;
+        const ShaderDesc vs{.stage = Stage::vertex, .entry = "vs", .code = spirv};
+        const ShaderDesc fs{.stage = Stage::fragment, .entry = "fs", .code = spirv};
+        const auto size = *sc.d.describe(sc.target);
+        const Texture second = *sc.d.create(TextureDesc{.width = size.width, .height = size.height, .usage = U::color_target});
+        const Texture number = *sc.d.create(TextureDesc{.format = Format::r32_float, .width = size.width, .height = size.height, .usage = U::color_target});
+        const Texture fourth = *sc.d.create(TextureDesc{.width = size.width, .height = size.height, .usage = U::color_target});
+        const Texture small = *sc.d.create(TextureDesc{.width = size.width / 2, .height = size.height, .usage = U::color_target});
+        const std::array<MoreTarget, 2> two_more{MoreTarget{Format::rgba8_unorm, Blend::premultiplied()}, MoreTarget{Format::r32_float, Blend::replace()}};
+        const std::array<MoreTarget, 3> three_more{MoreTarget{}, MoreTarget{}, MoreTarget{}};
+        const std::array<MoreTarget, 4> four_more{};
+        const auto three = sc.d.create(GraphicsPipelineDesc{.vertex = &vs, .fragment = &fs, .more_targets = two_more});
+        expect(fatal(three.has_value()));
+        // More than this device has a pass is unsupported; more than any has is not a pipeline.
+        const auto four = sc.d.create(GraphicsPipelineDesc{.vertex = &vs, .fragment = &fs, .more_targets = three_more});
+        expect(!four && four.error().code == Errc::unsupported) << "four targets on a device of three";
+        if (!four) expect(eq(four.error().message, std::string("recorder has 3 colour targets a pass; the pipeline renders 4")));
+        const auto five = sc.d.create(GraphicsPipelineDesc{.vertex = &vs, .fragment = &fs, .more_targets = four_more});
+        expect(!five && five.error().code == Errc::invalid);
+        if (!five) expect(eq(five.error().message, std::string("a pipeline of 5 colour targets; a pass has 4 at the most")));
+        auto list = [&](auto&& record) {
+            CommandList l;
+            record(l);
+            return invalid(sc, l);
+        };
+        const std::string where = "rhi.invalid (invalid-argument): command ";
+        auto pass = [&](std::initializer_list<ColorTarget> more, GraphicsPipeline pipeline = {}) {
+            return list([&](CommandList& l) {
+                l.begin_render({sc.target}, {}, std::span<const ColorTarget>(more.begin(), more.size()));
+                if (pipeline) l.set_pipeline(pipeline);
+                l.end_render();
+            });
+        };
+        expect(eq(pass({{second}, {small}}), where + std::format("0 (begin_render): colour target 2 is {}×{} (1 samples); the first is {}×{} (1 samples)", size.width / 2,
+                                                                   size.height, size.width, size.height)));
+        expect(eq(pass({{second}, {second}}), where + "0 (begin_render): one texture as two colour targets of a pass"));
+        expect(eq(pass({{sc.target}}), where + "0 (begin_render): one texture as two colour targets of a pass"));
+        expect(eq(pass({{second}, {number}, {fourth}}), where + "0 (begin_render): a pass of 4 colour targets; the device has 3 a pass"));
+        expect(eq(pass({{second}, {number}, {fourth}, {small}}), where + "0 (begin_render): a pass of 5 colour targets; a pass has 4 at the most"));
+        expect(eq(pass({{second}, {number}}, sc.pipeline), where + "1 (set_pipeline): the pipeline renders 1 colour targets; the pass has 3"));
+        expect(eq(pass({{number}, {second}}, *three), where + "1 (set_pipeline): the pipeline renders rgba8_unorm to colour target 1; the pass's is r32_float"));
+        expect(eq(pass({}, *three), where + "1 (set_pipeline): the pipeline renders 3 colour targets; the pass has 1"));
+        expect(eq(pass({{second}, {number}}, *three), std::string("<accepted>")));
+        // A gap among them, written into the command itself.
+        CommandList gapped;
+        gapped.begin_render({sc.target}, {}, std::array<ColorTarget, 2>{ColorTarget{}, ColorTarget{second}});
+        gapped.end_render();
+        expect(eq(invalid(sc, gapped), where + "0 (begin_render): a pass's colour targets have a gap"));
+        // A pass of one target hashes as it always did; another target is another list.
+        CommandList one, also_one, more;
+        one.begin_render({sc.target});
+        also_one.begin_render({sc.target}, {}, {});
+        more.begin_render({sc.target}, {}, std::array<ColorTarget, 1>{ColorTarget{second}});
+        expect(one.hash() == also_one.hash());
+        expect(one.hash() != more.hash());
+        // On the wire: the targets after the first follow the command's fields, counted.
+        std::vector<std::uint32_t> plain_words, more_words;
+        wire::encode(one, plain_words);
+        wire::encode(more, more_words);
+        expect(eq(more_words.size(), plain_words.size() + 1 + 6));
+        expect(eq(more_words[plain_words.size()], std::uint32_t{1}));
+        // A pipeline's words the same way: of one target as before, the others after — how many, each a format and its blend.
+        std::vector<std::uint32_t> of_one, of_three;
+        wire::encode(GraphicsPipelineDesc{.vertex = &vs, .fragment = &fs}, of_one);
+        wire::encode(GraphicsPipelineDesc{.vertex = &vs, .fragment = &fs, .more_targets = two_more}, of_three);
+        expect(eq(of_three.size(), of_one.size() + 1 + 2 * 8));
+        expect(std::ranges::equal(of_one, std::span(of_three).first(of_one.size())));
+        const std::span<const std::uint32_t> others = std::span(of_three).subspan(of_one.size());
+        expect(eq(others[0], 2u) && eq(others[1], static_cast<std::uint32_t>(Format::rgba8_unorm)) && eq(others[2], 1u));
+        expect(eq(others[9], static_cast<std::uint32_t>(Format::r32_float)) && eq(others[10], 0u));
+        // A device whose targets all blend as the first (Caps::independent_blend false): a target blending its own way is unsupported.
+        sc.d.caps_.independent_blend = false;
+        const auto own_way = sc.d.create(GraphicsPipelineDesc{.vertex = &vs, .fragment = &fs, .blend = Blend::replace(), .more_targets = two_more});
+        expect(!own_way && own_way.error().code == Errc::unsupported);
+        if (!own_way)
+            expect(eq(own_way.error().message,
+                      std::string("recorder blends every colour target of a pass as the first (Caps::independent_blend); the pipeline's target 1 blends its own way")));
+        const std::array<MoreTarget, 2> alike{MoreTarget{Format::rgba8_unorm, Blend::replace()}, MoreTarget{Format::r32_float, Blend::replace()}};
+        expect(sc.d.create(GraphicsPipelineDesc{.vertex = &vs, .fragment = &fs, .blend = Blend::replace(), .more_targets = alike}).has_value());
+        sc.d.caps_.independent_blend = true;
+    };
+
+    "pictures kept as blocks: made where the device samples the kind, whole blocks uploaded, nothing else"_test = [] {
+        Recorder d;
+        using U = TextureUsage;
+        expect(is_blocks(Format::bc7_unorm) && is_blocks(Format::astc_4x4_srgb) && !is_blocks(Format::rgba8_unorm) && !is_blocks(Format::d32_float_s8));
+        expect(eq(row_bytes(Format::bc7_unorm, 8), std::size_t{32}) && eq(row_bytes(Format::etc2_rgba8_srgb, 2), std::size_t{16}) && eq(row_bytes(Format::rgba16_float, 3), std::size_t{24}));
+        expect(eq(rows_of(Format::astc_4x4_unorm, 8), 2u) && eq(rows_of(Format::astc_4x4_unorm, 1), 1u) && eq(rows_of(Format::r8_unorm, 5), 5u));
+        expect(eq(name(Format::bc7_srgb), std::string_view("bc7_srgb")) && eq(name(Format::etc2_rgba8_unorm), std::string_view("etc2_rgba8_unorm")));
+        // A device that says nothing samples none: refused as unsupported, by name.
+        const auto none = d.create(TextureDesc{.format = Format::bc7_unorm, .width = 8, .height = 8});
+        expect(fatal(!none.has_value()));
+        expect(none.error().code == Errc::unsupported && eq(none.error().message, std::string("recorder samples no bc7_unorm blocks")));
+        d.caps_.bc7 = true;
+        const auto other = d.create(TextureDesc{.format = Format::astc_4x4_srgb, .width = 8, .height = 8});
+        expect(!other && other.error().code == Errc::unsupported);
+        const auto said = [&](const TextureDesc& desc) {
+            const auto made = d.create(desc);
+            return made ? std::string("made") : made.error().message;
+        };
+        expect(eq(said({.format = Format::bc7_srgb, .width = 8, .height = 8, .usage = U::sampled | U::color_target}), std::string("a bc7_srgb texture is uploaded and sampled; nothing else")));
+        expect(eq(said({.format = Format::bc7_srgb, .width = 6, .height = 8}), std::string("a bc7_srgb texture of 6×8: its sides are whole blocks (4 texels)")));
+        const auto made = d.create(TextureDesc{.format = Format::bc7_srgb, .width = 8, .height = 8, .levels = 4});
+        expect(fatal(made.has_value()));
+        const std::array<std::byte, 64> packed{};
+        const auto refused = [&](auto&& record) {
+            CommandList list;
+            record(list);
+            const auto submitted = d.submit(list);
+            return submitted ? std::string("taken") : submitted.error().message;
+        };
+        expect(eq(refused([&](CommandList& list) { list.upload(*made, Region{0, 0, 8, 8}, std::span(packed)); }), std::string("taken")));
+        expect(eq(refused([&](CommandList& list) { list.upload(*made, Region{4, 0, 4, 8}, std::span(packed).first(32)); }), std::string("taken")));
+        // The third level is 2 × 2: one block, the level's edge through it.
+        expect(eq(refused([&](CommandList& list) { list.upload(*made, Region{0, 0, 2, 2}, std::span(packed).first(16), 0, 2); }), std::string("taken")));
+        expect(eq(refused([&](CommandList& list) { list.upload(*made, Region{0, 0, 8, 8}, std::span(packed).first(48)); }),
+                  std::string("command 0 (upload_texture): 48 bytes for a region that needs 64")));
+        expect(eq(refused([&](CommandList& list) { list.upload(*made, Region{2, 0, 4, 4}, std::span(packed).first(16)); }),
+                  std::string("command 0 (upload_texture): the region 2+0 4×4 of a bc7_srgb texture is not whole blocks (4 texels a side, the last at the level's edge)")));
+        expect(eq(refused([&](CommandList& list) { list.upload(*made, Region{0, 0, 2, 4}, std::span(packed).first(16)); }),
+                  std::string("command 0 (upload_texture): the region 0+0 2×4 of a bc7_srgb texture is not whole blocks (4 texels a side, the last at the level's edge)")));
+        const Texture one = *d.create(TextureDesc{.format = Format::bc7_srgb, .width = 8, .height = 8});
+        const Texture another = *d.create(TextureDesc{.format = Format::bc7_srgb, .width = 8, .height = 8});
+        expect(eq(refused([&](CommandList& list) { list.copy(one, Region{0, 0, 8, 8}, another); }), std::string("command 0 (copy_texture): a bc7_srgb texture is not copied")));
+        const auto read = d.read(one, Region{0, 0, 8, 8});
+        expect(!read && eq(read.error().message, std::string("read: a bc7_srgb texture is not read back")));
+    };
+
+    "levels of a texture: as many as its size has, uploaded a level at a time and sampled, nothing else"_test = [] {
+        Recorder d;
+        using U = TextureUsage;
+        expect(eq(levels_of(32, 32), 6u) && eq(levels_of(8, 4), 4u) && eq(levels_of(1, 1), 1u) && eq(levels_of(5, 3), 3u));
+        expect(eq(level_extent(8, 1), 4u) && eq(level_extent(8, 3), 1u) && eq(level_extent(8, 5), 1u) && eq(level_extent(5, 1), 2u));
+        const auto said = [&](const TextureDesc& desc) {
+            const auto made = d.create(desc);
+            return made ? std::string("made") : made.error().message;
+        };
+        expect(eq(said({.width = 8, .height = 4, .levels = 0}), std::string("a texture of 8×4 with 0 levels (1 to 4)")));
+        expect(eq(said({.width = 8, .height = 4, .levels = 5}), std::string("a texture of 8×4 with 5 levels (1 to 4)")));
+        expect(eq(said({.width = 8, .height = 4, .usage = U::sampled | U::color_target, .levels = 2}), std::string("a texture of several levels is uploaded and sampled; nothing else")));
+        const auto made = d.create(TextureDesc{.width = 8, .height = 4, .levels = 4});
+        expect(fatal(made.has_value()));
+        expect(eq(d.describe(*made)->levels, 4u));
+        const Texture plain = *d.create(TextureDesc{.width = 8, .height = 4});
+        const std::array<std::byte, 8 * 4 * 4> texels{};
+        const auto refused = [&](auto&& record) {
+            CommandList list;
+            record(list);
+            const auto submitted = d.submit(list);
+            return submitted ? std::string("taken") : submitted.error().message;
+        };
+        // Level 2 of 8 × 4 is 2 × 1.
+        expect(eq(refused([&](CommandList& list) { list.upload(*made, Region{0, 0, 2, 1}, std::span(texels).first(8), 0, 2); }), std::string("taken")));
+        expect(eq(refused([&](CommandList& list) { list.upload(*made, Region{0, 0, 4, 2}, std::span(texels).first(32), 0, 2); }),
+                  std::string("command 0 (upload_texture): the region is not inside the texture's level 2 (2×1)")));
+        expect(eq(refused([&](CommandList& list) { list.upload(*made, Region{0, 0, 1, 1}, std::span(texels).first(4), 0, 4); }),
+                  std::string("command 0 (upload_texture): level 4 of a texture of 4")));
+        expect(eq(refused([&](CommandList& list) { list.copy(*made, Region{0, 0, 8, 4}, plain); }), std::string("command 0 (copy_texture): a texture of several levels is not copied")));
+        const auto read = d.read(*made, Region{0, 0, 8, 4});
+        expect(!read && eq(read.error().message, std::string("read: a texture of several levels is not read back")));
+        // Level 0 is said as it always was: the same hash, the same words; a level after it is one word more.
+        CommandList before, first, third;
+        before.upload(plain, Region{0, 0, 2, 1}, std::span(texels).first(8));
+        first.upload(plain, Region{0, 0, 2, 1}, std::span(texels).first(8), 0, 0);
+        third.upload(*made, Region{0, 0, 2, 1}, std::span(texels).first(8), 0, 2);
+        expect(before.hash() == first.hash());
+        std::vector<std::uint32_t> first_words, third_words;
+        wire::encode(first, first_words);
+        wire::encode(third, third_words);
+        expect(eq(third_words.size(), first_words.size() + 1) && eq(third_words.back(), 2u));
+        expect(eq(wire::length(first_words[0]), 9u) && eq(wire::length(third_words[0]), 10u));
+    };
+
+    "compute passes: outputs declared, the shader's writes covered, reads bound"_test = [] {
+        Recorder d;
+        const ShaderDesc cs{.stage = Stage::compute, .entry = "blur", .code = spirv, .samplers = 1, .rw_storage_textures = 1, .threads = {8, 8, 1}};
+        const ComputePipeline p = *d.create(ComputePipelineDesc{.shader = &cs});
+        const Texture out = *d.create(TextureDesc{.width = 16, .height = 16, .usage = TextureUsage::compute_write | TextureUsage::sampled});
+        const Texture in = *d.create(TextureDesc{.width = 16, .height = 16, .usage = TextureUsage::sampled});
+        const Sampler smp = *d.create(SamplerDesc{});
+        auto run = [&](auto&& record) {
+            CommandList l;
+            record(l);
+            auto r = d.submit(l);
+            return r ? std::string("<accepted>") : r.error().message;
+        };
+        expect(eq(run([&](CommandList& l) {
+                     const std::array<Texture, 1> writes{out};
+                     l.begin_compute(writes);
+                     l.set_pipeline(p);
+                     l.bind_texture(Stage::compute, 0, in, smp);
+                     l.dispatch(2, 2);
+                     l.end_compute();
+                 }),
+                 std::string("<accepted>")));
+        expect(eq(run([&](CommandList& l) {
+                     l.begin_compute({});
+                     l.set_pipeline(p);
+                     l.end_compute();
+                 }),
+                 std::string("command 1 (set_compute_pipeline): the shader writes 1 textures and 0 buffers; the pass named 0 and 0")));
+        expect(eq(run([&](CommandList& l) {
+                     const std::array<Texture, 1> writes{in};
+                     l.begin_compute(writes);
+                     l.end_compute();
+                 }),
+                 std::string("command 0 (begin_compute): the texture was not created for use as a compute shader's output")));
+        expect(eq(run([&](CommandList& l) {
+                     const std::array<Texture, 1> writes{out};
+                     l.begin_compute(writes);
+                     l.set_pipeline(p);
+                     l.dispatch(1);
+                     l.end_compute();
+                 }),
+                 std::string("command 2 (dispatch): the compute shader reads a sampled texture at slot 0, and nothing is bound there")));
+    };
+
+    "readback is sized and bounded before the backend fetches"_test = [] {
+        Scene sc;
+        auto pixels = sc.d.read(sc.target, Region{0, 0, 4, 2});
+        expect(pixels && pixels->size() == 32 && (*pixels)[0] == std::byte{7});
+        expect(eq(sc.d.read(sc.target, Region{60, 0, 8, 1}).error().message, std::string("read: the region 60+0 8×1 is not inside the 64×32 texture")));
+        std::array<std::byte, 8> few{};
+        expect(eq(sc.d.read(sc.target, Region{0, 0, 4, 2}, few).error().message, std::string("read: 8 bytes asked for a region of 32")));
+        std::array<std::byte, 16> b{};
+        expect(sc.d.read(sc.quad, 48, b).has_value() && b[0] == std::byte{9});
+        expect(eq(sc.d.read(sc.quad, 56, b).error().message, std::string("read: bytes 56–72 of a buffer of 64")));
+    };
+
+    "present: a sampled rgba8 or bgra8 frame, to a device made for a window"_test = [] {
+        Scene sc;
+        auto frame = sc.d.create(TextureDesc{Format::rgba8_unorm, 8, 8, TextureUsage::color_target | TextureUsage::sampled, "frame"});
+        auto unsampled = sc.d.create(TextureDesc{Format::rgba8_unorm, 8, 8, TextureUsage::color_target, "unsampled"});
+        auto r8 = sc.d.create(TextureDesc{Format::r8_unorm, 8, 8, TextureUsage::sampled, "mask"});
+        expect(frame && unsampled && r8);
+        if (!frame || !unsampled || !r8) return;
+        expect(eq(sc.d.present(*unsampled).error().message,
+                 std::string("present: the frame is not sampled (TextureUsage::sampled): the device reads it")));
+        expect(eq(sc.d.present(*r8).error().message, std::string("present: a r8_unorm texture; a frame is rgba8_unorm or bgra8_unorm")));
+        sc.d.destroy(*unsampled);
+        expect(eq(sc.d.present(*unsampled).error().message, std::string("present: a stale texture handle")));
+        // A device made for no window says so; the backend's own show() is not reached otherwise.
+        const auto none = sc.d.present(*frame);
+        expect(!none && none.error().code == Errc::unsupported) << (none ? "" : none.error().message);
+    };
+
+    "the wire: a list as words, each command its op, its length and its fields, payloads where they lie; a pipeline's state"_test = [] {
+        Scene sc;
+        CommandList l;
+        sc.frame(l);
+        const std::array<Texture, 1> writes{sc.image};
+        l.begin_compute(writes);
+        l.dispatch(2, 3);
+        l.end_compute();
+        std::vector<std::uint32_t> words;
+        wire::encode(l, words);
+        // Walk it: every header's length lands on the next header.
+        std::vector<wire::Op> ops;
+        std::vector<std::size_t> at;
+        for (std::size_t i = 0; i < words.size(); i += 1 + wire::length(words[i])) {
+            ops.push_back(wire::op(words[i]));
+            at.push_back(i);
+        }
+        using enum wire::Op;
+        expect(ops == std::vector{upload_buffer, begin_render, set_pipeline, bind_vertex_buffer, bind_texture, push_uniforms, draw, end_render,
+                                 begin_compute, dispatch, end_compute}) << std::format("{} commands", ops.size());
+        if (ops.size() != 11) return;
+        auto field = [&](std::size_t command, std::size_t k) { return words[at[command] + 1 + k]; };
+        // upload_buffer: buffer, offset, the payload's address and length — the list's own copy.
+        const auto& up = std::get<cmd::UploadBuffer>(l.commands()[0]);
+        expect(eq(field(0, 0), sc.quad.index));
+        expect(eq(field(0, 1), 0u));
+        const auto address = static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(up.data.data()));
+        expect(field(0, 2) == static_cast<std::uint32_t>(address) && field(0, 3) == static_cast<std::uint32_t>(address >> 32)) << "the address";
+        expect(eq(field(0, 4), 64u));
+        // begin_render: the clear colour as floats, no resolve, no depth.
+        expect(eq(wire::length(words[at[1]]), 12u));
+        expect(eq(field(1, 0), sc.target.index));
+        expect(eq(field(1, 1), static_cast<std::uint32_t>(LoadOp::clear)));
+        expect(eq(std::bit_cast<float>(field(1, 5)), 1.0f));
+        expect(eq(field(1, 6), wire::none));
+        expect(eq(field(1, 7), wire::none));
+        expect(eq(field(1, 9), std::bit_cast<std::uint32_t>(1.0f)));
+        // bind_texture: stage, slot, texture, sampler.
+        expect(field(4, 0) == static_cast<std::uint32_t>(Stage::fragment) && field(4, 1) == 0 && field(4, 2) == sc.image.index &&
+              field(4, 3) == sc.sampler.index);
+        // push_uniforms: 16 bytes for the vertex stage's slot 0.
+        expect(field(5, 0) == static_cast<std::uint32_t>(Stage::vertex) && field(5, 1) == 0 && field(5, 4) == 16);
+        expect(field(6, 0) == 4 && field(6, 1) == 1 && field(6, 2) == 0 && field(6, 3) == 0) << "draw(4)";
+        // begin_compute: one texture, no buffers.
+        expect(wire::length(words[at[8]]) == 3 && field(8, 0) == 1 && field(8, 1) == sc.image.index && field(8, 2) == 0);
+        expect(field(9, 0) == 2 && field(9, 1) == 3 && field(9, 2) == 1) << "dispatch(2, 3)";
+        // Appended, the capacity kept.
+        const std::size_t n = words.size();
+        words.clear();
+        wire::encode(l, words);
+        expect(eq(words.size(), n));
+        // A pipeline: the stages' counts, the target and blend, topology, depth, samples, the vertex layout.
+        std::vector<std::uint32_t> p;
+        wire::encode(GraphicsPipelineDesc{.vertex = &sc.vs, .fragment = &sc.fs, .vertex_buffers = sc.layout, .depth_target = Format::d32_float,
+                                          .depth = {.test = true, .write = true, .compare = Compare::less}},
+                     p);
+        const std::vector<std::uint32_t> want{0, 0, 0, 1,  1, 0, 0, 0,  static_cast<std::uint32_t>(Format::rgba8_unorm), 1, 1, 7, 0, 1, 7, 0,
+                                              0, static_cast<std::uint32_t>(Format::d32_float), 1, 1, 1, 1,
+                                              1, 16, 0, 2, 0, 1, 0, 1, 1, 8};
+        expect(p == want) << std::format("{}", p);
+        p.clear();
+        const ShaderDesc cs{.stage = Stage::compute, .entry = "cs", .code = spirv, .uniform_buffers = 1, .rw_storage_textures = 2};
+        wire::encode(ComputePipelineDesc{&cs}, p);
+        expect(p == std::vector<std::uint32_t>{0, 0, 0, 1, 2, 0}) << std::format("{}", p);
+    };
+}};

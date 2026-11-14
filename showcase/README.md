@@ -1,0 +1,14 @@
+# showcase
+
+Flagship works: each is a real tool, shows a feature of the framework, and has a signature shot that replays exactly under the headless host (D-63). Each README shows that shot, and each has a `dev-story.md`: how it was built with the framework (its assets too), and a self-review whose general lessons go into [best practices](../docs/en/best-practices.md).
+
+| Work | What it is | What it shows |
+|---|---|---|
+| [fighting](fighting) | 格斗游戏, the fighting game: gongfu's match, played from the keyboard or by an agent, with a training mode | Deterministic rollback simulation on the runtime's clock; the game as a semantic node an agent plays; boxes and the frame meter |
+| [kiln](kiln) | Kiln — Mui the pixel cat, a wand of fire, water and bombs, in caverns where everything is matter (M6.2's slice; in progress: the simulation) | Emergent play with no scripted interaction: what burns, floats, sinks, melts and blasts follows from the standard laws of matter; the whole world rewinds and branches bit for bit |
+| [quay](quay) | Quay — a watchkeeper on a harbour at night lights the beacon at the end of the breakwater before the tide, past wardens that patrol the containers (M6.4's slice; in progress: the simulation) | Guards that know only what they hear and see: noises reach them by the same rule the speakers play sound by, through the containers' steel; the whole game a value that branches |
+| [markdown-wall](markdown-wall) | A wall of a folder's documents on an infinite canvas | Tiers of detail, live windows, declarative behaviours, streaming; 1000 windows within budget |
+| [promo-video](promo-video) | openmui's film: sixty seconds and a fifteen-second cut, every shot a live openmui scene; rendered, checked and re-rendered from its timeline by `omui-promo` (S5) | Frames as functions of time: any one drawn on its own, the same bytes; the semantic tree in every shot; the film rewinding itself; its acceptance as tests |
+| [style-gallery](style-gallery) | A settings panel and dashboard in eight style packs (five creative, and Fluent, Cupertino, Material) | Slang effects, cross-fades, the same semantic tree in every style |
+| [swarm](swarm) | Swarm — a small top-down shooter with no window: move, aim, shoot; waves that chase; three lives. Played over lines (`swarm-play`) by an agent, a playtest or CI | A game made from the engine's public parts alone (runtime, input, world; math, hash): deterministic, rewound and branched, saying its own controls and tasks; the agent contract's suite passing on it |
+| [widget-breakout](widget-breakout) | 《组件打砖块：闹鬼的设置》 — the Settings panel is haunted and every control works: charge a slider into a beam, switch a shield open, bank chains to buy a rewind (S4) | A real game first; components, canvas, time, agents and scripts are its mechanics, never a lecture (an inspector explains them on Tab) |

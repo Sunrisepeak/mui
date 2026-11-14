@@ -1,0 +1,276 @@
+# The workspace of every member. Each member has its own mcpp.toml and depends
+# on others only by `path`, so any of them can move to its own repository
+# (D-41). The umbrella package users name is modules/projects/omui/sdk; this
+# manifest declares no package (convergence plan §9.2).
+# The workspace's tools, from xlings, installed for the verbs that need them:
+# esbuild is the oracle of omui.lang.ts's type stripper (its tests); tsc
+# (TypeScript 7, native, no node) is what `omui check` type-checks with and
+# what omui.lang.js's declaration tests run: `mcpp test` and `mcpp run`
+# install them and a plain build does not.
+[workspace.xlings.workspace]
+"xim:esbuild" = { version = "0.25.12", when = "run" }
+"xim:typescript" = { version = "7.0.2", when = "run" }
+
+[workspace]
+members = [
+    "spec",
+    "modules/base/control",
+    "modules/base/agent",
+    "modules/base/agent/cts",
+    "modules/base/cts",
+    "modules/base/geom",
+    "modules/base/geom/boolean",
+    "modules/projects/hanim/core",
+    "modules/base/image",
+    "modules/base/image/ktx2",
+    "modules/base/json",
+    "modules/base/math",
+    "modules/base/memory",
+    "modules/base/pipeline",
+    "modules/base/session",
+    "modules/mpal",
+    "modules/base/simulation",
+    "modules/projects/xengine/kernel/dynamics",
+    "modules/projects/xengine/kernel/dynamics/cts",
+    "modules/projects/xengine/kernel/cellular",
+    "modules/projects/xengine/kernel/matter",
+    "modules/projects/xengine/kernel/particles",
+    "modules/projects/xengine/kernel/matter/cts",
+    "modules/projects/xengine/kernel/matter/lab",
+    "modules/base/unicode",
+    "modules/base/utils",
+    "modules/projects/hanim",
+    "modules/projects/xrender/raster",
+    "modules/projects/xrender/text",
+    "modules/projects/xrender/graph",
+    "modules/projects/xrender/cts",
+    "modules/projects/xrender/vector",
+    "modules/projects/xrender/frame",
+    "modules/projects/xrender/scene",
+    "modules/projects/xrender/sprite",
+    "modules/projects/xrender/mesh",
+    "modules/projects/xrender/particle",
+    "modules/projects/xrender/particle/gpu",
+    "modules/projects/xrender/particle/gpu/cts",
+    "modules/projects/xrender/mesh/gpu",
+    "modules/projects/xrender/mesh/gpu/cts",
+    "modules/projects/xrender/asset",
+    "modules/projects/xrender/effect",
+    "modules/gfx/rhi",
+    "modules/gfx/rhi/cts",
+    "modules/projects/xrender/rhi/sdl",
+    "modules/projects/xrender/tool",
+    "modules/projects/xrender/rhi/webgpu",
+    "modules/projects/xrender/rhi/webgl",
+    "modules/gfx/shader",
+    "modules/gfx/shader/rules",
+    "modules/projects/xengine/kernel/cellular/present",
+    "modules/projects/xengine/kernel/cellular/sdl",
+    "modules/projects/xengine/kernel/cellular/rhi",
+    "modules/projects/xengine/kernel/cellular/rhi/cts",
+    "modules/content/i18n",
+    "modules/content/i18n/cldr",
+    "modules/content/layout",
+    "modules/content/markdown",
+    "modules/content/text",
+    "modules/projects/xengine/kernel/audio",
+    "modules/projects/xengine/kernel/audio/device",
+    "modules/projects/xengine/kernel/video",
+    "modules/projects/xengine/kernel/video/webm",
+    "modules/projects/hanim/timeline",
+    "modules/projects/hanim/timeline/tool",
+    "modules/projects/xengine/kernel/audio/timeline",
+    "modules/projects/omui/abi",
+    "modules/projects/omui/accessibility",
+    "modules/projects/omui/agent",
+    "modules/projects/omui/generate",
+    "modules/projects/omui/core",
+    "modules/projects/omui/sdk",
+    "modules/projects/omui/expr",
+    "modules/projects/omui/host/headless",
+    "modules/projects/omui/host/android",
+    "modules/projects/omui/host/sdl3",
+    "modules/projects/omui/host/web",
+    "modules/projects/omui/host/web/toy",
+    "modules/projects/omui/native",
+    "modules/projects/omui/native/fuzzy",
+    "modules/projects/omui/native/store",
+    "modules/projects/omui/player",
+    "modules/projects/omui/designer",
+    "modules/projects/omui/reflect",
+    "modules/projects/omui/semantic",
+    "modules/projects/hanim/visual",
+    "modules/projects/hanim/rhi",
+    "modules/projects/hanim/studio",
+    "modules/projects/hanim/skeleton",
+    "modules/projects/hanim/skeleton/cts",
+    "modules/projects/omui/theme",
+    "modules/projects/omui/theme/compact",
+    "modules/projects/omui/theme/default",
+    "modules/projects/omui/theme/styles",
+    "modules/projects/omui/view",
+    "modules/projects/omui/viewdoc",
+    "modules/projects/gongfu",
+    "modules/projects/gongfu/data",
+    "modules/projects/gongfu/present2d",
+    "modules/projects/gongfu/rules",
+    "modules/projects/gongfu/studio",
+    "modules/projects/gongfu/training",
+    "modules/projects/gongfu/ai",
+    "modules/projects/xengine/game/net",
+    "modules/projects/xengine/game/world",
+    "modules/projects/xengine/game/runtime",
+    "modules/projects/xengine/game/playtest",
+    "modules/projects/xengine/game/input",
+    "modules/projects/xengine/game/ui",
+    "modules/projects/xengine/game/nav",
+    "modules/projects/xengine/game/nav/cts",
+    "modules/projects/omui/components/base",
+    "modules/projects/omui/components/canvas",
+    "modules/projects/omui/components/canvas/kit",
+    "modules/projects/omui/components/liquid-glass",
+    "modules/projects/omui/components/markdown",
+    "modules/projects/omui/components/timeline",
+    "modules/projects/omui/components/window",
+    "modules/projects/omui/lang",
+    "modules/projects/omui/lang/js",
+    "modules/projects/omui/lang/ts",
+    "tools/cli",
+    "tools/gen",
+    "tools/inspector",
+    "tools/mcp",
+    "mcpp/plan",
+    "mcpp/contracts",
+    "mcpp/embed",
+    "mcpp/toy",
+    "src/entry/player",
+    "src/entry/devhost",
+    "tests/bench",
+    "tests/bench/competitors",
+    "modules/projects/omui/cts",
+    "tests/size/yard",
+    "tests/features",
+    "tests/plugins/contracts",
+    "tests/plugins/embed",
+    "examples/01-hello-im",
+    "examples/02-hello-ts",
+    "examples/03-counter",
+    "examples/04-rating",
+    "examples/05-contrast",
+    "examples/06-theming",
+    "examples/07-headless-and-agent",
+    "examples/08-markdown-viewer",
+    "examples/09-markdown-stream",
+    "examples/10-canvas-basics",
+    "examples/12-notes",
+    "examples/13-live-design",
+    "showcase/fighting",
+    "showcase/markdown-wall",
+    "showcase/promo-video",
+    "showcase/style-gallery",
+    "showcase/widget-breakout",
+    "showcase/widget-breakout/sim",
+    "showcase/widget-breakout/headless",
+    "showcase/kiln/sim",
+    "showcase/kiln/headless",
+    "showcase/kiln/play",
+    "showcase/kiln/picture",
+    "showcase/kiln/sound",
+    "showcase/quay/sim",
+    "showcase/quay/headless",
+    "showcase/quay/picture",
+    "showcase/quay/play",
+    "showcase/swarm/headless",
+    "showcase/swarm/play",
+    "site",
+]
+
+# CI's rows and a whole-workspace run (mcpp's advice, 2026-11-13): the dev build without debug information and
+# with its symbols stripped. A test program links its whole closure, and unstripped that is most of a
+# configuration's bytes (15 of 22 GB measured: 349 programs, bench_test 129 MB of which 37 MB are code and data).
+# What a failure needs — the check's file and line, both sides — is mtest's own report, not the debugger's.
+# Day-to-day work keeps `dev`.
+[workspace.profile.ci]
+opt   = 0
+debug = false
+strip = true
+
+# Sanitizers (plan §19.1 "内存"): AddressSanitizer and UndefinedBehavior-
+# Sanitizer over every unit of the graph, the first finding fatal. CI runs
+# `mcpp test --workspace --profile sanitize` nightly on Linux.
+[workspace.profile.sanitize]
+opt      = 1
+debug    = true
+cflags   = ["-fsanitize=address,undefined", "-fno-omit-frame-pointer", "-fno-sanitize-recover=all"]
+cxxflags = ["-fsanitize=address,undefined", "-fno-omit-frame-pointer", "-fno-sanitize-recover=all"]
+ldflags  = ["-fsanitize=address,undefined"]
+
+# The Web (D-84): wasm32-emscripten. Exceptions, as the libraries that throw
+# need them (JSON, TOML; the native units that catch); memory that grows; a
+# stack of 1 MiB (Emscripten's default, 64 KiB, is one buffer of
+# mcpplibs.os's reads).
+[workspace.target.'cfg(os = "emscripten")'.abi]
+exceptions = true
+
+#
+# Single-threaded (D-84: no SharedArrayBuffer on Pages or Toy): some index
+# packages' `linux` link flags (taskflow's -pthread, harfbuzz's and libwebp's
+# -lpthread) reach the emscripten row too, and -pthread would make the
+# program's memory shared — which these objects, built without atomics,
+# cannot link into. USE_PTHREADS=0 (applied after the flags) undoes it.
+[workspace.target.'cfg(os = "emscripten")'.build]
+ldflags = ["-sALLOW_MEMORY_GROWTH=1", "-sSTACK_SIZE=1048576", "-sUSE_PTHREADS=0"]
+
+# The test programs on the Web row run under node and read their fixtures
+# beside their sources, as on every other row: node's file system, not the
+# in-memory one a page has. CI's wasm row: `mcpp test --target
+# wasm32-emscripten --profile wasm-test`.
+[workspace.profile.wasm-test]
+opt     = 1
+debug   = false
+ldflags = ["-sNODERAWFS=1"]
+
+# The test programs that need a browser (tools/ci/browser.sh runs them in
+# headless Chromium): linked to suspend for the page's promises — what
+# waiting for WebGPU and reading its textures back take — and to say their
+# exit code to the page. Asyncify, not JSPI: JSPI makes the exceptions'
+# invoke_ imports suspending, and a static constructor that reaches a try
+# block then fails outside WebAssembly.promising.
+# Its stack for what is unwound while waiting: 64 KiB — mtest's runner sits
+# above a waiting case, more than the default 4 KiB holds (it trapped,
+# `unreachable`, red list 45).
+[workspace.profile.wasm-browser]
+opt     = 1
+debug   = false
+ldflags = ["-sASYNCIFY=1", "-sASYNCIFY_STACK_SIZE=65536", "-sEXIT_RUNTIME=1"]
+
+# The Web's bytes, looked into (W8; tools/ci/wasm-size.sh): the release
+# build's code (-O2) with its functions' names kept in a name section, for
+# `omui-gen wasm-size` to say where they go.
+[workspace.profile.wasm-size]
+opt     = 2
+debug   = false
+ldflags = ["--profiling-funcs"]
+
+# The shipped Emscripten website uses LLVM -Oz for size; the normal native
+# release profile remains available for performance checks.
+# Delivery and interactive frame budgets are both checked in Chromium.
+[workspace.profile.site-web]
+opt        = "z"
+debug      = false
+ndebug     = true
+trim_paths = true
+
+[workspace.package]
+standard = "c++23"
+mcpp     = ">=2026.10.26.1"
+
+# MinGW GCC 16 emits the function-local statics of inline standard-library
+# functions instantiated in module units (std::variant's __reasons,
+# make_shared's type tag) as strong symbols, so two units of one program define
+# them twice. The definitions are identical; the linker keeps one.
+[workspace.target.x86_64-windows-gnu.build]
+ldflags = ["-Wl,--allow-multiple-definition"]
+# HarfBuzz's amalgamated unit exceeds COFF's 2^15 sections under GCC; the big
+# object format lifts the limit. Graph-wide, so it reaches that dependency.
+dialect_cxxflags = ["-Wa,-mbig-obj"]

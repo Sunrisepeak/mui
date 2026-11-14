@@ -1,0 +1,17 @@
+{"contract": {"bad_widget": {
+  "spec": "0.1",
+  "role": "spaceship",
+  "props": {
+    "size": {"type": "huge", "default": 1},
+    "mode": {"type": "enum", "values": ["a", "b"], "default": "c"},
+    "count": {"type": "i32", "default": "three"}
+  },
+  "actions": {
+    "activate": {"effect": "read"},
+    "launch": {"effect": "orbital"},
+    "aim": {"effect": "read", "args": {"at": "f64 | Up | | down"}}
+  },
+  "keys": {"Space": "fly"},
+  "motion": {"body": "motion.warp"},
+  "doc": "Every mistake the reader must report, one a line."
+}}}

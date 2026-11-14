@@ -1,0 +1,121 @@
+// openmui.site:mui — Mui (喵), the site's figure (the site plan §9, D1).
+//
+// A pixel cat drawn by hanim as a pixel picture (one path an ink), a little
+// soft: one soft body (hanim's Engine::simulate, the host's one engine) under
+// a hull round the figure carries every ink of whichever frame it shows
+// (Engine::carry), standing on the page's surfaces (ledges: the page's
+// bottom, the nodes it is given, the one it goes to), walking (a push) and
+// hopping. It embodies the visitor's agent (omui.ui.base's
+// agent_presence_state): it goes where the agent acts, its eyes lit, and
+// holds up a card while the agent waits for the person. Asked, it moves,
+// looks, points, says a line and sleeps — the page's own actions on a node of
+// its own. It takes the pointer only on itself: a click (or `activate`) asks
+// what it offers; while a link waits for your agent it listens, looking up.
+// The person's pointer is its toy: near, it notices it and turns to it;
+// resting on the page (not on a control), it stalks it — walks under it and
+// pounces when it is just above; on Mui itself, it purrs.
+// Less motion asked: it changes frames in place, never walks.
+export module omui.site:mui;
+
+import std;
+import omui.core;
+import omui.view;
+import omui.ui.base;
+import hanim.engine;
+import omui.hanim;
+import :mascot_contract;
+
+export namespace omui::site {
+
+// Mui's art (site/brand/mascot.sprite.omui.json, embedded): each frame of the
+// body of 24 as rows, each palette as inks.
+struct MascotArt {
+    std::map<std::string, std::vector<std::string>, std::less<>> frames;
+    std::map<std::string, std::vector<hanim::PixelInk>, std::less<>> palettes;
+    int size = 24;
+};
+[[nodiscard]] const MascotArt& mascot_art();
+
+class Mascot : public MascotContract<Mascot> {
+public:
+    ~Mascot();
+    void mounted();
+    void prop_changed(MascotProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    // Over the page, it takes the pointer only on itself, and not where a
+    // control is beneath it: content first (the site plan §9.4).
+    static constexpr std::string_view cursor = "pointer";
+    bool hits(Point local, Size size) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+
+    ActResult activate(ActContext& ctx);
+
+    ActResult sleep(ActContext& ctx);
+    ActResult wake(ActContext& ctx);
+    ActResult move_to(ActContext& ctx, const Value& node);
+    ActResult look_at(ActContext& ctx, const Value& node);
+    ActResult point_at(ActContext& ctx, const Value& node);
+    ActResult say(ActContext& ctx, const Value& text);
+
+    // What it is doing now (tests, agents): its state (asleep, asking,
+    // walking, pointing, looking, quiet), the frame and palette it shows,
+    // where it stands (its feet, in its own box), whom it faces, what it
+    // goes to and what it said.
+    struct Now {
+        std::string state, frame, palette, target, said;
+        Point       feet;
+        bool        facing_right = false;
+    };
+    [[nodiscard]] Now now() const;
+
+private:
+    // The figure on the host's engine: its object (the hull and the frame's inks),
+    // the playback showing it, the soft body under the hull, its vector binding.
+    struct Figure {
+        hanim::Engine*                                       engine = nullptr;
+        hanim::ObjectRef                                     object;
+        std::optional<hanim::PlaybackRef>                    showing;
+        std::optional<hanim::BodyRef>                        body;
+        omui::animation::Drawing                             drawing;
+        Point                                                spawn;  // the root's place in its box
+        std::string                                          frame, palette, state = "quiet", target, said_frame;
+        bool                                                 right = false;          // its art mirrored
+        bool                                                 facing_right = false;   // the way it faces
+        std::vector<std::string>                             inks;
+        double                                               last = -1, next_blink = 3.7, stride = 0, hopped = -1, settled_at = -1;
+        std::size_t                                          ledges_seen = 0;
+        bool                                                 started = false, asleep = false;  // its body: stepped only while awake
+        Size                                                 room;
+        bool                                                 was_moving = false;  // frames asked for last paint
+        // The person's pointer: where it was last seen to rest, since when, and the rest it pounced at.
+        Point                                                pointer_seen{-1e9f, -1e9f};
+        double                                               pointer_still_since = 0, pounced_for = -1;
+        bool                                                 stalking = false;  // on its way to where the pointer rests
+        // Its arrival (`arrive`): its pixels gathering where it comes from, before it has a body.
+        bool                                                 arrived = true;
+        double                                               arrive_at = 0, gather_length = 0;
+        hanim::ObjectRef                                     pixels;
+        std::optional<hanim::PlaybackRef>                    gathering;
+        omui::animation::Drawing                             gathering_drawing;
+    };
+    void arrive(PaintContext& ctx) const;
+    void release_arrival() const;
+    void ensure(const PaintContext& ctx) const;
+    void show(const std::string& frame, const std::string& palette, bool facing_right) const;
+    void steer(const PaintContext& ctx) const;
+    [[nodiscard]] std::optional<Rect> box_of(std::string_view path) const;
+
+    mutable std::unique_ptr<Figure> figure_;
+    std::string             goal_;       // where it was asked to go (a node's path)
+    std::string             goal_kind_;  // move, point, look
+    std::string             said_;
+    double                  said_until_ = 0;
+    mutable parts::Label    bubble_;
+    mutable bool            probing_ = false;  // asking what is beneath it (its own hits say no meanwhile)
+    mutable std::uint64_t   stalk_timer_ = 0;  // a frame once the pointer has rested
+    bool                    petted_ = false;   // the pointer on it
+};
+
+}  // namespace omui::site

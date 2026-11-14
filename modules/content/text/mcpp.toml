@@ -1,0 +1,52 @@
+# mlibs.text — fonts, shaping, bidi, line breaking, paragraphs, glyphs as
+# geometry (outlines, colour layers) and the editing model, over HarfBuzz and
+# SheenBidi as C++ modules (mcpp-index's mwrap) and mlibs.unicode. It knows no
+# renderer: xrender.text rasterises and draws its glyphs (plan §5.3).
+[package]
+namespace   = "mlibs"
+name        = "text"
+version     = "0.1.0"
+description = "Text engine: font fallback, HarfBuzz shaping, bidi, UAX #14 line breaking, paragraphs, carets, glyph outlines, editing"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+
+[targets.mlibs-text]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+# The default fonts (FontCollection::add_defaults) go with a packed
+# application: `fonts/` beside the program (default_directory's second place),
+# and an APK's assets/fonts, which the Android host unpacks into the
+# application's own directory — each with its licence.
+[runtime]
+deploy = [
+    { from = "fonts/Inter.ttf", to = "fonts" },
+    { from = "fonts/NotoSansSC.ttf", to = "fonts" },
+    { from = "fonts/NotoSansArabic.ttf", to = "fonts" },
+    { from = "fonts/TwemojiMozilla.ttf", to = "fonts" },
+    { from = "fonts/JetBrainsMono.ttf", to = "fonts" },
+    { from = "fonts/OFL-inter.txt", to = "licenses/fonts" },
+    { from = "fonts/OFL-notosanssc.txt", to = "licenses/fonts" },
+    { from = "fonts/OFL-notosansarabic.txt", to = "licenses/fonts" },
+    { from = "fonts/LICENSE-TwemojiMozilla.md", to = "licenses/fonts" },
+    { from = "fonts/OFL-jetbrainsmono.txt", to = "licenses/fonts" },
+]
+
+[dependencies]
+mlibs.geom    = { path = "../../base/geom" }
+mlibs.unicode = { path = "../../base/unicode" }
+mcpplibs.os     = "0.4.4"
+mcpplibs.mwrap.harfbuzz = "14.3.0"
+mcpplibs.mwrap.sheenbidi = "3.0.0"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+mlibs.utils = { path = "../../base/utils" }
+mlibs.image   = { path = "../../base/image" }
+

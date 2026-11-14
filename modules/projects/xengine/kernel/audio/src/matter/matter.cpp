@@ -1,0 +1,177 @@
+module xengine.audio.matter;
+
+import std;
+
+namespace xengine::audio::matter {
+
+namespace {
+
+namespace substance = xengine::matter;
+
+// What a material's sound is made from: as it says (`ring`, `damping`), or from its phase and density.
+struct Voice {
+    float ring = 0;      // Hz; 0: none of its own
+    float decay = 0.2f;  // seconds its ring takes to die
+    float body = 800;    // Hz: where its noise sits (heavier: lower)
+    bool  loose = false; // a powder or a liquid: no ring, a soft burst
+};
+Voice voice_of(const substance::Program& program, std::uint32_t material) {
+    Voice voice;
+    const substance::Phase phase = program.phase(material);
+    const auto density_column = program.column("density"), ring_column = program.column("ring"), damping_column = program.column("damping");
+    const float density = density_column ? static_cast<float>(program.number(material, *density_column)) : 1000.0f;
+    voice.loose = phase != substance::Phase::solid && phase != substance::Phase::soft;
+    // Where its noise sits: 3 kHz for what is as light as air down to 300 Hz for what is as heavy as iron.
+    voice.body = std::clamp(30000.0f / std::sqrt(std::max(density, 1.0f)), 300.0f, 3000.0f);
+    float ring = ring_column ? static_cast<float>(program.number(material, *ring_column)) : 0.0f;
+    float damping = damping_column ? static_cast<float>(program.number(material, *damping_column)) : 8.0f;
+    // A solid that does not say: the denser the lower, and neither a bell nor a sack.
+    if (!ring_column && !voice.loose) ring = std::clamp(9000.0f / std::sqrt(std::max(density, 1.0f)), 80.0f, 2000.0f);
+    if (voice.loose) ring = 0;
+    voice.ring = ring;
+    damping = std::clamp(damping, 1.0f, 16.0f);
+    voice.decay = 1.6f / (damping * damping) + 0.03f;  // 1.63 s for a bell … 0.036 s for a sack
+    return voice;
+}
+
+constexpr std::array<Recipe, 7> recipes{{
+    {"land", Shape::strike, 0.8f, 0.05f},
+    {"strike", Shape::strike, 1.0f, 0.0f},
+    {"shatter", Shape::crumble, 1.0f, 0.08f},
+    {"ignite", Shape::sizzle, 0.5f, 0.3f},
+    {"boil", Shape::sizzle, 0.45f, 0.3f},
+    {"freeze", Shape::strike, 0.35f, 0.25f},
+    {"melt", Shape::sizzle, 0.3f, 0.3f},
+}};
+
+}  // namespace
+
+std::span<const Recipe> standard_recipes() noexcept { return recipes; }
+
+Sound sound_of(const substance::Program& program, std::uint32_t material, const Recipe& recipe) {
+    Sound sound;
+    if (material >= program.materials().size()) return sound;
+    const Voice voice = voice_of(program, material);
+    sound.name = std::format("matter/{}/{}", recipe.event, program.materials()[material].name);
+    sound.gain = recipe.gain;
+    const std::uint32_t seed = 1 + material * 7 + static_cast<std::uint32_t>(recipe.shape) * 131;
+    switch (recipe.shape) {
+        case Shape::strike: {
+            // The touch: a short burst where the thing's noise sits.
+            sound.layers.push_back({.wave = Wave::noise, .length = voice.loose ? 0.12f : 0.035f, .envelope = {.attack = 0.001f, .decay = voice.loose ? 0.1f : 0.03f, .release = 0.005f},
+                                    .filter = FilterKind::bandpass, .cutoff = {voice.body * 1.6f, voice.body * 0.8f}, .q = voice.loose ? 0.6f : 1.2f, .gain = voice.loose ? 0.8f : 0.5f, .seed = seed});
+            if (voice.ring > 0) {
+                // Its ring and an overtone that dies sooner (a bar's second mode is 2.76 times its first).
+                sound.layers.push_back({.wave = Wave::sine, .length = voice.decay + 0.02f, .pitch = {voice.ring, voice.ring}, .envelope = {.attack = 0.001f, .decay = voice.decay, .release = 0.02f}, .gain = 0.7f});
+                sound.layers.push_back({.wave = Wave::sine, .length = voice.decay * 0.5f + 0.02f, .pitch = {voice.ring * 2.76f, voice.ring * 2.76f},
+                                        .envelope = {.attack = 0.001f, .decay = voice.decay * 0.5f, .release = 0.02f}, .gain = 0.3f});
+            }
+            break;
+        }
+        case Shape::crumble: {
+            sound.layers.push_back({.wave = Wave::noise, .length = 0.35f, .envelope = {.attack = 0.002f, .decay = 0.3f, .release = 0.03f}, .filter = FilterKind::lowpass,
+                                    .cutoff = {voice.body * 4.0f, voice.body * 0.6f}, .gain = 0.9f, .drive = 0.3f, .seed = seed});
+            if (voice.ring > 0)
+                sound.layers.push_back({.wave = Wave::triangle, .length = voice.decay * 0.4f + 0.05f, .pitch = {voice.ring, voice.ring * 0.7f},
+                                        .envelope = {.attack = 0.001f, .decay = voice.decay * 0.4f, .release = 0.03f}, .gain = 0.4f});
+            break;
+        }
+        case Shape::sizzle: {
+            sound.layers.push_back({.wave = Wave::noise, .length = 0.5f, .envelope = {.attack = 0.04f, .hold = 0.1f, .decay = 0.3f, .release = 0.06f}, .filter = FilterKind::highpass,
+                                    .cutoff = {voice.body * 2.0f, voice.body * 3.0f}, .gain = 0.5f, .seed = seed});
+            break;
+        }
+    }
+    return sound;
+}
+
+std::expected<Sounds, std::string> Sounds::make(const substance::Program& program, Mixer& mixer, std::span<const Recipe> given) {
+    Sounds sounds;
+    sounds.mixer_ = &mixer;
+    sounds.materials_ = program.materials().size();
+    for (const Recipe& recipe : given) {
+        if (recipe.event.empty() || std::ranges::find(sounds.events_, recipe.event) != sounds.events_.end())
+            return std::unexpected(std::format("a recipe for the event `{}`: each event once, by its name", recipe.event));
+        sounds.events_.push_back(recipe.event);
+        sounds.again_.push_back(static_cast<std::int64_t>(std::max(recipe.again, 0.0f) * static_cast<float>(mixer.rate())));
+        for (std::uint32_t material = 0; material < sounds.materials_; ++material) sounds.sounds_.push_back(mixer.add(sound_of(program, material, recipe)));
+    }
+    for (const std::string& name : program.event_names()) {
+        const auto found = std::ranges::find(sounds.events_, name);
+        sounds.named_.push_back(found == sounds.events_.end() ? -1 : static_cast<std::int32_t>(found - sounds.events_.begin()));
+    }
+    sounds.counts_.assign(sounds.sounds_.size(), 0);
+    sounds.places_.assign(sounds.sounds_.size(), 0);
+    sounds.most_.assign(sounds.sounds_.size(), 0);
+    sounds.heard_at_.assign(sounds.sounds_.size(), std::numeric_limits<std::int64_t>::min() / 2);
+    return sounds;
+}
+
+std::uint32_t Sounds::hear(std::span<const substance::Event> events, const Ear& ear) noexcept {
+    if (!mixer_ || events.empty()) return 0;
+    bool any = false;
+    for (const substance::Event& event : events) {
+        if (event.name >= named_.size() || named_[event.name] < 0 || event.material >= materials_) continue;
+        const std::size_t slot = static_cast<std::size_t>(named_[event.name]) * materials_ + event.material;
+        ++counts_[slot];
+        places_[slot] += static_cast<float>(event.instance % std::max(ear.width, 1u));
+        any = true;
+    }
+    if (!any) return 0;
+    std::uint32_t played = 0;
+    for (std::size_t slot = 0; slot < counts_.size(); ++slot) {
+        if (!counts_[slot]) continue;
+        const float count = static_cast<float>(counts_[slot]), place = places_[slot] / count;
+        // One is quiet, a handful is most of the way: 0.4, 0.64, 0.78, 0.87 …
+        float rest = 1;
+        for (std::uint32_t one = 0; one < std::min(counts_[slot], 16u); ++one) rest *= 0.6f;
+        counts_[slot] = 0, places_[slot] = 0;
+        if (sounds_[slot] < 0 || ear.when - heard_at_[slot] < again_[slot / materials_]) continue;
+        const float strength = 1.0f - rest;
+        const float pan = std::clamp((place - ear.at) / std::max(ear.reach, 1.0f), -1.0f, 1.0f);
+        if (mixer_->play(sounds_[slot], ear.when, strength, pan, 0.94f + 0.12f * strength)) heard_at_[slot] = ear.when, ++played;
+    }
+    return played;
+}
+
+std::int32_t Sounds::sound(std::string_view event, std::uint32_t material) const noexcept {
+    const auto found = std::ranges::find(events_, event);
+    if (found == events_.end() || material >= materials_) return -1;
+    return sounds_[static_cast<std::size_t>(found - events_.begin()) * materials_ + material];
+}
+
+bool Sounds::hear(const Heard& heard) noexcept {
+    const std::int32_t index = sound(heard.event, heard.material);
+    if (index < 0 || !mixer_) return false;
+    const float strength = std::clamp(heard.strength, 0.0f, 1.0f);
+    if (strength == 0) return false;
+    // Harder is louder, and a little brighter.
+    return mixer_->play(index, heard.at, strength, std::clamp(heard.pan, -1.0f, 1.0f), 0.94f + 0.12f * strength);
+}
+
+std::uint32_t Sounds::hear(std::span<const substance::Impact> impacts, const Ear& ear, float full) noexcept {
+    const auto found = std::ranges::find(events_, std::string_view("land"));
+    if (!mixer_ || impacts.empty() || found == events_.end()) return 0;
+    const std::size_t row = static_cast<std::size_t>(found - events_.begin()) * materials_;
+    for (const substance::Impact& impact : impacts) {
+        if (impact.material >= materials_) continue;
+        const std::size_t slot = row + impact.material;
+        ++counts_[slot];
+        places_[slot] += static_cast<float>(impact.instance % std::max(ear.width, 1u));
+        most_[slot] = std::max(most_[slot], impact.speed);
+    }
+    std::uint32_t played = 0;
+    for (std::size_t slot = row; slot < row + materials_; ++slot) {
+        if (!counts_[slot]) continue;
+        const float place = places_[slot] / static_cast<float>(counts_[slot]);
+        const float strength = std::clamp(most_[slot] / std::max(full, 1.0f), 0.0f, 1.0f);
+        counts_[slot] = 0, places_[slot] = 0, most_[slot] = 0;
+        // What only settles is not heard.
+        if (sounds_[slot] < 0 || strength < 0.05f || ear.when - heard_at_[slot] < again_[slot / materials_]) continue;
+        const float pan = std::clamp((place - ear.at) / std::max(ear.reach, 1.0f), -1.0f, 1.0f);
+        if (mixer_->play(sounds_[slot], ear.when, strength, pan, 0.94f + 0.12f * strength)) heard_at_[slot] = ear.when, ++played;
+    }
+    return played;
+}
+
+}  // namespace xengine::audio::matter

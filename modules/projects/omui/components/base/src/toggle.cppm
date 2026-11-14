@@ -1,0 +1,61 @@
+// openmui.ui.base:toggle and :checkbox share the shape of a two-state control
+// with a label: a box or track at the start, the label after it, the whole
+// clickable, Space (and Enter for a switch) toggling it.
+export module omui.ui.base:toggle;
+
+import std;
+import omui.core;
+import omui.view;
+import :parts;
+import :toggle_contract;
+import :checkbox_contract;
+
+export namespace omui {
+
+// An on/off switch (role `switch`): the thumb springs across the track.
+class Toggle : public ToggleContract<Toggle> {
+public:
+    void mounted();
+    void prop_changed(ToggleProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw,
+                 mlibs::layout::Available ah);
+    float baseline(MeasureContext& m, Size content);
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<xrender::EffectShape> out) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+
+    ActResult toggle(ActContext& ctx);
+    ActResult activate(ActContext& ctx) { return toggle(ctx); }
+    // A dry run (S-13): the state it would have, and toggling back undoes it.
+    ActResult preview(ActContext& ctx, std::string_view action) const;
+
+private:
+    mutable parts::Label  label_;
+    mutable double thumb_ = 0, hover_ = 0;
+    mutable bool   shown_ = false;
+};
+
+// A checkable option, possibly indeterminate (role `checkbox`): the mark draws itself in.
+class Checkbox : public CheckboxContract<Checkbox> {
+public:
+    void mounted();
+    void prop_changed(CheckboxProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw,
+                 mlibs::layout::Available ah);
+    float baseline(MeasureContext& m, Size content);
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+
+    ActResult toggle(ActContext& ctx);
+    ActResult activate(ActContext& ctx) { return toggle(ctx); }
+    ActResult preview(ActContext& ctx, std::string_view action) const;
+
+private:
+    mutable parts::Label  label_;
+    mutable double mark_ = 0, hover_ = 0;
+    mutable bool   shown_ = false;
+};
+
+}  // namespace omui

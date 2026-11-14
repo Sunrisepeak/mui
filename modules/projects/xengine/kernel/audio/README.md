@@ -1,0 +1,168 @@
+# xengine.audio
+
+Sound for openmui and its games (D-86). Sounds are data, and so is music. Voices are mixed into buses, each bus runs through its effects (and, routed, into another bus) into a limited master, and everything is rendered a block at a time with nothing allocated. Every sample is a function of what was played and when, so an offline render is the same bits on every platform: a match's audio can be pinned like its pixels.
+
+```cpp
+import xengine.audio;
+
+auto sounds = xengine::audio::read_sounds(json, "fight.sound.omui.json");   // every problem at its JSON pointer, line and column
+xengine::audio::Mixer mixer;                                                 // 48 kHz, 48 voices
+const auto punch = mixer.add((*sounds)[0]);
+mixer.add_effect("sfx", xengine::audio::echo(0.09f, 0.3f, 0.25f, mixer.rate()));
+mixer.duck("music", {.key = "sfx", .depth = 0.5f});                       // the music under the hits
+mixer.play(punch, /*at sample*/ 4800, /*gain*/ 0.9f, /*pan*/ -0.4f);    // from any thread
+mixer.render(block);                                                      // on the audio thread, or offline
+```
+
+- **Sounds** (`*.sound.omui.ts`, `defineSound({ <name>: { layers: [ … ] } })`): the library reads the JSON the module evaluates to, `{"sound": { … }}` (D-139; `omui-gen embed` carries it in a program, `omui-gen snapshot` writes it out). Sounds are numbered in name order, whatever order the file writes them in.
+  - A layer is a source: a sine (a table made with shared `openmui.math`), a triangle, a band-limited square or saw (polyBLEP), or seeded noise.
+  - Its pitch glides exponentially from one value to another over its length. Its filter (low, high or band pass) has a cutoff that glides too.
+  - An envelope (attack, hold, decay, sustain, release) shapes it, then soft clipping, gain and an equal-power pan.
+  - A punch is a burst of low-passed noise over a falling sine; a bell is a sine and its overtone.
+  - A layer can also play a recording (`wave: "recording"`, `recording: "<name>"`): a voice or a foley take that the program adds with `Mixer::add_recording` (mono samples at their rate; `read_wav` reads 8-, 16- and 24-bit PCM or 32-bit float, mixing the channels down). It is read between its samples at its `speed` (2: twice as fast, an octave up; a glide too), held for its length unless the file gives an envelope, and filtered, driven and panned like any layer. A fighting game's announcer is the pack's takes, a touch lower, darker and doubled.
+  - `write_sounds` writes them as JSON that reads back as themselves.
+- **The mix** (`Mixer`):
+  - Voices start on their exact sample. Past the most at once, the oldest gives way.
+  - Buses ("sfx", "music", or any name) have a gain and effects, in order. A bus can be routed into another (`route`) and ducked under another (`duck`: a peak follower on the key, the sidechain).
+  - `automate_gain(bus, prepared_source)` multiplies a bus's static gain on its exact sample clock. `GainSource` retains a shared immutable owner with `rate()` and `sample(first, values)` noexcept methods; no inheritance or virtual function is needed. It calls one erased function per bus/block, with no per-sample dispatch, event or GUI clock. Empty/moved-from sources are neutral; null clears a binding. Bind/clear at a quiescent boundary; an unknown bus or rate mismatch preserves the old owner. Samples clamp to 0–8, non-finite values become silence with a trace counter. Sidechain keys remain pre-gain. The optional [timeline adapter](../timeline/audio) reuses hanim's keyed curves; the audio engine itself does not depend on hanim or a timeline.
+  - An effect is a plugin (`Effect`). Built in (`effect(EffectSpec)`): low, high and band pass filters, an echo (straight or ping-pong, in seconds or in beats), a reverb (Freeverb: eight damped combs and four allpasses a side, a pre-delay) and a chorus. A program can write its own.
+  - A source is a plugin too (`Source`): it adds its own voices into the buses on the mixer's clock. The sequencer is one.
+  - The master has a peak limiter (peaks under −1 dBFS); `limiter()` says how hard it has worked.
+  - `play` may be called from one thread while another renders: a lock-free queue sits between them.
+  - Nothing is allocated while rendering; a sound's tables are made when it is added. Buses, effects and sources are set up before another thread renders.
+- **Offline** (`render`, `wav`, `hash`, `levels`): a video's track, or a test's pinned bits.
+  - The DSP uses `-ffp-contract=off` and no fast-math. Every transcendental comes directly from `omui::math::det`, so no platform's libm enters a sample; denormals are flushed by hand, the same everywhere. The historical hanim math alias is no longer a dependency. The files are read through `mlibs.json`; the `omui-music` tool's reports use nlohmann.json.
+  - `levels` measures a mix: peak, RMS, integrated loudness (ITU-R BS.1770: K-weighted, gated), the energy of five bands and the channels' correlation.
+  - The test scene's hash is the same on GCC, LLVM and wasm.
+
+## What matter sounds like
+
+```cpp
+import xengine.audio.matter;
+
+auto sounds = *xengine::audio::matter::Sounds::make(program, mixer);          // a sound an event a material
+sounds.hear({.event = "land", .material = iron, .strength = 0.8f, .pan = -0.2f, .at = mixer.clock()});
+```
+
+The feature `matter` (on by default; D-183). A world's events have names and a material has properties: a recipe says which shape of sound an event has — `strike` (one thing meets another: a click and the thing's ring), `crumble` (it breaks), `sizzle` (it burns or boils) — and each material's sound of that shape is made from its own numbers: `ring`, the pitch a piece of it gives when struck, and `damping`, how soon that dies. Those two are this package's pack over the standard definition ([packs/acoustics.matter.omui.ts](packs/acoustics.matter.omui.ts)); a material that says neither still sounds, from its phase and density. No work writes "when wood lands play this". It is of the presentation: it reads the world and changes nothing of it; the sounds are made once, hearing one allocates nothing, and a scene of events renders to the same bits everywhere (`tests/matter_test.cpp`). Not yet: the world's journal wired to it, lasting layers for what burns and boils, the recipes as data.
+
+A world need not be told event by event: `sounds.hear(events, {.width, .at, .reach, .when})` takes a step's events as their carrier says them (`MatterWorld::events`) — each event of each material is one sound, louder the more of them there were, from where they were on average. A wall of forty cells that shatters is one crumble, not forty. What goes on — wood burning, lava setting — says so every frame; a recipe's `again` is the least time between two of it for one material. `sounds.hear(impacts, ear, full)` takes a step's landings (`MatterWorld::impacts`) as the event `land`: one sound a material, as loud as the fastest came down, and what only settles is not heard. Both are a step's, not a state: hear a step once.
+
+## Sound in a place, and what is heard (`xengine.audio.space`)
+
+```cpp
+import xengine.audio.space;
+namespace space = xengine::audio::space;
+
+auto place = space::Space::make(mixer).value();      // a source of the mixer's, adding into "sfx"
+mixer.add_source(place);
+const auto shot = place->add(gunshot);               // one channel, once (`audio::mono`: the mixer's own synthesis)
+place->walls(world);                                 // the world's triangles; each surface lets `through` by
+place->listen({.at = head, .forward = looking});
+const auto id = place->emit(shot, muzzle, 1, "rifle, player 2").value();
+place->move(id, muzzle_now);                         // each step, for a sound that moves
+mixer.render(block);
+for (const space::Heard& one : place->heard()) …     // what reached each ear, from where, how loud, through what
+```
+
+- **One rule for the way:** each ear is a receiver at its own place and hears, at each moment, the sound as it left the emitter when it was as far from the ear as sound goes in the time between: t − τ = |emitter(τ) − ear(t)| ÷ speed, solved from where the emitter has been (exactly at each block's two ends, a straight line between). Arrival late with distance, Doppler (c ÷ (c ∓ v), exact: a 1 kHz tone coming nearer at a tenth of the speed of sound is 1111.11 Hz, going away 909.09) and the ears' time difference (the far ear 25 samples later at 48 kHz from the side: a 17.5 cm head over 343 m/s) all follow from it — none is an effect of its own.
+- **Then for each ear:** the level falls as `reference` over the distance (four times as far: −12.01 dB); the air takes the highs of a far sound; the head shades the far ear; each surface on the way (a ray through `Wall`'s triangles) lets `through` by and, above its `bright`, 6 dB less an octave (the mass law: through one wall of −20 dB, 200 Hz is −20.2 dB and 6 kHz −35.2). Gains and filters move across a block from where they were to where they are; a place given once a step, carried on at its last speed for a step at most, so a moving sound neither clicks nor wobbles.
+- **Hearing is data:** `heard()` gives each sound's name and cause, its distance, azimuth and elevation in the listener's frame, its delay, its pitch against the one made, the surfaces it came through, and how loud it was at each ear in the block — measured from the samples that reached the ear. What an agent hears is what a person hears, as numbers.
+- **The same bits:** `mlibs.math`'s det for exp, log and atan2, no contraction, denormals flushed by hand; one thread (the owner moves things between blocks).
+- **Against the strongest:** Steam Audio and Wwise Spatial Audio spatialise by HRTF convolution with occlusion and reverb by rays; FMOD and Unity's default panner by distance curves and a pan. Here the propagation is physical from one rule (delay, exact Doppler, the ears' time difference) where they model Doppler and ITD as separate approximations, and what is heard is data an agent reads. Behind: no HRTF (elevation and front–back by the head shade alone), no reflections or reverb by the world's shape, no diffraction round an edge — Steam Audio is the plan's way to those (its HRTF and rays as a stage of this one), not yet wrapped.
+
+## Music
+
+```cpp
+auto music = xengine::audio::read_music(json, "study.music.omui.json");     // every problem at its place, a wrong note at its very token
+auto song = xengine::audio::Sequencer::attach(*music, mixer);                // its instruments made, its buses under "music"
+(*song)->start(mixer.clock());                                            // from any thread: the intro, then the loop
+(*song)->set_intensity(0.8f);                                             // from any thread: which layers play, from the next bar
+(*song)->finish();                                                        // its outro from the next bar
+```
+
+A piece (`*.music.omui.ts`) is a TypeScript data module, written for people and agents to read. The library reads the JSON it evaluates to, `{"music": { … }}`. Named entries are read in name order, so a file's order changes nothing that is played.
+
+```ts
+import { defineMusic } from "omui/define";
+
+export default defineMusic({
+  name: "study",
+  tempo: 128,
+  meter: [4, 4],
+
+  patches: {
+    zheng: { base: "guzheng", pluck: { decay: 3.6 } },   // how an instrument sounds: a built-in, shaded
+  },
+  instruments: {
+    lead: { patch: "zheng", sends: { hall: 0.25 } },
+  },
+  buses: {
+    hall: { effects: [{ kind: "reverb", size: 0.82, wet: 1, dry: 0 }] },
+  },
+  patterns: {
+    // A token a step: a note, `.` a rest, `:n` steps long, `+` a chord, `>` a slide, `!` an accent, `?` a soft one.
+    hook: { instrument: "lead", step: "1/16", notes: "D5:3! F5? G5:2 A5:6 G5? F5? D5:2 | A5>C6:6! A5? G5? E5:4 D5:2 E5:2" },
+    // A lane an instrument, a character a sixteenth.
+    drums: { lanes: { taiko: "X.....x.x...X...", kick: "x.......x.....x." } },
+  },
+  sections: {
+    a: {
+      bars: 8,
+      layers: [
+        { pattern: "hook" },
+        { pattern: "drums", intensity: [0.6, 1] },   // plays while the intensity is in [0.6, 1]
+      ],
+    },
+  },
+  arrangement: { intro: ["intro"], loop: ["a", "b"], outro: ["end"] },
+});
+```
+
+- **Patches** (`patches: { <name>: … }`, or one of the 28 built-ins by name — `builtin_patches()`), each an engine:
+  - `analog`: band-limited saws, pulses (with PWM) or triangles, up to seven in unison, detuned and spread across the stereo field, with a sub an octave down and noise (pads, supersaws, leads, reese and pulse basses).
+  - `fm`: two operators, the modulator's index falling from its attack to its sustain, with feedback (e-pianos, bells, plucks, basses).
+  - `pluck`: a Karplus–Strong string, its delay tuned to its loop filter's phase delay and read with Hermite interpolation, so it is in tune from A2 to the top and can slide and wobble (koto, guzheng, harp).
+  - `drum`: a membrane's falling tone and its modes (1.59, 2.14 ×), noise and six square waves at a cymbal's ratios through the patch's filter, a stick's click, bursts for a clap (kick, snare, hats, toms, taiko, woodblock, crash).
+  - Each has an ADSR (curves falling 60 dB in their time), a filter with its own envelope and key tracking, a vibrato that fades in, a slide time and drive. `base` starts a patch from a built-in; `write_music` writes only what differs.
+- **Instruments**: a patch with a gain, a pan, a legato, a transposition, a number of voices (past that the oldest is played again, its sound ringing into the new note), sends to the piece's buses, a `gate` rhythm (a sixteenth a step: gated saws), a `choke` group (open and closed hats) and `humanize` (a little softer and later by each note's place in the piece).
+- **Buses**: the piece's own (`music.<name>`, under the mixer's "music"); each of the file's under it or another, with effects and ducking (a pad pumping under its kick).
+- **Patterns**: notes as text or drum lanes, any step (`"1/16"`, `"1/12"` for triplets), swing. Between two bar lines lie whole bars.
+- **Sections and layers**: a layer plays a pattern from bar `at`, `times` over, transposed, with another instrument (a melody doubled), while the intensity is in its range. The game sets the intensity; each bar takes it as it begins.
+- **The arrangement**: the intro once, the loop over and over (what rings at its end rings into its start), the outro once `finish` is asked for.
+- **Timing**: ticks (3840 a whole note) become samples by an exact fraction, so a bar starts on its sample however long the piece has looped. Nothing is allocated while it plays.
+- **Offline**: `render_music(music, seconds, cues, solo)`: intensity cues, instruments alone.
+
+## omui-music
+
+The command line for people, agents and CI (D-61): JSON out and an exit code.
+
+```sh
+cd modules/projects/xengine/kernel/audio
+omui-gen snapshot piece.music.omui.ts --out piece.music.omui.json      # the JSON the tool reads (the module evaluated)
+mcpp run --release omui-music -- check piece.music.omui.json           # problems, or its bars and seconds
+mcpp run --release omui-music -- render piece.music.omui.json --out piece.wav --seconds 60 --intensity 0.3@0,0.9@30 [--solo lead,bass] [--float]
+mcpp run --release omui-music -- stats piece.music.omui.json --seconds 60   # the mix and each instrument alone: loudness, bands, the limiter
+mcpp run --release omui-music -- fmt piece.music.omui.json             # the one way it is written (JSON)
+```
+
+`render` answers the WAV's hash, its levels, how hard the limiter worked and how many times faster than real time it rendered.
+
+The fighting game's stage themes are written this way: [study](../../../../../showcase/fighting/music/study.music.omui.ts) (墨's) and [street](../../../../../showcase/fighting/music/street.music.omui.ts) (霓's).
+
+## Observability
+
+A span `audio.render` per render and a counter `audio.voices` per block; a span `audio.music` per block a piece renders, a counter `audio.music.voices` and a mark `audio.music.bar` at each bar; all in category `audio`.
+
+## Packages
+
+Devices and codecs are plugins in their own packages:
+
+| Package | |
+|---|---|
+| [device](device) | The system's default output through miniaudio, or its null backend for headless runs and tests |
+| [timeline](timeline) | A bus's gain automated by a clip of a timeline ([hanim.timeline](../../../hanim/timeline)): one frozen signal on the mixer's sample clock, the same one a view or an Agent reads at any time |
+
+Codecs (WAV, FLAC, Opus) and the Web's output (Web Audio) come next.
+
+`tests/audio_test.cpp` covers sounds and the mixer; `tests/music_test.cpp` covers pieces: the format read and written back, located problems, instruments in tune, effects and ducking, notes on their samples, intensity taking effect at the next bar, the loop going round without a click, nothing allocated while playing, the trace, and a piece's bits pinned (GCC and LLVM).

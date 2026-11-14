@@ -1,0 +1,944 @@
+{
+  "format": "omui.session-pipeline-image-namespace-checkpoint@0.1",
+  "ok": true,
+  "recorded_utc": "2026-11-05T03:06:03.878683+00:00",
+  "base_commit": "a4ee3adfa73449c853f30ec922616c88a7df6fd7",
+  "scope": "N1 session/pipeline/image canonical ownership and source compatibility, UI pipeline resource specialization, source/archive consumers and explicit threadless IPC test boundary.",
+  "workspace_members": 129,
+  "new_workspace_members": 0,
+  "source_lock_sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+  "tests": [
+    {
+      "profile": "dev",
+      "target": "native",
+      "programs": [
+        "image_test",
+        "pipeline_test",
+        "session_test"
+      ],
+      "successful_program_exits": 3,
+      "reported_suite_case_executions": 35,
+      "log": {
+        "path": "target/namespace-session-validation/logs/omui-n1c-base-dev.log",
+        "sha256": "864cb7e5d2fa5e16116f637b50252718f0243942e7baa6cfc4ad7795cec1cdbd"
+      }
+    },
+    {
+      "profile": "dev",
+      "target": "native",
+      "programs": [
+        "engine_test",
+        "composite_test",
+        "visual_test",
+        "c_abi_test",
+        "abi_test",
+        "agent_control_policy_test",
+        "agent_policy_test",
+        "agent_test",
+        "presentation_input_test",
+        "agent_session_test",
+        "agent_policy_test",
+        "headless_test",
+        "semantic_test",
+        "agent_context_test",
+        "adapt_test",
+        "constraint_placement_test",
+        "agent_policy_test",
+        "input_attribution_test",
+        "motion_test",
+        "effect_animation_test",
+        "path_policy_test",
+        "presentation_geometry_test",
+        "theme_motion_test",
+        "text_policy_test",
+        "view_test",
+        "inspector_test",
+        "cellular_test",
+        "agent_guard_test",
+        "agent_preview_test",
+        "agent_contrast_test",
+        "agent_transition_layout_test",
+        "brand_test",
+        "basic_motion_test",
+        "feature_examples_test",
+        "creative_motion_test",
+        "first_frame_test",
+        "frames_test",
+        "guide_access_test",
+        "home_landing_test",
+        "gallery_redesign_test",
+        "navigation_redesign_test",
+        "motion_gallery_test",
+        "reactions_test",
+        "p0_layout_test",
+        "static_gallery_test",
+        "text_motion_quality_test",
+        "site_test"
+      ],
+      "successful_program_exits": 47,
+      "reported_suite_case_executions": 353,
+      "log": {
+        "path": "target/namespace-session-validation/logs/omui-n1c-consumers-dev.log",
+        "sha256": "9c652a55982ecc9333ac495b5bc3e9f087c8d27a7d8aacc65d3594c0d01a8ef7"
+      }
+    },
+    {
+      "profile": "dev",
+      "target": "native",
+      "programs": [
+        "agent_policy_test",
+        "headless_test"
+      ],
+      "successful_program_exits": 2,
+      "reported_suite_case_executions": 9,
+      "log": {
+        "path": "target/namespace-session-validation/logs/omui-n1c-headless-dev-final.log",
+        "sha256": "e53964379bd506fdaff935d2393ebdc7f6deafc7ca92de1a99952b4124265762"
+      }
+    },
+    {
+      "profile": "release",
+      "target": "native",
+      "programs": [
+        "image_test",
+        "pipeline_test",
+        "session_test"
+      ],
+      "successful_program_exits": 3,
+      "reported_suite_case_executions": 35,
+      "log": {
+        "path": "target/namespace-session-validation/logs/omui-n1c-base-release.log",
+        "sha256": "372920dfb2dd5fe39faa6b7fd45c72e305448773113792e929ea92cb6ad3580c"
+      }
+    },
+    {
+      "profile": "release",
+      "target": "native",
+      "programs": [
+        "engine_test",
+        "composite_test",
+        "visual_test",
+        "c_abi_test",
+        "abi_test",
+        "agent_control_policy_test",
+        "agent_policy_test",
+        "agent_session_test",
+        "presentation_input_test",
+        "agent_test",
+        "agent_policy_test",
+        "headless_test",
+        "semantic_test",
+        "agent_context_test",
+        "adapt_test",
+        "constraint_placement_test",
+        "agent_policy_test",
+        "input_attribution_test",
+        "motion_test",
+        "path_policy_test",
+        "presentation_geometry_test",
+        "text_policy_test",
+        "theme_motion_test",
+        "view_test",
+        "effect_animation_test",
+        "cellular_test",
+        "inspector_test",
+        "agent_guard_test",
+        "agent_preview_test",
+        "agent_contrast_test",
+        "agent_transition_layout_test",
+        "brand_test",
+        "basic_motion_test",
+        "feature_examples_test",
+        "first_frame_test",
+        "frames_test",
+        "gallery_redesign_test",
+        "guide_access_test",
+        "home_landing_test",
+        "motion_gallery_test",
+        "navigation_redesign_test",
+        "p0_layout_test",
+        "reactions_test",
+        "creative_motion_test",
+        "static_gallery_test",
+        "text_motion_quality_test",
+        "site_test"
+      ],
+      "successful_program_exits": 47,
+      "reported_suite_case_executions": 353,
+      "log": {
+        "path": "target/namespace-session-validation/logs/omui-n1c-consumers-release.log",
+        "sha256": "b8df58caa5981d10eaa5eb8890d051464dabf8f43f3a072e6b6cdad5dda14719"
+      }
+    },
+    {
+      "profile": "wasm-test",
+      "target": "wasm32-emscripten/Node",
+      "programs": [
+        "image_test",
+        "pipeline_test",
+        "session_test"
+      ],
+      "successful_program_exits": 3,
+      "reported_suite_case_executions": 35,
+      "log": {
+        "path": "target/namespace-session-validation/logs/omui-n1c-base-wasm.log",
+        "sha256": "6b982871a21ea088dd8a70c1625946b3a70b04f8e6e1e33b7c51e21c7ef245bc"
+      }
+    },
+    {
+      "profile": "wasm-test",
+      "target": "wasm32-emscripten/Node",
+      "programs": [
+        "engine_test",
+        "composite_test",
+        "visual_test",
+        "headless_test",
+        "semantic_test",
+        "agent_context_test",
+        "adapt_test",
+        "constraint_placement_test",
+        "agent_policy_test",
+        "input_attribution_test",
+        "motion_test",
+        "path_policy_test",
+        "presentation_geometry_test",
+        "effect_animation_test",
+        "theme_motion_test",
+        "text_policy_test",
+        "view_test"
+      ],
+      "successful_program_exits": 17,
+      "reported_suite_case_executions": 169,
+      "log": {
+        "path": "target/namespace-session-validation/logs/omui-n1c-consumers-wasm.log",
+        "sha256": "25da44f4bcee4171cc7af717ab81447546c3e781b9943f17b7c8dff559591153"
+      },
+      "initial_failure": {
+        "program": "agent_policy_test",
+        "cause": "Threadless Web cannot start the local IPC transport required by this native endpoint policy test.",
+        "resolution": "The final invocation explicitly skips that program on testing::threads=false. No local IPC authorization success is claimed for Web; native keeps its real endpoint assertion."
+      },
+      "skipped_suite_case": "headless/H3: an agent drives the session over the endpoint (existing unavailable local transport branch)"
+    },
+    {
+      "profile": "wasm-test",
+      "target": "wasm32-emscripten/Node",
+      "programs": [
+        "agent_policy_test",
+        "headless_test"
+      ],
+      "successful_program_exits": 2,
+      "reported_suite_case_executions": 8,
+      "log": {
+        "path": "target/namespace-session-validation/logs/omui-n1c-headless-wasm-final.log",
+        "sha256": "8675ff8a709c2e1ef6af03848a64d5b520617f40877fbc8569029111fe43e2f1"
+      },
+      "skipped_suite_case": "headless/H3: an agent drives the session over the endpoint (existing unavailable local transport branch)",
+      "skipped_program": "agent_policy_test"
+    }
+  ],
+  "totals": {
+    "successful_program_exits_including_retries_and_explicit_skip": 124,
+    "reported_suite_case_executions_including_retries_and_existing_internal_skip": 997,
+    "distinct_native_programs_per_profile": 50,
+    "distinct_native_reported_suite_cases_per_profile": 388,
+    "distinct_wasm_programs_with_test_bodies": 20,
+    "distinct_wasm_skipped_programs": 1,
+    "distinct_wasm_reported_suite_cases": 204,
+    "distinct_wasm_actual_suite_cases_excluding_internal_skip": 203
+  },
+  "implementation_normalization": [
+    {
+      "path": "modules/base/session/src/session.cpp",
+      "sha256": "d018e1dcb599e70760654f1fd79060438647a8c62523bcfebf636ae1c0049f12",
+      "same_after_namespace_normalization": true
+    },
+    {
+      "path": "modules/base/session/src/api.cppm",
+      "sha256": "f3b7cf7646374b638b2d6146a713b184c74b67edec2c610de94464fd31fc673c",
+      "same_after_namespace_normalization": true
+    },
+    {
+      "path": "modules/base/pipeline/src/api.cppm",
+      "sha256": "8c649acdc1a512fd0146443ac72584d284ce4a6e0ac7403993e3afad86172b16",
+      "same_after_namespace_normalization": true
+    },
+    {
+      "path": "modules/base/pipeline/src/pipeline.cpp",
+      "sha256": "2f576d19a6f72c8399aa419d0e64b32e93c6cc83154337e7e49698b3f19051d9",
+      "same_after_namespace_normalization": true
+    },
+    {
+      "path": "modules/base/image/src/api.cppm",
+      "sha256": "c1faaf25570ee8b1695c86a5898fa92b45d3c74aabbbea0061d277ac1fca68cf",
+      "same_after_namespace_normalization": true
+    },
+    {
+      "path": "modules/base/image/src/image.cpp",
+      "sha256": "385fa25a5fe27cd70e5f2148021403773bf837c3871e4385981a0f2707a8fb42",
+      "same_after_namespace_normalization": true
+    },
+    {
+      "path": "modules/base/image/src/normal.cpp",
+      "sha256": "30b44ce04b7e3ddac73845c0c302ddae0e2d74859ffc0c8cc3e3867a20a0a971",
+      "same_after_namespace_normalization": true
+    },
+    {
+      "path": "modules/base/image/src/native/webp.cpp",
+      "sha256": "e5b5254916fc41306d2f9fd6a8a0e8a37c010fe32d8b056cc6849dfb7325f1cb",
+      "same_after_namespace_normalization": true
+    },
+    {
+      "path": "modules/base/image/src/native/png.cpp",
+      "sha256": "f27eb34579eb5e4888459e5e67c584891b670e5bb9d0b0ebcdfbbf461f28d9a5",
+      "same_after_namespace_normalization": true
+    }
+  ],
+  "foundation": {
+    "report": {
+      "path": "target/namespace-session-pipeline-image-consumers/report.omui.json",
+      "sha256": "2a73bcebc1cfea907e6eca2d6d685fd4ad8ac16c3c53835cdc8e5eef9e669ccf"
+    },
+    "packs": [
+      {
+        "name": "mlibs.hash",
+        "archive": "/home/speak/workspace/mui/modules/base/hash/target/dist/hash-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "06b22acf5b53f1accd1a4217f5563df7214b9e73c4f069d9ba5cf45649a7fbd3",
+        "archive_bytes": 72262,
+        "library_bytes": 214492,
+        "interfaces": [
+          "api.cppm",
+          "hash.cppm",
+          "legacy.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.math",
+        "archive": "/home/speak/workspace/mui/modules/base/math/target/dist/math-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "706472343e6a5865cb76b2f4f4f9875e9a099e0d73d2aeeaa7390d2c61ccf95f",
+        "archive_bytes": 10540,
+        "library_bytes": 15516,
+        "interfaces": [
+          "api.cppm",
+          "color.cppm",
+          "det.cppm",
+          "legacy.cppm",
+          "math.cppm",
+          "random.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.log",
+        "archive": "/home/speak/workspace/mui/modules/base/log/target/dist/log-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "6ab8304b6ed506a712996819b47c06898547d32d9208607378fc6b5744a678ea",
+        "archive_bytes": 82271,
+        "library_bytes": 241574,
+        "interfaces": [
+          "api.cppm",
+          "legacy.cppm",
+          "log.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.trace",
+        "archive": "/home/speak/workspace/mui/modules/base/trace/target/dist/trace-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "430bd8e4fd0472f946bee50decd7bc86bce25f59a6eb978b115fb0175fe8d5c5",
+        "archive_bytes": 106229,
+        "library_bytes": 312876,
+        "interfaces": [
+          "api.cppm",
+          "legacy.cppm",
+          "trace.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.testing",
+        "archive": "/home/speak/workspace/mui/modules/base/testing/target/dist/testing-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "481b31902f9921446c877c042007060f04d10cb0de26b42723d80e758c40ee00",
+        "archive_bytes": 75646,
+        "library_bytes": 225104,
+        "interfaces": [
+          "api.cppm",
+          "legacy.cppm",
+          "testing.cppm",
+          "threads.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.geom",
+        "archive": "/home/speak/workspace/mui/modules/base/geom/target/dist/geom-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "364e29a3e6e7cb73b4df34d9fcab88ab4cae72968d4caf763c53954e13f9f741",
+        "archive_bytes": 4995,
+        "library_bytes": 8,
+        "interfaces": [
+          "api.cppm",
+          "geom.cppm",
+          "legacy.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.memory",
+        "archive": "/home/speak/workspace/mui/modules/base/memory/target/dist/memory-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "5e71096d348617d6b2522a3a0b3fee92cad4fdc0806397b6496326c0586550d7",
+        "archive_bytes": 9549,
+        "library_bytes": 5720,
+        "interfaces": [
+          "api.cppm",
+          "arena.cppm",
+          "function.cppm",
+          "handle.cppm",
+          "legacy.cppm",
+          "memory.cppm",
+          "slots.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.unicode",
+        "archive": "/home/speak/workspace/mui/modules/base/unicode/target/dist/unicode-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "319ad906cda46e8d44db5247c34cd5e71b4152fbb8c65fa87bf65dafb4a74dbe",
+        "archive_bytes": 69849,
+        "library_bytes": 345766,
+        "interfaces": [
+          "api.cppm",
+          "legacy.cppm",
+          "tables.cppm",
+          "unicode.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.fuzzy",
+        "archive": "/home/speak/workspace/mui/modules/base/fuzzy/target/dist/fuzzy-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "8116189eaaa86dcf648cc443c0d9dbdec8c890a8e2f1d83c2e026218c4465332",
+        "archive_bytes": 27675,
+        "library_bytes": 60700,
+        "interfaces": [
+          "api.cppm",
+          "fuzzy.cppm",
+          "legacy.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.session",
+        "archive": "/home/speak/workspace/mui/modules/base/session/target/dist/session-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "80c36e0f395500fdb7c9fb347bd2175aeba2c43fbc2d549c652bc7a4d8716a14",
+        "archive_bytes": 155445,
+        "library_bytes": 564414,
+        "interfaces": [
+          "api.cppm",
+          "legacy.cppm",
+          "session.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.pipeline",
+        "archive": "/home/speak/workspace/mui/modules/base/pipeline/target/dist/pipeline-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "4459a32a8481c5c96d8a0a3bfba1c57e3af039a086005cc9127a910ff720806e",
+        "archive_bytes": 114949,
+        "library_bytes": 345606,
+        "interfaces": [
+          "api.cppm",
+          "legacy.cppm",
+          "pipeline.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.image",
+        "archive": "/home/speak/workspace/mui/modules/base/image/target/dist/image-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "1bdd8ef3ea8e2e5e3f77e1679ccb25417ae9b1ca321e54f0454f9036c733db08",
+        "archive_bytes": 191042,
+        "library_bytes": 560528,
+        "interfaces": [
+          "api.cppm",
+          "image.cppm",
+          "legacy.cppm"
+        ]
+      }
+    ],
+    "runs": [
+      {
+        "kind": "source",
+        "style": "canonical",
+        "cases": 12,
+        "packages": [
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.zlib",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.fuzzy",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.image",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.pipeline",
+          "mlibs.session",
+          "mlibs.testing",
+          "mlibs.trace",
+          "mlibs.unicode",
+          "mlibs.validation.namespace_consumer",
+          "nlohmann.json"
+        ],
+        "local_compilation_units": 63,
+        "external_compilation_units": 244
+      },
+      {
+        "kind": "source",
+        "style": "legacy",
+        "cases": 12,
+        "packages": [
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.zlib",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.fuzzy",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.image",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.pipeline",
+          "mlibs.session",
+          "mlibs.testing",
+          "mlibs.trace",
+          "mlibs.unicode",
+          "mlibs.validation.namespace_consumer",
+          "nlohmann.json"
+        ],
+        "local_compilation_units": 63,
+        "external_compilation_units": 244
+      },
+      {
+        "kind": "source",
+        "style": "mixed",
+        "cases": 12,
+        "packages": [
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.zlib",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.fuzzy",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.image",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.pipeline",
+          "mlibs.session",
+          "mlibs.testing",
+          "mlibs.trace",
+          "mlibs.unicode",
+          "mlibs.validation.namespace_consumer",
+          "nlohmann.json"
+        ],
+        "local_compilation_units": 63,
+        "external_compilation_units": 244
+      },
+      {
+        "kind": "packed",
+        "style": "canonical",
+        "cases": 12,
+        "packages": [
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.zlib",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.fuzzy",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.image",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.pipeline",
+          "mlibs.session",
+          "mlibs.testing",
+          "mlibs.trace",
+          "mlibs.unicode",
+          "mlibs.validation.namespace_consumer",
+          "nlohmann.json"
+        ],
+        "local_compilation_units": 46,
+        "external_compilation_units": 244
+      },
+      {
+        "kind": "packed",
+        "style": "legacy",
+        "cases": 12,
+        "packages": [
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.zlib",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.fuzzy",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.image",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.pipeline",
+          "mlibs.session",
+          "mlibs.testing",
+          "mlibs.trace",
+          "mlibs.unicode",
+          "mlibs.validation.namespace_consumer",
+          "nlohmann.json"
+        ],
+        "local_compilation_units": 46,
+        "external_compilation_units": 244
+      },
+      {
+        "kind": "packed",
+        "style": "mixed",
+        "cases": 12,
+        "packages": [
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.zlib",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.fuzzy",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.image",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.pipeline",
+          "mlibs.session",
+          "mlibs.testing",
+          "mlibs.trace",
+          "mlibs.unicode",
+          "mlibs.validation.namespace_consumer",
+          "nlohmann.json"
+        ],
+        "local_compilation_units": 46,
+        "external_compilation_units": 244
+      }
+    ],
+    "timings": [
+      {
+        "label": "source-canonical",
+        "seconds": 16.08953995804768
+      },
+      {
+        "label": "source-canonical-incremental",
+        "seconds": 0.7477076790528372
+      },
+      {
+        "label": "source-legacy",
+        "seconds": 16.461685989052057
+      },
+      {
+        "label": "source-legacy-incremental",
+        "seconds": 0.7473469729302451
+      },
+      {
+        "label": "source-mixed",
+        "seconds": 16.840561520890333
+      },
+      {
+        "label": "source-mixed-incremental",
+        "seconds": 0.7669615399790928
+      },
+      {
+        "label": "packed-canonical",
+        "seconds": 6.525439292076044
+      },
+      {
+        "label": "packed-canonical-incremental",
+        "seconds": 1.0214350849855691
+      },
+      {
+        "label": "packed-legacy",
+        "seconds": 6.81986336002592
+      },
+      {
+        "label": "packed-legacy-incremental",
+        "seconds": 1.112524367053993
+      },
+      {
+        "label": "packed-mixed",
+        "seconds": 6.89130075101275
+      },
+      {
+        "label": "packed-mixed-incremental",
+        "seconds": 1.0505688959965482
+      }
+    ]
+  },
+  "lock_audit_correction": {
+    "initial_error": "source-canonical: external dependency differs from repository lock: mcpplibs.os; expected={\"namespace\": \"mcpplibs\", \"version\": \"0.2.2\", \"source\": \"index+mcpplibs@0.2.2\", \"hash\": \"fnv1a:d0be96a5003305cb\", \"targets\": [\"wasm32-emscripten\", \"x86_64-linux-gnu\"]}; resolved={\"canonical\": \"mcpplibs.os@0.2.2\", \"name\": \"os\", \"namespace\": \"mcpplibs\", \"source\": \"index+mcpplibs@0.2.2\", \"version\": \"0.2.2\"}; lock={\"namespace\": \"mcpplibs\", \"version\": \"0.2.2\", \"source\": \"index+mcpplibs@0.2.2\", \"hash\": \"fnv1a:2fbee2a8617c341b\"}",
+    "cause": "The gate incorrectly equated hashes across short/qualified default-namespace lock keys. mcpp hashes namespace:key@version, not contents.",
+    "resolution": "Check canonical versions/sources and validate each spelling with the existing mlibs.hash implementation in the actual consumer. Repository lock unchanged.",
+    "upstream_tag": "v2026.11.2.2",
+    "upstream_commit": "8d099cb1dae8419165361c92d34878901e485c93",
+    "source": "https://github.com/mcpp-community/mcpp/blob/v2026.11.2.2/src/pm/lock_io.cppm"
+  },
+  "play": {
+    "report": {
+      "path": "target/namespace-session-validation/play/report.omui.json",
+      "sha256": "ce1a97a527e8a5c37a43ec50fbbae4e95f294da178e510f7b1dfa964ac221417"
+    },
+    "profiles": [
+      {
+        "profile": "dev",
+        "sampled_frames": 122,
+        "denied_capture_published_no_files": true,
+        "display_environment_removed": true,
+        "packages": [
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.zlib",
+          "hanim.core",
+          "hanim.effect",
+          "hanim.engine",
+          "hanim.library",
+          "hanim.object",
+          "hanim.program",
+          "hanim.render.vector",
+          "hanim.validation.play_consumer",
+          "mcpplibs.hanim",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.control",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.image",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.trace",
+          "nlohmann.json",
+          "openlifa.openas",
+          "openmui.raster",
+          "openmui.render",
+          "openmui.render.vector",
+          "openmui.rhi",
+          "openmui.shader",
+          "openmui.shader.rules"
+        ]
+      },
+      {
+        "profile": "release",
+        "sampled_frames": 122,
+        "denied_capture_published_no_files": true,
+        "display_environment_removed": true,
+        "packages": [
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.zlib",
+          "hanim.core",
+          "hanim.effect",
+          "hanim.engine",
+          "hanim.library",
+          "hanim.object",
+          "hanim.program",
+          "hanim.render.vector",
+          "hanim.validation.play_consumer",
+          "mcpplibs.hanim",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.control",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.image",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.trace",
+          "nlohmann.json",
+          "openlifa.openas",
+          "openmui.raster",
+          "openmui.render",
+          "openmui.render.vector",
+          "openmui.rhi",
+          "openmui.shader",
+          "openmui.shader.rules"
+        ]
+      }
+    ],
+    "same_pixels_and_png_as_prior": {
+      "matched": 244,
+      "prior": "target/namespace-geometry-validation/play/report.omui.json",
+      "current": "target/namespace-session-validation/play/report.omui.json"
+    }
+  },
+  "browser": {
+    "report": {
+      "path": "target/namespace-session-validation/site-browser.report.omui.json",
+      "sha256": "b1171dd244870e42e48b430bc53c1faa7bb5ad73c943e856662c06464adc4484"
+    },
+    "command": "CHROME=<Chromium> node tools/ci/site-reactions.mjs target/namespace-session-validation/site",
+    "version": "HeadlessChrome/156.0.8078.4",
+    "checks": [
+      {
+        "ok": true,
+        "what": "the website opens the shared reaction workspace"
+      },
+      {
+        "ok": true,
+        "what": "rules and project details start closed"
+      },
+      {
+        "ok": true,
+        "what": "a real pointer paints the intended cell"
+      },
+      {
+        "ok": true,
+        "what": "Agent and pointer produce identical material state"
+      },
+      {
+        "ok": true,
+        "what": "all 25 intermediate states differ"
+      },
+      {
+        "ok": true,
+        "what": "all 25 actual canvas images differ"
+      },
+      {
+        "ok": true,
+        "what": "reverse seek reproduces state and actual canvas pixels at frame 17"
+      },
+      {
+        "ok": true,
+        "what": "reverse seek reproduces state and actual canvas pixels at frame 8"
+      },
+      {
+        "ok": true,
+        "what": "reverse seek reproduces state and actual canvas pixels at frame 0"
+      },
+      {
+        "ok": true,
+        "what": "real keyboard input edits and applies the rule configuration"
+      },
+      {
+        "ok": true,
+        "what": "real Play input advances the live simulation"
+      },
+      {
+        "ok": true,
+        "what": "leaving the route cancels ongoing playback"
+      },
+      {
+        "ok": true,
+        "what": "navigation and language changes preserve the edited project"
+      },
+      {
+        "ok": true,
+        "what": "the real resized phone canvas fits its viewport"
+      }
+    ],
+    "fixed_sample_state_and_png_match_prior": 25,
+    "prior_reference": "tools/ci/2026-11-05-cellular-workbench.report.omui.json",
+    "native_prerender": {
+      "path": "target/namespace-session-validation/site-native.report.omui.json",
+      "sha256": "f0d615816773413dc7f011604b2f14c32ce2c16fb8730b26cf96a139b09e4e5b"
+    },
+    "pack_report": {
+      "path": "target/namespace-session-validation/site-pack.report.omui.json",
+      "sha256": "2a3e740b32376ee98ef40ded539666ab3c393cdfa72b52d3b03d71b35246ec62"
+    },
+    "wasm": [
+      {
+        "path": "target/namespace-session-validation/site/omui-site-6c1b51d4fdfe.wasm",
+        "sha256": "32e0b174e7254a4ac5b2957299806a86159321601e66af9edbc581c09a72f5a8",
+        "bytes": 7074887
+      }
+    ]
+  },
+  "source_files_sha256": {
+    "mgame/gongfu/present2d/mcpp.toml": "ef7e59196fb9c644aa758b565b6ab3a2935412c38ad5476408c38a5448dbbaee",
+    "mgame/gongfu/studio/mcpp.toml": "5d3873c7745d8e757c2c871a22994f8dfdf3391539dd1214b5183e1269f17bb4",
+    "modules/base/image/mcpp.toml": "f51100770ea289855ae18cf34b2916daabd3c7d5b6723b956a35a555d9dc11e5",
+    "modules/base/image/src/api.cppm": "c1faaf25570ee8b1695c86a5898fa92b45d3c74aabbbea0061d277ac1fca68cf",
+    "modules/base/image/src/image.cpp": "385fa25a5fe27cd70e5f2148021403773bf837c3871e4385981a0f2707a8fb42",
+    "modules/base/image/src/image.cppm": "43c3881777347cf74816bc47fa8c778d84381d473021e0f18c4ab28ee18714a6",
+    "modules/base/image/src/legacy.cppm": "62c7e5be5fdf9b0cc093974cb2733707667840506f8013d145ccb2b3abbc331e",
+    "modules/base/image/src/native/png.cpp": "f27eb34579eb5e4888459e5e67c584891b670e5bb9d0b0ebcdfbbf461f28d9a5",
+    "modules/base/image/src/native/webp.cpp": "e5b5254916fc41306d2f9fd6a8a0e8a37c010fe32d8b056cc6849dfb7325f1cb",
+    "modules/base/image/src/normal.cpp": "30b44ce04b7e3ddac73845c0c302ddae0e2d74859ffc0c8cc3e3867a20a0a971",
+    "modules/base/pipeline/mcpp.toml": "a4fe0aca350a6a5e8326997e79a0cfacbd343fc88eb677ffe57ddbaf12601580",
+    "modules/base/pipeline/src/api.cppm": "8c649acdc1a512fd0146443ac72584d284ce4a6e0ac7403993e3afad86172b16",
+    "modules/base/pipeline/src/legacy.cppm": "89aea74dca00cf5940a31254ef6748dbd1968cce1a974ea9bfe2c779cedbdda1",
+    "modules/base/pipeline/src/pipeline.cpp": "2f576d19a6f72c8399aa419d0e64b32e93c6cc83154337e7e49698b3f19051d9",
+    "modules/base/pipeline/src/pipeline.cppm": "fb4a5e5ff163db155ab79c1531846c23834ba2fe888702c40ed4d5283a3c2d27",
+    "modules/base/session/mcpp.toml": "4b5081b109640e72a4c9cbdb00c32bbf9c0217afc78fe859c18796b0d364e111",
+    "modules/base/session/src/api.cppm": "f3b7cf7646374b638b2d6146a713b184c74b67edec2c610de94464fd31fc673c",
+    "modules/base/session/src/legacy.cppm": "9684394e90ab9b8b49701444f5e67aaa44c707ed313d78e8fa793eac02a2660f",
+    "modules/base/session/src/session.cpp": "d018e1dcb599e70760654f1fd79060438647a8c62523bcfebf636ae1c0049f12",
+    "modules/base/session/src/session.cppm": "632111e94d6f6a8a6ac152e9fec72a207bcc90956671ea5d82b1bedd66bd39a9",
+    "modules/content/text/mcpp.toml": "5c9bef523302d12e20d157ab4fe6d71d40b138ce9b1da50242591a4142717d38",
+    "modules/gfx/hanim/engine/mcpp.toml": "5ba272fb824dd33f74c4ee4da1171699f4f7154401158e2f37f1522b5f806ccd",
+    "modules/gfx/render/cts/mcpp.toml": "93adf3b60208fff5194d34b7d01378bee73e679ea2c65c5da631817f7e68b414",
+    "modules/gfx/render/vector/mcpp.toml": "105ac44f15927562034bd38ce891fdacfef6233448d2348ff7a5b68844ce7cf1",
+    "modules/media/video/mcpp.toml": "27eca93c2567e9f7b2c5cad2b51c929e84eae4e3fd68a86aa150855eb2a1b246",
+    "modules/ui/agent/mcpp.toml": "9e5e65730db052a2a49bc5a56b546897dbcafdd797575d11586ead2156698a17",
+    "modules/ui/host/headless/mcpp.toml": "ddf72fca1f2324eb335af013f5bda838f3eaaae003b11bb0252ff25b9c468e0f",
+    "modules/ui/host/headless/tests/agent_policy_test.cpp": "9dcf89e21bbee48b41ea317bf0521ae0617d79f2d7b38201932f20e41ae05f6c",
+    "modules/ui/host/sdl3/mcpp.toml": "538fa9c4be7516ecc2787d872af831e0e248fb458894bdb0ae31cf7e9e7559bf",
+    "modules/ui/host/web/mcpp.toml": "bfc937ff8e8cea4d51d7a2f42e890fa81ca84caca0a03d1a5f805b35ebb4c099",
+    "modules/ui/semantic/mcpp.toml": "2a1330e7465a787fce3e5cdf9039f66ea3059ebf4e572ba4697ff8ea91cb4fcd",
+    "modules/ui/view/mcpp.toml": "ad75f4b6cbb5a44220ccc4632975ceab482c36eff4314ebedec9a3ab9564e442",
+    "modules/ui/view/src/runtime.cppm": "b2cb2fe3fc3491d0dd231fdcbd7d7ba1ca479a330f9b8320dab363d6a49b4fcb",
+    "showcase/fighting/mcpp.toml": "288621cab0ddaccc00873dd1a44cfdf5e6022088e3a24e8ab478b4d87ab803a9",
+    "src/entry/python/mcpp.toml": "608c9fff234b41543bcea73303285f62c9bdd636d8ee640683ca83c34bbfbf1a",
+    "tools/ci/foundation-migration/main.cpp.in": "44a74b12ad3d5b3c51380d8d333bab84d789d5f29d8dad3eb927b1864f42873d",
+    "tools/ci/foundation-migration/run.py": "5ddf100df6bcfa6432ad491fd9650e1b47d5a4723036bfa060d48c74ff2bb3a5",
+    "tools/ci/hanim-play-consumer/mcpp.toml.in": "fd0aacb115c2b3e4fc575248e979fb95a5c21cfbd3bf2cbe2e939d6e9c1ea320",
+    "tools/ci/hanim-play-consumer/run.py": "d7f3ca691c35414a5693e239fc840e082c078e86411877595a38c04e78fb04a9",
+    "tools/ci/hanim-play-consumer/src/main.cpp": "e706586506361d62a1746b29cbe0df2eaee4e70008f232416fb2a26dc882e73b",
+    "tools/cli/mcpp.toml": "7c2bd7ec106f8d2fd6e8462b68e5376ec695e8f90c27b58c7198886c640166e6"
+  },
+  "static_checks": {
+    "lint": "0 problems",
+    "git_diff_check": "pass",
+    "python_syntax": "pass",
+    "manifest_toml": "pass",
+    "local_document_links": "pass",
+    "spec_submodule_unchanged": true
+  },
+  "limits": [
+    "N1 gfx/content and subsequent engine/UI migration remain incomplete; S1-S10 and public 40/20 feature acceptance are unchanged.",
+    "Legacy namespace aliases cannot be reopened: pipeline extension blocks must use the canonical namespace; qualified legacy template specialization is tested.",
+    "Source compatibility after rebuilding, not C++ ABI/BMI compatibility, old CLI selectors or registry aliases.",
+    "mcpp packed dependency metadata remains incomplete. Explicitly declared dependencies prove actual linking, not top-level-only installation.",
+    "Current mcpp index hashes identify namespace/key/version, not artifact content integrity.",
+    "Threadless Web has no local IPC evidence. One program is explicitly skipped; an existing headless suite case also skips unsupported local IPC. Browser Agent and in-process tests remain actual tests.",
+    "No local Windows/macOS/mobile/GPU qualification or fresh performance/art acceptance.",
+    "Fresh consumer projects can reuse global toolchain caches. C ABI C raw checks are not included in suite-case counts.",
+    "Browser whole-page captures contain live timing; only fixed canvas state/PNG samples and hanim process frames are asserted unchanged."
+  ]
+}

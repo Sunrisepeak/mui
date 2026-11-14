@@ -1,0 +1,28 @@
+# mlibs.rhi — the GPU resource and command abstraction (D-33 / D-58 / D-81): resource
+# and pipeline descriptions, shader code per backend format, recorded command
+# lists, the Device interface with validation. Backends live in their own
+# packages (modules/projects/xrender/rhi/sdl); this one depends on no graphics library.
+[package]
+namespace   = "mlibs"
+name        = "rhi"
+version     = "0.1.0"
+description = "GPU resource descriptions, recorded graphics/compute commands and a validating device interface"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+
+[package.metadata.openmui]
+kind = "backend"
+
+[targets.mlibs-rhi]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+mlibs.memory = { path = "../../base/memory" }
+mlibs.utils   = { path = "../../base/utils" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"

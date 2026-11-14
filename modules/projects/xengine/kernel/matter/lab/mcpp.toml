@@ -1,0 +1,53 @@
+# xengine.matter.lab — the material lab (D-149, D-160, D-173; the plan's T1.13): a definition of matter, its
+# look and a scene designed live — a material a file, the world played again when one changes — with the agent
+# kernel's history and claims; and the `matter-lab` command that runs it without a GUI. The first design adapter
+# that is not an interface. Its own package: a tool's dependencies (the lattice's presenter, the renderer's
+# frame, image files, a command line) stay out of the matter kernel, which carries no renderer.
+[package]
+namespace   = "xengine.matter"
+name        = "lab"
+version     = "0.1.0"
+description = "The material lab: matter designed live by people and agents — rows as sources, the scene replayed, history and claims — headless (the matter-lab command)"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "tool"
+agent = "subject"
+
+[targets.xengine-matter-lab]
+kind = "lib"
+
+[targets.matter-lab]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+mcpplibs.cmdline = "0.0.3"
+xengine.matter   = { path = ".." }
+# The lattice's world of matter as an agent's subjects (`matter-agent`: the field and the matter subject).
+xengine.cellular = { path = "../../cellular", features = ["matter-agent"] }
+# Its picture: cells shaded by the look into an image, drawn through the renderer's frame entry.
+"xengine.cellular.present" = { path = "../../cellular/present" }
+xrender.frame    = { path = "../../../../xrender/frame" }
+xrender.vector   = { path = "../../../../xrender/vector" }
+xrender.raster   = { path = "../../../../xrender/raster" }
+mlibs.agent      = { path = "../../../../../base/agent" }
+mlibs.control    = { path = "../../../../../base/control" }
+mlibs.json       = { path = "../../../../../base/json" }
+mlibs.image      = { path = "../../../../../base/image" }
+mlibs.geom       = { path = "../../../../../base/geom" }
+mlibs.utils      = { path = "../../../../../base/utils" }
+openlifa.openas  = "0.2.0"
+mcpplibs.os      = "0.4.4"
+nlohmann.json    = "3.12.0"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+# lab_test: the agent contract's suite on the lab.
+mlibs.agent.cts = { path = "../../../../../base/agent/cts" }

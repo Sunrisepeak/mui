@@ -1,0 +1,30 @@
+[package]
+namespace   = "xrender.particle.gpu"
+name        = "cts"
+version     = "0.1.0"
+description = "Conformance of particles drawn on a device: any mlibs.rhi backend against the CPU reference, on mlibs.cts"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind  = "module"
+agent = { library = "conformance suite of particles drawn on a device: for tests only" }
+
+[targets.xrender-particle-gpu-cts]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+"xrender.particle.gpu" = { path = ".." }
+"xrender.mesh.gpu"     = { path = "../../../mesh/gpu" }
+mlibs.rhi              = { path = "../../../../../gfx/rhi" }
+mlibs.cts              = { path = "../../../../../base/cts" }
+mlibs.geom             = { path = "../../../../../base/geom" }
+mlibs.math             = { path = "../../../../../base/math" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"

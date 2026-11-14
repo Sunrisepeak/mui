@@ -1,0 +1,37 @@
+# hanim.skeleton.cts — skeletal animation's conformance (mlibs.cts): a crowd of characters held to the world
+# contract (the same steps, the same bits — on any number of workers; an image restored runs on; a branch runs
+# alike), and the characters as an agent's subject held to the agent contract; the procedural biped and its clips
+# the tests and the benchmark play. A package of its own so the skeletal core carries no test framework.
+[package]
+namespace   = "hanim.skeleton"
+name        = "cts"
+version     = "0.1.0"
+description = "Conformance of hanim.skeleton: the world contract on a crowd of characters, a procedural biped and its clips for tests and benchmarks"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "module"
+agent = { library = "conformance suite of skeletal animation: for tests only" }
+
+[targets.hanim-skeleton-cts]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-fno-fast-math", "-ffp-contract=off"]
+
+[dependencies]
+# With the characters as an agent's subject and glTF's clips: this package's tests hold both.
+hanim.skeleton = { path = "..", features = ["agent", "gltf"] }
+mlibs.cts      = { path = "../../../../base/cts" }
+mlibs.math     = { path = "../../../../base/math" }
+
+[dev-dependencies]
+mcpplibs.mtest  = "0.8.4"
+mlibs.agent.cts = { path = "../../../../base/agent/cts" }
+mlibs.json      = { path = "../../../../base/json" }
+mlibs.image     = { path = "../../../../base/image" }
+mlibs.utils     = { path = "../../../../base/utils" }
+mcpplibs.os     = "0.4.4"

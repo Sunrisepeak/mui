@@ -1,0 +1,30 @@
+# mlibs.json — JSON documents read with their places: every value a node with
+# its JSON pointer, a problem placed at the pointer's line and column, members
+# in the text's order, and the nearest name for a key that is not one. The
+# data files' readers below the interface layer (sounds, music, timelines,
+# video descriptions, effects, behaviours) read their JSON snapshots through
+# it (D-139). Its own package, not a tool of mlibs.utils: it takes
+# nlohmann.json, and mlibs.utils takes the standard library alone.
+[package]
+namespace   = "mlibs"
+name        = "json"
+version     = "0.1.0"
+description = "JSON documents with their places: nodes with JSON pointers, problems at line and column, did-you-mean"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "module"
+
+[targets.mlibs-json]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+nlohmann.json = "3.12.0"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"

@@ -1,0 +1,620 @@
+module xrender.vector.api;
+
+import std;
+import mlibs.memory;
+import mlibs.geom;
+import mlibs.hash;
+import mlibs.math;
+
+namespace xrender {
+
+Affine rotate(float radians) noexcept {
+    auto co = static_cast<float>(mlibs::math::det::cos(radians));
+    auto si = static_cast<float>(mlibs::math::det::sin(radians));
+    return Affine::rotation(co, si);
+}
+
+// ── Path ──────────────────────────────────────────────────────────────────
+
+Path& Path::move_to(Point p) {
+    verbs_.push_back(PathVerb::move);
+    points_.push_back(p);
+    start_ = current_ = p;
+    return *this;
+}
+
+Path& Path::line_to(Point p) {
+    if (verbs_.empty()) move_to(current_);
+    verbs_.push_back(PathVerb::line);
+    points_.push_back(p);
+    current_ = p;
+    return *this;
+}
+
+Path& Path::quad_to(Point c, Point p) {
+    if (verbs_.empty()) move_to(current_);
+    verbs_.push_back(PathVerb::quad);
+    points_.push_back(c);
+    points_.push_back(p);
+    current_ = p;
+    return *this;
+}
+
+Path& Path::cubic_to(Point c1, Point c2, Point p) {
+    if (verbs_.empty()) move_to(current_);
+    verbs_.push_back(PathVerb::cubic);
+    points_.push_back(c1);
+    points_.push_back(c2);
+    points_.push_back(p);
+    current_ = p;
+    return *this;
+}
+
+Path& Path::close() {
+    if (!verbs_.empty() && verbs_.back() != PathVerb::close) verbs_.push_back(PathVerb::close);
+    current_ = start_;
+    return *this;
+}
+
+namespace {
+
+namespace dm = mlibs::math::det;
+
+// Appends cubics approximating the elliptical arc of centre c, radii (rx, ry),
+// rotation phi, from angle t0 sweeping dt (radians), at most 90° per cubic.
+// Each cubic runs from P(t) to P(t1) with controls P(t) + k·P'(t) and
+// P(t1) − k·P'(t1), k = 4/3·tan(step/4).
+void arc_cubics(Path& path, Point c, double rx, double ry, double phi, double t0, double dt) {
+    int segments = static_cast<int>(std::ceil(dm::abs(dt) / (dm::half_pi + 1e-9)));
+    if (segments < 1) segments = 1;
+    double step = dt / segments;
+    double k = 4.0 / 3.0 * (dm::sin(step / 4.0) / dm::cos(step / 4.0));
+    double cp = dm::cos(phi), sp = dm::sin(phi);
+    auto map = [&](double x, double y) {
+        return Point{static_cast<float>(c.x + cp * x - sp * y), static_cast<float>(c.y + sp * x + cp * y)};
+    };
+    double t = t0;
+    for (int i = 0; i < segments; ++i) {
+        double t1 = t + step;
+        double x0 = rx * dm::cos(t), y0 = ry * dm::sin(t);
+        double x1 = rx * dm::cos(t1), y1 = ry * dm::sin(t1);
+        double dx0 = -rx * dm::sin(t), dy0 = ry * dm::cos(t);
+        double dx1 = -rx * dm::sin(t1), dy1 = ry * dm::cos(t1);
+        path.cubic_to(map(x0 + k * dx0, y0 + k * dy0), map(x1 - k * dx1, y1 - k * dy1), map(x1, y1));
+        t = t1;
+    }
+}
+
+}  // namespace
+
+Path& Path::arc_to(Point radii, float x_rotation, bool large_arc, bool sweep, Point p) {
+    // SVG 1.1 implementation notes F.6: endpoint to centre parameterisation.
+    Point p0 = current_;
+    double rx = dm::abs(radii.x), ry = dm::abs(radii.y);
+    if (rx == 0 || ry == 0 || (p0.x == p.x && p0.y == p.y)) return line_to(p);
+    double phi = x_rotation;
+    double cp = dm::cos(phi), sp = dm::sin(phi);
+    double dx = (p0.x - p.x) / 2.0, dy = (p0.y - p.y) / 2.0;
+    double x1 = cp * dx + sp * dy, y1 = -sp * dx + cp * dy;
+    double lambda = (x1 * x1) / (rx * rx) + (y1 * y1) / (ry * ry);
+    if (lambda > 1) {
+        double s = dm::sqrt(lambda);
+        rx *= s;
+        ry *= s;
+    }
+    double num = rx * rx * ry * ry - rx * rx * y1 * y1 - ry * ry * x1 * x1;
+    double den = rx * rx * y1 * y1 + ry * ry * x1 * x1;
+    double coef = den == 0 ? 0 : dm::sqrt(std::max(0.0, num / den));
+    if (large_arc == sweep) coef = -coef;
+    double cxp = coef * rx * y1 / ry, cyp = -coef * ry * x1 / rx;
+    Point center{static_cast<float>(cp * cxp - sp * cyp + (p0.x + p.x) / 2.0),
+                 static_cast<float>(sp * cxp + cp * cyp + (p0.y + p.y) / 2.0)};
+    auto angle = [](double ux, double uy, double vx, double vy) {
+        return dm::atan2(ux * vy - uy * vx, ux * vx + uy * vy);
+    };
+    double t0 = angle(1, 0, (x1 - cxp) / rx, (y1 - cyp) / ry);
+    double dt = angle((x1 - cxp) / rx, (y1 - cyp) / ry, (-x1 - cxp) / rx, (-y1 - cyp) / ry);
+    if (!sweep && dt > 0) dt -= dm::two_pi;
+    else if (sweep && dt < 0) dt += dm::two_pi;
+    arc_cubics(*this, center, rx, ry, phi, t0, dt);
+    current_ = p;
+    return *this;
+}
+
+Path& Path::add_rect(const Rect& r) {
+    move_to({r.x, r.y});
+    line_to({r.right(), r.y});
+    line_to({r.right(), r.bottom()});
+    line_to({r.x, r.bottom()});
+    return close();
+}
+
+Path& Path::add_rounded_rect(const Rect& r, const CornerRadii& radii) {
+    mlibs::geom::rounded_rect(*this, r, radii);
+    return *this;
+}
+
+Path& Path::add_ellipse(const Rect& r) {
+    constexpr float k = 0.5522847498307936f;
+    float cx = r.x + r.width / 2, cy = r.y + r.height / 2, rx = r.width / 2, ry = r.height / 2;
+    move_to({cx + rx, cy});
+    cubic_to({cx + rx, cy + k * ry}, {cx + k * rx, cy + ry}, {cx, cy + ry});
+    cubic_to({cx - k * rx, cy + ry}, {cx - rx, cy + k * ry}, {cx - rx, cy});
+    cubic_to({cx - rx, cy - k * ry}, {cx - k * rx, cy - ry}, {cx, cy - ry});
+    cubic_to({cx + k * rx, cy - ry}, {cx + rx, cy - k * ry}, {cx + rx, cy});
+    return close();
+}
+
+Path Path::transformed(const Affine& m) const {
+    Path out = *this;
+    for (Point& p : out.points_) p = m.apply(p);
+    out.start_ = m.apply(start_);
+    out.current_ = m.apply(current_);
+    return out;
+}
+
+Rect Path::bounds() const noexcept {
+    if (points_.empty()) return {};
+    float l = points_[0].x, t = points_[0].y, r = l, b = t;
+    for (const Point& p : points_) {
+        l = std::min(l, p.x);
+        t = std::min(t, p.y);
+        r = std::max(r, p.x);
+        b = std::max(b, p.y);
+    }
+    return Rect::ltrb(l, t, r, b);
+}
+
+// ── DisplayList ───────────────────────────────────────────────────────────
+
+DisplayList::DisplayList(DisplayList&& other) noexcept
+    : mesh_scratch_(std::move(other.mesh_scratch_)), material_(std::move(other.material_)),
+      commands_(std::move(other.commands_)), arena_(std::move(other.arena_)) {
+    ++other.path_generation_;
+}
+DisplayList& DisplayList::operator=(DisplayList&& other) noexcept {
+    if (this == &other) return *this;
+    mesh_scratch_ = std::move(other.mesh_scratch_);
+    material_ = std::move(other.material_);
+    commands_ = std::move(other.commands_);
+    arena_ = std::move(other.arena_);
+    ++path_generation_; ++other.path_generation_;
+    return *this;
+}
+
+std::expected<RecordedPath, PathRecordError> DisplayList::record_path(
+    std::size_t verb_count, std::size_t point_count, mlibs::memory::FunctionRef<void(MutablePathView)> writer) {
+    if (verb_count == 0 || point_count == 0 ||
+        verb_count > std::numeric_limits<std::size_t>::max() / sizeof(PathVerb) ||
+        point_count > std::numeric_limits<std::size_t>::max() / sizeof(Point))
+        return std::unexpected(PathRecordError::invalid_storage_count);
+    auto verbs = arena_.array<PathVerb>(verb_count);
+    auto* points = static_cast<Point*>(arena_.allocate(sizeof(Point) * point_count, alignof(Point)));
+    for (std::size_t i = 0; i < point_count; ++i) std::construct_at(points + i);
+    const std::span<Point> positions(points, point_count);
+    writer({verbs, positions});
+    // Retain the caller's capacity policy and share encoding/coordinate checks.
+    if(!mlibs::geom::inspect_path({verbs,positions},{verb_count,point_count,verb_count}))
+        return std::unexpected(PathRecordError::invalid_path);
+    Point lo = points[0], hi = lo;
+    for (const auto point : positions) {
+        lo.x = std::min(lo.x, point.x); lo.y = std::min(lo.y, point.y);
+        hi.x = std::max(hi.x, point.x); hi.y = std::max(hi.y, point.y);
+    }
+    RecordedPath recorded;
+    recorded.owner_ = this; recorded.generation_ = path_generation_;
+    recorded.path_ = {verbs, positions}; recorded.bounds_ = Rect::ltrb(lo.x, lo.y, hi.x, hi.y);
+    if (!std::isfinite(recorded.bounds_.width) || !std::isfinite(recorded.bounds_.height))
+        return std::unexpected(PathRecordError::invalid_path);
+    return recorded;
+}
+bool DisplayList::fill_path(const RecordedPath& path, FillRule rule, const Paint& paint) {
+    if (path.owner_ != this || path.generation_ != path_generation_) return false;
+    commands_.emplace_back(FillPath{path.path_, rule, own(paint)});
+    return true;
+}
+bool DisplayList::stroke_path(const RecordedPath& path, const StrokeStyle& style, const Paint& paint) {
+    if (path.owner_ != this || path.generation_ != path_generation_) return false;
+    commands_.emplace_back(StrokePath{path.path_, own(style), own(paint)});
+    return true;
+}
+
+std::expected<Paint, PaintMixError> DisplayList::record_paint_mix(
+    std::size_t count, mlibs::memory::FunctionRef<void(std::span<WeightedPaint>)> writer, float opacity) {
+    if (count == 0 || count > max_paint_mix_terms) return std::unexpected(PaintMixError::term_budget);
+    auto* storage = static_cast<WeightedPaint*>(arena_.allocate(sizeof(WeightedPaint) * count, alignof(WeightedPaint)));
+    for (std::size_t i = 0; i < count; ++i) std::construct_at(storage + i);
+    const std::span<WeightedPaint> terms(storage, count);
+    writer(terms);
+    Paint result; result.kind = Paint::Kind::mix; result.mix = terms; result.mix_opacity = opacity;
+    if (auto ok = validate_paint_mix(result); !ok) return std::unexpected(ok.error());
+    for (auto& term : terms) term.paint = own(term.paint);
+    return result;
+}
+
+const Material* DisplayList::own(const Material* m) {
+    if (!m) return nullptr;
+    if (material_.at && (material_.at == m || *material_.at == *m)) return material_.at;
+    material_.at = arena_.copy(std::span<const Material>(m, 1)).data();
+    return material_.at;
+}
+
+Paint DisplayList::own(const Paint& p) {
+    Paint out = p;
+    if (p.kind == Paint::Kind::mix) {
+        if (!validate_paint_mix(p)) { Paint invalid; invalid.kind = Paint::Kind::mix; return invalid; }
+        auto* terms = static_cast<WeightedPaint*>(arena_.allocate(sizeof(WeightedPaint) * p.mix.size(), alignof(WeightedPaint)));
+        for (std::size_t i = 0; i < p.mix.size(); ++i) {
+            std::construct_at(terms + i);
+            terms[i] = {own(p.mix[i].paint), p.mix[i].weight};
+        }
+        out.mix = std::span<const WeightedPaint>(terms, p.mix.size());
+        return out;
+    }
+    if (p.kind == Paint::Kind::gradient) out.gradient.stops = arena_.copy(p.gradient.stops);
+    out.material = p.kind == Paint::Kind::image || p.kind == Paint::Kind::image_mask ? own(p.material) : nullptr;
+    return out;
+}
+
+PathView DisplayList::own(const Path& p) { return {arena_.copy(p.verbs()), arena_.copy(p.points())}; }
+
+StrokeStyle DisplayList::own(const StrokeStyle& s) {
+    StrokeStyle out = s;
+    out.dashes = arena_.copy(s.dashes);
+    return out;
+}
+
+void DisplayList::fill_rect(const Rect& r, const Paint& p) { commands_.emplace_back(FillRect{r, own(p)}); }
+void DisplayList::fill_round_rect(const Rect& r, const CornerRadii& radii, const Paint& p) {
+    if (radii.zero()) return fill_rect(r, p);
+    commands_.emplace_back(FillRoundRect{r, radii, own(p)});
+}
+void DisplayList::stroke_round_rect(const Rect& r, const CornerRadii& radii, float width, const Paint& p) {
+    commands_.emplace_back(StrokeRoundRect{r, radii, width, own(p)});
+}
+void DisplayList::box_shadow(const Rect& r, const CornerRadii& radii, Point offset, float blur, float spread, Color c, bool inset) {
+    commands_.emplace_back(BoxShadow{r, radii, offset, blur, spread, c, inset});
+}
+void DisplayList::fill_path(const Path& path, FillRule rule, const Paint& p) {
+    commands_.emplace_back(FillPath{own(path), rule, own(p)});
+}
+void DisplayList::stroke_path(const Path& path, const StrokeStyle& style, const Paint& p) {
+    commands_.emplace_back(StrokePath{own(path), own(style), own(p)});
+}
+void DisplayList::draw_image(ImageRef image, const Rect& source, const Rect& dest, Sampling s, float opacity) {
+    commands_.emplace_back(DrawImage{image, source, dest, s, opacity});
+}
+void DisplayList::draw_glyphs(FontRef font, float size, Point origin, std::span<const Glyph> glyphs, const Paint& p,
+                              std::span<const GlyphStyle> styles) {
+    commands_.emplace_back(DrawGlyphs{font, size, origin, arena_.copy(glyphs), own(p), arena_.copy(styles)});
+}
+std::span<Glyph> DisplayList::glyph_storage(std::size_t count) {
+    if (count == 0) return {};
+    auto* p = static_cast<Glyph*>(arena_.allocate(sizeof(Glyph) * count, alignof(Glyph)));
+    for (std::size_t i = 0; i < count; ++i) std::construct_at(p + i);
+    return {p, count};
+}
+void DisplayList::add_glyphs(FontRef font, float size, Point origin, std::span<const Glyph> placed, const Paint& p) {
+    commands_.emplace_back(DrawGlyphs{font, size, origin, placed, own(p), {}});
+}
+void DisplayList::style_glyphs(std::size_t index, std::span<const GlyphStyle> styles) {
+    if (index >= commands_.size()) return;
+    if (auto* g = std::get_if<DrawGlyphs>(&commands_[index]))
+        g->styles = styles.size() == g->glyphs.size() ? arena_.copy(styles) : std::span<const GlyphStyle>{};
+}
+void DisplayList::move_fill(std::size_t index, Point offset, float opacity) {
+    if (index >= commands_.size()) return;
+    std::visit(
+        [&](auto& c) {
+            using T = std::decay_t<decltype(c)>;
+            if constexpr (std::same_as<T, FillRect> || std::same_as<T, FillRoundRect>) {
+                c.rect = c.rect.offset(offset);
+                if (c.paint.kind == Paint::Kind::solid) c.paint.color.a *= std::clamp(opacity, 0.0f, 1.0f);
+            }
+        },
+        commands_[index]);
+}
+void DisplayList::draw_mesh(ImageRef image, std::span<const Point> positions, std::span<const Point> uvs, std::span<const std::uint16_t> indices,
+                            Sampling s, float opacity, float seam, const Material* material) {
+    Paint paint;
+    paint.kind = Paint::Kind::image;
+    paint.image = image;
+    paint.sampling = s;
+    paint.color = Color{1, 1, 1, opacity};
+    paint.material = material;
+    mesh(paint, positions, uvs, indices, seam);
+}
+
+void DisplayList::draw_mesh_mask(ImageRef image, std::span<const Point> positions, std::span<const Point> uvs,
+                                 std::span<const std::uint16_t> indices, Color color, Sampling s, float seam, const Material* material) {
+    Paint paint;
+    paint.kind = Paint::Kind::image_mask;
+    paint.image = image;
+    paint.sampling = s;
+    paint.color = color;
+    paint.material = material;
+    mesh(paint, positions, uvs, indices, seam);
+}
+
+void DisplayList::mesh(const Paint& base, std::span<const Point> positions, std::span<const Point> uvs, std::span<const std::uint16_t> indices,
+                       float seam) {
+    if (positions.size() != uvs.size()) return;
+    Paint paint = base;
+    paint.material = own(base.material);  // copied once for every triangle
+    for (std::size_t k = 0; k + 2 < indices.size(); k += 3) {
+        const std::size_t i0 = indices[k], i1 = indices[k + 1], i2 = indices[k + 2];
+        if (i0 >= positions.size() || i1 >= positions.size() || i2 >= positions.size()) continue;
+        const Point u0 = uvs[i0], u1 = uvs[i1], u2 = uvs[i2], p0 = positions[i0], p1 = positions[i1], p2 = positions[i2];
+        // The affine taking the triangle's image to its place: L·(u − u0) + p0.
+        const float du1x = u1.x - u0.x, du1y = u1.y - u0.y, du2x = u2.x - u0.x, du2y = u2.y - u0.y;
+        const float det = du1x * du2y - du2x * du1y;
+        if (det == 0) continue;  // a triangle with no area in the image
+        const float dp1x = p1.x - p0.x, dp1y = p1.y - p0.y, dp2x = p2.x - p0.x, dp2y = p2.y - p0.y;
+        if (dp1x * dp2y - dp2x * dp1y == 0) continue;  // nothing to draw
+        // L = [dp1 dp2] · [du1 du2]⁻¹
+        const float ia = du2y / det, ib = -du1y / det, ic = -du2x / det, id = du1x / det;
+        Affine m;
+        m.a = dp1x * ia + dp2x * ib;
+        m.b = dp1y * ia + dp2y * ib;
+        m.c = dp1x * ic + dp2x * id;
+        m.d = dp1y * ic + dp2y * id;
+        m.e = p0.x - (m.a * u0.x + m.c * u0.y);
+        m.f = p0.y - (m.b * u0.x + m.d * u0.y);
+        // The triangle with each edge moved out by `seam` pixels: its corners where the moved edges meet (a
+        // sharp corner's reach held to four times the seam), so a pixel on an edge two triangles share is
+        // wholly covered by each, and antialiasing leaves no crack between them.
+        const std::array<Point, 3> v{p0, p1, p2};
+        const float orient = (dp1x * dp2y - dp2x * dp1y) > 0 ? 1.0f : -1.0f;
+        std::array<Point, 3> grown{};
+        for (std::size_t q = 0; q < 3; ++q) {
+            const Point prev = v[(q + 2) % 3], cur = v[q], next = v[(q + 1) % 3];
+            auto normal = [&](Point from, Point to) {  // outward, unit
+                const float ex = to.x - from.x, ey = to.y - from.y, len = std::sqrt(ex * ex + ey * ey);
+                return len > 0 ? Point{ey / len * orient, -ex / len * orient} : Point{0, 0};
+            };
+            const Point n1 = normal(prev, cur), n2 = normal(cur, next);
+            const float bx = n1.x + n2.x, by = n1.y + n2.y, dot = 1 + (n1.x * n2.x + n1.y * n2.y);
+            const float k = dot > 1e-4f ? std::min(seam * 2 / dot, seam * 4 / std::max(1e-4f, std::sqrt(bx * bx + by * by))) : 0.0f;
+            grown[q] = {cur.x + bx * k, cur.y + by * k};
+        }
+        mesh_scratch_.clear();
+        mesh_scratch_.move_to(grown[0]).line_to(grown[1]).line_to(grown[2]).close();
+        paint.image_transform = m;
+        commands_.emplace_back(FillPath{own(mesh_scratch_), FillRule::nonzero, paint});  // the paint already the list's own
+    }
+}
+
+void DisplayList::smooth_corners(std::size_t from, std::size_t to, float smoothing) {
+    if (!(smoothing > 0)) return;
+    for (std::size_t i = from; i < std::min(to, commands_.size()); ++i)
+        std::visit(
+            [&](auto& c) {
+                using T = std::decay_t<decltype(c)>;
+                if constexpr (std::same_as<T, FillRoundRect> || std::same_as<T, StrokeRoundRect> || std::same_as<T, BoxShadow> ||
+                              std::same_as<T, PushClipRect>)
+                    if (c.radii.smoothing == 0 && !c.radii.zero()) c.radii.smoothing = smoothing;
+            },
+            commands_[i]);
+}
+
+void DisplayList::push_clip(const Rect& r, const CornerRadii& radii) { commands_.emplace_back(PushClipRect{r, radii}); }
+void DisplayList::push_clip(const Path& path, FillRule rule) { commands_.emplace_back(PushClipPath{own(path), rule}); }
+void DisplayList::pop_clip() { commands_.emplace_back(PopClip{}); }
+void DisplayList::push_transform(const Affine& m) { commands_.emplace_back(PushTransform{m}); }
+void DisplayList::pop_transform() { commands_.emplace_back(PopTransform{}); }
+void DisplayList::push_layer(float opacity, BlendMode blend, EffectRef effect, std::span<const float> params, Rect bounds,
+                             std::span<const EffectShape> shapes, LayerBoundsMode bounds_mode) {
+    commands_.emplace_back(PushLayer{opacity, blend, effect, arena_.copy(params), bounds, arena_.copy(shapes), bounds_mode});
+}
+void DisplayList::pop_layer() { commands_.emplace_back(PopLayer{}); }
+void DisplayList::external_texture(std::uint64_t texture, const Rect& dest, float opacity, Sampling sampling) {
+    commands_.emplace_back(ExternalTexture{texture, dest, opacity, sampling});
+}
+void DisplayList::begin_node(std::uint32_t node) { commands_.emplace_back(BeginNode{node}); }
+void DisplayList::end_node() { commands_.emplace_back(EndNode{}); }
+void DisplayList::node_frame(std::uint32_t node, Rect rect, float opacity, Rect placement, Size constraint, Affine visual,
+                             std::optional<Point> sampled_placement_origin) {
+    commands_.emplace_back(NodeFrame{node, rect, opacity, placement, constraint, visual, sampled_placement_origin});
+}
+
+const PartFrame* DisplayList::own(const PartFrame& part) {
+    PartFrame copy = part;
+    copy.role = arena_.copy(part.role); copy.id = arena_.copy(part.id);
+    auto* weights = static_cast<ReferenceWeight*>(arena_.allocate(sizeof(ReferenceWeight) * part.lineage.size(), alignof(ReferenceWeight)));
+    for (std::size_t i = 0; i < part.lineage.size(); ++i)
+        std::construct_at(weights + i, ReferenceWeight{arena_.copy(part.lineage[i].key), part.lineage[i].weight});
+    copy.lineage = {weights, part.lineage.size()};
+    return arena_.make<PartFrame>(copy);
+}
+void DisplayList::reference_box(std::uint32_t owner, std::string_view key, Rect allocation) {
+    commands_.emplace_back(ReferenceBox{owner, arena_.copy(key), allocation});
+}
+void DisplayList::begin_part(const PartFrame& part) { commands_.emplace_back(BeginPart{own(part)}); }
+void DisplayList::begin_part(const PartFrame& from, const PartFrame& to, double u) {
+    PartFrame part = to;
+    auto mix = [u](float a, float b) { return static_cast<float>(a + (b - a) * u); };
+    part.allocation = {mix(from.allocation.x,to.allocation.x),mix(from.allocation.y,to.allocation.y),
+        std::max(0.0f,mix(from.allocation.width,to.allocation.width)),std::max(0.0f,mix(from.allocation.height,to.allocation.height))};
+    part.role = arena_.copy(to.role); part.id = arena_.copy(to.id);
+    part.anchor = {mix(from.anchor.x,to.anchor.x),mix(from.anchor.y,to.anchor.y)};
+    const auto count = from.lineage.size() + to.lineage.size();
+    auto* weights = static_cast<ReferenceWeight*>(arena_.allocate(sizeof(ReferenceWeight) * count, alignof(ReferenceWeight)));
+    std::size_t i = 0;
+    for (const auto& source : from.lineage) std::construct_at(weights + i++, ReferenceWeight{arena_.copy(source.key),source.weight * (1-u)});
+    for (const auto& target : to.lineage) std::construct_at(weights + i++, ReferenceWeight{arena_.copy(target.key),target.weight * u});
+    part.lineage = {weights,count};
+    commands_.emplace_back(BeginPart{arena_.make<PartFrame>(part)});
+}
+void DisplayList::end_part() { commands_.emplace_back(EndPart{}); }
+
+Command DisplayList::own(const Command& c) {
+    return std::visit(
+        [&](const auto& cmd) -> Command {
+            using T = std::decay_t<decltype(cmd)>;
+            T copy = cmd;
+            if constexpr (requires { copy.paint; }) copy.paint = own(cmd.paint);
+            if constexpr (requires { copy.path; }) copy.path = {arena_.copy(cmd.path.verbs), arena_.copy(cmd.path.points)};
+            if constexpr (requires { copy.style; }) copy.style = own(cmd.style);
+            if constexpr (std::same_as<T, DrawGlyphs>) {
+                copy.glyphs = arena_.copy(cmd.glyphs);
+                copy.styles = arena_.copy(cmd.styles);
+            }
+            if constexpr (std::same_as<T, ReferenceBox>) copy.key = arena_.copy(cmd.key);
+            if constexpr (std::same_as<T, BeginPart>) copy.frame = cmd.frame ? own(*cmd.frame) : nullptr;
+            if constexpr (std::same_as<T, PushLayer>) {
+                copy.params = arena_.copy(cmd.params);
+                copy.shapes = arena_.copy(cmd.shapes);
+            }
+            return copy;
+        },
+        c);
+}
+
+void DisplayList::append(const DisplayList& other) {
+    commands_.reserve(commands_.size() + other.commands_.size());
+    for (const Command& c : other.commands_) commands_.push_back(own(c));
+}
+
+void DisplayList::append(const DisplayList& other, std::uint64_t id, std::uint64_t revision) {
+    const std::size_t first = commands_.size();
+    append(other);
+    if (commands_.size() > first) kept_runs_.push_back({first, commands_.size() - first, id, revision});
+}
+
+bool DisplayList::balanced() const noexcept {
+    int clips = 0, transforms = 0, layers = 0, nodes = 0, parts = 0;
+    for (const Command& c : commands_) {
+        std::visit(
+            [&](const auto& cmd) {
+                using T = std::decay_t<decltype(cmd)>;
+                if constexpr (std::same_as<T, PushClipRect> || std::same_as<T, PushClipPath>) ++clips;
+                else if constexpr (std::same_as<T, PopClip>) --clips;
+                else if constexpr (std::same_as<T, PushTransform>) ++transforms;
+                else if constexpr (std::same_as<T, PopTransform>) --transforms;
+                else if constexpr (std::same_as<T, PushLayer>) ++layers;
+                else if constexpr (std::same_as<T, PopLayer>) --layers;
+                else if constexpr (std::same_as<T, BeginNode>) ++nodes;
+                else if constexpr (std::same_as<T, EndNode>) --nodes;
+                else if constexpr (std::same_as<T, BeginPart>) ++parts;
+                else if constexpr (std::same_as<T, EndPart>) --parts;
+            },
+            c);
+        if (clips < 0 || transforms < 0 || layers < 0 || nodes < 0 || parts < 0) return false;
+    }
+    return clips == 0 && transforms == 0 && layers == 0 && nodes == 0 && parts == 0;
+}
+
+namespace {
+
+struct Hasher {
+    std::uint64_t h = mlibs::hash::Fnv1a::offset;
+    template <class T>
+        requires std::is_arithmetic_v<T> || std::is_enum_v<T>
+    void put(T v) {
+        if constexpr (std::is_enum_v<T>) put(static_cast<std::underlying_type_t<T>>(v));
+        else if constexpr (std::is_floating_point_v<T>) {
+            using Bits = std::conditional_t<sizeof(T) == 4, std::uint32_t, std::uint64_t>;
+            h = mlibs::hash::Fnv1a(h).le(std::bit_cast<Bits>(v), sizeof v).value();
+        } else h = mlibs::hash::Fnv1a(h).le(static_cast<std::uint64_t>(v), sizeof v).value();
+    }
+    void put(const Point& p) { put(p.x); put(p.y); }
+    void put(const Rect& r) { put(r.x); put(r.y); put(r.width); put(r.height); }
+    void put(const Color& c) { put(c.r); put(c.g); put(c.b); put(c.a); }
+    void put(const CornerRadii& r) {
+        put(r.top_left); put(r.top_right); put(r.bottom_right); put(r.bottom_left);
+        if (r.smoothing != 0) put(r.smoothing);  // circular corners hash as they always have
+    }
+    void put(const Affine& m) { put(m.a); put(m.b); put(m.c); put(m.d); put(m.e); put(m.f); }
+    void put(const PathView& p) {
+        put(static_cast<std::uint64_t>(p.verbs.size()));
+        for (auto v : p.verbs) put(v);
+        for (const auto& pt : p.points) put(pt);
+    }
+    void put(const Paint& p) {
+        put(p.kind);
+        put(p.color);
+        if (p.kind == Paint::Kind::mix) {
+            put(p.mix_opacity); put(static_cast<std::uint64_t>(p.mix.size()));
+            for (const auto& term : p.mix) { put(term.weight); put(term.paint); }
+        }
+        if (p.kind == Paint::Kind::gradient) {
+            put(p.gradient.kind); put(p.gradient.start); put(p.gradient.end); put(p.gradient.radius); put(p.gradient.spread);
+            for (const auto& s : p.gradient.stops) { put(s.offset); put(s.color); }
+        }
+        if (p.kind == Paint::Kind::image || p.kind == Paint::Kind::image_mask) { put(p.image.id); put(p.image_transform); put(p.sampling); }
+        if (p.material) {  // only when lit: an unlit paint hashes as it always has
+            const Material& m = *p.material;
+            put(m.normal.id); put(m.light); put(m.light_z); put(m.shadow); put(m.shadow_strength); put(m.bands); put(m.softness);
+            put(m.rim); put(m.rim_strength); put(m.rim_width);
+            if (m.key != Color::white()) put(m.key);
+        }
+    }
+    void put(const StrokeStyle& s) {
+        put(s.width); put(s.cap); put(s.join); put(s.miter_limit); put(s.dash_offset);
+        put(s.trim_start); put(s.trim_end); put(s.trim_offset);
+        for (float d : s.dashes) put(d);
+    }
+};
+
+}  // namespace
+
+std::uint64_t hash_command(const Command& c, std::uint64_t seed) noexcept {
+    // Presentation metadata is not rendered content and must never retime a
+    // visual morph or invalidate damage merely because a constraint changed.
+    if (std::holds_alternative<NodeFrame>(c) || std::holds_alternative<ReferenceBox>(c) ||
+        std::holds_alternative<BeginPart>(c) || std::holds_alternative<EndPart>(c)) return seed;
+    Hasher h{seed};
+    // A 32-bit Web consumer and a 64-bit native consumer share one stream;
+    // container counts and variant indices are never native-width size_t.
+    h.put(static_cast<std::uint64_t>(c.index()));
+    std::visit(
+        [&](const auto& cmd) {
+            using T = std::decay_t<decltype(cmd)>;
+            if constexpr (std::same_as<T, FillRect>) { h.put(cmd.rect); h.put(cmd.paint); }
+            else if constexpr (std::same_as<T, FillRoundRect>) { h.put(cmd.rect); h.put(cmd.radii); h.put(cmd.paint); }
+            else if constexpr (std::same_as<T, StrokeRoundRect>) { h.put(cmd.rect); h.put(cmd.radii); h.put(cmd.width); h.put(cmd.paint); }
+            else if constexpr (std::same_as<T, BoxShadow>) { h.put(cmd.rect); h.put(cmd.radii); h.put(cmd.offset); h.put(cmd.blur); h.put(cmd.spread); h.put(cmd.color); h.put(cmd.inset); }
+            else if constexpr (std::same_as<T, FillPath>) { h.put(cmd.path); h.put(cmd.rule); h.put(cmd.paint); }
+            else if constexpr (std::same_as<T, StrokePath>) { h.put(cmd.path); h.put(cmd.style); h.put(cmd.paint); }
+            else if constexpr (std::same_as<T, DrawImage>) { h.put(cmd.image.id); h.put(cmd.source); h.put(cmd.dest); h.put(cmd.sampling); h.put(cmd.opacity); }
+            else if constexpr (std::same_as<T, DrawGlyphs>) {
+                h.put(cmd.font.id); h.put(cmd.size); h.put(cmd.origin); h.put(cmd.paint);
+                for (const auto& g : cmd.glyphs) { h.put(g.id); h.put(g.position); }
+                for (const auto& st : cmd.styles) { h.put(st.transform); h.put(st.opacity); h.put(st.tint); }
+            }
+            else if constexpr (std::same_as<T, PushClipRect>) { h.put(cmd.rect); h.put(cmd.radii); }
+            else if constexpr (std::same_as<T, PushClipPath>) { h.put(cmd.path); h.put(cmd.rule); }
+            else if constexpr (std::same_as<T, PushTransform>) { h.put(cmd.transform); }
+            else if constexpr (std::same_as<T, PushLayer>) {
+                h.put(cmd.opacity); h.put(cmd.blend); h.put(cmd.effect.id); h.put(cmd.bounds);
+                for (float p : cmd.params) h.put(p);
+                for (const EffectShape& sh : cmd.shapes) { h.put(sh.rect); h.put(sh.radii); }
+                // Preserve established hashes for the existing declared mode.
+                if(cmd.bounds_mode!=LayerBoundsMode::declared){h.put(std::uint64_t{0x6c61796572626e64});h.put(cmd.bounds_mode);}
+            }
+            else if constexpr (std::same_as<T, ExternalTexture>) {
+                h.put(cmd.texture); h.put(cmd.dest); h.put(cmd.opacity);
+                if (cmd.sampling != Sampling::linear) h.put(cmd.sampling);  // the default hashes as it did
+            }
+            else if constexpr (std::same_as<T, BeginNode>) { h.put(cmd.node); }
+            else if constexpr (std::same_as<T, NodeFrame>) { h.put(cmd.rect); h.put(cmd.opacity); h.put(cmd.placement); h.put(cmd.constraint.width); h.put(cmd.constraint.height); }
+        },
+        c);
+    return h.h;
+}
+
+std::uint64_t DisplayList::hash() const noexcept {
+    std::uint64_t h = Hasher{}.h;
+    for (const Command& c : commands_) h = hash_command(c, h);
+    return h;
+}
+
+void DisplayList::clear() noexcept {
+    ++path_generation_;
+    commands_.clear();
+    kept_runs_.clear();
+    arena_.reset();
+    material_.at = nullptr;
+}
+
+}  // namespace xrender

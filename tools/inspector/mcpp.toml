@@ -1,0 +1,42 @@
+# omui.inspector — the openmui Inspector (D-61, D-63, D-67): a tool
+# written in openmui that connects to any running openmui application and
+# shows its semantic tree, a node's type / source / props / layout / state,
+# frame times against the 60 Hz budget, the frame's pipeline, and the
+# application's clock — which it can pause, step, slow down and send back in
+# time. `omui agent` prints the same data as JSON.
+#
+#   mcpp run -p omui.inspector -- [--app org.example.notes] [--agent-dir DIR]
+[package]
+namespace   = "omui"
+name        = "inspector"
+version     = "0.1.0"
+description = "The openmui Inspector: semantic tree, node details, frame times, pipeline and time control of a running openmui application"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+kind = "tool"
+
+[targets.openmui-inspector]
+kind = "lib"
+
+[targets.omui-inspector]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/cellular/*.cppm", "src/cellular/*.cpp", "src/motion/*.cppm", "src/motion/*.cpp", "src/catalog/*.cppm"]
+
+[dependencies]
+mcpplibs.cmdline = "0.0.3"
+mlibs.utils = { path = "../../modules/base/utils" }
+mlibs.control = { path = "../../modules/base/control" }
+omui.sdk = { path = "../../modules/projects/omui/sdk" }
+mlibs.simulation = { path = "../../modules/base/simulation" }
+xengine.cellular = { path = "../../modules/projects/xengine/kernel/cellular" }
+"xengine.cellular.present" = { path = "../../modules/projects/xengine/kernel/cellular/present" }
+# The motion workbench reads, draws and tunes hanim's animation documents.
+hanim.studio = { path = "../../modules/projects/hanim/studio" }
+mcpplibs.os = "0.4.4"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"

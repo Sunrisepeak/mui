@@ -1,0 +1,69 @@
+// mlibs.markdown's side of js/markdown.mjs: Markdown to HTML, the whole way
+// — md4c's parse (mlibs.markdown is built on it), the document of blocks and
+// marks, then the HTML from the document alone — against md4c's own HTML
+// writer (md4w) and markdown-it, on the same text, in the same V8 when built
+// for the Web. The text: every Markdown file of the repository's docs and the
+// site's content (a corpus a person wrote), repeated to 1 MiB.
+//
+//   omui-bench-markdown CORPUS [--runs N] [--json]
+//   omui-bench-markdown CORPUS --phases     the parse into the document, then the HTML from it
+import std;
+import mcpplibs.cmdline;
+import mlibs.markdown;
+
+int main(int argc, char** argv) {
+    using mcpplibs::cmdline::App, mcpplibs::cmdline::Arg, mcpplibs::cmdline::Option;
+    const auto line = App("omui-bench-markdown")
+        .description("md4c's side of the Markdown benchmark: a corpus parsed and written as HTML")
+        .arg(Arg("corpus").required().help("the Markdown file"))
+        .option(Option("runs").value_type<int>().help("measured runs (default 15)"))
+        .option(Option("json").help("the report as JSON"))
+        .option(Option("phases").help("where the time goes: parse, then HTML"));
+    auto parsed = line.parse(argc, argv);
+    if (!parsed) {
+        if (!parsed.error().is_error()) return 0;
+        std::println(std::cerr, "omui-bench-markdown: {}", parsed.error().message);
+        return 2;
+    }
+    std::ifstream in(std::filesystem::path(parsed->positional(0)), std::ios::binary);
+    const std::string text{std::istreambuf_iterator<char>(in), {}};
+    if (text.empty()) return 1;
+    const int runs = std::max(1, parsed->value_as<int>("runs").value_or(15));
+    const bool json = parsed->is_flag_set("json"), phases = parsed->is_flag_set("phases");
+    if (phases) {
+        // Where the time goes: md4c's parse into the document, then the HTML from it.
+        std::vector<double> parse_ms, html_ms;
+        for (int run = 0; run < 3 + runs; ++run) {
+            const auto start = std::chrono::steady_clock::now();
+            const auto doc = mlibs::markdown::parse(text);
+            const auto parsed = std::chrono::steady_clock::now();
+            const std::string html = mlibs::markdown::to_html(doc);
+            const auto done = std::chrono::steady_clock::now();
+            if (run >= 3) {
+                parse_ms.push_back(std::chrono::duration<double, std::milli>(parsed - start).count());
+                html_ms.push_back(std::chrono::duration<double, std::milli>(done - parsed).count());
+            }
+        }
+        std::ranges::sort(parse_ms);
+        std::ranges::sort(html_ms);
+        std::println(R"({{"parse_ms":{:.3f},"html_ms":{:.3f}}})", parse_ms[parse_ms.size() / 2], html_ms[html_ms.size() / 2]);
+        return 0;
+    }
+    std::vector<double> times;
+    std::size_t out = 0;
+    for (int run = 0; run < 3 + runs; ++run) {
+        const auto start = std::chrono::steady_clock::now();
+        const std::string html = mlibs::markdown::to_html(text);  // the one call: source to HTML, as the others
+        const double spent = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+        out = html.size();
+        if (run >= 3) times.push_back(spent);
+    }
+    std::ranges::sort(times);
+    const double median = times[times.size() / 2];
+    const double mb_per_s = static_cast<double>(text.size()) / 1048576.0 / (median / 1000.0);
+    if (json)
+        std::println(R"({{"name":"mlibs.markdown","bytes":{},"html_bytes":{},"median_ms":{:.3f},"mb_per_s":{:.2f}}})", text.size(), out, median, mb_per_s);
+    else
+        std::println("mlibs.markdown: {} bytes to {} bytes of HTML, median {:.3f} ms, {:.2f} MB/s", text.size(), out, median, mb_per_s);
+    return 0;
+}

@@ -1,0 +1,63 @@
+# omui.lang.js — JavaScript (and TypeScript compiled to it) on the Script
+# Binding Profile, with QuickJS-ng (component-binding §7): the `openmui`
+# ES module (builders, signals, expressions, regions, verbs, models, the
+# semantic tree), embedded on omui.lang's script thread.
+[package]
+namespace   = "omui.lang"
+name        = "js"
+version     = "0.1.0"
+description = "openmui for JavaScript and TypeScript (QuickJS-ng): builders, signals, expressions, verbs, models"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "lang"
+agent = { part = "omui.agent" }
+
+[targets.openmui-lang-js]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+# QuickJS-ng where its wrap builds (64-bit targets); on the Web (wasm32) a
+# Script that says JavaScript is not there yet (src/native/web).
+[target.'cfg(not(os = "emscripten"))'.build]
+sources = ["src/native/quickjs/*.cpp"]
+
+[target.'cfg(os = "emscripten")'.build]
+sources = ["src/native/web/*.cpp"]
+
+[dependencies]
+omui.lang    = { path = ".." }
+"omui.lang.ts" = { path = "../ts" }
+omui.abi    = { path = "../../abi" }
+omui.player = { path = "../../player" }
+openlifa.openmui = { path = "../../../../../spec" }
+mcpplibs.os       = "0.4.4"
+nlohmann.json     = "3.12.0"
+
+[target.'cfg(not(os = "emscripten"))'.dependencies]
+mcpplibs.mwrap.quickjs_ng = "0.17.0"
+
+[dev-dependencies]
+# Tests are mtest's (D-147).
+mcpplibs.mtest     = "0.8.4"
+mlibs.utils       = { path = "../../../../base/utils" }
+omui.cts           = { path = "../../cts" }
+omui.native.fuzzy  = { path = "../../native/fuzzy" }
+omui.theme.default = { path = "../../theme/default" }
+omui.theme.compact = { path = "../../theme/compact" }
+omui.ui.base       = { path = "../../components/base" }
+# A stand-in as the entry makes one (Live Design's previews), drawn headless;
+# the designer, for the structured edits of a running TypeScript application.
+omui.host.headless = { path = "../../host/headless" }
+omui.designer      = { path = "../../designer" }
+# The API an application describes, beside its declarations (declare_test).
+omui.agent         = { path = "../../agent" }
+
+# tsc runs the declaration tests' type checks (declare_test; skipped where it
+# is missing): installed from xlings while this package is developed on its
+# own; in the workspace the root declares it for test runs.
+[xlings.workspace]
+"xim:typescript" = { version = "7.0.2", when = "dev" }

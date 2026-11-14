@@ -1,0 +1,34 @@
+# xrender.cts — the render contract's conformance suite on mlibs.cts: GPU
+# pixels through xrender's renderer against the CPU reference, the render
+# graph, the mask atlas, uploads, external textures, effect output bounds.
+# The owner's suite; each backend's tests run it on their device (D-118).
+[package]
+namespace = "xrender"
+name = "cts"
+version = "0.1.0"
+description = "The render conformance suite: GPU pixels against the CPU reference, graph passes, atlases, effects"
+license = "Apache-2.0"
+platforms = ["linux", "macos", "windows"]
+repo = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "backend"
+agent = { library = "conformance suites of the renderer contracts: for tests only" }
+
+[targets.xrender-cts]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+xrender.graph  = { path = "../graph" }
+xrender.vector = { path = "../vector" }
+xrender.raster = { path = "../raster" }
+mlibs.rhi      = { path = "../../../gfx/rhi" }
+mlibs.cts        = { path = "../../../base/cts" }
+mlibs.geom       = { path = "../../../base/geom" }
+mlibs.memory     = { path = "../../../base/memory" }
+mlibs.image      = { path = "../../../base/image" }
+mlibs.utils      = { path = "../../../base/utils" }

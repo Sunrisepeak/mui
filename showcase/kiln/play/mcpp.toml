@@ -1,0 +1,28 @@
+# Kiln over lines (D-186): the game with no window as a program an agent talks to with a pipe — a JSON request a
+# line, the records of its answer. A member of its own beside `headless` (the library, which also builds for the
+# Web): a program with a command line and standard input is the native systems' only.
+[package]
+namespace   = "omui.showcase.kiln"
+name        = "play"
+version     = "0.1.0"
+description = "Kiln played over lines by an agent, a playtest or CI: kiln-play run --session FILE (the requests so far are the game)"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[targets.kiln-play]
+kind = "bin"
+main = "src/entry/main.cpp"
+
+[build]
+sources  = []
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+omui.showcase.kiln.headless = { path = "../headless" }
+xengine.runtime  = { path = "../../../modules/projects/xengine/game/runtime", features = ["lines"] }
+mlibs.agent      = { path = "../../../modules/base/agent" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+mlibs.json     = { path = "../../../modules/base/json" }

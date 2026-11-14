@@ -1,0 +1,29 @@
+// A card let go over a floor (the site plan §5 ③): a soft body of jelly
+// (xengine.dynamics' physical material, hanim's Engine::simulate) under a
+// card and everything on it — it lands, squashes and springs back. Its
+// time is a body's own history: dragged back to any moment it played, it is
+// drawn exactly as it was then; played on again, the same steps, bit for bit.
+import { defineContract } from "openmui/define";
+
+export default defineContract({
+  drop_card: {
+    role: "image",
+    spec: "0.1",
+    doc: "A soft card that lands on a floor; its time can be dragged back and played on again, every step the same.",
+    props: {
+      at: {
+        type: "f64",
+        default: 0.0,
+        bindable: true,
+        doc: "Seconds since it was let go: written as it falls; set, it goes to that moment of what it played and holds there.",
+      },
+      span: { type: "f64", default: 3.0, doc: "How long a drop plays before it holds: the length of its time." },
+    },
+    actions: {
+      drop: { effect: "reversible", doc: "Lets it go again from the top." },
+      play: { effect: "reversible", doc: "Plays on from where its time is (from the top when at its end)." },
+      seek: { effect: "reversible", args: { at: "f64" }, doc: "To a moment of what it played (seconds since let go), held there." },
+    },
+    parts: { card: {}, readout: {} },
+  },
+});

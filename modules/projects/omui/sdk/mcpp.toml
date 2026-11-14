@@ -1,0 +1,74 @@
+# omui.sdk — the umbrella package users name (`import openmui;`, target
+# `import omui;`): its module re-exports the runtime, the base components and
+# the default theme, and `omui::run` shows an application on the host the
+# platform has (a desktop window, or the page's canvas on the Web). It was the
+# repository root's package; the root manifest holds the workspace alone
+# (convergence plan §9.2).
+[package]
+namespace   = "omui"
+name        = "sdk"
+version     = "0.1.0"
+description = "openmui: an open UI specification and its reference implementation in C++ modules"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+agent = { library = "the umbrella: it re-exports the packages of omui and holds nothing itself" }
+
+[targets.openmui]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+omui.core          = { path = "../core" }
+omui.view          = { path = "../view" }
+omui.semantic      = { path = "../semantic" }
+hanim.visual      = { path = "../../hanim/visual" }
+omui.agent         = { path = "../agent" }
+omui.generate      = { path = "../generate" }
+omui.expr          = { path = "../expr" }
+omui.viewdoc       = { path = "../viewdoc" }
+mlibs.utils         = { path = "../../../base/utils" }
+omui.ui.base       = { path = "../components/base" }
+omui.ui.window     = { path = "../components/window" }
+omui.host.headless = { path = "../host/headless" }
+mlibs.i18n        = { path = "../../../content/i18n" }
+"mlibs.i18n.cldr"   = { path = "../../../content/i18n/cldr" }
+mcpplibs.os           = "0.4.4"
+# The development host (:devhost) draws the application's frames itself, glyphs too.
+xrender.vector        = { path = "../../xrender/vector" }
+xrender.frame         = { path = "../../xrender/frame" }
+xrender.raster        = { path = "../../xrender/raster" }
+xrender.text          = { path = "../../xrender/text" }
+mcpplibs.cmdline      = "0.0.3"
+
+# Where `omui::run` shows an application (D-84): a desktop window, on the
+# Web the page's canvas, on Android the NativeActivity's window (W10) — the host, and the partition (openmui:host) and unit
+# (src/host/<where>/shown.cpp) that name it.
+[target.'cfg(all(not(os = "emscripten"), not(env = "android")))'.dependencies]
+omui.host.sdl3 = { path = "../host/sdl3" }
+
+[target.'cfg(env = "android")'.dependencies]
+omui.host.android = { path = "../host/android" }
+
+[target.'cfg(os = "emscripten")'.dependencies]
+omui.host.web = { path = "../host/web" }
+
+[target.'cfg(all(not(os = "emscripten"), not(env = "android")))'.build]
+sources = ["src/host/desktop/*.cppm", "src/host/desktop/*.cpp"]
+
+[target.'cfg(env = "android")'.build]
+sources = ["src/host/android/*.cppm", "src/host/android/*.cpp"]
+
+[target.'cfg(os = "emscripten")'.build]
+sources = ["src/host/web/*.cppm", "src/host/web/*.cpp"]
+
+# SDK startup CTS exercise the actual generated profile and AppSpec run path.
+[dev-dependencies]
+# Tests are mtest's (D-147).
+mcpplibs.mtest = "0.8.4"
+
+[test]
+discover = ["tests/*_test.cpp"]

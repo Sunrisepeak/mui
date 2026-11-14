@@ -1,0 +1,9 @@
+// The package's own components (contract/*.contract.omui.toml: badge, avatar,
+// skeleton, card, accordion, toast, popover, breadcrumb, pagination, number
+// input) become code when it builds; the Core components' (spec §11) are
+// committed in src/generated, made from spec/registry.
+import std;
+import mcpp;
+import omui.build.contracts;
+
+int main() { return omui::build::components({.module = "omui.ui.base", .ns = "omui"}) ? 0 : 1; }

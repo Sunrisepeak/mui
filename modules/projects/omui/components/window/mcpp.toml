@@ -1,0 +1,41 @@
+# omui.ui.window — the framework's own window frame (D-75): `window_frame`,
+# the shadow, rounded edge, title bar and buttons of a framework-drawn window
+# (only its content in a native one), and `caption_button`, its minimize,
+# maximize, restore and close buttons. Contract-first: contract/*.contract.omui.toml
+# become the bases, builders, stubs and schema when it builds (omui.build.contracts).
+# The window's state and operations are omui.view's (`window()`, the
+# window.* verbs); a host makes them real.
+[package]
+namespace   = "omui.ui"
+name        = "window"
+version     = "0.1.0"
+description = "The framework's own window frame: shadow, edge, title bar and caption buttons that follow the window's state"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "component"
+agent = { part = "omui.agent" }
+
+[targets.openmui-ui-window]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+omui.core    = { path = "../../core" }
+omui.view    = { path = "../../view" }
+xrender.vector  = { path = "../../../xrender/vector" }
+omui.ui.base = { path = "../base" }
+
+[build-dependencies]
+omui.build.contracts = { path = "../../../../../mcpp/contracts", host-module = true }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+mlibs.utils       = { path = "../../../../base/utils" }
+omui.host.headless = { path = "../../host/headless" }
+omui.semantic      = { path = "../../semantic" }
+mlibs.i18n.cldr     = { path = "../../../../content/i18n/cldr" }

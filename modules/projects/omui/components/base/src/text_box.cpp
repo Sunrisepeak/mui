@@ -1,0 +1,744 @@
+module omui.ui.base;
+
+import std;
+import omui.core;
+import omui.view;
+import mlibs.unicode;
+import xrender.text;
+
+namespace omui {
+
+using parts::focus_ring;
+using parts::mix;
+
+namespace {
+
+constexpr float default_w = 240;
+constexpr float pad_y = 8, pad_x = 10;
+constexpr seconds blink_period{0.53};
+constexpr std::string_view bullet = "•";
+
+// The modifier that moves by words: Alt where the primary is Command (macOS), else Ctrl.
+Modifier word_modifier() { return primary_modifier() == Modifier::meta ? Modifier::alt : Modifier::ctrl; }
+
+bool only(Modifiers m, Modifiers wanted) { return (m.bits & ~static_cast<std::uint8_t>(Modifier::shift)) == wanted.bits; }
+
+constexpr float gutter_w = 40;
+
+// Code's colours, by what a stretch is: a word of the language, a string, a number, a comment.
+struct Lexicon {
+    std::vector<std::string_view> words;
+    std::string_view              line_comment;  // to the end of the line
+    bool                          block_comments = false;  // /* … */
+};
+
+const Lexicon& lexicon(std::string_view language) {
+    static const Lexicon cpp{{"auto", "bool", "break", "case", "catch", "char", "class", "co_await", "co_return", "const", "consteval", "constexpr", "continue",
+                              "default", "delete", "do", "double", "else", "enum", "explicit", "export", "extern", "false", "float", "for", "friend", "if", "import",
+                              "inline", "int", "long", "module", "namespace", "new", "noexcept", "nullptr", "operator", "private", "protected", "public", "requires",
+                              "return", "short", "signed", "sizeof", "static", "static_cast", "struct", "switch", "template", "this", "throw", "true", "try",
+                              "typename", "union", "unsigned", "using", "virtual", "void", "volatile", "while"},
+                             "//",
+                             true};
+    static const Lexicon ts{{"as", "async", "await", "break", "case", "catch", "class", "const", "continue", "default", "delete", "do", "else", "enum", "export",
+                             "extends", "false", "finally", "for", "from", "function", "if", "import", "in", "instanceof", "interface", "let", "new", "null", "of",
+                             "return", "static", "super", "switch", "this", "throw", "true", "try", "type", "typeof", "undefined", "var", "void", "while", "yield"},
+                            "//",
+                            true};
+    static const Lexicon python{{"and", "as", "assert", "async", "await", "break", "class", "continue", "def", "del", "elif", "else", "except", "False", "finally",
+                                 "for", "from", "global", "if", "import", "in", "is", "lambda", "None", "nonlocal", "not", "or", "pass", "raise", "return", "self",
+                                 "True", "try", "while", "with", "yield"},
+                                "#"};
+    static const Lexicon lua{{"and", "break", "do", "else", "elseif", "end", "false", "for", "function", "goto", "if", "in", "local", "nil", "not", "or",
+                              "repeat", "return", "then", "true", "until", "while"},
+                             "--"};
+    static const Lexicon json{{"true", "false", "null"}, ""};
+    static const Lexicon toml{{"true", "false"}, "#"};
+    static const Lexicon plain{};
+    if (language == "cpp") return cpp;
+    if (language == "typescript") return ts;
+    if (language == "python") return python;
+    if (language == "lua") return lua;
+    if (language == "json") return json;
+    if (language == "toml") return toml;
+    return plain;
+}
+
+std::vector<mlibs::text::StyledRange> code_ranges(std::string_view text, std::string_view language, const Theme& th, const mlibs::text::TextStyle& base) {
+    std::vector<mlibs::text::StyledRange> out;
+    const Lexicon& lx = lexicon(language);
+    auto mark = [&](std::size_t from, std::size_t to, std::string_view colour) {
+        mlibs::text::TextStyle st = base;
+        st.color = th.color(colour);
+        out.push_back({from, to, std::move(st)});
+    };
+    auto word_char = [](char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_'; };
+    for (std::size_t i = 0; i < text.size();) {
+        const char c = text[i];
+        if (!lx.line_comment.empty() && text.substr(i).starts_with(lx.line_comment)) {
+            const std::size_t end = std::min(text.size(), text.find('\n', i));
+            mark(i, end, "text_muted");
+            i = end;
+        } else if (lx.block_comments && text.substr(i).starts_with("/*")) {
+            const std::size_t close = text.find("*/", i + 2);
+            const std::size_t end = close == std::string_view::npos ? text.size() : close + 2;
+            mark(i, end, "text_muted");
+            i = end;
+        } else if (c == '"' || c == '\'' || (c == '`' && language == "typescript")) {
+            std::size_t j = i + 1;
+            while (j < text.size() && text[j] != c && (text[j] != '\n' || c == '`')) j += text[j] == '\\' ? 2 : 1;
+            const std::size_t end = std::min(text.size(), j + 1);
+            mark(i, end, "success");
+            i = end;
+        } else if (c >= '0' && c <= '9' && (i == 0 || !word_char(text[i - 1]))) {
+            std::size_t j = i + 1;
+            while (j < text.size() && (word_char(text[j]) || text[j] == '.')) ++j;
+            mark(i, j, "warning");
+            i = j;
+        } else if (word_char(c) && (i == 0 || !word_char(text[i - 1]))) {
+            std::size_t j = i + 1;
+            while (j < text.size() && word_char(text[j])) ++j;
+            if (std::ranges::contains(lx.words, text.substr(i, j - i))) mark(i, j, "accent");
+            i = j;
+        } else {
+            ++i;
+        }
+    }
+    return out;
+}
+
+}  // namespace
+
+TextBox::~TextBox() {
+    if (blink_timer_ && attached()) services().cancel(blink_timer_);
+}
+
+void TextBox::mounted() {
+    editor_ = mlibs::text::TextEditor(props.text, {props.multiline, static_cast<std::size_t>(std::max(0, props.max_length))});
+    editor_.move_to(editor_.text().size());
+}
+
+void TextBox::prop_changed(TextBoxProp p) {
+    if (!attached()) return;
+    switch (p) {
+        case TextBoxProp::text:
+            // From outside (a binding, a script): the field shows it; the caret goes to its end.
+            if (props.text != editor_.text()) {
+                editor_.set_text(props.text);
+                editor_.move_to(editor_.text().size());
+                paragraph_dirty_ = true;
+                services().invalidate_layout(node());
+            }
+            break;
+        case TextBoxProp::multiline:
+        case TextBoxProp::max_length: {
+            const std::string text = editor_.text();
+            editor_ = mlibs::text::TextEditor(text, {props.multiline, static_cast<std::size_t>(std::max(0, props.max_length))});
+            editor_.move_to(text.size());
+            paragraph_dirty_ = true;
+            services().invalidate_layout(node());
+            break;
+        }
+        case TextBoxProp::password:
+        case TextBoxProp::placeholder:
+            paragraph_dirty_ = true;
+            services().invalidate_layout(node());
+            break;
+        default:
+            services().invalidate_paint(node());
+            break;
+    }
+}
+
+void TextBox::restyle() { paragraph_dirty_ = true; }
+
+bool TextBox::set_prop(std::string_view k, const Value& v) {
+    if (k == "bare") bare_ = v.as_bool();
+    else if (k == "language") language_ = std::string(v.as_string()), paragraph_dirty_ = true;
+    else return TextBoxContract<TextBox>::set_prop(k, v);
+    if (attached()) services().restyle(node()), services().invalidate_layout(node());
+    return true;
+}
+
+Value TextBox::get_prop(std::string_view k) const {
+    if (k == "bare") return Value(bare_);
+    if (k == "language") return Value(language_);
+    return TextBoxContract<TextBox>::get_prop(k);
+}
+
+void TextBox::style(const Theme& theme, mlibs::layout::Style& s) const {
+    s.padding = bare_ ? Insets{4, 4, 4, 4} : Insets{pad_y, pad_x, pad_y, pad_x};
+    if (!language_.empty()) s.padding.left += gutter_w;  // its line numbers
+    s.border = bare_ ? Insets{} : Insets::all(1);
+    s.min_height = mlibs::layout::pt(bare_ ? 28 : 36);
+}
+
+std::string TextBox::shown() const {
+    std::string composed = editor_.display_text();
+    if (!props.password) return composed;
+    std::string masked;
+    for (std::size_t i = 0, n = mlibs::unicode::grapheme_count(composed); i < n; ++i) masked += bullet;
+    return masked;
+}
+
+std::size_t TextBox::to_shown(std::size_t o) const {
+    // The composition replaces the selection where it is shown.
+    if (editor_.composing()) {
+        const mlibs::text::Selection s = editor_.selection();
+        if (o >= s.end()) o = o - (s.end() - s.begin()) + editor_.composition().size();
+        else if (o > s.begin()) o = s.begin();
+    }
+    if (!props.password) return o;
+    const std::string composed = editor_.display_text();
+    return mlibs::unicode::grapheme_count(std::string_view(composed).substr(0, std::min(o, composed.size()))) * bullet.size();
+}
+
+std::size_t TextBox::from_shown(std::size_t o) const {
+    std::size_t composed_offset = o;
+    if (props.password) {
+        const std::string composed = editor_.display_text();
+        const std::vector<std::size_t> b = mlibs::unicode::grapheme_boundaries(composed);
+        const std::size_t i = std::min(o / bullet.size(), b.empty() ? std::size_t{0} : b.size() - 1);
+        composed_offset = b.empty() ? 0 : b[i];
+    }
+    if (editor_.composing()) {
+        const mlibs::text::Selection s = editor_.selection();
+        const std::size_t comp = editor_.composition().size();
+        if (composed_offset >= s.begin() + comp) return composed_offset - comp + (s.end() - s.begin());
+        if (composed_offset > s.begin()) return s.begin();
+    }
+    return composed_offset;
+}
+
+mlibs::text::Paragraph& TextBox::paragraph(Services& s, float width) const {
+    const std::string text = shown();
+    if (paragraph_dirty_ || !paragraph_ || text != paragraph_text_ || paragraph_->stale()) {
+        const Theme& theme = s.theme();
+        const TextToken& tok = theme.text_style(language_.empty() ? "body" : "code");
+        mlibs::text::ParagraphStyle ps;
+        ps.style.families = tok.families;
+        ps.style.size = tok.size;
+        ps.style.weight = tok.weight;
+        ps.style.line_height = tok.line_height;
+        ps.style.color = theme.color("text");
+        ps.wrap = props.multiline;
+        line_height_ = tok.size * tok.line_height;
+        // Code: coloured by what each stretch is.
+        std::vector<mlibs::text::StyledRange> ranges;
+        if (!language_.empty() && !props.password) ranges = code_ranges(text, language_, theme, ps.style);
+        paragraph_.emplace(s.fonts(), text, std::move(ps), std::move(ranges));
+        paragraph_text_ = text;
+        paragraph_width_ = -1;
+        paragraph_dirty_ = false;
+    }
+    const float w = props.multiline ? width : std::numeric_limits<float>::infinity();
+    if (w != paragraph_width_) {
+        paragraph_->layout(w);
+        paragraph_width_ = w;
+    }
+    return *paragraph_;
+}
+
+Size TextBox::measure(MeasureContext& m, std::optional<float> width, std::optional<float>, mlibs::layout::Available aw, mlibs::layout::Available) {
+    const float w = width.value_or(aw.is_definite() ? std::min(aw.value, default_w) : default_w);
+    mlibs::text::Paragraph& p = paragraph(m.services, w);
+    if (!props.multiline) return {w, line_height_};
+    return {w, std::max(p.size().height, 3 * line_height_)};
+}
+
+float TextBox::baseline(MeasureContext& m, Size content) {
+    mlibs::text::Paragraph& p = paragraph(m.services, content.width);
+    return p.lines().empty() ? line_height_ * 0.8f : p.first_baseline();
+}
+
+Point TextBox::text_origin(const Rect& content) const {
+    if (props.multiline) return {content.x, content.y};
+    return {content.x - scroll_x_, content.y + (content.height - line_height_) / 2};
+}
+
+void TextBox::paint(PaintContext& ctx) const {
+    const Theme& th = ctx.theme;
+    const bool off = props.disabled || ctx.state.disabled;
+    const Rect box{0, 0, ctx.size.width, ctx.size.height};
+    const CornerRadii radii = CornerRadii::all(th.corner("medium", 8)).fitted(ctx.size);
+    content_ = ctx.content;
+
+    const bool focus = ctx.state.focused && !off;
+    if (!bare_) {  // a bare field's surface and border are the component's it is part of
+        ctx.list.fill_round_rect(box, radii, xrender::Paint::solid(off ? th.color("surface_variant") : th.color("surface")));
+        const float bw = focus ? 2.0f : 1.0f;
+        const Color border = focus ? th.color("accent") : (ctx.state.hovered && !off ? th.color("border_strong") : th.color("border"));
+        CornerRadii inner = radii;
+        for (float* r : {&inner.top_left, &inner.top_right, &inner.bottom_right, &inner.bottom_left}) *r = std::max(0.0f, *r - bw / 2);
+        ctx.list.stroke_round_rect({bw / 2, bw / 2, box.width - bw, box.height - bw}, inner, bw, xrender::Paint::solid(border));
+    }
+
+    mlibs::text::Paragraph& p = paragraph(ctx.services, ctx.content.width);
+    // Keep the caret in view on a single line.
+    // While composing, the caret follows the preedit (which stands where the selection was).
+    const std::size_t caret_shown = editor_.composing() ? to_shown(editor_.selection().end()) : to_shown(editor_.selection().focus);
+    const mlibs::text::Caret caret = p.caret(caret_shown);
+    if (!props.multiline) {
+        const float limit = std::max(0.0f, p.size().width - ctx.content.width + 2);
+        if (caret.x - scroll_x_ > ctx.content.width - 2) scroll_x_ = caret.x - ctx.content.width + 2;
+        if (caret.x - scroll_x_ < 0) scroll_x_ = caret.x;
+        scroll_x_ = std::clamp(scroll_x_, 0.0f, limit);
+    }
+    const Point origin = text_origin(ctx.content);
+
+    if (!language_.empty()) {
+        // The gutter: each line of the text numbered where it starts (a wrapped line's rest has none).
+        const Rect gutter{ctx.content.x - gutter_w - 4, 0, gutter_w, ctx.size.height};
+        ctx.list.fill_rect({gutter.right() - 1, 4, 1, ctx.size.height - 8}, th.color("border"));
+        const std::string& t = paragraph_text_;
+        std::size_t number = 1, label = 0;
+        std::size_t seen = 0;
+        for (const mlibs::text::Line& line : p.lines()) {
+            for (; seen < line.begin && seen < t.size(); ++seen)
+                if (t[seen] == '\n') ++number;
+            if (line.begin != 0 && (line.begin > t.size() || t[line.begin - 1] != '\n')) continue;
+            if (label >= numbers_.size()) numbers_.emplace_back(), numbers_.back().set_style("code");
+            parts::Label& n = numbers_[label++];
+            n.set_text(std::to_string(number));
+            const Size ns = n.measure(ctx.services, th.color("text_disabled"));
+            n.paint(ctx, {gutter.right() - 10 - ns.width, origin.y + line.top + (line.height - ns.height) / 2}, th.color("text_disabled"));
+        }
+    }
+
+    ctx.list.push_clip(ctx.content.outset({2, 2, 2, 2}));
+    const mlibs::text::Selection sel = editor_.selection();
+    if (!sel.empty() && !editor_.composing()) {
+        const Color sc = th.color("selection");
+        for (const Rect& r : p.selection(to_shown(sel.begin()), to_shown(sel.end())))
+            ctx.list.fill_rect(r.offset(origin), sc);
+    }
+    if (editor_.text().empty() && !editor_.composing() && !props.placeholder.empty()) {
+        const TextToken& tok = th.text_style("body");
+        mlibs::text::ParagraphStyle ps;
+        ps.style.families = tok.families;
+        ps.style.size = tok.size;
+        ps.style.line_height = tok.line_height;
+        ps.style.color = th.color("text_muted");
+        ps.wrap = props.multiline;
+        mlibs::text::Paragraph ph(ctx.services.fonts(), props.placeholder, std::move(ps));
+        ph.layout(props.multiline ? ctx.content.width : std::numeric_limits<float>::infinity());
+        xrender::text::paint(ph, ctx.list, {ctx.content.x, origin.y});
+    } else {
+        if (off) ctx.list.push_layer(0.55f, xrender::BlendMode::normal, {}, {}, box);
+        xrender::text::paint(p, ctx.list, origin);
+        if (off) ctx.list.pop_layer();
+    }
+    if (editor_.composing()) {
+        // The preedit is underlined where it stands.
+        const std::size_t sa = to_shown(sel.begin()), sb = to_shown(sel.end());
+        for (const Rect& r : p.selection(sa, std::max(sa, sb)))
+            ctx.list.fill_rect({r.x + origin.x, r.bottom() + origin.y - 2, r.width, 1.5f}, th.color("accent"));
+    }
+    if (focus && caret_on_ && (sel.empty() || editor_.composing())) {
+        const Rect cr{origin.x + caret.x - 0.75f, origin.y + caret.top, 1.5f, caret.height};
+        ctx.list.fill_rect(cr, th.color("accent"));
+    }
+    ctx.list.pop_clip();
+
+    // Input methods put their candidates at the caret.
+    if (focus) ctx.services.text_input(ctx.node, Rect{origin.x + caret.x, origin.y + caret.top, 1.5f, caret.height});
+}
+
+void TextBox::paint_over(PaintContext& ctx) const {
+    if (ctx.state.focused && ctx.state.focus_visible)
+        focus_ring(ctx, {0, 0, ctx.size.width, ctx.size.height}, CornerRadii::all(ctx.theme.corner("medium", 8)).fitted(ctx.size));
+}
+
+void TextBox::edited() {
+    services().changed_outside_history(node());  // typed: a redo of what came before would write over it
+    write_text(editor_.text());
+    emit_changed(editor_.text());
+    paragraph_dirty_ = true;
+    caret_moved();
+    services().invalidate_layout(node());
+    services().invalidate_semantics(node());
+}
+
+void TextBox::caret_moved() {
+    blink(true);
+    services().invalidate_paint(node());
+}
+
+void TextBox::blink(bool restart) {
+    if (blink_timer_) {
+        services().cancel(blink_timer_);
+        blink_timer_ = 0;
+    }
+    if (!focused_) return;
+    if (restart) caret_on_ = true;
+    else caret_on_ = !caret_on_;
+    services().invalidate_paint(node());
+    blink_timer_ = services().after(blink_period, [this] {
+        blink_timer_ = 0;
+        blink(false);
+    });
+}
+
+bool TextBox::key(const KeyEvent& e) {
+    if (e.key != Key::escape && e.key != Key::tab) escaped_ = false;
+    const bool shift = e.mods.has(Modifier::shift);
+    const Modifiers primary = Modifiers(primary_modifier());
+    const Modifiers word = Modifiers(word_modifier());
+    const bool editable = !props.readonly && !props.disabled;
+    const mlibs::text::Unit unit = only(e.mods, word) ? mlibs::text::Unit::word : mlibs::text::Unit::grapheme;
+    // Command with an arrow or Backspace reaches the line's or the text's end (Apple's).
+    const bool command = only(e.mods, primary) && primary_modifier() == Modifier::meta;
+    switch (e.key) {
+        case Key::left:
+            if (command) editor_.move_left(mlibs::text::Unit::line, shift);
+            else editor_.move_left(unit, shift);
+            caret_moved();
+            return true;
+        case Key::right:
+            if (command) editor_.move_right(mlibs::text::Unit::line, shift);
+            else editor_.move_right(unit, shift);
+            caret_moved();
+            return true;
+        case Key::home:
+            editor_.move_left(only(e.mods, primary) ? mlibs::text::Unit::document : mlibs::text::Unit::line, shift);
+            caret_moved();
+            return true;
+        case Key::end:
+            editor_.move_right(only(e.mods, primary) ? mlibs::text::Unit::document : mlibs::text::Unit::line, shift);
+            caret_moved();
+            return true;
+        case Key::up:
+        case Key::down: {
+            if (command) {
+                if (e.key == Key::up) editor_.move_left(mlibs::text::Unit::document, shift);
+                else editor_.move_right(mlibs::text::Unit::document, shift);
+                caret_moved();
+                return true;
+            }
+            if (!props.multiline) return false;
+            mlibs::text::Paragraph& p = paragraph(services(), content_.width);
+            const std::size_t at = to_shown(editor_.selection().focus);
+            const float x = p.caret(at).x;
+            const std::size_t to = e.key == Key::up ? p.offset_above(at, x) : p.offset_below(at, x);
+            editor_.move_to(from_shown(to), shift);
+            caret_moved();
+            return true;
+        }
+        case Key::backspace:
+            if (!editable) return true;
+            editor_.delete_backward(command ? mlibs::text::Unit::line : unit);
+            edited();
+            return true;
+        case Key::delete_:
+            if (!editable) return true;
+            editor_.delete_forward(unit);
+            edited();
+            return true;
+        case Key::enter: {
+            if (!props.multiline || !editable) return false;  // single line: the contract's key submits
+            // Code keeps the line's indent.
+            std::string indent;
+            if (!language_.empty()) {
+                const std::string& t = editor_.text();
+                const std::size_t at = std::min(editor_.selection().begin(), t.size());
+                const std::size_t start = t.rfind('\n', at == 0 ? 0 : at - 1);
+                for (std::size_t i = start == std::string::npos || at == 0 ? 0 : start + 1; i < at && (t[i] == ' ' || t[i] == '\t'); ++i) indent += t[i];
+            }
+            editor_.insert("\n" + indent);
+            edited();
+            return true;
+        }
+        case Key::tab:
+            // Code indents with Tab; Escape first lets Tab leave, as everywhere else.
+            if (language_.empty() || !editable || e.mods.has(Modifier::shift) || std::exchange(escaped_, false)) return false;
+            editor_.insert("    ");
+            edited();
+            return true;
+        case Key::escape:
+            if (!language_.empty() && !editor_.composing()) {
+                escaped_ = true;
+                return false;
+            }
+            if (!editor_.composing()) return false;
+            editor_.cancel_composition();
+            caret_moved();
+            return true;
+        default:
+            break;
+    }
+    if (e.mods == primary) {
+        switch (e.key) {
+            case Key::a:
+                editor_.select_all();
+                caret_moved();
+                return true;
+            case Key::c:
+            case Key::x: {
+                const mlibs::text::Selection s = editor_.selection();
+                if (s.empty() || props.password) return true;  // a password does not leave the field
+                services().set_clipboard_text(std::string_view(editor_.text()).substr(s.begin(), s.end() - s.begin()));
+                if (e.key == Key::x && editable) {
+                    editor_.insert("");
+                    edited();
+                }
+                return true;
+            }
+            case Key::v:
+                if (!editable) return true;
+                if (editor_.insert(services().clipboard_text())) edited();
+                return true;
+            case Key::z:
+                if (editable && editor_.undo()) edited();
+                return true;
+            case Key::y:
+                if (editable && editor_.redo()) edited();
+                return true;
+            default:
+                return false;
+        }
+    }
+    if (e.mods == (Modifiers(primary_modifier()) | Modifier::shift) && e.key == Key::z) {
+        if (editable && editor_.redo()) edited();
+        return true;
+    }
+    return false;
+}
+
+bool TextBox::on_event(EventContext& ctx, const InputEvent& e) {
+    if (const auto* f = std::get_if<FocusEvent>(&e)) {
+        focused_ = f->gained;
+        if (!focused_) {
+            if (editor_.composing()) editor_.commit_composition(editor_.composition());
+            services().text_input(node(), std::nullopt);
+            if (editor_.text() != props.text) edited();
+        }
+        blink(true);
+        return false;
+    }
+    if (props.disabled) return false;
+    if (const auto* k = std::get_if<KeyEvent>(&e)) {
+        if (k->kind != KeyKind::down) return false;
+        return key(*k);
+    }
+    if (const auto* t = std::get_if<TextEvent>(&e)) {
+        if (props.readonly) return true;
+        if (editor_.composing()) editor_.commit_composition(t->text);
+        else if (!editor_.insert(t->text)) return true;
+        edited();
+        return true;
+    }
+    if (const auto* pe = std::get_if<PreeditEvent>(&e)) {
+        if (props.readonly) return true;
+        if (pe->text.empty()) editor_.cancel_composition();
+        else editor_.set_composition(pe->text, pe->cursor_begin);
+        paragraph_dirty_ = true;
+        caret_moved();
+        services().invalidate_layout(node());
+        return true;
+    }
+    if (const auto* p = std::get_if<PointerEvent>(&e)) {
+        mlibs::text::Paragraph& para = paragraph(services(), content_.width);
+        const Point o = text_origin(content_);
+        const std::size_t at = from_shown(para.offset_at({ctx.local.x - o.x, ctx.local.y - o.y}));
+        switch (p->kind) {
+            case PointerKind::down:
+                if (p->button != MouseButton::left && p->type == PointerType::mouse) return false;
+                if (p->clicks >= 3) editor_.select_all();
+                else if (p->clicks == 2) editor_.select_word_at(at);
+                else editor_.move_to(at, p->mods.has(Modifier::shift));
+                selecting_ = p->clicks < 2;
+                services().capture_pointer(node());
+                caret_moved();
+                return true;
+            case PointerKind::move:
+                if (!selecting_) return false;
+                editor_.move_to(at, true);
+                caret_moved();
+                return true;
+            case PointerKind::up:
+            case PointerKind::cancel:
+                if (!selecting_) return true;
+                selecting_ = false;
+                services().release_pointer();
+                return true;
+            default:
+                return false;
+        }
+    }
+    return false;
+}
+
+void TextBox::semantics(SemanticsContext&, spec::SemanticNode& node) const {
+    if (node.name.empty()) node.name = !props.label.empty() ? props.label : props.placeholder;
+    node.value = props.password ? Value(shown()) : Value(editor_.text());
+    node.origin = props.origin == TextBoxOrigin::app ? Origin::app : props.origin == TextBoxOrigin::remote ? Origin::remote : Origin::user_content;
+    node.states.set(State::editable, !props.readonly && !props.disabled);
+    node.states.set(State::readonly, props.readonly);
+    node.states.set(State::multiline, props.multiline);
+    if (props.disabled) node.states.set(State::disabled);
+}
+
+std::optional<TextLayout> TextBox::text_layout() const {
+    // As last painted: the lines a person sees.
+    if (!paragraph_ || paragraph_dirty_ || !attached()) return std::nullopt;
+    const mlibs::text::Paragraph& p = *paragraph_;
+    TextLayout out;
+    out.text = paragraph_text_;
+    const Rect at = services().bounds(node());
+    const Point origin = text_origin(content_);
+    const std::vector<std::size_t> words = mlibs::unicode::word_boundaries(out.text);
+    for (const mlibs::text::Line& l : p.lines()) {
+        TextLine line;
+        line.begin = l.begin;
+        line.end = l.end;
+        line.rtl = l.rtl;
+        std::size_t covered = l.begin;
+        float right = 0;
+        auto add = [&](std::size_t bytes, float x, float w) {
+            for (; bytes > 255; bytes -= 255) {  // AccessKit counts a character's bytes in one octet
+                line.lengths.push_back(255);
+                line.positions.push_back(x);
+                line.widths.push_back(0);
+            }
+            line.lengths.push_back(static_cast<std::uint8_t>(bytes));
+            line.positions.push_back(x);
+            line.widths.push_back(w);
+        };
+        for (const mlibs::text::GraphemeBox& g : l.graphemes) {
+            add(g.end - g.begin, std::min(g.x0, g.x1), std::abs(g.x1 - g.x0));
+            covered = g.end;
+            right = std::max(right, std::max(g.x0, g.x1));
+        }
+        if (l.end > covered) add(l.end - covered, right, 0);  // the line break: one character
+        // Words: a UAX #29 boundary not in white space begins one (a word keeps its trailing spaces).
+        std::vector<std::size_t> starts;
+        std::size_t byte = l.begin;
+        for (std::size_t c = 0; c < line.lengths.size(); byte += line.lengths[c], ++c) {
+            const char at = byte < out.text.size() ? out.text[byte] : ' ';
+            if (at == ' ' || at == '\t' || at == '\n' || at == '\r') continue;
+            if (c == 0 || std::ranges::binary_search(words, byte)) starts.push_back(c);
+        }
+        line.bounds = {at.x + origin.x, at.y + origin.y + l.top, std::max(right, l.left + l.width), l.height};
+        // Assistive technology counts a line's graphemes in an octet: a longer
+        // line is several, each going on along the one before, cut where a word begins.
+        const std::size_t count = line.lengths.size();
+        for (std::size_t from = 0, from_byte = l.begin; from < count || count == 0;) {
+            std::size_t to = std::min(count, from + 255);
+            if (to < count)
+                if (auto it = std::ranges::upper_bound(starts, to); it != starts.begin() && *std::prev(it) > from) to = *std::prev(it);
+            TextLine piece;
+            piece.rtl = line.rtl;
+            piece.begin = from_byte;
+            float x0 = 0, x1 = 0;
+            if (to > from) {
+                x0 = *std::ranges::min_element(line.positions.begin() + static_cast<std::ptrdiff_t>(from), line.positions.begin() + static_cast<std::ptrdiff_t>(to));
+                x1 = x0;
+                for (std::size_t c = from; c < to; ++c) x1 = std::max(x1, line.positions[c] + line.widths[c]);
+            }
+            const bool whole = from == 0 && to == count;
+            for (std::size_t c = from; c < to; ++c) {
+                piece.lengths.push_back(line.lengths[c]);
+                piece.positions.push_back(whole ? line.positions[c] : line.positions[c] - x0);
+                piece.widths.push_back(line.widths[c]);
+                from_byte += line.lengths[c];
+            }
+            piece.end = whole ? l.end : from_byte;
+            for (std::size_t s : starts)
+                if (s >= from && s < to) piece.word_starts.push_back(static_cast<std::uint8_t>(s - from));
+            piece.bounds = whole ? line.bounds : Rect{line.bounds.x + x0, line.bounds.y, x1 - x0, line.bounds.height};
+            piece.continues = to < count;
+            out.lines.push_back(std::move(piece));
+            if (count == 0) break;
+            from = to;
+        }
+    }
+    const mlibs::text::Selection sel = editor_.selection();
+    const std::vector<std::size_t> b = mlibs::unicode::grapheme_boundaries(editor_.text());
+    auto grapheme = [&](std::size_t byte) { return static_cast<std::size_t>(std::ranges::lower_bound(b, byte) - b.begin()); };
+    out.anchor = grapheme(sel.anchor);
+    out.focus = grapheme(sel.focus);
+    return out;
+}
+
+ActResult TextBox::focus(ActContext&) {
+    services().focus(node());
+    return ActResult::done();
+}
+
+namespace {
+
+// The grapheme offset of a byte offset (the unit of set_selection).
+std::int64_t grapheme_at(std::string_view text, std::size_t byte) {
+    const std::vector<std::size_t> b = mlibs::unicode::grapheme_boundaries(text);
+    return static_cast<std::int64_t>(std::ranges::lower_bound(b, byte) - b.begin());
+}
+
+}  // namespace
+
+// What takes an edit back (S-12): the text it replaced, then the selection there was.
+ActResult TextBox::taken_back_by(ActResult r, const std::string& text, std::size_t anchor, std::size_t focus) const {
+    r.undo_by("set_value", Value{}.set("value", text));
+    r.undo_by("set_selection", Value{}.set("anchor", grapheme_at(text, anchor)).set("focus", grapheme_at(text, focus)));
+    return r;
+}
+
+ActResult TextBox::set_value(ActContext&, const Value& value) {
+    if (props.readonly) return ActResult::fail("the field is read-only");
+    const std::string before = editor_.text();
+    const auto sel = editor_.selection();
+    std::string text = value.type() == Value::Type::text ? std::string(value.as_string()) : value.json();
+    editor_.select_all();
+    editor_.insert(text);
+    edited();
+    return taken_back_by(ActResult::done(Value(editor_.text())), before, sel.anchor, sel.focus);
+}
+
+ActResult TextBox::set_selection(ActContext&, const SetSelectionArgs& args) {
+    const Value &anchor = args.anchor, &focus = args.focus;
+    // Offsets in graphemes (the action's unit), clamped to the text.
+    const std::vector<std::size_t> b = mlibs::unicode::grapheme_boundaries(editor_.text());
+    auto byte_of = [&](const Value& v) -> std::size_t {
+        const auto i = static_cast<std::size_t>(std::max<std::int64_t>(0, v.as_int()));
+        if (b.empty()) return 0;
+        return b[std::min(i, b.size() - 1)];
+    };
+    editor_.select(byte_of(anchor), byte_of(focus.is_null() ? anchor : focus));
+    caret_moved();
+    return ActResult::done();
+}
+
+ActResult TextBox::replace_selection(ActContext&, const Value& text) {
+    if (props.readonly) return ActResult::fail("the field is read-only");
+    const std::string before = editor_.text();
+    const auto sel = editor_.selection();
+    if (!editor_.insert(text.as_string())) return ActResult::fail("the text does not fit (max_length)");
+    edited();
+    return taken_back_by(ActResult::done(Value(editor_.text())), before, sel.anchor, sel.focus);
+}
+
+ActResult TextBox::preview(ActContext& ctx, std::string_view action) const {
+    if (action != "set_value" && action != "replace_selection") return ActResult::done();
+    if (props.readonly) return ActResult::fail("the field is read-only");
+    mlibs::text::TextEditor copy = editor_;
+    if (action == "set_value") {
+        const Value* v = ctx.args.get("value");
+        const Value value = v ? *v : Value{};
+        copy.select_all();
+        copy.insert(value.type() == Value::Type::text ? std::string(value.as_string()) : value.json());
+    } else {
+        const Value* t = ctx.args.get("text");
+        if (!copy.insert(t ? t->as_string() : std::string_view{})) return ActResult::fail("the text does not fit (max_length)");
+    }
+    const auto sel = editor_.selection();
+    // A password field's text is not shown, nor what it would become.
+    ActResult r = props.password ? ActResult::done() : ActResult::done(Value(copy.text()));
+    return taken_back_by(std::move(r), editor_.text(), sel.anchor, sel.focus);
+}
+
+ActResult TextBox::submit(ActContext&) {
+    if (props.multiline) return ActResult::fail("a multi-line field does not submit");
+    emit_submitted(editor_.text());
+    return ActResult::done(Value(editor_.text()));
+}
+
+}  // namespace omui

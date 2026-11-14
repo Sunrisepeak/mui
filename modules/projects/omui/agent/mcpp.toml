@@ -1,0 +1,54 @@
+# omui.agent — the local agent endpoint (openmui.tree@0.1 over JSON
+# lines): every application listens in a known directory through
+# mcpplibs.os.ipc; agents and the `omui agent` command connect, read the
+# semantic tree, find nodes, perform actions under the effect rules, and
+# wait for conditions. Requests are served on the UI thread, between frames.
+[package]
+namespace   = "omui"
+name        = "agent"
+version     = "0.1.0"
+description = "openmui agent endpoint: openmui.tree@0.1 over local IPC, JSON lines, envelopes"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+agent = "subject"
+
+[targets.openmui-agent]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/catalog/*.cppm"]
+
+[dependencies]
+omui.core     = { path = "../core" }
+omui.view     = { path = "../view" }
+omui.semantic = { path = "../semantic" }
+# The native modules' catalogue, for the API an application describes (:api).
+omui.native   = { path = "../native" }
+mlibs.utils    = { path = "../../../base/utils" }
+mlibs.control  = { path = "../../../base/control" }
+# The endpoint (where agents find a program and talk to it) is the agent kernel's (D-173).
+mlibs.agent    = { path = "../../../base/agent" }
+# :subject — the interface among a process's subjects: the kernel's requests (openas actors) read and its records written.
+mlibs.json     = { path = "../../../base/json" }
+openlifa.openas = "0.2.0"
+mlibs.pipeline = { path = "../../../base/pipeline" }
+# `capture` as SVG (vector_capture): the display list written by xrender, its
+# islands' pixels encoded as PNG.
+xrender.vector = { path = "../../xrender/vector" }
+mlibs.image    = { path = "../../../base/image" }
+mcpplibs.os      = "0.4.4"
+
+# The files of tests/agent/ are one program, run a file at a time: one link of the closure for all of them.
+[test]
+programs = "directory"
+
+[dev-dependencies]
+# Tests are mtest's (D-147).
+mcpplibs.mtest = "0.8.4"
+# contract_test: the agent contract's suite on the interface as a subject (D-174).
+mlibs.agent.cts = { path = "../../../base/agent/cts" }
+# state_test, contract_test: pages of the official components (text_box, toggle, slider).
+omui.ui.base = { path = "../components/base" }

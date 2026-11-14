@@ -1,0 +1,910 @@
+{
+  "format": "omui.geometry-memory-unicode-namespace-checkpoint@0.1",
+  "ok": true,
+  "recorded_utc": "2026-11-05T02:34:11.613882+00:00",
+  "base_commit": "f0bc3efe9097ba3201f4b31e6715e03ac3a2e1df",
+  "scope": "N1 geom/memory/unicode/fuzzy ownership and source compatibility; capability-aware motion test correction for threadless Web. No animation/geometry/Unicode algorithm changes.",
+  "workspace_members": 129,
+  "new_workspace_members": 0,
+  "source_lock_sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+  "tests": [
+    {
+      "profile": "dev",
+      "target": "native",
+      "programs": [
+        "fuzzy_test",
+        "geom_test",
+        "slot_storage_test",
+        "memory_test",
+        "unicode_test"
+      ],
+      "successful_program_executions": 5,
+      "reported_suite_case_executions": 41,
+      "log": {
+        "path": "target/namespace-geometry-validation/logs/omui-n1b-base-dev.log",
+        "sha256": "c4f1eff3acf99bbb5aaa521171a090e4973f08f051eb2a90003002a7cc8ec511"
+      }
+    },
+    {
+      "profile": "dev",
+      "target": "native",
+      "programs": [
+        "consumer_test",
+        "object_test",
+        "query_allocation_test",
+        "composite_test",
+        "engine_test",
+        "visual_test",
+        "percent_wrap_test",
+        "layout_test",
+        "text_test",
+        "c_abi_test",
+        "abi_test",
+        "agent_control_policy_test",
+        "agent_policy_test",
+        "agent_test",
+        "presentation_input_test",
+        "agent_session_test",
+        "agent_context_test",
+        "agent_policy_log_test",
+        "agent_policy_test",
+        "agent_profile_test",
+        "diag_test",
+        "input_test",
+        "json_test",
+        "shared_control_test",
+        "signal_test",
+        "verb_test",
+        "task_test",
+        "fuzzy_native_test",
+        "motion_test",
+        "path_material_retarget_probe_test",
+        "reference_test",
+        "text_contrast_test",
+        "text_transition_test",
+        "path_morph_test",
+        "travel_reentry_test",
+        "inspector_test",
+        "cellular_test",
+        "agent_guard_test",
+        "agent_preview_test",
+        "agent_contrast_test",
+        "agent_transition_layout_test",
+        "brand_test",
+        "basic_motion_test",
+        "feature_examples_test",
+        "creative_motion_test",
+        "frames_test",
+        "first_frame_test",
+        "guide_access_test",
+        "home_landing_test",
+        "gallery_redesign_test",
+        "navigation_redesign_test",
+        "motion_gallery_test",
+        "p0_layout_test",
+        "reactions_test",
+        "static_gallery_test",
+        "text_motion_quality_test",
+        "site_test"
+      ],
+      "successful_program_executions": 57,
+      "reported_suite_case_executions": 380,
+      "log": {
+        "path": "target/namespace-geometry-validation/logs/omui-n1b-regression-dev.log",
+        "sha256": "0cd876cec82a2b76e1d7e8a681945daba69d646052e3ef91a0fd15235f0990f8"
+      }
+    },
+    {
+      "profile": "release",
+      "target": "native",
+      "programs": [
+        "fuzzy_test",
+        "geom_test",
+        "slot_storage_test",
+        "memory_test",
+        "unicode_test",
+        "consumer_test",
+        "object_test",
+        "query_allocation_test",
+        "composite_test",
+        "engine_test",
+        "visual_test",
+        "layout_test",
+        "percent_wrap_test",
+        "text_test",
+        "c_abi_test",
+        "abi_test",
+        "agent_control_policy_test",
+        "agent_policy_test",
+        "agent_session_test",
+        "presentation_input_test",
+        "agent_test",
+        "agent_context_test",
+        "agent_policy_log_test",
+        "agent_policy_test",
+        "agent_profile_test",
+        "diag_test",
+        "input_test",
+        "json_test",
+        "shared_control_test",
+        "signal_test",
+        "verb_test",
+        "task_test",
+        "fuzzy_native_test",
+        "motion_test",
+        "path_material_retarget_probe_test",
+        "reference_test",
+        "path_morph_test",
+        "text_contrast_test",
+        "text_transition_test",
+        "travel_reentry_test",
+        "inspector_test",
+        "cellular_test",
+        "agent_guard_test",
+        "agent_preview_test",
+        "agent_contrast_test",
+        "agent_transition_layout_test",
+        "brand_test",
+        "basic_motion_test",
+        "feature_examples_test",
+        "first_frame_test",
+        "frames_test",
+        "gallery_redesign_test",
+        "guide_access_test",
+        "home_landing_test",
+        "motion_gallery_test",
+        "navigation_redesign_test",
+        "p0_layout_test",
+        "reactions_test",
+        "creative_motion_test",
+        "static_gallery_test",
+        "text_motion_quality_test",
+        "site_test"
+      ],
+      "successful_program_executions": 62,
+      "reported_suite_case_executions": 421,
+      "log": {
+        "path": "target/namespace-geometry-validation/logs/omui-n1b-regression-release.log",
+        "sha256": "d9afe241d36bbf7aa8dcbd344831b5f844f584cae5abadc31dc7e200795474ab"
+      }
+    },
+    {
+      "profile": "dev",
+      "target": "native",
+      "programs": [
+        "motion_test",
+        "path_material_retarget_probe_test",
+        "reference_test",
+        "text_contrast_test",
+        "path_morph_test",
+        "text_transition_test",
+        "travel_reentry_test"
+      ],
+      "successful_program_executions": 7,
+      "reported_suite_case_executions": 60,
+      "log": {
+        "path": "target/namespace-geometry-validation/logs/omui-n1b-motion-dev-final.log",
+        "sha256": "edf9d12487324611f833a65d537940acb11b58b1288da45c3aee63eb062fcd4a"
+      }
+    },
+    {
+      "profile": "release",
+      "target": "native",
+      "programs": [
+        "motion_test",
+        "path_material_retarget_probe_test",
+        "reference_test",
+        "text_contrast_test",
+        "path_morph_test",
+        "text_transition_test",
+        "travel_reentry_test"
+      ],
+      "successful_program_executions": 7,
+      "reported_suite_case_executions": 60,
+      "log": {
+        "path": "target/namespace-geometry-validation/logs/omui-n1b-motion-release-final.log",
+        "sha256": "7dd0f754c2ec6e7c5050b9f2e1ea1bad94f289c1780ea7589c0695384cf3a1ee"
+      }
+    },
+    {
+      "profile": "wasm-test",
+      "target": "wasm32-emscripten/Node",
+      "programs": [
+        "fuzzy_test",
+        "geom_test",
+        "slot_storage_test",
+        "memory_test",
+        "unicode_test"
+      ],
+      "successful_program_executions": 5,
+      "reported_suite_case_executions": 41,
+      "log": {
+        "path": "target/namespace-geometry-validation/logs/omui-n1b-base-wasm.log",
+        "sha256": "7fbfbfd2d13e21047b03dba874918313dd17dda7871354248a28b6b04b4c8c52"
+      }
+    },
+    {
+      "profile": "wasm-test",
+      "target": "wasm32-emscripten/Node",
+      "programs": [
+        "object_test",
+        "consumer_test",
+        "query_allocation_test",
+        "engine_test",
+        "composite_test",
+        "visual_test",
+        "layout_test",
+        "percent_wrap_test",
+        "text_test",
+        "agent_policy_log_test",
+        "agent_context_test",
+        "agent_profile_test",
+        "agent_policy_test",
+        "diag_test",
+        "input_test",
+        "json_test",
+        "shared_control_test",
+        "signal_test",
+        "task_test",
+        "verb_test",
+        "fuzzy_native_test",
+        "motion_test",
+        "path_material_retarget_probe_test",
+        "reference_test",
+        "text_transition_test"
+      ],
+      "successful_program_executions": 25,
+      "reported_suite_case_executions": 159,
+      "log": {
+        "path": "target/namespace-geometry-validation/logs/omui-n1b-regression-wasm.log",
+        "sha256": "d1595737b3c638030cc9053d01188d19a7fdce92d032265fefbfa3a41d2f0b36"
+      },
+      "initial_failures": {
+        "programs": [
+          "path_morph_test",
+          "text_contrast_test",
+          "travel_reentry_test"
+        ],
+        "cause": "Unconditional std::jthread / std::async(launch::async) on the existing threadless Web target.",
+        "resolution": "The complete motion suite passed the explicit retry using testing::threads; native keeps the concurrent branch, Web repeats independent draws/reentry on its available thread."
+      }
+    },
+    {
+      "profile": "wasm-test",
+      "target": "wasm32-emscripten/Node",
+      "programs": [
+        "path_material_retarget_probe_test",
+        "motion_test",
+        "reference_test",
+        "path_morph_test",
+        "text_transition_test",
+        "text_contrast_test",
+        "travel_reentry_test"
+      ],
+      "successful_program_executions": 7,
+      "reported_suite_case_executions": 60,
+      "log": {
+        "path": "target/namespace-geometry-validation/logs/omui-n1b-motion-wasm-retry.log",
+        "sha256": "17d62cf97f9ec750ba6577cf17ce49865a25aa12542741795d024d4d0a9cbf2e"
+      }
+    }
+  ],
+  "totals": {
+    "successful_program_executions": 175,
+    "reported_suite_case_executions": 1222,
+    "distinct_programs_by_target_profile": {
+      "native_dev": 62,
+      "native_release": 62,
+      "wasm_node": 33
+    },
+    "distinct_reported_suite_cases_by_target_profile": {
+      "native_dev": 421,
+      "native_release": 421,
+      "wasm_node": 238
+    },
+    "retries_included_in_execution_totals": true
+  },
+  "unicode": {
+    "version": "17.0.0",
+    "source": {
+      "url": "https://www.unicode.org/Public/17.0.0/ucd/UCD.zip",
+      "sha256": "2066d1909b2ea93916ce092da1c0ee4808ea3ef8407c94b4f14f5b7eb263d28e",
+      "files": {
+        "UnicodeData.txt": "2e1efc1dcb59c575eedf5ccae60f95229f706ee6d031835247d843c11d96470c",
+        "SpecialCasing.txt": "efc25faf19de21b92c1194c111c932e03d2a5eaf18194e33f1156e96de4c9588",
+        "DerivedCoreProperties.txt": "24c7fed1195c482faaefd5c1e7eb821c5ee1fb6de07ecdbaa64b56a99da22c08",
+        "LineBreak.txt": "e6a18fa91f8f6a6f8e534b1d3f128c21ada45bfe152eb6b1bcc5e15fd8ac92e6",
+        "EastAsianWidth.txt": "ea7ce50f3444a050333448dffef1cadd9325af55cbb764b4a2280faf52170a33",
+        "GraphemeBreakProperty.txt": "d6b51d1d2ae5c33b451b7ed994b48f1f4dc62b2272a5831e7fd418514a6bae89",
+        "WordBreakProperty.txt": "72274cac1e6b919507db35655c3e175aa27274668a1ece95c28d2069f2ad9852",
+        "emoji-data.txt": "2cb2bb9455cda83e8481541ecf5b6dfda66a3bb89efa3fa7c5297eccf607b72b",
+        "DerivedGeneralCategory.txt": "d62e5bab70ca74f099343f71224fa051cb1fdd61a1ab45c0488c44cfc0b6102e",
+        "LineBreakTest.txt": "e69884e0dde6a8724873f885d68c52dc14518abf9ae4ca9e2283b8773db3b752",
+        "GraphemeBreakTest.txt": "e2d134d2c52919bace503ebb6a551c1855fe1a1faec18478c78fff254a1793ec",
+        "WordBreakTest.txt": "1de23a75f37904abc7d206239ee8d34f8fdf0fb4ab32a7174dfbabbde25419b2"
+      }
+    },
+    "generated": {
+      "path": "modules/base/unicode/src/generated/tables.cppm",
+      "sha256": "9a9fe440b9a7598b706f41c72aeb38763f1c2e242b01318bbb1df23ca3eef783"
+    },
+    "unchanged_after_module_namespace_normalization": true,
+    "committed_test_inputs_unchanged": true,
+    "reference_cases_per_execution": {
+      "grapheme": 766,
+      "word": 1944,
+      "line": 4835
+    },
+    "line_break_scope": "existing every-fourth-line subset; not a new full 19338-case run",
+    "regeneration_command": "MCPP_JOBS=2 mcpp run omui-gen -p openmui.gen --profile release --locked -- unicode /tmp/omui-n1b-ucd-17.0.0 --version 17.0.0 --out modules/base/unicode/src/generated --tests modules/base/unicode/tests/data",
+    "check_command_suffix": "--check"
+  },
+  "consumers": {
+    "foundation": {
+      "report": {
+        "path": "target/namespace-base-consumers/report.omui.json",
+        "sha256": "cc929e8b3dd3843b116851815d3f6b20d4ecfe1168e6a099013edc52e393e9b8"
+      },
+      "runs": [
+        {
+          "kind": "source",
+          "style": "canonical",
+          "result": {
+            "kind": "mlibs.namespace-consumer",
+            "ok": true,
+            "cases": 8
+          },
+          "packages": [
+            "mlibs.fuzzy",
+            "mlibs.geom",
+            "mlibs.hash",
+            "mlibs.log",
+            "mlibs.math",
+            "mlibs.memory",
+            "mlibs.testing",
+            "mlibs.trace",
+            "mlibs.unicode",
+            "mlibs.validation.namespace_consumer"
+          ]
+        },
+        {
+          "kind": "source",
+          "style": "legacy",
+          "result": {
+            "kind": "mlibs.namespace-consumer",
+            "ok": true,
+            "cases": 8
+          },
+          "packages": [
+            "mlibs.fuzzy",
+            "mlibs.geom",
+            "mlibs.hash",
+            "mlibs.log",
+            "mlibs.math",
+            "mlibs.memory",
+            "mlibs.testing",
+            "mlibs.trace",
+            "mlibs.unicode",
+            "mlibs.validation.namespace_consumer"
+          ]
+        },
+        {
+          "kind": "source",
+          "style": "mixed",
+          "result": {
+            "kind": "mlibs.namespace-consumer",
+            "ok": true,
+            "cases": 8
+          },
+          "packages": [
+            "mlibs.fuzzy",
+            "mlibs.geom",
+            "mlibs.hash",
+            "mlibs.log",
+            "mlibs.math",
+            "mlibs.memory",
+            "mlibs.testing",
+            "mlibs.trace",
+            "mlibs.unicode",
+            "mlibs.validation.namespace_consumer"
+          ]
+        },
+        {
+          "kind": "packed",
+          "style": "canonical",
+          "result": {
+            "kind": "mlibs.namespace-consumer",
+            "ok": true,
+            "cases": 8
+          },
+          "packages": [
+            "mlibs.fuzzy",
+            "mlibs.geom",
+            "mlibs.hash",
+            "mlibs.log",
+            "mlibs.math",
+            "mlibs.memory",
+            "mlibs.testing",
+            "mlibs.trace",
+            "mlibs.unicode",
+            "mlibs.validation.namespace_consumer"
+          ]
+        },
+        {
+          "kind": "packed",
+          "style": "legacy",
+          "result": {
+            "kind": "mlibs.namespace-consumer",
+            "ok": true,
+            "cases": 8
+          },
+          "packages": [
+            "mlibs.fuzzy",
+            "mlibs.geom",
+            "mlibs.hash",
+            "mlibs.log",
+            "mlibs.math",
+            "mlibs.memory",
+            "mlibs.testing",
+            "mlibs.trace",
+            "mlibs.unicode",
+            "mlibs.validation.namespace_consumer"
+          ]
+        },
+        {
+          "kind": "packed",
+          "style": "mixed",
+          "result": {
+            "kind": "mlibs.namespace-consumer",
+            "ok": true,
+            "cases": 8
+          },
+          "packages": [
+            "mlibs.fuzzy",
+            "mlibs.geom",
+            "mlibs.hash",
+            "mlibs.log",
+            "mlibs.math",
+            "mlibs.memory",
+            "mlibs.testing",
+            "mlibs.trace",
+            "mlibs.unicode",
+            "mlibs.validation.namespace_consumer"
+          ]
+        }
+      ],
+      "packs": [
+        {
+          "name": "mlibs.hash",
+          "archive": "/home/speak/workspace/mui/modules/base/hash/target/dist/hash-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+          "sha256": "06b22acf5b53f1accd1a4217f5563df7214b9e73c4f069d9ba5cf45649a7fbd3",
+          "archive_bytes": 72262,
+          "library_bytes": 214492,
+          "interfaces": [
+            "api.cppm",
+            "hash.cppm",
+            "legacy.cppm"
+          ]
+        },
+        {
+          "name": "mlibs.math",
+          "archive": "/home/speak/workspace/mui/modules/base/math/target/dist/math-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+          "sha256": "706472343e6a5865cb76b2f4f4f9875e9a099e0d73d2aeeaa7390d2c61ccf95f",
+          "archive_bytes": 10540,
+          "library_bytes": 15516,
+          "interfaces": [
+            "api.cppm",
+            "color.cppm",
+            "det.cppm",
+            "legacy.cppm",
+            "math.cppm",
+            "random.cppm"
+          ]
+        },
+        {
+          "name": "mlibs.log",
+          "archive": "/home/speak/workspace/mui/modules/base/log/target/dist/log-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+          "sha256": "6ab8304b6ed506a712996819b47c06898547d32d9208607378fc6b5744a678ea",
+          "archive_bytes": 82271,
+          "library_bytes": 241574,
+          "interfaces": [
+            "api.cppm",
+            "legacy.cppm",
+            "log.cppm"
+          ]
+        },
+        {
+          "name": "mlibs.trace",
+          "archive": "/home/speak/workspace/mui/modules/base/trace/target/dist/trace-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+          "sha256": "430bd8e4fd0472f946bee50decd7bc86bce25f59a6eb978b115fb0175fe8d5c5",
+          "archive_bytes": 106229,
+          "library_bytes": 312876,
+          "interfaces": [
+            "api.cppm",
+            "legacy.cppm",
+            "trace.cppm"
+          ]
+        },
+        {
+          "name": "mlibs.testing",
+          "archive": "/home/speak/workspace/mui/modules/base/testing/target/dist/testing-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+          "sha256": "481b31902f9921446c877c042007060f04d10cb0de26b42723d80e758c40ee00",
+          "archive_bytes": 75646,
+          "library_bytes": 225104,
+          "interfaces": [
+            "api.cppm",
+            "legacy.cppm",
+            "testing.cppm",
+            "threads.cppm"
+          ]
+        },
+        {
+          "name": "mlibs.geom",
+          "archive": "/home/speak/workspace/mui/modules/base/geom/target/dist/geom-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+          "sha256": "364e29a3e6e7cb73b4df34d9fcab88ab4cae72968d4caf763c53954e13f9f741",
+          "archive_bytes": 4995,
+          "library_bytes": 8,
+          "interfaces": [
+            "api.cppm",
+            "geom.cppm",
+            "legacy.cppm"
+          ]
+        },
+        {
+          "name": "mlibs.memory",
+          "archive": "/home/speak/workspace/mui/modules/base/memory/target/dist/memory-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+          "sha256": "5e71096d348617d6b2522a3a0b3fee92cad4fdc0806397b6496326c0586550d7",
+          "archive_bytes": 9549,
+          "library_bytes": 5720,
+          "interfaces": [
+            "api.cppm",
+            "arena.cppm",
+            "function.cppm",
+            "handle.cppm",
+            "legacy.cppm",
+            "memory.cppm",
+            "slots.cppm"
+          ]
+        },
+        {
+          "name": "mlibs.unicode",
+          "archive": "/home/speak/workspace/mui/modules/base/unicode/target/dist/unicode-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+          "sha256": "319ad906cda46e8d44db5247c34cd5e71b4152fbb8c65fa87bf65dafb4a74dbe",
+          "archive_bytes": 69849,
+          "library_bytes": 345766,
+          "interfaces": [
+            "api.cppm",
+            "legacy.cppm",
+            "tables.cppm",
+            "unicode.cppm"
+          ]
+        },
+        {
+          "name": "mlibs.fuzzy",
+          "archive": "/home/speak/workspace/mui/modules/base/fuzzy/target/dist/fuzzy-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+          "sha256": "8116189eaaa86dcf648cc443c0d9dbdec8c890a8e2f1d83c2e026218c4465332",
+          "archive_bytes": 27675,
+          "library_bytes": 60700,
+          "interfaces": [
+            "api.cppm",
+            "fuzzy.cppm",
+            "legacy.cppm"
+          ]
+        }
+      ],
+      "timings": [
+        {
+          "label": "source-canonical",
+          "seconds": 8.717774538963567
+        },
+        {
+          "label": "source-canonical-incremental",
+          "seconds": 0.1359185780165717
+        },
+        {
+          "label": "source-legacy",
+          "seconds": 8.766977509018034
+        },
+        {
+          "label": "source-legacy-incremental",
+          "seconds": 0.13195881701540202
+        },
+        {
+          "label": "source-mixed",
+          "seconds": 8.660626748984214
+        },
+        {
+          "label": "source-mixed-incremental",
+          "seconds": 0.1382922240300104
+        },
+        {
+          "label": "packed-canonical",
+          "seconds": 4.095181171025615
+        },
+        {
+          "label": "packed-canonical-incremental",
+          "seconds": 0.14078458095900714
+        },
+        {
+          "label": "packed-legacy",
+          "seconds": 4.03434653399745
+        },
+        {
+          "label": "packed-legacy-incremental",
+          "seconds": 0.1312824990018271
+        },
+        {
+          "label": "packed-mixed",
+          "seconds": 4.061432763002813
+        },
+        {
+          "label": "packed-mixed-incremental",
+          "seconds": 0.13104878301965073
+        }
+      ]
+    },
+    "api": {
+      "report": {
+        "path": "target/namespace-geometry-validation/api/report.omui.json",
+        "sha256": "8210b6b954400c03fe1d437a1f889592c8f3ed063cd9b6dc8d93fde9acc45acb"
+      },
+      "profiles": 2
+    },
+    "play": {
+      "report": {
+        "path": "target/namespace-geometry-validation/play/report.omui.json",
+        "sha256": "b43cdb449faf1bd4d73039e8308456a2fe82a5ac20edaf97300fcced3f78cc57"
+      },
+      "profiles": [
+        {
+          "profile": "dev",
+          "sampled_frames": 122,
+          "denied_capture_published_no_files": true,
+          "display_environment_removed": true,
+          "packages": [
+            "compat.libpng",
+            "compat.libwebp",
+            "compat.zlib",
+            "hanim.core",
+            "hanim.effect",
+            "hanim.engine",
+            "hanim.library",
+            "hanim.object",
+            "hanim.program",
+            "hanim.render.vector",
+            "hanim.validation.play_consumer",
+            "mcpplibs.hanim",
+            "mcpplibs.mwrap.libpng",
+            "mcpplibs.mwrap.libwebp",
+            "mcpplibs.openkal",
+            "mcpplibs.openkal-linux",
+            "mcpplibs.os",
+            "mlibs.control",
+            "mlibs.geom",
+            "mlibs.hash",
+            "mlibs.log",
+            "mlibs.math",
+            "mlibs.memory",
+            "mlibs.trace",
+            "nlohmann.json",
+            "openlifa.openas",
+            "openmui.image",
+            "openmui.raster",
+            "openmui.render",
+            "openmui.render.vector",
+            "openmui.rhi",
+            "openmui.shader",
+            "openmui.shader.rules"
+          ]
+        },
+        {
+          "profile": "release",
+          "sampled_frames": 122,
+          "denied_capture_published_no_files": true,
+          "display_environment_removed": true,
+          "packages": [
+            "compat.libpng",
+            "compat.libwebp",
+            "compat.zlib",
+            "hanim.core",
+            "hanim.effect",
+            "hanim.engine",
+            "hanim.library",
+            "hanim.object",
+            "hanim.program",
+            "hanim.render.vector",
+            "hanim.validation.play_consumer",
+            "mcpplibs.hanim",
+            "mcpplibs.mwrap.libpng",
+            "mcpplibs.mwrap.libwebp",
+            "mcpplibs.openkal",
+            "mcpplibs.openkal-linux",
+            "mcpplibs.os",
+            "mlibs.control",
+            "mlibs.geom",
+            "mlibs.hash",
+            "mlibs.log",
+            "mlibs.math",
+            "mlibs.memory",
+            "mlibs.trace",
+            "nlohmann.json",
+            "openlifa.openas",
+            "openmui.image",
+            "openmui.raster",
+            "openmui.render",
+            "openmui.render.vector",
+            "openmui.rhi",
+            "openmui.shader",
+            "openmui.shader.rules"
+          ]
+        }
+      ]
+    }
+  },
+  "browser": {
+    "report": {
+      "path": "target/namespace-geometry-validation/site-browser.report.omui.json",
+      "sha256": "a610d3a4537c4fb21cdd6789b5aaea80bfa2c322ed7f5f29be30f41c57369290"
+    },
+    "command": "CHROME=<Chromium> node tools/ci/site-reactions.mjs target/namespace-geometry-validation/site",
+    "version": "HeadlessChrome/156.0.8078.4",
+    "checks": [
+      {
+        "ok": true,
+        "what": "the website opens the shared reaction workspace"
+      },
+      {
+        "ok": true,
+        "what": "rules and project details start closed"
+      },
+      {
+        "ok": true,
+        "what": "a real pointer paints the intended cell"
+      },
+      {
+        "ok": true,
+        "what": "Agent and pointer produce identical material state"
+      },
+      {
+        "ok": true,
+        "what": "all 25 intermediate states differ"
+      },
+      {
+        "ok": true,
+        "what": "all 25 actual canvas images differ"
+      },
+      {
+        "ok": true,
+        "what": "reverse seek reproduces state and actual canvas pixels at frame 17"
+      },
+      {
+        "ok": true,
+        "what": "reverse seek reproduces state and actual canvas pixels at frame 8"
+      },
+      {
+        "ok": true,
+        "what": "reverse seek reproduces state and actual canvas pixels at frame 0"
+      },
+      {
+        "ok": true,
+        "what": "real keyboard input edits and applies the rule configuration"
+      },
+      {
+        "ok": true,
+        "what": "real Play input advances the live simulation"
+      },
+      {
+        "ok": true,
+        "what": "leaving the route cancels ongoing playback"
+      },
+      {
+        "ok": true,
+        "what": "navigation and language changes preserve the edited project"
+      },
+      {
+        "ok": true,
+        "what": "the real resized phone canvas fits its viewport"
+      }
+    ],
+    "fixed_sample_state_and_png_match_prior": 25,
+    "prior_reference": "tools/ci/2026-11-05-cellular-workbench.report.omui.json",
+    "native_prerender": {
+      "path": "target/namespace-geometry-validation/site-native.report.omui.json",
+      "sha256": "8acc55f7ec7f8d18d1de844600a32ca1f5ad3fdb9533ea3f5bd7305047efb9aa"
+    },
+    "pack_report": {
+      "path": "target/namespace-geometry-validation/site-pack.report.omui.json",
+      "sha256": "322937cf006d2fd418809ef6598504b3a6c2a8f82d2bca93d85028ec63607e2e"
+    },
+    "wasm": [
+      {
+        "path": "target/namespace-geometry-validation/site/omui-site-72eb7777dc4f.wasm",
+        "sha256": "a7048687313cecd5afbd5dbec63070d5551cee09ce0b8a7d985245a0d0a1843a",
+        "bytes": 7074765
+      }
+    ]
+  },
+  "source_files_sha256": {
+    "components/base/mcpp.toml": "756c8cf8f67066734e6e75a01d590c92b57c7d5f8996598fdf57d2f6db291114",
+    "components/canvas/mcpp.toml": "4beaac8bd751227716e5393a051b3a2e3e9f034739af235d764bfac639dcf72f",
+    "mgame/gongfu/present2d/mcpp.toml": "5ccbac03b71ebf4095dc221a705b9f623753b56e345a7ce300064a991edb5f56",
+    "modules/base/fuzzy/mcpp.toml": "0a508deaef62a22584273e4a38ed6610fbe873bc5646f30ce1a6a65f7be160cc",
+    "modules/base/fuzzy/src/api.cppm": "724ec35282a2cd8cb97baa27ee8a3cc389547611a504add96aa9522d90156ce6",
+    "modules/base/fuzzy/src/fuzzy.cpp": "3875480fe23766d3ef0a473abac2e9442cb96489f406b9af2b8176030800773f",
+    "modules/base/fuzzy/src/fuzzy.cppm": "4f4f1505425e55878971869d75795292c9c3127534403068ccdbe3ef8755f4b7",
+    "modules/base/fuzzy/src/legacy.cppm": "e88a9da9191307e8009e9a35123f5fc29cedbb8e46c2c78059c630842a9db30e",
+    "modules/base/geom/mcpp.toml": "186f9d218bde759b45f0a4c285b8817d62f958e6f37b3b91c5c3756421e6be11",
+    "modules/base/geom/src/api.cppm": "b8b09e276b452a465864febb1a499059c0ce58c781f8cd82e41f7ce3508abccd",
+    "modules/base/geom/src/geom.cppm": "424b916347632a968ef130e524cbf92bafe392cdf85ed459fb48eade57f28ebd",
+    "modules/base/geom/src/legacy.cppm": "75c95b5297e1b5403aaec4027a8357cecd0ba3f26a86c7bccfb582c3d0604e49",
+    "modules/base/memory/mcpp.toml": "b1e4816ee6c44c9ed6382f595ddce470251c544c3b4bd32ac4fd22202c409f18",
+    "modules/base/memory/src/api.cppm": "833c4d3595034dbbf15e39983610dedd24dac5ebd53277e73f948abb158a1395",
+    "modules/base/memory/src/arena.cpp": "61140ec25b7496b567ff0e5cc27d32f43b6602bed29e4fd0ba12f4b1364ad52b",
+    "modules/base/memory/src/arena.cppm": "664f90dd862fd4183e0ccf45e5881c4fabd56c0a43ece230269586a482e64e90",
+    "modules/base/memory/src/function.cppm": "ea9b5a740726b93dc0cce592e734dc751e76760b4d72d113af31ea5bcc3efb79",
+    "modules/base/memory/src/handle.cppm": "902ed5dae09573ef54fa105dd9d29b330be20504292b3a5dc772009694c97c01",
+    "modules/base/memory/src/legacy.cppm": "2f6fc565309545c48580ea81739e341af74b03a02769168fc9cf7ffeed8e7d81",
+    "modules/base/memory/src/memory.cppm": "a0c295a802d9110a9a6a97d3a33a088ade39b6c9d1cc7a7cfdfcad6737185c08",
+    "modules/base/memory/src/slots.cppm": "a1adac69e39a6f3bb742ec070a7b53626f175521a1b9fd5bac04ac7953e07869",
+    "modules/base/unicode/mcpp.toml": "d7e2db73c90f61026f6ff255e4b49f612a7324f53089994bbad5f5c1130c3d07",
+    "modules/base/unicode/src/api.cppm": "280b04e62bad69d9c0da41a98c34a476e178944884348bf795dbe9a1613dec75",
+    "modules/base/unicode/src/case.cpp": "eac8f7184b3a2892770e007ae79c6cd51e171601fcccea18853a9a28e132ef55",
+    "modules/base/unicode/src/generated/tables.cppm": "9a9fe440b9a7598b706f41c72aeb38763f1c2e242b01318bbb1df23ca3eef783",
+    "modules/base/unicode/src/legacy.cppm": "3dd0e52797106dbf89237c7e4bf4fdac7df28d47b6c8153c7d7289c6c6fbb13c",
+    "modules/base/unicode/src/linebreak.cpp": "ef6e88c065057ba331abd1a0fa4f91c1547f9750f7867c7aa3a766f5f83e4a8d",
+    "modules/base/unicode/src/segment.cpp": "f0f1a8370b83650cc91be00b80cea70b1ddbfdfc78c94c7f5e1a862e8cec6c39",
+    "modules/base/unicode/src/unicode.cppm": "ac5e3175bc2921abe0a72aa8696610815a65a9d86a2dbd81be053bfe1181e7a0",
+    "modules/base/unicode/src/utf8.cpp": "beb830f7b8927ad3562b49839955bc203e7f1bdd07e21ce43affeacecb7e4e80",
+    "modules/content/layout/mcpp.toml": "e17f643bd2737dd673f13a1988b50ce34f84194054bf54fc4bed7fd5d2a47bb3",
+    "modules/content/text/mcpp.toml": "ce77a88d5d39a83590226bc2e4154074894a70f15ffb4df9407dc08876308707",
+    "modules/gfx/hanim/engine/mcpp.toml": "c31a64ac6676628a75616cd67335df8be1847cd9f69623256689b714e71187a0",
+    "modules/gfx/hanim/engine/src/engine.cpp": "e59f9db75b8bbcb2252a351062eb37135c8dff3c9a494c38d9c417dc333d6582",
+    "modules/gfx/hanim/engine/tests/composite_test.cpp": "ff72b1615c3ba330d19d276543f64b07d2e6f56d4a0f6199d7815be4e7761b57",
+    "modules/gfx/hanim/engine/tests/visual_test.cpp": "f238f4d763794ce40d6cd89364cab5c84195a88fdaba31b8141c31de62c75672",
+    "modules/gfx/hanim/object/mcpp.toml": "1bc2967ba33572d415a2501a4d6f6a10b2e77fc701db1148c3553e9ce46b49bb",
+    "modules/gfx/hanim/object/src/object.cpp": "7fafe53350282a942f79983e04c0aa6e09cc1a88981ac5d19998d7516db5c8b8",
+    "modules/gfx/hanim/render/vector/mcpp.toml": "be0adf46027a6308579d878a2bb9cc9cf66ad87aeaa29d1c9ebd0a0b739d2ada",
+    "modules/gfx/hanim/render/vector/src/vector.cpp": "c341c5a123fb9b53cf646d27365c5c3a5c3cc994b548e7056b69bed32bd134d9",
+    "modules/gfx/hanim/render/vector/src/vector.cppm": "8a277b7069f78bc2c704480a121cb8d3fe9607f3e453307262312f68633e8b08",
+    "modules/gfx/hanim/render/vector/tests/vector_test.cpp": "8ed2b86ad1f15dc51a5f08a1d07e41a1085cf7a103041291e1597c23407cd1a8",
+    "modules/gfx/raster/mcpp.toml": "2cce7882fc736b7ea72fb5b4d9a13ae6dfa3e33c4a0f38e57fde853669690876",
+    "modules/gfx/render/cts/mcpp.toml": "97db14e785f0c14e6daefb232ec684ace51a9842b1cc772947d8841e16d5b2aa",
+    "modules/gfx/render/effect/mcpp.toml": "83659761b72bf01a5efa6a5e7a272cfe7e23bce5b80ee4b8e6317ed68d82264e",
+    "modules/gfx/render/mcpp.toml": "043e60a8c0848894641bc5fc74395a6e66c26852357b7ce487fb31befcf2a498",
+    "modules/gfx/render/vector/mcpp.toml": "735d1e4a784fc6e600ab1a7cdab46ae554b67d5db75aa2c2cbca4c6cdda5b5a1",
+    "modules/gfx/rhi/mcpp.toml": "3d8ecf4fc3032a8fb13951ffd9ba5cd6e11b6cfaaebcd895a33e4dc723de0da8",
+    "modules/gfx/rhi/sdl/mcpp.toml": "e44b2de40e4f586909402e5cbc19a2b7044a632920e4cc16617fb925e9f76435",
+    "modules/gfx/rhi/webgl/mcpp.toml": "26342457f412dc21dba92a4f334be385da9783f6f10b24ce448708a2c290e1c0",
+    "modules/gfx/rhi/webgpu/mcpp.toml": "810a1c55c52d076ea83fb6b2c6b80edd9e48df54ce8f47571911125c77156b96",
+    "modules/ui/core/mcpp.toml": "18b50ec94ce12cab7c3c751f660703be6273b8b08aade4913ec63eb8791cb646",
+    "modules/ui/expr/mcpp.toml": "56d9ee391f3eba827a03b57166aec47c0f243def95392a0c650cf93cfd462907",
+    "modules/ui/motion/mcpp.toml": "ef9e2ffdd96de75828c867625478a55e358c4a3c1b9f3a56269b01e9e2011e62",
+    "modules/ui/motion/tests/path_morph_test.cpp": "6c3ec0c51811766c9397d789565b047b5accb1e5881602b80cb99e8149cc35d8",
+    "modules/ui/motion/tests/text_contrast_test.cpp": "45b05a1c0f66b20a7881db547799a8163b139d3b7c97dd2a061edab2b5bcadbe",
+    "modules/ui/motion/tests/travel_reentry_test.cpp": "929c208f55f60e1aaf0a0d34d76c0d1bf98ae876eb0299f793942f1d43149604",
+    "modules/ui/native/fuzzy/mcpp.toml": "02dc10388213b82ef928c6da21ee6f1dbd968bc65cedb002d2e0f91667031705",
+    "modules/ui/view/mcpp.toml": "c2d39416731aa5e89cc8a6db9fda9133160cf345645336f9c8f7a879e34c06af",
+    "tools/ci/foundation-migration/main.cpp.in": "d8eebafb34a9dc61a7972b626dd082c86015f84131c4c37236402494a0929b19",
+    "tools/ci/foundation-migration/run.py": "dae6e7de4d9c06f94d95fef5c9b885fa434d05469c46bc14f8b9a2ca8c8a5e1e",
+    "tools/gen/src/unicode.cpp": "42983946f6558684bc2eb2492b3ce175e7bfbb720703bc8d2787af32c0b85ac4",
+    "tools/gen/src/unicode.cppm": "4d66793e010131ea54ae2ff5843d88b65d4a45dd9b52c9365df888e6b8f8410b"
+  },
+  "static_checks": {
+    "lint": "0 problems",
+    "git_diff_check": "pass",
+    "python_syntax": "pass",
+    "manifest_toml": "pass",
+    "local_document_links": "pass",
+    "spec_submodule_unchanged": true
+  },
+  "limits": [
+    "The full N1-N4 migration and S1-S10 feature/quality programme remain incomplete.",
+    "Source API compatibility after rebuilding; no C++ ABI/BMI compatibility, CLI-selector alias or index publication claim.",
+    "Current packed testing/hash and fuzzy/unicode dependencies are explicitly declared by the consumer; missing transitive dependency metadata in mcpp pack still blocks a claim of complete top-level-only installation.",
+    "Web executes on its declared single thread; native concurrency evidence is not transferred to Web.",
+    "No local Windows/macOS/mobile or GPU-device qualification, new performance budget or full visual quality acceptance.",
+    "Fresh external project timing may reuse global compiler caches.",
+    "Reported suite cases omit the C ABI C program's raw checks. Execution totals include explicit reruns; distinct counts are also reported.",
+    "Browser whole-page captures have live timing; only the 25 fixed canvas states are asserted identical to the prior baseline."
+  ]
+}

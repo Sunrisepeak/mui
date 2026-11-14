@@ -1,0 +1,33 @@
+# mlibs.geom.boolean — solids combined (the foundation plan's §5.5 and its middleware table: booleans of meshes
+# are Manifold's, under mlibs.geom's modelling by code; D-176): two closed meshes joined, one cut from the other,
+# or what they share, as a closed mesh again, with the normals, tangents and texture coordinates both carry. The
+# library comes through its module wrap (mcpplibs.mwrap.manifold; D-56, D-83) and is named in one native unit.
+# A package of its own beside mlibs.geom so that the geometry everything shares does not carry it (D-99:
+# dependency isolation).
+[package]
+namespace   = "mlibs.geom"
+name        = "boolean"
+version     = "0.1.0"
+description = "Solids combined: union, difference and intersection of closed meshes, their attributes carried, the same bytes everywhere"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+
+[targets.mlibs-geom-boolean]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/native/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+mlibs.geom = { path = ".." }
+mlibs.math = { path = "../../math" }
+mcpplibs.mwrap.manifold = "3.5.5.1"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+mlibs.utils    = { path = "../../utils" }

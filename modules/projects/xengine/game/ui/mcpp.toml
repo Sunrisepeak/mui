@@ -1,0 +1,44 @@
+# xengine.ui — a game inside openmui (structure, render, web and game design §7):
+# its steps paced on the runtime's clock (a timer at the next step due, every
+# step due taken, a stall not owed, frames asked for while it runs), and
+# openmui's keys and pointer given to xengine.input — what the interface does not
+# use, the game gets (D-76). The only mgame package that knows openmui.
+[package]
+namespace   = "xengine"
+name        = "ui"
+version     = "0.1.0"
+description = "A game inside openmui: its steps paced on the runtime's clock, openmui's keys and pointer given to its actions"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+agent = { part = "xengine.runtime" }
+
+[targets.mgame-ui]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+omui.core = { path = "../../../omui/core" }
+omui.view = { path = "../../../omui/view" }
+xengine.input = { path = "../input" }
+mlibs.simulation = { path = "../../../../base/simulation" }
+mlibs.agent = { path = "../../../../base/agent" }
+mlibs.layout = { path = "../../../../content/layout" }
+xrender.raster = { path = "../../../xrender/raster" }
+xrender.vector = { path = "../../../xrender/vector" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+mlibs.utils = { path = "../../../../base/utils" }
+omui.host.headless = { path = "../../../omui/host/headless" }
+omui.semantic = { path = "../../../omui/semantic" }
+xrender.mesh = { path = "../../../xrender/mesh" }
+xrender.scene = { path = "../../../xrender/scene" }
+xrender.text = { path = "../../../xrender/text" }
+mlibs.text = { path = "../../../../content/text" }
+mlibs.geom = { path = "../../../../base/geom" }
+mlibs.math = { path = "../../../../base/math" }
+mlibs.control = { path = "../../../../base/control" }

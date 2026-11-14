@@ -1,0 +1,36 @@
+# omui.theme.styles — the style packs (S2, D-69) as data, embedded: glass,
+# neon, retro (a CRT), ink (on paper) and liquid; and the platforms' looks:
+# fluent (Windows), cupertino (Apple) and material (Google). Each is a theme to start
+# from, the tokens it changes and the effects it puts on the window, on
+# component types and on roles; add_styles() adds them to the program's
+# library, theme::apply_style(rt, name) shows one (a cross-fade from the
+# last). The semantic tree is the same under all of them.
+[package]
+namespace   = "omui.theme"
+name        = "styles"
+version     = "0.1.0"
+description = "openmui's style packs: glass, neon, retro CRT, ink on paper, liquid; fluent, cupertino, material"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind   = "theme"
+styles = ["styles/*.style.omui.ts"]
+agent = { library = "theme data: style packs" }
+
+[targets.openmui-theme-styles]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+omui.theme         = { path = ".." }
+"omui.theme.default" = { path = "../default" }
+
+[build-dependencies]
+omui.build.embed = { path = "../../../../../mcpp/embed", host-module = true }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+mlibs.utils = { path = "../../../../base/utils" }

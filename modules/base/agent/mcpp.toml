@@ -1,0 +1,37 @@
+# mlibs.agent — the agent kernel (D-173): what openas's model needs in a
+# process, for any subject. Below every engine, so that a simulation, a
+# renderer or a game without an interface is found, observed and operated
+# as an application with one is; it knows neither the interface nor a game.
+#
+# First of it, the endpoint: where agents find a program and talk to it —
+# a local connection named after the program, a descriptor beside it, lines
+# in and lines out, served at the owner's safe point (a frame's or a step's
+# boundary). What the lines mean is the session's, which the owner gives.
+[package]
+namespace   = "mlibs"
+name        = "agent"
+version     = "0.1.0"
+description = "The agent kernel: where agents find a program and talk to it, for any subject"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "module"
+
+[targets.mlibs-agent]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+mlibs.utils   = { path = "../utils" }
+mlibs.json    = { path = "../json" }
+# Authority: every request of a subject is decided there first (openas).
+mlibs.control = { path = "../control" }
+openlifa.openas = "0.2.0"
+mcpplibs.os   = "0.4.4"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"

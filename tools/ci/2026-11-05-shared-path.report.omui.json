@@ -1,0 +1,905 @@
+{
+  "format": "shared-path-capture@0.1",
+  "ok": true,
+  "recorded_utc": "2026-11-05T11:17:33.399100+00:00",
+  "base_commit": "bfe87545e16fd5cef91829af302c01c7b303e0cf",
+  "implementation": "Shared std-only path representation, validation and existing flattening; owning public Hanim import consumed by UI motion and independent rendered playback.",
+  "new_manifests": 0,
+  "source_lock_sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+  "tests": [
+    {
+      "profile": "dev",
+      "programs": 32,
+      "cases": 249,
+      "suites": [
+        {
+          "name": "geom.path",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "geom",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "hanim.compatibility",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "hanim.effect",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "hanim.engine",
+          "passed": 23,
+          "failed": 0
+        },
+        {
+          "name": "hanim.library.morph",
+          "passed": 12,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object.consumer",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object.path",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object",
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object.query_allocations",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "hanim.program",
+          "passed": 38,
+          "failed": 0
+        },
+        {
+          "name": "raster.dash",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "raster",
+          "passed": 15,
+          "failed": 0
+        },
+        {
+          "name": "raster.gradient-setup",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.blank-glyph",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.cpu",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "render.display",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.damage",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "render.effect_output_bounds",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "render.paint-mix-cpu",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.paint-mix",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "render.path-recording",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.pixelate",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "render.shape-morph",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "render.effects",
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "name": "ui.motion",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "name": "motion.path-material-retarget-probe",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "motion.references",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "motion.text-contrast",
+          "passed": 21,
+          "failed": 0
+        },
+        {
+          "name": "motion.text-transition",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "motion.path-morph",
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "name": "nested travel scratch lifetime",
+          "passed": 6,
+          "failed": 0
+        }
+      ],
+      "log": {
+        "path": "target/hanim-shared-path/logs/dev.log",
+        "sha256": "4ff0183cb6c0a8ebe0aa62a98e6c9ef3b388e6c75ce1e479ce40fc2952822916"
+      }
+    },
+    {
+      "profile": "release",
+      "programs": 32,
+      "cases": 249,
+      "suites": [
+        {
+          "name": "geom",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "geom.path",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "hanim.compatibility",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "hanim.effect",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "hanim.engine",
+          "passed": 23,
+          "failed": 0
+        },
+        {
+          "name": "hanim.library.morph",
+          "passed": 12,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object.consumer",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object.path",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object",
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object.query_allocations",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "hanim.program",
+          "passed": 38,
+          "failed": 0
+        },
+        {
+          "name": "raster.dash",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "raster",
+          "passed": 15,
+          "failed": 0
+        },
+        {
+          "name": "raster.gradient-setup",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.blank-glyph",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.damage",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "render.cpu",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "render.display",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.effect_output_bounds",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "render.paint-mix-cpu",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.paint-mix",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "render.path-recording",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.pixelate",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "render.shape-morph",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "render.effects",
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "name": "ui.motion",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "name": "motion.path-material-retarget-probe",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "motion.references",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "motion.text-contrast",
+          "passed": 21,
+          "failed": 0
+        },
+        {
+          "name": "motion.path-morph",
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "name": "motion.text-transition",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "nested travel scratch lifetime",
+          "passed": 6,
+          "failed": 0
+        }
+      ],
+      "log": {
+        "path": "target/hanim-shared-path/logs/release.log",
+        "sha256": "235dcd88c2ac9ef8a76ca15184124c7430bf1ae3ecb2bcea883b74a8af15613a"
+      }
+    },
+    {
+      "profile": "wasm",
+      "programs": 32,
+      "cases": 244,
+      "suites": [
+        {
+          "name": "geom",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "geom.path",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "hanim.compatibility",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "hanim.effect",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "hanim.engine",
+          "passed": 23,
+          "failed": 0
+        },
+        {
+          "name": "hanim.library.morph",
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object.consumer",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object",
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object.path",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object.query_allocations",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "hanim.program",
+          "passed": 37,
+          "failed": 0
+        },
+        {
+          "name": "raster.dash",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "raster.gradient-setup",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "raster",
+          "passed": 15,
+          "failed": 0
+        },
+        {
+          "name": "render.blank-glyph",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.cpu",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "render.damage",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "render.display",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.effect_output_bounds",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "render.paint-mix-cpu",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.paint-mix",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "render.effects",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "name": "render.path-recording",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.pixelate",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "render.shape-morph",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "ui.motion",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "name": "motion.path-material-retarget-probe",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "motion.references",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "motion.path-morph",
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "name": "motion.text-contrast",
+          "passed": 21,
+          "failed": 0
+        },
+        {
+          "name": "motion.text-transition",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "nested travel scratch lifetime",
+          "passed": 6,
+          "failed": 0
+        }
+      ],
+      "log": {
+        "path": "target/hanim-shared-path/logs/wasm.log",
+        "sha256": "9cd7411178b9a8386e6337c435a17cd5761e86c54b3b10189b0519d49a719606"
+      }
+    }
+  ],
+  "independent_api": {
+    "report": {
+      "path": "target/hanim-shared-path/api.report.omui.json",
+      "sha256": "02e2a1644f620096a7a0fd6c9b36e1462faa97e1f39843255e5f6d4ce9003a37"
+    },
+    "checks_each_profile": 150
+  },
+  "features": {
+    "report": {
+      "path": "target/hanim-shared-path/features.report.omui.json",
+      "sha256": "73c49ae4c212334ab1ed2ad158d1d3b61be1f982a373e0227f8b4c0201cf09b3"
+    },
+    "choices": 7,
+    "packed_checks": 150,
+    "packages_by_choice": {
+      "core": [
+        "hanim.core",
+        "hanim.validation.feature_consumer",
+        "mcpplibs.hanim",
+        "mlibs.math"
+      ],
+      "effect": [
+        "hanim.core",
+        "hanim.validation.feature_consumer",
+        "mcpplibs.hanim",
+        "mlibs.log",
+        "mlibs.math",
+        "mlibs.trace"
+      ],
+      "object": [
+        "hanim.core",
+        "hanim.validation.feature_consumer",
+        "mcpplibs.hanim",
+        "mlibs.geom",
+        "mlibs.log",
+        "mlibs.math",
+        "mlibs.memory",
+        "mlibs.trace"
+      ],
+      "library": [
+        "hanim.core",
+        "hanim.validation.feature_consumer",
+        "mcpplibs.hanim",
+        "mlibs.geom",
+        "mlibs.log",
+        "mlibs.math",
+        "mlibs.memory",
+        "mlibs.trace"
+      ],
+      "program": [
+        "hanim.core",
+        "hanim.validation.feature_consumer",
+        "mcpplibs.hanim",
+        "mlibs.geom",
+        "mlibs.log",
+        "mlibs.math",
+        "mlibs.memory",
+        "mlibs.trace"
+      ],
+      "default": [
+        "hanim.core",
+        "hanim.validation.feature_consumer",
+        "mcpplibs.hanim",
+        "mlibs.geom",
+        "mlibs.log",
+        "mlibs.math",
+        "mlibs.memory",
+        "mlibs.trace"
+      ],
+      "render-vector": [
+        "hanim.core",
+        "hanim.validation.feature_consumer",
+        "mcpplibs.hanim",
+        "mlibs.geom",
+        "mlibs.hash",
+        "mlibs.log",
+        "mlibs.math",
+        "mlibs.memory",
+        "mlibs.raster",
+        "mlibs.rhi",
+        "mlibs.trace",
+        "xengine.render",
+        "xengine.render.vector"
+      ]
+    }
+  },
+  "process": {
+    "report": {
+      "path": "target/hanim-shared-path/play.report.omui.json",
+      "sha256": "e8a56e9da70d33764da899aafbfc7ef28f43dd885edcc30402fd4208c560629a"
+    },
+    "integration": [
+      {
+        "profile": "dev",
+        "cases": 20,
+        "log": {
+          "path": "target/hanim-shared-path/play.report.omui-artifacts/dev-integration-tests.stdout.log",
+          "sha256": "b6179963cac3bda668c6f11bcd80d945f390519a39a41b091a169852a7782c99"
+        }
+      },
+      {
+        "profile": "release",
+        "cases": 20,
+        "log": {
+          "path": "target/hanim-shared-path/play.report.omui-artifacts/release-integration-tests.stdout.log",
+          "sha256": "9369cac7855c0d2f8e473c713fdb3ffb7149f725b1e1f17ec178868984e9da03"
+        }
+      }
+    ],
+    "prior_process_frames_unchanged": 610,
+    "frame_sets": [
+      {
+        "profile": "dev",
+        "fixture": "triangle-circle",
+        "mode": "morph-linear",
+        "frames": 61,
+        "reverse_replayed": 61,
+        "frame_hashes_sha256": "c4a44b67ae8926bd19384cf4b6994f1b6679b834d7b25833a8f1c3db46957b06"
+      },
+      {
+        "profile": "dev",
+        "fixture": "triangle-circle",
+        "mode": "morph-curved",
+        "frames": 61,
+        "reverse_replayed": 61,
+        "frame_hashes_sha256": "3a2567fcd6b913b776188858f8e0d7fb177f24e79f6c4470f6c795f882a08c65"
+      },
+      {
+        "profile": "dev",
+        "fixture": "triangle-properties",
+        "mode": "properties",
+        "frames": 61,
+        "reverse_replayed": 61,
+        "frame_hashes_sha256": "e4fa8b7696394cd40e009cb4256666db084761ac82b6e00a3ee8a94ff5579ae2"
+      },
+      {
+        "profile": "dev",
+        "fixture": "selected-parts",
+        "mode": "parts",
+        "frames": 61,
+        "reverse_replayed": 61,
+        "frame_hashes_sha256": "a878f6b08bc4b2b2660eb6843aa8dbd76939df920606f5dda422a42fb8029480"
+      },
+      {
+        "profile": "dev",
+        "fixture": "independent-channels",
+        "mode": "channels",
+        "frames": 61,
+        "reverse_replayed": 61,
+        "frame_hashes_sha256": "c2573c6a6aa4256d68e31e100b50a35bdd04862d395fda7f62b2706bfd57ae07"
+      },
+      {
+        "profile": "release",
+        "fixture": "triangle-circle",
+        "mode": "morph-linear",
+        "frames": 61,
+        "reverse_replayed": 61,
+        "frame_hashes_sha256": "c4a44b67ae8926bd19384cf4b6994f1b6679b834d7b25833a8f1c3db46957b06"
+      },
+      {
+        "profile": "release",
+        "fixture": "triangle-circle",
+        "mode": "morph-curved",
+        "frames": 61,
+        "reverse_replayed": 61,
+        "frame_hashes_sha256": "3a2567fcd6b913b776188858f8e0d7fb177f24e79f6c4470f6c795f882a08c65"
+      },
+      {
+        "profile": "release",
+        "fixture": "triangle-properties",
+        "mode": "properties",
+        "frames": 61,
+        "reverse_replayed": 61,
+        "frame_hashes_sha256": "e4fa8b7696394cd40e009cb4256666db084761ac82b6e00a3ee8a94ff5579ae2"
+      },
+      {
+        "profile": "release",
+        "fixture": "selected-parts",
+        "mode": "parts",
+        "frames": 61,
+        "reverse_replayed": 61,
+        "frame_hashes_sha256": "a878f6b08bc4b2b2660eb6843aa8dbd76939df920606f5dda422a42fb8029480"
+      },
+      {
+        "profile": "release",
+        "fixture": "independent-channels",
+        "mode": "channels",
+        "frames": 61,
+        "reverse_replayed": 61,
+        "frame_hashes_sha256": "c2573c6a6aa4256d68e31e100b50a35bdd04862d395fda7f62b2706bfd57ae07"
+      }
+    ],
+    "source": "The consumer constructs a real renderer Path and uses hanim::import_path to own its HObject contours.",
+    "reviewed_channel_frame": {
+      "path": "target/hanim-shared-path/play.report.omui-artifacts/release-agent-channels.png.agent-030.png",
+      "sha256": "c5be9e156f71e26bdd3abf721f3b43e019e247fb4ac40d96b55fee9c1fccfc99"
+    },
+    "scope": "CPU reference process sampling and reverse replay through the shared authority. No real-time pacing or hardware-performance claim."
+  },
+  "site": {
+    "native_programs": 20,
+    "native_cases": 129,
+    "native_log": {
+      "path": "target/hanim-shared-path/logs/site.log",
+      "sha256": "fa3431cdd5ac7e1ac79a4060d671a51ff83da8a6924adb8758a79585bea85b84"
+    },
+    "reference_pin_changed": false,
+    "wasm_profile": "wasm-test",
+    "wasm_motion_gallery_cases": 12,
+    "wasm_log": {
+      "path": "target/hanim-shared-path/logs/site-wasm.log",
+      "sha256": "cadf4b101c38b49723e2d06f748ad2bbac5081c650938b6f3b7ccf2050cfb8a4"
+    },
+    "public_adapter": "Existing prepared UI path morphs import shared paths through hanim.object; no UI-local contour parser remains.",
+    "review_images": [
+      {
+        "path": "target/hanim-shared-path/review/shape-path-middle.png",
+        "sha256": "3b909f998ba28e58f158a3137661765fb6064e83fa79eadf44f70edaafe4970f"
+      },
+      {
+        "path": "target/hanim-shared-path/review/basic-gallery-300.png",
+        "sha256": "abda91f669ad79ec03fcde20a3efa3e5529da1f1ac44b8ffe6de2154a971c4ba"
+      }
+    ]
+  },
+  "motion_final": {
+    "programs": 7,
+    "cases": 60,
+    "log": {
+      "path": "target/hanim-shared-path/logs/motion-final.log",
+      "sha256": "da54618e4aa3ac2746a9a71e09ace25fe2118599717f55dfdc70b1b8be5a6e64"
+    }
+  },
+  "gpu": {
+    "programs": 4,
+    "cases": 11,
+    "device": "Vulkan lavapipe software device",
+    "required": true,
+    "log": {
+      "path": "target/hanim-shared-path/logs/gpu.log",
+      "sha256": "7710afde77d1bc5ddedff4998390e7fb3ae2c543f090a5892a72155449a1b8da"
+    },
+    "scope": "Actual device creation, rendering, readback and CPU comparison; no physical-GPU throughput claim."
+  },
+  "source_files_sha256": {
+    "modules/base/control/src/access.cpp": "5f4742bde01e3d994e3caf428eefa54ff3c1b0b20d50f1db683d19d654d2958c",
+    "modules/base/control/src/control.cppm": "7ffaaff81708d2c52a7cce27e16431d3dfa4ec9bf88f9534c20a3ddc6b46c8c7",
+    "modules/base/geom/src/api.cppm": "9c06e810167e40bc6d667dc9980bff8240595af87e18201592048160894824dc",
+    "modules/base/geom/src/geom.cppm": "424b916347632a968ef130e524cbf92bafe392cdf85ed459fb48eade57f28ebd",
+    "modules/base/geom/src/legacy.cppm": "75c95b5297e1b5403aaec4027a8357cecd0ba3f26a86c7bccfb582c3d0604e49",
+    "modules/base/geom/src/path.cpp": "509056b1af4c58f2290e6836b851a0bc182f35597bfbdbadc2a0f9dee376fbbd",
+    "modules/base/geom/src/path.cppm": "ae2df83a3ed4bfe0eb879fb487123c74a3028389a28edd4c3c1d6c2691ba19ba",
+    "modules/base/geom/src/primitives.cppm": "5849ab7beb8bb7adb5c2c081c1ada347a2610a3f6d71a57140ac3f4ad65ae220",
+    "modules/base/hanim/core/src/core.cppm": "575d97a962dcdaf79d4178c2ce1330532380914a490e66f03ac7943eeb759897",
+    "modules/base/hanim/core/src/ease.cpp": "755750fd2cc2958bbcaeccad9a2f02818c5d2c8acb2c55d9b7be070b611197f0",
+    "modules/base/hanim/core/src/ease.cppm": "f09264c2685375cb3efb93810006392a634902fc0c7b55751679c1e0774e5b47",
+    "modules/base/hanim/core/src/math.cppm": "e9bc7493c41ab8537466e613de19cffe6b3c5ac0f8aea1141f0ec750132c2ff6",
+    "modules/base/hanim/core/src/motion.cpp": "39457ec62bfa40cd0715b0c2f45434868ed0bf0aef0f168a8b1ee6770c954618",
+    "modules/base/hanim/core/src/motion.cppm": "3741d1351824a869d5af96b644eaecc44476256c2c6458eee28be5b4c0f3e436",
+    "modules/base/hanim/core/src/path.cpp": "7f4f8627d762fed3d90852f4df159a0a56f93ac1c034fb97bc0fe5452994718d",
+    "modules/base/hanim/core/src/path.cppm": "d1ea8d75068e036b6f9f93e7e75a05dbd2c27d25a68bed13c1b1caff27edac56",
+    "modules/base/hanim/core/src/set.cpp": "555c887d0aaf7bfdae97d46633c9fb577ac0ad44da1bdf2d27836614636ebbdf",
+    "modules/base/hanim/core/src/set.cppm": "5df90d61b8f4c9d4721fca9a79048be7face5a3b1c471a7805242f4f022957cc",
+    "modules/base/hanim/core/src/shape.cpp": "30968d4f2b799545b0903ec9e3e8fb2a5ce684fff17f065ae295d931adc3ad80",
+    "modules/base/hanim/core/src/shape.cppm": "8f2b8d443409f581eb0eb1c06c5327245a3c6cdba29ac06c249469b5b02fc463",
+    "modules/base/hanim/core/src/time.cpp": "e22baaca35c596c9c4d5565c05b4928e1730f4204b0dec453e4705ab82d070a5",
+    "modules/base/hanim/core/src/time.cppm": "a7e8d6ecfca6e593484f59a2661557d551db4afd7f9b6cf55b3604fc30a7aaaa",
+    "modules/base/hanim/core/src/timeline.cpp": "4f8928509e45533448107e1cf94579ecb29bbeafdbc1976071b02638c58505a7",
+    "modules/base/hanim/core/src/timeline.cppm": "f91bb2e4c10289705dcd2f995edc5237a9df320ceaa32c67819a2caabc7a131f",
+    "modules/base/hanim/core/src/value.cpp": "04e35cdd9e386067f63649a05c015e2760a123e1630b356ee08cb2b6a20c1fc3",
+    "modules/base/hanim/core/src/value.cppm": "dccbb6e135146983b3dfaf719d792fa12bddd5fa6b2cfc26201874ad7545f926",
+    "modules/base/hash/src/api.cppm": "1f2bd7fdf96b37ef82babdb9ace2a089b6000eaf3c673b4407e925aaf7cf797b",
+    "modules/base/hash/src/hash.cpp": "3cb17f0696db49a2565cdf1b16d4d913be051aaa775b4f0e2751ca45d46b5da9",
+    "modules/base/hash/src/hash.cppm": "bfdb0690e7c78e7e5f42ab60a61c4543c04cd7e33247a7c07a49a6f25801c206",
+    "modules/base/hash/src/legacy.cppm": "30e961aebef9b9179f9ef04da4a2391e2e7541066d7fd112be268e5affded6d7",
+    "modules/base/image/src/api.cppm": "c1faaf25570ee8b1695c86a5898fa92b45d3c74aabbbea0061d277ac1fca68cf",
+    "modules/base/image/src/image.cpp": "385fa25a5fe27cd70e5f2148021403773bf837c3871e4385981a0f2707a8fb42",
+    "modules/base/image/src/image.cppm": "43c3881777347cf74816bc47fa8c778d84381d473021e0f18c4ab28ee18714a6",
+    "modules/base/image/src/legacy.cppm": "62c7e5be5fdf9b0cc093974cb2733707667840506f8013d145ccb2b3abbc331e",
+    "modules/base/image/src/native/png.cpp": "f27eb34579eb5e4888459e5e67c584891b670e5bb9d0b0ebcdfbbf461f28d9a5",
+    "modules/base/image/src/native/webp.cpp": "e5b5254916fc41306d2f9fd6a8a0e8a37c010fe32d8b056cc6849dfb7325f1cb",
+    "modules/base/image/src/normal.cpp": "30b44ce04b7e3ddac73845c0c302ddae0e2d74859ffc0c8cc3e3867a20a0a971",
+    "modules/base/log/src/api.cppm": "801c722af580c5f901485305f3faaa49fb7b8bc2267455ccf109e3f95aad6dd6",
+    "modules/base/log/src/legacy.cppm": "300bd0543a1c33775baec972715cc0c0353faf9deb52a13e6ec29244c0206273",
+    "modules/base/log/src/log.cpp": "0d9629a65bd0e97924ca31d634cf75ea1ecf81a28ca5895344af07df5efd4aa6",
+    "modules/base/log/src/log.cppm": "04319c3ba8952782742a99a0353ad9f622ab320c8b63b72f755f60d7709b96d5",
+    "modules/base/math/src/api.cppm": "140ae86d8a44719b65642b9856de633103d29a62bef72be94426cc025fce2743",
+    "modules/base/math/src/color.cppm": "c61346dc7c7edc53506e77ceae32293db88beedc27910e973362d46e30cd3d73",
+    "modules/base/math/src/det.cpp": "e7651556c5c851a5f3eb0b3fd87da66e8e0de1d097690d9a9f23b16895f156be",
+    "modules/base/math/src/det.cppm": "c6d91b075ca4e75c51dea0117b0916443b0a6705ec469c15ae5799950b4a20f4",
+    "modules/base/math/src/legacy.cppm": "a28ebf8a0b189196e960710934a3672e320e4072f380ce7da74084e77f751359",
+    "modules/base/math/src/math.cppm": "d26932af98aca48e3a0bdb2270623edf639096d716bcca61e33e06e82960e3d6",
+    "modules/base/math/src/random.cppm": "57e3222b2fd5fe2f931cb78270fadc3bb4487dc2d87acabf986d92a2ba41688a",
+    "modules/base/memory/src/api.cppm": "833c4d3595034dbbf15e39983610dedd24dac5ebd53277e73f948abb158a1395",
+    "modules/base/memory/src/arena.cpp": "61140ec25b7496b567ff0e5cc27d32f43b6602bed29e4fd0ba12f4b1364ad52b",
+    "modules/base/memory/src/arena.cppm": "664f90dd862fd4183e0ccf45e5881c4fabd56c0a43ece230269586a482e64e90",
+    "modules/base/memory/src/function.cppm": "ea9b5a740726b93dc0cce592e734dc751e76760b4d72d113af31ea5bcc3efb79",
+    "modules/base/memory/src/handle.cppm": "902ed5dae09573ef54fa105dd9d29b330be20504292b3a5dc772009694c97c01",
+    "modules/base/memory/src/legacy.cppm": "2f6fc565309545c48580ea81739e341af74b03a02769168fc9cf7ffeed8e7d81",
+    "modules/base/memory/src/memory.cppm": "a0c295a802d9110a9a6a97d3a33a088ade39b6c9d1cc7a7cfdfcad6737185c08",
+    "modules/base/memory/src/slots.cppm": "a1adac69e39a6f3bb742ec070a7b53626f175521a1b9fd5bac04ac7953e07869",
+    "modules/base/trace/src/api.cppm": "c46cee392af1ae26e32f6dce63a1251a2009bb60516941fb9ff870e5bed76eb6",
+    "modules/base/trace/src/legacy.cppm": "3ed640d2b0ba532256d88faebe49624e368e433381d4e28738f093eb57379c44",
+    "modules/base/trace/src/trace.cpp": "947c005ffdc7ad78f37e07b8cb288ab302ead7081f4f62de493d83de1de6b5fb",
+    "modules/base/trace/src/trace.cppm": "829106548ec6c36d1f4f8820eebc724632e1beae8ce88838d5b5f751ce9fae98",
+    "modules/gfx/hanim/src/effect/effect.cpp": "0516f9d9450f9d3d40961b248bd697e472c6c9d36b7a09890fc2f703a5d2bc92",
+    "modules/gfx/hanim/src/effect/effect.cppm": "9a51b7b120a51fb122878997369067141164d422519c02ec89911d49c198a5d1",
+    "modules/gfx/hanim/src/engine/engine.cpp": "7348e94bba700e97d06012d72d56709d3264731747a372bb1c0f2bd5ac0aa1a5",
+    "modules/gfx/hanim/src/engine/engine.cppm": "92b33976e97274d0adca5f7eba7411b26e2042ea9111ba832a70aded75ea1bc4",
+    "modules/gfx/hanim/src/hanim.cppm": "8a08a5b75a648d0742b16d57e8c9952b0be1a9e5747a9d5dbe0198cad1814c34",
+    "modules/gfx/hanim/src/library/library.cpp": "df9039b8a7397396b38755653028c59ada40ba5804a620b77f95d17922c39ad1",
+    "modules/gfx/hanim/src/library/library.cppm": "2138cd45a79f6af79cd056e1afaaf3552e593efa219de972278e07e051bf93d3",
+    "modules/gfx/hanim/src/object/object.cpp": "29b0ecf6067467cfc04bb01c3f9789aeaa8bf39e7e3d84924ad9c9d848a0c8a2",
+    "modules/gfx/hanim/src/object/object.cppm": "b63c584f835737aae0795a2f1a648ed06d02acba0207d759717820164b190080",
+    "modules/gfx/hanim/src/object/path.cpp": "a819208524d628456366b7d8ab5140d81c28142abd3a730dab7ba1088956d607",
+    "modules/gfx/hanim/src/program/program.cpp": "6ed160756e63934defd6fe3f738c1627420ec9ef256e504b97e4baaf137d8c31",
+    "modules/gfx/hanim/src/program/program.cppm": "4689d42d7e7f9fca644d9baec5bff5dc6b8ac81f095c70d0a73817f667a261c0",
+    "modules/gfx/hanim/src/render/vector/vector.cpp": "4b760d3f4f33f81b16cea43c4e6b823b0bbf85d2f9332e74b034d00c7b300176",
+    "modules/gfx/hanim/src/render/vector/vector.cppm": "0151eca7cb1f51bfc84e94c50f1ffee48dfdd9ede2e3469ae14a87335f4b79ad",
+    "modules/gfx/raster/src/api.cppm": "e7490b8ca06a55e082230b4e744e336caeac68b29226bce35af7cdde6dffa2c0",
+    "modules/gfx/raster/src/canvas.cpp": "cc7781fe68d82cf20b267036860547d41caf1ce820624eaad610e518cace8fc3",
+    "modules/gfx/raster/src/canvas.cppm": "d0a5debabdbb62e2c7b8c6e648fb1e680b3a6f20fbf1cd9cad6cd27e636df112",
+    "modules/gfx/raster/src/legacy.cppm": "51fd7edd6e48e2796d8b98757f4df32a5342319cf890f3620896db74686e7a45",
+    "modules/gfx/raster/src/paint.cpp": "d9bca543130f76a55bd461a43128d4a629bdf4ee8e0e0b471c1165c6b9ef57dc",
+    "modules/gfx/raster/src/paint.cppm": "2bbff074afd87ad0d394dc84ff07194585f1ebdc885d831ee033178c8258d04b",
+    "modules/gfx/raster/src/raster.cppm": "bcd2741a58b3c21aea7efd6220a6977fee753a97cd22c80996256eed1a16d1db",
+    "modules/gfx/raster/src/rasterizer.cpp": "9f48c01095ad782a8152f788124d306907af10a2710069bdf96ace7a2f67a70b",
+    "modules/gfx/raster/src/rasterizer.cppm": "fbac9387c8a6a99cf8b9c4347b7f3f68ce86ac84726543168cdaf39c012aeb19",
+    "modules/gfx/raster/src/stroke.cpp": "04eaf816994d611532768a8c8bf23d990ccb83d623e4c9c8efad786d964f59d5",
+    "modules/gfx/raster/src/stroke.cppm": "84fe2c37d4f0f6fab2bed49978c270848702ab31ad248192f203207ae34c03a0",
+    "modules/gfx/raster/src/surface.cpp": "2958482b96ca8446b0c579185ed44464879acdc0e76e623ea4c11f2624e25ff1",
+    "modules/gfx/raster/src/surface.cppm": "6407b58caa8ffa0ac697dfbd228e8e938e3140dba905dcbda222b6bbccb72bac",
+    "modules/gfx/render/src/api.cppm": "1d4b958a0d26f7d90b2a12cf60ce0e3d8286945a56eed02224f5421d5c835c65",
+    "modules/gfx/render/src/graph.cpp": "42b216c4499451d329afd795fa57ca6902f0deb6072f427ad13c2d63500ee339",
+    "modules/gfx/render/src/graph.cppm": "cf96ee8057ae6df26a67d59400589214b5e9621e614e751c0cdef59d9bf3f7e8",
+    "modules/gfx/render/src/legacy.cppm": "959a7b2bc88e37aac4ed0f56640d94596787292fd41fa002bc1743ab94fc804d",
+    "modules/gfx/render/src/pool.cpp": "459586b4a1803228ae9e9de89bab95a2d380cbd8be16d7d70428d1dd9cd9fe1e",
+    "modules/gfx/render/src/pool.cppm": "be98e4764dc00161345d2d3e7eee06e8f698ec8f1ec7975961037da0ea95c3dd",
+    "modules/gfx/render/src/render.cppm": "fe860ea51f0ad88af6549f342c822f9a6ebc9a585c5720b8cbaa3b7738632c25",
+    "modules/gfx/render/vector/src/api.cppm": "e7a580aae08d80c78eb1ed29861accc3e106c2c3605857d1b61cb9449a88ef70",
+    "modules/gfx/render/vector/src/cpu.cpp": "972d0015c943bf0578ec8c0366a1594401fbe010982fa3e1e8a659c92f8ef95e",
+    "modules/gfx/render/vector/src/cpu.cppm": "c612d6ebe06b778540b62036d139fd628d4258496470176c49cba12c88d91dcf",
+    "modules/gfx/render/vector/src/damage.cpp": "8e02cdcf18285796d5a377883d7e01b8cfd0c20046e52acd597e0f48507e209f",
+    "modules/gfx/render/vector/src/damage.cppm": "310791dc72dc5a97adac5fcc0483e7221fa59b64562520cfd36b2a99134e2526",
+    "modules/gfx/render/vector/src/display.cpp": "ad4dfa6e2fd8cc5eb914a40b5ffec56e773035d9efc81a56564b3386c871d4c5",
+    "modules/gfx/render/vector/src/display.cppm": "23b9a3705c5774fa9e8d36716b9256847277623aab76f047604fdb88dfbfe433",
+    "modules/gfx/render/vector/src/effects.cpp": "909703b33b02b6a695b406793aec7e0ecf24c28702d7d3462c171973c41096c3",
+    "modules/gfx/render/vector/src/effects.cppm": "e2ae572a58dc096746d07ef7fb804897b5fe62125cdb133953cd28ca0d712477",
+    "modules/gfx/render/vector/src/generated/effect_template.cppm": "dff341f3892c78a89664220d2ec82b9a5f84441f1899969bef66050a108a2189",
+    "modules/gfx/render/vector/src/gpu.cpp": "de38e9a969619681106764601ec3187cf6b6a6a19400fe480f698f9498fcd0ca",
+    "modules/gfx/render/vector/src/gpu.cppm": "508f804138c3bfdbfb730cada53ee12ef6351d9d07ff73996528e41b3d615159",
+    "modules/gfx/render/vector/src/legacy.cppm": "4e0a7a2e9d6323a3fbfe1d0573e2a56f1578cdf67b601565a4f2e9b2268db642",
+    "modules/gfx/render/vector/src/paint_mix.cpp": "e4e0544f945e396938279afcf392937796ec58c6dfdd5eec1236c3f25e80cd77",
+    "modules/gfx/render/vector/src/paint_mix.cppm": "8d8c79353442784cca43aed05e47f36a9de33a49aa95d029b63184d8794107c3",
+    "modules/gfx/render/vector/src/resources.cpp": "de86e518ace7d0a28c0cc78fb48209b8b548f117757ea358d7226aed5d2f5d66",
+    "modules/gfx/render/vector/src/resources.cppm": "77d75f9d5bf8ca77ba22ddbf59093383752e7f3a89d66cce8ae9eea0e9fbd6fa",
+    "modules/gfx/render/vector/src/shared.cppm": "122d6053ac18b59641913f2fb7b03c695ed3b71c6c216266b1f53f46efa4c6f7",
+    "modules/gfx/render/vector/src/vector.cppm": "e50a363d78c8200c781336755f6860f69252d97d2138f5b5ceb256eb7ac36240",
+    "modules/gfx/rhi/src/api.cppm": "027f3b78e7e288dd64c219af81a8d8449c67151b5d6af5bdba3b878682fd5087",
+    "modules/gfx/rhi/src/commands.cpp": "fe2496bcaf09abc3fb15eec631201f7ecca7a1dbcfc25bfc7b723d0f5d4a3844",
+    "modules/gfx/rhi/src/commands.cppm": "2bf5e70fab3d814122d694e6ebb50806093fab2208af91268bf7d0e15819397e",
+    "modules/gfx/rhi/src/device.cpp": "bb15909d10d7fe86fea0048e90dab51f43a41ce44044fa9c2c2d7e51810f63f7",
+    "modules/gfx/rhi/src/device.cppm": "27cee4573e89a47e0d5691fb598c818cecf506d515842e5d19bbea4f8b3147e0",
+    "modules/gfx/rhi/src/legacy.cppm": "e801d80752d47f5183a08a364f80deae05e0e27a5ea18638b1152abc99bd0cdf",
+    "modules/gfx/rhi/src/rhi.cppm": "b923dba0756d9f5c23774ccb7479615f2bd7db9f4d01f064aee213c7e392cab1",
+    "modules/gfx/rhi/src/types.cpp": "85cecd02827718242466999428c8562d7013efbd5382749c7a20187e6bbe6679",
+    "modules/gfx/rhi/src/types.cppm": "1a564e632710e211a31ee6ebe00141229ef5caeef471bef85440cd4aabf44d8e",
+    "modules/gfx/rhi/src/wire.cpp": "00887071bb289de66cf7b485f556df32c23eb8e251bc3968a1f680ff853c43a8",
+    "modules/gfx/rhi/src/wire.cppm": "86e1a971ac89bc5f717bd398e0cab6261c62461d419628f3e69cba53b90b8a56"
+  },
+  "lint": {
+    "path": "target/hanim-shared-path/logs/lint.log",
+    "sha256": "b4824ada9a3b226dd0374ce17b0a73d59d52424ef1b6dd6e76da9547b8365a77"
+  },
+  "limits": [
+    "Shared representation is 2D paths. Source command indices are local to one capture, not stable cross-revision vertex identities.",
+    "The existing low-level flattener still requires valid input/finite positive tolerance and keeps its 256-chord cap; certified adaptive error bounds, generated-vertex provenance and quality adaptation are unfinished.",
+    "Path import owns actual controls; importing open/compound paths does not certify their topology or make every current morph support them.",
+    "The UI consumes public geometry capture and core shape sampling. Full configurable UI/HObject policy, hit mapping and default Engine recipes remain open.",
+    "3D mesh/rig/sampled fields, GPU resource scheduling, public 40/20 catalog quality and the remaining global products are not completed by this checkpoint."
+  ]
+}

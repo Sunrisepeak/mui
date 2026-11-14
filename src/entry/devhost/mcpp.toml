@@ -1,0 +1,39 @@
+# omui.entry.devhost — `omui dev` for an application written in C++ (W16,
+# D-154): the development host owns the window; the application is built by
+# mcpp in the background as its sources change and runs in a process of its
+# own, drawn in the host's window; a new build takes over with what the person
+# set, faded in; a build that fails shows its problems over the one running.
+# A package of its own: a program (omui-devhost), with no feature another
+# member would pull in.
+[package]
+namespace   = "omui.entry"
+name        = "devhost"
+version     = "0.1.0"
+description = "omui dev for C++ applications: the host owns the window, builds come and go inside it"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "entry"
+
+[targets.omui-devhost]
+kind = "bin"
+main = "src/main.cpp"
+
+[dependencies]
+omui.sdk = { path = "../../../modules/projects/omui/sdk" }
+# The design's history is the host's (W16): it goes on while builds come and go.
+omui.designer = { path = "../../../modules/projects/omui/designer" }
+# The design's history store, held here as builds come and go: the agent kernel's.
+mlibs.agent   = { path = "../../../modules/base/agent" }
+omui.agent = { path = "../../../modules/projects/omui/agent" }
+mcpplibs.os = "0.4.4"
+mcpplibs.cmdline = "0.0.3"
+
+[dev-dependencies]
+# Tests are mtest's (D-147); the end-to-end case reads the host as an agent does.
+mcpplibs.mtest = "0.8.4"
+
+# The end-to-end case runs `mcpp build` in this workspace several times, so it runs outside
+# `mcpp test` (which holds the build directory while its tests run, mcpp#915): built with
+# `mcpp test -p omui.entry.devhost --no-run`, then the program itself (CI's workspace run leaves it out).

@@ -1,0 +1,93 @@
+// The component breakout's operations for agents (convergence plan §10.3,
+// §8.4): its field's actions, and the tiers an agent player is held to. The
+// field's contract (contract/field.contract.omui.ts) defines the actions;
+// this catalog says what each costs, how it is undone and which tier uses it.
+// omui-gen ops writes the listing (media/ops/breakout.ops.json) and its reference.
+import { defineOps } from "omui/define";
+
+export default defineOps({
+  product: "breakout",
+  doc: "Play the component breakout as an agent: at the human tier as a person plays, or assisted with the field's direct actions.",
+  generated: "media/ops",
+  operations: [
+    {
+      name: "field.observe",
+      effect: "read",
+      summary: "What an agent player is shown at its tier: the step, the paddle, the balls, score, lives and bricks; assist also the rules and the hidden bricks",
+      result: "json",
+    },
+    {
+      name: "field.play",
+      effect: "reversible",
+      summary: "A person's actions: the arrows held, Space, Z — taking effect the tier's reaction after the step it saw",
+      params: [
+        { name: "seen", type: "integer", doc: "the step it decided on (observe's step)" },
+        { name: "axis", type: "number", doc: "−1 … 1: the arrows held (0 neither)" },
+        { name: "launch", type: "bool", doc: "Space held" },
+        { name: "look", type: "bool", doc: "Z held: the whole of a tall room" },
+      ],
+      result: "json",
+      cost: "frame",
+      undo: "play again: actions hold only until the next",
+    },
+    {
+      name: "field.intend",
+      effect: "reversible",
+      summary: "The intent the next play carries, never played: where it means the paddle to be and why — kept in the record, drawn with agent_overlay",
+      params: [
+        { name: "target", type: "number", doc: "0 … 1 (below 0: nowhere in particular)" },
+        { name: "note", type: "string", doc: "why, 80 characters" },
+      ],
+      result: "json",
+      undo: "another field.intend",
+    },
+    {
+      name: "field.move_to",
+      effect: "reversible",
+      summary: "Moves the paddle toward x (0 … 1) at once, as a pointer does",
+      params: [{ name: "x", type: "number" }],
+      cost: "frame",
+      undo: "field.release gives the paddle back",
+    },
+    {
+      name: "field.aim",
+      effect: "reversible",
+      summary: "Holds the launch's aim until the launch",
+      params: [{ name: "across", type: "number", doc: "−1.2 … 1.2 per up" }],
+      undo: "the aim sweeps again after the launch",
+    },
+    {
+      name: "field.launch",
+      effect: "reversible",
+      summary: "Sends the ball on the paddle up, along the aim",
+      undo: "field.rewind (100 sparks) takes it back",
+    },
+    {
+      name: "field.rewind",
+      effect: "reversible",
+      summary: "Back that many frames for 100 sparks; playing on from there is a new branch",
+      params: [{ name: "frames", type: "integer", doc: "at most 240 (2 s)" }],
+      cost: "bounded",
+      undo: "none: the sparks are spent (the branch it left is gone)",
+    },
+    { name: "field.next", effect: "reversible", summary: "On from a room over", undo: "field.restart plays the room again" },
+  ],
+  tiers: [
+    {
+      name: "human",
+      doc: "As a person plays: what is drawn, a tenth of a second to react, ten actions a second",
+      view: "drawn",
+      reaction_ms: 100,
+      actions_per_second: 10,
+      operations: ["field.observe", "field.intend", "field.play", "field.next"],
+    },
+    {
+      name: "assist",
+      doc: "Privileged: everything shown, no delay, no limit, the field's direct actions",
+      view: "full",
+      reaction_ms: 0,
+      actions_per_second: 0,
+      operations: ["field.observe", "field.intend", "field.play", "field.move_to", "field.aim", "field.launch", "field.rewind", "field.next"],
+    },
+  ],
+});

@@ -1,0 +1,47 @@
+# hanim.visual — the visual representation (L3, D-120; universal motion,
+# D-93): what a node drew, taken apart into
+# matter (pieces of its display list, each with whose it is and what it is
+# drawn under), two drawings of it matched (by node, by meaning, glyph by
+# glyph) and drawn between them as a pure function of time. Knows display
+# lists, not views: the view runtime gives each node marker its keys and
+# decides when a drawing changed; anything that draws a display list can
+# move between two of its drawings.
+[package]
+namespace   = "hanim"
+name        = "visual"
+version     = "0.1.0"
+description = "Hanim's visual representation: matter from display lists, matching and morphs between two drawings, deterministic and seekable"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+agent = { part = "hanim" }
+
+[targets.hanim-visual]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+# Motion is a pure function of time, the same bits everywhere (D-87).
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+mlibs.math          = { path = "../../../base/math" }
+mlibs.utils          = { path = "../../../base/utils" }
+mlibs.geom          = { path = "../../../base/geom" }
+"hanim.core" = { path = "../core" }
+"hanim" = { path = "..", default-features = false, features = ["object"] }
+xrender.vector = { path = "../../xrender/vector" }
+
+# The files of tests/visual/ are one program, run a file at a time: one link of the closure for all of them. Files
+# directly in tests/ stay a program each: they count allocations with an operator new of their own.
+[test]
+programs = "directory"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+xrender.raster  = { path = "../../xrender/raster" }
+# shape_morph_test: a prepared morph drawn by the renderer, written out as pictures.
+mlibs.image     = { path = "../../../base/image" }
+mcpplibs.os     = "0.4.4"

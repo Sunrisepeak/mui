@@ -1,0 +1,187 @@
+module omui.build.contracts;
+
+import std;
+import mcpp;
+import omui.build.plan;
+
+namespace omui::build {
+
+namespace {
+
+// spec/registry in the openmui tree this plugin is part of, found by the
+// plugin's qualified name (a build may hold other packages called `contracts`).
+std::string default_registry() {
+    const char* self = mcpp::dep_dir("omui.build.contracts");
+    const std::string dir = self && *self ? std::string(self) : std::string(mcpp::dep_dir("contracts"));
+    return utf8((std::filesystem::path(dir) / ".." / ".." / "spec" / "registry").lexically_normal());
+}
+
+}  // namespace
+
+// A TypeScript file (<name>.contract.omui.ts, D-139) holds one, named as the
+// file (omui-gen checks it).
+std::vector<std::string> names_in(const std::filesystem::path& file, std::string_view kind) {
+    const std::string name = utf8(file.filename());
+    const std::string typescript = std::format(".{}.omui.ts", kind);
+    if (name.ends_with(typescript)) return {name.substr(0, name.size() - typescript.size())};
+    return {};
+}
+
+std::vector<std::string> contract_names(const std::filesystem::path& file) { return names_in(file, "contract"); }
+
+std::vector<std::string> native_names(const std::filesystem::path& file) { return names_in(file, "native"); }
+
+// The files of a kind in `dir`: <name>.<kind>.omui.ts.
+std::vector<std::filesystem::path> kind_files(const std::filesystem::path& dir, std::string_view kind) {
+    auto files = files_ending(dir, std::format(".{}.omui.ts", kind));
+    std::ranges::sort(files);
+    return files;
+}
+
+// What a file's outputs depend on: the file, and, for TypeScript, the
+// modules it may import (by path, inside its directory).
+std::vector<std::string> sources_of(const std::filesystem::path& file) {
+    std::vector<std::string> sources{utf8(file)};
+    if (utf8(file.filename()).ends_with(".omui.ts"))
+        for (const auto& other : files_ending(file.parent_path(), ".ts"))
+            if (other != file) sources.push_back(utf8(other));
+    return sources;
+}
+
+std::vector<edge> plan(const component_options& opt) {
+    const std::string root = mcpp::manifest_dir();
+    if (root.empty()) {
+        std::println(std::cerr, "omui.build.contracts: no mcpp build context — this runs from build.mcpp");
+        return {};
+    }
+    if (opt.module.empty()) {
+        std::println(std::cerr, "omui.build.contracts: component_options::module names the package's module (acme.ui)");
+        return {};
+    }
+    const std::string gen = generator();
+    if (gen.empty()) {
+        std::println(std::cerr, "omui.build.contracts: omui-gen was not built for this build (omui.build.contracts depends on "
+                                "omui.gen with tools = [\"omui-gen\"])");
+        return {};
+    }
+    const std::string registry = opt.registry.empty() ? default_registry() : opt.registry;
+    if (!std::filesystem::is_directory(registry)) {
+        std::println(std::cerr, "omui.build.contracts: no registry at {} (set component_options::registry to openmui's spec/registry)", registry);
+        return {};
+    }
+    const auto files = kind_files(std::filesystem::path(root) / opt.contracts, "contract");
+    const std::string out = utf8(std::filesystem::path(opt.out_dir) / "openmui");
+    const auto registry_files = files_under(registry);
+
+    std::vector<edge> edges;
+    for (const auto& f : files) {
+        for (const std::string& name : contract_names(f)) {
+            auto make = [&](std::string part, std::string file) {
+                edge e;
+                e.id = std::format("openmui:{}:{}", part, name);
+                e.description = std::format("contract {} → {} ({})", name, file, opt.module);
+                e.command = {gen, "cpp", utf8(f), "--registry", registry, "--module", opt.module, "--namespace", opt.ns,
+                             "--out", out, "--contract", name, "--part", part};
+                e.inputs = sources_of(f);
+                e.inputs.push_back(gen);
+                e.inputs.insert(e.inputs.end(), registry_files.begin(), registry_files.end());
+                e.outputs = {out + "/" + file};
+                e.imports = {"std", "omui.core", "omui.view"};
+                return e;
+            };
+            edge contract = make("contract", name + "_contract.cppm");
+            contract.provides = {opt.module + ":" + name + "_contract"};
+            edges.push_back(std::move(contract));
+            edge builder = make("builder", name + "_builder.cpp");
+            builder.imports.push_back(opt.module);  // an implementation unit of the package's module
+            edges.push_back(std::move(builder));
+        }
+    }
+    if (opt.stubs && !files.empty()) {
+        edge e;
+        e.id = "openmui:stubs";
+        e.description = std::format("contracts → TypeScript stubs and the view-document schema ({})", opt.module);
+        e.command = {gen, "stubs"};
+        for (const auto& f : files) e.command.push_back(utf8(f));
+        e.command.insert(e.command.end(), {"--registry", registry, "--module", opt.module, "--out", out + "/stubs"});
+        e.inputs = {gen};
+        for (const auto& f : files) std::ranges::move(sources_of(f), std::back_inserter(e.inputs));
+        e.inputs.insert(e.inputs.end(), registry_files.begin(), registry_files.end());
+        for (const char* ext : {".d.ts", ".components.json"}) e.outputs.push_back(out + "/stubs/" + opt.module + ext);
+        edges.push_back(std::move(e));
+    }
+    return edges;
+}
+
+bool components(component_options opt) {
+    mcpp::rerun_if_changed_glob((opt.contracts + "/**").c_str());
+    auto edges = plan(opt);
+    if (edges.empty()) {
+        std::println(std::cerr, "omui.build.contracts: no contract in {}/ (files named <name>.contract.omui.ts)", opt.contracts);
+        return false;
+    }
+    return submit(edges);
+}
+
+std::vector<edge> plan_natives(const native_options& opt) {
+    const std::string root = mcpp::manifest_dir();
+    if (root.empty() || opt.module.empty()) {
+        std::println(std::cerr, "omui.build.contracts: natives() runs from build.mcpp, and native_options::module names the package's module");
+        return {};
+    }
+    const std::string gen = generator();
+    if (gen.empty()) {
+        std::println(std::cerr, "omui.build.contracts: omui-gen was not built for this build");
+        return {};
+    }
+    const std::string registry = opt.registry.empty() ? default_registry() : opt.registry;
+    const std::string ns = opt.ns.empty() ? namespace_of(opt.module) : opt.ns;
+    const auto files = kind_files(std::filesystem::path(root) / opt.natives, "native");
+    const std::string out = utf8(std::filesystem::path(opt.out_dir) / "openmui");
+    const auto registry_files = files_under(registry);
+
+    std::vector<edge> edges;
+    std::vector<std::string> names;
+    for (const auto& f : files)
+        for (const std::string& name : native_names(f)) {
+            names.push_back(name);
+            edge e;
+            e.id = std::format("openmui:native:{}", name);
+            e.description = std::format("native module {} → {}_native.cppm ({})", name, name, opt.module);
+            e.command = {gen, "native", utf8(f), "--registry", registry, "--module", opt.module, "--namespace", ns, "--out", out,
+                         "--native", name, "--part", "cpp"};
+            e.inputs = sources_of(f);
+            e.inputs.push_back(gen);
+            e.inputs.insert(e.inputs.end(), registry_files.begin(), registry_files.end());
+            e.outputs = {out + "/" + name + "_native.cppm"};
+            e.provides = {opt.module + ":" + name + "_native"};
+            e.imports = {"std", "nlohmann.json", "omui.native"};
+            edges.push_back(std::move(e));
+        }
+    if (opt.stubs && !files.empty()) {
+        edge e;
+        e.id = "openmui:native-stubs";
+        e.description = std::format("native modules → TypeScript stubs ({})", opt.module);
+        e.command = {gen, "native"};
+        for (const auto& f : files) e.command.push_back(utf8(f));
+        e.command.insert(e.command.end(), {"--registry", registry, "--module", opt.module, "--out", out + "/stubs", "--part", "stubs"});
+        e.inputs = {gen};
+        for (const auto& f : files) std::ranges::move(sources_of(f), std::back_inserter(e.inputs));
+        e.inputs.insert(e.inputs.end(), registry_files.begin(), registry_files.end());
+        e.outputs = {out + "/stubs/" + opt.module + ".natives.d.ts"};
+        edges.push_back(std::move(e));
+    }
+    return edges;
+}
+
+bool natives(native_options opt) {
+    mcpp::rerun_if_changed_glob((opt.natives + "/**").c_str());
+    auto edges = plan_natives(opt);
+    if (edges.empty()) {
+        std::println(std::cerr, "omui.build.contracts: no native module in {}/ (files named <name>.native.omui.ts)", opt.natives);
+        return false;
+    }
+    return submit(edges);
+}
+
+}  // namespace omui::build

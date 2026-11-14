@@ -1,0 +1,28 @@
+# Kiln's sound (the plan's §6.15, T2.14f, D-183): what the world's laws did each frame, heard — a wall shatters,
+# a barricade catches, lava sets. No sound is written for any of it: the events are the world's own (a step says
+# what its laws did), and each material's sound of an event is made from what the material is
+# (xengine.audio.matter). It reads the state and changes nothing of it; no window and no device: a host hands
+# its mixer to one, a test renders it offline.
+[package]
+namespace   = "omui.showcase.kiln"
+name        = "sound"
+version     = "0.1.0"
+description = "Kiln heard: the events of its world of matter as sounds made from the materials; reads the state, changes nothing"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[targets.kiln-sound]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+"omui.showcase.kiln.sim" = { path = "../sim" }
+xengine.audio    = { path = "../../../modules/projects/xengine/kernel/audio" }
+xengine.cellular = { path = "../../../modules/projects/xengine/kernel/cellular", features = ["rigid"] }
+xengine.matter   = { path = "../../../modules/projects/xengine/kernel/matter" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"

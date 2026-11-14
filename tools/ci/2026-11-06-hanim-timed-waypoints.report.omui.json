@@ -1,0 +1,364 @@
+{
+  "format": "hanim.timed-waypoints-checkpoint@0.1",
+  "ok": true,
+  "recorded_at": "2026-11-06T01:41:07.593916+00:00",
+  "base_commit": "7e122bb14252e2a58f5c9cf8659416368162cb7c",
+  "scope": [
+    "Public move_through authoring lowers timed source-relative offsets with per-leg PointPath and ease into existing property sequences.",
+    "No new sampler, AST, playback, package or prepared-state payload; ordinary node/channel/source/conflict/scope contracts apply.",
+    "The real website uses and copies this public recipe, with native semantic sampling, image effects and actual component actions."
+  ],
+  "source_files_sha256": {
+    ".agents/docs/2026-11-05-system-implementation-checkpoints-design.md": "2c537b2eaa34dbe9fbe6982953613c78fd80d852d358c9a33449a95374e972ff",
+    ".agents/docs/2026-11-05-system-subsystem-architecture-and-api-design.md": "a18ec1be3e90b36b4a70be2971277679cd850e65c8c0f132e416111e4f42133e",
+    ".agents/docs/README.md": "0ee45e4c1c6a6b624961de36e2faa044b283d59a7210bc290a2defccdf90f518",
+    "modules/gfx/hanim/README.md": "4b8f57f8823ffb18412c0acaaa9ad5ed07149501ac66e653616eb6389ff97977",
+    "modules/gfx/hanim/src/program/README.md": "7fb44af715a8be487f18794b2bf3d5be1f5f7ef8d6c4b683fcfc6e8551f36d55",
+    "modules/gfx/hanim/src/program/program.cppm": "48de371d953bfa37815a516f2679b6d243b46be58547b366765cf4c5c6f867a8",
+    "modules/gfx/hanim/tests/program/program_test.cpp": "ddf934c53f406bb9ad77d366e9f7c4359dfe726f3fcf11967468e4757220ab5e",
+    "site/README.md": "eb4dff61a5cb3bba78d463cf8b4f63f8d3d145280a2e6df4b75369a6a450893e",
+    "site/src/component_motion.cpp": "d363322aaeb8b251e2f46de6d9d1b0d701df5fd911e3fa07b4871a566be65595",
+    "site/src/motion_gallery.cpp": "4b7c93bc1a6f7aeb1153adc5c7c2ca88ca92a9e74472f9cfc34ce0f861576ed3",
+    "site/tests/component_motion_test.cpp": "542330b1e1aeadcd560c25ef75ea5ab85ae6ef8d72eb74b87b13cd80519fb89b",
+    "tools/ci/hanim-api-probe/README.md": "9301abfa2cababa63651f027743e86481f014b8402ff63639ac5f39b643c791e",
+    "tools/ci/hanim-api-probe/run.py": "5b33ccdbe9a925cbf899a6e75f0faf0288926378d06953b835bfdb5407fbf001",
+    "tools/ci/hanim-api-probe/src/main.cpp": "dc3654c89394af851a2d8b09eb0fd3187dd8563bf695beb8f1cee77202a3cf2a",
+    "tools/ci/site-motion.mjs": "97c1a435de3840be4ba7cb829858fbfa7ccbabcff79ecca521f6adf547e29a05",
+    "modules/gfx/hanim/src/program/waypoints.cpp": "2c2c18b368be80963744bae093a6e6abb192428b180b69abc35d10ea4241123e"
+  },
+  "source_lock": {
+    "sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "preexisting_user_change_preserved": true,
+    "staged": false
+  },
+  "validation": {
+    "hanim": {
+      "dev": {
+        "path": "target/hanim-waypoints/hanim-dev-final.log",
+        "sha256": "0bc032c7917fefb863d94b452cdba1078c1f7ff4cab33cefe47f0b7d85fc2b85",
+        "programs": 9,
+        "cases": 107
+      },
+      "release": {
+        "path": "target/hanim-waypoints/hanim-release-final.log",
+        "sha256": "d970575ccf6960df6d84db59a78ac3762df7190ff2526a11723cfc288bb6793d",
+        "programs": 9,
+        "cases": 107
+      },
+      "web": {
+        "path": "target/hanim-waypoints/hanim-web-final.log",
+        "sha256": "226d5bb53c3e33349336e85ecb9f96459f471cce2738696b7a166cb40d433553",
+        "programs": 9,
+        "cases": 105
+      }
+    },
+    "commands": [
+      {
+        "label": "hanim-release",
+        "args": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "test",
+          "-p",
+          "hanim",
+          "--locked",
+          "--profile",
+          "release"
+        ],
+        "exit": 0,
+        "seconds": 12.784490844001994,
+        "log": "target/hanim-waypoints/hanim-release.log"
+      },
+      {
+        "label": "hanim-web",
+        "args": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "test",
+          "-p",
+          "hanim",
+          "--locked",
+          "--profile",
+          "wasm-test",
+          "--target",
+          "wasm32-emscripten"
+        ],
+        "exit": 0,
+        "seconds": 10.966015518060885,
+        "log": "target/hanim-waypoints/hanim-web.log"
+      },
+      {
+        "label": "api",
+        "args": [
+          "python3",
+          "tools/ci/hanim-api-probe/run.py",
+          "--mcpp",
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "--project",
+          "/tmp/hanim-api-probe-7upnd4wq",
+          "--keep-project",
+          "--output",
+          "/home/speak/workspace/mui/target/hanim-waypoints/api.report.omui.json"
+        ],
+        "exit": 0,
+        "seconds": 11.663287036004476,
+        "log": "target/hanim-waypoints/api.log"
+      },
+      {
+        "label": "site-component",
+        "args": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "test",
+          "component_motion_test",
+          "-p",
+          "openmui.site",
+          "--locked"
+        ],
+        "exit": 0,
+        "seconds": 119.2897433739854,
+        "log": "target/hanim-waypoints/site-component.log"
+      },
+      {
+        "label": "site-pack",
+        "args": [
+          "bash",
+          "tools/ci/site.sh"
+        ],
+        "exit": 0,
+        "seconds": 68.07325418898836,
+        "log": "target/hanim-waypoints/site-pack.log"
+      }
+    ],
+    "final_test_commands": [
+      {
+        "profile": "dev",
+        "args": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "test",
+          "-p",
+          "hanim",
+          "--locked"
+        ],
+        "exit": 0,
+        "log": "target/hanim-waypoints/hanim-dev-final.log"
+      },
+      {
+        "profile": "release",
+        "args": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "test",
+          "-p",
+          "hanim",
+          "--locked",
+          "--profile",
+          "release"
+        ],
+        "exit": 0,
+        "log": "target/hanim-waypoints/hanim-release-final.log"
+      },
+      {
+        "profile": "web",
+        "args": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "test",
+          "-p",
+          "hanim",
+          "--locked",
+          "--profile",
+          "wasm-test",
+          "--target",
+          "wasm32-emscripten"
+        ],
+        "exit": 0,
+        "log": "target/hanim-waypoints/hanim-web-final.log"
+      }
+    ],
+    "public_consumer": {
+      "path": "target/hanim-waypoints/api.report.omui.json",
+      "sha256": "417d93dae52f481bca4f018edfc961a018756a16f33bc9d5cf35899cbe0e36a1",
+      "profiles": [
+        {
+          "profile": "dev",
+          "checks": 169,
+          "ok": true
+        },
+        {
+          "profile": "release",
+          "checks": 169,
+          "ok": true
+        }
+      ],
+      "reused_project": "/tmp/hanim-api-probe-7upnd4wq",
+      "source_and_fixture_fingerprints_match": true
+    },
+    "site_native": {
+      "path": "target/hanim-waypoints/site-component.log",
+      "sha256": "abad9b9fd2a7fee41e86a6198db5e238bba14b3cfe18879ed6840bf291b67e5e",
+      "cases": 9,
+      "retained_pngs": 554,
+      "new_path_samples": 61,
+      "new_styled_midpoints": 1,
+      "reverse_process_pixels_identical": true,
+      "previous_images_byte_identical": 492,
+      "comparison": {
+        "path": "target/hanim-waypoints/pixel-comparison.report.omui.json",
+        "sha256": "40cff7ac655977f200594a6676f644c8866063f75c3a8b753592c1be4cdbb3f9"
+      }
+    },
+    "web": {
+      "pack": {
+        "path": "target/hanim-waypoints/site.tar.gz",
+        "sha256": "ae12d0e7c0f082c028745a862cee30bb7d9e10f6dc8ce93b1e5bacb3db8150d9"
+      },
+      "browser": {
+        "path": "target/hanim-waypoints/browser.report.omui.json",
+        "sha256": "277dea80a3c6ee67c80ef72c3982d2be915b99353d74120df0c48023d31fe6ad"
+      },
+      "checks": 170,
+      "exceptions": [],
+      "screenshots": [
+        {
+          "path": "target/hanim-waypoints/browser-artifacts/shape-morph-opening.png",
+          "sha256": "91d97c71d401eefb19ef19ea122c96da0428b6f8340f8b844e7633549ff60cf2"
+        },
+        {
+          "path": "target/hanim-waypoints/browser-artifacts/basic-motion-interactive.png",
+          "sha256": "2863b0fca8d3dd0e24bbbbc8b51f8f0af478b7f84f645c8415d7900692debafd"
+        },
+        {
+          "path": "target/hanim-waypoints/browser-artifacts/component-motion-nested-effects.png",
+          "sha256": "83400df79210f71f5e3354f636a56ff16bf8626b26e4b520b8f22006b8956d69"
+        },
+        {
+          "path": "target/hanim-waypoints/browser-artifacts/component-motion-live-note.png",
+          "sha256": "16b7cbfd9d0c36caa0e7154627f73e5a026f4322233ed9294c306b9cdf28a19e"
+        },
+        {
+          "path": "target/hanim-waypoints/browser-artifacts/component-motion-feedback.png",
+          "sha256": "d949b5a65c01ee6e3134cb3f60b943182dad860cb8861bb54f77e3c4112218a1"
+        },
+        {
+          "path": "target/hanim-waypoints/browser-artifacts/component-motion-path.png",
+          "sha256": "c825bd8c6e00d3ade9ca42417b10dfa4eb2163da58be6fa890e0399357438e99"
+        },
+        {
+          "path": "target/hanim-waypoints/browser-artifacts/creative-packing.png",
+          "sha256": "864bf57fe0d8a2f5089bdefc31eb218849db8e4614e4bae9c3212bb28a309d54"
+        },
+        {
+          "path": "target/hanim-waypoints/browser-artifacts/creative-palette.png",
+          "sha256": "504c378f4eaa2e3b3bc8e95904ff63d3ccf959d6c5937d36e0325516fbeb066e"
+        },
+        {
+          "path": "target/hanim-waypoints/browser-artifacts/agent-design.png",
+          "sha256": "7e9b3b7004ac9ed02c5bbfb0da897bc96f86dc71221aad9aae47ef3a2486d159"
+        },
+        {
+          "path": "target/hanim-waypoints/browser-artifacts/interface-language-details.png",
+          "sha256": "720071be21b504865dc4693f39e73581ecb70a75db2a7aaf5f5420909130c399"
+        },
+        {
+          "path": "target/hanim-waypoints/browser-artifacts/scoped-styles-details.png",
+          "sha256": "c59c35cd3b8135481650671186ea4bcb8cdaab279936e48feb481ac52a53937e"
+        }
+      ]
+    },
+    "delivery": {
+      "path": "target/hanim-waypoints/delivery.report.omui.json",
+      "sha256": "b3887f5b56130f2951b213ee168a22cec229f787eefbec0060c142a0db1aac7f",
+      "network": "20/40",
+      "cache": "enabled",
+      "transfer": {
+        "total": 4879073,
+        "before_first_frame": 2976844,
+        "by_kind": {
+          "document": 61030,
+          "fetch": 4759014,
+          "image": 11922,
+          "script": 47107
+        }
+      },
+      "first_frame_ms": 1679.5999999046326,
+      "ready_ms": 1638.0999999046326,
+      "frames": {
+        "acted": [
+          {
+            "node": "main/bar/nav/to_docs",
+            "exitCode": 0
+          },
+          {
+            "node": "main/body/view/docs/page/directory/to_features",
+            "exitCode": 0
+          },
+          {
+            "node": "main/bar/mark",
+            "exitCode": 0
+          }
+        ],
+        "frames": 319,
+        "p50": 16.699999999999818,
+        "p95": 16.800000000000182,
+        "p99": 16.800000000000182,
+        "max": 66.69999999999982,
+        "long": 1
+      },
+      "budgets": [
+        {
+          "metric": "transfer.total",
+          "value": 4879073,
+          "max": 5000000,
+          "pass": true
+        },
+        {
+          "metric": "transfer.before_first_frame",
+          "value": 2976844,
+          "max": 3800000,
+          "pass": true
+        },
+        {
+          "metric": "first_frame_ms",
+          "value": 1679.5999999046326,
+          "max": 4500,
+          "pass": true
+        },
+        {
+          "metric": "ready_ms",
+          "value": 1638.0999999046326,
+          "max": 4500,
+          "pass": true
+        },
+        {
+          "metric": "frames.p95",
+          "value": 16.800000000000182,
+          "max": 34,
+          "pass": true
+        },
+        {
+          "metric": "frames.long",
+          "value": 1,
+          "max": 15,
+          "pass": true
+        },
+        {
+          "metric": "errors.length",
+          "value": 0,
+          "max": 0,
+          "pass": true
+        }
+      ]
+    },
+    "lint": {
+      "path": "target/hanim-waypoints/lint-final.log",
+      "sha256": "b4824ada9a3b226dd0374ce17b0a73d59d52424ef1b6dd6e76da9547b8365a77",
+      "problems": 0
+    },
+    "python_syntax_valid": true,
+    "documentation_paths_resolve": true
+  },
+  "limits": [
+    "Explicit temporal interpolation; no automatic arc-length speed, tangent following, path planning or general velocity-continuity guarantee.",
+    "Authoring/preparation can allocate; the zero-allocation check covers only the tested prepared sampling loop.",
+    "Source-relative offsets use floating-point arithmetic; no arbitrary bitwise return/undo or universal floating-point trap support claim.",
+    "Native full-process pixels and Web key-position/browser checks are different scopes; no cross-backend 61-frame pixel-equivalence claim.",
+    "Single fresh-profile delivery sample; first-frame proxy is not FCP/LCP and rAF intervals are not GPU time.",
+    "One reusable path facility and parameter variants do not complete the 40/20 public library or global architecture objective."
+  ]
+}

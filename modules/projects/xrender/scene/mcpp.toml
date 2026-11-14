@@ -1,0 +1,31 @@
+# xrender.scene — what there is to draw in three dimensions and what a view of it sees (the foundation plan's
+# §5.1, M6.3; D-164): instances and lights under stable ids, every edit on a change list a mirror follows, and
+# the extraction a renderer's passes are given — visible instances sorted and batched, the lights that reach
+# the view. No device, no pixels: the mesh pass is its consumer, and the frame's subject its way to an agent.
+[package]
+namespace   = "xrender"
+name        = "scene"
+version     = "0.1.0"
+description = "What there is to draw and what a view sees: instances and lights by stable id, a change list, deterministic culling, sorting and batching"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+
+[package.metadata.openmui]
+kind  = "module"
+agent = { part = "xrender.frame" }
+
+[targets.xrender-scene]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+mlibs.math = { path = "../../../base/math" }
+mlibs.geom = { path = "../../../base/geom" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+mlibs.utils    = { path = "../../../base/utils" }

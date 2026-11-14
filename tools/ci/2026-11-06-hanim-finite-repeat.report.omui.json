@@ -1,0 +1,197 @@
+{
+  "format": "hanim.finite-repeat-checkpoint@0.1",
+  "ok": true,
+  "recorded_at": "2026-11-06T04:04:36.310003+00:00",
+  "base_commit": "c890db96eced3a42fc7a0a9964fb4030bad931cc",
+  "scope": [
+    "Finite repeat retains one child and expands in the existing bounded compiler; no additional package, player clock or hot interpreter.",
+    "Relative/absolute/snapshot source semantics and inside/outside image scopes retain explicit sequence behavior.",
+    "Prepared contract 7 exposes authored count and expanded iteration without changing old enum values.",
+    "Canonical absolute serial boundaries and two-endpoint origin conversion fix real decimal-time false conflicts; original-coordinate conflicts remain enforced without epsilon.",
+    "The real website note uses the same public API and semantic controls; no animation catalog count increase."
+  ],
+  "source_files_sha256": {
+    ".agents/docs/2026-11-05-system-implementation-checkpoints-design.md": "58feb7335982ab7d718eda6f71f356108d4c31f3e1b96f4dc4fa884e1ec61cc9",
+    ".agents/docs/2026-11-05-system-subsystem-architecture-and-api-design.md": "6764aba1d4bca4f8f21e901fd5e78f084f8f48a3f686b3db4e8857a182d2f4d8",
+    ".agents/docs/README.md": "f447b744c89002ae83f8435c97420ce0760a7d48b79f07b9f23be1f8b09a00f1",
+    "modules/gfx/hanim/README.md": "f24b3be70c1c72ac4bbf10744d74e44bb51e7ff3aaa8b2dfcb4cbbee12c973b8",
+    "modules/gfx/hanim/src/program/CONTRACT.md": "9907ae60fe681125bacd1383d204972c1b06a667940c0f207675c841ff1e3413",
+    "modules/gfx/hanim/src/program/README.md": "49249847211b25b592be9f6a3f066555943c5fa423919a9fb68da879957e418a",
+    "modules/gfx/hanim/src/program/program.cpp": "eec7a5a0ce0cb458ecd1338b8abe778c84edd5eb6270e38fe6893306aa32e518",
+    "modules/gfx/hanim/src/program/program.cppm": "2ce1a2874da753fdf05f777ae03b552d2944d8dd3d428622c1a93f677865a92a",
+    "modules/gfx/hanim/tests/program/program_test.cpp": "93a3c3dc0e83c8ac46f6a3c1b7fe7252bd1d5b965c4a94d6569690442f3c6a32",
+    "site/README.md": "9a705f89f2fd907d80a15125ef4a400987015eed57143e632f0ed59bf79c0572",
+    "site/src/component_motion.cpp": "2c25a109235e2561d9a39a6f1ee1dca3c47e328a82b034c48c5b08531564471c",
+    "site/src/motion_gallery.cpp": "b863c9b7096519587d80552898ebbc9a8ba1f368e4149c846bce99bad0d3e1f6",
+    "site/tests/component_motion_test.cpp": "e68f5b27d075670e6dfec89c7f74a3422faa6491eb37ac2d90b2d96bc086026e",
+    "tools/ci/hanim-api-probe/src/main.cpp": "edc20c0d8bf8ea66dfcdd3fd4f05d641140a2ce592a1f17d756d37612c568996",
+    "tools/ci/site-motion.mjs": "1106c11ddd9f064c55614c4ba7d42a434db8ae52af0e6b19e1359c3e7c1e277f"
+  },
+  "tests": [
+    {
+      "profile": "native-dev-final",
+      "programs": 9,
+      "cases": 116,
+      "log": {
+        "path": "target/hanim-repeat/native-dev-final.log",
+        "sha256": "ce4ce08f09d26c996b21eed9777c7c19a0d60a27e0541e905b35f3873da1e3ff"
+      }
+    },
+    {
+      "profile": "native-release",
+      "programs": 9,
+      "cases": 116,
+      "log": {
+        "path": "target/hanim-repeat/native-release.log",
+        "sha256": "69ec00dc15792a83d224cd61229d017a47735f950ef68a6db36b88ea47a74170"
+      }
+    },
+    {
+      "profile": "wasm",
+      "programs": 9,
+      "cases": 114,
+      "log": {
+        "path": "target/hanim-repeat/wasm.log",
+        "sha256": "0cd6a5d7dcbc19c96043bbaf0e29f566f020114ca3de16e25f45f9631f64ca8c"
+      }
+    }
+  ],
+  "boundary_regression": {
+    "origins_seconds": [
+      0,
+      0.1,
+      0.3,
+      0.137,
+      1,
+      10,
+      1000000
+    ],
+    "explicit_sequence_and_repeat_samples_equal": true,
+    "one_representable_step_of_real_overlap_rejected": true,
+    "positive_interval_collapsed_by_rebasing_rejected": true,
+    "existing_detailed_channel_diagnostic_retained": true,
+    "initial_failure_logs": [
+      {
+        "path": "target/hanim-repeat/site-native.log",
+        "sha256": "87107c6614a1fb064cd1f110d568186d8872e332961b493611f639b7b18bbeb3"
+      },
+      {
+        "path": "target/hanim-repeat/program-boundaries.log",
+        "sha256": "03d42deb01bc834b9e60b5a0cd0071308622d0bdad4ea225c48b2cf57866f7ec"
+      },
+      {
+        "path": "target/hanim-repeat/program-boundaries-final.log",
+        "sha256": "1d47f1d1caafab7b64494f19096d54370c511fe7cae516ae5086e6652dea0d1b"
+      }
+    ]
+  },
+  "public_consumer": {
+    "report": {
+      "path": "target/hanim-repeat/public-final.report.omui.json",
+      "sha256": "cc614593af596141dbbe13e981b63781f7133fb80d9b4bf8dfcbe9dd157f0594"
+    },
+    "profiles": [
+      {
+        "profile": "dev",
+        "checks": 183,
+        "ok": true,
+        "packages": [
+          "hanim.core",
+          "hanim.validation.api_probe",
+          "mcpplibs.hanim",
+          "mlibs.geom",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.trace"
+        ]
+      },
+      {
+        "profile": "release",
+        "checks": 183,
+        "ok": true,
+        "packages": [
+          "hanim.core",
+          "hanim.validation.api_probe",
+          "mcpplibs.hanim",
+          "mlibs.geom",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.trace"
+        ]
+      }
+    ]
+  },
+  "ui_process": {
+    "cases": 11,
+    "log": {
+      "path": "target/hanim-repeat/site-native-final.log",
+      "sha256": "c8dc4d41dd2bf3ab4cbdbbdb370df74dbab30898d4d42f4a8b104ad6bbe8d95b"
+    },
+    "frames": 739,
+    "new_frames": 62,
+    "old_frames_identical": 677,
+    "reverse_frames_exact": true,
+    "frames_manifest": {
+      "path": "target/hanim-repeat/frames.sha256.json",
+      "sha256": "3a0b1af250d157d5bb527cee91f1a110aa483baf37492d9c3e9eee4fbdd3396a"
+    },
+    "reviewed_frames": [
+      "steps-pixel-midpoint.png"
+    ],
+    "interaction": "real copy button remains usable with pixel effect; steps accumulate and return"
+  },
+  "browser": {
+    "report": {
+      "path": "target/hanim-repeat/browser-artifacts/report.json",
+      "sha256": "8abcc105a6bb6c349d7cc173d5a897e3812e7d74b21fefe68d8ecac79a78773b"
+    },
+    "checks": 187,
+    "screenshots": 16,
+    "exceptions": [],
+    "reviewed_screenshot": {
+      "path": "target/hanim-repeat/browser-artifacts/component-motion-steps.png",
+      "sha256": "702a9082afc5f5dd91692517e3ad4b08ea41e3d27663c92c00a99dca7335120c"
+    }
+  },
+  "delivery": {
+    "report": {
+      "path": "target/hanim-repeat/perf.report.omui.json",
+      "sha256": "1e47a444630029f19667a39e95a3fb461f6de3e742a9ebe3c8a117cb56ec3521"
+    },
+    "transfer_bytes": {
+      "total": 4882809,
+      "before_first_frame": 2980580,
+      "by_kind": {
+        "document": 61027,
+        "fetch": 4762754,
+        "image": 11922,
+        "script": 47106
+      }
+    },
+    "first_frame_proxy_ms": 1666.2000000476837,
+    "ready_ms": 1630.3999999761581,
+    "raf_p95_ms": 16.799999999999272,
+    "budgets_passed": 7,
+    "total_budget_headroom_bytes": 117191,
+    "method": "20 Mbit/s, 40 ms, 1280x800, fresh profile and in-visit cache enabled; shared machine concurrent with browser interaction gate, not isolated performance proof"
+  },
+  "lint": {
+    "path": "target/hanim-repeat/lint.log",
+    "sha256": "b4824ada9a3b226dd0374ce17b0a73d59d52424ef1b6dd6e76da9547b8365a77"
+  },
+  "source_lock": {
+    "sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "unchanged": true,
+    "user_changes_excluded": true
+  },
+  "limits": [
+    "Finite serial source chaining is not automatic sample restart or an infinite/alternate loop expression.",
+    "Preparation/output resources grow with expanded work within budgets; no constant-memory preparation claim.",
+    "Double-time representability remains finite; no all-origin bitwise or rational-time claim.",
+    "No generic remote authoring editor, new device renderer or GPU throughput claim.",
+    "Process sampling is not full realtime aesthetic acceptance.",
+    "Complete 40/20 public library, default component migration, physical-device/mobile/TUI and multi-engine roadmap remain open."
+  ]
+}

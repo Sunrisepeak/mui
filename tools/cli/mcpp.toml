@@ -1,0 +1,48 @@
+# omui — the openmui command line (plan §2.2): agent operations against any
+# running application; check, fmt and schema for view documents; video
+# (xengine.video: descriptions and views rendered to files); add and bench
+# as their members land.
+[package]
+namespace   = "omui"
+name        = "cli"
+version     = "0.1.0"
+description = "The openmui command line: omui agent (ls, describe, snapshot, act …), check, fmt, schema and mcp"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "tool"
+
+[targets.omui]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/catalog/*.cppm"]
+
+[dependencies]
+omui.core        = { path = "../../modules/projects/omui/core" }
+omui.agent       = { path = "../../modules/projects/omui/agent" }
+# A design's history store (omui design sync): the agent kernel's, with no designer linked.
+mlibs.agent      = { path = "../../modules/base/agent" }
+omui.mcp         = { path = "../mcp" }
+omui.viewdoc     = { path = "../../modules/projects/omui/viewdoc" }
+omui.lang.ts     = { path = "../../modules/projects/omui/lang/ts" }
+omui.ui.base     = { path = "../../modules/projects/omui/components/base" }
+omui.ui.markdown = { path = "../../modules/projects/omui/components/markdown" }
+xengine.video      = { path = "../../modules/projects/xengine/kernel/video" }
+"xengine.video.webm" = { path = "../../modules/projects/xengine/kernel/video/webm" }
+xengine.audio       = { path = "../../modules/projects/xengine/kernel/audio" }
+hanim.timeline = { path = "../../modules/projects/hanim/timeline" }
+"xengine.audio.timeline" = { path = "../../modules/projects/xengine/kernel/audio/timeline" }
+xrender.vector = { path = "../../modules/projects/xrender/vector" }
+mlibs.image = { path = "../../modules/base/image" }
+omui.host.headless = { path = "../../modules/projects/omui/host/headless" }
+mcpplibs.cmdline = "0.0.3"
+mcpplibs.os      = "0.4.4"
+marzer.tomlplusplus = "3.4.0"
+
+[dev-dependencies]
+# Tests are mtest's (D-147).
+mcpplibs.mtest = "0.8.4"
+mlibs.utils       = { path = "../../modules/base/utils" }

@@ -1,0 +1,374 @@
+{
+  "status": "art-direction and key drawings; proposed authoring metadata, not current engine format",
+  "fps": 60,
+  "gameplay": [
+    960,
+    540
+  ],
+  "image_coordinates": "pixels, origin upper left, y down",
+  "world_coordinates": "fighter-local units, y up, facing right reference",
+  "canvas": [
+    768,
+    512
+  ],
+  "pixel_scale": 0.5,
+  "root_pixel": [
+    284,
+    456
+  ],
+  "front_shoe_registration_pixel": [
+    400,
+    456
+  ],
+  "background": "#00b140",
+  "heavy": {
+    "move": "5HP",
+    "total": 28,
+    "first_active": 8,
+    "active": [
+      [
+        8,
+        10
+      ]
+    ],
+    "recovery": [
+      11,
+      28
+    ],
+    "hitstop": 9,
+    "attack_box": [
+      20,
+      95,
+      80,
+      35
+    ],
+    "schedule": [
+      {
+        "file": "ni-heavy-01.png",
+        "frames": [
+          1,
+          2
+        ],
+        "role": "guard",
+        "production": "rig_or_cel"
+      },
+      {
+        "file": "ni-heavy-02.png",
+        "frames": [
+          3,
+          5
+        ],
+        "role": "load",
+        "production": "whole_body"
+      },
+      {
+        "file": "ni-heavy-03.png",
+        "frames": [
+          6,
+          7
+        ],
+        "role": "drive_breakdown",
+        "production": "whole_body"
+      },
+      {
+        "file": "ni-heavy-04.png",
+        "frames": [
+          8,
+          9
+        ],
+        "role": "first_active_contact",
+        "production": "whole_body",
+        "socket": [
+          483,
+          226
+        ],
+        "normal_image": [
+          1,
+          0
+        ],
+        "surface": [
+          [
+            481,
+            220
+          ],
+          [
+            483,
+            226
+          ],
+          [
+            484,
+            229
+          ],
+          [
+            483,
+            235
+          ],
+          [
+            482,
+            238
+          ]
+        ]
+      },
+      {
+        "file": "ni-heavy-05.png",
+        "frames": [
+          10,
+          10
+        ],
+        "role": "last_active",
+        "production": "whole_body",
+        "socket": [
+          484,
+          206
+        ],
+        "normal_image": [
+          1,
+          0
+        ],
+        "surface": [
+          [
+            482,
+            198
+          ],
+          [
+            484,
+            202
+          ],
+          [
+            484,
+            206
+          ],
+          [
+            484,
+            210
+          ],
+          [
+            483,
+            214
+          ]
+        ]
+      },
+      {
+        "file": "ni-heavy-06.png",
+        "frames": [
+          11,
+          13
+        ],
+        "role": "brake",
+        "production": "whole_body"
+      },
+      {
+        "file": "ni-heavy-07.png",
+        "frames": [
+          14,
+          18
+        ],
+        "role": "retract",
+        "production": "whole_body"
+      },
+      {
+        "file": "ni-heavy-08.png",
+        "frames": [
+          19,
+          25
+        ],
+        "role": "settle",
+        "production": "rig_bridges_with_cel_key"
+      },
+      {
+        "file": "ni-heavy-01.png",
+        "frames": [
+          26,
+          28
+        ],
+        "role": "guard_handoff",
+        "production": "rig_or_cel"
+      }
+    ]
+  },
+  "rising": {
+    "move": "623MK",
+    "total": 41,
+    "active": [
+      [
+        5,
+        6
+      ],
+      [
+        8,
+        9
+      ]
+    ],
+    "hitstop": [
+      7,
+      10
+    ],
+    "root_peak": {
+      "frame": 10,
+      "y": 72
+    },
+    "root_landing_frame": 22,
+    "status": "specified; drawings not generated"
+  },
+  "super": {
+    "move": "236236K",
+    "freeze": 50,
+    "lock_frames": 180,
+    "hits": [
+      [
+        28,
+        400,
+        "knee"
+      ],
+      [
+        42,
+        450,
+        "knee"
+      ],
+      [
+        56,
+        550,
+        "butt"
+      ],
+      [
+        64,
+        300,
+        "heave"
+      ],
+      [
+        100,
+        250,
+        "air"
+      ],
+      [
+        106,
+        250,
+        "air"
+      ],
+      [
+        112,
+        250,
+        "air"
+      ],
+      [
+        118,
+        250,
+        "air"
+      ],
+      [
+        138,
+        700,
+        "axe"
+      ],
+      [
+        146,
+        600,
+        "street"
+      ]
+    ],
+    "shots": [
+      {
+        "id": "establish_seize",
+        "from": 0,
+        "to": 15,
+        "length": 16
+      },
+      {
+        "id": "clinch",
+        "from": 16,
+        "to": 63,
+        "length": 48
+      },
+      {
+        "id": "heave_pursuit",
+        "from": 64,
+        "to": 95,
+        "length": 32
+      },
+      {
+        "id": "air_kicks",
+        "from": 96,
+        "to": 123,
+        "length": 28
+      },
+      {
+        "id": "heel_ground",
+        "from": 124,
+        "to": 149,
+        "length": 26
+      },
+      {
+        "id": "return",
+        "from": 150,
+        "to": 179,
+        "length": 30
+      }
+    ],
+    "presentation_holds": [
+      [
+        28,
+        4
+      ],
+      [
+        42,
+        4
+      ],
+      [
+        56,
+        6
+      ],
+      [
+        100,
+        3
+      ],
+      [
+        106,
+        3
+      ],
+      [
+        112,
+        3
+      ],
+      [
+        118,
+        3
+      ],
+      [
+        138,
+        3
+      ],
+      [
+        146,
+        6
+      ]
+    ],
+    "intentional_change": "c138 visual hold shortened from 8 to 3; no mechanical hit or lock timing change",
+    "actor_safe_rect_xyxy": [
+      48,
+      72,
+      912,
+      486
+    ],
+    "actor_clearance_pixels": 12,
+    "exit_raw_offsets": {
+      "attacker": [
+        105,
+        0
+      ],
+      "defender": [
+        168,
+        0
+      ]
+    },
+    "exit_uses_core_stage_clamp": true,
+    "attacker_recovery": 26,
+    "defender_down": 70,
+    "status": "specified; drawings not generated"
+  },
+  "notes": [
+    "Heavy contact surface points were inspected against the normalized delivered PNGs.",
+    "WB hurtbox regions, anatomical ankle/sole segments, opposite-facing and close-range corrections remain required for integration.",
+    "01 reuses ni-style; 07 reassigns a drawing unsuitable for early braking to later recovery.",
+    "Actor safe rect includes shake; camera uses actual cel bounds."
+  ]
+}

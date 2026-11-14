@@ -1,0 +1,6 @@
+// The package's build program: its contracts become code.
+import std;
+import mcpp;
+import omui.build.contracts;
+
+int main() { return omui::build::components({.module = "acme.ui", .ns = "acme::ui"}) ? 0 : 1; }

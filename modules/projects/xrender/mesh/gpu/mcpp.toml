@@ -1,0 +1,34 @@
+# xrender.mesh.gpu — the mesh pass on a device (the foundation plan's §5.1–§5.3, §5.7, M6.3): the same scene,
+# the same extraction, the same shading as xrender.mesh's CPU reference, drawn through mlibs.rhi alone and held
+# to the reference within a stated tolerance. A package of its own, not xrender.mesh's feature: its build
+# program compiles a Slang shader, and a build program's imports are not conditional on a feature (D-99's
+# build-stage isolation; as mlibs.rhi.cts).
+[package]
+namespace   = "xrender.mesh"
+name        = "gpu"
+version     = "0.1.0"
+description = "The mesh pass on a device through mlibs.rhi: one Slang shader, held to the CPU reference"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind  = "module"
+agent = { part = "xrender.frame" }
+
+[targets.xrender-mesh-gpu]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[build-dependencies]
+mlibs.shader.rules = { path = "../../../../gfx/shader/rules", host-module = true }
+
+[dependencies]
+xrender.mesh  = { path = ".." }
+xrender.scene = { path = "../../scene" }
+mlibs.rhi     = { path = "../../../../gfx/rhi" }
+mlibs.geom    = { path = "../../../../base/geom" }
+mlibs.math    = { path = "../../../../base/math" }

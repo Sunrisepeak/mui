@@ -1,0 +1,41 @@
+# hanim.rhi — hanim's shape morphs evaluated in batches on a device (convergence
+# plan §6.8 ⑧): the same prepared plans the CPU samples, interpolated by one
+# Slang compute kernel through mlibs.rhi (SPIR-V natively, WGSL in browsers).
+# A separate package so hanim itself never imports a device interface.
+[package]
+namespace   = "hanim"
+name        = "rhi"
+version     = "0.1.0"
+description = "Batch evaluation of hanim's prepared shape morphs on an mlibs.rhi device"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "backend"
+agent = { part = "hanim" }
+
+[targets.hanim-rhi]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[build-dependencies]
+mlibs.shader.rules = { path = "../../../gfx/shader/rules", host-module = true }
+
+[dependencies]
+hanim.core  = { path = "../core" }
+mlibs.math  = { path = "../../../base/math" }
+mlibs.rhi   = { path = "../../../gfx/rhi" }
+mlibs.utils = { path = "../../../base/utils" }
+mlibs.cts   = { path = "../../../base/cts" }
+
+# The suite on the page's WebGPU (tests/*_webgpu_test.cpp; tools/ci/browser.sh runs it in a
+# browser): the owner takes a backend for its tests, never a backend its consumers (D-161).
+# Its run on SDL_GPU is in a native-only package: this one runs on the Web too.
+[dev-dependencies]
+mcpplibs.mtest     = "0.8.4"
+xrender.rhi.webgpu = { path = "../../xrender/rhi/webgpu" }
+mcpplibs.os        = "0.4.4"

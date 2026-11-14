@@ -27,6 +27,15 @@ struct Thing {
     const Texture*     glow = nullptr;
     const Texture*     clearness = nullptr;  // how much goes through, how thick it is
     const Texture*     thick = nullptr;
+    // The layers' own: a clear coat's amount (red), roughness (green) and normal; a sheen's colour; a drawn-out
+    // highlight's way (red, green) and strength (blue); a film's amount (red) and thickness (green).
+    const Texture*     coat = nullptr;
+    const Texture*     coat_rough = nullptr;
+    const Texture*     coat_normal = nullptr;
+    const Texture*     sheen = nullptr;
+    const Texture*     drawn = nullptr;
+    const Texture*     film = nullptr;
+    const Texture*     film_thick = nullptr;
 };
 struct Lamp {
     scene::LightKind kind = scene::LightKind::sun;
@@ -128,8 +137,23 @@ struct Tracing {
                 if (math::dot(turned, turned) > 0 && math::dot(turned, toward) < 0) best->normal = math::normalized(turned);
             }
         }
-        // The way the highlight is drawn out along: the tangent turned by the material's rotation, in the surface
-        // as its picture turned it (the pass's way; the anisotropy picture is the pass's only).
+        // The clear coat's normal by its own picture, about the surface's own normal (before its picture turned it).
+        if (const Texture* picture = best->thing->coat_normal; picture && best->thing->material.clearcoat > 0) {
+            const Placing& placing = best->thing->material.placing.coat_normal;
+            auto [right_way, up_way] = frame(placing);
+            right_way = right_way - normal * math::dot(normal, right_way);
+            if (math::dot(right_way, right_way) > 0) {
+                right_way = math::normalized(right_way);
+                const Vec3 other = math::cross(normal, right_way);
+                up_way = math::dot(other, up_way) < 0 ? other * -1.0f : other;
+                const Vec3 said = picture->at(best->at(placing), 1);
+                const float scale = best->thing->material.coat_normal_scale;
+                const Vec3 turned = right_way * ((said.x * 2 - 1) * scale) + up_way * ((said.y * 2 - 1) * scale) + normal * (said.z * 2 - 1);
+                if (math::dot(turned, turned) > 0 && math::dot(turned, toward) < 0) best->coat_normal = math::normalized(turned);
+            }
+        }
+        // The way the highlight is drawn out along: the tangent turned by the material's rotation and its
+        // picture's way, in the surface as its picture turned it (the pass's way).
         if (best->thing->material.anisotropy > 0) {
             auto [right_way, up_way] = frame(best->thing->material.placing.anisotropy);
             const Vec3 facing = best->normal;
@@ -139,7 +163,13 @@ struct Tracing {
                 const Vec3 other = math::cross(facing, right_way);
                 up_way = math::dot(other, up_way) < 0 ? other * -1.0f : other;
                 const double turn = static_cast<double>(best->thing->material.anisotropy_rotation);
-                const Vec3 along_way = right_way * static_cast<float>(math::det::cos(turn)) + up_way * static_cast<float>(math::det::sin(turn));
+                Vec2 said{1, 0};
+                if (best->thing->drawn) {
+                    const Vec3 picture = best->thing->drawn->at(best->at(best->thing->material.placing.anisotropy), 1);
+                    said = {picture.x * 2 - 1, picture.y * 2 - 1};
+                }
+                const float turn_cos = static_cast<float>(math::det::cos(turn)), turn_sin = static_cast<float>(math::det::sin(turn));
+                const Vec3 along_way = right_way * (said.x * turn_cos - said.y * turn_sin) + up_way * (said.x * turn_sin + said.y * turn_cos);
                 if (math::dot(along_way, along_way) > 0) best->drawn_out = math::normalized(along_way);
             }
         }
@@ -221,6 +251,12 @@ struct Tracing {
         }
         if (met->thing->clearness) material.transmission = material.transmission * met->thing->clearness->at(met->at(material.placing.clearness), 1).x;
         if (met->thing->thick) material.thickness = material.thickness * met->thing->thick->at(met->at(material.placing.thick), 1).y;
+        if (met->thing->coat) material.clearcoat = material.clearcoat * met->thing->coat->at(met->at(material.placing.coat), 1).x;
+        if (met->thing->coat_rough) material.clearcoat_roughness = material.clearcoat_roughness * met->thing->coat_rough->at(met->at(material.placing.coat_rough), 1).y;
+        if (met->thing->sheen) material.sheen = math::scaled(material.sheen, met->thing->sheen->at(met->at(material.placing.sheen), 1));
+        if (met->thing->drawn) material.anisotropy = material.anisotropy * met->thing->drawn->at(met->at(material.placing.anisotropy), 1).z;
+        if (met->thing->film) material.iridescence = material.iridescence * met->thing->film->at(met->at(material.placing.film), 1).x;
+        if (met->thing->film_thick) material.film_thickness = material.film_thinnest + (material.film_thickness - material.film_thinnest) * met->thing->film_thick->at(met->at(material.placing.film_thick), 1).y;
         if (met->thing->glow) material.emissive = math::scaled(material.emissive, met->thing->glow->at(met->at(material.placing.glow), 1));
         // A ray leaves by the surface's own side, whatever way its picture turned the normal; a way the turned
         // normal throws under the surface brings nothing.
@@ -453,7 +489,9 @@ Traced traced(const scene::Scene& scene, const scene::View& view, const Assets& 
         things.push_back({*back, math::transposed(*back), geom::moved(instance.world, instance.bounds), &mesh, assets.trees[instance.mesh], material,
                           picture(material.texture, material.placing.base), instance.casts, instance.world, picture(material.surface, material.placing.surface),
                           picture(material.normal, material.placing.normal), picture(material.glow, material.placing.glow), picture(material.clearness, material.placing.clearness),
-                          picture(material.thick, material.placing.thick)});
+                          picture(material.thick, material.placing.thick), picture(material.coat, material.placing.coat), picture(material.coat_rough, material.placing.coat_rough),
+                          picture(material.coat_normal, material.placing.coat_normal), picture(material.sheen_picture, material.placing.sheen),
+                          picture(material.anisotropy_picture, material.placing.anisotropy), picture(material.film, material.placing.film), picture(material.film_thick, material.placing.film_thick)});
     }
     std::vector<Lamp> lamps;
     for (const scene::Light& light : scene.lights())

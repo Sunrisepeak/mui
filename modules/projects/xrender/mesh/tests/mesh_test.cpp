@@ -1956,14 +1956,24 @@ static UTest cases{"xrender.mesh", [] {
         brushed.anisotropy = 0.8f;
         mesh::Material filmed{.base = {0.1f, 0.1f, 0.1f}, .roughness = 0.15f, .metallic = 0};
         filmed.iridescence = 1, filmed.film_ior = 1.3f, filmed.film_thickness = 400;
+        // And a coat by a picture: stripes of coat and none, eight about the ball (the tracer reads the layers'
+        // pictures as the pass does).
+        std::vector<std::uint8_t> striped(64 * 8 * 4, 255);
+        for (int x = 0; x < 64; ++x)
+            for (int y = 0; y < 8; ++y) striped[static_cast<std::size_t>(y * 64 + x) * 4] = (x / 4) % 2 ? 255 : 0;
+        const mesh::Texture stripes = *mesh::Texture::made(striped, 64, 8, mesh::Coding::plain);
+        std::vector<const mesh::Texture*> with_stripes(library().textures.begin(), library().textures.end());
+        with_stripes.push_back(&stripes);
+        mesh::Material striped_coat = coated;
+        striped_coat.coat = static_cast<std::uint32_t>(with_stripes.size() - 1);
         for (const Held& held : {Held{made[matt_grey], "matt", 0.008f}, Held{made[polished], "polished", 0.015f}, Held{made[satin], "satin", 0.015f}, Held{made[gold], "gold", 0.075f},
                                  Held{made[iron], "iron", 0.062f}, Held{made[dull_copper], "dull-copper", 0.067f}, Held{made[roughest_copper], "roughest-copper", 0.04f},
-                                 Held{coated, "coated", 0.015f}, Held{velvet, "velvet", 0.05f}, Held{brushed, "brushed", 0.11f}, Held{filmed, "film", 0.015f}}) {
+                                 Held{coated, "coated", 0.015f}, Held{velvet, "velvet", 0.05f}, Held{brushed, "brushed", 0.11f}, Held{filmed, "film", 0.015f}, Held{striped_coat, "striped-coat", 0.015f}}) {
             std::vector<mesh::Material> materials(made.begin(), made.end());
             materials.push_back(held.material);
             const std::uint32_t own = static_cast<std::uint32_t>(materials.size() - 1);
             mesh::Assets assets = library().assets(true);
-            assets.materials = materials;
+            assets.materials = materials, assets.textures = with_stripes;
             scene::Scene world;
             put(world, 1, ball, own, math::translation({0, 0, 0}));
             mesh::Pass pass;
@@ -1973,7 +1983,7 @@ static UTest cases{"xrender.mesh", [] {
                 scene::Extracted seen;
                 scene::extract(world, camera.view(), seen);
                 mesh::Assets drawn_with = library().assets(false);
-                drawn_with.materials = materials;
+                drawn_with.materials = materials, drawn_with.textures = with_stripes;
                 pass.draw(world, seen, camera.view(), drawn_with, drawn_frame.targets, lit_by);
             }
             mesh::Targets followed, other;

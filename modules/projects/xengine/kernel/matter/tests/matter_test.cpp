@@ -142,7 +142,7 @@ UTest cases{"xengine.matter", [] {
         expect(eq(plan.recipes(), std::size_t{0})) << "no law names a material";
         const std::string said = plan.describe();
         expect(mlibs::json::Document::parse(said, "describe").has_value()) << "it is JSON";
-        expect(said.contains(R"({"name":"wood","id":4,"tags":["plant"],"density":600,"friction":0.45,"restitution":0.35,"shape_stiffness":1,"ignition":570,"fuel":400,"heat":80,"porous":2,"burnt":"ash"})")) << said;
+        expect(said.contains(R"({"name":"wood","id":4,"tags":["plant"],"density":600,"friction":0.45,"restitution":0.35,"shape_stiffness":1,"specific_heat":0.41,"ignition":570,"fuel":400,"heat":80,"porous":2,"burnt":"ash"})")) << said;
         expect(said.contains(R"({"name":"burns","kind":"reaction","when":"temperature >= ignition && burned < fuel && near.oxygen > 0","changes":["burned"],"flag":"burning"})")) << said;
         expect(said.contains(R"({"name":"pressure throws","kind":"motion","down":"pressure","from":300,"speed":0.003,"force":0})") && said.contains(R"({"name":"gravity","kind":"motion","toward":[0,1],"accel":9.8})")) << said;
         expect(said.contains(R"({"name":"heat flows","kind":"transfer","transfer":"temperature","share":"1 / 64","by":"thermal"})")) << said;

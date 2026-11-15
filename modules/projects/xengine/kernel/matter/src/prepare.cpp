@@ -339,6 +339,7 @@ Definition Definition::standard() {
     number("shape_stiffness", "0–1", "a soft solid's spring back to its shape, a substep", 0, 1, 0.05, 16);
     // heat
     number("thermal", "64ths", "how well it conducts heat: of a difference in temperature, to each neighbour, a step", 0, 8, 1);
+    number("specific_heat", "× water's", "the heat a kilogram of it holds a kelvin, as a share of water's: a body's capacity is its mass times this", 0, 100, 1, 16);
     number("ignition", "K", "the temperature it catches fire at", 0, 100000, 0, 8);
     number("melting", "K", "below it a liquid sets, above it a solid melts", 0, 100000, 0, 8);
     number("boiling", "K", "above it a liquid boils, below it a gas condenses", 0, 100000, 0, 8);

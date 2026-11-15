@@ -1,8 +1,8 @@
 <div align="center">
 
-# omui
+# mui
 
-**One semantic tree — rendered as pixels, accessibility, agents and tests.**
+**Agent-native engines and a UI framework, made to be used one by one or together.**
 
 [![CI](https://github.com/Sunrisepeak/mui/actions/workflows/ci.yml/badge.svg?branch=openmui-design)](https://github.com/Sunrisepeak/mui/actions/workflows/ci.yml)
 [![openmui](https://img.shields.io/badge/spec-openmui%200.3-blue)](https://github.com/openlifa/openmui)
@@ -10,58 +10,54 @@
 [![C++23](https://img.shields.io/badge/C%2B%2B23-modules-informational)](https://github.com/mcpp-community/mcpp)
 [![code](https://img.shields.io/badge/code-Apache--2.0-green)](LICENSE)
 
-[中文](README.zh.md) · [**Guide**](docs/en/README.md) · [Features](docs/en/features.md) · [Best practices](docs/en/best-practices.md) · [Benchmarks](docs/en/benchmarks/README.md) · [Design](.agents/docs/README.md)
+[中文](README.zh.md) · [**Guide**](docs/en/README.md) · [Features](docs/en/features.md) · [Benchmarks](docs/en/benchmarks/README.md) · [Platforms](docs/en/platforms.md) · [Design](.agents/docs/README.md)
 
 </div>
 
-omui is a UI framework implementing the open [openmui specification](https://github.com/openlifa/openmui) in C++ modules — in development. A view is one tree: the pixels on screen, what a screen reader announces, what an agent reads and acts on, and what a test checks all come from it. The CPU renderer draws the same bytes on Linux, macOS and Windows, with GCC and LLVM; CI holds every pinned image to that. Existing UI package and module names remain `openmui.*` during migration.
+One repository, several projects. Each project is used on its own — its own README, packages, tools and tests — and any project can leave for a repository of its own. Together they make one system for interfaces, animation, rendering and games, in which people and agents are both first-class users. In development, heading for a first release (0.1).
 
-Beside it, in the same repository: **hanim** (animation), **xrender** (rendering) and **xengine** (worlds of matter, games). What can be made with each today, and how: the [guide](docs/en/README.md).
+## Projects
+
+| Project | What it is | Alone | Built on |
+|---|---|---|---|
+| [**omui**](modules/projects/omui) | A UI framework: one semantic tree drives pixels, motion, accessibility, agents and tests; implements the [openmui](https://github.com/openlifa/openmui) specification | `omui` — new, dev, run, test, package; agents | hanim, xrender |
+| [**hanim**](modules/projects/hanim) | A composable, agent-native animation engine: UI animation, video and game animation from one set of capabilities | `hanim` (a document → its frames), `hanim-timeline` | xrender |
+| [**xrender**](modules/projects/xrender) | A renderer whose CPU and GPU paths share one source, Web first, its pixels reviewable by agents (code name) | a library | mlibs |
+| [**xengine**](modules/projects/xengine) | A game-engine system: kernels (matter, dynamics, particles, audio, video) and a game layer above omui (code name) | `xengine-playtest` | all of the above |
+| [**gongfu**](modules/projects/gongfu) | A deterministic, rollback-ready fighting-game framework whose characters are data | — | xengine |
+| [**mlibs**](modules) | Domain-free libraries beneath every project: math, geometry, images, text, the GPU interface, the agent kernel | libraries | — |
+
+The layers only point down — mlibs ← xrender ← hanim ← omui ← xengine's game layer ← works — so taking one project takes only what is beneath it ([AGENTS.md](AGENTS.md) §2–3).
 
 ## Works
 
-Each one is a tool you can use, and each one shows what the framework does.
-
-| | What it is | What it demonstrates |
-|---|---|---|
-| **[Wall](showcase/markdown-wall)** | A wall of documents on an infinite canvas: a whole folder of Markdown at once | A frame of zooming 1000 windows costs 0.12 ms of CPU at p95 ([benchmarks](docs/en/benchmarks/README.md)); live documents up close, cached textures far away; interactions written as data |
-| **[Styles](showcase/style-gallery)** | A settings panel and dashboard in eight style packs (five creative, and Fluent, Cupertino, Material) | Shader effects written in Slang; switching style cross-fades and leaves the semantic tree unchanged |
-| **[Markdown](examples/08-markdown-viewer)** | Read documents; [pipe a model's output in](examples/09-markdown-stream) and watch it set as it arrives | CommonMark 652/652, incremental parsing, glyphs fading in |
-| **[Space](examples/10-canvas-basics)** | Where a folder's space went, as a map you can zoom | The canvas, a treemap, agents that find by name |
-| **[Notes](examples/12-notes)** | Notes written in TypeScript, a view document and C++ at once | Three ways of writing in one application, sharing state and commands |
-| **[Contrast](examples/05-contrast)** | A contrast checker for accessible colours | A native-module contract and its generated bindings |
-| **[Inspector](tools/inspector) · [omui](tools/cli) · [MCP](tools/mcp)** | See and drive any running application | A command line and an interface over the same records; agents do only what the person granted |
-
-## Hello
-
-```cpp
-import std;
-import omui;
-
-omui::AppSpec app() {
-    static int clicks = 0;
-    return {.id = "org.example.hello", .title = "Hello", .view = [] {
-        return omui::immediate([](omui::Ui& ui) {
-            if (ui.button(std::format("Clicked {} times", clicks), {.id = "click"})) ++clicks;
-        });
-    }};
-}
-```
-
-```sh
-omui new hello --template app-cpp && cd hello && omui dev
-omui agent act org.example.hello main/click activate     # an agent presses the same button
-```
-
-## Inside
+Each one is a real tool or game, made only from the projects' public parts ([showcase](showcase), [examples](examples)).
 
 | | |
 |---|---|
-| [spec](spec) | The specification: a submodule of the standard's own repository, [openlifa/openmui](https://github.com/openlifa/openmui) |
-| [modules](modules) | The libraries, in layers: base, gfx, content — each usable alone — and ui, omui itself |
-| [components](modules/projects/omui/components) · [lang](modules/projects/omui/lang) · [tools](tools) | Components, the TypeScript binding, tools |
-| [examples](examples) · [showcase](showcase) | What is made with it |
+| [Wall](showcase/markdown-wall) · [Styles](showcase/style-gallery) · [Markdown](examples/08-markdown-viewer) · [Notes](examples/12-notes) | Applications in omui |
+| [Film](showcase/promo-video) | Sixty seconds rendered from a timeline, every shot a live scene |
+| [Swarm](showcase/swarm) · [Breakout](showcase/widget-breakout) · [Fighting](showcase/fighting) | Games an agent plays as a person does |
+| [Kiln](showcase/kiln) · [Glade](showcase/glade) · [Quay](showcase/quay) | Worlds of matter (in progress) |
 
-omui implements two OpenLifa standards: [openmui](https://github.com/openlifa/openmui) (interfaces) and [openas](https://github.com/openlifa/openas) (actors, effects, grants). It is built, tested and packaged with [mcpp](https://github.com/mcpp-community/mcpp); the toolchain it needs is pinned in [.xlings.json](.xlings.json) and installed by [xlings](https://github.com/openxlings/xlings).
+## Start
+
+```sh
+omui new hello && cd hello && omui dev          # an application in TypeScript, designed live
+omui agent ls                                   # an agent finds it, reads it and acts in it
+```
+
+The [guide](docs/en/README.md) goes on per project: interfaces, motion, worlds, games, agents.
+
+## Repository
+
+| | |
+|---|---|
+| [modules](modules) | mlibs in layers (base, gfx, content) and the projects ([projects](modules/projects)) |
+| [tools](tools) | The tools: omui's command line, MCP server and generator, the inspector, and the repository's own (lint, CI) |
+| [spec](spec) | The openmui specification, a submodule of [openlifa/openmui](https://github.com/openlifa/openmui) |
+| [examples](examples) · [showcase](showcase) · [site](site) | What is made with it |
+
+Built, tested and packaged with [mcpp](https://github.com/mcpp-community/mcpp); the toolchain is pinned in [.xlings.json](.xlings.json) and installed by [xlings](https://github.com/openxlings/xlings). Agents' actors, effects and grants follow [openas](https://github.com/openlifa/openas).
 
 <sub>In development · Code Apache-2.0 · Specification CC BY-SA 4.0</sub>

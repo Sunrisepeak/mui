@@ -130,7 +130,7 @@ UTest cases{"fighting.headless", [] {
             const auto you = view["fighters"][0], them = view["fighters"][1];
             const double apart = view["apart"].number().value_or(1e9), reach = you["reach"].number().value_or(0);
             const double toward = them["x"].number().value_or(0) > you["x"].number().value_or(0) ? 1 : -1;
-            const std::string_view theirs = them["doing"].text().value_or("idle");
+            const std::string theirs(them["doing"].text().value_or("idle"));  // owned: text() answers a value, not a view into the record
             const bool attacking = theirs != "idle" && theirs != "walk_forward" && theirs != "walk_back" && theirs != "crouch" && theirs != "hitstun" &&
                                    theirs != "blockstun" && theirs != "knockdown" && theirs != "wakeup" && theirs != "air" && theirs != "prejump" && theirs != "landing";
             std::string act;

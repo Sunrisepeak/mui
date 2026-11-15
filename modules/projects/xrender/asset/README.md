@@ -63,10 +63,17 @@ Every scenario of [model-viewer's render-fidelity suite](https://github.com/goog
 
 "The golden's pixels not drawn": where the golden has something and the picture drawn has nothing (the model stands elsewhere than the scenario expects — bones or shapes not applied — or is seen through and left out). "Left out": what the importer's notes say it did not bring in.
 
+### Core: glTF 2.0 itself — what 0.1 holds itself to
+
+Geometry, metal and roughness, textures and their samplers, alpha, normal pictures, skins, morphs, animation, vertex colours: **37 of 53 within −22 dB**. The 16 over the bound are the core's gap, each named in the table (what the importer leaves out is in its notes); the tool reruns them (`xrender fidelity NAME`).
+
 | Scenario | From the golden (dB) | The golden's pixels not drawn | Notes |
 |---|---|---|---|
+| khronos-VertexColorTest | -36.1 | 0 |  |
+| khronos-MultiUVTest | -33.1 | 0 | 1 left out |
 | khronos-TextureLinearInterpolationTest | -31.5 | 0 | 1 left out |
 | khronos-TextureCoordinateTest | -30.4 | 0 |  |
+| khronos-BoxVertexColors | -30.2 | 0 |  |
 | khronos-AnimatedTriangle | -29.3 | 0 | 2 left out |
 | khronos-Triangle | -29.3 | 0 | 1 left out |
 | khronos-TriangleWithoutIndices | -29.3 | 0 | 1 left out |
@@ -85,9 +92,6 @@ Every scenario of [model-viewer's render-fidelity suite](https://github.com/goog
 | khronos-CesiumMan | -27.4 | 0 | 5 left out |
 | khronos-TwoSidedPlane | -27.1 | 0 |  |
 | khronos-Box | -27.1 | 0 |  |
-| khronos-EmissiveStrengthTest | -27.0 | 0 |  |
-| khronos-SpecGlossVsMetalRough | -26.7 | 0 | 2 left out |
-| khronos-MaterialsVariantsShoe | -26.7 | 0 |  |
 | khronos-BoxTextured | -26.3 | 0 |  |
 | khronos-BoxTexturedNonPowerOfTwo | -26.3 | 0 |  |
 | khronos-Suzanne | -25.4 | 0 |  |
@@ -97,57 +101,69 @@ Every scenario of [model-viewer's render-fidelity suite](https://github.com/goog
 | khronos-OrientationTest | -24.5 | 0 |  |
 | khronos-EnvironmentTest | -24.3 | 0 | 1 left out |
 | khronos-NormalTangentMirrorTest | -23.5 | 0 |  |
-| DirectionalLightTest | -23.2 | 0 | 1 left out |
 | khronos-MetalRoughSpheres-HDR | -22.9 | 0 | 2 left out |
 | khronos-NormalTangentTest | -22.9 | 0 |  |
 | khronos-Corset | -22.8 | 0 |  |
 | khronos-AntiqueCamera | -22.5 | 0 |  |
 | khronos-Lantern | -22.0 | 0 |  |
-| khronos-Cube | -21.4 | 0 |  |
-| khronos-AnimatedCube | -21.1 | 0 | 1 left out |
-| khronos-SciFiHelmet | -20.9 | 0 |  |
-| khronos-AlphaBlendModeTest | -20.9 | 0 |  |
-| khronos-DamagedHelmet | -19.1 | 0 |  |
-| khronos-BarramundiFish | -19.0 | 0 |  |
-| khronos-IridescenceDielectricSpheres | -18.9 | 2720 | 686 left out |
-| khronos-MosquitoInAmber | -28.0 | 0 | 1 left out |
-| khronos-TextureEncodingTest | -18.3 | 0 | 4 left out |
-| khronos-ABeautifulGame | -18.0 | 0 | 4 left out |
-| khronos-LightsPunctualLamp | -17.1 | 0 | 16 left out |
-| khronos-BoomBoxWithAxes | -16.7 | 0 |  |
-| khronos-GlamVelvetSofa | -16.7 | 0 | 15 left out |
-| khronos-MultiUVTest | -33.1 | 0 | 1 left out |
-| khronos-ClearCoatTest | -16.3 | 12855 | 6 left out |
-| khronos-ClearCoatCarPaint | -15.9 | 0 | 2 left out |
-| khronos-TextureSettingsTest | -15.5 | 0 | 6 left out |
-| khronos-InterpolationTest | -15.5 | 20320 | 1 left out |
-| khronos-FlightHelmet | -15.4 | 0 | 1 left out |
-| khronos-TransmissionTest | -20.1 | 0 | 2 left out |
-| khronos-ToyCar | -15.1 | 0 | 14 left out |
-| khronos-BoomBox | -14.8 | 0 |  |
-| khronos-TransmissionRoughnessTest | -21.8 | 0 |  |
-| khronos-AnisotropyStrengthTest | -14.3 | 0 | 49 left out |
-| khronos-IridescenceMetallicSpheres | -14.2 | 2720 | 343 left out |
-| khronos-SimpleSkin | -13.8 | 0 | 6 left out |
-| khronos-SpecularTest | -13.3 | 0 | 23 left out |
-| khronos-AnisotropyRotationTest | -13.3 | 0 | 4 left out |
-| khronos-UnlitTest | -13.1 | 0 | 2 left out |
-| khronos-IridescenceLamp | -13.0 | 0 | 5 left out |
-| khronos-RecursiveSkeletons | -12.5 | 486318 | 90 left out |
-| khronos-IridescentDishWithOlives | -12.5 | 0 | 12 left out |
-| khronos-SheenChair | -12.3 | 0 | 27 left out |
-| khronos-SheenCloth | -12.0 | 0 | 5 left out |
-| khronos-VertexColorTest | -36.1 | 0 |  |
-| khronos-TextureTransformMultiTest | -18.0 | 0 | 9 left out |
-| khronos-AttenuationTest | -27.7 | 0 |  |
-| khronos-GlassVaseFlowers | -18.1 | 0 |  |
-| khronos-MorphPrimitivesTest | -10.4 | 1054 | 2 left out |
-| khronos-IridescenceSuzanne | -10.0 | 0 | 11 left out |
-| khronos-GlassHurricaneCandleHolder | -17.4 | 0 |  |
-| khronos-BoxVertexColors | -30.2 | 0 |  |
-| khronos-MorphStressTest | -9.2 | 0 | 6 left out |
-| khronos-DragonAttenuation | -25.9 | 0 |  |
-| khronos-TextureTransformTest | -7.7 | 0 | 21 left out |
+| khronos-Cube | -21.4 (over) | 0 |  |
+| khronos-AnimatedCube | -21.1 (over) | 0 | 1 left out |
+| khronos-SciFiHelmet | -20.9 (over) | 0 |  |
+| khronos-AlphaBlendModeTest | -20.9 (over) | 0 |  |
+| khronos-DamagedHelmet | -19.1 (over) | 0 |  |
+| khronos-BarramundiFish | -19.0 (over) | 0 |  |
+| khronos-TextureEncodingTest | -18.3 (over) | 0 | 4 left out |
+| khronos-BoomBoxWithAxes | -16.7 (over) | 0 |  |
+| khronos-TextureSettingsTest | -15.5 (over) | 0 | 6 left out |
+| khronos-InterpolationTest | -15.5 (over) | 20320 | 1 left out |
+| khronos-FlightHelmet | -15.4 (over) | 0 | 1 left out |
+| khronos-BoomBox | -14.8 (over) | 0 |  |
+| khronos-SimpleSkin | -13.8 (over) | 0 | 6 left out |
+| khronos-RecursiveSkeletons | -12.5 (over) | 486318 | 90 left out |
+| khronos-MorphPrimitivesTest | -10.4 (over) | 1054 | 2 left out |
+| khronos-MorphStressTest | -9.2 (over) | 0 | 6 left out |
+
+### Outside the core: glTF's KHR extensions
+
+What a scenario's model needs beyond glTF 2.0 is in the third column. **7 of 30 within −22 dB**: drawn and measured, not held to the bound in 0.1.
+
+| Scenario | From the golden (dB) | The golden's pixels not drawn | Needs | Notes |
+|---|---|---|---|---|
+| khronos-MosquitoInAmber | -28.0 | 0 | transmission, volume | 1 left out |
+| khronos-AttenuationTest | -27.7 | 0 | volume |  |
+| khronos-EmissiveStrengthTest | -27.0 | 0 | emissive strength |  |
+| khronos-SpecGlossVsMetalRough | -26.7 | 0 | spec–gloss | 2 left out |
+| khronos-MaterialsVariantsShoe | -26.7 | 0 | variants |  |
+| khronos-DragonAttenuation | -25.9 | 0 | volume |  |
+| DirectionalLightTest | -23.2 | 0 | punctual lights | 1 left out |
+| khronos-TransmissionRoughnessTest | -21.8 (over) | 0 | transmission |  |
+| khronos-TransmissionTest | -20.1 (over) | 0 | transmission | 2 left out |
+| khronos-IridescenceDielectricSpheres | -18.9 (over) | 2720 | iridescence | 686 left out |
+| khronos-GlassVaseFlowers | -18.1 (over) | 0 | transmission, volume |  |
+| khronos-ABeautifulGame | -18.0 (over) | 0 | transmission, volume | 4 left out |
+| khronos-TextureTransformMultiTest | -18.0 (over) | 0 | texture transform | 9 left out |
+| khronos-GlassHurricaneCandleHolder | -17.4 (over) | 0 | transmission, volume |  |
+| khronos-LightsPunctualLamp | -17.1 (over) | 0 | punctual lights | 16 left out |
+| khronos-GlamVelvetSofa | -16.7 (over) | 0 | sheen, specular | 15 left out |
+| khronos-ClearCoatTest | -16.3 (over) | 12855 | clearcoat | 6 left out |
+| khronos-ClearCoatCarPaint | -15.9 (over) | 0 | clearcoat | 2 left out |
+| khronos-ToyCar | -15.1 (over) | 0 | clearcoat, sheen, transmission | 14 left out |
+| khronos-AnisotropyStrengthTest | -14.3 (over) | 0 | anisotropy | 49 left out |
+| khronos-IridescenceMetallicSpheres | -14.2 (over) | 2720 | iridescence | 343 left out |
+| khronos-SpecularTest | -13.3 (over) | 0 | specular | 23 left out |
+| khronos-AnisotropyRotationTest | -13.3 (over) | 0 | anisotropy | 4 left out |
+| khronos-UnlitTest | -13.1 (over) | 0 | unlit | 2 left out |
+| khronos-IridescenceLamp | -13.0 (over) | 0 | iridescence | 5 left out |
+| khronos-IridescentDishWithOlives | -12.5 (over) | 0 | iridescence | 12 left out |
+| khronos-SheenChair | -12.3 (over) | 0 | sheen | 27 left out |
+| khronos-SheenCloth | -12.0 (over) | 0 | sheen | 5 left out |
+| khronos-IridescenceSuzanne | -10.0 (over) | 0 | iridescence | 11 left out |
+| khronos-TextureTransformTest | -7.7 (over) | 0 | texture transform | 21 left out |
+
+### Not drawn
+
+| Scenario | From the golden (dB) | The golden's pixels not drawn | Notes |
+|---|---|---|---|
 | khronos-Sponza | — | — | its eye is at its target |
 | khronos-MetalRoughSpheres-LDR | — | — | its surroundings are not an HDR picture |
 | khronos-MetalRoughSpheresNoTextures | — | — | its eye is at its target |

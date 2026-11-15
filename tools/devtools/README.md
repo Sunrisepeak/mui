@@ -40,3 +40,12 @@ Examples 03 (the tally) and 07 (the notes) read and operated through AT-SPI, as 
 ```sh
 dbus-run-session -- omui-devtools atspi <tally> <notes-agent>    # tools/ci/atspi.sh builds both and runs it (CI's Linux x64 rows)
 ```
+
+## api
+
+A package's exported surface as text: the declarations its module interface units export, a class's public members, re-exported modules; bodies, initialisers and raw strings left out, one declaration a line. Committed beside a stable package as `api.omui.txt` (release plan §2.1: its API is v1), a change to the surface is a change to that file in the same commit; the tool's test holds every committed file to its package. It reads text, not the compiler's model. xrender's 2D packages (raster, vector, text, graph, frame, effect) hold theirs.
+
+```sh
+omui-devtools api -p modules/projects/xrender/vector            # print
+omui-devtools api -p modules/projects/xrender/vector --write    # after a change meant to be one
+```

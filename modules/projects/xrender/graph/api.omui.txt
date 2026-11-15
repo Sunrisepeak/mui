@@ -1,0 +1,66 @@
+== xrender.graph
+export import xrender.graph.api;
+== xrender.graph.api
+export import :pool;
+export import :graph;
+== xrender.graph.api:graph
+namespace xrender {
+  struct PassDesc {
+    const char* name = "render.pass";
+    std::string label;
+    std::vector<mlibs::rhi::Texture> reads, writes;
+  };
+  struct GraphProblem {
+    std::size_t pass = 0;
+    std::string text;
+  };
+  struct GraphPlan {
+    std::vector<std::size_t> run, culled;
+  };
+  struct GraphReport {
+    std::size_t recorded = 0, culled = 0, transients = 0, histories = 0;
+  };
+  class Graph {
+    explicit Graph(TexturePool& pool) : pool_(&pool);
+    [[nodiscard]] mlibs::rhi::Result<mlibs::rhi::Texture> transient(const TextureNeed& need, std::string_view label);
+    [[nodiscard]] mlibs::rhi::Result<History> history(std::string_view name, const TextureNeed& need, std::string_view label);
+    void pass(PassDesc desc, std::function<void(mlibs::rhi::CommandList&)> record);
+    [[nodiscard]] std::expected<GraphPlan, std::vector<GraphProblem>> plan(std::span<const mlibs::rhi::Texture> outputs) const;
+    [[nodiscard]] std::expected<GraphReport, std::vector<GraphProblem>> record(mlibs::rhi::CommandList& list, std::span<const mlibs::rhi::Texture> outputs);
+    void clear();
+    [[nodiscard]] std::size_t size() const noexcept;
+    [[nodiscard]] const PassDesc& desc(std::size_t i) const;
+    [[nodiscard]] bool transient(mlibs::rhi::Texture t) const noexcept;
+  };
+}
+== xrender.graph.api:pool
+namespace xrender {
+  struct TextureNeed {
+    std::uint32_t width = 0, height = 0;
+    mlibs::rhi::Format format = mlibs::rhi::Format::rgba8_unorm;
+    mlibs::rhi::TextureUsage usage = mlibs::rhi::TextureUsage::sampled;
+    friend constexpr bool operator==(const TextureNeed&, const TextureNeed&) = default;
+  };
+  struct History {
+    mlibs::rhi::Texture now, before;
+    std::uint32_t past = 0;
+  };
+  class TexturePool {
+    explicit TexturePool(mlibs::rhi::Device& device, std::uint32_t keep = 120) : device_(&device), keep_(keep);
+    TexturePool(const TexturePool&) = delete;
+    TexturePool& operator=(const TexturePool&) = delete;
+    TexturePool(TexturePool&& other) noexcept;
+    TexturePool& operator=(TexturePool&& other) noexcept;
+    ~TexturePool();
+    void begin_frame();
+    void restart_frame() noexcept;
+    [[nodiscard]] mlibs::rhi::Result<mlibs::rhi::Texture> acquire(const TextureNeed& need, std::string_view label);
+    [[nodiscard]] mlibs::rhi::Result<History> history(std::string_view name, const TextureNeed& need, std::string_view label);
+    void forget(std::string_view name) noexcept;
+    [[nodiscard]] std::size_t histories() const noexcept;
+    [[nodiscard]] bool owns(mlibs::rhi::Texture t) const noexcept;
+    [[nodiscard]] std::size_t held() const noexcept;
+    [[nodiscard]] std::size_t made() const noexcept;
+    [[nodiscard]] std::size_t released() const noexcept;
+  };
+}

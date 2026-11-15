@@ -11,12 +11,14 @@
 //         linkers at most --jobs at once (tools/dev/capped.sh, AGENTS §5).
 //   incremental  the same build twice: the second leaves every compilation
 //         output untouched (CI's row; exit 1 when one changed).
+//   api   a package's exported surface (api.omui.txt beside it): printed, written, or checked.
 //   atspi  examples 03 and 07 read and operated through AT-SPI, as a screen
 //         reader does (tools/ci/atspi.sh; exit 1 when a check fails).
 import std;
 import mcpplibs.cmdline;
 import mcpplibs.os;
 import nlohmann.json;
+import omui.devtools.api;
 import omui.devtools.atspi;
 import omui.devtools.ci;
 import omui.devtools.govern;
@@ -176,6 +178,11 @@ cmd::App app() {
                         .option(Option("toolchain").takes_value().value_name("T").help("default: mcpp's"))
                         .option(Option("locked").help("mcpp's --locked"))
                         .option(Option("report").takes_value().value_name("FILE").help("default: target/incremental.report.omui.json")))
+        .subcommand(cmd::App("api")
+                        .description("A package's exported surface, as its interface units declare it: printed, written to api.omui.txt, or checked against it")
+                        .option(Option("package").short_name('p').takes_value().multiple().value_name("MEMBER").help("the members (paths as the workspace lists them)"))
+                        .option(Option("write").help("write each member's api.omui.txt"))
+                        .option(Option("check").help("exit 1 where a member's api.omui.txt is not its surface now")))
         .subcommand(cmd::App("atspi")
                         .description("Examples 03 and 07 read and operated through AT-SPI as a screen reader does; a JSON report (exit 1 when a check fails)")
                         .arg(Arg("tally").required().help("example 03's program (tally)"))
@@ -429,6 +436,37 @@ int incremental(const cmd::ParsedArgs& options) {
     return check::check(given, std::cout, std::cerr) ? 0 : 1;
 }
 
+int surface(const cmd::ParsedArgs& options, const fs::path& root) {
+    const auto members = options.option_or_empty("package").values;
+    if (members.empty()) {
+        std::cerr << "omui-devtools api: -p MEMBER … (a path as the workspace lists it)\n";
+        return 2;
+    }
+    int differs = 0;
+    for (const std::string& member : members) {
+        const fs::path directory = root / mcpplibs::os::fs::from_utf8(member);
+        const auto manifest = read_file(directory / "mcpp.toml");
+        if (!manifest) {
+            std::cerr << std::format("omui-devtools api: no mcpp.toml in {}\n", member);
+            return 2;
+        }
+        const std::string now = omui::devtools::api::surface(directory, omui::devtools::api::interface_globs(*manifest));
+        const fs::path file = directory / "api.omui.txt";
+        if (options.is_flag_set("check")) {
+            if (read_file(file) != now) {
+                std::cerr << std::format("{}: api.omui.txt is not its surface now (omui-devtools api -p {} --write)\n", member, member);
+                ++differs;
+            }
+        } else if (options.is_flag_set("write")) {
+            std::ofstream(file, std::ios::binary) << now;
+            std::cout << std::format("wrote {}/api.omui.txt ({} lines)\n", member, std::ranges::count(now, '\n'));
+        } else {
+            std::cout << now;
+        }
+    }
+    return differs ? 1 : 0;
+}
+
 int platforms(const cmd::ParsedArgs& options, const fs::path& root) {
     const auto table = read_file(root / "docs/platforms.omui.json");
     if (!table) {
@@ -470,6 +508,7 @@ int main(int argc, char** argv) {
     if (parsed->subcommand_name() == "ci") return ci(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "llvm") return llvm(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "platforms") return platforms(parsed->subcommand()->get(), root);
+    if (parsed->subcommand_name() == "api") return surface(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "atspi") {
         const auto& sub = parsed->subcommand()->get();
         const auto report = omui::devtools::atspi::check(mcpplibs::os::fs::from_utf8(sub.positional(0)),
@@ -479,6 +518,6 @@ int main(int argc, char** argv) {
     }
     if (parsed->subcommand_name() == "govern") return govern(parsed->subcommand()->get());
     if (parsed->subcommand_name() == "incremental") return incremental(parsed->subcommand()->get());
-    std::cerr << "usage: omui-devtools [--root DIR] ci … | llvm … | platforms | govern … | incremental … | atspi …  (omui-devtools --help)\n";
+    std::cerr << "usage: omui-devtools [--root DIR] ci … | llvm … | platforms | govern … | incremental … | api … | atspi …  (omui-devtools --help)\n";
     return 2;
 }

@@ -16,6 +16,7 @@ description = "openmui example 06: a theme preview in TypeScript — composition
 license     = "Apache-2.0"
 
 [package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 kind   = "app"
 id     = "org.openmui.theme-preview"
 title  = "Theme preview"

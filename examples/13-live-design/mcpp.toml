@@ -19,6 +19,7 @@ description = "openmui example 13: a subscription settings page designed live by
 license     = "Apache-2.0"
 
 [package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 kind  = "app"
 id    = "org.openmui.subscription"
 title = "Subscription"

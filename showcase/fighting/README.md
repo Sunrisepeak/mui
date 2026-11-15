@@ -94,3 +94,10 @@ The feature `art-later` (off by default) matters only on the Web. There the figh
 - a saved state coming back, and the dummy replaying a recorded walk exactly;
 - the versus and training frames at the jab's active frame, with pinned pixels;
 - 墨 as designed: every normal's, ink wave's and anti-air's startup and its advantage on hit and on block, measured in the simulation against the design's table.
+
+## Experimental (release 0.1, D-199)
+
+- **Target**: a fighting game of top independent quality, side by side with Street Fighter 6 (2D against 3D the only allowance).
+- **Now**: six fighters, title and select screens, training mode with boxes and a frame meter; gongfu's deterministic rollback core underneath.
+- **Gap**: supers, hit impact and the interface fall short of SF6 in the side-by-side; the art pipeline covers Mo fully, the others in part.
+- **Graduation to preview**: gongfu's graduation (its README), and the work's own: installed from the release and played for a match, an agent at a person's tier, the SF6 table at par.

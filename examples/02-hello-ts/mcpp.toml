@@ -14,6 +14,7 @@ description = "openmui example 02: a text-statistics tool written in TypeScript,
 license     = "Apache-2.0"
 
 [package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 kind  = "app"
 id    = "org.openmui.text-stats"
 title = "Text statistics"

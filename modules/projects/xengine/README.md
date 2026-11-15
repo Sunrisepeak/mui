@@ -29,3 +29,14 @@ It is two halves with omui between them (D-161), each in a directory of its own,
 | game | [ui](game/ui) | game | The bridge: a game inside omui — its steps paced on the runtime's clock, omui's keys and pointer given to its actions |
 
 The other engines of the system are projects of their own: [hanim](../hanim) (animation, and the timeline every editor shares: [hanim.timeline](../hanim/timeline)), [xrender](../xrender) (rendering) and [gongfu](../gongfu) (fighting games, built on the game layer's ideas but with a core that needs only the standard library). Convergence moves the timeline's animation tracks and audio gain automation onto hanim's channels (plan §6.5).
+
+## Labels in 0.1 (release plan §2.3)
+
+| Capability | Label | Packages |
+|---|---|---|
+| Matter, the lattice, 2D and 3D rigid bodies, audio and space, the material lab | preview | `xengine.matter`, `xengine.cellular`, `xengine.dynamics`, `xengine.audio*`, `xengine.matter.lab` |
+| The game layer: runtime, playtest, input, the UI bridge, navigation, chunked worlds | preview | `xengine.runtime`, `xengine.playtest`, `xengine.input`, `xengine.ui`, `xengine.nav`, `xengine.world` |
+| The air as a carrier, particles as matter, 3D emergence | experimental | `xengine.field`, `xengine.particles` |
+| Rollback netcode | experimental | `xengine.net` |
+
+`xengine.dynamics`' core (springs, collision, XPBD) is used by stable `hanim`; its families (2D, 3D, scene) are preview.

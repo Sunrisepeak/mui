@@ -41,3 +41,19 @@ The reference implementation of the [openmui](../../../spec) specification: a vi
 | [host](host) | Hosts: headless and the SDL3 desktop |
 
 Start with [view](view/README.md).
+
+## Labels in 0.1 (release plan §2.3)
+
+Each package's manifest says its label (`maturity`); lint `maturity` holds stable to stable. Stable: kept source-compatible within 0.1.x. Preview: complete within its stated scope, its interface may change (each change in the release notes). Experimental: ships with its target and gap written.
+
+| Capability | Label | Packages |
+|---|---|---|
+| The semantic tree, views, layout, signals, themes | stable | `omui.core`, `omui.view`, `omui.semantic`, `omui.theme` |
+| Components (base, window, markdown, canvas) | stable | `omui.ui.*` |
+| TypeScript and JavaScript, view documents | stable | `omui.lang.*`, `omui.viewdoc`, `omui.expr` |
+| Desktop and Web hosts, headless | stable; the desktop host's system notifications go through `mpal` (preview, `lower`) | `omui.host.sdl3`, `omui.host.web`, `omui.host.headless` |
+| The agent surface, the `omui` command, MCP, the inspector | stable; `omui video` and `omui audio` (xengine's media kernels), the inspector's reaction lab (`xengine.cellular`) and hanim studio, and the dev host's designer are preview (`lower`) | `omui.agent`, `tools/cli`, `tools/mcp`, `tools/inspector`, `src/entry/devhost` |
+| The SDK (`import omui;`) | stable; carries `omui.generate` and the Android host as preview (`lower`) | `omui.sdk` |
+| Runtime generation, the designer (development mode) | preview | `omui.generate`, `omui.designer` |
+| The Android host | preview (tier-2 platform) | `omui.host.android` |
+| C++26 reflection | experimental | `omui.reflect` |

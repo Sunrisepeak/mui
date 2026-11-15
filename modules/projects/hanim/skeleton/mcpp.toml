@@ -15,6 +15,7 @@ platforms   = ["linux", "macos", "windows", "emscripten"]
 repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
 reexports = ["hanim.core", "mlibs.math"]  # what its interface re-exports (lint module-closure)
 kind  = "module"
 agent = "subject"

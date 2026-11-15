@@ -11,6 +11,8 @@ license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+lower = ["xengine.audio", "xengine.audio.timeline", "xengine.video", "xengine.video.webm"]  # lower-labelled parts it uses, each marked in its README
 kind = "tool"
 
 [targets.omui]

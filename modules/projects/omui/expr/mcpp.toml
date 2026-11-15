@@ -12,6 +12,7 @@ license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 reexports = ["openlifa.openmui"]  # what its interface re-exports (lint module-closure)
 kind = "runtime"
 agent = { library = "expressions evaluated: a function of the expression and its scope" }

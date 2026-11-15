@@ -14,6 +14,7 @@ description = "openmui example 03: a tally counter in C++ and as a view document
 license     = "Apache-2.0"
 
 [package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 kind = "example"
 
 [targets.tally]

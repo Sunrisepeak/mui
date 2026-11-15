@@ -13,6 +13,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 platforms   = ["linux", "macos", "windows", "emscripten"]
 
 [package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
 reexports = ["mlibs.geom"]  # what its interface re-exports (lint module-closure)
 kind  = "module"
 agent = { library = "2D skinning: a function of a region, its grid and the bones' places" }

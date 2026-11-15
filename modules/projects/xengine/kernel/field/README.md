@@ -28,3 +28,10 @@ What it gives an agent now: the state (`get`, `kelvin_at`, `wind_at`), why an in
 ## Against the strongest
 
 The open-world engines move air for effects only (a wind direction for grass and cloth, a fire's spread as a script or a cellular rule of its own). Here the air is matter under the same laws as everything else, so heat, wetness and charge go through it to and from bodies, and the wind is made by heat rather than set. Behind: a coarse grid (1 m), no obstacles in the wind yet (bodies do not block it), heat capacity by volume not yet (a cell is one instance, as a body is).
+
+## Experimental (release 0.1, D-199)
+
+- **Target**: the ambient carrier of matter — air, heat, wetness and wind — giving physical magnitudes under the same laws as the other carriers, on the CPU reference and the GPU.
+- **Now**: the sparse lattice of 8³ blocks, buoyancy, semi-Lagrangian advection, a fixed count of pressure iterations; Glade its one consumer.
+- **Gap**: no radiation (R11b's P1 channel); magnitudes not checked against hand physics; no GPU path.
+- **Graduation to preview**: R11's magnitudes within tolerance, a contract suite run on every tier-1 row, a second consumer.

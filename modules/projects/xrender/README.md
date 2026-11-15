@@ -76,3 +76,11 @@ independent excludes vector/hanim/raster/shader generation from graph-only users
 
 `import xrender.graph;` gives namespace `xrender`: one graph and pool
 implementation, not two runtime owners.
+
+## Labels in 0.1 (release plan §2.3)
+
+| Capability | Label | Packages |
+|---|---|---|
+| 2D: raster, vector, text, effects, frames, the render graph, device backends | stable | `xrender.raster`, `xrender.vector`, `xrender.text`, `xrender.effect`, `xrender.frame`, `xrender.graph`, `xrender.rhi.*` |
+| 3D core: scenes, the mesh pass (metal-roughness, shadows, environment, fog, glow, temporal antialiasing), glTF core, particles, sprites | preview | `xrender.scene`, `xrender.mesh`, `xrender.mesh.gpu`, `xrender.asset`, `xrender.particle`, `xrender.sprite`, `xrender.tool` |
+| Transmission and volume, the rest of clearcoat/sheen/anisotropy on devices, files' own lights, morph targets | experimental (inside the preview packages, not claimed) | — |

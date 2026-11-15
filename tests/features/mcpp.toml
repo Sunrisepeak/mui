@@ -16,6 +16,9 @@ version     = "0.1.0"
 description = "M0 ⑤: a feature selects one of two mutually exclusive module partitions"
 license     = "Apache-2.0"
 
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+
 [targets.openmui-feature-fixture]
 kind = "lib"
 

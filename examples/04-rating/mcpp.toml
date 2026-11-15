@@ -18,6 +18,7 @@ description = "openmui example 04: a reading list rated with the application's o
 license     = "Apache-2.0"
 
 [package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 kind      = "app"
 id        = "org.openmui.reading-list"
 title     = "Reading list"

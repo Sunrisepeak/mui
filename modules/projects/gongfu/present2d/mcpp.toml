@@ -14,6 +14,7 @@ license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
+maturity = "experimental"  # release plan §2.1: stable, preview or experimental (lint maturity)
 reexports = ["gongfu.data"]  # what its interface re-exports (lint module-closure)
 agent = { part = "gongfu" }
 

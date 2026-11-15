@@ -537,6 +537,15 @@ animated parts, image style and real input. Core reference tests that read files
 use `mcpp test -p hanim.core --target wasm32-emscripten --profile wasm-test`;
 this Node-only test profile is separate from the site's publishing profile.
 
+## Labels in 0.1 (release plan §2.3)
+
+| Capability | Label | Packages |
+|---|---|---|
+| Values, curves, channels, programs, the engine, the visual representation, the timeline, the 40 recipes | stable | `hanim.core`, `hanim`, `hanim.visual`, `hanim.timeline` |
+| Springs and soft bodies through `xengine.dynamics`' core | stable, on a preview package (`lower`) | `hanim` |
+| Skeletons (the parts Quay uses: rig, clips, skinning driven) | preview | `hanim.skeleton` |
+| GPU batch evaluation, the studio | preview | `hanim.rhi`, `hanim.studio` |
+
 ## Agent surface
 
 The stage is a `Subject` of the agent kernel ([mlibs.agent](../../base/agent)): `hanim::agent::Stage`, module `hanim.agent` — the feature `agent`, asked for like `control` (what a consumer of the engine alone links stays what it was); every operation is decided there first (openas). Its operations are hanim.control's catalog, [hanim.ops.omui.ts](hanim.ops.omui.ts) (the table and the listings in `src/control/` are `omui-gen ops`'s); how to use them, in order, is [skill.omui.md](skill.omui.md). The typed entrance for a native host is `hanim::control::Controller`, with the same catalog.

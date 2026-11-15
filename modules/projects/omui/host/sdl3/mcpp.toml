@@ -14,6 +14,8 @@ license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+lower = ["mpal"]  # lower-labelled parts it uses, each marked in its README
 reexports = ["omui.accessibility", "omui.agent", "omui.core", "omui.semantic", "omui.view", "xrender.effect", "xrender.raster"]  # what its interface re-exports (lint module-closure)
 kind = "host"
 agent = { part = "omui.agent" }

@@ -8,6 +8,8 @@ platforms = ["linux", "macos", "windows", "emscripten"]
 repo = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+lower = ["xengine.dynamics"]  # lower-labelled parts it uses, each marked in its README
 kind = "runtime"
 agent = "subject"
 

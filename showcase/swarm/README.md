@@ -44,3 +44,10 @@ Noted while making it; each is substituted inside this member, not copied from e
 - **A component with floats in `xengine.world`**: `Vec2` does not say `no_padding`, so a component holding one has to vouch for it itself (`Body`).
 - **Circles meeting**: no public overlap test for two circles was found in `mlibs.geom` for a game's use; the two tests here are a squared distance against a squared sum of radii.
 - **A game-over reason in the runtime's answers**: `world.step` says `over`, not why; the view's `outcome` says it.
+
+## Experimental (release 0.1, D-199)
+
+- **Target**: a game an agent makes from one prompt on the engine, as good as one made by hand (T2.8).
+- **Now**: the rules, the runtime and the program over lines; the one-prompt run took 538 s and 55 turns.
+- **Gap**: no picture, no sound, one arena; the prompt not yet run on another engine side by side.
+- **Graduation to preview**: a display list (as Kiln's `picture`) and a host that shows it (RC2.13), its frame read back in a test; the side-by-side run.

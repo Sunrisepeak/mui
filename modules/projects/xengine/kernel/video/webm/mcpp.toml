@@ -15,6 +15,7 @@ platforms   = ["linux", "macos", "windows"]
 repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
 kind = "runtime"
 agent = { library = "a container reader and writer: a function of the bytes given" }
 

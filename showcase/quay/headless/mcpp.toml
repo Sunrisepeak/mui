@@ -10,6 +10,9 @@ license     = "Apache-2.0"
 platforms   = ["linux", "macos", "windows", "emscripten"]
 repo        = "https://github.com/Sunrisepeak/mui"
 
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+
 [targets.quay-headless]
 kind = "lib"
 

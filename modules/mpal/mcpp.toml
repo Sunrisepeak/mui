@@ -7,6 +7,9 @@ description = "The services an operating system gives an application (notificati
 license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+
 [targets.mpal]
 kind = "lib"
 

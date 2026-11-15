@@ -8,6 +8,9 @@ version     = "0.1.0"
 description = "A package whose data files omui.build.embed carries in the program at build time"
 license     = "Apache-2.0"
 
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+
 [targets.openmui-embed-fixture]
 kind = "lib"
 

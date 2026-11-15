@@ -13,6 +13,7 @@ platforms   = ["linux", "macos", "windows"]
 repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
 reexports = ["xengine.cellular", "xrender.frame"]  # what its interface re-exports (lint module-closure)
 kind = "tool"
 agent = "subject"

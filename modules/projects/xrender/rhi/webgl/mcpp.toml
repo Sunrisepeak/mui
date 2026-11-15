@@ -13,6 +13,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 platforms   = ["linux", "macos", "windows", "emscripten"]
 
 [package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 kind = "backend"
 agent = { part = "xrender.frame" }
 

@@ -14,6 +14,7 @@ description = "openmui example 09: Markdown rendered as it streams in, new words
 license     = "Apache-2.0"
 
 [package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 kind = "example"
 
 [targets.md-stream]

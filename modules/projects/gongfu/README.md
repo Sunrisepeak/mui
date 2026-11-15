@@ -115,3 +115,13 @@ A round ends at a K.O. or when the clock runs out (`over`, `winner`). It then pl
   The graphical studio comes later, on the same library.
 - [rules](rules) (`gongfu.rules`): the build rule. A program's fighters (with their looks and baked hurtboxes) become a module partition it carries, and a stale bake fails the build, naming the command to run. The simulation never samples an animation.
 - [data](data) (`gongfu.data`): characters and rules as files — `*.fighter.gongfu.toml`, `*.system.gongfu.toml` — read with every problem at its line and column, moves in numpad notation (`236P`, `[4]6P`, `2LK`, `LP+LK`).
+
+## Experimental (release 0.1, D-199)
+
+Labelled experimental in 0.1: it ships, and its top goal stands.
+
+- **Target**: a fighting framework at the level of the best (side by side with Street Fighter 6 on hit feel, readability and rollback), characters as data.
+- **Now**: the core is deterministic in fixed point — 10,000 random-depth rollbacks byte-identical; characters compile from data with diagnostics at line and column; six fighters play in `showcase/fighting` from the keyboard or an agent.
+- **Gap**: presentation (supers, hit impact, interface) is behind SF6 in the side-by-side; drawing is 2D only; agents as remote rollback opponents are not done.
+- **Limits**: one stage, 2D; no network transport (xengine.net has none).
+- **Graduation to preview**: two characters play a whole match from the release's packages; an agent plays one at a person's tier; the match's contract runs green on every tier-1 row; the SF6 comparison at par on hit feel and readability.

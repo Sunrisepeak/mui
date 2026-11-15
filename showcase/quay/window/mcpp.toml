@@ -10,6 +10,9 @@ description = "Quay in a window: the harbour played with keys and the mouse, dra
 license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+
 [targets.omui-showcase-quay-window]
 kind = "lib"
 

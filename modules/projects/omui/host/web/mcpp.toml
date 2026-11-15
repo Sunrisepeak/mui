@@ -19,6 +19,7 @@ license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 reexports = ["omui.core", "omui.native.store", "omui.semantic", "omui.view", "xrender.raster"]  # what its interface re-exports (lint module-closure)
 kind = "host"
 agent = { part = "omui.agent" }

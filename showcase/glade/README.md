@@ -11,3 +11,11 @@ A pocket valley — a stream with a footbridge, grass on both banks, a campfire,
 ```sh
 mcpp test -p omui.showcase.glade.sim   # the same bits twice and on a branch; across, campfire and ice each solved, with the chain of causes
 ```
+
+## Experimental (release 0.1, D-199)
+
+- **Target**: emergence of the class of an open-world sandbox (side by side with a comparable scene of Breath of the Wild, T5.8f): fire, water, wind, ice and lightning answering by the laws, every answer explainable.
+- **Now**: the simulation (T5.8a) — terrain, carriers in one state that is a value, the seven verbs as causes, four tasks solved headless with the chain of causes.
+- **Gap**: magnitudes are not yet physical — a struck 56 kg iron rod cools in about 1 s where m·c/(h·A) is about 35 min, a 115 kg block of ice melts in 1.6 s by a campfire (R11: capacity by mass alone, every pair's weight 1, no radiation); burning has no energy balance; no headless runtime and agent (T5.8b), picture, sound or window yet.
+- **Limits**: one valley; CPU only.
+- **Graduation to preview**: T5.8b–e done; R11's magnitudes within a stated tolerance of hand calculation; one headless check on every tier-1 row.

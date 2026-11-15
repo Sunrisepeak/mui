@@ -66,6 +66,7 @@ from __future__ import annotations
 
 import fnmatch
 import json
+import os
 import re
 import shutil
 import sys
@@ -1429,6 +1430,67 @@ def check_reexports(root: Path) -> list[Problem]:
     return problems
 
 
+# Labels (release plan §2.1, D-189, D-199): each package states its default
+# public surface's `maturity` — stable, preview or experimental. A library or
+# tool (modules/, tools/, src/, mcpp/, spec/) depends by default only on
+# packages at its label or above, but for the lower-labelled parts it names in
+# `lower` (each marked in its README); works may use anything. An experimental
+# package's README, or its project's, has an "Experimental" section that says
+# its target, the gap, and what graduates it.
+MATURITY_RANK = {"stable": 2, "preview": 1, "experimental": 0}
+MATURITY_HELD = ("modules/", "tools/", "src/", "mcpp/", "spec")
+EXPERIMENTAL_SECTION = re.compile(r"^#+ .*\bExperimental\b", re.M)
+
+
+def check_maturity(root: Path) -> list[Problem]:
+    problems = []
+    members = [m for m in workspace_members(root) if (root / m / "mcpp.toml").is_file()]
+    data: dict[str, dict] = {}
+    for m in members:
+        try:
+            data[m] = tomllib.loads((root / m / "mcpp.toml").read_text(encoding="utf-8"))
+        except tomllib.TOMLDecodeError:
+            continue
+    by_path = {Path(m).as_posix(): m for m in data}
+    meta = {m: d.get("package", {}).get("metadata", {}).get("openmui", {}) for m, d in data.items()}
+    for m, d in data.items():
+        label = meta[m].get("maturity")
+        if label not in MATURITY_RANK:
+            problems.append(Problem("maturity", f"{m}/mcpp.toml", "[package.metadata.openmui] maturity is stable, preview or experimental (release plan §2.1)"))
+            continue
+        if label == "experimental":
+            readmes = [root / Path(m).joinpath(*([".."] * up)) / "README.md" for up in range(0, len(Path(m).parts))]
+            texts = [r.read_text(encoding="utf-8") for r in readmes if r.resolve().is_file()]
+            said = next((t for t in texts if EXPERIMENTAL_SECTION.search(t)), None)
+            if said is None or not all(word in said for word in ("Target", "Gap", "Graduat")):
+                problems.append(Problem("maturity", m, "experimental: its README or its project's has an Experimental section with its Target, the Gap and what Graduates it (D-199)"))
+        if not m.startswith(MATURITY_HELD):
+            continue
+        tables = [d.get("dependencies", {})] + [t.get("dependencies", {}) for t in d.get("target", {}).values() if isinstance(t, dict)]
+        tables += [d.get("feature-deps", {}).get(f, {}) for f in _features(d, set(), True)]
+        lower = set(meta[m].get("lower", []))
+        used_lower = set()
+        for table in tables:
+            for _name, spec in flatten_deps(table):
+                if not (isinstance(spec, dict) and "path" in spec):
+                    continue
+                target = by_path.get(os.path.normpath(Path(m) / spec["path"]).replace(os.sep, "/"))
+                if not target or meta.get(target, {}).get("maturity") not in MATURITY_RANK:
+                    continue
+                theirs = meta[target]["maturity"]
+                if MATURITY_RANK[theirs] >= MATURITY_RANK[label]:
+                    continue
+                name = package_name(data[target])
+                if name in lower:
+                    used_lower.add(name)
+                    continue
+                problems.append(Problem("maturity", f"{m}/mcpp.toml", f"{label} depends on {name} ({theirs}); raise it, drop it, "
+                                                                      f"or name it in `lower` and mark it in the README"))
+        for name in sorted(lower - used_lower):
+            problems.append(Problem("maturity", f"{m}/mcpp.toml", f"`lower` names {name}, which it does not use or which is not below {label}"))
+    return problems
+
+
 def check_shader_inputs(root: Path) -> list[Problem]:
     """A shader's vertex inputs name their places with TEXCOORD0, 1, 2 … with none left out: Slang numbers
     a struct's inputs in the order they are declared, not by the number, so an input after a gap reads the
@@ -1476,7 +1538,7 @@ def run(root: Path) -> list[Problem]:
         return unreadable  # the other rules read the manifests
     return (check_sources(root) + check_manifests(root) + check_projects(root) + check_layout(root) + check_licences(root) + check_platforms(root) + check_pins(root)
             + check_documents(root) + check_media(root) + check_closures(root) + check_operations(root) + check_skills(root) + check_agent_surface(root)
-            + check_lead(root) + check_typescript_data(root) + check_imports(root) + check_matter(root) + check_shader_inputs(root) + check_status(root) + check_reexports(root))
+            + check_lead(root) + check_typescript_data(root) + check_imports(root) + check_matter(root) + check_shader_inputs(root) + check_status(root) + check_reexports(root) + check_maturity(root))
 
 
 def self_test() -> int:
@@ -1512,6 +1574,7 @@ def self_test() -> int:
         "skills": ("modules/ui/core/skill.omui.md", "# x\n\nSee [x.ops.omui.ts](x.ops.omui.ts); then `ui.wipe`.\n"),
         "matter": ("modules/ui/core/x.matter.omui.json", '{"matter": {"materials": {"wood": {}, "ash": {}}, "laws": [{"when": "material == wood && temperature >= 500", "become": "burnt"}]}}'),
         "shader-inputs": ("modules/ui/core/x.slang", "struct VIn {\n    float3 position : TEXCOORD0;\n    float2 second : TEXCOORD4;\n};\n"),
+        "maturity": None,
         "module-closure": ("modules/gfx/hanim/src/hanim.cppm", "export module hanim;\nexport import hanim.core;\n"),
         "status": (STATUS_FILE, "# STATUS\n\n| Task | State | Evidence |\n|---|---|---|\n| RC0.1 push | done | pushed |\n"),
         "lead": (LEAD_FEATURES, '{"feature": [{"id": "A", "project": "omui", "line": "use-safely", "title": "x", "status": "claimed"}]}\n'),
@@ -1577,8 +1640,10 @@ def self_test() -> int:
                     with (root / "tools" / "lint" / "licenses.toml").open("a", encoding="utf-8") as f:
                         f.write('"acme.copyleft" = ["GPL-3.0-only"]\n')
                 flags = '[build]\ncxxflags = ["-ffp-contract=off"]\n' if m in ("modules/gfx/hanim", "modules/base/hanim/core") else ""
-                (root / m / "mcpp.toml").write_text(f'[package]\n{names[m]}\nversion = "0.1.0"\n{flags}{deps}',
-                                                    encoding="utf-8")
+                # Every package states its label; the maturity case plants an experimental one with no section in a README.
+                label = "experimental" if rule == "maturity" and m == "modules/ui/core" else "stable"
+                (root / m / "mcpp.toml").write_text(f'[package]\n{names[m]}\nversion = "0.1.0"\n{flags}{deps}'
+                                                    f'\n[package.metadata.openmui]\nmaturity = "{label}"\n', encoding="utf-8")
             if rule == "documents":
                 (root / "spec" / "schema").mkdir(parents=True, exist_ok=True)
                 shutil.copy(Path(__file__).resolve().parents[2] / "spec" / "schema" / "view.schema.json",

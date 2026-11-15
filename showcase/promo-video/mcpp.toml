@@ -17,6 +17,7 @@ description = "S5, openmui's film: every shot a live openmui scene, the film a t
 license     = "Apache-2.0"
 
 [package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
 kind = "showcase"
 
 [targets.openmui-showcase-promo-video]

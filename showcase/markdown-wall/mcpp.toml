@@ -19,6 +19,7 @@ description = "S1, the Markdown wall: a folder's documents on the infinite canva
 license     = "Apache-2.0"
 
 [package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
 kind = "showcase"
 
 [targets.openmui-showcase-markdown-wall]

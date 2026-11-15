@@ -15,6 +15,7 @@ description = "openmui example 10: where a folder's space went, as a zoomable tr
 license     = "Apache-2.0"
 
 [package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 kind = "example"
 
 [targets.space]

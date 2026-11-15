@@ -14,6 +14,8 @@ description = "The openmui Inspector: semantic tree, node details, frame times, 
 license     = "Apache-2.0"
 
 [package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+lower = ["hanim.studio", "xengine.cellular", "xengine.cellular.present"]  # lower-labelled parts it uses, each marked in its README
 kind = "tool"
 
 [targets.openmui-inspector]

@@ -28,3 +28,10 @@ A subject of its own, `particles` (the feature `agent`, module `xengine.particle
 ## Against the strongest
 
 Engines' particle systems (Unreal's Niagara, Unity's VFX Graph, Godot's GPUParticles3D) fly particles with collision against depth or signed-distance fields and modules that change colour and size over life by curves. Here a particle is matter: what happens to it is the world's laws (a spark cools by heat flow into the air, lights wood it lands near), not a curve per effect; collision is against the true triangles; and every run is the same bits, a copy a branch. Behind: one thread on the CPU (the device is the next rung, from the same numbers), no curl noise or force fields yet.
+
+## Experimental (release 0.1, D-199)
+
+- **Target**: flying matter (sparks, drops, grit) under the standard laws, on the CPU reference and, bit for bit where it holds authority, on the GPU (D-184).
+- **Now**: CPU: gravity, drag, collision against triangles, ageing; each particle an instance of matter beside its neighbours and the air.
+- **Gap**: no GPU path; magnitudes not checked against hand physics; Glade its one consumer (Quay's fire is xrender.particle's, a picture).
+- **Graduation to preview**: a contract suite on every tier-1 row, a second consumer, the magnitudes within tolerance.

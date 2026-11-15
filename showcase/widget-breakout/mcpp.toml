@@ -13,6 +13,7 @@ description = "A breakout over a haunted Settings panel of real openmui componen
 license     = "Apache-2.0"
 
 [package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
 kind      = "showcase"
 contracts = ["contract/*.contract.omui.ts"]
 

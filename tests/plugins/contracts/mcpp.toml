@@ -9,6 +9,7 @@ description = "A component package whose bindings omui.build.contracts generates
 license     = "Apache-2.0"
 
 [package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 kind = "component"
 
 [targets.openmui-contracts-fixture]

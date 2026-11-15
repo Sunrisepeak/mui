@@ -10,6 +10,7 @@ description = "The fighting game: gongfu's deterministic rollback match on openm
 license     = "Apache-2.0"
 
 [package.metadata.openmui]
+maturity = "experimental"  # release plan §2.1: stable, preview or experimental (lint maturity)
 kind      = "showcase"
 contracts = ["contract/*.contract.omui.toml"]
 

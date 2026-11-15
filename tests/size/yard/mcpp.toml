@@ -12,6 +12,7 @@ license     = "Apache-2.0"
 platforms   = ["linux", "macos", "windows", "emscripten"]
 
 [package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 kind = "tool"
 
 [targets.omui-size-yard]

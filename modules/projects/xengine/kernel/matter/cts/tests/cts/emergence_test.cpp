@@ -2,7 +2,9 @@
 // interface and assertions on its state, all of the one standard definition (standard.matter.omui.ts). None of
 // its laws names a material and no scene adds a law: what happens follows from properties — a density, a phase,
 // an ignition point, how well a thing conducts — and from what is beside what. The numbers are the cases'
-// titles in the plan's table; the last cases are what the table does not list and the laws gave anyway.
+// titles in the plan's table; the last cases are what the table does not list and the laws gave anyway. Each case
+// also holds one magnitude to a calculation by hand, printed beside it with its tolerance written: three are exact
+// (fuel over burn rate, cell-ticks alight, the volume displaced), the rest an estimate from the laws' numbers.
 import std;
 import xengine.matter.json;
 import xengine.cellular.matter;
@@ -128,6 +130,14 @@ static UTest cases{"matter.emergence", [] {
         expect(world.depth("smoke") < 2.0 && world.depth("smoke") < smoke_before) << std::format("smoke is at the top (mean row {})", world.depth("smoke"));
         expect(world.is(14, 5, "wood")) << "a solid stays where it is";
         for (std::uint32_t x = 0; x < 16; ++x) expect(world.is(x, 13, "stone"));
+        // The magnitude, by hand: under the oil lie 55 of water (the 64 let go less the 6 of oil and 3 of smoke put in
+        // it) and 9 of sand, 64 / 16 = 4 rows over the floor (row 13). The sand is under the water: of the layer's
+        // moment 64 × 4 / 2, the sand's is 9 × h for its cells' mean height h — half a row (flat) to a row and a half
+        // (heaped) — so the water's mean height is 2.08 to 2.24 rows, and its mean row (12.5 less that, with h a row)
+        // 10.34. Tolerance: a quarter of a row, for the heap's slope and the slick's ragged edge.
+        const double water_row = world.depth("water"), by_hand = 12.5 - (64.0 * 4.0 / 2.0 - 9.0 * 1.0) / 55.0;
+        expect(std::abs(water_row - by_hand) <= 0.25) << std::format("the water's mean row {:.2f}, by hand {:.2f}", water_row, by_hand);
+        std::println("1: the water's mean row {:.2f}, by hand {:.2f} (± 0.25: it lies level over the sand)", water_row, by_hand);
         std::println("sand, water, oil and smoke by density and phase, after 400 ticks:\n{}", world.picture());
     };
 
@@ -148,6 +158,20 @@ static UTest cases{"matter.emergence", [] {
         expect(eq(caught[0], 1)) << "the lit end is alight at once";
         for (std::size_t piece = 1; piece < 8; ++piece) expect(caught[piece] > caught[piece - 1]) << std::format("piece {} caught at {}, the one before at {}", piece, caught[piece], caught[piece - 1]);
         expect(eq(world.count("ash"), std::size_t{8}) && eq(world.count("wood"), std::size_t{0})) << world.picture();
+        // The magnitudes, by hand. A piece burns its fuel at its rate, 400 at 1 a tick: the last is ash 400 ticks
+        // after it caught, to the tick. A piece catches no sooner than heat at wood's thermal (1/64 of the difference
+        // a tick) takes it from 293 K to 570 K beside a flame of about 1140 K (it adds 80 a tick below 1100) with
+        // nothing lost to the air and the floor: 64 ln(847 / 570) = 25 ticks. Tolerance: what the air and the floor
+        // take, up to four times that.
+        const double fastest = 64 * std::log((1140.0 - 293) / (1140.0 - 570));
+        expect(eq(steps, caught[7] + 400)) << std::format("the last piece caught at {} and was ash at {}: by hand 400 after", caught[7], steps);
+        for (std::size_t piece = 1; piece < 8; ++piece)
+            expect(caught[piece] - caught[piece - 1] >= std::floor(fastest) && caught[piece] - caught[piece - 1] <= 4 * fastest)
+                << std::format("piece {} caught {} ticks after the one before; by hand at least {:.0f}, at most 4 × that", piece, caught[piece] - caught[piece - 1], fastest);
+        std::array<int, 7> after;
+        for (std::size_t piece = 1; piece < 8; ++piece) after[piece - 1] = caught[piece] - caught[piece - 1];
+        std::println("   ash {} ticks after the last caught (by hand 400: fuel over rate); each piece {} ticks after the one before (by hand at least {:.1f}, at most 4 ×)", steps - caught[7],
+                     after, fastest);
         // Two pieces at 600 K, one of them wet: 570 K lights dry wood; each of wetness is 40 K more.
         World pair(standard(), {9, 4}, "air");
         pair.fill(0, 3, 8, 3, "stone");
@@ -198,6 +222,12 @@ static UTest cases{"matter.emergence", [] {
         std::println("3: {} of water over 8 of burning wood: out after {} ticks with {} of wood left ({} without the water); at most {} of steam at once, as high as row {} (the wood is in row 16); {} of water at the end\n{}",
                      water, out_at, doused.count("wood"), dry.count("wood"), most_steam, highest_steam, doused.count("water"), doused.picture());
         expect(out_at > 0 && eq(doused.alight(), std::size_t{0})) << "the fire is out";
+        // The magnitude, by hand: the fire is out when what is over the wood is no air — water, or the steam it
+        // makes. On the lattice a cell falls a row in each block of 2 × 2 and the cut moves down every second tick,
+        // so it falls a row in two ticks; the water's lower row (9) is 6 rows over the wood's top (15): 12 ticks.
+        // Tolerance: half as long again, for the slab's spread and its first cells boiling as they arrive.
+        expect(out_at >= 12 && out_at <= 18) << std::format("out after {} ticks; by hand 12", out_at);
+        std::println("   out after {} ticks; by hand 12 (6 rows at a row in 2 ticks; ≤ 1.5 ×)", out_at);
         expect(eq(doused.count("wood"), std::size_t{8})) << "with every piece of wood left";
         expect(eq(dry.count("wood"), std::size_t{0}) && eq(dry.count("ash"), std::size_t{8})) << "where the same fire without water burnt every piece";
         expect(most_steam >= 3u) << "water became steam";
@@ -227,6 +257,13 @@ static UTest cases{"matter.emergence", [] {
         std::println("water over lava on 12 x 12: at most {} cells of steam at once, its mean row as high as {:.1f}; {} stone, {} lava, {} water, {} steam after 1500 ticks\n{}", most_steam,
                      highest_steam, world.count("stone"), world.count("lava"), world.count("water"), world.count("steam"), world.picture());
         expect(most_steam >= 3u) << "water boiled";
+        // The magnitude, by hand: every cell holds a kelvin alike (heat flows by temperature), so the lava's heat
+        // over water's boiling point, 20 × (1600 − 373) = 24,540 kelvin-cells, boils at most 24,540 / (80 + 540) =
+        // 39 cells of water at 293 K (80 to its boiling point, 540 to boil): no more steam than that at once. The
+        // walls, the floor, the air beyond and the steam that condenses take the rest; tolerance: a quarter of it.
+        const double boils_at_most = 20.0 * (1600 - 373) / (80 + 540);
+        expect(most_steam <= boils_at_most && most_steam >= boils_at_most / 4) << std::format("at most {} of steam at once; by hand no more than {:.1f}", most_steam, boils_at_most);
+        std::println("   at most {} of steam at once; by hand the lava's heat boils {:.1f} at most (≥ a quarter of that)", most_steam, boils_at_most);
         expect(highest_steam < 6.0) << "and the steam rose above where the water was";
         expect(rained) << "and condensed up there";
         expect(world.count("lava") < 20u) << "lava set as stone where the water took its heat";
@@ -268,12 +305,19 @@ static UTest cases{"matter.emergence", [] {
             if (cold.count("water") == 0) frozen_at = step + 1;
         }
         expect(frozen_at > 0 && eq(cold.count("ice"), std::size_t{5})) << "the water froze, and the ice that was there kept\n" << cold.picture();
+        // The magnitude, by hand: the middle cell of the three gives heat to the air over it (thermal 1) and the
+        // stone under it (2), 3/64 of its difference from 250 K a tick: to 273 K takes (64 / 3) ln(43 / 23) = 13
+        // ticks, and its 80 of fusion at 3 × 23 / 64 a tick 74 more — 88 if the air and the stone stayed at 250 K.
+        // They warm with what it gives them (slower) and the cells beside it, frozen first, cool on (faster).
+        // Tolerance: three quarters to twice that.
+        const double freezes_in = 64.0 / 3 * std::log(43.0 / 23) + 80 / (3.0 * 23 / 64);
+        expect(frozen_at >= 0.75 * freezes_in && frozen_at <= 2 * freezes_in) << std::format("frozen after {}; by hand {:.0f}", frozen_at, freezes_in);
         World warm(standard(), {8, 5}, "air");
         warm.fill(0, 4, 7, 4, "stone");
         warm.fill(4, 3, 6, 3, "water");
         warm.step(400);
         expect(eq(warm.count("water"), std::size_t{3})) << "and at 293 K it stays water";
-        std::println("   water let into the room at 250 K was ice after {} ticks", frozen_at);
+        std::println("   water let into the room at 250 K was ice after {} ticks; by hand {:.0f} (¾ × to 2 ×)", frozen_at, freezes_in);
     };
 
     "6 — oil afloat catches and burns on the water: the flame goes over the slick from cell to cell"_test = [] {
@@ -300,7 +344,8 @@ static UTest cases{"matter.emergence", [] {
             world.step();
             most_alight = std::max(most_alight, world.alight());
             // Alight with water under it — straight under it, or under the steam it has made of the water's top.
-            for (std::uint32_t y = 0; y < 8; ++y)
+            // Every row of the basin: once the water has boiled away the oil lies on its floor.
+            for (std::uint32_t y = 0; y < 9; ++y)
                 for (std::uint32_t x = 0; x < 16; ++x) {
                     if (!world.is(x, y, "oil") || !world.value("burning", x, y)) continue;
                     ++alight_ticks;
@@ -310,10 +355,13 @@ static UTest cases{"matter.emergence", [] {
                 }
             if (world.count("oil") == 0) burnt_out = step + 1;
         }
-        std::println("6: 28 of oil on water, lit at one end: at most {} alight at once, all smoke after {} ticks; {} of {} cell-ticks alight had water under them; under a fire that long the water boils — {} of {} are steam at the end\n{}",
+        std::println("6: 28 of oil on water, lit at one end: at most {} alight at once, all smoke after {} ticks; {} of {} cell-ticks alight (by hand 28 × 200) had water under them; under a fire that long the water boils — {} of {} are steam at the end\n{}",
                      most_alight, burnt_out, on_water, alight_ticks, world.count("steam"), water, world.picture());
         expect(burnt_out > 0 && eq(world.count("smoke"), oil)) << "every cell of oil burnt to smoke";
         expect(most_alight >= 3u) << "the flame went from cell to cell over the slick";
+        // The magnitude, by hand: a cell burns its fuel at its rate and only while it burns, 200 at 1 a tick, so the
+        // slick is alight for 28 × 200 cell-ticks however the flame goes over it — to the tick.
+        expect(eq(alight_ticks, std::size_t{28 * 200})) << std::format("{} cell-ticks alight; by hand 28 × 200", alight_ticks);
         expect(on_water * 2 > alight_ticks && on_water > 500u) << std::format("burning where it floated: {} of {} cell-ticks alight had water under them", on_water, alight_ticks);
         expect(eq(world.count("water") + world.count("steam") + world.count("ice"), water)) << "and the water, in its phases, is what there was";
     };
@@ -339,6 +387,13 @@ static UTest cases{"matter.emergence", [] {
         std::println("7: wood at the far end of a bar of six from a 1250 K source caught at tick {} through iron, {} through stone (-1: not in 2500)", through_iron, through_stone);
         expect(through_iron > 0) << "the wood at the end of the iron bar caught";
         expect(through_stone < 0 || through_stone > 2 * through_iron) << "through stone much later, or not at all";
+        // The magnitude, by hand: along a bar heat diffuses at its thermal over 64, a cell² a tick — iron 8, stone 2 —
+        // and the time to warm its far end goes as length² over that: the bar's share is four times as long in stone.
+        // The wood's own link (thermal 1 against either) is the same for both and takes a share of each, so the
+        // ratio is between 1 and 4; tolerance: an eighth over 4, for what the floor under each bar takes.
+        const double ratio = static_cast<double>(through_stone) / through_iron;
+        expect(through_stone > 0 && ratio > 1 && ratio <= 4.5) << std::format("through stone {:.2f} × as long as through iron; by hand between 1 and 4", ratio);
+        std::println("   through stone {:.2f} × as long; by hand between 1 (the wood's link alone) and 4 (the bar alone: 8 / 2)", ratio);
         // Charge put on one end of a wire that goes into water, with wood after the water.
         World wire(standard(), {10, 4}, "air");
         wire.fill(0, 3, 9, 3, "stone");
@@ -405,10 +460,15 @@ static UTest cases{"matter.emergence", [] {
         };
         const auto [powder_gone, powder_moved, powder_push, powder_pressure, powder_picture] = run("gunpowder");
         const auto [wood_gone, wood_moved, wood_push, wood_pressure, wood_picture] = run("wood");
-        std::println("8: a trail of 10 of gunpowder was gone after {} ticks (wood: {}; -1: not in 400); the pressure two cells off reached {}, its hardest push on the body {}; the body went {:.1f} "
+        std::println("8: a trail of 10 of gunpowder was gone after {} ticks (by hand 21 to 30; wood: {}; -1: not in 400); the pressure two cells off reached {}, its hardest push on the body {}; the body went {:.1f} "
                      "cells (beside the wood: {:.2f})\n{}",
                      powder_gone, wood_gone, powder_pressure, powder_push, powder_moved / 10, wood_moved / 10, powder_picture);
         expect(powder_gone > 0 && powder_gone < 60) << "the trail went off";
+        // The magnitude, by hand: a grain alight adds 900 K a tick, and its neighbour takes an eighth of the
+        // difference a tick (gunpowder's thermal 8): from 293 K it is past its 480 K two to three ticks after the
+        // one before caught, and the last burns its 3 of fuel in 3 — 9 × 2 + 3 = 21 to 9 × 3 + 3 = 30 ticks for the
+        // trail of 10. Tolerance: a third over, for what the floor and the air take.
+        expect(powder_gone >= 21 && powder_gone <= 40) << std::format("gone after {}; by hand 21 to 30", powder_gone);
         expect(wood_gone < 0) << "where wood is still burning after 400";
         expect(powder_pressure > 0u && eq(wood_pressure, 0u)) << "a blast is pressure; a wood fire has none";
         expect(powder_moved - wood_moved > 20.0) << "the body was pushed away from it, by more than two cells";
@@ -443,15 +503,23 @@ static UTest cases{"matter.emergence", [] {
         for (std::uint32_t x = 0; x < 8; ++x) pan.heat(x, 9, 700);
         double highest = 99;
         std::size_t most = 0;
+        int first = -1;
         for (int step = 0; step < 400; ++step) {
             pan.step();
             if (const std::size_t vapour = pan.count("alcohol_vapour")) {
                 most = std::max(most, vapour);
                 highest = std::min(highest, pan.depth("alcohol_vapour"));
+                if (first < 0) first = step + 1;
             }
         }
-        std::println("alcohol over a hot stone: at most {} cells of vapour at once, as high as row {:.1f}", most, highest);
+        // The magnitude, by hand: with no latent heat it boils the tick it reaches 351 K. A cell of it takes 1/64
+        // of its difference from the stone at 700 K under it and gives 1/64 of its difference from the air at 293 K
+        // over it: dT/dt = (993 − 2T) / 64, from 293 K to 351 K in 32 ln(203.5 / 145.5) = 10.7 ticks. The stone
+        // cools as it gives (later); tolerance: up to twice that.
+        const double boils_in = 32 * std::log(203.5 / 145.5);
+        std::println("alcohol over a hot stone: the first vapour after {} ticks (by hand {:.1f}, ≤ 2 ×); at most {} cells of vapour at once, as high as row {:.1f}", first, boils_in, most, highest);
         expect(most >= 1u && highest < 7.0) << pan.picture();
+        expect(first >= std::floor(boils_in) && first <= 2 * boils_in) << std::format("the first vapour after {}; by hand {:.1f}", first, boils_in);
     };
 
     "what no one wrote: sand dropped into a full basin pushes water over its wall, the water runs to the wood — and the wood will not light"_test = [] {
@@ -475,8 +543,14 @@ static UTest cases{"matter.emergence", [] {
         for (std::uint32_t x = 11; x < 32; ++x) spilled += wet.is(x, 14, "water");
         expect(spilled >= 5u && eq(wet.count("water"), std::size_t{24})) << "the water the sand displaced went over the wall\n" << wet.picture();
         for (std::uint32_t x = 11; x < 32; ++x) expect(!dry.is(x, 14, "water")) << "and none did without the sand";
+        // The magnitude, by hand: the basin was full to its brim, and the sand is heavier and sinks; what it displaces
+        // is its own volume, 9 cells — and no more can stay in the basin than its 24. Exactly that is outside.
+        std::size_t outside = 0;
+        for (std::uint32_t y = 0; y < 15; ++y)
+            for (std::uint32_t x = 0; x < 32; ++x) outside += (x < 1 || x > 10 || y < 12) && wet.is(x, y, "water");
+        expect(eq(outside, std::size_t{9})) << std::format("{} cells of water out of the basin; by hand the sand's 9\n", outside) << wet.picture();
         expect(wet.value("wetness", 20, 14) > 0u && eq(dry.value("wetness", 20, 14), 0u)) << "the wood it reached is wet";
-        std::println("nine grains of sand into a full basin, after 300 ticks ({} cells of water over the wall, the nearest wood's wetness {}):\n{}", spilled, wet.value("wetness", 20, 14),
+        std::println("nine grains of sand into a full basin, after 300 ticks ({} cells of water out of the basin — by hand the sand's 9 —, {} on the floor by the wood; the nearest wood's wetness {}):\n{}", outside, spilled, wet.value("wetness", 20, 14),
                      wet.picture());
         // The same flame to both.
         dry.heat(20, 14, 700);
@@ -498,8 +572,11 @@ static UTest cases{"matter.emergence", [] {
         world.heat(10, 6, 600);
         std::size_t most_smoke = 0;
         double highest_smoke = 99;
+        std::uint32_t hottest = 0;
+        const std::size_t temperature = *world.program.channel("temperature") * world.area();
         for (int step = 0; step < 900; ++step) {
             world.step();
+            hottest = std::max(hottest, std::ranges::max(std::span(world.cells).subspan(temperature, world.area())));
             if (const std::size_t smoke = world.count("smoke")) {
                 most_smoke = std::max(most_smoke, smoke);
                 highest_smoke = std::min(highest_smoke, world.depth("smoke"));
@@ -513,6 +590,11 @@ static UTest cases{"matter.emergence", [] {
         // A fire is as hot as its flame: the stone under it and the wall beside it are stone still.
         for (std::uint32_t x = 0; x < 14; ++x) expect(world.is(x, 7, "stone")) << "the floor did not melt";
         expect(world.is(9, 5, "stone") && world.is(9, 6, "stone") && eq(world.count("lava"), std::size_t{0}));
+        // The magnitude, by hand: a flame adds its heat only below its flame's 1100 K, so nothing is hotter than
+        // 1100 and one tick's heat, oil's 100: 1200 K, short of stone's 1300. Tolerance: 4 K, what a neighbour
+        // conducts into a cell in the tick it is heated; and the fire reaches its flame.
+        expect(hottest / 256.0 >= 1100 && hottest / 256.0 <= 1204) << std::format("the hottest cell {:.1f} K; by hand 1100 to 1200", hottest / 256.0);
+        std::println("   the hottest cell at any tick {:.1f} K; by hand 1100 (the flame) to 1200 (and oil's 100 a tick)", hottest / 256.0);
         // Sealed in stone, hot enough: no oxygen beside it, nothing burns.
         World sealed(standard(), {5, 5}, "stone");
         sealed.put(2, 2, "wood");

@@ -31,9 +31,9 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 mcpplibs.cmdline = "0.0.3"
-gongfu.ai        = { path = "../ai" }
-gongfu.data      = { path = "../data" }
-gongfu.present2d = { path = "../present2d" }
+gongfu           = { path = ".." }  # with its computer opponent (gongfu.ai)
+"gongfu.data"      = { path = "../data" }
+"gongfu.present2d" = { path = "../present2d" }
 nlohmann.json    = "3.12.0"
 xrender.raster   = { path = "../../xrender/raster" }
 mlibs.image    = { path = "../../../base/image" }

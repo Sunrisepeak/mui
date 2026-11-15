@@ -116,8 +116,6 @@ members = [
     "modules/projects/gongfu/present2d",
     "modules/projects/gongfu/rules",
     "modules/projects/gongfu/studio",
-    "modules/projects/gongfu/training",
-    "modules/projects/gongfu/ai",
     "modules/projects/xengine/game/net",
     "modules/projects/xengine/game/world",
     "modules/projects/xengine/game/runtime",

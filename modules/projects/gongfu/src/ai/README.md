@@ -1,6 +1,6 @@
 # gongfu.ai
 
-A computer opponent for gongfu, and fighters measured against each other: the report the roster's balance is tuned by ([characters 2 design](../../../../.agents/docs/2026-10-28-gongfu-characters-2-design.md) §7).
+A computer opponent for gongfu, and fighters measured against each other: the report the roster's balance is tuned by ([characters 2 design](../../../../../.agents/docs/2026-10-28-gongfu-characters-2-design.md) §7).
 
 ```cpp
 import gongfu.ai;
@@ -28,4 +28,4 @@ const auto record = gongfu::ai::versus(system, a, b, 200, /*seed*/ 1);  // wins,
   - Every choice comes from its own seeded generator: a round plays the same every time, on every machine.
 - **Rounds** (`play`, `versus`): a round between two bots, and a pair's record over many with the sides swapped every other round. It counts wins, draws, damage dealt each way, round length and supers.
 
-`gongfu-studio versus <directory>` prints every pair's record as JSON (in [studio](../studio)). The fighting game's tests keep the roster within its balance gates.
+`gongfu-studio versus <directory>` prints every pair's record as JSON (in [studio](../../studio)). The fighting game's tests keep the roster within its balance gates.

@@ -91,7 +91,7 @@ A round ends at a K.O. or when the clock runs out (`over`, `winner`). It then pl
 ## Inside
 
 - [present2d](present2d) (`gongfu.present2d`): a match drawn in 2D: skeletons with vector parts posed by clips, the camera, and impact profiles (shake, punch in, flash, sparks). Looks are files (`*.look.gongfu.toml`). Every picture is a pure function of the state and its events.
-- [training](training) (`gongfu.training`): what training mode shows, measured from the match after each frame:
+- [training](src/training) (`gongfu.training`, a module of the core package): what training mode shows, measured from the match after each frame:
   - each player's input history;
   - the frame meter: startup, active, recovery and stun, with hitstop not counted;
   - the frame advantage once both sides recover;
@@ -100,7 +100,7 @@ A round ends at a K.O. or when the clock runs out (`over`, `winner`). It then pl
   - a move's frame data, measured by playing it from where it reaches against a dummy standing and guarding, and the demonstration it was measured from (a move list's).
 
   It uses only the standard library and allocates nothing per frame.
-- [ai](ai) (`gongfu.ai`): a computer opponent, and fighters measured against each other.
+- [ai](src/ai) (`gongfu.ai`, a module of the core package): a computer opponent, and fighters measured against each other.
   - The kit: what a fighter's moves are for, read from their data.
   - The bot: it sees the other side a reaction late; it guards, anti-airs, jumps projectiles, punishes whiffs (stepping in when it has to), zones, pokes, throws and spends meter. It is seeded, so a round plays the same everywhere.
   - Rounds and records: wins, damage (by move), round length and supers, with the sides swapped every other round.

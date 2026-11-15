@@ -24,7 +24,6 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 gongfu          = { path = "../../../modules/projects/gongfu" }
-"gongfu.ai"      = { path = "../../../modules/projects/gongfu/ai" }
 "gongfu.data"    = { path = "../../../modules/projects/gongfu/data" }
 xengine.runtime = { path = "../../../modules/projects/xengine/game/runtime" }
 xengine.input   = { path = "../../../modules/projects/xengine/game/input" }

@@ -132,7 +132,7 @@ Kind: R regression, E environment, F flaky or time, T test expectation.
 
 - Convergence: `tools/` has one contributors' tool (`omui-devtools`: ci, llvm, platforms, govern, incremental, atspi); the scripts the plan names are gone (eval and the hanim consumer probes stay, unnamed). Packages 179 → 167 (≤ 130 is the gate: 37 to go, in omui 38, xengine 25, xrender 20 — each reviewed, some held by mcpp#941).
 - Owners: the governor runs `ps`/`kill` because mcpplibs.os neither lists nor pauses programs it did not start → upstream (os 0.4.x, additive). `mlibs.message` is the one owner of messages without a locale; only the 3D page's closure uses it, the budget (394 KB) is what holds that — a second closure that ships to the Web takes it the same way.
-- Consistency: every game is now "the game on its own (Web)" + "its programs (native)"; exceptions said where they are (Quay's `play`: SDL's device; Glade at `headless`: no picture yet). Kiln's and Swarm's windows still repeat a game window and its recording → `xengine.ui`.
+- Consistency: every game is now "the game on its own (Web)" + "its programs (native)"; exceptions said where they are (Quay's `play`: SDL's device; Glade at `headless`: no picture yet). Kiln's and Swarm's windows, looked at closely: what they share (viewport, pacer, input feed, sampler, the recording's form) is already `xengine.ui`'s and `xengine.input`'s, composed; what is left in common is ~30 lines of wiring around what differs (Kiln's sound and images, Swarm's seed) — kept per game.
 - Stability: red 104 was undefined behaviour (a view of a temporary) that only wasm showed: native passing is not evidence. `mlibs.json`'s `text()` answers `std::optional<std::string>`, so `value_or` into a `string_view` dangles — look for it in review. The governor's hold test is a timing ratio (1.6×), a flake risk on a loaded runner.
 - Measurement: red 101's lever (std::locale, ≈ 368 KB) was larger than the estimate (87 KB of facets): the data tables went too. `mlibs.message` costs 10 KB; an in-place variant measured larger and was dropped.
 - Pace: 14 checkpoints wait behind one CI run (arm green; x64, Windows, macOS running); a run is the bottleneck, not the work. Push when it ends; reconcile with `omui-devtools ci run`.
@@ -140,6 +140,6 @@ Kind: R regression, E environment, F flaky or time, T test expectation.
 ## Next
 
 1. When run 43736937315 ends: `omui-devtools ci run`, reds recorded, push the 14 checkpoints, N0 written again; mcpp and mtest bumped to the latest.
-2. RC1.5 per project (omui, xengine, xrender, hanim, mlibs), each package reviewed before it moves; the game window's shared part into `xengine.ui`.
+2. RC2.15's rest (the 2D API's stable surface, the 3D core against model-viewer, the stroker's tight turns), then RC2.16–2.19 bottom up; RC1.5's last merges when mcpp#941/#942 land.
 3. Upstream: mcpplibs.os lists and pauses programs (the governor drops `ps`/`kill`); mcpp#941 (`[test] features`) and #942 (tests by target) — what the last ~30 merges wait on.
 4. RC2.15's rest: red 102 (Apple's sRGB sampling), the stroker's tight turns; then RC2.14–2.19 bottom up.

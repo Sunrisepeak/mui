@@ -167,6 +167,7 @@ members = [
     "examples/12-notes",
     "examples/13-live-design",
     "showcase/fighting",
+    "showcase/fighting/headless",
     "showcase/markdown-wall",
     "showcase/promo-video",
     "showcase/style-gallery",

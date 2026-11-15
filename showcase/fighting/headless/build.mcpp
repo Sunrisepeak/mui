@@ -1,0 +1,9 @@
+// The work's fighters — what they do and their baked hurtboxes — carried in the program (gongfu.rules), the same
+// files the window's build carries.
+import std;
+import mcpp;
+import gongfu.rules;
+
+int main() {
+    return gongfu::rules::fighters({.module = "omui.showcase.fighting.headless", .ns = "fighting::files", .dir = "../fighters"}) ? 0 : 1;
+}

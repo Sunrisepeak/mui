@@ -33,6 +33,12 @@ enum class Mode : std::int32_t {
 };
 // How many modes there are: what a table by mode is sized by.
 inline constexpr std::size_t mode_count = static_cast<std::size_t>(Mode::cinematic) + 1;
+// Each mode's name, as a player reads it and a look names its clips ("idle", "walk_forward", "hitstun", …).
+inline constexpr std::array<std::string_view, mode_count> mode_names{"idle",      "walk_forward", "walk_back", "crouch", "prejump", "air",   "landing",
+                                                                     "move",      "hitstun",      "blockstun", "knockdown", "wakeup", "thrown", "ko",
+                                                                     "reset",     "clash",        "broken",    "cinematic"};
+static_assert(std::ranges::none_of(mode_names, &std::string_view::empty), "a name for every mode");
+[[nodiscard]] constexpr std::string_view name(Mode mode) noexcept { return mode_names[static_cast<std::size_t>(mode)]; }
 
 struct FighterState {
     Vec          pos, vel;

@@ -17,10 +17,6 @@ using mlibs::geom::Affine;
 using mlibs::geom::Rect;
 namespace render = xrender;
 
-constexpr std::array<std::string_view, mode_count> mode_clips{"idle",      "walk_forward", "walk_back", "crouch", "prejump", "air",   "landing",
-                                                              "move",      "hitstun",      "blockstun", "knockdown", "wakeup", "thrown", "ko",
-                                                              "reset",     "clash",        "broken",    "cinematic"};
-static_assert(std::ranges::none_of(mode_clips, &std::string_view::empty), "a clip name for every mode");
 
 double stage(Fixed f) { return f.to_double(); }
 
@@ -117,7 +113,7 @@ double scatter(const Effects::Kept& k, std::uint32_t i) noexcept {
 
 std::string_view clip_name(const Fighter& fighter, const FighterState& s) noexcept {
     if (s.mode == Mode::move && s.move >= 0) return fighter.def.moves[static_cast<std::size_t>(s.move)].name;
-    return mode_clips[static_cast<std::size_t>(s.mode)];
+    return gongfu::name(s.mode);  // a mode's clip is named as the mode is
 }
 
 Pose pose(const Look& look, const Fighter& fighter, const FighterState& s, std::int32_t frame) {

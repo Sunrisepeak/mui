@@ -84,6 +84,8 @@ The feature `art-later` (off by default) matters only on the Web. There the figh
 
   `gongfu-studio stage` previews a stage with two fighters for scale.
 
+**The fight on its own** ([headless](headless), `omui.showcase.fighting.headless`): a match of the work's fighters — the seat's player on the left, the computer on the right — as [xengine.runtime](../../modules/projects/xengine/game/runtime) plays it, with no omui: stepped, sought back and branched ahead, and played by an agent through `world.observe`, `world.act`, `world.step` on a person's tier (a fifth of a second's reaction, ten actions a second). The seat's actions are a pad: the first two axes the stick, buttons 0 to 5 the punches and kicks (`world.state` names them: `left` … `heavy-kick`); the view says the clock and each fighter's health, place, what it is doing, whether it can act and its `reach`. `mcpp test -p omui.showcase.fighting.headless`: two fighters play a whole round; the same inputs the same bits, sought back and played again the same; the game's three tasks as written; an agent on a person's tier playing a whole round against the computer through requests alone (no request refused; 34 strikes, the computer down to 4,920 of 10,600, the agent knocked out at frame 1,391); the agent contract's suite.
+
 `tests/select_test.cpp` covers the menus: the title's modes, choosing by keys and by gamepad, and the title and the select screen with pinned pixels. `tests/sound_test.cpp` covers what the game sounds like, each with pinned sound: the menus' music and cues, the announcer's calls, and the fighters' voices. `tests/fighting_test.cpp` covers:
 - the roster read;
 - 60 frames a second on the clock, exactly;
@@ -98,6 +100,6 @@ The feature `art-later` (off by default) matters only on the Web. There the figh
 ## Experimental (release 0.1, D-199)
 
 - **Target**: a fighting game of top independent quality, side by side with Street Fighter 6 (2D against 3D the only allowance).
-- **Now**: six fighters, title and select screens, training mode with boxes and a frame meter; gongfu's deterministic rollback core underneath.
+- **Now**: six fighters, title and select screens, training mode with boxes and a frame meter; gongfu's deterministic rollback core underneath; the fight on its own at the runtime, played through by an agent on a person's tier (`headless`).
 - **Gap**: supers, hit impact and the interface fall short of SF6 in the side-by-side; the art pipeline covers Mo fully, the others in part.
-- **Graduation to preview**: gongfu's graduation (its README), and the work's own: installed from the release and played for a match, an agent at a person's tier, the SF6 table at par.
+- **Graduation to preview**: gongfu's graduation (its README), and the work's own: installed from the release and played for a match (a round is played headless now; the release's packages are RC3's), an agent that wins at a person's tier (one plays through now and loses to the computer), the SF6 table at par.

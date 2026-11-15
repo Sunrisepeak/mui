@@ -52,6 +52,7 @@ struct Guests {
     std::uint32_t               weight = 1;
     std::span<const std::uint32_t> capacity;  // how much each holds (none: 1 each), as matter's Carrier says
     std::span<const std::uint32_t> exposed;   // how much of each its reactions run over (none: all it holds)
+    std::span<std::int32_t>        residue;   // what transfers left each short of a whole unit (matter's Carrier; none: dropped)
 };
 
 // A parked block as a value: where it is, its coarse value of each channel, each cell's difference from it, its
@@ -70,6 +71,11 @@ struct Region {
         const auto bits = [](Vec3 at) { return std::array{std::bit_cast<std::uint32_t>(at.x), std::bit_cast<std::uint32_t>(at.y), std::bit_cast<std::uint32_t>(at.z)}; };
         return block == other.block && coarse == other.coarse && difference == other.difference && bits(wind) == bits(other.wind);
     }
+};
+
+// Two guests of different groups beside each other (a drop on a crate): by group and place in it, and how much.
+struct Between {
+    std::uint32_t group_one = 0, one = 0, group_other = 0, other = 0, weight = 1;
 };
 
 // A field is a value: a copy is a branch that goes its own way from here (the program shared, read only).
@@ -113,8 +119,9 @@ public:
     // cells' kept differences: what a switch between the two keeps exactly.
     [[nodiscard]] std::int64_t total(std::uint32_t channel) const noexcept;
 
-    // One tick: the laws across the cells and the guests in them, then the wind moved and the heat carried.
-    [[nodiscard]] std::expected<matter::Report, matter::Failure> step(std::span<const Guests> guests = {});
+    // One tick: the laws across the cells and the guests in them (and between guests of different groups, as
+    // `between` says), then the wind moved and the heat carried.
+    [[nodiscard]] std::expected<matter::Report, matter::Failure> step(std::span<const Guests> guests = {}, std::span<const Between> between = {});
     // What happened to an instance of the last step (cells first, then each group of guests in turn).
     [[nodiscard]] std::span<const matter::Event> events() const noexcept { return events_; }
     // Why an instance of the last step is what it is (cells first, then the guests in the order given).
@@ -160,7 +167,8 @@ private:
     static constexpr std::uint32_t nobody = 0xffffffffu;
     std::vector<std::array<std::uint32_t, 6>> near_;  // each cell's neighbours: +x, −x, +y, −y, +z, −z (nobody: none)
     std::vector<matter::Pair>  pairs_;            // a step's: links, then guests
-    std::vector<std::uint32_t> capacity_, exposed_;  // a step's: each instance's
+    std::vector<std::uint32_t> capacity_, exposed_;
+    std::vector<std::int32_t>  residue_;          // a step's: [transfer][instance], the guests' kept, the cells' none  // a step's: each instance's
     std::vector<std::uint32_t> input_, output_, before_;
     std::vector<std::uint32_t> firsts_;
     std::vector<matter::Event> events_;

@@ -78,7 +78,10 @@ Why Program::why(Carrier carrier, std::span<const std::uint32_t> input, std::siz
             const std::uint32_t difference = mine > theirs ? mine - theirs : theirs - mine;
             std::uint64_t load = 0;
             if (carrier.crowded) {
-                const auto load_of = [&](std::uint32_t end) { return std::uint64_t{conducts(end)} * law.multiply * degree[end]; };
+                const auto load_of = [&](std::uint32_t end) {  // as step() has it: over what the end holds, rounded up
+                    const std::uint64_t held = carrier.capacity.size() > end ? std::max(1u, carrier.capacity[end]) : 1u;
+                    return (std::uint64_t{conducts(end)} * law.multiply * degree[end] + held - 1) / held;
+                };
                 load = std::max(load_of(static_cast<std::uint32_t>(instance)), load_of(*other));
             }
             const std::uint32_t flow = flow_of(law, difference, conductance, pair.weight, load);

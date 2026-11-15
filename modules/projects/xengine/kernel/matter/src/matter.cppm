@@ -261,6 +261,11 @@ struct Carrier {
     // How much of each instance its reactions run over (none: all it holds) — a body's surface, in the units of
     // its capacity. An extensive property is read as the value × capacity ÷ exposed; nothing else changes.
     std::span<const std::uint32_t> exposed;
+    // What a transfer moved into or out of an instance that holds more than one but came to less than a whole unit
+    // of it — kept, read and written, [transfer][instance], in units of 1 ÷ its capacity (none: dropped, as a
+    // lattice of capacity 1 has none). With it nothing is made or lost: a drop gives a crate twelve times its size
+    // a twelfth of a unit of wetness a step, and after twelve the crate has one. The carrier keeps it as state.
+    std::span<std::int32_t> residue;
 };
 enum class EventKind : std::uint8_t { became, rose, fell };
 // What happened to an instance in a step, for whoever plays a sound or keeps a score: it became another
@@ -330,6 +335,7 @@ public:
 private:
     friend class Program;
     std::vector<std::uint32_t> near_, gained_, lost_, degree_, row_, plus_, minus_, base_;
+    std::vector<std::int64_t>  net_;
     std::vector<std::uint8_t>  set_;
 };
 
@@ -341,6 +347,8 @@ public:
 
     // ── what it holds ──
     [[nodiscard]] std::span<const Column> columns() const noexcept { return columns_; }
+    // How many laws are transfers: a carrier's residue is this many rows of its instances.
+    [[nodiscard]] std::size_t transfers() const noexcept { return transfers_.size(); }
     [[nodiscard]] std::span<const Channel> channels() const noexcept { return channels_; }
     [[nodiscard]] std::span<const Material> materials() const noexcept { return materials_; }
     [[nodiscard]] std::span<const Law> laws() const noexcept { return laws_; }

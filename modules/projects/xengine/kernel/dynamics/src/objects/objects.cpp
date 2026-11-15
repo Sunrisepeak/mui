@@ -33,6 +33,15 @@ bool Objects::add(BodyId body, matter::MaterialId material) {
         std::copy(from + static_cast<std::ptrdiff_t>(at), from + static_cast<std::ptrdiff_t>(count), to);
     }
     state_ = std::move(widened);
+    // Its residue row in each transfer: none yet.
+    const std::size_t slots = program_->transfers();
+    std::vector<std::int32_t> residue(slots * (count + 1), 0);
+    for (std::size_t slot = 0; slot < slots; ++slot)
+        for (std::size_t instance = 0, place = 0; instance < count; ++instance, ++place) {
+            if (instance == at) ++place;
+            residue[slot * (count + 1) + place] = residue_[slot * count + instance];
+        }
+    residue_ = std::move(residue);
     bodies_.insert(bodies_.begin() + static_cast<std::ptrdiff_t>(at), body);
     return true;
 }
@@ -47,6 +56,11 @@ bool Objects::remove(BodyId body) {
         for (std::size_t instance = 0; instance < count; ++instance)
             if (instance != *at) narrowed.push_back(state_[channel * count + instance]);
     state_ = std::move(narrowed);
+    std::vector<std::int32_t> residue;
+    for (std::size_t slot = 0; slot < program_->transfers(); ++slot)
+        for (std::size_t instance = 0; instance < count; ++instance)
+            if (instance != *at) residue.push_back(residue_[slot * count + instance]);
+    residue_ = std::move(residue);
     bodies_.erase(bodies_.begin() + static_cast<std::ptrdiff_t>(*at));
     return true;
 }
@@ -166,8 +180,15 @@ std::expected<matter::Report, matter::Failure> Objects::step(const World& world)
     output_.resize(input_.size());
     events_.clear();
     weigh(world, instances);
-    auto stepped = program_->step({instances, pairs_, false, capacity_, exposed_}, input_, output_, workspace_, &events_);
+    // The bodies' residues (the bath's samples have none: they are made anew each step).
+    const std::size_t slots = program_->transfers();
+    step_residue_.assign(slots * instances, 0);
+    for (std::size_t slot = 0; slot < slots; ++slot)
+        std::copy_n(residue_.begin() + static_cast<std::ptrdiff_t>(slot * count), count, step_residue_.begin() + static_cast<std::ptrdiff_t>(slot * instances));
+    auto stepped = program_->step({instances, pairs_, false, capacity_, exposed_, step_residue_}, input_, output_, workspace_, &events_);
     if (!stepped) return stepped;
+    for (std::size_t slot = 0; slot < slots; ++slot)
+        std::copy_n(step_residue_.begin() + static_cast<std::ptrdiff_t>(slot * instances), count, residue_.begin() + static_cast<std::ptrdiff_t>(slot * count));
     // What became of the air is not kept: it is a bath.
     std::erase_if(events_, [&](const matter::Event& event) { return event.instance >= count; });
     for (std::size_t channel = 0; channel < channels; ++channel)
@@ -183,6 +204,14 @@ std::expected<matter::Report, matter::Failure> Objects::step(const World& world)
 }
 
 std::expected<matter::Report, matter::Failure> Objects::step(const World& world, xengine::field::Field& air) {
+    const std::array<xengine::field::Guests, 1> guests{guests_in(world, air)};
+    auto stepped = air.step(guests);
+    if (!stepped) return stepped;
+    joined(air, 0);
+    return stepped;
+}
+
+xengine::field::Guests Objects::guests_in(const World& world, xengine::field::Field& air) {
     world.touching(touches_, options_.margin);
     pairs_.clear();
     for (const Touch& touch : touches_) {
@@ -199,17 +228,18 @@ std::expected<matter::Report, matter::Failure> Objects::step(const World& world,
         air.cover(centre, 2);
     }
     weigh(world, bodies_.size());
-    const std::array<xengine::field::Guests, 1> guests{xengine::field::Guests{.state = state_, .pairs = pairs_, .at = at_, .capacity = capacity_, .exposed = exposed_}};
-    auto stepped = air.step(guests);
-    if (!stepped) return stepped;
-    // What happened to the bodies (the field's events are by instance: cells first, then these).
-    const std::uint32_t first = air.first_guest(0);
+    return {.state = state_, .pairs = pairs_, .at = at_, .capacity = capacity_, .exposed = exposed_, .residue = residue_};
+}
+
+void Objects::joined(const xengine::field::Field& air, std::size_t group) {
+    // What happened to the bodies (the field's events are by instance: cells first, then each group).
+    const std::uint32_t first = air.first_guest(group);
     events_.clear();
     for (matter::Event event : air.events())
         if (event.instance >= first && event.instance < first + bodies_.size()) event.instance -= first, events_.push_back(event);
     bodies_before_.assign(bodies_.begin(), bodies_.end());
     before_.clear();
-    joined_ = &air;
+    joined_ = &air, group_ = static_cast<std::uint32_t>(group);
     ++steps_;
     if (!events_.empty()) {
         const auto count = static_cast<std::uint32_t>(bodies_.size());
@@ -229,7 +259,6 @@ std::expected<matter::Report, matter::Failure> Objects::step(const World& world,
         };
         witness([&](std::uint32_t instance) { return air.why(first + instance); }, source);
     }
-    return stepped;
 }
 
 void Objects::blow(World& world, const xengine::field::Field& air) const {
@@ -333,7 +362,7 @@ std::optional<BodyId> Objects::lightning(const World& world, Strike strike) {
 std::optional<matter::Why> Objects::why(BodyId body) const {
     const auto found = std::ranges::lower_bound(bodies_before_, body);
     if (found == bodies_before_.end() || *found != body) return std::nullopt;
-    if (joined_) return joined_->why(joined_->first_guest(0) + static_cast<std::uint32_t>(found - bodies_before_.begin()));
+    if (joined_) return joined_->why(joined_->first_guest(group_) + static_cast<std::uint32_t>(found - bodies_before_.begin()));
     if (before_.empty()) return std::nullopt;
     const std::size_t instances = before_.size() / program_->channels().size();
     return program_->why({instances, pairs_}, before_, static_cast<std::size_t>(found - bodies_before_.begin()));
@@ -343,6 +372,7 @@ std::uint64_t Objects::state_hash() const noexcept {
     mlibs::hash::Fnv1a hash;
     for (const BodyId body : bodies_) hash.le(body.value, 4);
     for (const std::uint32_t value : state_) hash.le(value, 4);
+    for (const std::int32_t value : residue_) hash.le(static_cast<std::uint32_t>(value), 4);
     return hash.value();
 }
 

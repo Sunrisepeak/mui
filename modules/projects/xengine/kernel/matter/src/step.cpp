@@ -123,6 +123,8 @@ std::expected<Report, Failure> Program::step(Carrier carrier, std::span<const st
 
     if (!carrier.capacity.empty() && carrier.capacity.size() != instances)
         return fail(Errc::shape, "/capacity", std::format("{} capacities for {} instances: one each, or none", carrier.capacity.size(), instances));
+    if (!carrier.residue.empty() && carrier.residue.size() != transfers_.size() * instances)
+        return fail(Errc::shape, "/residue", std::format("{} residues for {} transfers × {} instances: one each, or none", carrier.residue.size(), transfers_.size(), instances));
     if (!carrier.exposed.empty() && carrier.exposed.size() != instances)
         return fail(Errc::shape, "/exposed", std::format("{} exposures for {} instances: one each, or none", carrier.exposed.size(), instances));
     // How much is beside each instance: what a transfer's share must leave room for.
@@ -141,7 +143,9 @@ std::expected<Report, Failure> Program::step(Carrier carrier, std::span<const st
             const std::uint32_t material = input[instance];
             if (material >= materials_.size()) continue;  // conducts nothing: takes no part
             const std::uint64_t most = law.by == none ? 1 : static_cast<std::uint64_t>(values_[material * width + law.by]);
-            if (most * law.multiply * workspace.degree_[instance] > (std::uint64_t{1} << law.shift))
+            // What it holds (its capacity) is what it can give: a crate of twelve units has twelve times the room.
+            const std::uint64_t held = carrier.capacity.size() > instance ? std::max(1u, carrier.capacity[instance]) : 1u;
+            if (most * law.multiply * workspace.degree_[instance] > (std::uint64_t{1} << law.shift) * held)
                 return fail(Errc::unstable, std::format("/laws/{}", index),
                             std::format("`{}`: instance {} has {} beside it; with a share of {} × {} / {} to each, they could together take more than it has", law.name, instance,
                                         workspace.degree_[instance], most, law.multiply, std::uint64_t{1} << law.shift));
@@ -168,6 +172,8 @@ std::expected<Report, Failure> Program::step(Carrier carrier, std::span<const st
     // 2 What flows: for each pair, the same amount counted at both ends.
     workspace.gained_.assign(transfers_.size() * instances, 0);
     workspace.lost_.assign(transfers_.size() * instances, 0);
+    const bool kept = !carrier.residue.empty();
+    if (kept) workspace.net_.assign(instances, 0);
     for (std::size_t slot = 0; slot < transfers_.size(); ++slot) {
         const Law& law = laws_[transfers_[slot]];
         // What is not a material of this definition conducts nothing: it takes no part.
@@ -186,14 +192,36 @@ std::expected<Report, Failure> Program::step(Carrier carrier, std::span<const st
             const std::uint32_t difference = one > other ? one - other : other - one;
             std::uint64_t load = 0;
             if (carrier.crowded) {
-                const auto load_of = [&](std::uint32_t end) { return std::uint64_t{conducts(end)} * law.multiply * workspace.degree_[end]; };
+                // An end's load: its conductance × the share × all beside it, over what it holds (rounded up) — a crate
+                // of twelve units with 383 drops on it is as crowded as a cell with 32.
+                const auto load_of = [&](std::uint32_t end) {
+                    const std::uint64_t held = carrier.capacity.size() > end ? std::max(1u, carrier.capacity[end]) : 1u;
+                    return (std::uint64_t{conducts(end)} * law.multiply * workspace.degree_[end] + held - 1) / held;
+                };
                 load = std::max(load_of(pair.first), load_of(pair.second));
             }
             const std::uint32_t flow = flow_of(law, difference, conductance, pair.weight, load);
             const std::uint32_t from = one > other ? pair.first : pair.second, to = one > other ? pair.second : pair.first;
+            if (kept) {
+                workspace.net_[from] -= flow, workspace.net_[to] += flow;
+                continue;
+            }
             const auto held = [&](std::uint32_t end) { return carrier.capacity.empty() ? 1u : std::max(1u, carrier.capacity[end]); };
             lost[from] = saturating_add(lost[from], flow / held(from));
             gained[to] = saturating_add(gained[to], flow / held(to));
+        }
+        if (!kept) continue;
+        // Kept: each instance's net flow and what it had left over, in whole units of its own (floored), the rest
+        // kept for the next step — exact: Σ (value × capacity + residue) moves only by what the laws say.
+        std::int32_t* residue = carrier.residue.data() + slot * instances;
+        for (std::size_t instance = 0; instance < instances; ++instance) {
+            const std::int64_t held = carrier.capacity.empty() ? 1 : std::max<std::int64_t>(1, carrier.capacity[instance]);
+            const std::int64_t total = workspace.net_[instance] + residue[instance];
+            const std::int64_t whole = total >= 0 ? total / held : -((-total + held - 1) / held);
+            residue[instance] = static_cast<std::int32_t>(total - whole * held);
+            if (whole > 0) gained[instance] = static_cast<std::uint32_t>(std::min<std::int64_t>(whole, 0xffffffffLL));
+            else lost[instance] = static_cast<std::uint32_t>(std::min<std::int64_t>(-whole, 0xffffffffLL));
+            workspace.net_[instance] = 0;
         }
     }
 

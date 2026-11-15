@@ -392,7 +392,7 @@ float Field::kelvin_at(Vec3 at) const noexcept {
     return static_cast<float>(sample(at, options_.air_kelvin, [&](std::uint32_t cell) { return static_cast<double>(state_[temperature_ * cells() + cell]) * scale; }));
 }
 
-std::expected<matter::Report, matter::Failure> Field::step(std::span<const Guests> guests) {
+std::expected<matter::Report, matter::Failure> Field::step(std::span<const Guests> guests, std::span<const Between> between) {
     const std::size_t channels = program_->channels().size(), count = cells(), coarse = coarse_keys_.size();
     std::size_t instances = count + coarse;
     firsts_.clear();
@@ -422,10 +422,28 @@ std::expected<matter::Report, matter::Failure> Field::step(std::span<const Guest
             else if (const auto parked_in = coarse_at(these.at[guest])) pairs_.push_back({static_cast<std::uint32_t>(count + *parked_in), static_cast<std::uint32_t>(first + guest), these.weight});
         }
     }
+    // The guests' residues (what transfers left each short of a whole unit), the cells' and coarse ones' none.
+    const std::size_t slots = program_->transfers();
+    residue_.assign(slots * instances, 0);
+    for (std::size_t group = 0; group < guests.size(); ++group) {
+        const std::size_t many = guests[group].at.size();
+        if (guests[group].residue.size() != slots * many) continue;
+        for (std::size_t slot = 0; slot < slots; ++slot)
+            std::copy_n(guests[group].residue.begin() + static_cast<std::ptrdiff_t>(slot * many), many, residue_.begin() + static_cast<std::ptrdiff_t>(slot * instances + firsts_[group]));
+    }
+    for (const Between& pair : between)
+        if (pair.group_one < guests.size() && pair.group_other < guests.size() && pair.one < guests[pair.group_one].at.size() && pair.other < guests[pair.group_other].at.size())
+            pairs_.push_back({firsts_[pair.group_one] + pair.one, firsts_[pair.group_other] + pair.other, pair.weight});
     output_.resize(input_.size());
     events_.clear();
-    auto stepped = program_->step({instances, pairs_, true, capacity_, exposed_}, input_, output_, workspace_, &events_);  // a cell and all in it: crowded
+    auto stepped = program_->step({instances, pairs_, true, capacity_, exposed_, residue_}, input_, output_, workspace_, &events_);  // a cell and all in it: crowded
     if (!stepped) return stepped;
+    for (std::size_t group = 0; group < guests.size(); ++group) {
+        const std::size_t many = guests[group].at.size();
+        if (guests[group].residue.size() != slots * many) continue;
+        for (std::size_t slot = 0; slot < slots; ++slot)
+            std::copy_n(residue_.begin() + static_cast<std::ptrdiff_t>(slot * instances + firsts_[group]), many, guests[group].residue.begin() + static_cast<std::ptrdiff_t>(slot * many));
+    }
     for (std::size_t channel = 0; channel < channels; ++channel) {
         std::copy_n(output_.begin() + static_cast<std::ptrdiff_t>(channel * instances), count, state_.begin() + static_cast<std::ptrdiff_t>(channel * count));
         std::copy_n(output_.begin() + static_cast<std::ptrdiff_t>(channel * instances + count), coarse, coarse_state_.begin() + static_cast<std::ptrdiff_t>(channel * coarse));

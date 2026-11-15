@@ -61,13 +61,15 @@ std::uint32_t Cloud::emit(std::span<const Spawn> spawns) {
             state[temperature_ * after + particle] = static_cast<std::uint32_t>(std::clamp(stored, 0.0, 4294967295.0));
         }
         at_.push_back(spawn.at), velocity_.push_back(spawn.velocity), size_.push_back(spawn.size), age_.push_back(0), life_.push_back(spawn.life), id_.push_back(next_id_++), rise_.push_back(0);
+        against_.push_back(no_surface);
     }
     return static_cast<std::uint32_t>(taken);
 }
 
-std::optional<std::pair<float, Vec3>> Cloud::first_hit(Vec3 from, Vec3 to) const noexcept {
+std::optional<Cloud::Hit> Cloud::first_hit(Vec3 from, Vec3 to) const noexcept {
     float first = 1;
     Vec3  normal{0, 0, 0};
+    std::uint32_t surface = 0;
     for (const Facing& one : facing_) {
         const Vec3 start = math::point(one.back, from), end = math::point(one.back, to);
         const Vec3 way = end - start;
@@ -81,10 +83,10 @@ std::optional<std::pair<float, Vec3>> Cloud::first_hit(Vec3 from, Vec3 to) const
         const Vec3 a = mesh.positions[mesh.indices[corner]], b = mesh.positions[mesh.indices[corner + 1]], c = mesh.positions[mesh.indices[corner + 2]];
         const Vec3 facing = math::normalized(math::direction(one.normals, math::cross(b - a, c - a)));
         if (!(math::dot(facing, facing) > 0)) continue;
-        first = hit->distance / length, normal = facing;
+        first = hit->distance / length, normal = facing, surface = one.index;
     }
     if (!(first < 1)) return std::nullopt;
-    return std::pair{first, normal};
+    return Hit{first, normal, surface};
 }
 
 void Cloud::find_touches() {
@@ -127,9 +129,9 @@ std::pair<Vec3, std::optional<Vec3>> Cloud::kept_off(Vec3 from, Vec3 to, float r
     const Vec3 ahead = way * (1 / length);
     const auto hit = first_hit(from, to + ahead * radius);
     if (!hit) return {to, std::nullopt};
-    Vec3 normal = hit->second;
+    Vec3 normal = hit->normal;
     if (math::dot(normal, way) > 0) normal = normal * -1.0f;
-    const Vec3 met = from + ahead * ((length + radius) * hit->first);
+    const Vec3 met = from + ahead * ((length + radius) * hit->fraction);
     return {met + normal * radius, normal};
 }
 
@@ -184,21 +186,30 @@ void Cloud::settle(std::span<const Vec3> wind) {
             Vec3& speed = velocity_[particle];
             speed = speed + options_.gravity * part;
             if (lift_[particle] != 0) speed = speed - options_.gravity * (lift_[particle] * part);
-            speed = speed - (speed - (winds ? wind[particle] : Vec3{0, 0, 0})) * (options_.drag * part);
+            const Vec3 still = winds ? wind[particle] : Vec3{0, 0, 0};
+            speed = speed - (speed - still) * (options_.drag * part);
+            if (air > 0 && size_[particle] > 0) {
+                // The air's drag on a sphere, taken implicitly (stable however fast): the speed past the air shrinks
+                // by 1 ÷ (1 + k |that speed| dt).
+                const float hold = 3 * options_.drag_coefficient * air / (8 * own(particle) * size_[particle] * 0.5f);
+                const Vec3 past = speed - still;
+                speed = still + past * (1 / (1 + hold * math::length(past) * part));
+            }
             flown_[particle] = speed;  // the speed before the contacts: what a landing is measured by
             const float radius = size_[particle] * 0.5f;
             const Vec3 from = at_[particle], to = from + speed * part;
             at_[particle] = to;
             const Vec3 way = to - from;
             const float length = math::length(way);
-            std::optional<std::pair<float, Vec3>> hit;
+            std::optional<Hit> hit;
             Vec3 start = from, reach = to;
             if (length > 0) reach = to + way * (radius / length), hit = first_hit(from, reach);
             if (!hit) start = to, reach = to + down * (radius * 1.5f), hit = first_hit(start, reach);
+            against_[particle] = hit ? hit->surface : no_surface;
             if (!hit) continue;
-            Vec3 normal = hit->second;
+            Vec3 normal = hit->normal;
             if (math::dot(normal, reach - start) > 0) normal = normal * -1.0f;
-            ground_[particle] = normal, floor_at_[particle] = start + (reach - start) * hit->first;
+            ground_[particle] = normal, floor_at_[particle] = start + (reach - start) * hit->fraction;
         }
         for (std::uint32_t pass = 0; pass < options_.passes; ++pass) {
             // Each pair's correction from where all are now, gathered; then each particle moved by what it
@@ -245,9 +256,10 @@ void Cloud::settle(std::span<const Vec3> wind) {
             // Never through a surface (a wall it was pushed into by others: where its way crosses one, it stops
             // just this side), and its speed: how far it went.
             if (const auto crossed = first_hit(began_[particle], at_[particle])) {
-                Vec3 normal = crossed->second;
+                Vec3 normal = crossed->normal;
                 if (math::dot(normal, at_[particle] - began_[particle]) > 0) normal = normal * -1.0f;
-                at_[particle] = began_[particle] + (at_[particle] - began_[particle]) * crossed->first + normal * 1e-4f;
+                at_[particle] = began_[particle] + (at_[particle] - began_[particle]) * crossed->fraction + normal * 1e-4f;
+                against_[particle] = crossed->surface;
             }
             // A grain (not a liquid or a gas) that moved less than a tenth of what gravity gives one from rest in a
             // substep sleeps there: left where it began, still (particle sleeping, Macklin et al. 2014) — a grain on
@@ -261,7 +273,7 @@ void Cloud::settle(std::span<const Vec3> wind) {
             if (into > 0 && !(math::dot(resting_[particle], facing) > 0.5f)) {
                 // A contact that began: a landing, and the speed back off it its restitution of the speed in.
                 const matter::MaterialId material = state_[particle];
-                landed_.push_back({id_[particle], material, into, at_[particle] - facing * (size_[particle] * 0.5f), facing});
+                landed_.push_back({id_[particle], material, into, at_[particle] - facing * (size_[particle] * 0.5f), facing, against_[particle]});
                 const float keeps = restitution ? static_cast<float>(program_->number(material, *restitution)) : 0.4f;
                 speed = speed + facing * (keeps * into);
             }
@@ -299,7 +311,7 @@ void Cloud::fly(std::span<const Surface> world, std::span<const Vec3> wind) {
     for (const Surface& surface : world) {
         if (!surface.mesh || !surface.tree) continue;
         const std::optional<Mat4> back = math::inverse(surface.place);
-        if (back) facing_.push_back({&surface, *back, math::transposed(*back)});
+        if (back) facing_.push_back({&surface, static_cast<std::uint32_t>(&surface - world.data()), *back, math::transposed(*back)});
     }
     if (options_.touching) {
         settle(wind);
@@ -312,16 +324,18 @@ void Cloud::fly(std::span<const Surface> world, std::span<const Vec3> wind) {
             const Vec3 still = winds ? wind[particle] : Vec3{0, 0, 0};
             speed = speed - (speed - still) * (options_.drag * dt);
             const Vec3 from = at_[particle], to = from + speed * dt;
+            against_[particle] = no_surface;
             if (const auto hit = first_hit(from, to)) {
-                Vec3 normal = hit->second;
+                Vec3 normal = hit->normal;
+                against_[particle] = hit->surface;
                 if (math::dot(normal, speed) > 0) normal = normal * -1.0f;  // the side it came from
                 const matter::MaterialId material = state_[particle];
                 const float keeps = restitution ? static_cast<float>(program_->number(material, *restitution)) : 0.4f;
                 const float rubs = friction ? static_cast<float>(program_->number(material, *friction)) : 0.3f;
                 const float into = -math::dot(speed, normal);
                 const Vec3 along = speed + normal * into;
-                const Vec3 met = from + (to - from) * hit->first;
-                landed_.push_back({id_[particle], material, into, met, normal});
+                const Vec3 met = from + (to - from) * hit->fraction;
+                landed_.push_back({id_[particle], material, into, met, normal, hit->surface});
                 speed = along * (1 - rubs) + normal * (into * keeps);
                 at_[particle] = met + normal * 1e-4f;
             } else {
@@ -342,7 +356,7 @@ void Cloud::fly(std::span<const Surface> world, std::span<const Vec3> wind) {
             for (std::size_t index = 0; index < kept; ++index) values[index] = values[from_place[index]];
             values.resize(kept);
         };
-        keep(at_), keep(velocity_), keep(size_), keep(age_), keep(life_), keep(id_), keep(rise_);
+        keep(at_), keep(velocity_), keep(size_), keep(age_), keep(life_), keep(id_), keep(rise_), keep(against_);
         if (resting_.size() == before) keep(resting_);
         // In place: each value goes to a place no later than its own (kept ≤ before, index ≤ from_place[index]).
         for (std::uint32_t channel = 0; channel < channels_; ++channel)

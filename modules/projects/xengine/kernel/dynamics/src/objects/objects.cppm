@@ -92,6 +92,11 @@ public:
     // The same, in the air of a field instead of a bath: each body a guest of the cell it is in (cells made about
     // it as needed), the field's laws and wind stepped with it — what is about a body is the air where it is.
     [[nodiscard]] std::expected<matter::Report, matter::Failure> step(const World& world, xengine::field::Field& air);
+    // That step in two parts, for a field step that has other guests too (particles: xengine.dynamics.scene):
+    // the bodies as guests (cells made about them), and — after the field's step — what became of them, as
+    // group `group` of its guests.
+    [[nodiscard]] xengine::field::Guests guests_in(const World& world, xengine::field::Field& air);
+    void joined(const xengine::field::Field& air, std::size_t group);
     // The wind's push on each body for the world's next step (before `world.step()`): the field's wind where it is
     // against how it moves — an updraft lifts a light thing, a gale shoves a crate.
     void blow(World& world, const xengine::field::Field& air) const;
@@ -151,8 +156,10 @@ private:
     std::vector<matter::Event> events_;
     matter::Workspace          workspace_;
     std::vector<xengine::field::Vec3> at_;          // where each body is (a field step's guests)
+    std::vector<std::int32_t>  residue_, step_residue_;  // [transfer][body]: what transfers left each short of a whole unit (state); a step's with the bath
     std::vector<std::uint32_t> capacity_, exposed_;  // a step's: each instance's (exposed: of it, what reactions run over)
     const xengine::field::Field* joined_ = nullptr; // the field of the last step (none: a bath)
+    std::uint32_t                group_ = 0;        // which group of its guests the bodies were
     std::uint64_t              steps_ = 0;
     static constexpr std::size_t kept_causes = 8;    // a body's latest causes
     std::map<BodyId, std::vector<Cause>> causes_;

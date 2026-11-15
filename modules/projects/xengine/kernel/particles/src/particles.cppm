@@ -47,7 +47,10 @@ struct Options {
     // theirs (on its own, from the air's): oil comes up through water, steam rises.
     bool                        touching = false;
     std::uint32_t               passes = 4;
-    std::uint32_t               most_substeps = 8;  // touching: a step in up to this many, by the fastest's speed
+    std::uint32_t               most_substeps = 8;
+    // Taking room, the air holds each back as it does a sphere: a = 3·C·ρ_air ÷ (8·ρ·r) · |v − w| (v − w), the
+    // wind w — a drop falls at metres a second, steam (half the air's weight) rises at half a metre.
+    float                       drag_coefficient = 0.47f;  // touching: a step in up to this many, by the fastest's speed
 };
 struct Spawn {
     Vec3                         at{0, 0, 0}, velocity{0, 0, 0};
@@ -68,7 +71,9 @@ struct Landed {
     xengine::matter::MaterialId material = 0;
     float                       speed = 0;     // m/s into the surface
     Vec3                        at{0, 0, 0}, normal{0, 1, 0};
+    std::uint32_t               surface = 0;   // which of the step's surfaces
 };
+inline constexpr std::uint32_t no_surface = 0xffffffffu;
 
 class Cloud {
 public:
@@ -100,6 +105,9 @@ public:
     // A channel's value of a particle in its unit (temperature in kelvin).
     [[nodiscard]] double value(std::uint32_t channel, std::size_t particle) const noexcept;
     [[nodiscard]] std::span<const Landed> landed() const noexcept { return landed_; }
+    // The surface each is against after the last step (which of the step's surfaces; `no_surface`: none) — what a
+    // carrier of bodies pairs a drop with the body it lies on by.
+    [[nodiscard]] std::span<const std::uint32_t> against() const noexcept { return against_; }
     // What matter's laws did this step, each naming a particle by its place (`ids()[event.instance]`).
     [[nodiscard]] std::span<const xengine::matter::Event> events() const noexcept { return events_; }
     [[nodiscard]] const xengine::matter::Program& program() const noexcept { return *program_; }
@@ -114,7 +122,8 @@ private:
     std::vector<Vec3>               at_, velocity_;
     std::vector<float>              size_, age_, life_;
     std::vector<std::uint32_t>      id_, state_;
-    std::vector<float>              rise_;  // taking room: how far each lighter fluid has come toward changing places
+    std::vector<float>              rise_;
+    std::vector<std::uint32_t>      against_;  // taking room: how far each lighter fluid has come toward changing places
     std::uint32_t                   next_id_ = 0;
     std::uint64_t                   steps_ = 0;
     std::vector<Landed>             landed_;
@@ -130,6 +139,7 @@ private:
     std::vector<Candidate>             candidates_;
     struct Facing {
         const Surface* surface = nullptr;
+        std::uint32_t  index = 0;
         Mat4           back, normals;
     };
     std::vector<Facing>                facing_;
@@ -143,7 +153,12 @@ private:
     std::vector<std::uint32_t>         given_;
     std::vector<std::uint8_t>          swapped_;
     std::vector<Vec3>                  flown_, ground_, resting_, began_, floor_at_;  // began: where each was as the substep began  // ground: the facing of the surface each rests on this substep (0: none)
-    [[nodiscard]] std::optional<std::pair<float, Vec3>> first_hit(Vec3 from, Vec3 to) const noexcept;  // of the way, the facing
+    struct Hit {
+        float         fraction = 1;  // of the way
+        Vec3          normal{0, 1, 0};
+        std::uint32_t surface = 0;   // which of the step's surfaces
+    };
+    [[nodiscard]] std::optional<Hit> first_hit(Vec3 from, Vec3 to) const noexcept;
     void find_touches();
     void settle(std::span<const Vec3> wind);  // the step's flight when they take room
     // A move kept a radius off the world's surfaces: where it ends, and the facing it met (none: nothing).

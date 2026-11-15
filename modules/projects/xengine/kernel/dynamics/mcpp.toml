@@ -51,6 +51,9 @@ rigid3-agent = { implies = ["rigid3", "agent"], sources = ["src/rigid3/agent/*.c
 # Matter carried by 3D bodies (src/objects/, module xengine.dynamics.objects; M6.5 T5.1): each body an instance of
 # xengine.matter, the bodies touching now its pairs — the object carrier of the plan's §6.4.
 rigid3-matter = { implies = ["rigid3", "matter"], sources = ["src/objects/*.cppm", "src/objects/*.cpp"] }
+# Bodies and a cloud of particles in one field step (src/scene/, module xengine.dynamics.scene; M6.5 T5.7): a
+# drop on a crate is beside it, the wind carries the particles.
+rigid3-scene = { implies = ["rigid3-matter"], sources = ["src/scene/*.cppm", "src/scene/*.cpp"] }
 
 [feature-deps.agent]
 mlibs.simulation = { path = "../../../../base/simulation" }
@@ -67,6 +70,9 @@ xengine.matter = { path = "../matter", default-features = false }
 mcpplibs.mwrap.box2d = "3.2.0"
 # The vector type (mlibs.math's: one definition for the family, the particles and what couples them).
 mlibs.math = { path = "../../../../base/math" }
+
+[feature-deps.rigid3-scene]
+xengine.particles = { path = "../particles" }
 
 [feature-deps.rigid3-matter]
 # The air bodies stand in (xengine.field): their guests' cell, the wind that pushes them.

@@ -22,9 +22,9 @@ export default defineMatter({
     ash: { phase: "granular", density: 400, thermal: 1 },
     iron: { density: 7800, thermal: 8, conduct: 8, melting: 1800, melted: "molten_iron", tags: ["metal"] },
     molten_iron: { phase: "liquid", density: 7000, thermal: 8, conduct: 8, melting: 1800, frozen: "iron", starts_at: 1900, tags: ["metal"] },
-    water: { phase: "liquid", density: 1000, friction: 0.02, restitution: 0, shape_stiffness: 0, thermal: 2, conduct: 2, moist: 64, porous: 8, melting: 273, boiling: 373, latent: 540, boiled: "steam", frozen: "ice" },
+    water: { phase: "liquid", density: 1000, friction: 0.02, restitution: 0, shape_stiffness: 0, thermal: 2, conduct: 2, moist: 64, porous: 8, melting: 273, fusion: 80, boiling: 373, latent: 540, boiled: "steam", frozen: "ice" },
     steam: { phase: "gas", density: 0.6, thermal: 1, boiling: 373, latent: 540, condensed: "water", starts_at: 380 },
-    ice: { density: 917, thermal: 2, melting: 273, melted: "water", starts_at: 260 },
+    ice: { density: 917, thermal: 2, melting: 273, fusion: 80, melted: "water", starts_at: 260 },
     oil: { phase: "liquid", density: 900, thermal: 1, ignition: 500, fuel: 200, heat: 100, burnt: "smoke" },
     smoke: { phase: "gas", density: 0.9, thermal: 1 },
     // It burns in three steps where wood takes four hundred, hot, with its own oxygen (a grain beside a grain
@@ -67,8 +67,13 @@ export default defineMatter({
     { name: "gives heat back to condense", when: "phase == gas && latent > 0 && temperature < boiling", add: { phase_heat: "boiling - temperature" }, set: { temperature: "boiling" } },
     { name: "boils", when: "phase == liquid && boiling > 0 && temperature >= boiling && phase_heat >= latent", become: "boiled", event: "boil" },
     { name: "condenses", when: "phase == gas && temperature < boiling && phase_heat >= latent", become: "condensed", event: "condense" },
-    { name: "freezes", when: "phase == liquid && temperature < melting", become: "frozen", event: "freeze" },
-    { name: "melts", when: "melting > 0 && temperature >= melting", become: "melted", event: "melt" },
+    // Melting takes heat too, and setting gives it back: a solid that says a heat of fusion stays at its melting
+    // point while the heat that reaches it is taken up, and is its liquid with all of it; its liquid, cooled, stays
+    // there while it gives the same heat back — ice keeps on a mild day, a pond is slow to freeze.
+    { name: "takes up heat to melt", when: "phase == solid && melting > 0 && fusion > 0 && temperature > melting", add: { phase_heat: "temperature - melting" }, set: { temperature: "melting" } },
+    { name: "gives heat back to set", when: "phase == liquid && fusion > 0 && temperature < melting", add: { phase_heat: "melting - temperature" }, set: { temperature: "melting" } },
+    { name: "freezes", when: "phase == liquid && temperature < melting && phase_heat >= fusion", become: "frozen", event: "freeze" },
+    { name: "melts", when: "melting > 0 && temperature >= melting && phase_heat >= fusion", become: "melted", event: "melt" },
     // What is brittle breaks under pressure: a blast makes rubble of a wall, and the rubble is what the wall says.
     { name: "shatters", when: "toughness > 0 && pressure >= toughness", become: "breaks_into", event: "shatter" },
     // What moves things (D-181). These change no state: each carrier moves what it holds — cells fly, bodies

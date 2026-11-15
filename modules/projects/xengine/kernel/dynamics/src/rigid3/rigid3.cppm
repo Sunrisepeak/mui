@@ -91,7 +91,9 @@ struct BodyDef {
 struct BodyId {
     std::uint32_t value = 0;
     bool operator==(const BodyId&) const = default;
-    auto operator<=>(const BodyId&) const = default;
+    // The ordering said, not deduced (here and on the other ids): GCC refuses a deduced one imported into the
+    // module of a map keyed by it.
+    std::strong_ordering operator<=>(const BodyId&) const = default;
     [[nodiscard]] explicit operator bool() const noexcept { return value != 0; }
 };
 // Where a body is and how it moves: `at` its origin, `turn` its rotation, `centre` its centre of mass.
@@ -130,7 +132,7 @@ struct RayHit {
 struct JointId {
     std::uint32_t value = 0;
     bool operator==(const JointId&) const = default;
-    auto operator<=>(const JointId&) const = default;
+    std::strong_ordering operator<=>(const JointId&) const = default;  // said, not deduced: GCC refuses a deduced one imported into a map's module
     [[nodiscard]] explicit operator bool() const noexcept { return value != 0; }
 };
 // What drives a hinge or a slider: toward a speed (rad/s, m/s) or a place (rad, m), as hard as `most` allows
@@ -176,7 +178,7 @@ struct JointState {
 struct CharacterId {
     std::uint32_t value = 0;
     bool operator==(const CharacterId&) const = default;
-    auto operator<=>(const CharacterId&) const = default;
+    std::strong_ordering operator<=>(const CharacterId&) const = default;  // said, not deduced: GCC refuses a deduced one imported into a map's module
     [[nodiscard]] explicit operator bool() const noexcept { return value != 0; }
 };
 struct CharacterDef {
@@ -229,6 +231,10 @@ public:
         Vec low, high;
     };
     [[nodiscard]] std::optional<Bounds> bounds(BodyId body) const noexcept;
+    // A body's shape as triangles in its own frame (about `Pose::at`, unturned), three corners each, into `out`
+    // (emptied first): the very shape it collides by — a sphere and a capsule as Jolt tessellates them. False: no
+    // such body.
+    bool triangles(BodyId body, std::vector<Vec>& out) const;
     // In the order made: what a hash and a save go through.
     [[nodiscard]] std::span<const BodyId> bodies() const noexcept;
     // An impulse (N·s) at a point in the world, or through the centre of mass.

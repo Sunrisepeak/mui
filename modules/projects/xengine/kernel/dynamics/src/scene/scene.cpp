@@ -1,6 +1,7 @@
 module xengine.dynamics.scene;
 
 import std;
+import mlibs.geom;
 
 namespace xengine::dynamics::rigid3 {
 
@@ -49,10 +50,40 @@ std::expected<xengine::matter::Report, xengine::matter::Failure> Scene::step(con
     return stepped;
 }
 
-std::vector<xengine::matter::Explained> Scene::explain(xengine::matter::Who who, const Objects& objects, const xengine::particles::Cloud& cloud, std::size_t depth) {
+std::span<const xengine::particles::Surface> Scene::surfaces(const World& world) {
+    namespace math = mlibs::math;
+    surfaces_.clear(), surface_bodies_.clear();
+    for (const BodyId body : world.bodies()) {
+        const auto pose = world.pose(body);
+        if (!pose) continue;
+        auto found = shaped_.find(body);
+        if (found == shaped_.end()) {
+            if (!world.triangles(body, corners_) || corners_.empty()) continue;
+            auto made = std::make_shared<Shaped>();
+            made->mesh.positions = corners_;
+            made->mesh.indices.resize(corners_.size());
+            std::iota(made->mesh.indices.begin(), made->mesh.indices.end(), std::uint32_t{0});
+            made->tree = mlibs::geom::bvh_of(made->mesh);
+            found = shaped_.emplace(body, std::move(made)).first;
+        }
+        surfaces_.push_back({.mesh = &found->second->mesh, .tree = &found->second->tree, .place = math::translation(pose->at) * math::rotation(pose->turn)});
+        surface_bodies_.push_back(body);
+    }
+    return surfaces_;
+}
+
+std::expected<xengine::matter::Report, xengine::matter::Failure> Scene::advance(World& world, Objects& objects, xengine::particles::Cloud& cloud, xengine::field::Field& air) {
+    objects.blow(world, air);
+    objects.thrown(world, air);
+    world.step();
+    cloud.fly(surfaces(world), winds(air, cloud));
+    return step(world, objects, cloud, surface_bodies_, air);
+}
+
+std::vector<xengine::matter::Explained> Scene::explain(xengine::matter::Who who, const Objects& objects, const xengine::particles::Cloud& cloud, std::size_t depth, std::optional<std::uint32_t> about) {
     return xengine::matter::Causes::explain(who, [&](xengine::matter::Who one) {
         return one.carrier == bodies_carrier ? objects.causes().of(one) : one.carrier == xengine::particles::particles_carrier ? cloud.causes().of(one) : std::span<const xengine::matter::Cause>();
-    }, depth);
+    }, depth, about);
 }
 
 }  // namespace xengine::dynamics::rigid3

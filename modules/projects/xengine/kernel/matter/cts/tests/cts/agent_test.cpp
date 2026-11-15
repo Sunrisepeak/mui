@@ -301,13 +301,14 @@ static UTest cases{"matter.agent", [] {
         const Answered since = told(session, std::format(R"({{"op":"matter.events","since":{}}})", frame));
         for (std::size_t index = 0; index < since["events"].size(); ++index) ++did[std::string(since["events"][index]["what"].text().value_or("?"))];
         expect(did == would) << std::format("what would happen is what happened: {} / {}", would, did);
-        // With edits first, in the branch alone: a row of water let go at the top and everything made 50 K colder —
-        // 243 K: the water would freeze where it is, every cell of it. Counted in the region asked.
-        const Answered cold = told(session, R"({"op":"matter.branch","steps":50,"place":{"material":"water","region":[0,0,28,1]},"apply":{"channel":"temperature","take":50,"region":[0,0,28,14]},"region":[0,0,28,1]})");
+        // With edits first, in the branch alone: a row of water let go at the top and everything made 150 K colder
+        // — 143 K: the water gives back its heat of fusion at its melting point to the cold air about it and would
+        // freeze where it is, every cell of it. Counted in the region asked.
+        const Answered cold = told(session, R"({"op":"matter.branch","steps":50,"place":{"material":"water","region":[0,0,28,1]},"apply":{"channel":"temperature","take":150,"region":[0,0,28,14]},"region":[0,0,28,1]})");
         std::int64_t now = 0, then = 0;
         for (const auto& [name, count] : cold["materials"].members()) now += count["now"].integer().value_or(0), then += count["would"].integer().value_or(0);
         expect(cold["region"][3].integer() == 1 && eq(now, std::int64_t{28}) && eq(then, std::int64_t{28}) && !cold["materials"]["water"]) << cold.text.substr(0, 400);
-        expect(cold["events"]["freeze"].integer() == 28 && cold["first"][0]["what"].text() == "freeze" && cold["first"][0]["read"]["temperature"].number() == 243.0) << cold.text.substr(0, 400);
+        expect(cold["events"]["freeze"].integer() == 28 && cold["first"][0]["what"].text() == "freeze" && cold["first"][0]["read"]["temperature"].number() < 273.0) << cold.text.substr(0, 400);
         expect(eq(world.field->frame(), frame + 300));
     };
 
@@ -493,13 +494,19 @@ static UTest cases{"matter.agent", [] {
             expect(any(melted, [&](mlibs::json::Node event) {
                 return event["cell"][0].integer() == 5 && event["law"]["name"].text() == "melts" && event["from"].text() == "ice" && event["to"].text() == "water" && part(event, "gave", "wood", "burning");
             })) << "5: the ice next to the fire melted by the heat the burning wood gave: " << melted.text.substr(0, 900);
+            // A pail: water between two stones on the floor, where it stays while it is made cold.
+            told(session, R"({"op":"matter.place","material":"stone","region":[10,4,1,1]})");
+            told(session, R"({"op":"matter.place","material":"stone","region":[13,4,1,1]})");
             told(session, R"({"op":"matter.place","material":"water","region":[11,4,2,1]})");
-            told(session, R"({"op":"matter.apply","channel":"temperature","set":250,"region":[11,4,2,1]})");
-            told(session, R"({"op":"field.step","steps":1})");
+            // Held at 190 K: 83 K given back the first step — more than its heat of fusion — and the next it sets.
+            for (int held = 0; held < 2; ++held) {
+                told(session, R"({"op":"matter.apply","channel":"temperature","set":190,"region":[11,4,2,1]})");
+                told(session, R"({"op":"field.step","steps":1})");
+            }
             const Answered cold = told(session, R"({"op":"matter.explain","cell":[11,4]})");
             const auto froze = cold["records"][0];
-            expect(froze["what"].text() == "freeze" && froze["law"]["name"].text() == "freezes" && froze["to"].text() == "ice" && froze["read"]["temperature"].number() == 250.0) << cold.text.substr(0, 900);
-            expect(froze["applied"]["channel"].text() == "temperature" && froze["applied"]["set"].number() == 250.0 && froze["applied"]["by"]["name"].text() == "winter") << "5: … made cold by an actor, who is named";
+            expect(froze["what"].text() == "freeze" && froze["law"]["name"].text() == "freezes" && froze["to"].text() == "ice" && froze["read"]["temperature"].number() == 190.0) << cold.text.substr(0, 900);
+            expect(froze["applied"]["channel"].text() == "temperature" && froze["applied"]["set"].number() == 190.0 && froze["applied"]["by"]["name"].text() == "winter") << "5: … made cold by an actor, who is named";
         }
         {  // 6 — oil afloat catches and burns on the water, cell from cell; the water under it boils by its heat.
             subject::World world = world_of({14, 8});
@@ -571,7 +578,7 @@ static UTest cases{"matter.agent", [] {
             const Answered boiled = events(session, "boil"), caught = events(session, "ignite");
             expect(any(boiled, [&](mlibs::json::Node event) { return event["from"].text() == "alcohol" && event["to"].text() == "alcohol_vapour" && event["law"]["name"].text() == "boils" && part(event, "gave", "stone"); }))
                 << "12: it boils by the law water boils by, the hot stone giving the heat: " << boiled.text.substr(0, 700);
-            expect(told(session, R"({"op":"matter.describe"})")["recipes"].integer() == 0 && told(session, R"({"op":"matter.describe"})")["laws"].size() == 22u) << "12: and no law was added for it";
+            expect(told(session, R"({"op":"matter.describe"})")["recipes"].integer() == 0 && told(session, R"({"op":"matter.describe"})")["laws"].size() == 24u) << "12: and no law was added for it";
             std::println("12: alcohol over a stone at 700 K — {} boilings in 400 steps (its vapour condenses under the cold lid and comes back), {} of its vapour caught", count(boiled), count(caught));
         }
     };
@@ -655,7 +662,7 @@ static UTest cases{"matter.agent", [] {
         agent::SubjectSession session = session_of(world);
         strip(session);
         const Answered all = told(session, R"({"op":"matter.describe"})");
-        expect(all["materials"].size() == 17u && all["laws"].size() == 22u && all["recipes"].integer() == 0 && all["channels"][1]["name"].text() == "temperature" && all["channels"][1]["unit"].text() == "K");
+        expect(all["materials"].size() == 17u && all["laws"].size() == 24u && all["recipes"].integer() == 0 && all["channels"][1]["name"].text() == "temperature" && all["channels"][1]["unit"].text() == "K");
         const Answered wood = told(session, R"({"op":"matter.describe","material":"wood"})");
         expect(wood["phase"].text() == "solid" && wood["properties"]["ignition"].number() == 570.0 && wood["properties"]["burnt"].text() == "ash" && wood["properties"]["friction"].number() == 0.45);
         const Answered burns = told(session, R"({"op":"matter.describe","law":"burns"})");

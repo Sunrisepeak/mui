@@ -474,6 +474,22 @@ std::optional<World::Bounds> World::bounds(BodyId body) const noexcept {
     return Bounds{vec(box.mMin), vec(box.mMax)};
 }
 
+bool World::triangles(BodyId body, std::vector<Vec>& out) const {
+    out.clear();
+    const auto found = native_->records.find(body);
+    if (found == native_->records.end()) return false;
+    const JPH::BodyLockRead lock(native_->system->GetBodyLockInterfaceNoLock(), JPH::BodyID(found->second.native));
+    if (!lock.Succeeded()) return false;
+    const JPH::Shape* shape = lock.GetBody().GetShape();
+    // Jolt's shapes are about their centre of mass; placed there, a body's corners come out about its own place.
+    JPH::Shape::GetTrianglesContext context;
+    shape->GetTrianglesStart(context, JPH::AABox::sBiggest(), shape->GetCenterOfMass(), JPH::Quat::sIdentity(), JPH::Vec3::sOne());
+    std::array<JPH::Float3, JPH::Shape::cGetTrianglesMinTrianglesRequested * 3> corners;
+    for (int count; (count = shape->GetTrianglesNext(context, JPH::Shape::cGetTrianglesMinTrianglesRequested, corners.data())) > 0;)
+        for (int corner = 0; corner < count * 3; ++corner) out.push_back({corners[corner].x, corners[corner].y, corners[corner].z});
+    return true;
+}
+
 void World::touching(std::vector<Touch>& out, float margin) const {
     out.clear();
     const JPH::BodyLockInterfaceNoLock& locks = native_->system->GetBodyLockInterfaceNoLock();

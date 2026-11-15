@@ -145,7 +145,7 @@ std::expected<matter::Report, matter::Failure> Objects::step(const World& world)
         std::copy_n(output_.begin() + static_cast<std::ptrdiff_t>(channel * instances), count, state_.begin() + static_cast<std::ptrdiff_t>(channel * count));
     before_.assign(input_.begin(), input_.end());
     bodies_before_.assign(bodies_.begin(), bodies_.end());
-    joined_ = nullptr;
+    in_field_ = false;
     ++steps_;
     if (!events_.empty())
         witness([&](std::uint32_t instance) { return program_->why({instances, pairs_, false, capacity_, exposed_}, before_, instance); },
@@ -189,7 +189,7 @@ void Objects::joined(const xengine::field::Field& air, std::size_t group, const 
         if (event.instance >= first && event.instance < first + bodies_.size()) event.instance -= first, events_.push_back(event);
     bodies_before_.assign(bodies_.begin(), bodies_.end());
     before_.clear();
-    joined_ = &air, group_ = static_cast<std::uint32_t>(group);
+    in_field_ = true, group_ = static_cast<std::uint32_t>(group);
     ++steps_;
     if (!events_.empty()) {
         const auto count = static_cast<std::uint32_t>(bodies_.size());
@@ -337,11 +337,16 @@ std::optional<BodyId> Objects::lightning(const World& world, Strike strike) {
 
 std::optional<matter::Why> Objects::why(BodyId body) const {
     const auto found = std::ranges::lower_bound(bodies_before_, body);
-    if (found == bodies_before_.end() || *found != body) return std::nullopt;
-    if (joined_) return joined_->why(joined_->first_guest(group_) + static_cast<std::uint32_t>(found - bodies_before_.begin()));
-    if (before_.empty()) return std::nullopt;
+    if (found == bodies_before_.end() || *found != body || in_field_ || before_.empty()) return std::nullopt;
     const std::size_t instances = before_.size() / program_->channels().size();
-    return program_->why({instances, pairs_}, before_, static_cast<std::size_t>(found - bodies_before_.begin()));
+    return program_->why({instances, pairs_, false, capacity_, exposed_}, before_, static_cast<std::size_t>(found - bodies_before_.begin()));  // as the step had it
+}
+
+std::optional<matter::Why> Objects::why(BodyId body, const xengine::field::Field& air) const {
+    const auto found = std::ranges::lower_bound(bodies_before_, body);
+    if (found == bodies_before_.end() || *found != body) return std::nullopt;
+    if (!in_field_) return why(body);
+    return air.why(air.first_guest(group_) + static_cast<std::uint32_t>(found - bodies_before_.begin()));
 }
 
 std::uint64_t Objects::state_hash() const noexcept {

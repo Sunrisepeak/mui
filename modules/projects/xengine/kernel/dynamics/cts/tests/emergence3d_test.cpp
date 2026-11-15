@@ -102,25 +102,18 @@ UTest cases{"dynamics.emergence3d", [] {
             expect(fatal(air.has_value()));
             auto cloud = particles::Cloud::make(program, {.ambient = *program->material("air"), .touching = true});
             expect(fatal(cloud.has_value()));
-            // What the particles meet: the ground (no body) and the crate's faces.
-            const geom::Mesh ground = geom::sheet(20, 20, 2, 2), box = geom::box({0.5f, 0.5f, 0.5f});
-            const geom::Bvh ground_tree = geom::bvh_of(ground), box_tree = geom::bvh_of(box);
-            const std::array<rigid3::BodyId, 2> surface_bodies{rigid3::BodyId{}, crate};
+            // What the particles meet is every body by its own shape, where it is (Scene::surfaces): the ground, met
+            // and carrying no matter, and the crate's faces.
             rigid3::Scene scene;
             Out out;
             for (int step = 1; step <= 1200; ++step) {
-                world->step();
                 if (step < 60) (void)objects->set(crate, temperature, std::max(*objects->get(crate, temperature), stored(*program, temperature, 900)));  // a torch to it
                 if (step >= 240 && step < 240 + steps && (step - 240) % every == 0) {
                     const float turn = static_cast<float>(step) * 2.39996f, out_from = 0.02f + 0.1f * static_cast<float>(step % 7) / 7;
                     const std::array<particles::Spawn, 1> drop{{{.at = {out_from * static_cast<float>(math::det::cos(turn)), 1.4f, out_from * static_cast<float>(math::det::sin(turn))}, .velocity = {0, -2, 0}, .life = 60, .material = water}}};
                     cloud->emit(drop);
                 }
-                const auto pose = world->pose(crate);
-                const std::array<particles::Surface, 2> surfaces{{{.mesh = &ground, .tree = &ground_tree, .place = math::translation({0, 0, 0})},
-                                                                   {.mesh = &box, .tree = &box_tree, .place = math::translation(pose->centre)}}};
-                cloud->fly(surfaces, scene.winds(*air, *cloud));
-                const auto stepped = scene.step(*world, *objects, *cloud, surface_bodies, *air);
+                const auto stepped = scene.advance(*world, *objects, *cloud, *air);  // pushes, the world, the drops against the bodies, matter
                 expect(fatal(stepped.has_value())) << (stepped ? "" : stepped.error().message);
                 for (const matter::Event& event : cloud->events()) {
                     if (event.kind != matter::EventKind::became) continue;
@@ -138,6 +131,11 @@ UTest cases{"dynamics.emergence3d", [] {
                 if (step > 240 && !out.out_at && *objects->get(crate, burning) == 0) out.out_at = step;
                 if (step == 600) out.burning_at_ten = *objects->get(crate, burning);
             }
+            // Every body is a surface, by its own shape; a copy of the scene (a branch's) shares the meshes made.
+            rigid3::Scene copy = scene;
+            const std::span<const particles::Surface> mine = scene.surfaces(*world);
+            expect(eq(mine.size(), world->bodies().size()) && eq(mine[1].mesh->triangles(), std::size_t{12})) << "the ground and the crate, a box's 12 triangles";
+            expect(copy.surfaces(*world)[1].mesh == mine[1].mesh) << "shared, not made again";
             out.wetness = *objects->get(crate, wetness);
             return out;
         };

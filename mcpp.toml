@@ -183,6 +183,7 @@ members = [
     "showcase/quay/play",
     "showcase/quay/sound",
     "showcase/quay/window",
+    "showcase/glade/sim",
     "showcase/swarm/headless",
     "showcase/swarm/play",
     "site",

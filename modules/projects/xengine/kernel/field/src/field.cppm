@@ -133,6 +133,8 @@ public:
 
     [[nodiscard]] std::uint64_t state_hash() const noexcept;
     [[nodiscard]] const FieldOptions& options() const noexcept { return options_; }
+    // The wind far from anything, from now on (the weather turning): the cells relax toward it.
+    void set_wind(Vec3 far) noexcept { options_.wind = far; }
     [[nodiscard]] const matter::Program& program() const noexcept { return *program_; }
 
 private:

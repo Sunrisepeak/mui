@@ -465,8 +465,10 @@ public:
                                       const std::function<CameFrom(std::uint32_t instance)>& source);
     // Back from `who`: its latest cause, then whoever that came from — `of` gives each thing's causes, whichever
     // carrier keeps them — until something was applied from outside or struck, or `depth` links.
-    [[nodiscard]] static std::vector<Explained> explain(Who who, const std::function<std::span<const Cause>(Who)>& of, std::size_t depth = 32);
-    [[nodiscard]] std::vector<Explained> explain(Who who, std::size_t depth = 32) const;
+    // `about`: the question is why a channel of it is so (why it is burning) — the first link the latest rise of
+    // that channel or change of material, not whatever was done to it last.
+    [[nodiscard]] static std::vector<Explained> explain(Who who, const std::function<std::span<const Cause>(Who)>& of, std::size_t depth = 32, std::optional<std::uint32_t> about = std::nullopt);
+    [[nodiscard]] std::vector<Explained> explain(Who who, std::size_t depth = 32, std::optional<std::uint32_t> about = std::nullopt) const;
 
 private:
     std::map<Who, std::vector<Cause>> by_;

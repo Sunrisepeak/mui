@@ -73,6 +73,8 @@ mlibs.math = { path = "../../../../base/math" }
 
 [feature-deps.rigid3-scene]
 xengine.particles = { path = "../particles" }
+# The bodies' shapes as the meshes particles meet (Scene::surfaces).
+mlibs.geom        = { path = "../../../../base/geom" }
 
 [feature-deps.rigid3-matter]
 # The air bodies stand in (xengine.field): their guests' cell, the wind that pushes them.

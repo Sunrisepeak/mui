@@ -4,14 +4,20 @@
 // where each is carrying the particles.
 //
 //     rigid3::Scene scene;
-//     world.step();
-//     cloud.fly(surfaces, scene.winds(air, cloud));         // the step's flight in the field's wind
-//     scene.step(world, objects, cloud, surface_bodies, air);  // one tick of matter for all of it
+//     scene.advance(world, objects, cloud, air);   // the whole tick: pushes, the world, the drops, matter
 //
-// `surface_bodies[s]` is the body the cloud's surface `s` is (none: the ground, a wall — not carried).
+// or its parts, where a consumer puts something between them (its own surfaces, a wall that is no body):
+//
+//     world.step();
+//     cloud.fly(scene.surfaces(world), scene.winds(air, cloud));        // the drops meet the bodies where they are
+//     scene.step(world, objects, cloud, scene.surface_bodies(), air);  // one tick of matter for all of it
+//
+// `surface_bodies[s]` is the body the cloud's surface `s` is (one not carried — the ground, a wall — is met and
+// has no matter). A scene is a value: copied with a branch, it shares the bodies' meshes, which never change.
 export module xengine.dynamics.scene;
 
 import std;
+import mlibs.geom;
 export import xengine.dynamics.objects;
 export import xengine.particles;
 export import xengine.field;
@@ -30,11 +36,32 @@ public:
     [[nodiscard]] std::span<const xengine::field::Between> between() const noexcept { return between_; }
     // What made a body or a particle what it is, back to where it began, across both (a drop boiled by the crate
     // it lay on, the crate lit by …): matter::Causes::explain over each carrier's causes.
-    [[nodiscard]] static std::vector<xengine::matter::Explained> explain(xengine::matter::Who who, const Objects& objects, const xengine::particles::Cloud& cloud, std::size_t depth = 32);
+    [[nodiscard]] static std::vector<xengine::matter::Explained> explain(xengine::matter::Who who, const Objects& objects, const xengine::particles::Cloud& cloud, std::size_t depth = 32,
+                                                                         std::optional<std::uint32_t> about = std::nullopt);
+
+    // The surfaces a cloud's particles meet: every body of the world by the very shape it collides by
+    // (`World::triangles`, made into a mesh and its tree once a body and shared, unchanged, by every copy of the
+    // scene), where it is now; `surface_bodies()` says which body each is. A compound whose parts were moved
+    // (`World::move_part`) is taken again after `forget(body)`.
+    [[nodiscard]] std::span<const xengine::particles::Surface> surfaces(const World& world);
+    [[nodiscard]] std::span<const BodyId> surface_bodies() const noexcept { return surface_bodies_; }
+    void forget(BodyId body) { shaped_.erase(body); }
+    // One whole tick of a scene: the field's wind and any blast pushing the bodies (`Objects::blow`, `thrown`),
+    // the world's step, the particles' flight in the wind against the bodies where they are now, then one tick of
+    // matter for all of it. Nothing allocated on a steady tick (no body new since the last).
+    [[nodiscard]] std::expected<xengine::matter::Report, xengine::matter::Failure> advance(World& world, Objects& objects, xengine::particles::Cloud& cloud, xengine::field::Field& air);
 
 private:
-    std::vector<mlibs::math::Vec3>      winds_;
-    std::vector<xengine::field::Between> between_;
+    struct Shaped {
+        mlibs::geom::Mesh mesh;
+        mlibs::geom::Bvh  tree;
+    };
+    std::vector<mlibs::math::Vec3>                    winds_;
+    std::vector<xengine::field::Between>              between_;
+    std::map<BodyId, std::shared_ptr<const Shaped>>   shaped_;
+    std::vector<xengine::particles::Surface>          surfaces_;
+    std::vector<BodyId>                               surface_bodies_;
+    std::vector<mlibs::math::Vec3>                    corners_;
 };
 
 }  // namespace xengine::dynamics::rigid3

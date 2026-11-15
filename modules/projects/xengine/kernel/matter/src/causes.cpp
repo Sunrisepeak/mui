@@ -39,14 +39,16 @@ Cause Causes::judged(const Program& program, const Event& event, const std::opti
     return cause;
 }
 
-std::vector<Explained> Causes::explain(Who who, const std::function<std::span<const Cause>(Who)>& of, std::size_t depth) {
+std::vector<Explained> Causes::explain(Who who, const std::function<std::span<const Cause>(Who)>& of, std::size_t depth, std::optional<std::uint32_t> about) {
     std::vector<Explained> out;
     std::uint64_t before = std::numeric_limits<std::uint64_t>::max();
     bool same = false;  // the next link is the same thing's, strictly earlier
     while (who && out.size() < depth) {
         const std::span<const Cause> causes = of(who);
         // Its latest cause at or before the step the one after it was caused at (before it, for its own earlier one).
+        const bool first = out.empty() && about.has_value();
         const auto latest = std::ranges::find_if(causes.rbegin(), causes.rend(), [&](const Cause& cause) {
+            if (first) return cause.kind == CauseKind::became || (cause.kind == CauseKind::rose && cause.channel == *about);
             return (same ? cause.step < before : cause.step <= before) && cause.kind != CauseKind::fell;
         });
         if (latest == causes.rend()) break;
@@ -61,8 +63,8 @@ std::vector<Explained> Causes::explain(Who who, const std::function<std::span<co
     return out;
 }
 
-std::vector<Explained> Causes::explain(Who who, std::size_t depth) const {
-    return explain(who, [this](Who one) { return of(one); }, depth);
+std::vector<Explained> Causes::explain(Who who, std::size_t depth, std::optional<std::uint32_t> about) const {
+    return explain(who, [this](Who one) { return of(one); }, depth, about);
 }
 
 }  // namespace xengine::matter

@@ -118,6 +118,8 @@ public:
     // Why a body is what it is after the last step: every law judged, every flow named by the body it came from
     // (instances: `body_of`). None before a step, or for a body not carried then.
     [[nodiscard]] std::optional<matter::Why> why(BodyId body) const;
+    // After a step in a field: asked of that field (the state holds no pointer to it — a copy is a branch).
+    [[nodiscard]] std::optional<matter::Why> why(BodyId body, const xengine::field::Field& air) const;
 
     // What made a body what it is now, back to where it began: its latest cause, then the cause of the body that
     // gave it what it needed (before that step), and so on — at most `depth` links, none twice. Across carriers
@@ -151,7 +153,7 @@ private:
     std::vector<xengine::field::Vec3> at_;          // where each body is (a field step's guests)
     std::vector<std::int32_t>  residue_, step_residue_;  // [transfer][body]: what transfers left each short of a whole unit (state); a step's with the bath
     std::vector<std::uint32_t> capacity_, exposed_;  // a step's: each instance's (exposed: of it, what reactions run over)
-    const xengine::field::Field* joined_ = nullptr; // the field of the last step (none: a bath)
+    bool                         in_field_ = false; // the last step was a field's (its why is the field's, asked with it)
     std::uint32_t                group_ = 0;        // which group of its guests the bodies were
     std::uint64_t              steps_ = 0;
     matter::Causes             causes_;

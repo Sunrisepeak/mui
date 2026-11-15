@@ -373,6 +373,8 @@ struct Web::Impl {
     std::size_t later_looks = 0;
     std::uint64_t uncovered_seen = 0;
     std::set<char32_t> fonts_asked_for;
+    std::uint64_t missed_seen = 0;
+    std::set<std::pair<std::string, char32_t>> faces_asked_for;
     void want_deferred_fonts() {
         if (!opened) return;
         if (runtime->take_font_request()) page::want_fonts(std::nullopt);
@@ -383,6 +385,12 @@ struct Web::Impl {
             for (const char32_t cp : runtime->fonts().uncovered_points())
                 if (fonts_asked_for.insert(cp).second) page::want_fonts(cp);
         uncovered_seen = uncovered;
+        // A character the family asked for has no face for here: that family's full face, if the page holds it back.
+        const std::uint64_t missed = runtime->fonts().missed();
+        if (missed > missed_seen)
+            for (const auto& miss : runtime->fonts().missed_points())
+                if (faces_asked_for.insert({miss.family, miss.code_point}).second) page::want_face(miss.family, miss.code_point);
+        missed_seen = missed;
     }
     void take_later_fonts() {
         if (!opened || ++later_looks % 30 != 0) return;

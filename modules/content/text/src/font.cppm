@@ -105,6 +105,16 @@ public:
     [[nodiscard]] std::uint64_t uncovered() const noexcept;
     // The code points it found no face for (each cluster's first; distinct, the first 64).
     [[nodiscard]] std::vector<char32_t> uncovered_points() const;
+    // A cluster the family asked for had no face for, whatever drew it (another family's face, or none): the
+    // code point (the cluster's first) and the family. A host that holds a family's full face back, a cut of it
+    // being what it has, fetches it when this grows.
+    struct Missed {
+        char32_t    code_point = 0;
+        std::string family;
+    };
+    [[nodiscard]] std::uint64_t missed() const noexcept;
+    // Distinct, the first 64.
+    [[nodiscard]] std::vector<Missed> missed_points() const;
 
     [[nodiscard]] std::size_t face_count() const noexcept;
     [[nodiscard]] const FaceInfo& face(FaceId id) const;

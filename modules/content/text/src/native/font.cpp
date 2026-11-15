@@ -91,6 +91,8 @@ struct FontCollection::Impl {
     std::atomic<std::uint64_t>         uncovered{0};  // clusters no face covered (select)
     std::mutex                         uncovered_lock;
     std::vector<char32_t>              uncovered_points;  // distinct, the first 64
+    std::atomic<std::uint64_t>         missed{0};          // clusters the asked-for family had no face for (select)
+    std::vector<FontCollection::Missed> missed_points;     // distinct, the first 64 (under uncovered_lock)
     // Fonts are made while text is shaped (a new weight) and read by glyph
     // caches on other threads (a canvas's textures): the lists change under
     // `lock`, and a deque keeps every entry where it is.
@@ -235,6 +237,11 @@ std::expected<FaceId, std::string> FontCollection::add_fallback(const std::files
 
 std::uint64_t FontCollection::revision() const noexcept { return impl_->revision.load(); }
 std::uint64_t FontCollection::uncovered() const noexcept { return impl_->uncovered.load(std::memory_order_relaxed); }
+std::uint64_t FontCollection::missed() const noexcept { return impl_->missed.load(std::memory_order_relaxed); }
+std::vector<FontCollection::Missed> FontCollection::missed_points() const {
+    const std::scoped_lock guard(impl_->uncovered_lock);
+    return impl_->missed_points;
+}
 std::vector<char32_t> FontCollection::uncovered_points() const {
     const std::scoped_lock guard(impl_->uncovered_lock);
     return impl_->uncovered_points;
@@ -308,14 +315,27 @@ FaceId FontCollection::select(std::span<const std::string> families, std::u32str
     if (emoji)
         for (FaceId f : impl_->fallback)
             if (impl_->at(f).info.color && ok(f)) return f;
+    std::string_view asked;  // the first family asked for that this collection has: what a miss is told against
     for (const std::string& fam : families) if (const auto first = find_family(fam)) {
         // Resolve a generic name exactly as find_family does. The original
         // sparse face remains preferred where it covers the cluster; later
         // full faces of that family precede every cross-family fallback.
         const std::string_view actual = impl_->at(*first).info.family;
+        if (asked.empty()) asked = actual;
         std::shared_lock g(impl_->lock);
         for (std::size_t i = 0; i < impl_->faces.size(); ++i)
             if (same_family(impl_->faces[i]->info.family, actual) && covers_cluster(*impl_->faces[i])) return static_cast<FaceId>(i);
+    }
+    // The family asked for has no face for it, whatever draws it now: counted with the family (a host may hold
+    // that family's full face back until it is asked for, a cut of it being what it has).
+    if (const auto cp = std::ranges::find_if(cluster, [](char32_t c) { return c >= 0x20 && c != 0x7F; }); !asked.empty() && cp != cluster.end()) {
+        {
+            const std::scoped_lock guard(impl_->uncovered_lock);
+            auto& points = impl_->missed_points;
+            if (points.size() < 64 && std::ranges::none_of(points, [&](const Missed& m) { return m.code_point == *cp && m.family == asked; }))
+                points.push_back({*cp, std::string(asked)});
+        }
+        impl_->missed.fetch_add(1, std::memory_order_relaxed);
     }
     for (FaceId f : impl_->fallback)
         if (ok(f)) return f;

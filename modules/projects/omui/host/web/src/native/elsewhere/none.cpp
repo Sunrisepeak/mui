@@ -42,5 +42,6 @@ void set_route(std::string_view) {}
 std::string agent_guide() { return {}; }
 void first_frame() {}
 void want_fonts(std::optional<char32_t>) {}
+void want_face(std::string_view, char32_t) {}
 
 }  // namespace omui::page

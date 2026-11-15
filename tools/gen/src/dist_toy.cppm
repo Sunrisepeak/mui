@@ -88,6 +88,12 @@ struct ToyPackage {
     // uses initial coverage before main and defers the full face until the
     // first frame, for every language. Mounted under the same /fonts basename.
     std::vector<std::pair<std::string, std::string>> font_initial;
+    // The characters these files hold (as `subsets` reads them), added to a font's initial coverage: a page
+    // whose own text the initial cut draws, all of it.
+    std::vector<std::pair<std::string, std::vector<std::filesystem::path>>> font_initial_text;
+    // Fonts with an initial cut whose full face is fetched only when asked — when text in its family has a
+    // character the cut lacks (or no face has), as another language's face is — not once the program is drawn.
+    std::vector<std::string> fonts_on_demand;
 };
 
 struct ToyFile {

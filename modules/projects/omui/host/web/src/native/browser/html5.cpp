@@ -47,6 +47,7 @@ void omui_web_set_route(const char* route);
 char* omui_web_agent_guide();
 void omui_web_first_frame();
 void omui_web_want_fonts(int code_point);
+void omui_web_want_face(const char* family, int code_point);
 }
 
 namespace omui::page {
@@ -390,6 +391,7 @@ void set_route(std::string_view route) { omui_web_set_route(std::string(route).c
 std::string agent_guide() { return taken(omui_web_agent_guide()); }
 void first_frame() { omui_web_first_frame(); }
 void want_fonts(std::optional<char32_t> code_point) { omui_web_want_fonts(code_point ? static_cast<int>(*code_point) : -1); }
+void want_face(std::string_view family, char32_t code_point) { omui_web_want_face(std::string(family).c_str(), static_cast<int>(code_point)); }
 
 bool reload_with(std::string_view name, std::string_view value) {
     return omui_web_reload_with(std::string(name).c_str(), std::string(value).c_str()) != 0;

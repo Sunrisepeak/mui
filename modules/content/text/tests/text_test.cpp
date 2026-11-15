@@ -64,6 +64,24 @@ UTest cases{"text", [] {
         expect(f.find_family("monospace") == f.find_family("JetBrains Mono"));
     };
 
+    "a character the asked-for family lacks is told with the family, whatever face draws it; one it has is not"_test = [] {
+        mlibs::text::FontCollection fonts;
+        expect(fatal(fonts.add_defaults().has_value()));
+        const std::array<std::string, 1> inter{"Inter"};
+        const std::uint64_t before = fonts.missed();
+        (void)fonts.select(inter, U"A");
+        expect(eq(fonts.missed(), before)) << "Inter has A";
+        expect(fonts.face(fonts.select(inter, U"中")).family == "Noto Sans SC") << "drawn by the fallback";
+        expect(eq(fonts.missed(), before + 1));
+        const auto points = fonts.missed_points();
+        expect(std::ranges::any_of(points, [](const auto& miss) { return miss.code_point == U'中' && miss.family == "Inter"; })) << "told with the family Inter";
+        (void)fonts.select(inter, U"中");
+        expect(eq(fonts.missed_points().size(), points.size())) << "each (character, family) once in the list";
+        const std::array<std::string, 1> generic{"sans-serif"};
+        (void)fonts.select(generic, U"文");
+        expect(std::ranges::any_of(fonts.missed_points(), [](const auto& miss) { return miss.code_point == U'文' && miss.family == "Inter"; })) << "a generic name told as the family it resolves to";
+    };
+
     "a collection's identity is never reused, as its address may be: caches keyed by it cannot meet a successor"_test = [] {
         std::uint64_t first = 0;
         {

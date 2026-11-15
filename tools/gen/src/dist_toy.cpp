@@ -23,6 +23,27 @@ std::expected<std::string, std::string> read(const fs::path& file) {
     return std::string(std::istreambuf_iterator<char>(in), {});
 }
 
+// The characters of text files (.md, .cpp, .cppm, .toml, .json, .txt, .js; a directory's, recursively), into `into`.
+std::expected<void, std::string> characters_of_files(const std::vector<fs::path>& paths, std::set<char32_t>& into) {
+    static constexpr std::array<std::string_view, 7> text_kinds{".md", ".cpp", ".cppm", ".toml", ".json", ".txt", ".js"};
+    std::error_code ec;
+    const auto take = [&](const fs::path& file) {
+        if (std::ranges::find(text_kinds, utf8(file.extension())) == text_kinds.end()) return;
+        if (auto text = read(file)) characters_of(*text, into);
+    };
+    for (const fs::path& path : paths) {
+        if (fs::is_directory(path, ec)) {
+            for (const auto& entry : fs::recursive_directory_iterator(path, ec))
+                if (entry.is_regular_file()) take(entry.path());
+        } else if (fs::is_regular_file(path, ec)) {
+            take(path);
+        } else {
+            return std::unexpected(std::format("{} is neither a file nor a directory", utf8(path)));
+        }
+    }
+    return {};
+}
+
 std::expected<void, std::string> write(const fs::path& file, std::string_view bytes) {
     std::error_code ec;
     fs::create_directories(file.parent_path(), ec);
@@ -102,11 +123,12 @@ std::string page(const ToyPackage& p, std::string_view js, std::string_view wasm
         if (const auto fl = std::ranges::find(p.font_languages, stem, &std::pair<std::string, std::vector<std::string>>::first); fl != p.font_languages.end())
             for (const std::string& l : fl->second) langs += std::format("{}{}", langs.empty() ? "" : ", ", js_string(l));
         const auto first = std::ranges::find(initial, stem, &std::pair<std::string, std::string>::first);
-        // [name, file, [languages], initial file (or null), blocks covered (a language's face)]
+        // [name, file, [languages], initial file (or null), blocks covered (a language's face, an on-demand one), on demand]
         const auto blocks = coverage.find(stem);
+        const bool on_demand = std::ranges::find(p.fonts_on_demand, stem) != p.fonts_on_demand.end();
         const std::string initial_file = first == initial.end() ? std::string(blocks == coverage.end() ? "" : ", null") : ", " + js_string(first->second);
-        font_list += std::format("{}[{}, {}, [{}]{}{}]", font_list.empty() ? "" : ", ", js_string(name), js_string(file), langs, initial_file,
-                                 blocks == coverage.end() ? "" : ", " + blocks->second);
+        font_list += std::format("{}[{}, {}, [{}]{}{}{}]", font_list.empty() ? "" : ", ", js_string(name), js_string(file), langs, initial_file,
+                                 blocks == coverage.end() ? std::string(on_demand ? ", null" : "") : ", " + blocks->second, on_demand ? ", true" : "");
     }
     for (const auto& [path, file] : later) later_list += std::format("{}[{}, {}]", later_list.empty() ? "" : ",\n  ", js_string(path), js_string(file));
     std::string html;
@@ -374,7 +396,11 @@ async function omuiFontBytes(name) {
   if (!font) throw omuiFontError('font_not_found', 'Unknown packaged font: ' + name);
   omuiPlanFonts();
   var full = omuiFontTargets['font:' + name], deferred = full.role === 'later';
-  var target = full.installed ? full : omuiFontTargets[(deferred && font[3] ? 'initial-font:' : 'font:') + name];
+  // A face on demand: a lease taken once the program is drawn asks for the face itself (the static page's
+  // lease before then takes the initial cut, as for any deferred face).
+  var asked = deferred && font[5] === true && omuiPresented && !full.installed;
+  if (asked) full.asset.wanted = true;
+  var target = full.installed || asked ? full : omuiFontTargets[(deferred && font[3] ? 'initial-font:' : 'font:') + name];
   var record = target.record;
   if (deferred && !font[3] && !omuiPresented && !(full && full.installed)) throw omuiFontError('font_deferred', 'This font is deferred until presentation', full && full.asset);
   if (record.asset.error) throw omuiFontError('font_fetch_failed', record.asset.error.message, record.asset);
@@ -416,8 +442,9 @@ function omuiPlanFonts() {
   omuiFonts.forEach(function (f, index) {
     var deferred = plan[index], full = omuiFontRecord('font:' + f[0], f[1], f[0]);
     full.role = deferred ? 'later' : 'startup';
-    // Another language's face: asked for, not fetched after the first frame.
-    full.job.demand = full.asset.demand = deferred && f[2].length > 0;
+    // Another language's face, or one on demand: asked for, not fetched after the first frame.
+    full.job.demand = full.asset.demand = deferred && (f[2].length > 0 || f[5] === true);
+    full.job.family = omuiFamilyKey(f[0]);
     full.job.blocks = f[4] || null;  // the 256-character blocks it covers
     if (deferred) {
       var queued = ['/later/fonts/' + f[0], f[1]]; omuiLater.push(queued); omuiFontLater.push(queued);
@@ -554,6 +581,21 @@ function omuiFetchLater() {
 // A character no face the program has covers (its code point), or every
 // face (no argument: a reader drawing in all of them): the deferred faces
 // that could draw it, fetched once each.
+// A family's name as the program says it (Noto Sans SC) and a font's file stem (NotoSansSC), compared.
+function omuiFamilyKey(name) { return String(name).replace(/\.ttf$/, '').replace(/[^0-9a-z]/gi, '').toLowerCase(); }
+// Text in `family` has a character its face here lacks (`codePoint`): that family's face the page holds back
+// until asked, if it has the character's block, fetched once.
+window.omuiWantFace = function (family, codePoint) {
+  var key = omuiFamilyKey(family), block = codePoint >> 8, any = false;
+  omuiLaterJobs.forEach(function (j) {
+    if (!j.demand || j.asset.wanted || j.family !== key) return;
+    if (j.blocks && !j.blocks.some(function (r) { return block >= r[0] && block <= r[1]; })) return;
+    j.asset.wanted = true; any = true;
+    if (omuiLaterStarted) omuiStart(j, false);
+  });
+  window.omuiFacesWanted = (window.omuiFacesWanted || []).concat([{family: family, codePoint: codePoint, fetched: any}]);
+  if (any) { omuiPublish(); omuiFinished(); }
+};
 window.omuiWantFonts = function (codePoint) {
   var every = typeof codePoint !== 'number', block = every ? -1 : codePoint >> 8, any = false;
   omuiLaterJobs.forEach(function (j) {
@@ -677,6 +719,8 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
         if (first != p.font_initial.end()) {
             std::set<char32_t> keep;
             characters_of(first->second, keep);
+            if (const auto more = std::ranges::find(p.font_initial_text, stem, &std::pair<std::string, std::vector<fs::path>>::first); more != p.font_initial_text.end())
+                if (auto read_all = characters_of_files(more->second, keep); !read_all) return std::unexpected(std::format("--font-initial-text {}: {}", stem, read_all.error()));
             auto cut = subset_font(std::span(reinterpret_cast<const std::uint8_t*>(bytes->data()), bytes->size()), keep);
             if (!cut) return std::unexpected(std::format("initial font {}: {}", stem, cut.error()));
             auto delivered = compact_font_post(*cut);
@@ -693,21 +737,7 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
             always_kept(keep);
             if (first != p.font_initial.end()) characters_of(first->second, keep);
             if (auto common = read(fonts_dir / (stem + ".common.txt"))) characters_of(*common, keep);
-            static constexpr std::array<std::string_view, 7> text_kinds{".md", ".cpp", ".cppm", ".toml", ".json", ".txt", ".js"};
-            auto take = [&](const fs::path& f) {
-                if (std::ranges::find(text_kinds, utf8(f.extension())) == text_kinds.end()) return;
-                if (auto t = read(f)) characters_of(*t, keep);
-            };
-            for (const fs::path& t : sub->text) {
-                if (fs::is_directory(t, ec)) {
-                    for (const auto& e : fs::recursive_directory_iterator(t, ec))
-                        if (e.is_regular_file()) take(e.path());
-                } else if (fs::is_regular_file(t, ec)) {
-                    take(t);
-                } else {
-                    return std::unexpected(std::format("--subset {}: {} is neither a file nor a directory", stem, utf8(t)));
-                }
-            }
+            if (auto read_all = characters_of_files(sub->text, keep); !read_all) return std::unexpected(std::format("--subset {}: {}", stem, read_all.error()));
             FontSubsetReport r;
             auto cut = subset_font(std::span(reinterpret_cast<const std::uint8_t*>(bytes->data()), bytes->size()), keep, &r);
             if (!cut) return std::unexpected(std::format("font {}: {}", stem, cut.error()));
@@ -723,8 +753,10 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
         const std::string asset = std::format("assets/{}.ttf", content_hash(*bytes));
         if (auto w = write(p.out / asset, *bytes); !w) return std::unexpected(w.error());
         fonts.emplace_back(stem + ".ttf", asset);
-        // Another language's face waits until a character it covers is wanted: the page knows which.
-        if (std::ranges::find(p.font_languages, stem, &std::pair<std::string, std::vector<std::string>>::first) != p.font_languages.end()) {
+        // Another language's face, and a face fetched on demand, wait until a character it covers is wanted: the page knows which.
+        const bool on_demand = std::ranges::find(p.fonts_on_demand, stem) != p.fonts_on_demand.end();
+        if (on_demand && first == p.font_initial.end()) return std::unexpected(std::format("--font-on-demand {}: it needs an initial cut (--font-initial)", stem));
+        if (on_demand || std::ranges::find(p.font_languages, stem, &std::pair<std::string, std::vector<std::string>>::first) != p.font_languages.end()) {
             // A face whose cmap cannot be read says nothing: fetched for any character no face covers.
             const auto blocks = font_blocks(std::span(reinterpret_cast<const std::uint8_t*>(bytes->data()), bytes->size()));
             if (blocks) {
@@ -821,6 +853,14 @@ int dist_toy_main(const mcpplibs::cmdline::ParsedArgs& args) {
         if (eq == std::string::npos || eq == 0 || eq + 1 == value.size()) return usage("--font-initial is <font>=<text>");
         p.font_initial.emplace_back(value.substr(0, eq), value.substr(eq + 1));
     }
+    for (const std::string& value : args.option_or_empty("font-initial-text").values) {  // <font>=<path>,<path>…
+        const auto eq = value.find('=');
+        if (eq == std::string::npos || eq == 0) return usage("--font-initial-text is <font>=<path>,<path>…");
+        std::vector<fs::path> paths;
+        for (const std::string& file : items(std::string_view(value).substr(eq + 1))) paths.emplace_back(file);
+        p.font_initial_text.emplace_back(value.substr(0, eq), std::move(paths));
+    }
+    for (const std::string& value : args.option_or_empty("font-on-demand").values) p.fonts_on_demand.push_back(value);
     for (const std::string& value : args.option_or_empty("font-languages").values) {  // <font>=<lang>,<lang>…
         const auto eq = value.find('=');
         if (eq == std::string::npos) return usage("--font-languages is <font>=<lang>,<lang>…");

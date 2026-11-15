@@ -843,6 +843,12 @@ addToLibrary({
     var f = window.omuiWantFonts;
     if (typeof f === 'function') { if (codePoint >= 0) f(codePoint); else f(); }
   },
+  // A family's full face the page holds back until asked, for a character its cut lacks: the page's hook.
+  omui_web_want_face__deps: ['$UTF8ToString'],
+  omui_web_want_face: function (family, codePoint) {
+    var f = window.omuiWantFace;
+    if (typeof f === 'function') f(UTF8ToString(family), codePoint);
+  },
   // Where the application's agent.md is: beside the page.
   omui_web_agent_guide__deps: ['$stringToNewUTF8'],
   omui_web_agent_guide: function () {

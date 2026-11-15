@@ -95,5 +95,9 @@ void first_frame();
 // language's): one that draws `code_point`, or every one (none) — the page's
 // hook (window.omuiWantFonts); they arrive as later fonts do.
 void want_fonts(std::optional<char32_t> code_point);
+// The family a text asked for has no face for `code_point` here (another family's drew it, or none): the page
+// fetches that family's full face if it holds one back until asked (a cut of it being what the program has) —
+// the page's hook (window.omuiWantFace).
+void want_face(std::string_view family, char32_t code_point);
 
 }  // namespace omui::page

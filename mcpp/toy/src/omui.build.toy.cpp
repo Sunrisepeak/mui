@@ -43,10 +43,15 @@ bool dist_toy(toy_options opt) {
     }
     for (const auto& [font, text] : opt.font_initial)
         a.arg("--font-initial").arg(std::format("{}={}", font, text).c_str());
-    for (const font_subset& s : opt.subsets) {
+    for (const std::string& font : opt.fonts_on_demand) a.arg("--font-on-demand").arg(font.c_str());
+    std::vector<std::pair<std::string_view, const font_subset*>> texts;
+    for (const font_subset& s : opt.subsets) texts.emplace_back("--subset", &s);
+    for (const font_subset& s : opt.font_initial_text) texts.emplace_back("--font-initial-text", &s);
+    for (const auto& [flag, subset] : texts) {
+        const font_subset& s = *subset;
         std::string list;
         for (const std::string& t : s.text) list += (list.empty() ? "" : ",") + t;
-        a.arg("--subset").arg(std::format("{}={}", s.font, list).c_str());
+        a.arg(flag.data()).arg(std::format("{}={}", s.font, list).c_str());  // the flags are literals
         // Their text is the subset's input: a character added, the font is cut again.
         for (const std::string& t : s.text) {
             std::error_code ec;

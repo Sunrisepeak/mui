@@ -217,7 +217,7 @@ UTest cases{"gen.dist_toy", [] {
         const std::string index = read(t.root / "out" / "game" / "index.html");
         expect(index.contains("[\"Inter.ttf\", \"assets/") && index.contains("[\"zh\"]]")) << "its languages listed with it";
         expect(index.contains("omuiWants(f[2])") && index.contains("'/later/fonts/' + f[0]")) << "else in /later/fonts";
-        expect(index.contains("full.job.demand = full.asset.demand = deferred && f[2].length > 0") && index.contains("window.omuiWantFonts = function")) << "another language's face waits until the program asks for it";
+        expect(index.contains("full.job.demand = full.asset.demand = deferred && (f[2].length > 0 || f[5] === true)") && index.contains("window.omuiWantFonts = function")) << "another language's face waits until the program asks for it";
         expect(index.contains("if (!window.omuiFollowsRoute) location.reload();")) << "reloaded on a new hash only when the program does not follow its route";
     };
 
@@ -240,6 +240,41 @@ UTest cases{"gen.dist_toy", [] {
         const auto entry = index.find("[\"NotoSansSC.ttf\"");
         expect(entry != std::string::npos && index.substr(entry, index.find('\n', entry) - entry).contains("[\"zh\"], null, [[")) << "its entry: no initial file, then its blocks";
         expect(index.contains("j.blocks.some(function (r) { return block >= r[0] && block <= r[1]; })")) << "the page fetches by block";
+    };
+
+    "a face on demand: its initial cut holds the page's own text, its full face waits for a character the cut lacks, asked by family"_test = [] {
+        Tree t;
+        fs::copy_file(mlibs::text::FontCollection::default_directory() / "Inter.ttf", t.root / "fonts" / "Inter.ttf", fs::copy_options::overwrite_existing);
+        fs::create_directories(t.root / "words");
+        {
+            std::ofstream words(t.root / "words" / "page.md", std::ios::binary);
+            words << "Read me: ≤ ÷ √ §";
+        }
+        auto p = t.package();
+        p.font_initial = {{"Inter", "Hello"}};
+        p.font_initial_text = {{"Inter", {t.root / "words"}}};
+        p.fonts_on_demand = {"Inter"};
+        auto r = gen::package_for_toy(p);
+        expect(r.has_value()) << (r ? "" : r.error());
+        if (!r) return;
+        const std::string index = read(p.out / "index.html");
+        const auto entry = index.find("[\"Inter.ttf\"");
+        const std::string line = entry == std::string::npos ? std::string() : index.substr(entry, index.find(']', index.find("]]", entry) + 2) + 1 - entry);
+        expect(line.contains(", [[") && line.ends_with(", true]")) << "its blocks and the on-demand flag: " << line;
+        expect(index.contains("window.omuiWantFace = function (family, codePoint)") && index.contains("j.family !== key")) << "fetched when text in its family asks";
+        // The initial cut has the page's text: its cmap maps ≤ (from the file) and H (from the literal), not Ж.
+        // The entry: [name, the full face's file, [languages], the initial cut's file, …].
+        const auto initial = index.find("\"assets/", index.find("\"assets/", entry) + 1);
+        expect(initial != std::string::npos);
+        const std::string asset = index.substr(initial + 1, index.find('"', initial + 1) - initial - 1);
+        const std::string bytes = read(p.out / asset);
+        mlibs::text::FontCollection collection;
+        const auto face = collection.add_data(std::vector<std::uint8_t>(bytes.begin(), bytes.end()));
+        expect(fatal(face.has_value())) << asset;
+        expect(collection.covers(*face, U'≤') && collection.covers(*face, U'H') && !collection.covers(*face, U'Ж')) << asset;
+        p.fonts_on_demand = {"Inter"};
+        p.font_initial.clear();
+        expect(!gen::package_for_toy(p).has_value()) << "on demand needs an initial cut";
     };
 
     "the file types Toy keeps"_test = [] {

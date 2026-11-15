@@ -56,6 +56,12 @@ struct toy_options {
     // subset of that same face. A page opened in its language loads the full face only.
     // With no language rule, every page starts with this subset, then takes the full face.
     std::vector<std::pair<std::string, std::string>> font_initial;
+    // The characters these files and directories hold, added to a font's initial subset (its page's own text,
+    // so the subset draws all of it).
+    std::vector<font_subset> font_initial_text;
+    // Fonts with an initial subset whose full face is fetched only when text asks for it (a character the
+    // subset lacks, in that family or any), not once the program is drawn.
+    std::vector<std::string> fonts_on_demand;
     std::string              out_dir = std::string(mcpp::out_dir());
 };
 

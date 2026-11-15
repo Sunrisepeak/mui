@@ -40,6 +40,14 @@ struct Options {
     xengine::matter::MaterialId ambient = xengine::matter::none;
     float                       ambient_kelvin = 293;
     std::uint32_t               ambient_weight = 1;  // how much of a neighbour the air is
+    // Particles that take room (off: they pass through each other, as sparks and drops in the air do). On, each is
+    // its `size` across and those that meet are put apart by their masses (density × size³, a few passes a step in
+    // a fixed order), what slides between them lessened by their materials' `friction` — so sand piles and water
+    // runs flat — and a liquid or a gas among others is lifted or sunk by the difference of its density from
+    // theirs (on its own, from the air's): oil comes up through water, steam rises.
+    bool                        touching = false;
+    std::uint32_t               passes = 4;
+    std::uint32_t               most_substeps = 8;  // touching: a step in up to this many, by the fastest's speed
 };
 struct Spawn {
     Vec3                         at{0, 0, 0}, velocity{0, 0, 0};
@@ -68,8 +76,16 @@ public:
 
     // Each spawn a particle (in order, numbered on from the last); past `most`, the rest are not. How many were.
     std::uint32_t emit(std::span<const Spawn> spawns);
-    // One step against the world's surfaces.
+    // One step against the world's surfaces: `fly`, `pair`, then one tick of matter with the air a bath.
     [[nodiscard]] std::expected<void, std::string> step(std::span<const Surface> world);
+    // The parts of a step, for a carrier that steps the matter itself (a field, with these as its guests):
+    // flight — the wind each particle is in (empty: still air; else one each), the world's surfaces, touching,
+    // ageing; then who is beside whom (`pairs`); then, after the field's step, what the laws did to these.
+    void fly(std::span<const Surface> world, std::span<const Vec3> wind = {});
+    void pair();
+    [[nodiscard]] std::span<const xengine::matter::Pair> pairs() const noexcept { return pairs_; }
+    [[nodiscard]] std::span<std::uint32_t> state_to_step() noexcept { return state_; }
+    void stepped(std::span<const xengine::matter::Event> events, std::uint32_t first);
 
     [[nodiscard]] std::size_t size() const noexcept { return at_.size(); }
     [[nodiscard]] std::span<const Vec3> at() const noexcept { return at_; }
@@ -98,6 +114,7 @@ private:
     std::vector<Vec3>               at_, velocity_;
     std::vector<float>              size_, age_, life_;
     std::vector<std::uint32_t>      id_, state_;
+    std::vector<float>              rise_;  // taking room: how far each lighter fluid has come toward changing places
     std::uint32_t                   next_id_ = 0;
     std::uint64_t                   steps_ = 0;
     std::vector<Landed>             landed_;
@@ -118,6 +135,19 @@ private:
     std::vector<Facing>                facing_;
     std::vector<std::size_t>           kept_;
     std::vector<std::uint32_t>         degree_;
+    // Touching: the pairs that may meet this step (by cells of the largest size), each particle's mass and its
+    // place after flight.
+    std::vector<Candidate>             touches_;
+    std::vector<float>                 mass_, lift_;
+    std::vector<Vec3>                  about_, delta_;
+    std::vector<std::uint32_t>         given_;
+    std::vector<std::uint8_t>          swapped_;
+    std::vector<Vec3>                  flown_, ground_, resting_, began_, floor_at_;  // began: where each was as the substep began  // ground: the facing of the surface each rests on this substep (0: none)
+    [[nodiscard]] std::optional<std::pair<float, Vec3>> first_hit(Vec3 from, Vec3 to) const noexcept;  // of the way, the facing
+    void find_touches();
+    void settle(std::span<const Vec3> wind);  // the step's flight when they take room
+    // A move kept a radius off the world's surfaces: where it ends, and the facing it met (none: nothing).
+    [[nodiscard]] std::pair<Vec3, std::optional<Vec3>> kept_off(Vec3 from, Vec3 to, float radius) const noexcept;
     xengine::matter::Workspace          workspace_;
 };
 

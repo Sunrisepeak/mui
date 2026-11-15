@@ -146,4 +146,73 @@ UTest cases{"xengine.particles", [] {
         std::println("400 sparks over 2 s: {} left, fingerprint {:016x}", one.size(), one.fingerprint());
         expect(eq(one.fingerprint(), other.fingerprint()) && eq(one.fingerprint(), branch.fingerprint()));
     };
+    "particles that take room: sand poured piles up, water poured runs flat, oil comes up through water, steam rises — by density, phase and friction; the same bits twice"_test = [] {
+        const auto program = standard();
+        const geom::Mesh floor = geom::sheet(10, 10, 4, 4);
+        const geom::Bvh floor_tree = geom::bvh_of(floor);
+        const std::array<particles::Surface, 1> ground{{{.mesh = &floor, .tree = &floor_tree, .place = math::translation({0, 0, 0})}}};
+        const particles::Options touching{.ambient = *program->material("air"), .touching = true, .passes = 8};
+        // Poured from a funnel 0.5 m up (a grain a step, let out at 1.5 m/s: one clear of the last), then left to
+        // settle: how high the heap, how far it spread.
+        const auto pour = [&](std::string_view material) {
+            auto cloud = particles::Cloud::make(program, touching);
+            for (int step = 0; step < 520; ++step) {
+                if (step < 400) {
+                    const float turn = static_cast<float>(step) * 2.39996f;
+                    const std::array<particles::Spawn, 1> grain{{{.at = {0.002f * static_cast<float>(math::det::cos(turn)), 0.5f, 0.002f * static_cast<float>(math::det::sin(turn))}, .velocity = {0, -1.5f, 0}, .life = 100, .material = *program->material(material)}}};
+                    cloud->emit(grain);
+                }
+                expect(cloud->step(ground).has_value());
+            }
+            float high = 0;
+            std::vector<float> out;
+            for (const math::Vec3 at : cloud->at()) high = std::max(high, at.y), out.push_back(std::sqrt(at.x * at.x + at.z * at.z));
+            std::ranges::sort(out);
+            return std::tuple{high, out[out.size() * 9 / 10], std::move(*cloud)};
+        };
+        auto [sand_high, sand_out, sand] = pour("sand");
+        auto [water_high, water_out, water] = pour("water");
+        std::println("400 grains of sand: a heap {:.3f} m high, 90% within {:.3f} m (height ÷ spread {:.2f}); 400 drops of water: {:.3f} m high, within {:.3f} m ({:.2f})", sand_high, sand_out,
+                     sand_high / sand_out, water_high, water_out, water_high / water_out);
+        expect(gt(sand_high / sand_out, 0.3f)) << "sand stands in a heap";
+        expect(lt(water_high / water_out, 0.1f)) << "water runs flat";
+        expect(gt(water_out, sand_out * 2)) << "water spreads far wider";
+        auto [again_high, again_out, again] = pour("sand");
+        expect(eq(again.fingerprint(), sand.fingerprint())) << "the same bits twice";
+
+        // A tank, water poured over oil lying at its bottom: the oil comes up through it.
+        const geom::Mesh tank = geom::box({0.1f, 0.3f, 0.1f});
+        const geom::Bvh tank_tree = geom::bvh_of(tank);
+        const std::array<particles::Surface, 1> inside{{{.mesh = &tank, .tree = &tank_tree, .place = math::translation({0, 0.3f, 0})}}};
+        auto layered = particles::Cloud::make(program, touching);
+        std::vector<particles::Spawn> spawns;
+        for (int layer = 0; layer < 8; ++layer)
+            for (int row = 0; row < 8; ++row)
+                for (int column = 0; column < 8; ++column)
+                    // Off a perfect lattice by a little (the same little every run): nothing in a real tank stands in rows.
+                    spawns.push_back({.at = {-0.07f + 0.02f * static_cast<float>(column) + 0.002f * static_cast<float>((layer * 7 + row * 3) % 5 - 2), 0.012f + 0.021f * static_cast<float>(layer),
+                                             -0.07f + 0.02f * static_cast<float>(row) + 0.002f * static_cast<float>((layer * 5 + column * 3) % 5 - 2)}, .life = 100,
+                                      .material = *program->material(layer < 2 ? "oil" : "water")});
+        layered->emit(spawns);
+        const auto mean_height = [&](const particles::Cloud& cloud, std::string_view material) {
+            double sum = 0;
+            int count = 0;
+            for (std::size_t particle = 0; particle < cloud.size(); ++particle)
+                if (cloud.material(particle) == *program->material(material)) sum += cloud.at()[particle].y, ++count;
+            return count ? sum / count : 0.0;
+        };
+        const double oil_before = mean_height(*layered, "oil"), water_before = mean_height(*layered, "water");
+        for (int step = 0; step < 300; ++step) expect(layered->step(inside).has_value());
+        const double oil_after = mean_height(*layered, "oil"), water_after = mean_height(*layered, "water");
+        std::println("oil under water in a tank: its mean height {:.3f} m (water {:.3f}); after 5 s {:.3f} m (water {:.3f})", oil_before, water_before, oil_after, water_after);
+        expect(gt(oil_after, water_after)) << "oil floats on water";
+
+        // Steam on its own in the air rises; a drop of water falls.
+        auto air = particles::Cloud::make(program, touching);
+        const std::array<particles::Spawn, 2> two{{{.at = {0, 1, 0}, .life = 10, .material = *program->material("steam"), .kelvin = 400.0f}, {.at = {1, 1, 0}, .life = 10, .material = *program->material("water")}}};
+        air->emit(two);
+        for (int step = 0; step < 30; ++step) expect(air->step({}).has_value());
+        std::println("half a second: steam at {:.2f} m, water at {:.2f} m", air->at()[0].y, air->at()[1].y);
+        expect(gt(air->at()[0].y, 1.0f) && lt(air->at()[1].y, 1.0f)) << "steam rises, water falls";
+    };
 }};

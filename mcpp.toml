@@ -137,6 +137,7 @@ members = [
     "modules/projects/omui/lang/js",
     "modules/projects/omui/lang/ts",
     "tools/cli",
+    "tools/devtools",
     "tools/gen",
     "tools/inspector",
     "tools/mcp",

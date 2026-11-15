@@ -1,0 +1,27 @@
+# omui.devtools — the contributors' tool (release design §6.6): `ci` reads a
+# CI run row by row and sets each failure against STATUS's red list (R12).
+# The workspace's checks that grow past a script land here as subcommands.
+[package]
+namespace   = "omui"
+name        = "devtools"
+version     = "0.1.0"
+description = "The contributors' tool: a CI run read row by row and set against the red list"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+kind = "tool"
+
+[targets.omui-devtools]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+nlohmann.json    = "3.12.0"
+mcpplibs.cmdline = "0.0.3"
+mcpplibs.os      = "0.4.4"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"

@@ -1,0 +1,117 @@
+test web wasm32-emscripten	UNKNOWN STEP	2026-11-15T06:56:10.0249087Z    Workspace member 'modules/projects/xengine/kernel/cellular' (17/83) ok — 2 passed, run 0.53s
+test web wasm32-emscripten	UNKNOWN STEP	2026-11-15T06:56:10.6334927Z    Workspace member 'modules/projects/xengine/kernel/matter' (18/83) ok — 4 passed, run 0.59s
+test web wasm32-emscripten	UNKNOWN STEP	2026-11-15T06:59:55.3779505Z 15 passed, 0 failed, 3 skipped
+test web wasm32-emscripten	UNKNOWN STEP	2026-11-15T06:59:55.5645437Z nav_test ... FAIL (exit 1, 0.96s, 13 cases)
+test web wasm32-emscripten	UNKNOWN STEP	2026-11-15T06:59:55.5645806Z evidence state: 961ffb8851f9f49a
+test web wasm32-emscripten	UNKNOWN STEP	2026-11-15T06:59:55.5646176Z   ok   nav/recast-detour-1.6/world.same-steps-same-hash
+test web wasm32-emscripten	UNKNOWN STEP	2026-11-15T06:59:55.5652452Z   FAIL nav/a crowd walks through the doorway and up the link; restored mid-crossing it runs on to the same bits  (1 of 15 checks failed)
+test web wasm32-emscripten	UNKNOWN STEP	2026-11-15T06:59:55.5653415Z        modules/projects/xengine/game/nav/cts/tests/nav_test.cpp:86
+test web wasm32-emscripten	UNKNOWN STEP	2026-11-15T06:59:55.5654044Z            expect(eq(expected, std::uint64_t{0x9299f973ab81ffc6})) << "the crowd after 1500 steps, pinned";
+test web wasm32-emscripten	UNKNOWN STEP	2026-11-15T06:59:55.5654533Z            expected  10563748676168187846
+test web wasm32-emscripten	UNKNOWN STEP	2026-11-15T06:59:55.5654805Z            actual    45330494643434899
+test web wasm32-emscripten	UNKNOWN STEP	2026-11-15T06:59:55.5655406Z   FAIL nav  (1 of 4 cases failed)
+test web wasm32-emscripten	UNKNOWN STEP	2026-11-15T06:59:55.5655711Z 10 passed, 1 failed, 0 skipped (seed 4816576336367263773)
+test web wasm32-emscripten	UNKNOWN STEP	2026-11-15T06:59:55.5655969Z 
+test web wasm32-emscripten	UNKNOWN STEP	2026-11-15T06:59:55.5656231Z error: test result: FAILED. 1 passed; 1 failed; finished in 1299.01s (build 899.42s + run 0.96s)
+test web wasm32-emscripten	UNKNOWN STEP	2026-11-15T06:59:55.5656745Z        cases: 25 passed, 1 failed, 3 skipped (in 2 programs)
+test web wasm32-emscripten	UNKNOWN STEP	2026-11-15T06:59:55.5710537Z 
+test web wasm32-emscripten	UNKNOWN STEP	2026-11-15T06:59:55.5710945Z how these tests are written: mcpp test --guide (mcpplibs.mtest 0.8.4)
+test web wasm32-emscripten	UNKNOWN STEP	2026-11-15T06:59:55.5761443Z    Workspace member 'modules/projects/xengine/game/nav/cts' (68/83) FAILED — 1 passed, 1 failed, run 0.96s
+test web wasm32-emscripten	UNKNOWN STEP	2026-11-15T07:08:02.2681489Z    Workspace member 'site' (83/83) ok — 31 passed, run 245.99s
+test web wasm32-emscripten	UNKNOWN STEP	2026-11-15T07:08:02.3514441Z error: workspace test: 1/83 member(s) failed; 219 passed; 1 failed; finished in 2423.78s
+test web wasm32-emscripten	UNKNOWN STEP	2026-11-15T07:08:02.3515427Z     failed members: modules/projects/xengine/game/nav/cts
+test web wasm32-emscripten	UNKNOWN STEP	2026-11-15T07:08:02.3516261Z     slowest: site 246.0s, showcase/kiln/headless 155.2s, modules/projects/xrender/mesh 137.4s
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:06:35.8482750Z    Workspace member 'modules/base/simulation' (17/171) ok — 1 passed, run 0.07s
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:06:36.2237770Z    Workspace member 'modules/projects/xengine/kernel/dynamics' (18/171) ok — 2 passed, run 0.36s
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:19:36.7950310Z 1 passed, 0 failed, 0 skipped
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:24:29.4560740Z present_test ... FAIL (timeout after 300s)
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:24:29.4572840Z   ok   present/the application's frames drawn by the host: the same list, the same pixels; a press in the host's window handled by the application
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:24:29.4580200Z   ok   present/a new build takes over: the host asks the old one what the person set and gives it to the new one before showing it
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:24:29.4732720Z 
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:24:29.4733730Z how these tests are written: mcpp test --guide (mcpplibs.mtest 0.8.4)
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:24:29.4814530Z    Workspace member 'modules/projects/omui/sdk' (74/171) FAILED — 6 passed, 1 failed, run 301.46s
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:24:37.9939530Z 1 passed, 0 failed, 0 skipped
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:24:41.9589790Z sdl3_test ... FAIL (exit 1, 5.20s, 14 cases)
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:24:41.9622540Z   ok   host.sdl3/the window shows the frame, presented only when it changes
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:24:41.9623640Z   from the saved shader to the frame showing it: 214 ms, 183 ms, 57 ms
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:24:41.9664170Z   FAIL host.sdl3/the system's web view (D-141, macOS's WKWebView): a web page placed in the window over its node, what it shows read back from the view  (1 of 1 checks failed, stopped)
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:24:41.9664940Z        modules/projects/omui/host/sdl3/tests/sdl3_test.cpp:500
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:24:41.9665420Z            expect(fatal(opened.has_value())) << (opened ? "" : opened.error());
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:24:41.9666560Z            SDL_CreateRenderer: Window framebuffer support not available
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:24:41.9666980Z            fatal: the rest of the case did not run
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:24:41.9667310Z   FAIL host.sdl3  (1 of 13 cases failed)
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:24:41.9667610Z 12 passed, 1 failed, 0 skipped (seed 3428957790574417357)
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:24:41.9845620Z 
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:24:41.9846280Z error: test result: FAILED. 1 passed; 1 failed; finished in 190.36s (build 176.99s + run 5.21s)
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:24:41.9846950Z        cases: 13 passed, 1 failed, 0 skipped (in 2 programs)
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:24:41.9891080Z 
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:24:41.9891540Z how these tests are written: mcpp test --guide (mcpplibs.mtest 0.8.4)
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:24:41.9918210Z    Workspace member 'modules/projects/omui/host/sdl3' (78/171) FAILED — 1 passed, 1 failed, run 5.21s
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:43:53.9206350Z    Compiling device_test (test)
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:43:55.2535140Z desktop_test ... FAIL (exit 1, 1.33s, 2 cases)
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:43:55.2536600Z   FAIL quay.desktop/the harbour in a window drawn by a device: drawn on that device and shown as it is, where its node is  (1 of 1 checks failed)
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:43:55.2537250Z        showcase/quay/play/tests/desktop_test.cpp:45
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:43:55.2538410Z            if (mcpplibs::os::env::get("OMUI_REQUIRE_GPU") == "1") expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", why);
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:43:55.2539180Z            OMUI_REQUIRE_GPU=1 and no device: no GPU device for the window: no GPU device: No supported SDL_GPU backend found!
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:43:55.2539710Z   FAIL quay.desktop  (1 of 1 cases failed)
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:43:55.2540030Z 0 passed, 1 failed, 0 skipped (seed 10229411246803856648)
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:44:02.4910560Z device_test ... ok (8.57s, 2 cases)
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:44:02.4961940Z start on Apple Paravirtual device: 47 draws, 8 lights (0 left out), 7 with shadows in 40 views; 30 of 129600 pixels further than 6 levels (0.02%), mean 0.079, worst 22
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:44:02.4965450Z warden on Apple Paravirtual device: 46 draws, 8 lights (0 left out), 7 with shadows in 40 views; 286 of 129600 pixels further than 6 levels (0.22%), mean 0.132, worst 208
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:44:02.5207860Z 
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:44:02.5208530Z how these tests are written: mcpp test --guide (mcpplibs.mtest 0.8.4)
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:44:02.5238300Z    Workspace member 'showcase/quay/play' (166/171) FAILED — 1 passed, 1 failed, run 8.57s
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:45:33.2718400Z    Workspace member 'showcase/swarm/play' (171/171) ok — 1 passed, run 0.12s
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:45:35.4186730Z error: workspace test: 3/171 member(s) failed; 362 passed; 3 failed; finished in 10602.63s
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:45:35.4187640Z     failed members: modules/projects/omui/sdk, modules/projects/omui/host/sdl3, showcase/quay/play
+test macos-15 llvm@23.1.3 ci	Test every member	2026-11-15T09:45:35.4188590Z     slowest: modules/projects/omui/sdk 301.5s, modules/projects/xengine/kernel/dynamics/cts 250.3s, modules/projects/xrender/mesh 198.5s
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T07:56:58.4387680Z    Compiling sim v0.1.0 (showcase/widget-breakout/sim)
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T07:57:06.5891975Z error: build failed in gpu v0.1.0 (modules/projects/xrender/mesh/gpu)
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T07:57:06.5895810Z failed: obj/xrender_mesh_gpu/__ws/target/.build-mcpp/out/b9c5462acb822029/xrender.mesh.gpu/mlibs/shader/glow_shaders.m.o pcm.cache/xrender.mesh.gpu/xrender.mesh.gpu-glow_shaders.pcm
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T07:57:06.6655038Z error: unable to open output file 'pcm.cache/xrender.mesh.gpu/xrender.mesh.gpu-glow_shaders.pcm': 'The requested operation cannot be performed on a file with a user-mapped section open.'
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T07:57:06.6656795Z 1 error generated.
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T08:36:25.5459992Z failed: obj/xrender_mesh_gpu/__ws/target/.build-mcpp/out/b9c5462acb822029/xrender.mesh.gpu/mlibs/shader/ids_shaders.m.o pcm.cache/xrender.mesh.gpu/xrender.mesh.gpu-ids_shaders.pcm
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T08:36:25.5928343Z error: unable to open output file 'pcm.cache/xrender.mesh.gpu/xrender.mesh.gpu-ids_shaders.pcm': 'The requested operation cannot be performed on a file with a user-mapped section open.'
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T08:36:25.5929266Z 1 error generated.
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T08:41:45.1564851Z    Workspace member 'modules/base/simulation' (17/171) ok — 1 passed, run 0.10s
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T08:41:45.6581382Z    Workspace member 'modules/projects/xengine/kernel/dynamics' (18/171) ok — 2 passed, run 0.49s
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T08:58:08.7227953Z 
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T08:58:09.2669586Z nav_test ... FAIL (exit 1, 2.91s, 13 cases)
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T08:58:09.2670242Z evidence state: 961ffb8851f9f49a
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T08:58:09.2670926Z   ok   nav/recast-detour-1.6/world.same-steps-same-hash
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T08:58:09.2677117Z   FAIL nav/a crowd walks through the doorway and up the link; restored mid-crossing it runs on to the same bits  (1 of 15 checks failed)
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T08:58:09.2677724Z 
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T08:58:09.2677983Z        modules/projects/xengine/game/nav/cts/tests/nav_test.cpp:86
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T08:58:09.2678335Z 
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T08:58:09.2684567Z            expect(eq(expected, std::uint64_t{0x9299f973ab81ffc6})) << "the crowd after 1500 steps, pinned";
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T08:58:09.2686573Z   FAIL nav  (1 of 4 cases failed)
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T08:58:09.2686766Z 
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T08:58:09.2686917Z 10 passed, 1 failed, 0 skipped (seed 3030084689433244472)
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T08:58:09.2687191Z 
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T08:58:09.2687195Z 
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T08:58:09.2828524Z 
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T08:58:09.2828840Z how these tests are written: mcpp test --guide (mcpplibs.mtest 0.8.4)
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T08:58:09.2830181Z    Workspace member 'modules/projects/xengine/game/nav/cts' (112/171) FAILED — 1 passed, 1 failed, run 2.91s
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T09:00:13.8385115Z    Workspace testing member 'tests/bench' (132/171)
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T09:00:13.8385515Z error: member 'tests/bench': its package did not build, so its tests did not run
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T09:00:13.8386089Z    Workspace member 'tests/bench' (132/171) FAILED — 0 passed, 0 failed, run 0.00s
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T09:10:48.1951954Z    Workspace testing member 'showcase/quay/picture' (165/171)
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T09:10:48.1952526Z error: member 'showcase/quay/picture': its package did not build, so its tests did not run
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T09:10:48.1953259Z    Workspace member 'showcase/quay/picture' (165/171) FAILED — 0 passed, 0 failed, run 0.00s
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T09:12:33.9472650Z    Workspace member 'showcase/swarm/play' (171/171) ok — 1 passed, run 0.12s
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T09:12:35.1512574Z error: workspace test: 3/171 member(s) failed; 361 passed; 1 failed; finished in 8329.26s
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T09:12:35.1513772Z     failed members: modules/projects/xengine/game/nav/cts, tests/bench, showcase/quay/picture
+test windows-2022 llvm@23.1.3 ci	Test every member	2026-11-15T09:12:35.1515097Z     slowest: modules/projects/xrender/mesh 228.6s, modules/projects/xengine/kernel/dynamics/cts 208.8s, showcase/fighting 162.6s
+test ubuntu-24.04-arm llvm@23.1.3 ci	UNKNOWN STEP	2026-11-15T07:30:51.6503626Z    Workspace member 'modules/base/simulation' (17/171) ok — 1 passed, run 0.01s
+test ubuntu-24.04-arm llvm@23.1.3 ci	UNKNOWN STEP	2026-11-15T07:30:52.1039841Z    Workspace member 'modules/projects/xengine/kernel/dynamics' (18/171) ok — 2 passed, run 0.44s
+test ubuntu-24.04-arm llvm@23.1.3 ci	UNKNOWN STEP	2026-11-15T07:31:41.5121376Z 5 passed, 0 failed, 0 skipped
+test ubuntu-24.04-arm llvm@23.1.3 ci	UNKNOWN STEP	2026-11-15T07:35:52.1820902Z emergence3d_test ... FAIL (timeout after 300s)
+test ubuntu-24.04-arm llvm@23.1.3 ci	UNKNOWN STEP	2026-11-15T07:35:52.1821732Z a bucket on the burning crate: out at step 278 (0.6 s after the water came), wetness 36; a few drops: 8 boiled off, the steam as high as 20.72 m, 3 came back as water, at 10 s the crate burning 1; left alone: burning 1
+test ubuntu-24.04-arm llvm@23.1.3 ci	UNKNOWN STEP	2026-11-15T07:35:52.1822676Z    why the first drop boiled: particle 0 at 306: boils (in by `heat flows` from body 2); body 2 at 1: applied;
+test ubuntu-24.04-arm llvm@23.1.3 ci	UNKNOWN STEP	2026-11-15T07:35:52.1843021Z 
+test ubuntu-24.04-arm llvm@23.1.3 ci	UNKNOWN STEP	2026-11-15T07:35:52.1843538Z how these tests are written: mcpp test --guide (mcpplibs.mtest 0.8.4)
+test ubuntu-24.04-arm llvm@23.1.3 ci	UNKNOWN STEP	2026-11-15T07:35:52.1870944Z    Workspace member 'modules/projects/xengine/kernel/dynamics/cts' (19/171) FAILED — 8 passed, 1 failed, run 300.06s
+test ubuntu-24.04-arm llvm@23.1.3 ci	UNKNOWN STEP	2026-11-15T08:17:16.7838395Z    Workspace member 'showcase/swarm/play' (171/171) ok — 1 passed, run 0.02s
+test ubuntu-24.04-arm llvm@23.1.3 ci	UNKNOWN STEP	2026-11-15T08:17:18.4345666Z error: workspace test: 1/171 member(s) failed; 364 passed; 1 failed; finished in 5809.38s
+test ubuntu-24.04-arm llvm@23.1.3 ci	UNKNOWN STEP	2026-11-15T08:17:18.4346209Z     failed members: modules/projects/xengine/kernel/dynamics/cts
+test ubuntu-24.04-arm llvm@23.1.3 ci	UNKNOWN STEP	2026-11-15T08:17:18.4346825Z     slowest: modules/projects/xengine/kernel/dynamics/cts 300.1s, modules/projects/xrender/mesh 262.6s, showcase/promo-video 241.6s

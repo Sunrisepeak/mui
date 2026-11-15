@@ -1341,6 +1341,35 @@ def check_matter(root: Path) -> list[Problem]:
     return problems
 
 
+# STATUS is the one progress entry (release plan §3.4, D-202): at most 200
+# lines, each at most 600 characters, and a task done says where its
+# evidence is — a commit, a run, or a named case, benchmark or file.
+STATUS_FILE = ".agents/docs/STATUS.md"
+STATUS_MAX_LINES = 200
+STATUS_MAX_LINE = 600
+STATUS_TASK = re.compile(r"^\| (RC\d+(?:\.\d+[a-z]?)?|N\d[a-z]?)\b[^|]*\| *([^|]*?) *\| *([^|]*?) *\|$")
+STATUS_EVIDENCE = re.compile(r"`[^`]+`|\b[0-9a-f]{8,40}\b|\brun \d{8,}|\bthis file\b|\bAGENTS\b")
+
+
+def check_status(root: Path) -> list[Problem]:
+    path = root / STATUS_FILE
+    if not path.exists():
+        return []
+    lines = path.read_text(encoding="utf-8").split("\n")
+    if lines and lines[-1] == "":
+        lines.pop()
+    problems = []
+    if len(lines) > STATUS_MAX_LINES:
+        problems.append(Problem("status", STATUS_FILE, f"{len(lines)} lines; at most {STATUS_MAX_LINES} (finished stages and closed rows go to the archive)"))
+    for number, line in enumerate(lines, 1):
+        if len(line) > STATUS_MAX_LINE:
+            problems.append(Problem("status", f"{STATUS_FILE}:{number}", f"{len(line)} characters; a line holds at most {STATUS_MAX_LINE} (the details go in the commit body)"))
+        task = STATUS_TASK.match(line)
+        if task and task.group(2).lower() == "done" and not STATUS_EVIDENCE.search(task.group(3)):
+            problems.append(Problem("status", f"{STATUS_FILE}:{number}", f"{task.group(1)} is done without evidence: name a commit, a run, a case or a benchmark"))
+    return problems
+
+
 def check_shader_inputs(root: Path) -> list[Problem]:
     """A shader's vertex inputs name their places with TEXCOORD0, 1, 2 … with none left out: Slang numbers
     a struct's inputs in the order they are declared, not by the number, so an input after a gap reads the
@@ -1388,7 +1417,7 @@ def run(root: Path) -> list[Problem]:
         return unreadable  # the other rules read the manifests
     return (check_sources(root) + check_manifests(root) + check_projects(root) + check_layout(root) + check_licences(root) + check_platforms(root) + check_pins(root)
             + check_documents(root) + check_media(root) + check_closures(root) + check_operations(root) + check_skills(root) + check_agent_surface(root)
-            + check_lead(root) + check_typescript_data(root) + check_imports(root) + check_matter(root) + check_shader_inputs(root))
+            + check_lead(root) + check_typescript_data(root) + check_imports(root) + check_matter(root) + check_shader_inputs(root) + check_status(root))
 
 
 def self_test() -> int:
@@ -1424,6 +1453,7 @@ def self_test() -> int:
         "skills": ("modules/ui/core/skill.omui.md", "# x\n\nSee [x.ops.omui.ts](x.ops.omui.ts); then `ui.wipe`.\n"),
         "matter": ("modules/ui/core/x.matter.omui.json", '{"matter": {"materials": {"wood": {}, "ash": {}}, "laws": [{"when": "material == wood && temperature >= 500", "become": "burnt"}]}}'),
         "shader-inputs": ("modules/ui/core/x.slang", "struct VIn {\n    float3 position : TEXCOORD0;\n    float2 second : TEXCOORD4;\n};\n"),
+        "status": (STATUS_FILE, "# STATUS\n\n| Task | State | Evidence |\n|---|---|---|\n| RC0.1 push | done | pushed |\n"),
         "lead": (LEAD_FEATURES, '{"feature": [{"id": "A", "project": "omui", "line": "use-safely", "title": "x", "status": "claimed"}]}\n'),
     }
     try:

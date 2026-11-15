@@ -43,7 +43,9 @@ uint sample_field(uint channel, int x, int y) {
     if (x < 0 || x >= w || y < 0 || y >= h) {
         if (params.edge == 0) return outside_value(channel);
         if (params.edge == 1) { x = clamp(x, 0, w - 1); y = clamp(y, 0, h - 1); }
-        else { x = x % w; y = y % h; if (x < 0) x += w; if (y < 0) y += h; }
+        // Wrapped with non-negative operands only: a remainder of a negative number is undefined on Vulkan
+        // (OpSRem/OpSMod) and differs by driver; an offset is at least -32 (its word is offset + 32).
+        else { x = int(uint(x + 32 * w) % uint(w)); y = int(uint(y + 32 * h) % uint(h)); }
     }
     return before[channel * params.width * params.height + uint(y) * params.width + uint(x)];
 }

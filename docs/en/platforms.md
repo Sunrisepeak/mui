@@ -47,7 +47,7 @@ What has been run where (release plan §2.5). **Real**: on real hardware or a re
 - **A window drawn by a device (quay.desktop)**, Windows x64: quay.desktop on CI with lavapipe (windows video driver)
 - **A window drawn by a device (quay.desktop)**, Linux arm64: quay.desktop on CI with lavapipe
 - **A window drawn by a device (quay.desktop)**, Android: missing: a device run
-- **The Direct3D 12 device backend**, Windows x64: missing: red 11: the cellular reaction kernel differs from the CPU on WARP; fixed, or Direct3D 12 declared unsupported (RC2.15)
+- **The Direct3D 12 device backend**, Windows x64: missing: a Direct3D 12 run of the device suites (CI runs Vulkan). Red 11 (the cellular kernel off the CPU on WARP) has a likely root cause fixed: the wrap edge took a remainder of a negative number, undefined on Vulkan and emulated on DXBC; the same fault failed every wrap case on an RTX 4080 (Vulkan), which now passes
 - **The accessibility bridge to the system's screen reader**, Linux x64: AT-SPI on CI (tools/ci/atspi.sh)
 - **The accessibility bridge to the system's screen reader**, Web (wasm32): missing: the page's accessibility tree read by a screen reader
 - **The accessibility bridge to the system's screen reader**, macOS arm64: missing: NSAccessibility read by VoiceOver on a runner that runs it

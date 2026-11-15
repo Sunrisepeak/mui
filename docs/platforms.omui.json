@@ -79,7 +79,7 @@
       "name": "The Direct3D 12 device backend",
       "label": "preview",
       "cells": {
-        "windows-x64": {"status": "unverified", "needs": "red 11: the cellular reaction kernel differs from the CPU on WARP; fixed, or Direct3D 12 declared unsupported (RC2.15)"}
+        "windows-x64": {"status": "unverified", "needs": "a Direct3D 12 run of the device suites (CI runs Vulkan). Red 11 (the cellular kernel off the CPU on WARP) has a likely root cause fixed: the wrap edge took a remainder of a negative number, undefined on Vulkan and emulated on DXBC; the same fault failed every wrap case on an RTX 4080 (Vulkan), which now passes"}
       }
     },
     {

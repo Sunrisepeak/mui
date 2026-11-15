@@ -106,6 +106,7 @@ Kind: R regression, E environment, F flaky or time, T test expectation.
 
 - GCC 16.1 (not filed): a function-local using-declaration of an enum from another module inside a `constexpr` function of an interface is an ICE in `import_entity_module`; an alias declaration works.
 - mcpp#896: two packages with the same short name drop one from links (worked around: `xrender.graph`). mcpp#926: esbuild not found by tests on Windows (65). mcpp#936: a member's build rebuilds a mapped module (82). mcpp#874: target size and rebuild cascades. mcpp-index#750: `-pthread` on Android (50).
+- mcpp#941 (filed 2026-11-16): `[test] features` — a package's own tests built with named features. Without it a part behind a non-default feature is tested only as a default or as its own package: what holds many of RC1.5's rule-1 and rule-3 merges (e.g. `mlibs.image.ktx2` as `mlibs.image`'s feature).
 
 ## For 0.2 (found during 0.1; one line each, with the task that found it)
 
@@ -134,4 +135,5 @@ Kind: R regression, E environment, F flaky or time, T test expectation.
 1. N0: reconcile run 43718991717 (`omui-devtools ci run`), record each row's verdict, the eight counters; mcpp/mtest latest versions.
 2. RC1.5 per project after N0 (≤ 130 packages), RC1.6; then RC2.3, RC2.9, RC2.10, RC2.11, RC2.13.
 3. RC1.5 for the games, measured on Swarm first (reverted, 2026-11-16): one package a game loses the Web check of its rules (CI's web row builds every member listing emscripten; the window's tests need the native-only headless host, and test files cannot be gated by platform). So each game keeps two packages: the game on its own (rules and runtime; native and Web; no omui, stated in lint `closure`) and its app (picture, sound, window, line program as features and `required_features` programs; native). Quay 6→2, Kiln 6→2, Swarm 3→2, Breakout 3→2: about 10 fewer.
-4. The stroker's tight turns (RC2.8's remainder, before RC2.15): the inner side of a run turning tighter than the half-width collapsed to where its offsets cross, instead of a pivot a vertex; with the pixel references it moves.
+4. RC1.5's other candidates, each reviewed before it moves: a CTS that tests the owner's carriers cannot join the owner's tests (`xengine.matter.cts` → `xengine.cellular` would be a test-dependency cycle, lint `project-dag`); RC1.3's list is a first cut, not a plan.
+5. The stroker's tight turns (RC2.8's remainder, before RC2.15): the inner side of a run turning tighter than the half-width collapsed to where its offsets cross, instead of a pivot a vertex; with the pixel references it moves.

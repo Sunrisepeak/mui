@@ -9,7 +9,8 @@
 //   node vector.mjs DIR [--runs N]
 import { createCanvas, loadImage, Path2D } from "@napi-rs/canvas";
 import { Resvg } from "@resvg/resvg-js";
-import { readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { join } from "node:path";
 
 const args = process.argv.slice(2);
@@ -48,6 +49,60 @@ const compare = (reference, other) => {
     worst = Math.max(worst, most);
   }
   return { mean_difference: +(total / reference.length).toFixed(3), pixels_off_percent: +(100 * off / (reference.length / 4)).toFixed(3), worst };
+};
+
+// The scene drawn at `scale`× by Skia (the canvas calls) and by resvg (the SVG), each box-filtered back to one sample
+// a pixel, the two averaged: the reference `exact` below; with it, how far the two are apart (the mean channel
+// difference) — what the reference cannot resolve. Kept beside the scene, named by its SVG's hash: the ledger's rounds
+// draw the same scenes.
+const scale = 8;
+const supersampled = (scene, items) => {
+  const { width, height } = scene;
+  const svg = readFileSync(join(dir, `${scene.name}.svg`));
+  const kept = join(dir, `${scene.name}.exact-${createHash("sha256").update(svg).digest("hex").slice(0, 16)}`);
+  if (existsSync(`${kept}.f32`) && existsSync(`${kept}.json`))
+    return { exact: new Float32Array(readFileSync(`${kept}.f32`).buffer.slice(0)), ...JSON.parse(readFileSync(`${kept}.json`)) };
+  const reduced = (data, stride) => {
+    const sum = new Float64Array(width * height * 4);
+    for (let y = 0; y < height * scale; ++y)
+      for (let x = 0; x < width * scale; ++x) {
+        const from = (y * stride + x) * 4, to = (Math.floor(y / scale) * width + Math.floor(x / scale)) * 4;
+        for (let channel = 0; channel < 4; ++channel) sum[to + channel] += data[from + channel];
+      }
+    for (let at = 0; at < sum.length; ++at) sum[at] /= scale * scale;
+    return sum;
+  };
+  const big = createCanvas(width * scale, height * scale);
+  const context = big.getContext("2d");
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, width * scale, height * scale);
+  context.scale(scale, scale);
+  context.miterLimit = 4;
+  for (const item of items) {
+    if (item.stroke) {
+      context.strokeStyle = item.stroke;
+      context.lineWidth = item.width;
+      context.lineCap = item.cap;
+      context.lineJoin = item.join;
+      context.stroke(item.path);
+    } else {
+      context.fillStyle = item.fill;
+      context.fill(item.path);
+    }
+  }
+  const bySkia = reduced(context.getImageData(0, 0, width * scale, height * scale).data, width * scale);
+  const tiny = new Resvg(svg, { fitTo: { mode: "zoom", value: scale } }).render();
+  const byResvg = reduced(tiny.pixels, tiny.width);  // opaque (a white ground), so premultiplied or not is the same
+  const exact = new Float32Array(bySkia.length);
+  let apart = 0;
+  for (let at = 0; at < exact.length; ++at) {
+    exact[at] = (bySkia[at] + byResvg[at]) / 2;
+    apart += Math.abs(bySkia[at] - byResvg[at]);
+  }
+  const facts = { references_apart: +(apart / exact.length).toFixed(3) };
+  writeFileSync(`${kept}.f32`, new Uint8Array(exact.buffer));
+  writeFileSync(`${kept}.json`, JSON.stringify(facts));
+  return { exact, ...facts };
 };
 
 for (const file of readdirSync(dir).filter((name) => name.endsWith(".scene.json")).sort()) {
@@ -100,6 +155,12 @@ for (const file of readdirSync(dir).filter((name) => name.endsWith(".scene.json"
   console.log(JSON.stringify({ renderer: `skia (@napi-rs/canvas ${versions["@napi-rs/canvas"]})`, scene: scene.name, runs, ...skia }));
   console.log(JSON.stringify({ renderer: `resvg ${versions["@resvg/resvg-js"]}`, scene: scene.name, runs, ...tiny }));
   console.log(JSON.stringify({ scene: scene.name, "xrender against skia": compare(reference, ours), "resvg against skia": compare(reference, theirs) }));
+  // Against the picture itself, as near as two renderers get it: Skia's and resvg's drawings at 8× the size, each
+  // averaged back over its 64 samples a pixel, and the two averaged — no renderer's own approximation at 1× (Skia's
+  // quadratic offsets, tiny-skia's 4×4 coverage) taken for the truth, Skia's included.
+  // Where two renderers' errors differ by less than the references are apart, it does not tell them apart.
+  const { exact, references_apart } = supersampled(scene, items);
+  console.log(JSON.stringify({ scene: scene.name, references_apart, "xrender against exact": compare(exact, ours), "resvg against exact": compare(exact, theirs), "skia against exact": compare(exact, reference) }));
   // xrender's own SVG of the scene, drawn back by resvg and by Skia (its SVG
   // module, through loadImage), against xrender's pixels.
   const svg = readFileSync(join(dir, `${scene.name}.xrender.svg`));

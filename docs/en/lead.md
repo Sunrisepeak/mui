@@ -1,6 +1,6 @@
 # Lead: measured against the best
 
-Every metric is ours against the strongest competitor, measured on one machine in the same job, the sides taking turns; the verdict is from the ratio's 95 % interval: behind below 0.95×, par to 1.2×, ahead from 1.2×, far ahead from 10× or where the competitor cannot do it. What is behind stays here; a device we do not have is said so. Generated from the lead ledger (2026-11-09).
+Every metric is ours against the strongest competitor, measured on one machine in the same job, the sides taking turns; the verdict is from the ratio's 95 % interval: behind below 0.95×, par to 1.2×, ahead from 1.2×, far ahead from 10× or where the competitor cannot do it. What is behind stays here; a device we do not have is said so. Generated from the lead ledger (2026-11-15).
 
 ## Metrics
 
@@ -13,16 +13,18 @@ Every metric is ours against the strongest competitor, measured on one machine i
 | hanim | `motion.document.bytes` | — | lottie, rive | — | planned |
 | hanim | `motion.playback.ms` | — | rive, lottie-web | — | planned |
 | hanim | `motion.gpu.morph-1m.ms` | — | hanim-cpu | — | needs a device |
-| xrender | `raster.fills-1000.median_ms` | xrender 8.903 | skia 11.611 | 1.30× [1.30, 1.33] | **ahead** |
-| xrender | `raster.gradients-200.median_ms` | xrender 5.346 | skia 7.161 | 1.35× [1.34, 1.37] | **ahead** |
-| xrender | `raster.small-5000.median_ms` | xrender 1.877 | resvg 7.429 | 3.96× [3.94, 4.01] | **ahead** |
-| xrender | `raster.strokes-500.median_ms` | xrender 10.427 | skia 10.271 | 1.00× [0.98, 1.02] | **par** |
-| xrender | `raster.joins-300.median_ms` | xrender 9.395 | skia 10.164 | 1.09× [1.07, 1.13] | **par** |
+| xrender | `raster.fills-1000.median_ms` | xrender 8.838 | skia 11.657 | 1.31× [1.30, 1.32] | **ahead** |
+| xrender | `raster.gradients-200.median_ms` | xrender 5.734 | skia 7.17 | 1.26× [1.25, 1.28] | **ahead** |
+| xrender | `raster.small-5000.median_ms` | xrender 2.007 | resvg 7.381 | 3.69× [3.46, 3.70] | **ahead** |
+| xrender | `raster.strokes-500.median_ms` | xrender 10.493 | skia 10.295 | 0.98× [0.98, 0.99] | **par** |
+| xrender | `raster.joins-300.median_ms` | xrender 9.373 | skia 10.221 | 1.09× [1.08, 1.12] | **par** |
 | xrender | `raster.fills-1000.error` | xrender 0.339 | resvg 0.627 | 1.85× [1.85, 1.85] | **ahead** |
 | xrender | `raster.gradients-200.error` | xrender 0.28 | resvg 0.27 | 0.96× [0.96, 0.96] | **par** |
 | xrender | `raster.small-5000.error` | xrender 0.188 | resvg 0.255 | 1.36× [1.36, 1.36] | **ahead** |
 | xrender | `raster.strokes-500.error` | xrender 0.922 | resvg 0.741 | 0.80× [0.80, 0.80] | **behind** |
 | xrender | `raster.joins-300.error` | xrender 0.383 | resvg 0.597 | 1.56× [1.56, 1.56] | **ahead** |
+| xrender | `raster.small-5000.exact_error` | xrender 0.034 | resvg 0.187 | 5.50× [5.50, 5.50] | **ahead** |
+| xrender | `raster.strokes-500.exact_error` | xrender 0.238 | resvg 0.839 | 3.53× [3.53, 3.53] | **ahead** |
 | xrender | `raster.cjk-5000.median_ms` | — | skia | — | planned |
 | xrender | `raster.web.submit-5000.ms` | — | canvaskit | — | planned |
 | xrender | `raster.wasm.bytes` | — | thorvg | — | planned |

@@ -42,6 +42,18 @@ What it does not say: a browser's frame (node has no page, layout or paint; both
 
 What it says: in quality xrender's CPU reference is as close to Skia as resvg is (closer on four scenes of five); in throughput it leads only where draws are many and small (2× Skia, whose figure includes a JavaScript call a path), and is 1.6–2.9× slower than Skia on large fills, gradients and strokes — faster than resvg except on curved strokes, where the two are level. No lead in raster throughput is claimed. The stroke rows are after this comparison's first finding: xrender's stroker made a polygon for every flattened segment and every join between them (94 ms for `strokes-500`, 9× Skia); it now makes one loop a contour, joins on the outer side of a turn and the offsets' meeting point (or Skia's pivot) on the inner — 3.2× faster, as close to Skia as before. Where two edges of one shape fall in the same pixel (a contour doubling back on itself) xrender's coverage adds them where Skia's supersampling counts the pixel once: the largest differences left.
 
+**Against the picture itself** (2026-11-15, the release plan's RC2.8). Skia's 1× picture is an approximation too: its stroker offsets curves as quadratics within a tolerance, and its coverage and tiny-skia's (resvg's) are sampled — a renderer nearer the true shape is farther from Skia's. So each picture is also compared with `exact`: the scene drawn by Skia and by resvg at 8× the size, each box-filtered back over its 64 samples a pixel, the two averaged (kept beside the scene by its SVG's hash; `vector.mjs`). Skia's own 1× picture is then one of the compared, not the judge. How far the two 8× drawings are apart is printed too (`references_apart`): a margin between renderers smaller than that is not resolved, and such a scene is not a ledger metric.
+
+| 2026-11-15, mean channel difference from `exact`, pixels > 8 off | references apart | xrender | resvg | Skia |
+|---|---:|---|---|---|
+| `fills-1000` | 0.522 | 0.252, 0.01 % | 0.328, 0.22 % | 0.379, 0.75 % |
+| `gradients-200` | 0.143 | 0.147, 0.02 % | 0.171, 0.42 % | 0.303, 0.93 % |
+| `small-5000` | 0.024 | **0.034**, 0.09 % | 0.187, 1.37 % | 0.197, 1.63 % |
+| `strokes-500` | 0.150 | **0.238**, 0.62 % | 0.839, 6.78 % | 0.952, 7.95 % |
+| `joins-300` | 0.308 | 0.255, 0.40 % | 0.390, 1.09 % | 0.423, 1.57 % |
+
+What it says: xrender's coverage is exact area (FreeType's cells) on geometry flattened to 1/32 px, and where the reference resolves it that shows: on strokes it is 3.5× nearer the picture than resvg, with a tenth of the pixels off; on small triangles 5.5×. On fills, gradients and joins the two references are further apart than the renderers (the 8-bit compositing of hundreds of translucent layers rounds differently in Skia and tiny-skia, at any size): there no lead is claimed, only fewer pixels off. The `strokes-500.error` row above (behind resvg against Skia) measured closeness to Skia's approximation, which resvg — Skia's port — shares. What it does not hide: xrender's largest single differences are where a stroke turns tighter than its half-width (the inside of a hairpin): there the stroker's pivots overlap and the cells add what supersampling counts once — 73 pixels of the million more than 40 off on `strokes-500`, 71 of them darker. The fix is the stroker's (the inner side of a tight run collapsed to where its offsets cross), next to land with the pixel references it moves.
+
 Next: where large fills spend their time in xrender's rasterizer (cells sorted per shape, 64-bit divisions per crossing) and its compositing; the same scenes on the GPU renderer beside Vello; the Web, as WebAssembly, beside Skia's CanvasKit.
 
 ## Markdown to HTML: 1 MiB of what people wrote here

@@ -227,6 +227,34 @@
     },
     {
       "project": "xrender",
+      "id": "raster.small-5000.exact_error",
+      "about": "quality: mean channel difference from the picture itself (Skia's and resvg's drawings at 8×, box-filtered, averaged; vector.mjs prints how far the two are apart, and a scene where that exceeds the renderers' margin is not a metric: fills, gradients and joins)",
+      "better": "lower",
+      "key": "small-5000",
+      "field": "error_vs_exact",
+      "ours": "xrender",
+      "competitors": [
+        "resvg",
+        "skia"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "xrender",
+      "id": "raster.strokes-500.exact_error",
+      "about": "quality, as small-5000.exact_error",
+      "better": "lower",
+      "key": "strokes-500",
+      "field": "error_vs_exact",
+      "ours": "xrender",
+      "competitors": [
+        "resvg",
+        "skia"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "xrender",
       "id": "raster.cjk-5000.median_ms",
       "about": "5000 CJK glyphs",
       "better": "lower",

@@ -13,6 +13,7 @@ export namespace omui {
 
 class Slider : public SliderContract<Slider> {
 public:
+    static constexpr bool draws_disabled = true;  // its own disabled state (the theme's muted colours)
     void mounted();
     void prop_changed(SliderProp p);
     Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw,

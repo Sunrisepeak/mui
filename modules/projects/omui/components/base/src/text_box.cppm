@@ -16,6 +16,7 @@ export namespace omui {
 
 class TextBox : public TextBoxContract<TextBox> {
 public:
+    static constexpr bool draws_disabled = true;  // its own disabled state (the theme's muted colours)
     static constexpr std::string_view cursor = "text";
 
     TextBox() = default;

@@ -15,6 +15,7 @@ export namespace omui {
 
 class NumberInput : public NumberInputContract<NumberInput> {
 public:
+    static constexpr bool draws_disabled = true;  // its own disabled state (the theme's muted colours)
     void mounted();
     void prop_changed(NumberInputProp p);
     void style(const Theme& theme, mlibs::layout::Style& s) const;

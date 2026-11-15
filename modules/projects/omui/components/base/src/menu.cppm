@@ -40,6 +40,7 @@ private:
 
 class MenuItem : public MenuItemContract<MenuItem> {
 public:
+    static constexpr bool draws_disabled = true;  // its own disabled state (the theme's muted colours)
     void mounted();
     void prop_changed(MenuItemProp p);
     void style(const Theme& theme, mlibs::layout::Style& s) const;

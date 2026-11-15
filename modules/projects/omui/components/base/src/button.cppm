@@ -14,6 +14,7 @@ export namespace omui {
 
 class Button : public ButtonContract<Button> {
 public:
+    static constexpr bool draws_disabled = true;  // its own disabled state (the theme's muted colours)
     void mounted();
     void prop_changed(ButtonProp p);
     void restyle();

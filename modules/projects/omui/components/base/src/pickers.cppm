@@ -33,6 +33,7 @@ struct Hsv {
 
 class DatePicker : public DatePickerContract<DatePicker> {
 public:
+    static constexpr bool draws_disabled = true;  // its own disabled state (the theme's muted colours)
     static constexpr bool focusable = true;
 
     void mounted();
@@ -70,6 +71,7 @@ private:
 class DateCalendar {
 public:
     static constexpr std::string_view name = "date_calendar";
+    static constexpr bool draws_disabled = true;  // its own disabled state (the theme's muted colours)
     static constexpr Role role = Role::grid;
     static constexpr bool overlay = true;
     static constexpr bool focusable = true;
@@ -110,6 +112,7 @@ private:
 
 class TimePicker : public TimePickerContract<TimePicker> {
 public:
+    static constexpr bool draws_disabled = true;  // its own disabled state (the theme's muted colours)
     static constexpr bool focusable = true;
 
     void mounted();
@@ -148,6 +151,7 @@ private:
 
 class ColorPicker : public ColorPickerContract<ColorPicker> {
 public:
+    static constexpr bool draws_disabled = true;  // its own disabled state (the theme's muted colours)
     static constexpr bool focusable = true;
 
     void mounted();

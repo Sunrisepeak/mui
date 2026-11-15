@@ -38,13 +38,48 @@ std::uint64_t pixels(Headless& h) {
     for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
     return hash.value();
 }
+// What a kind shows when it is not empty (its places, its steps, its rows) or, an overlay, when it is open: what a
+// disabled state is seen on. Kinds not here show something as they are made.
+std::vector<std::pair<std::string, Source>> shown(std::string_view type) {
+    const auto constant = [](Value value) { return Source{.constant = std::move(value)}; };
+    const auto list = [](std::initializer_list<std::string_view> items) {
+        Value::List out;
+        for (const std::string_view item : items) out.emplace_back(std::string(item));
+        return Value(std::move(out));
+    };
+    if (type == "breadcrumb") return {{"items", constant(list({"Home", "Guides", "Motion"}))}};
+    if (type == "stepper") return {{"steps", constant(list({"Cart", "Address", "Pay"}))}, {"value", constant(Value(1))}};
+    if (type == "tree_view") return {{"model", constant(Value(std::string("sweep-tree")))}};
+    if (type == "tooltip") return {{"text", constant(Value(std::string("Shown")))}, {"delay", constant(Value(0.0))}};
+    if (type == "popover" || type == "dialog" || type == "drawer") return {{"open", constant(Value(true))}, {"title", constant(Value(std::string("Shown")))}};
+    if (type == "toast") return {{"open", constant(Value(true))}, {"message", constant(Value(std::string("Saved")))}, {"duration", constant(Value(0.0))}};
+    return {};
+}
 struct Sample {
     Headless   h;
     Signal<bool> flag = signal(false);
     explicit Sample(std::string_view type, MotionLevel level) : h(options()) {
         h.runtime().set_motion_level(level);
-        h.mount("main", column({.padding = 24}, {vd::make(type, {{"disabled", Prop<bool>(flag).source()}}, {}, "subject")}));
+        (void)h.runtime().model("sweep-tree").push({Row{"docs", Value{}.set("label", "docs")}, Row{"src", Value{}.set("label", "src")}});
+        auto props = shown(type);
+        props.emplace_back("disabled", Prop<bool>(flag).source());
+        Element subject = vd::make(type, std::move(props), {}, "subject");
+        // A split view's two panes.
+        if (type == "split_view") subject.children = {text({.text = "Left pane"}), text({.text = "Right pane"})};
+        // Tabs' places (empty, it is a line under nothing).
+        if (type == "tabs")
+            subject.children = {vd::make("tab", {{"text", Source{.constant = Value(std::string("One"))}}}, {}, "one"),
+                                vd::make("tab", {{"text", Source{.constant = Value(std::string("Two"))}}}, {}, "two")};
+        // A tooltip's target: the element before it, the pointer on it.
+        std::vector<Element> children;
+        if (type == "tooltip") children.push_back(text({.text = "Target"}));
+        children.push_back(std::move(subject));
+        h.mount("main", column({.padding = 24}, std::move(children)));
         h.settle();
+        if (type == "tooltip") {
+            h.move({30, 32});
+            h.settle();
+        }
     }
     void change() {
         flag.set(true);
@@ -125,6 +160,8 @@ UTest cases{"viewdoc.component-motion-sweep", [] {
         std::println("    no visible state ({}): {}", still.size(), still);
         std::println("    drawn as a function of time ({}): {}", continuous.size(), continuous);
         expect(eq(moved.size() + still.size() + continuous.size(), std::size_t{37}));
+        // Every kind shows that it is disabled: its own way, or the framework's (the theme's disabled opacity).
+        expect(still.empty()) << std::format("no disabled state drawn: {}", still);
     };
 
     "every moving kind, mid-motion: hit where it is drawn, interrupted without a jump, focus free"_test = [] {

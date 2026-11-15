@@ -15,6 +15,7 @@ export namespace omui {
 // An on/off switch (role `switch`): the thumb springs across the track.
 class Toggle : public ToggleContract<Toggle> {
 public:
+    static constexpr bool draws_disabled = true;  // its own disabled state (the theme's muted colours)
     void mounted();
     void prop_changed(ToggleProp p);
     Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw,
@@ -39,6 +40,7 @@ private:
 // A checkable option, possibly indeterminate (role `checkbox`): the mark draws itself in.
 class Checkbox : public CheckboxContract<Checkbox> {
 public:
+    static constexpr bool draws_disabled = true;  // its own disabled state (the theme's muted colours)
     void mounted();
     void prop_changed(CheckboxProp p);
     Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw,

@@ -584,6 +584,9 @@ struct ComponentType {
     bool                      focusable = false;
     bool                      clips = false;  // children are clipped to the node
     bool                      overlay = false;  // laid out and painted above everything, placed by `placement`
+    // It draws its own disabled state (a button's muted text, a select's veil); else a disabled node of it is drawn,
+    // children included, at the theme's `disabled_opacity`.
+    bool                      draws_disabled = false;
     std::string_view          cursor;         // the pointer's shape over it: "text", "pointer", "grab" … (empty: inherit)
     void* (*create)() = nullptr;
     void (*destroy)(void*) = nullptr;
@@ -668,6 +671,7 @@ template <class C>
         if constexpr (requires { C::clips; }) x.clips = C::clips;
         if constexpr (requires { C::cursor; }) x.cursor = C::cursor;
         if constexpr (requires { C::overlay; }) x.overlay = C::overlay;
+        if constexpr (requires { C::draws_disabled; }) x.draws_disabled = C::draws_disabled;
         if constexpr (requires(C& c) { { c.compose() } -> std::same_as<std::vector<Element>>; })
             x.compose = [](void* p) { return static_cast<C*>(p)->compose(); };
         if constexpr (requires(const C& c, std::string_view p) { { c.virtual_items(p) } -> std::same_as<std::vector<spec::SemanticNode>>; })

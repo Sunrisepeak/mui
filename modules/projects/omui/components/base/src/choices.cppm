@@ -18,6 +18,7 @@ export namespace omui {
 
 class Segmented : public SegmentedContract<Segmented> {
 public:
+    static constexpr bool draws_disabled = true;  // its own disabled state (the theme's muted colours)
     static constexpr bool focusable = true;
 
     void mounted();
@@ -48,6 +49,7 @@ private:
 
 class Chip : public ChipContract<Chip> {
 public:
+    static constexpr bool draws_disabled = true;  // its own disabled state (the theme's muted colours)
     static constexpr bool focusable = true;
 
     void mounted();
@@ -74,6 +76,7 @@ private:
 
 class RangeSlider : public RangeSliderContract<RangeSlider> {
 public:
+    static constexpr bool draws_disabled = true;  // its own disabled state (the theme's muted colours)
     static constexpr bool focusable = true;
 
     void mounted();

@@ -20,6 +20,7 @@ export namespace omui {
 
 class Rating : public RatingContract<Rating> {
 public:
+    static constexpr bool draws_disabled = true;  // its own disabled state (the theme's muted colours)
     static constexpr bool focusable = true;
 
     Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
@@ -42,6 +43,7 @@ private:
 
 class OtpInput : public OtpInputContract<OtpInput> {
 public:
+    static constexpr bool draws_disabled = true;  // its own disabled state (the theme's muted colours)
     static constexpr bool focusable = true;
 
     void mounted();
@@ -80,6 +82,7 @@ private:
 
 class SearchBox : public SearchBoxContract<SearchBox> {
 public:
+    static constexpr bool draws_disabled = true;  // its own disabled state (the theme's muted colours)
     void style(const Theme& theme, mlibs::layout::Style& s) const;
     [[nodiscard]] std::vector<Element> compose();
     void paint(PaintContext& ctx) const;
@@ -97,6 +100,7 @@ private:
 
 class ToggleGroup : public ToggleGroupContract<ToggleGroup> {
 public:
+    static constexpr bool draws_disabled = true;  // its own disabled state (the theme's muted colours)
     static constexpr bool focusable = true;
 
     void mounted();
@@ -127,6 +131,7 @@ private:
 
 class FileDrop : public FileDropContract<FileDrop> {
 public:
+    static constexpr bool draws_disabled = true;  // its own disabled state (the theme's muted colours)
     static constexpr bool focusable = true;
 
     void mounted();

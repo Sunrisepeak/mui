@@ -787,6 +787,10 @@ void Runtime::Impl::paint_node(NodeId id) {
         }
     }
     if (layer) list.push_layer(v[Field::opacity], xrender::BlendMode::normal, {}, {}, box);
+    // Disabled, of a kind that draws no disabled state of its own: drawn whole at the theme's disabled opacity (the
+    // change moves as every change of a drawing does, by the kind's motion).
+    const bool dimmed = n.state.disabled && !n.type->draws_disabled && theme.disabled_opacity < 1;
+    if (dimmed) list.push_layer(theme.disabled_opacity, xrender::BlendMode::normal, {}, {}, box);
 
     const CornerRadii radii = v.corners(size).smoothed(theme.corner_smoothing);
     Size constraint = this->size;
@@ -863,6 +867,7 @@ void Runtime::Impl::paint_node(NodeId id) {
         }
     }
 
+    if (dimmed) list.pop_layer();
     if (layer) list.pop_layer();
     if (effected) list.pop_layer();
     for (std::size_t i = 0; i < more; ++i) list.pop_layer();

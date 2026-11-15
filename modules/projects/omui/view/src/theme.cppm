@@ -170,6 +170,9 @@ public:
     // Corners' continuous curvature, 0 (circular) … 1 (iOS's: about 0.6):
     // every rounded box and every component's own corners (radii()).
     float       corner_smoothing = 0;
+    // How opaque a disabled control of a kind that draws no disabled state of its own is drawn, children included
+    // (a card, a tab strip, a data grid): the framework's default for every kind (`ComponentType::draws_disabled`).
+    float       disabled_opacity = 0.45f;
     [[nodiscard]] CornerRadii radii(float radius) const noexcept { return CornerRadii::all(radius).smoothed(corner_smoothing); }
     std::map<std::string, Color, std::less<>>       colors;
     std::map<std::string, TextToken, std::less<>>   text;

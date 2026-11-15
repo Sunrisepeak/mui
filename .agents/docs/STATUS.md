@@ -13,10 +13,12 @@ Exit (node N0): one CI run green on every tier-1 row (unverified cells by the pl
 | RC0.3 macOS `quay.desktop`: root cause, fix or label | done | red 98 is the test's: it fixed `offscreen`, where SDL's Metal backend needs the driver's `Metal_CreateView` (SDL 3.4.18 `METAL_PrepareDriver`); it now takes `OMUI_GPU_VIDEO_DRIVER` as every device test does (`cocoa` on macOS CI, `tools/ci/gpu.sh`); CI to confirm |
 | RC0.4 heavy cases within the limit (`emergence3d` case 6, red 97) | done | `emergence3d_test` 113 → 22.7 s (dev, x64): dynamics, particles, field, matter at `-O2` as cellular and the mesh tracer are, the same bits (dynamics and matter CTS pinned values pass); red 97: the tracer shares rows among threads (`Trace::workers`, bit-identical, a new case says so), `mesh_test` 48 cases in 27.8 s; CI to confirm |
 | RC0.5 red 55 by root cause or label; red 96 confirmed on CI | in progress | red 55, two causes: the host's software renderer turned SDL's framebuffer acceleration off under every driver, and cocoa, Wayland, KMS/DRM and Android have no framebuffer but the accelerated one (fixed in `omui.host.sdl3`); `present_test`'s font case wrote 187 KB on the thread that reads it, past macOS's 8 KB socket buffer (`sent_and_received`); CI to confirm |
-| RC0.6 the other tier-1 reds (Windows 48, 65, 82; Pages 33, 56; 54) | open | — |
+| RC0.6 the other tier-1 reds (Windows 48, 65, 82; Pages 33, 56; 54) | in progress | 33/56: openkal-emscripten#22 (0.14.3, tables to `.bss`); 65, 82 upstream (mcpp#926, #936 open); 48, 54 passed on run 43685505783; red 100 closed: `project_test` writes a broken manifest on purpose |
 | RC0.7 a local LLVM compile-only check | done | `omui-devtools llvm`: the change's members (files differing from `@{upstream}`, and new ones) and their direct consumers, tests included, compiled with CI's LLVM and `ci` profile, not run; `devtools.members` 4 cases |
 | RC0.8 STATUS slimmed, capability matrix by slices, lint `status` | done | this file; the old one moved whole into the archive; lint `status` |
 | RC0.9 the confirmed decisions into AGENTS | done | AGENTS §7 (D-189–D-202) |
+| RC1.4 lint `module-closure` (ahead: no prerequisite) | done | a package's interface re-exports only what its manifest lists (`[package.metadata.openmui] reexports`); 46 packages declare theirs; at `f8f9527c` (T1.2) it reports `xpbd.cppm: re-exports xengine.matter`; self-test 39 of 39 |
+| RC1.7 design documents' status (ahead) | in progress | `.agents/docs/README.md`: a status column — 8 有效, 8 已被取代 (by whom), 45 历史; the two current summaries are still to write |
 
 ## Node records
 
@@ -63,7 +65,7 @@ Kind: R regression, E environment, F flaky or time, T test expectation.
 | 9 | GCC rows past 150 minutes | Linux GCC | F | GCC rows nightly and on demand; LLVM rows per push |
 | 11 | cellular reaction kernel on Direct3D 12 (WARP): tick 1, index 515, GPU 0 against CPU 1 | Windows `rhi.sdl` | R | open: fix, or Windows declares Vulkan only and D3D12 unsupported (RC2.15) |
 | 30 | Pages: the site in a real browser hung after the reaction workspace's phone canvas | Pages; e5cc9ed4 | F | open: every CDP call has a deadline and names what it asked; the next stall says where |
-| 33 | Pages: the site's delivery 4,009,332 B over its 4,000,000 B budget | Pages (site-perf) | R | root cause: openkal-emscripten 0.13.0's `g_entries[4096]` data (~80 KiB); RC2.9 |
+| 33 | Pages: the site's delivery 4,009,332 B over its 4,000,000 B budget | Pages (site-perf) | R | fix in the owner (RC0.6): openkal-emscripten's rights tables had -1 defaults, so ~80 KiB of initialised data in every Web build; zero defaults move them to `.bss` (emsdk 6.0.9) — mcpplibs/openkal-emscripten#22, 0.14.3 |
 | 48 | Windows: examples/02-hello-ts `generation_e2e_test`, the application's endpoint | Windows; 53efd9e5 | R | passed on run 43685505783; closed when the next run passes too |
 | 50 | Android: `ld.lld` cannot find `-lpthread` | Android | E | worked round: an empty libpthread.a; mcpp-index#750 |
 | 54 | lang.ts `strip_test` "four times the text takes about four times as long" | Linux x64, Windows; 5106891d | F | passed on run 43685505783; RC0.6 |
@@ -74,11 +76,10 @@ Kind: R regression, E environment, F flaky or time, T test expectation.
 | 67 | Linux x64 and macOS rows cancelled at 150 minutes | e1749f83 | F | mitigated: the limit is 240 minutes |
 | 82 | Windows: a member's package did not build — mcpp rebuilds a dependency module another process has mapped ("user-mapped section"); `tests/bench`, `showcase/quay/picture` | Windows; cc99d708, again on 43685505783 | E (mcpp#936) | upstream; RC0.6 |
 | 87 | `mesh.glass` against the reference's exact way: 18.7% of the ball's pixels further than 6 levels | the measure, 2026-11-15 | T | open: the bound is the measurement, to be lowered by the work |
-| 96 | `xengine.nav`'s pinned crowd (`0x9299f973ab81ffc6`) other bits on Web and Windows | Web, Windows; b229ad7d, again on 43685505783 | R (the wrap's) | open: 1.6.0.1 (`a20c7350`) did not change the Web row's hash (45330494643434899 on run 43704244752 as before); the wrap's own crowd agrees on every row, so the cause is in what `xengine.nav` builds or hashes — RC0.5 |
+| 96 | `xengine.nav`'s pinned crowd (`0x9299f973ab81ffc6`) other bits on Web and Windows | Web, Windows; b229ad7d, again on 43685505783 | R (the wrap's) | root cause (RC0.5, reproduced on wasm32 locally): Recast/Detour sort the BV tree and contour holes with C `qsort`, whose order of equal keys differs between musl, the UCRT and glibc/macOS; with `std::stable_sort` the wasm32 hash is the pinned one and Linux's unchanged. Fix in the owner: recastnavigation-m 1.6.0.2 (patches/0004), then the pin |
 | 97 | `xrender.mesh`'s "a ball under a picture of light, drawn and followed along rays" killed at 300 s | Linux x64; b229ad7d | F | fixed (RC0.4): the tracer's rows on every thread, the same bits; `mesh_test` 27.8 s locally; CI to confirm |
 | 98 | `quay.desktop` on macOS: "OMUI_REQUIRE_GPU=1 and no device: … No supported SDL_GPU backend found!" while `device_test` draws on the Apple Paravirtual device | macOS; e8660f4c (run 43685505783) | T | fixed (RC0.3): the test fixed the `offscreen` driver; CI to confirm |
 | 99 | `xengine.dynamics.cts`' `emergence3d_test` killed at 300 s after case 5 | Linux arm; e8660f4c (run 43685505783) | F | fixed (RC0.4): 113 → 22.7 s locally, the kernels at `-O2`; CI to confirm |
-| 100 | `omui.cli`'s `project_test` logs "designer/mcpp.toml:1:9: expected ']'" four times on the LLVM rows; the member passes | LLVM rows; run 43685505783 | T | open: whether the test writes that manifest on purpose is unconfirmed |
 
 ### Upstream issues
 

@@ -12,6 +12,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 platforms   = ["linux", "macos", "windows", "emscripten"]
 
 [package.metadata.openmui]
+reexports = ["xrender.mesh"]  # what its interface re-exports (lint module-closure)
 kind  = "module"
 agent = { part = "xrender.frame" }
 

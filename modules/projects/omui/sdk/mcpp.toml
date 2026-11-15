@@ -13,6 +13,7 @@ license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
+reexports = ["hanim.visual", "mlibs.i18n", "omui.agent", "omui.core", "omui.expr", "omui.generate", "omui.host.android", "omui.host.headless", "omui.host.sdl3", "omui.host.web", "omui.semantic", "omui.ui.base", "omui.ui.window", "omui.view", "omui.viewdoc"]  # what its interface re-exports (lint module-closure)
 agent = { library = "the umbrella: it re-exports the packages of omui and holds nothing itself" }
 
 [targets.openmui]

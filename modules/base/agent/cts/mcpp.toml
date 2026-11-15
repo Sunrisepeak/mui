@@ -14,6 +14,7 @@ platforms   = ["linux", "macos", "windows", "emscripten"]
 repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
+reexports = ["mlibs.cts"]  # what its interface re-exports (lint module-closure)
 kind = "module"
 
 [targets.mlibs-agent-cts]

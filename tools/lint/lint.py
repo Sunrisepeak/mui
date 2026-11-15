@@ -1370,6 +1370,65 @@ def check_status(root: Path) -> list[Problem]:
     return problems
 
 
+# What a package's interface re-exports is a decision its manifest states
+# (release plan §4.1, RC1.4): `export import` of another package's module
+# puts that package's interface into every consumer's module graph. The
+# matter kernel re-exported by dynamics' core (T1.2) put it into showcase/
+# fighting's, which then failed to compile; nothing in review had said so.
+# `[package.metadata.openmui] reexports = ["pkg", …]` lists the packages a
+# member's default interface re-exports; one it does not list is a problem,
+# and so is one listed that is not re-exported. A feature's own module may
+# re-export what its feature brings (the fix's pattern: xengine.dynamics.matter).
+EXPORTED_IMPORT = re.compile(r"^[ \t]*export\s+import\s+([\w.]+)\s*;", re.M)
+
+
+def check_reexports(root: Path) -> list[Problem]:
+    problems = []
+    members = [m for m in workspace_members(root) if (root / m / "mcpp.toml").is_file() and m.startswith("modules/")]
+    manifests = {}
+    for m in members:
+        try:
+            manifests[m] = tomllib.loads((root / m / "mcpp.toml").read_text(encoding="utf-8"))
+        except tomllib.TOMLDecodeError:
+            continue
+    every = [m for m in workspace_members(root) if (root / m / "mcpp.toml").is_file()]
+    owner: dict[str, str] = {}
+    texts: dict[Path, str] = {}
+    for m, path in _member_sources(root, every):
+        if path.suffix != ".cppm" or "/tests/" in path.relative_to(root).as_posix():
+            continue
+        texts[path] = strip_comments(path.read_text(encoding="utf-8", errors="replace"))
+        try:
+            data = manifests.get(m) or tomllib.loads((root / m / "mcpp.toml").read_text(encoding="utf-8"))
+        except tomllib.TOMLDecodeError:
+            continue
+        for module in EXPORTED_MODULE.findall(texts[path]):
+            owner.setdefault(module, package_name(data))
+    for m, data in manifests.items():
+        name = package_name(data)
+        declared = set(data.get("package", {}).get("metadata", {}).get("openmui", {}).get("reexports", []))
+        feature_globs = [pattern for spec in data.get("features", {}).values() if isinstance(spec, dict) for pattern in spec.get("sources", [])]
+        found: dict[str, str] = {}
+        for path, text in texts.items():
+            rel = path.relative_to(root).as_posix()
+            if not rel.startswith(m + "/") or any(rel.startswith(other + "/") for other in members if other != m and other.startswith(m + "/")):
+                continue
+            if any(PurePosixPath(path.relative_to(root / m).as_posix()).match(pattern) for pattern in feature_globs):
+                continue  # a feature's module: built only with the feature
+            for module in EXPORTED_IMPORT.findall(text):
+                package = owner.get(module)
+                if not package or package == name or name.startswith(package + "."):
+                    continue  # its own, or the package it belongs under
+                found.setdefault(package, rel)
+        for package, rel in sorted(found.items()):
+            if package not in declared:
+                problems.append(Problem("module-closure", rel, f"re-exports {package} (every consumer of {name} gets its interface); "
+                                                               f"if meant, list it in {m}/mcpp.toml [package.metadata.openmui] reexports"))
+        for package in sorted(declared - set(found)):
+            problems.append(Problem("module-closure", f"{m}/mcpp.toml", f"reexports lists {package}, which no interface of {name} re-exports"))
+    return problems
+
+
 def check_shader_inputs(root: Path) -> list[Problem]:
     """A shader's vertex inputs name their places with TEXCOORD0, 1, 2 … with none left out: Slang numbers
     a struct's inputs in the order they are declared, not by the number, so an input after a gap reads the
@@ -1417,7 +1476,7 @@ def run(root: Path) -> list[Problem]:
         return unreadable  # the other rules read the manifests
     return (check_sources(root) + check_manifests(root) + check_projects(root) + check_layout(root) + check_licences(root) + check_platforms(root) + check_pins(root)
             + check_documents(root) + check_media(root) + check_closures(root) + check_operations(root) + check_skills(root) + check_agent_surface(root)
-            + check_lead(root) + check_typescript_data(root) + check_imports(root) + check_matter(root) + check_shader_inputs(root) + check_status(root))
+            + check_lead(root) + check_typescript_data(root) + check_imports(root) + check_matter(root) + check_shader_inputs(root) + check_status(root) + check_reexports(root))
 
 
 def self_test() -> int:
@@ -1453,6 +1512,7 @@ def self_test() -> int:
         "skills": ("modules/ui/core/skill.omui.md", "# x\n\nSee [x.ops.omui.ts](x.ops.omui.ts); then `ui.wipe`.\n"),
         "matter": ("modules/ui/core/x.matter.omui.json", '{"matter": {"materials": {"wood": {}, "ash": {}}, "laws": [{"when": "material == wood && temperature >= 500", "become": "burnt"}]}}'),
         "shader-inputs": ("modules/ui/core/x.slang", "struct VIn {\n    float3 position : TEXCOORD0;\n    float2 second : TEXCOORD4;\n};\n"),
+        "module-closure": ("modules/gfx/hanim/src/hanim.cppm", "export module hanim;\nexport import hanim.core;\n"),
         "status": (STATUS_FILE, "# STATUS\n\n| Task | State | Evidence |\n|---|---|---|\n| RC0.1 push | done | pushed |\n"),
         "lead": (LEAD_FEATURES, '{"feature": [{"id": "A", "project": "omui", "line": "use-safely", "title": "x", "status": "claimed"}]}\n'),
     }
@@ -1500,6 +1560,8 @@ def self_test() -> int:
                     deps = '[dependencies]\ncore = { path = "../modules/ui/core" }\n'
                 if rule == "modules" and m == "modules/gfx/hanim":
                     deps = '[dependencies]\ncore = { path = "../../ui/core" }\n'
+                if rule == "module-closure" and m == "modules/gfx/hanim":  # depends on it, and re-exports it undeclared
+                    deps = '[dependencies]\nhanim.core = { path = "../../base/hanim/core" }\n'
                 if rule == "closure" and m == "modules/gfx/hanim":
                     deps = '[dependencies]\nhanim.core = { path = "../../base/hanim/core" }\n'
                 if rule == "project-dag" and m == "modules/base/hanim/core":  # mlibs, with a test dependency on the specification
@@ -1521,7 +1583,7 @@ def self_test() -> int:
                 (root / "spec" / "schema").mkdir(parents=True, exist_ok=True)
                 shutil.copy(Path(__file__).resolve().parents[2] / "spec" / "schema" / "view.schema.json",
                             root / "spec" / "schema" / "view.schema.json")
-            if rule == "imports":  # the module the planted test imports, exported by a package it does not declare
+            if rule in ("imports", "module-closure"):  # the module planted code imports
                 (root / "modules/base/hanim/core/src/core.cppm").write_text("export module hanim.core;\n", encoding="utf-8")
             if rule == "skills":  # the catalog its skill reads beside it, without the operation the skill names
                 (root / "modules/ui/core/x.ops.omui.ts").write_text('export default defineOps({ operations: [{ name: "ui.snapshot" }] });\n', encoding="utf-8")

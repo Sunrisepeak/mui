@@ -100,6 +100,11 @@ public:
     // The wind's push on each body for the world's next step (before `world.step()`): the field's wind where it is
     // against how it moves — an updraft lifts a light thing, a gale shoves a crate.
     void blow(World& world, const xengine::field::Field& air) const;
+    // What the motion laws say moves things down a channel's slope (the standard's `pressure throws`), on bodies:
+    // each pushed by the difference of that channel across it (the air just outside each pair of opposite faces,
+    // above the law's `from`) times the face's area — for a pressure, pascals × m² = newtons — times the law's
+    // `force` where it says one. A blast beside a crate throws it. Before `world.step()`, as `blow`.
+    void thrown(World& world, const xengine::field::Field& air) const;
 
     // Weather, each by what things are and where (no material named): rain wets each body open to the sky (a ray
     // straight up from its top meets nothing) by `wetness` (as stored) a step, up to `most` (none: as wet as the

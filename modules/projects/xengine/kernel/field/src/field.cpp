@@ -339,6 +339,16 @@ std::int64_t Field::total(std::uint32_t channel) const noexcept {
     return sum;
 }
 
+double Field::value_at(Vec3 at, std::uint32_t channel) const noexcept {
+    if (channel >= program_->channels().size()) return 0;
+    std::uint32_t stored = 0;
+    if (const auto cell = cell_at(at)) stored = state_[channel * cells() + *cell];
+    else if (const auto parked_in = coarse_at(at)) stored = coarse_state_[channel * coarse_keys_.size() + *parked_in];
+    else if (channel == temperature_) stored = air_stored_;
+    else return 0;
+    return std::ldexp(static_cast<double>(stored), -static_cast<int>(program_->channels()[channel].fraction));
+}
+
 std::optional<std::uint32_t> Field::get(std::uint32_t cell, std::uint32_t channel) const noexcept {
     if (cell >= cells() || channel >= program_->channels().size()) return std::nullopt;
     return state_[channel * cells() + cell];

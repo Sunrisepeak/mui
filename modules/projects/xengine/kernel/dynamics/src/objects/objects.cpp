@@ -261,6 +261,27 @@ void Objects::joined(const xengine::field::Field& air, std::size_t group) {
     }
 }
 
+void Objects::thrown(World& world, const xengine::field::Field& air) const {
+    const float dt = world.options().step, half_cell = air.options().cell * 0.5f;
+    for (const matter::Law& law : program_->laws()) {
+        if (law.kind != matter::LawKind::motion || !law.along || law.up) continue;
+        const double by = law.force > 0 ? law.force : 1.0, from = law.from;
+        const auto above = [&](Vec at) { return std::max(0.0, air.value_at(at, *law.along) - from); };
+        for (const BodyId body : bodies_) {
+            const auto box = world.bounds(body);
+            if (!box) continue;
+            const Vec centre{(box->low.x + box->high.x) / 2, (box->low.y + box->high.y) / 2, (box->low.z + box->high.z) / 2};
+            const float across = box->high.x - box->low.x, up = box->high.y - box->low.y, deep = box->high.z - box->low.z;
+            // Each axis: the value just outside the low face against just outside the high face.
+            const double along_x = above({box->low.x - half_cell, centre.y, centre.z}) - above({box->high.x + half_cell, centre.y, centre.z});
+            const double along_y = above({centre.x, box->low.y - half_cell, centre.z}) - above({centre.x, box->high.y + half_cell, centre.z});
+            const double along_z = above({centre.x, centre.y, box->low.z - half_cell}) - above({centre.x, centre.y, box->high.z + half_cell});
+            const Vec push{static_cast<float>(along_x * by * up * deep * dt), static_cast<float>(along_y * by * across * deep * dt), static_cast<float>(along_z * by * across * up * dt)};
+            if (push.x != 0 || push.y != 0 || push.z != 0) world.push(body, push);
+        }
+    }
+}
+
 void Objects::blow(World& world, const xengine::field::Field& air) const {
     const float dt = world.options().step;
     for (const BodyId body : bodies_) {

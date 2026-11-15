@@ -96,6 +96,8 @@ public:
     [[nodiscard]] Vec3 wind_at(Vec3 at) const noexcept;
     // How warm the air is at a place, in kelvin (where there are no cells, the air about).
     [[nodiscard]] float kelvin_at(Vec3 at) const noexcept;
+    // A channel at a place in its unit (the cell there; a parked block's coarse value; outside: the air's own).
+    [[nodiscard]] double value_at(Vec3 at, std::uint32_t channel) const noexcept;
 
     // ── regions (streaming) ──
     // A block far from anything that matters, parked: its cells become one coarse instance holding their mean

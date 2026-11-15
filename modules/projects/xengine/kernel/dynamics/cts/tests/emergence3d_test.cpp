@@ -31,6 +31,31 @@ std::uint32_t stored(const matter::Program& program, std::uint32_t channel, doub
     return static_cast<std::uint32_t>(std::lround(std::ldexp(value, static_cast<int>(program.channels()[channel].fraction))));
 }
 
+// Particles in a tank, taking room: a box of `half` about `centre`, its inside the walls.
+struct Tank {
+    geom::Mesh                         mesh;
+    geom::Bvh                          tree;
+    std::array<particles::Surface, 1>  inside;
+    Tank(math::Vec3 half, math::Vec3 centre) : mesh(geom::box(half)), tree(geom::bvh_of(mesh)) { inside = {{{.mesh = &mesh, .tree = &tree, .place = math::translation(centre)}}}; }
+};
+
+// Layers of one material in a tank's floor, 2 cm apart and off a perfect lattice by a little (the same each run).
+void layers(std::vector<particles::Spawn>& out, matter::MaterialId material, int from, int count, float half, std::optional<float> kelvin = std::nullopt) {
+    const int across = static_cast<int>(half * 2 / 0.02f) - 1;
+    for (int layer = from; layer < from + count; ++layer)
+        for (int row = 0; row < across; ++row)
+            for (int column = 0; column < across; ++column)
+                out.push_back({.at = {-half + 0.02f + 0.02f * static_cast<float>(column) + 0.002f * static_cast<float>((layer * 7 + row * 3) % 5 - 2), 0.012f + 0.021f * static_cast<float>(layer),
+                                      -half + 0.02f + 0.02f * static_cast<float>(row) + 0.002f * static_cast<float>((layer * 5 + column * 3) % 5 - 2)},
+                               .life = 1000, .material = material, .kelvin = kelvin});
+}
+
+std::size_t count_of(const particles::Cloud& cloud, matter::MaterialId material) {
+    std::size_t out = 0;
+    for (std::size_t particle = 0; particle < cloud.size(); ++particle) out += cloud.material(particle) == material;
+    return out;
+}
+
 }  // namespace
 
 UTest cases{"dynamics.emergence3d", [] {
@@ -96,5 +121,219 @@ UTest cases{"dynamics.emergence3d", [] {
         expect(gt(few.boiled, std::size_t{0}) && gt(few.steam_high, 1.5f)) << "drops on the burning wood boiled off, and the steam rose";
         expect(gt(few.condensed, std::size_t{0})) << "the steam, cooled in the air, came back as water";
         expect(gt(few.burning_at_ten, 0u) && gt(none.burning_at_ten, 0u)) << "a few drops do not put it out; nor does nothing";
+    };
+
+    "4: lava let into water: it sets as stone where the water takes its heat, and the water boils off it as steam"_test = [] {
+        const auto program = standard();
+        const matter::MaterialId water = *program->material("water"), lava = *program->material("lava"), stone = *program->material("stone"), steam = *program->material("steam");
+        Tank tank({0.1f, 0.3f, 0.1f}, {0, 0.3f, 0});
+        auto cloud = particles::Cloud::make(program, {.ambient = *program->material("air"), .touching = true});
+        expect(fatal(cloud.has_value()));
+        std::vector<particles::Spawn> spawns;
+        // A thin pool, and three times as much lava let onto it (a drop of lava has less heat above its setting than a
+        // drop of water takes to boil: it takes more lava than water to boil any off — as it does in the world).
+        layers(spawns, water, 0, 1, 0.1f);
+        for (int layer = 0; layer < 3; ++layer)
+            for (int drop = 0; drop < 81; ++drop)
+                spawns.push_back({.at = {-0.08f + 0.02f * static_cast<float>(drop % 9), 0.1f + 0.021f * static_cast<float>(layer), -0.08f + 0.02f * static_cast<float>(drop / 9)}, .life = 1000, .material = lava});
+        cloud->emit(spawns);
+        std::size_t set = 0, boiled = 0;
+        for (int step = 0; step < 600; ++step) {
+            expect(cloud->step(tank.inside).has_value());
+            for (const matter::Event& event : cloud->events())
+                if (event.kind == matter::EventKind::became) set += event.from == lava && event.to == stone, boiled += event.from == water && event.to == steam;
+        }
+        std::println("4: 243 drops of lava onto a pool of 81 of water: {} set as stone, {} of the water boiled off; lava left {}", set, boiled, count_of(*cloud, lava));
+        expect(gt(set, std::size_t{0}) && gt(boiled, std::size_t{0})) << "stone and steam, from the same laws";
+    };
+
+    "5: in the frost, an ice block beside a fire melts and one left alone stays ice; a pail of water there freezes"_test = [] {
+        const auto program = standard();
+        const std::uint32_t temperature = *program->channel("temperature");
+        const auto play = [&](std::string_view what, float kelvin, bool fire) {
+            auto world = rigid3::World::make({});
+            expect(fatal(world.has_value()));
+            (void)world->add({.kind = rigid3::Kind::fixed, .at = {0, -0.5f, 0}}, rigid3::Shape::box({20, 0.5f, 20}));
+            const rigid3::BodyId block = *world->add({.at = {0, 0.25f, 0}}, rigid3::Shape::box({0.25f, 0.25f, 0.25f}), {.density = 900});
+            const rigid3::BodyId crate = *world->add({.at = {0.76f, 0.5f, 0}}, rigid3::Shape::box({0.5f, 0.5f, 0.5f}), {.density = 600});
+            auto objects = rigid3::Objects::make(*program, {.ambient = *program->material("air"), .ambient_kelvin = kelvin});
+            expect(fatal(objects.has_value()));
+            (void)objects->add(block, *program->material(what));
+            if (fire) (void)objects->add(crate, *program->material("wood"));
+            int became = 0;
+            for (int step = 1; step <= 1800 && !became; ++step) {
+                world->step();
+                if (fire && step < 60) (void)objects->set(crate, temperature, stored(*program, temperature, 900));
+                expect(objects->step(*world).has_value());
+                if (*objects->material(block) != *program->material(what)) became = step;
+            }
+            return std::pair{became, std::string(program->materials()[*objects->material(block)].name)};
+        };
+        const auto [melted_at, melted_into] = play("ice", 250, true);  // in the frost: only the fire can melt it
+        const auto [frozen_at, frozen_into] = play("water", 250, false);
+        const auto [kept_at, kept_as] = play("ice", 250, false);
+        std::println("5: the ice beside the fire became {} at step {}; the water in the frost became {} at step {}; ice in the frost, left alone: {} ({})", melted_into, melted_at, frozen_into, frozen_at,
+                     kept_as, kept_at);
+        expect(gt(melted_at, 0) && melted_into == "water") << "it melted";
+        expect(gt(frozen_at, 0) && frozen_into == "ice") << "it froze";
+        expect(eq(kept_at, 0)) << "ice in the frost stays ice";
+    };
+
+    "6: oil on water, a few drops of it alight: the oil burns on the water, and the water does not"_test = [] {
+        const auto program = standard();
+        const matter::MaterialId water = *program->material("water"), oil = *program->material("oil");
+        const std::uint32_t burning = *program->channel("burning");
+        Tank tank({0.1f, 0.3f, 0.1f}, {0, 0.3f, 0});
+        auto cloud = particles::Cloud::make(program, {.ambient = *program->material("air"), .touching = true});
+        expect(fatal(cloud.has_value()));
+        std::vector<particles::Spawn> spawns;
+        layers(spawns, water, 0, 3, 0.1f);
+        layers(spawns, oil, 3, 1, 0.1f);
+        for (int drop = 0; drop < 4; ++drop)  // a few drops of it already alight (a match's worth)
+            spawns.push_back({.at = {-0.01f + 0.02f * static_cast<float>(drop % 2), 0.1f, -0.01f + 0.02f * static_cast<float>(drop / 2)}, .life = 1000, .material = oil, .kelvin = 700.0f});
+        cloud->emit(spawns);
+        const std::size_t water_before = count_of(*cloud, water);
+        std::size_t most_oil_burning = 0, water_burning = 0;
+        for (int step = 0; step < 600; ++step) {
+            expect(cloud->step(tank.inside).has_value());
+            std::size_t oil_burning = 0;
+            for (std::size_t particle = 0; particle < cloud->size(); ++particle)
+                if (cloud->value(burning, particle) > 0) (cloud->material(particle) == oil ? oil_burning : water_burning) += 1;
+            most_oil_burning = std::max(most_oil_burning, oil_burning);
+        }
+        std::println("6: oil on water, four drops of it alight: at most {} drops of oil burning at once, oil left {}; water burning ever {}; water {} → {}", most_oil_burning, count_of(*cloud, oil),
+                     water_burning, water_before, count_of(*cloud, water));
+        expect(gt(most_oil_burning, std::size_t{3})) << "the oil caught and burned";
+        expect(eq(water_burning, std::size_t{0})) << "the water under it did not burn";
+    };
+
+    "7: heat goes along iron and hardly along stone (a bar of segments from a fire: its far end); charge put on an iron bar reaches the water at its end, on a wooden one it does not"_test = [] {
+        const auto program = standard();
+        const std::uint32_t temperature = *program->channel("temperature"), charge = *program->channel("charge");
+        // A fire held at 1100 K and a bar of four 0.4 m segments from it along the ground; the far end's warmth at 30 s.
+        const auto bar = [&](std::string_view of) {
+            auto world = rigid3::World::make({});
+            expect(fatal(world.has_value()));
+            (void)world->add({.kind = rigid3::Kind::fixed, .at = {0, -0.5f, 0}}, rigid3::Shape::box({20, 0.5f, 20}));
+            const rigid3::BodyId fire = *world->add({.at = {0, 0.25f, 0}}, rigid3::Shape::box({0.25f, 0.25f, 0.25f}), {.density = 600});
+            std::vector<rigid3::BodyId> segments;
+            for (int segment = 0; segment < 4; ++segment)
+                segments.push_back(*world->add({.at = {0.451f + 0.401f * static_cast<float>(segment), 0.05f, 0}}, rigid3::Shape::box({0.2f, 0.05f, 0.05f}), {.density = 2000}));
+            auto objects = rigid3::Objects::make(*program, {.ambient = *program->material("air")});
+            expect(fatal(objects.has_value()));
+            (void)objects->add(fire, *program->material("wood"));
+            for (const rigid3::BodyId segment : segments) (void)objects->add(segment, *program->material(of));
+            for (int step = 1; step <= 1800; ++step) {
+                world->step();
+                (void)objects->set(fire, temperature, stored(*program, temperature, 1100));
+                expect(objects->step(*world).has_value());
+            }
+            return std::ldexp(static_cast<double>(*objects->get(segments.back(), temperature)), -8);
+        };
+        // A bar 2 m from a charge kept on it to a body of water at its end.
+        const auto charged = [&](std::string_view of) {
+            auto world = rigid3::World::make({});
+            expect(fatal(world.has_value()));
+            (void)world->add({.kind = rigid3::Kind::fixed, .at = {0, -0.5f, 0}}, rigid3::Shape::box({20, 0.5f, 20}));
+            const rigid3::BodyId rod = *world->add({.at = {1, 0.05f, 0}}, rigid3::Shape::box({1, 0.05f, 0.05f}), {.density = 2000});
+            const rigid3::BodyId pail = *world->add({.at = {2.25f, 0.25f, 0}}, rigid3::Shape::box({0.25f, 0.25f, 0.25f}), {.density = 1000});
+            auto objects = rigid3::Objects::make(*program, {.ambient = *program->material("air")});
+            expect(fatal(objects.has_value()));
+            (void)objects->add(rod, *program->material(of)), (void)objects->add(pail, *program->material("water"));
+            std::uint32_t most = 0;
+            for (int step = 1; step <= 600; ++step) {
+                world->step();
+                (void)objects->set(rod, charge, 1000);
+                expect(objects->step(*world).has_value());
+                most = std::max(most, *objects->get(pail, charge));
+            }
+            return most;
+        };
+        const double iron = bar("iron"), stone = bar("stone");
+        const std::uint32_t iron_charge = charged("iron"), wood_charge = charged("wood");
+        std::println("7: the far end of a 1.6 m bar from a fire, after 30 s: iron {:.1f} K, stone {:.1f} K; the water at the end of a charged iron bar {}, of a wooden one {}", iron, stone, iron_charge,
+                     wood_charge);
+        expect(gt(iron, stone + 30.0)) << "iron carries the heat along it";
+        expect(gt(iron_charge, 0u) && eq(wood_charge, 0u)) << "charge along the iron and into the water, not along the wood";
+    };
+
+    "8: a keg of gunpowder set off between two crates throws them apart; a keg of wood burns where it stands"_test = [] {
+        const auto program = standard();
+        const std::uint32_t temperature = *program->channel("temperature");
+        const auto play = [&](std::string_view keg_of) {
+            auto world = rigid3::World::make({});
+            expect(fatal(world.has_value()));
+            (void)world->add({.kind = rigid3::Kind::fixed, .at = {0, -0.5f, 0}}, rigid3::Shape::box({20, 0.5f, 20}));
+            const rigid3::BodyId keg = *world->add({.at = {0, 0.25f, 0}}, rigid3::Shape::box({0.25f, 0.25f, 0.25f}), {.density = 1700});
+            const rigid3::BodyId left = *world->add({.at = {-0.56f, 0.25f, 0}}, rigid3::Shape::box({0.25f, 0.25f, 0.25f}), {.density = 300});
+            const rigid3::BodyId right = *world->add({.at = {0.56f, 0.25f, 0}}, rigid3::Shape::box({0.25f, 0.25f, 0.25f}), {.density = 300});
+            auto objects = rigid3::Objects::make(*program, {.ambient = *program->material("air")});
+            expect(fatal(objects.has_value()));
+            (void)objects->add(keg, *program->material(keg_of)), (void)objects->add(left, *program->material("wood")), (void)objects->add(right, *program->material("wood"));
+            auto air = field::Field::make(*program, {.air = *program->material("air")});
+            expect(fatal(air.has_value()));
+            for (int step = 1; step <= 120; ++step) {
+                objects->thrown(*world, *air);
+                world->step();
+                if (step < 10) (void)objects->set(keg, temperature, std::max(*objects->get(keg, temperature), stored(*program, temperature, 900)));  // a fuse
+                expect(objects->step(*world, *air).has_value());
+            }
+            return world->pose(right)->centre.x - world->pose(left)->centre.x;
+        };
+        const float powder = play("gunpowder"), wood = play("wood");
+        std::println("8: two crates 1.12 m apart about a keg: after 2 s, {:.2f} m apart beside gunpowder, {:.2f} m beside wood", powder, wood);
+        expect(gt(powder, 1.12f + 0.5f)) << "the blast threw them";
+        expect(lt(std::abs(wood - 1.12f), 0.05f)) << "a wood fire pushes nothing";
+    };
+
+    "12: alcohol, two rows of properties and no law, is a liquid that burns: it comes up through water, boils on hot stones, its vapour rises and burns"_test = [] {
+        auto definition = matter::read(matter::standard_snapshot, "standard.matter.omui.json");
+        expect(fatal(definition.has_value()));
+        using P = matter::Property;
+        const std::size_t laws = definition->laws.size();
+        definition->materials.push_back({"alcohol_vapour",
+                                         {P{"phase", "gas"}, P{"density", 1.0}, P{"thermal", 1.0}, P{"boiling", 351.0}, P{"condensed", "alcohol"}, P{"starts_at", 360.0}, P{"ignition", 400.0},
+                                          P{"fuel", 40.0}, P{"heat", 90.0}, P{"burnt", "smoke"}},
+                                         {}});
+        definition->materials.push_back({"alcohol", {P{"phase", "liquid"}, P{"density", 790.0}, P{"thermal", 1.0}, P{"boiling", 351.0}, P{"boiled", "alcohol_vapour"}}, {}});
+        auto prepared = matter::Program::prepare(*definition);
+        expect(fatal(prepared.has_value()));
+        expect(eq(prepared->laws().size(), laws)) << "no law added";
+        const auto program = std::make_shared<const matter::Program>(std::move(*prepared));
+        const matter::MaterialId alcohol = *program->material("alcohol"), vapour = *program->material("alcohol_vapour"), water = *program->material("water");
+        // Under water in a tank: it comes up.
+        Tank tank({0.1f, 0.3f, 0.1f}, {0, 0.3f, 0});
+        auto basin = particles::Cloud::make(program, {.ambient = *program->material("air"), .touching = true});
+        expect(fatal(basin.has_value()));
+        std::vector<particles::Spawn> spawns;
+        layers(spawns, alcohol, 0, 1, 0.1f);
+        layers(spawns, water, 1, 3, 0.1f);
+        basin->emit(spawns);
+        for (int step = 0; step < 300; ++step) expect(basin->step(tank.inside).has_value());
+        double alcohol_height = 0, water_height = 0;
+        for (std::size_t particle = 0; particle < basin->size(); ++particle)
+            (basin->material(particle) == alcohol ? alcohol_height : water_height) += basin->at()[particle].y;
+        alcohol_height /= static_cast<double>(count_of(*basin, alcohol)), water_height /= static_cast<double>(count_of(*basin, water));
+        // On a bed of hot stones: it boils, the vapour rises and burns.
+        auto pan = particles::Cloud::make(program, {.ambient = *program->material("air"), .touching = true});
+        expect(fatal(pan.has_value()));
+        spawns.clear();
+        layers(spawns, *program->material("stone"), 0, 1, 0.1f, 700.0f);
+        layers(spawns, alcohol, 1, 1, 0.1f);
+        pan->emit(spawns);
+        std::size_t boiled = 0, burned = 0;
+        float highest = 0;
+        const std::uint32_t burning = *program->channel("burning");
+        for (int step = 0; step < 600; ++step) {
+            expect(pan->step(tank.inside).has_value());
+            for (const matter::Event& event : pan->events()) boiled += event.kind == matter::EventKind::became && event.from == alcohol && event.to == vapour;
+            for (std::size_t particle = 0; particle < pan->size(); ++particle)
+                if (pan->material(particle) == vapour) highest = std::max(highest, pan->at()[particle].y), burned += pan->value(burning, particle) > 0;
+        }
+        std::println("12: alcohol under water came up to a mean height {:.3f} m (water {:.3f}); on hot stones {} boiled, the vapour as high as {:.2f} m, burning in {} particle-steps", alcohol_height,
+                     water_height, boiled, highest, burned);
+        expect(gt(alcohol_height, water_height)) << "it lies on water";
+        expect(gt(boiled, std::size_t{0}) && gt(highest, 0.1f)) << "it boils and its vapour rises";
+        expect(gt(burned, std::size_t{0})) << "and the vapour burns";
     };
 }};

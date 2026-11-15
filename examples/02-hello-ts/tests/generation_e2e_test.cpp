@@ -4,7 +4,9 @@
 // in a release. An agent, over the application's endpoint, drafts a view from
 // TypeScript, previews it (nothing left of it), commits it, undoes and redoes
 // it, drafts in the background; refused a component it was not given and code
-// that does not end; the version kept across a restart.
+// that does not end; the version kept across a restart. And the config's agent preset for a release (D-155), end
+// to end: what it sets is the running application's policy, a switch given at launch wins over it, and a word that
+// is not a preset stops the program saying the right ones.
 import std;
 import omui.agent;
 import mcpplibs.os;
@@ -38,6 +40,12 @@ export default defineConfig({
   generation: { surfaces: { extras: "cards an agent adds under the plan" }, open: { release: "limited" }, components: ["text", "column"] },
 });
 )";
+constexpr std::string_view dual_user_config = R"(import { defineConfig } from "omui/define";
+export default defineConfig({ agent: { release: "dual-user" } });
+)";
+constexpr std::string_view misspelt_config = R"(import { defineConfig } from "omui/define";
+export default defineConfig({ agent: { release: "everyone" } });
+)";
 constexpr std::string_view plans = R"(import { defineView } from "openmui/define";
 const plans = [["Pro", 9], ["Team", 29]];
 export default defineView({ omui: "0.1", view: { root: { type: "column", children: plans.map(([name, price]) => ({ type: "text", id: name.toLowerCase(), props: { text: `${name}, ${price} a month` } })) } } });
@@ -52,10 +60,11 @@ struct Running {
     std::optional<omui::agent::Client>  client;
     std::string                         why;  // no endpoint: what the program did instead
 
-    Running(const std::filesystem::path& app, const std::filesystem::path& endpoints) {
+    Running(const std::filesystem::path& app, const std::filesystem::path& endpoints, std::vector<std::string> extra = {}) {
         os::process::spawn_options options;
         options.program = os::fs::from_utf8(e2e::program("text-stats"));
         options.args = {"--manifest", os::fs::utf8(app), "--serve", "--agent-dir", os::fs::utf8(endpoints)};
+        options.args.insert(options.args.end(), extra.begin(), extra.end());
         options.out = options.err = os::process::stdio::null;
         options.bound_lifetime = true;
         if (auto spawned = os::process::process::spawn(options)) process.emplace(std::move(*spawned));
@@ -162,5 +171,63 @@ E2E generation{"generation", timeout{std::chrono::minutes{5}}, [] {
         if (!again.client) return;
         (void)again.ask(Value{}.set("op", "wait").set("q", Value{}.set("name", "Team, 29 a month")).set("timeout", 10));
         expect(again.finds("Team, 29 a month")) << "kept across a restart";
+    };
+}};
+
+// A short directory of its own for an application's endpoint (see the first case: a local socket's path is short on
+// Windows), removed after.
+struct Endpoints {
+    std::filesystem::path directory = std::filesystem::temp_directory_path() / std::format("omui-plan-{}", os::random::hex(4).value_or("0"));
+    Endpoints() { std::filesystem::create_directories(directory); }
+    ~Endpoints() {
+        std::error_code ignored;
+        std::filesystem::remove_all(directory, ignored);
+    }
+};
+
+E2E agent_preset{"agent-preset", timeout{std::chrono::minutes{3}}, [] {
+    "omui.config.ts's agent preset for a release is the running application's policy; a switch at launch wins; one that is not a preset stops it"_test[artifact{"target:text-stats"}] = [] {
+        const auto policy_of = [](Running& running) {
+            const auto [described, code] = running.ask(Value{}.set("op", "describe"));
+            expect(eq(code, 0)) << described.json();
+            const Value* policy = described.get("agent_policy");
+            return policy ? *policy : Value{};
+        };
+        {  // No preset: the build's profile decides (development in a dev build, dual-user in any other).
+            const auto app = e2e::tree({{"mcpp.toml", manifest}, {"logic/main.ts", script}});
+            Endpoints endpoints;
+            Running plan(app, endpoints.directory);
+            expect(fatal(plan.client.has_value())) << "the application's endpoint: " << plan.why;
+            const Value policy = policy_of(plan);
+            std::println("    no preset: {} ({})", policy.get("mode")->as_string(), policy.get("source")->as_string());
+            expect(policy.get("source")->as_string().starts_with("profile:")) << policy.json();
+        }
+        {  // The config's release preset, in a run that is not development (no --dev): dual-user.
+            const auto app = e2e::tree({{"mcpp.toml", manifest}, {"logic/main.ts", script}, {"omui.config.ts", dual_user_config}});
+            Endpoints endpoints;
+            Running plan(app, endpoints.directory);
+            expect(fatal(plan.client.has_value())) << "the application's endpoint: " << plan.why;
+            const Value policy = policy_of(plan);
+            std::println("    agent.release dual-user: {} ({})", policy.get("mode")->as_string(), policy.get("source")->as_string());
+            expect(policy.get("mode")->as_string() == "dual-user" && policy.get("source")->as_string().starts_with("explicit-mode:dual-user")) << policy.json();
+            expect(!policy.get("development_grant")->as_bool()) << "no development grant in dual-user";
+        }
+        {  // The same config, and a switch given at launch: the switch wins.
+            const auto app = e2e::tree({{"mcpp.toml", manifest}, {"logic/main.ts", script}, {"omui.config.ts", dual_user_config}});
+            Endpoints endpoints;
+            Running plan(app, endpoints.directory, {"--agent-mode", "development"});
+            expect(fatal(plan.client.has_value())) << "the application's endpoint: " << plan.why;
+            const Value policy = policy_of(plan);
+            std::println("    and --agent-mode development: {} ({})", policy.get("mode")->as_string(), policy.get("source")->as_string());
+            expect(policy.get("mode")->as_string() == "development" && policy.get("source")->as_string().starts_with("explicit-mode:development")) << policy.json();
+        }
+        {  // Not a preset: the program does not start an endpoint, and says which file, which key, and the right words.
+            const auto app = e2e::tree({{"mcpp.toml", manifest}, {"logic/main.ts", script}, {"omui.config.ts", misspelt_config}});
+            Endpoints endpoints;
+            Running plan(app, endpoints.directory);
+            expect(!plan.client.has_value()) << "a preset that is not one is not run as another";
+            std::println("    not a preset: {}", plan.why.substr(0, 300));
+            expect(plan.why.contains("omui.config.ts") && plan.why.contains("agent.release") && plan.why.contains("dual-user")) << plan.why;
+        }
     };
 }};

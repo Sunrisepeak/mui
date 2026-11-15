@@ -1,7 +1,8 @@
 // What the harbour at night sounds like (xengine.audio), each sound a place in the world (xengine.audio.space puts
 // it there and the ears hear it through the containers' steel): the watchkeeper's rifle — a crack, the thump under
 // it, the quay throwing it back — a warden's shot, an electric snap; steps on wet concrete; a warden's servos as it
-// walks; a warden falling, its plates clanking; a hit taken; the beacon catching and roaring up.
+// walks; a warden falling, its plates clanking; a hit taken; the beacon catching and roaring up; on the second night
+// a lookout's horn — two low reeds a little apart, long — and a fuse box thrown, a clunk and the line's hum.
 
 import { defineSound } from "omui/define";
 
@@ -34,6 +35,21 @@ export default defineSound({
         gain: 0.16,
         seed: 22,
       },
+    ],
+  },
+
+  horn: {
+    layers: [
+      { wave: "saw", length: 1.3, pitch: 98, envelope: { attack: 0.08, decay: 0.2, sustain: 0.8, release: 0.3 }, filter: { kind: "lowpass", cutoff: [900, 600], q: 0.9 }, gain: 0.32 },
+      { wave: "saw", length: 1.3, pitch: 98.8, envelope: { attack: 0.1, decay: 0.2, sustain: 0.8, release: 0.3 }, filter: { kind: "lowpass", cutoff: [800, 550], q: 0.9 }, gain: 0.28 },
+      { wave: "noise", length: 1.2, envelope: { attack: 0.05, decay: 0.3, sustain: 0.4, release: 0.3 }, filter: { kind: "bandpass", cutoff: [300, 200], q: 1.2 }, gain: 0.06, seed: 61 },
+    ],
+  },
+
+  fuse: {
+    layers: [
+      { wave: "noise", length: 0.06, envelope: { attack: 0.0005, decay: 0.05, sustain: 0, release: 0.005 }, filter: { kind: "bandpass", cutoff: [1800, 900], q: 1.4 }, gain: 0.5, seed: 71 },
+      { wave: "sine", at: 0.04, length: 0.8, pitch: 100, envelope: { attack: 0.05, decay: 0.3, sustain: 0.3, release: 0.3 }, gain: 0.12 },
     ],
   },
 

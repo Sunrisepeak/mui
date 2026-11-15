@@ -37,6 +37,8 @@ struct Frame {
 inline constexpr scene::Id sea_id = 1, box_ids = 100, crate_ids = 300, warden_ids = 400, eye_ids = 500, lamp_ids = 600, beacon_ids = 700, gun_id = 800, flash_id = 801;
 inline constexpr scene::Id mark_ids = 900;                    // a mark of a shot: 900 + its place among `State::marks` × 2 (+1 its hole)
 inline constexpr scene::Id rain_id = 1000, splash_id = 1001;  // the rain's batches
+// The second night's: a lookout's mast and lamp (1100 + its place × 2, + 1), a fuse box's post and panel (1200 + …).
+inline constexpr scene::Id lookout_ids = 1100, fuse_ids = 1200;
 inline constexpr std::uint32_t drops = 900, splashes = 160;   // falling at once, splashing at once
 
 class Picture {
@@ -90,6 +92,7 @@ private:
     std::vector<mlibs::math::Vec3>                room_;
     std::vector<mlibs::math::Vec3>                crate_halves_;
     std::vector<scene::Id>                        flashes_;  // the lights of this frame's shots
+    bool                                          lookouts_ = false;  // the level's searchlights light it: two post lamps are out
     std::vector<xrender::particle::Particle>      drops_, splashes_;
     mesh::Texture                                 streak_;   // a drop's shape: a thin line down the middle
     std::array<xrender::particle::Batch, 2>       batches_{};

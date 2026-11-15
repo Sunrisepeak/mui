@@ -83,4 +83,52 @@ UTest cases{"quay.sim", [] {
         const Played again = play(quay::level::harbour());
         expect(eq(first.checksum, again.checksum) && eq(first.frames, again.frames));
     };
+
+    "the second night: a lookout's beam finds the watchkeeper, it holds the beam and sounds its horn, and a warden goes where the beam falls; the beacon is dark until both fuses are on"_test = [] {
+        const quay::Level night = quay::level::second_night();
+        quay::State state = quay::start(night);
+        expect(fatal(eq(state.lookouts.size(), std::size_t{2}) && eq(state.fuses.size(), std::size_t{2}) && eq(state.wardens.size(), std::size_t{5})));
+        for (const quay::Vec3 fuse : state.fuses) {
+            const auto there = state.ground->path(state.keeper.at, fuse);
+            expect(there.has_value() && there->reaches) << "a fuse box can be walked to";
+        }
+        // The watchkeeper stands where the first lookout's beam sweeps (14 m out from its container, its middle
+        // bearing): the beam comes round, holds, and the horn sounds; a warden that hears it goes to the keeper.
+        const quay::Lookout post = night.lookouts[0];
+        const float middle = (post.from + post.to) / 2;
+        quay::Level beside = night;
+        beside.start = {post.at.x + std::sin(middle) * 12, 0, post.at.z - std::cos(middle) * 12};
+        quay::State lit = quay::start(beside);
+        std::uint64_t seen_at = 0, horn_at = 0;
+        std::size_t drawn = 0;
+        for (int frame = 0; frame < 60 * 12 && !(horn_at && drawn); ++frame) {
+            quay::step(lit, {});
+            if (!seen_at && lit.lookouts[0].sees) seen_at = lit.frame;
+            if (!horn_at && std::ranges::any_of(lit.noises, [](const quay::Noise& noise) { return noise.what == "horn"; })) horn_at = lit.frame;
+            if (horn_at)
+                drawn = static_cast<std::size_t>(std::ranges::count_if(lit.wardens, [&](const quay::Warden& warden) {
+                    return warden.mind == quay::Mind::search && math::length(quay::Vec3{warden.heading_for.x - lit.keeper.at.x, 0, warden.heading_for.z - lit.keeper.at.z}) < 1.5f;
+                }));
+        }
+        std::println("the second night: the lookout's beam on the watchkeeper at frame {}, its horn at {}; {} wardens going where the beam fell", seen_at, horn_at, drawn);
+        expect(gt(seen_at, std::uint64_t{0}) && ge(horn_at, seen_at)) << "the beam sweeps round to the watchkeeper and calls";
+        expect(ge(drawn, std::size_t{1})) << "a warden that heard the horn goes where the beam falls";
+        // At the beacon with both fuses off, working it does nothing; a shot puts a lookout out.
+        quay::Level at_the_beacon = night;
+        at_the_beacon.start = night.beacon - quay::Vec3{1, 0, 0};
+        quay::State dark = quay::start(at_the_beacon);
+        quay::Input use;
+        use.player.held = 1u << quay::use_button;
+        for (int frame = 0; frame < 120; ++frame) quay::step(dark, use);
+        expect(dark.outcome == quay::Outcome::playing && eq(quay::fuses_off(dark), std::size_t{2})) << "no power: the beacon stays dark";
+    };
+
+    "the second night played: the player switches both fuses on, then lights the beacon, the same frames each time"_test = [] {
+        const Played first = play(quay::level::second_night(), 60 * 300);
+        std::println("the second night played: {} at frame {} ({:.1f} s) — {}; {} wardens standing, health {}, {} rounds fired", quay::outcome_names[static_cast<std::size_t>(first.outcome)], first.frames,
+                     static_cast<double>(first.frames) / quay::steps_per_second, first.why, first.standing, first.health, first.shots);
+        expect(first.outcome == quay::Outcome::won) << first.why;
+        const Played again = play(quay::level::second_night(), 60 * 300);
+        expect(eq(first.checksum, again.checksum) && eq(first.frames, again.frames));
+    };
 }};

@@ -25,6 +25,18 @@ xengine::Bindings bindings() {
     made.key(xengine::ui::code(Key::e), xengine::Button{use_button});
     made.key(xengine::ui::code(Key::shift), xengine::Button{run_button});
     made.mouse(1, xengine::Button{fire_button});
+    // A gamepad: the left stick walks (up is forward), the right stick looks — given with the mouse's look in
+    // `input` — the right trigger or R1 fires, A jumps, X works the beacon or a fuse box, the left stick pressed runs.
+    using omui::GamepadAxis, omui::GamepadButton;
+    made.pad_axis(xengine::ui::pad(GamepadAxis::left_x), xengine::Axis{0, 1});
+    made.pad_axis(xengine::ui::pad(GamepadAxis::left_y), xengine::Axis{1, -1});
+    made.pad_axis(xengine::ui::pad(GamepadAxis::right_x), xengine::Axis{2, 1});
+    made.pad_axis(xengine::ui::pad(GamepadAxis::right_y), xengine::Axis{3, -1});
+    made.pad_button(xengine::ui::pad(GamepadButton::right_trigger), xengine::Button{fire_button});
+    made.pad_button(xengine::ui::pad(GamepadButton::right_shoulder), xengine::Button{fire_button});
+    made.pad_button(xengine::ui::pad(GamepadButton::south), xengine::Button{jump_button});
+    made.pad_button(xengine::ui::pad(GamepadButton::west), xengine::Button{use_button});
+    made.pad_button(xengine::ui::pad(GamepadButton::left_stick), xengine::Button{run_button});
     return made;
 }
 
@@ -54,8 +66,9 @@ Harbour::~Harbour() {
 void Harbour::mount(omui::Services& services, omui::NodeId node) {
     services_ = &services, node_ = node;
     view_.mount(services, node);
-    game_.emplace(start(level::harbour()), xengine::runtime::Options{.stepping = xengine::runtime::Stepping::owner, .seat = xengine::runtime::Seat::owner, .keep = 600, .record = true});
-    if (auto made = picture::Picture::make(level::harbour())) picture_.emplace(std::move(*made));
+    const Level played = level::named(options().level).value_or(level::harbour());
+    game_.emplace(start(played), xengine::runtime::Options{.stepping = xengine::runtime::Stepping::owner, .seat = xengine::runtime::Seat::owner, .keep = 600, .record = true});
+    if (auto made = picture::Picture::make(played)) picture_.emplace(std::move(*made));
     xengine::ui::Viewport::Shown shown{.label = "the harbour", .subject = &*game_, .width = 960, .height = 540, .look = true};
     if (mlibs::rhi::Device* device = services.device(); device && picture_) {
         if (auto made = picture::OnDevice::make(*device, *picture_, 960, 540)) {  // sized to the node at each frame
@@ -89,18 +102,18 @@ bool Harbour::on_event(omui::EventContext& ctx, const omui::InputEvent& event) {
     return looked || played;
 }
 
-// A step's input: the keys and buttons as sampled; the mouse's look given out a step at a time, at most what a
-// full axis turns in a step, the rest kept for the next.
+// A step's input: the keys, buttons and sticks as sampled; the mouse's look given out a step at a time, at most
+// what a full axis turns in a step with the right stick's, the rest kept for the next.
 Input Harbour::input() {
     Input made;
     made.player = sampler_.sample();
+    const double stick_turn = static_cast<double>(made.player.axes[2]) / 32767.0, stick_look = static_cast<double>(made.player.axes[3]) / 32767.0;
     const omui::Point moved = view_.take_look();
     turning_ += static_cast<double>(moved.x) * look_per_pixel, looking_ -= static_cast<double>(moved.y) * look_per_pixel;
     const double most_turn = turn_rate / steps_per_second, most_look = look_rate / steps_per_second;
-    const double turn = std::clamp(turning_, -most_turn, most_turn), look = std::clamp(looking_, -most_look, most_look);
-    made.player.axes[2] = axis_of(turn / most_turn), made.player.axes[3] = axis_of(look / most_look);
-    // What the axes give, as the sim reads them back: so nothing is lost or given twice to rounding.
-    turning_ -= static_cast<double>(made.player.axes[2]) / 32767.0 * most_turn, looking_ -= static_cast<double>(made.player.axes[3]) / 32767.0 * most_look;
+    made.player.axes[2] = axis_of(turning_ / most_turn + stick_turn), made.player.axes[3] = axis_of(looking_ / most_look + stick_look);
+    // What the axes give the mouse's look, as the sim reads them back: so nothing is lost or given twice to rounding.
+    turning_ -= (static_cast<double>(made.player.axes[2]) / 32767.0 - stick_turn) * most_turn, looking_ -= (static_cast<double>(made.player.axes[3]) / 32767.0 - stick_look) * most_look;
     return made;
 }
 
@@ -173,6 +186,7 @@ omui::AppSpec app(Options given) {
 
 std::string recorded(const Standalone& game) {
     std::string out;
+    if (game.state().level != "harbour" && !game.state().level.empty()) out = std::format("level {}\n", game.state().level);
     for (const Input& step : game.recorded()) {
         const xengine::Actions& actions = step.player;
         out += std::format("{} {} {} {} {} {} {} {}\n", actions.held, actions.pressed, actions.released, actions.axes[0], actions.axes[1], actions.axes[2], actions.axes[3], actions.wheel);
@@ -181,8 +195,18 @@ std::string recorded(const Standalone& game) {
 }
 
 std::expected<State, std::string> replayed(std::string_view lines) {
-    State state = start(level::harbour());
-    std::size_t number = 0;
+    // The level a first line names; else the harbour.
+    std::optional<Level> level = level::harbour();
+    std::size_t number = 0;  // lines read
+    if (lines.starts_with("level ")) {
+        number = 1;
+        const std::size_t end = lines.find('\n');
+        const std::string_view name = lines.substr(6, end == std::string_view::npos ? std::string_view::npos : end - 6);
+        level = level::named(name);
+        if (!level) return std::unexpected(std::format("line 1: no level is named `{}` (harbour, flawed, second-night)", name));
+        lines = end == std::string_view::npos ? std::string_view{} : lines.substr(end + 1);
+    }
+    State state = start(*level);
     for (const auto line : std::views::split(lines, '\n')) {
         const std::string_view text(line.begin(), line.end());
         if (text.empty()) continue;

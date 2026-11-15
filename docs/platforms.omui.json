@@ -109,7 +109,7 @@
       "name": "Gamepads (Quay, widget breakout)",
       "label": "preview",
       "cells": {
-        "linux-x64": {"status": "software", "evidence": "synthetic gamepad events (xengine.ui ui_test, omui.core input_test, widget-breakout gamepad_test)"},
+        "linux-x64": {"status": "software", "evidence": "synthetic gamepad events (xengine.ui ui_test, omui.core input_test, widget-breakout gamepad_test, quay.window's second night with a gamepad)"},
         "macos-arm64": {"status": "software", "evidence": "the same tests on CI row macos-15"},
         "windows-x64": {"status": "software", "evidence": "the same tests on CI row windows-2022"},
         "web": {"status": "unverified", "needs": "the Gamepad API in a real browser with a pad"}

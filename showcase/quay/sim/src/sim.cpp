@@ -26,6 +26,12 @@ constexpr std::int32_t warden_damage = 12;
 constexpr std::uint32_t search_steps = 6 * steps_per_second;
 constexpr std::uint32_t beacon_steps = steps_per_second;  // the beacon worked a second
 constexpr float beacon_reach = 2.2f;
+constexpr float fuse_reach = 1.6f;
+constexpr float sweep_speed = 0.35f;                     // radians a second, a lookout's beam
+constexpr float beam_angle = 0.2f;                       // radians either side of the beam's bearing it lights
+constexpr float beam_falls = 14;                         // metres out from the lamp the beam's middle meets the quay
+constexpr std::uint32_t horn_steps = 90;                 // steps between a lookout's calls while it sees
+constexpr float lamp_radius = 0.4f;                      // a lookout's lamp, as a shot meets it
 
 Vec3 flat(Vec3 value) noexcept { return {value.x, 0, value.z}; }
 float horizontal(Vec3 one, Vec3 other) noexcept { return math::length(flat(one - other)); }
@@ -59,6 +65,28 @@ std::optional<float> meets(const Warden& warden, Vec3 from, Vec3 way, float most
     return best;
 }
 
+// Where a ray from `from` along `way` meets a ball, within `most`.
+std::optional<float> meets_ball(Vec3 centre, float radius, Vec3 from, Vec3 way, float most) noexcept {
+    const Vec3 to = from - centre;
+    const float b = math::dot(to, way), c = math::dot(to, to) - radius * radius, inside = b * b - c;
+    if (inside < 0) return std::nullopt;
+    const float t = -b - std::sqrt(inside);
+    return t >= 0 && t <= most ? std::optional<float>(t) : std::nullopt;
+}
+
+Vec3 bearing_of(float bearing) noexcept {
+    return {static_cast<float>(det::sin(static_cast<double>(bearing))), 0, static_cast<float>(-det::cos(static_cast<double>(bearing)))};
+}
+float bearing_toward(Vec3 from, Vec3 to) noexcept {
+    return static_cast<float>(det::atan2(static_cast<double>(to.x - from.x), static_cast<double>(-(to.z - from.z))));
+}
+float apart_by(float from, float to) noexcept {
+    float apart = to - from;
+    while (apart > 3.14159265f) apart -= 6.2831853f;
+    while (apart < -3.14159265f) apart += 6.2831853f;
+    return apart;
+}
+
 }  // namespace
 
 namespace level {
@@ -90,6 +118,23 @@ Level flawed() {
     made.name = "flawed";
     made.boxes.push_back({{40, 1.3f, 0}, {1.2f, 1.3f, 2.3f}});
     return made;
+}
+Level second_night() {
+    Level made = harbour();
+    made.name = "second-night";
+    made.tide = 300;
+    // On masts 2 m over the stacked container (sweeping the quay's middle) and over the container by the warehouse
+    // (its west end): high enough to see over the containers' tops.
+    made.lookouts = {{{20, 7.2f, 0}, -2.4f, -0.8f}, {{-4, 4.6f, 8}, -2.9f, -1.6f}};
+    made.wardens.push_back({{-26, 0, -11}, {-26, 0, 11}});
+    made.fuses = {{-30.5f, 0, -11}, {27, 0, 11.5f}};
+    return made;
+}
+std::optional<Level> named(std::string_view name) {
+    if (name == "harbour") return harbour();
+    if (name == "flawed") return flawed();
+    if (name == "second-night") return second_night();
+    return std::nullopt;
 }
 }  // namespace level
 
@@ -126,6 +171,14 @@ State start(const Level& level) {
     state.statics = std::move(statics);
     state.beacon = level.beacon;
     state.tide = level.tide;
+    state.level = level.name;
+    for (const Lookout& post : level.lookouts) {
+        Searchlight light{.post = post, .bearing = post.from};
+        light.falls = flat(post.at) + bearing_of(light.bearing) * beam_falls;
+        state.lookouts.push_back(light);
+    }
+    state.fuses = level.fuses;
+    state.fused.assign(level.fuses.size(), 0);
     return state;
 }
 
@@ -133,6 +186,9 @@ Vec3 eye(const State& state) noexcept { return state.keeper.at + Vec3{0, eye_hei
 Vec3 looking(const State& state) noexcept {
     const auto yaw = static_cast<double>(state.keeper.yaw), pitch = static_cast<double>(state.keeper.pitch);
     return {static_cast<float>(det::sin(yaw) * det::cos(pitch)), static_cast<float>(det::sin(pitch)), static_cast<float>(-det::cos(yaw) * det::cos(pitch))};
+}
+std::size_t fuses_off(const State& state) noexcept {
+    return static_cast<std::size_t>(std::ranges::count_if(state.fused, [](std::uint32_t worked) { return worked < fuse_steps; }));
 }
 std::size_t standing(const State& state) noexcept {
     return static_cast<std::size_t>(std::ranges::count_if(state.wardens, [](const Warden& warden) { return warden.health > 0; }));
@@ -186,7 +242,14 @@ void step(State& state, const Input& input) {
             if (warden.health <= 0) continue;
             if (const auto met = meets(warden, from, way, nearest)) nearest = *met, struck = index + 1;
         }
-        if (struck) {
+        // A lookout's lamp nearer than all of that: put out a shot at a time.
+        std::uint32_t lamp = 0;
+        for (std::uint32_t index = 0; index < state.lookouts.size(); ++index)
+            if (state.lookouts[index].health > 0)
+                if (const auto met = meets_ball(state.lookouts[index].post.at, lamp_radius, from, way, nearest)) nearest = *met, lamp = index + 1, struck = 0;
+        if (lamp) {
+            --state.lookouts[lamp - 1].health;
+        } else if (struck) {
             Warden& warden = state.wardens[struck - 1];
             if (--warden.health <= 0) state.ground->remove(warden.walker);
         } else if (wall && std::ranges::contains(state.crates, wall->body)) {
@@ -202,8 +265,34 @@ void step(State& state, const Input& input) {
     if (const auto moved = state.bodies->character(keeper.body)) keeper.at = moved->at;
     ++keeper.hurt;
 
-    // ── the wardens: what each hears and sees, then where it goes ──
     const Vec3 head = eye(state);
+    // ── the lookouts: each beam sweeps, or holds on the watchkeeper and calls ──
+    for (std::uint32_t index = 0; index < state.lookouts.size(); ++index) {
+        Searchlight& light = state.lookouts[index];
+        if (light.health <= 0) {
+            light.sees = false;
+            continue;
+        }
+        const float toward = bearing_toward(light.post.at, keeper.at);
+        light.sees = horizontal(light.post.at, keeper.at) < beam_reach && std::abs(apart_by(light.bearing, toward)) < beam_angle && clear(state, light.post.at, head);
+        if (light.horn > 0) --light.horn;
+        if (light.sees) {
+            light.bearing += std::clamp(apart_by(light.bearing, toward), -sweep_speed * 3 * step_seconds, sweep_speed * 3 * step_seconds);
+            light.falls = flat(keeper.at);
+            if (light.horn == 0) {
+                light.horn = horn_steps;
+                state.noises.push_back({light.post.at, 0, 1000 + index, "horn"});
+            }
+        } else {
+            const float goal = light.outward ? light.post.to : light.post.from;
+            const float apart = apart_by(light.bearing, goal);
+            light.bearing += std::clamp(apart, -sweep_speed * step_seconds, sweep_speed * step_seconds);
+            if (std::abs(apart) < 0.01f) light.outward = !light.outward;
+            light.falls = flat(light.post.at) + bearing_of(light.bearing) * beam_falls;
+        }
+    }
+
+    // ── the wardens: what each hears and sees, then where it goes ──
     const bool keeper_quick = math::length(walk) > walk_speed + 0.1f;
     const std::size_t heard_before = state.noises.size();  // the wardens' own shots this step are heard next step
     for (std::uint32_t index = 0; index < state.wardens.size(); ++index) {
@@ -238,6 +327,8 @@ void step(State& state, const Input& input) {
                              Vec3{0, static_cast<float>(det::sin(elevation)), 0};
             const float seems_far = std::min(25.0f, static_cast<float>(det::pow(10.0, static_cast<double>(-reached.level) / 20)));
             seems = flat(warden_eye + way * seems_far);
+            // A lookout's horn says where its beam falls: the warden goes there, not to the horn.
+            if (noise.by >= 1000 && noise.by - 1000 < state.lookouts.size()) seems = state.lookouts[noise.by - 1000].falls;
         }
         if (warden.sees) {
             warden.mind = Mind::chase, warden.heading_for = keeper.at;
@@ -289,7 +380,13 @@ void step(State& state, const Input& input) {
     std::erase_if(state.recent, [&](const Noise& noise) { return noise.frame + recent_steps <= state.frame; });
 
     // ── the beacon, the tide, the end ──
-    keeper.lighting = horizontal(keeper.at, state.beacon) < beacon_reach && actions.down(use_button) ? keeper.lighting + 1 : 0;
+    for (std::size_t index = 0; index < state.fuses.size(); ++index)
+        if (state.fused[index] < fuse_steps) {
+            state.fused[index] = horizontal(keeper.at, state.fuses[index]) < fuse_reach && actions.down(use_button) ? state.fused[index] + 1 : 0;
+            // Thrown: a clunk and the hum of the line, heard as a step is (next step, by the wardens).
+            if (state.fused[index] == fuse_steps) state.noises.push_back({state.fuses[index] + Vec3{0, 1.2f, 0}, -30, 0, "fuse"});
+        }
+    keeper.lighting = fuses_off(state) == 0 && horizontal(keeper.at, state.beacon) < beacon_reach && actions.down(use_button) ? keeper.lighting + 1 : 0;
     state.tide -= step_seconds;
     if (keeper.lighting >= beacon_steps) state.outcome = Outcome::won, state.why = "the beacon is lit";
     else if (keeper.health <= 0) state.outcome = Outcome::lost, state.why = "the wardens stopped the watchkeeper";
@@ -328,13 +425,24 @@ Input Guide::operator()(const State& state) {
         actions.axes[2] = axis_of(turn * 8), actions.axes[3] = axis_of(tilt * 8);
         return std::abs(turn) + std::abs(tilt);
     };
+    // A lookout whose beam is on it: its lamp first, when nothing nearer is.
+    for (const Searchlight& light : state.lookouts) {
+        if (light.health <= 0 || !light.sees) continue;
+        const float distance = math::length(light.post.at - from);
+        if (distance < nearest && clear(state, from, light.post.at + math::normalized(from - light.post.at) * (lamp_radius + 0.05f))) nearest = distance, target = light.post.at;
+    }
     if (target) {
         if (aim_at(*target) < 0.02f) actions.held |= 1u << fire_button;
         return input;
     }
-    if (state.frame >= planned_) {
+    // Where to: the nearest fuse box still off, then the beacon.
+    Vec3 goal = state.beacon;
+    float goal_distance = 1e9f;
+    for (std::size_t index = 0; index < state.fuses.size(); ++index)
+        if (state.fused[index] < fuse_steps && horizontal(state.fuses[index], state.keeper.at) < goal_distance) goal = state.fuses[index], goal_distance = horizontal(state.fuses[index], state.keeper.at);
+    if (state.frame >= planned_ || goal_distance < 1e9f && (path_.empty() || horizontal(path_.back(), goal) > 1.0f)) {
         planned_ = state.frame + steps_per_second;
-        if (const auto made = state.ground->path(state.keeper.at, state.beacon); made && !made->corners.empty()) path_ = made->corners, next_ = 0;
+        if (const auto made = state.ground->path(state.keeper.at, goal); made && !made->corners.empty()) path_ = made->corners, next_ = 0;
     }
     while (next_ < path_.size() && horizontal(path_[next_], state.keeper.at) < 0.8f) ++next_;
     if (next_ < path_.size()) {
@@ -357,6 +465,9 @@ std::uint64_t checksum(const State& state) noexcept {
         add(warden.health), add(static_cast<std::uint32_t>(warden.mind)), add_vec(warden.at), add_vec(warden.facing), add_vec(warden.heading_for), add(warden.searching), add(warden.cooldown);
     }
     for (const Mark& mark : state.marks) add_vec(mark.at), add_vec(mark.normal), add(mark.frame);
+    // What the second night has (the harbour has none, and hashes as it did).
+    for (const Searchlight& light : state.lookouts) add(std::bit_cast<std::uint32_t>(light.bearing)), add(light.health), add(light.horn), add(static_cast<std::uint32_t>(light.outward));
+    for (const std::uint32_t worked : state.fused) add(worked);
     add(std::bit_cast<std::uint32_t>(state.tide)), add(state.frame), add(static_cast<std::uint32_t>(state.outcome));
     return hash.value();
 }

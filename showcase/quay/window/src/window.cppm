@@ -5,7 +5,8 @@
 // The component `Harbour` is the game's window: it holds the same `quay::Standalone` a headless program holds,
 // steps it on the interface's clock (`xengine.ui`'s pacer, 60 steps a second) and gives each step the person's
 // input — W A S D to walk, the mouse to look (a press keeps the pointer to the world; Escape lets it go), the left
-// button to fire, Space to jump, E to work the beacon, Shift to run. The picture is drawn each frame on the host's
+// button to fire, Space to jump, E to work the beacon (or a fuse box), Shift to run; or a gamepad: the left stick
+// walks, the right stick looks, the right trigger (or R1) fires, A jumps, X works, the left stick pressed runs. The picture is drawn each frame on the host's
 // device (`quay::picture::OnDevice`) and shown as it is; a host that draws on the CPU is shown the reference's
 // pixels. Each step's events are heard (`quay::Sound`: sounds in a place, at the watchkeeper's ears) — the window
 // renders them a block at a time on its own thread and keeps the system's output a little ahead (a `Feed`).
@@ -26,7 +27,7 @@ export namespace quay::window {
 // What the interface shows beside the world, kept by the harbour as it steps.
 struct Hud {
     omui::Signal<std::string> health = omui::signal(std::string()), rounds = omui::signal(std::string()), tide = omui::signal(std::string()),
-                              said = omui::signal(std::string("Click the harbour to look about; W A S D, Space, E, Shift, the left button"));
+                              said = omui::signal(std::string("Click the harbour to look about; W A S D, Space, E, Shift, the left button — or a gamepad"));
 };
 
 // Where the harbour's sound goes.
@@ -39,6 +40,7 @@ enum class Hearing : std::uint8_t {
 struct Options {
     std::filesystem::path record;  // none: not written; else each step's input, when the window closes
     Hearing               hearing = Hearing::speakers;
+    std::string           level = "harbour";  // `quay::level::named`: "harbour", "second-night"
 };
 
 class Harbour {
@@ -97,7 +99,8 @@ private:
 [[nodiscard]] const std::shared_ptr<Hud>& hud();
 // The options the harbour was made with (set by `app`; one window a process).
 [[nodiscard]] Options& options();
-// Each step's input of the game a window played, as `quay-play replay` reads it: a line a step.
+// Each step's input of the game a window played, as `quay-play replay` reads it: the level's name (`level NAME`,
+// a level other than the harbour), then a line a step.
 [[nodiscard]] std::string recorded(const Standalone& game);
 // Those lines played by the game with no window, from the harbour's start: its state after them, or why not.
 [[nodiscard]] std::expected<State, std::string> replayed(std::string_view lines);

@@ -12,6 +12,8 @@
 //   wardens  those in view (within the view's angle, nothing between): bearing, elevation, distance — nearest first
 //   heard    the last half second's sounds that reach the watchkeeper's ears (xengine.audio.space's `reach`, the rule
 //            the speakers play by and the wardens hear by): what, bearing, level at the ears, walls on the way
+//   lookouts (the second night) the searchlights' lamps in view, and whether the beam is on the watchkeeper
+//   fuses    (the second night) the fuse boxes the beacon's power runs through: bearing, distance, across, whether on
 //   depth    how far the eye meets something, at waist height, across the view: what a person sees of the way ahead
 // The full view (`observe(state, true)`, the `assist` tier) adds where everything is, each warden's mind, the hash.
 export module omui.showcase.quay.headless;
@@ -43,7 +45,9 @@ struct Play {
         "Quay: a watchkeeper on a harbour at night has to light the beacon at the end of the breakwater before the tide covers it. Rusted wardens "
         "patrol between the containers; they know only what they hear and see — a shot is heard far, running feet further than walking ones, and "
         "steel between dulls a sound — and once one sees the watchkeeper it gives chase and fires. Three hits stop a warden. Standing within 2.2 m "
-        "of the beacon and working it (`use`) for a second lights it and wins; no health, the sea or the tide loses. A person is shown only what "
+        "of the beacon and working it (`use`) for a second lights it and wins; no health, the sea or the tide loses. On the second night "
+        "searchlights on the containers sweep the quay — caught in a beam, their horn calls the wardens to where it falls; a shot puts one out — "
+        "and the beacon has no power until both fuse boxes are switched on (`use` within 1.6 m, half a second each). A person is shown only what "
         "the watchkeeper sees and hears: bearings to the right are positive, in degrees";
     // What the controls mean (D-186): `world.state` lists them, `find` answers "shoot".
     static constexpr std::array<xengine::runtime::Control, 12> controls{{
@@ -57,7 +61,7 @@ struct Play {
         {.name = "look-down", .summary = "Look down", .axis = 3, .toward = -1},
         {.name = "jump", .summary = "Jump from the ground", .button = jump_button},
         {.name = "fire", .summary = "Fire where the watchkeeper looks; held, about seven shots a second while rounds last", .button = fire_button},
-        {.name = "use", .summary = "Work the beacon, within 2.2 m of it: a second's work lights it", .button = use_button},
+        {.name = "use", .summary = "Work the beacon within 2.2 m (a second's work lights it), or a fuse box within 1.6 m (half a second switches it on)", .button = use_button},
         {.name = "run", .summary = "Run while walking: quicker, harder to hit, and heard further", .button = run_button},
     }};
     static constexpr std::array<xengine::runtime::Move, 2> look_around{{{.hold = {"turn-right"}, .steps = 145}, {.steps = 12}}};

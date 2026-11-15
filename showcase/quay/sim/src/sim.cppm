@@ -51,6 +51,13 @@ struct Box {
 struct Patrol {
     Vec3 from, to;
 };
+// A searchlight on a container's top, its beam sweeping the quay between two bearings (radians, as `facing`): it
+// cannot fire, it calls — the watchkeeper in its beam, it holds the beam on them and sounds its horn, and a warden
+// that hears the horn goes where the beam falls, not to the horn. A shot puts it out.
+struct Lookout {
+    Vec3  at;  // the lamp
+    float from = 0, to = 0;
+};
 struct Level {
     std::string_view    name;
     std::vector<Box>    boxes;
@@ -60,6 +67,9 @@ struct Level {
     Vec3                beacon;
     float               tide = 180;  // seconds before the tide covers the breakwater
     std::uint32_t       rounds = 60; // the watchkeeper's
+    std::vector<Lookout> lookouts;
+    // Fuse boxes the beacon's power runs through: each switched on (worked half a second) before the beacon lights.
+    std::vector<Vec3>   fuses;
 };
 namespace level {
 // The harbour: a quay of rows of containers with crates between them, four wardens on their rounds, and the
@@ -67,6 +77,11 @@ namespace level {
 [[nodiscard]] Level harbour();
 // The harbour with a mistake planted: a container dropped across the breakwater, so the beacon cannot be reached.
 [[nodiscard]] Level flawed();
+// The second night: the harbour with two lookouts sweeping it from the containers' tops, a fifth warden, and the
+// beacon's power cut — two fuse boxes, one by the warehouse and one at the quay's far corner, to switch on first.
+[[nodiscard]] Level second_night();
+// Every level, by name ("harbour", "flawed", "second-night").
+[[nodiscard]] std::optional<Level> named(std::string_view name);
 }  // namespace level
 
 enum class Mind : std::uint8_t { patrol, search, chase };
@@ -83,6 +98,15 @@ struct Warden {
     std::uint32_t cooldown = 0;       // steps before it may fire again
     bool          sees = false;       // the watchkeeper, this step
     std::uint32_t heard = 0;          // noises it heard this step
+};
+struct Searchlight {
+    Lookout       post;
+    float         bearing = 0;      // where the beam points now (radians, as `facing`)
+    bool          outward = true;   // sweeping toward `post.to`
+    std::int32_t  health = 2;       // shots to put it out
+    bool          sees = false;     // the watchkeeper, this step
+    std::uint32_t horn = 0;         // steps before it sounds again while it sees
+    Vec3          falls;            // where the beam meets the quay
 };
 struct Watchkeeper {
     rigid3::CharacterId body;
@@ -140,6 +164,10 @@ struct State {
     std::vector<Shot>                            shots;   // this step's
     std::vector<Mark>                            marks;   // the last `kept_marks`, oldest first
     Vec3                                         beacon;
+    std::vector<Searchlight>                     lookouts;
+    std::vector<Vec3>                            fuses;
+    std::vector<std::uint32_t>                   fused;     // steps each fuse box has been worked (on at `fuse_steps`)
+    std::string_view                             level;     // its name
     float                                        tide = 0;  // seconds left
     std::uint64_t                                frame = 0;
     Outcome                                      outcome = Outcome::playing;
@@ -158,6 +186,10 @@ void step(State& state, const Input& input);
 [[nodiscard]] Vec3 looking(const State& state) noexcept;
 // The wardens still standing.
 [[nodiscard]] std::size_t standing(const State& state) noexcept;
+// Steps a fuse box is worked to be on; the fuse boxes still off; a lookout's beam reach, in metres along the quay.
+inline constexpr std::uint32_t fuse_steps = steps_per_second / 2;
+[[nodiscard]] std::size_t fuses_off(const State& state) noexcept;
+inline constexpr float beam_reach = 30;
 // Whether a ray from `from` to `to` meets nothing of the world on the way.
 [[nodiscard]] bool clear(const State& state, Vec3 from, Vec3 to);
 

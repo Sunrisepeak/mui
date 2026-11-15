@@ -70,6 +70,31 @@ std::string observe(const State& state, bool full) {
         first = false;
     }
 
+    // The second night's: the lookouts' lamps in view (lit, within the view's angle, nothing between) and whether
+    // the beam is on the watchkeeper — a person sees the light on them; the fuse boxes, lit panels on their posts
+    // (seen from anywhere, as the beacon is), and whether each is on. A level without them says nothing of them.
+    if (!state.lookouts.empty()) {
+        out += R"(],"lookouts":[)";
+        bool any = false;
+        for (const Searchlight& light : state.lookouts) {
+            if (light.health <= 0) continue;
+            const Seen seen = seen_from(state, light.post.at);
+            if (std::abs(seen.bearing) > view_half_angle || std::abs(seen.elevation) > half_up || !clear(state, eye, light.post.at + math::normalized(eye - light.post.at) * 0.5f)) continue;
+            out += std::format(R"({}{{"bearing":{:.2f},"elevation":{:.2f},"distance":{:.2f},"on_you":{}}})", any ? "," : "", seen.bearing, seen.elevation, seen.distance, light.sees ? "true" : "false");
+            any = true;
+        }
+    }
+    if (!state.fuses.empty()) {
+        out += R"(],"fuses":[)";
+        for (std::size_t index = 0; index < state.fuses.size(); ++index) {
+            const Vec3 box = state.fuses[index];
+            const Seen seen = seen_from(state, box + Vec3{0, 1.2f, 0});
+            const double over_ground = static_cast<double>(math::length(Vec3{box.x - keeper.at.x, 0, box.z - keeper.at.z}));
+            out += std::format(R"({}{{"bearing":{:.2f},"elevation":{:.2f},"distance":{:.2f},"across":{:.2f},"on":{}}})", index ? "," : "", seen.bearing, seen.elevation, seen.distance, over_ground,
+                               state.fused[index] >= fuse_steps ? "true" : "false");
+        }
+    }
+
     // The way ahead as the eye meets it, at waist height across the view.
     out += std::format(R"(],"depth":{{"from":{},"every":{},"metres":[)", depth_from, depth_every);
     const Vec3 waist = keeper.at + Vec3{0, 0.8f, 0};

@@ -57,6 +57,8 @@ std::uint32_t Sound::hear(const State& state) {
     for (const Noise& noise : state.noises) {
         if (noise.what == "footstep") (void)play("step", noise.at + Vec3{0, 0.05f, 0}, noise.loudness > -35 ? 1.0f : 0.6f, "the watchkeeper's step");
         else if (noise.what == "shot") (void)play("rifle", noise.at, 1, "the watchkeeper's rifle");
+        else if (noise.what == "horn") (void)play("horn", noise.at, 1, std::format("lookout {} called", noise.by - 1000 + 1));
+        else if (noise.what == "fuse") (void)play("fuse", noise.at, 1, "a fuse box switched on");
         else if (noise.what == "warden shot") (void)play("warden-shot", noise.at, 1, std::format("warden {} fired", noise.by));
     }
     for (std::size_t index = 0; index < state.wardens.size() && index < health_.size(); ++index) {

@@ -56,7 +56,7 @@ What has been run where (release plan §2.5). **Real**: on real hardware or a re
 - **Input methods (composition, candidates)**, Web (wasm32): page_test: an input method composing in the hidden textarea, headless Chromium (tools/ci/browser.sh); missing: a real IME in a browser
 - **Input methods (composition, candidates)**, macOS arm64: synthetic preedit events (the same tests on CI row macos-15)
 - **Input methods (composition, candidates)**, Windows x64: synthetic preedit events (the same tests on CI row windows-2022)
-- **Gamepads (Quay, widget breakout)**, Linux x64: synthetic gamepad events (xengine.ui ui_test, omui.core input_test, widget-breakout gamepad_test)
+- **Gamepads (Quay, widget breakout)**, Linux x64: synthetic gamepad events (xengine.ui ui_test, omui.core input_test, widget-breakout gamepad_test, quay.window's second night with a gamepad)
 - **Gamepads (Quay, widget breakout)**, Web (wasm32): missing: the Gamepad API in a real browser with a pad
 - **Gamepads (Quay, widget breakout)**, macOS arm64: the same tests on CI row macos-15
 - **Gamepads (Quay, widget breakout)**, Windows x64: the same tests on CI row windows-2022

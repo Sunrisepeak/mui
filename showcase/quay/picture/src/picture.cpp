@@ -20,7 +20,7 @@ constexpr std::uint32_t box_mesh = 0, ball_mesh = 1, post_mesh = 2, sea_mesh = 3
 // The materials, by number.
 enum Material : std::uint32_t {
     wet_quay, concrete, rust_red, steel_blue, sea_green, ochre, dull_grey, wood, iron, warden_rust, warm_globe, cold_globe, eye_patrol, eye_search, eye_chase, beacon_glass, gun_metal,
-    flash, stone, sea, scorch, hole, materials_count
+    flash, stone, sea, scorch, hole, searchlight, searchlight_out, fuse_off, fuse_on, materials_count
 };
 constexpr std::array<Material, 5> paints{rust_red, steel_blue, sea_green, ochre, dull_grey};
 // The warden's joints.
@@ -33,6 +33,10 @@ struct Lamp {
 };
 constexpr std::array<Lamp, 5> lamps{{{-24, 12.4f, true}, {-8, -12.4f, false}, {8, 12.4f, true}, {24, -12.4f, true}, {31, 2.8f, false}}};
 constexpr float lamp_height = 5;
+// Where a level has searchlights, the two cold lamps are out (the lights stay eight: what a device lights by).
+constexpr bool out_for_lookouts(std::size_t lamp) noexcept { return lamp == 1 || lamp == 4; }
+constexpr scene::Id searchlight_light = 40;  // + its place
+constexpr float mast = 2;                    // a searchlight's mast over its container
 
 math::Mat4 placed(math::Vec3 at, math::Vec3 size, Quat turn = {}) { return math::Transform{at, turn, size}.matrix(); }
 // An instance as it is now: what it is (`set` keeps where it was) and where (`move`).
@@ -194,6 +198,10 @@ std::expected<Picture, std::string> Picture::make(const Level& level) {
     }
     materials[scorch] = {{0.02f, 0.018f, 0.016f}, {}, 0.95f, 0};
     materials[hole] = {{0.003f, 0.003f, 0.003f}, {}, 1, 0};
+    materials[searchlight] = {{0.1f, 0.1f, 0.1f}, {12.0f, 12.0f, 10.0f}};
+    materials[searchlight_out] = {{0.04f, 0.04f, 0.045f}, {}, 0.4f, 1};
+    materials[fuse_off] = {{0.05f, 0.02f, 0.02f}, {2.5f, 0.15f, 0.1f}};
+    materials[fuse_on] = {{0.02f, 0.05f, 0.02f}, {0.2f, 3.0f, 0.6f}};
 
     // The fixed boxes: the quay's slab wet, the breakwater stone, low walls and the warehouse concrete, the
     // containers painted (by their place: the same each run); crates are the bodies' and placed each frame.
@@ -224,7 +232,9 @@ std::expected<Picture, std::string> Picture::make(const Level& level) {
         fine = fine && add(box_ids + box_number++, box_mesh, material, placed(box.at, box.half));
     }
     // Lamps: an iron post, a globe that does not stand in its own light's way.
+    made.lookouts_ = !level.lookouts.empty();
     for (std::size_t index = 0; index < lamps.size(); ++index) {
+        if (made.lookouts_ && out_for_lookouts(index)) continue;
         const Lamp lamp = lamps[index];
         fine = fine && add(lamp_ids + index * 2, post_mesh, iron, placed({lamp.x, lamp_height / 2, lamp.z}, {0.09f, lamp_height / 2, 0.09f}));
         fine = fine && add(lamp_ids + index * 2 + 1, ball_mesh, lamp.warm ? warm_globe : cold_globe, placed({lamp.x, lamp_height, lamp.z}, {0.22f, 0.22f, 0.22f}), false);
@@ -235,6 +245,18 @@ std::expected<Picture, std::string> Picture::make(const Level& level) {
     // The beacon: a post and its glass at the end of the breakwater.
     fine = fine && add(beacon_ids, post_mesh, iron, placed(level.beacon + math::Vec3{0, (beacon_height - 0.5f) / 2, 0}, {0.15f, (beacon_height - 0.5f) / 2, 0.15f}));
     fine = fine && add(beacon_ids + 1, ball_mesh, beacon_glass, placed(level.beacon + math::Vec3{0, beacon_height, 0}, {0.5f, 0.5f, 0.5f}), false);
+    // The second night's searchlights (an iron mast, the lamp; its beam placed each frame) and fuse boxes (an iron
+    // post, the panel red until it is on).
+    for (std::size_t index = 0; index < level.lookouts.size(); ++index) {
+        const math::Vec3 lamp = level.lookouts[index].at;
+        fine = fine && add(lookout_ids + index * 2, post_mesh, iron, placed(lamp - math::Vec3{0, mast / 2, 0}, {0.07f, mast / 2, 0.07f}));
+        fine = fine && add(lookout_ids + index * 2 + 1, box_mesh, searchlight, placed(lamp, {0.3f, 0.25f, 0.3f}), false);
+    }
+    for (std::size_t index = 0; index < level.fuses.size(); ++index) {
+        const math::Vec3 box = level.fuses[index];
+        fine = fine && add(fuse_ids + index * 2, post_mesh, iron, placed(box + math::Vec3{0, 0.55f, 0}, {0.06f, 0.55f, 0.06f}));
+        fine = fine && add(fuse_ids + index * 2 + 1, box_mesh, fuse_off, placed(box + math::Vec3{0, 1.2f, 0}, {0.22f, 0.3f, 0.12f}), false);
+    }
     // The floodlight on the warehouse, the moon.
     fine = fine && world.add(scene::Light{.id = 1, .kind = scene::LightKind::spot, .colour = {1, 0.97f, 0.9f}, .intensity = 1.0f, .at = {-31.5f, 12, 0},
                                           .toward = math::normalized(math::Vec3{1, -0.4f, 0}), .range = 50, .cone = 0.95f, .inner_cone = 0.1f})
@@ -319,6 +341,22 @@ void Picture::lights(const State& state) {
     const math::Vec3 lamp = state.beacon + math::Vec3{0, beacon_height, 0};
     (void)world_.remove_light(3);
     (void)world_.add(scene::Light{.id = 3, .kind = scene::LightKind::point, .colour = {1, 0.55f, 0.2f}, .intensity = 0.6f + 5 * lit, .at = lamp, .range = 30});
+    // The searchlights' beams, where each points now — out with its lamp; the fuse boxes' panels.
+    for (std::size_t index = 0; index < state.lookouts.size(); ++index) {
+        const Searchlight& light = state.lookouts[index];
+        const scene::Id id = searchlight_light + index;
+        (void)world_.remove_light(id);
+        const bool out = light.health <= 0;
+        const math::Vec3 lamp = light.post.at;
+        put(world_, {.id = lookout_ids + index * 2 + 1, .mesh = box_mesh, .material = out ? searchlight_out : searchlight, .world = placed(lamp, {0.3f, 0.25f, 0.3f}),
+                     .bounds = geom::bounds(made_[box_mesh].mesh), .casts = false});
+        if (!out)
+            (void)world_.add(scene::Light{.id = id, .kind = scene::LightKind::spot, .colour = {0.9f, 0.95f, 1}, .intensity = 9, .at = lamp,
+                                          .toward = math::normalized(light.falls - lamp), .range = 45, .cone = 0.24f, .inner_cone = 0.12f});
+    }
+    for (std::size_t index = 0; index < state.fuses.size(); ++index)
+        put(world_, {.id = fuse_ids + index * 2 + 1, .mesh = box_mesh, .material = state.fused[index] >= fuse_steps ? fuse_on : fuse_off,
+                     .world = placed(state.fuses[index] + math::Vec3{0, 1.2f, 0}, {0.22f, 0.3f, 0.12f}), .bounds = geom::bounds(made_[box_mesh].mesh), .casts = false});
     for (const scene::Id id : flashes_) (void)world_.remove_light(id);
     flashes_.clear();
     // One flash a frame — the watchkeeper's shot first — so the lights are eight at most: what a device lights by.
@@ -356,7 +394,9 @@ void Picture::weather(const State& state) {
     const math::Vec3 beacon = state.beacon + math::Vec3{0, beacon_height, 0};
     const auto light_at = [&](math::Vec3 at) {
         math::Vec3 sum{0.012f, 0.014f, 0.02f};  // the light from everywhere
-        for (const Lamp& lamp : lamps) {
+        for (std::size_t index = 0; index < lamps.size(); ++index) {
+            if (lookouts_ && out_for_lookouts(index)) continue;
+            const Lamp lamp = lamps[index];
             const math::Vec3 way = at - math::Vec3{lamp.x, lamp_height, lamp.z};
             const float near = 1 / (1 + math::dot(way, way) * 0.12f);
             sum = sum + (lamp.warm ? math::Vec3{1, 0.62f, 0.25f} : math::Vec3{0.55f, 0.75f, 1}) * (0.5f * near);

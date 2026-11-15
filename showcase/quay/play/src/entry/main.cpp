@@ -1,6 +1,6 @@
 // quay-play — Quay on this machine's device.
 //
-//   quay-play shot --out DIR [--size WxH] [--every N] [--to N] [--reference]
+//   quay-play shot --out DIR [--size WxH] [--every N] [--to N] [--reference] [--level NAME]
 //       the guide's game (quay::Guide, the scripted player that knows the harbour) drawn frame by frame and every
 //       Nth frame written as DIR/quay-FFFFF.png: the signature shot, the same pixels every run on a device and
 //       its reference. --reference draws with the CPU reference instead (no device needed). Says what it did as
@@ -57,12 +57,14 @@ int shot(const cmd::ParsedArgs& parsed) {
     const std::int64_t every = number(parsed, "every", 30), to = number(parsed, "to", 60 * 300);
     if (every < 1 || to < 1) return fail("--every and --to are whole numbers above 0", 2);
     const bool reference = parsed.is_flag_set("reference");
+    const auto level = quay::level::named(parsed.value("level").value_or("harbour"));
+    if (!level) return fail("--level is harbour or second-night", 2);
     const std::filesystem::path directory = mcpplibs::os::fs::from_utf8(*out);
     std::error_code made;
     std::filesystem::create_directories(directory, made);
     if (made) return fail(std::format("{}: {}", *out, made.message()));
 
-    auto drawn = picture::Picture::make(quay::level::harbour());
+    auto drawn = picture::Picture::make(*level);
     if (!drawn) return fail(drawn.error());
     std::unique_ptr<rhi::Device> device;
     std::optional<picture::OnDevice> on_device;
@@ -79,7 +81,7 @@ int shot(const cmd::ParsedArgs& parsed) {
         on_device.emplace(std::move(*prepared));
     }
 
-    quay::State state = quay::start(quay::level::harbour());
+    quay::State state = quay::start(*level);
     quay::Guide guide;
     std::size_t files = 0;
     rhi::CommandList list;
@@ -134,7 +136,8 @@ int main(int argc, char** argv) {
             .option(Option("size").takes_value().value_name("WxH").help("pixels (default 960x540)"))
             .option(Option("every").takes_value().value_name("N").help("write every Nth frame (default 30), and the last"))
             .option(Option("to").takes_value().value_name("N").help("stop at this frame (default: the game's end)"))
-            .option(Option("reference").help("draw with the CPU reference, no device")))
+            .option(Option("reference").help("draw with the CPU reference, no device"))
+            .option(Option("level").takes_value().value_name("NAME").help("harbour (default) or second-night")))
         .subcommand(cmd::App("replay")
             .description("A window's recording (quay --record FILE) played with no window: where it ended, and its hash")
             .arg(cmd::Arg("file").required().help("the recording")));

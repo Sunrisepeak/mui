@@ -81,8 +81,8 @@ UTest cases{"quay.sound", [] {
     };
 
     "the guide's game heard: its events become sounds, and rendered twice it is the same samples"_test = [] {
-        const auto render = [](std::uint64_t frames, std::map<std::string, std::uint32_t>& begun) {
-            quay::State state = quay::start(quay::level::harbour());
+        const auto render = [](std::uint64_t frames, std::map<std::string, std::uint32_t>& begun, const quay::Level& level = quay::level::harbour()) {
+            quay::State state = quay::start(level);
             auto sound = quay::Sound::make(state);
             expect(fatal(sound.has_value()));
             quay::Guide guide;
@@ -108,5 +108,13 @@ UTest cases{"quay.sound", [] {
         expect(eq(first, second)) << "the same samples";
         for (const std::string_view name : {"rifle", "warden-shot", "step", "servo", "warden-down", "beacon"}) expect(first_heard.contains(std::string(name))) << name;
         expect(lt(loudest, 1.0)) << "nothing clips";
+        // The second night's own: a lookout's horn and the fuse boxes thrown.
+        std::map<std::string, std::uint32_t> night_heard;
+        const auto [night, night_loudest] = render(60 * 40, night_heard, quay::level::second_night());
+        std::string night_said;
+        for (const auto& [name, blocks] : night_heard) night_said += std::format(" {} ({} blocks)", name, blocks);
+        std::println("the second night, 40 s, heard:{}; loudest sample {:.3f}", night_said, night_loudest);
+        for (const std::string_view name : {"horn", "fuse"}) expect(night_heard.contains(std::string(name))) << name;
+        expect(lt(night_loudest, 1.0)) << "nothing clips";
     };
 }};

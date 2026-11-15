@@ -26,7 +26,8 @@ constexpr int decide_every = 6, reaction = 12, plan_every = 30, try_steps = 90;
 
 struct Bearing {
     double bearing = 0, elevation = 0, distance = 0;
-    double across = 0;  // the beacon's: to its mast's foot, over the ground
+    double across = 0;  // the beacon's and a fuse box's: to its foot, over the ground
+    bool   on = false;  // a fuse box switched on; a lookout's beam on the watchkeeper
 };
 struct Heard {
     std::string what;
@@ -39,12 +40,13 @@ struct View {
     bool                 struck = false;
     double               lighting = 0, tide = 0;
     Bearing              beacon;
-    std::vector<Bearing> wardens;
+    std::vector<Bearing> wardens, lookouts, fuses;
     std::vector<Heard>   heard;
     std::vector<double>  depth;  // from −60° every 10°
 };
 Bearing bearing_of(const mlibs::json::Node& node) {
-    return {node["bearing"].number().value_or(0), node["elevation"].number().value_or(0), node["distance"].number().value_or(0), node["across"].number().value_or(0)};
+    return {node["bearing"].number().value_or(0), node["elevation"].number().value_or(0), node["distance"].number().value_or(0), node["across"].number().value_or(0),
+            node["on"].boolean() == true || node["on_you"].boolean() == true};
 }
 View read(const mlibs::json::Node& data) {
     const auto view = data["view"];
@@ -57,6 +59,8 @@ View read(const mlibs::json::Node& data) {
     seen.struck = keeper["struck"].boolean() == true, seen.lighting = keeper["lighting"].number().value_or(0);
     seen.beacon = bearing_of(view["beacon"]);
     for (const auto& warden : view["wardens"].items()) seen.wardens.push_back(bearing_of(warden));
+    for (const auto& light : view["lookouts"].items()) seen.lookouts.push_back(bearing_of(light));
+    for (const auto& fuse : view["fuses"].items()) seen.fuses.push_back(bearing_of(fuse));
     for (const auto& sound : view["heard"].items())
         seen.heard.push_back({std::string(sound["what"].text().value_or("")), sound["bearing"].number().value_or(0), sound["level"].number().value_or(0), sound["ago"].number().value_or(0)});
     for (const auto& metres : view["depth"]["metres"].items()) seen.depth.push_back(metres.number().value_or(0));
@@ -95,8 +99,10 @@ public:
                 report.why = "out of time", report.frames = view.frame;
                 break;
             }
-            // Coming no nearer the beacon for six seconds: say where and why.
-            if (view.beacon.across < nearest - 0.5) nearest = view.beacon.across, nearer_at = view.frame;
+            // Coming no nearer where it goes for six seconds: say where and why.
+            const int going = goal_of(view);
+            if (going != goal_) goal_ = going, nearest = 1e9, planned_ = 0;
+            if (target(view).across < nearest - 0.5) nearest = target(view).across, nearer_at = view.frame;
             if (view.frame - nearer_at > 6 * quay::steps_per_second && view.wardens.empty()) {
                 report.why = stuck(view), report.frames = view.frame, report.health = view.health, report.rounds = view.rounds;
                 break;
@@ -110,6 +116,16 @@ public:
     }
 
 private:
+    // Where it goes: the nearest fuse box still off (its place in the view's list), or the beacon (−1).
+    [[nodiscard]] static int goal_of(const View& view) {
+        int goal = -1;
+        for (std::size_t index = 0; index < view.fuses.size(); ++index)
+            if (!view.fuses[index].on && (goal < 0 || view.fuses[index].across < view.fuses[static_cast<std::size_t>(goal)].across)) goal = static_cast<int>(index);
+        return goal;
+    }
+    [[nodiscard]] Bearing target(const View& view) const {
+        return goal_ >= 0 && static_cast<std::size_t>(goal_) < view.fuses.size() ? view.fuses[static_cast<std::size_t>(goal_)] : view.beacon;
+    }
     // The turn (degrees, to the right) and look (up) still to come of what was asked: the steps from `frame` until
     // an action asked now would take effect.
     [[nodiscard]] std::pair<double, double> coming(std::int64_t frame) const {
@@ -150,37 +166,47 @@ private:
             const bool on = std::abs(left) < within && std::abs(above) < within * 2;
             return act(view, turn, look, 0, on ? std::initializer_list<int>{quay::fire_button} : std::initializer_list<int>{});
         }
+        // A lookout whose beam is on it: put its lamp out.
+        for (const Bearing& light : view.lookouts)
+            if (light.on) {
+                const auto [left, above] = onto(view, light.bearing, light.elevation, turn, look);
+                const double within = std::max(0.4, std::atan2(0.3, light.distance) * 180 / 3.14159265358979323846);
+                const bool on = std::abs(left) < within && std::abs(above) < within;
+                return act(view, turn, look, 0, on ? std::initializer_list<int>{quay::fire_button} : std::initializer_list<int>{});
+            }
         // A warden's shot heard and not seen: turn toward it.
         for (const Heard& sound : view.heard)
             if (sound.what == "warden shot") {
                 (void)onto(view, sound.bearing, 0, turn, look);
                 return act(view, turn, look, 0, {});
             }
-        // At the beacon: work it.
-        if (view.beacon.across < 2.0) return act(view, 0, 0, 0, {quay::use_button});
-        // The way to the beacon: tried on branches every half second, kept between.
+        // At a fuse box or the beacon: work it.
+        const Bearing goal = target(view);
+        if (goal.across < (goal_ >= 0 ? 1.2 : 2.0)) return act(view, 0, 0, 0, {quay::use_button});
+        // The way there: tried on branches every half second, kept between.
         if (view.frame >= planned_) {
             planned_ = view.frame + plan_every;
             way_ = best_way(view);
         }
-        const auto [left, above] = onto(view, view.beacon.bearing + way_, view.beacon.elevation - std::atan2(quay::beacon_height - quay::eye_height, view.beacon.across) * 180 / 3.14159265358979323846, turn, look);
+        const double height = goal_ >= 0 ? 1.2 : quay::beacon_height;
+        const auto [left, above] = onto(view, goal.bearing + way_, goal.elevation - std::atan2(height - quay::eye_height, goal.across) * 180 / 3.14159265358979323846, turn, look);
         (void)above;
         act(view, turn, look, std::abs(left) < 35 ? 1.0 : 0.0, {});
     }
 
-    // Of the ways tried, the one whose branch ends nearest the beacon, least hurt. A way: degrees off the beacon's bearing.
+    // Of the ways tried, the one whose branch ends nearest where it goes, least hurt. A way: degrees off its bearing.
     [[nodiscard]] double best_way(const View& view) {
         static constexpr std::array<double, 7> ways{0, -30, 30, -60, 60, -90, 90};
         double best = way_, best_score = 1e9;
         for (const double way : ways) {
-            const double heading = wrapped(view.beacon.bearing + way);
+            const double heading = wrapped(target(view).bearing + way);
             const int turning = std::max(reaction, static_cast<int>(std::ceil(std::abs(heading) / turn_rate * quay::steps_per_second)));
             const double axis = std::clamp(heading / (turn_rate * turning / quay::steps_per_second), -1.0, 1.0);
             const auto future = hands_->branch(try_steps, std::format(R"("axis":[0,1,{:.4f},0])", axis), turning, R"("axis":[0,1,0,0])");
             ++tried_;
             if (!hands_->ok()) return way_;
             const View ahead = read(future.root()["data"]);
-            const double score = ahead.beacon.across + 0.2 * static_cast<double>(view.health - ahead.health) + (ahead.outcome == "lost" ? 1000 : 0);
+            const double score = target(ahead).across + 0.2 * static_cast<double>(view.health - ahead.health) + (ahead.outcome == "lost" ? 1000 : 0);
             if (score < best_score - 0.05) best_score = score, best = way;
         }
         return best;
@@ -211,6 +237,7 @@ private:
     std::vector<Asked> asked_;
     std::int64_t       planned_ = 0;
     double             way_ = 0;
+    int                goal_ = -1;
     int                tried_ = 0;
 };
 
@@ -240,6 +267,13 @@ UTest cases{"quay.playtest", [] {
     "an agent playing as a person — shown what the watchkeeper sees and hears, branching to choose its way — lights the beacon"_test = [] {
         const Report report = play(quay::level::harbour());
         std::println("{} at frame {} ({:.1f} s): {}; health {}, {} rounds left, {} ways tried on branches", report.won ? "won" : "not won", report.frames,
+                     static_cast<double>(report.frames) / quay::steps_per_second, report.why, report.health, report.rounds, report.tried);
+        expect(report.won) << report.why;
+    };
+
+    "the second night as a person — the lookouts' lamps put out when their beams find it, both fuse boxes switched on by their lit panels, then the beacon — lit"_test = [] {
+        const Report report = play(quay::level::second_night());
+        std::println("the second night: {} at frame {} ({:.1f} s): {}; health {}, {} rounds left, {} ways tried on branches", report.won ? "won" : "not won", report.frames,
                      static_cast<double>(report.frames) / quay::steps_per_second, report.why, report.health, report.rounds, report.tried);
         expect(report.won) << report.why;
     };

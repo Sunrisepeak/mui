@@ -66,6 +66,59 @@ UTest cases{"quay.picture", [] {
         expect(eq(bits(drawn->shown()), first));
     };
 
+    "the second night: a searchlight on its mast lights the quay where its beam falls, and goes dark when shot out; a fuse box's panel is red until it is on"_test = [] {
+        quay::Level night = quay::level::second_night();
+        night.start = {6, 0, 2}, night.facing = 1.5707964f;  // looking down the quay toward the stacked container's mast
+        quay::State state = quay::start(night);
+        for (int frame = 0; frame < 90; ++frame) quay::step(state, {});
+        auto drawn = picture::Picture::make(night);
+        expect(fatal(drawn.has_value())) << (drawn ? "" : drawn.error());
+        drawn->draw(state);
+        const std::size_t lamp = drawn_by(*drawn, picture::lookout_ids, picture::fuse_ids), panels = drawn_by(*drawn, picture::fuse_ids, picture::fuse_ids + 8);
+        const auto light_of = [](std::span<const std::uint8_t> shown) {
+            std::uint64_t sum = 0;
+            for (std::size_t at = 0; at + 3 < shown.size(); at += 4) sum += shown[at] + shown[at + 1] + shown[at + 2];
+            return sum;
+        };
+        const std::uint64_t with_beam = light_of(drawn->shown());
+        const auto file = keep(*drawn, "quay-searchlight");
+        // The same frame with the lamp shot out.
+        quay::State dark = state;
+        for (quay::Searchlight& light : dark.lookouts) light.health = 0;
+        drawn->draw(dark);
+        const std::uint64_t without = light_of(drawn->shown());
+        std::println("the second night: {} pixels of a searchlight and its mast, {} of fuse panels; the picture's light {} with the beams, {} with them out ({:+.1f}%); {}", lamp, panels, with_beam,
+                     without, 100.0 * (static_cast<double>(with_beam) - static_cast<double>(without)) / static_cast<double>(without), file.generic_string());
+        expect(gt(lamp, std::size_t{20})) << "the mast and its lamp over the stacked container";
+        expect(gt(static_cast<double>(with_beam), static_cast<double>(without) * 1.01)) << "the beam lights the quay where it falls";
+        // Before the fuse box at the quay's far corner: its panel red, then — switched on — green.
+        quay::Level corner = night;
+        corner.start = {23, 0, 11.5f};
+        quay::State before = quay::start(corner);
+        auto near = picture::Picture::make(corner);
+        expect(fatal(near.has_value()));
+        const auto panel_colour = [&](const quay::State& seen) {
+            near->draw(seen);
+            std::array<double, 3> sum{};
+            std::size_t count = 0;
+            for (std::size_t pixel = 0; pixel < near->targets().ids.size(); ++pixel) {
+                const auto id = near->instance_at(pixel);
+                if (id < picture::fuse_ids || id >= picture::fuse_ids + 8 || id % 2 == 0) continue;
+                for (std::size_t part = 0; part < 3; ++part) sum[part] += near->shown()[pixel * 4 + part];
+                ++count;
+            }
+            return std::tuple(count, count ? sum[0] / static_cast<double>(count) : 0.0, count ? sum[1] / static_cast<double>(count) : 0.0);
+        };
+        const auto [off_pixels, off_red, off_green] = panel_colour(before);
+        quay::State on = before;
+        for (std::uint32_t& worked : on.fused) worked = quay::fuse_steps;
+        const auto [on_pixels, on_red, on_green] = panel_colour(on);
+        keep(*near, "quay-fuse-on");
+        std::println("    a fuse box's panel: {} pixels, red {:.0f} green {:.0f} while off; {} pixels, red {:.0f} green {:.0f} on", off_pixels, off_red, off_green, on_pixels, on_red, on_green);
+        expect(gt(off_pixels, std::size_t{50}) && gt(off_red, off_green)) << "red while off";
+        expect(gt(on_green, on_red)) << "green once on";
+    };
+
     "one tree, two views: in a game played to the end, the wardens drawn are the wardens a person is shown; a shot shows its flash; the lit beacon glows"_test = [] {
         quay::State state = quay::start(quay::level::harbour());
         auto drawn = picture::Picture::make(quay::level::harbour());

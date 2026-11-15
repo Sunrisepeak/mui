@@ -687,16 +687,16 @@ rhi::Result<void> Pass::load_textures(std::span<const Texture* const> textures) 
     return {};
 }
 
-std::vector<bool> Pass::wanted_more(std::span<const Material> materials) const {
-    std::vector<bool> wanted(textures_.size(), false);
+void Pass::wanted_more(std::span<const Material> materials, std::vector<bool>& wanted) const {
+    wanted.assign(textures_.size(), false);
     for (const Material& material : materials)
         for (const std::uint32_t which : {material.coat, material.coat_rough, material.coat_normal, material.sheen_picture, material.anisotropy_picture, material.film, material.film_thick})
             if (which < textures_.size() && textures_[which].texture) wanted[which] = true;
-    return wanted;
 }
 bool Pass::keep_more(std::span<const Material> materials) {
     if (!device_ || !more_.tiled || !cover_) return false;
-    std::vector<bool> wanted = wanted_more(materials);
+    std::vector<bool> wanted;
+    wanted_more(materials, wanted);
     more_.wanted = wanted;
     std::vector<std::array<float, 8>> tiles(textures_.size(), std::array<float, 8>{});
     // Laid in rows, the tallest first, no row wider than the device's largest texture.
@@ -846,7 +846,10 @@ void Pass::record(rhi::CommandList& list, const scene::Scene& scene, const scene
                   rhi::Texture depth, std::uint32_t width, std::uint32_t height, const Options& options, const Shadows* shadows, const Layers* layers) {
     last_ = {};
     // The sheet of the materials' other pictures is made for the pictures these materials name; else again.
-    if (more_.tiled && wanted_more(materials) != more_.wanted) static_cast<void>(keep_more(materials));
+    if (more_.tiled) {
+        wanted_more(materials, asked_more_);
+        if (asked_more_ != more_.wanted) static_cast<void>(keep_more(materials));
+    }
     const Mat4 clip = view.projection * view.view;
     const std::optional<Mat4> camera = math::inverse(view.view);
     const Vec3 eye = camera ? math::point(*camera, {0, 0, 0}) : Vec3{};

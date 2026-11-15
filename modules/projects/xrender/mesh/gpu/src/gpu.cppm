@@ -237,7 +237,9 @@ private:
         std::vector<bool>                 wanted;  // which textures it was made for
     };
     // Which loaded textures `materials` name for their other pictures.
-    [[nodiscard]] std::vector<bool> wanted_more(std::span<const Material> materials) const;
+    // Into `wanted` (kept between frames: a frame that asks again allocates nothing).
+    void wanted_more(std::span<const Material> materials, std::vector<bool>& wanted) const;
+    std::vector<bool> asked_more_;  // this frame's answer, to hold to `more_.wanted`
     More                         more_;
     // (Re)makes the sheet of `materials`' other pictures: whether it holds them all. `record` makes it again
     // where its materials name a loaded picture the sheet has not.

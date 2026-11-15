@@ -27,7 +27,7 @@ sources  = ["src/*.cppm", "src/native/*.cpp"]
 cxxflags = ["-fno-fast-math", "-ffp-contract=off"]
 
 [dependencies]
-mcpplibs.mwrap.recastnavigation = "1.6.0"
+mcpplibs.mwrap.recastnavigation = "1.6.0.1"
 mlibs.math  = { path = "../../../../base/math" }
 mlibs.utils = { path = "../../../../base/utils" }
 

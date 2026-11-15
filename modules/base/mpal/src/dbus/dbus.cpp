@@ -314,7 +314,10 @@ std::expected<Bus, Error> Bus::session() {
         if (!runtime || runtime->empty()) return failure(Error::Code::unavailable, "no session bus: neither DBUS_SESSION_BUS_ADDRESS nor XDG_RUNTIME_DIR is set");
         address = std::format("unix:path={}/bus", *runtime);
     }
-    // The first address that is a socket path (an abstract socket is not reachable by path).
+    return Bus::address(address);
+}
+
+std::expected<Bus, Error> Bus::address(std::string_view address) {
     for (const auto entry : std::views::split(address, ';')) {
         const std::string_view one(entry.begin(), entry.end());
         const std::size_t path = one.find("path=");
@@ -324,7 +327,7 @@ std::expected<Bus, Error> Bus::session() {
         const std::filesystem::path file = mcpplibs::os::fs::from_utf8(socket);
         return at(file.parent_path(), mcpplibs::os::fs::utf8(file.filename()));
     }
-    return failure(Error::Code::unavailable, std::format("no session bus reachable by a path in `{}`", address));
+    return failure(Error::Code::unavailable, std::format("no bus reachable by a path in `{}`", address));
 }
 
 std::expected<Bus, Error> Bus::at(const std::filesystem::path& directory, std::string_view name) {

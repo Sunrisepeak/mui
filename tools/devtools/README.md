@@ -32,3 +32,11 @@ The same build twice: the second, unchanged, must leave every compilation output
 omui-devtools incremental --workspace --profile ci --exclude omui.reflect
 omui-devtools incremental -p mlibs.math
 ```
+
+## atspi
+
+Examples 03 (the tally) and 07 (the notes) read and operated through AT-SPI, as a screen reader does (D-21): the accessibility bus turned on as Orca turns it on, each example on SDL's offscreen driver found in the registry by its window's name, its tree walked (names, roles, states, values), the +1 button pressed through Action, the goal slider read and set through Value, the draft field's text read through Text and written through EditableText, its caret and a word's selection moved, and the note added. It speaks D-Bus through mpal's own client (no libdbus, no busctl); mpal is preview, so `atspi` is the one part of this tool that rests on a preview package. A JSON report of every check; exit 1 when one failed.
+
+```sh
+dbus-run-session -- omui-devtools atspi <tally> <notes-agent>    # tools/ci/atspi.sh builds both and runs it (CI's Linux x64 rows)
+```

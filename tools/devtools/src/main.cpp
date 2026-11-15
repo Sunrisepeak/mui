@@ -11,10 +11,13 @@
 //         linkers at most --jobs at once (tools/dev/capped.sh, AGENTS §5).
 //   incremental  the same build twice: the second leaves every compilation
 //         output untouched (CI's row; exit 1 when one changed).
+//   atspi  examples 03 and 07 read and operated through AT-SPI, as a screen
+//         reader does (tools/ci/atspi.sh; exit 1 when a check fails).
 import std;
 import mcpplibs.cmdline;
 import mcpplibs.os;
 import nlohmann.json;
+import omui.devtools.atspi;
 import omui.devtools.ci;
 import omui.devtools.govern;
 import omui.devtools.incremental;
@@ -173,6 +176,10 @@ cmd::App app() {
                         .option(Option("toolchain").takes_value().value_name("T").help("default: mcpp's"))
                         .option(Option("locked").help("mcpp's --locked"))
                         .option(Option("report").takes_value().value_name("FILE").help("default: target/incremental.report.omui.json")))
+        .subcommand(cmd::App("atspi")
+                        .description("Examples 03 and 07 read and operated through AT-SPI as a screen reader does; a JSON report (exit 1 when a check fails)")
+                        .arg(Arg("tally").required().help("example 03's program (tally)"))
+                        .arg(Arg("notes").help("example 07's program (notes-agent)")))
         .subcommand(cmd::App("platforms")
                         .description("Write docs/{en,zh}/platforms.md from docs/platforms.omui.json (the verification table, D-201)")
                         .option(Option("check").help("only say whether the pages are current (exit 1 when not)")))
@@ -463,8 +470,15 @@ int main(int argc, char** argv) {
     if (parsed->subcommand_name() == "ci") return ci(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "llvm") return llvm(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "platforms") return platforms(parsed->subcommand()->get(), root);
+    if (parsed->subcommand_name() == "atspi") {
+        const auto& sub = parsed->subcommand()->get();
+        const auto report = omui::devtools::atspi::check(mcpplibs::os::fs::from_utf8(sub.positional(0)),
+                                                         sub.positional_count() > 1 ? mcpplibs::os::fs::from_utf8(sub.positional(1)) : fs::path{});
+        std::cout << report.json() << '\n';
+        return report.ok() ? 0 : 1;
+    }
     if (parsed->subcommand_name() == "govern") return govern(parsed->subcommand()->get());
     if (parsed->subcommand_name() == "incremental") return incremental(parsed->subcommand()->get());
-    std::cerr << "usage: omui-devtools [--root DIR] ci … | llvm … | platforms | govern … | incremental …  (omui-devtools --help)\n";
+    std::cerr << "usage: omui-devtools [--root DIR] ci … | llvm … | platforms | govern … | incremental … | atspi …  (omui-devtools --help)\n";
     return 2;
 }

@@ -51,6 +51,9 @@ class Bus {
 public:
     // The session bus ($DBUS_SESSION_BUS_ADDRESS, else $XDG_RUNTIME_DIR/bus).
     [[nodiscard]] static std::expected<Bus, Error> session();
+    // The bus at a D-Bus address ("unix:path=…,guid=…", several separated by ";"): the
+    // first that is a socket's path (an abstract socket is not reachable by path).
+    [[nodiscard]] static std::expected<Bus, Error> address(std::string_view address);
     // A bus at a local socket's directory and name (a test's own).
     [[nodiscard]] static std::expected<Bus, Error> at(const std::filesystem::path& directory, std::string_view name);
 

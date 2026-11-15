@@ -1,7 +1,8 @@
 # omui.devtools — the contributors' tool (release design §6.6): `ci` reads a
 # CI run row by row and sets each failure against STATUS's red list (R12).
 # The workspace's checks that grow past a script land here as subcommands:
-# govern (the 90% cap, AGENTS §5), incremental (an unchanged rebuild compiles nothing).
+# govern (the 90% cap, AGENTS §5), incremental (an unchanged rebuild compiles nothing),
+# atspi (examples read and operated as a screen reader does).
 [package]
 namespace   = "omui"
 name        = "devtools"
@@ -11,6 +12,7 @@ license     = "Apache-2.0"
 
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+lower = ["mpal"]  # lower-labelled parts it uses, each marked in its README
 kind = "tool"
 
 [targets.omui-devtools]
@@ -24,6 +26,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 nlohmann.json    = "3.12.0"
 mcpplibs.cmdline = "0.0.3"
 mcpplibs.os      = "0.4.4"
+mpal             = { path = "../../modules/base/mpal" }  # its D-Bus: atspi speaks AT-SPI with it
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"

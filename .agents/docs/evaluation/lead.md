@@ -12,7 +12,7 @@
 | hanim | motion.drive-10k.web.mean_ms | — | gsap, motion | — | planned |
 | hanim | motion.document.bytes | — | lottie, rive | — | planned |
 | hanim | motion.playback.ms | — | rive, lottie-web | — | planned |
-| hanim | motion.gpu.morph-1m.ms | — | hanim-cpu | — | pending_hardware |
+| hanim | motion.gpu.morph-1m.ms | — | hanim-cpu | — | unverified |
 | xrender | raster.fills-1000.median_ms | xrender 8.903 | skia 11.611 | 1.30× [1.30, 1.33] | ahead |
 | xrender | raster.gradients-200.median_ms | xrender 5.346 | skia 7.161 | 1.35× [1.34, 1.37] | ahead |
 | xrender | raster.small-5000.median_ms | xrender 1.877 | resvg 7.429 | 3.96× [3.94, 4.01] | ahead |
@@ -26,14 +26,14 @@
 | xrender | raster.cjk-5000.median_ms | — | skia | — | planned |
 | xrender | raster.web.submit-5000.ms | — | canvaskit | — | planned |
 | xrender | raster.wasm.bytes | — | thorvg | — | planned |
-| xrender | gpu.fills-1000.ms | — | vello, graphite | — | pending_hardware |
+| xrender | gpu.fills-1000.ms | — | vello, graphite | — | unverified |
 | omui | ui.cold-start.ms | — | slint, flutter | — | planned |
 | omui | web.first-paint.mobile.ms | — | flutter-web, react-ssr | — | planned |
 | omui | web.interactive.mobile.ms | — | flutter-web | — | planned |
 | omui | web.first-load.bytes | — | flutter-web, react-ssr | — | planned |
 | omui | ui.list-10k.p99_ms | — | flutter, compose | — | planned |
 | omui | ui.memory-10k.bytes | — | flutter | — | planned |
-| omui | ui.input-latency.frames | — | flutter, slint | — | pending_hardware |
+| omui | ui.input-latency.frames | — | flutter, slint | — | unverified |
 | omui | ui.hot-reload.ms | — | flutter, react-vite | — | planned |
 | omui | agent.ui-tasks.success | — | a11y-tree-agent, screenshot-agent | — | planned |
 | omui | agent.ui-tasks.tokens | — | a11y-tree-agent, screenshot-agent | — | planned |
@@ -42,7 +42,7 @@
 | omui.components | components.canvas-1000.frame_ms | — | figma-like-dom | — | planned |
 | xengine | physics.pyramid.step_ms | — | box2d-v3, rapier | — | planned |
 | xengine | world.iterate-100k.ms | — | bevy | — | planned |
-| xengine | cellular.4096.fps | — | noita-like | — | pending_hardware |
+| xengine | cellular.4096.fps | — | noita-like | — | unverified |
 | xengine | agent.game-tasks.success | — | godot-mcp | — | planned |
 | gongfu | rollback.8-frames.ms | — | ggrs | — | planned |
 | mlibs | text.paragraph.ms | — | skparagraph | — | planned |

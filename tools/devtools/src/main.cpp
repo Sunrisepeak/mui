@@ -3,6 +3,7 @@
 //         with its first lines — and set against STATUS's red list (R12).
 //         Exit 0 when every failure is named there, 1 when one is new, 2
 //         when it could not read the run.
+//   platforms  docs/{en,zh}/platforms.md from docs/platforms.omui.json (--check: whether they are current)
 //   llvm  what a change touches and its direct consumers, compiled (their
 //         tests too, not run) with CI's LLVM and profile: the errors only
 //         clang and libc++ give (reds 90, 91, 93), before a push.
@@ -12,6 +13,7 @@ import mcpplibs.os;
 import nlohmann.json;
 import omui.devtools.ci;
 import omui.devtools.members;
+import omui.devtools.platforms;
 
 namespace cmd = mcpplibs::cmdline;
 namespace rec = omui::devtools::ci;
@@ -150,6 +152,9 @@ cmd::App app() {
                                         .description("Read a saved log (gh run view RUN --log-failed > FILE)")
                                         .arg(Arg("file").required().help("the log"))
                                         .option(Option("jobs").takes_value().value_name("FILE").help("the run's jobs (gh run view RUN --json jobs)"))))
+        .subcommand(cmd::App("platforms")
+                        .description("Write docs/{en,zh}/platforms.md from docs/platforms.omui.json (the verification table, D-201)")
+                        .option(Option("check").help("only say whether the pages are current (exit 1 when not)")))
         .subcommand(cmd::App("llvm")
                         .description("Compile what a change touches and its direct consumers, tests included, with CI's LLVM and profile (not run)")
                         .option(Option("since").takes_value().value_name("REF").help("the change: files differing from REF, and new ones (default: @{upstream})"))
@@ -336,6 +341,32 @@ int llvm(const cmd::ParsedArgs& options, const fs::path& root) {
     return status ? status->shell_code() : 1;
 }
 
+int platforms(const cmd::ParsedArgs& options, const fs::path& root) {
+    const auto table = read_file(root / "docs/platforms.omui.json");
+    if (!table) {
+        std::cerr << "omui-devtools platforms: cannot read docs/platforms.omui.json\n";
+        return 2;
+    }
+    int stale = 0;
+    for (const std::string_view language : {"en", "zh"}) {
+        const auto written = omui::devtools::platforms::page(*table, language);
+        if (!written) {
+            std::cerr << "omui-devtools platforms: " << written.error() << '\n';
+            return 2;
+        }
+        const fs::path target = root / "docs" / std::string(language) / "platforms.md";
+        if (read_file(target) == *written) continue;
+        if (options.is_flag_set("check")) {
+            std::cerr << std::format("omui-devtools platforms: docs/{}/platforms.md is not current (omui-devtools platforms)\n", language);
+            ++stale;
+            continue;
+        }
+        std::ofstream(target, std::ios::binary) << *written;
+        std::cout << std::format("wrote docs/{}/platforms.md\n", language);
+    }
+    return stale ? 1 : 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -350,6 +381,7 @@ int main(int argc, char** argv) {
     const fs::path root = mcpplibs::os::fs::from_utf8(parsed->value("root").value_or("."));
     if (parsed->subcommand_name() == "ci") return ci(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "llvm") return llvm(parsed->subcommand()->get(), root);
-    std::cerr << "usage: omui-devtools [--root DIR] ci … | llvm …  (omui-devtools --help)\n";
+    if (parsed->subcommand_name() == "platforms") return platforms(parsed->subcommand()->get(), root);
+    std::cerr << "usage: omui-devtools [--root DIR] ci … | llvm … | platforms  (omui-devtools --help)\n";
     return 2;
 }

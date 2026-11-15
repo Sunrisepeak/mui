@@ -1,0 +1,115 @@
+{
+  "doc": "Verification status of each capability on each platform (release plan §2.5, D-201). status: real (run on real hardware or a real system service), software (run on a software implementation or a virtual device: correctness, not performance), unverified (implemented to the contract, its own tests and the CPU reference pass, but no environment to run this path here: neither a pass nor a red, not evidence), unsupported (the capability query says no). real and software name their evidence (a case, a script, a run); unverified says what is missing; a tier-1 stable cell that is unverified says what graduates it. omui-devtools platforms writes docs/{en,zh}/platforms.md from this file.",
+  "platforms": [
+    {"id": "linux-x64", "name": "Linux x64", "tier": 1},
+    {"id": "web", "name": "Web (wasm32)", "tier": 1},
+    {"id": "macos-arm64", "name": "macOS arm64", "tier": 1},
+    {"id": "windows-x64", "name": "Windows x64", "tier": 1},
+    {"id": "linux-arm64", "name": "Linux arm64", "tier": 2},
+    {"id": "android", "name": "Android", "tier": 2}
+  ],
+  "capability": [
+    {
+      "id": "cpu-reference",
+      "name": "CPU reference rendering, simulation and the semantic tree",
+      "label": "stable",
+      "cells": {
+        "linux-x64": {"status": "real", "evidence": "CI row ubuntu-24.04 (mcpp test --workspace --profile ci)"},
+        "web": {"status": "real", "evidence": "CI row wasm32-emscripten under node (tools/ci/web.sh)"},
+        "macos-arm64": {"status": "real", "evidence": "CI row macos-15"},
+        "windows-x64": {"status": "real", "evidence": "CI row windows-2022"},
+        "linux-arm64": {"status": "real", "evidence": "CI row ubuntu-24.04-arm"},
+        "android": {"status": "software", "evidence": "CI row android x86_64 (emulator; tools/ci/android.sh)"}
+      }
+    },
+    {
+      "id": "device-2d",
+      "name": "2D on a GPU device (xrender, mlibs.rhi)",
+      "label": "stable",
+      "cells": {
+        "linux-x64": {"status": "real", "evidence": "RTX 4080 headless (tools/dev/gpu-real.sh); lavapipe on CI (tools/ci/gpu.sh)"},
+        "web": {"status": "unverified", "needs": "which WebGPU adapter tools/ci/browser.sh's headless Chromium runs on is not recorded; a real browser on a real GPU"},
+        "macos-arm64": {"status": "software", "evidence": "CI row macos-15: the runner's Apple Paravirtual Metal device (tools/ci/gpu.sh, cocoa)"},
+        "windows-x64": {"status": "software", "evidence": "CI row windows-2022: lavapipe through SDL_GPU's Vulkan backend"},
+        "linux-arm64": {"status": "software", "evidence": "CI row ubuntu-24.04-arm: lavapipe"},
+        "android": {"status": "unverified", "needs": "a device run; CI builds and runs the emulator without a GPU device case"}
+      }
+    },
+    {
+      "id": "device-3d",
+      "name": "3D mesh pass on a device (xrender.mesh.gpu)",
+      "label": "preview",
+      "cells": {
+        "linux-x64": {"status": "real", "evidence": "RTX 4080 headless (tools/dev/gpu-real.sh): quay.picture.device; lavapipe on CI"},
+        "web": {"status": "unverified", "needs": "a real browser's WebGPU on a real GPU (RC2.1 measures Quay's frame time there)"},
+        "macos-arm64": {"status": "software", "evidence": "quay.picture.device on CI's Apple Paravirtual device (offscreen)"},
+        "windows-x64": {"status": "software", "evidence": "CI row windows-2022: lavapipe"},
+        "linux-arm64": {"status": "software", "evidence": "CI row ubuntu-24.04-arm: lavapipe"},
+        "android": {"status": "unverified", "needs": "a device run"}
+      }
+    },
+    {
+      "id": "window-device-3d",
+      "name": "A window drawn by a device (quay.desktop)",
+      "label": "preview",
+      "cells": {
+        "linux-x64": {"status": "software", "evidence": "quay.desktop with lavapipe (SDL offscreen video driver)"},
+        "web": {"status": "unverified", "needs": "a real browser's WebGPU canvas"},
+        "macos-arm64": {"status": "unverified", "needs": "a CI run with RC0.3's fix (the case under cocoa, as the device tests run; red 98)"},
+        "windows-x64": {"status": "software", "evidence": "quay.desktop on CI with lavapipe (windows video driver)"},
+        "linux-arm64": {"status": "software", "evidence": "quay.desktop on CI with lavapipe"},
+        "android": {"status": "unverified", "needs": "a device run"}
+      }
+    },
+    {
+      "id": "direct3d12",
+      "name": "The Direct3D 12 device backend",
+      "label": "preview",
+      "cells": {
+        "windows-x64": {"status": "unverified", "needs": "red 11: the cellular reaction kernel differs from the CPU on WARP; fixed, or Direct3D 12 declared unsupported (RC2.15)"}
+      }
+    },
+    {
+      "id": "accessibility-bridge",
+      "name": "The accessibility bridge to the system's screen reader",
+      "label": "stable",
+      "cells": {
+        "linux-x64": {"status": "real", "evidence": "AT-SPI on CI (tools/ci/atspi.sh)"},
+        "macos-arm64": {"status": "unverified", "needs": "NSAccessibility read by VoiceOver on a runner that runs it"},
+        "windows-x64": {"status": "unverified", "needs": "UI Automation read by a screen reader on a runner that runs it"},
+        "web": {"status": "unverified", "needs": "the page's accessibility tree read by a screen reader"}
+      }
+    },
+    {
+      "id": "input-method",
+      "name": "Input methods (composition, candidates)",
+      "label": "stable",
+      "cells": {
+        "linux-x64": {"status": "software", "evidence": "synthetic preedit events (omui.core input, omui.ui.base, omui.host.sdl3 tests)"},
+        "macos-arm64": {"status": "software", "evidence": "synthetic preedit events (the same tests on CI row macos-15)"},
+        "windows-x64": {"status": "software", "evidence": "synthetic preedit events (the same tests on CI row windows-2022)"},
+        "web": {"status": "software", "evidence": "page_test: an input method composing in the hidden textarea, headless Chromium (tools/ci/browser.sh)", "needs": "a real IME in a browser"}
+      }
+    },
+    {
+      "id": "gamepad",
+      "name": "Gamepads (Quay, widget breakout)",
+      "label": "preview",
+      "cells": {
+        "linux-x64": {"status": "software", "evidence": "synthetic gamepad events (xengine.ui ui_test, omui.core input_test, widget-breakout gamepad_test)"},
+        "macos-arm64": {"status": "software", "evidence": "the same tests on CI row macos-15"},
+        "windows-x64": {"status": "software", "evidence": "the same tests on CI row windows-2022"},
+        "web": {"status": "unverified", "needs": "the Gamepad API in a real browser with a pad"}
+      }
+    },
+    {
+      "id": "frame-budget-weak",
+      "name": "D-187 on weaker machines (integrated GPUs, mobile): p99 ≤ 16.7 ms",
+      "label": "preview",
+      "cells": {
+        "linux-x64": {"status": "unverified", "needs": "an integrated-GPU machine; only the RTX 4080 and browsers are measured"},
+        "android": {"status": "unverified", "needs": "a mobile device"}
+      }
+    }
+  ]
+}

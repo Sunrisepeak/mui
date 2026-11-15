@@ -2,6 +2,8 @@
 
 For people who make things with it: application developers, game developers, people who put agents to work. How the engines are designed inside is elsewhere (the [design documents](../../.agents/docs/README.md)).
 
+What has been run on which platform — on real hardware, in software, or not yet — is on [Platforms](platforms.md).
+
 ## What you can make with it today
 
 | You want | You use | Maturity | Start at |

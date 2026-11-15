@@ -1432,13 +1432,14 @@ def check_reexports(root: Path) -> list[Problem]:
 
 # Labels (release plan §2.1, D-189, D-199): each package states its default
 # public surface's `maturity` — stable, preview or experimental. A library or
-# tool (modules/, tools/, src/, mcpp/, spec/) depends by default only on
+# tool (modules/, tools/, src/, mcpp/) depends by default only on
 # packages at its label or above, but for the lower-labelled parts it names in
 # `lower` (each marked in its README); works may use anything. An experimental
 # package's README, or its project's, has an "Experimental" section that says
 # its target, the gap, and what graduates it.
 MATURITY_RANK = {"stable": 2, "preview": 1, "experimental": 0}
-MATURITY_HELD = ("modules/", "tools/", "src/", "mcpp/", "spec")
+MATURITY_HELD = ("modules/", "tools/", "src/", "mcpp/")
+MATURITY_EXEMPT = ("spec",)  # the standard (openlifa/openmui): versioned by the specification, not labelled by omui
 EXPERIMENTAL_SECTION = re.compile(r"^#+ .*\bExperimental\b", re.M)
 
 
@@ -1454,6 +1455,8 @@ def check_maturity(root: Path) -> list[Problem]:
     by_path = {Path(m).as_posix(): m for m in data}
     meta = {m: d.get("package", {}).get("metadata", {}).get("openmui", {}) for m, d in data.items()}
     for m, d in data.items():
+        if m in MATURITY_EXEMPT:
+            continue
         label = meta[m].get("maturity")
         if label not in MATURITY_RANK:
             problems.append(Problem("maturity", f"{m}/mcpp.toml", "[package.metadata.openmui] maturity is stable, preview or experimental (release plan §2.1)"))
@@ -1488,6 +1491,40 @@ def check_maturity(root: Path) -> list[Problem]:
                                                                       f"or name it in `lower` and mark it in the README"))
         for name in sorted(lower - used_lower):
             problems.append(Problem("maturity", f"{m}/mcpp.toml", f"`lower` names {name}, which it does not use or which is not below {label}"))
+    return problems
+
+
+# The verification table (release plan §2.5, D-201): each cell real, software,
+# unverified or unsupported; real and software say what they rest on,
+# unverified says what is missing. omui-devtools platforms writes the pages.
+PLATFORMS_TABLE = "docs/platforms.omui.json"
+
+
+def check_platform_table(root: Path) -> list[Problem]:
+    path = root / PLATFORMS_TABLE
+    if not path.exists():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        return [Problem("platform-table", PLATFORMS_TABLE, f"not JSON: {error}")]
+    problems = []
+    ids = {p.get("id") for p in data.get("platforms", [])}
+    for capability in data.get("capability", []):
+        name = capability.get("id", capability.get("name", "?"))
+        if capability.get("label") not in MATURITY_RANK:
+            problems.append(Problem("platform-table", PLATFORMS_TABLE, f"{name}: label is stable, preview or experimental"))
+        for platform, cell in capability.get("cells", {}).items():
+            where = f"{name} on {platform}"
+            if platform not in ids:
+                problems.append(Problem("platform-table", PLATFORMS_TABLE, f"{where}: no such platform"))
+            status = cell.get("status")
+            if status not in ("real", "software", "unverified", "unsupported"):
+                problems.append(Problem("platform-table", PLATFORMS_TABLE, f"{where}: status is real, software, unverified or unsupported"))
+            elif status in ("real", "software") and not cell.get("evidence"):
+                problems.append(Problem("platform-table", PLATFORMS_TABLE, f"{where}: {status} says what it rests on (`evidence`)"))
+            elif status == "unverified" and not cell.get("needs"):
+                problems.append(Problem("platform-table", PLATFORMS_TABLE, f"{where}: unverified says what is missing (`needs`)"))
     return problems
 
 
@@ -1538,7 +1575,7 @@ def run(root: Path) -> list[Problem]:
         return unreadable  # the other rules read the manifests
     return (check_sources(root) + check_manifests(root) + check_projects(root) + check_layout(root) + check_licences(root) + check_platforms(root) + check_pins(root)
             + check_documents(root) + check_media(root) + check_closures(root) + check_operations(root) + check_skills(root) + check_agent_surface(root)
-            + check_lead(root) + check_typescript_data(root) + check_imports(root) + check_matter(root) + check_shader_inputs(root) + check_status(root) + check_reexports(root) + check_maturity(root))
+            + check_lead(root) + check_typescript_data(root) + check_imports(root) + check_matter(root) + check_shader_inputs(root) + check_status(root) + check_reexports(root) + check_maturity(root) + check_platform_table(root))
 
 
 def self_test() -> int:
@@ -1575,6 +1612,7 @@ def self_test() -> int:
         "matter": ("modules/ui/core/x.matter.omui.json", '{"matter": {"materials": {"wood": {}, "ash": {}}, "laws": [{"when": "material == wood && temperature >= 500", "become": "burnt"}]}}'),
         "shader-inputs": ("modules/ui/core/x.slang", "struct VIn {\n    float3 position : TEXCOORD0;\n    float2 second : TEXCOORD4;\n};\n"),
         "maturity": None,
+        "platform-table": (PLATFORMS_TABLE, '{"platforms": [{"id": "a"}], "capability": [{"id": "x", "label": "stable", "cells": {"a": {"status": "passed"}}}]}'),
         "module-closure": ("modules/gfx/hanim/src/hanim.cppm", "export module hanim;\nexport import hanim.core;\n"),
         "status": (STATUS_FILE, "# STATUS\n\n| Task | State | Evidence |\n|---|---|---|\n| RC0.1 push | done | pushed |\n"),
         "lead": (LEAD_FEATURES, '{"feature": [{"id": "A", "project": "omui", "line": "use-safely", "title": "x", "status": "claimed"}]}\n'),

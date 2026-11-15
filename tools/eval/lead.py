@@ -216,10 +216,10 @@ def cmd_verdict(arguments: argparse.Namespace) -> int:
     records = []
     for metric in metrics:
         status = metric.get("status", "measured")
-        if status == "pending_hardware":
-            if previous.get(metric["id"], {}).get("verdict") != "pending_hardware":
+        if status == "unverified":
+            if previous.get(metric["id"], {}).get("verdict") != "unverified":
                 records.append({"kind": "metric", "date": today(), "project": metric["project"], "metric": metric["id"],
-                                "better": metric["better"], "core": metric.get("core", True), "verdict": "pending_hardware",
+                                "better": metric["better"], "core": metric.get("core", True), "verdict": "unverified",
                                 "needs": metric.get("needs", ""), "commit": commit()})
             continue
         if status != "measured":
@@ -230,8 +230,8 @@ def cmd_verdict(arguments: argparse.Namespace) -> int:
             continue
         records.append(record)
     for record in records:
-        if record["verdict"] == "pending_hardware":
-            print(f"{record['metric']:<44} pending_hardware ({record['needs']})")
+        if record["verdict"] == "unverified":
+            print(f"{record['metric']:<44} unverified ({record['needs']})")
         else:
             print(f"{record['metric']:<44} {record['ratio']:>8.3f}× [{record['ci'][0]:.3f}, {record['ci'][1]:.3f}] "
                   f"against {record['best']['name']:<12} {record['verdict']}")
@@ -285,11 +285,11 @@ def cmd_summary(arguments: argparse.Namespace) -> int:
     for metric in metrics:
         record = measured.get(metric["id"])
         status = metric.get("status", "measured")
-        if record and record["verdict"] != "pending_hardware":
+        if record and record["verdict"] != "unverified":
             lines.append(f"| {metric['project']} | {metric['id']} | {record['ours']['name']} {record['ours']['median']:g} | "
                          f"{record['best']['name']} {record['best']['median']:g} | {record['ratio']:.2f}× [{record['ci'][0]:.2f}, {record['ci'][1]:.2f}] | {record['verdict']} |")
         else:
-            verdict = "pending_hardware" if status == "pending_hardware" else ("planned" if status == "planned" else "未测")
+            verdict = "unverified" if status == "unverified" else ("planned" if status == "planned" else "未测")
             lines.append(f"| {metric['project']} | {metric['id']} | — | {', '.join(metric['competitors'])} | — | {verdict} |")
     lines += ["", "## 标志性特性", "", "| 项目 | 特性 | 主线 | 状态 | 对照判定 |", "|---|---|---|---|---|"]
     for feature in features:
@@ -349,13 +349,13 @@ def render_docs(metrics_file: Path, features_file: Path, ledger_file: Path) -> d
         lines = [f"# {w['title']}", "", w["intro"].format(date=newest), "", f"## {w['metrics']}", "", w["head_metric"], "|---|---|---|---|---|---|"]
         for metric in metrics:
             record = measured.get(metric["id"])
-            if record and record["verdict"] != "pending_hardware":
+            if record and record["verdict"] != "unverified":
                 lines.append(f"| {metric['project']} | `{metric['id']}` | {record['ours']['name']} {record['ours']['median']:g} | {record['best']['name']} {record['best']['median']:g} | "
                              f"{record['ratio']:.2f}× [{record['ci'][0]:.2f}, {record['ci'][1]:.2f}] | **{record['verdict']}** |")
             elif metric.get("status") == "measured":
                 continue
             else:
-                state = w["pending"] if metric.get("status") == "pending_hardware" else w["planned"]
+                state = w["pending"] if metric.get("status") == "unverified" else w["planned"]
                 lines.append(f"| {metric['project']} | `{metric['id']}` | — | {', '.join(metric['competitors'])} | — | {state} |")
         lines += ["", f"## {w['features']}", "", w["head_feature"], "|---|---|---|---|"]
         for feature in features:
@@ -450,8 +450,8 @@ def problems(root: Path) -> list[tuple[str, str]]:
             ids.add(label)
             if metric.get("better") not in ("lower", "higher"):
                 out.append((metrics_file.relative_to(root).as_posix(), f"{label}: better is lower or higher"))
-            if metric.get("status", "measured") not in ("measured", "planned", "pending_hardware"):
-                out.append((metrics_file.relative_to(root).as_posix(), f"{label}: status is measured, planned or pending_hardware"))
+            if metric.get("status", "measured") not in ("measured", "planned", "unverified"):
+                out.append((metrics_file.relative_to(root).as_posix(), f"{label}: status is measured, planned or unverified"))
             if not metric.get("competitors"):
                 out.append((metrics_file.relative_to(root).as_posix(), f"{label}: no competitors"))
     return out

@@ -136,4 +136,30 @@ private:
     std::uint32_t                  width_ = 0, height_ = 0;
 };
 
+// A game played on a device as Quay's frame is timed (tests/bench's game/quay-frame-1080p-gpu, the page's
+// tests/web_frame_test.cpp): the guide playing from a second in; each `frame` the step, the guide's choice, the
+// picture prepared, and on the device the frame recorded, submitted and waited for. A game that has ended is
+// begun again by `again_if_over` — the caller's to leave out of what it times.
+class Played {
+public:
+    [[nodiscard]] static std::expected<Played, std::string> make(mlibs::rhi::Device& device, std::uint32_t width, std::uint32_t height);
+    // Whether the game has ended; whether it had and was begun again.
+    [[nodiscard]] bool over() const noexcept { return state_.outcome != Outcome::playing; }
+    bool again_if_over();
+    // One frame; the milliseconds until it was submitted (what the CPU spent: step, choice, picture, recording).
+    [[nodiscard]] std::expected<double, std::string> frame();
+    [[nodiscard]] const OnDevice& drawn() const noexcept { return *drawn_; }
+    [[nodiscard]] std::uint64_t games() const noexcept { return games_; }
+
+private:
+    Played() = default;
+    mlibs::rhi::Device*     device_ = nullptr;
+    std::optional<Picture>  picture_;
+    std::optional<OnDevice> drawn_;
+    State                   state_;
+    Guide                   guide_;
+    mlibs::rhi::CommandList list_;  // kept: a list cleared keeps its room
+    std::uint64_t           games_ = 0;
+};
+
 }  // namespace quay::picture

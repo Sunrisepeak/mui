@@ -98,4 +98,38 @@ rhi::Result<void> OnDevice::record(rhi::CommandList& list, const Picture& pictur
     return {};
 }
 
+std::expected<Played, std::string> Played::make(rhi::Device& device, std::uint32_t width, std::uint32_t height) {
+    Played made;
+    made.device_ = &device;
+    auto picture = Picture::make(level::harbour());
+    if (!picture) return std::unexpected(picture.error());
+    made.picture_.emplace(std::move(*picture));
+    auto drawn = OnDevice::make(device, *made.picture_, width, height);
+    if (!drawn) return std::unexpected(std::format("Quay's picture on the device: {}", drawn.error().message));
+    made.drawn_.emplace(std::move(*drawn));
+    // A second in: the first warden in view and the first shots.
+    made.state_ = start(level::harbour());
+    while (made.state_.frame < 60) step(made.state_, made.guide_(made.state_));
+    return made;
+}
+
+bool Played::again_if_over() {
+    if (state_.outcome == Outcome::playing) return false;
+    state_ = start(level::harbour()), guide_ = {}, ++games_;
+    return true;
+}
+
+std::expected<double, std::string> Played::frame() {
+    const auto begun = std::chrono::steady_clock::now();
+    step(state_, guide_(state_));
+    picture_->prepare(state_);
+    list_.clear();
+    if (auto recorded = drawn_->record(list_, *picture_); !recorded) return std::unexpected(std::format("the frame could not be recorded: {}", recorded.error().message));
+    const auto submitted = device_->submit(list_);
+    const double encoded = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - begun).count();
+    const auto waited = device_->wait_idle();
+    if (!submitted || !waited) return std::unexpected(std::format("the frame failed: {}", !submitted ? submitted.error().message : waited.error().message));
+    return encoded;
+}
+
 }  // namespace quay::picture

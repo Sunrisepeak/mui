@@ -135,51 +135,31 @@ void add_game_benchmarks() {
             }
             rhi::Device& on = **device;
             s.note("device", std::format("{} ({}{})", on.caps().device, rhi::name(on.caps().backend), on.caps().software ? ", software" : ""));
-            auto picture = quay::picture::Picture::make(quay::level::harbour());
-            if (!picture) {
-                s.fail(picture.error());
+            auto played = quay::picture::Played::make(on, width, height);
+            if (!played) {
+                s.fail(played.error());
                 return;
             }
-            auto drawn = quay::picture::OnDevice::make(on, *picture, width, height);
-            if (!drawn) {
-                s.fail(std::format("Quay's picture on the device: {}", drawn.error().message));
-                return;
-            }
-            // A second in, untimed: what is measured has the first warden in view and the first shots.
-            quay::State state = quay::start(quay::level::harbour());
-            quay::Guide guide;
-            while (state.frame < 60) quay::step(state, guide(state));
-            rhi::CommandList list;  // kept: a list cleared keeps its room
-            std::uint64_t games = 0;
             const auto frame = [&] {
-                if (state.outcome != quay::Outcome::playing) {
+                if (played->over()) {
                     s.pause();
-                    state = quay::start(quay::level::harbour()), guide = {}, ++games;
+                    played->again_if_over();
                     s.resume();
                 }
-                const auto begun = std::chrono::steady_clock::now();
-                quay::step(state, guide(state));
-                picture->prepare(state);
-                list.clear();
-                if (!drawn->record(list, *picture)) {
-                    s.fail("the frame could not be recorded");
+                const auto encoded = played->frame();
+                if (!encoded) {
+                    s.fail(encoded.error());
                     return;
                 }
-                const auto submitted = on.submit(list);
-                s.counter("encode_ms", std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - begun).count());
-                const auto waited = on.wait_idle();
-                if (!submitted || !waited) {
-                    s.fail(std::format("the frame failed: {}", !submitted ? submitted.error().message : waited.error().message));
-                    return;
-                }
+                s.counter("encode_ms", *encoded);
                 s.counter("software", on.caps().software ? 1 : 0);
             };
             frame();
             s.items(width * height);
             while (s.next()) frame();
-            const auto& last = drawn->last();
+            const auto& last = played->drawn().last();
             s.note("scope", std::format("one thread; {} draws, {} lights, {} views of lamps, {} casters in the moon's map; {} games played to the end and begun again (not timed); the same frames the device suite holds to the reference at 480x270",
-                                        last.draws, last.lamps, last.lamp_views, last.casters, games));
+                                        last.draws, last.lamps, last.lamp_views, last.casters, played->games()));
         });
     add("world/chunked-branch-100k", "a branch of a world of 100,000 entities (xengine.world's Chunked, 1,565 chunks): the copy, one entity written in it, the two compared — what a snapshot, a rewind point or an agent's what-if costs (D-169)",
         [](State& s) {

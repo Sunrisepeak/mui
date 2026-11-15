@@ -72,7 +72,7 @@ Kind: R regression, E environment, F flaky or time, T test expectation.
 | 9 | GCC rows past 150 minutes | Linux GCC | F | GCC rows nightly and on demand; LLVM rows per push |
 | 11 | cellular reaction kernel on Direct3D 12 (WARP): tick 1, index 515, GPU 0 against CPU 1 | Windows `rhi.sdl` | R | open: fix, or Windows declares Vulkan only and D3D12 unsupported (RC2.15) |
 | 30 | Pages: the site in a real browser hung after the reaction workspace's phone canvas | Pages; e5cc9ed4 | F | open: every CDP call has a deadline and names what it asked; the next stall says where |
-| 33 | Pages: the site's delivery 4,009,332 B over its 4,000,000 B budget | Pages (site-perf) | R | fix in the owner (RC0.6): openkal-emscripten's rights tables had -1 defaults, so ~80 KiB of initialised data in every Web build; zero defaults move them to `.bss` (emsdk 6.0.9) — mcpplibs/openkal-emscripten#22, 0.14.3 |
+| 33 | Pages: the site's delivery 4,436,432 B over its 4,000,000 B budget (before the first frame 1,936,500 of 2,200,000: within) | Pages (site-perf); run 43713640594 | R | open (RC2.9): openkal-emscripten 0.14.3 moved its tables to `.bss` but took only 2.3 KB off what is sent (compressed, zeros cost little); the 4,009,332 B of the first report had already grown — what is sent after the first frame is RC2.9's to split or cut |
 | 48 | Windows: examples/02-hello-ts `generation_e2e_test`, the application's endpoint | Windows; 53efd9e5 | R | passed on run 43685505783; closed when the next run passes too |
 | 50 | Android: `ld.lld` cannot find `-lpthread` | Android | E | worked round: an empty libpthread.a; mcpp-index#750 |
 | 54 | lang.ts `strip_test` "four times the text takes about four times as long" | Linux x64, Windows; 5106891d | F | passed on run 43685505783; RC0.6 |
@@ -95,9 +95,18 @@ Kind: R regression, E environment, F flaky or time, T test expectation.
 
 ## For 0.2 (found during 0.1; one line each, with the task that found it)
 
-- (none yet)
+- KTX2 pictures with alpha as blocks: the shader would multiply straight alpha after sampling (a flag a picture); today they go as light (RC2.2).
+- Quay's web p99 on a real GPU where a display is (RC2.1; `tools/dev/browser-gpu.sh`), if 0.1's machine has none.
+
+## Review at 12 checkpoints (2026-11-15, head 3a4d865e; AGENTS §6)
+
+- Fit: the work followed the plan's slices; RC2.1/2.2/2.6/2.12 ran ahead of N0/N1, allowed (no structural overlap) but RC1.5's merges will touch `xrender.mesh`/`asset` — merge after these settle.
+- Convergence: Quay's timed frame was written twice (bench and page) → one owner, `quay::picture::Played`. `mesh::Blocks` mirrors `rhi` formats in a module without `rhi` (one mapping, `gpu::format_of`): kept, said here.
+- Claims: red 33 was closed on reasoning, not on the compressed number; size claims are now taken from the transfer measured.
+- Gaps: blocks only for pictures with no alpha (cutout leaves stay light); RC2.1 lacks a display here; CI blocked 3 h behind a stale macOS run → a superseded run is cancelled at push.
+- Platforms: blocks real on Linux only; macOS/Windows/arm and the page's `mesh.blocks` come with the next CI and the browser step.
 
 ## Next
 
-1. RC0.1: reconcile run 43704244752 with `omui-devtools ci run 43704244752` when it ends; confirm 96, 48, 54; record the rows' verdicts.
-2. RC0.3 (98) and RC0.4 (97, 99), then RC0.5–RC0.7; N0 after them.
+1. N0: reconcile run 43718991717 (`omui-devtools ci run`), record each row's verdict, the eight counters; mcpp/mtest latest versions.
+2. RC1.5 per project after N0 (≤ 130 packages), RC1.6; then RC2.3, RC2.4, RC2.5 (3D and 2D slices).

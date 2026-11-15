@@ -52,35 +52,23 @@ int main(int argc, char** argv) {
         }
         rhi::Device& on = **device;
         const rhi::Caps& caps = on.caps();
-        auto picture = quay::picture::Picture::make(quay::level::harbour());
-        expect(fatal(picture.has_value())) << (picture ? "" : picture.error());
-        auto drawn = quay::picture::OnDevice::make(on, *picture, width, height);
-        expect(fatal(drawn.has_value())) << (drawn ? "" : drawn.error().message);
-        // A second in, untimed: what is measured has the first warden in view and the first shots.
-        quay::State state = quay::start(quay::level::harbour());
-        quay::Guide guide;
-        while (state.frame < 60) quay::step(state, guide(state));
-        rhi::CommandList list;
+        auto played = quay::picture::Played::make(on, width, height);
+        expect(fatal(played.has_value())) << (played ? "" : played.error());
         std::vector<double> took;
         took.reserve(frames);
         const std::uint32_t warming = std::min(frames, 10u);
         for (std::uint32_t frame = 0; frame < frames + warming; ++frame) {
-            if (state.outcome != quay::Outcome::playing) state = quay::start(quay::level::harbour()), guide = {};
+            played->again_if_over();  // untimed, as the bench leaves it out
             const auto begun = std::chrono::steady_clock::now();
-            quay::step(state, guide(state));
-            picture->prepare(state);
-            list.clear();
-            expect(fatal(drawn->record(list, *picture).has_value())) << "the frame could not be recorded";
-            const auto submitted = on.submit(list);
-            const auto waited = on.wait_idle();
-            expect(fatal(submitted.has_value() && waited.has_value())) << "the frame failed";
+            const auto done = played->frame();
+            expect(fatal(done.has_value())) << (done ? "" : done.error());
             // The first ten (fewer where few are timed) warm the page's pipelines and caches, as the bench's warm-up does.
             if (frame >= warming) took.push_back(std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - begun).count());
         }
         std::ranges::sort(took);
         const auto at = [&](double share) { return took[std::min(took.size() - 1, static_cast<std::size_t>(share * static_cast<double>(took.size())))]; };
         const double p50 = at(0.5), p99 = at(0.99), worst = took.back();
-        const auto& last = drawn->last();
+        const auto& last = played->drawn().last();
         std::println("Quay at {}×{} on {} ({}{}): {} frames, p50 {:.2f} ms, p99 {:.2f} ms, worst {:.2f} ms; {} draws, {} lights, {} views of lamps", width, height, caps.device, rhi::name(caps.backend),
                      caps.software ? ", software: not performance" : "", took.size(), p50, p99, worst, last.draws, last.lamps, last.lamp_views);
         std::println("evidence quay-web-p99-ms: {:.2f}", p99);

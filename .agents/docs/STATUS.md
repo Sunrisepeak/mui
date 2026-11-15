@@ -129,4 +129,5 @@ Kind: R regression, E environment, F flaky or time, T test expectation.
 
 1. N0: reconcile run 43718991717 (`omui-devtools ci run`), record each row's verdict, the eight counters; mcpp/mtest latest versions.
 2. RC1.5 per project after N0 (≤ 130 packages), RC1.6; then RC2.3, RC2.9, RC2.10, RC2.11, RC2.13.
-3. The stroker's tight turns (RC2.8's remainder, before RC2.15): the inner side of a run turning tighter than the half-width collapsed to where its offsets cross, instead of a pivot a vertex; with the pixel references it moves.
+3. RC1.5 for the games, measured on Swarm first (reverted, 2026-11-16): one package a game loses the Web check of its rules (CI's web row builds every member listing emscripten; the window's tests need the native-only headless host, and test files cannot be gated by platform). So each game keeps two packages: the game on its own (rules and runtime; native and Web; no omui, stated in lint `closure`) and its app (picture, sound, window, line program as features and `required_features` programs; native). Quay 6→2, Kiln 6→2, Swarm 3→2, Breakout 3→2: about 10 fewer.
+4. The stroker's tight turns (RC2.8's remainder, before RC2.15): the inner side of a run turning tighter than the half-width collapsed to where its offsets cross, instead of a pivot a vertex; with the pixel references it moves.

@@ -4,7 +4,7 @@ Mui the pixel cat, with a wand of fire, water and bombs, in caverns where everyt
 
 ![Mui has lit the barricade; the brush on the ledge, which is only scenery, has caught from it — the rich step of the picture, drawn headless](media/barricade-rich.png)
 
-**State of it**: the simulation, the game as `xengine.runtime` plays it — no interface, played by an agent that branches ahead — its picture, drawn headless by a ladder, and its sound, rendered offline from the world's own events, are done and tested; a window to play it in is next.
+**State of it**: the simulation, the game as `xengine.runtime` plays it — no interface, played by an agent that branches ahead — its picture, drawn headless by a ladder, and its sound, rendered offline from the world's own events, are done and tested, and so is the window to play it in (keys, the mouse, a gamepad; heard through the system's output), whose recording is the headless game bit for bit. The caverns are TypeScript data (`sim/levels/*.world.omui.ts`, `defineWorld`): a legend and rows painted by code, carried in the program as their JSON.
 
 | Package | What |
 |---|---|
@@ -12,6 +12,7 @@ Mui the pixel cat, with a wand of fire, water and bombs, in caverns where everyt
 | [headless](headless) | Kiln as a game on its own (D-162): the simulation as the runtime's `Playable`, stepped without omui, sought back and branched ahead; the playtest — an agent playing as a person does, through `world.observe`, `world.branch`, `world.act`, `world.step`, finishing the first cavern and, given the cavern with a mistake planted, stopping where it cannot go on and saying why. And `kiln::Causes`: the matter of its world as a subject beside the game — an agent shown everything asks `matter.explain` of a cell and is told why (this sand landed here, thrown by a blast, the player's bomb); a person's tier has no such subject |
 | [play](play) | Kiln over lines (D-186): `kiln-play run --session FILE` — a JSON request a line on standard input, the records of its answer on standard output; the session's file is the game (its requests played again are the same bits), so an agent with a pipe plays across runs. The game says its controls by name (`world.state`) and its tasks to begin with. |
 | [picture](picture) | Kiln on screen as a display list: the world by presentation ladders (D-178) — the light (a glow; frames of a flame baked once from the glow's own form; none) and the scenery (simulated beside the world; as placed) — what flies, the wand's bolts, the exit, Mui. It reads the state and changes nothing of it |
+| [window](window) | Kiln in a window: `kiln [--level first|flawed] [--record FILE]` — A D walk, W jumps, the left button casts toward the pointer, Q or the right button the next spell; a gamepad's left stick, A, the right trigger, Y. The picture is the display list drawn on the CPU each frame, shown cell for cell; each frame heard; the recording (`level NAME`, then xengine.input's lines) played alone is the same hash |
 | [sound](sound) | Kiln heard: each frame the world says what its laws did (stone shattered, wood caught, lava set) and each is a sound made from the material — no sound is written for anything; heard from where Mui stands; reads the state, changes nothing |
 
 The first cavern: Mui starts on a ledge; a barricade of wood bars the way (fire); a pool with a crate afloat (jump, or swim before her breath runs out); a stone wall to the ceiling (a bomb; a keg of gunpowder by it is a hazard, not a key); a pit of lava (water sets it to stone); the exit beyond.
@@ -20,6 +21,7 @@ The first cavern: Mui starts on a ledge; a barricade of wood bars the way (fire)
 mcpp test -p omui.showcase.kiln.sim     # stands, burns the barricade open, swims, holes the wall, cools the lava; the same frames bit for bit
 mcpp test -p omui.showcase.kiln.headless   # the playtest: finishes the first cavern; stops at the planted second wall and says why; why a grain of sand is where it is, back through the law that shattered the stone to the pressure Mui applied
 mcpp test -p omui.showcase.kiln.picture    # the four steps of the ladder drawn headless; the game's checksum the same at each
+mcpp test -p omui.showcase.kiln.window     # played in a window by keys, the mouse and a gamepad; its recording the headless game, the same hash
 mcpp test -p omui.showcase.kiln.sound      # the bomb at the wall is stone's crumble to her right; the barricade catching; the same bits each time
 ```
 

@@ -1,0 +1,41 @@
+# Kiln in a window (the release plan's RC2.5): Mui's cavern played with keys, the mouse or a gamepad, drawn each
+# frame (the picture's display list on the CPU), heard through the system's output; every frame's input recorded,
+# so the window's game and the headless game are the same bits.
+[package]
+namespace   = "omui.showcase.kiln"
+name        = "window"
+version     = "0.1.0"
+description = "Kiln in a window: the cavern played with keys, the mouse or a gamepad, drawn and heard; its recording the headless game"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+
+[targets.omui-showcase-kiln-window]
+kind = "lib"
+
+[targets.kiln]
+kind = "bin"
+main = "src/entry/main.cpp"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+omui.showcase.kiln.picture  = { path = "../picture" }
+omui.showcase.kiln.headless = { path = "../headless" }
+omui.showcase.kiln.sound    = { path = "../sound" }
+omui.sdk         = { path = "../../../modules/projects/omui/sdk" }
+xengine.ui       = { path = "../../../modules/projects/xengine/game/ui" }
+xengine.input    = { path = "../../../modules/projects/xengine/game/input" }
+xengine.audio.device = { path = "../../../modules/projects/xengine/kernel/audio/device" }
+xrender.raster   = { path = "../../../modules/projects/xrender/raster" }
+xrender.vector   = { path = "../../../modules/projects/xrender/vector" }
+mcpplibs.cmdline = "0.0.3"
+mcpplibs.os      = "0.4.4"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+omui.host.headless = { path = "../../../modules/projects/omui/host/headless" }

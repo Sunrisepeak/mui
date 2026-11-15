@@ -630,6 +630,30 @@ export interface Appearance {
 }
 /** `export default defineAppearance({ materials: { wood: { color: "#8a5a2b" } }, states: [{ by: "temperature", from: 800, to: 1500, color: "#ff4a0c", emits: true }] })`. */
 export declare function defineAppearance(appearance: Appearance): Defined<"appearance">;
+
+// ── a world of cells (xengine.cellular's lattice): a game's level ───────────
+
+/** Matter that is only shown (D-178): never in the simulation; a picture with room simulates it beside the world. */
+export interface WorldScenery {
+    /** Cells: left, top, width, height. */
+    at: [number, number, number, number];
+    material: string;
+}
+/**
+ * A level of cells: rows of characters, a cell each, the first row the top, and what each character is — a
+ * material of the definition (`"stone"`), or a role the game gives it (`"start"`, `"exit"`, `"body:wood"`: wood
+ * that is a body). A character the legend does not name is air. Rows are data: a module may paint them by code.
+ */
+export interface World {
+    name: string;
+    legend: { [character: string]: string };
+    rows: string[];
+    scenery?: WorldScenery[];
+    /** The game's own numbers for this level (charges, seconds …). */
+    numbers?: { [name: string]: number };
+}
+/** `export default defineWorld({ name: "a cavern", legend: { "#": "stone", "P": "start" }, rows: ["#####", "#P..#", "#####"] })`. */
+export declare function defineWorld(world: World): Defined<"world">;
 )ts";
 }
 

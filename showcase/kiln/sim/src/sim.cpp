@@ -3,6 +3,7 @@ import std;
 import xengine.matter.json;
 import mlibs.hash;
 import xengine.cellular.verbs;
+import mlibs.json;
 
 namespace kiln {
 namespace substance = xengine::matter;
@@ -17,53 +18,39 @@ const substance::Program& matter() {
 }
 
 namespace level {
-namespace {
-std::vector<std::string> first_grid(bool flawed) {
-        // Painted: rectangles of material on a grid of air, then read as rows.
-        constexpr int width = 128, height = 64;
-        std::vector<std::string> rows(height, std::string(width, '.'));
-        const auto paint = [&](int x0, int y0, int x1, int y1, char what) {
-            for (int y = y0; y <= y1; ++y)
-                for (int x = x0; x <= x1; ++x) rows[static_cast<std::size_t>(y)][static_cast<std::size_t>(x)] = what;
-        };
-        paint(0, 0, width - 1, 17, '#');            // the rock above
-        paint(0, 62, width - 1, height - 1, '#');   // and below
-        paint(0, 0, 1, height - 1, '#');
-        paint(width - 2, 0, width - 1, height - 1, '#');
-        paint(2, 30, 29, 61, '#');                   // the ledge she starts on
-        paint(25, 21, 27, 29, 'w');                  // a barricade of wood across the way: fire
-        paint(30, 56, 59, 61, '#');                  // the pool's floor
-        paint(30, 40, 59, 55, '~');                  // its water
-        paint(41, 34, 46, 39, 'C');                  // a crate afloat
-        paint(60, 34, 79, 61, '#');                  // the far ledge
-        paint(76, 18, 79, 33, '#');                  // a wall to the ceiling: a bomb
-        paint(72, 31, 73, 33, 'g');                  // a keg of gunpowder by it (fire at it: a hazard, not a key)
-        paint(80, 34, 85, 61, '#');                  // beyond the wall
-        paint(86, 44, 111, 61, '#');                 // the lava pit's floor
-        paint(86, 36, 111, 43, 'l');                 // lava: water cools it to stone
-        paint(112, 34, 125, 61, '#');                // the last floor
-        paint(118, 29, 121, 33, 'E');                // the exit
-        paint(22, 0, 23, 17, '.');                   // a shaft to the sky before the barricade: where a fire's heat leaves
-        paint(70, 0, 71, 17, '.');                   // and one before the wall
-        if (flawed) paint(113, 18, 116, 33, '#');  // the mistake: a second wall, and one bomb
-        rows[30][6] = 'P';
-        rows[29][6] = '.';
-        return rows;
+std::expected<Level, std::string> read(std::string_view json, std::string_view name) {
+    const auto document = mlibs::json::Document::parse(json, std::string(name));
+    if (!document) return std::unexpected(document.error().text());
+    const auto world = document->root()["world"];
+    const auto problem = [&](const mlibs::json::Node& at, std::string_view what) -> std::expected<Level, std::string> { return std::unexpected(document->problem(at, std::string(what)).text()); };
+    Level made;
+    if (!world["name"].text()) return problem(world["name"], "a level has a name");
+    made.name = std::string(*world["name"].text());
+    for (const auto& [character, meaning] : world["legend"].members()) {
+        if (character.size() != 1 || !meaning.text()) return problem(meaning, "a legend's key is one character, its value a material or a role");
+        made.legend.emplace_back(character[0], *meaning.text());
+    }
+    for (const auto& row : world["rows"].items()) {
+        if (!row.text()) return problem(row, "a row is a string");
+        made.rows.emplace_back(*row.text());
+    }
+    if (made.rows.empty()) return problem(world["rows"], "a level has rows");
+    for (const auto& scenery : world["scenery"].items()) {
+        const auto at = scenery["at"].items();
+        if (at.size() != 4 || !scenery["material"].text()) return problem(scenery, "scenery is `at` [left, top, width, height] and a material");
+        std::array<std::uint32_t, 4> cells{};
+        for (std::size_t index = 0; index < 4; ++index) cells[index] = static_cast<std::uint32_t>(at[index].integer().value_or(0));
+        made.scenery.push_back(Scenery{.region = {cells[0], cells[1], cells[2], cells[3]}, .material = *scenery["material"].text()});
+    }
+    if (const auto bombs = world["numbers"]["bombs"].integer()) made.bombs = static_cast<std::uint32_t>(*bombs);
+    return made;
 }
-}  // namespace
-Level first() {
-    static const std::vector<std::string> grid = first_grid(false);
-    Level level{.name = "the first cavern", .bombs = 2};
-    // Dry roots hanging by the barricade, brush on the ledge before it, a trail of it on the far ledge.
-    level.scenery = {{{28, 18, 5, 6}, "wood"}, {{17, 28, 7, 2}, "wood"}, {{62, 33, 8, 1}, "wood"}};
-    for (const std::string& row : grid) level.rows.push_back(row);
-    return level;
-}
-Level flawed() {
-    static const std::vector<std::string> grid = first_grid(true);
-    Level level{.name = "the first cavern, with a second wall", .bombs = 1};
-    for (const std::string& row : grid) level.rows.push_back(row);
-    return level;
+Level first() { return *read(first_world, "first.world.omui.json"); }
+Level flawed() { return *read(flawed_world, "flawed.world.omui.json"); }
+std::optional<Level> named(std::string_view stem) {
+    if (stem == "first") return first();
+    if (stem == "flawed") return flawed();
+    return std::nullopt;
 }
 }  // namespace level
 
@@ -129,25 +116,33 @@ std::expected<State, std::string> start(const Level& level) {
     State state;
     state.world = mlibs::simulation::Branching<rigid::MatterWorld>(std::move(*made));
     auto& world = *state.world;
-    const std::array<std::pair<char, std::string_view>, 10> legend{
-        {{'#', "stone"}, {'w', "wood"}, {'~', "water"}, {'s', "sand"}, {'o', "oil"}, {'l', "lava"}, {'g', "gunpowder"}, {'i', "iron"}, {'I', "ice"}, {'C', "wood"}}};
     std::optional<std::pair<std::uint32_t, std::uint32_t>> feet;
     std::uint32_t exit_left = width, exit_top = height, exit_right = 0, exit_bottom = 0;
     std::uint32_t crate_left = width, crate_top = height, crate_right = 0, crate_bottom = 0;
     for (std::uint32_t y = 0; y < height; ++y)
         for (std::uint32_t x = 0; x < level.rows[y].size(); ++x) {
             const char what = level.rows[y][x];
-            if (what == 'P') feet = {x, y};
-            if (what == 'E') exit_left = std::min(exit_left, x), exit_top = std::min(exit_top, y), exit_right = std::max(exit_right, x), exit_bottom = std::max(exit_bottom, y);
-            if (what == 'C') crate_left = std::min(crate_left, x), crate_top = std::min(crate_top, y), crate_right = std::max(crate_right, x), crate_bottom = std::max(crate_bottom, y);
-            const auto found = std::ranges::find(legend, what, &std::pair<char, std::string_view>::first);
-            if (found == legend.end()) continue;
-            const auto material = program.material(found->second);
-            if (!material) return std::unexpected(std::format("the definition has no `{}`", found->second));
+            const auto found = std::ranges::find(level.legend, what, &std::pair<char, std::string>::first);
+            if (found == level.legend.end()) continue;  // air
+            std::string_view meaning = found->second;
+            if (meaning == "start") {
+                feet = {x, y};
+                continue;
+            }
+            if (meaning == "exit") {
+                exit_left = std::min(exit_left, x), exit_top = std::min(exit_top, y), exit_right = std::max(exit_right, x), exit_bottom = std::max(exit_bottom, y);
+                continue;
+            }
+            if (meaning.starts_with("body:")) {
+                meaning.remove_prefix(5);
+                crate_left = std::min(crate_left, x), crate_top = std::min(crate_top, y), crate_right = std::max(crate_right, x), crate_bottom = std::max(crate_bottom, y);
+            }
+            const auto material = program.material(meaning);
+            if (!material) return std::unexpected(std::format("`{}` at {}, {}: the definition has no `{}`, and it is no role (start, exit, body:<material>)", what, x, y, meaning));
             world.place({x, y, 1, 1}, *material);
         }
-    if (!feet) return std::unexpected(std::string("a level with no `P`: where Mui stands"));
-    if (exit_right < exit_left) return std::unexpected(std::string("a level with no `E`: the exit"));
+    if (!feet) return std::unexpected(std::string("a level with no `start`: where Mui stands"));
+    if (exit_right < exit_left) return std::unexpected(std::string("a level with no `exit`"));
     state.exit = {exit_left, exit_top, exit_right - exit_left + 1, exit_bottom - exit_top + 1};
     if (crate_right >= crate_left) {
         auto crates = world.carve({crate_left, crate_top, crate_right - crate_left + 1, crate_bottom - crate_top + 1});

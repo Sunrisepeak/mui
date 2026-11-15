@@ -49,6 +49,18 @@ for (int frame = 0; frame < 600; ++frame) world->step();        // 60 frames a s
 
 The post burns upward piece by piece and leaves ash; the crate floats if it falls in water, and falls in two when half of it has burned.
 
+A game's level is data: `defineWorld` (`omui/define`) is a legend — a character a cell, each a material or a role the game gives it — and rows, which a module may paint by code; it evaluates to JSON the game reads. Kiln's caverns are written so (`showcase/kiln/sim/levels/`):
+
+```ts
+import { defineWorld } from "omui/define";
+export default defineWorld({
+  name: "a ledge over water",
+  legend: { "#": "stone", "~": "water", C: "body:wood", P: "start", E: "exit" },
+  rows: ["#......E", "#P..C..#", "###~~~##", "########"],
+  numbers: { bombs: 1 },
+});
+```
+
 ## Replay, branches, the same result
 
 A world is a deterministic value:

@@ -27,6 +27,10 @@ xengine.input    = { path = "../../../modules/projects/xengine/game/input" }
 xengine.cellular = { path = "../../../modules/projects/xengine/kernel/cellular", features = ["rigid", "verbs"] }
 xengine.matter   = { path = "../../../modules/projects/xengine/kernel/matter" }
 mlibs.utils      = { path = "../../../modules/base/utils" }
+mlibs.json       = { path = "../../../modules/base/json" }
+
+[build-dependencies]
+omui.build.embed = { path = "../../../mcpp/embed", host-module = true }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"

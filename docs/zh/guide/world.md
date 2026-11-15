@@ -49,6 +49,18 @@ for (int frame = 0; frame < 600; ++frame) world->step();        // 每秒 60 帧
 
 木桩一节一节烧上去变成灰；箱子掉进水里会浮起来，烧掉一半会裂成两块。
 
+游戏的关卡是数据：`defineWorld`（`omui/define`）由图例（一格一个字符，每个字符是一种材料，或者游戏赋予它的角色）和若干行组成，行可以由模块用代码画出来；它求值成游戏读取的 JSON。Kiln 的洞穴就是这样写的（`showcase/kiln/sim/levels/`）：
+
+```ts
+import { defineWorld } from "omui/define";
+export default defineWorld({
+  name: "水上的岩架",
+  legend: { "#": "stone", "~": "water", C: "body:wood", P: "start", E: "exit" },
+  rows: ["#......E", "#P..C..#", "###~~~##", "########"],
+  numbers: { bombs: 1 },
+});
+```
+
 ## 回放、分叉、同样的结果
 
 世界是一个确定的值：

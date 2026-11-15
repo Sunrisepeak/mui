@@ -30,6 +30,8 @@ mcpp test -p omui.showcase.quay.sound      # a shot on the right: the right ear 
 mcpp test -p omui.showcase.quay.window     # played in a window by keys and the mouse, heard; the recording the same bits with no window
 mcpp test -p omui.showcase.quay.play       # on the device (lavapipe in CI): the start, a warden near, the lit beacon within 0.4% of the reference's pixels; the window on a real window's device
 mcpp test -p omui.showcase.quay.picture    # from the start: containers, lamps glowing, the beacon over them; one tree, two views; the lit beacon brighter than the display
+# the frame on the page's WebGPU, timed as the desktop bench times it (D-187's 16.7 ms at the p99 on a real GPU; a display is needed: tools/dev/browser-gpu.sh):
+mcpp test --target wasm32-emscripten --profile wasm-browser -p omui.showcase.quay.picture --no-run && tools/dev/browser-gpu.sh target/wasm32-emscripten/*/bin/omui.showcase.quay.picture/web_frame_test.js --require-webgpu
 mcpp test -p omui.showcase.quay.headless   # the person's view holds no places; the agent wins as a person; the planted mistake is found and said
 mcpp test -p omui.showcase.quay.sim   # the harbour; a copy is a branch; a warden hears a shot through the containers and goes to look, the one 60 m off does not; a player that walks the paths and shoots what it sees lights the beacon at 27.9 s, the same frames every run
 ```

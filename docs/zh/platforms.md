@@ -6,14 +6,14 @@
 |---|---|---|---|---|---|---|---|
 | CPU reference rendering, simulation and the semantic tree | 稳定 | 实机 | 实机 | 实机 | 实机 | 实机 | 软件 |
 | 2D on a GPU device (xrender, mlibs.rhi) | 稳定 | 实机 | 未验证 | 软件 | 软件 | 软件 | 未验证 |
-| 3D mesh pass on a device (xrender.mesh.gpu) | 预览 | 实机 | 未验证 | 软件 | 软件 | 软件 | 未验证 |
+| 3D mesh pass on a device (xrender.mesh.gpu) | 预览 | 实机 | 软件 | 软件 | 软件 | 软件 | 未验证 |
 | Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; xrender.mesh.gpu) | 预览 | 实机 | 软件 | 未验证 | 未验证 | 未验证 | 未验证 |
 | A window drawn by a device (quay.desktop) | 预览 | 软件 | 未验证 | 未验证 | 软件 | 软件 | 未验证 |
 | The Direct3D 12 device backend | 预览 | | | | 未验证 | | |
 | The accessibility bridge to the system's screen reader | 稳定 | 实机 | 未验证 | 未验证 | 未验证 | | |
 | Input methods (composition, candidates) | 稳定 | 软件 | 软件 | 软件 | 软件 | | |
 | Gamepads (Quay, widget breakout) | 预览 | 软件 | 未验证 | 软件 | 软件 | | |
-| D-187 on weaker machines (integrated GPUs, mobile): p99 ≤ 16.7 ms | 预览 | 未验证 | | | | | 未验证 |
+| D-187 on weaker machines (integrated GPUs, mobile): p99 ≤ 16.7 ms | 预览 | 未验证 | 未验证 | | | | 未验证 |
 
 ## 每格的依据
 
@@ -30,7 +30,7 @@
 - **2D on a GPU device (xrender, mlibs.rhi)**, Linux arm64: CI row ubuntu-24.04-arm: lavapipe
 - **2D on a GPU device (xrender, mlibs.rhi)**, Android: 缺: a device run; CI builds and runs the emulator without a GPU device case
 - **3D mesh pass on a device (xrender.mesh.gpu)**, Linux x64: RTX 4080 headless (tools/dev/gpu-real.sh): quay.picture.device; lavapipe on CI
-- **3D mesh pass on a device (xrender.mesh.gpu)**, Web (wasm32): 缺: a real browser's WebGPU on a real GPU (RC2.1 measures Quay's frame time there)
+- **3D mesh pass on a device (xrender.mesh.gpu)**, Web (wasm32): Quay's frame on headless Chromium's SwiftShader WebGPU (showcase/quay/picture web_frame_test --frames 20: 46 draws, 8 lights; ~3 s a frame, not performance); 缺: a real browser on a real GPU: web_frame_test through tools/dev/browser-gpu.sh where a display is (headless Chromium has no Vulkan on NVIDIA's driver)
 - **3D mesh pass on a device (xrender.mesh.gpu)**, macOS arm64: quay.picture.device on CI's Apple Paravirtual device (offscreen)
 - **3D mesh pass on a device (xrender.mesh.gpu)**, Windows x64: CI row windows-2022: lavapipe
 - **3D mesh pass on a device (xrender.mesh.gpu)**, Linux arm64: CI row ubuntu-24.04-arm: lavapipe
@@ -60,7 +60,8 @@
 - **Gamepads (Quay, widget breakout)**, Web (wasm32): 缺: the Gamepad API in a real browser with a pad
 - **Gamepads (Quay, widget breakout)**, macOS arm64: the same tests on CI row macos-15
 - **Gamepads (Quay, widget breakout)**, Windows x64: the same tests on CI row windows-2022
-- **D-187 on weaker machines (integrated GPUs, mobile): p99 ≤ 16.7 ms**, Linux x64: 缺: an integrated-GPU machine; only the RTX 4080 and browsers are measured
+- **D-187 on weaker machines (integrated GPUs, mobile): p99 ≤ 16.7 ms**, Linux x64: 缺: an integrated-GPU machine; only the RTX 4080 is measured
+- **D-187 on weaker machines (integrated GPUs, mobile): p99 ≤ 16.7 ms**, Web (wasm32): 缺: Quay's frame in a real browser on a real GPU (web_frame_test, tools/dev/browser-gpu.sh, where a display is): RC2.1
 - **D-187 on weaker machines (integrated GPUs, mobile): p99 ≤ 16.7 ms**, Android: 缺: a mobile device
 
 由 `omui-devtools platforms` 从 [platforms.omui.json](../platforms.omui.json) 生成，不要手改。

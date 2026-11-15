@@ -127,7 +127,10 @@ await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const port = server.address().port;
 
 const profile = mkdtempSync(join(tmpdir(), 'omui-chrome-'));
-const browser = spawn(chrome, ['--headless', '--no-sandbox', '--no-first-run', '--disable-gpu-sandbox', `--user-data-dir=${profile}`, ...flags,
+// OMUI_BROWSER_HEADED=1: a window on the display there is (tools/dev/browser-gpu.sh: a real GPU's Vulkan, which headless
+// Chromium reaches only through VK_EXT_headless_surface).
+const headless = process.env.OMUI_BROWSER_HEADED === '1' ? [] : ['--headless'];
+const browser = spawn(chrome, [...headless, '--no-sandbox', '--no-first-run', '--disable-gpu-sandbox', `--user-data-dir=${profile}`, ...flags,
                                `http://localhost:${port}/`], { stdio: ['ignore', 'ignore', 'pipe'] });
 let log = '';
 browser.stderr.on('data', (c) => { log += c; });

@@ -77,6 +77,15 @@ for backend in webgpu webgl; do
     || { echo "::error::the mesh pass's suite failed on the page's $backend"; exit 1; }
 done
 
+# 1d. Quay's frame on the page's WebGPU (RC2.1's program): a few frames, that it runs — SwiftShader's times are not
+# performance; the p99 is measured on a real GPU (tools/dev/browser-gpu.sh).
+"$mcpp" test --target wasm32-emscripten --profile wasm-browser -p omui.showcase.quay.picture --no-run \
+  || { echo "::error::Quay's web frame did not build for the browser"; exit 1; }
+program=$(find target/wasm32-emscripten -path '*/bin/*' -name "web_frame_test.js" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2 || true)
+[ -n "$program" ] || { echo "::error::web_frame_test.js was not built"; exit 1; }
+"$node_bin" tools/ci/browser.mjs --chrome "$chrome" --timeout 600 "$program" --require-webgpu --frames 3 \
+  || { echo "::error::Quay's frame failed on the page's WebGPU"; exit 1; }
+
 # 2. host.web drawing on the page's WebGPU, then its WebGL2 (a canvas keeps
 # the first kind of context it gives: one program run for each).
 "$mcpp" test --target wasm32-emscripten --profile wasm-browser -p omui.host.web --no-run \

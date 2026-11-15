@@ -41,7 +41,7 @@
       "label": "preview",
       "cells": {
         "linux-x64": {"status": "real", "evidence": "RTX 4080 headless (tools/dev/gpu-real.sh): quay.picture.device; lavapipe on CI"},
-        "web": {"status": "unverified", "needs": "a real browser's WebGPU on a real GPU (RC2.1 measures Quay's frame time there)"},
+        "web": {"status": "software", "evidence": "Quay's frame on headless Chromium's SwiftShader WebGPU (showcase/quay/picture web_frame_test --frames 20: 46 draws, 8 lights; ~3 s a frame, not performance)", "needs": "a real browser on a real GPU: web_frame_test through tools/dev/browser-gpu.sh where a display is (headless Chromium has no Vulkan on NVIDIA's driver)"},
         "macos-arm64": {"status": "software", "evidence": "quay.picture.device on CI's Apple Paravirtual device (offscreen)"},
         "windows-x64": {"status": "software", "evidence": "CI row windows-2022: lavapipe"},
         "linux-arm64": {"status": "software", "evidence": "CI row ubuntu-24.04-arm: lavapipe"},
@@ -120,7 +120,8 @@
       "name": "D-187 on weaker machines (integrated GPUs, mobile): p99 ≤ 16.7 ms",
       "label": "preview",
       "cells": {
-        "linux-x64": {"status": "unverified", "needs": "an integrated-GPU machine; only the RTX 4080 and browsers are measured"},
+        "linux-x64": {"status": "unverified", "needs": "an integrated-GPU machine; only the RTX 4080 is measured"},
+        "web": {"status": "unverified", "needs": "Quay's frame in a real browser on a real GPU (web_frame_test, tools/dev/browser-gpu.sh, where a display is): RC2.1"},
         "android": {"status": "unverified", "needs": "a mobile device"}
       }
     }

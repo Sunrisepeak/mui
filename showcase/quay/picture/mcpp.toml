@@ -40,3 +40,6 @@ mlibs.utils    = { path = "../../../modules/base/utils" }
 mlibs.image    = { path = "../../../modules/base/image" }
 mlibs.json     = { path = "../../../modules/base/json" }
 omui.showcase.quay.headless = { path = "../headless" }
+# The frame on the page's WebGPU (tests/web_frame_test.cpp: RC2.1, run in a browser by tools/dev/browser-gpu.sh).
+xrender.rhi.webgpu = { path = "../../../modules/projects/xrender/rhi/webgpu" }
+mcpplibs.os    = "0.4.4"

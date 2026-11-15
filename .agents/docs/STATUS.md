@@ -20,6 +20,7 @@ Exit (node N0): one CI run green on every tier-1 row (unverified cells by the pl
 | RC1.1 labels in every manifest, project READMEs' label tables, lint `maturity` (ahead: metadata only) | done | 175 manifests: 102 stable, 58 preview, 15 experimental (§2.3); 6 stable packages name the preview parts they use (`lower`); experimental READMEs say target, gap, graduation; self-test 40 of 40 |
 | RC2.12 Glade's basic gate: T5.8b (ahead: no prerequisite) | done | `showcase/glade/headless`: the valley at `xengine.runtime`, a hand (pointer aims; torch, pour, push, rain, lightning, rod; wind); an agent reading only the view meets across, campfire (after rain) and ice in 3 branches, each `why` back to the hand; `glade.headless` 3 cases, 33.8 s; storm not met (R11) |
 | RC1.2 the platform table and `unverified` (ahead) | done | `docs/platforms.omui.json`: 9 capabilities × 6 platforms, each cell real/software/unverified with its evidence or what is missing; `omui-devtools platforms` writes `docs/{en,zh}/platforms.md` (a test holds them current); lint `platform-table`; the lead ledger's `pending_hardware` is `unverified`; mtest needs nothing new: a skip's reason `unverified: …` says it |
+| RC1.3 the package inventory (ahead) | done | 176 members (omui 36, xengine 25, xrender 20, mlibs base 16, hanim 9, gongfu 7, showcases 18, examples 12, tools 5, mcpp 4); by the three rules: 18 variants not proving a closure, 8 CTS packages used by at most their owner, 9 single-consumer small libraries — 34 candidates (176 → about 142); the rest of the way to ≤ 130 is RC1.5's per-project review; the list is in this checkpoint's commit |
 | RC1.4 lint `module-closure` (ahead: no prerequisite) | done | a package's interface re-exports only what its manifest lists (`[package.metadata.openmui] reexports`); 46 packages declare theirs; at `f8f9527c` (T1.2) it reports `xpbd.cppm: re-exports xengine.matter`; self-test 39 of 39 |
 | RC1.7 design documents' status, two summaries (ahead) | done | `.agents/docs/README.md`: a status column — 8 有效, 8 已被取代 (by whom), 45 历史; one-page summaries of the foundation design (`2026-11-12-foundation-summary.md`) and the TS-first convergence (`2026-11-09-agent-era-ts-first-summary.md`) |
 
@@ -31,7 +32,7 @@ None yet: N0 is the first. Each node gets a block of at most 12 lines: date and 
 
 | Counter | 2026-11-15 (RC0 start) | 0.1 target |
 |---|---|---|
-| Packages | 175 (with `omui.devtools`) | ≤ 130 |
+| Packages | 176 (with `omui.devtools` and `glade.headless`) | ≤ 130 |
 | Open reds, tier-1, stable and preview | 8 rows (54, 55, 56/33, 82, 96, 97, 98, 99) and 48, 65 to confirm | 0 |
 | Lint problems | 0 | 0, the five new rules included |
 | STATUS lines | under 200 (was 407) | ≤ 200 |

@@ -17,7 +17,7 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-"omui.showcase.kiln.sim" = { path = "../sim" }
+omui.showcase.kiln.sim = { path = "../sim" }
 xengine.runtime = { path = "../../../modules/projects/xengine/game/runtime" }
 xengine.input   = { path = "../../../modules/projects/xengine/game/input" }
 # The matter of the game's world as a subject beside the game (kiln::Causes): the world's lattice under the

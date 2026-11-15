@@ -19,7 +19,7 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-"omui.showcase.widget_breakout.sim" = { path = "../sim" }
+omui.showcase.widget_breakout.sim = { path = "../sim" }
 xengine.runtime = { path = "../../../modules/projects/xengine/game/runtime" }
 xengine.input   = { path = "../../../modules/projects/xengine/game/input" }
 xengine.world   = { path = "../../../modules/projects/xengine/game/world" }

@@ -44,10 +44,13 @@ std::expected<Device, std::string> Device::open(Feed& feed, DeviceOptions option
     return start(std::move(impl), feed.rate(), options);
 }
 
+bool Device::has_null() noexcept { return ma_is_backend_enabled(ma_backend_null) != 0; }
+
 std::expected<Device, std::string> Device::start(std::unique_ptr<Impl> impl, std::int32_t rate, DeviceOptions options) {
     ma_backend null = ma_backend_null;
     if (ma_context_init(options.null ? &null : nullptr, options.null ? 1 : 0, nullptr, &impl->context) != MA_SUCCESS)
-        return std::unexpected(std::string(options.null ? "no null audio backend" : "no audio backend on this system"));
+        return std::unexpected(std::string(options.null ? (has_null() ? "the null audio backend would not open" : "no null audio backend in this build (no threads: Device::has_null())")
+                                                        : "no audio backend on this system"));
     impl->context_open = true;
     ma_device_config config = ma_device_config_init(ma_device_type_playback);
     config.playback.format = ma_format_f32;

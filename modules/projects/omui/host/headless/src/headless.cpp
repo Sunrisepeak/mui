@@ -140,6 +140,12 @@ Headless::Headless(HeadlessOptions options) : impl_(std::make_unique<Impl>()) {
 
 Headless::~Headless() {
     if (impl_->endpoint) impl_->endpoint->stop();
+    // What reads the runtime, then the runtime, while the host is whole (the desktop's and the Web's order): its
+    // components go with it, and one letting go of the pointer as it goes (a world's viewport) calls the host's
+    // pointer lock — into a host half taken down, that wrote through a pointer libc++ has already cleared.
+    impl_->endpoint.reset();
+    impl_->tree.reset();
+    impl_->runtime.reset();
 }
 
 Runtime& Headless::runtime() noexcept { return *impl_->runtime; }

@@ -19,8 +19,8 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-"xrender.particle.gpu" = { path = ".." }
-"xrender.mesh.gpu"     = { path = "../../../mesh/gpu" }
+xrender.particle.gpu   = { path = ".." }
+xrender.mesh.gpu       = { path = "../../../mesh/gpu" }
 mlibs.rhi              = { path = "../../../../../gfx/rhi" }
 mlibs.cts              = { path = "../../../../../base/cts" }
 mlibs.geom             = { path = "../../../../../base/geom" }

@@ -12,6 +12,7 @@ namespace audio = xengine::audio;
 UTest cases{"audio.device", [] {
 
     "on the null backend the device pulls the mixer at real time while this thread plays into it"_test = [] {
+        if (!audio::Device::has_null()) skip("no null audio backend in this build (no threads: the Web's) — Device::has_null()");
         audio::Mixer mixer;
         audio::Sound tick{.name = "tick"};
         tick.layers.push_back({.length = 0.01f, .pitch = {880, 880}});
@@ -60,6 +61,7 @@ UTest cases{"audio.device", [] {
     };
 
     "on the null backend the device drains a feed its owner keeps ahead"_test = [] {
+        if (!audio::Device::has_null()) skip("no null audio backend in this build (no threads: the Web's) — Device::has_null()");
         audio::Mixer mixer;
         audio::Feed feed(mixer.rate());
         feed.fill(mixer, 4096);  // ahead before the device starts

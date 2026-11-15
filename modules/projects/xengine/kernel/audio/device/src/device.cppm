@@ -51,6 +51,9 @@ public:
     [[nodiscard]] static std::expected<Device, std::string> open(Mixer& mixer, DeviceOptions options = {});
     // Opens the output at the feed's rate, playing what its owner pushes (the feed outlives the device).
     [[nodiscard]] static std::expected<Device, std::string> open(Feed& feed, DeviceOptions options = {});
+    // Whether `null` can open here: miniaudio's null backend runs a thread of its own, and a build without
+    // threads (the Web's) has none — a headless program there plays into a Mixer or a Feed offline instead.
+    [[nodiscard]] static bool has_null() noexcept;
     Device(Device&&) noexcept;
     Device& operator=(Device&&) noexcept;
     ~Device();  // stops and closes it

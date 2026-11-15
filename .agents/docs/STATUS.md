@@ -38,7 +38,9 @@ Exit (node N0): one CI run green on every tier-1 row (unverified cells by the pl
 
 ## Node records
 
-None yet: N0 is the first. Each node gets a block of at most 12 lines: date and head; the CI run and each row's verdict; the eight counters; labels changed; new reds and what was done; departures from the plan and why; the next stage re-estimated.
+Each node gets a block of at most 12 lines: date and head; the CI run and each row's verdict; the eight counters; labels changed; new reds and what was done; departures from the plan and why; the next stage re-estimated.
+
+**N0 — not reached (2026-11-16, run 43718991717 at 3a4d865e).** Green: Linux x64 and arm64, Android, site, lint, rows. Red: Web (101), Windows (82, mcpp#936), macOS (102, 103). Counters: 179 packages (≤ 130); open tier-1 reds 82, 101, 102, 103 (33 fixed locally); lint 0; STATUS 140 lines. Toolchain: mcpp 2026.11.12.1 (2026.11.15.1 out, #936 open), mtest 0.8.4 (0.9.0 out). Departure: RC2's slices ran ahead (no structural overlap). Next: push 15 commits, N0 on that run, then RC1.5.
 
 ## Counters (plan §3.3)
 
@@ -96,7 +98,9 @@ Kind: R regression, E environment, F flaky or time, T test expectation.
 | 97 | `xrender.mesh`'s "a ball under a picture of light, drawn and followed along rays" killed at 300 s | Linux x64; b229ad7d | F | fixed (RC0.4): the tracer's rows on every thread, the same bits; `mesh_test` 27.8 s locally; CI to confirm |
 | 98 | `quay.desktop` on macOS: "OMUI_REQUIRE_GPU=1 and no device: … No supported SDL_GPU backend found!" while `device_test` draws on the Apple Paravirtual device | macOS; e8660f4c (run 43685505783) | T | fixed (RC0.3): the test fixed the `offscreen` driver; CI to confirm |
 | 99 | `xengine.dynamics.cts`' `emergence3d_test` killed at 300 s after case 5 | Linux arm; e8660f4c (run 43685505783) | F | fixed (RC0.4): 113 → 22.7 s locally, the kernels at `-O2`; CI to confirm |
-| 101 | `tests/size/yard`: 725,381 B of Wasm shipped against 680,000 (code 463,544 / 430,000, data 256,845 / 227,000) | Web; run 43718991717 (first run to reach the step since a53455a9) | R | open (RC2.15): measured 2026-11-16 (726,071 B; code 464,232): `std` is 166 KB of the code, ~87 KB of it locale facets (num_get 32 K, locale 23 K, money 9 K, num_put 8 K, time_get 8 K, codecvt 5 K) a page drawing a mesh never uses — kept by `std::format`'s reference to `std::locale` (its `L` specifier). That is the larger lever (code would be ~377 K of 430 K), before the mesh pass's features (73 K) and both page languages' shader text (53 K) |
+| 101 | `tests/size/yard`: 725,381 B of Wasm against 680,000 (code 463,544 / 430,000, data 256,845 / 227,000) | Web; run 43718991717 | R | open (RC2.15): `std` is 166 KB of the code, ~87 KB of it locale facets (num_get 32 K, locale 23 K, money 9 K, num_put 8 K, time_get 8 K, codecvt 5 K) a mesh page never uses, kept by `std::format`'s reference to `std::locale` — the larger lever (~377 K of 430 K); then the mesh pass's features (73 K) and both page languages' shaders (53 K) |
+| 102 | macOS `mesh.blocks`: Apple's paravirtual device draws the KTX2 floor 406 of 129,600 pixels past 6 levels from the reference (bound 0.2 %), the same picture as light already 387 — its sampling of the sRGB sizes, not the blocks | macOS; run 43718991717 | R | the case now holds blocks to the same picture as light on one device (RTX 4080: 0 apart, mean 0.003) and ≤ 0.05 % more from the reference; Apple's sRGB sampling open (RC2.15); lavapipe 26.2.1 crashes in its JIT here (this CPU only) |
+| 103 | macOS: `showcase/quay/picture`'s package "did not build" in the test step, no compiler message (LLVM builds it here, tests too) | macOS; run 43718991717 | E | the rebuild family of red 82 (mcpp#874, #936) on another OS; watched on the next run |
 
 ### Upstream issues
 

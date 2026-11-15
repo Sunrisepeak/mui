@@ -159,6 +159,23 @@ Apart apart(const mesh::Targets& reference, std::span<const std::byte> device, b
     all.mean = all.compared ? sum / (static_cast<double>(all.compared) * 3) : 0;
     return all;
 }
+// Two drawings by devices, every pixel.
+Apart apart(std::span<const std::byte> first, std::span<const std::byte> second, int near) {
+    Apart all;
+    double sum = 0;
+    const std::size_t count = std::min(first.size(), second.size()) / 4;
+    for (std::size_t pixel = 0; pixel < count; ++pixel) {
+        ++all.compared;
+        int most = 0;
+        for (std::size_t channel = 0; channel < 3; ++channel) {
+            const int difference = std::abs(std::to_integer<int>(first[pixel * 4 + channel]) - std::to_integer<int>(second[pixel * 4 + channel]));
+            most = std::max(most, difference), sum += difference;
+        }
+        all.off += most > near, all.worst = std::max(all.worst, most);
+    }
+    all.mean = all.compared ? sum / (static_cast<double>(all.compared) * 3) : 0;
+    return all;
+}
 // A picture kept where the runner said (nowhere: not kept), for a person to look at.
 void keep(std::span<const std::byte> rgba, std::string_view name) {
     if (!scratch || scratch->empty()) return;
@@ -1253,14 +1270,22 @@ Cases suite_of() {
         // Of every size an eighth (a block of 16 texels in 16 bytes against 8 bytes a texel), but the sizes under a
         // block, which are a whole block each.
         expect(lt(bytes_as(format, 64) * 7, bytes_as(rhi::Format::rgba16_float, 64))) << "blocks are an eighth of the light's bytes";
-        // The transcoder's two outputs of one file — its BC7 (or ASTC, ETC2) and its pixels — drawn: within what
-        // the floor of tiles is held to.
-        // Measured on an RTX 4080 (BC7): 45 further than 6 levels, 8 further than 16, mean 0.062 — the pixels of the
-        // same picture as light 45 and 0.060. The bounds are the floor of tiles' (`mesh.textures`), and a mean a
-        // fifth of a level.
-        expect(lt(static_cast<double>(blocks_apart.off), 0.002 * static_cast<double>(blocks_apart.compared)) && lt(static_cast<double>(blocks_loosely.off), 0.0002 * static_cast<double>(blocks_loosely.compared)))
-            << "the blocks drawn are the reference's picture";
-        expect(lt(blocks_apart.mean, 0.2));
+        // The transcoder's two outputs of one file — its BC7 (or ASTC, ETC2) and its pixels — drawn by the same
+        // device: what packing changes, apart from how the device samples a picture at all. Within what the floor of
+        // tiles is held to against the reference (`mesh.textures`), and a mean a fifth of a level.
+        // Measured on an RTX 4080 (BC7): against the reference 45 further than 6 levels, 8 further than 16, mean
+        // 0.062 — the same picture as light 45 and 0.060. On Apple's paravirtual device (BC7) 406 and 387: its
+        // sampling of this sRGB picture's sizes is itself 0.3 % from the reference (red 102), the blocks add 19.
+        const Apart packed_apart = apart(as_light, as_blocks, 6), packed_loosely = apart(as_light, as_blocks, 16);
+        std::println("the blocks against the same picture as light on {}: {} of {} pixels further than 6 levels, {} further than 16, mean {:.3f}", device->caps().device,
+                     packed_apart.off, packed_apart.compared, packed_loosely.off, packed_apart.mean);
+        expect(lt(static_cast<double>(packed_apart.off), 0.002 * static_cast<double>(packed_apart.compared)) &&
+               lt(static_cast<double>(packed_loosely.off), 0.0002 * static_cast<double>(packed_loosely.compared)))
+            << "the blocks drawn are the picture as this device draws it";
+        expect(lt(packed_apart.mean, 0.2));
+        // And against the reference no further than the device's own drawing of the picture is, and a little.
+        expect(!(static_cast<double>(blocks_apart.off) > static_cast<double>(light_apart.off) + 0.0005 * static_cast<double>(blocks_apart.compared)))
+            << "packing adds at most 0.05 % of the pixels to how far the device is from the reference";
         // A picture as large as a game's, 1024 × 1024: the file's largest size laid sixteen times each way, as
         // blocks are laid (each block stands alone), against the same pixels as light — the bytes and the time
         // from the call to the device having it.

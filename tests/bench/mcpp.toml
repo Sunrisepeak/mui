@@ -59,9 +59,9 @@ omui.ui.canvas       = { path = "../../modules/projects/omui/components/canvas" 
 omui.showcase.markdown_wall   = { path = "../../showcase/markdown-wall" }
 omui.showcase.style_gallery = { path = "../../showcase/style-gallery" }
 omui.showcase.fighting = { path = "../../showcase/fighting" }
-omui.showcase.widget_breakout.sim = { path = "../../showcase/widget-breakout/sim" }
+omui.showcase.widget_breakout.headless = { path = "../../showcase/widget-breakout/headless" }  # its simulation (src/sim)
 # A frame of the FPS slice on a device (game/quay-frame-1080p-gpu, D-187).
-omui.showcase.quay.picture = { path = "../../showcase/quay/picture" }
+omui.showcase.quay = { path = "../../showcase/quay" }  # its picture
 # A chunked world branched and stepped (world/chunked-*).
 xengine.world = { path = "../../modules/projects/xengine/game/world" }
 "gongfu"                  = { path = "../../modules/projects/gongfu" }

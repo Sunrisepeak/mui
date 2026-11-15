@@ -6,7 +6,7 @@
 namespace   = "omui.showcase.swarm"
 name        = "window"
 version     = "0.1.0"
-description = "Swarm in a window: the arena drawn (a display list from the state) and played with keys, the pointer or a gamepad; its recording the headless game"
+description = "Swarm in a window (the arena drawn, played with keys, the pointer or a gamepad; its recording the headless game) and swarm-play, the game over lines"
 license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 
@@ -20,12 +20,19 @@ kind = "lib"
 kind = "bin"
 main = "src/entry/main.cpp"
 
+# swarm-play: the game over lines (a JSON request a line, the records of its answer) for an agent, a playtest or CI;
+# beside the window because both are the native systems' only (D-99).
+[targets.swarm-play]
+kind = "bin"
+main = "src/entry/play.cpp"
+
 [build]
 sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 omui.showcase.swarm.headless = { path = "../headless" }
+xengine.runtime  = { path = "../../../modules/projects/xengine/game/runtime", features = ["lines"] }  # swarm-play's
 omui.sdk         = { path = "../../../modules/projects/omui/sdk" }
 xengine.ui       = { path = "../../../modules/projects/xengine/game/ui" }
 xengine.input    = { path = "../../../modules/projects/xengine/game/input" }
@@ -38,4 +45,5 @@ mcpplibs.os      = "0.4.4"
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
 mlibs.utils    = { path = "../../../modules/base/utils" }
+mlibs.json     = { path = "../../../modules/base/json" }
 omui.host.headless = { path = "../../../modules/projects/omui/host/headless" }

@@ -25,9 +25,7 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-omui.showcase.quay.picture  = { path = "../picture" }
-omui.showcase.quay.headless = { path = "../headless" }
-omui.showcase.quay.sound    = { path = "../sound" }
+omui.showcase.quay = { path = ".." }
 omui.sdk         = { path = "../../../modules/projects/omui/sdk" }
 xengine.ui       = { path = "../../../modules/projects/xengine/game/ui" }
 xengine.input    = { path = "../../../modules/projects/xengine/game/input" }

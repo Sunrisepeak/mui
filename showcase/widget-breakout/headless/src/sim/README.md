@@ -1,6 +1,6 @@
-# omui.showcase.widget_breakout.sim
+# omui.showcase.widget_breakout.sim (in omui.showcase.widget_breakout.headless)
 
-The breakout's simulation (S4; [design](../../../.agents/docs/2026-10-29-mgame-s4-breakout-design.md) §5, §8). It is a pure function of the state and the frame's actions, at 120 steps a second.
+The breakout's simulation (S4; [design](../../../../../.agents/docs/2026-10-29-mgame-s4-breakout-design.md) §5, §8). It is a pure function of the state and the frame's actions, at 120 steps a second.
 
 ```cpp
 import omui.showcase.widget_breakout.sim;

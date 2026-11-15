@@ -3,7 +3,7 @@
 // wood, slower to catch; leaves its crown. Everything they do (catch, spread on the wind, steam in the rain) is the standard laws'.
 //
 // Its JSON snapshot, glade.matter.omui.json, is what the sim reads (matter::read_pack, embedded):
-//   omui-gen snapshot showcase/glade/sim/glade.matter.omui.ts --out showcase/glade/sim/glade.matter.omui.json
+//   omui-gen snapshot showcase/glade/headless/glade.matter.omui.ts --out showcase/glade/headless/glade.matter.omui.json
 import { defineMatter } from "omui/define";
 
 export default defineMatter({

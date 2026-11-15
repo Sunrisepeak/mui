@@ -1,4 +1,8 @@
-# kiln-play
+# Kiln: the window and kiln-play
+
+The window (`kiln`): the cavern played with keys, the mouse or a gamepad, drawn and heard, every frame's input recorded so the window's game and the headless game are the same bits.
+
+## kiln-play
 
 Kiln with no window, played over lines: each line of standard input a JSON request, each record of its answer a line of standard output.
 
@@ -20,6 +24,6 @@ Exit 0 done, 1 a request failed (the record says why and what to send instead), 
 
 The subjects are the game's (`world`: `xengine.world@0.1`) and, on the `assist` tier, the matter of its world. Nothing has to be known beforehand: `{"op":"subjects"}` lists what is here, `{"op":"describe","subject":"world"}` gives the tasks to begin with (the game's own first), `{"op":"find","q":"…"}` finds a control or an operation by what is wanted.
 
-## Why a member of its own
+## Why apart from the game
 
-`omui.showcase.kiln.headless` is a library that also builds for the Web. A program with a command line and standard input is for the native systems only (platform isolation, D-99).
+The game itself (`showcase/kiln`: the simulation, the game the runtime plays, its picture and its sound) also builds for the Web. A window, and a program with a command line and standard input, are for the native systems only (platform isolation, D-99).

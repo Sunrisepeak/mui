@@ -52,7 +52,7 @@ mlibs.json                       = { path = "../../modules/base/json" }
 omui.showcase.markdown_wall      = { path = "../markdown-wall" }
 omui.showcase.style_gallery      = { path = "../style-gallery" }
 omui.showcase.widget_breakout  = { path = "../widget-breakout" }
-"omui.showcase.widget_breakout.sim" = { path = "../widget-breakout/sim" }
+"omui.showcase.widget_breakout.headless" = { path = "../widget-breakout/headless" }  # its simulation (src/sim)
 mcpplibs.cmdline                    = "0.0.3"
 mcpplibs.os                         = "0.4.4"
 

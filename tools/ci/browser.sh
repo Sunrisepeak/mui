@@ -79,7 +79,7 @@ done
 
 # 1d. Quay's frame on the page's WebGPU (RC2.1's program): a few frames, that it runs — SwiftShader's times are not
 # performance; the p99 is measured on a real GPU (tools/dev/browser-gpu.sh).
-"$mcpp" test --target wasm32-emscripten --profile wasm-browser -p omui.showcase.quay.picture --no-run \
+"$mcpp" test --target wasm32-emscripten --profile wasm-browser -p omui.showcase.quay --no-run \
   || { echo "::error::Quay's web frame did not build for the browser"; exit 1; }
 program=$(find target/wasm32-emscripten -path '*/bin/*' -name "web_frame_test.js" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2 || true)
 [ -n "$program" ] || { echo "::error::web_frame_test.js was not built"; exit 1; }

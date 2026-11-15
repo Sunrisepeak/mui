@@ -30,7 +30,7 @@ What has been run where (release plan §2.5). **Real**: on real hardware or a re
 - **2D on a GPU device (xrender, mlibs.rhi)**, Linux arm64: CI row ubuntu-24.04-arm: lavapipe
 - **2D on a GPU device (xrender, mlibs.rhi)**, Android: missing: a device run; CI builds and runs the emulator without a GPU device case
 - **3D mesh pass on a device (xrender.mesh.gpu)**, Linux x64: RTX 4080 headless (tools/dev/gpu-real.sh): quay.picture.device; lavapipe on CI
-- **3D mesh pass on a device (xrender.mesh.gpu)**, Web (wasm32): Quay's frame on headless Chromium's SwiftShader WebGPU (showcase/quay/picture web_frame_test --frames 20: 46 draws, 8 lights; ~3 s a frame, not performance); missing: a real browser on a real GPU: web_frame_test through tools/dev/browser-gpu.sh where a display is (headless Chromium has no Vulkan on NVIDIA's driver)
+- **3D mesh pass on a device (xrender.mesh.gpu)**, Web (wasm32): Quay's frame on headless Chromium's SwiftShader WebGPU (showcase/quay web_frame_test --frames 20: 46 draws, 8 lights; ~3 s a frame, not performance); missing: a real browser on a real GPU: web_frame_test through tools/dev/browser-gpu.sh where a display is (headless Chromium has no Vulkan on NVIDIA's driver)
 - **3D mesh pass on a device (xrender.mesh.gpu)**, macOS arm64: quay.picture.device on CI's Apple Paravirtual device (offscreen)
 - **3D mesh pass on a device (xrender.mesh.gpu)**, Windows x64: CI row windows-2022: lavapipe
 - **3D mesh pass on a device (xrender.mesh.gpu)**, Linux arm64: CI row ubuntu-24.04-arm: lavapipe

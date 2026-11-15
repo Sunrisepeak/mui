@@ -1,6 +1,6 @@
 # Glade sim
 
-A pocket valley made of matter, poked by a few verbs, answering by the laws: the simulation of [Glade](..) (the M6.5 design's T5.8a). Ground of heights (flat banks, the stream's channel, a hill), a stream with a footbridge, grass on both banks, a campfire of logs and kindling in a ring of stones, a wooden crate in the long grass at the far bank's end, a block of ice, a tree on each bank.
+A pocket valley made of matter, poked by a few verbs, answering by the laws: the simulation of [Glade](../../..) (the M6.5 design's T5.8a). Ground of heights (flat banks, the stream's channel, a hill), a stream with a footbridge, grass on both banks, a campfire of logs and kindling in a ring of stones, a wooden crate in the long grass at the far bank's end, a block of ice, a tree on each bank.
 
 ```cpp
 import omui.showcase.glade.sim;
@@ -22,5 +22,5 @@ glade::explain(state, "crate");           // why it burns: back through the far 
 The state is the subject (T5.8b): `observe` and `explain` are what an agent reads, the verbs what it does, a copy what it tries them on — each answer with its causes. Its operations, `describe` and the task set come with the headless runtime.
 
 ```sh
-mcpp test -p omui.showcase.glade.sim
+mcpp test -p omui.showcase.glade.headless
 ```

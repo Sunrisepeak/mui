@@ -9,7 +9,7 @@
 # does not have (ANGLE: "A requested extension is not supported"), and with no Vulkan the page is offered SwiftShader
 # or nothing. Where there is none, this says so and stops — the measurement is then unverified (D-201).
 #
-#   tools/dev/browser-gpu.sh target/wasm32-emscripten/<hash>/bin/omui.showcase.quay.picture/web_frame_test.js --require-webgpu
+#   tools/dev/browser-gpu.sh target/wasm32-emscripten/<hash>/bin/omui.showcase.quay/web_frame_test.js --require-webgpu
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 if [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then

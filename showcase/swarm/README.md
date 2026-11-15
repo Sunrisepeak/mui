@@ -12,7 +12,7 @@ A small top-down shooter with no window: the player moves with two axes, aims wi
 |---|---|
 | [headless](headless) | The rules (`src/sim.cpp`) and the game as the runtime plays it (`swarm::Play`, `swarm::Standalone`). The state is plain data — the enemies and bullets in one block of entities ([xengine.world](../../modules/projects/xengine/game/world)), the player, the wave, a random stream (`mlibs.math`'s SplitMix64) — so a copy is a branch and its checksum (`mlibs.hash`) is the same for the same play. The game says its own controls (`left`, `right`, `up`, `down`, `shoot`, `aim`) and three tasks to begin with |
 | [window](window) | `swarm::picture::draw(state, list, rect)`: the arena as a display list, from the state alone (the floor, each enemy in its wave's colour, the bullets, the player and the gun's line toward `aim`, blinking while a touch costs nothing). `swarm` (`swarm::window::app`): the arena in a window — W A S D or the arrows move, the pointer aims, the left button or Space shoots; or a gamepad (the left stick moves, A shoots); `--seed N`, `--record FILE` (its lines played with no window are the same bits). One package: the picture has no other consumer (D-99) |
-| [play](play) | `swarm-play run --session FILE`: a JSON request a line on standard input, the records of its answer on standard output; the session's file is the game (its requests played again are the same bits), so an agent with a pipe plays across runs. A member of its own because a program with a command line and standard input is for the native systems only, and `headless` also builds for the Web (D-99) |
+| [window](window) (`swarm-play`) | `swarm-play run --session FILE`: a JSON request a line on standard input, the records of its answer on standard output; the session's file is the game (its requests played again are the same bits), so an agent with a pipe plays across runs. A member of its own because a program with a command line and standard input is for the native systems only, and `headless` also builds for the Web (D-99) |
 
 ```sh
 echo '{"op":"world.state"}' | swarm-play run --session game.jsonl      # the controls, each with the world.act that holds it
@@ -38,8 +38,7 @@ The subject is the runtime's (`world`, `xengine.world@0.1`): `world.observe`, `w
 
 ```sh
 mcpp test -p omui.showcase.swarm.headless   # the same inputs the same checksum; a seek back replayed bit for bit; an enemy shot; the game lost; each task as written; a player that clears waves; the agent contract
-mcpp test -p omui.showcase.swarm.play       # the program run twice on one session file: the same frame, hash and score
-mcpp test -p omui.showcase.swarm.window     # a state's picture read back (each thing where the state has it; pinned bytes); the window played by keys, pointer and gamepad; its recording the headless game
+mcpp test -p omui.showcase.swarm.window     # a state's picture read back (each thing where the state has it; pinned bytes); the window played by keys, pointer and gamepad; its recording the headless game; swarm-play run twice on one session file, the same frame, hash and score
 ```
 
 ## What the engine did not have

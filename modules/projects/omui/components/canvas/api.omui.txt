@@ -1,0 +1,326 @@
+== omui.ui.canvas
+export import omui.core;
+export import omui.view;
+export import :canvas_contract;
+export import :scene;
+export import :camera;
+export import :textures;
+export import :behavior;
+export import :view;
+== omui.ui.canvas.kit
+export import omui.ui.canvas;
+export import :declarative;
+namespace omui {
+  void register_canvas_kit();
+}
+== omui.ui.canvas.kit:declarative
+namespace omui::world {
+  struct BehaviorProblem {
+    std::string file;
+    int line = 0;
+    int column = 0;
+    std::string message;
+    std::string hint;
+    [[nodiscard]] std::string text() const;
+  };
+  using BehaviorProblems = std::vector<BehaviorProblem>;
+  [[nodiscard]] std::expected<std::vector<std::string>, BehaviorProblems> load_behaviors(std::string_view text, std::string_view file = "<behaviour>");
+  [[nodiscard]] std::expected<std::vector<std::string>, BehaviorProblems> load_behavior_file(const std::filesystem::path& file);
+  struct BehaviorOperation {
+    std::string_view name;
+    std::string_view signature;
+    std::string_view doc;
+  };
+  [[nodiscard]] std::span<const BehaviorOperation> behavior_operations() noexcept;
+}
+== omui.ui.canvas:behavior
+namespace omui::world {
+  struct PointerInput {
+    PointerKind kind = PointerKind::move;
+    Point screen;
+    std::array<double, 2> world{…};
+    MouseButton button = MouseButton::none;
+    Modifiers mods;
+    std::uint8_t clicks = 1;
+    std::optional<Hit> hit;
+  };
+  enum class Claim : std::uint8_t { pass, take, };
+  class Host {
+    virtual ~Host() = default;
+    [[nodiscard]] virtual Scene& scene() = 0;
+    [[nodiscard]] virtual Camera camera() const = 0;
+    [[nodiscard]] virtual Size viewport() const = 0;
+    virtual void set_camera(const Camera& c) = 0;
+    virtual void animate_to(const Camera& c) = 0;
+    [[nodiscard]] virtual Services& services() = 0;
+    virtual void redraw() = 0;
+    [[nodiscard]] virtual const std::vector<std::string>& selection() const = 0;
+    virtual void select(std::vector<std::string> keys) = 0;
+    virtual void committed(std::string_view what, const Value& args) = 0;
+    [[nodiscard]] virtual class Behavior* behavior(std::string_view name) = 0;
+  };
+  class Behavior {
+    virtual ~Behavior() = default;
+    [[nodiscard]] virtual std::string_view name() const = 0;
+    [[nodiscard]] virtual int priority() const;
+    virtual Claim pointer(Host&, const PointerInput&);
+    virtual bool tap(Host&, const PointerInput&);
+    virtual bool key(Host&, const KeyEvent&);
+    virtual void paint_under(Host&, xrender::DisplayList&);
+    virtual void paint_over(Host&, xrender::DisplayList&);
+    virtual void describe(Host&, NodeRef, spec::SemanticNode&);
+    [[nodiscard]] virtual std::optional<ActResult> act(Host&, NodeRef, std::string_view action, const Value& args);
+    virtual void unmounted(Host&);
+  };
+  using BehaviorFactory = std::function<std::unique_ptr<Behavior>(std::string_view args)>;
+  void register_behavior(std::string name, BehaviorFactory make);
+  [[nodiscard]] std::unique_ptr<Behavior> make_behavior(std::string_view spec);
+  [[nodiscard]] std::vector<std::string> behaviors();
+}
+== omui.ui.canvas:camera
+namespace omui::world {
+  struct Camera {
+    double x = 0, y = 0;
+    double zoom = 1;
+    [[nodiscard]] Point to_screen(double wx, double wy, Size viewport) const noexcept;
+    [[nodiscard]] Rect to_screen(const WorldRect& r, Size viewport) const noexcept;
+    [[nodiscard]] std::array<double, 2> to_world(Point screen, Size viewport) const noexcept;
+    [[nodiscard]] WorldRect visible(Size viewport) const noexcept;
+    void zoom_at(Point screen, double factor, Size viewport, double min, double max) noexcept;
+    void pan(Point delta) noexcept;
+    [[nodiscard]] static Camera fit(const WorldRect& r, Size viewport, float margin, double min, double max) noexcept;
+    friend constexpr bool operator==(const Camera& a, const Camera& b) noexcept;
+  };
+  class CameraMotion {
+    CameraMotion() = default;
+    CameraMotion(Camera from, Camera to, hanim::seconds start, hanim::SpringParams params = hanim::springs::standard, std::array<double, 3> velocity = {…});
+    [[nodiscard]] Camera at(hanim::seconds t) const;
+    [[nodiscard]] std::array<double, 3> velocity(hanim::seconds t) const;
+    [[nodiscard]] bool settled(hanim::seconds t) const;
+    [[nodiscard]] const Camera& target() const noexcept;
+    [[nodiscard]] hanim::seconds start() const noexcept;
+  };
+  class Inertia {
+    Inertia() = default;
+    Inertia(Camera from, Point velocity, hanim::seconds start, double decay = 6.0, double rest = 8.0);
+    [[nodiscard]] Camera at(hanim::seconds t) const;
+    [[nodiscard]] bool settled(hanim::seconds t) const;
+    [[nodiscard]] hanim::seconds start() const noexcept;
+  };
+}
+== omui.ui.canvas:scene
+namespace omui::world {
+  struct NodeTag;
+  using NodeRef = mlibs::memory::Handle<NodeTag>;
+  struct WorldRect {
+    double x = 0, y = 0, width = 0, height = 0;
+    [[nodiscard]] constexpr double right() const noexcept;
+    [[nodiscard]] constexpr double bottom() const noexcept;
+    [[nodiscard]] constexpr bool empty() const noexcept;
+    [[nodiscard]] constexpr bool overlaps(const WorldRect& o) const noexcept;
+    [[nodiscard]] constexpr bool contains(double px, double py) const noexcept;
+    [[nodiscard]] WorldRect united(const WorldRect& o) const noexcept;
+  };
+  class Scene;
+  struct DrawContext {
+    const Scene& scene;
+    NodeRef node;
+    xrender::DisplayList& list;
+    Rect screen;
+    double zoom;
+    std::size_t tier;
+    const Theme& theme;
+    mlibs::text::FontCollection* fonts = nullptr;
+  };
+  struct Tier {
+    enum class Draw : std::uint8_t { box, custom, texture, promote, };
+    float from = 0;
+    Draw draw = Draw::box;
+  };
+  struct Kind {
+    std::vector<Tier> tiers{…};
+    std::function<void(DrawContext&)> draw;
+    std::function<Element(const Scene&, NodeRef)> promote;
+    std::function<void(const Scene&, NodeRef, xrender::DisplayList&)> content;
+    std::function<Element(const Scene&, NodeRef)> view;
+    Role role = Role::generic;
+    std::string name_column = "title";
+    float title_bar = 0;
+    bool carries = false;
+  };
+  struct NodeDesc {
+    std::string_view kind;
+    double x = 0, y = 0;
+    float width = 0, height = 0;
+    std::string_view key;
+    Color fill = Color::transparent();
+    float radius = 0;
+  };
+  struct Edge {
+    std::string key;
+    std::string from, to;
+    Color color = Color::hex(0x64748b);
+    float width = 2;
+    std::string label;
+  };
+  class Labels {
+    [[nodiscard]] const mlibs::text::Paragraph& get(const DrawContext& d, const std::string& key, std::string text, float size, float weight, Color colour, std::string_view style = "label");
+    static void paint(const mlibs::text::Paragraph& label, xrender::DisplayList& list, Point at);
+    void clear() noexcept;
+  };
+  struct Hit {
+    NodeRef node;
+    bool title = false;
+  };
+  class Scene {
+    Scene();
+    explicit Scene(double cell);
+    Scene(const Scene&) = delete;
+    Scene& operator=(const Scene&) = delete;
+    std::uint16_t kind(std::string_view name, Kind kind);
+    [[nodiscard]] const Kind& kind_of(NodeRef n) const;
+    [[nodiscard]] std::string_view kind_name(NodeRef n) const;
+    [[nodiscard]] std::optional<std::uint16_t> find_kind(std::string_view name) const;
+    NodeRef add(const NodeDesc& d);
+    std::vector<NodeRef> push(std::span<const double> x, std::span<const double> y, std::span<const float> width, std::span<const float> height, std::span<const std::string> kinds, std::span<const std::string> keys = {…});
+    bool remove(NodeRef n);
+    void clear();
+    void move(NodeRef n, double x, double y);
+    void resize(NodeRef n, float width, float height);
+    void set_fill(NodeRef n, Color fill, float radius);
+    void raise(NodeRef n);
+    void touch(NodeRef n);
+    [[nodiscard]] std::uint64_t content_revision(NodeRef n) const;
+    [[nodiscard]] bool valid(NodeRef n) const noexcept;
+    [[nodiscard]] WorldRect rect(NodeRef n) const;
+    [[nodiscard]] Color fill(NodeRef n) const;
+    [[nodiscard]] float radius(NodeRef n) const;
+    [[nodiscard]] std::string_view key(NodeRef n) const;
+    [[nodiscard]] std::optional<NodeRef> find(std::string_view key) const;
+    [[nodiscard]] std::size_t size() const noexcept;
+    [[nodiscard]] WorldRect bounds() const;
+    [[nodiscard]] std::uint64_t revision() const noexcept;
+    std::uint64_t observe(std::function<void()> fn);
+    void unobserve(std::uint64_t token);
+    void set(NodeRef n, std::string_view column, double value);
+    void set(NodeRef n, std::string_view column, std::string value);
+    [[nodiscard]] double number(NodeRef n, std::string_view column, double fallback = 0) const;
+    [[nodiscard]] std::string_view text(NodeRef n, std::string_view column) const;
+    void query(const WorldRect& r, std::vector<NodeRef>& out) const;
+    [[nodiscard]] std::optional<Hit> hit(double x, double y) const;
+    void carried(NodeRef n, std::vector<NodeRef>& out) const;
+    void each(const std::function<void(NodeRef)>& f) const;
+    void each_unordered(const std::function<void(NodeRef)>& f) const;
+    template <class F> void each_rect(F&& f, std::size_t first = 0, std::size_t last = std::numeric_limits<std::size_t>::max()) const;
+    [[nodiscard]] std::size_t slots() const noexcept;
+    std::string connect(Edge e);
+    bool disconnect(std::string_view key);
+    [[nodiscard]] std::span<const Edge> edges() const noexcept;
+    [[nodiscard]] std::vector<const Edge*> edges_of(std::string_view node_key) const;
+    struct Preset {
+      double x = 0, y = 0, zoom = 1;
+    };
+    void preset(std::string name, Preset p);
+    [[nodiscard]] std::optional<Preset> preset(std::string_view name) const;
+    [[nodiscard]] std::vector<std::string> presets() const;
+  };
+  [[nodiscard]] Scene& scene(std::string_view name);
+  [[nodiscard]] Scene* find_scene(std::string_view name);
+  void drop_scene(std::string_view name);
+}
+== omui.ui.canvas:textures
+namespace omui::world {
+  class Textures {
+    struct Options {
+      std::size_t budget = std::size_t{…} << 20;
+      std::size_t upload = std::size_t{…} << 20;
+      std::size_t glyphs = 8192;
+      std::size_t jobs = 0;
+      int max_side = 4096;
+    };
+    Textures();
+    ~Textures();
+    Textures(const Textures&) = delete;
+    Textures& operator=(const Textures&) = delete;
+    void configure(const Options& o) noexcept;
+    struct Pick {
+      xrender::ImageRef image;
+      int level = 0;
+      bool exact = false;
+    };
+    [[nodiscard]] std::optional<Pick> pick(std::string_view key, std::uint64_t revision, int level, std::uint64_t frame);
+    struct Listed {
+      const xrender::DisplayList* list = nullptr;
+      std::uint64_t serial = 0;
+      bool exact = false;
+      bool unfit = false;
+    };
+    [[nodiscard]] Listed listed(std::string_view key, std::uint64_t revision) const;
+    Listed list_now(const Scene& scene, NodeRef node, std::string_view key, std::uint64_t revision);
+    void want_list(std::string_view key, std::uint64_t revision, NodeRef node, float priority);
+    void want(std::string_view key, std::uint64_t revision, int level, NodeRef node, float priority);
+    void issue(const Scene& scene, const xrender::ImageStore& images, mlibs::text::FontCollection* fonts, const Theme& theme);
+    bool collect(xrender::ImageStore& images, std::uint64_t frame, bool wait = false);
+    void complete(const Scene& scene, xrender::ImageStore& images, mlibs::text::FontCollection* fonts, const Theme& theme, std::uint64_t frame);
+    void clear(xrender::ImageStore& images);
+    [[nodiscard]] bool busy() const;
+    struct Stats {
+      std::size_t textures = 0, bytes = 0, jobs = 0, waiting = 0, entered = 0, evicted = 0, lists = 0;
+    };
+    [[nodiscard]] Stats stats() const;
+    [[nodiscard]] static int level_for(double texels_per_unit) noexcept;
+  };
+}
+== omui.ui.canvas:view
+namespace omui {
+  class Canvas : public CanvasContract<Canvas> {
+    static constexpr bool focusable = true;
+    static constexpr bool clips = true;
+    Canvas() = default;
+    Canvas(const Canvas&) = delete;
+    Canvas& operator=(const Canvas&) = delete;
+    ~Canvas();
+    void mounted();
+    void prop_changed(CanvasProp p);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    void restyle();
+    void laid_out();
+    void retimed(hanim::seconds t);
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    std::vector<spec::SemanticNode> virtual_items(std::string_view path) const;
+    std::optional<spec::SemanticNode> virtual_item(std::string_view path, std::string_view key) const;
+    ActResult act_item(ActContext& ctx, std::string_view key, std::string_view action);
+    bool reveal(std::string_view key);
+    std::vector<Element> compose();
+    ActResult pan_to(ActContext& ctx, const PanToArgs& args);
+    ActResult zoom_to(ActContext& ctx, const Value& zoom);
+    ActResult fit(ActContext& ctx, const Value& target);
+    ActResult focus_node(ActContext& ctx, const Value& key);
+    ActResult move_by(ActContext& ctx, const MoveByArgs& args);
+    ActResult camera_preset(ActContext& ctx, const Value& name);
+    ActResult find(ActContext& ctx, const Value& query);
+    [[nodiscard]] world::Scene* scene() const;
+    [[nodiscard]] world::Camera camera() const;
+    void set_camera(const world::Camera& c);
+    void animate_to(const world::Camera& c, hanim::SpringParams params = hanim::springs::standard);
+    [[nodiscard]] Size viewport() const;
+    [[nodiscard]] std::span<const world::NodeRef> visible() const noexcept;
+    struct Stats {
+      std::size_t boxes = 0, custom = 0, textured = 0, stretched = 0, promoted = 0, visible = 0;
+      std::size_t listed = 0;
+      std::size_t rehearsed = 0;
+      double query_ms = 0, paint_ms = 0;
+    };
+    [[nodiscard]] world::Textures::Stats texture_stats() const;
+    [[nodiscard]] const Stats& stats() const noexcept;
+    [[nodiscard]] const std::string& focused() const noexcept;
+    void focus_only(std::string key);
+    [[nodiscard]] const std::vector<std::string>& selection() const noexcept;
+    void select(std::vector<std::string> keys);
+    [[nodiscard]] world::Behavior* behavior(std::string_view name) const;
+  };
+  void register_canvas_component();
+}

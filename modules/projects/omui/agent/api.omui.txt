@@ -1,0 +1,276 @@
+== omui.agent
+export import omui.core;
+export import omui.view;
+export import omui.semantic;
+export import :catalog;
+export import :design;
+export import :generate;
+export import :broker;
+export import :tasks;
+export import :protocol;
+export import :subject;
+export import :endpoint;
+export import :api;
+== omui.agent:api
+namespace omui::agent {
+  [[nodiscard]] Value api_of(Runtime& runtime);
+  [[nodiscard]] VerbDesc verb_of(const mlibs::control::CatalogEntry& entry);
+}
+== omui.agent:broker
+namespace omui::agent {
+  class Progress {
+    void set(double fraction, std::string doing = {…});
+    [[nodiscard]] std::pair<double, std::string> get() const;
+  };
+  using TaskCommit = std::function<VerbResult()>;
+  using TaskWork = std::expected<TaskCommit, std::string>;
+  struct TaskSpec {
+    std::string name;
+    std::function<TaskWork(std::stop_token, Progress&)> work;
+  };
+  class TaskBroker {
+    explicit TaskBroker(Runtime& runtime);
+    ~TaskBroker();
+    TaskBroker(const TaskBroker&) = delete;
+    TaskBroker& operator=(const TaskBroker&) = delete;
+    std::string submit(TaskSpec spec);
+    bool cancel(std::string_view id);
+    [[nodiscard]] Value status(std::string_view id) const;
+    [[nodiscard]] Value list(bool all) const;
+    [[nodiscard]] std::size_t running() const;
+    struct Impl;
+  };
+}
+== omui.agent:catalog
+namespace omui::agent {
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_ui_describe{…};
+  inline constexpr std::array<mlibs::control::Parameter, 5> parameters_ui_reload{…};
+  inline constexpr std::array<mlibs::control::Parameter, 6> parameters_ui_snapshot{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_ui_find{…};
+  inline constexpr std::array<mlibs::control::Parameter, 5> parameters_ui_act{…};
+  inline constexpr std::array<mlibs::control::Parameter, 4> parameters_ui_invoke{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_ui_undo{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_ui_redo{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_ui_transaction{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_ui_preview{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_ui_history{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_ui_restore{…};
+  inline constexpr std::array<mlibs::control::Parameter, 4> parameters_ui_wait{…};
+  inline constexpr std::array<mlibs::control::Parameter, 3> parameters_ui_capture{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_ui_input{…};
+  inline constexpr std::array<mlibs::control::Parameter, 3> parameters_ui_intend{…};
+  inline constexpr std::array<mlibs::control::Parameter, 5> parameters_ui_claim{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_ui_release{…};
+  inline constexpr std::array<mlibs::control::Parameter, 3> parameters_ui_timeline{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_ui_explain{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_ui_drew{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_ui_inspect{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_ui_stats{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_ui_profile{…};
+  inline constexpr std::array<mlibs::control::Parameter, 3> parameters_ui_logs{…};
+  inline constexpr std::array<mlibs::control::Parameter, 6> parameters_ui_debug{…};
+  inline constexpr std::array<mlibs::control::Parameter, 5> parameters_ui_pipeline{…};
+  inline constexpr std::array<mlibs::control::Parameter, 3> parameters_ui_clock{…};
+  inline constexpr std::array<std::string_view, 1> examples_ui_describe{…};
+  inline constexpr std::array<std::string_view, 1> examples_ui_snapshot{…};
+  inline constexpr std::array<std::string_view, 1> examples_ui_changes{…};
+  inline constexpr std::array<std::string_view, 1> examples_ui_find{…};
+  inline constexpr std::array<std::string_view, 1> examples_ui_act{…};
+  inline constexpr std::array<std::string_view, 1> examples_ui_invoke{…};
+  inline constexpr std::array<std::string_view, 1> examples_ui_transaction{…};
+  inline constexpr std::array<std::string_view, 1> examples_ui_preview{…};
+  inline constexpr std::array<std::string_view, 1> examples_ui_history{…};
+  inline constexpr std::array<std::string_view, 1> examples_ui_restore{…};
+  inline constexpr std::array<std::string_view, 1> examples_ui_input{…};
+  inline constexpr std::array<std::string_view, 1> examples_ui_intend{…};
+  inline constexpr std::array<std::string_view, 1> examples_ui_claim{…};
+  inline constexpr std::array<std::string_view, 1> examples_ui_release{…};
+  inline constexpr std::array<std::string_view, 1> examples_ui_timeline{…};
+  inline constexpr std::array<std::string_view, 1> examples_ui_drew{…};
+  inline constexpr std::array<std::string_view, 1> examples_ui_profile{…};
+  inline constexpr std::array<mlibs::control::Way, 1> then_ui_act{…};
+  inline constexpr std::array<mlibs::control::Way, 1> then_ui_invoke{…};
+  inline constexpr std::array<mlibs::control::Way, 1> then_ui_undo{…};
+  inline constexpr std::array<mlibs::control::Way, 1> then_ui_redo{…};
+  inline constexpr std::array<mlibs::control::Way, 1> then_ui_transaction{…};
+  inline constexpr std::array<mlibs::control::Way, 1> then_ui_input{…};
+  inline constexpr std::array<mlibs::control::CatalogEntry, 32> catalog{…};
+  inline constexpr std::array<std::string_view, 2> steps_see_what_is_here{…};
+  inline constexpr std::array<std::string_view, 1> steps_find_a_node{…};
+  inline constexpr std::array<std::string_view, 2> steps_ask_what_happened{…};
+  inline constexpr std::array<std::string_view, 2> steps_read_what_changed{…};
+  inline constexpr std::array<mlibs::control::Task, 4> guide_tasks{…};
+  inline constexpr mlibs::control::Guide guide{…};
+  inline constexpr std::string_view listing = R"…";
+}
+== omui.agent:design
+namespace omui::agent::design {
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_begin{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_pace{…};
+  inline constexpr std::array<mlibs::control::Parameter, 3> parameters_design_locate{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_design_edit{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_design_set{…};
+  inline constexpr std::array<mlibs::control::Parameter, 3> parameters_design_insert{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_remove{…};
+  inline constexpr std::array<mlibs::control::Parameter, 4> parameters_design_preview{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_design_variants{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_variants_pick{…};
+  inline constexpr std::array<mlibs::control::Parameter, 5> parameters_design_film{…};
+  inline constexpr std::array<mlibs::control::Parameter, 4> parameters_design_timeline{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_design_history{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_history_commit{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_design_history_branch{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_design_history_switch{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_history_revert{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_design_history_diff{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_history_merge{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_design_history_tag{…};
+  inline constexpr std::array<mlibs::control::Parameter, 4> parameters_design_expect{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_save_scenario{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_replay{…};
+  inline constexpr std::array<mlibs::control::CatalogEntry, 32> catalog{…};
+  inline constexpr mlibs::control::Guide guide{…};
+  inline constexpr std::string_view listing = R"…";
+}
+== omui.agent:endpoint
+namespace omui::agent {
+  struct EndpointOptions {
+    std::string name;
+    std::filesystem::path directory;
+    ProtocolOptions protocol;
+    std::function<void()> wake;
+    std::optional<std::uint16_t> loopback;
+  };
+  [[nodiscard]] std::filesystem::path default_directory();
+  struct EndpointInfo {
+    std::string name;
+    std::string app;
+    std::string interface_name;
+    std::filesystem::path directory;
+  };
+  [[nodiscard]] std::vector<EndpointInfo> list(const std::filesystem::path& directory = default_directory());
+  class Endpoint {
+    Endpoint(Runtime& runtime, EndpointOptions options = {…});
+    ~Endpoint();
+    Endpoint(const Endpoint&) = delete;
+    Endpoint& operator=(const Endpoint&) = delete;
+    std::expected<void, std::string> start();
+    void stop();
+    [[nodiscard]] bool listening() const noexcept;
+    [[nodiscard]] const std::string& name() const noexcept;
+    [[nodiscard]] const std::filesystem::path& directory() const noexcept;
+    [[nodiscard]] std::optional<std::uint16_t> loopback_port() const noexcept;
+    [[nodiscard]] const std::string& secret() const noexcept;
+    std::size_t pump();
+    [[nodiscard]] std::optional<AgentInput> take_input();
+    [[nodiscard]] std::size_t connections() const;
+    struct Impl;
+  };
+  class Client {
+    [[nodiscard]] static std::expected<Client, std::string> connect(std::string_view name, const std::filesystem::path& directory = default_directory());
+    [[nodiscard]] static std::expected<Client, std::string> connect_loopback(std::uint16_t port, std::string_view secret);
+    Client(Client&&) noexcept;
+    Client& operator=(Client&&) noexcept;
+    ~Client();
+    [[nodiscard]] std::vector<Value> call(const Value& request, std::chrono::milliseconds timeout = std::chrono::seconds(30));
+    struct Impl;
+  };
+}
+== omui.agent:generate
+namespace omui::agent::generate {
+  inline constexpr std::array<mlibs::control::Parameter, 7> parameters_generate_draft{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_generate_preview{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_generate_commit{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_generate_restore{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_generate_versions{…};
+  inline constexpr std::array<mlibs::control::Parameter, 3> parameters_generate_a2ui{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_generate_actions{…};
+  inline constexpr std::array<mlibs::control::Parameter, 4> parameters_generate_keep{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_generate_forget{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_generate_discard{…};
+  inline constexpr std::array<mlibs::control::CatalogEntry, 13> catalog{…};
+  inline constexpr mlibs::control::Guide guide{…};
+  inline constexpr std::string_view listing = R"…";
+}
+== omui.agent:protocol
+namespace omui::agent {
+  inline constexpr std::string_view interface_name = "openmui.tree@0.1";
+  using CaptureFn = std::function<std::expected<std::vector<std::uint8_t>, std::string>(Rect window)>;
+  struct VectorIsland {
+    std::string why;
+    Rect bounds;
+  };
+  struct VectorCapture {
+    std::string svg;
+    std::vector<VectorIsland> islands;
+  };
+  using CaptureSvgFn = std::function<std::expected<VectorCapture, std::string>(Rect window)>;
+  [[nodiscard]] std::expected<VectorCapture, std::string> vector_capture(const Runtime& runtime, const xrender::Resources& resources, Rect region, float scale, std::optional<Color> background);
+  [[nodiscard]] std::string tree_hash(semantic::Tree& tree);
+  [[nodiscard]] std::expected<std::string, std::string> pixels_hash(std::span<const std::uint8_t> png);
+  struct ProtocolOptions {
+    std::string app;
+    std::string default_actor = "agent:anonymous";
+    double default_timeout = 5.0;
+    CaptureFn capture;
+    CaptureSvgFn capture_svg;
+    std::function<NodeId(Point)> pixel_owner;
+    bool remote = true;
+    bool input = false;
+    std::shared_ptr<const AgentSession> session;
+    AgentRestrictions session_limits;
+  };
+  struct AgentInput {
+    std::vector<InputEvent> events;
+    Actor actor;
+    std::shared_ptr<const AgentSession> session;
+  };
+  class Protocol {
+    using Reply = std::function<void(std::string_view line)>;
+    Protocol(Runtime& runtime, ProtocolOptions options = {…});
+    ~Protocol();
+    void request(std::string_view line, const Reply& reply);
+    void poll();
+    [[nodiscard]] std::size_t pending() const noexcept;
+    [[nodiscard]] std::shared_ptr<const AgentSession> session();
+    [[nodiscard]] std::optional<AgentInput> take_input();
+  };
+  [[nodiscard]] std::vector<std::string> lines(const Envelope& envelope, const Value& re = {…});
+}
+== omui.agent:subject
+namespace omui::agent {
+  struct InterfaceOptions {
+    bool traces_pixels = false;
+  };
+  class InterfaceSubject : public mlibs::agent::Subject {
+    InterfaceSubject(Runtime& runtime, Protocol& protocol, InterfaceOptions options = {…});
+    ~InterfaceSubject() override;
+    [[nodiscard]] std::string_view name() const noexcept override;
+    [[nodiscard]] std::string_view interface_name() const noexcept override;
+    [[nodiscard]] mlibs::agent::Capabilities capabilities() const noexcept override;
+    [[nodiscard]] std::span<const mlibs::control::CatalogEntry> operations() const noexcept override;
+    [[nodiscard]] std::string_view listing() const noexcept override;
+    [[nodiscard]] mlibs::control::Guide guide() const noexcept override;
+    [[nodiscard]] std::uint64_t state_hash() const override;
+    [[nodiscard]] std::vector<mlibs::agent::Term> terms() const override;
+    [[nodiscard]] std::string recorded_at() const override;
+    void operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) override;
+  };
+  class ProcessSession final : public mlibs::agent::Session {
+    ProcessSession(Runtime& runtime, ProtocolOptions options);
+    ~ProcessSession() override;
+    void request(std::string_view line, const mlibs::agent::Reply& reply) override;
+    void poll() override;
+    [[nodiscard]] Protocol& protocol() noexcept;
+    void keep_facts_in(std::shared_ptr<mlibs::agent::Facts> facts);
+  };
+}
+== omui.agent:tasks
+namespace omui::agent::tasks {
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_task_list{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_task_status{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_task_cancel{…};
+  inline constexpr std::array<mlibs::control::CatalogEntry, 3> catalog{…};
+  inline constexpr mlibs::control::Guide guide{…};
+  inline constexpr std::string_view listing = R"…";
+}

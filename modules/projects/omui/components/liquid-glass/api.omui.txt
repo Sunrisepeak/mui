@@ -1,0 +1,26 @@
+== omui.ui.liquid_glass
+export import omui.core;
+export import omui.view;
+export import :liquid_glass_contract;
+export import :glass_group_contract;
+export import :glass;
+== omui.ui.liquid_glass:glass
+namespace omui {
+  class LiquidGlass : public LiquidGlassContract<LiquidGlass> {
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    void prop_changed(LiquidGlassProp p);
+    [[nodiscard]] bool grouped() const;
+  };
+  class GlassGroup : public GlassGroupContract<GlassGroup> {
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    void prop_changed(GlassGroupProp p);
+    [[nodiscard]] std::vector<xrender::EffectShape> shapes() const;
+  };
+  void register_liquid_glass_components();
+}

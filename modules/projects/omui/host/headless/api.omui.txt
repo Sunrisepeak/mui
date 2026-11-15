@@ -1,0 +1,66 @@
+== omui.host.headless
+export import omui.core;
+export import omui.view;
+export import omui.semantic;
+export import omui.agent;
+export import xrender.raster;
+export import mlibs.image;
+namespace omui {
+  enum class HeadlessLevel : std::uint8_t { semantics, layout, pixels, session, };
+  using RecordingOptions = mlibs::image::AnimatedWebpOptions;
+  struct HeadlessOptions {
+    HeadlessLevel level = HeadlessLevel::pixels;
+    Size size{…};
+    float scale = 1;
+    mlibs::time::Rate fps{…};
+    Color background = Color::white();
+    Theme theme = Theme::light();
+    mlibs::text::FontCollection* fonts = nullptr;
+    bool reduce_motion = false;
+    std::string app = "openmui-app";
+    std::filesystem::path endpoint_directory;
+    std::string endpoint_name;
+    bool agent_input = true;
+    bool parallel_raster = true;
+    bool complete_frames = false;
+    mlibs::pipeline::Tier tier = mlibs::pipeline::Tier::t3;
+  };
+  class Headless {
+    explicit Headless(HeadlessOptions options = {…});
+    ~Headless();
+    Headless(const Headless&) = delete;
+    Headless& operator=(const Headless&) = delete;
+    [[nodiscard]] Runtime& runtime() noexcept;
+    [[nodiscard]] semantic::Tree& tree() noexcept;
+    [[nodiscard]] const HeadlessOptions& options() const noexcept;
+    NodeId mount(std::string_view slot, View view);
+    FrameOutput step(std::vector<InputEvent> events = {…}, std::optional<seconds> at = std::nullopt);
+    FrameOutput advance(seconds duration);
+    std::size_t settle(seconds limit = seconds(10));
+    [[nodiscard]] seconds now() const noexcept;
+    [[nodiscard]] std::int64_t frame_index() const noexcept;
+    void move(Point p);
+    void move_by(Point movement);
+    [[nodiscard]] bool pointer_held() const noexcept;
+    void click(Point p, MouseButton button = MouseButton::left);
+    bool click(std::string_view id);
+    void key(Key key, Modifiers mods = {…});
+    void type(std::string_view text);
+    void scroll(Point at, Point delta, bool precise = true);
+    void focus_next(bool backward = false);
+    [[nodiscard]] const xrender::raster::Surface& pixels();
+    [[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> png(std::optional<Rect> region = {…});
+    [[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> framed_png(Rect frame, std::string_view fixed = {…});
+    std::expected<void, std::string> save_png(const std::filesystem::path& file, std::optional<Rect> region = {…});
+    [[nodiscard]] std::expected<agent::VectorCapture, std::string> svg(std::optional<Rect> region = {…});
+    void record(std::optional<Rect> region = {…});
+    [[nodiscard]] std::size_t recorded() const noexcept;
+    std::expected<void, std::string> save_recording(const std::filesystem::path& file, RecordingOptions options = {…});
+    [[nodiscard]] NodeId node_at_pixel(Point p);
+    [[nodiscard]] agent::CaptureFn capture();
+    [[nodiscard]] agent::CaptureSvgFn capture_svg();
+    [[nodiscard]] agent::Endpoint* endpoint() noexcept;
+    void hold_requests(bool held) noexcept;
+    struct Impl;
+  };
+}

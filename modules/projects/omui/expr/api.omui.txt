@@ -1,0 +1,112 @@
+== omui.expr
+export import openmui.spec;
+export import :ast;
+export import :parse;
+export import :eval;
+== omui.expr:ast
+namespace omui::expr {
+  using spec::Value;
+  enum class Op : std::uint8_t { literal, ref, member, index, neg, not_, mul, div, mod, add, sub, lt, le, gt, ge, eq, ne, in, and_, or_, select, call, list, map, has, };
+  [[nodiscard]] std::string_view name(Op op) noexcept;
+  struct Node {
+    Op op = Op::literal;
+    Value value;
+    std::string name;
+    std::vector<std::shared_ptr<const Node>> args;
+    std::uint32_t at = 0;
+    std::uint32_t height = 1;
+  };
+  class Expr {
+    Expr() : Expr(Value{…});
+    Expr(Value v);
+    Expr(bool v) : Expr(Value(v));
+    Expr(int v) : Expr(Value(v));
+    Expr(std::int64_t v) : Expr(Value(v));
+    Expr(double v) : Expr(Value(v));
+    Expr(const char* v) : Expr(Value(v));
+    Expr(std::string v) : Expr(Value(std::move(v)));
+    Expr(std::string_view v) : Expr(Value(v));
+    explicit Expr(std::shared_ptr<const Node> n) : node_(std::move(n));
+    [[nodiscard]] const Node& node() const noexcept;
+    [[nodiscard]] const std::shared_ptr<const Node>& ptr() const noexcept;
+    [[nodiscard]] std::string text() const;
+    [[nodiscard]] std::vector<std::string> references() const;
+    [[nodiscard]] bool same(const Expr& other) const noexcept;
+    [[nodiscard]] Expr operator[](Expr key) const;
+    [[nodiscard]] Expr field(std::string name) const;
+  };
+  [[nodiscard]] Expr make(Op op, std::vector<Expr> args, std::string name = {…});
+  [[nodiscard]] Expr ref(std::string name);
+  [[nodiscard]] Expr lit(Value v);
+  [[nodiscard]] Expr neg(Expr a);
+  [[nodiscard]] Expr not_(Expr a);
+  [[nodiscard]] Expr mul(Expr a, Expr b);
+  [[nodiscard]] Expr div(Expr a, Expr b);
+  [[nodiscard]] Expr mod(Expr a, Expr b);
+  [[nodiscard]] Expr add(Expr a, Expr b);
+  [[nodiscard]] Expr sub(Expr a, Expr b);
+  [[nodiscard]] Expr lt(Expr a, Expr b);
+  [[nodiscard]] Expr le(Expr a, Expr b);
+  [[nodiscard]] Expr gt(Expr a, Expr b);
+  [[nodiscard]] Expr ge(Expr a, Expr b);
+  [[nodiscard]] Expr eq(Expr a, Expr b);
+  [[nodiscard]] Expr ne(Expr a, Expr b);
+  [[nodiscard]] Expr in(Expr a, Expr b);
+  [[nodiscard]] Expr and_(Expr a, Expr b);
+  [[nodiscard]] Expr or_(Expr a, Expr b);
+  [[nodiscard]] Expr select(Expr cond, Expr then, Expr otherwise);
+  [[nodiscard]] Expr has(Expr object, std::string field);
+  [[nodiscard]] Expr list(std::vector<Expr> items);
+  [[nodiscard]] Expr map(std::vector<std::pair<Expr, Expr>> entries);
+  [[nodiscard]] Expr call(std::string function, std::vector<Expr> args);
+  template <class... A> [[nodiscard]] Expr fmt(Expr pattern, A&&... args);
+  [[nodiscard]] inline Expr tr(Expr key, std::vector<std::pair<std::string, Expr>> args = {…});
+  [[nodiscard]] inline Expr lookup(Expr container, Expr key);
+  [[nodiscard]] inline Expr lookup(Expr container, Expr key, Expr fallback);
+  [[nodiscard]] inline Expr size(Expr x);
+  [[nodiscard]] inline Expr interpolate(Expr x, Expr input, Expr output);
+  [[nodiscard]] inline Expr interpolate(Expr x, Expr input, Expr output, Expr ease);
+  [[nodiscard]] inline Expr spring(Expr t, Expr from, Expr to);
+  [[nodiscard]] inline Expr operator-(Expr a);
+  [[nodiscard]] inline Expr operator!(Expr a);
+  [[nodiscard]] inline Expr operator*(Expr a, Expr b);
+  [[nodiscard]] inline Expr operator/(Expr a, Expr b);
+  [[nodiscard]] inline Expr operator%(Expr a, Expr b);
+  [[nodiscard]] inline Expr operator+(Expr a, Expr b);
+  [[nodiscard]] inline Expr operator-(Expr a, Expr b);
+  [[nodiscard]] inline Expr operator<(Expr a, Expr b);
+  [[nodiscard]] inline Expr operator<=(Expr a, Expr b);
+  [[nodiscard]] inline Expr operator>(Expr a, Expr b);
+  [[nodiscard]] inline Expr operator>=(Expr a, Expr b);
+  [[nodiscard]] inline Expr operator&&(Expr a, Expr b);
+  [[nodiscard]] inline Expr operator||(Expr a, Expr b);
+}
+== omui.expr:eval
+namespace omui::expr {
+  using Resolve = std::function<std::optional<Value>(std::string_view name)>;
+  struct Context {
+    std::function<std::string(std::string_view key, const Value& args)> translate;
+  };
+  struct Result {
+    Value value;
+    std::vector<Diagnostic> errors;
+    [[nodiscard]] bool ok() const noexcept;
+  };
+  [[nodiscard]] Result evaluate(const Expr& e, const Resolve& names, const Context& context = {…});
+  [[nodiscard]] Result evaluate(const Expr& e, const Value::Map& names, const Context& context = {…});
+  [[nodiscard]] std::span<const std::string_view> functions() noexcept;
+  [[nodiscard]] std::string text_of(const Value& v);
+}
+== omui.expr:parse
+namespace omui::expr {
+  struct Diagnostic {
+    std::uint32_t at = 0;
+    std::uint32_t line = 0, column = 0;
+    std::string message;
+    std::string hint;
+    [[nodiscard]] std::string text() const;
+  };
+  void locate(Diagnostic& d, std::string_view source) noexcept;
+  inline constexpr int max_depth = 200;
+  [[nodiscard]] std::expected<Expr, Diagnostic> parse(std::string_view text);
+}

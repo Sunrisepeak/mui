@@ -1,0 +1,16 @@
+== omui.cts
+export import mlibs.cts;
+namespace omui::cts {
+  using Json = nlohmann::json;
+  struct Scenario {
+    std::string name;
+    std::filesystem::path file;
+    Json data;
+  };
+  [[nodiscard]] std::filesystem::path directory();
+  [[nodiscard]] std::expected<std::vector<Scenario>, std::string> scenarios();
+  [[nodiscard]] Json run(const Scenario& scenario, const std::function<Json(std::string_view verb, const Json& args)>& invoke, const std::function<void()>& settle);
+  [[nodiscard]] Json canonical(const Json& trace);
+  [[nodiscard]] std::vector<std::string> check(const Scenario& scenario, const Json& trace);
+  std::expected<std::size_t, std::string> conform(const std::function<Json(const Scenario&)>& trace_of, mlibs::cts::Against who = {…}, std::source_location at = std::source_location::current());
+}

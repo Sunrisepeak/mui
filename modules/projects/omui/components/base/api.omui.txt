@@ -1,0 +1,1936 @@
+== omui.ui.base
+export import omui.core;
+export import omui.view;
+export import :parts;
+export import :button_contract;
+export import :toggle_contract;
+export import :checkbox_contract;
+export import :slider_contract;
+export import :text_box_contract;
+export import :progress_contract;
+export import :radio_contract;
+export import :select_contract;
+export import :tabs_contract;
+export import :tab_contract;
+export import :menu_contract;
+export import :menu_item_contract;
+export import :dialog_contract;
+export import :tooltip_contract;
+export import :list_contract;
+export import :badge_contract;
+export import :avatar_contract;
+export import :skeleton_contract;
+export import :card_contract;
+export import :accordion_contract;
+export import :toast_contract;
+export import :popover_contract;
+export import :breadcrumb_contract;
+export import :pagination_contract;
+export import :number_input_contract;
+export import :actor_log_contract;
+export import :agent_presence_contract;
+export import :segmented_contract;
+export import :chip_contract;
+export import :range_slider_contract;
+export import :alert_contract;
+export import :stepper_contract;
+export import :date_picker_contract;
+export import :time_picker_contract;
+export import :color_picker_contract;
+export import :split_view_contract;
+export import :drawer_contract;
+export import :tree_view_contract;
+export import :data_grid_contract;
+export import :combobox_contract;
+export import :tag_input_contract;
+export import :code_editor_contract;
+export import :kbd_contract;
+export import :separator_contract;
+export import :link_contract;
+export import :description_list_contract;
+export import :spinner_contract;
+export import :rating_contract;
+export import :otp_input_contract;
+export import :form_field_contract;
+export import :search_box_contract;
+export import :toggle_group_contract;
+export import :context_menu_contract;
+export import :hover_card_contract;
+export import :command_palette_contract;
+export import :sidebar_contract;
+export import :toolbar_contract;
+export import :chart_contract;
+export import :carousel_contract;
+export import :file_drop_contract;
+export import :web_view_contract;
+export import :button;
+export import :toggle;
+export import :slider;
+export import :text_box;
+export import :progress;
+export import :tabs;
+export import :menu;
+export import :dialog;
+export import :select;
+export import :list;
+export import :status;
+export import :surfaces;
+export import :navigation;
+export import :number_input;
+export import :actors;
+export import :choices;
+export import :notices;
+export import :pickers;
+export import :containers;
+export import :collections;
+export import :entry;
+export import :code;
+export import :reading;
+export import :inputs;
+export import :navigating;
+export import :showing;
+export import :external;
+namespace omui {
+  void register_base_components();
+}
+== omui.ui.base:actors
+namespace omui {
+  class ActorLog : public ActorLogContract<ActorLog> {
+    static constexpr bool focusable = true;
+    void mounted();
+    void prop_changed(ActorLogProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(std::string_view path) const;
+    [[nodiscard]] std::optional<spec::SemanticNode> virtual_item(std::string_view path, std::string_view key) const;
+    ActResult act_item(ActContext& ctx, std::string_view key, std::string_view action);
+    ActResult next(ActContext& ctx);
+    ActResult previous(ActContext& ctx);
+    [[nodiscard]] std::vector<const ActionEntry*> records() const;
+    [[nodiscard]] std::string phrase(std::string_view key) const;
+    [[nodiscard]] std::string status() const;
+    [[nodiscard]] std::string said(const ActionEntry& e) const;
+  };
+  struct PresenceStep {
+    std::string path, action;
+    Rect bounds;
+    double at = 0;
+  };
+  struct AgentPresenceState {
+    std::string actor;
+    std::optional<PresenceStep> now;
+    std::vector<PresenceStep> trail;
+    bool asking = false;
+    bool taken_over = false;
+    std::optional<AgentNote> note;
+    std::vector<mlibs::agent::Claim> claims;
+    std::size_t hue = 0;
+  };
+  [[nodiscard]] AgentPresenceState agent_presence_state(const Services& services, std::string_view actors, std::size_t trail = 3, std::string_view except = {…});
+  [[nodiscard]] std::vector<AgentPresenceState> agent_presence_states(const Services& services, std::string_view actors, std::size_t trail = 3, std::string_view except = {…}, std::size_t limit = 6);
+  [[nodiscard]] Color agent_ink(const Theme& theme, std::size_t hue);
+  class AgentPresence : public AgentPresenceContract<AgentPresence> {
+    void mounted();
+    void prop_changed(AgentPresenceProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] AgentPresenceState state() const;
+    [[nodiscard]] std::vector<AgentPresenceState> states() const;
+    [[nodiscard]] std::string said() const;
+  };
+}
+== omui.ui.base:button
+namespace omui {
+  class Button : public ButtonContract<Button> {
+    static constexpr bool draws_disabled = true;
+    void mounted();
+    void prop_changed(ButtonProp p);
+    void restyle();
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    float baseline(MeasureContext& m, Size content);
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<xrender::EffectShape> out) const;
+    ActResult activate(ActContext& ctx);
+    struct Colors {
+      Color base, hover, pressed, text;
+      std::optional<Color> border;
+    };
+    [[nodiscard]] static Colors colors(const Theme& theme, ButtonVariant variant);
+  };
+}
+== omui.ui.base:button_contract
+namespace omui {
+  enum class ButtonVariant : std::uint8_t { primary, secondary, ghost, danger };
+  [[nodiscard]] constexpr std::string_view name(ButtonVariant v) noexcept;
+  [[nodiscard]] constexpr std::optional<ButtonVariant> parse_button_variant(std::string_view text) noexcept;
+}
+namespace omui {
+  template <> struct ValueOf<::omui::ButtonVariant> {
+    static Value to(::omui::ButtonVariant v);
+    static ::omui::ButtonVariant from(const Value& v);
+  };
+}
+namespace omui {
+  struct ButtonProps {
+    bool disabled = false;
+    std::string icon;
+    std::string text;
+    ButtonVariant variant = ButtonVariant::secondary;
+    std::string verb;
+  };
+  enum class ButtonProp : std::uint8_t { disabled, icon, text, variant, verb };
+  struct ButtonOptions {
+    std::string id;
+    Prop<bool> disabled;
+    Prop<std::string> icon;
+    Prop<std::string> text;
+    Prop<ButtonVariant> variant;
+    Prop<std::string> verb;
+    std::function<void()> on_activated;
+    Prop<Dim> width;
+    Prop<Dim> height;
+    Prop<Dim> min_width;
+    Prop<Dim> max_width;
+    Prop<float> grow;
+    Prop<float> shrink;
+    std::string align_self;
+    Prop<Edges> margin;
+    Prop<float> opacity;
+    Prop<bool> visible;
+    std::string label;
+    std::string description;
+    std::vector<std::pair<std::string, Handler>> on;
+    std::vector<std::pair<std::string, Transition>> animate;
+  };
+  [[nodiscard]] Element button(ButtonOptions options = {…}, std::source_location where = std::source_location::current());
+  template <class Derived> class ButtonContract {
+    static constexpr std::string_view name = "button";
+    static constexpr Role role = Role::button;
+    static constexpr bool focusable = true;
+    [[nodiscard]] static const spec::ContractInfo& contract() noexcept;
+    ButtonProps props;
+    void mount(Services& s, NodeId n);
+    bool set_prop(std::string_view k, [[maybe_unused]] const Value& v);
+    [[nodiscard]] Value get_prop(std::string_view k) const;
+    ActResult act(ActContext& ctx, std::string_view action);
+    void emit_activated();
+    void write_text(std::string value);
+  };
+}
+== omui.ui.base:checkbox_contract
+namespace omui {
+  struct CheckboxProps {
+    bool checked = false;
+    bool disabled = false;
+    bool indeterminate = false;
+    std::string label;
+  };
+  enum class CheckboxProp : std::uint8_t { checked, disabled, indeterminate, label };
+  struct CheckboxOptions {
+    std::string id;
+    Prop<bool> checked;
+    Prop<bool> disabled;
+    Prop<bool> indeterminate;
+    Prop<std::string> label;
+    std::function<void(bool)> on_changed;
+    Prop<Dim> width;
+    Prop<Dim> height;
+    Prop<Dim> min_width;
+    Prop<Dim> max_width;
+    Prop<float> grow;
+    Prop<float> shrink;
+    std::string align_self;
+    Prop<Edges> margin;
+    Prop<float> opacity;
+    Prop<bool> visible;
+    std::string description;
+    std::vector<std::pair<std::string, Handler>> on;
+    std::vector<std::pair<std::string, Transition>> animate;
+  };
+  [[nodiscard]] Element checkbox(CheckboxOptions options = {…}, std::source_location where = std::source_location::current());
+  template <class Derived> class CheckboxContract {
+    static constexpr std::string_view name = "checkbox";
+    static constexpr Role role = Role::checkbox;
+    static constexpr bool focusable = true;
+    [[nodiscard]] static const spec::ContractInfo& contract() noexcept;
+    CheckboxProps props;
+    void mount(Services& s, NodeId n);
+    bool set_prop(std::string_view k, [[maybe_unused]] const Value& v);
+    [[nodiscard]] Value get_prop(std::string_view k) const;
+    ActResult act(ActContext& ctx, std::string_view action);
+    void emit_changed(bool checked);
+    void write_checked(bool value);
+  };
+}
+== omui.ui.base:choices
+namespace omui {
+  class Segmented : public SegmentedContract<Segmented> {
+    static constexpr bool draws_disabled = true;
+    static constexpr bool focusable = true;
+    void mounted();
+    void prop_changed(SegmentedProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(std::string_view path) const;
+    [[nodiscard]] std::optional<spec::SemanticNode> virtual_item(std::string_view path, std::string_view key) const;
+    ActResult act_item(ActContext& ctx, std::string_view key, std::string_view action);
+    ActResult set_value(ActContext& ctx, const Value& value);
+    ActResult next(ActContext& ctx);
+    ActResult previous(ActContext& ctx);
+  };
+  class Chip : public ChipContract<Chip> {
+    static constexpr bool draws_disabled = true;
+    static constexpr bool focusable = true;
+    void mounted();
+    void prop_changed(ChipProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(std::string_view path) const;
+    [[nodiscard]] std::optional<spec::SemanticNode> virtual_item(std::string_view path, std::string_view key) const;
+    ActResult act_item(ActContext& ctx, std::string_view key, std::string_view action);
+    ActResult activate(ActContext& ctx);
+    ActResult remove(ActContext& ctx);
+  };
+  class RangeSlider : public RangeSliderContract<RangeSlider> {
+    static constexpr bool draws_disabled = true;
+    static constexpr bool focusable = true;
+    void mounted();
+    void prop_changed(RangeSliderProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(std::string_view path) const;
+    [[nodiscard]] std::optional<spec::SemanticNode> virtual_item(std::string_view path, std::string_view key) const;
+    ActResult act_item(ActContext& ctx, std::string_view key, std::string_view action);
+    ActResult set_range(ActContext& ctx, const SetRangeArgs& args);
+    ActResult increment(ActContext& ctx);
+    ActResult decrement(ActContext& ctx);
+    [[nodiscard]] double snap(double v) const noexcept;
+  };
+}
+== omui.ui.base:code
+namespace omui {
+  class CodeEditor : public CodeEditorContract<CodeEditor> {
+    void mounted();
+    void prop_changed(CodeEditorProp p);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    void paint(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] std::vector<Element> compose();
+    ActResult set_value(ActContext& ctx, const Value& value);
+    [[nodiscard]] std::string_view language_key() const noexcept;
+    [[nodiscard]] std::string_view language_name() const noexcept;
+  };
+}
+== omui.ui.base:collections
+namespace omui {
+  class TreeView : public TreeViewContract<TreeView> {
+    static constexpr bool focusable = true;
+    static constexpr bool clips = true;
+    void mounted();
+    void prop_changed(TreeViewProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(std::string_view path) const;
+    [[nodiscard]] std::optional<spec::SemanticNode> virtual_item(std::string_view path, std::string_view key) const;
+    ActResult act_item(ActContext& ctx, std::string_view key, std::string_view action);
+    ActResult set_value(ActContext& ctx, const Value& value);
+    ActResult set_expanded(ActContext& ctx, const SetExpandedArgs& args);
+    ActResult next(ActContext& ctx);
+    ActResult previous(ActContext& ctx);
+    ActResult open(ActContext& ctx);
+    ActResult close(ActContext& ctx);
+    ActResult activate(ActContext& ctx);
+    struct Line {
+      std::string key;
+      std::size_t row = 0;
+      int depth = 0;
+      bool parent = false;
+    };
+    [[nodiscard]] const std::vector<Line>& lines() const;
+  };
+  class DataGrid : public DataGridContract<DataGrid> {
+    static constexpr bool focusable = true;
+    static constexpr bool clips = true;
+    void mounted();
+    void prop_changed(DataGridProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(std::string_view path) const;
+    [[nodiscard]] std::optional<spec::SemanticNode> virtual_item(std::string_view path, std::string_view key) const;
+    ActResult act_item(ActContext& ctx, std::string_view key, std::string_view action);
+    ActResult set_sort(ActContext& ctx, const Value& sort);
+    ActResult set_selected(ActContext& ctx, const Value& keys);
+    ActResult next(ActContext& ctx);
+    ActResult previous(ActContext& ctx);
+    ActResult first(ActContext& ctx);
+    ActResult last(ActContext& ctx);
+    ActResult activate(ActContext& ctx);
+    ActResult toggle(ActContext& ctx);
+    [[nodiscard]] const std::vector<std::size_t>& order() const;
+    [[nodiscard]] static std::string text_of(const Value& v);
+    [[nodiscard]] std::string sort_after(std::string_view field) const;
+  };
+}
+== omui.ui.base:containers
+namespace omui {
+  class SplitView : public SplitViewContract<SplitView> {
+    static constexpr bool focusable = true;
+    SplitView() = default;
+    SplitView(const SplitView&) = delete;
+    SplitView& operator=(const SplitView&) = delete;
+    ~SplitView();
+    void mounted();
+    void prop_changed(SplitViewProp p);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(std::string_view path) const;
+    [[nodiscard]] std::optional<spec::SemanticNode> virtual_item(std::string_view path, std::string_view key) const;
+    ActResult act_item(ActContext& ctx, std::string_view key, std::string_view action);
+    ActResult set_value(ActContext& ctx, const Value& value);
+    ActResult increment(ActContext& ctx);
+    ActResult decrement(ActContext& ctx);
+    [[nodiscard]] double kept(double ratio) const noexcept;
+  };
+  class Drawer : public DrawerContract<Drawer> {
+    static constexpr bool overlay = true;
+    [[nodiscard]] Placement placement() const;
+    void mounted();
+    void prop_changed(DrawerProp p);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    void paint(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult dismiss(ActContext& ctx);
+  };
+}
+== omui.ui.base:dialog
+namespace omui {
+  class Dialog : public DialogContract<Dialog> {
+    static constexpr bool overlay = true;
+    [[nodiscard]] Placement placement() const;
+    void mounted();
+    void prop_changed(DialogProp p);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    void paint(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult dismiss(ActContext& ctx);
+    void close(std::string result);
+  };
+  class Tooltip : public TooltipContract<Tooltip> {
+    static constexpr bool overlay = true;
+    [[nodiscard]] Placement placement() const;
+    Tooltip() = default;
+    Tooltip(const Tooltip&) = delete;
+    Tooltip& operator=(const Tooltip&) = delete;
+    ~Tooltip();
+    void mounted();
+    void prop_changed(TooltipProp p);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult dismiss(ActContext& ctx);
+    [[nodiscard]] bool showing() const noexcept;
+  };
+}
+== omui.ui.base:dialog_contract
+namespace omui {
+  struct DialogProps {
+    bool modal = true;
+    bool open = false;
+    std::string title;
+  };
+  enum class DialogProp : std::uint8_t { modal, open, title };
+  struct DialogOptions {
+    std::string id;
+    Prop<bool> modal;
+    Prop<bool> open;
+    Prop<std::string> title;
+    std::function<void(std::string)> on_closed;
+    Prop<Dim> width;
+    Prop<Dim> height;
+    Prop<Dim> min_width;
+    Prop<Dim> max_width;
+    Prop<float> grow;
+    Prop<float> shrink;
+    std::string align_self;
+    Prop<Edges> margin;
+    Prop<float> opacity;
+    Prop<bool> visible;
+    std::string label;
+    std::string description;
+    std::vector<std::pair<std::string, Handler>> on;
+    std::vector<std::pair<std::string, Transition>> animate;
+  };
+  [[nodiscard]] Element dialog(DialogOptions options = {…}, std::vector<Element> children = {…}, std::source_location where = std::source_location::current());
+  template <class Derived> class DialogContract {
+    static constexpr std::string_view name = "dialog";
+    static constexpr Role role = Role::dialog;
+    static constexpr bool focusable = false;
+    [[nodiscard]] static const spec::ContractInfo& contract() noexcept;
+    DialogProps props;
+    void mount(Services& s, NodeId n);
+    bool set_prop(std::string_view k, [[maybe_unused]] const Value& v);
+    [[nodiscard]] Value get_prop(std::string_view k) const;
+    ActResult act(ActContext& ctx, std::string_view action);
+    void emit_closed(std::string result);
+    void write_open(bool value);
+  };
+}
+== omui.ui.base:entry
+namespace omui {
+  class Combobox : public ComboboxContract<Combobox> {
+    void mounted();
+    void prop_changed(ComboboxProp p);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] std::vector<Element> compose();
+    [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(std::string_view path) const;
+    [[nodiscard]] std::optional<spec::SemanticNode> virtual_item(std::string_view path, std::string_view key) const;
+    ActResult act_item(ActContext& ctx, std::string_view key, std::string_view action);
+    ActResult expand(ActContext& ctx);
+    ActResult collapse(ActContext& ctx);
+    ActResult set_value(ActContext& ctx, const Value& value);
+    [[nodiscard]] std::string label_of(std::string_view value) const;
+    [[nodiscard]] bool expanded() const;
+    [[nodiscard]] std::vector<std::size_t> matches(std::string_view typed) const;
+  };
+  class TagInput : public TagInputContract<TagInput> {
+    void mounted();
+    void prop_changed(TagInputProp p);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    void paint(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] std::vector<Element> compose();
+    ActResult add(ActContext& ctx, const Value& tag);
+    ActResult remove(ActContext& ctx, const Value& tag);
+    ActResult set_tags(ActContext& ctx, const Value& tags);
+    [[nodiscard]] std::vector<std::string> offered(std::string_view typed) const;
+  };
+  class ChoicePopup {
+    static constexpr std::string_view name = "choice_popup";
+    static constexpr Role role = Role::list_box;
+    static constexpr bool overlay = true;
+    [[nodiscard]] Placement placement() const;
+    void mount(Services& s, NodeId n);
+    bool set_prop(std::string_view k, const Value& v);
+    [[nodiscard]] Value get_prop(std::string_view k) const;
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult act(ActContext& ctx, std::string_view action);
+  };
+}
+== omui.ui.base:external
+namespace omui {
+  class WebView : public WebViewContract<WebView> {
+    static constexpr bool focusable = true;
+    ~WebView();
+    void mounted();
+    void prop_changed(WebViewProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult navigate(ActContext& ctx, const Value& url);
+    ActResult back(ActContext& ctx);
+    ActResult forward(ActContext& ctx);
+    ActResult reload(ActContext& ctx);
+    ActResult open_external(ActContext& ctx);
+    [[nodiscard]] const WebPage& page() const noexcept;
+    [[nodiscard]] bool in_system_view() const noexcept;
+  };
+}
+== omui.ui.base:inputs
+namespace omui {
+  class Rating : public RatingContract<Rating> {
+    static constexpr bool draws_disabled = true;
+    static constexpr bool focusable = true;
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult increment(ActContext& ctx);
+    ActResult decrement(ActContext& ctx);
+    ActResult set_value(ActContext& ctx, const Value& value);
+    [[nodiscard]] double value_at(float x) const;
+  };
+  class OtpInput : public OtpInputContract<OtpInput> {
+    static constexpr bool draws_disabled = true;
+    static constexpr bool focusable = true;
+    void mounted();
+    void prop_changed(OtpInputProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult set_value(ActContext& ctx, const Value& value);
+    [[nodiscard]] static std::string accepted(std::string_view text, bool numeric);
+  };
+  class FormField : public FormFieldContract<FormField> {
+    void mounted();
+    void prop_changed(FormFieldProp p);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    void paint(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+  };
+  class SearchBox : public SearchBoxContract<SearchBox> {
+    static constexpr bool draws_disabled = true;
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    [[nodiscard]] std::vector<Element> compose();
+    void paint(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult set_value(ActContext& ctx, const Value& value);
+    ActResult clear(ActContext& ctx);
+    ActResult submit(ActContext& ctx);
+  };
+  class ToggleGroup : public ToggleGroupContract<ToggleGroup> {
+    static constexpr bool draws_disabled = true;
+    static constexpr bool focusable = true;
+    void mounted();
+    void prop_changed(ToggleGroupProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(std::string_view path) const;
+    [[nodiscard]] std::optional<spec::SemanticNode> virtual_item(std::string_view path, std::string_view key) const;
+    ActResult act_item(ActContext& ctx, std::string_view key, std::string_view action);
+    ActResult set_selected(ActContext& ctx, const Value& selected);
+    ActResult next(ActContext& ctx);
+    ActResult previous(ActContext& ctx);
+  };
+  class FileDrop : public FileDropContract<FileDrop> {
+    static constexpr bool draws_disabled = true;
+    static constexpr bool focusable = true;
+    void mounted();
+    void prop_changed(FileDropProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult drop(ActContext& ctx, const Value& files);
+    ActResult activate(ActContext& ctx);
+    [[nodiscard]] bool accepts(std::string_view file) const;
+  };
+}
+== omui.ui.base:list
+namespace omui {
+  class List : public ListContract<List> {
+    static constexpr bool clips = true;
+    using ItemFn = std::function<Element(const Row&, std::size_t)>;
+    ItemFn item;
+    void mounted();
+    void prop_changed(ListProp p);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    [[nodiscard]] Point scroll_offset() const;
+    [[nodiscard]] std::vector<Element> compose();
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void laid_out();
+    void paint_over(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(std::string_view path) const;
+    bool reveal(std::string_view key);
+    ActResult scroll_to(ActContext& ctx, const ScrollToArgs& args);
+    ActResult next(ActContext& ctx);
+    ActResult previous(ActContext& ctx);
+    void activate_row(const std::string& key);
+    [[nodiscard]] std::pair<std::size_t, std::size_t> window() const noexcept;
+  };
+  class ListItem {
+    static constexpr std::string_view name = "list_item";
+    static constexpr Role role = Role::list_item;
+    void mount(Services& s, NodeId n);
+    bool set_prop(std::string_view k, const Value& v);
+    [[nodiscard]] Value get_prop(std::string_view k) const;
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    void paint(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+  };
+  [[nodiscard]] Element list_view(ListOptions options, List::ItemFn item, std::source_location where = std::source_location::current());
+}
+== omui.ui.base:list_contract
+namespace omui {
+  enum class ListSelectable : std::uint8_t { none, single, multiple };
+  [[nodiscard]] constexpr std::string_view name(ListSelectable v) noexcept;
+  [[nodiscard]] constexpr std::optional<ListSelectable> parse_list_selectable(std::string_view text) noexcept;
+}
+namespace omui {
+  template <> struct ValueOf<::omui::ListSelectable> {
+    static Value to(::omui::ListSelectable v);
+    static ::omui::ListSelectable from(const Value& v);
+  };
+}
+namespace omui {
+  struct ListProps {
+    double estimate = 32.0;
+    std::string model;
+    ListSelectable selectable = ListSelectable::none;
+    std::vector<std::string> selected;
+  };
+  enum class ListProp : std::uint8_t { estimate, model, selectable, selected };
+  struct ListOptions {
+    std::string id;
+    Prop<double> estimate;
+    Prop<std::string> model;
+    Prop<ListSelectable> selectable;
+    Prop<std::vector<std::string>> selected;
+    std::function<void(std::string)> on_activated;
+    std::function<void(std::vector<std::string>)> on_changed;
+    Prop<Dim> width;
+    Prop<Dim> height;
+    Prop<Dim> min_width;
+    Prop<Dim> max_width;
+    Prop<float> grow;
+    Prop<float> shrink;
+    std::string align_self;
+    Prop<Edges> margin;
+    Prop<float> opacity;
+    Prop<bool> visible;
+    std::string label;
+    std::string description;
+    std::vector<std::pair<std::string, Handler>> on;
+    std::vector<std::pair<std::string, Transition>> animate;
+  };
+  [[nodiscard]] Element list(ListOptions options = {…}, std::source_location where = std::source_location::current());
+  template <class Derived> class ListContract {
+    static constexpr std::string_view name = "list";
+    static constexpr Role role = Role::list;
+    static constexpr bool focusable = false;
+    [[nodiscard]] static const spec::ContractInfo& contract() noexcept;
+    ListProps props;
+    void mount(Services& s, NodeId n);
+    bool set_prop(std::string_view k, [[maybe_unused]] const Value& v);
+    [[nodiscard]] Value get_prop(std::string_view k) const;
+    struct ScrollToArgs {
+      Value x;
+      Value y;
+    };
+    ActResult act(ActContext& ctx, std::string_view action);
+    void emit_activated(std::string key);
+    void emit_changed(std::vector<std::string> selected);
+    void write_selected(std::vector<std::string> value);
+  };
+}
+== omui.ui.base:menu
+namespace omui {
+  class Menu : public MenuContract<Menu> {
+    static constexpr bool overlay = true;
+    [[nodiscard]] Placement placement() const;
+    void mounted();
+    void prop_changed(MenuProp p);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    void paint(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult dismiss(ActContext& ctx);
+    void close();
+  };
+  class MenuItem : public MenuItemContract<MenuItem> {
+    static constexpr bool draws_disabled = true;
+    void mounted();
+    void prop_changed(MenuItemProp p);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult activate(ActContext& ctx);
+  };
+}
+== omui.ui.base:menu_contract
+namespace omui {
+  struct MenuProps {
+    bool open = false;
+  };
+  enum class MenuProp : std::uint8_t { open };
+  struct MenuOptions {
+    std::string id;
+    Prop<bool> open;
+    std::function<void()> on_closed;
+    Prop<Dim> width;
+    Prop<Dim> height;
+    Prop<Dim> min_width;
+    Prop<Dim> max_width;
+    Prop<float> grow;
+    Prop<float> shrink;
+    std::string align_self;
+    Prop<Edges> margin;
+    Prop<float> opacity;
+    Prop<bool> visible;
+    std::string label;
+    std::string description;
+    std::vector<std::pair<std::string, Handler>> on;
+    std::vector<std::pair<std::string, Transition>> animate;
+  };
+  [[nodiscard]] Element menu(MenuOptions options = {…}, std::vector<Element> children = {…}, std::source_location where = std::source_location::current());
+  template <class Derived> class MenuContract {
+    static constexpr std::string_view name = "menu";
+    static constexpr Role role = Role::menu;
+    static constexpr bool focusable = false;
+    [[nodiscard]] static const spec::ContractInfo& contract() noexcept;
+    MenuProps props;
+    void mount(Services& s, NodeId n);
+    bool set_prop(std::string_view k, [[maybe_unused]] const Value& v);
+    [[nodiscard]] Value get_prop(std::string_view k) const;
+    ActResult act(ActContext& ctx, std::string_view action);
+    void emit_closed();
+    void write_open(bool value);
+  };
+}
+== omui.ui.base:menu_item_contract
+namespace omui {
+  struct MenuItemProps {
+    bool disabled = false;
+    std::string shortcut;
+    std::string text;
+    std::string verb;
+  };
+  enum class MenuItemProp : std::uint8_t { disabled, shortcut, text, verb };
+  struct MenuItemOptions {
+    std::string id;
+    Prop<bool> disabled;
+    Prop<std::string> shortcut;
+    Prop<std::string> text;
+    Prop<std::string> verb;
+    std::function<void()> on_activated;
+    Prop<Dim> width;
+    Prop<Dim> height;
+    Prop<Dim> min_width;
+    Prop<Dim> max_width;
+    Prop<float> grow;
+    Prop<float> shrink;
+    std::string align_self;
+    Prop<Edges> margin;
+    Prop<float> opacity;
+    Prop<bool> visible;
+    std::string label;
+    std::string description;
+    std::vector<std::pair<std::string, Handler>> on;
+    std::vector<std::pair<std::string, Transition>> animate;
+  };
+  [[nodiscard]] Element menu_item(MenuItemOptions options = {…}, std::source_location where = std::source_location::current());
+  template <class Derived> class MenuItemContract {
+    static constexpr std::string_view name = "menu_item";
+    static constexpr Role role = Role::menu_item;
+    static constexpr bool focusable = true;
+    [[nodiscard]] static const spec::ContractInfo& contract() noexcept;
+    MenuItemProps props;
+    void mount(Services& s, NodeId n);
+    bool set_prop(std::string_view k, [[maybe_unused]] const Value& v);
+    [[nodiscard]] Value get_prop(std::string_view k) const;
+    ActResult act(ActContext& ctx, std::string_view action);
+    void emit_activated();
+  };
+}
+== omui.ui.base:navigating
+namespace omui {
+  class ContextMenu : public ContextMenuContract<ContextMenu> {
+    static constexpr bool overlay = true;
+    [[nodiscard]] Placement placement() const;
+    ContextMenu() = default;
+    ContextMenu(const ContextMenu&) = delete;
+    ContextMenu& operator=(const ContextMenu&) = delete;
+    ~ContextMenu();
+    void mounted();
+    void prop_changed(ContextMenuProp p);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    void paint(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult show(ActContext& ctx, const ShowArgs& args);
+    ActResult dismiss(ActContext& ctx);
+  };
+  class HoverCard : public HoverCardContract<HoverCard> {
+    static constexpr bool overlay = true;
+    [[nodiscard]] Placement placement() const;
+    HoverCard() = default;
+    HoverCard(const HoverCard&) = delete;
+    HoverCard& operator=(const HoverCard&) = delete;
+    ~HoverCard();
+    void mounted();
+    void prop_changed(HoverCardProp p);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    void paint(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult show(ActContext& ctx);
+    ActResult dismiss(ActContext& ctx);
+  };
+  class CommandPalette : public CommandPaletteContract<CommandPalette> {
+    static constexpr bool overlay = true;
+    [[nodiscard]] Placement placement() const;
+    void mounted();
+    void prop_changed(CommandPaletteProp p);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    [[nodiscard]] std::vector<Element> compose();
+    void paint(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(std::string_view path) const;
+    [[nodiscard]] std::optional<spec::SemanticNode> virtual_item(std::string_view path, std::string_view key) const;
+    ActResult act_item(ActContext& ctx, std::string_view key, std::string_view action);
+    ActResult show(ActContext& ctx);
+    ActResult dismiss(ActContext& ctx);
+    ActResult set_query(ActContext& ctx, const Value& query);
+    ActResult next(ActContext& ctx);
+    ActResult previous(ActContext& ctx);
+    ActResult run(ActContext& ctx);
+    [[nodiscard]] std::vector<const VerbDesc*> matching(std::string_view query) const;
+  };
+  class Sidebar : public SidebarContract<Sidebar> {
+    static constexpr bool focusable = true;
+    void mounted();
+    void prop_changed(SidebarProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(std::string_view path) const;
+    [[nodiscard]] std::optional<spec::SemanticNode> virtual_item(std::string_view path, std::string_view key) const;
+    ActResult act_item(ActContext& ctx, std::string_view key, std::string_view action);
+    ActResult set_selected(ActContext& ctx, const Value& selected);
+    ActResult expand(ActContext& ctx);
+    ActResult collapse(ActContext& ctx);
+    ActResult next(ActContext& ctx);
+    ActResult previous(ActContext& ctx);
+  };
+  class Toolbar : public ToolbarContract<Toolbar> {
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    void paint(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult next(ActContext& ctx);
+    ActResult previous(ActContext& ctx);
+    ActResult first(ActContext& ctx);
+    ActResult last(ActContext& ctx);
+  };
+}
+== omui.ui.base:navigation
+namespace omui {
+  class Breadcrumb : public BreadcrumbContract<Breadcrumb> {
+    static constexpr bool focusable = true;
+    void mounted();
+    void prop_changed(BreadcrumbProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(std::string_view path) const;
+    [[nodiscard]] std::optional<spec::SemanticNode> virtual_item(std::string_view path, std::string_view key) const;
+    ActResult act_item(ActContext& ctx, std::string_view key, std::string_view action);
+    ActResult go(ActContext& ctx, const Value& index);
+    ActResult next(ActContext& ctx);
+    ActResult previous(ActContext& ctx);
+  };
+  class Pagination : public PaginationContract<Pagination> {
+    static constexpr bool focusable = true;
+    void mounted();
+    void prop_changed(PaginationProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(std::string_view path) const;
+    [[nodiscard]] std::optional<spec::SemanticNode> virtual_item(std::string_view path, std::string_view key) const;
+    ActResult act_item(ActContext& ctx, std::string_view key, std::string_view action);
+    ActResult increment(ActContext& ctx);
+    ActResult decrement(ActContext& ctx);
+    ActResult set_value(ActContext& ctx, const Value& value);
+    [[nodiscard]] std::vector<std::int64_t> slots() const;
+  };
+}
+== omui.ui.base:notices
+namespace omui {
+  class Alert : public AlertContract<Alert> {
+    void mounted();
+    void prop_changed(AlertProp p);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult activate(ActContext& ctx);
+    ActResult dismiss(ActContext& ctx);
+  };
+  class Stepper : public StepperContract<Stepper> {
+    static constexpr bool focusable = true;
+    void mounted();
+    void prop_changed(StepperProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(std::string_view path) const;
+    [[nodiscard]] std::optional<spec::SemanticNode> virtual_item(std::string_view path, std::string_view key) const;
+    ActResult act_item(ActContext& ctx, std::string_view key, std::string_view action);
+    ActResult set_value(ActContext& ctx, const Value& value);
+    ActResult increment(ActContext& ctx);
+    ActResult decrement(ActContext& ctx);
+    [[nodiscard]] bool reachable(std::size_t i) const noexcept;
+  };
+}
+== omui.ui.base:number_input
+namespace omui {
+  class NumberInput : public NumberInputContract<NumberInput> {
+    static constexpr bool draws_disabled = true;
+    void mounted();
+    void prop_changed(NumberInputProp p);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    float baseline(MeasureContext& m, Size content);
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<xrender::EffectShape> out) const;
+    ActResult increment(ActContext& ctx);
+    ActResult decrement(ActContext& ctx);
+    ActResult set_value(ActContext& ctx, const Value& value);
+    [[nodiscard]] std::string shown() const;
+    [[nodiscard]] double kept(double v) const noexcept;
+  };
+}
+== omui.ui.base:parts
+namespace omui::parts {
+  [[nodiscard]] constexpr Color mix(Color a, Color b, float t) noexcept;
+  [[nodiscard]] std::string segment(const Services& services, NodeId node);
+  void chevron(PaintContext& ctx, Point c, float size, Color color);
+  void focus_ring(PaintContext& ctx, const Rect& r, const CornerRadii& radii);
+  void agent_corners(xrender::DisplayList& list, const Rect& box, Color ink, float arm, float width = 2);
+  void cross(PaintContext& ctx, Point c, float size, Color color);
+  void check_mark(PaintContext& ctx, Point c, float size, Color color, float width = 1.75f);
+  void shadow(PaintContext& ctx, std::string_view token, const Rect& box, const CornerRadii& r);
+  void depth(PaintContext& ctx, std::string_view token, const Rect& box, const CornerRadii& radii, bool hovered, bool pressed, std::optional<ShadowToken> fallback = std::nullopt, Color object = Color::transparent());
+  class Label {
+    void set_text(std::string text);
+    void set_style(std::string token);
+    void set_max_lines(int lines);
+    [[nodiscard]] const std::string& text() const noexcept;
+    [[nodiscard]] Size measure(Services& services, Color color, float max_width = std::numeric_limits<float>::infinity());
+    [[nodiscard]] float min_content(Services& services, Color color);
+    [[nodiscard]] float baseline(Services& services, Color color);
+    void paint(PaintContext& ctx, Point origin, Color color);
+  };
+}
+== omui.ui.base:pickers
+namespace omui {
+  namespace picking {
+    [[nodiscard]] std::optional<std::chrono::year_month_day> parse_date(std::string_view iso);
+    [[nodiscard]] std::string iso(std::chrono::year_month_day d);
+    [[nodiscard]] std::string spoken(std::chrono::year_month_day d);
+    struct Hsv {
+      double h = 0, s = 0, v = 0;
+    };
+    [[nodiscard]] std::optional<Color> parse_hex(std::string_view hex);
+    [[nodiscard]] std::string hex(Color c);
+    [[nodiscard]] Hsv to_hsv(Color c);
+    [[nodiscard]] Color from_hsv(Hsv hsv);
+  }
+  class DatePicker : public DatePickerContract<DatePicker> {
+    static constexpr bool draws_disabled = true;
+    static constexpr bool focusable = true;
+    void mounted();
+    void prop_changed(DatePickerProp p);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] std::vector<Element> compose();
+    [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(std::string_view path) const;
+    [[nodiscard]] std::optional<spec::SemanticNode> virtual_item(std::string_view path, std::string_view key) const;
+    ActResult act_item(ActContext& ctx, std::string_view key, std::string_view action);
+    ActResult expand(ActContext& ctx);
+    ActResult collapse(ActContext& ctx);
+    ActResult set_value(ActContext& ctx, const Value& value);
+    [[nodiscard]] bool expanded() const;
+    [[nodiscard]] bool allowed(std::chrono::year_month_day d) const;
+  };
+  class DateCalendar {
+    static constexpr std::string_view name = "date_calendar";
+    static constexpr bool draws_disabled = true;
+    static constexpr Role role = Role::grid;
+    static constexpr bool overlay = true;
+    static constexpr bool focusable = true;
+    [[nodiscard]] Placement placement() const;
+    void mount(Services& s, NodeId n);
+    bool set_prop(std::string_view k, const Value& v);
+    [[nodiscard]] Value get_prop(std::string_view k) const;
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult act(ActContext& ctx, std::string_view action);
+    [[nodiscard]] std::chrono::year_month month() const noexcept;
+    void turn(int months);
+  };
+  class TimePicker : public TimePickerContract<TimePicker> {
+    static constexpr bool draws_disabled = true;
+    static constexpr bool focusable = true;
+    void mounted();
+    void prop_changed(TimePickerProp p);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(std::string_view path) const;
+    [[nodiscard]] std::optional<spec::SemanticNode> virtual_item(std::string_view path, std::string_view key) const;
+    ActResult act_item(ActContext& ctx, std::string_view key, std::string_view action);
+    ActResult set_value(ActContext& ctx, const Value& value);
+    ActResult increment(ActContext& ctx);
+    ActResult decrement(ActContext& ctx);
+    ActResult previous(ActContext& ctx);
+    ActResult next(ActContext& ctx);
+    [[nodiscard]] static std::optional<int> minutes_of(std::string_view hhmm) noexcept;
+  };
+  class ColorPicker : public ColorPickerContract<ColorPicker> {
+    static constexpr bool draws_disabled = true;
+    static constexpr bool focusable = true;
+    void mounted();
+    void prop_changed(ColorPickerProp p);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] std::vector<Element> compose();
+    [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(std::string_view path) const;
+    [[nodiscard]] std::optional<spec::SemanticNode> virtual_item(std::string_view path, std::string_view key) const;
+    ActResult act_item(ActContext& ctx, std::string_view key, std::string_view action);
+    ActResult expand(ActContext& ctx);
+    ActResult collapse(ActContext& ctx);
+    ActResult set_value(ActContext& ctx, const Value& value);
+    [[nodiscard]] bool expanded() const;
+    [[nodiscard]] double hue() const noexcept;
+    [[nodiscard]] Value get_prop(std::string_view k) const;
+  };
+  class ColorPanel {
+    static constexpr std::string_view name = "color_panel";
+    static constexpr Role role = Role::dialog;
+    static constexpr bool overlay = true;
+    static constexpr bool focusable = true;
+    [[nodiscard]] Placement placement() const;
+    void mount(Services& s, NodeId n);
+    bool set_prop(std::string_view k, const Value& v);
+    [[nodiscard]] Value get_prop(std::string_view k) const;
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult act(ActContext& ctx, std::string_view action);
+    [[nodiscard]] static Rect field_rect() noexcept;
+    [[nodiscard]] static Rect hue_rect() noexcept;
+    [[nodiscard]] Rect swatch_rect(std::size_t i) const noexcept;
+  };
+}
+== omui.ui.base:progress
+namespace omui {
+  class Progress : public ProgressContract<Progress> {
+    void mounted();
+    void prop_changed(ProgressProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+  };
+  class Radio : public RadioContract<Radio> {
+    static constexpr bool draws_disabled = true;
+    void mounted();
+    void prop_changed(RadioProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    float baseline(MeasureContext& m, Size content);
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult select(ActContext& ctx);
+    ActResult activate(ActContext& ctx);
+    [[nodiscard]] bool chosen() const noexcept;
+  };
+}
+== omui.ui.base:progress_contract
+namespace omui {
+  struct ProgressProps {
+    std::string label;
+    double value = -1.0;
+  };
+  enum class ProgressProp : std::uint8_t { label, value };
+  struct ProgressOptions {
+    std::string id;
+    Prop<std::string> label;
+    Prop<double> value;
+    Prop<Dim> width;
+    Prop<Dim> height;
+    Prop<Dim> min_width;
+    Prop<Dim> max_width;
+    Prop<float> grow;
+    Prop<float> shrink;
+    std::string align_self;
+    Prop<Edges> margin;
+    Prop<float> opacity;
+    Prop<bool> visible;
+    std::string description;
+    std::vector<std::pair<std::string, Handler>> on;
+    std::vector<std::pair<std::string, Transition>> animate;
+  };
+  [[nodiscard]] Element progress(ProgressOptions options = {…}, std::source_location where = std::source_location::current());
+  template <class Derived> class ProgressContract {
+    static constexpr std::string_view name = "progress";
+    static constexpr Role role = Role::progress;
+    static constexpr bool focusable = false;
+    [[nodiscard]] static const spec::ContractInfo& contract() noexcept;
+    ProgressProps props;
+    void mount(Services& s, NodeId n);
+    bool set_prop(std::string_view k, [[maybe_unused]] const Value& v);
+    [[nodiscard]] Value get_prop(std::string_view k) const;
+    ActResult act(ActContext& ctx, std::string_view action);
+    void write_value(double value);
+  };
+}
+== omui.ui.base:radio_contract
+namespace omui {
+  struct RadioProps {
+    bool disabled = false;
+    std::string group;
+    std::string label;
+    std::string value;
+  };
+  enum class RadioProp : std::uint8_t { disabled, group, label, value };
+  struct RadioOptions {
+    std::string id;
+    Prop<bool> disabled;
+    Prop<std::string> group;
+    Prop<std::string> label;
+    Prop<std::string> value;
+    std::function<void(std::string)> on_selected;
+    Prop<Dim> width;
+    Prop<Dim> height;
+    Prop<Dim> min_width;
+    Prop<Dim> max_width;
+    Prop<float> grow;
+    Prop<float> shrink;
+    std::string align_self;
+    Prop<Edges> margin;
+    Prop<float> opacity;
+    Prop<bool> visible;
+    std::string description;
+    std::vector<std::pair<std::string, Handler>> on;
+    std::vector<std::pair<std::string, Transition>> animate;
+  };
+  [[nodiscard]] Element radio(RadioOptions options = {…}, std::source_location where = std::source_location::current());
+  template <class Derived> class RadioContract {
+    static constexpr std::string_view name = "radio";
+    static constexpr Role role = Role::radio;
+    static constexpr bool focusable = true;
+    [[nodiscard]] static const spec::ContractInfo& contract() noexcept;
+    RadioProps props;
+    void mount(Services& s, NodeId n);
+    bool set_prop(std::string_view k, [[maybe_unused]] const Value& v);
+    [[nodiscard]] Value get_prop(std::string_view k) const;
+    ActResult act(ActContext& ctx, std::string_view action);
+    void emit_selected(std::string value);
+    void write_group(std::string value);
+  };
+}
+== omui.ui.base:reading
+namespace omui {
+  class Kbd : public KbdContract<Kbd> {
+    void mounted();
+    void prop_changed(KbdProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    float baseline(MeasureContext& m, Size content);
+    void paint(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] static std::vector<std::vector<std::string>> chords(std::string_view keys, bool command);
+    [[nodiscard]] static std::string spoken(std::string_view keys, bool command);
+  };
+  class Separator : public SeparatorContract<Separator> {
+    void mounted();
+    void prop_changed(SeparatorProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+  };
+  class Link : public LinkContract<Link> {
+    static constexpr bool draws_disabled = true;
+    void mounted();
+    void prop_changed(LinkProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    float baseline(MeasureContext& m, Size content);
+    void paint(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult activate(ActContext& ctx);
+    [[nodiscard]] static bool opens(std::string_view href);
+  };
+  class DescriptionList : public DescriptionListContract<DescriptionList> {
+    void mounted();
+    void prop_changed(DescriptionListProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(std::string_view path) const;
+    [[nodiscard]] std::optional<spec::SemanticNode> virtual_item(std::string_view path, std::string_view key) const;
+  };
+  class Spinner : public SpinnerContract<Spinner> {
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+  };
+}
+== omui.ui.base:select
+namespace omui {
+  class Select : public SelectContract<Select> {
+    static constexpr bool draws_disabled = true;
+    void mounted();
+    void prop_changed(SelectProp p);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] std::vector<Element> compose();
+    ActResult expand(ActContext& ctx);
+    ActResult collapse(ActContext& ctx);
+    ActResult set_value(ActContext& ctx, const Value& value);
+    [[nodiscard]] std::string label_of(std::string_view value) const;
+    [[nodiscard]] bool expanded() const;
+    void choose(const std::string& value);
+  };
+  class SelectPopup {
+    static constexpr std::string_view name = "select_popup";
+    static constexpr Role role = Role::list_box;
+    static constexpr bool overlay = true;
+    [[nodiscard]] Placement placement() const;
+    void mount(Services& s, NodeId n);
+    bool set_prop(std::string_view k, const Value& v);
+    [[nodiscard]] Value get_prop(std::string_view k) const;
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    void paint(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult act(ActContext& ctx, std::string_view action);
+  };
+  class SelectOption {
+    static constexpr std::string_view name = "select_option";
+    static constexpr Role role = Role::option;
+    static constexpr bool focusable = true;
+    void mount(Services& s, NodeId n);
+    bool set_prop(std::string_view k, const Value& v);
+    [[nodiscard]] Value get_prop(std::string_view k) const;
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] bool selected() const;
+  };
+}
+== omui.ui.base:select_contract
+namespace omui {
+  struct SelectProps {
+    bool disabled = false;
+    std::string label;
+    std::vector<std::string> labels;
+    std::vector<std::string> options;
+    std::string value;
+  };
+  enum class SelectProp : std::uint8_t { disabled, label, labels, options, value };
+  struct SelectOptions {
+    std::string id;
+    Prop<bool> disabled;
+    Prop<std::string> label;
+    Prop<std::vector<std::string>> labels;
+    Prop<std::vector<std::string>> options;
+    Prop<std::string> value;
+    std::function<void(std::string)> on_changed;
+    Prop<Dim> width;
+    Prop<Dim> height;
+    Prop<Dim> min_width;
+    Prop<Dim> max_width;
+    Prop<float> grow;
+    Prop<float> shrink;
+    std::string align_self;
+    Prop<Edges> margin;
+    Prop<float> opacity;
+    Prop<bool> visible;
+    std::string description;
+    std::vector<std::pair<std::string, Handler>> on;
+    std::vector<std::pair<std::string, Transition>> animate;
+  };
+  [[nodiscard]] Element select(SelectOptions options = {…}, std::source_location where = std::source_location::current());
+  template <class Derived> class SelectContract {
+    static constexpr std::string_view name = "select";
+    static constexpr Role role = Role::combo_box;
+    static constexpr bool focusable = true;
+    [[nodiscard]] static const spec::ContractInfo& contract() noexcept;
+    SelectProps props;
+    void mount(Services& s, NodeId n);
+    bool set_prop(std::string_view k, [[maybe_unused]] const Value& v);
+    [[nodiscard]] Value get_prop(std::string_view k) const;
+    ActResult act(ActContext& ctx, std::string_view action);
+    void emit_changed(std::string value);
+    void write_value(std::string value);
+  };
+}
+== omui.ui.base:showing
+namespace omui {
+  class Chart : public ChartContract<Chart> {
+    struct Series {
+      std::string name;
+      std::vector<double> values;
+      std::optional<Color> color;
+    };
+    [[nodiscard]] static std::vector<Series> read(const Value& series);
+    [[nodiscard]] static double step_for(double low, double high, int count = 4);
+    void mounted();
+    void prop_changed(ChartProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(std::string_view path) const;
+    [[nodiscard]] std::optional<spec::SemanticNode> virtual_item(std::string_view path, std::string_view key) const;
+  };
+  class Carousel : public CarouselContract<Carousel> {
+    static constexpr bool focusable = true;
+    static constexpr bool clips = true;
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    void laid_out();
+    [[nodiscard]] Point scroll_offset() const;
+    void paint_over(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(std::string_view path) const;
+    [[nodiscard]] std::optional<spec::SemanticNode> virtual_item(std::string_view path, std::string_view key) const;
+    ActResult act_item(ActContext& ctx, std::string_view key, std::string_view action);
+    ActResult set_index(ActContext& ctx, const Value& index);
+    ActResult next(ActContext& ctx);
+    ActResult previous(ActContext& ctx);
+  };
+}
+== omui.ui.base:slider
+namespace omui {
+  class Slider : public SliderContract<Slider> {
+    static constexpr bool draws_disabled = true;
+    void mounted();
+    void prop_changed(SliderProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<xrender::EffectShape> out) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult increment(ActContext& ctx);
+    ActResult decrement(ActContext& ctx);
+    ActResult set_value(ActContext& ctx, const Value& value);
+    ActResult preview(ActContext& ctx, std::string_view action) const;
+    [[nodiscard]] double snap(double v) const noexcept;
+  };
+}
+== omui.ui.base:slider_contract
+namespace omui {
+  struct SliderProps {
+    bool disabled = false;
+    std::string label;
+    double max = 100.0;
+    double min = 0.0;
+    double step = 1.0;
+    double value = 0.0;
+  };
+  enum class SliderProp : std::uint8_t { disabled, label, max, min, step, value };
+  struct SliderOptions {
+    std::string id;
+    Prop<bool> disabled;
+    Prop<std::string> label;
+    Prop<double> max;
+    Prop<double> min;
+    Prop<double> step;
+    Prop<double> value;
+    std::function<void(double)> on_changed;
+    std::function<void(double)> on_committed;
+    Prop<Dim> width;
+    Prop<Dim> height;
+    Prop<Dim> min_width;
+    Prop<Dim> max_width;
+    Prop<float> grow;
+    Prop<float> shrink;
+    std::string align_self;
+    Prop<Edges> margin;
+    Prop<float> opacity;
+    Prop<bool> visible;
+    std::string description;
+    std::vector<std::pair<std::string, Handler>> on;
+    std::vector<std::pair<std::string, Transition>> animate;
+  };
+  [[nodiscard]] Element slider(SliderOptions options = {…}, std::source_location where = std::source_location::current());
+  template <class Derived> class SliderContract {
+    static constexpr std::string_view name = "slider";
+    static constexpr Role role = Role::slider;
+    static constexpr bool focusable = true;
+    [[nodiscard]] static const spec::ContractInfo& contract() noexcept;
+    SliderProps props;
+    void mount(Services& s, NodeId n);
+    bool set_prop(std::string_view k, [[maybe_unused]] const Value& v);
+    [[nodiscard]] Value get_prop(std::string_view k) const;
+    ActResult act(ActContext& ctx, std::string_view action);
+    void emit_changed(double value);
+    void emit_committed(double value);
+    void write_value(double value);
+  };
+}
+== omui.ui.base:status
+namespace omui {
+  class Badge : public BadgeContract<Badge> {
+    void mounted();
+    void prop_changed(BadgeProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    float baseline(MeasureContext& m, Size content);
+    void paint(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<xrender::EffectShape> out) const;
+    [[nodiscard]] std::string shown() const;
+    [[nodiscard]] static std::pair<Color, Color> colors(const Theme& theme, BadgeTone tone);
+  };
+  class Avatar : public AvatarContract<Avatar> {
+    void mounted();
+    void prop_changed(AvatarProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<xrender::EffectShape> out) const;
+    [[nodiscard]] static std::string initials(std::string_view name);
+    [[nodiscard]] static Color hue_of(std::string_view name, bool dark);
+  };
+  class Skeleton : public SkeletonContract<Skeleton> {
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<xrender::EffectShape> out) const;
+  };
+}
+== omui.ui.base:surfaces
+namespace omui {
+  class Card : public CardContract<Card> {
+    void mounted();
+    void prop_changed(CardProp p);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<xrender::EffectShape> out) const;
+    ActResult activate(ActContext& ctx);
+  };
+  class Accordion : public AccordionContract<Accordion> {
+    static constexpr bool draws_disabled = true;
+    void mounted();
+    void prop_changed(AccordionProp p);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult expand(ActContext& ctx);
+    ActResult collapse(ActContext& ctx);
+    ActResult activate(ActContext& ctx);
+    [[nodiscard]] float header_height(const Theme& theme) const;
+  };
+  class Toast : public ToastContract<Toast> {
+    static constexpr bool overlay = true;
+    [[nodiscard]] Placement placement() const;
+    Toast() = default;
+    Toast(const Toast&) = delete;
+    Toast& operator=(const Toast&) = delete;
+    ~Toast();
+    void mounted();
+    void prop_changed(ToastProp p);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult dismiss(ActContext& ctx);
+    ActResult activate(ActContext& ctx);
+  };
+  class Popover : public PopoverContract<Popover> {
+    static constexpr bool overlay = true;
+    [[nodiscard]] Placement placement() const;
+    void mounted();
+    void prop_changed(PopoverProp p);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    void paint(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult dismiss(ActContext& ctx);
+  };
+}
+== omui.ui.base:tab_contract
+namespace omui {
+  struct TabProps {
+    bool disabled = false;
+    std::string text;
+  };
+  enum class TabProp : std::uint8_t { disabled, text };
+  struct TabOptions {
+    std::string id;
+    Prop<bool> disabled;
+    Prop<std::string> text;
+    Prop<Dim> width;
+    Prop<Dim> height;
+    Prop<Dim> min_width;
+    Prop<Dim> max_width;
+    Prop<float> grow;
+    Prop<float> shrink;
+    std::string align_self;
+    Prop<Edges> margin;
+    Prop<float> opacity;
+    Prop<bool> visible;
+    std::string label;
+    std::string description;
+    std::vector<std::pair<std::string, Handler>> on;
+    std::vector<std::pair<std::string, Transition>> animate;
+  };
+  [[nodiscard]] Element tab(TabOptions options = {…}, std::source_location where = std::source_location::current());
+  template <class Derived> class TabContract {
+    static constexpr std::string_view name = "tab";
+    static constexpr Role role = Role::tab;
+    static constexpr bool focusable = true;
+    [[nodiscard]] static const spec::ContractInfo& contract() noexcept;
+    TabProps props;
+    void mount(Services& s, NodeId n);
+    bool set_prop(std::string_view k, [[maybe_unused]] const Value& v);
+    [[nodiscard]] Value get_prop(std::string_view k) const;
+    ActResult act(ActContext& ctx, std::string_view action);
+  };
+}
+== omui.ui.base:tabs
+namespace omui {
+  class Tabs : public TabsContract<Tabs> {
+    void mounted();
+    void prop_changed(TabsProp p);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<xrender::EffectShape> out) const;
+    ActResult next(ActContext& ctx);
+    ActResult previous(ActContext& ctx);
+    [[nodiscard]] NodeId current() const;
+    void choose(NodeId tab, bool focus);
+  };
+  class Tab : public TabContract<Tab> {
+    static constexpr bool draws_disabled = true;
+    void mounted();
+    void prop_changed(TabProp p);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult select(ActContext& ctx);
+    ActResult activate(ActContext& ctx);
+    [[nodiscard]] bool selected() const;
+  };
+}
+== omui.ui.base:tabs_contract
+namespace omui {
+  enum class TabsVariant : std::uint8_t { line, bar };
+  [[nodiscard]] constexpr std::string_view name(TabsVariant v) noexcept;
+  [[nodiscard]] constexpr std::optional<TabsVariant> parse_tabs_variant(std::string_view text) noexcept;
+}
+namespace omui {
+  template <> struct ValueOf<::omui::TabsVariant> {
+    static Value to(::omui::TabsVariant v);
+    static ::omui::TabsVariant from(const Value& v);
+  };
+}
+namespace omui {
+  struct TabsProps {
+    std::string selected;
+    TabsVariant variant = TabsVariant::line;
+  };
+  enum class TabsProp : std::uint8_t { selected, variant };
+  struct TabsOptions {
+    std::string id;
+    Prop<std::string> selected;
+    Prop<TabsVariant> variant;
+    std::function<void(std::string)> on_changed;
+    Prop<Dim> width;
+    Prop<Dim> height;
+    Prop<Dim> min_width;
+    Prop<Dim> max_width;
+    Prop<float> grow;
+    Prop<float> shrink;
+    std::string align_self;
+    Prop<Edges> margin;
+    Prop<float> opacity;
+    Prop<bool> visible;
+    std::string label;
+    std::string description;
+    std::vector<std::pair<std::string, Handler>> on;
+    std::vector<std::pair<std::string, Transition>> animate;
+  };
+  [[nodiscard]] Element tabs(TabsOptions options = {…}, std::vector<Element> children = {…}, std::source_location where = std::source_location::current());
+  template <class Derived> class TabsContract {
+    static constexpr std::string_view name = "tabs";
+    static constexpr Role role = Role::tab_list;
+    static constexpr bool focusable = false;
+    [[nodiscard]] static const spec::ContractInfo& contract() noexcept;
+    TabsProps props;
+    void mount(Services& s, NodeId n);
+    bool set_prop(std::string_view k, [[maybe_unused]] const Value& v);
+    [[nodiscard]] Value get_prop(std::string_view k) const;
+    ActResult act(ActContext& ctx, std::string_view action);
+    void emit_changed(std::string selected);
+    void write_selected(std::string value);
+  };
+}
+== omui.ui.base:text_box
+namespace omui {
+  class TextBox : public TextBoxContract<TextBox> {
+    static constexpr bool draws_disabled = true;
+    static constexpr std::string_view cursor = "text";
+    TextBox() = default;
+    TextBox(const TextBox&) = delete;
+    TextBox& operator=(const TextBox&) = delete;
+    ~TextBox();
+    void mounted();
+    void prop_changed(TextBoxProp p);
+    void restyle();
+    bool set_prop(std::string_view k, const Value& v);
+    [[nodiscard]] Value get_prop(std::string_view k) const;
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    float baseline(MeasureContext& m, Size content);
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] std::optional<TextLayout> text_layout() const;
+    ActResult focus(ActContext& ctx);
+    ActResult set_value(ActContext& ctx, const Value& value);
+    ActResult set_selection(ActContext& ctx, const SetSelectionArgs& args);
+    ActResult replace_selection(ActContext& ctx, const Value& text);
+    ActResult submit(ActContext& ctx);
+    ActResult preview(ActContext& ctx, std::string_view action) const;
+    [[nodiscard]] const mlibs::text::TextEditor& editor() const noexcept;
+  };
+}
+== omui.ui.base:text_box_contract
+namespace omui {
+  enum class TextBoxOrigin : std::uint8_t { app, user_content, remote };
+  [[nodiscard]] constexpr std::string_view name(TextBoxOrigin v) noexcept;
+  [[nodiscard]] constexpr std::optional<TextBoxOrigin> parse_text_box_origin(std::string_view text) noexcept;
+}
+namespace omui {
+  template <> struct ValueOf<::omui::TextBoxOrigin> {
+    static Value to(::omui::TextBoxOrigin v);
+    static ::omui::TextBoxOrigin from(const Value& v);
+  };
+}
+namespace omui {
+  struct TextBoxProps {
+    bool disabled = false;
+    std::string label;
+    std::int32_t max_length = 0;
+    bool multiline = false;
+    TextBoxOrigin origin = TextBoxOrigin::user_content;
+    bool password = false;
+    std::string placeholder;
+    bool readonly = false;
+    std::string text;
+  };
+  enum class TextBoxProp : std::uint8_t { disabled, label, max_length, multiline, origin, password, placeholder, readonly, text };
+  struct TextBoxOptions {
+    std::string id;
+    Prop<bool> disabled;
+    Prop<std::string> label;
+    Prop<std::int32_t> max_length;
+    Prop<bool> multiline;
+    Prop<TextBoxOrigin> origin;
+    Prop<bool> password;
+    Prop<std::string> placeholder;
+    Prop<bool> readonly;
+    Prop<std::string> text;
+    std::function<void(std::string)> on_changed;
+    std::function<void(std::string)> on_submitted;
+    Prop<Dim> width;
+    Prop<Dim> height;
+    Prop<Dim> min_width;
+    Prop<Dim> max_width;
+    Prop<float> grow;
+    Prop<float> shrink;
+    std::string align_self;
+    Prop<Edges> margin;
+    Prop<float> opacity;
+    Prop<bool> visible;
+    std::string description;
+    std::vector<std::pair<std::string, Handler>> on;
+    std::vector<std::pair<std::string, Transition>> animate;
+  };
+  [[nodiscard]] Element text_box(TextBoxOptions options = {…}, std::source_location where = std::source_location::current());
+  template <class Derived> class TextBoxContract {
+    static constexpr std::string_view name = "text_box";
+    static constexpr Role role = Role::text_box;
+    static constexpr bool focusable = true;
+    [[nodiscard]] static const spec::ContractInfo& contract() noexcept;
+    TextBoxProps props;
+    void mount(Services& s, NodeId n);
+    bool set_prop(std::string_view k, [[maybe_unused]] const Value& v);
+    [[nodiscard]] Value get_prop(std::string_view k) const;
+    struct SetSelectionArgs {
+      Value anchor;
+      Value focus;
+    };
+    ActResult act(ActContext& ctx, std::string_view action);
+    void emit_changed(std::string text);
+    void emit_submitted(std::string text);
+    void write_text(std::string value);
+  };
+}
+== omui.ui.base:toggle
+namespace omui {
+  class Toggle : public ToggleContract<Toggle> {
+    static constexpr bool draws_disabled = true;
+    void mounted();
+    void prop_changed(ToggleProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    float baseline(MeasureContext& m, Size content);
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<xrender::EffectShape> out) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult toggle(ActContext& ctx);
+    ActResult activate(ActContext& ctx);
+    ActResult preview(ActContext& ctx, std::string_view action) const;
+  };
+  class Checkbox : public CheckboxContract<Checkbox> {
+    static constexpr bool draws_disabled = true;
+    void mounted();
+    void prop_changed(CheckboxProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    float baseline(MeasureContext& m, Size content);
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult toggle(ActContext& ctx);
+    ActResult activate(ActContext& ctx);
+    ActResult preview(ActContext& ctx, std::string_view action) const;
+  };
+}
+== omui.ui.base:toggle_contract
+namespace omui {
+  struct ToggleProps {
+    bool checked = false;
+    bool disabled = false;
+    std::string label;
+  };
+  enum class ToggleProp : std::uint8_t { checked, disabled, label };
+  struct ToggleOptions {
+    std::string id;
+    Prop<bool> checked;
+    Prop<bool> disabled;
+    Prop<std::string> label;
+    std::function<void(bool)> on_changed;
+    Prop<Dim> width;
+    Prop<Dim> height;
+    Prop<Dim> min_width;
+    Prop<Dim> max_width;
+    Prop<float> grow;
+    Prop<float> shrink;
+    std::string align_self;
+    Prop<Edges> margin;
+    Prop<float> opacity;
+    Prop<bool> visible;
+    std::string description;
+    std::vector<std::pair<std::string, Handler>> on;
+    std::vector<std::pair<std::string, Transition>> animate;
+  };
+  [[nodiscard]] Element toggle(ToggleOptions options = {…}, std::source_location where = std::source_location::current());
+  template <class Derived> class ToggleContract {
+    static constexpr std::string_view name = "toggle";
+    static constexpr Role role = Role::switch_;
+    static constexpr bool focusable = true;
+    [[nodiscard]] static const spec::ContractInfo& contract() noexcept;
+    ToggleProps props;
+    void mount(Services& s, NodeId n);
+    bool set_prop(std::string_view k, [[maybe_unused]] const Value& v);
+    [[nodiscard]] Value get_prop(std::string_view k) const;
+    ActResult act(ActContext& ctx, std::string_view action);
+    void emit_changed(bool checked);
+    void write_checked(bool value);
+  };
+}
+== omui.ui.base:tooltip_contract
+namespace omui {
+  struct TooltipProps {
+    double delay = 0.5;
+    std::string text;
+  };
+  enum class TooltipProp : std::uint8_t { delay, text };
+  struct TooltipOptions {
+    std::string id;
+    Prop<double> delay;
+    Prop<std::string> text;
+    Prop<Dim> width;
+    Prop<Dim> height;
+    Prop<Dim> min_width;
+    Prop<Dim> max_width;
+    Prop<float> grow;
+    Prop<float> shrink;
+    std::string align_self;
+    Prop<Edges> margin;
+    Prop<float> opacity;
+    Prop<bool> visible;
+    std::string label;
+    std::string description;
+    std::vector<std::pair<std::string, Handler>> on;
+    std::vector<std::pair<std::string, Transition>> animate;
+  };
+  [[nodiscard]] Element tooltip(TooltipOptions options = {…}, std::source_location where = std::source_location::current());
+  template <class Derived> class TooltipContract {
+    static constexpr std::string_view name = "tooltip";
+    static constexpr Role role = Role::tooltip;
+    static constexpr bool focusable = false;
+    [[nodiscard]] static const spec::ContractInfo& contract() noexcept;
+    TooltipProps props;
+    void mount(Services& s, NodeId n);
+    bool set_prop(std::string_view k, [[maybe_unused]] const Value& v);
+    [[nodiscard]] Value get_prop(std::string_view k) const;
+    ActResult act(ActContext& ctx, std::string_view action);
+  };
+}

@@ -1,0 +1,107 @@
+== omui.accessibility
+export import :map;
+export import :platform;
+export import :adapter;
+== omui.accessibility:adapter
+namespace omui::accessibility {
+  inline constexpr bool available = platform::available;
+  [[nodiscard]] std::string_view service() noexcept;
+  struct AdapterOptions {
+    std::string toolkit = "openmui";
+    std::string toolkit_version = "0.1.0";
+    float scale = 1;
+  };
+  [[nodiscard]] std::string debug(const Mirror& mirror, const AdapterOptions& options = {…});
+  class Adapter {
+    [[nodiscard]] static std::expected<std::unique_ptr<Adapter>, std::string> attach(Mirror& mirror, void* window, AdapterOptions options = {…});
+    ~Adapter();
+    Adapter(const Adapter&) = delete;
+    Adapter& operator=(const Adapter&) = delete;
+    void update();
+    void window_focus(bool focused);
+    void set_scale(float scale);
+    void window_bounds(Rect outer, Rect inner);
+    [[nodiscard]] bool active() const noexcept;
+    struct Impl;
+  };
+}
+== omui.accessibility:map
+namespace omui::accessibility {
+  enum class Action : std::uint8_t { click, focus, blur, collapse, expand, custom, decrement, increment, hide_tooltip, show_tooltip, replace_selected_text, scroll_down, scroll_left, scroll_right, scroll_up, scroll_into_view, scroll_to_point, set_scroll_offset, set_text_selection, set_sequential_focus_navigation_starting_point, set_value, show_context_menu, };
+  inline constexpr std::size_t action_count = 22;
+  enum class Toggled : std::uint8_t { none, off, on, mixed };
+  struct TextPosition {
+    std::uint64_t run = 0;
+    std::size_t index = 0;
+  };
+  struct TextSelection {
+    TextPosition anchor, focus;
+  };
+  enum class Live : std::uint8_t { off, polite, assertive };
+  struct Node {
+    std::uint64_t key = 0;
+    std::string_view role = "GenericContainer";
+    std::string label, description, value, url;
+    std::optional<double> number, min, max, step;
+    std::optional<double> scroll_x, scroll_x_max, scroll_y, scroll_y_max;
+    std::optional<std::size_t> level;
+    std::optional<bool> selected, expanded;
+    Toggled toggled = Toggled::none;
+    Live live = Live::off;
+    bool disabled = false, readonly = false, required = false, invalid = false, busy = false, hidden = false, modal = false, multiselectable = false, visited = false;
+    std::uint32_t actions = 0;
+    std::vector<std::string> custom;
+    std::optional<spec::Rect> bounds;
+    std::vector<std::uint64_t> children;
+    std::optional<TextSelection> selection;
+    std::vector<std::uint8_t> lengths;
+    std::vector<float> positions, widths;
+    std::vector<std::uint8_t> word_starts;
+    bool rtl = false;
+    std::uint64_t next_on_line = 0, previous_on_line = 0;
+    [[nodiscard]] bool has(Action a) const noexcept;
+    void add(Action a) noexcept;
+  };
+  [[nodiscard]] std::uint64_t key_of(std::string_view id) noexcept;
+  [[nodiscard]] Node describe(const spec::SemanticNode& node);
+  [[nodiscard]] std::string_view click_action(const spec::SemanticNode& node) noexcept;
+  struct Request {
+    std::uint64_t target = 0;
+    Action action = Action::click;
+    std::int32_t custom = -1;
+    std::optional<std::string> text;
+    std::optional<double> number;
+    std::optional<Point> point;
+    std::optional<TextSelection> selection;
+    bool page = false;
+  };
+  struct MirrorOptions {
+    std::string name;
+  };
+  class Mirror {
+    explicit Mirror(Runtime& runtime, MirrorOptions options = {…});
+    struct Changes {
+      std::vector<Node> nodes;
+      std::uint64_t focus = 0;
+      bool focus_moved = false;
+      [[nodiscard]] bool empty() const noexcept;
+    };
+    Changes refresh();
+    void rename(std::string name);
+    void each(const std::function<void(const Node&)>& fn) const;
+    [[nodiscard]] std::uint64_t root() const noexcept;
+    [[nodiscard]] std::uint64_t focus() const;
+    [[nodiscard]] std::size_t size() const;
+    [[nodiscard]] std::optional<std::string> id_of(std::uint64_t key) const;
+    void queue(Request request);
+    void set_wake(std::function<void()> wake);
+    std::vector<Envelope> serve();
+    Envelope perform(const Request& request);
+    [[nodiscard]] std::size_t waiting() const;
+    [[nodiscard]] semantic::Tree& tree() noexcept;
+  };
+}
+== omui.accessibility:platform
+namespace omui::accessibility::platform {
+  inline constexpr bool available = false;
+}

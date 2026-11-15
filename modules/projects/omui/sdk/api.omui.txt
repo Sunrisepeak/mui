@@ -1,0 +1,193 @@
+== omui
+export import omui.core;
+export import omui.view;
+export import omui.semantic;
+export import hanim.visual;
+export import omui.agent;
+export import omui.generate;
+export import omui.expr;
+export import omui.viewdoc;
+export import omui.ui.base;
+export import omui.ui.window;
+export import omui.host.headless;
+export import :host;
+export import mlibs.i18n;
+export import :app;
+export import :system;
+export import :present;
+export import :devhost;
+export import :agent_guide;
+== omui:agent_guide
+namespace omui {
+  struct AgentGuide {
+    std::string markdown;
+    std::string json;
+  };
+  inline constexpr std::string_view omui_releases = "https://github.com/Sunrisepeak/mui/releases/latest";
+  inline constexpr std::string_view omui_repository = "Sunrisepeak/mui";
+  [[nodiscard]] AgentGuide agent_guide(const AppSpec& app, Runtime& runtime, const Value& snapshot);
+  std::expected<void, std::string> write_agent_guide(const AgentGuide& guide, const std::filesystem::path& dir);
+}
+== omui:app
+namespace omui {
+  struct VerbSpec {
+    VerbDesc desc;
+    VerbFn fn;
+  };
+  struct AgentCheck {
+    std::string activate;
+    std::string read;
+    std::string expect;
+  };
+  struct AppSpec {
+    std::string id = "openmui-app";
+    std::string title = "openmui";
+    Size size{…};
+    std::function<View()> view;
+    std::vector<VerbSpec> verbs;
+    std::vector<TaskDesc> tasks;
+    Theme theme = Theme::light();
+    std::filesystem::path effects;
+    std::function<std::expected<std::string, std::string>(const std::filesystem::path&)> effect_data;
+    std::function<void(Runtime&)> setup;
+    std::function<void(Runtime&)> teardown;
+    std::function<bool()> ready;
+    std::string source_language = "en";
+    std::filesystem::path messages;
+    std::vector<std::pair<std::string, std::string_view>> catalogs;
+    std::string agent = "external";
+    bool agent_input = true;
+    bool agent_players = false;
+    std::vector<std::string> grants;
+    AgentMode agent_mode = AgentMode::automatic;
+    AgentRestrictions agent_developer, agent_user;
+    bool accessibility = true;
+    std::string window = "native";
+    WindowFrameOptions frame;
+    std::string renderer = "automatic";
+    std::string description;
+    AgentCheck agent_check;
+    std::string agent_skill;
+    std::optional<generate::GenerationOptions> generation;
+  };
+  struct RunOptions {
+    bool headless = false;
+    bool serve = false;
+    std::optional<int> frames;
+    std::filesystem::path png;
+    int level = 2;
+    std::filesystem::path agent_dir;
+    std::string agent_name;
+    bool agent = true;
+    std::optional<AgentMode> agent_mode;
+    std::optional<bool> agent_input;
+    bool no_agent_player = false;
+    bool accessibility = true;
+    bool dark = false;
+    std::optional<bool> gpu;
+    bool reduce_transparency = false;
+    std::optional<Size> size;
+    DebugOptions debug;
+    std::string log;
+    std::filesystem::path profile;
+    std::vector<std::string> languages;
+    std::string window;
+    std::filesystem::path agent_guide;
+    std::filesystem::path present_to;
+    std::filesystem::path replay;
+    static void declare(mcpplibs::cmdline::App& app);
+    [[nodiscard]] static std::expected<RunOptions, std::string> from(const mcpplibs::cmdline::ParsedArgs& parsed);
+    [[nodiscard]] static std::expected<RunOptions, std::string> parse(std::span<const std::string_view> args);
+  };
+  [[nodiscard]] std::string_view application_build_profile() noexcept;
+  [[nodiscard]] std::expected<AgentPolicy, std::string> application_agent_policy( const AppSpec& app, std::optional<AgentMode> startup_mode = {…});
+  std::expected<void, std::string> choose_renderer(std::string_view name);
+  struct CommandLine {
+    mcpplibs::cmdline::ParsedArgs args;
+    RunOptions options;
+  };
+  [[nodiscard]] std::expected<CommandLine, int> command_line(mcpplibs::cmdline::App line, int argc, char** argv);
+  int run(AppSpec app, const RunOptions& options);
+  int run(AppSpec app, int argc, char** argv);
+}
+== omui:devhost
+namespace omui {
+  struct DevProblem {
+    std::string file;
+    int line = 0, column = 0;
+    std::string text;
+  };
+  [[nodiscard]] std::vector<DevProblem> problems_in(std::string_view compiler_output);
+  struct DevHostOptions {
+    std::filesystem::path directory;
+    std::function<bool(const std::filesystem::path& socket)> start;
+    seconds fade{…};
+  };
+  class DevHost {
+    DevHost(Runtime& runtime, DevHostOptions options);
+    ~DevHost();
+    DevHost(const DevHost&) = delete;
+    DevHost& operator=(const DevHost&) = delete;
+    bool restart();
+    void show_problems(std::vector<DevProblem> problems);
+    [[nodiscard]] Value status() const;
+    struct Impl;
+  };
+}
+== omui:host
+export import omui.host.web;
+== omui:present
+namespace omui {
+  [[nodiscard]] NodeId built_near(const Runtime& runtime, std::string_view file, int line);
+  class Presenter {
+    Presenter(Runtime& runtime, mcpplibs::os::ipc::connection connection);
+    bool send(const FrameOutput& frame);
+    [[nodiscard]] std::vector<InputEvent> input();
+    [[nodiscard]] std::optional<std::pair<Size, float>> resized();
+  };
+  class Presentation {
+    explicit Presentation(mcpplibs::os::ipc::connection connection, mlibs::text::FontCollection* fonts = nullptr);
+    [[nodiscard]] const xrender::DisplayList* receive(std::chrono::milliseconds wait);
+    [[nodiscard]] const xrender::DisplayList& list() const noexcept;
+    [[nodiscard]] xrender::ImageStore& images() noexcept;
+    [[nodiscard]] bool gone() const noexcept;
+    [[nodiscard]] std::uint64_t frames() const noexcept;
+    bool send_input(std::span<const InputEvent> events);
+    bool resize(Size size, float scale);
+    bool ask_state();
+    [[nodiscard]] const std::optional<Value>& state() const noexcept;
+    bool restore(const Value& state);
+    bool ask_places(const Value& places);
+    [[nodiscard]] const std::optional<Value>& places() const noexcept;
+  };
+}
+== omui:system
+namespace omui {
+  enum class Surfacing : std::uint8_t { native, drawn };
+  using FileFilter = Runtime::FileFilter;
+  using FileChoice = Runtime::FileChoice;
+  using FilesChosen = Runtime::FilesChosen;
+  using Notice = Runtime::Notice;
+  using MenuEntry = Runtime::MenuEntry;
+  struct MenuGroup {
+    std::string label;
+    std::vector<MenuEntry> entries;
+  };
+  struct SystemOptions {
+    Surfacing files = Surfacing::native;
+    Surfacing notifications = Surfacing::native;
+    Surfacing menu_bar = Surfacing::drawn;
+    seconds notice_shown{…};
+  };
+  class System {
+    System(Runtime& runtime, SystemOptions options = {…});
+    ~System();
+    System(const System&) = delete;
+    System& operator=(const System&) = delete;
+    void choose_files(FileChoice choice, FilesChosen chosen);
+    void notify(Notice notice);
+    bool set_tray(std::vector<MenuEntry> entries, std::string tooltip);
+    void set_menu_bar(std::vector<MenuGroup> groups);
+    struct Impl;
+  };
+}

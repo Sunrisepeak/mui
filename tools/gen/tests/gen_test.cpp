@@ -165,10 +165,10 @@ UTest cases{"gen", [] {
         expect(text.find("bad.native.omui.json:10:") != std::string::npos) << "diagnostics carry line numbers";
     };
 
-    "the official native modules' generated code and stubs are current (modules/projects/omui/native/*)"_test = [] {
+    "the official native modules' generated code and stubs are current (modules/projects/omui/native/modules/*)"_test = [] {
         gen::Diagnostics diags;
         auto reg = gen::read_registry(spec_dir() / "registry", diags);
-        const auto root = spec_dir().parent_path() / "modules" / "projects" / "omui" / "native";
+        const auto root = spec_dir().parent_path() / "modules" / "projects" / "omui" / "native" / "modules";
         std::error_code ec;
         int seen = 0;
         for (const auto& pkg : std::filesystem::directory_iterator(root, ec)) {
@@ -191,11 +191,11 @@ UTest cases{"gen", [] {
                 expect(read(pkg.path() / "stubs" / (module + ".natives.d.ts")) == gen::emit_native_dts(modules, module)) << module + ".natives.d.ts";
             }
         }
-        expect(seen >= 1) << "modules/projects/omui/native/fuzzy at least";
+        expect(seen >= 1) << "modules/projects/omui/native/modules/fuzzy at least";
     };
 
-    "the theme packages' embedded files are current (modules/projects/omui/theme/*)"_test = [] {
-        const auto root = spec_dir().parent_path() / "modules" / "projects" / "omui" / "theme";
+    "the theme packs' embedded files are current (modules/projects/omui/theme/packs/*)"_test = [] {
+        const auto root = spec_dir().parent_path() / "modules" / "projects" / "omui" / "theme" / "packs";
         std::error_code ec;
         int seen = 0;
         for (const auto& pkg : std::filesystem::directory_iterator(root, ec)) {
@@ -210,8 +210,8 @@ UTest cases{"gen", [] {
             // A module name is identifiers: `default` (a keyword) is `default_theme`.
             const std::string module = name == "default" ? "omui.theme.default_theme" : "omui.theme." + name;
             const std::string want = gen::emit_embed(snapshot->json, snapshot->name, module, "omui::themes", name + "_theme");
-            expect(read(pkg.path() / "src" / "generated" / (name + "_theme.cppm")) == want) << std::format("modules/projects/omui/theme/{0}: run omui-gen embed modules/projects/omui/theme/{0}/{0}.theme.omui.ts --module {1} --namespace omui::themes "
-                              "--name {0}_theme --out modules/projects/omui/theme/{0}/src/generated",
+            expect(read(pkg.path() / "src" / "generated" / (name + "_theme.cppm")) == want) << std::format("modules/projects/omui/theme/packs/{0}: run omui-gen embed modules/projects/omui/theme/packs/{0}/{0}.theme.omui.ts --module {1} --namespace omui::themes "
+                              "--name {0}_theme --out modules/projects/omui/theme/packs/{0}/src/generated",
                               name, module);
             // Its staged overlays (staged/*.theme.omui.ts), carried beside it as text, never in its library.
             for (const auto& staged : std::filesystem::directory_iterator(pkg.path() / "staged", ec)) {
@@ -223,8 +223,8 @@ UTest cases{"gen", [] {
                 if (!staged_snapshot) continue;
                 expect(read(pkg.path() / "src" / "generated" / (stage + "_theme.cppm")) ==
                        gen::emit_embed(staged_snapshot->json, staged_snapshot->name, module, "omui::themes", stage + "_theme"))
-                    << std::format("modules/projects/omui/theme/{0}: run omui-gen embed modules/projects/omui/theme/{0}/staged/{2}.theme.omui.ts --module {1} "
-                                   "--namespace omui::themes --name {2}_theme --out modules/projects/omui/theme/{0}/src/generated",
+                    << std::format("modules/projects/omui/theme/packs/{0}: run omui-gen embed modules/projects/omui/theme/packs/{0}/staged/{2}.theme.omui.ts --module {1} "
+                                   "--namespace omui::themes --name {2}_theme --out modules/projects/omui/theme/packs/{0}/src/generated",
                                    name, module, stage);
             }
         }

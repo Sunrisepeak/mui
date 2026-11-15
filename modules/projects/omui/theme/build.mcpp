@@ -5,7 +5,7 @@ import mcpp;
 import omui.build.embed;
 
 int main() {
-    return omui::build::embed({.module = "omui.theme.styles", .ns = "omui::themes", .dir = "styles", .suffix = ".style.omui.ts", .tag = "style"})
+    return omui::build::embed({.module = "omui.theme.styles", .ns = "omui::themes", .dir = "packs/styles/styles", .suffix = ".style.omui.ts", .tag = "style"})
                ? 0
                : 1;
 }

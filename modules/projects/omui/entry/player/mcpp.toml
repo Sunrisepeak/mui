@@ -38,9 +38,8 @@ omui.sdk           = { path = "../../sdk" }
 omui.player        = { path = "../../player" }
 omui.lang.js       = { path = "../../lang/js" }
 omui.ui.markdown   = { path = "../../components/markdown" }
-omui.native.fuzzy  = { path = "../../native/fuzzy" }
-omui.theme.default = { path = "../../theme/default" }
-omui.theme.compact = { path = "../../theme/compact" }
+omui.native = { path = "../../native" }  # with its modules (fuzzy, store)
+omui.theme = { path = "../../theme" }  # with its packs
 marzer.tomlplusplus = "3.4.0"
 mcpplibs.os = "0.4.4"
 mcpplibs.cmdline = "0.0.3"

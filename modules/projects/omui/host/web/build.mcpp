@@ -7,8 +7,11 @@ import mcpp;
 
 int main() {
     mcpp::rerun_if_changed("src/js/omui_web.js");
+    mcpp::rerun_if_changed("src/js/omui_toy.js");
     if (std::string_view(mcpp::target_os()) == "emscripten") {
         mcpp::link_flag(std::format("--js-library={}/src/js/omui_web.js", mcpp::manifest_dir()).c_str());
+        // Bilibili Toy's SDK (src/toy): its functions are in a program only where it calls them.
+        mcpp::link_flag(std::format("--js-library={}/src/js/omui_toy.js", mcpp::manifest_dir()).c_str());
         mcpp::link_flag("-sFORCE_FILESYSTEM=1");
         mcpp::link_flag("-sEXPORTED_RUNTIME_METHODS=FS,addRunDependency,removeRunDependency,callMain");
     }

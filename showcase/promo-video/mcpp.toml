@@ -37,7 +37,6 @@ hanim.core = { path = "../../modules/projects/hanim/core" }
 mlibs.utils = { path = "../../modules/base/utils" }
 omui.sdk                         = { path = "../../modules/projects/omui/sdk" }
 omui.theme                     = { path = "../../modules/projects/omui/theme" }
-"omui.theme.styles"                = { path = "../../modules/projects/omui/theme/styles" }
 hanim.timeline                    = { path = "../../modules/projects/hanim/timeline" }
 xengine.video                     = { path = "../../modules/projects/xengine/kernel/video" }
 "xengine.video.webm"                = { path = "../../modules/projects/xengine/kernel/video/webm" }

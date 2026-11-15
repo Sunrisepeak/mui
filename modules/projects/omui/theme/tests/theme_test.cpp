@@ -87,8 +87,8 @@ UTest cases{"theme", [] {
             expect(!bad) << rule;
         }
     };
-    const auto default_snapshot = snapshot_of(theme_dir() / "default" / "default.theme.omui.ts");
-    const auto compact_snapshot = snapshot_of(theme_dir() / "compact" / "compact.theme.omui.ts");
+    const auto default_snapshot = snapshot_of(theme_dir() / "packs" / "default" / "default.theme.omui.ts");
+    const auto compact_snapshot = snapshot_of(theme_dir() / "packs" / "compact" / "compact.theme.omui.ts");
 
     "the default theme file is the runtime's built-in tokens, light and dark"_test = [&] {
         auto added = lib.add(default_snapshot, "default.theme.omui.json");

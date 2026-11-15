@@ -45,7 +45,6 @@ omui.showcase.widget_breakout.headless = { path = "headless" }
 xengine.input = { path = "../../modules/projects/xengine/game/input" }
 xengine.ui    = { path = "../../modules/projects/xengine/game/ui" }
 omui.theme = { path = "../../modules/projects/omui/theme" }
-"omui.theme.styles" = { path = "../../modules/projects/omui/theme/styles" }
 omui.ui.canvas = { path = "../../modules/projects/omui/components/canvas" }
 xengine.audio = { path = "../../modules/projects/xengine/kernel/audio" }
 omui.abi = { path = "../../modules/projects/omui/abi" }

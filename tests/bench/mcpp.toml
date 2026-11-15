@@ -55,7 +55,6 @@ xengine.audio           = { path = "../../modules/projects/xengine/kernel/audio"
 "hanim.timeline"       = { path = "../../modules/projects/hanim/timeline" }
 "xengine.audio.timeline" = { path = "../../modules/projects/xengine/kernel/audio/timeline" }
 omui.ui.canvas       = { path = "../../modules/projects/omui/components/canvas" }
-"omui.ui.canvas.kit"   = { path = "../../modules/projects/omui/components/canvas/kit" }
 omui.showcase.markdown_wall   = { path = "../../showcase/markdown-wall" }
 omui.showcase.style_gallery = { path = "../../showcase/style-gallery" }
 omui.showcase.fighting = { path = "../../showcase/fighting" }
@@ -66,7 +65,7 @@ omui.showcase.quay = { path = "../../showcase/quay" }  # its picture
 xengine.world = { path = "../../modules/projects/xengine/game/world" }
 "gongfu"                  = { path = "../../modules/projects/gongfu" }
 "gongfu.present2d"      = { path = "../../modules/projects/gongfu/present2d" }
-omui.theme.styles    = { path = "../../modules/projects/omui/theme/styles" }
+omui.theme = { path = "../../modules/projects/omui/theme" }  # with its packs
 mlibs.rhi           = { path = "../../modules/gfx/rhi" }
 xrender.rhi.sdl       = { path = "../../modules/projects/xrender/rhi/sdl" }
 mcpplibs.os           = "0.4.4"

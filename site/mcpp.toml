@@ -54,7 +54,6 @@ omui.ui.timeline = { path = "../modules/projects/omui/components/timeline" }
 omui.ui.canvas   = { path = "../modules/projects/omui/components/canvas" }  # the components page's wall
 omui.ui.liquid_glass = { path = "../modules/projects/omui/components/liquid-glass" }  # a signature work: glass that flows
 "hanim.timeline"    = { path = "../modules/projects/hanim/timeline" }  # the monitor: what plays at the playhead
-"omui.theme.styles" = { path = "../modules/projects/omui/theme/styles" }
 omui.theme      = { path = "../modules/projects/omui/theme" }
 omui.example.hello-im       = { path = "../examples/01-hello-im" }  # getting started: example 01, running beside its source
 omui.semantic    = { path = "../modules/projects/omui/semantic" }
@@ -74,6 +73,5 @@ programs = "directory"
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
-omui.theme.default = { path = "../modules/projects/omui/theme/default" }  # the staged theme's snapshot (quality_lab_test)
 xrender.text = { path = "../modules/projects/xrender/text" }
 mlibs.math = { path = "../modules/base/math" }

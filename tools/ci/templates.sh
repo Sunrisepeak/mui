@@ -29,7 +29,7 @@ for f in src.rglob("*"):
 # This checkout instead of the published packages.
 paths = {"omui.sdk": "modules/projects/omui/sdk", "omui.entry.player": "modules/projects/omui/entry/player", "omui.player": "modules/projects/omui/player",
          "omui.lang.js": "modules/projects/omui/lang/js", "omui.native": "modules/projects/omui/native",
-         "omui.theme.default": "modules/projects/omui/theme/default"}
+         "omui.theme": "modules/projects/omui/theme"}
 m = dst / "mcpp.toml"
 if m.exists():
     t = m.read_text()

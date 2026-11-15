@@ -45,4 +45,4 @@ mlibs.utils      = { path = "../../modules/base/utils" }
 omui.player       = { path = "../../modules/projects/omui/player" }
 omui.lang.js      = { path = "../../modules/projects/omui/lang/js" }
 omui.ui.markdown  = { path = "../../modules/projects/omui/components/markdown" }
-omui.native.fuzzy = { path = "../../modules/projects/omui/native/fuzzy" }
+omui.native = { path = "../../modules/projects/omui/native" }  # with its modules (fuzzy, store)

@@ -2,7 +2,11 @@
 # functions written in C++ behind a `*.native.omui.toml` contract, registered
 # once and called by scripts through the C ABI (omuiNativeCall). The
 # contract's types check every call's arguments here, in one place; the code
-# `omui-gen native` generates only converts them.
+# `omui-gen native` generates only converts them. The official native modules are here too (modules/<name>/: its
+# contract under native/, src/ with the generated binding, stubs/ for scripts): fuzzy (matching and ranking with
+# highlight positions) and store (a program's small key-value storage, the Store plugin a host gives). Each keeps
+# its module (omui.native.fuzzy, omui.native.store) and is registered by a call; a native module of one's own is a
+# package of its own (templates/native).
 [package]
 namespace   = "omui"
 name        = "native"
@@ -20,10 +24,12 @@ agent = { part = "omui.agent" }
 kind = "lib"
 
 [build]
-sources = ["src/*.cppm", "src/*.cpp"]
+sources  = ["src/*.cppm", "src/*.cpp", "modules/*/src/*.cppm", "modules/*/src/*.cpp", "modules/*/src/generated/*.cppm"]
+cxxflags = ["-ffp-contract=off"]  # fuzzy's ranking: the same order everywhere
 
 [dependencies]
 nlohmann.json = "3.12.0"
+mlibs.unicode = { path = "../../../base/unicode" }  # fuzzy's
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"

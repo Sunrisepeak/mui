@@ -1,8 +1,12 @@
 # omui.theme — themes as data (view-data-files §3, component-binding §11):
 # `*.theme.omui.ts` files declare themes (light, dark) and overlays
 # (density, reduced motion); a library composes layers into the runtime's
-# Theme, with every mistake reported where it is. Theme packages
-# (modules/projects/omui/theme/default, modules/projects/omui/theme/compact) are such files, embedded.
+# Theme, with every mistake reported where it is. The built-in packs are such files, embedded (packs/<name>/:
+# its .theme.omui.ts, src/ with the generated partition): default (and its staged `refined`), compact, and the
+# style packs (packs/styles/styles/*.style.omui.ts: glass, neon, retro CRT, ink on paper, liquid; fluent,
+# cupertino, material). Each keeps its module (omui.theme.default_theme, omui.theme.compact, omui.theme.styles)
+# and is added by a call (`omui::themes::add_compact()` …): a program links the packs it adds. A theme of one's
+# own is a package of its own (templates/theme).
 [package]
 namespace   = "omui"
 name        = "theme"
@@ -20,7 +24,7 @@ agent = { library = "theme data and its reader: tokens and recipes, read once" }
 kind = "lib"
 
 [build]
-sources = ["src/*.cppm", "src/*.cpp"]
+sources = ["src/*.cppm", "src/*.cpp", "packs/*/src/*.cppm", "packs/*/src/*.cpp", "packs/*/src/generated/*.cppm"]
 
 [dependencies]
 omui.core   = { path = "../core" }
@@ -28,6 +32,9 @@ omui.view   = { path = "../view" }
 hanim.core          = { path = "../../hanim/core" }
 xrender.vector = { path = "../../xrender/vector" }
 mlibs.json     = { path = "../../../base/json" }
+
+[build-dependencies]
+omui.build.embed = { path = "../../../../mcpp/embed", host-module = true }  # the style packs
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"

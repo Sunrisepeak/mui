@@ -189,6 +189,7 @@ members = [
     "showcase/glade/headless",
     "showcase/swarm/headless",
     "showcase/swarm/play",
+    "showcase/swarm/window",
     "site",
 ]
 

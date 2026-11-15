@@ -1,0 +1,41 @@
+# Swarm on screen (the release plan's RC2.13): the arena as a display list (`swarm::picture`, a function of the
+# state) and a window that shows it, played with keys and the pointer or a gamepad; every frame's input recorded,
+# so the window's game and the headless game are the same bits. One package: the picture has no consumer but this
+# host (D-99).
+[package]
+namespace   = "omui.showcase.swarm"
+name        = "window"
+version     = "0.1.0"
+description = "Swarm in a window: the arena drawn (a display list from the state) and played with keys, the pointer or a gamepad; its recording the headless game"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "experimental"  # release plan §2.1: stable, preview or experimental (lint maturity)
+
+[targets.omui-showcase-swarm-window]
+kind = "lib"
+
+[targets.swarm]
+kind = "bin"
+main = "src/entry/main.cpp"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+omui.showcase.swarm.headless = { path = "../headless" }
+omui.sdk         = { path = "../../../modules/projects/omui/sdk" }
+xengine.ui       = { path = "../../../modules/projects/xengine/game/ui" }
+xengine.input    = { path = "../../../modules/projects/xengine/game/input" }
+xrender.raster   = { path = "../../../modules/projects/xrender/raster" }
+xrender.vector   = { path = "../../../modules/projects/xrender/vector" }
+mlibs.geom       = { path = "../../../modules/base/geom" }
+mcpplibs.cmdline = "0.0.3"
+mcpplibs.os      = "0.4.4"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+mlibs.utils    = { path = "../../../modules/base/utils" }
+omui.host.headless = { path = "../../../modules/projects/omui/host/headless" }

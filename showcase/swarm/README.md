@@ -2,11 +2,16 @@
 
 A small top-down shooter with no window: the player moves with two axes, aims with the pointer and shoots with a button; enemies arrive in waves from one side of the arena and chase the player; a bullet that meets an enemy removes it and scores; an enemy that touches the player costs a life; with none of three left the game is lost. It is a game on its own (D-162): its rules as [xengine.runtime](../../modules/projects/xengine/game/runtime)'s `Playable`, stepped, sought back and branched ahead with no omui in the program, and played by an agent as a person plays.
 
-**State of it**: the rules, the game at the runtime and the program that plays it over lines are done and tested. It has no picture and no sound: nothing draws it yet, so this README shows no signature shot (the showcase table's other works do).
+**State of it**: the rules, the game at the runtime, the program that plays it over lines, and a window — the arena drawn from the state (a display list) and played with keys, the pointer or a gamepad — are done and tested. It has no sound yet.
+
+![The first wave closing in from the east](media/arena.png)
+
+*`swarm --headless --frames 200 --png arena.png`: the first wave from the east, the gun aimed at it.*
 
 | Package | What |
 |---|---|
 | [headless](headless) | The rules (`src/sim.cpp`) and the game as the runtime plays it (`swarm::Play`, `swarm::Standalone`). The state is plain data — the enemies and bullets in one block of entities ([xengine.world](../../modules/projects/xengine/game/world)), the player, the wave, a random stream (`mlibs.math`'s SplitMix64) — so a copy is a branch and its checksum (`mlibs.hash`) is the same for the same play. The game says its own controls (`left`, `right`, `up`, `down`, `shoot`, `aim`) and three tasks to begin with |
+| [window](window) | `swarm::picture::draw(state, list, rect)`: the arena as a display list, from the state alone (the floor, each enemy in its wave's colour, the bullets, the player and the gun's line toward `aim`, blinking while a touch costs nothing). `swarm` (`swarm::window::app`): the arena in a window — W A S D or the arrows move, the pointer aims, the left button or Space shoots; or a gamepad (the left stick moves, A shoots); `--seed N`, `--record FILE` (its lines played with no window are the same bits). One package: the picture has no other consumer (D-99) |
 | [play](play) | `swarm-play run --session FILE`: a JSON request a line on standard input, the records of its answer on standard output; the session's file is the game (its requests played again are the same bits), so an agent with a pipe plays across runs. A member of its own because a program with a command line and standard input is for the native systems only, and `headless` also builds for the Web (D-99) |
 
 ```sh
@@ -34,6 +39,7 @@ The subject is the runtime's (`world`, `xengine.world@0.1`): `world.observe`, `w
 ```sh
 mcpp test -p omui.showcase.swarm.headless   # the same inputs the same checksum; a seek back replayed bit for bit; an enemy shot; the game lost; each task as written; a player that clears waves; the agent contract
 mcpp test -p omui.showcase.swarm.play       # the program run twice on one session file: the same frame, hash and score
+mcpp test -p omui.showcase.swarm.window     # a state's picture read back (each thing where the state has it; pinned bytes); the window played by keys, pointer and gamepad; its recording the headless game
 ```
 
 ## What the engine did not have
@@ -48,6 +54,6 @@ Noted while making it; each is substituted inside this member, not copied from e
 ## Experimental (release 0.1, D-199)
 
 - **Target**: a game an agent makes from one prompt on the engine, as good as one made by hand (T2.8).
-- **Now**: the rules, the runtime and the program over lines; the one-prompt run took 538 s and 55 turns.
-- **Gap**: no picture, no sound, one arena; the prompt not yet run on another engine side by side.
-- **Graduation to preview**: a display list (as Kiln's `picture`) and a host that shows it (RC2.13), its frame read back in a test; the side-by-side run.
+- **Now**: the rules, the runtime, the program over lines, and a window that draws the arena (`swarm::picture`) and is played by a person; the one-prompt run took 538 s and 55 turns.
+- **Gap**: no sound, one arena, no aiming with a gamepad's right stick (the gun keeps where the pointer last pointed); the prompt not yet run on another engine side by side.
+- **Graduation to preview**: sound from the game's events (as Kiln's), the gamepad's aim, and the side-by-side run.

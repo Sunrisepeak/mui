@@ -238,7 +238,7 @@ jobs:
 
       - name: An unchanged build leaves compilation outputs untouched
         timeout-minutes: 10
-        run: python3 tools/ci/incremental.py --workspace --profile '${{ matrix.profile }}' --exclude omui.reflect
+        run: mcpp run omui-devtools -p tools/devtools --profile '${{ matrix.profile }}' -- incremental --workspace --profile '${{ matrix.profile }}' --exclude omui.reflect
 
       - name: Keep the incremental build check
         if: always()

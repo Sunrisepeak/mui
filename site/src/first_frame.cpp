@@ -174,11 +174,86 @@ std::expected<Value, std::string> export_first_frame(const FirstFrameOptions& op
         .set("time", runtime.now().count()).set("fps", 60).set("sampled_frames", sampled_frames).set("root", options.root).set("crop", rectangle(crop)).set("root_bounds", std::move(root_bounds))
         .set("image", Value{}.set("width", region.width).set("height", region.height))
         .set("pixel_hash", region_hash(pixels, region)).set("viewport_pixel_hash", std::format("{:016x}", frame_hash(pixels)))
-        .set("png", mcpplibs::os::fs::generic_utf8(png)).set("sidecar", mcpplibs::os::fs::generic_utf8(sidecar))
         .set("nodes", Value(std::move(nodes))).set("unplaced_nodes", Value(std::move(unplaced)));
+    if (options.paths) report.set("png", mcpplibs::os::fs::generic_utf8(png)).set("sidecar", mcpplibs::os::fs::generic_utf8(sidecar));
     if (auto saved = host.save_png(png, crop); !saved) return std::unexpected("PNG export failed: " + saved.error());
     if (auto written = mcpplibs::os::fs::write_atomic(sidecar, report.json()); !written) return std::unexpected("frame metadata export failed: " + written.error().message());
     return report;
+}
+
+std::expected<Value, std::string> export_openings(const std::filesystem::path& out) {
+    namespace fs = std::filesystem;
+    // The openings the pages have now: each page's node its opening is about. A detail route without one of its
+    // own keeps its readable HTML rather than show another's.
+    constexpr std::array<std::pair<std::string_view, std::string_view>, 7> openings{{
+        {"home", "main/body/view/home/page/landing/scene/visual"},
+        {"components", "main/body/view/components/page/wall"},
+        {"motion", "main/body/view/explore/page"},
+        {"docs/motion", "main/body/view/motion/page/wall"},
+        {"docs/styles", "main/body/view/styles/page/styles_feature/comparison"},
+        {"docs/interface", "main/body/view/interface/page/interface_feature/workspace/object"},
+        {"agent", "main/body/view/agent/page/agent_feature/specimen"},
+    }};
+    constexpr std::array<std::pair<int, int>, 2> viewports{{{390, 844}, {1280, 800}}};
+    const fs::path assets = out / "assets";
+    std::error_code failed;
+    fs::create_directories(assets, failed);
+    if (failed) return std::unexpected(std::format("{}: {}", mcpplibs::os::fs::generic_utf8(assets), failed.message()));
+    const fs::path scratch = fs::temp_directory_path(failed) / std::format("omui-site-openings-{}", std::chrono::steady_clock::now().time_since_epoch().count());
+    fs::create_directories(scratch, failed);
+    if (failed) return std::unexpected(std::format("a scratch directory: {}", failed.message()));
+    // A file kept by its contents: the same bytes, one file (two languages' identical pictures share it).
+    const auto kept = [&](const fs::path& source, std::string_view extension) -> std::expected<std::string, std::string> {
+        const auto bytes = mcpplibs::os::fs::read(source);
+        if (!bytes) return std::unexpected(std::format("{}: {}", mcpplibs::os::fs::generic_utf8(source), bytes.error().message()));
+        const std::string name = std::format("opening-{:016x}{}", mlibs::hash::fnv1a(*bytes), extension);
+        if (!fs::exists(assets / name))
+            if (auto written = mcpplibs::os::fs::write_atomic(assets / name, *bytes); !written) return std::unexpected(written.error().message());
+        return "assets/" + name;
+    };
+    const auto capture = [&](std::string_view route, std::string_view language, std::pair<int, int> viewport, bool reduced,
+                             std::string_view root) -> std::expected<Value, std::string> {
+        FirstFrameOptions options{.png = mcpplibs::os::fs::generic_utf8(scratch / "opening.png"), .route = std::string(route), .lang = std::string(language),
+                                  .width = viewport.first, .height = viewport.second, .root = std::string(root), .reduce_motion = reduced, .paths = false};
+        const auto report = export_first_frame(options);
+        const std::string what = std::format("{}/{} at {}×{}{}", language, route, viewport.first, viewport.second, reduced ? ", reduced motion" : "");
+        if (!report) return std::unexpected(std::format("{}: {}", what, report.error()));
+        const Value* nodes = report->get("nodes");
+        if (!root.empty() && (!nodes || !nodes->list() || nodes->list()->empty())) return std::unexpected(std::format("{}: no production geometry", what));
+        const auto image = kept(scratch / "opening.png", ".png");
+        if (!image) return std::unexpected(image.error());
+        const auto geometry = kept(scratch / "opening.frame.omui.json", ".frame.omui.json");
+        if (!geometry) return std::unexpected(geometry.error());
+        return Value{}.set("route", std::string(route)).set("language", std::string(language))
+            .set("viewport", Value(Value::List{Value(viewport.first), Value(viewport.second)})).set("motion", reduced ? "reduced" : "full")
+            .set("image", *image).set("geometry", *geometry);
+    };
+    Value::List previews, references;
+    const auto all = [&]() -> std::expected<void, std::string> {
+        for (const std::string_view language : {"en", "zh"})
+            for (const auto viewport : viewports)
+                for (const bool reduced : {false, true}) {
+                    for (const auto& [route, root] : openings) {
+                        auto entry = capture(route, language, viewport, reduced, root);
+                        if (!entry) return std::unexpected(entry.error());
+                        previews.push_back(std::move(*entry));
+                    }
+                    // The whole first frame: a reference to check the live page against, not a layer above it.
+                    auto entry = capture("home", language, viewport, reduced, "");
+                    if (!entry) return std::unexpected(entry.error());
+                    references.push_back(std::move(*entry));
+                }
+        return {};
+    };
+    const auto done = all();
+    fs::remove_all(scratch, failed);
+    if (!done) return std::unexpected(done.error());
+    const std::size_t pictures = previews.size(), whole = references.size();
+    const Value catalogue = Value{}.set("version", 1).set("basis", "native-reference").set("previews", Value(std::move(previews))).set("references", Value(std::move(references)));
+    const fs::path written = out / "first-frames.assets.omui.json";
+    if (auto saved = mcpplibs::os::fs::write_atomic(written, catalogue.json() + "\n"); !saved) return std::unexpected(saved.error().message());
+    return Value{}.set("command", "openings").set("ok", true).set("previews", static_cast<std::int64_t>(pictures))
+        .set("references", static_cast<std::int64_t>(whole)).set("catalogue", mcpplibs::os::fs::generic_utf8(written));
 }
 
 }  // namespace omui::site

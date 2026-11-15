@@ -1,11 +1,12 @@
 # omui.devtools — the contributors' tool (release design §6.6): `ci` reads a
 # CI run row by row and sets each failure against STATUS's red list (R12).
-# The workspace's checks that grow past a script land here as subcommands.
+# The workspace's checks that grow past a script land here as subcommands:
+# govern (the 90% cap, AGENTS §5), incremental (an unchanged rebuild compiles nothing).
 [package]
 namespace   = "omui"
 name        = "devtools"
 version     = "0.1.0"
-description = "The contributors' tool: a CI run read row by row and set against the red list"
+description = "The contributors' tool: CI runs against the red list, the machine cap, the incremental build check, CI's LLVM before a push"
 license     = "Apache-2.0"
 
 [package.metadata.openmui]

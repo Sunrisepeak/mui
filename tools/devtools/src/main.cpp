@@ -7,11 +7,17 @@
 //   llvm  what a change touches and its direct consumers, compiled (their
 //         tests too, not run) with CI's LLVM and profile: the errors only
 //         clang and libc++ give (reds 90, 91, 93), before a push.
+//   govern  a command held within a share of the machine: its compilers and
+//         linkers at most --jobs at once (tools/dev/capped.sh, AGENTS §5).
+//   incremental  the same build twice: the second leaves every compilation
+//         output untouched (CI's row; exit 1 when one changed).
 import std;
 import mcpplibs.cmdline;
 import mcpplibs.os;
 import nlohmann.json;
 import omui.devtools.ci;
+import omui.devtools.govern;
+import omui.devtools.incremental;
 import omui.devtools.members;
 import omui.devtools.platforms;
 
@@ -152,6 +158,21 @@ cmd::App app() {
                                         .description("Read a saved log (gh run view RUN --log-failed > FILE)")
                                         .arg(Arg("file").required().help("the log"))
                                         .option(Option("jobs").takes_value().value_name("FILE").help("the run's jobs (gh run view RUN --json jobs)"))))
+        .subcommand(cmd::App("govern")
+                        .description("Run a command with at most --jobs of its compilers and linkers at once, fewer while memory is short (AGENTS §5)")
+                        .option(Option("jobs").takes_value().value_name("N").help("how many may run at once"))
+                        .option(Option("memory-floor").takes_value().value_name("SHARE").help("under this share of the memory available, fewer (default: 0.10)"))
+                        .option(Option("interval").takes_value().value_name("MS").help("how often it looks (default: 250)"))
+                        .arg(Arg("command").required().help("after --: the command and its arguments")))
+        .subcommand(cmd::App("incremental")
+                        .description("Build twice: the second, unchanged, must leave every compilation output untouched (exit 1 when one changed)")
+                        .option(Option("package").short_name('p').takes_value().multiple().value_name("MEMBER").help("these members"))
+                        .option(Option("workspace").help("the whole workspace"))
+                        .option(Option("exclude").takes_value().multiple().value_name("MEMBER").help("not this one (with --workspace)"))
+                        .option(Option("profile").takes_value().value_name("P").help("default: dev"))
+                        .option(Option("toolchain").takes_value().value_name("T").help("default: mcpp's"))
+                        .option(Option("locked").help("mcpp's --locked"))
+                        .option(Option("report").takes_value().value_name("FILE").help("default: target/incremental.report.omui.json")))
         .subcommand(cmd::App("platforms")
                         .description("Write docs/{en,zh}/platforms.md from docs/platforms.omui.json (the verification table, D-201)")
                         .option(Option("check").help("only say whether the pages are current (exit 1 when not)")))
@@ -341,6 +362,66 @@ int llvm(const cmd::ParsedArgs& options, const fs::path& root) {
     return status ? status->shell_code() : 1;
 }
 
+int govern(const cmd::ParsedArgs& options) {
+    namespace held = omui::devtools::govern;
+    held::Options given;
+    const auto number = [](std::string_view text, auto& value) {
+        const auto [end, failed] = std::from_chars(text.data(), text.data() + text.size(), value);
+        return failed == std::errc{} && end == text.data() + text.size();
+    };
+    if (!number(options.value("jobs").value_or(""), given.jobs) || given.jobs < 1) {
+        std::cerr << "omui-devtools govern: --jobs takes a count of at least 1\n";
+        return 2;
+    }
+    if (const auto floor = options.value("memory-floor"); floor && (!number(*floor, given.memory_floor) || given.memory_floor < 0 || given.memory_floor >= 1)) {
+        std::cerr << "omui-devtools govern: --memory-floor takes a share in [0, 1)\n";
+        return 2;
+    }
+    if (const auto every = options.value("interval")) {
+        std::int64_t milliseconds = 0;
+        if (!number(*every, milliseconds) || milliseconds < 10) {
+            std::cerr << "omui-devtools govern: --interval takes milliseconds, at least 10\n";
+            return 2;
+        }
+        given.interval = std::chrono::milliseconds(milliseconds);
+    }
+    for (std::size_t index = 0; index < options.positional_count(); ++index) given.command.push_back(options.positional(index));
+    const auto status = held::run(given);
+    if (!status) {
+        std::cerr << "omui-devtools govern: " << status.error() << '\n';
+        return 127;
+    }
+    return *status;
+}
+
+int incremental(const cmd::ParsedArgs& options) {
+    namespace check = omui::devtools::incremental;
+    check::Options given;
+    given.packages = options.option_or_empty("package").values;
+    given.workspace = options.is_flag_set("workspace");
+    given.excluded = options.option_or_empty("exclude").values;
+    if (given.workspace == !given.packages.empty()) {
+        std::cerr << "omui-devtools incremental: either --workspace or -p MEMBER …\n";
+        return 2;
+    }
+    if (!given.excluded.empty() && !given.workspace) {
+        std::cerr << "omui-devtools incremental: --exclude goes with --workspace\n";
+        return 2;
+    }
+    given.profile = options.value("profile").value_or("dev");
+    given.toolchain = options.value("toolchain").value_or("");
+    given.locked = options.is_flag_set("locked");
+    if (const auto report = options.value("report")) given.report = mcpplibs::os::fs::from_utf8(*report);
+    const auto mcpp = mcpplibs::os::env::get("MCPP");
+    if (mcpp && !mcpp->empty()) given.mcpp = mcpplibs::os::fs::from_utf8(*mcpp);
+    else if (const auto found = mcpplibs::os::env::find_executable("mcpp")) given.mcpp = *found;
+    else {
+        std::cerr << "omui-devtools incremental: `mcpp` is not on PATH (MCPP names it)\n";
+        return 2;
+    }
+    return check::check(given, std::cout, std::cerr) ? 0 : 1;
+}
+
 int platforms(const cmd::ParsedArgs& options, const fs::path& root) {
     const auto table = read_file(root / "docs/platforms.omui.json");
     if (!table) {
@@ -382,6 +463,8 @@ int main(int argc, char** argv) {
     if (parsed->subcommand_name() == "ci") return ci(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "llvm") return llvm(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "platforms") return platforms(parsed->subcommand()->get(), root);
-    std::cerr << "usage: omui-devtools [--root DIR] ci … | llvm … | platforms  (omui-devtools --help)\n";
+    if (parsed->subcommand_name() == "govern") return govern(parsed->subcommand()->get());
+    if (parsed->subcommand_name() == "incremental") return incremental(parsed->subcommand()->get());
+    std::cerr << "usage: omui-devtools [--root DIR] ci … | llvm … | platforms | govern … | incremental …  (omui-devtools --help)\n";
     return 2;
 }

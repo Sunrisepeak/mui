@@ -23,11 +23,11 @@ index=$(python3 -c 'import json,sys; print(next(a["path"] for a in json.load(ope
 rm -rf "$out"
 cp -r "$(dirname "$index")" "$out"
 
-# The actual native program draws each opening. The launch envelope preserves
-# mcpp's selected executable/environment; physical paths are stripped from
-# published geometry, and hidden pages have no image src to prefetch.
-"$mcpp" run omui-site -p omui.site --print-launch > target/site-native.launch.json
-python3 tools/ci/site-frames.py --launch target/site-native.launch.json --out "$out"
+# The actual native program draws each opening (`omui-site --openings`): the
+# pictures and geometry the page shows while it loads, by their contents' hash,
+# with no local paths in them; hidden pages have no image src to prefetch.
+"$mcpp" run omui-site -p omui.site -- --openings "$out" \
+  || { echo "::error::the site's openings were not exported"; exit 1; }
 
 "$mcpp" run omui-site -p omui.site -- --prerender "$out/index.html" --opening-assets "$out/first-frames.assets.omui.json" \
   || { echo "::error::the site's places were not pre-rendered"; exit 1; }

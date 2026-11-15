@@ -6,7 +6,8 @@
 // and the language: #/zh/features runs it with --zh --features.
 // --first-frame <PNG> [--route PATH] [--lang en|zh] [--width W --height H]
 // [--root EXPLICIT-ID] [--time SECONDS] [--reduced-motion] exports production pixels
-// and the actual semantic geometry beside them; it does not open a window.
+// and the actual semantic geometry beside them; it does not open a window;
+// --openings <DIR> writes every opening the static page shows while it loads.
 // `omui-site --help` lists every switch.
 import std;
 import mcpplibs.cmdline;
@@ -23,6 +24,7 @@ int main(int argc, char** argv) {
         .description("openmui's website: in a window, prerendered into a packed page, or a first frame exported")
         .option(Option("prerender").takes_value().value_name("INDEX.HTML").help("write the places into this packed page as static HTML"))
         .option(Option("opening-assets").takes_value().value_name("FILE").help("the opening's asset catalogue, for --prerender"))
+        .option(Option("openings").takes_value().value_name("DIR").help("export the static page's openings and their catalogue into DIR; no window"))
         .option(Option("zh").help("in Chinese"))
         .option(Option("en").help("in English"));
     // A switch a place: --features opens at features.
@@ -31,6 +33,15 @@ int main(int argc, char** argv) {
     auto command = omui::command_line(std::move(line), argc, argv);
     if (!command) return command.error();
     const auto& args = command->args;
+    if constexpr (omui::site::native_build_tools) if (const auto openings = args.value("openings")) {
+        const auto report = omui::site::export_openings(mcpplibs::os::fs::from_utf8(*openings));
+        if (!report) {
+            std::println("{}", omui::Value{}.set("command", "openings").set("ok", false).set("error", report.error()).json());
+            return 1;
+        }
+        std::println("{}", report->json());
+        return 0;
+    }
     if constexpr (omui::site::native_build_tools) if (args.value("first-frame")) {
         const auto options = omui::site::first_frame_options(args);
         if (!options) {

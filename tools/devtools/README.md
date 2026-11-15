@@ -13,3 +13,22 @@ omui-devtools ci --json run 43685505783   # the same as JSON
 ```
 
 Each failure lists the red rows that name it (its package, the package a `.cts` member checks, its suite's label, its case's words, its program); one no row names is marked `NEW`. A timeout shows the case that passed last before it; a member whose package did not build shows the build's errors. Exit 0 when every failure is in the red list, 1 when one is new, 2 when the run could not be read.
+
+## govern
+
+A command held within a share of the machine (AGENTS.md §5): at most `--jobs` compilers, assemblers and linkers of all its descendants run at once, whatever the command plans (mcpp builds workspace groups and host tools side by side, each with its own job count); while available memory is under `--memory-floor` (10%) of the total, fewer. The newest beyond the limit are paused and continued as the oldest finish; test programs and the build tools are never paused, since a test may measure time. Interrupting or terminating it continues what is paused and passes the request to the whole command.
+
+```sh
+omui-devtools govern --jobs 22 -- mcpp test --workspace
+```
+
+[`tools/dev/capped.sh`](../dev/capped.sh) runs every local build and test through it, building it first when it is not. What runs is read from the system's process table (`ps`) and paused and continued with `kill`, both run through mcpplibs.os, which does not yet list or pause programs it did not start; on Windows the command runs with its job count alone. `capped.sh` uses it where `/proc/meminfo` gives the memory figure.
+
+## incremental
+
+The same build twice: the second, unchanged, must leave every compilation output its databases name untouched (a generated source rewritten with the same bytes would recompile every importer). Wall time is reported, never judged: it is the runner's. The report, both builds' events and logs land beside `--report` (`target/incremental.report.omui.json`). CI's desktop rows run it after building every member.
+
+```sh
+omui-devtools incremental --workspace --profile ci --exclude omui.reflect
+omui-devtools incremental -p mlibs.math
+```

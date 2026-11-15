@@ -15,6 +15,7 @@ struct FirstFrameOptions {
     double time = 0;
     std::string root;  // empty: complete viewport; otherwise a real explicit node id
     bool reduce_motion = false;
+    bool paths = true;  // the report names the PNG and itself; not in a published asset, whose hash they would change
 };
 
 // The export's options on a command line (mcpplibs.cmdline): --first-frame
@@ -34,5 +35,14 @@ void declare_first_frame(mcpplibs::cmdline::App& line, bool language);
 // The returned report is also written beside the PNG as *.frame.omui.json.
 // Bounds remain global even when the image is cropped to an actual node.
 [[nodiscard]] std::expected<Value, std::string> export_first_frame(const FirstFrameOptions& options);
+
+// The openings the static page shows while the program loads: each feature page's
+// opening (its picture and geometry, cropped to the node it is about) in both
+// languages, at a phone's and a desktop's size, with full and reduced motion, and
+// the home's whole first frame at each as a reference to check the live page
+// against. Written into DIR/assets/ by their contents' hash, the catalogue as
+// DIR/first-frames.assets.omui.json (what --prerender's --opening-assets reads);
+// what was written is returned (the counts and the catalogue's path).
+[[nodiscard]] std::expected<Value, std::string> export_openings(const std::filesystem::path& out);
 
 }  // namespace omui::site

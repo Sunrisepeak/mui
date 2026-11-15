@@ -2,9 +2,10 @@
 # Runs a build or test command within 90% of this machine (AGENTS.md §5): no
 # more concurrent compiles and links than 90% of the cores, nor than 90% of
 # the memory allows at about 2.25 GB a compile (a C++-modules compile of this
-# tree peaks near that; the rare heavier one is held by govern.py's memory
+# tree peaks near that; the rare heavier one is held by the governor's memory
 # floor), at low CPU and I/O priority, so the machine stays
-# usable. MCPP_JOBS asks mcpp for that many; govern.py holds the whole process
+# usable. MCPP_JOBS asks mcpp for that many; the governor (`omui-devtools
+# govern`, tools/devtools, built here when it is not) holds the whole process
 # tree to it, because mcpp builds workspace groups and host tools side by side,
 # each with its own job count (measured: 37 compilers under MCPP_JOBS=22), and
 # pauses more of them while available memory is under 10%.
@@ -27,8 +28,14 @@ if [ -n "${MCPP_JOBS:-}" ] && [ "$MCPP_JOBS" -lt "$jobs" ] 2>/dev/null; then job
 export MCPP_JOBS=$jobs
 low=(nice -n 10)
 command -v ionice > /dev/null && low=(ionice -c 3 "${low[@]}")
-here=$(cd "$(dirname "$0")" && pwd)
-if [ -r /proc/meminfo ] && command -v python3 > /dev/null; then
-    exec "${low[@]}" python3 "$here/govern.py" --jobs "$jobs" -- "$@"
+root=$(cd "$(dirname "$0")/../.." && pwd)
+if [ -r /proc/meminfo ]; then
+    # The program itself, as mcpp's launch envelope names it (argv[0]): mcpp run's
+    # environment is the tool's, not the command's.
+    if launch=$(cd "$root" && "${low[@]}" "${MCPP:-mcpp}" run omui-devtools -p tools/devtools --print-launch 2> /dev/null); then
+        governor=$(printf '%s\n' "$launch" | sed -n '/"argv": \[/{n;s/^ *"\(.*\)",\{0,1\}$/\1/p;q;}')
+        [ -x "$governor" ] && exec "${low[@]}" "$governor" govern --jobs "$jobs" -- "$@"
+    fi
+    echo "capped.sh: omui-devtools did not build; MCPP_JOBS=$jobs alone holds the command" >&2
 fi
 exec "${low[@]}" "$@"

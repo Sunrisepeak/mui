@@ -302,6 +302,8 @@ struct CpuRenderer::Impl {
         Rect                         layer;   // in the surface
         std::vector<EffectShape>     shapes;  // in the surface
         xrender::raster::Surface              under;
+        // A fade of one solid fill, drawn as that fill's alpha (no layer): the factor, or -1.
+        float                        fold = -1;
     };
     std::vector<EffectLayer> effect_layers;
     std::size_t              effect_count = 0;
@@ -432,6 +434,32 @@ RenderReport CpuRenderer::render(const DisplayList& list, xrender::raster::Surfa
     return report;
 }
 
+namespace {
+
+// The opacity a fade of exactly one solid fill folds into that fill's alpha, or -1. The same pixels as the layer: a
+// single fill covers each pixel once, so scaling the composed layer and scaling the paint agree (two fills that
+// overlap do not, and keep their layer).
+float folded_opacity(std::span<const Command> all, std::size_t push_at, std::size_t pop_at, const PushLayer& push, const EffectInfo& info,
+                     std::span<const float> params) {
+    if (info.name != "opacity" || params.empty() || push.blend != BlendMode::normal) return -1;
+    std::size_t fills = 0;
+    for (std::size_t at = push_at + 1; at < pop_at; ++at) {
+        const bool ok = std::visit(
+            [&](const auto& command) {
+                using T = std::decay_t<decltype(command)>;
+                if constexpr (std::same_as<T, FillRect> || std::same_as<T, FillRoundRect> || std::same_as<T, FillPath>)
+                    return command.paint.kind == Paint::Kind::solid && ++fills == 1;
+                else
+                    return std::same_as<T, PushTransform> || std::same_as<T, PopTransform> || std::same_as<T, BeginNode> || std::same_as<T, EndNode>;
+            },
+            all[at]);
+        if (!ok) return -1;
+    }
+    return fills == 1 ? std::clamp(push.opacity, 0.0f, 1.0f) * std::clamp(params[0], 0.0f, 1.0f) : -1;
+}
+
+}  // namespace
+
 void CpuRenderer::prepare_effects(const DisplayList& list, const xrender::raster::Surface& target, const Resources& res, const CpuOptions& options,
                                   RenderReport& report) {
     Impl& d = *impl_;
@@ -468,6 +496,13 @@ void CpuRenderer::prepare_effects(const DisplayList& list, const xrender::raster
             ++report.effects_skipped;
             continue;  // drawn without it
         }
+        if (const float fold = folded_opacity(all, i, pop, *push, *info, params); fold >= 0) {
+            if (d.effect_count == d.effect_layers.size()) d.effect_layers.emplace_back();
+            Impl::EffectLayer& out = d.effect_layers[d.effect_count++];
+            out.push = i, out.pop = pop, out.device = {}, out.info = info, out.backdrop = false, out.fold = fold;
+            i = pop;
+            continue;
+        }
         const float reach = std::ceil(effects().reach(push->effect, params) * scale) + 1;
         const float viewport_reach = info->input_radius ? std::max(reach, std::ceil(info->input_radius(params, scale))) : reach;
         Rect layer=transforms.back().map(push->bounds);
@@ -484,6 +519,7 @@ void CpuRenderer::prepare_effects(const DisplayList& list, const xrender::raster
         out.push = i;
         out.pop = pop;
         out.device = {};
+        out.fold = -1;
         if (!wanted.empty()) {
             const float x0 = std::floor(wanted.x), y0 = std::floor(wanted.y);
             const int w = static_cast<int>(std::ceil(wanted.right()) - x0), h = static_cast<int>(std::ceil(wanted.bottom()) - y0);
@@ -548,10 +584,14 @@ void CpuRenderer::draw(Scratch& sc, const DisplayList& list, xrender::raster::Su
     nodes.assign(1, 0);
 
     auto m = [&]() -> const Affine& { return transforms.back(); };
+    // Inside a folded fade (its push to its pop): the factor its one fill's alpha takes.
+    float fold = -1;
+    std::size_t fold_pop = 0;
     // The paint's own transform is in logical space; the device needs it after the current matrix.
     auto device_paint = [&](const Paint& p) {
         xrender::raster::Paint rp = paints.convert(p, res, report);
         if (rp.kind != xrender::raster::Paint::Kind::solid) rp.transform = m() * rp.transform;
+        if (fold >= 0) rp.color.a *= fold;
         return rp;
     };
 
@@ -561,6 +601,16 @@ void CpuRenderer::draw(Scratch& sc, const DisplayList& list, xrender::raster::Su
         const Command& command = all[index];
         // A prepared effect layer: its result, then on after its pop (D-68).
         while (next_effect < impl_->effect_count && impl_->effect_layers[next_effect].pop < index) ++next_effect;
+        if (fold >= 0 && index == fold_pop) {  // a folded fade's pop
+            fold = -1;
+            ++report.commands;
+            continue;
+        }
+        if (next_effect < impl_->effect_count && impl_->effect_layers[next_effect].push == index && impl_->effect_layers[next_effect].fold >= 0) {
+            fold = impl_->effect_layers[next_effect].fold, fold_pop = impl_->effect_layers[next_effect].pop;
+            ++report.commands;
+            continue;
+        }
         if (next_effect < impl_->effect_count && impl_->effect_layers[next_effect].push == index) {
             auto& layer = impl_->effect_layers[next_effect];
             const auto& push = std::get<PushLayer>(command);

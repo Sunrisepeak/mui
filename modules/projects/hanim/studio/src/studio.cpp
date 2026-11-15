@@ -194,6 +194,23 @@ void first_steps(const StepSpec& step, std::map<std::string, StepKind>& out) {
     for (const auto& id : step.objects) out.try_emplace(id, step.kind);
     for (const auto& item : step.items) first_steps(item, out);
 }
+// The engine's default limits fit a document written by hand; a larger one (a generated scene of hundreds of
+// objects) gets them in proportion to its program, so what a document can say is not capped by a host's default.
+std::size_t nodes_of(const Program& program) {
+    std::size_t count = 1;
+    for (const Program& child : program.children()) count += nodes_of(child);
+    return count;
+}
+ProgramLimits limits_for(const Program& program) {
+    ProgramLimits limits;
+    const std::size_t factor = (2 * nodes_of(program) + limits.max_nodes - 1) / limits.max_nodes;
+    if (factor > 1)
+        for (std::size_t* limit : {&limits.max_nodes, &limits.max_tracks, &limits.max_segments, &limits.max_total_parts, &limits.max_scopes,
+                                   &limits.max_total_property_channels, &limits.max_total_route_segments})
+            *limit *= factor;
+    return limits;
+}
+
 bool entrance(StepKind kind) {
     const anim::RecipeInfo* recipe = anim::find_recipe(step_name(kind));
     return recipe && recipe->kind == anim::RecipeKind::entrance;
@@ -297,7 +314,7 @@ std::expected<Studio, Problems> Studio::open(const Document& document) {
     data->access = std::make_shared<control_ns::Access>(control_ns::policy_for_profile("dev"));
     data->call = {.actor = {openas::Kind::agent, "hanim-studio", {}}, .access = data->access, .session = data->access->open_session()};
     data->controller.emplace(data->engine, data->access, data->context);
-    const auto prepared = data->controller->prepare(data->call, program);
+    const auto prepared = data->controller->prepare(data->call, program, limits_for(program));
     if (!data->admitted("animation.prepare", prepared) || !prepared->value)
         return std::unexpected(Problems{{"/program", prepared ? "it could not be prepared" : prepared.error().engine ? prepared.error().engine->text() : "refused"}});
     data->plan = *prepared->value;

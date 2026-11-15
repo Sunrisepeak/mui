@@ -24,6 +24,10 @@ work=target/bench-competitors
 mkdir -p "$work"
 cp tests/bench/competitors/js/* "$work/"
 (cd "$work" && npm install --silent --no-audit --no-fund)
+# The Lottie players: ThorVG's and rlottie's C libraries as pinned wheels, in their own environment.
+[ -x "$work/py/bin/python" ] || python3 -m venv "$work/py"
+"$work/py/bin/pip" install --quiet -r tests/bench/competitors/py/requirements.txt
+lottie_players() { "$work/py/bin/python" -I tests/bench/competitors/py/lottie.py "$@"; }
 tools/dev/capped.sh mcpp build --profile release -p omui.bench.competitors >/dev/null
 tools/dev/capped.sh mcpp build --target wasm32-emscripten --profile release -p omui.bench.competitors >/dev/null
 bin() { ls -t target/x86_64-linux-gnu/*/bin/bench.competitors/"$1" target/*/*/bin/bench.competitors/"$1" 2>/dev/null | head -1; }
@@ -31,6 +35,7 @@ web=$(ls -t target/wasm32-emscripten/*/bin/bench.competitors/omui-bench-motion.j
 motion=$(bin omui-bench-motion)
 vector=$(bin omui-bench-vector)
 markdown=$(bin omui-bench-markdown)
+lottie=$(bin omui-bench-lottie)
 markdown_web=$(ls -t target/wasm32-emscripten/*/bin/bench.competitors/omui-bench-markdown.js | head -1)
 # The markdown corpus: what people wrote in this repository (docs, the site's content), repeated to 1 MiB.
 corpus="$work/markdown.corpus.md"
@@ -53,6 +58,10 @@ if [ "$mode" = tables ]; then
     # The vector scenes: written by our side, drawn by all three, compared.
     "$vector" --out "$work/vector"
     (cd "$work" && node vector.mjs vector)
+    # The Lottie animation: written by our side, played by hanim and by ThorVG and rlottie, frame 60 compared.
+    "$lottie" --out "$work/lottie"
+    lottie_players "$work/lottie"
+    "$lottie" --compare "$work/lottie"
     echo "markdown, native: $("$markdown" "$corpus")"
     echo "markdown, wasm:   $(node "$markdown_web" "$corpus")"
     (cd "$work" && node markdown.mjs "$(basename "$corpus")")
@@ -70,6 +79,8 @@ for round in $(seq 1 "$rounds"); do
     # xrender first: it writes the scenes and its pictures the others are compared with.
     sample --series xrender --round "$round" -- "$vector" --out "$work/vector" --runs 5
     sample --series skia --round "$round" -- node "$work/vector.mjs" "$work/vector" --runs 5
+    sample --series hanim --key lottie-200 --round "$round" -- "$lottie" --out "$work/lottie" --runs 3
+    sample --series lottie --series-field player --key lottie-200 --round "$round" -- "$work/py/bin/python" -I tests/bench/competitors/py/lottie.py "$work/lottie" --runs 3
     sample --series mlibs.markdown-wasm --key markdown --round "$round" -- node "$markdown_web" "$corpus" --runs 5 --json
     sample --series markdown-competitors --series-field name --key markdown --round "$round" -- node "$work/markdown.mjs" "$corpus" --runs 5
 done

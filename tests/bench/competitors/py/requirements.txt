@@ -1,0 +1,3 @@
+# The Lottie players py/lottie.py drives (ThorVG's and rlottie's C libraries, as wheels), pinned.
+thorvg-python==1.1.3
+rlottie-python==1.3.8

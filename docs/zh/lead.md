@@ -13,6 +13,7 @@
 | hanim | `motion.document.bytes` | — | lottie, rive | — | 计划中 |
 | hanim | `motion.playback.ms` | — | rive, lottie-web | — | 计划中 |
 | hanim | `motion.gpu.morph-1m.ms` | — | hanim-cpu | — | 待真机验证 |
+| hanim | `playback.lottie-200.median_ms` | hanim 1.072 | thorvg 0.919 | 0.86× [0.85, 0.87] | **behind** |
 | xrender | `raster.fills-1000.median_ms` | xrender 8.838 | skia 11.657 | 1.31× [1.30, 1.32] | **ahead** |
 | xrender | `raster.gradients-200.median_ms` | xrender 5.734 | skia 7.17 | 1.26× [1.25, 1.28] | **ahead** |
 | xrender | `raster.small-5000.median_ms` | xrender 2.007 | resvg 7.381 | 3.69× [3.46, 3.70] | **ahead** |

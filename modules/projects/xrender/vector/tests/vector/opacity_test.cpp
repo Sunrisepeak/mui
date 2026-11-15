@@ -55,4 +55,27 @@ static UTest cases{"render.opacity", [] {
         }
         for(int i=60;i>=0;--i)expect(draw(scene(i/60.f)).hash()==hashes[std::size_t(i)]);
     };
+    "a fade of one solid fill is drawn as its alpha, the layer's pixels within a step of rounding"_test = [] {
+        const auto ref=*render::effects().find("opacity");
+        const auto one=[&](float amount,bool second) {
+            render::DisplayList out;
+            const std::array values{std::pair<std::string_view,float>{"amount",amount}};
+            const auto params=render::effects().params(ref,values);
+            out.push_layer(.8f,render::BlendMode::normal,ref,params,{0,0,100,80});
+            out.push_transform(geom::Affine::translate(3.5f,2.25f));
+            out.fill_round_rect({8,8,60,44},render::CornerRadii::all(9),render::Paint::solid(geom::Color{.2f,.6f,1,.9f}));
+            if(second)out.fill_rect({0,0,1,1},geom::Color{0,0,0,0});  // a second fill: the layer is kept
+            out.pop_transform();out.pop_layer();return draw(out);
+        };
+        for(float amount:{.1f,.37f,.5f,.93f}) {
+            const auto folded=one(amount,false),layered=one(amount,true);
+            int worst=0;
+            for(std::size_t p=0;p<folded.pixels().size();++p) {
+                const auto a=folded.pixels()[p],b=layered.pixels()[p];
+                worst=std::max({worst,std::abs(a.r-b.r),std::abs(a.g-b.g),std::abs(a.b-b.b),std::abs(a.a-b.a)});
+            }
+            expect(le(worst,1)) << amount << ": up to " << worst << " apart";
+            expect(folded.at(40,30).a>0 && folded.at(40,30).a<255);
+        }
+    };
 }};

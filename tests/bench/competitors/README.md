@@ -13,6 +13,7 @@ tests/bench/competitors/run.sh --ledger 15  # the lead ledger: 15 rounds, the si
 |---|---|
 | [src](src) | our side, package `omui.bench.competitors`: `omui-bench-motion` (hanim) and `omui-bench-vector` (xrender), programs that run natively and as WebAssembly |
 | [js](js) | their side, pinned in `package.json`: GSAP, Skia (through @napi-rs/canvas), resvg |
+| [py](py) | their side, pinned in `requirements.txt`: ThorVG and rlottie, Lottie's native players (their C libraries through ctypes) |
 
 ## Interactive motion: 1000 values a frame
 
@@ -27,6 +28,20 @@ tests/bench/competitors/run.sh --ledger 15  # the lead ledger: 15 rounds, the si
 What it says: on the Web, in the same JavaScript engine, hanim's interactive mode does this work about 4.8× faster on average and 2× at the median and p95 than GSAP, and its worst frame (the one that retargets all 1000) is under half of GSAP's (1000 new tweens: ~3.6 ms; hanim's retarget keeps position and velocity in place). Natively it is a further 1.6× faster.
 
 What it does not say: a browser's frame (node has no page, layout or paint; both sides write numbers, neither styles an element) — a page-level comparison, both driving 1000 elements' transforms, is next. Springs and an elastic ease are not the same curve; the work per value (a closed-form spring against an ease) is of the same order.
+
+## Lottie playback: the same animation, three players
+
+`src/lottie.cpp` ↔ `py/lottie.py`: 200 rounded rectangles, each moving through three places, turning, scaling and fading on the same cubic-bezier eases (easeInOutCubic), 2 s at 60 frames a second on a 512 × 512 stage — made from a seed and written as a Lottie file, which ThorVG and rlottie play; hanim plays the same values as its own objects and programs (the engine sought, the frame recorded as a display list, xrender's CPU renderer). Every frame is drawn whole on one thread, visited in a scrambled order (frame 37·k mod 120: a seek each time), the clock round the seek and the drawing; frame 60 of each is compared with hanim's (`omui-bench-lottie --compare`).
+
+| 2026-11-16, one machine, 15 rounds alternating (medians of the rounds) | median frame | p95 | frame 60 against hanim's |
+|---|---:|---:|---|
+| hanim (release, GCC 16) | 1.072 ms | 1.124 | — |
+| ThorVG 1.0.4 (software canvas, no worker threads) | **0.919 ms** | 0.953 | mean 0.40 a channel, 0.002 % of pixels > 16 off: the same picture |
+| rlottie 1.3.8 | 39.8 ms | 40.0 | drawn without the turns and scales: not the same animation, not compared |
+
+The calls through Python cost ThorVG 0.019 ms a frame (the same calls on one layer), counted in its time, not subtracted.
+
+What it says: ThorVG plays this animation in 0.86× hanim's time (ledger: `playback.lottie-200.median_ms`, behind, [0.851, 0.867]). Where hanim's time goes (perf, 10 k samples): xrender's rasteriser — cells accumulated (scanline, line, band, sweep: ~36 %) and coverage composited (~27 %) — while hanim's evaluation (eases, the vector recording) is about a tenth. The gap is the same as the large fills' behind Skia below: the rasteriser's throughput, xrender's to close; hanim's own share is not where it lies. What it does not say: a GPU's frame (the same scene through xrender's GPU renderer is the comparison to make against ThorVG's WebGPU canvas next), or hanim's determinism and seeking, where a Lottie player has no equivalent to measure.
 
 ## Vector raster: the same paths, three CPU renderers
 

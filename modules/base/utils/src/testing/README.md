@@ -5,6 +5,6 @@ What openmui's test programs share beyond their test framework, which is mcpplib
 - `threads`: the target's constants, chosen by the manifest per target.
 - `Hash`: FNV-1a for the pinned determinism hashes.
 
-It has no checks, cases or suites; those were moved to mtest by `tools/dev/to_mtest.py`. It is a directory of `mlibs.utils`. The lint rule `testing` keeps `import mlibs.testing` in test programs (`tests/`), so no artifact carries it.
+It has no checks, cases or suites; those moved to mtest (D-147). It is a directory of `mlibs.utils`. The lint rule `testing` keeps `import mlibs.testing` in test programs (`tests/`), so no artifact carries it.
 
 The package and public import are `mlibs.testing`.

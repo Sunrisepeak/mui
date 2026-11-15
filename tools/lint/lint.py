@@ -1242,13 +1242,13 @@ def check_typescript_data(root: Path) -> list[Problem]:
     """omui's data files are TypeScript data modules (D-138, D-139:
     `<name>.<kind>.omui.ts`, defineContract … defineBehavior) or their JSON
     snapshots (D-159: the spec's registry, test data): no `*.omui.toml` is
-    read any more (W1 step 3). tools/dev/toml_to_ts.py converts one."""
+    read any more (W1 step 3)."""
     problems = []
     for path in root.rglob("*.omui.toml"):
         rel = path.relative_to(root).as_posix()
         if "target/" in rel or "/." in "/" + rel:
             continue
-        problems.append(Problem("typescript", rel, f"is TOML: write it as {path.name[:-len('.toml')]}.ts (tools/dev/toml_to_ts.py converts it)"))
+        problems.append(Problem("typescript", rel, f"is TOML: write it as {path.name[:-len('.toml')]}.ts (a data module, export default define…)"))
     return problems
 
 

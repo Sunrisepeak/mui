@@ -189,7 +189,7 @@ std::optional<mlibs::json::Document> parse(const std::filesystem::path& path, Di
         document = json_document(path);
     } else {
         diags.error({name, 0, 0}, "not a data file this reads: a <name>.<kind>.omui.ts module, or its .json",
-                    "tools/dev/toml_to_ts.py writes a TOML file as its module");
+                    "write the data as a TypeScript module, `export default define<Kind>({…})` (the TOML forms are gone, D-139)");
         return std::nullopt;
     }
     if (!document) {

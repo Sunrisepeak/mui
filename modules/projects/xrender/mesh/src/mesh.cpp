@@ -1464,9 +1464,10 @@ Temporal::Told Temporal::resolve(const Targets& frame, std::vector<std::uint8_t>
 namespace {
 // Each next size of a texture whose finest is made: half as wide and as high (one at least), a texel the mean of
 // those it covers.
-void sized(Texture& texture, bool covered) {
-    // Each next size: half as wide and as high (one at least), a texel the mean of those it covers.
-    for (int wide = texture.width, high = texture.height; wide > 1 || high > 1;) {
+void sized(Texture& texture, bool covered, int from_wide = 0, int from_high = 0) {
+    // Each next size: half as wide and as high (one at least), a texel the mean of those it covers — after the
+    // last size there is (of `from_wide` × `from_high`; none said: the finest).
+    for (int wide = from_wide ? from_wide : texture.width, high = from_high ? from_high : texture.height; wide > 1 || high > 1;) {
         const int next_wide = std::max(wide / 2, 1), next_high = std::max(high / 2, 1);
         const std::uint32_t from = texture.sizes.back();
         texture.sizes.push_back(static_cast<std::uint32_t>(texture.light.size()));
@@ -1486,7 +1487,17 @@ void sized(Texture& texture, bool covered) {
 }  // namespace
 
 std::optional<Texture> Texture::made(std::span<const std::uint8_t> rgba, int width, int height, Coding coding) {
-    if (width <= 0 || height <= 0 || rgba.size() < static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4) return std::nullopt;
+    const std::array<std::span<const std::uint8_t>, 1> finest{rgba};
+    return made_of_sizes(finest, width, height, coding);
+}
+
+std::optional<Texture> Texture::made_of_sizes(std::span<const std::span<const std::uint8_t>> given, int width, int height, Coding coding) {
+    if (width <= 0 || height <= 0 || given.empty()) return std::nullopt;
+    const auto extent = [](int side, std::size_t size) { return std::max(side >> std::min<std::size_t>(size, 30), 1); };
+    for (std::size_t size = 0; size < given.size(); ++size) {
+        if (given[size].size() < static_cast<std::size_t>(extent(width, size)) * static_cast<std::size_t>(extent(height, size)) * 4) return std::nullopt;
+        if (size > 0 && extent(width, size - 1) == 1 && extent(height, size - 1) == 1) return std::nullopt;  // past a texel
+    }
     // The display's curve taken off, by a table made once with mlibs.math's own powers.
     static const std::array<float, 256> decoded = [] {
         std::array<float, 256> table{};
@@ -1498,24 +1509,26 @@ std::optional<Texture> Texture::made(std::span<const std::uint8_t> rgba, int wid
     }();
     Texture texture;
     texture.width = width, texture.height = height;
-    texture.sizes.push_back(0);
     texture.light.reserve(static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4 / 3 + 2);
-    const std::size_t texels = static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
+    // Whether it hides anywhere, at any size given.
     bool covered = false;
-    if (coding == Coding::colour)
-        for (std::size_t texel = 0; texel < texels && !covered; ++texel) covered = rgba[texel * 4 + 3] != 255;
-    for (std::size_t texel = 0; texel < texels; ++texel)
-        texture.light.push_back(coding == Coding::colour ? Vec3{decoded[rgba[texel * 4]], decoded[rgba[texel * 4 + 1]], decoded[rgba[texel * 4 + 2]]}
-                                                         : Vec3{static_cast<float>(rgba[texel * 4]) / 255.0f, static_cast<float>(rgba[texel * 4 + 1]) / 255.0f, static_cast<float>(rgba[texel * 4 + 2]) / 255.0f});
-    if (covered) {
-        texture.cover.reserve(texels * 4 / 3 + 2);
-        for (std::size_t texel = 0; texel < texels; ++texel) {
-            const float hides = static_cast<float>(rgba[texel * 4 + 3]) / 255.0f;
-            texture.cover.push_back(hides);
-            texture.light[texel] = texture.light[texel] * hides;
-        }
+    for (std::size_t size = 0; size < given.size() && coding == Coding::colour && !covered; ++size)
+        for (std::size_t texel = 0; texel < static_cast<std::size_t>(extent(width, size)) * static_cast<std::size_t>(extent(height, size)) && !covered; ++texel) covered = given[size][texel * 4 + 3] != 255;
+    for (std::size_t size = 0; size < given.size(); ++size) {
+        const std::span<const std::uint8_t> rgba = given[size];
+        const std::size_t texels = static_cast<std::size_t>(extent(width, size)) * static_cast<std::size_t>(extent(height, size)), first = texture.light.size();
+        texture.sizes.push_back(static_cast<std::uint32_t>(first));
+        for (std::size_t texel = 0; texel < texels; ++texel)
+            texture.light.push_back(coding == Coding::colour ? Vec3{decoded[rgba[texel * 4]], decoded[rgba[texel * 4 + 1]], decoded[rgba[texel * 4 + 2]]}
+                                                             : Vec3{static_cast<float>(rgba[texel * 4]) / 255.0f, static_cast<float>(rgba[texel * 4 + 1]) / 255.0f, static_cast<float>(rgba[texel * 4 + 2]) / 255.0f});
+        if (covered)
+            for (std::size_t texel = 0; texel < texels; ++texel) {
+                const float hides = static_cast<float>(rgba[texel * 4 + 3]) / 255.0f;
+                texture.cover.push_back(hides);
+                texture.light[first + texel] = texture.light[first + texel] * hides;
+            }
     }
-    sized(texture, covered);
+    sized(texture, covered, extent(width, given.size() - 1), extent(height, given.size() - 1));
     return texture;
 }
 

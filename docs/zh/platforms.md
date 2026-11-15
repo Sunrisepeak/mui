@@ -7,6 +7,7 @@
 | CPU reference rendering, simulation and the semantic tree | 稳定 | 实机 | 实机 | 实机 | 实机 | 实机 | 软件 |
 | 2D on a GPU device (xrender, mlibs.rhi) | 稳定 | 实机 | 未验证 | 软件 | 软件 | 软件 | 未验证 |
 | 3D mesh pass on a device (xrender.mesh.gpu) | 预览 | 实机 | 未验证 | 软件 | 软件 | 软件 | 未验证 |
+| Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; xrender.mesh.gpu) | 预览 | 实机 | 软件 | 未验证 | 未验证 | 未验证 | 未验证 |
 | A window drawn by a device (quay.desktop) | 预览 | 软件 | 未验证 | 未验证 | 软件 | 软件 | 未验证 |
 | The Direct3D 12 device backend | 预览 | | | | 未验证 | | |
 | The accessibility bridge to the system's screen reader | 稳定 | 实机 | 未验证 | 未验证 | 未验证 | | |
@@ -34,6 +35,12 @@
 - **3D mesh pass on a device (xrender.mesh.gpu)**, Windows x64: CI row windows-2022: lavapipe
 - **3D mesh pass on a device (xrender.mesh.gpu)**, Linux arm64: CI row ubuntu-24.04-arm: lavapipe
 - **3D mesh pass on a device (xrender.mesh.gpu)**, Android: 缺: a device run
+- **Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; xrender.mesh.gpu)**, Linux x64: mesh.blocks on an RTX 4080 (tools/dev/gpu-real.sh): BC7, 45 of 129,600 pixels past 6 levels, as the same picture as light
+- **Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; xrender.mesh.gpu)**, Web (wasm32): rhi.blocks on headless Chromium's WebGPU and WebGL2, all three kinds (tools/ci/browser.sh); 缺: mesh.blocks in the page's suite at the node; a real browser on a real GPU
+- **Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; xrender.mesh.gpu)**, macOS arm64: 缺: a CI run of mesh.blocks on the runner's Apple Paravirtual device
+- **Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; xrender.mesh.gpu)**, Windows x64: 缺: a CI run of mesh.blocks on lavapipe (BC7)
+- **Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; xrender.mesh.gpu)**, Linux arm64: 缺: a CI run of mesh.blocks on lavapipe (BC7)
+- **Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; xrender.mesh.gpu)**, Android: 缺: a device run (ASTC or ETC2)
 - **A window drawn by a device (quay.desktop)**, Linux x64: quay.desktop with lavapipe (SDL offscreen video driver)
 - **A window drawn by a device (quay.desktop)**, Web (wasm32): 缺: a real browser's WebGPU canvas
 - **A window drawn by a device (quay.desktop)**, macOS arm64: 缺: a CI run with RC0.3's fix (the case under cocoa, as the device tests run; red 98)

@@ -372,9 +372,17 @@ private:
 // A picture (`xrender.mesh`'s `Texture`) on a device, the one way every pass puts one there: each of its sizes a
 // level (the finest the first), rgba16_float — its light times its cover, and its cover — written on `list`.
 // Read between texels and between sizes, it is what `Texture::seen_at` sums before it parts the light from the
-// cover. The texture is the caller's to destroy.
+// cover. A picture kept as blocks the device samples (`Texture::packed`, of a picture with no cover) goes as its
+// blocks instead, an eighth of the bytes: read, the same light (the transcoder's, within its loss). The texture
+// is the caller's to destroy.
 [[nodiscard]] mlibs::rhi::Result<mlibs::rhi::Texture> picture_on(mlibs::rhi::Device& device, mlibs::rhi::CommandList& list, const Texture& picture,
                                                                   std::string_view label = "xrender.mesh.picture");
+// The blocks a device samples, the one a picture packed for devices is best kept as there (xrender.asset's
+// `Options::blocks`): BC7, else ASTC 4 × 4, else ETC2 — or none.
+[[nodiscard]] Blocks blocks_of(const mlibs::rhi::Caps& caps) noexcept;
+// The format a picture goes to a device as (`picture_on`): its blocks', where the device samples them; else
+// rgba16_float.
+[[nodiscard]] mlibs::rhi::Format format_of(const mlibs::rhi::Caps& caps, const Texture& picture) noexcept;
 // How a picture is read: linear between texels and sizes, past its edges as it says (`Texture::across`, `down`).
 [[nodiscard]] mlibs::rhi::SamplerDesc sampler_of(const Texture& picture) noexcept;
 

@@ -7,6 +7,8 @@ import mlibs.math;
 import mlibs.geom;
 import mlibs.image;
 import xrender.mesh.gpu;
+import xrender.asset;
+import mlibs.image.ktx2;
 import xrender.graph;
 
 namespace xrender::mesh::gpu::cts {
@@ -21,6 +23,11 @@ namespace {
 
 // The case that is running, and where its pictures are kept.
 thread_local mlibs::cts::Check*            current = nullptr;
+// KTX-Software's test picture r8g8b8a8_srgb_mip_blze.ktx2 (tests/resources/ktx2; Apache-2.0, The Khronos Group):
+// in the program itself, so that the case runs where there are no files to read (a page).
+constexpr std::uint8_t mip_file[] = {
+#embed "data/r8g8b8a8_srgb_mip_blze.ktx2"
+};
 thread_local const std::filesystem::path* scratch = nullptr;
 
 // A check and what is said of it: `expect(found) << "why"`. Reported when the statement ends; as a condition it
@@ -211,9 +218,10 @@ struct Rig {
 struct Listed {
     std::string               id;
     std::function<void(Rig&)> body;
+    std::vector<std::string>  needs;  // of the device: `blocks` (it samples a kind of blocks)
 };
 using Cases = std::vector<Listed>;
-void add(Cases& suite, std::string id, std::function<void(Rig&)> body) { suite.push_back({std::move(id), std::move(body)}); }
+void add(Cases& suite, std::string id, std::function<void(Rig&)> body, std::vector<std::string> needs = {}) { suite.push_back({std::move(id), std::move(body), std::move(needs)}); }
 
 Cases suite_of() {
     Cases suite;
@@ -1175,6 +1183,124 @@ Cases suite_of() {
         held(Kind::edged);
         held(Kind::cornered);
     });
+    // a picture packed for devices goes to the device as its blocks — an eighth of the bytes — and the floor it tiles is the reference's, as the same picture as pixels is; a picture as large as a game's, uploaded both ways
+    add(suite, "mesh.blocks", [](Rig& rig) {
+        rhi::Device* const device = &rig.device;
+        const mesh::Blocks kind = mesh::gpu::blocks_of(device->caps());
+        // KTX-Software's own test picture (tests/resources/ktx2, Apache-2.0, The Khronos Group): 64 × 64, ETC1S,
+        // every size down to a texel in the file, each its own colour (red the largest, then through the rainbow) —
+        // so a size read from anywhere but the file shows. The reference reads every size as xrender.asset does;
+        // the device takes the same sizes as blocks.
+        const std::span<const std::uint8_t> file(mip_file);
+        const auto levels = mlibs::image::decode_ktx2_levels(file);
+        if (!(expect(levels.has_value() && !levels->empty()) << (levels ? "" : levels.error()))) return;
+        const mlibs::image::Image* const pixels = &levels->front();
+        std::vector<std::span<const std::uint8_t>> sizes;
+        for (const mlibs::image::Image& size : *levels) sizes.push_back(size.rgba);
+        mesh::Texture packed = *mesh::Texture::made_of_sizes(sizes, pixels->width, pixels->height), plain = packed;
+        packed.packed = xrender::asset::packed_ktx2(file, kind);
+        expect(eq(packed.packed.sizes.size(), std::size_t{7}) && eq(mesh::gpu::format_of(device->caps(), plain), rhi::Format::rgba16_float));
+        const rhi::Format format = mesh::gpu::format_of(device->caps(), packed);
+        expect(rhi::is_blocks(format)) << "the device samples " << rhi::name(format);
+        // The bytes on the device, every size: blocks against light.
+        const auto bytes_as = [](rhi::Format as, std::uint32_t side) {
+            std::size_t sum = 0;
+            for (std::uint32_t size = 0; size < rhi::levels_of(side, side); ++size)
+                sum += (rhi::is_blocks(as) ? rhi::row_bytes(as, rhi::level_extent(side, size)) : std::size_t{8} * rhi::level_extent(side, size)) * rhi::rows_of(as, rhi::level_extent(side, size));
+            return sum;
+        };
+        Yard yard(true);
+        for (math::Vec2& uv : yard.made[1].mesh.uvs) uv = {uv.x * 50, uv.y * 50};
+        yard.materials.push_back({{1, 1, 1}, {}, 1, 0, 0});
+        scene::Instance floor = *yard.world.find(1);
+        floor.material = static_cast<std::uint32_t>(yard.materials.size() - 1);
+        expect(yard.world.set(floor).has_value());
+        scene::Extracted seen;
+        scene::extract(yard.world, yard.view(), seen);
+        const std::array<const mesh::Texture*, 1> as_pixels{&plain};
+        mesh::Targets reference;
+        reference.resize(static_cast<int>(width), static_cast<int>(height));
+        mesh::Pass on_cpu;
+        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}, as_pixels}, reference, {.shadows = false});
+        const auto drawn_with = [&](const mesh::Texture& picture) -> std::vector<std::byte> {
+            auto pass = mesh::gpu::Pass::make(*device);
+            if (!(expect(pass.has_value()) << (pass ? "" : pass.error().message)) || !expect(pass->load(yard.meshes).has_value())) return {};
+            const std::array<const mesh::Texture*, 1> textures{&picture};
+            const auto loaded = pass->load_textures(textures);
+            if (!(expect(loaded.has_value()) << (loaded ? "" : loaded.error().message))) return {};
+            const auto colour = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, width, height, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "mesh.colour"});
+            const auto depth = device->create(rhi::TextureDesc{rhi::Format::d32_float, width, height, rhi::TextureUsage::depth_target, "mesh.depth"});
+            if (!expect(colour.has_value() && depth.has_value())) return {};
+            rhi::CommandList list;
+            pass->record(list, yard.world, seen, yard.view(), yard.materials, *colour, *depth, width, height, {.shadows = false});
+            const auto submitted = device->submit(list);
+            if (!(expect(submitted.has_value()) << (submitted ? "" : submitted.error().message))) return {};
+            expect(device->wait(*submitted).has_value());
+            auto read = device->read(*colour, rhi::Region{0, 0, width, height});
+            static_cast<void>(device->wait_idle());
+            device->destroy(*colour), device->destroy(*depth);
+            if (!expect(read.has_value())) return {};
+            expect(eq(pass->last().textured, 1u));
+            return std::move(*read);
+        };
+        const std::vector<std::byte> as_blocks = drawn_with(packed), as_light = drawn_with(plain);
+        if (as_blocks.empty() || as_light.empty()) return;
+        keep(as_blocks, "yard-blocks");
+        const Apart blocks_apart = apart(reference, as_blocks, false, 6), blocks_loosely = apart(reference, as_blocks, false, 16), light_apart = apart(reference, as_light, false, 6);
+        std::println("a floor of a picture packed for devices, on {} as {} ({} bytes every size, {} as light: {:.3f}): {} of {} pixels further than 6 levels from the reference, {} further than 16, mean {:.3f}, worst {}; as light {} further than 6, mean {:.3f}",
+                     device->caps().device, rhi::name(format), bytes_as(format, 64), bytes_as(rhi::Format::rgba16_float, 64), static_cast<double>(bytes_as(format, 64)) / static_cast<double>(bytes_as(rhi::Format::rgba16_float, 64)),
+                     blocks_apart.off, blocks_apart.compared, blocks_loosely.off, blocks_apart.mean, blocks_apart.worst, light_apart.off, light_apart.mean);
+        // Of every size an eighth (a block of 16 texels in 16 bytes against 8 bytes a texel), but the sizes under a
+        // block, which are a whole block each.
+        expect(lt(bytes_as(format, 64) * 7, bytes_as(rhi::Format::rgba16_float, 64))) << "blocks are an eighth of the light's bytes";
+        // The transcoder's two outputs of one file — its BC7 (or ASTC, ETC2) and its pixels — drawn: within what
+        // the floor of tiles is held to.
+        // Measured on an RTX 4080 (BC7): 45 further than 6 levels, 8 further than 16, mean 0.062 — the pixels of the
+        // same picture as light 45 and 0.060. The bounds are the floor of tiles' (`mesh.textures`), and a mean a
+        // fifth of a level.
+        expect(lt(static_cast<double>(blocks_apart.off), 0.002 * static_cast<double>(blocks_apart.compared)) && lt(static_cast<double>(blocks_loosely.off), 0.0002 * static_cast<double>(blocks_loosely.compared)))
+            << "the blocks drawn are the reference's picture";
+        expect(lt(blocks_apart.mean, 0.2));
+        // A picture as large as a game's, 1024 × 1024: the file's largest size laid sixteen times each way, as
+        // blocks are laid (each block stands alone), against the same pixels as light — the bytes and the time
+        // from the call to the device having it.
+        const std::uint32_t side = 1024, tiles = side / 64;
+        std::vector<std::uint8_t> large_pixels(static_cast<std::size_t>(side) * side * 4);
+        for (std::uint32_t y = 0; y < side; ++y)
+            for (std::uint32_t tile = 0; tile < tiles; ++tile)
+                std::memcpy(large_pixels.data() + (static_cast<std::size_t>(y) * side + tile * 64) * 4, pixels->rgba.data() + static_cast<std::size_t>(y % 64) * 64 * 4, 64 * 4);
+        mesh::Texture large = *mesh::Texture::made(large_pixels, static_cast<int>(side), static_cast<int>(side)), large_light = large;
+        // Its sizes as blocks: each size of the file laid as many times as it fits, then the file's own smaller ones.
+        large.packed.kind = packed.packed.kind;
+        for (std::uint32_t size = 0; size < rhi::levels_of(side, side); ++size) {
+            const std::uint32_t extent = rhi::level_extent(side, size), file_size = size < 4 ? 0 : size - 4;
+            const std::vector<std::uint8_t>& from = packed.packed.sizes[std::min<std::size_t>(file_size, packed.packed.sizes.size() - 1)];
+            const std::uint32_t from_blocks = rhi::rows_of(format, rhi::level_extent(64, file_size)), blocks = rhi::rows_of(format, extent);
+            std::vector<std::uint8_t> laid(rhi::row_bytes(format, extent) * blocks);
+            for (std::uint32_t row = 0; row < blocks; ++row)
+                for (std::uint32_t column = 0; column < blocks; ++column)
+                    std::memcpy(laid.data() + (static_cast<std::size_t>(row) * blocks + column) * rhi::block_bytes, from.data() + (static_cast<std::size_t>(row % from_blocks) * from_blocks + column % from_blocks) * rhi::block_bytes, rhi::block_bytes);
+            large.packed.sizes.push_back(std::move(laid));
+        }
+        const auto load_time = [&](const mesh::Texture& picture) {
+            auto pass = mesh::gpu::Pass::make(*device);
+            if (!expect(pass.has_value())) return 0.0;
+            const std::array<const mesh::Texture*, 1> textures{&picture};
+            double best = 1e9;
+            for (int round = 0; round < 3; ++round) {
+                const auto started = std::chrono::steady_clock::now();
+                expect(pass->load_textures(textures).has_value());
+                best = std::min(best, std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - started).count());
+            }
+            return best;
+        };
+        expect(eq(mesh::gpu::format_of(device->caps(), large), format));
+        const double blocks_ms = load_time(large), light_ms = load_time(large_light);
+        std::println("    1024 × 1024 every size: {:.2f} MiB as {} against {:.2f} MiB as light; loaded (the best of 3, from the call to the device having it: the light made halves on the way) in {:.2f} ms against {:.2f} ms", bytes_as(format, side) / 1048576.0,
+                     rhi::name(format), bytes_as(rhi::Format::rgba16_float, side) / 1048576.0, blocks_ms, light_ms);
+        if (current) current->evidence("blocks-bytes", std::to_string(bytes_as(format, side))), current->evidence("light-bytes", std::to_string(bytes_as(rhi::Format::rgba16_float, side))),
+            current->evidence("blocks-ms", std::format("{:.2f}", blocks_ms)), current->evidence("light-ms", std::format("{:.2f}", light_ms));
+    }, {"blocks"});
     // the layers' own pictures on the device are the reference's, all read through one sheet (WebGL2's 16 samplers):
     // a clear coat's amount, roughness and normal, a sheen's colour, a drawn-out highlight's way and strength, a
     // film's amount and thickness — four balls before the yard, under the plain surroundings and under a picture
@@ -1767,13 +1893,18 @@ std::vector<std::string> cases() {
 
 void declare(rhi::Device& device, mlibs::cts::Against who, Options options, std::source_location at) {
     if (who.subject.empty()) who.subject = device.caps().device;
+    // What the device has, as the cases ask it: the runner's answer where it gave one, and the device's own.
+    who.has = [&device, given = std::move(who.has)](std::string_view capability) {
+        if (capability == "blocks") return mesh::gpu::blocks_of(device.caps()) != mesh::Blocks::none;
+        return !given || given(capability);
+    };
     Rig rig{device};
     Cases all = suite_of();
     mlibs::cts::against(
         std::move(who),
         [&rig, &all, &options, at] {
             for (Listed& one : all)
-                mlibs::cts::declare({.id = std::move(one.id), .contract = "xrender.mesh.gpu@1", .level = mlibs::cts::Level::tolerance, .needs = {},
+                mlibs::cts::declare({.id = std::move(one.id), .contract = "xrender.mesh.gpu@1", .level = mlibs::cts::Level::tolerance, .needs = std::move(one.needs),
                                      .body = [&rig, &options, body = std::move(one.body)](mlibs::cts::Check& check) {
                                          current = &check, scratch = &options.scratch;
                                          body(rig);

@@ -112,12 +112,22 @@ struct Options {
     Id   base = 0;  // added to every id made
     // Which scene of the document: its own choice, or the first. One it does not have is refused.
     std::optional<std::uint32_t> scene;
+    // The blocks the device it is drawn on samples (xrender.mesh.gpu's `blocks_of`): a picture from a KTX2 file is
+    // kept as them too (`mesh::Texture::packed`, `packed_ktx2`), and goes to the device as they are. None: as light.
+    mesh::Blocks blocks = mesh::Blocks::none;
 };
 
 // The document — a .gltf's text or a .glb's bytes — as what a scene is made of, or why it is not one.
 [[nodiscard]] std::expected<Imported, std::string> gltf(std::span<const std::uint8_t> bytes, const Options& options = {});
 // The same from a file; what it names beside itself is read from its directory (unless `options.read` is given).
 [[nodiscard]] std::expected<Imported, std::string> gltf_file(const std::filesystem::path& file, Options options = {});
+
+// A KTX2 file's pictures as a device's blocks of `kind`, read as `coding` says (the same picture `gltf` reads as
+// pixels from it, `mesh::Texture::made`'s coding): every
+// size, where the file has every size down to a texel, its sides are whole blocks and it does not hide by a fourth
+// channel (a device's picture that hides is its light times its cover, which blocks do not hold). Otherwise none
+// (`kind` none): the picture goes to a device as its light, as every other picture does.
+[[nodiscard]] mesh::Texture::Packed packed_ktx2(std::span<const std::uint8_t> bytes, mesh::Blocks kind, mesh::Coding coding = mesh::Coding::colour);
 
 // Where a caller keeps what was brought in: the numbers its first mesh and first material have there.
 struct Base {

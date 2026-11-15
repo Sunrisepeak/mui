@@ -200,9 +200,22 @@ enum class Coding : std::uint8_t { colour, plain };
 // What a picture is past its edge, each way: itself again, itself turned about (each time the other way round),
 // or its edge's texels for ever (a label that must not show twice). glTF's sampler says it.
 enum class Edge : std::uint8_t { repeats, mirrors, stops };
+// A GPU's own packing of a picture, each 4 × 4 texels in a block of 16 bytes: what a device that samples that
+// kind takes as it is (`Caps::bc7`, `etc2`, `astc` in mlibs.rhi).
+enum class Blocks : std::uint8_t { none, bc7, etc2, astc };
 struct Texture {
     int width = 0, height = 0;
     Edge across = Edge::repeats, down = Edge::repeats;  // set after `made`
+    // The same picture as a device keeps it, where it was read from a file packed for devices (KTX2, xrender.asset's
+    // `Options::blocks`): every size the file has, the finest first, each its rows of blocks from the top — an
+    // eighth of the bytes `light` is on a device. The reference draws `light`; a device that samples this kind
+    // samples these (xrender.mesh.gpu), the same picture as the transcoder gives both. None: `kind` is none.
+    struct Packed {
+        Blocks                                 kind = Blocks::none;
+        Coding                                 coding = Coding::colour;  // colours: a device takes the curve off each texel
+        std::vector<std::vector<std::uint8_t>> sizes;
+    };
+    Packed packed;
     std::vector<Vec3>        light;   // every size's texels, a row after a row, the finest size first
     std::vector<std::uint32_t> sizes; // where each size begins in `light`
     // How much of what is behind it each texel hides (the picture's fourth byte ÷ 255), laid out as `light` is —
@@ -213,6 +226,10 @@ struct Texture {
     // From rgba8 (`width` × `height` × 4, rows from the top), colours in sRGB unless said plain. Nothing: no size,
     // no pixels, or too few bytes. A picture of colours with a fourth byte below 255 anywhere has a `cover`.
     [[nodiscard]] static std::optional<Texture> made(std::span<const std::uint8_t> rgba, int width, int height, Coding coding = Coding::colour);
+    // The same of the sizes a file gives (each half the one before, the finest `width` × `height` first): as they
+    // are, and the smaller ones the file has not made as `made` makes them. Nothing: a size with too few bytes, or
+    // one past a texel.
+    [[nodiscard]] static std::optional<Texture> made_of_sizes(std::span<const std::span<const std::uint8_t>> sizes, int width, int height, Coding coding = Coding::colour);
     // Of light itself (`width` × `height`, rows from the top), every size made as `made` makes them: a frame's
     // light, read blurred. Its edges stop. Nothing: no size, or too few.
     [[nodiscard]] static std::optional<Texture> of_light(std::span<const Vec3> light, int width, int height);

@@ -33,6 +33,9 @@ mlibs.cts        = { path = "../../../../../base/cts" }
 mlibs.geom       = { path = "../../../../../base/geom" }
 mlibs.math       = { path = "../../../../../base/math" }
 mlibs.image      = { path = "../../../../../base/image" }
+# A picture packed for devices (KTX2), read as the importer reads it: the case mesh.blocks.
+xrender.asset    = { path = "../../../asset" }
+"mlibs.image.ktx2" = { path = "../../../../../base/image/ktx2" }
 
 [dev-dependencies]
 mcpplibs.mtest     = "0.8.4"

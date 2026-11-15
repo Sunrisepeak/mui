@@ -49,6 +49,19 @@
       }
     },
     {
+      "id": "device-blocks",
+      "name": "Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; xrender.mesh.gpu)",
+      "label": "preview",
+      "cells": {
+        "linux-x64": {"status": "real", "evidence": "mesh.blocks on an RTX 4080 (tools/dev/gpu-real.sh): BC7, 45 of 129,600 pixels past 6 levels, as the same picture as light"},
+        "web": {"status": "software", "evidence": "rhi.blocks on headless Chromium's WebGPU and WebGL2, all three kinds (tools/ci/browser.sh)", "needs": "mesh.blocks in the page's suite at the node; a real browser on a real GPU"},
+        "macos-arm64": {"status": "unverified", "needs": "a CI run of mesh.blocks on the runner's Apple Paravirtual device"},
+        "windows-x64": {"status": "unverified", "needs": "a CI run of mesh.blocks on lavapipe (BC7)"},
+        "linux-arm64": {"status": "unverified", "needs": "a CI run of mesh.blocks on lavapipe (BC7)"},
+        "android": {"status": "unverified", "needs": "a device run (ASTC or ETC2)"}
+      }
+    },
+    {
       "id": "window-device-3d",
       "name": "A window drawn by a device (quay.desktop)",
       "label": "preview",

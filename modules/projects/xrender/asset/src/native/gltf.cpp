@@ -169,18 +169,30 @@ struct Maker {
         if (made_as[as] == unasked && !std::ranges::contains(made_as, refused)) {
             made_as[as] = refused;
             const auto bytes = picture_bytes(*image, options);
-            // A KTX2 file's largest picture (the texture's smaller sizes are made here, as every picture's are).
-            auto decoded = !bytes ? std::unexpected(bytes.error()) : mlibs::image::is_ktx2(*bytes) ? mlibs::image::decode_ktx2(*bytes) : mlibs::image::decode(*bytes);
+            // A KTX2 file's pictures: every size it has (the smaller ones it has not are made here, as every
+            // picture's are) — the sizes a device that takes its blocks samples.
+            const bool packed_file = bytes && mlibs::image::is_ktx2(*bytes);
+            auto decoded = !bytes ? std::unexpected(bytes.error()) : packed_file ? mlibs::image::decode_ktx2_levels(*bytes) : mlibs::image::decode(*bytes).transform([](mlibs::image::Image one) {
+                std::vector<mlibs::image::Image> sizes;
+                sizes.push_back(std::move(one));
+                return sizes;
+            });
             std::optional<mesh::Texture> made;
             if (decoded && as == 2)
-                for (std::size_t byte = 3; byte < decoded->rgba.size(); byte += 4) decoded->rgba[byte] = 255;
-            if (decoded) made = mesh::Texture::made(decoded->rgba, decoded->width, decoded->height, coding);
+                for (mlibs::image::Image& size : *decoded)
+                    for (std::size_t byte = 3; byte < size.rgba.size(); byte += 4) size.rgba[byte] = 255;
+            if (decoded && !decoded->empty()) {
+                std::vector<std::span<const std::uint8_t>> sizes;
+                for (const mlibs::image::Image& size : *decoded) sizes.push_back(size.rgba);
+                made = mesh::Texture::made_of_sizes(sizes, decoded->front().width, decoded->front().height, coding);
+            }
+            if (made && options.blocks != mesh::Blocks::none && mlibs::image::is_ktx2(*bytes)) made->packed = packed_ktx2(*bytes, options.blocks, coding);
             if (made) {
                 made_as[as] = static_cast<std::uint32_t>(out.textures.size());
                 out.textures.push_back(std::move(*made));
             } else {
                 note(std::format("/images/{}", image_index),
-                     std::format("a picture that is not read{}: {}", image->mime_type ? std::format(" ({})", image->mime_type) : std::string(), decoded ? "it has no pixels" : decoded.error()),
+                     std::format("a picture that is not read{}: {}", image->mime_type ? std::format(" ({})", image->mime_type) : std::string(), decoded ? std::string("it has no pixels") : decoded.error()),
                      "every material that names it is left with its own numbers alone (PNG, WebP, JPEG and KTX2 are read)");
             }
         }
@@ -693,6 +705,24 @@ std::expected<Imported, std::string> gltf(std::span<const std::uint8_t> bytes, c
     Maker maker{.data = *document.data, .options = options};
     if (auto made = maker.make(); !made) return std::unexpected(made.error());
     return std::move(maker.out);
+}
+
+mesh::Texture::Packed packed_ktx2(std::span<const std::uint8_t> bytes, mesh::Blocks kind, mesh::Coding coding) {
+    namespace image = mlibs::image;
+    const auto what = image::describe_ktx2(bytes);
+    if (kind == mesh::Blocks::none || !what || what->alpha || what->width % 4 || what->height % 4) return {};
+    // Every size down to a texel: as many as halving the larger side takes to one.
+    int sizes = 1;
+    for (int side = std::max(what->width, what->height); side > 1; side /= 2) ++sizes;
+    if (what->levels != sizes) return {};
+    const image::Ktx2Blocks as = kind == mesh::Blocks::bc7 ? image::Ktx2Blocks::bc7 : kind == mesh::Blocks::etc2 ? image::Ktx2Blocks::etc2 : image::Ktx2Blocks::astc_4x4;
+    mesh::Texture::Packed out{.kind = kind, .coding = coding, .sizes = {}};
+    for (int size = 0; size < sizes; ++size) {
+        auto blocks = image::ktx2_blocks(bytes, as, size);
+        if (!blocks) return {};
+        out.sizes.push_back(std::move(blocks->bytes));
+    }
+    return out;
 }
 
 }  // namespace xrender::asset

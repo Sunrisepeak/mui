@@ -598,10 +598,37 @@ rhi::Result<void> Pass::load_surroundings(const Surroundings* surroundings) {
     return device_->wait(*submitted);
 }
 
+Blocks blocks_of(const rhi::Caps& caps) noexcept {
+    return caps.bc7 ? Blocks::bc7 : caps.astc ? Blocks::astc : caps.etc2 ? Blocks::etc2 : Blocks::none;
+}
+
+rhi::Format format_of(const rhi::Caps& caps, const Texture& picture) noexcept {
+    const std::uint32_t wide = static_cast<std::uint32_t>(picture.width), high = static_cast<std::uint32_t>(picture.height);
+    const Texture::Packed& packed = picture.packed;
+    if (packed.kind == Blocks::none || !picture.cover.empty() || wide % rhi::block_side || high % rhi::block_side || packed.sizes.size() != rhi::levels_of(wide, high) ||
+        picture.sizes.size() < packed.sizes.size())
+        return rhi::Format::rgba16_float;
+    const bool colour = packed.coding == Coding::colour;
+    const rhi::Format format = packed.kind == Blocks::bc7    ? (colour ? rhi::Format::bc7_srgb : rhi::Format::bc7_unorm)
+                               : packed.kind == Blocks::etc2 ? (colour ? rhi::Format::etc2_rgba8_srgb : rhi::Format::etc2_rgba8_unorm)
+                                                             : (colour ? rhi::Format::astc_4x4_srgb : rhi::Format::astc_4x4_unorm);
+    // Each size whole: as many blocks as its sides take.
+    for (std::uint32_t size = 0; size < packed.sizes.size(); ++size)
+        if (packed.sizes[size].size() != rhi::row_bytes(format, rhi::level_extent(wide, size)) * rhi::rows_of(format, rhi::level_extent(high, size))) return rhi::Format::rgba16_float;
+    return caps.samples_blocks(format) ? format : rhi::Format::rgba16_float;
+}
+
 rhi::Result<rhi::Texture> picture_on(rhi::Device& device, rhi::CommandList& list, const Texture& picture, std::string_view label) {
     const std::uint32_t wide = static_cast<std::uint32_t>(picture.width), high = static_cast<std::uint32_t>(picture.height);
     const std::uint32_t sizes = std::min(static_cast<std::uint32_t>(picture.sizes.size()), rhi::levels_of(wide, high));
     if (!sizes) return std::unexpected(rhi::fail(rhi::Errc::invalid, "a picture with no sizes"));
+    if (const rhi::Format format = format_of(device.caps(), picture); rhi::is_blocks(format)) {
+        auto made = device.create(rhi::TextureDesc{.format = format, .width = wide, .height = high, .usage = rhi::TextureUsage::sampled, .label = label, .levels = sizes});
+        if (!made) return std::unexpected(made.error());
+        for (std::uint32_t size = 0; size < sizes; ++size)
+            list.upload(*made, rhi::Region{0, 0, rhi::level_extent(wide, size), rhi::level_extent(high, size)}, std::as_bytes(std::span<const std::uint8_t>(picture.packed.sizes[size])), 0, size);
+        return *made;
+    }
     auto made = device.create(rhi::TextureDesc{.format = rhi::Format::rgba16_float, .width = wide, .height = high, .usage = rhi::TextureUsage::sampled, .label = label, .levels = sizes});
     if (!made) return std::unexpected(made.error());
     std::vector<std::uint16_t> texels;

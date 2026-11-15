@@ -18,6 +18,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 kind = "entry"
+agent = { part = "omui.agent" }  # the application it runs is the subject, at the agent endpoint omui.agent serves (D-174)
 
 [targets.openmui-entry-player]
 kind = "lib"
@@ -26,19 +27,20 @@ kind = "lib"
 # `main = { from = "omui.entry.player/player" }` in its manifest.
 [targets.player]
 kind = "entry"
+agent = { part = "omui.agent" }  # the application it runs is the subject, at the agent endpoint omui.agent serves (D-174)
 main = "src/entry/main.cpp"
 
 [build]
-sources = ["src/*.cppm", "src/*.cpp"]
+sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 
 [dependencies]
-omui.sdk           = { path = "../../../modules/projects/omui/sdk" }
-omui.player        = { path = "../../../modules/projects/omui/player" }
-omui.lang.js       = { path = "../../../modules/projects/omui/lang/js" }
-omui.ui.markdown   = { path = "../../../modules/projects/omui/components/markdown" }
-omui.native.fuzzy  = { path = "../../../modules/projects/omui/native/fuzzy" }
-omui.theme.default = { path = "../../../modules/projects/omui/theme/default" }
-omui.theme.compact = { path = "../../../modules/projects/omui/theme/compact" }
+omui.sdk           = { path = "../../sdk" }
+omui.player        = { path = "../../player" }
+omui.lang.js       = { path = "../../lang/js" }
+omui.ui.markdown   = { path = "../../components/markdown" }
+omui.native.fuzzy  = { path = "../../native/fuzzy" }
+omui.theme.default = { path = "../../theme/default" }
+omui.theme.compact = { path = "../../theme/compact" }
 marzer.tomlplusplus = "3.4.0"
 mcpplibs.os = "0.4.4"
 mcpplibs.cmdline = "0.0.3"
@@ -51,4 +53,4 @@ default = []
 design  = { sources = [] }
 
 [feature-deps.design]
-omui.designer = { path = "../../../modules/projects/omui/designer" }
+omui.designer = { path = "../../designer" }

@@ -34,7 +34,7 @@ sources = ["src/macos/*.cpp"]
 
 [dependencies]
 # The system's notifications (mpal: the OS's services above mcpplibs.os).
-mpal = { path = "../../../../mpal" }
+mpal = { path = "../../../../base/mpal" }
 xrender.text = { path = "../../../xrender/text" }
 omui.core     = { path = "../../core" }
 omui.view     = { path = "../../view" }

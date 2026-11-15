@@ -17,18 +17,19 @@ repo        = "https://github.com/Sunrisepeak/mui"
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 lower = ["omui.designer"]  # lower-labelled parts it uses, each marked in its README
 kind = "entry"
+agent = { part = "omui.agent" }  # the application it runs is the subject, at the agent endpoint omui.agent serves (D-174)
 
 [targets.omui-devhost]
 kind = "bin"
 main = "src/main.cpp"
 
 [dependencies]
-omui.sdk = { path = "../../../modules/projects/omui/sdk" }
+omui.sdk = { path = "../../sdk" }
 # The design's history is the host's (W16): it goes on while builds come and go.
-omui.designer = { path = "../../../modules/projects/omui/designer" }
+omui.designer = { path = "../../designer" }
 # The design's history store, held here as builds come and go: the agent kernel's.
-mlibs.agent   = { path = "../../../modules/base/agent" }
-omui.agent = { path = "../../../modules/projects/omui/agent" }
+mlibs.agent   = { path = "../../../../base/agent" }
+omui.agent = { path = "../../agent" }
 mcpplibs.os = "0.4.4"
 mcpplibs.cmdline = "0.0.3"
 

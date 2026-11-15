@@ -807,7 +807,7 @@
       }
     ],
     "fixed_sample_state_and_png_match_prior": 25,
-    "prior_reference": "tools/ci/2026-11-05-cellular-workbench.report.omui.json",
+    "prior_reference": ".agents/docs/evaluation/reports/2026-11-05-cellular-workbench.report.omui.json",
     "native_prerender": {
       "path": "target/namespace-geometry-validation/site-native.report.omui.json",
       "sha256": "8acc55f7ec7f8d18d1de844600a32ca1f5ad3fdb9533ea3f5bd7305047efb9aa"

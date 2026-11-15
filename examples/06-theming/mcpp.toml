@@ -35,7 +35,7 @@ main = "src/main.cpp"
 sources = ["src/*.cpp"]
 
 [dependencies]
-omui.entry.player = { path = "../../src/entry/player" }
+omui.entry.player = { path = "../../modules/projects/omui/entry/player" }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"

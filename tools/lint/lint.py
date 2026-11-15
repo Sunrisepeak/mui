@@ -100,7 +100,7 @@ PATH_LAYERS: dict[str, str] = {
     "modules/gfx": "gfx",
     "modules/content": "content",
     "modules/media": "media",
-    "modules/mpal": "base",  # the OS's services above mcpplibs.os: no UI, used by omui's hosts
+    "modules/base/mpal": "base",  # the OS's services above mcpplibs.os: no UI, used by omui's hosts
     # the projects (plan §9.2)
     "modules/projects/hanim/core": "base",
     "modules/projects/hanim/timeline": "base",  # tracks of clips, their file and edits: hanim.core and mlibs alone
@@ -136,7 +136,7 @@ PATH_LAYERS: dict[str, str] = {
     # build code, tools and the consumers
     "tools": "tools",
     "mcpp": "mcpp",
-    "src": "app",  # entries: the composition roots (component-binding §10.2)
+    "modules/projects/omui/entry": "app",  # omui's programs: the composition roots (component-binding §10.2)
     "tests": "app",
     "examples": "app",
     "showcase": "app",
@@ -174,7 +174,7 @@ LAYERS: dict[str, set[str]] = {
 # other. The longest path prefix that holds a member names its project;
 # consumers (tools, the site, showcases, examples, tests, entries) are free.
 PROJECT_PATHS: dict[str, str] = {
-    "modules": "mlibs",  # base, gfx, content, mpal
+    "modules": "mlibs",  # base, gfx, content
     "spec": "spec",
     "modules/projects/xrender": "xrender",
     "modules/projects/xengine/kernel/dynamics": "xengine.sim",

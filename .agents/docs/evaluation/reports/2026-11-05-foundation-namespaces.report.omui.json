@@ -588,7 +588,7 @@
     ],
     "sample_count": 25,
     "fixed_sample_state_and_png_match_prior": 25,
-    "prior_reference": "tools/ci/2026-11-05-cellular-workbench.report.omui.json",
+    "prior_reference": ".agents/docs/evaluation/reports/2026-11-05-cellular-workbench.report.omui.json",
     "visual_review": [
       "390px Chinese phone layout and controls readable",
       "actual intermediate tick-12 canvas observed"

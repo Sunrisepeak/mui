@@ -7,7 +7,7 @@ name: mpal
 on:
   pull_request:
     paths:
-      - 'modules/mpal/**'
+      - 'modules/base/mpal/**'
       - '.github/workflows/mpal.yml'
   workflow_dispatch:
 

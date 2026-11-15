@@ -317,7 +317,7 @@ float shown = (*gain)->at_sample(24000); // 只读，不推进音频或触发事
 
 ### 11.3 本地验证与证据
 
-本批以本地native dev／release、Wasm实际执行、独立mcpp消费者、现有音频benchmark和真实导出文件验证，不等待异平台CI。最终源码、命令、测试结果、产物hash及运行范围记录在[机器证据](../../tools/ci/2026-11-05-audio-automation.report.omui.json)。
+本批以本地native dev／release、Wasm实际执行、独立mcpp消费者、现有音频benchmark和真实导出文件验证，不等待异平台CI。最终源码、命令、测试结果、产物hash及运行范围记录在[机器证据](../../.agents/docs/evaluation/reports/2026-11-05-audio-automation.report.omui.json)。
 
 | 验证 | 结果与范围 |
 |---|---|
@@ -385,7 +385,7 @@ GPU域CTS的16组场景覆盖逐tick读回、12步驻留批次、checkpoint上�
 
 ### 12.3 本地证据
 
-命令、最终源码hash、执行日志、独立消费者源码与真实resolution、benchmark结果记录在[机器证据](../../tools/ci/2026-11-05-simulation-cellular.report.omui.json)。本轮不等待其他平台CI。
+命令、最终源码hash、执行日志、独立消费者源码与真实resolution、benchmark结果记录在[机器证据](../../.agents/docs/evaluation/reports/2026-11-05-simulation-cellular.report.omui.json)。本轮不等待其他平台CI。
 
 | 验证 | 实际结果与范围 |
 |---|---|
@@ -420,7 +420,7 @@ GPU域CTS的16组场景覆盖逐tick读回、12步驻留批次、checkpoint上�
 
 ## 14. S4反应工作台：共享库、Inspector、官网与无窗口过程验收
 
-执行基线`ed87ec7`。本批把§12的公共模拟能力接到可操作工具和官网；没有新增workspace成员。**S4仍在实施，不能据此宣布通用模拟、材料编辑器或Noita级规模完成。** 可复现命令、源码／产物摘要和逐项结果见[验证报告](../../tools/ci/2026-11-05-cellular-workbench.report.omui.json)，公共操作与最小SOP见[工具文档](../../tools/inspector/docs/cellular.md)。
+执行基线`ed87ec7`。本批把§12的公共模拟能力接到可操作工具和官网；没有新增workspace成员。**S4仍在实施，不能据此宣布通用模拟、材料编辑器或Noita级规模完成。** 可复现命令、源码／产物摘要和逐项结果见[验证报告](../../.agents/docs/evaluation/reports/2026-11-05-cellular-workbench.report.omui.json)，公共操作与最小SOP见[工具文档](../../tools/inspector/docs/cellular.md)。
 
 ### 14.1 归属与真实功能
 
@@ -464,7 +464,7 @@ paint是记录输入，不消耗模拟tick；seek使用history frame，二者不
 
 ## 15. S6首批共享控制与D-100命名归属
 
-执行基线`4833c1a`。本批交付公共授权、会话与调用上下文，并将命名补充形成D-100。**S6完整provider／控制与观测链、N1–N4全仓命名迁移均未完成。** 源码、命令和本地证据见[验证报告](../../tools/ci/2026-11-05-shared-control.report.omui.json)。
+执行基线`4833c1a`。本批交付公共授权、会话与调用上下文，并将命名补充形成D-100。**S6完整provider／控制与观测链、N1–N4全仓命名迁移均未完成。** 源码、命令和本地证据见[验证报告](../../.agents/docs/evaluation/reports/2026-11-05-shared-control.report.omui.json)。
 
 ### 15.1 代码归属与兼容
 
@@ -505,7 +505,7 @@ dev／release各执行直线路径与扰动路径两组动画，每组61时刻�
 
 ## 16. D-100／N1首组基础库命名迁移
 
-执行基线 `8910702`。本批将 hash、math、log、trace、testing 的包、主要 module、C++ namespace 和产物归属迁至 `mlibs`；**只完成 N1 的首个依赖组，没有完成全仓迁移或增加功能验收数量。** 实际命令、摘要、依赖与画面回归见[验证报告](../../tools/ci/2026-11-05-foundation-namespaces.report.omui.json)，兼容使用方式见[迁移方案 §5](2026-11-05-product-namespace-migration-design.md#5-n1首组五个基础库的实际迁移)。
+执行基线 `8910702`。本批将 hash、math、log、trace、testing 的包、主要 module、C++ namespace 和产物归属迁至 `mlibs`；**只完成 N1 的首个依赖组，没有完成全仓迁移或增加功能验收数量。** 实际命令、摘要、依赖与画面回归见[验证报告](../../.agents/docs/evaluation/reports/2026-11-05-foundation-namespaces.report.omui.json)，兼容使用方式见[迁移方案 §5](2026-11-05-product-namespace-migration-design.md#5-n1首组五个基础库的实际迁移)。
 
 ### 16.1 实现与兼容边界
 
@@ -540,7 +540,7 @@ dev／release各执行直线路径与扰动路径两组动画，每组61时刻�
 
 ## 17. D-100／N1第二组：共享几何、内存和文本基础
 
-执行基线 `f0bc3ef`。本批迁移 geom、memory、unicode、fuzzy，继续真实消费者与兼容验证；**N1 尚未整体完成**。公开入口和后续边界见[命名方案 §6](2026-11-05-product-namespace-migration-design.md#6-n1第二组几何内存unicode与搜索)，源码、命令及检查点证据见[本轮报告](../../tools/ci/2026-11-05-geometry-memory-unicode-namespaces.report.omui.json)。
+执行基线 `f0bc3ef`。本批迁移 geom、memory、unicode、fuzzy，继续真实消费者与兼容验证；**N1 尚未整体完成**。公开入口和后续边界见[命名方案 §6](2026-11-05-product-namespace-migration-design.md#6-n1第二组几何内存unicode与搜索)，源码、命令及检查点证据见[本轮报告](../../.agents/docs/evaluation/reports/2026-11-05-geometry-memory-unicode-namespaces.report.omui.json)。
 
 ### 17.1 唯一实现与实际消费者
 
@@ -567,7 +567,7 @@ Unicode 生成器一起修改，并从官方 17.0.0 UCD 实际重新生成。对
 
 ## 18. D-100／N1第三组：录制、管线和图像
 
-执行基线 `a4ee3ad`。`session`、`pipeline`、`image` 的真实包／模块／实现归属迁至 `mlibs.*`，累计十二个基础库完成此步；另有此前交付的 `mlibs.control`。兼容与使用说明见[命名方案 §7](2026-11-05-product-namespace-migration-design.md)。机器证据在 [session／pipeline／image 报告](../../tools/ci/2026-11-05-session-pipeline-image-namespaces.report.omui.json)。
+执行基线 `a4ee3ad`。`session`、`pipeline`、`image` 的真实包／模块／实现归属迁至 `mlibs.*`，累计十二个基础库完成此步；另有此前交付的 `mlibs.control`。兼容与使用说明见[命名方案 §7](2026-11-05-product-namespace-migration-design.md)。机器证据在 [session／pipeline／image 报告](../../.agents/docs/evaluation/reports/2026-11-05-session-pipeline-image-namespaces.report.omui.json)。
 
 ### 18.1 交付与兼容边界
 
@@ -601,7 +601,7 @@ Unicode 生成器一起修改，并从官方 17.0.0 UCD 实际重新生成。对
 
 ## 19. D-100／N1第四组：gfx 基础库与实际后端
 
-执行基线 `33e1f73`。RHI、三个设备后端、CTS、raster、shader 及其构建规则共八个原包迁入 `mlibs.*`。**N1 尚未整体完成**，本批没有增加动画／效果或作品的功能计数。接口与生成链说明见[命名方案 §8](2026-11-05-product-namespace-migration-design.md#8-n1第四组gpu-契约光栅器和着色器工具)，机器记录见[本轮报告](../../tools/ci/2026-11-05-gfx-namespaces.report.omui.json)。
+执行基线 `33e1f73`。RHI、三个设备后端、CTS、raster、shader 及其构建规则共八个原包迁入 `mlibs.*`。**N1 尚未整体完成**，本批没有增加动画／效果或作品的功能计数。接口与生成链说明见[命名方案 §8](2026-11-05-product-namespace-migration-design.md#8-n1第四组gpu-契约光栅器和着色器工具)，机器记录见[本轮报告](../../.agents/docs/evaluation/reports/2026-11-05-gfx-namespaces.report.omui.json)。
 
 ### 19.1 归属和兼容
 
@@ -636,7 +636,7 @@ RHI 父包、后端与 CTS 使用 `mlibs::rhi` 及其子空间；raster、shader
 
 ## 20. D-100／N1第五组：content 与字体交付
 
-执行基线 `8005848`，与下面的 Hanim 包收敛组成同一检查点。text／layout／markdown／i18n／i18n.cldr 五个既有包迁至 `mlibs.*`，同包旧入口仍导出同一声明／类型／状态。39 个原接口与实现单元仅有明确的 module／namespace／依赖限定调整，字体文件与 CLDR 数据未改变。没有为 api／legacy 新建清单。证据见[content 与 Hanim 检查点报告](../../tools/ci/2026-11-05-content-hanim-consolidation.report.omui.json)。
+执行基线 `8005848`，与下面的 Hanim 包收敛组成同一检查点。text／layout／markdown／i18n／i18n.cldr 五个既有包迁至 `mlibs.*`，同包旧入口仍导出同一声明／类型／状态。39 个原接口与实现单元仅有明确的 module／namespace／依赖限定调整，字体文件与 CLDR 数据未改变。没有为 api／legacy 新建清单。证据见[content 与 Hanim 检查点报告](../../.agents/docs/evaluation/reports/2026-11-05-content-hanim-consolidation.report.omui.json)。
 
 ### 20.1 实际交付和测试
 
@@ -707,7 +707,7 @@ tools/ci/hanim-play-consumer/tests/  # 三个真实渲染集成测试
 
 ## 22. D-100／N2首组：渲染引擎、效果加载和实际输出
 
-基线 `5947869`。三个运行时包及桌面 CTS 迁至 `xengine.render`／`.vector`／`.effect`／`.cts`。公开 C++ 类型归 `xengine::render`，动态效果加载 API 归 `xengine::render::effect`；同包保留旧 import 和 `omui::render`／`omui::effect` alias。细节见[命名方案 §10](2026-11-05-product-namespace-migration-design.md#10-n2首组渲染引擎及可选效果加载)，机器证据见[本轮报告](../../tools/ci/2026-11-05-render-engine-namespace.report.omui.json)。
+基线 `5947869`。三个运行时包及桌面 CTS 迁至 `xengine.render`／`.vector`／`.effect`／`.cts`。公开 C++ 类型归 `xengine::render`，动态效果加载 API 归 `xengine::render::effect`；同包保留旧 import 和 `omui::render`／`omui::effect` alias。细节见[命名方案 §10](2026-11-05-product-namespace-migration-design.md#10-n2首组渲染引擎及可选效果加载)，机器证据见[本轮报告](../../.agents/docs/evaluation/reports/2026-11-05-render-engine-namespace.report.omui.json)。
 
 ### 22.1 边界与兼容
 
@@ -749,7 +749,7 @@ tools/ci/hanim-play-consumer/tests/  # 三个真实渲染集成测试
 
 ## 23. 模拟的唯一归属与下一条功能主线
 
-基线 `9893ab9`。模拟时钟、CPU 元胞规则、可选 RHI 执行和跨设备 CTS 迁到 `xengine.simulation*`；共享同一实现，保留同包旧 import。`mgame.sim` 只剩约束与转发，已并入时钟包的 `src/legacy_mgame.cppm`，删除其独立清单，workspace 为 122。边界与清单迁移要求见[命名方案 §11](2026-11-05-product-namespace-migration-design.md#11-n2第二组模拟归属与游戏时钟空壳收敛)，证据见[机器报告](../../tools/ci/2026-11-05-simulation-namespace.report.omui.json)。
+基线 `9893ab9`。模拟时钟、CPU 元胞规则、可选 RHI 执行和跨设备 CTS 迁到 `xengine.simulation*`；共享同一实现，保留同包旧 import。`mgame.sim` 只剩约束与转发，已并入时钟包的 `src/legacy_mgame.cppm`，删除其独立清单，workspace 为 122。边界与清单迁移要求见[命名方案 §11](2026-11-05-product-namespace-migration-design.md#11-n2第二组模拟归属与游戏时钟空壳收敛)，证据见[机器报告](../../.agents/docs/evaluation/reports/2026-11-05-simulation-namespace.report.omui.json)。
 
 ### 23.1 实际可用性与本地验收
 
@@ -770,7 +770,7 @@ simulation 预算测试本轮未执行：root locked 解析之后，fighting 的
 
 ## 24. 公开属性动画：五个简接口与同一条执行链
 
-基线 `6d3a64f`。本轮新增可由框架外程序实际调用的能力，代码仍在 `modules/gfx/hanim/src/{library,program,engine}`，没有新建清单。公共用法见 [Hanim README](../../modules/gfx/hanim/README.md)，可复现的本地证据见[属性动画报告](../../tools/ci/2026-11-05-hanim-property-recipes.report.omui.json)。
+基线 `6d3a64f`。本轮新增可由框架外程序实际调用的能力，代码仍在 `modules/gfx/hanim/src/{library,program,engine}`，没有新建清单。公共用法见 [Hanim README](../../modules/gfx/hanim/README.md)，可复现的本地证据见[属性动画报告](../../.agents/docs/evaluation/reports/2026-11-05-hanim-property-recipes.report.omui.json)。
 
 ### 24.1 简接口、组合与高级入口
 
@@ -835,7 +835,7 @@ auto playback = hengine.play(animation);
 
 ### 25.2 验证
 
-机器证据见[本轮报告](../../tools/ci/2026-11-05-hanim-selection.report.omui.json)。Linux dev／release 各八个程序、85 项；Wasm／Node 83 项。独立 `import hanim` 源码消费者 dev／release 各 128 项，实际默认安装包也通过 128 项，七种 feature 闭包保持通过。
+机器证据见[本轮报告](../../.agents/docs/evaluation/reports/2026-11-05-hanim-selection.report.omui.json)。Linux dev／release 各八个程序、85 项；Wasm／Node 83 项。独立 `import hanim` 源码消费者 dev／release 各 128 项，实际默认安装包也通过 128 项，七种 feature 闭包保持通过。
 
 同源 CPU renderer 的多部件场景在两个 profile 各生成 61 张 PNG，左侧部件移动、右侧部件旋转／换色、未选徽标不变；徽标实际像素区域的摘要在整个过程中严格一致。61 帧反向重放一致，dev／release 图像一致，实际查看首帧／中点／终帧。既有形变与属性动画共 366 帧保持原基线；两个 profile 的 renderer 集成各 18 项通过。Agent 的只读、dry-run、委派／撤销边界及拒绝视觉输出检查仍走共享控制层。
 
@@ -847,7 +847,7 @@ auto playback = hengine.play(animation);
 
 ## 26. 独立属性通道：保留编排与单一对象输出
 
-基线 `6b24f56`。A2 第一批将同一个 HObject 的位移／旋转／缩放／填充通道接入独立时序，代码仍在 Hanim 所属的 `src/{library,program,engine}`，没有新清单或 UI 依赖。公共配方、低层 Program 和高级离线采样共用一条编译／求值路径。可复现证据见[本轮报告](../../tools/ci/2026-11-05-hanim-channels.report.omui.json)。
+基线 `6b24f56`。A2 第一批将同一个 HObject 的位移／旋转／缩放／填充通道接入独立时序，代码仍在 Hanim 所属的 `src/{library,program,engine}`，没有新清单或 UI 依赖。公共配方、低层 Program 和高级离线采样共用一条编译／求值路径。可复现证据见[本轮报告](../../.agents/docs/evaluation/reports/2026-11-05-hanim-channels.report.omui.json)。
 
 ### 26.1 实际接口与执行语义
 
@@ -889,7 +889,7 @@ auto playback = hengine.play(animation);
 
 ## 27. 共享路径基础与公开几何捕获
 
-基线 `bfe8754`。本轮推进 A3 的共享 2D 数据边界，同时让既有 UI／官网路径形变实际消费公开入口。没有把某类 UI 内容固定交给不同播放器，也没有为内部职责增加清单。证据见[共享路径报告](../../tools/ci/2026-11-05-shared-path.report.omui.json)。
+基线 `bfe8754`。本轮推进 A3 的共享 2D 数据边界，同时让既有 UI／官网路径形变实际消费公开入口。没有把某类 UI 内容固定交给不同播放器，也没有为内部职责增加清单。证据见[共享路径报告](../../.agents/docs/evaluation/reports/2026-11-05-shared-path.report.omui.json)。
 
 ### 27.1 单一归属与真实消费者
 
@@ -943,7 +943,7 @@ geom／raster／hanim／vector／motion 五个包的原生 dev／release 各 32 
 
 ### 28.4 本地验证与自审
 
-可复查的数值、源码摘要和过程记录见[检查点报告](../../tools/ci/2026-11-05-ui-presentation.report.omui.json)。五个相关包的 native dev／release 各 39 个测试程序、328 项通过；Wasm／Node 同样运行 39 个程序，324 项通过，线程式本地 IPC 的不支持项保留明确跳过。官网原生 20 个程序、129 项通过，未修改参考像素表。
+可复查的数值、源码摘要和过程记录见[检查点报告](../../.agents/docs/evaluation/reports/2026-11-05-ui-presentation.report.omui.json)。五个相关包的 native dev／release 各 39 个测试程序、328 项通过；Wasm／Node 同样运行 39 个程序，324 项通过，线程式本地 IPC 的不支持项保留明确跳过。官网原生 20 个程序、129 项通过，未修改参考像素表。
 
 仓外消费者三个 profile 各 22 项，分别保留 61 张实际 PNG，共 183 张；相同时刻的原始像素／PNG 摘要一致，三个 profile 各自的全部逆向重放也一致。根／子节点通道、默认反馈、输入逆变换、裁剪、浮层、IME、打断来源、失败保持、lease 寿命和资源释放由相应用例覆盖；这不等于任意视觉效果或 live pacing 已验收。已实际查看 release 中间态及移动边界中的真实浮层图片。
 
@@ -990,7 +990,7 @@ geom／raster／hanim／vector／motion 五个包的原生 dev／release 各 32 
 
 仓外 native dev／release／Wasm 三种 profile 各 **51 项检查、122 张过程 PNG**通过：显式采样与宿主驱动各 61 帧，全部逆放可重现，相同时刻跨 profile 的像素和 PNG 摘要一致；共 366 张。另保留官网三种选择各 61 帧及移动端／实际便笺回执图。关闭 feature 的独立应用与缺字体拒绝检查也通过。
 
-本机 i9-13900K、Linux release 的 `hanim-frame-100` 平均 **0.154 ms**、p95 **0.159 ms**，包含上述 100 组动画和 302 节点 Runtime paint；普通 C++ `new`／`new[]` 记录为 **0**。对应直接发布平均 2.60 μs，发布＋paint 平均 0.146 ms；都是特定预热工作负载，未计 raster／GPU／prepare，不推广成整屏帧或移动设备性能保证。最终源码摘要、命令与浏览器交付结果见[本轮报告](../../tools/ci/2026-11-06-ui-playback.report.omui.json)。
+本机 i9-13900K、Linux release 的 `hanim-frame-100` 平均 **0.154 ms**、p95 **0.159 ms**，包含上述 100 组动画和 302 节点 Runtime paint；普通 C++ `new`／`new[]` 记录为 **0**。对应直接发布平均 2.60 μs，发布＋paint 平均 0.146 ms；都是特定预热工作负载，未计 raster／GPU／prepare，不推广成整屏帧或移动设备性能保证。最终源码摘要、命令与浏览器交付结果见[本轮报告](../../.agents/docs/evaluation/reports/2026-11-06-ui-playback.report.omui.json)。
 
 新生成的 site-web（LLVM -Oz）包在 Chromium 中通过 **151 项**实际浏览器检查，保留 8 张截图。新场景验证实际自动推进到中间态、整组／部件变化、渐进详情、键盘选项、便笺编辑、真实系统剪贴板与焦点交互；既有基础／创意／Agent／统一接口／局部风格流程同时通过。
 
@@ -1037,7 +1037,7 @@ release 基准：64 个效果共 160 个 backend 参数的采样／绑定平均�
 
 停止构建后以新 profile、缓存开启、1280×800、20 Mbit/s／40 ms 测量：总传输 **4,869,605 B**，首帧前 **2,967,376 B**，首帧代理 **1,622.7 ms**、ready **1,583.3 ms**，rAF p95 **16.7 ms**、长帧 **1**、页面异常 **0**，原有 **7／7** 预算通过。相对 §29 总传输增加 **11,538 B**，5 MB 门禁剩 **130,395 B**；预算未放宽。该样本不证明稳定提速，首帧代理不是 FCP／LCP，rAF 也不是实际 GPU 绘制成本。
 
-原始命令、图像和基准保留于 `target/omui-ui-effects/`，独立场景图在 `/tmp/openmui-tests/site-component-motion/`；结构化摘要在 `tools/ci/2026-11-06-ui-image-scopes.report.omui.json`。
+原始命令、图像和基准保留于 `target/omui-ui-effects/`，独立场景图在 `/tmp/openmui-tests/site-component-motion/`；结构化摘要在 `.agents/docs/evaluation/reports/2026-11-06-ui-image-scopes.report.omui.json`。
 
 本地 mcpp 多选默认 view 与可选官网根时暴露传递 feature 闭包缺失，按实际消费者独立验证，不扩成默认强制依赖；基准本身直接消费公开 image binding，显式声明 `render-vector`。生成的 build-program 工作区在不同消费者间复用锁造成 resolution 不同，只在对应 `target/.build-mcpp/host/…` 内重新配置，源命令仍 `--locked`，用户已有 `mcpp.lock` 字节不变。额外整工作区 `--locked --configure-only` 探针因 fighting 的同一生成锁切换问题返回 2，因此没有记为全工作区通过；最终官网构建图中 UI adapter／Hanim vector 的 16 条实际源码规则均存在，相关消费者与打包已分别通过。该探针不替代完整构建。异平台 CI 不作为本轮推进的等待条件。
 
@@ -1066,7 +1066,7 @@ release 基准：64 个效果共 160 个 backend 参数的采样／绑定平均�
 
 检查发现该仓外 UI 消费者此前尚未挂到 CI。本轮把同一 `--web` runner 接入 Linux GCC release 行，并在成功／失败时上传原始报告、依赖图和图像；本地结果是本轮验收依据，不等待远端其他平台 CI。CI 接入本身不代表远端已通过。
 
-结构化摘要为 `tools/ci/2026-11-06-ui-provider-rebind.report.omui.json`，原始结果在 `target/omui-rebind/`。本轮没有改变官网布局或配方，也没有重跑浏览器／性能测试；官网使用的公共宿主恢复能力已补齐，但不增加 40／20 的可交付库计数。后续继续推进通用部件／图像作用域、完整默认动效配方与可带走的库和工程；全局架构、平台和产品验收仍保持开放。
+结构化摘要为 `.agents/docs/evaluation/reports/2026-11-06-ui-provider-rebind.report.omui.json`，原始结果在 `target/omui-rebind/`。本轮没有改变官网布局或配方，也没有重跑浏览器／性能测试；官网使用的公共宿主恢复能力已补齐，但不增加 40／20 的可交付库计数。后续继续推进通用部件／图像作用域、完整默认动效配方与可带走的库和工程；全局架构、平台和产品验收仍保持开放。
 
 
 ## 32. 相对旋转缩放与公共部件配方
@@ -1091,7 +1091,7 @@ Hanim 九个程序在 native debug／release 各 **102 项**通过，Wasm／Node
 
 最新 site-web 在 Chromium 中通过 **153 项**真实浏览器检查，保留 **9 张**截图，异常为零。剪贴板检查明确要求实际 C++ 配方中的 `rotation_offset` 和 `scale_factor`，原有选择／编辑／嵌套效果／人机接管继续通过。20 Mbit/s、40 ms、新 browser profile、缓存开启、1280×800 的单次交付测量：总传输 **4,869,838 B**，首帧前 **2,967,609 B**，首帧代理 **1,694.4 ms**、ready **1,658.4 ms**，rAF p95 **16.8 ms**、长帧 **1**、异常 **0**，原有 **7／7** 预算通过。较 §30 总传输增加 **233 B**，5 MB 门槛余 **130,162 B**。未调预算；首帧代理不是 FCP／LCP，rAF 不是 GPU 成本，不由单个样本宣称提速或变慢。
 
-原始日志保留于 `target/omui-relative-motion/`，摘要见 `tools/ci/2026-11-06-hanim-relative-properties.report.omui.json`。既有 public authoring、UI consumer 和浏览器 runner 已在 CI，本轮增强的检查随之执行，本地推进不等远端矩阵。用户原有锁文件保持不变。本轮不把既有线程／ABI warning 当成新的平台保证；完整通道混合、任意属性／3D adapter、40／20 交付及整体架构目标继续开放。
+原始日志保留于 `target/omui-relative-motion/`，摘要见 `.agents/docs/evaluation/reports/2026-11-06-hanim-relative-properties.report.omui.json`。既有 public authoring、UI consumer 和浏览器 runner 已在 CI，本轮增强的检查随之执行，本地推进不等远端矩阵。用户原有锁文件保持不变。本轮不把既有线程／ABI warning 当成新的平台保证；完整通道混合、任意属性／3D adapter、40／20 交付及整体架构目标继续开放。
 
 
 ## 33. 公共反馈配方与官网组合
@@ -1124,7 +1124,7 @@ Hanim 原生 debug／release 各 **103 项**通过；Wasm **101 项**通过，�
 
 最新 site-web 的 Chromium **158 项**检查通过，保留 **10 张**截图，异常为零；实际键盘选择反馈组合，确认返回起点、播放中间态及剪贴板中的三个公共库调用。20 Mbit/s／40 ms、新 profile、缓存开启、1280×800 的交付样本总传输 **4,871,083 B**，首帧前 **2,968,854 B**，首帧代理 **1,772.9 ms**、ready **1,737.1 ms**，rAF p95 **16.7 ms**、长帧 **1**、异常 **0**，原有 **7／7** 预算通过。较 §32 增加 **1,245 B**，5 MB 预算余 **128,917 B**。单次样本不作提速／退化定论；首帧代理不是 FCP／LCP，rAF 不是 GPU 成本。
 
-此前三组共 549 张 UI 过程图仍与 §32 逐像素／PNG 一致，新增 feedback 帧独立计数。源码／fixture 摘要、原始命令和截图保留于 `target/omui-feedback/`，摘要为 `tools/ci/2026-11-06-hanim-feedback-recipes.report.omui.json`；全仓库 lint 为零，用户既有 `mcpp.lock` 字节未变。增强后的公共 API、UI consumer 与浏览器检查沿用既有 CI 入口，不等待远端矩阵才推进。
+此前三组共 549 张 UI 过程图仍与 §32 逐像素／PNG 一致，新增 feedback 帧独立计数。源码／fixture 摘要、原始命令和截图保留于 `target/omui-feedback/`，摘要为 `.agents/docs/evaluation/reports/2026-11-06-hanim-feedback-recipes.report.omui.json`；全仓库 lint 为零，用户既有 `mcpp.lock` 字节未变。增强后的公共 API、UI consumer 与浏览器检查沿用既有 CI 入口，不等待远端矩阵才推进。
 
 这三个反馈设计已成为公共能力，但完整 40／20 库／工程、所有组件默认配方迁移、通用时间作用域、任意表示／3D／资源图及全局引擎计划仍开放。
 
@@ -1147,7 +1147,7 @@ FeedbackOptions 在拆段前检查时长／缓动，正时长不得小到丢失�
 
 新增测试覆盖嵌套节点定位、immutable 错误复用、预算优先、无半成品播放器、非法倒数／幅度，以及正常／零时长／可表示的极小阶段。公共消费者直接通过 `import hanim` 创建、查询和播放包含错误的组合。Hanim 九个程序在 native debug／release 各 **105 项**、Wasm **103 项**通过；两项线程检查仍仅在原生执行。仓外公共 API 消费者 debug／release 各 **163 项**通过。真实 UI 消费者三种 profile 各 **94 项**，各导出 244 张过程 PNG，共 **732 张**；正反及跨 profile 一致，并与 §33 的每张像素／PNG 摘要一致。缺字体负例与 feature-off 应用通过；关闭 feature 的实际构建图保持排除 UI adapter、完整 Engine 与 Hanim vector adapter。源码／fixture 摘要已核对当前内容，源锁文件字节保持。
 
-原始报告位于 `target/omui-authoring-errors/`，结构化摘要为 `tools/ci/2026-11-06-hanim-authoring-errors.report.omui.json`。全仓库 lint 为零；新增 C++ 用例通过已有 CI 矩阵和公共消费者入口执行。本轮没有重跑浏览器打包／网络性能，也不把上一轮的 Web 交付结果归为当前源码的新增测量。
+原始报告位于 `target/omui-authoring-errors/`，结构化摘要为 `.agents/docs/evaluation/reports/2026-11-06-hanim-authoring-errors.report.omui.json`。全仓库 lint 为零；新增 C++ 用例通过已有 CI 矩阵和公共消费者入口执行。本轮没有重跑浏览器打包／网络性能，也不把上一轮的 Web 交付结果归为当前源码的新增测量。
 
 额外的 Linux x86-64 GDB 实验直接设置 MXCSR／x87 trap 位：反馈预检定向用例正常结束；以已有原始属性乘积溢出用例作为正对照，会收到 SIGFPE，确认 trap 实际生效。第一次用 debugger 函数调用开启的尝试经查询并未保留 trap 状态，未当作有效证据。该实验不构成全引擎或跨平台 trap 支持：原始对象相关算术仍使用正常浮点环境中的非有限检查，库不更改调用者的浮点环境。它不是新的 CI 平台承诺，正式可移植回归仍是上述 C++ 用例。
 
@@ -1180,7 +1180,7 @@ FeedbackOptions 在拆段前检查时长／缓动，正时长不得小到丢失�
 
 最终公共 CLI 消费者在 debug／release 各运行 9 组原生输出和 5 组脚本化 Agent 语义审查；每组审查真实采样 61 帧，共 **610 张过程 PNG**，逐帧逆放、跨 profile 像素／PNG 摘要均一致。两种构建的 `--describe-control` 都返回真实的 13 项能力与 effect 分类；capture 被拒绝时没有写出图像或 provenance。另有独立 renderer／composite／visual 三个程序，debug／release 各 **21 项**通过。这里验证的是实际引擎与授权语义的脚本化消费者，不是外部 LLM 或线上 RPC 互通验收。
 
-最终源码／fixture 摘要、命令、解析图、静态包与图像证据位于 `target/omui-native-control/`，结构化摘要为 `tools/ci/2026-11-06-hanim-native-control.report.omui.json`。全仓库 lint 为零，源锁文件保持用户原有字节；新增控制组合、Web 实际执行和 CLI 发现检查进入既有 feature／consumer CI 入口。本轮没有重跑官网浏览器或交付性能，不引用旧包指标作为本轮结果。本轮新增的是独立引擎的原生控制适配，不是官网新动画数量、完整 provider 注册／资源 ACL、通用协议解析、异步取消或自动 UI 接入的完成声明。40／20 和总体引擎实施目标继续开放。
+最终源码／fixture 摘要、命令、解析图、静态包与图像证据位于 `target/omui-native-control/`，结构化摘要为 `.agents/docs/evaluation/reports/2026-11-06-hanim-native-control.report.omui.json`。全仓库 lint 为零，源锁文件保持用户原有字节；新增控制组合、Web 实际执行和 CLI 发现检查进入既有 feature／consumer CI 入口。本轮没有重跑官网浏览器或交付性能，不引用旧包指标作为本轮结果。本轮新增的是独立引擎的原生控制适配，不是官网新动画数量、完整 provider 注册／资源 ACL、通用协议解析、异步取消或自动 UI 接入的完成声明。40／20 和总体引擎实施目标继续开放。
 
 
 ## 36. UI 到独立引擎的显式授权传递
@@ -1205,7 +1205,7 @@ FeedbackOptions 在拆段前检查时长／缓动，正时长不得小到丢失�
 
 UI core 的 **11 个程序／43 项**在 native debug、release、Wasm 各通过。真实 UI 消费者三种 profile 各 **107 项**，五组过程各 61 张，即 **305 张／profile、共 915 张 PNG**；逆序及跨 profile 像素／PNG 摘要完全一致。新增 bridge 图之外，原四组 **732 张**与 §34 的记录一致。已人工查看中间态实际输出，文字与按钮清楚；这不代替实时播放节奏验收。缺字体负例和 feature-off 独立应用通过，源码与 fixture 摘要均核对当前文件。
 
-原始命令／结果和帧图位于 `target/omui-control-bridge/`；结构化摘要为 `tools/ci/2026-11-06-ui-native-authority-bridge.report.omui.json`。全仓库 lint 为零，源锁文件保持原有字节；新用例沿既有 core 与独立消费者 CI 入口执行。本轮没有修改官网布局／动画配方，也没有重跑浏览器或交付性能；后续官网控制面可以复用此桥接，不能将测试界面称为官网已接入。
+原始命令／结果和帧图位于 `target/omui-control-bridge/`；结构化摘要为 `.agents/docs/evaluation/reports/2026-11-06-ui-native-authority-bridge.report.omui.json`。全仓库 lint 为零，源锁文件保持原有字节；新用例沿既有 core 与独立消费者 CI 入口执行。本轮没有修改官网布局／动画配方，也没有重跑浏览器或交付性能；后续官网控制面可以复用此桥接，不能将测试界面称为官网已接入。
 
 配套清理了被新验证替代的临时构建与无引用生成缓存，实际释放 834,068,480 B，保留最新增量、源码、图像证据与用户修改。清理报告在 `target/cleanup-2026-11-06.report.omui.json`。通用 provider 注册、资源级 ACL、异步控制与完整 40／20 公共库／官网交付，以及全局多引擎目标继续开放。
 
@@ -1236,7 +1236,7 @@ callback 取实际 UI Invocation，通过 `to_control_invocation` 转为共享�
 
 测量时暴露了工具缺口：误传 `--network 20`，缺失 RTT 时脚本未拒绝，产生与预算条件不一致的样本。该报告明确排除在验收外；现在脚本在启动浏览器前验证带宽／延迟完整、有限且范围合法，8 个非法输入均拒绝；修正后使用最终脚本重新测量上述合法条件。未把错误样本的预算失败隐藏成性能结论。
 
-命令、过程图、Web 包、截图和性能报告保留于 `target/site-motion-control/`；提交摘要为 `tools/ci/2026-11-06-site-motion-control.report.omui.json`。全仓库 lint 为零，既有 mcpp.lock 字节保持。新增官网测试和浏览器检查使用原有 CI 入口，本轮按本地真实结果推进，不等待跨平台 CI。
+命令、过程图、Web 包、截图和性能报告保留于 `target/site-motion-control/`；提交摘要为 `.agents/docs/evaluation/reports/2026-11-06-site-motion-control.report.omui.json`。全仓库 lint 为零，既有 mcpp.lock 字节保持。新增官网测试和浏览器检查使用原有 CI 入口，本轮按本地真实结果推进，不等待跨平台 CI。
 
 本轮没有增加动画设计数，也没有完成旧状态 morph 的统一控制、资源 ACL、通用 provider、40／20 公共交付或总体多引擎目标。官网视觉重构与完整场景验收继续按原计划执行。
 
@@ -1279,7 +1279,7 @@ auto playback = hengine.play(animation);
 
 最新 site-web 在 Chromium 通过 **170 项检查**、保留 **11 张截图**、异常为零；实际键盘选择路径，语义 seek 核对关键位置和终点返回，复制内容含公共 move_through／PointPath。20 Mbit/s／40 ms、1280×800、新 profile、访问内缓存开启时，总传输 **4,879,073 B**、首帧前 **2,976,844 B**，首帧代理 **1,679.6 ms**、ready **1,638.1 ms**、rAF p95 **16.8 ms**，原有 **7／7** 预算通过。总传输较 §37 增加 **1,771 B**，距 5 MB 预算尚余 **120,927 B**；单次样本不证明提速，首帧代理／rAF 的解释边界保持。
 
-证据目录 `target/hanim-waypoints/`，提交摘要 `tools/ci/2026-11-06-hanim-timed-waypoints.report.omui.json`；全仓库 lint 为零，用户 mcpp.lock 保持原有字节。新库与官网用例进入已有测试／浏览器 CI 入口，按本地真实验证推进。
+证据目录 `target/hanim-waypoints/`，提交摘要 `.agents/docs/evaluation/reports/2026-11-06-hanim-timed-waypoints.report.omui.json`；全仓库 lint 为零，用户 mcpp.lock 保持原有字节。新库与官网用例进入已有测试／浏览器 CI 入口，按本地真实验证推进。
 
 完整 40／20 公共库、全部默认组件配方迁移、表示／3D／任意属性与更完整的路径／时间作用域仍开放。后续继续按“公共定义→独立消费者→官网真实作品”的顺序，逐项交付，不能以页面案例数或同一配方的参数数目替代公共库完成度。
 
@@ -1310,7 +1310,7 @@ auto playback = hengine.play(animation);
 
 20 Mbit/s／40 ms、1280×800、新 profile、访问内缓存开启，最终包总传输 **4,880,258 B**、首帧前 **2,978,029 B**，首帧代理 **1,646.6 ms**、ready **1,608.6 ms**、rAF p95 **16.8 ms**、长帧 **1**，既有 **7／7** 预算通过。总传输较 §38 增加 **1,185 B**，5 MB 预算余 **119,742 B**。单次样本不作提速结论；首帧代理不是 FCP／LCP，rAF 不是 GPU 时间。
 
-证据目录 `target/hanim-opacity/`，提交摘要 `tools/ci/2026-11-06-hanim-group-opacity.report.omui.json`。全仓库 lint 为零，既有用户 mcpp.lock 字节保持；新增 C++／GPU／浏览器用例沿既有 CI 入口执行，本轮以本地真实结果推进，不等待其他平台 CI。
+证据目录 `target/hanim-opacity/`，提交摘要 `.agents/docs/evaluation/reports/2026-11-06-hanim-group-opacity.report.omui.json`。全仓库 lint 为零，既有用户 mcpp.lock 字节保持；新增 C++／GPU／浏览器用例沿既有 CI 入口执行，本轮以本地真实结果推进，不等待其他平台 CI。
 
 ### 39.3 继续开放的兼容性与范围
 
@@ -1344,7 +1344,7 @@ auto playback = hengine.play(animation);
 - 新安装包接入真实 Hanim 控制／渲染消费者：debug／release 各 **9 次原生运行＋5 次 Agent 审查**、各 **3 个集成程序／22 项测试**通过；保留 **646 张 PNG，其中 610 张为 Agent 时间序列**。验证授权、撤销、拒绝捕获不产文件、控制与实际图像、正反过程回放；无 GUI、无显示服务器。
 - 默认索引模式的发现命令仍返回 **13 项操作**；以源码目录冒充二进制包被 CLI 以退出码 2 拒绝。最终 runner 已重新执行产物模式，结果及代码摘要一致。
 
-原始证据在 `target/openas-distribution/`，提交摘要为 `tools/ci/2026-11-06-openas-distribution-compatibility.report.omui.json`。本轮只改变外部消费者与验证文档，未改官网／渲染算法，未重复浏览器和交付性能测试；§39 的网页数据仍是上一检查点的证据。新分发门禁在上游 CI，本仓现有消费者 CI 继续运行默认配置；本地候选产物模式不冒充已发布依赖的 CI 验收。
+原始证据在 `target/openas-distribution/`，提交摘要为 `.agents/docs/evaluation/reports/2026-11-06-openas-distribution-compatibility.report.omui.json`。本轮只改变外部消费者与验证文档，未改官网／渲染算法，未重复浏览器和交付性能测试；§39 的网页数据仍是上一检查点的证据。新分发门禁在上游 CI，本仓现有消费者 CI 继续运行默认配置；本地候选产物模式不冒充已发布依赖的 CI 验收。
 
 ### 40.3 未完成项与工作空间
 
@@ -1391,7 +1391,7 @@ Agent 通过现有 `motion.seek` 控制同一个公共 Playback，无新语义�
 - Web 交互验证 **181 项**、**15 张截图**、异常为零。首轮取景落在详情面板，随后调整测试滚动位置，重新验证并保存完整对象画面；未改变产品行为或放宽断言。
 - 20 Mbit/s／40 ms、新 profile、1280×800、访问内缓存开启：总传输 **4,881,447 B**，首帧前 **2,979,218 B**，首帧代理 **1,645.5 ms**、ready **1,601.1 ms**、rAF p95 **16.7 ms**，**7／7** 预算通过。总传输较 §39 增加 **1,189 B**，距 5 MB 预算余 **118,553 B**。单次本地共享机器样本只证明该次预算通过，不宣称性能提高。
 
-原始证据在 `target/hanim-wait/`，提交摘要 `tools/ci/2026-11-06-hanim-timeline-waits.report.omui.json`。新增用例进入既有 Hanim／独立消费者／官网浏览器 CI；按本地验证推进，不等待其他平台。用户 mcpp.lock 保持。完整 40／20 公共交付、默认组件配方迁移、多表示／3D、GPU 资源优化及跨引擎／工具路线继续开放。
+原始证据在 `target/hanim-wait/`，提交摘要 `.agents/docs/evaluation/reports/2026-11-06-hanim-timeline-waits.report.omui.json`。新增用例进入既有 Hanim／独立消费者／官网浏览器 CI；按本地验证推进，不等待其他平台。用户 mcpp.lock 保持。完整 40／20 公共交付、默认组件配方迁移、多表示／3D、GPU 资源优化及跨引擎／工具路线继续开放。
 
 
 ## 42. 有限子动画重复与串行时间边界
@@ -1437,7 +1437,7 @@ auto prepared = hengine.prepare(animation);
 - 官网组件 **11 项**通过；保留 **739 张 PNG**，新增 **61 张过程图＋1 张 pixel 中间态**，原有 **677 张**与 §41 逐字节一致。已查看真实像素风中间态与最终浏览器画面；不将采样验证当作完整美术／实速节奏验收。
 - 浏览器 **187 项检查／16 张截图**通过，异常为零。20 Mbit/s／40 ms、新 profile、1280×800、访问内缓存开启：总传输 **4,882,809 B**、首帧前 **2,980,580 B**、首帧代理 **1,666.2 ms**、ready **1,630.4 ms**、rAF p95 **16.8 ms**，**7／7** 预算通过。较 §41 总传输增加 **1,362 B**，距 5 MB 预算余 **117,191 B**；共享机器单次样本不用于证明提速。
 
-原始日志和过程图在 `target/hanim-repeat/`，提交摘要 `tools/ci/2026-11-06-hanim-finite-repeat.report.omui.json`。保留首轮真实失败和最终通过的证据；新增测试进入现有 Hanim／独立消费者／官网 CI，本地通过即可继续，不等待其他平台。用户 mcpp.lock 原有字节保持。
+原始日志和过程图在 `target/hanim-repeat/`，提交摘要 `.agents/docs/evaluation/reports/2026-11-06-hanim-finite-repeat.report.omui.json`。保留首轮真实失败和最终通过的证据；新增测试进入现有 Hanim／独立消费者／官网 CI，本地通过即可继续，不等待其他平台。用户 mcpp.lock 原有字节保持。
 
 无限／alternate 子表达式、reverse expression、任意子树时间映射、通道混合与跨 playback 细通道所有权仍开放；不得把已有整段 preview 控制等同这些能力。完整 40／20 公共交付、默认组件迁移与全局多引擎目标继续推进。本轮也修正综合方案中“单 Program 仍只有整对象冲突”的过时描述，区分已支持的独立属性通道与仍按对象仲裁的跨 playback 边界。
 
@@ -1472,7 +1472,7 @@ auto prepared = hengine.prepare(animation);
 
 初次核心 Web 命令误用了默认 profile，未映射文件系统，数学测试读取到 0 行。仓库已有 `wasm-test` 的 Node 文件访问配置，正确命令为 `mcpp test -p hanim.core --target wasm32-emscripten --profile wasm-test --locked`；改用该配置后完整通过，未修改参考数据、放宽精度或新增重复加载机制。官网始终使用 site-web 发布配置。新增用例进入已有 workspace／Web／独立消费者／浏览器 CI；本地结果已足够交付本检查点，不宣称其他平台 CI 已通过。
 
-原始证据在 `target/hanim-route/`；提交摘要为 `tools/ci/2026-11-06-hanim-distance-route.report.omui.json`。按用户要求收敛本轮，不继续扩展功能；详细交接见[PR1 交接记录](2026-11-06-pr1-handoff.md)。完整 40／20、默认组件迁移、样式系统与多引擎长期目标仍未完成。
+原始证据在 `target/hanim-route/`；提交摘要为 `.agents/docs/evaluation/reports/2026-11-06-hanim-distance-route.report.omui.json`。按用户要求收敛本轮，不继续扩展功能；详细交接见[PR1 交接记录](2026-11-06-pr1-handoff.md)。完整 40／20、默认组件迁移、样式系统与多引擎长期目标仍未完成。
 
 ### 43.3 构建缓存清理
 

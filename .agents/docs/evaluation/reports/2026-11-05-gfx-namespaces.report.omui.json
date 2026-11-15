@@ -2467,7 +2467,7 @@
       }
     ],
     "fixed_canvas_samples_matched": 25,
-    "comparison_reference": "tools/ci/2026-11-05-cellular-workbench.report.omui.json",
+    "comparison_reference": ".agents/docs/evaluation/reports/2026-11-05-cellular-workbench.report.omui.json",
     "native_prerender_and_guide": {
       "path": "target/namespace-gfx-validation/site-native.report.omui.json",
       "sha256": "80a2f28a64bb5f391e940e7aae7ad04ca2ea68e66de31a871c1b4e186e819a41"

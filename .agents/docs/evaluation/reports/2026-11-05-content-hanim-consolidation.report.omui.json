@@ -5247,7 +5247,7 @@
       }
     ],
     "fixed_samples_matching_baseline": 25,
-    "comparison_reference": "tools/ci/2026-11-05-cellular-workbench.report.omui.json",
+    "comparison_reference": ".agents/docs/evaluation/reports/2026-11-05-cellular-workbench.report.omui.json",
     "pack": {
       "path": "target/namespace-content-validation/site-pack.report.omui.json",
       "sha256": "0be178d7cae9a75c418583d3735eb3ba66afcfc70f443012b5935381358e46e7"

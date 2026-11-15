@@ -2863,7 +2863,7 @@
     },
     "matched_process_frames": 244,
     "committed_baseline": {
-      "path": "tools/ci/2026-11-05-content-hanim-consolidation.report.omui.json",
+      "path": ".agents/docs/evaluation/reports/2026-11-05-content-hanim-consolidation.report.omui.json",
       "sha256": "7b237805a3195d0567be66a1991d9b5674ebad5f80bce484622295b56e408e6e"
     },
     "profiles": [
@@ -3084,7 +3084,7 @@
       }
     ],
     "fixed_samples_matched": 25,
-    "baseline": "tools/ci/2026-11-05-cellular-workbench.report.omui.json",
+    "baseline": ".agents/docs/evaluation/reports/2026-11-05-cellular-workbench.report.omui.json",
     "pack": {
       "path": "target/namespace-render-validation/site-pack.report.omui.json",
       "sha256": "f124080453a9f7f2102b28b42dd31a855619141d3f504020a1b3a3ee18f83f94"

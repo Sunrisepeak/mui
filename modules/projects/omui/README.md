@@ -16,6 +16,7 @@ The reference implementation of the [openmui](../../../spec) specification: a vi
 | Part | |
 |---|---|
 | [sdk](sdk) | `omui.sdk`: the umbrella package users name (`import openmui;`): the runtime, the base components, the default theme, `omui::run` |
+| [entry](entry) | omui's programs: the player (a TypeScript application run from its manifest) and the development host (`omui dev`: the window held, the designer linked) |
 | [components](components) | The component libraries (`openmui.ui.*`) |
 | [lang](lang) | The language binding: TypeScript, over the C ABI |
 | [cts](cts) | `omui.cts`: the specification's level S run in every language, on mlibs.cts |
@@ -52,7 +53,7 @@ Each package's manifest says its label (`maturity`); lint `maturity` holds stabl
 | Components (base, window, markdown, canvas) | stable | `omui.ui.*` |
 | TypeScript and JavaScript, view documents | stable | `omui.lang.*`, `omui.viewdoc`, `omui.expr` |
 | Desktop and Web hosts, headless | stable; the desktop host's system notifications go through `mpal` (preview, `lower`) | `omui.host.sdl3`, `omui.host.web`, `omui.host.headless` |
-| The agent surface, the `omui` command, MCP, the inspector | stable; `omui video` and `omui audio` (xengine's media kernels), the inspector's reaction lab (`xengine.cellular`) and hanim studio, and the dev host's designer are preview (`lower`) | `omui.agent`, `tools/cli`, `tools/mcp`, `tools/inspector`, `src/entry/devhost` |
+| The agent surface, the `omui` command, MCP, the inspector | stable; `omui video` and `omui audio` (xengine's media kernels), the inspector's reaction lab (`xengine.cellular`) and hanim studio, and the dev host's designer are preview (`lower`) | `omui.agent`, `tools/cli`, `tools/mcp`, `tools/inspector`, `entry/devhost` |
 | The SDK (`import omui;`) | stable; carries `omui.generate` and the Android host as preview (`lower`) | `omui.sdk` |
 | Runtime generation, the designer (development mode) | preview | `omui.generate`, `omui.designer` |
 | The Android host | preview (tier-2 platform) | `omui.host.android` |

@@ -19,7 +19,13 @@ namespace os = mcpplibs::os;
 
 namespace {
 
-const std::filesystem::path repository = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path().parent_path().parent_path().parent_path();
+// The repository: the nearest directory above this file whose mcpp.toml is the workspace's.
+const std::filesystem::path repository = [] {
+    std::filesystem::path at = std::filesystem::path(std::source_location::current().file_name()).parent_path();
+    for (; at.has_relative_path(); at = at.parent_path())
+        if (os::fs::read(at / "mcpp.toml").value_or("").contains("[workspace]")) return at;
+    return at;
+}();
 
 // Example 01's source, put back however the case ends.
 struct Kept {

@@ -27,7 +27,7 @@ for f in src.rglob("*"):
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_bytes(text)
 # This checkout instead of the published packages.
-paths = {"omui.sdk": "modules/projects/omui/sdk", "omui.entry.player": "src/entry/player", "omui.player": "modules/projects/omui/player",
+paths = {"omui.sdk": "modules/projects/omui/sdk", "omui.entry.player": "modules/projects/omui/entry/player", "omui.player": "modules/projects/omui/player",
          "omui.lang.js": "modules/projects/omui/lang/js", "omui.native": "modules/projects/omui/native",
          "omui.theme.default": "modules/projects/omui/theme/default"}
 m = dst / "mcpp.toml"

@@ -33,7 +33,7 @@ kind = "bin"
 main = { from = "omui.entry.player/player" }
 
 [dependencies]
-omui.entry.player = { path = "../../src/entry/player" }
+omui.entry.player = { path = "../../modules/projects/omui/entry/player" }
 
 [dev-dependencies]
 mcpplibs.mtest     = "0.8.4"

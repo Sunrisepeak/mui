@@ -2,6 +2,7 @@
 // and relative; arcs become cubics with mlibs.math's deterministic functions.
 module mlibs.geom.api;
 import std;
+import mlibs.message;
 import mlibs.math;
 
 namespace mlibs::geom {
@@ -91,7 +92,7 @@ std::expected<PathData, PathDataError> parse_path_data(std::string_view text, Pa
             command = c;
             ++reader.at;
         } else if (!command || command == 'Z' || command == 'z') {
-            return fail(std::format("`{}` where a command was due (M L H V C S Q T A Z)", c));
+            return fail(mlibs::message::format("`{}` where a command was due (M L H V C S Q T A Z)", c));
         }
         if (!started && std::toupper(static_cast<unsigned char>(command)) != 'M') return fail("path data begins with a moveto (M or m)");
         char upper = 0;
@@ -121,7 +122,7 @@ std::expected<PathData, PathDataError> parse_path_data(std::string_view text, Pa
             }
             case 'H': case 'V': {
                 const auto v = reader.number();
-                if (!v) return fail(std::format("`{}` takes a coordinate", command));
+                if (!v) return fail(mlibs::message::format("`{}` takes a coordinate", command));
                 if (upper == 'H') line(relative ? cx + *v : *v, cy);
                 else line(cx, relative ? cy + *v : *v);
                 break;
@@ -164,7 +165,7 @@ std::expected<PathData, PathDataError> parse_path_data(std::string_view text, Pa
                     qy = reflect ? 2 * cy - last_cy : cy;
                 }
                 const auto px = reader.number(), py = reader.number();
-                if (!px || !py) return fail(std::format("`{}` takes x y", command));
+                if (!px || !py) return fail(mlibs::message::format("`{}` takes x y", command));
                 out.verbs.push_back(PathVerb::quad);
                 point(qx, qy);
                 cx = relative ? cx + *px : *px;
@@ -227,7 +228,7 @@ std::expected<PathData, PathDataError> parse_path_data(std::string_view text, Pa
                 cx = last_cx = sx;
                 cy = last_cy = sy;
                 break;
-            default: return fail(std::format("`{}` is not a path command (M L H V C S Q T A Z)", command));
+            default: return fail(mlibs::message::format("`{}` is not a path command (M L H V C S Q T A Z)", command));
             }
             previous = upper;
             if (out.verbs.size() > limits.max_verbs || out.points.size() > limits.max_points) return fail("the path is over its budget");

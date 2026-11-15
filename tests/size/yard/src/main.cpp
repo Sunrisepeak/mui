@@ -1,6 +1,7 @@
 // The least program that shows three dimensions on a page: a yard drawn once on the page's WebGPU (or its
 // WebGL2) and shown on its canvas. It prints what it drew; what it weighs is the point (size.budget.omui.json).
 import std;
+import mlibs.message;  // its lines without std::format: what std::println would bring (std::locale) is no part of three dimensions
 import mlibs.rhi;
 import mlibs.geom;
 import mlibs.math;
@@ -19,7 +20,7 @@ int main() {
     auto device = xrender::rhi::webgpu::create({.canvas = "#canvas"});
     if (!device) device = xrender::rhi::webgl::create({.canvas = "#canvas"});
     if (!device) {
-        std::println("no device on this page: {}", device.error().message);
+        std::puts(mlibs::message::format("no device on this page: {}", device.error().message).c_str());
         return 1;
     }
     const std::array<geom::ClusteredMesh, 3> made{*geom::clustered(geom::box({1, 1, 1})), *geom::clustered(geom::sheet(200, 200, 4, 4)), *geom::clustered(geom::sphere(1, 32, 64), 32)};
@@ -38,13 +39,13 @@ int main() {
     const auto colour = (*device)->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, width, height, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "yard.colour"});
     const auto depth = (*device)->create(rhi::TextureDesc{rhi::Format::d32_float, width, height, rhi::TextureUsage::depth_target, "yard.depth"});
     if (!placed || !pass || !colour || !depth || !pass->load(meshes)) {
-        std::println("the yard could not be made");
+        std::puts("the yard could not be made");
         return 1;
     }
     rhi::CommandList list;
     pass->record(list, world, seen, view, materials, *colour, *depth, width, height, {.background = {0.5f, 0.6f, 0.7f}, .ambient = {0.2f, 0.24f, 0.3f}, .shadows = false});
     const auto submitted = (*device)->submit(list);
     const auto shown = submitted ? (*device)->present(*colour) : rhi::Result<bool>{false};
-    std::println("a yard on {}: {} draws, {} triangles{}", (*device)->caps().device, pass->last().draws, pass->last().triangles, shown && *shown ? ", shown" : ", not shown");
+    std::puts(mlibs::message::format("a yard on {}: {} draws, {} triangles{}", (*device)->caps().device, pass->last().draws, pass->last().triangles, shown && *shown ? ", shown" : ", not shown").c_str());
     return submitted ? 0 : 1;
 }

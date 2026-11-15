@@ -1,6 +1,7 @@
 // Neutral 2D paths shared by rendering, outlines and animation adapters.
 export module mlibs.geom.api:path;
 import std;
+import mlibs.message;
 import mlibs.error;
 import :primitives;
 
@@ -42,7 +43,7 @@ enum class PathError : std::uint8_t {
 struct PathWhere {
     std::size_t verb = 0, point = 0;
 };
-[[nodiscard]] inline std::string describe_where(const PathWhere& w) { return std::format("verb {}, point {}", w.verb, w.point); }
+[[nodiscard]] inline std::string describe_where(const PathWhere& w) { return mlibs::message::format("verb {}, point {}", w.verb, w.point); }
 using PathFailure = mlibs::error::Error<PathError, PathWhere>;
 struct PathInfo {
     std::size_t contours = 0, segments = 0, closes = 0;

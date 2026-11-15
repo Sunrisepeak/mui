@@ -1,6 +1,7 @@
 module mlibs.geom.api;
 
 import std;
+import mlibs.message;
 import mlibs.math;
 
 namespace mlibs::geom {
@@ -28,9 +29,9 @@ bool finite(Vec2 value) noexcept { return std::isfinite(value.x) && std::isfinit
 
 std::expected<std::vector<std::uint32_t>, std::string> triangulated(std::span<const Vec2> polygon) {
     const std::size_t count = polygon.size();
-    if (count < 3) return std::unexpected(std::format("a polygon of {} corners: three at least", count));
+    if (count < 3) return std::unexpected(mlibs::message::format("a polygon of {} corners: three at least", count));
     for (std::size_t index = 0; index < count; ++index)
-        if (!finite(polygon[index])) return std::unexpected(std::format("corner {} is not a number", index));
+        if (!finite(polygon[index])) return std::unexpected(mlibs::message::format("corner {} is not a number", index));
     const double area = twice_area(polygon);
     if (area == 0) return std::unexpected(std::string("a polygon with no area"));
     // The corners still to be cut off, in counter-clockwise order.
@@ -38,7 +39,7 @@ std::expected<std::vector<std::uint32_t>, std::string> triangulated(std::span<co
     for (std::uint32_t index = 0; index < count; ++index) left[index] = area > 0 ? index : static_cast<std::uint32_t>(count - 1 - index);
     for (std::size_t index = 0; index < count; ++index) {
         const Vec2 before = polygon[left[(index + count - 1) % count]], here = polygon[left[index]], after = polygon[left[(index + 1) % count]];
-        if (side(before, here, after) == 0) return std::unexpected(std::format("corner {} is on the line of its neighbours: leave it out", left[index]));
+        if (side(before, here, after) == 0) return std::unexpected(mlibs::message::format("corner {} is on the line of its neighbours: leave it out", left[index]));
     }
     std::vector<std::uint32_t> triangles;
     triangles.reserve((count - 2) * 3);
@@ -72,11 +73,11 @@ std::expected<std::vector<std::uint32_t>, std::string> triangulated(std::span<co
 }
 
 std::expected<Mesh, std::string> revolved(std::span<const Vec2> profile, std::uint32_t sectors) {
-    if (profile.size() < 2) return std::unexpected(std::format("a profile of {} points: two at least", profile.size()));
-    if (sectors < 3) return std::unexpected(std::format("{} sectors around: three at least", sectors));
+    if (profile.size() < 2) return std::unexpected(mlibs::message::format("a profile of {} points: two at least", profile.size()));
+    if (sectors < 3) return std::unexpected(mlibs::message::format("{} sectors around: three at least", sectors));
     for (std::size_t index = 0; index < profile.size(); ++index) {
-        if (!finite(profile[index])) return std::unexpected(std::format("point {} of the profile is not a number", index));
-        if (profile[index].x < 0) return std::unexpected(std::format("point {} of the profile is at radius {}: never below 0", index, profile[index].x));
+        if (!finite(profile[index])) return std::unexpected(mlibs::message::format("point {} of the profile is not a number", index));
+        if (profile[index].x < 0) return std::unexpected(mlibs::message::format("point {} of the profile is at radius {}: never below 0", index, profile[index].x));
     }
     // A stretch's own normal in the profile's plane (radius, height): to the left of the way down it.
     const std::size_t stretches = profile.size() - 1;
@@ -85,8 +86,8 @@ std::expected<Mesh, std::string> revolved(std::span<const Vec2> profile, std::ui
     for (std::size_t index = 0; index < stretches; ++index) {
         const Vec2 from = profile[index], to = profile[index + 1];
         const float dr = to.x - from.x, dh = to.y - from.y, length = std::sqrt(dr * dr + dh * dh);
-        if (!(length > 0)) return std::unexpected(std::format("points {} and {} of the profile are the same place", index, index + 1));
-        if (from.x == 0 && to.x == 0) return std::unexpected(std::format("points {} and {} of the profile are both on the axis: a stretch with no surface", index, index + 1));
+        if (!(length > 0)) return std::unexpected(mlibs::message::format("points {} and {} of the profile are the same place", index, index + 1));
+        if (from.x == 0 && to.x == 0) return std::unexpected(mlibs::message::format("points {} and {} of the profile are both on the axis: a stretch with no surface", index, index + 1));
         facing[index] = {-dh / length, dr / length};
         along[index + 1] = along[index] + length;
     }
@@ -127,8 +128,8 @@ std::expected<Mesh, std::string> revolved(std::span<const Vec2> profile, std::ui
 }
 
 std::expected<Mesh, std::string> extruded(std::span<const Vec2> given, float depth, float bevel) {
-    if (!(depth > 0) || !std::isfinite(depth)) return std::unexpected(std::format("a depth of {}: above 0", depth));
-    if (!(bevel >= 0) || !std::isfinite(bevel) || !(bevel * 2 < depth)) return std::unexpected(std::format("a bevel of {} in a depth of {}: 0 or more, and less than half the depth", bevel, depth));
+    if (!(depth > 0) || !std::isfinite(depth)) return std::unexpected(mlibs::message::format("a depth of {}: above 0", depth));
+    if (!(bevel >= 0) || !std::isfinite(bevel) || !(bevel * 2 < depth)) return std::unexpected(mlibs::message::format("a bevel of {} in a depth of {}: 0 or more, and less than half the depth", bevel, depth));
     if (auto whole = triangulated(given); !whole) return std::unexpected(whole.error());
     const std::size_t count = given.size();
     const bool turned = twice_area(given) < 0;  // given clockwise: walked the other way
@@ -142,14 +143,14 @@ std::expected<Mesh, std::string> extruded(std::span<const Vec2> given, float dep
             const float a_long = std::sqrt(ax * ax + ay * ay), b_long = std::sqrt(bx * bx + by * by);
             const Vec2 in_a{-ay / a_long * side, ax / a_long * side}, in_b{-by / b_long * side, bx / b_long * side};
             const float both = 1 + in_a.x * in_b.x + in_a.y * in_b.y;
-            if (!(both > 0.05f)) return std::unexpected(std::format("corner {} is too sharp to bevel", index));
+            if (!(both > 0.05f)) return std::unexpected(mlibs::message::format("corner {} is too sharp to bevel", index));
             drawn_in[index] = {here.x + (in_a.x + in_b.x) * bevel / both, here.y + (in_a.y + in_b.y) * bevel / both};
         }
-        if ((twice_area(drawn_in) < 0) != turned) return std::unexpected(std::format("a bevel of {} is more than the outline has room for", bevel));
+        if ((twice_area(drawn_in) < 0) != turned) return std::unexpected(mlibs::message::format("a bevel of {} is more than the outline has room for", bevel));
     }
     const std::span<const Vec2> outline(drawn_in);
     auto cut = triangulated(outline);
-    if (!cut) return std::unexpected(std::format("a bevel of {} is more than the outline has room for ({})", bevel, cut.error()));
+    if (!cut) return std::unexpected(mlibs::message::format("a bevel of {} is more than the outline has room for ({})", bevel, cut.error()));
     const auto corner = [&](std::size_t index) { return given[turned ? count - 1 - index : index]; };
     const auto rim = [&](std::size_t index) { return drawn_in[turned ? count - 1 - index : index]; };
     Vec2 low = outline[0], high = outline[0];

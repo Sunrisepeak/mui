@@ -1,6 +1,7 @@
 module mlibs.geom.api;
 
 import std;
+import mlibs.message;
 import mlibs.math;
 
 namespace mlibs::geom {
@@ -94,9 +95,9 @@ Bvh bvh_of(const Mesh& mesh, const BvhOptions& options) {
 }
 
 std::expected<void, std::string> check(const Bvh& tree, std::span<const Box3> boxes, const BvhOptions& options) {
-    if (tree.version != bvh_version) return std::unexpected(std::format("a tree of version {}: this reads {}", tree.version, bvh_version));
+    if (tree.version != bvh_version) return std::unexpected(mlibs::message::format("a tree of version {}: this reads {}", tree.version, bvh_version));
     if (boxes.empty()) return tree.nodes.empty() && tree.order.empty() ? std::expected<void, std::string>{} : std::unexpected(std::string("nodes over no things"));
-    if (tree.nodes.empty() || tree.order.size() != boxes.size()) return std::unexpected(std::format("{} things in order for {} boxes", tree.order.size(), boxes.size()));
+    if (tree.nodes.empty() || tree.order.size() != boxes.size()) return std::unexpected(mlibs::message::format("{} things in order for {} boxes", tree.order.size(), boxes.size()));
     std::vector<std::uint8_t> seen(boxes.size(), 0), reached(tree.nodes.size(), 0);
     const auto holds = [](const Box3& outer, const Box3& inner) {
         return inner.empty() || (!outer.empty() && outer.low.x <= inner.low.x && outer.low.y <= inner.low.y && outer.low.z <= inner.low.z && outer.high.x >= inner.high.x &&
@@ -106,21 +107,21 @@ std::expected<void, std::string> check(const Bvh& tree, std::span<const Box3> bo
     while (!stack.empty()) {
         const std::uint32_t at = stack.back();
         stack.pop_back();
-        if (at >= tree.nodes.size() || reached[at]) return std::unexpected(std::format("node {} is reached twice, or is not there", at));
+        if (at >= tree.nodes.size() || reached[at]) return std::unexpected(mlibs::message::format("node {} is reached twice, or is not there", at));
         reached[at] = 1;
         const Bvh::Node& node = tree.nodes[at];
         if (node.count) {
-            if (node.count > std::max<std::uint32_t>(1, options.leaf) || std::size_t{node.first} + node.count > tree.order.size()) return std::unexpected(std::format("leaf {} holds {} things", at, node.count));
+            if (node.count > std::max<std::uint32_t>(1, options.leaf) || std::size_t{node.first} + node.count > tree.order.size()) return std::unexpected(mlibs::message::format("leaf {} holds {} things", at, node.count));
             for (std::uint32_t index = node.first; index < node.first + node.count; ++index) {
                 const std::uint32_t item = tree.order[index];
-                if (item >= boxes.size() || seen[item]) return std::unexpected(std::format("thing {} is in two leaves, or is not a thing", item));
+                if (item >= boxes.size() || seen[item]) return std::unexpected(mlibs::message::format("thing {} is in two leaves, or is not a thing", item));
                 seen[item] = 1;
-                if (!holds(node.bounds, boxes[item])) return std::unexpected(std::format("leaf {} does not hold thing {}", at, item));
+                if (!holds(node.bounds, boxes[item])) return std::unexpected(mlibs::message::format("leaf {} does not hold thing {}", at, item));
             }
             continue;
         }
-        if (std::size_t{node.first} + 1 >= tree.nodes.size()) return std::unexpected(std::format("node {} has no children", at));
-        if (!holds(node.bounds, tree.nodes[node.first].bounds) || !holds(node.bounds, tree.nodes[node.first + 1].bounds)) return std::unexpected(std::format("node {} does not hold its children", at));
+        if (std::size_t{node.first} + 1 >= tree.nodes.size()) return std::unexpected(mlibs::message::format("node {} has no children", at));
+        if (!holds(node.bounds, tree.nodes[node.first].bounds) || !holds(node.bounds, tree.nodes[node.first + 1].bounds)) return std::unexpected(mlibs::message::format("node {} does not hold its children", at));
         stack.push_back(node.first), stack.push_back(node.first + 1);
     }
     if (std::ranges::find(seen, std::uint8_t{0}) != seen.end()) return std::unexpected(std::string("a thing is in no leaf"));

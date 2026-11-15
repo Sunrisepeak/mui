@@ -1,6 +1,7 @@
 module xrender.mesh.gpu;
 
 import std;
+import mlibs.message;
 
 namespace xrender::mesh::gpu {
 
@@ -447,10 +448,10 @@ void corners_of(const mlibs::geom::Mesh& mesh, std::vector<Corner>& corners) {
 }  // namespace
 
 rhi::Result<void> Pass::bend(rhi::CommandList& list, std::uint32_t which, const mlibs::geom::ClusteredMesh& mesh) {
-    if (which >= meshes_.size() || !meshes_[which].corners) return rhi::fail(rhi::Errc::invalid, std::format("mesh {} is not loaded", which));
+    if (which >= meshes_.size() || !meshes_[which].corners) return rhi::fail(rhi::Errc::invalid, mlibs::message::format("mesh {} is not loaded", which));
     Loaded& loaded = meshes_[which];
     if (mesh.mesh.indices.size() != loaded.count)
-        return rhi::fail(rhi::Errc::invalid, std::format("mesh {} was loaded with {} corners and is given {}: a bent mesh has its rest's triangles", which, loaded.count, mesh.mesh.indices.size()));
+        return rhi::fail(rhi::Errc::invalid, mlibs::message::format("mesh {} was loaded with {} corners and is given {}: a bent mesh has its rest's triangles", which, loaded.count, mesh.mesh.indices.size()));
     corners_of(mesh.mesh, bent_);
     // Two buffers in turn: the last frame's corners stay as they were, for the velocity, and the other is written.
     if (!loaded.before) {

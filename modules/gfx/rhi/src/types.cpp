@@ -1,6 +1,7 @@
 module mlibs.rhi.api;
 
 import std;
+import mlibs.message;
 
 namespace mlibs::rhi {
 
@@ -99,91 +100,91 @@ std::string check(const BufferDesc& d) {
 }
 
 std::string check(const TextureDesc& d, const Caps& caps) {
-    if (d.width == 0 || d.height == 0) return std::format("a texture of {}×{}", d.width, d.height);
+    if (d.width == 0 || d.height == 0) return mlibs::message::format("a texture of {}×{}", d.width, d.height);
     if (d.width > caps.max_texture_size || d.height > caps.max_texture_size)
-        return std::format("a texture of {}×{}: this device's largest is {}", d.width, d.height, caps.max_texture_size);
+        return mlibs::message::format("a texture of {}×{}: this device's largest is {}", d.width, d.height, caps.max_texture_size);
     if (d.usage == TextureUsage::none) return "a texture with no usage";
-    if (d.samples != 1 && d.samples != 2 && d.samples != 4 && d.samples != 8) return std::format("{} samples a texel (1, 2, 4 or 8)", d.samples);
+    if (d.samples != 1 && d.samples != 2 && d.samples != 4 && d.samples != 8) return mlibs::message::format("{} samples a texel (1, 2, 4 or 8)", d.samples);
     if (d.samples > caps.max_samples)
-        return std::format("{} samples a texel: this device multisamples to {} at most", d.samples, caps.max_samples);
+        return mlibs::message::format("{} samples a texel: this device multisamples to {} at most", d.samples, caps.max_samples);
     const bool target = has(d.usage, TextureUsage::color_target) || has(d.usage, TextureUsage::depth_target);
     if (d.samples > 1 && (!target || has(d.usage, TextureUsage::sampled) || has(d.usage, TextureUsage::storage_read) ||
                           has(d.usage, TextureUsage::compute_read) || has(d.usage, TextureUsage::compute_write)))
         return "a multisampled texture is only a render target (resolve it into one that is sampled)";
     if (is_blocks(d.format)) {
         if (d.usage != TextureUsage::sampled || d.samples != 1)
-            return std::format("a {} texture is uploaded and sampled; nothing else", name(d.format));
+            return mlibs::message::format("a {} texture is uploaded and sampled; nothing else", name(d.format));
         if (d.width % block_side || d.height % block_side)
-            return std::format("a {} texture of {}×{}: its sides are whole blocks ({} texels)", name(d.format), d.width, d.height, block_side);
+            return mlibs::message::format("a {} texture of {}×{}: its sides are whole blocks ({} texels)", name(d.format), d.width, d.height, block_side);
     }
     if (is_depth(d.format)) {
-        if (!caps.depth) return std::format("this device has no {} depth targets", name(d.format));
-        if (!has(d.usage, TextureUsage::depth_target)) return std::format("a {} texture is a depth target", name(d.format));
+        if (!caps.depth) return mlibs::message::format("this device has no {} depth targets", name(d.format));
+        if (!has(d.usage, TextureUsage::depth_target)) return mlibs::message::format("a {} texture is a depth target", name(d.format));
         if (has(d.usage, TextureUsage::color_target) || has(d.usage, TextureUsage::storage_read) || has(d.usage, TextureUsage::compute_read) ||
             has(d.usage, TextureUsage::compute_write))
-            return std::format("a {} texture is a depth target, and may be sampled; nothing else", name(d.format));
+            return mlibs::message::format("a {} texture is a depth target, and may be sampled; nothing else", name(d.format));
     } else if (has(d.usage, TextureUsage::depth_target)) {
-        return std::format("{} is not a depth format (d32_float, d32_float_s8)", name(d.format));
+        return mlibs::message::format("{} is not a depth format (d32_float, d32_float_s8)", name(d.format));
     }
     const bool storage = has(d.usage, TextureUsage::storage_read) || has(d.usage, TextureUsage::compute_read) ||
                          has(d.usage, TextureUsage::compute_write);
     if (storage && (d.format == Format::bgra8_unorm))
-        return std::format("{} cannot be a storage texture (rgba8_unorm, rgba16_float, r32_float or r32_uint can)", name(d.format));
+        return mlibs::message::format("{} cannot be a storage texture (rgba8_unorm, rgba16_float, r32_float or r32_uint can)", name(d.format));
     if (d.levels == 0 || d.levels > levels_of(d.width, d.height))
-        return std::format("a texture of {}×{} with {} levels (1 to {})", d.width, d.height, d.levels, levels_of(d.width, d.height));
+        return mlibs::message::format("a texture of {}×{} with {} levels (1 to {})", d.width, d.height, d.levels, levels_of(d.width, d.height));
     if (d.levels > 1 && d.usage != TextureUsage::sampled) return "a texture of several levels is uploaded and sampled; nothing else";
     return {};
 }
 
 std::string check(const ShaderDesc& d, ShaderFormats accepted) {
     if (d.entry.empty()) return "a shader without an entry point";
-    if (d.code.empty()) return std::format("the shader `{}` has no code", d.entry);
+    if (d.code.empty()) return mlibs::message::format("the shader `{}` has no code", d.entry);
     if ((d.formats() & accepted).empty()) {
         std::string have, want;
-        for (const ShaderCode& c : d.code) have += std::format("{}{}", have.empty() ? "" : ", ", name(c.format));
+        for (const ShaderCode& c : d.code) have += mlibs::message::format("{}{}", have.empty() ? "" : ", ", name(c.format));
         for (std::size_t i = 0; i < shader_format_count; ++i)
             if (accepted.has(static_cast<ShaderFormat>(i)))
-                want += std::format("{}{}", want.empty() ? "" : ", ", name(static_cast<ShaderFormat>(i)));
-        return std::format("the shader `{}` is compiled to {}; this device takes {}", d.entry, have, want);
+                want += mlibs::message::format("{}{}", want.empty() ? "" : ", ", name(static_cast<ShaderFormat>(i)));
+        return mlibs::message::format("the shader `{}` is compiled to {}; this device takes {}", d.entry, have, want);
     }
     for (const ShaderCode& c : d.code)
-        if (c.bytes.empty()) return std::format("the shader `{}` has empty {} code", d.entry, name(c.format));
+        if (c.bytes.empty()) return mlibs::message::format("the shader `{}` has empty {} code", d.entry, name(c.format));
     if (d.stage != Stage::compute && (d.rw_storage_textures || d.rw_storage_buffers))
-        return std::format("the {} shader `{}` declares read-write storage; only compute shaders write storage", name(d.stage), d.entry);
+        return mlibs::message::format("the {} shader `{}` declares read-write storage; only compute shaders write storage", name(d.stage), d.entry);
     if (d.stage == Stage::compute && (d.threads[0] == 0 || d.threads[1] == 0 || d.threads[2] == 0))
-        return std::format("the compute shader `{}` has a work group of {}×{}×{}", d.entry, d.threads[0], d.threads[1], d.threads[2]);
+        return mlibs::message::format("the compute shader `{}` has a work group of {}×{}×{}", d.entry, d.threads[0], d.threads[1], d.threads[2]);
     return {};
 }
 
 std::string check(const GraphicsPipelineDesc& d, ShaderFormats accepted) {
     if (!d.vertex || !d.fragment) return "a graphics pipeline needs a vertex and a fragment shader";
-    if (d.vertex->stage != Stage::vertex) return std::format("`{}` is a {} shader, not a vertex shader", d.vertex->entry, name(d.vertex->stage));
+    if (d.vertex->stage != Stage::vertex) return mlibs::message::format("`{}` is a {} shader, not a vertex shader", d.vertex->entry, name(d.vertex->stage));
     if (d.fragment->stage != Stage::fragment)
-        return std::format("`{}` is a {} shader, not a fragment shader", d.fragment->entry, name(d.fragment->stage));
+        return mlibs::message::format("`{}` is a {} shader, not a fragment shader", d.fragment->entry, name(d.fragment->stage));
     if (auto e = check(*d.vertex, accepted); !e.empty()) return e;
     if (auto e = check(*d.fragment, accepted); !e.empty()) return e;
     std::vector<std::uint32_t> locations;
     for (std::size_t slot = 0; slot < d.vertex_buffers.size(); ++slot) {
         const VertexBufferLayout& b = d.vertex_buffers[slot];
-        if (b.stride == 0) return std::format("vertex buffer {} has a stride of 0", slot);
+        if (b.stride == 0) return mlibs::message::format("vertex buffer {} has a stride of 0", slot);
         for (const VertexAttribute& a : b.attributes) {
             if (a.offset + size_of(a.format) > b.stride)
-                return std::format("the attribute at location {} ends at byte {}, past the stride {} of vertex buffer {}", a.location,
+                return mlibs::message::format("the attribute at location {} ends at byte {}, past the stride {} of vertex buffer {}", a.location,
                                    a.offset + size_of(a.format), b.stride, slot);
-            if (std::ranges::contains(locations, a.location)) return std::format("two vertex attributes at location {}", a.location);
+            if (std::ranges::contains(locations, a.location)) return mlibs::message::format("two vertex attributes at location {}", a.location);
             locations.push_back(a.location);
         }
     }
-    if (is_depth(d.target)) return std::format("a pipeline's colour target cannot be {}", name(d.target));
-    if (d.depth_target && !is_depth(*d.depth_target)) return std::format("{} is not a depth format (d32_float, d32_float_s8)", name(*d.depth_target));
+    if (is_depth(d.target)) return mlibs::message::format("a pipeline's colour target cannot be {}", name(d.target));
+    if (d.depth_target && !is_depth(*d.depth_target)) return mlibs::message::format("{} is not a depth format (d32_float, d32_float_s8)", name(*d.depth_target));
     if ((d.depth.test || d.depth.write) && !d.depth_target) return "a depth test or write needs the pipeline's depth_target format";
-    if (d.samples != 1 && d.samples != 2 && d.samples != 4 && d.samples != 8) return std::format("{} samples a texel (1, 2, 4 or 8)", d.samples);
+    if (d.samples != 1 && d.samples != 2 && d.samples != 4 && d.samples != 8) return mlibs::message::format("{} samples a texel (1, 2, 4 or 8)", d.samples);
     return {};
 }
 
 std::string check(const ComputePipelineDesc& d, ShaderFormats accepted) {
     if (!d.shader) return "a compute pipeline needs a shader";
-    if (d.shader->stage != Stage::compute) return std::format("`{}` is a {} shader, not a compute shader", d.shader->entry, name(d.shader->stage));
+    if (d.shader->stage != Stage::compute) return mlibs::message::format("`{}` is a {} shader, not a compute shader", d.shader->entry, name(d.shader->stage));
     return check(*d.shader, accepted);
 }
 

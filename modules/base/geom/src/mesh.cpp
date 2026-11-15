@@ -1,6 +1,7 @@
 module mlibs.geom.api;
 
 import std;
+import mlibs.message;
 import mlibs.math;
 
 namespace mlibs::geom {
@@ -45,20 +46,20 @@ std::expected<void, std::string> append(Mesh& into, const Mesh& from, const Mat4
 
 std::expected<void, std::string> check(const Mesh& mesh) {
     const std::size_t count = mesh.positions.size();
-    if (!mesh.normals.empty() && mesh.normals.size() != count) return std::unexpected(std::format("{} normals for {} positions (one each, or none)", mesh.normals.size(), count));
-    if (!mesh.tangents.empty() && mesh.tangents.size() != count) return std::unexpected(std::format("{} tangents for {} positions (one each, or none)", mesh.tangents.size(), count));
-    if (!mesh.uvs.empty() && mesh.uvs.size() != count) return std::unexpected(std::format("{} uvs for {} positions (one each, or none)", mesh.uvs.size(), count));
-    if (!mesh.second_uvs.empty() && mesh.second_uvs.size() != count) return std::unexpected(std::format("{} second uvs for {} positions (one each, or none)", mesh.second_uvs.size(), count));
-    if (!mesh.colours.empty() && mesh.colours.size() != count) return std::unexpected(std::format("{} colours for {} positions (one each, or none)", mesh.colours.size(), count));
-    if (mesh.joints.size() != mesh.weights.size()) return std::unexpected(std::format("{} joints and {} weights (both, or neither)", mesh.joints.size(), mesh.weights.size()));
-    if (!mesh.joints.empty() && mesh.joints.size() != count) return std::unexpected(std::format("{} joints for {} positions (one each, or none)", mesh.joints.size(), count));
-    if (mesh.indices.size() % 3) return std::unexpected(std::format("{} indices: three a triangle", mesh.indices.size()));
+    if (!mesh.normals.empty() && mesh.normals.size() != count) return std::unexpected(mlibs::message::format("{} normals for {} positions (one each, or none)", mesh.normals.size(), count));
+    if (!mesh.tangents.empty() && mesh.tangents.size() != count) return std::unexpected(mlibs::message::format("{} tangents for {} positions (one each, or none)", mesh.tangents.size(), count));
+    if (!mesh.uvs.empty() && mesh.uvs.size() != count) return std::unexpected(mlibs::message::format("{} uvs for {} positions (one each, or none)", mesh.uvs.size(), count));
+    if (!mesh.second_uvs.empty() && mesh.second_uvs.size() != count) return std::unexpected(mlibs::message::format("{} second uvs for {} positions (one each, or none)", mesh.second_uvs.size(), count));
+    if (!mesh.colours.empty() && mesh.colours.size() != count) return std::unexpected(mlibs::message::format("{} colours for {} positions (one each, or none)", mesh.colours.size(), count));
+    if (mesh.joints.size() != mesh.weights.size()) return std::unexpected(mlibs::message::format("{} joints and {} weights (both, or neither)", mesh.joints.size(), mesh.weights.size()));
+    if (!mesh.joints.empty() && mesh.joints.size() != count) return std::unexpected(mlibs::message::format("{} joints for {} positions (one each, or none)", mesh.joints.size(), count));
+    if (mesh.indices.size() % 3) return std::unexpected(mlibs::message::format("{} indices: three a triangle", mesh.indices.size()));
     for (std::size_t index = 0; index < mesh.indices.size(); ++index)
-        if (mesh.indices[index] >= count) return std::unexpected(std::format("index {} names position {}, of {}", index, mesh.indices[index], count));
+        if (mesh.indices[index] >= count) return std::unexpected(mlibs::message::format("index {} names position {}, of {}", index, mesh.indices[index], count));
     for (std::size_t index = 0; index < count; ++index)
-        if (!numbers(mesh.positions[index])) return std::unexpected(std::format("position {} is not a number", index));
+        if (!numbers(mesh.positions[index])) return std::unexpected(mlibs::message::format("position {} is not a number", index));
     for (std::size_t index = 0; index < mesh.normals.size(); ++index)
-        if (!numbers(mesh.normals[index])) return std::unexpected(std::format("normal {} is not a number", index));
+        if (!numbers(mesh.normals[index])) return std::unexpected(mlibs::message::format("normal {} is not a number", index));
     return {};
 }
 
@@ -90,7 +91,7 @@ std::expected<ClusteredMesh, std::string> clustered(Mesh mesh, std::span<const s
         if (!run) return std::unexpected(std::string("a cluster has a triangle at least"));
         said += run;
     }
-    if (said != mesh.triangles()) return std::unexpected(std::format("the clusters hold {} triangles; the mesh has {}", said, mesh.triangles()));
+    if (said != mesh.triangles()) return std::unexpected(mlibs::message::format("the clusters hold {} triangles; the mesh has {}", said, mesh.triangles()));
     ClusteredMesh out;
     std::size_t first = 0;
     for (const std::uint32_t run : runs) {

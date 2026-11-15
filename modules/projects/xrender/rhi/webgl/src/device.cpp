@@ -5,6 +5,7 @@
 module xrender.rhi.webgl.api;
 
 import std;
+import mlibs.message;
 import mlibs.memory;
 import mlibs.rhi;
 import :page;
@@ -72,7 +73,7 @@ protected:
         const Buffer b = buffers_.insert({d.size, d.usage, {}});
         if (!page::buffer(b.index, d.size, static_cast<std::uint32_t>(d.usage))) {
             buffers_.erase(b);
-            return fail(Errc::backend, std::format("WebGL2: creating a buffer of {} bytes: {}", d.size, page::error()));
+            return fail(Errc::backend, mlibs::message::format("WebGL2: creating a buffer of {} bytes: {}", d.size, page::error()));
         }
         return b;
     }
@@ -83,12 +84,12 @@ protected:
         if (has(d.usage, TextureUsage::color_target)) {
             const bool half = d.format == Format::rgba16_float, single = d.format == Format::r32_float;
             if ((half && !context_.color_half_float) || (single && !context_.color_float))
-                return fail(Errc::unsupported, std::format("{} renders to no {} target (EXT_color_buffer_float)", caps_.device, name(d.format)));
+                return fail(Errc::unsupported, mlibs::message::format("{} renders to no {} target (EXT_color_buffer_float)", caps_.device, name(d.format)));
         }
         const Texture t = textures_.insert({d.format, d.width, d.height, d.usage, {}, d.samples, d.levels});
         if (!page::texture(t.index, static_cast<std::uint32_t>(d.format), d.width, d.height, d.samples, d.levels)) {
             textures_.erase(t);
-            return fail(Errc::backend, std::format("WebGL2: creating a {}×{} {} texture: {}", d.width, d.height, name(d.format), page::error()));
+            return fail(Errc::backend, mlibs::message::format("WebGL2: creating a {}×{} {} texture: {}", d.width, d.height, name(d.format), page::error()));
         }
         return t;
     }
@@ -98,7 +99,7 @@ protected:
         if (!page::sampler(s.index, static_cast<std::uint32_t>(d.min), static_cast<std::uint32_t>(d.mag), static_cast<std::uint32_t>(d.u),
                            static_cast<std::uint32_t>(d.v), static_cast<std::uint32_t>(d.between))) {
             samplers_.erase(s);
-            return fail(Errc::backend, std::format("WebGL2: creating a sampler: {}", page::error()));
+            return fail(Errc::backend, mlibs::message::format("WebGL2: creating a sampler: {}", page::error()));
         }
         return s;
     }
@@ -106,7 +107,7 @@ protected:
     Result<GraphicsPipeline> make(const GraphicsPipelineDesc& d) override {
         for (const ShaderDesc* s : {d.vertex, d.fragment})
             if (s->storage_textures || s->storage_buffers)
-                return fail(Errc::unsupported, std::format("`{}` reads storage, which WebGL2 has not", s->entry));
+                return fail(Errc::unsupported, mlibs::message::format("`{}` reads storage, which WebGL2 has not", s->entry));
         const ShaderCode* vs = d.vertex->code_for(ShaderFormat::essl);
         const ShaderCode* fs = d.fragment->code_for(ShaderFormat::essl);
         words_.clear();
@@ -117,7 +118,7 @@ protected:
         const std::string_view label = d.label.empty() ? d.fragment->entry : d.label;
         if (!page::graphics(p.index, words_, vs->bytes, fs->bytes, label)) {
             graphics_.erase(p);
-            return fail(Errc::backend, std::format("WebGL2: creating the pipeline {}: {}", label, page::error()));
+            return fail(Errc::backend, mlibs::message::format("WebGL2: creating the pipeline {}: {}", label, page::error()));
         }
         return p;
     }
@@ -130,7 +131,7 @@ protected:
         if (auto e = reported(); !e) return std::unexpected(e.error());
         words_.clear();
         wire::encode(list, words_);
-        if (!page::run(words_)) return fail(page::lost() ? Errc::device_lost : Errc::backend, std::format("WebGL2: {}", page::error()));
+        if (!page::run(words_)) return fail(page::lost() ? Errc::device_lost : Errc::backend, mlibs::message::format("WebGL2: {}", page::error()));
         return Submission{next_++};
     }
 
@@ -139,14 +140,14 @@ protected:
         if (is_depth(d.format)) return fail(Errc::unsupported, "WebGL2 reads no depth back");
         if (d.samples > 1) return fail(Errc::unsupported, "a multisampled target is read through the texture it resolves into");
         if ((d.format == Format::rgba16_float || d.format == Format::r32_float) && !context_.color_float)
-            return fail(Errc::unsupported, std::format("{} reads no {} back (EXT_color_buffer_float)", caps_.device, name(d.format)));
+            return fail(Errc::unsupported, mlibs::message::format("{} reads no {} back (EXT_color_buffer_float)", caps_.device, name(d.format)));
         if (!page::read(t.index, region.x, region.y, region.width, region.height, out))
-            return fail(Errc::backend, std::format("WebGL2: reading the texture back: {}", page::error()));
+            return fail(Errc::backend, mlibs::message::format("WebGL2: reading the texture back: {}", page::error()));
         return {};
     }
 
     Result<void> fetch(Buffer b, std::uint32_t offset, std::span<std::byte> out) override {
-        if (!page::read(b.index, offset, out)) return fail(Errc::backend, std::format("WebGL2: reading the buffer back: {}", page::error()));
+        if (!page::read(b.index, offset, out)) return fail(Errc::backend, mlibs::message::format("WebGL2: reading the buffer back: {}", page::error()));
         return {};
     }
 
@@ -154,7 +155,7 @@ protected:
         if (!canvas_) return fail(Errc::unsupported, "present: the device was made for no canvas (xrender::rhi::webgl::Options::canvas)");
         if (auto e = reported(); !e) return std::unexpected(e.error());
         const int r = page::present(frame.index);
-        if (r < 0) return fail(Errc::backend, std::format("WebGL2: presenting: {}", page::error()));
+        if (r < 0) return fail(Errc::backend, mlibs::message::format("WebGL2: presenting: {}", page::error()));
         return r == 1;
     }
 
@@ -162,7 +163,7 @@ private:
     static Result<void> reported() {
         std::string e = page::error();
         if (e.empty()) return {};
-        return fail(page::lost() ? Errc::device_lost : Errc::backend, std::format("WebGL2: {}", e));
+        return fail(page::lost() ? Errc::device_lost : Errc::backend, mlibs::message::format("WebGL2: {}", e));
     }
 
     Caps                                               caps_;

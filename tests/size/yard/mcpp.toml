@@ -26,3 +26,4 @@ xrender.rhi.webgl  = { path = "../../../modules/projects/xrender/rhi/webgl" }
 mlibs.rhi          = { path = "../../../modules/gfx/rhi" }
 mlibs.geom         = { path = "../../../modules/base/geom" }
 mlibs.math         = { path = "../../../modules/base/math" }
+mlibs.utils        = { path = "../../../modules/base/utils" }

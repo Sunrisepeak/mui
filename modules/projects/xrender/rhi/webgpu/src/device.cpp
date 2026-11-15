@@ -4,6 +4,7 @@
 module xrender.rhi.webgpu.api;
 
 import std;
+import mlibs.message;
 import mlibs.memory;
 import mlibs.rhi;
 import :page;
@@ -80,18 +81,18 @@ protected:
         const Buffer b = buffers_.insert({d.size, d.usage, {}});
         if (!page::buffer(b.index, d.size, static_cast<std::uint32_t>(d.usage), d.label)) {
             buffers_.erase(b);
-            return fail(Errc::backend, std::format("WebGPU: creating a buffer of {} bytes: {}", d.size, page::error()));
+            return fail(Errc::backend, mlibs::message::format("WebGPU: creating a buffer of {} bytes: {}", d.size, page::error()));
         }
         return b;
     }
 
     Result<Texture> make(const TextureDesc& d) override {
         if (d.samples != 1 && d.samples != 4)
-            return fail(Errc::unsupported, std::format("WebGPU multisamples 4 samples a texel, not {}", d.samples));
+            return fail(Errc::unsupported, mlibs::message::format("WebGPU multisamples 4 samples a texel, not {}", d.samples));
         const Texture t = textures_.insert({d.format, d.width, d.height, d.usage, {}, d.samples, d.levels});
         if (!page::texture(t.index, static_cast<std::uint32_t>(d.format), d.width, d.height, static_cast<std::uint32_t>(d.usage), d.samples, d.levels, d.label)) {
             textures_.erase(t);
-            return fail(Errc::backend, std::format("WebGPU: creating a {}×{} {} texture: {}", d.width, d.height, name(d.format), page::error()));
+            return fail(Errc::backend, mlibs::message::format("WebGPU: creating a {}×{} {} texture: {}", d.width, d.height, name(d.format), page::error()));
         }
         return t;
     }
@@ -101,14 +102,14 @@ protected:
         if (!page::sampler(s.index, static_cast<std::uint32_t>(d.min), static_cast<std::uint32_t>(d.mag), static_cast<std::uint32_t>(d.u),
                            static_cast<std::uint32_t>(d.v), static_cast<std::uint32_t>(d.between))) {
             samplers_.erase(s);
-            return fail(Errc::backend, std::format("WebGPU: creating a sampler: {}", page::error()));
+            return fail(Errc::backend, mlibs::message::format("WebGPU: creating a sampler: {}", page::error()));
         }
         return s;
     }
 
     Result<GraphicsPipeline> make(const GraphicsPipelineDesc& d) override {
         if (d.samples != 1 && d.samples != 4)
-            return fail(Errc::unsupported, std::format("WebGPU multisamples 4 samples a texel, not {}", d.samples));
+            return fail(Errc::unsupported, mlibs::message::format("WebGPU multisamples 4 samples a texel, not {}", d.samples));
         const ShaderCode* vs = d.vertex->code_for(ShaderFormat::wgsl);
         const ShaderCode* fs = d.fragment->code_for(ShaderFormat::wgsl);
         words_.clear();
@@ -119,7 +120,7 @@ protected:
         const std::string_view label = d.label.empty() ? d.fragment->entry : d.label;
         if (!page::graphics(p.index, words_, vs->bytes, d.vertex->entry, fs->bytes, d.fragment->entry, label)) {
             graphics_.erase(p);
-            return fail(Errc::backend, std::format("WebGPU: creating the pipeline {}: {}", label, page::error()));
+            return fail(Errc::backend, mlibs::message::format("WebGPU: creating the pipeline {}: {}", label, page::error()));
         }
         return p;
     }
@@ -132,7 +133,7 @@ protected:
         const std::string_view label = d.label.empty() ? d.shader->entry : d.label;
         if (!page::compute(p.index, words_, cs->bytes, d.shader->entry, label)) {
             compute_.erase(p);
-            return fail(Errc::backend, std::format("WebGPU: creating the compute pipeline {}: {}", label, page::error()));
+            return fail(Errc::backend, mlibs::message::format("WebGPU: creating the compute pipeline {}: {}", label, page::error()));
         }
         return p;
     }
@@ -147,14 +148,14 @@ protected:
                 const std::uint32_t size = buffers_.get(u->buffer)->size;
                 const std::size_t end = std::size_t{u->offset} + u->data.size();
                 if (u->offset % 4 != 0 || (u->data.size() % 4 != 0 && end != size))
-                    return fail(Errc::unsupported, std::format("command {} (upload_buffer): WebGPU writes buffers 4 bytes at a time; bytes {}–{} of "
+                    return fail(Errc::unsupported, mlibs::message::format("command {} (upload_buffer): WebGPU writes buffers 4 bytes at a time; bytes {}–{} of "
                                                                "a buffer of {} neither start and end on a multiple of 4 nor end the buffer",
                                                                i, u->offset, end, size));
             }
         if (auto e = reported(); !e) return std::unexpected(e.error());
         words_.clear();
         wire::encode(list, words_);
-        if (!page::run(words_)) return fail(Errc::backend, std::format("WebGPU: {}", page::error()));
+        if (!page::run(words_)) return fail(Errc::backend, mlibs::message::format("WebGPU: {}", page::error()));
         return Submission{next_++};
     }
 
@@ -180,7 +181,7 @@ protected:
         if (!canvas_) return fail(Errc::unsupported, "present: the device was made for no canvas (xrender::rhi::webgpu::Options::canvas)");
         if (auto e = reported(); !e) return std::unexpected(e.error());
         const int r = page::present(frame.index);
-        if (r < 0) return fail(Errc::backend, std::format("WebGPU: presenting: {}", page::error()));
+        if (r < 0) return fail(Errc::backend, mlibs::message::format("WebGPU: presenting: {}", page::error()));
         return r == 1;
     }
 
@@ -190,7 +191,7 @@ private:
     static Result<void> reported() {
         std::string e = page::error();
         if (e.empty()) return {};
-        return fail(page::lost() ? Errc::device_lost : Errc::backend, std::format("WebGPU: {}", e));
+        return fail(page::lost() ? Errc::device_lost : Errc::backend, mlibs::message::format("WebGPU: {}", e));
     }
 
     static Result<void> cannot_wait() {
@@ -215,7 +216,7 @@ Result<std::unique_ptr<Device>> create(const Options& options) {
     if (!adapter) return fail(Errc::unsupported, std::move(adapter.error()));
     if (live) return fail(Errc::unsupported, "a WebGPU device of this page's is alive: one at a time");
     if (!options.canvas.empty() && !page::canvas(options.canvas))
-        return fail(Errc::unsupported, std::format("WebGPU: the canvas {}: {}", options.canvas, page::error()));
+        return fail(Errc::unsupported, mlibs::message::format("WebGPU: the canvas {}: {}", options.canvas, page::error()));
     Caps caps;
     caps.backend = Backend::webgpu;
     caps.device = adapter->name;

@@ -34,3 +34,4 @@ xrender.scene = { path = "../../scene" }
 mlibs.rhi     = { path = "../../../../gfx/rhi" }
 mlibs.geom    = { path = "../../../../base/geom" }
 mlibs.math    = { path = "../../../../base/math" }
+mlibs.utils   = { path = "../../../../base/utils" }  # mlibs.message: its errors without a locale

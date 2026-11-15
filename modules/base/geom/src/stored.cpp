@@ -1,6 +1,7 @@
 module mlibs.geom.api;
 
 import std;
+import mlibs.message;
 import mlibs.math;
 
 namespace mlibs::geom {
@@ -145,8 +146,8 @@ std::expected<ClusteredMesh, std::string> read_stored(std::span<const std::uint8
     const std::uint32_t version = header.u32(), count = header.u32();
     (void)header.u32();
     if (version == 0 || version > ClusteredMesh::version)
-        return std::unexpected(std::format("a stored mesh of version {}, and this reads up to {}", version, ClusteredMesh::version));
-    if (count > (bytes.size() - header_bytes) / entry_bytes) return std::unexpected(std::format("{} sections said, and the bytes have no room for their table", count));
+        return std::unexpected(mlibs::message::format("a stored mesh of version {}, and this reads up to {}", version, ClusteredMesh::version));
+    if (count > (bytes.size() - header_bytes) / entry_bytes) return std::unexpected(mlibs::message::format("{} sections said, and the bytes have no room for their table", count));
     ClusteredMesh out;
     std::uint32_t seen = 0;
     for (std::uint32_t section = 0; section < count; ++section) {
@@ -155,11 +156,11 @@ std::expected<ClusteredMesh, std::string> read_stored(std::span<const std::uint8
         const std::uint32_t known = element_of(kind);
         if (!known) continue;  // a kind added later: passed over
         const std::string_view name = name_of(kind);
-        if (seen >> kind & 1) return std::unexpected(std::format("the section `{}` is there twice", name));
+        if (seen >> kind & 1) return std::unexpected(mlibs::message::format("the section `{}` is there twice", name));
         seen |= 1u << kind;
-        if (element != known) return std::unexpected(std::format("the section `{}` says {} bytes an element, and one is {}", name, element, known));
+        if (element != known) return std::unexpected(mlibs::message::format("the section `{}` says {} bytes an element, and one is {}", name, element, known));
         if (place > bytes.size() || elements > (bytes.size() - place) / known)
-            return std::unexpected(std::format("the section `{}` ({} elements from byte {}) runs past the end of {} bytes", name, elements, place, bytes.size()));
+            return std::unexpected(mlibs::message::format("the section `{}` ({} elements from byte {}) runs past the end of {} bytes", name, elements, place, bytes.size()));
         Reader in{bytes, static_cast<std::size_t>(place)};
         const std::size_t many = static_cast<std::size_t>(elements);
         switch (kind) {
@@ -208,19 +209,19 @@ std::expected<ClusteredMesh, std::string> read_stored(std::span<const std::uint8
                 break;
         }
     }
-    if (auto sound = check(out.mesh); !sound) return std::unexpected(std::format("the mesh stored is not one: {}", sound.error()));
+    if (auto sound = check(out.mesh); !sound) return std::unexpected(mlibs::message::format("the mesh stored is not one: {}", sound.error()));
     // The clusters: each a run of the indices, one after another, all of them and no more.
     std::uint64_t next = 0;
     for (std::size_t index = 0; index < out.clusters.size(); ++index) {
         const Cluster& cluster = out.clusters[index];
         if (cluster.first_index != next || cluster.triangle_count == 0)
-            return std::unexpected(std::format("cluster {} begins at index {} with {} triangles, where the one before it ended at {}", index, cluster.first_index, cluster.triangle_count, next));
+            return std::unexpected(mlibs::message::format("cluster {} begins at index {} with {} triangles, where the one before it ended at {}", index, cluster.first_index, cluster.triangle_count, next));
         next += std::uint64_t{cluster.triangle_count} * 3;
-        if (next > out.mesh.indices.size()) return std::unexpected(std::format("cluster {} runs past the mesh's {} indices", index, out.mesh.indices.size()));
+        if (next > out.mesh.indices.size()) return std::unexpected(mlibs::message::format("cluster {} runs past the mesh's {} indices", index, out.mesh.indices.size()));
         if (!std::isfinite(cluster.bounds.radius) || !std::isfinite(cluster.bounds.centre.x) || !std::isfinite(cluster.bounds.centre.y) || !std::isfinite(cluster.bounds.centre.z) || cluster.bounds.radius < 0)
-            return std::unexpected(std::format("cluster {} has no bounds", index));
+            return std::unexpected(mlibs::message::format("cluster {} has no bounds", index));
     }
-    if (next != out.mesh.indices.size()) return std::unexpected(std::format("the clusters hold {} indices of the mesh's {}", next, out.mesh.indices.size()));
+    if (next != out.mesh.indices.size()) return std::unexpected(mlibs::message::format("the clusters hold {} indices of the mesh's {}", next, out.mesh.indices.size()));
     return out;
 }
 

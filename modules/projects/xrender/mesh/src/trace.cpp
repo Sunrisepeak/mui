@@ -1,6 +1,7 @@
 module xrender.mesh;
 
 import std;
+import :target;
 
 namespace xrender::mesh {
 
@@ -499,9 +500,11 @@ Traced traced(const scene::Scene& scene, const scene::View& view, const Assets& 
             const LampShape shape = lamp_shape(light);
             lamps.push_back({light.kind, shape.colour, light.at, math::normalized(light.toward), std::max(light.range, 1e-6f), shape.cone_cosine, shape.physical, shape.inner_cosine});
         }
-    const Tracing tracing{things, lamps, options, told};
     const Vec3 eye = math::point(*camera, {0, 0, 0});
-    for (int y = 0; y < out.height; ++y)
+    // A row's pixels, its rays counted in `count`. A pixel's rays come from its number, the sample's and the
+    // seed, so rows shared among threads give the same light, bit for bit, as one thread going through them.
+    const auto row = [&](int y, Traced& count) {
+        const Tracing tracing{things, lamps, options, count};
         for (int x = 0; x < out.width; ++x) {
             const std::size_t pixel = static_cast<std::size_t>(y) * static_cast<std::size_t>(out.width) + static_cast<std::size_t>(x);
             Vec3 sum{0, 0, 0};
@@ -514,6 +517,23 @@ Traced traced(const scene::Scene& scene, const scene::View& view, const Assets& 
             }
             out.light[pixel] = sum * (1.0f / static_cast<float>(how.samples));
         }
+    };
+    const unsigned asked = how.workers == 0 ? std::max(1u, std::thread::hardware_concurrency()) : how.workers;
+    const unsigned workers = threads_here ? std::min(asked, static_cast<unsigned>(out.height)) : 1;
+    if (workers <= 1) {
+        for (int y = 0; y < out.height; ++y) row(y, told);
+    } else {
+        std::vector<Traced> counts(workers);
+        {
+            std::vector<std::jthread> team;
+            team.reserve(workers);
+            for (unsigned worker = 0; worker < workers; ++worker)
+                team.emplace_back([&, worker] {
+                    for (int y = static_cast<int>(worker); y < out.height; y += static_cast<int>(workers)) row(y, counts[worker]);
+                });
+        }
+        for (const Traced& count : counts) told.rays += count.rays, told.into_open += count.into_open;
+    }
     Glow shown;
     (void)shown.show(out.light, out.width, out.height, {}, out.colour);
     return told;

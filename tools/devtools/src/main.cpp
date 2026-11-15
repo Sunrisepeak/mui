@@ -1,15 +1,21 @@
-// omui-devtools: the contributors' tool (release design §6.6). `ci`: a CI run
-// read row by row — each failing member, program and case with its first
-// lines — and set against STATUS's red list (R12). Exit 0 when every failure
-// is named there, 1 when one is new, 2 when it could not read the run.
+// omui-devtools: the contributors' tool (release design §6.6).
+//   ci    a CI run read row by row — each failing member, program and case
+//         with its first lines — and set against STATUS's red list (R12).
+//         Exit 0 when every failure is named there, 1 when one is new, 2
+//         when it could not read the run.
+//   llvm  what a change touches and its direct consumers, compiled (their
+//         tests too, not run) with CI's LLVM and profile: the errors only
+//         clang and libc++ give (reds 90, 91, 93), before a push.
 import std;
 import mcpplibs.cmdline;
 import mcpplibs.os;
 import nlohmann.json;
 import omui.devtools.ci;
+import omui.devtools.members;
 
 namespace cmd = mcpplibs::cmdline;
 namespace rec = omui::devtools::ci;
+namespace ws = omui::devtools::members;
 namespace fs = std::filesystem;
 using json = nlohmann::json;
 
@@ -131,7 +137,7 @@ json as_json(const Report& report) {
 cmd::App app() {
     using cmd::Arg, cmd::Option;
     return cmd::App("omui-devtools")
-        .description("The contributors' tool: reconcile CI with the red list")
+        .description("The contributors' tool: reconcile CI with the red list; compile a change with CI's LLVM")
         .option(Option("root").takes_value().value_name("DIR").help("the workspace (default: here)"))
         .subcommand(cmd::App("ci")
                         .description("A CI run read row by row and set against STATUS's red list (exit 1 when a failure is new)")
@@ -143,7 +149,15 @@ cmd::App app() {
                         .subcommand(cmd::App("log")
                                         .description("Read a saved log (gh run view RUN --log-failed > FILE)")
                                         .arg(Arg("file").required().help("the log"))
-                                        .option(Option("jobs").takes_value().value_name("FILE").help("the run's jobs (gh run view RUN --json jobs)"))));
+                                        .option(Option("jobs").takes_value().value_name("FILE").help("the run's jobs (gh run view RUN --json jobs)"))))
+        .subcommand(cmd::App("llvm")
+                        .description("Compile what a change touches and its direct consumers, tests included, with CI's LLVM and profile (not run)")
+                        .option(Option("since").takes_value().value_name("REF").help("the change: files differing from REF, and new ones (default: @{upstream})"))
+                        .option(Option("package").short_name('p').takes_value().multiple().value_name("MEMBER").help("these members instead of the change's"))
+                        .option(Option("toolchain").takes_value().value_name("T").help("default: the LLVM of CI's rows (.github/workflows/ci.yml)"))
+                        .option(Option("profile").takes_value().value_name("P").help("default: ci"))
+                        .option(Option("no-consumers").help("only the members themselves"))
+                        .option(Option("dry").help("say what would be compiled, and how")));
 }
 
 void conclude(std::vector<rec::Row>& rows, const json& jobs) {
@@ -212,6 +226,116 @@ int ci(const cmd::ParsedArgs& options, const fs::path& root) {
     return report.fresh > 0 ? 1 : 0;
 }
 
+// `git ARGS…` in the workspace: its output's lines.
+std::expected<std::vector<std::string>, std::string> git_lines(const fs::path& root, std::vector<std::string> args) {
+    const auto program = mcpplibs::os::env::find_executable("git");
+    if (!program) return std::unexpected("`git` is not on PATH");
+    mcpplibs::os::process::spawn_options options;
+    options.program = *program;
+    options.args = {"-C", mcpplibs::os::fs::utf8(root)};
+    options.args.insert(options.args.end(), args.begin(), args.end());
+    auto ran = mcpplibs::os::process::run(std::move(options));
+    if (!ran) return std::unexpected(std::format("git did not start: {}", ran.error().message()));
+    if (ran->status.shell_code() != 0) return std::unexpected(std::format("git {}: {}", args.front(), ran->err));
+    std::vector<std::string> lines;
+    for (const auto part : std::views::split(std::string_view(ran->out), '\n'))
+        if (!std::string_view(part.begin(), part.end()).empty()) lines.emplace_back(part.begin(), part.end());
+    return lines;
+}
+
+// The LLVM CI's rows build with, as .github/workflows/ci.yml names it ("llvm@23.1.3").
+std::string ci_llvm(const fs::path& root) {
+    const auto text = read_file(root / ".github/workflows/ci.yml");
+    if (!text) return {};
+    const auto at = text->find("llvm@");
+    if (at == std::string::npos) return {};
+    auto end = at + 5;
+    while (end < text->size() && (std::isdigit(static_cast<unsigned char>((*text)[end])) || (*text)[end] == '.')) ++end;
+    return text->substr(at, end - at);
+}
+
+int llvm(const cmd::ParsedArgs& options, const fs::path& root) {
+    const auto manifest = read_file(root / "mcpp.toml");
+    if (!manifest) {
+        std::cerr << "omui-devtools llvm: no mcpp.toml in the workspace (--root names it)\n";
+        return 2;
+    }
+    const auto paths = ws::listed(*manifest);
+    std::vector<ws::Member> all;
+    for (const auto& path : paths) {
+        const auto own = read_file(root / mcpplibs::os::fs::from_utf8(path) / "mcpp.toml");
+        all.push_back({path, own ? ws::uses_of(path, *own, paths) : std::vector<std::string>{}});
+    }
+    std::vector<std::string> chosen = options.option_or_empty("package").values;
+    for (auto& path : chosen)
+        while (path.ends_with('/')) path.pop_back();
+    for (const auto& path : chosen)
+        if (!std::ranges::contains(paths, path)) {
+            std::cerr << std::format("omui-devtools llvm: `{}` is not a workspace member (a path as mcpp.toml lists it)\n", path);
+            return 2;
+        }
+    if (chosen.empty()) {
+        const std::string since = options.value("since").value_or("@{upstream}");
+        auto changed = git_lines(root, {"diff", "--name-only", since});
+        if (!changed) {
+            std::cerr << "omui-devtools llvm: " << changed.error() << " (--since REF names the change's base)\n";
+            return 2;
+        }
+        auto fresh = git_lines(root, {"ls-files", "--others", "--exclude-standard"});
+        if (fresh) changed->insert(changed->end(), fresh->begin(), fresh->end());
+        for (const auto& file : *changed) {
+            const auto owner = ws::owner_of(file, all);
+            if (!owner.empty() && !std::ranges::contains(chosen, owner)) chosen.push_back(owner);
+        }
+        if (chosen.empty()) {
+            std::cout << std::format("nothing to compile: no member's files differ from {}\n", since);
+            return 0;
+        }
+    }
+    const auto picked = options.is_flag_set("no-consumers") ? chosen : ws::with_consumers(chosen, all);
+    const std::string toolchain = options.value("toolchain").value_or(ci_llvm(root));
+    if (toolchain.empty()) {
+        std::cerr << "omui-devtools llvm: CI's LLVM not found in .github/workflows/ci.yml (--toolchain names one)\n";
+        return 2;
+    }
+    std::vector<std::string> args{"test", "--toolchain", toolchain, "--profile", options.value("profile").value_or("ci"), "--no-run"};
+    for (const auto& path : picked) args.insert(args.end(), {"-p", path});
+    // Within 90% of the machine (AGENTS §5): through tools/dev/capped.sh where it is.
+    const fs::path capped = root / "tools/dev/capped.sh";
+    std::error_code missing;
+    const bool through_capped = !mcpplibs::os::is_windows && fs::exists(capped, missing);
+    std::cout << std::format("{} member(s) changed, {} with their direct consumers; {}\n", chosen.size(), picked.size(), toolchain);
+    for (const auto& path : picked) std::cout << "  " << path << (std::ranges::contains(chosen, path) ? "" : "  (consumer)") << '\n';
+    std::string shown = through_capped ? "tools/dev/capped.sh mcpp" : "mcpp";
+    for (const auto& arg : args) shown += " " + arg;
+    std::cout << shown << '\n';
+    if (options.is_flag_set("dry")) return 0;
+    const auto mcpp = mcpplibs::os::env::find_executable("mcpp");
+    if (!mcpp) {
+        std::cerr << "omui-devtools llvm: `mcpp` is not on PATH\n";
+        return 2;
+    }
+    mcpplibs::os::process::spawn_options spawn;
+    if (through_capped) {
+        spawn.program = capped;
+        spawn.args = {"mcpp"};
+        spawn.args.insert(spawn.args.end(), args.begin(), args.end());
+    } else {
+        spawn.program = *mcpp;
+        spawn.args = std::move(args);
+    }
+    spawn.cwd = root;
+    spawn.out = mcpplibs::os::process::stdio::inherit;
+    spawn.err = mcpplibs::os::process::stdio::inherit;
+    auto process = mcpplibs::os::process::process::spawn(spawn);
+    if (!process) {
+        std::cerr << std::format("omui-devtools llvm: mcpp did not start: {}\n", process.error().message());
+        return 2;
+    }
+    auto status = process->wait();
+    return status ? status->shell_code() : 1;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -225,6 +349,7 @@ int main(int argc, char** argv) {
     }
     const fs::path root = mcpplibs::os::fs::from_utf8(parsed->value("root").value_or("."));
     if (parsed->subcommand_name() == "ci") return ci(parsed->subcommand()->get(), root);
-    std::cerr << "usage: omui-devtools [--root DIR] ci …  (omui-devtools --help)\n";
+    if (parsed->subcommand_name() == "llvm") return llvm(parsed->subcommand()->get(), root);
+    std::cerr << "usage: omui-devtools [--root DIR] ci … | llvm …  (omui-devtools --help)\n";
     return 2;
 }

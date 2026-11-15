@@ -39,6 +39,23 @@ struct Pair {
     ~Pair() { std::filesystem::remove_all(dir); }
 };
 
+// The application sends while the host reads, as their two processes do: a frame larger than the connection's
+// buffer (a font face: 187 KB of JetBrains Mono, where macOS gives a local socket 8 KB) waits in `send` for a reader,
+// which on one thread would never come (red 55). The last list the host received once the frame is all through.
+const xrender::DisplayList* sent_and_received(Presenter& presenter, const FrameOutput& frame, Presentation& host) {
+    std::atomic<bool> done = false;
+    bool sent = false;
+    std::jthread sender([&] {
+        sent = presenter.send(frame);
+        done = true;
+    });
+    const xrender::DisplayList* got = nullptr;
+    for (int tries = 0; tries < 2000 && (!done || !got); ++tries)
+        if (const auto* list = host.receive(std::chrono::milliseconds(5))) got = list;
+    sender.join();
+    return sent ? got : nullptr;
+}
+
 xrender::raster::Surface drawn(const xrender::DisplayList& list, xrender::ImageStore& images) {
     xrender::raster::Surface surface(160, 120);
     xrender::CpuRenderer renderer;
@@ -179,9 +196,7 @@ UTest cases{"present", [] {
         expect(fatal(host_fonts.add_file(mlibs::text::FontCollection::default_directory() / "Inter.ttf").has_value()));
         Presentation host(std::move(ends.host), &host_fonts);
         Presenter presenter(rt, std::move(ends.application));
-        expect(presenter.send(first));
-        const xrender::DisplayList* got = nullptr;
-        for (int tries = 0; tries < 200 && !got; ++tries) got = host.receive(std::chrono::milliseconds(5));
+        const xrender::DisplayList* got = sent_and_received(presenter, first, host);
         expect(fatal(got != nullptr));
         expect(eq(host_fonts.face_count(), std::size_t{2})) << "the face it lacked, added";
         const auto drawn_with = [](const xrender::DisplayList& list, mlibs::text::FontCollection& faces, xrender::ImageStore& images) {
@@ -199,9 +214,7 @@ UTest cases{"present", [] {
         expect(inked > 50) << "text was drawn";
         // A frame after: the face is not sent again.
         rt.mount("main", column({.padding = 8}, {text({.id = "code", .text = "let answer = 43;", .style = "code"})}));
-        expect(presenter.send(rt.frame({seconds(0.1), {}})));
-        const xrender::DisplayList* again = nullptr;
-        for (int tries = 0; tries < 200 && !again; ++tries) again = host.receive(std::chrono::milliseconds(5));
+        const xrender::DisplayList* again = sent_and_received(presenter, rt.frame({seconds(0.1), {}}), host);
         expect(again != nullptr && host_fonts.face_count() == 2) << "sent once";
     };
 

@@ -20,6 +20,10 @@ kind = "lib"
 
 [build]
 sources = ["src/*.cppm", "src/*.cpp"]
+# Optimised in every profile (the last -O wins), as cellular, xrender.mesh and xrender.particle are: a world
+# stepped at -O0 costs several times as much, which every consumer's tests would pay (emergence3d past
+# 300 s on arm, red 99); without fast-math or contraction the results are the same bits.
+cxxflags = ["-fno-fast-math", "-ffp-contract=off", "-O2"]
 
 [dependencies]
 mlibs.utils = { path = "../../../../base/utils" }

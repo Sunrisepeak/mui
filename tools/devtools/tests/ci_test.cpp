@@ -121,6 +121,14 @@ UTest cases{"devtools.ci", [] {
         expect(ci::known_in(ci::Names{{"xrender"}, {}}, reds).rows.empty()) << "a name stands whole: `xrender` is not `xrender.mesh`";
     };
 
+    "one job's log as the API gives it (no job or step columns) is one row"_test = [] {
+        const auto rows = ci::read_log("2026-11-15T10:52:33.1923284Z nav_test ... FAIL (exit 1, 0.69s, 13 cases)\n"
+                                       "2026-11-15T10:52:33.1929533Z   FAIL nav/a crowd walks  (1 of 15 checks failed)\n"
+                                       "2026-11-15T10:52:34.0000000Z    Workspace member 'modules/projects/xengine/game/nav/cts' (68/83) FAILED — 1 passed, 1 failed, run 0.69s\n");
+        expect(rows.size() == 1u && rows[0].name == "log" && rows[0].members.size() == 1u) << rows.size();
+        if (rows.size() == 1u && rows[0].members.size() == 1u) expect(rows[0].members[0].failures.at(0).cases == std::vector<std::string>{"nav/a crowd walks"});
+    };
+
     "a manifest's package"_test = [] {
         expect(ci::package_of("[package]\nnamespace = \"xengine\"\nname = \"nav\"\n\n[dependencies]\nname = \"x\"\n") == "xengine.nav");
         expect(ci::package_of("[package]\nname   = \"site\"   # the site\n") == "site");

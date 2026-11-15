@@ -22,6 +22,13 @@ kind = "lib"
 sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-O2", "-ffp-contract=off", "-fno-fast-math"]
 
+# Whether the tracer may share rows among threads (`Trace::workers`): the Web build runs none.
+[target.'cfg(not(os = "emscripten"))'.build]
+sources = ["src/targets/threads.cppm"]
+
+[target.'cfg(os = "emscripten")'.build]
+sources = ["src/targets/web.cppm"]
+
 [dependencies]
 xrender.scene = { path = "../scene" }
 mlibs.math    = { path = "../../../base/math" }

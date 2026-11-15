@@ -8,7 +8,7 @@ A CI run read row by row: each failing member, program and case with its first l
 
 ```sh
 omui-devtools ci run 43685505783          # from GitHub (gh run view)
-omui-devtools ci log run.log --jobs jobs.json   # a saved log (gh run view RUN --log-failed)
+omui-devtools ci log run.log --jobs jobs.json   # a saved log (gh run view RUN --log-failed, or one job's from the API while the run goes on)
 omui-devtools ci --json run 43685505783   # the same as JSON
 ```
 

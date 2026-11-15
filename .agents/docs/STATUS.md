@@ -8,13 +8,13 @@ Exit (node N0): one CI run green on every tier-1 row (unverified cells by the pl
 
 | Task | State | Evidence and result |
 |---|---|---|
-| RC0.1 push the five local commits; watch the run | in progress | pushed with the plan at `d71dc68d`; CI run 43704244752 watched in the background |
+| RC0.1 push the five local commits; watch the run | in progress | pushed with the plan at `d71dc68d`; run 43704244752: Web red again on red 96 (the same crowd hash as before the wrap's fix: the divergence is not Detour's trigonometry) |
 | RC0.2 R12, the CI reading tool | done | `tools/devtools` (`omui-devtools ci run ID`): run 43685505783 read as by hand — nav (red 96), `present_test` and WKWebView (55), `tests/bench` (82), and the three new ones (rows 98–100); `devtools.ci` 3 cases |
-| RC0.3 macOS `quay.desktop`: root cause, fix or label | open | red 98 |
-| RC0.4 heavy cases within the limit (`emergence3d` case 6, red 97) | open | red 99, 97 |
-| RC0.5 red 55 by root cause or label; red 96 confirmed on CI | open | — |
+| RC0.3 macOS `quay.desktop`: root cause, fix or label | done | red 98 is the test's: it fixed `offscreen`, where SDL's Metal backend needs the driver's `Metal_CreateView` (SDL 3.4.18 `METAL_PrepareDriver`); it now takes `OMUI_GPU_VIDEO_DRIVER` as every device test does (`cocoa` on macOS CI, `tools/ci/gpu.sh`); CI to confirm |
+| RC0.4 heavy cases within the limit (`emergence3d` case 6, red 97) | done | `emergence3d_test` 113 → 22.7 s (dev, x64): dynamics, particles, field, matter at `-O2` as cellular and the mesh tracer are, the same bits (dynamics and matter CTS pinned values pass); red 97: the tracer shares rows among threads (`Trace::workers`, bit-identical, a new case says so), `mesh_test` 48 cases in 27.8 s; CI to confirm |
+| RC0.5 red 55 by root cause or label; red 96 confirmed on CI | in progress | red 55, two causes: the host's software renderer turned SDL's framebuffer acceleration off under every driver, and cocoa, Wayland, KMS/DRM and Android have no framebuffer but the accelerated one (fixed in `omui.host.sdl3`); `present_test`'s font case wrote 187 KB on the thread that reads it, past macOS's 8 KB socket buffer (`sent_and_received`); CI to confirm |
 | RC0.6 the other tier-1 reds (Windows 48, 65, 82; Pages 33, 56; 54) | open | — |
-| RC0.7 a local LLVM compile-only check | open | — |
+| RC0.7 a local LLVM compile-only check | done | `omui-devtools llvm`: the change's members (files differing from `@{upstream}`, and new ones) and their direct consumers, tests included, compiled with CI's LLVM and `ci` profile, not run; `devtools.members` 4 cases |
 | RC0.8 STATUS slimmed, capability matrix by slices, lint `status` | done | this file; the old one moved whole into the archive; lint `status` |
 | RC0.9 the confirmed decisions into AGENTS | done | AGENTS §7 (D-189–D-202) |
 
@@ -67,17 +67,17 @@ Kind: R regression, E environment, F flaky or time, T test expectation.
 | 48 | Windows: examples/02-hello-ts `generation_e2e_test`, the application's endpoint | Windows; 53efd9e5 | R | passed on run 43685505783; closed when the next run passes too |
 | 50 | Android: `ld.lld` cannot find `-lpthread` | Android | E | worked round: an empty libpthread.a; mcpp-index#750 |
 | 54 | lang.ts `strip_test` "four times the text takes about four times as long" | Linux x64, Windows; 5106891d | F | passed on run 43685505783; RC0.6 |
-| 55 | macOS: `omui.sdk`'s `present_test` killed at 300 s; `omui.host.sdl3`'s WKWebView case: "SDL_CreateRenderer: Window framebuffer support not available" | macOS; 5106891d, again on 43685505783 | E | open: RC0.5 — root cause, or the window cases on this row unverified (§2.5) |
+| 55 | macOS: `omui.sdk`'s `present_test` killed at 300 s; `omui.host.sdl3`'s WKWebView case: "SDL_CreateRenderer: Window framebuffer support not available" | macOS; 5106891d, again on 43685505783 | R | fixed (RC0.5): both causes found and fixed; CI to confirm |
 | 56 | Nightly ASan + UBSan; Pages "the site in a real browser" fails on delivery alone (red 33) | Nightly, Pages; 5106891d | R | open (with 33) |
 | 61 | README media: `promo-video/media/film.webp` is not what the tests draw (813,744 against 813,512 B) | local | T | open: the committed film stays until the change that moved it is known |
 | 65 | Windows: no esbuild for `strip_test` though the workspace declares it | Windows; e1749f83 | E (mcpp#926) | mitigated: the row names the installed esbuild (`OMUI_ESBUILD`) |
 | 67 | Linux x64 and macOS rows cancelled at 150 minutes | e1749f83 | F | mitigated: the limit is 240 minutes |
 | 82 | Windows: a member's package did not build — mcpp rebuilds a dependency module another process has mapped ("user-mapped section"); `tests/bench`, `showcase/quay/picture` | Windows; cc99d708, again on 43685505783 | E (mcpp#936) | upstream; RC0.6 |
 | 87 | `mesh.glass` against the reference's exact way: 18.7% of the ball's pixels further than 6 levels | the measure, 2026-11-15 | T | open: the bound is the measurement, to be lowered by the work |
-| 96 | `xengine.nav`'s pinned crowd (`0x9299f973ab81ffc6`) other bits on Web and Windows | Web, Windows; b229ad7d, again on 43685505783 | R (the wrap's) | fixed in the owner: `mcpplibs.mwrap.recastnavigation` 1.6.0.1 (`a20c7350`); to be confirmed on run 43704244752 |
-| 97 | `xrender.mesh`'s "a ball under a picture of light, drawn and followed along rays" killed at 300 s | Linux x64; b229ad7d | F | open: RC0.4 — the reference pinned as data, its recomputation nightly; passed within 300 s on 43685505783 (262.6 s on arm) |
-| 98 | `quay.desktop` on macOS: "OMUI_REQUIRE_GPU=1 and no device: … No supported SDL_GPU backend found!" while `device_test` draws on the Apple Paravirtual device | macOS; e8660f4c (run 43685505783) | R or E | open: RC0.3 |
-| 99 | `xengine.dynamics.cts`' `emergence3d_test` killed at 300 s after case 5 | Linux arm; e8660f4c (run 43685505783) | F | open: RC0.4 |
+| 96 | `xengine.nav`'s pinned crowd (`0x9299f973ab81ffc6`) other bits on Web and Windows | Web, Windows; b229ad7d, again on 43685505783 | R (the wrap's) | open: 1.6.0.1 (`a20c7350`) did not change the Web row's hash (45330494643434899 on run 43704244752 as before); the wrap's own crowd agrees on every row, so the cause is in what `xengine.nav` builds or hashes — RC0.5 |
+| 97 | `xrender.mesh`'s "a ball under a picture of light, drawn and followed along rays" killed at 300 s | Linux x64; b229ad7d | F | fixed (RC0.4): the tracer's rows on every thread, the same bits; `mesh_test` 27.8 s locally; CI to confirm |
+| 98 | `quay.desktop` on macOS: "OMUI_REQUIRE_GPU=1 and no device: … No supported SDL_GPU backend found!" while `device_test` draws on the Apple Paravirtual device | macOS; e8660f4c (run 43685505783) | T | fixed (RC0.3): the test fixed the `offscreen` driver; CI to confirm |
+| 99 | `xengine.dynamics.cts`' `emergence3d_test` killed at 300 s after case 5 | Linux arm; e8660f4c (run 43685505783) | F | fixed (RC0.4): 113 → 22.7 s locally, the kernels at `-O2`; CI to confirm |
 | 100 | `omui.cli`'s `project_test` logs "designer/mcpp.toml:1:9: expected ']'" four times on the LLVM rows; the member passes | LLVM rows; run 43685505783 | T | open: whether the test writes that manifest on purpose is unconfirmed |
 
 ### Upstream issues

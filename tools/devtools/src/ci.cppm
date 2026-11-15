@@ -30,7 +30,8 @@ struct Row {
     std::string summary;                    // "workspace test: 3/171 member(s) failed; …"
 };
 
-// Rows from `gh run view RUN --log-failed` (job, step, time-stamped line, tab-separated).
+// Rows from `gh run view RUN --log-failed` (job, step, time-stamped line, tab-separated), or one row
+// named "log" from one job's log as the API gives it while the run goes on (time-stamped lines).
 std::vector<Row> read_log(std::string_view log);
 
 // A row of STATUS's CI red list.

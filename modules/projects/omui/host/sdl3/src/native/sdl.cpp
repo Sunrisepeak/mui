@@ -242,8 +242,17 @@ std::expected<WindowPtr, std::string> open(const WindowOptions& o) {
     if (!w->window) return std::unexpected(std::format("SDL_CreateWindow: {}", SDL_GetError()));
     // A software renderer draws into the window's framebuffer, which SDL by
     // default backs with an accelerated renderer — loading the GPU drivers
-    // (EGL, GL, Vulkan) for a window that asked for none. Kept in memory.
-    if (software) SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "0");
+    // (EGL, GL, Vulkan) for a window that asked for none. Kept in memory where
+    // the video driver has a framebuffer of its own; cocoa, Wayland, KMS/DRM
+    // and Android have none, and there the accelerated one is the only one
+    // (red 55: "Window framebuffer support not available" under cocoa).
+    if (software) {
+        const std::string_view driver = SDL_GetCurrentVideoDriver() ? SDL_GetCurrentVideoDriver() : "";
+        constexpr std::array own_framebuffer{std::string_view("offscreen"), std::string_view("x11"), std::string_view("windows"),
+                                             std::string_view("dummy"), std::string_view("emscripten")};
+        if (std::ranges::contains(own_framebuffer, driver)) SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "0");
+        else SDL_ResetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION);
+    }
     if (o.gpu) return w;  // the GPU device claims it and presents
     w->renderer = SDL_CreateRenderer(w->window, o.render_driver.empty() ? nullptr : o.render_driver.c_str());
     if (!w->renderer) return std::unexpected(std::format("SDL_CreateRenderer: {}", SDL_GetError()));

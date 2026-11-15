@@ -631,6 +631,9 @@ struct Trace {
     std::uint32_t samples = 16;
     std::uint32_t bounces = 2;   // how many times a ray is followed on from a surface
     std::uint64_t seed = 1;
+    // Threads the rows are shared among (0: as many as the machine runs at once). The light is the same bits
+    // whatever the count; a target without threads (the Web build) goes through them on this one.
+    unsigned      workers = 1;
 };
 struct Traced {
     std::uint64_t rays = 0;      // every ray sent: from the eye, on from a surface, toward a light

@@ -1951,6 +1951,21 @@ static UTest cases{"xrender.mesh", [] {
         expect(gt(pixels, 20) && near(along_rays, 1.0, 0.03)) << along_rays;
     };
 
+    "the tracer's rows shared among threads: the same light, bit for bit, and the same rays counted as on one thread"_test = [] {
+        scene::Scene world;
+        put(world, 1, ball, gold, math::translation({0, 0, 0}));
+        const Camera camera{.eye = {0, 0, 4}};
+        const mesh::Options under_sky{.background = {0.3f, 0.5f, 0.9f}};
+        mesh::Targets alone, shared;
+        alone.resize(48, 40), shared.resize(48, 40);
+        const mesh::Traced one = mesh::traced(world, camera.view(), library().assets(true), alone, under_sky, {.samples = 8, .bounces = 2});
+        const mesh::Traced many = mesh::traced(world, camera.view(), library().assets(true), shared, under_sky, {.samples = 8, .bounces = 2, .workers = 5});
+        expect(alone.light.size() == shared.light.size() &&
+               std::memcmp(alone.light.data(), shared.light.data(), alone.light.size() * sizeof(alone.light[0])) == 0 && alone.colour == shared.colour)
+            << "the light differs between one thread and five";
+        expect(one.rays > 0 && one.rays == many.rays && one.into_open == many.into_open) << one.rays << " rays against " << many.rays;
+    };
+
     "a ball under a picture of light, drawn and followed along rays: the pass's one lookup a surface is held to the light gathered way by way — matt, polished, satin, gold — and the error is said"_test = [] {
         constexpr int width = 96, height = 96;
         // A sky brighter overhead, a warm ground, and a lamp eight degrees wide up to the right.
@@ -2045,8 +2060,9 @@ static UTest cases{"xrender.mesh", [] {
             }
             mesh::Targets followed, other;
             followed.resize(width, height), other.resize(width, height);
-            (void)mesh::traced(world, camera.view(), assets, followed, lit_by, {.samples = 1024, .bounces = 1});
-            (void)mesh::traced(world, camera.view(), assets, other, lit_by, {.samples = 1024, .bounces = 1, .seed = 7});
+            // On every thread the machine has (the same light as on one; red 97: past 300 s on one).
+            (void)mesh::traced(world, camera.view(), assets, followed, lit_by, {.samples = 1024, .bounces = 1, .workers = 0});
+            (void)mesh::traced(world, camera.view(), assets, other, lit_by, {.samples = 1024, .bounces = 1, .seed = 7, .workers = 0});
             // Where the ball is, a pixel in from its rim.
             // Two followings with other rays: the product of the drawn light's distances from the two has the
             // rays' grain in neither, so its mean is the square of how far the drawn light is from the truth.

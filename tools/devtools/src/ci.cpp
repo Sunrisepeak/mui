@@ -183,17 +183,19 @@ std::vector<Row> read_log(std::string_view log) {
         const auto end = log.find('\n');
         const std::string_view raw = log.substr(0, end);
         log = end == std::string_view::npos ? std::string_view{} : log.substr(end + 1);
-        const auto first = raw.find('\t');
-        if (first == std::string_view::npos) continue;
-        const auto second = raw.find('\t', first + 1);
-        if (second == std::string_view::npos) continue;
-        const std::string_view job = raw.substr(0, first);
+        // `gh run view --log-failed`: job, step, line; one job's log from the API (a run still going): the line.
+        std::string_view job = "log", text = raw;
+        if (const auto first = raw.find('\t'); first != std::string_view::npos) {
+            const auto second = raw.find('\t', first + 1);
+            if (second == std::string_view::npos) continue;
+            job = raw.substr(0, first), text = raw.substr(second + 1);
+        }
         auto found = index.find(job);
         if (found == index.end()) {
             found = index.emplace(std::string(job), rows.size()).first;
             rows.push_back(Reading{Row{std::string(job)}});
         }
-        rows[found->second].line(without_escapes(without_stamp(raw.substr(second + 1))));
+        rows[found->second].line(without_escapes(without_stamp(text)));
     }
     std::vector<Row> read;
     for (auto& reading : rows) read.push_back(std::move(reading.row));

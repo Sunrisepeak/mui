@@ -184,6 +184,17 @@ bool torch(State& state, Vec3 at, float seconds, float kelvin) {
     return true;
 }
 
+void let_go(State& state) {
+    if (state.torches.empty()) return;
+    state.torches.clear();
+    state.done.push_back(std::format("{:.2f} s: the torch taken away", static_cast<double>(state.steps) / steps_per_second));
+}
+
+std::optional<std::string_view> nearest_to(const State& state, Vec3 at, float reach) {
+    const auto found = nearest(state, at, reach);
+    return found ? name_of(state, *found) : std::nullopt;
+}
+
 void pour(State& state, Vec3 at, int drops) {
     // A bucket's water let go above the place: layers of nine drops, 2 cm apart, falling.
     std::vector<particles::Spawn> spawns;
@@ -265,10 +276,15 @@ std::optional<Seen> seen(const State& state, std::string_view name) {
 std::vector<matter::Explained> chain(const State& state, std::string_view name) {
     const auto made = body(state, name);
     if (!made) return {};
-    // Burning: why it is burning (not what was last done to it); else why it is what it is.
+    // Burning: why it is burning (not what was last done to it). Become something else (ice to water): why it
+    // became it — the first link its becoming (no channel is `becoming_only`, so only a change of material
+    // answers). Else its latest cause.
     const auto burning = state.program->channel("burning");
     const bool alight = burning && state.objects->get(*made, *burning).value_or(0) > 0;
-    return rigid3::Scene::explain(rigid3::who(*made), *state.objects, *state.cloud, 32, alight ? burning : std::nullopt);
+    const auto record = state.objects->causes().of(rigid3::who(*made));
+    const bool became = std::ranges::any_of(record, [](const matter::Cause& cause) { return cause.kind == matter::CauseKind::became; });
+    constexpr std::uint32_t becoming_only = std::numeric_limits<std::uint32_t>::max();
+    return rigid3::Scene::explain(rigid3::who(*made), *state.objects, *state.cloud, 32, alight ? burning : became ? std::optional(becoming_only) : std::nullopt);
 }
 
 std::string explain(const State& state, std::string_view name) {
@@ -304,7 +320,10 @@ std::vector<Task> tasks() {
                        const auto crate = seen(state, "crate");
                        return crate && (crate->burning || crate->material == "ash");
                    },
-                   .may_act_at = [](Vec3 at) { return at.x < -0.2f; }});
+                   .may_act_at = [](Vec3 at) { return at.x < -0.2f; },
+                   .where = "the near bank: x below -0.2 m",
+                   .about = {"crate"},
+                   .x_below = -0.2f});
     out.push_back({.name = "campfire",
                    .goal = "light the campfire after the rain",
                    .verbs = {Verb::torch, Verb::rain, Verb::drop, Verb::push},
@@ -313,7 +332,9 @@ std::vector<Task> tasks() {
                            if (const auto one = seen(state, std::format("log {}", log)); one && one->burning) return true;
                        return false;
                    },
-                   .may_act_at = [](Vec3) { return true; }});
+                   .may_act_at = [](Vec3) { return true; },
+                   .where = "anywhere",
+                   .about = {"log 1", "log 2", "log 3"}});
     out.push_back({.name = "ice",
                    .goal = "melt the block of ice",
                    .verbs = {Verb::torch, Verb::push, Verb::drop},
@@ -321,7 +342,10 @@ std::vector<Task> tasks() {
                        const auto ice = seen(state, "ice");
                        return ice && ice->material != "ice";
                    },
-                   .may_act_at = [](Vec3 at) { return at.x < -0.2f; }});
+                   .may_act_at = [](Vec3 at) { return at.x < -0.2f; },
+                   .where = "the near bank: x below -0.2 m",
+                   .about = {"ice"},
+                   .x_below = -0.2f});
     out.push_back({.name = "storm",
                    .goal = "light the campfire with no torch, in a storm",
                    .verbs = {Verb::drop, Verb::strike},
@@ -330,7 +354,9 @@ std::vector<Task> tasks() {
                            if (const auto one = seen(state, std::format("log {}", log)); one && one->burning) return true;
                        return false;
                    },
-                   .may_act_at = [](Vec3) { return true; }});
+                   .may_act_at = [](Vec3) { return true; },
+                   .where = "anywhere",
+                   .about = {"log 1", "log 2", "log 3"}});
     return out;
 }
 

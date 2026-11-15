@@ -20,7 +20,7 @@ kind = "lib"
 
 [build]
 sources  = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm"]
-cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math", "-O2"]  # stepped many times a test, as the kernels it steps are
 
 [dependencies]
 xengine.dynamics  = { path = "../../../modules/projects/xengine/kernel/dynamics", features = ["rigid3-scene"] }

@@ -1,0 +1,31 @@
+# Glade as a game on its own (D-162; M6.5 T5.8b): the valley as xengine.runtime plays it — stepped without omui,
+# sought back and branched ahead — poked by a hand a person or an agent holds over it, and asked why.
+[package]
+namespace   = "omui.showcase.glade"
+name        = "headless"
+version     = "0.1.0"
+description = "Glade on its own: the valley as a game the runtime steps, rewinds and branches, poked by a hand an agent holds as a person does"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "experimental"  # release plan §2.1: stable, preview or experimental (lint maturity)
+
+[targets.glade-headless]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math", "-O2"]
+
+[dependencies]
+omui.showcase.glade.sim = { path = "../sim" }
+xengine.runtime = { path = "../../../modules/projects/xengine/game/runtime" }
+xengine.input   = { path = "../../../modules/projects/xengine/game/input" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+mlibs.agent    = { path = "../../../modules/base/agent" }
+mlibs.json     = { path = "../../../modules/base/json" }
+openlifa.openas = "0.2.0"

@@ -110,6 +110,8 @@ void run(State& state, int steps);
 // ── verbs: each a quantity applied from outside, kept as a cause ──
 // A torch held at a place for a time: the carried thing nearest it (within 0.6 m) is held at `kelvin`.
 bool torch(State& state, Vec3 at, float seconds, float kelvin = 900);
+// Every torch held let go now (a hand that held one opened).
+void let_go(State& state);
 // Water poured at a place: `drops` drops of it (2 cm, a unit each) let fall from 0.5 m above, over a second.
 void pour(State& state, Vec3 at, int drops);
 // A thing put down (loose, or fixed as it says).
@@ -125,6 +127,8 @@ std::optional<std::string> strike(State& state);
 // ── what is seen and said ──
 [[nodiscard]] std::optional<rigid3::BodyId> body(const State& state, std::string_view name);
 [[nodiscard]] std::optional<std::string_view> name_of(const State& state, rigid3::BodyId body);
+// The carried thing nearest a place (by its box) within `reach`, and its name.
+[[nodiscard]] std::optional<std::string_view> nearest_to(const State& state, Vec3 at, float reach);
 [[nodiscard]] std::vector<Seen> observe(const State& state);
 [[nodiscard]] std::optional<Seen> seen(const State& state, std::string_view name);
 // Why a thing is what it is, back to where it began, said in words (a link a line: who, when, by which law, from
@@ -140,6 +144,9 @@ struct Task {
     std::vector<Verb>                         verbs;       // the verbs it may be solved with
     std::function<bool(const State&)>         done;
     std::function<bool(Vec3)>                 may_act_at;  // where verbs may be done (the near bank only, …)
+    std::string                               where;       // the same, said
+    std::vector<std::string>                  about;       // the things the goal is about
+    std::optional<float>                      x_below;     // the same, as a bound: verbs only where x is below it
 };
 [[nodiscard]] std::vector<Task> tasks();
 

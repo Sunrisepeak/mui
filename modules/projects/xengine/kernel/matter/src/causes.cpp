@@ -7,6 +7,16 @@ namespace xengine::matter {
 
 void Causes::keep(Who who, Cause cause) {
     std::vector<Cause>& causes = by_[who];
+    // A hold from outside (a torch kept on a thing sets it every step) is one cause while it lasts: kept as its
+    // first step and its latest, so that it does not push what it made (the ice that melted) out of the record.
+    const auto holds = [&](const Cause& older) {
+        return older.kind == CauseKind::applied && cause.kind == CauseKind::applied && older.channel == cause.channel && cause.step <= older.step + 1;
+    };
+    if (causes.size() >= 2 && holds(causes.back()) && causes[causes.size() - 2].kind == CauseKind::applied &&
+        causes[causes.size() - 2].channel == cause.channel) {
+        causes.back() = cause;
+        return;
+    }
     if (causes.size() == kept) causes.erase(causes.begin());
     causes.push_back(cause);
 }

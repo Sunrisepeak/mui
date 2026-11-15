@@ -3,6 +3,7 @@
 // its progress, options over the defaults, the errors a recipe reports, and
 // two presences at once.
 import std;
+import mlibs.error;
 import hanim.core;
 import mcpplibs.mtest;
 
@@ -60,7 +61,7 @@ UTest cases{"hanim.presence", [] {
         expect(presence("fade_in", {.ease = Ease{static_cast<EaseKind>(255)}}).error() == PresenceError::invalid_ease);
         expect(presence("rise_in", {.distance = std::numeric_limits<double>::infinity()}).error() == PresenceError::invalid_value);
         expect(presence("drop_in", {.height = 0}).error() == PresenceError::invalid_value);
-        expect(!describe(PresenceError::invalid_value).empty());
+        expect(describe(PresenceError::invalid_value).name == "hanim.presence.invalid-value" && describe(PresenceError::unknown_presence).kind == mlibs::error::Kind::not_found);
     };
 
     "two at once: a rise that also settles"_test = [] {

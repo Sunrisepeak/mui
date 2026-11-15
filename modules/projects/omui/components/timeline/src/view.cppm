@@ -40,7 +40,7 @@ public:
 
 private:
     void read();
-    ActResult edit(std::expected<hanim::timeline::Change, std::string> change);
+    ActResult edit(std::expected<hanim::timeline::Change, hanim::timeline::EditFailure> change);
     void changed();
     [[nodiscard]] float x_of(mlibs::time::Flicks t) const noexcept;
     [[nodiscard]] mlibs::time::Flicks time_at(float x) const noexcept;

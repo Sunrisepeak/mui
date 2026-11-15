@@ -53,7 +53,7 @@ hanim render toast.animation.omui.json --out toast --frames 16 --webp 30   # fra
 ```
 
 - Steps compose: `sequence`, `parallel`, `stagger`, `loop`, `wait`.
-- Forty recipes are ready: entrances (`fade_in`, `rise_in`, `pop_in` …), exits, emphasis (`pulse`, `shake`, `tada` …), idling (`bob`, `breathe` …), travel (`arc_to`, `swap`, `reorder`).
+- Forty recipes are ready: entrances (`fade_in`, `rise_in`, `pop_in` …), exits, emphasis (`pulse`, `shake`, `tada` …), idling (`bob`, `breathe` …), travel (`arc_to`, `swap`, `reorder`); [each recipe through its course](../../../modules/projects/hanim/RECIPES.md).
 - [Twenty documents to take away](../../../modules/projects/hanim/studio/examples/README.md): a loader, a toast, a success check, a like, a card shuffle, a page transition, confetti …
 
 ## In C++

@@ -9,16 +9,21 @@ namespace {
 
 // Whether `c` fits at `index` on `track` between its neighbours (`skip`: the
 // clip it replaces, not a neighbour).
-std::optional<std::string> fits(const Track& track, std::size_t index, const Clip& c, bool replacing) {
-    if (c.length <= 0) return std::format("clip `{}` has no length", c.name);
-    if (c.at < 0) return std::format("clip `{}` starts before the timeline", c.name);
-    if (c.speed == 0) return std::format("clip `{}` has a speed of 0", c.name);
+std::optional<EditFailure> fits(const Track& track, std::size_t index, const Clip& c, bool replacing) {
+    if (c.length <= 0) return EditFailure{EditError::no_length, std::format("clip `{}` has no length", c.name)};
+    if (c.at < 0) return EditFailure{EditError::before_start, std::format("clip `{}` starts before the timeline", c.name)};
+    if (c.speed == 0) return EditFailure{EditError::no_speed, std::format("clip `{}` has a speed of 0", c.name)};
     if (index > 0 && track.clips[index - 1].end() > c.at)
-        return std::format("clip `{}` would overlap `{}`", c.name, track.clips[index - 1].name);
+        return EditFailure{EditError::overlap, std::format("clip `{}` would overlap `{}`", c.name, track.clips[index - 1].name)};
     const std::size_t next = replacing ? index + 1 : index;
     if (next < track.clips.size() && c.end() > track.clips[next].at)
-        return std::format("clip `{}` would overlap `{}`", c.name, track.clips[next].name);
+        return EditFailure{EditError::overlap, std::format("clip `{}` would overlap `{}`", c.name, track.clips[next].name)};
     return std::nullopt;
+}
+
+EditFailure no_track(std::size_t track) { return {EditError::no_track, std::format("there is no track {}", track)}; }
+EditFailure no_clip(const Track& track, std::size_t index) {
+    return {EditError::no_clip, std::format("track `{}` has no clip {}", track.name, index)};
 }
 
 // The step that undoes `s`, given what `s` replaced or removed.
@@ -32,32 +37,32 @@ Step inverse(const Step& s, Clip before) {
 }
 
 // One step, or why not (the timeline untouched); fills `undo` with its inverse.
-std::optional<std::string> step(Timeline& t, const Step& s, Step& undo) {
-    if (s.track >= t.tracks.size()) return std::format("there is no track {}", s.track);
+std::optional<EditFailure> step(Timeline& t, const Step& s, Step& undo) {
+    if (s.track >= t.tracks.size()) return no_track(s.track);
     Track& track = t.tracks[s.track];
     switch (s.kind) {
         case Step::Kind::insert:
-            if (s.index > track.clips.size()) return std::format("track `{}` has no place {}", track.name, s.index);
+            if (s.index > track.clips.size()) return EditFailure{EditError::no_place, std::format("track `{}` has no place {}", track.name, s.index)};
             if (auto why = fits(track, s.index, s.clip, false)) return why;
             track.clips.insert(track.clips.begin() + static_cast<std::ptrdiff_t>(s.index), s.clip);
             undo = inverse(s, {});
             return std::nullopt;
         case Step::Kind::remove: {
-            if (s.index >= track.clips.size()) return std::format("track `{}` has no clip {}", track.name, s.index);
+            if (s.index >= track.clips.size()) return no_clip(track, s.index);
             Clip before = std::move(track.clips[s.index]);
             track.clips.erase(track.clips.begin() + static_cast<std::ptrdiff_t>(s.index));
             undo = inverse(s, std::move(before));
             return std::nullopt;
         }
         case Step::Kind::replace: {
-            if (s.index >= track.clips.size()) return std::format("track `{}` has no clip {}", track.name, s.index);
+            if (s.index >= track.clips.size()) return no_clip(track, s.index);
             if (auto why = fits(track, s.index, s.clip, true)) return why;
             Clip before = std::exchange(track.clips[s.index], s.clip);
             undo = inverse(s, std::move(before));
             return std::nullopt;
         }
     }
-    return std::string("an unknown step");
+    return EditFailure{EditError::unknown_step, {}};
 }
 
 // Where a clip starting at `at` goes on a track (after every clip starting before it).
@@ -65,9 +70,9 @@ std::size_t place(const Track& track, Flicks at) {
     return static_cast<std::size_t>(std::ranges::upper_bound(track.clips, at, {}, &Clip::at) - track.clips.begin());
 }
 
-std::expected<const Clip*, std::string> clip_of(const Timeline& t, std::size_t track, std::size_t index) {
-    if (track >= t.tracks.size()) return std::unexpected(std::format("there is no track {}", track));
-    if (index >= t.tracks[track].clips.size()) return std::unexpected(std::format("track `{}` has no clip {}", t.tracks[track].name, index));
+std::expected<const Clip*, EditFailure> clip_of(const Timeline& t, std::size_t track, std::size_t index) {
+    if (track >= t.tracks.size()) return std::unexpected(no_track(track));
+    if (index >= t.tracks[track].clips.size()) return std::unexpected(no_clip(t.tracks[track], index));
     return &t.tracks[track].clips[index];
 }
 
@@ -92,7 +97,7 @@ std::string when(Flicks t) { return std::format("{}s", to_seconds(t)); }
 
 }  // namespace
 
-std::expected<Change, std::string> apply(Timeline& timeline, const Change& change) {
+std::expected<Change, EditFailure> apply(Timeline& timeline, const Change& change) {
     Change undo{change.what, {}};
     undo.steps.reserve(change.steps.size());
     for (const Step& s : change.steps) {
@@ -103,7 +108,8 @@ std::expected<Change, std::string> apply(Timeline& timeline, const Change& chang
                 Step ignored;
                 (void)step(timeline, *it, ignored);
             }
-            return std::unexpected(std::format("{}: {}", change.what.empty() ? "the change" : change.what, *why));
+            why->where = change.what.empty() ? "the change" : change.what;
+            return std::unexpected(std::move(*why));
         }
         undo.steps.push_back(std::move(back));
     }
@@ -111,20 +117,20 @@ std::expected<Change, std::string> apply(Timeline& timeline, const Change& chang
     return undo;
 }
 
-std::expected<Change, std::string> insert(const Timeline& timeline, std::size_t track, Clip clip) {
-    if (track >= timeline.tracks.size()) return std::unexpected(std::format("there is no track {}", track));
+std::expected<Change, EditFailure> insert(const Timeline& timeline, std::size_t track, Clip clip) {
+    if (track >= timeline.tracks.size()) return std::unexpected(no_track(track));
     const std::size_t at = place(timeline.tracks[track], clip.at);
     std::string what = std::format("insert `{}` at {}", clip.name, when(clip.at));
     return Change{std::move(what), {{Step::Kind::insert, track, at, std::move(clip)}}};
 }
 
-std::expected<Change, std::string> remove(const Timeline& timeline, std::size_t track, std::size_t index) {
+std::expected<Change, EditFailure> remove(const Timeline& timeline, std::size_t track, std::size_t index) {
     auto c = clip_of(timeline, track, index);
     if (!c) return std::unexpected(c.error());
     return Change{std::format("remove `{}`", (*c)->name), {{Step::Kind::remove, track, index, {}}}};
 }
 
-std::expected<Change, std::string> ripple_remove(const Timeline& timeline, std::size_t track, std::size_t index) {
+std::expected<Change, EditFailure> ripple_remove(const Timeline& timeline, std::size_t track, std::size_t index) {
     auto c = clip_of(timeline, track, index);
     if (!c) return std::unexpected(c.error());
     Change change{std::format("ripple remove `{}`", (*c)->name), {{Step::Kind::remove, track, index, {}}}};
@@ -139,12 +145,12 @@ std::expected<Change, std::string> ripple_remove(const Timeline& timeline, std::
     return change;
 }
 
-std::expected<Change, std::string> move(const Timeline& timeline, std::size_t track, std::size_t index, std::size_t to_track, Flicks at) {
+std::expected<Change, EditFailure> move(const Timeline& timeline, std::size_t track, std::size_t index, std::size_t to_track, Flicks at) {
     auto c = clip_of(timeline, track, index);
     if (!c) return std::unexpected(c.error());
-    if (to_track >= timeline.tracks.size()) return std::unexpected(std::format("there is no track {}", to_track));
+    if (to_track >= timeline.tracks.size()) return std::unexpected(no_track(to_track));
     if (timeline.tracks[to_track].kind != timeline.tracks[track].kind)
-        return std::unexpected(std::format("track `{}` carries another kind than `{}`", timeline.tracks[to_track].name, timeline.tracks[track].name));
+        return std::unexpected(EditFailure{EditError::other_kind, std::format("track `{}` carries another kind than `{}`", timeline.tracks[to_track].name, timeline.tracks[track].name)});
     Clip moved = **c;
     moved.at = at;
     // Where it lands, counted as the destination is once the clip has left its place.
@@ -153,7 +159,7 @@ std::expected<Change, std::string> move(const Timeline& timeline, std::size_t tr
     return Change{std::format("move `{}` to {}", moved.name, when(at)), {{Step::Kind::remove, track, index, {}}, {Step::Kind::insert, to_track, to, std::move(moved)}}};
 }
 
-std::expected<Change, std::string> trim(const Timeline& timeline, std::size_t track, std::size_t index, Flicks at, Flicks length) {
+std::expected<Change, EditFailure> trim(const Timeline& timeline, std::size_t track, std::size_t index, Flicks at, Flicks length) {
     auto c = clip_of(timeline, track, index);
     if (!c) return std::unexpected(c.error());
     Clip t = **c;
@@ -165,11 +171,11 @@ std::expected<Change, std::string> trim(const Timeline& timeline, std::size_t tr
     return Change{std::format("trim `{}` to {}–{}", t.name, when(at), when(at + length)), {{Step::Kind::replace, track, index, std::move(t)}}};
 }
 
-std::expected<Change, std::string> split(const Timeline& timeline, std::size_t track, std::size_t index, Flicks at) {
+std::expected<Change, EditFailure> split(const Timeline& timeline, std::size_t track, std::size_t index, Flicks at) {
     auto c = clip_of(timeline, track, index);
     if (!c) return std::unexpected(c.error());
     const Clip& whole = **c;
-    if (at <= whole.at || at >= whole.end()) return std::unexpected(std::format("{} is not inside `{}`", when(at), whole.name));
+    if (at <= whole.at || at >= whole.end()) return std::unexpected(EditFailure{EditError::outside, std::format("{} is not inside `{}`", when(at), whole.name)});
     Clip first = whole, second = whole;
     first.length = at - whole.at;
     first.fade.out = 0;

@@ -65,8 +65,8 @@ enum class StepKind : std::uint8_t {
     move_to, move_by, rotate_to, rotate_by, scale_to, scale_by, fill_to, fade_to,
     morph, drop, pulse, shake, wobble,
     // hanim's recipe library (anim::): entrances, exits, cues, idle loops, moves
-    fade_in, rise_in, sink_in, slide_in, pop_in, zoom_in, spin_in, unfold_in, write_in, drop_in,
-    fade_out, rise_out, sink_out, slide_out, pop_out, zoom_out, spin_out, fold_out, unwrite,
+    fade_in, rise_in, sink_in, slide_in, settle_in, pop_in, zoom_in, spin_in, unfold_in, write_in, drop_in,
+    fade_out, rise_out, sink_out, slide_out, settle_out, pop_out, zoom_out, spin_out, fold_out, unwrite,
     bounce, flash, heartbeat, rubber_band, swing, tada, nudge,
     bob, breathe, spin, sway, orbit, blink,
     arc_to, swap, reorder

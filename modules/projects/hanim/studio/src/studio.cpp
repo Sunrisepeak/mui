@@ -195,11 +195,8 @@ void first_steps(const StepSpec& step, std::map<std::string, StepKind>& out) {
     for (const auto& item : step.items) first_steps(item, out);
 }
 bool entrance(StepKind kind) {
-    switch (kind) {
-    case StepKind::fade_in: case StepKind::rise_in: case StepKind::sink_in: case StepKind::slide_in: case StepKind::pop_in:
-    case StepKind::zoom_in: case StepKind::spin_in: case StepKind::unfold_in: case StepKind::write_in: case StepKind::drop_in: return true;
-    default: return false;
-    }
+    const anim::RecipeInfo* recipe = anim::find_recipe(step_name(kind));
+    return recipe && recipe->kind == anim::RecipeKind::entrance;
 }
 
 }  // namespace

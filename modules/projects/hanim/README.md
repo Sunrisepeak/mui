@@ -541,7 +541,7 @@ this Node-only test profile is separate from the site's publishing profile.
 
 | Capability | Label | Packages |
 |---|---|---|
-| Values, curves, channels, programs, the engine, the visual representation, the timeline, the 40 recipes | stable | `hanim.core`, `hanim`, `hanim.visual`, `hanim.timeline` |
+| Values, curves, channels, programs, the engine, the visual representation, the timeline, the 40 recipes ([each through its course](RECIPES.md)) | stable | `hanim.core`, `hanim`, `hanim.visual`, `hanim.timeline` |
 | Springs and soft bodies through `xengine.dynamics`' core | stable, on a preview package (`lower`) | `hanim` |
 | Skeletons (the parts Quay uses: rig, clips, skinning driven) | preview | `hanim.skeleton` |
 | GPU batch evaluation, the studio | preview | `hanim.rhi`, `hanim.studio` |

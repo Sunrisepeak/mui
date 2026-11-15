@@ -14,6 +14,7 @@
 export module hanim.core:presence;
 
 import std;
+import mlibs.error;
 import :time;
 import :ease;
 import :value;
@@ -76,7 +77,8 @@ struct PresenceOptions {
 };
 
 enum class PresenceError : std::uint8_t { unknown_presence, invalid_value, invalid_time, invalid_ease };
-[[nodiscard]] std::string_view describe(PresenceError error) noexcept;
+// The codes as the error contract describes them (mlibs.error).
+[[nodiscard]] mlibs::error::Description describe(PresenceError error) noexcept;
 
 // A course by its name, with `options` over its defaults.
 [[nodiscard]] std::expected<Presence, PresenceError> presence(std::string_view name, const PresenceOptions& options = {});

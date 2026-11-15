@@ -1,0 +1,569 @@
+== hanim.core
+export import :math;
+export import :time;
+export import :ease;
+export import :value;
+export import :motion;
+export import :path;
+export import :shape;
+export import :timeline;
+export import :set;
+export import :choreography;
+export import :presence;
+namespace hanim {
+  inline constexpr int version_major = 0;
+  inline constexpr int version_minor = 1;
+  inline constexpr int version_patch = 0;
+}
+== hanim.core:choreography
+namespace hanim {
+  enum class StaggerOrder : std::uint8_t { forward, reverse, center, edges, random };
+  [[nodiscard]] inline std::vector<std::size_t> stagger_slots(std::span<const std::uint64_t> keys, StaggerOrder order, std::uint64_t seed);
+  template <class Course> [[nodiscard]] double repeated(double elapsed, double cycle, std::uint32_t repeat, bool alternate, Course&& course);
+}
+== hanim.core:ease
+namespace hanim {
+  enum class EaseKind : std::uint8_t { linear, in_quad, out_quad, in_out_quad, in_cubic, out_cubic, in_out_cubic, in_quart, out_quart, in_out_quart, in_quint, out_quint, in_out_quint, in_sine, out_sine, in_out_sine, in_expo, out_expo, in_out_expo, in_circ, out_circ, in_out_circ, in_back, out_back, in_out_back, in_elastic, out_elastic, in_out_elastic, in_bounce, out_bounce, in_out_bounce, cubic_bezier, steps, spring, fall, smoothstep, };
+  enum class StepPosition : std::uint8_t { jump_start, jump_end, jump_none, jump_both };
+  struct Ease {
+    EaseKind kind = EaseKind::linear;
+    std::array<double, 4> p{…};
+    [[nodiscard]] static constexpr Ease bezier(double x1, double y1, double x2, double y2) noexcept;
+    [[nodiscard]] static constexpr Ease stepped(int count, StepPosition at = StepPosition::jump_end) noexcept;
+    [[nodiscard]] static Ease spring(double stiffness, double damping, double mass = 1.0) noexcept;
+    [[nodiscard]] double settle() const noexcept;
+    [[nodiscard]] static Ease fall(double restitution = 0.5, int bounces = 3, double contact = 0.1) noexcept;
+    [[nodiscard]] double falls() const noexcept;
+    [[nodiscard]] double contact(double t) const noexcept;
+    [[nodiscard]] double operator()(double t) const noexcept;
+    [[nodiscard]] bool valid() const noexcept;
+    [[nodiscard]] double slope(double t) const noexcept;
+    friend constexpr bool operator==(const Ease& a, const Ease& b) noexcept;
+  };
+  namespace ease {
+    inline constexpr Ease linear{…};
+    inline constexpr Ease in_quad{…};
+    inline constexpr Ease out_quad{…};
+    inline constexpr Ease in_out_quad{…};
+    inline constexpr Ease in_cubic{…};
+    inline constexpr Ease out_cubic{…};
+    inline constexpr Ease in_out_cubic{…};
+    inline constexpr Ease in_quart{…};
+    inline constexpr Ease out_quart{…};
+    inline constexpr Ease in_out_quart{…};
+    inline constexpr Ease in_quint{…};
+    inline constexpr Ease out_quint{…};
+    inline constexpr Ease in_out_quint{…};
+    inline constexpr Ease in_sine{…};
+    inline constexpr Ease out_sine{…};
+    inline constexpr Ease in_out_sine{…};
+    inline constexpr Ease in_expo{…};
+    inline constexpr Ease out_expo{…};
+    inline constexpr Ease in_out_expo{…};
+    inline constexpr Ease in_circ{…};
+    inline constexpr Ease out_circ{…};
+    inline constexpr Ease in_out_circ{…};
+    inline constexpr Ease in_back{…};
+    inline constexpr Ease out_back{…};
+    inline constexpr Ease in_out_back{…};
+    inline constexpr Ease in_elastic{…};
+    inline constexpr Ease out_elastic{…};
+    inline constexpr Ease in_out_elastic{…};
+    inline constexpr Ease in_bounce{…};
+    inline constexpr Ease out_bounce{…};
+    inline constexpr Ease in_out_bounce{…};
+    inline constexpr Ease smoothstep{…};
+    inline constexpr Ease css_ease = Ease::bezier(0.25, 0.1, 0.25, 1.0);
+    inline constexpr Ease css_ease_in = Ease::bezier(0.42, 0.0, 1.0, 1.0);
+    inline constexpr Ease css_ease_out = Ease::bezier(0.0, 0.0, 0.58, 1.0);
+    inline constexpr Ease css_ease_in_out = Ease::bezier(0.42, 0.0, 0.58, 1.0);
+    inline constexpr Ease standard = Ease::bezier(0.2, 0.0, 0.0, 1.0);
+    inline constexpr Ease emphasized = Ease::bezier(0.3, 0.0, 0.0, 1.0);
+  }
+  [[nodiscard]] std::string to_string(const Ease& e);
+  [[nodiscard]] std::optional<Ease> parse_ease(std::string_view text);
+  [[nodiscard]] double window(double time, double from, double to, const Ease& ease = Ease{…}) noexcept;
+}
+== hanim.core:math
+export import mlibs.math;
+namespace hanim {
+  namespace dm = ::mlibs::math::det;
+}
+== hanim.core:motion
+namespace hanim {
+  template <Animatable T> struct Tween {
+    T from{…};
+    T to{…};
+    seconds duration{…};
+    Ease ease = ease::out_cubic;
+    seconds delay{…};
+    [[nodiscard]] seconds total() const noexcept;
+    [[nodiscard]] T value(seconds t) const;
+    [[nodiscard]] lanes_of<T> velocity(seconds t) const;
+  };
+  template <Animatable T> struct Key {
+    seconds time{…};
+    T value{…};
+    Ease ease = ease::linear;
+    bool hold = false;
+  };
+  template <Animatable T> class Track {
+    Track& key(seconds t, T value, Ease to_next = ease::linear);
+    Track& hold(seconds t, T value);
+    [[nodiscard]] bool empty() const noexcept;
+    [[nodiscard]] std::span<const Key<T>> keys() const noexcept;
+    [[nodiscard]] seconds start() const noexcept;
+    [[nodiscard]] seconds end() const noexcept;
+    [[nodiscard]] T value(seconds t) const;
+  };
+  struct SpringParams {
+    double stiffness = 170.0;
+    double damping = 26.0;
+    double mass = 1.0;
+    [[nodiscard]] static SpringParams response(double response_seconds, double bounce = 0.0) noexcept;
+    [[nodiscard]] double natural_frequency() const noexcept;
+    [[nodiscard]] double damping_ratio() const noexcept;
+    friend constexpr bool operator==(const SpringParams& a, const SpringParams& b) noexcept;
+  };
+  namespace springs {
+    inline constexpr SpringParams standard{…};
+    inline constexpr SpringParams gentle{…};
+    inline constexpr SpringParams wobbly{…};
+    inline constexpr SpringParams stiff{…};
+    inline constexpr SpringParams slow{…};
+    inline constexpr SpringParams molasses{…};
+    inline constexpr SpringParams snappy{…};
+  }
+  [[nodiscard]] inline Ease spring_ease(const SpringParams& p) noexcept;
+  struct Rest {
+    double delta = 1e-3;
+    double speed = 1e-3;
+  };
+  class Oscillator {
+    Oscillator() = default;
+    Oscillator(double x0, double v0, double target, SpringParams p, Rest rest = {…}) noexcept;
+    [[nodiscard]] double position(double t) const noexcept;
+    [[nodiscard]] double velocity(double t) const noexcept;
+    [[nodiscard]] double settle_time() const noexcept;
+    [[nodiscard]] double target() const noexcept;
+    [[nodiscard]] double start() const noexcept;
+    [[nodiscard]] double start_velocity() const noexcept;
+  };
+  template <Animatable T> struct Spring {
+    T from{…};
+    T to{…};
+    lanes_of<T> initial_velocity{…};
+    SpringParams params{…};
+    Rest rest{…};
+    seconds start{…};
+    [[nodiscard]] T value(seconds t) const;
+    [[nodiscard]] seconds settle_time() const;
+  };
+  struct DecayParams {
+    double rate = 0.998;
+    Rest rest{…};
+  };
+  class Glide {
+    Glide() = default;
+    Glide(double x0, double v0, DecayParams p) noexcept;
+    [[nodiscard]] double position(double t) const noexcept;
+    [[nodiscard]] double velocity(double t) const noexcept;
+    [[nodiscard]] double settle_time() const noexcept;
+    [[nodiscard]] double destination() const noexcept;
+  };
+  template <Animatable T> struct Decay {
+    T from{…};
+    lanes_of<T> velocity{…};
+    DecayParams params{…};
+    seconds start{…};
+    [[nodiscard]] T value(seconds t) const;
+    [[nodiscard]] T destination() const;
+  };
+  template <Animatable T> class Motion {
+    static constexpr int N = lanes<T>::count;
+    explicit Motion(T initial = T{…}) : initial_(lanes<T>::to(initial));
+    Motion& spring_to(seconds t, const T& target, SpringParams p = springs::standard, Rest rest = {…});
+    Motion& tween_to(seconds t, const T& target, seconds duration, Ease e = ease::out_cubic);
+    Motion& decay(seconds t, const lanes_of<T>& impulse = {…}, DecayParams p = {…});
+    Motion& jump(seconds t, const T& value);
+    [[nodiscard]] T value(seconds t) const;
+    [[nodiscard]] lanes_of<T> velocity(seconds t) const;
+    [[nodiscard]] T target() const;
+    [[nodiscard]] seconds settle_time(seconds t) const;
+    [[nodiscard]] bool settled(seconds t) const;
+    void forget_before(seconds t);
+    [[nodiscard]] std::size_t segments() const noexcept;
+  };
+  template <Animatable T> [[nodiscard]] T sample(const Tween<T>& a, seconds t);
+  template <Animatable T> [[nodiscard]] T sample(const Track<T>& a, seconds t);
+  template <Animatable T> [[nodiscard]] T sample(const Spring<T>& a, seconds t);
+  template <Animatable T> [[nodiscard]] T sample(const Decay<T>& a, seconds t);
+  template <Animatable T> [[nodiscard]] T sample(const Motion<T>& a, seconds t);
+  enum class Extrapolate : std::uint8_t { clamp, extend, identity, };
+  struct InterpolateOptions {
+    Ease ease = ease::linear;
+    Extrapolate left = Extrapolate::clamp;
+    Extrapolate right = Extrapolate::clamp;
+  };
+  [[nodiscard]] double interpolate(double x, std::span<const double> input, std::span<const double> output, InterpolateOptions options = {…}) noexcept;
+  [[nodiscard]] inline double interpolate(double x, std::initializer_list<double> input, std::initializer_list<double> output, InterpolateOptions options = {…}) noexcept;
+}
+== hanim.core:path
+namespace hanim {
+  struct PathNoise {
+    enum class Field : std::uint8_t { gradient, curl };
+    Field field = Field::gradient;
+    double amplitude = 0;
+    double scale = 1;
+    double speed = 1;
+    std::uint64_t seed = 0;
+    friend constexpr bool operator==(const PathNoise&, const PathNoise&) noexcept = default;
+  };
+  struct PointPath {
+    Vec2 control1{…}, control2{…};
+    PathNoise noise{…};
+    friend constexpr bool operator==(const PointPath& a, const PointPath& b) noexcept;
+    [[nodiscard]] bool valid() const noexcept;
+    [[nodiscard]] constexpr bool linear() const noexcept;
+    [[nodiscard]] static constexpr PointPath jitter(double amplitude, double scale, std::uint64_t seed = 0, double speed = 1) noexcept;
+    [[nodiscard]] static constexpr PointPath swirl(double amplitude, double scale, std::uint64_t seed = 0, double speed = 1) noexcept;
+    [[nodiscard]] static constexpr PointPath bend(double amount) noexcept;
+    [[nodiscard]] constexpr PointPath added(PointPath other) const noexcept;
+    [[nodiscard]] Vec2 interpolate(Vec2 from, Vec2 to, double progress) const noexcept;
+  };
+  class MotionPath {
+    MotionPath& move_to(Vec2 p);
+    MotionPath& line_to(Vec2 p);
+    MotionPath& quad_to(Vec2 control, Vec2 p);
+    MotionPath& cubic_to(Vec2 c1, Vec2 c2, Vec2 p);
+    MotionPath& close();
+    [[nodiscard]] double length() const noexcept;
+    [[nodiscard]] bool empty() const noexcept;
+    [[nodiscard]] std::size_t segment_count() const noexcept;
+    [[nodiscard]] bool valid() const noexcept;
+    [[nodiscard]] bool continuous() const noexcept;
+    static constexpr int arc_samples_per_segment = 32;
+    struct Pose {
+      Vec2 position;
+      double angle = 0;
+    };
+    [[nodiscard]] Pose at(double u) const noexcept;
+    [[nodiscard]] Vec2 point(double u) const noexcept;
+  };
+}
+== hanim.core:presence
+namespace hanim {
+  enum class PresenceKind : std::uint8_t { enter, exit };
+  struct PresencePose {
+    Vec2 offset{…};
+    Vec2 scale{…};
+    double rotation = 0;
+    friend constexpr bool operator==(const PresencePose& a, const PresencePose& b) noexcept;
+  };
+  struct Presence {
+    std::string name;
+    PresenceKind kind = PresenceKind::enter;
+    PresencePose away;
+    seconds duration{…};
+    Ease ease;
+    bool fades = true;
+    double fade_from = 0, fade_to = 1;
+    bool writes = false;
+    double drop = 0;
+    Vec2 anchor{…};
+    [[nodiscard]] PresencePose pose(double progress) const noexcept;
+    [[nodiscard]] double opacity(double progress) const noexcept;
+    friend bool operator==(const Presence& a, const Presence& b) noexcept;
+  };
+  struct PresenceOptions {
+    std::optional<double> distance;
+    std::optional<Vec2> offset;
+    std::optional<double> scale;
+    std::optional<double> radians;
+    std::optional<double> height;
+    std::optional<double> fade;
+    std::optional<seconds> duration;
+    std::optional<Ease> ease;
+  };
+  enum class PresenceError : std::uint8_t { unknown_presence, invalid_value, invalid_time, invalid_ease };
+  [[nodiscard]] mlibs::error::Description describe(PresenceError error) noexcept;
+  [[nodiscard]] std::expected<Presence, PresenceError> presence(std::string_view name, const PresenceOptions& options = {…});
+  [[nodiscard]] std::span<const std::string_view> presence_names() noexcept;
+  [[nodiscard]] std::expected<Presence, PresenceError> together(const Presence& first, const Presence& second);
+}
+== hanim.core:set
+namespace hanim {
+  struct Policy {
+    bool reduce_motion = false;
+  };
+  class Set {
+    struct ChannelTag;
+    using Channel = mlibs::memory::Handle<ChannelTag>;
+    [[nodiscard]] Channel hold(double value);
+    [[nodiscard]] Channel tween(double from, double to, seconds start, seconds duration, Ease e = ease::out_cubic);
+    [[nodiscard]] Channel spring(double from, double to, seconds start, SpringParams p = springs::standard, double velocity = 0.0, Rest rest = {…});
+    [[nodiscard]] Channel decay(double from, double velocity, seconds start, DecayParams p = {…});
+    void spring_to(Channel c, seconds now, double target, std::optional<SpringParams> p = std::nullopt);
+    void tween_to(Channel c, seconds now, double target, seconds duration, Ease e = ease::out_cubic);
+    void jump(Channel c, double value);
+    void glide(Channel c, seconds now, double velocity, DecayParams p = {…});
+    void carry(Channel c, seconds now, double position, double velocity, std::optional<SpringParams> p = std::nullopt);
+    void keep_history(seconds window) noexcept;
+    void remove(Channel c);
+    void clear();
+    [[nodiscard]] bool valid(Channel c) const noexcept;
+    [[nodiscard]] double value(Channel c, seconds t, Policy policy = {…}) const noexcept;
+    [[nodiscard]] double velocity(Channel c, seconds t) const noexcept;
+    [[nodiscard]] double target(Channel c) const noexcept;
+    [[nodiscard]] bool settled(Channel c, seconds t) const noexcept;
+    [[nodiscard]] seconds settle_time(Channel c) const noexcept;
+    [[nodiscard]] std::size_t size() const noexcept;
+    [[nodiscard]] std::size_t capacity() const noexcept;
+    friend std::size_t evaluate(const Set& set, seconds t, std::span<double> out, Policy policy);
+  };
+  std::size_t evaluate(const Set& set, seconds t, std::span<double> out, Policy policy = {…});
+}
+== hanim.core:shape
+namespace hanim {
+  enum class ShapeVerb : std::uint8_t { line, quadratic, cubic };
+  struct ShapeSegment {
+    ShapeVerb verb = ShapeVerb::line;
+    Vec2 end{…}, control1{…}, control2{…};
+    [[nodiscard]] static constexpr ShapeSegment line(Vec2 end) noexcept;
+    [[nodiscard]] static constexpr ShapeSegment quadratic(Vec2 control, Vec2 end) noexcept;
+    [[nodiscard]] static constexpr ShapeSegment cubic(Vec2 a, Vec2 b, Vec2 end) noexcept;
+  };
+  struct ShapeContour {
+    Vec2 start{…};
+    std::span<const ShapeSegment> segments{…};
+    bool closed = true;
+  };
+  struct ShapeCubic {
+    Vec2 start{…}, control1{…}, control2{…}, end{…};
+    [[nodiscard]] Vec2 point(double parameter) const noexcept;
+  };
+  enum class ShapeMorphError : std::uint8_t { empty_contour, open_contour, invalid_verb, nonfinite_coordinate, numerical_range, degenerate_contour, segment_budget, invalid_options, invalid_progress, output_too_small, unprepared, invalid_segment };
+  [[nodiscard]] constexpr mlibs::error::Description describe(ShapeMorphError e) noexcept;
+  struct ShapeMorphOptions {
+    std::size_t max_input_segments = 256;
+    std::size_t max_output_segments = 1024;
+    unsigned arc_samples = 64;
+    unsigned alignment_samples = 32;
+    bool align_direction = true;
+    bool align_start = true;
+    PointPath point_path;
+  };
+  struct ShapeMeasure {
+    double area = 0;
+    Vec2 centroid{…};
+  };
+  [[nodiscard]] std::expected<ShapeMeasure, ShapeMorphError> measure(ShapeContour contour, std::size_t max_segments = 4096);
+  struct ContourPin {
+    std::size_t from = 0, to = 0;
+  };
+  struct ContourRules {
+    double distance = 1, size = 0.5;
+    std::span<const ContourPin> pins;
+  };
+  struct ContourPair {
+    static constexpr std::size_t none = std::numeric_limits<std::size_t>::max();
+    std::size_t from = none, to = none;
+    Vec2 point{…};
+  };
+  enum class ContourPairError : std::uint8_t { open_contour, measure, invalid_pin };
+  struct ContourPairFailure {
+    ContourPairError code = ContourPairError::open_contour;
+    bool from_end = true;
+    std::size_t contour = 0;
+    ShapeMorphError cause = ShapeMorphError::invalid_options;
+  };
+  [[nodiscard]] std::expected<std::vector<ContourPair>, ContourPairFailure> pair_contours(std::span<const ShapeContour> from, std::span<const ShapeContour> to, const ContourRules& rules = {…});
+  class PreparedShapeMorph {
+    [[nodiscard]] static std::expected<PreparedShapeMorph, ShapeMorphError> prepare(ShapeContour from, ShapeContour to, ShapeMorphOptions options = {…});
+    [[nodiscard]] static std::expected<PreparedShapeMorph, ShapeMorphError> grow(Vec2 point, ShapeContour to, ShapeMorphOptions options = {…}, bool reverse = false);
+    [[nodiscard]] static std::expected<PreparedShapeMorph, ShapeMorphError> shrink(ShapeContour from, Vec2 point, ShapeMorphOptions options = {…});
+    [[nodiscard]] std::size_t segment_count() const noexcept;
+    [[nodiscard]] bool closed() const noexcept;
+    [[nodiscard]] bool target_reversed() const noexcept;
+    [[nodiscard]] double target_start_fraction() const noexcept;
+    [[nodiscard]] PointPath point_path() const noexcept;
+    [[nodiscard]] std::span<const ShapeCubic> from_cubics() const noexcept;
+    [[nodiscard]] std::span<const ShapeCubic> to_cubics() const noexcept;
+    [[nodiscard]] std::expected<std::size_t, ShapeMorphError> sample(double progress, std::span<ShapeCubic> output) const noexcept;
+    [[nodiscard]] std::expected<ShapeCubic, ShapeMorphError> sample_segment(double progress, std::size_t segment) const noexcept;
+  };
+}
+== hanim.core:time
+export import mlibs.time;
+namespace hanim {
+  using seconds = mlibs::time::seconds;
+  enum class ClockKind : std::uint8_t { interactive, virtual_time, render };
+  class Clock {
+    [[nodiscard]] static Clock interactive();
+    [[nodiscard]] static Clock virtual_time(seconds start = seconds{…});
+    [[nodiscard]] static Clock render(mlibs::time::Rate rate);
+    [[nodiscard]] ClockKind kind() const noexcept;
+    [[nodiscard]] seconds now() const noexcept;
+    void begin_frame(std::chrono::steady_clock::time_point wall) noexcept;
+    void begin_frame() noexcept;
+    void set_rate(double rate) noexcept;
+    [[nodiscard]] double rate() const noexcept;
+    void pause() noexcept;
+    void resume() noexcept;
+    [[nodiscard]] bool paused() const noexcept;
+    void advance(seconds dt) noexcept;
+    void set(seconds t) noexcept;
+    void seek(std::int64_t frame) noexcept;
+    [[nodiscard]] std::int64_t frame() const noexcept;
+    [[nodiscard]] mlibs::time::Rate frame_rate() const noexcept;
+    [[nodiscard]] seconds subframe(int i, int n, double shutter = 0.5) const noexcept;
+  };
+}
+== hanim.core:timeline
+namespace hanim {
+  namespace detail {
+    template <class T> inline constexpr char type_tag = 0;
+  }
+  struct Value {
+    static constexpr std::size_t capacity = 64;
+    const void* type = nullptr;
+    alignas(8) std::array<std::byte, capacity> bytes;
+    template <Animatable T> requires std::is_trivially_copyable_v<T> [[nodiscard]] static Value of(const T& v);
+    template <Animatable T> [[nodiscard]] bool is() const noexcept;
+    template <Animatable T> requires std::is_trivially_copyable_v<T> [[nodiscard]] std::optional<T> as() const;
+  };
+  class Clip {
+    template <Animatable T> Clip(Tween<T> a) : length_(a.total()), fn_([a](seconds t) {…});
+    template <Animatable T> Clip(Track<T> a) : length_(a.end()), fn_([a = std::move(a)](seconds t) {…});
+    template <Animatable T> Clip(Spring<T> a) : length_(a.settle_time()), fn_([a](seconds t) {…});
+    template <Animatable T> Clip(Decay<T> a) : length_(seconds{…}), fn_([a](seconds t) {…});
+    template <class F> requires std::invocable<const F&, seconds> && Animatable<std::invoke_result_t<const F&, seconds>> static Clip function(seconds length, F f);
+    [[nodiscard]] seconds length() const noexcept;
+    [[nodiscard]] Value sample(seconds local) const;
+  };
+  enum class Fill : std::uint8_t { none, forwards, backwards, both };
+  struct TimeMap {
+    double rate = 1.0;
+    seconds trim{…};
+    std::optional<seconds> length;
+    double repeat = 1.0;
+    bool alternate = false;
+    bool reverse = false;
+    Fill fill = Fill::forwards;
+  };
+  [[nodiscard]] std::optional<seconds> map_time(const TimeMap& map, seconds start, seconds natural, seconds t) noexcept;
+  struct MappedTime {
+    seconds position{…};
+    double iteration = 0;
+    bool backwards = false;
+    bool before_start = false;
+    bool ended = false;
+  };
+  [[nodiscard]] std::optional<MappedTime> sample_time(const TimeMap& map, seconds start, seconds natural, seconds t) noexcept;
+  [[nodiscard]] seconds mapped_length(const TimeMap& map, seconds natural) noexcept;
+  struct Marker {
+    seconds time{…};
+    std::string name;
+  };
+  class Timeline {
+    Timeline() = default;
+    Timeline& at(seconds start, std::string target, Clip clip, TimeMap map = {…});
+    Timeline& then(std::string target, Clip clip, seconds gap = seconds{…}, TimeMap map = {…});
+    Timeline& with(std::string target, Clip clip, seconds offset = seconds{…}, TimeMap map = {…});
+    Timeline& stagger(seconds start, seconds step, std::span<const std::string> targets, const Clip& clip, TimeMap map = {…});
+    Timeline& nest(seconds start, Timeline child, std::string prefix = {…}, TimeMap map = {…});
+    Timeline& marker(seconds t, std::string name);
+    [[nodiscard]] seconds duration() const noexcept;
+    [[nodiscard]] std::span<const Marker> markers() const noexcept;
+    [[nodiscard]] std::optional<seconds> marker_time(std::string_view name) const noexcept;
+    [[nodiscard]] std::vector<Marker> all_markers() const;
+    template <class Sink> requires std::invocable<Sink&, std::string_view, const Value&> void sample(seconds t, Sink&& sink) const;
+    [[nodiscard]] std::vector<std::pair<std::string, Value>> sample(seconds t) const;
+  };
+}
+== hanim.core:value
+namespace hanim {
+  template <class T> struct lanes;
+  template <class T> concept Animatable = requires(const T& v, const std::array<double, lanes<T>::count>& a) {…};
+  template <Animatable T> using lanes_of = std::array<double, lanes<T>::count>;
+  template <Animatable T> [[nodiscard]] T lerp(const T& a, const T& b, double t);
+  template <> struct lanes<double> {
+    static constexpr int count = 1;
+    static constexpr std::array<double, 1> to(const double& v) noexcept;
+    static constexpr double from(const std::array<double, 1>& a) noexcept;
+  };
+  template <> struct lanes<float> {
+    static constexpr int count = 1;
+    static constexpr std::array<double, 1> to(const float& v) noexcept;
+    static constexpr float from(const std::array<double, 1>& a) noexcept;
+  };
+  template <std::integral I> requires(!std::same_as<I, bool>) struct lanes<I>;
+  template <std::size_t N> struct lanes<std::array<double, N>> {
+    static constexpr int count = static_cast<int>(N);
+    static constexpr std::array<double, N> to(const std::array<double, N>& v) noexcept;
+    static constexpr std::array<double, N> from(const std::array<double, N>& a) noexcept;
+  };
+  struct Vec2 {
+    double x = 0, y = 0;
+    friend constexpr bool operator==(const Vec2& a, const Vec2& b) noexcept;
+  };
+  struct Vec3 {
+    double x = 0, y = 0, z = 0;
+    friend constexpr bool operator==(const Vec3& a, const Vec3& b) noexcept;
+  };
+  struct Vec4 {
+    double x = 0, y = 0, z = 0, w = 0;
+    friend constexpr bool operator==(const Vec4& a, const Vec4& b) noexcept;
+  };
+  template <> struct lanes<Vec2> {
+    static constexpr int count = 2;
+    static constexpr std::array<double, 2> to(const Vec2& v) noexcept;
+    static constexpr Vec2 from(const std::array<double, 2>& a) noexcept;
+  };
+  template <> struct lanes<Vec3> {
+    static constexpr int count = 3;
+    static constexpr std::array<double, 3> to(const Vec3& v) noexcept;
+    static constexpr Vec3 from(const std::array<double, 3>& a) noexcept;
+  };
+  template <> struct lanes<Vec4> {
+    static constexpr int count = 4;
+    static constexpr std::array<double, 4> to(const Vec4& v) noexcept;
+    static constexpr Vec4 from(const std::array<double, 4>& a) noexcept;
+  };
+  struct Rgba {
+    float r = 0, g = 0, b = 0, a = 1;
+    friend constexpr bool operator==(const Rgba& a, const Rgba& b) noexcept;
+    [[nodiscard]] static std::optional<Rgba> parse_hex(std::string_view hex) noexcept;
+    [[nodiscard]] static constexpr Rgba bytes(int r, int g, int b, int a = 255) noexcept;
+  };
+  struct OkLab {
+    double l = 0, a = 0, b = 0;
+  };
+  [[nodiscard]] double srgb_to_linear(double c) noexcept;
+  [[nodiscard]] double linear_to_srgb(double c) noexcept;
+  [[nodiscard]] OkLab to_oklab(const Rgba& c) noexcept;
+  [[nodiscard]] Rgba from_oklab(const OkLab& lab, float alpha) noexcept;
+  struct LinearRgb {
+    double r = 0, g = 0, b = 0;
+  };
+  [[nodiscard]] OkLab linear_to_oklab(const LinearRgb& c) noexcept;
+  [[nodiscard]] LinearRgb oklab_to_linear(const OkLab& lab) noexcept;
+  template <> struct lanes<Rgba> {
+    static constexpr int count = 4;
+    static std::array<double, 4> to(const Rgba& c) noexcept;
+    static Rgba from(const std::array<double, 4>& v) noexcept;
+  };
+  struct Transform2D {
+    double tx = 0, ty = 0;
+    double sx = 1, sy = 1;
+    double rotate = 0;
+    double skew_x = 0;
+    friend constexpr bool operator==(const Transform2D& a, const Transform2D& b) noexcept;
+    [[nodiscard]] std::array<double, 6> matrix() const noexcept;
+  };
+  template <> struct lanes<Transform2D> {
+    static constexpr int count = 6;
+    static constexpr std::array<double, 6> to(const Transform2D& t) noexcept;
+    static constexpr Transform2D from(const std::array<double, 6>& a) noexcept;
+  };
+}

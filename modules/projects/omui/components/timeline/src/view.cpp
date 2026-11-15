@@ -89,10 +89,10 @@ void TimelineEditor::set_frame(std::int64_t frame) {
     changed();
 }
 
-ActResult TimelineEditor::edit(std::expected<tl::Change, std::string> change) {
-    if (!change) return ActResult::fail(change.error());
+ActResult TimelineEditor::edit(std::expected<tl::Change, tl::EditFailure> change) {
+    if (!change) return ActResult::fail(change.error().text());
     auto undo = tl::apply(model_, *change);
-    if (!undo) return ActResult::fail(undo.error());
+    if (!undo) return ActResult::fail(undo.error().text());
     names_.clear();
     last_ = change->what;
     if (attached()) emit_edited(tl::write_timeline(model_), change->what);

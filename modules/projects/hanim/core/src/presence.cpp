@@ -1,6 +1,7 @@
 module hanim.core;
 
 import std;
+import mlibs.error;
 
 namespace hanim {
 
@@ -18,14 +19,15 @@ Vec2 both(double value) noexcept { return {value, value}; }
 
 }  // namespace
 
-std::string_view describe(PresenceError error) noexcept {
+mlibs::error::Description describe(PresenceError error) noexcept {
+    using Kind = mlibs::error::Kind;
     switch (error) {
-    case PresenceError::unknown_presence: return "no course of that name";
-    case PresenceError::invalid_value: return "a course's value is not finite (or a drop not above)";
-    case PresenceError::invalid_time: return "a course's duration is not a finite time, 0 or more";
-    case PresenceError::invalid_ease: return "a course's ease is not valid";
+    case PresenceError::unknown_presence: return {"hanim.presence.unknown", Kind::not_found, "no course of that name"};
+    case PresenceError::invalid_value: return {"hanim.presence.invalid-value", Kind::invalid_argument, "a course's value is not finite (or a drop not above)"};
+    case PresenceError::invalid_time: return {"hanim.presence.invalid-time", Kind::invalid_argument, "a course's duration is not a finite time, 0 or more"};
+    case PresenceError::invalid_ease: return {"hanim.presence.invalid-ease", Kind::invalid_argument, "a course's ease is not valid"};
     }
-    return "unknown";
+    return {"hanim.presence.?", Kind::internal};
 }
 
 std::span<const std::string_view> presence_names() noexcept { return names; }

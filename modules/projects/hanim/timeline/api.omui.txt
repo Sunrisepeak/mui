@@ -1,0 +1,98 @@
+== hanim.timeline
+export import :model;
+export import :edit;
+export import :file;
+== hanim.timeline:edit
+namespace hanim::timeline {
+  struct Step {
+    enum class Kind : std::uint8_t { insert, remove, replace };
+    Kind kind = Kind::insert;
+    std::size_t track = 0, index = 0;
+    Clip clip;
+  };
+  enum class EditError : std::uint8_t { no_track, no_clip, no_place, no_length, before_start, no_speed, overlap, other_kind, outside, unknown_step };
+  [[nodiscard]] constexpr mlibs::error::Description describe(EditError error) noexcept;
+  using EditFailure = mlibs::error::Error<EditError>;
+  struct Change {
+    std::string what;
+    std::vector<Step> steps;
+  };
+  [[nodiscard]] std::expected<Change, EditFailure> apply(Timeline& timeline, const Change& change);
+  [[nodiscard]] std::expected<Change, EditFailure> insert(const Timeline& timeline, std::size_t track, Clip clip);
+  [[nodiscard]] std::expected<Change, EditFailure> remove(const Timeline& timeline, std::size_t track, std::size_t index);
+  [[nodiscard]] std::expected<Change, EditFailure> ripple_remove(const Timeline& timeline, std::size_t track, std::size_t index);
+  [[nodiscard]] std::expected<Change, EditFailure> move(const Timeline& timeline, std::size_t track, std::size_t index, std::size_t to_track, Flicks at);
+  [[nodiscard]] std::expected<Change, EditFailure> trim(const Timeline& timeline, std::size_t track, std::size_t index, Flicks at, Flicks length);
+  [[nodiscard]] std::expected<Change, EditFailure> split(const Timeline& timeline, std::size_t track, std::size_t index, Flicks at);
+}
+== hanim.timeline:file
+namespace hanim::timeline {
+  struct Problem {
+    std::string file;
+    int line = 0, column = 0;
+    std::string message, hint;
+    std::string at;
+    [[nodiscard]] std::string text() const;
+  };
+  [[nodiscard]] std::expected<Timeline, std::vector<Problem>> read_timeline(std::string_view text, std::string_view file);
+  [[nodiscard]] std::string write_timeline(const Timeline& timeline);
+  [[nodiscard]] std::optional<Flicks> parse_time(std::string_view text, Rate rate);
+  [[nodiscard]] std::string time_text(Flicks t, Rate rate);
+}
+== hanim.timeline:model
+export import mlibs.time;
+namespace hanim::timeline {
+  enum class Kind : std::uint8_t { video, audio, animation, events };
+  struct Fade {
+    Flicks in = 0, out = 0;
+    hanim::Ease ease = hanim::ease::linear;
+    friend bool operator==(const Fade&, const Fade&) = default;
+  };
+  struct Property {
+    std::string name;
+    hanim::Track<double> keys;
+  };
+  struct Clip {
+    std::string name;
+    std::string source;
+    Flicks at = 0, length = 0;
+    Flicks in = 0;
+    double speed = 1;
+    float level = 1;
+    Fade fade;
+    std::vector<Property> properties;
+    [[nodiscard]] Flicks end() const noexcept;
+    [[nodiscard]] bool covers(Flicks t) const noexcept;
+    [[nodiscard]] Flicks source_at(Flicks t) const noexcept;
+    [[nodiscard]] float level_at(Flicks t) const noexcept;
+    [[nodiscard]] double value(std::string_view property, Flicks t, double otherwise = 0) const;
+  };
+  struct Track {
+    std::string name;
+    Kind kind = Kind::video;
+    bool muted = false;
+    std::vector<Clip> clips;
+  };
+  struct Marker {
+    Flicks at = 0;
+    std::string name;
+    friend bool operator==(const Marker&, const Marker&) = default;
+  };
+  struct Timeline {
+    std::string name = "timeline";
+    Rate rate;
+    std::int32_t sample_rate = 48000;
+    std::int32_t width = 1920, height = 1080;
+    std::vector<Track> tracks;
+    std::vector<Marker> markers;
+    [[nodiscard]] Flicks duration() const noexcept;
+    [[nodiscard]] std::optional<Flicks> marker(std::string_view name) const noexcept;
+  };
+  [[nodiscard]] std::vector<std::string> check(const Timeline& timeline);
+  struct Playing {
+    std::size_t track = 0, clip = 0;
+    Flicks source = 0;
+    float level = 1;
+  };
+  void playing(const Timeline& timeline, Flicks t, std::vector<Playing>& out);
+}

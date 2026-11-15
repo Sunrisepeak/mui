@@ -1,5 +1,6 @@
 // hanim.timeline: exact time, what plays when, edits and their inverses, the file.
 import std;
+import mlibs.error;
 import hanim.core;
 import hanim.timeline;
 import mlibs.testing;
@@ -109,12 +110,12 @@ UTest cases{"timeline", [] {
         if (!t) return;
         const mlibs::time::Rate r = t->rate;
         const std::string original = all(*t);
-        auto round_trip = [&](std::expected<tl::Change, std::string> change, std::string_view what) {
-            expect(change.has_value()) << (change ? "" : change.error());
+        auto round_trip = [&](std::expected<tl::Change, tl::EditFailure> change, std::string_view what) {
+            expect(change.has_value()) << (change ? "" : change.error().text());
             if (!change) return;
             const std::string before = all(*t);
             auto undo = tl::apply(*t, *change);
-            expect(undo.has_value()) << (undo ? "" : undo.error());
+            expect(undo.has_value()) << (undo ? "" : undo.error().text());
             if (!undo) return;
             expect(tl::check(*t).empty()) << std::format("{}: the rules kept", what);
             const std::string after = all(*t);
@@ -134,7 +135,7 @@ UTest cases{"timeline", [] {
         {
             auto change = tl::split(*t, 0, 1, 4 * mlibs::time::flicks_per_second);
             auto undo = change ? tl::apply(*t, *change) : std::unexpected(change.error());
-            expect(undo.has_value()) << (undo ? "" : undo.error());
+            expect(undo.has_value()) << (undo ? "" : undo.error().text());
             const tl::Clip& a = t->tracks[0].clips[1];
             const tl::Clip& b = t->tracks[0].clips[2];
             expect(a.end() == b.at && b.in == a.source_at(b.at)) << "the second half from where the first stopped";
@@ -150,9 +151,18 @@ UTest cases{"timeline", [] {
         // Not made at all: moved onto the fight, or onto a track of another kind; the timeline as it was.
         const std::string before = all(*t);
         auto onto = tl::move(*t, 0, 0, 0, 3 * mlibs::time::flicks_per_second + 1);
-        expect(onto && !tl::apply(*t, *onto) && all(*t) == before) << "a move onto another clip refused, nothing changed";
-        expect(!tl::move(*t, 0, 0, 1, 0)) << "a picture onto the music track refused";
-        expect(!tl::split(*t, 0, 0, 0)) << "a split at a clip's start refused";
+        const auto refused = onto ? tl::apply(*t, *onto) : std::unexpected(onto.error());
+        expect(onto && !refused && all(*t) == before) << "a move onto another clip refused, nothing changed";
+        if (onto && !refused) {
+            expect(refused.error().code == tl::EditError::overlap && refused.error().kind() == mlibs::error::Kind::refused) << refused.error().text();
+            expect(refused.error().where == onto->what && refused.error().text().starts_with("hanim.timeline.overlap (refused) at move `")) << refused.error().text();
+        }
+        const auto other = tl::move(*t, 0, 0, 1, 0);
+        expect(!other && other.error().code == tl::EditError::other_kind) << "a picture onto the music track refused";
+        const auto at_start = tl::split(*t, 0, 0, 0);
+        expect(!at_start && at_start.error().code == tl::EditError::outside) << "a split at a clip's start refused";
+        const auto missing = tl::remove(*t, 9, 0);
+        expect(!missing && missing.error().kind() == mlibs::error::Kind::not_found) << "no track 9: not found";
     };
 
     "what plays, a minute of frames into one reused list: the same answers on every platform (their hash)"_test = [] {

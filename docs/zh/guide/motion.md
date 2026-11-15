@@ -53,7 +53,7 @@ hanim render toast.animation.omui.json --out toast --frames 16 --webp 30   # 帧
 ```
 
 - 步骤可以组合：`sequence`、`parallel`、`stagger`、`loop`、`wait`。
-- 现成的配方有四十个：入场（`fade_in`、`rise_in`、`pop_in`……）、离场、强调（`pulse`、`shake`、`tada`……）、待机（`bob`、`breathe`……）、移动（`arc_to`、`swap`、`reorder`）。
+- 现成的配方有四十个：入场（`fade_in`、`rise_in`、`pop_in`……）、离场、强调（`pulse`、`shake`、`tada`……）、待机（`bob`、`breathe`……）、移动（`arc_to`、`swap`、`reorder`）；[每个配方的过程采样图](../../../modules/projects/hanim/RECIPES.md)。
 - [二十份可以直接拿走的文档](../../../modules/projects/hanim/studio/examples/README.md)：加载、提示、成功的对勾、点赞、卡片洗牌、页面转场、彩纸……
 
 ## 在 C++ 里

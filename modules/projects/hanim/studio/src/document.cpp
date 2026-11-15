@@ -60,6 +60,7 @@ constexpr std::array step_names{
     std::pair{StepKind::wobble, std::string_view("wobble")},
     std::pair{StepKind::fade_in, std::string_view("fade_in")},   std::pair{StepKind::rise_in, std::string_view("rise_in")},
     std::pair{StepKind::sink_in, std::string_view("sink_in")},   std::pair{StepKind::slide_in, std::string_view("slide_in")},
+    std::pair{StepKind::settle_in, std::string_view("settle_in")}, std::pair{StepKind::settle_out, std::string_view("settle_out")},
     std::pair{StepKind::pop_in, std::string_view("pop_in")},     std::pair{StepKind::zoom_in, std::string_view("zoom_in")},
     std::pair{StepKind::spin_in, std::string_view("spin_in")},   std::pair{StepKind::unfold_in, std::string_view("unfold_in")},
     std::pair{StepKind::write_in, std::string_view("write_in")}, std::pair{StepKind::drop_in, std::string_view("drop_in")},

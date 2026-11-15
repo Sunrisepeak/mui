@@ -151,20 +151,19 @@ omui::AppSpec app(Options given) {
 std::string recorded(const Standalone& game) {
     std::vector<xengine::Actions> frames;
     for (const Input& step : game.recorded()) frames.push_back(step.player);
-    return std::format("level {}\n{}", options().level, xengine::to_text(frames));
+    return xengine::to_recording(std::format("level {}", options().level), frames);
 }
 
 std::expected<State, std::string> replayed(std::string_view lines) {
-    if (!lines.starts_with("level ")) return std::unexpected(std::string("line 1: `level NAME`, the level it was played on"));
-    const std::size_t end = lines.find('\n');
-    const std::string_view name = lines.substr(6, end == std::string_view::npos ? std::string_view::npos : end - 6);
+    const auto recording = xengine::from_recording(lines);
+    if (!recording) return std::unexpected(recording.error());
+    if (!recording->heading.starts_with("level ")) return std::unexpected(std::string("line 1: `level NAME`, the level it was played on"));
+    const std::string_view name = std::string_view(recording->heading).substr(6);
     const auto level = level::named(name);
     if (!level) return std::unexpected(std::format("line 1: no level is named `{}` (first, flawed)", name));
     auto state = start(*level);
     if (!state) return std::unexpected(state.error());
-    const auto frames = xengine::from_text(end == std::string_view::npos ? std::string_view{} : lines.substr(end + 1));
-    if (!frames) return std::unexpected(frames.error());
-    for (const xengine::Actions& actions : *frames) step(*state, Input{actions});
+    for (const xengine::Actions& actions : recording->frames) step(*state, Input{actions});
     return std::move(*state);
 }
 

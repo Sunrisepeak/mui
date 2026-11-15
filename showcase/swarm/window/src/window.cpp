@@ -124,20 +124,19 @@ omui::AppSpec app(Options given) {
 std::string recorded(const Standalone& game) {
     std::vector<xengine::Actions> frames;
     for (const Input& step : game.recorded()) frames.push_back(step.player);
-    return std::format("seed {}\n{}", options().seed, xengine::to_text(frames));
+    return xengine::to_recording(std::format("seed {}", options().seed), frames);
 }
 
 std::expected<State, std::string> replayed(std::string_view lines) {
-    if (!lines.starts_with("seed ")) return std::unexpected(std::string("line 1: `seed N`, the game it was played on"));
-    const std::size_t end = lines.find('\n');
-    const std::string_view number = lines.substr(5, end == std::string_view::npos ? std::string_view::npos : end - 5);
+    const auto recording = xengine::from_recording(lines);
+    if (!recording) return std::unexpected(recording.error());
+    if (!recording->heading.starts_with("seed ")) return std::unexpected(std::string("line 1: `seed N`, the game it was played on"));
+    const std::string_view number = std::string_view(recording->heading).substr(5);
     std::uint64_t seed = 0;
     if (const auto read = std::from_chars(number.data(), number.data() + number.size(), seed); read.ec != std::errc{} || read.ptr != number.data() + number.size())
         return std::unexpected(std::format("line 1: `{}` is not a seed (a whole number)", number));
     State state = start(seed);
-    const auto frames = xengine::from_text(end == std::string_view::npos ? std::string_view{} : lines.substr(end + 1));
-    if (!frames) return std::unexpected(frames.error());
-    for (const xengine::Actions& actions : *frames) step(state, Input{actions});
+    for (const xengine::Actions& actions : recording->frames) step(state, Input{actions});
     return state;
 }
 

@@ -185,47 +185,26 @@ omui::AppSpec app(Options given) {
 }
 
 std::string recorded(const Standalone& game) {
-    std::string out;
-    if (game.state().level != "harbour" && !game.state().level.empty()) out = std::format("level {}\n", game.state().level);
-    for (const Input& step : game.recorded()) {
-        const xengine::Actions& actions = step.player;
-        out += std::format("{} {} {} {} {} {} {} {}\n", actions.held, actions.pressed, actions.released, actions.axes[0], actions.axes[1], actions.axes[2], actions.axes[3], actions.wheel);
-    }
-    return out;
+    std::vector<xengine::Actions> frames;
+    for (const Input& step : game.recorded()) frames.push_back(step.player);
+    // The harbour, the first level, is played with no heading.
+    const std::string_view level = game.state().level;
+    return xengine::to_recording(level.empty() || level == "harbour" ? std::string() : std::format("level {}", level), frames);
 }
 
 std::expected<State, std::string> replayed(std::string_view lines) {
-    // The level a first line names; else the harbour.
+    const auto recording = xengine::from_recording(lines);
+    if (!recording) return std::unexpected(recording.error());
+    // The level the heading names; else the harbour.
     std::optional<Level> level = level::harbour();
-    std::size_t number = 0;  // lines read
-    if (lines.starts_with("level ")) {
-        number = 1;
-        const std::size_t end = lines.find('\n');
-        const std::string_view name = lines.substr(6, end == std::string_view::npos ? std::string_view::npos : end - 6);
+    if (!recording->heading.empty()) {
+        if (!recording->heading.starts_with("level ")) return std::unexpected(std::format("line 1: `level NAME`, not `{}`", recording->heading));
+        const std::string_view name = std::string_view(recording->heading).substr(6);
         level = level::named(name);
         if (!level) return std::unexpected(std::format("line 1: no level is named `{}` (harbour, flawed, second-night)", name));
-        lines = end == std::string_view::npos ? std::string_view{} : lines.substr(end + 1);
     }
     State state = start(*level);
-    for (const auto line : std::views::split(lines, '\n')) {
-        const std::string_view text(line.begin(), line.end());
-        if (text.empty()) continue;
-        ++number;
-        std::array<std::int64_t, 8> values{};
-        const char* at = text.data();
-        const char* const end = text.data() + text.size();
-        for (std::int64_t& value : values) {
-            while (at < end && *at == ' ') ++at;
-            const auto [next, failed] = std::from_chars(at, end, value);
-            if (failed != std::errc{}) return std::unexpected(std::format("line {}: eight whole numbers (held, pressed, released, four axes, wheel)", number));
-            at = next;
-        }
-        Input input;
-        input.player.held = static_cast<std::uint32_t>(values[0]), input.player.pressed = static_cast<std::uint32_t>(values[1]), input.player.released = static_cast<std::uint32_t>(values[2]);
-        for (std::size_t axis = 0; axis < 4; ++axis) input.player.axes[axis] = static_cast<std::int16_t>(values[3 + axis]);
-        input.player.wheel = static_cast<std::int16_t>(values[7]);
-        step(state, input);
-    }
+    for (const xengine::Actions& actions : recording->frames) step(state, Input{actions});
     return state;
 }
 

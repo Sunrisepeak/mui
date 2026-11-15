@@ -95,6 +95,16 @@ private:
 // and back: a recording people and agents can read and write.
 [[nodiscard]] std::string to_text(std::span<const Actions> frames);
 [[nodiscard]] std::expected<std::vector<Actions>, std::string> from_text(std::string_view text);
+// A game played, recorded: a first line naming what was played (`level first`, `seed 3`: begins with a letter;
+// none where the game's first is played), then its frames as `to_text` writes them. What a window writes and a
+// game with no window plays again bit for bit.
+struct Recording {
+    std::string          heading;
+    std::vector<Actions> frames;
+};
+[[nodiscard]] std::string to_recording(std::string_view heading, std::span<const Actions> frames);
+// A bad frame is told by its line in the whole text, the heading counted.
+[[nodiscard]] std::expected<Recording, std::string> from_recording(std::string_view text);
 
 
 // ── Agent players (convergence plan §8.4) ─────────────────────────────────

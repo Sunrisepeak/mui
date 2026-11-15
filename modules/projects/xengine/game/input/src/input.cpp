@@ -99,9 +99,11 @@ std::string to_text(std::span<const Actions> frames) {
     return s;
 }
 
-std::expected<std::vector<Actions>, std::string> from_text(std::string_view text) {
+namespace {
+
+// The frames of `text`, its first line numbered `line + 1` in what is said of a bad one.
+std::expected<std::vector<Actions>, std::string> frames_of(std::string_view text, std::size_t line) {
     std::vector<Actions> out;
-    std::size_t line = 0;
     while (!text.empty()) {
         const std::size_t end = text.find('\n');
         const std::string_view l = text.substr(0, end);
@@ -122,6 +124,30 @@ std::expected<std::vector<Actions>, std::string> from_text(std::string_view text
         a.pointer_x = static_cast<std::int16_t>(v[7]), a.pointer_y = static_cast<std::int16_t>(v[8]), a.wheel = static_cast<std::int16_t>(v[9]);
         out.push_back(a);
     }
+    return out;
+}
+
+}  // namespace
+
+std::expected<std::vector<Actions>, std::string> from_text(std::string_view text) { return frames_of(text, 0); }
+
+std::string to_recording(std::string_view heading, std::span<const Actions> frames) {
+    return heading.empty() ? to_text(frames) : std::format("{}\n{}", heading, to_text(frames));
+}
+
+std::expected<Recording, std::string> from_recording(std::string_view text) {
+    Recording out;
+    std::size_t skipped = 0;
+    // A heading is a first line that begins with a letter (a frame begins with a number).
+    if (!text.empty() && ((text.front() >= 'a' && text.front() <= 'z') || (text.front() >= 'A' && text.front() <= 'Z'))) {
+        const std::size_t end = text.find('\n');
+        out.heading = std::string(text.substr(0, end));
+        text = end == std::string_view::npos ? std::string_view{} : text.substr(end + 1);
+        skipped = 1;
+    }
+    auto frames = frames_of(text, skipped);
+    if (!frames) return std::unexpected(frames.error());
+    out.frames = std::move(*frames);
     return out;
 }
 

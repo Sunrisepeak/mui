@@ -116,6 +116,20 @@ UTest cases{"xengine.input", [] {
         expect(!xengine::from_text("1 2 3\n").has_value()) << "a short line: refused";
     };
 
+    "a recording: what was played named on its first line, then the frames; read back the same, a bad frame told by its line"_test = [] {
+        std::vector<xengine::Actions> frames(3);
+        frames[1].held = 1, frames[1].pointer_x = 100, frames[2].axes[0] = -32767;
+        const std::string text = xengine::to_recording("level second-night", frames);
+        expect(text.starts_with("level second-night\n"));
+        const auto back = xengine::from_recording(text);
+        expect(fatal(back.has_value())) << (back ? "" : back.error());
+        expect(back->heading == "level second-night" && back->frames == frames);
+        const auto plain = xengine::from_recording(xengine::to_recording("", frames));
+        expect(plain && plain->heading.empty() && plain->frames == frames) << "no heading: the game's first";
+        const auto bad = xengine::from_recording("seed 3\n0 0 0 0 0 0 0 -1 -1 0\n1 2\n");
+        expect(!bad && bad.error().starts_with("line 3:")) << (bad ? "" : bad.error());
+    };
+
     "an agent's lane: no sooner than its reaction after what it saw, held like a key, rate-limited, the same every time"_test = [] {
         const xengine::PlayTier human{.name = "human", .reaction_steps = 12, .actions_per_second = 10};
         const auto right = [] { xengine::Actions a; a.axes[0] = 32767; a.held = 1; return a; };

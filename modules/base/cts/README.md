@@ -28,6 +28,8 @@ UTest backend{"rhi.sdl", [] { declare(device, {.subject = "lavapipe", .required 
 - **The presentation contract** (`world::declare_presentation`; D-178): what shows a world never writes it — its hashes are the same at every step of every ladder and while the ladders move; every ladder has a name; where each stands and why is said back.
 - **Counted in a process that is not a test** (`tally`): a tool that answers which cases hold on this device (`xrender cts`) runs the same function and gets the cases by how they ended; a suite's own tests use it to hold that a subject at fault fails the case that names the fault. Nothing else of a runner is here.
 
+Beside what writing a suite takes (cases, checks, comparisons, a tally), two contracts are here because they are the global ones of the convergence plan's §5.2, every engine's and no one engine's: preparation (`prepare`) and the world as a value (`world`, `world::declare_presentation`). A runtime library cannot carry them (a suite links the test library), and an engine is not their owner; a contract one engine owns lives with it (`xrender.mesh.gpu.cts`, `mlibs.agent.cts`, …). Reviewed for the release (RC2.14): nothing else is kept here.
+
 For tests and the tools that run a suite: no application depends on it. Benchmarks are not cases (they have their own budgets, `tests/bench`). Its own package rather than a tool of `mlibs.utils` because it takes the test library.
 
 ```sh

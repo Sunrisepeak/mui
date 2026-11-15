@@ -419,4 +419,57 @@ private:
     [[nodiscard]] std::span<const std::uint32_t> scaled(const Carrier& carrier, std::size_t instance, std::uint32_t material, std::span<std::uint32_t> row) const noexcept;
 };
 
+// ── causes: what happened and why, kept for an agent's `explain` ─────────
+//
+// One record for every carrier (D-171: an explanation is the same chain on cells, bodies, particles and the
+// air). A thing is a `Who`: its carrier's number and its own (a body's id, a particle's); a carrier keeps a
+// `Causes` and, at each event of a step, the cause `judged` from the step's `why` — the law that made it, the most
+// that came in, from whom (and through which cell of the air) — or one applied from outside. `explain` walks back
+// from a thing to where it began, across carriers where the walk is given each carrier's causes.
+inline constexpr std::uint32_t no_carrier = 0xffffffffu;
+struct Who {
+    std::uint32_t carrier = no_carrier;  // the carriers' own numbers: bodies 1, particles 2 (a lattice's cells 0)
+    std::uint64_t id = 0;
+    [[nodiscard]] explicit operator bool() const noexcept { return carrier != no_carrier; }
+    friend bool operator==(Who one, Who other) noexcept { return one.carrier == other.carrier && one.id == other.id; }
+    friend bool operator<(Who one, Who other) noexcept { return one.carrier != other.carrier ? one.carrier < other.carrier : one.id < other.id; }
+};
+enum class CauseKind : std::uint8_t { became, rose, fell, applied, struck };
+struct Cause {
+    std::uint64_t step = 0;
+    CauseKind     kind = CauseKind::applied;
+    std::uint32_t law = 0;      // became, rose, fell: the law judged to have made it
+    std::uint32_t channel = 0;  // rose, fell, applied: the channel
+    std::uint32_t event = 0;    // the event's name (Program::event_names), where the law names one
+    std::uint32_t inflow = 0;   // the law (a transfer) the most came in by; no_carrier: nothing came in
+    Who           from;         // who it came from (none: the air, or nothing)
+    std::optional<std::array<float, 3>> through;  // the cell of the air it came through, where it did
+};
+struct Explained {
+    Who   who;
+    Cause cause;
+};
+// Where what came into an instance came from: who, and the cell of the air it came through (none: not through one).
+using CameFrom = std::optional<std::pair<Who, std::optional<std::array<float, 3>>>>;
+
+class Causes {
+public:
+    static constexpr std::size_t kept = 32;  // a thing's latest causes; the oldest go first
+    void keep(Who who, Cause cause);
+    [[nodiscard]] std::span<const Cause> of(Who who) const noexcept;
+    void forget(Who who) { by_.erase(who); }
+    [[nodiscard]] bool empty() const noexcept { return by_.empty(); }
+    // The cause of an event at `step`, judged from that instance's `why` (none: no why — the event's kind alone)
+    // and `source`, who an instance beside it is.
+    [[nodiscard]] static Cause judged(const Program& program, const Event& event, const std::optional<Why>& why, std::uint64_t step,
+                                      const std::function<CameFrom(std::uint32_t instance)>& source);
+    // Back from `who`: its latest cause, then whoever that came from — `of` gives each thing's causes, whichever
+    // carrier keeps them — until something was applied from outside or struck, or `depth` links.
+    [[nodiscard]] static std::vector<Explained> explain(Who who, const std::function<std::span<const Cause>(Who)>& of, std::size_t depth = 32);
+    [[nodiscard]] std::vector<Explained> explain(Who who, std::size_t depth = 32) const;
+
+private:
+    std::map<Who, std::vector<Cause>> by_;
+};
+
 }  // namespace xengine::matter

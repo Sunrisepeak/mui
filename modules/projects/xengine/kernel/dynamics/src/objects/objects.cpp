@@ -75,74 +75,24 @@ bool Objects::set(BodyId body, std::uint32_t channel, std::uint32_t value) {
     const auto at = index(body);
     if (!at || channel >= program_->channels().size()) return false;
     std::uint32_t& held = state_[channel * bodies_.size() + *at];
-    if (held != value) keep(body, {.step = steps_, .kind = CauseKind::applied, .channel = channel});
+    if (held != value) causes_.keep(who(body), {.step = steps_, .kind = matter::CauseKind::applied, .channel = channel});
     held = value;
     return true;
 }
 
-void Objects::keep(BodyId body, Cause cause) {
-    std::vector<Cause>& kept = causes_[body];
-    if (kept.size() == kept_causes) kept.erase(kept.begin());
-    kept.push_back(cause);
-}
-
-std::span<const Cause> Objects::causes(BodyId body) const noexcept {
-    const auto found = causes_.find(body);
-    return found == causes_.end() ? std::span<const Cause>() : std::span<const Cause>(found->second);
-}
-
-void Objects::witness(const std::function<std::optional<matter::Why>(std::uint32_t instance)>& why_of,
-                      const std::function<std::optional<std::pair<BodyId, Vec>>(std::uint32_t instance)>& source_of) {
-    constexpr std::uint32_t none = 0xffffffffu;
+void Objects::witness(const std::function<std::optional<matter::Why>(std::uint32_t instance)>& why_of, const std::function<matter::CameFrom(std::uint32_t instance)>& source_of) {
     for (const matter::Event& event : events_) {
         const BodyId body = body_of(event.instance);
         if (!body) continue;
-        const auto why = why_of(event.instance);
-        Cause cause{.step = steps_, .kind = event.kind == matter::EventKind::became ? CauseKind::became : event.kind == matter::EventKind::rose ? CauseKind::rose : CauseKind::fell,
-                    .channel = event.channel, .event = event.name, .inflow = none};
-        if (why) {
-            if (event.kind == matter::EventKind::became && why->became_by) cause.law = *why->became_by;
-            else {
-                // The held law that flags the channel (a fire's `burns` raising `burning`), else the first that held.
-                const auto flags = std::ranges::find_if(why->laws, [&](const matter::Judged& judged) { return judged.holds && program_->laws()[judged.law].flag == event.channel; });
-                const auto held = std::ranges::find_if(why->laws, [](const matter::Judged& judged) { return judged.holds; });
-                cause.law = flags != why->laws.end() ? flags->law : held != why->laws.end() ? held->law : none;
-            }
-            // The most that came in, and from where.
-            const matter::Flowed* most = nullptr;
-            for (const matter::Flowed& flow : why->flows)
-                if (flow.in && (!most || flow.amount > most->amount)) most = &flow;
-            if (most) {
-                cause.inflow = most->law;
-                if (const auto source = source_of(most->beside)) cause.from = source->first, cause.through = source->second;
-                else if (const BodyId from = body_of(most->beside)) cause.from = from;
-            }
-        }
-        keep(body, cause);
+        causes_.keep(who(body), matter::Causes::judged(*program_, event, why_of(event.instance), steps_, [&](std::uint32_t instance) -> matter::CameFrom {
+            if (const matter::CameFrom from = source_of(instance)) return from;
+            if (const BodyId from = body_of(instance)) return std::pair{who(from), std::optional<std::array<float, 3>>{}};
+            return std::nullopt;
+        }));
     }
 }
 
-std::vector<Explained> Objects::explain(BodyId body, std::size_t depth) const {
-    std::vector<Explained> out;
-    std::uint64_t before = std::numeric_limits<std::uint64_t>::max();
-    bool same = false;  // the next link is the same body's, strictly earlier
-    while (body && out.size() < depth) {
-        const auto kept = causes(body);
-        // Its latest cause at or before the step the one after it was caused at (before it, for its own earlier one).
-        const auto latest = std::ranges::find_if(kept.rbegin(), kept.rend(), [&](const Cause& cause) {
-            return (same ? cause.step < before : cause.step <= before) && cause.kind != CauseKind::fell;
-        });
-        if (latest == kept.rend()) break;
-        if (std::ranges::any_of(out, [&](const Explained& link) { return link.body == body && link.cause.step == latest->step; })) break;
-        out.push_back({body, *latest});
-        before = latest->step;
-        // What it came from; or, where nothing came in (it burned out, it was applied), what it was before.
-        if (latest->from) body = latest->from, same = false;
-        else if (latest->kind == CauseKind::applied || latest->kind == CauseKind::struck) break;
-        else same = true;
-    }
-    return out;
-}
+std::vector<matter::Explained> Objects::explain(BodyId body, std::size_t depth) const { return causes_.explain(who(body), depth); }
 
 std::optional<matter::MaterialId> Objects::material(BodyId body) const noexcept {
     const auto value = get(body, 0);
@@ -199,7 +149,7 @@ std::expected<matter::Report, matter::Failure> Objects::step(const World& world)
     ++steps_;
     if (!events_.empty())
         witness([&](std::uint32_t instance) { return program_->why({instances, pairs_, false, capacity_, exposed_}, before_, instance); },
-                [](std::uint32_t) -> std::optional<std::pair<BodyId, Vec>> { return std::nullopt; });
+                [](std::uint32_t) -> matter::CameFrom { return std::nullopt; });
     return stepped;
 }
 
@@ -231,7 +181,7 @@ xengine::field::Guests Objects::guests_in(const World& world, xengine::field::Fi
     return {.state = state_, .pairs = pairs_, .at = at_, .capacity = capacity_, .exposed = exposed_, .residue = residue_};
 }
 
-void Objects::joined(const xengine::field::Field& air, std::size_t group) {
+void Objects::joined(const xengine::field::Field& air, std::size_t group, const std::function<matter::Who(std::uint32_t instance)>& others) {
     // What happened to the bodies (the field's events are by instance: cells first, then each group).
     const std::uint32_t first = air.first_guest(group);
     events_.clear();
@@ -243,19 +193,24 @@ void Objects::joined(const xengine::field::Field& air, std::size_t group) {
     ++steps_;
     if (!events_.empty()) {
         const auto count = static_cast<std::uint32_t>(bodies_.size());
-        // A body's inflow from a cell of the air: that cell, and the body that gave the cell the most (one step).
-        const auto source = [&](std::uint32_t instance) -> std::optional<std::pair<BodyId, Vec>> {
-            if (instance >= first && instance < first + count) return std::pair{bodies_[instance - first], Vec{}};
+        // Who an instance of the field's step is: one of these bodies, another guest (`others`), or none.
+        const auto guest = [&](std::uint32_t instance) -> matter::Who {
+            if (instance >= first && instance < first + count) return who(bodies_[instance - first]);
+            return others ? others(instance) : matter::Who{};
+        };
+        // A body's inflow from a cell of the air: that cell, and whoever gave the cell the most (one step).
+        const auto source = [&](std::uint32_t instance) -> matter::CameFrom {
+            if (const matter::Who one = guest(instance)) return std::pair{one, std::optional<std::array<float, 3>>{}};
             if (instance >= air.cells()) return std::nullopt;
             const Vec cell = air.centre(instance);
-            BodyId from;
+            matter::Who from;
             if (const auto why = air.why(instance)) {
                 const matter::Flowed* most = nullptr;
                 for (const matter::Flowed& flow : why->flows)
-                    if (flow.in && flow.beside >= first && flow.beside < first + count && (!most || flow.amount > most->amount)) most = &flow;
-                if (most) from = bodies_[most->beside - first];
+                    if (flow.in && guest(flow.beside) && (!most || flow.amount > most->amount)) most = &flow;
+                if (most) from = guest(most->beside);
             }
-            return std::pair{from, cell};
+            return std::pair{from, std::array<float, 3>{cell.x, cell.y, cell.z}};
         };
         witness([&](std::uint32_t instance) { return air.why(first + instance); }, source);
     }
@@ -376,7 +331,7 @@ std::optional<BodyId> Objects::lightning(const World& world, Strike strike) {
     const auto heat = static_cast<std::uint32_t>(std::lround(std::ldexp(static_cast<double>(strike.kelvin), static_cast<int>(program_->channels()[*temperature].fraction))));
     std::uint32_t& warm = state_[*temperature * count + at];
     warm = warm > std::numeric_limits<std::uint32_t>::max() - heat ? std::numeric_limits<std::uint32_t>::max() : warm + heat;
-    keep(*struck, {.step = steps_, .kind = CauseKind::struck, .channel = *charge});
+    causes_.keep(who(*struck), {.step = steps_, .kind = matter::CauseKind::struck, .channel = *charge});
     return struck;
 }
 

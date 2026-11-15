@@ -93,16 +93,16 @@ UTest cases{"dynamics.objects", [] {
         // on by `heat flows`; that one was heated from outside.
         const auto chain = played.objects->explain(played.leaning);
         std::string said;
-        for (const rigid3::Explained& link : chain)
-            said += std::format(" body {} at step {}: {}{};", link.body.value, link.cause.step,
-                                link.cause.kind == rigid3::CauseKind::applied ? std::string("applied from outside") : std::string(law_of(link.cause.law)),
-                                link.cause.from ? std::format(", the most in by `{}` from body {}", law_of(link.cause.inflow), link.cause.from.value) : std::string());
+        for (const matter::Explained& link : chain)
+            said += std::format(" body {} at step {}: {}{};", rigid3::body_of(link.who).value, link.cause.step,
+                                link.cause.kind == matter::CauseKind::applied ? std::string("applied from outside") : std::string(law_of(link.cause.law)),
+                                link.cause.from ? std::format(", the most in by `{}` from body {}", law_of(link.cause.inflow), rigid3::body_of(link.cause.from).value) : std::string());
         std::println("explained:{}", said);
         expect(fatal(ge(chain.size(), std::size_t{2})));
-        const auto caught_link = std::ranges::find_if(chain, [&](const rigid3::Explained& link) { return link.body == played.leaning && link.cause.kind == rigid3::CauseKind::rose; });
-        expect(caught_link != chain.end() && law_of(caught_link->cause.law) == "burns" && caught_link->cause.from == played.lit && law_of(caught_link->cause.inflow) == "heat flows")
+        const auto caught_link = std::ranges::find_if(chain, [&](const matter::Explained& link) { return link.who == rigid3::who(played.leaning) && link.cause.kind == matter::CauseKind::rose; });
+        expect(caught_link != chain.end() && law_of(caught_link->cause.law) == "burns" && caught_link->cause.from == rigid3::who(played.lit) && law_of(caught_link->cause.inflow) == "heat flows")
             << said;
-        expect(chain.back().body == played.lit && chain.back().cause.kind == rigid3::CauseKind::applied) << said;
+        expect(chain.back().who == rigid3::who(played.lit) && chain.back().cause.kind == matter::CauseKind::applied) << said;
 
         // The same world played again: the same bits.
         Yard again = run(1200, nullptr, nullptr);
@@ -253,10 +253,10 @@ UTest cases{"dynamics.objects", [] {
         // Explained: from the downwind tuft back, tuft by tuft and through the air, to the one that was lit.
         const auto chain = objects->explain(downwind, 64);
         std::size_t through_air = 0;
-        for (const rigid3::Explained& link : chain) through_air += link.cause.through.has_value();
-        std::println("explained in {} links ({} through the air), ending at body {} ({}); the lit one is {}", chain.size(), through_air, chain.empty() ? 0u : chain.back().body.value,
-                     chain.empty() ? "" : chain.back().cause.kind == rigid3::CauseKind::applied ? "applied" : "not applied", middle.value);
-        expect(!chain.empty() && chain.back().body == middle && chain.back().cause.kind == rigid3::CauseKind::applied) << "back to the tuft that was lit";
+        for (const matter::Explained& link : chain) through_air += link.cause.through.has_value();
+        std::println("explained in {} links ({} through the air), ending at body {} ({}); the lit one is {}", chain.size(), through_air, chain.empty() ? 0u : rigid3::body_of(chain.back().who).value,
+                     chain.empty() ? "" : chain.back().cause.kind == matter::CauseKind::applied ? "applied" : "not applied", middle.value);
+        expect(!chain.empty() && chain.back().who == rigid3::who(middle) && chain.back().cause.kind == matter::CauseKind::applied) << "back to the tuft that was lit";
         expect(gt(down_at, std::uint64_t{0})) << "it spreads downwind";
         expect(up_at == 0 || lt(down_at, up_at)) << "faster downwind than upwind";
     };

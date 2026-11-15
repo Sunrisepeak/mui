@@ -356,6 +356,11 @@ void Cloud::fly(std::span<const Surface> world, std::span<const Vec3> wind) {
             for (std::size_t index = 0; index < kept; ++index) values[index] = values[from_place[index]];
             values.resize(kept);
         };
+        if (!causes_.empty())  // what is gone is forgotten (a long run emits without end)
+            for (std::size_t particle = 0, next = 0; particle < before; ++particle) {
+                if (next < kept && from_place[next] == particle) ++next;
+                else causes_.forget(who(id_[particle]));
+            }
         keep(at_), keep(velocity_), keep(size_), keep(age_), keep(life_), keep(id_), keep(rise_), keep(against_);
         if (resting_.size() == before) keep(resting_);
         // In place: each value goes to a place no later than its own (kept ≤ before, index ≤ from_place[index]).
@@ -401,10 +406,24 @@ void Cloud::pair() {
         }
 }
 
-void Cloud::stepped(std::span<const matter::Event> events, std::uint32_t first) {
+void Cloud::witness(std::uint32_t first, const std::function<std::optional<matter::Why>(std::uint32_t instance)>& why_of, const std::function<matter::CameFrom(std::uint32_t instance)>& source_of) {
+    // Each event of a particle judged again (the step's `why` of its instance), its cause kept by its id.
+    for (const matter::Event& event : events_) {
+        if (event.instance >= size()) continue;
+        const std::uint32_t instance = first + event.instance;
+        causes_.keep(who(id_[event.instance]), matter::Causes::judged(*program_, event, why_of ? why_of(instance) : std::nullopt, steps_, [&](std::uint32_t beside) -> matter::CameFrom {
+            if (beside >= first && beside < first + size()) return std::pair{who(id_[beside - first]), std::optional<std::array<float, 3>>{}};
+            return source_of ? source_of(beside) : std::nullopt;
+        }));
+    }
+}
+
+void Cloud::stepped(std::span<const matter::Event> events, std::uint32_t first, const std::function<std::optional<matter::Why>(std::uint32_t instance)>& why_of,
+                    const std::function<matter::CameFrom(std::uint32_t instance)>& source_of) {
     events_.clear();
     for (matter::Event event : events)
         if (event.instance >= first && event.instance < first + size()) event.instance -= first, events_.push_back(event);
+    witness(first, why_of, source_of);
 }
 
 std::expected<void, std::string> Cloud::step(std::span<const Surface> world) {
@@ -432,6 +451,7 @@ std::expected<void, std::string> Cloud::step(std::span<const Surface> world) {
     for (std::uint32_t channel = 0; channel < channels_; ++channel)
         std::copy_n(output_.begin() + static_cast<std::ptrdiff_t>(channel * instances), count, state_.begin() + static_cast<std::ptrdiff_t>(channel * count));
     std::erase_if(events_, [count](const matter::Event& event) { return event.instance >= count; });  // the air's own
+    if (!events_.empty()) witness(0, [&](std::uint32_t instance) -> std::optional<matter::Why> { return program_->why({instances, pairs_}, input_, instance); }, {});
     return {};
 }
 

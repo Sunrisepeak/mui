@@ -74,6 +74,9 @@ struct Landed {
     std::uint32_t               surface = 0;   // which of the step's surfaces
 };
 inline constexpr std::uint32_t no_surface = 0xffffffffu;
+// The particles as matter's `Who`: carrier 2, a particle by its id (`ids()`): what their causes are kept by.
+inline constexpr std::uint32_t particles_carrier = 2;
+[[nodiscard]] inline xengine::matter::Who who(std::uint32_t id) noexcept { return {particles_carrier, id}; }
 
 class Cloud {
 public:
@@ -90,7 +93,13 @@ public:
     void pair();
     [[nodiscard]] std::span<const xengine::matter::Pair> pairs() const noexcept { return pairs_; }
     [[nodiscard]] std::span<std::uint32_t> state_to_step() noexcept { return state_; }
-    void stepped(std::span<const xengine::matter::Event> events, std::uint32_t first);
+    // `why_of` and `source_of` (by the field step's instance): what judges each event's cause, and who another
+    // instance is — so a drop's boiling names the crate it lay on.
+    void stepped(std::span<const xengine::matter::Event> events, std::uint32_t first, const std::function<std::optional<xengine::matter::Why>(std::uint32_t instance)>& why_of = {},
+                 const std::function<xengine::matter::CameFrom(std::uint32_t instance)>& source_of = {});
+    // What made a particle what it is now, back to where it began (matter::Causes, by `who(id)`).
+    [[nodiscard]] const xengine::matter::Causes& causes() const noexcept { return causes_; }
+    [[nodiscard]] std::vector<xengine::matter::Explained> explain(std::uint32_t id, std::size_t depth = 16) const { return causes_.explain(who(id), depth); }
 
     [[nodiscard]] std::size_t size() const noexcept { return at_.size(); }
     [[nodiscard]] std::span<const Vec3> at() const noexcept { return at_; }
@@ -128,6 +137,9 @@ private:
     std::uint64_t                   steps_ = 0;
     std::vector<Landed>             landed_;
     std::vector<xengine::matter::Event> events_;
+    xengine::matter::Causes         causes_;
+    void witness(std::uint32_t first, const std::function<std::optional<xengine::matter::Why>(std::uint32_t instance)>& why_of,
+                 const std::function<xengine::matter::CameFrom(std::uint32_t instance)>& source_of);
     // Room a step reuses.
     std::vector<std::uint32_t>          input_, output_;
     std::vector<xengine::matter::Pair>  pairs_;

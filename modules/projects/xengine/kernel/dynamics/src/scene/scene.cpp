@@ -29,9 +29,30 @@ std::expected<xengine::matter::Report, xengine::matter::Failure> Scene::step(con
     const std::array<xengine::field::Guests, 2> guests{bodies, particles};
     auto stepped = air.step(guests, between_);
     if (!stepped) return stepped;
-    objects.joined(air, 0);
-    cloud.stepped(air.events(), air.first_guest(1));
+    // Who each instance of the step is, for the causes both keep: a body, a particle, else none (a cell).
+    const std::uint32_t bodies_first = air.first_guest(0), particles_first = air.first_guest(1);
+    const auto count = static_cast<std::uint32_t>(cloud.size());
+    const std::span<const std::uint32_t> ids = cloud.ids();
+    const auto particle = [&](std::uint32_t instance) -> xengine::matter::Who {
+        return instance >= particles_first && instance < particles_first + count ? xengine::particles::who(ids[instance - particles_first]) : xengine::matter::Who{};
+    };
+    objects.joined(air, 0, particle);
+    const std::span<const BodyId> bodies_now = objects.bodies();
+    cloud.stepped(air.events(), particles_first, [&](std::uint32_t instance) { return air.why(instance); }, [&](std::uint32_t instance) -> xengine::matter::CameFrom {
+        if (instance >= bodies_first && instance < bodies_first + bodies_now.size()) return std::pair{who(bodies_now[instance - bodies_first]), std::optional<std::array<float, 3>>{}};
+        if (instance < air.cells()) {
+            const auto centre = air.centre(instance);
+            return std::pair{xengine::matter::Who{}, std::array<float, 3>{centre.x, centre.y, centre.z}};
+        }
+        return std::nullopt;
+    });
     return stepped;
+}
+
+std::vector<xengine::matter::Explained> Scene::explain(xengine::matter::Who who, const Objects& objects, const xengine::particles::Cloud& cloud, std::size_t depth) {
+    return xengine::matter::Causes::explain(who, [&](xengine::matter::Who one) {
+        return one.carrier == bodies_carrier ? objects.causes().of(one) : one.carrier == xengine::particles::particles_carrier ? cloud.causes().of(one) : std::span<const xengine::matter::Cause>();
+    }, depth);
 }
 
 }  // namespace xengine::dynamics::rigid3

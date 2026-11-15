@@ -48,25 +48,11 @@ struct ObjectsOptions {
     float              drag = 1.0f;         // C
 };
 
-// A cause kept for a body (the record an agent's `explain` reads): what happened to it at a step and what made it
-// — a law that held, with the most of what flowed in for it and from where (another body, or the air of a field's
-// cell and the body that warmed that air), or a quantity applied from outside.
-enum class CauseKind : std::uint8_t { became, rose, fell, applied, struck };
-struct Cause {
-    std::uint64_t step = 0;
-    CauseKind     kind = CauseKind::applied;
-    std::uint32_t law = 0;      // became, rose, fell: the law judged to have made it
-    std::uint32_t channel = 0;  // rose, fell, applied: the channel
-    std::uint32_t event = 0;    // the event's name (Program::event_names), where the law names one
-    std::uint32_t inflow = 0;   // the law (a transfer) the most came in by; none: nothing came in
-    BodyId        from;         // the body it came from (none: the air, or nothing)
-    std::optional<Vec> through; // the air's cell it came through (a field's), where it did
-};
-// A link of an explanation: a body and the cause kept for it.
-struct Explained {
-    BodyId body;
-    Cause  cause;
-};
+// The bodies as matter's `Who`: carrier 1, a body by its id — what their causes are kept by (matter::Causes),
+// so that an explanation runs on from a body into a particle or a cell of the air and back.
+inline constexpr std::uint32_t bodies_carrier = 1;
+[[nodiscard]] inline matter::Who who(BodyId body) noexcept { return {bodies_carrier, body.value}; }
+[[nodiscard]] inline BodyId body_of(matter::Who who) noexcept { return who.carrier == bodies_carrier ? BodyId{static_cast<decltype(BodyId::value)>(who.id)} : BodyId{}; }
 
 class Objects {
 public:
@@ -96,7 +82,8 @@ public:
     // the bodies as guests (cells made about them), and — after the field's step — what became of them, as
     // group `group` of its guests.
     [[nodiscard]] xengine::field::Guests guests_in(const World& world, xengine::field::Field& air);
-    void joined(const xengine::field::Field& air, std::size_t group);
+    // `others`: who another guest of that step is (a particle), so a cause can name it.
+    void joined(const xengine::field::Field& air, std::size_t group, const std::function<matter::Who(std::uint32_t instance)>& others = {});
     // The wind's push on each body for the world's next step (before `world.step()`): the field's wind where it is
     // against how it moves — an updraft lifts a light thing, a gale shoves a crate.
     void blow(World& world, const xengine::field::Field& air) const;
@@ -133,9 +120,11 @@ public:
     [[nodiscard]] std::optional<matter::Why> why(BodyId body) const;
 
     // What made a body what it is now, back to where it began: its latest cause, then the cause of the body that
-    // gave it what it needed (before that step), and so on — at most `depth` links, none twice.
-    [[nodiscard]] std::vector<Explained> explain(BodyId body, std::size_t depth = 16) const;
-    [[nodiscard]] std::span<const Cause> causes(BodyId body) const noexcept;
+    // gave it what it needed (before that step), and so on — at most `depth` links, none twice. Across carriers
+    // (a body warmed by a particle): matter::Causes::explain with each carrier's `causes`.
+    [[nodiscard]] std::vector<matter::Explained> explain(BodyId body, std::size_t depth = 16) const;
+    [[nodiscard]] std::span<const matter::Cause> causes(BodyId body) const noexcept { return causes_.of(who(body)); }
+    [[nodiscard]] const matter::Causes& causes() const noexcept { return causes_; }
     [[nodiscard]] std::uint64_t steps() const noexcept { return steps_; }
 
     [[nodiscard]] std::uint64_t state_hash() const noexcept;
@@ -145,9 +134,8 @@ private:
     [[nodiscard]] std::optional<std::size_t> index(BodyId body) const noexcept;
     [[nodiscard]] bool open_to_sky(const World& world, BodyId body, float sky) const noexcept;
     void weigh(const World& world, std::size_t instances);  // capacity_: the bodies' by mass, then 1 each
-    void keep(BodyId body, Cause cause);
     // After a step: each event of a body judged again, its cause kept (`why` gives the law and the inflows).
-    void witness(const std::function<std::optional<matter::Why>(std::uint32_t instance)>& why_of, const std::function<std::optional<std::pair<BodyId, Vec>>(std::uint32_t instance)>& source_of);
+    void witness(const std::function<std::optional<matter::Why>(std::uint32_t instance)>& why_of, const std::function<matter::CameFrom(std::uint32_t instance)>& source_of);
 
     const matter::Program*     program_ = nullptr;
     ObjectsOptions             options_;
@@ -166,8 +154,7 @@ private:
     const xengine::field::Field* joined_ = nullptr; // the field of the last step (none: a bath)
     std::uint32_t                group_ = 0;        // which group of its guests the bodies were
     std::uint64_t              steps_ = 0;
-    static constexpr std::size_t kept_causes = 8;    // a body's latest causes
-    std::map<BodyId, std::vector<Cause>> causes_;
+    matter::Causes             causes_;
 };
 
 }  // namespace xengine::dynamics::rigid3

@@ -50,6 +50,23 @@ void layers(std::vector<particles::Spawn>& out, matter::MaterialId material, int
                                .life = 1000, .material = material, .kelvin = kelvin});
 }
 
+// An explanation, said: each link's who, step, law and what came in from whom.
+std::string said(const matter::Program& program, const std::vector<matter::Explained>& chain) {
+    const auto law = [&](std::uint32_t index) -> std::string_view { return index < program.laws().size() ? std::string_view(program.laws()[index].name) : std::string_view("—"); };
+    const auto who = [](matter::Who one) { return one.carrier == rigid3::bodies_carrier ? std::format("body {}", one.id) : one.carrier == particles::particles_carrier ? std::format("particle {}", one.id) : std::string("the air"); };
+    std::string out;
+    for (const matter::Explained& link : chain)
+        out += std::format(" {} at {}: {}{};", who(link.who), link.cause.step, link.cause.kind == matter::CauseKind::applied ? std::string_view("applied") : law(link.cause.law),
+                           link.cause.from ? std::format(" (in by `{}` from {})", law(link.cause.inflow), who(link.cause.from)) : link.cause.through ? std::string(" (through the air)") : std::string());
+    return out;
+}
+// Whether a link of the chain was made by `name`, and (if given) came from `from`.
+bool names(const matter::Program& program, const std::vector<matter::Explained>& chain, std::string_view name, std::optional<matter::Who> from = std::nullopt) {
+    return std::ranges::any_of(chain, [&](const matter::Explained& link) {
+        return link.cause.law < program.laws().size() && program.laws()[link.cause.law].name == name && (!from || link.cause.from == *from);
+    });
+}
+
 std::size_t count_of(const particles::Cloud& cloud, matter::MaterialId material) {
     std::size_t out = 0;
     for (std::size_t particle = 0; particle < cloud.size(); ++particle) out += cloud.material(particle) == material;
@@ -69,6 +86,9 @@ UTest cases{"dynamics.emergence3d", [] {
             int           out_at = 0;
             std::size_t   boiled = 0, condensed = 0;
             float         steam_high = 0;
+            std::vector<matter::Explained> drop;  // why the first drop that boiled did
+            bool          drop_from_crate = false, crate_burns = false;  // crate_burns: the chain ends at the torch put to the crate
+            std::string   drop_said;
         };
         const auto play = [&](int every, int steps) {
             auto world = rigid3::World::make({});
@@ -102,8 +122,17 @@ UTest cases{"dynamics.emergence3d", [] {
                 cloud->fly(surfaces, scene.winds(*air, *cloud));
                 const auto stepped = scene.step(*world, *objects, *cloud, surface_bodies, *air);
                 expect(fatal(stepped.has_value())) << (stepped ? "" : stepped.error().message);
-                for (const matter::Event& event : cloud->events())
-                    if (event.kind == matter::EventKind::became) out.boiled += event.from == water && event.to == steam, out.condensed += event.from == steam && event.to == water;
+                for (const matter::Event& event : cloud->events()) {
+                    if (event.kind != matter::EventKind::became) continue;
+                    out.boiled += event.from == water && event.to == steam, out.condensed += event.from == steam && event.to == water;
+                    if (event.from == water && event.to == steam && out.drop.empty()) {
+                        // The agent's question: why did this drop boil? Back through the crate it lay on.
+                        out.drop = rigid3::Scene::explain(particles::who(cloud->ids()[event.instance]), *objects, *cloud);
+                        out.drop_from_crate = names(*program, out.drop, "boils") && std::ranges::any_of(out.drop, [&](const matter::Explained& link) { return link.cause.from == rigid3::who(crate); });
+                        out.crate_burns = !out.drop.empty() && out.drop.back().who == rigid3::who(crate) && out.drop.back().cause.kind == matter::CauseKind::applied;
+                        out.drop_said = said(*program, out.drop);
+                    }
+                }
                 for (std::size_t particle = 0; particle < cloud->size(); ++particle)
                     if (cloud->material(particle) == steam) out.steam_high = std::max(out.steam_high, cloud->at()[particle].y);
                 if (step > 240 && !out.out_at && *objects->get(crate, burning) == 0) out.out_at = step;
@@ -120,6 +149,8 @@ UTest cases{"dynamics.emergence3d", [] {
         expect(gt(bucket.out_at, 0) && eq(bucket.burning_at_ten, 0u) && gt(bucket.wetness, 0u)) << "the bucket put it out, wetting it";
         expect(gt(few.boiled, std::size_t{0}) && gt(few.steam_high, 1.5f)) << "drops on the burning wood boiled off, and the steam rose";
         expect(gt(few.condensed, std::size_t{0})) << "the steam, cooled in the air, came back as water";
+        std::println("   why the first drop boiled:{}", few.drop_said);
+        expect(few.drop_from_crate && few.crate_burns) << "explained: it boiled by `boils` with heat from the crate, back to the torch put to the crate" << few.drop_said;
         expect(gt(few.burning_at_ten, 0u) && gt(none.burning_at_ten, 0u)) << "a few drops do not put it out; nor does nothing";
     };
 
@@ -138,13 +169,19 @@ UTest cases{"dynamics.emergence3d", [] {
                 spawns.push_back({.at = {-0.08f + 0.02f * static_cast<float>(drop % 9), 0.1f + 0.021f * static_cast<float>(layer), -0.08f + 0.02f * static_cast<float>(drop / 9)}, .life = 1000, .material = lava});
         cloud->emit(spawns);
         std::size_t set = 0, boiled = 0;
+        std::vector<matter::Explained> why_boiled;
         for (int step = 0; step < 600; ++step) {
             expect(cloud->step(tank.inside).has_value());
             for (const matter::Event& event : cloud->events())
-                if (event.kind == matter::EventKind::became) set += event.from == lava && event.to == stone, boiled += event.from == water && event.to == steam;
+                if (event.kind == matter::EventKind::became) {
+                    set += event.from == lava && event.to == stone, boiled += event.from == water && event.to == steam;
+                    if (event.from == water && event.to == steam && why_boiled.empty()) why_boiled = cloud->explain(cloud->ids()[event.instance]);
+                }
         }
         std::println("4: 243 drops of lava onto a pool of 81 of water: {} set as stone, {} of the water boiled off; lava left {}", set, boiled, count_of(*cloud, lava));
         expect(gt(set, std::size_t{0}) && gt(boiled, std::size_t{0})) << "stone and steam, from the same laws";
+        std::println("   why the first water boiled:{}", said(*program, why_boiled));
+        expect(!why_boiled.empty() && names(*program, why_boiled, "boils") && why_boiled.front().cause.from.carrier == particles::particles_carrier) << "explained: `boils`, the heat from a drop of the lava" << said(*program, why_boiled);
     };
 
     "5: in the frost, an ice block beside a fire melts and one left alone stays ice; a pail of water there freezes"_test = [] {
@@ -167,6 +204,9 @@ UTest cases{"dynamics.emergence3d", [] {
                 expect(objects->step(*world).has_value());
                 if (*objects->material(block) != *program->material(what)) became = step;
             }
+            const auto chain = objects->explain(block);
+            if (became) std::println("   why the {} became {}:{}", what, program->materials()[*objects->material(block)].name, said(*program, chain));
+            expect(!became || names(*program, chain, fire ? "melts" : "freezes", fire ? std::optional{rigid3::who(crate)} : std::nullopt)) << "explained by the law that did it" << said(*program, chain);
             return std::pair{became, std::string(program->materials()[*objects->material(block)].name)};
         };
         const auto [melted_at, melted_into] = play("ice", 250, true);  // in the frost: only the fire can melt it
@@ -194,8 +234,12 @@ UTest cases{"dynamics.emergence3d", [] {
         cloud->emit(spawns);
         const std::size_t water_before = count_of(*cloud, water);
         std::size_t most_oil_burning = 0, water_burning = 0;
+        std::vector<matter::Explained> why_caught;
         for (int step = 0; step < 600; ++step) {
             expect(cloud->step(tank.inside).has_value());
+            for (const matter::Event& event : cloud->events())  // the first drop of oil to catch that was not lit at the start
+                if (why_caught.empty() && event.kind == matter::EventKind::rose && event.channel == burning && cloud->material(event.instance) == oil && cloud->ids()[event.instance] < water_before + 81)
+                    why_caught = cloud->explain(cloud->ids()[event.instance]);
             std::size_t oil_burning = 0;
             for (std::size_t particle = 0; particle < cloud->size(); ++particle)
                 if (cloud->value(burning, particle) > 0) (cloud->material(particle) == oil ? oil_burning : water_burning) += 1;
@@ -204,6 +248,8 @@ UTest cases{"dynamics.emergence3d", [] {
         std::println("6: oil on water, four drops of it alight: at most {} drops of oil burning at once, oil left {}; water burning ever {}; water {} → {}", most_oil_burning, count_of(*cloud, oil),
                      water_burning, water_before, count_of(*cloud, water));
         expect(gt(most_oil_burning, std::size_t{3})) << "the oil caught and burned";
+        std::println("   why the first drop of oil caught:{}", said(*program, why_caught));
+        expect(names(*program, why_caught, "burns") && !why_caught.empty() && why_caught.front().cause.from.carrier == particles::particles_carrier) << "explained: `burns`, with heat from another drop" << said(*program, why_caught);
         expect(eq(water_burning, std::size_t{0})) << "the water under it did not burn";
     };
 
@@ -245,7 +291,15 @@ UTest cases{"dynamics.emergence3d", [] {
                 world->step();
                 (void)objects->set(rod, charge, 1000);
                 expect(objects->step(*world).has_value());
-                most = std::max(most, *objects->get(pail, charge));
+                const std::uint32_t now = *objects->get(pail, charge);
+                if (!most && now > 0) {
+                    // The agent's question of the pail as its charge comes: whence? `charge flows`, from the rod.
+                    const auto why = objects->why(pail);
+                    const auto rod_at = static_cast<std::uint32_t>(std::ranges::find(objects->bodies(), rod) - objects->bodies().begin());
+                    expect(why && std::ranges::any_of(why->flows, [&](const matter::Flowed& flow) { return flow.in && flow.beside == rod_at && program->laws()[flow.law].name == "charge flows"; }))
+                        << "the pail's charge came in from the rod by `charge flows`";
+                }
+                most = std::max(most, now);
             }
             return most;
         };
@@ -277,6 +331,11 @@ UTest cases{"dynamics.emergence3d", [] {
                 world->step();
                 if (step < 10) (void)objects->set(keg, temperature, std::max(*objects->get(keg, temperature), stored(*program, temperature, 900)));  // a fuse
                 expect(objects->step(*world, *air).has_value());
+            }
+            if (keg_of == "gunpowder") {
+                const auto chain = objects->explain(keg);
+                std::println("   why the keg is what it is:{}", said(*program, chain));
+                expect(names(*program, chain, "burns out") && !chain.empty() && chain.back().cause.kind == matter::CauseKind::applied) << "burned out ← the fuse" << said(*program, chain);
             }
             return world->pose(right)->centre.x - world->pose(left)->centre.x;
         };
@@ -324,9 +383,13 @@ UTest cases{"dynamics.emergence3d", [] {
         std::size_t boiled = 0, burned = 0;
         float highest = 0;
         const std::uint32_t burning = *program->channel("burning");
+        std::vector<matter::Explained> why_vapour;
         for (int step = 0; step < 600; ++step) {
             expect(pan->step(tank.inside).has_value());
-            for (const matter::Event& event : pan->events()) boiled += event.kind == matter::EventKind::became && event.from == alcohol && event.to == vapour;
+            for (const matter::Event& event : pan->events()) {
+                boiled += event.kind == matter::EventKind::became && event.from == alcohol && event.to == vapour;
+                if (why_vapour.empty() && event.kind == matter::EventKind::became && event.from == alcohol && event.to == vapour) why_vapour = pan->explain(pan->ids()[event.instance]);
+            }
             for (std::size_t particle = 0; particle < pan->size(); ++particle)
                 if (pan->material(particle) == vapour) highest = std::max(highest, pan->at()[particle].y), burned += pan->value(burning, particle) > 0;
         }
@@ -335,5 +398,7 @@ UTest cases{"dynamics.emergence3d", [] {
         expect(gt(alcohol_height, water_height)) << "it lies on water";
         expect(gt(boiled, std::size_t{0}) && gt(highest, 0.1f)) << "it boils and its vapour rises";
         expect(gt(burned, std::size_t{0})) << "and the vapour burns";
+        std::println("   why the first alcohol boiled:{}", said(*program, why_vapour));
+        expect(names(*program, why_vapour, "boils")) << "explained by `boils`, a law it shares with water" << said(*program, why_vapour);
     };
 }};

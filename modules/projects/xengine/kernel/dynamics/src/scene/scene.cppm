@@ -28,6 +28,9 @@ public:
                                                                                         std::span<const BodyId> surface_bodies, xengine::field::Field& air);
     // The pairs between a particle and a body of the last step.
     [[nodiscard]] std::span<const xengine::field::Between> between() const noexcept { return between_; }
+    // What made a body or a particle what it is, back to where it began, across both (a drop boiled by the crate
+    // it lay on, the crate lit by …): matter::Causes::explain over each carrier's causes.
+    [[nodiscard]] static std::vector<xengine::matter::Explained> explain(xengine::matter::Who who, const Objects& objects, const xengine::particles::Cloud& cloud, std::size_t depth = 32);
 
 private:
     std::vector<mlibs::math::Vec3>      winds_;

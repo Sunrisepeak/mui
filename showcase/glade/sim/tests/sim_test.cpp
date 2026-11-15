@@ -91,4 +91,27 @@ UTest cases{"glade.sim", [] {
         std::println("ice: melted {:.1f} s after the push; why:\n{}", done_at / 60.0, glade::explain(state, "ice"));
         expect(gt(done_at, 0)) << "it melted";
     };
+
+    "storm: lightning strikes nothing while nothing that conducts stands open, and an iron rod stood in the kindling takes it — what its heat does next is R11's (heat by surface and mass)"_test = [] {
+        const auto tasks = glade::tasks();
+        const glade::Task& storm = tasks[3];
+        expect(std::ranges::find(storm.verbs, glade::Verb::torch) == storm.verbs.end()) << "no torch";
+        glade::State state = glade::start(glade::level::glade());
+        // What is seen of the valley: the ground's heights; the crate open to the sky, a trunk under its crown not.
+        const glade::Level level = glade::level::glade();
+        expect(eq(level.ground.height(-3, 0), 0.0f) && lt(level.ground.height(1, 0), -0.7f) && gt(level.ground.height(-9.5f, 0), 1.0f)) << "banks, the stream's channel, the hill";
+        expect(glade::seen(state, "crate")->open && !glade::seen(state, "near tree trunk")->open && glade::seen(state, "near tree crown")->open);
+        expect(!glade::strike(state).has_value()) << "wood, leaves and stone do not draw it";
+        expect(glade::drop(state, {.name = "rod", .at = {-2.8f, 1.0f, -2.37f}, .half = {0.03f, 1.0f, 0.03f}, .material = "iron"})) << "a rod stood in the kindling at the middle log's end";
+        glade::run(state, 30);
+        const auto struck = glade::strike(state);
+        expect(struck.has_value() && *struck == "rod") << struck.value_or("nothing");
+        expect(gt(glade::seen(state, "rod")->kelvin, 1000.0f)) << "the strike's heat in the rod";
+        // Measured, not yet asserted (R11): the rod 1093 K as struck, back to the air's warmth within 20 s, the
+        // kindling against it at most 383 K of the 470 it catches at — iron that hot keeps for minutes and lights
+        // dry leaves in seconds.
+        float kindling_hottest = 0;
+        for (int step = 1; step <= 1200; ++step) glade::step(state), kindling_hottest = std::max(kindling_hottest, glade::seen(state, "kindling")->kelvin);
+        std::println("storm: the rod struck; 20 s on, the rod {:.0f} K, the kindling at most {:.0f} K (catches at 470)", glade::seen(state, "rod")->kelvin, kindling_hottest);
+    };
 }};

@@ -2,6 +2,7 @@ module omui.showcase.glade.sim;
 
 import std;
 import mlibs.hash;
+import mlibs.math;
 import :glade_snapshot;
 
 namespace glade {
@@ -51,13 +52,36 @@ std::shared_ptr<const matter::Program> program() {
     return made;
 }
 
+float Terrain::height(float x, float z) const noexcept {
+    if (across == 0 || along == 0) return origin.y;
+    const float u = std::clamp((x - origin.x) / cell, 0.0f, static_cast<float>(across)), v = std::clamp((z - origin.z) / cell, 0.0f, static_cast<float>(along));
+    const auto column = std::min(static_cast<std::uint32_t>(u), across - 1), row = std::min(static_cast<std::uint32_t>(v), along - 1);
+    const float s = u - static_cast<float>(column), t = v - static_cast<float>(row);
+    const auto at = [&](std::uint32_t i, std::uint32_t j) { return heights[static_cast<std::size_t>(j) * (across + 1) + i]; };
+    // The quad's two triangles, split from its first corner to its far one.
+    const float a = at(column, row), b = at(column + 1, row), c = at(column + 1, row + 1), d = at(column, row + 1);
+    return origin.y + (s >= t ? a + s * (b - a) + t * (c - b) : a + t * (d - a) + s * (c - d));
+}
+
 Level level::glade() {
     Level out{.name = "glade", .wind = {0, 0, 0}, .stream_from = 0, .stream_to = 2};
+    // The ground, 22 m along x by 8 m: flat banks at y = 0, the stream's channel between x = 0 and 2 (0.8 m deep
+    // in the middle), a hill rising 1.2 m behind the near bank past x = −6.
+    Terrain& ground = out.ground;
+    ground.origin = {-10, 0, -4}, ground.cell = 0.5f, ground.across = 44, ground.along = 16;
+    for (std::uint32_t row = 0; row <= ground.along; ++row)
+        for (std::uint32_t column = 0; column <= ground.across; ++column) {
+            const double x = ground.origin.x + ground.cell * static_cast<double>(column);
+            double y = 0;
+            if (x > 0 && x < 2) y -= 0.8 * mlibs::math::det::sin(std::numbers::pi * x / 2);
+            if (x < -6) {
+                const double rise = std::min(1.0, (-6 - x) / 4);
+                y += 1.2 * rise * rise * (3 - 2 * rise);
+            }
+            ground.heights.push_back(static_cast<float>(y));
+        }
     auto& things = out.things;
-    // The ground: the two banks and the stream's bed between them, the stream itself a body of water in it.
-    things.push_back({.name = "near bank", .at = {-5, -0.5f, 0}, .half = {5, 0.5f, 4}, .material = "stone", .carried = false});
-    things.push_back({.name = "far bank", .at = {7, -0.5f, 0}, .half = {5, 0.5f, 4}, .material = "stone", .carried = false});
-    things.push_back({.name = "stream bed", .at = {1, -0.9f, 0}, .half = {1, 0.1f, 4}, .material = "stone", .carried = false});
+    // The stream, a body of water in its channel.
     things.push_back({.name = "stream", .at = {1, -0.45f, 0}, .half = {1, 0.35f, 4}, .material = "water"});
     // The footbridge: planks across, end to end, resting on both banks.
     for (int plank = 0; plank < 5; ++plank)
@@ -77,8 +101,16 @@ Level level::glade() {
         things.push_back({.name = std::format("stone {}", stone + 1), .at = stone < 2 ? Vec3{-2.8f + side * 0.55f, 0.1f, -3} : Vec3{-2.8f, 0.1f, -3 + side * 0.6f},
                           .half = {0.1f, 0.1f, 0.1f}, .material = "stone"});
     }
+    // Kindling at the middle log's end: a bundle of dry leaves, what a fire is laid with.
+    things.push_back({.name = "kindling", .at = {-2.8f, 0.08f, -2.5f}, .half = {0.15f, 0.08f, 0.1f}, .material = "leaves"});
     // The ice, a block 1.5 m from the fire.
     things.push_back({.name = "ice", .at = {-1.2f, 0.25f, -3}, .half = {0.25f, 0.25f, 0.25f}, .material = "ice", .fixed = false});
+    // Trees: a trunk of bark 2.5 m tall and a crown of dry leaves on it — one on the near bank toward the hill, one
+    // on the far bank past the crate.
+    for (const auto& [name, x, z] : {std::tuple{"near tree", -4.5f, 2.0f}, std::tuple{"far tree", 8.0f, 2.0f}}) {
+        things.push_back({.name = std::format("{} trunk", name), .at = {x, 1.25f, z}, .half = {0.15f, 1.25f, 0.15f}, .material = "bark"});
+        things.push_back({.name = std::format("{} crown", name), .at = {x, 3.1f, z}, .half = {0.8f, 0.6f, 0.8f}, .material = "leaves"});
+    }
     return out;
 }
 
@@ -91,6 +123,24 @@ State start(const Level& level) {
     state.air.emplace(std::move(*field::Field::make(matter, {.air = *matter.material("air"), .wind = level.wind})));
     state.cloud.emplace(std::move(*particles::Cloud::make(state.program, {.ambient = *matter.material("air"), .touching = true})));
     state.wind = level.wind, state.stream_from = level.stream_from, state.stream_to = level.stream_to;
+    if (const Terrain& ground = level.ground; ground.across > 0 && ground.along > 0) {
+        // The heights as a mesh: two triangles a cell, facing up.
+        std::vector<Vec3> points;
+        std::vector<std::uint32_t> corners;
+        for (std::uint32_t row = 0; row <= ground.along; ++row)
+            for (std::uint32_t column = 0; column <= ground.across; ++column)
+                points.push_back({ground.origin.x + ground.cell * static_cast<float>(column), ground.origin.y + ground.heights[static_cast<std::size_t>(row) * (ground.across + 1) + column],
+                                  ground.origin.z + ground.cell * static_cast<float>(row)});
+        for (std::uint32_t row = 0; row < ground.along; ++row)
+            for (std::uint32_t column = 0; column < ground.across; ++column) {
+                const std::uint32_t a = row * (ground.across + 1) + column, b = a + 1, d = a + ground.across + 1, c = d + 1;
+                corners.insert(corners.end(), {a, c, b, a, d, c});
+            }
+        const auto material = matter.material(ground.material);
+        const rigid3::Material mechanics = material ? rigid3::material_of(matter, *material) : rigid3::Material{};
+        if (const auto made = state.world->add({.kind = rigid3::Kind::fixed}, rigid3::Shape::mesh(std::move(points), std::move(corners)), mechanics))
+            state.ground.push_back(*made), state.names.push_back({"ground", *made});
+    }
     for (const Thing& thing : level.things) (void)drop(state, thing);
     state.done.clear();
     return state;
@@ -208,6 +258,7 @@ std::optional<Seen> seen(const State& state, std::string_view name) {
     out.burning = *state.objects->get(*made, burning) > 0;
     out.wetness = static_cast<float>(unit(matter, wetness, *state.objects->get(*made, wetness)));
     out.gone = out.material == "ash" || out.material == "smoke";
+    out.open = state.objects->open_to_sky(*state.world, *made);
     return out;
 }
 
@@ -248,6 +299,7 @@ std::vector<Task> tasks() {
     std::vector<Task> out;
     out.push_back({.name = "across",
                    .goal = "set the crate on the far bank alight without crossing the stream",
+                   .verbs = {Verb::torch, Verb::pour, Verb::drop, Verb::push, Verb::wind},
                    .done = [](const State& state) {
                        const auto crate = seen(state, "crate");
                        return crate && (crate->burning || crate->material == "ash");
@@ -255,6 +307,7 @@ std::vector<Task> tasks() {
                    .may_act_at = [](Vec3 at) { return at.x < -0.2f; }});
     out.push_back({.name = "campfire",
                    .goal = "light the campfire after the rain",
+                   .verbs = {Verb::torch, Verb::rain, Verb::drop, Verb::push},
                    .done = [](const State& state) {
                        for (int log = 1; log <= 3; ++log)
                            if (const auto one = seen(state, std::format("log {}", log)); one && one->burning) return true;
@@ -263,11 +316,21 @@ std::vector<Task> tasks() {
                    .may_act_at = [](Vec3) { return true; }});
     out.push_back({.name = "ice",
                    .goal = "melt the block of ice",
+                   .verbs = {Verb::torch, Verb::push, Verb::drop},
                    .done = [](const State& state) {
                        const auto ice = seen(state, "ice");
                        return ice && ice->material != "ice";
                    },
                    .may_act_at = [](Vec3 at) { return at.x < -0.2f; }});
+    out.push_back({.name = "storm",
+                   .goal = "light the campfire with no torch, in a storm",
+                   .verbs = {Verb::drop, Verb::strike},
+                   .done = [](const State& state) {
+                       for (int log = 1; log <= 3; ++log)
+                           if (const auto one = seen(state, std::format("log {}", log)); one && one->burning) return true;
+                       return false;
+                   },
+                   .may_act_at = [](Vec3) { return true; }});
     return out;
 }
 

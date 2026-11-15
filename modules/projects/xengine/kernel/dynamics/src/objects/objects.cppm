@@ -106,6 +106,8 @@ public:
     };
     std::optional<BodyId> lightning(const World& world, Strike strike);
     std::optional<BodyId> lightning(const World& world) { return lightning(world, Strike{}); }
+    // Whether nothing is above a body for `sky` metres (a ray up from its top): what rain and lightning ask.
+    [[nodiscard]] bool open_to_sky(const World& world, BodyId body, float sky = 60) const noexcept;
     [[nodiscard]] std::span<const matter::Event> events() const noexcept { return events_; }
     // The body an instance of the last step is (none: the air beside one).
     [[nodiscard]] BodyId body_of(std::uint32_t instance) const noexcept { return instance < bodies_before_.size() ? bodies_before_[instance] : BodyId{}; }
@@ -134,7 +136,6 @@ public:
 
 private:
     [[nodiscard]] std::optional<std::size_t> index(BodyId body) const noexcept;
-    [[nodiscard]] bool open_to_sky(const World& world, BodyId body, float sky) const noexcept;
     void weigh(const World& world, std::size_t instances);  // capacity_: the bodies' by mass, then 1 each
     // After a step: each event of a body judged again, its cause kept (`why` gives the law and the inflows).
     void witness(const std::function<std::optional<matter::Why>(std::uint32_t instance)>& why_of, const std::function<matter::CameFrom(std::uint32_t instance)>& source_of);

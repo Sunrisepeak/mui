@@ -44,15 +44,27 @@ struct Thing {
     bool        carried = true;  // its matter is carried (the ground's is not: it touches everything)
     float       density = 0;     // kg/m³; 0: the material's
 };
+// The ground as heights on a grid (a fixed body of rigid3's mesh shape, carrying no matter): `heights` row by
+// row along z, (across + 1) × (along + 1) of them, from `origin` (the corner at the lowest x and z).
+struct Terrain {
+    Vec3               origin{0, 0, 0};
+    float              cell = 0.5f;
+    std::uint32_t      across = 0, along = 0;
+    std::vector<float> heights;
+    std::string        material = "stone";
+    [[nodiscard]] float height(float x, float z) const noexcept;  // between the grid's heights, as its triangles are
+};
 struct Level {
     std::string        name;
+    Terrain            ground;
     std::vector<Thing> things;
     Vec3               wind{0, 0, 0};
     float              stream_from = 0, stream_to = 2;  // x: the stream between
 };
 namespace level {
-// The valley: the near bank with a strip of grass to the bridge, the footbridge over the stream, the far bank's
-// grass to a wooden crate; the campfire's logs in a ring of stones on the near bank; a block of ice by it.
+// The valley: a hill behind the near bank, the near bank with a strip of grass to the bridge, the stream in its
+// channel and the footbridge over it, the far bank's grass to a wooden crate; the campfire's logs in a ring of
+// stones on the near bank, a block of ice by it; trees (bark, a crown of dry leaves) on both banks.
 [[nodiscard]] Level glade();
 }  // namespace level
 
@@ -64,6 +76,7 @@ struct Seen {
     bool        burning = false;
     float       wetness = 0;
     bool        gone = false;  // burned out: it is what it became (`material`)
+    bool        open = false;  // nothing above it: rain reaches it, lightning may
 };
 
 struct Held {
@@ -121,8 +134,10 @@ std::optional<std::string> strike(State& state);
 [[nodiscard]] std::uint64_t checksum(const State& state);
 
 // ── tasks: problems the environment solves ──
+enum class Verb : std::uint8_t { torch, pour, drop, push, wind, rain, strike };
 struct Task {
     std::string                               name, goal;
+    std::vector<Verb>                         verbs;       // the verbs it may be solved with
     std::function<bool(const State&)>         done;
     std::function<bool(Vec3)>                 may_act_at;  // where verbs may be done (the near bank only, …)
 };

@@ -1,18 +1,61 @@
-// Execute the actual generated inline loader against native fetch/Response/
-// ReadableStream/WebAssembly. The launcher lifecycle and MEMFS are small
-// test doubles; this does not claim to execute a complete Emscripten app.
-// First run gen.dist_toy, then: node tools/ci/dist-toy-loading.mjs <index.html>
-import { readFile } from 'node:fs/promises';
-import { dirname, join, extname } from 'node:path';
-import { createServer } from 'node:http';
-import { gzipSync } from 'node:zlib';
-import vm from 'node:vm';
+// The visitor's path and the generated loader in a real browser (moved from
+// tools/ci/visitor-path.sh, visitor-path.mjs and dist-toy-loading.mjs, D-206).
+//
+// visitor-path  the built site in a real browser as a person opens it, and that person's own agent
+// operating it the
+//               way the page's prompt tells an agent to (D-95; W3's CI case): "Copy the prompt"
+//               pressed with real clicks gives a pairing code and the page's agent.md; the agent
+//               reads it, starts the bridge with it
+//               (`omui connect --code … --name …`), waits for the page (`omui page status --wait`),
+//               does agent.md's self-check (which the person's log then shows), reads and operates
+//               the page with `omui page …` (its semantic tree, an action, the interaction sweep
+//               over every control); both ends say how it stands, and when the bridge stops the
+//               page knows. The report: target/visitor-path.json.
+// dist-toy-loading  the actual generated inline loader (omui.gen's dist_toy test writes the
+// fixture) executed against
+//               the browser's own fetch, Response, ReadableStream and WebAssembly over real gzip
+//               HTTP; the launcher lifecycle and MEMFS are small test doubles, each loader in a
+//               frame of its own (node's vm context before); this does not claim to execute a
+//               complete Emscripten app. The report: target/dist-toy-loading.report.omui.json.
+module omui.devtools.check;
 
-const fixture = process.argv[2] || '/tmp/openmui-tests/dist-toy-loading/index.html';
-const html = await readFile(fixture, 'utf8');
+import std;
+import mcpplibs.os;
+import mlibs.http;
+import omui.devtools.browser;
+import omui.devtools.cdp;
+import omui.devtools.run;
+import :pages;
+import :support;
+
+namespace omui::devtools::check {
+
+namespace fs = std::filesystem;
+using namespace support;
+
+namespace {
+
+using cdp::json, cdp::at, cdp::dig, cdp::q, cdp::text, cdp::truthy, cdp::number;
+
+void write_json(const fs::path& path, const json& report, int indent = 2) {
+    std::error_code error;
+    fs::create_directories(path.parent_path(), error);
+    std::ofstream(path, std::ios::binary) << cdp::pretty(report, indent) << '\n';
+}
+
+// The loader's harness, evaluated in the page (the allowlist's browser host JavaScript):
+// `@FIXTURE@` is the fixture's name in the report.
+constexpr std::string_view loader_harness = R"js((async () => {
+try {
+const fixture = @FIXTURE@;
+const base = location.origin + '/';
+// The fixture's own files, read as they are (not counted among the loader's requests).
+const fixtureText = async name => (await fetch(new URL(name, base).href + '?omui-unlogged', { cache: 'no-store' })).text();
+const serverRequests = async () => (await fetch('/__omui/requests', { cache: 'no-store' })).json();
+const html = await fixtureText('index.html');
 const loaderSource = html => [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map(m => m[1]).find(s => s.includes('var omuiWasm =') && s.includes('window.omuiLoad ='));
 const source = loaderSource(html);
-if (!source) throw new Error('Fixture lacks the managed loader; run the current gen.dist_toy tests first');
+if (!source) return { error: 'Fixture lacks the managed loader; run the current gen.dist_toy tests first' };
 const report = { fixture, checks: [] };
 function check(ok, what, detail) { report.checks.push({ ok: !!ok, what, ...(detail === undefined ? {} : { detail }) }); if (!ok) throw new Error(what); }
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -21,28 +64,24 @@ async function until(fn, what) {
   while (Date.now() < end) { if (await fn()) return; await sleep(5); }
   throw new Error('Timed out: ' + what);
 }
-const requests = [];
-const server = createServer(async (req, res) => {
-  try {
-    const name = decodeURIComponent(req.url.split('?')[0]).replace(/^\//, '');
-    if (name.includes('..')) { res.writeHead(400); res.end(); return; }
-    const bytes = await readFile(join(dirname(fixture), name)), encoded = gzipSync(bytes);
-    requests.push({ name, raw: bytes.length, encoded: encoded.length });
-    res.writeHead(200, { 'Content-Type': extname(name) === '.wasm' ? 'application/wasm' : 'application/octet-stream', 'Content-Encoding': 'gzip', 'Content-Length': encoded.length, 'Cache-Control': 'no-store' });
-    res.end(encoded);
-  } catch { res.writeHead(404); res.end(); }
-});
-await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-const base = `http://127.0.0.1:${server.address().port}/`;
 const instances = [];
 
-function harness(options = {}) {
+// The loader's own global: a frame of its own at the asset base (its document.URL carries the route), where the
+// browser's interfaces it uses are the test doubles and this page's own natives, as node's vm context had them.
+async function harness(options = {}) {
   const assetBase = new URL(options.prefix || '', base);
   const events = [], listeners = new Map(), files = new Map(), aliases = new Map(), dependencies = new Set(), calls = [];
   const timers = new Map(); let serial = 0, receives = 0, initialized = 0, streamed = 0, buffered = 0;
   const status = { textContent: '', style: {} }, canvas = { focus() {}, addEventListener() {} };
   const behavior = { fail: null, status: 404, interrupt: false, hang: false, holdWasm: false, releaseWasm: null, holdFont: null, releaseFont: null, failWrite: null, writeFailures: 0 };
-  const env = {
+  const frame = document.createElement('iframe');
+  frame.style.display = 'none';
+  const loaded = new Promise(resolve => frame.addEventListener('load', resolve, { once: true }));
+  frame.src = assetBase.href + '?omui-blank#/' + (options.language || 'en');
+  document.body.appendChild(frame);
+  await loaded;
+  const env = frame.contentWindow;
+  const doubles = {
     console, URL, Headers, Response, ReadableStream: options.noStream ? undefined : ReadableStream,
     AbortController, Uint8Array, setTimeout(fn, ms) {
       const id = ++serial; const entry = { fn, ms }; timers.set(id, entry);
@@ -53,8 +92,6 @@ function harness(options = {}) {
     },
     clearTimeout(id) { const t = timers.get(id); if (t?.handle) clearTimeout(t.handle); timers.delete(id); },
     CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init.detail; } },
-    document: { URL: assetBase.href + '#/' + (options.language || 'en'), getElementById: id => id === 'canvas' ? canvas : status },
-    navigator: { languages: [options.browserLanguage || 'en'], language: options.browserLanguage || 'en' }, location: { reload() { throw new Error('Unexpected reload'); } },
     addEventListener(name, fn) { if (!listeners.has(name)) listeners.set(name, []); listeners.get(name).push(fn); },
     dispatchEvent(event) { if (event.type === 'omui-load') events.push(event.detail); for (const fn of listeners.get(event.type) || []) fn(event); return true; },
     FS: {
@@ -77,7 +114,7 @@ function harness(options = {}) {
       if (behavior.fail === asset?.id) {
         if (behavior.hang) return new Promise((resolve, reject) => init.signal.addEventListener('abort', () => reject(new DOMException('No response', 'AbortError')), { once: true }));
         if (behavior.interrupt) {
-          const raw = new Uint8Array(await readFile(join(dirname(fixture), options.prefix || '', url))); let part = 0;
+          const raw = new Uint8Array(await (await fetch(new URL(url, assetBase).href + '?omui-unlogged', { cache: 'no-store' })).arrayBuffer()); let part = 0;
           return new Response(new ReadableStream({ pull(c) { if (!part++) c.enqueue(raw.slice(0, 3)); else c.error(new Error('Connection interrupted')); } }), { headers: { 'Content-Type': 'application/wasm' } });
         }
         return new Response('', { status: behavior.status });
@@ -85,11 +122,13 @@ function harness(options = {}) {
       return fetch(new URL(url, assetBase), { ...init, cache: 'no-store' });
     }
   };
-  env.window = env;
-  const context = vm.createContext(env);
+  for (const [name, value] of Object.entries(doubles)) Object.defineProperty(env, name, { value, writable: true, configurable: true });
+  env.document.getElementById = id => id === 'canvas' ? canvas : status;
+  Object.defineProperty(env.navigator, 'languages', { get: () => [options.browserLanguage || 'en'], configurable: true });
+  Object.defineProperty(env.navigator, 'language', { get: () => options.browserLanguage || 'en', configurable: true });
   const selected = options.source || source;
   const code = options.unknown ? selected.replace(/var omuiAssetBytes = [^\n]+;/, 'var omuiAssetBytes = {};') : selected;
-  new vm.Script(code, { filename: fixture + ':inline-loader' }).runInContext(context);
+  env.eval(code);
   function initialize() {
     if (dependencies.size || initialized) return;
     ++initialized; env.Module.setStatus('Running...'); env.Module.onRuntimeInitialized();
@@ -108,7 +147,7 @@ function harness(options = {}) {
     // language's faces wait until it does: a reader drawing in all of them).
     present() { env.omuiHasPresented = true; const hook = env.omuiFirstFrame; env.omuiFirstFrame = null; if (typeof hook !== 'function') throw new Error('Native presentation hook missing'); hook(); if (options.asks !== false) env.omuiWantFonts(); },
     counts() { return { receives, initialized, streamed, buffered }; },
-    dispose() { for (const t of timers.values()) if (t.handle) clearTimeout(t.handle); timers.clear(); }
+    dispose() { for (const t of timers.values()) if (t.handle) clearTimeout(t.handle); timers.clear(); frame.remove(); }
   };
   instances.push(h); return h;
 }
@@ -116,11 +155,10 @@ async function scenario(what, run) {
   try { await run(); }
   catch (e) { report.checks.push({ ok: false, what, detail: String(e.stack || e) }); }
 }
-try {
-  await scenario('content-identical font basenames share transfer bytes but retain independent installations', async () => {
-    const aliasSource = loaderSource(await readFile(join(dirname(fixture), 'shared-font-url/index.html'), 'utf8'));
+await scenario('content-identical font basenames share transfer bytes but retain independent installations', async () => {
+    const aliasSource = loaderSource(await fixtureText('shared-font-url/index.html'));
     check(!!aliasSource, 'the actual generator provides two selected basenames for one physical font URL');
-    const h = harness({ source: aliasSource, prefix: 'shared-font-url/' });
+    const h = await harness({ source: aliasSource, prefix: 'shared-font-url/' });
     h.behavior.holdFont = 'font:Inter.ttf';
     const aPromise = h.env.omuiLoad.fontBytes('Inter.ttf'), bPromise = h.env.omuiLoad.fontBytes('InterAlias.ttf');
     await until(() => typeof h.behavior.releaseFont === 'function', 'held shared transfer'); h.start();
@@ -135,17 +173,17 @@ try {
     const late = await h.env.omuiLoad.fontBytes('InterAlias.ttf'); late.release();
     check(h.calls.filter(c => c.url === a.url).length === 1 && Object.values(h.env.omuiFontRecords).every(r => r.buffer === null), 'late alias reads use its own installed FS file without a second transfer or retained byte cache');
     const mixedFonts = h.env.omuiFonts.map(f => f[0] === 'InterAlias.ttf' ? [f[0], f[1], ['zh']] : f);
-    const mixed = harness({ source: aliasSource.replace(/var omuiFonts = [^\n]+;/, 'var omuiFonts = ' + JSON.stringify(mixedFonts) + ';'), prefix: 'shared-font-url/' });
+    const mixed = await harness({ source: aliasSource.replace(/var omuiFonts = [^\n]+;/, 'var omuiFonts = ' + JSON.stringify(mixedFonts) + ';'), prefix: 'shared-font-url/' });
     mixed.start(); await mixed.ready();
     check(mixed.files.has('/fonts/Inter.ttf') && !mixed.files.has('/fonts/InterAlias.ttf') && mixed.env.omuiFontPending === 1, 'same-URL fonts keep independent startup and deferred installation roles');
     mixed.present(); await mixed.complete();
     check(mixed.files.has('/fonts/InterAlias.ttf') && mixed.aliases.get('/later/fonts/InterAlias.ttf') === '/fonts/InterAlias.ttf' && mixed.calls.filter(c => c.url === a.url).length === 1, 'the deferred alias installs after presentation using the already transferred content');
   });
   await scenario('retrying a shared physical asset restores every currently eligible font installation', async () => {
-    const aliasSource = loaderSource(await readFile(join(dirname(fixture), 'shared-font-url/index.html'), 'utf8'));
-    const probe = harness({ source: aliasSource, prefix: 'shared-font-url/' });
+    const aliasSource = loaderSource(await fixtureText('shared-font-url/index.html'));
+    const probe = await harness({ source: aliasSource, prefix: 'shared-font-url/' });
     const mixedFonts = probe.env.omuiFonts.map(f => f[0] === 'Inter.ttf' ? [f[0], f[1], ['zh']] : f);
-    const h = harness({ source: aliasSource.replace(/var omuiFonts = [^\n]+;/, 'var omuiFonts = ' + JSON.stringify(mixedFonts) + ';'), prefix: 'shared-font-url/' });
+    const h = await harness({ source: aliasSource.replace(/var omuiFonts = [^\n]+;/, 'var omuiFonts = ' + JSON.stringify(mixedFonts) + ';'), prefix: 'shared-font-url/' });
     h.behavior.fail = 'font:Inter.ttf'; h.start();
     await until(() => h.env.omuiLoad.error && !h.env.omuiFontRecords[h.env.omuiLoad.error.url].transfer.running, 'shared physical network failure');
     const failure = h.env.omuiLoad.error;
@@ -157,8 +195,8 @@ try {
     check(h.env.omuiLoad.phase === 'complete' && h.counts().initialized === 1 && !h.files.has('/fonts/.partial'), 'shared-role network recovery completes with one program initialization');
   });
   await scenario('a single failed alias FS installation recovers by the reported physical error ID without refetching', async () => {
-    const aliasSource = loaderSource(await readFile(join(dirname(fixture), 'shared-font-url/index.html'), 'utf8'));
-    const h = harness({ source: aliasSource, prefix: 'shared-font-url/' });
+    const aliasSource = loaderSource(await fixtureText('shared-font-url/index.html'));
+    const h = await harness({ source: aliasSource, prefix: 'shared-font-url/' });
     h.behavior.failWrite = '/fonts/InterAlias.ttf'; h.start();
     await until(() => h.behavior.writeFailures && h.env.omuiLoad.error && !h.env.omuiFontRecords[h.env.omuiLoad.error.url].transfer.running, 'alias FS installation failure');
     const failure = h.env.omuiLoad.error, count = h.calls.length;
@@ -169,7 +207,7 @@ try {
     check(h.env.omuiLoad.phase === 'complete' && h.counts().initialized === 1 && Object.values(h.env.omuiFontRecords).every(r => r.buffer === null), 'FS recovery completes once and releases the private transfer bytes');
   });
   await scenario('a failed early face retired by locale navigation cannot block the current full-face plan', async () => {
-    const h = harness(); h.env.omuiFontLanguage = 'en'; h.behavior.fail = 'initial-font:NotoSansSC.ttf';
+    const h = await harness(); h.env.omuiFontLanguage = 'en'; h.behavior.fail = 'initial-font:NotoSansSC.ttf';
     let failure; try { await h.env.omuiLoad.fontBytes('NotoSansSC.ttf'); } catch (error) { failure = error; }
     check(failure?.id === 'initial-font:NotoSansSC.ttf' && h.env.omuiLoad.error, 'the required initial-face failure is visible before the language changes');
     h.behavior.holdWasm = true; h.start(); await until(() => typeof h.behavior.releaseWasm === 'function', 'locale switch after failed early font');
@@ -180,7 +218,7 @@ try {
     h.present(); await h.complete(); const count = h.calls.length; const retry = await h.env.omuiLoad.retry();
     check(h.env.omuiLoad.phase === 'complete' && h.env.omuiLoad.ratio === 1 && h.env.omuiFontPending === 0 && !h.files.has('/fonts/.partial'), 'retired history does not block current-plan progress or complete');
     check(h.calls.length === count && retry.blocked.includes(old.id) && h.counts().initialized === 1, 'retry reports the retired failure as blocked instead of refetching an obsolete face');
-    const required = harness(); required.env.omuiFontLanguage = 'en'; required.behavior.fail = 'initial-font:NotoSansSC.ttf';
+    const required = await harness(); required.env.omuiFontLanguage = 'en'; required.behavior.fail = 'initial-font:NotoSansSC.ttf';
     try { await required.env.omuiLoad.fontBytes('NotoSansSC.ttf'); } catch {}
     required.env.omuiFontLanguage = 'zh'; required.behavior.fail = 'font:NotoSansSC.ttf'; required.start();
     await until(() => required.asset('font:NotoSansSC.ttf')?.state === 'error' && !required.env.omuiFontRecords[required.asset('font:NotoSansSC.ttf').url].transfer.running, 'current required face failure');
@@ -189,7 +227,7 @@ try {
     check(required.env.omuiLoad.phase === 'complete' && required.counts().initialized === 1, 'the current required failure still needs a successful explicit retry before completion');
   });
   await scenario('locale retirement during retry backoff never starts another obsolete transfer', async () => {
-    const h = harness({ holdBackoff: true }); h.env.omuiFontLanguage = 'en';
+    const h = await harness({ holdBackoff: true }); h.env.omuiFontLanguage = 'en';
     h.behavior.fail = 'initial-font:NotoSansSC.ttf'; h.behavior.status = 503;
     const result = h.env.omuiLoad.fontBytes('NotoSansSC.ttf').catch(error => error);
     await until(() => h.asset('initial-font:NotoSansSC.ttf')?.state === 'error' && h.hasTimer(250), 'explicitly held automatic retry backoff');
@@ -205,9 +243,9 @@ try {
     check(h.env.omuiLoad.phase === 'complete' && h.env.omuiLoad.error === null && h.counts().initialized === 1 && !h.hasTimer(1000), 'retired retry completion does not disturb the current plan or schedule another backoff');
   });
   await scenario('explicit DOM byte leases share a single decoded transfer with native startup and late full faces', async () => {
-    const initialSource = loaderSource(await readFile(join(dirname(fixture), 'all-language-initial/index.html'), 'utf8'));
-    const h = harness({ source: initialSource, prefix: 'all-language-initial/' });
-    const beforeRequests = requests.length;
+    const initialSource = loaderSource(await fixtureText('all-language-initial/index.html'));
+    const h = await harness({ source: initialSource, prefix: 'all-language-initial/' });
+    const beforeRequests = (await serverRequests()).length;
     const firstPromise = h.env.omuiLoad.fontBytes('Inter.ttf'), secondPromise = h.env.omuiLoad.fontBytes('Inter.ttf');
     check(h.calls.length === 1 && h.calls[0].id === 'initial-font:Inter.ttf', 'explicit DOM consumers begin the initial face before wasm starts');
     const [first, second] = await Promise.all([firstPromise, secondPromise]);
@@ -222,7 +260,7 @@ try {
     const third = await h.env.omuiLoad.fontBytes('Inter.ttf');
     h.start(); await h.ready();
     check(h.files.get('/fonts/Inter.ttf')[0] === originalByte && new Uint8Array(third.buffer)[0] === originalByte, 'mutating a public lease cannot corrupt another lease or native startup font bytes');
-    check(h.calls.filter(c => c.url === url).length === 1 && requests.slice(beforeRequests).filter(r => 'all-language-initial/' + url === r.name).length === 1, 'DOM plus FS use one actual HTTP request with cache disabled');
+    check(h.calls.filter(c => c.url === url).length === 1 && (await serverRequests()).slice(beforeRequests).filter(r => 'all-language-initial/' + url === r.name).length === 1, 'DOM plus FS use one actual HTTP request with cache disabled');
     check(record.buffer !== third.buffer && h.files.get('/fonts/Inter.ttf').byteLength === third.buffer.byteLength, 'native installation preserves the isolated active DOM lease');
     third.buffer = null; third.release(); third.release(); check(record.buffer === null && record.transfer.running === null, 'installed bytes and settled transfer references are released after the final DOM lease');
     const initialAgain = await h.env.omuiLoad.fontBytes('Inter.ttf');
@@ -236,7 +274,7 @@ try {
   });
   await scenario('locale replans preserve early in-flight transfers without duplicating or installing the wrong face', async () => {
     for (const [before, after] of [['en', 'zh'], ['zh', 'en']]) {
-      const h = harness(); h.env.omuiFontLanguage = before;
+      const h = await harness(); h.env.omuiFontLanguage = before;
       h.behavior.holdFont = (before === 'en' ? 'initial-font:' : 'font:') + 'NotoSansSC.ttf';
       const leasePromise = h.env.omuiLoad.fontBytes('NotoSansSC.ttf');
       await until(() => typeof h.behavior.releaseFont === 'function', 'held explicit font request');
@@ -252,7 +290,7 @@ try {
     }
   });
   await scenario('early DOM transfer errors stay explicit and retry joins the original runtime dependency', async () => {
-    const h = harness(); h.behavior.fail = 'font:Inter.ttf';
+    const h = await harness(); h.behavior.fail = 'font:Inter.ttf';
     let failure; try { await h.env.omuiLoad.fontBytes('Inter.ttf'); } catch (error) { failure = error; }
     check(failure?.code === 'font_fetch_failed' && failure.id === 'font:Inter.ttf' && failure.retryable && h.env.omuiLoad.phase === 'error', 'early network failure rejects the DOM consumer with a retryable asset error');
     h.start(); await until(() => h.dependencies.has('font Inter.ttf') && h.asset('font:Inter.ttf').state === 'error' && !h.env.omuiFontRecords[h.asset('font:Inter.ttf').url].transfer.running, 'failed prefetched startup dependency');
@@ -266,15 +304,15 @@ try {
     try { await h.env.omuiLoad.fontBytes('Inter.ttf'); } catch (error) { fatal = error; }
     check(fatal?.code === 'reload_required', 'fatal runtime errors block new DOM transfer requests');
     const noInitial = h.env.omuiFonts.map(f => f[0] === 'NotoSansSC.ttf' ? f.slice(0, 3) : f);
-    const deferred = harness({ source: source.replace(/var omuiFonts = [^\n]+;/, 'var omuiFonts = ' + JSON.stringify(noInitial) + ';') });
+    const deferred = await harness({ source: source.replace(/var omuiFonts = [^\n]+;/, 'var omuiFonts = ' + JSON.stringify(noInitial) + ';') });
     let wait; try { await deferred.env.omuiLoad.fontBytes('NotoSansSC.ttf'); } catch (error) { wait = error; }
     check(wait?.code === 'font_deferred' && deferred.calls.length === 0, 'a language-deferred face without initial coverage does not silently fetch before presentation');
   });
   await scenario('real Inter initial coverage works for every language and startup failures remain recoverable', async () => {
-    const initialSource = loaderSource(await readFile(join(dirname(fixture), 'all-language-initial/index.html'), 'utf8'));
+    const initialSource = loaderSource(await fixtureText('all-language-initial/index.html'));
     check(!!initialSource, 'the generator supplies a separate real-TTF all-language fixture');
     for (const language of ['en', 'zh']) {
-      const h = harness({ source: initialSource, prefix: 'all-language-initial/', language }); h.env.omuiFontLanguage = language;
+      const h = await harness({ source: initialSource, prefix: 'all-language-initial/', language }); h.env.omuiFontLanguage = language;
       h.behavior.fail = 'initial-font:Inter.ttf'; h.start();
       await until(() => h.asset('initial-font:Inter.ttf')?.state === 'error', 'all-language initial font failure');
       check(h.asset('font:Inter.ttf').group === 'deferred' && !h.calls.some(c => c.id === 'font:Inter.ttf'), language + ': full Inter is deferred without a language rule');
@@ -287,7 +325,7 @@ try {
     }
   });
   await scenario('bootstrap chooses the actual page language after the loader inline script', async () => {
-    const h = harness({ browserLanguage: 'zh' });
+    const h = await harness({ browserLanguage: 'zh' });
     check(!h.env.omuiLoad.assets.some(a => a.kind === 'font'), 'inline execution does not prematurely choose fonts from browser preference');
     h.env.omuiFontLanguage = 'en'; h.start(); await h.ready();
     check(h.asset('font:NotoSansSC.ttf').group === 'deferred' && h.asset('initial-font:NotoSansSC.ttf').state === 'ready', 'late English bootstrap overrides Chinese browser preference before the first download plan');
@@ -296,7 +334,7 @@ try {
   });
   await scenario('static language navigation during wasm fetch replans queued fonts before preRun', async () => {
     for (const [before, after] of [['en', 'zh'], ['zh', 'en']]) {
-      const h = harness(); h.env.omuiFontLanguage = before; h.behavior.holdWasm = true; h.start();
+      const h = await harness(); h.env.omuiFontLanguage = before; h.behavior.holdWasm = true; h.start();
       await until(() => typeof h.behavior.releaseWasm === 'function', 'held wasm request');
       check(h.asset('font:NotoSansSC.ttf').group === (before === 'zh' ? 'startup' : 'deferred'), before + ' initial font plan is observable while wasm waits');
       h.env.omuiFontLanguage = after; h.behavior.releaseWasm(); await h.ready();
@@ -310,7 +348,7 @@ try {
     }
   });
   await scenario('another language\'s face waits until the program asks, and loading still completes', async () => {
-    const h = harness({ asks: false }); h.start(); await h.ready(); h.present();
+    const h = await harness({ asks: false }); h.start(); await h.ready(); h.present();
     await until(() => h.env.omuiLoad.phase === 'complete', 'complete without the face');
     check(!h.calls.some(c => c.id === 'font:NotoSansSC.ttf') && h.asset('font:NotoSansSC.ttf')?.state === 'deferred',
           'unasked, another language\'s face is not fetched');
@@ -323,7 +361,7 @@ try {
           'a character it can draw fetches it once, announced in a new batch');
   });
   await scenario('streamed gzip package, deferred fonts, and synchronous native presentation', async () => {
-    const h = harness(); h.start(); await h.ready();
+    const h = await harness(); h.start(); await h.ready();
     check(h.counts().streamed === 1 && h.counts().buffered === 0, 'normal wasm retains native streaming instantiation');
     check(h.env.omuiLoad.basis === 'decoded' && h.env.omuiLoad.startup.ratio === 1 && h.env.omuiLoad.ratio < 1, 'startup and all-managed totals are distinct decoded-byte scopes');
     check(h.files.has('/fonts/.partial') && !h.files.has('/later/.ready'), 'deferred full fonts do not claim readiness');
@@ -334,25 +372,25 @@ try {
     check(h.aliases.get('/later/fonts/NotoSansSC.ttf') === '/fonts/NotoSansSC.ttf', 'deferred font uses the canonical full font without duplicate MEMFS data');
     const count = h.calls.length; h.env.omuiFetchLater(); await h.env.omuiLoad.retry();
     check(h.calls.length === count && h.counts().receives === 1 && h.counts().initialized === 1, 'completed work and main initialization never restart');
-    check(requests.some(r => r.encoded !== r.raw) && h.asset('wasm').loaded === h.asset('wasm').total, 'real HTTP gzip Content-Length is not confused with decoded progress');
+    check((await serverRequests()).some(r => r.encoded !== r.raw) && h.asset('wasm').loaded === h.asset('wasm').total, 'real HTTP gzip Content-Length is not confused with decoded progress');
   });
   await scenario('four-second fallback is not a presented frame', async () => {
-    const h = harness(); h.start(); await h.ready(); h.timer(4000); h.env.omuiWantFonts(); await h.complete();
+    const h = await harness(); h.start(); await h.ready(); h.timer(4000); h.env.omuiWantFonts(); await h.complete();
     check(!h.env.omuiLoad.presented && !h.events.some(e => e.phase === 'presented') && typeof h.env.omuiFirstFrame === 'function', 'fallback fetches preserve the real native presentation hook');
     const count = h.calls.length; h.present(); h.env.omuiFetchLater();
     check(h.events.filter(e => e.phase === 'presented').length === 1 && h.calls.length === count, 'a later real presentation is reported once without fetching twice');
   });
   await scenario('Chinese opening selects full rather than initial coverage', async () => {
-    const h = harness({ language: 'zh' }); h.start(); await h.ready();
+    const h = await harness({ language: 'zh' }); h.start(); await h.ready();
     check(h.asset('font:NotoSansSC.ttf').group === 'startup' && h.asset('initial-font:NotoSansSC.ttf').state === 'skipped', 'a Chinese visit installs full CJK before initialization');
     check(!h.calls.some(c => c.url === h.asset('initial-font:NotoSansSC.ttf').url), 'unused initial coverage does not fetch or inflate the denominator');
   });
   await scenario('no ReadableStream has an honest buffered fallback', async () => {
-    const h = harness({ noStream: true }); h.start(); await h.ready();
+    const h = await harness({ noStream: true }); h.start(); await h.ready();
     check(h.counts().streamed === 0 && h.counts().buffered === 1 && h.env.omuiLoad.startup.ratio === 1, 'buffered fallback initializes once and counts only actual completed bytes');
   });
   await scenario('unknown totals remain indeterminate until actual EOF', async () => {
-    const h = harness({ unknown: true });
+    const h = await harness({ unknown: true });
     check(h.env.omuiLoad.total === null && h.env.omuiLoad.ratio === null && h.env.omuiLoad.startup.ratio === null, 'no metadata means null denominators, not a guessed percentage');
     const initial = h.env.omuiLoad.loaded; h.env.Module.setStatus('Downloading (99/100)');
     check(h.env.omuiLoad.loaded === initial && h.env.omuiLoad.ratio === null, 'Module.setStatus text is not parsed into progress');
@@ -360,7 +398,7 @@ try {
     h.present(); await h.complete(); check(h.env.omuiLoad.ratio === 1, 'all actual EOF sizes eventually give a factual complete ratio');
   });
   await scenario('startup font failure retains dependency and can retry without reinitialization', async () => {
-    const h = harness(); h.behavior.fail = 'font:Inter.ttf'; h.start();
+    const h = await harness(); h.behavior.fail = 'font:Inter.ttf'; h.start();
     await until(() => h.asset('font:Inter.ttf').state === 'error', 'startup font error');
     check(!h.env.omuiLoad.runtimeInitialized && h.dependencies.has('font Inter.ttf') && !h.files.has('/fonts/Inter.ttf'), 'failed startup font cannot release a false-ready dependency');
     check(h.asset('font:Inter.ttf').attempt === 1 && h.env.omuiLoad.error.retryable, 'HTTP 404 is explicit and does not auto-retry forever');
@@ -368,35 +406,426 @@ try {
     check(h.counts().receives === 1 && h.counts().initialized === 1 && h.dependencies.size === 0, 'explicit font retry completes the original waiting initialization');
   });
   await scenario('failed deferred font preserves partial and omits ready until retry', async () => {
-    const h = harness(); h.start(); await h.ready(); h.behavior.fail = 'font:NotoSansSC.ttf'; h.present();
+    const h = await harness(); h.start(); await h.ready(); h.behavior.fail = 'font:NotoSansSC.ttf'; h.present();
     await until(() => h.asset('font:NotoSansSC.ttf').state === 'error', 'deferred font error');
     check(h.files.has('/fonts/.partial') && !h.files.has('/later/.ready') && h.env.omuiLoad.presented, 'background failure neither lies about readiness nor restarts the running program');
     await sleep(5); h.behavior.fail = null; await h.env.omuiLoad.retry('font:NotoSansSC.ttf'); await h.complete();
     check(!h.files.has('/fonts/.partial') && h.files.has('/later/.ready') && h.counts().initialized === 1, 'deferred retry installs once and then reports readiness');
   });
   await scenario('interrupted wasm streams retry a bounded number and remain explicitly recoverable', async () => {
-    const h = harness(); h.behavior.fail = 'wasm'; h.behavior.interrupt = true; h.start();
+    const h = await harness(); h.behavior.fail = 'wasm'; h.behavior.interrupt = true; h.start();
     await until(() => h.asset('wasm').attempt === 3 && !h.env.omuiJobs.wasm.running, 'bounded interrupted fetches');
     check(h.asset('wasm').state === 'error' && h.counts().receives === 0 && !h.env.omuiLoad.runtimeInitialized, 'three interrupted attempts fail visibly without starting main');
     h.behavior.fail = null; await h.env.omuiLoad.retry('wasm'); await h.ready();
     check(h.counts().receives === 1 && h.counts().initialized === 1, 'explicit wasm retry recovers the original hook exactly once');
   });
   await scenario('a silent connection has a bounded inactivity failure', async () => {
-    const h = harness(); h.behavior.fail = 'wasm'; h.behavior.hang = true; h.start();
+    const h = await harness(); h.behavior.fail = 'wasm'; h.behavior.hang = true; h.start();
     for (let n = 1; n <= 3; ++n) { await until(() => h.asset('wasm').attempt === n, 'timeout attempt'); h.timer(15000); }
     await until(() => !h.env.omuiJobs.wasm.running, 'final inactivity error');
     check(h.asset('wasm').state === 'error' && h.asset('wasm').attempt === 3, 'inactivity cannot leave an unreported permanent spinner');
   });
   await scenario('fatal runtime or launcher failures require reload rather than another main', async () => {
-    const h = harness(); h.start(); await h.ready(); const calls = h.calls.length;
+    const h = await harness(); h.start(); await h.ready(); const calls = h.calls.length;
     h.env.Module.onAbort('Runtime failed'); const retry = await h.env.omuiLoad.retry();
     check(h.env.omuiLoad.phase === 'error' && retry.reason === 'reload_required' && h.calls.length === calls && h.counts().initialized === 1, 'runtime abort cannot duplicate program initialization');
-    const launcher = harness(); launcher.env.dispatchEvent({ type: 'error', target: { src: new URL(launcher.env.omuiLauncher, base).href } });
+    const launcher = await harness(); launcher.env.dispatchEvent({ type: 'error', target: { src: new URL(launcher.env.omuiLauncher, base).href } });
     check(launcher.env.omuiLoad.phase === 'error' && launcher.env.omuiLoad.error.id === 'launcher', 'launcher network failure leaves a readable explicit error state');
   });
-} finally {
-  for (const h of instances) h.dispose();
-  server.closeAllConnections(); await new Promise(resolve => server.close(resolve));
-}
+for (const h of instances) h.dispose();
 report.ok = report.checks.length > 0 && report.checks.every(c => c.ok);
-console.log(JSON.stringify(report, null, 2)); process.exit(report.ok ? 0 : 1);
+return report;
+} catch (error) { return { error: String(error.stack || error) }; }
+})()
+)js";
+
+}  // namespace
+
+int visitor_path(const fs::path& root, const fs::path& built, const fs::path& given_omui) {
+    const auto chrome = browser::chromium();
+    if (!chrome)
+        return failed("no headless Chromium for the visitor's path");
+    const fs::path site_dir =
+        built.empty() ? root / "target/site" : (built.is_absolute() ? built : root / built);
+    if (!fs::is_regular_file(site_dir / "index.html"))
+        return failed("no target/site (omui-devtools site build first)");
+    fs::path omui = given_omui;
+    if (omui.empty()) {
+        const auto artifacts = run::build(root, {"-p", "omui.cli"});
+        if (!artifacts)
+            return failed(std::format("omui.cli did not build: {}", artifacts.error()));
+        for (const auto& artifact : *artifacts)
+            if (artifact.name == "omui" && artifact.kind == "bin")
+                omui = artifact.path;
+        if (omui.empty())
+            return failed("the build of omui.cli reported no omui program");
+    }
+    cdp::Script script;
+    std::error_code error;
+    const fs::path bridge_dir =
+        fs::temp_directory_path() / std::format("omui-visitor-{:08x}", std::random_device{}());
+    fs::create_directories(bridge_dir, error);
+    const auto step = [&](bool ok, std::string_view what, std::string detail = {}) {
+        return script.check(ok, what, detail.empty() ? std::nullopt : std::optional<json>(detail));
+    };
+    struct Answer {
+        int code = -1;
+        std::string out, err;
+    };
+    // An agent's command: the bridge's directory its own (no person's bridge on this machine is
+    // touched).
+    const auto page_command = [&](std::vector<std::string> args) {
+        namespace process = mcpplibs::os::process;
+        process::spawn_options options;
+        options.program = omui;
+        options.args = {"page"};
+        options.args.insert(options.args.end(), args.begin(), args.end());
+        options.args.insert(options.args.end(), {"--dir", mcpplibs::os::fs::utf8(bridge_dir)});
+        options.in = process::stdio::null;
+        auto done =
+            process::run(std::move(options), process::bounds{.hard = std::chrono::minutes(10)});
+        if (!done)
+            return Answer{-1, "", done.error().message()};
+        return Answer{done->timed_out ? -1 : done->status.shell_code(), std::move(done->out),
+                      std::move(done->err)};
+    };
+    auto server = cdp::Server::start(cdp::pages(site_dir));
+    if (!server)
+        return failed(server.error());
+    auto launched = pages::open({.root = root, .site = site_dir, .chrome = *chrome}, 1440, 900);
+    if (!launched)
+        return failed(launched.error());
+    auto& page = **launched;
+    script.page = &page;
+    std::optional<mcpplibs::os::process::process> bridge;
+    std::jthread bridge_reader;
+    std::string bridge_said;
+    script.attempt(
+        [&] {
+            script.call("Page.navigate", {{"url", (*server)->url()}});
+            for (int index = 0; index < 300 && !script.thrown(); ++index) {
+                if (truthy(script.value("!!window.omui && "
+                                        "(document.querySelector('[data-omui=mirror]')?."
+                                        "childElementCount ?? 0) > 0")))
+                    break;
+                script.sleep(100);
+            }
+            step(truthy(script.value("!!window.omui")), "the page runs: window.omui answers");
+
+            // 1. The person's presses (real clicks): the agent panel, then "Copy the prompt" — a
+            // pairing code, and the page's agent.md.
+            const auto node = [&](const std::string& id) -> json {
+                const json answer =
+                    script.value("window.omui.snapshot({root: " + q(id) +
+                                 ", depth: 0}).then((r) => JSON.stringify(r.data))");
+                const json data =
+                    json::parse(answer.is_string() ? answer.get<std::string>() : std::string("{}"),
+                                nullptr, false);
+                for (const auto& found : at(data, "nodes"))
+                    if (text(at(found, "id")) == id || text(at(found, "id")).ends_with(id))
+                        return found;
+                return nullptr;
+            };
+            const auto press = [&](const std::string& id) {
+                const json found = node(id);
+                if (!truthy(at(found, "bounds")))
+                    return false;
+                const json& bounds = at(found, "bounds");
+                const double x = number(at(bounds, 0)), y = number(at(bounds, 1)),
+                             w = number(at(bounds, 2)), h = number(at(bounds, 3));
+                for (const std::string type : {"mouseMoved", "mousePressed", "mouseReleased"})
+                    script.call("Input.dispatchMouseEvent", {{"type", type},
+                                                             {"x", x + w / 2},
+                                                             {"y", y + h / 2},
+                                                             {"button", "left"},
+                                                             {"clickCount", 1}});
+                script.sleep(600);
+                return true;
+            };
+            step(press("main/bar/guide_toggle"), "the person opens the agent panel");
+            step(press("main/body/guide/copy_prompt"), "the person presses \"Copy the prompt\"");
+            const json prompt_node = node("main/body/guide/prompt");
+            const std::string prompt =
+                at(prompt_node, "name").is_string() ? text(at(prompt_node, "name")) : std::string();
+            static const std::regex code_form("[A-Z2-9]{4}-[A-Z2-9]{4}"),
+                guide_form(R"(https?://\S+agent\.md)");
+            std::smatch found;
+            const std::string code =
+                std::regex_search(prompt, found, code_form) ? found.str() : std::string();
+            const std::string guide_url =
+                std::regex_search(prompt, found, guide_form) ? found.str() : std::string();
+            step(!code.empty() && std::regex_match(code, code_form),
+                 "the prompt gives a pairing code", prompt.substr(0, 300));
+            step(text(at(script.value("window.omui.linkState()"), "state")) == "waiting",
+                 "the page waits for its agent");
+            // What the prompt points the agent at: the page's agent.md, and its twin for a program.
+            const std::string guide =
+                guide_url.empty() ? std::string() : cdp::get(guide_url).value_or("");
+            json card;
+            if (!guide_url.empty()) {
+                const std::string card_url = guide_url.substr(0, guide_url.rfind('/') + 1) +
+                                             ".well-known/openmui-agent.json";
+                card = json::parse(cdp::get(card_url).value_or(""), nullptr, false);
+                if (card.is_discarded())
+                    card = nullptr;
+            }
+            step(guide.contains("omui connect --code") && truthy(dig(card, "check", "activate")),
+                 "the agent reads the page's agent.md",
+                 guide_url.empty() ? "no address in the prompt" : guide_url);
+            if (script.thrown())
+                return;
+
+            // 2. The agent, as the prompt tells it: the bridge with the code, then waiting for the
+            // page.
+            {
+                namespace process = mcpplibs::os::process;
+                process::spawn_options options;
+                options.program = omui;
+                options.args = {"connect",
+                                "--code",
+                                code,
+                                "--name",
+                                "CI agent",
+                                "--dir",
+                                mcpplibs::os::fs::utf8(bridge_dir)};
+                options.in = process::stdio::null;
+                options.out = process::stdio::pipe;
+                options.err = process::stdio::output;
+                auto started = process::process::spawn(options);
+                if (!started)
+                    return script.raise(
+                        std::format("omui connect did not start: {}", started.error().message()));
+                bridge = std::move(*started);
+                bridge_reader = std::jthread([&] {
+                    for (;;) {
+                        auto chunk = bridge->read_output();
+                        if (!chunk || chunk->empty())
+                            break;
+                        bridge_said += *chunk;
+                    }
+                });
+            }
+            const Answer status = page_command({"status", "--wait"});
+            step(status.code == 0 && status.out.contains("\"paired\":true"),
+                 "the agent sees the page paired (omui page status --wait)",
+                 (status.out + status.err).substr(0, 400));
+            for (int index = 0;
+                 index < 50 &&
+                 text(at(script.value("window.omui.linkState()"), "state")) != "paired" &&
+                 !script.thrown();
+                 ++index)
+                script.sleep(100);
+            const json state = script.value("window.omui.linkState()");
+            step(text(at(state, "state")) == "paired" && text(at(state, "agent")) == "CI agent",
+                 "the page sees its agent, by name",
+                 state.is_null() ? "undefined" : cdp::stringify(state));
+
+            // 3. The self-check agent.md gives, then the person's log shows what the agent did.
+            if (!card.is_object())
+                return script.raise("TypeError: Cannot read properties of null (reading 'check')");
+            const std::string activate = text(dig(card, "check", "activate")),
+                              read_root = text(dig(card, "check", "read")),
+                              expect = text(dig(card, "check", "expect"));
+            const Answer hello = page_command({"act", activate, "activate"});
+            const Answer read = page_command({"snapshot", "--root", read_root, "--depth", "0"});
+            step(hello.code == 0 && read.out.contains(expect),
+                 std::format("the self-check: {}, then \"{}\"", activate, expect),
+                 (hello.out + read.out).substr(0, 400));
+            const json log_node = node("main/body/guide/log");
+            const json log =
+                at(log_node, "value").is_null() ? json::object() : at(log_node, "value");
+            step(text(at(log, "link")) == "paired" && number(at(log, "records")) >= 1,
+                 "the person's log: the link, and the agent's action", cdp::stringify(log));
+
+            // 4. The agent operates the page through its semantic tree.
+            const Answer snap = page_command({"snapshot", "--interactive"});
+            step(snap.code == 0 && snap.out.contains("main/bar/nav"),
+                 "the agent reads the page (omui page snapshot)", snap.err.substr(0, 300));
+            const Answer act = page_command({"act", "main/bar/nav/to_docs", "activate"});
+            step(act.code == 0, "the agent acts on it (omui page act … activate)",
+                 (act.out + act.err).substr(0, 300));
+            script.sleep(1500);
+            // Where it is, as the agent reads it: the documentation overview on screen, home's gone
+            // from the tree.
+            const Answer there = page_command({"snapshot"});
+            step(there.out.contains("\"main/body/view/docs") &&
+                     !there.out.contains("\"main/body/view/home"),
+                 "the page went where the agent took it", there.err.substr(0, 300));
+            const Answer back = page_command({"act", "main/bar/mark", "activate"});
+            step(back.code == 0, "and back home", (back.out + back.err).substr(0, 300));
+            script.sleep(1000);
+
+            // 4. Every control the agent can operate, operated through the page (the interaction
+            // sweep, D-91).
+            const Answer sweep = page_command({"sweep"});
+            std::string summary, failures;
+            for (auto part : std::views::split(std::string_view(sweep.out), '\n')) {
+                const std::string_view line(part.begin(), part.end());
+                if (line.contains("\"nodes\""))
+                    summary = std::string(line);
+                if (line.contains("\"verdict\":\"failed\""))
+                    failures += (failures.empty() ? "" : " ") + std::string(line);
+            }
+            step(sweep.code == 0, "the interaction sweep through the page (omui page sweep)",
+                 summary + (failures.empty() ? "" : " " + failures.substr(0, 800)));
+            const json summary_value =
+                json::parse(summary.empty() ? "{}" : summary, nullptr, false);
+            const double protected_actions =
+                summary.empty() ? 0
+                                : (dig(summary_value, "data", "person").is_null()
+                                       ? 0
+                                       : number(dig(summary_value, "data", "person")));
+            step(protected_actions >= 2,
+                 "the link controls refuse the agent and keep their state (S-10)",
+                 std::format("{} protected actions checked", cdp::js_number(protected_actions)));
+
+            // 5. The bridge stops: the page knows.
+            bridge->kill();
+            static_cast<void>(bridge->wait());
+            if (bridge_reader.joinable())
+                bridge_reader.join();
+            bridge.reset();
+            json after;
+            for (int index = 0; index < 100 && !script.thrown(); ++index) {
+                after = script.value("window.omui.linkState()");
+                if (text(at(after, "state")) != "paired")
+                    break;
+                script.sleep(100);
+            }
+            step(!after.is_null() && text(at(after, "state")) != "paired",
+                 "the bridge gone: the page says so",
+                 after.is_null() ? "undefined" : cdp::stringify(after));
+        },
+        [&](const std::string& message) {
+            step(false, "the path ran to its end", "Error: " + message);
+        });
+    if (bridge) {
+        bridge->kill();
+        static_cast<void>(bridge->wait());
+    }
+    if (bridge_reader.joinable())
+        bridge_reader.join();
+    page.close();
+    (*server)->close();
+    fs::remove_all(bridge_dir, error);
+    json report = {{"steps", script.report["checks"]}, {"ok", script.all_ok()}};
+    write_json(root / "target/visitor-path.json", report, 1);
+    std::cout << "the visitor's path:\n";
+    for (const auto& one : report["steps"]) {
+        const bool ok = truthy(at(one, "ok"));
+        const std::string detail = text(at(one, "detail"));
+        std::cout << std::format("  {} {}{}\n", ok ? "ok  " : "FAIL", text(at(one, "what")),
+                                 !ok && !detail.empty() ? " — " + detail.substr(0, 300) : "");
+    }
+    if (!truthy(report["ok"]))
+        return failed("the visitor's path failed (target/visitor-path.json)");
+    return 0;
+}
+
+int dist_toy_loading(const fs::path& root, const fs::path& given_fixture) {
+    fs::path fixture = given_fixture;
+    if (fixture.empty()) {
+        // The fixture is what omui.gen's dist_toy test writes (its scratch directory,
+        // dist-toy-loading).
+        const auto [status, said] = mcpp(root, {"test", "dist_toy", "-p", "omui.gen"});
+        std::cout << said;
+        if (status != 0)
+            return failed("omui.gen's dist_toy tests failed");
+        fixture = fs::temp_directory_path() / "openmui-tests" / "dist-toy-loading" / "index.html";
+    }
+    const auto chrome = browser::chromium();
+    if (!chrome)
+        return failed("no headless Chromium for the generated loader's checks");
+    if (!fs::is_regular_file(fixture))
+        return failed(std::format("no fixture {} (omui.gen's dist_toy tests write it)",
+                                  mcpplibs::os::fs::utf8(fixture)));
+    const fs::path directory = fixture.parent_path();
+    struct Logged {
+        std::mutex lock;
+        json requests = json::array();
+    };
+    auto logged = std::make_shared<Logged>();
+    auto server = cdp::Server::start([directory,
+                                      logged](const cdp::Arrived& request) -> cdp::Reply {
+        if (request.path == "/__omui/requests") {
+            const std::scoped_lock hold(logged->lock);
+            return {.status = 200,
+                    .body = logged->requests.dump(),
+                    .type = "application/json",
+                    .headers = {{"Cache-Control", "no-store"}}};
+        }
+        if (request.path == "/__omui/harness")
+            return {.status = 200,
+                    .body = "<!doctype html><meta "
+                            "charset=\"utf-8\"><title>dist-toy-loading</title><body></body>",
+                    .type = "text/html"};
+        if (request.query.contains("omui-blank"))
+            return {.status = 200,
+                    .body = "<!doctype html><meta charset=\"utf-8\"><body></body>",
+                    .type = "text/html"};
+        const std::string name =
+            mlibs::http::decoded(request.path).substr(request.path.starts_with("/") ? 1 : 0);
+        if (name.contains(".."))
+            return {.status = 400, .body = "", .type = ""};
+        const auto bytes = read_text(directory / mcpplibs::os::fs::from_utf8(name));
+        if (!bytes || name.empty())
+            return {.status = 404, .body = "", .type = ""};
+        std::string encoded = cdp::gzip(*bytes, 6);
+        if (!request.query.contains("omui-unlogged")) {
+            const std::scoped_lock hold(logged->lock);
+            logged->requests.push_back(
+                {{"name", name}, {"raw", bytes->size()}, {"encoded", encoded.size()}});
+        }
+        return {.status = 200,
+                .body = std::move(encoded),
+                .type = name.ends_with(".wasm") ? "application/wasm" : "application/octet-stream",
+                .headers = {{"Content-Encoding", "gzip"}, {"Cache-Control", "no-store"}}};
+    });
+    if (!server)
+        return failed(server.error());
+    auto launched = cdp::Browser::launch(*chrome, {});
+    if (!launched)
+        return failed(launched.error());
+    auto& page = **launched;
+    json report;
+    std::string problem;
+    if (const auto navigated =
+            page.call("Page.navigate", {{"url", (*server)->url() + "__omui/harness"}});
+        !navigated)
+        problem = navigated.error();
+    for (int attempt = 0; attempt < 100 && problem.empty(); ++attempt) {
+        const auto ready = page.value("document.readyState === 'complete' && !!document.body");
+        if (!ready)
+            problem = ready.error();
+        else if (cdp::truthy(*ready))
+            break;
+        page.pump(std::chrono::milliseconds(50));
+    }
+    if (problem.empty()) {
+        std::string script(loader_harness);
+        const std::string label = mcpplibs::os::fs::utf8(fixture);
+        script.replace(script.find("@FIXTURE@"), std::string_view("@FIXTURE@").size(), q(label));
+        const auto answer = page.value(script);
+        if (!answer)
+            problem = answer.error();
+        else
+            report = *answer;
+    }
+    page.close();
+    (*server)->close();
+    if (problem.empty() && report.contains("error"))
+        problem = text(report["error"]);
+    if (!problem.empty())
+        return failed(std::format("the generated loader's checks did not run: {}", problem));
+    write_json(root / "target/dist-toy-loading.report.omui.json", report);
+    std::cout << "the generated loader (dist-toy):\n";
+    for (const auto& one : at(report, "checks"))
+        std::cout << std::format("  {} {}\n", truthy(at(one, "ok")) ? "ok  " : "FAIL",
+                                 text(at(one, "what")));
+    if (!truthy(at(report, "ok")))
+        return failed(
+            "the generated loader failed its checks (target/dist-toy-loading.report.omui.json)");
+    return 0;
+}
+
+}  // namespace omui::devtools::check

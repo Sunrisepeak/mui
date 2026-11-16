@@ -105,8 +105,10 @@ private:
 static_assert(fnv1a("") == 0xcbf29ce484222325ull && fnv1a("a") == 0xaf63dc4c8601ec8cull && fnv1a("foobar") == 0x85944171f73967e8ull);
 static_assert(fnv1a32("") == 2166136261u && fnv1a32("a") == 0xe40c292cu && fnv1a32("foobar") == 0xbf9cf968u);
 
-// SHA-256 (FIPS 180-4): a file's digest where another tool states one — a pinned download's, a release's
-// checksums, a probe's record of the sources it compiled. Not the determinism hash: FNV-1a above is that.
+// SHA-256 (FIPS 180-4) and SHA-1 (FIPS 180-1, RFC 3174), for digests other tools compare with: a file's
+// `sha256sum`, a release's checksums, a probe's record of the sources it compiled, a picture's digest in a
+// report, a WebSocket handshake's accept key (RFC 6455 names SHA-1). Integrity and identity only, nothing here
+// is for secrets; not the determinism hash (FNV-1a above is that). Sha256 takes its input in pieces.
 class Sha256 {
 public:
     Sha256() noexcept;
@@ -125,6 +127,9 @@ private:
     std::uint64_t length_ = 0;  // bytes taken
 };
 
-[[nodiscard]] std::string sha256_hex(std::string_view data);
+[[nodiscard]] std::array<std::uint8_t, 32> sha256(std::string_view bytes);
+[[nodiscard]] std::array<std::uint8_t, 20> sha1(std::string_view bytes);
+// Lower-case hex, as sha256sum prints it.
+[[nodiscard]] std::string sha256_hex(std::string_view bytes);
 
 }  // namespace mlibs::hash

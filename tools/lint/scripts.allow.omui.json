@@ -20,9 +20,6 @@
     {"pattern": "modules/projects/omui/lang/js/tests/*.js", "kind": "application", "why": "the conformance scenarios as an application writes them in JavaScript (tests/cts.js), run by omui.lang.js"}
   ],
   "pending": [
-    {"pattern": "tools/ci/*.mjs", "until": "RC3.12 (site): the site's browser checks through omui-devtools cdp (check site)"},
-    {"pattern": "tools/ci/site*.sh", "until": "RC3.12 (site): check site, its split and browser steps"},
-    {"pattern": "tools/ci/visitor-path.sh", "until": "RC3.12 (site): check site visitor-path"},
     {"pattern": "tools/eval/**/*", "until": "RC3.12 (eval): omui mcp --way, the hanim toolkit's brief grading, omui-devtools eval; eval.sh deleted with the scores (D-135)"}
   ]
 }

@@ -93,6 +93,8 @@ std::string decoded(std::string_view text) {
 
 std::string_view reason(int status) {
     switch (status) {
+        case 101:
+            return "Switching Protocols";
         case 200: return "OK";
         case 204: return "No Content";
         case 400: return "Bad Request";
@@ -108,12 +110,86 @@ std::string_view reason(int status) {
 }
 
 std::string response(int status, std::string_view body, const Options& options) {
-    std::string out = std::format("HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\n", status, reason(status), options.type,
-                                  body.size());
+    std::string out = std::format("HTTP/1.1 {} {}\r\n", status, reason(status));
+    if (!options.type.empty())
+        out += std::format("Content-Type: {}\r\n", options.type);
+    out += std::format("Content-Length: {}\r\nConnection: {}\r\n", body.size(),
+                       options.keep_alive ? "keep-alive" : "close");
     for (const auto& [name, value] : options.headers) out += std::format("{}: {}\r\n", name, value);
     out += "\r\n";
     out += body;
     return out;
+}
+
+std::string request(std::string_view method, std::string_view target, std::string_view host,
+                    const std::vector<std::pair<std::string, std::string>>& headers,
+                    std::string_view body) {
+    std::string out = std::format("{} {} HTTP/1.1\r\nHost: {}\r\n", method, target, host);
+    for (const auto& [name, value] : headers)
+        out += std::format("{}: {}\r\n", name, value);
+    if (!body.empty())
+        out += std::format("Content-Length: {}\r\n", body.size());
+    out += "\r\n";
+    out += body;
+    return out;
+}
+
+std::string_view Response::header(std::string_view name) const {
+    for (const auto& [key, value] : headers)
+        if (key == name)
+            return value;
+    return {};
+}
+
+std::expected<std::optional<Response>, std::string> parse_response(std::string_view arrived,
+                                                                   std::size_t most) {
+    const std::size_t end = arrived.find("\r\n\r\n");
+    if (end == std::string_view::npos) {
+        if (arrived.size() > most)
+            return std::unexpected(
+                std::format("the response's head is larger than {} bytes", most));
+        return std::optional<Response>{};
+    }
+    if (end + 4 > most)
+        return std::unexpected(std::format("the response's head is larger than {} bytes", most));
+    Response response;
+    response.head_size = end + 4;
+    const std::string_view head = arrived.substr(0, end);
+    const std::size_t first_end = head.find("\r\n");
+    const std::string_view first = head.substr(0, first_end);
+    const std::size_t space = first.find(' ');
+    if (!first.starts_with("HTTP/1.") || space == std::string_view::npos)
+        return std::unexpected(std::format("not an HTTP/1.x status line: {}", first.substr(0, 80)));
+    const std::string_view status = first.substr(space + 1, 3);
+    const auto [at, failed] =
+        std::from_chars(status.data(), status.data() + status.size(), response.status);
+    if (failed != std::errc{} || at != status.data() + status.size())
+        return std::unexpected(std::format("not a status code: {}", first.substr(0, 80)));
+    if (first.size() > space + 5)
+        response.reason = std::string(first.substr(space + 5));
+    for (std::string_view rest = first_end == std::string_view::npos ? std::string_view{}
+                                                                     : head.substr(first_end + 2);
+         !rest.empty();) {
+        const std::size_t line_end = rest.find("\r\n");
+        const std::string_view line = rest.substr(0, line_end);
+        rest = line_end == std::string_view::npos ? std::string_view{} : rest.substr(line_end + 2);
+        const std::size_t colon = line.find(':');
+        if (colon == std::string_view::npos)
+            continue;
+        response.headers.emplace_back(lower(trimmed(line.substr(0, colon))),
+                                      std::string(trimmed(line.substr(colon + 1))));
+    }
+    if (lower(response.header("transfer-encoding")).contains("chunked"))
+        return std::unexpected("a chunked body (not read here)");
+    if (const auto length = response.header("content-length"); !length.empty()) {
+        std::size_t count = 0;
+        const auto [length_at, length_failed] =
+            std::from_chars(length.data(), length.data() + length.size(), count);
+        if (length_failed != std::errc{} || length_at != length.data() + length.size())
+            return std::unexpected(std::format("Content-Length is not a count: {}", length));
+        response.body_length = count;
+    }
+    return std::optional<Response>{std::move(response)};
 }
 
 std::string_view media_type(std::string_view extension) {

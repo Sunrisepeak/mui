@@ -58,6 +58,18 @@
 //           the cellular kernel), the mesh pass's contract on both, Quay's frame, host.web drawing on each (its fonts
 //           preloaded), and every WGSL and ESSL entry point the Web build wrote, compiled by the browser. Without a
 //           Chromium the checks are said to be skipped, a failure only with OMUI_REQUIRE_BROWSER=1.
+// site      the built site in a real browser, served as Pages serves it (omui.devtools.cdp): its delivery within
+//           its budget (site/delivery.budget.omui.json), with and without the HTTP cache; Chromium's accessibility
+//           tree and the keyboard's way in; routing and the static-to-program handoff; first-frame fonts; the
+//           component catalog; the release and reaction workspaces; motion, the reference pages and the agent; the
+//           first views on phones and desktops; the opening pictures and loading; static and runtime fonts sharing
+//           one download; (named) transitions clicked on moving painted pixels. Reports under target/.
+// visitor-path  the visitor's path (D-95): the built site in a real browser paired with an agent through `omui
+//           connect`, read and operated by `omui page`, the interaction sweep through the page, the bridge's end seen
+//           by the page (target/visitor-path.json).
+// dist-toy-loading  omui.gen's dist_toy tests, then the generated loader they wrote run against the browser's own
+//           fetch, streams and WebAssembly over real gzip HTTP: failures, retries, shared font transfers
+//           (target/dist-toy-loading.report.omui.json).
 // atspi     examples 03 and 07 built and read and operated through AT-SPI (`omui-devtools atspi`) on a private
 //           session bus (dbus-run-session), as a screen reader does. Linux x86_64 (AccessKit's library);
 //           at-spi2-core.
@@ -96,6 +108,16 @@ struct Size {
 // the Windows target under wine where wine is): `members` empty, the whole workspace.
 [[nodiscard]] int matrix(const std::filesystem::path& root, const std::vector<std::string>& members);
 [[nodiscard]] int atspi(const std::filesystem::path& root, const std::vector<std::string>& profile_args);
+
+// The built site in a real browser: these checks (none: every one but transition), each report under target/.
+[[nodiscard]] int site(const std::filesystem::path& root, const std::filesystem::path& built, std::vector<std::string> names);
+// The site's checks, by name.
+[[nodiscard]] const std::vector<std::string>& site_check_names();
+// The visitor's path through the built site with an agent paired by omui connect (omui: built when not given).
+[[nodiscard]] int visitor_path(const std::filesystem::path& root, const std::filesystem::path& built, const std::filesystem::path& omui);
+// The generated loader against the browser's own streams, failures and retries (fixture: omui.gen's dist_toy test
+// run first and its own used, when not given).
+[[nodiscard]] int dist_toy_loading(const std::filesystem::path& root, const std::filesystem::path& fixture);
 
 // A template's file rendered: each {{name}} replaced by its value; or the first name it has no value for.
 [[nodiscard]] std::expected<std::string, std::string> render(std::string_view text, const std::map<std::string, std::string>& values);

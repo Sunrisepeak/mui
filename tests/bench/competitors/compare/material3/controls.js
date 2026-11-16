@@ -1,5 +1,5 @@
 // Material 3's controls, as Google's own web components draw them: the
-// competitor's side of the controls' review (capture.mjs). Bundled by esbuild.
+// competitor's side of the controls' review (`omui-devtools bench material3`). Bundled by esbuild.
 import '@fontsource/roboto/400.css';
 import '@fontsource/roboto/500.css';
 import '@material/web/button/filled-button.js';

@@ -60,6 +60,18 @@ int main() {
     for (int part = 0; part < 1000; ++part) million.text(piece);
     check(million.hex() == "cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0", "sha256 of a million a's, a thousand at a time");
     check(hash::sha256_hex(std::string(64, 'x')) == hash::Sha256().text(std::string(63, 'x')).text("x").hex(), "sha256 across a block's boundary");
+    // SHA-1: FIPS 180-1's examples and RFC 6455's handshake.
+    const auto sha1_hex = [](std::string_view text) {
+        std::string out;
+        for (const std::uint8_t byte : mlibs::hash::sha1(text))
+            out += std::format("{:02x}", byte);
+        return out;
+    };
+    check(sha1_hex("abc") == "a9993e364706816aba3e25717850c26c9cd0d89d", "sha1: abc");
+    check(sha1_hex("") == "da39a3ee5e6b4b0d3255bfef95601890afd80709", "sha1: the empty message");
+    check(sha1_hex("dGhlIHNhbXBsZSBub25jZQ==258EAFA5-E914-47DA-95CA-C5AB0DC85B11") ==
+              "b37a4f2cc0624f1690f64606cf385945b2bec4ea",
+          "sha1: RFC 6455's handshake example");
     std::println("hash: {} failed", failures);
     return failures == 0 ? 0 : 1;
 }

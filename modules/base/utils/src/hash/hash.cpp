@@ -82,6 +82,67 @@ std::string Sha256::hex() noexcept {
     return out;
 }
 
-std::string sha256_hex(std::string_view data) { return Sha256().text(data).hex(); }
+std::array<std::uint8_t, 32> sha256(std::string_view bytes) { return Sha256().text(bytes).digest(); }
+
+std::string sha256_hex(std::string_view bytes) { return Sha256().text(bytes).hex(); }
+
+namespace {
+
+// The message padded as SHA-1 pads it: a one bit, zeros, its length in bits as 64 big-endian bits, to a
+// multiple of 64 bytes.
+std::vector<std::uint8_t> padded(std::string_view bytes) {
+    std::vector<std::uint8_t> out(bytes.begin(), bytes.end());
+    const std::uint64_t bits = static_cast<std::uint64_t>(bytes.size()) * 8;
+    out.push_back(0x80);
+    while (out.size() % 64 != 56) out.push_back(0);
+    for (int shift = 56; shift >= 0; shift -= 8) out.push_back(static_cast<std::uint8_t>(bits >> shift));
+    return out;
+}
+
+std::uint32_t big_endian(const std::uint8_t* at) {
+    return (std::uint32_t{at[0]} << 24) | (std::uint32_t{at[1]} << 16) | (std::uint32_t{at[2]} << 8) | std::uint32_t{at[3]};
+}
+
+}  // namespace
+
+std::array<std::uint8_t, 20> sha1(std::string_view bytes) {
+    std::array<std::uint32_t, 5> state{0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0};
+    const auto message = padded(bytes);
+    std::array<std::uint32_t, 80> schedule{};
+    for (std::size_t block = 0; block < message.size(); block += 64) {
+        for (std::size_t word = 0; word < 16; ++word)
+            schedule[word] = big_endian(message.data() + block + word * 4);
+        for (std::size_t word = 16; word < 80; ++word)
+            schedule[word] = std::rotl(schedule[word - 3] ^ schedule[word - 8] ^
+                                           schedule[word - 14] ^ schedule[word - 16],
+                                       1);
+        auto [a, b, c, d, e] = state;
+        for (std::size_t round = 0; round < 80; ++round) {
+            std::uint32_t mixed = 0, constant = 0;
+            if (round < 20)
+                mixed = (b & c) | (~b & d), constant = 0x5a827999;
+            else if (round < 40)
+                mixed = b ^ c ^ d, constant = 0x6ed9eba1;
+            else if (round < 60)
+                mixed = (b & c) | (b & d) | (c & d), constant = 0x8f1bbcdc;
+            else
+                mixed = b ^ c ^ d, constant = 0xca62c1d6;
+            const std::uint32_t next = std::rotl(a, 5) + mixed + e + constant + schedule[round];
+            e = d;
+            d = c;
+            c = std::rotl(b, 30);
+            b = a;
+            a = next;
+        }
+        const std::array<std::uint32_t, 5> added{a, b, c, d, e};
+        for (std::size_t word = 0; word < 5; ++word)
+            state[word] += added[word];
+    }
+    std::array<std::uint8_t, 20> out{};
+    for (std::size_t word = 0; word < 5; ++word)
+        for (std::size_t byte = 0; byte < 4; ++byte) out[word * 4 + byte] = static_cast<std::uint8_t>(state[word] >> (24 - 8 * byte));
+    return out;
+}
+
 
 }  // namespace mlibs::hash

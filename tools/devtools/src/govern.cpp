@@ -52,6 +52,7 @@ std::vector<Process> read_table(std::string_view table) {
         if (const auto slash = line.rfind('/'); slash != std::string_view::npos && slash + 1 < line.size()) line.remove_prefix(slash + 1);
         process.name = std::string(line);
         process.ended = fields[2].starts_with('Z') || fields[2].starts_with('X');
+        process.paused = fields[2].starts_with('T');
         found.push_back(std::move(process));
     }
     return found;
@@ -109,8 +110,21 @@ std::expected<int, std::string> run(const Options& options) {
     if (options.command.empty()) return std::unexpected("no command to run");
     const bool listening = os::interrupt::available() && !os::interrupt::requested();  // a request is ours from here on
     os::process::spawn_options spawn;
-    spawn.program = options.command.front();
-    spawn.args.assign(options.command.begin() + 1, options.command.end());
+    // At low CPU and I/O priority where the platform has the programs for it (the command keeps its own arguments).
+    std::vector<std::string> line;
+    const std::filesystem::path program = options.command.front();
+    std::error_code error;
+    if (!(program.has_parent_path() ? std::filesystem::is_regular_file(program, error) : os::env::find_executable(options.command.front()).has_value()))
+        return std::unexpected(std::format("`{}` did not start: no such program", options.command.front()));
+    if (options.low_priority && !os::is_windows) {
+        if (os::env::find_executable("ionice")) line.insert(line.end(), {"ionice", "-c", "3"});
+        if (os::env::find_executable("nice")) line.insert(line.end(), {"nice", "-n", "10"});
+    }
+    line.insert(line.end(), options.command.begin(), options.command.end());
+    spawn.program = line.front();
+    spawn.args.assign(line.begin() + 1, line.end());
+    if (!options.cwd.empty()) spawn.cwd = options.cwd;
+    spawn.env.emplace_back("MCPP_JOBS", std::to_string(std::max(options.jobs, 1)));  // mcpp plans that many; the holding below keeps the whole tree to it
     spawn.in = os::process::stdio::inherit;
     spawn.out = os::process::stdio::inherit;
     spawn.err = os::process::stdio::inherit;

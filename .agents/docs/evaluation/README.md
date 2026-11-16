@@ -9,10 +9,10 @@
 | [`lead.features.omui.json`](lead.features.omui.json) | 各项目的标志性特性（A–H 与各项目自己的特性）：主线、状态（planned／evidence／claimed）、招牌镜头的测试、对照的竞品。lint `lead` 检查：每个项目 2–4 项主卖点；evidence 要有存在的测试；claimed 要有台账里的 far_ahead 记录 |
 | [`../../../tests/bench/competitors/lead.metrics.omui.json`](../../../tests/bench/competitors/lead.metrics.omui.json) | 各项目的指标清单（先定、先评审，再测量；落后也不删）：measured／planned／unverified |
 | [`lead.ledger.omui.jsonl`](lead.ledger.omui.jsonl) | 领先度台账，只追加：`metric`（同一作业内交替测量，每轮一个比值，取中位数与 95% 区间，按区间下端判定 behind／par／ahead／far_ahead；没有设备的为 unverified）、`capability`（能力对照：竞品 none／partial／app-defined／full）、`task`（Agent 任务集） |
-| [`lead.md`](lead.md) | `tools/eval/lead.py summary` 从台账生成的最新判定，官网“领先度”页读同一份台账 |
+| [`lead.md`](lead.md) | `omui-devtools lead docs` 从台账生成的最新判定，官网“领先度”页读同一份台账 |
 | `ledger.eval.omui.jsonl` 中 `rubric: "compare-v1"` 的记录 | 并排对照评审：每个维度一条判定（behind／par／ahead），附对照材料；评审方是人（最终判定）和一个不带实现上下文的新 Claude 会话（盲比，材料只标 A／B） |
 
-命令：`tests/bench/competitors/run.sh --ledger [轮数]`（测量并写台账）；`tools/eval/lead.py capability …`（记一条能力对照）；`tools/eval/lead.py summary --out .agents/docs/evaluation/lead.md`。CI 的 Bench 通道（`.github/workflows/bench.yml`）每周一跑一次，结果是这次运行的摘要和制品，由检查点追加进台账。
+命令：`omui-devtools bench competitors --ledger --rounds [轮数]`（测量并写台账与各页）；`omui-devtools lead capability …`（记一条能力对照）；`omui-devtools lead docs`（重写各页）。CI 的 Bench 通道（`.github/workflows/bench.yml`）每周一跑一次，结果是这次运行的摘要和制品，由检查点追加进台账。
 
 要求（2026-10-31）：评分标准要细化，并保留评估和评分记录。每个评估对象要和它所在领域的顶尖做法比：
 - UI 框架对标主流 UI 框架；
@@ -75,7 +75,7 @@
 
 - **对象和维度**：每个对象一份 `subjects/<对象>.md`，写明它是什么、读哪些文件、维度（每个维度下的细项）、对标的前 3 名（以及只在某些维度上参考的项目）、要附哪些图。
 - **使用**：对象文件的 `**Run:**` 列出要启动的程序（``- `程序 参数` (包)``），`**Use:**` 列出评分者要亲手做的任务。`eval.sh` 先用 `--profile release` 构建这些程序，再以 `--serve --agent-input` 在无头模式下启动它们。每个程序在一个临时目录里提供 agent 端点，codex 通过 `omui mcp` 操作它们。用框架写的应用默认就有这些能力：agent 端点，以及 agent 像人的设备那样输入（`AppSpec::agent_input`，开发者可以关掉，运行时用 `--no-agent-input` 关掉）。这些输入做的事按 openas 算作 agent 自己的（`agent:codex-evaluator;via=service:input`），按它的请求同样裁决：人自己的动作拒绝（S-10），受上限和授权约束（S-11），不可撤销的动作要人的答复。所以评分者在评一个对象的同时，也在评框架、引擎和 openas 的能力，报告里单列这部分反馈。
-- **运行**：`tools/eval/eval.sh <对象> [图…]` 把本文第 1–3 节、对象文件和上一次的台账记录拼成提示，用 codex 只读运行。报告存进 `reports/<日期>-<对象>.md`，分数追加到 `ledger.eval.omui.jsonl`，一次评估一行：
+- **运行**（2026-11-16 起为历史：D-135 之后评审改为并排对照，`omui-devtools eval compare`；打分脚本 `eval.sh` 随 D-206 删除，台账与报告保留）：`tools/eval/eval.sh <对象> [图…]` 曾把本文第 1–3 节、对象文件和上一次的台账记录拼成提示，用 codex 只读运行。报告存进 `reports/<日期>-<对象>.md`，分数追加到 `ledger.eval.omui.jsonl`，一次评估一行：
 
   ```json
   {"date":"…","subject":"…","evaluator":"codex","commit":"…","overall":…,"mean":…,"dimensions":{…},"report":"reports/…"}

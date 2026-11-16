@@ -1,6 +1,6 @@
 // The cellular kernel's conformance suite on the page's WebGPU: the owner of a
 // suite runs it against a backend (D-161), never a backend against its
-// consumers. In a browser (tools/ci/browser.sh, `--require-webgpu`) a missing
+// consumers. In a browser (omui-devtools check browser, `--require-webgpu`) a missing
 // device or a link that cannot wait for it fails; elsewhere there is no page,
 // which is said, and the case passes vacuously.
 import std;

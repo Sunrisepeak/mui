@@ -8,23 +8,50 @@
 //         tests too, not run) with CI's LLVM and profile: the errors only
 //         clang and libc++ give (reds 90, 91, 93), before a push.
 //   govern  a command held within a share of the machine: its compilers and
-//         linkers at most --jobs at once (tools/dev/capped.sh, AGENTS §5).
+//         linkers at most 90% of the machine at once, low priority (AGENTS §5).
 //   incremental  the same build twice: the second leaves every compilation
 //         output untouched (CI's row; exit 1 when one changed).
 //   api   a package's exported surface (api.omui.txt beside it): printed, written, or checked.
 //   atspi  examples 03 and 07 read and operated through AT-SPI, as a screen
-//         reader does (tools/ci/atspi.sh; exit 1 when a check fails).
+//         reader does (check atspi builds them and runs it; exit 1 when a check fails).
+//   lead  the lead ledger (D-135): a benchmark's samples, the metrics' verdicts, a capability against
+//         competitors, the pages (docs/{en,zh}/lead.md, the evaluation summary) and its check.
+//   bench competitors  the comparisons with the best of each field built, installed and run: the README's
+//         tables, or (--ledger) rounds alternating, judged into the lead ledger and its pages.
+//   gpu   a device for the GPU tests: CI's software one (lavapipe; Metal on macOS) or, with --real, this
+//         machine's NVIDIA GPU; its environment written to $GITHUB_ENV, or a command run with it.
+//   check CI's acceptance steps, each building what it needs and holding the result: features (M0 ⑤),
+//         templates (M0 ①), reflect (V-08's canary, then the suite), sweep (D-91), tools-e2e, agent-e2e (M1 ②),
+//         toy (Bilibili Toy), size (a page's WebAssembly bytes, held to a budget), atspi (examples 03 and 07 on a private bus).
+//   browser  a wasm test program in a real page of headless Chromium (mlibs.http's framing on the loopback).
+//   media the showcases' and the site's README media, made by their tests: copied in, or (--check) held to them.
+//   consumer  an out-of-tree consumer probe (hanim-core, hanim-api, hanim-play, omui-hanim, hanim-features):
+//         a fresh project as a user's, what mcpp resolved and compiled audited, a report kept.
+//   site  the website: built for the Web, pre-rendered, split by its first screen (build), checked for what it
+//         carries (verify), split alone (split), its first screen profiled (profile), a page driven (drive).
+//   lint  the repository's rules (D-206: the lint in C++, 40 rules);
+//         --self-test shows each rule catches a violation planted in a tree of its own.
 import std;
 import mcpplibs.cmdline;
 import mcpplibs.os;
 import nlohmann.json;
 import omui.devtools.api;
 import omui.devtools.atspi;
+import omui.devtools.bench;
+import omui.devtools.browser;
+import omui.devtools.check;
 import omui.devtools.ci;
+import omui.devtools.consumer;
+import omui.devtools.eval;
 import omui.devtools.govern;
+import omui.devtools.gpu;
 import omui.devtools.incremental;
+import omui.devtools.lead;
+import omui.devtools.lint;
 import omui.devtools.members;
 import omui.devtools.platforms;
+import omui.devtools.run;
+import omui.devtools.site;
 
 namespace cmd = mcpplibs::cmdline;
 namespace rec = omui::devtools::ci;
@@ -33,12 +60,6 @@ namespace fs = std::filesystem;
 using json = nlohmann::json;
 
 namespace {
-
-std::optional<std::string> read_file(const fs::path& path) {
-    std::ifstream in(path, std::ios::binary);
-    if (!in) return std::nullopt;
-    return std::string(std::istreambuf_iterator<char>(in), {});
-}
 
 // `gh ARGS…`'s standard output, or why not.
 std::expected<std::string, std::string> gh(std::vector<std::string> args) {
@@ -71,7 +92,7 @@ Report reconcile(std::string run, std::vector<rec::Row> rows, std::span<const re
         std::vector<Reported> members;
         for (auto& member : row.members) {
             Reported one{member};
-            if (auto manifest = read_file(root / member.path / "mcpp.toml")) one.package = rec::package_of(*manifest);
+            if (auto manifest = mcpplibs::os::fs::read(root / member.path / "mcpp.toml")) one.package = rec::package_of(*manifest);
             for (const auto& failure : member.failures) {
                 one.known.push_back(rec::known_in(rec::names_of(member, failure, one.package), reds));
                 if (one.known.back().rows.empty()) ++report.fresh;
@@ -162,10 +183,15 @@ cmd::App app() {
                         .subcommand(cmd::App("log")
                                         .description("Read a saved log (gh run view RUN --log-failed > FILE)")
                                         .arg(Arg("file").required().help("the log"))
-                                        .option(Option("jobs").takes_value().value_name("FILE").help("the run's jobs (gh run view RUN --json jobs)"))))
+                                        .option(Option("jobs").takes_value().value_name("FILE").help("the run's jobs (gh run view RUN --json jobs)")))
+                        .subcommand(cmd::App("local")
+                                        .description("CI's matrix on this one Linux machine, for when hosted runners are unavailable (wine for the Windows row)")
+                                        .arg(Arg("member").help("these members (default: the workspace)"))))
+        .subcommand(omui::devtools::eval::command())
         .subcommand(cmd::App("govern")
-                        .description("Run a command with at most --jobs of its compilers and linkers at once, fewer while memory is short (AGENTS §5)")
-                        .option(Option("jobs").takes_value().value_name("N").help("how many may run at once"))
+                        .description("Run a command within 90% of this machine: MCPP_JOBS, at most that many of its compilers and linkers at once, fewer while memory is short, at low priority (AGENTS §5)")
+                        .option(Option("jobs").takes_value().value_name("N").help("how many may run at once (default: 90% of the cores and of the memory at 2.25 GB a compile)"))
+                        .option(Option("normal-priority").help("not under ionice and nice"))
                         .option(Option("memory-floor").takes_value().value_name("SHARE").help("under this share of the memory available, fewer (default: 0.10)"))
                         .option(Option("interval").takes_value().value_name("MS").help("how often it looks (default: 250)"))
                         .arg(Arg("command").required().help("after --: the command and its arguments")))
@@ -197,7 +223,140 @@ cmd::App app() {
                         .option(Option("toolchain").takes_value().value_name("T").help("default: the LLVM of CI's rows (.github/workflows/ci.yml)"))
                         .option(Option("profile").takes_value().value_name("P").help("default: ci"))
                         .option(Option("no-consumers").help("only the members themselves"))
-                        .option(Option("dry").help("say what would be compiled, and how")));
+                        .option(Option("dry").help("say what would be compiled, and how")))
+        .subcommand(cmd::App("consumer")
+                        .description("An out-of-tree consumer probe: a fresh project built and run as a user's, what mcpp resolved and compiled audited")
+                        .arg(Arg("probe").required().help("hanim-core, hanim-api, hanim-play, omui-hanim or hanim-features"))
+                        .option(Option("output").takes_value().value_name("FILE").help("the report (default under target/)"))
+                        .option(Option("keep-project").help("leave the fresh project in the temporary directory"))
+                        .option(Option("web").help("omui-hanim: on wasm32-emscripten too"))
+                        .option(Option("openas-package").takes_value().value_name("DIR").help("hanim-play: an unpacked OpenAS binary artifact in place of the published one")))
+        .subcommand(cmd::App("lint")
+                        .description("The repository's rules, checked (exit 1 when a rule is broken)")
+                        .option(Option("rule").takes_value().multiple().value_name("NAME").help("only these rules"))
+                        .option(Option("list").help("the rules and what each checks"))
+                        .option(Option("self-test").help("each rule's violation planted in a tree of its own: caught, and by it alone")))
+        .subcommand(cmd::App("check")
+                        .description("CI's acceptance steps: each builds what it needs, runs it and holds the result")
+                        .subcommand(cmd::App("features").description("M0 ⑤: a feature selects one of two exclusive sources; both at once is refused"))
+                        .subcommand(cmd::App("size")
+                                        .description("A package's WebAssembly bytes as a release ships them, by owner; held to a budget when given")
+                                        .option(Option("package").short_name('p').takes_value().value_name("MEMBER").help("the program's package"))
+                                        .option(Option("json").takes_value().value_name("FILE").help("the report (default: target/<package>.wasm-size.json)"))
+                                        .option(Option("markdown").takes_value().value_name("FILE").help("the report as a table"))
+                                        .option(Option("budget").takes_value().value_name("FILE").help("its budgets (<name>.budget.omui.json)")))
+                        .subcommand(cmd::App("templates").description("Each template rendered as mcpp new renders it, pointed at this checkout, built and tested"))
+                        .subcommand(cmd::App("reflect")
+                                        .description("omui.reflect's suite where the toolchain builds reflection beside C headers (V-08); a warning where not")
+                                        .option(Option("profile").takes_value().value_name("P").help("default: dev")))
+                        .subcommand(cmd::App("sweep")
+                                        .description("Every program run headless and swept by an agent: every action performed, a dead control fails it")
+                                        .option(Option("profile").takes_value().value_name("P").help("the programs' build profile")))
+                        .subcommand(cmd::App("toy")
+                                        .description("The games packed for Bilibili Toy and checked by Toy's own doctor (pinned)")
+                                        .arg(Arg("package").help("the games (default: the fighting game and the breakout)")))
+                        .subcommand(cmd::App("tools-e2e")
+                                        .description("hanim's, xrender's and the timeline's commands as an Agent uses them: exit statuses and answers held")
+                                        .option(Option("profile").takes_value().value_name("P")))
+                        .subcommand(cmd::App("agent-e2e")
+                                        .description("omui agent and omui mcp against example 07 and the Reaction lab, each a process of its own")
+                                        .option(Option("profile").takes_value().value_name("P")))
+                        .subcommand(cmd::App("android")
+                                        .description("Example 01 as an APK, checked inside; on the emulator where there is KVM: started, a tap, Back")
+                                        .option(Option("out").takes_value().value_name("DIR").help("the screenshots and logs (default: the system's temporary directory, omui-android)")))
+                        .subcommand(cmd::App("web")
+                                        .description("The Web row: the members that run on the Web tested under node, the page halves' JavaScript, the yard's bytes, the browser")
+                                        .option(Option("profile").takes_value().value_name("P").help("default: wasm-test (tests read their fixtures through node)")))
+                        .subcommand(cmd::App("browser").description("What only a real page can check: the page backends' suites, the shaders, host.web's frames"))
+                        .subcommand(cmd::App("site")
+                                        .description("The built site in a real browser: delivery within budget, accessibility, structure, fonts, catalog, workspaces, motion, first views, loading, font sharing")
+                                        .option(Option("site").takes_value().value_name("DIR").help("the built site (default: target/site)"))
+                                        .arg(Arg("check").help("these checks (default: every one but transition): perf a11y structure fonts catalog workspace reactions motion presentation loading font-sharing transition")))
+                        .subcommand(cmd::App("visitor-path")
+                                        .description("The built site paired with an agent through omui connect and operated by omui page; the bridge's end seen by the page")
+                                        .option(Option("site").takes_value().value_name("DIR").help("the built site (default: target/site)"))
+                                        .option(Option("omui").takes_value().value_name("PATH").help("this omui program rather than omui.cli built here")))
+                        .subcommand(cmd::App("dist-toy-loading")
+                                        .description("omui.gen's dist_toy tests, then the generated loader run against the browser's own streams, failures and retries")
+                                        .option(Option("fixture").takes_value().value_name("FILE").help("this generated index.html, the tests not run")))
+                        .subcommand(cmd::App("atspi")
+                                        .description("Examples 03 and 07 built, then read and operated through AT-SPI on a private session bus")
+                                        .option(Option("profile").takes_value().value_name("P").help("the examples' build profile"))))
+        .subcommand(cmd::App("media")
+                        .description("The showcases' and the site's README media: what their tests draw, copied in (or, --check, held to it)")
+                        .option(Option("check").help("hold the committed media to what the tests drew (after the tests)"))
+                        .option(Option("showcases").help("every showcase, without the site"))
+                        .arg(Arg("show").help("showcase directory names, or site (default: every showcase and the site)")))
+        .subcommand(cmd::App("browser")
+                        .description("A wasm test program (mcpp's wasm-browser profile) run in a real page of headless Chromium; its lines relayed, its exit and suites judged")
+                        .option(Option("chrome").takes_value().value_name("PATH").help("default: OMUI_CHROME, Playwright's headless shell, or one on PATH"))
+                        .option(Option("timeout").takes_value().value_name("SECONDS").help("default: 300"))
+                        .option(Option("flag").takes_value().multiple().value_name("SWITCH").help("a switch for Chromium (--flag=--use-angle=vulkan)"))
+                        .option(Option("preload").takes_value().multiple().value_name("DIR:/DEST").help("every file of DIR at /DEST before main()"))
+                        .option(Option("headed").help("a window on the display there is (a real GPU's Vulkan), not headless"))
+                        .arg(Arg("program").required().help("after --: PROGRAM.js and its arguments")))
+        .subcommand(cmd::App("site")
+                        .description("The website: built for the Web and pre-rendered, verified, split by what its first screen runs, profiled; a page driven")
+                        .subcommand(cmd::App("build").description("omui.site packed for the Web into target/site, its openings, places and agent guide written, split, verified"))
+                        .subcommand(cmd::App("verify")
+                                        .description("The built page carries what it must (loader, static places, fonts, canvas, the agent's files); its sizes said")
+                                        .arg(Arg("dir").help("default: target/site")))
+                        .subcommand(cmd::App("split")
+                                        .description("The program cut in two by what its first screen runs (wasm-split, a profile in each language, omui-gen dist-toy-split)")
+                                        .arg(Arg("dir").help("default: target/site")))
+                        .subcommand(cmd::App("profile")
+                                        .description("A page with wasm-split's instrumented program used at its first screen; the functions that ran written")
+                                        .option(Option("route").takes_value().value_name("R").help("the route, e.g. /zh"))
+                                        .option(Option("idle").takes_value().value_name("MS").help("idle at the end (default: 4000)"))
+                                        .arg(Arg("dir").required().help("the packed page"))
+                                        .arg(Arg("profile").required().help("the profile written")))
+                        .subcommand(cmd::App("drive")
+                                        .description("A page in a real browser in real time: left to run, a script evaluated, captured; its logs printed")
+                                        .option(Option("flag").takes_value().multiple().value_name("SWITCH").help("a switch for Chromium instead of --disable-gpu"))
+                                        .option(Option("click").takes_value().value_name("X,Y").help("a person's click there first"))
+                                        .arg(Arg("url").required())
+                                        .arg(Arg("out").required().help("the PNG"))
+                                        .arg(Arg("seconds").help("default: 6"))
+                                        .arg(Arg("width").help("default: 1280"))
+                                        .arg(Arg("height").help("default: 800"))
+                                        .arg(Arg("script").help("evaluated after the seconds (awaited; window.omui is the program's agent interface)"))))
+        .subcommand(cmd::App("gpu")
+                        .description("A GPU for the device tests: the variables written to $GITHUB_ENV (or printed), or a command run with them")
+                        .option(Option("real").help("this machine's NVIDIA GPU (Linux), not CI's software device"))
+                        .arg(Arg("command").help("after --: the command to run on the device")))
+        .subcommand(cmd::App("bench")
+                        .description("The benchmarks against the best of each field (tests/bench/competitors)")
+                        .subcommand(cmd::App("competitors")
+                                        .description("Build our side, install the pinned competitors, run every comparison")
+                                        .option(Option("ledger").help("the lead ledger: rounds alternating, each metric judged, the ledger and its pages written"))
+                                        .option(Option("rounds").takes_value().value_name("N").help("with --ledger: how many (default: 15)"))
+                                        .option(Option("dry-run").help("with --ledger: print the verdicts, write nothing")))
+                        .subcommand(cmd::App("material3")
+                                        .description("Material 3's controls in four states (rest, hover, pressed, focus), captured from their page as the competitor's side of the controls' review")
+                                        .arg(Arg("out").required().help("OUT/<control>-<state>.png"))))
+        .subcommand(cmd::App("lead")
+                        .description("The lead ledger (D-135): samples, verdicts, capabilities, its pages and its check")
+                        .subcommand(cmd::App("sample")
+                                        .description("Run a benchmark; tag each JSON line it prints with the series, the round and the key; append the samples")
+                                        .option(Option("series").takes_value().value_name("NAME").help("the series (when the line names none)"))
+                                        .option(Option("series-field").takes_value().value_name("F").help("each line's series from this field"))
+                                        .option(Option("round").takes_value().value_name("K").help("the round"))
+                                        .option(Option("key").takes_value().value_name("KEY").help("the key, where the line has no scene"))
+                                        .option(Option("out").takes_value().value_name("FILE").help("the samples file"))
+                                        .arg(Arg("command").required().help("after --: the benchmark and its arguments")))
+                        .subcommand(cmd::App("verdict")
+                                        .description("Judge every measured metric by the samples; append one ledger line each")
+                                        .arg(Arg("samples").required().help("the samples file"))
+                                        .option(Option("dry-run").help("print the verdicts, write nothing")))
+                        .subcommand(cmd::App("capability")
+                                        .description("Record a capability against competitors (none | partial | app-defined | full)")
+                                        .option(Option("project").takes_value().value_name("P"))
+                                        .option(Option("feature").takes_value().value_name("F"))
+                                        .option(Option("about").takes_value().value_name("TEXT"))
+                                        .option(Option("test").takes_value().value_name("PATH").help("the test that shows it"))
+                                        .option(Option("competitor").takes_value().multiple().value_name("NAME=SUPPORT")))
+                        .subcommand(cmd::App("docs").description("Write docs/{en,zh}/lead.md and the evaluation summary from the ledger"))
+                        .subcommand(cmd::App("check").description("The signature features against the ledger (lint `lead`; exit 1 when one is wrong)")));
 }
 
 void conclude(std::vector<rec::Row>& rows, const json& jobs) {
@@ -214,11 +373,17 @@ void conclude(std::vector<rec::Row>& rows, const json& jobs) {
 
 int ci(const cmd::ParsedArgs& options, const fs::path& root) {
     if (!options.has_subcommand()) {
-        std::cerr << "usage: omui-devtools ci [--json] run ID | log FILE [--jobs FILE]\n";
+        std::cerr << "usage: omui-devtools ci [--json] run ID | log FILE [--jobs FILE] | local [MEMBER…]\n";
         return 2;
     }
+    if (options.subcommand_name() == "local") {
+        const auto& given = options.subcommand()->get();
+        std::vector<std::string> members;
+        for (std::size_t index = 0; index < given.positional_count(); ++index) members.push_back(given.positional(index));
+        return omui::devtools::check::matrix(root, members);
+    }
     const std::string status_name = options.value("status").value_or(".agents/docs/STATUS.md");
-    const auto status = read_file(options.value("status") ? mcpplibs::os::fs::from_utf8(status_name) : root / ".agents/docs/STATUS.md");
+    const auto status = mcpplibs::os::fs::read(options.value("status") ? mcpplibs::os::fs::from_utf8(status_name) : root / ".agents/docs/STATUS.md");
     if (!status) {
         std::cerr << std::format("omui-devtools ci: cannot read the red list at {} (--status names it)\n", status_name);
         return 2;
@@ -243,14 +408,14 @@ int ci(const cmd::ParsedArgs& options, const fs::path& root) {
         log = std::move(*failed);
     } else {
         run = sub.positional(0);
-        auto read = read_file(mcpplibs::os::fs::from_utf8(run));
+        auto read = mcpplibs::os::fs::read(mcpplibs::os::fs::from_utf8(run));
         if (!read) {
             std::cerr << std::format("omui-devtools ci: cannot read {}\n", run);
             return 2;
         }
         log = std::move(*read);
         if (auto file = sub.value("jobs")) {
-            auto text = read_file(mcpplibs::os::fs::from_utf8(*file));
+            auto text = mcpplibs::os::fs::read(mcpplibs::os::fs::from_utf8(*file));
             if (!text) {
                 std::cerr << std::format("omui-devtools ci: cannot read {}\n", *file);
                 return 2;
@@ -285,7 +450,7 @@ std::expected<std::vector<std::string>, std::string> git_lines(const fs::path& r
 
 // The LLVM CI's rows build with, as .github/workflows/ci.yml names it ("llvm@23.1.3").
 std::string ci_llvm(const fs::path& root) {
-    const auto text = read_file(root / ".github/workflows/ci.yml");
+    const auto text = mcpplibs::os::fs::read(root / ".github/workflows/ci.yml");
     if (!text) return {};
     const auto at = text->find("llvm@");
     if (at == std::string::npos) return {};
@@ -295,7 +460,7 @@ std::string ci_llvm(const fs::path& root) {
 }
 
 int llvm(const cmd::ParsedArgs& options, const fs::path& root) {
-    const auto manifest = read_file(root / "mcpp.toml");
+    const auto manifest = mcpplibs::os::fs::read(root / "mcpp.toml");
     if (!manifest) {
         std::cerr << "omui-devtools llvm: no mcpp.toml in the workspace (--root names it)\n";
         return 2;
@@ -303,7 +468,7 @@ int llvm(const cmd::ParsedArgs& options, const fs::path& root) {
     const auto paths = ws::listed(*manifest);
     std::vector<ws::Member> all;
     for (const auto& path : paths) {
-        const auto own = read_file(root / mcpplibs::os::fs::from_utf8(path) / "mcpp.toml");
+        const auto own = mcpplibs::os::fs::read(root / mcpplibs::os::fs::from_utf8(path) / "mcpp.toml");
         all.push_back({path, own ? ws::uses_of(path, *own, paths) : std::vector<std::string>{}});
     }
     std::vector<std::string> chosen = options.option_or_empty("package").values;
@@ -340,40 +505,23 @@ int llvm(const cmd::ParsedArgs& options, const fs::path& root) {
     }
     std::vector<std::string> args{"test", "--toolchain", toolchain, "--profile", options.value("profile").value_or("ci"), "--no-run"};
     for (const auto& path : picked) args.insert(args.end(), {"-p", path});
-    // Within 90% of the machine (AGENTS §5): through tools/dev/capped.sh where it is.
-    const fs::path capped = root / "tools/dev/capped.sh";
-    std::error_code missing;
-    const bool through_capped = !mcpplibs::os::is_windows && fs::exists(capped, missing);
     std::cout << std::format("{} member(s) changed, {} with their direct consumers; {}\n", chosen.size(), picked.size(), toolchain);
     for (const auto& path : picked) std::cout << "  " << path << (std::ranges::contains(chosen, path) ? "" : "  (consumer)") << '\n';
-    std::string shown = through_capped ? "tools/dev/capped.sh mcpp" : "mcpp";
+    std::string shown = "omui-devtools govern -- mcpp";
     for (const auto& arg : args) shown += " " + arg;
     std::cout << shown << '\n';
     if (options.is_flag_set("dry")) return 0;
-    const auto mcpp = mcpplibs::os::env::find_executable("mcpp");
-    if (!mcpp) {
-        std::cerr << "omui-devtools llvm: `mcpp` is not on PATH\n";
+    // Within 90% of the machine (AGENTS §5).
+    namespace held = omui::devtools::govern;
+    held::Options given{.jobs = omui::devtools::run::share_of_machine(), .cwd = root};
+    given.command = {"mcpp"};
+    given.command.insert(given.command.end(), args.begin(), args.end());
+    const auto status = held::run(given);
+    if (!status) {
+        std::cerr << "omui-devtools llvm: " << status.error() << '\n';
         return 2;
     }
-    mcpplibs::os::process::spawn_options spawn;
-    if (through_capped) {
-        spawn.program = capped;
-        spawn.args = {"mcpp"};
-        spawn.args.insert(spawn.args.end(), args.begin(), args.end());
-    } else {
-        spawn.program = *mcpp;
-        spawn.args = std::move(args);
-    }
-    spawn.cwd = root;
-    spawn.out = mcpplibs::os::process::stdio::inherit;
-    spawn.err = mcpplibs::os::process::stdio::inherit;
-    auto process = mcpplibs::os::process::process::spawn(spawn);
-    if (!process) {
-        std::cerr << std::format("omui-devtools llvm: mcpp did not start: {}\n", process.error().message());
-        return 2;
-    }
-    auto status = process->wait();
-    return status ? status->shell_code() : 1;
+    return *status;
 }
 
 int govern(const cmd::ParsedArgs& options) {
@@ -383,10 +531,12 @@ int govern(const cmd::ParsedArgs& options) {
         const auto [end, failed] = std::from_chars(text.data(), text.data() + text.size(), value);
         return failed == std::errc{} && end == text.data() + text.size();
     };
-    if (!number(options.value("jobs").value_or(""), given.jobs) || given.jobs < 1) {
+    given.jobs = omui::devtools::run::share_of_machine();
+    if (const auto jobs = options.value("jobs"); jobs && (!number(*jobs, given.jobs) || given.jobs < 1)) {
         std::cerr << "omui-devtools govern: --jobs takes a count of at least 1\n";
         return 2;
     }
+    given.low_priority = !options.is_flag_set("normal-priority");
     if (const auto floor = options.value("memory-floor"); floor && (!number(*floor, given.memory_floor) || given.memory_floor < 0 || given.memory_floor >= 1)) {
         std::cerr << "omui-devtools govern: --memory-floor takes a share in [0, 1)\n";
         return 2;
@@ -445,7 +595,7 @@ int surface(const cmd::ParsedArgs& options, const fs::path& root) {
     int differs = 0;
     for (const std::string& member : members) {
         const fs::path directory = root / mcpplibs::os::fs::from_utf8(member);
-        const auto manifest = read_file(directory / "mcpp.toml");
+        const auto manifest = mcpplibs::os::fs::read(directory / "mcpp.toml");
         if (!manifest) {
             std::cerr << std::format("omui-devtools api: no mcpp.toml in {}\n", member);
             return 2;
@@ -453,7 +603,7 @@ int surface(const cmd::ParsedArgs& options, const fs::path& root) {
         const std::string now = omui::devtools::api::surface(directory, omui::devtools::api::interface_globs(*manifest));
         const fs::path file = directory / "api.omui.txt";
         if (options.is_flag_set("check")) {
-            if (read_file(file) != now) {
+            if (mcpplibs::os::fs::read(file) != now) {
                 std::cerr << std::format("{}: api.omui.txt is not its surface now (omui-devtools api -p {} --write)\n", member, member);
                 ++differs;
             }
@@ -467,8 +617,182 @@ int surface(const cmd::ParsedArgs& options, const fs::path& root) {
     return differs ? 1 : 0;
 }
 
+int lint(const cmd::ParsedArgs& options, const fs::path& root) {
+    namespace lint = omui::devtools::lint;
+    if (options.is_flag_set("list")) {
+        for (const auto& rule : lint::rules()) std::cout << std::format("  {:14} {}\n", rule.name, rule.summary);
+        return 0;
+    }
+    if (options.is_flag_set("self-test")) {
+        std::error_code error;
+        const fs::path scratch = fs::temp_directory_path(error) / std::format("omui-devtools-lint-{}", std::chrono::steady_clock::now().time_since_epoch().count());
+        const int failed = lint::self_test(root, scratch, std::cout);
+        fs::remove_all(scratch, error);
+        return failed ? 1 : 0;
+    }
+    const auto problems = lint::run(root, options.option_or_empty("rule").values);
+    for (const auto& problem : problems) std::cout << problem.text() << '\n';
+    std::cout << std::format("lint: {} problem(s)\n", problems.size());
+    return problems.empty() ? 0 : 1;
+}
+
+// A number, or nothing.
+std::optional<double> number_of(std::string_view text) {
+    double value = 0;
+    const auto [end, failed] = std::from_chars(text.data(), text.data() + text.size(), value);
+    if (failed != std::errc{} || end != text.data() + text.size()) return std::nullopt;
+    return value;
+}
+
+int site_command(const cmd::ParsedArgs& options, const fs::path& root) {
+    namespace site = omui::devtools::site;
+    if (!options.has_subcommand()) {
+        std::cerr << "usage: omui-devtools site build | verify [DIR] | split [DIR] | profile DIR PROFILE [--route R] [--idle MS] | drive URL OUT [SECONDS] [WIDTH] [HEIGHT] [SCRIPT]\n";
+        return 2;
+    }
+    const auto& given = options.subcommand()->get();
+    const auto directory = [&] { return given.positional_count() > 0 ? mcpplibs::os::fs::from_utf8(given.positional(0)) : root / "target/site"; };
+    if (options.subcommand_name() == "build") return site::build(root);
+    if (options.subcommand_name() == "verify") return site::verify(directory());
+    if (options.subcommand_name() == "split") return site::split(root, directory());
+    if (options.subcommand_name() == "profile") {
+        site::Profile asked{.site = mcpplibs::os::fs::from_utf8(given.positional(0)), .out = mcpplibs::os::fs::from_utf8(given.positional(1)),
+                            .route = given.value("route").value_or("")};
+        if (const auto idle = given.value("idle")) {
+            const auto value = number_of(*idle);
+            if (!value || *value < 0) {
+                std::cerr << "omui-devtools site profile: --idle takes milliseconds\n";
+                return 2;
+            }
+            asked.idle_ms = static_cast<int>(*value);
+        }
+        return site::profile(asked);
+    }
+    site::Drive asked{.url = given.positional(0), .out = mcpplibs::os::fs::from_utf8(given.positional(1))};
+    const std::array<std::string_view, 3> numbers{"seconds", "width", "height"};
+    for (std::size_t index = 0; index < numbers.size(); ++index) {
+        if (given.positional_count() <= index + 2) break;
+        const auto value = number_of(given.positional(index + 2));
+        if (!value || *value < 0) {
+            std::cerr << std::format("omui-devtools site drive: {} is a number\n", numbers[index]);
+            return 2;
+        }
+        if (index == 0) asked.seconds = *value;
+        else if (index == 1) asked.width = static_cast<int>(*value);
+        else asked.height = static_cast<int>(*value);
+    }
+    if (given.positional_count() > 5) asked.script = given.positional(5);
+    asked.flags = given.option_or_empty("flag").values;
+    if (const auto click = given.value("click")) {
+        const auto comma = click->find(',');
+        const auto x = number_of(click->substr(0, comma)), y = comma == std::string::npos ? std::nullopt : number_of(click->substr(comma + 1));
+        if (!x || !y) {
+            std::cerr << "omui-devtools site drive: --click takes X,Y\n";
+            return 2;
+        }
+        asked.click = std::pair{*x, *y};
+    }
+    return site::drive(asked);
+}
+
+int lead_command(const cmd::ParsedArgs& options, const fs::path& root) {
+    namespace lead = omui::devtools::lead;
+    if (options.subcommand_name() == "check") {
+        const auto found = lead::problems(root);
+        for (const auto& [where, what] : found) std::cout << std::format("[lead] {}: {}\n", where, what);
+        return found.empty() ? 0 : 1;
+    }
+    const cmd::ParsedArgs& sub = options.has_subcommand() ? options.subcommand()->get() : options;
+    if (options.subcommand_name() == "sample") {
+        int round = 0;
+        const std::string round_text = sub.value("round").value_or("");
+        const auto [end, failed] = std::from_chars(round_text.data(), round_text.data() + round_text.size(), round);
+        if (failed != std::errc{} || end != round_text.data() + round_text.size() || !sub.value("series") || !sub.value("out")) {
+            std::cerr << "omui-devtools lead sample: --series NAME --round K --out FILE -- COMMAND…\n";
+            return 2;
+        }
+        mcpplibs::os::process::spawn_options run;
+        run.program = sub.positional(0);
+        for (std::size_t index = 1; index < sub.positional_count(); ++index) run.args.push_back(sub.positional(index));
+        auto done = mcpplibs::os::process::run(std::move(run));
+        if (!done) {
+            std::cerr << std::format("omui-devtools lead sample: {} did not start: {}\n", sub.positional(0), done.error().message());
+            return 127;
+        }
+        if (done->status.shell_code() != 0) {
+            std::cerr << done->err;
+            return done->status.shell_code();
+        }
+        const std::string series = *sub.value("series");
+        const auto records = lead::samples(done->out, series, sub.value("series-field").value_or(""), sub.value("key").value_or(""), round);
+        if (records.empty()) {
+            std::cerr << std::format("omui-devtools lead sample: {} printed no JSON line\n", series);
+            return 1;
+        }
+        return lead::append(fs::path(*sub.value("out")), records) ? 0 : 2;
+    }
+    const fs::path ledger = root / lead::ledger_path;
+    if (options.subcommand_name() == "verdict") {
+        std::vector<std::string> skipped;
+        const auto judged = lead::verdicts(mcpplibs::os::fs::read(root / lead::metrics_path).value_or(""), mcpplibs::os::fs::read(fs::path(sub.positional(0))).value_or(""),
+                                           mcpplibs::os::fs::read(ledger).value_or(""), lead::context_here(root), skipped);
+        if (!judged) {
+            std::cerr << "omui-devtools lead verdict: " << judged.error() << '\n';
+            return 2;
+        }
+        for (const auto& id : skipped) std::cerr << std::format("omui-devtools lead verdict: {}: no paired samples\n", id);
+        std::vector<std::string> records;
+        for (const auto& verdict : *judged) {
+            std::cout << verdict.said << '\n';
+            records.push_back(verdict.record);
+        }
+        return sub.is_flag_set("dry-run") || lead::append(ledger, records) ? 0 : 2;
+    }
+    if (options.subcommand_name() == "capability") {
+        std::vector<std::string> names, supports;
+        for (const auto& item : sub.option_or_empty("competitor").values) {
+            const auto equals = item.find('=');
+            const std::string support = equals == std::string::npos ? std::string{} : item.substr(equals + 1);
+            if (!std::ranges::contains(lead::supports, std::string_view(support))) {
+                std::cerr << std::format("omui-devtools lead capability: {}: support is one of none, partial, app-defined, full\n", item);
+                return 2;
+            }
+            names.push_back(item.substr(0, equals));
+            supports.push_back(support);
+        }
+        const std::string test = sub.value("test").value_or("");
+        if (names.empty() || !sub.value("project") || !sub.value("feature") || !sub.value("about") || test.empty()) {
+            std::cerr << "omui-devtools lead capability: --project P --feature F --about TEXT --test PATH --competitor NAME=SUPPORT…\n";
+            return 2;
+        }
+        if (!fs::exists(root / test)) {
+            std::cerr << std::format("omui-devtools lead capability: {} does not exist\n", test);
+            return 2;
+        }
+        auto competitors = nlohmann::ordered_json::array();
+        for (std::size_t at = 0; at < names.size(); ++at) competitors.push_back({{"name", names[at]}, {"support", supports[at]}});
+        const auto made = lead::context_here(root);
+        const nlohmann::ordered_json record{{"kind", "capability"},     {"date", made.date},         {"project", *sub.value("project")},
+                                            {"feature", *sub.value("feature")}, {"about", *sub.value("about")}, {"test", test},
+                                            {"competitors", competitors}, {"verdict", lead::capability_verdict(supports)}, {"commit", made.commit}};
+        std::cout << record.dump() << '\n';
+        return lead::append(ledger, std::vector{record.dump()}) ? 0 : 2;
+    }
+    if (options.subcommand_name() != "docs") {
+        std::cerr << "usage: omui-devtools lead sample … | verdict SAMPLES | capability … | docs | check\n";
+        return 2;
+    }
+    const auto written = lead::write_pages(root);
+    if (!written) {
+        std::cerr << "omui-devtools lead docs: " << written.error() << '\n';
+        return 2;
+    }
+    for (const auto& path : *written) std::cout << std::format("wrote {}\n", path);
+    return 0;
+}
+
 int platforms(const cmd::ParsedArgs& options, const fs::path& root) {
-    const auto table = read_file(root / "docs/platforms.omui.json");
+    const auto table = mcpplibs::os::fs::read(root / "docs/platforms.omui.json");
     if (!table) {
         std::cerr << "omui-devtools platforms: cannot read docs/platforms.omui.json\n";
         return 2;
@@ -481,7 +805,7 @@ int platforms(const cmd::ParsedArgs& options, const fs::path& root) {
             return 2;
         }
         const fs::path target = root / "docs" / std::string(language) / "platforms.md";
-        if (read_file(target) == *written) continue;
+        if (mcpplibs::os::fs::read(target) == *written) continue;
         if (options.is_flag_set("check")) {
             std::cerr << std::format("omui-devtools platforms: docs/{}/platforms.md is not current (omui-devtools platforms)\n", language);
             ++stale;
@@ -509,6 +833,175 @@ int main(int argc, char** argv) {
     if (parsed->subcommand_name() == "llvm") return llvm(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "platforms") return platforms(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "api") return surface(parsed->subcommand()->get(), root);
+    if (parsed->subcommand_name() == "eval") return omui::devtools::eval::run(parsed->subcommand()->get(), root);
+    if (parsed->subcommand_name() == "consumer") {
+        const auto& given = parsed->subcommand()->get();
+        omui::devtools::consumer::Options options;
+        if (const auto output = given.value("output")) options.output = fs::absolute(mcpplibs::os::fs::from_utf8(*output));
+        options.keep_project = given.is_flag_set("keep-project");
+        options.web = given.is_flag_set("web");
+        if (const auto openas = given.value("openas-package")) options.openas = fs::absolute(mcpplibs::os::fs::from_utf8(*openas));
+        return omui::devtools::consumer::probe(root, given.positional(0), options);
+    }
+    if (parsed->subcommand_name() == "lint") return lint(parsed->subcommand()->get(), root);
+    if (parsed->subcommand_name() == "browser") {
+        namespace page = omui::devtools::browser;
+        const auto& given = parsed->subcommand()->get();
+        page::Options options;
+        if (const auto chrome = given.value("chrome")) options.chrome = mcpplibs::os::fs::from_utf8(*chrome);
+        if (const auto seconds = given.value("timeout")) {
+            int count = 0;
+            const auto [end, failed] = std::from_chars(seconds->data(), seconds->data() + seconds->size(), count);
+            if (failed != std::errc{} || end != seconds->data() + seconds->size() || count < 1) {
+                std::cerr << "omui-devtools browser: --timeout takes seconds, at least 1\n";
+                return 2;
+            }
+            options.timeout = std::chrono::seconds(count);
+        }
+        options.flags = given.option_or_empty("flag").values;
+        for (const auto& preload : given.option_or_empty("preload").values) {
+            const auto colon = preload.rfind(':');
+            if (colon == std::string::npos) {
+                std::cerr << "omui-devtools browser: --preload takes DIR:/DEST\n";
+                return 2;
+            }
+            options.preloads.emplace_back(fs::absolute(mcpplibs::os::fs::from_utf8(preload.substr(0, colon))), preload.substr(colon + 1));
+        }
+        options.headed = given.is_flag_set("headed") || mcpplibs::os::env::get("OMUI_BROWSER_HEADED") == "1";
+        options.program = mcpplibs::os::fs::from_utf8(given.positional(0));
+        for (std::size_t index = 1; index < given.positional_count(); ++index) options.arguments.push_back(given.positional(index));
+        const auto status = page::run(options);
+        if (!status) {
+            std::cerr << "omui-devtools browser: " << status.error() << '\n';
+            return 2;
+        }
+        return *status;
+    }
+    if (parsed->subcommand_name() == "media") {
+        const auto& given = parsed->subcommand()->get();
+        std::vector<std::string> shows;
+        for (std::size_t index = 0; index < given.positional_count(); ++index) shows.push_back(given.positional(index));
+        if (given.is_flag_set("showcases")) {
+            std::error_code error;
+            for (const auto& entry : fs::directory_iterator(root / "showcase", error))
+                if (fs::is_regular_file(entry.path() / "mcpp.toml")) shows.push_back(mcpplibs::os::fs::utf8(entry.path().filename()));
+            std::ranges::sort(shows);
+        }
+        return omui::devtools::check::media(root, std::move(shows), given.is_flag_set("check"));
+    }
+    if (parsed->subcommand_name() == "check") {
+        namespace step = omui::devtools::check;
+        const auto& sub = parsed->subcommand()->get();
+        if (!sub.has_subcommand()) {
+            std::cerr << "usage: omui-devtools check features | templates | reflect [--profile P] | sweep [--profile P] | tools-e2e | agent-e2e | android [--out DIR] | web [--profile P] | browser | site [CHECK…] | visitor-path | dist-toy-loading | toy [PACKAGE…] | size -p MEMBER [--json F] [--markdown F] [--budget F] | atspi [--profile P]\n";
+            return 2;
+        }
+        const auto& given = sub.subcommand()->get();
+        if (sub.subcommand_name() == "features") return step::features(root);
+        if (sub.subcommand_name() == "templates") return step::templates(root);
+        if (sub.subcommand_name() == "browser") return step::browser_checks(root);
+        if (sub.subcommand_name() == "visitor-path")
+            return step::visitor_path(root, mcpplibs::os::fs::from_utf8(given.value("site").value_or("")), mcpplibs::os::fs::from_utf8(given.value("omui").value_or("")));
+        if (sub.subcommand_name() == "dist-toy-loading") return step::dist_toy_loading(root, mcpplibs::os::fs::from_utf8(given.value("fixture").value_or("")));
+        if (sub.subcommand_name() == "site") {
+            std::vector<std::string> names;
+            for (std::size_t index = 0; index < given.positional_count(); ++index) names.push_back(given.positional(index));
+            return step::site(root, mcpplibs::os::fs::from_utf8(given.value("site").value_or("")), std::move(names));
+        }
+        if (sub.subcommand_name() == "web") return step::web(root, given.value("profile").value_or("wasm-test"));
+        if (sub.subcommand_name() == "reflect") return step::reflect(root, given.value("profile").value_or("dev"));
+        if (sub.subcommand_name() == "size") {
+            if (!given.value("package")) {
+                std::cerr << "omui-devtools check size: -p MEMBER\n";
+                return 2;
+            }
+            step::Size asked;
+            asked.package = *given.value("package");
+            asked.json = mcpplibs::os::fs::from_utf8(given.value("json").value_or(""));
+            asked.markdown = mcpplibs::os::fs::from_utf8(given.value("markdown").value_or(""));
+            asked.budget = mcpplibs::os::fs::from_utf8(given.value("budget").value_or(""));
+            return step::size(root, asked);
+        }
+        std::vector<std::string> profile;
+        if (const auto chosen = given.value("profile")) profile = {"--profile", *chosen};
+        if (sub.subcommand_name() == "sweep") return step::sweep(root, profile);
+        if (sub.subcommand_name() == "android")
+            return step::android(root, given.value("out") ? mcpplibs::os::fs::from_utf8(*given.value("out")) : fs::temp_directory_path() / "omui-android");
+        if (sub.subcommand_name() == "tools-e2e") return step::tools_e2e(root, profile);
+        if (sub.subcommand_name() == "agent-e2e") return step::agent_e2e(root, profile);
+        if (sub.subcommand_name() == "toy") {
+            std::vector<std::string> packages;
+            for (std::size_t index = 0; index < given.positional_count(); ++index) packages.push_back(given.positional(index));
+            return step::toy(root, std::move(packages));
+        }
+        return step::atspi(root, profile);
+    }
+    if (parsed->subcommand_name() == "site") return site_command(parsed->subcommand()->get(), root);
+    if (parsed->subcommand_name() == "gpu") {
+        namespace device = omui::devtools::gpu;
+        const auto& given = parsed->subcommand()->get();
+        const auto prepared = device::prepare(given.is_flag_set("real") ? device::Device::real : device::Device::software);
+        if (!prepared) {
+            std::cerr << "omui-devtools gpu: " << prepared.error() << '\n';
+            return 1;
+        }
+        for (const auto& line : prepared->said) std::cout << "gpu: " << line << '\n';
+        if (given.positional_count() == 0) {
+            const auto github = mcpplibs::os::env::get("GITHUB_ENV");
+            std::ofstream file;
+            if (github) file.open(*github, std::ios::binary | std::ios::app);
+            for (const auto& [name, value] : prepared->variables) {
+                std::cout << std::format("gpu: {}={}\n", name, value);
+                if (file.is_open()) file << name << '=' << value << '\n';
+            }
+            return github && !file ? 2 : 0;
+        }
+        mcpplibs::os::process::spawn_options run;
+        run.program = given.positional(0);
+        for (std::size_t index = 1; index < given.positional_count(); ++index) run.args.push_back(given.positional(index));
+        run.out = run.err = mcpplibs::os::process::stdio::inherit;  // it becomes this program
+        for (const auto& [name, value] : prepared->variables) run.env.emplace_back(name, value);
+        // A command run here on the software device makes no window either (CI's rows set this themselves).
+        if (!mcpplibs::os::is_macos && !mcpplibs::os::env::get("SDL_VIDEO_DRIVER")) run.env.emplace_back("SDL_VIDEO_DRIVER", "offscreen");
+        const auto failed = mcpplibs::os::process::exec(std::move(run));
+        std::cerr << std::format("omui-devtools gpu: {} did not start: {}\n", given.positional(0), failed ? std::string("returned") : failed.error().message());
+        return 127;
+    }
+    if (parsed->subcommand_name() == "bench") {
+        const auto& sub = parsed->subcommand()->get();
+        if (sub.subcommand_name() == "material3") {
+            const auto status = omui::devtools::bench::material3(root, mcpplibs::os::fs::from_utf8(sub.subcommand()->get().positional(0)));
+            if (!status) {
+                std::cerr << "omui-devtools bench material3: " << status.error() << '\n';
+                return 2;
+            }
+            return *status;
+        }
+        if (sub.subcommand_name() != "competitors") {
+            std::cerr << "usage: omui-devtools bench competitors [--ledger [--rounds N] [--dry-run]] | material3 OUT\n";
+            return 2;
+        }
+        const auto& given = sub.subcommand()->get();
+        omui::devtools::bench::Options options;
+        if (given.is_flag_set("ledger")) {
+            options.rounds = 15;
+            if (const auto rounds = given.value("rounds")) {
+                const auto [end, failed] = std::from_chars(rounds->data(), rounds->data() + rounds->size(), options.rounds);
+                if (failed != std::errc{} || end != rounds->data() + rounds->size() || options.rounds < 1) {
+                    std::cerr << "omui-devtools bench competitors: --rounds takes a count of at least 1\n";
+                    return 2;
+                }
+            }
+            options.dry_run = given.is_flag_set("dry-run");
+        }
+        const auto status = omui::devtools::bench::competitors(root, options);
+        if (!status) {
+            std::cerr << "omui-devtools bench competitors: " << status.error() << '\n';
+            return 2;
+        }
+        return *status;
+    }
+    if (parsed->subcommand_name() == "lead") return lead_command(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "atspi") {
         const auto& sub = parsed->subcommand()->get();
         const auto report = omui::devtools::atspi::check(mcpplibs::os::fs::from_utf8(sub.positional(0)),
@@ -518,6 +1011,6 @@ int main(int argc, char** argv) {
     }
     if (parsed->subcommand_name() == "govern") return govern(parsed->subcommand()->get());
     if (parsed->subcommand_name() == "incremental") return incremental(parsed->subcommand()->get());
-    std::cerr << "usage: omui-devtools [--root DIR] ci … | llvm … | platforms | govern … | incremental … | api … | atspi …  (omui-devtools --help)\n";
+    std::cerr << "usage: omui-devtools [--root DIR] ci … | llvm … | platforms | govern … | incremental … | api … | atspi … | lint … | lead … | bench … | gpu … | check … | media … | browser … | consumer …  (omui-devtools --help)\n";
     return 2;
 }

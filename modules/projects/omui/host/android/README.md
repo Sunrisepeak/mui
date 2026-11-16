@@ -4,7 +4,7 @@ omui on Android (W10, G1): the framework draws every pixel (D-140) into the wind
 
 ![Example 01 on Android 7.0's emulator (720×1280, 320 dpi), its button tapped through the platform's input](media/hello-tapped.png)
 
-`tools/ci/android.sh` (CI's android job) packs example 01's APK and checks what is inside; where the machine has KVM, it runs it on Android 7.0's emulator — it says it runs, a tap on its button changes the screen, Back ends it.
+`omui-devtools check android` (CI's android job) packs example 01's APK and checks what is inside; where the machine has KVM, it runs it on Android 7.0's emulator — it says it runs, a tap on its button changes the screen, Back ends it.
 
 - **An application is `kind = "app"`.** On the desktop it links a program. On an Android row (`--target x86_64-linux-android`, `aarch64-linux-android`) it links the library the platform loads, and mcpp.plugins' `dist-apk` packs it into an APK signed with the published debug key: `mcpp run --target x86_64-linux-android --pkg-format apk` installs and runs it through `adb-run`, on the emulator or a phone. Example 01 is one such application.
 - **The program's own `main` runs.** The platform calls `ANativeActivity_onCreate` (this host's). The host starts the program's `main`, found in the same library, on a thread of its own. `omui::run` there shows the application through `AndroidHost` (the SDK's `cfg(env = "android")` branch).

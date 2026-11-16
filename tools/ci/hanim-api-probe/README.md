@@ -66,8 +66,7 @@ complete UI adapters are separate implementation work.
 ## Run and inspect
 
 ```sh
-MCPP_JOBS=2 python3 tools/ci/hanim-api-probe/run.py \
-  --mcpp /path/to/mcpp \
+MCPP_JOBS=2 omui-devtools consumer hanim-api \
   --output /tmp/hanim-public-authoring.report.omui.json --keep-project
 ```
 

@@ -477,7 +477,128 @@ struct Server::Impl {
         return out;
     }
 
+    // ── the other ways (D-142): the same application, another interface ──
+
+    std::expected<std::string, std::string> only_application() {
+        const auto apps = running();
+        if (apps.empty()) return std::unexpected(std::string("no application listens (omui agent ls)"));
+        return apps.front().name;
+    }
+
+    // A person's devices: the events, then two frames to let them land; "done" or why not.
+    Value devices(const std::string& app, Value::List events) {
+        events.push_back(Value{}.set("type", "wait").set("frames", 2));
+        const auto count = static_cast<std::int64_t>(events.size());
+        Value req;
+        req.set("op", "input").set("events", Value(std::move(events))).set("actor", actor);
+        const Answer a = call(app, req, std::chrono::milliseconds(count * 2000) + options.timeout);
+        return tool_result(a.exit == 0 ? std::string("done") : std::format("{}: {}", a.code.empty() ? "failed" : a.code, a.message), a.exit != 0);
+    }
+
+    // The window's accessibility tree: what a platform tree carries of a node (ref, role, name, value, states,
+    // bounds), nested; its actions and their effects, and the application's verbs, are what the semantic way adds.
+    Value accessibility_tree(const std::string& app) {
+        const Answer a = call(app, Value{}.set("op", "snapshot"), options.timeout);
+        if (a.exit != 0) return tool_result(std::format("{}: {}", a.code.empty() ? "failed" : a.code, a.message), true);
+        const Value* listed = a.data.get("nodes");
+        if (!listed || !listed->list()) return tool_result("[]");
+        std::map<std::string_view, const Value*> by_id;
+        std::set<std::string_view> children;
+        for (const Value& node : *listed->list()) {
+            by_id.emplace(str(node, "id"), &node);
+            if (const Value* kids = node.get("children"); kids && kids->list())
+                for (const Value& kid : *kids->list()) children.insert(kid.as_string());
+        }
+        std::set<std::string_view> seen;
+        const std::function<Value(const Value&)> kept = [&](const Value& node) {
+            seen.insert(str(node, "id"));
+            Value out;
+            out.set("ref", str(node, "id"));
+            const auto present = [](const Value* value) {
+                return value && !value->is_null() && !(value->type() == Value::Type::text && value->as_string().empty()) &&
+                       !(value->list() && value->list()->empty()) && !(value->map() && value->map()->empty());
+            };
+            for (const auto& [from, to] : {std::pair<std::string_view, std::string_view>{"role", "role"}, {"name", "name"}, {"value", "value"},
+                                           {"state", "states"}, {"bounds", "bounds"}})
+                if (const Value* value = node.get(from); present(value)) out.set(to, *value);
+            Value::List kids;
+            if (const Value* listed_kids = node.get("children"); listed_kids && listed_kids->list())
+                for (const Value& kid : *listed_kids->list())
+                    if (const auto found = by_id.find(kid.as_string()); found != by_id.end() && !seen.contains(found->first)) kids.push_back(kept(*found->second));
+            if (!kids.empty()) out.set("children", Value(std::move(kids)));
+            return out;
+        };
+        Value::List roots;
+        for (const Value& node : *listed->list())
+            if (!children.contains(str(node, "id")) && !seen.contains(str(node, "id"))) roots.push_back(kept(node));
+        return tool_result(Value(std::move(roots)).json());
+    }
+
+    Value run_way_tool(std::string_view name, const Value& args) {
+        std::string app = options.app;
+        if (app.empty()) {
+            auto only = only_application();
+            if (!only) return tool_result(only.error(), true);
+            app = std::move(*only);
+        }
+        const auto number = [&](std::string_view key) -> std::optional<double> {
+            const Value* value = args.get(key);
+            if (!value || (value->type() != Value::Type::real && value->type() != Value::Type::integer)) return std::nullopt;
+            return value->as_double();
+        };
+        const auto needs = [&](std::initializer_list<std::string_view> keys) -> std::optional<Value> {
+            for (std::string_view key : keys)
+                if (!number(key)) return tool_result(std::format("{} needs `{}` (a number)", name, key), true);
+            return std::nullopt;
+        };
+        const auto at = [&](std::string_view type, std::string_view x, std::string_view y) {
+            return Value{}.set("type", type).set("x", *number(x)).set("y", *number(y));
+        };
+        if (name == "screenshot") {
+            const Answer a = call(app, Value{}.set("op", "capture"), options.timeout);
+            if (a.exit != 0 || str(a.data, "base64").empty()) return tool_result("no picture", true);
+            return tool_result("the window", false, {}, Value::List{Value{}.set("type", "image").set("data", str(a.data, "base64")).set("mimeType", "image/png")});
+        }
+        if (name == "accessibility_tree") return accessibility_tree(app);
+        if (name == "click") {
+            if (auto missing = needs({"x", "y"})) return *missing;
+            Value event = at("click", "x", "y");
+            if (auto button = str(args, "button"); !button.empty()) event.set("button", button);
+            return devices(app, {std::move(event)});
+        }
+        if (name == "double_click") {
+            if (auto missing = needs({"x", "y"})) return *missing;
+            return devices(app, {at("click", "x", "y"), at("click", "x", "y")});
+        }
+        if (name == "drag") {
+            if (auto missing = needs({"from_x", "from_y", "to_x", "to_y"})) return *missing;
+            Value event;
+            event.set("type", "drag").set("from", Value(Value::List{Value(*number("from_x")), Value(*number("from_y"))}))
+                .set("to", Value(Value::List{Value(*number("to_x")), Value(*number("to_y"))}));
+            return devices(app, {std::move(event)});
+        }
+        if (name == "type") {
+            const Value* typed = args.get("text");
+            if (!typed || typed->type() != Value::Type::text) return tool_result("type needs `text`", true);
+            return devices(app, {Value{}.set("type", "text").set("text", *typed)});
+        }
+        if (name == "key") {
+            if (str(args, "key").empty()) return tool_result("key needs `key`", true);
+            return devices(app, {Value{}.set("type", "key").set("key", str(args, "key"))});
+        }
+        if (name == "scroll") {
+            if (auto missing = needs({"x", "y", "dy"})) return *missing;
+            return devices(app, {at("wheel", "x", "y").set("dy", *number("dy"))});
+        }
+        if (name == "click_ref") {
+            if (str(args, "ref").empty()) return tool_result("click_ref needs `ref`", true);
+            return devices(app, {Value{}.set("type", "click").set("node", str(args, "ref"))});
+        }
+        return tool_result(std::format("no tool `{}`", name), true);
+    }
+
     Value run_tool(std::string_view name, const Value& args, Transport& t) {
+        if (options.way != Way::semantic) return run_way_tool(name, args);
         if (const auto command = commands.find(std::string(name)); command != commands.end())
             return run_command(t, command->second.first, command->second.second, args);
         if (name == "ui_apps") {
@@ -812,10 +933,56 @@ struct Server::Impl {
     }
 };
 
+std::optional<Way> way_named(std::string_view name) {
+    if (name == "semantic") return Way::semantic;
+    if (name == "a11y-tree") return Way::accessibility_tree;
+    if (name == "screenshot") return Way::screenshot;
+    return std::nullopt;
+}
+
+namespace {
+
+// What the other ways offer, worded as they word it: the devices at coordinates, the picture; the tree by ref.
+Value::List way_tools(Way way) {
+    const auto n = [](std::string_view description) { return prop("number", description); };
+    const auto devices = [](Value tool_value) {
+        Value hints;
+        hints.set("readOnlyHint", false).set("destructiveHint", false).set("idempotentHint", false).set("openWorldHint", false);
+        return tool_value.set("annotations", std::move(hints));
+    };
+    const auto offered = [](std::string_view name, std::string_view description, Value schema) {
+        Value out;
+        out.set("name", name).set("description", description).set("inputSchema", std::move(schema));
+        return out;
+    };
+    Value::List out{
+        offered("screenshot", "A picture of the application's window (PNG).", object_schema({})).set("annotations", hints_of("read", false)),
+        devices(offered("click", "Clicks at a point of the window, in its pixels.",
+                        object_schema({{"x", n("x")}, {"y", n("y")}, {"button", prop("string", "left, right or middle")}}, {"x", "y"}))),
+        devices(offered("double_click", "Clicks twice at a point of the window.", object_schema({{"x", n("x")}, {"y", n("y")}}, {"x", "y"}))),
+        devices(offered("drag", "Presses at one point, moves to another, releases.",
+                        object_schema({{"from_x", n("from x")}, {"from_y", n("from y")}, {"to_x", n("to x")}, {"to_y", n("to y")}},
+                                      {"from_x", "from_y", "to_x", "to_y"}))),
+        devices(offered("type", "Types text where the keyboard focus is.", object_schema({{"text", prop("string", "the text")}}, {"text"}))),
+        devices(offered("key", "Presses a key (Enter, Escape, Tab, Backspace, ArrowDown, Ctrl+A …).", object_schema({{"key", prop("string", "the key")}}, {"key"}))),
+        devices(offered("scroll", "Turns the wheel at a point (dy < 0 scrolls up).", object_schema({{"x", n("x")}, {"y", n("y")}, {"dy", n("how far")}}, {"x", "y", "dy"}))),
+    };
+    if (way == Way::accessibility_tree) {
+        out.push_back(offered("accessibility_tree", "The window's accessibility tree: each node's ref, role, name, value, states and bounds (x, y, width, height), nested.",
+                              object_schema({}))
+                          .set("annotations", hints_of("read", false)));
+        out.push_back(devices(offered("click_ref", "Clicks the middle of the node with this ref.", object_schema({{"ref", prop("string", "the node's ref")}}, {"ref"}))));
+    }
+    return out;
+}
+
+}  // namespace
+
 Server::Server(ServerOptions options) : impl_(std::make_unique<Impl>(std::move(options))) {}
 Server::~Server() = default;
 
 Value::List Server::tools() const {
+    if (impl_->options.way != Way::semantic) return way_tools(impl_->options.way);
     const auto n = [](std::string_view d) { return prop("integer", d); };
     const auto s = [](std::string_view d) { return prop("string", d); };
     const auto b = [](std::string_view d) { return prop("boolean", d); };
@@ -953,6 +1120,11 @@ void Server::handle(std::string_view line, Transport& t) {
         info.set("name", "openmui").set("title", "openmui applications").set("version", "0.1.0");
         Value r;
         r.set("protocolVersion", version).set("capabilities", std::move(caps)).set("serverInfo", std::move(info));
+        if (d.options.way != Way::semantic) {
+            // Another way's arm says only what that way's own server says: nothing about the application.
+            t.write(response(*id, std::move(r)).json());
+            return;
+        }
         r.set("instructions",
               "Operate running openmui applications through their semantic trees: ui_apps to see what runs, ui_snapshot or ui_find "
               "to read, ui_verbs for the application's verbs, ui_act or ui_invoke to change, ui_wait to let the interface settle, ui_capture to see pixels, ui_input to point, "

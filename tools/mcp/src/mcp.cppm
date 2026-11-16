@@ -17,6 +17,10 @@
 // show one — and acts again only with their yes, the actor recorded as
 // `agent:<client>;via=person:user`; a client without elicitation is told to
 // ask the user. The agent never answers for the person.
+//
+// `--way` offers the same running application as other ways of operating one
+// do (D-142, W4's control arms): only the interface differs, the outcome is
+// checked on the application's state the same way (omui-devtools eval tasks).
 export module omui.mcp;
 
 import std;
@@ -29,7 +33,22 @@ export namespace omui::mcp {
 // them gets it; otherwise the newest).
 inline constexpr std::array<std::string_view, 3> protocol_versions{"2025-06-18", "2025-03-26", "2024-11-05"};
 
+// How the application is offered.
+//   semantic            the ui_* tools: the semantic tree, actions, verbs, previews, undo
+//   accessibility_tree  what a browser agent's accessibility tree gives (Playwright MCP's
+//                       snapshot): each node's ref, role, name, value, states and bounds,
+//                       and a person's devices by ref or at coordinates, and the picture;
+//                       no operations of the application
+//   screenshot          what computer use gives: a picture, and a person's devices at
+//                       coordinates
+// Pictures are the protocol's `capture`, devices its `input` (decided as an agent's input
+// is, openas §2.7), the tree its `snapshot` with what a platform tree lacks taken out.
+enum class Way : std::uint8_t { semantic, accessibility_tree, screenshot };
+// semantic, a11y-tree or screenshot.
+[[nodiscard]] std::optional<Way> way_named(std::string_view name);
+
 struct ServerOptions {
+    Way                   way = Way::semantic;
     std::string           app;        // the application a call names none of ("": the one running)
     std::filesystem::path directory;  // where endpoints are (empty: agent::default_directory())
     // The actor's kind:name; the client's own name (initialize's clientInfo)

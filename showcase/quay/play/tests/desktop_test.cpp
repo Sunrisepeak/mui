@@ -1,5 +1,5 @@
 // Quay in a real window (SDL3: offscreen, or OMUI_GPU_VIDEO_DRIVER's) whose frames a device draws (lavapipe in CI, the real GPU by
-// tools/dev/gpu-real.sh): the harbour is drawn on that same device and shown as it is — no pixels read back or sent
+// omui-devtools gpu --real): the harbour is drawn on that same device and shown as it is — no pixels read back or sent
 // again — and the window's frame shows it where the harbour's node is. With OMUI_REQUIRE_GPU=1 a missing device
 // fails; otherwise it is said and the case passes vacuously. The window's frame is kept for a person to look at.
 import std;
@@ -30,7 +30,7 @@ UTest cases{"quay.desktop", [] {
         omui::DesktopOptions options;
         options.title = "Quay";
         options.size = {960, 600};
-        // The window's video driver as every device test takes it: macOS CI's is cocoa (tools/ci/gpu.sh), since
+        // The window's video driver as every device test takes it: macOS CI's is cocoa (omui-devtools gpu), since
         // SDL's offscreen driver gives Metal no view and so no device (red 98).
         options.video_driver = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER").value_or("offscreen");
         options.vsync = false;

@@ -42,9 +42,9 @@ same loop, stepped by hand — what its tests drive (`synthesize` and
 Emscripten library `build.mcpp` gives the link. `tests/js` tests it under
 node with a fake DOM, alone and with `tests/page_test.cpp` built for
 wasm32-emscripten (the person composing, typing, pasting; a screen reader;
-an agent through `window.omui`); `tools/ci/web.sh` runs both.
+an agent through `window.omui`); `omui-devtools check web` runs both.
 
-`tests/drawing_test.cpp`: without a page the CPU draws; in Chromium (`tools/ci/browser.sh`, with WebGPU, then WebGL2, the fonts preloaded) that device draws a page of boxes, borders, text in two scripts and a picture within the renderer's tolerances of the CPU's frame (4 levels at most, 64 pixels of 76 800 off by more than one: the rounded corners). Headless Chromium's SwiftShader differs by build and machine: some lose a WebGPU device that presents to a canvas unless their Vulkan is SwiftShader's too (under which ANGLE's WebGL2 reads back wrong), others offer no WebGPU adapter with those switches; WebGPU's run takes the default switches, else the Vulkan ones, else draws offscreen (`--offscreen`: `present = false`) and says so — CI's Chromium can present with neither, so there its WebGPU frames are compared offscreen and WebGL2's are presented.
+`tests/drawing_test.cpp`: without a page the CPU draws; in Chromium (`omui-devtools check browser`, with WebGPU, then WebGL2, the fonts preloaded) that device draws a page of boxes, borders, text in two scripts and a picture within the renderer's tolerances of the CPU's frame (4 levels at most, 64 pixels of 76 800 off by more than one: the rounded corners). Headless Chromium's SwiftShader differs by build and machine: some lose a WebGPU device that presents to a canvas unless their Vulkan is SwiftShader's too (under which ANGLE's WebGL2 reads back wrong), others offer no WebGPU adapter with those switches; WebGPU's run takes the default switches, else the Vulkan ones, else draws offscreen (`--offscreen`: `present = false`) and says so — CI's Chromium can present with neither, so there its WebGPU frames are compared offscreen and WebGL2's are presented.
 
 Not yet: IndexedDB for what is
 larger than localStorage holds; the clipboard's other kinds than text.

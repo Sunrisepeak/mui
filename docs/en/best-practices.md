@@ -50,7 +50,7 @@ What a script answers is checked where it enters: known fields, the right types,
 
 ## 8. Tests draw exact pixels; keep pins meaningful
 
-The headless host renders the same bytes on every platform, so a test can pin a frame. Keep a pinned frame free of text derived from unrelated state: a checksum line breaks the pin whenever the state's layout changes. Pin a region instead. The README pictures are drawn by tests too (`tools/ci/readme-media.sh`).
+The headless host renders the same bytes on every platform, so a test can pin a frame. Keep a pinned frame free of text derived from unrelated state: a checksum line breaks the pin whenever the state's layout changes. Pin a region instead. The README pictures are drawn by tests too (`omui-devtools media`).
 
 ## 9. Performance is measured and budgeted
 

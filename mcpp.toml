@@ -36,6 +36,7 @@ members = [
     "modules/projects/xengine/kernel/matter",
     "modules/projects/xengine/kernel/particles",
     "modules/projects/xengine/kernel/field",
+    "modules/projects/xengine/kernel/field/cts",
     "modules/projects/xengine/kernel/matter/cts",
     "modules/projects/xengine/kernel/matter/lab",
     "modules/base/unicode",
@@ -220,7 +221,7 @@ opt     = 1
 debug   = false
 ldflags = ["-sNODERAWFS=1"]
 
-# The test programs that need a browser (tools/ci/browser.sh runs them in
+# The test programs that need a browser (omui-devtools check browser runs them in
 # headless Chromium): linked to suspend for the page's promises — what
 # waiting for WebGPU and reading its textures back take — and to say their
 # exit code to the page. Asyncify, not JSPI: JSPI makes the exceptions'
@@ -234,7 +235,7 @@ opt     = 1
 debug   = false
 ldflags = ["-sASYNCIFY=1", "-sASYNCIFY_STACK_SIZE=65536", "-sEXIT_RUNTIME=1"]
 
-# The Web's bytes, looked into (W8; tools/ci/wasm-size.sh): the release
+# The Web's bytes, looked into (W8; omui-devtools check size): the release
 # build's code (-O2) with its functions' names kept in a name section, for
 # `omui-gen wasm-size` to say where they go.
 [workspace.profile.wasm-size]

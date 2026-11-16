@@ -4,7 +4,7 @@
 // ArrayBuffer, a "pointer" to a string the string itself — and fed what the
 // C++ side sends: resources by slot, a submission as rhi's wire words. What
 // GL is asked for is checked, deterministically; the real thing runs in
-// tools/ci/browser.sh.
+// omui-devtools check browser.
 //
 //   node --test modules/projects/xrender/rhi/webgl/tests/js/webgl.test.mjs
 import { test } from 'node:test';

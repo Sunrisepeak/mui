@@ -1,7 +1,7 @@
 name: Pages
 
 # omui's website (D-84 §6.6, W3): site/ built for the Web, its places
-# pre-rendered, published to GitHub Pages (tools/ci/site.sh) at
+# pre-rendered, published to GitHub Pages (omui-devtools site build) at
 # https://sunrisepeak.github.io/mui/. A pull request that touches the site or
 # the documents it shows builds it (the built site kept as an artifact); a
 # push to main or to the design branch, or a run by hand, publishes it — where
@@ -21,16 +21,16 @@ on:
       - 'mcpp/toy/**'
       - 'tools/gen/src/dist_toy.*'
       - 'tools/gen/tests/dist_toy_test.cpp'
-      - 'tools/ci/dist-toy-loading.mjs'
       - 'tools/gen/src/font_subset.*'
-      - 'tools/ci/site.sh'
-      - 'tools/ci/site-*'
-      - 'tools/ci/wasm-size.sh'
-      - 'tools/ci/visitor-path.*'
+      - 'tools/devtools/src/site.*'
+      - 'tools/devtools/src/check*'
+      - 'tools/devtools/src/cdp.*'
+      - 'tools/devtools/src/native/gzip.cpp'
+      - 'tools/devtools/src/browser.*'
       - 'tools/cli/src/page.cpp'
       - 'modules/projects/omui/host/web/src/**'
       - 'tools/gen/src/wasm_size.cpp'
-      - 'tools/ci/page.mjs'
+      - 'modules/base/utils/src/http/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -75,26 +75,25 @@ jobs:
           mcpp toolchain install gcc 16.1.0
           mcpp toolchain default gcc@16.1.0
       - name: The site, packed for the Web, pre-rendered, its program split by what its first screen runs
-        run: tools/ci/site.sh
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- site build
         env:
           # The runner has Chrome: the first screen is profiled and the program split, never skipped.
           OMUI_REQUIRE_BROWSER: '1'
       - name: The generated loader handles real streams, failures and retries
-        run: |
-          mcpp test dist_toy -p omui.gen
-          fixture="$(python3 -c 'import os,tempfile; print(os.path.join(tempfile.gettempdir(), "openmui-tests", "dist-toy-loading", "index.html"))')"
-          node tools/ci/dist-toy-loading.mjs "$fixture" > target/dist-toy-loading.report.omui.json
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- check dist-toy-loading
       - name: The site in a real browser — its delivery within budget, what assistive technology reads
-        # tools/ci/site-browser.sh: the page served as Pages serves it; a cold
+        # omui-devtools check site: the page served as Pages serves it; a cold
         # visit over 20 Mbit/s — transfer, first frame, readiness, frame tails
         # (site/delivery.budget.omui.json); the browser's accessibility tree
-        # and the keyboard's way in by the skip link.
-        run: tools/ci/site-browser.sh
+        # and the keyboard's way in by the skip link; and the site's other
+        # browser checks (structure, fonts, catalog, workspaces, motion, first
+        # views, loading, font sharing).
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- check site
       - name: The visitor's path — the page paired with an agent through omui connect, operated by omui page (D-95)
-        # tools/ci/visitor-path.sh: the pairing code the page gives, the bridge
-        # with it, both ends seeing the pairing, an action, the interaction
-        # sweep through the page, the bridge's end seen by the page.
-        run: tools/ci/visitor-path.sh
+        # omui-devtools check visitor-path: the pairing code the page gives, the
+        # bridge with it, both ends seeing the pairing, an action, the
+        # interaction sweep through the page, the bridge's end seen by the page.
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- check visitor-path
       - name: Keep the site checks and font handoff pixels
         if: always()
         uses: actions/upload-artifact@v4
@@ -116,9 +115,9 @@ jobs:
             target/dist-toy-loading.report.omui.json
           if-no-files-found: ignore
       - name: Where the site's WebAssembly bytes go (W8; Q-38)
-        # tools/ci/wasm-size.sh: the release's code with its functions' names
-        # kept, by owner (module, namespace, library) and its largest functions.
-        run: tools/ci/wasm-size.sh
+        # The release's code with its functions' names kept, by owner (module,
+        # namespace, library) and its largest functions.
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- check size -p omui.site --json target/wasm-size.json --markdown target/wasm-size.md
       - name: Keep the wasm's size report
         uses: actions/upload-artifact@v4
         with:

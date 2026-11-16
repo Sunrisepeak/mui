@@ -74,7 +74,7 @@ UI callback is active, then re-enter it at execution; do not replace a missing
 later UI context with an empty local call. Contexts are serial and do not
 automatically inherit across these two Invocation representations.
 
-The [independent UI consumer](../../../../tools/ci/omui-hanim-consumer/src/main.cpp)
+The independent UI consumer (the repository's `omui-devtools consumer omui-hanim`)
 drives the same public Hanim Controller through UI verbs and a real mouse
 button, checks both permission boundaries and revocation between them, and
 samples 61 actual rendered frames. This adapter adds no Hanim dependency to

@@ -18,7 +18,7 @@ Minimal SOP: prepare CPU rules; query the target device and `shader_formats`; cr
 |---|---|
 | [cts](cts) | Same backend-neutral scenarios on actual SDL_GPU and WebGPU devices |
 
-The existing backend tests run the domain CTS alongside RHI CTS. Use `OMUI_REQUIRE_GPU=1 OMUI_GPU_VIDEO_DRIVER=offscreen mcpp test --locked -p xrender.rhi.sdl` on Linux. `tools/ci/browser.sh` builds/runs WebGPU tests in Chromium; a standalone Node run is not GPU validation. Missing compute/readback is not a successful domain CTS run. GPU timings are not yet exposed by RHI; tests do not establish hardware speedup. Trace category `simulation` includes preparation/record spans; no per-cell host logging or callbacks.
+The existing backend tests run the domain CTS alongside RHI CTS. Use `OMUI_REQUIRE_GPU=1 OMUI_GPU_VIDEO_DRIVER=offscreen mcpp test --locked -p xrender.rhi.sdl` on Linux. `omui-devtools check browser` builds/runs WebGPU tests in Chromium; a standalone Node run is not GPU validation. Missing compute/readback is not a successful domain CTS run. GPU timings are not yet exposed by RHI; tests do not establish hardware speedup. Trace category `simulation` includes preparation/record spans; no per-cell host logging or callbacks.
 
 ## Independent boundary and compatibility
 
@@ -31,7 +31,7 @@ enter an ordinary adapter consumer.
 Use `xengine.cellular.rhi` and `xengine::cellular::gpu`. The Slang kernel is generated as a partition of `xengine.cellular.rhi.api` (entry points `evolve` and `exchange`).
 
 For local Linux validation with multiple installed Mesa stacks, select one
-Vulkan loader and ICD as `tools/ci/gpu.sh` does before running required-device
+Vulkan loader and ICD as `omui-devtools gpu` does before running required-device
 tests. A mixed LLVM 20/22 process was observed to crash during driver JIT;
 using the paired loader/lavapipe ICD avoids mixing those libraries. This is
 validation environment setup, not a skipped GPU test or an engine fallback.

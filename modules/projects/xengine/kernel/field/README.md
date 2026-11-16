@@ -23,7 +23,20 @@ air.wind_at({0, 3, 0});                                     // what a body or a 
 
 ## Agent surface
 
-What it gives an agent now: the state (`get`, `kelvin_at`, `wind_at`), why an instance is what it is after a step (`why`: every law judged, every flow named by the instance it came from — a cell, a body, a particle), the fingerprint (`state_hash`), and a branch (a copy). Its own subject — `observe`, `explain` across carriers, `branch`, `apply` — comes with T5.5 (`world.explain` across carriers), beside the lattice's and the particles' under the agent contract's suite.
+The air is a `Subject` of the agent kernel ([mlibs.agent](../../../../base/agent)), module `xengine.field.agent` — the package's feature `agent` (`xengine.field = { path = …, features = ["agent"] }`), so that the carrier taken alone stays the small tool it is. Its operations are a catalog, [air.ops.omui.ts](air.ops.omui.ts) (the table `src/agent/catalog.cppm` and the listings `src/agent/air.ops.json`, `.md` are `omui-gen ops`'s); how to use them, in order, is [skill.omui.md](skill.omui.md). Every operation is decided by openas first.
+
+| | |
+|---|---|
+| Subject and addresses | `air`, interface `xengine.field.air@0.1`. A place is `[x, y, z]` in metres, its cell the one there; a frame is a step played |
+| State | The `Field` on `mlibs.simulation`'s timeline, copied whole (a copy is a branch); the hash is the field's `state_hash`, bit for bit |
+| Observation | `air.observe`: cells, parked blocks, the strongest wind, each channel's least, most (and where), total — within a budget, channels left out from the last; `air.at`: one place's cell, channels, kelvin, wind |
+| Control | `air.set`: a quantity at a place's cell from the next step, once or held (a fire); `air.step` |
+| Time | `air.seek`: any frame of the history kept, the same bits; what is held is let go |
+| Preview | `air.branch`: some steps ahead with one more quantity applied, the air untouched |
+| Causes | `air.explain`: for a place's cell after the last step, each law that held, each flow in and out by its law and the neighbour's place, the channels after |
+| Not yet | the source of what it puts out back to what made it, across carriers (`world.explain`, with the world's subject); undo apart from a frame returned to |
+
+[cts](cts) holds it to the agent contract (`mlibs.agent.cts`) and lights a fire through the session.
 
 ## Against the strongest
 

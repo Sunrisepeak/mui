@@ -15,8 +15,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 maturity = "experimental"  # release plan §2.1: stable, preview or experimental (lint maturity)
 reexports = ["mlibs.math", "xengine.matter"]  # what its interface re-exports (lint module-closure)
 kind = "module"
-# A carrier for now; its subject (observe, explain across carriers, branch, apply) comes with the M6.5 design's T5.5.
-agent = { library = "a carrier of matter: state, why and a branch by copy now; its subject with T5.5" }
+agent = "subject"  # the air (feature `agent`): xengine.field.agent, air.ops.omui.ts
 
 [targets.xengine-field]
 kind = "lib"
@@ -32,6 +31,17 @@ cxxflags = ["-fno-fast-math", "-ffp-contract=off", "-O2"]
 xengine.matter = { path = "../matter", default-features = false }
 mlibs.math     = { path = "../../../../base/math" }
 mlibs.utils    = { path = "../../../../base/utils" }
+
+[features]
+# The air as an agent's subject (xengine.field.agent): taken alone, the carrier stays the small tool it is.
+agent = { sources = ["src/agent/*.cppm", "src/agent/*.cpp"] }
+
+[feature-deps.agent]
+mlibs.simulation = { path = "../../../../base/simulation" }
+mlibs.agent      = { path = "../../../../base/agent" }
+mlibs.control    = { path = "../../../../base/control" }
+mlibs.json       = { path = "../../../../base/json" }
+openlifa.openas  = "0.2.0"
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"

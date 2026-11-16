@@ -115,7 +115,7 @@ std::string made_of(const xrender::DisplayList& list) {
 }
 
 // A GPU to draw frames on (omui.rhi through SDL), when the machine has one:
-// tools/ci/gpu.sh's OMUI_VULKAN_LIBRARY and OMUI_GPU_VIDEO_DRIVER as the
+// omui-devtools gpu's OMUI_VULKAN_LIBRARY and OMUI_GPU_VIDEO_DRIVER as the
 // tests use them. A software device (lavapipe) is counted `software`, so a
 // GPU's frame budget is not held to it; the device is in the report.
 class Gpu {

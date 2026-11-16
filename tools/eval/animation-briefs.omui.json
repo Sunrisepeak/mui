@@ -1,7 +1,7 @@
 {
   "kind": "hanim.animation-briefs",
   "version": 1,
-  "doc": "Briefs a real LLM animates without a GUI (convergence plan §10.3); tools/eval/animate.py grades each by sampling the document it wrote.",
+  "doc": "Briefs a real LLM animates without a GUI (convergence plan §10.3); omui-devtools eval animate grades each by sampling the document it wrote.",
   "briefs": [
     {
       "id": "bounce",

@@ -7,10 +7,10 @@ Every tool has two faces that read the same records: a command line (JSON, exit 
 | [cli](cli) | `omui`: agent (ls, describe, snapshot, act, invoke, wait), check, fmt, schema, mcp |
 | [gen](gen) | `omui-gen`: the registry and contracts to the C ABI, C++ partitions, script stubs, schemas |
 | [mcp](mcp) | An MCP server for any running openmui application |
-| [devtools](devtools) | `omui-devtools`: the contributors' tool — `ci` reads a CI run row by row and sets each failure against the red list (R12) |
+| [devtools](devtools) | `omui-devtools`: the contributors' tool — `ci` reads a CI run row by row and sets each failure against the red list (R12); `lint` checks the repository's rules; `lead` writes the lead pages and checks the features |
 | [inspector](inspector) | Semantic tree, node details, frame times and time control; Reaction lab with editable cellular projects, CLI and actual process capture |
 
-[lint](lint) checks the repository's rules; [ci](ci) holds the scripts CI runs.
+`omui-devtools lint` ([devtools](devtools)) checks the repository's rules (`--list`, `--self-test`); [lint](lint) holds the tables they read (capability owners, licences, the C99 check of openmui.h); [ci](ci) holds the scripts CI runs.
 
 The [dual-user tools plan](../.agents/docs/2026-11-04-dual-user-tools-validation-design.md)
 selects six core tool families and their real validation workflows. Future
@@ -21,6 +21,6 @@ not a claim that the planned editors are already implemented.
 
 ## dev
 
-[`dev/capped.sh`](dev/capped.sh) runs a local build or test within 90% of the machine (AGENTS.md §5): concurrent compiles (`MCPP_JOBS`) at most 90% of the cores and of what 90% of the memory holds at about 2.5 GB a compile, at low CPU and I/O priority — `tools/dev/capped.sh mcpp test -p omui.view`. `omui-devtools govern` ([devtools](devtools)), which it builds when it is not, holds the whole process tree to that count (mcpp builds workspace groups and host tools side by side, each with its own job count): the newest compilers and linkers beyond it are paused and continued as others finish, and more of them while available memory is under 10%.
+`omui-devtools govern` ([devtools](devtools)) runs a local build or test within 90% of the machine (AGENTS.md §5): `MCPP_JOBS` at most 90% of the cores and of what 90% of the memory holds at about 2.25 GB a compile, at low CPU and I/O priority, and the whole process tree held to that count (mcpp builds workspace groups and host tools side by side, each with its own job count): the newest compilers and linkers beyond it are paused and continued as others finish, and more of them while available memory is under 10% — `mcpp run omui-devtools -p tools/devtools -- govern -- mcpp test -p omui.view`.
 
-[`dev/gpu-real.sh`](dev/gpu-real.sh) runs a command on this machine's NVIDIA GPU (the driver linked by xlings, SDL's offscreen video driver): performance numbers come from it, not from lavapipe. [`dev/browser-gpu.sh`](dev/browser-gpu.sh) runs a page's test program in the full Chromium on that GPU — in a window, so where a display is: headless Chromium reaches Vulkan only through `VK_EXT_headless_surface`, which NVIDIA's driver lacks (`showcase/quay`'s `web_frame_test`: Quay's frame on the page's WebGPU).
+`omui-devtools gpu` ([devtools](devtools)) gives the device tests a GPU: CI's software device (lavapipe; Metal on macOS) written to `$GITHUB_ENV`, or with `--real` this machine's NVIDIA GPU (the driver linked by xlings, SDL's offscreen video driver) — `omui-devtools gpu --real -- mcpp test -p xrender.rhi.sdl`: performance numbers come from it, not from lavapipe. `omui-devtools browser` runs a page's test program in Chromium (its server on the loopback, the program's lines relayed); with `--headed` under `omui-devtools gpu --real`, the full Chromium in a window on that GPU — where a display is: headless Chromium reaches Vulkan only through `VK_EXT_headless_surface`, which NVIDIA's driver lacks (`showcase/quay`'s `web_frame_test`: Quay's frame on the page's WebGPU).

@@ -4,7 +4,7 @@
 // either way, the program's memory an ArrayBuffer, a "pointer" to a string
 // the string itself — and fed what the C++ side sends: resources by slot,
 // a submission as rhi's wire words. What WebGPU is asked for is checked,
-// deterministically; the real thing runs in tools/ci/browser.sh.
+// deterministically; the real thing runs in omui-devtools check browser.
 //
 //   node --test modules/projects/xrender/rhi/webgpu/tests/js/webgpu.test.mjs
 import { test } from 'node:test';

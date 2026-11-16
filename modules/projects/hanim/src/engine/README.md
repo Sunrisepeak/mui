@@ -106,7 +106,7 @@ independent translation/rotation/scale/fill channels. Whole-object morph/reset
 overlap and same-channel overlap remain conflicts. General channel blending,
 resource/device scheduling, complete domains and UI migration remain open.
 
-The [external CLI consumer](../../../../../tools/ci/hanim-play-consumer/README.md)
+The external CLI consumer (`omui-devtools consumer hanim-play`)
 uses these public operations and the optional renderer without UI/window
 dependencies, outputs actual PNG regions and JSON provenance, and validates
 crop pixels and geometric retarget continuity. The external consumer visual CTS also

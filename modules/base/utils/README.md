@@ -4,8 +4,9 @@ Small domain-agnostic tools that are not libraries of their own yet, one directo
 
 | Tool | Module | |
 |---|---|---|
-| [hash](src/hash/README.md) | `mlibs.hash` | FNV-1a (64 and 32 bit): determinism hashes, content hashes, cache keys, generated ids — the one implementation (lint `hash`) |
+| [hash](src/hash/README.md) | `mlibs.hash` | FNV-1a (64 and 32 bit): determinism hashes, content hashes, cache keys, generated ids; SHA-256 where another tool states a digest — the one implementation (lint `hash`) |
 | [base64](src/base64/README.md) | `mlibs.base64` | RFC 4648 base64: pictures in JSON and SVG, read back by the command line — the one implementation |
+| [http](src/http/README.md) | `mlibs.http` | HTTP/1.1's framing for a program's own loopback server (omui's bridge, the test page servers): a request's head, a response — the one implementation |
 | [names](src/names/README.md) | `mlibs.names` | The nearest name for a typo ("did you mean `x`?") — the one implementation, for every reader of names a person or an agent wrote |
 | [message](src/message/README.md) | `mlibs.message` | A message's words and values (`{}` each) without a locale: what libraries a Web page links say their errors with, where `std::format` would bring `std::locale` (≈ 368 KB of a page) |
 | [log](src/log/README.md) | `mlibs.log` | Categories, filters, sinks, record history and invariants |

@@ -69,7 +69,7 @@ The music and sounds it names are read as their JSON: a `.omui.ts` module throug
 
 ## omui video
 
-The command line is `omui video` ([tools/cli](../../../../../tools/cli)), which renders descriptions and view documents alike (a view needs the headless host, which this package does not know): `render` to WebM (VP9 and Opus), Y4M (with a WAV beside it), a PNG sequence or a WAV; `still`; `check`; `probe`; `timing`. One JSON object out and an exit code (D-61).
+The command line is `omui video` (the `omui` command), which renders descriptions and view documents alike (a view needs the headless host, which this package does not know): `render` to WebM (VP9 and Opus), Y4M (with a WAV beside it), a PNG sequence or a WAV; `still`; `check`; `probe`; `timing`. One JSON object out and an exit code (D-61).
 
 ## Tests
 

@@ -117,7 +117,7 @@ inline constexpr std::uintmax_t toy_index_limit = 1024 * 1024;  // Toy: the entr
 // The command line's `dist-toy`, as omui-gen parsed it; the exit code.
 int dist_toy_main(const mcpplibs::cmdline::ParsedArgs& args);
 
-// A package's program cut in two by wasm-split (tools/ci/site-split.sh): the
+// A package's program cut in two by wasm-split (omui-devtools site split): the
 // first half (the functions a profiled first screen ran) replaces the
 // package's .wasm, the second half lands beside it as
 // `<target>-<hash>.deferred.wasm`, and the page's `var omuiDeferred` says

@@ -21,6 +21,7 @@ module omui.cli;
 import std;
 import mcpplibs.cmdline;
 import mcpplibs.os;
+import mlibs.http;
 import omui.core;
 import omui.agent;
 
@@ -50,86 +51,41 @@ constexpr std::uint16_t first_port = 47110;
 constexpr int ports = 4;
 constexpr std::string_view version = "0.1.0";
 
-// ── HTTP, as much of it as the bridge speaks ────────────────────────────
+// ── HTTP: the framing is mlibs.http's ───────────────────────────────────
 
 struct Http {
     std::string method, path, query, origin, authorization, body;
 };
 
-std::string lower(std::string_view s) {
-    std::string out(s);
-    for (char& c : out) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    return out;
-}
-
 std::optional<Http> read_http(os::ipc::connection& c) {
     std::string buf;
-    std::size_t head_end = std::string::npos;
-    while ((head_end = buf.find("\r\n\r\n")) == std::string::npos) {
+    std::optional<mlibs::http::Request> head;
+    while (!head) {
         auto got = c.read_for(std::chrono::seconds(10));
         if (!got || !*got || (*got)->empty()) return std::nullopt;
         buf += **got;
-        if (buf.size() > 64 * 1024) return std::nullopt;
+        auto parsed = mlibs::http::parse(buf);
+        if (!parsed) return std::nullopt;  // not HTTP, or a head over 64 KiB
+        head = std::move(*parsed);
     }
-    Http h;
-    std::istringstream head(buf.substr(0, head_end));
-    std::string line;
-    std::getline(head, line);
-    if (!line.empty() && line.back() == '\r') line.pop_back();
-    {
-        std::istringstream first(line);
-        std::string target;
-        first >> h.method >> target;
-        const auto q = target.find('?');
-        h.path = target.substr(0, q);
-        if (q != std::string::npos) h.query = target.substr(q + 1);
-    }
-    std::size_t length = 0;
-    while (std::getline(head, line)) {
-        if (!line.empty() && line.back() == '\r') line.pop_back();
-        const auto colon = line.find(':');
-        if (colon == std::string::npos) continue;
-        const std::string key = lower(line.substr(0, colon));
-        std::string value = line.substr(colon + 1);
-        while (!value.empty() && value.front() == ' ') value.erase(0, 1);
-        if (key == "content-length") std::from_chars(value.data(), value.data() + value.size(), length);
-        else if (key == "origin") h.origin = value;
-        else if (key == "authorization") h.authorization = value;
-    }
-    if (length > 8 * 1024 * 1024) return std::nullopt;
-    h.body = buf.substr(head_end + 4);
-    while (h.body.size() < length) {
+    if (head->body_length > 8 * 1024 * 1024) return std::nullopt;
+    while (buf.size() < head->head_size + head->body_length) {
         auto got = c.read_for(std::chrono::seconds(10));
         if (!got || !*got || (*got)->empty()) return std::nullopt;
-        h.body += **got;
+        buf += **got;
     }
-    h.body.resize(length);
-    return h;
-}
-
-std::string query_value(std::string_view query, std::string_view key) {
-    for (std::size_t at = 0; at < query.size();) {
-        const std::size_t end = std::min(query.find('&', at), query.size());
-        const std::string_view kv = query.substr(at, end - at);
-        if (kv.starts_with(key) && kv.size() > key.size() && kv[key.size()] == '=') return std::string(kv.substr(key.size() + 1));
-        at = end + 1;
-    }
-    return {};
+    return Http{head->method, head->path, head->query, std::string(head->header("origin")), std::string(head->header("authorization")),
+                buf.substr(head->head_size, head->body_length)};
 }
 
 void respond(os::ipc::connection& c, int status, std::string_view body, std::string_view origin, std::string_view type = "application/json") {
-    const std::string_view reason = status == 200 ? "OK" : status == 204 ? "No Content" : status == 400 ? "Bad Request" : status == 401 ? "Unauthorized"
-                                  : status == 403 ? "Forbidden" : status == 404 ? "Not Found" : status == 504 ? "Gateway Timeout" : "Error";
-    std::string out = std::format("HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nCache-Control: no-store\r\nConnection: close\r\n", status,
-                                  reason, type, body.size());
+    mlibs::http::Options options{.type = type, .headers = {{"Cache-Control", "no-store"}}};
     // The page reads the bridge's answers: from its own origin only (and a page on a public site may reach the loopback, asked).
     if (!origin.empty())
-        out += std::format("Access-Control-Allow-Origin: {}\r\nVary: Origin\r\nAccess-Control-Allow-Methods: GET, POST\r\n"
-                           "Access-Control-Allow-Headers: content-type\r\nAccess-Control-Allow-Private-Network: true\r\n",
-                           origin);
-    out += "\r\n";
-    out += body;
-    (void)c.write(out);
+        options.headers.insert(options.headers.end(), {{"Access-Control-Allow-Origin", std::string(origin)}, {"Vary", "Origin"},
+                                                       {"Access-Control-Allow-Methods", "GET, POST"}, {"Access-Control-Allow-Headers", "content-type"},
+                                                       {"Access-Control-Allow-Private-Network", "true"}});
+    (void)c.write(mlibs::http::response(status, body, options));
     c.shutdown_write();
 }
 
@@ -248,7 +204,7 @@ void serve(Bridge& b, os::ipc::connection c) {
         respond(c, 200, Value{}.set("session", b.session).set("agent", b.agent_name).set("bridge", std::string(version)).json(), h.origin);
         return;
     }
-    const std::string session = query_value(h.query, "session");
+    const std::string session = mlibs::http::query_value(h.query, "session");
     {
         std::scoped_lock g(b.m);
         if (!b.paired() || !same_secret(session, b.session)) {

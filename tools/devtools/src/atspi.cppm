@@ -13,7 +13,7 @@
 //   added with the button.
 //
 // Linux (AccessKit's adapter); needs at-spi2-core and a session bus
-// (tools/ci/atspi.sh runs it in dbus-run-session).
+// (omui-devtools check atspi builds them and runs it in dbus-run-session).
 export module omui.devtools.atspi;
 
 import std;

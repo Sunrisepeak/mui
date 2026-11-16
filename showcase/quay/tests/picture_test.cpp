@@ -53,7 +53,7 @@ UTest cases{"quay.picture", [] {
         const std::size_t boxes = drawn_by(*drawn, picture::box_ids, picture::crate_ids), lamps = drawn_by(*drawn, picture::lamp_ids, picture::beacon_ids),
                           beacon = drawn_by(*drawn, picture::beacon_ids, picture::gun_id), gun = drawn_by(*drawn, picture::gun_id, picture::gun_id + 1);
         const auto file = keep(*drawn, "quay-start");
-        // The README's picture (tools/ci/readme-media.sh copies readme-quay/ into media/).
+        // The README's picture (omui-devtools media copies readme-quay/ into media/).
         const auto readme = std::filesystem::temp_directory_path() / "openmui-tests" / "readme-quay";
         std::filesystem::create_directories(readme);
         std::filesystem::copy_file(file, readme / "harbour.png", std::filesystem::copy_options::overwrite_existing);

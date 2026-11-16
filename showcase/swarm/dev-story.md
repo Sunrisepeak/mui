@@ -18,7 +18,7 @@ How Swarm was made: by one agent session from one prompt, with no person in betw
 > 1. The game is a `Playable` of xengine.runtime: deterministic (the same inputs give the same checksum), with what a player is shown as JSON (and a legend for anything that is not self-evident), and it says its own `controls` and `tasks` (see how showcase/kiln/headless does).
 > 2. A program that plays it over lines, like showcase/kiln/play (`<name>-play run --session FILE`).
 > 3. Tests in the member: the same inputs give the same checksum on two runs; a seek back and replay gives the same bits; an enemy is shot and the score rises; the game can be lost; each of the game's own tasks, sent as written through a session, does what it says; the agent contract suite (mlibs.agent.cts) passes on the game as the runtime's own test runs it.
-> 4. A short README for the member (its first line says what it is), listed where the repository's lint expects it. Run `python3 tools/lint/lint.py` and fix what it reports about your member.
+> 4. A short README for the member (its first line says what it is), listed where the repository's lint expects it. Run `mcpp run omui-devtools -p tools/devtools -- lint` and fix what it reports about your member.
 >
 > Rules: build and test only your member, always through `tools/dev/capped.sh mcpp test -p <your package>` (or `mcpp build -p`). Do not run the whole workspace. Do not commit, do not touch git, do not modify any other member except to list yours in the root mcpp.toml and the showcase README. If the engine lacks something you need, do not copy or work around it silently: note it, and use the smallest honest substitute inside your member.
 >

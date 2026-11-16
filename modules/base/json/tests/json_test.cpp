@@ -56,4 +56,43 @@ UTest cases{"json", [] {
         if (doc) return;
         expect(doc.error().line == 3 && doc.error().file == "bad.json" && !doc.error().message.empty()) << doc.error().text();
     };
+
+    "a document held to a schema: each break at its pointer, a choice that fits none said once"_test = [] {
+        const auto schema = json::Document::parse(R"({
+  "$defs": { "size": { "type": "integer", "minimum": 1 } },
+  "type": "object", "required": ["id", "kind"], "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z]+$" },
+    "kind": { "enum": ["text", "button"] },
+    "size": { "$ref": "#/$defs/size" },
+    "tags": { "type": "array", "items": { "type": "string" }, "maxItems": 2 },
+    "value": { "anyOf": [ { "type": "number" }, { "type": "string", "minLength": 1 } ] },
+    "mode": { "if": { "const": "fixed" }, "then": { "const": "fixed" }, "else": { "enum": ["auto", "fit"] } }
+  },
+  "propertyNames": { "pattern": "^[a-z]+$" }
+})", "s.json");
+        expect(fatal(schema.has_value()));
+        const auto fine = json::Document::parse(R"({"id": "save", "kind": "button", "size": 2, "tags": ["a"], "value": "x", "mode": "fit"})", "a.json");
+        expect(fatal(fine.has_value()));
+        const auto good = json::validate(*schema, *fine);
+        expect(good.empty()) << (good.empty() ? "" : good.front().text());
+        const auto bad = json::Document::parse(R"({"id": "Save", "kind": "knob", "size": 0, "tags": ["a", "b", 3], "value": "", "mode": "loose", "Extra": 1})", "b.json");
+        expect(fatal(bad.has_value()));
+        const auto found = json::validate(*schema, *bad);
+        std::set<std::string> where;
+        std::string all;
+        for (const auto& problem : found) {
+            where.insert(problem.at);
+            all += problem.text() + "\n";
+        }
+        for (const std::string at : {"/id", "/kind", "/size", "/tags", "/tags/2", "/value", "/mode", "/Extra"})
+            expect(where.contains(at)) << at << " not said:\n" << all;
+        expect(eq(std::ranges::count_if(found, [](const json::Problem& problem) { return problem.at == "/value"; }), 1)) << all;
+        expect(found.front().line == 1 && found.front().file == "b.json") << all;
+        const auto unknown = json::Document::parse(R"({"type": "string", "fancyKeyword": 1})", "u.json");
+        const auto thing = json::Document::parse(R"("x")", "x.json");
+        expect(fatal(unknown.has_value() && thing.has_value()));
+        const auto said = json::validate(*unknown, *thing);
+        expect(said.size() == 1 && said.front().message.contains("fancyKeyword")) << "a keyword it does not know is said, not passed over";
+    };
 }};

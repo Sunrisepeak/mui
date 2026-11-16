@@ -76,9 +76,9 @@ UI motion, raster and animation share its deterministic std-plus-math functions
 without depending on the object registry, player, logging or renderer.
 
 Run `mcpp test -p hanim --locked` for the nine renderer-free test programs.
-The [feature consumer](../../../tools/ci/hanim-features/README.md) checks seven
+The feature consumer (`omui-devtools consumer hanim-features`) checks seven
 actual source/dependency closures. Renderer tests live in the existing external
-[playback consumer](../../../tools/ci/hanim-play-consumer/README.md), which tests
+playback consumer (`omui-devtools consumer hanim-play`), which tests
 the opt-in feature separately from its production program's dependency audit.
 
 For neutral paths from applications, rendering or glyph outlines,
@@ -239,7 +239,7 @@ frames are published together by `program_frame`; the optional
 topologies, invalid inputs, limits and conflicting writes return typed failures;
 no fallback silently discards an effect. Outputs never write business objects.
 
-[The external consumer](../../../tools/ci/hanim-api-probe/README.md) builds and
+The external consumer (`omui-devtools consumer hanim-api`) builds and
 runs dev/release from only this package, auditing the actual dependency graph.
 
 The public player first supports strict named-part contour/transform/fill

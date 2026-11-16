@@ -1,5 +1,5 @@
 {
-  "doc": "The signature features (Part 2 plan §1.5, §4; D-135, D-136): two to four headline features a project, the rest foundations. lint `lead` (tools/eval/lead.py check) holds this list to the ledger: status = \"planned\"    designed, no signature scene yet \"evidence\"   its signature scene (`scene`, a test) exists and runs in CI \"claimed\"    and the ledger has a far_ahead capability or task record: only now may it be called far ahead in public line   = \"use-safely\" | \"build-reliably\" | \"together\"   the three lines (§1.5) \"craft\"        a headline feature of quality or engineering \"foundation\"   under the headline features, not counted as one",
+  "doc": "The signature features (Part 2 plan §1.5, §4; D-135, D-136): two to four headline features a project, the rest foundations. lint `lead` (omui-devtools lead check) holds this list to the ledger: status = \"planned\"    designed, no signature scene yet \"evidence\"   its signature scene (`scene`, a test) exists and runs in CI \"claimed\"    and the ledger has a far_ahead capability or task record: only now may it be called far ahead in public line   = \"use-safely\" | \"build-reliably\" | \"together\"   the three lines (§1.5) \"craft\"        a headline feature of quality or engineering \"foundation\"   under the headline features, not counted as one",
   "feature": [
     {
       "id": "A",

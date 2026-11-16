@@ -1,6 +1,6 @@
 // Who draws a page's frames (WebOptions::renderer): without a page, the CPU; in
 // a page that has the device asked for — the browser's half of the Web row
-// (tools/ci/browser.sh runs this program with --webgpu, then with --webgl) —
+// (omui-devtools check browser runs this program with --webgpu, then with --webgl) —
 // that device, and its frame of a page of the framework's own boxes, text and
 // a picture within the GPU renderer's tolerances of the CPU's reference
 // (rounded corners: the GPU covers the true arc, the CPU flattens it within

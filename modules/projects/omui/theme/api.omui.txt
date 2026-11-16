@@ -82,17 +82,12 @@ namespace omui::themes {
 }
 == omui.theme.default_theme
 export import :default_theme;
-export import :refined_theme;
 namespace omui::themes {
   std::expected<void, theme::Diagnostics> add_default();
 }
 == omui.theme.default_theme:default_theme
 namespace omui::themes {
   inline constexpr std::string_view default_theme = R"…";
-}
-== omui.theme.default_theme:refined_theme
-namespace omui::themes {
-  inline constexpr std::string_view refined_theme = R"…";
 }
 == omui.theme.styles
 export import :glass_style;

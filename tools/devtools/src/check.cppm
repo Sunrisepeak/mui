@@ -92,6 +92,9 @@ struct Size {
 // `<entry>_essl` byte arrays) with the browser's own compilers and links each file's vertex and fragment entries.
 [[nodiscard]] std::expected<std::string, std::string> shader_check_script(std::span<const std::filesystem::path> partitions);
 
+// CI's matrix on this one Linux machine (lint, GCC dev and release, LLVM, the budgets, features, templates, agent e2e, and
+// the Windows target under wine where wine is): `members` empty, the whole workspace.
+[[nodiscard]] int matrix(const std::filesystem::path& root, const std::vector<std::string>& members);
 [[nodiscard]] int atspi(const std::filesystem::path& root, const std::vector<std::string>& profile_args);
 
 // A template's file rendered: each {{name}} replaced by its value; or the first name it has no value for.

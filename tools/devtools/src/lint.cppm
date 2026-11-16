@@ -3,7 +3,7 @@
 // tree as it is and answers problems: a rule's name, where, and what to do.
 // `self_test` plants each rule's violation in a small tree of its own and
 // shows the rule catches it and nothing else does. `omui-devtools lint` runs
-// them in CI's lint row and in tools/ci/local.sh; devtools.lint holds the
+// them in CI's lint row and in omui-devtools ci local; devtools.lint holds the
 // repository to them in every test row.
 export module omui.devtools.lint;
 

@@ -4,6 +4,7 @@ import std;
 import mcpplibs.mtest;
 import mcpplibs.os;
 import omui.devtools.check;
+import omui.devtools.consumer;
 import omui.devtools.run;
 
 using namespace mcpplibs::mtest;
@@ -73,5 +74,17 @@ UTest shader_cases{"devtools.check.shaders", [] {
         expect(script->contains(R"("pass_shaders:vs_main":{"code":"void m(){}","file":"pass_shaders","stage":"vertex"})")) << script->substr(0, 400);
         expect(script->contains("1 WGSL and 1 ESSL entry points") && !script->contains("spirv"));
         expect(!check::shader_check_script(std::vector<std::filesystem::path>{}).has_value());
+    };
+}};
+
+UTest consumer_cases{"devtools.consumer", [] {
+    "a PNG's size from its header; build.ninja's outputs; the probes by name"_test = [] {
+        namespace consumer = omui::devtools::consumer;
+        std::string png("\x89PNG\r\n\x1a\n\0\0\0\rIHDR\0\0\x01\x40\0\0\0\xf0", 24);
+        expect(consumer::png_size(png) == std::optional<std::pair<std::uint32_t, std::uint32_t>>{{320, 240}});
+        expect(!consumer::png_size("GIF89a").has_value());
+        const auto outputs = consumer::ninja_outputs("rule cxx\nbuild obj/a.o obj/a.d: cxx ../src/a.cpp\nbuild bin/app: link obj/a.o\n  flags = x\n");
+        expect(outputs == std::set<std::string>{"obj/a.o", "obj/a.d", "bin/app"});
+        expect(eq(consumer::names().size(), std::size_t{5}));
     };
 }};

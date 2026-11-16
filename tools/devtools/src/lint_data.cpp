@@ -118,6 +118,28 @@ std::vector<std::pair<std::size_t, std::string>> string_literals(std::string_vie
     return out;
 }
 
+// A path against a glob: `*` within one segment, `**` any run of segments (none too).
+bool glob_match(std::string_view pattern, std::string_view path) {
+    if (pattern.empty()) return path.empty();
+    if (pattern.starts_with("**/")) {
+        for (std::size_t at = 0;; ) {
+            if (glob_match(pattern.substr(3), path.substr(at))) return true;
+            const auto slash = path.find('/', at);
+            if (slash == std::string_view::npos) return false;
+            at = slash + 1;
+        }
+    }
+    if (pattern == "**") return true;
+    if (pattern.front() == '*') {
+        for (std::size_t at = 0; at <= path.size(); ++at) {
+            if (glob_match(pattern.substr(1), path.substr(at))) return true;
+            if (at < path.size() && path[at] == '/') return false;
+        }
+        return false;
+    }
+    return !path.empty() && path.front() == pattern.front() && glob_match(pattern.substr(1), path.substr(1));
+}
+
 const std::regex& operation_in_source() {
     static const std::regex pattern(R"lit("([a-z0-9_-]+\.[a-z0-9._-]+)"\s*,\s*openas::Effect::)lit");
     return pattern;
@@ -582,6 +604,55 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
                 }
             }
         }
+    }
+
+    // scripts (D-206): a script is one of the allowlist's four kinds (or application code), each with its reason; one
+    // still being moved into C++ is `pending` with the checkpoint that removes it, and an entry naming nothing is stale.
+    {
+        constexpr std::string_view where = "tools/lint/scripts.allow.omui.json";
+        constexpr std::array suffixes{".py", ".sh", ".bash", ".mjs", ".cjs", ".js", ".ps1", ".rb", ".pl", ".lua"};
+        struct Entry {
+            std::string pattern;
+            bool used = false;
+        };
+        std::vector<Entry> allowed, pending;
+        const auto allow_text = read_text(root / path_of(where));
+        const auto allow = mlibs::json::Document::parse(allow_text.value_or(""), std::string(where));
+        if (!allow_text) {
+            // no allowlist: every script is a problem
+        } else if (!allow) {
+            add("scripts", std::string(where), std::format("not JSON: {}", allow.error().message));
+        } else {
+            std::set<std::string> kinds;
+            for (const auto& [kind, meaning] : allow->root()["kinds"].members()) kinds.insert(std::string(kind));
+            for (const auto& entry : allow->root()["allow"].items()) {
+                const std::string pattern = entry["pattern"].text().value_or("");
+                if (!kinds.contains(entry["kind"].text().value_or("")) || entry["why"].text().value_or("").empty())
+                    add("scripts", std::string(where), std::format("{}: an entry names one of the kinds and says why", pattern));
+                allowed.push_back({pattern});
+            }
+            for (const auto& entry : allow->root()["pending"].items()) {
+                const std::string pattern = entry["pattern"].text().value_or("");
+                if (entry["until"].text().value_or("").empty())
+                    add("scripts", std::string(where), std::format("{}: a pending script names the checkpoint that moves it into C++ (`until`)", pattern));
+                pending.push_back({pattern});
+            }
+        }
+        for (const auto& file : files) {
+            if (file.starts_with("spec/") || !std::ranges::contains(suffixes, extension(file))) continue;
+            const auto claim = [&](std::vector<Entry>& entries) {
+                bool any = false;
+                for (auto& entry : entries)
+                    if (glob_match(entry.pattern, file)) any = entry.used = true;
+                return any;
+            };
+            if (!claim(allowed) && !claim(pending))
+                add("scripts", file, "a script: tools are C++ under mcpp (omui-devtools or the project's toolkit), or the allowlist names it with its kind and reason (D-206)");
+        }
+        if (allow_text && allow)
+            for (const auto* entries : {&allowed, &pending})
+                for (const auto& entry : *entries)
+                    if (!entry.used) add("scripts", std::string(where), std::format("{} names no script: remove the entry", entry.pattern));
     }
     return problems;
 }

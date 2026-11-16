@@ -1,7 +1,7 @@
 # Independent hanim.core + openmui.log consumer
 
 This fixture is materialized in a fresh temporary directory outside the
-repository workspace by `python3 tools/ci/hanim-core-consumer.py`. Its only
+repository workspace by `omui-devtools consumer hanim-core`. Its only
 manifest dependencies are public `hanim.core` and `openmui.log` paths, without
 dev dependencies, UI, specification, testing, site, host or renderer packages.
 It imports no compatibility umbrella.
@@ -15,12 +15,12 @@ the sink reads the actual history and emits its existing JSON-lines format.
 The gate parses eight real log records and the executable's result.
 
 ```sh
-python3 tools/ci/hanim-core-consumer.py
+omui-devtools consumer hanim-core
 # Retain the fresh project and write evidence outside the repository:
-python3 tools/ci/hanim-core-consumer.py --keep-project --output /tmp/hanim-consumer.report.omui.json
+omui-devtools consumer hanim-core --keep-project --output /tmp/hanim-consumer.report.omui.json
 ```
 
-`--mcpp PATH` or the `MCPP` environment variable selects the executable. It
+The `MCPP` environment variable selects the executable. It
 uses the installed/default toolchain and runs dev and release, without a
 second test runner or a UI test harness. The new temporary project may resolve
 its own dependency lock on the initial build; repository locks remain read

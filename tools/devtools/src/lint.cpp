@@ -78,6 +78,7 @@ constexpr Rule all_rules[]{
     {"status", "STATUS: at most 200 lines of at most 600 characters; a task done names its evidence (D-202)"},
     {"maturity", "every package's label; a library depends by default only at its label or above (D-189, D-199)"},
     {"lead", "the signature features against the lead ledger; the lead pages are the ledger's (D-135)"},
+    {"scripts", "no script but the allowlist's kinds, each with its reason (tools/lint/scripts.allow.omui.json, D-206)"},
     {"platform-table", "every cell of docs/platforms.omui.json is real, software, unverified or unsupported, with its evidence or need (D-201)"},
 };
 
@@ -544,6 +545,7 @@ int self_test(const fs::path& repository, const fs::path& scratch, std::ostream&
          R"({"matter": {"materials": {"wood": {}, "ash": {}}, "laws": [{"when": "material == wood && temperature >= 500", "become": "burnt"}]}})"},
         {"shader-inputs", "modules/ui/core/x.slang", "struct VIn {\n    float3 position : TEXCOORD0;\n    float2 second : TEXCOORD4;\n};\n"},
         {.rule = "maturity", .label = "experimental"},
+        {"scripts", "tools/x/run.sh", "#!/bin/sh\nmcpp build\n"},
         {"platform-table", "docs/platforms.omui.json",
          R"({"platforms": [{"id": "a"}], "capability": [{"id": "x", "label": "stable", "cells": {"a": {"status": "passed"}}}]})"},
         {"status", ".agents/docs/STATUS.md", "# STATUS\n\n| Task | State | Evidence |\n|---|---|---|\n| RC0.1 push | done | pushed |\n"},

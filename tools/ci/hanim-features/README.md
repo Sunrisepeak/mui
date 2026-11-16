@@ -1,8 +1,8 @@
 # Hanim feature boundaries
 
-`run.py` creates seven external consumers of the same real `hanim` package:
-core only, effect, object, library, program, default player, and vector rendering
-without the player. Each imports the public `hanim` umbrella, executes the chosen
+`omui-devtools consumer hanim-features` creates eight external consumers of the same real `hanim` package:
+core only, effect, object, library, program, default player, vector rendering
+without the player, and the Agent control path (also run on the Web). Each imports the public `hanim` umbrella, executes the chosen
 API, repeats with `--locked`, then inspects actual resolution, compile commands
 and generated exports. Disabled product sources must be absent, default/effect
 users must not acquire renderer/RHI, and core-only keeps exactly std plus math.
@@ -14,7 +14,7 @@ explicit foundation dependencies; selected binary features are frozen at pack
 time, not reselected after installation.
 
 ```sh
-python3 tools/ci/hanim-features/run.py --output target/hanim-features/report.omui.json
+omui-devtools consumer hanim-features
 ```
 
 This is a native release dependency/selection gate, not a GPU performance or

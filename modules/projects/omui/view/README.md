@@ -226,7 +226,7 @@ owning `Playback` below supplies that host transport without another engine.
 
 The [independent consumer](../../../../tools/ci/omui-hanim-consumer/src/main.cpp)
 uses the real button/popover, shaped text, public Hanim composition, renderer
-and Agent actions. Its [runner](../../../../tools/ci/omui-hanim-consumer/run.py)
+and Agent actions. Its runner (`omui-devtools consumer omui-hanim`)
 exports 61 explicit samples, 61 host-driven frames, 61 nested-effect frames,
 61 public-feedback frames and 61 UI-to-native control frames, with exact reverse
 replay in native dev/release and optional Wasm/Node, without changing the

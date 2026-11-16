@@ -25,6 +25,8 @@
 //         toy (Bilibili Toy), size (a page's WebAssembly bytes, held to a budget), atspi (examples 03 and 07 on a private bus).
 //   browser  a wasm test program in a real page of headless Chromium (mlibs.http's framing on the loopback).
 //   media the showcases' and the site's README media, made by their tests: copied in, or (--check) held to them.
+//   consumer  an out-of-tree consumer probe (hanim-core, hanim-api, hanim-play, omui-hanim, hanim-features):
+//         a fresh project as a user's, what mcpp resolved and compiled audited, a report kept.
 //   lint  the repository's rules (D-206: the lint in C++, 43 rules);
 //         --self-test shows each rule catches a violation planted in a tree of its own.
 import std;
@@ -37,6 +39,7 @@ import omui.devtools.bench;
 import omui.devtools.browser;
 import omui.devtools.check;
 import omui.devtools.ci;
+import omui.devtools.consumer;
 import omui.devtools.govern;
 import omui.devtools.gpu;
 import omui.devtools.incremental;
@@ -181,7 +184,10 @@ cmd::App app() {
                         .subcommand(cmd::App("log")
                                         .description("Read a saved log (gh run view RUN --log-failed > FILE)")
                                         .arg(Arg("file").required().help("the log"))
-                                        .option(Option("jobs").takes_value().value_name("FILE").help("the run's jobs (gh run view RUN --json jobs)"))))
+                                        .option(Option("jobs").takes_value().value_name("FILE").help("the run's jobs (gh run view RUN --json jobs)")))
+                        .subcommand(cmd::App("local")
+                                        .description("CI's matrix on this one Linux machine, for when hosted runners are unavailable (wine for the Windows row)")
+                                        .arg(Arg("member").help("these members (default: the workspace)"))))
         .subcommand(cmd::App("govern")
                         .description("Run a command with at most --jobs of its compilers and linkers at once, fewer while memory is short (AGENTS §5)")
                         .option(Option("jobs").takes_value().value_name("N").help("how many may run at once"))
@@ -217,6 +223,13 @@ cmd::App app() {
                         .option(Option("profile").takes_value().value_name("P").help("default: ci"))
                         .option(Option("no-consumers").help("only the members themselves"))
                         .option(Option("dry").help("say what would be compiled, and how")))
+        .subcommand(cmd::App("consumer")
+                        .description("An out-of-tree consumer probe: a fresh project built and run as a user's, what mcpp resolved and compiled audited")
+                        .arg(Arg("probe").required().help("hanim-core, hanim-api, hanim-play, omui-hanim or hanim-features"))
+                        .option(Option("output").takes_value().value_name("FILE").help("the report (default under target/)"))
+                        .option(Option("keep-project").help("leave the fresh project in the temporary directory"))
+                        .option(Option("web").help("omui-hanim: on wasm32-emscripten too"))
+                        .option(Option("openas-package").takes_value().value_name("DIR").help("hanim-play: an unpacked OpenAS binary artifact in place of the published one")))
         .subcommand(cmd::App("lint")
                         .description("The repository's rules, checked (exit 1 when a rule is broken)")
                         .option(Option("rule").takes_value().multiple().value_name("NAME").help("only these rules"))
@@ -320,8 +333,14 @@ void conclude(std::vector<rec::Row>& rows, const json& jobs) {
 
 int ci(const cmd::ParsedArgs& options, const fs::path& root) {
     if (!options.has_subcommand()) {
-        std::cerr << "usage: omui-devtools ci [--json] run ID | log FILE [--jobs FILE]\n";
+        std::cerr << "usage: omui-devtools ci [--json] run ID | log FILE [--jobs FILE] | local [MEMBER…]\n";
         return 2;
+    }
+    if (options.subcommand_name() == "local") {
+        const auto& given = options.subcommand()->get();
+        std::vector<std::string> members;
+        for (std::size_t index = 0; index < given.positional_count(); ++index) members.push_back(given.positional(index));
+        return omui::devtools::check::matrix(root, members);
     }
     const std::string status_name = options.value("status").value_or(".agents/docs/STATUS.md");
     const auto status = read_file(options.value("status") ? mcpplibs::os::fs::from_utf8(status_name) : root / ".agents/docs/STATUS.md");
@@ -730,6 +749,15 @@ int main(int argc, char** argv) {
     if (parsed->subcommand_name() == "llvm") return llvm(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "platforms") return platforms(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "api") return surface(parsed->subcommand()->get(), root);
+    if (parsed->subcommand_name() == "consumer") {
+        const auto& given = parsed->subcommand()->get();
+        omui::devtools::consumer::Options options;
+        if (const auto output = given.value("output")) options.output = fs::absolute(mcpplibs::os::fs::from_utf8(*output));
+        options.keep_project = given.is_flag_set("keep-project");
+        options.web = given.is_flag_set("web");
+        if (const auto openas = given.value("openas-package")) options.openas = fs::absolute(mcpplibs::os::fs::from_utf8(*openas));
+        return omui::devtools::consumer::probe(root, given.positional(0), options);
+    }
     if (parsed->subcommand_name() == "lint") return lint(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "browser") {
         namespace page = omui::devtools::browser;
@@ -881,6 +909,6 @@ int main(int argc, char** argv) {
     }
     if (parsed->subcommand_name() == "govern") return govern(parsed->subcommand()->get());
     if (parsed->subcommand_name() == "incremental") return incremental(parsed->subcommand()->get());
-    std::cerr << "usage: omui-devtools [--root DIR] ci … | llvm … | platforms | govern … | incremental … | api … | atspi … | lint … | lead … | bench … | gpu … | check … | media … | browser …  (omui-devtools --help)\n";
+    std::cerr << "usage: omui-devtools [--root DIR] ci … | llvm … | platforms | govern … | incremental … | api … | atspi … | lint … | lead … | bench … | gpu … | check … | media … | browser … | consumer …  (omui-devtools --help)\n";
     return 2;
 }

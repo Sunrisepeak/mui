@@ -1,6 +1,6 @@
 # External CLI playback consumer
 
-`run.py` creates a fresh project outside this repository, uses absolute `path`
+`omui-devtools consumer hanim-play` creates a fresh project outside this repository, uses absolute `path`
 dependencies on the public hanim product with `features = ["render-vector"]`, bootstraps only that project's
 resolution, then builds/runs dev and release with `--locked`. It checks actual
 `resolution.json` and compilation commands for UI, spec, testing, site, host or SDK
@@ -38,8 +38,7 @@ hanim product and its selected source modules. Program composite pixels are cove
 separate test consumer to keep `mlibs.testing` out of production resolution; this CLI's exported PNG remains the fixture below.
 
 ```sh
-python3 tools/ci/hanim-play-consumer/run.py --mcpp /path/to/mcpp \
-  --output /tmp/hanim-play-consumer.report.omui.json --keep-project
+omui-devtools consumer hanim-play --output /tmp/hanim-play-consumer.report.omui.json --keep-project
 ```
 
 The retained project's executable accepts native typed command-line controls:
@@ -95,8 +94,7 @@ and its PNG output share `mlibs::control::OperationScope` and the same context.
 Discovery, dry-run receipts, domain errors, object ownership conflicts, nested
 operation restrictions and revocation are checked on the actual Engine. This
 is still a validation host with trusted session construction, not a generic RPC
-server. `run.py --project /tmp/hanim-public-play-consumer-... --keep-project`
-can reuse a previously generated fixture for local incremental validation.
+server. `--keep-project` leaves the generated fixture in the temporary directory for a look; each run starts from a fresh one.
 
 `--describe-control` prints the actual native catalog as JSON (name, openas
 effect, person requirement and purpose) without requiring an output image,
@@ -108,7 +106,7 @@ The consumer declares its direct `openlifa.openas` dependency because it uses
 artifact without changing this repository's dependency lock, unpack it and run:
 
 ```sh
-python3 tools/ci/hanim-play-consumer/run.py --openas-package /path/to/unpacked/openas \
+omui-devtools consumer hanim-play --openas-package /path/to/unpacked/openas \
   --output target/hanim-openas-package.report.omui.json --keep-project
 ```
 

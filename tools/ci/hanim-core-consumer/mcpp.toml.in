@@ -1,4 +1,4 @@
-# Materialized outside the repository workspace by hanim-core-consumer.py.
+# Materialized outside the repository workspace by omui-devtools consumer hanim-core.
 # Only the independent public packages are dependencies; no dev dependencies.
 [package]
 namespace = "hanim.validation"

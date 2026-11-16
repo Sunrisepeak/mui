@@ -357,7 +357,7 @@ jobs:
       - name: Independent core and log consumer has no UI or renderer dependency
         timeout-minutes: 10
         if: matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'
-        run: python3 tools/ci/hanim-core-consumer.py
+        run: mcpp run omui-devtools -p tools/devtools --profile release -- consumer hanim-core
 
       - name: Keep the independent consumer graph and results
         if: always() && matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'
@@ -370,12 +370,12 @@ jobs:
       - name: Independent playback and shared Agent control export real process frames without a GUI
         timeout-minutes: 15
         if: matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'
-        run: python3 tools/ci/hanim-play-consumer/run.py --output target/hanim-play-consumer/report.omui.json
+        run: mcpp run omui-devtools -p tools/devtools --profile release -- consumer hanim-play
 
       - name: Native UI playback and provider recovery render the same process on native and Web
         timeout-minutes: 30
         if: matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'
-        run: python3 tools/ci/omui-hanim-consumer/run.py --web --output target/omui-hanim-consumer/report.omui.json
+        run: mcpp run omui-devtools -p tools/devtools --profile release -- consumer omui-hanim --web
 
       - name: Keep UI playback pixels provider recovery and feature dependency evidence
         if: always() && matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'
@@ -388,12 +388,12 @@ jobs:
       - name: Public hanim authoring and umbrella stay independent
         timeout-minutes: 15
         if: matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'
-        run: python3 tools/ci/hanim-api-probe/run.py --output target/hanim-public-authoring/report.omui.json
+        run: mcpp run omui-devtools -p tools/devtools --profile release -- consumer hanim-api
 
       - name: Hanim features exclude unselected sources and renderer dependencies
         timeout-minutes: 15
         if: matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'
-        run: python3 tools/ci/hanim-features/run.py --output target/hanim-features/report.omui.json
+        run: mcpp run omui-devtools -p tools/devtools --profile release -- consumer hanim-features
 
       - name: Keep Hanim feature dependency evidence
         if: always() && matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'

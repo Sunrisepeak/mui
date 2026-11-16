@@ -87,7 +87,7 @@
       "name": "The accessibility bridge to the system's screen reader",
       "label": "stable",
       "cells": {
-        "linux-x64": {"status": "real", "evidence": "AT-SPI on CI (tools/ci/atspi.sh)"},
+        "linux-x64": {"status": "real", "evidence": "AT-SPI on CI (omui-devtools check atspi)"},
         "macos-arm64": {"status": "unverified", "needs": "NSAccessibility read by VoiceOver on a runner that runs it"},
         "windows-x64": {"status": "unverified", "needs": "UI Automation read by a screen reader on a runner that runs it"},
         "web": {"status": "unverified", "needs": "the page's accessibility tree read by a screen reader"}

@@ -1,5 +1,5 @@
 {
-  "about": "What the least program that shows three dimensions on a page weighs (tools/ci/mesh-web-size.sh): omui.size.yard built for wasm32-emscripten as a release is (-O2), its bytes as shipped (the names section left out). Bytes.",
+  "about": "What the least program that shows three dimensions on a page weighs (omui-devtools check size): omui.size.yard built for wasm32-emscripten as a release is (-O2), its bytes as shipped (the names section left out). Bytes.",
   "budgets": [
     {
       "metric": "wasm.shipped",

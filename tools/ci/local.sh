@@ -34,7 +34,7 @@ step "benchmarks against their budgets (release)"
 OMUI_BENCH=1 mcpp test -p omui.bench --profile release budgets 2>&1 | grep -E 'result|FAIL' || true
 
 step "feature selection (M0 ⑤)"
-tools/ci/features.sh 2>&1 | grep -E '^(ok|FAIL)|features' || true
+mcpp run omui-devtools -p tools/devtools -- check features 2>&1 | grep -E '^(ok|::error)|features' || true
 
 step "templates (app-cpp, component)"
 tools/ci/templates.sh 2>&1 | grep -E '^==|test result|FAIL|templates' || true

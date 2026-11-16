@@ -45,7 +45,7 @@ the module `mcpplibs.mwrap.accesskit`), only in `src/native/accesskit/`.
   `--no-accessibility`).
 
 Tested: the mapping and the mirror on every platform; AccessKit's own reading
-of the update where it has a library; on Linux x86_64 CI, `tools/ci/atspi.sh`
+of the update where it has a library; on Linux x86_64 CI, `omui-devtools check atspi`
 — an AT-SPI client over D-Bus, as Orca speaks it, reads example 03's tree
 (names, roles, states, the slider's value), presses its button and sets its
 slider; and in example 07 reads, writes and selects in the draft field

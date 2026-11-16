@@ -13,13 +13,15 @@
 //         output untouched (CI's row; exit 1 when one changed).
 //   api   a package's exported surface (api.omui.txt beside it): printed, written, or checked.
 //   atspi  examples 03 and 07 read and operated through AT-SPI, as a screen
-//         reader does (tools/ci/atspi.sh; exit 1 when a check fails).
+//         reader does (check atspi builds them and runs it; exit 1 when a check fails).
 //   lead  the lead ledger (D-135): a benchmark's samples, the metrics' verdicts, a capability against
 //         competitors, the pages (docs/{en,zh}/lead.md, the evaluation summary) and its check.
 //   bench competitors  the comparisons with the best of each field built, installed and run: the README's
 //         tables, or (--ledger) rounds alternating, judged into the lead ledger and its pages.
 //   gpu   a device for the GPU tests: CI's software one (lavapipe; Metal on macOS) or, with --real, this
 //         machine's NVIDIA GPU; its environment written to $GITHUB_ENV, or a command run with it.
+//   check CI's acceptance steps, each building what it needs and holding the result: features (M0 ⑤),
+//         size (a page's WebAssembly bytes, held to a budget), atspi (examples 03 and 07 on a private bus).
 //   lint  the repository's rules (D-206: the lint in C++, 43 rules);
 //         --self-test shows each rule catches a violation planted in a tree of its own.
 import std;
@@ -29,6 +31,7 @@ import nlohmann.json;
 import omui.devtools.api;
 import omui.devtools.atspi;
 import omui.devtools.bench;
+import omui.devtools.check;
 import omui.devtools.ci;
 import omui.devtools.govern;
 import omui.devtools.gpu;
@@ -215,6 +218,18 @@ cmd::App app() {
                         .option(Option("rule").takes_value().multiple().value_name("NAME").help("only these rules"))
                         .option(Option("list").help("the rules and what each checks"))
                         .option(Option("self-test").help("each rule's violation planted in a tree of its own: caught, and by it alone")))
+        .subcommand(cmd::App("check")
+                        .description("CI's acceptance steps: each builds what it needs, runs it and holds the result")
+                        .subcommand(cmd::App("features").description("M0 ⑤: a feature selects one of two exclusive sources; both at once is refused"))
+                        .subcommand(cmd::App("size")
+                                        .description("A package's WebAssembly bytes as a release ships them, by owner; held to a budget when given")
+                                        .option(Option("package").short_name('p').takes_value().value_name("MEMBER").help("the program's package"))
+                                        .option(Option("json").takes_value().value_name("FILE").help("the report (default: target/<package>.wasm-size.json)"))
+                                        .option(Option("markdown").takes_value().value_name("FILE").help("the report as a table"))
+                                        .option(Option("budget").takes_value().value_name("FILE").help("its budgets (<name>.budget.omui.json)")))
+                        .subcommand(cmd::App("atspi")
+                                        .description("Examples 03 and 07 built, then read and operated through AT-SPI on a private session bus")
+                                        .option(Option("profile").takes_value().value_name("P").help("the examples' build profile"))))
         .subcommand(cmd::App("gpu")
                         .description("A GPU for the device tests: the variables written to $GITHUB_ENV (or printed), or a command run with them")
                         .option(Option("real").help("this machine's NVIDIA GPU (Linux), not CI's software device"))
@@ -676,6 +691,31 @@ int main(int argc, char** argv) {
     if (parsed->subcommand_name() == "platforms") return platforms(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "api") return surface(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "lint") return lint(parsed->subcommand()->get(), root);
+    if (parsed->subcommand_name() == "check") {
+        namespace step = omui::devtools::check;
+        const auto& sub = parsed->subcommand()->get();
+        if (!sub.has_subcommand()) {
+            std::cerr << "usage: omui-devtools check features | size -p MEMBER [--json F] [--markdown F] [--budget F] | atspi [--profile P]\n";
+            return 2;
+        }
+        const auto& given = sub.subcommand()->get();
+        if (sub.subcommand_name() == "features") return step::features(root);
+        if (sub.subcommand_name() == "size") {
+            if (!given.value("package")) {
+                std::cerr << "omui-devtools check size: -p MEMBER\n";
+                return 2;
+            }
+            step::Size asked;
+            asked.package = *given.value("package");
+            asked.json = mcpplibs::os::fs::from_utf8(given.value("json").value_or(""));
+            asked.markdown = mcpplibs::os::fs::from_utf8(given.value("markdown").value_or(""));
+            asked.budget = mcpplibs::os::fs::from_utf8(given.value("budget").value_or(""));
+            return step::size(root, asked);
+        }
+        std::vector<std::string> profile;
+        if (const auto chosen = given.value("profile")) profile = {"--profile", *chosen};
+        return step::atspi(root, profile);
+    }
     if (parsed->subcommand_name() == "gpu") {
         namespace device = omui::devtools::gpu;
         const auto& given = parsed->subcommand()->get();
@@ -742,6 +782,6 @@ int main(int argc, char** argv) {
     }
     if (parsed->subcommand_name() == "govern") return govern(parsed->subcommand()->get());
     if (parsed->subcommand_name() == "incremental") return incremental(parsed->subcommand()->get());
-    std::cerr << "usage: omui-devtools [--root DIR] ci … | llvm … | platforms | govern … | incremental … | api … | atspi … | lint … | lead … | bench … | gpu …  (omui-devtools --help)\n";
+    std::cerr << "usage: omui-devtools [--root DIR] ci … | llvm … | platforms | govern … | incremental … | api … | atspi … | lint … | lead … | bench … | gpu … | check …  (omui-devtools --help)\n";
     return 2;
 }

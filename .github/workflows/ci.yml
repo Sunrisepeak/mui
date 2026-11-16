@@ -348,15 +348,13 @@ jobs:
 
       - name: A screen reader's protocol reads and operates examples 03 and 07 (AT-SPI over D-Bus)
         if: runner.os == 'Linux' && runner.arch == 'X64'
-        env:
-          PROFILE: ${{ matrix.profile }}
         run: |
           command -v /usr/libexec/at-spi-bus-launcher > /dev/null || { sudo apt-get update -q && sudo apt-get install -yq at-spi2-core; }
-          tools/ci/atspi.sh
+          mcpp run omui-devtools -p tools/devtools --profile '${{ matrix.profile }}' -- check atspi --profile '${{ matrix.profile }}'
 
       - name: A feature selects one of two exclusive sources (M0 acceptance ⑤)
         if: runner.os == 'Linux' && matrix.profile != 'release'
-        run: tools/ci/features.sh
+        run: mcpp run omui-devtools -p tools/devtools --profile '${{ matrix.profile }}' -- check features
 
       - name: The templates build and pass their tests (M0 acceptance ①)
         if: runner.os == 'Linux' && matrix.profile != 'release'

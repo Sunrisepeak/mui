@@ -3,64 +3,18 @@ module omui.devtools.bench;
 import std;
 import mcpplibs.os;
 import omui.devtools.lead;
+import omui.devtools.run;
 
 namespace omui::devtools::bench {
 
 namespace {
 
 namespace fs = std::filesystem;
-namespace process = mcpplibs::os::process;
 
 std::optional<std::string> read_text(const fs::path& path) {
     std::ifstream in(path, std::ios::binary);
     if (!in) return std::nullopt;
     return std::string(std::istreambuf_iterator<char>(in), {});
-}
-
-struct Ran {
-    int status = 0;
-    std::string out;
-};
-
-// `program args…` in `cwd` (the root when empty); its output captured, or passed through when `shown`.
-std::expected<Ran, std::string> run(const fs::path& root, std::string program, std::vector<std::string> args, bool shown = false,
-                                    const fs::path& cwd = {}) {
-    process::spawn_options options;
-    options.program = program;
-    options.args = std::move(args);
-    options.cwd = cwd.empty() ? root : cwd;
-    if (shown) options.out = process::stdio::inherit;
-    options.err = process::stdio::inherit;
-    auto done = process::run(std::move(options));
-    if (!done) return std::unexpected(std::format("{} did not start: {}", program, done.error().message()));
-    return Ran{done->status.shell_code(), std::move(done->out)};
-}
-
-// The program's output, its trailing line break dropped; or why it failed.
-std::expected<std::string, std::string> output_of(const fs::path& root, std::string program, std::vector<std::string> args, const fs::path& cwd = {}) {
-    const std::string name = program;
-    auto done = run(root, std::move(program), std::move(args), false, cwd);
-    if (!done) return std::unexpected(done.error());
-    if (done->status != 0) return std::unexpected(std::format("{} exited {}", name, done->status));
-    while (!done->out.empty() && (done->out.back() == '\n' || done->out.back() == '\r')) done->out.pop_back();
-    return std::move(done->out);
-}
-
-// The newest build of `name` among target/<triple>/<hash>/bin/bench.competitors/ (any triple when empty).
-std::optional<fs::path> newest(const fs::path& root, std::string_view triple, std::string_view name) {
-    std::optional<fs::path> best;
-    fs::file_time_type when{};
-    std::error_code error;
-    for (const auto& platform : fs::directory_iterator(root / "target", error)) {
-        if (!platform.is_directory(error) || (!triple.empty() && platform.path().filename() != triple)) continue;
-        for (const auto& build : fs::directory_iterator(platform.path(), error)) {
-            const fs::path candidate = build.path() / "bin" / "bench.competitors" / name;
-            if (!fs::is_regular_file(candidate, error)) continue;
-            const auto written = fs::last_write_time(candidate, error);
-            if (!best || written > when) best = candidate, when = written;
-        }
-    }
-    return best;
 }
 
 }  // namespace
@@ -97,10 +51,8 @@ std::expected<int, std::string> competitors(const fs::path& root, const Options&
 
     // Their side, at the pinned versions: node's packages, and the Lottie players in a Python environment of their own.
     const auto step = [&](std::string program, std::vector<std::string> args, const fs::path& cwd = {}) -> std::expected<void, std::string> {
-        const std::string name = program;
-        auto done = run(root, std::move(program), std::move(args), false, cwd);
+        auto done = run::output(root, std::move(program), std::move(args), {.cwd = cwd});
         if (!done) return std::unexpected(done.error());
-        if (done->status != 0) return std::unexpected(std::format("{} exited {}", name, done->status));
         return {};
     };
     if (auto done = step("npm", {"install", "--silent", "--no-audit", "--no-fund"}, work); !done) return std::unexpected(done.error());
@@ -110,32 +62,29 @@ std::expected<int, std::string> competitors(const fs::path& root, const Options&
     if (auto done = step(mcpplibs::os::fs::utf8(work / "py" / "bin" / "pip"), {"install", "--quiet", "-r", mcpplibs::os::fs::utf8(here / "py" / "requirements.txt")}); !done)
         return std::unexpected(done.error());
 
-    // Our side, release, natively and for the Web (within the machine's share, AGENTS §5).
-    for (const std::vector<std::string>& target : {std::vector<std::string>{}, std::vector<std::string>{"--target", "wasm32-emscripten"}}) {
-        std::vector<std::string> args{"mcpp", "build"};
-        args.insert(args.end(), target.begin(), target.end());
-        args.insert(args.end(), {"--profile", "release", "-p", "omui.bench.competitors"});
-        if (auto done = step(mcpplibs::os::fs::utf8(root / "tools" / "dev" / "capped.sh"), args); !done) return std::unexpected(done.error());
-    }
+    // Our side, release, natively and for the Web (within the machine's share, AGENTS §5): the products as mcpp reports them.
     std::map<std::string, std::string> program;
-    for (const auto& [name, triple] : std::initializer_list<std::pair<std::string_view, std::string_view>>{
-             {"omui-bench-motion", ""}, {"omui-bench-vector", ""}, {"omui-bench-markdown", ""}, {"omui-bench-lottie", ""},
-             {"omui-bench-motion.js", "wasm32-emscripten"}, {"omui-bench-markdown.js", "wasm32-emscripten"}}) {
-        const auto found = newest(root, triple, name);
-        if (!found) return std::unexpected(std::format("{} was not built", name));
-        program[std::string(name)] = mcpplibs::os::fs::utf8(*found);
+    for (const std::vector<std::string>& target : {std::vector<std::string>{}, std::vector<std::string>{"--target", "wasm32-emscripten"}}) {
+        std::vector<std::string> args{"-p", "omui.bench.competitors", "--profile", "release"};
+        args.insert(args.end(), target.begin(), target.end());
+        const auto built = run::build(root, std::move(args));
+        if (!built) return std::unexpected(built.error());
+        for (const auto& artifact : *built)
+            if (artifact.kind == "bin") program[mcpplibs::os::fs::utf8(artifact.path.filename())] = mcpplibs::os::fs::utf8(artifact.path);
     }
+    for (const std::string_view name : {"omui-bench-motion", "omui-bench-vector", "omui-bench-markdown", "omui-bench-lottie", "omui-bench-motion.js", "omui-bench-markdown.js"})
+        if (!program.contains(std::string(name))) return std::unexpected(std::format("the build reported no {}", name));
     const fs::path corpus_path = work / "markdown.corpus.md";
     if (!(std::ofstream(corpus_path, std::ios::binary) << corpus(root))) return std::unexpected("the markdown corpus cannot be written");
     const std::string corpus_text = mcpplibs::os::fs::utf8(corpus_path), vector_dir = mcpplibs::os::fs::utf8(work / "vector"),
                       lottie_dir = mcpplibs::os::fs::utf8(work / "lottie"), lottie_players = mcpplibs::os::fs::utf8(here / "py" / "lottie.py"),
                       python_text = mcpplibs::os::fs::utf8(python);
-    const auto node = output_of(root, "node", {"--version"});
+    const auto node = run::output(root, "node", {"--version"});
     std::cout << std::format("node {}, {} threads\n", node.value_or("?"), std::thread::hardware_concurrency()) << std::flush;
 
     if (options.rounds <= 0) {
         const auto said = [&](std::string_view label, std::string program_name, std::vector<std::string> args, const fs::path& cwd = {}) {
-            const auto out = output_of(root, std::move(program_name), std::move(args), cwd);
+            const auto out = run::output(root, std::move(program_name), std::move(args), {.cwd = cwd});
             std::cout << std::format("{}{}\n", label, out ? *out : "failed: " + out.error()) << std::flush;
             return static_cast<bool>(out);
         };
@@ -154,12 +103,12 @@ std::expected<int, std::string> competitors(const fs::path& root, const Options&
                  {python_text, {"-I", lottie_players, lottie_dir}, {}},
                  {program["omui-bench-lottie"], {"--compare", lottie_dir}, {}},
              }) {
-            auto done = run(root, name, args, true, cwd);
+            auto done = run::program(root, name, args, {.cwd = cwd, .shown = true});
             all &= done && done->status == 0;
         }
         all &= said("markdown, native: ", program["omui-bench-markdown"], {corpus_text});
         all &= said("markdown, wasm:   ", "node", {program["omui-bench-markdown.js"], corpus_text});
-        auto done = run(root, "node", {"markdown.mjs", mcpplibs::os::fs::utf8(corpus_path.filename())}, true, work);
+        auto done = run::program(root, "node", {"markdown.mjs", mcpplibs::os::fs::utf8(corpus_path.filename())}, {.cwd = work, .shown = true});
         all &= done && done->status == 0;
         return all ? 0 : 1;
     }
@@ -186,7 +135,7 @@ std::expected<int, std::string> competitors(const fs::path& root, const Options&
     for (int round = 1; round <= options.rounds; ++round) {
         std::cout << std::format("round {} of {}\n", round, options.rounds) << std::flush;
         for (const auto& side : sides) {
-            auto done = run(root, side.program, side.args);
+            auto done = run::program(root, side.program, side.args);
             if (!done) return std::unexpected(done.error());
             if (done->status != 0) return std::unexpected(std::format("{} (round {}) exited {}", side.series, round, done->status));
             const auto records = lead::samples(done->out, side.series, side.series_field, side.key, round);

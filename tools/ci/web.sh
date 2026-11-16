@@ -54,7 +54,8 @@ OMUI_PAGE_TEST="$page_test" "$node_bin" --test modules/projects/omui/host/web/te
   || { echo "::error::the page's halves of rhi.webgpu and rhi.webgl failed their tests"; exit 1; }
 
 # What three dimensions weigh on a page, held to its budget (tests/size/yard).
-tools/ci/mesh-web-size.sh || { echo "::error::the yard's bytes are over their budget"; exit 1; }
+mcpp run omui-devtools -p tools/devtools -- check size -p omui.size.yard --json target/mesh-web-size.json --budget tests/size/yard/size.budget.omui.json \
+  || { echo "::error::the yard's bytes are over their budget"; exit 1; }
 
 # What only a real page can check (WebGPU's and WebGL2's conformance, the
 # browser's shader compilers), where a headless Chromium is found.

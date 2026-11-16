@@ -48,7 +48,7 @@
 - **A window drawn by a device (quay.desktop)**, Linux arm64: quay.desktop on CI with lavapipe
 - **A window drawn by a device (quay.desktop)**, Android: 缺: a device run
 - **The Direct3D 12 device backend**, Windows x64: 缺: a Direct3D 12 run of the device suites (CI runs Vulkan). Red 11 (the cellular kernel off the CPU on WARP) has a likely root cause fixed: the wrap edge took a remainder of a negative number, undefined on Vulkan and emulated on DXBC; the same fault failed every wrap case on an RTX 4080 (Vulkan), which now passes
-- **The accessibility bridge to the system's screen reader**, Linux x64: AT-SPI on CI (tools/ci/atspi.sh)
+- **The accessibility bridge to the system's screen reader**, Linux x64: AT-SPI on CI (omui-devtools check atspi)
 - **The accessibility bridge to the system's screen reader**, Web (wasm32): 缺: the page's accessibility tree read by a screen reader
 - **The accessibility bridge to the system's screen reader**, macOS arm64: 缺: NSAccessibility read by VoiceOver on a runner that runs it
 - **The accessibility bridge to the system's screen reader**, Windows x64: 缺: UI Automation read by a screen reader on a runner that runs it

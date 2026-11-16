@@ -25,7 +25,7 @@ on:
       - 'tools/gen/src/font_subset.*'
       - 'tools/ci/site.sh'
       - 'tools/ci/site-*'
-      - 'tools/ci/wasm-size.sh'
+      - 'tools/devtools/src/check.*'
       - 'tools/ci/visitor-path.*'
       - 'tools/cli/src/page.cpp'
       - 'modules/projects/omui/host/web/src/**'
@@ -116,9 +116,9 @@ jobs:
             target/dist-toy-loading.report.omui.json
           if-no-files-found: ignore
       - name: Where the site's WebAssembly bytes go (W8; Q-38)
-        # tools/ci/wasm-size.sh: the release's code with its functions' names
-        # kept, by owner (module, namespace, library) and its largest functions.
-        run: tools/ci/wasm-size.sh
+        # The release's code with its functions' names kept, by owner (module,
+        # namespace, library) and its largest functions.
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- check size -p omui.site --json target/wasm-size.json --markdown target/wasm-size.md
       - name: Keep the wasm's size report
         uses: actions/upload-artifact@v4
         with:

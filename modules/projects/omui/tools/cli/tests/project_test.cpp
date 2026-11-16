@@ -28,7 +28,7 @@ Ran invoke(std::vector<std::string> args) {
 }
 
 // What a command wrote: the data records of an operation's answer (the subject `omui`), or the step records of the
-// commands that hold a terminal (dev, run, replay); an answer's error and result records are not what it wrote.
+// commands that hold a terminal (dev, run); an answer's error and result records are not what it wrote.
 std::vector<Value> records(const std::string& text) {
     std::vector<Value> out;
     std::istringstream lines(text);
@@ -130,7 +130,7 @@ UTest cases{"cli.project", [] {
         std::set<std::string> names;
         if (listed && listed->get("tools") && listed->get("tools")->list())
             for (const Value& tool : *listed->get("tools")->list()) names.insert(std::string(tool.get("name")->as_string()));
-        for (const auto* name : {"omui_doctor", "omui_build", "omui_test", "omui_package", "omui_new", "omui_design_film", "omui_design_sync"})
+        for (const auto* name : {"omui_doctor", "omui_build", "omui_test", "omui_replay", "omui_package", "omui_new", "omui_design_film", "omui_design_sync"})
             expect(names.contains(name)) << name;
         const Value* doctor = reply(3);
         const Value* ran = doctor && doctor->get("structuredContent") ? doctor->get("structuredContent")->get("data") : nullptr;

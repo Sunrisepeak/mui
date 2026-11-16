@@ -495,7 +495,7 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
                "  omui agent inspect | stats | profile | logs | debug | pipeline | clock   (development)\n"
                "  omui mcp             an MCP server: agents operate running applications and the project's commands\n"
                "  omui connect --code CODE; omui page status | describe | snapshot | find | act | wait | …\n\n"
-               "Except dev, run, replay, agent, page, connect and mcp, each is an operation of the subject `omui`: its words are\n"
+               "Except dev, run, agent, page, connect and mcp, each is an operation of the subject `omui`: its words are\n"
                "its parameters in order, its answer records a line each (omui subjects, omui find WORDS).\n"
                "Run `omui <command> --help` for its options.\n";
         return 0;

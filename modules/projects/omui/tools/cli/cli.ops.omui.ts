@@ -32,6 +32,7 @@ export default defineOps({
     },
     { name: "omui.build", effect: "reversible", summary: "Builds the project (mcpp build): its outputs under target/, nothing else changed", params: [{ name: "release", type: "bool", doc: "the release profile (no designer linked)", optional: true }, { name: "rest", type: "json", doc: "words passed on to mcpp build as they are (after --)", optional: true }], result: "json", cost: "heavy", undo: "none needed: target/ is the build's own" },
     { name: "omui.test", effect: "reversible", summary: "Runs the project's tests (mtest): which passed, which failed and where", params: [{ name: "rest", type: "json", doc: "words passed on to mcpp test as they are (after --: which cases)", optional: true }], result: "json", cost: "heavy", undo: "none needed: tests change nothing they keep" },
+    { name: "omui.replay", effect: "reversible", summary: "Plays a recording (the protocol's `record`, development mode) in a fresh instance, headless, and checks it ends as it did: the semantic tree's hash and the pixels' (W12)", params: [{ name: "file", type: "path", doc: "the recording (JSON)" }], result: "json", cost: "heavy", undo: "none needed: a replay keeps nothing" },
     {
       name: "omui.check",
       effect: "read",

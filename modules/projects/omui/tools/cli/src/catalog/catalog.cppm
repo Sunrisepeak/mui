@@ -18,6 +18,9 @@ inline constexpr std::array<mlibs::control::Parameter, 2> parameters_omui_build{
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_test{{
     {"rest", "json", "words passed on to mcpp test as they are (after --: which cases)", true},
 }};
+inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_replay{{
+    {"file", "path", "the recording (JSON)", false},
+}};
 inline constexpr std::array<mlibs::control::Parameter, 2> parameters_omui_check{{
     {"files", "json", "*.view.omui.json documents to check instead of the project", true},
     {"portable", "bool", "also what only this implementation offers (D-157)", true},
@@ -102,12 +105,13 @@ inline constexpr std::array<mlibs::control::Parameter, 4> parameters_omui_design
 }};
 
 // The project's commands: create, build, test, check, describe, package; dependencies, tools and the design's history.
-inline constexpr std::array<mlibs::control::CatalogEntry, 24> catalog{{
+inline constexpr std::array<mlibs::control::CatalogEntry, 25> catalog{{
     {{"omui.doctor", openas::Effect::read, false}, "Which tools are there and which are missing (mcpp, xlings, tsc, esbuild), and what each is for", {}, "json", mlibs::control::Cost::bounded, "", false, false, false, {}},
     {{"omui.templates", openas::Effect::read, false}, "The templates a project is made from, and what each makes", {}, "json", mlibs::control::Cost::instant, "", false, false, false, {}},
     {{"omui.new", openas::Effect::irreversible, false}, "A new project from a template (app-ts by default): a directory of files, written beside the one the server runs in", parameters_omui_new, "json", mlibs::control::Cost::heavy, "none: delete the directory it made", false, false, false, {}},
     {{"omui.build", openas::Effect::reversible, false}, "Builds the project (mcpp build): its outputs under target/, nothing else changed", parameters_omui_build, "json", mlibs::control::Cost::heavy, "none needed: target/ is the build's own", false, false, false, {}},
     {{"omui.test", openas::Effect::reversible, false}, "Runs the project's tests (mtest): which passed, which failed and where", parameters_omui_test, "json", mlibs::control::Cost::heavy, "none needed: tests change nothing they keep", false, false, false, {}},
+    {{"omui.replay", openas::Effect::reversible, false}, "Plays a recording (the protocol's `record`, development mode) in a fresh instance, headless, and checks it ends as it did: the semantic tree's hash and the pixels' (W12)", parameters_omui_replay, "json", mlibs::control::Cost::heavy, "none needed: a replay keeps nothing", false, false, false, {}},
     {{"omui.check", openas::Effect::read, false}, "Type-checks the project's TypeScript against the API it registers (tsc), or view documents: each problem at its line", parameters_omui_check, "json", mlibs::control::Cost::heavy, "", false, false, false, {}},
     {{"omui.describe", openas::Effect::read, false}, "What writing for the project takes: every builder, native module, theme token and verb, as JSON", parameters_omui_describe, "json", mlibs::control::Cost::heavy, "", false, false, false, {}},
     {{"omui.fmt", openas::Effect::reversible, false}, "View documents written in the canonical format; with check, only which are not", parameters_omui_fmt, "json", mlibs::control::Cost::bounded, "the files as they were (version control)", false, false, false, {}},
@@ -148,6 +152,8 @@ inline constexpr std::string_view listing = R"listing({
      "inputSchema": {"type": "object", "properties": {"release": {"type": "boolean", "description": "the release profile (no designer linked)"}, "rest": {"description": "words passed on to mcpp build as they are (after --)"}}, "required": []}},
     {"name": "omui.test", "description": "Runs the project's tests (mtest): which passed, which failed and where", "effect": "reversible", "person": false, "delegated": false, "cost": "heavy", "undo": "none needed: tests change nothing they keep", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"rest": {"description": "words passed on to mcpp test as they are (after --: which cases)"}}, "required": []}},
+    {"name": "omui.replay", "description": "Plays a recording (the protocol's `record`, development mode) in a fresh instance, headless, and checks it ends as it did: the semantic tree's hash and the pixels' (W12)", "effect": "reversible", "person": false, "delegated": false, "cost": "heavy", "undo": "none needed: a replay keeps nothing", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"file": {"type": "string", "description": "a file or directory path: the recording (JSON)"}}, "required": ["file"]}},
     {"name": "omui.check", "description": "Type-checks the project's TypeScript against the API it registers (tsc), or view documents: each problem at its line", "effect": "read", "person": false, "delegated": false, "cost": "heavy", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"files": {"description": "*.view.omui.json documents to check instead of the project"}, "portable": {"type": "boolean", "description": "also what only this implementation offers (D-157)"}}, "required": []}},
     {"name": "omui.describe", "description": "What writing for the project takes: every builder, native module, theme token and verb, as JSON", "effect": "read", "person": false, "delegated": false, "cost": "heavy", "undo": "", "undoable": false, "cancellable": false, "result": "json",

@@ -280,25 +280,19 @@ bool& tools_caught() {
     return caught;
 }
 
-// dev, run and replay: they hold a window or the terminal, so they are the command line's alone (not operations
+// dev and run: they hold a window or the terminal, so they are the command line's alone (not operations
 // an agent runs through the tool kernel; omui.cli's catalog leaves them out).
 cmd::App project_command(std::string_view name) {
-    using cmd::App, cmd::Arg, cmd::Option;
+    using cmd::App, cmd::Option;
     const auto json = Option("json").help("one JSON record a step, then the exit code (for an agent)");
     if (name == "dev")
         return App("dev")
             .description("Runs the application in development mode: the application is its own designer, a person and an agent design it live (D-149); an application in C++ runs in the development host, rebuilt as its sources change (W16)")
             .option(Option("headless").help("no window: an agent designs through the protocol (the same operations, the same pixels)"))
             .option(json);
-    if (name == "run")
-        return App("run")
-            .description("Runs the application as it ships: mcpp run (after --, its own switches: --headless, --png FILE, --serve …)")
-            .option(Option("release").help("an optimised build"))
-            .option(json);
-    return App("replay")
-        .description("Plays a recording (the protocol's `record`, development mode) in a fresh instance, headless, and checks it ends "
-                     "as it did — the semantic tree's hash and the pixels' (W12): mcpp run -- --replay FILE")
-        .arg(Arg("file").required().help("the recording (JSON)"))
+    return App("run")
+        .description("Runs the application as it ships: mcpp run (after --, its own switches: --headless, --png FILE, --serve …)")
+        .option(Option("release").help("an optimised build"))
         .option(json);
 }
 
@@ -341,13 +335,7 @@ int launch(std::string_view name, bool release, bool headless, std::vector<std::
 }  // namespace
 
 int project(std::string_view name, const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) {
-    const bool json = p.is_flag_set("json");
-    if (name == "replay") {
-        const Ran ran = run_tool("mcpp", {"run", "-q", "--", "--replay", p.positional(0)}, err);
-        record(out, json, name, ran);
-        return ran.code;
-    }
-    return launch(name, p.is_flag_set("release"), p.is_flag_set("headless"), rest_of(p, 0), json, out, err);
+    return launch(name, p.is_flag_set("release"), p.is_flag_set("headless"), rest_of(p, 0), p.is_flag_set("json"), out, err);
 }
 
 int operation(std::string_view op, const mlibs::agent::Arguments& a, std::ostream& out, std::ostream& err) {
@@ -401,6 +389,12 @@ int operation(std::string_view op, const mlibs::agent::Arguments& a, std::ostrea
     if (name.starts_with("video.")) return video(name.substr(6), a, out, err);
     if (name == "audio.automation") return audio(a, out, err);
     if (name == "schema") return schema(a, out, err);
+    if (name == "replay") {
+        // mcpp run -- --replay FILE: a fresh instance, headless; its exit code says whether the end matched.
+        const Ran ran = run_tool("mcpp", {"run", "-q", "--", "--replay", a.value("file").value_or("")}, err);
+        record(out, true, name, ran);
+        return ran.code;
+    }
     if (name == "build") return launch(name, a.flag("release"), false, a.values("rest"), true, out, err);
     if (name == "deps") return deps(true, out, err);
     if (name == "tools") return tools(true, out, err);

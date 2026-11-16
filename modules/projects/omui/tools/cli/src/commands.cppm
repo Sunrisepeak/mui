@@ -93,7 +93,7 @@ int audio(const mlibs::agent::Arguments& a, std::ostream& out, std::ostream& err
 // The project's commands (project.cpp, D-150, RC3.9): a project over mcpp. Its catalog's operations (cli.ops.omui.ts)
 // are the subject `omui` — `omui build --release` is omui.build through the tool kernel's command line, and `omui mcp`
 // serves them as tools; dev, run and replay hold a window or the terminal and are the command line's alone.
-inline constexpr std::array<std::string_view, 3> project_commands{"dev", "run", "replay"};
+inline constexpr std::array<std::string_view, 2> project_commands{"dev", "run"};
 [[nodiscard]] mcpplibs::cmdline::App project_command(std::string_view name);
 int project(std::string_view name, const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
 // One of the catalog's operations (omui.build …), its records to `out` and what went wrong to `err`; the exit code.

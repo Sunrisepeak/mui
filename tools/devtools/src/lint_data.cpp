@@ -13,7 +13,7 @@ namespace fs = std::filesystem;
 
 namespace {
 
-constexpr std::array skip_dirs{"target", ".git", ".cache", "build", "node_modules", "fixtures", ".venv", "__pycache__"};
+constexpr std::array skip_dirs{"target", ".git", ".mcpp", ".xlings", ".cache", "build", "node_modules", "fixtures", ".venv", "__pycache__"};
 
 const toml::table* table_at(const toml::table* data, std::string_view key) {
     if (!data || !data->get(key)) return nullptr;

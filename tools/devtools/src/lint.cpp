@@ -18,7 +18,7 @@ namespace {
 
 constexpr std::array source_suffixes{".cppm", ".cpp", ".ixx", ".cc", ".cxx", ".h", ".hpp", ".hh", ".hxx", ".inl"};
 constexpr std::array header_suffixes{".h", ".hpp", ".hh", ".hxx", ".inl"};
-constexpr std::array skip_dirs{"target", ".git", ".cache", "build", "node_modules", "fixtures", ".venv", "__pycache__"};
+constexpr std::array skip_dirs{"target", ".git", ".mcpp", ".xlings", ".cache", "build", "node_modules", "fixtures", ".venv", "__pycache__"};
 constexpr std::string_view the_header = "spec/include/openmui.h";
 // Linux's process directory, spelled so this file does not name it in a literal (the rule reads literals too).
 constexpr char proc_chars[]{'/', 'p', 'r', 'o', 'c', '/'};

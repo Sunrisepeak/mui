@@ -21,6 +21,9 @@ main = "src/main.cpp"
 
 [build]
 sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+# Optimised in every profile: the lint's rules are regular expressions over every source, 57 s of CPU
+# unoptimised against 9 optimised — its test (lint_test) ran past 300 s on CI's 4-core runners (red 109).
+cxxflags = ["-O2"]
 
 [dependencies]
 nlohmann.json    = "3.12.0"

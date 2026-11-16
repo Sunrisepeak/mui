@@ -206,10 +206,16 @@ Envelope Verbs::invoke(std::string_view name, const Invocation& given) {
         e.result(spec::exit_code::success);
         record(spec::exit_code::success);
     } else {
-        e.error(std::string(mlibs::error::name(result.error().kind)), result.error().message).result(spec::exit_code::failure);  // the work ran and did not succeed: why, by the contract's code
         record(spec::exit_code::failure);
+        return failed(e, result.error());  // the work ran and did not succeed: why, by the contract's code, and the way out
     }
     return e;
+}
+
+Envelope& failed(Envelope& answer, const Failure& failure) {
+    Value extra;
+    if (!failure.way.empty()) extra.set("way", failure.way);
+    return answer.error(std::string(mlibs::error::name(failure.kind)), failure.message, std::move(extra)).result(spec::exit_code::failure);
 }
 
 }  // namespace omui

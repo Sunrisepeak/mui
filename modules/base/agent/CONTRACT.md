@@ -19,7 +19,7 @@ Records, in this order of kinds: `phase`, `progress`, `log`, `notice`, `error`, 
 | 2 | needs an answer: the same request again, with `answer` |
 | 3 | not ready: the same request again, later |
 
-An `error` has a `code` — `needs-answer`, `refused`, `not-found`, `invalid-argument`, `stale`, `timeout`, `failed`, `internal` (one a reader does not know is `failed`) — a text, and `next`: ways out, each `{"why", "request"}` a request to send as it is. A `result` of a change carries the number of its fact (`"fact": 7`) and, from the catalog, `then`: the reading that shows what it did.
+An `error` has a `code` — `needs-answer`, `refused`, `not-found`, `invalid-argument`, `stale`, `timeout`, `failed`, `internal` (one a reader does not know is `failed`) — a text, and `next`: ways out, each `{"why", "request"}` a request to send as it is; an error that is a domain's (`mlibs.error`) also says its code's way out in words, `way`. A `result` of a change carries the number of its fact (`"fact": 7`) and, from the catalog, `then`: the reading that shows what it did.
 
 ## 3. The session's own requests
 

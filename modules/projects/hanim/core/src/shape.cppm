@@ -45,18 +45,18 @@ enum class ShapeMorphError : std::uint8_t {
 [[nodiscard]] constexpr mlibs::error::Description describe(ShapeMorphError e) noexcept {
     using Kind = mlibs::error::Kind;  // not a using-declaration: that is an ICE in GCC 16
     switch (e) {
-        case ShapeMorphError::empty_contour: return {"hanim.shape.empty-contour", Kind::invalid_argument};
-        case ShapeMorphError::open_contour: return {"hanim.shape.open-contour", Kind::invalid_argument};
-        case ShapeMorphError::invalid_verb: return {"hanim.shape.invalid-verb", Kind::invalid_argument};
-        case ShapeMorphError::nonfinite_coordinate: return {"hanim.shape.nonfinite-coordinate", Kind::invalid_argument};
-        case ShapeMorphError::numerical_range: return {"hanim.shape.numerical-range", Kind::failed};
-        case ShapeMorphError::degenerate_contour: return {"hanim.shape.degenerate-contour", Kind::invalid_argument};
-        case ShapeMorphError::segment_budget: return {"hanim.shape.segment-budget", Kind::refused};
-        case ShapeMorphError::invalid_options: return {"hanim.shape.invalid-options", Kind::invalid_argument};
-        case ShapeMorphError::invalid_progress: return {"hanim.shape.invalid-progress", Kind::invalid_argument};
-        case ShapeMorphError::output_too_small: return {"hanim.shape.output-too-small", Kind::invalid_argument};
-        case ShapeMorphError::unprepared: return {"hanim.shape.unprepared", Kind::invalid_argument};
-        case ShapeMorphError::invalid_segment: return {"hanim.shape.invalid-segment", Kind::invalid_argument};
+        case ShapeMorphError::empty_contour: return {"hanim.shape.empty-contour", Kind::invalid_argument, "a contour with no segments", "give each contour at least one segment, or leave the empty one out"};
+        case ShapeMorphError::open_contour: return {"hanim.shape.open-contour", Kind::invalid_argument, "a contour that is not closed", "close the contour (end it where it began) before morphing it"};
+        case ShapeMorphError::invalid_verb: return {"hanim.shape.invalid-verb", Kind::invalid_argument, "a path verb the morph does not take", "give the shape as move, line, quad, cubic and close only"};
+        case ShapeMorphError::nonfinite_coordinate: return {"hanim.shape.nonfinite-coordinate", Kind::invalid_argument, "a coordinate that is infinite or not a number", "give finite coordinates: find where the value was computed"};
+        case ShapeMorphError::numerical_range: return {"hanim.shape.numerical-range", Kind::failed, "coordinates too large for the morph to keep precise", "scale the shapes down into a working range, morph, then scale the result back"};
+        case ShapeMorphError::degenerate_contour: return {"hanim.shape.degenerate-contour", Kind::invalid_argument, "a contour with no area or length", "leave out contours that collapse to a point or a line"};
+        case ShapeMorphError::segment_budget: return {"hanim.shape.segment-budget", Kind::refused, "more segments than the morph's budget", "simplify the shapes, or raise the segment budget in the options"};
+        case ShapeMorphError::invalid_options: return {"hanim.shape.invalid-options", Kind::invalid_argument, "options out of their range", "keep the options within the ranges their fields state (the default options always hold)"};
+        case ShapeMorphError::invalid_progress: return {"hanim.shape.invalid-progress", Kind::invalid_argument, "a progress that is not a finite number", "give a progress that is finite, usually within 0–1"};
+        case ShapeMorphError::output_too_small: return {"hanim.shape.output-too-small", Kind::invalid_argument, "an output buffer smaller than the morph's result", "give an output of at least the prepared morph's segment count"};
+        case ShapeMorphError::unprepared: return {"hanim.shape.unprepared", Kind::invalid_argument, "the morph was not prepared", "prepare the morph from its two shapes before sampling it"};
+        case ShapeMorphError::invalid_segment: return {"hanim.shape.invalid-segment", Kind::invalid_argument, "a segment whose points do not form it", "give each segment the points its verb takes"};
     }
     return {"hanim.shape.?", Kind::internal};
 }

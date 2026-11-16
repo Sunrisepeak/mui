@@ -28,3 +28,6 @@ mlibs.cts     = { path = "../../../base/cts" }
 nlohmann.json = "3.12.0"
 mcpplibs.os   = "0.4.4"
 mlibs.utils   = { path = "../../../base/utils" }  # mlibs.error: why the scenarios cannot be read
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"

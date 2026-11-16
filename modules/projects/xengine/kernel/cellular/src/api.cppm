@@ -212,22 +212,22 @@ enum class Errc : std::uint8_t { unprepared, channels, condition, range, offset,
 [[nodiscard]] constexpr mlibs::error::Description describe(Errc e) noexcept {
     using Kind = mlibs::error::Kind;  // not `using mlibs::error::Kind;`: that is an ICE in GCC 16 (import_entity_module)
     switch (e) {
-        case Errc::unprepared: return {"cellular.unprepared", Kind::invalid_argument, "the program was not prepared"};
-        case Errc::channels: return {"cellular.channels", Kind::invalid_argument, "a channel out of range"};
-        case Errc::condition: return {"cellular.condition", Kind::invalid_argument, "a malformed condition or write"};
-        case Errc::range: return {"cellular.range", Kind::invalid_argument, "a range whose low is above its high"};
-        case Errc::offset: return {"cellular.offset", Kind::invalid_argument, "a neighbour offset beyond ±32 or repeated"};
-        case Errc::duplicate_write: return {"cellular.duplicate-write", Kind::invalid_argument, "two writes to one channel"};
-        case Errc::limit: return {"cellular.limit", Kind::refused, "beyond the program's limits"};
-        case Errc::invalid_limits: return {"cellular.invalid-limits", Kind::invalid_argument, "limits that cannot hold a program"};
-        case Errc::shape: return {"cellular.shape", Kind::invalid_argument, "fields that do not match the shape"};
-        case Errc::alias: return {"cellular.alias", Kind::invalid_argument, "input and output overlap"};
-        case Errc::tile: return {"cellular.tile", Kind::invalid_argument, "a tile outside the field or empty"};
-        case Errc::transfer: return {"cellular.transfer", Kind::invalid_argument, "a transfer that is not symmetric, or that could take more than a cell has"};
-        case Errc::exchange: return {"cellular.exchange", Kind::invalid_argument, "an exchange that carries a channel twice, or not its own weight and mobility"};
-        case Errc::whole_field: return {"cellular.whole-field", Kind::invalid_argument, "a program that moves cells steps the whole field, not a tile of it"};
-        case Errc::table: return {"cellular.table", Kind::invalid_argument, "a table that is not rows of its columns, or a column or key that is not there"};
-        case Errc::reaction: return {"cellular.reaction", Kind::invalid_argument, "a reaction that reads or changes what is not there, or changes a channel twice"};
+        case Errc::unprepared: return {"cellular.unprepared", Kind::invalid_argument, "the program was not prepared", "prepare the program (`prepare`) before stepping with it"};
+        case Errc::channels: return {"cellular.channels", Kind::invalid_argument, "a channel out of range", "name only channels the field has: its channel count is in the shape"};
+        case Errc::condition: return {"cellular.condition", Kind::invalid_argument, "a malformed condition or write", "correct the condition or write the message points at: a channel, a comparison and a value"};
+        case Errc::range: return {"cellular.range", Kind::invalid_argument, "a range whose low is above its high", "give the range its low first: low ≤ high"};
+        case Errc::offset: return {"cellular.offset", Kind::invalid_argument, "a neighbour offset beyond ±32 or repeated", "keep each neighbour offset within ±32 and give each once"};
+        case Errc::duplicate_write: return {"cellular.duplicate-write", Kind::invalid_argument, "two writes to one channel", "write each channel once in a rule: merge the two writes"};
+        case Errc::limit: return {"cellular.limit", Kind::refused, "beyond the program's limits", "make the program smaller (fewer rules, terms, neighbours), or raise its limits where they are made"};
+        case Errc::invalid_limits: return {"cellular.invalid-limits", Kind::invalid_argument, "limits that cannot hold a program", "give limits of at least one rule, one channel and one term"};
+        case Errc::shape: return {"cellular.shape", Kind::invalid_argument, "fields that do not match the shape", "give fields of the program's shape: width × height cells and its channels"};
+        case Errc::alias: return {"cellular.alias", Kind::invalid_argument, "input and output overlap", "give the output its own field, not the input's"};
+        case Errc::tile: return {"cellular.tile", Kind::invalid_argument, "a tile outside the field or empty", "give a tile inside the field with a width and a height"};
+        case Errc::transfer: return {"cellular.transfer", Kind::invalid_argument, "a transfer that is not symmetric, or that could take more than a cell has", "make the transfer the same both ways, and its share small enough that a cell's neighbours cannot take more than it has"};
+        case Errc::exchange: return {"cellular.exchange", Kind::invalid_argument, "an exchange that carries a channel twice, or not its own weight and mobility", "carry each channel once, and with it its own weight and mobility"};
+        case Errc::whole_field: return {"cellular.whole-field", Kind::invalid_argument, "a program that moves cells steps the whole field, not a tile of it", "step the whole field when the program moves cells; tiles are for programs that do not"};
+        case Errc::table: return {"cellular.table", Kind::invalid_argument, "a table that is not rows of its columns, or a column or key that is not there", "give the table rows of its columns, and name only columns and keys it has"};
+        case Errc::reaction: return {"cellular.reaction", Kind::invalid_argument, "a reaction that reads or changes what is not there, or changes a channel twice", "read and change only channels the field has, each changed once"};
     }
     return {"cellular.?", Kind::internal};
 }

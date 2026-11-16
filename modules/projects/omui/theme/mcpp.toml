@@ -40,3 +40,4 @@ omui.build.embed = { path = "../../../../mcpp/embed", host-module = true }  # th
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
 omui.lang.ts = { path = "../lang/ts" }  # the theme packages' modules, evaluated as the build does
+mlibs.cts = { path = "../../../base/cts" }

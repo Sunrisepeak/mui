@@ -33,9 +33,9 @@ enum class AgentError : std::uint8_t { cannot_listen, cannot_connect, bad_pictur
 [[nodiscard]] constexpr mlibs::error::Description describe(AgentError error) noexcept {
     using Kind = mlibs::error::Kind;
     switch (error) {
-        case AgentError::cannot_listen: return {"omui.agent.cannot-listen", Kind::failed, "the endpoint could not listen"};
-        case AgentError::cannot_connect: return {"omui.agent.cannot-connect", Kind::not_found, "no endpoint answered"};
-        case AgentError::bad_picture: return {"omui.agent.bad-picture", Kind::invalid_argument, "not a PNG"};
+        case AgentError::cannot_listen: return {"omui.agent.cannot-listen", Kind::failed, "the endpoint could not listen", "the address is taken or not allowed: serve on another (`--serve ADDRESS`) or stop what holds it"};
+        case AgentError::cannot_connect: return {"omui.agent.cannot-connect", Kind::not_found, "no endpoint answered", "start the application with its endpoint (`omui dev`, or `--serve`), then connect to the address it prints"};
+        case AgentError::bad_picture: return {"omui.agent.bad-picture", Kind::invalid_argument, "not a PNG", "send a PNG (its bytes, base64 where the request is JSON)"};
     }
     return {"omui.agent.?", Kind::internal};
 }

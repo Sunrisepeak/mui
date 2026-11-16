@@ -6,7 +6,8 @@
 // pictures, pinned hashes, sampled processes) and :prepare (the preparation
 // contract's cases: accepted the same way twice, refusals by kind that leave
 // the engine as it was) and :world (the world contract — a deterministic value: images, branches — and the
-// presentation contract — what shows a world never writes it, wherever its ladders stand). The runner, the
+// presentation contract — what shows a world never writes it, wherever its ladders stand) and :errors (every
+// code of an error domain described, each with its way out). The runner, the
 // selection and the reports are
 // mtest's. Suites live with their contract's owner and run in that owner's
 // tests and its implementations' tests.
@@ -16,3 +17,4 @@ export import :core;
 export import :compare;
 export import :prepare;
 export import :world;
+export import :errors;

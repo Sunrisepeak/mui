@@ -228,33 +228,33 @@ enum class MorphError : std::uint8_t {
 [[nodiscard]] constexpr mlibs::error::Description describe(MorphError e) noexcept {
     using Kind = mlibs::error::Kind;  // not a using-declaration: that is an ICE in GCC 16
     switch (e) {
-        case MorphError::unprepared: return {"hanim.morph.unprepared", Kind::invalid_argument};
-        case MorphError::invalid_snapshot: return {"hanim.morph.invalid-snapshot", Kind::invalid_argument};
-        case MorphError::invalid_frame: return {"hanim.morph.invalid-frame", Kind::invalid_argument};
-        case MorphError::invalid_options: return {"hanim.morph.invalid-options", Kind::invalid_argument};
-        case MorphError::part_budget: return {"hanim.morph.part-budget", Kind::refused};
-        case MorphError::contour_budget: return {"hanim.morph.contour-budget", Kind::refused};
-        case MorphError::cubic_budget: return {"hanim.morph.cubic-budget", Kind::refused};
-        case MorphError::part_set_mismatch: return {"hanim.morph.part-set-mismatch", Kind::invalid_argument};
-        case MorphError::hierarchy_mismatch: return {"hanim.morph.hierarchy-mismatch", Kind::invalid_argument};
-        case MorphError::ordering_mismatch: return {"hanim.morph.ordering-mismatch", Kind::invalid_argument};
-        case MorphError::contour_count_mismatch: return {"hanim.morph.contour-count-mismatch", Kind::invalid_argument};
-        case MorphError::missing_fill: return {"hanim.morph.missing-fill", Kind::invalid_argument};
-        case MorphError::missing_stroke: return {"hanim.morph.missing-stroke", Kind::invalid_argument};
-        case MorphError::open_contour: return {"hanim.morph.open-contour", Kind::invalid_argument};
-        case MorphError::unsupported_topology: return {"hanim.morph.unsupported-topology", Kind::refused};
-        case MorphError::shape_failure: return {"hanim.morph.shape-failure", Kind::failed, {}, true};
-        case MorphError::invalid_progress: return {"hanim.morph.invalid-progress", Kind::invalid_argument};
-        case MorphError::output_too_small: return {"hanim.morph.output-too-small", Kind::invalid_argument};
-        case MorphError::nonfinite_transform: return {"hanim.morph.nonfinite-transform", Kind::invalid_argument};
-        case MorphError::invalid_property: return {"hanim.morph.invalid-property", Kind::invalid_argument};
-        case MorphError::unknown_part: return {"hanim.morph.unknown-part", Kind::not_found};
-        case MorphError::property_conflict: return {"hanim.morph.property-conflict", Kind::refused};
-        case MorphError::invalid_time: return {"hanim.morph.invalid-time", Kind::invalid_argument};
-        case MorphError::invalid_ease: return {"hanim.morph.invalid-ease", Kind::invalid_argument};
-        case MorphError::channel_budget: return {"hanim.morph.channel-budget", Kind::refused};
-        case MorphError::unsupported_property_effect: return {"hanim.morph.unsupported-property-effect", Kind::refused};
-        case MorphError::route_budget: return {"hanim.morph.route-budget", Kind::refused};
+        case MorphError::unprepared: return {"hanim.morph.unprepared", Kind::invalid_argument, "the morph was not prepared", "prepare the morph from its two snapshots before sampling it"};
+        case MorphError::invalid_snapshot: return {"hanim.morph.invalid-snapshot", Kind::invalid_argument, "a snapshot that is not a valid object", "take the snapshot again from a valid object"};
+        case MorphError::invalid_frame: return {"hanim.morph.invalid-frame", Kind::invalid_argument, "a frame from another morph, or none", "sample into a frame this morph made"};
+        case MorphError::invalid_options: return {"hanim.morph.invalid-options", Kind::invalid_argument, "options out of their range", "keep the options within the ranges their fields state (the defaults always hold)"};
+        case MorphError::part_budget: return {"hanim.morph.part-budget", Kind::refused, "more parts than the morph's budget", "morph fewer parts at once, or raise the part budget in the options"};
+        case MorphError::contour_budget: return {"hanim.morph.contour-budget", Kind::refused, "more contours than the morph's budget", "simplify the shapes, or raise the contour budget in the options"};
+        case MorphError::cubic_budget: return {"hanim.morph.cubic-budget", Kind::refused, "more cubic segments than the morph's budget", "simplify the shapes, or raise the cubic budget in the options"};
+        case MorphError::part_set_mismatch: return {"hanim.morph.part-set-mismatch", Kind::invalid_argument, "the two snapshots have different parts", "give both the same part ids, or a policy that adds and removes parts"};
+        case MorphError::hierarchy_mismatch: return {"hanim.morph.hierarchy-mismatch", Kind::invalid_argument, "a part under different parents in the two", "keep each part under the same parent in both snapshots"};
+        case MorphError::ordering_mismatch: return {"hanim.morph.ordering-mismatch", Kind::invalid_argument, "parts drawn in different orders in the two", "keep the drawing order the same in both, or morph the order as its own step"};
+        case MorphError::contour_count_mismatch: return {"hanim.morph.contour-count-mismatch", Kind::invalid_argument, "a part with different contour counts in the two", "give the part the same contours in both, or a shape policy that splits and merges"};
+        case MorphError::missing_fill: return {"hanim.morph.missing-fill", Kind::invalid_argument, "a part filled in one snapshot and not the other", "give the part a fill in both (a transparent one where it shows none)"};
+        case MorphError::missing_stroke: return {"hanim.morph.missing-stroke", Kind::invalid_argument, "a part stroked in one snapshot and not the other", "give the part a stroke in both (of width 0 where it shows none)"};
+        case MorphError::open_contour: return {"hanim.morph.open-contour", Kind::invalid_argument, "an open contour where a closed one is morphed", "close the contour, or morph it as a stroke"};
+        case MorphError::unsupported_topology: return {"hanim.morph.unsupported-topology", Kind::refused, "shapes whose topology the morph cannot pair", "split the morph into steps whose shapes pair, or use a cross-fade"};
+        case MorphError::shape_failure: return {"hanim.morph.shape-failure", Kind::failed, "the shape morph failed beneath", "read the cause beneath: its way out says what to correct in the shapes", true};
+        case MorphError::invalid_progress: return {"hanim.morph.invalid-progress", Kind::invalid_argument, "a progress that is not a finite number", "give a finite progress, usually within 0–1"};
+        case MorphError::output_too_small: return {"hanim.morph.output-too-small", Kind::invalid_argument, "an output smaller than the morph's result", "give an output of at least the prepared morph's size"};
+        case MorphError::nonfinite_transform: return {"hanim.morph.nonfinite-transform", Kind::invalid_argument, "a transform that is infinite or not a number", "give finite transforms in both snapshots"};
+        case MorphError::invalid_property: return {"hanim.morph.invalid-property", Kind::invalid_argument, "a property the part does not have, or of the wrong kind", "use a property the part's kind has, with a value of its kind"};
+        case MorphError::unknown_part: return {"hanim.morph.unknown-part", Kind::not_found, "no part with that id", "use an id the snapshots' parts have"};
+        case MorphError::property_conflict: return {"hanim.morph.property-conflict", Kind::refused, "one property driven twice", "drive each property from one place: merge the two"};
+        case MorphError::invalid_time: return {"hanim.morph.invalid-time", Kind::invalid_argument, "a time that is not finite, or negative", "give a finite duration of 0 or more, in seconds"};
+        case MorphError::invalid_ease: return {"hanim.morph.invalid-ease", Kind::invalid_argument, "an ease that is not valid", "give an ease of hanim.core's `:ease`: a named curve, or a cubic Bézier with its x within 0–1"};
+        case MorphError::channel_budget: return {"hanim.morph.channel-budget", Kind::refused, "more channels than the budget", "drive fewer properties at once, or raise the channel budget"};
+        case MorphError::unsupported_property_effect: return {"hanim.morph.unsupported-property-effect", Kind::refused, "an effect on a property that does not take it", "apply the effect to a property of a kind it takes"};
+        case MorphError::route_budget: return {"hanim.morph.route-budget", Kind::refused, "more routes than the budget", "route fewer parts at once, or raise the route budget"};
     }
     return {"hanim.morph.?", Kind::internal};
 }

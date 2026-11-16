@@ -22,10 +22,10 @@ Vec2 both(double value) noexcept { return {value, value}; }
 mlibs::error::Description describe(PresenceError error) noexcept {
     using Kind = mlibs::error::Kind;
     switch (error) {
-    case PresenceError::unknown_presence: return {"hanim.presence.unknown", Kind::not_found, "no course of that name"};
-    case PresenceError::invalid_value: return {"hanim.presence.invalid-value", Kind::invalid_argument, "a course's value is not finite (or a drop not above)"};
-    case PresenceError::invalid_time: return {"hanim.presence.invalid-time", Kind::invalid_argument, "a course's duration is not a finite time, 0 or more"};
-    case PresenceError::invalid_ease: return {"hanim.presence.invalid-ease", Kind::invalid_argument, "a course's ease is not valid"};
+    case PresenceError::unknown_presence: return {"hanim.presence.unknown", Kind::not_found, "no course of that name", "use a course `presence_names()` lists"};
+    case PresenceError::invalid_value: return {"hanim.presence.invalid-value", Kind::invalid_argument, "a course's value is not finite (or a drop not above)", "give a finite value (and a drop above 0)"};
+    case PresenceError::invalid_time: return {"hanim.presence.invalid-time", Kind::invalid_argument, "a course's duration is not a finite time, 0 or more", "give a finite duration of 0 or more, in seconds"};
+    case PresenceError::invalid_ease: return {"hanim.presence.invalid-ease", Kind::invalid_argument, "a course's ease is not valid", "give an ease of hanim.core's `:ease`: a named curve, or a cubic Bézier with its x within 0–1"};
     }
     return {"hanim.presence.?", Kind::internal};
 }

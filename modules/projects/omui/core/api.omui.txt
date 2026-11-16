@@ -388,13 +388,15 @@ namespace omui {
   struct Failure {
     mlibs::error::Kind kind = mlibs::error::Kind::failed;
     std::string message;
+    std::string way;
     Failure() = default;
     Failure(std::string text) : message(std::move(text));
     Failure(const char* text) : message(text);
-    Failure(mlibs::error::Kind of, std::string text) : kind(of), message(std::move(text));
-    template <mlibs::error::Code C, class Where> Failure(const mlibs::error::Error<C, Where>& error) : kind(error.kind()), message(error.text());
+    Failure(mlibs::error::Kind of, std::string text, std::string out = {…}) : kind(of), message(std::move(text)), way(std::move(out));
+    template <mlibs::error::Code C, class Where> Failure(const mlibs::error::Error<C, Where>& error) : kind(error.kind()), message(error.text()), way(error.way());
     [[nodiscard]] std::string text() const;
   };
+  Envelope& failed(Envelope& answer, const Failure& failure);
   using VerbResult = std::expected<Value, Failure>;
   using VerbFn = std::function<VerbResult(const Value& args)>;
   [[nodiscard]] bool valid_verb_name(std::string_view name) noexcept;

@@ -98,14 +98,19 @@ using InvocationScope = mlibs::control::Scope<Invocation>;
 struct Failure {
     mlibs::error::Kind kind = mlibs::error::Kind::failed;
     std::string        message;
+    std::string        way;  // what to do about it (a domain error's way out, RC2.19); the error record's `way`
     Failure() = default;
     Failure(std::string text) : message(std::move(text)) {}
     Failure(const char* text) : message(text) {}
-    Failure(mlibs::error::Kind of, std::string text) : kind(of), message(std::move(text)) {}
+    Failure(mlibs::error::Kind of, std::string text, std::string out = {}) : kind(of), message(std::move(text)), way(std::move(out)) {}
     template <mlibs::error::Code C, class Where>
-    Failure(const mlibs::error::Error<C, Where>& error) : kind(error.kind()), message(error.text()) {}
+    Failure(const mlibs::error::Error<C, Where>& error) : kind(error.kind()), message(error.text()), way(error.way()) {}
     [[nodiscard]] std::string text() const { return std::format("{}: {}", mlibs::error::name(kind), message); }
 };
+
+// A failure ends the answer: an `error` record of its kind's code, its message and its way out (`way`), then the
+// failing result.
+Envelope& failed(Envelope& answer, const Failure& failure);
 
 // What a verb's implementation returns: a value for the `data` record, or why it failed.
 using VerbResult = std::expected<Value, Failure>;
@@ -118,18 +123,18 @@ enum class VerbError : std::uint8_t { bad_verb_name, verb_taken, no_answer, no_i
 [[nodiscard]] constexpr mlibs::error::Description describe(VerbError error) noexcept {
     using Kind = mlibs::error::Kind;
     switch (error) {
-        case VerbError::bad_verb_name: return {"omui.verb.bad-name", Kind::invalid_argument, "lower-case words joined by dots"};
-        case VerbError::verb_taken: return {"omui.verb.taken", Kind::refused, "a verb of that name is registered"};
-        case VerbError::no_answer: return {"omui.verb.no-answer", Kind::invalid_argument, "an irreversible or external verb states its answer (S-1)"};
-        case VerbError::no_implementation: return {"omui.verb.no-implementation", Kind::invalid_argument, "a verb has a function"};
-        case VerbError::bad_task_name: return {"omui.task.bad-name", Kind::invalid_argument, "lower-case words joined by hyphens"};
-        case VerbError::task_taken: return {"omui.task.taken", Kind::refused, "a task of that name is registered"};
-        case VerbError::no_summary: return {"omui.task.no-summary", Kind::invalid_argument, "a task says what it gets done"};
-        case VerbError::no_step: return {"omui.task.no-step", Kind::invalid_argument, "a task has steps"};
-        case VerbError::bad_step: return {"omui.task.bad-step", Kind::invalid_argument, "a step is a verb, or a node and one of its actions"};
-        case VerbError::unknown_verb: return {"omui.task.unknown-verb", Kind::not_found, "a step's verb is registered first"};
-        case VerbError::person_only_step: return {"omui.task.person-only-step", Kind::refused, "a person's verb is never a step"};
-        case VerbError::step_asks_answer: return {"omui.task.step-asks-answer", Kind::invalid_argument, "a step that asks for an answer is a dry run"};
+        case VerbError::bad_verb_name: return {"omui.verb.bad-name", Kind::invalid_argument, "lower-case words joined by dots", "name the verb in lower-case words joined by dots: `document.save`"};
+        case VerbError::verb_taken: return {"omui.verb.taken", Kind::refused, "a verb of that name is registered", "give the verb another name, or replace the registered one where it is registered"};
+        case VerbError::no_answer: return {"omui.verb.no-answer", Kind::invalid_argument, "an irreversible or external verb states its answer (S-1)", "state the verb's answer (what a dry run returns) when it is irreversible or reaches outside"};
+        case VerbError::no_implementation: return {"omui.verb.no-implementation", Kind::invalid_argument, "a verb has a function", "give the verb its function"};
+        case VerbError::bad_task_name: return {"omui.task.bad-name", Kind::invalid_argument, "lower-case words joined by hyphens", "name the task in lower-case words joined by hyphens: `save-and-close`"};
+        case VerbError::task_taken: return {"omui.task.taken", Kind::refused, "a task of that name is registered", "give the task another name, or replace the registered one where it is registered"};
+        case VerbError::no_summary: return {"omui.task.no-summary", Kind::invalid_argument, "a task says what it gets done", "give the task a summary: one sentence of what it gets done"};
+        case VerbError::no_step: return {"omui.task.no-step", Kind::invalid_argument, "a task has steps", "give the task at least one step"};
+        case VerbError::bad_step: return {"omui.task.bad-step", Kind::invalid_argument, "a step is a verb, or a node and one of its actions", "write each step as a verb, or as a node and one of its actions"};
+        case VerbError::unknown_verb: return {"omui.task.unknown-verb", Kind::not_found, "a step's verb is registered first", "register the verb before the task that uses it, or name a registered one"};
+        case VerbError::person_only_step: return {"omui.task.person-only-step", Kind::refused, "a person's verb is never a step", "leave the person's verb out of the task: the task stops for the person to do it"};
+        case VerbError::step_asks_answer: return {"omui.task.step-asks-answer", Kind::invalid_argument, "a step that asks for an answer is a dry run", "make the step a dry run, or take the answer out of the task"};
     }
     return {"omui.verb.?", Kind::internal};
 }

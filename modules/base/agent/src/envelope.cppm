@@ -11,6 +11,8 @@
 // an array of {"why": …, "request": {…}} — each request one that can be sent
 // as it is. A subject that knows the way out gives it; one that gives none
 // still answers with the session's (the operation described, an example of it).
+// An error that is a domain's (mlibs.error) also says its code's way out in
+// words: `way`, what to correct or ask next (RC2.19).
 // A result that is a success carries what follows it, when its catalog says so:
 // `then`, in the same form (after a change, the reading that shows what it did).
 export module mlibs.agent:envelope;
@@ -18,6 +20,7 @@ export module mlibs.agent:envelope;
 import std;
 import openas;
 import mlibs.json;
+import mlibs.error;
 import :endpoint;
 
 export namespace mlibs::agent {
@@ -49,11 +52,18 @@ public:
     void data(std::string_view json);
     void notice(std::string_view text);
     // `next`: the ways out, a JSON array of {"why", "request"} (none given: the session's, see otherwise).
-    void error(std::string_view code, std::string_view text, std::string_view next = {});
+    // `way`: what to do about it, in words (an mlibs.error code's way out).
+    void error(std::string_view code, std::string_view text, std::string_view next = {}, std::string_view way = {});
     // The last record; once.
     void result(int exit_code = openas::exit_code::done);
     // An error and the result that ends the answer.
     void fail(std::string_view code, std::string_view text, int exit_code = openas::exit_code::failed, std::string_view next = {});
+    // A domain's error, as it is: its kind for the code, its text, its way out; then the result.
+    template <mlibs::error::Code C, class Where>
+    void fail(const mlibs::error::Error<C, Where>& failure, int exit_code = openas::exit_code::failed, std::string_view next = {}) {
+        error(mlibs::error::name(failure.kind()), failure.text(), next, failure.way());
+        result(exit_code);
+    }
     // The ways out an error of this answer carries when it gives none itself (a JSON array, as `next`).
     void otherwise(std::string next) { otherwise_ = std::move(next); }
     // What follows when it is done: given with a result that is a success (a JSON array, as `next`: `then`).

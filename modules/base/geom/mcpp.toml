@@ -28,3 +28,4 @@ mlibs.math  = { path = "../math" }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
+mlibs.cts = { path = "../cts" }

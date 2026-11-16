@@ -161,6 +161,49 @@ static UTest cases{"site.wall", [] {
         expect(eq(focused_card(), std::string("checkbox")));
     };
 
+    "the keyboard reaches every card: Tab visits all 36 components (and the works) once each, its ring drawn at each (RC3.6)"_test = [] {
+        Page page;
+        page.h.runtime().focus(page.h.runtime().find(path("canvas")));
+        const Color focus = page.h.runtime().theme().color("focus");
+        const auto focused_card = [&] {
+            for (const auto& node : page.h.tree().snapshot({.root = path("canvas")}).nodes)
+                if (node.states.has(State::focused) && node.role == Role::article) return node.id.substr(node.id.rfind('/') + 1);
+            return std::string();
+        };
+        const auto ring_drawn = [&] {
+            return std::ranges::any_of(page.h.runtime().display_list().commands(), [&](const auto& command) {
+                const auto* stroke = std::get_if<xrender::StrokeRoundRect>(&command);
+                return stroke && stroke->width == 2 && stroke->paint.color.r == focus.r && stroke->paint.color.g == focus.g && stroke->paint.color.b == focus.b;
+            });
+        };
+        std::vector<std::string> visited;
+        std::vector<std::string> unringed;
+        for (std::size_t press = 0; press <= site::component_catalog.size(); ++press) {
+            page.h.key(Key::tab);
+            page.h.settle(seconds(2));
+            const std::string card = focused_card();
+            if (card.empty() || (!visited.empty() && card == visited.front())) break;  // gone on out of the wall, or round to its first
+            if (!ring_drawn()) unringed.push_back(card);
+            visited.push_back(card);
+        }
+        std::vector<std::string> distinct = visited;
+        std::ranges::sort(distinct);
+        distinct.erase(std::ranges::unique(distinct).begin(), distinct.end());
+        expect(eq(distinct.size(), visited.size())) << "no card twice before coming round";
+        // The works the wall also holds (`work-…`) are cards a person reaches too; nothing else is.
+        std::vector<std::string> strangers;
+        std::size_t components = 0;
+        for (const std::string& card : visited)
+            if (site::find_component(card)) ++components;
+            else if (!card.starts_with("work-")) strangers.push_back(card);
+        expect(eq(components, site::component_catalog.size())) << std::format("{} of {} components reached", components, site::component_catalog.size());
+        expect(strangers.empty()) << std::format("cards neither a component nor a work: {}", strangers);
+        for (const auto& component : site::component_catalog)
+            expect(std::ranges::any_of(visited, [&](const std::string& card) { const auto* info = site::find_component(card); return info && info->id == component.id; }))
+                << std::format("`{}` reached by Tab", component.id);
+        expect(unringed.empty()) << std::format("no ring drawn on {} card(s), the first `{}`", unringed.size(), unringed.empty() ? "" : unringed.front());
+    };
+
     "on a phone: a band a category, one above another, each a row of cards swiped sideways; a card tapped opens its detail"_test = [] {
         Headless h{HeadlessOptions{.size = {390, 844}, .scale = 1}};
         auto app = site::app("components", "en");

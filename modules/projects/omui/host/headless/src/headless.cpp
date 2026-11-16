@@ -179,6 +179,13 @@ FrameOutput Headless::step(std::vector<InputEvent> events, std::optional<seconds
         in.attribution = attribution;
     }
     FrameOutput out = d.runtime->frame(in);
+    // The window resized or moved to a display of another scale (a ResizeEvent, as a window's host gives it):
+    // its pixels follow, drawn again at the new size and scale.
+    if (d.runtime->size() != d.options.size || d.runtime->scale() != d.options.scale) {
+        d.options.size = d.runtime->size();
+        d.options.scale = d.runtime->scale();
+        d.have_pixels = false;
+    }
     // A frame with something new to show is shown (as a window's host shows
     // it), at its virtual time; its cost is not measured (it would make the
     // pixels differ from run to run).

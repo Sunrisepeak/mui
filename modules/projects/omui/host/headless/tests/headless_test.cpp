@@ -142,6 +142,35 @@ UTest cases{"headless", [] {
         expect(!h1.png().has_value()) << "no pixels at H1";
     };
 
+    "moved to a display of another scale, or resized: the pixels follow, the same as if it had started there (RC3.6)"_test = [] {
+        Headless h(at(HeadlessLevel::pixels));
+        Counter c;
+        h.mount("main", c.view());
+        h.step();
+        const Rect inc = h.runtime().bounds(h.runtime().find("main/inc"));
+        h.step({ResizeEvent{{240, 120}, 2.0f}});
+        const auto& px = h.pixels();
+        expect(px.width() == 480 && px.height() == 240) << std::format("on a 2x display: {}x{}", px.width(), px.height());
+        expect(h.runtime().bounds(h.runtime().find("main/inc")) == inc) << "its layout, in logical units, unchanged";
+        expect(h.node_at_pixel(inc.center()) == h.runtime().find("main/inc")) << "and what is under a point, too";
+        HeadlessOptions there = at(HeadlessLevel::pixels);
+        there.scale = 2;
+        Headless started(there);
+        Counter other;
+        started.mount("main", other.view());
+        started.step();
+        const auto& want = started.pixels();
+        bool same = want.width() == px.width() && want.height() == px.height();
+        for (int y = 0; same && y < px.height(); ++y)
+            same = std::ranges::equal(std::span(px.row(y), static_cast<std::size_t>(px.width())), std::span(want.row(y), static_cast<std::size_t>(want.width())),
+                                      [](const auto& one, const auto& other_pixel) { return one.r == other_pixel.r && one.g == other_pixel.g && one.b == other_pixel.b && one.a == other_pixel.a; });
+        expect(same) << "the same pixels as a window that opened on the 2x display";
+        h.step({ResizeEvent{{300, 160}, 2.0f}});
+        expect(h.pixels().width() == 600 && h.pixels().height() == 320) << "resized there";
+        h.step({ResizeEvent{{300, 160}, 1.0f}});
+        expect(h.pixels().width() == 300 && h.pixels().height() == 160) << "and back on a 1x display";
+    };
+
     "a recording: frames kept, written as an animated PNG whose first frame is the first kept"_test = [] {
         Headless h(at(HeadlessLevel::pixels));
         Counter c;

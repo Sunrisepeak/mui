@@ -14,6 +14,10 @@
 | Input methods (composition, candidates) | 稳定 | 软件 | 软件 | 软件 | 软件 | | |
 | Gamepads (Quay, widget breakout) | 预览 | 软件 | 未验证 | 软件 | 软件 | | |
 | D-187 on weaker machines (integrated GPUs, mobile): p99 ≤ 16.7 ms | 预览 | 未验证 | 未验证 | | | | 未验证 |
+| An application's first frame: process start to the window's first pixels (RC3.6) | 稳定 | 未验证 | 未验证 | 未验证 | 未验证 | | |
+| Keyboard reach and visible focus: every component on the wall by Tab, its ring drawn (RC3.6) | 稳定 | 实机 | 未验证 | 未验证 | 未验证 | | |
+| High DPI and several displays: moved to a display of another scale, drawn again at it (RC3.6) | 稳定 | 软件 | 未验证 | 软件 | 软件 | | |
+| Closed, slept and resumed: no crash, nothing left blank (RC3.6) | 稳定 | 未验证 | 未验证 | 未验证 | 未验证 | | |
 
 ## 每格的依据
 
@@ -63,5 +67,21 @@
 - **D-187 on weaker machines (integrated GPUs, mobile): p99 ≤ 16.7 ms**, Linux x64: 缺: an integrated-GPU machine; only the RTX 4080 is measured
 - **D-187 on weaker machines (integrated GPUs, mobile): p99 ≤ 16.7 ms**, Web (wasm32): 缺: Quay's frame in a real browser on a real GPU (web_frame_test, omui-devtools browser --headed under gpu --real, where a display is): RC2.1
 - **D-187 on weaker machines (integrated GPUs, mobile): p99 ≤ 16.7 ms**, Android: 缺: a mobile device
+- **An application's first frame: process start to the window's first pixels (RC3.6)**, Linux x64: 缺: process start to the window's first frame, timed; the runtime's part is measured: ui/mount, a 1012-node dashboard built and laid out in 4.4 ms (docs/benchmarks/2026-10-28-desktop)
+- **An application's first frame: process start to the window's first pixels (RC3.6)**, Web (wasm32): 缺: the page's first frame timed in a real browser (RC2.9 splits what loads before it)
+- **An application's first frame: process start to the window's first pixels (RC3.6)**, macOS arm64: 缺: the same timing on a Mac
+- **An application's first frame: process start to the window's first pixels (RC3.6)**, Windows x64: 缺: the same timing on Windows
+- **Keyboard reach and visible focus: every component on the wall by Tab, its ring drawn (RC3.6)**, Linux x64: site.wall: Tab visits all 36 component cards (and the works) once each, the focus ring drawn at each (CI's site job)
+- **Keyboard reach and visible focus: every component on the wall by Tab, its ring drawn (RC3.6)**, Web (wasm32): 缺: the same walk in a real browser (the wall's test runs natively, on the Linux site job)
+- **Keyboard reach and visible focus: every component on the wall by Tab, its ring drawn (RC3.6)**, macOS arm64: 缺: the wall's test on a macOS row (omui.site runs on the Linux site job only); the library's own Tab cases (omui.ui.base) run there
+- **Keyboard reach and visible focus: every component on the wall by Tab, its ring drawn (RC3.6)**, Windows x64: 缺: the wall's test on a Windows row (omui.site runs on the Linux site job only); the library's own Tab cases (omui.ui.base) run there
+- **High DPI and several displays: moved to a display of another scale, drawn again at it (RC3.6)**, Linux x64: omui.host.headless: a ResizeEvent of scale 2 gives the pixels of a window opened at 2x, layout unchanged; the SDL host turns a display-scale change into that event; 缺: two real displays of different scales
+- **High DPI and several displays: moved to a display of another scale, drawn again at it (RC3.6)**, Web (wasm32): 缺: a devicePixelRatio change in a real browser
+- **High DPI and several displays: moved to a display of another scale, drawn again at it (RC3.6)**, macOS arm64: the same test on CI row macos-15; 缺: a Retina and a non-Retina display
+- **High DPI and several displays: moved to a display of another scale, drawn again at it (RC3.6)**, Windows x64: the same test on CI row windows-2022; 缺: two displays of different scales
+- **Closed, slept and resumed: no crash, nothing left blank (RC3.6)**, Linux x64: 缺: a machine slept and resumed under test; a device lost on resume is let go and made again, else the CPU draws (omui.host.sdl3's desktop host), which no CI row can provoke
+- **Closed, slept and resumed: no crash, nothing left blank (RC3.6)**, Web (wasm32): 缺: a page hidden and shown, its WebGPU device lost, in a real browser
+- **Closed, slept and resumed: no crash, nothing left blank (RC3.6)**, macOS arm64: 缺: a Mac slept and resumed under test
+- **Closed, slept and resumed: no crash, nothing left blank (RC3.6)**, Windows x64: 缺: a Windows machine slept and resumed under test
 
 由 `omui-devtools platforms` 从 [release.platforms.xdef.json](../release.platforms.xdef.json) 生成，不要手改。

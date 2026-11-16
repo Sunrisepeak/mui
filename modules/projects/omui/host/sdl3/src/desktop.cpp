@@ -147,6 +147,7 @@ struct Desktop::Impl final : WindowHost {
     std::unique_ptr<mlibs::rhi::Device>             device;
     std::optional<xrender::GpuFrame>          gpu;
     mlibs::rhi::Texture                             gpu_frame;
+    std::size_t                                     devices_lost = 0;  // how many times the device was lost and made again
     std::uint32_t                            gpu_w = 0, gpu_h = 0;
     std::optional<xrender::effect::Library>           effects;
 
@@ -241,6 +242,24 @@ struct Desktop::Impl final : WindowHost {
         return {};
     }
 
+    // The device lost (a driver reset, a resume from sleep, a GPU taken away): what it held is gone. It is let go
+    // and made again, the next frame drawn whole on it; when none can be made, the CPU draws, unless the GPU is
+    // insisted on (RC3.6: closed, slept and resumed, not crashed or left blank).
+    void lost(std::string_view where, std::string_view why) {
+        warn("{}: the device was lost ({}); making it again", where, why);
+        if (runtime) runtime->set_on_device(false), runtime->set_device(nullptr);
+        shown_pictures = ShownPictures{};  // its textures went with the device
+        gpu_frame = {};
+        gpu_w = gpu_h = 0;
+        gpu.reset();
+        device.reset();
+        shown = 0;
+        damage.invalidate();
+        ++devices_lost;
+        if (auto again = open_gpu(); !again) warn("{}", again.error().message);
+        else if (!gpu) warn("no GPU device again: the CPU draws");
+    }
+
     // The frame as shown, read back (the GPU's texture, or the CPU's surface).
     std::expected<xrender::raster::Surface, ViewFailure> pixels() {
         if (!gpu) {
@@ -321,13 +340,17 @@ struct Desktop::Impl final : WindowHost {
             how.glyph_masks = xrender::glyph_masks_a_live_frame;  // a window's frames: text is its outlines', in motion and at rest
             auto r = gpu->render({&ui_layer, 1}, gpu_frame, uw, uh, how);
             if (!r) {
+                if (r.error().code == mlibs::rhi::Errc::device_lost) return lost("the GPU renderer", r.error().message);
                 warn("the GPU renderer: {}", r.error().message);
                 return;
             }
         }
         mlibs::trace::Span span("present", "host");
         auto p = device->present(gpu_frame);
-        if (!p) warn("present: {}", p.error().message);
+        if (!p) {
+            if (p.error().code == mlibs::rhi::Errc::device_lost) return lost("present", p.error().message);
+            warn("present: {}", p.error().message);
+        }
         shown = h;
         ++frames_shown;
     }

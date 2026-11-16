@@ -1698,6 +1698,7 @@ Cases suite_of() {
         std::array<std::size_t, 2> seen_at{}, off_at{};  // the pane's, the ball's
         std::array<double, 2> levels{};                   // their summed largest channel's difference
         std::size_t pane_rim = 0, pane_face = 0;
+        std::vector<std::size_t> pane_face_at;
         for (std::size_t pixel = 0; pixel < reference.ids.size(); ++pixel) {
             const std::uint32_t is = reference.ids[pixel].draw;
             if (is == mesh::none || reference.draws[is].id < 40) continue;
@@ -1720,11 +1721,24 @@ Cases suite_of() {
                         const bool rim = x == 0 || y == 0 || x + 1 == width || y + 1 == height || !pane_at(pixel - 1) || !pane_at(pixel + 1) ||
                                          !pane_at(pixel - width) || !pane_at(pixel + width);
                         ++(rim ? pane_rim : pane_face);
+                        if (!rim) pane_face_at.push_back(pixel);
                     }
                     break;
                 }
         }
-        std::println("the pane's pixels past 6 levels: {} at its rim, {} on its face", pane_rim, pane_face);
+        // The ball's box on the picture (the reference's pixels of it): a face pixel inside sees the ball through the pane.
+        std::size_t left = width, top = height, right = 0, bottom = 0;
+        for (std::size_t pixel = 0; pixel < reference.ids.size(); ++pixel) {
+            const std::uint32_t draw = reference.ids[pixel].draw;
+            if (draw == mesh::none || reference.draws[draw].id <= 40) continue;
+            left = std::min(left, pixel % width), right = std::max(right, pixel % width);
+            top = std::min(top, pixel / width), bottom = std::max(bottom, pixel / width);
+        }
+        const auto over_ball = std::ranges::count_if(pane_face_at, [&](std::size_t pixel) {
+            const std::size_t x = pixel % width, y = pixel / width;
+            return x >= left && x <= right && y >= top && y <= bottom;
+        });
+        std::println("the pane's pixels past 6 levels: {} at its rim, {} on its face ({} within the ball's box)", pane_rim, pane_face, over_ball);
         const std::size_t elsewhere = all.off - off_at[0] - off_at[1];
         const auto percent = [](std::size_t part, std::size_t whole) { return 100.0 * static_cast<double>(part) / static_cast<double>(std::max<std::size_t>(whole, 1)); };
         std::println("light through a pane and a ball of glass: {} of {} pixels further than 6 levels from the reference, mean {:.3f}, worst {}; elsewhere {}; the pane {} of {} ({:.2f}%); the ball {} of {} ({:.2f}%), mean {:.2f} levels; {} sizes kept",

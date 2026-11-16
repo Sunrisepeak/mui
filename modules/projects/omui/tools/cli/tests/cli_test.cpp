@@ -2,7 +2,6 @@
 // thread, the command line on another, talking over the real endpoint.
 import std;
 import omui.cli;
-import mcpplibs.cmdline;
 import omui.host.headless;
 import omui.ui.base;
 import mlibs.testing;
@@ -118,7 +117,13 @@ UTest cases{"cli", [] {
         expect(omui_cmd({"agent", "find", "nobody-listens", R"({"role":"button"})", "--dir", "/nonexistent/openmui"}).code == 1);
         expect(omui_cmd({"agent", "snapshot"}).code == 2) << "which application?";
         expect(omui_cmd({"agent", "act", "--help"}).code == 0 && omui_cmd({"agent", "act", "--help"}).out.contains(R"("name":"ui.act")"));
-        expect(omui_cmd({"frobnicate"}).code == 2);
+        // A name no catalog has: not found, with the nearest names.
+        const auto unknown = omui_cmd({"frobnicate"});
+        expect(unknown.code == 1 && unknown.out.contains("not-found")) << unknown.out << unknown.err;
+        // What holds the terminal is a person's command line's: an agent's entry is refused, saying so.
+        const Value refused = cli::run_for_agent("omui.dev", Value{});
+        expect(refused.get("exit")->as_int() == 1 && std::string(refused.get("err")->as_string()).contains("command line")) << refused.json();
+        expect(omui_cmd({"dev", "--help"}).code == 0 && omui_cmd({"dev", "--help"}).out.contains(R"("name":"omui.dev")"));
     };
 
     "omui agent ls / snapshot / find / act / wait / capture against a running app"_test = [] {

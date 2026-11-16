@@ -19,7 +19,6 @@
 module omui.cli;
 
 import std;
-import mcpplibs.cmdline;
 import mcpplibs.os;
 import mlibs.http;
 import omui.core;
@@ -27,7 +26,6 @@ import omui.agent;
 
 namespace omui::cli {
 
-namespace cmd = mcpplibs::cmdline;
 namespace os = mcpplibs::os;
 
 namespace {
@@ -295,16 +293,6 @@ std::expected<std::string, std::string> ask_bridge(const Found& f, std::string_v
 
 }  // namespace
 
-cmd::App connect_command() {
-    using cmd::Option;
-    return cmd::App("connect")
-        .description("Start the bridge a page in your browser pairs with, so your agent operates it with `omui page …` (it runs until stopped)")
-        .option(Option("code").takes_value().value_name("CODE").help("the pairing code the page shows (in the prompt it gave you)"))
-        .option(Option("port").takes_value().value_name("N").help("the port on 127.0.0.1 (default: the first free of 47110–47113)"))
-        .option(Option("name").takes_value().value_name("AGENT").help("who you are, as the page shows it (Claude Code, Codex …)"))
-        .option(Option("origin").takes_value().value_name("URL").help("serve only a page of this origin (https://example.org)"));
-}
-
 std::expected<std::uint16_t, std::string> run_bridge(const BridgeStart& start, std::stop_token stop, const std::function<void(std::uint16_t)>& ready) {
     Bridge b;
     b.code = code_of(start.code);
@@ -368,9 +356,10 @@ std::expected<std::uint16_t, std::string> run_bridge(const BridgeStart& start, s
     return port;
 }
 
-int connect(const cmd::ParsedArgs& p, std::optional<std::filesystem::path> dir, std::ostream& out, std::ostream& err) {
-    BridgeStart start{.code = p.value("code").value_or(""), .name = p.value("name").value_or(""), .origin = p.value("origin").value_or(""), .dir = dir};
-    if (auto given = p.value("port")) std::from_chars(given->data(), given->data() + given->size(), start.port);
+int connect(const mlibs::agent::Arguments& a, std::ostream& out, std::ostream& err) {
+    BridgeStart start{.code = a.value("code").value_or(""), .name = a.value("name").value_or(""), .origin = a.value("origin").value_or("")};
+    if (auto directory = a.value("dir")) start.dir = mcpplibs::os::fs::from_utf8(*directory);
+    if (auto given = a.value("port")) std::from_chars(given->data(), given->data() + given->size(), start.port);
     std::stop_source never;
     auto ran = run_bridge(start, never.get_token(), [&](std::uint16_t port) {
         out << Value{}.set("kind", "data").set("data", Value{}.set("bridge", std::format("127.0.0.1:{}", port)).set("waiting_for", "the page")).json() << '\n';

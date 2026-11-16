@@ -20,7 +20,6 @@ module omui.cli;
 
 import std;
 import mcpplibs.os;
-import mcpplibs.cmdline;
 import omui.core;
 import omui.viewdoc;
 import omui.lang.ts;

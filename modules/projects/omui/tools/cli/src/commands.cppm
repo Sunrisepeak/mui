@@ -9,15 +9,12 @@ export module omui.cli;
 export import :catalog;
 
 import std;
-import mcpplibs.cmdline;
 export import mlibs.agent;
 import omui.core;
 import omui.viewdoc;
 
 export namespace omui::cli {
 
-// The whole command line: `omui <command> …`.
-[[nodiscard]] mcpplibs::cmdline::App app();
 
 // Runs a command line (argv[0] included); writes to `out` and `err`.
 int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err);
@@ -81,8 +78,9 @@ int schema(const mlibs::agent::Arguments& a, std::ostream& out, std::ostream& er
 void register_components();
 
 // omui connect and omui page (page.cpp, agent connect §4): the bridge a page pairs with, and the paired page operated.
-[[nodiscard]] mcpplibs::cmdline::App connect_command();
-int connect(const mcpplibs::cmdline::ParsedArgs& p, std::optional<std::filesystem::path> dir, std::ostream& out, std::ostream& err);
+int connect(const mlibs::agent::Arguments& a, std::ostream& out, std::ostream& err);
+// omui mcp (agent.cpp): the MCP server on this process's standard streams, until they end.
+int serve_mcp(const mlibs::agent::Arguments& a, std::ostream& err);
 int page(std::vector<std::string> words, std::optional<std::filesystem::path> dir, std::ostream& out, std::ostream& err);
 
 // omui agent sweep and omui page sweep (sweep.cpp): every action of every
@@ -102,10 +100,7 @@ int audio(const mlibs::agent::Arguments& a, std::ostream& out, std::ostream& err
 
 // The project's commands (project.cpp, D-150, RC3.9): a project over mcpp. Its catalog's operations (cli.ops.omui.ts)
 // are the subject `omui` — `omui build --release` is omui.build through the tool kernel's command line, and `omui mcp`
-// serves them as tools; dev, run and replay hold a window or the terminal and are the command line's alone.
-inline constexpr std::array<std::string_view, 2> project_commands{"dev", "run"};
-[[nodiscard]] mcpplibs::cmdline::App project_command(std::string_view name);
-int project(std::string_view name, const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
+// serves them as tools; dev, run, connect and mcp hold a window or the terminal (`terminal`): a person's command line runs them.
 // One of the catalog's operations (omui.build …), its records to `out` and what went wrong to `err`; the exit code.
 int operation(std::string_view op, const mlibs::agent::Arguments& a, std::ostream& out, std::ostream& err);
 class Project final : public mlibs::agent::Subject {
@@ -118,6 +113,9 @@ public:
     [[nodiscard]] std::string_view listing() const noexcept override { return ops::listing; }
     [[nodiscard]] std::uint64_t state_hash() const override { return 0; }  // its state is the project's files
     void operate(std::string_view op, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) override;
+    // The command line's own streams: what holds the terminal writes there as it goes (none: this process's).
+    std::ostream* live_out = nullptr;
+    std::ostream* live_errors = nullptr;
 };
 // omui design sync (design.cpp): Live Design's history (.omui/design) carried into git as design/<branch>.
 int design_sync(const std::filesystem::path& app, bool json, std::ostream& out, std::ostream& err);

@@ -115,6 +115,9 @@ struct SessionOptions {
     // session's own. A host that makes a session for each request of one connection gives them the same
     // one, so a request there takes a value from the answer before it as anywhere else.
     std::shared_ptr<std::string> last;
+    // A person's command line: it runs what holds the terminal (a catalog's `terminal` operations); any other
+    // session refuses those, saying the command to type.
+    bool command_line = false;
 };
 
 // What `find` found: an operation (its example, or its `describe`), a task (its steps), or a term of a subject's

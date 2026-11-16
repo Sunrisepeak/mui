@@ -3,7 +3,6 @@
 module omui.cli;
 import std;
 import mlibs.agent;
-import mcpplibs.cmdline;
 import mcpplibs.os;
 import omui.core;
 import hanim.timeline;
@@ -15,7 +14,6 @@ import omui.host.headless;
 import omui.ui.base;
 
 namespace omui::cli {
-namespace cmd=mcpplibs::cmdline;
 namespace tl=hanim::timeline;
 namespace au=xengine::audio;
 

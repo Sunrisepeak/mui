@@ -145,6 +145,7 @@ std::expected<Catalog, std::vector<std::string>> read_root(const mlibs::json::Do
             operation.cancellable = flag_or(entry["cancellable"]);
             operation.delegated = flag_or(entry["delegated"]);
             operation.undoable = flag_or(entry["undoable"]);
+            operation.terminal = flag_or(entry["terminal"]);
             if (!dotted_name(operation.name))
                 problem(line, std::format("`{}` is not a dotted lowercase name (domain.verb)",
                                           operation.name));
@@ -397,8 +398,10 @@ std::string emit_catalog_cpp(const Catalog& catalog, std::string_view source) {
                         operation.undoable ? "true" : "false",
                         operation.delegated ? "true" : "false",
                         operation.examples.empty() ? std::string("{}") : "examples_" + identifier(operation.name),
-                        operation.then.empty() ? (operation.keywords.empty() ? std::string() : ", " + cpp_string(joined(operation.keywords)))
-                                               : std::format(", {}, then_{}", cpp_string(joined(operation.keywords)), identifier(operation.name)));
+                        // The trailing members only as far as one is given: keywords, then, terminal.
+                        operation.terminal ? std::format(", {}, {}, true", cpp_string(joined(operation.keywords)), operation.then.empty() ? std::string("{}") : "then_" + identifier(operation.name))
+                        : operation.then.empty() ? (operation.keywords.empty() ? std::string() : ", " + cpp_string(joined(operation.keywords)))
+                                                 : std::format(", {}, then_{}", cpp_string(joined(operation.keywords)), identifier(operation.name)));
     out += "}};\n";
     // What an agent that knows nothing of it begins with (D-186): what it is, and its tasks.
     for (const auto& task : catalog.tasks) {
@@ -460,13 +463,13 @@ std::string emit_catalog_json(const Catalog& catalog) {
         }
         out += std::format("    {{\"name\": {}, \"description\": {}, \"effect\": {}, \"person\": "
                            "{}, \"delegated\": {}, \"cost\": {}, \"undo\": {}, "
-                           "\"undoable\": {}, \"cancellable\": {}, \"result\": {},{}\n     \"inputSchema\": {{\"type\": \"object\", "
+                           "\"undoable\": {}, \"cancellable\": {}, \"result\": {},{}{}\n     \"inputSchema\": {{\"type\": \"object\", "
                            "\"properties\": {{{}}}, \"required\": [{}]}}}}{}\n",
                            json_string(operation.name), json_string(operation.summary),
                            json_string(operation.effect), operation.person ? "true" : "false",
                            operation.delegated ? "true" : "false", json_string(operation.cost), json_string(operation.undo),
                            operation.undoable ? "true" : "false", operation.cancellable ? "true" : "false", json_string(operation.result),
-                           examples, properties, required, index + 1 < catalog.operations.size() ? "," : "");
+                           operation.terminal ? " \"terminal\": true," : "", examples, properties, required, index + 1 < catalog.operations.size() ? "," : "");
     }
     out += "  ],\n  \"tiers\": [";
     for (std::size_t index = 0; index < catalog.tiers.size(); ++index) {

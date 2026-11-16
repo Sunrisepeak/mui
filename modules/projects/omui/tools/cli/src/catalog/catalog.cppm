@@ -18,6 +18,28 @@ inline constexpr std::array<mlibs::control::Parameter, 2> parameters_omui_build{
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_test{{
     {"rest", "json", "words passed on to mcpp test as they are (after --: which cases)", true},
 }};
+inline constexpr std::array<mlibs::control::Parameter, 2> parameters_omui_dev{{
+    {"headless", "bool", "no window: an agent designs through the protocol (the same operations, the same pixels)", true},
+    {"rest", "json", "words passed on to the application as they are (after --)", true},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 2> parameters_omui_run{{
+    {"release", "bool", "an optimised build", true},
+    {"rest", "json", "words passed on to the application as they are (after --)", true},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 5> parameters_omui_connect{{
+    {"code", "string", "the pairing code the page shows (in the prompt it gave you)", false},
+    {"port", "integer", "the port on 127.0.0.1 (default: the first free of 47110–47113)", true},
+    {"name", "string", "who you are, as the page shows it (Claude Code, Codex …)", true},
+    {"origin", "string", "serve only a page of this origin (https://example.org)", true},
+    {"dir", "path", "where the bridge says where it is (default: the per-user directory)", true},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 5> parameters_omui_mcp{{
+    {"app", "string", "the application a call names none of (default: the one running)", true},
+    {"actor", "string", "who acts (default: the client's name, agent:claude-code)", true},
+    {"way", "string", "semantic (default); a11y-tree or screenshot: what a browser agent's accessibility tree or computer use offers, on the same application (D-142)", true},
+    {"ops", "json", "an application's verbs as tools, from its <product>.ops.json listing (omui-gen ops); given again for more", true},
+    {"dir", "path", "where the running applications' endpoints are (default: the per-user directory)", true},
+}};
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_replay{{
     {"file", "path", "the recording (JSON)", false},
 }};
@@ -105,12 +127,16 @@ inline constexpr std::array<mlibs::control::Parameter, 4> parameters_omui_design
 }};
 
 // The project's commands: create, build, test, check, describe, package; dependencies, tools and the design's history.
-inline constexpr std::array<mlibs::control::CatalogEntry, 25> catalog{{
+inline constexpr std::array<mlibs::control::CatalogEntry, 29> catalog{{
     {{"omui.doctor", openas::Effect::read, false}, "Which tools are there and which are missing (mcpp, xlings, tsc, esbuild), and what each is for", {}, "json", mlibs::control::Cost::bounded, "", false, false, false, {}},
     {{"omui.templates", openas::Effect::read, false}, "The templates a project is made from, and what each makes", {}, "json", mlibs::control::Cost::instant, "", false, false, false, {}},
     {{"omui.new", openas::Effect::irreversible, false}, "A new project from a template (app-ts by default): a directory of files, written beside the one the server runs in", parameters_omui_new, "json", mlibs::control::Cost::heavy, "none: delete the directory it made", false, false, false, {}},
     {{"omui.build", openas::Effect::reversible, false}, "Builds the project (mcpp build): its outputs under target/, nothing else changed", parameters_omui_build, "json", mlibs::control::Cost::heavy, "none needed: target/ is the build's own", false, false, false, {}},
     {{"omui.test", openas::Effect::reversible, false}, "Runs the project's tests (mtest): which passed, which failed and where", parameters_omui_test, "json", mlibs::control::Cost::heavy, "none needed: tests change nothing they keep", false, false, false, {}},
+    {{"omui.dev", openas::Effect::reversible, false}, "Runs the application in development mode: it is its own designer, a person and an agent design it live (D-149); an application in C++ runs in the development host, rebuilt as its sources change (W16)", parameters_omui_dev, "json", mlibs::control::Cost::heavy, "none needed: it ends when stopped", false, false, false, {}, "", {}, true},
+    {{"omui.run", openas::Effect::reversible, false}, "Runs the application as it ships (mcpp run); after --, its own switches: --headless, --png FILE, --serve …", parameters_omui_run, "json", mlibs::control::Cost::heavy, "none needed: it ends when stopped", false, false, false, {}, "", {}, true},
+    {{"omui.connect", openas::Effect::reversible, false}, "Starts the bridge a page in your browser pairs with, so an agent operates it with `omui page …` (it runs until stopped)", parameters_omui_connect, "json", mlibs::control::Cost::heavy, "none needed: it ends when stopped", false, false, false, {}, "", {}, true},
+    {{"omui.mcp", openas::Effect::reversible, false}, "An MCP server on standard input and output: agents operate running applications with ui_* tools, and the project's commands", parameters_omui_mcp, "json", mlibs::control::Cost::heavy, "none needed: it ends when its input does", false, false, false, {}, "", {}, true},
     {{"omui.replay", openas::Effect::reversible, false}, "Plays a recording (the protocol's `record`, development mode) in a fresh instance, headless, and checks it ends as it did: the semantic tree's hash and the pixels' (W12)", parameters_omui_replay, "json", mlibs::control::Cost::heavy, "none needed: a replay keeps nothing", false, false, false, {}},
     {{"omui.check", openas::Effect::read, false}, "Type-checks the project's TypeScript against the API it registers (tsc), or view documents: each problem at its line", parameters_omui_check, "json", mlibs::control::Cost::heavy, "", false, false, false, {}},
     {{"omui.describe", openas::Effect::read, false}, "What writing for the project takes: every builder, native module, theme token and verb, as JSON", parameters_omui_describe, "json", mlibs::control::Cost::heavy, "", false, false, false, {}},
@@ -152,6 +178,14 @@ inline constexpr std::string_view listing = R"listing({
      "inputSchema": {"type": "object", "properties": {"release": {"type": "boolean", "description": "the release profile (no designer linked)"}, "rest": {"description": "words passed on to mcpp build as they are (after --)"}}, "required": []}},
     {"name": "omui.test", "description": "Runs the project's tests (mtest): which passed, which failed and where", "effect": "reversible", "person": false, "delegated": false, "cost": "heavy", "undo": "none needed: tests change nothing they keep", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"rest": {"description": "words passed on to mcpp test as they are (after --: which cases)"}}, "required": []}},
+    {"name": "omui.dev", "description": "Runs the application in development mode: it is its own designer, a person and an agent design it live (D-149); an application in C++ runs in the development host, rebuilt as its sources change (W16)", "effect": "reversible", "person": false, "delegated": false, "cost": "heavy", "undo": "none needed: it ends when stopped", "undoable": false, "cancellable": false, "result": "json", "terminal": true,
+     "inputSchema": {"type": "object", "properties": {"headless": {"type": "boolean", "description": "no window: an agent designs through the protocol (the same operations, the same pixels)"}, "rest": {"description": "words passed on to the application as they are (after --)"}}, "required": []}},
+    {"name": "omui.run", "description": "Runs the application as it ships (mcpp run); after --, its own switches: --headless, --png FILE, --serve …", "effect": "reversible", "person": false, "delegated": false, "cost": "heavy", "undo": "none needed: it ends when stopped", "undoable": false, "cancellable": false, "result": "json", "terminal": true,
+     "inputSchema": {"type": "object", "properties": {"release": {"type": "boolean", "description": "an optimised build"}, "rest": {"description": "words passed on to the application as they are (after --)"}}, "required": []}},
+    {"name": "omui.connect", "description": "Starts the bridge a page in your browser pairs with, so an agent operates it with `omui page …` (it runs until stopped)", "effect": "reversible", "person": false, "delegated": false, "cost": "heavy", "undo": "none needed: it ends when stopped", "undoable": false, "cancellable": false, "result": "json", "terminal": true,
+     "inputSchema": {"type": "object", "properties": {"code": {"type": "string", "description": "the pairing code the page shows (in the prompt it gave you)"}, "port": {"type": "integer", "description": "the port on 127.0.0.1 (default: the first free of 47110–47113)"}, "name": {"type": "string", "description": "who you are, as the page shows it (Claude Code, Codex …)"}, "origin": {"type": "string", "description": "serve only a page of this origin (https://example.org)"}, "dir": {"type": "string", "description": "a file or directory path: where the bridge says where it is (default: the per-user directory)"}}, "required": ["code"]}},
+    {"name": "omui.mcp", "description": "An MCP server on standard input and output: agents operate running applications with ui_* tools, and the project's commands", "effect": "reversible", "person": false, "delegated": false, "cost": "heavy", "undo": "none needed: it ends when its input does", "undoable": false, "cancellable": false, "result": "json", "terminal": true,
+     "inputSchema": {"type": "object", "properties": {"app": {"type": "string", "description": "the application a call names none of (default: the one running)"}, "actor": {"type": "string", "description": "who acts (default: the client's name, agent:claude-code)"}, "way": {"type": "string", "description": "semantic (default); a11y-tree or screenshot: what a browser agent's accessibility tree or computer use offers, on the same application (D-142)"}, "ops": {"description": "an application's verbs as tools, from its <product>.ops.json listing (omui-gen ops); given again for more"}, "dir": {"type": "string", "description": "a file or directory path: where the running applications' endpoints are (default: the per-user directory)"}}, "required": []}},
     {"name": "omui.replay", "description": "Plays a recording (the protocol's `record`, development mode) in a fresh instance, headless, and checks it ends as it did: the semantic tree's hash and the pixels' (W12)", "effect": "reversible", "person": false, "delegated": false, "cost": "heavy", "undo": "none needed: a replay keeps nothing", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"file": {"type": "string", "description": "a file or directory path: the recording (JSON)"}}, "required": ["file"]}},
     {"name": "omui.check", "description": "Type-checks the project's TypeScript against the API it registers (tsc), or view documents: each problem at its line", "effect": "read", "person": false, "delegated": false, "cost": "heavy", "undo": "", "undoable": false, "cancellable": false, "result": "json",

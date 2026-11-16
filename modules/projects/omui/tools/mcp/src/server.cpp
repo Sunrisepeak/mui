@@ -283,6 +283,7 @@ struct Server::Impl {
         for (const Value& op : *tools->list()) {
             const std::string command(str(op, "name")), name = tool_name(command);
             if (command.empty() || commands.contains(name) || verbs.contains(name)) continue;
+            if (op.get("terminal") && op.get("terminal")->as_bool()) continue;  // it holds the terminal: a person's command line's
             Value schema = op.get("inputSchema") ? *op.get("inputSchema") : Value{}.set("type", "object");
             schema.set("additionalProperties", false);
             const std::string effect(str(op, "effect"));

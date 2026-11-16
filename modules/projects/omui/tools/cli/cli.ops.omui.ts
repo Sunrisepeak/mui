@@ -3,8 +3,9 @@
 // --release` is omui.build, and `omui mcp` serves them as omui_* tools in the
 // project the server runs in. A command that writes something to keep — a project, a
 // package, a film, git references — is irreversible: the person is asked first.
-// `dev` and `run` are left out (they hold a window or the terminal), so are
-// `mcp` and `agent` (an agent is already in). omui-gen ops makes the table the
+// `dev`, `run`, `connect` and `mcp` hold a window or the terminal: they are
+// `terminal` — a person's command line runs them, an agent's entries do not
+// list them. `agent` and `page` are the protocol's catalogs (omui.agent). omui-gen ops makes the table the
 // command line serves them by (src/catalog/cli.cppm) and the listings
 // (src/catalog/omui-cli.ops.json, .md).
 import { defineOps } from "omui/define";
@@ -32,6 +33,64 @@ export default defineOps({
     },
     { name: "omui.build", effect: "reversible", summary: "Builds the project (mcpp build): its outputs under target/, nothing else changed", params: [{ name: "release", type: "bool", doc: "the release profile (no designer linked)", optional: true }, { name: "rest", type: "json", doc: "words passed on to mcpp build as they are (after --)", optional: true }], result: "json", cost: "heavy", undo: "none needed: target/ is the build's own" },
     { name: "omui.test", effect: "reversible", summary: "Runs the project's tests (mtest): which passed, which failed and where", params: [{ name: "rest", type: "json", doc: "words passed on to mcpp test as they are (after --: which cases)", optional: true }], result: "json", cost: "heavy", undo: "none needed: tests change nothing they keep" },
+    {
+      name: "omui.dev",
+      effect: "reversible",
+      terminal: true,
+      summary: "Runs the application in development mode: it is its own designer, a person and an agent design it live (D-149); an application in C++ runs in the development host, rebuilt as its sources change (W16)",
+      params: [
+        { name: "headless", type: "bool", doc: "no window: an agent designs through the protocol (the same operations, the same pixels)", optional: true },
+        { name: "rest", type: "json", doc: "words passed on to the application as they are (after --)", optional: true },
+      ],
+      result: "json",
+      cost: "heavy",
+      undo: "none needed: it ends when stopped",
+    },
+    {
+      name: "omui.run",
+      effect: "reversible",
+      terminal: true,
+      summary: "Runs the application as it ships (mcpp run); after --, its own switches: --headless, --png FILE, --serve …",
+      params: [
+        { name: "release", type: "bool", doc: "an optimised build", optional: true },
+        { name: "rest", type: "json", doc: "words passed on to the application as they are (after --)", optional: true },
+      ],
+      result: "json",
+      cost: "heavy",
+      undo: "none needed: it ends when stopped",
+    },
+    {
+      name: "omui.connect",
+      effect: "reversible",
+      terminal: true,
+      summary: "Starts the bridge a page in your browser pairs with, so an agent operates it with `omui page …` (it runs until stopped)",
+      params: [
+        { name: "code", type: "string", doc: "the pairing code the page shows (in the prompt it gave you)" },
+        { name: "port", type: "integer", doc: "the port on 127.0.0.1 (default: the first free of 47110–47113)", optional: true },
+        { name: "name", type: "string", doc: "who you are, as the page shows it (Claude Code, Codex …)", optional: true },
+        { name: "origin", type: "string", doc: "serve only a page of this origin (https://example.org)", optional: true },
+        { name: "dir", type: "path", doc: "where the bridge says where it is (default: the per-user directory)", optional: true },
+      ],
+      result: "json",
+      cost: "heavy",
+      undo: "none needed: it ends when stopped",
+    },
+    {
+      name: "omui.mcp",
+      effect: "reversible",
+      terminal: true,
+      summary: "An MCP server on standard input and output: agents operate running applications with ui_* tools, and the project's commands",
+      params: [
+        { name: "app", type: "string", doc: "the application a call names none of (default: the one running)", optional: true },
+        { name: "actor", type: "string", doc: "who acts (default: the client's name, agent:claude-code)", optional: true },
+        { name: "way", type: "string", doc: "semantic (default); a11y-tree or screenshot: what a browser agent's accessibility tree or computer use offers, on the same application (D-142)", optional: true },
+        { name: "ops", type: "json", doc: "an application's verbs as tools, from its <product>.ops.json listing (omui-gen ops); given again for more", optional: true },
+        { name: "dir", type: "path", doc: "where the running applications' endpoints are (default: the per-user directory)", optional: true },
+      ],
+      result: "json",
+      cost: "heavy",
+      undo: "none needed: it ends when its input does",
+    },
     { name: "omui.replay", effect: "reversible", summary: "Plays a recording (the protocol's `record`, development mode) in a fresh instance, headless, and checks it ends as it did: the semantic tree's hash and the pixels' (W12)", params: [{ name: "file", type: "path", doc: "the recording (JSON)" }], result: "json", cost: "heavy", undo: "none needed: a replay keeps nothing" },
     {
       name: "omui.check",

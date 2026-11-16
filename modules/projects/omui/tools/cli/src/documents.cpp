@@ -4,7 +4,6 @@ module omui.cli;
 
 import std;
 import mlibs.agent;
-import mcpplibs.cmdline;
 import mcpplibs.os;
 import omui.core;
 import omui.viewdoc;
@@ -13,7 +12,6 @@ import omui.ui.markdown;
 
 namespace omui::cli {
 
-namespace cmd = mcpplibs::cmdline;
 namespace vd = omui::viewdoc;
 
 // The components every document may use: the official ones.

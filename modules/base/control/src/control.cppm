@@ -204,6 +204,9 @@ struct CatalogEntry {
     // What follows it when it is done — the reading that shows what a change did: the session gives these with
     // the result (`then`), so an agent checks its work without knowing the catalog.
     std::span<const Way> then;
+    // It holds a terminal or a window while it runs (a development session, a server): a person's command line runs
+    // it; an agent's entries list it not, and a session that is not a command line refuses it, with the command to type.
+    bool terminal = false;
 };
 // A task to begin with: what it gets done, and the requests that do it, in order, each as it is sent.
 struct Task {

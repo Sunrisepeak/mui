@@ -42,7 +42,6 @@ hanim.timeline = { path = "../../../hanim/timeline" }
 xrender.vector = { path = "../../../xrender/vector" }
 mlibs.image = { path = "../../../../base/image" }
 omui.host.headless = { path = "../../host/headless" }
-mcpplibs.cmdline = "0.0.3"
 mcpplibs.os      = "0.4.4"
 marzer.tomlplusplus = "3.4.0"
 

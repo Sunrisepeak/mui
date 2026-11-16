@@ -32,6 +32,9 @@ struct Operation {
     // Its effect is that of what it runs (a node's action, an application's verb),
     // decided where that runs; `effect` is the most it can be.
     bool delegated = false;
+    // It holds a terminal or a window while it runs (a development session, a server): a person's command line
+    // runs it; an agent's entries (MCP, the protocol) list it not and refuse it, with the command to type.
+    bool terminal = false;
     std::vector<OpParameter> parameters;
     std::vector<std::string> examples;  // requests of it, each a JSON object on one line
     std::vector<std::string> keywords;  // words an intent may use for it that its summary does not

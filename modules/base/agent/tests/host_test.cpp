@@ -20,9 +20,11 @@ public:
     agent::Capabilities capabilities() const noexcept override { return {.observation = true, .control = true}; }
     std::span<const control::CatalogEntry> operations() const noexcept override {
         static constexpr std::array<control::Parameter, 2> add_parameters{{{"by", "integer", "how much (1 when none is given)", true}, {"dry_run", "bool", "only say what it would be", true}}};
-        static constexpr std::array<control::CatalogEntry, 2> all{{
+        static constexpr std::array<control::CatalogEntry, 3> all{{
             {{"counter.read", openas::Effect::read, false}, "The count", {}, "json", control::Cost::instant, "", false, false, false},
             {{"counter.add", openas::Effect::reversible, false}, "Adds to the count", add_parameters, "json", control::Cost::instant, "counter.add with the opposite", false, false, false},
+            // Holds the terminal while it runs: a person's command line's.
+            {{"counter.watch", openas::Effect::read, false}, "Shows the count as it changes, until stopped", {}, "json", control::Cost::heavy, "", false, false, false, {}, "", {}, true},
         }};
         return all;
     }
@@ -151,6 +153,20 @@ static UTest cases{"agent.host", [] {
             << helped.str();
         std::ostringstream none;
         expect(eq(agent::command_line(session, {}, none, errors), 2));
+    };
+
+    "what holds the terminal is a person's command line's: run there, refused elsewhere with the way, no MCP tool"_test = [] {
+        Counter counter;
+        agent::SubjectSession over_protocol({&counter});
+        const agent::Answered refused = agent::answer_to(over_protocol, R"({"op":"counter.watch"})");
+        expect(eq(refused.exit_code, 1) && std::ranges::any_of(refused.records, [](const std::string& record) { return record.contains(R"("code":"refused")") && record.contains("command line"); }))
+            << refused.records.size();
+        const std::string listed = agent::mcp_reply(over_protocol, R"({"jsonrpc":"2.0","id":1,"method":"tools/list"})");
+        expect(listed.contains("counter_add") && !listed.contains("counter_watch")) << listed;
+        agent::SubjectSession typed({&counter}, {.command_line = true});
+        std::ostringstream out, errors;
+        const std::array watch{std::string_view("counter.watch")};
+        expect(eq(agent::command_line(typed, watch, out, errors), 0) && out.str().contains(R"("count":0)")) << out.str() << errors.str();
     };
 
     "MCP over lines: initialize, a notification unanswered, ping, an unknown method"_test = [] {

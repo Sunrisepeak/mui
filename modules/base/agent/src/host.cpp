@@ -66,7 +66,7 @@ std::vector<Tool> tools_of(Session& session) {
         if (!brief) continue;
         for (const json::Node& operation : brief->root()["operations"].items()) {
             Tool tool{operation["name"].text().value_or(""), operation["summary"].text().value_or(""), R"({"type":"object"})", operation["effect"].text() == "read"};
-            if (tool.operation.empty()) continue;
+            if (tool.operation.empty() || operation["terminal"].boolean().value_or(false)) continue;  // a person's command line's
             if (full)
                 for (const json::Node& listed : full->root()["tools"].items())
                     if (listed["name"].text() == tool.operation && listed["inputSchema"].is_object()) tool.schema = listed["inputSchema"].dump();

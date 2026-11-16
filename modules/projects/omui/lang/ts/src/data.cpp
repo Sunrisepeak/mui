@@ -93,6 +93,8 @@ export interface Operation {
     delegated?: boolean;
     /** The runtime's undo takes it back. */
     undoable?: boolean;
+    /** It holds a terminal or a window while it runs: a person's command line runs it, an agent's entries do not. */
+    terminal?: boolean;
     /** Its arguments as they are sent, the plainest first (`{}`: none): `describe` shows them as requests. */
     examples?: Record<string, unknown>[];
     /** Words an intent may use for it that the summary does not (`"fire"` for a heat): `find` reads them. */

@@ -51,8 +51,8 @@ std::string brief(const Subject& subject) {
     for (const mlibs::control::CatalogEntry& entry : subject.operations()) {
         if (!first) out += ',';
         first = false;
-        out += std::format("{{\"name\":{},\"effect\":{},\"summary\":{}}}", json_text(entry.operation.name), json_text(openas::name(entry.operation.effect)),
-                           json_text(entry.summary));
+        out += std::format("{{\"name\":{},\"effect\":{},\"summary\":{}{}}}", json_text(entry.operation.name), json_text(openas::name(entry.operation.effect)),
+                           json_text(entry.summary), entry.terminal ? ",\"terminal\":true" : "");
     }
     out += "]}";
     return out;
@@ -346,6 +346,13 @@ void SubjectSession::dispatch(std::string_view line, const Reply& reply) {
     if (!found) {
         fail(openas::Effect::read, openas::error_code::not_found, std::format("no subject here has an operation `{}` (ask `subjects`, then `describe` one)", request.op),
              openas::exit_code::failed, nearest(subjects_, request.op));
+        return;
+    }
+    // What holds a terminal is a person's command line's to run.
+    if (found->terminal && !options_.command_line) {
+        fail(found->operation.effect, openas::error_code::refused,
+             std::format("`{}` holds a terminal or a window while it runs: a person runs it from the command line", request.op), openas::exit_code::failed,
+             ways({way_out(std::format("what `{}` takes", request.op), describing(request.op))}));
         return;
     }
     // Authority first: nothing reaches a subject undecided.

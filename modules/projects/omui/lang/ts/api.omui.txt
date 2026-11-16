@@ -49,6 +49,7 @@ namespace omui::lang::ts {
   [[nodiscard]] std::string pascal_case(std::string_view snake);
 }
 == omui.lang.ts:define
+export import mlibs.ts;
 namespace omui::lang::ts {
   inline constexpr std::array<std::string_view, 3> spec_kinds{…};
   inline constexpr std::array<std::string_view, 17> omui_kinds{…};

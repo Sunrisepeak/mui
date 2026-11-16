@@ -8,7 +8,9 @@
 export module omui.lang.ts:define;
 
 import std;
-import mlibs.ts;
+// Re-exported: its failures are mlibs.ts's (TsFailure), whose codes describe themselves there — an importer that
+// prints one needs `describe(TsError)` visible (Clang looks it up only where it is imported).
+export import mlibs.ts;
 
 export namespace omui::lang::ts {
 

@@ -8,7 +8,9 @@ export module mlibs.xdef.tool;
 
 import std;
 export import mlibs.xdef;
-import mlibs.ts;
+// Re-exported: snapshots fail as mlibs.ts's (TsFailure), whose codes describe themselves there (Clang looks
+// `describe(TsError)` up only where mlibs.ts is imported).
+export import mlibs.ts;
 
 export namespace mlibs::xdef {
 

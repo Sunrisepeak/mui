@@ -17,6 +17,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "library: omui's TypeScript formats for tools and the player"
+reexports = ["mlibs.ts"]  # its failures are mlibs.ts's (lint module-closure)
 kind = "lang"
 agent = { library = "declarations and edits of TypeScript: functions of the source" }
 

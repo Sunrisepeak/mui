@@ -225,7 +225,7 @@ AGENTS.md 规定组件和 native 模块“契约优先”。标记让契约可�
   - 增量：每个 edge 声明全部输入；
   - 诊断：使用 `文件:行:列: 信息 (提示)` 格式；
   - 可观测：每个插件一个 trace 类别 `build.<插件>`。
-- 每个插件有自己的测试：`tests/plugins/contracts`、`tests/plugins/embed` 各是一个第三方包的夹具；toy 由 `tools/ci/toy.sh` 和 `tools/ci/site.sh` 检查打出的包。可选插件进 mcpp-index 时，必须有独立仓库的 CI。
+- 插件的测试在一个第三方包的夹具 `tests/plugins`（包 `acme.plugins`：契约生成的组件、嵌入的数据、主题和行为各有用例；2026-11-16 起由两个夹具合并）；toy 由 `tools/ci/toy.sh` 和 `tools/ci/site.sh` 检查打出的包。可选插件进 mcpp-index 时，必须有独立仓库的 CI。
 
 ---
 

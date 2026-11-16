@@ -215,9 +215,9 @@ int templates(const fs::path& root) {
         if (member) {
             // A temporary member of this workspace, its paths relative to it.
             std::string manifest = mcpplibs::os::fs::read(root / "mcpp.toml").value_or("");
-            const std::string anchor = "    \"tests/plugins/embed\",\n";
+            const std::string anchor = "    \"tests/plugins\",\n";
             const auto at = manifest.find(anchor);
-            if (at == std::string::npos) return failed("the workspace's member list has no tests/plugins/embed to add after");
+            if (at == std::string::npos) return failed("the workspace's member list has no tests/plugins to add after");
             manifest.insert(at + anchor.size(), std::format("    \".template-check/{}\",\n", project));
             std::ofstream(root / "mcpp.toml", std::ios::binary) << manifest;
             std::string own = mcpplibs::os::fs::read(destination / "mcpp.toml").value_or("");

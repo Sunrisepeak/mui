@@ -27,6 +27,7 @@ export import xrender.raster;
 export import mlibs.control;
 export import mlibs.agent;
 export import :catalog;
+export import :sources;
 
 export namespace hanim::studio {
 

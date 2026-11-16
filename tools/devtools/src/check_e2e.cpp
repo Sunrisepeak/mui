@@ -108,13 +108,14 @@ int tools_e2e(const fs::path& root, const std::vector<std::string>& profile_args
     expect.status(2, hanim, {"--file", document});
 
     const std::string effects = "modules/projects/xrender/effect/tests/data", xrender = bin.at("xrender");
-    expect.status(0, xrender, {"device"});
-    expect.status(0, xrender, {"effect", "check", effects + "/scanlines.effect.omui.json"}) && expect.has(R"("name":"strength")");
-    expect.status(1, xrender, {"effect", "check", effects + "/greedy.effect.omui.json"}) && expect.has("binds resources of its own");
-    expect.status(0, xrender, {"effect", "preview", effects + "/scanlines.effect.omui.json", "--out", at("scan.png"), "--param", "strength=0.7"}) &&
+    expect.status(0, xrender, {"device.describe"});
+    expect.status(0, xrender, {"effect.check", "--files", effects + "/scanlines.effect.omui.json"}) && expect.has(R"("name":"strength")");
+    expect.status(1, xrender, {"effect.check", "--files", effects + "/greedy.effect.omui.json"}) && expect.has("binds resources of its own");
+    expect.status(0, xrender, {"effect.preview", "--file", effects + "/scanlines.effect.omui.json", "--out", at("scan.png"), "--param", "strength=0.7"}) &&
         expect.holds(fs::exists(dir / "scan.png") && fs::file_size(dir / "scan.png") > 0, "the preview was written");
-    expect.status(0, xrender, {"cts", "--report", at("render.cts.omui.json")}) && expect.has(R"("failed":\[\])");
-    expect.status(2, xrender, {"frobnicate"});
+    expect.status(0, xrender, {"conformance.run", "--report", at("render.cts.omui.json")}) && expect.has(R"("failed":\[\])");
+    expect.status(1, xrender, {"frobnicate"}) && expect.has(R"("code":"not-found")");
+    expect.status(2, xrender, {"--report", "x"});
 
     const fs::path timeline = dir / "short.timeline.omui.json";
     const std::string tl = bin.at("hanim-timeline"), file = mcpplibs::os::fs::utf8(timeline);

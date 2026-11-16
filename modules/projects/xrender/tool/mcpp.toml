@@ -16,17 +16,24 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
 kind = "tool"
+reexports = ["mlibs.agent"]  # what its interface re-exports (lint module-closure)
 agent = "tool"
+
+[targets.xrender-tool]
+kind = "lib"
 
 [targets.xrender]
 kind = "bin"
 main = "src/main.cpp"
 
 [build]
-sources = ["src/*.cpp"]
+sources = ["src/*.cppm", "src/*.cpp", "src/catalog/*.cppm"]
 
 [dependencies]
-mcpplibs.cmdline = "0.0.3"
+# The command is the subject `xrender` behind the tool kernel's entries (mlibs.agent:host, T0).
+mlibs.agent = { path = "../../../base/agent" }
+mlibs.json  = { path = "../../../base/json" }
+openlifa.openas = "0.2.0"
 xrender.vector  = { path = "../vector" }
 xrender.raster  = { path = "../raster" }
 xrender.effect  = { path = "../effect" }

@@ -1,16 +1,19 @@
 // xrender's operations (convergence plan §10.3): what an Agent does with the
-// renderer without a GUI, through the `xrender` command (JSON out; exit 0
-// done, 1 failed with why, 2 a wrong command). omui-gen ops makes the listing
-// (media/ops/xrender.ops.json for CLI and MCP bindings) and the reference
-// (media/ops/xrender.ops.md); effects are openas's. Drawing itself is the
+// renderer without a GUI, through the `xrender` command — the subject `xrender`
+// behind the tool kernel's entries (`xrender effect.check --files a.json`,
+// `xrender mcp`; records out, exit 0 done, 1 failed with why). omui-gen ops makes
+// the catalog (src/catalog/catalog.cppm), the listing (xrender.ops.json) and the
+// reference (xrender.ops.md); effects are openas's. Drawing itself is the
 // library's (a display list into the CPU or GPU renderer); a running
 // application's pixels are its host's `capture`.
 import { defineOps } from "omui/define";
 
 export default defineOps({
   product: "xrender",
+  module: "xrender.tool",
+  namespace: "xrender::tool",
   doc: "Check and preview pixel effects through the real GPU renderer, run the render contract's conformance suite on this machine's device, describe the device, look at a glTF model beside another renderer's picture of it.",
-  generated: "media/ops",
+  generated: "src/catalog",
   operations: [
     {
       name: "effect.check",
@@ -69,6 +72,20 @@ export default defineOps({
       effect: "read",
       summary: "The GPU device: backend, name, whether it is software, shader formats, limits",
       result: "json",
+    },
+    {
+      name: "fidelity.run",
+      effect: "reversible",
+      summary: "model-viewer's render-fidelity scenarios drawn by model.look, each against its golden in the suite's measure: a Markdown table (what it reads fetched once into a cache: the suite's list, goldens, surroundings, Khronos' sample models)",
+      params: [
+        { name: "names", type: "json", doc: "scenarios (khronos-Duck) or models (Duck); none: every one that can be drawn", optional: true },
+        { name: "cache", type: "path", doc: "what is fetched (default ~/.cache/omui/fidelity)", optional: true },
+        { name: "out", type: "path", doc: "the pictures drawn (default the cache's drawn)", optional: true },
+        { name: "follow", type: "string", doc: "the light followed way by way too, RAYS a pixel", optional: true },
+      ],
+      result: "json",
+      cost: "heavy",
+      undo: "delete the cache and the pictures drawn",
     },
   ],
 });

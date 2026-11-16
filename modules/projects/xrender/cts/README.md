@@ -1,6 +1,6 @@
 # xrender.cts
 
-The render contract's conformance suite, on `mlibs.cts` (convergence plan §5.5, D-118). It belongs to xrender, the contract's owner, and every backend's tests run it on their device: `xrender.rhi.sdl`'s `render_cts_test` on SDL_GPU (lavapipe in Linux CI, Metal on macOS, Vulkan/lavapipe on Windows), as that test's own cases (mtest reports each, with the device as their subject). `xrender cts` counts the same cases on this machine's device and writes them, with their evidence, where `--report` says.
+The render contract's conformance suite, on `mlibs.cts` (convergence plan §5.5, D-118). It belongs to xrender, the contract's owner, and every backend's tests run it on their device: `xrender.rhi.sdl`'s `render_cts_test` on SDL_GPU (lavapipe in Linux CI, Metal on macOS, Vulkan/lavapipe on Windows), as that test's own cases (mtest reports each, with the device as their subject). `xrender conformance.run` counts the same cases on this machine's device and writes them, with their evidence, where `--report` says.
 
 ```cpp
 import xrender.cts;

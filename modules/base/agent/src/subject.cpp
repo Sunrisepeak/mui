@@ -286,10 +286,21 @@ void SubjectSession::dispatch(std::string_view line, const Reply& reply) {
         const auto operation = request["operation"].text();
         const auto named = request["subject"].text();
         Subject* candidate = nullptr;
+        // An operation is found by its whole name in whichever subject lists it (as one is run); a subject by its name.
         for (Subject* each : subjects_) {
-            if (named ? each->name() == *named : (operation ? operation->starts_with(std::string(each->name()) + ".") : subjects_.size() == 1)) candidate = each;
+            if (named) {
+                if (each->name() == *named) candidate = each;
+            } else if (operation) {
+                if (std::ranges::any_of(each->operations(), [&](const auto& listed) { return listed.operation.name == *operation; })) candidate = each;
+            } else if (subjects_.size() == 1) {
+                candidate = each;
+            }
             if (candidate) break;
         }
+        // An operation no subject lists: the one whose name it begins with says so, with the nearest names.
+        if (!candidate && operation && !named)
+            for (Subject* each : subjects_)
+                if (operation->starts_with(std::string(each->name()) + ".")) candidate = each;
         if (!candidate) {
             const std::string here = ways({way_out("who is here", who_is_here)});
             if (named) return answer.fail(openas::error_code::not_found, std::format("no subject here is named `{}` (ask `subjects`)", *named), openas::exit_code::failed, here);

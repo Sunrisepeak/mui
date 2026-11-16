@@ -19,10 +19,10 @@ Each failure lists the red rows that name it (its package, the package a `.cts` 
 A command held within a share of the machine (AGENTS.md §5): at most `--jobs` compilers, assemblers and linkers of all its descendants run at once, whatever the command plans (mcpp builds workspace groups and host tools side by side, each with its own job count); while available memory is under `--memory-floor` (10%) of the total, fewer. The newest beyond the limit are paused and continued as the oldest finish; test programs and the build tools are never paused, since a test may measure time. Interrupting or terminating it continues what is paused and passes the request to the whole command.
 
 ```sh
-omui-devtools govern --jobs 22 -- mcpp test --workspace
+mcpp run omui-devtools -p tools/devtools -- govern -- mcpp test --workspace
 ```
 
-[`tools/dev/capped.sh`](../dev/capped.sh) runs every local build and test through it, building it first when it is not. What runs is read from the system's process table (`ps`) and paused and continued with `kill`, both run through mcpplibs.os, which does not yet list or pause programs it did not start; on Windows the command runs with its job count alone. `capped.sh` uses it where `/proc/meminfo` gives the memory figure.
+Every local build and test runs through it. Without `--jobs` it takes the machine's share (90% of the cores, and of the memory at about 2.25 GB a compile; a lower `MCPP_JOBS` is kept), sets `MCPP_JOBS` to it for the command, and runs the command under `ionice -c 3` and `nice -n 10` where they exist (`--normal-priority`: not). What runs is read from the system's process table (`ps`) and paused and continued with `kill`, both run through mcpplibs.os, which does not yet list or pause programs it did not start; on Windows the command runs with its job count alone.
 
 ## incremental
 

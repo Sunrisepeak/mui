@@ -8,7 +8,7 @@
 //         tests too, not run) with CI's LLVM and profile: the errors only
 //         clang and libc++ give (reds 90, 91, 93), before a push.
 //   govern  a command held within a share of the machine: its compilers and
-//         linkers at most --jobs at once (tools/dev/capped.sh, AGENTS §5).
+//         linkers at most 90% of the machine at once, low priority (AGENTS §5).
 //   incremental  the same build twice: the second leaves every compilation
 //         output untouched (CI's row; exit 1 when one changed).
 //   api   a package's exported surface (api.omui.txt beside it): printed, written, or checked.
@@ -47,6 +47,7 @@ import omui.devtools.lead;
 import omui.devtools.lint;
 import omui.devtools.members;
 import omui.devtools.platforms;
+import omui.devtools.run;
 
 namespace cmd = mcpplibs::cmdline;
 namespace rec = omui::devtools::ci;
@@ -189,8 +190,9 @@ cmd::App app() {
                                         .description("CI's matrix on this one Linux machine, for when hosted runners are unavailable (wine for the Windows row)")
                                         .arg(Arg("member").help("these members (default: the workspace)"))))
         .subcommand(cmd::App("govern")
-                        .description("Run a command with at most --jobs of its compilers and linkers at once, fewer while memory is short (AGENTS §5)")
-                        .option(Option("jobs").takes_value().value_name("N").help("how many may run at once"))
+                        .description("Run a command within 90% of this machine: MCPP_JOBS, at most that many of its compilers and linkers at once, fewer while memory is short, at low priority (AGENTS §5)")
+                        .option(Option("jobs").takes_value().value_name("N").help("how many may run at once (default: 90% of the cores and of the memory at 2.25 GB a compile)"))
+                        .option(Option("normal-priority").help("not under ionice and nice"))
                         .option(Option("memory-floor").takes_value().value_name("SHARE").help("under this share of the memory available, fewer (default: 0.10)"))
                         .option(Option("interval").takes_value().value_name("MS").help("how often it looks (default: 250)"))
                         .arg(Arg("command").required().help("after --: the command and its arguments")))
@@ -465,40 +467,23 @@ int llvm(const cmd::ParsedArgs& options, const fs::path& root) {
     }
     std::vector<std::string> args{"test", "--toolchain", toolchain, "--profile", options.value("profile").value_or("ci"), "--no-run"};
     for (const auto& path : picked) args.insert(args.end(), {"-p", path});
-    // Within 90% of the machine (AGENTS §5): through tools/dev/capped.sh where it is.
-    const fs::path capped = root / "tools/dev/capped.sh";
-    std::error_code missing;
-    const bool through_capped = !mcpplibs::os::is_windows && fs::exists(capped, missing);
     std::cout << std::format("{} member(s) changed, {} with their direct consumers; {}\n", chosen.size(), picked.size(), toolchain);
     for (const auto& path : picked) std::cout << "  " << path << (std::ranges::contains(chosen, path) ? "" : "  (consumer)") << '\n';
-    std::string shown = through_capped ? "tools/dev/capped.sh mcpp" : "mcpp";
+    std::string shown = "omui-devtools govern -- mcpp";
     for (const auto& arg : args) shown += " " + arg;
     std::cout << shown << '\n';
     if (options.is_flag_set("dry")) return 0;
-    const auto mcpp = mcpplibs::os::env::find_executable("mcpp");
-    if (!mcpp) {
-        std::cerr << "omui-devtools llvm: `mcpp` is not on PATH\n";
+    // Within 90% of the machine (AGENTS §5).
+    namespace held = omui::devtools::govern;
+    held::Options given{.jobs = omui::devtools::run::share_of_machine(), .cwd = root};
+    given.command = {"mcpp"};
+    given.command.insert(given.command.end(), args.begin(), args.end());
+    const auto status = held::run(given);
+    if (!status) {
+        std::cerr << "omui-devtools llvm: " << status.error() << '\n';
         return 2;
     }
-    mcpplibs::os::process::spawn_options spawn;
-    if (through_capped) {
-        spawn.program = capped;
-        spawn.args = {"mcpp"};
-        spawn.args.insert(spawn.args.end(), args.begin(), args.end());
-    } else {
-        spawn.program = *mcpp;
-        spawn.args = std::move(args);
-    }
-    spawn.cwd = root;
-    spawn.out = mcpplibs::os::process::stdio::inherit;
-    spawn.err = mcpplibs::os::process::stdio::inherit;
-    auto process = mcpplibs::os::process::process::spawn(spawn);
-    if (!process) {
-        std::cerr << std::format("omui-devtools llvm: mcpp did not start: {}\n", process.error().message());
-        return 2;
-    }
-    auto status = process->wait();
-    return status ? status->shell_code() : 1;
+    return *status;
 }
 
 int govern(const cmd::ParsedArgs& options) {
@@ -508,10 +493,12 @@ int govern(const cmd::ParsedArgs& options) {
         const auto [end, failed] = std::from_chars(text.data(), text.data() + text.size(), value);
         return failed == std::errc{} && end == text.data() + text.size();
     };
-    if (!number(options.value("jobs").value_or(""), given.jobs) || given.jobs < 1) {
+    given.jobs = omui::devtools::run::share_of_machine();
+    if (const auto jobs = options.value("jobs"); jobs && (!number(*jobs, given.jobs) || given.jobs < 1)) {
         std::cerr << "omui-devtools govern: --jobs takes a count of at least 1\n";
         return 2;
     }
+    given.low_priority = !options.is_flag_set("normal-priority");
     if (const auto floor = options.value("memory-floor"); floor && (!number(*floor, given.memory_floor) || given.memory_floor < 0 || given.memory_floor >= 1)) {
         std::cerr << "omui-devtools govern: --memory-floor takes a share in [0, 1)\n";
         return 2;

@@ -5,7 +5,8 @@
 // while available memory is under `memory_floor` of the total, fewer. The
 // newest beyond the limit are paused and continued as the oldest finish. Test
 // programs and the build tools themselves are never paused: a test may measure
-// time. tools/dev/capped.sh runs every local build and test through it.
+// time. Every local build and test runs through it (`omui-devtools govern -- mcpp test -p …`): by default with the
+// machine's share as its job count, MCPP_JOBS set to it, at low CPU and I/O priority.
 //
 // What runs is read from the system's process table (`ps`) and held with `kill`
 // (Linux, macOS); on Windows the command runs with the job count it was given
@@ -56,6 +57,8 @@ struct Options {
     double                    memory_floor = 0.10;
     std::chrono::milliseconds interval{250};
     std::vector<std::string>  command;  // the program (on PATH or a path) and its arguments
+    std::filesystem::path     cwd;      // where it runs (default: here)
+    bool                      low_priority = true;  // under `ionice -c 3` and `nice -n 10` where they exist
 };
 
 // Runs the command as a unit of its own and holds it until it ends; its status

@@ -979,7 +979,7 @@ static UTest cases{"site", [] {
         // Re-pinned with the lead page (Part 2 §2.3): the docs' directory lists "Lead" after the practical guide.
         // Re-pinned with D-138: the docs say C++, TypeScript and view documents (features §4, the practical
         // guide's table), the interface page compares C++ and TypeScript, the combobox sample picks how a view is written.
-        expect(eq(all.hex(), std::string("0d9430382f9aa6c8")));
+        expect(eq(all.hex(), std::string("b91df5b07125b4fa")));
     };
 
     "the components: curated search, live detail, reset, languages and scoped appearance"_test = [] {

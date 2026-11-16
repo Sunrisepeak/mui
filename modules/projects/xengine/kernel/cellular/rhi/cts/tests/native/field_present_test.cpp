@@ -6,7 +6,7 @@
 import std;
 import mlibs.rhi;
 import mlibs.geom;
-import xengine.cellular.sdl;
+import xrender.rhi.sdl;
 import xrender.raster;
 import xrender.vector;
 import xengine.cellular;
@@ -21,9 +21,9 @@ namespace geom = mlibs::geom;
 
 UTest cases{"cellular.present.device", [] {
     "the field drawn by the GPU from the device's own cells is the CPU's picture, one command each"_test = [] {
-        auto created = xengine::cellular::sdl::open(xrender::gpu_shader_formats() & ca::gpu::shader_formats());
+        auto created = xrender::rhi::sdl::create(xrender::rhi::sdl::environment_options({.formats = xrender::gpu_shader_formats() & ca::gpu::shader_formats()}));
         if (!created) {
-            if (xengine::cellular::sdl::required()) expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", created.error());
+            if (xrender::rhi::sdl::device_required()) expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", created.error().message);
             return;
         }
         rhi::Device& device = **created;

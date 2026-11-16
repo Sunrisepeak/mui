@@ -32,8 +32,22 @@ xengine.matter = { path = "../../../matter" }
 
 # The suite on the page's WebGPU (tests/*_webgpu_test.cpp; omui-devtools check browser runs it in a
 # browser): the owner takes a backend for its tests, never a backend its consumers (D-161).
-# Its run on SDL_GPU is in a native-only package: this one runs on the Web too.
+# Its run on SDL_GPU, and the field on screen from the device's own cells (tests/native/), are native only:
+# selected by target (mcpp 2026.11.16.1, #942), with what they import.
 [dev-dependencies]
 mcpplibs.mtest     = "0.8.4"
 xrender.rhi.webgpu = { path = "../../../../../xrender/rhi/webgpu" }
 mcpplibs.os        = "0.4.4"
+
+[test]
+discover = ["tests/*.cpp", "tests/native/*.cpp"]
+
+[target.'cfg(os = "emscripten")'.test]
+discover = ["!tests/native/**"]
+
+[target.'cfg(not(os = "emscripten"))'.dev-dependencies]
+xrender.rhi.sdl            = { path = "../../../../../xrender/rhi/sdl" }
+"xengine.cellular.present" = { path = "../../present" }
+xrender.vector             = { path = "../../../../../xrender/vector" }
+xrender.raster             = { path = "../../../../../xrender/raster" }
+mlibs.geom                 = { path = "../../../../../../base/geom" }

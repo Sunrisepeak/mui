@@ -67,8 +67,7 @@ std::string utf8(const std::filesystem::path& path) {
 std::expected<std::unique_ptr<rhi::Device>, std::string> open_device() {
     xrender::rhi::sdl::Options options;
     options.formats = xrender::gpu_shader_formats();
-    if (auto library = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) options.vulkan_library = *library;
-    if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) options.video_driver = *video;
+    options = environment_options(std::move(options));  // OMUI_VULKAN_LIBRARY, OMUI_GPU_VIDEO_DRIVER
     auto device = xrender::rhi::sdl::create(options);
     if (!device) return std::unexpected(std::format("no GPU device: {}", device.error().message));
     return std::move(*device);

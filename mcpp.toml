@@ -64,7 +64,6 @@ members = [
     "modules/gfx/shader",
     "modules/gfx/shader/rules",
     "modules/projects/xengine/kernel/cellular/present",
-    "modules/projects/xengine/kernel/cellular/sdl",
     "modules/projects/xengine/kernel/cellular/rhi",
     "modules/projects/xengine/kernel/cellular/rhi/cts",
     "modules/content/i18n",

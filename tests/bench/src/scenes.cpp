@@ -20,7 +20,6 @@ import omui.showcase.style_gallery;
 import omui.theme.styles;
 import mlibs.rhi;
 import xrender.rhi.sdl;
-import mcpplibs.os;
 import xrender.text;
 
 namespace omui {  // names this file uses unqualified, from their owner
@@ -126,8 +125,7 @@ public:
         static mlibs::rhi::Result<std::unique_ptr<mlibs::rhi::Device>> shared = [] {
             xrender::rhi::sdl::Options o;
             o.formats = xrender::gpu_shader_formats();
-            if (auto lib = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) o.vulkan_library = *lib;
-            if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) o.video_driver = *video;
+            o = environment_options(std::move(o));  // OMUI_VULKAN_LIBRARY, OMUI_GPU_VIDEO_DRIVER
             return xrender::rhi::sdl::create(o);
         }();
         if (!shared) {

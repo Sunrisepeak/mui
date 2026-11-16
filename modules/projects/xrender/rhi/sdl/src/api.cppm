@@ -45,6 +45,15 @@ struct Options {
 // backend for those formats; the caller falls back to the CPU renderer).
 [[nodiscard]] Result<std::unique_ptr<Device>> create(const Options& options = {});
 
+// The options this machine's environment gives a device, over `base`: the Vulkan loader and SDL's video driver
+// named by OMUI_VULKAN_LIBRARY and OMUI_GPU_VIDEO_DRIVER when they are set (`omui-devtools gpu` sets them: CI's
+// software device, this machine's GPU without a display). Every program and test that opens a device as the
+// machine allows takes it from here.
+[[nodiscard]] Options environment_options(Options base = {});
+
+// Whether a missing device is a failure where this runs (OMUI_REQUIRE_GPU=1: CI's GPU rows) or only said.
+[[nodiscard]] bool device_required();
+
 // The backends this build of SDL can drive, in its order of preference.
 [[nodiscard]] std::vector<Backend> backends();
 

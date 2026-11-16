@@ -40,7 +40,6 @@ constexpr std::pair<std::string_view, std::string_view> path_layers[]{
     {"modules/projects/xengine/kernel/cellular", "base"},  // its CPU part
     {"modules/projects/xengine/kernel/cellular/rhi", "gfx"},
     {"modules/projects/xengine/kernel/cellular/present", "gfx"},  // cells to an xrender image
-    {"modules/projects/xengine/kernel/cellular/sdl", "gfx"},      // the kernel's suite and field on a native device
     {"modules/projects/xengine/kernel/audio", "media"},
     {"modules/projects/xengine/kernel/video", "media"},
     {"modules/projects/xengine/kernel/matter", "base"},     // materials, their states and laws (D-165)

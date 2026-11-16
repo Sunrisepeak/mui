@@ -7,7 +7,6 @@ import std;
 import mlibs.rhi;
 import xrender.rhi.sdl;
 import mlibs.rhi.cts;
-import mcpplibs.os;
 import mlibs.testing;
 import mcpplibs.mtest;
 
@@ -20,14 +19,13 @@ using namespace mlibs::rhi;
 namespace {
 
 bool required() {
-    return mcpplibs::os::env::get("OMUI_REQUIRE_GPU") == "1";
+    return xrender::rhi::sdl::device_required();
 }
 
 std::unique_ptr<Device> open_device() {
     sdl::Options o;
     o.formats = cts::shader_formats();  // what the suite's shaders were compiled to
-    if (auto lib = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) o.vulkan_library = *lib;
-    if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) o.video_driver = *video;
+    o = environment_options(std::move(o));  // OMUI_VULKAN_LIBRARY, OMUI_GPU_VIDEO_DRIVER
     auto d = sdl::create(o);
     if (!d) {
         if (required()) expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", d.error().message);

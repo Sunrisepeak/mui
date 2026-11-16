@@ -188,7 +188,12 @@ std::vector<Problem> check_modules(const Workspace& workspace) {
         if (const auto* targets = table_at(&data, "target"))
             for (const auto& [_, target] : *targets) tables.push_back(table_at(target.as_table(), "dependencies"));
         for (const auto& feature : features_on(data, features, true)) tables.push_back(table_at(table_at(&data, "feature-deps"), feature));
-        if (tests) tables.push_back(table_at(&data, "dev-dependencies"));
+        if (tests) {
+            tables.push_back(table_at(&data, "dev-dependencies"));
+            // A test selected by target (mcpp#942) imports what its target's dev-dependencies give.
+            if (const auto* targets = table_at(&data, "target"))
+                for (const auto& [_, target] : *targets) tables.push_back(table_at(target.as_table(), "dev-dependencies"));
+        }
         std::set<std::string> names{package_name(data)};
         for (const auto* table : tables) {
             if (!table) continue;

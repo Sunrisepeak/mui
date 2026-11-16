@@ -206,9 +206,20 @@ std::vector<Problem> check_platforms(const Workspace& workspace) {
         known.insert(member.path);
         if (std::ranges::contains(strings_at(table_at(&*member.data, "package"), "platforms"), "emscripten")) web.insert(member.path);
     }
+    // A target table counts on the Web only when its selector can choose the Web: `cfg(os = "emscripten")` or a
+    // selector that names no system; `cfg(not(os = "emscripten"))` or another system's is native (mcpp#942).
+    const auto chooses_web = [](std::string_view selector) {
+        if (selector.contains("emscripten")) return !selector.contains("not(");
+        return !selector.contains("os =") && !selector.contains("os=");
+    };
     for (const auto& path : web) {
         const Member& member = *workspace.find(path);
-        for (const auto* table : tables_of(*member.data, {"dependencies", "dev-dependencies"})) {
+        std::vector<const toml::table*> tables = tables_of(*member.data, {"dependencies", "dev-dependencies"}, false);
+        if (const auto* targets = table_at(&*member.data, "target"))
+            for (const auto& [selector, target] : *targets)
+                if (chooses_web(selector.str()))
+                    for (const auto kind : {"dependencies", "dev-dependencies"}) tables.push_back(table_at(target.as_table(), kind));
+        for (const auto* table : tables) {
             if (!table) continue;
             for (const auto& [name, node] : flatten(*table)) {
                 const auto relative = path_in(node);

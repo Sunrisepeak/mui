@@ -7,7 +7,6 @@ import mlibs.rhi;
 import mlibs.cts;
 import xrender.rhi.sdl;
 import xrender.mesh.gpu.cts;
-import mcpplibs.os;
 import mlibs.testing;
 import mcpplibs.mtest;
 
@@ -18,11 +17,10 @@ UTest cases{"mesh.gpu.sdl", [] {
     "the mesh pass's suite passes on this device, every case"_test = [] {
         xrender::rhi::sdl::Options options;
         options.formats = xrender::mesh::gpu::cts::shader_formats();
-        if (auto library = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) options.vulkan_library = *library;
-        if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) options.video_driver = *video;
+        options = environment_options(std::move(options));  // OMUI_VULKAN_LIBRARY, OMUI_GPU_VIDEO_DRIVER
         auto device = xrender::rhi::sdl::create(options);
         if (!device) {
-            if (mcpplibs::os::env::get("OMUI_REQUIRE_GPU") == "1") expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", device.error().message);
+            if (xrender::rhi::sdl::device_required()) expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", device.error().message);
             else std::println("no GPU device here ({}); set OMUI_REQUIRE_GPU=1 to make that a failure", device.error().message);
             return;
         }

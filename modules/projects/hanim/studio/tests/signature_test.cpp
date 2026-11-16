@@ -15,7 +15,6 @@ import xrender.vector;
 import hanim.engine;
 import hanim.render.vector;
 import mlibs.hash;
-import mcpplibs.os;
 import mlibs.testing;
 import mcpplibs.mtest;
 
@@ -103,11 +102,10 @@ UTest cases{"xrender.sdl.signature", [] {
     "the four signature shots: CPU and GPU draw the same frames through each course"_test = [] {
         xrender::rhi::sdl::Options o;
         o.formats = xrender::gpu_shader_formats();
-        if (auto lib = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) o.vulkan_library = *lib;
-        if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) o.video_driver = *video;
+        o = environment_options(std::move(o));  // OMUI_VULKAN_LIBRARY, OMUI_GPU_VIDEO_DRIVER
         auto created = xrender::rhi::sdl::create(o);
         if (!created) {
-            if (mcpplibs::os::env::get("OMUI_REQUIRE_GPU") == "1") expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", created.error().message);
+            if (xrender::rhi::sdl::device_required()) expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", created.error().message);
             return;
         }
         rhi::Device& device = **created;

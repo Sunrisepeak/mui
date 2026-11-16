@@ -24,13 +24,12 @@ std::filesystem::path data(std::string_view name, std::source_location here = st
     return std::filesystem::path(here.file_name()).parent_path() / "data" / name;
 }
 
-bool required() { return mcpplibs::os::env::get("OMUI_REQUIRE_GPU") == "1"; }
+bool required() { return xrender::rhi::sdl::device_required(); }
 
 std::unique_ptr<rhi::Device> open_device() {
     xrender::rhi::sdl::Options o;
     o.formats = render::gpu_shader_formats();
-    if (auto lib = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) o.vulkan_library = *lib;
-    if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) o.video_driver = *video;
+    o = environment_options(std::move(o));  // OMUI_VULKAN_LIBRARY, OMUI_GPU_VIDEO_DRIVER
     auto d = xrender::rhi::sdl::create(o);
     if (!d) {
         if (required()) expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", d.error().message);

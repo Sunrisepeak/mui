@@ -9,7 +9,6 @@ import mlibs.rhi;
 import mlibs.cts;
 import xrender.rhi.sdl;
 import xrender.cts;
-import mcpplibs.os;
 import mlibs.testing;
 import mcpplibs.mtest;
 
@@ -20,11 +19,10 @@ UTest cases{"xrender.cts.sdl", [] {
     "the render suite passes on this device, every case"_test = [] {
         xrender::rhi::sdl::Options o;
         o.formats = xrender::cts::shader_formats();
-        if (auto lib = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) o.vulkan_library = *lib;
-        if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) o.video_driver = *video;
+        o = environment_options(std::move(o));  // OMUI_VULKAN_LIBRARY, OMUI_GPU_VIDEO_DRIVER
         auto device = xrender::rhi::sdl::create(o);
         if (!device) {
-            if (mcpplibs::os::env::get("OMUI_REQUIRE_GPU") == "1") expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", device.error().message);
+            if (xrender::rhi::sdl::device_required()) expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", device.error().message);
             else std::println("no GPU device here ({}); set OMUI_REQUIRE_GPU=1 to make that a failure", device.error().message);
             return;
         }

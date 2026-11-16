@@ -7,4 +7,4 @@ One third-party package per build plugin (`mcpp/README.md`). Each package is bui
 | [contracts](contracts) (`acme.ui`) | `omui.build.contracts` | A badge's contract became its typed options, two-way count, enum, event and action |
 | [embed](embed) (`acme.data`) | `omui.build.embed` | Each file is a partition holding its text, byte for byte. Stems with `-` and `.`, and UTF-8, are covered. The tag's table lists every file of the suffix and no other; `themes()` and `behaviors()` are covered too |
 
-`omui.build.toy` is checked on the packages it makes: `tools/ci/toy.sh` checks the games and `tools/ci/site.sh` checks the site.
+`omui.build.toy` is checked on the packages it makes: `omui-devtools check toy` checks the games and `tools/ci/site.sh` checks the site.

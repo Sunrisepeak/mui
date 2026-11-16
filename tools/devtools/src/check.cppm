@@ -23,6 +23,16 @@
 //           built without it cannot read that `std`. A canary first — the smallest such graph, in a directory of
 //           its own: while it fails with that conflict the suite cannot be built and this says so (a warning);
 //           once a toolchain builds it, the suite runs and must pass; any other canary failure fails the step.
+// sweep     the interaction sweep (strategy §4, a hard gate, D-91): every program run headless as its own process
+//           and `omui agent sweep` over it — every node an agent can operate, every action performed (what can be
+//           undone, undone; what a person must answer, only asked). A dead control fails it. Each program's
+//           verdicts are kept in target/sweep/<program>.sweep.omui.jsonl, its output beside them.
+// toy       the Toy row (D-84 §6.5, §8.9): the games built for wasm32-emscripten and packed for Bilibili Toy
+//           (`mcpp pack --pkg-format dist-toy`, omui.build.toy's dist_toy()), each checked by Toy's own
+//           toy_doctor.py — the platform's checker, pinned to github.com/bilibili/toy at ae156ec (MIT), downloaded
+//           into target/toy and held to its sha256. Every package's sizes are said; Toy's hard limit, index.html at
+//           most 1 MiB, is the packer's error and the doctor's. Nothing is published (the maintainer's
+//           `toy create`). The packages are copied to target/toy/<target>/ with <target>.toy.omui.json beside.
 // atspi     examples 03 and 07 built and read and operated through AT-SPI (`omui-devtools atspi`) on a private
 //           session bus (dbus-run-session), as a screen reader does. Linux x86_64 (AccessKit's library);
 //           at-spi2-core.
@@ -43,6 +53,8 @@ struct Size {
 [[nodiscard]] int size(const std::filesystem::path& root, const Size& asked);
 [[nodiscard]] int templates(const std::filesystem::path& root);
 [[nodiscard]] int reflect(const std::filesystem::path& root, std::string_view profile);
+[[nodiscard]] int sweep(const std::filesystem::path& root, const std::vector<std::string>& profile_args);
+[[nodiscard]] int toy(const std::filesystem::path& root, std::vector<std::string> packages);
 [[nodiscard]] int atspi(const std::filesystem::path& root, const std::vector<std::string>& profile_args);
 
 // A template's file rendered: each {{name}} replaced by its value; or the first name it has no value for.

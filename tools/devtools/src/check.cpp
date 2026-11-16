@@ -342,6 +342,174 @@ int main() {
     return failed("the reflection canary failed for another reason than V-08");
 }
 
+int sweep(const fs::path& root, const std::vector<std::string>& profile_args) {
+    struct Program {
+        std::string_view package, binary, directory;  // where it runs: a player reads its mcpp.toml there
+    };
+    constexpr std::array<Program, 14> programs{{
+        {"omui.example.counter", "tally", "examples/03-counter"},
+        {"omui.example.rating", "reading-list", "examples/04-rating"},
+        {"omui.example.contrast", "contrast", "examples/05-contrast"},
+        {"omui.example.theming", "theme-preview", "examples/06-theming"},
+        {"omui.example.headless-and-agent", "notes-agent", "examples/07-headless-and-agent"},
+        {"omui.example.markdown-viewer", "md-view", "examples/08-markdown-viewer"},
+        {"omui.example.markdown-stream", "md-stream", "examples/09-markdown-stream"},
+        {"omui.example.space", "space", "examples/10-canvas-basics"},
+        {"omui.example.notes", "notes", "examples/12-notes"},
+        {"omui.showcase.style_gallery", "omui-styles", "showcase/style-gallery"},
+        {"omui.showcase.widget_breakout", "omui-breakout", "showcase/widget-breakout"},
+        {"omui.showcase.markdown_wall", "omui-wall", "showcase/markdown-wall"},
+        {"omui.showcase.fighting", "omui-fight", "showcase/fighting"},
+        {"omui.site", "omui-site", "site"},
+    }};
+    std::vector<std::string> args{"-p", "omui.cli"};
+    for (const auto& program : programs) args.insert(args.end(), {"-p", std::string(program.package)});
+    args.insert(args.end(), profile_args.begin(), profile_args.end());
+    const auto built = run::build(root, std::move(args));
+    if (!built) return failed(std::format("the programs did not build: {}", built.error()));
+    std::map<std::string, fs::path> binary;
+    for (const auto& artifact : *built)
+        if (artifact.kind == "bin") binary[mcpplibs::os::fs::utf8(artifact.path.filename())] = artifact.path;
+    if (!binary.contains("omui")) return failed("the build reported no omui");
+    const fs::path out = root / "target" / "sweep";
+    std::error_code error;
+    fs::create_directories(out, error);
+    const fs::path agents = fs::temp_directory_path() / std::format("omui-sweep-{}", std::random_device{}());
+    const Removed removed{agents};
+    int failures = 0;
+    namespace process = mcpplibs::os::process;
+    for (const auto& program : programs) {
+        const std::string name(program.binary);
+        fs::remove_all(agents, error);
+        fs::create_directories(agents, error);
+        if (!binary.contains(name)) {
+            std::cout << std::format("FAIL {}: not built\n", name);
+            ++failures;
+            continue;
+        }
+        // The program, its output to its log; the endpoint it writes is how the sweep finds it.
+        process::spawn_options options;
+        options.program = binary[name];
+        options.args = {"--size", "1440x900", "--serve", "--agent-input", "--agent-dir", mcpplibs::os::fs::utf8(agents)};
+        options.cwd = root / program.directory;
+        options.in = process::stdio::null;
+        options.out = process::stdio::pipe;
+        options.err = process::stdio::output;
+        auto started = process::process::spawn(options);
+        if (!started) {
+            std::cout << std::format("FAIL {}: did not start: {}\n", name, started.error().message());
+            ++failures;
+            continue;
+        }
+        std::jthread logger([&started, log = out / (name + ".log")] {
+            std::ofstream file(log, std::ios::binary);
+            for (;;) {
+                auto chunk = started->read_output();
+                if (!chunk || chunk->empty()) break;
+                file << *chunk << std::flush;
+            }
+        });
+        std::string app;
+        for (int look = 0; look < 200 && app.empty(); ++look) {
+            for (const auto& entry : fs::directory_iterator(agents, error)) {
+                const std::string file = mcpplibs::os::fs::utf8(entry.path().filename());
+                if (file.ends_with(".endpoint.omui.json")) app = file.substr(0, file.size() - std::string_view(".endpoint.omui.json").size());
+            }
+            if (app.empty()) std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        if (app.empty()) {
+            std::cout << std::format("FAIL {}: no endpoint (see target/sweep/{}.log)\n", name, name);
+            ++failures;
+        } else {
+            auto swept = run::program(root, mcpplibs::os::fs::utf8(binary["omui"]), {"agent", "sweep", app, "--dir", mcpplibs::os::fs::utf8(agents)});
+            const std::string verdicts = swept ? swept->out : std::string{};
+            std::ofstream(out / (name + ".sweep.omui.jsonl"), std::ios::binary) << verdicts;
+            std::string summary;
+            for (auto part : std::views::split(std::string_view(verdicts), '\n'))
+                if (const std::string_view line(part.begin(), part.end()); line.contains("\"nodes\"")) summary = line;
+            if (!swept || swept->status != 0) {
+                std::cout << std::format("FAIL {} ({}): {}\n", name, app, summary);
+                for (auto part : std::views::split(std::string_view(verdicts), '\n'))
+                    if (const std::string_view line(part.begin(), part.end()); line.contains("\"verdict\":\"failed\"")) std::cout << line << '\n';
+                ++failures;
+            } else {
+                std::cout << std::format("ok   {} ({}): {}\n", name, app, summary);
+            }
+        }
+        std::cout << std::flush;
+        started->kill();
+        static_cast<void>(started->wait());
+    }
+    if (failures == 0) std::cout << "sweep: ok\n";
+    return failures == 0 ? 0 : 1;
+}
+
+int toy(const fs::path& root, std::vector<std::string> packages) {
+    constexpr std::string_view revision = "ae156ecb3391dfb22bdd93d45d6b0067e1e5b723";
+    constexpr std::string_view digest = "cbbf1244fff1179cfa48272cddb2cbcbd870da73d5fff1c5f30720231d6eeb0c";
+    const fs::path out = root / "target" / "toy";
+    std::error_code error;
+    fs::create_directories(out, error);
+    const fs::path doctor = out / std::format("toy_doctor-{}.py", revision.substr(0, 7));
+    const auto sha256 = [&](const fs::path& file) -> std::string {
+        const auto said = run::output(root, "sha256sum", {mcpplibs::os::fs::utf8(file)});
+        return said ? said->substr(0, said->find(' ')) : std::string{};
+    };
+    if (!fs::exists(doctor) || sha256(doctor) != digest) {
+        fs::path part = doctor;
+        part += ".part";
+        const auto fetched = run::output(root, "curl", {"-fsSL", "--retry", "3",
+                                                        std::format("https://raw.githubusercontent.com/bilibili/toy/{}/skills/toy/scripts/toy_doctor.py", revision),
+                                                        "-o", mcpplibs::os::fs::utf8(part)});
+        if (!fetched) return failed(std::format("toy_doctor.py could not be fetched: {}", fetched.error()));
+        if (sha256(part) != digest) return failed("toy_doctor.py is not the pinned file");
+        fs::rename(part, doctor, error);
+    }
+    if (packages.empty()) packages = {"omui.showcase.fighting", "omui.showcase.widget_breakout"};
+    int failures = 0;
+    for (const auto& package : packages) {
+        std::cout << "toy: " << package << '\n' << std::flush;
+        const auto packed = run::program(root, "mcpp", {"pack", "-p", package, "--target", "wasm32-emscripten", "--release", "--pkg-format", "dist-toy", "--message-format", "json"});
+        std::optional<fs::path> index;
+        if (packed && packed->status == 0)
+            for (auto part : std::views::split(std::string_view(packed->out), '\n')) {
+                const auto line = json::parse(std::string_view(part.begin(), part.end()), nullptr, false);
+                if (line.is_discarded() || !line.contains("data") || !line["data"].contains("artifacts")) continue;
+                for (const auto& artifact : line["data"]["artifacts"])
+                    if (artifact.value("format", "") == "dist-toy") index = fs::path(artifact.value("path", ""));
+            }
+        if (!index) {
+            std::cout << std::format("::error::{} did not pack for Toy\n", package);
+            ++failures;
+            continue;
+        }
+        const fs::path built = index->parent_path();
+        const std::string name = mcpplibs::os::fs::utf8(built.filename());
+        fs::remove_all(out / name, error);
+        fs::copy(built, out / name, fs::copy_options::recursive, error);
+        fs::path listing = built;
+        listing += ".toy.omui.json";
+        fs::copy_file(listing, out / (name + ".toy.omui.json"), fs::copy_options::overwrite_existing, error);
+        const auto about = json::parse(read_text(out / (name + ".toy.omui.json")).value_or(""), nullptr, false);
+        if (!about.is_discarded()) {
+            const auto mib = [](std::uint64_t bytes) { return std::format("{:.2f} MiB", static_cast<double>(bytes) / 1048576.0); };
+            auto files = about.value("files", json::array());
+            std::cout << std::format("  index.html {} bytes (limit {}); total {} in {} files\n", about.value("index_bytes", 0), about.value("index_limit", 0),
+                                     mib(about.value("total_bytes", std::uint64_t{0})), files.size());
+            std::vector<json> largest(files.begin(), files.end());
+            std::ranges::sort(largest, std::greater{}, [](const json& file) { return file.value("bytes", std::uint64_t{0}); });
+            for (std::size_t at = 0; at < std::min<std::size_t>(4, largest.size()); ++at)
+                std::cout << std::format("    {:>10}  {}\n", mib(largest[at].value("bytes", std::uint64_t{0})), largest[at].value("path", ""));
+        }
+        const auto checked = run::program(root, "python3", {mcpplibs::os::fs::utf8(doctor), mcpplibs::os::fs::utf8(out / name)}, {.shown = true});
+        if (!checked || checked->status != 0) {
+            std::cout << std::format("::error::Toy's doctor refused {}\n", name);
+            ++failures;
+        }
+    }
+    return failures == 0 ? 0 : 1;
+}
+
 int atspi(const fs::path& root, const std::vector<std::string>& profile_args) {
     std::vector<std::string> args{"-p", "omui.example.counter", "-p", "omui.example.headless-and-agent"};
     args.insert(args.end(), profile_args.begin(), profile_args.end());

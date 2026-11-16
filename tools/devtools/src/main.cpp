@@ -21,7 +21,7 @@
 //   gpu   a device for the GPU tests: CI's software one (lavapipe; Metal on macOS) or, with --real, this
 //         machine's NVIDIA GPU; its environment written to $GITHUB_ENV, or a command run with it.
 //   check CI's acceptance steps, each building what it needs and holding the result: features (M0 ⑤),
-//         templates (M0 ①), reflect (V-08's canary, then the suite), size (a page's WebAssembly bytes, held to a budget), atspi (examples 03 and 07 on a private bus).
+//         templates (M0 ①), reflect (V-08's canary, then the suite), sweep (D-91), toy (Bilibili Toy), size (a page's WebAssembly bytes, held to a budget), atspi (examples 03 and 07 on a private bus).
 //   lint  the repository's rules (D-206: the lint in C++, 43 rules);
 //         --self-test shows each rule catches a violation planted in a tree of its own.
 import std;
@@ -231,6 +231,12 @@ cmd::App app() {
                         .subcommand(cmd::App("reflect")
                                         .description("omui.reflect's suite where the toolchain builds reflection beside C headers (V-08); a warning where not")
                                         .option(Option("profile").takes_value().value_name("P").help("default: dev")))
+                        .subcommand(cmd::App("sweep")
+                                        .description("Every program run headless and swept by an agent: every action performed, a dead control fails it")
+                                        .option(Option("profile").takes_value().value_name("P").help("the programs' build profile")))
+                        .subcommand(cmd::App("toy")
+                                        .description("The games packed for Bilibili Toy and checked by Toy's own doctor (pinned)")
+                                        .arg(Arg("package").help("the games (default: the fighting game and the breakout)")))
                         .subcommand(cmd::App("atspi")
                                         .description("Examples 03 and 07 built, then read and operated through AT-SPI on a private session bus")
                                         .option(Option("profile").takes_value().value_name("P").help("the examples' build profile"))))
@@ -699,7 +705,7 @@ int main(int argc, char** argv) {
         namespace step = omui::devtools::check;
         const auto& sub = parsed->subcommand()->get();
         if (!sub.has_subcommand()) {
-            std::cerr << "usage: omui-devtools check features | templates | reflect [--profile P] | size -p MEMBER [--json F] [--markdown F] [--budget F] | atspi [--profile P]\n";
+            std::cerr << "usage: omui-devtools check features | templates | reflect [--profile P] | sweep [--profile P] | toy [PACKAGE…] | size -p MEMBER [--json F] [--markdown F] [--budget F] | atspi [--profile P]\n";
             return 2;
         }
         const auto& given = sub.subcommand()->get();
@@ -720,6 +726,12 @@ int main(int argc, char** argv) {
         }
         std::vector<std::string> profile;
         if (const auto chosen = given.value("profile")) profile = {"--profile", *chosen};
+        if (sub.subcommand_name() == "sweep") return step::sweep(root, profile);
+        if (sub.subcommand_name() == "toy") {
+            std::vector<std::string> packages;
+            for (std::size_t index = 0; index < given.positional_count(); ++index) packages.push_back(given.positional(index));
+            return step::toy(root, std::move(packages));
+        }
         return step::atspi(root, profile);
     }
     if (parsed->subcommand_name() == "gpu") {

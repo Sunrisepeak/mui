@@ -109,7 +109,7 @@ jobs:
       # D-84 §6.5: the games packed for Bilibili Toy (dist-toy) and checked by
       # Toy's own toy_doctor.py, pinned; nothing is published.
       - name: The games packaged for Toy, checked by Toy's doctor
-        run: tools/ci/toy.sh
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- check toy
 
   # omui on Android (W10): example 01 packed into an APK and checked inside,
   # then run on Android 7.0's emulator (KVM): started, a tap, Back.
@@ -336,7 +336,7 @@ jobs:
 
       - name: The interaction sweep — every program, every action an agent can perform (D-91)
         if: runner.os == 'Linux' && matrix.profile != 'release'
-        run: tools/ci/sweep.sh
+        run: mcpp run omui-devtools -p tools/devtools --profile '${{ matrix.profile }}' -- check sweep --profile '${{ matrix.profile }}'
 
       - name: Upload the sweep's verdicts
         if: always() && runner.os == 'Linux' && matrix.profile != 'release'

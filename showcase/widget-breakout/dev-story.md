@@ -83,4 +83,4 @@ See [best practices](../../docs/en/best-practices.md). From this version:
 
 - **Keyboard and pointer**: ← → (A D) or the pointer move the paddle; Space or a click launches.
 - **Gamepad** (any): the left stick or the d-pad moves the paddle and south (A, Cross) launches. They are bound through `xengine.input` like the keys, and `tests/gamepad_test.cpp` plays it headless.
-- **Web and Bilibili Toy**: `tools/ci/toy.sh omui.showcase.widget_breakout` builds it for wasm32-emscripten, packs it with `dist-toy` and checks it with Toy's `toy_doctor.py`; serve `target/toy/omui-breakout/` and open it. The contraptions' scripts do not run on the Web yet: they need a single-threaded script host there, and JavaScript also needs a 32-bit QuickJS wrap.
+- **Web and Bilibili Toy**: `omui-devtools check toy omui.showcase.widget_breakout` builds it for wasm32-emscripten, packs it with `dist-toy` and checks it with Toy's `toy_doctor.py`; serve `target/toy/omui-breakout/` and open it. The contraptions' scripts do not run on the Web yet: they need a single-threaded script host there, and JavaScript also needs a 32-bit QuickJS wrap.

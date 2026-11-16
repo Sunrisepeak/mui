@@ -1,5 +1,5 @@
 // The Inspector's state: what it reads from the application, and when.
-module omui.inspector;
+module xtools.inspector;
 
 import std;
 import mlibs.hash;
@@ -7,7 +7,9 @@ import omui.core;
 import omui.view;
 import omui.agent;
 
-namespace omui::inspector {
+namespace xtools::inspector {
+
+using namespace omui;  // the framework it is written in
 
 namespace {
 
@@ -181,4 +183,4 @@ void Inspector::set_overlay(std::string_view overlay, bool on) {
     });
 }
 
-}  // namespace omui::inspector
+}  // namespace xtools::inspector

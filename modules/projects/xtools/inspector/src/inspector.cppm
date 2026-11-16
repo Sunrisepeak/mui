@@ -9,9 +9,9 @@
 // time. Everything it shows, `omui agent` prints as JSON: the same data for
 // people and for agents.
 //
-//     omui::inspector::Inspector inspector(runtime, {.app = "org.openmui.examples.notes"});
+//     xtools::inspector::Inspector inspector(runtime, {.app = "org.openmui.examples.notes"});
 //     runtime.mount("main", inspector.view());
-export module omui.inspector;
+export module xtools.inspector;
 
 export import :connection;
 export import :cellular;
@@ -24,7 +24,9 @@ import omui.agent;
 import omui.ui.base;
 import omui;
 
-export namespace omui::inspector {
+export namespace xtools::inspector {
+
+using namespace omui;  // the framework it is written in
 
 struct Options {
     std::string           app;          // the application to inspect; empty: the first other one that listens
@@ -87,4 +89,4 @@ private:
 // The program: the Inspector as an application (id org.openmui.inspector).
 [[nodiscard]] AppSpec app(Options options);
 
-}  // namespace omui::inspector
+}  // namespace xtools::inspector

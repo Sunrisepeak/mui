@@ -1,4 +1,4 @@
-module omui.inspector;
+module xtools.inspector;
 import std;
 import omui;
 import mlibs.hash;
@@ -6,7 +6,9 @@ import mlibs.simulation;
 import xengine.cellular;
 import xengine.cellular.present;
 
-namespace omui::inspector::cellular {
+namespace xtools::inspector::cellular {
+
+using namespace omui;  // the framework it is written in
 namespace ca = xengine::cellular;
 namespace {
 constexpr std::uint32_t max_values = 16384;

@@ -1,6 +1,6 @@
 // The Inspector's interface: a header with the application, the clock bar,
 // the tree beside the panels (properties, frames, pipeline).
-module omui.inspector;
+module xtools.inspector;
 
 import std;
 import omui.core;
@@ -9,7 +9,9 @@ import xrender.vector;
 import omui.ui.base;
 import omui;
 
-namespace omui::inspector {
+namespace xtools::inspector {
+
+using namespace omui;  // the framework it is written in
 
 namespace {
 
@@ -238,4 +240,4 @@ AppSpec app(Options options) {
     return spec;
 }
 
-}  // namespace omui::inspector
+}  // namespace xtools::inspector

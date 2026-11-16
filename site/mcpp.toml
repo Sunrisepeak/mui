@@ -58,7 +58,7 @@ omui.theme      = { path = "../modules/projects/omui/theme" }
 omui.example.hello-im       = { path = "../examples/01-hello-im" }  # getting started: example 01, running beside its source
 omui.semantic    = { path = "../modules/projects/omui/semantic" }
 mlibs.utils       = { path = "../modules/base/utils" }
-omui.inspector   = { path = "../tools/inspector" }
+xtools.inspector = { path = "../modules/projects/xtools/inspector" }
 mcpplibs.os         = "0.4.4"
 
 [build-dependencies]

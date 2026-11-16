@@ -4,11 +4,13 @@
 // them, a step's numbers as controls, each change one step of history. The
 // same operations are the workspace's verbs, so an Agent tunes as the person
 // does, and the person sees what it changed.
-export module omui.inspector:motion;
+export module xtools.inspector:motion;
 import std;
 import omui;
 
-export namespace omui::inspector::motion {
+export namespace xtools::inspector::motion {
+
+using namespace omui;  // the framework it is written in
 
 class Session {
 public:
@@ -49,4 +51,4 @@ void add_verbs(AppSpec&, const std::shared_ptr<Session>&);
 // The workbench over `file` (opened at setup; its problems shown).
 [[nodiscard]] AppSpec app(const std::shared_ptr<Session>&, std::filesystem::path file);
 
-}  // namespace omui::inspector::motion
+}  // namespace xtools::inspector::motion

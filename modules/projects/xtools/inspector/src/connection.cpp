@@ -1,11 +1,13 @@
-module omui.inspector;
+module xtools.inspector;
 
 import std;
 import omui.core;
 import omui.view;
 import omui.agent;
 
-namespace omui::inspector {
+namespace xtools::inspector {
+
+using namespace omui;  // the framework it is written in
 
 // One connection to one application: requests take turns on its client.
 struct Session {
@@ -120,4 +122,4 @@ std::string error_of(const std::vector<Value>& records) {
     return succeeded(records) ? std::string() : std::string("no answer");
 }
 
-}  // namespace omui::inspector
+}  // namespace xtools::inspector

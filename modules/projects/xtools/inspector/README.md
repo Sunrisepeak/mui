@@ -1,6 +1,6 @@
 # openmui Inspector
 
-The **motion workbench** (`omui-inspector --motion FILE`) opens a hanim
+The **motion workbench** (`xtools-inspector --motion FILE`) opens a hanim
 animation document (`<name>.animation.omui.json`): the stage drawn at any
 moment by the same renderer, a scrubber, a click on an object to the steps
 that move it then (innermost first, each by its JSON pointer), the chosen
@@ -30,7 +30,7 @@ A tool written in openmui that inspects any running openmui application
 - **overlays** on the application: bounds, repaints, the frame-time HUD (`debug`).
 
 ```text
-mcpp run -p omui.inspector -- [--app org.example.notes] [--inspect-dir DIR]
+mcpp run -p xtools.inspector -- [--app org.example.notes] [--inspect-dir DIR]
 ```
 
 Without `--app` it inspects the first application that listens (never

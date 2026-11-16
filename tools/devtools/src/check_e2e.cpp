@@ -138,9 +138,9 @@ int agent_e2e(const fs::path& root, const std::vector<std::string>& profile_args
     // its own process, and an irreversible action without its answer ends in needs-answer (exit 2); then the
     // development operations against the same process, the MCP server over real pipes, and an application's verbs as
     // MCP tools from its generated listing.
-    std::vector<std::string> args{"-p", "omui.example.headless-and-agent", "-p", "omui.cli", "-p", "omui.inspector"};
+    std::vector<std::string> args{"-p", "omui.example.headless-and-agent", "-p", "omui.cli", "-p", "xtools.inspector"};
     args.insert(args.end(), profile_args.begin(), profile_args.end());
-    const auto built = programs(root, std::move(args), {"notes-agent", "omui", "omui-inspector"});
+    const auto built = programs(root, std::move(args), {"notes-agent", "omui", "xtools-inspector"});
     if (!built) return failed(built.error());
     const auto& bin = *built;
     const fs::path dir = scratch("omui-agent-e2e");
@@ -225,7 +225,7 @@ int agent_e2e(const fs::path& root, const std::vector<std::string>& profile_args
 
     // An application's verbs as MCP tools from its generated listing (§10.3): the Inspector's Reaction lab, headless,
     // driven by cellular_* tools over real pipes — paint, advance, read back — with the listing's hints.
-    const Served lab(bin.at("omui-inspector"), {"--cellular", "--headless", "--serve", "--agent-dir", agents}, dir / "lab.log");
+    const Served lab(bin.at("xtools-inspector"), {"--cellular", "--headless", "--serve", "--agent-dir", agents}, dir / "lab.log");
     const std::string lab_id = "org.openmui.inspector.cellular";
     if (!lab.started() || !Served::ready(dir / (lab_id + ".endpoint.omui.json"))) return failed("the Reaction lab did not serve (its log: lab.log)");
     const std::string lab_requests = R"({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"e2e"}}}
@@ -235,7 +235,7 @@ int agent_e2e(const fs::path& root, const std::vector<std::string>& profile_args
 {"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"cellular_advance","arguments":{"count":3}}}
 {"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"cellular_paint","arguments":{"x":10,"y":10,"radius":99,"brush":"spark"}}}
 )";
-    expect.status(0, omui, {"mcp", "--dir", agents, "--app", lab_id, "--ops", "tools/inspector/src/catalog/inspector.ops.json"}, {.input = lab_requests}) &&
+    expect.status(0, omui, {"mcp", "--dir", agents, "--app", lab_id, "--ops", "modules/projects/xtools/inspector/src/catalog/inspector.ops.json"}, {.input = lab_requests}) &&
         expect.holds(responses(expect.last()) == 6, "six responses from omui mcp --ops") && expect.has(R"("name":"cellular_paint","title":"cellular\.paint")") &&
         expect.has(R"("name":"cellular_snapshot"[^}]*"inputSchema".*"readOnlyHint":true)") && expect.has(R"("id":3.*"tick":0)") &&
         expect.has(R"("id":4.*done: cellular\.paint)") && expect.has(R"("id":5.*done: cellular\.advance.*"tick":3)") &&

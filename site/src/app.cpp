@@ -19,7 +19,7 @@ import hello;
 import mcpplibs.os;
 import omui.semantic;
 import mlibs.trace;
-import omui.inspector;
+import xtools.inspector;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::Log;
@@ -75,7 +75,7 @@ struct Site {
     Runtime*            runtime = nullptr;
     BrandStudy          brand;
     DocsState           docs;
-    std::shared_ptr<inspector::cellular::Session> reactions = std::make_shared<inspector::cellular::Session>();
+    std::shared_ptr<xtools::inspector::cellular::Session> reactions = std::make_shared<xtools::inspector::cellular::Session>();
     SiteLinks           links;
     Signal<bool>        tools = signal(false);
     std::map<std::string, double, std::less<>> scroll_positions;
@@ -1355,7 +1355,7 @@ Element place_page(const std::shared_ptr<Site>& s, const std::string& id) {
     } else if (id == "timeline") {
         content.push_back(timeline_page(s, room));
     } else if (id == "reactions") {
-        content.push_back(inspector::cellular::view(s->reactions, room, s->lang.get() == "zh"));
+        content.push_back(xtools::inspector::cellular::view(s->reactions, room, s->lang.get() == "zh"));
     } else if (id == "brand") {
         content.push_back(brand_study(s->brand, s->runtime, s->lang, room));
     } else if (id == "explore") {
@@ -1434,7 +1434,7 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
     // within tolerances of them.
     a.renderer = "automatic";
     auto s = std::make_shared<Site>();
-    inspector::cellular::add_verbs(a, s->reactions);
+    xtools::inspector::cellular::add_verbs(a, s->reactions);
     // The release workspace's Publish (external: an agent's request waits for the person's answer).
     a.verbs.push_back({release_publish_desc(), [s](const Value&) -> VerbResult { return publish_release(s->hero); }});
     for(const auto& desc:motion_control_verbs())a.verbs.push_back({desc,[s,name=desc.name](const Value& args)->VerbResult {

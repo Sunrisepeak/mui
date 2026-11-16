@@ -5,14 +5,16 @@
 // as any agent (openmui.tree@0.1). A request runs on the task pool, one at a
 // time per connection, and its records come back through the Inspector's UI
 // queue, so its own frames never wait for another process.
-export module omui.inspector:connection;
+export module xtools.inspector:connection;
 
 import std;
 import omui.core;
 import omui.view;
 import omui.agent;
 
-export namespace omui::inspector {
+export namespace xtools::inspector {
+
+using namespace omui;  // the framework it is written in
 
 class Connection {
 public:
@@ -48,4 +50,4 @@ private:
 [[nodiscard]] bool succeeded(const std::vector<Value>& records) noexcept;
 [[nodiscard]] std::string error_of(const std::vector<Value>& records);
 
-}  // namespace omui::inspector
+}  // namespace xtools::inspector

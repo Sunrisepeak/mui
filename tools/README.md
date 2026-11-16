@@ -1,13 +1,12 @@
 # tools
 
-The repository's own tools (plan §4.5): lint, ci, devtools, eval — and, until the composing toolchain project (RC3.10), the inspector. A project's tools live with the project: omui's command line, MCP server and generator are in [modules/projects/omui/tools](../modules/projects/omui/tools), hanim's in `modules/projects/hanim/studio`.
+The repository's own tools (plan §4.5): lint, ci, devtools, eval. The inspector, a composition of several projects' toolkits, is in the toolchain whole, [xtools](../modules/projects/xtools/inspector). A project's tools live with the project: omui's command line, MCP server and generator are in [modules/projects/omui/tools](../modules/projects/omui/tools), hanim's in `modules/projects/hanim/studio`.
 
 Every tool has two faces that read the same records: a command line (JSON, exit codes) and an interface written in omui (D-61).
 
 | Package | |
 |---|---|
 | [devtools](devtools) | `omui-devtools`: the contributors' tool — `ci` reads a CI run row by row and sets each failure against the red list (R12); `lint` checks the repository's rules; `lead` writes the lead pages and checks the features |
-| [inspector](inspector) | Semantic tree, node details, frame times and time control; Reaction lab with editable cellular projects, CLI and actual process capture |
 
 `omui-devtools lint` ([devtools](devtools)) checks the repository's rules (`--list`, `--self-test`); [lint](lint) holds the tables they read (capability owners, licences, the C99 check of openmui.h); [ci](ci) holds the scripts CI runs.
 

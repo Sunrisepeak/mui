@@ -1,6 +1,6 @@
 import std;
 import omui;
-import omui.inspector;
+import xtools.inspector;
 import mlibs.testing;
 import mcpplibs.mtest;
 import mcpplibs.os;
@@ -8,7 +8,7 @@ import mcpplibs.os;
 using namespace omui;
 using namespace mlibs::testing;
 using namespace mcpplibs::mtest;
-namespace lab=omui::inspector::cellular;
+namespace lab=xtools::inspector::cellular;
 namespace {
 struct Fixture {
     std::shared_ptr<lab::Session> session=std::make_shared<lab::Session>();

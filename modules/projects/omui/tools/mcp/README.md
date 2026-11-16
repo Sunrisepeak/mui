@@ -24,7 +24,7 @@ Each `ui_*` tool is one of the protocol's operations in omui.agent's catalog ([`
 **An application's verbs as tools, from its listing.** `--ops <product>.ops.json` (repeatable) adds the operations of a listing `omui-gen ops` made from an application's catalog: each verb becomes a tool (`cellular.paint` → `cellular_paint`) with the listing's JSON schema, its effect's hints and its undo in the description, and a call invokes that verb — an irreversible one is put to the person as any is. The Inspector's Reaction lab, for one:
 
 ```sh
-omui mcp --app org.openmui.inspector.cellular --ops tools/inspector/src/catalog/inspector.ops.json
+omui mcp --app org.openmui.inspector.cellular --ops modules/projects/xtools/inspector/src/catalog/inspector.ops.json
 ```
 
 `ui_act`, `ui_invoke`, `ui_undo`, `ui_redo` and `ui_transaction` take `dry_run`: the answer says what would happen — whether it would run, need the person's confirmation or be refused, its effect, whether it could be undone, the value after — and nothing is done or asked (S-13).

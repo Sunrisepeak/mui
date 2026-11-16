@@ -1,8 +1,10 @@
-module omui.inspector;
+module xtools.inspector;
 import std;
 import omui;
 
-namespace omui::inspector::motion {
+namespace xtools::inspector::motion {
+
+using namespace omui;  // the framework it is written in
 
 namespace {
 
@@ -177,4 +179,4 @@ AppSpec app(const std::shared_ptr<Session>& session, std::filesystem::path file)
     return spec;
 }
 
-}  // namespace omui::inspector::motion
+}  // namespace xtools::inspector::motion

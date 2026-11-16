@@ -1,9 +1,11 @@
 // An Inspector workspace, not another simulation engine or package.
-export module omui.inspector:cellular;
+export module xtools.inspector:cellular;
 import std;
 import omui;
 
-export namespace omui::inspector::cellular {
+export namespace xtools::inspector::cellular {
+
+using namespace omui;  // the framework it is written in
 
 // All project edits and time controls have the same operations in the GUI,
 // CLI and Agent protocol. Lazy preparation keeps an unopened workspace cheap.

@@ -3,7 +3,7 @@
 // clock paused and stepped from the Inspector's buttons.
 import std;
 import omui;
-import omui.inspector;
+import xtools.inspector;
 import omui.host.headless;
 import mlibs.testing;
 import mcpplibs.mtest;
@@ -11,6 +11,7 @@ import mcpplibs.mtest;
 using namespace mlibs::testing;
 using namespace mcpplibs::mtest;
 using namespace omui;
+namespace inspector = xtools::inspector;
 
 namespace {
 

@@ -1,10 +1,12 @@
-module omui.inspector;
+module xtools.inspector;
 import std;
 import omui;
 import hanim.studio;
 import mcpplibs.os;
 
-namespace omui::inspector::motion {
+namespace xtools::inspector::motion {
+
+using namespace omui;  // the framework it is written in
 
 namespace studio = hanim::studio;
 namespace os = mcpplibs::os;
@@ -265,4 +267,4 @@ VerbResult Session::perform(std::string_view operation, const Value& args) {
     return std::unexpected(std::format("no operation `{}`", operation));
 }
 
-}  // namespace omui::inspector::motion
+}  // namespace xtools::inspector::motion

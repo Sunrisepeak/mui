@@ -18,6 +18,12 @@ This project only wires those toolkits into one session of the tool kernel (mlib
 | [xrender.tool](../xrender/tool) | `xrender` | `xrender` | xrender |
 | [gongfu.studio](../gongfu/studio) | `gongfu-studio` | `gongfu` | gongfu |
 
+The compositions that are more than one project's toolkit live here too (D-204):
+
+| Package | What it composes |
+|---|---|
+| [xtools.inspector](inspector) | The Inspector (`xtools-inspector`): a running application's semantic tree, a node's details, frame times, its pipeline and clock (omui); the motion workbench over an animation document (hanim.studio); the Reaction lab over cellular projects (xengine.cellular) |
+
 ```sh
 xtools hanim document.check rise.json        # the same as: hanim document.check rise.json
 xtools omui build --release                  # the same as: omui build --release
@@ -38,7 +44,7 @@ Nothing of its own: each toolkit's subject and catalog are its project's package
 ## Experimental (release 0.1, D-199)
 
 - **Target** (plan §4.5, RC3.10): the toolchain's whole is one entry and one workbench: each project's toolkit reached the same way alone or composed, and the cross-project tools (the inspector, Live Design's composition of the UI and animation adapters) here as compositions.
-- **Now**: the unified command and MCP server over five toolkits.
-- **Gap**: the workbench (an omui application composing the toolkits' panels), the inspector moved in from `tools/`, Live Design's composition of the UI and hanim adapters.
+- **Now**: the unified command and MCP server over five toolkits; the Inspector composed here.
+- **Gap**: the workbench (an omui application composing the toolkits' panels), Live Design's composition of the UI and hanim adapters.
 - **Limits**: nothing of its own beyond the wiring: a toolkit not linked into it is not reachable through it.
 - **Graduation to preview**: the workbench and both compositions here, with a headless case that designs a UI and an animation in one workspace (RC3.10's bar).

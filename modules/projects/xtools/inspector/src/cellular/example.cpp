@@ -1,8 +1,10 @@
-module omui.inspector;
+module xtools.inspector;
 import std;
 import omui;
 
-namespace omui::inspector::cellular {
+namespace xtools::inspector::cellular {
+
+using namespace omui;  // the framework it is written in
 Value example_project() {
     // An editable recipe. The engine knows only channels, tests and writes.
     const auto parsed=parse_json(R"({

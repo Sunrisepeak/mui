@@ -1,9 +1,11 @@
-module omui.inspector;
+module xtools.inspector;
 import std;
 import omui;
 import mcpplibs.os;
 
-namespace omui::inspector::cellular {
+namespace xtools::inspector::cellular {
+
+using namespace omui;  // the framework it is written in
 int batch(const std::filesystem::path& input,const std::filesystem::path& prefix,std::ostream& out) {
     Value report=Value{}.set("kind","cellular.process").set("version",1).set("ok",false);
     Value::List outputs;

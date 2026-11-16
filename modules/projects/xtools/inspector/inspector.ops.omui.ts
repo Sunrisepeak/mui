@@ -12,8 +12,8 @@ import { defineOps } from "omui/define";
 
 export default defineOps({
   product: "inspector",
-  module: "omui.inspector",
-  namespace: "omui::inspector",
+  module: "xtools.inspector",
+  namespace: "xtools::inspector",
   doc: "Read, edit, step and replay the Inspector's cellular material field; look at, point into and tune a hanim animation document.",
   generated: "src/catalog",
   operations: [

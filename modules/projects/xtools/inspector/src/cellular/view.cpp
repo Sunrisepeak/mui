@@ -1,8 +1,10 @@
-module omui.inspector;
+module xtools.inspector;
 import std;
 import omui;
 
-namespace omui::inspector::cellular {
+namespace xtools::inspector::cellular {
+
+using namespace omui;  // the framework it is written in
 namespace {
 void invoke(const std::shared_ptr<Session>& s,std::string_view op,Value args={}) {
     if (!s->runtime) return;

@@ -4,20 +4,21 @@
 // changes nothing; every change is a step of history.
 import std;
 import omui;
-import omui.inspector;
+import xtools.inspector;
 import mlibs.testing;
 import mcpplibs.mtest;
 
 using namespace omui;
 using namespace mlibs::testing;
 using namespace mcpplibs::mtest;
-namespace bench = omui::inspector::motion;
+namespace bench = xtools::inspector::motion;
 
 namespace {
 
 std::filesystem::path example(std::string_view name) {
-    return std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path().parent_path().parent_path() / "modules" /
-           "projects" / "hanim" / "studio" / "examples" / name;
+    // modules/projects/xtools/inspector/tests → modules/projects: hanim's examples, beside it.
+    return std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path().parent_path().parent_path() / "hanim" / "studio" /
+           "examples" / name;
 }
 
 std::string pixels(Headless& host, std::string_view id) {

@@ -1,13 +1,13 @@
 {
   "set": "motion",
   "doc": "Editable animation (Part 2 §4.3, F and H): a person's words about an animation — what looks wrong, at which moment — and a fresh agent with only the motion workbench's tools (omui mcp: the stage, its motion.* verbs). The outcome is checked on the document the workbench holds (`state`: motion.document's value at a JSON pointer), never on the agent's word. Each task gets a fresh copy of the example.",
-  "run": "omui-inspector",
+  "run": "xtools-inspector",
   "args": [
     "--motion",
     "{copy:modules/projects/hanim/studio/examples/bounce.animation.omui.json}"
   ],
   "agent_mode": "dual-user",
-  "package": "omui.inspector",
+  "package": "xtools.inspector",
   "tasks": [
     {
       "id": "bounces",

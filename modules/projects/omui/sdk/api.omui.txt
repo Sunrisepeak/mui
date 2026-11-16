@@ -17,6 +17,69 @@ export import :system;
 export import :present;
 export import :devhost;
 export import :agent_guide;
+== omui.generate
+export import :generation;
+export import :a2ui;
+== omui.generate:a2ui
+namespace omui::generate {
+  class A2uiReader {
+    struct Rendered {
+      std::string surface;
+      std::string document;
+    };
+    struct Read {
+      std::vector<Rendered> rendered;
+      std::vector<std::string> deleted;
+      std::vector<std::string> problems;
+    };
+    [[nodiscard]] Read feed(std::string_view messages);
+  };
+}
+== omui.generate:generation
+namespace omui::generate {
+  using agent::CaptureFn;
+  using agent::TaskBroker;
+  enum class Openness : std::uint8_t { off, data, limited, all };
+  [[nodiscard]] std::string_view openness_name(Openness openness) noexcept;
+  [[nodiscard]] std::optional<Openness> parse_openness(std::string_view text) noexcept;
+  struct Surface {
+    std::string name;
+    std::string doc;
+  };
+  using EvaluateFn = std::function<std::expected<std::string, std::string>(std::string_view language, std::string_view code)>;
+  struct GenerationOptions {
+    Openness openness = Openness::data;
+    std::vector<Surface> surfaces;
+    std::size_t max_bytes = 256 * 1024;
+    std::size_t max_nodes = 2000;
+    std::vector<std::string> components, verbs;
+    CaptureFn capture;
+    EvaluateFn evaluate;
+    std::function<std::optional<Signal<Value>>(std::string_view name)> provide;
+    std::filesystem::path directory;
+    TaskBroker* tasks = nullptr;
+  };
+  class Generation {
+    Generation(Runtime& runtime, GenerationOptions options);
+    ~Generation();
+    Generation(const Generation&) = delete;
+    Generation& operator=(const Generation&) = delete;
+    VerbResult surfaces() const;
+    VerbResult draft(const Value& args);
+    VerbResult preview(const Value& args);
+    VerbResult commit(const Value& args);
+    VerbResult restore(const Value& args);
+    VerbResult versions(const Value& args) const;
+    VerbResult drafts() const;
+    VerbResult discard(const Value& args);
+    VerbResult a2ui(const Value& args);
+    VerbResult actions(const Value& args) const;
+    VerbResult keep(const Value& args);
+    VerbResult pieces() const;
+    VerbResult forget(const Value& args);
+    struct Impl;
+  };
+}
 == omui:agent_guide
 namespace omui {
   struct AgentGuide {

@@ -19,7 +19,7 @@ namespace {
 
 constexpr std::array source_suffixes{".cppm", ".cpp", ".ixx", ".cc", ".cxx", ".h", ".hpp", ".hh", ".hxx", ".inl"};
 constexpr std::array header_suffixes{".h", ".hpp", ".hh", ".hxx", ".inl"};
-constexpr std::array skip_dirs{"target", ".git", ".mcpp", ".xlings", ".cache", "build", "node_modules", "fixtures", ".venv", "__pycache__"};
+constexpr std::array skip_dirs{"target", ".git", ".mcpp", ".xlings", ".claude", ".cache", "build", "node_modules", "fixtures", ".venv", "__pycache__"};
 constexpr std::string_view the_header = "spec/include/openmui.h";
 // Linux's process directory, spelled so this file does not name it in a literal (the rule reads literals too).
 constexpr char proc_chars[]{'/', 'p', 'r', 'o', 'c', '/'};
@@ -79,6 +79,7 @@ constexpr Rule all_rules[]{
     {"shader-inputs", "a vertex struct's TEXCOORD places run from 0 in order"},
     {"status", "STATUS: at most 200 lines of at most 600 characters; a task done names its evidence (D-202)"},
     {"maturity", "every package's label; a library depends by default only at its label or above (D-189, D-199)"},
+    {"packages", "every package says why it stands apart: an isolation, a library two members use, or a product (D-194, plan §4.2)"},
     {"lead", "the signature features against the lead ledger; the lead pages are the ledger's (D-135)"},
     {"tooling", "a library or engine imports no toolkit (a member of kind \"tool\"); tools sit on top (plan §4.5)"},
     {"splittable", "a project reaches nothing of the repository's tools/ by a path: it can leave as a repository (plan §4.5)"},
@@ -446,6 +447,7 @@ struct Planted {
     std::vector<Closure> closures;                    // the closure rules the case runs with
     std::map<std::string, std::string> files;         // more files the case needs
     std::string label = "stable";                     // the UI core's maturity
+    std::string separate = "dependency: the fixture";  // the UI core's reason to be a package (lint packages)
     std::string ui_kind;                              // the UI core's kind, when it is planted as one
     bool project = false;                             // a project's package that says nothing of its agent surface
     bool view_schema = false;                         // the repository's view schema, copied in
@@ -499,9 +501,10 @@ void plant(const fs::path& root, const Planted& planted, const fs::path& owners_
         const bool hanim = member == "modules/gfx/hanim" || member == "modules/base/hanim/core";
         const auto extra = planted.dependencies.find(member);
         write(root / path_of(member) / "mcpp.toml",
-              std::format("[package]\n{}\nversion = \"0.1.0\"\n{}{}\n[package.metadata.openmui]\nmaturity = \"{}\"\n{}", names[member],
+              std::format("[package]\n{}\nversion = \"0.1.0\"\n{}{}\n[package.metadata.openmui]\nmaturity = \"{}\"\nseparate = \"{}\"\n{}", names[member],
                           hanim ? "[build]\ncxxflags = [\"-ffp-contract=off\"]\n" : "", extra == planted.dependencies.end() ? "" : extra->second,
                           member == "modules/ui/core" ? planted.label : std::string("stable"),
+                          member == "modules/ui/core" ? planted.separate : std::string("dependency: the fixture"),
                           member == "modules/ui/core" && !planted.ui_kind.empty() ? std::format("kind = \"{}\"\n", planted.ui_kind) : std::string())
                   + (member == "modules/ui/core" ? std::format("[package.metadata.openmui.xdef]\nkinds = {{ {} }}\nmodules = {{ {} }}\n", kinds, defined) : std::string()));
     }
@@ -575,6 +578,7 @@ int self_test(const fs::path& repository, const fs::path& scratch, std::ostream&
          R"({"$format": "matter@1", "matter": {"materials": {"wood": {}, "ash": {}}, "laws": [{"when": "material == wood && temperature >= 500", "become": "burnt"}]}})"},
         {"shader-inputs", "modules/ui/core/x.slang", "struct VIn {\n    float3 position : TEXCOORD0;\n    float2 second : TEXCOORD4;\n};\n"},
         {.rule = "maturity", .label = "experimental"},
+        {.rule = "packages", .separate = "library: a library no other member uses"},
         {"scripts", "tools/x/run.sh", "#!/bin/sh\nmcpp build\n"},
         {"claims", "modules/projects/hanim/README.md", "# hanim\n\nIt plays 3.5× faster than GSAP.\n"},
         {.rule = "tooling", .dependencies = {{"modules/gfx/hanim", "[dependencies]\ncore = { path = \"../../ui/core\" }\n"}}, 

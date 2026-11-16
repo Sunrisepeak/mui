@@ -15,6 +15,7 @@ license     = "Apache-2.0"
 
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: the inspector program"
 lower = ["hanim.studio", "xengine.cellular", "xengine.cellular.present"]  # lower-labelled parts it uses, each marked in its README
 kind = "tool"
 agent = { part = "omui.agent" }  # an omui application: its views and its Reaction lab's verbs (inspector.ops.xdef.ts) through the protocol (D-174)

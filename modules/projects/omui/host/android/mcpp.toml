@@ -15,6 +15,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "platform: Android's activity and surface"
 agent = { part = "omui.agent" }
 
 [targets.openmui-host-android]

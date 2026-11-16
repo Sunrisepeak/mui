@@ -12,6 +12,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "experimental"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "platform: Swarm's window program, native only"
 
 [targets.omui-showcase-swarm-window]
 kind = "lib"

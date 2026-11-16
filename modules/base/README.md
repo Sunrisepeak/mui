@@ -11,11 +11,10 @@ What belongs here: general-purpose libraries with no domain semantics. Small too
 | [cts](cts) | `mlibs.cts`: what a conformance suite is written with, on mtest's conformance kind — cases with stable ids and levels S/A/B declared against a subject, passed/failed/unsupported (from capabilities only), comparisons with evidence, the preparation contract; suites live with their contract's owner, the runner and reports are mtest's |
 | [simulation](simulation) | `mlibs.simulation`: the stepping substrate — fixed-step clocks, timelines of checkpoints and inputs (seek, replay, rollback), simulation tiers; no solver (D-133) |
 | [control](control) | Independent openas policy, trusted sessions and invocation authority; shared by UI and standalone engines |
-| [agent](agent) | `mlibs.agent`: the agent kernel (D-173) — where agents find a program and talk to it (a named local endpoint, lines in and out, sessions served at the owner's safe point), for any subject: an interface, a world, a renderer's frame. Authority is `control`'s |
+| [agent](agent) | `mlibs.agent`: the agent kernel (D-173) — where agents find a program and talk to it (a named local endpoint, lines in and out, sessions served at the owner's safe point), for any subject: an interface, a world, a renderer's frame. Authority is `control`'s; recorded sessions (`*.session.xdef.jsonl`, feature `session`) |
 | [geom](geom) | 2D geometry: points, rectangles, colours, affine transforms, pixel snapping |
 | [memory](memory) | Frame arena, generational handles, slot maps, `FunctionRef` |
 | [unicode](unicode) | Line breaking (UAX #14) and segmentation (UAX #29) without ICU |
-| [session](session) | Recorded sessions (`*.session.xdef.jsonl`): timestamped, seekable, mergeable |
 | [pipeline](pipeline) | Pipelines of stage plugins over typed resources: checked, deterministic, traced, replaceable while running |
 | [json](json) | `mlibs.json`: JSON documents with their places — nodes with JSON pointers, problems at line and column, did-you-mean; how the data files' JSON snapshots are read |
 | [project](project) | `mlibs.project`: a project as the tools see it — its packages from their manifests — and its health: the general rules every project keeps and the profiles owners add (D-205, D-207); `omui doctor` runs them |
@@ -30,7 +29,7 @@ Start with [utils](utils/README.md) and [math](math/README.md).
 
 The current canonical packages are `mlibs.control`, `mlibs.utils` (modules
 `mlibs.hash`, `mlibs.log`, `mlibs.trace`, `mlibs.testing`), `mlibs.math`,
-`mlibs.geom`, `mlibs.memory`, `mlibs.unicode`, `mlibs.session`,
+`mlibs.geom`, `mlibs.memory`, `mlibs.unicode`,
 `mlibs.pipeline` and `mlibs.image`. Except control, these retain their old
 `openmui.*` import within the same package until milestone M1 removes them. Other foundations are still being
 migrated; use their manifest identity. `mlibs` is a grouping, not an umbrella

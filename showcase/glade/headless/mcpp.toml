@@ -19,6 +19,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "experimental"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: Glade on its own, headless"
 
 [targets.glade-headless]
 kind = "lib"

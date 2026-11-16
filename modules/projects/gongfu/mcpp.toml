@@ -15,6 +15,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "experimental"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: the fighting framework's core, standard library alone"
 
 [targets.gongfu]
 kind = "lib"

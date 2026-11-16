@@ -17,6 +17,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: native modules every host and script reaches"
 kind = "runtime"
 agent = { part = "omui.agent" }
 

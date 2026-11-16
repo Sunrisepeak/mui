@@ -1,3 +1,35 @@
+== xrender.sprite
+export import mlibs.geom;
+namespace xrender::sprite {
+  using mlibs::geom::Point;
+  using mlibs::geom::Rect;
+  struct Bone {
+    Point joint;
+    double angle = 0;
+  };
+  struct Posed {
+    Bone rest, now;
+  };
+  struct Region {
+    Rect source;
+    Point anchor, tip;
+  };
+  struct Grid {
+    std::int32_t columns = 1, rows = 1;
+    float blend = 16;
+    bool mirror = false;
+    double facing = 1;
+    double scale = 0;
+    double length = 0;
+  };
+  struct Mesh {
+    std::vector<Point> at, uv;
+    std::vector<std::uint16_t> index;
+    void clear() noexcept;
+  };
+  void skinned(const Region& region, const Grid& grid, const Posed& own, std::span<const Posed> bends, Mesh& out);
+  void cornered(const Rect& source, std::span<const Point, 4> placed, Mesh& out);
+}
 == xrender.vector
 export import xrender.vector.api;
 == xrender.vector.api

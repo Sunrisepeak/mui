@@ -11,6 +11,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "experimental"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: the xtools command over every toolkit"
 kind = "tool"
 reexports = ["mlibs.agent"]  # what its interface re-exports (lint module-closure)
 agent = { library = "a composition: each toolkit's subject and catalog are its own project's package (omui.cli, hanim.studio, hanim.timeline.tool, xrender.tool, gongfu.studio)" }

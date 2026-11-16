@@ -18,6 +18,7 @@ license     = "Apache-2.0"
 
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: the promo video showcase"
 kind = "showcase"
 profile = "film"  # its profile (D-207): what omui doctor holds it to
 

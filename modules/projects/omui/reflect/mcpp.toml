@@ -13,6 +13,7 @@ standard    = "c++26"
 
 [package.metadata.openmui]
 maturity = "experimental"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "platform: C++26 reflection, built only by GCC 16 with -freflection (D-39)"
 kind = "runtime"
 agent = { library = "compile-time reflection of contracts: no run-time state" }
 

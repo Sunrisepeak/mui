@@ -14,7 +14,7 @@ namespace fs = std::filesystem;
 
 namespace {
 
-constexpr std::array skip_dirs{"target", ".git", ".mcpp", ".xlings", ".cache", "build", "node_modules", "fixtures", ".venv", "__pycache__"};
+constexpr std::array skip_dirs{"target", ".git", ".mcpp", ".xlings", ".claude", ".cache", "build", "node_modules", "fixtures", ".venv", "__pycache__"};
 
 // Layers (D-80, D-82; convergence plan §9.2). A name says who owns a package, a directory which group it
 // is in, and the layer comes from this table: the longest path prefix that holds a member gives its layer,

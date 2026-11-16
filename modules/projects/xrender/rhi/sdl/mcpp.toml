@@ -12,6 +12,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "platform: SDL_GPU's backends (Vulkan, Metal, Direct3D 12), native only"
 kind = "backend"
 agent = { part = "xrender.frame" }
 
@@ -32,7 +33,7 @@ mlibs.utils = { path = "../../../../base/utils" }
 mlibs.rhi.cts = { path = "../../../../gfx/rhi/cts" }
 xrender.cts = { path = "../../cts" }
 xrender.mesh.gpu.cts = { path = "../../mesh/gpu/cts" }
-xrender.particle.gpu.cts = { path = "../../particle/gpu/cts" }
+xrender.particle.gpu = { path = "../../particle/gpu", features = ["cts"] }  # its suite (feature cts)
 xrender.graph = { path = "../../graph" }
 mlibs.image = { path = "../../../../base/image" }
 mcpplibs.os     = "0.4.4"

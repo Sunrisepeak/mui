@@ -14,7 +14,7 @@ namespace fs = std::filesystem;
 
 namespace {
 
-constexpr std::array skip_dirs{"target", ".git", ".mcpp", ".xlings", ".cache", "build", "node_modules", "fixtures", ".venv", "__pycache__"};
+constexpr std::array skip_dirs{"target", ".git", ".mcpp", ".xlings", ".claude", ".cache", "build", "node_modules", "fixtures", ".venv", "__pycache__"};
 
 const toml::table* table_at(const toml::table* data, std::string_view key) {
     if (!data || !data->get(key)) return nullptr;
@@ -582,6 +582,70 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
         }
     }
 
+    // packages (D-194 as revised 2026-11-17, plan §4.2): every member says why it is a package of its own,
+    // `separate = "<reason>: <one sentence>"`. The plan's five isolations — platform, build-stage, suite (a CTS
+    // more than one package runs), closure (one lint `closure` proves apart), dependency (a heavy dependency or a
+    // licence kept from the others) — and D-99's two: library (a library reused on its own: two members or more
+    // use it) and product (a program or a work: a program target, or an example, showcase, test or the site).
+    // A suite counts its own tests among its runners.
+    {
+        static const std::set<std::string, std::less<>> reasons{"platform", "build-stage", "suite", "closure", "dependency", "library", "product"};
+        std::map<std::string, std::set<std::string>> used_by;
+        for (const auto& member : workspace.members) {
+            if (!member.data) continue;
+            std::vector<const toml::table*> tables{table_at(&*member.data, "dependencies"), table_at(&*member.data, "dev-dependencies"),
+                                                   table_at(&*member.data, "build-dependencies")};
+            if (const auto* targets = table_at(&*member.data, "target"))
+                for (const auto& [_, target] : *targets)
+                    for (const auto kind : {"dependencies", "dev-dependencies"}) tables.push_back(table_at(target.as_table(), kind));
+            if (const auto* features = table_at(&*member.data, "feature-deps"))
+                for (const auto& [_, feature] : *features) tables.push_back(feature.as_table());
+            for (const auto* table : tables) {
+                if (!table) continue;
+                for (const auto& [_, node] : flatten(*table)) {
+                    const auto* spec = node->as_table();
+                    if (!spec || !spec->get("path")) continue;
+                    const std::string target = resolved(member.path, spec->get("path")->value_or(std::string{}));
+                    if (target != member.path) used_by[target].insert(member.path);
+                }
+            }
+        }
+        for (const auto& member : workspace.members) {
+            if (!member.data || member.path == "spec") continue;  // the standard's own repository, a submodule
+            const auto* metadata = openmui_metadata(*member.data);
+            const std::string said = metadata && metadata->get("separate") ? metadata->get("separate")->value_or(std::string{}) : std::string{};
+            const std::string where = member.path + "/mcpp.toml";
+            const auto colon = said.find(':');
+            const std::string reason = said.substr(0, colon == std::string::npos ? said.size() : colon);
+            if (said.empty() || colon == std::string::npos || !reasons.contains(reason) || said.find_first_not_of(' ', colon + 1) == std::string::npos) {
+                add("packages", where,
+                    "[package.metadata.openmui] separate = \"<reason>: <why>\", the reason platform, build-stage, suite, closure, dependency, library "
+                    "or product (plan §4.2); a package with none is merged into its owner or its one consumer");
+                continue;
+            }
+            auto users = used_by.contains(member.path) ? used_by.at(member.path).size() : std::size_t{0};
+            // A suite's own tests that run it (against a reference, or on another backend) are a runner too.
+            std::error_code missing;
+            if (reason == "suite" && std::filesystem::is_directory(root / path_of(member.path) / "tests", missing)) ++users;
+            if ((reason == "library" || reason == "suite") && users < 2)
+                add("packages", where,
+                    std::format("separate says {}, but {} member(s) use it: a {} stands apart when two or more do; merge it into its consumer "
+                                "or say the isolation it keeps",
+                                reason, users, reason));
+            if (reason == "product") {
+                bool program = member.path.starts_with("examples/") || member.path.starts_with("showcase/") || member.path.starts_with("tests/") ||
+                               member.path == "site";
+                if (const auto* targets = table_at(&*member.data, "targets"))
+                    for (const auto& [_, target] : *targets)
+                        if (const auto* one = target.as_table())
+                            if (const auto kind = one->get("kind") ? one->get("kind")->value_or(std::string{}) : std::string{};
+                                kind == "bin" || kind == "app" || kind == "entry")
+                                program = true;
+                if (!program) add("packages", where, "separate says product, but it has no program and is no example, showcase, test or site");
+            }
+        }
+    }
+
     // platform-table (D-201): each cell real, software, unverified or unsupported, with what it rests on or lacks.
     if (const auto table_text = read_text(root / "docs/release.platforms.xdef.json")) {
         constexpr std::string_view where = "docs/release.platforms.xdef.json";
@@ -808,7 +872,6 @@ std::span<const std::pair<std::string, std::string>> repository_owed() {
     static const std::vector<std::pair<std::string, std::string>> owed{
         {"modules/projects/xengine/kernel/audio", "M6.4: what is sounding, each bus's loudness, a sound back to its event (the plan's §3.4: a structured way to listen)"},
         {"modules/projects/xengine/game/world", "M6.2: entities and scenes as the game subject's addresses and observation by region and kind (§3.4)"},
-        {"modules/projects/xengine/game/net", "M6.2: a match's rollbacks as branches, a desync located to its step and channel (§3.4)"},
         {"modules/projects/gongfu", "after M6.2: a match on xengine.runtime as a subject (its studio's tool is declared)"},
     };
     return owed;

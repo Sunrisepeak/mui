@@ -9,6 +9,7 @@ repo = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: properties and laws every carrier of matter runs"
 kind = "module"
 # To an agent: a definition and its plan hold no state of their own — the state is the carrier's, reached through
 # the carrier's subject; what a plan holds it says as JSON (Program::describe), and one instance's step it says

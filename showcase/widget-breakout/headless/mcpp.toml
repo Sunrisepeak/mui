@@ -17,6 +17,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
 profile = "game"  # its profile (D-207): a game on its own, played by an agent in its tests
+separate = "product: Widget Breakout on its own, headless (the Web and tests run it)"
 
 [targets.widget-breakout-headless]
 kind = "lib"

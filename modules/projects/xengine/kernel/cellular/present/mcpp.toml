@@ -14,6 +14,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: cellular worlds drawn, for games and tools"
 reexports = ["mlibs.geom", "mlibs.math", "xrender.raster", "xrender.vector"]  # what its interface re-exports (lint module-closure)
 kind = "runtime"
 agent = { part = "xengine.cellular" }

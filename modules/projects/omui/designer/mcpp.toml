@@ -15,6 +15,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: Live Design for applications, tools and tests"
 kind = "runtime"
 agent = { part = "omui.agent" }
 

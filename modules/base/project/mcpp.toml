@@ -14,6 +14,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "dependency: the project model reads manifests with toml++, kept out of mlibs.agent's consumers"
 kind = "module"
 
 [targets.mlibs-project]

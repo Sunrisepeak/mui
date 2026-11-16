@@ -14,7 +14,8 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
-reexports = ["mlibs.session", "omui.core", "omui.view"]  # what its interface re-exports (lint module-closure)
+separate = "library: semantic queries, actions and their records for agents and hosts"
+reexports = ["mlibs.agent", "omui.core", "omui.view"]  # what its interface re-exports (lint module-closure)
 kind = "runtime"
 agent = { part = "omui.agent" }
 
@@ -27,7 +28,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 [dependencies]
 omui.core    = { path = "../core" }
 omui.view    = { path = "../view" }
-mlibs.session = { path = "../../../base/session" }
+mlibs.agent   = { path = "../../../base/agent", features = ["session"] }  # mlibs.session
 mlibs.utils    = { path = "../../../base/utils" }
 
 [dev-dependencies]

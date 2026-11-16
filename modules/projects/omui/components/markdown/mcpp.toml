@@ -14,6 +14,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: Markdown views for applications and the site"
 reexports = ["mlibs.markdown", "omui.core", "omui.view"]  # what its interface re-exports (lint module-closure)
 kind = "component"
 agent = { part = "omui.agent" }

@@ -13,6 +13,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "build-stage: stage 0's xdef — the kinds' registry, snapshots, the checker and the migration"
 kind = "module"
 
 [targets.mlibs-xdef-tool]

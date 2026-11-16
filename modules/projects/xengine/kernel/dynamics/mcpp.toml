@@ -16,6 +16,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: rigid bodies in 2D and 3D for games, matter and tests"
 kind = "module"
 agent = "subject"
 

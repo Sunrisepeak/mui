@@ -13,6 +13,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "suite: the mesh pass on any device against the CPU reference, run by each backend"
 kind  = "module"
 agent = { library = "conformance suite of the mesh pass on a device: for tests only" }
 

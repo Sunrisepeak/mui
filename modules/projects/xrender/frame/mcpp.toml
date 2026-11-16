@@ -20,6 +20,7 @@ platforms   = ["linux", "macos", "windows", "emscripten"]
 
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: a frame composed of layers, for every host"
 reexports = ["xrender.raster", "xrender.vector"]  # what its interface re-exports (lint module-closure)
 kind  = "module"
 agent = "subject"

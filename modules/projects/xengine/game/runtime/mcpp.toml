@@ -14,6 +14,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: a game as a Playable for every game and agent"
 kind = "runtime"
 agent = "subject"
 
@@ -28,6 +29,10 @@ sources = ["src/*.cppm"]
 [features]
 lines = { sources = ["src/lines/*.cppm", "src/lines/*.cpp"] }
 
+# Rollback netcode for two peers, independent of the transport (src/net/, module xengine.net; D-85; experimental):
+# a feature — the standard library alone, and no game takes it yet (release plan §4.2 rule 3).
+net = { sources = ["src/net/*.cppm", "src/net/*.cpp"] }
+
 [feature-deps.lines]
 mcpplibs.os      = "0.4.4"
 mcpplibs.cmdline = "0.0.3"
@@ -40,7 +45,11 @@ mlibs.json       = { path = "../../../../base/json" }
 xengine.input    = { path = "../input" }
 openlifa.openas  = "0.2.0"
 
+[test]
+features = ["net"]  # tests/net_test.cpp
+
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
+gongfu         = { path = "../../../gongfu" }  # tests/net_test.cpp: gongfu's match on two peers
 mlibs.utils    = { path = "../../../../base/utils" }
 mlibs.agent.cts = { path = "../../../../base/agent/cts" }

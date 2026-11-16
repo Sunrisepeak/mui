@@ -13,6 +13,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "closure: the one bridge that knows both xengine and omui (D-161)"
 agent = { part = "xengine.runtime" }
 
 [targets.mgame-ui]

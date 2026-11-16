@@ -15,15 +15,16 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 primary-module = "omui"  # the SDK's umbrella: `import omui;` (D-207)
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
-lower = ["omui.generate", "omui.host.android"]  # lower-labelled parts it uses, each marked in its README
-reexports = ["hanim.visual", "mlibs.i18n", "omui.agent", "omui.core", "omui.expr", "omui.generate", "omui.host.android", "omui.host.headless", "omui.host.sdl3", "omui.host.web", "omui.semantic", "omui.ui.base", "omui.view", "omui.viewdoc"]  # what its interface re-exports (lint module-closure)
-agent = { library = "the umbrella: it re-exports the packages of omui and holds nothing itself" }
+separate = "library: the SDK umbrella an application imports"
+lower = ["omui.host.android"]  # lower-labelled parts it uses, each marked in its README
+reexports = ["hanim.visual", "mlibs.i18n", "omui.agent", "omui.core", "omui.expr", "omui.host.android", "omui.host.headless", "omui.host.sdl3", "omui.host.web", "omui.semantic", "omui.ui.base", "omui.view", "omui.viewdoc"]  # what its interface re-exports (lint module-closure)
+agent = { library = "the umbrella: it re-exports the packages of omui; its own part, runtime generation (src/generate/, module omui.generate), is reached through omui.agent's generate.* catalog" }
 
 [targets.openmui]
 kind = "lib"
 
 [build]
-sources = ["src/*.cppm", "src/*.cpp"]
+sources = ["src/*.cppm", "src/*.cpp", "src/generate/*.cppm", "src/generate/*.cpp"]  # generate: runtime generation (preview), module omui.generate
 
 [dependencies]
 omui.core          = { path = "../core" }
@@ -31,7 +32,7 @@ omui.view          = { path = "../view" }
 omui.semantic      = { path = "../semantic" }
 hanim.visual      = { path = "../../hanim/visual" }
 omui.agent         = { path = "../agent" }
-omui.generate      = { path = "../generate" }
+mlibs.control       = { path = "../../../base/control" }  # generate: its catalog
 omui.expr          = { path = "../expr" }
 omui.viewdoc       = { path = "../viewdoc" }
 mlibs.utils         = { path = "../../../base/utils" }

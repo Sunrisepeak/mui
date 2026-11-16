@@ -13,6 +13,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 reexports = ["mlibs.agent"]  # what its interface re-exports (lint module-closure)
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: the omui command"
 lower = ["mlibs.project", "xengine.audio", "xengine.audio.timeline", "xengine.video", "xengine.video.webm"]  # lower-labelled parts it uses, each marked in its README
 kind = "tool"
 agent = { part = "omui.agent" }  # the `omui` command: the agent operations of omui.agent's catalog, at the application's endpoint (D-174)

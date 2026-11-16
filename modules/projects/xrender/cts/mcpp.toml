@@ -13,6 +13,7 @@ repo = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "suite: the render conformance suite each device backend runs"
 kind = "backend"
 agent = { library = "conformance suites of the renderer contracts: for tests only" }
 

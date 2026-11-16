@@ -15,6 +15,7 @@ license     = "Apache-2.0"
 
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: example 02-hello-ts"
 kind  = "app"
 id    = "org.openmui.text-stats"
 title = "Text statistics"

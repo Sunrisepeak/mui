@@ -14,6 +14,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "build-stage: stage 0's ops-gen, an operation catalogue to its C++ table, listing and reference"
 kind = "module"
 lower = ["mlibs.xdef.tool"]  # lower-labelled parts it uses, each marked in its README
 

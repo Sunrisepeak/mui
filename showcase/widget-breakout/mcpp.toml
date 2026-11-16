@@ -14,6 +14,7 @@ license     = "Apache-2.0"
 
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: the widget breakout showcase"
 kind      = "showcase"
 contracts = ["contract/*.contract.xdef.ts"]
 profile = "app"  # its profile (D-207): what omui doctor holds it to (the game itself is headless/'s)

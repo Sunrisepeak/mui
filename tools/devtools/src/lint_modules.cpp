@@ -129,7 +129,7 @@ std::vector<Source> member_sources(const Workspace& workspace) {
     std::ranges::sort(by_depth, [](const std::string& a, const std::string& b) { return a.size() > b.size(); });
     std::vector<Source> out;
     std::error_code error;
-    constexpr std::array skip{"target", ".git", ".mcpp", ".xlings", ".cache", "build", "node_modules", "fixtures", ".venv", "__pycache__"};
+    constexpr std::array skip{"target", ".git", ".mcpp", ".xlings", ".claude", ".cache", "build", "node_modules", "fixtures", ".venv", "__pycache__"};
     for (auto it = fs::recursive_directory_iterator(workspace.root, fs::directory_options::skip_permission_denied, error);
          it != fs::recursive_directory_iterator(); it.increment(error)) {
         if (error) break;

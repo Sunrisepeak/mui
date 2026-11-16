@@ -15,6 +15,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: effects as declared data for the frame and the tools"
 kind = "module"
 agent = { part = "xrender.frame" }
 

@@ -432,7 +432,6 @@ std::span<const Closure> repository_closures() {
         {"xrender.scene", {"xrender.scene", "mlibs.geom", "mlibs.math", "mlibs.utils"}, {}},
         {"xrender.mesh", {"xrender.mesh", "xrender.scene", "mlibs.geom", "mlibs.math", "mlibs.utils"}, {}},
         {"xrender.mesh.gpu", {"xrender.mesh.gpu", "xrender.mesh", "xrender.scene", "mlibs.geom", "mlibs.math", "mlibs.utils", "mlibs.rhi", "mlibs.memory"}, {}},
-        {"xrender.sprite", {"xrender.sprite", "mlibs.geom", "mlibs.math", "mlibs.utils"}, {}},
         // … and an application that draws in two dimensions links none of it (a world is shown as a picture its owner drew: xengine.ui)
         {"omui.sdk", {}, {"xrender.mesh", "xrender.scene"}},
         {"omui.host.sdl3", {}, {"xrender.mesh", "xrender.scene"}},

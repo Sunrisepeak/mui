@@ -13,6 +13,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "dependency: it reaches every carrier (cellular, dynamics, particles), each of which depends on xengine.matter"
 reexports = ["mlibs.cts"]  # what its interface re-exports (lint module-closure)
 kind = "module"
 agent = { library = "conformance suite of matter's carriers: for tests only" }

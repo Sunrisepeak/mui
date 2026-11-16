@@ -23,6 +23,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: sound synthesised and mixed for games, films and interfaces"
 kind = "runtime"
 
 [targets.openmui-audio]

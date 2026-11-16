@@ -17,6 +17,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: the player program"
 kind = "entry"
 agent = { part = "omui.agent" }  # the application it runs is the subject, at the agent endpoint omui.agent serves (D-174)
 

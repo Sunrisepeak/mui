@@ -15,6 +15,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: declared data's names and formats for every reader, the standard library alone"
 kind = "module"
 
 [targets.mlibs-xdef]

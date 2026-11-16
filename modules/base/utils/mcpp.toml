@@ -27,6 +27,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 primary-module = "*"  # small tools, each its own module (mlibs.base64, mlibs.http …) (D-207)
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: small domain-free tools for every package"
 kind = "module"
 
 [targets.mlibs-utils]

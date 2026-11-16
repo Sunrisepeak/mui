@@ -13,6 +13,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "experimental"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: Swarm on its own, headless (the Web and tests run it)"
 
 [targets.swarm-headless]
 kind = "lib"

@@ -16,6 +16,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: the game world as a value for games and tools"
 
 [targets.mgame-world]
 kind = "lib"

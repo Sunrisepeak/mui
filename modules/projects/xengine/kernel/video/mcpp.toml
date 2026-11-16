@@ -22,6 +22,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: films encoded and probed for tools and showcases"
 reexports = ["mlibs.image"]  # what its interface re-exports (lint module-closure)
 kind = "runtime"
 agent = { library = "encodes and decodes: a function of the frames and bytes given; what plays is its consumer state" }

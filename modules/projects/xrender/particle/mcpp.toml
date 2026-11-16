@@ -13,6 +13,7 @@ platforms   = ["linux", "macos", "windows", "emscripten"]
 
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: particles drawn, the CPU reference"
 reexports = ["xrender.mesh"]  # what its interface re-exports (lint module-closure)
 kind  = "module"
 agent = { part = "xrender.frame" }

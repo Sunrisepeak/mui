@@ -9,6 +9,7 @@ repo = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "platform: the rules on a real device through SDL, native only"
 reexports = ["mlibs.cts"]  # what its interface re-exports (lint module-closure)
 kind = "backend"
 agent = { library = "conformance suite of the GPU field: for tests only" }

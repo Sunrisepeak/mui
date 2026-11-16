@@ -13,6 +13,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: the hanim command and its studio"
 reexports = ["mlibs.agent", "mlibs.control", "xrender.raster"]  # what its interface re-exports (lint module-closure)
 kind = "tool"
 agent = "tool"

@@ -13,6 +13,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "suite: the world contract on a crowd of characters, for tests and benchmarks"
 kind = "module"
 agent = { library = "conformance suite of skeletal animation: for tests only" }
 

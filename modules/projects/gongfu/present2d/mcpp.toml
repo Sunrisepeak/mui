@@ -15,6 +15,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "experimental"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: fights drawn in 2D for the game and its tools"
 reexports = ["gongfu.data"]  # what its interface re-exports (lint module-closure)
 agent = { part = "gongfu" }
 
@@ -32,8 +33,7 @@ mlibs.math = { path = "../../../base/math" }
 marzer.tomlplusplus   = "3.4.0"
 hanim.core                 = { path = "../../hanim/core" }
 mlibs.geom          = { path = "../../../base/geom" }
-xrender.vector = { path = "../../xrender/vector" }
-xrender.sprite = { path = "../../xrender/sprite" }
+xrender.vector = { path = "../../xrender/vector", features = ["sprite"] }  # xrender.sprite
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"

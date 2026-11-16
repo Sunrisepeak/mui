@@ -25,7 +25,6 @@ It is two halves with omui between them (D-161), each in a directory of its own,
 | game | [playtest](game/playtest) | game | A game played by branching ahead (§6.14, a general part): the player's order of trying, a game's table of ways and tools, and a report of where and why it is stuck |
 | game | [world](game/world) | game | Entities and components in fixed columns of plain data: deterministic order, a snapshot is one copy |
 | game | [input](game/input) | game | Keys, gamepads and the pointer bound to a game's actions, sampled once a frame as plain data |
-| game | [net](game/net) | game | Rollback netcode for two peers, independent of the transport: input delay, prediction, rollback, desync detection |
 | game | [ui](game/ui) | game | The bridge: a game inside omui — its steps paced on the runtime's clock, omui's keys and pointer given to its actions |
 
 The other engines of the system are projects of their own: [hanim](../hanim) (animation, and the timeline every editor shares: [hanim.timeline](../hanim/timeline)), [xrender](../xrender) (rendering) and [gongfu](../gongfu) (fighting games, built on the game layer's ideas but with a core that needs only the standard library). Convergence moves the timeline's animation tracks and audio gain automation onto hanim's channels (plan §6.5).
@@ -37,6 +36,6 @@ The other engines of the system are projects of their own: [hanim](../hanim) (an
 | Matter, the lattice, 2D and 3D rigid bodies, audio and space, the material lab | preview | `xengine.matter`, `xengine.cellular`, `xengine.dynamics`, `xengine.audio*`, `xengine.matter.lab` |
 | The game layer: runtime, playtest, input, the UI bridge, navigation, chunked worlds | preview | `xengine.runtime`, `xengine.playtest`, `xengine.input`, `xengine.ui`, `xengine.nav`, `xengine.world` |
 | The air as a carrier, particles as matter, 3D emergence | experimental | `xengine.field`, `xengine.particles` |
-| Rollback netcode | experimental | `xengine.net` |
+| Rollback netcode | experimental | `xengine.net` (`xengine.runtime`'s feature `net`) |
 
 `xengine.dynamics`' core (springs, collision, XPBD) is used by stable `hanim`; its families (2D, 3D, scene) are preview.

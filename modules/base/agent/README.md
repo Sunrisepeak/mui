@@ -65,3 +65,24 @@ Its own package rather than part of `mlibs.control`: control takes openas, loggi
 ```sh
 mcpp test -p mlibs.agent
 ```
+
+## Recorded sessions (feature `session`)
+
+Sessions as data: a header and timestamped entries, one JSON object per line
+(`<name>.session.xdef.jsonl`). Entries stay ordered by time; a session can be
+sought by binary search, sliced, merged with another, written and read back
+byte-identical. What an entry means is its kind's business — the runtime
+records frames with input events, semantic actions with their actor and
+answer, and checkpoints of the semantic tree (`omui.semantic`), and replays
+them exactly in headless mode.
+
+The feature `session` (`src/session/`, module `mlibs.session`), independent of any interface (D-57): it adds nlohmann/json to the kernel's own dependencies and knows nothing of nodes or views.
+
+```cpp
+import mlibs.session;
+
+mlibs::session::Session s;
+s.header.app = "org.example.notes";
+s.add(0.5, "act", R"({"node":"main/save","action":"activate"})");
+s.save("bug.session.xdef.jsonl");
+```

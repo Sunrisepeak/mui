@@ -12,6 +12,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "platform: Quay's window program, native only (the game itself runs on the Web)"
 
 [targets.omui-showcase-quay-window]
 kind = "lib"

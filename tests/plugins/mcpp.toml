@@ -13,6 +13,7 @@ license     = "Apache-2.0"
 [package.metadata.openmui]
 primary-module = "acme.data"  # the fixture's module, as a third party names its own (D-207)
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: a third party's plugins, as a fixture"
 kind = "component"
 
 [targets.openmui-plugins-fixture]

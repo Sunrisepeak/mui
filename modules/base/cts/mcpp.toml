@@ -20,6 +20,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: the kit every conformance suite is written with"
 kind = "module"
 
 [targets.mlibs-cts]

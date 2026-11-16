@@ -13,6 +13,7 @@ license     = "Apache-2.0"
 
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "build-stage: omui-gen, contracts and data to code at build time"
 kind = "tool"
 agent = { part = "omui.agent" }  # the generator behind `omui` and the build plugins; reached as omui.agent's generation operations (D-174)
 

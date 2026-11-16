@@ -27,6 +27,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
 profile = "game"  # its profile (D-207): what omui doctor holds it to
+separate = "product: the kiln showcase"
 
 [targets.omui-showcase-kiln]
 kind = "lib"

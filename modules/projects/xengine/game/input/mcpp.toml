@@ -14,6 +14,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: devices to actions for every game and host"
 agent = { part = "xengine.runtime" }
 
 [targets.mgame-input]

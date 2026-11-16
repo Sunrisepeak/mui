@@ -11,6 +11,7 @@ license     = "Apache-2.0"
 
 [package.metadata.openmui]
 maturity = "experimental"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: the fighting showcase"
 kind      = "showcase"
 contracts = ["contract/*.contract.omui.toml"]
 profile = "app"  # its profile (D-207): what omui doctor holds it to

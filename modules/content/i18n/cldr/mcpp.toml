@@ -14,6 +14,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "dependency: CLDR's locale data (megabytes, Unicode's licence), only where a product ships locales"
 kind = "data"
 
 [targets.mlibs-i18n-cldr]

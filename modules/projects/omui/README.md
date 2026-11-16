@@ -15,7 +15,7 @@ The reference implementation of the [openmui](../../../spec) specification: a vi
 
 | Part | |
 |---|---|
-| [sdk](sdk) | `omui.sdk`: the umbrella package users name (`import openmui;`): the runtime, the base components, the default theme, `omui::run` |
+| [sdk](sdk) | `omui.sdk`: the umbrella package users name (`import omui;`): the runtime, the base components, the default theme, `omui::run`; runtime generation (D-144, `omui.generate`, preview) |
 | [entry](entry) | omui's programs: the player (a TypeScript application run from its manifest) and the development host (`omui dev`: the window held, the designer linked) |
 | [tools](tools) | omui's toolkit: the `omui` command, the MCP server, the generator `omui-gen` |
 | [components](components) | The component libraries (`openmui.ui.*`) |
@@ -32,7 +32,6 @@ The reference implementation of the [openmui](../../../spec) specification: a vi
 | [semantic](semantic) | The semantic tree: snapshots, deltas, queries, actions, waits, checks, recording |
 | [accessibility](accessibility) | The tree served to the platform's assistive technology: UIA, NSAccessibility, AT-SPI (AccessKit) |
 | [agent](agent) | The agent endpoint: `openmui.tree` over local IPC, JSON lines, envelopes |
-| [generate](generate) | Runtime generation (D-144): drafts for declared surfaces, validated, previewed, committed as versions undo takes back; A2UI as an input format |
 | [viewdoc](viewdoc) | View documents: checking, loading, reloading, component documents, the schema |
 | [theme](theme) | Themes as data (`*.theme.xdef.ts`); the default, compact and style packs inside it |
 | [native](native) | The native-module registry: contract-typed C++ functions scripts call; the official modules inside it |

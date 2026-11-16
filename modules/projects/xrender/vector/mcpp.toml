@@ -13,6 +13,7 @@ platforms   = ["linux", "macos", "windows", "emscripten"]
 
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: paths and paint for every 2D drawing"
 reexports = ["xrender.graph"]  # what its interface re-exports (lint module-closure)
 kind = "backend"
 agent = { part = "xrender.frame" }
@@ -23,6 +24,12 @@ kind = "lib"
 [build]
 sources  = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm", "src/svg/*.cppm", "src/svg/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+# Pictures on bones in 2D (src/sprite/, module xrender.sprite): 2D skinning — a picture's region laid on a bone
+# as a grid of cells, each corner going over to the next bones across their joints; `draw_mesh` draws what it
+# makes. A feature (release plan §4.2 rule 3: one consumer, gongfu.present2d), a function of what it is given.
+[features]
+sprite = { sources = ["src/sprite/*.cppm", "src/sprite/*.cpp"] }
 
 [build-dependencies]
 mlibs.shader.rules = { path = "../../../gfx/shader/rules", host-module = true }
@@ -40,6 +47,7 @@ xrender.raster = { path = "../raster" }
 # directly in tests/ stay a program each: they count allocations with an operator new of their own.
 [test]
 programs = "directory"
+features = ["sprite"]  # tests/vector/sprite_test.cpp
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"

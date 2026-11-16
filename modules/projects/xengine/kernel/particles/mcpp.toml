@@ -14,6 +14,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "experimental"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: particles as a carrier of matter for games and matter's suite"
 reexports = ["mlibs.geom", "mlibs.math", "xengine.matter"]  # what its interface re-exports (lint module-closure)
 kind = "module"
 agent = "subject"

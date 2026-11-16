@@ -12,6 +12,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "dependency: QuickJS, kept from applications without scripts"
 reexports = ["omui.lang.ts", "mlibs.ts"]  # what its interface re-exports (lint module-closure)
 kind = "lang"
 agent = { part = "omui.agent" }

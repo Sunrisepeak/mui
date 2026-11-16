@@ -13,6 +13,7 @@ platforms   = ["linux", "macos", "windows", "emscripten"]
 
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: the device interface every GPU path depends on"
 kind = "backend"
 
 [targets.mlibs-rhi]

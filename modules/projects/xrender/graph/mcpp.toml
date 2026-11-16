@@ -14,6 +14,7 @@ platforms   = ["linux", "macos", "windows", "emscripten"]
 
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: the render graph's passes for the frame and the tools"
 kind = "module"
 agent = { part = "xrender.frame" }
 

@@ -107,6 +107,21 @@ std::string tool_name(std::string_view operation) {
     return out;
 }
 
+// The protocol's operations an MCP client sees as tools on every turn (W4: what each turn carries); the others stay
+// reachable through `omui agent` and ui_describe's answer.
+using Operation = std::remove_cvref_t<decltype(agent::catalog.front())>;
+constexpr std::array<std::string_view, 19> offered_operations{"ui.describe", "ui.snapshot", "ui.find",     "ui.act",    "ui.invoke",   "ui.undo",  "ui.redo",
+                                                              "ui.transaction", "ui.preview", "ui.record", "ui.reload", "ui.wait",  "ui.intend", "ui.drew",
+                                                              "ui.capture",  "ui.timeline", "ui.explain", "ui.input", "ui.clock"};
+// The operation a ui_* tool is (ui_act → ui.act), when it is one offered.
+const Operation* protocol_operation(std::string_view tool) {
+    if (!tool.starts_with("ui_")) return nullptr;
+    const std::string op = "ui." + std::string(tool.substr(3));
+    if (!std::ranges::contains(offered_operations, op)) return nullptr;
+    const auto entry = std::ranges::find(agent::catalog, op, [](const auto& e) { return e.operation.name; });
+    return entry == agent::catalog.end() ? nullptr : &*entry;
+}
+
 std::string_view str(const Value& args, std::string_view key) {
     const Value* v = args.get(key);
     return v ? v->as_string() : std::string_view{};
@@ -597,6 +612,202 @@ struct Server::Impl {
         return tool_result(std::format("no tool `{}`", name), true);
     }
 
+    // A ui_* tool is one of the protocol's operations (omui.agent's catalog): its arguments are the request's, the
+    // application named by `app` (resolved apart). What changes something goes through the person's decision
+    // (perform) and a dry run is said plainly (plan); every answer is shown as an agent reads it best.
+    Value run_operation(Transport& t, const Operation& entry, const Value& args, const std::string& app) {
+        const std::string_view op = entry.operation.name.substr(3);  // ui.act → act, as the protocol has it
+        Value request;
+        request.set("op", op);
+        if (args.map())
+            for (const auto& [key, value] : *args.map())
+                if (key != "app" && key != "dry_run" && !(op == "input" && key == "capture")) request.set(key, value);
+        const bool dry = args.get("dry_run") && args.get("dry_run")->as_bool();
+        const std::string what = op == "act" ? std::format("{} on {}", str(args, "action"), str(args, "node"))
+                               : op == "invoke" ? std::string(str(args, "verb"))
+                               : op == "transaction" && args.get("steps") && args.get("steps")->list() ? std::format("{} steps", args.get("steps")->list()->size())
+                                                                                                         : std::string(op);
+        if (dry) return plan(app, std::move(request), what);
+        if (op == "act" || op == "invoke") return perform(t, app, std::move(request), what);
+        request.set("actor", actor);
+        std::chrono::milliseconds budget = options.timeout;
+        if (op == "wait") {  // waiting is the application's: the answer may take that long
+            const double seconds = args.get("timeout") ? args.get("timeout")->as_double(5) : 5.0;
+            request.set("timeout", seconds);
+            budget += std::chrono::milliseconds(static_cast<std::int64_t>(seconds * 1000));
+        }
+        if (op == "input" && args.get("events") && args.get("events")->list())
+            budget += std::chrono::milliseconds(static_cast<std::int64_t>(args.get("events")->list()->size()) * 2000);
+        const Answer a = call(app, request, budget);
+        if (a.exit != 0) {
+            // What stays of a transaction is the answer's to say (a step that gave no way back stays done); else nothing does.
+            const bool nothing_stays = op == "transaction" && a.message.find("stay done") == std::string::npos;
+            return tool_result(std::format("{}: {}{}", a.code.empty() ? "failed" : a.code, a.message, nothing_stays ? " — nothing of it stays" : ""), true);
+        }
+        return shown(op, args, app, a);
+    }
+
+    // An answer as an agent reads it best: the tree as an outline, pictures as images, what changed a line each.
+    Value shown(std::string_view op, const Value& args, const std::string& app, const Answer& a) {
+        const Value data_of = Value{}.set("data", a.data);
+        const auto pictures_of = [&](const Value& holder) {
+            Value::List pictures;
+            for (std::string_view when : {"before", "after"})
+                if (const Value* picture = holder.get(when); picture && picture->get("base64"))
+                    pictures.push_back(Value{}.set("type", "image").set("data", str(*picture, "base64")).set("mimeType", "image/png"));
+            return pictures;
+        };
+        const auto changes_lines = [&](const Value* changes, bool with_fields) {
+            std::string text;
+            if (changes)
+                for (std::string_view kind : {"changed", "added", "removed"})
+                    if (const Value* listed_changes = changes->get(kind); listed_changes && listed_changes->list())
+                        for (const Value& one : *listed_changes->list()) {
+                            text += std::format("\n  {} {}", kind, str(one, "id"));
+                            if (with_fields) text += std::format(": {}", (one.get("fields") ? *one.get("fields") : one.get("now") ? *one.get("now") : *one.get("was")).json());
+                        }
+            return text;
+        };
+        if (op == "snapshot" || op == "find") {
+            const Value* nodes = a.data.get("nodes");
+            const Value::List none;
+            const Value::List& list = nodes && nodes->list() ? *nodes->list() : none;
+            if (op == "snapshot") return tool_result(std::format("{}: {} nodes\n{}", app, list.size(), outline(list)), false, a.data);
+            return tool_result(list.empty() ? std::string("no node matches") : std::format("{} found\n{}", list.size(), outline(list)), false, a.data);
+        }
+        if (op == "describe") {  // the application's verbs, for ui_invoke
+            const Value* verbs_listed = a.data.get("verbs");
+            std::string out = std::format("{}: {}, verbs\n", app, str(a.data, "interface"));
+            Value::List list;
+            if (verbs_listed && verbs_listed->list())
+                for (const Value& v : *verbs_listed->list()) {
+                    std::string takes;
+                    if (const Value* given = v.get("args"); given && given->map())
+                        for (const auto& [key, type] : *given->map()) takes += std::format("{}{}: {}", takes.empty() ? "" : ", ", key, type.as_string());
+                    out += std::format("- {} ({}{}){}{} — {}\n", str(v, "name"), str(v, "effect"), v.get("answer") ? std::format(", answer \"{}\"", str(v, "answer")) : std::string(),
+                                       takes.empty() ? "" : std::format(" {{{}}}", takes), v.get("person") ? " [person only]" : "", str(v, "summary"));
+                    list.push_back(v);
+                }
+            if (list.empty()) out += "(none)\n";
+            return tool_result(std::move(out), false, Value{}.set("verbs", Value(std::move(list))));
+        }
+        if (op == "undo" || op == "redo") return tool_result(std::format("{}: {}", op == "redo" ? "redone" : "undone", str(a.data, op == "redo" ? "redone" : "undone")), false, data_of);
+        if (op == "transaction") {
+            const std::size_t steps = args.get("steps") && args.get("steps")->list() ? args.get("steps")->list()->size() : 0;
+            return tool_result(std::format("done: {} steps as one step ({})", steps, str(a.data, "committed")), false, data_of);
+        }
+        if (op == "wait") return tool_result("the condition holds", false, a.data);
+        if (op == "preview") {
+            // Shown before it is allowed (Part 2 §4.1, A): for the person to look at before saying yes to ui_act / ui_transaction.
+            std::string text = "preview (nothing was done";
+            const Value* restored = a.data.get("restored");
+            text += restored && restored->as_bool() ? ", the interface is as it was):" : ", BUT the interface is not as it was):";
+            text += changes_lines(a.data.get("changes"), true);
+            if (const Value* not_done = a.data.get("not_done"); not_done && not_done->list())
+                for (const Value& one : *not_done->list()) text += std::format("\n  not done (asks the person): {} on {} ({})", str(one, "action"), str(one, "id"), str(one, "effect"));
+            Value::List pictures = pictures_of(a.data);
+            if (pictures.size() == 2) text += "\n(the first picture is before, the second after)";
+            return tool_result(text, false, {}, std::move(pictures));
+        }
+        if (op == "record") {  // a recording a fresh instance replays to the same bytes (W12)
+            const std::size_t frames = a.data.get("frames") && a.data.get("frames")->list() ? a.data.get("frames")->list()->size() : 0;
+            const Value expected = a.data.get("expect") ? *a.data.get("expect") : Value{};
+            return tool_result(std::format("a recording of {} frames, ending as tree {} and pixels {}; save the JSON below and run `omui replay FILE` "
+                                           "to play it in a fresh instance and check it ends the same\n{}",
+                                           frames, str(expected, "tree"), str(expected, "pixels"), a.data.json()),
+                               false, data_of);
+        }
+        if (op == "reload") {
+            // Agent hot reload (W2): the semantic changes, where the pixels changed (that region before and after) and the
+            // motion it started, sampled — no screenshot to compare.
+            std::string reloaded;
+            if (const Value* list = a.data.get("reloaded"); list && list->list())
+                for (const Value& path : *list->list()) reloaded += std::format("{}{}", reloaded.empty() ? "" : ", ", path.as_string());
+            std::string text = reloaded.empty() ? std::string("nothing changed on disk")
+                                                : std::format("reloaded {} in {:.1f} ms", reloaded, a.data.get("took_ms") ? a.data.get("took_ms")->as_double() : 0.0);
+            text += changes_lines(a.data.get("changes"), false);
+            Value::List pictures;
+            if (const Value* pixels = a.data.get("pixels")) {
+                const Value* region = pixels->get("changed");
+                text += region && !region->is_null() ? std::format("\npixels changed in {}", region->json()) : std::string("\nno pixel changed");
+                pictures = pictures_of(*pixels);
+                if (pictures.size() == 2) text += " (the first picture is that region before, the second after)";
+            }
+            if (const Value* motion = a.data.get("motion"); motion && motion->get("samples") && motion->get("samples")->list()) {
+                std::size_t moving = 0;
+                for (const Value& sample : *motion->get("samples")->list())
+                    if (sample.get("changed") && !sample.get("changed")->is_null()) ++moving;
+                text += std::format("\nmotion: {} samples every {} s, {} moving; {}", motion->get("samples")->list()->size(), motion->get("every") ? motion->get("every")->as_double() : 0.0,
+                                    moving, motion->get("settled") && motion->get("settled")->as_bool() ? "settled" : "still moving at the last");
+            }
+            return tool_result(text, false, data_of, std::move(pictures));
+        }
+        if (op == "intend") {
+            const bool said = a.data.get("said") && a.data.get("said")->as_bool();
+            return tool_result(!said                                                              ? "withdrawn"
+                               : (a.data.get("hands_back") && a.data.get("hands_back")->as_bool()) ? "handed back: the person sees your summary"
+                                                                                                   : "said: the person sees it",
+                               false, data_of);
+        }
+        if (op == "drew") {
+            const std::string at = args.get("at") ? args.get("at")->json() : std::string("?");
+            if (a.data.get("node") && a.data.get("node")->is_null()) return tool_result(std::format("{}: {}", at, str(a.data, "why")), false, data_of);
+            std::string text = std::format("{} drew {}", str(a.data, "node"), at);
+            if (const Value* chain = a.data.get("chain"); chain && chain->list())
+                for (const Value& one : *chain->list())
+                    text += std::format("\n  {}  built at {}", str(one, "id"), one.get("source") && !one.get("source")->is_null() ? one.get("source")->as_string() : std::string_view("?"));
+            return tool_result(text, false, data_of);
+        }
+        if (op == "timeline" || op == "explain") {
+            if (op == "explain" && a.data.get("found") && !a.data.get("found")->as_bool()) return tool_result(std::string(str(a.data, "why")), false, data_of);
+            std::string text = op == "timeline" ? std::format("recorder: {}", str(a.data, "level")) : std::string(str(a.data, "summary"));
+            if (const Value* list = a.data.get("records"); list && list->list())
+                for (const Value& record : *list->list()) {
+                    const std::string node = str(record, "node").empty() ? std::string() : std::string(str(record, "node")) + ": ";
+                    text += op == "timeline" ? std::format("\n  #{} {} {}{}", record.get("cause") ? record.get("cause")->as_int() : 0, str(record, "kind"), node, str(record, "text"))
+                                             : std::format("\n  {} {}{}", str(record, "kind"), node, str(record, "text"));
+                }
+            return tool_result(text, false, data_of);
+        }
+        if (op == "capture") {
+            if (str(args, "format") == "svg") {
+                // Vectors: exact geometry, colours and text, and which node drew what; what SVG cannot say is an island of pixels.
+                const Value* islands = a.data.get("islands");
+                return tool_result(std::format("{}\n({} island(s) kept as pixels)", str(a.data, "svg"), islands && islands->list() ? islands->list()->size() : 0), false, data_of);
+            }
+            const Value* bounds = a.data.get("bounds");
+            return tool_result(std::format("{} at {}", str(args, "node").empty() ? std::string_view("the window") : str(args, "node"), bounds ? bounds->json() : std::string("?")), false, {},
+                               Value::List{Value{}.set("type", "image").set("data", str(a.data, "base64")).set("mimeType", "image/png")});
+        }
+        if (op == "input") {
+            std::string out = std::format("{} frames", a.data.get("frames") ? a.data.get("frames")->as_int() : 0);
+            if (const Value* pressed = a.data.get("pressed"); pressed && pressed->list())
+                for (const Value& hit : *pressed->list()) {
+                    const Value* at = hit.get("at");
+                    const std::string where = at && at->list() && at->list()->size() == 2 ? std::format("{:.0f},{:.0f}", (*at->list())[0].as_double(), (*at->list())[1].as_double()) : std::string("?");
+                    if (str(hit, "node").empty()) out += std::format("\npressed at {}: nothing there", where);
+                    else
+                        out += std::format("\npressed at {}: {} {}{}", where, str(hit, "semantic").empty() ? str(hit, "node") : str(hit, "semantic"), str(hit, "role"),
+                                           str(hit, "name").empty() ? std::string() : std::format(" \"{}\"", str(hit, "name")));
+                }
+            const Value* acts = a.data.get("actions");
+            if (!acts || !acts->list() || acts->list()->empty())
+                out += "\nno action was journaled (input a component takes itself — keys a game reads, a pointer's moves — journals none; look at the picture or the tree)";
+            else
+                for (const Value& action : *acts->list())
+                    out += std::format("\naction: {} on {} by {}{}", str(action, "action"), str(action, "node"), str(action, "actor"),
+                                       action.get("exitCode") && action.get("exitCode")->as_int() != 0 ? std::format(" (exit {})", action.get("exitCode")->as_int()) : "");
+            if (auto focused = str(a.data, "focused"); !focused.empty()) out += std::format("\nfocused: {}", focused);
+            Value::List content;
+            if (const Value* capture = args.get("capture"); capture && capture->as_bool()) {
+                const Answer picture = call(app, Value{}.set("op", "capture"), options.timeout);
+                if (picture.exit == 0) content.push_back(Value{}.set("type", "image").set("data", str(picture.data, "base64")).set("mimeType", "image/png"));
+            }
+            return tool_result(std::move(out), false, data_of, std::move(content));
+        }
+        return tool_result(a.data.json(), false, data_of);  // clock and the rest: the data as it is
+    }
+
     Value run_tool(std::string_view name, const Value& args, Transport& t) {
         if (options.way != Way::semantic) return run_way_tool(name, args);
         if (const auto command = commands.find(std::string(name)); command != commands.end())
@@ -614,312 +825,7 @@ struct Server::Impl {
         }
         auto app = resolve(args);
         if (!app) return tool_result(app.error(), true);
-        if (name == "ui_snapshot") {
-            Value req;
-            req.set("op", "snapshot");
-            if (auto r = str(args, "root"); !r.empty()) req.set("root", r);
-            for (std::string_view k : {"depth", "offset", "limit", "children_limit"})
-                if (const Value* v = args.get(k)) req.set(k, v->as_int());
-            if (const Value* v = args.get("interactive")) req.set("interactive", v->as_bool());
-            Answer a = call(*app, req, options.timeout);
-            if (a.exit != 0) return tool_result(std::format("{}: {}", a.code, a.message), true);
-            const Value* nodes = a.data.get("nodes");
-            const Value::List none;
-            const Value::List& list = nodes && nodes->list() ? *nodes->list() : none;
-            return tool_result(std::format("{}: {} nodes\n{}", *app, list.size(), outline(list)), false, a.data);
-        }
-        if (name == "ui_verbs") {
-            Answer a = call(*app, Value{}.set("op", "describe"), options.timeout);
-            if (a.exit != 0) return tool_result(std::format("{}: {}", a.code, a.message), true);
-            const Value* verbs = a.data.get("verbs");
-            std::string out = std::format("{}: verbs\n", *app);
-            Value::List list;
-            if (verbs && verbs->list())
-                for (const Value& v : *verbs->list()) {
-                    std::string takes;
-                    if (const Value* g = v.get("args"); g && g->map())
-                        for (const auto& [k, t] : *g->map()) takes += std::format("{}{}: {}", takes.empty() ? "" : ", ", k, t.as_string());
-                    out += std::format("- {} ({}{}){}{} — {}\n", v.get("name")->as_string(), v.get("effect")->as_string(),
-                                       v.get("answer") ? std::format(", answer \"{}\"", v.get("answer")->as_string()) : std::string(),
-                                       takes.empty() ? "" : std::format(" {{{}}}", takes), v.get("person") ? " [person only]" : "",
-                                       v.get("summary") ? v.get("summary")->as_string() : std::string_view{});
-                    list.push_back(v);
-                }
-            if (list.empty()) out += "(none)\n";
-            return tool_result(std::move(out), false, Value{}.set("verbs", Value(std::move(list))));
-        }
-        if (name == "ui_find") {
-            Value q = Value(Value::Map{});
-            if (const Value* raw = args.get("query"); raw && raw->map()) q = *raw;
-            for (std::string_view k : {"role", "name", "id", "text"})
-                if (auto v = str(args, k); !v.empty()) q.set(k, v);
-            if (const Value* s = args.get("state")) q.set("state", s->list() ? *s : Value(Value::List{*s}));
-            if (const Value* l = args.get("limit")) q.set("limit", l->as_int());
-            Answer a = call(*app, Value{}.set("op", "find").set("q", q), options.timeout);
-            if (a.exit != 0) return tool_result(std::format("{}: {}", a.code, a.message), true);
-            const Value* nodes = a.data.get("nodes");
-            const Value::List none;
-            const Value::List& list = nodes && nodes->list() ? *nodes->list() : none;
-            return tool_result(list.empty() ? std::string("no node matches") : std::format("{} found\n{}", list.size(), outline(list)), false, a.data);
-        }
-        if (name == "ui_act") {
-            const std::string_view node = str(args, "node"), action = str(args, "action");
-            if (node.empty() || action.empty()) return tool_result("ui_act needs `node` and `action`", true);
-            Value req;
-            req.set("op", "act").set("node", node).set("action", action);
-            if (const Value* v = args.get("args")) req.set("args", *v);
-            if (auto v = str(args, "answer"); !v.empty()) req.set("answer", v);
-            if (const Value* d = args.get("dry_run"); d && d->as_bool()) return plan(*app, std::move(req), std::format("{} on {}", action, node));
-            return perform(t, *app, std::move(req), std::format("{} on {}", action, node));
-        }
-        if (name == "ui_invoke") {
-            const std::string_view verb = str(args, "verb");
-            if (verb.empty()) return tool_result("ui_invoke needs `verb`", true);
-            Value req;
-            req.set("op", "invoke").set("verb", verb);
-            if (const Value* v = args.get("args")) req.set("args", *v);
-            if (auto v = str(args, "answer"); !v.empty()) req.set("answer", v);
-            if (const Value* d = args.get("dry_run"); d && d->as_bool()) return plan(*app, std::move(req), verb);
-            return perform(t, *app, std::move(req), verb);
-        }
-        if (name == "ui_undo") {
-            const bool again = args.get("redo") && args.get("redo")->as_bool();
-            Value req;
-            req.set("op", again ? "redo" : "undo");
-            if (auto v = str(args, "scope"); !v.empty()) req.set("scope", v);
-            if (const Value* d = args.get("dry_run"); d && d->as_bool()) return plan(*app, std::move(req), again ? "redo" : "undo");
-            req.set("actor", actor);
-            Answer a = call(*app, req, options.timeout);
-            if (a.exit != 0) return tool_result(std::format("{}: {}", a.code.empty() ? "failed" : a.code, a.message), true);
-            return tool_result(std::format("{}: {}", again ? "redone" : "undone", str(a.data, again ? "redone" : "undone")), false, Value{}.set("data", a.data));
-        }
-        if (name == "ui_transaction") {
-            const Value* steps = args.get("steps");
-            if (!steps || !steps->list() || steps->list()->empty()) return tool_result("ui_transaction needs `steps`: [{node, action, args}]", true);
-            Value req;
-            req.set("op", "transaction").set("steps", *steps);
-            if (auto v = str(args, "label"); !v.empty()) req.set("label", v);
-            const std::string what = std::format("{} steps", steps->list()->size());
-            if (const Value* d = args.get("dry_run"); d && d->as_bool()) return plan(*app, std::move(req), what);
-            req.set("actor", actor);
-            Answer a = call(*app, req, options.timeout);
-            if (a.exit != 0) {
-                // What stays is the answer's to say (a step that gave no way back stays done); else nothing does.
-                const bool some_stay = a.message.find("stay done") != std::string::npos;
-                return tool_result(std::format("{}: {}{}", a.code.empty() ? "failed" : a.code, a.message, some_stay ? "" : " — nothing of it stays"), true);
-            }
-            return tool_result(std::format("done: {} as one step ({})", what, str(a.data, "committed")), false, Value{}.set("data", a.data));
-        }
-        if (name == "ui_wait") {
-            Value req;
-            req.set("op", "wait");
-            if (const Value* q = args.get("query")) req.set("q", *q);
-            if (const Value* v = args.get("absent")) req.set("absent", v->as_bool());
-            if (const Value* v = args.get("settled")) req.set("settled", v->as_bool());
-            const double seconds = args.get("timeout") ? args.get("timeout")->as_double(5) : 5.0;
-            req.set("timeout", seconds);
-            const auto budget = std::chrono::milliseconds(static_cast<std::int64_t>(seconds * 1000)) + options.timeout;
-            Answer a = call(*app, req, budget);
-            if (a.exit != 0) return tool_result(std::format("{}: {}", a.code.empty() ? "timeout" : a.code, a.message), true);
-            return tool_result("the condition holds", false, a.data);
-        }
-        if (name == "ui_preview") {
-            // Shown before it is allowed (Part 2 §4.1, A): what the steps would make, the pictures before and after,
-            // nothing left of it after — for the person to look at before saying yes to ui_act / ui_transaction.
-            const Value* steps = args.get("steps");
-            if (!steps || !steps->list() || steps->list()->empty()) return tool_result("ui_preview needs `steps`: [{node, action, args}]", true);
-            Value req;
-            req.set("op", "preview").set("steps", *steps).set("actor", actor);
-            Answer a = call(*app, req, options.timeout);
-            if (a.exit != 0) return tool_result(std::format("{}: {}", a.code.empty() ? "failed" : a.code, a.message), true);
-            std::string text = "preview (nothing was done";
-            const Value* restored = a.data.get("restored");
-            text += restored && restored->as_bool() ? ", the interface is as it was):" : ", BUT the interface is not as it was):";
-            if (const Value* c = a.data.get("changes"))
-                for (std::string_view kind : {"changed", "added", "removed"})
-                    if (const Value* l = c->get(kind); l && l->list())
-                        for (const Value& one : *l->list()) text += std::format("\n  {} {}: {}", kind, str(one, "id"), (one.get("fields") ? *one.get("fields") : one.get("now") ? *one.get("now") : *one.get("was")).json());
-            if (const Value* n = a.data.get("not_done"); n && n->list())
-                for (const Value& one : *n->list()) text += std::format("\n  not done (asks the person): {} on {} ({})", str(one, "action"), str(one, "id"), str(one, "effect"));
-            Value::List pictures;
-            for (std::string_view when : {"before", "after"})
-                if (const Value* pic = a.data.get(when); pic && pic->get("base64"))
-                    pictures.push_back(Value{}.set("type", "image").set("data", str(*pic, "base64")).set("mimeType", "image/png"));
-            if (pictures.size() == 2) text += "\n(the first picture is before, the second after)";
-            return tool_result(text, false, {}, std::move(pictures));
-        }
-        if (name == "ui_record") {
-            // A recording a fresh instance replays to the same bytes (W12): save its JSON, then `omui replay FILE`.
-            Value req;
-            req.set("op", "record").set("actor", actor);
-            if (const Value* answer = args.get("answer")) req.set("answer", *answer);
-            Answer a = call(*app, req, options.timeout);
-            if (a.exit != 0) return tool_result(std::format("{}: {}", a.code.empty() ? "failed" : a.code, a.message), true);
-            const std::size_t frames = a.data.get("frames") && a.data.get("frames")->list() ? a.data.get("frames")->list()->size() : 0;
-            return tool_result(std::format("a recording of {} frames, ending as tree {} and pixels {}; save the JSON below and run `omui replay FILE` "
-                                           "to play it in a fresh instance and check it ends the same\n{}",
-                                           frames, str(*a.data.get("expect"), "tree"), str(*a.data.get("expect"), "pixels"), a.data.json()),
-                               false, Value{}.set("data", a.data));
-        }
-        if (name == "ui_reload") {
-            // Agent hot reload (W2): what a saved file changed, said without a screenshot to compare — the semantic
-            // changes, where the pixels changed (that region before and after) and the motion it started, sampled.
-            Value req;
-            req.set("op", "reload").set("actor", actor);
-            for (std::string_view key : {"paths", "last", "samples", "every"})
-                if (const Value* v = args.get(key)) req.set(key, *v);
-            Answer a = call(*app, req, options.timeout);
-            if (a.exit != 0) return tool_result(std::format("{}: {}", a.code.empty() ? "failed" : a.code, a.message), true);
-            std::string reloaded;
-            if (const Value* list = a.data.get("reloaded"); list && list->list())
-                for (const Value& path : *list->list()) reloaded += std::format("{}{}", reloaded.empty() ? "" : ", ", path.as_string());
-            std::string text = reloaded.empty() ? std::string("nothing changed on disk")
-                                                : std::format("reloaded {} in {:.1f} ms", reloaded, a.data.get("took_ms") ? a.data.get("took_ms")->as_double() : 0.0);
-            if (const Value* c = a.data.get("changes"))
-                for (std::string_view kind : {"changed", "added", "removed"})
-                    if (const Value* l = c->get(kind); l && l->list())
-                        for (const Value& one : *l->list()) text += std::format("\n  {} {}", kind, str(one, "id"));
-            Value::List pictures;
-            if (const Value* pixels = a.data.get("pixels")) {
-                const Value* region = pixels->get("changed");
-                text += region && !region->is_null() ? std::format("\npixels changed in {}", region->json()) : std::string("\nno pixel changed");
-                for (std::string_view when : {"before", "after"})
-                    if (const Value* pic = pixels->get(when); pic && pic->get("base64"))
-                        pictures.push_back(Value{}.set("type", "image").set("data", str(*pic, "base64")).set("mimeType", "image/png"));
-                if (pictures.size() == 2) text += " (the first picture is that region before, the second after)";
-            }
-            if (const Value* motion = a.data.get("motion"); motion && motion->get("samples") && motion->get("samples")->list()) {
-                std::size_t moving = 0;
-                for (const Value& sample : *motion->get("samples")->list())
-                    if (sample.get("changed") && !sample.get("changed")->is_null()) ++moving;
-                text += std::format("\nmotion: {} samples every {} s, {} moving; {}", motion->get("samples")->list()->size(),
-                                    motion->get("every") ? motion->get("every")->as_double() : 0.0, moving,
-                                    motion->get("settled") && motion->get("settled")->as_bool() ? "settled" : "still moving at the last");
-            }
-            return tool_result(text, false, Value{}.set("data", a.data), std::move(pictures));
-        }
-        if (name == "ui_intend") {
-            const Value* text = args.get("text");
-            if (!text || text->type() != Value::Type::text) return tool_result("ui_intend needs `text` (\"\" withdraws what you said)", true);
-            Value req;
-            req.set("op", "intend").set("text", *text);
-            if (const Value* node = args.get("node")) req.set("node", *node);
-            if (const Value* back = args.get("hands_back")) req.set("hands_back", *back);
-            Answer a = call(*app, req, options.timeout);
-            if (a.exit != 0) return tool_result(std::format("{}: {}", a.code.empty() ? "failed" : a.code, a.message), true);
-            const bool said = a.data.get("said") && a.data.get("said")->as_bool();
-            return tool_result(!said ? "withdrawn" : (a.data.get("hands_back") && a.data.get("hands_back")->as_bool()) ? "handed back: the person sees your summary" : "said: the person sees it",
-                               false, Value{}.set("data", a.data));
-        }
-        if (name == "ui_drew") {
-            const Value* at = args.get("at");
-            if (!at || !at->list() || at->list()->size() != 2) return tool_result("ui_drew needs `at`: [x, y]", true);
-            Value req;
-            req.set("op", "drew").set("at", *at);
-            Answer a = call(*app, req, options.timeout);
-            if (a.exit != 0) return tool_result(std::format("{}: {}", a.code.empty() ? "failed" : a.code, a.message), true);
-            if (a.data.get("node") && a.data.get("node")->is_null()) return tool_result(std::format("{}: {}", at->json(), str(a.data, "why")), false, Value{}.set("data", a.data));
-            std::string text = std::format("{} drew {}", str(a.data, "node"), at->json());
-            if (const Value* chain = a.data.get("chain"); chain && chain->list())
-                for (const Value& one : *chain->list())
-                    text += std::format("\n  {}  built at {}", str(one, "id"), one.get("source") && !one.get("source")->is_null() ? one.get("source")->as_string() : std::string_view("?"));
-            return tool_result(text, false, Value{}.set("data", a.data));
-        }
-        if (name == "ui_timeline") {
-            Value req;
-            req.set("op", "timeline");
-            if (const Value* v = args.get("since")) req.set("since", *v);
-            if (const Value* v = args.get("limit")) req.set("limit", *v);
-            Answer a = call(*app, req, options.timeout);
-            if (a.exit != 0) return tool_result(std::format("{}: {}", a.code.empty() ? "failed" : a.code, a.message), true);
-            std::string text = std::format("recorder: {}", str(a.data, "level"));
-            if (const Value* list = a.data.get("records"); list && list->list())
-                for (const Value& r : *list->list())
-                    text += std::format("\n  #{} {} {}{}", r.get("cause") ? r.get("cause")->as_int() : 0, str(r, "kind"),
-                                        str(r, "node").empty() ? std::string() : std::string(str(r, "node")) + ": ", str(r, "text"));
-            return tool_result(text, false, Value{}.set("data", a.data));
-        }
-        if (name == "ui_explain") {
-            Value req;
-            req.set("op", "explain");
-            if (const Value* v = args.get("at")) req.set("at", *v);
-            if (const Value* v = args.get("cause")) req.set("cause", *v);
-            Answer a = call(*app, req, options.timeout);
-            if (a.exit != 0) return tool_result(std::format("{}: {}", a.code.empty() ? "failed" : a.code, a.message), true);
-            if (a.data.get("found") && !a.data.get("found")->as_bool()) return tool_result(std::string(str(a.data, "why")), false, Value{}.set("data", a.data));
-            std::string text(str(a.data, "summary"));
-            if (const Value* list = a.data.get("records"); list && list->list())
-                for (const Value& r : *list->list())
-                    text += std::format("\n  {} {}{}", str(r, "kind"), str(r, "node").empty() ? std::string() : std::string(str(r, "node")) + ": ", str(r, "text"));
-            return tool_result(text, false, Value{}.set("data", a.data));
-        }
-        if (name == "ui_capture") {
-            Value req;
-            req.set("op", "capture");
-            if (auto n = str(args, "node"); !n.empty()) req.set("node", n);
-            if (const Value* r = args.get("region")) req.set("region", *r);
-            const bool svg = str(args, "format") == "svg";
-            if (svg) req.set("format", "svg");
-            Answer a = call(*app, req, options.timeout);
-            if (a.exit != 0) return tool_result(std::format("{}: {}", a.code, a.message), true);
-            if (svg) {
-                // Vectors: exact geometry, colours and text, and which node drew what; what SVG cannot say is an island of pixels.
-                const Value* islands = a.data.get("islands");
-                return tool_result(std::format("{}\n({} island(s) kept as pixels)", str(a.data, "svg"), islands && islands->list() ? islands->list()->size() : 0),
-                                   false, Value{}.set("data", a.data));
-            }
-            Value image;
-            image.set("type", "image").set("data", str(a.data, "base64")).set("mimeType", "image/png");
-            const Value* b = a.data.get("bounds");
-            return tool_result(std::format("{} at {}", str(args, "node").empty() ? std::string_view("the window") : str(args, "node"),
-                                           b ? b->json() : std::string("?")),
-                               false, {}, Value::List{std::move(image)});
-        }
-        if (name == "ui_input") {
-            const Value* events = args.get("events");
-            if (!events || !events->list() || events->list()->empty()) return tool_result("ui_input needs `events`: [{\"type\": \"click\", \"x\": …, \"y\": …}, …]", true);
-            Value req;
-            req.set("op", "input").set("events", *events).set("actor", actor);
-            const auto budget = std::chrono::milliseconds(static_cast<std::int64_t>(events->list()->size()) * 2000) + options.timeout;
-            Answer a = call(*app, req, budget);
-            if (a.exit != 0) return tool_result(std::format("{}: {}", a.code.empty() ? "failed" : a.code, a.message), true);
-            std::string out = std::format("{} frames", a.data.get("frames") ? a.data.get("frames")->as_int() : 0);
-            if (const Value* p = a.data.get("pressed"); p && p->list())
-                for (const Value& h : *p->list()) {
-                    const Value* at = h.get("at");
-                    std::string where = at && at->list() && at->list()->size() == 2
-                                            ? std::format("{:.0f},{:.0f}", (*at->list())[0].as_double(), (*at->list())[1].as_double())
-                                            : std::string("?");
-                    if (str(h, "node").empty()) out += std::format("\npressed at {}: nothing there", where);
-                    else
-                        out += std::format("\npressed at {}: {} {}{}", where, str(h, "semantic").empty() ? str(h, "node") : str(h, "semantic"),
-                                           str(h, "role"), str(h, "name").empty() ? std::string() : std::format(" \"{}\"", str(h, "name")));
-                }
-            const Value* acts = a.data.get("actions");
-            if (!acts || !acts->list() || acts->list()->empty())
-                out += "\nno action was journaled (input a component takes itself — keys a game reads, a pointer's moves — journals none; look at the picture or the tree)";
-            else
-                for (const Value& x : *acts->list())
-                    out += std::format("\naction: {} on {} by {}{}", str(x, "action"), str(x, "node"), str(x, "actor"),
-                                       x.get("exitCode") && x.get("exitCode")->as_int() != 0 ? std::format(" (exit {})", x.get("exitCode")->as_int()) : "");
-            if (auto f = str(a.data, "focused"); !f.empty()) out += std::format("\nfocused: {}", f);
-            Value::List content;
-            if (const Value* c = args.get("capture"); c && c->as_bool()) {
-                Answer pic = call(*app, Value{}.set("op", "capture"), options.timeout);
-                if (pic.exit == 0) content.push_back(Value{}.set("type", "image").set("data", str(pic.data, "base64")).set("mimeType", "image/png"));
-            }
-            return tool_result(std::move(out), false, Value{}.set("data", a.data), std::move(content));
-        }
-        if (name == "ui_clock") {
-            const std::string_view action = str(args, "action");
-            Value req;
-            req.set("op", "clock").set("action", action.empty() ? std::string_view("show") : action);
-            for (std::string_view k : {"seconds", "rate"})
-                if (const Value* v = args.get(k)) req.set(k, v->as_double());
-            Answer a = call(*app, req, options.timeout);
-            if (a.exit != 0) return tool_result(std::format("{}: {}", a.code.empty() ? "failed" : a.code, a.message), true);
-            return tool_result(a.data.json(), false, Value{}.set("data", a.data));
-        }
+        if (const auto operation = protocol_operation(name)) return run_operation(t, *operation, args, *app);
         if (const auto listed_verb = verbs.find(std::string(name)); listed_verb != verbs.end()) {
             Value given = Value(Value::Map{});
             if (args.map())
@@ -983,83 +889,21 @@ Server::~Server() = default;
 
 Value::List Server::tools() const {
     if (impl_->options.way != Way::semantic) return way_tools(impl_->options.way);
-    const auto n = [](std::string_view d) { return prop("integer", d); };
-    const auto s = [](std::string_view d) { return prop("string", d); };
-    const auto b = [](std::string_view d) { return prop("boolean", d); };
-    const auto o = [](std::string_view d) { return prop("object", d); };
-    // One or two sentences each: every turn carries them (W4: they were most of an
-    // agent's tokens). What a tool is for in depth is the skill's and describe's (D-145).
-    const auto point = [](std::string_view d) { return Value{}.set("type", "array").set("items", Value{}.set("type", "number")).set("description", d); };
-    const auto integer = [](std::string_view d) { return Value{}.set("type", "integer").set("description", d); };
-    const auto steps = prop("array", "[{node, action, args?}, …]").set("items", prop("object", "a step"));
-    Value::List out{
-        tool("ui_apps", "Running applications", "The openmui applications running here.", object_schema({})),
-        tool("ui_snapshot", "Semantic tree",
-             "The application's semantic tree, a node a line: id, role, name, value, states, actions (with effects). Use the ids with ui_act.",
-             object_schema({app_prop, {"root", s("a subtree's id")}, {"depth", n("levels")}, {"interactive", b("operable nodes only")},
-                            {"offset", n("paging")}, {"limit", n("paging")}, {"children_limit", n("child ids a node")}}), "ui.snapshot"),
-        tool("ui_find", "Find nodes", "Nodes by role, name glob (Save*), state, or a query object.",
-             object_schema({app_prop, {"role", s("button, checkbox …")}, {"name", s("a glob")}, {"state", s("checked, disabled …")},
-                            {"query", o("an openmui.tree query")}, {"limit", n("at most")}}), "ui.find"),
-        tool("ui_act", "Act on a node",
-             "Performs a node's action (activate, toggle, set_value {value}, focus …). Where the session's policy has the user decide an "
-             "irreversible or external one, the answer says so: pass `answer` only when the user gave it. The answer lists the semantic changes it "
-             "made, so there is no need to snapshot again. dry_run: what it would do.",
-             object_schema({app_prop, {"node", s("its id")}, {"action", s("an action it lists")}, {"args", o("arguments")},
-                            {"answer", s("the user's answer")}, {"dry_run", b("change nothing")}},
-                           {"node", "action"}), "ui.act"),
-        tool("ui_verbs", "Application verbs", "The application's verbs for ui_invoke: effects, arguments, answers asked for.",
-             object_schema({app_prop}), "ui.describe"),
-        tool("ui_invoke", "Invoke a verb", "Invokes an application verb (decided as ui_act's actions are).",
-             object_schema({app_prop, {"verb", s("its name")}, {"args", o("arguments")}, {"answer", s("the user's answer")},
-                            {"dry_run", b("change nothing")}},
-                           {"verb"}), "ui.invoke"),
-        tool("ui_undo", "Undo or redo", "Takes back (or with redo, puts forward) the last step of the history.",
-             object_schema({app_prop, {"redo", b("redo")}, {"scope", s("a node with its own history")}, {"dry_run", b("change nothing")}}), "ui.undo"),
-        tool("ui_transaction", "Several actions as one", "Reversible actions in order as one step: one fails, all are taken back.",
-             object_schema({app_prop, {"steps", steps}, {"label", s("its name in the history")}, {"dry_run", b("change nothing")}}, {"steps"}),
-             "ui.transaction"),
-        tool("ui_preview", "Preview before allowing",
-             "What steps would make — pictures before and after, the semantic changes — with nothing kept. Show it to the user before a decision that is theirs.",
-             object_schema({app_prop, {"steps", steps}}, {"steps"}), "ui.preview"),
-        tool("ui_record", "Record what was done, to replay",
-             "Development: every frame since the recorder kept everything — its time and input — and what it ended as; `omui replay FILE` "
-             "plays it in a fresh instance and checks the tree and pixels end the same (a bug report, a test).",
-             object_schema({app_prop, {"answer", s("\"yes\" once the person agreed to share their input (outside development)")}}), "ui.record"),
-        tool("ui_reload", "Reload what changed and say what it did",
-             "Development: reloads the saved files (or those named), then answers the semantic changes, where the pixels changed (before and "
-             "after pictures of that region) and the motion it started, sampled over time — no screenshot to compare.",
-             object_schema({app_prop, {"paths", prop("array", "only these files (paths, as design.sources lists them)")}, {"last", b("what the last automatic reload did")},
-                            {"samples", integer("motion samples (default 12)")}, {"every", prop("number", "seconds between samples (default 1/30)")}}),
-             "ui.reload"),
-        tool("ui_wait", "Wait for the interface", "Waits until a query matches (or not) and/or nothing animates.",
-             object_schema({app_prop, {"query", o("must match")}, {"absent", b("must not match")}, {"settled", b("nothing animates")},
-                            {"timeout", prop("number", "seconds")}}), "ui.wait"),
-        tool("ui_intend", "Say what you are about to do",
-             "Tells the person what you are about to do, or with hands_back what you did and what is left; it changes nothing.",
-             object_schema({app_prop, {"text", s("\"\" withdraws it")}, {"node", s("what it is about")}, {"hands_back", b("a handoff")}}, {"text"}),
-             "ui.intend"),
-        tool("ui_drew", "What drew this pixel", "The node that drew a pixel, its ancestors, and the source line each was built at.",
-             object_schema({app_prop, {"at", point("[x, y]")}}, {"at"}), "ui.drew"),
-        tool("ui_capture", "Capture pixels or vectors",
-             "A PNG of the window, a node or a region; format svg gives vectors (exact geometry, which node drew what). Read the tree first.",
-             object_schema({app_prop, {"node", s("a node (default: the window)")}, {"region", point("[x, y, width, height]")},
-                            {"format", Value{}.set("type", "string").set("enum", Value(Value::List{Value("png"), Value("svg")}))}}), "ui.capture"),
-        tool("ui_timeline", "What input did", "Recent input events and what came of each: what it hit, what stopped it, what it activated.",
-             object_schema({app_prop, {"since", integer("after this cause")}, {"limit", integer("the last this many")}}), "ui.timeline"),
-        tool("ui_explain", "Why a press did what it did",
-             "When the user says a click did nothing: the last press at [x, y] from press to release — what it hit, what stopped it, what ran.",
-             object_schema({app_prop, {"at", point("[x, y]")}, {"cause", integer("or its number")}}), "ui.explain"),
-        tool("ui_input", "Input as a person gives it",
-             "Pointer, wheel, keys and text through the real input path, to test input itself (acting on nodes is the default). Events: "
-             "{type: click|double_click|move|down|up, x, y | node}, {type: drag, from, to}, {type: wheel, x, y, dy}, {type: key, key, mods?}, "
-             "{type: text, text}, {type: wait, frames}. The answer says what each press hit.",
-             object_schema({app_prop, {"events", prop("array", "in order").set("items", prop("object", "an event"))}, {"capture", b("pixels after")}},
-                           {"events"}), "ui.input"),
-        tool("ui_clock", "The application's time", "Shows or controls the clock: pause, resume, step, seek, rate, release.",
-             object_schema({app_prop, {"action", s("show, pause, resume, step, seek, rate, release")}, {"seconds", prop("number", "step, seek")},
-                            {"rate", prop("number", "1: real time")}}), "ui.clock"),
-    };
+    // ui_apps is the server's own; the protocol's operations are their catalog's, schema and all (D-145: what a tool
+    // is for in depth is describe's and the skill's), each with the application it is asked of.
+    Value::List out{tool("ui_apps", "Running applications", "The openmui applications running here.", object_schema({}))};
+    static const auto protocol = parse_json(agent::listing);
+    if (protocol && protocol->get("tools") && protocol->get("tools")->list())
+        for (const Value& listed_operation : *protocol->get("tools")->list()) {
+            const std::string_view operation = str(listed_operation, "name");
+            if (!std::ranges::contains(offered_operations, operation)) continue;
+            Value schema = listed_operation.get("inputSchema") ? *listed_operation.get("inputSchema") : Value{}.set("type", "object");
+            Value properties = schema.get("properties") && schema.get("properties")->map() ? *schema.get("properties") : Value(Value::Map{});
+            properties.set(app_prop.first, app_prop.second);
+            if (operation == "ui.input") properties.set("capture", prop("boolean", "the window's picture after (this server's)"));
+            schema.set("properties", std::move(properties)).set("additionalProperties", false);
+            out.push_back(tool(tool_name(operation), operation, str(listed_operation, "description"), std::move(schema), operation));
+        }
     out.insert(out.end(), impl_->listed.begin(), impl_->listed.end());
     return out;
 }
@@ -1127,7 +971,7 @@ void Server::handle(std::string_view line, Transport& t) {
         }
         r.set("instructions",
               "Operate running openmui applications through their semantic trees: ui_apps to see what runs, ui_snapshot or ui_find "
-              "to read, ui_verbs for the application's verbs, ui_act or ui_invoke to change, ui_wait to let the interface settle, ui_capture to see pixels, ui_input to point, "
+              "to read, ui_describe for the application's verbs, ui_act or ui_invoke to change, ui_wait to let the interface settle, ui_capture to see pixels, ui_input to point, "
               "click, drag, scroll and type as a person does (when the application allows it), ui_clock for its time. Ids are stable "
               "paths. Actions marked irreversible or external are confirmed by the user; never answer for them. Actions marked person are "
               "the user's own and are refused to agents.");

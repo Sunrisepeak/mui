@@ -208,7 +208,7 @@ int agent_e2e(const fs::path& root, const std::vector<std::string>& profile_args
     const std::string requests = R"({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"e2e"}}}
 {"jsonrpc":"2.0","method":"notifications/initialized"}
 {"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}
-{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"ui_find","arguments":{"name":"Delete*"}}}
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"ui_find","arguments":{"q":{"name":"Delete*"}}}}
 {"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"ui_act","arguments":{"node":"main/delete-all","action":"activate"}}}
 {"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"ui_act","arguments":{"node":"main/compose/draft","action":"set_value","args":{"value":"from MCP"}}}}
 {"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"ui_snapshot","arguments":{"root":"main/compose"}}}

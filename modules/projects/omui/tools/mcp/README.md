@@ -11,15 +11,15 @@ omui mcp --app org.openmui.notes            # one application when a call names 
 |---|---|
 | `ui_apps` | the applications running: endpoint names and app ids |
 | `ui_snapshot` | the semantic tree as an outline — one node a line: `id role "name" = value [states] {actions} @x,y wxh`, children under their parent |
-| `ui_find` | nodes by role, name glob, state, or a whole query (spatial: `within`) |
+| `ui_find` | nodes matching a query `q`: role, name glob, state (spatial: `within`) |
 | `ui_act` | an action a node offers (activate, toggle, set_value …) |
 | `ui_invoke` | an application verb (`notes.new` …) |
-| `ui_undo` | undo (or, `redo`, redo) the last step of the window's or a scope's history |
+| `ui_undo`, `ui_redo` | take back, or put forward again, the last step of the window's or a scope's history |
 | `ui_transaction` | several actions as one step: all done, or all taken back |
-| `ui_wait` | until a query matches (or, `absent`, does not) and/or the interface settles |
+| `ui_wait` | until a query `q` matches (or a query `absent` does not) and/or the interface settles |
 | `ui_capture` | the window's or a node's pixels, as a PNG image |
 
-Each `ui_*` tool is one of the protocol's operations in omui.agent's catalog ([`omui.ops.omui.ts`](../../agent/omui.ops.omui.ts)): its read-only and destructive hints are that operation's effect (`ui_act` and `ui_invoke` run what they name, so they may be destructive).
+Each `ui_*` tool is one of the protocol's operations in omui.agent's catalog ([`omui.ops.omui.ts`](../../agent/omui.ops.omui.ts)), made from its listing: its description and input schema are the operation's, with `app` added; its read-only and destructive hints are its effect (`ui_act` and `ui_invoke` run what they name, so they may be destructive). A call's arguments are the operation's request; what the server adds is the actor, the person's decision on what cannot be undone, and how the answer is shown (the tree as an outline, pictures as images, what changed a line each). The tools offered are nineteen of the catalog's operations (`ui_describe` lists the application's verbs for `ui_invoke`); the rest are reached with `omui agent`.
 
 **An application's verbs as tools, from its listing.** `--ops <product>.ops.json` (repeatable) adds the operations of a listing `omui-gen ops` made from an application's catalog: each verb becomes a tool (`cellular.paint` → `cellular_paint`) with the listing's JSON schema, its effect's hints and its undo in the description, and a call invokes that verb — an irreversible one is put to the person as any is. The Inspector's Reaction lab, for one:
 
@@ -27,7 +27,7 @@ Each `ui_*` tool is one of the protocol's operations in omui.agent's catalog ([`
 omui mcp --app org.openmui.inspector.cellular --ops tools/inspector/src/catalog/inspector.ops.json
 ```
 
-`ui_act`, `ui_invoke`, `ui_undo` and `ui_transaction` take `dry_run`: the answer says what would happen — whether it would run, need the person's confirmation or be refused, its effect, whether it could be undone, the value after — and nothing is done or asked (S-13).
+`ui_act`, `ui_invoke`, `ui_undo`, `ui_redo` and `ui_transaction` take `dry_run`: the answer says what would happen — whether it would run, need the person's confirmation or be refused, its effect, whether it could be undone, the value after — and nothing is done or asked (S-13).
 
 A call names its application with `app` (an endpoint name or an app id); without one it is the server's `--app`, or the only one running.
 

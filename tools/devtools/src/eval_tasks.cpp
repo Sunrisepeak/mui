@@ -88,7 +88,7 @@ public:
     // ui_find's outline: a count, then a node a line, each with its bounds (@x,y); an error is no match.
     bool matches(json query) {
         if (query.contains("state") && query["state"].is_string()) query["state"] = json::array({query["state"]});
-        const json result = call("tools/call", {{"name", "ui_find"}, {"arguments", {{"query", query}}}});
+        const json result = call("tools/call", {{"name", "ui_find"}, {"arguments", {{"q", query}}}});
         for (const auto& content : result.value("content", json::array()))
             for (const auto line : std::views::split(std::string_view(content.value("text", std::string{})), '\n'))
                 if (std::string_view(line.begin(), line.end()).find(" @") != std::string_view::npos) return true;

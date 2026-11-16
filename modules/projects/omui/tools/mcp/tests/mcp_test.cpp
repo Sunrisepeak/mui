@@ -155,7 +155,7 @@ UTest cases{"mcp", [] {
             expect(eq(std::string(r.get("serverInfo")->get("name")->as_string()), std::string("openmui")));
         }
         const Value* tools = c.reply(2) ? c.reply(2)->get("result")->get("tools") : nullptr;
-        expect(tools && tools->list() && tools->list()->size() == 67) << "nineteen ui_* tools, Live Design's thirty-two, runtime generation's thirteen and the tasks' three (nothing runs: all listed)";
+        expect(tools && tools->list() && tools->list()->size() == 68) << "twenty ui_* tools (ui_apps and nineteen of the protocol's operations), Live Design's thirty-two, runtime generation's thirteen and the tasks' three (nothing runs: all listed)";
         if (tools && tools->list()) {
             std::set<std::string> names;
             for (const Value& t : *tools->list()) {
@@ -163,7 +163,7 @@ UTest cases{"mcp", [] {
                 expect(t.get("inputSchema") && t.get("inputSchema")->get("type")->as_string() == "object") << "an object schema";
             }
             expect((names == std::set<std::string>{"ui_apps", "ui_snapshot", "ui_find", "ui_act", "ui_invoke", "ui_undo", "ui_transaction", "ui_preview",
-                                                  "ui_wait", "ui_capture", "ui_drew", "ui_intend", "ui_input", "ui_clock", "ui_verbs",
+                                                  "ui_wait", "ui_capture", "ui_drew", "ui_intend", "ui_input", "ui_clock", "ui_describe", "ui_redo",
                                                   "ui_timeline", "ui_explain", "ui_reload", "ui_record", "design_begin", "design_sources", "design_api",
                                                   "design_locate", "design_edit", "design_set", "design_insert", "design_remove", "design_preview", "design_preview_accept", "design_preview_reject", "design_variants",
                                                   "design_variants_pick", "design_variants_close", "design_film", "design_timeline", "design_history", "design_history_commit", "design_history_branch",
@@ -177,7 +177,7 @@ UTest cases{"mcp", [] {
                     if (t.get("name")->as_string() == tool) return t.get("annotations")->get(key)->as_bool();
                 return false;
             };
-            expect(hint("ui_snapshot", "readOnlyHint") && hint("ui_capture", "readOnlyHint") && hint("ui_verbs", "readOnlyHint") && hint("ui_intend", "readOnlyHint")) << "reads";
+            expect(hint("ui_snapshot", "readOnlyHint") && hint("ui_capture", "readOnlyHint") && hint("ui_describe", "readOnlyHint") && hint("ui_intend", "readOnlyHint")) << "reads";
             expect(!hint("ui_clock", "readOnlyHint") && !hint("ui_clock", "destructiveHint") && !hint("ui_input", "readOnlyHint")) << "reversible";
             expect(!hint("ui_act", "readOnlyHint") && hint("ui_act", "destructiveHint") && hint("ui_invoke", "destructiveHint")) << "delegated: at most irreversible";
             // Live Design's, from its catalog (design.ops.omui.ts): an edit takes the script's path and text, and is undone.
@@ -210,8 +210,8 @@ UTest cases{"mcp", [] {
         c.in = {initialize(1, false), request(2, "tools/list"), call(3, "design_sources")};
         serve(notes.h, server, c);
         const Value* tools = c.reply(2) ? c.reply(2)->get("result")->get("tools") : nullptr;
-        expect(tools && tools->list() && tools->list()->size() == 19) << (tools ? tools->json() : std::string("<none>"));
-        expect(eq(server.tools().size(), std::size_t{67})) << "every tool still known";
+        expect(tools && tools->list() && tools->list()->size() == 20) << (tools ? tools->json() : std::string("<none>"));
+        expect(eq(server.tools().size(), std::size_t{68})) << "every tool still known";
         expect(c.reply(3) && c.error(3)) << "a tool not listed answers as a verb the application lacks";
     };
 
@@ -228,14 +228,14 @@ UTest cases{"mcp", [] {
         c.in = {initialize(1, false),
                 call(2, "ui_apps"),
                 call(3, "ui_snapshot", Value{}.set("interactive", true)),
-                call(4, "ui_find", Value{}.set("name", "Delete*")),
+                call(4, "ui_find", Value{}.set("q", Value{}.set("name", "Delete*"))),
                 call(5, "ui_act", Value{}.set("node", "notes/delete").set("action", "activate")),
                 call(6, "ui_invoke", Value{}.set("verb", "notes.pin")),
                 call(7, "ui_wait", Value{}.set("settled", true).set("timeout", 2)),
                 call(8, "ui_capture", Value{}.set("node", "notes/delete")),
                 call(9, "ui_snapshot", Value{}.set("app", "org.openmui.test-notes").set("root", "notes/nowhere")),
                 call(10, "ui_act", Value{}.set("node", "notes/delete")),
-                call(11, "ui_verbs")};
+                call(11, "ui_describe")};
         serve(notes.h, server, c);
         expect(!c.error(11) && c.text(11).contains("- notes.pin (")) << c.text(11);
         expect(c.text(2).contains("org.openmui.test-notes")) << c.text(2);
@@ -382,7 +382,7 @@ UTest cases{"mcp", [] {
                 call(3, "ui_act", Value{}.set("node", "prefs/pinned").set("action", "toggle")),
                 call(4, "ui_undo", Value{}.set("dry_run", true)),
                 call(5, "ui_undo"),
-                call(6, "ui_undo", Value{}.set("redo", true)),
+                call(6, "ui_redo"),
                 call(7, "ui_transaction", Value{}.set("steps", steps).set("dry_run", true)),
                 call(8, "ui_transaction", Value{}.set("steps", steps)),
                 call(9, "ui_transaction", Value{}.set("steps", Value(Value::List{(*steps.list())[0], (*steps.list())[1]})).set("label", "quiet")),
@@ -510,10 +510,10 @@ UTest cases{"mcp", [] {
         c.in = {initialize(1, false), request(2, "tools/list"), call(3, "notes_pin"), call(4, "notes_delete")};
         serve(notes.h, server, c);
         const Value* tools = c.reply(2) ? c.reply(2)->get("result")->get("tools") : nullptr;
-        expect(tools && tools->list() && tools->list()->size() == 21) << "nineteen ui_* tools and the two listed";
-        if (tools && tools->list() && tools->list()->size() == 21) {
-            const Value& pin = (*tools->list())[19];
-            const Value& del = (*tools->list())[20];
+        expect(tools && tools->list() && tools->list()->size() == 22) << "twenty ui_* tools and the two listed";
+        if (tools && tools->list() && tools->list()->size() == 22) {
+            const Value& pin = (*tools->list())[20];
+            const Value& del = (*tools->list())[21];
             expect(pin.get("name")->as_string() == "notes_pin" && pin.get("title")->as_string() == "notes.pin") << pin.json();
             expect(pin.get("inputSchema")->get("properties")->get("app") != nullptr) << "a call may name its application";
             expect(!pin.get("annotations")->get("readOnlyHint")->as_bool() && !pin.get("annotations")->get("destructiveHint")->as_bool()) << pin.json();

@@ -36,8 +36,29 @@ std::optional<Section> section_of(std::string_view readme);
 // Every member's label and every experimental package's section, read from the tree under `root`.
 std::expected<Inventory, std::string> read(const std::filesystem::path& root);
 
+// The API reference (D-145: the framework describes itself): every operation catalog and every component contract,
+// evaluated from their declarations (mlibs.xdef), never written by hand.
+struct Catalog {
+    std::string file;       // its declaration, from the root
+    std::string product;    // `product` as it says
+    std::string doc;
+    std::size_t operations = 0;
+    std::string reference;  // its generated `<product>.ops.md`, from the root (empty: none found)
+};
+struct Component {
+    std::string file;  // its contract, from the root
+    std::string name, role, doc;
+    std::vector<std::string> props, actions, events;
+};
+struct Reference {
+    std::vector<Catalog> catalogs;      // by file
+    std::vector<Component> components;  // by file, then as the contract lists them
+};
+std::expected<Reference, std::string> reference_of(const std::filesystem::path& root);
+
 // The pages in a language ("en", "zh").
 std::string maturity_page(const Inventory& inventory, std::string_view language);
 std::string experimental_page(const Inventory& inventory, std::string_view language);
+std::string reference_page(const Reference& reference, std::string_view language);
 
 }  // namespace omui::devtools::docs

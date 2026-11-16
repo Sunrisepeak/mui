@@ -32,6 +32,19 @@ UTest cases{"devtools.docs", [] {
         }
     };
 
+    "the committed API reference is the catalogs' and the contracts', in both languages (D-145)"_test = [] {
+        const auto reference = docs::reference_of(root());
+        expect(fatal(reference.has_value())) << (reference ? "" : reference.error());
+        expect(reference->catalogs.size() >= 20u) << std::format("{} catalogs", reference->catalogs.size());
+        expect(reference->components.size() >= 60u) << std::format("{} components", reference->components.size());
+        const auto drawer = std::ranges::find(reference->components, std::string("drawer"), &docs::Component::name);
+        expect(drawer != reference->components.end() && drawer->role == "dialog" && std::ranges::contains(drawer->actions, std::string("dismiss")))
+            << "the drawer's contract read: its role and its action";
+        for (const std::string_view language : {"en", "zh"})
+            expect(read(root() / "docs" / std::string(language) / "reference.md") == docs::reference_page(*reference, language))
+                << std::format("docs/{}/reference.md is not current: run omui-devtools docs", language);
+    };
+
     "a package's project: the directory under projects, mlibs below it, the top directory otherwise"_test = [] {
         expect(eq(docs::project_of("modules/projects/xengine/kernel/field"), std::string("xengine")));
         expect(eq(docs::project_of("modules/base/json"), std::string("mlibs")));

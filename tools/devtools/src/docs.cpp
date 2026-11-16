@@ -2,6 +2,9 @@ module omui.devtools.docs;
 
 import std;
 import tomlplusplus;
+import mcpplibs.os;
+import nlohmann.json;
+import mlibs.xdef.tool;
 import omui.devtools.members;
 
 namespace omui::devtools::docs {
@@ -255,4 +258,127 @@ std::string experimental_page(const Inventory& inventory, std::string_view langu
     return out + std::format("\n{}\n", words.experimental_generated);
 }
 
+
+namespace {
+
+// The declarations under the root of one suffix, by path; build trees, tool state, tests' fixtures and the
+// templates (a user's project, not the framework's API) aside.
+std::vector<fs::path> declarations(const fs::path& root, std::string_view suffix) {
+    std::vector<fs::path> found;
+    std::error_code error;
+    for (auto walker = fs::recursive_directory_iterator(root, fs::directory_options::skip_permission_denied, error);
+         walker != fs::recursive_directory_iterator(); walker.increment(error)) {
+        if (error) break;
+        const std::string leaf = mcpplibs::os::fs::utf8(walker->path().filename());
+        if (walker->is_directory(error)) {
+            if (leaf.starts_with('.') || leaf == "target" || leaf == "node_modules" || leaf == "fixtures" || leaf == "tests" || leaf == "templates")
+                walker.disable_recursion_pending();
+            continue;
+        }
+        if (leaf.ends_with(suffix)) found.push_back(walker->path());
+    }
+    std::ranges::sort(found);
+    return found;
+}
+
+std::vector<std::string> keys_of(const nlohmann::json& object) {
+    std::vector<std::string> keys;
+    if (object.is_object())
+        for (auto at = object.begin(); at != object.end(); ++at) keys.push_back(at.key());
+    return keys;
+}
+
+// A path's last part ("a/b/c.md" → "c.md").
+std::string_view leaf(std::string_view path) { return path.substr(path.rfind('/') + 1); }
+
+std::string listed(const std::vector<std::string>& names) {
+    std::string out;
+    for (const auto& name : names) out += std::format("{}`{}`", out.empty() ? "" : ", ", name);
+    return out.empty() ? "—" : out;
+}
+
+// A table cell: one line, no bars.
+std::string cell(std::string text) {
+    std::ranges::replace(text, '\n', ' ');
+    std::string out;
+    for (const char character : text) out += character == '|' ? std::string("\\|") : std::string(1, character);
+    return out;
+}
+
+}  // namespace
+
+std::expected<Reference, std::string> reference_of(const fs::path& root) {
+    const auto registry = mlibs::xdef::Registry::read(root);
+    if (!registry) return std::unexpected(registry.error());
+    const auto relative = [&](const fs::path& path) { return mcpplibs::os::fs::generic_utf8(path.lexically_relative(root)); };
+    const auto evaluated = [&](const fs::path& file) -> std::expected<nlohmann::json, std::string> {
+        std::string text;
+        if (mcpplibs::os::fs::utf8(file).ends_with(".json")) {
+            const auto read = read_text(file);
+            if (!read) return std::unexpected(std::format("{} cannot be read", relative(file)));
+            text = *read;
+        } else {
+            auto made = mlibs::xdef::snapshot(file, *registry);
+            if (!made) return std::unexpected(std::format("{}: {}", relative(file), made.error().text()));
+            text = std::move(*made);
+        }
+        auto parsed = nlohmann::json::parse(text, nullptr, false);
+        if (parsed.is_discarded()) return std::unexpected(std::format("{} is not JSON", relative(file)));
+        return parsed;
+    };
+    std::map<std::string, std::string> references;  // `<product>.ops.md` → where it is
+    for (const auto& file : declarations(root, ".ops.md")) references.emplace(mcpplibs::os::fs::utf8(file.filename()), relative(file));
+    Reference reference;
+    for (const auto& file : declarations(root, ".ops.xdef.ts")) {
+        auto data = evaluated(file);
+        if (!data) return std::unexpected(data.error());
+        const auto& ops = (*data)["ops"];
+        Catalog catalog{.file = relative(file), .product = ops.value("product", std::string{}), .doc = ops.value("doc", std::string{})};
+        if (ops.contains("operations") && ops["operations"].is_array()) catalog.operations = ops["operations"].size();
+        if (const auto at = references.find(catalog.product + ".ops.md"); at != references.end()) catalog.reference = at->second;
+        reference.catalogs.push_back(std::move(catalog));
+    }
+    std::vector<fs::path> contracts = declarations(root, ".contract.xdef.ts");
+    std::ranges::move(declarations(root / "spec" / "registry", ".contract.xdef.json"), std::back_inserter(contracts));
+    for (const auto& file : contracts) {
+        auto data = evaluated(file);
+        if (!data) return std::unexpected(data.error());
+        const auto& declared = (*data)["contract"];
+        if (!declared.is_object()) continue;
+        for (auto at = declared.begin(); at != declared.end(); ++at) {
+            const std::string& name = at.key();
+            const nlohmann::json& contract = at.value();
+            if (!contract.is_object()) continue;
+            reference.components.push_back({.file = relative(file),
+                                            .name = name,
+                                            .role = contract.value("role", std::string{}),
+                                            .doc = contract.value("doc", std::string{}),
+                                            .props = keys_of(contract.value("props", nlohmann::json::object())),
+                                            .actions = keys_of(contract.value("actions", nlohmann::json::object())),
+                                            .events = keys_of(contract.value("events", nlohmann::json::object()))});
+        }
+    }
+    return reference;
+}
+
+std::string reference_page(const Reference& reference, std::string_view language) {
+    const bool zh = language == "zh";
+    std::string out = zh ? "# API 参考\n\n由框架从自己的声明生成（D-145）：每个操作目录（Agent、命令行与 MCP 经同一份目录到达的操作）与每个组件契约。"
+                           "运行中的应用另由 `omui describe` 说出它全部的构造器、原生模块、主题令牌与动词。说明文字是声明里的原文（英文）。\n"
+                         : "# API reference\n\nGenerated by the framework from its own declarations (D-145): every operation catalog (the operations an "
+                           "agent, the command line and MCP reach through the same catalog) and every component contract. A running application "
+                           "also says all its builders, native modules, theme tokens and verbs: `omui describe`.\n";
+    out += zh ? "\n## 操作目录\n\n| 目录 | 产品 | 操作数 | 说明 | 参考 |\n|---|---|---|---|---|\n"
+              : "\n## Operation catalogs\n\n| Catalog | Product | Operations | What | Reference |\n|---|---|---|---|---|\n";
+    for (const auto& catalog : reference.catalogs)
+        out += std::format("| [{}](../../{}) | `{}` | {} | {} | {} |\n", leaf(catalog.file), catalog.file, catalog.product, catalog.operations,
+                           cell(catalog.doc), catalog.reference.empty() ? std::string("—") : std::format("[{}](../../{})", leaf(catalog.reference), catalog.reference));
+    out += zh ? std::format("\n## 组件契约（{} 个）\n\n| 组件 | 角色 | 属性 | 动作 | 事件 | 契约 |\n|---|---|---|---|---|---|\n", reference.components.size())
+              : std::format("\n## Component contracts ({})\n\n| Component | Role | Properties | Actions | Events | Contract |\n|---|---|---|---|---|---|\n",
+                            reference.components.size());
+    for (const auto& component : reference.components)
+        out += std::format("| `{}` | {} | {} | {} | {} | [{}](../../{}) |\n", component.name, component.role.empty() ? std::string("—") : component.role,
+                           listed(component.props), listed(component.actions), listed(component.events), leaf(component.file), component.file);
+    return out + (zh ? "\n由 `omui-devtools docs` 从操作目录与组件契约生成，不要手改。\n" : "\nGenerated by `omui-devtools docs` from the catalogs and the contracts; do not edit.\n");
+}
 }  // namespace omui::devtools::docs

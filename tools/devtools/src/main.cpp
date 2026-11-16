@@ -4,7 +4,7 @@
 //         Exit 0 when every failure is named there, 1 when one is new, 2
 //         when it could not read the run.
 //   platforms  docs/{en,zh}/platforms.md from docs/release.platforms.xdef.json (--check: whether they are current)
-//   docs  docs/{en,zh}/maturity.md and experimental.md from the manifests and the experimental READMEs (--check)
+//   docs  docs/{en,zh}/maturity.md, experimental.md and reference.md from the manifests, the experimental READMEs, the catalogs and the contracts (--check)
 //   llvm  what a change touches and its direct consumers, compiled (their
 //         tests too, not run) with CI's LLVM and profile: the errors only
 //         clang and libc++ give (reds 90, 91, 93), before a push.
@@ -252,7 +252,7 @@ cmd::App app() {
                         .description("Write docs/{en,zh}/platforms.md from docs/release.platforms.xdef.json (the verification table, D-201)")
                         .option(Option("check").help("only say whether the pages are current (exit 1 when not)")))
         .subcommand(cmd::App("docs")
-                        .description("Write docs/{en,zh}/maturity.md and experimental.md from every package's label and the experimental READMEs (plan §6.3)")
+                        .description("Write docs/{en,zh}/maturity.md, experimental.md and reference.md: every package's label, the experimental READMEs, the catalogs and contracts (plan §6.3, D-145)")
                         .option(Option("check").help("only say whether the pages are current (exit 1 when not)")))
         .subcommand(cmd::App("llvm")
                         .description("Compile what a change touches and its direct consumers, tests included, with CI's LLVM and profile (not run)")
@@ -1052,11 +1052,17 @@ int docs(const cmd::ParsedArgs& options, const fs::path& root) {
         std::cerr << "omui-devtools docs: " << inventory.error() << '\n';
         return 2;
     }
+    const auto reference = omui::devtools::docs::reference_of(root);
+    if (!reference) {
+        std::cerr << "omui-devtools docs: " << reference.error() << '\n';
+        return 2;
+    }
     int stale = 0;
     for (const std::string_view language : {"en", "zh"})
-        for (const std::string_view page : {"maturity", "experimental"}) {
-            const std::string written = page == "maturity" ? omui::devtools::docs::maturity_page(*inventory, language)
-                                                           : omui::devtools::docs::experimental_page(*inventory, language);
+        for (const std::string_view page : {"maturity", "experimental", "reference"}) {
+            const std::string written = page == "maturity"     ? omui::devtools::docs::maturity_page(*inventory, language)
+                                        : page == "experimental" ? omui::devtools::docs::experimental_page(*inventory, language)
+                                                                 : omui::devtools::docs::reference_page(*reference, language);
             const std::string where = std::format("docs/{}/{}.md", language, page);
             const fs::path target = root / mcpplibs::os::fs::from_utf8(where);
             if (mcpplibs::os::fs::read(target) == written) continue;

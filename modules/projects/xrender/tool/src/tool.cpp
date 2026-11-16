@@ -32,16 +32,15 @@ namespace raster = xrender::raster;
 namespace rhi = mlibs::rhi;
 using Json = nlohmann::json;
 
-// Where what an operation says goes: the answer of the request being run (one at a time, as the session asks).
-mlibs::agent::Answer* replying = nullptr;
+using Reply = mlibs::agent::Answer;
 
-int answer(const Json& json, int code) {
-    replying->data(json.dump());
-    if (code != 0) replying->fail(code == 2 ? openas::error_code::invalid_argument : std::string_view("failed"), json.value("error", std::string("its problems are listed")));
+int answer(Reply& reply, const Json& json, int code) {
+    reply.data(json.dump());
+    if (code != 0) reply.fail(code == 2 ? openas::error_code::invalid_argument : std::string_view("failed"), json.value("error", std::string("its problems are listed")));
     return code;
 }
-int wrong(std::string_view text) { return answer(Json{{"ok", false}, {"error", text}}, 2); }
-int failed(std::string_view text) { return answer(Json{{"ok", false}, {"error", text}}, 1); }
+int wrong(Reply& reply, std::string_view text) { return answer(reply, Json{{"ok", false}, {"error", text}}, 2); }
+int failed(Reply& reply, std::string_view text) { return answer(reply, Json{{"ok", false}, {"error", text}}, 1); }
 
 std::filesystem::path path_of(std::string_view text) { return mcpplibs::os::fs::from_utf8(text); }
 std::string utf8(const std::filesystem::path& path) {
@@ -71,8 +70,8 @@ Json describe(const xrender::EffectInfo& info) {
     return {{"doc", std::string(info.doc)}, {"params", std::move(params)}};
 }
 
-int effect_check(const mlibs::agent::Arguments& args) {
-    if (args.positionals().size() == 0) return wrong("effect check takes one file or more");
+int effect_check(Reply& reply, const mlibs::agent::Arguments& args) {
+    if (args.positionals().size() == 0) return wrong(reply, "effect check takes one file or more");
     fx::Library library({.formats = xrender::gpu_shader_formats()});
     Json effects = Json::array();
     bool ok = true;
@@ -92,7 +91,7 @@ int effect_check(const mlibs::agent::Arguments& args) {
         }
         effects.push_back(std::move(one));
     }
-    return answer(Json{{"ok", ok}, {"effects", std::move(effects)}}, ok ? 0 : 1);
+    return answer(reply, Json{{"ok", ok}, {"effects", std::move(effects)}}, ok ? 0 : 1);
 }
 
 // A picture to show an effect on when none is given: bands of colour, a
@@ -116,7 +115,7 @@ void test_card(xrender::DisplayList& list, float width, float height) {
         list.fill_rect({width * 0.08f, height * 0.5f + height * 0.4f * k / 12, width * 0.36f, 1}, geom::Color{1, 1, 1, 0.5f});
 }
 
-int effect_preview(const mlibs::agent::Arguments& args) {
+int effect_preview(Reply& reply, const mlibs::agent::Arguments& args) {
     const auto file = path_of(args.positional(0));
     std::optional<std::filesystem::path> out, image_file;
     if (auto value = args.value("out")) out = path_of(*value);
@@ -129,7 +128,7 @@ int effect_preview(const mlibs::agent::Arguments& args) {
             if (x == std::string_view::npos || std::from_chars(value.data(), value.data() + x, width).ec != std::errc{} ||
                 std::from_chars(value.data() + x + 1, value.data() + value.size(), height).ec != std::errc{} || width < 8 || height < 8 ||
                 width > 4096 || height > 4096)
-                return wrong("--size is WxH, 8 … 4096 each");
+                return wrong(reply, "--size is WxH, 8 … 4096 each");
         }
     }
     std::vector<std::pair<std::string, float>> given;
@@ -137,29 +136,29 @@ int effect_preview(const mlibs::agent::Arguments& args) {
         const auto eq = value.find('=');
         float number = 0;
         if (eq == std::string::npos || std::from_chars(value.data() + eq + 1, value.data() + value.size(), number).ec != std::errc{})
-            return wrong("--param is NAME=VALUE");
+            return wrong(reply, "--param is NAME=VALUE");
         given.emplace_back(value.substr(0, eq), number);
     }
-    if (!out) return wrong("effect preview takes --out PNG");
+    if (!out) return wrong(reply, "effect preview takes --out PNG");
     auto device = open_device();
-    if (!device) return failed(device.error());
+    if (!device) return failed(reply, device.error());
     fx::Library library({.formats = (*device)->caps().formats});
     auto loaded = library.load(file);
-    if (!loaded) return answer(Json{{"ok", false}, {"problems", problems_of(loaded.error())}}, 1);
+    if (!loaded) return answer(reply, Json{{"ok", false}, {"problems", problems_of(loaded.error())}}, 1);
     const auto* info = xrender::effects().info(loaded->ref);
-    if (!info) return failed("the effect was not registered");
+    if (!info) return failed(reply, "the effect was not registered");
     std::vector<float> params;
     for (const auto& p : info->params) params.push_back(p.value);
     for (const auto& [name, value] : given) {
         const auto found = std::ranges::find(info->params, name, &xrender::EffectParam::name);
-        if (found == info->params.end()) return wrong(std::format("`{}` has no parameter `{}`", loaded->name, name));
+        if (found == info->params.end()) return wrong(reply, std::format("`{}` has no parameter `{}`", loaded->name, name));
         params[static_cast<std::size_t>(found - info->params.begin())] = std::clamp(value, found->min, found->max);
     }
     xrender::ImageStore images;
     std::optional<xrender::ImageRef> picture;
     if (image_file) {
         auto decoded = mlibs::image::load_png(*image_file);
-        if (!decoded) return failed(std::format("cannot read {}: {}", utf8(*image_file), decoded.error()));
+        if (!decoded) return failed(reply, std::format("cannot read {}: {}", utf8(*image_file), decoded.error()));
         width = decoded->width;
         height = decoded->height;
         std::vector<raster::Rgba8> pixels(static_cast<std::size_t>(width) * height);
@@ -183,37 +182,37 @@ int effect_preview(const mlibs::agent::Arguments& args) {
     content(after);
     after.pop_layer();
     auto renderer = xrender::GpuRenderer::create(**device);
-    if (!renderer) return failed(std::format("no renderer: {}", renderer.error().message));
+    if (!renderer) return failed(reply, std::format("no renderer: {}", renderer.error().message));
     auto target = (*device)->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height),
                                                      rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "xrender.preview"});
-    if (!target) return failed("no target texture");
+    if (!target) return failed(reply, "no target texture");
     std::vector<std::uint8_t> strip(static_cast<std::size_t>(width) * 2 * height * 4);
     Json reports = Json::array();
     for (int side = 0; side < 2; ++side) {
         auto report = renderer->render(side ? after : before, *target, {&images, nullptr}, {});
-        if (!report) return failed(std::format("the render failed: {}", report.error().message));
-        if (report->effects_skipped) return failed("the renderer skipped the effect");
+        if (!report) return failed(reply, std::format("the render failed: {}", report.error().message));
+        if (report->effects_skipped) return failed(reply, "the renderer skipped the effect");
         auto bytes = (*device)->read(*target, rhi::Region{0, 0, static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height)});
-        if (!bytes) return failed(std::format("read back: {}", bytes.error().message));
+        if (!bytes) return failed(reply, std::format("read back: {}", bytes.error().message));
         for (int y = 0; y < height; ++y)
             std::memcpy(strip.data() + (static_cast<std::size_t>(y) * width * 2 + static_cast<std::size_t>(side) * width) * 4,
                         bytes->data() + static_cast<std::size_t>(y) * width * 4, static_cast<std::size_t>(width) * 4);
         reports.push_back({{"commands", report->commands}, {"uploaded", report->uploaded}});
     }
     if (!mlibs::image::save_png(*out, mlibs::image::View{strip.data(), width * 2, height, width * 8, mlibs::image::Alpha::premultiplied}))
-        return failed(std::format("cannot write {}", utf8(*out)));
+        return failed(reply, std::format("cannot write {}", utf8(*out)));
     Json used = Json::object();
     for (std::size_t k = 0; k < params.size(); ++k) used[std::string(info->params[k].name)] = params[k];
-    return answer(Json{{"ok", true}, {"effect", loaded->name}, {"params", std::move(used)}, {"out", utf8(*out)}, {"size", {width, height}},
+    return answer(reply, Json{{"ok", true}, {"effect", loaded->name}, {"params", std::move(used)}, {"out", utf8(*out)}, {"size", {width, height}},
                        {"layout", "before | after"}, {"device", (*device)->caps().device}, {"renders", std::move(reports)}},
                   0);
 }
 
-int cts(const mlibs::agent::Arguments& args) {
+int cts(Reply& reply, const mlibs::agent::Arguments& args) {
     std::optional<std::filesystem::path> report_file;
     if (auto value = args.value("report")) report_file = path_of(*value);
     auto device = open_device();
-    if (!device) return failed(device.error());
+    if (!device) return failed(reply, device.error());
     const auto scratch = std::filesystem::temp_directory_path() / "xrender-cts";
     // Counted here: this is no test program, and its answer is the cases by how they ended.
     const std::string subject = (*device)->caps().device;
@@ -238,9 +237,9 @@ int cts(const mlibs::agent::Arguments& args) {
                             {"failed", tally.count(mlibs::cts::Status::failed)},
                             {"unsupported", tally.count(mlibs::cts::Status::unsupported)}}},
                           {"cases", std::move(cases)}};
-        if (!mcpplibs::os::fs::write_atomic(*report_file, report.dump(2) + "\n")) return failed(std::format("cannot write {}", utf8(*report_file)));
+        if (!mcpplibs::os::fs::write_atomic(*report_file, report.dump(2) + "\n")) return failed(reply, std::format("cannot write {}", utf8(*report_file)));
     }
-    return answer(Json{{"ok", tally.ok()},
+    return answer(reply, Json{{"ok", tally.ok()},
                        {"device", subject},
                        {"passed", tally.count(mlibs::cts::Status::passed)},
                        {"failed", std::move(failures)},
@@ -250,14 +249,14 @@ int cts(const mlibs::agent::Arguments& args) {
                   tally.ok() ? 0 : 1);
 }
 
-int device_info() {
+int device_info(Reply& reply) {
     auto device = open_device();
-    if (!device) return failed(device.error());
+    if (!device) return failed(reply, device.error());
     const auto& caps = (*device)->caps();
     Json formats = Json::array();
     for (const auto format : {rhi::ShaderFormat::spirv, rhi::ShaderFormat::msl, rhi::ShaderFormat::dxil, rhi::ShaderFormat::dxbc, rhi::ShaderFormat::wgsl})
         if (caps.formats.has(format)) formats.push_back(std::string(rhi::name(format)));
-    return answer(Json{{"ok", true},
+    return answer(reply, Json{{"ok", true},
                        {"backend", std::string(rhi::name(caps.backend))},
                        {"device", caps.device},
                        {"software", caps.software},
@@ -284,62 +283,62 @@ std::optional<std::vector<float>> numbers(std::string_view text, std::size_t cou
 }
 
 // A model looked at: drawn by the CPU reference, written, and stood beside what it is asked to stand beside.
-int look(const mlibs::agent::Arguments& args) {
+int look(Reply& reply, const mlibs::agent::Arguments& args) {
     namespace asset = xrender::asset;
     namespace mesh = xrender::mesh;
     namespace image = mlibs::image;
     constexpr float degree = 0.017453292f;
-    if (args.positionals().size() != 1) return wrong("look takes one model");
+    if (args.positionals().size() != 1) return wrong(reply, "look takes one model");
     const auto out = args.value("out");
-    if (!out) return wrong("look needs --out PNG");
+    if (!out) return wrong(reply, "look needs --out PNG");
     int width = 768, height = 768, samples = 2;
     if (const auto size = args.value("size")) {
         const std::size_t by = size->find('x');
         const auto wide = by == std::string::npos ? std::nullopt : numbers(std::string_view(*size).substr(0, by), 1), high = by == std::string::npos ? std::nullopt : numbers(std::string_view(*size).substr(by + 1), 1);
-        if (!wide || !high || (*wide)[0] < 8 || (*wide)[0] > 4096 || (*high)[0] < 8 || (*high)[0] > 4096) return wrong("--size WxH, 8 … 4096 each");
+        if (!wide || !high || (*wide)[0] < 8 || (*wide)[0] > 4096 || (*high)[0] < 8 || (*high)[0] > 4096) return wrong(reply, "--size WxH, 8 … 4096 each");
         width = static_cast<int>((*wide)[0]), height = static_cast<int>((*high)[0]);
     }
     if (const auto said = args.value("samples")) {
         const auto count = numbers(*said, 1);
-        if (!count || (*count)[0] < 1 || (*count)[0] > 4) return wrong("--samples 1 … 4 (each way)");
+        if (!count || (*count)[0] < 1 || (*count)[0] > 4) return wrong(reply, "--samples 1 … 4 (each way)");
         samples = static_cast<int>((*count)[0]);
     }
     const auto model = asset::gltf_file(path_of(args.positional(0)));
-    if (!model) return failed(model.error());
+    if (!model) return failed(reply, model.error());
     const mlibs::geom::Box3 box = model->bounds();
     // As a viewer shows a model it was told nothing about: from before and a little above, all of it in the picture.
     asset::Orbit orbit{.theta = 0, .phi = 75 * degree, .radius = mlibs::math::length(box.half()) * 2.6f, .target = box.centre()};
     if (const auto said = args.value("orbit")) {
         const auto three = numbers(*said, 3);
-        if (!three || !((*three)[2] > 0)) return wrong("--orbit THETA,PHI,RADIUS: degrees about the way up from +z, degrees down from the way up, how far");
+        if (!three || !((*three)[2] > 0)) return wrong(reply, "--orbit THETA,PHI,RADIUS: degrees about the way up from +z, degrees down from the way up, how far");
         orbit.theta = (*three)[0] * degree, orbit.phi = (*three)[1] * degree, orbit.radius = (*three)[2], orbit.target = {0, 0, 0};
     }
     if (const auto said = args.value("target")) {
         const auto three = numbers(*said, 3);
-        if (!three) return wrong("--target X,Y,Z");
+        if (!three) return wrong(reply, "--target X,Y,Z");
         orbit.target = {(*three)[0], (*three)[1], (*three)[2]};
     }
     if (const auto said = args.value("upright")) {
         const auto angle = numbers(*said, 1);
-        if (!angle || !((*angle)[0] > 1) || !((*angle)[0] < 170)) return wrong("--upright DEGREES, 1 … 170");
+        if (!angle || !((*angle)[0] > 1) || !((*angle)[0] < 170)) return wrong(reply, "--upright DEGREES, 1 … 170");
         orbit.upright = (*angle)[0] * degree;
     }
     std::optional<mesh::Surroundings> surroundings;
     Json light_said = nullptr;
     if (const auto file = args.value("light")) {
         const auto light = image::load_hdr(path_of(*file));
-        if (!light) return failed(light.error());
+        if (!light) return failed(reply, light.error());
         surroundings = mesh::Surroundings::made(light->rgb, light->width, light->height);
-        if (!surroundings) return failed("the picture of the surroundings could not be made");
+        if (!surroundings) return failed(reply, "the picture of the surroundings could not be made");
         light_said = Json{{"file", *file}, {"width", light->width}, {"height", light->height}, {"across", surroundings->sizes[0].side}, {"cut", surroundings->clamped}};
     }
     const xrender::scene::View view = asset::view_of(orbit, box, static_cast<float>(width) / static_cast<float>(height));
     const auto begun = std::chrono::steady_clock::now();
     const auto picture = asset::looked(*model, view, {.width = width, .height = height, .samples = samples, .surroundings = surroundings ? &*surroundings : nullptr, .behind = args.flag("behind")});
-    if (!picture) return failed(picture.error());
+    if (!picture) return failed(reply, picture.error());
     const double drawn_in = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - begun).count();
     const image::View ours{picture->rgba.data(), width, height, width * 4, image::Alpha::straight};
-    if (const auto saved = image::save_png(path_of(*out), ours); !saved) return failed(saved.error());
+    if (const auto saved = image::save_png(path_of(*out), ours); !saved) return failed(reply, saved.error());
     std::size_t whole = 0, partly = 0;
     for (std::size_t pixel = 0; pixel < static_cast<std::size_t>(width) * static_cast<std::size_t>(height); ++pixel) whole += picture->rgba[pixel * 4 + 3] == 255, partly += picture->rgba[pixel * 4 + 3] != 0 && picture->rgba[pixel * 4 + 3] != 255;
     // What the model says that was not drawn as it says: each with where in the document, what, and what instead.
@@ -360,11 +359,11 @@ int look(const mlibs::agent::Arguments& args) {
     std::optional<image::Image> golden;
     if (const auto file = args.value("golden")) {
         auto read = image::load_png(path_of(*file));
-        if (!read) return failed(read.error());
-        if (read->width != width || read->height != height) return failed(std::format("the golden is {} × {}, the picture {} × {}: --size {}x{}", read->width, read->height, width, height, read->width, read->height));
+        if (!read) return failed(reply, read.error());
+        if (read->width != width || read->height != height) return failed(reply, std::format("the golden is {} × {}, the picture {} × {}: --size {}x{}", read->width, read->height, width, height, read->width, read->height));
         golden = std::move(*read);
         const auto distance = image::apart(ours, image::view(*golden));
-        if (!distance) return failed("nothing of the model is in the picture");
+        if (!distance) return failed(reply, "nothing of the model is in the picture");
         std::size_t undrawn = 0;
         for (std::size_t pixel = 0; pixel < static_cast<std::size_t>(width) * static_cast<std::size_t>(height); ++pixel) undrawn += golden->rgba[pixel * 4 + 3] == 255 && picture->rgba[pixel * 4 + 3] == 0;
         said["golden"] = {{"file", *file}, {"compared", distance->compared}, {"ratio", distance->ratio}, {"decibels", distance->decibels()}, {"suite_bound_decibels", -22}, {"its_pixels_not_drawn", undrawn}};
@@ -372,11 +371,11 @@ int look(const mlibs::agent::Arguments& args) {
     // Beside the light followed way by way, a quarter as large each way: where every sample of both is whole.
     if (const auto rays = args.value("follow")) {
         const auto count = numbers(*rays, 1);
-        if (!count || (*count)[0] < 1 || (*count)[0] > 65536) return wrong("--follow RAYS a pixel, 1 … 65536");
-        if (width % 4 != 0 || height % 4 != 0) return wrong("--follow takes a picture whose sides are multiples of 4");
+        if (!count || (*count)[0] < 1 || (*count)[0] > 65536) return wrong(reply, "--follow RAYS a pixel, 1 … 65536");
+        if (width % 4 != 0 || height % 4 != 0) return wrong(reply, "--follow takes a picture whose sides are multiples of 4");
         const int small_width = width / 4, small_height = height / 4;
         xrender::scene::Scene world;
-        if (const auto put = asset::place(*model, world); !put) return failed(put.error());
+        if (const auto put = asset::place(*model, world); !put) return failed(reply, put.error());
         std::vector<const mlibs::geom::ClusteredMesh*> meshes;
         std::vector<const mesh::Texture*> textures;
         std::vector<mlibs::geom::Bvh> grown;
@@ -397,7 +396,7 @@ int look(const mlibs::agent::Arguments& args) {
         for (std::size_t pixel = 0; pixel < truth.size() / 4; ++pixel) truth[pixel * 4 + 3] = 255;
         const std::string beside = *out + ".followed.png";
         const image::View truth_view{truth.data(), small_width, small_height, small_width * 4, image::Alpha::straight};
-        if (const auto saved = image::save_png(path_of(beside), truth_view); !saved) return failed(saved.error());
+        if (const auto saved = image::save_png(path_of(beside), truth_view); !saved) return failed(reply, saved.error());
         // A picture a quarter as large: a pixel the mean of sixteen, and there at all only where all sixteen are whole in both.
         const auto quarter = [&](const std::uint8_t* rgba) {
             std::vector<std::uint8_t> made(static_cast<std::size_t>(small_width) * static_cast<std::size_t>(small_height) * 4, 0);
@@ -521,22 +520,22 @@ std::expected<std::filesystem::path, std::string> model_fetched(std::string_view
     return model;
 }
 
-int fidelity(const mlibs::agent::Arguments& args, const std::filesystem::path& self) {
+int fidelity(Reply& reply, const mlibs::agent::Arguments& args, const std::filesystem::path& self) {
     const std::filesystem::path cache = args.value("cache") ? path_of(*args.value("cache")) : path_of(mcpplibs::os::env::get("HOME").value_or(".")) / ".cache" / "omui" / "fidelity";
     const std::filesystem::path out = args.value("out") ? path_of(*args.value("out")) : cache / "drawn";
     int follow = 0;
     if (const auto said = args.value("follow")) {
         const auto count = numbers(*said, 1);
-        if (!count || (*count)[0] < 1) return wrong("--follow RAYS, 1 or more");
+        if (!count || (*count)[0] < 1) return wrong(reply, "--follow RAYS, 1 or more");
         follow = static_cast<int>((*count)[0]);
     }
     std::error_code ignored;
     std::filesystem::create_directories(out, ignored);
     const std::filesystem::path listing = cache / "config.json";
-    if (!fetched(std::format("{}/render-fidelity-tools/test/config.json", fidelity_suite), listing)) return failed("the suite's list of scenarios could not be fetched");
+    if (!fetched(std::format("{}/render-fidelity-tools/test/config.json", fidelity_suite), listing)) return failed(reply, "the suite's list of scenarios could not be fetched");
     std::ifstream listed(listing, std::ios::binary);
     const Json config = Json::parse(listed, nullptr, false);
-    if (config.is_discarded() || !config.contains("scenarios") || !config["scenarios"].is_array()) return failed("the suite's list is not one");
+    if (config.is_discarded() || !config.contains("scenarios") || !config["scenarios"].is_array()) return failed(reply, "the suite's list is not one");
     std::set<std::string> asked;
     for (std::size_t at = 0; at < args.positionals().size(); ++at) {
         std::string name(args.positional(at));
@@ -636,7 +635,7 @@ int fidelity(const mlibs::agent::Arguments& args, const std::filesystem::path& s
         for (const std::string& cell : cells) line += " " + cell + " |";
         table += line + "\n";
     }
-    return answer(Json{{"ok", not_had == 0}, {"drawn", drawn}, {"within_suite_bound", within}, {"not_drawn", static_cast<std::ptrdiff_t>(rows.size()) - drawn}, {"table", table},
+    return answer(reply, Json{{"ok", not_had == 0}, {"drawn", drawn}, {"within_suite_bound", within}, {"not_drawn", static_cast<std::ptrdiff_t>(rows.size()) - drawn}, {"table", table},
                        {"error", std::format("{} scenario(s) asked for could not be drawn", not_had)}},
                   not_had > 0 ? 1 : 0);
 }
@@ -650,14 +649,12 @@ mlibs::control::Guide Renderer::guide() const noexcept {
 }
 
 void Renderer::operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& reply) {
-    replying = &reply;
-    if (operation == "effect.check") effect_check(mlibs::agent::Arguments(request, "files"));
-    else if (operation == "effect.preview") effect_preview(mlibs::agent::Arguments(request, "file"));
-    else if (operation == "conformance.run") cts(mlibs::agent::Arguments(request));
-    else if (operation == "device.describe") device_info();
-    else if (operation == "model.look") look(mlibs::agent::Arguments(request, "model"));
-    else if (operation == "fidelity.run") fidelity(mlibs::agent::Arguments(request, "names"), self_);
-    replying = nullptr;
+    if (operation == "effect.check") effect_check(reply, mlibs::agent::Arguments(request, "files"));
+    else if (operation == "effect.preview") effect_preview(reply, mlibs::agent::Arguments(request, "file"));
+    else if (operation == "conformance.run") cts(reply, mlibs::agent::Arguments(request));
+    else if (operation == "device.describe") device_info(reply);
+    else if (operation == "model.look") look(reply, mlibs::agent::Arguments(request, "model"));
+    else if (operation == "fidelity.run") fidelity(reply, mlibs::agent::Arguments(request, "names"), self_);
 }
 
 }  // namespace xrender::tool

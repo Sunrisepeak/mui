@@ -3,6 +3,7 @@ module omui.devtools.check;
 import std;
 import mcpplibs.os;
 import nlohmann.json;
+import mlibs.hash;
 import omui.devtools.run;
 import :support;
 
@@ -413,10 +414,7 @@ int toy(const fs::path& root, std::vector<std::string> packages) {
     std::error_code error;
     fs::create_directories(out, error);
     const fs::path doctor = out / std::format("toy_doctor-{}.py", revision.substr(0, 7));
-    const auto sha256 = [&](const fs::path& file) -> std::string {
-        const auto said = run::output(root, "sha256sum", {mcpplibs::os::fs::utf8(file)});
-        return said ? said->substr(0, said->find(' ')) : std::string{};
-    };
+    const auto sha256 = [](const fs::path& file) { return mlibs::hash::sha256_hex(read_text(file).value_or("")); };
     if (!fs::exists(doctor) || sha256(doctor) != digest) {
         fs::path part = doctor;
         part += ".part";

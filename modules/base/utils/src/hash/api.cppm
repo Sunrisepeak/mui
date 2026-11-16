@@ -105,4 +105,26 @@ private:
 static_assert(fnv1a("") == 0xcbf29ce484222325ull && fnv1a("a") == 0xaf63dc4c8601ec8cull && fnv1a("foobar") == 0x85944171f73967e8ull);
 static_assert(fnv1a32("") == 2166136261u && fnv1a32("a") == 0xe40c292cu && fnv1a32("foobar") == 0xbf9cf968u);
 
+// SHA-256 (FIPS 180-4): a file's digest where another tool states one — a pinned download's, a release's
+// checksums, a probe's record of the sources it compiled. Not the determinism hash: FNV-1a above is that.
+class Sha256 {
+public:
+    Sha256() noexcept;
+    Sha256& bytes(std::span<const std::uint8_t> data) noexcept;
+    Sha256& text(std::string_view data) noexcept;
+    // The digest; the object is then spent (start a new one for more).
+    [[nodiscard]] std::array<std::uint8_t, 32> digest() noexcept;
+    // The digest in lower-case hexadecimal, as sha256sum prints it.
+    [[nodiscard]] std::string hex() noexcept;
+
+private:
+    void block(const std::uint8_t* chunk) noexcept;
+    std::array<std::uint32_t, 8> state_;
+    std::array<std::uint8_t, 64> pending_{};
+    std::size_t pending_size_ = 0;
+    std::uint64_t length_ = 0;  // bytes taken
+};
+
+[[nodiscard]] std::string sha256_hex(std::string_view data);
+
 }  // namespace mlibs::hash

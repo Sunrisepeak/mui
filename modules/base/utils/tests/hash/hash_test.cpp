@@ -48,6 +48,19 @@ int main() {
         std::uint32_t a = 1, b = 2;
     };
     check(Fnv1a().object(Plain{}).value() == Fnv1a().object(std::uint32_t{1}).object(std::uint32_t{2}).value(), "object: its own bytes");
+    // SHA-256: FIPS 180-4's vectors, a million a's in pieces, a block's boundary crossed in two writes.
+    namespace hash = mlibs::hash;
+    check(hash::sha256_hex("") == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "sha256 of nothing");
+    check(hash::sha256_hex("abc") == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", "sha256 of abc");
+    check(hash::sha256_hex("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq") ==
+              "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1",
+          "sha256 of the two-block vector");
+    hash::Sha256 million;
+    const std::string piece(1000, 'a');
+    for (int part = 0; part < 1000; ++part) million.text(piece);
+    check(million.hex() == "cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0", "sha256 of a million a's, a thousand at a time");
+    check(hash::sha256_hex(std::string(64, 'x')) == hash::Sha256().text(std::string(63, 'x')).text("x").hex(), "sha256 across a block's boundary");
     std::println("hash: {} failed", failures);
     return failures == 0 ? 0 : 1;
 }
+

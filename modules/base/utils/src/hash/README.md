@@ -1,6 +1,6 @@
 # mlibs.hash
 
-FNV-1a, once for the whole repository: the determinism hashes tests pin, content hashes (a display list, a surface, a frame's inputs), cache keys and generated ids. An independent component (D-55): the standard library only.
+FNV-1a, once for the whole repository: the determinism hashes tests pin, content hashes (a display list, a surface, a frame's inputs), cache keys and generated ids. And SHA-256 (FIPS 180-4) where another tool states a digest: a pinned download, a release's checksums, the sources a probe compiled — `mlibs::hash::sha256_hex(bytes)`, or `Sha256().bytes(…).hex()` in pieces. An independent component (D-55): the standard library only.
 
 ```cpp
 import mlibs.hash;

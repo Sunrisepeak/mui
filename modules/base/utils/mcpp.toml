@@ -19,7 +19,7 @@
 namespace   = "mlibs"
 name        = "utils"
 version     = "0.1.0"
-description = "Small tools: FNV-1a hashes, base64, HTTP framing, nearest names, messages without a locale, logging and invariants, tracing, and the checks test programs share"
+description = "Small tools: FNV-1a and SHA-256 hashes, base64, HTTP framing, nearest names, messages without a locale, logging and invariants, tracing, and the checks test programs share"
 license     = "Apache-2.0"
 platforms   = ["linux", "macos", "windows", "emscripten"]
 repo        = "https://github.com/Sunrisepeak/mui"

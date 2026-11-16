@@ -73,10 +73,10 @@ std::expected<mlibs::image::Image, std::string> load(const fs::path& path) {
 
 std::string repo_path(const fs::path& path, const fs::path& root) { return os::fs::generic_utf8(fs::relative(path, root)); }
 
-fs::path ledger_of(const fs::path& root) { return root / ".agents/docs/evaluation/ledger.eval.omui.jsonl"; }
+fs::path ledger_of(const fs::path& root) { return root / ".agents/docs/evaluation/ledger.eval.xdef.jsonl"; }
 
 std::expected<json, std::string> comparison_set(const fs::path& root, std::string_view subject) {
-    const fs::path path = root / ".agents/docs/evaluation/compare" / std::format("{}.compare.omui.json", subject);
+    const fs::path path = root / ".agents/docs/evaluation/compare" / std::format("{}.compare.xdef.json", subject);
     const auto text = os::fs::read(path);
     if (!text) return std::unexpected(std::format("no comparison set {}", repo_path(path, root)));
     auto parsed = json::parse(*text, nullptr, false);

@@ -32,7 +32,7 @@ Compared with today's major UI frameworks: Qt (Widgets / QML), Flutter, SwiftUI,
 
 ## 4. One tree: C++, TypeScript and view documents
 
-**What**: C++, TypeScript and `*.view.omui.json` build the same semantic tree; components are contract-first, and the TypeScript binding is generated. TypeScript is the one script language: one binding kept complete rather than several kept partly.
+**What**: C++, TypeScript and `*.view.xdef.json` build the same semantic tree; components are contract-first, and the TypeScript binding is generated. TypeScript is the one script language: one binding kept complete rather than several kept partly.
 
 **Evidence**: CTS scenarios record the pinned traces in TypeScript; the C++, TypeScript and view-document trees are compared in tests; `omui-gen` generates bindings, stubs and schemas.
 
@@ -104,7 +104,7 @@ the website's scene count is not a count of public engine recipes.
 
 ## 7. Performance that is proven: budgets in CI, a public report
 
-**Evidence**: 48 budgets in `tests/bench` (`budgets.bench.omui.json`), checked on every change; `docs/en/benchmarks/`; S1's 1000-window zoom sweep drawn by the GPU at a frame p99 of 7.11 ms (p95 1.20 ms; on the CPU path p95 0.115 ms). Frame demand and pacing (ProMotion / VRR) are exposed in layers.
+**Evidence**: 48 budgets in `tests/bench` (`budgets.bench.xdef.json`), checked on every change; `docs/en/benchmarks/`; S1's 1000-window zoom sweep drawn by the GPU at a frame p99 of 7.11 ms (p95 1.20 ms; on the CPU path p95 0.115 ms). Frame demand and pacing (ProMotion / VRR) are exposed in layers.
 
 ## 8. Simple to write, deep to control (progressive disclosure)
 

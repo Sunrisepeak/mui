@@ -94,22 +94,22 @@ UTest cases{"session", [] {
         auto dir = scratch_dir("record");
         session::Session r;
         (void)r.add(0.25, "note", R"({"text":"hello"})");
-        auto file = dir / "a.session.omui.jsonl";
+        auto file = dir / "a.session.xdef.jsonl";
         expect(r.save(file).has_value());
         auto back = session::Session::load(file);
         expect(back.has_value() && back->ndjson() == r.ndjson());
-        auto missing = session::Session::load(dir / "missing.session.omui.jsonl");
+        auto missing = session::Session::load(dir / "missing.session.xdef.jsonl");
         expect(!missing.has_value());
     };
 
     "a session saves and loads under a name that is not ASCII"_test = [] {
         session::Session r;
         expect(r.add(0.25, "act", R"({"node":"main/保存"})").has_value());
-        const auto file = scratch_dir("record") / std::filesystem::path(u8"会话 录制.session.omui.jsonl");
+        const auto file = scratch_dir("record") / std::filesystem::path(u8"会话 录制.session.xdef.jsonl");
         expect(r.save(file).has_value());
         auto back = session::Session::load(file);
         expect(back.has_value() && back->size() == 1) << (back ? "" : back.error());
-        auto missing = session::Session::load(scratch_dir("record") / std::filesystem::path(u8"没有.session.omui.jsonl"));
+        auto missing = session::Session::load(scratch_dir("record") / std::filesystem::path(u8"没有.session.xdef.jsonl"));
         expect(!missing && missing.error().contains("没有")) << (missing ? "" : missing.error());
     };
 }};

@@ -15,7 +15,7 @@ UTest cases{"theme.compact", [] {
         expect(themes::add_compact().has_value());
         expect(theme::library().overlays() == std::vector<std::string>{"compact"});
         auto base = theme::library().add(R"({"theme": {"plain": {"spacing": {"s": 8}, "text": {"body": {"size": 15}}, "radius": {"medium": 8}}}})",
-                                         "plain.theme.omui.json");
+                                         "plain.theme.xdef.json");
         expect(base.has_value());
         const std::vector<std::string> layers{"plain", "compact"};
         auto t = theme::library().compose(layers);

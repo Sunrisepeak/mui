@@ -32,7 +32,7 @@ void declare_first_frame(mcpplibs::cmdline::App& line, bool language);
 // The output directory must exist. CPU, one raster band, scale 1, fixed T3.
 // The default is exactly the first frame at t=0, never settle(). --time is
 // sampled on a controlled 60 Hz clock, with an exact final fractional frame.
-// The returned report is also written beside the PNG as *.frame.omui.json.
+// The returned report is also written beside the PNG as *.frame.xdef.json.
 // Bounds remain global even when the image is cropped to an actual node.
 [[nodiscard]] std::expected<Value, std::string> export_first_frame(const FirstFrameOptions& options);
 
@@ -41,7 +41,7 @@ void declare_first_frame(mcpplibs::cmdline::App& line, bool language);
 // languages, at a phone's and a desktop's size, with full and reduced motion, and
 // the home's whole first frame at each as a reference to check the live page
 // against. Written into DIR/assets/ by their contents' hash, the catalogue as
-// DIR/first-frames.assets.omui.json (what --prerender's --opening-assets reads);
+// DIR/first-frames.assets.xdef.json (what --prerender's --opening-assets reads);
 // what was written is returned (the counts and the catalogue's path).
 [[nodiscard]] std::expected<Value, std::string> export_openings(const std::filesystem::path& out);
 

@@ -35,7 +35,7 @@ UTest cases{"mlibs.control.gen", [] {
         for (const auto& path : files) {
             const std::filesystem::directory_entry entry(path);
             const auto name = mcpplibs::os::fs::utf8(entry.path().filename());
-            if (!entry.is_regular_file() || !name.ends_with(".ops.omui.ts") || mcpplibs::os::fs::generic_utf8(entry.path()).contains("/target/"))
+            if (!entry.is_regular_file() || !name.ends_with(".ops.xdef.ts") || mcpplibs::os::fs::generic_utf8(entry.path()).contains("/target/"))
                 continue;
             ++catalogs;
             auto catalog = gen::read_catalog_file(entry.path());
@@ -66,13 +66,13 @@ UTest cases{"mlibs.control.gen", [] {
   ]
 }}}})", space);
         };
-        const auto catalog = gen::read_catalog(text("lattice-2d"), "x.ops.omui.json");
+        const auto catalog = gen::read_catalog(text("lattice-2d"), "x.ops.xdef.json");
         expect(fatal(catalog.has_value()));
         const std::string listing = gen::emit_catalog_json(*catalog);
         expect(listing.contains(R"("at": {"description": "[x, y]", "x-space": "lattice-2d"})")) << listing;
         expect(listing.contains(R"("depth": {"type": "integer"})")) << "a parameter that is no position says none";
         expect(gen::emit_catalog_markdown(*catalog).contains("`at`: json in lattice-2d"));
-        const auto unknown = gen::read_catalog(text("somewhere"), "x.ops.omui.json");
+        const auto unknown = gen::read_catalog(text("somewhere"), "x.ops.xdef.json");
         expect(!unknown && std::ranges::any_of(unknown.error(), [](const std::string& problem) { return problem.contains("space `somewhere` (plane, lattice-2d)"); }));
     };
 
@@ -90,13 +90,13 @@ UTest cases{"mlibs.control.gen", [] {
     {"name": "look-then-move", "summary": "Look at a place, move, look again", "steps": [
       {"op": "x.look", "at": [1, 2]}, {"op": "x.move", "by": 0.5, "note": "a \"small\" step"}, {"op": "x.rest"}]}
   ]
-}})", "x.ops.omui.json");
+}})", "x.ops.xdef.json");
         expect(fatal(catalog.has_value())) << (catalog ? std::string() : catalog.error().front());
         expect(catalog->operations[0].examples == std::vector<std::string>{R"({"op":"x.look","at":[1,2]})"});
         expect(catalog->operations[1].examples == std::vector<std::string>{R"({"op":"x.move","by":0.5,"note":"a \"small\" step"})"})
             << "an operation that shows none of its own shows a task's step: written once";
         expect(catalog->operations[2].examples == std::vector<std::string>{R"({"op":"x.rest"})"});
-        const std::string table = gen::emit_catalog_cpp(*catalog, "x.ops.omui.json");
+        const std::string table = gen::emit_catalog_cpp(*catalog, "x.ops.xdef.json");
         for (const std::string_view wanted : {"inline constexpr std::array<std::string_view, 1> examples_x_look{{", "\"{\\\"op\\\":\\\"x.look\\\",\\\"at\\\":[1,2]}\",",
                                               "false, examples_x_move, ", "inline constexpr std::array<std::string_view, 3> steps_look_then_move{{",
                                               "inline constexpr std::array<mlibs::control::Task, 1> guide_tasks{{",
@@ -122,7 +122,7 @@ UTest cases{"mlibs.control.gen", [] {
     {"name": "Look Around", "summary": "", "steps": [{"op": "x.fly"}]},
     {"name": "nothing", "summary": "does nothing", "steps": []}
   ]
-}})", "x.ops.omui.json");
+}})", "x.ops.xdef.json");
         expect(!broken);
         if (broken) return;
         const auto says = [&](std::string_view text) { return std::ranges::any_of(broken.error(), [&](const std::string& problem) { return problem.contains(text); }); };
@@ -141,12 +141,12 @@ UTest cases{"mlibs.control.gen", [] {
     {"name": "x.run", "effect": "read", "delegated": true, "summary": "runs what it names"},
     {"name": "x.peek", "effect": "read", "undoable": true, "summary": "reads"}
   ]
-}})", "x.ops.omui.json");
+}})", "x.ops.xdef.json");
         expect(!broken) << "refused";
         if (broken) return;
         const auto& problems = broken.error();
         const auto says = [&](std::string_view text) { return std::ranges::any_of(problems, [&](const std::string& p) { return p.find(text) != std::string::npos; }); };
-        expect(says("x.ops.omui.json:6") && says("dotted lowercase")) << "the bad name at its line";
+        expect(says("x.ops.xdef.json:6") && says("dotted lowercase")) << "the bad name at its line";
         expect(says("not read, reversible or irreversible")) << "the bad effect";
         expect(says("say how it is undone")) << "a change without its undo";
         expect(says("the most that can be")) << "a delegated operation's bound is above read";

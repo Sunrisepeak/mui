@@ -1,6 +1,6 @@
 // The fight from gamepads, injected as a host gives them (spec §6.1): the
 // first two connected are players 1 and 2; the d-pad and the left stick are
-// directions; the buttons are controls/pad.controls.omui.json's six-button
+// directions; the buttons are controls/pad.controls.xdef.json's six-button
 // layout — a press arrives as the move in the match.
 import std;
 import omui;

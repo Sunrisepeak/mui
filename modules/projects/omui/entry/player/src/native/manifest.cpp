@@ -12,7 +12,7 @@ namespace omui {
 namespace {
 std::string utf8(const std::filesystem::path& path) { return mcpplibs::os::fs::utf8(path); }
 
-// `ui/*.view.omui.json`: the files of a directory whose names match (`*` in
+// `ui/*.view.xdef.json`: the files of a directory whose names match (`*` in
 // the last component only), sorted; a path without `*` as it is.
 std::vector<std::filesystem::path> expand(const std::filesystem::path& base, std::string_view pattern) {
     std::vector<std::filesystem::path> out;

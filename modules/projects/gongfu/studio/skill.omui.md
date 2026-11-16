@@ -1,6 +1,6 @@
 # gongfu — skill
 
-How an Agent (or a person at a terminal) makes and checks fighters without a GUI. The operations are the catalog's: [`gongfu.ops.omui.ts`](gongfu.ops.omui.ts), listed for CLI and MCP in [`src/catalog/gongfu.ops.json`](src/catalog/gongfu.ops.json), for reading in [`src/catalog/gongfu.ops.md`](src/catalog/gongfu.ops.md). Each is `gongfu-studio <verb> …` (`fighter.bake` is `gongfu-studio bake`, `roster.versus` is `gongfu-studio versus`): JSON on standard output, exit 0 done, 1 failed with its problems, 2 a wrong command.
+How an Agent (or a person at a terminal) makes and checks fighters without a GUI. The operations are the catalog's: [`gongfu.ops.xdef.ts`](gongfu.ops.xdef.ts), listed for CLI and MCP in [`src/catalog/gongfu.ops.json`](src/catalog/gongfu.ops.json), for reading in [`src/catalog/gongfu.ops.md`](src/catalog/gongfu.ops.md). Each is `gongfu-studio <verb> …` (`fighter.bake` is `gongfu-studio bake`, `roster.versus` is `gongfu-studio versus`): JSON on standard output, exit 0 done, 1 failed with its problems, 2 a wrong command.
 
 ## Before
 

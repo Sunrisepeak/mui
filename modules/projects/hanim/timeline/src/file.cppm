@@ -14,7 +14,7 @@
 //           clips: [
 //             {
 //               name: "title",
-//               source: "views/title.view.omui.json",
+//               source: "views/title.view.xdef.json",
 //               at: "0f",            // 90f: frames; 1.5s, 250ms; 123fl: flicks; a number: seconds
 //               length: "3s",
 //               in: "0f",            // where in its source it begins

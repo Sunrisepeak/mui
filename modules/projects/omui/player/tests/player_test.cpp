@@ -117,14 +117,14 @@ UTest cases{"player", [] {
 
     "a manifest's components, views and scripts start; saved files reload in place"_test = [] {
         const auto dir = scratch_dir("player");
-        write(dir / "ui" / "main.view.omui.json", counter);
-        write(dir / "ui" / "badge.view.omui.json", badge_doc);
+        write(dir / "ui" / "main.view.xdef.json", counter);
+        write(dir / "ui" / "badge.view.xdef.json", badge_doc);
         write(dir / "logic" / "side.stub", R"j({"omui": "0.1", "view": {"root": {"type": "text", "id": "hello", "props": {"text": "from a script"}}}})j");
         player::Manifest m;
         m.id = "org.openmui.player-test";
         m.base = dir;
-        m.components = {"ui/badge.view.omui.json"};
-        m.views = {"ui/main.view.omui.json"};
+        m.components = {"ui/badge.view.xdef.json"};
+        m.views = {"ui/main.view.xdef.json"};
         m.scripts = {{"stub", "logic/side.stub"}};
         Headless h(HeadlessOptions{.size = {320, 240}});
         player::Player p(h.runtime(), m, {stub()});
@@ -145,15 +145,15 @@ UTest cases{"player", [] {
         // A view saved: in place, its state kept.
         std::string next(counter);
         next.replace(next.find("{} clicks"), 9, "{} taps");
-        write(dir / "ui" / "main.view.omui.json", next);
-        expect(p.poll() == std::vector<std::string>{"ui/main.view.omui.json"});
+        write(dir / "ui" / "main.view.xdef.json", next);
+        expect(p.poll() == std::vector<std::string>{"ui/main.view.xdef.json"});
         h.settle();
         expect(eq(name_of(h, "main/n"), std::string("1 taps")));
         // A component saved: its instances rebuilt.
         std::string loud(badge_doc);
         loud.replace(loud.find("upper(label)"), 12, "format('<{}>', label)");
-        write(dir / "ui" / "badge.view.omui.json", loud);
-        expect(p.poll() == std::vector<std::string>{"ui/badge.view.omui.json"});
+        write(dir / "ui" / "badge.view.xdef.json", loud);
+        expect(p.poll() == std::vector<std::string>{"ui/badge.view.xdef.json"});
         h.settle();
         expect(eq(name_of(h, "main/badge/t"), std::string("<clicks>")));
         // A script saved: run again.
@@ -162,26 +162,26 @@ UTest cases{"player", [] {
         h.settle();
         expect(eq(name_of(h, "side"), std::string("again")));
         // A view saved with a mistake: nothing changes, the problem says where.
-        write(dir / "ui" / "main.view.omui.json", R"j({"omui": "0.1", "view": {"root": {"type": "colum"}}})j");
+        write(dir / "ui" / "main.view.xdef.json", R"j({"omui": "0.1", "view": {"root": {"type": "colum"}}})j");
         expect(p.poll().empty());
-        expect(!p.problems().empty() && p.problems().back().find("ui/main.view.omui.json:1:43: error: no component is named `colum`") != std::string::npos) << (p.problems().empty() ? "" : p.problems().back());
+        expect(!p.problems().empty() && p.problems().back().find("ui/main.view.xdef.json:1:43: error: no component is named `colum`") != std::string::npos) << (p.problems().empty() ? "" : p.problems().back());
         h.settle();
         expect(eq(name_of(h, "main/n"), std::string("1 taps")));
     };
 
     "watch reloads on the runtime's timers"_test = [] {
         const auto dir = scratch_dir("player-watch");
-        write(dir / "ui" / "main.view.omui.json", R"j({"omui": "0.1", "view": {"root": {"type": "text", "props": {"text": "one"}}}})j");
+        write(dir / "ui" / "main.view.xdef.json", R"j({"omui": "0.1", "view": {"root": {"type": "text", "props": {"text": "one"}}}})j");
         player::Manifest m;
         m.base = dir;
-        m.views = {"ui/main.view.omui.json"};
+        m.views = {"ui/main.view.xdef.json"};
         Headless h(HeadlessOptions{.size = {320, 240}});
         player::Player p(h.runtime(), m, {});
         expect(p.start().has_value());
         p.watch(seconds(0.1));
         h.settle(seconds(0.05));
         expect(eq(name_of(h, "main"), std::string("one")));
-        write(dir / "ui" / "main.view.omui.json", R"j({"omui": "0.1", "view": {"root": {"type": "text", "props": {"text": "two"}}}})j");
+        write(dir / "ui" / "main.view.xdef.json", R"j({"omui": "0.1", "view": {"root": {"type": "text", "props": {"text": "two"}}}})j");
         (void)h.advance(seconds(0.2));
         expect(eq(name_of(h, "main"), std::string("two")));
     };
@@ -190,13 +190,13 @@ UTest cases{"player", [] {
         const auto dir = scratch_dir("player-problems");
         player::Manifest m;
         m.base = dir;
-        m.views = {"ui/missing.view.omui.json"};
+        m.views = {"ui/missing.view.xdef.json"};
         m.scripts = {{"cobol", "logic/main.cbl"}};
         Headless h(HeadlessOptions{.size = {320, 240}});
         player::Player p(h.runtime(), m, {stub()});
         auto r = p.start();
         expect(!r);
-        expect(r.error().text().find("ui/missing.view.omui.json: cannot be read") != std::string::npos) << r.error().text();
+        expect(r.error().text().find("ui/missing.view.xdef.json: cannot be read") != std::string::npos) << r.error().text();
         expect(r.error().text().find("logic/main.cbl: no language `cobol`") != std::string::npos) << r.error().text();
     };
 

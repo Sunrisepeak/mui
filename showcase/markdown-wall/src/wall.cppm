@@ -24,7 +24,7 @@ import omui;
 import omui.ui.canvas;
 import omui.ui.canvas.kit;
 import omui.ui.markdown;
-// behaviors/*.behavior.omui.ts, embedded by build.mcpp (openmui.build.embed).
+// behaviors/*.behavior.xdef.ts, embedded by build.mcpp (openmui.build.embed).
 export import :group_drag_behavior;
 export import :views_behavior;
 
@@ -146,7 +146,7 @@ public:
     std::expected<std::size_t, std::string> align(std::string_view how);
 
     // ── keeping: the arrangement and the camera, and the documents' edits ──
-    // Where the folder's own state lives (its `.openmui/wall.layout.omui.json`);
+    // Where the folder's own state lives (its `.openmui/wall.layout.xdef.json`);
     // empty: nothing kept (made documents, a page).
     std::filesystem::path folder;
     bool                  restored = false;  // the camera came back from it (the canvas starts there, not fitted)

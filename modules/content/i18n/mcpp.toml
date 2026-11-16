@@ -2,8 +2,8 @@
 # locales, their negotiation and fallback, CLDR plural rules, numbers, dates,
 # relative times and lists formatted from locale data, MessageFormat 2
 # messages, catalogs and pseudo-localisation. The data — CLDR's, generated
-# into *.locale.omui.json packs (modules/content/i18n/cldr), and an application's
-# *.messages.omui.ts catalogs (read as their JSON) — is loaded, never compiled in, so the same input gives
+# into *.locale.xdef.json packs (modules/content/i18n/cldr), and an application's
+# *.messages.xdef.ts catalogs (read as their JSON) — is loaded, never compiled in, so the same input gives
 # the same text on every platform. An independent component (D-55): it knows
 # nothing of openmui and can be released as a library of its own.
 [package]

@@ -26,7 +26,7 @@ Every local build and test runs through it. Without `--jobs` it takes the machin
 
 ## incremental
 
-The same build twice: the second, unchanged, must leave every compilation output its databases name untouched (a generated source rewritten with the same bytes would recompile every importer). Wall time is reported, never judged: it is the runner's. The report, both builds' events and logs land beside `--report` (`target/incremental.report.omui.json`). CI's desktop rows run it after building every member.
+The same build twice: the second, unchanged, must leave every compilation output its databases name untouched (a generated source rewritten with the same bytes would recompile every importer). Wall time is reported, never judged: it is the runner's. The report, both builds' events and logs land beside `--report` (`target/incremental.report.xdef.json`). CI's desktop rows run it after building every member.
 
 ```sh
 omui-devtools incremental --workspace --profile ci --exclude omui.reflect
@@ -114,7 +114,7 @@ omui-devtools check visitor-path [--site DIR] [--omui PATH]   # omui.cli built u
 omui-devtools check dist-toy-loading [--fixture FILE]          # omui.gen's dist_toy tests first unless a fixture is given
 ```
 
-Each check's report lands under `target/` (`site-perf.json`, `site-a11y.json`, `site-<check>.report.omui.json`, `visitor-path.json`, `dist-toy-loading.report.omui.json`; pictures in `target/site-<check>/`), and a line is said for each of its checks. `perf` holds the delivery to `site/delivery.budget.omui.json`, with and without the HTTP cache. `dist-toy-loading` runs the generated loader in a frame of its own in the page (node's vm context before), against the browser's own fetch, streams and WebAssembly. `transition` is a coverage study of input on moving painted pixels, not in the default set.
+Each check's report lands under `target/` (`site-perf.json`, `site-a11y.json`, `site-<check>.report.xdef.json`, `visitor-path.json`, `dist-toy-loading.report.xdef.json`; pictures in `target/site-<check>/`), and a line is said for each of its checks. `perf` holds the delivery to `site/delivery.budget.xdef.json`, with and without the HTTP cache. `dist-toy-loading` runs the generated loader in a frame of its own in the page (node's vm context before), against the browser's own fetch, streams and WebAssembly. `transition` is a coverage study of input on moving painted pixels, not in the default set.
 
 `omui-devtools bench material3 OUT` captures Material 3's controls in four states from their page (`tests/bench/competitors/compare/material3`, once bundled), the competitor's side of the controls' review.
 

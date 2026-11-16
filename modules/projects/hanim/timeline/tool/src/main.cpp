@@ -1,6 +1,6 @@
 // hanim-timeline — the timeline every editor shares without a GUI, for people, agents and CI: hanim.timeline.tool's
 // subject `timeline` behind the tool kernel's entries (mlibs.agent:host, T0). Its operations are the catalog's
-// (timeline.ops.omui.ts):
+// (timeline.ops.xdef.ts):
 //
 //   hanim-timeline timeline.check --file F             the timeline, or every problem at its line and column
 //   hanim-timeline timeline.at    --file F --time T    what plays at T: each clip, where in its source, at what level

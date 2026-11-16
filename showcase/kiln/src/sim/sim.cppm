@@ -14,8 +14,8 @@ export module omui.showcase.kiln.sim;
 import std;
 export import xengine.input;
 export import xengine.cellular.rigid;
-export import :first_world;   // levels/first.world.omui.ts, embedded as its JSON (kiln::level::first_world)
-export import :flawed_world;  // levels/flawed.world.omui.ts
+export import :first_world;   // levels/first.world.xdef.ts, embedded as its JSON (kiln::level::first_world)
+export import :flawed_world;  // levels/flawed.world.xdef.ts
 
 export namespace kiln {
 namespace rigid = xengine::cellular::rigid;
@@ -61,7 +61,7 @@ struct Input {
 // A level: rows of characters, one a cell, and what each is (`legend`): a material of the definition, or a role —
 // `start` where Mui stands (her feet), `exit` (any number of them: the region they span), `body:<material>` that
 // material as a body (a crate; each connected piece one body). A character the legend does not name is air.
-// The levels are TypeScript data (`levels/*.world.omui.ts`, omui/define's `defineWorld`), carried in the program
+// The levels are TypeScript data (`levels/*.world.xdef.ts`, omui/define's `defineWorld`), carried in the program
 // as the JSON they evaluate to and read by `level::read`.
 // Scenery: matter that is only shown (D-178) — the simulation never has it, so it is no part of the game; a
 // picture that has room simulates it beside the world (it catches from the world's fires), one that has not
@@ -78,7 +78,7 @@ struct Level {
     std::vector<Scenery>                      scenery;
 };
 namespace level {
-// A level from its snapshot (`{"world": …}`, what a `.world.omui.ts` evaluates to); a problem names its place.
+// A level from its snapshot (`{"world": …}`, what a `.world.xdef.ts` evaluates to); a problem names its place.
 [[nodiscard]] std::expected<Level, std::string> read(std::string_view json, std::string_view name);
 // The first cavern: a barricade of wood to burn, a pool with a crate afloat, a stone wall to blast, lava to
 // cool into a floor, the exit beyond. Two bombs.

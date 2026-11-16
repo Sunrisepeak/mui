@@ -56,7 +56,7 @@ UTest cases{"devtools.eval", [] {
     };
 
     "a ledger line as the ledgers hold it: every committed compare-v1 line written back the same"_test = [] {
-        std::ifstream in(root() / ".agents/docs/evaluation/ledger.eval.omui.jsonl", std::ios::binary);
+        std::ifstream in(root() / ".agents/docs/evaluation/ledger.eval.xdef.jsonl", std::ios::binary);
         expect(fatal(static_cast<bool>(in)));
         int compared = 0;
         for (std::string line; std::getline(in, line);) {

@@ -1,6 +1,6 @@
 # frame — skill
 
-How an Agent reviews the picture a program draws (`xrender.frame`), whoever made its content. The operations, their parameters and effects are in [frame.ops.omui.ts](frame.ops.omui.ts) (the subject, asked to describe itself at its endpoint, answers the same); this is the order to use them in.
+How an Agent reviews the picture a program draws (`xrender.frame`), whoever made its content. The operations, their parameters and effects are in [frame.ops.xdef.ts](frame.ops.xdef.ts) (the subject, asked to describe itself at its endpoint, answers the same); this is the order to use them in.
 
 ## Before
 

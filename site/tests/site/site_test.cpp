@@ -492,7 +492,7 @@ static UTest cases{"site", [] {
             a.h.settle(seconds(1));
         };
         const Color light = a.h.runtime().theme().color("background");
-        expect(std::abs(light.r - 0xfb / 255.0f) < 0.002f && std::abs(light.b - 0xfa / 255.0f) < 0.002f) << "the site's own theme (site.theme.omui.ts), not the default it extends";
+        expect(std::abs(light.r - 0xfb / 255.0f) < 0.002f && std::abs(light.b - 0xfa / 255.0f) < 0.002f) << "the site's own theme (site.theme.xdef.ts), not the default it extends";
         choose("theme", "dark");
         const Color dark = a.h.runtime().theme().color("background");
         expect(dark.r + dark.g + dark.b < light.r + light.g + light.b - 1) << "dark";
@@ -1103,7 +1103,7 @@ static UTest cases{"site", [] {
         }
     };
 
-    "the reference run: each sampled frame's pixels hashed as a browser hashes them, pinned (reference/ci.frames.omui.json)"_test = [] {
+    "the reference run: each sampled frame's pixels hashed as a browser hashes them, pinned (reference/ci.frames.xdef.json)"_test = [] {
         site::ReferenceReplay replay;
         std::vector<std::string> got;
         for (std::int32_t f = 0; f < site::reference_frames(); ++f) got.push_back(std::format("{:016x}", replay.hash(f)));
@@ -1116,7 +1116,7 @@ static UTest cases{"site", [] {
             std::string json = "{\n  \"about\": \"The site's reference run: each sampled frame's pixel hash as CI computed it (site_test writes and checks it; the page compares a browser's own with it).\",\n  \"fps\": 10,\n  \"size\": [1280, 800],\n  \"frames\": [";
             for (std::size_t i = 0; i < got.size(); ++i) json += std::format("{}\n    \"{}\"", i ? "," : "", got[i]);
             json += "\n  ]\n}\n";
-            const auto out = scratch_dir("site-reference") / "ci.frames.omui.json";
+            const auto out = scratch_dir("site-reference") / "ci.frames.xdef.json";
             std::ofstream(out, std::ios::binary) << json;
             std::println("    the reference run's table: {}", out.string());
         }

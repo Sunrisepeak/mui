@@ -452,8 +452,8 @@ void Lab::write() const {
             std::filesystem::remove(entry.path(), ignored);
     for (const std::string_view table : {std::string_view{"channels.json"}, std::string_view{"columns.json"}})
         if (!texts_.contains(std::string(table))) std::filesystem::remove(directory_ / table, ignored);
-    write_file(directory_ / "world.matter.omui.json", definition_of(texts_));
-    write_file(directory_ / "world.appearance.omui.json", appearance_of(texts_));
+    write_file(directory_ / "world.matter.xdef.json", definition_of(texts_));
+    write_file(directory_ / "world.appearance.xdef.json", appearance_of(texts_));
 }
 
 std::string Lab::scene_text() const {

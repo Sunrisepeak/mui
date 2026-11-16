@@ -12,12 +12,12 @@ namespace matter = xengine::matter;
 namespace {
 
 matter::Definition standard_definition() {
-    auto read = matter::read(matter::standard_snapshot, "standard.matter.omui.json");
+    auto read = matter::read(matter::standard_snapshot, "standard.matter.xdef.json");
     expect(fatal(read.has_value()));
     return *read;
 }
 matter::Definition pack_of(std::string_view text) {
-    auto read = matter::read_pack(text, "a.pack.matter.omui.json");
+    auto read = matter::read_pack(text, "a.pack.matter.xdef.json");
     expect(fatal(read.has_value())) << (read ? "" : read.error().front().text());
     return *read;
 }

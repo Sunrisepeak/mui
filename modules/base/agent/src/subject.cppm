@@ -24,7 +24,7 @@
 // What a subject can do is disclosed in tiers, so that finding out costs an
 // agent as little as it needs: who is here; then names and a line each; then
 // one operation, or all of them, whole. The operations are a catalog's
-// (`<product>.ops.omui.ts`, ops-gen): mlibs.control's entries.
+// (`<product>.ops.xdef.ts`, ops-gen): mlibs.control's entries.
 //   ← {"kind":"data","re":7,"data":{…}}
 //   ← {"kind":"result","re":7,"exitCode":0}
 //

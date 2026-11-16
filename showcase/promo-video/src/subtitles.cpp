@@ -1,4 +1,4 @@
-// Reading subtitles: the JSON a `*.subtitles.omui.ts` evaluates to (D-139),
+// Reading subtitles: the JSON a `*.subtitles.xdef.ts` evaluates to (D-139),
 // every problem at its JSON pointer and its line and column.
 module omui.showcase.promo_video;
 

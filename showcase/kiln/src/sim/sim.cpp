@@ -45,8 +45,8 @@ std::expected<Level, std::string> read(std::string_view json, std::string_view n
     if (const auto bombs = world["numbers"]["bombs"].integer()) made.bombs = static_cast<std::uint32_t>(*bombs);
     return made;
 }
-Level first() { return *read(first_world, "first.world.omui.json"); }
-Level flawed() { return *read(flawed_world, "flawed.world.omui.json"); }
+Level first() { return *read(first_world, "first.world.xdef.json"); }
+Level flawed() { return *read(flawed_world, "flawed.world.xdef.json"); }
 std::optional<Level> named(std::string_view stem) {
     if (stem == "first") return first();
     if (stem == "flawed") return flawed();

@@ -39,5 +39,5 @@ mlibs.xdef = { path = "../../../../base/xdef" }  # registry_test: the manifest r
 # The declared data kinds this package owns (mlibs.xdef registry, D-209): each kind and its major
 # version, and the define module a data module imports each from (none: only tools write it).
 [package.metadata.openmui.xdef]
-kinds = { contract = 1, native = 1, view = 1, config = 1, ops = 1, theme = 1, style = 1, motion = 1, sound = 1, music = 1, timeline = 1, subtitles = 1, video = 1, effect = 1, behavior = 1, messages = 1, matter = 1, appearance = 1, world = 1, project = 1 }
+kinds = { contract = 1, native = 1, view = 1, config = 1, ops = 1, theme = 1, style = 1, motion = 1, sound = 1, music = 1, timeline = 1, subtitles = 1, video = 1, effect = 1, behavior = 1, messages = 1, matter = 1, appearance = 1, world = 1, project = 1, scenario = 1 }
 modules = { "openmui/define" = ["contract", "native", "view"], "omui/define" = ["config", "ops", "theme", "style", "motion", "sound", "music", "timeline", "subtitles", "video", "effect", "behavior", "messages", "matter", "appearance", "world", "project"] }

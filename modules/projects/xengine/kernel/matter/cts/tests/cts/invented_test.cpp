@@ -22,13 +22,13 @@ namespace subject = xengine::cellular::matter_agent;
 namespace {
 
 std::string pack_text() {
-    const auto file = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path().parent_path().parent_path() / "packs" / "magnetism.matter.omui.json";
+    const auto file = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path().parent_path().parent_path() / "packs" / "magnetism.matter.xdef.json";
     std::ifstream in(file, std::ios::binary);
     return {std::istreambuf_iterator<char>(in), {}};
 }
 const std::shared_ptr<const matter::Program>& magnetic_world() {
     static const std::shared_ptr<const matter::Program> program = [] {
-        auto pack = matter::read_pack(pack_text(), "magnetism.matter.omui.json");
+        auto pack = matter::read_pack(pack_text(), "magnetism.matter.xdef.json");
         expect(fatal(pack.has_value())) << (pack ? "" : pack.error().front().text());
         auto made = matter::standard_with(std::array{*pack});
         expect(fatal(made.has_value())) << (made ? "" : made.error());

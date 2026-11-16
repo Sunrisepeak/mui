@@ -63,7 +63,7 @@ struct ServerOptions {
     // verbs: each becomes a tool (cellular.paint → cellular_paint) with the
     // listing's schema and hints, invoking that verb.
     std::vector<Value> listings;
-    // The command line's own commands (the omui-cli listing, cli.ops.omui.ts)
+    // The command line's own commands (the omui-cli listing, cli.ops.xdef.ts)
     // as omui_* tools, run in this process by `run_command` (a command and its
     // arguments → {exit, out, err}); an irreversible one — it writes
     // something to keep — is put to the person first. Empty: none.

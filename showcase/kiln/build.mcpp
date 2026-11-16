@@ -1,9 +1,9 @@
-// Kiln's levels are carried in the program (omui.build.embed): levels/*.world.omui.ts, each as the JSON it
+// Kiln's levels are carried in the program (omui.build.embed): levels/*.world.xdef.ts, each as the JSON it
 // evaluates to (`level::read`).
 import std;
 import mcpp;
 import omui.build.embed;
 
 int main() {
-    return omui::build::embed({.module = "omui.showcase.kiln.sim", .ns = "kiln::level", .dir = "levels", .suffix = ".world.omui.ts", .tag = "world"}) ? 0 : 1;
+    return omui::build::embed({.module = "omui.showcase.kiln.sim", .ns = "kiln::level", .dir = "levels", .suffix = ".world.xdef.ts", .tag = "world"}) ? 0 : 1;
 }

@@ -558,7 +558,7 @@ static UTest cases{"matter.agent", [] {
             expect(told(session, R"({"op":"matter.observe"})")["channels"][6]["name"].text() == "pressure" && told(session, R"({"op":"matter.observe"})")["channels"][6]["most"].number().value_or(0) > 100.0);
         }
         {  // 12 — a material that only says its properties: alcohol, two rows and no law. The same laws act on it, by name.
-            auto definition = matter::read(matter::standard_snapshot, "standard.matter.omui.json");
+            auto definition = matter::read(matter::standard_snapshot, "standard.matter.xdef.json");
             expect(fatal(definition.has_value()));
             using P = matter::Property;
             definition->materials.push_back({"alcohol_vapour",

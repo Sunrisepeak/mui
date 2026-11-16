@@ -11,7 +11,7 @@ mlibs::i18n::Library library;
 mlibs::i18n::cldr::add_to(library);
 ```
 
-The existing `data/*.locale.omui.json` files are embedded as module partitions
+The existing `data/*.locale.xdef.json` files are embedded as module partitions
 in `mlibs.i18n.cldr.api`; their content, format and CLDR version are unchanged.
 The generic build embed plugin remains `omui.build.embed` until its own
 migration. Its host tool is a build-time dependency, not a UI runtime dependency.

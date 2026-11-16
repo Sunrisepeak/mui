@@ -83,7 +83,7 @@ std::expected<std::vector<float>, std::vector<Problem>> soundtrack(const Descrip
     const auto data = [&](std::string_view name) -> std::expected<std::string, std::string> {
         const auto file = base / path_of(name);
         if (read) return read(file);
-        if (name.ends_with(".omui.ts"))
+        if (name.ends_with(".xdef.ts"))
             return std::unexpected(std::string("a TypeScript data module: `omui video` evaluates it, or name its JSON (xdef snapshot)"));
         auto text = read_text(file);
         if (!text) return std::unexpected(std::string("cannot be read"));
@@ -130,7 +130,7 @@ std::expected<std::vector<float>, std::vector<Problem>> soundtrack(const Descrip
         const std::int32_t id = mixer.find(c.sound);
         if (id < 0) {
             problems.push_back(problem(d.sounds.empty() ? std::string_view("audio") : std::string_view(d.sounds), std::format("no sound `{}` to cue", c.sound),
-                                       d.sounds.empty() ? "sounds: \"<file>.sound.omui.ts\"" : ""));
+                                       d.sounds.empty() ? "sounds: \"<file>.sound.xdef.ts\"" : ""));
             continue;
         }
         plays.push_back({c.frame >= 0 ? f.timing.sample_of(c.frame) : std::llround(c.at * d.rate), id, &c});

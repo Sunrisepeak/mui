@@ -12,7 +12,7 @@
 //
 //   omui-breakout-playtest [--rooms 1,2,3,4,5] [--players 4] [--minutes 2] [--out DIR]
 //
-// DIR/playtest.omui.json (the report), DIR/<room>-<player>.record.omui.json
+// DIR/playtest.xdef.json (the report), DIR/<room>-<player>.record.xdef.json
 // (each problem's record); a summary on standard output.
 import std;
 import mcpplibs.cmdline;
@@ -58,6 +58,6 @@ int main(int argc, char** argv) {
         std::println("  problem: room {} player {}: {} — {} ({})", p.get("room")->as_int(), p.get("player")->as_int(), p.get("problem")->as_string(),
                      p.get("record")->as_string(), p.get("replays")->as_bool() ? "replays to the same bytes" : "DOES NOT REPLAY");
     }
-    std::println("playtest: {}", omui::generic_utf8(options.out / "playtest.omui.json"));
+    std::println("playtest: {}", omui::generic_utf8(options.out / "playtest.xdef.json"));
     return replay ? 0 : 1;
 }

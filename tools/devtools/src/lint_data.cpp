@@ -170,9 +170,9 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
     struct Governed {
         std::string_view suffix, schema, how;
     };
-    for (const Governed governed : {Governed{".view.omui.json", "view.schema.json", "omui schema --out spec/schema/view.schema.json"},
-                                    Governed{".scenario.omui.json", "scenario.schema.json", "spec/conformance/S/README.md describes it"},
-                                    Governed{".trace.omui.json", "scenario.schema.json", "spec/conformance/S/README.md describes it"}}) {
+    for (const Governed governed : {Governed{".view.xdef.json", "view.schema.json", "omui schema --out spec/schema/view.schema.json"},
+                                    Governed{".scenario.xdef.json", "scenario.schema.json", "spec/conformance/S/README.md describes it"},
+                                    Governed{".trace.xdef.json", "scenario.schema.json", "spec/conformance/S/README.md describes it"}}) {
         std::vector<std::string> documents;
         for (const auto& file : files)
             if (file.ends_with(governed.suffix)) documents.push_back(file);
@@ -231,7 +231,7 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
         for (const auto& file : files) {
             if (!file.starts_with(base)) continue;
             const std::string within = file.substr(base.size());
-            if (!within.contains('/') && (within.ends_with(".ops.omui.toml") || within.ends_with(".ops.omui.ts"))) catalogs.push_back(file);
+            if (!within.contains('/') && (within.ends_with(".ops.omui.toml") || within.ends_with(".ops.xdef.ts"))) catalogs.push_back(file);
             const std::string ext = extension(file);
             if (ext != ".cppm" && ext != ".cpp" && ext != ".ixx" && ext != ".cc" && ext != ".cxx" && ext != ".h" && ext != ".hpp" && ext != ".hh" && ext != ".hxx" &&
                 ext != ".inl")
@@ -252,7 +252,7 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
                 if (shown++ == 3) break;
                 first += (first.empty() ? "" : ", ") + name;
             }
-            add("ops", base, std::format("declares operations ({}…) but has no catalog: a <product>.ops.omui.toml or .ops.omui.ts", first));
+            add("ops", base, std::format("declares operations ({}…) but has no catalog: a <product>.ops.omui.toml or .ops.xdef.ts", first));
             continue;
         }
         std::set<std::string> listed;
@@ -284,7 +284,7 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
         std::set<std::string> operations;
         std::map<std::string, std::vector<std::string>> catalogs_of;
         for (const auto& file : files) {
-            if (!file.ends_with(".ops.omui.ts")) continue;
+            if (!file.ends_with(".ops.xdef.ts")) continue;
             for (auto& name : all_matches(text_of(file), operation_in_catalog())) operations.insert(std::move(name));
             catalogs_of[parent_of(file)].push_back(file_name(file));
         }
@@ -358,7 +358,7 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
             const std::string where = one.member + "/mcpp.toml";
             const auto catalogs = [&] {
                 return std::ranges::any_of(files, [&](const std::string& file) {
-                    return file.starts_with(one.member + "/") && !file.substr(one.member.size() + 1).contains('/') && file.ends_with(".ops.omui.ts");
+                    return file.starts_with(one.member + "/") && !file.substr(one.member.size() + 1).contains('/') && file.ends_with(".ops.xdef.ts");
                 });
             };
             if (is_owed(one.member)) {
@@ -372,7 +372,7 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
                     "says nothing of its agent surface: [package.metadata.openmui] agent = \"subject\", \"tool\", { part = \"<package>\" } or { library = \"<why>\" } "
                     "(D-174: the surface is designed first)");
             } else if (text == "subject") {
-                if (!catalogs()) add("agent-surface", where, "is a subject without a catalog of its own (<product>.ops.omui.ts)");
+                if (!catalogs()) add("agent-surface", where, "is a subject without a catalog of its own (<product>.ops.xdef.ts)");
                 if (!std::regex_search(read_text(root / path_of(one.member) / "README.md").value_or(""), heading))
                     add("agent-surface", one.member + "/README.md",
                         "is a subject's and has no \"Agent surface\" section (subject and addresses, observation, operations and effects, causes, preview and "
@@ -388,7 +388,7 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
                     add("agent-surface", where,
                         "is a subject no test runs the contract suite on (import mlibs.agent.cts; contract::run(probe)): in its own tests, or in those of a member that takes it");
             } else if (text == "tool") {
-                if (!catalogs()) add("agent-surface", where, "is a tool without a catalog (<product>.ops.omui.ts)");
+                if (!catalogs()) add("agent-surface", where, "is a tool without a catalog (<product>.ops.xdef.ts)");
             } else if (table && table->size() == 1 && table->get("part") && table->get("part")->value<std::string>()) {
                 const std::string part = *table->get("part")->value<std::string>();
                 if (part == name || (!subjects.contains(part) && !owed_packages.contains(part)))
@@ -416,13 +416,13 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
 
     // matter (D-165): no law names a material; no kernel source names one.
     {
-        constexpr std::string_view standard_path = "modules/projects/xengine/kernel/matter/standard.matter.omui.json";
+        constexpr std::string_view standard_path = "modules/projects/xengine/kernel/matter/standard.matter.xdef.json";
         constexpr std::array kernels{"modules/projects/xengine/kernel/matter/src", "modules/projects/xengine/kernel/cellular/src",
                                      "modules/projects/xengine/kernel/dynamics/src"};
         std::set<std::string> standard;
         static const std::regex token(R"([A-Za-z_]\w*)");
         for (const auto& file : files) {
-            if (!file.ends_with(".matter.omui.json")) continue;
+            if (!file.ends_with(".matter.xdef.json")) continue;
             const auto document = mlibs::json::Document::parse(text_of(file), file);
             const auto matter = document ? document->root()["matter"] : mlibs::json::Node{};
             if (!document || !document->root().is_object() || (matter && !matter.is_object())) {
@@ -583,8 +583,8 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
     }
 
     // platform-table (D-201): each cell real, software, unverified or unsupported, with what it rests on or lacks.
-    if (const auto table_text = read_text(root / "docs/platforms.omui.json")) {
-        constexpr std::string_view where = "docs/platforms.omui.json";
+    if (const auto table_text = read_text(root / "docs/release.platforms.xdef.json")) {
+        constexpr std::string_view where = "docs/release.platforms.xdef.json";
         const auto table = mlibs::json::Document::parse(*table_text, std::string(where));
         if (!table) {
             add("platform-table", std::string(where), std::format("not JSON: {}", table.error().message));
@@ -671,7 +671,7 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
     // scripts (D-206): a script is one of the allowlist's four kinds (or application code), each with its reason; one
     // still being moved into C++ is `pending` with the checkpoint that removes it, and an entry naming nothing is stale.
     {
-        constexpr std::string_view where = "tools/lint/scripts.allow.omui.json";
+        constexpr std::string_view where = "tools/lint/scripts.allow.xdef.json";
         constexpr std::array suffixes{".py", ".sh", ".bash", ".mjs", ".cjs", ".js", ".ps1", ".rb", ".pl", ".lua"};
         struct Entry {
             std::string pattern;
@@ -722,7 +722,7 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
     // and its evidence exists — a test by its name, a benchmark by its name in a budget, a lead ledger row by its metric.
     // The lead pages (docs/<language>/lead.md) are the lead ledger's own, checked by `omui-devtools lead`.
     {
-        constexpr std::string_view where = "docs/claims.omui.json";
+        constexpr std::string_view where = "docs/release.claims.xdef.json";
         static const std::regex ratio(R"((\d(\.\d+)?×(?!\s?\d))|(\d+(\.\d+)?\s?倍)|(\d+(\.\d+)? times (faster|slower|smaller|larger|nearer|fewer|less|more)))");
         static const std::regex compared(R"(\bthan\b|\bagainst\b|\bbeside\b|\bvs\.?\b|\bversus\b|\bleads?\b|\bahead\b|\bbehind\b|\bpar\b|level with|领先|持平|落后|比)");
         static const std::regex mark(R"(claim:([a-z0-9][a-z0-9.-]*))");
@@ -738,7 +738,7 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
         if (!ledger) {
             add("claims", std::string(where), std::format("not JSON: {}", ledger.error().message));
         } else {
-            const std::string lead_rows = text_of(".agents/docs/evaluation/lead.ledger.omui.jsonl");
+            const std::string lead_rows = text_of(".agents/docs/evaluation/lead.ledger.xdef.jsonl");
             std::string budgets;
             for (const auto& file : files)
                 if (file.starts_with("tests/bench/") && file.ends_with(".json")) budgets += text_of(file);

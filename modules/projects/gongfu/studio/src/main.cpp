@@ -1,6 +1,6 @@
 // gongfu-studio — making fighters from the command line, for people, agents and CI (D-61): gongfu.studio's subject
 // `gongfu` behind the tool kernel's entries (mlibs.agent:host, T0). Its operations are the catalog's
-// (gongfu.ops.omui.ts); words without names are a request's parameters in the catalog's order:
+// (gongfu.ops.xdef.ts); words without names are a request's parameters in the catalog's order:
 //
 //   gongfu-studio fighter.bake  <dir>      writes each <name>.boxes.gongfu.toml in <dir>
 //   gongfu-studio fighter.check <dir>      whether they are what the files make now (exit 1 if not)

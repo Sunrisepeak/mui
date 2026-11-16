@@ -1,6 +1,6 @@
 # nav — skill
 
-How an Agent examines and tries a navigation world (`xengine.nav.agent`) with no window: a mesh built from triangles, paths across it, a crowd walking it. The operations, their parameters and effects are in [nav.ops.omui.ts](nav.ops.omui.ts) (the subject, asked to describe itself at its endpoint, answers the same); this is the order to use them in.
+How an Agent examines and tries a navigation world (`xengine.nav.agent`) with no window: a mesh built from triangles, paths across it, a crowd walking it. The operations, their parameters and effects are in [nav.ops.xdef.ts](nav.ops.xdef.ts) (the subject, asked to describe itself at its endpoint, answers the same); this is the order to use them in.
 
 ## Before
 

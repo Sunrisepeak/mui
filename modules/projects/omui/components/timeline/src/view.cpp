@@ -41,7 +41,7 @@ void TimelineEditor::read() {
     problems_.clear();
     if (props.document.empty()) {
         model_ = {};
-    } else if (auto t = tl::read_timeline(props.document, "document.timeline.omui.json")) {
+    } else if (auto t = tl::read_timeline(props.document, "document.timeline.xdef.json")) {
         model_ = std::move(*t);
     } else {
         model_ = {};

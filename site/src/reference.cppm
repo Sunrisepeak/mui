@@ -2,7 +2,7 @@
 // the site (a flight, a language switch, a lens), played offscreen at CI's
 // size, each sampled frame's pixels hashed the same way in CI and in a
 // visitor's browser. The footer compares the browser's hash of a frame with
-// the one CI pinned (reference/ci.frames.omui.json, embedded): the same
+// the one CI pinned (reference/ci.frames.xdef.json, embedded): the same
 // pixels, bit for bit, or not.
 export module omui.site:reference;
 

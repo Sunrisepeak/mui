@@ -84,7 +84,7 @@ jobs:
       - name: The site in a real browser — its delivery within budget, what assistive technology reads
         # omui-devtools check site: the page served as Pages serves it; a cold
         # visit over 20 Mbit/s — transfer, first frame, readiness, frame tails
-        # (site/delivery.budget.omui.json); the browser's accessibility tree
+        # (site/delivery.budget.xdef.json); the browser's accessibility tree
         # and the keyboard's way in by the skip link; and the site's other
         # browser checks (structure, fonts, catalog, workspaces, motion, first
         # views, loading, font sharing).
@@ -102,7 +102,7 @@ jobs:
           path: |
             target/site-perf.json
             target/site-a11y.json
-            target/site-*.report.omui.json
+            target/site-*.report.xdef.json
             target/visitor-path.json
             target/site-fonts/
             target/site-catalog/
@@ -112,7 +112,7 @@ jobs:
             target/site-presentation/
             target/site-loading/
             target/site-font-delivery/
-            target/dist-toy-loading.report.omui.json
+            target/dist-toy-loading.report.xdef.json
           if-no-files-found: ignore
       - name: Where the site's WebAssembly bytes go (W8; Q-38)
         # The release's code with its functions' names kept, by owner (module,

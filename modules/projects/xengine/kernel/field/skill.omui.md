@@ -1,6 +1,6 @@
 # air — skill
 
-How an Agent examines and tries the air (`xengine.field.agent`): its cells' warmth, wetness and charge and the wind that warm air makes, with no window. The operations, their parameters and effects are in [air.ops.omui.ts](air.ops.omui.ts) (the subject, asked to describe itself at its endpoint, answers the same); this is the order to use them in.
+How an Agent examines and tries the air (`xengine.field.agent`): its cells' warmth, wetness and charge and the wind that warm air makes, with no window. The operations, their parameters and effects are in [air.ops.xdef.ts](air.ops.xdef.ts) (the subject, asked to describe itself at its endpoint, answers the same); this is the order to use them in.
 
 ## Before
 

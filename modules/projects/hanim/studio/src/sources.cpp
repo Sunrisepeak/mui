@@ -9,7 +9,7 @@ namespace hanim::studio {
 
 namespace {
 
-constexpr std::string_view suffix = ".animation.omui.json";
+constexpr std::string_view suffix = ".animation.xdef.json";
 constexpr int moments = 16;
 
 std::string utf8_name(const std::filesystem::path& path) {

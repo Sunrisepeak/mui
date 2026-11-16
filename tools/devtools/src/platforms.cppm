@@ -1,4 +1,4 @@
-// omui.devtools.platforms — the verification table (release plan §2.5, D-201): docs/platforms.omui.json, each
+// omui.devtools.platforms — the verification table (release plan §2.5, D-201): docs/release.platforms.xdef.json, each
 // capability on each platform real, software, unverified or unsupported, written as the user documents' page.
 export module omui.devtools.platforms;
 

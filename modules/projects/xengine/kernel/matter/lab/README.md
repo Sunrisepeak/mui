@@ -20,7 +20,7 @@ A directory:
 | `scene.json` | `{shape, filled, edits}`: what was placed and applied, each edit with the step it was made at and who made it |
 | `channels.json`, `columns.json` | When the definition adds its own |
 
-Every source is JSON kept a row a line, so that a change is a line's and history can say and merge it by line. Beside them the lab writes what a world ships — `world.matter.omui.json` and `world.appearance.omui.json`, the snapshots the kernel reads — and keeps its history under `.lab/` (commits by content, a picture a commit).
+Every source is JSON kept a row a line, so that a change is a line's and history can say and merge it by line. Beside them the lab writes what a world ships — `world.matter.xdef.json` and `world.appearance.xdef.json`, the snapshots the kernel reads — and keeps its history under `.lab/` (commits by content, a picture a commit).
 
 A source changed is **the definition prepared again, the look checked, and the scene played again — edit by edit, to the same step — before anything is replaced**. One with a problem changes nothing and says where, in the sources' own terms (`materials/ghost.json /burnt`, `laws.json /19/when`, `scene.json /edits/0`). The answer to a change is what it did to the world: cells whose material is another, and the materials there are now more or fewer of.
 
@@ -130,7 +130,7 @@ matter-lab serve DIR [--name NAME]                      # an endpoint Agents con
 matter-lab picture DIR --out PNG [--steps N] [--scale N]
 ```
 
-One JSON answer on standard output (`run`: the records); exit 0 done, 1 failed (said why), 2 a wrong command. A definition written as TypeScript (`*.matter.omui.ts`) is given as its snapshot (`xdef snapshot`); the lab's `world.matter.omui.json` is one.
+One JSON answer on standard output (`run`: the records); exit 0 done, 1 failed (said why), 2 a wrong command. A definition written as TypeScript (`*.matter.xdef.ts`) is given as its snapshot (`xdef snapshot`); the lab's `world.matter.xdef.json` is one.
 
 In a program:
 
@@ -141,7 +141,7 @@ mlibs::agent::SubjectSession session((*lab)->subjects());                      /
 
 ## Agent surface
 
-The lab is a `Subject` of the agent kernel and `mlibs::agent::Sources` to the kernel's history; every operation is decided there first (openas). Its operations are a catalog, [lab.ops.omui.ts](lab.ops.omui.ts) (the table `src/catalog.cppm` and the listings `src/lab.ops.json`, `.md` are `ops-gen`'s); the order to use them in is [skill.omui.md](skill.omui.md).
+The lab is a `Subject` of the agent kernel and `mlibs::agent::Sources` to the kernel's history; every operation is decided there first (openas). Its operations are a catalog, [lab.ops.xdef.ts](lab.ops.xdef.ts) (the table `src/catalog.cppm` and the listings `src/lab.ops.json`, `.md` are `ops-gen`'s); the order to use them in is [skill.omui.md](skill.omui.md).
 
 | | |
 |---|---|

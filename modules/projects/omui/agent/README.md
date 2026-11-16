@@ -3,7 +3,7 @@
 The agent endpoint of an openmui application (spec §9, plan §11):
 `openmui.tree@0.1` as JSON lines.
 
-Its operations are its catalog's, [`omui.ops.omui.ts`](omui.ops.omui.ts)
+Its operations are its catalog's, [`omui.ops.xdef.ts`](omui.ops.xdef.ts)
 (convergence plan §10.3): `ops-gen` makes the protocol's table
 (`omui::agent::catalog`, effects and admission from it), the CLI/MCP listing
 and the reference in `src/catalog/`; how an Agent works with it is
@@ -33,7 +33,7 @@ and the reference in `src/catalog/`; how an Agent works with it is
   a stage between frames — D-66), and `clock` (pause, resume, rate, step,
   seek, release: the application's time; seeking back replays animations).
 - `Endpoint` — listens through `mcpplibs.os.ipc` (a local socket) in a
-  per-user directory, writes `<name>.endpoint.omui.json` beside it, reads
+  per-user directory, writes `<name>.endpoint.xdef.json` beside it, reads
   connections on background threads and serves requests on the UI thread in
   `pump()`, between frames. Each connection has its own `changes` baseline.
 - `Client` and `list()` — what `omui agent` uses.
@@ -58,7 +58,7 @@ Depends on `omui.core`, `omui.view`, `omui.semantic`, `openmui.trace` and `mcppl
 
 The interface is the model the other engines' subjects are written after, and is itself a `Subject` of the agent kernel ([mlibs.agent](../../../base/agent); D-173): `InterfaceSubject`, `ui`. It adds no operation and changes none — `ui.snapshot` is the protocol's `snapshot`, decided by the runtime's own access as ever, answered in the same records. What is new is where it is found: `ProcessSession` — a connection's conversation with an application — speaks `openmui.tree@0.1` as it always did and, on the same lines, the kernel's requests for everything the process holds: `subjects`, `describe` a subject or an operation, any operation by its whole name (`ui.find`, `world.observe`, `frame.at`). The two cannot be taken for each other: the protocol's requests have no dot in their names. What else the process holds is the runtime's (`Runtime::add_subject`; a component through `Services::add_subject`): a game shown in a viewport, the host's frame.
 
-Its operations are [omui.ops.omui.ts](omui.ops.omui.ts); how to use them, [skill.omui.md](skill.omui.md).
+Its operations are [omui.ops.xdef.ts](omui.ops.xdef.ts); how to use them, [skill.omui.md](skill.omui.md).
 
 | | |
 |---|---|

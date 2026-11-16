@@ -207,7 +207,7 @@ painter on a device have one rule to keep. What matter looks like is a look
 
 ## Agent surface
 
-A field is a `Subject` of the agent kernel ([mlibs.agent](../../../../base/agent)), module `xengine.cellular.agent` (the package's feature `agent`: `xengine.cellular = { path = …, features = ["agent"] }`); every operation is decided there first (openas). Its operations are a catalog, [field.ops.omui.ts](field.ops.omui.ts) (the table `src/agent/catalog.cppm` and the listings `src/agent/field.ops.json`, `.md` are `ops-gen`'s); how to use them, in order, is [skill.omui.md](skill.omui.md).
+A field is a `Subject` of the agent kernel ([mlibs.agent](../../../../base/agent)), module `xengine.cellular.agent` (the package's feature `agent`: `xengine.cellular = { path = …, features = ["agent"] }`); every operation is decided there first (openas). Its operations are a catalog, [field.ops.xdef.ts](field.ops.xdef.ts) (the table `src/agent/catalog.cppm` and the listings `src/agent/field.ops.json`, `.md` are `ops-gen`'s); how to use them, in order, is [skill.omui.md](skill.omui.md).
 
 | | |
 |---|---|
@@ -229,7 +229,7 @@ The subject's tests are [present](present)'s, which turns the feature on: a feat
 
 ### A field of matter: the `matter` subject
 
-Where the cells are matter, a second subject stands beside `field` in the same session — module `xengine.cellular.matter.agent`, the package's feature `matter-agent` (it implies `agent` and `matter`) — and speaks of the field in matter's own words (D-169): materials by name, channels in their units, laws by name. Its catalog is [matter.ops.omui.ts](matter.ops.omui.ts) (`src/matter/agent/catalog.cppm`, `matter.ops.json`, `.md` generated); the procedure is the second part of [skill.omui.md](skill.omui.md).
+Where the cells are matter, a second subject stands beside `field` in the same session — module `xengine.cellular.matter.agent`, the package's feature `matter-agent` (it implies `agent` and `matter`) — and speaks of the field in matter's own words (D-169): materials by name, channels in their units, laws by name. Its catalog is [matter.ops.xdef.ts](matter.ops.xdef.ts) (`src/matter/agent/catalog.cppm`, `matter.ops.json`, `.md` generated); the procedure is the second part of [skill.omui.md](skill.omui.md).
 
 ```cpp
 auto world = cellular::matter_agent::World::make(*matter::standard(), {64, 48}, "air");   // a field and its matter subject

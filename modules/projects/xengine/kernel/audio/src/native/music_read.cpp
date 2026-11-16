@@ -1,4 +1,4 @@
-// Reading and writing music: the JSON a `*.music.omui.ts` evaluates to
+// Reading and writing music: the JSON a `*.music.xdef.ts` evaluates to
 // (D-139), and the built-in patches (written in the same format). Every
 // problem at its JSON pointer and its line and column: an unknown key with
 // the nearest right one, a number out of its range, a name that is not there
@@ -361,7 +361,7 @@ void read_patches(Reader& r, const Node& patches, std::vector<Patch>& out, bool 
 }
 
 std::vector<Patch> make_builtins() {
-    auto doc = mlibs::json::Document::parse(builtin_text, "builtin.music.omui.json");
+    auto doc = mlibs::json::Document::parse(builtin_text, "builtin.music.xdef.json");
     if (!doc) {
         std::println(std::cerr, "{}", doc.error().text());
         std::abort();  // the library's own patches: a test catches this first

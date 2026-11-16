@@ -1,7 +1,7 @@
 // openmui.render.effect — a program's own pixel effects, as data and Slang (D-60,
 // D-68; architecture §8).
 //
-// An effect is two files: `<name>.effect.omui.ts` — its name, what it does,
+// An effect is two files: `<name>.effect.xdef.ts` — its name, what it does,
 // its parameters (typed, limited, animatable like any property) and how far
 // it reaches outside its layer — and a Slang fragment shader written against
 // the effect template openmui.render carries (`import openmui_effect;`, see
@@ -12,7 +12,7 @@
 // `effect` property — names it like a built-in, and the GPU renderer draws it.
 //
 //     xrender::effect::Library fx({.formats = device.caps().formats});
-//     auto ref = fx.load("fx/scanlines.effect.omui.json");   // or every problem, where it is
+//     auto ref = fx.load("fx/scanlines.effect.xdef.json");   // or every problem, where it is
 //     …
 //     for (const auto& r : fx.poll()) { … }                   // between frames: what changed, loaded again
 //
@@ -65,7 +65,7 @@ struct Declaration {
 };
 
 // Reads an effect file's JSON (`{"effect": {name, doc, reach, params}}`, what
-// a `*.effect.omui.ts` evaluates to): what it declares, or every mistake in it.
+// a `*.effect.xdef.ts` evaluates to): what it declares, or every mistake in it.
 [[nodiscard]] std::expected<Declaration, Diagnostics> read(std::string_view text, std::string_view file);
 
 struct Options {
@@ -73,8 +73,8 @@ struct Options {
     // to one of them, the first of SPIR-V, MSL, DXIL, DXBC it takes.
     mlibs::rhi::ShaderFormats    formats = mlibs::rhi::formats({mlibs::rhi::ShaderFormat::spirv});
     std::filesystem::path slangc;  // empty: openmui.shader finds it
-    // How a `<name>.effect.omui.ts` module is read as its JSON: the host's (this
-    // library evaluates no TypeScript). Empty: only `.effect.omui.json` files.
+    // How a `<name>.effect.xdef.ts` module is read as its JSON: the host's (this
+    // library evaluates no TypeScript). Empty: only `.effect.xdef.json` files.
     std::function<std::expected<std::string, std::string>(const std::filesystem::path&)> data;
 };
 
@@ -103,10 +103,10 @@ public:
     Library& operator=(Library&&) noexcept;
     ~Library();
 
-    // Reads `<name>.effect.omui.json` (or `.ts`, through Options::data) and its shader, compiles and registers
+    // Reads `<name>.effect.xdef.json` (or `.ts`, through Options::data) and its shader, compiles and registers
     // the effect (a name this library loaded before is replaced in place).
     [[nodiscard]] std::expected<Loaded, Diagnostics> load(const std::filesystem::path& file);
-    // Every effect in a directory (`*.effect.omui.json`, or `.ts` through Options::data), in name order.
+    // Every effect in a directory (`*.effect.xdef.json`, or `.ts` through Options::data), in name order.
     [[nodiscard]] std::expected<std::vector<Loaded>, Diagnostics> load_directory(const std::filesystem::path& dir);
 
     // The effects whose files changed since they were loaded, loaded again.

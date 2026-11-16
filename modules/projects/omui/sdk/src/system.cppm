@@ -9,7 +9,7 @@
 //                         [](std::vector<std::filesystem::path> chosen) { … });   // none: cancelled
 //     system.notify({.title = "Saved", .body = "notes.md"});
 //
-// The same, for agents and scripts, as verbs (system.ops.omui.ts): a file
+// The same, for agents and scripts, as verbs (system.ops.xdef.ts): a file
 // choice answers at once with its handle; what was chosen is read when the
 // person has chosen.
 export module omui:system;

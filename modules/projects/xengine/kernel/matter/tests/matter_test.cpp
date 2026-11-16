@@ -1,5 +1,5 @@
 // xengine.matter on small sets of instances: a definition prepared, the reference step's arithmetic,
-// and what the standard laws (standard.matter.omui.ts) make of materials that only say their
+// and what the standard laws (standard.matter.xdef.ts) make of materials that only say their
 // properties — fire spreading, water boiling and freezing, lava meeting water, iron carrying heat.
 // None of the laws names a material; the last cases add one and change no law.
 import std;
@@ -14,12 +14,12 @@ namespace matter = xengine::matter;
 namespace {
 
 std::string standard_text() {
-    const auto file = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path() / "standard.matter.omui.json";
+    const auto file = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path() / "standard.matter.xdef.json";
     std::ifstream in(file, std::ios::binary);
     return {std::istreambuf_iterator<char>(in), {}};
 }
 matter::Definition standard_definition() {
-    auto read = matter::read(standard_text(), "standard.matter.omui.json");
+    auto read = matter::read(standard_text(), "standard.matter.xdef.json");
     expect(fatal(read.has_value())) << (read ? "" : read.error().front().text());
     return *read;
 }
@@ -518,17 +518,17 @@ UTest cases{"xengine.matter", [] {
   "laws": [{"transfer": "tautness", "by": "sticky"}, {"when": "tautness > 3", "add": {"tautness": []}, "becomes": "frozen"}],
   "law": []
 }})";
-        const auto read = matter::read(text, "bad.matter.omui.json");
+        const auto read = matter::read(text, "bad.matter.xdef.json");
         expect(fatal(!read.has_value()));
         std::vector<std::string> said;
         for (const auto& problem : read.error()) said.push_back(problem.text());
         const auto has = [&](std::string_view line) { return std::ranges::find(said, line) != said.end(); };
-        expect(has("bad.matter.omui.json:6:10: /matter/law: a matter definition has no key `law` (did you mean `laws`?)")) << said;
-        expect(has("bad.matter.omui.json:2:61: /matter/columns/sticky/defualt: column `sticky` has no key `defualt` (did you mean `default`?)")) << said;
-        expect(has("bad.matter.omui.json:3:53: /matter/channels/tautness/resets: `resets` is true or false")) << said;
-        expect(has("bad.matter.omui.json:4:114: /matter/materials/clay/density: `density` of `clay` is a number, or the name of a phase or a material")) << said;
-        expect(has("bad.matter.omui.json:5:99: /matter/laws/1/add/tautness: the amount `tautness` changes by is a sum as text (\"wetness * 40\") or a whole number")) << said;
-        expect(has("bad.matter.omui.json:5:115: /matter/laws/1/becomes: a law has no key `becomes` (did you mean `become`?)")) << said;
+        expect(has("bad.matter.xdef.json:6:10: /matter/law: a matter definition has no key `law` (did you mean `laws`?)")) << said;
+        expect(has("bad.matter.xdef.json:2:61: /matter/columns/sticky/defualt: column `sticky` has no key `defualt` (did you mean `default`?)")) << said;
+        expect(has("bad.matter.xdef.json:3:53: /matter/channels/tautness/resets: `resets` is true or false")) << said;
+        expect(has("bad.matter.xdef.json:4:114: /matter/materials/clay/density: `density` of `clay` is a number, or the name of a phase or a material")) << said;
+        expect(has("bad.matter.xdef.json:5:99: /matter/laws/1/add/tautness: the amount `tautness` changes by is a sum as text (\"wetness * 40\") or a whole number")) << said;
+        expect(has("bad.matter.xdef.json:5:115: /matter/laws/1/becomes: a law has no key `becomes` (did you mean `become`?)")) << said;
         expect(eq(said.size(), std::size_t{6})) << said;
 
         // Read, and wrong only when prepared: the same place, the same form.
@@ -536,9 +536,9 @@ UTest cases{"xengine.matter", [] {
   "materials": {"mud": {"phase": "liquid", "frozen": "dry_mud"}},
   "laws": []
 }})";
-        const auto plan = matter::prepare_document(late, "late.matter.omui.json");
+        const auto plan = matter::prepare_document(late, "late.matter.xdef.json");
         expect(fatal(!plan.has_value()));
-        expect(eq(plan.error().front().text(), std::string("late.matter.omui.json:2:54: /matter/materials/mud/frozen: `frozen` of `mud` is a material's name (one of `mud`)")));
+        expect(eq(plan.error().front().text(), std::string("late.matter.xdef.json:2:54: /matter/materials/mud/frozen: `frozen` of `mud` is a material's name (one of `mud`)")));
 
         // What is written reads; on the standard columns and channels.
         const std::string good = R"({"matter": {
@@ -547,7 +547,7 @@ UTest cases{"xengine.matter", [] {
   "materials": {"mud": {"phase": "liquid", "density": 1500, "sticky": 3, "tags": ["earth"]}},
   "laws": [{"transfer": "tautness", "by": "sticky"}, {"when": "tautness > 3", "take": {"tautness": 1}}]
 }})";
-        const auto made = matter::prepare_document(good, "good.matter.omui.json");
+        const auto made = matter::prepare_document(good, "good.matter.xdef.json");
         expect(fatal(made.has_value())) << (made ? "" : made.error().front().text());
         expect(eq(made->value(*made->material("mud"), *made->column("sticky")), 3u) && eq(made->channels().back().initial, 5u) && eq(made->laws().size(), std::size_t{2}));
         expect(eq(made->channels().size(), matter::Definition::standard().channels.size() + 1));

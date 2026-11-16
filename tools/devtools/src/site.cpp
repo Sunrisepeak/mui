@@ -161,7 +161,7 @@ int verify(const fs::path& out) {
         return failed(std::format("the page lacks {}", cdp::stringify(json(missing))));
     for (const fs::path file :
          {fs::path("agent.md"), fs::path(".well-known") / "openmui-agent.json",
-          fs::path("first-frames.assets.omui.json")})
+          fs::path("first-frames.assets.xdef.json")})
         if (!fs::is_regular_file(out / file))
             return failed(std::format("the site has no {}", os::fs::utf8(file)));
     if (page->contains("toy-sdk"))
@@ -218,7 +218,7 @@ int build(const fs::path& root) {
         return failed("the site's openings were not exported");
     if (!mcpp_shown(root, {"run", "omui-site", "-p", "omui.site", "--", "--prerender",
                            site + "/index.html", "--opening-assets",
-                           site + "/first-frames.assets.omui.json"}))
+                           site + "/first-frames.assets.xdef.json"}))
         return failed("the site's places were not pre-rendered");
     // What an agent needs to operate it (agent connect §5.2), as every openmui application writes
     // it.

@@ -1,4 +1,4 @@
-// Reading *.locale.omui.json: nlohmann/json reports a malformed file by
+// Reading *.locale.xdef.json: nlohmann/json reports a malformed file by
 // throwing, which this unit — the library's adapter — turns into a
 // diagnostic; a pack's shape is checked whole, each problem by its path.
 module mlibs.i18n.api;

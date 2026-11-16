@@ -18,7 +18,7 @@ using namespace omui;
 namespace {
 
 std::filesystem::path document() {
-    return std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path() / "ui" / "tally.view.omui.json";
+    return std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path() / "ui" / "tally.view.xdef.json";
 }
 
 // A version of the example: ts/tally.ts.
@@ -181,8 +181,8 @@ UTest cases{"example.counter", [] {
 
     "the document passes omui check clean and is in the canonical format"_test = [] {
         const std::string text = text_of(document());
-        const auto r = viewdoc::read(text, {.file = "tally.view.omui.json"});
-        for (const auto& d : r.diagnostics) expect(false) << d.text("tally.view.omui.json");
+        const auto r = viewdoc::read(text, {.file = "tally.view.xdef.json"});
+        for (const auto& d : r.diagnostics) expect(false) << d.text("tally.view.xdef.json");
         expect(r.ok());
         auto formatted = viewdoc::format_document(text);
         expect(formatted && *formatted == text) << "omui fmt would change it";
@@ -190,7 +190,7 @@ UTest cases{"example.counter", [] {
 
     "saving the document shows at once and keeps the count"_test = [] {
         const auto dir = scratch_dir("example-counter");
-        const auto file = dir / "tally.view.omui.json";
+        const auto file = dir / "tally.view.xdef.json";
         std::filesystem::copy_file(document(), file, std::filesystem::copy_options::overwrite_existing);
         Headless h(HeadlessOptions{.size = {360, 300}});
         auto d = tally::Document::open(h.runtime(), file);

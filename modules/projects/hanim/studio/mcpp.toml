@@ -1,5 +1,5 @@
 # hanim.studio — animation as a document an Agent or a person writes
-# (`<name>.animation.omui.json`), and the `hanim` command that checks,
+# (`<name>.animation.xdef.json`), and the `hanim` command that checks,
 # samples and renders it without a GUI. Its own package: the CLI's
 # dependencies (JSON, image encoding, the CPU raster) stay out of hanim's.
 [package]
@@ -63,4 +63,4 @@ mcpplibs.os = "0.4.4"
 # The declared data kinds this package owns (mlibs.xdef registry, D-209): each kind and its major
 # version, and the define module a data module imports each from (none: only tools write it).
 [package.metadata.openmui.xdef]
-kinds = { animation = 1 }
+kinds = { animation = 1, variants = 1 }

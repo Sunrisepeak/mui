@@ -18,11 +18,11 @@ std::string default_registry() {
 
 }  // namespace
 
-// A TypeScript file (<name>.contract.omui.ts, D-139) holds one, named as the
+// A TypeScript file (<name>.contract.xdef.ts, D-139) holds one, named as the
 // file (omui-gen checks it).
 std::vector<std::string> names_in(const std::filesystem::path& file, std::string_view kind) {
     const std::string name = utf8(file.filename());
-    const std::string typescript = std::format(".{}.omui.ts", kind);
+    const std::string typescript = std::format(".{}.xdef.ts", kind);
     if (name.ends_with(typescript)) return {name.substr(0, name.size() - typescript.size())};
     return {};
 }
@@ -31,9 +31,9 @@ std::vector<std::string> contract_names(const std::filesystem::path& file) { ret
 
 std::vector<std::string> native_names(const std::filesystem::path& file) { return names_in(file, "native"); }
 
-// The files of a kind in `dir`: <name>.<kind>.omui.ts.
+// The files of a kind in `dir`: <name>.<kind>.xdef.ts.
 std::vector<std::filesystem::path> kind_files(const std::filesystem::path& dir, std::string_view kind) {
-    auto files = files_ending(dir, std::format(".{}.omui.ts", kind));
+    auto files = files_ending(dir, std::format(".{}.xdef.ts", kind));
     std::ranges::sort(files);
     return files;
 }
@@ -42,7 +42,7 @@ std::vector<std::filesystem::path> kind_files(const std::filesystem::path& dir, 
 // modules it may import (by path, inside its directory).
 std::vector<std::string> sources_of(const std::filesystem::path& file) {
     std::vector<std::string> sources{utf8(file)};
-    if (utf8(file.filename()).ends_with(".omui.ts"))
+    if (utf8(file.filename()).ends_with(".xdef.ts"))
         for (const auto& other : files_ending(file.parent_path(), ".ts"))
             if (other != file) sources.push_back(utf8(other));
     return sources;
@@ -117,7 +117,7 @@ bool components(component_options opt) {
     mcpp::rerun_if_changed_glob((opt.contracts + "/**").c_str());
     auto edges = plan(opt);
     if (edges.empty()) {
-        std::println(std::cerr, "omui.build.contracts: no contract in {}/ (files named <name>.contract.omui.ts)", opt.contracts);
+        std::println(std::cerr, "omui.build.contracts: no contract in {}/ (files named <name>.contract.xdef.ts)", opt.contracts);
         return false;
     }
     return submit(edges);
@@ -178,7 +178,7 @@ bool natives(native_options opt) {
     mcpp::rerun_if_changed_glob((opt.natives + "/**").c_str());
     auto edges = plan_natives(opt);
     if (edges.empty()) {
-        std::println(std::cerr, "omui.build.contracts: no native module in {}/ (files named <name>.native.omui.ts)", opt.natives);
+        std::println(std::cerr, "omui.build.contracts: no native module in {}/ (files named <name>.native.xdef.ts)", opt.natives);
         return false;
     }
     return submit(edges);

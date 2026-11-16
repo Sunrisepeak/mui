@@ -182,13 +182,13 @@ struct Reader {
 std::optional<mlibs::json::Document> parse(const std::filesystem::path& path, Diagnostics& diags) {
     const auto name = generic_utf8(path);
     std::expected<mlibs::json::Document, std::string> document = std::unexpected(std::string());
-    if (is_data_module(path)) {  // <name>.<kind>.omui.ts
+    if (is_data_module(path)) {  // <name>.<kind>.xdef.ts
         const auto file = generic_utf8(path.filename());
-        document = data_document(path, file.ends_with(".native.omui.ts") ? "native" : "contract");
+        document = data_document(path, file.ends_with(".native.xdef.ts") ? "native" : "contract");
     } else if (path.extension() == ".json") {
         document = json_document(path);
     } else {
-        diags.error({name, 0, 0}, "not a data file this reads: a <name>.<kind>.omui.ts module, or its .json",
+        diags.error({name, 0, 0}, "not a data file this reads: a <name>.<kind>.xdef.ts module, or its .json",
                     "write the data as a TypeScript module, `export default define<Kind>({…})` (the TOML forms are gone, D-139)");
         return std::nullopt;
     }
@@ -494,7 +494,7 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
     if (std::filesystem::is_directory(components)) {
         std::vector<std::filesystem::path> files;
         for (auto& entry : std::filesystem::directory_iterator(components))
-            if (const auto name = utf8(entry.path().filename()); name.ends_with(".contract.omui.json") || name.ends_with(".contract.omui.ts"))
+            if (const auto name = utf8(entry.path().filename()); name.ends_with(".contract.xdef.json") || name.ends_with(".contract.xdef.ts"))
                 files.push_back(entry.path());
         std::ranges::sort(files);
         for (auto& f : files)

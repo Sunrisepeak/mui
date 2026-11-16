@@ -1,6 +1,6 @@
 // openmui.theme — themes as data (view-data-files §3; component-binding §11).
 //
-//     // default.theme.omui.ts
+//     // default.theme.xdef.ts
 //     export default defineTheme({
 //       dark: { extends: "light", dark: true, colors: { background: "#0b1120" } },
 //     });
@@ -79,7 +79,7 @@ struct Layer {
 // glass, neon, CRT, ink on paper, liquid — the semantic tree the same under
 // every one (S2's promise: only pixels change).
 //
-//     // neon.style.omui.ts
+//     // neon.style.xdef.ts
 //     export default defineStyle({
 //       neon: {
 //         theme: "dark",

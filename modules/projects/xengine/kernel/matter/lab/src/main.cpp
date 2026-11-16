@@ -2,7 +2,7 @@
 //
 //   matter-lab new DIR [--matter FILE] [--look FILE] [--shape WxH] [--filled NAME]
 //                                    a lab begun in DIR: the standard definition and look, or the snapshots
-//                                    given (*.matter.omui.json, *.appearance.omui.json); its first commit
+//                                    given (*.matter.xdef.json, *.appearance.xdef.json); its first commit
 //   matter-lab run DIR [--script FILE] [--actor ACTOR]
 //                                    requests, a JSON line each, from FILE or standard input — to the lab,
 //                                    its field, its matter and its frame — each answered in records on
@@ -156,8 +156,8 @@ cmdline::App command_line() {
         .subcommand(App("new")
                         .description("a lab begun in a directory: the standard definition and look, or the snapshots given")
                         .arg(Arg("directory").required())
-                        .option(Option("matter").takes_value().value_name("FILE").help("a definition's snapshot (*.matter.omui.json)"))
-                        .option(Option("look").takes_value().value_name("FILE").help("an appearance's snapshot (*.appearance.omui.json)"))
+                        .option(Option("matter").takes_value().value_name("FILE").help("a definition's snapshot (*.matter.xdef.json)"))
+                        .option(Option("look").takes_value().value_name("FILE").help("an appearance's snapshot (*.appearance.xdef.json)"))
                         .option(Option("shape").takes_value().value_name("WxH").help("the field, in cells (default 64x48)"))
                         .option(Option("filled").takes_value().value_name("NAME").help("the material every cell is at first (default air)")))
         .subcommand(App("run")

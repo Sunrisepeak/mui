@@ -4,7 +4,7 @@ The toolchain whole: one command and one MCP server over every project's toolkit
 
 It is a thin composition (convergence plan §4.5, D-203, D-204). Each project keeps its toolkit:
 - the library and its operations;
-- the catalog (`<product>.ops.omui.ts`);
+- the catalog (`<product>.ops.xdef.ts`);
 - a thin program;
 - its skill.
 

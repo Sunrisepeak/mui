@@ -49,7 +49,7 @@ contract::SourcesProbe texts_probe(Texts::Fault fault = Texts::Fault::none) {
 // Two domains in one workspace: an interface and an animation.
 struct Two final : agent::Sources {
     Texts ui{{{"main.ts", "column()"}}};
-    Texts animation{{{"rise.animation.omui.json", R"({"duration":1})"}}};
+    Texts animation{{{"rise.animation.xdef.json", R"({"duration":1})"}}};
     agent::Workspace workspace;
     Two() {
         (void)workspace.mount("ui", ui);
@@ -65,8 +65,8 @@ struct Two final : agent::Sources {
 static UTest cases{"agent.sources", [] {
     contract::declare_sources(texts_probe(), {.subject = "texts"});
     contract::declare_sources({.make = [] { return std::make_unique<Two>(); },
-                               .change = {{"ui/main.ts", "column(text())"}, {"animation/rise.animation.omui.json", R"({"duration":2})"}},
-                               .refused = {{"animation/rise.animation.omui.json", "! half a document"}}},
+                               .change = {{"ui/main.ts", "column(text())"}, {"animation/rise.animation.xdef.json", R"({"duration":2})"}},
+                               .refused = {{"animation/rise.animation.xdef.json", "! half a document"}}},
                               {.subject = "workspace"});
 
     "sources that change on their own, or take what does not read, fail the contract by name"_test = [] {
@@ -80,11 +80,11 @@ static UTest cases{"agent.sources", [] {
     "a workspace: every domain under its name; a refusal in one leaves the other as it was; a path under none refused"_test = [] {
         Two two;
         const auto texts = two.texts();
-        expect(texts.contains("ui/main.ts") && texts.contains("animation/rise.animation.omui.json") && eq(texts.size(), std::size_t{2}));
+        expect(texts.contains("ui/main.ts") && texts.contains("animation/rise.animation.xdef.json") && eq(texts.size(), std::size_t{2}));
         expect(two.state().starts_with("ui=") && two.state().contains(";animation="));
         auto edited = texts;
         edited["ui/main.ts"] = "column(text())";
-        edited["animation/rise.animation.omui.json"] = "! half a document";
+        edited["animation/rise.animation.xdef.json"] = "! half a document";
         const auto refused = two.apply(edited, agent::Sources::Reason::edit);
         expect(!refused && refused.error().starts_with("animation: ")) << (refused ? *refused : refused.error());
         expect(two.ui.texts().at("main.ts") == "column()") << "the interface's edit was put back";
@@ -108,15 +108,15 @@ static UTest cases{"agent.sources", [] {
         // An agent edits both: the interface and its animation, then commits them as one.
         auto both = two.texts();
         both["ui/main.ts"] = "column(text(), button())";
-        both["animation/rise.animation.omui.json"] = R"({"duration":0.4})";
+        both["animation/rise.animation.xdef.json"] = R"({"duration":0.4})";
         expect(two.apply(both, agent::Sources::Reason::edit).has_value());
         auto second = parameters(R"({"message":"a button that rises faster"})");
         const auto committed = operations.run("commit", second.root(), "agent:designer");
-        expect(committed.has_value() && committed->contains("ui/main.ts") && committed->contains("animation/rise.animation.omui.json")) << (committed ? *committed : committed.error());
+        expect(committed.has_value() && committed->contains("ui/main.ts") && committed->contains("animation/rise.animation.xdef.json")) << (committed ? *committed : committed.error());
         // Reverted as one step: both domains as the first design had them.
         auto back = parameters(R"({"to":"HEAD~1"})");
         const auto reverted = operations.run("revert", back.root(), "person:ana");
         expect(reverted.has_value()) << (reverted ? *reverted : reverted.error());
-        expect(two.ui.texts().at("main.ts") == "column()" && two.animation.texts().at("rise.animation.omui.json") == R"({"duration":1})") << two.state();
+        expect(two.ui.texts().at("main.ts") == "column()" && two.animation.texts().at("rise.animation.xdef.json") == R"({"duration":1})") << two.state();
     };
 }};

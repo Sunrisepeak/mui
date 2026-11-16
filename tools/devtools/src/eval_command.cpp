@@ -26,7 +26,7 @@ cmd::App command() {
                                              "ours seeded; the key under target/compare/SUBJECT)")
                                 .arg(Arg("subject").required().help(
                                     "the comparison set "
-                                    "(.agents/docs/evaluation/compare/SUBJECT.compare.omui.json)")))
+                                    "(.agents/docs/evaluation/compare/SUBJECT.compare.xdef.json)")))
                 .subcommand(cmd::App("judge")
                                 .description("Each sheet judged by fresh sessions with nothing of "
                                              "the project; unblinded; a dimension its weakest pair")
@@ -52,8 +52,8 @@ cmd::App command() {
                 .subcommand(
                     cmd::App("run")
                         .description("Each task on a fresh instance; a line of "
-                                     "tasks.eval.omui.jsonl a trial")
-                        .arg(Arg("set").required().help("tools/eval/tasks/SET.tasks.omui.json"))
+                                     "tasks.eval.xdef.jsonl a trial")
+                        .arg(Arg("set").required().help("tools/eval/tasks/SET.tasks.xdef.json"))
                         .option(Option("only").takes_value().value_name("ID,…").help("these tasks"))
                         .option(Option("via").takes_value().value_name("WAY").help(
                             "semantic (default), a11y-tree or screenshot"))
@@ -73,7 +73,7 @@ cmd::App command() {
                 .description("A real agent animates each brief without a GUI (§10.3); the document "
                              "graded by hanim's own samples")
                 .option(Option("only").takes_value().value_name("ID,…").help(
-                    "these briefs (tools/eval/animation-briefs.omui.json)"))
+                    "these briefs (tools/eval/animation.briefs.xdef.json)"))
                 .option(Option("trials").takes_value().value_name("N").help(
                     "each brief N times (default: 1)"))
                 .option(Option("parallel")
@@ -92,7 +92,7 @@ cmd::App command() {
                     "where trials stay (default: target/eval/animate)"))
                 .option(
                     Option("grade").takes_value().value_name("DIR").help("grade one kept trial"))
-                .option(Option("no-ledger").help("append nothing to animation.eval.omui.jsonl")))
+                .option(Option("no-ledger").help("append nothing to animation.eval.xdef.jsonl")))
         .subcommand(cmd::App("duel")
                         .description("Two codex agents play the fighting game by turns; a third "
                                      "analyses the recording into a report")
@@ -120,7 +120,7 @@ cmd::App command() {
                             "four states each, under target/compare-material")))
         .subcommand(cmd::App("cold-start")
                         .description("A fresh agent with one program and one task in words (D-186, D-192); the outcome checked through the program")
-                        .arg(Arg("set").required().help("tools/eval/coldstart/SET.coldstart.omui.json"))
+                        .arg(Arg("set").required().help("tools/eval/coldstart/SET.coldstart.xdef.json"))
                         .option(Option("only").takes_value().value_name("ID,…").help("these tasks"))
                         .option(Option("agent").takes_value().value_name("NAME").help("default: claude"))
                         .option(Option("trials").takes_value().value_name("N").help("each task N times (default: 1)"))

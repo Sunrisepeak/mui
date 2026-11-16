@@ -21,7 +21,7 @@ std::unique_ptr<mlibs::agent::Sources> made() {
     std::error_code error;
     std::filesystem::remove_all(directory, error);
     std::filesystem::create_directories(directory, error);
-    (void)mcpplibs::os::fs::write_atomic(directory / "hello.view.omui.json", hello);
+    (void)mcpplibs::os::fs::write_atomic(directory / "hello.view.xdef.json", hello);
     return std::make_unique<omui::designer::ViewSources>(directory);
 }
 
@@ -30,14 +30,14 @@ std::unique_ptr<mlibs::agent::Sources> made() {
 static UTest cases{"designer.view_sources", [] {
     omui::register_base_components();
     contract::declare_sources({.make = made,
-                               .change = {{"hello.view.omui.json", R"({"omui": "0.1", "view": {"root": {"type": "text", "id": "greeting", "props": {"text": "hello there"}}}})"}},
-                               .refused = {{"hello.view.omui.json", R"({"omui": "0.1", "view": {"root": {"type": "buton", "id": "greeting"}}})"}}},
+                               .change = {{"hello.view.xdef.json", R"({"omui": "0.1", "view": {"root": {"type": "text", "id": "greeting", "props": {"text": "hello there"}}}})"}},
+                               .refused = {{"hello.view.xdef.json", R"({"omui": "0.1", "view": {"root": {"type": "buton", "id": "greeting"}}})"}}},
                               {.subject = "omui.designer.view_sources"});
 
     "a refusal says where: the document, its line and column, the component it names"_test = [] {
         auto sources = made();
-        const auto refused = sources->apply({{"hello.view.omui.json", "{\"omui\": \"0.1\",\n \"view\": {\"root\": {\"type\": \"buton\"}}}"}}, mlibs::agent::Sources::Reason::edit);
-        expect(!refused && refused.error().contains("hello.view.omui.json:2:") && refused.error().contains("buton")) << (refused ? *refused : refused.error());
-        expect(sources->texts().at("hello.view.omui.json") == hello) << "nothing written";
+        const auto refused = sources->apply({{"hello.view.xdef.json", "{\"omui\": \"0.1\",\n \"view\": {\"root\": {\"type\": \"buton\"}}}"}}, mlibs::agent::Sources::Reason::edit);
+        expect(!refused && refused.error().contains("hello.view.xdef.json:2:") && refused.error().contains("buton")) << (refused ? *refused : refused.error());
+        expect(sources->texts().at("hello.view.xdef.json") == hello) << "nothing written";
     };
 }};

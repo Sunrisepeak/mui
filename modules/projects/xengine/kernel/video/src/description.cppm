@@ -1,5 +1,5 @@
 // xengine.video:description — a video as data, a TypeScript data module
-// (`*.video.omui.ts`, D-139) read as the JSON it evaluates to: its size, rate
+// (`*.video.xdef.ts`, D-139) read as the JSON it evaluates to: its size, rate
 // and length, where its frames come from and what its sound track is; read
 // with every problem at its JSON pointer, line and column, written back as
 // itself.
@@ -10,12 +10,12 @@
 //       height: 720,
 //       fps: 30,                     // or "30000/1001"
 //       seconds: 3,                  // or frames: 90
-//       from: { card: "sync" },      // or { png: "shots/{:05}.png" }, or { view: "intro.view.omui.json" }
+//       from: { card: "sync" },      // or { png: "shots/{:05}.png" }, or { view: "intro.view.xdef.json" }
 //       audio: {                     // none: no sound track
 //         rate: 48000,
-//         music: "theme.music.omui.ts",
+//         music: "theme.music.xdef.ts",
 //         intensity: [{ at: 0, value: 0.3 }, { at: 2, value: 1 }],   // or one number
-//         sounds: "ui.sound.omui.ts",
+//         sounds: "ui.sound.xdef.ts",
 //         recordings: { voice: "voice.wav" },   // for the sounds' recording layers
 //         cues: [{ sound: "click", frame: 30 }, { sound: "whoosh", at: 1.25, gain: 0.8, pan: -0.5 }],
 //         beeps: true,               // the sync card's
@@ -23,7 +23,7 @@
 //     });
 //
 // Files are relative to the description; music and sounds are read as their
-// JSON (a `.omui.ts` module through the caller's DataReader: the omui
+// JSON (a `.xdef.ts` module through the caller's DataReader: the omui
 // command line evaluates it). A view's frames are a host's to render (the
 // omui command line); this package draws the card and reads PNGs.
 export module xengine.video:description;
@@ -87,7 +87,7 @@ struct Description {
 [[nodiscard]] std::string write_description(const Description& description);
 
 // How a data file named in a description is read as its JSON: a
-// `*.omui.ts` module evaluated (the caller's: this package evaluates no
+// `*.xdef.ts` module evaluated (the caller's: this package evaluates no
 // TypeScript), anything else as it is. Empty: files as they are, a module
 // refused with the way to its snapshot.
 using DataReader = std::function<std::expected<std::string, std::string>(const std::filesystem::path&)>;

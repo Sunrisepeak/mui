@@ -51,7 +51,7 @@ std::filesystem::path scratch() {
     std::error_code ec;
     std::filesystem::remove_all(dir, ec);
     std::filesystem::create_directories(dir, ec);
-    for (std::string_view f : {"scanlines.effect.omui.json", "scanlines.slang"}) std::filesystem::copy_file(data(f), dir / f, ec);
+    for (std::string_view f : {"scanlines.effect.xdef.json", "scanlines.slang"}) std::filesystem::copy_file(data(f), dir / f, ec);
     return dir;
 }
 
@@ -139,7 +139,7 @@ void expect_scanlines(const std::vector<std::byte>& px, float strength, std::str
 UTest cases{"effect", [] {
 
     "an effect file: what it declares, and every mistake where it is"_test = [] {
-        auto ok = fx::read(text_of(data("scanlines.effect.omui.json")), "scanlines.effect.omui.json");
+        auto ok = fx::read(text_of(data("scanlines.effect.xdef.json")), "scanlines.effect.xdef.json");
         expect(ok.has_value()) << (ok ? "" : problems(ok.error()));
         if (ok) {
             expect(ok->name == "scanlines" && ok->shader == "scanlines.slang" && ok->entry == "scanlines_fs");
@@ -151,24 +151,24 @@ UTest cases{"effect", [] {
   "reahc": 2,
   "params": [{"name": "strength", "default": 2}, {"name": "strength"}]
 }})",
-                            "bad.effect.omui.json");
+                            "bad.effect.xdef.json");
         expect(!bad.has_value());
         if (!bad) {
             const std::string all = problems(bad.error());
-            expect(all.contains("bad.effect.omui.json:2:11: /effect/name: `Scan lines` is not an effect name")) << all;
+            expect(all.contains("bad.effect.xdef.json:2:11: /effect/name: `Scan lines` is not an effect name")) << all;
             expect(all.contains("no key `reahc`") && all.contains("did you mean `reach`?")) << all;
             expect(all.contains("the default 2 is outside [0, 1]")) << all;
             expect(all.contains("a second parameter named `strength`")) << all;
         }
-        auto reach = fx::read(R"({"effect": {"name": "x", "reach": "spread"}})", "x.effect.omui.json");
+        auto reach = fx::read(R"({"effect": {"name": "x", "reach": "spread"}})", "x.effect.xdef.json");
         expect(!reach && problems(reach.error()).contains("`reach` names `spread`, which is not a parameter"));
-        auto broken = fx::read("{\"effect\": {\"name\": \"x\",\n  \"params\": [\n", "x.effect.omui.json");
+        auto broken = fx::read("{\"effect\": {\"name\": \"x\",\n  \"params\": [\n", "x.effect.xdef.json");
         expect(!broken && broken.error().front().line == 3) << (broken ? "" : problems(broken.error()));
     };
 
     "loading: compiled for the device, registered, refused when it binds more than the template"_test = [] {
         fx::Library lib({.formats = render::gpu_shader_formats()});
-        auto loaded = lib.load(data("scanlines.effect.omui.json"));
+        auto loaded = lib.load(data("scanlines.effect.xdef.json"));
         expect(loaded.has_value()) << (loaded ? "" : problems(loaded.error()));
         if (!loaded) return;
         const auto found = render::effects().find("scanlines");
@@ -177,9 +177,9 @@ UTest cases{"effect", [] {
         expect(info && info->gpu.pass == render::EffectPass::pixel && info->gpu.fragment && !info->cpu);
         if (info) expect(info->params.size() == 2 && info->params[1].name == "period" && info->doc.contains("CRT"));
         std::println("  load (read, compile, register): {} ms", loaded->took.count() / 1000.0);
-        auto greedy = lib.load(data("greedy.effect.omui.json"));
+        auto greedy = lib.load(data("greedy.effect.xdef.json"));
         expect(!greedy && problems(greedy.error()).contains("binds resources of its own")) << (greedy ? "" : problems(greedy.error()));
-        auto taken = lib.load(data("blur.effect.omui.json"));
+        auto taken = lib.load(data("blur.effect.xdef.json"));
         expect(!taken && problems(taken.error()).contains("an effect named `blur` is registered already")) << (taken ? "" : problems(taken.error()));
         // The CPU renderer has no path for it: drawn without it, counted.
         raster::Surface cpu(W, H);
@@ -193,7 +193,7 @@ UTest cases{"effect", [] {
         if (!gpu) return;
         const auto dir = scratch();
         fx::Library lib({.formats = gpu->device->caps().formats});
-        auto loaded = lib.load(dir / "scanlines.effect.omui.json");
+        auto loaded = lib.load(dir / "scanlines.effect.xdef.json");
         expect(loaded.has_value()) << (loaded ? "" : problems(loaded.error()));
         if (!loaded) return;
         expect_scanlines(gpu->draw(scene(loaded->ref, 0.5f)), 0.5f, "as written");
@@ -227,9 +227,9 @@ UTest cases{"effect", [] {
 
         // The parameters edited: a reload of the file alone.
         write(shader, src);
-        std::string decl = text_of(dir / "scanlines.effect.omui.json");
+        std::string decl = text_of(dir / "scanlines.effect.xdef.json");
         decl.replace(decl.find("\"max\": 16"), std::string_view("\"max\": 16").size(), "\"max\": 32");
-        write(dir / "scanlines.effect.omui.json", decl);
+        write(dir / "scanlines.effect.xdef.json", decl);
         reloads = lib.poll();
         expect(reloads.size() == 1 && reloads[0].ok()) << (reloads.empty() ? "" : problems(reloads[0].problems));
         const render::EffectInfo* info = render::effects().info(loaded->ref);

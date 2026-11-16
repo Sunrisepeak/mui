@@ -65,6 +65,22 @@ int check(const mcpplibs::cmdline::ParsedArgs& args) {
     return problems.empty() ? 0 : 1;
 }
 
+int migrate(const mcpplibs::cmdline::ParsedArgs& args) {
+    const auto root = args.positional(0).empty() ? std::filesystem::current_path() : mcpplibs::os::fs::from_utf8(args.positional(0));
+    const auto registry = registry_for(args, root);
+    if (!registry) return 2;
+    std::vector<std::string> notes;
+    if (const auto kept = args.value("keep-notes")) {
+        for (const auto part : std::views::split(std::string_view(*kept), ',')) notes.emplace_back(part.begin(), part.end());
+    }
+    const bool write = args.is_flag_set("write");
+    const auto migration = mlibs::xdef::migrate(root, *registry, write, notes);
+    for (const auto& [from, to] : migration.renamed) std::println("{} → {}", from, to);
+    std::println("{}: {} file(s) renamed, {} suffix(es) rewritten in {} text(s)", write ? "migrated" : "would migrate (--write to do it)", migration.renamed.size(),
+                 migration.replacements, migration.edited.size());
+    return 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -77,6 +93,12 @@ int main(int argc, char** argv) {
                                          .arg(Arg("file").required().help("<name>.<kind>.xdef.ts"))
                                          .option(Option("write").help("write it beside the module (.json for .ts)"))
                                          .option(root))
+                         .subcommand(App("migrate")
+                                         .description("the earlier container's files (.omui.) moved to xdef: renamed, every text naming them rewritten")
+                                         .arg(Arg("dir").help("the tree (default: here)"))
+                                         .option(Option("write").help("do it (default: say what would change)"))
+                                         .option(Option("keep-notes").takes_value().value_name("PREFIX,…").help("Markdown under these relative prefixes kept as written"))
+                                         .option(root))
                          .subcommand(App("check")
                                          .description("the container's rules: every data file's kind registered, every committed snapshot current")
                                          .arg(Arg("dir").help("the tree (default: here)"))
@@ -88,12 +110,13 @@ int main(int argc, char** argv) {
         return 2;
     }
     if (!parsed->has_subcommand()) {
-        std::println(std::cerr, "xdef: a command: kinds, snapshot or check (xdef --help)");
+        std::println(std::cerr, "xdef: a command: kinds, snapshot, migrate or check (xdef --help)");
         return 2;
     }
     const std::string command(parsed->subcommand_name());
     const auto& args = parsed->subcommand()->get();
     if (command == "kinds") return kinds(args);
     if (command == "snapshot") return snapshot(args);
+    if (command == "migrate") return migrate(args);
     return check(args);
 }

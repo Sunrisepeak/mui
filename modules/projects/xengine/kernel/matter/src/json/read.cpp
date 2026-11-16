@@ -1,4 +1,4 @@
-// A definition from its JSON snapshot — what a *.matter.omui.ts data module evaluates to (D-139):
+// A definition from its JSON snapshot — what a *.matter.xdef.ts data module evaluates to (D-139):
 //
 //   {"matter": {
 //     "columns":   {"viscosity": {"unit": "…", "doc": "…", "least": 0, "most": 100, "default": 0, "fraction": 0}},
@@ -290,7 +290,7 @@ std::expected<Definition, std::vector<mlibs::json::Problem>> read_pack(std::stri
 }
 
 std::expected<Program, std::string> standard_with(std::span<const Definition> packs, Limits limits) {
-    auto definition = read(standard_snapshot, "standard.matter.omui.json");
+    auto definition = read(standard_snapshot, "standard.matter.xdef.json");
     if (!definition) return std::unexpected(std::string("the standard definition was refused"));
     for (const Definition& pack : packs) {
         auto laid = overlay(std::move(*definition), pack);
@@ -302,7 +302,7 @@ std::expected<Program, std::string> standard_with(std::span<const Definition> pa
     return std::move(*program);
 }
 
-std::expected<Program, std::vector<mlibs::json::Problem>> standard() { return prepare_document(standard_snapshot, "standard.matter.omui.json"); }
-std::expected<Definition, std::vector<mlibs::json::Problem>> convection() { return read_pack(convection_snapshot, "convection.matter.omui.json"); }
+std::expected<Program, std::vector<mlibs::json::Problem>> standard() { return prepare_document(standard_snapshot, "standard.matter.xdef.json"); }
+std::expected<Definition, std::vector<mlibs::json::Problem>> convection() { return read_pack(convection_snapshot, "convection.matter.xdef.json"); }
 
 }  // namespace xengine::matter

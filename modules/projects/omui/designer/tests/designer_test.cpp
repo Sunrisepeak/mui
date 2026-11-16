@@ -617,7 +617,7 @@ UTest cases{"designer", [] {
         expect(eq(filmed, 0)) << film.json();
         expect(film.get("steps") && film.get("steps")->as_int() == 3 && film.get("frames")->as_int() == 9) << film.json();
         const auto out = dir / ".omui" / "design" / "film" / "main";
-        const std::string description = file_text(out / "design.video.omui.json");
+        const std::string description = file_text(out / "design.video.xdef.json");
         expect(description.contains("\"frames\": 9") && description.contains("\"png\": \"frames/{:05}.png\"") && description.contains("\"width\": 320")) << description;
         const std::string first = file_text(out / "frames" / "00000.png"), last = file_text(out / "frames" / "00008.png");
         expect(!first.empty() && !last.empty() && first != last) << "the design changing over the film";
@@ -625,7 +625,7 @@ UTest cases{"designer", [] {
 
         // Edited: the film's script, written beside it — the second step left out, the last with its own
         // words, a second on screen and the camera on what was built there; filmed again, as written.
-        const auto script_file = dir / ".omui" / "design" / "film" / "main.film.omui.json";
+        const auto script_file = dir / ".omui" / "design" / "film" / "main.film.xdef.json";
         auto script = parse_json(file_text(script_file));
         expect(fatal(script.has_value() && script->get("film") && script->get("film")->get("steps")));
         Value::List steps = *script->get("film")->get("steps")->list();
@@ -813,13 +813,13 @@ UTest cases{"designer", [] {
 
     "a demonstration as a test: the person's steps after design.handover saved as a scenario with what is expected, replayed on a fresh start"_test = [] {
         const auto dir = scratch_dir("player-scenario");
-        write(dir / "ui" / "main.view.omui.json", counter);
-        write(dir / "ui" / "badge.view.omui.json", badge_doc);
+        write(dir / "ui" / "main.view.xdef.json", counter);
+        write(dir / "ui" / "badge.view.xdef.json", badge_doc);
         player::Manifest m;
         m.id = "org.openmui.player-scenario";
         m.base = dir;
-        m.components = {"ui/badge.view.omui.json"};
-        m.views = {"ui/main.view.omui.json"};
+        m.components = {"ui/badge.view.xdef.json"};
+        m.views = {"ui/main.view.xdef.json"};
         const auto as_agent = [](Headless& h, std::string_view verb, Value args = Value(Value::Map{})) {
             Invocation call;
             call.args = std::move(args);
@@ -840,7 +840,7 @@ UTest cases{"designer", [] {
             const auto saved = as_agent(h, "design.save_scenario", Value{}.set("name", "one-click"));
             expect(eq(saved.exit_code().value_or(-1), 0) && saved.ndjson().contains("\"steps\":1")) << saved.ndjson();
         }
-        expect(file_text(dir / "tests" / "one-click.scenario.omui.json").contains("\"node\":\"main/inc\""));
+        expect(file_text(dir / "tests" / "one-click.scenario.xdef.json").contains("\"node\":\"main/inc\""));
         // A fresh start: the count is 0 again, and the scenario brings it to what was expected.
         Headless h(HeadlessOptions{.size = {320, 240}});
         player::Player p(h.runtime(), m, {stub()}, {.design = true});

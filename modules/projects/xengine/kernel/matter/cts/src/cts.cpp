@@ -87,7 +87,7 @@ Program standard_program() { return *standard(); }
 
 // The standard definition and two rows more: a material that only says its properties.
 Program with_alcohol(Check& check) {
-    auto definition = read(standard_snapshot, "standard.matter.omui.json");
+    auto definition = read(standard_snapshot, "standard.matter.xdef.json");
     if (!check.that(definition.has_value(), "the standard definition reads")) return {};
     definition->materials.push_back({"alcohol_vapour",
                                      {P{"phase", "gas"}, P{"density", 1.6}, P{"thermal", 1.0}, P{"boiling", 351.0}, P{"condensed", "alcohol"}, P{"starts_at", 360.0}, P{"ignition", 400.0},

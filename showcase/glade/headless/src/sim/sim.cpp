@@ -43,7 +43,7 @@ std::string said_who(const State& state, matter::Who who) {
 
 std::shared_ptr<const matter::Program> program() {
     static const std::shared_ptr<const matter::Program> made = [] {
-        auto pack = matter::read_pack(glade_snapshot, "glade.matter.omui.json");
+        auto pack = matter::read_pack(glade_snapshot, "glade.matter.xdef.json");
         if (!pack) return std::shared_ptr<const matter::Program>();
         const std::array<matter::Definition, 1> packs{std::move(*pack)};
         auto prepared = matter::standard_with(packs);

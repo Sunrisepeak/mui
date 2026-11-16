@@ -5,6 +5,6 @@ import omui.theme;
 
 namespace omui::themes {
 
-std::expected<void, theme::Diagnostics> add_default() { return theme::library().add(default_theme, "default.theme.omui.json"); }
+std::expected<void, theme::Diagnostics> add_default() { return theme::library().add(default_theme, "default.theme.xdef.json"); }
 
 }  // namespace omui::themes

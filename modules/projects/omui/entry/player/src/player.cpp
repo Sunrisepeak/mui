@@ -129,7 +129,7 @@ generate::EvaluateFn generated_views(const std::filesystem::path& base) {
         if (language != "ts" && language != "js") return std::unexpected(std::format("generated code is TypeScript (ts) here, not {}", language));
         std::error_code error;
         std::filesystem::create_directories(scratch, error);
-        auto data = lang::ts::evaluate_source(code, utf8(scratch / "draft.view.omui.ts"),
+        auto data = lang::ts::evaluate_source(code, utf8(scratch / "draft.view.xdef.ts"),
                                               {.root = scratch, .memory_bytes = 16 * 1024 * 1024, .time = std::chrono::milliseconds(500)});
         if (!data) return std::unexpected(data.error().text());
         if (data->kind != "view") return std::unexpected(std::format("the code's default export is defineView(…), not a {}", data->kind));

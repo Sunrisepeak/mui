@@ -17,7 +17,7 @@ license     = "Apache-2.0"
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 lower = ["hanim.studio", "xengine.cellular", "xengine.cellular.present"]  # lower-labelled parts it uses, each marked in its README
 kind = "tool"
-agent = { part = "omui.agent" }  # an omui application: its views and its Reaction lab's verbs (inspector.ops.omui.ts) through the protocol (D-174)
+agent = { part = "omui.agent" }  # an omui application: its views and its Reaction lab's verbs (inspector.ops.xdef.ts) through the protocol (D-174)
 
 [targets.xtools-inspector-core]
 kind = "lib"
@@ -48,4 +48,4 @@ mcpplibs.mtest = "0.8.4"
 # The declared data kinds this package owns (mlibs.xdef registry, D-209): each kind and its major
 # version, and the define module a data module imports each from (none: only tools write it).
 [package.metadata.openmui.xdef]
-kinds = { batch = 1 }
+kinds = { batch = 1, cellular = 1 }

@@ -15,7 +15,7 @@ What belongs here: general-purpose libraries with no domain semantics. Small too
 | [geom](geom) | 2D geometry: points, rectangles, colours, affine transforms, pixel snapping |
 | [memory](memory) | Frame arena, generational handles, slot maps, `FunctionRef` |
 | [unicode](unicode) | Line breaking (UAX #14) and segmentation (UAX #29) without ICU |
-| [session](session) | Recorded sessions (`*.session.omui.jsonl`): timestamped, seekable, mergeable |
+| [session](session) | Recorded sessions (`*.session.xdef.jsonl`): timestamped, seekable, mergeable |
 | [pipeline](pipeline) | Pipelines of stage plugins over typed resources: checked, deterministic, traced, replaceable while running |
 | [json](json) | `mlibs.json`: JSON documents with their places — nodes with JSON pointers, problems at line and column, did-you-mean; how the data files' JSON snapshots are read |
 | [ts](ts) | `mlibs.ts`: TypeScript with no tool — types blanked to the JavaScript under them (lines and columns kept), declared data modules evaluated deterministically to JSON; the tool kernel's, a kind's define module its owner's (D-209) |

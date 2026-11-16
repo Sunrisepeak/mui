@@ -1,6 +1,6 @@
 # material lab — skill
 
-How an Agent designs matter in a lab (`xengine.matter.lab`), with no window: materials as rows, the laws, the look, a scene to try them in. A lab's session has four subjects — `lab` (the design: [lab.ops.omui.ts](lab.ops.omui.ts)), `matter` (what is there, why, what would be), `field` (time), `frame` (the picture); each, asked to describe itself, lists its operations. This is the order to use them in. For `matter` and `field` on their own, see [the lattice's skill](../../cellular/skill.omui.md).
+How an Agent designs matter in a lab (`xengine.matter.lab`), with no window: materials as rows, the laws, the look, a scene to try them in. A lab's session has four subjects — `lab` (the design: [lab.ops.xdef.ts](lab.ops.xdef.ts)), `matter` (what is there, why, what would be), `field` (time), `frame` (the picture); each, asked to describe itself, lists its operations. This is the order to use them in. For `matter` and `field` on their own, see [the lattice's skill](../../cellular/skill.omui.md).
 
 ## Before
 
@@ -27,4 +27,4 @@ How an Agent designs matter in a lab (`xengine.matter.lab`), with no window: mat
 
 ## Not here
 
-Time is the field's (`field.step`, `field.seek`; a seek back drops the scene's edits made after it). Definitions are JSON snapshots — what a `*.matter.omui.ts` evaluates to (`xdef snapshot`); the lab writes `world.matter.omui.json` and `world.appearance.omui.json` beside its sources for a world to load. Bodies (soft and rigid) are dynamics'; the lab's field is the lattice.
+Time is the field's (`field.step`, `field.seek`; a seek back drops the scene's edits made after it). Definitions are JSON snapshots — what a `*.matter.xdef.ts` evaluates to (`xdef snapshot`); the lab writes `world.matter.xdef.json` and `world.appearance.xdef.json` beside its sources for a world to load. Bodies (soft and rigid) are dynamics'; the lab's field is the lattice.

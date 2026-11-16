@@ -1,7 +1,7 @@
 # openmui Inspector
 
 The **motion workbench** (`xtools-inspector --motion FILE`) opens a hanim
-animation document (`<name>.animation.omui.json`): the stage drawn at any
+animation document (`<name>.animation.xdef.json`): the stage drawn at any
 moment by the same renderer, a scrubber, a click on an object to the steps
 that move it then (innermost first, each by its JSON pointer), the chosen
 step's numbers, words and switches as controls — each change read again whole,

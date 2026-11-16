@@ -2,7 +2,7 @@
 //
 // A program listens on a local endpoint (a Unix socket, a named pipe:
 // mcpplibs.os.ipc) named after it, in one directory per user, and leaves a
-// small descriptor beside it (`<name>.endpoint.omui.json`) so that what runs
+// small descriptor beside it (`<name>.endpoint.xdef.json`) so that what runs
 // can be listed. Connections are read on background threads; requests are
 // served by `pump`, which the owner calls at its safe point — between frames,
 // between steps — where its state may be touched.

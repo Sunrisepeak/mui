@@ -20,8 +20,8 @@ void write(const std::filesystem::path& file, std::string_view text) { std::ofst
 
 // The problem of evaluating `source` as a module in `dir`, or "" when it evaluated.
 std::string problem_of(const std::filesystem::path& dir, std::string_view source) {
-    write(dir / "case.config.omui.ts", source);
-    auto data = ts::evaluate(dir / "case.config.omui.ts");
+    write(dir / "case.config.xdef.ts", source);
+    auto data = ts::evaluate(dir / "case.config.xdef.ts");
     return data ? std::string() : data.error().text();
 }
 

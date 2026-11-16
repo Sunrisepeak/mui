@@ -91,17 +91,17 @@ int tools_e2e(const fs::path& root, const std::vector<std::string>& profile_args
     const auto at = [&](std::string_view name) { return mcpplibs::os::fs::utf8(dir / name); };
     Expect expect(root);
 
-    const std::string document = "modules/projects/hanim/studio/examples/bounce.animation.omui.json";
+    const std::string document = "modules/projects/hanim/studio/examples/bounce.animation.xdef.json";
     const std::string hanim = bin.at("hanim");
     expect.status(0, hanim, {"document.check", "--file", document}) && expect.has(R"("markers":\[\{"name":"landed")");
     expect.status(0, hanim, {"document.sample", "--file", document, "--at", "0", "--at", "1.0"}) && expect.has(R"("id":"ball")");
     expect.status(0, hanim, {"document.render", "--file", document, "--out", at("bounce"), "--frames", "4"}) &&
         expect.holds(fs::file_size(dir / "bounce-003.png") > 0 && fs::file_size(dir / "bounce.strip.png") > 0 &&
-                         fs::file_size(dir / "bounce.report.omui.json") > 0,
+                         fs::file_size(dir / "bounce.report.xdef.json") > 0,
                      "hanim document.render wrote its frames, strip and report");
-    std::ofstream(dir / "bad.animation.omui.json")
+    std::ofstream(dir / "bad.animation.xdef.json")
         << R"({"version": 1, "objects": [{"id": "a", "shape": {"circle": 5}, "fill": "#fff"}], "program": {"do": "twirl", "object": "a"}})" << '\n';
-    expect.status(1, hanim, {"document.check", "--file", at("bad.animation.omui.json")}) && expect.has(R"("where":"/program/do")");
+    expect.status(1, hanim, {"document.check", "--file", at("bad.animation.xdef.json")}) && expect.has(R"("where":"/program/do")");
     expect.status(1, hanim, {"document.render", "--file", document}) && expect.has(R"("code":"invalid-argument")");
     // A command by its old name is no operation: the way out names the one meant.
     expect.status(1, hanim, {"render"}) && expect.has(R"("code":"not-found")") && expect.has(R"("operation":"document.render")");
@@ -109,17 +109,17 @@ int tools_e2e(const fs::path& root, const std::vector<std::string>& profile_args
 
     const std::string effects = "modules/projects/xrender/effect/tests/data", xrender = bin.at("xrender");
     expect.status(0, xrender, {"device.describe"});
-    expect.status(0, xrender, {"effect.check", "--files", effects + "/scanlines.effect.omui.json"}) && expect.has(R"("name":"strength")");
-    expect.status(1, xrender, {"effect.check", "--files", effects + "/greedy.effect.omui.json"}) && expect.has("binds resources of its own");
-    expect.status(0, xrender, {"effect.preview", "--file", effects + "/scanlines.effect.omui.json", "--out", at("scan.png"), "--param", "strength=0.7"}) &&
+    expect.status(0, xrender, {"effect.check", "--files", effects + "/scanlines.effect.xdef.json"}) && expect.has(R"("name":"strength")");
+    expect.status(1, xrender, {"effect.check", "--files", effects + "/greedy.effect.xdef.json"}) && expect.has("binds resources of its own");
+    expect.status(0, xrender, {"effect.preview", "--file", effects + "/scanlines.effect.xdef.json", "--out", at("scan.png"), "--param", "strength=0.7"}) &&
         expect.holds(fs::exists(dir / "scan.png") && fs::file_size(dir / "scan.png") > 0, "the preview was written");
-    expect.status(0, xrender, {"conformance.run", "--report", at("render.cts.omui.json")}) && expect.has(R"("failed":\[\])");
+    expect.status(0, xrender, {"conformance.run", "--report", at("render.cts.xdef.json")}) && expect.has(R"("failed":\[\])");
     expect.status(1, xrender, {"frobnicate"}) && expect.has(R"("code":"not-found")");
     expect.status(2, xrender, {"--report", "x"});
 
-    const fs::path timeline = dir / "short.timeline.omui.json";
+    const fs::path timeline = dir / "short.timeline.xdef.json";
     const std::string tl = bin.at("hanim-timeline"), file = mcpplibs::os::fs::utf8(timeline);
-    expect.status(0, bin.at("omui-gen"), {"snapshot", "showcase/promo-video/short.timeline.omui.ts", "--out", file});  // the JSON the tool works on
+    expect.status(0, bin.at("omui-gen"), {"snapshot", "showcase/promo-video/short.timeline.xdef.ts", "--out", file});  // the JSON the tool works on
     const std::string before = bytes_of(timeline);
     expect.status(0, tl, {"timeline.check", "--file", file}) && expect.has(R"("length":"900f")");
     expect.status(0, tl, {"timeline.at", "--file", file, "--time", "1s"}) && expect.has(R"("clip":"hook")");
@@ -152,7 +152,7 @@ int agent_e2e(const fs::path& root, const std::vector<std::string>& profile_args
     // session's declared operations run without asking (D-155), and the needs-answer path (S-10, S-11) is checked here.
     const Served app(bin.at("notes-agent"), {"--serve", "--agent-dir", agents, "--agent-mode", "dual-user"}, dir / "app.log");
     const std::string id = "org.openmui.examples.notes";
-    if (!app.started() || !Served::ready(dir / (id + ".endpoint.omui.json"))) return failed("example 07 did not serve (its log: app.log)");
+    if (!app.started() || !Served::ready(dir / (id + ".endpoint.xdef.json"))) return failed("example 07 did not serve (its log: app.log)");
     Expect expect(root);
     const auto agent = [&](int wanted, std::vector<std::string> words) {
         words.insert(words.begin(), "agent");
@@ -227,7 +227,7 @@ int agent_e2e(const fs::path& root, const std::vector<std::string>& profile_args
     // driven by cellular_* tools over real pipes — paint, advance, read back — with the listing's hints.
     const Served lab(bin.at("xtools-inspector"), {"--cellular", "--headless", "--serve", "--agent-dir", agents}, dir / "lab.log");
     const std::string lab_id = "org.openmui.inspector.cellular";
-    if (!lab.started() || !Served::ready(dir / (lab_id + ".endpoint.omui.json"))) return failed("the Reaction lab did not serve (its log: lab.log)");
+    if (!lab.started() || !Served::ready(dir / (lab_id + ".endpoint.xdef.json"))) return failed("the Reaction lab did not serve (its log: lab.log)");
     const std::string lab_requests = R"({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"e2e"}}}
 {"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}
 {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"cellular_snapshot","arguments":{}}}

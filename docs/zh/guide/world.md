@@ -9,7 +9,7 @@
 标准定义自带 17 种材料（空气、水、冰、蒸汽、木、灰、石、沙、油、岩浆、火药、铁……）和 19 条规律，可以直接用。自己的定义是一份数据：
 
 ```ts
-// world.matter.omui.ts
+// world.matter.xdef.ts
 import { defineMatter } from "omui/define";
 export default defineMatter({
   materials: {

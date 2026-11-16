@@ -1,6 +1,6 @@
 // Live Design's designer (D-149, D-151): what a player in development mode
 // is designed with — the design.* verbs (Live Design's catalog,
-// design.ops.omui.ts), the history, previews and variants in stand-ins, the
+// design.ops.xdef.ts), the history, previews and variants in stand-ins, the
 // timeline. It works with the player's sources through the player's API, and
 // says it is there as the program starts (provide_designer): a program that
 // links omui.designer has it, a release (which does not) has none.
@@ -503,7 +503,7 @@ private:
         // person or an agent changed in it is followed, a step it does not name yet is added as it
         // would be filmed, and the merged script written back, for the next edit.
         const std::string script_text(args.get("script") ? args.get("script")->as_string() : std::string());
-        const std::filesystem::path script_file = script_text.empty() ? history.directory() / "film" / std::format("{}.film.omui.json", branch) : path_of(script_text);
+        const std::filesystem::path script_file = script_text.empty() ? history.directory() / "film" / std::format("{}.film.xdef.json", branch) : path_of(script_text);
         Value script(Value::Map{});
         if (std::ifstream in{script_file, std::ios::binary}) {
             const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
@@ -620,7 +620,7 @@ private:
             camera = target;
         }
         // The description `omui video render` reads (xengine.video): the frames, at their rate.
-        const auto description = out / "design.video.omui.json";
+        const auto description = out / "design.video.xdef.json";
         const Value video = Value(Value::Map{})
                                 .set("doc", std::format("The design of {} on {}: {} steps.", player.manifest().id, branch, steps_filmed))
                                 .set("width", static_cast<int>(window.width))
@@ -771,7 +771,7 @@ private:
 
 
     void verbs() {
-        // Each verb as Live Design's catalog declares it (design.ops.omui.ts);
+        // Each verb as Live Design's catalog declares it (design.ops.xdef.ts);
         // the timeline, when it is shown, follows what the history's verbs did.
         auto add = [&](std::string_view name, VerbFn fn) {
             const auto entry = std::ranges::find(agent::design::catalog, name, [](const auto& op) { return op.operation.name; });
@@ -1042,7 +1042,7 @@ private:
                 Value::List expect;
                 for (const auto& x : expectations) expect.push_back(expectation_value(x));
                 const Value scenario = Value{}.set("omui", "0.1").set("scenario", name).set("steps", Value(steps)).set("expect", Value(std::move(expect)));
-                const auto file = player.manifest().base / "tests" / (name + ".scenario.omui.json");
+                const auto file = player.manifest().base / "tests" / (name + ".scenario.xdef.json");
                 std::error_code error;
                 std::filesystem::create_directories(file.parent_path(), error);
                 std::ofstream(file, std::ios::binary) << scenario.json() << '\n';
@@ -1051,8 +1051,8 @@ private:
         add("design.replay",
             [this](const Value& args) -> VerbResult {
                 const std::string name(args.get("name") ? args.get("name")->as_string() : "");
-                const auto text = read_file(player.manifest().base / "tests" / (name + ".scenario.omui.json"));
-                if (!text) return std::unexpected(std::format("no scenario `{}` (tests/{}.scenario.omui.json)", name, name));
+                const auto text = read_file(player.manifest().base / "tests" / (name + ".scenario.xdef.json"));
+                if (!text) return std::unexpected(std::format("no scenario `{}` (tests/{}.scenario.xdef.json)", name, name));
                 auto scenario = parse_json(*text);
                 if (!scenario) return std::unexpected(std::format("{}: {}", name, scenario.error().text()));
                 semantic::Tree tree(rt);

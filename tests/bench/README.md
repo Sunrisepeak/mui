@@ -2,7 +2,7 @@
 
 The framework's benchmarks, and the gate made of them. Each benchmark is a
 case of mtest's (`tests/budgets_test.cpp`); what it measured is the case's
-metrics, and its budgets (`budgets.bench.omui.json`) are the case's bounds:
+metrics, and its budgets (`budgets.bench.xdef.json`) are the case's bounds:
 
 ```text
 OMUI_BENCH=1 mcpp test -p omui.bench --profile release budgets        # every benchmark, judged
@@ -149,7 +149,7 @@ The remaining acceptance work is:
 | `shape-sample-500`, `paint-sample-record-500` | Record per-batch p95 plus per-cubic/per-object cost, respectively. D-94's 120 Hz objective gives **8.33 ms for an entire frame**, not 8.33 ms for each stage. Allocate stage limits only after measuring the corresponding end-to-end workload and its remaining frame budget. |
 | `draw-cpu-256` | Record CPU p95/p99 and allocation counts as the reference-renderer workload. Choose an explicit preview/frame target and validate it on the named CPU before assigning a ceiling. Do not reuse hardware GPU limits for this case. |
 
-Add only justified further limits to `budgets.bench.omui.json`, retaining the
+Add only justified further limits to `budgets.bench.xdef.json`, retaining the
 report, machine/toolchain/profile, iteration configuration and reasoning
 beside the checkpoint. Physical GPU
 performance, GPU timestamps, larger object counts, pixel-domain morphs and the

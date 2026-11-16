@@ -3,7 +3,7 @@
 // languages, and `tr`, a text in them that is redone when the language or an
 // argument changes — no remount, the same ids (S-9).
 //
-//     omui::languages().add_messages(zh, json, "app.zh-Hans.messages.omui.json");
+//     omui::languages().add_messages(zh, json, "app.zh-Hans.messages.xdef.json");
 //     omui::languages().request({*i18n::Locale::parse("zh-CN")});
 //     text({.id = "count", .text = omui::tr("inbox.count", {{"count", count}})});
 //
@@ -51,7 +51,7 @@ public:
     // Runs `change` on the library (packs, catalogs) under the languages'
     // lock, then remakes the translator; texts follow as on a request.
     void edit(const std::function<void(mlibs::i18n::Library&)>& change);
-    // A catalog for a locale — its JSON, what a `*.messages.omui.ts` evaluates
+    // A catalog for a locale — its JSON, what a `*.messages.xdef.ts` evaluates
     // to; every problem located.
     std::expected<void, std::vector<mlibs::i18n::Diagnostic>> add_messages(const mlibs::i18n::Locale& locale, std::string_view json, std::string_view file);
 

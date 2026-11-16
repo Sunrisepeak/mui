@@ -215,7 +215,7 @@ struct Task {
     std::span<const std::string_view> steps;
 };
 // What a catalog tells an agent that knows nothing of its subject (D-186): what the subject is, in a line, and
-// the tasks to begin with. A catalog's data, as its operations are (`<product>.ops.omui.ts`: doc, tasks).
+// the tasks to begin with. A catalog's data, as its operations are (`<product>.ops.xdef.ts`: doc, tasks).
 struct Guide {
     std::string_view about;
     std::span<const Task> tasks;

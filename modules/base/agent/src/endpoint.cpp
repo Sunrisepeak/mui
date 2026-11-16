@@ -11,7 +11,7 @@ namespace ipc = mcpplibs::os::ipc;
 
 namespace {
 
-constexpr std::string_view descriptor_suffix = ".endpoint.omui.json";
+constexpr std::string_view descriptor_suffix = ".endpoint.xdef.json";
 
 // A path as UTF-8 text (never through the code page: a Chinese folder on an English system).
 std::string utf8(const std::filesystem::path& path) {

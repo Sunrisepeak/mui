@@ -181,12 +181,12 @@ void languages_of(const AppSpec& app, const RunOptions& o, std::vector<std::stri
         if (auto r = l.add_messages(*locale, text, file); !r)
             for (const auto& d : r.error()) warn("{}", d.text());
     };
-    for (const auto& [tag, text] : app.catalogs) add(tag, text, std::format("{}.messages.omui.json", tag));
+    for (const auto& [tag, text] : app.catalogs) add(tag, text, std::format("{}.messages.xdef.json", tag));
     if (!app.messages.empty()) {
         std::error_code ec;
         for (const auto& e : std::filesystem::directory_iterator(app.messages, ec)) {
             const std::string name = utf8(e.path().filename());
-            constexpr std::string_view suffix = ".messages.omui.json";
+            constexpr std::string_view suffix = ".messages.xdef.json";
             if (!name.ends_with(suffix)) continue;
             auto text = mcpplibs::os::fs::read(e.path());
             if (!text) {

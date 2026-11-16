@@ -16,7 +16,7 @@
 // keeps; hash routes: `#/training` is the program's `--training`. The page
 // fills the program's /fonts before `main` and loads the Toy SDK
 // (`window.toy`). Toy has no manifest file: what `toy create` asks (title,
-// slug, cover) is written beside the package, in `<name>.toy.omui.json`,
+// slug, cover) is written beside the package, in `<name>.toy.xdef.json`,
 // with every file's size.
 //
 // Generated pages expose window.omuiLoad and synchronous `omui-load` events

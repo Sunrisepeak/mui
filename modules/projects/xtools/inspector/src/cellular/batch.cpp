@@ -92,7 +92,7 @@ int batch(const std::filesystem::path& input,const std::filesystem::path& prefix
         const auto written=host.save_recording(path,{.delay_num=static_cast<std::uint16_t>(step),.delay_den=static_cast<std::uint16_t>(rate),.loops=1,.lossless=true});
         if (!written) return fail(written.error().text());outputs.emplace_back(generic_utf8(path));
     }
-    const auto saved=output_path(".cellular.omui.json");
+    const auto saved=output_path(".cellular.xdef.json");
     const auto written=mcpplibs::os::fs::write_atomic(saved,session->project().json()+"\n");
     if (!written) return fail(written.error().message());outputs.emplace_back(generic_utf8(saved));
     report.set("ok",true).set("outputs",Value(outputs)).set("input",*job).set("initial_sample_project",initial)
@@ -100,7 +100,7 @@ int batch(const std::filesystem::path& input,const std::filesystem::path& prefix
         .set("background","#ffffff").set("observations",Value(std::move(observations))).set("receipts",Value(std::move(receipts)))
         .set("replay_timing","rational sample timestamps; WebP rounds cumulative timestamps to milliseconds")
         .set("scope","deterministic fixed-step process; does not certify realtime frame pacing or hardware performance");
-    const auto result=mcpplibs::os::fs::write_atomic(output_path(".report.omui.json"),report.json()+"\n");
+    const auto result=mcpplibs::os::fs::write_atomic(output_path(".report.xdef.json"),report.json()+"\n");
     if (!result) return fail(result.error().message());
     out<<report.json()<<'\n';return 0;
 }

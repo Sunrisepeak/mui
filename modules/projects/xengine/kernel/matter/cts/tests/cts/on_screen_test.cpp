@@ -208,7 +208,7 @@ static UTest cases{"matter.on-screen", [] {
 
     "a material no pack names looks like its phase, and burns with the same flame; another pack changes the picture and not a cell"_test = [] {
         using P = matter::Property;
-        auto read = matter::read(matter::standard_snapshot, "standard.matter.omui.json");
+        auto read = matter::read(matter::standard_snapshot, "standard.matter.xdef.json");
         expect(fatal(read.has_value()));
         read->materials.push_back({"peat", {P{"phase", "granular"}, P{"density", 500.0}, P{"thermal", 1.0}, P{"ignition", 520.0}, P{"fuel", 300.0}, P{"heat", 70.0}, P{"burnt", "ash"}}, {}});
         const auto prepared = matter::Program::prepare(*read);
@@ -258,7 +258,7 @@ static UTest cases{"matter.on-screen", [] {
                        "liquid": {"color": "#18a04680"}, "gas": {"color": "#00000000"}},
             "states": [{"name": "heat", "by": "temperature", "from": 400, "to": 1100, "color": "#e8ffe8", "emits": true},
                        {"name": "aflame", "by": "burning", "to": 1, "color": "#ffffff", "emits": true}]}})";
-        const auto other = matter::look_document(program, night, "night.appearance.omui.json");
+        const auto other = matter::look_document(program, night, "night.appearance.xdef.json");
         expect(fatal(other.has_value())) << (other ? "" : other.error().front().text());
         const std::vector<std::uint32_t> cells_before = scene.cells;
         expect(scene.view.reshade(other->shade()).has_value());

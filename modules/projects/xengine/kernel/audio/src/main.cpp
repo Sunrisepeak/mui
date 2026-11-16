@@ -1,7 +1,7 @@
 // omui-music — pieces of music from the command line (D-61: JSON out and an
 // exit code, for people, agents and CI alike).
 //
-//     omui-music check <file.music.omui.json>   (what a .music.omui.ts evaluates to: xdef snapshot)
+//     omui-music check <file.music.xdef.json>   (what a .music.xdef.ts evaluates to: xdef snapshot)
 //                       whether it reads and plays: its problems at their line and column, or
 //                       its tempo, metre, bars and seconds (exit 1 with problems)
 //     omui-music render <file> --out <x.wav> [--seconds 60] [--intensity 0.8 | 0.2@0,0.9@30]
@@ -311,7 +311,7 @@ int fmt(const std::filesystem::path& file) {
 // The command line (mcpplibs.cmdline): check, render, stats, fmt, takes.
 cmdline::App command_line() {
     using cmdline::App, cmdline::Arg, cmdline::Option;
-    const auto file = Arg("file").required().help("the piece: a .music.omui.json, as a .music.omui.ts evaluates to (xdef snapshot)");
+    const auto file = Arg("file").required().help("the piece: a .music.xdef.json, as a .music.xdef.ts evaluates to (xdef snapshot)");
     const auto seconds = Option("seconds").value_type<double>().help("how long (default 60, at most 3600)");
     const auto intensity = Option("intensity").takes_value().value_name("0.8 | 0.2@0,0.9@30").help("the intensity, or its cues");
     return App("omui-music")

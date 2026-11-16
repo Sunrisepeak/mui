@@ -338,7 +338,7 @@ UTest cases{"showcase.markdown-wall", [] {
             a.h.settle();
             moved = a.rect(install);
             zoom = a.model.zoom.peek();
-            expect(std::filesystem::exists(dir / ".openmui" / "wall.layout.omui.json")) << "kept in the folder";
+            expect(std::filesystem::exists(dir / ".openmui" / "wall.layout.xdef.json")) << "kept in the folder";
         }
         {
             omui::wall::Model m;

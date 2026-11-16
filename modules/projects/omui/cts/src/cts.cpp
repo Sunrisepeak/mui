@@ -40,7 +40,7 @@ std::expected<std::vector<Scenario>, CtsFailure> scenarios() {
     std::error_code ec;
     for (const auto& e : std::filesystem::directory_iterator(directory(), ec)) {
         const std::string name = os::fs::utf8(e.path().filename());
-        constexpr std::string_view suffix = ".scenario.omui.json";
+        constexpr std::string_view suffix = ".scenario.xdef.json";
         if (!name.ends_with(suffix)) continue;
         auto text = read(e.path());
         if (!text) return std::unexpected(CtsFailure{CtsError::unreadable, {}, os::fs::utf8(e.path())});
@@ -117,7 +117,7 @@ std::vector<std::string> check(const Scenario& scenario, const Json& raw) {
         }
     }
     // The pinned trace.
-    std::filesystem::path pinned = scenario.file.parent_path() / (scenario.name + ".trace.omui.json");
+    std::filesystem::path pinned = scenario.file.parent_path() / (scenario.name + ".trace.xdef.json");
     if (os::env::get("OMUI_CTS_WRITE") == "1") {
         std::ofstream f(pinned, std::ios::binary);
         f << Json{{"omui", "0.1"}, {"trace", trace}}.dump(1, ' ', false) << "\n";

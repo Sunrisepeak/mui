@@ -99,7 +99,7 @@ json fonts(const Context& context) {
     script.report["assets"]["initial_bytes"] = size_of(context.site / initial_face);
     script.report["assets"]["full_bytes"] = size_of(context.site / full_face);
     const json pinned =
-        at(json::parse(mcpplibs::os::fs::read(context.root / "site/reference/ci.frames.omui.json")
+        at(json::parse(mcpplibs::os::fs::read(context.root / "site/reference/ci.frames.xdef.json")
                            .value_or("{}"),
                        nullptr, false),
            "frames");
@@ -346,7 +346,7 @@ json fonts(const Context& context) {
 
 json loading(const Context& context) {
     const json catalogue =
-        json::parse(mcpplibs::os::fs::read(context.site / "first-frames.assets.omui.json")
+        json::parse(mcpplibs::os::fs::read(context.site / "first-frames.assets.xdef.json")
                         .value_or("{}"),
                     nullptr, false);
     const std::string html = mcpplibs::os::fs::read(context.site / "index.html").value_or("");

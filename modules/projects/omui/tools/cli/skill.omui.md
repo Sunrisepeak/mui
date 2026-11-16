@@ -1,6 +1,6 @@
 # omui — the project's commands, for an agent
 
-What the commands are, their arguments and effects: `cli.ops.omui.ts` (the `omui_*` tools of `omui mcp`, or `omui <command>` in a shell: records a line each). This page is the order to use them in.
+What the commands are, their arguments and effects: `cli.ops.xdef.ts` (the `omui_*` tools of `omui mcp`, or `omui <command>` in a shell: records a line each). This page is the order to use them in.
 
 ## Make, run, check, ship
 

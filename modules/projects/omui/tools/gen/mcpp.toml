@@ -1,4 +1,4 @@
-# omui.gen — the generator: spec/registry and *.contract.omui.ts to
+# omui.gen — the generator: spec/registry and *.contract.xdef.ts to
 # openmui.h, the openmui.spec partitions, component partitions, script
 # builders, schemas and reference tables (implementation plan §4.2).
 #
@@ -34,3 +34,8 @@ mcpplibs.cmdline    = "0.0.3"
 mcpplibs.mtest = "0.8.4"
 xrender.text = { path = "../../../xrender/text" }
 mlibs.text    = { path = "../../../../content/text" }
+
+# The declared data kinds this package owns (mlibs.xdef registry, D-209): each kind and its major
+# version, and the define module a data module imports each from (none: only tools write it).
+[package.metadata.openmui.xdef]
+kinds = { toy = 1 }

@@ -17,9 +17,9 @@ import std;
 
 export namespace omui::devtools::lead {
 
-inline constexpr std::string_view features_path = ".agents/docs/evaluation/lead.features.omui.json";
-inline constexpr std::string_view ledger_path = ".agents/docs/evaluation/lead.ledger.omui.jsonl";
-inline constexpr std::string_view metrics_path = "tests/bench/competitors/lead.metrics.omui.json";
+inline constexpr std::string_view features_path = ".agents/docs/evaluation/lead.features.xdef.json";
+inline constexpr std::string_view ledger_path = ".agents/docs/evaluation/lead.ledger.xdef.jsonl";
+inline constexpr std::string_view metrics_path = "tests/bench/competitors/lead.metrics.xdef.json";
 
 // Ratio thresholds (§2.2): r = ours ÷ the strongest competitor, larger better.
 inline constexpr double behind = 0.95, ahead = 1.2, far = 10.0;

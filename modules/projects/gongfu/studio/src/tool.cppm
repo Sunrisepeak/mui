@@ -1,4 +1,4 @@
-// gongfu.studio:tool — making fighters as an agent's subject, `gongfu`: its catalog's operations (gongfu.ops.omui.ts) —
+// gongfu.studio:tool — making fighters as an agent's subject, `gongfu`: its catalog's operations (gongfu.ops.xdef.ts) —
 // fighter.check, .bake, .embed, .sheet; stage.picture; art.cut, art.picture; roster.versus. The `gongfu-studio`
 // command is this subject behind the tool kernel's entries (mlibs.agent:host): `gongfu-studio fighter.check
 // showcase/fighting/fighters`, `gongfu-studio mcp`; each report a record.

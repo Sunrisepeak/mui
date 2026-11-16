@@ -442,7 +442,7 @@ int main(int argc,char** argv) {
             {"anchor_source",channel.anchor_source},{"source_snapshot",channel.source_snapshot}});
     }
     if(options.agent_review)result["agent_review"]=std::move(agent_review);
-    const auto provenance=mcpplibs::os::fs::write_atomic(mcpplibs::os::fs::from_utf8(options.output+".provenance.omui.json"),result.dump(2)+"\n");
+    const auto provenance=mcpplibs::os::fs::write_atomic(mcpplibs::os::fs::from_utf8(options.output+".provenance.xdef.json"),result.dump(2)+"\n");
     if(!provenance)return fail(provenance.error().message());
     std::println("{}",result.dump());
 }

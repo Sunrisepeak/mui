@@ -27,7 +27,7 @@ void add_audio_benchmarks() {
     add("audio/automated-mix", "128 stereo frames: 48 voices, echo and sample-clock gain from an immutable 64-key timeline curve",
         [](State& s) {
             xengine::audio::Mixer mixer({.voices = 48});
-            const auto list = *xengine::audio::read_sounds(sounds, "bench.sound.omui.json");
+            const auto list = *xengine::audio::read_sounds(sounds, "bench.sound.xdef.json");
             std::vector<std::int32_t> ids;
             for (const auto& sound : list) ids.push_back(mixer.add(sound));
             mixer.add_effect("sfx", xengine::audio::echo(.09f, .3f, .25f, mixer.rate()));
@@ -49,7 +49,7 @@ void add_audio_benchmarks() {
     add("audio/mix-48", "a block of 128 frames at 48 kHz with 48 voices sounding (filtered noise, gliding sines, saws), an echo and the limiter (D-86)",
         [](State& s) {
             xengine::audio::Mixer mixer({.voices = 48});
-            const auto list = *xengine::audio::read_sounds(sounds, "bench.sound.omui.json");
+            const auto list = *xengine::audio::read_sounds(sounds, "bench.sound.xdef.json");
             std::vector<std::int32_t> ids;
             for (const auto& snd : list) ids.push_back(mixer.add(snd));
             mixer.add_effect("sfx", xengine::audio::echo(0.09f, 0.3f, 0.25f, mixer.rate()));

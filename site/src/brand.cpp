@@ -10,7 +10,7 @@ std::span<const BrandShape> brand_geometry() {
         std::array<BrandShape, 5> g;
         // The O, with two ears (A2, the one chosen): a clean geometric
         // mark at rest, a cat when looked at closely; the counter still holds
-        // the inner word (site/brand/marks.mark.omui.json, outline "ears").
+        // the inner word (site/brand/marks.mark.xdef.json, outline "ears").
         g[0].part = "outline";
         g[0].width = 6;
         g[0].path.move_to({50, 96}).cubic_to({26, 96}, {8, 78}, {8, 55}).cubic_to({8, 41}, {12, 31}, {18, 24}).line_to({21, 5}).line_to({36, 15})

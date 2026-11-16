@@ -1,9 +1,9 @@
 // eval animate (convergence plan §10.3; moved from tools/eval/animate.py): a real LLM does animation work without a
-// GUI. Given only hanim's skill, the document reference and the `hanim` command, it writes animation.omui.json in an
-// empty directory of its own for each brief in tools/eval/animation-briefs.omui.json and verifies it with the
+// GUI. Given only hanim's skill, the document reference and the `hanim` command, it writes animation.xdef.json in an
+// empty directory of its own for each brief in tools/eval/animation.briefs.xdef.json and verifies it with the
 // command. The grader checks each document through `hanim document.check` and `hanim document.sample` (the numbers at 601 moments,
 // never the agent's word): where things start and end, bounces counted, overshoot, order and timing. Every trial,
-// and each run's success rate, go to animation.eval.omui.jsonl; an agent that cannot run is recorded as unavailable.
+// and each run's success rate, go to animation.eval.xdef.jsonl; an agent that cannot run is recorded as unavailable.
 module omui.devtools.eval;
 
 import std;
@@ -332,14 +332,14 @@ std::vector<Check> grade(const Course& course, std::string_view kind) {
 
 std::string prompt(const fs::path& root, const json& brief, const fs::path& hanim) {
     return std::format(
-        "You are making an animation without a GUI, with hanim's animation tool.\n\nWrite `animation.omui.json` in the current directory for this "
+        "You are making an animation without a GUI, with hanim's animation tool.\n\nWrite `animation.xdef.json` in the current directory for this "
         "brief, then verify it with the tool until it does what the brief asks. Use the tool's own answers (document.check, document.sample, "
         "document.render) as evidence; "
         "look at a rendered strip if you can. Do not ask questions; finish the work.\n\nThe tool is `{}` (document.check --file FILE, document.sample --file FILE --at T "
         "…, document.render --file FILE --out PREFIX --frames N; `subjects` and `describe` say the rest).\n\nTHE BRIEF ({}):\n{}\n\nHANIM'S SKILL:\n{}\n\nTHE DOCUMENT REFERENCE:\n{}\n\nAN EXAMPLE "
         "DOCUMENT:\n{}\n\nWhen done, reply with one line: done, or what you could not do and why.",
         os::fs::utf8(hanim), brief.value("id", ""), brief.value("text", ""), os::fs::read(root / "modules/projects/hanim/skill.omui.md").value_or(""),
-        os::fs::read(root / "modules/projects/hanim/studio/README.md").value_or(""), os::fs::read(root / "modules/projects/hanim/studio/examples/bounce.animation.omui.json").value_or(""));
+        os::fs::read(root / "modules/projects/hanim/studio/README.md").value_or(""), os::fs::read(root / "modules/projects/hanim/studio/examples/bounce.animation.xdef.json").value_or(""));
 }
 
 ordered_json trial(const fs::path& root, const json& brief, int number_of_trial, const fs::path& hanim, const Animate& options) {
@@ -365,7 +365,7 @@ ordered_json trial(const fs::path& root, const json& brief, int number_of_trial,
     if (options.agent == "claude" && done && !done->timed_out) std::ofstream(work / "answer.md", std::ios::binary) << done->out;
     std::ofstream(work / std::format("{}.log", options.agent), std::ios::binary) << log;
     const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - started).count();
-    const fs::path document = work / "animation.omui.json";
+    const fs::path document = work / "animation.xdef.json";
     std::string answer = fs::exists(work / "answer.md") ? os::fs::read(work / "answer.md").value_or("") : std::string{};
     while (!answer.empty() && std::isspace(static_cast<unsigned char>(answer.back()))) answer.pop_back();
     answer = answer.substr(0, 500);
@@ -391,9 +391,9 @@ ordered_json trial(const fs::path& root, const json& brief, int number_of_trial,
 }  // namespace
 
 int animate(const fs::path& root, const Animate& options) {
-    const auto briefs_document = json::parse(os::fs::read(root / "tools/eval/animation-briefs.omui.json").value_or(""), nullptr, false);
+    const auto briefs_document = json::parse(os::fs::read(root / "tools/eval/animation.briefs.xdef.json").value_or(""), nullptr, false);
     if (briefs_document.is_discarded()) {
-        std::cerr << "omui-devtools eval animate: tools/eval/animation-briefs.omui.json is not JSON\n";
+        std::cerr << "omui-devtools eval animate: tools/eval/animation.briefs.xdef.json is not JSON\n";
         return 2;
     }
     const auto built = run::build(root, {"-p", "hanim.studio"});
@@ -412,7 +412,7 @@ int animate(const fs::path& root, const Animate& options) {
         const std::string name = os::fs::utf8(options.grade.filename());
         for (const auto& brief : briefs_document.value("briefs", json::array()))
             if (name.starts_with(std::format("animate-{}-", brief.value("id", "")))) {
-                for (const auto& check : grade(Course(hanim, options.grade / "animation.omui.json"), brief.value("id", "")))
+                for (const auto& check : grade(Course(hanim, options.grade / "animation.xdef.json"), brief.value("id", "")))
                     std::cout << std::format("{} {}  {}\n", check.passed ? "ok  " : "FAIL", check.name, check.detail);
                 return 0;
             }
@@ -460,7 +460,7 @@ int animate(const fs::path& root, const Animate& options) {
         return 1;
     }
     if (!options.no_ledger) {
-        std::ofstream ledger(root / ".agents/docs/evaluation/animation.eval.omui.jsonl", std::ios::binary | std::ios::app);
+        std::ofstream ledger(root / ".agents/docs/evaluation/animation.eval.xdef.jsonl", std::ios::binary | std::ios::app);
         for (const auto& result : results) {
             ordered_json line{{"date", date}, {"commit", commit_id}, {"agent", options.agent}, {"agent_version", version.value_or("")}, {"model", model}};
             for (const auto& entry : result.items())

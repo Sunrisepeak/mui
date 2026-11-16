@@ -44,4 +44,4 @@ mcpplibs.mtest = "0.8.4"
 # The declared data kinds this package owns (mlibs.xdef registry, D-209): each kind and its major
 # version, and the define module a data module imports each from (none: only tools write it).
 [package.metadata.openmui.xdef]
-kinds = { report = 1, eval = 1, tasks = 1, compare = 1, budget = 1, features = 1, ledger = 1, metrics = 1, owners = 1, coldstart = 1, allow = 1 }
+kinds = { report = 1, eval = 1, tasks = 1, compare = 1, budget = 1, features = 1, ledger = 1, metrics = 1, owners = 1, coldstart = 1, allow = 1, log = 1, events = 1, sweep = 1, provenance = 1, claims = 1, platforms = 1, briefs = 1 }

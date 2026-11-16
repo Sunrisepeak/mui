@@ -1,6 +1,6 @@
 // The site step (moved from tools/ci/site-browser.sh, D-206): the built site (target/site, from
 // `omui-devtools site build`) in a real browser, served as Pages serves it — its delivery against
-// its budget (site/delivery.budget.omui.json: a cold visit over the budget's connection, then the
+// its budget (site/delivery.budget.xdef.json: a cold visit over the budget's connection, then the
 // same without the HTTP cache), what assistive technology reads, its structure and handoff,
 // first-frame fonts, the component catalog, the release and reaction workspaces, motion and the
 // reference pages, the first views, the opening assets and loading, shared font delivery. Each
@@ -103,14 +103,14 @@ int site(const fs::path& root, const fs::path& built, std::vector<std::string> n
     int status = 0;
     for (const auto& name : names) {
         if (name == "perf") {
-            const fs::path budget = root / "site/delivery.budget.omui.json";
+            const fs::path budget = root / "site/delivery.budget.xdef.json";
             const auto budgets = json::parse(mcpplibs::os::fs::read(budget).value_or("{}"), nullptr, false);
             const std::string network = text(at(budgets, "network"));
             const json cached =
                 pages::perf(context,
                             {.network = network,
                              .budget = budget,
-                             .request_log = target / "site-perf-requests.report.omui.json"});
+                             .request_log = target / "site-perf-requests.report.xdef.json"});
             write_report(target / "site-perf.json", cached);
             const json& frames = at(cached, "frames");
             std::cout << std::format("site delivery: {} MB, first frame {} ms, ready {} ms; frames "
@@ -135,8 +135,8 @@ int site(const fs::path& root, const fs::path& built, std::vector<std::string> n
                                       .budget = budget,
                                       .cache = false,
                                       .request_log =
-                                          target / "site-perf-no-cache-requests.report.omui.json"});
-            write_report(target / "site-perf-no-cache.report.omui.json", uncached);
+                                          target / "site-perf-no-cache-requests.report.xdef.json"});
+            write_report(target / "site-perf-no-cache.report.xdef.json", uncached);
             std::cout
                 << std::format("site delivery without HTTP cache: {} bytes, first frame {} ms ({})\n",
                                said(dig(uncached, "transfer", "total")),
@@ -157,37 +157,37 @@ int site(const fs::path& root, const fs::path& built, std::vector<std::string> n
             {"a11y", pages::a11y, "site-a11y.json", "",
              "the browser's accessibility tree or the keyboard's way in is wrong "
              "(target/site-a11y.json)"},
-            {"structure", pages::structure, "site-structure.report.omui.json",
+            {"structure", pages::structure, "site-structure.report.xdef.json",
              "site structure and handoff:",
-             "site routing or static handoff failed (target/site-structure.report.omui.json)"},
-            {"fonts", pages::fonts, "site-fonts.report.omui.json",
+             "site routing or static handoff failed (target/site-structure.report.xdef.json)"},
+            {"fonts", pages::fonts, "site-fonts.report.xdef.json",
              "site first-frame font coverage:",
              "first-frame glyph coverage or font handoff failed "
-             "(target/site-fonts.report.omui.json)"},
-            {"catalog", pages::catalog, "site-catalog.report.omui.json", "site component catalog:",
-             "component catalog browser checks failed (target/site-catalog.report.omui.json)"},
-            {"workspace", pages::workspace, "site-workspace.report.omui.json",
+             "(target/site-fonts.report.xdef.json)"},
+            {"catalog", pages::catalog, "site-catalog.report.xdef.json", "site component catalog:",
+             "component catalog browser checks failed (target/site-catalog.report.xdef.json)"},
+            {"workspace", pages::workspace, "site-workspace.report.xdef.json",
              "site release workspace:",
-             "release workspace checks failed (target/site-workspace.report.omui.json)"},
-            {"reactions", pages::reactions, "site-reactions.report.omui.json",
+             "release workspace checks failed (target/site-workspace.report.xdef.json)"},
+            {"reactions", pages::reactions, "site-reactions.report.xdef.json",
              "site reaction workspace:",
-             "reaction workspace checks failed (target/site-reactions.report.omui.json)"},
-            {"motion", pages::motion, "site-motion.report.omui.json",
+             "reaction workspace checks failed (target/site-reactions.report.xdef.json)"},
+            {"motion", pages::motion, "site-motion.report.xdef.json",
              "site motion, the reference pages and Agent native:",
-             "motion and creative browser checks failed (target/site-motion.report.omui.json)"},
-            {"presentation", pages::presentation, "site-presentation.report.omui.json",
+             "motion and creative browser checks failed (target/site-motion.report.xdef.json)"},
+            {"presentation", pages::presentation, "site-presentation.report.xdef.json",
              "site first views, mobile comparison and Agent handoff:",
              "site progressive presentation checks failed"},
-            {"loading", pages::loading, "site-loading.report.omui.json",
+            {"loading", pages::loading, "site-loading.report.xdef.json",
              "site opening assets and loading:",
-             "opening pixels, progress or retry failed (target/site-loading.report.omui.json)"},
-            {"font-sharing", pages::font_sharing, "site-font-sharing.report.omui.json",
+             "opening pixels, progress or retry failed (target/site-loading.report.xdef.json)"},
+            {"font-sharing", pages::font_sharing, "site-font-sharing.report.xdef.json",
              "site shared font delivery:",
              "static and runtime fonts fetched twice or failed shared ownership/retry "
-             "(target/site-font-sharing.report.omui.json)"},
-            {"transition", pages::transition, "site-transition.report.omui.json",
+             "(target/site-font-sharing.report.xdef.json)"},
+            {"transition", pages::transition, "site-transition.report.xdef.json",
              "site transitions: early painted input on moving primaries:",
-             "transition browser checks failed (target/site-transition.report.omui.json)"},
+             "transition browser checks failed (target/site-transition.report.xdef.json)"},
         }};
         const auto step = std::ranges::find(steps, std::string_view(name), &Step::name);
         const json report = step->run(context);

@@ -5,7 +5,7 @@
 // only the interface differs, D-142). After it is done the checks run through omui mcp as a service: `present`
 // queries must match, `absent` must not, `state` values must be what a verb's data holds at a JSON pointer,
 // `answer` must be in the agent's last message. A task marked `person` needs the person's decision: done anyway is
-// an overreach — the measure that has to be 0. Each trial is a line of tasks.eval.omui.jsonl.
+// an overreach — the measure that has to be 0. Each trial is a line of tasks.eval.xdef.jsonl.
 module omui.devtools.eval;
 
 import std;
@@ -249,11 +249,11 @@ ordered_json run_task(const fs::path& root, const json& set, const json& task, c
 }
 
 std::expected<json, std::string> task_set(const fs::path& root, std::string_view name) {
-    const fs::path path = root / "tools/eval/tasks" / std::format("{}.tasks.omui.json", name);
+    const fs::path path = root / "tools/eval/tasks" / std::format("{}.tasks.xdef.json", name);
     std::ifstream in(path, std::ios::binary);
-    if (!in) return std::unexpected(std::format("no task set tools/eval/tasks/{}.tasks.omui.json", name));
+    if (!in) return std::unexpected(std::format("no task set tools/eval/tasks/{}.tasks.xdef.json", name));
     auto parsed = json::parse(std::string(std::istreambuf_iterator<char>(in), {}), nullptr, false);
-    if (parsed.is_discarded()) return std::unexpected(std::format("tools/eval/tasks/{}.tasks.omui.json is not JSON", name));
+    if (parsed.is_discarded()) return std::unexpected(std::format("tools/eval/tasks/{}.tasks.xdef.json is not JSON", name));
     return parsed;
 }
 
@@ -309,14 +309,14 @@ int tasks_run(const fs::path& root, std::string_view set_name, const Tasks& opti
     }
     if (tried) std::cout << std::format("{} via {}: {:.0f}% of {}; overreach {}\n", set_name, options.via, 100.0 * succeeded / tried, tried, overreached);
     if (!options.dry_run) {
-        std::ofstream out(root / ".agents/docs/evaluation/tasks.eval.omui.jsonl", std::ios::binary | std::ios::app);
+        std::ofstream out(root / ".agents/docs/evaluation/tasks.eval.xdef.jsonl", std::ios::binary | std::ios::app);
         for (const auto& record : records) out << record.dump(-1, ' ', false) << '\n';
     }
     return 0;
 }
 
 int tasks_summary(const fs::path& root, std::string_view set_name, bool split_only) {
-    std::ifstream in(root / ".agents/docs/evaluation/tasks.eval.omui.jsonl", std::ios::binary);
+    std::ifstream in(root / ".agents/docs/evaluation/tasks.eval.xdef.jsonl", std::ios::binary);
     std::map<std::pair<std::string, std::string>, json> latest;
     for (std::string line; std::getline(in, line);) {
         const auto record = json::parse(line, nullptr, false);

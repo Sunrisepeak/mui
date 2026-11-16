@@ -258,8 +258,8 @@ jobs:
         with:
           name: incremental-${{ matrix.os }}-${{ matrix.toolchain }}-${{ matrix.profile }}
           path: |
-            target/incremental.report.omui.json
-            target/incremental-*.events.omui.jsonl
+            target/incremental.report.xdef.json
+            target/incremental-*.events.xdef.jsonl
             target/incremental-*.log
           if-no-files-found: ignore
 
@@ -419,7 +419,7 @@ jobs:
           path: target/hanim-play-consumer
           if-no-files-found: ignore
 
-      # The benchmarks are mtest's cases, their budgets (tests/bench/budgets.bench.omui.json) the cases' bounds
+      # The benchmarks are mtest's cases, their budgets (tests/bench/budgets.bench.xdef.json) the cases' bounds
       # (tests/bench/tests/budgets_test.cpp; M1 acceptance ⑤; the foundation plan's §6.13.1, T2.12 step 7): what
       # each measured is in the run's record, and a case over a budget fails.
       - name: Benchmarks against their budgets

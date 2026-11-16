@@ -3,19 +3,19 @@
 hanim's animation tool: animation as a document an Agent or a person writes, checked, sampled and rendered without a GUI by the `hanim` command.
 
 ```sh
-hanim document.check  --file examples/bounce.animation.omui.json                   # the plan: duration, tracks, markers — or every problem
-hanim document.sample --file examples/bounce.animation.omui.json --at 0.5 --at 2   # where each object is, its scale, rotation, fill and bounds
-hanim document.at     --file examples/bounce.animation.omui.json --at 1.9 --object star
+hanim document.check  --file examples/bounce.animation.xdef.json                   # the plan: duration, tracks, markers — or every problem
+hanim document.sample --file examples/bounce.animation.xdef.json --at 0.5 --at 2   # where each object is, its scale, rotation, fill and bounds
+hanim document.at     --file examples/bounce.animation.xdef.json --at 1.9 --object star
                                                                    # the steps that govern that moment: JSON pointers, timing, JSON
-hanim document.vary   --file examples/bounce.animation.omui.json --set /program/items/0/bounces --value 0 --value 4 --out /tmp/bounce
+hanim document.vary   --file examples/bounce.animation.xdef.json --set /program/items/0/bounces --value 0 --value 4 --out /tmp/bounce
                                                                    # each variant a row at the same moments: /tmp/bounce.variants.png
-hanim document.render --file examples/bounce.animation.omui.json --out /tmp/bounce --frames 16 --webp 30
-                                                                   # /tmp/bounce-000.png …, .strip.png, .webp, .report.omui.json
+hanim document.render --file examples/bounce.animation.xdef.json --out /tmp/bounce --frames 16 --webp 30
+                                                                   # /tmp/bounce-000.png …, .strip.png, .webp, .report.xdef.json
 ```
 
-Its operations are a catalog ([`studio.ops.omui.ts`](studio.ops.omui.ts), listed in [`src/catalog`](src/catalog)); how an Agent authors with it is [hanim's skill](../skill.omui.md). The command is the subject `document` behind the tool kernel's entries (mlibs.agent:host): every answer is records, a line each, the data first and the result last; exit 0 done, 1 the document or the work failed (its problems listed, with the ways out), 2 arguments that make no request. `hanim mcp` offers the same operations to an MCP client.
+Its operations are a catalog ([`studio.ops.xdef.ts`](studio.ops.xdef.ts), listed in [`src/catalog`](src/catalog)); how an Agent authors with it is [hanim's skill](../skill.omui.md). The command is the subject `document` behind the tool kernel's entries (mlibs.agent:host): every answer is records, a line each, the data first and the result last; exit 0 done, 1 the document or the work failed (its problems listed, with the ways out), 2 arguments that make no request. `hanim mcp` offers the same operations to an MCP client.
 
-## The document (`<name>.animation.omui.json`, version 1)
+## The document (`<name>.animation.xdef.json`, version 1)
 
 - `size` `[w, h]` and `background` `"#rrggbb"`: the stage.
 - `objects`: each an `id` (lowercase, digits, `-`, `_`), a `shape` — `{"rect": {"size": [w, h], "radius": r}}` (or `{"rect": [w, h]}`), `{"circle": r}`, `{"ellipse": [rx, ry]}`, `{"polygon": [[x, y], …]}`, `{"star": {"points": 5, "outer": r, "inner": r}}`, `{"path": "M0 30 C-42 6 … Z"}` (SVG path data, arcs included, several contours for holes), about its origin — a `fill` and/or a `stroke` (`{"color", "width"}`), where it stands (`at`), `rotation` (degrees), `scale` (a factor or `[x, y]`). `hidden`: drawn only while it moves (a morph's target).

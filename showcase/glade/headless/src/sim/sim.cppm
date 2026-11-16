@@ -9,7 +9,7 @@
 // Every body is a body of xengine.dynamics' rigid3 world and an instance of matter (rigid3::Objects); the air is a
 // field (xengine.field) with its wind; water poured is particles that take room (xengine.particles); all of it one
 // step (rigid3::Scene). Nothing here names what fire, water or wind do: the standard laws do, with Glade's own
-// materials (glade.matter.omui.ts: grass and bark, rows of properties). A verb is a quantity applied from outside
+// materials (glade.matter.xdef.ts: grass and bark, rows of properties). A verb is a quantity applied from outside
 // and kept as a cause. The state is a value — the rigid world held by `mlibs::simulation::Branching` — so a copy
 // is a branch: an agent tries a verb on one before doing it.
 //

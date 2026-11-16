@@ -1,6 +1,6 @@
 # omui.theme.default
 
-openmui's default theme as data: [`default.theme.omui.ts`](default.theme.omui.ts). It holds:
+openmui's default theme as data: [`default.theme.xdef.ts`](default.theme.xdef.ts). It holds:
 
 - **light**: calm slate surfaces with an indigo accent;
 - **dark**, which extends light;

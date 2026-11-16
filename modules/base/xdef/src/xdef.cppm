@@ -79,8 +79,23 @@ struct Problem {
     std::string file;  // relative to the root, `/`-separated
     std::string text;
 };
-// The container's rules over a tree's data files: a kind someone registers, and a committed snapshot that is
-// what its module evaluates to now. Build trees and version control are skipped.
+// The container's rules over a tree's data files: the container's suffix (not the earlier one), a kind someone
+// registers, and a committed snapshot that is what its module evaluates to now. Build trees, a test's fixtures
+// and another repository (a submodule) are skipped.
 [[nodiscard]] std::vector<Problem> check(const std::filesystem::path& root, const Registry& registry);
+
+// ── migration ──────────────────────────────────────────────────────────────
+
+// The earlier container's files moved to this one (D-208: a persisted name renamed comes with its migration):
+// every `<name>.<kind>.omui.<ts|json|jsonl>` of a registered kind renamed `.xdef.`, and every text under the
+// root that names such a file or suffix (`.xdef.ts`, `.xdef.json`, `.xdef.jsonl`) rewritten. Notes kept as
+// written: a Markdown file under one of `notes` (relative prefixes) is not edited. Build trees and version
+// control are skipped; with `write` false nothing changes.
+struct Migration {
+    std::vector<std::pair<std::string, std::string>> renamed;  // relative paths, from → to
+    std::vector<std::string> edited;                           // relative paths of the texts rewritten
+    std::size_t replacements = 0;
+};
+[[nodiscard]] Migration migrate(const std::filesystem::path& root, const Registry& registry, bool write, std::span<const std::string> notes = {});
 
 }  // namespace mlibs::xdef

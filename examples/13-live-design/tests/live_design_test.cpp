@@ -185,7 +185,7 @@ UTest cases{"example.live-design", [] {
 
         // The demonstration as a test, played again on a fresh start.
         (void)done("design.save_scenario", Value{}.set("name", "renewal"));
-        expect(std::filesystem::exists(dir / "tests" / "renewal.scenario.omui.json"));
+        expect(std::filesystem::exists(dir / "tests" / "renewal.scenario.xdef.json"));
         const Value replayed = done("design.replay", Value{}.set("name", "renewal"));
         expect(replayed.get("held")->as_int() == 2) << replayed.json();
 

@@ -17,7 +17,7 @@ namespace rigid3 = xengine::dynamics::rigid3;
 namespace {
 
 std::string pack_text() {
-    const auto file = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path() / "packs" / "acoustics.matter.omui.json";
+    const auto file = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path() / "packs" / "acoustics.matter.xdef.json";
     std::ifstream in(file, std::ios::binary);
     return {std::istreambuf_iterator<char>(in), {}};
 }
@@ -67,7 +67,7 @@ std::uint64_t bits(std::span<const float> samples) {
 
 UTest cases{"audio.bodies", [] {
     "a wooden crate and an iron one dropped the same way land with their own sounds; the same bits twice"_test = [] {
-        auto pack = matter::read_pack(pack_text(), "acoustics.matter.omui.json");
+        auto pack = matter::read_pack(pack_text(), "acoustics.matter.xdef.json");
         expect(fatal(pack.has_value()));
         auto program = matter::standard_with(std::array{*pack});
         expect(fatal(program.has_value())) << (program ? "" : program.error());

@@ -90,7 +90,7 @@ struct Fixture {
 };
 
 
-// group-drag.behavior.omui.ts, as it evaluates to.
+// group-drag.behavior.xdef.ts, as it evaluates to.
 constexpr std::string_view group_drag = R"json({"behavior": {"group-drag": {
   "on": "canvas",
   "initial": "idle",
@@ -491,7 +491,7 @@ UTest cases{"ui.canvas.kit", [] {
     };
 
     "declarative: a statechart from TOML drags a group by its label, commits, and adds its actions"_test = [] {
-        const auto loaded = world::load_behaviors(group_drag, "group-drag.behavior.omui.json");
+        const auto loaded = world::load_behaviors(group_drag, "group-drag.behavior.xdef.json");
         expect(loaded.has_value()) << (loaded ? std::string{} : loaded.error().front().text());
         expect(eq(loaded.value_or(std::vector<std::string>{}), std::vector<std::string>{"group-drag"}));
         expect(has(world::behaviors(), "group-drag")) << "registered by name";
@@ -544,7 +544,7 @@ UTest cases{"ui.canvas.kit", [] {
     };
 
     "declarative: a misspelt file is refused whole, each problem on its line with a hint"_test = [] {
-        const auto bad = world::load_behaviors(misspelt, "bad.behavior.omui.json");
+        const auto bad = world::load_behaviors(misspelt, "bad.behavior.xdef.json");
         expect(!bad.has_value()) << "refused";
         if (bad) return;
         const auto& ps = bad.error();
@@ -560,26 +560,26 @@ UTest cases{"ui.canvas.kit", [] {
         expect(mentions(ps, 8, "ends early")) << "a parse error";
         expect(mentions(ps, 10, "S-1")) << "an irreversible action without its answer";
         expect(!has(world::behaviors(), "bad")) << "nothing registered";
-        const auto broken = world::load_behaviors("{\"behavior\": {\"x\"", "broken.behavior.omui.json");
+        const auto broken = world::load_behaviors("{\"behavior\": {\"x\"", "broken.behavior.xdef.json");
         expect(!broken && broken.error().front().line == 1) << "malformed JSON: where";
-        const auto missing = world::load_behavior_file("/nonexistent/x.behavior.omui.json");
+        const auto missing = world::load_behavior_file("/nonexistent/x.behavior.xdef.json");
         expect(!missing.has_value()) << "a missing file";
         // From a file: the same as from text, the problems naming the file.
         const auto dir = std::filesystem::temp_directory_path() / std::format("omui-canvas-kit-{}", std::random_device{}());
         std::filesystem::create_directories(dir);
         {
-            std::ofstream(dir / "group-drag.behavior.omui.json", std::ios::binary) << group_drag;
-            std::ofstream(dir / "bad.behavior.omui.json", std::ios::binary) << misspelt;
+            std::ofstream(dir / "group-drag.behavior.xdef.json", std::ios::binary) << group_drag;
+            std::ofstream(dir / "bad.behavior.xdef.json", std::ios::binary) << misspelt;
         }
-        const auto good = world::load_behavior_file(dir / "group-drag.behavior.omui.json");
+        const auto good = world::load_behavior_file(dir / "group-drag.behavior.xdef.json");
         expect(good && good->size() == 1) << "a file loads";
-        const auto wrong = world::load_behavior_file(dir / "bad.behavior.omui.json");
-        expect(!wrong && wrong.error().front().file.ends_with("bad.behavior.omui.json") && wrong.error().front().line == 3) << "a file's problems name it";
+        const auto wrong = world::load_behavior_file(dir / "bad.behavior.xdef.json");
+        expect(!wrong && wrong.error().front().file.ends_with("bad.behavior.xdef.json") && wrong.error().front().line == 3) << "a file's problems name it";
         std::filesystem::remove_all(dir);
     };
 
     "conformance: every behaviour registered — canvas-kit's and a declarative one — passes the behaviour CTS"_test = [] {
-        expect(world::load_behaviors(group_drag, "group-drag.behavior.omui.json").has_value()) << "group-drag loads";
+        expect(world::load_behaviors(group_drag, "group-drag.behavior.xdef.json").has_value()) << "group-drag loads";
         std::vector<std::string> all;
         for (const std::string& name : world::behaviors()) all.push_back(name);
         // With arguments, as canvases name them.

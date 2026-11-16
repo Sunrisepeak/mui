@@ -1,9 +1,9 @@
 // hanim.timeline.tool — the timeline every editor shares (hanim.timeline) as an agent's subject, `timeline`: its
-// catalog's operations (timeline.ops.omui.ts) over a *.timeline.omui.json — checked, read at a time, edited, an
+// catalog's operations (timeline.ops.xdef.ts) over a *.timeline.xdef.json — checked, read at a time, edited, an
 // edit taken back. The `hanim-timeline` command is this subject behind the tool kernel's entries
 // (mlibs.agent:host): `hanim-timeline timeline.edit --file F --edit split --track 0 --clip 0 --at 15f`,
 // `hanim-timeline mcp`. Times are the file's: 90f, 1.5s, 250ms, 123fl. An edit's history is a sidecar beside the
-// file (.<file>.history.omui.jsonl, the last 64).
+// file (.<file>.history.xdef.jsonl, the last 64).
 export module hanim.timeline.tool;
 
 import std;

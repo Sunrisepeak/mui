@@ -12,7 +12,7 @@ struct State {
     omui::Signal<int> goal = omui::signal(10);
 };
 
-// The view, built in C++: the same tree as ui/tally.view.omui.json.
+// The view, built in C++: the same tree as ui/tally.view.xdef.json.
 [[nodiscard]] omui::View view(const State& s);
 
 // The document version, reloaded when its file changes (checked every

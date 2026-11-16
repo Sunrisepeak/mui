@@ -22,7 +22,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
 kind      = "site"
-contracts = ["contract/*.contract.omui.ts"]
+contracts = ["contract/*.contract.xdef.ts"]
 
 [targets.openmui-site]
 kind = "lib"
@@ -78,4 +78,4 @@ mlibs.math = { path = "../modules/base/math" }
 # The declared data kinds this package owns (mlibs.xdef registry, D-209): each kind and its major
 # version, and the define module a data module imports each from (none: only tools write it).
 [package.metadata.openmui.xdef]
-kinds = { mark = 1, sprite = 1, frames = 1 }
+kinds = { mark = 1, sprite = 1, frames = 1, assets = 1, frame = 1 }

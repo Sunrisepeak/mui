@@ -35,7 +35,7 @@ std::string utf8(const std::filesystem::path& path) {
     return {reinterpret_cast<const char*>(u.data()), u.size()};
 }
 std::filesystem::path history_of(const std::filesystem::path& file) {
-    return file.parent_path() / os::fs::from_utf8("." + utf8(file.filename()) + ".history.omui.jsonl");
+    return file.parent_path() / os::fs::from_utf8("." + utf8(file.filename()) + ".history.xdef.jsonl");
 }
 
 struct Opened {
@@ -202,11 +202,11 @@ void undo(Answer& answer, const std::filesystem::path& file) {
 }  // namespace
 
 mlibs::control::Guide Timelines::guide() const noexcept {
-    static constexpr std::array<std::string_view, 3> cut{R"({"op":"timeline.at","file":"short.timeline.omui.json","time":"1s"})",
-                                                         R"({"op":"timeline.edit","file":"short.timeline.omui.json","edit":"split","track":0,"clip":0,"at":"15f","dry_run":true})",
-                                                         R"({"op":"timeline.edit","file":"short.timeline.omui.json","edit":"split","track":0,"clip":0,"at":"15f"})"};
+    static constexpr std::array<std::string_view, 3> cut{R"({"op":"timeline.at","file":"short.timeline.xdef.json","time":"1s"})",
+                                                         R"({"op":"timeline.edit","file":"short.timeline.xdef.json","edit":"split","track":0,"clip":0,"at":"15f","dry_run":true})",
+                                                         R"({"op":"timeline.edit","file":"short.timeline.xdef.json","edit":"split","track":0,"clip":0,"at":"15f"})"};
     static constexpr std::array<mlibs::control::Task, 1> tasks{{{"cut-a-clip", "See what plays, try a split, then make it (timeline.undo takes it back)", cut}}};
-    return {"A timeline every editor shares (*.timeline.omui.json; xdef snapshot makes one from its .ts): checked, read at a time, edited, an edit taken back.", tasks};
+    return {"A timeline every editor shares (*.timeline.xdef.json; xdef snapshot makes one from its .ts): checked, read at a time, edited, an edit taken back.", tasks};
 }
 
 void Timelines::operate(std::string_view operation, const Request& request, Answer& answer) {

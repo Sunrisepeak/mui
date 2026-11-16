@@ -1,4 +1,4 @@
-// omui-devtools platforms: the user documents' platform pages are the table's (docs/platforms.omui.json), in
+// omui-devtools platforms: the user documents' platform pages are the table's (docs/release.platforms.xdef.json), in
 // English and Chinese; a status outside the four is refused.
 import std;
 import mcpplibs.mtest;
@@ -20,7 +20,7 @@ std::string read(const std::filesystem::path& path) {
 
 UTest cases{"devtools.platforms", [] {
     "the committed pages are the table's, in both languages"_test = [] {
-        const std::string table = read(root() / "docs" / "platforms.omui.json");
+        const std::string table = read(root() / "docs" / "release.platforms.xdef.json");
         for (const std::string_view language : {"en", "zh"}) {
             const auto written = platforms::page(table, language);
             expect(fatal(written.has_value())) << (written ? "" : written.error());

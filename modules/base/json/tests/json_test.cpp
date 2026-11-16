@@ -40,11 +40,11 @@ UTest cases{"json", [] {
 
     "problems at their line and column; an absent member at its object"_test = [] {
         const std::string text = "{\n  \"music\": {\n    \"tempo\": \"fast\"\n  }\n}\n";
-        const auto doc = json::Document::parse(text, "piece.music.omui.json");
+        const auto doc = json::Document::parse(text, "piece.music.xdef.json");
         if (!doc) return;
         const auto tempo = doc->root()["music"]["tempo"];
         const auto problem = doc->problem(tempo, "the tempo is a number", "tempo: 96");
-        expect(eq(problem.text(), std::string("piece.music.omui.json:3:14: /music/tempo: the tempo is a number (tempo: 96)")));
+        expect(eq(problem.text(), std::string("piece.music.xdef.json:3:14: /music/tempo: the tempo is a number (tempo: 96)")));
         const auto missing = doc->problem(doc->root()["music"]["key"], "no key");
         expect(missing.line == 2 && missing.column == 12 && missing.at == "/music/key") << missing.text();
         expect(json::locate(text, "/music/tempo").has_value() && !json::locate(text, "/nope").has_value());

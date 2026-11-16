@@ -15,7 +15,7 @@ export module omui.showcase.quay.sound;
 import std;
 export import omui.showcase.quay.sim;
 export import xengine.audio.space;
-export import :quay_sound;  // the sounds' data (sounds/quay.sound.omui.ts, embedded)
+export import :quay_sound;  // the sounds' data (sounds/quay.sound.xdef.ts, embedded)
 
 export namespace quay {
 

@@ -17,7 +17,7 @@ The gate parses eight real log records and the executable's result.
 ```sh
 omui-devtools consumer hanim-core
 # Retain the fresh project and write evidence outside the repository:
-omui-devtools consumer hanim-core --keep-project --output /tmp/hanim-consumer.report.omui.json
+omui-devtools consumer hanim-core --keep-project --output /tmp/hanim-consumer.report.xdef.json
 ```
 
 The `MCPP` environment variable selects the executable. It

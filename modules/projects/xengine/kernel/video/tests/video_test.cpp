@@ -237,13 +237,13 @@ UTest cases{"xengine.video", [] {
   "doc": "A test.",
   "width": 320, "height": 180, "fps": "30000/1001", "seconds": 3,
   "from": {"png": "shots/{:05}.png"},
-  "audio": {"music": "theme.music.omui.ts", "intensity": [{"at": 0, "value": 0.3}, {"at": 2, "value": 1}], "sounds": "ui.sound.omui.ts", "recordings": {"voice": "voice.wav"}, "cues": [
+  "audio": {"music": "theme.music.xdef.ts", "intensity": [{"at": 0, "value": 0.3}, {"at": 2, "value": 1}], "sounds": "ui.sound.xdef.ts", "recordings": {"voice": "voice.wav"}, "cues": [
     {"sound": "click", "frame": 30},
     {"sound": "whoosh", "at": 1.25, "gain": 0.8, "pan": -0.5}
   ], "beeps": true}
 }}
 )";
-        const auto d = video::read_description(text, "t.video.omui.json");
+        const auto d = video::read_description(text, "t.video.xdef.json");
         expect(d.has_value());
         if (!d) {
             for (const auto& p : d.error()) std::println("    {}", p.text());
@@ -256,14 +256,14 @@ UTest cases{"xengine.video", [] {
         const auto back = video::read_description(written, "t");
         expect(back.has_value() && *back == *d);
 
-        const auto bad = video::read_description("{\"video\": {\n  \"widht\": 3,\n  \"fps\": 0,\n  \"seconds\": 1,\n  \"from\": {\"card\": \"synk\"},\n  \"audio\": {\"cues\": [{\"sound\": \"x\", \"at\": 1, \"frame\": 2}]}\n}}", "bad.video.omui.json");
+        const auto bad = video::read_description("{\"video\": {\n  \"widht\": 3,\n  \"fps\": 0,\n  \"seconds\": 1,\n  \"from\": {\"card\": \"synk\"},\n  \"audio\": {\"cues\": [{\"sound\": \"x\", \"at\": 1, \"frame\": 2}]}\n}}", "bad.video.xdef.json");
         expect(!bad.has_value());
         if (bad) return;
         std::vector<std::string> texts;
         for (const auto& p : bad.error()) texts.push_back(p.text());
         auto has = [&](std::string_view s) { return std::ranges::any_of(texts, [&](const std::string& t) { return t.find(s) != std::string::npos; }); };
-        expect(has("bad.video.omui.json:2:12: /video/widht: a video description has no key `widht` (did you mean `width`?)")) << std::format("{}", texts);
-        expect(has("bad.video.omui.json:3:10: /video/fps: `fps`")) << std::format("{}", texts);
+        expect(has("bad.video.xdef.json:2:12: /video/widht: a video description has no key `widht` (did you mean `width`?)")) << std::format("{}", texts);
+        expect(has("bad.video.xdef.json:3:10: /video/fps: `fps`")) << std::format("{}", texts);
         expect(has("no card `synk` (did you mean `sync`?)")) << std::format("{}", texts);
         expect(has("a cue has `at` or `frame`, not both")) << std::format("{}", texts);
         expect(!video::read_description("{\"video\": {\n", "x").has_value());
@@ -271,10 +271,10 @@ UTest cases{"xengine.video", [] {
 
     "a sound track: each cue on its frame's first sample, through the mixer; the bits pinned"_test = [] {
         const auto dir = scratch_dir("video-soundtrack");
-        std::ofstream(dir / "ui.sound.omui.json") << sounds_file;
+        std::ofstream(dir / "ui.sound.xdef.json") << sounds_file;
         const auto d = video::read_description(R"({"video": {
   "width": 64, "height": 36, "fps": 30, "seconds": 2,
-  "audio": {"sounds": "ui.sound.omui.json", "cues": [{"sound": "click", "frame": 30}, {"sound": "click", "at": 0.5, "pan": -1}]}
+  "audio": {"sounds": "ui.sound.xdef.json", "cues": [{"sound": "click", "frame": 30}, {"sound": "click", "at": 0.5, "pan": -1}]}
 }})",
                                                "t");
         expect(d.has_value());
@@ -299,7 +299,7 @@ UTest cases{"xengine.video", [] {
         // Unknown sounds and missing files are problems.
         auto no = *d;
         no.cues.push_back({.sound = "boom"});
-        no.music = "missing.music.omui.json";
+        no.music = "missing.music.xdef.json";
         const auto bad = video::soundtrack(no, dir);
         expect(!bad.has_value() && bad.error().size() == 2);
         std::println("    soundtrack {}", hex(xengine::audio::hash(*track)));

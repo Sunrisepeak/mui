@@ -2,7 +2,7 @@
 // ratio and levels, a sample at both text sizes, the pair as each
 // colour-vision deficiency shows it, and the nearest colour that passes.
 // The colour science is the application's native module (native/
-// contrast.native.omui.ts, C++); this file is all the interface.
+// contrast.native.xdef.ts, C++); this file is all the interface.
 import { signal, fmt, select, eq, ne, column, row, box, text, textBox, when, mount, OmuiError } from "openmui";
 import type { Operand } from "openmui";
 import { contrast } from "openmui:native/contrast";

@@ -11,11 +11,11 @@ int main() {
     struct Set {
         std::string_view dir, suffix, tag;
     };
-    constexpr std::array<Set, 8> sets{{{".", ".timeline.omui.ts", "timeline"},
-                                        {".", ".subtitles.omui.ts", "subtitles"},
-                                        {".", ".style.omui.ts", "style"},
-                                        {"music", ".music.omui.ts", "music"},
-                                        {"sounds", ".sound.omui.ts", "sound"},
+    constexpr std::array<Set, 8> sets{{{".", ".timeline.xdef.ts", "timeline"},
+                                        {".", ".subtitles.xdef.ts", "subtitles"},
+                                        {".", ".style.xdef.ts", "style"},
+                                        {"music", ".music.xdef.ts", "music"},
+                                        {"sounds", ".sound.xdef.ts", "sound"},
                                         {"script", ".md", "page"},
                                         {"code", ".ts", "ts"},
                                         {"code", ".cpp", "cpp"}}};

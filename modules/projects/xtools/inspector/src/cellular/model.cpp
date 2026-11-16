@@ -300,7 +300,7 @@ VerbResult Session::perform(std::string_view op,const Value& args) {
     ensure();auto& d=*impl_;
     const auto fail=[&](std::string why)->VerbResult {return std::unexpected(std::move(why));};
     if (op=="describe") {
-        return Value{}.set("format","*.cellular.omui.json").set("version",1).set("max_values",max_values)
+        return Value{}.set("format","*.cellular.xdef.json").set("version",1).set("max_values",max_values)
             .set("history_frames",240).set("operations",[] {
                 std::string names;
                 for (const auto& entry:catalog) names+=std::format("{}{}",names.empty()?"":" ",entry.operation.name.substr(std::string_view("cellular.").size()));

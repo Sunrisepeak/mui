@@ -344,7 +344,7 @@ UTest cases{"dynamics.emergence3d", [] {
     };
 
     "12: alcohol, two rows of properties and no law, is a liquid that burns: it comes up through water, boils on hot stones, its vapour rises and burns"_test = [] {
-        auto definition = matter::read(matter::standard_snapshot, "standard.matter.omui.json");
+        auto definition = matter::read(matter::standard_snapshot, "standard.matter.xdef.json");
         expect(fatal(definition.has_value()));
         using P = matter::Property;
         const std::size_t laws = definition->laws.size();

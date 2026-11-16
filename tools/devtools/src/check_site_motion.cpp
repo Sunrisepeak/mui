@@ -1919,7 +1919,7 @@ json transition(const Context& context) {
         cdp::write_base64(context.root / directory / "browser.png",
                           text(dig(screenshot, "result", "data")));
         record["screenshot"] = directory + "/browser.png";
-        record["trace"] = directory + "/frames.motion.omui.json";
+        record["trace"] = directory + "/frames.motion.xdef.json";
     };
     std::unique_ptr<cdp::Browser> browser;
     const auto run_phase = [&](json& scenario, const Phase& spec) {
@@ -2196,7 +2196,7 @@ json transition(const Context& context) {
         browser->close();
     (*server)->close();
     report["ok"] = script.all_ok();
-    write_text(output / "report.motion.omui.json", cdp::pretty(report) + "\n");
+    write_text(output / "report.motion.xdef.json", cdp::pretty(report) + "\n");
     return report;
 }
 

@@ -11,7 +11,7 @@ hanim is the one owner of general animation (AGENTS.md §2.3, D-93), so skeletal
 
 ## Agent surface
 
-A crowd of characters is a `Subject` of the agent kernel ([mlibs.agent](../../../base/agent)), module `hanim.skeleton.agent` — the package's feature `agent`, so a game that only plays characters links no agent kernel. Its operations are a catalog, [skeleton.ops.omui.ts](skeleton.ops.omui.ts) (the table `src/agent/catalog.cppm` and the listings `src/agent/skeleton.ops.json`, `.md` are `ops-gen`'s), with three guided tasks; how to use them, in order, is [skill.omui.md](skill.omui.md).
+A crowd of characters is a `Subject` of the agent kernel ([mlibs.agent](../../../base/agent)), module `hanim.skeleton.agent` — the package's feature `agent`, so a game that only plays characters links no agent kernel. Its operations are a catalog, [skeleton.ops.xdef.ts](skeleton.ops.xdef.ts) (the table `src/agent/catalog.cppm` and the listings `src/agent/skeleton.ops.json`, `.md` are `ops-gen`'s), with three guided tasks; how to use them, in order, is [skill.omui.md](skill.omui.md).
 
 | | |
 |---|---|

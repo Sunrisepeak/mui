@@ -9,7 +9,7 @@
 //     property (burned, against its fuel) — and moves the colour toward one of its own, perhaps as light.
 //     Like a law, a state never names a material: a new one is charred, wet, frosted and aglow like the rest.
 //
-//     // world.appearance.omui.ts
+//     // world.appearance.xdef.ts
 //     export default defineAppearance({
 //       phases:    { granular: { color: "#b9a377", grain: 0.16 }, liquid: { color: "#3b7fd9c8" } },
 //       materials: { wood: { color: "#8a5a2b", grain: 0.12 } },
@@ -19,7 +19,7 @@
 //       ],
 //     });
 //
-//     auto look = matter::look_document(program, text, "world.appearance.omui.json");   // or standard_look(program)
+//     auto look = matter::look_document(program, text, "world.appearance.xdef.json");   // or standard_look(program)
 //
 // A Look is numbers — a colour a material, each state's channel, range and colour as the channel is stored —
 // and knows no renderer. `shade()` gives it as `mlibs.math`'s colour of a state, the one arithmetic every
@@ -115,11 +115,11 @@ private:
 };
 
 // An appearance from its JSON snapshot ({"appearance": {phases?, materials?, states?, nothing?}}: what a
-// *.appearance.omui.ts data module evaluates to). Problems by pointer.
+// *.appearance.xdef.ts data module evaluates to). Problems by pointer.
 [[nodiscard]] std::expected<Appearance, std::vector<mlibs::json::Problem>> read_appearance(std::string_view text, std::string_view file);
 // Read and prepared against a program; a problem of preparing is placed in the text like one of reading.
 [[nodiscard]] std::expected<Look, std::vector<mlibs::json::Problem>> look_document(const Program& program, std::string_view text, std::string_view file);
-// The standard appearance (standard.appearance.omui.ts: the standard materials' colours, and the states
+// The standard appearance (standard.appearance.xdef.ts: the standard materials' colours, and the states
 // every world shares), prepared against a program — the standard one or any on the standard channels.
 [[nodiscard]] std::expected<Look, std::vector<mlibs::json::Problem>> standard_look(const Program& program);
 

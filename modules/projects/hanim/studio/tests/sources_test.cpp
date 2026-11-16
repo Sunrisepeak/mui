@@ -14,7 +14,7 @@ namespace {
 
 std::filesystem::path here() { return std::filesystem::path(std::source_location::current().file_name()).parent_path(); }
 
-std::string bounce() { return mcpplibs::os::fs::read(here().parent_path() / "examples" / "bounce.animation.omui.json").value_or(""); }
+std::string bounce() { return mcpplibs::os::fs::read(here().parent_path() / "examples" / "bounce.animation.xdef.json").value_or(""); }
 
 // A directory of its own with the example in it, the same first state each time.
 std::unique_ptr<mlibs::agent::Sources> made() {
@@ -23,7 +23,7 @@ std::unique_ptr<mlibs::agent::Sources> made() {
     std::error_code error;
     std::filesystem::remove_all(directory, error);
     std::filesystem::create_directories(directory, error);
-    (void)mcpplibs::os::fs::write_atomic(directory / "bounce.animation.omui.json", bounce());
+    (void)mcpplibs::os::fs::write_atomic(directory / "bounce.animation.xdef.json", bounce());
     return std::make_unique<hanim::studio::DocumentSources>(directory);
 }
 
@@ -38,19 +38,19 @@ std::string slower() {
 
 static UTest cases{"hanim.studio.sources", [] {
     contract::declare_sources({.make = made,
-                               .change = {{"bounce.animation.omui.json", slower()}},
-                               .refused = {{"bounce.animation.omui.json", R"({"version": 1, "objects": [{"id": "ball", "shape": {"circle": "wide"}}]})"}}},
+                               .change = {{"bounce.animation.xdef.json", slower()}},
+                               .refused = {{"bounce.animation.xdef.json", R"({"version": 1, "objects": [{"id": "ball", "shape": {"circle": "wide"}}]})"}}},
                               {.subject = "hanim.studio.sources"});
 
     "a new document is written, one no longer among them removed; one that does not read names its place"_test = [] {
         auto sources = made();
         auto texts = sources->texts();
         expect(eq(texts.size(), std::size_t{1}));
-        texts["drop.animation.omui.json"] = bounce();
-        texts.erase("bounce.animation.omui.json");
+        texts["drop.animation.xdef.json"] = bounce();
+        texts.erase("bounce.animation.xdef.json");
         const auto applied = sources->apply(texts, mlibs::agent::Sources::Reason::edit);
-        expect(applied && applied->contains("drop.animation.omui.json") && applied->contains(R"("removed":["bounce.animation.omui.json"])")) << (applied ? *applied : applied.error());
-        expect(sources->texts().size() == 1u && sources->texts().contains("drop.animation.omui.json"));
+        expect(applied && applied->contains("drop.animation.xdef.json") && applied->contains(R"("removed":["bounce.animation.xdef.json"])")) << (applied ? *applied : applied.error());
+        expect(sources->texts().size() == 1u && sources->texts().contains("drop.animation.xdef.json"));
         const auto stray = sources->apply({{"notes.txt", "hello"}}, mlibs::agent::Sources::Reason::edit);
         expect(!stray && stray.error().contains("no animation document")) << "only the directory's animation documents";
     };

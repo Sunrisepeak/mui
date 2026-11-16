@@ -19,7 +19,7 @@ int main(int argc, char** argv) {
     using mcpplibs::cmdline::App, mcpplibs::cmdline::Arg, mcpplibs::cmdline::Option;
     const auto app = App("ops-gen")
                          .description("An operation catalog to its C++ table, its tools' listing (JSON) and its reference (Markdown)")
-                         .arg(Arg("file").required().help("<product>.ops.omui.ts"))
+                         .arg(Arg("file").required().help("<product>.ops.xdef.ts"))
                          .option(Option("out").takes_value().value_name("DIR").help("where the outputs go (default: where the catalog says, beside it)"))
                          .option(Option("check").help("write nothing; exit 1 when an output differs from what is on disk"));
     auto parsed = app.parse(argc, argv);

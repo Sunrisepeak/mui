@@ -18,7 +18,7 @@ export namespace omui::agent {
 
 // A catalog's operation as the application's verb that implements it (its
 // name, summary, effect, arguments): the player registers design.* so, from
-// design.ops.omui.ts.
+// design.ops.xdef.ts.
 [[nodiscard]] VerbDesc verb_of(const mlibs::control::CatalogEntry& entry);
 
 }  // namespace omui::agent

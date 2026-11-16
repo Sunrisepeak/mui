@@ -67,7 +67,7 @@ complete UI adapters are separate implementation work.
 
 ```sh
 MCPP_JOBS=2 omui-devtools consumer hanim-api \
-  --output /tmp/hanim-public-authoring.report.omui.json --keep-project
+  --output /tmp/hanim-public-authoring.report.xdef.json --keep-project
 ```
 
 The runner creates a fresh external mcpp workspace, resolves the actual public
@@ -96,21 +96,21 @@ compiled source hashes and lock hashes. It does not establish GPU performance,
 all-platform support, all effect domains or the complete public catalog.
 The CI workflow runs this gate; local passing results need not wait for CI.
 
-[The original 76-assertion report](2026-11-05.report.omui.json) belongs to its
+[The original 76-assertion report](2026-11-05.report.xdef.json) belongs to its
 recorded historical commit and consumer-local prototype. It is retained as
 history and is not evidence for the current public API. Current execution
-results are recorded separately in the [S1 public API report](2026-11-05-public.report.omui.json)
+results are recorded separately in the [S1 public API report](2026-11-05-public.report.xdef.json)
 with their own source hashes: dev/release each pass 84 assertions, related suites
 each pass 40 cases, and the Wasm umbrella executes 3 cases. The same report
 includes the independent CPU renderer consumer's results and explicit limits.
 
-[The S2 point-path checkpoint](2026-11-05-path.report.omui.json) records the
+[The S2 point-path checkpoint](2026-11-05-path.report.xdef.json) records the
 subsequent typed process effects: dev/release each pass 94 external assertions
 and 178 related native cases, 68 core/umbrella cases execute under the Wasm
 fixture profile, and each profile exports 9 CPU pixel cases. General channels,
 group scopes and interactive website integration remain outside this checkpoint.
 
-[The subsequent S2 scope checkpoint](2026-11-05-scopes.report.omui.json) records
+[The subsequent S2 scope checkpoint](2026-11-05-scopes.report.xdef.json) records
 explicit nested image scopes, atomic program frames and the optional shared
 vector renderer: native dev/release each pass 63 cases and 100 independent
 consumer assertions; Wasm executes 62 cases (one native threading case excluded).

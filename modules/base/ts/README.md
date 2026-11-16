@@ -18,7 +18,7 @@ It is the tool kernel's (stage 0, D-205): the generators, the lint, the runtime 
 ## Data modules (`:data`)
 
 ```ts
-// caption_button.contract.omui.ts
+// caption_button.contract.xdef.ts
 import { defineContract } from "openmui/define";
 import { enumOf } from "./shared";
 

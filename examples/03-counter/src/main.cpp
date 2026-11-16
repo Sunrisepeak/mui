@@ -1,5 +1,5 @@
 // Example 03: a tally counter — `tally` (the C++ view) or
-// `tally --doc ui/tally.view.omui.json` (the document, reloaded as you save
+// `tally --doc ui/tally.view.xdef.json` (the document, reloaded as you save
 // it); the rest of the line is openmui's (--dark, --headless --png out.png,
 // --serve …).
 import std;

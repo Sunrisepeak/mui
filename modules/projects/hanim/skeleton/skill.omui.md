@@ -1,6 +1,6 @@
 # skeleton — skill
 
-How an Agent examines and directs skeletal characters (`hanim.skeleton.agent`) with no window: a rig (a skeleton and its clips), characters whose state machines choose what plays, layers on top, joints in the world. The operations, their parameters and effects are in [skeleton.ops.omui.ts](skeleton.ops.omui.ts) (the subject, asked to describe itself at its endpoint, answers the same); this is the order to use them in.
+How an Agent examines and directs skeletal characters (`hanim.skeleton.agent`) with no window: a rig (a skeleton and its clips), characters whose state machines choose what plays, layers on top, joints in the world. The operations, their parameters and effects are in [skeleton.ops.xdef.ts](skeleton.ops.xdef.ts) (the subject, asked to describe itself at its endpoint, answers the same); this is the order to use them in.
 
 ## Before
 

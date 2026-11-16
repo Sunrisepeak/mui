@@ -1,4 +1,4 @@
-// hanim.studio's subject `document`: the studio's operations (studio.ops.omui.ts) answered from a document
+// hanim.studio's subject `document`: the studio's operations (studio.ops.xdef.ts) answered from a document
 // read from a file — what the `hanim` command runs through the tool kernel's entries (mlibs.agent:host).
 module hanim.studio;
 
@@ -128,7 +128,7 @@ void vary(Answer& answer, const std::string& file, const std::string& text, cons
         const auto& variant = (*variants)[row];
         Json one{{"row", row}, {"value", variant.value.empty() ? Json(nullptr) : Json::parse(variant.value)}};
         if (row > 0) {
-            const std::string name = std::format("{}-v{}.animation.omui.json", out, row);
+            const std::string name = std::format("{}-v{}.animation.xdef.json", out, row);
             if (!written(answer, name, variant.text)) return;
             one["file"] = name;
         } else {
@@ -161,7 +161,7 @@ void vary(Answer& answer, const std::string& file, const std::string& text, cons
     if (!png) return failed(answer, {{"", "PNG encoding failed: " + png.error()}});
     if (!written(answer, sheet_name, std::string_view(reinterpret_cast<const char*>(png->data()), png->size()))) return;
     Json report{{"kind", "hanim.variants"}, {"version", 1}, {"ok", true}, {"file", file}, {"set", set}, {"moments", std::move(moments)}, {"sheet", sheet_name}, {"variants", std::move(list)}};
-    const std::string report_name = out + ".variants.omui.json";
+    const std::string report_name = out + ".variants.xdef.json";
     if (!written(answer, report_name, report.dump(2) + "\n")) return;
     report["report"] = report_name;
     answer.data(report.dump());
@@ -232,7 +232,7 @@ void render(Answer& answer, const std::string& file, Studio& opened, const Docum
     }
     Json report{{"kind", "hanim.render"}, {"version", 1}, {"ok", true}, {"file", file}, {"plan", plan(opened)},
                 {"renderer", "cpu"}, {"frames", std::move(list)}, {"outputs", std::move(outputs)}, {"operations", operations_of(opened)}};
-    const std::string report_name = out + ".report.omui.json";
+    const std::string report_name = out + ".report.xdef.json";
     if (!written(answer, report_name, report.dump(2) + "\n")) return;
     report["report"] = report_name;
     report.erase("operations");
@@ -242,10 +242,10 @@ void render(Answer& answer, const std::string& file, Studio& opened, const Docum
 }  // namespace
 
 mlibs::control::Guide Documents::guide() const noexcept {
-    static constexpr std::array<std::string_view, 2> look{R"({"op":"document.check","file":"studio/examples/01-rise.animation.omui.json"})",
-                                                          R"({"op":"document.render","file":"studio/examples/01-rise.animation.omui.json","out":"rise","frames":5})"};
+    static constexpr std::array<std::string_view, 2> look{R"({"op":"document.check","file":"studio/examples/01-rise.animation.xdef.json"})",
+                                                          R"({"op":"document.render","file":"studio/examples/01-rise.animation.xdef.json","out":"rise","frames":5})"};
     static constexpr std::array<mlibs::control::Task, 1> tasks{{{"check-and-look", "Check a document, then look at five of its frames", look}}};
-    return {"hanim animation documents (<name>.animation.omui.json), checked, read at moments, varied and rendered without a GUI.", tasks};
+    return {"hanim animation documents (<name>.animation.xdef.json), checked, read at moments, varied and rendered without a GUI.", tasks};
 }
 
 void Documents::operate(std::string_view operation, const Request& request, Answer& answer) {

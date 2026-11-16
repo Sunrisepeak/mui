@@ -5,7 +5,7 @@
 // --turns has the match played by turns of N frames (agents by
 // correspondence: the stage's `turn` action). Keys: player 1 WASD and U I O (punches) J K L (kicks); player 2
 // the arrows and Insert Home PageUp (punches) Delete End PageDown (kicks). Gamepads: the
-// first two connected, beside the keyboard (controls/pad.controls.omui.json).
+// first two connected, beside the keyboard (controls/pad.controls.xdef.json).
 import std;
 import mcpplibs.cmdline;
 import omui;

@@ -7,7 +7,7 @@
 #   src/picture   the harbour at night from the watchkeeper's eye, drawn from the state by xrender (the mesh pass and
 #                 particles on a device), the wardens skinned (hanim.skeleton); it reads the state, changes nothing.
 #   src/sound     the world's events as sounds in a place, at the watchkeeper's ears, through the containers' steel;
-#                 its sounds (sounds/*.sound.omui.ts) carried in the program (build.mcpp).
+#                 its sounds (sounds/*.sound.xdef.ts) carried in the program (build.mcpp).
 # Each keeps its module (import omui.showcase.quay.sim; …). Everything here builds for the Web; the window is
 # showcase/quay/window, quay-play (the signature shot on this machine's device) showcase/quay/play (D-99).
 [package]

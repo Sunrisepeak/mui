@@ -133,8 +133,8 @@ UTest cases{"matter.lab", [] {
         expect(here->field().state_hash() != field_before) << "the definition is another: the cells' material numbers are too";
         expect(count(*here, "wood") + count(*here, "ash") == 8) << "the hearth as it was: every piece wood or ash";
         expect(std::filesystem::is_regular_file(here->directory() / "materials" / "coal.json"));
-        expect(read_file(here->directory() / "world.matter.omui.json").contains("\"coal\"")) << "what a world ships: the snapshot beside the sources";
-        expect(matter::prepare_document(read_file(here->directory() / "world.matter.omui.json"), "world.matter.omui.json").has_value());
+        expect(read_file(here->directory() / "world.matter.xdef.json").contains("\"coal\"")) << "what a world ships: the snapshot beside the sources";
+        expect(matter::prepare_document(read_file(here->directory() / "world.matter.xdef.json"), "world.matter.xdef.json").has_value());
 
         // Cold, it lies there; lit, it burns by `burns`, the law wood burns by, and is ash.
         told(session, R"({"op":"matter.place","material":"coal","region":[13,10,8,1]})");

@@ -1,4 +1,4 @@
-// Reading an effect's description: the JSON a `*.effect.omui.ts` evaluates
+// Reading an effect's description: the JSON a `*.effect.xdef.ts` evaluates
 // to (D-139), every mistake at its JSON pointer, line and column.
 module xrender.effect.api;
 

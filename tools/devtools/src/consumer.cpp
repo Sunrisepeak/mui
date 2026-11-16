@@ -560,7 +560,7 @@ Outcome hanim_play(Probe& probe, const fs::path& openas) {
             if (!size || size->first != result["region"]["width"].get<std::uint32_t>() || size->second != result["region"]["height"].get<std::uint32_t>())
                 return std::unexpected("the actual PNG's header disagrees with the region's provenance");
             fs::path sidecar = png;
-            sidecar += ".provenance.omui.json";
+            sidecar += ".provenance.xdef.json";
             if (!same_json(json::parse(mcpplibs::os::fs::read(sidecar).value_or(""), nullptr, false), result)) return std::unexpected("the sidecar provenance differs from standard output");
             results.push_back(result);
         }
@@ -1152,7 +1152,7 @@ std::set<std::string> ninja_outputs(std::string_view text) {
 int probe(const fs::path& root, std::string_view name, const Options& options) {
     const auto output_of = [&](std::string_view fallback) { return options.output.empty() ? root / fallback : options.output; };
     if (name == "hanim-core") {
-        Probe probe(root, output_of("target/hanim-core-consumer/report.omui.json"), "hanim-public-core-consumer-");
+        Probe probe(root, output_of("target/hanim-core-consumer/report.xdef.json"), "hanim-public-core-consumer-");
         probe.report = {{"format", "hanim.independent-core-consumer@0.1"}, {"ok", false}, {"project", text_of(probe.project)}, {"commands", json::array()},
                         {"runs", json::array()}, {"fixture_sha256", digest(probe.repo / "tools/ci/hanim-core-consumer/src/main.cpp")},
                         {"source_lock_sha256_before", probe.lock_before},
@@ -1161,7 +1161,7 @@ int probe(const fs::path& root, std::string_view name, const Options& options) {
         return probe.finish(hanim_core(probe), options.keep_project, "source_lock_sha256_after", {{"profiles", 2}});
     }
     if (name == "hanim-api") {
-        Probe probe(root, output_of("target/hanim-public-authoring/report.omui.json"), "hanim-api-probe-");
+        Probe probe(root, output_of("target/hanim-public-authoring/report.xdef.json"), "hanim-api-probe-");
         const fs::path fixture = probe.repo / "tools/ci/hanim-api-probe";
         json hashes{{"mcpp.toml.in", digest(fixture / "mcpp.toml.in")}};
         std::error_code error;
@@ -1179,7 +1179,7 @@ int probe(const fs::path& root, std::string_view name, const Options& options) {
         return probe.finish(std::move(outcome), options.keep_project, "source_lock_after", {{"profiles", profiles}});
     }
     if (name == "hanim-play") {
-        Probe probe(root, output_of("target/hanim-play-consumer/report.omui.json"), "hanim-public-play-consumer-");
+        Probe probe(root, output_of("target/hanim-play-consumer/report.xdef.json"), "hanim-public-play-consumer-");
         const fs::path fixture = probe.repo / "tools/ci/hanim-play-consumer";
         const fs::path contract = probe.repo / "modules/projects/hanim/visual/tests/visual/shape_morph_test.cpp";
         probe.report = {
@@ -1216,7 +1216,7 @@ int probe(const fs::path& root, std::string_view name, const Options& options) {
         return probe.finish(std::move(outcome), options.keep_project, "source_lock_after", {{"profiles", profiles}});
     }
     if (name == "omui-hanim") {
-        Probe probe(root, output_of("target/omui-hanim-consumer/report.omui.json"), "omui-hanim-consumer-");
+        Probe probe(root, output_of("target/omui-hanim-consumer/report.xdef.json"), "omui-hanim-consumer-");
         const fs::path fixture = probe.repo / "tools/ci/omui-hanim-consumer";
         probe.report = {{"format", "omui.hanim-presentation@0.1"},
                         {"ok", false},
@@ -1238,7 +1238,7 @@ int probe(const fs::path& root, std::string_view name, const Options& options) {
         return probe.finish(std::move(outcome), options.keep_project || !probe.report.value("error", std::string{}).empty(), "source_lock_after", json::object());
     }
     if (name == "hanim-features") {
-        const fs::path output = output_of("target/hanim-features/report.omui.json");
+        const fs::path output = output_of("target/hanim-features/report.xdef.json");
         Probe probe(root, output, "hanim-feature-consumer-", real(output).parent_path() / "artifacts");
         probe.report = {{"ok", false}, {"format", "hanim.features@0.1"}, {"project", text_of(probe.project)}, {"source_lock_before", probe.lock_before},
                         {"cases", json::array()}, {"commands", json::array()},

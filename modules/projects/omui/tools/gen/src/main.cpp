@@ -3,23 +3,23 @@
 //   omui-gen registry <spec/registry> --out <spec> [--check] [--json]
 //       openmui.h, the openmui.spec partitions, the reference tables, the Core
 //       TypeScript builders and the view-document schema
-//   omui-gen stubs <file.contract.omui.ts>... --registry <dir> --module <m>
+//   omui-gen stubs <file.contract.xdef.ts>... --registry <dir> --module <m>
 //                  --out <dir> [--check] [--json]
 //       a component package's script builders and view-document schema
-//   omui-gen cpp <file.contract.omui.ts>... --registry <dir> --module <m>
+//   omui-gen cpp <file.contract.xdef.ts>... --registry <dir> --module <m>
 //                --out <dir> [--namespace ns] [--catalog] [--contract name]
 //                [--part contract|builder] [--check]
 //       a component package's C++: the contract partitions (typed props,
 //       options, the CRTP base) and the builders
-//   omui-gen native <file.native.omui.ts>... --registry <dir> --module <m>
+//   omui-gen native <file.native.xdef.ts>... --registry <dir> --module <m>
 //                   --out <dir> [--namespace ns] [--native name] [--part cpp|stubs] [--check]
 //       a native module's C++ (records, the functions to implement, define())
 //       and its TypeScript stubs (component-binding §8)
 //   omui-gen embed <file> --module <m> --name <partition> --out <dir> [--namespace ns] [--check]
-//       (a data module, <name>.<kind>.omui.ts, is carried as its JSON, <name>.<kind>.omui.json)
+//       (a data module, <name>.<kind>.xdef.ts, is carried as its JSON, <name>.<kind>.xdef.json)
 //   omui-gen embed-index <file>=<partition>… --module <m> --name <partition> --out <dir> [--namespace ns] [--check]
 //       a data file (a theme) as a partition holding its text
-//   omui-gen check <file.contract.omui.ts or .native.omui.ts>... --registry <dir> [--json]
+//   omui-gen check <file.contract.xdef.ts or .native.xdef.ts>... --registry <dir> [--json]
 //       diagnostics only
 //   omui-gen abi <registry-dir> --out <modules/projects/omui/abi/src> [--check]
 //       openmui.h's types and functions for the C++ that implements them, and
@@ -36,7 +36,7 @@
 //       where a WebAssembly program's bytes go: its sections, its code by owner
 //       (module, namespace, C library) and its largest functions (W8;
 //       openmui.gen.wasm_size — names from an analysis build's name section)
-//       openmui.i18n's locale packs (*.locale.omui.json) and likely subtags
+//       openmui.i18n's locale packs (*.locale.xdef.json) and likely subtags
 //       openmui.unicode's tables (and a subset of the UCD's conformance tests)
 //
 // --check writes nothing and fails (exit 1) when an output differs from what
@@ -275,7 +275,7 @@ int run_cpp(const Options& o) {
 
 bool is_native(const std::filesystem::path& file) {
     const auto name = generic_utf8(file);
-    return name.ends_with(".native.omui.ts") || name.ends_with(".native.omui.json");
+    return name.ends_with(".native.xdef.ts") || name.ends_with(".native.xdef.json");
 }
 
 // A native module's C++ (<name>_native.cppm) and the stubs of the files'

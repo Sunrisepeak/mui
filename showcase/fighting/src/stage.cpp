@@ -33,7 +33,7 @@ constexpr std::array<Layout, 2> layouts{{
     {Key::up, Key::down, Key::left, Key::right, {Key::insert, Key::home, Key::page_up, Key::delete_, Key::end, Key::page_down}},
 }};
 
-// What a gamepad does (controls/pad.controls.omui.json): its buttons to the
+// What a gamepad does (controls/pad.controls.xdef.json): its buttons to the
 // fighting game's, and which of the d-pad and the left stick are directions.
 struct Controls {
     std::vector<std::pair<GamepadButton, Button>> buttons;

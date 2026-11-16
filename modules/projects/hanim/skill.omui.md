@@ -1,6 +1,6 @@
 # hanim — skill
 
-How an Agent (or a person at a terminal) does animation work with hanim without a GUI. The operations, their parameters, effects, costs and how each is undone are the catalog's: [`hanim.ops.omui.ts`](hanim.ops.omui.ts), listed for CLI and MCP in [`src/control/hanim.ops.json`](src/control/hanim.ops.json) and for reading in [`src/control/hanim.ops.md`](src/control/hanim.ops.md).
+How an Agent (or a person at a terminal) does animation work with hanim without a GUI. The operations, their parameters, effects, costs and how each is undone are the catalog's: [`hanim.ops.xdef.ts`](hanim.ops.xdef.ts), listed for CLI and MCP in [`src/control/hanim.ops.json`](src/control/hanim.ops.json) and for reading in [`src/control/hanim.ops.md`](src/control/hanim.ops.md).
 
 ## Before
 
@@ -24,9 +24,9 @@ How an Agent (or a person at a terminal) does animation work with hanim without 
 
 ## Authoring without code: a document and the `hanim` command
 
-The command's operations are [hanim.studio's catalog](studio/studio.ops.omui.ts) (`document.check`, `document.sample`, `document.render`; listed in [`studio/src/catalog`](studio/src/catalog)). Twenty documents to start from are [hanim.studio's examples](studio/examples/README.md).
+The command's operations are [hanim.studio's catalog](studio/studio.ops.xdef.ts) (`document.check`, `document.sample`, `document.render`; listed in [`studio/src/catalog`](studio/src/catalog)). Twenty documents to start from are [hanim.studio's examples](studio/examples/README.md).
 
-1. Write `<name>.animation.omui.json` ([hanim.studio](studio/README.md)): the stage, the objects (shapes, fills, where they stand), and the program as steps (`move_to`, `drop`, `morph`, `scale_to` with a `spring` …) in sequences and parallels. Add `marker`s at the moments you will check.
+1. Write `<name>.animation.xdef.json` ([hanim.studio](studio/README.md)): the stage, the objects (shapes, fills, where they stand), and the program as steps (`move_to`, `drop`, `morph`, `scale_to` with a `spring` …) in sequences and parallels. Add `marker`s at the moments you will check.
 2. `hanim document.check --file FILE`: the plan (duration, tracks, markers) or every problem at its JSON pointer — fix them all, then check again.
 3. `hanim document.sample --file FILE --at T …`: each object's position, scale, rotation, fill and bounds at those moments — the numbers to verify against what was asked (where it lands, that it overshoots, what shape it ends as).
 4. `hanim document.render --file FILE --out PREFIX --frames N`: the frames, a strip of them and a report with each frame's pixel hash. Look at the strip: the whole course, not only its ends.

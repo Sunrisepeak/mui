@@ -1,6 +1,6 @@
 # omui.theme
 
-Themes as data (view-data-files §3, component-binding §11). A `*.theme.omui.ts` file declares two kinds of thing:
+Themes as data (view-data-files §3, component-binding §11). A `*.theme.xdef.ts` file declares two kinds of thing:
 
 - **Themes**: whole sets of design tokens (light, dark, an application's brand).
 - **Overlays**: layers over any theme that change only what they name (a density, reduced motion).
@@ -8,7 +8,7 @@ Themes as data (view-data-files §3, component-binding §11). A `*.theme.omui.ts
 A library composes a theme with overlays into the runtime's `Theme`. Components read only tokens, so the semantic tree is the same under every composition (S2's promise). The conformance scenario `themed` checks this from every language.
 
 ```cpp
-theme::library().add(json, "brand.theme.omui.json");          // what brand.theme.omui.ts evaluates to
+theme::library().add(json, "brand.theme.xdef.json");          // what brand.theme.xdef.ts evaluates to
 theme::apply(rt, {"dark", "compact", "reduced_motion"});      // or from a script: omui.theme("dark", "compact")
 ```
 
@@ -59,7 +59,7 @@ Every mistake in a file is reported in one reading, at its JSON pointer (`/theme
   - [compact](compact): the compact density.
   - [styles](styles): the style packs — glass, neon, retro CRT, ink on paper, liquid; and the platforms' looks: fluent, cupertino, material.
 - **A part of a window**: `apply_style(runtime, name, scope)` gives a style to a theme scope only (`Runtime::set_scope`): the nodes whose `theme_scope` names it take the pack, and its cross-fade covers their area. The site shows S2's workshop this way, in the pack chosen, inside a page that keeps its own theme.
-- **An application's own files** are listed in its manifest: `themes = ["themes/*.theme.omui.ts"]` and `theme = ["light"]` for the composition to start with.
+- **An application's own files** are listed in its manifest: `themes = ["themes/*.theme.xdef.ts"]` and `theme = ["light"]` for the composition to start with.
 - **Scripts** choose a composition: `theme("dark", "compact")` in TypeScript.
 
   `themes()` lists the themes and overlays and the current composition. The C ABI has `omuiTheme` and `omuiThemes`.

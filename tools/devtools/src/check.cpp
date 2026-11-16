@@ -376,7 +376,7 @@ int sweep(const fs::path& root, const std::vector<std::string>& profile_args) {
         for (int look = 0; look < 200 && app.empty(); ++look) {
             for (const auto& entry : fs::directory_iterator(agents, error)) {
                 const std::string file = mcpplibs::os::fs::utf8(entry.path().filename());
-                if (file.ends_with(".endpoint.omui.json")) app = file.substr(0, file.size() - std::string_view(".endpoint.omui.json").size());
+                if (file.ends_with(".endpoint.xdef.json")) app = file.substr(0, file.size() - std::string_view(".endpoint.xdef.json").size());
             }
             if (app.empty()) std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
@@ -386,7 +386,7 @@ int sweep(const fs::path& root, const std::vector<std::string>& profile_args) {
         } else {
             auto swept = run::program(root, mcpplibs::os::fs::utf8(binary["omui"]), {"agent", "sweep", app, "--dir", mcpplibs::os::fs::utf8(agents)});
             const std::string verdicts = swept ? swept->out : std::string{};
-            std::ofstream(out / (name + ".sweep.omui.jsonl"), std::ios::binary) << verdicts;
+            std::ofstream(out / (name + ".sweep.xdef.jsonl"), std::ios::binary) << verdicts;
             std::string summary;
             for (auto part : std::views::split(std::string_view(verdicts), '\n'))
                 if (const std::string_view line(part.begin(), part.end()); line.contains("\"nodes\"")) summary = line;
@@ -441,9 +441,9 @@ int toy(const fs::path& root, std::vector<std::string> packages) {
         fs::remove_all(out / name, error);
         fs::copy(built, out / name, fs::copy_options::recursive, error);
         fs::path listing = built;
-        listing += ".toy.omui.json";
-        fs::copy_file(listing, out / (name + ".toy.omui.json"), fs::copy_options::overwrite_existing, error);
-        const auto about = json::parse(mcpplibs::os::fs::read(out / (name + ".toy.omui.json")).value_or(""), nullptr, false);
+        listing += ".toy.xdef.json";
+        fs::copy_file(listing, out / (name + ".toy.xdef.json"), fs::copy_options::overwrite_existing, error);
+        const auto about = json::parse(mcpplibs::os::fs::read(out / (name + ".toy.xdef.json")).value_or(""), nullptr, false);
         if (!about.is_discarded()) {
             const auto mib = [](std::uint64_t bytes) { return std::format("{:.2f} MiB", static_cast<double>(bytes) / 1048576.0); };
             auto files = about.value("files", json::array());

@@ -118,7 +118,7 @@ int audio(const mlibs::agent::Arguments& a, std::ostream& out, std::ostream& err
         .set("timeline_snapshot",tl::write_timeline(*timeline)).set("plot_max",static_cast<double>(plot_max))
         .set("audition","220 Hz reference tone at 0.1 gain; no device playback; read-only omui headless view")
         .set("observations",Value(std::move(observations)));
-    const auto written=mcpplibs::os::fs::write_atomic(mcpplibs::os::fs::from_utf8(std::string(*prefix)+".report.omui.json"),report.json()+"\n");
+    const auto written=mcpplibs::os::fs::write_atomic(mcpplibs::os::fs::from_utf8(std::string(*prefix)+".report.xdef.json"),report.json()+"\n");
     if(!written)return fail(written.error().message());
     out<<report.json()<<'\n';return 0;
 }

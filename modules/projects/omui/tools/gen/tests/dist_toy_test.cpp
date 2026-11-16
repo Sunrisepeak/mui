@@ -96,7 +96,7 @@ UTest cases{"gen.dist_toy", [] {
         expect(has([](const std::string& n) { return n == "licenses/compat.zlib/LICENSE.md"; })) << "a licence without an extension, as .md";
         expect(has([](const std::string& n) { return n == "licenses/fonts/OFL-inter.txt.md"; }));
         for (const std::string& n : names) expect(gen::toy_keeps(fs::path(n).extension().string())) << n;
-        const std::string note = read(t.root / "out" / "game.toy.omui.json");
+        const std::string note = read(t.root / "out" / "game.toy.xdef.json");
         expect(note.contains("\"index_bytes\"") && note.contains("\"total_bytes\""));
         // The same input, the same names.
         auto again = gen::package_for_toy(t.package());
@@ -131,7 +131,7 @@ UTest cases{"gen.dist_toy", [] {
         expect(after.contains(std::format("var omuiWasm = \"{}\";", primary)) && after.contains(std::format("\"{}\":13", primary))) << "the page loads the first half and checks its decoded size";
         expect(after.contains(std::format("var omuiDeferred = {{\"bytes\":19,\"lazy\":[\"\",\"home\"],\"url\":\"{}\"}};", deferred))) << "where the second half is";
         expect(!after.contains(old_wasm)) << "no trace of the unsplit program";
-        expect(read(t.root / "out" / "game.toy.omui.json").contains(deferred)) << "the list beside the package names both halves";
+        expect(read(t.root / "out" / "game.toy.xdef.json").contains(deferred)) << "the list beside the package names both halves";
         auto twice = gen::adopt_split({.dir = out, .primary = t.root / "primary.wasm", .deferred = t.root / "deferred.wasm", .lazy = {""}});
         expect(!twice.has_value()) << "a page is split once";
     };

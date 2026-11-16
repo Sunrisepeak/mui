@@ -142,12 +142,12 @@ struct Player::Impl {
 
     // A theme file into the program's library (again: a saved edit, which
     // replaces what it declared); the runtime's composition is made again.
-    // A TypeScript one (`*.theme.omui.ts`) is what it evaluates to, by the
+    // A TypeScript one (`*.theme.xdef.ts`) is what it evaluates to, by the
     // language of its extension; a `.json` one is read as it is.
     bool add_theme(File& f, bool again) {
         std::expected<std::string, Failure> text = std::unexpected(Failure{mlibs::error::Kind::not_found, "cannot be read"});
         std::string named = name(f.path);
-        if (named.ends_with(".omui.json")) {
+        if (named.ends_with(".xdef.json")) {
             if (auto read = read_file(full(f.path))) text = std::move(*read);
         } else {
             const std::string extension = generic_utf8(f.path.extension());
@@ -493,7 +493,7 @@ Status Player::start() {
         if (auto r = theme::apply(d.rt, d.manifest.theme); !r) d.problem(std::format("theme: {}", r.error()));
     for (const auto& c : d.manifest.components) d.files.push_back({Impl::File::Kind::component, c, stamp_of(d.full(c)), {}, nullptr, nullptr});
     for (const auto& v : d.manifest.views) {
-        // ui/main.view.omui.json mounts at "main".
+        // ui/main.view.xdef.json mounts at "main".
         std::string slot = generic_utf8(v.filename());
         slot = slot.substr(0, slot.find('.'));
         d.files.push_back({Impl::File::Kind::view, v, stamp_of(d.full(v)), slot, nullptr, nullptr});

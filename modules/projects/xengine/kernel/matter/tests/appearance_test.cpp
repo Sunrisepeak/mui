@@ -19,7 +19,7 @@ std::string file_text(std::string_view name) {
     return {std::istreambuf_iterator<char>(in), {}};
 }
 matter::Definition standard_definition() {
-    auto read = matter::read(file_text("standard.matter.omui.json"), "standard.matter.omui.json");
+    auto read = matter::read(file_text("standard.matter.xdef.json"), "standard.matter.xdef.json");
     expect(fatal(read.has_value())) << (read ? "" : read.error().front().text());
     return *read;
 }
@@ -42,7 +42,7 @@ UTest cases{"simulation.matter.appearance", [] {
     "the standard pack against the standard program: a colour a material, states along their channels in the channels' units"_test = [] {
         const auto program = matter::standard();
         expect(fatal(program.has_value()));
-        expect(matter::standard_appearance_snapshot == file_text("standard.appearance.omui.json")) << "the module carries the committed snapshot";
+        expect(matter::standard_appearance_snapshot == file_text("standard.appearance.xdef.json")) << "the module carries the committed snapshot";
         const auto look = matter::standard_look(*program);
         expect(fatal(look.has_value())) << (look ? "" : look.error().front().text());
         expect(eq(look->base().size(), program->materials().size()) && eq(look->grain().size(), program->materials().size()));
@@ -182,12 +182,12 @@ UTest cases{"simulation.matter.appearance", [] {
   ],
   "sounds": {}
 }})";
-        const auto read = matter::read_appearance(text, "bad.appearance.omui.json");
+        const auto read = matter::read_appearance(text, "bad.appearance.xdef.json");
         expect(fatal(!read.has_value()));
         std::string all;
         for (const auto& problem : read.error()) all += problem.text() + "\n";
         const auto says = [&](std::string_view part) { expect(all.contains(part)) << std::format("no `{}` in:\n{}", part, all); };
-        says("bad.appearance.omui.json:2:");
+        says("bad.appearance.xdef.json:2:");
         says("the look of `wood` has no key `colour`");
         says("did you mean `color`?");
         says("the look of `ash` is an object");
@@ -208,15 +208,15 @@ UTest cases{"simulation.matter.appearance", [] {
     {"by": "wetnes", "to": 10, "color": "#000000"}
   ]
 }})";
-        const auto look = matter::look_document(*program, late, "late.appearance.omui.json");
+        const auto look = matter::look_document(*program, late, "late.appearance.xdef.json");
         expect(fatal(!look.has_value()));
         const auto& problem = look.error().front();
-        expect(problem.at == "/appearance/states/1/by" && problem.text().contains("late.appearance.omui.json:4:") && problem.text().contains("did you mean `wetness`?"))
+        expect(problem.at == "/appearance/states/1/by" && problem.text().contains("late.appearance.xdef.json:4:") && problem.text().contains("did you mean `wetness`?"))
             << problem.at << " " << problem.text();
 
         const std::string good = R"({"appearance": {"nothing": "#102030", "phases": {"gas": {"color": "#00000000"}},
             "states": [{"name": "wet", "by": "wetness", "to": "moist", "color": "#001040", "mix": 0.5, "of": ["soft"]}]}})";
-        const auto own = matter::look_document(*program, good, "own.appearance.omui.json");
+        const auto own = matter::look_document(*program, good, "own.appearance.xdef.json");
         expect(fatal(own.has_value())) << (own ? "" : own.error().front().text());
         expect(eq(own->nothing(), 0xff302010u) && eq(own->states().size(), std::size_t{1}));
         expect(eq(own->states()[0].to[*program->material("jelly")], 32u) && eq(own->states()[0].to[*program->material("water")], 0u))

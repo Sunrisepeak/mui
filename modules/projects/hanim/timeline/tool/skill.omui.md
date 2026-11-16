@@ -1,6 +1,6 @@
 # timeline — skill
 
-How an Agent (or a person at a terminal) works with the timeline every editor shares, without a GUI (a video's, a sequencer's, an animation editor's). The operations are the catalog's: [`timeline.ops.omui.ts`](timeline.ops.omui.ts), listed in [`src/catalog/timeline.ops.json`](src/catalog/timeline.ops.json) and [`src/catalog/timeline.ops.md`](src/catalog/timeline.ops.md). Each is `hanim-timeline` by its name (`hanim-timeline timeline.check --file F`), or a tool of `hanim-timeline mcp`: records a line each, exit 0 done, 1 refused or failed with why and the ways out, 2 arguments that make no request.
+How an Agent (or a person at a terminal) works with the timeline every editor shares, without a GUI (a video's, a sequencer's, an animation editor's). The operations are the catalog's: [`timeline.ops.xdef.ts`](timeline.ops.xdef.ts), listed in [`src/catalog/timeline.ops.json`](src/catalog/timeline.ops.json) and [`src/catalog/timeline.ops.md`](src/catalog/timeline.ops.md). Each is `hanim-timeline` by its name (`hanim-timeline timeline.check --file F`), or a tool of `hanim-timeline mcp`: records a line each, exit 0 done, 1 refused or failed with why and the ways out, 2 arguments that make no request.
 
 ## Before
 

@@ -23,7 +23,7 @@ air.wind_at({0, 3, 0});                                     // what a body or a 
 
 ## Agent surface
 
-The air is a `Subject` of the agent kernel ([mlibs.agent](../../../../base/agent)), module `xengine.field.agent` — the package's feature `agent` (`xengine.field = { path = …, features = ["agent"] }`), so that the carrier taken alone stays the small tool it is. Its operations are a catalog, [air.ops.omui.ts](air.ops.omui.ts) (the table `src/agent/catalog.cppm` and the listings `src/agent/air.ops.json`, `.md` are `ops-gen`'s); how to use them, in order, is [skill.omui.md](skill.omui.md). Every operation is decided by openas first.
+The air is a `Subject` of the agent kernel ([mlibs.agent](../../../../base/agent)), module `xengine.field.agent` — the package's feature `agent` (`xengine.field = { path = …, features = ["agent"] }`), so that the carrier taken alone stays the small tool it is. Its operations are a catalog, [air.ops.xdef.ts](air.ops.xdef.ts) (the table `src/agent/catalog.cppm` and the listings `src/agent/air.ops.json`, `.md` are `ops-gen`'s); how to use them, in order, is [skill.omui.md](skill.omui.md). Every operation is decided by openas first.
 
 | | |
 |---|---|

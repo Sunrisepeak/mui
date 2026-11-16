@@ -9,7 +9,7 @@ import omui.gen.model;
 
 namespace omui::gen {
 
-bool is_data_module(const std::filesystem::path& file) { return generic_utf8(file.filename()).ends_with(".omui.ts"); }
+bool is_data_module(const std::filesystem::path& file) { return generic_utf8(file.filename()).ends_with(".xdef.ts"); }
 
 std::expected<mlibs::json::Document, std::string> json_document(const std::filesystem::path& file) {
     const auto name = generic_utf8(file);
@@ -37,7 +37,7 @@ std::expected<mlibs::json::Document, std::string> data_document(const std::files
     if (kind != "ops") {
         // One component (or native module) a file, named as the file: the build plans by the name alone.
         const nlohmann::ordered_json value = nlohmann::ordered_json::parse(data->json, nullptr, false);
-        const std::string suffix = std::format(".{}.omui.ts", kind);
+        const std::string suffix = std::format(".{}.xdef.ts", kind);
         const auto expected = name.ends_with(suffix) ? name.substr(0, name.size() - suffix.size()) : name;
         if (value.is_discarded() || !value.is_object() || value.size() != 1 || !value.contains(expected))
             return std::unexpected(std::format("{}: a {} file holds one, named as the file: {}({{ {}: {{ … }} }})", name, kind, function, expected));

@@ -5,7 +5,7 @@
 // 2 needs an answer, 3 not ready) — the openas convention.
 export module omui.cli;
 
-// The commands an agent may run through MCP (cli.ops.omui.ts).
+// The commands an agent may run through MCP (cli.ops.xdef.ts).
 export import :catalog;
 
 import std;
@@ -55,7 +55,7 @@ std::expected<std::uint16_t, std::string> run_bridge(const BridgeStart& start, s
 namespace omui::cli {
 
 // A data file as the JSON its reader takes (D-139): a TypeScript data module
-// (`*.omui.ts`) evaluated, anything else read as it is (project.cpp).
+// (`*.xdef.ts`) evaluated, anything else read as it is (project.cpp).
 [[nodiscard]] std::expected<std::string, std::string> data_text(const std::filesystem::path& file);
 
 // A diagnostic and the file it is about: what `omui check` prints, whichever check found it.
@@ -98,7 +98,7 @@ int video(std::string_view name, const mlibs::agent::Arguments& p, std::ostream&
 // omui audio (audio.cpp): offline automation audition and visual inspection.
 int audio(const mlibs::agent::Arguments& a, std::ostream& out, std::ostream& err);
 
-// The project's commands (project.cpp, D-150, RC3.9): a project over mcpp. Its catalog's operations (cli.ops.omui.ts)
+// The project's commands (project.cpp, D-150, RC3.9): a project over mcpp. Its catalog's operations (cli.ops.xdef.ts)
 // are the subject `omui` — `omui build --release` is omui.build through the tool kernel's command line, and `omui mcp`
 // serves them as tools; dev, run, connect and mcp hold a window or the terminal (`terminal`): a person's command line runs them.
 // One of the catalog's operations (omui.build …), its records to `out` and what went wrong to `err`; the exit code.

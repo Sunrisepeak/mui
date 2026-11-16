@@ -15,7 +15,7 @@ struct Built {
     double             seconds = 0;
 };
 
-// One build, its events and log kept beside the report (`<stem>.events.omui.jsonl`, `<stem>.log`).
+// One build, its events and log kept beside the report (`<stem>.events.xdef.jsonl`, `<stem>.log`).
 std::expected<Built, std::string> build(const Options& options, const fs::path& stem) {
     mcpplibs::os::process::spawn_options spawn;
     spawn.program = options.mcpp;
@@ -24,7 +24,7 @@ std::expected<Built, std::string> build(const Options& options, const fs::path& 
     auto ran = mcpplibs::os::process::run(std::move(spawn));
     const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
     if (!ran) return std::unexpected(std::format("mcpp did not start: {}", ran.error().message()));
-    const fs::path events = stem.parent_path() / mcpplibs::os::fs::from_utf8(mcpplibs::os::fs::utf8(stem.filename()) + ".events.omui.jsonl");
+    const fs::path events = stem.parent_path() / mcpplibs::os::fs::from_utf8(mcpplibs::os::fs::utf8(stem.filename()) + ".events.xdef.jsonl");
     const fs::path log = stem.parent_path() / mcpplibs::os::fs::from_utf8(mcpplibs::os::fs::utf8(stem.filename()) + ".log");
     std::ofstream(events, std::ios::binary) << ran->out;
     std::ofstream(log, std::ios::binary) << ran->err;
@@ -104,7 +104,7 @@ bool check(const Options& options, std::ostream& said, std::ostream& errors) {
     std::error_code ignored;
     fs::create_directories(options.report.parent_path(), ignored);
     std::string prefix = mcpplibs::os::fs::utf8(options.report.filename());
-    if (prefix.ends_with(".report.omui.json")) prefix.resize(prefix.size() - std::string_view(".report.omui.json").size());
+    if (prefix.ends_with(".report.xdef.json")) prefix.resize(prefix.size() - std::string_view(".report.xdef.json").size());
     const fs::path directory = options.report.parent_path();
     const auto attempt = [&]() -> std::expected<void, std::string> {
         auto warm = build(options, directory / mcpplibs::os::fs::from_utf8(prefix + "-warm"));

@@ -7,7 +7,7 @@
 # canvas-markdown §1.1, the optional layer): select, drag, resize, snap
 # (alignment guides, a grid), connect, grid, minimap and delete, as behaviours a
 # canvas names in `behaviors`, each adding to the semantic tree what it makes
-# possible; and declarative ones, statecharts in *.behavior.omui.ts run by C++.
+# possible; and declarative ones, statecharts in *.behavior.xdef.ts run by C++.
 # Contract-first (omui.build.contracts).
 [package]
 namespace   = "omui.ui"

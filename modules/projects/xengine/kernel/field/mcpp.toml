@@ -15,7 +15,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 maturity = "experimental"  # release plan §2.1: stable, preview or experimental (lint maturity)
 reexports = ["mlibs.math", "xengine.matter"]  # what its interface re-exports (lint module-closure)
 kind = "module"
-agent = "subject"  # the air (feature `agent`): xengine.field.agent, air.ops.omui.ts
+agent = "subject"  # the air (feature `agent`): xengine.field.agent, air.ops.xdef.ts
 
 [targets.xengine-field]
 kind = "lib"

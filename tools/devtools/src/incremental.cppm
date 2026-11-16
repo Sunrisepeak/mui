@@ -17,7 +17,7 @@ struct Options {
     std::string              profile = "dev";
     std::string              toolchain;  // empty: the default
     bool                     locked = false;
-    std::filesystem::path    report = "target/incremental.report.omui.json";
+    std::filesystem::path    report = "target/incremental.report.xdef.json";
     std::filesystem::path    mcpp = "mcpp";  // MCPP, or mcpp on PATH
 };
 

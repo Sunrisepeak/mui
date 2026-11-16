@@ -1,6 +1,6 @@
 # field and matter — skill
 
-How an Agent examines and tries a field of cells run by a prepared program (`xengine.cellular.agent`), with no window. The operations, their parameters and effects are in [field.ops.omui.ts](field.ops.omui.ts) (the subject, asked to describe itself at its endpoint, answers the same); this is the order to use them in.
+How an Agent examines and tries a field of cells run by a prepared program (`xengine.cellular.agent`), with no window. The operations, their parameters and effects are in [field.ops.xdef.ts](field.ops.xdef.ts) (the subject, asked to describe itself at its endpoint, answers the same); this is the order to use them in.
 
 ## Before
 
@@ -23,7 +23,7 @@ How an Agent examines and tries a field of cells run by a prepared program (`xen
 
 ## A field of matter
 
-Where the cells are matter (`xengine.cellular.matter.agent`; operations in [matter.ops.omui.ts](matter.ops.omui.ts)), speak of it as matter: materials by name, channels in their units, laws by name. Time stays the field's — `field.step`, `field.seek` — and every `matter` answer says the frame it is of.
+Where the cells are matter (`xengine.cellular.matter.agent`; operations in [matter.ops.xdef.ts](matter.ops.xdef.ts)), speak of it as matter: materials by name, channels in their units, laws by name. Time stays the field's — `field.step`, `field.seek` — and every `matter` answer says the frame it is of.
 
 1. `matter.describe` first: the materials, the channels with their units, the laws. Then one material (`material`) or one law (`law`) in full, when it matters. Do not guess a property: a law's condition is given as it is written.
 2. Look: `matter.observe` over a region — cells of each material, each channel's least, most and mean in its unit, how many cells are in each named state (burning). One cell: `matter.at`, which also gives the properties its state has changed (`adjusted`: wet wood's ignition point).

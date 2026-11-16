@@ -1,4 +1,4 @@
-// Reading and writing video descriptions: the JSON a `*.video.omui.ts`
+// Reading and writing video descriptions: the JSON a `*.video.xdef.ts`
 // evaluates to (D-139), every problem at its JSON pointer and its line and
 // column.
 module xengine.video;
@@ -142,7 +142,7 @@ std::expected<Description, std::vector<Problem>> read_description(std::string_vi
                 r.error(n, "the frames come from one of `card`, `png` and `view`");
                 continue;
             }
-            auto s = r.text(n, std::format("`{}`", name), kind == FramesFrom::card ? "card: \"sync\"" : kind == FramesFrom::png ? "png: \"shots/{:05}.png\"" : "view: \"intro.view.omui.json\"");
+            auto s = r.text(n, std::format("`{}`", name), kind == FramesFrom::card ? "card: \"sync\"" : kind == FramesFrom::png ? "png: \"shots/{:05}.png\"" : "view: \"intro.view.xdef.json\"");
             if (!s) continue;
             d.from = kind;
             d.source = *s;
@@ -156,8 +156,8 @@ std::expected<Description, std::vector<Problem>> read_description(std::string_vi
         d.audio = true;
         r.only(a, audio_keys, "`audio`");
         if (auto rate = r.whole(a["rate"], "`rate`", 8000, 192000)) d.rate = static_cast<std::int32_t>(*rate);
-        if (auto m = r.text(a["music"], "`music`", "music: \"theme.music.omui.ts\"")) d.music = *m;
-        if (auto s = r.text(a["sounds"], "`sounds`", "sounds: \"ui.sound.omui.ts\"")) d.sounds = *s;
+        if (auto m = r.text(a["music"], "`music`", "music: \"theme.music.xdef.ts\"")) d.music = *m;
+        if (auto s = r.text(a["sounds"], "`sounds`", "sounds: \"ui.sound.xdef.ts\"")) d.sounds = *s;
         if (const Node b = a["beeps"]) {
             if (auto x = b.boolean()) d.beeps = *x;
             else r.error(b, "`beeps` is true or false");

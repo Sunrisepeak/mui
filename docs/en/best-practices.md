@@ -17,7 +17,7 @@ Never bend the architecture for one application's convenience. When something is
 | The code | Write it in | Why |
 |---|---|---|
 | Simulation, rendering, mixing, layout: anything run every frame | C++ (modules) | no allocation, no virtual calls on the hot path, exact arithmetic |
-| Content tuned again and again: fighters, sounds, themes, levels | data files (`*.<kind>.omui.ts` and the like) with located diagnostics | a reviewer, an agent and a tool can all read and write them; the build checks what is derived from them |
+| Content tuned again and again: fighters, sounds, themes, levels | data files (`*.<kind>.xdef.ts` and the like) with located diagnostics | a reviewer, an agent and a tool can all read and write them; the build checks what is derived from them |
 | Logic tuned live: rules, scene scripts, tours, game modes | TypeScript, hot-reloaded | a reload under 200 ms; no rebuild |
 
 Scripts never run inside a frame. A script produces data at load or reload: rules, a view document, a verb's answer. That data reaches a per-frame system at a step's boundary (widget breakout, level 6).
@@ -36,7 +36,7 @@ Draw a frame as a pure function of (state, frame): particles seeded by their eve
 
 ## 5. Contract first, one set of actions
 
-Write the component's contract (`*.contract.omui.ts`) first; the bindings are generated. A person, an agent and a test act through the same actions, and the semantic node states what an agent needs to play or use it. Ids are explicit and never depend on displayed text (fighting, widget breakout).
+Write the component's contract (`*.contract.xdef.ts`) first; the bindings are generated. A person, an agent and a test act through the same actions, and the semantic node states what an agent needs to play or use it. Ids are explicit and never depend on displayed text (fighting, widget breakout).
 
 An action of two or more arguments takes them as one generated struct, by name (`const GuardToArgs& args`, then `args.x`), so they cannot be taken in the wrong order. Positional `Value` parameters used to compile in any order; a breakout handler took `seen` for `x`.
 
@@ -54,7 +54,7 @@ The headless host renders the same bytes on every platform, so a test can pin a 
 
 ## 9. Performance is measured and budgeted
 
-Every performance claim has a benchmark in `tests/bench` and a budget in `budgets.bench.omui.json`. Plain data and no allocation per frame make code fast and deterministic at once. Measure before optimising.
+Every performance claim has a benchmark in `tests/bench` and a budget in `budgets.bench.xdef.json`. Plain data and no allocation per frame make code fast and deterministic at once. Measure before optimising.
 
 ## 10. Ship a picture
 

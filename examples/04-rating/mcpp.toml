@@ -1,7 +1,7 @@
 # Example 04 — a custom component (canvas-markdown §5; component-binding §2):
 # the reading list, whose rows are rated with this application's own
 # component, `rating`. Its interface is a contract
-# (contract/rating.contract.omui.ts); omui.build.contracts generates the C++
+# (contract/rating.contract.xdef.ts); omui.build.contracts generates the C++
 # partition, the builder and the TypeScript stubs when the
 # package builds; src/rating.cpp is its behaviour. Registered once, it is a
 # component like any other: the TypeScript interface (logic/main.ts),
@@ -23,7 +23,7 @@ kind      = "app"
 id        = "org.openmui.reading-list"
 title     = "Reading list"
 size      = "560x520"
-contracts = ["contract/*.contract.omui.ts"]
+contracts = ["contract/*.contract.xdef.ts"]
 
 [package.metadata.openmui.scripts]
 main = "logic/main.ts"

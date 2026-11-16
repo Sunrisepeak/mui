@@ -312,7 +312,7 @@ int web(const fs::path& root, std::string_view profile) {
     if (!backends || backends->status != 0) return failed("the page's halves of rhi.webgpu and rhi.webgl failed their tests");
 
     // What three dimensions weigh on a page, held to its budget; then what only a real page can check.
-    if (size(root, {.package = "omui.size.yard", .json = root / "target/mesh-web-size.json", .budget = "tests/size/yard/size.budget.omui.json"}) != 0)
+    if (size(root, {.package = "omui.size.yard", .json = root / "target/mesh-web-size.json", .budget = "tests/size/yard/size.budget.xdef.json"}) != 0)
         return failed("the yard's bytes are over their budget");
     if (browser_checks(root) != 0) return failed("the browser's checks failed");
     std::cout << "web: ok\n";

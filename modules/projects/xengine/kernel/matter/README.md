@@ -5,7 +5,7 @@ What things are made of, the state each instance carries, and laws that read pro
 Physics moves things; this is what they are and what they become. Fire does not know wood: it raises a temperature, and whatever has fuel, an ignition point below that temperature and oxygen beside it burns.
 
 ```ts
-// world.matter.omui.ts — data, evaluated to the JSON snapshot the kernel reads (D-139)
+// world.matter.xdef.ts — data, evaluated to the JSON snapshot the kernel reads (D-139)
 import { defineMatter } from "omui/define";
 export default defineMatter({
   materials: {
@@ -30,7 +30,7 @@ export default defineMatter({
 import xengine.matter.json;   // the kernel (xengine.matter) and a definition from its JSON snapshot
 namespace matter = xengine::matter;
 
-auto program = matter::prepare_document(snapshot, "world.matter.omui.json");   // the plan, prepared once; problems by JSON pointer
+auto program = matter::prepare_document(snapshot, "world.matter.xdef.json");   // the plan, prepared once; problems by JSON pointer
 // or matter::standard(): the standard definition, carried in the module
 std::vector<std::uint32_t> state = program->fresh(instances, *program->material("air")), next = state;
 program->place(state, instances, 7, *program->material("wood"));
@@ -61,7 +61,7 @@ if (auto stepped = program->step({instances, pairs}, state, next, workspace, &ev
 A pack is a document of the same form that says only what it adds (D-182). `overlay(base, pack)` puts its columns, channels, materials and laws after the base's own; `standard_with(packs)` is the standard definition with packs over it, prepared.
 
 ```ts
-// fuels.matter.omui.ts — three materials no law knows of
+// fuels.matter.xdef.ts — three materials no law knows of
 export default defineMatter({ materials: {
   coal: { density: 1400, thermal: 1, ignition: 700, fuel: 600, heat: 120, burnt: "ash" },
   peat: { density: 700, porous: 6, ignition: 520, fuel: 250, heat: 60, burnt: "ash" },
@@ -69,7 +69,7 @@ export default defineMatter({ materials: {
 ```
 
 ```cpp
-const auto pack = matter::read_pack(text, "fuels.matter.omui.json");
+const auto pack = matter::read_pack(text, "fuels.matter.xdef.json");
 const auto program = matter::standard_with(std::array{*pack});     // coal catches from wood: no law was written for it
 ```
 
@@ -77,9 +77,9 @@ const auto program = matter::standard_with(std::array{*pack});     // coal catch
 - **A pack adds and never replaces.** A column, a channel or a law of a name the base has is a clash; so is a material said otherwise (`wood` already says its `ignition`). Every clash is said (`Clash`: the part, the name, why), none decided silently; the same row said twice the same way is not a clash.
 - **An invented law is held to what every law is**: it names no material, and a transfer whose shares could take more than an instance has is refused when stepped.
 
-**Laws that move things** (D-181) are a kind of their own, `move`: down a channel's slope — `{ name: "pressure throws", move: { down: "pressure", from: 300, speed: 0.003 } }` (from where the channel is at least `from`; `speed` m/s for each unit across a cell, for what is loose; `force` newtons for each unit beside a body's face) — or the same everywhere — `{ name: "gravity", move: { toward: [0, 1], accel: 9.8 } }`. Such a law has no condition and changes no state: this kernel's step leaves it to the carriers, each of which moves what it holds in its own way (cells fly, bodies take a force, the world falls). A slope is gone `down` (a pressure pushes away) or `up` (a pull), and the law may be scaled `by` a property of what it moves — what has none of it stays. [packs/magnetism.matter.omui.ts](packs/magnetism.matter.omui.ts) is a law the world did not have, whole: a lodestone gives a field, the field spreads and fades, what is `magnetic` is drawn up it. In a world made of the standard definition with that pack a crate of iron slides to the stone, a crate of wood stays, filings fly to it and sand lies ([cts/tests/cts/invented_test.cpp](cts/tests/cts/invented_test.cpp)); asked why a filing is where it is, the world names the pack's law.
+**Laws that move things** (D-181) are a kind of their own, `move`: down a channel's slope — `{ name: "pressure throws", move: { down: "pressure", from: 300, speed: 0.003 } }` (from where the channel is at least `from`; `speed` m/s for each unit across a cell, for what is loose; `force` newtons for each unit beside a body's face) — or the same everywhere — `{ name: "gravity", move: { toward: [0, 1], accel: 9.8 } }`. Such a law has no condition and changes no state: this kernel's step leaves it to the carriers, each of which moves what it holds in its own way (cells fly, bodies take a force, the world falls). A slope is gone `down` (a pressure pushes away) or `up` (a pull), and the law may be scaled `by` a property of what it moves — what has none of it stays. [packs/magnetism.matter.xdef.ts](packs/magnetism.matter.xdef.ts) is a law the world did not have, whole: a lodestone gives a field, the field spreads and fades, what is `magnetic` is drawn up it. In a world made of the standard definition with that pack a crate of iron slides to the stone, a crate of wood stays, filings fly to it and sand lies ([cts/tests/cts/invented_test.cpp](cts/tests/cts/invented_test.cpp)); asked why a filing is where it is, the world names the pack's law.
 
-**A property changed by state moves things too.** A `raise` or `lower` is read by the other laws — and by a carrier that weighs: the lattice sorts cells by `density` as the laws leave it. [packs/convection](packs/convection.matter.omui.ts) is one law over the standard definition, `{ name: "warm is lighter", when: "phase == gas", lower: { density: "temperature / 4096" } }`: air heated at the floor of a closed room has its warmth fifteen rows higher after 240 steps than without it (`cts/convection_test`). A density is held to 1/256 kg/m³ so that the law can tell air 16 K warmer from the air about it. A measured limit, below the pack: a gas does not leave a field, so a shaft to an open edge loses heat no faster with the law than without (after 3000 steps 57% of the world's warmth is left either way) — the warmth is carried to the shaft and waits there. The standard definition does not include the pack; the engine carries it (`matter::convection()`), and a world lays it over (`standard_with`): Kiln does, and with two shafts in its cavern's roof the heat of a fire leaves in a quarter of the time.
+**A property changed by state moves things too.** A `raise` or `lower` is read by the other laws — and by a carrier that weighs: the lattice sorts cells by `density` as the laws leave it. [packs/convection](packs/convection.matter.xdef.ts) is one law over the standard definition, `{ name: "warm is lighter", when: "phase == gas", lower: { density: "temperature / 4096" } }`: air heated at the floor of a closed room has its warmth fifteen rows higher after 240 steps than without it (`cts/convection_test`). A density is held to 1/256 kg/m³ so that the law can tell air 16 K warmer from the air about it. A measured limit, below the pack: a gas does not leave a field, so a shaft to an open edge loses heat no faster with the law than without (after 3000 steps 57% of the world's warmth is left either way) — the warmth is carried to the shaft and waits there. The standard definition does not include the pack; the engine carries it (`matter::convection()`), and a world lays it over (`standard_with`): Kiln does, and with two shafts in its cavern's roof the heat of a fire leaves in a quarter of the time.
 
 Not yet: fields that act at a distance (a channel spreads between neighbours only).
 
@@ -99,7 +99,7 @@ A transfer whose neighbours could together take more than an instance has is ref
 
 ## What the tests show
 
-`mcpp test -p xengine.matter` — the standard laws ([standard.matter.omui.ts](standard.matter.omui.ts): 22 laws, 17 materials, no law naming one) on rows and small grids of instances:
+`mcpp test -p xengine.matter` — the standard laws ([standard.matter.xdef.ts](standard.matter.xdef.ts): 22 laws, 17 materials, no law naming one) on rows and small grids of instances:
 
 - heat flows along a row and its total stays, step after step; iron carries it further than stone;
 - a strip of wood lit at one end burns piece by piece (caught at steps 1, 61, 103, 142, 181, 220, 256, 281 — each from the last), every piece ash after 681; sealed from air nothing burns. What burns heats up to its flame's temperature (`flame`, 1100 K unless a material says) and no further: a fire is as hot as a fire is however closed the room, and the stone under a wood fire stays stone;
@@ -122,7 +122,7 @@ The same laws with cells that move — the emergence set, nine phenomena and one
 A thing carries a material and state; what is seen of it is a recipe's (D-168) — a world's style pack, apart from its laws: another pack changes the look and nothing of what happens. The feature `appearance` (on by default; module `xengine.matter.appearance`) is that recipe as data.
 
 ```ts
-// world.appearance.omui.ts
+// world.appearance.xdef.ts
 import { defineAppearance } from "omui/define";
 export default defineAppearance({
   phases:    { granular: { color: "#b9a377", grain: 0.16 }, liquid: { color: "#3b7fd9c8" } },   // a material no one named: by its phase
@@ -145,7 +145,7 @@ auto look = matter::standard_look(*program);                                  //
 - **A state never names a material**, as a law does not: `by: "material"` is refused (`matter.names-material`), and so a material added as a row is charred, wet, frosted and aglow like the rest. Lava glows because it is at 1600 K; no line says that lava glows.
 - **A `Look` is numbers** — a colour a material, each state's channel, range (as the channel is stored, by material) and colour — and knows no renderer. `look.shade()` gives it as `mlibs.math`'s colour of a state (`color::Shade`: each item's pixel and light in whole numbers), the one rule every carrier draws by — the lattice's presenter, a cloud's particles; whoever draws bodies reads the same look. Particles and sound by state are the same recipe's later sections (the plan's M6.5), read by the game layer.
 
-[standard.appearance.omui.ts](standard.appearance.omui.ts) is the standard pack: the 17 materials' colours, five phases, and nine states — charred, wet, frosted, hot air (the air over a fire: where flames are seen), glows with heat, white heat, aflame, charged, blast. `tests/appearance_test.cpp`: the pack against the standard program in the channels' units; two materials it has never heard of, by their phases and charred against their own fuel; a pack for another world; 21 refusals by code, pointer and message; JSON problems at their line.
+[standard.appearance.xdef.ts](standard.appearance.xdef.ts) is the standard pack: the 17 materials' colours, five phases, and nine states — charred, wet, frosted, hot air (the air over a fire: where flames are seen), glows with heat, white heat, aflame, charged, blast. `tests/appearance_test.cpp`: the pack against the standard program in the channels' units; two materials it has never heard of, by their phases and charred against their own fuel; a pack for another world; 21 refusals by code, pointer and message; JSON problems at their line.
 
 | A hearth, 420 ticks after a light at the pile's foot | Lava poured under water; 40 ticks on | Gunpowder, at its brightest tick | Peat — a row no pack names — by the standard pack and by another |
 |---|---|---|---|
@@ -174,4 +174,4 @@ A definition and its plan hold no state of their own: the state a program steps 
 | Why an instance did what it did | `Program::why(carrier, input, instance)`: one instance's step said aloud — every adjustment, reaction and conversion judged (held, or the comparison that failed) with each value it read, each flow with each neighbour, the parts of every near sum, its properties as its state leaves them, and its channels after — bit for bit what `step` writes. Any carrier can ask it of any instance; it reads only the pairs that name the instance |
 | A world of it, to an agent | The carrier's subject. On the lattice that is `matter` ([xengine.cellular](../cellular#a-field-of-matter-the-matter-subject), feature `matter-agent`): a region by material and in units, a material placed, a quantity applied, **why** a cell is what it is — the law, what it read, the neighbours that gave it and why they could, back to who applied what — what happened by name, and what would. The record is made at the frame's commit from `why`; this package holds no state and has no catalog of its own |
 
-Minimal procedure, for a definition: write or edit a `*.matter.omui.ts`; `xdef snapshot` it; `prepare_document` and read the problems; `describe()` to check what was understood; run the scenario on a small carrier and read channels by name. For a look: write a `*.appearance.omui.ts`, snapshot it, `look_document(program, …)` and read the problems, `Look::describe` to check, and look at a real frame of a small scene.
+Minimal procedure, for a definition: write or edit a `*.matter.xdef.ts`; `xdef snapshot` it; `prepare_document` and read the problems; `describe()` to check what was understood; run the scenario on a small carrier and read channels by name. For a look: write a `*.appearance.xdef.ts`, snapshot it, `look_document(program, …)` and read the problems, `Look::describe` to check, and look at a real frame of a small scene.

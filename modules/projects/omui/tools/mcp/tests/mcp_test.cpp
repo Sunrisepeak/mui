@@ -171,7 +171,7 @@ UTest cases{"mcp", [] {
                                                   "design_replay", "design_discard", "design_commit", "design_pace",
                                                   "generate_surfaces", "generate_draft", "generate_preview", "generate_commit", "generate_restore",
                                                   "generate_versions", "generate_drafts", "generate_discard", "generate_a2ui", "generate_actions", "generate_keep", "generate_pieces", "generate_forget", "task_list", "task_status", "task_cancel"}));
-            // The hints are the catalog's effects (omui.ops.omui.ts): reads, changes, and what runs what it names.
+            // The hints are the catalog's effects (omui.ops.xdef.ts): reads, changes, and what runs what it names.
             const auto hint = [&](std::string_view tool, std::string_view key) {
                 for (const Value& t : *tools->list())
                     if (t.get("name")->as_string() == tool) return t.get("annotations")->get(key)->as_bool();
@@ -180,7 +180,7 @@ UTest cases{"mcp", [] {
             expect(hint("ui_snapshot", "readOnlyHint") && hint("ui_capture", "readOnlyHint") && hint("ui_describe", "readOnlyHint") && hint("ui_intend", "readOnlyHint")) << "reads";
             expect(!hint("ui_clock", "readOnlyHint") && !hint("ui_clock", "destructiveHint") && !hint("ui_input", "readOnlyHint")) << "reversible";
             expect(!hint("ui_act", "readOnlyHint") && hint("ui_act", "destructiveHint") && hint("ui_invoke", "destructiveHint")) << "delegated: at most irreversible";
-            // Live Design's, from its catalog (design.ops.omui.ts): an edit takes the script's path and text, and is undone.
+            // Live Design's, from its catalog (design.ops.xdef.ts): an edit takes the script's path and text, and is undone.
             expect(hint("design_sources", "readOnlyHint") && !hint("design_edit", "readOnlyHint") && !hint("design_edit", "destructiveHint")) << "design: reads and edits";
             for (const Value& t : *tools->list())
                 if (t.get("name")->as_string() == "design_edit") {

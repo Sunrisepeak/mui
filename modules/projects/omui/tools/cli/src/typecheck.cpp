@@ -287,7 +287,7 @@ int check_project(bool json, bool portable, std::ostream& out, std::ostream& err
     std::vector<fs::path> scripts;  // the files that are not data: the application runs them
     for (const fs::path& file : typescript) {
         const std::string name = utf8(file.filename());
-        if (!name.ends_with(".omui.ts") && name != "omui.config.ts") scripts.push_back(file);
+        if (!name.ends_with(".xdef.ts") && name != "omui.config.ts") scripts.push_back(file);
         auto text = mcpplibs::os::fs::read(root / file);
         if (!text) {
             found.push_back({shown(file), diagnostic(vd::Diagnostic::Level::error, "read", 0, 0, text.error().message())});
@@ -301,7 +301,7 @@ int check_project(bool json, bool portable, std::ostream& out, std::ostream& err
 
     // 2. The view documents.
     std::vector<std::string> documents;
-    for (const fs::path& file : sources(root, [](std::string_view name) { return name.ends_with(".view.omui.json"); }))
+    for (const fs::path& file : sources(root, [](std::string_view name) { return name.ends_with(".view.xdef.json"); }))
         documents.push_back(shown(file));
     if (auto views = check_documents(documents, err)) std::ranges::move(*views, std::back_inserter(found));
     else return 1;

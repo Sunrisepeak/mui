@@ -16,7 +16,7 @@
 //               the browser's own fetch, Response, ReadableStream and WebAssembly over real gzip
 //               HTTP; the launcher lifecycle and MEMFS are small test doubles, each loader in a
 //               frame of its own (node's vm context before); this does not claim to execute a
-//               complete Emscripten app. The report: target/dist-toy-loading.report.omui.json.
+//               complete Emscripten app. The report: target/dist-toy-loading.report.xdef.json.
 module omui.devtools.check;
 
 import std;
@@ -817,14 +817,14 @@ int dist_toy_loading(const fs::path& root, const fs::path& given_fixture) {
         problem = text(report["error"]);
     if (!problem.empty())
         return failed(std::format("the generated loader's checks did not run: {}", problem));
-    write_json(root / "target/dist-toy-loading.report.omui.json", report);
+    write_json(root / "target/dist-toy-loading.report.xdef.json", report);
     std::cout << "the generated loader (dist-toy):\n";
     for (const auto& one : at(report, "checks"))
         std::cout << std::format("  {} {}\n", truthy(at(one, "ok")) ? "ok  " : "FAIL",
                                  text(at(one, "what")));
     if (!truthy(at(report, "ok")))
         return failed(
-            "the generated loader failed its checks (target/dist-toy-loading.report.omui.json)");
+            "the generated loader failed its checks (target/dist-toy-loading.report.xdef.json)");
     return 0;
 }
 

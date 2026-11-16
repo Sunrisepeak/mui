@@ -1,11 +1,11 @@
 # Example 03 — a tally counter, written three times (canvas-markdown §5): in
-# C++ (src/tally.cpp), as a view document (ui/tally.view.omui.json) and in
+# C++ (src/tally.cpp), as a view document (ui/tally.view.xdef.json) and in
 # TypeScript (ts/tally.ts). They make the same semantic tree and the same
 # pixels (CTS S level).
 # Count people at a door, laps, reps — with a goal and its progress.
 #
 #   mcpp run                                  the C++ view
-#   mcpp run -- --doc ui/tally.view.omui.json  the document; edits show as you save
+#   mcpp run -- --doc ui/tally.view.xdef.json  the document; edits show as you save
 [package]
 namespace   = "omui.example"
 name        = "counter"

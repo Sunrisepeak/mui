@@ -19,7 +19,7 @@ const Packs& packs() {
         Packs out;
         for (auto [id, text] : {std::pair{std::string_view("en"), en_locale}, std::pair{std::string_view("zh"), zh_locale},
                                 std::pair{std::string_view("zh-Hant"), zh_Hant_locale}}) {
-            auto d = read_locale_data(text, std::format("{}.locale.omui.json", id));
+            auto d = read_locale_data(text, std::format("{}.locale.xdef.json", id));
             if (!d) {
                 for (const auto& problem : d.error()) std::println(std::cerr, "openmui.i18n.cldr: {}", problem.text());
                 continue;

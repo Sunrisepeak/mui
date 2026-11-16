@@ -94,9 +94,9 @@ struct Tasks {
     std::string via = "semantic";   // semantic, a11y-tree or screenshot (omui mcp --way)
     std::string agent = "claude";
     int trials = 1;
-    bool dry_run = false;           // the records printed, not appended to tasks.eval.omui.jsonl
+    bool dry_run = false;           // the records printed, not appended to tasks.eval.xdef.jsonl
 };
-// The set tools/eval/tasks/SET.tasks.omui.json, each task on a fresh instance of its program.
+// The set tools/eval/tasks/SET.tasks.xdef.json, each task on a fresh instance of its program.
 [[nodiscard]] int tasks_run(const std::filesystem::path& root, std::string_view set, const Tasks& options);
 // Each way's latest trial of every task of the set (from the ledger), side by side.
 [[nodiscard]] int tasks_summary(const std::filesystem::path& root, std::string_view set, bool split_only);
@@ -142,10 +142,10 @@ struct ColdStart {
     std::vector<std::string> only;  // these tasks (none: every one)
     std::string agent = "claude";
     int trials = 1;
-    bool dry_run = false;           // the records printed, not appended to coldstart.eval.omui.jsonl
+    bool dry_run = false;           // the records printed, not appended to coldstart.eval.xdef.jsonl
     bool keep = false;              // leave each trial's directory (the state and the agent's)
 };
-// The set tools/eval/coldstart/SET.coldstart.omui.json.
+// The set tools/eval/coldstart/SET.coldstart.xdef.json.
 [[nodiscard]] int cold_start(const std::filesystem::path& root, std::string_view set, const ColdStart& options);
 
 // ---- hot-reload (W2: save to screen ≤ 100 ms at p95)

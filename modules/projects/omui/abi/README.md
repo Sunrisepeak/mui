@@ -4,7 +4,7 @@
 
 - **Only handles and values cross it.** No C++ type and no exception crosses (every function is `noexcept`). Every function returns `OmuiResult`. Text and structured results reach a sink the caller supplies, so no memory changes hands.
 - **Views are view documents.**
-  - `omuiMount` loads a `*.view.omui.json` text at a slot ([omui.viewdoc](../viewdoc/README.md)). Mounting the same slot again reconciles in place and keeps the state.
+  - `omuiMount` loads a `*.view.xdef.json` text at a slot ([omui.viewdoc](../viewdoc/README.md)). Mounting the same slot again reconciles in place and keeps the state.
   - `omuiCheck` returns the diagnostics as JSON lines.
   - `omuiDefineComponent` makes a document with an interface a component.
   - `omuiSignalFind` gives a binding's own signal object the document's signal.

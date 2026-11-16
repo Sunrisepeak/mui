@@ -3,10 +3,10 @@
 // words. The program has to teach itself: `subjects`, `describe`, the tasks and examples, the ways out of every
 // error. The outcome is checked afterwards through the same program, as requests on the state the agent left
 // (`lab.history`'s actor, a material's row, the scene), never on the agent's word; the agent's last message is
-// held only to what the task asks it to say. Each trial is a line of coldstart.eval.omui.jsonl: success, the
+// held only to what the task asks it to say. Each trial is a line of coldstart.eval.xdef.jsonl: success, the
 // commands it ran, its turns, its tokens (fresh apart from cache reads), how long.
 //
-// A set (tools/eval/coldstart/<set>.coldstart.omui.json):
+// A set (tools/eval/coldstart/<set>.coldstart.xdef.json):
 //   package, program      what is built (release) and run
 //   setup                 the program's arguments before the session, each run once ({dir}: the trial's directory)
 //   wrapper {name, args}  what the agent may run: ./<name>, the program with these arguments ({dir})
@@ -96,10 +96,10 @@ std::optional<ordered_json> checked(const fs::path& program, const std::vector<s
 }  // namespace
 
 int cold_start(const fs::path& root, std::string_view set_name, const ColdStart& options) {
-    const fs::path set_path = root / "tools/eval/coldstart" / std::format("{}.coldstart.omui.json", set_name);
+    const fs::path set_path = root / "tools/eval/coldstart" / std::format("{}.coldstart.xdef.json", set_name);
     const auto set = json::parse(os::fs::read(set_path).value_or(""), nullptr, false);
     if (set.is_discarded() || !set.is_object()) {
-        std::cerr << std::format("omui-devtools eval cold-start: no set tools/eval/coldstart/{}.coldstart.omui.json\n", set_name);
+        std::cerr << std::format("omui-devtools eval cold-start: no set tools/eval/coldstart/{}.coldstart.xdef.json\n", set_name);
         return 2;
     }
     const auto built = run::build(root, {"-p", set.value("package", ""), "--profile", "release"});
@@ -189,7 +189,7 @@ int cold_start(const fs::path& root, std::string_view set_name, const ColdStart&
     }
     if (tried) std::cout << std::format("{}: {} of {} ({:.0f}%)\n", set_name, succeeded, tried, 100.0 * succeeded / tried);
     if (!options.dry_run) {
-        std::ofstream out(root / ".agents/docs/evaluation/coldstart.eval.omui.jsonl", std::ios::binary | std::ios::app);
+        std::ofstream out(root / ".agents/docs/evaluation/coldstart.eval.xdef.jsonl", std::ios::binary | std::ios::app);
         for (const auto& record : records) out << record.dump(-1, ' ', false) << '\n';
     }
     return tried ? 0 : 1;

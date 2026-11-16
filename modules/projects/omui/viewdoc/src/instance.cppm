@@ -1,6 +1,6 @@
 // openmui.viewdoc:instance — a view document running.
 //
-//     auto view = omui::viewdoc::View::load(rt, text, {.file = "counter.view.omui.json"});
+//     auto view = omui::viewdoc::View::load(rt, text, {.file = "counter.view.xdef.json"});
 //     view->slot("toolbar", my_toolbar());
 //     view->mount(rt, "main");                 // the same tree a builder makes
 //     view->reload(new_text);                  // in place: signals keep their values

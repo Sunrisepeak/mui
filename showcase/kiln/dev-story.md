@@ -33,7 +33,7 @@ There are no image files in the game.
 
 - **The cavern** is rows of characters in `sim/src/sim.cpp`, a cell each (`#` stone, `w` wood, `~` water, `l` lava, `C` a crate that is a body).
 - **Mui** is 6 × 10 rectangles over her 3 × 5 cells.
-- **Matter's colours and light** are the standard appearance (`standard.appearance.omui.ts`): a base colour a row, its grain, tints along channels, what emits.
+- **Matter's colours and light** are the standard appearance (`standard.appearance.xdef.ts`): a base colour a row, its grain, tints along channels, what emits.
 - **The baked flames** of the low step of the light are frames of the rich step itself: a hearth — a post of wood alight on a floor — run and drawn by the same code, twelve frames, kept by a key of what they were made from.
 - **There are no sound files either.** A sound is an event's shape (a strike, a crumble, a sizzle) made from a material's numbers; `sound` is some twenty lines that hand each frame's events, landings and bodies' meetings to it.
 - **README media** are drawn headless by `picture_test`, one PNG a step of the ladder.

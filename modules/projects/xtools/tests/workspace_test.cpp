@@ -25,7 +25,7 @@ std::filesystem::path projects() {  // modules/projects/xtools/tests → modules
 constexpr std::string_view card = R"({"omui": "0.1", "view": {"root": {"type": "column", "id": "card", "children": [
   {"type": "text", "id": "title", "props": {"text": "Ready"}}]}}})";
 
-std::string bounce() { return mcpplibs::os::fs::read(projects() / "hanim" / "studio" / "examples" / "bounce.animation.omui.json").value_or(""); }
+std::string bounce() { return mcpplibs::os::fs::read(projects() / "hanim" / "studio" / "examples" / "bounce.animation.xdef.json").value_or(""); }
 
 std::string slower(std::string text) {
     if (const auto at = text.find(R"("duration": 1.2)"); at != std::string::npos) text.replace(at, 15, R"("duration": 2.4)");
@@ -44,8 +44,8 @@ struct Design final : agent::Sources {
         std::filesystem::remove_all(root, error);
         std::filesystem::create_directories(ui_dir, error);
         std::filesystem::create_directories(animation_dir, error);
-        (void)mcpplibs::os::fs::write_atomic(ui_dir / "card.view.omui.json", card);
-        (void)mcpplibs::os::fs::write_atomic(animation_dir / "bounce.animation.omui.json", bounce());
+        (void)mcpplibs::os::fs::write_atomic(ui_dir / "card.view.xdef.json", card);
+        (void)mcpplibs::os::fs::write_atomic(animation_dir / "bounce.animation.xdef.json", bounce());
         (void)workspace.mount("ui", ui);
         (void)workspace.mount("animation", animation);
     }
@@ -68,8 +68,8 @@ static UTest cases{"xtools.workspace", [] {
              static int made_so_far = 0;
              return std::make_unique<Design>(temp_dir() / std::format("design-{}", ++made_so_far));
          },
-         .change = {{"ui/card.view.omui.json", std::string(card).replace(std::string(card).find("Ready"), 5, "Go")}, {"animation/bounce.animation.omui.json", slower(bounce())}},
-         .refused = {{"animation/bounce.animation.omui.json", R"({"version": 1, "objects": [{"id": "ball", "shape": {"circle": "wide"}}]})"}}},
+         .change = {{"ui/card.view.xdef.json", std::string(card).replace(std::string(card).find("Ready"), 5, "Go")}, {"animation/bounce.animation.xdef.json", slower(bounce())}},
+         .refused = {{"animation/bounce.animation.xdef.json", R"({"version": 1, "objects": [{"id": "ball", "shape": {"circle": "wide"}}]})"}}},
         {.subject = "xtools.workspace"});
 
     "an interface and its animation designed together: one commit, a branch, a switch, a revert — both domains each time"_test = [] {
@@ -85,13 +85,13 @@ static UTest cases{"xtools.workspace", [] {
 
         // The agent's edit: the card's title and the ball's drop, as one change.
         auto texts = design.texts();
-        texts["ui/card.view.omui.json"] = std::string(card).replace(std::string(card).find("Ready"), 5, "Go!");
-        texts["animation/bounce.animation.omui.json"] = slower(bounce());
+        texts["ui/card.view.xdef.json"] = std::string(card).replace(std::string(card).find("Ready"), 5, "Go!");
+        texts["animation/bounce.animation.xdef.json"] = slower(bounce());
         const auto applied = design.apply(texts, agent::Sources::Reason::edit);
         expect(applied && applied->contains(R"("ui":)") && applied->contains(R"("animation":)")) << (applied ? *applied : applied.error());
         auto second = request(R"({"message":"Go! and a slower drop"})");
         const auto committed = operations.run("commit", second.root(), "agent:designer");
-        expect(committed && committed->contains("ui/card.view.omui.json") && committed->contains("animation/bounce.animation.omui.json"))
+        expect(committed && committed->contains("ui/card.view.xdef.json") && committed->contains("animation/bounce.animation.xdef.json"))
             << (committed ? *committed : committed.error());
         const std::string livelier = design.state();
 
@@ -99,23 +99,23 @@ static UTest cases{"xtools.workspace", [] {
         auto back = request(R"({"to":"main"})");
         const auto switched = operations.run("switch", back.root(), "person:ana");
         expect(switched.has_value()) << (switched ? *switched : switched.error());
-        expect(on_disk(design.ui_dir / "card.view.omui.json").contains("Ready") && on_disk(design.animation_dir / "bounce.animation.omui.json") == bounce());
+        expect(on_disk(design.ui_dir / "card.view.xdef.json").contains("Ready") && on_disk(design.animation_dir / "bounce.animation.xdef.json") == bounce());
         // And forward again: the same state, both domains.
         expect(operations.run("switch", onto.root(), "person:ana").has_value() && eq(design.state(), livelier));
 
         // One step back on the branch: a revert, both domains as the first design had them.
         auto revert = request(R"({"to":"HEAD~1"})");
         expect(operations.run("revert", revert.root(), "person:ana").has_value());
-        expect(on_disk(design.ui_dir / "card.view.omui.json").contains("Ready") && on_disk(design.animation_dir / "bounce.animation.omui.json") == bounce());
+        expect(on_disk(design.ui_dir / "card.view.xdef.json").contains("Ready") && on_disk(design.animation_dir / "bounce.animation.xdef.json") == bounce());
     };
 
     "a refusal in one domain leaves the other's files as they were"_test = [] {
         Design design(temp_dir() / "refused");
         auto texts = design.texts();
-        texts["ui/card.view.omui.json"] = std::string(card).replace(std::string(card).find("Ready"), 5, "Changed");
-        texts["animation/bounce.animation.omui.json"] = R"({"version": 1, "objects": [{"id": "ball", "shape": {"circle": "wide"}}]})";
+        texts["ui/card.view.xdef.json"] = std::string(card).replace(std::string(card).find("Ready"), 5, "Changed");
+        texts["animation/bounce.animation.xdef.json"] = R"({"version": 1, "objects": [{"id": "ball", "shape": {"circle": "wide"}}]})";
         const auto refused = design.apply(texts, agent::Sources::Reason::edit);
         expect(!refused && refused.error().starts_with("animation: ")) << (refused ? *refused : refused.error());
-        expect(on_disk(design.ui_dir / "card.view.omui.json") == card) << "the card is as it was";
+        expect(on_disk(design.ui_dir / "card.view.xdef.json") == card) << "the card is as it was";
     };
 }};

@@ -1,4 +1,4 @@
-// The lab's operations (lab.ops.omui.ts): the design read, changed, tried, explained; its history and its
+// The lab's operations (lab.ops.xdef.ts): the design read, changed, tried, explained; its history and its
 // claims, which are the agent kernel's.
 module xengine.matter.lab;
 

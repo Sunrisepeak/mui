@@ -4,7 +4,7 @@ Mui the pixel cat, with a wand of fire, water and bombs, in caverns where everyt
 
 ![Mui has lit the barricade; the brush on the ledge, which is only scenery, has caught from it — the rich step of the picture, drawn headless](media/barricade-rich.png)
 
-**State of it**: the simulation, the game as `xengine.runtime` plays it — no interface, played by an agent that branches ahead — its picture, drawn headless by a ladder, and its sound, rendered offline from the world's own events, are done and tested, and so is the window to play it in (keys, the mouse, a gamepad; heard through the system's output), whose recording is the headless game bit for bit. The caverns are TypeScript data (`sim/levels/*.world.omui.ts`, `defineWorld`): a legend and rows painted by code, carried in the program as their JSON.
+**State of it**: the simulation, the game as `xengine.runtime` plays it — no interface, played by an agent that branches ahead — its picture, drawn headless by a ladder, and its sound, rendered offline from the world's own events, are done and tested, and so is the window to play it in (keys, the mouse, a gamepad; heard through the system's output), whose recording is the headless game bit for bit. The caverns are TypeScript data (`sim/levels/*.world.xdef.ts`, `defineWorld`): a legend and rows painted by code, carried in the program as their JSON.
 
 | Part | What |
 |---|---|

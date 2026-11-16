@@ -41,20 +41,20 @@ std::uint64_t Files::digest(std::span<const std::string_view> leaving_out) const
 
 std::string snapshot_name(std::string_view path) {
     std::string name(path);
-    if (name.ends_with(".omui.ts")) name = name.substr(0, name.size() - std::string_view(".ts").size()) + ".json";
+    if (name.ends_with(".xdef.ts")) name = name.substr(0, name.size() - std::string_view(".ts").size()) + ".json";
     return name;
 }
 
 std::expected<std::string, std::string> Files::read(std::string_view path) const {
-    // A data module (`music/promo.music.omui.ts`) is its JSON snapshot: carried as
-    // `….omui.json`; in a directory of edited copies, the snapshot there, else
+    // A data module (`music/promo.music.xdef.ts`) is its JSON snapshot: carried as
+    // `….xdef.json`; in a directory of edited copies, the snapshot there, else
     // the module there evaluated (D-139).
     const std::string name = snapshot_name(path);
     if (!directory_.empty()) {
         const auto at = [&](std::string_view relative) { return directory_ / std::filesystem::path(std::u8string(relative.begin(), relative.end())); };
         std::ifstream in(at(name), std::ios::binary);
         if (in) return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
-        if (name.ends_with(".omui.json")) {
+        if (name.ends_with(".xdef.json")) {
             const auto module = at(name.substr(0, name.size() - std::string_view(".json").size()) + ".ts");
             std::error_code error;
             if (std::filesystem::is_regular_file(module, error)) {
@@ -95,7 +95,7 @@ std::string_view Shown::shot() const noexcept {
 }
 
 std::expected<Cut, std::vector<Problem>> load_cut(const Files& files, std::string_view name, const Subtitles& subtitles) {
-    const std::string file = std::format("{}.timeline.omui.json", name);  // what promo.timeline.omui.ts evaluates to
+    const std::string file = std::format("{}.timeline.xdef.json", name);  // what promo.timeline.xdef.ts evaluates to
     auto text = files.read(file);
     if (!text) return std::unexpected(std::vector<Problem>{{file, 0, 0, text.error()}});
     auto t = tl::read_timeline(*text, file);

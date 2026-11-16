@@ -1,6 +1,6 @@
 # omui.ui.canvas.kit
 
-What a canvas does beyond panning and zooming (module `omui.ui.canvas.kit`, canvas-markdown §1.1–1.3): behaviours a canvas names in its `behaviors`, and declarative ones, statecharts in `*.behavior.omui.ts` run by C++.
+What a canvas does beyond panning and zooming (module `omui.ui.canvas.kit`, canvas-markdown §1.1–1.3): behaviours a canvas names in its `behaviors`, and declarative ones, statecharts in `*.behavior.xdef.ts` run by C++.
 
 ```cpp
 import omui.ui.canvas.kit;
@@ -27,10 +27,10 @@ Presses are offered from the highest priority: minimap 100, resize 60, connect 5
 
 ## Declarative behaviours
 
-A statechart as a TypeScript data module (view-data-files §5, D-139). The kit reads the JSON it evaluates to, loaded with `world::load_behaviors(json, file)` (the build embeds it: `omui::build::behaviors`) or `world::load_behavior_file(path)` (a `.behavior.omui.json`), and then named like any other:
+A statechart as a TypeScript data module (view-data-files §5, D-139). The kit reads the JSON it evaluates to, loaded with `world::load_behaviors(json, file)` (the build embeds it: `omui::build::behaviors`) or `world::load_behavior_file(path)` (a `.behavior.xdef.json`), and then named like any other:
 
 ```ts
-// group-drag.behavior.omui.ts
+// group-drag.behavior.xdef.ts
 import { defineBehavior } from "omui/define";
 
 export default defineBehavior({

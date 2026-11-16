@@ -27,7 +27,7 @@ import :mascot_contract;
 
 export namespace omui::site {
 
-// Mui's art (site/brand/mascot.sprite.omui.json, embedded): each frame of the
+// Mui's art (site/brand/mascot.sprite.xdef.json, embedded): each frame of the
 // body of 24 as rows, each palette as inks.
 struct MascotArt {
     std::map<std::string, std::vector<std::string>, std::less<>> frames;

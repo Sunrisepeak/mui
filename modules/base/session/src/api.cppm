@@ -1,6 +1,6 @@
 // mlibs.session — sessions: a header and timestamped entries, as NDJSON.
 //
-// A session file (`<name>.session.omui.jsonl`) is one JSON object per line:
+// A session file (`<name>.session.xdef.jsonl`) is one JSON object per line:
 // the header first ({"format":"openmui.session@0.1", ...}), then entries
 // ordered by time ({"t":1.25,"kind":"act","body":{...}}). What an entry
 // means is its kind's business (input events, semantic actions, frames,

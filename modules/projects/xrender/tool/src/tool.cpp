@@ -1,5 +1,5 @@
 // xrender.tool — the renderer without a GUI, for people, agents and CI: the subject `xrender`, its catalog's
-// operations (xrender.ops.omui.ts) — effects checked and previewed through the GPU renderer, the render contract's
+// operations (xrender.ops.xdef.ts) — effects checked and previewed through the GPU renderer, the render contract's
 // conformance suite on this machine's device, the device described, a glTF model looked at beside another
 // renderer's picture of it, model-viewer's render-fidelity scenarios. The device is SDL_GPU's (OMUI_VULKAN_LIBRARY
 // and OMUI_GPU_VIDEO_DRIVER as the tests take them: lavapipe headless works).
@@ -643,7 +643,7 @@ int fidelity(Reply& reply, const mlibs::agent::Arguments& args, const std::files
 }  // namespace
 
 mlibs::control::Guide Renderer::guide() const noexcept {
-    static constexpr std::array<std::string_view, 2> look{R"({"op":"device.describe"})", R"({"op":"conformance.run","report":"render.cts.omui.json"})"};
+    static constexpr std::array<std::string_view, 2> look{R"({"op":"device.describe"})", R"({"op":"conformance.run","report":"render.cts.xdef.json"})"};
     static constexpr std::array<mlibs::control::Task, 1> tasks{{{"know-the-device", "What the device is, then the render contract's suite on it", look}}};
     return {"The renderer without a GUI: effects checked and previewed on the GPU, the render contract's suite on this device, a glTF model looked at.", tasks};
 }

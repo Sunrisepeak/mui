@@ -38,7 +38,7 @@ hanim product and its selected source modules. Program composite pixels are cove
 separate test consumer to keep `mlibs.testing` out of production resolution; this CLI's exported PNG remains the fixture below.
 
 ```sh
-omui-devtools consumer hanim-play --output /tmp/hanim-play-consumer.report.omui.json --keep-project
+omui-devtools consumer hanim-play --output /tmp/hanim-play-consumer.report.xdef.json --keep-project
 ```
 
 The retained project's executable accepts native typed command-line controls:
@@ -62,7 +62,7 @@ measured maxima, off-boundary counts and total error; this is no whole-image
 tolerance. Every invocation exercises pause, seek, reverse, resume and batch
 advance through Engine. The CPU reference renderer is the existing vector
 renderer; effects use the public blur/tone chain. It writes real PNG pixels,
-stdout JSON and a matching `.png.provenance.omui.json` sidecar with object refs,
+stdout JSON and a matching `.png.provenance.xdef.json` sidecar with object refs,
 time, viewport, region, backend and pixel hash. No window or GUI startup occurs.
 
 `--bend FRACTION` adds a public typed vertex-path effect before blur/tone.
@@ -107,7 +107,7 @@ artifact without changing this repository's dependency lock, unpack it and run:
 
 ```sh
 omui-devtools consumer hanim-play --openas-package /path/to/unpacked/openas \
-  --output target/hanim-openas-package.report.omui.json --keep-project
+  --output target/hanim-openas-package.report.xdef.json --keep-project
 ```
 
 The override belongs only to the disposable application's root manifest; mcpp

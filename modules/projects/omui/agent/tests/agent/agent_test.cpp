@@ -588,7 +588,7 @@ static UTest cases{"agent", [] {
             return;
         }
         expect(fatal(started.has_value())) << (started ? "" : started.error().text());
-        const auto descriptor = parse_json(mcpplibs::os::fs::read(dir / "notes-loopback.endpoint.omui.json").value_or("{}"));
+        const auto descriptor = parse_json(mcpplibs::os::fs::read(dir / "notes-loopback.endpoint.xdef.json").value_or("{}"));
         expect(fatal(descriptor && descriptor->get("port") && descriptor->get("port")->as_int() > 0)) << "its port in the descriptor";
         const auto port = static_cast<std::uint16_t>(descriptor->get("port")->as_int());
         const std::string secret = mcpplibs::os::fs::read(dir / "notes-loopback.secret").value_or("");
@@ -619,7 +619,7 @@ static UTest cases{"agent", [] {
         const auto dir = scratch_dir("agent-list") / std::filesystem::path(u8"代理 目录");
         std::filesystem::create_directories(dir);
         { std::ofstream(dir / std::filesystem::path(u8"说明.txt")) << "not an endpoint"; }
-        { std::ofstream(dir / "org.example.notes.endpoint.omui.json") << R"({"name":"org.example.notes","app":"org.example.notes","interface":"openmui.tree@0.1"})"; }
+        { std::ofstream(dir / "org.example.notes.endpoint.xdef.json") << R"({"name":"org.example.notes","app":"org.example.notes","interface":"openmui.tree@0.1"})"; }
         auto listed = agent::list(dir);
         expect(listed.size() == 1 && listed[0].name == "org.example.notes") << std::format("{} endpoints", listed.size());
     };

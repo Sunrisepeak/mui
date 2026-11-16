@@ -2,7 +2,7 @@ export module hanim.control;
 import std;
 export import hanim.engine;
 export import mlibs.control;
-export import :catalog;  // generated from hanim.ops.omui.ts (ops-gen)
+export import :catalog;  // generated from hanim.ops.xdef.ts (ops-gen)
 
 export namespace hanim::control {
 // The catalog's entries: names, openas effects, parameters, results, costs, undo.

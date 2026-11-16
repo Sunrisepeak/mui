@@ -23,7 +23,7 @@ namespace os = mcpplibs::os;
 
 // A source: what a change of rebuilds (C++, its manifest, its build program, the data modules it embeds).
 bool is_source(std::string_view name) {
-    return name.ends_with(".cpp") || name.ends_with(".cppm") || name == "mcpp.toml" || name == "build.mcpp" || name.ends_with(".omui.ts");
+    return name.ends_with(".cpp") || name.ends_with(".cppm") || name == "mcpp.toml" || name == "build.mcpp" || name.ends_with(".xdef.ts");
 }
 
 // The project's sources and when each last changed.

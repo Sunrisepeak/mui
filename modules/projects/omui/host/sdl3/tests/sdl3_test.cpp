@@ -113,7 +113,7 @@ UTest cases{"host.sdl3", [] {
         std::error_code ec;
         std::filesystem::remove_all(dir, ec);
         std::filesystem::create_directories(dir, ec);
-        write(dir / "invert.effect.omui.json", R"({"effect": {"name": "invert", "doc": "The colours turned over."}})");
+        write(dir / "invert.effect.xdef.json", R"({"effect": {"name": "invert", "doc": "The colours turned over."}})");
         const std::string invert = R"(import openmui_effect;
 [shader("fragment")]
 float4 invert_fs(EffectPixel px) : SV_Target {

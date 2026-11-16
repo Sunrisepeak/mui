@@ -1,8 +1,8 @@
 // openmui.gen.cldr — CLDR's JSON release to openmui.i18n's locale packs
-// (D-74): per locale, `<id>.locale.omui.json` with its plural rules, number
+// (D-74): per locale, `<id>.locale.xdef.json` with its plural rules, number
 // symbols, patterns and compact forms, Gregorian calendar names, patterns,
 // skeletons and day periods, localised offsets, relative times and lists;
-// and `likely.locale.omui.json`, the likely subtags of the languages packed.
+// and `likely.locale.xdef.json`, the likely subtags of the languages packed.
 // The packs are data the engine reads, committed beside their CLDR version.
 export module omui.gen.cldr;
 
@@ -11,7 +11,7 @@ import std;
 export namespace omui::gen {
 
 struct CldrPack {
-    std::string file;  // en.locale.omui.json
+    std::string file;  // en.locale.xdef.json
     std::string text;
 };
 

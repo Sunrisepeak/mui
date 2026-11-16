@@ -1,4 +1,4 @@
-// Reading and writing sounds: the JSON a `*.sound.omui.ts` evaluates to
+// Reading and writing sounds: the JSON a `*.sound.xdef.ts` evaluates to
 // (D-139), every problem at its JSON pointer and its line and column.
 module xengine.audio;
 

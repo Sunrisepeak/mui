@@ -1,6 +1,6 @@
 # particles — skill
 
-How an Agent examines and tries a cloud of particles in 3D (`xengine.particles.agent`), with no window. The operations, their parameters and effects are in [particles.ops.omui.ts](particles.ops.omui.ts) (the subject, asked to describe itself at its endpoint, answers the same); this is the order to use them in.
+How an Agent examines and tries a cloud of particles in 3D (`xengine.particles.agent`), with no window. The operations, their parameters and effects are in [particles.ops.xdef.ts](particles.ops.xdef.ts) (the subject, asked to describe itself at its endpoint, answers the same); this is the order to use them in.
 
 ## Before
 

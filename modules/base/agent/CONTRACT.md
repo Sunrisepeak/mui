@@ -4,7 +4,7 @@ What any subject — an interface, a world, an animation stage, a frame — give
 
 ## 1. Where
 
-A program is found at a local connection named after it (a Unix socket, a named pipe), with a descriptor beside it (`<name>.endpoint.omui.json`: its application and the interface its sessions speak). One JSON object a line in, records a line out. Requests are served at the owner's safe point (a frame's or a step's boundary), never from another thread.
+A program is found at a local connection named after it (a Unix socket, a named pipe), with a descriptor beside it (`<name>.endpoint.xdef.json`: its application and the interface its sessions speak). One JSON object a line in, records a line out. Requests are served at the owner's safe point (a frame's or a step's boundary), never from another thread.
 
 ## 2. A request and its answer (openas §6)
 
@@ -34,7 +34,7 @@ Anything else is a subject's operation by its whole name (`world.observe`), deci
 
 ## 4. A subject
 
-A name, the interface its operations speak (`xengine.world@0.1`), a catalog (`<product>.ops.omui.ts`: each operation's effect, parameters, cost, how it is undone, examples, `then`), a guide (what it is, its tasks), terms its content names, its state's hash, where its own record of changes stands, and what it can do:
+A name, the interface its operations speak (`xengine.world@0.1`), a catalog (`<product>.ops.xdef.ts`: each operation's effect, parameters, cost, how it is undone, examples, `then`), a guide (what it is, its tasks), terms its content names, its state's hash, where its own record of changes stands, and what it can do:
 
 | capability | |
 |---|---|

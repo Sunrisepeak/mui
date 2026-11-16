@@ -100,7 +100,7 @@ Current rendered structure: [Home](media/structure-home-en-desktop.png), [Docs](
   - It waits while the canonical font sources are incomplete, retaining the latest requested frame. Once they are ready it plays on a host of its own, at CI's size (1280×800), with only the program's own fonts (Inter, Noto Sans SC, JetBrains Mono), rastered in one band, every frame complete (`complete_frames`).
   - Ten frames a second are sampled; each frame's RGBA bytes are hashed (FNV-1a).
   - Drag to a frame and the panel draws it, with its hash here, CI's hash for it and whether they are the same.
-  - CI's table is a data file, `reference/ci.frames.omui.json`, embedded in the program. `site_test` makes every frame and checks it against the table.
+  - CI's table is a data file, `reference/ci.frames.xdef.json`, embedded in the program. `site_test` makes every frame and checks it against the table.
   - The replay runs in a stage of the frame after paint, not inside the slider's handler: there it would run inside the page's batch, its effects held back, and draw a stale frame.
 - **The tree's hash.** The footer describes the current place's live semantic tree. A controlled home baseline is pinned in tests; the separate reference player compares fixed pixels with CI. Automatic previews and a visitor's edits are not reported as CI mismatches.
   - It covers ids, roles, names, values and lasting states.
@@ -137,7 +137,7 @@ Static FontFaces now consume `omuiLoad.fontBytes` leases from the same decoded t
 
 ## Delivery
 
-`omui-devtools check site` measures the built page in a real browser (its `perf` check), against `delivery.budget.omui.json`. It serves `target/site` with gzip and makes a cold English visit at 1280×800 over a 20 Mbit/s, 40 ms connection, then goes through Docs to Core ideas and back home. Single-run record, 2026-11-05, using `site-web` (headless Chromium 156), a fresh profile with within-visit HTTP cache enabled:
+`omui-devtools check site` measures the built page in a real browser (its `perf` check), against `delivery.budget.xdef.json`. It serves `target/site` with gzip and makes a cold English visit at 1280×800 over a 20 Mbit/s, 40 ms connection, then goes through Docs to Core ideas and back home. Single-run record, 2026-11-05, using `site-web` (headless Chromium 156), a fresh profile with within-visit HTTP cache enabled:
 
 | Measure | Result |
 |---|---|
@@ -147,7 +147,7 @@ Static FontFaces now consume `omuiLoad.fontBytes` leases from the same decoded t
 | rAF intervals | p50 16.7, p95 16.8, max 50 ms; 1 over 33.4 ms |
 | memory at the end | JS heap 13,400,000 bytes, wasm memory 28,639,232 bytes |
 
-The first-frame proxy is the semantic mirror's first populated frame; it is not FCP, LCP or a direct measurement of presented frame rate. The site-wide Chinese text face still loads after presentation on English visits; its initial two-character asset is 230,568 raw bytes. Chinese visits use the site-text face before presentation. That face is a site-copy subset, not complete source-font coverage for arbitrary input. This run passes all seven budgets with **259,486 bytes** below the existing 5 MB total-transfer limit; per-page/input fonts and heavy-program splitting remain open. This is one sample, not evidence of a stable speed improvement. The [checkpoint report](../tools/ci/hanim-api-probe/2026-11-05-pixel-parameters.report.omui.json) preserves its conditions and results. The earlier [shared-font comparison](../.agents/docs/2026-11-04-omui-shared-font-delivery-design.md) distinguishes actual duplicate transfers from within-visit cache reuse. Its second visit, with the HTTP cache disabled, and both visits' request logs (`target/site-perf*-requests.report.omui.json`) record cache flags and actual response byte events; reports and pixel evidence are kept in the Pages workflow's `site-checks` artifact.
+The first-frame proxy is the semantic mirror's first populated frame; it is not FCP, LCP or a direct measurement of presented frame rate. The site-wide Chinese text face still loads after presentation on English visits; its initial two-character asset is 230,568 raw bytes. Chinese visits use the site-text face before presentation. That face is a site-copy subset, not complete source-font coverage for arbitrary input. This run passes all seven budgets with **259,486 bytes** below the existing 5 MB total-transfer limit; per-page/input fonts and heavy-program splitting remain open. This is one sample, not evidence of a stable speed improvement. The [checkpoint report](../tools/ci/hanim-api-probe/2026-11-05-pixel-parameters.report.xdef.json) preserves its conditions and results. The earlier [shared-font comparison](../.agents/docs/2026-11-04-omui-shared-font-delivery-design.md) distinguishes actual duplicate transfers from within-visit cache reuse. Its second visit, with the HTTP cache disabled, and both visits' request logs (`target/site-perf*-requests.report.xdef.json`) record cache flags and actual response byte events; reports and pixel evidence are kept in the Pages workflow's `site-checks` artifact.
 
 The same step then reads the page as assistive technology does (its `a11y` check), from Chromium's own accessibility tree, which is what a screen reader on the page is given. It checks that:
 - the places are a navigation landmark and the place shown is the main one;
@@ -185,7 +185,7 @@ omui-devtools media --check site
 - example 01 typed into and clicked; the settings, each choice's name drawn and read by it and each changing what it says;
 - on a phone: the bar wrapped, a panel in the place's place, the agent's tour putting it away;
 - the pixels of home, the components, the wireframe, the agent's JSON, the timeline, getting started, the agent asking, the settings, the Chinese page and the page's time dragged back into a language switch, pinned on every platform (each picture's own hash printed, so a platform that differs shows which);
-- the reference run: every sampled frame pinned (`reference/ci.frames.omui.json`; when they differ the run's own table is written to `$TMPDIR/openmui-tests/site-reference/`, with three of its frames beside it), a frame played to again the same; the panel in the page: an agent picks frame 9, and the hash drawn here is a fresh replay's and CI's;
+- the reference run: every sampled frame pinned (`reference/ci.frames.xdef.json`; when they differ the run's own table is written to `$TMPDIR/openmui-tests/site-reference/`, with three of its frames beside it), a frame played to again the same; the panel in the page: an agent picks frame 9, and the hash drawn here is a fresh replay's and CI's;
 - the static HTML and its injection into dist-toy's page.
 
 The tests run natively on every CI row and on wasm32 under node in the Web row, with the same pins.

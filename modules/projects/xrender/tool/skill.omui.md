@@ -1,11 +1,11 @@
 # xrender — skill
 
-How an Agent (or a person at a terminal) works with the renderer without a GUI: writes a pixel effect, checks it, looks at it drawn by the real GPU renderer, and checks the device against the CPU reference. The operations are the catalog's: [`xrender.ops.omui.ts`](xrender.ops.omui.ts), listed in [`src/catalog/xrender.ops.json`](src/catalog/xrender.ops.json) and [`src/catalog/xrender.ops.md`](src/catalog/xrender.ops.md). Each is the `xrender` command (`effect.check` is `xrender effect.check --files FILE …`, `conformance.run` is `xrender conformance.run`): one JSON answer, exit 0 done, 1 failed with why, 2 a wrong command. Headless machines use a software device (lavapipe: `OMUI_VULKAN_LIBRARY`, `OMUI_GPU_VIDEO_DRIVER=offscreen`, as the tests do).
+How an Agent (or a person at a terminal) works with the renderer without a GUI: writes a pixel effect, checks it, looks at it drawn by the real GPU renderer, and checks the device against the CPU reference. The operations are the catalog's: [`xrender.ops.xdef.ts`](xrender.ops.xdef.ts), listed in [`src/catalog/xrender.ops.json`](src/catalog/xrender.ops.json) and [`src/catalog/xrender.ops.md`](src/catalog/xrender.ops.md). Each is the `xrender` command (`effect.check` is `xrender effect.check --files FILE …`, `conformance.run` is `xrender conformance.run`): one JSON answer, exit 0 done, 1 failed with why, 2 a wrong command. Headless machines use a software device (lavapipe: `OMUI_VULKAN_LIBRARY`, `OMUI_GPU_VIDEO_DRIVER=offscreen`, as the tests do).
 
 ## Before
 
 1. `device.describe`: which device draws (a software one is slower, never less exact).
-2. An effect is two files: `<name>.effect.omui.ts` (its name, parameters with ranges, reach; the tool reads its JSON: `xdef snapshot`) and its Slang fragment shader written against the effect template ([xrender.effect](../effect/README.md)). Read an existing one first.
+2. An effect is two files: `<name>.effect.xdef.ts` (its name, parameters with ranges, reach; the tool reads its JSON: `xdef snapshot`) and its Slang fragment shader written against the effect template ([xrender.effect](../effect/README.md)). Read an existing one first.
 
 ## Doing
 

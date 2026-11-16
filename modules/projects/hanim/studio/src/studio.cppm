@@ -2,7 +2,7 @@
 // the tool that checks, samples and renders it without a GUI (convergence
 // plan M4: the animation tool's CLI).
 //
-// A document (`<name>.animation.omui.json`) names its objects — shapes with a
+// A document (`<name>.animation.xdef.json`) names its objects — shapes with a
 // fill, a stroke, where they stand — and its program: steps (move, rotate,
 // scale, fill, fade, morph, drop, pulse, shake, wobble) composed in
 // sequences, parallels, staggers, waits and loops. `read` checks all of it
@@ -182,7 +182,7 @@ private:
     std::unique_ptr<Data> data_;
 };
 
-// The studio's operations as an agent's subject, `document` (its catalog: studio.ops.omui.ts): each reads a
+// The studio's operations as an agent's subject, `document` (its catalog: studio.ops.xdef.ts): each reads a
 // document from a file and answers as JSON — the plan, what governs a moment, objects' states, variants side by
 // side, frames written. The `hanim` command is this subject behind the tool kernel's entries (mlibs.agent:host):
 // `hanim document.check --file F`, `hanim mcp`; a test or a host session asks it the same way.

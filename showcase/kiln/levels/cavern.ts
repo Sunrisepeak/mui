@@ -1,5 +1,5 @@
 // What Kiln's caverns share: the legend (a character a cell) and a painter — rectangles of a character on a grid
-// of air, read as rows. Not a data module itself: the levels (`*.world.omui.ts`) import it.
+// of air, read as rows. Not a data module itself: the levels (`*.world.xdef.ts`) import it.
 
 /** Each character: a material of the standard definition, or a role Kiln gives it. */
 export const legend: { [character: string]: string } = {

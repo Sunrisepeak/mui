@@ -84,7 +84,7 @@ UTest cases{"bench", [] {
 
     "the budgets file in the tree is valid"_test = [] {
         const auto file = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path() /
-                          "budgets.bench.omui.json";
+                          "budgets.bench.xdef.json";
         std::ifstream in(file);
         const std::string text{std::istreambuf_iterator<char>(in), {}};
         auto b = bench::parse_budgets(text);

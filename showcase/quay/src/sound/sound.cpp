@@ -20,8 +20,8 @@ std::expected<Sound, std::string> Sound::make(const State& state) {
     if (!place) return std::unexpected(place.error());
     made.space_ = *place;
     made.mixer_->add_source(made.space_);
-    const auto sounds = audio::read_sounds(files::quay_sound, "quay.sound.omui.json");
-    if (!sounds) return std::unexpected(sounds.error().empty() ? std::string("quay.sound.omui.json") : sounds.error().front().text());
+    const auto sounds = audio::read_sounds(files::quay_sound, "quay.sound.xdef.json");
+    if (!sounds) return std::unexpected(sounds.error().empty() ? std::string("quay.sound.xdef.json") : sounds.error().front().text());
     for (const audio::Sound& one : *sounds) made.sounds_.emplace_back(one.name, made.space_->add(one));
     made.statics_ = state.statics;
     if (made.statics_) made.space_->walls(made.statics_->walls);

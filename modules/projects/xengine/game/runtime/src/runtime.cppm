@@ -36,7 +36,7 @@ import mlibs.agent;
 import mlibs.json;
 import mlibs.simulation;
 import xengine.input;
-export import :catalog;  // the game's operations (world.ops.omui.ts, ops-gen)
+export import :catalog;  // the game's operations (world.ops.xdef.ts, ops-gen)
 
 export namespace xengine::runtime {
 

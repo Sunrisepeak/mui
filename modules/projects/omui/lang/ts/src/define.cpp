@@ -417,7 +417,7 @@ export interface Video {
     from?: { card: "sync" } | { png: string } | { view: string };
     audio?: {
         rate?: number;
-        /** A piece (`theme.music.omui.ts`), relative to the description. */
+        /** A piece (`theme.music.xdef.ts`), relative to the description. */
         music?: string;
         /** One number, or from a time on. */
         intensity?: number | { at: number; value: number }[];
@@ -464,7 +464,7 @@ export declare function defineBehavior(behaviors: { [name: string]: { on?: strin
 export interface Messages {
     [key: string]: string | Messages;
 }
-/** `export default defineMessages({ title: "Inbox", inbox: { count: "{$count :number} new" } })`, a file a language (`app.zh-Hans.messages.omui.ts`). */
+/** `export default defineMessages({ title: "Inbox", inbox: { count: "{$count :number} new" } })`, a file a language (`app.zh-Hans.messages.xdef.ts`). */
 export declare function defineMessages(messages: Messages): Defined<"messages">;
 
 // ── motion recipes ───────────────────────────────────────────────────────
@@ -664,7 +664,7 @@ export interface World {
 }
 /** `export default defineWorld({ name: "a cavern", legend: { "#": "stone", "P": "start" }, rows: ["#####", "#P..#", "#####"] })`. */
 export declare function defineWorld(world: World): Defined<"world">;
-// ── a project's identity (<project>.project.omui.ts, D-208) ──────────────
+// ── a project's identity (<project>.project.xdef.ts, D-208) ──────────────
 
 /** A part of a project that may depend on less than the whole (xengine's simulation kernels, gongfu's core). */
 export interface ProjectPart {

@@ -2,7 +2,7 @@
 #   src/sim       the simulation (the M6.5 design's T5.8a): a pocket valley — a stream and a footbridge, grass on both
 #                 banks, a campfire, a crate, a block of ice — whose bodies, air and drops are matter's carriers in one
 #                 step (xengine.dynamics' rigid3 and objects, xengine.field, xengine.particles, under rigid3::Scene).
-#                 Poked by a few verbs, it answers by the standard laws and Glade's own materials (glade.matter.omui.ts:
+#                 Poked by a few verbs, it answers by the standard laws and Glade's own materials (glade.matter.xdef.ts:
 #                 a pack, data, no law). The state is a value: a copy is a branch.
 #   src/headless  the valley as xengine.runtime plays it (D-162; T5.8b): stepped without omui, sought back and branched
 #                 ahead, poked by a hand a person or an agent holds over it, and asked why.

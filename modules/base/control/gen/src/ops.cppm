@@ -1,4 +1,4 @@
-// mlibs.control.gen — a product's operation catalog (`<product>.ops.omui.ts`,
+// mlibs.control.gen — a product's operation catalog (`<product>.ops.xdef.ts`,
 // convergence plan §10.3; read as its JSON) to its generated code and listings:
 //
 //   - (when the catalog names a module) a C++ partition `<module>:catalog` holding `catalog`, an
@@ -68,7 +68,7 @@ struct Catalog {
 // in messages), or every problem in it.
 [[nodiscard]] std::expected<Catalog, std::vector<std::string>> read_catalog(std::string_view text,
                                                                             std::string_view file);
-// The catalog file: <product>.ops.omui.ts (defineOps, D-139: evaluated with the define modules its
+// The catalog file: <product>.ops.xdef.ts (defineOps, D-139: evaluated with the define modules its
 // workspace's registry gives, mlibs.xdef), or its JSON.
 [[nodiscard]] std::expected<Catalog, std::vector<std::string>> read_catalog_file(const std::filesystem::path& file);
 [[nodiscard]] std::string emit_catalog_cpp(const Catalog& catalog, std::string_view source);

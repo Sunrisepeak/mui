@@ -1,4 +1,4 @@
-// Declarative behaviours: compiling a *.behavior.omui.ts's JSON into a statechart
+// Declarative behaviours: compiling a *.behavior.xdef.ts's JSON into a statechart
 // (every state, event, operation and name checked, with its line), and
 // running it as a canvas behaviour.
 module omui.ui.canvas.kit;

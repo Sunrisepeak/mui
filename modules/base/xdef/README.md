@@ -12,7 +12,7 @@ xdef check .                         # every data file's kind registered, every 
 
 ## The container (xdef 0.1)
 
-1. **A file's name** is `<name>.<kind>.xdef.<extension>`, the extension `ts` (a data module), `json` (a snapshot, or data a tool writes) or `jsonl` (records a line each). `<kind>` is lowercase letters, digits, `-` and `_`. The files named `.omui.` before the migration (RC3.15) are read the same.
+1. **A file's name** is `<name>.<kind>.xdef.<extension>`, the extension `ts` (a data module), `json` (a snapshot, or data a tool writes) or `jsonl` (records a line each). `<kind>` is lowercase letters, digits, `-` and `_`. A file named with the earlier suffix (`.omui.`, before RC3.15) is moved by `xdef migrate [DIR] [--write]`: renamed, and every text that names it rewritten (D-208).
 2. **A format identifier** is `<kind>@<major>`, the major a whole number from 1. In a snapshot it is the top-level `"$format"` and it is the authority; the suffix is a hint (RC3.15's step 4 writes it).
 3. **The registry** is data: each owner registers its kinds in its own manifest. A kind has one owner, one major version and at most one define module; a kind with two owners is a problem.
 
@@ -30,5 +30,6 @@ xdef check .                         # every data file's kind registered, every 
 
 `check(root, registry)` walks a tree, skipping build trees and version control:
 
+- no data file keeps the earlier container's suffix (`xdef migrate` renames it);
 - every data file's kind is registered by some package;
 - every module with a committed snapshot beside it evaluates to that snapshot's bytes now.

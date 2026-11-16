@@ -1,7 +1,7 @@
 # omui.bench — the framework's benchmarks: what a frame of the 1000-node
 # dashboard costs at 1080p on the CPU (M1 acceptance ⑤), the pieces alone,
 # and what tracing and logging cost when off. Each is a case of mtest's whose
-# budgets (budgets.bench.omui.json, for release builds) are the case's bounds:
+# budgets (budgets.bench.xdef.json, for release builds) are the case's bounds:
 #
 #   OMUI_BENCH=1 mcpp test -p omui.bench --profile release budgets
 [package]

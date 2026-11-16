@@ -125,7 +125,7 @@ UTest cases{"example.theming", [] {
         expect(p.start().has_value());
         settle(h, p);
         expect(h.runtime().theme().color("accent").r == Color::hex(0x0f766e).r);
-        const auto brand = app / "themes" / "brand.theme.omui.ts";
+        const auto brand = app / "themes" / "brand.theme.xdef.ts";
         // Each save a later time than the last, whatever the clock's grain
         // (Windows': about 15 ms, so two quick saves would read the same).
         const auto start = std::filesystem::last_write_time(brand);
@@ -147,7 +147,7 @@ UTest cases{"example.theming", [] {
         save("accent: \"#be123c\"", "accent: \"crimson\"");
         (void)p.poll();
         settle(h, p);
-        expect(!p.problems().empty() && p.problems().back().find("brand.theme.omui.json:1:") != std::string::npos &&
+        expect(!p.problems().empty() && p.problems().back().find("brand.theme.xdef.json:1:") != std::string::npos &&
                   p.problems().back().find("/theme/brand/colors/accent: colour `accent` must be a colour") != std::string::npos &&
                   p.problems().back().find("colour `accent` must be a colour") != std::string::npos) << (p.problems().empty() ? "" : p.problems().back());
         expect(h.runtime().theme().color("accent").r == Color::hex(0xbe123c).r) << "a broken edit changes nothing";

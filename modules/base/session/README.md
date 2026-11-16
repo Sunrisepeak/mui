@@ -1,7 +1,7 @@
 # mlibs.session
 
 Sessions as data: a header and timestamped entries, one JSON object per line
-(`<name>.session.omui.jsonl`). Entries stay ordered by time; a session can be
+(`<name>.session.xdef.jsonl`). Entries stay ordered by time; a session can be
 sought by binary search, sliced, merged with another, written and read back
 byte-identical. What an entry means is its kind's business — the runtime
 records frames with input events, semantic actions with their actor and
@@ -17,5 +17,5 @@ import mlibs.session;
 mlibs::session::Session s;
 s.header.app = "org.example.notes";
 s.add(0.5, "act", R"({"node":"main/save","action":"activate"})");
-s.save("bug.session.omui.jsonl");
+s.save("bug.session.xdef.jsonl");
 ```

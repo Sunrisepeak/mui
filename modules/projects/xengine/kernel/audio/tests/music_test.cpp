@@ -85,7 +85,7 @@ constexpr std::string_view piece = R"({"music": {
 }})";
 
 audio::Music read_piece(std::string_view text = piece) {
-    auto m = audio::read_music(text, "test.music.omui.json");
+    auto m = audio::read_music(text, "test.music.xdef.json");
     if (!m) {
         for (const auto& p : m.error()) expect(false) << p.text();
         return {};
@@ -95,7 +95,7 @@ audio::Music read_piece(std::string_view text = piece) {
 
 std::vector<std::string> problems_of(std::string_view text) {
     std::vector<std::string> v;
-    if (auto m = audio::read_music(text, "bad.music.omui.json"); !m)
+    if (auto m = audio::read_music(text, "bad.music.xdef.json"); !m)
         for (const auto& p : m.error()) v.push_back(p.text());
     return v;
 }
@@ -171,7 +171,7 @@ UTest cases{"music", [] {
         expect(lead != m.patches.end() && lead->base == "koto" && lead->engine == audio::Engine::pluck && lead->pluck.decay == 1.5f &&
                   lead->pluck.brightness == koto->pluck.brightness && lead->amp == koto->amp) << "a patch on a base: the base's, and what it changes";
         const std::string written = audio::write_music(m);
-        auto again = audio::read_music(written, "written.music.omui.json");
+        auto again = audio::read_music(written, "written.music.xdef.json");
         expect(again.has_value()) << (again ? "" : again.error().front().text());
         if (!again) return;
         expect(*again == m) << "the same piece";
@@ -220,19 +220,19 @@ UTest cases{"music", [] {
 }})");
         auto has = [&](std::string_view t) { return std::ranges::any_of(bad, [&](const std::string& x) { return x == t; }); };
         const std::string all = std::format("{}", bad);
-        expect(has("bad.music.omui.json:2:27: /music/tempp: a piece has no key `tempp` (did you mean `tempo`?)")) << all;
+        expect(has("bad.music.xdef.json:2:27: /music/tempp: a piece has no key `tempp` (did you mean `tempo`?)")) << all;
         auto has_at = [&](std::string_view at, std::string_view text) {
-            return std::ranges::any_of(bad, [&](const std::string& x) { return x.starts_with("bad.music.omui.json:") && x.ends_with(std::format("{}: {}", at, text)); });
+            return std::ranges::any_of(bad, [&](const std::string& x) { return x.starts_with("bad.music.xdef.json:") && x.ends_with(std::format("{}: {}", at, text)); });
         };
         expect(has_at("/music/instruments/lead/patch", "instrument `lead`'s patch `kotto` is not a patch of the piece's or a built-in (did you mean `koto`?)")) << all;
         expect(has_at("/music/instruments/lead/sends/rooom", "instrument `lead` sends to `rooom` is not one of the piece's buses (did you mean `room`?)")) << all;
         expect(has_at("/music/buses/room/effects/0/sise", "a reverb has no key `sise` (did you mean `size`?)")) << all;
         expect(has_at("/music/patterns/hook/instrument", "pattern `hook`'s instrument `leed` is not one of the piece's instruments (did you mean `lead`?)")) << all;
         // A note's problem at its very token in the text, its escapes counted.
-        expect(has("bad.music.omui.json:10:52: /music/patterns/hook/notes: `H5` is not a note (a note is a letter A–G, maybe # or b, and an octave: `C4`, `F#3`, `Bb5`; `.` is a rest)")) << all;
-        expect(has("bad.music.omui.json:10:76: /music/patterns/hook/notes: the last stretch is 9 steps, not whole bars (a bar is 8 1/8 steps)")) << all;
-        expect(has("bad.music.omui.json:11:95: /music/patterns/multi/notes: `Q6` is not a note (a note is a letter A–G, maybe # or b, and an octave: `C4`, `F#3`, `Bb5`; `.` is a rest)")) << all;
-        expect(has("bad.music.omui.json:12:45: /music/patterns/drums/lanes/lead: `z` is not a step (`x` a hit, `X` an accent, `o` a ghost, `.` none, `|` a bar line)")) << all;
+        expect(has("bad.music.xdef.json:10:52: /music/patterns/hook/notes: `H5` is not a note (a note is a letter A–G, maybe # or b, and an octave: `C4`, `F#3`, `Bb5`; `.` is a rest)")) << all;
+        expect(has("bad.music.xdef.json:10:76: /music/patterns/hook/notes: the last stretch is 9 steps, not whole bars (a bar is 8 1/8 steps)")) << all;
+        expect(has("bad.music.xdef.json:11:95: /music/patterns/multi/notes: `Q6` is not a note (a note is a letter A–G, maybe # or b, and an octave: `C4`, `F#3`, `Bb5`; `.` is a rest)")) << all;
+        expect(has("bad.music.xdef.json:12:45: /music/patterns/drums/lanes/lead: `z` is not a step (`x` a hit, `X` an accent, `o` a ghost, `.` none, `|` a bar line)")) << all;
         expect(has_at("/music/sections/a/layers/0/intensity", "an intensity's range [0.8, 0.2] holds nothing (from below to: [0.5, 1])")) << all;
         expect(has_at("/music/sections/a/layers/0/pattern", "section `a` plays `hok` is not one of the piece's patterns (did you mean `hook`?)")) << all;
         expect(has_at("/music/arrangement/loop/0", "the loop plays `b` is not one of the piece's sections (one of `a`)")) << all;
@@ -242,7 +242,7 @@ UTest cases{"music", [] {
                   return std::stoi(t.substr(a, b - a));
               })) << all;
         const auto malformed = problems_of("{\"music\": {\n  \"tempo\": \n}}");
-        expect(malformed.size() == 1 && malformed[0].starts_with("bad.music.omui.json:3:")) << std::format("{}", malformed);
+        expect(malformed.size() == 1 && malformed[0].starts_with("bad.music.xdef.json:3:")) << std::format("{}", malformed);
     };
 
     "a plucked string plays in tune (from low to high) and rings down; a slide reaches its note"_test = [] {

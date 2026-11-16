@@ -1,9 +1,9 @@
 // openmui.ui.canvas.kit:declarative — behaviours as data
-// (view-data-files §5): a statechart in a *.behavior.omui.ts, run by C++. The
+// (view-data-files §5): a statechart in a *.behavior.xdef.ts, run by C++. The
 // kit reads the JSON the module evaluates to (D-139; the build embeds it,
 // xdef snapshot writes it out).
 //
-//     // group-drag.behavior.omui.ts
+//     // group-drag.behavior.xdef.ts
 //     export default defineBehavior({
 //       "group-drag": {
 //         on: "canvas",
@@ -55,7 +55,7 @@ using BehaviorProblems = std::vector<BehaviorProblem>;
 
 // Reads a behaviour file's JSON (`{"behavior": {<name>: …}}`) and registers
 // what it declares (by name: again replaces it; canvases made after use the
-// new one). Answers the names. A file: its `.behavior.omui.json`.
+// new one). Answers the names. A file: its `.behavior.xdef.json`.
 [[nodiscard]] std::expected<std::vector<std::string>, BehaviorProblems> load_behaviors(std::string_view text, std::string_view file = "<behaviour>");
 [[nodiscard]] std::expected<std::vector<std::string>, BehaviorProblems> load_behavior_file(const std::filesystem::path& file);
 

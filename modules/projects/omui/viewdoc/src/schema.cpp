@@ -350,7 +350,7 @@ Value view_schema(bool with_document_components) {
     Value top = object();
     top.set("$schema", "https://json-schema.org/draft/2020-12/schema");
     top.set("$id", std::format("urn:openmui:view-document:{}", format_version));
-    top.set("title", "openmui view document (*.view.omui.json)");
+    top.set("title", "openmui view document (*.view.xdef.json)");
     top.set("description",
             "A view as data (view-data-files §3). Generated from the registered components by `omui schema`; "
             "`omui check` applies the same rules and more (names in expressions, ids, types of constants).");

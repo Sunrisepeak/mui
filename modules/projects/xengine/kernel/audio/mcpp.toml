@@ -1,6 +1,6 @@
 # xengine.audio — sound for openmui and its games (D-86): sounds as data
-# (*.sound.omui.ts: layered oscillators and noise, gliding pitch and
-# filters, envelopes) and music as data (*.music.omui.ts: synthesised
+# (*.sound.xdef.ts: layered oscillators and noise, gliding pitch and
+# filters, envelopes) and music as data (*.music.xdef.ts: synthesised
 # instruments, patterns as text, sections whose layers play by intensity, an
 # arrangement), voices mixed into buses through their effects into a limited
 # master, a block at a time with nothing allocated, every sample a function
@@ -11,7 +11,7 @@
 # (the files' JSON, as their modules evaluate to) and, for the omui-music
 # tool's JSON, nlohmann.json.
 #
-#   mcpp run --release omui-music -- render piece.music.omui.json --out x.wav --seconds 60
+#   mcpp run --release omui-music -- render piece.music.xdef.json --out x.wav --seconds 60
 [package]
 namespace   = "xengine"
 name        = "audio"

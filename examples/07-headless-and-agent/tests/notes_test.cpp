@@ -80,7 +80,7 @@ UTest cases{"example.headless-and-agent", [] {
     "an agent script, with the irreversible action stopped until answered (S-1, S-2)"_test = [] {
         App a(HeadlessLevel::pixels);
         agent::Protocol p(a.host->runtime(), {.app = "org.openmui.examples.notes"});
-        std::ifstream in(here() / "data" / "delete-all.agent.omui.jsonl");
+        std::ifstream in(here() / "data" / "delete-all.agent.xdef.jsonl");
         std::string line;
         int n = 0;
         while (std::getline(in, line)) {

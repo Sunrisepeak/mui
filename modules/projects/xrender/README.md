@@ -21,7 +21,7 @@ A CPU/GPU same-source, Web-first renderer whose pixels agents can review (intern
 | [asset](asset) | `xrender.asset`: glTF 2.0 brought in — meshes in clusters, materials, textures, instances and lights under ids that are the file's places, and what was not carried as notes with their place in the document; a mesh ordered for drawing (cgltf and meshoptimizer through their module wraps) |
 | [sprite](sprite) | Pictures on bones in 2D: a region skinned over a grid of cells to a bone and the bones it bends to (gongfu's fighters are its consumer); batching and atlases to come |
 | [frame](frame) | `xrender.frame`: the frame's entry — layers composed into a target, captured, and traced from a pixel to what drew it; the frame as an agent's subject |
-| [effect](effect) | A program's own pixel effects (`*.effect.omui.ts` and Slang), loaded and reloaded while it runs |
+| [effect](effect) | A program's own pixel effects (`*.effect.xdef.ts` and Slang), loaded and reloaded while it runs |
 | [text](text) | `xrender.text`: mlibs.text's glyphs rasterised and cached, its paragraphs painted (layer content) |
 | [raster](raster) | The deterministic CPU rasteriser: paths, strokes, gradients, images, clips, layers, blend modes, shadows |
 | [rhi](rhi) | The backends of `mlibs.rhi`: SDL_GPU, WebGPU, WebGL2 |
@@ -58,7 +58,7 @@ portable runtime package. Both this package and its serial tests run on Web.
 | Package | |
 |---|---|
 | [vector](vector) | 2D vector rendering: the display list, its CPU reference renderer and its GPU renderer, whose passes are this graph's |
-| [effect](effect) | A program's own pixel effects (`*.effect.omui.ts` and Slang), loaded and reloaded while it runs |
+| [effect](effect) | A program's own pixel effects (`*.effect.xdef.ts` and Slang), loaded and reloaded while it runs |
 | [cts](cts) | The render contract's suite on mlibs.cts (48 cases), run by each backend's tests (D-118) |
 
 Depends on: `mlibs.rhi`, `mlibs.trace`.

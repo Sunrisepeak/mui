@@ -166,7 +166,7 @@ std::expected<Value, std::string> export_first_frame(const FirstFrameOptions& op
     }
     const auto& pixels = host.pixels();
     auto png = mcpplibs::os::fs::from_utf8(options.png);
-    auto sidecar = png; sidecar.replace_extension(".frame.omui.json");
+    auto sidecar = png; sidecar.replace_extension(".frame.xdef.json");
     Value report = Value{}.set("schema", "openmui.site.frame@1").set("command", "first-frame").set("ok", true)
         .set("route", route).set("lang", parsed->language).set("viewport", Value(Value::List{Value(options.width), Value(options.height)}))
         .set("renderer", "cpu").set("tier", std::string(mlibs::pipeline::name(host.options().tier))).set("scale", 1).set("raster_bands", 1)
@@ -222,7 +222,7 @@ std::expected<Value, std::string> export_openings(const std::filesystem::path& o
         if (!root.empty() && (!nodes || !nodes->list() || nodes->list()->empty())) return std::unexpected(std::format("{}: no production geometry", what));
         const auto image = kept(scratch / "opening.png", ".png");
         if (!image) return std::unexpected(image.error());
-        const auto geometry = kept(scratch / "opening.frame.omui.json", ".frame.omui.json");
+        const auto geometry = kept(scratch / "opening.frame.xdef.json", ".frame.xdef.json");
         if (!geometry) return std::unexpected(geometry.error());
         return Value{}.set("route", std::string(route)).set("language", std::string(language))
             .set("viewport", Value(Value::List{Value(viewport.first), Value(viewport.second)})).set("motion", reduced ? "reduced" : "full")
@@ -250,7 +250,7 @@ std::expected<Value, std::string> export_openings(const std::filesystem::path& o
     if (!done) return std::unexpected(done.error());
     const std::size_t pictures = previews.size(), whole = references.size();
     const Value catalogue = Value{}.set("version", 1).set("basis", "native-reference").set("previews", Value(std::move(previews))).set("references", Value(std::move(references)));
-    const fs::path written = out / "first-frames.assets.omui.json";
+    const fs::path written = out / "first-frames.assets.xdef.json";
     if (auto saved = mcpplibs::os::fs::write_atomic(written, catalogue.json() + "\n"); !saved) return std::unexpected(saved.error().message());
     return Value{}.set("command", "openings").set("ok", true).set("previews", static_cast<std::int64_t>(pictures))
         .set("references", static_cast<std::int64_t>(whole)).set("catalogue", mcpplibs::os::fs::generic_utf8(written));

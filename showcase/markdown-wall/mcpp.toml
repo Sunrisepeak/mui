@@ -50,3 +50,8 @@ mcpplibs.mtest = "0.8.4"
 omui.abi      = { path = "../../modules/projects/omui/abi" }
 omui.lang.js  = { path = "../../modules/projects/omui/lang/js" }
 mcpplibs.os      = "0.4.4"
+
+# The declared data kinds this package owns (mlibs.xdef registry, D-209): each kind and its major
+# version, and the define module a data module imports each from (none: only tools write it).
+[package.metadata.openmui.xdef]
+kinds = { layout = 1 }

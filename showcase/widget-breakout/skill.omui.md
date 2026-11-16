@@ -1,6 +1,6 @@
 # Component breakout — skill
 
-How an agent plays the component breakout, headless, as a player. The operations and the tiers are the catalog's: [`breakout.ops.omui.ts`](breakout.ops.omui.ts) (listing [`media/ops/breakout.ops.json`](media/ops/breakout.ops.json), reference [`media/ops/breakout.ops.md`](media/ops/breakout.ops.md)).
+How an agent plays the component breakout, headless, as a player. The operations and the tiers are the catalog's: [`breakout.ops.xdef.ts`](breakout.ops.xdef.ts) (listing [`media/ops/breakout.ops.json`](media/ops/breakout.ops.json), reference [`media/ops/breakout.ops.md`](media/ops/breakout.ops.md)).
 
 ## Before
 
@@ -24,5 +24,5 @@ How an agent plays the component breakout, headless, as a player. The operations
 
 ## Playtest (the agent as playtester)
 
-`omui-breakout-playtest [--rooms 1,2,3,4,5] [--players 4] [--minutes 2] [--out DIR]` plays every room headless at a person's tier (the field's `human` tier, through the protocol), once per player of four skills (how often it looks, how far its aim is off: seeded), and writes `playtest.omui.json`: per room how often it was cleared, the median time, lives lost, the longest stretch with nothing scored, where the paddle missed (fifths of the width); each problem (out of lives, out of time, quiet over 30 s) with its record, replayed to the same bytes before it is reported. About 60× faster than real time: a whole run of the five rooms takes seconds. Read it as a designer: a room nobody clears, or misses piling up in one fifth, is a place to look — then open the record (`replay`) to see it happen.
+`omui-breakout-playtest [--rooms 1,2,3,4,5] [--players 4] [--minutes 2] [--out DIR]` plays every room headless at a person's tier (the field's `human` tier, through the protocol), once per player of four skills (how often it looks, how far its aim is off: seeded), and writes `playtest.xdef.json`: per room how often it was cleared, the median time, lives lost, the longest stretch with nothing scored, where the paddle missed (fifths of the width); each problem (out of lives, out of time, quiet over 30 s) with its record, replayed to the same bytes before it is reported. About 60× faster than real time: a whole run of the five rooms takes seconds. Read it as a designer: a room nobody clears, or misses piling up in one fifth, is a place to look — then open the record (`replay`) to see it happen.
 

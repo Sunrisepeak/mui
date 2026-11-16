@@ -1,4 +1,4 @@
-// openmui.i18n:data — what a locale pack holds (`<tag>.locale.omui.json`,
+// openmui.i18n:data — what a locale pack holds (`<tag>.locale.xdef.json`,
 // generated from CLDR by `omui-gen cldr`): plural rules, number symbols and
 // patterns, compact forms, calendar names and patterns, relative times and
 // list patterns. The engine knows languages only through these; a pack is
@@ -92,9 +92,9 @@ struct Diagnostic {
     [[nodiscard]] std::string text() const;
 };
 
-// `<tag>.locale.omui.json`: one locale's data.
-[[nodiscard]] std::expected<LocaleData, std::vector<Diagnostic>> read_locale_data(std::string_view json, std::string_view file = "locale.omui.json");
-// `likely.locale.omui.json`: CLDR's likely subtags for the languages packed.
-[[nodiscard]] std::expected<LikelySubtags, std::vector<Diagnostic>> read_likely_subtags(std::string_view json, std::string_view file = "likely.locale.omui.json");
+// `<tag>.locale.xdef.json`: one locale's data.
+[[nodiscard]] std::expected<LocaleData, std::vector<Diagnostic>> read_locale_data(std::string_view json, std::string_view file = "locale.xdef.json");
+// `likely.locale.xdef.json`: CLDR's likely subtags for the languages packed.
+[[nodiscard]] std::expected<LikelySubtags, std::vector<Diagnostic>> read_likely_subtags(std::string_view json, std::string_view file = "likely.locale.xdef.json");
 
 }  // namespace mlibs::i18n

@@ -9,7 +9,7 @@ The idea is one sentence: **a material is a set of properties, and a law reads p
 The standard definition has 17 materials (air, water, ice, steam, wood, ash, stone, sand, oil, lava, gunpowder, iron …) and 19 laws, ready to use. Your own is data:
 
 ```ts
-// world.matter.omui.ts
+// world.matter.xdef.ts
 import { defineMatter } from "omui/define";
 export default defineMatter({
   materials: {

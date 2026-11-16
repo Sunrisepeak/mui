@@ -12,7 +12,7 @@
 //
 //   omui-breakout-playtest [--rooms 1,2,3,4,5] [--players 4] [--minutes 2] [--out DIR]
 //
-// DIR/playtest.omui.json (the report), DIR/<room>-<player>.record.omui.json
+// DIR/playtest.xdef.json (the report), DIR/<room>-<player>.record.xdef.json
 // (each problem's record); a summary on standard output.
 module omui.showcase.widget_breakout;
 
@@ -194,7 +194,7 @@ Value playtest(const PlaytestOptions& options) {
             for (const double x : g.misses) ++where[static_cast<std::size_t>(std::clamp(x, 0.0, 0.999) * 5)];
             if (g.problem.empty()) continue;
             const bool ok = replays(g);
-            const std::string file = std::format("{}-{}.record.omui.json", g.room, g.player);
+            const std::string file = std::format("{}-{}.record.xdef.json", g.room, g.player);
             if (!out.empty()) std::ofstream(out / file) << g.record.json();
             problems.push_back(Value{}.set("room", g.room).set("player", g.player).set("problem", g.problem).set("record", file)
                                    .set("replays", ok).set("checksum", std::format("{:016x}", g.checksum)));
@@ -209,7 +209,7 @@ Value playtest(const PlaytestOptions& options) {
     Value report;
     report.set("kind", "breakout.playtest").set("tier", "human").set("minutes", options.minutes).set("rooms", Value(std::move(room_rows)))
         .set("problems", Value(std::move(problems)));
-    if (!out.empty()) std::ofstream(out / "playtest.omui.json") << report.json();
+    if (!out.empty()) std::ofstream(out / "playtest.xdef.json") << report.json();
     return report;
 }
 

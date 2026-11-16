@@ -1,5 +1,5 @@
 // The emergence set (the plan's §9.3), its 2D part — 1 to 8 and 12 — on the lattice: each a scene with no
-// interface and assertions on its state, all of the one standard definition (standard.matter.omui.ts). None of
+// interface and assertions on its state, all of the one standard definition (standard.matter.xdef.ts). None of
 // its laws names a material and no scene adds a law: what happens follows from properties — a density, a phase,
 // an ignition point, how well a thing conducts — and from what is beside what. The numbers are the cases'
 // titles in the plan's table; the last cases are what the table does not list and the laws gave anyway. Each case
@@ -476,7 +476,7 @@ static UTest cases{"matter.emergence", [] {
     };
 
     "12 — a material that only says its properties has all of a liquid that burns: alcohol, two rows and no law — it lies on water, boils, its vapour rises and burns"_test = [] {
-        auto definition = matter::read(matter::standard_snapshot, "standard.matter.omui.json");
+        auto definition = matter::read(matter::standard_snapshot, "standard.matter.xdef.json");
         expect(fatal(definition.has_value()));
         using P = matter::Property;
         const std::size_t laws = definition->laws.size();

@@ -11,7 +11,7 @@
 // size      where a page's WebAssembly bytes go (W8, Q-38; the foundation plan's M6.3 budget): a package built for
 //           wasm32-emscripten as a release is (-O2, the wasm-size profile: its functions' names kept, left out of
 //           the count), `omui-gen wasm-size` over it — sections, code by owner, largest functions — and, given a
-//           budget (<name>.budget.omui.json), its bytes held to it.
+//           budget (<name>.budget.xdef.json), its bytes held to it.
 // templates the templates (component-binding §10.1), rendered as `mcpp new --template` renders a published one
 //           ({{var}} in *.in files, the suffix dropped; until omui is in mcpp-index), their omui dependencies
 //           pointed at this checkout, each built and tested: an application out of the tree as a user makes one;
@@ -26,13 +26,13 @@
 // sweep     the interaction sweep (strategy §4, a hard gate, D-91): every program run headless as its own process
 //           and `omui agent sweep` over it — every node an agent can operate, every action performed (what can be
 //           undone, undone; what a person must answer, only asked). A dead control fails it. Each program's
-//           verdicts are kept in target/sweep/<program>.sweep.omui.jsonl, its output beside them.
+//           verdicts are kept in target/sweep/<program>.sweep.xdef.jsonl, its output beside them.
 // toy       the Toy row (D-84 §6.5, §8.9): the games built for wasm32-emscripten and packed for Bilibili Toy
 //           (`mcpp pack --pkg-format dist-toy`, omui.build.toy's dist_toy()), each checked by Toy's own
 //           toy_doctor.py — the platform's checker, pinned to github.com/bilibili/toy at ae156ec (MIT), downloaded
 //           into target/toy and held to its sha256. Every package's sizes are said; Toy's hard limit, index.html at
 //           most 1 MiB, is the packer's error and the doctor's. Nothing is published (the maintainer's
-//           `toy create`). The packages are copied to target/toy/<target>/ with <target>.toy.omui.json beside.
+//           `toy create`). The packages are copied to target/toy/<target>/ with <target>.toy.xdef.json beside.
 // tools-e2e the products' commands as an Agent uses them (convergence plan §10.3): hanim's, xrender's and the
 //           timeline's, each operation through its real command line, its exit status and JSON answer held.
 // agent-e2e M1 acceptance ②: omui agent operating example 07 as its own process (needs-answer for an irreversible
@@ -59,7 +59,7 @@
 //           preloaded), and every WGSL and ESSL entry point the Web build wrote, compiled by the browser. Without a
 //           Chromium the checks are said to be skipped, a failure only with OMUI_REQUIRE_BROWSER=1.
 // site      the built site in a real browser, served as Pages serves it (omui.devtools.cdp): its delivery within
-//           its budget (site/delivery.budget.omui.json), with and without the HTTP cache; Chromium's accessibility
+//           its budget (site/delivery.budget.xdef.json), with and without the HTTP cache; Chromium's accessibility
 //           tree and the keyboard's way in; routing and the static-to-program handoff; first-frame fonts; the
 //           component catalog; the release and reaction workspaces; motion, the reference pages and the agent; the
 //           first views on phones and desktops; the opening pictures and loading; static and runtime fonts sharing
@@ -69,7 +69,7 @@
 //           by the page (target/visitor-path.json).
 // dist-toy-loading  omui.gen's dist_toy tests, then the generated loader they wrote run against the browser's own
 //           fetch, streams and WebAssembly over real gzip HTTP: failures, retries, shared font transfers
-//           (target/dist-toy-loading.report.omui.json).
+//           (target/dist-toy-loading.report.xdef.json).
 // atspi     examples 03 and 07 built and read and operated through AT-SPI (`omui-devtools atspi`) on a private
 //           session bus (dbus-run-session), as a screen reader does. Linux x86_64 (AccessKit's library);
 //           at-spi2-core.

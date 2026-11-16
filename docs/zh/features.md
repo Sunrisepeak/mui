@@ -32,7 +32,7 @@
 
 ## 4. 一棵树：C++、TypeScript 和视图文档
 
-**是什么**：C++、TypeScript 和 `*.view.omui.json` 写出同一棵语义树；组件契约优先，TypeScript 绑定由生成器产出。脚本语言只有 TypeScript：把一种绑定做完整，而不是把几种都做一部分。
+**是什么**：C++、TypeScript 和 `*.view.xdef.json` 写出同一棵语义树；组件契约优先，TypeScript 绑定由生成器产出。脚本语言只有 TypeScript：把一种绑定做完整，而不是把几种都做一部分。
 
 **别的框架**：通常绑定一种语言（Dart、Swift、Kotlin、JS），或者多语言绑定由社区各自维护、能力不一致。
 
@@ -81,7 +81,7 @@ drawing.prop("motion", Source(motion));
 
 **是什么**：性能声明都有基准和预算，CI 每次修改都检查；报告公开机器、方法和结果。帧需求和帧节奏（ProMotion / VRR）由框架提供分层接口。
 
-**证据**：`tests/bench` 的 48 项预算（`budgets.bench.omui.json`）；`docs/zh/benchmarks/`；S1 一千个窗口缩放扫描在 GPU 上 p99 7.11ms（p95 1.20ms；CPU 路径 p95 0.115ms）。
+**证据**：`tests/bench` 的 48 项预算（`budgets.bench.xdef.json`）；`docs/zh/benchmarks/`；S1 一千个窗口缩放扫描在 GPU 上 p99 7.11ms（p95 1.20ms；CPU 路径 p95 0.115ms）。
 
 ## 8. 简单的写法，深入的控制（渐进式披露）
 

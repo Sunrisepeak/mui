@@ -1,9 +1,9 @@
 # omui.viewdoc
 
-View documents, `*.view.omui.json` (view-data-files §3). A document is a view written as data. It suits designers, agents and generative interfaces, components that every language shares, and C++ applications whose interface changes without a rebuild.
+View documents, `*.view.xdef.json` (view-data-files §3). A document is a view written as data. It suits designers, agents and generative interfaces, components that every language shares, and C++ applications whose interface changes without a rebuild.
 
 ```cpp
-auto view = omui::viewdoc::View::load_file(rt, "ui/counter.view.omui.json");
+auto view = omui::viewdoc::View::load_file(rt, "ui/counter.view.xdef.json");
 if (!view) for (const auto& d : view.error()) std::println("{}", d.text());
 view->slot("toolbar", my_toolbar());   // code fills the document's slots
 view->mount(rt, "main");

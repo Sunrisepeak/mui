@@ -1,4 +1,4 @@
-# mlibs.control.gen — an operation catalog (`<product>.ops.omui.ts`, the kind
+# mlibs.control.gen — an operation catalog (`<product>.ops.xdef.ts`, the kind
 # `ops` of mlibs.control's entries) to its generated code and listings: the
 # C++ partition of mlibs::control::CatalogEntry rows a subject serves, the
 # tools' listing (JSON) and the reference (Markdown). The tool kernel's

@@ -1,5 +1,5 @@
 // omui.designer:view_sources — view documents as a design's sources (D-160's L0; the interface's design adapter for
-// a workspace, D-204): the `*.view.omui.json` of a directory, beside another domain's sources in mlibs.agent's
+// a workspace, D-204): the `*.view.xdef.json` of a directory, beside another domain's sources in mlibs.agent's
 // Workspace. An edit is read whole against the registered components before anything is written; what runs is each
 // document in its canonical form (omui.viewdoc's format), hashed. Its contract is mlibs.agent.sources@1.
 export module omui.designer:view_sources;
@@ -11,7 +11,7 @@ export namespace omui::designer {
 
 class ViewSources final : public mlibs::agent::Sources {
 public:
-    // The view documents of `directory` (each `<name>.view.omui.json`, the directory's own, not below it).
+    // The view documents of `directory` (each `<name>.view.xdef.json`, the directory's own, not below it).
     explicit ViewSources(std::filesystem::path directory) : directory_(std::move(directory)) {}
     [[nodiscard]] std::map<std::string, std::string> texts() override;
     // Every document read first; an error in one refuses the edit, at its line and column, nothing written. Then

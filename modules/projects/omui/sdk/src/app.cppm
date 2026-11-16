@@ -36,7 +36,7 @@ struct AppSpec {
     // made of the verbs above and of nodes' actions; listed by `describe`, found by intent, run as written.
     std::vector<TaskDesc>  tasks;
     Theme                  theme = Theme::light();
-    // A directory of the application's own effects (*.effect.omui.ts, or their
+    // A directory of the application's own effects (*.effect.xdef.ts, or their
     // JSON): loaded with the window, loaded again when one changes
     // (openmui.render.effect). A module is read through `effect_data`.
     std::filesystem::path  effects;
@@ -50,8 +50,8 @@ struct AppSpec {
     // a headless run settles until it is.
     std::function<bool()> ready;
     // The application's languages (D-74): the language its keys are written
-    // in, a directory of catalogs (`<tag>.messages.omui.json`, what a
-    // `.messages.omui.ts` evaluates to), and catalogs carried in the program
+    // in, a directory of catalogs (`<tag>.messages.xdef.json`, what a
+    // `.messages.xdef.ts` evaluates to), and catalogs carried in the program
     // (tag, JSON). CLDR's packs come with openmui.
     std::string            source_language = "en";
     std::filesystem::path  messages;

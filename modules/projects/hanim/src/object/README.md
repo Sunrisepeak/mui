@@ -137,5 +137,5 @@ The bounded-churn cases also check failed fresh/recycled creation, replacement
 of every part key at full capacity, description order independence, and the
 next successful identity sequence after rejected updates. The official
 `public-motion/object-query-500` release benchmark checks the zero-allocation
-query contract in `tests/bench/budgets.bench.omui.json`; it reports CPU query
+query contract in `tests/bench/budgets.bench.xdef.json`; it reports CPU query
 cost, not a complete animation frame or GPU performance.

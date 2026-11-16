@@ -64,4 +64,4 @@
 - **D-187 on weaker machines (integrated GPUs, mobile): p99 ≤ 16.7 ms**, Web (wasm32): 缺: Quay's frame in a real browser on a real GPU (web_frame_test, omui-devtools browser --headed under gpu --real, where a display is): RC2.1
 - **D-187 on weaker machines (integrated GPUs, mobile): p99 ≤ 16.7 ms**, Android: 缺: a mobile device
 
-由 `omui-devtools platforms` 从 [platforms.omui.json](../platforms.omui.json) 生成，不要手改。
+由 `omui-devtools platforms` 从 [release.platforms.xdef.json](../release.platforms.xdef.json) 生成，不要手改。

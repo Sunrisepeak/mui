@@ -23,7 +23,7 @@ std::string read(const std::filesystem::path& f) {
 }
 
 std::shared_ptr<const LocaleData> pack(std::string_view id) {
-    const auto file = packs() / std::format("{}.locale.omui.json", id);
+    const auto file = packs() / std::format("{}.locale.xdef.json", id);
     auto d = read_locale_data(read(file), file.filename().string());
     if (!d) {
         for (const auto& p : d.error()) std::println("    {}", p.text());
@@ -49,7 +49,7 @@ UTest cases{"i18n", [] {
         expect(eq(tag("es-419").tag(), std::string("es-419")));
         expect(eq(tag("de-CH-1996-u-co-phonebk").tag(), std::string("de-CH-1996-u-co-phonebk")));
         expect(!Locale::parse("e").has_value() && !Locale::parse("en-$$").has_value() && !Locale::parse("").has_value());
-        auto likely = read_likely_subtags(read(packs() / "likely.locale.omui.json"));
+        auto likely = read_likely_subtags(read(packs() / "likely.locale.xdef.json"));
         expect(likely.has_value()) << "the likely subtags read";
         if (!likely) return;
         expect(eq(likely->maximize(tag("zh")).tag(), std::string("zh-Hans-CN")));
@@ -243,7 +243,7 @@ UTest cases{"i18n", [] {
         lib.add(pack("en"));
         lib.add(pack("zh"));
         lib.add(pack("zh-Hant"));
-        lib.set_likely(*read_likely_subtags(read(packs() / "likely.locale.omui.json")));
+        lib.set_likely(*read_likely_subtags(read(packs() / "likely.locale.xdef.json")));
         auto en = read_messages(R"({"messages": {
   "title": "Inbox",
   "inbox": {
@@ -251,8 +251,8 @@ UTest cases{"i18n", [] {
     "only_english": "Only in English"
   }
 }})",
-                                "app.en.messages.omui.json");
-        auto zh = read_messages(R"({"messages": {"title": "收件箱", "inbox": {"count": "{$count :number} 条新消息"}}})", "app.zh-Hans.messages.omui.json");
+                                "app.en.messages.xdef.json");
+        auto zh = read_messages(R"({"messages": {"title": "收件箱", "inbox": {"count": "{$count :number} 条新消息"}}})", "app.zh-Hans.messages.xdef.json");
         expect(en.has_value() && zh.has_value());
         if (!en || !zh) return;
         lib.catalog(tag("en")) = *en;
@@ -269,11 +269,11 @@ UTest cases{"i18n", [] {
         const std::array english{tag("en-GB")};
         expect(eq(Translator(lib, english, tag("en")).tr("inbox.count", {{"count", std::int64_t{1}}}), std::string("1 new message")));
         // Problems, located; a translation checked against its source.
-        auto bad = read_messages("{\"messages\": {\"a\": {\n  \"b\": \"{$x\",\n  \"c\": 3\n}}}", "bad.messages.omui.json");
+        auto bad = read_messages("{\"messages\": {\"a\": {\n  \"b\": \"{$x\",\n  \"c\": 3\n}}}", "bad.messages.xdef.json");
         expect(!bad.has_value());
         if (!bad) {
             expect(eq(bad.error().size(), std::size_t{2}));
-            expect(bad.error()[0].text().starts_with("bad.messages.omui.json:2:")) << bad.error()[0].text();
+            expect(bad.error()[0].text().starts_with("bad.messages.xdef.json:2:")) << bad.error()[0].text();
         }
         const auto diff = compare(*en, *zh);
         expect(std::ranges::find(diff, std::string("`inbox.only_english` is not translated")) != diff.end()) << (diff.empty() ? "" : diff.front());

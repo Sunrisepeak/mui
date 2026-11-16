@@ -46,7 +46,7 @@ Result invoke(std::vector<std::string> args) {
 UTest cases{"cli.audio", [] {
     "headless gain audition exports actual WAV and an omui visual process at three observation rates"_test = [] {
         const auto directory=scratch_dir("audio-automation");
-        const auto file=directory/"audition.timeline.omui.ts";
+        const auto file=directory/"audition.timeline.xdef.ts";
         expect(fs::write_atomic(file,curve).has_value());
         std::string previous_pcm,previous_wav;
         for(const int fps : {30,60,120}) {
@@ -75,7 +75,7 @@ UTest cases{"cli.audio", [] {
     };
     "bad arguments or curve selection return diagnostics before creating output"_test = [] {
         const auto directory=scratch_dir("audio-automation-errors");
-        const auto file=directory/"audition.timeline.omui.ts";
+        const auto file=directory/"audition.timeline.xdef.ts";
         expect(fs::write_atomic(file,curve).has_value());
         const auto prefix=utf8(directory/"preserve");
         expect(fs::write_atomic(fs::from_utf8(prefix+".wav"),"keep").has_value());
@@ -92,10 +92,10 @@ UTest cases{"cli.audio", [] {
     };
     "report write failure returns false and identifies files already exported"_test = [] {
         const auto directory=scratch_dir("audio-automation-export-error");
-        const auto file=directory/"audition.timeline.omui.ts";
+        const auto file=directory/"audition.timeline.xdef.ts";
         expect(fs::write_atomic(file,curve).has_value());
         const auto prefix=utf8(directory/"blocked");
-        (void)scratch_dir("audio-automation-export-error/blocked.report.omui.json");
+        (void)scratch_dir("audio-automation-export-error/blocked.report.xdef.json");
         const auto result=invoke({"omui","audio","automation",utf8(file),"--track","music","--clip","fade","--out",prefix,"--seconds","1","--fps","1"});
         expect(result.code==1);
         const auto report=parse_json(result.out);expect(report.has_value());if(!report)return;

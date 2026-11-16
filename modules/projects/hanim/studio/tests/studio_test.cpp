@@ -13,7 +13,7 @@ namespace studio = hanim::studio;
 namespace {
 std::string example() {
     std::ifstream in(std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path() / "examples" /
-                         "bounce.animation.omui.json",
+                         "bounce.animation.xdef.json",
                      std::ios::binary);
     return {std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
 }
@@ -157,7 +157,7 @@ UTest cases{"hanim.studio", [] {
         const auto dir = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path() / "examples";
         std::size_t count = 0;
         for (const auto& entry : std::filesystem::directory_iterator(dir)) {
-            if (!entry.path().string().ends_with(".animation.omui.json")) continue;
+            if (!entry.path().string().ends_with(".animation.xdef.json")) continue;
             ++count;
             const auto name = entry.path().filename().string();
             std::ifstream in(entry.path(), std::ios::binary);

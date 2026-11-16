@@ -1,4 +1,4 @@
-// Reading a behaviour file: the JSON a `*.behavior.omui.ts` evaluates to
+// Reading a behaviour file: the JSON a `*.behavior.xdef.ts` evaluates to
 // (D-139), handed on as a plain tree with each value's place.
 module omui.ui.canvas.kit;
 

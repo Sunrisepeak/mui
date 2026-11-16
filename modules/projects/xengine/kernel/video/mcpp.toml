@@ -7,7 +7,7 @@
 # in, with no third-party code but openmui.image's PNG: a PNG sequence, Y4M
 # (raw YUV 4:2:0, BT.709, integer RGB→YUV) and WAV. Compressed output is a
 # plugin package (xengine.video.webm). Descriptions are data
-# (`*.video.omui.ts`, read as the JSON it evaluates to).
+# (`*.video.xdef.ts`, read as the JSON it evaluates to).
 # An independent component (D-55): the standard library, hanim.core (exact frame
 # rates, deterministic math), openmui.image, xengine.audio, mlibs.trace
 # (spans in category "video") and mlibs.json.

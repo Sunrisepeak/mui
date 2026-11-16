@@ -222,7 +222,7 @@ UTest cases{"breakout.agent-player", [] {
                                ? record.get("plays")->list()->size()
                                : 0;
         expect(plays > 50) << std::format("{} plays recorded", plays);
-        std::ofstream(scratch_dir("breakout-agent") / "record.omui.json")
+        std::ofstream(scratch_dir("breakout-agent") / "record.xdef.json")
             << record.json();  // the export, for a reviewer
         // A fresh run, no agent thinking: the record alone.
         Session replayed("human");
@@ -329,7 +329,7 @@ UTest cases{"breakout.agent-player", [] {
                        std::println("    room {}: {} steps, score {}, {}", room, frames, score,
                                     over ? "over" : "playing at the minute");
                    }
-                   std::ofstream(scratch_dir("breakout-agent") / "matrix.omui.json")
+                   std::ofstream(scratch_dir("breakout-agent") / "matrix.xdef.json")
                        << Value(Value::List(rows)).json();
                };
 
@@ -348,7 +348,7 @@ UTest cases{"breakout.agent-player", [] {
                        expect(p.get("replays")->as_bool()) << "a problem's record replays: " + p.json();
                        expect(std::filesystem::exists(dir / std::string(p.get("record")->as_string()))) << "written beside the report";
                    }
-                   expect(std::filesystem::exists(dir / "playtest.omui.json"));
+                   expect(std::filesystem::exists(dir / "playtest.xdef.json"));
                    expect(bo::playtest({.rooms = {1, 4}, .players = 2, .minutes = 1}).json() == report.json()) << "the same report every run";
                };
 

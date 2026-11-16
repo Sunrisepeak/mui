@@ -29,7 +29,7 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-fno-fast-math", "-ffp-contract=off", "-O2"]
 
 # The cloud as an agent's subject (src/agent/, module xengine.particles.agent; D-174): its operations through
-# the agent kernel, its catalog particles.ops.omui.ts. A feature, so that the carrier alone stays the small tool;
+# the agent kernel, its catalog particles.ops.xdef.ts. A feature, so that the carrier alone stays the small tool;
 # its suite runs in xengine.matter.cts (tests/cts/cloud_agent_test.cpp), beside the other carriers' subjects.
 [features]
 agent = { sources = ["src/agent/*.cppm", "src/agent/*.cpp"] }

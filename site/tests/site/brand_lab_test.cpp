@@ -1,6 +1,6 @@
 // The brand exploration (A1 of the site plan): the mark's O and Mui, drawn by
-// the framework from the site's brand data (brand/marks.mark.omui.json,
-// brand/mascot.sprite.omui.json) and saved headless for the reviewer to choose
+// the framework from the site's brand data (brand/marks.mark.xdef.json,
+// brand/mascot.sprite.xdef.json) and saved headless for the reviewer to choose
 // a direction from — each pixel of Mui a vector square, each mark an SVG path.
 //
 // Sheets in scratch "brand-lab": marks (four O treatments, large and at 32 and
@@ -143,8 +143,8 @@ void save(Headless& h, const std::filesystem::path& dir, std::string_view name, 
 static UTest cases{"site.brand_lab", [] {
 
     "A1: the mark's O four ways, Mui at 16 and 24 in three palettes, four directions — drawn by the framework and saved"_test = [] {
-        const Value marks = read_json("marks.mark.omui.json");
-        const Value sprites = read_json("mascot.sprite.omui.json");
+        const Value marks = read_json("marks.mark.xdef.json");
+        const Value sprites = read_json("mascot.sprite.xdef.json");
         const auto dir = scratch_dir("brand-lab");
         const Color indigo = Color::hex(0x4f46e5);
         const std::vector<std::pair<std::string, std::string>> outlines{
@@ -240,7 +240,7 @@ static UTest cases{"site.brand_lab", [] {
     };
 
     "A2: the mark, chosen — the O with ears round mui, drawn by the framework; site/brand/omui-mark.svg is what it draws"_test = [] {
-        const Value marks = read_json("marks.mark.omui.json");
+        const Value marks = read_json("marks.mark.xdef.json");
         Headless h(HeadlessOptions{.size = {100, 100}, .scale = 1});
         h.mount("main", stack({.id = "mark", .width = 100.0f, .height = 100.0f},
                               {canvas("o", 100, 100, [&marks](xrender::DisplayList& l) { draw_mark(l, marks, "ears", {0, 0}, 100, Color::hex(0x4f46e5)); })}));
@@ -259,7 +259,7 @@ static UTest cases{"site.brand_lab", [] {
     };
 
     "C1: Mui as hanim's pixel picture — the staircase into the curve, scattered and back together — sampled and saved"_test = [] {
-        const Value sprites = read_json("mascot.sprite.omui.json");
+        const Value sprites = read_json("mascot.sprite.xdef.json");
         const auto dir = scratch_dir("brand-pixels");
         const auto grid = pixel_grid(sprites, "body24", "sit", "indigo", 6);
         hanim::Engine engine = *hanim::Engine::make();

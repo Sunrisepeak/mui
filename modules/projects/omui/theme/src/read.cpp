@@ -1,5 +1,5 @@
-// Reading a theme or a style file: the JSON a `*.theme.omui.ts` or
-// `*.style.omui.ts` evaluates to (D-139), every mistake at its JSON pointer
+// Reading a theme or a style file: the JSON a `*.theme.xdef.ts` or
+// `*.style.xdef.ts` evaluates to (D-139), every mistake at its JSON pointer
 // with, where there is one, the fix.
 module omui.theme;
 

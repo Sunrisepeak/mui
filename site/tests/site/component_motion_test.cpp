@@ -243,7 +243,7 @@ static UTest cases{"site.component-motion", [] {
             r.act("details/copy");expect(r.h.runtime().clipboard_text()==site::component_motion_source("together",true,1,effect));
             expect(r.h.runtime().clipboard_text().find("hanim::composite")!=std::string::npos);
         }
-        std::ofstream(media()/"effects.report.omui.json")<<Value{}.set("backend","cpu").set("scale",1).set("samples",Value(std::move(samples))).json();
+        std::ofstream(media()/"effects.report.xdef.json")<<Value{}.set("backend","cpu").set("scale",1).set("samples",Value(std::move(samples))).json();
         r.act("details/style","set_value",Value{}.set("value","retro"));r.seek(.5);
         expect(r.h.tree().node(r.path("stage/scene/composition/card/editor"))->value.as_string()=="Keep the same idea");
         r.act("stage/scene/composition/card/actions/save");

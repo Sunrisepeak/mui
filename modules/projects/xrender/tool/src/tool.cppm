@@ -1,5 +1,5 @@
 // xrender.tool — the renderer without a GUI as an agent's subject, `xrender`: its catalog's operations
-// (xrender.ops.omui.ts) — effect.check, effect.preview, conformance.run, device.describe, model.look, fidelity.run.
+// (xrender.ops.xdef.ts) — effect.check, effect.preview, conformance.run, device.describe, model.look, fidelity.run.
 // The `xrender` command is this subject behind the tool kernel's entries (mlibs.agent:host):
 // `xrender model.look --model Duck.glb --out duck.png`, `xrender mcp`.
 export module xrender.tool;

@@ -3,7 +3,7 @@
 #                 (xengine.cellular.rigid), a character that reads the field (walks, steps up a cell, jumps, swims, is
 #                 burnt), a wand of fire, water and bombs. Every puzzle is what the laws already do: no scripted
 #                 interaction. A pure function of the state and the frame's actions; its state is a value (a copy is
-#                 a branch), so a timeline rewinds and replays it bit for bit. Its levels (levels/*.world.omui.ts)
+#                 a branch), so a timeline rewinds and replays it bit for bit. Its levels (levels/*.world.xdef.ts)
 #                 are carried in the program (build.mcpp).
 #   src/headless  the simulation as xengine.runtime plays it: stepped without omui, its whole world sought back and
 #                 branched ahead, played by an agent through the agent kernel as a person plays; the world's matter

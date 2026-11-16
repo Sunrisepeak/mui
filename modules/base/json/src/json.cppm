@@ -1,9 +1,9 @@
 // mlibs.json — JSON documents read with their places (W1 step 3, D-139).
 //
-//     auto doc = mlibs::json::Document::parse(text, "piece.music.omui.json");
+//     auto doc = mlibs::json::Document::parse(text, "piece.music.xdef.json");
 //     const auto tempo = doc->root()["music"]["tempo"];
 //     if (!tempo.number()) problems.push_back(doc->problem(tempo, "the tempo is a number", "tempo: 96"));
-//     // piece.music.omui.json:3:14: /music/tempo: the tempo is a number (tempo: 96)
+//     // piece.music.xdef.json:3:14: /music/tempo: the tempo is a number (tempo: 96)
 //
 // Data files are TypeScript data modules evaluated to JSON snapshots; their
 // readers (sounds, music, timelines, video descriptions, effects, behaviours)

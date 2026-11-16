@@ -1,4 +1,4 @@
-# omui.viewdoc — view documents (`*.view.omui.json`, view-data-files §3):
+# omui.viewdoc — view documents (`*.view.xdef.json`, view-data-files §3):
 # an interface as data, checked against the registered components with
 # located diagnostics, turned into the same Elements a builder makes, bound
 # to signals and models by omui.expr expressions, reloaded in place with

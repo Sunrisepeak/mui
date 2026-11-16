@@ -1,5 +1,5 @@
 // The least program that shows three dimensions on a page: a yard drawn once on the page's WebGPU (or its
-// WebGL2) and shown on its canvas. It prints what it drew; what it weighs is the point (size.budget.omui.json).
+// WebGL2) and shown on its canvas. It prints what it drew; what it weighs is the point (size.budget.xdef.json).
 import std;
 import mlibs.message;  // its lines without std::format: what std::println would bring (std::locale) is no part of three dimensions
 import mlibs.rhi;

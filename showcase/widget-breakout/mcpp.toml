@@ -15,7 +15,7 @@ license     = "Apache-2.0"
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
 kind      = "showcase"
-contracts = ["contract/*.contract.omui.ts"]
+contracts = ["contract/*.contract.xdef.ts"]
 
 [targets.openmui-showcase-widget-breakout]
 kind = "lib"
@@ -57,3 +57,8 @@ omui.build = { path = "../../mcpp/build", host-module = true }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
+
+# The declared data kinds this package owns (mlibs.xdef registry, D-209): each kind and its major
+# version, and the define module a data module imports each from (none: only tools write it).
+[package.metadata.openmui.xdef]
+kinds = { record = 1 }

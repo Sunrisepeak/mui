@@ -9,8 +9,8 @@
 //     omui video probe  FILE.webm | FILE.y4m | FILE.wav
 //     omui video timing --fps R [--rate HZ] [--frames N]
 //
-// FILE is a video description (`*.video.omui.ts` or its JSON: the sync card, PNG files
-// or a view, with its sound track) or a view document (`*.view.omui.json`,
+// FILE is a video description (`*.video.xdef.ts` or its JSON: the sync card, PNG files
+// or a view, with its sound track) or a view document (`*.view.xdef.json`,
 // rendered on the headless host's clock, a frame a step). OUT's name says
 // the format: `x.webm` (VP9 and Opus, through xengine.video.webm), `x.y4m`
 // (and `x.wav` beside it when there is sound), `x.wav`,
@@ -121,12 +121,12 @@ std::expected<Loaded, int> load(const mlibs::agent::Arguments& p, Value& report,
     l.base = l.file.parent_path();
     report.set("file", utf8(l.file));
     const std::string name = utf8(l.file.filename());
-    if (name.ends_with(".view.omui.json")) {
+    if (name.ends_with(".view.xdef.json")) {
         l.d.from = vid::FramesFrom::view;
         l.d.source = name;
         l.d.seconds = 3;
     } else {
-        // A description module (`*.video.omui.ts`) evaluated, or its JSON (D-139).
+        // A description module (`*.video.xdef.ts`) evaluated, or its JSON (D-139).
         auto text = data_text(l.file);
         if (!text) return std::unexpected(failed(out, report, std::format("cannot read the file: {}", text.error())));
         auto d = vid::read_description(*text, name);

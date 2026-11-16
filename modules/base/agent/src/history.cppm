@@ -119,7 +119,7 @@ public:
 };
 
 // Several domains' sources designed as one (D-160's workspace, D-204's composition): each mounted under a name, its
-// paths under it ("ui/main.ts", "animation/rise.animation.omui.json"); one history over them all, so a commit holds
+// paths under it ("ui/main.ts", "animation/rise.animation.xdef.json"); one history over them all, so a commit holds
 // every domain's texts and a switch or an undo puts each back. It is sources itself: the history knows no domain.
 class Workspace final : public Sources {
 public:

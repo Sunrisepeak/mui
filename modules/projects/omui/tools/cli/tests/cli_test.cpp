@@ -262,12 +262,12 @@ UTest cases{"cli", [] {
             std::ofstream(dir / name, std::ios::binary) << text;
             return utf8(dir / name);
         };
-        const std::string good = write("good.view.omui.json", R"({"omui": "0.1", "view": {"root": {"type": "text", "props": {"text": "hi"}}}})");
-        const std::string bad = write("bad.view.omui.json", "{\"omui\": \"0.1\",\n \"view\": {\"root\": {\"type\": \"buton\"}}}");
-        const std::string component = write("search.view.omui.json", R"({"omui": "0.1", "component": {"name": "search_field",
+        const std::string good = write("good.view.xdef.json", R"({"omui": "0.1", "view": {"root": {"type": "text", "props": {"text": "hi"}}}})");
+        const std::string bad = write("bad.view.xdef.json", "{\"omui\": \"0.1\",\n \"view\": {\"root\": {\"type\": \"buton\"}}}");
+        const std::string component = write("search.view.xdef.json", R"({"omui": "0.1", "component": {"name": "search_field",
             "interface": {"props": {"query": {"type": "string", "bindable": true}}},
             "root": {"type": "text_box", "id": "input", "props": {"text": {"bind": "query"}}}}})");
-        const std::string user = write("page.view.omui.json", R"({"omui": "0.1", "view": {"root": {"type": "search_field", "id": "find"}}})");
+        const std::string user = write("page.view.xdef.json", R"({"omui": "0.1", "view": {"root": {"type": "search_field", "id": "find"}}})");
         // Records a line each (the subject `omui`'s answer): a diagnostic's data record, located.
         const auto data_of = [](const std::string& text) {
             std::vector<Value> found;
@@ -294,10 +294,10 @@ UTest cases{"cli", [] {
 
     "omui fmt rewrites to the canonical format; --check only reports"_test = [] {
         const auto dir = scratch_dir("omui-fmt");
-        const auto file = dir / "a.view.omui.json";
+        const auto file = dir / "a.view.xdef.json";
         std::ofstream(file, std::ios::binary) << R"({"view":{"root":{"type":"text"}},"omui":"0.1"})";
         auto r = omui_cmd({"fmt", "--check", utf8(file)});
-        expect(r.code == 1 && r.out.contains(R"("canonical":false)") && r.out.contains("a.view.omui.json")) << r.out;
+        expect(r.code == 1 && r.out.contains(R"("canonical":false)") && r.out.contains("a.view.xdef.json")) << r.out;
         expect(eq(omui_cmd({"fmt", utf8(file)}).code, 0));
         std::ifstream in(file, std::ios::binary);
         const std::string text{std::istreambuf_iterator<char>(in), {}};
@@ -326,9 +326,9 @@ UTest cases{"cli", [] {
             return *record->get("data");
         };
         // As its author writes it: a TypeScript data module the command evaluates.
-        std::ofstream(dir / "card.video.omui.ts", std::ios::binary)
+        std::ofstream(dir / "card.video.xdef.ts", std::ios::binary)
             << "import { defineVideo } from \"omui/define\";\n\nexport default defineVideo({ width: 64, height: 36, fps: 30, seconds: 1, from: { card: \"sync\" }, audio: { beeps: true } });\n";
-        auto r = omui_cmd({"video", "render", utf8(dir / "card.video.omui.ts"), "--out", utf8(dir / "out" / "card.y4m")});
+        auto r = omui_cmd({"video", "render", utf8(dir / "card.video.xdef.ts"), "--out", utf8(dir / "out" / "card.y4m")});
         expect(r.code == 0) << r.out + r.err;
         auto v = data(r.out);
         expect(v && v->get("frames")->as_int() == 30 && v->get("samples")->as_int() == 48000 && v->get("files")->list()->size() == 2) << r.out;
@@ -339,21 +339,21 @@ UTest cases{"cli", [] {
         v = data(r.out);
         expect(r.code == 0 && v && v->get("samples")->as_int() == 48000) << r.out;
         // WebM: VP9 and Opus, read back.
-        r = omui_cmd({"video", "render", utf8(dir / "card.video.omui.ts"), "--out", utf8(dir / "out" / "card.webm"), "--speed", "8"});
+        r = omui_cmd({"video", "render", utf8(dir / "card.video.xdef.ts"), "--out", utf8(dir / "out" / "card.webm"), "--speed", "8"});
         expect(r.code == 0) << r.out + r.err;
         r = omui_cmd({"video", "probe", utf8(dir / "out" / "card.webm")});
         v = data(r.out);
         expect(r.code == 0 && v && v->get("frames")->as_int() == 30 && v->get("samples")->as_int() == 48000 && v->get("video")->as_string() == "V_VP9" &&
                   v->get("audio")->as_string() == "A_OPUS" && v->get("bt709")->as_bool()) << r.out;
-        r = omui_cmd({"video", "still", utf8(dir / "card.video.omui.ts"), "--at", "0.5", "--out", utf8(dir / "f15.png")});
+        r = omui_cmd({"video", "still", utf8(dir / "card.video.xdef.ts"), "--at", "0.5", "--out", utf8(dir / "f15.png")});
         v = data(r.out);
         expect(r.code == 0 && v && v->get("frame")->as_int() == 15 && std::filesystem::exists(dir / "f15.png")) << r.out + r.err;
 
         // A view on the headless host's clock, the same pixels twice.
-        std::ofstream(dir / "hello.view.omui.json", std::ios::binary) << R"({"omui": "0.1", "view": {"root": {"type": "text", "props": {"text": "openmui"}}}})";
+        std::ofstream(dir / "hello.view.xdef.json", std::ios::binary) << R"({"omui": "0.1", "view": {"root": {"type": "text", "props": {"text": "openmui"}}}})";
         std::array<std::string, 2> hashes;
         for (int k = 0; k < 2; ++k) {
-            r = omui_cmd({"video", "render", utf8(dir / "hello.view.omui.json"), "--size", "160x90", "--frames", "3", "--out", utf8(dir / std::format("view{}/", k))});
+            r = omui_cmd({"video", "render", utf8(dir / "hello.view.xdef.json"), "--size", "160x90", "--frames", "3", "--out", utf8(dir / std::format("view{}/", k))});
             v = data(r.out);
             expect(r.code == 0 && v && v->get("files")->list()->size() == 3) << r.out + r.err;
             if (v && v->get("files")->list()->size() == 3) hashes[static_cast<std::size_t>(k)] = std::string(v->get("files")->list()->at(2).get("hash")->as_string());
@@ -363,11 +363,11 @@ UTest cases{"cli", [] {
         r = omui_cmd({"video", "timing", "--fps", "30000/1001", "--frames", "5"});
         v = data(r.out);
         expect(r.code == 0 && v && v->get("samples")->as_int() == 8008) << r.out;
-        std::ofstream(dir / "bad.video.omui.json", std::ios::binary) << "{\"video\": {\n  \"width\": 64,\n  \"height\": 36,\n  \"fsp\": 30,\n  \"seconds\": 1\n}}";
-        r = omui_cmd({"video", "check", utf8(dir / "bad.video.omui.json")});
+        std::ofstream(dir / "bad.video.xdef.json", std::ios::binary) << "{\"video\": {\n  \"width\": 64,\n  \"height\": 36,\n  \"fsp\": 30,\n  \"seconds\": 1\n}}";
+        r = omui_cmd({"video", "check", utf8(dir / "bad.video.xdef.json")});
         v = data(r.out);
         expect(r.code == 1 && v && v->get("problems")->list()->at(0).get("line")->as_int() == 4) << r.out;
-        expect(eq(omui_cmd({"video", "render", utf8(dir / "card.video.omui.ts")}).code, 1)) << "out is needed: said before it runs";
+        expect(eq(omui_cmd({"video", "render", utf8(dir / "card.video.xdef.ts")}).code, 1)) << "out is needed: said before it runs";
     };
 
     "omui connect and omui page: a page pairs with the code, the agent's requests reach it as the agent's, its answers come back; strangers refused"_test = [] {

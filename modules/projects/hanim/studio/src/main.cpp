@@ -1,9 +1,9 @@
 // hanim — the animation tool without a GUI: hanim.studio's subject `document` behind the tool kernel's entries
-// (mlibs.agent:host, T0). Its operations are the catalog's (studio.ops.omui.ts):
+// (mlibs.agent:host, T0). Its operations are the catalog's (studio.ops.xdef.ts):
 //
 //   hanim subjects | hanim describe document.render | hanim find render frames
-//   hanim document.check  --file rise.animation.omui.json
-//   hanim document.render --file rise.animation.omui.json --out rise --frames 5
+//   hanim document.check  --file rise.animation.xdef.json
+//   hanim document.render --file rise.animation.xdef.json --out rise --frames 5
 //   hanim mcp                                  the same operations to an MCP client, on stdio
 //
 // Records out, one a line; exit 0 done, 1 the document or the work failed (its problems listed), 2 arguments that

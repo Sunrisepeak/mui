@@ -1,6 +1,6 @@
 # omui — skill
 
-How an Agent (or a person at a terminal) uses a running omui application without a GUI: reads it, finds what to act on, acts, waits, and checks the result in its tree and its pixels. The operations, their parameters, effects, costs and how each is undone are the catalog's: [`omui.ops.omui.ts`](omui.ops.omui.ts), listed for CLI and MCP in [`src/catalog/omui.ops.json`](src/catalog/omui.ops.json) and for reading in [`src/catalog/omui.ops.md`](src/catalog/omui.ops.md). On the wire each is one JSON line, `{"op": "snapshot", …}` (the name without `ui.`).
+How an Agent (or a person at a terminal) uses a running omui application without a GUI: reads it, finds what to act on, acts, waits, and checks the result in its tree and its pixels. The operations, their parameters, effects, costs and how each is undone are the catalog's: [`omui.ops.xdef.ts`](omui.ops.xdef.ts), listed for CLI and MCP in [`src/catalog/omui.ops.json`](src/catalog/omui.ops.json) and for reading in [`src/catalog/omui.ops.md`](src/catalog/omui.ops.md). On the wire each is one JSON line, `{"op": "snapshot", …}` (the name without `ui.`).
 
 ## Before
 
@@ -27,7 +27,7 @@ How an Agent (or a person at a terminal) uses a running omui application without
 
 ## Designing live (development mode, `omui dev`)
 
-The application is its own designer (D-149). Its operations are Live Design's catalog, [`design.ops.omui.ts`](design.ops.omui.ts) (parameters and effects there; over MCP each is a `design_*` tool, over the protocol `invoke` {verb}). The procedure:
+The application is its own designer (D-149). Its operations are Live Design's catalog, [`design.ops.xdef.ts`](design.ops.xdef.ts) (parameters and effects there; over MCP each is a `design_*` tool, over the protocol `invoke` {verb}). The procedure:
 
 1. **Begin** with `design.begin`, saying what the session is for. From then every step is a commit of the design's history that says it, and the person sees your presence.
 2. **Read before writing**: `design.sources` (what runs now) and `design.api` or `describe` with `api: true` (what there is to write with — the same as `omui describe --api`; `omui check` type-checks against it). Find what to change from what you saw: `design.locate` maps a node to the line that built it, and a line to its nodes.
@@ -42,7 +42,7 @@ When the files are edited directly rather than through `design.edit`, `reload` r
 
 ## Generating interface into a running application (as it ships)
 
-Where an application lets generated interface in (D-144), the operations are [`generate.ops.omui.ts`](generate.ops.omui.ts)'s:
+Where an application lets generated interface in (D-144), the operations are [`generate.ops.xdef.ts`](generate.ops.xdef.ts)'s:
 
 1. `generate.surfaces` first: the places it may go, how open generation is here (off, data, limited, all) and the limits. Off is an answer; data means a view document and no verbs; limited lists the components and verbs you may use. Do not try to get around them.
 2. `generate.draft` a view document for a surface (or code, where allowed). A refusal names every problem at its place: fix them all and draft again.

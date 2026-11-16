@@ -1,6 +1,6 @@
 # world — skill
 
-How an Agent plays, tests or examines a game that runs on its own (`xengine.runtime`), with no window. The operations, their parameters and effects are in [world.ops.omui.ts](world.ops.omui.ts) (the subject, asked to describe itself at its endpoint, answers the same); this is the order to use them in.
+How an Agent plays, tests or examines a game that runs on its own (`xengine.runtime`), with no window. The operations, their parameters and effects are in [world.ops.xdef.ts](world.ops.xdef.ts) (the subject, asked to describe itself at its endpoint, answers the same); this is the order to use them in.
 
 ## Before
 

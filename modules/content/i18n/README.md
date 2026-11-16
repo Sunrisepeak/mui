@@ -9,7 +9,7 @@ using namespace mlibs::i18n;
 Library lib;
 lib.add(std::make_shared<LocaleData>(*read_locale_data(zh_pack)));   // or mlibs.i18n.cldr's add_to(lib)
 lib.set_likely(*read_likely_subtags(likely_pack));
-lib.catalog(*Locale::parse("zh-Hans")) = *read_messages(json, "app.zh-Hans.messages.omui.json");  // what app.zh-Hans.messages.omui.ts evaluates to
+lib.catalog(*Locale::parse("zh-Hans")) = *read_messages(json, "app.zh-Hans.messages.xdef.json");  // what app.zh-Hans.messages.xdef.ts evaluates to
 
 const std::array asked{*Locale::parse("zh-TW")};
 Translator t(lib, asked, *Locale::parse("en"));
@@ -22,10 +22,10 @@ t.formatter().date({2026, 10, 28}, DateStyle::full);         // 2026年10月28�
 |---|---|
 | `:locale` | BCP 47 tags (and POSIX ones: `zh_CN.UTF-8`), CLDR's likely subtags (maximize, minimize), negotiation: a person's languages against what an application has — their script first, then the same language in the other script (Traditional and Simplified Chinese fall back to each other), then the source language |
 | `:plural` | CLDR's plural rule language, parsed from the packs and evaluated on the digits a number is shown with (`1` is *one* in English, `1.0` is *other*); cardinal and ordinal |
-| `:data` | What a pack holds, and its reader (`*.locale.omui.json`, every problem with its JSON path) |
+| `:data` | What a pack holds, and its reader (`*.locale.xdef.json`, every problem with its JSON path) |
 | `:format` | Numbers (grouping, fractions, signs, percent, compact: 1.2K, 12万), dates and times (every length, CLDR patterns and skeletons, flexible day periods: 下午3:05, localised offsets), relative times (yesterday, 3天前), lists (a, b, and c; a、b和c) |
 | `:message` | Unicode MessageFormat 2: placeholders, functions and options (`:number`, `:integer`, `:percent`, `:string`, `:date`, `:time`, `:datetime`, `:list`), declarations, selection by exact value and plural category over several selectors; never fails — what cannot be resolved shows its fallback and is reported |
-| `:catalog` | Catalogs (`*.messages.omui.ts`, read as their JSON; nested objects are dotted keys), a library of packs and catalogs, a translator over the negotiated chain (each message in its own locale's ways), checks of a translation against its source, pseudo-localisation |
+| `:catalog` | Catalogs (`*.messages.xdef.ts`, read as their JSON; nested objects are dotted keys), a library of packs and catalogs, a translator over the negotiated chain (each message in its own locale's ways), checks of a translation against its source, pseudo-localisation |
 
 **The same text everywhere.** Digits come from the standard library's exact conversions (`std::to_chars`, correctly rounded, ties to even), never from the C locale or the system; powers of ten are exact; nothing reads the system's locale data. A pack's text is the only input about a language, and it carries the CLDR version it was made from.
 

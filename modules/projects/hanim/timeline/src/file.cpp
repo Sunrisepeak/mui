@@ -1,4 +1,4 @@
-// Reading and writing timelines: the JSON a `*.timeline.omui.ts` evaluates
+// Reading and writing timelines: the JSON a `*.timeline.xdef.ts` evaluates
 // to (D-139), every problem at its JSON pointer and its line and column.
 module hanim.timeline;
 

@@ -184,7 +184,7 @@ UTest cases{"inspector.cellular", [] {
             expect(observations->front().get("pixel_hash")->as_string()!=observations->back().get("pixel_hash")->as_string());
             expect(observations->back().get("time_numerator")->as_int()==8 && observations->back().get("time_denominator")->as_int()==12);
         }
-        const auto saved=mcpplibs::os::fs::read(folder/"process.cellular.omui.json");expect(saved.has_value());
+        const auto saved=mcpplibs::os::fs::read(folder/"process.cellular.xdef.json");expect(saved.has_value());
         if (saved) {lab::Session s;const auto p=parse_json(*saved);expect(p.has_value());if(p)expect(s.perform("load",Value{}.set("project",*p)).has_value());}
         const auto animation=mcpplibs::os::fs::read(folder/"process.webp");expect(animation && animation->size()>20);
         std::ostringstream bad;

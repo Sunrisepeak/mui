@@ -1,7 +1,7 @@
 // The benchmarks as mtest's cases (the foundation plan's §6.13.1, T2.12): each benchmark is a case of kind
 // `bench` that reports what it measured as the case's metrics — the time of an iteration by where the
 // iterations lie (p50, p95, p99, max), its allocations, its own counters — and whose budgets
-// (budgets.bench.omui.json) are the bounds on those metrics: the runner judges them at the case's end, keeps the
+// (budgets.bench.xdef.json) are the bounds on those metrics: the runner judges them at the case's end, keeps the
 // numbers with the run, and compares them with the runs before (`mtest analyze trend`, `[policy.bench]`).
 //
 //   OMUI_BENCH=1 mcpp test -p omui.bench --profile release budgets
@@ -43,7 +43,7 @@ void apply(attributes& set, Budgets budgets) {
 }
 
 std::vector<harness::Budget> budgets_in_the_tree() {
-    const auto file = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path() / "budgets.bench.omui.json";
+    const auto file = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path() / "budgets.bench.xdef.json";
     std::ifstream in(file, std::ios::binary);
     const std::string text{std::istreambuf_iterator<char>(in), {}};
     auto read = harness::parse_budgets(text);
@@ -77,7 +77,7 @@ Bench budgets{"bench.budgets", resource{"machine"}, [] {
     const bool quick = asked == "quick";
     harness::add_framework_benchmarks();
     const std::vector<harness::Budget> budgets = budgets_in_the_tree();
-    expect(!budgets.empty()) << "budgets.bench.omui.json reads";
+    expect(!budgets.empty()) << "budgets.bench.xdef.json reads";
     for (const harness::Budget& budget : budgets)
         expect(std::ranges::any_of(harness::cases(), [&](const harness::Case& one) { return one.name == budget.name; })) << "a budget for no benchmark: " + budget.name;
 

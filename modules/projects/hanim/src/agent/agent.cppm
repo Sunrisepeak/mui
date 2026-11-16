@@ -1,6 +1,6 @@
 // hanim.agent — the stage as a subject of the agent kernel (D-173, D-174):
 // `animation`, whose operations are hanim.control's catalog
-// (hanim.ops.omui.ts) — prepare and play a program, list and inspect what
+// (hanim.ops.xdef.ts) — prepare and play a program, list and inspect what
 // plays, seek, pause, reverse, change the rate, cancel, release.
 //
 //     hanim::agent::Stage stage(engine);

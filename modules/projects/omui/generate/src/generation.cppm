@@ -17,7 +17,7 @@
 //         .surfaces = {{"extras", "cards the user's agent adds under the plan"}},
 //     });
 //
-// The operations are generate.ops.omui.ts's (the application's verbs, served
+// The operations are generate.ops.xdef.ts's (the application's verbs, served
 // over the protocol and MCP); the class's functions are the same steps for a
 // host's own code.
 export module omui.generate:generation;
@@ -93,7 +93,7 @@ public:
     Generation(const Generation&) = delete;
     Generation& operator=(const Generation&) = delete;
 
-    // The verbs' steps (generate.ops.omui.ts says each one's arguments and answer).
+    // The verbs' steps (generate.ops.xdef.ts says each one's arguments and answer).
     VerbResult surfaces() const;
     VerbResult draft(const Value& args);
     VerbResult preview(const Value& args);

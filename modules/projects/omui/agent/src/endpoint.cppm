@@ -2,7 +2,7 @@
 //
 // The endpoint itself is the agent kernel's (mlibs.agent, D-173): a local
 // connection named after the application, a descriptor beside it
-// (`<name>.endpoint.omui.json`) so `omui agent ls` can list what runs, lines
+// (`<name>.endpoint.xdef.json`) so `omui agent ls` can list what runs, lines
 // read on background threads and served by `pump`. This is the interface's
 // use of it: each connection's session speaks openmui.tree@0.1 (the
 // protocol) to this application's runtime, on the UI thread, between frames,

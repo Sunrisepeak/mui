@@ -5,7 +5,7 @@ Sound for openmui and its games (D-86). Sounds are data, and so is music. Voices
 ```cpp
 import xengine.audio;
 
-auto sounds = xengine::audio::read_sounds(json, "fight.sound.omui.json");   // every problem at its JSON pointer, line and column
+auto sounds = xengine::audio::read_sounds(json, "fight.sound.xdef.json");   // every problem at its JSON pointer, line and column
 xengine::audio::Mixer mixer;                                                 // 48 kHz, 48 voices
 const auto punch = mixer.add((*sounds)[0]);
 mixer.add_effect("sfx", xengine::audio::echo(0.09f, 0.3f, 0.25f, mixer.rate()));
@@ -14,7 +14,7 @@ mixer.play(punch, /*at sample*/ 4800, /*gain*/ 0.9f, /*pan*/ -0.4f);    // from 
 mixer.render(block);                                                      // on the audio thread, or offline
 ```
 
-- **Sounds** (`*.sound.omui.ts`, `defineSound({ <name>: { layers: [ … ] } })`): the library reads the JSON the module evaluates to, `{"sound": { … }}` (D-139; `omui-gen embed` carries it in a program, `xdef snapshot` writes it out). Sounds are numbered in name order, whatever order the file writes them in.
+- **Sounds** (`*.sound.xdef.ts`, `defineSound({ <name>: { layers: [ … ] } })`): the library reads the JSON the module evaluates to, `{"sound": { … }}` (D-139; `omui-gen embed` carries it in a program, `xdef snapshot` writes it out). Sounds are numbered in name order, whatever order the file writes them in.
   - A layer is a source: a sine (a table made with shared `openmui.math`), a triangle, a band-limited square or saw (polyBLEP), or seeded noise.
   - Its pitch glides exponentially from one value to another over its length. Its filter (low, high or band pass) has a cutoff that glides too.
   - An envelope (attack, hold, decay, sustain, release) shapes it, then soft clipping, gain and an equal-power pan.
@@ -44,7 +44,7 @@ auto sounds = *xengine::audio::matter::Sounds::make(program, mixer);          //
 sounds.hear({.event = "land", .material = iron, .strength = 0.8f, .pan = -0.2f, .at = mixer.clock()});
 ```
 
-The feature `matter` (on by default; D-183). A world's events have names and a material has properties: a recipe says which shape of sound an event has — `strike` (one thing meets another: a click and the thing's ring), `crumble` (it breaks), `sizzle` (it burns or boils) — and each material's sound of that shape is made from its own numbers: `ring`, the pitch a piece of it gives when struck, and `damping`, how soon that dies. Those two are this package's pack over the standard definition ([packs/acoustics.matter.omui.ts](packs/acoustics.matter.omui.ts)); a material that says neither still sounds, from its phase and density. No work writes "when wood lands play this". It is of the presentation: it reads the world and changes nothing of it; the sounds are made once, hearing one allocates nothing, and a scene of events renders to the same bits everywhere (`tests/matter_test.cpp`). Not yet: the world's journal wired to it, lasting layers for what burns and boils, the recipes as data.
+The feature `matter` (on by default; D-183). A world's events have names and a material has properties: a recipe says which shape of sound an event has — `strike` (one thing meets another: a click and the thing's ring), `crumble` (it breaks), `sizzle` (it burns or boils) — and each material's sound of that shape is made from its own numbers: `ring`, the pitch a piece of it gives when struck, and `damping`, how soon that dies. Those two are this package's pack over the standard definition ([packs/acoustics.matter.xdef.ts](packs/acoustics.matter.xdef.ts)); a material that says neither still sounds, from its phase and density. No work writes "when wood lands play this". It is of the presentation: it reads the world and changes nothing of it; the sounds are made once, hearing one allocates nothing, and a scene of events renders to the same bits everywhere (`tests/matter_test.cpp`). Not yet: the world's journal wired to it, lasting layers for what burns and boils, the recipes as data.
 
 A world need not be told event by event: `sounds.hear(events, {.width, .at, .reach, .when})` takes a step's events as their carrier says them (`MatterWorld::events`) — each event of each material is one sound, louder the more of them there were, from where they were on average. A wall of forty cells that shatters is one crumble, not forty. What goes on — wood burning, lava setting — says so every frame; a recipe's `again` is the least time between two of it for one material. `sounds.hear(impacts, ear, full)` takes a step's landings (`MatterWorld::impacts`) as the event `land`: one sound a material, as loud as the fastest came down, and what only settles is not heard. Both are a step's, not a state: hear a step once.
 
@@ -74,14 +74,14 @@ for (const space::Heard& one : place->heard()) …     // what reached each ear,
 ## Music
 
 ```cpp
-auto music = xengine::audio::read_music(json, "study.music.omui.json");     // every problem at its place, a wrong note at its very token
+auto music = xengine::audio::read_music(json, "study.music.xdef.json");     // every problem at its place, a wrong note at its very token
 auto song = xengine::audio::Sequencer::attach(*music, mixer);                // its instruments made, its buses under "music"
 (*song)->start(mixer.clock());                                            // from any thread: the intro, then the loop
 (*song)->set_intensity(0.8f);                                             // from any thread: which layers play, from the next bar
 (*song)->finish();                                                        // its outro from the next bar
 ```
 
-A piece (`*.music.omui.ts`) is a TypeScript data module, written for people and agents to read. The library reads the JSON it evaluates to, `{"music": { … }}`. Named entries are read in name order, so a file's order changes nothing that is played.
+A piece (`*.music.xdef.ts`) is a TypeScript data module, written for people and agents to read. The library reads the JSON it evaluates to, `{"music": { … }}`. Named entries are read in name order, so a file's order changes nothing that is played.
 
 ```ts
 import { defineMusic } from "omui/define";
@@ -139,16 +139,16 @@ The command line for people, agents and CI (D-61): JSON out and an exit code.
 
 ```sh
 cd modules/projects/xengine/kernel/audio
-xdef snapshot piece.music.omui.ts --write      # the JSON the tool reads (the module evaluated)
-mcpp run --release omui-music -- check piece.music.omui.json           # problems, or its bars and seconds
-mcpp run --release omui-music -- render piece.music.omui.json --out piece.wav --seconds 60 --intensity 0.3@0,0.9@30 [--solo lead,bass] [--float]
-mcpp run --release omui-music -- stats piece.music.omui.json --seconds 60   # the mix and each instrument alone: loudness, bands, the limiter
-mcpp run --release omui-music -- fmt piece.music.omui.json             # the one way it is written (JSON)
+xdef snapshot piece.music.xdef.ts --write      # the JSON the tool reads (the module evaluated)
+mcpp run --release omui-music -- check piece.music.xdef.json           # problems, or its bars and seconds
+mcpp run --release omui-music -- render piece.music.xdef.json --out piece.wav --seconds 60 --intensity 0.3@0,0.9@30 [--solo lead,bass] [--float]
+mcpp run --release omui-music -- stats piece.music.xdef.json --seconds 60   # the mix and each instrument alone: loudness, bands, the limiter
+mcpp run --release omui-music -- fmt piece.music.xdef.json             # the one way it is written (JSON)
 ```
 
 `render` answers the WAV's hash, its levels, how hard the limiter worked and how many times faster than real time it rendered.
 
-The fighting game's stage themes are written this way: [study](../../../../../showcase/fighting/music/study.music.omui.ts) (墨's) and [street](../../../../../showcase/fighting/music/street.music.omui.ts) (霓's).
+The fighting game's stage themes are written this way: [study](../../../../../showcase/fighting/music/study.music.xdef.ts) (墨's) and [street](../../../../../showcase/fighting/music/street.music.xdef.ts) (霓's).
 
 ## Observability
 

@@ -638,7 +638,7 @@ bool toy_keeps(std::string_view extension) noexcept {
     return std::ranges::find(kept, extension) != kept.end();
 }
 
-// The package's report and the list beside it (<out>.toy.omui.json): every
+// The package's report and the list beside it (<out>.toy.xdef.json): every
 // file, its size, the total — written after packing and after a split.
 std::expected<ToyReport, std::string> finish_package(const fs::path& out, const std::string& target, const std::string& title, std::uintmax_t index_bytes,
                                                      bool toy_limit = true) {
@@ -670,7 +670,7 @@ std::expected<ToyReport, std::string> finish_package(const fs::path& out, const 
     auto& list = about["files"] = nlohmann::ordered_json::array();
     for (const ToyFile& f : report.files) list.push_back({{"path", f.path}, {"bytes", f.size}});
     fs::path side = out;
-    side += ".toy.omui.json";
+    side += ".toy.xdef.json";
     if (auto w = write(side, about.dump(2) + "\n"); !w) return std::unexpected(w.error());
     return report;
 }
@@ -928,7 +928,7 @@ std::expected<ToyReport, std::string> adopt_split(const ToySplit& split) {
 
     std::string title = target;
     fs::path side = split.dir;
-    side += ".toy.omui.json";
+    side += ".toy.xdef.json";
     if (auto listed = read(side)) {
         const auto json = nlohmann::json::parse(*listed, nullptr, false);
         if (json.is_object() && json.contains("title") && json["title"].is_string()) title = json["title"].get<std::string>();

@@ -1,7 +1,7 @@
 // The notes application's views and logic. What it shares with the other
 // parts is what the design allows: the macros are verbs it invokes
 // (plugins/macros.ts, a script of their own), the help panel is a view document the player mounts
-// into this view's slot (ui/help.view.omui.json), the search is openmui's
+// into this view's slot (ui/help.view.xdef.json), the search is openmui's
 // native module in C++ (fuzzy, on a worker as you type).
 import { signal, fmt, model, verb, invoke, column, row, text, textBox, button, markdown, scrollView, each, slot, select, eq, mount } from "openmui";
 import { fuzzy } from "openmui:native/fuzzy";

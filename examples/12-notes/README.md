@@ -12,7 +12,7 @@ Each part is written in the language that suits it. They share only what the des
 
 - **TypeScript** ([`logic/main.ts`](logic/main.ts)) holds the views and the logic: the notes model, the list, the editor and the preview, and the verbs an agent uses (`notes.new`, `notes.open`, `notes.search`).
 - **A script of its own** ([`plugins/macros.ts`](plugins/macros.ts)) holds the text macros: `macro.today`, `macro.task` and `macro.title` (a note's title is its first heading, or its first line). They are verbs, so the TypeScript toolbar invokes them, and so may an agent or any other script. None of them keeps state.
-- **A view document** ([`ui/help.view.omui.json`](ui/help.view.omui.json)) is the help panel. The player mounts it under the name `help`. The TypeScript view has a `slot("help")` that no code fills, so the panel shows there (an outlet). Saving the file reloads it in place.
+- **A view document** ([`ui/help.view.xdef.json`](ui/help.view.xdef.json)) is the help panel. The player mounts it under the name `help`. The TypeScript view has a `slot("help")` that no code fills, so the panel shows there (an outlet). Saving the file reloads it in place.
 - **C++** does the search: openmui's native module `fuzzy`, imported as `openmui:native/fuzzy`. While you type it ranks on a worker (`fuzzy.rank`, a promise), and an answer that a later keystroke has overtaken is dropped. A verb ranks at once (`fuzzy.rankSync`).
 
 Ticking a task in the preview rewrites its mark in the Markdown source. The preview's `changed` event then saves the note.

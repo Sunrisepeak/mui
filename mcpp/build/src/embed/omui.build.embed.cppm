@@ -1,8 +1,8 @@
 // openmui.build.embed — the build plugin for data files a program carries
 // (D-73's embed plugin): each file becomes a partition holding its text
 // (`omui-gen embed`), so a shipped program reads no file to have them; a
-// TypeScript data module (`*.theme.omui.ts`) is carried as the JSON it
-// evaluates to, named `*.theme.omui.json`. Theme
+// TypeScript data module (`*.theme.xdef.ts`) is carried as the JSON it
+// evaluates to, named `*.theme.xdef.json`. Theme
 // packages and canvas programs use it for their own files: themes() and
 // behaviors() are embed() with their directory, suffix and tag.
 export module omui.build.embed;
@@ -17,7 +17,7 @@ struct embed_options {
     std::string module;                                   // the package's module
     std::string ns;                                       // the namespace of the texts (default: the module's)
     std::string dir;                                      // where the files are
-    std::string suffix;                                   // which: ".style.omui.ts"
+    std::string suffix;                                   // which: ".style.xdef.ts"
     std::string tag;                                      // the partitions' and constants' suffix: <stem>_<tag>
     bool        index = false;                            // and <tag>_files, a table of them all (the module exports it)
     // The files left out (a feature the build does not have): no partition
@@ -40,13 +40,13 @@ bool embed(embed_options opt);
 struct theme_options {
     std::string module;                                   // the package's module (acme.themes)
     std::string ns;                                       // the namespace of the embedded texts (default: the module's)
-    std::string themes = "themes";                        // the directory of *.theme.omui.ts
+    std::string themes = "themes";                        // the directory of *.theme.xdef.ts
     std::string out_dir = std::string(mcpp::out_dir());
 };
 
 // Each theme file as a partition `<module>:<stem>_theme` holding its text:
 // the package adds it to the program's library with
-// omui::theme::library().add(<stem>_theme, "<stem>.theme.omui.json").
+// omui::theme::library().add(<stem>_theme, "<stem>.theme.xdef.json").
 bool themes(theme_options opt);
 
 // ── declarative behaviours (canvas-kit) ─────────────────────────────────────
@@ -54,13 +54,13 @@ bool themes(theme_options opt);
 struct behavior_options {
     std::string module;                                   // the package's module (acme.wall)
     std::string ns;                                       // the namespace of the embedded texts (default: the module's)
-    std::string behaviors = "behaviors";                  // the directory of *.behavior.omui.ts
+    std::string behaviors = "behaviors";                  // the directory of *.behavior.xdef.ts
     std::string out_dir = std::string(mcpp::out_dir());
 };
 
 // Each behaviour file as a partition `<module>:<stem>_behavior` holding its
 // text: the program loads it with
-// omui::world::load_behaviors(<stem>_behavior, "<stem>.behavior.omui.json"),
+// omui::world::load_behaviors(<stem>_behavior, "<stem>.behavior.xdef.json"),
 // so a shipped program carries its behaviours and reads no file to have them.
 bool behaviors(behavior_options opt);
 

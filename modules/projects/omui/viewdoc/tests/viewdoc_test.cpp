@@ -164,9 +164,9 @@ std::string name_of(Host& h, std::string_view id) {
 }
 
 vd::View load(Host& h, std::string_view text, std::source_location where = std::source_location::current()) {
-    auto v = vd::View::load(h.runtime(), text, {.file = "test.view.omui.json"});
+    auto v = vd::View::load(h.runtime(), text, {.file = "test.view.xdef.json"});
     if (!v) {
-        for (const auto& d : v.error()) expect(false, where) << d.text("test.view.omui.json");
+        for (const auto& d : v.error()) expect(false, where) << d.text("test.view.xdef.json");
         std::abort();
     }
     return std::move(*v);
@@ -291,10 +291,10 @@ UTest cases{"viewdoc", [] {
         // The text of a diagnostic, as `omui check` prints it.
         const vd::ReadResult r = vd::read("{\"omui\": \"0.1\",\n \"view\": {\"root\": {\"type\": \"buton\"}}}");
         expect(!r.ok() && r.errors() == 1);
-        expect(eq(r.diagnostics.at(0).text("a.view.omui.json"),
-                 std::string("a.view.omui.json:2:28: error: no component is named `buton` (did you mean `button`?) [unknown-type]")));
-        expect(eq(r.diagnostics.at(0).to_value("a.view.omui.json").json(),
-                 std::string(R"j({"level":"error","code":"unknown-type","file":"a.view.omui.json","pointer":"/view/root/type","line":2,"column":28,"message":"no component is named `buton`","hint":"did you mean `button`?"})j")));
+        expect(eq(r.diagnostics.at(0).text("a.view.xdef.json"),
+                 std::string("a.view.xdef.json:2:28: error: no component is named `buton` (did you mean `button`?) [unknown-type]")));
+        expect(eq(r.diagnostics.at(0).to_value("a.view.xdef.json").json(),
+                 std::string(R"j({"level":"error","code":"unknown-type","file":"a.view.xdef.json","pointer":"/view/root/type","line":2,"column":28,"message":"no component is named `buton`","hint":"did you mean `button`?"})j")));
         // Warnings do not stop a document.
         const vd::ReadResult w = vd::read(view_of(R"j({"type": "row", "children": [{"type": "button"}], "colour": 1})j"));
         expect(w.ok() && w.errors() == 0 && w.diagnostics.size() == 2);
@@ -302,7 +302,7 @@ UTest cases{"viewdoc", [] {
 
     "bindings: expressions follow signals and models; bind is two-way; tr reads the catalogue"_test = [] {
         Host h(options());
-        (void)languages().add_messages(*mlibs::i18n::Locale::parse("de"), R"({"messages": {"search": "Suchen", "found": "{$n :number} gefunden"}})", "de.messages.omui.json");
+        (void)languages().add_messages(*mlibs::i18n::Locale::parse("de"), R"({"messages": {"search": "Suchen", "found": "{$n :number} gefunden"}})", "de.messages.xdef.json");
         languages().request({*mlibs::i18n::Locale::parse("de")});
         auto view = vd::View::load(h.runtime(), view_of(R"j({"type": "column", "children": [
             {"type": "text_box", "id": "q", "props": {"text": {"bind": "query"}, "label": {"tr": "search"}}},

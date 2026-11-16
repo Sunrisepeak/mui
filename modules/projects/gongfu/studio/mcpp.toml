@@ -1,5 +1,5 @@
 # gongfu.studio — making fighters (D-85 §8.5, D-61): the library, and the command `gongfu-studio` — its subject
-# `gongfu` behind the tool kernel (T0), the operations gongfu.ops.omui.ts lists. `fighter.bake` writes each
+# `gongfu` behind the tool kernel (T0), the operations gongfu.ops.xdef.ts lists. `fighter.bake` writes each
 # fighter's hurtboxes from its look's animation (`<name>.boxes.gongfu.toml`, G-5); `fighter.check` says whether
 # those files are what the looks and moves make now; `fighter.embed` gives a program its fighters as a module
 # partition, refusing stale hurtboxes (what gongfu.rules runs in a build).

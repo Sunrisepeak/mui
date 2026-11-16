@@ -6,7 +6,7 @@ name: Bench
 # a round with a 95 % interval. A shared runner is noisy, so only ratios
 # measured side by side in one job count, never absolute times. The verdicts
 # are this run's summary; the ledger lines and the samples are its artifact,
-# appended to .agents/docs/evaluation/lead.ledger.omui.jsonl by a checkpoint
+# appended to .agents/docs/evaluation/lead.ledger.xdef.jsonl by a checkpoint
 # (the lane never pushes). Never part of a pull request's run.
 
 on:
@@ -68,10 +68,10 @@ jobs:
 
       - name: Measure, interleaved, and judge
         run: |
-          cp .agents/docs/evaluation/lead.ledger.omui.jsonl target-ledger-before.jsonl 2>/dev/null || touch target-ledger-before.jsonl
+          cp .agents/docs/evaluation/lead.ledger.xdef.jsonl target-ledger-before.jsonl 2>/dev/null || touch target-ledger-before.jsonl
           mcpp run omui-devtools -p tools/devtools --profile ci -- bench competitors --ledger --rounds 15
           # The lines this run added: the artifact a checkpoint appends.
-          tail -n +"$(( $(wc -l < target-ledger-before.jsonl) + 1 ))" .agents/docs/evaluation/lead.ledger.omui.jsonl > lead.ledger.ci.jsonl
+          tail -n +"$(( $(wc -l < target-ledger-before.jsonl) + 1 ))" .agents/docs/evaluation/lead.ledger.xdef.jsonl > lead.ledger.ci.jsonl
           {
             echo "### Lead ledger, $(date -u +%F), $(nproc) threads"
             echo

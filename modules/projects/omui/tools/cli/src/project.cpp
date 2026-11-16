@@ -256,7 +256,7 @@ int config(bool json, std::ostream& out, std::ostream& err) {
 }  // namespace
 
 std::expected<std::string, std::string> data_text(const std::filesystem::path& file) {
-    if (mcpplibs::os::fs::utf8(file.filename()).ends_with(".omui.ts")) {
+    if (mcpplibs::os::fs::utf8(file.filename()).ends_with(".xdef.ts")) {
         auto data = lang::ts::evaluate(file);
         if (!data) return std::unexpected(data.error().text());
         return std::format("{{\"{}\":{}}}", data->kind, data->json);
@@ -345,7 +345,7 @@ int operation(std::string_view op, const mlibs::agent::Arguments& a, std::ostrea
         record(out, true, "frames", made);
         if (made.code != 0) return made.code;
         const std::string film = a.value("out").value_or("design.webm");
-        const auto rendering = mlibs::agent::parse_request(Value{}.set("op", "omui.video.render").set("file", frames + "/design.video.omui.json").set("out", film).json());
+        const auto rendering = mlibs::agent::parse_request(Value{}.set("op", "omui.video.render").set("file", frames + "/design.video.xdef.json").set("out", film).json());
         return rendering ? video("render", mlibs::agent::Arguments(*rendering, "file"), out, err) : 1;
     }
     if (name == "check") {

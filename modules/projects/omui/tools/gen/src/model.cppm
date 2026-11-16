@@ -207,7 +207,7 @@ struct Contract : Named {
     std::vector<Motion>         motion;
 };
 
-// A native module's contract (*.native.omui.ts; component-binding §8):
+// A native module's contract (*.native.xdef.ts; component-binding §8):
 // functions written in C++ that scripts call, with the records they take
 // and give. Parameters keep the order the file writes them in.
 struct NativeParam {

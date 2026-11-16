@@ -23,7 +23,7 @@ enum class CtsError : std::uint8_t { unreadable, not_a_scenario, unlistable, no_
     using Kind = mlibs::error::Kind;
     switch (error) {
         case CtsError::unreadable: return {"omui.cts.unreadable", Kind::not_found, "a scenario file cannot be read", "check the scenario's path and that it can be read"};
-        case CtsError::not_a_scenario: return {"omui.cts.not-a-scenario", Kind::invalid_argument, "a file named as a scenario is not one", "give a scenario file (`*.scenario.omui.json`) with its steps; the message names what is missing"};
+        case CtsError::not_a_scenario: return {"omui.cts.not-a-scenario", Kind::invalid_argument, "a file named as a scenario is not one", "give a scenario file (`*.scenario.xdef.json`) with its steps; the message names what is missing"};
         case CtsError::unlistable: return {"omui.cts.unlistable", Kind::not_found, "the scenarios' directory cannot be listed", "check that the scenarios' directory exists and can be read"};
         case CtsError::no_scenario: return {"omui.cts.no-scenario", Kind::not_found, "no scenario to run", "add a scenario to the directory, or name the one to run"};
     }
@@ -33,7 +33,7 @@ using CtsFailure = mlibs::error::Error<CtsError>;
 
 struct Scenario {
     std::string           name;  // the file's stem: `counter`
-    std::filesystem::path file;  // spec/conformance/S/counter.scenario.omui.json
+    std::filesystem::path file;  // spec/conformance/S/counter.scenario.xdef.json
     Json                  data;
 };
 

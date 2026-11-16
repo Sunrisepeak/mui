@@ -1,4 +1,4 @@
-// An appearance from its JSON snapshot — what a *.appearance.omui.ts data module evaluates to (D-139):
+// An appearance from its JSON snapshot — what a *.appearance.xdef.ts data module evaluates to (D-139):
 //
 //   {"appearance": {
 //     "phases":    {"granular": {"color": "#b9a377", "grain": 0.16}},
@@ -174,7 +174,7 @@ std::expected<Look, std::vector<mlibs::json::Problem>> look_document(const Progr
 }
 
 std::expected<Look, std::vector<mlibs::json::Problem>> standard_look(const Program& program) {
-    return look_document(program, standard_appearance_snapshot, "standard.appearance.omui.json");
+    return look_document(program, standard_appearance_snapshot, "standard.appearance.xdef.json");
 }
 
 }  // namespace xengine::matter

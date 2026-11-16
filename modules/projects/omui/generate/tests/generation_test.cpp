@@ -217,7 +217,7 @@ UTest cases{"generation", [] {
             }
             expect(eq(talk(protocol, Value{}.set("op", "undo")).exit, 0)) << "Pro shown when it ends";
         }
-        expect(std::filesystem::exists(dir / "index.json") && std::filesystem::exists(dir / "extras-2.view.omui.json"));
+        expect(std::filesystem::exists(dir / "index.json") && std::filesystem::exists(dir / "extras-2.view.xdef.json"));
         {
             Page again;
             generate::Generation generation(again.rt, {.openness = generate::Openness::all, .surfaces = {{"extras", ""}}, .directory = dir});
@@ -228,7 +228,7 @@ UTest cases{"generation", [] {
         }
         {
             // Started again more closed: data takes no verbs — and a kept version that invokes one is not shown.
-            std::ofstream(dir / "extras-1.view.omui.json")
+            std::ofstream(dir / "extras-1.view.xdef.json")
                 << R"j({"omui": "0.1", "view": {"root": {"type": "box", "id": "go", "label": "Pro", "on": {"press": [{"verb": "plan.upgrade"}]}}}})j";
             Page closed;
             generate::Generation generation(closed.rt, {.openness = generate::Openness::data, .surfaces = {{"extras", ""}}, .directory = dir});

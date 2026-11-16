@@ -3,7 +3,7 @@
 // runs headless as `omui-fight --fight P1,P2 --turns N`: the match stands until both players have said what they
 // hold for the next N frames (the stage's `turn` action), then plays them. Each player is a codex with omui's MCP
 // server, its own actor (agent:codex-p1, agent:codex-p2). Meanwhile every turn is recorded: the stage's state as the
-// tree says it (duel.log.omui.jsonl) and its picture. Then the analyst — a third codex, read-only — gets contact
+// tree says it (duel.log.xdef.jsonl) and its picture. Then the analyst — a third codex, read-only — gets contact
 // sheets of the recording, the log and both players' notes, and writes the report.
 module omui.devtools.eval;
 
@@ -118,7 +118,7 @@ void analyse(const Duel& duel, const fs::path& work, const fs::path& report, int
     const std::string prompt = std::format(
         "Two AI agents just played a match of openmui's fighting game against each other, by turns of {0} frames: player 1 as {1}, player 2 as\n{2}. "
         "You are the analyst. The attached contact sheets show the picture after each turn (turn numbers under each); the log of every turn's\nstate "
-        "as the semantic tree says it is {3}/duel.log.omui.jsonl; the players' own notes are {3}/p1.md and {3}/p2.md (missing if a\nplayer stopped "
+        "as the semantic tree says it is {3}/duel.log.xdef.jsonl; the players' own notes are {3}/p1.md and {3}/p2.md (missing if a\nplayer stopped "
         "early). The game's code is showcase/fighting and modules/projects/gongfu (read AGENTS.md, showcase/fighting/README.md and the\nfighting "
         "evaluation subject .agents/docs/evaluation/subjects/fighting.md).\nWrite a report in English, under 1500 words:\n1. The match: who won and how "
         "— the decisive exchanges, by turn number.\n2. The game as these players met it: readability (could they and you tell what happened from the "
@@ -169,7 +169,7 @@ std::string player_prompt(const Duel& duel, int side) {
 int duel(const Duel& duel) {
     const fs::path report = duel.root / ".agents/docs/evaluation/reports" / std::format("{}-fighting-duel-{}-{}.md", duel.date.empty() ? run::today() : duel.date, duel.p1, duel.p2);
     if (!duel.analyse.empty()) {  // a recording made before, analysed again
-        const std::string log = os::fs::read(duel.analyse / "duel.log.omui.jsonl").value_or("");
+        const std::string log = os::fs::read(duel.analyse / "duel.log.xdef.jsonl").value_or("");
         analyse(duel, duel.analyse, report, static_cast<int>(std::ranges::count(log, '\n')));
         return 0;
     }
@@ -198,7 +198,7 @@ int duel(const Duel& duel) {
         std::cerr << std::format("omui-devtools eval duel: the game did not start: {}\n", game.error().message());
         return 1;
     }
-    for (int attempt = 0; attempt < 300 && !fs::exists(work / "ep" / "org.openmui.fighting.endpoint.omui.json"); ++attempt)
+    for (int attempt = 0; attempt < 300 && !fs::exists(work / "ep" / "org.openmui.fighting.endpoint.xdef.json"); ++attempt)
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     // The players, each its own actor through omui's MCP server.
@@ -240,7 +240,7 @@ int duel(const Duel& duel) {
     const std::string where = os::fs::utf8(work / "ep");
     int seen = -1;
     const auto started = std::chrono::steady_clock::now();
-    std::ofstream log(work / "duel.log.omui.jsonl", std::ios::binary);
+    std::ofstream log(work / "duel.log.xdef.jsonl", std::ios::binary);
     const auto running = [&](os::process::process& player) {
         const auto ended = player.try_wait();
         return ended && !*ended;
@@ -275,7 +275,7 @@ int duel(const Duel& duel) {
     std::this_thread::sleep_for(std::chrono::seconds(20));  // the players' last words
     // What the round was played with, and where it led (a replay's check).
     if (const auto inputs = run::program(duel.root, os::fs::utf8(omui), {"agent", "act", "org.openmui.fighting", "main/stage", "inputs", "--dir", where}))
-        std::ofstream(work / "inputs.omui.jsonl", std::ios::binary) << inputs->out;
+        std::ofstream(work / "inputs.xdef.jsonl", std::ios::binary) << inputs->out;
     for (auto& player : players) player.kill();
     logs.clear();
     game->kill();

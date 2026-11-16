@@ -4,7 +4,7 @@ A small notes app (`src/notes.cppm`) and what headless openmui does with it:
 
 - **H0** (semantics only), **H1** (layout, hit testing) and **H2** (pixels)
   give the same semantic tree;
-- an **agent script** (`tests/data/delete-all.agent.omui.jsonl`): requests of
+- an **agent script** (`tests/data/delete-all.agent.xdef.jsonl`): requests of
   `openmui.tree@0.1`, each with the outcome it expects;
 - **effects**: "Delete all" invokes an irreversible verb, so its action is
   stopped with `needs-answer` (exit code 2) until called with `answer: delete`;

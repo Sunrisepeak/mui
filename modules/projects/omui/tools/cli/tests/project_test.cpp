@@ -172,9 +172,9 @@ UTest cases{"cli.project", [] {
         std::filesystem::create_directories(root / "design");
         std::filesystem::create_directories(root / "target" / "skipped");
         std::ofstream(root / "mcpp.toml") << "[package]\nname = \"probe\"\n";
-        std::ofstream(root / "contracts" / "dial.contract.omui.ts") << "import { defineContract } from \"openmui/define\";\nenum Size { S }\n"
+        std::ofstream(root / "contracts" / "dial.contract.xdef.ts") << "import { defineContract } from \"openmui/define\";\nenum Size { S }\n"
                                                                       "export default defineContract({ dial: { role: \"slider\", doc: \"A dial.\" } });\n";
-        std::ofstream(root / "design" / "main.view.omui.json") << R"({"omui": "0.1", "view": {"root": {"type": "colum", "id": "page"}}})";
+        std::ofstream(root / "design" / "main.view.xdef.json") << R"({"omui": "0.1", "view": {"root": {"type": "colum", "id": "page"}}})";
         std::ofstream(root / "target" / "skipped" / "bad.ts") << "enum Ignored { A }\n";  // builds are not sources
         const auto here = std::filesystem::current_path();
         std::filesystem::current_path(root);
@@ -184,9 +184,9 @@ UTest cases{"cli.project", [] {
         const auto found = records(ran.out);
         expect(eq(found.size(), std::size_t{2})) << ran.out;
         const auto erasable = std::ranges::find_if(found, [](const Value& v) { return v.get("code")->as_string() == "erasable"; });
-        expect(erasable != found.end() && erasable->get("file")->as_string() == "contracts/dial.contract.omui.ts" && erasable->get("line")->as_int() == 2)
+        expect(erasable != found.end() && erasable->get("file")->as_string() == "contracts/dial.contract.xdef.ts" && erasable->get("line")->as_int() == 2)
             << ran.out;
-        expect(std::ranges::any_of(found, [](const Value& v) { return v.get("file")->as_string() == "design/main.view.omui.json"; })) << ran.out;
+        expect(std::ranges::any_of(found, [](const Value& v) { return v.get("file")->as_string() == "design/main.view.xdef.json"; })) << ran.out;
     };
 
     "deps, tools and config read the project here: each dependency by its kind; a tool not installed is said; the config over the defaults"_test = [] {

@@ -32,7 +32,7 @@ UTest cases{"inspector.motion", [] {
 
     "the session: a moment and an object to the step that moves it; its knobs; a change that does not read refused, nothing changed; undo, redo"_test = [] {
         bench::Session session;
-        expect(session.perform("open", Value{}.set("file", generic_utf8(example("bounce.animation.omui.json")))).has_value()) << "opened";
+        expect(session.perform("open", Value{}.set("file", generic_utf8(example("bounce.animation.xdef.json")))).has_value()) << "opened";
         const double length = session.duration();
         expect(length > 3 && length < 8) << std::format("{} s", length);
         const auto found = session.perform("at", Value{}.set("time", 0.3).set("object", "ball"));
@@ -68,7 +68,7 @@ UTest cases{"inspector.motion", [] {
         auto access = std::make_shared<AgentAccess>();
         access->set_policy({.mode = AgentMode::development, .source = "test-host"});
         host.runtime().set_agent_access(std::move(access));
-        AppSpec spec = bench::app(session, example("bounce.animation.omui.json"));
+        AppSpec spec = bench::app(session, example("bounce.animation.xdef.json"));
         spec.setup(host.runtime());
         for (const auto& verb : spec.verbs) expect(host.runtime().verbs().add(verb.desc, verb.fn).has_value());
         host.mount("main", spec.view());

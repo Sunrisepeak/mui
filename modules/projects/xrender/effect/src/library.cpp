@@ -13,8 +13,8 @@ namespace xrender::effect {
 namespace {
 
 // An effect's description: its JSON, or the TypeScript module it is written as (D-139).
-constexpr std::string_view json_suffix = ".effect.omui.json";
-constexpr std::string_view module_suffix = ".effect.omui.ts";
+constexpr std::string_view json_suffix = ".effect.xdef.json";
+constexpr std::string_view module_suffix = ".effect.xdef.ts";
 
 std::optional<std::string> read_text(const std::filesystem::path& f) {
     std::ifstream in(f, std::ios::binary);
@@ -273,7 +273,7 @@ std::expected<std::vector<Loaded>, Diagnostics> Library::load_directory(const st
         if (name.ends_with(module_suffix) && impl_->options.data) files.push_back(e.path());
         if (name.ends_with(json_suffix)) {
             const auto module = e.path().parent_path() / std::filesystem::path(std::u8string(
-                                    reinterpret_cast<const char8_t*>(name.data()), name.size() - json_suffix.size()) + u8".effect.omui.ts");
+                                    reinterpret_cast<const char8_t*>(name.data()), name.size() - json_suffix.size()) + u8".effect.xdef.ts");
             std::error_code missing;
             if (!impl_->options.data || !std::filesystem::exists(module, missing)) files.push_back(e.path());
         }

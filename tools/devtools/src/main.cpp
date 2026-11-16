@@ -3,7 +3,7 @@
 //         with its first lines — and set against STATUS's red list (R12).
 //         Exit 0 when every failure is named there, 1 when one is new, 2
 //         when it could not read the run.
-//   platforms  docs/{en,zh}/platforms.md from docs/platforms.omui.json (--check: whether they are current)
+//   platforms  docs/{en,zh}/platforms.md from docs/release.platforms.xdef.json (--check: whether they are current)
 //   llvm  what a change touches and its direct consumers, compiled (their
 //         tests too, not run) with CI's LLVM and profile: the errors only
 //         clang and libc++ give (reds 90, 91, 93), before a push.
@@ -204,7 +204,7 @@ cmd::App app() {
                         .option(Option("profile").takes_value().value_name("P").help("default: dev"))
                         .option(Option("toolchain").takes_value().value_name("T").help("default: mcpp's"))
                         .option(Option("locked").help("mcpp's --locked"))
-                        .option(Option("report").takes_value().value_name("FILE").help("default: target/incremental.report.omui.json")))
+                        .option(Option("report").takes_value().value_name("FILE").help("default: target/incremental.report.xdef.json")))
         .subcommand(cmd::App("rename")
                         .description("An internal code name renamed everywhere it is a word (D-208): packages, modules, namespaces, programs, paths, docs; .agents/ kept")
                         .arg(cmd::Arg("from").required().help("the code name now (xtools)"))
@@ -220,7 +220,7 @@ cmd::App app() {
                         .arg(Arg("tally").required().help("example 03's program (tally)"))
                         .arg(Arg("notes").help("example 07's program (notes-agent)")))
         .subcommand(cmd::App("platforms")
-                        .description("Write docs/{en,zh}/platforms.md from docs/platforms.omui.json (the verification table, D-201)")
+                        .description("Write docs/{en,zh}/platforms.md from docs/release.platforms.xdef.json (the verification table, D-201)")
                         .option(Option("check").help("only say whether the pages are current (exit 1 when not)")))
         .subcommand(cmd::App("llvm")
                         .description("Compile what a change touches and its direct consumers, tests included, with CI's LLVM and profile (not run)")
@@ -250,7 +250,7 @@ cmd::App app() {
                                         .option(Option("package").short_name('p').takes_value().value_name("MEMBER").help("the program's package"))
                                         .option(Option("json").takes_value().value_name("FILE").help("the report (default: target/<package>.wasm-size.json)"))
                                         .option(Option("markdown").takes_value().value_name("FILE").help("the report as a table"))
-                                        .option(Option("budget").takes_value().value_name("FILE").help("its budgets (<name>.budget.omui.json)")))
+                                        .option(Option("budget").takes_value().value_name("FILE").help("its budgets (<name>.budget.xdef.json)")))
                         .subcommand(cmd::App("templates").description("Each template rendered as mcpp new renders it, pointed at this checkout, built and tested"))
                         .subcommand(cmd::App("reflect")
                                         .description("omui.reflect's suite where the toolchain builds reflection beside C headers (V-08); a warning where not")
@@ -798,9 +798,9 @@ int lead_command(const cmd::ParsedArgs& options, const fs::path& root) {
 }
 
 int platforms(const cmd::ParsedArgs& options, const fs::path& root) {
-    const auto table = mcpplibs::os::fs::read(root / "docs/platforms.omui.json");
+    const auto table = mcpplibs::os::fs::read(root / "docs/release.platforms.xdef.json");
     if (!table) {
-        std::cerr << "omui-devtools platforms: cannot read docs/platforms.omui.json\n";
+        std::cerr << "omui-devtools platforms: cannot read docs/release.platforms.xdef.json\n";
         return 2;
     }
     int stale = 0;

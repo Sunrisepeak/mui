@@ -66,9 +66,9 @@ UTest cases{"showcase.promo_video", [] {
         expect(eq(short_cut.frames(), std::int64_t{900}));
         expect(main.picture >= 0 && main.subtitles >= 0 && main.sfx >= 0) << "picture, subtitles and sfx tracks";
         expect(film().subtitles.lines.size() >= 11) << std::format("{} lines", film().subtitles.lines.size());
-        auto music = xengine::audio::read_music(*film().files.read("music/promo.music.omui.json"), "promo.music.omui.json");
+        auto music = xengine::audio::read_music(*film().files.read("music/promo.music.xdef.json"), "promo.music.xdef.json");
         expect(music.has_value() && music->tempo == 120) << "the score reads, at 120 a minute";
-        auto sounds = xengine::audio::read_sounds(*film().files.read("sounds/promo.sound.omui.json"), "promo.sound.omui.json");
+        auto sounds = xengine::audio::read_sounds(*film().files.read("sounds/promo.sound.xdef.json"), "promo.sound.xdef.json");
         expect(sounds.has_value() && sounds->size() >= 12) << "the sounds read";
         // What every shot name and clip is: each shot made for its clip.
         promo::Player p(film(), main, {.scale = 0.25f, .fonts = &fonts(), .parallel_raster = false});
@@ -83,7 +83,7 @@ UTest cases{"showcase.promo_video", [] {
             std::string t = text;
             t.replace(t.find(from), from.size(), to);
             const auto dir = scratch_dir("promo-broken");
-            std::ofstream(dir / "promo.timeline.omui.json", std::ios::binary) << t;  // an edited snapshot
+            std::ofstream(dir / "promo.timeline.xdef.json", std::ios::binary) << t;  // an edited snapshot
             return promo::load_cut(promo::Files(dir), "promo", film().subtitles);
         };
         auto a = broken("shot:styles", "shot:stiles");
@@ -160,7 +160,7 @@ UTest cases{"showcase.promo_video", [] {
                                                                           (*px)->width() * 4, mlibs::image::Alpha::premultiplied})
                       .has_value());
         }
-        expect(eq(all.hex(), std::string("101ac57c30790b3e")));  // the end card names promo.timeline.omui.ts
+        expect(eq(all.hex(), std::string("101ac57c30790b3e")));  // the end card names promo.timeline.xdef.ts
         promo::Player full(film(), c, {.scale = 1, .fonts = &fonts(), .parallel_raster = false});
         auto hd = full.frame(1860);
         expect(hd && (*hd)->width() == 1920 && (*hd)->height() == 1080) << "1080p";
@@ -280,7 +280,7 @@ UTest cases{"showcase.promo_video", [] {
         expect(a.frame(300) != other_program.frame(300)) << "another program: every frame another";
         // One line edited, in a copy of the files: the frames it is up on change, no other.
         const auto dir = scratch_dir("promo-digests");
-        auto text = film().files.read("promo.subtitles.omui.ts");
+        auto text = film().files.read("promo.subtitles.xdef.ts");
         expect(text.has_value());
         if (!text) return;
         const std::string from = "A thousand windows, one unbroken shot", to = "A thousand windows in one unbroken shot";
@@ -289,7 +289,7 @@ UTest cases{"showcase.promo_video", [] {
         if (at == std::string::npos) return;
         std::string edited = *text;
         edited.replace(at, from.size(), to);
-        std::ofstream(dir / "promo.subtitles.omui.json", std::ios::binary) << edited;
+        std::ofstream(dir / "promo.subtitles.xdef.json", std::ios::binary) << edited;
         auto changed_film = promo::load_film(promo::Files(dir));
         expect(changed_film.has_value());
         if (!changed_film) return;

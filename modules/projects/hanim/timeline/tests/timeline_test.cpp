@@ -19,11 +19,11 @@ constexpr std::string_view promo = R"({"timeline": {
   ],
   "tracks": [
     {"name": "picture", "kind": "video", "clips": [
-      {"name": "title", "source": "views/title.view.omui.json", "at": "0f", "length": "3s", "fade": {"in": "15f", "out": "0.25s", "ease": "out_cubic"}, "properties": [{"name": "y", "keys": [["0f", 40, "out_cubic"], ["30f", 0], ["2s", 0, "hold"]]}]},
+      {"name": "title", "source": "views/title.view.xdef.json", "at": "0f", "length": "3s", "fade": {"in": "15f", "out": "0.25s", "ease": "out_cubic"}, "properties": [{"name": "y", "keys": [["0f", 40, "out_cubic"], ["30f", 0], ["2s", 0, "hold"]]}]},
       {"name": "fight", "source": "showcase/fighting", "at": "3s", "length": "120f", "in": "10s", "speed": 0.5}
     ]},
     {"name": "music", "kind": "audio", "clips": [
-      {"name": "theme", "source": "menu.music.omui.ts", "at": "0s", "length": "5s", "level": 0.8}
+      {"name": "theme", "source": "menu.music.xdef.ts", "at": "0s", "length": "5s", "level": 0.8}
     ]}
   ]
 }})";
@@ -63,7 +63,7 @@ UTest cases{"timeline", [] {
     };
 
     "a timeline file reads; what plays at a moment — which clips, where in their sources, at what level and with which values"_test = [] {
-        auto t = tl::read_timeline(promo, "promo.timeline.omui.json");
+        auto t = tl::read_timeline(promo, "promo.timeline.xdef.json");
         expect(t.has_value()) << (t ? "" : t.error().front().text());
         if (!t) return;
         expect(t->tracks.size() == 2 && t->tracks[0].clips.size() == 2 && t->marker("beat") == std::optional<mlibs::time::Flicks>(2 * mlibs::time::flicks_per_second)) << "read";
@@ -86,27 +86,27 @@ UTest cases{"timeline", [] {
         expect(now.empty()) << "after everything: nothing";
         // Written, read back, written again: the same text.
         const std::string written = all(*t);
-        auto again = tl::read_timeline(written, "written.timeline.omui.json");
+        auto again = tl::read_timeline(written, "written.timeline.xdef.json");
         expect(again && all(*again) == written) << written;
     };
 
     "a file's problems at their place (pointer, line, column), each with the nearest right word; a timeline that breaks its rules is refused"_test = [] {
-        auto bad = tl::read_timeline("{\"timeline\": {\n  \"rate\": 11,\n  \"nmae\": \"x\",\n  \"tracks\": [{\"kind\": \"vidoe\", \"clips\": [{\"at\": \"1.5f\"}]}]\n}}", "bad.timeline.omui.json");
+        auto bad = tl::read_timeline("{\"timeline\": {\n  \"rate\": 11,\n  \"nmae\": \"x\",\n  \"tracks\": [{\"kind\": \"vidoe\", \"clips\": [{\"at\": \"1.5f\"}]}]\n}}", "bad.timeline.xdef.json");
         expect(!bad.has_value());
         if (bad) return;
         std::vector<std::string> texts;
         for (const auto& p : bad.error()) texts.push_back(p.text());
         auto has = [&](std::string_view part) { return std::ranges::any_of(texts, [&](const std::string& x) { return x.contains(part); }); };
-        expect(has("bad.timeline.omui.json:3:11: /timeline/nmae: a timeline has no key `nmae` (did you mean `name`?)")) << std::format("{}", texts);
-        expect(has("bad.timeline.omui.json:4:23: /timeline/tracks/0/kind: `vidoe` is not a kind of track (did you mean `video`?)")) << std::format("{}", texts);
+        expect(has("bad.timeline.xdef.json:3:11: /timeline/nmae: a timeline has no key `nmae` (did you mean `name`?)")) << std::format("{}", texts);
+        expect(has("bad.timeline.xdef.json:4:23: /timeline/tracks/0/kind: `vidoe` is not a kind of track (did you mean `video`?)")) << std::format("{}", texts);
         expect(has("is not a whole number of flicks")) << std::format("{}", texts);
         expect(has("`1.5f` is not a clip's `at`")) << std::format("{}", texts);
-        auto overlap = tl::read_timeline(R"({"timeline": {"tracks": [{"name": "a", "clips": [{"name": "x", "length": "2s"}, {"name": "y", "at": "1s", "length": "1s"}]}]}})", "o.timeline.omui.json");
+        auto overlap = tl::read_timeline(R"({"timeline": {"tracks": [{"name": "a", "clips": [{"name": "x", "length": "2s"}, {"name": "y", "at": "1s", "length": "1s"}]}]}})", "o.timeline.xdef.json");
         expect(!overlap && overlap.error().front().message.contains("overlaps `x`")) << (overlap ? "accepted" : overlap.error().front().text());
     };
 
     "edits: insert, move, trim, split, ripple — each applied gives back its inverse, which restores the timeline exactly; a change that cannot be made is not made at all"_test = [] {
-        auto t = tl::read_timeline(promo, "promo.timeline.omui.json");
+        auto t = tl::read_timeline(promo, "promo.timeline.xdef.json");
         if (!t) return;
         const mlibs::time::Rate r = t->rate;
         const std::string original = all(*t);
@@ -166,7 +166,7 @@ UTest cases{"timeline", [] {
     };
 
     "what plays, a minute of frames into one reused list: the same answers on every platform (their hash)"_test = [] {
-        auto t = tl::read_timeline(promo, "promo.timeline.omui.json");
+        auto t = tl::read_timeline(promo, "promo.timeline.xdef.json");
         if (!t) return;
         std::vector<tl::Playing> now;
         now.reserve(8);

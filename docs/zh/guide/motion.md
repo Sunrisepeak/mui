@@ -47,9 +47,9 @@ motion: {
 ```
 
 ```sh
-hanim document.check  --file toast.animation.omui.json                       # 时长、轨道、标记；或每一处问题和它的位置
-hanim document.sample --file toast.animation.omui.json --at 0.2 --at 1       # 这些时刻每个对象在哪、多大、什么颜色
-hanim document.render --file toast.animation.omui.json --out toast --frames 16 --webp 30   # 帧、长条图、动图
+hanim document.check  --file toast.animation.xdef.json                       # 时长、轨道、标记；或每一处问题和它的位置
+hanim document.sample --file toast.animation.xdef.json --at 0.2 --at 1       # 这些时刻每个对象在哪、多大、什么颜色
+hanim document.render --file toast.animation.xdef.json --out toast --frames 16 --webp 30   # 帧、长条图、动图
 ```
 
 - 步骤可以组合：`sequence`、`parallel`、`stagger`、`loop`、`wait`。

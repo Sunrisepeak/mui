@@ -17,13 +17,13 @@ standalone simulation libraries keep their own smaller dependency boundaries.
 ## Use without a window
 
 ```sh
-mcpp run xtools-inspector -p xtools.inspector -- --cellular-batch modules/projects/xtools/inspector/examples/spark.batch.omui.json --out /tmp/spark
+mcpp run xtools-inspector -p xtools.inspector -- --cellular-batch modules/projects/xtools/inspector/examples/spark.batch.xdef.json --out /tmp/spark
 mcpp run xtools-inspector -p xtools.inspector -- --cellular --headless --serve
 mcpp run xtools-inspector -p xtools.inspector -- --cellular
 ```
 
 The first command creates numbered PNGs, a timed lossless WebP, a current
-`spark.cellular.omui.json` project and `spark.report.omui.json`. The output
+`spark.cellular.xdef.json` project and `spark.report.xdef.json`. The output
 prefix's parent must exist. Each file is checked; a later failure returns
 `ok:false`, a nonzero exit status and paths already written. This is not a
 multi-file atomic transaction. Input is bounded to 2 MiB, 64 commands,
@@ -94,7 +94,7 @@ live playback requires a shared session attached to a runtime.
 
 ## Project version 1
 
-Data files use `*.cellular.omui.json`:
+Data files use `*.cellular.xdef.json`:
 
 - `version:1`, nonempty `name`, `size:[width,height]` (each 1..128).
 - `channels`: 1..4 unique stable identifiers; at most 16,384 field values.

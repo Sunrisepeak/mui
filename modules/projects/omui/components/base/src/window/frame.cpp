@@ -364,7 +364,7 @@ void register_window_components() {
         Languages& l = languages();
         for (auto [tag, json] : {std::pair{"en", messages_en}, {"zh-Hans", messages_zh_hans}, {"zh-Hant", messages_zh_hant}})
             if (auto loc = mlibs::i18n::Locale::parse(tag))
-                if (auto r = l.add_messages(*loc, json, std::format("openmui.ui.window.{}.messages.omui.json", tag)); !r)
+                if (auto r = l.add_messages(*loc, json, std::format("openmui.ui.window.{}.messages.xdef.json", tag)); !r)
                     for (const auto& d : r.error()) warn("{}", d.text());
         return true;
     }();

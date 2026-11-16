@@ -124,7 +124,7 @@ struct Generation::Impl {
 
     // ── kept on disk ──
     std::filesystem::path document_file(std::string_view surface, std::size_t version) const {
-        return options.directory / std::format("{}-{}.view.omui.json", surface, version);
+        return options.directory / std::format("{}-{}.view.xdef.json", surface, version);
     }
 
     void keep() const {

@@ -1,5 +1,5 @@
 // omui.gen.data — the documents the generator reads (D-139, D-159): a JSON
-// snapshot as it is, or a TypeScript data module (<name>.<kind>.omui.ts)
+// snapshot as it is, or a TypeScript data module (<name>.<kind>.xdef.ts)
 // evaluated by omui.lang.ts (deterministic, bounded) into the snapshot it
 // stands for:
 //
@@ -18,7 +18,7 @@ import mlibs.json;
 
 export namespace omui::gen {
 
-// Whether `file` is a data module (<name>.<kind>.omui.ts).
+// Whether `file` is a data module (<name>.<kind>.xdef.ts).
 [[nodiscard]] bool is_data_module(const std::filesystem::path& file);
 
 // A JSON snapshot (D-159: the spec's registry and its contracts, `<name>.json`), read.
@@ -29,7 +29,7 @@ export namespace omui::gen {
 
 // What a data module stands for, as the JSON snapshot a reader takes
 // (`{"<kind>": <its value>}`, D-139/D-159) and that snapshot's name
-// (`brand.theme.omui.ts` → `brand.theme.omui.json`): what `omui-gen embed`
+// (`brand.theme.xdef.ts` → `brand.theme.xdef.json`): what `omui-gen embed`
 // carries in a program for a theme or a style.
 struct Snapshot {
     std::string name;

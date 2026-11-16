@@ -1,8 +1,8 @@
 // xrender — the renderer without a GUI, for people, agents and CI: xrender.tool's subject `xrender` behind the tool
-// kernel's entries (mlibs.agent:host, T0). Its operations are the catalog's (xrender.ops.omui.ts):
+// kernel's entries (mlibs.agent:host, T0). Its operations are the catalog's (xrender.ops.xdef.ts):
 //
-//   xrender effect.check     --files a.effect.omui.json [--files b.effect.omui.json]
-//   xrender effect.preview   --file a.effect.omui.json --out a.png [--image PNG] [--size WxH] [--param NAME=VALUE …]
+//   xrender effect.check     --files a.effect.xdef.json [--files b.effect.xdef.json]
+//   xrender effect.preview   --file a.effect.xdef.json --out a.png [--image PNG] [--size WxH] [--param NAME=VALUE …]
 //   xrender conformance.run  [--report FILE]
 //   xrender device.describe
 //   xrender model.look       --model M.glb --out M.png [--light HDR] [--orbit T,P,R] [--target X,Y,Z] [--size WxH]

@@ -1,6 +1,6 @@
 # body — skill
 
-How an Agent examines and tries a soft body the XPBD family steps (`xengine.dynamics.agent`), with no window. The operations, their parameters and effects are in [body.ops.omui.ts](body.ops.omui.ts) (the subject, asked to describe itself at its endpoint, answers the same); this is the order to use them in.
+How an Agent examines and tries a soft body the XPBD family steps (`xengine.dynamics.agent`), with no window. The operations, their parameters and effects are in [body.ops.xdef.ts](body.ops.xdef.ts) (the subject, asked to describe itself at its endpoint, answers the same); this is the order to use them in.
 
 ## Before
 
@@ -28,7 +28,7 @@ Why the body is where it is as a record — who pushed it, which contact turned 
 
 # rigid3 — skill
 
-How an Agent examines and tries a 3D rigid world the rigid3 family steps (`xengine.dynamics.rigid3.agent`), with no window. The operations are in [rigid3.ops.omui.ts](rigid3.ops.omui.ts); this is the order to use them in.
+How an Agent examines and tries a 3D rigid world the rigid3 family steps (`xengine.dynamics.rigid3.agent`), with no window. The operations are in [rigid3.ops.xdef.ts](rigid3.ops.xdef.ts); this is the order to use them in.
 
 ## Doing
 

@@ -23,7 +23,7 @@
 //     channels.json, columns.json   when the definition adds its own
 //     look.json               the appearance without its materials: phases, states, nothing
 //     scene.json              {shape, filled, edits}: each edit with the step it was made at and by whom
-// Beside them the lab writes what a world ships: world.matter.omui.json and world.appearance.omui.json, the
+// Beside them the lab writes what a world ships: world.matter.xdef.json and world.appearance.xdef.json, the
 // snapshots the kernel reads. How far the scene is played is not a source: it is where the field is.
 export module xengine.matter.lab;
 
@@ -51,8 +51,8 @@ struct Options {
 
 // What a lab is begun from.
 struct Begin {
-    std::string     matter;  // a definition's snapshot (*.matter.omui.json's text); the standard one when empty
-    std::string     look;    // an appearance's snapshot (*.appearance.omui.json's text); the standard one when empty
+    std::string     matter;  // a definition's snapshot (*.matter.xdef.json's text); the standard one when empty
+    std::string     look;    // an appearance's snapshot (*.appearance.xdef.json's text); the standard one when empty
     cellular::Shape shape{64, 48};
     std::string     filled = "air";
 };

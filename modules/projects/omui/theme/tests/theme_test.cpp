@@ -75,24 +75,24 @@ UTest cases{"theme", [] {
     theme::Library lib;
     "effect animation and appearance rules roundtrip with strict channel diagnostics"_test = [] {
         const std::string source = R"({"style": {"pixel_probe": {"theme": "light", "effects": {"painter": {"effect": "pixelate", "size": 8, "usage": "appearance", "duration": 0.5, "reverse": true, "animate": {"amount": [0.0, 1.0], "origin_x": [-2.0, 3.0]}}}}}})";
-        const auto read = theme::read_styles(source, "pixel-probe.style.omui.json");
+        const auto read = theme::read_styles(source, "pixel-probe.style.xdef.json");
         expect(read.has_value()) << (read ? "" : all(read.error())); if (!read) return;
         const auto written = theme::write_style(read->front());
-        const auto again = theme::read_styles(written, "roundtrip.style.omui.json");
+        const auto again = theme::read_styles(written, "roundtrip.style.xdef.json");
         expect(again.has_value()) << (again ? "" : all(again.error())); if (!again) return;
         expect(again->front().effects.front().effect == read->front().effects.front().effect);
         for (const auto rule : {R"("animate": {"missing": [0, 1]}, "duration": 1)", R"("animate": {"amount": [0, 2]}, "duration": 1)",
             R"("animate": {"amount": [0]}, "duration": 1)", R"("animate": {"amount": [0, 1]})", R"("animate": {"amount": [0, 1]}, "duration": -1)",
             R"("animate": {"amount": [0, 1]}, "duration": null)", R"("usage": "missing")", R"("reverse": 1)"}) {
-            const auto bad = theme::read_styles(std::format(R"({{"style": {{"x": {{"theme": "light", "effects": {{"painter": {{"effect": "pixelate", {}}}}}}}}}}})", rule), "bad.style.omui.json");
+            const auto bad = theme::read_styles(std::format(R"({{"style": {{"x": {{"theme": "light", "effects": {{"painter": {{"effect": "pixelate", {}}}}}}}}}}})", rule), "bad.style.xdef.json");
             expect(!bad) << rule;
         }
     };
-    const auto default_snapshot = snapshot_of(theme_dir() / "packs" / "default" / "default.theme.omui.ts");
-    const auto compact_snapshot = snapshot_of(theme_dir() / "packs" / "compact" / "compact.theme.omui.ts");
+    const auto default_snapshot = snapshot_of(theme_dir() / "packs" / "default" / "default.theme.xdef.ts");
+    const auto compact_snapshot = snapshot_of(theme_dir() / "packs" / "compact" / "compact.theme.xdef.ts");
 
     "the default theme file is the runtime's built-in tokens, light and dark"_test = [&] {
-        auto added = lib.add(default_snapshot, "default.theme.omui.json");
+        auto added = lib.add(default_snapshot, "default.theme.xdef.json");
         expect(added.has_value()) << (added ? "" : all(added.error()));
         expect(lib.themes() == L({"dark", "light"}) && lib.overlays() == L({"reduced_motion"}));
         auto light = lib.compose(L({"light"}));
@@ -107,7 +107,7 @@ UTest cases{"theme", [] {
     };
 
     "overlays change what they name and nothing else"_test = [&] {
-        expect(lib.add(compact_snapshot, "compact.theme.omui.json").has_value());
+        expect(lib.add(compact_snapshot, "compact.theme.xdef.json").has_value());
         auto t = lib.compose(L({"dark", "compact", "reduced_motion"}));
         expect(t.has_value()) << (t ? "" : t.error().text());
         if (!t) return;
@@ -132,19 +132,19 @@ UTest cases{"theme", [] {
   },
   "tight": {"overlay": true, "extends": "light", "dark": true}
 }})t",
-                             "bad.theme.omui.json");
+                             "bad.theme.xdef.json");
         expect(!r.has_value());
         if (r) return;
         const std::string text = all(r.error());
-        for (const char* wanted : {"bad.theme.omui.json:2:13: /theme/Bright: theme name `Bright` is not lower_snake_case",
+        for (const char* wanted : {"bad.theme.xdef.json:2:13: /theme/Bright: theme name `Bright` is not lower_snake_case",
                                    "/theme/Bright/colour: `colour` is not a key of a theme (`Bright`) (did you mean `colors`?)",
-                                   "bad.theme.omui.json:5:30: /theme/night/colors/background: colour `background` must be a colour", "colour `text` must be a colour",
+                                   "bad.theme.xdef.json:5:30: /theme/night/colors/background: colour `background` must be a colour", "colour `text` must be a colour",
                                    "size must be 1 or more, not 0", "`wieght` is not a key of a text style (`body`) (did you mean `weight`?)",
                                    "/theme/night/text/caption: text style `caption` must be an object", "`motion.warp` is not a motion token",
                                    "easing must be an easing's name or cubic-bezier", "overlay `tight` extends nothing",
                                    "overlay `tight` cannot say whether the theme is dark"})
             expect(text.find(wanted) != std::string::npos) << std::format("{}\n--- in ---\n{}", wanted, text);
-        auto syntax = theme::read("{\"theme\": {\"x\"", "broken.theme.omui.json");
+        auto syntax = theme::read("{\"theme\": {\"x\"", "broken.theme.xdef.json");
         expect(!syntax && syntax.error().size() == 1 && syntax.error()[0].line == 1) << (syntax ? "" : all(syntax.error()));
     };
 
@@ -162,13 +162,13 @@ UTest cases{"theme", [] {
   "orphan": {"extends": "nowhere"},
   "a": {"extends": "b"},
   "b": {"extends": "a"}
-}})t", "more.theme.omui.json").has_value());
+}})t", "more.theme.xdef.json").has_value());
         auto typo = more.compose(L({"typo"}));
         expect(!typo && typo.error().text().find("`typo` sets the colour `backgruond`, which the theme under it does not have (did you mean `background`?)") !=
                            std::string::npos) << (typo ? "" : typo.error().text());
         auto orphan = more.compose(L({"orphan"}));
         expect(!orphan && orphan.error().text().find("extends `nowhere`, which no theme file declares") != std::string::npos);
-        if (!typo) expect(typo.error().code == theme::ThemeError::unknown_token && typo.error().where == "more.theme.omui.json") << typo.error().text();
+        if (!typo) expect(typo.error().code == theme::ThemeError::unknown_token && typo.error().where == "more.theme.xdef.json") << typo.error().text();
         if (!orphan) expect(orphan.error().code == theme::ThemeError::unknown_base && orphan.error().kind() == mlibs::error::Kind::not_found);
         if (!none) expect(none.error().code == theme::ThemeError::unknown_theme && none.error().text().starts_with("omui.theme.unknown-theme (not-found) at sepia: "));
         auto cycle = more.compose(L({"a"}));
@@ -177,13 +177,13 @@ UTest cases{"theme", [] {
 
     "a file added again replaces what it declared; another file may not take a name"_test = [&] {
         theme::Library l;
-        expect(l.add(R"({"theme": {"one": {"colors": {"text": "#000"}}}})", "a.theme.omui.json").has_value());
-        expect(l.add(R"({"theme": {"one": {"colors": {"text": "#fff"}}}})", "a.theme.omui.json").has_value()) << "a saved edit";
+        expect(l.add(R"({"theme": {"one": {"colors": {"text": "#000"}}}})", "a.theme.xdef.json").has_value());
+        expect(l.add(R"({"theme": {"one": {"colors": {"text": "#fff"}}}})", "a.theme.xdef.json").has_value()) << "a saved edit";
         auto one = l.compose(L({"one"}));
         expect(one && same_color(one->color("text"), Color::hex(0xffffff)));
-        auto clash = l.add(R"({"theme": {"one": {}}})", "b.theme.omui.json");
-        expect(!clash && all(clash.error()).find("`one` is already declared by a.theme.omui.json") != std::string::npos);
-        auto bad = l.add(R"({"theme": {"one": {"colors": {"text": "nope"}}}})", "a.theme.omui.json");
+        auto clash = l.add(R"({"theme": {"one": {}}})", "b.theme.xdef.json");
+        expect(!clash && all(clash.error()).find("`one` is already declared by a.theme.xdef.json") != std::string::npos);
+        auto bad = l.add(R"({"theme": {"one": {"colors": {"text": "nope"}}}})", "a.theme.xdef.json");
         expect(!bad) << "a broken edit is refused";
         auto still = l.compose(L({"one"}));
         expect(still && same_color(still->color("text"), Color::hex(0xffffff))) << "and changes nothing";
@@ -202,7 +202,7 @@ UTest cases{"theme", [] {
     "text": {"effect": "paper", "grain": 0.2}
   }
 }}})json";
-        auto added = lib.add_styles(neon, "neon.style.omui.json");
+        auto added = lib.add_styles(neon, "neon.style.xdef.json");
         expect(added.has_value()) << (added ? "" : all(added.error()));
         expect(lib.styles() == L({"neon"}));
         const auto st = lib.find_style("neon");
@@ -227,8 +227,8 @@ UTest cases{"theme", [] {
         std::vector<spec::SemanticNode> tree_before;
         for (NodeId id : {rt.find("main"), rt.find("main/cta")}) tree_before.push_back(rt.semantic_node(id));
         // The library here is the test's: apply through the program's library.
-        expect(theme::library().add(default_snapshot, "default.theme.omui.json").has_value() || true);
-        expect(theme::library().add_styles(neon, "neon.style.omui.json").has_value());
+        expect(theme::library().add(default_snapshot, "default.theme.xdef.json").has_value() || true);
+        expect(theme::library().add_styles(neon, "neon.style.xdef.json").has_value());
         auto applied = theme::apply_style(rt, "neon");
         expect(applied.has_value()) << (applied ? "" : applied.error().text());
         rt.frame();
@@ -262,20 +262,20 @@ UTest cases{"theme", [] {
     "card": {"radius": 3}
   }
 }}})json";
-        auto bad = theme::read_styles(wrong, "bad.style.omui.json");
+        auto bad = theme::read_styles(wrong, "bad.style.xdef.json");
         expect(!bad.has_value()) << "refused";
         if (!bad) {
             const std::string text = all(bad.error());
-            expect(text.contains("bad.style.omui.json:5:") && text.contains("/style/bad/effects/window/effect: no effect is named `crtt`") && text.contains("did you mean `crt`?")) << text;
-            expect(text.contains("bad.style.omui.json:6:") && text.contains("/style/bad/effects/button/radios:") && text.contains("did you mean `radius`?")) << text;
-            expect(text.contains("bad.style.omui.json:7:") && text.contains("names no `effect`")) << text;
+            expect(text.contains("bad.style.xdef.json:5:") && text.contains("/style/bad/effects/window/effect: no effect is named `crtt`") && text.contains("did you mean `crt`?")) << text;
+            expect(text.contains("bad.style.xdef.json:6:") && text.contains("/style/bad/effects/button/radios:") && text.contains("did you mean `radius`?")) << text;
+            expect(text.contains("bad.style.xdef.json:7:") && text.contains("names no `effect`")) << text;
         }
-        auto themeless = theme::read_styles(R"({"style": {"x": {"doc": "no theme"}}})", "x.style.omui.json");
+        auto themeless = theme::read_styles(R"({"style": {"x": {"doc": "no theme"}}})", "x.style.xdef.json");
         expect(!themeless.has_value() && all(themeless.error()).contains("names no theme")) << "a style starts from a theme";
         expect(!lib.compose_style("nope").has_value()) << "an unknown style";
         // Written out and read back: the same style.
         const std::string text = theme::write_style(*st);
-        auto again = theme::read_styles(text, "again.style.omui.json");
+        auto again = theme::read_styles(text, "again.style.xdef.json");
         expect(again.has_value()) << (again ? text : all(again.error()) + "\n" + text);
         if (again) {
             const theme::Style& b = again->front();
@@ -297,7 +297,7 @@ UTest cases{"theme", [] {
     "control_accent": {"x": 0, "y": 2, "blur": 4, "spread": -1, "color": "#0f172a38", "tint": 0.6}
   }
 }}})json";
-        auto added = lib.add_styles(smooth, "smooth.style.omui.json");
+        auto added = lib.add_styles(smooth, "smooth.style.xdef.json");
         expect(added.has_value()) << (added ? "" : all(added.error()));
         auto t = lib.compose_style("smooth");
         expect(t.has_value() && t->corner_smoothing == 0.6f && t->radii(12) == CornerRadii::all(12).smoothed(0.6f)) << "the theme's corners are smoothed";
@@ -315,9 +315,9 @@ UTest cases{"theme", [] {
             const auto accent = t->shadows.find("control_accent");
             expect(accent != t->shadows.end() && accent->second.tint == 0.6f) << "the accent shadow is tinted";
         }
-        auto bad = lib.add_styles(R"({"style": {"rough": {"theme": "light", "corner_smoothing": 2}}})", "rough.style.omui.json");
+        auto bad = lib.add_styles(R"({"style": {"rough": {"theme": "light", "corner_smoothing": 2}}})", "rough.style.xdef.json");
         expect(!bad.has_value()) << "2 is out of range";
-        auto overtinted = lib.add_styles(R"({"style": {"ink2": {"theme": "light", "shadows": {"sm": {"tint": 1.5}}}}})", "ink2.style.omui.json");
+        auto overtinted = lib.add_styles(R"({"style": {"ink2": {"theme": "light", "shadows": {"sm": {"tint": 1.5}}}}})", "ink2.style.xdef.json");
         expect(!overtinted.has_value()) << "a tint over 1 is refused";
     };
 
@@ -346,7 +346,7 @@ UTest cases{"theme", [] {
     "role:dialog": {"enter": {"use": "spring", "appear": {"presence": "rise_in", "distance": 12, "also": "settle_in"}}}
   }
 }}})json";
-        auto added = lib.add_styles(ink, "inky.style.omui.json");
+        auto added = lib.add_styles(ink, "inky.style.xdef.json");
         expect(added.has_value()) << (added ? "" : all(added.error()));
         const auto st = lib.find_style("inky");
         expect(st && st->motions.size() == 3) << "three motions read";
@@ -365,12 +365,12 @@ UTest cases{"theme", [] {
         // Written out and read back: the same motions.
         if (st) {
             const std::string text = theme::write_style(*st);
-            auto again = theme::read_styles(text, "again.style.omui.json");
+            auto again = theme::read_styles(text, "again.style.xdef.json");
             expect(again && again->front().motions.size() == 3 && theme::write_style(again->front()) == text) << text;
         }
-        auto wrong = theme::read_styles(R"({"style": {"w": {"theme": "light", "motions": {"updtae": "ink", "button": {"later": "ink"}}}}})", "w.style.omui.json");
+        auto wrong = theme::read_styles(R"({"style": {"w": {"theme": "light", "motions": {"updtae": "ink", "button": {"later": "ink"}}}}})", "w.style.xdef.json");
         expect(!wrong.has_value() && all(wrong.error()).contains("`updtae` is not a slot") && all(wrong.error()).contains("`later` is not a slot")) << (wrong ? "accepted" : all(wrong.error()));
-        expect(lib.add_styles(R"({"style": {"v": {"theme": "light", "motions": {"update": "swirl"}}}})", "v.style.omui.json").has_value());
+        expect(lib.add_styles(R"({"style": {"v": {"theme": "light", "motions": {"update": "swirl"}}}})", "v.style.xdef.json").has_value());
         auto unknown = lib.compose_style("v");
         expect(!unknown.has_value() && unknown.error().text().contains("`\"swirl\"` is not a motion")) << (unknown ? "composed" : unknown.error().text());
     };

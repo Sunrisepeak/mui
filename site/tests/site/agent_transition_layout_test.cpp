@@ -308,7 +308,7 @@ static UTest cases{"site.agent-transition-layout", [] {
             expect(bodies >= 40) << "the sequence contains actual visible primary bodies, not only target boxes";
             expect(page.moving_samples > 0) << "default task motion has genuine intermediate progress and was not disabled to pass";
             expect(page.h.save_recording(media / std::format("{}-{}.apng", lang, width), {.delay_num = 1, .delay_den = 60}).has_value());
-            write_trace(media / std::format("{}-{}.motion.omui.json", lang, width), std::move(frames));
+            write_trace(media / std::format("{}-{}.motion.xdef.json", lang, width), std::move(frames));
         }
     };
 
@@ -333,7 +333,7 @@ static UTest cases{"site.agent-transition-layout", [] {
                 })) << "real pointer input records the arrange action, not a neighbouring playback action";
                 expect(page.state.layout.peek() == "cards") << "the task really changed its layout";
             }
-            write_trace(media / std::format("click-{}-{}-{}.motion.omui.json", lang, width, at_frame), std::move(frames));
+            write_trace(media / std::format("click-{}-{}-{}.motion.xdef.json", lang, width, at_frame), std::move(frames));
         }
     };
 
@@ -354,7 +354,7 @@ static UTest cases{"site.agent-transition-layout", [] {
             }
             expect(page.h.save_recording(media / std::format("interrupt-{}-{}.apng", lang, width), {.delay_num = 1, .delay_den = 60}).has_value());
             expect(bodies > 0); expect(page.state.title.peek() == "Review an idea") << "layout and interruption preserve the actual draft";
-            write_trace(media / std::format("interrupt-{}-{}.motion.omui.json", lang, width), std::move(frames));
+            write_trace(media / std::format("interrupt-{}-{}.motion.xdef.json", lang, width), std::move(frames));
         }
     };
 }};

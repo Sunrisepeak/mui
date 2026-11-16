@@ -258,7 +258,7 @@ std::expected<std::vector<CldrPack>, std::string> emit_cldr_packs(const std::fil
     for (const std::string& id : locales) {
         auto text = pack(cldr, id, version, **cardinal, **ordinal, **rules);
         if (!text) return std::unexpected(text.error());
-        out.push_back({std::format("{}.locale.omui.json", id), std::move(*text)});
+        out.push_back({std::format("{}.locale.xdef.json", id), std::move(*text)});
         languages.insert(id.substr(0, id.find('-')));
     }
     // Likely subtags of the languages packed: their own tags, and those
@@ -271,7 +271,7 @@ std::expected<std::vector<CldrPack>, std::string> emit_cldr_packs(const std::fil
         if (languages.contains(from_lang) || (from_lang == "und" && languages.contains(to_lang))) table[from] = to;
     }
     ordered doc{{"format", "openmui.likely@0.1"}, {"cldr", std::string(version)}, {"likely", std::move(table)}};
-    out.push_back({"likely.locale.omui.json", doc.dump(1, ' ', false) + "\n"});
+    out.push_back({"likely.locale.xdef.json", doc.dump(1, ' ', false) + "\n"});
     return out;
 }
 

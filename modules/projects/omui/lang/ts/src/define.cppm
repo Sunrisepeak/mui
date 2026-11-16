@@ -2,7 +2,7 @@
 // imports them from ("openmui/define": the spec's formats; "omui/define": the implementation's), and their
 // TypeScript declarations. The evaluation is the tool kernel's (mlibs.ts:data); this is the owner's part.
 //
-//     // button.contract.omui.ts
+//     // button.contract.xdef.ts
 //     import { defineContract } from "openmui/define";
 //     export default defineContract({ button: { role: "button", … } });
 export module omui.lang.ts:define;

@@ -54,7 +54,7 @@ constexpr Rule all_rules[]{
     {"exceptions", "no throw / try in runtime and module sources; a native/ unit may catch a library's"},
     {"paths", "no path::string() / generic_string() outside tests: utf8() / generic_utf8()"},
     {"determinism", "deterministic members call no libm transcendental"},
-    {"owner", "each capability has one owner (tools/lint/capabilities.owners.omui.json)"},
+    {"owner", "each capability has one owner (tools/lint/capabilities.owners.xdef.json)"},
     {"toml", "every manifest is TOML (a child dependency's key beside its parent is quoted)"},
     {"members", "every listed member has an mcpp.toml, and every mcpp.toml is listed"},
     {"manifest", "namespaced dependencies are dotted keys of [dependencies], never tables of their own"},
@@ -70,7 +70,7 @@ constexpr Rule all_rules[]{
     {"module-closure", "a library's interface re-exports another package only where its manifest lists it (reexports)"},
     {"documents", "every view document, scenario and trace is valid against its committed schema (spec/schema)"},
     {"media", "a picture is under 1 MB; every showcase's README shows its own picture from media/"},
-    {"ops", "a package that declares operations has their catalogs (<product>.ops.omui.ts) and a skill.omui.md"},
+    {"ops", "a package that declares operations has their catalogs (<product>.ops.xdef.ts) and a skill.omui.md"},
     {"skills", "every operation a skill names is in a catalog; a skill points at its own package's catalog (D-145)"},
     {"agent-surface", "every package of a project says how an agent reaches what it holds (D-174)"},
     {"data-format", "every declared data file's kind registered by one owner; every committed snapshot current (mlibs.xdef, D-209)"},
@@ -82,9 +82,9 @@ constexpr Rule all_rules[]{
     {"lead", "the signature features against the lead ledger; the lead pages are the ledger's (D-135)"},
     {"tooling", "a library or engine imports no toolkit (a member of kind \"tool\"); tools sit on top (plan §4.5)"},
     {"splittable", "a project reaches nothing of the repository's tools/ by a path: it can leave as a repository (plan §4.5)"},
-    {"scripts", "no script but the allowlist's kinds, each with its reason (tools/lint/scripts.allow.omui.json, D-206)"},
-    {"claims", "a public document's ratio against another project is a claim of docs/claims.omui.json, with evidence (D-193)"},
-    {"platform-table", "every cell of docs/platforms.omui.json is real, software, unverified or unsupported, with its evidence or need (D-201)"},
+    {"scripts", "no script but the allowlist's kinds, each with its reason (tools/lint/scripts.allow.xdef.json, D-206)"},
+    {"claims", "a public document's ratio against another project is a claim of docs/release.claims.xdef.json, with evidence (D-193)"},
+    {"platform-table", "every cell of docs/release.platforms.xdef.json is real, software, unverified or unsupported, with its evidence or need (D-201)"},
 };
 
 bool starts_with_any(std::string_view text, std::span<const char* const> prefixes) {
@@ -345,7 +345,7 @@ std::vector<Problem> check_sources(const fs::path& root, std::span<const Capabil
     return problems;
 }
 
-fs::path owners_file(const fs::path& root) { return root / "tools" / "lint" / "capabilities.owners.omui.json"; }
+fs::path owners_file(const fs::path& root) { return root / "tools" / "lint" / "capabilities.owners.xdef.json"; }
 
 }  // namespace
 
@@ -419,7 +419,7 @@ std::vector<Problem> run_with(const fs::path& root, std::span<const std::string>
             std::ranges::move(found, std::back_inserter(problems));
     }
     std::ranges::move(check_sources(root, owners), std::back_inserter(problems));
-    if (fs::exists(root / ".agents/docs/evaluation/lead.features.omui.json"))
+    if (fs::exists(root / ".agents/docs/evaluation/lead.features.xdef.json"))
         for (auto& [where, what] : lead::problems(root)) problems.push_back({"lead", std::move(where), std::move(what)});
     if (!only.empty()) std::erase_if(problems, [&](const Problem& problem) { return !std::ranges::contains(only, problem.rule); });
     return problems;
@@ -455,7 +455,7 @@ void plant(const fs::path& root, const Planted& planted, const fs::path& owners_
     std::error_code error;
     fs::remove_all(root, error);
     fs::create_directories(root / "tools" / "lint", error);
-    if (fs::exists(owners_table)) fs::copy_file(owners_table, root / "tools" / "lint" / "capabilities.owners.omui.json", fs::copy_options::overwrite_existing, error);
+    if (fs::exists(owners_table)) fs::copy_file(owners_table, root / "tools" / "lint" / "capabilities.owners.xdef.json", fs::copy_options::overwrite_existing, error);
     std::vector<std::string> members{"modules/gfx/hanim", "modules/base/hanim/core", "modules/ui/core", "spec"};
     if (planted.project) members.push_back("modules/projects/thing");
     std::map<std::string, std::string> names{{"modules/gfx/hanim", "name = \"hanim\""},
@@ -515,9 +515,9 @@ void plant(const fs::path& root, const Planted& planted, const fs::path& owners_
     // Each project the case plants says who it is (D-208): one below omui alone.
     for (const auto& child : fs::directory_iterator(root / "modules" / "projects", error)) {
         const std::string leaf = utf8_of(child.path().filename());
-        const fs::path snapshot = child.path() / path_of(leaf + ".project.omui.json");
+        const fs::path snapshot = child.path() / path_of(leaf + ".project.xdef.json");
         if (fs::exists(snapshot, error)) continue;
-        write(child.path() / path_of(leaf + ".project.omui.ts"), std::format("import {{ defineProject }} from \"omui/define\";\nexport default defineProject({{ name: \"{}\", dependsOn: [\"mlibs\"] }});\n", leaf));
+        write(child.path() / path_of(leaf + ".project.xdef.ts"), std::format("import {{ defineProject }} from \"omui/define\";\nexport default defineProject({{ name: \"{}\", dependsOn: [\"mlibs\"] }});\n", leaf));
         write(snapshot, std::format("{{\"project\":{{\"name\":\"{}\",\"dependsOn\":[\"mlibs\"]}}}}\n", leaf));
     }
 }
@@ -565,13 +565,13 @@ int self_test(const fs::path& repository, const fs::path& scratch, std::ostream&
         // the data and the documents
         {"media", "docs/huge.png", std::string(1024 * 1024 + 1, 'x')},
         {.rule = "agent-surface", .project = true},
-        {"data-format", "modules/ui/core/x.stray.omui.json", "{}\n"},
+        {"data-format", "modules/ui/core/x.stray.xdef.json", "{}\n"},
         {"typescript", "modules/ui/core/contract/x.contract.omui.toml", "[contract.x]\nrole = \"button\"\n"},
         {"ops", "modules/ui/core/src/o.cpp", "module x;\nconstexpr auto op = mlibs::control::Operation{\"ui.wipe\", openas::Effect::irreversible};\n"},
-        {.rule = "documents", .path = "examples/x/ui/bad.view.omui.json", .text = R"({"omui": "0.1", "view": {"root": {"typ": "text"}}})", .view_schema = true},
-        {.rule = "skills", .path = "modules/ui/core/skill.omui.md", .text = "# x\n\nSee [x.ops.omui.ts](x.ops.omui.ts); then `ui.wipe`.\n",
-         .files = {{"modules/ui/core/x.ops.omui.ts", "export default defineOps({ operations: [{ name: \"ui.snapshot\" }] });\n"}}},
-        {"matter", "modules/ui/core/x.matter.omui.json",
+        {.rule = "documents", .path = "examples/x/ui/bad.view.xdef.json", .text = R"({"omui": "0.1", "view": {"root": {"typ": "text"}}})", .view_schema = true},
+        {.rule = "skills", .path = "modules/ui/core/skill.omui.md", .text = "# x\n\nSee [x.ops.xdef.ts](x.ops.xdef.ts); then `ui.wipe`.\n",
+         .files = {{"modules/ui/core/x.ops.xdef.ts", "export default defineOps({ operations: [{ name: \"ui.snapshot\" }] });\n"}}},
+        {"matter", "modules/ui/core/x.matter.xdef.json",
          R"({"matter": {"materials": {"wood": {}, "ash": {}}, "laws": [{"when": "material == wood && temperature >= 500", "become": "burnt"}]}})"},
         {"shader-inputs", "modules/ui/core/x.slang", "struct VIn {\n    float3 position : TEXCOORD0;\n    float2 second : TEXCOORD4;\n};\n"},
         {.rule = "maturity", .label = "experimental"},
@@ -580,10 +580,10 @@ int self_test(const fs::path& repository, const fs::path& scratch, std::ostream&
         {.rule = "tooling", .dependencies = {{"modules/gfx/hanim", "[dependencies]\ncore = { path = \"../../ui/core\" }\n"}}, 
          .also_unexpected = {"layering", "modules", "project-dag"}, .ui_kind = "tool"},
         {"splittable", "modules/projects/hanim/README.md", "# hanim\n\nSee [the probe](../../../tools/ci/probe/README.md).\n"},
-        {"platform-table", "docs/platforms.omui.json",
+        {"platform-table", "docs/release.platforms.xdef.json",
          R"({"platforms": [{"id": "a"}], "capability": [{"id": "x", "label": "stable", "cells": {"a": {"status": "passed"}}}]})"},
         {"status", ".agents/docs/STATUS.md", "# STATUS\n\n| Task | State | Evidence |\n|---|---|---|\n| RC0.1 push | done | pushed |\n"},
-        {"lead", ".agents/docs/evaluation/lead.features.omui.json",
+        {"lead", ".agents/docs/evaluation/lead.features.xdef.json",
          R"({"feature": [{"id": "A", "project": "omui", "line": "use-safely", "title": "x", "status": "claimed"}]})"},
     };
     // The owners' samples come from the repository's own table.

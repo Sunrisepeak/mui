@@ -3,7 +3,7 @@
 # where in its source it begins, its speed, its level and fades, and
 # properties keyed with hanim's curves; markers; what plays at any moment;
 # edits (insert, remove, move, trim, split, ripple) that each give back their
-# inverse, so undo is exact; and the readable file, *.timeline.omui.ts (read
+# inverse, so undo is exact; and the readable file, *.timeline.xdef.ts (read
 # as the JSON it evaluates to). An independent component (D-55): the standard
 # library, hanim.core (its eases and keyed tracks), mlibs.time (flicks and
 # rates) and mlibs.json.

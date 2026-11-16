@@ -1,5 +1,5 @@
 // openmui.i18n:catalog — an application's messages and who reads them: a
-// catalog per locale (`<app>.<tag>.messages.omui.ts`, keys in objects,
+// catalog per locale (`<app>.<tag>.messages.xdef.ts`, keys in objects,
 // MessageFormat 2 values), a library of locale packs and catalogs, and a
 // translator: a person's languages negotiated against what the library has,
 // each message from the first locale in that chain that has it, its numbers
@@ -28,10 +28,10 @@ private:
     std::map<std::string, Message, std::less<>> messages_;
 };
 
-// A catalog's JSON — what a `*.messages.omui.ts` evaluates to,
+// A catalog's JSON — what a `*.messages.xdef.ts` evaluates to,
 // `{"messages": {…}}`: keys whose values are messages, or objects of them
 // (`{ inbox: { count: "…" } }` is `inbox.count`); every problem, located.
-[[nodiscard]] std::expected<Catalog, std::vector<Diagnostic>> read_messages(std::string_view json, std::string_view file = "messages.omui.json");
+[[nodiscard]] std::expected<Catalog, std::vector<Diagnostic>> read_messages(std::string_view json, std::string_view file = "messages.xdef.json");
 
 // What a catalog says that its reference does not (keys missing or extra,
 // variables a translation drops or adds), for `omui-gen i18n --check`.

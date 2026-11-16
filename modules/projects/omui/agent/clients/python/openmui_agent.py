@@ -13,7 +13,7 @@ test or a language model's tool can drive an application from any Python.
 
 Every application listens at a name (its id) in a per-user directory: the
 runtime directory ($XDG_RUNTIME_DIR, else the temporary one) plus "openmui",
-beside a descriptor `<name>.endpoint.omui.json`. A request is one line of
+beside a descriptor `<name>.endpoint.xdef.json`. A request is one line of
 JSON; the answer is records, one a line, the last a `result` with its exit
 code (0 success, 1 failure, 2 needs an answer, 3 not ready). A failure
 raises `AgentError` with the application's code and message — and the
@@ -55,7 +55,7 @@ def endpoints(directory: Optional[Path] = None) -> list[dict[str, Any]]:
     """The applications described in a directory (running or left behind: connect to know)."""
     d = Path(directory) if directory else default_directory()
     out = []
-    for f in sorted(d.glob("*.endpoint.omui.json")):
+    for f in sorted(d.glob("*.endpoint.xdef.json")):
         try:
             out.append(json.loads(f.read_text(encoding="utf-8")))
         except (OSError, ValueError):

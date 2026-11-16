@@ -22,14 +22,14 @@ Preparation validates exact flick/sample conversion, clip/fade bounds, finite va
 
 ## Minimal Agent / human SOP
 
-1. Prepare a valid `.timeline.omui.ts` with an explicitly named track, clip and keyed property. Query `GainAutomation::at`/`at_sample` without a GUI to inspect any point. Pure library users need no UI, device or network.
+1. Prepare a valid `.timeline.xdef.ts` with an explicitly named track, clip and keyed property. Query `GainAutomation::at`/`at_sample` without a GUI to inspect any point. Pure library users need no UI, device or network.
 2. Use the existing CLI for a bounded calibration audition:
 
    ```sh
-   mcpp run --locked -p omui.cli --profile release -- audio automation curve.timeline.omui.ts --track music --clip fade --out /tmp/gain --seconds 2 --fps 60
+   mcpp run --locked -p omui.cli --profile release -- audio automation curve.timeline.xdef.ts --track music --clip fade --out /tmp/gain --seconds 2 --fps 60
    ```
 
-   It exports actual float WAV, an eight-frame PNG sheet, a lossless WebP process and `.report.omui.json` with sample times, gain, pixel hashes, source snapshot and renderer conditions. The reference sound is a 220 Hz tone at 0.1 gain; it does not load `clip.source` or open an audio device. The readable image is rendered by omui itself without a window. The final frame has one replay interval; JSON timestamps identify the original observations.
+   It exports actual float WAV, an eight-frame PNG sheet, a lossless WebP process and `.report.xdef.json` with sample times, gain, pixel hashes, source snapshot and renderer conditions. The reference sound is a 220 Hz tone at 0.1 gain; it does not load `clip.source` or open an audio device. The readable image is rendered by omui itself without a window. The final frame has one replay interval; JSON timestamps identify the original observations.
 3. Compare the WAV at different visual sample rates, inspect transitions and cuts, and listen to the file. Image/hash checks alone do not establish sound quality or realtime latency. Filesystem errors report already-created outputs; export is not an atomic multi-file transaction.
 4. Apply the same prepared source to an application's real bus. Signal sampling is read-only; edits require a new prepared owner and an explicit safe bind boundary. Cancellation/undo of the editing task and device transport remain the host's responsibility. The CLI is a local headless tool, not a claim that an independent openas engine provider has shipped.
 

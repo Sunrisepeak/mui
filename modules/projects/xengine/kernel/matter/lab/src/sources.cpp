@@ -192,10 +192,10 @@ std::string appearance_of(const Texts& texts) {
 std::expected<Texts, std::string> sources_of(const Begin& begin) {
     const auto definition = parsed(begin.matter.empty() ? standard_snapshot : std::string_view(begin.matter));
     if (!definition || !definition->is_object() || !definition->contains("matter") || !(*definition)["matter"].is_object())
-        return std::unexpected("the definition is no snapshot of one: {\"matter\": {materials, laws}} (what xdef snapshot writes of a *.matter.omui.ts)");
+        return std::unexpected("the definition is no snapshot of one: {\"matter\": {materials, laws}} (what xdef snapshot writes of a *.matter.xdef.ts)");
     const auto appearance = parsed(begin.look.empty() ? standard_appearance_snapshot : std::string_view(begin.look));
     if (!appearance || !appearance->is_object() || !appearance->contains("appearance") || !(*appearance)["appearance"].is_object())
-        return std::unexpected("the look is no snapshot of one: {\"appearance\": {phases, materials, states}} (what xdef snapshot writes of a *.appearance.omui.ts)");
+        return std::unexpected("the look is no snapshot of one: {\"appearance\": {phases, materials, states}} (what xdef snapshot writes of a *.appearance.xdef.ts)");
     const Json& matter = (*definition)["matter"];
     Json look = (*appearance)["appearance"];
     Json colours = Json::object();

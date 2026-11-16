@@ -115,7 +115,7 @@ void add(std::string name, std::string description, Body body);
 // case's metrics (mtest's `iteration`, `iteration.p99`, …).
 [[nodiscard]] Result run_one(const Case& c, const Options& options);
 
-// budgets.bench.omui.json: {"format":"openmui.bench.budgets@0.1","budgets":[{"name":…,"metric":…,"max":…,"why":…,"unless":…}]}
+// budgets.bench.xdef.json: {"format":"openmui.bench.budgets@0.1","budgets":[{"name":…,"metric":…,"max":…,"why":…,"unless":…}]}
 [[nodiscard]] std::expected<std::vector<Budget>, std::string> parse_budgets(std::string_view json);
 
 }  // namespace omui::bench

@@ -10,7 +10,7 @@ namespace omui::designer {
 
 namespace {
 
-constexpr std::string_view suffix = ".view.omui.json";
+constexpr std::string_view suffix = ".view.xdef.json";
 
 std::string name_of(const std::filesystem::path& path) {
     const std::u8string text = path.filename().u8string();

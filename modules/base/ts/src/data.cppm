@@ -1,7 +1,7 @@
 // mlibs.ts:data — a declared data module to the JSON it stands for (D-139, D-209: TS in, data out). Code,
 // config and data are one language; the tools read the evaluated JSON, the canonical form.
 //
-//     // button.contract.omui.ts
+//     // button.contract.xdef.ts
 //     import { defineContract } from "openmui/define";
 //     export default defineContract({ button: { role: "button", … } });
 //

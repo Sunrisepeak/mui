@@ -1,4 +1,4 @@
-// Reading a catalog: the JSON a `*.messages.omui.ts` evaluates to (D-139),
+// Reading a catalog: the JSON a `*.messages.xdef.ts` evaluates to (D-139),
 // `{"messages": {…}}`. Every message is parsed, and each problem keeps its
 // line and column.
 module mlibs.i18n.api;

@@ -115,7 +115,7 @@ Run `mcpp test -p xengine.dynamics -p xengine.dynamics.cts`: swept collision to 
 
 ## Agent surface
 
-A soft body is a `Subject` of the agent kernel ([mlibs.agent](../../../../base/agent)), module `xengine.dynamics.agent` — the package's feature `agent` (`xengine.dynamics = { path = …, features = ["agent"] }`), so that the solver families taken alone stay the small tools and nothing more (hanim's engine takes them so); every operation is decided there first (openas). Its operations are a catalog, [body.ops.omui.ts](body.ops.omui.ts) (the table `src/agent/catalog.cppm` and the listings `src/agent/body.ops.json`, `.md` are `ops-gen`'s); how to use them, in order, is [skill.omui.md](skill.omui.md).
+A soft body is a `Subject` of the agent kernel ([mlibs.agent](../../../../base/agent)), module `xengine.dynamics.agent` — the package's feature `agent` (`xengine.dynamics = { path = …, features = ["agent"] }`), so that the solver families taken alone stay the small tools and nothing more (hanim's engine takes them so); every operation is decided there first (openas). Its operations are a catalog, [body.ops.xdef.ts](body.ops.xdef.ts) (the table `src/agent/catalog.cppm` and the listings `src/agent/body.ops.json`, `.md` are `ops-gen`'s); how to use them, in order, is [skill.omui.md](skill.omui.md).
 
 | | |
 |---|---|
@@ -128,7 +128,7 @@ A soft body is a `Subject` of the agent kernel ([mlibs.agent](../../../../base/a
 | Budgets and tiers | `body.observe` within a `budget` of bytes (contacts left out from the last, `more` says how many; a budget below the least answer is refused with that size); `Options`: `most_steps` a request, `keep` steps of history |
 | Not here | **Causes** as a record — who pushed it, which contact turned it — and **source** (from a particle's place back to what moved it): `capabilities` says so, and the contract suite reports them unsupported; `body.contacts` says what the last step touched, which is not that. They come with the kernels' record of causes (the plan's T1.11). The 2D rigid family has no subject of its own: its worlds are reached through what holds them (`xengine.cellular`'s `MatterWorld`) |
 
-A 3D rigid world is a subject too, module `xengine.dynamics.rigid3.agent` — the feature `rigid3-agent` (it implies `rigid3` and `agent`). Its catalog is [rigid3.ops.omui.ts](rigid3.ops.omui.ts) (the table `src/rigid3/agent/catalog.cppm` and the listings `rigid3.ops.json`, `.md` are `ops-gen`'s).
+A 3D rigid world is a subject too, module `xengine.dynamics.rigid3.agent` — the feature `rigid3-agent` (it implies `rigid3` and `agent`). Its catalog is [rigid3.ops.xdef.ts](rigid3.ops.xdef.ts) (the table `src/rigid3/agent/catalog.cppm` and the listings `rigid3.ops.json`, `.md` are `ops-gen`'s).
 
 | | |
 |---|---|

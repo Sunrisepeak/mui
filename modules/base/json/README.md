@@ -5,11 +5,11 @@ JSON documents read with their places. Every value is a `Node` holding its JSON 
 ```cpp
 import mlibs.json;
 
-auto doc = mlibs::json::Document::parse(text, "piece.music.omui.json");
+auto doc = mlibs::json::Document::parse(text, "piece.music.xdef.json");
 if (!doc) return doc.error().text();             // malformed: one problem at its line and column
 const auto tempo = doc->root()["music"]["tempo"];
 if (!tempo.number()) problems.push_back(doc->problem(tempo, "the tempo is a number", "tempo: 96"));
-// piece.music.omui.json:3:14: /music/tempo: the tempo is a number (tempo: 96)
+// piece.music.xdef.json:3:14: /music/tempo: the tempo is a number (tempo: 96)
 
 for (const auto& [key, member] : doc->root()["music"].members())
     if (!known(key)) problems.push_back(doc->problem(member, std::format("`{}` is not a key", key), mlibs::names::nearest(key, keys)));

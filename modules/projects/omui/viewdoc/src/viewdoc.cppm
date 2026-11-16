@@ -1,4 +1,4 @@
-// openmui.viewdoc — view documents (`*.view.omui.json`, view-data-files §3).
+// openmui.viewdoc — view documents (`*.view.xdef.json`, view-data-files §3).
 //
 // One of the two ways to write a view, as data: for designers, agents and
 // generative interfaces, for components shared by every language, and for
@@ -7,7 +7,7 @@
 // the Elements a builder makes, so its semantic tree is the builder's; it
 // reloads in place, keeping its state.
 //
-//     auto view = omui::viewdoc::View::load_file(rt, "ui/counter.view.omui.json");
+//     auto view = omui::viewdoc::View::load_file(rt, "ui/counter.view.xdef.json");
 //     if (!view) for (auto& d : view.error()) std::println("{}", d.text());
 //     view->mount(rt, "main");
 export module omui.viewdoc;

@@ -115,7 +115,7 @@ const std::vector<Allowed>& layer_rules() {
 // Projects (D-161, D-208): the units that may each be a repository of their own one day, and the projects each
 // may depend on. Test dependencies count: a project whose tests need a project above it could not be built
 // alone. mlibs (the bottom) and the specification are fixed; every project under modules/projects/ says who
-// it is in its identity (<name>.project.omui.ts, read as its snapshot): the projects it may depend on, and
+// it is in its identity (<name>.project.xdef.ts, read as its snapshot): the projects it may depend on, and
 // the parts of it that sit lower (xengine's kernels, gongfu's core). The longest path prefix that holds a
 // member names its project; consumers (tools, the site, showcases, examples, tests, entries) are free.
 struct ProjectPart {
@@ -150,11 +150,11 @@ Projects read_projects(const fs::path& root) {
     for (const auto& directory : directories) {
         const std::string leaf = utf8_of(directory.filename());
         const std::string place = std::format("{}/{}", projects_root, leaf);
-        const std::string snapshot = std::format("{}/{}.project.omui.json", place, leaf);
+        const std::string snapshot = std::format("{}/{}.project.xdef.json", place, leaf);
         const auto text = read_text(root / path_of(snapshot));
-        if (!text || !fs::exists(root / path_of(std::format("{}/{}.project.omui.ts", place, leaf)), error)) {
+        if (!text || !fs::exists(root / path_of(std::format("{}/{}.project.xdef.ts", place, leaf)), error)) {
             projects.problems.push_back({"project-dag", place,
-                                         std::format("says not who it is: {0}.project.omui.ts (defineProject) and its snapshot {0}.project.omui.json "
+                                         std::format("says not who it is: {0}.project.xdef.ts (defineProject) and its snapshot {0}.project.xdef.json "
                                                      "(xdef snapshot), D-208",
                                                      leaf)});
             continue;

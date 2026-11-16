@@ -1,6 +1,6 @@
 // openmui.viewdoc:document — a view document as data, read and checked.
 //
-//     auto r = omui::viewdoc::read(text, {.file = "counter.view.omui.json"});
+//     auto r = omui::viewdoc::read(text, {.file = "counter.view.xdef.json"});
 //     for (const auto& d : r.diagnostics) std::println("{}", d.text());
 //     if (r.ok()) use(*r.document);
 //
@@ -33,7 +33,7 @@ struct Diagnostic {
     std::string   message;
     std::string   hint;     // how to fix it, when one is known
 
-    // "counter.view.omui.json:12:7: error: … (hint) [code]"
+    // "counter.view.xdef.json:12:7: error: … (hint) [code]"
     [[nodiscard]] std::string text(std::string_view file = {}) const;
     // The structured form of `omui check --json`.
     [[nodiscard]] Value to_value(std::string_view file = {}) const;

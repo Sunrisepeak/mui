@@ -180,8 +180,16 @@ std::vector<std::string> named_in_order(Session& session, std::span<const std::s
     return named;
 }
 
-int command_line(Session& session, std::span<const std::string_view> arguments, std::ostream& out, std::ostream& errors) {
-    const std::vector<std::string> words = arguments.empty() ? std::vector<std::string>{} : named_in_order(session, arguments);
+int command_line(Session& session, std::span<const std::string_view> arguments, std::ostream& out, std::ostream& errors, const CommandLine& how) {
+    std::vector<std::string_view> given(arguments.begin(), arguments.end());
+    // A name without a dot is the product's own, when the program has one.
+    constexpr std::array own{"subjects", "help", "describe", "find", "log"};
+    std::string prefixed;
+    if (!how.product.empty() && !given.empty() && !given.front().starts_with("-") && !given.front().contains('.') && !std::ranges::contains(own, given.front())) {
+        prefixed = how.product + "." + std::string(given.front());
+        given.front() = prefixed;
+    }
+    const std::vector<std::string> words = given.empty() ? std::vector<std::string>{} : named_in_order(session, given);
     const std::vector<std::string_view> viewed(words.begin(), words.end());
     const auto request = request_from(viewed);
     if (!request) {

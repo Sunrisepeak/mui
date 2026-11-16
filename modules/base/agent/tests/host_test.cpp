@@ -121,6 +121,10 @@ static UTest cases{"agent.host", [] {
         const std::array bare{std::string_view("counter.add"), std::string_view("3")};
         expect(eq(agent::command_line(session, bare, bare_out, errors), 0) && bare_out.str().contains(R"("count":3)")) << bare_out.str();
         expect(eq(counter.count, std::int64_t{3}));
+        // A product's own names without it: `add 4` is counter.add for the program `counter`.
+        std::ostringstream own_out;
+        const std::array own{std::string_view("add"), std::string_view("4")};
+        expect(eq(agent::command_line(session, own, own_out, errors, {.product = "counter"}), 0) && own_out.str().contains(R"("count":7)")) << own_out.str();
         std::ostringstream none;
         expect(eq(agent::command_line(session, {}, none, errors), 2));
     };

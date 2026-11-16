@@ -164,9 +164,14 @@ Size Tooltip::measure(MeasureContext& m, std::optional<float>, std::optional<flo
 void Tooltip::paint(PaintContext& ctx) const {
     const Theme& th = ctx.theme;
     const float k = static_cast<float>(std::clamp(fade_, 0.0, 1.0));
-    ctx.list.push_layer(k, xrender::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
-    ctx.list.fill_round_rect({0, 0, ctx.size.width, ctx.size.height}, CornerRadii::all(th.corner("small", 4)),
-                             xrender::Paint::solid(th.color("tooltip")));
+    const Rect box{0, 0, ctx.size.width, ctx.size.height};
+    const CornerRadii radii = CornerRadii::all(th.corner("small", 4));
+    // Faded as one, its shadow with it: the layer holds the shadow's reach round the chip.
+    constexpr float reach = 16;
+    ctx.list.push_layer(k, xrender::BlendMode::normal, {}, {}, {-reach, -reach, box.width + 2 * reach, box.height + 2 * reach});
+    // Over the page as every overlay is: the theme's small layered shadow (B5).
+    parts::shadow(ctx, "sm", box, radii);
+    ctx.list.fill_round_rect(box, radii, xrender::Paint::solid(th.color("tooltip")));
     label_.paint(ctx, {ctx.content.x, ctx.content.y}, th.color("on_tooltip"));
     ctx.list.pop_layer();
 }

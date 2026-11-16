@@ -253,4 +253,70 @@ int browser_checks(const fs::path& root) {
     return 0;
 }
 
+int web(const fs::path& root, std::string_view profile) {
+    // Every member whose manifest says it runs on the Web (`[package] platforms` lists "emscripten"; lint `platforms`
+    // holds that each depends only on members that say it too), host.web and the site — the program browsers run, its
+    // pins and reference run checked where it runs: built for wasm32-emscripten and tested under node.
+    std::vector<std::string> args{"--target", "wasm32-emscripten", "--profile", std::string(profile)};
+    std::vector<std::string> names;
+    try {
+        const toml::table workspace = toml::parse(read_text(root / "mcpp.toml").value_or(""));
+        if (const auto* members = workspace["workspace"]["members"].as_array())
+            for (const auto& member : *members) {
+                const auto path = member.value<std::string>();
+                if (!path) continue;
+                const toml::table manifest = toml::parse(read_text(root / *path / "mcpp.toml").value_or(""));
+                const auto* platforms = manifest["package"]["platforms"].as_array();
+                if (!platforms || !std::ranges::any_of(*platforms, [](const toml::node& item) { return item.value_or(std::string{}) == "emscripten"; })) continue;
+                const std::string space = manifest["package"]["namespace"].value_or(std::string{}), name = manifest["package"]["name"].value_or(std::string{});
+                names.push_back(space.empty() ? name : space + "." + name);
+            }
+    } catch (const toml::parse_error& failure) {
+        return failed(std::format("a manifest does not read: {}", failure.description()));
+    }
+    if (names.empty()) return failed("no member says it runs on the Web");
+    std::cout << std::format("web: {} members:", names.size());
+    for (const auto& name : names) std::cout << ' ' << name;
+    std::cout << '\n' << std::flush;
+    for (const auto& name : names) args.insert(args.end(), {"-p", name});
+    args.insert(args.end(), {"-p", "omui.host.web", "-p", "omui.site"});
+    std::vector<std::string> test{"test"};
+    test.insert(test.end(), args.begin(), args.end());
+    if (const auto tested = run::program(root, "mcpp", test, {.shown = true, .variables = {{"MCPP_JOBS", std::to_string(run::share_of_machine())}}});
+        !tested || tested->status != 0)
+        return failed("the Web row's tests failed");
+    // The same selection again, built and not run: the programs' paths, nothing compiled.
+    const auto programs = run::tests(root, args);
+    if (!programs) return failed(programs.error());
+    std::optional<fs::path> page_test;
+    for (const auto& [_, program] : *programs)
+        if (program.filename() == "page_test.js") page_test = program;
+    if (!page_test) return failed("host.web's page_test was not built");
+
+    // The page halves under node's test runner with a fake DOM, WebGPU and WebGL2: host.web's (alone, and with the
+    // program: page_test in a fake page) and the two backends'.
+    std::string node = "node";
+    if (!mcpplibs::os::env::find_executable("node")) {
+        std::vector<fs::path> installed;
+        std::error_code error;
+        for (const auto& entry : fs::directory_iterator(fs::path(mcpplibs::os::env::get("HOME").value_or("")) / ".xlings/data/xpkgs/xim-x-node", error))
+            if (fs::exists(entry.path() / "bin/node")) installed.push_back(entry.path() / "bin/node");
+        if (installed.empty()) return failed("no node for the page's tests");
+        node = mcpplibs::os::fs::utf8(*std::ranges::max_element(installed));
+    }
+    const auto page = run::program(root, node, {"--test", "modules/projects/omui/host/web/tests/js/page.test.mjs", "modules/projects/omui/host/web/tests/js/wasm.test.mjs"},
+                                   {.shown = true, .variables = {{"OMUI_PAGE_TEST", mcpplibs::os::fs::utf8(*page_test)}}});
+    if (!page || page->status != 0) return failed("the page's half of host.web failed its tests");
+    const auto backends = run::program(root, node, {"--test", "modules/projects/xrender/rhi/webgpu/tests/js/webgpu.test.mjs", "modules/projects/xrender/rhi/webgl/tests/js/webgl.test.mjs"},
+                                       {.shown = true});
+    if (!backends || backends->status != 0) return failed("the page's halves of rhi.webgpu and rhi.webgl failed their tests");
+
+    // What three dimensions weigh on a page, held to its budget; then what only a real page can check.
+    if (size(root, {.package = "omui.size.yard", .json = root / "target/mesh-web-size.json", .budget = "tests/size/yard/size.budget.omui.json"}) != 0)
+        return failed("the yard's bytes are over their budget");
+    if (browser_checks(root) != 0) return failed("the browser's checks failed");
+    std::cout << "web: ok\n";
+    return 0;
+}
+
 }  // namespace omui::devtools::check

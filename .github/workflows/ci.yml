@@ -102,7 +102,7 @@ jobs:
           case "$version" in *"$MCPP_VERSION"*) ;; *) echo "::error::not mcpp $MCPP_VERSION"; exit 1 ;; esac
           mcpp self config --mirror GLOBAL
       - name: The members that run on the Web, tested under node
-        run: tools/ci/web.sh
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- check web
         env:
           # The runner has Chrome: a page's checks are never skipped here.
           OMUI_REQUIRE_BROWSER: '1'

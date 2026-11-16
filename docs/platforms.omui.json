@@ -15,7 +15,7 @@
       "label": "stable",
       "cells": {
         "linux-x64": {"status": "real", "evidence": "CI row ubuntu-24.04 (mcpp test --workspace --profile ci)"},
-        "web": {"status": "real", "evidence": "CI row wasm32-emscripten under node (tools/ci/web.sh)"},
+        "web": {"status": "real", "evidence": "CI row wasm32-emscripten under node (omui-devtools check web)"},
         "macos-arm64": {"status": "real", "evidence": "CI row macos-15"},
         "windows-x64": {"status": "real", "evidence": "CI row windows-2022"},
         "linux-arm64": {"status": "real", "evidence": "CI row ubuntu-24.04-arm"},

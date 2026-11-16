@@ -18,7 +18,7 @@
 ## 每格的依据
 
 - **CPU reference rendering, simulation and the semantic tree**, Linux x64: CI row ubuntu-24.04 (mcpp test --workspace --profile ci)
-- **CPU reference rendering, simulation and the semantic tree**, Web (wasm32): CI row wasm32-emscripten under node (tools/ci/web.sh)
+- **CPU reference rendering, simulation and the semantic tree**, Web (wasm32): CI row wasm32-emscripten under node (omui-devtools check web)
 - **CPU reference rendering, simulation and the semantic tree**, macOS arm64: CI row macos-15
 - **CPU reference rendering, simulation and the semantic tree**, Windows x64: CI row windows-2022
 - **CPU reference rendering, simulation and the semantic tree**, Linux arm64: CI row ubuntu-24.04-arm

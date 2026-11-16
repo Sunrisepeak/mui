@@ -49,6 +49,10 @@
 //           button changes what it shows, Back with nothing open ends it. The emulator, its system image and adb are
 //           xlings packages; an AVD is made here (no avdmanager), its data in /dev/shm where that has room (the
 //           emulator asks for 7 GB free). Screenshots go to `out`.
+// web       the Web row (D-84): every member whose manifest says it runs on the Web, host.web and the site built for
+//           wasm32-emscripten and tested under node with the same pinned hashes as every row (the determinism gate for
+//           the browser too); the page halves' JavaScript under node's test runner with a fake DOM, WebGPU and WebGL2;
+//           the yard's bytes held to their budget (size); then browser.
 // browser   what only a real page can check (D-84 §6.3), where a headless Chromium is found (omui.devtools.browser):
 //           xrender.rhi.webgpu's and .webgl's suites, their consumers' WebGPU suites run by their owners (hanim.rhi,
 //           the cellular kernel), the mesh pass's contract on both, Quay's frame, host.web drawing on each (its fonts
@@ -81,6 +85,7 @@ struct Size {
 // shows: the showcases' directory names and "site"; none, every showcase and the site.
 [[nodiscard]] int media(const std::filesystem::path& root, std::vector<std::string> shows, bool check_only);
 [[nodiscard]] int android(const std::filesystem::path& root, const std::filesystem::path& out);
+[[nodiscard]] int web(const std::filesystem::path& root, std::string_view profile);
 [[nodiscard]] int browser_checks(const std::filesystem::path& root);
 
 // The page script that compiles every WGSL and ESSL entry of these shader partitions (mlibs.shader's `<entry>_wgsl` and

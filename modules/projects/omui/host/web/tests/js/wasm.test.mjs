@@ -1,5 +1,5 @@
 // The browser host end to end: tests/page_test.cpp, built for
-// wasm32-emscripten (tools/ci/web.sh builds it), run in this process in a
+// wasm32-emscripten (omui-devtools check web builds it), run in this process in a
 // fake page (fake_dom.mjs) whose frames this test steps by hand — so the
 // program's C++, the library's JavaScript and the boundary between them
 // are checked together, deterministically: the person composing in the
@@ -32,7 +32,7 @@ function built() {
 
 const program = built();
 
-test('the browser host end to end, in a page', { skip: !program && 'page_test.js is not built (tools/ci/web.sh builds it)' }, async () => {
+test('the browser host end to end, in a page', { skip: !program && 'page_test.js is not built (omui-devtools check web builds it)' }, async () => {
   assert.ok(existsSync(program), `${program} exists`);
   const window = new Window();
   const document = window.document;

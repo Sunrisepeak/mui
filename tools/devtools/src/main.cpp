@@ -250,6 +250,9 @@ cmd::App app() {
                         .subcommand(cmd::App("android")
                                         .description("Example 01 as an APK, checked inside; on the emulator where there is KVM: started, a tap, Back")
                                         .option(Option("out").takes_value().value_name("DIR").help("the screenshots and logs (default: the system's temporary directory, omui-android)")))
+                        .subcommand(cmd::App("web")
+                                        .description("The Web row: the members that run on the Web tested under node, the page halves' JavaScript, the yard's bytes, the browser")
+                                        .option(Option("profile").takes_value().value_name("P").help("default: wasm-test (tests read their fixtures through node)")))
                         .subcommand(cmd::App("browser").description("What only a real page can check: the page backends' suites, the shaders, host.web's frames"))
                         .subcommand(cmd::App("atspi")
                                         .description("Examples 03 and 07 built, then read and operated through AT-SPI on a private session bus")
@@ -777,13 +780,14 @@ int main(int argc, char** argv) {
         namespace step = omui::devtools::check;
         const auto& sub = parsed->subcommand()->get();
         if (!sub.has_subcommand()) {
-            std::cerr << "usage: omui-devtools check features | templates | reflect [--profile P] | sweep [--profile P] | tools-e2e | agent-e2e | android [--out DIR] | browser | toy [PACKAGE…] | size -p MEMBER [--json F] [--markdown F] [--budget F] | atspi [--profile P]\n";
+            std::cerr << "usage: omui-devtools check features | templates | reflect [--profile P] | sweep [--profile P] | tools-e2e | agent-e2e | android [--out DIR] | web [--profile P] | browser | toy [PACKAGE…] | size -p MEMBER [--json F] [--markdown F] [--budget F] | atspi [--profile P]\n";
             return 2;
         }
         const auto& given = sub.subcommand()->get();
         if (sub.subcommand_name() == "features") return step::features(root);
         if (sub.subcommand_name() == "templates") return step::templates(root);
         if (sub.subcommand_name() == "browser") return step::browser_checks(root);
+        if (sub.subcommand_name() == "web") return step::web(root, given.value("profile").value_or("wasm-test"));
         if (sub.subcommand_name() == "reflect") return step::reflect(root, given.value("profile").value_or("dev"));
         if (sub.subcommand_name() == "size") {
             if (!given.value("package")) {

@@ -141,7 +141,7 @@ std::vector<std::string> program_args(const fs::path& root, const json& set, con
                     if (it->is_directory(error)) it.disable_recursion_pending();
                     continue;
                 }
-                const fs::path to = target / fs::relative(it->path(), source);
+                const fs::path to = target / it->path().lexically_relative(source);
                 if (it->is_directory(error)) fs::create_directories(to, error);
                 else {
                     fs::create_directories(to.parent_path(), error);

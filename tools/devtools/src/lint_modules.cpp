@@ -139,7 +139,7 @@ std::vector<Source> member_sources(const Workspace& workspace) {
             continue;
         }
         if (!name.ends_with(".cpp") && !name.ends_with(".cppm")) continue;
-        const std::string rel = utf8_of(fs::relative(it->path(), workspace.root));
+        const std::string rel = utf8_of(it->path().lexically_relative(workspace.root));
         for (const auto& member : by_depth) {
             if (!rel.starts_with(member + "/")) continue;
             out.push_back({member, rel, {}});

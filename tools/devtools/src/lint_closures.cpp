@@ -283,7 +283,7 @@ std::vector<Problem> check_pins(const Workspace& workspace) {
         if (fs::exists(entry.path() / "mcpp.toml.in")) files.push_back(entry.path() / "mcpp.toml.in");
     std::ranges::sort(files);
     for (const auto& file : files) {
-        const std::string where = utf8_of(fs::relative(file, workspace.root));
+        const std::string where = utf8_of(file.lexically_relative(workspace.root));
         // Placeholders as mcpp renders them (`{{project.name}}` → a name).
         static const std::regex placeholder(R"(\{\{[^}]*\}\})");
         const std::string text = std::regex_replace(read_text(file).value_or(""), placeholder, "placeholder");

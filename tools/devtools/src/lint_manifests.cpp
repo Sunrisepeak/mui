@@ -271,7 +271,7 @@ Workspace Workspace::read(const fs::path& root) {
             std::error_code error;
             const fs::path parent = root / path_of(pattern->substr(0, pattern->size() - 2));
             for (const auto& child : fs::directory_iterator(parent, error))
-                if (fs::exists(child.path() / "mcpp.toml")) paths.push_back(utf8_of(fs::relative(child.path(), root)));
+                if (fs::exists(child.path() / "mcpp.toml")) paths.push_back(utf8_of(child.path().lexically_relative(root)));
             std::ranges::sort(paths);
         } else {
             paths.push_back(*pattern);
@@ -341,7 +341,7 @@ std::vector<Problem> check_manifests(const Workspace& workspace) {
             continue;
         }
         if (name != "mcpp.toml") continue;
-        const std::string directory = utf8_of(fs::relative(it->path().parent_path(), workspace.root));
+        const std::string directory = utf8_of(it->path().parent_path().lexically_relative(workspace.root));
         if (directory == "." || listed.contains(directory) || directory.starts_with("modules/projects/omui/templates/") || has_skipped_part(directory))
             continue;
         manifests.push_back(directory);

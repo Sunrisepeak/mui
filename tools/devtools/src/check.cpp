@@ -139,7 +139,7 @@ std::expected<void, std::string> instantiate(const fs::path& root, std::string_v
     for (auto it = fs::recursive_directory_iterator(source, error); it != fs::recursive_directory_iterator(); it.increment(error)) {
         if (error) return std::unexpected(error.message());
         if (it->is_directory(error) || it->path().filename() == "template.toml") continue;
-        fs::path relative = fs::relative(it->path(), source);
+        fs::path relative = it->path().lexically_relative(source);
         std::string text = mcpplibs::os::fs::read(it->path()).value_or("");
         if (it->path().extension() == ".in") {
             relative.replace_extension();

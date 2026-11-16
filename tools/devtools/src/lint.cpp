@@ -135,7 +135,7 @@ std::vector<std::string> source_files(const fs::path& root) {
         const auto extension = it->path().extension().generic_u8string();
         const std::string_view suffix(reinterpret_cast<const char*>(extension.data()), extension.size());
         if (!std::ranges::contains(source_suffixes, suffix)) continue;
-        const auto relative = fs::relative(it->path(), root, error).generic_u8string();
+        const auto relative = it->path().lexically_relative(root).generic_u8string();
         out.emplace_back(reinterpret_cast<const char*>(relative.data()), relative.size());
     }
     std::ranges::sort(out);

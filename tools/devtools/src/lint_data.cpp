@@ -42,7 +42,7 @@ std::vector<std::string> every_file(const fs::path& root) {
             if (std::ranges::contains(skip_dirs, std::string_view(name))) it.disable_recursion_pending();
             continue;
         }
-        if (it->is_regular_file(error)) out.push_back(utf8_of(fs::relative(it->path(), root)));
+        if (it->is_regular_file(error)) out.push_back(utf8_of(it->path().lexically_relative(root)));
     }
     std::ranges::sort(out);
     return out;
@@ -211,7 +211,7 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
             const std::string text = read_text(directory / "README.md").value_or("");
             const auto found = all_matches(text, shown);
             if (std::ranges::none_of(found, [&](const std::string& path) { return fs::exists(directory / path_of(path)); }))
-                add("media", utf8_of(fs::relative(directory, root)) + "/README.md", "shows no picture of its own from media/ (omui-devtools media)");
+                add("media", utf8_of(directory.lexically_relative(root)) + "/README.md", "shows no picture of its own from media/ (omui-devtools media)");
         }
     }
 

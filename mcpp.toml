@@ -22,7 +22,6 @@ members = [
     "modules/base/geom/boolean",
     "modules/projects/hanim/core",
     "modules/base/image",
-    "modules/base/image/ktx2",
     "modules/base/json",
     "modules/base/math",
     "modules/base/memory",

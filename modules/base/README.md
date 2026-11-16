@@ -19,7 +19,6 @@ What belongs here: general-purpose libraries with no domain semantics. Small too
 | [pipeline](pipeline) | Pipelines of stage plugins over typed resources: checked, deterministic, traced, replaceable while running |
 | [json](json) | `mlibs.json`: JSON documents with their places — nodes with JSON pointers, problems at line and column, did-you-mean; how the data files' JSON snapshots are read |
 | [image](image) | Image buffers, premultiplication, PNG, animated PNG, WebP and JPEG |
-| [image/ktx2](image/ktx2) | `mlibs.image.ktx2`: KTX2 textures (Basis Universal's codecs) as pixels and as a GPU's blocks; a package of its own so that `mlibs.image` does not carry the transcoder |
 | [math](math) | Deterministic mathematics: elementary functions with the same bits everywhere (`det`), splitmix64 (`random`) |
 | [mpal](mpal) | `mpal`: the services an operating system gives an application (notifications first), one contract on every platform, above `mcpplibs.os` (openkal → os → mpal); a package of its own, meant to leave the repository once its contracts settle |
 | [utils](utils) | `mlibs.utils`: small tools, one directory each — hash (FNV-1a), log (categories, sinks, invariants), trace (spans, Chrome trace), testing (the checks of test programs) |

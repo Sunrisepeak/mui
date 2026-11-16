@@ -51,7 +51,7 @@ Three of them drawn by the CPU reference from what was brought in — every pict
 |---|---|---|
 | ![Lantern](media/lantern.png) | ![AntiqueCamera](media/antique-camera.png) | ![DamagedHelmet](media/damaged-helmet.png) |
 
-Khronos' FlightHelmet as it ships with KTX2 textures (`glTF-KTX-BasisU`: fifteen files, base colours packed as ETC1S and the rest as UASTC), read through [mlibs.image.ktx2](../../../base/image/ktx2) and drawn the same way — its lenses seen through:
+Khronos' FlightHelmet as it ships with KTX2 textures (`glTF-KTX-BasisU`: fifteen files, base colours packed as ETC1S and the rest as UASTC), read through [mlibs.image.ktx2](../../../base/image/src/ktx2) (`mlibs.image`'s feature `ktx2`) and drawn the same way — its lenses seen through:
 
 ![FlightHelmet](media/flight-helmet.png)
 

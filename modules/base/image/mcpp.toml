@@ -5,7 +5,11 @@
 # compat.libwebp; its demux and mux features for WebPAnimDecoder and
 # WebPAnimEncoder), and JPEG encoding and decoding (libjpeg-turbo's TurboJPEG
 # API, imported as mcpplibs.mwrap.libjpeg_turbo, which vendors the library and
-# builds its C code without the SIMD extensions).
+# builds its C code without the SIMD extensions). The feature `ktx2` adds KTX2
+# textures (src/ktx2/, `import mlibs.image.ktx2;`): Basis Universal's
+# transcoder (mcpplibs.mwrap.basis_universal) is several times the size of
+# the other readers together, so only what reads KTX2 asks for it (D-99:
+# dependency isolation, as a feature; RC1.5).
 # libpng 1.6.43: the version compat.freetype (under HarfBuzz) requires, so
 # one libpng serves the whole graph. libwebp 1.5.0 is built without threads:
 # the native unit makes its one-time setup safe (src/native/webp.cpp).
@@ -27,6 +31,15 @@ kind = "lib"
 
 [build]
 sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+
+[features]
+ktx2 = { sources = ["src/ktx2/*.cppm", "src/ktx2/native/*.cpp"] }
+
+[feature-deps.ktx2]
+mcpplibs.mwrap.basis_universal = "2.50.1"
+
+[test]
+features = ["ktx2"]
 
 [dependencies]
 mcpplibs.mwrap.libpng = "1.6.43"

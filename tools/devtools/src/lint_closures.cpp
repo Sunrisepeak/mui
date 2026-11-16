@@ -130,13 +130,14 @@ std::string python_list(std::vector<std::string> names) {
     return text + "]";
 }
 
-std::vector<std::string_view> features_on(const toml::table& data, const std::set<std::string>& asked, bool defaults) {
+}  // namespace
+
+std::vector<std::string> features_on(const toml::table& data, const std::set<std::string>& asked, bool defaults) {
     const auto* table = table_at(&data, "features");
     std::vector<std::string> pending(asked.begin(), asked.end());
     if (defaults)
         for (auto& name : strings_at(table, "default")) pending.push_back(std::move(name));
-    static thread_local std::set<std::string> active;
-    active.clear();
+    std::set<std::string> active;
     while (!pending.empty()) {
         const std::string feature = std::move(pending.back());
         pending.pop_back();
@@ -153,8 +154,6 @@ std::vector<std::string_view> features_on(const toml::table& data, const std::se
     }
     return {active.begin(), active.end()};
 }
-
-}  // namespace
 
 std::vector<Problem> check_licences(const Workspace& workspace) {
     std::vector<Problem> problems;
@@ -316,10 +315,10 @@ std::vector<Problem> check_pins(const Workspace& workspace) {
 // Dependency closures that stay small (D-55; plan §5.3 ⑤), by package identity: a package's [dependencies],
 // its target dependencies and the feature-deps of the features it is built with (its defaults and what each
 // edge asks for), followed through path dependencies.
-std::set<std::string> closure_of(const Workspace& workspace, const std::string& member) {
+std::set<std::string> closure_of(const Workspace& workspace, const std::string& member, const std::set<std::string>& asked_first, bool defaults_first) {
     std::set<std::string> names;
     std::set<std::tuple<std::string, std::set<std::string>, bool>> seen;
-    std::vector<std::tuple<std::string, std::set<std::string>, bool>> pending{{member, {}, true}};
+    std::vector<std::tuple<std::string, std::set<std::string>, bool>> pending{{member, asked_first, defaults_first}};
     while (!pending.empty()) {
         auto [path, asked, defaults] = std::move(pending.back());
         pending.pop_back();
@@ -371,7 +370,7 @@ std::vector<Problem> check_closures(const Workspace& workspace, std::span<const 
             problems.push_back({"closure", rule.package, "a package the closure rules name is not a member; update the lint's closures (lint_closures.cpp)"});
             continue;
         }
-        auto reached = closure_of(workspace, found->second);
+        auto reached = closure_of(workspace, found->second, {}, true);
         reached.erase(rule.package);
         for (const auto& name : reached) {
             const bool extra = !rule.only.empty() ? !std::ranges::contains(rule.only, name)

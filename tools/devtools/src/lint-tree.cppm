@@ -47,6 +47,12 @@ struct Closure {
 };
 std::span<const Closure> repository_closures();
 
+// The identities a member reaches through path dependencies, built with the features asked (and its defaults when
+// `defaults`), each edge with the features it asks for.
+std::set<std::string> closure_of(const Workspace& workspace, const std::string& member, const std::set<std::string>& asked, bool defaults);
+// The features on: those asked, the defaults when `defaults`, and what each implies.
+std::vector<std::string> features_on(const toml::table& data, const std::set<std::string>& asked, bool defaults);
+
 // The groups' checks.
 std::vector<Problem> check_manifests(const Workspace& workspace);  // toml, members, manifest, layering, modules, determinism's flags
 std::vector<Problem> check_projects(const Workspace& workspace);   // project-dag
@@ -55,5 +61,6 @@ std::vector<Problem> check_licences(const Workspace& workspace);   // licenses
 std::vector<Problem> check_platforms(const Workspace& workspace);  // platforms
 std::vector<Problem> check_pins(const Workspace& workspace);       // pins
 std::vector<Problem> check_closures(const Workspace& workspace, std::span<const Closure> closures);  // closure
+std::vector<Problem> check_modules(const Workspace& workspace);    // imports, module-closure
 
 }  // namespace omui::devtools::lint

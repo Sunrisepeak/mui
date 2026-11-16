@@ -3,7 +3,7 @@
 
 Moving to C++ (D-206, RC3.12): macros, headers, naming, legacy-import, testing, cmdline, thirdparty,
 exceptions, paths, platform, determinism, owner, toml, members, manifest, layering, modules, project-dag,
-layout, licenses, platforms, pins and closure are `omui-devtools lint` now (tools/devtools,
+layout, licenses, platforms, pins, closure, imports and module-closure are `omui-devtools lint` now (tools/devtools,
 held by its lint_test in every test row); the rules below that are not among them run here.
 
     python3 tools/lint/lint.py            check the repository
@@ -102,47 +102,6 @@ def source_files(root: Path):
             yield path
 
 
-def strip_comments(text: str) -> str:
-    """Removes // and /* */ comments and string literals, keeping line numbers."""
-    out = []
-    i, n = 0, len(text)
-    while i < n:
-        c = text[i]
-        if text.startswith("//", i):
-            j = text.find("\n", i)
-            i = n if j < 0 else j
-        elif text.startswith("/*", i):
-            j = text.find("*/", i + 2)
-            j = n if j < 0 else j + 2
-            out.append("\n" * text.count("\n", i, j))
-            i = j
-        elif c == 'R' and text.startswith('R"', i) and (i == 0 or not (text[i - 1].isalnum() or text[i - 1] == '_')):
-            # A raw string literal: R"delim( ... )delim"
-            open_paren = text.find("(", i + 2)
-            delim = text[i + 2:open_paren]
-            close = text.find(")" + delim + '"', open_paren + 1)
-            j = n if close < 0 else close + len(delim) + 2
-            out.append('""' + "\n" * text.count("\n", i, j))
-            i = j
-        elif c == '"':
-            j = i + 1
-            while j < n and text[j] != '"':
-                j += 2 if text[j] == "\\" else 1
-            out.append('""')
-            i = j + 1
-        elif c == "'" and not (i > 0 and text[i - 1].isalnum()):
-            # A character literal ('"', '\''); after a digit, a digit separator (1'000).
-            j = i + 1
-            while j < n and text[j] != "'" and text[j] != "\n":
-                j += 2 if text[j] == "\\" else 1
-            out.append("''")
-            i = j + 1
-        else:
-            out.append(c)
-            i += 1
-    return "".join(out)
-
-
 def workspace_members(root: Path) -> list[str]:
     manifest = root / "mcpp.toml"
     if not manifest.exists():
@@ -185,104 +144,6 @@ def _features(data: dict, asked: set[str], defaults: bool) -> set[str]:
         pending |= set(spec if isinstance(spec, list) else spec.get("implies", []))
     return active
 
-
-def closure_of(root: Path, member: str | Path, asked: frozenset[str] = frozenset(), defaults: bool = True) -> set[str]:
-    """The identities a member reaches through path dependencies, with the features each edge asks for."""
-    seen: set[tuple[str, frozenset[str], bool]] = set()
-    names: set[str] = set()
-    pending = [(root / member, asked, defaults)]
-    while pending:
-        directory, asked, defaults = pending.pop()
-        key = (directory.resolve().as_posix(), asked, defaults)
-        if key in seen:
-            continue
-        seen.add(key)
-        data = tomllib.loads((directory / "mcpp.toml").read_text(encoding="utf-8"))
-        names.add(package_name(data))
-        tables = [data.get("dependencies", {})]
-        tables += [t.get("dependencies", {}) for t in data.get("target", {}).values() if isinstance(t, dict)]
-        tables += [data.get("feature-deps", {}).get(f, {}) for f in _features(data, set(asked), defaults)]
-        for table in tables:
-            for _name, spec in flatten_deps(table):
-                if isinstance(spec, dict) and "path" in spec and (directory / spec["path"] / "mcpp.toml").is_file():
-                    pending.append((directory / spec["path"], frozenset(spec.get("features", [])), spec.get("default-features", True)))
-    return names
-
-
-# What a source imports, its package declares (lint `imports`). One build directory holds every member's
-# modules, so here a test that imports a module no dependency of its package gives still builds — and fails
-# where the member is built on its own (CI's rows, a consumer outside the tree). A member's sources may import
-# what its dependencies, its target dependencies and its features' dependencies reach; its tests, also what its
-# dev-dependencies reach.
-EXPORTED_MODULE = re.compile(r"^[ \t]*export\s+module\s+([\w.]+)\s*;", re.M)
-IMPORTED_MODULE = re.compile(r"^[ \t]*(?:export\s+)?import\s+([\w.]+)\s*;", re.M)
-
-
-def _member_sources(root: Path, members: list[str]):
-    """(member, file) for every C++ source, each with the deepest member that holds it."""
-    by_depth = sorted(members, key=len, reverse=True)
-    for path in source_files(root):
-        if path.suffix not in (".cpp", ".cppm"):
-            continue
-        rel = path.relative_to(root).as_posix()
-        for member in by_depth:
-            if rel.startswith(member + "/"):
-                yield member, path
-                break
-
-
-def check_imports(root: Path) -> list[Problem]:
-    problems = []
-    members = [m for m in workspace_members(root) if (root / m / "mcpp.toml").is_file()]
-    manifests = {}
-    for m in members:
-        try:
-            manifests[m] = tomllib.loads((root / m / "mcpp.toml").read_text(encoding="utf-8"))
-        except tomllib.TOMLDecodeError:
-            continue
-    sources = [(m, path) for m, path in _member_sources(root, members) if m in manifests]
-    texts = {path: strip_comments(path.read_text(encoding="utf-8", errors="replace")) for _m, path in sources}
-    owner: dict[str, str] = {}  # module -> the package that exports it
-    for m, path in sources:
-        if "/tests/" in path.relative_to(root).as_posix():
-            continue
-        for module in EXPORTED_MODULE.findall(texts[path]):
-            owner.setdefault(module, package_name(manifests[m]))
-
-    def reach(m: str, tests: bool, features: frozenset[str]) -> set[str]:
-        data = manifests[m]
-        tables = [data.get("dependencies", {})]
-        tables += [t.get("dependencies", {}) for t in data.get("target", {}).values() if isinstance(t, dict)]
-        tables += [data.get("feature-deps", {}).get(f, {}) for f in _features(data, set(features), True)]
-        if tests:
-            tables.append(data.get("dev-dependencies", {}))
-        names = {package_name(data)}
-        for table in tables:
-            for _name, spec in flatten_deps(table):
-                if isinstance(spec, dict) and "path" in spec and (root / m / spec["path"] / "mcpp.toml").is_file():
-                    names |= closure_of(root, Path(m) / spec["path"], frozenset(spec.get("features", [])), spec.get("default-features", True))
-        return names
-
-    def features_of(m: str, path: Path) -> frozenset[str]:
-        """The features whose sources the file is among (it is built with them, and may import what they take)."""
-        within = PurePosixPath(path.relative_to(root / m).as_posix())
-        table = manifests[m].get("features", {})
-        return frozenset(name for name, spec in table.items()
-                         if isinstance(spec, dict) and any(within.match(pattern) for pattern in spec.get("sources", [])))
-
-    reached: dict[tuple[str, bool, frozenset[str]], set[str]] = {}
-    for m, path in sources:
-        rel = path.relative_to(root).as_posix()
-        tests = rel.startswith(m + "/tests/")
-        key = (m, tests, frozenset() if tests else features_of(m, path))  # a package's own tests are built with its defaults
-        if key not in reached:
-            reached[key] = reach(*key)
-        for module in sorted(set(IMPORTED_MODULE.findall(texts[path]))):
-            package = owner.get(module)
-            if package and package not in reached[key]:
-                table = "[dev-dependencies]" if tests else "[dependencies]"
-                problems.append(Problem("imports", rel, f"imports {module} of {package}, which {m}/mcpp.toml does not reach; declare it in {table}"))
-    return problems
 
 
 # The data files a schema governs: the committed schema of each kind.
@@ -686,54 +547,6 @@ def check_status(root: Path) -> list[Problem]:
 # member's default interface re-exports; one it does not list is a problem,
 # and so is one listed that is not re-exported. A feature's own module may
 # re-export what its feature brings (the fix's pattern: xengine.dynamics.matter).
-EXPORTED_IMPORT = re.compile(r"^[ \t]*export\s+import\s+([\w.]+)\s*;", re.M)
-
-
-def check_reexports(root: Path) -> list[Problem]:
-    problems = []
-    members = [m for m in workspace_members(root) if (root / m / "mcpp.toml").is_file() and m.startswith("modules/")]
-    manifests = {}
-    for m in members:
-        try:
-            manifests[m] = tomllib.loads((root / m / "mcpp.toml").read_text(encoding="utf-8"))
-        except tomllib.TOMLDecodeError:
-            continue
-    every = [m for m in workspace_members(root) if (root / m / "mcpp.toml").is_file()]
-    owner: dict[str, str] = {}
-    texts: dict[Path, str] = {}
-    for m, path in _member_sources(root, every):
-        if path.suffix != ".cppm" or "/tests/" in path.relative_to(root).as_posix():
-            continue
-        texts[path] = strip_comments(path.read_text(encoding="utf-8", errors="replace"))
-        try:
-            data = manifests.get(m) or tomllib.loads((root / m / "mcpp.toml").read_text(encoding="utf-8"))
-        except tomllib.TOMLDecodeError:
-            continue
-        for module in EXPORTED_MODULE.findall(texts[path]):
-            owner.setdefault(module, package_name(data))
-    for m, data in manifests.items():
-        name = package_name(data)
-        declared = set(data.get("package", {}).get("metadata", {}).get("openmui", {}).get("reexports", []))
-        feature_globs = [pattern for spec in data.get("features", {}).values() if isinstance(spec, dict) for pattern in spec.get("sources", [])]
-        found: dict[str, str] = {}
-        for path, text in texts.items():
-            rel = path.relative_to(root).as_posix()
-            if not rel.startswith(m + "/") or any(rel.startswith(other + "/") for other in members if other != m and other.startswith(m + "/")):
-                continue
-            if any(PurePosixPath(path.relative_to(root / m).as_posix()).match(pattern) for pattern in feature_globs):
-                continue  # a feature's module: built only with the feature
-            for module in EXPORTED_IMPORT.findall(text):
-                package = owner.get(module)
-                if not package or package == name or name.startswith(package + "."):
-                    continue  # its own, or the package it belongs under
-                found.setdefault(package, rel)
-        for package, rel in sorted(found.items()):
-            if package not in declared:
-                problems.append(Problem("module-closure", rel, f"re-exports {package} (every consumer of {name} gets its interface); "
-                                                               f"if meant, list it in {m}/mcpp.toml [package.metadata.openmui] reexports"))
-        for package in sorted(declared - set(found)):
-            problems.append(Problem("module-closure", f"{m}/mcpp.toml", f"reexports lists {package}, which no interface of {name} re-exports"))
-    return problems
 
 
 # Labels (release plan §2.1, D-189, D-199): each package states its default
@@ -880,7 +693,7 @@ def run(root: Path) -> list[Problem]:
     if unreadable:
         return unreadable  # the other rules read the manifests
     return (check_documents(root) + check_media(root) + check_operations(root) + check_skills(root) + check_agent_surface(root)
-            + check_lead(root) + check_typescript_data(root) + check_imports(root) + check_matter(root) + check_shader_inputs(root) + check_status(root) + check_reexports(root) + check_maturity(root) + check_platform_table(root))
+            + check_lead(root) + check_typescript_data(root) + check_matter(root) + check_shader_inputs(root) + check_status(root) + check_maturity(root) + check_platform_table(root))
 
 
 def self_test() -> int:
@@ -888,7 +701,6 @@ def self_test() -> int:
     cases = {
         "media": ("docs/huge.png", "x" * (1024 * 1024 + 1)),
         "agent-surface": None,
-        "imports": ("modules/ui/core/tests/i_test.cpp", "import std;\nimport hanim.core;\n"),  # a module of a package its manifest does not reach
         "typescript": ("modules/ui/core/contract/x.contract.omui.toml", "[contract.x]\nrole = \"button\"\n"),
         "ops": ("modules/ui/core/src/o.cpp", "module x;\nconstexpr auto op = mlibs::control::Operation{\"ui.wipe\", openas::Effect::irreversible};\n"),
         "documents": ("examples/x/ui/bad.view.omui.json", '{"omui": "0.1", "view": {"root": {"typ": "text"}}}'),
@@ -897,7 +709,6 @@ def self_test() -> int:
         "shader-inputs": ("modules/ui/core/x.slang", "struct VIn {\n    float3 position : TEXCOORD0;\n    float2 second : TEXCOORD4;\n};\n"),
         "maturity": None,
         "platform-table": (PLATFORMS_TABLE, '{"platforms": [{"id": "a"}], "capability": [{"id": "x", "label": "stable", "cells": {"a": {"status": "passed"}}}]}'),
-        "module-closure": ("modules/gfx/hanim/src/hanim.cppm", "export module hanim;\nexport import hanim.core;\n"),
         "status": (STATUS_FILE, "# STATUS\n\n| Task | State | Evidence |\n|---|---|---|\n| RC0.1 push | done | pushed |\n"),
         "lead": (LEAD_FEATURES, '{"feature": [{"id": "A", "project": "omui", "line": "use-safely", "title": "x", "status": "claimed"}]}\n'),
     }

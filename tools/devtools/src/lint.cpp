@@ -63,6 +63,8 @@ constexpr Rule all_rules[]{
     {"platforms", "a package on the Web depends only on packages that say they are (D-84)"},
     {"pins", "a root's graph-wide pin is declared, the same, by every member and template that reaches it"},
     {"closure", "the dependency closures the lint names stay small (D-55)"},
+    {"imports", "a source imports only modules of packages its manifest reaches (tests: dev-dependencies too)"},
+    {"module-closure", "a library's interface re-exports another package only where its manifest lists it (reexports)"},
 };
 
 bool starts_with_any(std::string_view text, std::span<const char* const> prefixes) {
@@ -388,7 +390,7 @@ std::vector<Problem> run_with(const fs::path& root, std::span<const std::string>
     const bool readable = std::ranges::none_of(problems, [](const Problem& problem) { return problem.rule == "toml"; });
     if (readable) {  // the other rules read the manifests
         for (auto&& found : {check_projects(workspace), check_layout(workspace), check_licences(workspace), check_platforms(workspace),
-                             check_pins(workspace), check_closures(workspace, closures)})
+                             check_pins(workspace), check_closures(workspace, closures), check_modules(workspace)})
             std::ranges::move(found, std::back_inserter(problems));
     }
     std::ranges::move(check_sources(root, owners), std::back_inserter(problems));
@@ -413,6 +415,7 @@ struct Planted {
     std::string root_prefix;                          // before the root's [workspace]
     std::string licences;                             // more lines for tools/lint/licenses.toml
     std::vector<Closure> closures;                    // the closure rules the case runs with
+    std::map<std::string, std::string> files;         // more files the case needs
 };
 
 void plant(const fs::path& root, const Planted& planted, const fs::path& owners_table) {
@@ -449,6 +452,7 @@ void plant(const fs::path& root, const Planted& planted, const fs::path& owners_
               std::format("[package]\n{}\nversion = \"0.1.0\"\n{}{}\n[package.metadata.openmui]\nmaturity = \"stable\"\n", names[member],
                           hanim ? "[build]\ncxxflags = [\"-ffp-contract=off\"]\n" : "", extra == planted.dependencies.end() ? "" : extra->second));
     }
+    for (const auto& [path, text] : planted.files) write(root / path_of(path), text);
     if (!planted.path.empty()) write(root / path_of(planted.path), planted.text);
 }
 
@@ -486,6 +490,12 @@ int self_test(const fs::path& repository, const fs::path& scratch, std::ostream&
          .root_prefix = "[package]\nname = \"root\"\nversion = \"0.1.0\"\n[package.metadata.openmui.pins]\n\"ns.kernel\" = \"ns.os\"\n[dependencies]\nns.kernel = \"1.0.0\"\n"},
         {.rule = "closure", .dependencies = {{"modules/gfx/hanim", "[dependencies]\nhanim.core = { path = \"../../base/hanim/core\" }\n"}},
          .closures = {{"hanim", {}, {"hanim.core"}}}},  // planted: hanim may not reach its core
+        // what the sources import: a module of a package the manifest does not reach; a re-export not listed
+        {.rule = "imports", .path = "modules/ui/core/tests/i_test.cpp", .text = "import std;\nimport hanim.core;\n",
+         .files = {{"modules/base/hanim/core/src/core.cppm", "export module hanim.core;\n"}}},
+        {.rule = "module-closure", .path = "modules/gfx/hanim/src/hanim.cppm", .text = "export module hanim;\nexport import hanim.core;\n",
+         .dependencies = {{"modules/gfx/hanim", "[dependencies]\nhanim.core = { path = \"../../base/hanim/core\" }\n"}},
+         .files = {{"modules/base/hanim/core/src/core.cppm", "export module hanim.core;\n"}}},
     };
     // The owners' samples come from the repository's own table.
     const fs::path table = owners_file(repository);

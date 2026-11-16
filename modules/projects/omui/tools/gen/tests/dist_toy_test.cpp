@@ -341,7 +341,7 @@ UTest cases{"gen.dist_toy", [] {
         const auto result = gen::package_for_toy(p); expect(result.has_value()) << (result ? "" : result.error()); if (!result) return;
         const auto html = read(p.out / "index.html");
         expect(html.contains("var omuiAssetBytes = {") && html.contains("window.omuiLoad = {") && html.contains("new CustomEvent('omui-load'"));
-        expect(html.contains("this.focus(); });\n</script>\n<script src=\"")) << "the inline loader closes before the external launcher script";
+        expect(html.contains("this.focus(); });\n</script>\n<script defer src=\"")) << "the inline loader closes before the external launcher script, deferred (fetched once)";
         expect(html.contains("fontBytes: omuiFontBytes") && html.contains("omuiFontRecords[url]") && html.contains("record.buffer = null")) << "explicit DOM font consumers share URL transfers and release installed byte buffers";
         expect(html.contains("basis: 'decoded'") && html.contains("WebAssembly.instantiateStreaming(body.response, imports)"));
         expect(html.contains("headers.delete('Content-Length')") && html.contains("headers.delete('Content-Encoding')"));

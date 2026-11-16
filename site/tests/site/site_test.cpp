@@ -124,7 +124,7 @@ constexpr std::string_view page = R"(<!doctype html>
 <div id="status">Loading…</div>
 <script>var omuiFonts = [["Inter.ttf", "assets/4304c4ca3090.ttf"]];
 var Module = { canvas: document.getElementById('canvas'), onRuntimeInitialized: function () { document.getElementById('status').remove(); } };</script>
-<script src="omui-site.js"></script>
+<script defer src="omui-site.js"></script>
 </body>
 </html>
 )";
@@ -1258,7 +1258,7 @@ static UTest cases{"site", [] {
         const std::string& p = *out;
         expect(p.find("<html lang=\"zh-CN\">") != std::string::npos) << "the page's language";
         const auto main = p.find("<main id=\"omui-static\""), canvas = p.find("<canvas id=\"canvas\""), hide = p.find("window.omuiHasPresented"),
-                   loader = p.find("<script src=\"omui-site.js\">");
+                   loader = p.find("<script defer src=\"omui-site.js\">");
         expect(main < canvas) << "the static page before the canvas";
         expect(hide != std::string::npos && hide < loader) << "hidden by a script before the program's";
         expect(p.find("#omui-static{") < p.find("</head>")) << "its style in the head";

@@ -620,7 +620,10 @@ window.addEventListener('error', function (event) {
 document.getElementById('canvas').addEventListener('pointerdown', function () { this.focus(); });
 )";
     html += "</script>\n";
-    html += std::format("<script src=\"{}\"></script>\n</body>\n</html>\n", js);
+    // Deferred, though it is the page's last element (so it runs as it would anyway): a parser-blocking script is
+    // fetched twice by Chrome 157 when it caches nothing (the preload scanner's request and the parser's), 51 KB
+    // over the delivery budget measured without a cache (red 106); deferred, the two are one.
+    html += std::format("<script defer src=\"{}\"></script>\n</body>\n</html>\n", js);
     return html;
 }
 

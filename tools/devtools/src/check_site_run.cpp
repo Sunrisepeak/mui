@@ -138,9 +138,9 @@ int site(const fs::path& root, const fs::path& built, std::vector<std::string> n
                                           target / "site-perf-no-cache-requests.report.omui.json"});
             write_report(target / "site-perf-no-cache.report.omui.json", uncached);
             std::cout
-                << std::format("site delivery without HTTP cache: {} bytes, first frame {} ms\n",
+                << std::format("site delivery without HTTP cache: {} bytes, first frame {} ms ({})\n",
                                said(dig(uncached, "transfer", "total")),
-                               fixed(at(uncached, "first_frame_ms"), 0));
+                               fixed(at(uncached, "first_frame_ms"), 0), text(at(uncached, "browser")));
             print_budgets(uncached);
             if (!cdp::truthy(at(uncached, "ok"))) {
                 std::cout << "::error::delivery without HTTP cache is over the same budget\n";

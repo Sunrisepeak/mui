@@ -1899,7 +1899,7 @@ std::optional<std::string> inject(std::string_view page, std::string_view fragme
     std::string out(page);
     const auto canvas = out.find("<canvas id=\"canvas\"");
     const auto head = out.find("</head>");
-    const auto loader = out.rfind("<script src=\"");
+    const auto loader = out.rfind("<script defer src=\"");
     if (canvas == std::string::npos || head == std::string::npos || loader == std::string::npos || loader < canvas) return std::nullopt;
     if (out.contains("id=\"omui-static\"")) return std::nullopt;  // once
     // The static view is handed over only after presented pixels and the live mirror agree on the route.

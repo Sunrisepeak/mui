@@ -1646,23 +1646,6 @@ Cases suite_of() {
         const std::uint32_t first = static_cast<std::uint32_t>(yard.materials.size()), sheet = static_cast<std::uint32_t>(yard.made.size() - 1);
         yard.materials.push_back({.base = {1.0f, 0.8f, 0.45f}, .roughness = 0.05f, .two_sided = true, .transmission = 1});
         yard.materials.push_back({.base = {1, 1, 1}, .roughness = 0.08f, .transmission = 1, .thickness = 2, .attenuation = {0.95f, 0.55f, 0.3f}, .attenuation_distance = 2.5f});
-        const math::Quat upright = math::Quat::about({1, 0, 0}, 1.5707964f);
-        expect(yard.world.add({.id = 40, .mesh = sheet, .material = first, .world = math::Transform{{-1.3f, 0.1f, 2.2f}, math::Quat::about({0, 1, 0}, 0.3f) * upright, {1, 1, 1}}.matrix(),
-                               .bounds = geom::bounds(yard.made[sheet].mesh)})
-                   .has_value());
-        expect(yard.world.add({.id = 41, .mesh = 2, .material = first + 1, .world = math::Transform{{1.5f, -0.2f, 2.0f}, {}, {0.8f, 0.8f, 0.8f}}.matrix(), .bounds = geom::bounds(yard.made[2].mesh)})
-                   .has_value());
-        scene::Extracted seen;
-        scene::extract(yard.world, yard.view(), seen);
-        mesh::Targets reference;
-        reference.resize(static_cast<int>(width), static_cast<int>(height));
-        mesh::Pass on_cpu;
-        // The reference with the meshes' trees: the ball's way through it is the exact one (the device estimates it
-        // from the far sides it draws).
-        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, yard.trees}, reference, {.shadows = false});
-        mesh::Glow shown_on_cpu;
-        shown_on_cpu.show(reference.light, static_cast<int>(width), static_cast<int>(height), {}, reference.colour);
-
         auto pass = mesh::gpu::Pass::make(*device, false, true);
         if (!(expect(pass.has_value()) << (pass ? "" : pass.error().message))) return;
         if (!(expect(pass->load(yard.meshes).has_value()))) return;
@@ -1679,15 +1662,49 @@ Cases suite_of() {
         const rhi::Texture light = target(rhi::Format::rgba16_float, "mesh.light"), one = target(rhi::Format::rgba16_float, "mesh.glow.one"), other = target(rhi::Format::rgba16_float, "mesh.glow.other"),
                            colour = target(rhi::Format::rgba8_unorm, "mesh.colour"), depth = target(rhi::Format::d32_float, "mesh.depth");
         if (std::ranges::any_of(all_made, [](rhi::Texture made) { return !made; })) return;
-        rhi::CommandList list;
-        pass->record(list, yard.world, seen, yard.view(), yard.materials, light, depth, width, height, {.shadows = false});
-        const mesh::gpu::Stats told = pass->last();
-        glow->record(list, light, one, other, colour, width, height, {}, {});
-        const auto submitted = device->submit(list);
-        if (!(expect(submitted.has_value()) << (submitted ? "" : submitted.error().message))) return;
-        expect(device->wait(*submitted).has_value());
-        const auto pixels = device->read(colour, rhi::Region{0, 0, width, height});
-        if (!(expect(pixels.has_value()) << (pixels ? "" : pixels.error().message))) return;
+        // The world as it stands, on the CPU and on the device.
+        struct Drawn {
+            mesh::Targets             reference;
+            std::vector<std::byte>    pixels;
+            mesh::gpu::Stats          told{};
+        };
+        const auto drawn = [&]() -> std::optional<Drawn> {
+            Drawn made;
+            scene::Extracted seen;
+            scene::extract(yard.world, yard.view(), seen);
+            made.reference.resize(static_cast<int>(width), static_cast<int>(height));
+            mesh::Pass on_cpu;
+            // The reference with the meshes' trees: the ball's way through it is the exact one (the device estimates it
+            // from the far sides it draws).
+            on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, yard.trees}, made.reference, {.shadows = false});
+            mesh::Glow shown_on_cpu;
+            shown_on_cpu.show(made.reference.light, static_cast<int>(width), static_cast<int>(height), {}, made.reference.colour);
+            rhi::CommandList list;
+            pass->record(list, yard.world, seen, yard.view(), yard.materials, light, depth, width, height, {.shadows = false});
+            made.told = pass->last();
+            glow->record(list, light, one, other, colour, width, height, {}, {});
+            const auto submitted = device->submit(list);
+            if (!(expect(submitted.has_value()) << (submitted ? "" : submitted.error().message))) return std::nullopt;
+            expect(device->wait(*submitted).has_value());
+            auto pixels = device->read(colour, rhi::Region{0, 0, width, height});
+            if (!(expect(pixels.has_value()) << (pixels ? "" : pixels.error().message))) return std::nullopt;
+            made.pixels = std::move(*pixels);
+            return made;
+        };
+        // The yard alone first (red 107): where the device is already apart from the reference with no glass there.
+        const std::optional<Drawn> alone = drawn();
+        if (!alone) return;
+        const math::Quat upright = math::Quat::about({1, 0, 0}, 1.5707964f);
+        expect(yard.world.add({.id = 40, .mesh = sheet, .material = first, .world = math::Transform{{-1.3f, 0.1f, 2.2f}, math::Quat::about({0, 1, 0}, 0.3f) * upright, {1, 1, 1}}.matrix(),
+                               .bounds = geom::bounds(yard.made[sheet].mesh)})
+                   .has_value());
+        expect(yard.world.add({.id = 41, .mesh = 2, .material = first + 1, .world = math::Transform{{1.5f, -0.2f, 2.0f}, {}, {0.8f, 0.8f, 0.8f}}.matrix(), .bounds = geom::bounds(yard.made[2].mesh)})
+                   .has_value());
+        const std::optional<Drawn> glassy = drawn();
+        if (!glassy) return;
+        const mesh::Targets& reference = glassy->reference;
+        const std::vector<std::byte>* const pixels = &glassy->pixels;
+        const auto told = glassy->told;
         keep(*pixels, "yard-glass");
         std::vector<std::byte> of_reference(reference.colour.size());
         std::memcpy(of_reference.data(), reference.colour.data(), reference.colour.size());
@@ -1738,7 +1755,18 @@ Cases suite_of() {
             const std::size_t x = pixel % width, y = pixel / width;
             return x >= left && x <= right && y >= top && y <= bottom;
         });
-        std::println("the pane's pixels past 6 levels: {} at its rim, {} on its face ({} within the ball's box)", pane_rim, pane_face, over_ball);
+        // A face pixel the yard alone already has apart by more than 2 levels: what is behind the pane differs, not the pane.
+        const auto apart_alone = std::ranges::count_if(pane_face_at, [&](std::size_t pixel) {
+            int largest = 0;
+            for (std::size_t channel = 0; channel < 3; ++channel)
+                largest = std::max(largest, std::abs(static_cast<int>(alone->reference.colour[pixel * 4 + channel]) - std::to_integer<int>(alone->pixels[pixel * 4 + channel])));
+            return largest > 2;
+        });
+        std::println("the pane's pixels past 6 levels: {} at its rim, {} on its face ({} within the ball's box, {} apart in the yard alone)", pane_rim, pane_face, over_ball, apart_alone);
+        // Where the rest are, and how far apart (the reference's and the device's colours).
+        for (const std::size_t pixel : pane_face_at | std::views::take(20))
+            std::println("  face ({}, {}): reference {} {} {}, device {} {} {}", pixel % width, pixel / width, reference.colour[pixel * 4], reference.colour[pixel * 4 + 1], reference.colour[pixel * 4 + 2],
+                         std::to_integer<int>((*pixels)[pixel * 4]), std::to_integer<int>((*pixels)[pixel * 4 + 1]), std::to_integer<int>((*pixels)[pixel * 4 + 2]));
         const std::size_t elsewhere = all.off - off_at[0] - off_at[1];
         const auto percent = [](std::size_t part, std::size_t whole) { return 100.0 * static_cast<double>(part) / static_cast<double>(std::max<std::size_t>(whole, 1)); };
         std::println("light through a pane and a ball of glass: {} of {} pixels further than 6 levels from the reference, mean {:.3f}, worst {}; elsewhere {}; the pane {} of {} ({:.2f}%); the ball {} of {} ({:.2f}%), mean {:.2f} levels; {} sizes kept",

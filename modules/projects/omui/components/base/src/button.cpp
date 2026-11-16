@@ -14,7 +14,6 @@ namespace {
 constexpr float height = 36;
 constexpr float padding_x = 16;
 constexpr float padding_y = 6;  // a label wrapped onto more lines keeps off the edge
-constexpr float press_scale = 0.03f;  // a pressed button is this much smaller
 
 }  // namespace
 
@@ -86,12 +85,7 @@ void Button::paint(PaintContext& ctx) const {
     // A pack may round its buttons apart from other controls (`radius.button`; Material: a pill).
     corner_ = ctx.theme.corner("button", ctx.theme.corner("medium", 8));
     const CornerRadii radii = CornerRadii::all(corner_).fitted(ctx.size);
-    const float s = 1 - press_scale * p;
-    const bool scaled = s != 1;
-    if (scaled) {
-        const Point center = box.center();
-        ctx.list.push_transform(Affine::translate(center.x, center.y) * Affine::scale(s, s) * Affine::translate(-center.x, -center.y));
-    }
+    const parts::Pressed pressed(ctx, box, p);
     if (off) ctx.list.push_layer(0.5f, xrender::BlendMode::normal, {}, {}, box);
 
     Color fill = mix(c.base, c.hover, h);
@@ -110,7 +104,6 @@ void Button::paint(PaintContext& ctx) const {
     label_.paint(ctx, {ctx.content.x + (ctx.content.width - t.width) / 2, ctx.content.y + (ctx.content.height - t.height) / 2}, text);
 
     if (off) ctx.list.pop_layer();
-    if (scaled) ctx.list.pop_transform();
 }
 
 void Button::paint_over(PaintContext& ctx) const {

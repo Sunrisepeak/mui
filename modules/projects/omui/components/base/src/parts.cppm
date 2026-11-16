@@ -48,6 +48,23 @@ void shadow(PaintContext& ctx, std::string_view token, const Rect& box, const Co
 void depth(PaintContext& ctx, std::string_view token, const Rect& box, const CornerRadii& radii, bool hovered, bool pressed,
            std::optional<ShadowToken> fallback = std::nullopt, Color object = Color::transparent());
 
+// A pressed control is this much smaller, about its centre (the component checklist's B4: buttons, checkboxes).
+inline constexpr float press_scale = 0.03f;
+
+// While it lives, what is drawn is scaled about `box`'s centre by 1 − press_scale × `pressed` (0 … 1, a little past
+// either end as a spring overshoots); undone when it goes. Nothing is pushed when nothing is pressed.
+class Pressed {
+public:
+    Pressed(PaintContext& ctx, const Rect& box, float pressed);
+    ~Pressed();
+    Pressed(const Pressed&) = delete;
+    Pressed& operator=(const Pressed&) = delete;
+
+private:
+    PaintContext& ctx_;
+    bool          pushed_ = false;
+};
+
 // One line (or a wrapped block) of text in a theme text style, shaped when
 // its text, style, colour or width changes and not otherwise.
 class Label {

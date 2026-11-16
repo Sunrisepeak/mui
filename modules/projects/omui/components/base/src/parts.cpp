@@ -148,4 +148,16 @@ void Label::paint(PaintContext& ctx, Point origin, Color color) {
     xrender::text::paint(shaped(ctx.services, color, width_ < 0 ? std::numeric_limits<float>::infinity() : width_), ctx.list, origin);
 }
 
+Pressed::Pressed(PaintContext& ctx, const Rect& box, float pressed) : ctx_(ctx) {
+    const float scale = 1 - press_scale * pressed;
+    if (scale == 1) return;
+    const Point center = box.center();
+    ctx.list.push_transform(Affine::translate(center.x, center.y) * Affine::scale(scale, scale) * Affine::translate(-center.x, -center.y));
+    pushed_ = true;
+}
+
+Pressed::~Pressed() {
+    if (pushed_) ctx_.list.pop_transform();
+}
+
 }  // namespace omui::parts

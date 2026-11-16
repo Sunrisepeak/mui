@@ -172,6 +172,9 @@ void Checkbox::paint(PaintContext& ctx) const {
 
     // The state's halo, a circle round the box (`check_halo:hovered` / `:pressed`, in the accent).
     parts::depth(ctx, "check_halo", b, CornerRadii::all(box_size / 2), hover_ > 0, ctx.state.pressed && !off, std::nullopt, th.color("accent"));
+    // Pressed, the box is a little smaller, as a button is (its halo stays its size).
+    std::optional<parts::Pressed> pressed;
+    pressed.emplace(ctx, b, ctx.state.pressed && !off ? 1.0f : 0.0f);
     const Color empty = mix(th.color("surface"), th.color("surface_variant"), static_cast<float>(hover_));
     ctx.list.fill_round_rect(b, r, xrender::Paint::solid(mix(empty, th.color("accent"), k)));
     if (k < 1) {
@@ -202,6 +205,7 @@ void Checkbox::paint(PaintContext& ctx) const {
             ctx.list.stroke_path(check, st, xrender::Paint::solid(mark));
         }
     }
+    pressed.reset();  // the label keeps its size
     if (!label_.text().empty()) {
         const Color lc = label_color(th, false);
         const Size ts = label_.measure(ctx.services, lc, std::max(0.0f, content.width - box_size - gap));

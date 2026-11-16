@@ -59,8 +59,8 @@ export default defineTheme({
       l: 16,
       xl: 24,
       xxl: 32,
-      // A switch's thumb, pressed, stretches by this towards where it will go: 0, it keeps its shape.
-      switch_press_stretch: 0,
+      // A switch's thumb, pressed, stretches by this towards where it will go (as iOS does).
+      switch_press_stretch: 6,
     },
 
     radius: {
@@ -92,14 +92,15 @@ export default defineTheme({
       switch_thumb: { x: 0, y: 1.5, blur: 3, spread: 0, color: "#0f172a / 0.16", ambient: { x: 0, y: 0, blur: 0.5, spread: 0.5, color: "#0f172a / 0.1" } },
       "switch_thumb:hovered": { x: 0, y: 2, blur: 5, spread: 0, color: "#0f172a / 0.18", ambient: { x: 0, y: 0, blur: 0.5, spread: 0.5, color: "#0f172a / 0.1" } },
       "switch_thumb:pressed": { x: 0, y: 0.5, blur: 1.5, spread: 0, color: "#0f172a / 0.18", ambient: { x: 0, y: 0, blur: 0.5, spread: 0.5, color: "#0f172a / 0.1" } },
-      // The state's halo round a switch's thumb, a checkbox, a slider's thumb, in the
-      // control's own colour (tint): none yet — the refined overlay stages them.
-      "switch_halo:hovered": { x: 0, y: 0, blur: 0, spread: 0, color: "#000000 / 0" },
-      "switch_halo:pressed": { x: 0, y: 0, blur: 0, spread: 0, color: "#000000 / 0" },
-      "check_halo:hovered": { x: 0, y: 0, blur: 0, spread: 0, color: "#000000 / 0" },
-      "check_halo:pressed": { x: 0, y: 0, blur: 0, spread: 0, color: "#000000 / 0" },
-      "thumb_halo:hovered": { x: 0, y: 0, blur: 0, spread: 0, color: "#000000 / 0" },
-      "thumb_halo:pressed": { x: 0, y: 0, blur: 0, spread: 0, color: "#000000 / 0" },
+      // The state's halo round a switch's thumb, a checkbox, a slider's thumb, in the control's own colour
+      // (tint 1): under the pointer, and larger and deeper pressed (the checklist's B4 second pass, beside
+      // Material 3 in compare-v1).
+      "switch_halo:hovered": { x: 0, y: 0, blur: 0, spread: 7, color: "#4f46e5 / 0.08", tint: 1 },
+      "switch_halo:pressed": { x: 0, y: 0, blur: 0, spread: 12, color: "#4f46e5 / 0.24", tint: 1 },
+      "check_halo:hovered": { x: 0, y: 0, blur: 0, spread: 11, color: "#4f46e5 / 0.08", tint: 1 },
+      "check_halo:pressed": { x: 0, y: 0, blur: 0, spread: 11, color: "#4f46e5 / 0.16", tint: 1 },
+      "thumb_halo:hovered": { x: 0, y: 0, blur: 0, spread: 7, color: "#4f46e5 / 0.08", tint: 1 },
+      "thumb_halo:pressed": { x: 0, y: 0, blur: 0, spread: 12, color: "#4f46e5 / 0.22", tint: 1 },
     },
   },
 

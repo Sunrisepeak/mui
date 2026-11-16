@@ -41,6 +41,6 @@ UTest cases{"devtools.lint", [] {
     "a rule named alone: only its problems"_test = [] {
         const std::vector<std::string> only{"macros"};
         for (const auto& problem : lint::run(root(), only)) expect(eq(problem.rule, std::string("macros")));
-        expect(eq(lint::rules().size(), std::size_t{42}));
+        expect(eq(lint::rules().size(), std::size_t{43}));
     };
 }};

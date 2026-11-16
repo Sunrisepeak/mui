@@ -2,7 +2,7 @@
 # (D-86): tracks of clips in exact time (hanim.timeline), a ruler, markers
 # and a playhead; clips selected, moved, trimmed, split and removed by the
 # pointer, the keys or an agent's actions, every edit undone exactly.
-# Contract-first: contract/timeline.contract.omui.toml becomes the base,
+# Contract-first: contract/timeline_editor.contract.xdef.ts becomes the base,
 # builders, stubs and schema when it builds (omui.build.contracts).
 [package]
 namespace   = "omui.ui"

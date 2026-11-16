@@ -4,7 +4,6 @@ version = "0.1.0"
 
 [package.metadata.openmui]
 kind      = "native"
-contracts = ["native/*.native.omui.toml"]
 
 [targets.{{project.name}}]
 kind = "lib"

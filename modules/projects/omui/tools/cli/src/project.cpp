@@ -20,7 +20,7 @@ namespace omui::cli {
 
 namespace {
 
-// The templates `omui new` offers (modules/projects/omui/templates): TypeScript first (D-138).
+// The templates `omui new` offers (modules/projects/omui/sdk/templates, carried by omui.sdk): TypeScript first (D-138).
 constexpr std::array<std::pair<std::string_view, std::string_view>, 5> templates{{
     {"app-ts", "an application in TypeScript, run by the player: no C++ to write (the default)"},
     {"app-cpp", "an application in C++"},
@@ -410,7 +410,7 @@ int operation(std::string_view op, const mlibs::agent::Arguments& a, std::ostrea
             err << std::format("no template `{}` (omui templates)\n", chosen);
             return 2;
         }
-        ran = run_tool("mcpp", {"new", a.value("name").value_or(""), "--template", "openmui:" + chosen}, err);
+        ran = run_tool("mcpp", {"new", a.value("name").value_or(""), "--template", "omui.sdk:" + chosen}, err);
     } else if (name == "test") {
         std::vector<std::string> args{"test"};
         std::ranges::move(a.values("rest"), std::back_inserter(args));

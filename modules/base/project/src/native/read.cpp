@@ -120,7 +120,8 @@ std::expected<Project, std::string> read(const std::filesystem::path& given) {
             if (walker->is_directory(error)) {
                 const bool nested = package_dirs.contains(walker->path()) || std::filesystem::exists(walker->path() / "mcpp.toml", error) ||
                                     std::filesystem::exists(walker->path() / ".git", error);
-                if (nested || std::ranges::contains(build_trees, leaf)) walker.disable_recursion_pending();
+                // A dot-directory is a tool's state (.openmui, .mcpp, .git), not the package's sources.
+                if (nested || leaf.starts_with('.') || std::ranges::contains(build_trees, leaf)) walker.disable_recursion_pending();
                 continue;
             }
             package.files.push_back(generic(walker->path().lexically_relative(package.dir)));

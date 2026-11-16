@@ -7,6 +7,7 @@ The SDK's umbrella: `import omui;` gives an application the runtime (signals, vi
 | the umbrella, `omui::run`, the development host's transport | stable | re-exports omui's packages (`reexports` in the manifest) |
 | runtime generation (`src/generate/`, module `omui.generate`) | preview | below |
 | Android's host | preview | `lower` in the manifest |
+| the templates (`templates/`: app-ts, app-cpp, component, native, theme) | stable | `omui new NAME [--template T]` is `mcpp new NAME --template omui.sdk:T`: this package's archive carries them |
 
 ## Agent surface
 

@@ -277,7 +277,7 @@ std::vector<Problem> check_pins(const Workspace& workspace) {
     // A template's project depends on openmui itself, so it reaches every pinned package.
     std::vector<std::pair<std::string, toml::table>> templates;
     std::error_code error;
-    const fs::path directory = workspace.root / "modules/projects/omui/templates";
+    const fs::path directory = workspace.root / "modules/projects/omui/sdk/templates";
     std::vector<fs::path> files;
     for (const auto& entry : fs::directory_iterator(directory, error))
         if (fs::exists(entry.path() / "mcpp.toml.in")) files.push_back(entry.path() / "mcpp.toml.in");

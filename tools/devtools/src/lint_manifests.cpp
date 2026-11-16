@@ -378,7 +378,7 @@ std::vector<Problem> check_manifests(const Workspace& workspace) {
         }
         if (name != "mcpp.toml") continue;
         const std::string directory = utf8_of(it->path().parent_path().lexically_relative(workspace.root));
-        if (directory == "." || listed.contains(directory) || directory.starts_with("modules/projects/omui/templates/") || has_skipped_part(directory))
+        if (directory == "." || listed.contains(directory) || directory.starts_with("modules/projects/omui/sdk/templates/") || has_skipped_part(directory))
             continue;
         manifests.push_back(directory);
     }

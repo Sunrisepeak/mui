@@ -25,6 +25,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "build-stage: omui's build plugins"
+primary-module = "*"  # a collection: each plugin its own module (omui.build.plan, .contracts, .embed, .toy)
 kind = "rules"
 
 [build]

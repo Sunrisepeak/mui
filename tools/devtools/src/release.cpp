@@ -582,7 +582,7 @@ std::map<std::string, std::string> read_sums(const fs::path& file) {
             name.remove_prefix(1);
         while (!name.empty() && name.back() == '\r')
             name.remove_suffix(1);
-        sums[std::string(fs::path(std::string(name)).filename().string())] =
+        sums[mcpplibs::os::fs::utf8(mcpplibs::os::fs::from_utf8(std::string(name)).filename())] =
             std::string(line.substr(0, 64));
     }
     return sums;

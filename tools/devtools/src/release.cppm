@@ -11,7 +11,7 @@ export namespace omui::devtools::release {
 
 // Where the templates are, and the package `mcpp new --template` takes them from: their
 // `{{self.name}}`.
-inline constexpr std::string_view templates_directory = "modules/projects/omui/templates";
+inline constexpr std::string_view templates_directory = "modules/projects/omui/sdk/templates";
 inline constexpr std::string_view template_package = "omui.sdk";
 
 struct Package {

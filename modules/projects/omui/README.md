@@ -21,7 +21,6 @@ The reference implementation of the [openmui](../../../spec) specification: a vi
 | [components](components) | The component libraries (`openmui.ui.*`) |
 | [lang](lang) | The language binding: TypeScript, over the C ABI |
 | [cts](cts) | `omui.cts`: the specification's level S run in every language, on mlibs.cts |
-| [templates](templates) | Application, component, native-module and theme templates (`omui new`) |
 
 | Package | |
 |---|---|

@@ -893,12 +893,10 @@ int release_index(const cmd::ParsedArgs& options, const fs::path& root) {
     fs::path index;
     if (const auto given = options.value("index"))
         index = mcpplibs::os::fs::from_utf8(*given);
-    else if (const char* home = std::getenv("MCPP_HOME"))
-        index = fs::path(home) / "indices" / "mcpplibs";
-    else if (const char* user = std::getenv("HOME"))
-        index = fs::path(user) / ".mcpp" / "indices" / "mcpplibs";
-    else if (const char* profile = std::getenv("USERPROFILE"))
-        index = fs::path(profile) / ".mcpp" / "indices" / "mcpplibs";
+    else if (const auto home = mcpplibs::os::env::get("MCPP_HOME"); home && !home->empty())
+        index = mcpplibs::os::fs::from_utf8(*home) / "indices" / "mcpplibs";
+    else if (const auto user = mcpplibs::os::env::get(mcpplibs::os::env::get("HOME") ? "HOME" : "USERPROFILE"); user && !user->empty())
+        index = mcpplibs::os::fs::from_utf8(*user) / ".mcpp" / "indices" / "mcpplibs";
     const auto missing = release::missing_from(index, made->external);
 
     std::map<std::string, std::map<std::string, int>> counts;  // project → maturity → packages

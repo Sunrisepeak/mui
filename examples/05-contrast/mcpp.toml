@@ -24,7 +24,6 @@ kind    = "app"
 id      = "org.openmui.contrast"
 title   = "Contrast"
 size    = "560x480"
-natives = ["native/*.native.omui.toml"]
 
 [package.metadata.openmui.scripts]
 main = "logic/main.ts"

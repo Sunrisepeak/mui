@@ -245,6 +245,9 @@ cmd::App app() {
                         .subcommand(cmd::App("agent-e2e")
                                         .description("omui agent and omui mcp against example 07 and the Reaction lab, each a process of its own")
                                         .option(Option("profile").takes_value().value_name("P")))
+                        .subcommand(cmd::App("android")
+                                        .description("Example 01 as an APK, checked inside; on the emulator where there is KVM: started, a tap, Back")
+                                        .option(Option("out").takes_value().value_name("DIR").help("the screenshots and logs (default: the system's temporary directory, omui-android)")))
                         .subcommand(cmd::App("atspi")
                                         .description("Examples 03 and 07 built, then read and operated through AT-SPI on a private session bus")
                                         .option(Option("profile").takes_value().value_name("P").help("the examples' build profile"))))
@@ -730,7 +733,7 @@ int main(int argc, char** argv) {
         namespace step = omui::devtools::check;
         const auto& sub = parsed->subcommand()->get();
         if (!sub.has_subcommand()) {
-            std::cerr << "usage: omui-devtools check features | templates | reflect [--profile P] | sweep [--profile P] | tools-e2e | agent-e2e | toy [PACKAGE…] | size -p MEMBER [--json F] [--markdown F] [--budget F] | atspi [--profile P]\n";
+            std::cerr << "usage: omui-devtools check features | templates | reflect [--profile P] | sweep [--profile P] | tools-e2e | agent-e2e | android [--out DIR] | toy [PACKAGE…] | size -p MEMBER [--json F] [--markdown F] [--budget F] | atspi [--profile P]\n";
             return 2;
         }
         const auto& given = sub.subcommand()->get();
@@ -752,6 +755,8 @@ int main(int argc, char** argv) {
         std::vector<std::string> profile;
         if (const auto chosen = given.value("profile")) profile = {"--profile", *chosen};
         if (sub.subcommand_name() == "sweep") return step::sweep(root, profile);
+        if (sub.subcommand_name() == "android")
+            return step::android(root, given.value("out") ? mcpplibs::os::fs::from_utf8(*given.value("out")) : fs::temp_directory_path() / "omui-android");
         if (sub.subcommand_name() == "tools-e2e") return step::tools_e2e(root, profile);
         if (sub.subcommand_name() == "agent-e2e") return step::agent_e2e(root, profile);
         if (sub.subcommand_name() == "toy") {

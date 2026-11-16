@@ -147,9 +147,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
       - name: Example 01 as an APK, on the emulator
-        run: tools/ci/android.sh
-        env:
-          OMUI_ANDROID_OUT: ${{ runner.temp }}/omui-android
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- check android --out '${{ runner.temp }}/omui-android'
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -42,6 +42,13 @@
 //           readme-<showcase>: a still, or an animated WebP or PNG under 1 MiB; deterministic, so committed in
 //           showcase/<showcase>/media/), and the site's stills and two animations under site/media/: run the
 //           tests and copy what they drew, or (`check`) hold the committed files to what the tests drew.
+// android   omui on Android (W10): example 01 packed into an APK (mcpp.plugins' dist-apk; the platform's
+//           NativeActivity, no Java) and checked inside — the application's library, the C++ runtime, the default
+//           fonts with their licences; then, where the machine can run an emulator (KVM), installed on Android 7.0
+//           (API 24, x86_64), started and driven through the platform's own input: it says it runs, a tap on its
+//           button changes what it shows, Back with nothing open ends it. The emulator, its system image and adb are
+//           xlings packages; an AVD is made here (no avdmanager), its data in /dev/shm where that has room (the
+//           emulator asks for 7 GB free). Screenshots go to `out`.
 // atspi     examples 03 and 07 built and read and operated through AT-SPI (`omui-devtools atspi`) on a private
 //           session bus (dbus-run-session), as a screen reader does. Linux x86_64 (AccessKit's library);
 //           at-spi2-core.
@@ -68,6 +75,7 @@ struct Size {
 [[nodiscard]] int agent_e2e(const std::filesystem::path& root, const std::vector<std::string>& profile_args);
 // shows: the showcases' directory names and "site"; none, every showcase and the site.
 [[nodiscard]] int media(const std::filesystem::path& root, std::vector<std::string> shows, bool check_only);
+[[nodiscard]] int android(const std::filesystem::path& root, const std::filesystem::path& out);
 [[nodiscard]] int atspi(const std::filesystem::path& root, const std::vector<std::string>& profile_args);
 
 // A template's file rendered: each {{name}} replaced by its value; or the first name it has no value for.

@@ -22,7 +22,7 @@
 - **CPU reference rendering, simulation and the semantic tree**, macOS arm64: CI row macos-15
 - **CPU reference rendering, simulation and the semantic tree**, Windows x64: CI row windows-2022
 - **CPU reference rendering, simulation and the semantic tree**, Linux arm64: CI row ubuntu-24.04-arm
-- **CPU reference rendering, simulation and the semantic tree**, Android: CI row android x86_64 (emulator; tools/ci/android.sh)
+- **CPU reference rendering, simulation and the semantic tree**, Android: CI row android x86_64 (emulator; omui-devtools check android)
 - **2D on a GPU device (xrender, mlibs.rhi)**, Linux x64: RTX 4080 headless (omui-devtools gpu --real); lavapipe on CI (omui-devtools gpu)
 - **2D on a GPU device (xrender, mlibs.rhi)**, Web (wasm32): 缺: which WebGPU adapter tools/ci/browser.sh's headless Chromium runs on is not recorded; a real browser on a real GPU
 - **2D on a GPU device (xrender, mlibs.rhi)**, macOS arm64: CI row macos-15: the runner's Apple Paravirtual Metal device (omui-devtools gpu, cocoa)

@@ -48,7 +48,7 @@ mlibs.math       = { path = "../../modules/base/math" }
 mlibs.utils      = { path = "../../modules/base/utils" }
 
 [build-dependencies]
-omui.build.embed = { path = "../../mcpp/embed", host-module = true }
+omui.build = { path = "../../mcpp/build", host-module = true }
 
 [dev-dependencies]
 mcpplibs.mtest   = "0.8.4"

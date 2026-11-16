@@ -42,7 +42,7 @@ hanim.core        = { path = "../../modules/projects/hanim/core" }
 nlohmann.json        = "3.12.0"
 
 [build-dependencies]
-omui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
+omui.build = { path = "../../mcpp/build", host-module = true }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"

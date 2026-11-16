@@ -17,4 +17,4 @@ omui.theme = "{{self.version}}"  # the default theme it builds on is one of its 
 
 # The rule that embeds themes/ in the package when this builds.
 [build-dependencies]
-omui.build.embed = { version = "{{self.version}}", host-module = true }
+omui.build = { version = "{{self.version}}", host-module = true }

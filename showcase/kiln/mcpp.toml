@@ -53,7 +53,7 @@ mlibs.json       = { path = "../../modules/base/json" }
 openlifa.openas  = "0.2.0"
 
 [build-dependencies]
-omui.build.embed = { path = "../../mcpp/embed", host-module = true }
+omui.build = { path = "../../mcpp/build", host-module = true }
 
 [dev-dependencies]
 mcpplibs.mtest   = "0.8.4"

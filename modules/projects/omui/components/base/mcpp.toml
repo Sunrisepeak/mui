@@ -42,7 +42,7 @@ mlibs.utils    = { path = "../../../../base/utils" }
 mlibs.agent    = { path = "../../../../base/agent" }
 
 [build-dependencies]
-omui.build.contracts = { path = "../../../../../mcpp/contracts", host-module = true }
+omui.build = { path = "../../../../../mcpp/build", host-module = true }
 
 # The files of tests/base/ are one program, run a file at a time: one link of the closure for all of them.
 [test]

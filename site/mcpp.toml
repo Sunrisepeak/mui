@@ -62,9 +62,7 @@ omui.inspector   = { path = "../tools/inspector" }
 mcpplibs.os         = "0.4.4"
 
 [build-dependencies]
-omui.build.contracts = { path = "../mcpp/contracts", host-module = true }
-omui.build.embed     = { path = "../mcpp/embed", host-module = true }
-omui.build.toy       = { path = "../mcpp/toy", host-module = true }
+omui.build = { path = "../mcpp/build", host-module = true }
 
 # The files of tests/site/ are one program (`site`), run a file at a time: one link of the site's closure, not
 # thirty. tests/frames_test.cpp has a beginning of its own and stays a program.

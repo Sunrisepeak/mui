@@ -171,11 +171,10 @@ std::expected<void, std::string> instantiate(const fs::path& root, std::string_v
             std::erase_if(bare, [](char c) { return c == ' ' || c == '\t'; });
             if (bare == std::format("{}=0.1.0", package)) line = std::format("{} = {{ path = \"{}/{}\" }}", package, here, relative);
         }
-        for (const std::string_view plugin : {"contracts", "embed", "toy"}) {
-            const std::string published = std::format("omui.build.{} = {{ version = \"0.1.0\", host-module = true }}", plugin);
-            if (const auto at = line.find(published); at != std::string::npos)
-                line.replace(at, published.size(), std::format("omui.build.{} = {{ path = \"{}/mcpp/{}\", host-module = true }}", plugin, here, plugin));
-        }
+        // The build plugins (one package, omui.build).
+        const std::string published = "omui.build = { version = \"0.1.0\", host-module = true }";
+        if (const auto at = line.find(published); at != std::string::npos)
+            line.replace(at, published.size(), std::format("omui.build = {{ path = \"{}/mcpp/build\", host-module = true }}", here));
         out += line + "\n";
     }
     out.pop_back();

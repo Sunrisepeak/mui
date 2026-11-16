@@ -43,7 +43,7 @@ omui.ui.canvas     = { path = "../../modules/projects/omui/components/canvas" }
 omui.ui.markdown   = { path = "../../modules/projects/omui/components/markdown" }
 
 [build-dependencies]
-omui.build.embed = { path = "../../mcpp/embed", host-module = true }
+omui.build = { path = "../../mcpp/build", host-module = true }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"

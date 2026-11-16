@@ -53,9 +53,7 @@ omui.lang = { path = "../../modules/projects/omui/lang" }
 "xengine.audio.device" = { path = "../../modules/projects/xengine/kernel/audio/device" }
 
 [build-dependencies]
-omui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
-omui.build.embed     = { path = "../../mcpp/embed", host-module = true }
-omui.build.toy       = { path = "../../mcpp/toy", host-module = true }
+omui.build = { path = "../../mcpp/build", host-module = true }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"

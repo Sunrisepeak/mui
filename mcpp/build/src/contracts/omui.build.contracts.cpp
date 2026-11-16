@@ -8,11 +8,11 @@ namespace omui::build {
 
 namespace {
 
-// spec/registry in the openmui tree this plugin is part of, found by the
-// plugin's qualified name (a build may hold other packages called `contracts`).
+// spec/registry in the openmui tree this plugin is part of, found by its
+// package's qualified name (a build may hold other packages called `build`).
 std::string default_registry() {
-    const char* self = mcpp::dep_dir("omui.build.contracts");
-    const std::string dir = self && *self ? std::string(self) : std::string(mcpp::dep_dir("contracts"));
+    const char* self = mcpp::dep_dir("omui.build");
+    const std::string dir = self && *self ? std::string(self) : std::string(mcpp::dep_dir("build"));
     return utf8((std::filesystem::path(dir) / ".." / ".." / "spec" / "registry").lexically_normal());
 }
 

@@ -36,7 +36,7 @@ mcpplibs.cmdline = "0.0.3"
 mcpplibs.os      = "0.4.4"
 
 [build-dependencies]
-omui.build.toy = { path = "../../../mcpp/toy", host-module = true }
+omui.build = { path = "../../../mcpp/build", host-module = true }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"

@@ -16,4 +16,4 @@ sources = ["src/*.cppm", "src/*.cpp"]
 
 # The rule that makes C++, stubs and a schema from contract/ when this builds.
 [build-dependencies]
-omui.build.contracts = { version = "{{self.version}}", host-module = true }
+omui.build = { version = "{{self.version}}", host-module = true }

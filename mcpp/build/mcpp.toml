@@ -1,0 +1,36 @@
+# omui.build — openmui's build plugins, one package (mcpp/README.md). Each is a
+# module of its own, and a package's `build.mcpp` imports only the ones its
+# situation needs:
+#
+#   omui.build.contracts  contracts to C++ partitions, builders, script stubs and schemas
+#   omui.build.embed      data files carried in the program, each a partition holding its text
+#   omui.build.toy        the dist-toy pack format (Bilibili Toy, or a static page)
+#   omui.build.plan       what the plugins share; each re-exports it
+#
+#   [build-dependencies]
+#   omui.build = { path = "…/mcpp/build", host-module = true }
+#
+#   // build.mcpp
+#   import mcpp;
+#   import omui.build.contracts;
+#   int main() { return openmui::build::components({.module = "acme.ui", .ns = "acme::ui"}) ? 0 : 1; }
+[package]
+name        = "build"
+namespace   = "omui"
+version     = "0.1.0"
+description = "Build plugins: contracts to C++ and script stubs, data files carried in the program, the dist-toy pack format"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+kind = "rules"
+
+[build]
+sources = ["src/*.cppm", "src/*/*.cppm", "src/*/*.cpp"]
+
+# The generator, built for the build machine and handed to the build program
+# that uses these plugins (a generating plugin compiles no device language, so
+# it is a plain library of build programs: mcpp's 08-build-rules shape).
+[dependencies]
+omui.gen = { path = "../../modules/projects/omui/tools/gen", tools = ["omui-gen"], reexport = true }

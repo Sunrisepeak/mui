@@ -51,9 +51,7 @@ xengine.audio  = { path = "../../modules/projects/xengine/kernel/audio" }
 "xengine.audio.device" = { path = "../../modules/projects/xengine/kernel/audio/device" }
 
 [build-dependencies]
-omui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
-omui.build.embed     = { path = "../../mcpp/embed", host-module = true }
-omui.build.toy       = { path = "../../mcpp/toy", host-module = true }
+omui.build = { path = "../../mcpp/build", host-module = true }
 gongfu.rules            = { path = "../../modules/projects/gongfu/rules", host-module = true }
 
 # The files of tests/fighting/ are one program, run a file at a time: one link of the closure for all of them.

@@ -18,7 +18,7 @@ on:
       - 'docs/**'
       - 'modules/projects/omui/components/markdown/**'
       - 'modules/projects/omui/components/timeline/**'
-      - 'mcpp/toy/**'
+      - 'mcpp/build/**'
       - 'modules/projects/omui/tools/gen/src/dist_toy.*'
       - 'modules/projects/omui/tools/gen/tests/dist_toy_test.cpp'
       - 'modules/projects/omui/tools/gen/src/font_subset.*'

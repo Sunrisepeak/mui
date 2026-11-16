@@ -26,7 +26,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 mlibs.i18n = { path = ".." }
 
 [build-dependencies]
-omui.build.embed = { path = "../../../../mcpp/embed", host-module = true }
+omui.build = { path = "../../../../mcpp/build", host-module = true }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"

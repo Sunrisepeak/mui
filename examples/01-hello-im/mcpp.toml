@@ -38,7 +38,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 omui.sdk = { path = "../../modules/projects/omui/sdk" }
 
 [build-dependencies]
-omui.build.embed = { path = "../../mcpp/embed", host-module = true }
+omui.build = { path = "../../mcpp/build", host-module = true }
 # The APK (Android's package: NativeActivity, no Java; signed with the published debug key).
 mcpp.plugins = { version = "0.20.0", features = ["dist-apk"], host-module = true }
 

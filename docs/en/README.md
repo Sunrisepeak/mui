@@ -2,7 +2,7 @@
 
 For people who make things with it: application developers, game developers, people who put agents to work. How the engines are designed inside is elsewhere (the [design documents](../../.agents/docs/README.md)).
 
-What has been run on which platform — on real hardware, in software, or not yet — is on [Platforms](platforms.md). How far each package is ready — stable, preview or experimental, and what each label promises — is on [Maturity](maturity.md); what ships experimental, with its target and its gap, is on [Experimental](experimental.md). The code in the guides is excerpted from files CI builds and runs (lint `docs-code`). Every operation catalog and component contract is listed on [API reference](reference.md), generated from the declarations.
+What has been run on which platform — on real hardware, in software, or not yet — is on [Platforms](platforms.md). How far each package is ready — stable, preview or experimental, and what each label promises — is on [Maturity](maturity.md); what ships experimental, with its target and its gap, is on [Experimental](experimental.md). The code in the guides is excerpted from files CI builds and runs (lint `docs-code`). Every operation catalog and component contract is listed on [API reference](reference.md), generated from the declarations. How far each project is through its closure checklist before the release is on [Closure](closure.md).
 
 ## What you can make with it today
 

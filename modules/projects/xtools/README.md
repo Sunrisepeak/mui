@@ -2,6 +2,11 @@
 
 The toolchain whole: one command and one MCP server over every project's toolkit, each command behaving as it does on its own (internal code name, D-208).
 
+| Capability | Label | Packages | Evidence |
+|---|---|---|---|
+| One command and one MCP server over every toolkit, each command as it is on its own | experimental | `xtools` | [xtools_test](tests/xtools_test.cpp), [workspace_test](tests/workspace_test.cpp) |
+| The Inspector: a running application's tree, frames and clock; the motion workbench; the Reaction lab | stable | `xtools.inspector` | [inspector_test](inspector/tests/inspector_test.cpp), [motion_test](inspector/tests/motion_test.cpp) |
+
 It is a thin composition (convergence plan §4.5, D-203, D-204). Each project keeps its toolkit:
 - the library and its operations;
 - the catalog (`<product>.ops.xdef.ts`);
@@ -48,3 +53,10 @@ Nothing of its own: each toolkit's subject and catalog are its project's package
 - **Gap**: the workbench (an omui application composing the toolkits' panels and the workspace's history); the workspace reached through `xtools` as operations; the interface's live script sources (the player's) as an adapter beside the view documents'.
 - **Limits**: nothing of its own beyond the wiring: a toolkit not linked into it is not reachable through it.
 - **Graduation to preview**: the workbench and both compositions here, with a headless case that designs a UI and an animation in one workspace (RC3.10's bar).
+
+## Known limitations
+
+Each names the level it is solved at (D-179: foundation, part, specialised, application).
+
+- **No workbench yet** (application): the toolkits are composed as one command and one MCP server; the omui application composing their panels and the workspace's history is owed.
+- **Only what is linked** (part): a toolkit not linked into `xtools` is not reachable through it.

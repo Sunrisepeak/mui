@@ -4,6 +4,7 @@
 //         Exit 0 when every failure is named there, 1 when one is new, 2
 //         when it could not read the run.
 //   platforms  docs/{en,zh}/platforms.md from docs/release.platforms.xdef.json (--check: whether they are current)
+//   closure    docs/{en,zh}/closure.md: each project's closure checklist read from the tree (--check, --gate)
 //   docs  docs/{en,zh}/maturity.md, experimental.md and reference.md from the manifests, the experimental READMEs, the catalogs and the contracts (--check)
 //   llvm  what a change touches and its direct consumers, compiled (their
 //         tests too, not run) with CI's LLVM and profile: the errors only
@@ -42,6 +43,7 @@ import omui.devtools.bench;
 import omui.devtools.browser;
 import omui.devtools.check;
 import omui.devtools.ci;
+import omui.devtools.closure;
 import omui.devtools.consumer;
 import omui.devtools.docs;
 import omui.devtools.eval;
@@ -254,6 +256,10 @@ cmd::App app() {
         .subcommand(cmd::App("docs")
                         .description("Write docs/{en,zh}/maturity.md, experimental.md and reference.md: every package's label, the experimental READMEs, the catalogs and contracts (plan §6.3, D-145)")
                         .option(Option("check").help("only say whether the pages are current (exit 1 when not)")))
+        .subcommand(cmd::App("closure")
+                        .description("Write docs/{en,zh}/closure.md: each project's closure checklist read from the tree (plan §5.1, gate 3)")
+                        .option(Option("check").help("only say whether the pages are current (exit 1 when not)"))
+                        .option(Option("gate").help("exit 1 while a project owes an item (the release gate)")))
         .subcommand(cmd::App("llvm")
                         .description("Compile what a change touches and its direct consumers, tests included, with CI's LLVM and profile (not run)")
                         .option(Option("since").takes_value().value_name("REF").help("the change: files differing from REF, and new ones (default: @{upstream})"))
@@ -1077,6 +1083,31 @@ int docs(const cmd::ParsedArgs& options, const fs::path& root) {
     return stale ? 1 : 0;
 }
 
+int closure(const cmd::ParsedArgs& options, const fs::path& root) {
+    const auto report = omui::devtools::closure::check(root);
+    if (!report) {
+        std::cerr << "omui-devtools closure: " << report.error() << '\n';
+        return 2;
+    }
+    int stale = 0;
+    for (const std::string_view language : {"en", "zh"}) {
+        const std::string written = omui::devtools::closure::page(*report, language);
+        const std::string where = std::format("docs/{}/closure.md", language);
+        const fs::path target = root / mcpplibs::os::fs::from_utf8(where);
+        if (mcpplibs::os::fs::read(target) == written) continue;
+        if (options.is_flag_set("check")) {
+            std::cerr << std::format("omui-devtools closure: {} is not current (omui-devtools closure)\n", where);
+            ++stale;
+            continue;
+        }
+        std::ofstream(target, std::ios::binary) << written;
+        std::cout << std::format("wrote {}\n", where);
+    }
+    std::cout << std::format("closure: {} passed, {} owed\n", report->passed(), report->owed());
+    if (options.is_flag_set("gate") && report->owed() > 0) return 1;
+    return stale ? 1 : 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -1093,6 +1124,7 @@ int main(int argc, char** argv) {
     if (parsed->subcommand_name() == "llvm") return llvm(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "platforms") return platforms(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "docs") return docs(parsed->subcommand()->get(), root);
+    if (parsed->subcommand_name() == "closure") return closure(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "rename") {
         const cmd::ParsedArgs& asked = parsed->subcommand()->get();
         const std::string from(asked.positional(0)), to(asked.positional(1));

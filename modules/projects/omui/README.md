@@ -50,14 +50,25 @@ A stable package's API answers why it failed with the error contract, `mlibs.err
 
 Each package's manifest says its label (`maturity`); lint `maturity` holds stable to stable. Stable: kept source-compatible within 0.1.x. Preview: complete within its stated scope, its interface may change (each change in the release notes). Experimental: ships with its target and gap written.
 
-| Capability | Label | Packages |
-|---|---|---|
-| The semantic tree, views, layout, signals, themes | stable | `omui.core`, `omui.view`, `omui.semantic`, `omui.theme` |
-| Components (base, window, markdown, canvas) | stable | `omui.ui.*` |
-| TypeScript and JavaScript, view documents | stable | `omui.lang.*`, `omui.viewdoc`, `omui.expr` |
-| Desktop and Web hosts, headless | stable; the desktop host's system notifications go through `mpal` (preview, `lower`) | `omui.host.sdl3`, `omui.host.web`, `omui.host.headless` |
-| The agent surface, the `omui` command, MCP, the inspector | stable; `omui video` and `omui audio` (xengine's media kernels), the inspector's reaction lab (`xengine.cellular`) and hanim studio, and the dev host's designer are preview (`lower`) | `omui.agent`, `tools/cli`, `tools/mcp`, the repository's `tools/inspector`, `entry/devhost` |
-| The SDK (`import omui;`) | stable; carries `omui.generate` and the Android host as preview (`lower`) | `omui.sdk` |
-| Runtime generation, the designer (development mode) | preview | `omui.generate`, `omui.designer` |
-| The Android host | preview (tier-2 platform) | `omui.host.android` |
-| C++26 reflection | experimental | `omui.reflect` |
+| Capability | Label | Packages | Evidence |
+|---|---|---|---|
+| The semantic tree, views, layout, signals, themes | stable | `omui.core`, `omui.view`, `omui.semantic`, `omui.theme` | [semantic_test](semantic/tests/semantic_test.cpp), [view tests](view/tests/view) |
+| Components (base, window, markdown, canvas) | stable | `omui.ui.*` | [base components' tests](components/base/tests/base), [the wall's keyboard walk](../../../site/tests/site/wall_test.cpp) |
+| TypeScript and JavaScript, view documents | stable | `omui.lang.*`, `omui.viewdoc`, `omui.expr` | [define_test](lang/ts/tests/define_test.cpp), [viewdoc_test](viewdoc/tests/viewdoc_test.cpp) |
+| Desktop and Web hosts, headless | stable; the desktop host's system notifications go through `mpal` (preview, `lower`) | `omui.host.sdl3`, `omui.host.web`, `omui.host.headless` | [sdl3_test](host/sdl3/tests/sdl3_test.cpp), [headless_test](host/headless/tests/headless_test.cpp), [the Web's drawing_test](host/web/tests/drawing_test.cpp) |
+| The agent surface, the `omui` command, MCP, the inspector | stable; `omui video` and `omui audio` (xengine's media kernels), the inspector's reaction lab (`xengine.cellular`) and hanim studio, and the dev host's designer are preview (`lower`) | `omui.agent`, `tools/cli`, `tools/mcp`, the repository's `tools/inspector`, `entry/devhost` | [agent_session_test](agent/tests/agent/agent_session_test.cpp), [cli_test](tools/cli/tests/cli_test.cpp) |
+| The SDK (`import omui;`) | stable; carries `omui.generate` and the Android host as preview (`lower`) | `omui.sdk` | [agent_startup_test](sdk/tests/agent_startup_test.cpp) |
+| Runtime generation, the designer (development mode) | preview | `omui.generate`, `omui.designer` | [generation_test](sdk/tests/generation_test.cpp), [designer_test](designer/tests/designer_test.cpp) |
+| The Android host | preview (tier-2 platform) | `omui.host.android` | [example 01 as an APK on the emulator](../../../.github/workflows/ci.yml) (CI's Android job) |
+| C++26 reflection | experimental | `omui.reflect` | [reflect_test](reflect/tests/reflect_test.cpp) |
+
+## Known limitations
+
+Each names the level it is solved at (D-179: foundation, part, specialised, application); the platform table says what is verified where ([platforms](../../../docs/en/platforms.md)).
+
+- **Screen readers off Linux** (foundation): the accessibility bridge is run against AT-SPI on Linux; UI Automation, NSAccessibility and the Web's are implemented to the contract but not verified on machines.
+- **Input methods on machines** (foundation): composition and candidates are tested with synthetic events on every row; a real IME on each platform is not.
+- **A caret's blink is a hard cut** (part): the text box's caret is drawn on or off, not faded on the runtime's clock (component quality B6).
+- **A tree's chevron morphs instead of turning** (foundation): a matched morph interpolates the path's points in a line; a turn needs an arc path in hanim.
+- **A lost GPU device** (foundation): the desktop host lets it go and makes it again, else the CPU draws; no CI row can provoke a loss, so the path is unverified.
+- **The first frame is not timed** (foundation): the runtime's part is benchmarked (`ui/mount`), the process start to the window's first pixels is not.

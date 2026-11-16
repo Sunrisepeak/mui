@@ -1,0 +1,90 @@
+== mlibs.memory
+export import mlibs.memory.api;
+== mlibs.memory.api
+export import :arena;
+export import :slots;
+export import :handle;
+export import :function;
+export import :view;
+== mlibs.memory.api:arena
+namespace mlibs::memory {
+  class Arena {
+    explicit Arena(std::size_t block_size = 64 * 1024) : block_size_(block_size);
+    Arena(const Arena&) = delete;
+    Arena& operator=(const Arena&) = delete;
+    Arena(Arena&&) noexcept = default;
+    Arena& operator=(Arena&&) noexcept = default;
+    [[nodiscard]] void* allocate(std::size_t size, std::size_t align);
+    template <class T, class... Args> requires std::is_trivially_destructible_v<T> [[nodiscard]] T* make(Args&&... args);
+    template <class T> requires std::is_trivially_destructible_v<T> && std::is_trivially_default_constructible_v<T> [[nodiscard]] std::span<T> array(std::size_t n);
+    template <class T> requires std::is_trivially_destructible_v<T> && std::is_trivially_copyable_v<T> [[nodiscard]] std::span<T> copy(std::span<const T> from);
+    [[nodiscard]] std::string_view copy(std::string_view text);
+    void reset() noexcept;
+    [[nodiscard]] std::size_t used() const noexcept;
+    [[nodiscard]] std::size_t capacity() const noexcept;
+    [[nodiscard]] std::size_t heap_allocations() const noexcept;
+  };
+}
+== mlibs.memory.api:function
+namespace mlibs::memory {
+  template <class Signature> class FunctionRef;
+  template <class R, class... Args> class FunctionRef<R(Args...)> {
+    template <class F> requires(!std::same_as<std::remove_cvref_t<F>, FunctionRef> && std::invocable<F&, Args...>) FunctionRef(F&& f) noexcept : object_(const_cast<void*>(static_cast<const void*>(std::addressof(f)))), call_([](void* o, Args... args) -> R {…});
+    R operator()(Args... args) const;
+  };
+}
+== mlibs.memory.api:handle
+namespace mlibs::memory {
+  template <class Tag> struct Handle {
+    static constexpr std::uint32_t invalid_index = std::numeric_limits<std::uint32_t>::max();
+    std::uint32_t index = invalid_index;
+    std::uint32_t generation = 0;
+    [[nodiscard]] constexpr bool valid() const noexcept;
+    constexpr explicit operator bool() const noexcept;
+    [[nodiscard]] constexpr std::uint64_t bits() const noexcept;
+    [[nodiscard]] static constexpr Handle from_bits(std::uint64_t b) noexcept;
+    friend constexpr bool operator==(Handle a, Handle b) noexcept;
+  };
+  template <class Tag> struct OwnedHandle {
+    static constexpr std::uint32_t invalid_slot = std::numeric_limits<std::uint32_t>::max();
+    std::uint64_t owner = 0;
+    std::uint32_t slot = invalid_slot;
+    std::uint64_t generation = 0;
+    [[nodiscard]] constexpr explicit operator bool() const noexcept;
+    friend constexpr bool operator==(const OwnedHandle&, const OwnedHandle&) noexcept = default;
+  };
+  template <class T, class Tag> class SlotMap {
+    using handle_type = Handle<Tag>;
+    handle_type insert(T value);
+    bool erase(handle_type key);
+    [[nodiscard]] bool contains(handle_type key) const noexcept;
+    [[nodiscard]] T* get(handle_type key) noexcept;
+    [[nodiscard]] const T* get(handle_type key) const noexcept;
+    [[nodiscard]] std::size_t size() const noexcept;
+    [[nodiscard]] bool empty() const noexcept;
+    template <class F> void for_each(F&& function);
+    template <class F> void for_each(F&& function) const;
+    void clear();
+  };
+}
+== mlibs.memory.api:slots
+namespace mlibs::memory {
+  template <class Tag, class Generation = std::uint64_t> struct SlotKey {…};
+  template <class H> using slot_generation_t = std::remove_cvref_t<decltype(H{…}.generation)>;
+  enum class SlotStorageError : std::uint8_t { capacity };
+  template <class T, class H = SlotKey<T>, slot_generation_t<H> InitialGeneration = 1> class SlotStorage {…};
+}
+== mlibs.memory.api:view
+namespace mlibs::memory {
+  template <class T> class View {
+    constexpr View() noexcept = default;
+    constexpr View(T* data, std::size_t size) noexcept : data_(data), size_(size);
+    template <class R> requires std::ranges::contiguous_range<R> && std::ranges::sized_range<R> && std::convertible_to<std::remove_reference_t<std::ranges::range_reference_t<R>> (*)[], T (*)[]> constexpr View(R&& range) noexcept : data_(std::ranges::data(range)), size_(static_cast<std::size_t>(std::ranges::size(range)));
+    [[nodiscard]] constexpr T* data() const noexcept;
+    [[nodiscard]] constexpr std::size_t size() const noexcept;
+    [[nodiscard]] constexpr bool empty() const noexcept;
+    [[nodiscard]] constexpr T* begin() const noexcept;
+    [[nodiscard]] constexpr T* end() const noexcept;
+    [[nodiscard]] constexpr T& operator[](std::size_t i) const noexcept;
+  };
+}

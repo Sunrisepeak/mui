@@ -31,11 +31,19 @@ The other engines of the system are projects of their own: [hanim](../hanim) (an
 
 ## Labels in 0.1 (release plan §2.3)
 
-| Capability | Label | Packages |
-|---|---|---|
-| Matter, the lattice, 2D and 3D rigid bodies, audio and space, the material lab | preview | `xengine.matter`, `xengine.cellular`, `xengine.dynamics`, `xengine.audio*`, `xengine.matter.lab` |
-| The game layer: runtime, playtest, input, the UI bridge, navigation, chunked worlds | preview | `xengine.runtime`, `xengine.playtest`, `xengine.input`, `xengine.ui`, `xengine.nav`, `xengine.world` |
-| The air as a carrier, particles as matter, 3D emergence | experimental | `xengine.field`, `xengine.particles` |
-| Rollback netcode | experimental | `xengine.net` (`xengine.runtime`'s feature `net`) |
+| Capability | Label | Packages | Evidence |
+|---|---|---|---|
+| Matter, the lattice, 2D and 3D rigid bodies, audio and space, the material lab | preview | `xengine.matter`, `xengine.cellular`, `xengine.dynamics`, `xengine.audio*`, `xengine.matter.lab` | [the matter suite's coupling_test](kernel/matter/cts/tests/cts/coupling_test.cpp), [collision_test](kernel/dynamics/tests/collision_test.cpp) |
+| The game layer: runtime, playtest, input, the UI bridge, navigation, chunked worlds | preview | `xengine.runtime`, `xengine.playtest`, `xengine.input`, `xengine.ui`, `xengine.nav`, `xengine.world` | [runtime_test](game/runtime/tests/runtime_test.cpp), [playtest_test](game/playtest/tests/playtest_test.cpp), [chunked_test](game/world/tests/chunked_test.cpp) |
+| The air as a carrier, particles as matter, 3D emergence | experimental | `xengine.field`, `xengine.particles` | [field_test](kernel/field/tests/field_test.cpp), [particles_test](kernel/particles/tests/particles_test.cpp) |
+| Rollback netcode | experimental | `xengine.net` (`xengine.runtime`'s feature `net`) | [net_test](game/runtime/tests/net_test.cpp) |
 
 `xengine.dynamics`' core (springs, collision, XPBD) is used by stable `hanim`; its families (2D, 3D, scene) are preview.
+
+## Known limitations
+
+Each names the level it is solved at (D-179: foundation, part, specialised, application).
+
+- **Weaker machines** (foundation): D-187 is measured on the development machine's RTX 4080; integrated GPUs and mobile devices are unverified.
+- **The air and particles as matter** (foundation): experimental, its target and gap on [Experimental](../../../docs/en/experimental.md).
+- **Rollback over a network** (specialised): `xengine.net` has the rollback, no transport.

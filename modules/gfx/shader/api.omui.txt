@@ -1,0 +1,51 @@
+== mlibs.shader
+export import mlibs.shader.api;
+== mlibs.shader.api
+export import :provisioned;
+namespace mlibs::shader {
+  struct Entry {
+    rhi::Stage stage = rhi::Stage::vertex;
+    std::string name;
+    rhi::Counts counts;
+    std::array<std::uint32_t, 3> threads{…};
+    struct Code {
+      rhi::ShaderFormat format = rhi::ShaderFormat::spirv;
+      std::vector<std::byte> bytes;
+    };
+    std::vector<Code> code;
+    [[nodiscard]] const Code* code_for(rhi::ShaderFormat f) const noexcept;
+  };
+  struct Program {
+    std::filesystem::path source;
+    std::vector<Entry> entries;
+    std::vector<std::filesystem::path> dependencies;
+    [[nodiscard]] const Entry* entry(std::string_view name) const noexcept;
+  };
+  struct EntryName {
+    std::string name;
+    rhi::Stage stage = rhi::Stage::fragment;
+  };
+  struct Options {
+    std::filesystem::path slangc;
+    rhi::ShaderFormats formats = rhi::formats({…});
+    std::vector<std::filesystem::path> includes;
+    std::vector<std::string> defines;
+    std::filesystem::path scratch;
+    std::vector<EntryName> entries;
+    bool in_process = true;
+    bool compact = false;
+  };
+  [[nodiscard]] std::string compact(std::string_view text);
+  [[nodiscard]] std::string short_names(std::string_view text);
+  [[nodiscard]] std::expected<std::filesystem::path, std::string> find_slangc();
+  [[nodiscard]] std::expected<Program, std::string> compile(const std::filesystem::path& source, const Options& options = {…});
+  [[nodiscard]] rhi::ShaderDesc desc(const Entry& e, std::vector<rhi::ShaderCode>& codes, std::string_view label = {…});
+  struct EmitOptions {
+    std::string module;
+    std::string partition;
+    std::string ns;
+  };
+  [[nodiscard]] std::string emit_cpp(const Program& program, const EmitOptions& options);
+  [[nodiscard]] rhi::ShaderFormats formats_for(std::string_view target_os, std::string_view host_os) noexcept;
+  [[nodiscard]] std::vector<std::string> depfile_prerequisites(std::string_view text);
+}

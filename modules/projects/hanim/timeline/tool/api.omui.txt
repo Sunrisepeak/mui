@@ -1,0 +1,25 @@
+== hanim.timeline.tool
+export import mlibs.agent;
+export import :catalog;
+namespace hanim::timeline::tool {
+  class Timelines final : public mlibs::agent::Subject {
+    [[nodiscard]] std::string_view name() const noexcept override;
+    [[nodiscard]] std::string_view interface_name() const noexcept override;
+    [[nodiscard]] mlibs::agent::Capabilities capabilities() const noexcept override;
+    [[nodiscard]] std::span<const mlibs::control::CatalogEntry> operations() const noexcept override;
+    [[nodiscard]] mlibs::control::Guide guide() const noexcept override;
+    [[nodiscard]] std::string_view listing() const noexcept override;
+    [[nodiscard]] std::uint64_t state_hash() const override;
+    void operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) override;
+  };
+}
+== hanim.timeline.tool:catalog
+namespace hanim::timeline::tool {
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_timeline_check{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_timeline_at{…};
+  inline constexpr std::array<mlibs::control::Parameter, 8> parameters_timeline_edit{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_timeline_undo{…};
+  inline constexpr std::array<mlibs::control::CatalogEntry, 4> catalog{…};
+  inline constexpr mlibs::control::Guide guide{…};
+  inline constexpr std::string_view listing = R"…";
+}

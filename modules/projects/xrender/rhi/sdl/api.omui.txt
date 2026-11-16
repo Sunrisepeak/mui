@@ -1,0 +1,19 @@
+== xrender.rhi.sdl
+export import xrender.rhi.sdl.api;
+== xrender.rhi.sdl.api
+namespace xrender::rhi::sdl {
+  struct Options {
+    ShaderFormats formats = mlibs::rhi::formats({…});
+    std::optional<Backend> backend;
+    bool debug = false;
+    bool prefer_low_power = false;
+    std::string vulkan_library;
+    std::string video_driver;
+    std::uint32_t window = 0;
+    bool vsync = true;
+  };
+  [[nodiscard]] Result<std::unique_ptr<Device>> create(const Options& options = {…});
+  [[nodiscard]] Options environment_options(Options base = {…});
+  [[nodiscard]] bool device_required();
+  [[nodiscard]] std::vector<Backend> backends();
+}

@@ -167,7 +167,7 @@ enum class Errc : std::uint8_t { name, value, expression, law, names_material, l
         case Errc::pair: return {"matter.pair", Kind::invalid_argument, "a pair that names an instance not there, or one beside itself", "pair only instances that are there, and never one with itself"};
         case Errc::unstable: return {"matter.unstable", Kind::refused, "a transfer that could take more than an instance has: too many neighbours for its share", "lower the law's share, or let fewer neighbours draw on one instance, so a step cannot take more than it holds"};
     }
-    return {"matter.unknown", Kind::internal, "unknown"};
+    return {"matter.unknown", Kind::internal, "a code this build does not know", "read the message beside it; a reader older than the writer: build both from the same version"};
 }
 // Where: a JSON pointer into the definition ("/laws/3/when", "/materials/wood/ignition").
 using Failure = mlibs::error::Error<Errc, std::string>;

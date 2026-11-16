@@ -4,6 +4,13 @@ A deterministic, rollback-ready fighting-game framework whose characters are dat
 
 **Signature features — candidates** (plan §9.5; none is claimed outside the repository before its evidence exists): a fixed-point, deterministic rollback core that can leave the repository unchanged (10,000 random-depth rollbacks byte-identical, against GGPO-style designs); characters and rules as data with diagnostics at line and column; agents joining rollback play as remote opponents (M6).
 
+| Capability | Label | Packages | Evidence |
+|---|---|---|---|
+| The deterministic, rollback-ready match: fixed-point frames, inputs and commands, hits, a save in one copy | experimental | `gongfu` | [gongfu_test](tests/gongfu_test.cpp) |
+| Fighters and rules as data, checked on compile | experimental | `gongfu.data`, `gongfu.rules` | [rules_test](tests/rules_test.cpp) |
+| Opponents and training | experimental | `gongfu` | [ai_test](tests/ai_test.cpp), [training_test](tests/training_test.cpp) |
+| The studio and 2D presentation | experimental | `gongfu.studio`, `gongfu.present2d` | [studio_test](studio/tests/studio_test.cpp) |
+
 The core, `gongfu` (D-85): a match between two fighters, one frame (1/60 s) at a time, in fixed-point numbers, with rollback. It depends on the standard library alone; drawing (2D now, 3D later), sound, devices and the network read its state and its events from outside.
 
 ```cpp
@@ -125,3 +132,11 @@ Labelled experimental in 0.1: it ships, and its top goal stands.
 - **Gap**: presentation (supers, hit impact, interface) is behind SF6 in the side-by-side; drawing is 2D only; agents as remote rollback opponents are not done.
 - **Limits**: one stage, 2D; no network transport (xengine.net has none).
 - **Graduation to preview**: two characters play a whole match from the release's packages; an agent plays one at a person's tier; the match's contract runs green on every tier-1 row; the SF6 comparison at par on hit feel and readability.
+
+## Known limitations
+
+Each names the level it is solved at (D-179: foundation, part, specialised, application).
+
+- **Presentation behind the best** (specialised): supers, hit impact and the interface are behind Street Fighter 6 side by side.
+- **2D only, one stage** (specialised): drawing is 2D; one stage.
+- **No network play** (foundation): xengine.net has no transport, so there is no remote opponent.

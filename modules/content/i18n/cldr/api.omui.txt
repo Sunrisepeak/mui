@@ -1,0 +1,14 @@
+== mlibs.i18n.cldr
+export import mlibs.i18n.cldr.api;
+== mlibs.i18n.cldr.api
+export import :en_locale;
+export import :zh_locale;
+export import :zh_Hant_locale;
+export import :likely_locale;
+namespace mlibs::i18n::cldr {
+  inline constexpr std::string_view version = "49.0.0";
+  inline constexpr std::array<std::string_view, 3> locales{…};
+  [[nodiscard]] std::shared_ptr<const LocaleData> data(std::string_view id);
+  [[nodiscard]] const LikelySubtags& likely();
+  void add_to(Library& library);
+}

@@ -78,8 +78,16 @@ implementation, not two runtime owners.
 
 ## Labels in 0.1 (release plan §2.3)
 
-| Capability | Label | Packages |
-|---|---|---|
-| 2D: raster, vector, text, effects, frames, the render graph, device backends | stable | `xrender.raster`, `xrender.vector`, `xrender.text`, `xrender.effect`, `xrender.frame`, `xrender.graph`, `xrender.rhi.*` |
-| 3D core: scenes, the mesh pass (metal-roughness, shadows, environment, fog, glow, temporal antialiasing), glTF core, particles, sprites | preview | `xrender.scene`, `xrender.mesh`, `xrender.mesh.gpu`, `xrender.asset`, `xrender.particle`, `xrender.sprite`, `xrender.tool` |
-| Transmission and volume, the rest of clearcoat/sheen/anisotropy on devices, files' own lights, morph targets | experimental (inside the preview packages, not claimed) | — |
+| Capability | Label | Packages | Evidence |
+|---|---|---|---|
+| 2D: raster, vector, text, effects, frames, the render graph, device backends | stable | `xrender.raster`, `xrender.vector`, `xrender.text`, `xrender.effect`, `xrender.frame`, `xrender.graph`, `xrender.rhi.*` | [raster_test](raster/tests/raster_test.cpp), [the conformance suite](cts), [the claims](../../../docs/release.claims.xdef.json) |
+| 3D core: scenes, the mesh pass (metal-roughness, shadows, environment, fog, glow, temporal antialiasing), glTF core, particles, sprites | preview | `xrender.scene`, `xrender.mesh`, `xrender.mesh.gpu`, `xrender.asset`, `xrender.particle`, `xrender.sprite`, `xrender.tool` | [mesh_test](mesh/tests/mesh_test.cpp), [the mesh pass on WebGPU](mesh/gpu/cts/tests/mesh_webgpu_test.cpp) |
+| Transmission and volume, the rest of clearcoat/sheen/anisotropy on devices, files' own lights, morph targets | experimental (inside the preview packages, not claimed) | — | [the platform table](../../../docs/en/platforms.md) |
+
+## Known limitations
+
+Each names the level it is solved at (D-179: foundation, part, specialised, application); the platform table says what is verified where ([platforms](../../../docs/en/platforms.md)).
+
+- **Materials beyond metal-roughness on devices** (foundation): transmission and volume, the rest of clearcoat, sheen and anisotropy, files' own lights and morph targets are experimental and not claimed.
+- **Direct3D 12** (foundation): the backend is implemented to the contract but unverified; on Windows the device is reached through Vulkan.
+- **2D on a device in the browser** (foundation): implemented to the contract, unverified: no CI row runs a real browser on a real GPU.

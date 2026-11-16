@@ -1,0 +1,277 @@
+== mlibs.base64
+export import mlibs.base64.api;
+== mlibs.base64.api
+namespace mlibs::base64 {
+  [[nodiscard]] std::string encode(std::span<const std::uint8_t> bytes);
+  [[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> decode(std::string_view text);
+}
+== mlibs.error
+namespace mlibs::error {
+  enum class Kind : std::uint8_t { invalid_argument, not_found, refused, stale, timeout, needs_answer, failed, internal };
+  [[nodiscard]] constexpr std::string_view name(Kind k) noexcept;
+  struct Description {
+    std::string_view name;
+    Kind kind = Kind::failed;
+    std::string_view text = {…};
+    std::string_view way = {…};
+    bool wraps = false;
+  };
+  template <class C> concept Code = std::is_enum_v<C> && requires(C c) {…};
+  struct Cause {
+    std::string code;
+    Kind kind = Kind::failed;
+    std::string where;
+    std::string message;
+  };
+  template <class Where> [[nodiscard]] std::string where_text(const Where& where);
+  template <Code C, class Where = std::string> struct Error {…};
+  template <class T, Code C, class Where = std::string> using Result = std::expected<T, Error<C, Where>>;
+}
+template <mlibs::error::Code C, class Where> struct std::formatter<mlibs::error::Error<C, Where>> : std::formatter<std::string_view> {
+  auto format(const mlibs::error::Error<C, Where>& error, std::format_context& context) const;
+};
+== mlibs.hash
+export import mlibs.hash.api;
+== mlibs.hash.api
+namespace mlibs::hash {
+  class Fnv1a {
+    static constexpr std::uint64_t offset = 0xcbf29ce484222325ull;
+    static constexpr std::uint64_t prime = 0x100000001b3ull;
+    constexpr Fnv1a() noexcept = default;
+    constexpr explicit Fnv1a(std::uint64_t start) noexcept : h_(start);
+    constexpr Fnv1a& byte(std::uint8_t b) noexcept;
+    constexpr Fnv1a& bytes(std::span<const std::uint8_t> b) noexcept;
+    Fnv1a& bytes(std::span<const std::byte> b) noexcept;
+    constexpr Fnv1a& text(std::string_view s) noexcept;
+    constexpr Fnv1a& str(std::string_view s) noexcept;
+    constexpr Fnv1a& le(std::uint64_t v, int count = 8) noexcept;
+    constexpr Fnv1a& u64(std::uint64_t v) noexcept;
+    constexpr Fnv1a& i64(std::int64_t v) noexcept;
+    constexpr Fnv1a& f64(double v) noexcept;
+    constexpr Fnv1a& f32(float v) noexcept;
+    constexpr Fnv1a& word(std::uint64_t v) noexcept;
+    template <class T> requires std::is_trivially_copyable_v<T> Fnv1a& object(const T& v) noexcept;
+    [[nodiscard]] constexpr std::uint64_t value() const noexcept;
+    [[nodiscard]] std::string hex() const;
+  };
+  [[nodiscard]] constexpr std::uint64_t fnv1a(std::string_view s) noexcept;
+  [[nodiscard]] inline std::uint64_t fnv1a(std::span<const std::byte> b) noexcept;
+  class Fnv1a32 {
+    static constexpr std::uint32_t offset = 2166136261u;
+    static constexpr std::uint32_t prime = 16777619u;
+    constexpr Fnv1a32& byte(std::uint8_t b) noexcept;
+    constexpr Fnv1a32& text(std::string_view s) noexcept;
+    [[nodiscard]] constexpr std::uint32_t value() const noexcept;
+  };
+  [[nodiscard]] constexpr std::uint32_t fnv1a32(std::string_view s) noexcept;
+  class Sha256 {
+    Sha256() noexcept;
+    Sha256& bytes(std::span<const std::uint8_t> data) noexcept;
+    Sha256& text(std::string_view data) noexcept;
+    [[nodiscard]] std::array<std::uint8_t, 32> digest() noexcept;
+    [[nodiscard]] std::string hex() noexcept;
+  };
+  [[nodiscard]] std::array<std::uint8_t, 32> sha256(std::string_view bytes);
+  [[nodiscard]] std::array<std::uint8_t, 20> sha1(std::string_view bytes);
+  [[nodiscard]] std::string sha256_hex(std::string_view bytes);
+}
+== mlibs.http
+export import mlibs.http.api;
+== mlibs.http.api
+namespace mlibs::http {
+  struct Request {
+    std::string method, path, query;
+    std::vector<std::pair<std::string, std::string>> headers;
+    std::size_t head_size = 0;
+    std::size_t body_length = 0;
+    [[nodiscard]] std::string_view header(std::string_view name) const;
+  };
+  [[nodiscard]] std::expected<std::optional<Request>, std::string> parse(std::string_view arrived, std::size_t most = 64 * 1024);
+  [[nodiscard]] std::string query_value(std::string_view query, std::string_view key);
+  [[nodiscard]] std::string decoded(std::string_view text);
+  struct Options {
+    std::string_view type = "application/json";
+    std::vector<std::pair<std::string, std::string>> headers;
+    bool keep_alive = false;
+  };
+  [[nodiscard]] std::string response(int status, std::string_view body, const Options& options = {…});
+  [[nodiscard]] std::string request(std::string_view method, std::string_view target, std::string_view host, const std::vector<std::pair<std::string, std::string>>& headers = {…}, std::string_view body = {…});
+  struct Response {
+    int status = 0;
+    std::string reason;
+    std::vector<std::pair<std::string, std::string>> headers;
+    std::size_t head_size = 0;
+    std::optional<std::size_t> body_length;
+    [[nodiscard]] std::string_view header(std::string_view name) const;
+  };
+  [[nodiscard]] std::expected<std::optional<Response>, std::string> parse_response(std::string_view arrived, std::size_t most = 64 * 1024);
+  [[nodiscard]] std::string_view reason(int status);
+  [[nodiscard]] std::string_view media_type(std::string_view extension);
+}
+== mlibs.log
+export import mlibs.log.api;
+== mlibs.log.api
+namespace mlibs::log {
+  enum class Level : std::uint8_t { trace, debug, info, warning, error };
+  [[nodiscard]] constexpr std::string_view name(Level l) noexcept;
+  struct LogRecord {
+    Level level;
+    std::string_view message;
+    std::source_location where;
+    std::string_view category = "omui";
+    std::uint64_t fact = 0;
+  };
+  using LogSink = void (*)(void* user, const LogRecord& record);
+  void set_log_sink(LogSink sink, void* user) noexcept;
+  void set_log_level(Level minimum) noexcept;
+  [[nodiscard]] Level log_level() noexcept;
+  std::expected<void, std::string> set_log_filter(std::string_view spec);
+  [[nodiscard]] bool log_enabled(Level level, std::string_view category) noexcept;
+  void log(Level level, std::string_view message, std::source_location where = std::source_location::current());
+  void log(Level level, std::string_view category, std::string_view message, std::source_location where);
+  void log(Level level, std::string_view category, std::string_view message, std::source_location where, std::uint64_t fact);
+  struct LoggedRecord {
+    Level level = Level::info;
+    std::string category;
+    std::string message;
+    std::string file;
+    std::uint32_t line = 0;
+    std::int64_t unix_ms = 0;
+    std::uint64_t thread = 0;
+    std::uint64_t fact = 0;
+  };
+  void set_log_history(std::size_t records);
+  [[nodiscard]] std::vector<LoggedRecord> recent_logs(std::size_t at_most = 200, Level at_least = Level::trace);
+  [[nodiscard]] std::string to_json(const LoggedRecord& record);
+  template <class... Args> struct LogFormat {
+    std::format_string<Args...> fmt;
+    std::source_location where;
+    template <class S> requires std::convertible_to<const S&, std::string_view> consteval LogFormat(const S& s, std::source_location loc = std::source_location::current()) : fmt(s), where(loc);
+  };
+  template <class... Args> void verbose(LogFormat<std::type_identity_t<Args>...> f, Args&&... args);
+  template <class... Args> void debug(LogFormat<std::type_identity_t<Args>...> f, Args&&... args);
+  template <class... Args> void info(LogFormat<std::type_identity_t<Args>...> f, Args&&... args);
+  template <class... Args> void warn(LogFormat<std::type_identity_t<Args>...> f, Args&&... args);
+  template <class... Args> void error(LogFormat<std::type_identity_t<Args>...> f, Args&&... args);
+  struct Log {
+    std::string_view category;
+    template <class... Args> void at(Level level, LogFormat<std::type_identity_t<Args>...> f, Args&&... args) const;
+    template <class... Args> void verbose(LogFormat<std::type_identity_t<Args>...> f, Args&&... args) const;
+    template <class... Args> void debug(LogFormat<std::type_identity_t<Args>...> f, Args&&... args) const;
+    template <class... Args> void info(LogFormat<std::type_identity_t<Args>...> f, Args&&... args) const;
+    template <class... Args> void warn(LogFormat<std::type_identity_t<Args>...> f, Args&&... args) const;
+    template <class... Args> void error(LogFormat<std::type_identity_t<Args>...> f, Args&&... args) const;
+  };
+  void invariant(bool ok, std::string_view what, std::source_location where = std::source_location::current());
+  [[noreturn]] void fatal(std::string_view what, std::source_location where = std::source_location::current());
+}
+== mlibs.message
+namespace mlibs::message {
+  void pattern_is_not_valid(const char* why);
+  template <class... Values> class Pattern {
+    template <class Text> requires std::convertible_to<const Text&, std::string_view> consteval Pattern(const Text& text) : text_(text);
+    [[nodiscard]] constexpr std::string_view text() const noexcept;
+  };
+  [[nodiscard]] std::string fill(std::string_view pattern, std::span<const std::string_view> values);
+  [[nodiscard]] std::string text(std::int64_t value);
+  [[nodiscard]] std::string text(std::uint64_t value);
+  [[nodiscard]] std::string text(double value);
+  [[nodiscard]] inline std::string_view text(bool value) noexcept;
+  [[nodiscard]] inline std::string text(char value);
+  [[nodiscard]] inline std::string_view text(std::string_view value) noexcept;
+  template <class Value> [[nodiscard]] decltype(auto) text_of(const Value& value);
+  template <class... Values> [[nodiscard]] std::string format(Pattern<std::type_identity_t<Values>...> pattern, const Values&... values);
+}
+== mlibs.names
+namespace mlibs::names {
+  [[nodiscard]] std::size_t distance(std::string_view a, std::string_view b);
+  [[nodiscard]] std::string nearest(std::string_view name, std::span<const std::string_view> options);
+}
+== mlibs.testing
+export import mlibs.testing.api;
+== mlibs.testing.api
+export import mlibs.hash;
+export import :target;
+namespace mlibs::testing {
+  using Hash = ::mlibs::hash::Fnv1a;
+  [[nodiscard]] std::filesystem::path scratch_dir(std::string_view test_name);
+}
+== mlibs.testing.api:target
+namespace mlibs::testing {
+  inline constexpr bool threads = false;
+}
+== mlibs.time
+namespace mlibs::time {
+  using seconds = std::chrono::duration<double>;
+  using Flicks = std::int64_t;
+  inline constexpr Flicks flicks_per_second = 705'600'000;
+  [[nodiscard]] constexpr double to_seconds(Flicks t) noexcept;
+  [[nodiscard]] Flicks from_seconds(double s) noexcept;
+  struct Rate {
+    std::int64_t num = 60;
+    std::int64_t den = 1;
+    [[nodiscard]] constexpr bool exact() const noexcept;
+    [[nodiscard]] constexpr Flicks frame_length() const noexcept;
+    [[nodiscard]] constexpr Flicks frame_time(std::int64_t n) const noexcept;
+    [[nodiscard]] constexpr std::int64_t frame_at(Flicks t) const noexcept;
+    [[nodiscard]] constexpr seconds time_of(std::int64_t frame) const noexcept;
+    [[nodiscard]] std::int64_t frame_at(seconds t) const noexcept;
+    [[nodiscard]] constexpr seconds frame_duration() const noexcept;
+    [[nodiscard]] constexpr double fps() const noexcept;
+    friend constexpr bool operator==(const Rate& a, const Rate& b) noexcept;
+  };
+  [[nodiscard]] constexpr bool exact_samples(std::int64_t rate) noexcept;
+  [[nodiscard]] constexpr Flicks sample_time(std::int64_t rate, std::int64_t n) noexcept;
+  [[nodiscard]] constexpr std::int64_t sample_at(std::int64_t rate, Flicks t) noexcept;
+}
+== mlibs.trace
+export import mlibs.trace.api;
+== mlibs.trace.api
+namespace mlibs::trace {
+  using clock = std::chrono::steady_clock;
+  enum class Kind : std::uint8_t { begin, end, counter, mark };
+  struct Event {
+    Kind kind = Kind::mark;
+    const char* name = "";
+    const char* category = "";
+    std::int64_t ns = 0;
+    double value = 0;
+    std::uint32_t thread = 0;
+  };
+  struct Options {
+    std::size_t events_per_thread = 1 << 16;
+  };
+  namespace detail {
+    extern std::atomic<bool> on;
+    void record(Kind kind, const char* name, const char* category, double value) noexcept;
+  }
+  [[nodiscard]] inline bool enabled() noexcept;
+  class Span {
+    explicit Span(const char* name, const char* category = "app") noexcept : name_(name), category_(category);
+    ~Span();
+    Span(const Span&) = delete;
+    Span& operator=(const Span&) = delete;
+  };
+  [[nodiscard]] const char* intern(std::string_view text);
+  inline void count(const char* name, double value, const char* category = "app") noexcept;
+  inline void mark(const char* name, const char* category = "app") noexcept;
+  inline void fact(const char* name, std::uint64_t number, const char* category = "agent") noexcept;
+  void name_thread(std::string name);
+  struct Stat {
+    std::string name;
+    std::string category;
+    std::size_t count = 0;
+    double total_ms = 0, mean_ms = 0, p50_ms = 0, p95_ms = 0, p99_ms = 0, max_ms = 0;
+  };
+  struct Trace {
+    std::vector<Event> events;
+    std::vector<std::pair<std::uint32_t, std::string>> threads;
+    std::size_t dropped = 0;
+    [[nodiscard]] std::string chrome_json() const;
+    [[nodiscard]] std::vector<Stat> summary() const;
+    [[nodiscard]] std::string table() const;
+  };
+  void start(Options options = {…});
+  [[nodiscard]] Trace stop();
+  [[nodiscard]] Trace snapshot();
+}

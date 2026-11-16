@@ -539,12 +539,12 @@ this Node-only test profile is separate from the site's publishing profile.
 
 ## Labels in 0.1 (release plan §2.3)
 
-| Capability | Label | Packages |
-|---|---|---|
-| Values, curves, channels, programs, the engine, the visual representation, the timeline, the 40 recipes ([each through its course](RECIPES.md)) | stable | `hanim.core`, `hanim`, `hanim.visual`, `hanim.timeline` |
-| Springs and soft bodies through `xengine.dynamics`' core | stable, on a preview package (`lower`) | `hanim` |
-| Skeletons (the parts Quay uses: rig, clips, skinning driven) | preview | `hanim.skeleton` |
-| GPU batch evaluation, the studio | preview | `hanim.rhi`, `hanim.studio` |
+| Capability | Label | Packages | Evidence |
+|---|---|---|---|
+| Values, curves, channels, programs, the engine, the visual representation, the timeline, the 40 recipes ([each through its course](RECIPES.md)) | stable | `hanim.core`, `hanim`, `hanim.visual`, `hanim.timeline` | [timeline_test](core/tests/timeline_test.cpp), [recipes_test](tests/program/recipes_test.cpp) |
+| Springs and soft bodies through `xengine.dynamics`' core | stable, on a preview package (`lower`) | `hanim` | [drive_test](tests/engine/drive_test.cpp), [deform_test](tests/library/deform_test.cpp) |
+| Skeletons (the parts Quay uses: rig, clips, skinning driven) | preview | `hanim.skeleton` | [skeleton_test](skeleton/cts/tests/skeleton_test.cpp), [gltf_test](skeleton/cts/tests/gltf_test.cpp) |
+| GPU batch evaluation, the studio | preview | `hanim.rhi`, `hanim.studio` | [shape_webgpu_test](rhi/tests/shape_webgpu_test.cpp), [the studio's recipes_test](studio/tests/recipes_test.cpp) |
 
 ## Agent surface
 
@@ -565,3 +565,11 @@ mcpp test -p hanim.studio     # stage_test: the agent contract's suite on a stag
 ```
 
 The subject's tests are [studio](studio)'s, which turns the feature on (as it does `control`): a feature is tested where it is on.
+
+## Known limitations
+
+Each names the level it is solved at (D-179: foundation, part, specialised, application).
+
+- **Turns between two drawings** (foundation): a matched morph interpolates points along lines, so a shape drawn at two angles shrinks through the middle rather than turning; an arc path between the two is owed.
+- **Lottie's frame time** (foundation): a Lottie file draws the same picture as ThorVG (0.002 % off), but ThorVG's frame time is 0.86× hanim's; the gap is xrender's rasteriser (about 63 % of the frame), so it is solved there.
+- **Skeletons' later stages** (part): blend spaces, inertialised transitions, IK and motion matching are interfaces reserved in `hanim.skeleton`, not implemented.

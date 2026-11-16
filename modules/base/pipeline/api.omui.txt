@@ -1,0 +1,145 @@
+== mlibs.pipeline
+export import mlibs.pipeline.api;
+export import mlibs.pipeline.govern;
+== mlibs.pipeline.api
+namespace mlibs::pipeline {
+  template <class T> struct resource_type;
+  template <class T> concept Resource = requires {…};
+  struct Port {
+    std::string name;
+    std::string type;
+    friend bool operator==(const Port& a, const Port& b) noexcept;
+  };
+  template <Resource T> [[nodiscard]] Port port(std::string name);
+  class Resources {
+    template <Resource T> void put(std::string_view name, T* value);
+    template <Resource T> [[nodiscard]] T* get(std::string_view name) const noexcept;
+    [[nodiscard]] bool has(std::string_view name) const noexcept;
+    void clear() noexcept;
+  };
+  using ConfigValue = std::variant<bool, std::int64_t, double, std::string>;
+  class Config {
+    Config() = default;
+    Config(std::initializer_list<std::pair<std::string, ConfigValue>> values) : values_(values);
+    void set(std::string key, ConfigValue value);
+    [[nodiscard]] const ConfigValue* get(std::string_view key) const noexcept;
+    [[nodiscard]] bool flag(std::string_view key, bool fallback = false) const noexcept;
+    [[nodiscard]] std::int64_t integer(std::string_view key, std::int64_t fallback = 0) const noexcept;
+    [[nodiscard]] double number(std::string_view key, double fallback = 0) const noexcept;
+    [[nodiscard]] std::string_view text(std::string_view key, std::string_view fallback = {…}) const noexcept;
+    [[nodiscard]] std::span<const std::pair<std::string, ConfigValue>> entries() const noexcept;
+    friend bool operator==(const Config&, const Config&) = default;
+  };
+  struct Context {
+    Resources& resources;
+    std::uint64_t run = 0;
+  };
+  class Stage {
+    virtual ~Stage() = default;
+    [[nodiscard]] virtual std::vector<Port> reads() const = 0;
+    [[nodiscard]] virtual std::vector<Port> writes() const = 0;
+    virtual std::expected<void, std::string> run(Context& context) = 0;
+  };
+  enum class Tier : std::uint8_t { t0, t1, t2, t3, t4 };
+  inline constexpr std::uint8_t all_tiers = 0x1f;
+  [[nodiscard]] constexpr std::uint8_t tier_bit(Tier t) noexcept;
+  [[nodiscard]] constexpr std::uint8_t tiers_from(Tier lowest) noexcept;
+  [[nodiscard]] std::string_view name(Tier t) noexcept;
+  struct Cost {
+    std::string unit = "frame";
+    double cpu_us = 0;
+    double gpu_us = 0;
+    std::size_t memory = 0;
+    std::uint8_t tiers = all_tiers;
+    std::vector<std::string> degrade;
+    [[nodiscard]] bool runs_on(Tier t) const noexcept;
+    [[nodiscard]] bool within(double measured_us, double units) const noexcept;
+  };
+  [[nodiscard]] bool costed(std::string_view kind) noexcept;
+  struct PluginInfo {
+    std::string name;
+    std::string kind = "stage";
+    std::string interface;
+    std::string description;
+    std::string trace_category = "frame";
+    std::optional<Cost> cost;
+  };
+  using Factory = std::function<std::expected<std::unique_ptr<Stage>, std::string>(const Config&)>;
+  class Registry {
+    std::expected<void, std::string> add(PluginInfo info, Factory make);
+    [[nodiscard]] const PluginInfo* info(std::string_view name) const noexcept;
+    [[nodiscard]] std::expected<std::unique_ptr<Stage>, std::string> make(std::string_view name, const Config& config) const;
+    [[nodiscard]] std::vector<PluginInfo> plugins() const;
+  };
+  struct StageDesc {
+    std::string name;
+    std::string plugin;
+    std::vector<std::string> after;
+    Config config;
+    friend bool operator==(const StageDesc&, const StageDesc&) = default;
+  };
+  struct Description {
+    std::string name;
+    std::vector<StageDesc> stages;
+    friend bool operator==(const Description&, const Description&) = default;
+  };
+  struct Problem {
+    std::string where;
+    std::string message;
+    std::string hint;
+  };
+  [[nodiscard]] std::string to_text(std::span<const Problem> problems);
+  [[nodiscard]] std::string to_json(const Description& description);
+  struct StageTime {
+    std::string name;
+    double ms = 0;
+  };
+  class Pipeline {
+    Pipeline(Pipeline&&) noexcept;
+    Pipeline& operator=(Pipeline&&) noexcept;
+    ~Pipeline();
+    [[nodiscard]] static std::expected<Pipeline, std::vector<Problem>> build(const Description& description, const Registry& registry, std::span<const Port> inputs = {…});
+    std::expected<void, std::string> run(Resources& resources);
+    [[nodiscard]] std::span<const StageTime> timings() const noexcept;
+    [[nodiscard]] std::vector<std::string> order() const;
+    [[nodiscard]] bool produces(std::string_view resource) const noexcept;
+    [[nodiscard]] const Description& description() const noexcept;
+    [[nodiscard]] std::string describe() const;
+    std::expected<void, std::vector<Problem>> replace(std::string_view stage, std::string_view plugin, const Config& config, const Registry& registry);
+    std::expected<void, std::vector<Problem>> insert(StageDesc stage, const Registry& registry);
+    std::expected<void, std::vector<Problem>> remove(std::string_view stage, const Registry& registry);
+  };
+}
+== mlibs.pipeline.govern
+namespace mlibs::pipeline {
+  struct Ladder {
+    std::string_view name;
+    std::uint8_t steps = 0;
+    std::uint8_t lowered = 0;
+  };
+  enum class Verdict : std::int8_t { lower = -1, hold = 0, raise = 1 };
+  struct GovernorOptions {
+    std::size_t weighed = 30;
+    std::size_t patience = 300;
+  };
+  using Policy = Verdict (*)(std::span<const float> recent, double budget_ms, std::uint64_t since_change, const GovernorOptions& options) noexcept;
+  [[nodiscard]] inline Verdict weigh(std::span<const float> recent, double budget_ms, std::uint64_t since_change, const GovernorOptions& options) noexcept;
+  class Governor {
+    static constexpr std::size_t most_ladders = 16, remembered = 300;
+    struct Change {
+      std::size_t ladder = 0;
+      std::uint8_t lowered = 0;
+      bool down = false;
+    };
+    Governor() = default;
+    explicit Governor(std::initializer_list<Ladder> ladders, GovernorOptions options = {…}, Policy policy = weigh) noexcept : options_(options), policy_(policy ? policy : weigh);
+    [[nodiscard]] std::span<const Ladder> ladders() const noexcept;
+    [[nodiscard]] const GovernorOptions& options() const noexcept;
+    void observe(double cost_ms) noexcept;
+    [[nodiscard]] std::optional<Change> decide(double budget_ms) noexcept;
+    [[nodiscard]] std::optional<Change> frame(double cost_ms, double budget_ms) noexcept;
+    void set(std::size_t ladder, std::uint8_t lowered) noexcept;
+    void settle() noexcept;
+    [[nodiscard]] std::uint64_t since_change() const noexcept;
+  };
+}

@@ -34,3 +34,23 @@ The current canonical packages are `mlibs.control`, `mlibs.utils` (modules
 `openmui.*` import within the same package until milestone M1 removes them. Other foundations are still being
 migrated; use their manifest identity. `mlibs` is a grouping, not an umbrella
 dependency. See the [migration plan](../../.agents/docs/2026-11-05-product-namespace-migration-design.md).
+
+## Labels in 0.1 (release plan §2.3)
+
+mlibs is this layer with [gfx](../gfx) and [content](../content); each package's manifest says its label (`maturity`).
+
+| Capability | Label | Packages | Evidence |
+|---|---|---|---|
+| The agent kernel: endpoints, sessions, subjects, history; openas policy | stable | `mlibs.agent`, `mlibs.control` | [session_test](agent/tests/session_test.cpp), [the contract's suite](agent/cts) |
+| Data: JSON with pointers, xdef snapshots, TypeScript evaluated to data | stable; the xdef command-line tool is preview | `mlibs.json`, `mlibs.xdef`, `mlibs.ts`, `mlibs.xdef.tool` | [json_test](json/tests/json_test.cpp), [xdef_test](xdef/tests/xdef_test.cpp) |
+| Mathematics, geometry, memory, hashing, logs and traces, stepping | stable | `mlibs.math`, `mlibs.geom`, `mlibs.memory`, `mlibs.utils`, `mlibs.simulation`, `mlibs.pipeline` | [math_test](math/tests/math_test.cpp), [simulation_test](simulation/tests/simulation_test.cpp) |
+| The device interface and shaders | stable | `mlibs.rhi`, `mlibs.shader` | [rhi_test](../gfx/rhi/tests/rhi_test.cpp), [the device suite](../gfx/rhi/cts) |
+| Text, layout, Markdown, locales | stable | `mlibs.text`, `mlibs.layout`, `mlibs.markdown`, `mlibs.i18n` | [text_test](../content/text/tests/text_test.cpp), [layout_test](../content/layout/tests/layout_test.cpp), [Markdown's conformance_test](../content/markdown/tests/conformance_test.cpp) |
+| Workspaces as projects | preview | `mlibs.project` | [the project model](project) |
+
+## Known limitations
+
+Each names the level it is solved at (D-179: foundation, part, specialised, application).
+
+- **Test helpers outside mtest** (foundation): `mlibs.testing` keeps three helpers (kept output directories among them) until mtest has their equivalents, then goes.
+- **Workspaces as projects** (foundation): `mlibs.project` is preview; its model may change in 0.1.x.

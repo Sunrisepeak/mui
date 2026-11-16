@@ -43,6 +43,6 @@ A library: a conformance suite, for tests only. Its results are mtest's conforma
 - **A device's own picture kept** as a pinned image: the cases compare with the reference drawn in the same run, not with a stored picture.
 
 ```sh
-tools/ci/gpu.sh mcpp test -p xrender.rhi.sdl mesh_test     # this machine's device
+omui-devtools gpu -- mcpp test -p xrender.rhi.sdl mesh_test   # CI's device on this machine (--real: its own GPU)
 tools/ci/browser.sh                                        # the page's WebGPU and WebGL2
 ```

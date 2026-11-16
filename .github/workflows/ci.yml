@@ -245,7 +245,7 @@ jobs:
         run: echo "SDL_VIDEO_DRIVER=offscreen" >> "$GITHUB_ENV"
 
       - name: A GPU for omui.rhi (lavapipe on Linux and Windows, Metal on macOS; required, not skipped)
-        run: tools/ci/gpu.sh
+        run: mcpp run omui-devtools -p tools/devtools --profile '${{ matrix.profile }}' -- gpu
 
       - name: Build every member
         run: mcpp build --workspace --profile '${{ matrix.profile }}' --exclude omui.reflect
@@ -472,7 +472,7 @@ jobs:
       - name: SDL's offscreen video driver
         run: echo "SDL_VIDEO_DRIVER=offscreen" >> "$GITHUB_ENV"
       - name: A GPU for omui.rhi (lavapipe)
-        run: tools/ci/gpu.sh
+        run: mcpp run omui-devtools -p tools/devtools --profile release -- gpu
       - name: The site's tests
         run: |
           mcpp test -p omui.site --profile release --timeout 1200 2>&1 | tee site-tests.log

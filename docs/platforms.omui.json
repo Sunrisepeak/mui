@@ -27,9 +27,9 @@
       "name": "2D on a GPU device (xrender, mlibs.rhi)",
       "label": "stable",
       "cells": {
-        "linux-x64": {"status": "real", "evidence": "RTX 4080 headless (tools/dev/gpu-real.sh); lavapipe on CI (tools/ci/gpu.sh)"},
+        "linux-x64": {"status": "real", "evidence": "RTX 4080 headless (omui-devtools gpu --real); lavapipe on CI (omui-devtools gpu)"},
         "web": {"status": "unverified", "needs": "which WebGPU adapter tools/ci/browser.sh's headless Chromium runs on is not recorded; a real browser on a real GPU"},
-        "macos-arm64": {"status": "software", "evidence": "CI row macos-15: the runner's Apple Paravirtual Metal device (tools/ci/gpu.sh, cocoa)"},
+        "macos-arm64": {"status": "software", "evidence": "CI row macos-15: the runner's Apple Paravirtual Metal device (omui-devtools gpu, cocoa)"},
         "windows-x64": {"status": "software", "evidence": "CI row windows-2022: lavapipe through SDL_GPU's Vulkan backend"},
         "linux-arm64": {"status": "software", "evidence": "CI row ubuntu-24.04-arm: lavapipe"},
         "android": {"status": "unverified", "needs": "a device run; CI builds and runs the emulator without a GPU device case"}
@@ -40,7 +40,7 @@
       "name": "3D mesh pass on a device (xrender.mesh.gpu)",
       "label": "preview",
       "cells": {
-        "linux-x64": {"status": "real", "evidence": "RTX 4080 headless (tools/dev/gpu-real.sh): quay.picture.device; lavapipe on CI"},
+        "linux-x64": {"status": "real", "evidence": "RTX 4080 headless (omui-devtools gpu --real): quay.picture.device; lavapipe on CI"},
         "web": {"status": "software", "evidence": "Quay's frame on headless Chromium's SwiftShader WebGPU (showcase/quay web_frame_test --frames 20: 46 draws, 8 lights; ~3 s a frame, not performance)", "needs": "a real browser on a real GPU: web_frame_test through tools/dev/browser-gpu.sh where a display is (headless Chromium has no Vulkan on NVIDIA's driver)"},
         "macos-arm64": {"status": "software", "evidence": "quay.picture.device on CI's Apple Paravirtual device (offscreen)"},
         "windows-x64": {"status": "software", "evidence": "CI row windows-2022: lavapipe"},
@@ -53,7 +53,7 @@
       "name": "Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; xrender.mesh.gpu)",
       "label": "preview",
       "cells": {
-        "linux-x64": {"status": "real", "evidence": "mesh.blocks on an RTX 4080 (tools/dev/gpu-real.sh): BC7, 45 of 129,600 pixels past 6 levels, as the same picture as light"},
+        "linux-x64": {"status": "real", "evidence": "mesh.blocks on an RTX 4080 (omui-devtools gpu --real): BC7, 45 of 129,600 pixels past 6 levels, as the same picture as light"},
         "web": {"status": "software", "evidence": "rhi.blocks on headless Chromium's WebGPU and WebGL2, all three kinds (tools/ci/browser.sh)", "needs": "mesh.blocks in the page's suite at the node; a real browser on a real GPU"},
         "macos-arm64": {"status": "unverified", "needs": "a CI run of mesh.blocks on the runner's Apple Paravirtual device"},
         "windows-x64": {"status": "unverified", "needs": "a CI run of mesh.blocks on lavapipe (BC7)"},

@@ -78,3 +78,13 @@ omui-devtools bench competitors --ledger --rounds 15
 omui-devtools lead capability --project omui --feature C --about "…" --test tools/mcp/tests/mcp_test.cpp --competitor webmcp=app-defined
 omui-devtools lead docs
 ```
+
+## gpu
+
+A GPU for the device tests, with `OMUI_REQUIRE_GPU=1` so that a missing device fails rather than being skipped. Without `--real` it is CI's software device: lavapipe (Mesa's Vulkan on the CPU) with the Vulkan loader on Linux and Windows, both from xlings (on Windows the driver manifest is registered under `HKLM\SOFTWARE\Khronos\Vulkan\Drivers`, since an elevated runner's loader ignores the variables), and the machine's Metal device through SDL's cocoa video driver on macOS. With `--real` it is this machine's NVIDIA GPU through xlings's `nvidia-gl-host-link`; performance numbers come only from that (AGENTS §2.10). Without a command, the variables are written to `$GITHUB_ENV` (CI's GPU rows) and printed; with one, it runs with them (and SDL's offscreen video driver).
+
+```text
+omui-devtools gpu                                          # CI's rows: lavapipe or Metal, into $GITHUB_ENV
+omui-devtools gpu -- mcpp test -p xrender.rhi.sdl          # CI's device on this machine
+omui-devtools gpu --real -- mcpp test -p xrender.rhi.sdl   # this machine's GPU
+```

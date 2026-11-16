@@ -2,7 +2,7 @@
 # The products' commands as an Agent uses them (convergence plan §10.3): each
 # operation of a catalog through its real command line, its JSON answer and
 # exit code checked — hanim's animation tool, xrender's command (the GPU
-# ones on the row's device: lavapipe or Metal, as tools/ci/gpu.sh sets) and
+# ones on the row's device: lavapipe or Metal, as omui-devtools gpu sets) and
 # the timeline's (timelines edited and taken back to the very bytes).
 set -euo pipefail
 cd "$(dirname "$0")/../.."

@@ -31,7 +31,7 @@ enter an ordinary adapter consumer.
 Use `xengine.cellular.rhi` and `xengine::cellular::gpu`. The Slang kernel is generated as a partition of `xengine.cellular.rhi.api` (entry points `evolve` and `exchange`).
 
 For local Linux validation with multiple installed Mesa stacks, select one
-Vulkan loader and ICD as `tools/ci/gpu.sh` does before running required-device
+Vulkan loader and ICD as `omui-devtools gpu` does before running required-device
 tests. A mixed LLVM 20/22 process was observed to crash during driver JIT;
 using the paired loader/lavapipe ICD avoids mixing those libraries. This is
 validation environment setup, not a skipped GPU test or an engine fallback.

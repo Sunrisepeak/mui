@@ -7,5 +7,5 @@ The owner of a suite runs it against a backend, never a backend against its cons
 `open(formats)` gives the device this machine has (the Vulkan library and SDL's video driver from `OMUI_VULKAN_LIBRARY` and `OMUI_GPU_VIDEO_DRIVER` when set); with `OMUI_REQUIRE_GPU=1` (CI) a missing device fails the tests, otherwise it is said and they pass vacuously.
 
 ```sh
-mcpp test -p xengine.cellular.sdl      # lavapipe in Linux CI (tools/ci/gpu.sh)
+mcpp test -p xengine.cellular.sdl      # lavapipe in Linux CI (omui-devtools gpu)
 ```

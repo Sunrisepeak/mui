@@ -2,7 +2,7 @@
 # Runs a page's test program (built with mcpp's wasm-browser profile) in Chromium on this machine's real GPU:
 # tools/ci/browser.sh runs the page on the software device CI has (SwiftShader); this is the browser on the
 # hardware a developer has — the full Chromium Playwright installs, in a window on the display there is, its WebGPU
-# through Vulkan on the NVIDIA driver tools/dev/gpu-real.sh links. What the page's adapter is, the program prints
+# through Vulkan on the NVIDIA driver omui-devtools gpu --real links. What the page's adapter is, the program prints
 # (`caps().device`, and "software" where it is one).
 #
 # A display is needed: headless Chromium reaches Vulkan only through VK_EXT_headless_surface, which NVIDIA's driver
@@ -23,6 +23,6 @@ node_bin=$(command -v node || ls -d "$HOME"/.xlings/data/xpkgs/xim-x-node/*/bin/
 program=$1
 shift
 export OMUI_BROWSER_HEADED=1
-exec tools/dev/gpu-real.sh "$node_bin" tools/ci/browser.mjs --chrome "$chrome" --timeout "${OMUI_BROWSER_TIMEOUT:-600}" \
+exec mcpp run omui-devtools -p tools/devtools -- gpu --real -- "$node_bin" tools/ci/browser.mjs --chrome "$chrome" --timeout "${OMUI_BROWSER_TIMEOUT:-600}" \
   --flag --enable-features=Vulkan --flag --use-angle=vulkan --flag --ignore-gpu-blocklist \
   "$program" "$@"

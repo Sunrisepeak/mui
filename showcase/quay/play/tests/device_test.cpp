@@ -1,4 +1,4 @@
-// Quay's picture on a device (SDL_GPU: lavapipe in Linux CI, the real GPU by tools/dev/gpu-real.sh): the frames of
+// Quay's picture on a device (SDL_GPU: lavapipe in Linux CI, the real GPU by omui-devtools gpu --real): the frames of
 // a game the guide plays — from the start, a warden near, the beacon lit — drawn by xrender.mesh.gpu as the
 // reference draws them (the wardens bent on the device, shadows by maps for the reference's traced ones, the
 // glow), each within the tolerance of the harbour's own case. With OMUI_REQUIRE_GPU=1 a missing device fails;

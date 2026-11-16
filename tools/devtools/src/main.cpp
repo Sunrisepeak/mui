@@ -18,6 +18,8 @@
 //         competitors, the pages (docs/{en,zh}/lead.md, the evaluation summary) and its check.
 //   bench competitors  the comparisons with the best of each field built, installed and run: the README's
 //         tables, or (--ledger) rounds alternating, judged into the lead ledger and its pages.
+//   gpu   a device for the GPU tests: CI's software one (lavapipe; Metal on macOS) or, with --real, this
+//         machine's NVIDIA GPU; its environment written to $GITHUB_ENV, or a command run with it.
 //   lint  the repository's rules (D-206: the lint in C++, 43 rules);
 //         --self-test shows each rule catches a violation planted in a tree of its own.
 import std;
@@ -29,6 +31,7 @@ import omui.devtools.atspi;
 import omui.devtools.bench;
 import omui.devtools.ci;
 import omui.devtools.govern;
+import omui.devtools.gpu;
 import omui.devtools.incremental;
 import omui.devtools.lead;
 import omui.devtools.lint;
@@ -212,6 +215,10 @@ cmd::App app() {
                         .option(Option("rule").takes_value().multiple().value_name("NAME").help("only these rules"))
                         .option(Option("list").help("the rules and what each checks"))
                         .option(Option("self-test").help("each rule's violation planted in a tree of its own: caught, and by it alone")))
+        .subcommand(cmd::App("gpu")
+                        .description("A GPU for the device tests: the variables written to $GITHUB_ENV (or printed), or a command run with them")
+                        .option(Option("real").help("this machine's NVIDIA GPU (Linux), not CI's software device"))
+                        .arg(Arg("command").help("after --: the command to run on the device")))
         .subcommand(cmd::App("bench")
                         .description("The benchmarks against the best of each field (tests/bench/competitors)")
                         .subcommand(cmd::App("competitors")
@@ -669,6 +676,36 @@ int main(int argc, char** argv) {
     if (parsed->subcommand_name() == "platforms") return platforms(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "api") return surface(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "lint") return lint(parsed->subcommand()->get(), root);
+    if (parsed->subcommand_name() == "gpu") {
+        namespace device = omui::devtools::gpu;
+        const auto& given = parsed->subcommand()->get();
+        const auto prepared = device::prepare(given.is_flag_set("real") ? device::Device::real : device::Device::software);
+        if (!prepared) {
+            std::cerr << "omui-devtools gpu: " << prepared.error() << '\n';
+            return 1;
+        }
+        for (const auto& line : prepared->said) std::cout << "gpu: " << line << '\n';
+        if (given.positional_count() == 0) {
+            const auto github = mcpplibs::os::env::get("GITHUB_ENV");
+            std::ofstream file;
+            if (github) file.open(*github, std::ios::binary | std::ios::app);
+            for (const auto& [name, value] : prepared->variables) {
+                std::cout << std::format("gpu: {}={}\n", name, value);
+                if (file.is_open()) file << name << '=' << value << '\n';
+            }
+            return github && !file ? 2 : 0;
+        }
+        mcpplibs::os::process::spawn_options run;
+        run.program = given.positional(0);
+        for (std::size_t index = 1; index < given.positional_count(); ++index) run.args.push_back(given.positional(index));
+        run.out = run.err = mcpplibs::os::process::stdio::inherit;  // it becomes this program
+        for (const auto& [name, value] : prepared->variables) run.env.emplace_back(name, value);
+        // A command run here on the software device makes no window either (CI's rows set this themselves).
+        if (!mcpplibs::os::is_macos && !mcpplibs::os::env::get("SDL_VIDEO_DRIVER")) run.env.emplace_back("SDL_VIDEO_DRIVER", "offscreen");
+        const auto failed = mcpplibs::os::process::exec(std::move(run));
+        std::cerr << std::format("omui-devtools gpu: {} did not start: {}\n", given.positional(0), failed ? std::string("returned") : failed.error().message());
+        return 127;
+    }
     if (parsed->subcommand_name() == "bench") {
         const auto& sub = parsed->subcommand()->get();
         if (sub.subcommand_name() != "competitors") {
@@ -705,6 +742,6 @@ int main(int argc, char** argv) {
     }
     if (parsed->subcommand_name() == "govern") return govern(parsed->subcommand()->get());
     if (parsed->subcommand_name() == "incremental") return incremental(parsed->subcommand()->get());
-    std::cerr << "usage: omui-devtools [--root DIR] ci … | llvm … | platforms | govern … | incremental … | api … | atspi … | lint … | lead … | bench …  (omui-devtools --help)\n";
+    std::cerr << "usage: omui-devtools [--root DIR] ci … | llvm … | platforms | govern … | incremental … | api … | atspi … | lint … | lead … | bench … | gpu …  (omui-devtools --help)\n";
     return 2;
 }

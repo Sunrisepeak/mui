@@ -23,19 +23,19 @@ What has been run where (release plan §2.5). **Real**: on real hardware or a re
 - **CPU reference rendering, simulation and the semantic tree**, Windows x64: CI row windows-2022
 - **CPU reference rendering, simulation and the semantic tree**, Linux arm64: CI row ubuntu-24.04-arm
 - **CPU reference rendering, simulation and the semantic tree**, Android: CI row android x86_64 (emulator; tools/ci/android.sh)
-- **2D on a GPU device (xrender, mlibs.rhi)**, Linux x64: RTX 4080 headless (tools/dev/gpu-real.sh); lavapipe on CI (tools/ci/gpu.sh)
+- **2D on a GPU device (xrender, mlibs.rhi)**, Linux x64: RTX 4080 headless (omui-devtools gpu --real); lavapipe on CI (omui-devtools gpu)
 - **2D on a GPU device (xrender, mlibs.rhi)**, Web (wasm32): missing: which WebGPU adapter tools/ci/browser.sh's headless Chromium runs on is not recorded; a real browser on a real GPU
-- **2D on a GPU device (xrender, mlibs.rhi)**, macOS arm64: CI row macos-15: the runner's Apple Paravirtual Metal device (tools/ci/gpu.sh, cocoa)
+- **2D on a GPU device (xrender, mlibs.rhi)**, macOS arm64: CI row macos-15: the runner's Apple Paravirtual Metal device (omui-devtools gpu, cocoa)
 - **2D on a GPU device (xrender, mlibs.rhi)**, Windows x64: CI row windows-2022: lavapipe through SDL_GPU's Vulkan backend
 - **2D on a GPU device (xrender, mlibs.rhi)**, Linux arm64: CI row ubuntu-24.04-arm: lavapipe
 - **2D on a GPU device (xrender, mlibs.rhi)**, Android: missing: a device run; CI builds and runs the emulator without a GPU device case
-- **3D mesh pass on a device (xrender.mesh.gpu)**, Linux x64: RTX 4080 headless (tools/dev/gpu-real.sh): quay.picture.device; lavapipe on CI
+- **3D mesh pass on a device (xrender.mesh.gpu)**, Linux x64: RTX 4080 headless (omui-devtools gpu --real): quay.picture.device; lavapipe on CI
 - **3D mesh pass on a device (xrender.mesh.gpu)**, Web (wasm32): Quay's frame on headless Chromium's SwiftShader WebGPU (showcase/quay web_frame_test --frames 20: 46 draws, 8 lights; ~3 s a frame, not performance); missing: a real browser on a real GPU: web_frame_test through tools/dev/browser-gpu.sh where a display is (headless Chromium has no Vulkan on NVIDIA's driver)
 - **3D mesh pass on a device (xrender.mesh.gpu)**, macOS arm64: quay.picture.device on CI's Apple Paravirtual device (offscreen)
 - **3D mesh pass on a device (xrender.mesh.gpu)**, Windows x64: CI row windows-2022: lavapipe
 - **3D mesh pass on a device (xrender.mesh.gpu)**, Linux arm64: CI row ubuntu-24.04-arm: lavapipe
 - **3D mesh pass on a device (xrender.mesh.gpu)**, Android: missing: a device run
-- **Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; xrender.mesh.gpu)**, Linux x64: mesh.blocks on an RTX 4080 (tools/dev/gpu-real.sh): BC7, 45 of 129,600 pixels past 6 levels, as the same picture as light
+- **Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; xrender.mesh.gpu)**, Linux x64: mesh.blocks on an RTX 4080 (omui-devtools gpu --real): BC7, 45 of 129,600 pixels past 6 levels, as the same picture as light
 - **Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; xrender.mesh.gpu)**, Web (wasm32): rhi.blocks on headless Chromium's WebGPU and WebGL2, all three kinds (tools/ci/browser.sh); missing: mesh.blocks in the page's suite at the node; a real browser on a real GPU
 - **Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; xrender.mesh.gpu)**, macOS arm64: missing: a CI run of mesh.blocks on the runner's Apple Paravirtual device
 - **Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; xrender.mesh.gpu)**, Windows x64: missing: a CI run of mesh.blocks on lavapipe (BC7)

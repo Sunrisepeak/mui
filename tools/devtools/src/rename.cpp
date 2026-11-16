@@ -8,19 +8,24 @@ namespace omui::devtools::rename {
 
 namespace {
 
-bool word_char(char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_'; }
+// A code name's word: letters and digits on neither side. '_' ends one, so what is made from the name follows it
+// (`xtools_test.cpp`, `run_xtools`); `xtoolsy` and `myxtools` are other words.
+bool word_char(char c) { return std::isalnum(static_cast<unsigned char>(c)) != 0; }
 
 bool code_name(std::string_view name) {
     return !name.empty() && std::islower(static_cast<unsigned char>(name.front())) &&
            std::ranges::all_of(name, [](char c) { return std::islower(static_cast<unsigned char>(c)) || std::isdigit(static_cast<unsigned char>(c)); });
 }
 
-// What is left as it was: the decisions and the record, under the names of their time; what is not text.
+// What is left as it was: the decisions and the record (`.agents/`'s pages), under the names of their time — the
+// data kept there (the evidence ledger) follows; what is not text.
 bool kept(std::string_view path) {
-    if (path.starts_with(".agents/")) return true;
+    if (path.starts_with(".agents/") && path.ends_with(".md")) return true;
     constexpr std::array binary{".png", ".webp", ".jpg", ".glb", ".gltf", ".hdr", ".wasm", ".woff2", ".ttf", ".otf", ".wav", ".ogg", ".opus", ".webm", ".ktx2", ".bin", ".zip"};
     return std::ranges::any_of(binary, [&](std::string_view suffix) { return path.ends_with(suffix); });
 }
+
+std::filesystem::path mcpp_path(std::string_view path) { return mcpplibs::os::fs::from_utf8(path); }
 
 std::expected<std::vector<std::string>, std::string> tracked(const std::filesystem::path& root) {
     auto listed = run::output(root, "git", {"ls-files", "-z"});
@@ -86,6 +91,13 @@ std::expected<void, std::string> apply(const std::filesystem::path& root, const 
         auto ran = run::program(root, "git", {"mv", path, moved});
         if (!ran || ran->status != 0) return std::unexpected(std::format("git mv {} {} failed", path, moved));
     }
+    // The directories the moves left empty go too, deepest first.
+    for (const auto& [path, moved] : plan.moves)
+        for (auto directory = (root / mcpp_path(path)).parent_path(); directory != root && directory.has_relative_path(); directory = directory.parent_path()) {
+            std::error_code error;
+            if (!std::filesystem::is_empty(directory, error) || error) break;
+            std::filesystem::remove(directory, error);
+        }
     return {};
 }
 

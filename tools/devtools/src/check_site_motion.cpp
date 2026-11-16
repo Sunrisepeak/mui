@@ -1449,16 +1449,28 @@ json presentation(const Context& context) {
                           number(dig(visible, 0, "links")) >= (route.contains("docs") ? 40 : 20),
                       "NoScript catalogue starts folded with every design link retained", visible);
                 const auto click_visible = [&](const std::string& selector) {
-                    const json point = script.value(
-                        "(() => {const n=Array.from(document.querySelectorAll(" + q(selector) +
-                        ")).find(n=>n.getBoundingClientRect().width>0);if(!n)return "
-                        "null;n.scrollIntoView({block:'center'});const "
-                        "r=n.getBoundingClientRect();return "
-                        "{x:r.x+r.width/2,y:r.y+r.height/2};})()");
+                    // Where the control is once it stays there: the point is the control's own (what
+                    // elementFromPoint finds there is it, or inside it) — a disclosure opening just
+                    // before (a <details> still growing) moves what is below it for a few frames.
+                    json point;
+                    for (int attempt = 0; attempt < 20 && !script.thrown(); ++attempt) {
+                        point = script.value(
+                            "(() => {const n=Array.from(document.querySelectorAll(" + q(selector) +
+                            ")).find(n=>n.getBoundingClientRect().width>0);if(!n)return "
+                            "null;n.scrollIntoView({block:'center'});const "
+                            "r=n.getBoundingClientRect();const x=r.x+r.width/2,y=r.y+r.height/2;"
+                            "const hit=document.elementFromPoint(x,y);return "
+                            "{x,y,own:!!hit&&(hit===n||n.contains(hit))};})()");
+                        if (!truthy(point) || truthy(dig(point, "own")))
+                            break;
+                        script.sleep(50);
+                    }
                     if (script.thrown())
                         return;
                     if (!truthy(point))
                         return script.raise("No visible static control: " + selector);
+                    if (!truthy(dig(point, "own")))
+                        return script.raise("The static control is not what is under its own middle: " + selector);
                     for (const std::string type : {"mouseMoved", "mousePressed", "mouseReleased"})
                         script.call("Input.dispatchMouseEvent", {{"type", type},
                                                                  {"x", at(point, "x")},

@@ -9,6 +9,7 @@ Mature projects: branded engines, frameworks and modules that are complex enough
 | [xengine](xengine) | An agent-native game engine system in which people and agents develop and play as equals (internal code name) | `xengine.dynamics` (base), `xengine.cellular*` (base, gfx), `xengine.{audio,video,timeline}*` (media), `xengine.{world,input,physics,net,ui}` (game) |
 | [gongfu](gongfu) | A deterministic, rollback-ready fighting-game framework whose characters are data | `gongfu` (the standard library only), `gongfu.{data,ai,training}`, `gongfu.{present2d,studio,rules}` |
 | [xrender](xrender) | A CPU/GPU same-source, Web-first renderer whose pixels agents can review (internal code name) | `xrender.graph`, `xrender.vector`, `xrender.effect`, `xrender.raster`, `xrender.rhi.*`, `xrender.cts` (gfx) |
+| [xtools](xtools) | The toolchain whole: one command and one MCP server over every project's toolkit, each command behaving as it does on its own (internal code name; a composition, plan §4.5) | `xtools` (tools) |
 
 M1's last step renames omui's packages (`openmui.*` → `omui.*`) and removes the old names' forwarders.
 

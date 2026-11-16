@@ -17,6 +17,9 @@ lower = ["xengine.audio", "xengine.audio.timeline", "xengine.video", "xengine.vi
 kind = "tool"
 agent = { part = "omui.agent" }  # the `omui` command: the agent operations of omui.agent's catalog, at the application's endpoint (D-174)
 
+[targets.omui-cli]
+kind = "lib"  # the toolkit's library: what `omui` runs, and what a composition (xtools) runs the same way
+
 [targets.omui]
 kind = "bin"
 main = "src/main.cpp"

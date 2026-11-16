@@ -1,0 +1,38 @@
+# xtools — the toolchain whole (convergence plan §4.5, D-203, D-208): one entry over every project's toolkit. A thin
+# composition: each toolkit's library and catalog are its own project's (omui.cli, hanim.studio, hanim.timeline.tool,
+# xrender.tool, gongfu.studio); this program puts their subjects in one session of the tool kernel (mlibs.agent, T0).
+[package]
+name        = "xtools"
+version     = "0.1.0"
+description = "The toolchain whole: one command and one MCP server over every project's toolkit (internal code name)"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "experimental"  # release plan §2.1: stable, preview or experimental (lint maturity)
+kind = "tool"
+reexports = ["mlibs.agent"]  # what its interface re-exports (lint module-closure)
+agent = { library = "a composition: each toolkit's subject and catalog are its own project's package (omui.cli, hanim.studio, hanim.timeline.tool, xrender.tool, gongfu.studio)" }
+
+[targets.xtools-core]
+kind = "lib"
+
+[targets.xtools]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+mlibs.agent           = { path = "../../base/agent" }
+"omui.cli"            = { path = "../omui/tools/cli" }
+"hanim.studio"        = { path = "../hanim/studio" }
+"hanim.timeline.tool" = { path = "../hanim/timeline/tool" }
+"xrender.tool"        = { path = "../xrender/tool" }
+"gongfu.studio"       = { path = "../gongfu/studio" }
+mcpplibs.os           = "0.4.4"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"

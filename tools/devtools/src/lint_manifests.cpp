@@ -54,6 +54,7 @@ constexpr std::pair<std::string_view, std::string_view> path_layers[]{
     {"modules/projects/omui/lang", "lang"},
     {"modules/projects/omui/sdk", "sdk"},
     {"modules/projects/omui/tools", "tools"},  // omui's toolkit: the command line, MCP, the generator (plan §4.5)
+    {"modules/projects/xtools", "tools"},      // the toolchain whole: every project's toolkit composed (plan §4.5, D-208)
     {"modules/ui", "ui"},
     {"components", "components"},
     {"lang", "lang"},
@@ -128,6 +129,7 @@ constexpr std::pair<std::string_view, std::string_view> project_paths[]{
     {"modules/projects/omui", "omui"},
     {"modules/projects/xengine/game", "xengine.game"},
     {"modules/projects/gongfu", "gongfu"},
+    {"modules/projects/xtools", "xtools"},
 };
 // gongfu's core alone (the standard library): a fixture the game layer's tests may take.
 constexpr std::pair<std::string_view, std::string_view> exact_projects[]{{"modules/projects/gongfu", "gongfu.core"}};
@@ -151,6 +153,8 @@ const std::map<std::string_view, std::set<std::string_view>>& project_rules() {
             {"gongfu.core", {"mlibs"}},  // for its tests; what it is built from is the standard library alone (layering)
             {"gongfu", with({"gongfu.core"})},
             {"xengine.game", with({"spec", "omui", "gongfu.core"})},
+            // The toolchain whole: a composition of every project's toolkit, and nothing depends on it (plan §4.5).
+            {"xtools", with({"spec", "omui", "xengine.game", "gongfu.core", "gongfu"})},
         };
     }();
     return table;

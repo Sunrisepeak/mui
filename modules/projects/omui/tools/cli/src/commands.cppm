@@ -103,7 +103,7 @@ int audio(const mlibs::agent::Arguments& a, std::ostream& out, std::ostream& err
 // serves them as tools; dev, run, connect and mcp hold a window or the terminal (`terminal`): a person's command line runs them.
 // One of the catalog's operations (omui.build …), its records to `out` and what went wrong to `err`; the exit code.
 int operation(std::string_view op, const mlibs::agent::Arguments& a, std::ostream& out, std::ostream& err);
-class Project final : public mlibs::agent::Subject {
+export class Project final : public mlibs::agent::Subject {
 public:
     [[nodiscard]] std::string_view name() const noexcept override { return "omui"; }
     [[nodiscard]] std::string_view interface_name() const noexcept override { return "omui.cli@1"; }

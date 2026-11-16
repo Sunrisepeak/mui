@@ -427,7 +427,7 @@ int look(Reply& reply, const mlibs::agent::Arguments& args) {
         }
         said["followed"] = std::move(beside_truth);
     }
-    return answer(said, 0);
+    return answer(reply, said, 0);
 }
 
 // The command line (mcpplibs.cmdline): effect check | preview, cts, device, look.

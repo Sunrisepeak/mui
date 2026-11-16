@@ -26,7 +26,7 @@ std::string describe_where(const Cell& c) { return std::format("cell ({}, {})", 
 namespace outer {
 enum class Errc : std::uint8_t { failed, inner };
 constexpr err::Description describe(Errc e) noexcept {
-    if (e == Errc::inner) return {"outer.inner", err::Kind::failed, {}, true};
+    if (e == Errc::inner) return {"outer.inner", err::Kind::failed, {}, {}, true};
     return {"outer.failed", err::Kind::failed};
 }
 }  // namespace outer

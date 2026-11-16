@@ -28,14 +28,14 @@ enum class PathError : std::uint8_t {
 [[nodiscard]] constexpr mlibs::error::Description describe(PathError e) noexcept {
     using Kind = mlibs::error::Kind;  // not a using-declaration: that is an ICE in GCC 16
     switch (e) {
-        case PathError::verb_budget: return {"geom.path.verb-budget", Kind::refused};
-        case PathError::point_budget: return {"geom.path.point-budget", Kind::refused};
-        case PathError::contour_budget: return {"geom.path.contour-budget", Kind::refused};
-        case PathError::invalid_verb: return {"geom.path.invalid-verb", Kind::invalid_argument};
-        case PathError::missing_move: return {"geom.path.missing-move", Kind::invalid_argument};
-        case PathError::missing_points: return {"geom.path.missing-points", Kind::invalid_argument};
-        case PathError::trailing_points: return {"geom.path.trailing-points", Kind::invalid_argument};
-        case PathError::nonfinite_coordinate: return {"geom.path.nonfinite-coordinate", Kind::invalid_argument};
+        case PathError::verb_budget: return {"geom.path.verb-budget", Kind::refused, "more verbs than the path's budget", "split the path into several, or raise the budget where the builder is made"};
+        case PathError::point_budget: return {"geom.path.point-budget", Kind::refused, "more points than the path's budget", "split the path into several, or raise the budget where the builder is made"};
+        case PathError::contour_budget: return {"geom.path.contour-budget", Kind::refused, "more contours than the path's budget", "split the path into several, or raise the budget where the builder is made"};
+        case PathError::invalid_verb: return {"geom.path.invalid-verb", Kind::invalid_argument, "a verb that is not move, line, quad, cubic or close", "use one of move, line, quad, cubic, close"};
+        case PathError::missing_move: return {"geom.path.missing-move", Kind::invalid_argument, "a contour that does not begin with a move", "begin each contour with a move to its first point"};
+        case PathError::missing_points: return {"geom.path.missing-points", Kind::invalid_argument, "a verb with fewer points than it takes", "give the verb its points: line 1, quad 2, cubic 3"};
+        case PathError::trailing_points: return {"geom.path.trailing-points", Kind::invalid_argument, "points left over after the last verb", "remove the points no verb takes, or add the verb they belong to"};
+        case PathError::nonfinite_coordinate: return {"geom.path.nonfinite-coordinate", Kind::invalid_argument, "a coordinate that is infinite or not a number", "find where the coordinate was computed (a division by zero, a missing value) and give a finite number"};
     }
     return {"geom.path.?", Kind::internal};
 }

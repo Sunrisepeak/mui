@@ -156,16 +156,16 @@ enum class Errc : std::uint8_t { name, value, expression, law, names_material, l
 [[nodiscard]] constexpr mlibs::error::Description describe(Errc code) noexcept {
     using Kind = mlibs::error::Kind;  // not `using mlibs::error::Kind;`: that is an ICE in GCC 16 (import_entity_module)
     switch (code) {
-        case Errc::name: return {"matter.name", Kind::invalid_argument, "a name that is not there, or is there twice"};
-        case Errc::value: return {"matter.value", Kind::invalid_argument, "a value of the wrong kind or out of its column's range"};
-        case Errc::expression: return {"matter.expression", Kind::invalid_argument, "a condition or an amount that is not well formed"};
-        case Errc::law: return {"matter.law", Kind::invalid_argument, "a law that says two kinds of thing, or nothing"};
-        case Errc::names_material: return {"matter.names-material", Kind::invalid_argument, "a law that names a material: laws read properties"};
-        case Errc::limit: return {"matter.limit", Kind::refused, "beyond the definition's limits"};
-        case Errc::unprepared: return {"matter.unprepared", Kind::invalid_argument, "the program was not prepared"};
-        case Errc::shape: return {"matter.shape", Kind::invalid_argument, "state that does not match the instances and channels"};
-        case Errc::pair: return {"matter.pair", Kind::invalid_argument, "a pair that names an instance not there, or one beside itself"};
-        case Errc::unstable: return {"matter.unstable", Kind::refused, "a transfer that could take more than an instance has: too many neighbours for its share"};
+        case Errc::name: return {"matter.name", Kind::invalid_argument, "a name that is not there, or is there twice", "use a name the definition has (`describe` lists them), and give each new one once"};
+        case Errc::value: return {"matter.value", Kind::invalid_argument, "a value of the wrong kind or out of its column's range", "give a value of the column's kind and within its range: the definition's column says both"};
+        case Errc::expression: return {"matter.expression", Kind::invalid_argument, "a condition or an amount that is not well formed", "correct the condition or the amount at the pointer: properties, numbers and operators only"};
+        case Errc::law: return {"matter.law", Kind::invalid_argument, "a law that says two kinds of thing, or nothing", "say one kind of thing in a law: a transfer, an adjustment, a reaction, a conversion or a motion"};
+        case Errc::names_material: return {"matter.names-material", Kind::invalid_argument, "a law that names a material: laws read properties", "write the law over a property (a tag or a column) the material has, not over the material's name"};
+        case Errc::limit: return {"matter.limit", Kind::refused, "beyond the definition's limits", "make the definition smaller, or raise its limits where the program is prepared"};
+        case Errc::unprepared: return {"matter.unprepared", Kind::invalid_argument, "the program was not prepared", "prepare the program from the definition before stepping with it"};
+        case Errc::shape: return {"matter.shape", Kind::invalid_argument, "state that does not match the instances and channels", "give state of the prepared shape: one row an instance, a column a channel"};
+        case Errc::pair: return {"matter.pair", Kind::invalid_argument, "a pair that names an instance not there, or one beside itself", "pair only instances that are there, and never one with itself"};
+        case Errc::unstable: return {"matter.unstable", Kind::refused, "a transfer that could take more than an instance has: too many neighbours for its share", "lower the law's share, or let fewer neighbours draw on one instance, so a step cannot take more than it holds"};
     }
     return {"matter.unknown", Kind::internal, "unknown"};
 }

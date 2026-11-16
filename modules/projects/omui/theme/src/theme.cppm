@@ -130,18 +130,18 @@ enum class ThemeError : std::uint8_t { no_layers, unknown_theme, overlay_first, 
 [[nodiscard]] constexpr mlibs::error::Description describe(ThemeError error) noexcept {
     using Kind = mlibs::error::Kind;
     switch (error) {
-        case ThemeError::no_layers: return {"omui.theme.no-layers", Kind::invalid_argument, "name a theme, then any overlays over it"};
-        case ThemeError::unknown_theme: return {"omui.theme.unknown-theme", Kind::not_found, "no theme of that name"};
-        case ThemeError::overlay_first: return {"omui.theme.overlay-first", Kind::invalid_argument, "an overlay comes after a theme"};
-        case ThemeError::cycle: return {"omui.theme.cycle", Kind::invalid_argument, "a theme extends itself"};
-        case ThemeError::unknown_base: return {"omui.theme.unknown-base", Kind::not_found, "a theme extends one no file declares"};
-        case ThemeError::extends_overlay: return {"omui.theme.extends-overlay", Kind::invalid_argument, "a theme extends a theme, not an overlay"};
-        case ThemeError::unknown_overlay: return {"omui.theme.unknown-overlay", Kind::not_found, "no overlay of that name"};
-        case ThemeError::not_an_overlay: return {"omui.theme.not-an-overlay", Kind::invalid_argument, "after the theme, only overlays"};
-        case ThemeError::unknown_token: return {"omui.theme.unknown-token", Kind::invalid_argument, "a layer sets a token the theme under it does not have"};
-        case ThemeError::unknown_style: return {"omui.theme.unknown-style", Kind::not_found, "no style of that name"};
-        case ThemeError::style_base: return {"omui.theme.style-base", Kind::failed, "a style's layers cannot be composed", true};
-        case ThemeError::bad_motion: return {"omui.theme.bad-motion", Kind::invalid_argument, "a style names a motion that is not one"};
+        case ThemeError::no_layers: return {"omui.theme.no-layers", Kind::invalid_argument, "name a theme, then any overlays over it", "name a theme first, then any overlays: [\"material3\", \"compact\"]"};
+        case ThemeError::unknown_theme: return {"omui.theme.unknown-theme", Kind::not_found, "no theme of that name", "use a theme the packs declare (`omui.theme`'s list), or add its file"};
+        case ThemeError::overlay_first: return {"omui.theme.overlay-first", Kind::invalid_argument, "an overlay comes after a theme", "put a theme first and the overlay after it"};
+        case ThemeError::cycle: return {"omui.theme.cycle", Kind::invalid_argument, "a theme extends itself", "break the loop of `extends`: a theme's chain must end at one that extends nothing"};
+        case ThemeError::unknown_base: return {"omui.theme.unknown-base", Kind::not_found, "a theme extends one no file declares", "declare the base theme, or extend one a file declares"};
+        case ThemeError::extends_overlay: return {"omui.theme.extends-overlay", Kind::invalid_argument, "a theme extends a theme, not an overlay", "extend a theme; apply the overlay after it instead"};
+        case ThemeError::unknown_overlay: return {"omui.theme.unknown-overlay", Kind::not_found, "no overlay of that name", "use an overlay the packs declare, or add its file"};
+        case ThemeError::not_an_overlay: return {"omui.theme.not-an-overlay", Kind::invalid_argument, "after the theme, only overlays", "after the theme, list only overlays"};
+        case ThemeError::unknown_token: return {"omui.theme.unknown-token", Kind::invalid_argument, "a layer sets a token the theme under it does not have", "set only tokens the theme beneath declares, or declare the token in the theme"};
+        case ThemeError::unknown_style: return {"omui.theme.unknown-style", Kind::not_found, "no style of that name", "use a style the theme declares"};
+        case ThemeError::style_base: return {"omui.theme.style-base", Kind::failed, "a style's layers cannot be composed", "read the cause beneath: its way out says what to correct in the style's layers", true};
+        case ThemeError::bad_motion: return {"omui.theme.bad-motion", Kind::invalid_argument, "a style names a motion that is not one", "name a motion the theme's motion table has"};
     }
     return {"omui.theme.?", Kind::internal};
 }

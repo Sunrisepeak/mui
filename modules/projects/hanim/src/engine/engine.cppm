@@ -24,26 +24,26 @@ enum class EngineError : std::uint8_t {
 [[nodiscard]] constexpr mlibs::error::Description describe(EngineError e) noexcept {
     using Kind = mlibs::error::Kind;  // not a using-declaration: that is an ICE in GCC 16
     switch (e) {
-        case EngineError::uninitialized: return {"hanim.engine.uninitialized", Kind::invalid_argument};
-        case EngineError::invalid_limits: return {"hanim.engine.invalid-limits", Kind::invalid_argument};
-        case EngineError::invalid_handle: return {"hanim.engine.invalid-handle", Kind::invalid_argument};
-        case EngineError::foreign_engine: return {"hanim.engine.foreign-engine", Kind::invalid_argument};
-        case EngineError::stale_handle: return {"hanim.engine.stale-handle", Kind::stale};
-        case EngineError::invalid_time: return {"hanim.engine.invalid-time", Kind::invalid_argument};
-        case EngineError::invalid_ease: return {"hanim.engine.invalid-ease", Kind::invalid_argument};
-        case EngineError::invalid_argument: return {"hanim.engine.invalid-argument", Kind::invalid_argument};
-        case EngineError::capacity: return {"hanim.engine.capacity", Kind::refused};
-        case EngineError::binding_conflict: return {"hanim.engine.binding-conflict", Kind::refused};
-        case EngineError::cancelled: return {"hanim.engine.cancelled", Kind::failed};
-        case EngineError::version_exhausted: return {"hanim.engine.version-exhausted", Kind::refused};
-        case EngineError::object: return {"hanim.engine.object", Kind::failed, {}, true};
-        case EngineError::animation: return {"hanim.engine.animation", Kind::failed, {}, true};
-        case EngineError::effect: return {"hanim.engine.effect", Kind::failed, {}, true};
-        case EngineError::reentrant_mutation: return {"hanim.engine.reentrant-mutation", Kind::refused};
-        case EngineError::program: return {"hanim.engine.program", Kind::failed, {}, true};
-        case EngineError::ambiguous_frame: return {"hanim.engine.ambiguous-frame", Kind::invalid_argument};
-        case EngineError::unsupported_operation: return {"hanim.engine.unsupported-operation", Kind::refused};
-        case EngineError::constraint_cycle: return {"hanim.engine.constraint-cycle", Kind::refused};
+        case EngineError::uninitialized: return {"hanim.engine.uninitialized", Kind::invalid_argument, "the engine was not made", "make the engine (with its limits) before using it"};
+        case EngineError::invalid_limits: return {"hanim.engine.invalid-limits", Kind::invalid_argument, "limits that cannot hold an animation", "give limits of at least one animation and one channel"};
+        case EngineError::invalid_handle: return {"hanim.engine.invalid-handle", Kind::invalid_argument, "a handle that names nothing", "use a handle the engine gave back"};
+        case EngineError::foreign_engine: return {"hanim.engine.foreign-engine", Kind::invalid_argument, "a handle from another engine", "use the handle with the engine that made it (a host has one engine)"};
+        case EngineError::stale_handle: return {"hanim.engine.stale-handle", Kind::stale, "a handle to an animation that has finished or gone", "start the animation again, or look up the current one"};
+        case EngineError::invalid_time: return {"hanim.engine.invalid-time", Kind::invalid_argument, "a time that is not finite, or negative", "give finite times of 0 or more, in seconds"};
+        case EngineError::invalid_ease: return {"hanim.engine.invalid-ease", Kind::invalid_argument, "an ease that is not valid", "give an ease of hanim.core's `:ease`: a named curve, or a cubic Bézier with its x within 0–1"};
+        case EngineError::invalid_argument: return {"hanim.engine.invalid-argument", Kind::invalid_argument, "an argument out of its range", "correct the argument the message names"};
+        case EngineError::capacity: return {"hanim.engine.capacity", Kind::refused, "more animations than the engine holds", "let finished animations go, or make the engine with larger limits"};
+        case EngineError::binding_conflict: return {"hanim.engine.binding-conflict", Kind::refused, "one target driven twice", "drive the target from one animation, or hand it over (interrupt the first)"};
+        case EngineError::cancelled: return {"hanim.engine.cancelled", Kind::failed, "the animation was cancelled", "start it again if it is still wanted"};
+        case EngineError::version_exhausted: return {"hanim.engine.version-exhausted", Kind::refused, "a target changed more times than its version counts", "rebind the target"};
+        case EngineError::object: return {"hanim.engine.object", Kind::failed, "an object failed beneath", "read the cause beneath: its way out says what to correct", true};
+        case EngineError::animation: return {"hanim.engine.animation", Kind::failed, "an animation failed beneath", "read the cause beneath: its way out says what to correct", true};
+        case EngineError::effect: return {"hanim.engine.effect", Kind::failed, "an effect failed beneath", "read the cause beneath: its way out says what to correct", true};
+        case EngineError::reentrant_mutation: return {"hanim.engine.reentrant-mutation", Kind::refused, "a change made while the engine is stepping", "make the change after the step returns (from the caller, not a callback)"};
+        case EngineError::program: return {"hanim.engine.program", Kind::failed, "a program failed beneath", "read the cause beneath: its way out says what to correct", true};
+        case EngineError::ambiguous_frame: return {"hanim.engine.ambiguous-frame", Kind::invalid_argument, "a frame that could be either of two", "name the frame by its number, not its time"};
+        case EngineError::unsupported_operation: return {"hanim.engine.unsupported-operation", Kind::refused, "an operation this engine does not do", "ask the engine's capabilities and take another way"};
+        case EngineError::constraint_cycle: return {"hanim.engine.constraint-cycle", Kind::refused, "constraints that depend on each other in a loop", "break the loop: one constraint must lead"};
     }
     return {"hanim.engine.?", Kind::internal};
 }

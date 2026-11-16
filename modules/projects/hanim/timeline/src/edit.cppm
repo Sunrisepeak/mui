@@ -23,16 +23,16 @@ enum class EditError : std::uint8_t { no_track, no_clip, no_place, no_length, be
 [[nodiscard]] constexpr mlibs::error::Description describe(EditError error) noexcept {
     using Kind = mlibs::error::Kind;
     switch (error) {
-        case EditError::no_track: return {"hanim.timeline.no-track", Kind::not_found, "there is no such track"};
-        case EditError::no_clip: return {"hanim.timeline.no-clip", Kind::not_found, "the track has no such clip"};
-        case EditError::no_place: return {"hanim.timeline.no-place", Kind::invalid_argument, "the track has no such place"};
-        case EditError::no_length: return {"hanim.timeline.no-length", Kind::invalid_argument, "a clip lasts longer than 0"};
-        case EditError::before_start: return {"hanim.timeline.before-start", Kind::invalid_argument, "a clip starts at 0 or later"};
-        case EditError::no_speed: return {"hanim.timeline.no-speed", Kind::invalid_argument, "a clip's speed is not 0"};
-        case EditError::overlap: return {"hanim.timeline.overlap", Kind::refused, "clips on a track do not overlap"};
-        case EditError::other_kind: return {"hanim.timeline.other-kind", Kind::refused, "a clip moves only to a track of its kind"};
-        case EditError::outside: return {"hanim.timeline.outside", Kind::invalid_argument, "the time is not inside the clip"};
-        case EditError::unknown_step: return {"hanim.timeline.unknown-step", Kind::internal, "a step of no known kind"};
+        case EditError::no_track: return {"hanim.timeline.no-track", Kind::not_found, "there is no such track", "use a track the timeline has, or add the track first"};
+        case EditError::no_clip: return {"hanim.timeline.no-clip", Kind::not_found, "the track has no such clip", "use a clip of that track (the track lists its clips)"};
+        case EditError::no_place: return {"hanim.timeline.no-place", Kind::invalid_argument, "the track has no such place", "give a place within the track: from 0 to its clip count"};
+        case EditError::no_length: return {"hanim.timeline.no-length", Kind::invalid_argument, "a clip lasts longer than 0", "give the clip a length above 0"};
+        case EditError::before_start: return {"hanim.timeline.before-start", Kind::invalid_argument, "a clip starts at 0 or later", "start the clip at 0 or later"};
+        case EditError::no_speed: return {"hanim.timeline.no-speed", Kind::invalid_argument, "a clip's speed is not 0", "give a speed other than 0 (negative plays it backwards)"};
+        case EditError::overlap: return {"hanim.timeline.overlap", Kind::refused, "clips on a track do not overlap", "move the clip to a free span of the track, or shorten or move the clip in the way"};
+        case EditError::other_kind: return {"hanim.timeline.other-kind", Kind::refused, "a clip moves only to a track of its kind", "move the clip to a track of its kind, or make one"};
+        case EditError::outside: return {"hanim.timeline.outside", Kind::invalid_argument, "the time is not inside the clip", "give a time inside the clip: from its start to its end"};
+        case EditError::unknown_step: return {"hanim.timeline.unknown-step", Kind::internal, "a step of no known kind", "report it with the edit that was applied: the editor met a step it does not know"};
     }
     return {"hanim.timeline.?", Kind::internal};
 }

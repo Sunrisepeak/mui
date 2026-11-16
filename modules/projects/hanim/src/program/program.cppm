@@ -41,34 +41,34 @@ enum class ProgramError : std::uint8_t {
 [[nodiscard]] constexpr mlibs::error::Description describe(ProgramError e) noexcept {
     using Kind = mlibs::error::Kind;  // not a using-declaration: that is an ICE in GCC 16
     switch (e) {
-        case ProgramError::unprepared: return {"hanim.program.unprepared", Kind::invalid_argument};
-        case ProgramError::invalid_limits: return {"hanim.program.invalid-limits", Kind::invalid_argument};
-        case ProgramError::empty_program: return {"hanim.program.empty-program", Kind::invalid_argument};
-        case ProgramError::invalid_snapshot: return {"hanim.program.invalid-snapshot", Kind::invalid_argument};
-        case ProgramError::invalid_source: return {"hanim.program.invalid-source", Kind::invalid_argument};
-        case ProgramError::invalid_time: return {"hanim.program.invalid-time", Kind::invalid_argument};
-        case ProgramError::invalid_ease: return {"hanim.program.invalid-ease", Kind::invalid_argument};
-        case ProgramError::node_budget: return {"hanim.program.node-budget", Kind::refused};
-        case ProgramError::depth_budget: return {"hanim.program.depth-budget", Kind::refused};
-        case ProgramError::track_budget: return {"hanim.program.track-budget", Kind::refused};
-        case ProgramError::segment_budget: return {"hanim.program.segment-budget", Kind::refused};
-        case ProgramError::part_budget: return {"hanim.program.part-budget", Kind::refused};
-        case ProgramError::cubic_budget: return {"hanim.program.cubic-budget", Kind::refused};
-        case ProgramError::effect_parameter_budget: return {"hanim.program.effect-parameter-budget", Kind::refused};
-        case ProgramError::source_version_mismatch: return {"hanim.program.source-version-mismatch", Kind::invalid_argument};
-        case ProgramError::binding_conflict: return {"hanim.program.binding-conflict", Kind::refused};
-        case ProgramError::animation: return {"hanim.program.animation", Kind::failed, {}, true};
-        case ProgramError::effect: return {"hanim.program.effect", Kind::failed, {}, true};
-        case ProgramError::invalid_track: return {"hanim.program.invalid-track", Kind::invalid_argument};
-        case ProgramError::output_too_small: return {"hanim.program.output-too-small", Kind::invalid_argument};
-        case ProgramError::unresolved_object: return {"hanim.program.unresolved-object", Kind::not_found};
-        case ProgramError::object: return {"hanim.program.object", Kind::failed, {}, true};
-        case ProgramError::scope_budget: return {"hanim.program.scope-budget", Kind::refused};
-        case ProgramError::channel_budget: return {"hanim.program.channel-budget", Kind::refused};
-        case ProgramError::scope_conflict: return {"hanim.program.scope-conflict", Kind::refused};
-        case ProgramError::invalid_repeat: return {"hanim.program.invalid-repeat", Kind::invalid_argument};
-        case ProgramError::route_budget: return {"hanim.program.route-budget", Kind::refused};
-        case ProgramError::nested_time_map: return {"hanim.program.nested-time-map", Kind::refused, "a time map maps a whole program, for now"};
+        case ProgramError::unprepared: return {"hanim.program.unprepared", Kind::invalid_argument, "the program was not prepared", "prepare the program before running it"};
+        case ProgramError::invalid_limits: return {"hanim.program.invalid-limits", Kind::invalid_argument, "limits that cannot hold a program", "give limits of at least one node, track and segment"};
+        case ProgramError::empty_program: return {"hanim.program.empty-program", Kind::invalid_argument, "a program with nothing in it", "give the program at least one track"};
+        case ProgramError::invalid_snapshot: return {"hanim.program.invalid-snapshot", Kind::invalid_argument, "a snapshot that is not a valid object", "take the snapshot again from a valid object"};
+        case ProgramError::invalid_source: return {"hanim.program.invalid-source", Kind::invalid_argument, "a source the program cannot read", "give a source of a kind the program takes (a value, a channel, an object)"};
+        case ProgramError::invalid_time: return {"hanim.program.invalid-time", Kind::invalid_argument, "a time that is not finite, or negative", "give finite times of 0 or more, in seconds"};
+        case ProgramError::invalid_ease: return {"hanim.program.invalid-ease", Kind::invalid_argument, "an ease that is not valid", "give an ease of hanim.core's `:ease`: a named curve, or a cubic Bézier with its x within 0–1"};
+        case ProgramError::node_budget: return {"hanim.program.node-budget", Kind::refused, "more nodes than the program's budget", "make the program smaller, or raise its node limit"};
+        case ProgramError::depth_budget: return {"hanim.program.depth-budget", Kind::refused, "nesting deeper than the budget", "flatten the nesting, or raise the depth limit"};
+        case ProgramError::track_budget: return {"hanim.program.track-budget", Kind::refused, "more tracks than the budget", "merge tracks, or raise the track limit"};
+        case ProgramError::segment_budget: return {"hanim.program.segment-budget", Kind::refused, "more segments than the budget", "use fewer keys, or raise the segment limit"};
+        case ProgramError::part_budget: return {"hanim.program.part-budget", Kind::refused, "more parts than the budget", "animate fewer parts in one program, or raise the part limit"};
+        case ProgramError::cubic_budget: return {"hanim.program.cubic-budget", Kind::refused, "more cubic segments than the budget", "simplify the shapes, or raise the cubic limit"};
+        case ProgramError::effect_parameter_budget: return {"hanim.program.effect-parameter-budget", Kind::refused, "more effect parameters than the budget", "drive fewer parameters, or raise the effect parameter limit"};
+        case ProgramError::source_version_mismatch: return {"hanim.program.source-version-mismatch", Kind::invalid_argument, "a source changed since the program was prepared", "prepare the program again from the current source"};
+        case ProgramError::binding_conflict: return {"hanim.program.binding-conflict", Kind::refused, "one target bound twice", "bind each target from one track: merge the two"};
+        case ProgramError::animation: return {"hanim.program.animation", Kind::failed, "an animation failed beneath", "read the cause beneath: its way out says what to correct", true};
+        case ProgramError::effect: return {"hanim.program.effect", Kind::failed, "an effect failed beneath", "read the cause beneath: its way out says what to correct", true};
+        case ProgramError::invalid_track: return {"hanim.program.invalid-track", Kind::invalid_argument, "a track that is not well formed", "give the track a target and keys in time order; the message names what is wrong"};
+        case ProgramError::output_too_small: return {"hanim.program.output-too-small", Kind::invalid_argument, "an output smaller than the program writes", "give an output of at least the prepared program's size"};
+        case ProgramError::unresolved_object: return {"hanim.program.unresolved-object", Kind::not_found, "a track names an object that is not there", "add the object first, or name one that is there"};
+        case ProgramError::object: return {"hanim.program.object", Kind::failed, "an object failed beneath", "read the cause beneath: its way out says what to correct", true};
+        case ProgramError::scope_budget: return {"hanim.program.scope-budget", Kind::refused, "more scopes than the budget", "nest fewer scopes, or raise the scope limit"};
+        case ProgramError::channel_budget: return {"hanim.program.channel-budget", Kind::refused, "more channels than the budget", "drive fewer channels, or raise the channel limit"};
+        case ProgramError::scope_conflict: return {"hanim.program.scope-conflict", Kind::refused, "two scopes that claim one target", "give each target one scope"};
+        case ProgramError::invalid_repeat: return {"hanim.program.invalid-repeat", Kind::invalid_argument, "a repeat count that is not finite or below 0", "give a repeat count of 0 or more (or the endless repeat)"};
+        case ProgramError::route_budget: return {"hanim.program.route-budget", Kind::refused, "more routes than the budget", "route fewer parts at once, or raise the route limit"};
+        case ProgramError::nested_time_map: return {"hanim.program.nested-time-map", Kind::refused, "a time map maps a whole program, for now", "put the time map on the whole program, not on a part of it"};
     }
     return {"hanim.program.?", Kind::internal};
 }

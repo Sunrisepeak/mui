@@ -22,13 +22,13 @@ enum class EffectError : std::uint8_t {
 [[nodiscard]] constexpr mlibs::error::Description describe(EffectError e) noexcept {
     using Kind = mlibs::error::Kind;  // not a using-declaration: that is an ICE in GCC 16
     switch (e) {
-        case EffectError::invalid_limits: return {"hanim.effect.invalid-limits", Kind::invalid_argument};
-        case EffectError::invalid_id: return {"hanim.effect.invalid-id", Kind::invalid_argument};
-        case EffectError::duplicate_parameter: return {"hanim.effect.duplicate-parameter", Kind::invalid_argument};
-        case EffectError::nonfinite_value: return {"hanim.effect.nonfinite-value", Kind::invalid_argument};
-        case EffectError::capacity: return {"hanim.effect.capacity", Kind::refused};
-        case EffectError::nonfinite_progress: return {"hanim.effect.nonfinite-progress", Kind::invalid_argument};
-        case EffectError::buffer_too_small: return {"hanim.effect.buffer-too-small", Kind::invalid_argument};
+        case EffectError::invalid_limits: return {"hanim.effect.invalid-limits", Kind::invalid_argument, "limits that cannot hold an effect", "give limits of at least one effect and one parameter"};
+        case EffectError::invalid_id: return {"hanim.effect.invalid-id", Kind::invalid_argument, "an effect id that is empty or malformed", "give a dotted lowercase id (`vendor.effect`)"};
+        case EffectError::duplicate_parameter: return {"hanim.effect.duplicate-parameter", Kind::invalid_argument, "a parameter declared twice", "declare each parameter once"};
+        case EffectError::nonfinite_value: return {"hanim.effect.nonfinite-value", Kind::invalid_argument, "a value that is infinite or not a number", "give finite values: find where the value was computed"};
+        case EffectError::capacity: return {"hanim.effect.capacity", Kind::refused, "more effects or parameters than the registry holds", "register fewer, or make the registry with larger limits"};
+        case EffectError::nonfinite_progress: return {"hanim.effect.nonfinite-progress", Kind::invalid_argument, "a progress that is not a finite number", "give a finite progress, usually within 0–1"};
+        case EffectError::buffer_too_small: return {"hanim.effect.buffer-too-small", Kind::invalid_argument, "a buffer smaller than the effect writes", "give a buffer of at least the size the effect reports"};
     }
     return {"hanim.effect.?", Kind::internal};
 }

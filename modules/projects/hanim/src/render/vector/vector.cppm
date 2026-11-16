@@ -22,22 +22,22 @@ enum class VectorError : std::uint8_t {
 [[nodiscard]] constexpr mlibs::error::Description describe(VectorError e) noexcept {
     using Kind = mlibs::error::Kind;  // not a using-declaration: that is an ICE in GCC 16
     switch (e) {
-        case VectorError::unprepared: return {"hanim.vector.unprepared", Kind::invalid_argument};
-        case VectorError::foreign_frame: return {"hanim.vector.foreign-frame", Kind::invalid_argument};
-        case VectorError::invalid_geometry: return {"hanim.vector.invalid-geometry", Kind::invalid_argument};
-        case VectorError::invalid_progress: return {"hanim.vector.invalid-progress", Kind::invalid_argument};
-        case VectorError::buffer_too_small: return {"hanim.vector.buffer-too-small", Kind::invalid_argument};
-        case VectorError::recording_alias: return {"hanim.vector.recording-alias", Kind::invalid_argument};
-        case VectorError::capacity: return {"hanim.vector.capacity", Kind::refused};
-        case VectorError::unknown_effect: return {"hanim.vector.unknown-effect", Kind::not_found};
-        case VectorError::unsupported_effect: return {"hanim.vector.unsupported-effect", Kind::refused};
-        case VectorError::unknown_parameter: return {"hanim.vector.unknown-parameter", Kind::not_found};
-        case VectorError::invalid_parameter: return {"hanim.vector.invalid-parameter", Kind::invalid_argument};
-        case VectorError::stale_effect: return {"hanim.vector.stale-effect", Kind::stale};
-        case VectorError::unknown_part: return {"hanim.vector.unknown-part", Kind::not_found};
-        case VectorError::duplicate_material: return {"hanim.vector.duplicate-material", Kind::invalid_argument};
-        case VectorError::invalid_material: return {"hanim.vector.invalid-material", Kind::invalid_argument};
-        case VectorError::recording_failed: return {"hanim.vector.recording-failed", Kind::failed};
+        case VectorError::unprepared: return {"hanim.vector.unprepared", Kind::invalid_argument, "the vector scene was not prepared", "prepare the scene before recording or rendering it"};
+        case VectorError::foreign_frame: return {"hanim.vector.foreign-frame", Kind::invalid_argument, "a frame from another scene", "render a frame with the scene that made it"};
+        case VectorError::invalid_geometry: return {"hanim.vector.invalid-geometry", Kind::invalid_argument, "geometry that cannot be drawn", "give closed or open paths with finite points; the message names the part"};
+        case VectorError::invalid_progress: return {"hanim.vector.invalid-progress", Kind::invalid_argument, "a progress that is not a finite number", "give a finite progress, usually within 0–1"};
+        case VectorError::buffer_too_small: return {"hanim.vector.buffer-too-small", Kind::invalid_argument, "a buffer smaller than what is written into it", "give a buffer of at least the size the scene reports"};
+        case VectorError::recording_alias: return {"hanim.vector.recording-alias", Kind::invalid_argument, "a recording written over what it reads", "record into a buffer of its own"};
+        case VectorError::capacity: return {"hanim.vector.capacity", Kind::refused, "more than the scene's capacity", "draw fewer parts, or make the scene with a larger capacity"};
+        case VectorError::unknown_effect: return {"hanim.vector.unknown-effect", Kind::not_found, "no effect of that name", "use an effect the registry has , or register it first"};
+        case VectorError::unsupported_effect: return {"hanim.vector.unsupported-effect", Kind::refused, "an effect this renderer does not run", "take the effect's fallback, or render on a backend that has it"};
+        case VectorError::unknown_parameter: return {"hanim.vector.unknown-parameter", Kind::not_found, "the effect has no parameter of that name", "use a parameter the effect declares (its descriptor)"};
+        case VectorError::invalid_parameter: return {"hanim.vector.invalid-parameter", Kind::invalid_argument, "a parameter value of the wrong kind or out of range", "give the value its descriptor says: kind and range"};
+        case VectorError::stale_effect: return {"hanim.vector.stale-effect", Kind::stale, "an effect handle from before its registry changed", "look the effect up again and use the new handle"};
+        case VectorError::unknown_part: return {"hanim.vector.unknown-part", Kind::not_found, "no part of that name", "use a part name the object declares"};
+        case VectorError::duplicate_material: return {"hanim.vector.duplicate-material", Kind::invalid_argument, "a material named twice", "give each material one name, once"};
+        case VectorError::invalid_material: return {"hanim.vector.invalid-material", Kind::invalid_argument, "a material out of its ranges", "keep each material's values within the ranges its fields state"};
+        case VectorError::recording_failed: return {"hanim.vector.recording-failed", Kind::failed, "the recording failed beneath", "read its cause; record again with what the cause asks for"};
     }
     return {"hanim.vector.?", Kind::internal};
 }

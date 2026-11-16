@@ -666,7 +666,7 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
             if (auto png = options_.capture(window))
                 if (auto decoded = mlibs::image::decode_png(*png)) before = std::move(*decoded);
         auto answer = runtime_.reload_sources(req);
-        if (!answer) return e.error(mlibs::error::name(answer.error().kind()), answer.error().message).result(spec::exit_code::failure);
+        if (!answer) return failed(e, {answer.error().kind(), answer.error().message, std::string(answer.error().way())});
         const Value* reloaded = answer->get("reloaded");
         if (!pictures || before.empty() || !reloaded || !reloaded->list() || reloaded->list()->empty())
             return e.data(std::move(*answer)).result(spec::exit_code::success);
@@ -734,10 +734,7 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         }
         if (format == "svg") {
             auto picture = options_.capture_svg(region);
-            if (!picture) {
-                e.error(mlibs::error::name(picture.error().kind()), picture.error().message).result(spec::exit_code::failure);
-                return e;
-            }
+            if (!picture) return failed(e, {picture.error().kind(), picture.error().message, std::string(picture.error().way())});
             Value::List islands;
             for (const VectorIsland& island : picture->islands) {
                 Value one;
@@ -751,10 +748,7 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
             return e.data(std::move(d)).result(spec::exit_code::success);
         }
         auto png = options_.capture(region);
-        if (!png) {
-            e.error(mlibs::error::name(png.error().kind()), png.error().message).result(spec::exit_code::failure);
-            return e;
-        }
+        if (!png) return failed(e, {png.error().kind(), png.error().message, std::string(png.error().way())});
         Value d;
         d.set("format", "png").set("bounds", Value(Value::List{Value(region.x), Value(region.y), Value(region.width), Value(region.height)}));
         d.set("base64", mlibs::base64::encode(*png));

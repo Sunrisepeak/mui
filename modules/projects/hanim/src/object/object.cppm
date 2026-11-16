@@ -47,32 +47,32 @@ enum class ObjectError : std::uint8_t {
 [[nodiscard]] constexpr mlibs::error::Description describe(ObjectError e) noexcept {
     using Kind = mlibs::error::Kind;  // not a using-declaration: that is an ICE in GCC 16
     switch (e) {
-        case ObjectError::uninitialized: return {"hanim.object.uninitialized", Kind::invalid_argument};
-        case ObjectError::invalid_limits: return {"hanim.object.invalid-limits", Kind::invalid_argument};
-        case ObjectError::identity_exhausted: return {"hanim.object.identity-exhausted", Kind::refused};
-        case ObjectError::version_exhausted: return {"hanim.object.version-exhausted", Kind::refused};
-        case ObjectError::invalid_object: return {"hanim.object.invalid-object", Kind::invalid_argument};
-        case ObjectError::foreign_owner: return {"hanim.object.foreign-owner", Kind::invalid_argument};
-        case ObjectError::stale_object: return {"hanim.object.stale-object", Kind::stale};
-        case ObjectError::different_object: return {"hanim.object.different-object", Kind::invalid_argument};
-        case ObjectError::invalid_part: return {"hanim.object.invalid-part", Kind::invalid_argument};
-        case ObjectError::stale_part: return {"hanim.object.stale-part", Kind::stale};
-        case ObjectError::part_not_found: return {"hanim.object.part-not-found", Kind::not_found};
-        case ObjectError::invalid_id: return {"hanim.object.invalid-id", Kind::invalid_argument};
-        case ObjectError::duplicate_id: return {"hanim.object.duplicate-id", Kind::invalid_argument};
-        case ObjectError::missing_parent: return {"hanim.object.missing-parent", Kind::invalid_argument};
-        case ObjectError::multiple_roots: return {"hanim.object.multiple-roots", Kind::invalid_argument};
-        case ObjectError::cycle: return {"hanim.object.cycle", Kind::invalid_argument};
-        case ObjectError::depth_limit: return {"hanim.object.depth-limit", Kind::refused};
-        case ObjectError::capacity: return {"hanim.object.capacity", Kind::refused};
-        case ObjectError::invalid_coordinate: return {"hanim.object.invalid-coordinate", Kind::invalid_argument};
-        case ObjectError::invalid_verb: return {"hanim.object.invalid-verb", Kind::invalid_argument};
-        case ObjectError::invalid_transform: return {"hanim.object.invalid-transform", Kind::invalid_argument};
-        case ObjectError::invalid_color: return {"hanim.object.invalid-color", Kind::invalid_argument};
-        case ObjectError::invalid_resource: return {"hanim.object.invalid-resource", Kind::invalid_argument};
-        case ObjectError::unsupported_capability: return {"hanim.object.unsupported-capability", Kind::refused};
-        case ObjectError::reentrant_mutation: return {"hanim.object.reentrant-mutation", Kind::refused};
-        case ObjectError::invalid_path: return {"hanim.object.invalid-path", Kind::failed, {}, true};
+        case ObjectError::uninitialized: return {"hanim.object.uninitialized", Kind::invalid_argument, "the object store was not made", "make the store (with its limits) before adding objects to it"};
+        case ObjectError::invalid_limits: return {"hanim.object.invalid-limits", Kind::invalid_argument, "limits that cannot hold an object", "give limits of at least one object, one part and a depth of one"};
+        case ObjectError::identity_exhausted: return {"hanim.object.identity-exhausted", Kind::refused, "every identity of the store is used", "release objects that are no longer shown, or make a store with larger limits"};
+        case ObjectError::version_exhausted: return {"hanim.object.version-exhausted", Kind::refused, "the object changed more times than its version counts", "replace the object with a fresh one"};
+        case ObjectError::invalid_object: return {"hanim.object.invalid-object", Kind::invalid_argument, "a handle that names no object", "use a handle the store gave back from adding the object"};
+        case ObjectError::foreign_owner: return {"hanim.object.foreign-owner", Kind::invalid_argument, "a handle from another store", "use the object with the store that made it"};
+        case ObjectError::stale_object: return {"hanim.object.stale-object", Kind::stale, "a handle to an object that has changed or gone", "look the object up again for its current handle"};
+        case ObjectError::different_object: return {"hanim.object.different-object", Kind::invalid_argument, "a part or handle of another object", "use parts of the object the call names"};
+        case ObjectError::invalid_part: return {"hanim.object.invalid-part", Kind::invalid_argument, "a part handle that names no part", "use a part handle the object gave back"};
+        case ObjectError::stale_part: return {"hanim.object.stale-part", Kind::stale, "a part handle from before the object changed", "look the part up again by its id"};
+        case ObjectError::part_not_found: return {"hanim.object.part-not-found", Kind::not_found, "no part with that id", "use an id the object's parts have"};
+        case ObjectError::invalid_id: return {"hanim.object.invalid-id", Kind::invalid_argument, "a part id that is empty or malformed", "give a non-empty id of letters, digits, `-` and `_`"};
+        case ObjectError::duplicate_id: return {"hanim.object.duplicate-id", Kind::invalid_argument, "a part id given twice", "give each part its own id"};
+        case ObjectError::missing_parent: return {"hanim.object.missing-parent", Kind::invalid_argument, "a part whose parent is not there", "add the parent first, or name a parent the object has"};
+        case ObjectError::multiple_roots: return {"hanim.object.multiple-roots", Kind::invalid_argument, "more than one part without a parent", "give the object one root and hang the others under it"};
+        case ObjectError::cycle: return {"hanim.object.cycle", Kind::invalid_argument, "parts that are their own ancestors", "break the loop: a part's parent chain must end at the root"};
+        case ObjectError::depth_limit: return {"hanim.object.depth-limit", Kind::refused, "a hierarchy deeper than the limit", "flatten the hierarchy, or raise the depth in the store's limits"};
+        case ObjectError::capacity: return {"hanim.object.capacity", Kind::refused, "more parts than the store holds", "use fewer parts, or make the store with larger limits"};
+        case ObjectError::invalid_coordinate: return {"hanim.object.invalid-coordinate", Kind::invalid_argument, "a coordinate that is infinite or not a number", "give finite coordinates: find where the value was computed"};
+        case ObjectError::invalid_verb: return {"hanim.object.invalid-verb", Kind::invalid_argument, "a path verb the object does not take", "give paths as move, line, quad, cubic and close only"};
+        case ObjectError::invalid_transform: return {"hanim.object.invalid-transform", Kind::invalid_argument, "a transform that is not finite or cannot be inverted", "give a finite transform with a non-zero scale"};
+        case ObjectError::invalid_color: return {"hanim.object.invalid-color", Kind::invalid_argument, "a colour out of range", "give colour channels within 0–1 (alpha too)"};
+        case ObjectError::invalid_resource: return {"hanim.object.invalid-resource", Kind::invalid_argument, "a resource that is not there or not of its kind", "register the resource (an image, a gradient) before a part refers to it"};
+        case ObjectError::unsupported_capability: return {"hanim.object.unsupported-capability", Kind::refused, "a capability this store does not have", "ask the store's capabilities and take another way, or a store that has it"};
+        case ObjectError::reentrant_mutation: return {"hanim.object.reentrant-mutation", Kind::refused, "a change made while the store is being changed", "make the change after the current one returns (from the caller, not from a callback)"};
+        case ObjectError::invalid_path: return {"hanim.object.invalid-path", Kind::failed, "a part's path failed beneath", "read the cause beneath: its way out says what to correct in the path", true};
     }
     return {"hanim.object.?", Kind::internal};
 }

@@ -18,14 +18,14 @@ enum class QueryError : std::uint8_t { not_an_object, unknown_field, unknown_rol
 [[nodiscard]] constexpr mlibs::error::Description describe(QueryError error) noexcept {
     using Kind = mlibs::error::Kind;
     switch (error) {
-        case QueryError::not_an_object: return {"omui.semantic.not-an-object", Kind::invalid_argument, "a query or a condition is an object"};
-        case QueryError::unknown_field: return {"omui.semantic.unknown-field", Kind::invalid_argument, "a field a query or a condition does not have"};
-        case QueryError::unknown_role: return {"omui.semantic.unknown-role", Kind::invalid_argument, "no role of that name"};
-        case QueryError::unknown_state: return {"omui.semantic.unknown-state", Kind::invalid_argument, "no state of that name"};
-        case QueryError::not_a_list: return {"omui.semantic.not-a-list", Kind::invalid_argument, "a list of state names"};
-        case QueryError::bad_rect: return {"omui.semantic.bad-rect", Kind::invalid_argument, "[x, y, width, height]"};
-        case QueryError::bad_point: return {"omui.semantic.bad-point", Kind::invalid_argument, "[x, y]"};
-        case QueryError::nothing_to_wait_for: return {"omui.semantic.nothing-to-wait-for", Kind::invalid_argument, "a condition needs `q` or `settled`"};
+        case QueryError::not_an_object: return {"omui.semantic.not-an-object", Kind::invalid_argument, "a query or a condition is an object", "write the query or condition as a JSON object: {\"role\": \"button\", \"name\": \"Save\"}"};
+        case QueryError::unknown_field: return {"omui.semantic.unknown-field", Kind::invalid_argument, "a field a query or a condition does not have", "use the fields a query has (id, under, role, name, state, not, value, within, at, interactive, limit) or a condition has (q, absent, settled, timeout)"};
+        case QueryError::unknown_role: return {"omui.semantic.unknown-role", Kind::invalid_argument, "no role of that name", "use a role the tree has (`ui.snapshot` shows each node's role)"};
+        case QueryError::unknown_state: return {"omui.semantic.unknown-state", Kind::invalid_argument, "no state of that name", "use a state the tree has (`ui.snapshot` shows each node's states)"};
+        case QueryError::not_a_list: return {"omui.semantic.not-a-list", Kind::invalid_argument, "a list of state names", "give the states as a list of names: [\"checked\"]"};
+        case QueryError::bad_rect: return {"omui.semantic.bad-rect", Kind::invalid_argument, "[x, y, width, height]", "give a rectangle as four numbers: [x, y, width, height]"};
+        case QueryError::bad_point: return {"omui.semantic.bad-point", Kind::invalid_argument, "[x, y]", "give a point as two numbers: [x, y]"};
+        case QueryError::nothing_to_wait_for: return {"omui.semantic.nothing-to-wait-for", Kind::invalid_argument, "a condition needs `q` or `settled`", "give the condition a query (`q`) or `settled: true`"};
     }
     return {"omui.semantic.?", Kind::internal};
 }

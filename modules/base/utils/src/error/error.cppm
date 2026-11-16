@@ -5,8 +5,10 @@
 //     constexpr mlibs::error::Description describe(Errc c) noexcept {   // found by ADL, beside the enum
 //         using Kind = mlibs::error::Kind;   // (a using-declaration of it here is an ICE in GCC 16)
 //         switch (c) {
-//             case Errc::unsupported: return {"rhi.unsupported", Kind::refused};
-//             case Errc::invalid: return {"rhi.invalid", Kind::invalid_argument};
+//             case Errc::unsupported: return {"rhi.unsupported", Kind::refused, "not what this device can do",
+//                                             "ask what the device has (`features`) and take the fallback"};
+//             case Errc::invalid: return {"rhi.invalid", Kind::invalid_argument, "a description that is wrong",
+//                                         "correct the description the message names"};
 //         }
 //         return {"rhi.?", Kind::internal};
 //     }
@@ -17,7 +19,9 @@
 // Codes stay their domain's (the domain names them and says what kind each
 // is); the shape, the names' form (`domain.code`), the text and the kinds are
 // everyone's. A kind is openas's error code by the same name (SPEC §6.3), so
-// an error reaches an agent as what it is.
+// an error reaches an agent as what it is. Every code says its way out (D-186,
+// RC2.19): what the caller does next — correct what, ask what, try what — a
+// sentence an agent can act on; mlibs.cts:errors checks each domain's.
 export module mlibs.error;
 
 import std;
@@ -43,7 +47,7 @@ enum class Kind : std::uint8_t { invalid_argument, not_found, refused, stale, ti
 }
 
 // What a domain says of one of its codes: its name (`domain.code`), its kind,
-// and a sentence a person reads. A code that says a lower layer failed (an
+// a sentence a person reads, and its way out — what to do about it. A code that says a lower layer failed (an
 // engine's `program`, wrapping the program's own error) `wraps`: its kind is
 // its first cause's, so an agent learns that the program was refused, not
 // merely that something failed.
@@ -51,6 +55,7 @@ struct Description {
     std::string_view name;
     Kind             kind = Kind::failed;
     std::string_view text = {};
+    std::string_view way = {};
     bool             wraps = false;
 };
 
@@ -87,6 +92,8 @@ struct Error {
     std::vector<Cause> causes;
 
     [[nodiscard]] Description description() const noexcept { return describe(code); }
+    // What to do about it: the code's way out.
+    [[nodiscard]] std::string_view way() const noexcept { return describe(code).way; }
     [[nodiscard]] Kind kind() const noexcept {
         const Description d = describe(code);
         return d.wraps && !causes.empty() ? causes.front().kind : d.kind;

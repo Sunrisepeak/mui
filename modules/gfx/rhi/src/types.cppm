@@ -30,11 +30,11 @@ enum class Errc : std::uint8_t {
 [[nodiscard]] constexpr mlibs::error::Description describe(Errc code) noexcept {
     using Kind = mlibs::error::Kind;  // not `using mlibs::error::Kind;`: that is an ICE in GCC 16 (import_entity_module)
     switch (code) {
-        case Errc::unsupported: return {"rhi.unsupported", Kind::refused, "not what this device can do"};
-        case Errc::invalid: return {"rhi.invalid", Kind::invalid_argument, "a description or a command list that is wrong"};
-        case Errc::out_of_memory: return {"rhi.out-of-memory", Kind::failed, "the device is out of memory"};
-        case Errc::device_lost: return {"rhi.device-lost", Kind::failed, "the device was lost"};
-        case Errc::backend: return {"rhi.backend", Kind::failed, "the backend failed"};
+        case Errc::unsupported: return {"rhi.unsupported", Kind::refused, "not what this device can do", "ask the device what it has (its features and limits) and take the fallback path, the CPU reference"};
+        case Errc::invalid: return {"rhi.invalid", Kind::invalid_argument, "a description or a command list that is wrong", "correct the description or the command the message names: it is a bug in the caller"};
+        case Errc::out_of_memory: return {"rhi.out-of-memory", Kind::failed, "the device is out of memory", "release what is no longer drawn (textures, buffers) or ask for less, then try again"};
+        case Errc::device_lost: return {"rhi.device-lost", Kind::failed, "the device was lost", "make the device again and re-upload what it held; if it keeps happening, report the driver and its log"};
+        case Errc::backend: return {"rhi.backend", Kind::failed, "the backend failed", "read the backend's message; try another backend, or the CPU reference, while it is reported"};
     }
     return {"rhi.?", Kind::internal};
 }

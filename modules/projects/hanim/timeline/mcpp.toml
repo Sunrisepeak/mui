@@ -36,3 +36,4 @@ mlibs.json          = { path = "../../../base/json" }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
+mlibs.cts = { path = "../../../base/cts" }

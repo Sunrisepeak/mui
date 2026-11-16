@@ -22,10 +22,17 @@ export namespace omui::cli {
 // Runs a command line (argv[0] included); writes to `out` and `err`.
 int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err);
 
-// The request an `omui agent <op>` command sends, from its arguments
-// (exposed for tests); an error message when the arguments do not make one.
-// `first`: where the operation's own positional arguments begin (1 for `omui agent <op> <app>`, 0 for `omui page <op>`).
-[[nodiscard]] std::expected<std::string, std::string> agent_request(const mcpplibs::cmdline::ParsedArgs& op, std::size_t first = 1);
+// A running application reached — omui agent: its endpoint; omui page: the bridge to the paired page — a request
+// sent and its records taken, waiting at most `limit`.
+using Transport = std::function<std::vector<Value>(const Value& request, std::chrono::milliseconds limit)>;
+// `omui agent <op> <app> …` (the app taken out) and `omui page <op> …` (running.cpp): the operation's words through the
+// tool kernel's command line over the protocol's catalogs (ui.*, design.*, generate.*, task.*); `--out FILE` keeps a
+// picture, its vectors or a trace the answer carries in that file. The exit code is the answer's.
+int operate_running(std::vector<std::string> words, const Transport& send, std::ostream& out, std::ostream& err);
+// `call`: one request of the protocol's as it is (the first word, a JSON object), or why the words make none.
+[[nodiscard]] std::expected<Value, std::string> raw_request(std::span<const std::string> words);
+// The records an application answered, a line each as it sent them (without `re`); the result's exit code.
+int print_records(std::vector<Value> records, std::ostream& out);
 
 // A bridge (omui connect, agent connect §4) run until `stop`: the pairing
 // code, who the agent is, the origin it serves (empty: any), the port
@@ -75,13 +82,16 @@ void register_components();
 
 // omui connect and omui page (page.cpp, agent connect §4): the bridge a page pairs with, and the paired page operated.
 [[nodiscard]] mcpplibs::cmdline::App connect_command();
-[[nodiscard]] mcpplibs::cmdline::App page_command(mcpplibs::cmdline::App operations);
 int connect(const mcpplibs::cmdline::ParsedArgs& p, std::optional<std::filesystem::path> dir, std::ostream& out, std::ostream& err);
-int page(const mcpplibs::cmdline::ParsedArgs& p, std::optional<std::filesystem::path> dir, std::ostream& out, std::ostream& err);
+int page(std::vector<std::string> words, std::optional<std::filesystem::path> dir, std::ostream& out, std::ostream& err);
 
 // omui agent sweep and omui page sweep (sweep.cpp): every action of every
-// operable node performed through `call` (one request, its records).
-int sweep(const std::function<std::vector<Value>(const Value&)>& call, const mcpplibs::cmdline::ParsedArgs& a, std::ostream& out, std::ostream& err);
+// operable node performed through `call` (one request, its records): under `root` (empty: all), as `actor`.
+struct Sweeping {
+    std::string root, actor = "agent:omui-sweep";
+};
+[[nodiscard]] Sweeping sweeping(std::span<const std::string> words);  // --root ID, --actor ACTOR
+int sweep(const std::function<std::vector<Value>(const Value&)>& call, const Sweeping& how, std::ostream& out, std::ostream& err);
 
 // omui video (video.cpp).
 // omui.video.render, .still, .check, .probe, .timing (`name`: the last part).

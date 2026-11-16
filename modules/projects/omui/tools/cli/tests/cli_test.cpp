@@ -78,32 +78,46 @@ std::filesystem::path repository() {
 
 UTest cases{"cli", [] {
 
-    "requests from arguments"_test = [] {
-        auto a = cli::app();
-        auto p = a.parse_from(mcpplibs::cmdline::Argv{"omui", "agent", "find", "notes", R"({"role":"button"})", "--name", "Del*"});
-        expect(p.has_value());
-        auto r = cli::agent_request(p->subcommand()->get());
-        expect(r.has_value() && *r == R"({"op":"find","q":{"role":"button","name":"Del*"}})") << r.value_or(r.error());
-        auto act = a.parse_from(mcpplibs::cmdline::Argv{"omui", "agent", "act", "notes", "notes/delete", "activate", "--answer", "yes"});
-        auto ra = cli::agent_request(act->subcommand()->get());
-        expect(ra && *ra == R"({"op":"act","node":"notes/delete","action":"activate","answer":"yes","actor":"agent:omui-cli"})") << ra.value_or(ra.error());
-        auto dry = a.parse_from(mcpplibs::cmdline::Argv{"omui", "agent", "act", "notes", "main/dark", "toggle", "--dry-run"});
-        auto rd = cli::agent_request(dry->subcommand()->get());
-        expect(rd && *rd == R"({"op":"act","node":"main/dark","action":"toggle","actor":"agent:omui-cli","dry_run":true})") << rd.value_or(rd.error());
-        auto undo = a.parse_from(mcpplibs::cmdline::Argv{"omui", "agent", "undo", "notes", "--scope", "main/panel"});
-        auto ru = cli::agent_request(undo->subcommand()->get());
-        expect(ru && *ru == R"({"op":"undo","scope":"main/panel","actor":"agent:omui-cli"})") << ru.value_or(ru.error());
-        auto txn = a.parse_from(mcpplibs::cmdline::Argv{"omui", "agent", "transaction", "notes", R"([{"node":"main/a","action":"toggle"}])", "--label",
-                                                         "both", "--dry-run"});
-        auto rt = cli::agent_request(txn->subcommand()->get());
-        expect(rt && *rt == R"({"op":"transaction","steps":[{"node":"main/a","action":"toggle"}],"label":"both","actor":"agent:omui-cli","dry_run":true})") << rt.value_or(rt.error());
-        auto not_list = a.parse_from(mcpplibs::cmdline::Argv{"omui", "agent", "transaction", "notes", R"({"node":"main/a"})"});
-        expect(!cli::agent_request(not_list->subcommand()->get()).has_value()) << "the steps are a list";
-        auto wait = a.parse_from(mcpplibs::cmdline::Argv{"omui", "agent", "wait", "notes"});
-        expect(!cli::agent_request(wait->subcommand()->get()).has_value()) << "wait for what?";
-        auto bad = a.parse_from(mcpplibs::cmdline::Argv{"omui", "agent", "act", "notes", "x", "y", "--args", "{oops"});
-        expect(!cli::agent_request(bad->subcommand()->get()).has_value());
-        expect(omui_cmd({"agent", "find", "nobody-listens", "--dir", "/nonexistent/openmui"}).code == 1);
+    "requests from arguments: an operation's words are its catalog's parameters, sent as the protocol's request"_test = [] {
+        std::vector<Value> sent;
+        const cli::Transport recorded = [&](const Value& request, std::chrono::milliseconds) {
+            sent.push_back(request);
+            return std::vector<Value>{Value{}.set("kind", "result").set("exitCode", 0)};
+        };
+        // The request the words make, as it went out (null: none went, the words were refused).
+        const auto request = [&](std::vector<std::string> words) {
+            sent.clear();
+            std::ostringstream out, err;
+            (void)cli::operate_running(std::move(words), recorded, out, err);
+            return sent.empty() ? Value{} : sent.front();
+        };
+        const auto text = [](const Value& request, std::string_view key) { return request.get(key) ? request.get(key)->json() : std::string("(none)"); };
+        const Value find = request({"find", R"({"role":"button","name":"Del*"})"});
+        expect(eq(text(find, "op"), std::string(R"("find")")) && eq(text(find, "q"), std::string(R"({"role":"button","name":"Del*"})")) && !find.get("actor"))
+            << find.json() << " (a read says no one)";
+        const Value act = request({"act", "notes/delete", "activate", "--answer", "yes"});
+        expect(eq(text(act, "node"), std::string(R"("notes/delete")")) && eq(text(act, "action"), std::string(R"("activate")")) &&
+               eq(text(act, "answer"), std::string(R"("yes")")) && eq(text(act, "actor"), std::string(R"("agent:omui-cli")")))
+            << act.json();
+        const Value dry = request({"act", "main/dark", "toggle", "--dry-run", "--actor", "agent:planner"});
+        expect(eq(text(dry, "dry_run"), std::string("true")) && eq(text(dry, "actor"), std::string(R"("agent:planner")")) && eq(text(dry, "action"), std::string(R"("toggle")")))
+            << dry.json();
+        const Value transaction = request({"transaction", R"([{"node":"main/a","action":"toggle"}])", "--label", "both"});
+        expect(eq(text(transaction, "steps"), std::string(R"([{"node":"main/a","action":"toggle"}])")) && eq(text(transaction, "label"), std::string(R"("both")")))
+            << transaction.json();
+        const Value clock = request({"clock", "rate", "0.5"});
+        expect(eq(text(clock, "action"), std::string(R"("rate")")) && eq(text(clock, "rate"), std::string("0.5"))) << clock.json();
+        // A verb of Live Design: `invoke`, its arguments beside what the request itself carries.
+        const Value verb = request({"design.set", "main/title", R"({"text":"Hi"})", "--answer", "yes"});
+        expect(eq(text(verb, "op"), std::string(R"("invoke")")) && eq(text(verb, "verb"), std::string(R"("design.set")")) && eq(text(verb, "answer"), std::string(R"("yes")")) &&
+               verb.get("args") && eq(text(*verb.get("args"), "node"), std::string(R"("main/title")")) && eq(text(*verb.get("args"), "props"), std::string(R"({"text":"Hi"})")))
+            << verb.json();
+        // What the catalog needs, asked for before anything is sent; a name it has not, said so.
+        expect(request({"act", "main/dark"}).get("op") == nullptr) << "act needs its action";
+        expect(request({"frobnicate"}).get("op") == nullptr);
+        expect(omui_cmd({"agent", "find", "nobody-listens", R"({"role":"button"})", "--dir", "/nonexistent/openmui"}).code == 1);
+        expect(omui_cmd({"agent", "snapshot"}).code == 2) << "which application?";
+        expect(omui_cmd({"agent", "act", "--help"}).code == 0 && omui_cmd({"agent", "act", "--help"}).out.contains(R"("name":"ui.act")"));
         expect(omui_cmd({"frobnicate"}).code == 2);
     };
 
@@ -136,7 +150,7 @@ UTest cases{"cli", [] {
         auto r = with_app(h, {
                                  {"agent", "ls", "--dir", d},
                                  {"agent", "snapshot", "notes-cli", "--interactive", "--dir", d},
-                                 {"agent", "find", "notes-cli", "--name", "Delete*", "--dir", d},
+                                 {"agent", "find", "notes-cli", R"({"name":"Delete*"})", "--dir", d},
                                  {"agent", "act", "notes-cli", "notes/delete", "activate", "--actor", "agent:planner;via=person:alice", "--dir", d},
                                  {"agent", "act", "notes-cli", "notes/delete", "activate", "--answer", "yes", "--dir", d},
                                  {"agent", "wait", "notes-cli", "--settled", "--timeout", "2", "--dir", d},

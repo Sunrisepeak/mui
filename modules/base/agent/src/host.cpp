@@ -190,12 +190,23 @@ std::vector<std::string> named_in_order(Session& session, std::span<const std::s
             words.emplace_back(argument);
             continue;
         }
-        const std::string_view name = argument.substr(2, argument.find('=') == std::string_view::npos ? std::string_view::npos : argument.find('=') - 2);
-        given.emplace_back(name);
-        named.emplace_back(argument);
-        if (argument.contains('=')) continue;
+        const std::size_t equals = argument.find('=');
+        std::string name(argument.substr(2, equals == std::string_view::npos ? std::string_view::npos : equals - 2));
+        // As a person types it: `--dry-run` is the catalog's `dry_run`.
+        if (parameter(name) == parameters.end()) {
+            std::string underscored = name;
+            std::ranges::replace(underscored, '-', '_');
+            if (parameter(underscored) != parameters.end()) name = std::move(underscored);
+        }
+        given.push_back(name);
+        named.push_back("--" + name + (equals == std::string_view::npos ? std::string() : std::string(argument.substr(equals))));
+        if (equals != std::string_view::npos) continue;
         const auto found = parameter(name);
-        if (found != parameters.end() && !found->second && at + 1 < arguments.size() && !arguments[at + 1].starts_with("--")) named.emplace_back(arguments[++at]);
+        // Who asks and a person's answer are the request's own (openas's envelope), every operation's: they take a value.
+        // A switch is true alone, or the true or false written after it (`--bounds false`).
+        const bool truth_follows = at + 1 < arguments.size() && (arguments[at + 1] == "true" || arguments[at + 1] == "false");
+        const bool takes_value = found != parameters.end() ? !found->second || truth_follows : name == "actor" || name == "answer";
+        if (takes_value && at + 1 < arguments.size() && !arguments[at + 1].starts_with("--")) named.emplace_back(arguments[++at]);
         else named.back() += "=true";
     }
     std::vector<std::string> open;  // the parameters the words fill, in order

@@ -19,7 +19,7 @@ public:
     std::string_view interface_name() const noexcept override { return "example.counter@1"; }
     agent::Capabilities capabilities() const noexcept override { return {.observation = true, .control = true}; }
     std::span<const control::CatalogEntry> operations() const noexcept override {
-        static constexpr std::array<control::Parameter, 1> add_parameters{{{"by", "integer", "how much (1 when none is given)", true}}};
+        static constexpr std::array<control::Parameter, 2> add_parameters{{{"by", "integer", "how much (1 when none is given)", true}, {"dry_run", "bool", "only say what it would be", true}}};
         static constexpr std::array<control::CatalogEntry, 2> all{{
             {{"counter.read", openas::Effect::read, false}, "The count", {}, "json", control::Cost::instant, "", false, false, false},
             {{"counter.add", openas::Effect::reversible, false}, "Adds to the count", add_parameters, "json", control::Cost::instant, "counter.add with the opposite", false, false, false},
@@ -34,11 +34,14 @@ public:
     void operate(std::string_view operation, const agent::Request& request, agent::Answer& answer) override {
         if (operation == "counter.add") {
             if (!request["by"].is_integer() && request["by"]) return answer.fail(openas::error_code::invalid_argument, "`by` is a whole number");
+            if (request["dry_run"].boolean().value_or(false)) return answer.data(std::format("{{\"count\":{}}}", count + request["by"].integer().value_or(1)));
             count += request["by"].integer().value_or(1);
+            actor = request["actor"].text().value_or("");
         }
         answer.data(std::format("{{\"count\":{}}}", count));
     }
     std::int64_t count = 0;
+    std::string  actor;  // who the last addition said asked
 };
 
 std::vector<std::string_view> words(std::initializer_list<std::string_view> all) { return all; }
@@ -131,6 +134,16 @@ static UTest cases{"agent.host", [] {
         std::ostringstream switched;
         const std::array mixed{std::string_view("counter.add"), std::string_view("--quiet"), std::string_view("2")};
         expect(eq(agent::command_line(session, mixed, switched, errors), 0) && switched.str().contains(R"("count":9)")) << switched.str();
+        // As a person types it: `--dry-run` is the catalog's dry_run; who asks (`--actor`) takes its value, as any
+        // request's own member does, and the word after it is still the operation's.
+        std::ostringstream typed;
+        const std::array as_typed{std::string_view("counter.add"), std::string_view("--dry-run"), std::string_view("--actor"), std::string_view("agent:planner"), std::string_view("5")};
+        expect(eq(agent::command_line(session, as_typed, typed, errors), 0) && typed.str().contains(R"("count":14)") && counter.count == 9) << typed.str();
+        const std::array acting{std::string_view("counter.add"), std::string_view("--actor"), std::string_view("agent:planner"), std::string_view("1")};
+        expect(eq(agent::command_line(session, acting, typed, errors), 0) && counter.count == 10 && counter.actor == "agent:planner") << typed.str();
+        // A switch takes the true or false written after it: a dry run said off is no dry run.
+        const std::array said_off{std::string_view("counter.add"), std::string_view("--dry-run"), std::string_view("false"), std::string_view("2")};
+        expect(eq(agent::command_line(session, said_off, typed, errors), 0) && counter.count == 12) << typed.str();
         // An operation's --help: it described whole.
         std::ostringstream helped;
         const std::array asking{std::string_view("counter.add"), std::string_view("--help")};

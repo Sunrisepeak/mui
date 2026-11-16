@@ -7,7 +7,7 @@
 ```sh
 omui agent ls                                   # 哪些应用在运行
 omui agent snapshot <app> --interactive         # 可操作的节点：角色、名字、值、状态、动作
-omui agent find <app> --role button --name "Save*"
+omui agent find <app> '{"role":"button","name":"Save*"}'
 omui agent act <app> <node> <action> [--args JSON]
 omui agent wait <app> --settled                 # 等界面静下来
 omui agent capture <app> --out shot.png         # 需要看的时候截图；--format svg 取精确的矢量
@@ -46,9 +46,9 @@ export default defineConfig({
 框架记下每一次输入和它引起的结果，Agent 可以直接查，不用你转述：
 
 ```sh
-omui agent call <app> '{"op":"ui.timeline"}'            # 输入做了什么：点中了谁、被什么挡住、触发了哪些动作
-omui agent call <app> '{"op":"ui.explain","cause":12}'  # 某一次按下，从按下到抬起的来龙去脉
-omui agent call <app> '{"op":"ui.drew","at":[120,48]}'  # 这个像素是哪个节点画的、在源码哪一行
+omui agent timeline <app>                             # 输入做了什么：点中了谁、被什么挡住、触发了哪些动作
+omui agent explain <app> --cause 12                   # 某一次按下，从按下到抬起的来龙去脉
+omui agent drew <app> '[120,48]'                      # 这个像素是哪个节点画的、在源码哪一行
 ```
 
 读取人的操作记录在发布后需要人同意。

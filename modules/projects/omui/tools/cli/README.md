@@ -15,28 +15,32 @@ The project's commands except dev and run (which hold a window or the terminal) 
 
 `omui audio automation FILE --track NAME --clip NAME --out PREFIX [--property gain] [--seconds 2] [--fps 60]` auditions a named timeline gain property on a 220 Hz calibration tone. It exports a float WAV, a labeled eight-frame PNG sheet drawn by omui, a lossless WebP process and a timestamped `.report.omui.json`; no window or audio device is opened. `--fps` changes visual observation only. Duration is 1–10 whole seconds; the visual rate is an exact timeline rate in 1–120 fps (for example 30, 60 or 120). See the [public timeline/audio adapter and minimal SOP](../../../xengine/kernel/audio/timeline/README.md) for the sample-clock, ownership, safe binding and failure boundaries. Exit codes are 0 success, 1 a failure (an argument out of range, the domain, an output), 2 arguments that make no request. A later output failure lists files already written.
 
+`omui agent <operation> <app> …` and `omui page <operation> …` are the protocol's catalogs (omui.agent: `ui.*`, and the verbs `design.*`, `generate.*`, `task.*`) through the same tool kernel: an operation's words are its parameters in the catalog's order, or `--name value` (`--dry-run` is `dry_run`; a switch alone is true, or takes the `true`/`false` after it); `--actor` says who acts (default `agent:omui-cli` for what changes something); `--out FILE` keeps a picture, its vectors or a trace the answer carries. `omui agent <operation> --help` describes one whole. A `ui.*` operation goes out as the protocol's request, a verb as `invoke`; the application decides what it admits.
+
 ```text
 omui agent ls                                   the applications that listen
 omui agent describe <app>                       interface, spec, operations
 omui agent snapshot <app> [--root ID] [--depth N] [--interactive] [--offset N] [--limit N]
 omui agent changes <app>
-omui agent find <app> ['{"role":"button"}'] [--role R] [--name GLOB] [--state S] [--limit N]
+omui agent find <app> '{"role":"button","name":"Save*"}'
 omui agent act <app> <node> <action> [--args JSON] [--answer TEXT] [--actor ACTOR] [--dry-run]
-omui agent undo|redo <app> [--scope ID] [--actor ACTOR] [--dry-run]      the history (S-12)
+omui agent undo|redo <app> [--scope ID] [--dry-run]      the history (S-12)
 omui agent history <app> [--scope ID]           what can be undone and redone
-omui agent transaction <app> '<steps JSON>' [--label TEXT] [--actor ACTOR] [--dry-run]   all or nothing (S-13)
-omui agent wait <app> [--q JSON] [--absent] [--settled] [--timeout SECONDS]
-omui agent capture <app> [--node ID] [--out FILE.png]
-omui agent call <app> '<request JSON>'
+omui agent transaction <app> '<steps JSON>' [--label TEXT] [--dry-run]   all or nothing (S-13)
+omui agent wait <app> [--q JSON] [--absent JSON] [--settled] [--timeout SECONDS]
+omui agent capture <app> [--node ID] [--format svg] [--out FILE]
+omui agent timeline | explain | drew <app> …    what input did; one press, whole; which node drew a pixel
+omui agent design.begin <app> "<intent>" …      Live Design's verbs, as every verb: its parameters in order
+omui agent call <app> '<request JSON>'          one request as the protocol has it
 omui agent sweep <app> [--root ID] [--actor ACTOR]   every action of every node an agent can operate, performed
 
 omui agent inspect <app> [NODE]                 type, source line, props, layout, state
 omui agent stats <app>                          frame times: mean, p50, p95, p99, max; phases; counts
-omui agent profile <app> start|stop [--out FILE.trace.json]   per-span summary; Chrome trace for Perfetto
+omui agent profile <app> start|stop [--chrome --out FILE.trace.json]   per-span summary; Chrome trace for Perfetto
 omui agent logs <app> [--level L] [--category C] [--limit N]
-omui agent debug <app> [--bounds] [--repaints] [--inspector] [--hud] [--off] [--slow MS] [--log FILTER]
-omui agent clock <app> [show|pause|resume|rate R|step S|seek T|release]   the application's time
-omui agent pipeline <app> [show|replace|insert|remove] [--stage S] [--plugin P] [--after S] [--config JSON] [--description]
+omui agent debug <app> [--bounds] [--repaints] [--inspector] [--hud] [--slow-frame-ms MS] [--log FILTER]   each overlay on, or `false` off
+omui agent clock <app> [show|pause|resume|release]; clock <app> rate R; clock <app> step|seek --seconds S
+omui agent pipeline <app> [show|replace|insert|remove] [--stage S] [--plugin P] [--after JSON] [--config JSON]
 ```
 
 An application started with `omui::run` takes the same switches at launch:

@@ -10,12 +10,9 @@
 module omui.cli;
 
 import std;
-import mcpplibs.cmdline;
 import omui.core;
 
 namespace omui::cli {
-
-namespace cmd = mcpplibs::cmdline;
 
 namespace {
 
@@ -74,14 +71,23 @@ std::string errors_of(const std::vector<Value>& records) {
 
 }  // namespace
 
-int sweep(const std::function<std::vector<Value>(const Value&)>& call, const cmd::ParsedArgs& a, std::ostream& out, std::ostream& err) {
-    const std::string actor = a.value("actor").value_or("agent:omui-sweep");
+Sweeping sweeping(std::span<const std::string> words) {
+    Sweeping how;
+    for (std::size_t at = 0; at + 1 < words.size(); ++at) {
+        if (words[at] == "--root") how.root = words[++at];
+        else if (words[at] == "--actor") how.actor = words[++at];
+    }
+    return how;
+}
+
+int sweep(const std::function<std::vector<Value>(const Value&)>& call, const Sweeping& how, std::ostream& out, std::ostream& err) {
+    const std::string& actor = how.actor;
     // Every node an agent can operate, a page at a time.
     std::vector<Value> nodes;
     for (std::int64_t offset = 0;;) {
         Value req;
         req.set("op", "snapshot").set("interactive", true).set("offset", offset).set("limit", static_cast<std::int64_t>(200));
-        if (auto root = a.value("root")) req.set("root", *root);
+        if (!how.root.empty()) req.set("root", how.root);
         const auto records = call(req);
         const Value* d = data_of(records);
         if (exit_of(records) != 0 || !d || !d->get("nodes") || !d->get("nodes")->list()) {

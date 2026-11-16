@@ -167,7 +167,7 @@ int agent_e2e(const fs::path& root, const std::vector<std::string>& profile_args
     agent(0, {"act", id, "main/compose/add", "activate"});
     agent(0, {"wait", id, "--q", R"({"name":"3 notes"})", "--timeout", "5"});
     agent(2, {"act", id, "main/delete-all", "activate", "--actor", "agent:cleaner;via=person:alice"}) && expect.has("needs-answer");
-    agent(0, {"find", id, "--name", "3 notes"});
+    agent(0, {"find", id, R"({"name":"3 notes"})"});
     agent(0, {"act", id, "main/delete-all", "activate", "--answer", "delete"});
     agent(0, {"wait", id, "--q", R"({"name":"0 notes"})", "--settled", "--timeout", "5"});
     agent(0, {"capture", id, "--out", mcpplibs::os::fs::utf8(dir / "after.png")}) &&
@@ -176,13 +176,13 @@ int agent_e2e(const fs::path& root, const std::vector<std::string>& profile_args
     // Development: what the running application is doing.
     agent(0, {"inspect", id, "main/compose/add"}) && expect.has(R"("type":"button")") && expect.has(R"("source":"[^"]*notes)");
     agent(0, {"stats", id}) && expect.has(R"("p95_ms")");
-    agent(0, {"debug", id, "--bounds", "--hud", "--slow", "0.001", "--log", "frame=debug,*=info"});
+    agent(0, {"debug", id, "--bounds", "--hud", "--slow-frame-ms", "0.001", "--log", "frame=debug,*=info"});
     agent(0, {"act", id, "main/compose/draft", "set_value", "--args", R"({"value":"traced"})"});
     agent(0, {"wait", id, "--settled", "--timeout", "5"});
     agent(0, {"capture", id, "--out", mcpplibs::os::fs::utf8(dir / "debug.png")});
     agent(0, {"logs", id, "--category", "frame", "--limit", "5"}) && expect.has(R"("category":"frame")");
-    agent(0, {"debug", id, "--off"});
-    agent(0, {"profile", id, "stop", "--out", mcpplibs::os::fs::utf8(dir / "run.trace.json")});
+    agent(0, {"debug", id, "--bounds", "false", "--hud", "false"});
+    agent(0, {"profile", id, "stop", "--chrome", "--out", mcpplibs::os::fs::utf8(dir / "run.trace.json")});
     const std::string trace = bytes_of(dir / "run.trace.json");
     expect.holds(trace.contains(R"("traceEvents")") && trace.contains(R"("name":"layout")"), "the profile is a Chrome trace with the layout stage");
     agent(0, {"profile", id, "start"});
@@ -190,17 +190,16 @@ int agent_e2e(const fs::path& root, const std::vector<std::string>& profile_args
 
     // The application's time, controlled from outside (F4).
     agent(0, {"clock", id, "pause"});
-    agent(0, {"clock", id, "step", "0.5"});
-    agent(0, {"clock", id, "seek", "0"});
+    agent(0, {"clock", id, "step", "--seconds", "0.5"});
+    agent(0, {"clock", id, "seek", "--seconds", "0"});
     agent(0, {"clock", id, "rate", "0.25"});
     agent(1, {"clock", id, "rate", "nope"});
     agent(0, {"clock", id, "release"}) && expect.has(R"("controlled":false)");
 
     // The frame's pipeline, read and changed in the running process (D-66).
-    agent(0, {"pipeline", id}) && expect.has(R"("openmui\.view\.layout")");
-    agent(0, {"pipeline", id, "--description"}) && expect.has(R"("pipeline")") && expect.has(R"("stages"|"stage")");
+    agent(0, {"pipeline", id}) && expect.has(R"("openmui\.view\.layout")") && expect.has(R"("stages"|"stage")");
     agent(0, {"pipeline", id, "remove", "--stage", "debug"});
-    agent(0, {"pipeline", id, "insert", "--stage", "debug", "--plugin", "openmui.view.debug", "--after", "paint"});
+    agent(0, {"pipeline", id, "insert", "--stage", "debug", "--plugin", "openmui.view.debug", "--after", R"(["paint"])"});
     agent(1, {"pipeline", id, "replace", "--stage", "paint", "--plugin", "nonesuch"});
     agent(0, {"wait", id, "--settled", "--timeout", "5"});
 

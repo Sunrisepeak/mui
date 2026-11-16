@@ -7,7 +7,7 @@ Every omui application can be understood and operated by an agent as it is: the 
 ```sh
 omui agent ls                                   # which applications are running
 omui agent snapshot <app> --interactive         # what can be operated: role, name, value, states, actions
-omui agent find <app> --role button --name "Save*"
+omui agent find <app> '{"role":"button","name":"Save*"}'
 omui agent act <app> <node> <action> [--args JSON]
 omui agent wait <app> --settled                 # until the interface is at rest
 omui agent capture <app> --out shot.png         # a picture when one is needed; --format svg for exact vectors
@@ -46,9 +46,9 @@ In development (`omui dev`) an agent has every control, and whether it asks you 
 The framework records each input and what came of it; an agent asks it directly, without your telling:
 
 ```sh
-omui agent call <app> '{"op":"ui.timeline"}'            # what input did: what it hit, what stopped it, the actions it led to
-omui agent call <app> '{"op":"ui.explain","cause":12}'  # one press, from press to release
-omui agent call <app> '{"op":"ui.drew","at":[120,48]}'  # which node drew this pixel, and where in the source it was built
+omui agent timeline <app>                             # what input did: what it hit, what stopped it, the actions it led to
+omui agent explain <app> --cause 12                   # one press, from press to release
+omui agent drew <app> '[120,48]'                      # which node drew this pixel, and where in the source it was built
 ```
 
 Reading a person's record needs their consent in a release.

@@ -305,15 +305,6 @@ cmd::App connect_command() {
         .option(Option("origin").takes_value().value_name("URL").help("serve only a page of this origin (https://example.org)"));
 }
 
-cmd::App page_command(cmd::App ops) {
-    using cmd::Option;
-    return ops.description("Operate the page paired with the bridge (omui connect), through its semantic tree: the same operations as `omui agent`")
-        .subcommand(cmd::App("status")
-                        .description("Whether a page is paired: the page, its application, its origin")
-                        .option(Option("wait").help("until a page pairs"))
-                        .option(Option("timeout").takes_value().value_name("SECONDS").help("how long --wait waits (default 600)")));
-}
-
 std::expected<std::uint16_t, std::string> run_bridge(const BridgeStart& start, std::stop_token stop, const std::function<void(std::uint16_t)>& ready) {
     Bridge b;
     b.code = code_of(start.code);
@@ -392,18 +383,20 @@ int connect(const cmd::ParsedArgs& p, std::optional<std::filesystem::path> dir, 
     return 0;
 }
 
-int page(const cmd::ParsedArgs& p, std::optional<std::filesystem::path> dir, std::ostream& out, std::ostream& err) {
-    if (!p.has_subcommand()) {
-        err << "usage: omui page <status|describe|snapshot|changes|find|act|undo|redo|history|transaction|wait|capture|call> …\n";
+// omui page <operation> …: the page paired with the bridge (omui connect), operated as `omui agent` operates an
+// application — the protocol's catalogs through the tool kernel; `status` says whether a page is paired.
+int page(std::vector<std::string> words, std::optional<std::filesystem::path> dir, std::ostream& out, std::ostream& err) {
+    if (words.empty()) {
+        err << "usage: omui page status [--wait] [--timeout SECONDS] | sweep | call '<request>' | <operation> [its parameters] (omui agent --help lists them)\n";
         return 2;
     }
-    const cmd::ParsedArgs& sub = p.subcommand()->get();
-    if (p.subcommand_name() == "status") {
+    if (words.front() == "status") {
         // Waiting, the bridge too may be on its way (an agent starts `omui connect` and waits at once).
         double limit = 600;
-        if (auto t = sub.value("timeout")) std::from_chars(t->data(), t->data() + t->size(), limit);
+        if (const auto at = std::ranges::find(words, std::string("--timeout")); at != words.end() && at + 1 != words.end())
+            std::from_chars((at + 1)->data(), (at + 1)->data() + (at + 1)->size(), limit);
         const auto until = std::chrono::steady_clock::now() + std::chrono::duration<double>(limit);
-        const bool wait = sub.is_flag_set("wait");
+        const bool wait = std::ranges::contains(words, std::string("--wait"));
         for (;;) {
             auto bridge = find_bridge(dir);
             auto s = bridge ? ask_bridge(*bridge, "GET", "/omui/v1/status", "", std::chrono::seconds(10)) : std::expected<std::string, std::string>(std::unexpected(bridge.error()));
@@ -430,46 +423,24 @@ int page(const cmd::ParsedArgs& p, std::optional<std::filesystem::path> dir, std
         err << bridge.error() << '\n';
         return 1;
     }
-    if (p.subcommand_name() == "sweep") {
-        // The page's answers are {exitCode, data, errors, records}: their records, as the endpoint's are.
-        return sweep(
-            [&](const Value& req) -> std::vector<Value> {
-                auto reply = ask_bridge(*bridge, "POST", "/omui/v1/call", req.json(), std::chrono::seconds(40));
-                std::string why = reply ? std::string("an answer without records") : reply.error();
-                if (reply)
-                    if (auto v = parse_json(*reply); v && v->get("records") && v->get("records")->list()) return *v->get("records")->list();
-                return {Value{}.set("kind", "error").set("text", why), Value{}.set("kind", "result").set("exitCode", 1)};
-            },
-            sub, out, err);
-    }
-    auto request = agent_request(p, 0);
-    if (!request) {
-        err << "omui page " << p.subcommand_name() << ": " << request.error() << '\n';
-        return 1;
-    }
-    auto parsed = parse_json(*request);
-    std::chrono::seconds limit(40);
-    if (const Value* t = parsed->get("timeout")) limit = std::chrono::seconds(static_cast<std::int64_t>(t->as_double()) + 10);
-    auto reply = ask_bridge(*bridge, "POST", "/omui/v1/call", *request, limit);
-    if (!reply) {
-        err << reply.error() << '\n';
-        return 1;
-    }
-    // The page's answer: {exitCode, data, errors, records}; its records, a line each, as `omui agent` writes them.
-    auto v = parse_json(*reply);
-    if (!v) {
-        err << "the page's answer is not JSON\n";
-        return 1;
-    }
-    int code = static_cast<int>(v->get("exitCode") ? v->get("exitCode")->as_int(1) : 1);
-    if (const Value* records = v->get("records"); records && records->list())
-        for (Value r : *records->list()) {
-            if (r.map()) std::erase_if(*r.map(), [](const auto& kv) { return kv.first == "re"; });
-            out << r.json() << '\n';
+    // The page's answers are {exitCode, data, errors, records}: their records, as an endpoint's are.
+    const Transport send = [&](const Value& request, std::chrono::milliseconds limit) -> std::vector<Value> {
+        auto reply = ask_bridge(*bridge, "POST", "/omui/v1/call", request.json(), std::chrono::duration_cast<std::chrono::seconds>(limit) + std::chrono::seconds(10));
+        std::string why = reply ? std::string("the page's answer has no records") : reply.error();
+        if (reply)
+            if (auto v = parse_json(*reply); v && v->get("records") && v->get("records")->list()) return *v->get("records")->list();
+        return {Value{}.set("kind", "error").set("code", "unavailable").set("text", why), Value{}.set("kind", "result").set("exitCode", 1)};
+    };
+    if (words.front() == "sweep") return sweep([&](const Value& request) { return send(request, std::chrono::seconds(30)); }, sweeping(words), out, err);
+    if (words.front() == "call") {
+        auto request = raw_request(std::span(words).subspan(1));
+        if (!request) {
+            err << "omui page call: " << request.error() << '\n';
+            return 2;
         }
-    else
-        out << v->json() << '\n';
-    return code;
+        return print_records(send(*request, std::chrono::seconds(30)), out);
+    }
+    return operate_running(std::move(words), send, out, err);
 }
 
 }  // namespace omui::cli

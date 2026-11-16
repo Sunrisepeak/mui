@@ -21,18 +21,16 @@ on:
       - 'mcpp/toy/**'
       - 'tools/gen/src/dist_toy.*'
       - 'tools/gen/tests/dist_toy_test.cpp'
-      - 'tools/ci/dist-toy-loading.mjs'
       - 'tools/gen/src/font_subset.*'
       - 'tools/devtools/src/site.*'
+      - 'tools/devtools/src/check*'
       - 'tools/devtools/src/cdp.*'
       - 'tools/devtools/src/native/gzip.cpp'
-      - 'tools/ci/site-*'
-      - 'tools/devtools/src/check.*'
-      - 'tools/ci/visitor-path.*'
+      - 'tools/devtools/src/browser.*'
       - 'tools/cli/src/page.cpp'
       - 'modules/projects/omui/host/web/src/**'
       - 'tools/gen/src/wasm_size.cpp'
-      - 'tools/ci/page.mjs'
+      - 'modules/base/utils/src/http/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -82,21 +80,20 @@ jobs:
           # The runner has Chrome: the first screen is profiled and the program split, never skipped.
           OMUI_REQUIRE_BROWSER: '1'
       - name: The generated loader handles real streams, failures and retries
-        run: |
-          mcpp test dist_toy -p omui.gen
-          fixture="$(python3 -c 'import os,tempfile; print(os.path.join(tempfile.gettempdir(), "openmui-tests", "dist-toy-loading", "index.html"))')"
-          node tools/ci/dist-toy-loading.mjs "$fixture" > target/dist-toy-loading.report.omui.json
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- check dist-toy-loading
       - name: The site in a real browser — its delivery within budget, what assistive technology reads
-        # tools/ci/site-browser.sh: the page served as Pages serves it; a cold
+        # omui-devtools check site: the page served as Pages serves it; a cold
         # visit over 20 Mbit/s — transfer, first frame, readiness, frame tails
         # (site/delivery.budget.omui.json); the browser's accessibility tree
-        # and the keyboard's way in by the skip link.
-        run: tools/ci/site-browser.sh
+        # and the keyboard's way in by the skip link; and the site's other
+        # browser checks (structure, fonts, catalog, workspaces, motion, first
+        # views, loading, font sharing).
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- check site
       - name: The visitor's path — the page paired with an agent through omui connect, operated by omui page (D-95)
-        # tools/ci/visitor-path.sh: the pairing code the page gives, the bridge
-        # with it, both ends seeing the pairing, an action, the interaction
-        # sweep through the page, the bridge's end seen by the page.
-        run: tools/ci/visitor-path.sh
+        # omui-devtools check visitor-path: the pairing code the page gives, the
+        # bridge with it, both ends seeing the pairing, an action, the
+        # interaction sweep through the page, the bridge's end seen by the page.
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- check visitor-path
       - name: Keep the site checks and font handoff pixels
         if: always()
         uses: actions/upload-artifact@v4

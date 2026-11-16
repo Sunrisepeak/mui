@@ -104,3 +104,14 @@ omui-devtools site drive URL OUT.png [SECONDS] [WIDTH] [HEIGHT] [SCRIPT] [--flag
 
 `split` gives up with a notice where there is no wasm-split or headless Chromium, and fails instead under `OMUI_REQUIRE_BROWSER=1` (CI).
 
+## check site, visitor-path, dist-toy-loading
+
+The site's checks in a real browser (moved from `tools/ci/site-browser.sh`, the `site-*.mjs` drivers, `visitor-path.sh`/`.mjs` and `dist-toy-loading.mjs`). Chromium is headless and driven over the DevTools protocol by `omui.devtools.cdp`: the built site served on 127.0.0.1 as Pages serves it (gzip for HTML, scripts, wasm, fonts, JSON and Markdown, made before the first request), a WebSocket client (masked frames, fragments, ping and pong, payloads of several MB), a deadline on every call (`OMUI_CDP_TIMEOUT_S`, default 120 s; after one stall later calls fail at once), events delivered in order on the caller's thread. The JavaScript a check evaluates in the page stays JavaScript (the allowlist's browser host JS); gzip is zlib's through `mcpplibs.mwrap.zlib`.
+
+```sh
+omui-devtools check site [CHECK…] [--site DIR]   # perf a11y structure fonts catalog workspace reactions motion presentation loading font-sharing; transition when named
+omui-devtools check visitor-path [--site DIR] [--omui PATH]   # omui.cli built unless given
+omui-devtools check dist-toy-loading [--fixture FILE]          # omui.gen's dist_toy tests first unless a fixture is given
+```
+
+Each check's report lands under `target/` (`site-perf.json`, `site-a11y.json`, `site-<check>.report.omui.json`, `visitor-path.json`, `dist-toy-loading.report.omui.json`; pictures in `target/site-<check>/`), and a line is said for each of its checks. `perf` holds the delivery to `site/delivery.budget.omui.json`, with and without the HTTP cache. `dist-toy-loading` runs the generated loader in a frame of its own in the page (node's vm context before), against the browser's own fetch, streams and WebAssembly. `transition` is a coverage study of input on moving painted pixels, not in the default set.

@@ -257,6 +257,17 @@ cmd::App app() {
                                         .description("The Web row: the members that run on the Web tested under node, the page halves' JavaScript, the yard's bytes, the browser")
                                         .option(Option("profile").takes_value().value_name("P").help("default: wasm-test (tests read their fixtures through node)")))
                         .subcommand(cmd::App("browser").description("What only a real page can check: the page backends' suites, the shaders, host.web's frames"))
+                        .subcommand(cmd::App("site")
+                                        .description("The built site in a real browser: delivery within budget, accessibility, structure, fonts, catalog, workspaces, motion, first views, loading, font sharing")
+                                        .option(Option("site").takes_value().value_name("DIR").help("the built site (default: target/site)"))
+                                        .arg(Arg("check").help("these checks (default: every one but transition): perf a11y structure fonts catalog workspace reactions motion presentation loading font-sharing transition")))
+                        .subcommand(cmd::App("visitor-path")
+                                        .description("The built site paired with an agent through omui connect and operated by omui page; the bridge's end seen by the page")
+                                        .option(Option("site").takes_value().value_name("DIR").help("the built site (default: target/site)"))
+                                        .option(Option("omui").takes_value().value_name("PATH").help("this omui program rather than omui.cli built here")))
+                        .subcommand(cmd::App("dist-toy-loading")
+                                        .description("omui.gen's dist_toy tests, then the generated loader run against the browser's own streams, failures and retries")
+                                        .option(Option("fixture").takes_value().value_name("FILE").help("this generated index.html, the tests not run")))
                         .subcommand(cmd::App("atspi")
                                         .description("Examples 03 and 07 built, then read and operated through AT-SPI on a private session bus")
                                         .option(Option("profile").takes_value().value_name("P").help("the examples' build profile"))))
@@ -867,13 +878,21 @@ int main(int argc, char** argv) {
         namespace step = omui::devtools::check;
         const auto& sub = parsed->subcommand()->get();
         if (!sub.has_subcommand()) {
-            std::cerr << "usage: omui-devtools check features | templates | reflect [--profile P] | sweep [--profile P] | tools-e2e | agent-e2e | android [--out DIR] | web [--profile P] | browser | toy [PACKAGE…] | size -p MEMBER [--json F] [--markdown F] [--budget F] | atspi [--profile P]\n";
+            std::cerr << "usage: omui-devtools check features | templates | reflect [--profile P] | sweep [--profile P] | tools-e2e | agent-e2e | android [--out DIR] | web [--profile P] | browser | site [CHECK…] | visitor-path | dist-toy-loading | toy [PACKAGE…] | size -p MEMBER [--json F] [--markdown F] [--budget F] | atspi [--profile P]\n";
             return 2;
         }
         const auto& given = sub.subcommand()->get();
         if (sub.subcommand_name() == "features") return step::features(root);
         if (sub.subcommand_name() == "templates") return step::templates(root);
         if (sub.subcommand_name() == "browser") return step::browser_checks(root);
+        if (sub.subcommand_name() == "visitor-path")
+            return step::visitor_path(root, mcpplibs::os::fs::from_utf8(given.value("site").value_or("")), mcpplibs::os::fs::from_utf8(given.value("omui").value_or("")));
+        if (sub.subcommand_name() == "dist-toy-loading") return step::dist_toy_loading(root, mcpplibs::os::fs::from_utf8(given.value("fixture").value_or("")));
+        if (sub.subcommand_name() == "site") {
+            std::vector<std::string> names;
+            for (std::size_t index = 0; index < given.positional_count(); ++index) names.push_back(given.positional(index));
+            return step::site(root, mcpplibs::os::fs::from_utf8(given.value("site").value_or("")), std::move(names));
+        }
         if (sub.subcommand_name() == "web") return step::web(root, given.value("profile").value_or("wasm-test"));
         if (sub.subcommand_name() == "reflect") return step::reflect(root, given.value("profile").value_or("dev"));
         if (sub.subcommand_name() == "size") {

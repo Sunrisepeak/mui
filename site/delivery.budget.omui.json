@@ -1,5 +1,5 @@
 {
-  "about": "The site's delivery in a real browser (tools/ci/site-browser.sh, tools/ci/site-perf.mjs): the built page served as Pages serves it (gzip), a cold visit over a 20 Mbit/s, 40 ms connection at 1280×800, then to the features and back. Bytes, milliseconds.",
+  "about": "The site's delivery in a real browser (omui-devtools check site perf): the built page served as Pages serves it (gzip), a cold visit over a 20 Mbit/s, 40 ms connection at 1280×800, then to the features and back. Bytes, milliseconds.",
   "network": "20/40",
   "budgets": [
     { "metric": "transfer.total", "max": 4000000, "why": "3.56 MB (2026-11-08): the wasm 2.67 compressed, the Latin fonts; another language's face (the Chinese, 1.45 MB) only when the page needs it — it was fetched after every first frame (5.01 MB, red list 24). Held at 4 MB so it stays won" },

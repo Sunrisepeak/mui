@@ -1,6 +1,6 @@
 # 领先度（lead）
 
-由 `tools/eval/lead.py summary` 从台账生成（2026-11-15）。判定规则见第二部分方案 §2.2。
+由 `omui-devtools lead docs` 从台账生成（2026-11-15）。判定规则见第二部分方案 §2.2。
 
 ## 指标
 

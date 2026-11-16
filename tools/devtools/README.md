@@ -63,4 +63,18 @@ omui-devtools lint --self-test
 
 ## lead
 
-The lead ledger's pages, `docs/{en,zh}/lead.md`, written from the ledger, the metrics and the features (the same ledger, the same text), and the check of the signature features against it (lint `lead`). `tools/eval/lead.py` still samples, judges and records; it moves here next.
+The lead ledger (Part 2 plan §2, D-135): our side against the strongest competitor, measured on one machine in the same job, judged by ratio.
+
+- `sample` runs a benchmark and tags each JSON line it prints with the series (or the line's `--series-field`), the round and the key; a vector comparison's line also gives an error sample for each renderer against the reference.
+- `verdict` pairs our series with each competitor's round by round, takes the ratio a round (theirs ÷ ours where lower is better), its median and a seeded 95 % bootstrap interval, takes the strongest competitor, and judges from the interval's lower end (behind < 0.95×, par, ahead ≥ 1.2×, far ahead ≥ 10×; an interval across a threshold takes the worse tier).
+- `capability` records a capability against competitors (none, partial, app-defined, full).
+- `docs` writes `docs/{en,zh}/lead.md` and the evaluation summary, each dated by the ledger's newest record, so the same ledger gives the same text.
+- `check` is lint `lead`: the signature features against the ledger, and the pages current.
+
+`bench competitors` drives the comparisons (tests/bench/competitors): our side built natively and for the Web, the competitors' own runtimes installed at their pinned versions (node's packages; ThorVG and rlottie through their Python bindings, the allowlist's second kind), every comparison run; with `--ledger`, `--rounds` rounds alternating, sampled, judged, and the ledger and its pages written (`--dry-run`: the verdicts only).
+
+```text
+omui-devtools bench competitors --ledger --rounds 15
+omui-devtools lead capability --project omui --feature C --about "…" --test tools/mcp/tests/mcp_test.cpp --competitor webmcp=app-defined
+omui-devtools lead docs
+```

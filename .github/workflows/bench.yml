@@ -2,7 +2,7 @@ name: Bench
 
 # The lead ledger's lane (Part 2 plan §2.2–§2.3, D-135): once a week, our
 # side and each competitor's alternating in this one job
-# (tests/bench/competitors/run.sh --ledger), every metric judged by its ratio
+# (omui-devtools bench competitors --ledger), every metric judged by its ratio
 # a round with a 95 % interval. A shared runner is noisy, so only ratios
 # measured side by side in one job count, never absolute times. The verdicts
 # are this run's summary; the ledger lines and the samples are its artifact,
@@ -69,7 +69,7 @@ jobs:
       - name: Measure, interleaved, and judge
         run: |
           cp .agents/docs/evaluation/lead.ledger.omui.jsonl target-ledger-before.jsonl 2>/dev/null || touch target-ledger-before.jsonl
-          tests/bench/competitors/run.sh --ledger 15
+          mcpp run omui-devtools -p tools/devtools --profile ci -- bench competitors --ledger --rounds 15
           # The lines this run added: the artifact a checkpoint appends.
           tail -n +"$(( $(wc -l < target-ledger-before.jsonl) + 1 ))" .agents/docs/evaluation/lead.ledger.omui.jsonl > lead.ledger.ci.jsonl
           {

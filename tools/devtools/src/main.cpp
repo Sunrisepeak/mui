@@ -14,7 +14,10 @@
 //   api   a package's exported surface (api.omui.txt beside it): printed, written, or checked.
 //   atspi  examples 03 and 07 read and operated through AT-SPI, as a screen
 //         reader does (tools/ci/atspi.sh; exit 1 when a check fails).
-//   lead  the lead ledger's pages (docs/{en,zh}/lead.md) and its check.
+//   lead  the lead ledger (D-135): a benchmark's samples, the metrics' verdicts, a capability against
+//         competitors, the pages (docs/{en,zh}/lead.md, the evaluation summary) and its check.
+//   bench competitors  the comparisons with the best of each field built, installed and run: the README's
+//         tables, or (--ledger) rounds alternating, judged into the lead ledger and its pages.
 //   lint  the repository's rules (D-206: the lint in C++, 43 rules);
 //         --self-test shows each rule catches a violation planted in a tree of its own.
 import std;
@@ -23,6 +26,7 @@ import mcpplibs.os;
 import nlohmann.json;
 import omui.devtools.api;
 import omui.devtools.atspi;
+import omui.devtools.bench;
 import omui.devtools.ci;
 import omui.devtools.govern;
 import omui.devtools.incremental;
@@ -208,9 +212,35 @@ cmd::App app() {
                         .option(Option("rule").takes_value().multiple().value_name("NAME").help("only these rules"))
                         .option(Option("list").help("the rules and what each checks"))
                         .option(Option("self-test").help("each rule's violation planted in a tree of its own: caught, and by it alone")))
+        .subcommand(cmd::App("bench")
+                        .description("The benchmarks against the best of each field (tests/bench/competitors)")
+                        .subcommand(cmd::App("competitors")
+                                        .description("Build our side, install the pinned competitors, run every comparison")
+                                        .option(Option("ledger").help("the lead ledger: rounds alternating, each metric judged, the ledger and its pages written"))
+                                        .option(Option("rounds").takes_value().value_name("N").help("with --ledger: how many (default: 15)"))
+                                        .option(Option("dry-run").help("with --ledger: print the verdicts, write nothing"))))
         .subcommand(cmd::App("lead")
-                        .description("The lead ledger (D-135): its pages and its check")
-                        .subcommand(cmd::App("docs").description("Write docs/{en,zh}/lead.md from the ledger, the metrics and the features"))
+                        .description("The lead ledger (D-135): samples, verdicts, capabilities, its pages and its check")
+                        .subcommand(cmd::App("sample")
+                                        .description("Run a benchmark; tag each JSON line it prints with the series, the round and the key; append the samples")
+                                        .option(Option("series").takes_value().value_name("NAME").help("the series (when the line names none)"))
+                                        .option(Option("series-field").takes_value().value_name("F").help("each line's series from this field"))
+                                        .option(Option("round").takes_value().value_name("K").help("the round"))
+                                        .option(Option("key").takes_value().value_name("KEY").help("the key, where the line has no scene"))
+                                        .option(Option("out").takes_value().value_name("FILE").help("the samples file"))
+                                        .arg(Arg("command").required().help("after --: the benchmark and its arguments")))
+                        .subcommand(cmd::App("verdict")
+                                        .description("Judge every measured metric by the samples; append one ledger line each")
+                                        .arg(Arg("samples").required().help("the samples file"))
+                                        .option(Option("dry-run").help("print the verdicts, write nothing")))
+                        .subcommand(cmd::App("capability")
+                                        .description("Record a capability against competitors (none | partial | app-defined | full)")
+                                        .option(Option("project").takes_value().value_name("P"))
+                                        .option(Option("feature").takes_value().value_name("F"))
+                                        .option(Option("about").takes_value().value_name("TEXT"))
+                                        .option(Option("test").takes_value().value_name("PATH").help("the test that shows it"))
+                                        .option(Option("competitor").takes_value().multiple().value_name("NAME=SUPPORT")))
+                        .subcommand(cmd::App("docs").description("Write docs/{en,zh}/lead.md and the evaluation summary from the ledger"))
                         .subcommand(cmd::App("check").description("The signature features against the ledger (lint `lead`; exit 1 when one is wrong)")));
 }
 
@@ -507,21 +537,92 @@ int lead_command(const cmd::ParsedArgs& options, const fs::path& root) {
         for (const auto& [where, what] : found) std::cout << std::format("[lead] {}: {}\n", where, what);
         return found.empty() ? 0 : 1;
     }
+    const cmd::ParsedArgs& sub = options.has_subcommand() ? options.subcommand()->get() : options;
+    if (options.subcommand_name() == "sample") {
+        int round = 0;
+        const std::string round_text = sub.value("round").value_or("");
+        const auto [end, failed] = std::from_chars(round_text.data(), round_text.data() + round_text.size(), round);
+        if (failed != std::errc{} || end != round_text.data() + round_text.size() || !sub.value("series") || !sub.value("out")) {
+            std::cerr << "omui-devtools lead sample: --series NAME --round K --out FILE -- COMMAND…\n";
+            return 2;
+        }
+        mcpplibs::os::process::spawn_options run;
+        run.program = sub.positional(0);
+        for (std::size_t index = 1; index < sub.positional_count(); ++index) run.args.push_back(sub.positional(index));
+        auto done = mcpplibs::os::process::run(std::move(run));
+        if (!done) {
+            std::cerr << std::format("omui-devtools lead sample: {} did not start: {}\n", sub.positional(0), done.error().message());
+            return 127;
+        }
+        if (done->status.shell_code() != 0) {
+            std::cerr << done->err;
+            return done->status.shell_code();
+        }
+        const std::string series = *sub.value("series");
+        const auto records = lead::samples(done->out, series, sub.value("series-field").value_or(""), sub.value("key").value_or(""), round);
+        if (records.empty()) {
+            std::cerr << std::format("omui-devtools lead sample: {} printed no JSON line\n", series);
+            return 1;
+        }
+        return lead::append(fs::path(*sub.value("out")), records) ? 0 : 2;
+    }
+    const fs::path ledger = root / lead::ledger_path;
+    if (options.subcommand_name() == "verdict") {
+        std::vector<std::string> skipped;
+        const auto judged = lead::verdicts(read_file(root / lead::metrics_path).value_or(""), read_file(fs::path(sub.positional(0))).value_or(""),
+                                           read_file(ledger).value_or(""), lead::context_here(root), skipped);
+        if (!judged) {
+            std::cerr << "omui-devtools lead verdict: " << judged.error() << '\n';
+            return 2;
+        }
+        for (const auto& id : skipped) std::cerr << std::format("omui-devtools lead verdict: {}: no paired samples\n", id);
+        std::vector<std::string> records;
+        for (const auto& verdict : *judged) {
+            std::cout << verdict.said << '\n';
+            records.push_back(verdict.record);
+        }
+        return sub.is_flag_set("dry-run") || lead::append(ledger, records) ? 0 : 2;
+    }
+    if (options.subcommand_name() == "capability") {
+        std::vector<std::string> names, supports;
+        for (const auto& item : sub.option_or_empty("competitor").values) {
+            const auto equals = item.find('=');
+            const std::string support = equals == std::string::npos ? std::string{} : item.substr(equals + 1);
+            if (!std::ranges::contains(lead::supports, std::string_view(support))) {
+                std::cerr << std::format("omui-devtools lead capability: {}: support is one of none, partial, app-defined, full\n", item);
+                return 2;
+            }
+            names.push_back(item.substr(0, equals));
+            supports.push_back(support);
+        }
+        const std::string test = sub.value("test").value_or("");
+        if (names.empty() || !sub.value("project") || !sub.value("feature") || !sub.value("about") || test.empty()) {
+            std::cerr << "omui-devtools lead capability: --project P --feature F --about TEXT --test PATH --competitor NAME=SUPPORT…\n";
+            return 2;
+        }
+        if (!fs::exists(root / test)) {
+            std::cerr << std::format("omui-devtools lead capability: {} does not exist\n", test);
+            return 2;
+        }
+        auto competitors = nlohmann::ordered_json::array();
+        for (std::size_t at = 0; at < names.size(); ++at) competitors.push_back({{"name", names[at]}, {"support", supports[at]}});
+        const auto made = lead::context_here(root);
+        const nlohmann::ordered_json record{{"kind", "capability"},     {"date", made.date},         {"project", *sub.value("project")},
+                                            {"feature", *sub.value("feature")}, {"about", *sub.value("about")}, {"test", test},
+                                            {"competitors", competitors}, {"verdict", lead::capability_verdict(supports)}, {"commit", made.commit}};
+        std::cout << record.dump() << '\n';
+        return lead::append(ledger, std::vector{record.dump()}) ? 0 : 2;
+    }
     if (options.subcommand_name() != "docs") {
-        std::cerr << "usage: omui-devtools lead docs | check\n";
+        std::cerr << "usage: omui-devtools lead sample … | verdict SAMPLES | capability … | docs | check\n";
         return 2;
     }
-    const auto written = lead::pages(read_file(root / "tests/bench/competitors/lead.metrics.omui.json").value_or(""),
-                                     read_file(root / ".agents/docs/evaluation/lead.features.omui.json").value_or(""),
-                                     read_file(root / ".agents/docs/evaluation/lead.ledger.omui.jsonl").value_or(""));
+    const auto written = lead::write_pages(root);
     if (!written) {
         std::cerr << "omui-devtools lead docs: " << written.error() << '\n';
         return 2;
     }
-    for (const auto& [language, text] : *written) {
-        std::ofstream(root / "docs" / language / "lead.md", std::ios::binary) << text;
-        std::cout << std::format("wrote docs/{}/lead.md\n", language);
-    }
+    for (const auto& path : *written) std::cout << std::format("wrote {}\n", path);
     return 0;
 }
 
@@ -568,6 +669,32 @@ int main(int argc, char** argv) {
     if (parsed->subcommand_name() == "platforms") return platforms(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "api") return surface(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "lint") return lint(parsed->subcommand()->get(), root);
+    if (parsed->subcommand_name() == "bench") {
+        const auto& sub = parsed->subcommand()->get();
+        if (sub.subcommand_name() != "competitors") {
+            std::cerr << "usage: omui-devtools bench competitors [--ledger [--rounds N] [--dry-run]]\n";
+            return 2;
+        }
+        const auto& given = sub.subcommand()->get();
+        omui::devtools::bench::Options options;
+        if (given.is_flag_set("ledger")) {
+            options.rounds = 15;
+            if (const auto rounds = given.value("rounds")) {
+                const auto [end, failed] = std::from_chars(rounds->data(), rounds->data() + rounds->size(), options.rounds);
+                if (failed != std::errc{} || end != rounds->data() + rounds->size() || options.rounds < 1) {
+                    std::cerr << "omui-devtools bench competitors: --rounds takes a count of at least 1\n";
+                    return 2;
+                }
+            }
+            options.dry_run = given.is_flag_set("dry-run");
+        }
+        const auto status = omui::devtools::bench::competitors(root, options);
+        if (!status) {
+            std::cerr << "omui-devtools bench competitors: " << status.error() << '\n';
+            return 2;
+        }
+        return *status;
+    }
     if (parsed->subcommand_name() == "lead") return lead_command(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "atspi") {
         const auto& sub = parsed->subcommand()->get();
@@ -578,6 +705,6 @@ int main(int argc, char** argv) {
     }
     if (parsed->subcommand_name() == "govern") return govern(parsed->subcommand()->get());
     if (parsed->subcommand_name() == "incremental") return incremental(parsed->subcommand()->get());
-    std::cerr << "usage: omui-devtools [--root DIR] ci … | llvm … | platforms | govern … | incremental … | api … | atspi … | lint … | lead …  (omui-devtools --help)\n";
+    std::cerr << "usage: omui-devtools [--root DIR] ci … | llvm … | platforms | govern … | incremental … | api … | atspi … | lint … | lead … | bench …  (omui-devtools --help)\n";
     return 2;
 }

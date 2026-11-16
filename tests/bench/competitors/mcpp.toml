@@ -4,7 +4,7 @@
 # the Web and these must: the Web's comparison runs in the same JavaScript
 # engine as the competitor.
 #
-#   tests/bench/competitors/run.sh       everything, three runs each
+#   omui-devtools bench competitors      everything, three runs each
 [package]
 namespace   = "omui"
 name        = "bench.competitors"

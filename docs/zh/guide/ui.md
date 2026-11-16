@@ -14,15 +14,36 @@
 
 ## 状态：signal
 
-```ts
-import { signal, fmt, select, eq, column, text, textBox, button, mount } from "openmui";
+[例子 02](../../../examples/02-hello-ts)（文本统计）的全部代码：
 
-const name = signal("");
+<!-- code: examples/02-hello-ts/logic/main.ts#statistics -->
+```ts
+import { signal, fmt, call, select, eq, column, row, text, textBox, button, mount } from "openmui";
+
+const input = signal("");
+const words = signal(0);
+const sentences = signal(0);
+
+// Counting words and sentences is the script's: it runs when the text changes
+// (on the script's thread, never in a frame).
+input.watch((t: string) => {
+  words.set(t.split(/\s+/).filter((w) => w.length > 0).length);
+  sentences.set((t.match(/[^.!?。！？]+[.!?。！？]+/g) ?? []).length);
+});
+
+const plural = (n: Parameters<typeof call>[1], one: string, many: string) => select(eq(n, 1), one, many);
 
 mount("main", column({ padding: 16, gap: 10 }, [
-  textBox({ id: "name", text: name, label: "Name", placeholder: "Your name" }),
-  text({ id: "hello", text: select(eq(name, ""), "Type your name above.", fmt("Nice to meet you, {}!", name)) }),
-  button({ id: "clear", text: "Clear", onActivated: () => name.set("") }),
+  text({ text: "Text statistics", style: "title" }),
+  textBox({ id: "input", text: input, multiline: true, placeholder: "Type or paste a text", label: "Text", height: 140 }),
+  row({ id: "stats", gap: 16 }, [
+    // Characters as people count them: grapheme clusters, evaluated by the runtime.
+    text({ id: "characters", text: fmt("{} {}", call("size", input), plural(call("size", input), "character", "characters")) }),
+    text({ id: "words", text: fmt("{} {}", words, plural(words, "word", "words")) }),
+    text({ id: "sentences", text: fmt("{} {}", sentences, plural(sentences, "sentence", "sentences")) }),
+    text({ id: "reading", text: fmt("{} min read", call("ceil", call("double", words).div(200))) }),
+  ]),
+  button({ id: "clear", text: "Clear", variant: "ghost", disabled: eq(call("size", input), 0), onActivated: () => input.set("") }),
 ]));
 ```
 
@@ -30,19 +51,31 @@ mount("main", column({ padding: 16, gap: 10 }, [
 - `fmt`、`select`、`eq`、`call` 是由运行时求值的表达式：视图只建一次，不必每次重建。
 - 自己的逻辑放在 `signal.watch(...)` 或事件回调里；脚本不在每一帧里运行。
 
-C++ 的即时模式写法是同一回事：
+C++ 里是同一棵树、同样的 signal：[例子 03](../../../examples/03-counter) 的计数器（它的 TypeScript 版 `ts/tally.ts` 建出同一棵树；即时模式见[例子 01](../../../examples/01-hello-im)）：
 
+<!-- code: examples/03-counter/src/tally.cpp#view -->
 ```cpp
-import std;
-import omui;
-
-omui::AppSpec app() {
-    static int clicks = 0;
-    return {.id = "org.example.hello", .title = "Hello", .view = [] {
-        return omui::immediate([](omui::Ui& ui) {
-            if (ui.button(std::format("Clicked {} times", clicks), {.id = "click"})) ++clicks;
-        });
-    }};
+omui::View view(const State& s) {
+    using namespace omui;
+    const Signal<int> count = s.count, goal = s.goal;
+    return column({.padding = 24, .gap = 12}, {
+        text({.id = "count", .text = derive([=] { return std::to_string(count()); }), .style = "display"}),
+        progress({.id = "progress", .label = "Towards the goal",
+                  .value = derive([=] { return std::clamp(static_cast<double>(count()) / std::max(goal(), 1), 0.0, 1.0); })}),
+        text({.id = "status", .text = derive([=] {
+                  return count() >= goal() ? std::format("Goal of {} reached", goal()) : std::format("{} to go", goal() - count());
+              })}),
+        row({.id = "controls", .gap = 8}, {
+            button({.id = "minus", .disabled = derive([=] { return count() == 0; }), .text = "−1",
+                    .on_activated = [=] { count.set(std::max(count.peek() - 1, 0)); }}),
+            button({.id = "plus", .text = "+1", .variant = ButtonVariant::primary, .on_activated = [=] { count.set(count.peek() + 1); }}),
+            button({.id = "reset", .text = "Reset", .variant = ButtonVariant::ghost, .on_activated = [=] { count.set(0); }}),
+        }),
+        row({.id = "goal", .gap = 8}, {
+            text({.text = "Goal"}),
+            slider({.id = "value", .label = "Goal", .max = 100, .min = 1, .step = 1, .value = goal}),
+        }),
+    });
 }
 ```
 

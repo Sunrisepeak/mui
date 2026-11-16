@@ -153,6 +153,7 @@ export default defineTheme({
     },
   },
 
+  // docs: reduced-motion
   // The person asked for less motion (spec/registry/motion.json, reduced_motion):
   // every transition shows its target at once, springs settle at once.
   reduced_motion: {
@@ -170,4 +171,5 @@ export default defineTheme({
       "motion.spring.bouncy": "motion.instant",
     },
   },
+  // docs: end
 });

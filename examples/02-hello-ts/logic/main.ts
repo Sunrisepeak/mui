@@ -1,5 +1,6 @@
 // Text statistics: characters, words, sentences and reading time of what you
 // type or paste. The view is built once; the counts follow the text.
+// docs: statistics
 import { signal, fmt, call, select, eq, column, row, text, textBox, button, mount } from "openmui";
 
 const input = signal("");
@@ -27,3 +28,4 @@ mount("main", column({ padding: 16, gap: 10 }, [
   ]),
   button({ id: "clear", text: "Clear", variant: "ghost", disabled: eq(call("size", input), 0), onActivated: () => input.set("") }),
 ]));
+// docs: end

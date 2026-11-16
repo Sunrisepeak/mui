@@ -4,6 +4,7 @@
 //         Exit 0 when every failure is named there, 1 when one is new, 2
 //         when it could not read the run.
 //   platforms  docs/{en,zh}/platforms.md from docs/release.platforms.xdef.json (--check: whether they are current)
+//   docs  docs/{en,zh}/maturity.md and experimental.md from the manifests and the experimental READMEs (--check)
 //   llvm  what a change touches and its direct consumers, compiled (their
 //         tests too, not run) with CI's LLVM and profile: the errors only
 //         clang and libc++ give (reds 90, 91, 93), before a push.
@@ -42,6 +43,7 @@ import omui.devtools.browser;
 import omui.devtools.check;
 import omui.devtools.ci;
 import omui.devtools.consumer;
+import omui.devtools.docs;
 import omui.devtools.eval;
 import omui.devtools.govern;
 import omui.devtools.gpu;
@@ -248,6 +250,9 @@ cmd::App app() {
                         .arg(Arg("notes").help("example 07's program (notes-agent)")))
         .subcommand(cmd::App("platforms")
                         .description("Write docs/{en,zh}/platforms.md from docs/release.platforms.xdef.json (the verification table, D-201)")
+                        .option(Option("check").help("only say whether the pages are current (exit 1 when not)")))
+        .subcommand(cmd::App("docs")
+                        .description("Write docs/{en,zh}/maturity.md and experimental.md from every package's label and the experimental READMEs (plan §6.3)")
                         .option(Option("check").help("only say whether the pages are current (exit 1 when not)")))
         .subcommand(cmd::App("llvm")
                         .description("Compile what a change touches and its direct consumers, tests included, with CI's LLVM and profile (not run)")
@@ -1041,6 +1046,31 @@ int platforms(const cmd::ParsedArgs& options, const fs::path& root) {
     return stale ? 1 : 0;
 }
 
+int docs(const cmd::ParsedArgs& options, const fs::path& root) {
+    const auto inventory = omui::devtools::docs::read(root);
+    if (!inventory) {
+        std::cerr << "omui-devtools docs: " << inventory.error() << '\n';
+        return 2;
+    }
+    int stale = 0;
+    for (const std::string_view language : {"en", "zh"})
+        for (const std::string_view page : {"maturity", "experimental"}) {
+            const std::string written = page == "maturity" ? omui::devtools::docs::maturity_page(*inventory, language)
+                                                           : omui::devtools::docs::experimental_page(*inventory, language);
+            const std::string where = std::format("docs/{}/{}.md", language, page);
+            const fs::path target = root / mcpplibs::os::fs::from_utf8(where);
+            if (mcpplibs::os::fs::read(target) == written) continue;
+            if (options.is_flag_set("check")) {
+                std::cerr << std::format("omui-devtools docs: {} is not current (omui-devtools docs)\n", where);
+                ++stale;
+                continue;
+            }
+            std::ofstream(target, std::ios::binary) << written;
+            std::cout << std::format("wrote {}\n", where);
+        }
+    return stale ? 1 : 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -1056,6 +1086,7 @@ int main(int argc, char** argv) {
     if (parsed->subcommand_name() == "ci") return ci(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "llvm") return llvm(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "platforms") return platforms(parsed->subcommand()->get(), root);
+    if (parsed->subcommand_name() == "docs") return docs(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "rename") {
         const cmd::ParsedArgs& asked = parsed->subcommand()->get();
         const std::string from(asked.positional(0)), to(asked.positional(1));
@@ -1287,6 +1318,6 @@ int main(int argc, char** argv) {
     }
     if (parsed->subcommand_name() == "govern") return govern(parsed->subcommand()->get());
     if (parsed->subcommand_name() == "incremental") return incremental(parsed->subcommand()->get());
-    std::cerr << "usage: omui-devtools [--root DIR] ci … | llvm … | platforms | govern … | incremental … | api … | atspi … | lint … | lead … | bench … | gpu … | check … | media … | browser … | consumer …  (omui-devtools --help)\n";
+    std::cerr << "usage: omui-devtools [--root DIR] ci … | llvm … | platforms | docs | govern … | incremental … | api … | atspi … | lint … | lead … | bench … | gpu … | check … | media … | browser … | consumer …  (omui-devtools --help)\n";
     return 2;
 }

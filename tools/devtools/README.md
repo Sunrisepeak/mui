@@ -71,13 +71,22 @@ omui-devtools release index --sums dist/SHA256SUMS      # descriptors and closur
 
 ## lint
 
-The repository's rules (AGENTS.md; D-206: the lint in C++, a subcommand here rather than a script), 42 of them: the sources' text (macros, headers, platform, naming, the capability owners…), the manifests (layering, project-dag, layout, licences, platforms, pins, closures), what the sources import (imports, module-closure), and the data and documents (view documents against their schema through `mlibs.json`'s check, operations and skills, the agent surface, matter, STATUS, maturity, the platform table, the lead ledger, and declared data's container through mlibs.xdef.tool's checker, `data-format`: mlibs.xdef.tool is preview, so that rule rests on a preview package). Sources are read in parallel; the whole repository takes a few seconds. `--self-test` plants each rule's violation in a small workspace of its own and shows the rule catches it and nothing else complains. CI's lint row runs both; `devtools.lint` holds the repository to every rule in each test row.
+The repository's rules (AGENTS.md; D-206: the lint in C++, a subcommand here rather than a script), 44 of them: the sources' text (macros, headers, platform, naming, the capability owners…), the manifests (layering, project-dag, layout, licences, platforms, pins, closures), what the sources import (imports, module-closure), and the data and documents (view documents against their schema through `mlibs.json`'s check, operations and skills, the agent surface, matter, STATUS, maturity, the platform table, the lead ledger, the user guides' code (`docs-code`: each block a region of a file a member holds, marked `<!-- code: file#region -->`, or `sh` commands; en and zh with the same headings), and declared data's container through mlibs.xdef.tool's checker, `data-format`: mlibs.xdef.tool is preview, so that rule rests on a preview package). Sources are read in parallel; the whole repository takes a few seconds. `--self-test` plants each rule's violation in a small workspace of its own and shows the rule catches it and nothing else complains. CI's lint row runs both; `devtools.lint` holds the repository to every rule in each test row.
 
 ```sh
 omui-devtools lint                 # every rule
 omui-devtools lint --rule layering # one
 omui-devtools lint --list          # the rules and what each checks
 omui-devtools lint --self-test
+```
+
+## docs
+
+The user documents' generated pages (plan §6.3, RC3.5): `docs/{en,zh}/maturity.md` from every package's label (`[package.metadata.openmui] maturity`) with what each label promises, by project; `docs/{en,zh}/experimental.md` from the experimental packages' README sections (target, now, gap, limits, graduation). `devtools.docs` holds the committed pages to them; `platforms` does the same for the platform table.
+
+```sh
+omui-devtools docs          # write the four pages
+omui-devtools docs --check  # exit 1 when one is not current
 ```
 
 ## lead

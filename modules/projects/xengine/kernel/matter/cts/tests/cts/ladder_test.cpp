@@ -33,6 +33,7 @@ const matter::Look& look() {
 }
 std::uint32_t material(std::string_view name) { return *standard().material(name); }
 
+// docs: cavern
 // A cavern with a fire of its own: a floor, a post of wood alight at its foot, a crate afloat in a pool.
 std::unique_ptr<bodies::MatterWorld> cavern() {
     auto world = *bodies::MatterWorld::make(standard(), {.shape = {96, 56}, .tile = {16, 16}, .seed = 5, .fill = "air"});
@@ -45,6 +46,7 @@ std::unique_ptr<bodies::MatterWorld> cavern() {
     (void)world->carve({68, 38, 5, 4});
     return world;
 }
+// docs: end
 // What a flame is baked from: a post alight on a floor, alone.
 std::unique_ptr<bodies::MatterWorld> hearth() {
     auto world = *bodies::MatterWorld::make(standard(), {.shape = {24, 24}, .tile = {8, 8}, .seed = 2, .fill = "air"});
@@ -53,6 +55,7 @@ std::unique_ptr<bodies::MatterWorld> hearth() {
     world->set(*standard().channel("temperature"), {10, 19, 4, 2}, 1000 * 256);
     return world;
 }
+// docs: shown
 struct Shown {
     xrender::ImageStore images;
     ca::WorldPicture picture;
@@ -74,6 +77,7 @@ struct Shown {
         return out;
     }
 };
+// docs: end
 std::uint64_t hash_of(const raster::Surface& picture) {
     mlibs::hash::Fnv1a hash;
     for (const raster::Rgba8 pixel : picture.pixels()) hash.le(pixel.r, 1).le(pixel.g, 1).le(pixel.b, 1).le(pixel.a, 1);

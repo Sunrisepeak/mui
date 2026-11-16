@@ -1,5 +1,6 @@
 // subscription: a button that counts. Save this file while the window is
 // open and it shows at once; the count stays.
+// docs: counter
 import { signal, fmt, column, text, button, mount } from "openmui";
 
 const clicks = signal(0);
@@ -11,3 +12,4 @@ export const App = () =>
   ]);
 
 mount("main", App());
+// docs: end

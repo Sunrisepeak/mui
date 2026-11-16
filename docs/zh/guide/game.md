@@ -1,28 +1,61 @@
 # 游戏
 
-> 早期：能做出可以玩、可以回放、Agent 能玩的 2D 游戏；窗口里的整套流程、场景与关卡工具还没有。
+> 预览：能做出可以玩、可以回放、Agent 能玩的 2D 游戏；窗口里的整套流程、场景与关卡工具还没有。
 
 一个游戏在这里是三样东西：**状态**（一份可以整个复制的数据）、**一步**（状态加输入得到下一个状态）、**给玩家看的东西**。它不依赖界面框架，不开窗口也能跑——在服务器上、在一千次自动试玩里、在 CI 里。
 
 ## 写一个游戏
 
+一个游戏是一个类型：它的状态、输入、一步、给玩家看的东西。下面是运行时自己测试里的一个小游戏，一条线上的追逐：
+
+<!-- code: modules/projects/xengine/game/runtime/tests/runtime_test.cpp#chase -->
 ```cpp
-import xengine.runtime;
-
-struct Play {
-    using State = …;  using Input = …;                        // 普通数据，整个复制
-    static void step(State&, const Input&);                   // 一步：纯函数
-    static constexpr std::int32_t steps_per_second = 60;
-    static std::uint64_t checksum(const State&);              // 同样的玩法，同样的数
-    static std::string   observe(const State&, bool full);    // 玩家看到的，JSON
-    static void          play(Input&, const xengine::Actions&);  // 把按键、摇杆、指针变成这一步的输入
-    static bool          over(const State&);
+// The player walks a line after a mark that jumps when reached; five catches end it.
+struct Chase {
+    struct State {
+        std::int64_t  frame = 0;
+        std::int32_t  player = 0, mark = 40, caught = 0, spare = 0;
+        std::uint64_t rng = 0x9e3779b97f4a7c15ull;
+    };
+    struct Input {
+        xengine::Actions player{};
+    };
+    static constexpr std::int32_t steps_per_second = 120;
+    static void step(State& state, const Input& input) {
+        ++state.frame;
+        if (input.player.axis(0) > 0.5) ++state.player;
+        if (input.player.axis(0) < -0.5) --state.player;
+        if (state.player == state.mark) {
+            ++state.caught;
+            state.rng = state.rng * 6364136223846793005ull + 1442695040888963407ull;
+            state.mark = static_cast<std::int32_t>((state.rng >> 40) % 61) - 30;
+        }
+    }
+    static std::uint64_t checksum(const State& state) noexcept {
+        // Field by field (no padding hashed): the same play, the same number.
+        const std::array<std::uint64_t, 5> parts{static_cast<std::uint64_t>(state.frame), static_cast<std::uint64_t>(static_cast<std::uint32_t>(state.player)),
+                                                 static_cast<std::uint64_t>(static_cast<std::uint32_t>(state.mark)), static_cast<std::uint64_t>(state.caught),
+                                                 state.rng};
+        return mlibs::hash::fnv1a(std::as_bytes(std::span(parts)));
+    }
+    // A player is shown where they and the mark stand; only the full view shows where the mark jumps next.
+    static std::string observe(const State& state, bool full) {
+        std::string out = std::format("{{\"player\":{},\"mark\":{},\"caught\":{}", state.player, state.mark, state.caught);
+        if (full) out += std::format(",\"rng\":\"{:016x}\"", state.rng);
+        return out + "}";
+    }
+    static void play(Input& input, const xengine::Actions& actions) { input.player = actions; }
+    static bool over(const State& state) noexcept { return state.caught >= 5; }
+    // What the game says of itself: what its controls mean, and a task to begin with.
+    static constexpr std::string_view about = "A chase on a line: walk onto the mark and it jumps elsewhere; five catches end the game";
+    static constexpr std::array<runtime::Control, 2> controls{{{.name = "left", .summary = "Walk toward lower numbers", .axis = 0, .toward = -1},
+                                                               {.name = "right", .summary = "Walk toward higher numbers", .axis = 0, .toward = 1}}};
+    static constexpr std::array<runtime::Move, 2>    to_the_mark{{{.hold = {"right"}, .steps = 60}, {.steps = 1}}};
+    static constexpr std::array<runtime::Task, 1>    tasks{{{"catch-the-first-mark", "Walk right to the first mark (it stands at 40) and stop", to_the_mark}}};
 };
-
-xengine::runtime::Runtime<Play> game(initial);
 ```
 
-写成这样，下面这些就都有了，不用另做：
+由 `xengine::runtime::Runtime<Chase>`（`import xengine.runtime;`）运行。写成这样，下面这些就都有了，不用另做：
 
 - **回放与倒带**：每一步的输入被记下，任何一帧都能回去。
 - **分叉**：复制状态往前试，不影响正在玩的这一局。

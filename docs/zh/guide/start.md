@@ -26,18 +26,21 @@ cd hello
 omui dev                      # 开发模式：窗口加设计器，保存即生效
 ```
 
-`app/main.ts` 就是整个应用：
+`app/main.ts` 就是整个应用（[例子 13](../../../examples/13-live-design) 就从它开始）：
 
+<!-- code: examples/13-live-design/app/main.ts#counter -->
 ```ts
 import { signal, fmt, column, text, button, mount } from "openmui";
 
 const clicks = signal(0);
 
-mount("main", column({ padding: 24, gap: 12 }, [
-  text({ id: "count", text: fmt("Clicked {} times", clicks), style: "heading" }),
-  button({ id: "click", text: "Click me", variant: "primary",
-           onActivated: () => clicks.update((n: number) => n + 1) }),
-]));
+export const App = () =>
+  column({ padding: 24, gap: 12 }, [
+    text({ id: "count", text: fmt("Clicked {} times", clicks), style: "heading" }),
+    button({ id: "click", text: "Click me", variant: "primary", onActivated: () => clicks.update((n: number) => n + 1) }),
+  ]);
+
+mount("main", App());
 ```
 
 窗口开着时改这个文件并保存，界面立刻变，计数还在。

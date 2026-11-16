@@ -2,20 +2,20 @@
 
 给用它做东西的人：应用开发者、游戏开发者、让 Agent 干活的人。引擎内部怎么设计不在这里（见[设计文档](../../.agents/docs/README.md)）。
 
-每项能力在哪个平台上跑过（实机、软件，还是尚未验证）见[平台](platforms.md)。
+每项能力在哪个平台上跑过（实机、软件，还是尚未验证）见[平台](platforms.md)。每个包的成熟度（稳定、预览或实验，以及每种标注承诺什么）见[成熟度](maturity.md)；标为实验、随发布提供的部分及其目标与差距见[实验](experimental.md)。指南里的代码都节选自 CI 构建并运行的文件（lint `docs-code`）。
 
 ## 今天能用它做什么
 
 | 你想做 | 用什么 | 成熟度 | 从这里开始 |
 |---|---|---|---|
-| 桌面与 Web 的界面、工具 | omui | 可用 | [上手](guide/start.md) → [写界面](guide/ui.md) |
-| 让 Agent 读懂并操作你的应用 | omui 的 Agent 面、`omui agent`、MCP | 可用 | [Agent](guide/agent.md) |
-| 界面动效、代码生成的动画与视频 | hanim | 可用 | [动效](guide/motion.md) |
-| 会燃烧、流动、凝固的 2D 物质世界 | xengine 的物质与格点 | 可用（2D） | [物质世界](guide/world.md) |
-| 不开窗口也能跑、Agent 能玩的 2D 游戏 | xengine 的游戏运行时 | 早期 | [游戏](guide/game.md) |
-| 3D 渲染、3D 物理、骨骼动画 | — | 还没有 | — |
+| 桌面与 Web 的界面、工具 | omui | 稳定 | [上手](guide/start.md) → [写界面](guide/ui.md) |
+| 让 Agent 读懂并操作你的应用 | omui 的 Agent 面、`omui agent`、MCP | 稳定 | [Agent](guide/agent.md) |
+| 界面动效、代码生成的动画与视频 | hanim | 稳定（studio：预览） | [动效](guide/motion.md) |
+| 会燃烧、流动、凝固的 2D 物质世界 | xengine 的物质与格点 | 预览 | [物质世界](guide/world.md) |
+| 不开窗口也能跑、Agent 能玩的 2D 游戏 | xengine 的游戏运行时 | 预览 | [游戏](guide/game.md) |
+| 3D 渲染：场景、网格、阴影、glTF | xrender 的 scene 与 mesh | 预览 | [Quay](../../showcase/quay) |
 
-成熟度的意思：**可用**——有测试、有示例、接口基本稳定；**早期**——能做出东西，接口还会变；**还没有**——在路线上，未开始。整个项目仍在开发阶段，尚未发布版本。
+**稳定**：过全部质量门，0.1.x 内源码兼容。**预览**：在声明的范围内过全部质量门，接口会变。**实验**：能构建、原理成立，离自己的目标还有差距。每个包的标注见[成熟度](maturity.md)。整个项目仍在开发阶段，尚未发布版本（2026-11-17）。
 
 ## 三个要先知道的想法
 

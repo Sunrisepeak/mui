@@ -2,20 +2,20 @@
 
 For people who make things with it: application developers, game developers, people who put agents to work. How the engines are designed inside is elsewhere (the [design documents](../../.agents/docs/README.md)).
 
-What has been run on which platform — on real hardware, in software, or not yet — is on [Platforms](platforms.md).
+What has been run on which platform — on real hardware, in software, or not yet — is on [Platforms](platforms.md). How far each package is ready — stable, preview or experimental, and what each label promises — is on [Maturity](maturity.md); what ships experimental, with its target and its gap, is on [Experimental](experimental.md). The code in the guides is excerpted from files CI builds and runs (lint `docs-code`).
 
 ## What you can make with it today
 
 | You want | You use | Maturity | Start at |
 |---|---|---|---|
-| Interfaces and tools for the desktop and the Web | omui | usable | [Start](guide/start.md) → [Interfaces](guide/ui.md) |
-| An agent that understands and operates your application | omui's agent surface, `omui agent`, MCP | usable | [Agents](guide/agent.md) |
-| Interface motion; animation and video made by code | hanim | usable | [Motion](guide/motion.md) |
-| A 2D world of matter that burns, flows and sets | xengine's matter and lattice | usable (2D) | [A world of matter](guide/world.md) |
-| A 2D game that runs with no window and that an agent can play | xengine's game runtime | early | [Games](guide/game.md) |
-| 3D rendering, 3D physics, skeletal animation | — | not yet | — |
+| Interfaces and tools for the desktop and the Web | omui | stable | [Start](guide/start.md) → [Interfaces](guide/ui.md) |
+| An agent that understands and operates your application | omui's agent surface, `omui agent`, MCP | stable | [Agents](guide/agent.md) |
+| Interface motion; animation and video made by code | hanim | stable (studio: preview) | [Motion](guide/motion.md) |
+| A 2D world of matter that burns, flows and sets | xengine's matter and lattice | preview | [A world of matter](guide/world.md) |
+| A 2D game that runs with no window and that an agent can play | xengine's game runtime | preview | [Games](guide/game.md) |
+| 3D rendering: scenes, meshes, shadows, glTF | xrender's scene and mesh | preview | [Quay](../../showcase/quay) |
 
-**Usable**: tested, with examples, its interface mostly settled. **Early**: things can be made; the interface will change. **Not yet**: planned, not begun. The whole project is in development and has no release.
+**Stable**: every quality gate, source-compatible within 0.1.x. **Preview**: every quality gate within its stated scope; the interface will change. **Experimental**: builds and holds, short of its own target. Each package's label is on [Maturity](maturity.md). The whole project is in development and has no release yet (2026-11-17).
 
 ## Three ideas to know first
 

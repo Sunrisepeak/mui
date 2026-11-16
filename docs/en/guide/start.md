@@ -26,18 +26,21 @@ cd hello
 omui dev                      # development mode: the window and its designer; a save shows at once
 ```
 
-`app/main.ts` is the whole application:
+`app/main.ts` is the whole application (as [example 13](../../../examples/13-live-design) starts):
 
+<!-- code: examples/13-live-design/app/main.ts#counter -->
 ```ts
 import { signal, fmt, column, text, button, mount } from "openmui";
 
 const clicks = signal(0);
 
-mount("main", column({ padding: 24, gap: 12 }, [
-  text({ id: "count", text: fmt("Clicked {} times", clicks), style: "heading" }),
-  button({ id: "click", text: "Click me", variant: "primary",
-           onActivated: () => clicks.update((n: number) => n + 1) }),
-]));
+export const App = () =>
+  column({ padding: 24, gap: 12 }, [
+    text({ id: "count", text: fmt("Clicked {} times", clicks), style: "heading" }),
+    button({ id: "click", text: "Click me", variant: "primary", onActivated: () => clicks.update((n: number) => n + 1) }),
+  ]);
+
+mount("main", App());
 ```
 
 Change the file while the window is open and save: the interface changes, and the count stays.

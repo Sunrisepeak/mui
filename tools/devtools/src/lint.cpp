@@ -87,6 +87,7 @@ constexpr Rule all_rules[]{
     {"scripts", "no script but the allowlist's kinds, each with its reason (tools/lint/scripts.allow.xdef.json, D-206)"},
     {"claims", "a public document's ratio against another project is a claim of docs/release.claims.xdef.json, with evidence (D-193)"},
     {"platform-table", "every cell of docs/release.platforms.xdef.json is real, software, unverified or unsupported, with its evidence or need (D-201)"},
+    {"docs-code", "a guide's code is a member's file CI runs (<!-- code: file#region -->) or ```sh; en and zh keep the same headings (plan §6.3)"},
 };
 
 bool starts_with_any(std::string_view text, std::span<const char* const> prefixes) {
@@ -417,7 +418,7 @@ std::vector<Problem> run_with(const fs::path& root, std::span<const std::string>
     if (readable) {  // the other rules read the manifests
         for (auto&& found : {check_projects(workspace), check_layout(workspace), check_licences(workspace), check_platforms(workspace),
                              check_pins(workspace), check_closures(workspace, closures), check_modules(workspace),
-                             check_data(workspace, owed)})
+                             check_data(workspace, owed), check_docs(workspace)})
             std::ranges::move(found, std::back_inserter(problems));
     }
     std::ranges::move(check_sources(root, owners), std::back_inserter(problems));
@@ -588,6 +589,7 @@ int self_test(const fs::path& repository, const fs::path& scratch, std::ostream&
         {"splittable", "modules/projects/hanim/README.md", "# hanim\n\nSee [the probe](../../../tools/ci/probe/README.md).\n"},
         {"platform-table", "docs/release.platforms.xdef.json",
          R"({"platforms": [{"id": "a"}], "capability": [{"id": "x", "label": "stable", "cells": {"a": {"status": "passed"}}}]})"},
+        {.rule = "docs-code", .path = "docs/en/guide/x.md", .text = "# X\n\n```cpp\nint main() {}\n```\n", .files = {{"docs/zh/guide/x.md", "# X\n"}}},
         {"status", ".agents/docs/STATUS.md", "# STATUS\n\n| Task | State | Evidence |\n|---|---|---|\n| RC0.1 push | done | pushed |\n"},
         {"lead", ".agents/docs/evaluation/lead.features.xdef.json",
          R"({"feature": [{"id": "A", "project": "omui", "line": "use-safely", "title": "x", "status": "claimed"}]})"},

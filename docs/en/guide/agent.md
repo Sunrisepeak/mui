@@ -28,14 +28,28 @@ Registered as an agent's MCP server, it lets the agent drive your running applic
 
 - Actions are of three kinds: **read**, **reversible**, and **irreversible or external** (delete, send, pay). The third asks a person by default: the command returns 2, and runs when called again with `--answer`.
 - An agent cannot claim to be the person, nor approve its own request.
-- Permission is a person's, written in `omui.config.ts`:
+- Permission is a person's, written in `omui.config.ts`; `omui new` writes this one (everything in development; in a release, a person is asked before what cannot be undone):
 
+<!-- code: modules/projects/omui/sdk/templates/app-ts/omui.config.ts.in -->
 ```ts
+// How far agents may go and what the recorder keeps, in development (`omui
+// dev`) and in a release (`omui run`). These are the defaults; a switch given
+// at launch (--agent-mode) wins over them.
+//   agent:  development — every control a developer's own tools have; whether
+//           to ask you first is the agent's judgement and your instructions
+//           to it. dual-user — it asks you before what cannot be undone.
+//           automatic — what the build profile says.
+//   record: off, errors, actions, interactions, full (what input did: `ui.explain`).
+//   designer: whether Live Design is linked; a release leaves it out at compile time.
+//   generation: where interface generated while it runs may go (a view's slots) and how
+//           open it is — e.g. { surfaces: { extras: "cards an agent adds" },
+//           open: { release: "data" } }; without surfaces, none.
 import { defineConfig } from "omui/define";
 
 export default defineConfig({
-  agent:  { development: "development", release: "dual-user" },  // everything in development; in a release, a person is asked before what cannot be undone
-  record: { development: "full", release: "errors" },            // what is recorded
+  agent: { development: "development", release: "dual-user" },
+  record: { development: "full", release: "errors" },
+  designer: { development: true, release: false },
 });
 ```
 

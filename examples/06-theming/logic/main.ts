@@ -14,6 +14,7 @@ const calm = signal(false);
 const current = signal(themes().current);
 const problem = signal("");
 
+// docs: compose
 // The composition the controls say: a theme, then overlays.
 function compose(): void {
   const layers: string[] = [scheme.get()];
@@ -27,6 +28,7 @@ function compose(): void {
   }
   current.set(themes().current);
 }
+// docs: end
 
 const swatches = ["background", "surface", "surface_variant", "accent", "accent_subtle", "text", "text_muted", "border", "success", "warning", "danger"];
 const styles = ["display", "title", "heading", "body", "label", "caption", "code"];

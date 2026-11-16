@@ -28,14 +28,28 @@ omui mcp            # 一个 MCP 服务：读树、找节点、操作、等待�
 
 - 动作分三类：**只读**、**可撤销**、**不可撤销或对外**（删除、发送、付款）。第三类默认要人确认：命令返回 2，带上 `--answer` 再来一次才执行。
 - Agent 不能冒充人，不能替自己批准。
-- 权限由人定，写在 `omui.config.ts`：
+- 权限由人定，写在 `omui.config.ts`；`omui new` 写下的就是这一份（开发时全开；发布后不可撤销的先问人）：
 
+<!-- code: modules/projects/omui/sdk/templates/app-ts/omui.config.ts.in -->
 ```ts
+// How far agents may go and what the recorder keeps, in development (`omui
+// dev`) and in a release (`omui run`). These are the defaults; a switch given
+// at launch (--agent-mode) wins over them.
+//   agent:  development — every control a developer's own tools have; whether
+//           to ask you first is the agent's judgement and your instructions
+//           to it. dual-user — it asks you before what cannot be undone.
+//           automatic — what the build profile says.
+//   record: off, errors, actions, interactions, full (what input did: `ui.explain`).
+//   designer: whether Live Design is linked; a release leaves it out at compile time.
+//   generation: where interface generated while it runs may go (a view's slots) and how
+//           open it is — e.g. { surfaces: { extras: "cards an agent adds" },
+//           open: { release: "data" } }; without surfaces, none.
 import { defineConfig } from "omui/define";
 
 export default defineConfig({
-  agent:  { development: "development", release: "dual-user" },  // 开发时全开；发布后不可撤销的先问人
-  record: { development: "full", release: "errors" },            // 记录什么
+  agent: { development: "development", release: "dual-user" },
+  record: { development: "full", release: "errors" },
+  designer: { development: true, release: false },
 });
 ```
 

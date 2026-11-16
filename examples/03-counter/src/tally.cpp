@@ -5,6 +5,7 @@ import omui;
 
 namespace tally {
 
+// docs: view
 omui::View view(const State& s) {
     using namespace omui;
     const Signal<int> count = s.count, goal = s.goal;
@@ -27,6 +28,7 @@ omui::View view(const State& s) {
         }),
     });
 }
+// docs: end
 
 std::expected<Document, std::string> Document::open(omui::Runtime& rt, std::filesystem::path file) {
     auto v = omui::viewdoc::View::load_file(rt, file);

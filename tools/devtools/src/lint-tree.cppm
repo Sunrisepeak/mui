@@ -64,6 +64,7 @@ std::vector<Problem> check_closures(const Workspace& workspace, std::span<const 
 std::vector<Problem> check_modules(const Workspace& workspace);    // imports, module-closure
 // documents, media, ops, skills, agent-surface, typescript, matter, shader-inputs, status, maturity, platform-table
 std::vector<Problem> check_data(const Workspace& workspace, std::span<const std::pair<std::string, std::string>> owed);
+std::vector<Problem> check_docs(const Workspace& workspace);  // docs-code (lint_docs.cpp)
 // The packages still owing their agent surface, each with what brings it.
 std::span<const std::pair<std::string, std::string>> repository_owed();
 

@@ -20,6 +20,7 @@ namespace runtime = xengine::runtime;
 
 namespace {
 
+// docs: chase
 // The player walks a line after a mark that jumps when reached; five catches end it.
 struct Chase {
     struct State {
@@ -63,6 +64,7 @@ struct Chase {
     static constexpr std::array<runtime::Move, 2>    to_the_mark{{{.hold = {"right"}, .steps = 60}, {.steps = 1}}};
     static constexpr std::array<runtime::Task, 1>    tasks{{{"catch-the-first-mark", "Walk right to the first mark (it stands at 40) and stop", to_the_mark}}};
 };
+// docs: end
 // What a game must not get compiled with: a move holding a control the game has not, a control that is two things.
 constexpr std::array<runtime::Control, 1> only_right{{{.name = "right", .summary = "Walk right", .axis = 0, .toward = 1}}};
 constexpr std::array<runtime::Move, 1>    holds_jump{{{.hold = {"jump"}, .steps = 3}}};

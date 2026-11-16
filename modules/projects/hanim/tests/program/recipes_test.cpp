@@ -190,6 +190,7 @@ UTest cases{"hanim.recipes", [] {
         const Pose middle = arc.at(arc.length / 2), end = arc.at(arc.length);
         expect(near(end.x, 260) && near(end.y, 100)) << std::format("arrives: {}", text(end));
         expect(std::abs(middle.y - 100) > 20) << std::format("off the straight way halfway: {}", text(middle));
+        // docs: swap
         // Two objects.
         Engine engine = take(Engine::make());
         const auto a = take(engine.create_object(square({100, 100}))), b = take(engine.create_object(square({300, 100})));
@@ -201,6 +202,7 @@ UTest cases{"hanim.recipes", [] {
         expect((ya - 100) * (yb - 100) < 0) << std::format("they pass on either side: {} and {}", ya, yb);
         take(engine.seek(played, seconds(length)));
         expect(near(take(engine.frame(played, 0)).geometry.parts[0].local.tx, 300) && near(take(engine.frame(played, 1)).geometry.parts[0].local.tx, 100)) << "and exchange places";
+        // docs: end
         // Several, staggered.
         Engine many = take(Engine::make());
         std::vector<ObjectInput> objects;

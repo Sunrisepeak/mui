@@ -178,6 +178,7 @@ static UTest cases{"matter.rigid", [] {
             world->set(*program.channel("temperature"), {30, 18, 2, 2}, 900 * 256);
             return world;
         };
+        // docs: branch
         auto world = make(true);
         for (int frame = 0; frame < 60; ++frame) world->step();
         const auto saved = world->save();
@@ -196,6 +197,7 @@ static UTest cases{"matter.rigid", [] {
         }
         expect(again) << "restored and run again: the same bits frame by frame";
         expect(branched) << "the branch ran on as the original did";
+        // docs: end
         expect(world->bodies().bodies().size() >= 2u) << "bodies are in it";
         // The same world with every tile run: sparse execution and the bodies' wakes change no bit.
         auto sparse = make(true), dense = make(false);

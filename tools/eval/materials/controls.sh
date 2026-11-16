@@ -6,7 +6,7 @@
 # (tests/bench/competitors/compare/material3). Both land in
 # target/compare-material/{omui,material3}/<control>.png.
 #
-#   tools/eval/materials/controls.sh        CHROME=<chromium> (default: as tools/ci/browser.sh finds it)
+#   tools/eval/materials/controls.sh        CHROME=<chromium> (default: as omui-devtools browser finds it)
 set -euo pipefail
 cd "$(dirname "$0")/../../.."
 out=target/compare-material

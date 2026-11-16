@@ -295,7 +295,7 @@ UTest cases{"shader", [] {
         if (auto g = mcpplibs::os::env::get("OMUI_GLSLANG"); g && !g->empty()) glslang = mcpplibs::os::fs::from_utf8(*g);
         else if (auto p = mcpplibs::os::env::find_executable("glslangValidator")) glslang = *p;
         if (!glslang) {
-            std::println("  no glslangValidator (OMUI_GLSLANG): the ESSL is not compiled here; tools/ci/browser.sh compiles it in the browser");
+            std::println("  no glslangValidator (OMUI_GLSLANG): the ESSL is not compiled here; omui-devtools check browser compiles it in the browser");
             return;
         }
         const auto dir = std::filesystem::temp_directory_path() / "omui-essl-test";

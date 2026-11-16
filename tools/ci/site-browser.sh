@@ -9,7 +9,7 @@
 #    zoom — and the keyboard's way in by the skip link
 #    (tools/ci/site-a11y.mjs, target/site-a11y.json).
 #
-#   tools/ci/site-browser.sh          OMUI_CHROME=<chromium> (else as browser.sh finds one)
+#   tools/ci/site-browser.sh          OMUI_CHROME=<chromium> (else as omui-devtools browser finds one)
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 chrome=${OMUI_CHROME:-}

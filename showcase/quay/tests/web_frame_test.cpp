@@ -2,9 +2,9 @@
 // 16.7 ms): the frame `tests/bench`'s game/quay-frame-1080p-gpu times on a desktop device — the step, the guide's
 // choice, the picture prepared, and on the device the bodies bent, the moon's map, the lamps' views, the light, the
 // glow and the curve, submitted and waited for — timed here on whatever device the page has. In a browser
-// (tools/ci/browser.mjs, `--require-webgpu`) a missing device fails; elsewhere there is no page, which is said, and
+// (omui-devtools check browser, `--require-webgpu`) a missing device fails; elsewhere there is no page, which is said, and
 // the case passes vacuously. A software device (SwiftShader, CI's) is timed and said, never held to the budget:
-// its numbers are not performance (AGENTS §2.10). On a real GPU (tools/dev/browser-gpu.sh, where a display is) the
+// its numbers are not performance (AGENTS §2.10). On a real GPU (omui-devtools browser --headed under omui-devtools gpu --real, where a display is) the
 // p99 is held to it.
 import std;
 import mlibs.rhi;

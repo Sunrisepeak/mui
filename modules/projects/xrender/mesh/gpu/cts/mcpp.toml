@@ -40,6 +40,6 @@ xrender.asset    = { path = "../../../asset" }
 [dev-dependencies]
 mcpplibs.mtest     = "0.8.4"
 mcpplibs.os        = "0.4.4"
-# The page's backends: the suite on WebGPU and on WebGL2 (tests/, run in a browser by tools/ci/browser.sh).
+# The page's backends: the suite on WebGPU and on WebGL2 (tests/, run in a browser by omui-devtools check browser).
 xrender.rhi.webgpu = { path = "../../../rhi/webgpu" }
 xrender.rhi.webgl  = { path = "../../../rhi/webgl" }

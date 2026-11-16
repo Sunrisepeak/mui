@@ -5,7 +5,7 @@
 # interaction sweep through the page, and the bridge's end seen by the page.
 # The report: target/visitor-path.json.
 #
-#   tools/ci/visitor-path.sh          OMUI_CHROME=<chromium> (else as browser.sh finds one), MCPP=<mcpp>
+#   tools/ci/visitor-path.sh          OMUI_CHROME=<chromium> (else as omui-devtools browser finds one), MCPP=<mcpp>
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 mcpp=${MCPP:-mcpp}

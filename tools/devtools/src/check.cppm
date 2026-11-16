@@ -49,6 +49,11 @@
 //           button changes what it shows, Back with nothing open ends it. The emulator, its system image and adb are
 //           xlings packages; an AVD is made here (no avdmanager), its data in /dev/shm where that has room (the
 //           emulator asks for 7 GB free). Screenshots go to `out`.
+// browser   what only a real page can check (D-84 §6.3), where a headless Chromium is found (omui.devtools.browser):
+//           xrender.rhi.webgpu's and .webgl's suites, their consumers' WebGPU suites run by their owners (hanim.rhi,
+//           the cellular kernel), the mesh pass's contract on both, Quay's frame, host.web drawing on each (its fonts
+//           preloaded), and every WGSL and ESSL entry point the Web build wrote, compiled by the browser. Without a
+//           Chromium the checks are said to be skipped, a failure only with OMUI_REQUIRE_BROWSER=1.
 // atspi     examples 03 and 07 built and read and operated through AT-SPI (`omui-devtools atspi`) on a private
 //           session bus (dbus-run-session), as a screen reader does. Linux x86_64 (AccessKit's library);
 //           at-spi2-core.
@@ -76,6 +81,12 @@ struct Size {
 // shows: the showcases' directory names and "site"; none, every showcase and the site.
 [[nodiscard]] int media(const std::filesystem::path& root, std::vector<std::string> shows, bool check_only);
 [[nodiscard]] int android(const std::filesystem::path& root, const std::filesystem::path& out);
+[[nodiscard]] int browser_checks(const std::filesystem::path& root);
+
+// The page script that compiles every WGSL and ESSL entry of these shader partitions (mlibs.shader's `<entry>_wgsl` and
+// `<entry>_essl` byte arrays) with the browser's own compilers and links each file's vertex and fragment entries.
+[[nodiscard]] std::expected<std::string, std::string> shader_check_script(std::span<const std::filesystem::path> partitions);
+
 [[nodiscard]] int atspi(const std::filesystem::path& root, const std::vector<std::string>& profile_args);
 
 // A template's file rendered: each {{name}} replaced by its value; or the first name it has no value for.

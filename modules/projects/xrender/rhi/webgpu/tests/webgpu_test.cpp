@@ -2,7 +2,7 @@
 // says so (Errc::unsupported), and the cases that need a device say it and
 // pass — unless OMUI_REQUIRE_WEBGPU=1 or --require-webgpu (the browser's
 // run) makes that a failure. In a browser
-// (tools/ci/browser.sh: the program linked to wait, -sASYNCIFY, in headless
+// (omui-devtools check browser: the program linked to wait, -sASYNCIFY, in headless
 // Chromium) they run on the page's device: uploads, clears, copies and
 // readback byte for byte, an upload WebGPU cannot write refused before the
 // page sees it, then the rhi conformance suite (openmui.rhi.cts) — every

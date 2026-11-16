@@ -28,7 +28,7 @@
       "label": "stable",
       "cells": {
         "linux-x64": {"status": "real", "evidence": "RTX 4080 headless (omui-devtools gpu --real); lavapipe on CI (omui-devtools gpu)"},
-        "web": {"status": "unverified", "needs": "which WebGPU adapter tools/ci/browser.sh's headless Chromium runs on is not recorded; a real browser on a real GPU"},
+        "web": {"status": "unverified", "needs": "which WebGPU adapter omui-devtools check browser's headless Chromium runs on is not recorded; a real browser on a real GPU"},
         "macos-arm64": {"status": "software", "evidence": "CI row macos-15: the runner's Apple Paravirtual Metal device (omui-devtools gpu, cocoa)"},
         "windows-x64": {"status": "software", "evidence": "CI row windows-2022: lavapipe through SDL_GPU's Vulkan backend"},
         "linux-arm64": {"status": "software", "evidence": "CI row ubuntu-24.04-arm: lavapipe"},
@@ -41,7 +41,7 @@
       "label": "preview",
       "cells": {
         "linux-x64": {"status": "real", "evidence": "RTX 4080 headless (omui-devtools gpu --real): quay.picture.device; lavapipe on CI"},
-        "web": {"status": "software", "evidence": "Quay's frame on headless Chromium's SwiftShader WebGPU (showcase/quay web_frame_test --frames 20: 46 draws, 8 lights; ~3 s a frame, not performance)", "needs": "a real browser on a real GPU: web_frame_test through tools/dev/browser-gpu.sh where a display is (headless Chromium has no Vulkan on NVIDIA's driver)"},
+        "web": {"status": "software", "evidence": "Quay's frame on headless Chromium's SwiftShader WebGPU (showcase/quay web_frame_test --frames 20: 46 draws, 8 lights; ~3 s a frame, not performance)", "needs": "a real browser on a real GPU: web_frame_test through omui-devtools browser --headed under gpu --real where a display is (headless Chromium has no Vulkan on NVIDIA's driver)"},
         "macos-arm64": {"status": "software", "evidence": "quay.picture.device on CI's Apple Paravirtual device (offscreen)"},
         "windows-x64": {"status": "software", "evidence": "CI row windows-2022: lavapipe"},
         "linux-arm64": {"status": "software", "evidence": "CI row ubuntu-24.04-arm: lavapipe"},
@@ -54,7 +54,7 @@
       "label": "preview",
       "cells": {
         "linux-x64": {"status": "real", "evidence": "mesh.blocks on an RTX 4080 (omui-devtools gpu --real): BC7, 45 of 129,600 pixels past 6 levels, as the same picture as light"},
-        "web": {"status": "software", "evidence": "rhi.blocks on headless Chromium's WebGPU and WebGL2, all three kinds (tools/ci/browser.sh)", "needs": "mesh.blocks in the page's suite at the node; a real browser on a real GPU"},
+        "web": {"status": "software", "evidence": "rhi.blocks on headless Chromium's WebGPU and WebGL2, all three kinds (omui-devtools check browser)", "needs": "mesh.blocks in the page's suite at the node; a real browser on a real GPU"},
         "macos-arm64": {"status": "unverified", "needs": "a CI run of mesh.blocks on the runner's Apple Paravirtual device"},
         "windows-x64": {"status": "unverified", "needs": "a CI run of mesh.blocks on lavapipe (BC7)"},
         "linux-arm64": {"status": "unverified", "needs": "a CI run of mesh.blocks on lavapipe (BC7)"},
@@ -101,7 +101,7 @@
         "linux-x64": {"status": "software", "evidence": "synthetic preedit events (omui.core input, omui.ui.base, omui.host.sdl3 tests)"},
         "macos-arm64": {"status": "software", "evidence": "synthetic preedit events (the same tests on CI row macos-15)"},
         "windows-x64": {"status": "software", "evidence": "synthetic preedit events (the same tests on CI row windows-2022)"},
-        "web": {"status": "software", "evidence": "page_test: an input method composing in the hidden textarea, headless Chromium (tools/ci/browser.sh)", "needs": "a real IME in a browser"}
+        "web": {"status": "software", "evidence": "page_test: an input method composing in the hidden textarea, headless Chromium (omui-devtools check browser)", "needs": "a real IME in a browser"}
       }
     },
     {
@@ -121,7 +121,7 @@
       "label": "preview",
       "cells": {
         "linux-x64": {"status": "unverified", "needs": "an integrated-GPU machine; only the RTX 4080 is measured"},
-        "web": {"status": "unverified", "needs": "Quay's frame in a real browser on a real GPU (web_frame_test, tools/dev/browser-gpu.sh, where a display is): RC2.1"},
+        "web": {"status": "unverified", "needs": "Quay's frame in a real browser on a real GPU (web_frame_test, omui-devtools browser --headed under gpu --real, where a display is): RC2.1"},
         "android": {"status": "unverified", "needs": "a mobile device"}
       }
     }

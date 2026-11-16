@@ -38,6 +38,9 @@ struct Artifact {
 // on standard error; the products it reports, or why it failed.
 [[nodiscard]] std::expected<std::vector<Artifact>, std::string> build(const std::filesystem::path& root, std::vector<std::string> args);
 
+// `mcpp test ARGS… --no-run --message-format json`: each test built, by its name, to its program; or why not.
+[[nodiscard]] std::expected<std::map<std::string, std::filesystem::path>, std::string> tests(const std::filesystem::path& root, std::vector<std::string> args);
+
 // How many compiles at once keep a build within 90% of this machine; a lower MCPP_JOBS already set is kept.
 [[nodiscard]] int share_of_machine();
 

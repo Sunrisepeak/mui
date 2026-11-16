@@ -1,6 +1,6 @@
 # xengine.cellular.rhi.cts
 
-`xengine::cellular::gpu::cts::declare(device)` declares the device kernel's conformance cases (`<device>/cellular.*`, contract `xengine.cellular.gpu@1`, mtest's CTS kind). Each needs compute and readback: a device without them is unsupported, never passed. The SDL_GPU (`xengine.cellular.sdl`) and browser WebGPU (`tests/cellular_webgpu_test.cpp`, `tools/ci/browser.sh`) runners own device setup and the required/optional policy.
+`xengine::cellular::gpu::cts::declare(device)` declares the device kernel's conformance cases (`<device>/cellular.*`, contract `xengine.cellular.gpu@1`, mtest's CTS kind). Each needs compute and readback: a device without them is unsupported, never passed. The SDL_GPU (`xengine.cellular.sdl`) and browser WebGPU (`tests/cellular_webgpu_test.cpp`, `omui-devtools check browser`) runners own device setup and the required/optional policy.
 
 Forty scenarios, each stepping the same state on the CPU reference and on the device, tick after tick with the tick advancing, and comparing every uint32 value (not an image):
 

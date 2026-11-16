@@ -1,5 +1,5 @@
 // The mesh pass's suite on the page's WebGL2: the owner of a suite runs it against a backend. In a browser
-// (tools/ci/browser.sh, `--require-webgl`) a missing device fails; elsewhere there is no page, which is said,
+// (omui-devtools check browser, `--require-webgl`) a missing device fails; elsewhere there is no page, which is said,
 // and the case passes vacuously.
 import std;
 import mlibs.rhi;

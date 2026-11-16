@@ -82,4 +82,21 @@ std::expected<std::vector<Artifact>, std::string> build(const fs::path& root, st
     return out;
 }
 
+std::expected<std::map<std::string, fs::path>, std::string> tests(const fs::path& root, std::vector<std::string> args) {
+    args.insert(args.begin(), "test");
+    args.insert(args.end(), {"--no-run", "--message-format", "json"});
+    std::string said = "mcpp";
+    for (const auto& arg : args) said += " " + arg;
+    auto done = program(root, "mcpp", std::move(args), {.variables = {{"MCPP_JOBS", std::to_string(share_of_machine())}}});
+    if (!done) return std::unexpected(done.error());
+    if (done->status != 0) return std::unexpected(std::format("{} failed ({})", said, done->status));
+    std::map<std::string, fs::path> out;
+    for (auto part : std::views::split(std::string_view(done->out), '\n')) {
+        const auto line = nlohmann::json::parse(std::string_view(part.begin(), part.end()), nullptr, false);
+        if (line.is_discarded() || !line.contains("program") || !line["program"].is_string()) continue;
+        out[line.value("test", "")] = fs::path(line["program"].get<std::string>());
+    }
+    return out;
+}
+
 }  // namespace omui::devtools::run

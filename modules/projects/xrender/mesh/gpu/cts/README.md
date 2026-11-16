@@ -28,8 +28,8 @@ Where it runs, and what it measured there (480 × 270; pixels further than 6 lev
 | Device | Run by | yard | harbour | gathered | tiles |
 |---|---|---|---|---|---|
 | lavapipe through SDL_GPU (Vulkan) | `xrender.rhi.sdl`'s `mesh_test` | 5 | 351 | 11 | 591 |
-| the page's WebGPU (headless Chromium, SwiftShader) | `tests/mesh_webgpu_test.cpp`, `tools/ci/browser.sh` | 24 | 367 | 128 | 871 |
-| the page's WebGL2 (ANGLE on SwiftShader) | `tests/mesh_webgl_test.cpp`, `tools/ci/browser.sh` | 24 | 367 | 128 | 871 |
+| the page's WebGPU (headless Chromium, SwiftShader) | `tests/mesh_webgpu_test.cpp`, `omui-devtools check browser` | 24 | 367 | 128 | 871 |
+| the page's WebGL2 (ANGLE on SwiftShader) | `tests/mesh_webgl_test.cpp`, `omui-devtools check browser` | 24 | 367 | 128 | 871 |
 
 All eleven cases pass on each. WebGL2 runs the same shaders (ESSL) and the same float targets as WebGPU: no case is lowered for it.
 
@@ -44,5 +44,5 @@ A library: a conformance suite, for tests only. Its results are mtest's conforma
 
 ```sh
 omui-devtools gpu -- mcpp test -p xrender.rhi.sdl mesh_test   # CI's device on this machine (--real: its own GPU)
-tools/ci/browser.sh                                        # the page's WebGPU and WebGL2
+omui-devtools check browser                                        # the page's WebGPU and WebGL2
 ```

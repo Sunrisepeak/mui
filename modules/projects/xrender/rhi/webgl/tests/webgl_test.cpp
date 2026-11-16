@@ -1,7 +1,7 @@
 // omui.rhi on WebGL2. Natively and under node there is no WebGL2: create()
 // says so (Errc::unsupported), and the cases that need a device say it and
 // pass — unless OMUI_REQUIRE_WEBGL=1 or --require-webgl (the browser's run)
-// makes that a failure. In a browser (tools/ci/browser.sh, headless
+// makes that a failure. In a browser (omui-devtools check browser, headless
 // Chromium) they run on the page's WebGL2: uploads, clears, copies and
 // readback byte for byte, bgra8 kept as RGBA8 and its bytes as given, what
 // WebGL2 lacks refused up front, then the rhi conformance suite

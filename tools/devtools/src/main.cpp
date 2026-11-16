@@ -23,6 +23,7 @@
 //   check CI's acceptance steps, each building what it needs and holding the result: features (M0 ⑤),
 //         templates (M0 ①), reflect (V-08's canary, then the suite), sweep (D-91), tools-e2e, agent-e2e (M1 ②),
 //         toy (Bilibili Toy), size (a page's WebAssembly bytes, held to a budget), atspi (examples 03 and 07 on a private bus).
+//   browser  a wasm test program in a real page of headless Chromium (mlibs.http's framing on the loopback).
 //   media the showcases' and the site's README media, made by their tests: copied in, or (--check) held to them.
 //   lint  the repository's rules (D-206: the lint in C++, 43 rules);
 //         --self-test shows each rule catches a violation planted in a tree of its own.
@@ -33,6 +34,7 @@ import nlohmann.json;
 import omui.devtools.api;
 import omui.devtools.atspi;
 import omui.devtools.bench;
+import omui.devtools.browser;
 import omui.devtools.check;
 import omui.devtools.ci;
 import omui.devtools.govern;
@@ -248,6 +250,7 @@ cmd::App app() {
                         .subcommand(cmd::App("android")
                                         .description("Example 01 as an APK, checked inside; on the emulator where there is KVM: started, a tap, Back")
                                         .option(Option("out").takes_value().value_name("DIR").help("the screenshots and logs (default: the system's temporary directory, omui-android)")))
+                        .subcommand(cmd::App("browser").description("What only a real page can check: the page backends' suites, the shaders, host.web's frames"))
                         .subcommand(cmd::App("atspi")
                                         .description("Examples 03 and 07 built, then read and operated through AT-SPI on a private session bus")
                                         .option(Option("profile").takes_value().value_name("P").help("the examples' build profile"))))
@@ -256,6 +259,14 @@ cmd::App app() {
                         .option(Option("check").help("hold the committed media to what the tests drew (after the tests)"))
                         .option(Option("showcases").help("every showcase, without the site"))
                         .arg(Arg("show").help("showcase directory names, or site (default: every showcase and the site)")))
+        .subcommand(cmd::App("browser")
+                        .description("A wasm test program (mcpp's wasm-browser profile) run in a real page of headless Chromium; its lines relayed, its exit and suites judged")
+                        .option(Option("chrome").takes_value().value_name("PATH").help("default: OMUI_CHROME, Playwright's headless shell, or one on PATH"))
+                        .option(Option("timeout").takes_value().value_name("SECONDS").help("default: 300"))
+                        .option(Option("flag").takes_value().multiple().value_name("SWITCH").help("a switch for Chromium (--flag=--use-angle=vulkan)"))
+                        .option(Option("preload").takes_value().multiple().value_name("DIR:/DEST").help("every file of DIR at /DEST before main()"))
+                        .option(Option("headed").help("a window on the display there is (a real GPU's Vulkan), not headless"))
+                        .arg(Arg("program").required().help("after --: PROGRAM.js and its arguments")))
         .subcommand(cmd::App("gpu")
                         .description("A GPU for the device tests: the variables written to $GITHUB_ENV (or printed), or a command run with them")
                         .option(Option("real").help("this machine's NVIDIA GPU (Linux), not CI's software device"))
@@ -717,6 +728,39 @@ int main(int argc, char** argv) {
     if (parsed->subcommand_name() == "platforms") return platforms(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "api") return surface(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "lint") return lint(parsed->subcommand()->get(), root);
+    if (parsed->subcommand_name() == "browser") {
+        namespace page = omui::devtools::browser;
+        const auto& given = parsed->subcommand()->get();
+        page::Options options;
+        if (const auto chrome = given.value("chrome")) options.chrome = mcpplibs::os::fs::from_utf8(*chrome);
+        if (const auto seconds = given.value("timeout")) {
+            int count = 0;
+            const auto [end, failed] = std::from_chars(seconds->data(), seconds->data() + seconds->size(), count);
+            if (failed != std::errc{} || end != seconds->data() + seconds->size() || count < 1) {
+                std::cerr << "omui-devtools browser: --timeout takes seconds, at least 1\n";
+                return 2;
+            }
+            options.timeout = std::chrono::seconds(count);
+        }
+        options.flags = given.option_or_empty("flag").values;
+        for (const auto& preload : given.option_or_empty("preload").values) {
+            const auto colon = preload.rfind(':');
+            if (colon == std::string::npos) {
+                std::cerr << "omui-devtools browser: --preload takes DIR:/DEST\n";
+                return 2;
+            }
+            options.preloads.emplace_back(fs::absolute(mcpplibs::os::fs::from_utf8(preload.substr(0, colon))), preload.substr(colon + 1));
+        }
+        options.headed = given.is_flag_set("headed") || mcpplibs::os::env::get("OMUI_BROWSER_HEADED") == "1";
+        options.program = mcpplibs::os::fs::from_utf8(given.positional(0));
+        for (std::size_t index = 1; index < given.positional_count(); ++index) options.arguments.push_back(given.positional(index));
+        const auto status = page::run(options);
+        if (!status) {
+            std::cerr << "omui-devtools browser: " << status.error() << '\n';
+            return 2;
+        }
+        return *status;
+    }
     if (parsed->subcommand_name() == "media") {
         const auto& given = parsed->subcommand()->get();
         std::vector<std::string> shows;
@@ -733,12 +777,13 @@ int main(int argc, char** argv) {
         namespace step = omui::devtools::check;
         const auto& sub = parsed->subcommand()->get();
         if (!sub.has_subcommand()) {
-            std::cerr << "usage: omui-devtools check features | templates | reflect [--profile P] | sweep [--profile P] | tools-e2e | agent-e2e | android [--out DIR] | toy [PACKAGE…] | size -p MEMBER [--json F] [--markdown F] [--budget F] | atspi [--profile P]\n";
+            std::cerr << "usage: omui-devtools check features | templates | reflect [--profile P] | sweep [--profile P] | tools-e2e | agent-e2e | android [--out DIR] | browser | toy [PACKAGE…] | size -p MEMBER [--json F] [--markdown F] [--budget F] | atspi [--profile P]\n";
             return 2;
         }
         const auto& given = sub.subcommand()->get();
         if (sub.subcommand_name() == "features") return step::features(root);
         if (sub.subcommand_name() == "templates") return step::templates(root);
+        if (sub.subcommand_name() == "browser") return step::browser_checks(root);
         if (sub.subcommand_name() == "reflect") return step::reflect(root, given.value("profile").value_or("dev"));
         if (sub.subcommand_name() == "size") {
             if (!given.value("package")) {
@@ -832,6 +877,6 @@ int main(int argc, char** argv) {
     }
     if (parsed->subcommand_name() == "govern") return govern(parsed->subcommand()->get());
     if (parsed->subcommand_name() == "incremental") return incremental(parsed->subcommand()->get());
-    std::cerr << "usage: omui-devtools [--root DIR] ci … | llvm … | platforms | govern … | incremental … | api … | atspi … | lint … | lead … | bench … | gpu … | check … | media …  (omui-devtools --help)\n";
+    std::cerr << "usage: omui-devtools [--root DIR] ci … | llvm … | platforms | govern … | incremental … | api … | atspi … | lint … | lead … | bench … | gpu … | check … | media … | browser …  (omui-devtools --help)\n";
     return 2;
 }

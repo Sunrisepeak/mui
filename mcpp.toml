@@ -220,7 +220,7 @@ opt     = 1
 debug   = false
 ldflags = ["-sNODERAWFS=1"]
 
-# The test programs that need a browser (tools/ci/browser.sh runs them in
+# The test programs that need a browser (omui-devtools check browser runs them in
 # headless Chromium): linked to suspend for the page's promises — what
 # waiting for WebGPU and reading its textures back take — and to say their
 # exit code to the page. Asyncify, not JSPI: JSPI makes the exceptions'

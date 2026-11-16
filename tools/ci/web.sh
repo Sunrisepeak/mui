@@ -14,7 +14,7 @@
 # fake DOM — alone, and with the program: tests/page_test.cpp in a fake page;
 # so are openmui.rhi.webgpu's and openmui.rhi.webgl's page halves
 # (src/js/omui_webgpu.js, src/js/omui_webgl.js) with a fake WebGPU and a fake
-# WebGL2. Last, tools/ci/browser.sh runs what needs a real page in headless
+# WebGL2. Last, omui-devtools check browser runs what needs a real page in headless
 # Chromium, where one is found.
 #
 #   tools/ci/web.sh [profile]     default: wasm-test (tests read their fixtures through node)
@@ -59,4 +59,4 @@ mcpp run omui-devtools -p tools/devtools -- check size -p omui.size.yard --json 
 
 # What only a real page can check (WebGPU's and WebGL2's conformance, the
 # browser's shader compilers), where a headless Chromium is found.
-tools/ci/browser.sh || { echo "::error::the browser's checks failed"; exit 1; }
+mcpp run omui-devtools -p tools/devtools -- check browser || { echo "::error::the browser's checks failed"; exit 1; }

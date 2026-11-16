@@ -110,7 +110,7 @@ export async function browser(chrome, { width = 1280, height = 800, flags = [] }
     } };
 }
 
-// The browser and node to run these with, as tools/ci/browser.sh finds them.
+// The browser and node to run these with, as omui-devtools browser finds them.
 export function usage(script, extra = '') {
   console.error(`usage: CHROME=<chromium> node ${script} (<url> | --serve DIR)${extra}`);
   process.exit(2);

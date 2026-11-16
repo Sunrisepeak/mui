@@ -33,8 +33,12 @@ The picture and the person's view are drawn from the same state by different mea
 mcpp test -p omui.showcase.quay          # the harbour (a copy is a branch; a warden hears a shot through the containers and goes to look); the person's view holds no places, the agent wins as a person, the planted mistake found and said; the picture from the start (containers, lamps, the beacon; one tree, two views); a shot on the right heard right-ear first and louder
 mcpp test -p omui.showcase.quay.window     # played in a window by keys and the mouse, heard; the recording the same bits with no window
 mcpp test -p omui.showcase.quay.play       # on the device (lavapipe in CI): the start, a warden near, the lit beacon within 0.4% of the reference's pixels; the window on a real window's device
-# the frame on the page's WebGPU, timed as the desktop bench times it (D-187's 16.7 ms at the p99 on a real GPU; a display is needed: tools/dev/browser-gpu.sh):
-mcpp test --target wasm32-emscripten --profile wasm-browser -p omui.showcase.quay --no-run && tools/dev/browser-gpu.sh target/wasm32-emscripten/*/bin/omui.showcase.quay.picture/web_frame_test.js --require-webgpu
+# the frame on the page's WebGPU, timed as the desktop bench times it (D-187's 16.7 ms at the p99 on a real GPU): the full
+# Chromium in a window (headless Chromium reaches Vulkan only through VK_EXT_headless_surface, which NVIDIA's driver lacks),
+# its WebGPU through Vulkan on the driver omui-devtools gpu --real links; a display is needed:
+mcpp test --target wasm32-emscripten --profile wasm-browser -p omui.showcase.quay --no-run
+omui-devtools gpu --real -- omui-devtools browser --headed --chrome ~/.cache/ms-playwright/chromium-*/chrome-linux64/chrome --timeout 600 \
+  --flag=--enable-features=Vulkan --flag=--use-angle=vulkan --flag=--ignore-gpu-blocklist -- target/wasm32-emscripten/*/bin/omui.showcase.quay.picture/web_frame_test.js --require-webgpu
 ```
 
 ## Agent surface

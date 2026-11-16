@@ -49,3 +49,29 @@ UTest render_cases{"devtools.check.render", [] {
         expect(!missing.has_value() && missing.error() == "template.package.name");
     };
 }};
+
+UTest shader_cases{"devtools.check.shaders", [] {
+    "a shader partition's WGSL and ESSL entries, with each ESSL entry's stage, in the page's script"_test = [] {
+        namespace check = omui::devtools::check;
+        const auto scratch = std::filesystem::temp_directory_path() / "omui-devtools-shaders-test";
+        std::filesystem::create_directories(scratch);
+        const auto bytes = [](std::string_view text) {
+            std::string out;
+            for (const char c : text) out += std::format("0x{:02x}, ", static_cast<unsigned char>(c));
+            return out;
+        };
+        std::ofstream(scratch / "pass_shaders.cppm") << "inline constexpr mlibs::rhi::ShaderDesc vs_main{\n    .stage = mlibs::rhi::Stage::vertex,\n};\n"
+                                                     << "inline constexpr std::array<std::byte, 11> vs_main_wgsl{" << bytes("fn vs() {}\n") << "};\n"
+                                                     << "inline constexpr std::array<std::byte, 9> vs_main_essl{" << bytes("void m(){}") << "};\n"
+                                                     << "inline constexpr std::array<std::byte, 2> other_spirv{0x01, 0x02};\n";
+        const std::vector<std::filesystem::path> partitions{scratch / "pass_shaders.cppm"};
+        const auto script = check::shader_check_script(partitions);
+        std::filesystem::remove_all(scratch);
+        expect(script.has_value()) << script.error_or("");
+        if (!script) return;
+        expect(script->contains(R"(var wgsl = {"pass_shaders:vs_main":"fn vs() {}\n"};)")) << script->substr(0, 400);
+        expect(script->contains(R"("pass_shaders:vs_main":{"code":"void m(){}","file":"pass_shaders","stage":"vertex"})")) << script->substr(0, 400);
+        expect(script->contains("1 WGSL and 1 ESSL entry points") && !script->contains("spirv"));
+        expect(!check::shader_check_script(std::vector<std::filesystem::path>{}).has_value());
+    };
+}};

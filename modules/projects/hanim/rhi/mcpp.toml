@@ -34,7 +34,7 @@ mlibs.rhi   = { path = "../../../gfx/rhi" }
 mlibs.utils = { path = "../../../base/utils" }
 mlibs.cts   = { path = "../../../base/cts" }
 
-# The suite on the page's WebGPU (tests/*_webgpu_test.cpp; tools/ci/browser.sh runs it in a
+# The suite on the page's WebGPU (tests/*_webgpu_test.cpp; omui-devtools check browser runs it in a
 # browser): the owner takes a backend for its tests, never a backend its consumers (D-161).
 # Its run on SDL_GPU is in a native-only package: this one runs on the Web too.
 [dev-dependencies]

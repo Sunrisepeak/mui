@@ -116,7 +116,7 @@ int android(const fs::path& root, const fs::path& out) {
     static_cast<void>(run::program(root, "adb", {"wait-for-device"}));
     for (int look = 0; look < 120 && adb({"shell", "getprop", "sys.boot_completed"}) != "1"; ++look) pause(5);
     if (adb({"shell", "getprop", "sys.boot_completed"}) != "1") {
-        const std::string log = read_text(out / "emulator.log").value_or("");
+        const std::string log = mcpplibs::os::fs::read(out / "emulator.log").value_or("");
         std::cout << log.substr(log.size() > 2000 ? log.size() - 2000 : 0);
         return failed("the emulator did not boot");
     }
@@ -147,7 +147,7 @@ int android(const fs::path& root, const fs::path& out) {
     adb({"shell", "input", "tap", "360", "346"});
     pause(2);
     screen(out / "tapped.png");
-    if (read_text(out / "hello.png") == read_text(out / "tapped.png")) return failed("a tap on the button changed nothing on the screen");
+    if (mcpplibs::os::fs::read(out / "hello.png").value_or("") == mcpplibs::os::fs::read(out / "tapped.png").value_or("")) return failed("a tap on the button changed nothing on the screen");
     // Back with nothing open: the activity ends, the program returns.
     adb({"shell", "input", "keyevent", "4"});
     if (!said("the program ended (0)", 15)) {

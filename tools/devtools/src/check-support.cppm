@@ -10,12 +10,6 @@ namespace omui::devtools::check::support {
 
 namespace fs = std::filesystem;
 
-inline std::optional<std::string> read_text(const fs::path& path) {
-    std::ifstream in(path, std::ios::binary);
-    if (!in) return std::nullopt;
-    return std::string(std::istreambuf_iterator<char>(in), {});
-}
-
 inline int failed(std::string_view message) {
     std::cout << "::error::" << message << '\n';
     return 1;

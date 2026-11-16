@@ -79,7 +79,7 @@ void click_at(cdp::Script& script, double x, double y) {
 // deferred load.
 
 json fonts(const Context& context) {
-    const std::string html = support::read_text(context.site / "index.html").value_or("");
+    const std::string html = mcpplibs::os::fs::read(context.site / "index.html").value_or("");
     const json faces = fonts_of(html);
     const json chinese = font_named(faces, "NotoSansSC.ttf");
     cdp::Script script;
@@ -99,7 +99,7 @@ json fonts(const Context& context) {
     script.report["assets"]["initial_bytes"] = size_of(context.site / initial_face);
     script.report["assets"]["full_bytes"] = size_of(context.site / full_face);
     const json pinned =
-        at(json::parse(support::read_text(context.root / "site/reference/ci.frames.omui.json")
+        at(json::parse(mcpplibs::os::fs::read(context.root / "site/reference/ci.frames.omui.json")
                            .value_or("{}"),
                        nullptr, false),
            "frames");
@@ -346,10 +346,10 @@ json fonts(const Context& context) {
 
 json loading(const Context& context) {
     const json catalogue =
-        json::parse(support::read_text(context.site / "first-frames.assets.omui.json")
+        json::parse(mcpplibs::os::fs::read(context.site / "first-frames.assets.omui.json")
                         .value_or("{}"),
                     nullptr, false);
-    const std::string html = support::read_text(context.site / "index.html").value_or("");
+    const std::string html = mcpplibs::os::fs::read(context.site / "index.html").value_or("");
     const json inter_face = font_named(fonts_of(html), "Inter.ttf");
     const std::string inter =
         truthy(at(inter_face, 3)) ? text(at(inter_face, 3)) : text(at(inter_face, 1));
@@ -721,7 +721,7 @@ json loading(const Context& context) {
 // encoded_transport_bytes is Network.loadingFinished, response headers included.
 
 json font_sharing(const Context& context) {
-    const std::string html = support::read_text(context.site / "index.html").value_or("");
+    const std::string html = mcpplibs::os::fs::read(context.site / "index.html").value_or("");
     const json faces = fonts_of(html);
     const json inter = font_named(faces, "Inter.ttf");
     cdp::Script script(true);
@@ -753,7 +753,7 @@ json font_sharing(const Context& context) {
         if (truthy(at(face, 3)))
             variants.emplace_back(text(at(face, 3)), "initial");
         for (const auto& [path, variant] : variants) {
-            const std::string bytes = support::read_text(context.site / path).value_or("");
+            const std::string bytes = mcpplibs::os::fs::read(context.site / path).value_or("");
             if (!identity_of(path))
                 font_files.emplace_back(path, Identity{text(at(face, 0)), variant, bytes.size(),
                                                        mlibs::hash::sha256_hex(bytes)});

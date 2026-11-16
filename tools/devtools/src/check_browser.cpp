@@ -22,12 +22,12 @@ namespace {
 std::vector<fs::path> shader_partitions(const fs::path& root) {
     std::set<std::string> owners;
     try {
-        const toml::table workspace = toml::parse(read_text(root / "mcpp.toml").value_or(""));
+        const toml::table workspace = toml::parse(mcpplibs::os::fs::read(root / "mcpp.toml").value_or(""));
         if (const auto* members = workspace["workspace"]["members"].as_array())
             for (const auto& member : *members) {
                 const auto path = member.value<std::string>();
                 if (!path) continue;
-                const toml::table manifest = toml::parse(read_text(root / *path / "mcpp.toml").value_or(""));
+                const toml::table manifest = toml::parse(mcpplibs::os::fs::read(root / *path / "mcpp.toml").value_or(""));
                 const std::string name = manifest["package"]["name"].value_or(std::string{});
                 if (name.empty()) continue;
                 const std::string space = manifest["package"]["namespace"].value_or(std::string{});
@@ -45,7 +45,7 @@ std::vector<fs::path> shader_partitions(const fs::path& root) {
             for (const auto& file : fs::directory_iterator(owner.path() / "mlibs" / "shader", error)) {
                 const std::string name = mcpplibs::os::fs::utf8(file.path().filename());
                 if (!name.ends_with("_shaders.cppm")) continue;
-                const std::string text = read_text(file.path()).value_or("");
+                const std::string text = mcpplibs::os::fs::read(file.path()).value_or("");
                 if (!text.contains("_wgsl{") && !text.contains("_essl{")) continue;
                 const auto written = fs::last_write_time(file.path(), error);
                 auto& kept = newest[{package, name}];
@@ -63,7 +63,7 @@ std::vector<fs::path> shader_partitions(const fs::path& root) {
 std::expected<std::string, std::string> shader_check_script(std::span<const fs::path> partitions) {
     nlohmann::json wgsl = nlohmann::json::object(), essl = nlohmann::json::object();
     for (const auto& path : partitions) {
-        const std::string text = read_text(path).value_or("");
+        const std::string text = mcpplibs::os::fs::read(path).value_or("");
         const std::string file = mcpplibs::os::fs::utf8(path.stem());
         // Each entry's stage: `inline constexpr …::rhi::ShaderDesc NAME{` then `.stage = …::rhi::Stage::STAGE`.
         std::map<std::string, std::string> stages;
@@ -260,12 +260,12 @@ int web(const fs::path& root, std::string_view profile) {
     std::vector<std::string> args{"--target", "wasm32-emscripten", "--profile", std::string(profile)};
     std::vector<std::string> names;
     try {
-        const toml::table workspace = toml::parse(read_text(root / "mcpp.toml").value_or(""));
+        const toml::table workspace = toml::parse(mcpplibs::os::fs::read(root / "mcpp.toml").value_or(""));
         if (const auto* members = workspace["workspace"]["members"].as_array())
             for (const auto& member : *members) {
                 const auto path = member.value<std::string>();
                 if (!path) continue;
-                const toml::table manifest = toml::parse(read_text(root / *path / "mcpp.toml").value_or(""));
+                const toml::table manifest = toml::parse(mcpplibs::os::fs::read(root / *path / "mcpp.toml").value_or(""));
                 const auto* platforms = manifest["package"]["platforms"].as_array();
                 if (!platforms || !std::ranges::any_of(*platforms, [](const toml::node& item) { return item.value_or(std::string{}) == "emscripten"; })) continue;
                 const std::string space = manifest["package"]["namespace"].value_or(std::string{}), name = manifest["package"]["name"].value_or(std::string{});

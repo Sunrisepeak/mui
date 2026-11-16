@@ -15,13 +15,6 @@ using Clock = std::chrono::steady_clock;
 
 namespace {
 
-std::optional<std::string> read_file(const fs::path& path) {
-    std::ifstream in(path, std::ios::binary);
-    if (!in)
-        return std::nullopt;
-    return std::string(std::istreambuf_iterator<char>(in), {});
-}
-
 std::string lower(std::string_view text) {
     std::string out(text);
     for (char& letter : out)
@@ -422,7 +415,7 @@ Handler pages(fs::path directory) {
             workers.emplace_back([&] {
                 for (std::size_t index = next++; index < files.size(); index = next++) {
                     auto packed = std::make_shared<const std::string>(
-                        gzip(read_file(files[index]).value_or(""), 6));
+                        gzip(mcpplibs::os::fs::read(files[index]).value_or(""), 6));
                     const std::scoped_lock hold(zipped->lock);
                     zipped->files.emplace(files[index], std::move(packed));
                 }
@@ -449,14 +442,14 @@ Handler pages(fs::path directory) {
                     packed = found->second;
             }
             if (!packed) {
-                packed = std::make_shared<const std::string>(gzip(read_file(file).value_or(""), 6));
+                packed = std::make_shared<const std::string>(gzip(mcpplibs::os::fs::read(file).value_or(""), 6));
                 const std::scoped_lock hold(zipped->lock);
                 zipped->files.emplace(file, packed);
             }
             reply.body = *packed;
             reply.headers.emplace_back("content-encoding", "gzip");
         } else {
-            reply.body = read_file(file).value_or("");
+            reply.body = mcpplibs::os::fs::read(file).value_or("");
         }
         return reply;
     };
@@ -771,7 +764,7 @@ std::expected<std::unique_ptr<Browser>, std::string> Browser::launch(const fs::p
             break;
         }
         port = 0;
-        if (const auto active = read_file(state->profile / "DevToolsActivePort")) {
+        if (const auto active = mcpplibs::os::fs::read(state->profile / "DevToolsActivePort")) {
             int number = 0;
             std::from_chars(active->data(), active->data() + active->size(), number);
             port = static_cast<std::uint16_t>(number);

@@ -25,7 +25,7 @@ int features(const fs::path& root) {
     const fs::path consumer = fs::temp_directory_path() / std::format("omui-features-consumer-{}", std::random_device{}());
     std::error_code error;
     fs::create_directories(consumer / "tests", error);
-    std::string manifest = read_text(root / "tools/ci/features-consumer/mcpp.toml.in").value_or("");
+    std::string manifest = mcpplibs::os::fs::read(root / "tools/ci/features-consumer/mcpp.toml.in").value_or("");
     const std::string repository = mcpplibs::os::fs::generic_utf8(fs::absolute(root));
     for (std::size_t at = manifest.find("{{repo}}"); at != std::string::npos; at = manifest.find("{{repo}}", at + repository.size()))
         manifest.replace(at, 8, repository);
@@ -82,7 +82,7 @@ int size(const fs::path& root, const Size& asked) {
         std::cout << said;
         return failed("omui-gen wasm-size failed");
     }
-    const auto measured_report = json::parse(read_text(report).value_or(""), nullptr, false);
+    const auto measured_report = json::parse(mcpplibs::os::fs::read(report).value_or(""), nullptr, false);
     if (measured_report.is_discarded()) return failed("the size report is not JSON");
     std::error_code error;
     const std::map<std::string, std::uint64_t> measured{{"wasm.shipped", measured_report.value("shipped", std::uint64_t{0})},
@@ -100,7 +100,7 @@ int size(const fs::path& root, const Size& asked) {
         std::cout << std::format("  {:>9}  {:4.1f}%  {}\n", kib(bytes), 100.0 * static_cast<double>(bytes) / code, owner.value("name", ""));
     }
     if (asked.budget.empty()) return 0;
-    const auto over = over_budget(measured, read_text(root / asked.budget).value_or(""));
+    const auto over = over_budget(measured, mcpplibs::os::fs::read(root / asked.budget).value_or(""));
     for (const auto& message : over) std::cout << "::error::" << message << '\n';
     if (over.empty()) std::cout << std::format("ok   within {}\n", mcpplibs::os::fs::generic_utf8(asked.budget));
     return over.empty() ? 0 : 1;
@@ -140,7 +140,7 @@ std::expected<void, std::string> instantiate(const fs::path& root, std::string_v
         if (error) return std::unexpected(error.message());
         if (it->is_directory(error) || it->path().filename() == "template.toml") continue;
         fs::path relative = fs::relative(it->path(), source);
-        std::string text = read_text(it->path()).value_or("");
+        std::string text = mcpplibs::os::fs::read(it->path()).value_or("");
         if (it->path().extension() == ".in") {
             relative.replace_extension();
             auto rendered = render(text, values);
@@ -152,7 +152,7 @@ std::expected<void, std::string> instantiate(const fs::path& root, std::string_v
     }
     // This checkout instead of the published packages.
     const fs::path manifest = destination / "mcpp.toml";
-    auto text = read_text(manifest);
+    auto text = mcpplibs::os::fs::read(manifest);
     if (!text) return {};
     const std::string here = mcpplibs::os::fs::generic_utf8(fs::absolute(root).lexically_normal());
     constexpr std::array<std::pair<std::string_view, std::string_view>, 6> paths{{{"omui.sdk", "modules/projects/omui/sdk"},
@@ -202,7 +202,7 @@ int templates(const fs::path& root) {
     fs::create_directories(work, error);
     static_cast<void>(run::program(root, "mcpp", {"index", "update"}, {.cwd = work, .merged = true}));  // out of the tree a project reads the global index
     const fs::path check = root / ".template-check";
-    const Restored restore{root / "mcpp.toml", read_text(root / "mcpp.toml").value_or(""), check};
+    const Restored restore{root / "mcpp.toml", mcpplibs::os::fs::read(root / "mcpp.toml").value_or(""), check};
     const Removed removed{work};
     const std::string here = mcpplibs::os::fs::generic_utf8(fs::absolute(root).lexically_normal());
     for (const auto& [template_name, project] : std::initializer_list<std::pair<std::string_view, std::string_view>>{
@@ -214,13 +214,13 @@ int templates(const fs::path& root) {
         std::pair<int, std::string> tested;
         if (member) {
             // A temporary member of this workspace, its paths relative to it.
-            std::string manifest = read_text(root / "mcpp.toml").value_or("");
+            std::string manifest = mcpplibs::os::fs::read(root / "mcpp.toml").value_or("");
             const std::string anchor = "    \"tests/plugins/embed\",\n";
             const auto at = manifest.find(anchor);
             if (at == std::string::npos) return failed("the workspace's member list has no tests/plugins/embed to add after");
             manifest.insert(at + anchor.size(), std::format("    \".template-check/{}\",\n", project));
             std::ofstream(root / "mcpp.toml", std::ios::binary) << manifest;
-            std::string own = read_text(destination / "mcpp.toml").value_or("");
+            std::string own = mcpplibs::os::fs::read(destination / "mcpp.toml").value_or("");
             for (const auto& [from, to] : {std::pair{std::format("path = \"{}/", here), std::string("path = \"../../")},
                                            std::pair{std::format("path = \"{}\" }}", here), std::string("path = \"../..\" }")}})
                 for (std::size_t found = own.find(from); found != std::string::npos; found = own.find(from, found + to.size())) own.replace(found, from.size(), to);
@@ -414,7 +414,7 @@ int toy(const fs::path& root, std::vector<std::string> packages) {
     std::error_code error;
     fs::create_directories(out, error);
     const fs::path doctor = out / std::format("toy_doctor-{}.py", revision.substr(0, 7));
-    const auto sha256 = [](const fs::path& file) { return mlibs::hash::sha256_hex(read_text(file).value_or("")); };
+    const auto sha256 = [](const fs::path& file) { return mlibs::hash::sha256_hex(mcpplibs::os::fs::read(file).value_or("")); };
     if (!fs::exists(doctor) || sha256(doctor) != digest) {
         fs::path part = doctor;
         part += ".part";
@@ -450,7 +450,7 @@ int toy(const fs::path& root, std::vector<std::string> packages) {
         fs::path listing = built;
         listing += ".toy.omui.json";
         fs::copy_file(listing, out / (name + ".toy.omui.json"), fs::copy_options::overwrite_existing, error);
-        const auto about = json::parse(read_text(out / (name + ".toy.omui.json")).value_or(""), nullptr, false);
+        const auto about = json::parse(mcpplibs::os::fs::read(out / (name + ".toy.omui.json")).value_or(""), nullptr, false);
         if (!about.is_discarded()) {
             const auto mib = [](std::uint64_t bytes) { return std::format("{:.2f} MiB", static_cast<double>(bytes) / 1048576.0); };
             auto files = about.value("files", json::array());

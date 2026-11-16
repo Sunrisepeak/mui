@@ -767,7 +767,7 @@ int dist_toy_loading(const fs::path& root, const fs::path& given_fixture) {
             mlibs::http::decoded(request.path).substr(request.path.starts_with("/") ? 1 : 0);
         if (name.contains(".."))
             return {.status = 400, .body = "", .type = ""};
-        const auto bytes = read_text(directory / mcpplibs::os::fs::from_utf8(name));
+        const auto bytes = mcpplibs::os::fs::read(directory / mcpplibs::os::fs::from_utf8(name));
         if (!bytes || name.empty())
             return {.status = 404, .body = "", .type = ""};
         std::string encoded = cdp::gzip(*bytes, 6);

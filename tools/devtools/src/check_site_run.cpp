@@ -104,7 +104,7 @@ int site(const fs::path& root, const fs::path& built, std::vector<std::string> n
     for (const auto& name : names) {
         if (name == "perf") {
             const fs::path budget = root / "site/delivery.budget.omui.json";
-            const auto budgets = json::parse(read_text(budget).value_or("{}"), nullptr, false);
+            const auto budgets = json::parse(mcpplibs::os::fs::read(budget).value_or("{}"), nullptr, false);
             const std::string network = text(at(budgets, "network"));
             const json cached =
                 pages::perf(context,

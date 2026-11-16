@@ -213,7 +213,7 @@ json perf(const Context& context, const Perf& asked) {
     if (!asked.budget.empty()) {
         report["budgets"] = json::array();
         const auto budget =
-            json::parse(support::read_text(asked.budget).value_or("{}"), nullptr, false);
+            json::parse(mcpplibs::os::fs::read(asked.budget).value_or("{}"), nullptr, false);
         for (const auto& limit : at(budget, "budgets")) {
             const json value = at_path(report, text(at(limit, "metric")));
             const bool pass = value.is_number() && number(value) <= number(at(limit, "max"));

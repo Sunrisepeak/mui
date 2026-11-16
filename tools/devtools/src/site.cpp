@@ -15,13 +15,6 @@ using cdp::json;
 
 namespace {
 
-std::optional<std::string> read_file(const fs::path& path) {
-    std::ifstream in(path, std::ios::binary);
-    if (!in)
-        return std::nullopt;
-    return std::string(std::istreambuf_iterator<char>(in), {});
-}
-
 bool write_file(const fs::path& path, std::string_view bytes) {
     std::error_code error;
     if (path.has_parent_path())
@@ -146,7 +139,7 @@ with_decoded_size(std::string_view page, std::string_view wasm, std::uint64_t si
 }
 
 int verify(const fs::path& out) {
-    const auto page = read_file(out / "index.html");
+    const auto page = mcpplibs::os::fs::read(out / "index.html");
     if (!page)
         return failed(std::format("the site has no {}", os::fs::utf8(out / "index.html")));
     const bool require = os::env::get("OMUI_REQUIRE_BROWSER") == "1";
@@ -286,7 +279,7 @@ int split(const fs::path& root, const fs::path& given) {
 
     fs::remove_all(work, error);
     fs::create_directories(work, error);
-    const auto page = read_file(site / "index.html");
+    const auto page = mcpplibs::os::fs::read(site / "index.html");
     if (!page)
         return failed(
             std::format("site-split: {} does not exist", os::fs::utf8(site / "index.html")));
@@ -310,7 +303,7 @@ int split(const fs::path& root, const fs::path& given) {
     fs::copy(site, work / "page", fs::copy_options::recursive, error);
     fs::copy_file(work / "instrumented.wasm", work / "page" / wasm,
                   fs::copy_options::overwrite_existing, error);
-    const auto edited = with_decoded_size(read_file(work / "page/index.html").value_or(""), wasm,
+    const auto edited = with_decoded_size(mcpplibs::os::fs::read(work / "page/index.html").value_or(""), wasm,
                                           fs::file_size(work / "instrumented.wasm", error));
     if (!edited) {
         std::cerr << edited.error() << '\n';
@@ -338,7 +331,7 @@ int split(const fs::path& root, const fs::path& given) {
                            "--deferred", os::fs::utf8(work / "deferred.wasm"), "--lazy", ""}))
         return 1;
     for (const std::string name : {"whole.wasm", "first.wasm", "deferred.wasm"}) {
-        const std::string data = read_file(work / name).value_or("");
+        const std::string data = mcpplibs::os::fs::read(work / name).value_or("");
         std::cout << std::format("site-split: {:<14} {:6.2f} MiB, gzip {:5.2f} MiB\n", name,
                                  mib(data.size()), mib(cdp::gzip(data, 9).size()));
     }

@@ -72,7 +72,7 @@ private:
     std::jthread logger_;
 };
 
-std::string bytes_of(const fs::path& file) { return read_text(file).value_or(""); }
+std::string bytes_of(const fs::path& file) { return mcpplibs::os::fs::read(file).value_or(""); }
 
 }  // namespace
 

@@ -54,7 +54,7 @@ std::vector<std::pair<std::string, std::string>> site_media() {
 
 std::string package_of(const fs::path& manifest) {
     try {  // toml++ reports a malformed file by throwing (this tool is built with exceptions; the lint reads the same way)
-        const toml::table data = toml::parse(read_text(manifest).value_or(""));
+        const toml::table data = toml::parse(mcpplibs::os::fs::read(manifest).value_or(""));
         return data["package"]["namespace"].value_or(std::string{}) + "." + data["package"]["name"].value_or(std::string{});
     } catch (const toml::parse_error&) {
         return {};
@@ -82,7 +82,7 @@ int media(const fs::path& root, std::vector<std::string> shows, bool check_only)
     // One file: copied, or held to what was drawn.
     const auto take = [&](const fs::path& drawn, const fs::path& committed, std::string_view whose) {
         if (check_only) {
-            if (read_text(drawn) != read_text(committed) || !fs::exists(drawn))
+            if (mcpplibs::os::fs::read(drawn).value_or("") != mcpplibs::os::fs::read(committed).value_or("") || !fs::exists(drawn))
                 refuse(std::format("{} is not what the {} draw: run omui-devtools media {}", mcpplibs::os::fs::generic_utf8(fs::relative(committed, root)), whose,
                                    committed.parent_path().parent_path().filename() == "showcase" ? "" : "site"));
             return;

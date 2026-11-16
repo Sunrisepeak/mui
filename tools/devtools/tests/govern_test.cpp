@@ -80,7 +80,7 @@ UTest cases{"devtools.govern", [] {
         expect(fatal(std::filesystem::is_regular_file("/bin/sh"))) << "the system's shell";
         const auto directory = std::filesystem::temp_directory_path() / std::format("omui-devtools-govern-{}", std::chrono::steady_clock::now().time_since_epoch().count());
         std::filesystem::create_directories(directory);
-        const auto linker = directory / "ld";
+        const auto linker = directory / "clang-gtest";  // heavy by its name, and no other program's (ps shows 15 characters)
         std::filesystem::copy_file(std::filesystem::canonical("/bin/sh"), linker);
         std::filesystem::permissions(linker, std::filesystem::perms::owner_all);
         const std::string work = std::format("'{}' -c 'i=0; while [ $i -lt 600000 ]; do i=$((i+1)); done'", linker.string());
@@ -93,7 +93,7 @@ UTest cases{"devtools.govern", [] {
                 while (!done) {
                     int running = 0;
                     for (const auto& process : held::processes())
-                        if (process.name == "ld" && !process.paused && !process.ended) ++running;
+                        if (process.name == "clang-gtest" && !process.paused && !process.ended) ++running;
                     counts.push_back(running);
                     std::this_thread::sleep_for(std::chrono::milliseconds(5));
                 }

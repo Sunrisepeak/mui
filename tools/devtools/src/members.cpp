@@ -107,4 +107,34 @@ std::vector<std::string> with_consumers(std::span<const std::string> chosen, std
     return picked;
 }
 
+
+std::vector<std::vector<std::string>> blocks(std::span<const std::string> members, std::size_t count) {
+    std::vector<std::vector<std::string>> split;
+    if (members.empty()) return split;
+    count = std::clamp<std::size_t>(count, 1, members.size());
+    const std::size_t base = members.size() / count, larger = members.size() % count;
+    std::size_t at = 0;
+    for (std::size_t block = 0; block < count; ++block) {
+        const std::size_t size = base + (block < larger ? 1 : 0);
+        split.emplace_back(members.begin() + static_cast<std::ptrdiff_t>(at), members.begin() + static_cast<std::ptrdiff_t>(at + size));
+        at += size;
+    }
+    return split;
+}
+
+std::string cover_problem(std::span<const std::string> members, std::span<const std::vector<std::string>> blocks) {
+    std::map<std::string_view, int> seen;
+    for (const auto& member : members) seen[member] = 0;
+    for (const auto& block : blocks) {
+        for (const auto& member : block) {
+            const auto found = seen.find(member);
+            if (found == seen.end()) return std::format("{} is in a block but not a member", member);
+            if (++found->second > 1) return std::format("{} is in two blocks", member);
+        }
+    }
+    for (const auto& member : members)
+        if (seen[member] == 0) return std::format("{} is in no block", member);
+    return {};
+}
+
 }  // namespace omui::devtools::members

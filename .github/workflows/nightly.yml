@@ -74,7 +74,7 @@ jobs:
           ASAN_OPTIONS: detect_leaks=1:abort_on_error=1:strict_string_checks=1
           UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
         run: |
-          mcpp test --workspace --profile sanitize --exclude omui.reflect 2>&1 | tee sanitize.log
+          mcpp run omui-devtools -p tools/devtools --profile ci -- ci test --blocks 12 --profile sanitize --exclude omui.reflect 2>&1 | tee sanitize.log  # by blocks while mcpp#945 is open (RC0.10)
           grep -q "workspace result ok" sanitize.log || { echo "::error::a test failed under the sanitizers"; exit 1; }
           if grep -qE "ERROR: AddressSanitizer|runtime error:|ERROR: LeakSanitizer" sanitize.log; then
             echo "::error::the sanitizers reported a finding"; exit 1

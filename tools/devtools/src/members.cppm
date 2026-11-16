@@ -27,4 +27,11 @@ std::string owner_of(std::string_view file, std::span<const Member> all);
 // workspace's order.
 std::vector<std::string> with_consumers(std::span<const std::string> chosen, std::span<const Member> all);
 
+// The members split into `count` blocks in the workspace's order, their sizes differing by at most one (RC0.10:
+// a workspace's tests run as several `mcpp test`s while mcpp#945 stops the whole run); none empty.
+std::vector<std::vector<std::string>> blocks(std::span<const std::string> members, std::size_t count);
+
+// Why the blocks are not the members each exactly once (one missing, one twice, one not a member), or empty.
+std::string cover_problem(std::span<const std::string> members, std::span<const std::vector<std::string>> blocks);
+
 }  // namespace omui::devtools::members

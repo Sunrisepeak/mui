@@ -188,7 +188,13 @@ cmd::App app() {
                                         .option(Option("jobs").takes_value().value_name("FILE").help("the run's jobs (gh run view RUN --json jobs)")))
                         .subcommand(cmd::App("local")
                                         .description("CI's matrix on this one Linux machine, for when hosted runners are unavailable (wine for the Windows row)")
-                                        .arg(Arg("member").help("these members (default: the workspace)"))))
+                                        .arg(Arg("member").help("these members (default: the workspace)")))
+                        .subcommand(cmd::App("test")
+                                        .description("The workspace's tests as several `mcpp test`s, one a block of members (RC0.10, while mcpp#945 stops the whole run): the blocks are checked to be the members each once; every block runs; `workspace result ok` when all pass")
+                                        .option(Option("blocks").takes_value().value_name("N").help("how many (default: 12)"))
+                                        .option(Option("exclude").takes_value().multiple().value_name("PACKAGE").help("a member left out, by its package's name or path"))
+                                        .option(Option("profile").takes_value().value_name("P").help("the build profile (default: dev)"))
+                                        .option(Option("list").help("say the blocks; run nothing"))))
         .subcommand(omui::devtools::eval::command())
         .subcommand(cmd::App("govern")
                         .description("Run a command within 90% of this machine: MCPP_JOBS, at most that many of its compilers and linkers at once, fewer while memory is short, at low priority (AGENTS §5)")
@@ -383,11 +389,72 @@ void conclude(std::vector<rec::Row>& rows, const json& jobs) {
     }
 }
 
-int ci(const cmd::ParsedArgs& options, const fs::path& root) {
-    if (!options.has_subcommand()) {
-        std::cerr << "usage: omui-devtools ci [--json] run ID | log FILE [--jobs FILE] | local [MEMBER…]\n";
+// RC0.10: the workspace's tests by blocks of members — the same members and cases as the whole run.
+int blocks_test(const cmd::ParsedArgs& options, const fs::path& root) {
+    const auto manifest = mcpplibs::os::fs::read(root / "mcpp.toml");
+    if (!manifest) {
+        std::cerr << "omui-devtools ci test: no mcpp.toml in the workspace (--root names it)\n";
         return 2;
     }
+    const auto excluded = options.option_or_empty("exclude").values;
+    std::vector<std::string> members;
+    for (const auto& path : ws::listed(*manifest)) {
+        const auto own = mcpplibs::os::fs::read(root / mcpplibs::os::fs::from_utf8(path) / "mcpp.toml");
+        const std::string package = own ? rec::package_of(*own) : std::string{};
+        if (std::ranges::contains(excluded, path) || (!package.empty() && std::ranges::contains(excluded, package))) continue;
+        members.push_back(path);
+    }
+    std::size_t count = 12;
+    if (const auto given = options.value("blocks")) {
+        const auto parsed = std::from_chars(given->data(), given->data() + given->size(), count);
+        if (parsed.ec != std::errc{} || count == 0) {
+            std::cerr << std::format("omui-devtools ci test: --blocks takes a positive number, not `{}`\n", *given);
+            return 2;
+        }
+    }
+    const auto split = ws::blocks(members, count);
+    if (const auto problem = ws::cover_problem(members, split); !problem.empty()) {
+        std::cerr << "omui-devtools ci test: the blocks are not the workspace: " << problem << '\n';
+        return 2;
+    }
+    const std::string profile = options.value("profile").value_or("dev");
+    std::println("{} members in {} blocks (the workspace less {} excluded)", members.size(), split.size(), excluded.size());
+    std::vector<std::size_t> failed;
+    for (std::size_t index = 0; index < split.size(); ++index) {
+        std::vector<std::string> args{"test", "--profile", profile};
+        for (const auto& member : split[index]) {
+            args.push_back("-p");
+            args.push_back(member);
+        }
+        std::println("== block {}/{}: {}", index + 1, split.size(), split[index].front() + " … " + split[index].back());
+        std::cout.flush();  // before mcpp writes its own (synchronised with C's stdout)
+        if (options.is_flag_set("list")) {
+            for (const auto& member : split[index]) std::println("   {}", member);
+            continue;
+        }
+        const auto ran = omui::devtools::run::program(root, "mcpp", args, {.shown = true});
+        if (!ran || ran->status != 0) {
+            failed.push_back(index + 1);
+            std::println("== block {}/{} failed{}", index + 1, split.size(), ran ? "" : ": " + ran.error());
+        }
+    }
+    if (options.is_flag_set("list")) return 0;
+    if (!failed.empty()) {
+        std::string named;
+        for (const auto block : failed) named += std::format("{}{}", named.empty() ? "" : ", ", block);
+        std::println("blocks result FAILED: block {} of {}", named, split.size());
+        return 1;
+    }
+    std::println("blocks result ok: {} blocks\nworkspace result ok", split.size());
+    return 0;
+}
+
+int ci(const cmd::ParsedArgs& options, const fs::path& root) {
+    if (!options.has_subcommand()) {
+        std::cerr << "usage: omui-devtools ci [--json] run ID | log FILE [--jobs FILE] | local [MEMBER…] | test [--blocks N] [--exclude P]… [--profile P] [--list]\n";
+        return 2;
+    }
+    if (options.subcommand_name() == "test") return blocks_test(options.subcommand()->get(), root);
     if (options.subcommand_name() == "local") {
         const auto& given = options.subcommand()->get();
         std::vector<std::string> members;

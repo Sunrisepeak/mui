@@ -23,6 +23,7 @@
 //   check CI's acceptance steps, each building what it needs and holding the result: features (M0 ⑤),
 //         templates (M0 ①), reflect (V-08's canary, then the suite), sweep (D-91), tools-e2e, agent-e2e (M1 ②),
 //         toy (Bilibili Toy), size (a page's WebAssembly bytes, held to a budget), atspi (examples 03 and 07 on a private bus).
+//   media the showcases' and the site's README media, made by their tests: copied in, or (--check) held to them.
 //   lint  the repository's rules (D-206: the lint in C++, 43 rules);
 //         --self-test shows each rule catches a violation planted in a tree of its own.
 import std;
@@ -247,6 +248,11 @@ cmd::App app() {
                         .subcommand(cmd::App("atspi")
                                         .description("Examples 03 and 07 built, then read and operated through AT-SPI on a private session bus")
                                         .option(Option("profile").takes_value().value_name("P").help("the examples' build profile"))))
+        .subcommand(cmd::App("media")
+                        .description("The showcases' and the site's README media: what their tests draw, copied in (or, --check, held to it)")
+                        .option(Option("check").help("hold the committed media to what the tests drew (after the tests)"))
+                        .option(Option("showcases").help("every showcase, without the site"))
+                        .arg(Arg("show").help("showcase directory names, or site (default: every showcase and the site)")))
         .subcommand(cmd::App("gpu")
                         .description("A GPU for the device tests: the variables written to $GITHUB_ENV (or printed), or a command run with them")
                         .option(Option("real").help("this machine's NVIDIA GPU (Linux), not CI's software device"))
@@ -708,6 +714,18 @@ int main(int argc, char** argv) {
     if (parsed->subcommand_name() == "platforms") return platforms(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "api") return surface(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "lint") return lint(parsed->subcommand()->get(), root);
+    if (parsed->subcommand_name() == "media") {
+        const auto& given = parsed->subcommand()->get();
+        std::vector<std::string> shows;
+        for (std::size_t index = 0; index < given.positional_count(); ++index) shows.push_back(given.positional(index));
+        if (given.is_flag_set("showcases")) {
+            std::error_code error;
+            for (const auto& entry : fs::directory_iterator(root / "showcase", error))
+                if (fs::is_regular_file(entry.path() / "mcpp.toml")) shows.push_back(mcpplibs::os::fs::utf8(entry.path().filename()));
+            std::ranges::sort(shows);
+        }
+        return omui::devtools::check::media(root, std::move(shows), given.is_flag_set("check"));
+    }
     if (parsed->subcommand_name() == "check") {
         namespace step = omui::devtools::check;
         const auto& sub = parsed->subcommand()->get();
@@ -809,6 +827,6 @@ int main(int argc, char** argv) {
     }
     if (parsed->subcommand_name() == "govern") return govern(parsed->subcommand()->get());
     if (parsed->subcommand_name() == "incremental") return incremental(parsed->subcommand()->get());
-    std::cerr << "usage: omui-devtools [--root DIR] ci … | llvm … | platforms | govern … | incremental … | api … | atspi … | lint … | lead … | bench … | gpu … | check …  (omui-devtools --help)\n";
+    std::cerr << "usage: omui-devtools [--root DIR] ci … | llvm … | platforms | govern … | incremental … | api … | atspi … | lint … | lead … | bench … | gpu … | check … | media …  (omui-devtools --help)\n";
     return 2;
 }

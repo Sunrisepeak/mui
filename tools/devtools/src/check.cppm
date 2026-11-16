@@ -38,6 +38,10 @@
 // agent-e2e M1 acceptance ②: omui agent operating example 07 as its own process (needs-answer for an irreversible
 //           action), the development operations, the MCP server over real pipes, and the Reaction lab's verbs as
 //           MCP tools from its generated listing.
+// media     the showcases' README media (each a signature shot its tests draw headless into the scratch directory
+//           readme-<showcase>: a still, or an animated WebP or PNG under 1 MiB; deterministic, so committed in
+//           showcase/<showcase>/media/), and the site's stills and two animations under site/media/: run the
+//           tests and copy what they drew, or (`check`) hold the committed files to what the tests drew.
 // atspi     examples 03 and 07 built and read and operated through AT-SPI (`omui-devtools atspi`) on a private
 //           session bus (dbus-run-session), as a screen reader does. Linux x86_64 (AccessKit's library);
 //           at-spi2-core.
@@ -62,6 +66,8 @@ struct Size {
 [[nodiscard]] int toy(const std::filesystem::path& root, std::vector<std::string> packages);
 [[nodiscard]] int tools_e2e(const std::filesystem::path& root, const std::vector<std::string>& profile_args);
 [[nodiscard]] int agent_e2e(const std::filesystem::path& root, const std::vector<std::string>& profile_args);
+// shows: the showcases' directory names and "site"; none, every showcase and the site.
+[[nodiscard]] int media(const std::filesystem::path& root, std::vector<std::string> shows, bool check_only);
 [[nodiscard]] int atspi(const std::filesystem::path& root, const std::vector<std::string>& profile_args);
 
 // A template's file rendered: each {{name}} replaced by its value; or the first name it has no value for.

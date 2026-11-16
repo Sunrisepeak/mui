@@ -189,7 +189,7 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
             const std::string text = read_text(directory / "README.md").value_or("");
             const auto found = all_matches(text, shown);
             if (std::ranges::none_of(found, [&](const std::string& path) { return fs::exists(directory / path_of(path)); }))
-                add("media", utf8_of(fs::relative(directory, root)) + "/README.md", "shows no picture of its own from media/ (tools/ci/readme-media.sh)");
+                add("media", utf8_of(fs::relative(directory, root)) + "/README.md", "shows no picture of its own from media/ (omui-devtools media)");
         }
     }
 

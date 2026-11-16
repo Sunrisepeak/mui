@@ -520,3 +520,11 @@ The 40 checkpoints since M6.2 (`f0ccdef2` … `9ec7bd59`), looked at whole. What
 3. **Swarm as a work**: it has no picture, no sound and one arena (its dev story says so); a display list as Kiln's `picture`, and a host.
 4. **M6.3's leftovers** (rows above): the Khronos criterion — measured on model-viewer's render-fidelity scenarios (90 on 2026-11-14: each a Khronos sample model with its camera, its lighting and the pictures several renderers and path tracers made of it; the sample assets' own `screenshot` pictures state neither camera nor light and cannot carry a bound). Done: an HDR picture read, the surroundings in the reference, the tracer and on the device. The scenarios' framing and tone curve, the table beside model-viewer (83 of 90 drawn, 43 within the suite's −22 dB) and block formats in `mlibs.rhi` are done. Still: the 40 scenarios outside the bound — the `KHR_materials_*` family (transmission and volume the most), bones and shapes applied, the model's own lights; the mesh pass handing KTX2's blocks to the device (it uploads `rgba16_float`); a thing coming or going without the tree made again at once; the near cut at the pixel; budgets. Then M6.4 and M6.5.
 5. **Plan §5.9** (zoom): the kept run for rectangles and the other primitives; banding and curve areas; animation on the device after per-node retained lists in `omui.view`.
+
+## Review at 12 checkpoints (2026-11-15, head 3a4d865e; AGENTS §6)
+
+- Fit: the work followed the plan's slices; RC2.1/2.2/2.6/2.12 ran ahead of N0/N1, allowed (no structural overlap) but RC1.5's merges will touch `xrender.mesh`/`asset` — merge after these settle.
+- Convergence: Quay's timed frame was written twice (bench and page) → one owner, `quay::picture::Played`. `mesh::Blocks` mirrors `rhi` formats in a module without `rhi` (one mapping, `gpu::format_of`): kept, said here.
+- Claims: red 33 was closed on reasoning, not on the compressed number; size claims are now taken from the transfer measured.
+- Gaps: blocks only for pictures with no alpha (cutout leaves stay light); RC2.1 lacks a display here; CI blocked 3 h behind a stale macOS run → a superseded run is cancelled at push.
+- Platforms: blocks real on Linux only; macOS/Windows/arm and the page's `mesh.blocks` come with the next CI and the browser step.

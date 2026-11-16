@@ -1,15 +1,19 @@
 // The timeline's operations (convergence plan §10.3): what an Agent does with
 // the timeline every editor shares (hanim.timeline; its JSON,
-// *.timeline.omui.json) through the `hanim-timeline` command (JSON out; exit 0
-// done, 1 refused or failed with why, 2 a wrong command). omui-gen ops makes
-// the listing (media/ops/timeline.ops.json) and the reference
-// (media/ops/timeline.ops.md); effects are openas's.
+// *.timeline.omui.json) through the `hanim-timeline` command — the subject
+// `timeline` behind the tool kernel's entries (`hanim-timeline timeline.check
+// --file F`, `hanim-timeline mcp`; records out, exit 0 done, 1 refused or failed
+// with why). omui-gen ops makes the catalog (src/catalog/catalog.cppm), the
+// listing (timeline.ops.json) and the reference (timeline.ops.md); effects are
+// openas's.
 import { defineOps } from "omui/define";
 
 export default defineOps({
   product: "timeline",
+  module: "hanim.timeline.tool",
+  namespace: "hanim::timeline::tool",
   doc: "Check timelines, read what plays at a moment, make the usual edits and take them back.",
-  generated: "media/ops",
+  generated: "src/catalog",
   operations: [
     {
       name: "timeline.check",

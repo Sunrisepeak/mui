@@ -120,15 +120,15 @@ int tools_e2e(const fs::path& root, const std::vector<std::string>& profile_args
     const std::string tl = bin.at("hanim-timeline"), file = mcpplibs::os::fs::utf8(timeline);
     expect.status(0, bin.at("omui-gen"), {"snapshot", "showcase/promo-video/short.timeline.omui.ts", "--out", file});  // the JSON the tool works on
     const std::string before = bytes_of(timeline);
-    expect.status(0, tl, {"check", file}) && expect.has(R"("length":"900f")");
-    expect.status(0, tl, {"at", file, "--time", "1s"}) && expect.has(R"("clip":"hook")");
-    expect.status(0, tl, {"edit", file, "split", "--track", "0", "--clip", "0", "--at", "15f", "--dry-run"}) &&
+    expect.status(0, tl, {"timeline.check", "--file", file}) && expect.has(R"("length":"900f")");
+    expect.status(0, tl, {"timeline.at", "--file", file, "--time", "1s"}) && expect.has(R"("clip":"hook")");
+    expect.status(0, tl, {"timeline.edit", "--file", file, "--edit", "split", "--track", "0", "--clip", "0", "--at", "15f", "--dry_run"}) &&
         expect.holds(bytes_of(timeline) == before, "a dry run leaves the file as it was");
-    expect.status(0, tl, {"edit", file, "split", "--track", "0", "--clip", "0", "--at", "15f"}) && expect.holds(bytes_of(timeline) != before, "the edit changed the file");
-    expect.status(0, tl, {"check", file});
-    expect.status(1, tl, {"edit", file, "split", "--track", "0", "--clip", "0", "--at", "99999s"});
-    expect.status(0, tl, {"undo", file}) && expect.holds(bytes_of(timeline) == before, "undo took the file back to the very bytes");
-    expect.status(1, tl, {"undo", file});
+    expect.status(0, tl, {"timeline.edit", "--file", file, "--edit", "split", "--track", "0", "--clip", "0", "--at", "15f"}) && expect.holds(bytes_of(timeline) != before, "the edit changed the file");
+    expect.status(0, tl, {"timeline.check", "--file", file});
+    expect.status(1, tl, {"timeline.edit", "--file", file, "--edit", "split", "--track", "0", "--clip", "0", "--at", "99999s"});
+    expect.status(0, tl, {"timeline.undo", "--file", file}) && expect.holds(bytes_of(timeline) == before, "undo took the file back to the very bytes");
+    expect.status(1, tl, {"timeline.undo", "--file", file});
     return expect.result("tools e2e: ok");
 }
 

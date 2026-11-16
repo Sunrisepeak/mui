@@ -4,6 +4,7 @@ import std;
 import mcpplibs.os;
 import nlohmann.json;
 import mlibs.hash;
+import omui.devtools.release;
 import omui.devtools.run;
 import :support;
 
@@ -132,9 +133,14 @@ namespace {
 
 // A template rendered into `destination` (its omui dependencies and build rules pointed at this checkout).
 std::expected<void, std::string> instantiate(const fs::path& root, std::string_view template_name, const fs::path& destination, std::string_view project) {
-    const fs::path source = root / "modules/projects/omui/templates" / template_name;
-    const std::map<std::string, std::string> values{{"project.name", std::string(project)}, {"self.name", "omui.sdk"}, {"self.version", "0.1.0"},
-                                                    {"template.package.namespace", "openmui"}, {"template.package.name", "sdk"}};
+    const fs::path source = root / mcpplibs::os::fs::from_utf8(release::templates_directory) / template_name;
+    // As mcpp renders them from the package that carries the templates (omui.sdk: namespace omui, name sdk).
+    const std::string_view package = release::template_package;
+    const std::map<std::string, std::string> values{{"project.name", std::string(project)},
+                                                    {"self.name", std::string(package)},
+                                                    {"self.version", "0.1.0"},
+                                                    {"template.package.namespace", std::string(package.substr(0, package.rfind('.')))},
+                                                    {"template.package.name", std::string(package.substr(package.rfind('.') + 1))}};
     std::error_code error;
     for (auto it = fs::recursive_directory_iterator(source, error); it != fs::recursive_directory_iterator(); it.increment(error)) {
         if (error) return std::unexpected(error.message());
@@ -144,41 +150,25 @@ std::expected<void, std::string> instantiate(const fs::path& root, std::string_v
         if (it->path().extension() == ".in") {
             relative.replace_extension();
             auto rendered = render(text, values);
-            if (!rendered) return std::unexpected(std::format("{}: no value for {{{{{}}}}}", mcpplibs::os::fs::generic_utf8(relative), rendered.error()));
+            if (!rendered)
+                return std::unexpected(std::format("{}: no value for {{{{{}}}}}",
+                                                   mcpplibs::os::fs::generic_utf8(relative),
+                                                   rendered.error()));
             text = std::move(*rendered);
         }
         fs::create_directories((destination / relative).parent_path(), error);
-        if (!(std::ofstream(destination / relative, std::ios::binary) << text)) return std::unexpected("cannot write " + mcpplibs::os::fs::utf8(destination / relative));
+        if (!(std::ofstream(destination / relative, std::ios::binary) << text))
+            return std::unexpected("cannot write " +
+                                   mcpplibs::os::fs::utf8(destination / relative));
     }
-    // This checkout instead of the published packages.
+    // This checkout instead of the published packages: every dependency on a member, whichever the
+    // template names (release::pointed_at; a user's project keeps the versions, resolved from the
+    // index).
     const fs::path manifest = destination / "mcpp.toml";
     auto text = mcpplibs::os::fs::read(manifest);
     if (!text) return {};
     const std::string here = mcpplibs::os::fs::generic_utf8(fs::absolute(root).lexically_normal());
-    constexpr std::array<std::pair<std::string_view, std::string_view>, 6> paths{{{"omui.sdk", "modules/projects/omui/sdk"},
-                                                                                   {"omui.entry.player", "modules/projects/omui/entry/player"},
-                                                                                   {"omui.player", "modules/projects/omui/player"},
-                                                                                   {"omui.lang.js", "modules/projects/omui/lang/js"},
-                                                                                   {"omui.native", "modules/projects/omui/native"},
-                                                                                   {"omui.theme", "modules/projects/omui/theme"}}};
-    std::string out;
-    for (auto part : std::views::split(std::string_view(*text), '\n')) {
-        std::string line(part.begin(), part.end());
-        for (const auto& [package, relative] : paths) {
-            // What the line says, its comment aside (`omui.theme = "0.1.0"  # the default theme …`).
-            std::string bare = line.substr(0, line.find('#'));
-            std::erase(bare, '"');
-            std::erase_if(bare, [](char c) { return c == ' ' || c == '\t'; });
-            if (bare == std::format("{}=0.1.0", package)) line = std::format("{} = {{ path = \"{}/{}\" }}", package, here, relative);
-        }
-        // The build plugins (one package, omui.build).
-        const std::string published = "omui.build = { version = \"0.1.0\", host-module = true }";
-        if (const auto at = line.find(published); at != std::string::npos)
-            line.replace(at, published.size(), std::format("omui.build = {{ path = \"{}/mcpp/build\", host-module = true }}", here));
-        out += line + "\n";
-    }
-    out.pop_back();
-    std::ofstream(manifest, std::ios::binary) << out;
+    std::ofstream(manifest, std::ios::binary) << release::pointed_at(*text, release::member_paths(root), here);
     return {};
 }
 

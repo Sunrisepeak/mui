@@ -60,6 +60,15 @@ omui-devtools split modules/projects/omui --list            # the members and ho
 omui-devtools split modules/projects/omui --out /tmp/omui   # the tree; then mcpp test --workspace there
 ```
 
+## release
+
+The release channel (RC3.1): the packages a new project needs published — the templates' dependencies and every member they reach by `path` through any table but the development ones, on every platform and feature — with what stops `mcpp publish` on each (a sibling edge without `version`), the external versions missing from mcpp-index, and one mcpp-index descriptor per package (Form A: the member's own `mcpp publish` archive, named by its full identity, in all three platform blocks). Nothing is published. `check templates` uses the same table of members to point a template's published versions at the checkout.
+
+```sh
+omui-devtools release index --list                      # the closure, by project and maturity, and its blockers
+omui-devtools release index --sums dist/SHA256SUMS      # descriptors and closure.json under target/release/index
+```
+
 ## lint
 
 The repository's rules (AGENTS.md; D-206: the lint in C++, a subcommand here rather than a script), 42 of them: the sources' text (macros, headers, platform, naming, the capability owners…), the manifests (layering, project-dag, layout, licences, platforms, pins, closures), what the sources import (imports, module-closure), and the data and documents (view documents against their schema through `mlibs.json`'s check, operations and skills, the agent surface, matter, STATUS, maturity, the platform table, the lead ledger, and declared data's container through mlibs.xdef.tool's checker, `data-format`: mlibs.xdef.tool is preview, so that rule rests on a preview package). Sources are read in parallel; the whole repository takes a few seconds. `--self-test` plants each rule's violation in a small workspace of its own and shows the rule catches it and nothing else complains. CI's lint row runs both; `devtools.lint` holds the repository to every rule in each test row.

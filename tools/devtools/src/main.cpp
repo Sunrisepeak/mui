@@ -51,6 +51,7 @@ import omui.devtools.lint;
 import omui.devtools.members;
 import omui.devtools.platforms;
 import omui.devtools.run;
+import omui.devtools.release;
 import omui.devtools.rename;
 import omui.devtools.split;
 import omui.devtools.site;
@@ -222,6 +223,17 @@ cmd::App app() {
                         .arg(cmd::Arg("project").required().help("its directory (modules/projects/omui)"))
                         .option(Option("out").takes_value().value_name("DIR").help("where the tree goes (default: target/split/<project>)"))
                         .option(Option("list").help("only say the members and how many files")))
+        .subcommand(cmd::App("release")
+                        .description("The release channel (RC3.1): what a new project needs published, and its index entries (nothing is published)")
+                        .subcommand(cmd::App("index")
+                                        .description("The templates' closure, its mcpp-index descriptors written to a directory, and what blocks `mcpp publish`")
+                                        .option(Option("out").takes_value().value_name("DIR").help("default: target/release/index"))
+                                        .option(Option("list").help("only say the closure and its blockers"))
+                                        .option(Option("tag").takes_value().value_name("TAG").help("the release's tag (default: v<version>)"))
+                                        .option(Option("repo").takes_value().value_name("URL").help("where the archives are released (default: each package's repo)"))
+                                        .option(Option("mirror").takes_value().value_name("URL").help("the CN mirror (default: https://gitcode.com/mcpp-res/<name>)"))
+                                        .option(Option("sums").takes_value().value_name("FILE").help("SHA256SUMS of the archives, for the descriptors' sha256"))
+                                        .option(Option("index").takes_value().value_name("DIR").help("a copy of mcpp-index (default: ~/.mcpp/indices/mcpplibs)"))))
         .subcommand(cmd::App("api")
                         .description("A package's exported surface, as its interface units declare it: printed, written to api.omui.txt, or checked against it")
                         .option(Option("package").short_name('p').takes_value().multiple().value_name("MEMBER").help("the members (paths as the workspace lists them)"))
@@ -870,6 +882,101 @@ int lead_command(const cmd::ParsedArgs& options, const fs::path& root) {
     return 0;
 }
 
+// `release index`: the templates' closure, what blocks publishing it, and its mcpp-index descriptors.
+int release_index(const cmd::ParsedArgs& options, const fs::path& root) {
+    namespace release = omui::devtools::release;
+    const auto made = release::closure(root);
+    if (!made) {
+        std::cerr << "omui-devtools release index: " << made.error() << '\n';
+        return 2;
+    }
+    fs::path index;
+    if (const auto given = options.value("index"))
+        index = mcpplibs::os::fs::from_utf8(*given);
+    else if (const char* home = std::getenv("MCPP_HOME"))
+        index = fs::path(home) / "indices" / "mcpplibs";
+    else if (const char* user = std::getenv("HOME"))
+        index = fs::path(user) / ".mcpp" / "indices" / "mcpplibs";
+    else if (const char* profile = std::getenv("USERPROFILE"))
+        index = fs::path(profile) / ".mcpp" / "indices" / "mcpplibs";
+    const auto missing = release::missing_from(index, made->external);
+
+    std::map<std::string, std::map<std::string, int>> counts;  // project → maturity → packages
+    json listed = json::array();
+    for (const auto& package : made->packages) {
+        const std::string project = package.name.substr(0, package.name.find('.'));
+        ++counts[project][package.maturity.empty() ? "unlabelled" : package.maturity];
+        std::println("  {:<34} {:<12} {:<6} {}{}{}", package.name,
+                     package.maturity.empty() ? "-" : package.maturity,
+                     package.built ? "built" : "feature", package.path,
+                     package.unversioned.empty() ? ""
+                                                 : std::format("  [{} path edges without version]",
+                                                               package.unversioned.size()),
+                     package.outside.empty() ? ""
+                                             : std::format("  [{} strings leave its directory]",
+                                                           package.outside.size()));
+        listed.push_back({{"name", package.name},
+                          {"path", package.path},
+                          {"version", package.version},
+                          {"maturity", package.maturity},
+                          {"built", package.built},
+                          {"unversioned", package.unversioned},
+                          {"outside", package.outside},
+                          {"external", package.external},
+                          {"descriptor", release::descriptor_path(package)},
+                          {"archive", release::archive_of(package)}});
+    }
+    const auto built = std::ranges::count_if(made->packages, &release::Package::built);
+    std::println("roots: {}", made->roots.size());
+    std::println("closure: {} packages ({} built with a template's features, {} reached only by "
+                 "another feature)",
+                 made->packages.size(), built,
+                 made->packages.size() - static_cast<std::size_t>(built));
+    for (const auto& [project, by_maturity] : counts) {
+        std::string line;
+        for (const auto& [maturity, count] : by_maturity)
+            line += std::format(" {} {}", count, maturity);
+        std::println("  {}:{}", project, line);
+    }
+    std::println("external: {} ({} not in the index at {})", made->external.size(), missing.size(),
+                 mcpplibs::os::fs::utf8(index));
+    for (const auto& named : missing)
+        std::println("  missing {}", named);
+    for (const auto& problem : made->problems)
+        std::println("problem: {}", problem);
+    if (options.is_flag_set("list"))
+        return made->problems.empty() ? 0 : 1;
+
+    release::Options wanted;
+    wanted.tag = options.value("tag").value_or("");
+    wanted.repo = options.value("repo").value_or("");
+    wanted.mirror = options.value("mirror").value_or("");
+    if (const auto sums = options.value("sums"))
+        wanted.sums = release::read_sums(mcpplibs::os::fs::from_utf8(*sums));
+    const fs::path out = options.value("out") ? mcpplibs::os::fs::from_utf8(*options.value("out"))
+                                              : root / "target" / "release" / "index";
+    std::error_code error;
+    fs::remove_all(out, error);
+    for (const auto& package : made->packages) {
+        const fs::path file = out / mcpplibs::os::fs::from_utf8(release::descriptor_path(package));
+        fs::create_directories(file.parent_path(), error);
+        if (!(std::ofstream(file, std::ios::binary) << release::descriptor(package, wanted))) {
+            std::cerr << "omui-devtools release index: cannot write "
+                      << mcpplibs::os::fs::utf8(file) << '\n';
+            return 1;
+        }
+    }
+    const json summary{{"roots", made->roots},
+                       {"packages", listed},
+                       {"external", made->external},
+                       {"missing", missing},
+                       {"problems", made->problems}};
+    std::ofstream(out / "closure.json", std::ios::binary) << summary.dump(2) << '\n';
+    std::println("written: {} descriptors and closure.json under {}", made->packages.size(),
+                 mcpplibs::os::fs::utf8(out));
+    return made->problems.empty() ? 0 : 1;
+}
+
 int platforms(const cmd::ParsedArgs& options, const fs::path& root) {
     const auto table = mcpplibs::os::fs::read(root / "docs/release.platforms.xdef.json");
     if (!table) {
@@ -953,6 +1060,14 @@ int main(int argc, char** argv) {
         }
         std::println("written to {}; next: mcpp test --workspace there", mcpplibs::os::fs::utf8(out));
         return 0;
+    }
+    if (parsed->subcommand_name() == "release") {
+        const cmd::ParsedArgs& asked = parsed->subcommand()->get();
+        if (asked.subcommand_name() != "index") {
+            std::cerr << "usage: omui-devtools release index [--out DIR] [--list] [--tag T] [--repo URL] [--mirror URL] [--sums FILE] [--index DIR]\n";
+            return 2;
+        }
+        return release_index(asked.subcommand()->get(), root);
     }
     if (parsed->subcommand_name() == "api") return surface(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "eval") return omui::devtools::eval::run(parsed->subcommand()->get(), root);

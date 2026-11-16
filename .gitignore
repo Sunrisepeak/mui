@@ -10,7 +10,6 @@ __pycache__/
 *.pyc
 dist/
 python-probe.log
-reflect-canary.log
 .openmui/
 mcpp.lock
 

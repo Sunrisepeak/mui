@@ -32,11 +32,11 @@ It is a member of its own because C++26 modules are built apart from C++23 ones:
 
 **It does not build inside openmui's graph with GCC 16.1 (V-08).** libstdc++'s `std` module exports `<meta>` only when `std` is built with `-freflection`. A `std` built that way cannot merge the C library's unnamed-struct typedefs (`__mbstate_t` first) with any unit that includes a C header in its global module fragment, and openmui's graph has many such units: libpng, FreeType and SDL's, and the third-party module wrappers. A unit built without `-freflection` cannot read that `std` at all. Keeping `-freflection` to this package's units fails the same way, and so does wrapping `<meta>` in a module of its own. Clang 23 has no `-freflection`.
 
-The code here was verified in standalone graphs only. CI runs `tools/ci/reflect.sh`: it builds the smallest graph with the conflict and, while that fails, warns. Once a toolchain builds it, the suite runs and must pass.
+The code here was verified in standalone graphs only. CI runs `omui-devtools check reflect`: it builds the smallest graph with the conflict and, while that fails, warns. Once a toolchain builds it, the suite runs and must pass.
 
 ## Experimental (release 0.1, D-199)
 
 - **Target**: forms and inspectors from C++ types with no contract written, once C++26 reflection is in the toolchains every tier-1 row builds with.
-- **Now**: `form(signal)` and its controls; built by GCC 16 with `-freflection` (tools/ci/reflect.sh), outside the rows' workspace run.
+- **Now**: `form(signal)` and its controls; built by GCC 16 with `-freflection` (omui-devtools check reflect), outside the rows' workspace run.
 - **Gap**: LLVM has no reflection in the toolchain the rows use; nothing else depends on it.
 - **Graduation to preview**: every tier-1 row builds and tests it.

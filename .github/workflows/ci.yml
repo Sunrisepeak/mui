@@ -304,10 +304,10 @@ jobs:
 
       # C++26 reflection (D-39): GCC 16 with -freflection only, and a C++26
       # build of its graph of its own, so on one row — gated on a toolchain
-      # that builds reflection beside C headers (V-08, tools/ci/reflect.sh).
+      # that builds reflection beside C headers (V-08, omui-devtools check reflect).
       - name: omui.reflect (C++26 reflection, GCC 16)
         if: runner.os == 'Linux' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile != 'release'
-        run: tools/ci/reflect.sh '${{ matrix.profile }}'
+        run: mcpp run omui-devtools -p tools/devtools --profile '${{ matrix.profile }}' -- check reflect --profile '${{ matrix.profile }}'
 
       - name: An agent drives example 07 in its own process (M1 acceptance ②)
         if: runner.os == 'Linux'
@@ -358,7 +358,7 @@ jobs:
 
       - name: The templates build and pass their tests (M0 acceptance ①)
         if: runner.os == 'Linux' && matrix.profile != 'release'
-        run: tools/ci/templates.sh
+        run: mcpp run omui-devtools -p tools/devtools --profile '${{ matrix.profile }}' -- check templates
 
       - name: Independent core and log consumer has no UI or renderer dependency
         timeout-minutes: 10

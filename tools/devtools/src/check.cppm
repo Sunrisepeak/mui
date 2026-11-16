@@ -12,6 +12,17 @@
 //           wasm32-emscripten as a release is (-O2, the wasm-size profile: its functions' names kept, left out of
 //           the count), `omui-gen wasm-size` over it — sections, code by owner, largest functions — and, given a
 //           budget (<name>.budget.omui.json), its bytes held to it.
+// templates the templates (component-binding §10.1), rendered as `mcpp new --template` renders a published one
+//           ({{var}} in *.in files, the suffix dropped; until omui is in mcpp-index), their omui dependencies
+//           pointed at this checkout, each built and tested: an application out of the tree as a user makes one;
+//           a package that runs a build rule (component, native, theme) as a temporary member of this workspace
+//           (mcpp offers a path build-dependency to a build program only from a workspace that builds it).
+// reflect   omui.reflect (C++26 reflection, D-39), gated on a toolchain that can build it in omui's graph (V-08):
+//           libstdc++'s `std` built with -freflection does not merge the C library's unnamed-struct typedefs
+//           (__mbstate_t first) with a unit that includes a C header in its global module fragment, and a unit
+//           built without it cannot read that `std`. A canary first — the smallest such graph, in a directory of
+//           its own: while it fails with that conflict the suite cannot be built and this says so (a warning);
+//           once a toolchain builds it, the suite runs and must pass; any other canary failure fails the step.
 // atspi     examples 03 and 07 built and read and operated through AT-SPI (`omui-devtools atspi`) on a private
 //           session bus (dbus-run-session), as a screen reader does. Linux x86_64 (AccessKit's library);
 //           at-spi2-core.
@@ -30,7 +41,12 @@ struct Size {
 
 [[nodiscard]] int features(const std::filesystem::path& root);
 [[nodiscard]] int size(const std::filesystem::path& root, const Size& asked);
+[[nodiscard]] int templates(const std::filesystem::path& root);
+[[nodiscard]] int reflect(const std::filesystem::path& root, std::string_view profile);
 [[nodiscard]] int atspi(const std::filesystem::path& root, const std::vector<std::string>& profile_args);
+
+// A template's file rendered: each {{name}} replaced by its value; or the first name it has no value for.
+[[nodiscard]] std::expected<std::string, std::string> render(std::string_view text, const std::map<std::string, std::string>& values);
 
 // The measured bytes held to a budget file's {"budgets": [{"metric", "max"}]}: each one over it, as a message.
 [[nodiscard]] std::vector<std::string> over_budget(const std::map<std::string, std::uint64_t>& measured, std::string_view budget_text);

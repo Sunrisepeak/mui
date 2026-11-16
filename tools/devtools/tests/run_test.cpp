@@ -38,3 +38,14 @@ UTest budget_cases{"devtools.check", [] {
         expect(eq(check::over_budget(measured, "not json").size(), std::size_t{1}));
     };
 }};
+
+UTest render_cases{"devtools.check.render", [] {
+    "a template's {{name}} replaced; other braces kept; a name without a value said"_test = [] {
+        namespace check = omui::devtools::check;
+        const std::map<std::string, std::string> values{{"project.name", "demo"}, {"self.version", "0.1.0"}};
+        const auto done = check::render("[targets.{{project.name}}]\nv = \"{{self.version}}\"\nx = \"{{ Not A Name }}\" {{\n", values);
+        expect(done.has_value() && eq(*done, std::string("[targets.demo]\nv = \"0.1.0\"\nx = \"{{ Not A Name }}\" {{\n"))) << done.value_or("");
+        const auto missing = check::render("{{project.name}} {{template.package.name}}", values);
+        expect(!missing.has_value() && missing.error() == "template.package.name");
+    };
+}};

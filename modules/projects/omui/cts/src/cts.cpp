@@ -35,7 +35,7 @@ std::filesystem::path directory() {
     return here.parent_path().parent_path().parent_path().parent_path().parent_path().parent_path() / "spec" / "conformance" / "S";
 }
 
-std::expected<std::vector<Scenario>, std::string> scenarios() {
+std::expected<std::vector<Scenario>, CtsFailure> scenarios() {
     std::vector<Scenario> out;
     std::error_code ec;
     for (const auto& e : std::filesystem::directory_iterator(directory(), ec)) {
@@ -43,12 +43,12 @@ std::expected<std::vector<Scenario>, std::string> scenarios() {
         constexpr std::string_view suffix = ".scenario.omui.json";
         if (!name.ends_with(suffix)) continue;
         auto text = read(e.path());
-        if (!text) return std::unexpected(std::format("cannot read {}", os::fs::utf8(e.path())));
+        if (!text) return std::unexpected(CtsFailure{CtsError::unreadable, {}, os::fs::utf8(e.path())});
         Json data = Json::parse(*text, nullptr, false);
-        if (data.is_discarded() || !data.contains("scenario")) return std::unexpected(std::format("{} is not a scenario", name));
+        if (data.is_discarded() || !data.contains("scenario")) return std::unexpected(CtsFailure{CtsError::not_a_scenario, {}, name});
         out.push_back({name.substr(0, name.size() - suffix.size()), e.path(), std::move(data)});
     }
-    if (ec) return std::unexpected(std::format("cannot list {}: {}", os::fs::utf8(directory()), ec.message()));
+    if (ec) return std::unexpected(CtsFailure{CtsError::unlistable, ec.message(), os::fs::utf8(directory())});
     std::ranges::sort(out, {}, &Scenario::name);
     return out;
 }
@@ -161,10 +161,10 @@ std::vector<std::string> check(const Scenario& scenario, const Json& raw) {
     return out;
 }
 
-std::expected<std::size_t, std::string> conform(const std::function<Json(const Scenario&)>& trace_of, mlibs::cts::Against who, std::source_location at) {
+std::expected<std::size_t, CtsFailure> conform(const std::function<Json(const Scenario&)>& trace_of, mlibs::cts::Against who, std::source_location at) {
     auto all = scenarios();
     if (!all) return std::unexpected(all.error());
-    if (all->empty()) return std::unexpected(std::format("no scenario in {}", os::fs::utf8(directory())));
+    if (all->empty()) return std::unexpected(CtsFailure{CtsError::no_scenario, {}, os::fs::utf8(directory())});
     mlibs::cts::against(
         std::move(who),
         [&] {

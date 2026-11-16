@@ -373,7 +373,7 @@ UTest cases{"headless", [] {
         h.mount("main", c.view());
         h.step();
         const auto first = h.svg();
-        expect(first.has_value()) << (first ? "" : first.error());
+        expect(first.has_value()) << (first ? "" : first.error().text());
         if (!first) return;
         expect(first->svg.contains(R"(data-node="main/inc")")) << "the button's path";
         expect(first->svg.contains(R"(<path id="g)") && first->svg.contains(R"(<use href="#g)")) << "its label's glyphs as outlines";

@@ -75,7 +75,7 @@ Tally run_tally(std::string_view language, float scale) {
             auto keep = [&](std::string_view m) { errors.emplace_back(m); };
             auto compiled = lang::ts::compile_source(code, name);
             if (!compiled) {
-                out.error = compiled.error();
+                out.error = compiled.error().text();
                 abi::detach(handle);
                 return out;
             }

@@ -35,7 +35,7 @@ class Lexer {
 public:
     explicit Lexer(std::string_view text) : text_(text) {}
 
-    std::expected<std::vector<Lexeme>, std::string> run() {
+    std::expected<std::vector<Lexeme>, TsFailure> run() {
         while (position_ < text_.size()) {
             const unsigned char c = static_cast<unsigned char>(text_[position_]);
             const std::size_t start = position_;
@@ -81,9 +81,9 @@ public:
     }
 
 private:
-    std::unexpected<std::string> problem(std::size_t at, std::string_view what) const {
+    std::unexpected<TsFailure> problem(std::size_t at, std::string_view what) const {
         const auto line = std::ranges::count(text_.substr(0, at), '\n') + 1;
-        return std::unexpected(std::format("line {}: {}", line, what));
+        return std::unexpected(TsFailure{TsError::syntax, std::format("line {}: {}", line, what)});
     }
     bool quoted(char quote) {
         for (++position_; position_ < text_.size(); ++position_) {
@@ -150,7 +150,7 @@ struct Code {
     [[nodiscard]] bool is(std::size_t index, std::string_view what) const { return word(index) == what; }
 };
 
-std::expected<Code, std::string> code_of(std::string_view text) {
+std::expected<Code, TsFailure> code_of(std::string_view text) {
     auto lexemes = Lexer(text).run();
     if (!lexemes) return std::unexpected(lexemes.error());
     Code code{text, std::move(*lexemes), {}};
@@ -162,27 +162,27 @@ std::expected<Code, std::string> code_of(std::string_view text) {
         if (bracket == "(" || bracket == "[" || bracket == "{") {
             open.push_back(index);
         } else if (bracket == ")" || bracket == "]" || bracket == "}") {
-            if (open.empty()) return std::unexpected(std::format("a `{}` closes nothing", bracket));
+            if (open.empty()) return std::unexpected(TsFailure{TsError::syntax, std::format("a `{}` closes nothing", bracket)});
             const std::string_view opening = code.word(open.back());
-            if ((bracket == ")") != (opening == "(") || (bracket == "]") != (opening == "[")) return std::unexpected(std::format("a `{}` closes a `{}`", bracket, opening));
+            if ((bracket == ")") != (opening == "(") || (bracket == "]") != (opening == "[")) return std::unexpected(TsFailure{TsError::syntax, std::format("a `{}` closes a `{}`", bracket, opening)});
             code.partner[open.back()] = index;
             code.partner[index] = open.back();
             open.pop_back();
         }
     }
-    if (!open.empty()) return std::unexpected(std::format("a `{}` is not closed", code.word(open.back())));
+    if (!open.empty()) return std::unexpected(TsFailure{TsError::syntax, std::format("a `{}` is not closed", code.word(open.back()))});
     return code;
 }
 
-std::expected<std::size_t, std::string> offset_of(std::string_view text, std::size_t line, std::size_t column) {
+std::expected<std::size_t, TsFailure> offset_of(std::string_view text, std::size_t line, std::size_t column) {
     std::size_t offset = 0;
     for (std::size_t current = 1; current < line; ++current) {
         offset = text.find('\n', offset);
-        if (offset == std::string_view::npos) return std::unexpected(std::format("the text has no line {}", line));
+        if (offset == std::string_view::npos) return std::unexpected(TsFailure{TsError::no_place, std::format("the text has no line {}", line)});
         ++offset;
     }
     const std::size_t end = std::min(text.find('\n', offset), text.size());
-    if (column == 0 || offset + column - 1 > end) return std::unexpected(std::format("line {} has no column {}", line, column));
+    if (column == 0 || offset + column - 1 > end) return std::unexpected(TsFailure{TsError::no_place, std::format("line {} has no column {}", line, column)});
     return offset + column - 1;
 }
 
@@ -212,10 +212,10 @@ struct Call {
     std::optional<std::size_t> properties, children;  // lexemes: the `{` and the `[`
 };
 
-std::expected<Call, std::string> call_at(const Code& code, std::size_t offset, std::size_t line, std::size_t column) {
+std::expected<Call, TsFailure> call_at(const Code& code, std::size_t offset, std::size_t line, std::size_t column) {
     const auto at = std::ranges::find_if(code.lexemes, [&](const Lexeme& lexeme) { return lexeme.end > offset; });
     auto none = [&] {
-        return std::unexpected(std::format("no builder call at line {}, column {} (design.locate says where a node was built)", line, column));
+        return std::unexpected(TsFailure{TsError::no_call, std::format("no builder call at line {}, column {} (design.locate says where a node was built)", line, column)});
     };
     if (at == code.lexemes.end()) return none();
     std::size_t index = static_cast<std::size_t>(at - code.lexemes.begin());
@@ -253,7 +253,7 @@ struct Found {
     Call call;
 };
 
-std::expected<Found, std::string> find(std::string_view source, std::size_t line, std::size_t column) {
+std::expected<Found, TsFailure> find(std::string_view source, std::size_t line, std::size_t column) {
     auto code = code_of(source);
     if (!code) return std::unexpected(code.error());
     auto offset = offset_of(source, line, column);
@@ -315,13 +315,13 @@ std::string appended(const Code& code, std::size_t open, std::string_view additi
 
 }  // namespace
 
-std::expected<BuilderCall, std::string> builder_call_at(std::string_view source, std::size_t line, std::size_t column) {
+std::expected<BuilderCall, TsFailure> builder_call_at(std::string_view source, std::size_t line, std::size_t column) {
     auto found = find(source, line, column);
     if (!found) return std::unexpected(found.error());
     return found->call.found;
 }
 
-std::expected<std::string, std::string> set_property(std::string_view source, std::size_t line, std::size_t column, std::string_view name,
+std::expected<std::string, TsFailure> set_property(std::string_view source, std::size_t line, std::size_t column, std::string_view name,
                                                      std::string_view value) {
     auto found = find(source, line, column);
     if (!found) return std::unexpected(found.error());
@@ -341,13 +341,13 @@ std::expected<std::string, std::string> set_property(std::string_view source, st
     return appended(code, *call.properties, std::format("{}: {}", key_of(name), value));
 }
 
-std::expected<std::string, std::string> remove_property(std::string_view source, std::size_t line, std::size_t column, std::string_view name) {
+std::expected<std::string, TsFailure> remove_property(std::string_view source, std::size_t line, std::size_t column, std::string_view name) {
     auto found = find(source, line, column);
     if (!found) return std::unexpected(found.error());
     const Code& code = found->code;
     const Call& call = found->call;
     const auto at = call.properties ? member(code, *call.properties, name) : std::nullopt;
-    if (!at) return std::unexpected(std::format("{} has no property `{}` written", call.found.callee, name));
+    if (!at) return std::unexpected(TsFailure{TsError::no_property, std::format("{} has no property `{}` written", call.found.callee, name)});
     const auto list = items(code, *call.properties);
     const auto [first, last] = *at;
     std::size_t from = code.lexemes[first].start, to = code.lexemes[last].end;
@@ -371,7 +371,7 @@ std::expected<std::string, std::string> remove_property(std::string_view source,
     return spliced(source, from, to, "");
 }
 
-std::expected<std::string, std::string> insert_child(std::string_view source, std::size_t line, std::size_t column, std::string_view element,
+std::expected<std::string, TsFailure> insert_child(std::string_view source, std::size_t line, std::size_t column, std::string_view element,
                                                      std::optional<std::size_t> index) {
     auto found = find(source, line, column);
     if (!found) return std::unexpected(found.error());
@@ -393,7 +393,7 @@ std::expected<std::string, std::string> insert_child(std::string_view source, st
     return spliced(source, before, before, lines ? std::format("{},\n{}", element, indentation_at(source, before)) : std::format("{}, ", element));
 }
 
-std::expected<std::string, std::string> remove_call(std::string_view source, std::size_t line, std::size_t column) {
+std::expected<std::string, TsFailure> remove_call(std::string_view source, std::size_t line, std::size_t column) {
     auto found = find(source, line, column);
     if (!found) return std::unexpected(found.error());
     const Code& code = found->code;
@@ -402,7 +402,7 @@ std::expected<std::string, std::string> remove_call(std::string_view source, std
     const bool after_list = first > 0 && (code.is(first - 1, "[") || code.is(first - 1, ","));
     const bool before_list = code.is(last + 1, "]") || code.is(last + 1, ",");
     if (!after_list || !before_list)
-        return std::unexpected(std::format("the {} call at line {} is not in a list of children: change the code around it with design.edit", call.found.callee, line));
+        return std::unexpected(TsFailure{TsError::not_in_children, std::format("the {} call at line {} is not in a list of children: change the code around it with design.edit", call.found.callee, line)});
     std::size_t from = call.found.start, to = call.found.end;
     if (code.is(last + 1, ",")) {
         to = code.lexemes[last + 1].end;
@@ -423,7 +423,7 @@ std::expected<std::string, std::string> remove_call(std::string_view source, std
     return spliced(source, from, to, "");
 }
 
-std::expected<CallIndex, std::string> CallIndex::of(std::string_view source) {
+std::expected<CallIndex, TsFailure> CallIndex::of(std::string_view source) {
     auto code = code_of(source);
     if (!code) return std::unexpected(code.error());
     CallIndex index;

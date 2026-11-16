@@ -2,6 +2,7 @@
 module omui.accessibility;
 
 import std;
+import mlibs.error;
 
 namespace omui::accessibility {
 
@@ -9,8 +10,8 @@ struct Adapter::Impl {};
 
 std::string_view service() noexcept { return "none"; }
 
-std::expected<std::unique_ptr<Adapter>, std::string> Adapter::attach(Mirror&, void*, AdapterOptions) {
-    return std::unexpected("no assistive-technology service on this platform (AccessKit has no library for it)");
+std::expected<std::unique_ptr<Adapter>, Failure> Adapter::attach(Mirror&, void*, AdapterOptions) {
+    return std::unexpected(Failure{mlibs::error::Kind::refused, "no assistive-technology service on this platform (AccessKit has no library for it)"});
 }
 
 Adapter::Adapter(std::unique_ptr<Impl> impl) : impl_(std::move(impl)) {}

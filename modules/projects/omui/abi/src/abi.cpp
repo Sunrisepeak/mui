@@ -685,7 +685,7 @@ OmuiResult omuiTheme(OmuiRuntime rt, OmuiString layers_json, PFN_omuiSink sink, 
         e.error(spec::error_code::not_found, std::format("no theme or overlay is named `{}` (there are: {})", *missing, known.empty() ? "none" : known))
             .result(spec::exit_code::failure);
     } else if (auto r = omui::theme::apply(*rt->rt, layers); !r) {
-        e.error(spec::error_code::invalid_argument, r.error()).result(spec::exit_code::failure);
+        e.error(spec::error_code::invalid_argument, r.error().text()).result(spec::exit_code::failure);
     } else {
         e.result(spec::exit_code::success);
     }

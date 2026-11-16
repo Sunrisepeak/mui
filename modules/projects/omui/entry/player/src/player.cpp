@@ -47,8 +47,8 @@ public:
         }
         host_.settle();
     }
-    std::expected<std::vector<std::uint8_t>, std::string> png() override { return host_.png(); }
-    std::expected<std::vector<std::uint8_t>, std::string> framed_png(Rect frame, std::string_view fixed) override { return host_.framed_png(frame, fixed); }
+    std::expected<std::vector<std::uint8_t>, ViewFailure> png() override { return host_.png(); }
+    std::expected<std::vector<std::uint8_t>, ViewFailure> framed_png(Rect frame, std::string_view fixed) override { return host_.framed_png(frame, fixed); }
 
 private:
     Headless       host_;
@@ -81,7 +81,7 @@ std::expected<Config, std::string> read_config(const std::filesystem::path& base
     std::error_code error;
     if (!std::filesystem::is_regular_file(file, error)) return out;
     auto data = lang::ts::evaluate(file);
-    if (!data) return std::unexpected(data.error());
+    if (!data) return std::unexpected(data.error().text());
     if (data->kind != "config") return std::unexpected(std::format("{}: its default export is defineConfig(…), not a {}", utf8(file), data->kind));
     const auto value = parse_json(data->json);
     if (!value) return std::unexpected(std::format("{}: {}", utf8(file), value.error().text()));
@@ -131,7 +131,7 @@ generate::EvaluateFn generated_views(const std::filesystem::path& base) {
         std::filesystem::create_directories(scratch, error);
         auto data = lang::ts::evaluate_source(code, utf8(scratch / "draft.view.omui.ts"),
                                               {.root = scratch, .memory_bytes = 16 * 1024 * 1024, .time = std::chrono::milliseconds(500)});
-        if (!data) return std::unexpected(data.error());
+        if (!data) return std::unexpected(data.error().text());
         if (data->kind != "view") return std::unexpected(std::format("the code's default export is defineView(…), not a {}", data->kind));
         return std::move(data->json);
     };
@@ -245,7 +245,7 @@ int player_main(int argc, char** argv) {
     // The application's effects written in TypeScript, evaluated as they load and reload (D-139).
     app.effect_data = [](const std::filesystem::path& file) -> std::expected<std::string, std::string> {
         auto data = lang::ts::evaluate(file);
-        if (!data) return std::unexpected(data.error());
+        if (!data) return std::unexpected(data.error().text());
         return std::format("{{\"{}\":{}}}", data->kind, data->json);
     };
     app.setup = [&](Runtime& rt) {

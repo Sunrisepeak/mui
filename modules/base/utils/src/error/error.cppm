@@ -148,3 +148,11 @@ template <class T, Code C, class Where = std::string>
 using Result = std::expected<T, Error<C, Where>>;
 
 }  // namespace mlibs::error
+
+// An error written as its text (`std::format("{}", failure)`, a test's message): code, kind, where, message, causes.
+export template <mlibs::error::Code C, class Where>
+struct std::formatter<mlibs::error::Error<C, Where>> : std::formatter<std::string_view> {
+    auto format(const mlibs::error::Error<C, Where>& error, std::format_context& context) const {
+        return std::formatter<std::string_view>::format(error.text(), context);
+    }
+};

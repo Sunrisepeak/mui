@@ -105,16 +105,16 @@ public:
     // ── pixels (H2 and up) ──
     // The current frame's pixels (rendered when the display list changed).
     [[nodiscard]] const xrender::raster::Surface& pixels();
-    [[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> png(std::optional<Rect> region = {});
+    [[nodiscard]] std::expected<std::vector<std::uint8_t>, ViewFailure> png(std::optional<Rect> region = {});
     // The window's picture with a camera on `frame` (logical pixels): that region filling the
     // window, its shape kept and centred, drawn at the window's resolution (a film's close-up).
     // What the slot `fixed` holds (a caption) is drawn over it as it is, outside the camera.
-    [[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> framed_png(Rect frame, std::string_view fixed = {});
-    std::expected<void, std::string> save_png(const std::filesystem::path& file, std::optional<Rect> region = {});
+    [[nodiscard]] std::expected<std::vector<std::uint8_t>, ViewFailure> framed_png(Rect frame, std::string_view fixed = {});
+    std::expected<void, ViewFailure> save_png(const std::filesystem::path& file, std::optional<Rect> region = {});
     // The same frame as vectors (xrender.vector.svg): SVG at any size, each
     // node's drawing a group marked with its path (data-node), and the
     // pieces SVG cannot say kept as the reference renderer's pixels, listed.
-    [[nodiscard]] std::expected<agent::VectorCapture, std::string> svg(std::optional<Rect> region = {});
+    [[nodiscard]] std::expected<agent::VectorCapture, ViewFailure> svg(std::optional<Rect> region = {});
     // A recording for an animation (a README's loop, a bug report): each
     // `record()` keeps the current frame (of `region`, the first's for the
     // rest); `save_recording` writes them and starts afresh: an animated WebP
@@ -122,7 +122,7 @@ public:
     // PNG (imageio::encode_apng).
     void record(std::optional<Rect> region = {});
     [[nodiscard]] std::size_t recorded() const noexcept;
-    std::expected<void, std::string> save_recording(const std::filesystem::path& file, RecordingOptions options = {});
+    std::expected<void, ViewFailure> save_recording(const std::filesystem::path& file, RecordingOptions options = {});
     // The node that drew a pixel (logical coordinates), through the object-id buffer.
     [[nodiscard]] NodeId node_at_pixel(Point p);
     // Capture functions for the agent protocol: pixels, and vectors.

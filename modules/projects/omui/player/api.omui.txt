@@ -16,7 +16,7 @@ namespace omui::player {
     std::filesystem::path effects;
     std::vector<Script> scripts;
   };
-  using Status = std::expected<void, std::string>;
+  using Status = std::expected<void, Failure>;
   class Engine {
     virtual ~Engine() = default;
     [[nodiscard]] virtual std::future<Status> run(std::string code, std::string name) = 0;
@@ -28,20 +28,20 @@ namespace omui::player {
     [[nodiscard]] virtual bool idle() const = 0;
   };
   struct SourceEditor {
-    std::function<std::expected<std::string, std::string>(std::string_view text, std::size_t line, std::size_t column, std::string_view property, std::optional<std::string_view> value)> set;
-    std::function<std::expected<std::string, std::string>(std::string_view text, std::size_t line, std::size_t column, std::string_view element, std::optional<std::size_t> index)> insert;
-    std::function<std::expected<std::string, std::string>(std::string_view text, std::size_t line, std::size_t column)> remove;
+    std::function<std::expected<std::string, Failure>(std::string_view text, std::size_t line, std::size_t column, std::string_view property, std::optional<std::string_view> value)> set;
+    std::function<std::expected<std::string, Failure>(std::string_view text, std::size_t line, std::size_t column, std::string_view element, std::optional<std::size_t> index)> insert;
+    std::function<std::expected<std::string, Failure>(std::string_view text, std::size_t line, std::size_t column)> remove;
   };
   struct Language {
     std::string name;
     std::vector<std::string> extensions;
     std::function<std::unique_ptr<Engine>(abi::OmuiRuntime)> make;
-    std::function<std::expected<std::string, std::string>(const std::filesystem::path&)> load;
-    std::function<std::expected<std::string, std::string>(std::string_view text, const std::filesystem::path& file)> load_text;
+    std::function<std::expected<std::string, Failure>(const std::filesystem::path&)> load;
+    std::function<std::expected<std::string, Failure>(std::string_view text, const std::filesystem::path& file)> load_text;
     std::function<std::string(std::string_view catalog_json)> describe;
-    std::function<std::expected<std::vector<std::filesystem::path>, std::string>( std::string_view catalog_json, std::string_view natives_json, const std::filesystem::path& root, const std::filesystem::path& dir)> declare;
+    std::function<std::expected<std::vector<std::filesystem::path>, Failure>( std::string_view catalog_json, std::string_view natives_json, const std::filesystem::path& root, const std::filesystem::path& dir)> declare;
     SourceEditor edit;
-    std::function<std::expected<std::string, std::string>(const std::filesystem::path&)> data;
+    std::function<std::expected<std::string, Failure>(const std::filesystem::path&)> data;
   };
   class Player;
   class Twin {
@@ -51,10 +51,10 @@ namespace omui::player {
     [[nodiscard]] virtual seconds time() = 0;
     virtual void step(std::optional<seconds> at = std::nullopt) = 0;
     virtual void settle() = 0;
-    [[nodiscard]] virtual std::expected<std::vector<std::uint8_t>, std::string> png() = 0;
-    [[nodiscard]] virtual std::expected<std::vector<std::uint8_t>, std::string> framed_png(Rect frame, std::string_view fixed) = 0;
+    [[nodiscard]] virtual std::expected<std::vector<std::uint8_t>, ViewFailure> png() = 0;
+    [[nodiscard]] virtual std::expected<std::vector<std::uint8_t>, ViewFailure> framed_png(Rect frame, std::string_view fixed) = 0;
   };
-  using TwinFn = std::function<std::expected<std::unique_ptr<Twin>, std::string>(bool design)>;
+  using TwinFn = std::function<std::expected<std::unique_ptr<Twin>, Failure>(bool design)>;
   class Designer {
     virtual ~Designer() = default;
   };
@@ -80,8 +80,8 @@ namespace omui::player {
     };
     [[nodiscard]] std::vector<Source> sources() const;
     [[nodiscard]] std::optional<std::string> text(std::string_view path) const;
-    std::expected<Value, std::string> edit(std::string_view path, std::string_view text);
-    std::expected<Value, std::string> commit_edits();
+    std::expected<Value, Failure> edit(std::string_view path, std::string_view text);
+    std::expected<Value, Failure> commit_edits();
     Value discard_edits();
     [[nodiscard]] const Language* language_of(std::string_view path) const;
     [[nodiscard]] std::string source_name(const std::filesystem::path& file) const;
@@ -92,7 +92,7 @@ namespace omui::player {
     void watch(seconds period = seconds(0.1));
     [[nodiscard]] bool idle() const;
     [[nodiscard]] std::span<const std::string> problems() const noexcept;
-    [[nodiscard]] std::expected<std::vector<std::filesystem::path>, std::string> declare(const std::filesystem::path& dir) const;
+    [[nodiscard]] std::expected<std::vector<std::filesystem::path>, Failure> declare(const std::filesystem::path& dir) const;
     [[nodiscard]] const Manifest& manifest() const noexcept;
     [[nodiscard]] abi::OmuiRuntime handle() const noexcept;
     struct Impl;

@@ -174,7 +174,7 @@ UTest cases{"example.counter", [] {
 
     "the TypeScript version is the same tree and pixels, before and after each operation"_test = [&] {
         auto js = lang::ts::compile(script_file("ts/tally.ts"));
-        expect(js.has_value()) << (js ? "" : js.error());
+        expect(js.has_value()) << (js ? "" : js.error().text());
         if (!js) return;
         script_version("TypeScript", [](lang::Session& s) { return std::make_unique<lang::js::Script>(s); }, *js, "ts/tally.ts");
     };

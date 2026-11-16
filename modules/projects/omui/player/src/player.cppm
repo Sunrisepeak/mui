@@ -40,7 +40,7 @@ struct Manifest {
     std::vector<Script>                scripts;
 };
 
-using Status = std::expected<void, std::string>;
+using Status = std::expected<void, Failure>;
 
 // One script's machine (a JavaScript context …).
 class Engine {
@@ -79,15 +79,15 @@ public:
 struct SourceEditor {
     // A property (as its contract names it) set to `value`, code (a JSON
     // value's text is); none: the property taken out.
-    std::function<std::expected<std::string, std::string>(std::string_view text, std::size_t line, std::size_t column, std::string_view property,
+    std::function<std::expected<std::string, Failure>(std::string_view text, std::size_t line, std::size_t column, std::string_view property,
                                                           std::optional<std::string_view> value)>
         set;
     // `element` (code) inserted among the call's children at `index` (none: the end).
-    std::function<std::expected<std::string, std::string>(std::string_view text, std::size_t line, std::size_t column, std::string_view element,
+    std::function<std::expected<std::string, Failure>(std::string_view text, std::size_t line, std::size_t column, std::string_view element,
                                                           std::optional<std::size_t> index)>
         insert;
     // The call taken out of the list it is in.
-    std::function<std::expected<std::string, std::string>(std::string_view text, std::size_t line, std::size_t column)> remove;
+    std::function<std::expected<std::string, Failure>(std::string_view text, std::size_t line, std::size_t column)> remove;
 };
 
 struct Language {
@@ -96,10 +96,10 @@ struct Language {
     std::function<std::unique_ptr<Engine>(abi::OmuiRuntime)> make;
     // The source of an entry: the file, or what a compiler makes of it
     // (TypeScript with its types blanked). Empty: the file as it is.
-    std::function<std::expected<std::string, std::string>(const std::filesystem::path&)> load;
+    std::function<std::expected<std::string, Failure>(const std::filesystem::path&)> load;
     // The same from text not yet in the file (Live Design's edits), named as
     // the file. Empty: the text as it is.
-    std::function<std::expected<std::string, std::string>(std::string_view text, const std::filesystem::path& file)> load_text;
+    std::function<std::expected<std::string, Failure>(std::string_view text, const std::filesystem::path& file)> load_text;
     // The language's API over the running application's components (their
     // catalogue, as omuiCatalog gives it), as its code writes it — what an
     // agent needs to write a script (design.api, D-145). Empty: none.
@@ -109,7 +109,7 @@ struct Language {
     // catalogue (omuiCatalog), the native modules (omuiNativeCatalog), and
     // the checker's configuration over the application's sources under
     // `root`. Answers the files it wrote. Empty: none.
-    std::function<std::expected<std::vector<std::filesystem::path>, std::string>(
+    std::function<std::expected<std::vector<std::filesystem::path>, Failure>(
         std::string_view catalog_json, std::string_view natives_json, const std::filesystem::path& root, const std::filesystem::path& dir)>
         declare;
     // Structured operations as source edits (design.set, design.insert,
@@ -118,7 +118,7 @@ struct Language {
     // A data module of the language (`brand.theme.omui.ts`, D-139) as the
     // JSON snapshot it stands for, `{"theme": …}`: how the player reads an
     // application's themes. Empty: the language writes no data.
-    std::function<std::expected<std::string, std::string>(const std::filesystem::path&)> data;
+    std::function<std::expected<std::string, Failure>(const std::filesystem::path&)> data;
 };
 
 class Player;
@@ -137,14 +137,14 @@ public:
     virtual void step(std::optional<seconds> at = std::nullopt) = 0;
     // Its scripts done, nothing moving.
     virtual void settle() = 0;
-    [[nodiscard]] virtual std::expected<std::vector<std::uint8_t>, std::string> png() = 0;
+    [[nodiscard]] virtual std::expected<std::vector<std::uint8_t>, ViewFailure> png() = 0;
     // Its picture with a camera on `frame` (logical pixels): that region filling the window (a film's
     // close-up), the slot `fixed` (a caption) drawn over it as it is.
-    [[nodiscard]] virtual std::expected<std::vector<std::uint8_t>, std::string> framed_png(Rect frame, std::string_view fixed) = 0;
+    [[nodiscard]] virtual std::expected<std::vector<std::uint8_t>, ViewFailure> framed_png(Rect frame, std::string_view fixed) = 0;
 };
 // A twin started (`design`: in development mode, its edits presented as the
 // person's are), or why not.
-using TwinFn = std::function<std::expected<std::unique_ptr<Twin>, std::string>(bool design)>;
+using TwinFn = std::function<std::expected<std::unique_ptr<Twin>, Failure>(bool design)>;
 
 // Live Design's designer (omui.designer, D-149): the design verbs, the
 // history, previews and the timeline, made for a player in development mode
@@ -198,10 +198,10 @@ public:
     [[nodiscard]] std::optional<std::string> text(std::string_view path) const;
     // New text for a source, run at once with its state kept: the semantic
     // changes and the time — or its problems, and what ran before runs again.
-    std::expected<Value, std::string> edit(std::string_view path, std::string_view text);
+    std::expected<Value, Failure> edit(std::string_view path, std::string_view text);
     // Every edit written to its file (the TypeScript stays the one source):
     // each file's text before. Every edit dropped: the texts dropped.
-    std::expected<Value, std::string> commit_edits();
+    std::expected<Value, Failure> commit_edits();
     Value discard_edits();
     // The language a source is written in (a module's: its script's).
     [[nodiscard]] const Language* language_of(std::string_view path) const;
@@ -221,7 +221,7 @@ public:
     // Each language's declarations for a type checker, into `dir`, from what
     // this application registered (after start: its component documents
     // too). Answers the files written.
-    [[nodiscard]] std::expected<std::vector<std::filesystem::path>, std::string> declare(const std::filesystem::path& dir) const;
+    [[nodiscard]] std::expected<std::vector<std::filesystem::path>, Failure> declare(const std::filesystem::path& dir) const;
     [[nodiscard]] const Manifest& manifest() const noexcept;
     [[nodiscard]] abi::OmuiRuntime handle() const noexcept;
 

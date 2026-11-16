@@ -37,7 +37,7 @@ FrameOutput Runtime::frame(const FrameInput& input) {
         FrameOutput refused;
         refused.list = &d.list;
         refused.revision = d.semantic_revision;
-        refused.failure = valid.error();
+        refused.failure = valid.error().text();
         return refused;
     }
     FrameTimings& t = d.stats.timings;

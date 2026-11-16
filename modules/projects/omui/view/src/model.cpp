@@ -13,14 +13,14 @@ std::optional<std::size_t> Model::find(std::string_view key) const {
     return it->second;
 }
 
-std::expected<void, std::string> Model::check(std::span<const Row> rows, std::size_t skip_from, std::size_t skip_count) const {
+std::expected<void, ViewFailure> Model::check(std::span<const Row> rows, std::size_t skip_from, std::size_t skip_count) const {
     std::unordered_set<std::string_view> seen;
     for (const Row& r : rows) {
         if (!spec::valid_explicit_segment(r.key))
-            return std::unexpected(std::format("model `{}`: `{}` is not a key (1-128 of [A-Za-z0-9_.-]: keys are ids, spec S-8)", name_, r.key));
-        if (!seen.insert(r.key).second) return std::unexpected(std::format("model `{}`: the key `{}` twice in a batch", name_, r.key));
+            return std::unexpected(ViewFailure{ViewError::bad_key, std::format("model `{}`: `{}` is not a key (1-128 of [A-Za-z0-9_.-]: keys are ids, spec S-8)", name_, r.key), name_});
+        if (!seen.insert(r.key).second) return std::unexpected(ViewFailure{ViewError::duplicate_key, std::format("model `{}`: the key `{}` twice in a batch", name_, r.key), name_});
         if (auto at = find(r.key); at && !(*at >= skip_from && *at < skip_from + skip_count))
-            return std::unexpected(std::format("model `{}`: the key `{}` is taken", name_, r.key));
+            return std::unexpected(ViewFailure{ViewError::key_taken, std::format("model `{}`: the key `{}` is taken", name_, r.key), name_});
     }
     return {};
 }
@@ -32,10 +32,10 @@ void Model::reindex() {
 
 void Model::changed() { revision_.set(revision_.peek() + 1); }
 
-std::expected<void, std::string> Model::push(std::vector<Row> rows) { return insert(rows_.size(), std::move(rows)); }
+std::expected<void, ViewFailure> Model::push(std::vector<Row> rows) { return insert(rows_.size(), std::move(rows)); }
 
-std::expected<void, std::string> Model::insert(std::size_t at, std::vector<Row> rows) {
-    if (at > rows_.size()) return std::unexpected(std::format("model `{}`: insert at {} past its {} rows", name_, at, rows_.size()));
+std::expected<void, ViewFailure> Model::insert(std::size_t at, std::vector<Row> rows) {
+    if (at > rows_.size()) return std::unexpected(ViewFailure{ViewError::past_end, std::format("model `{}`: insert at {} past its {} rows", name_, at, rows_.size()), name_});
     if (auto ok = check(rows, 0, 0); !ok) return ok;
     rows_.insert(rows_.begin() + static_cast<std::ptrdiff_t>(at), std::make_move_iterator(rows.begin()), std::make_move_iterator(rows.end()));
     reindex();
@@ -43,9 +43,9 @@ std::expected<void, std::string> Model::insert(std::size_t at, std::vector<Row> 
     return {};
 }
 
-std::expected<void, std::string> Model::patch(std::size_t from, std::vector<Row> rows) {
+std::expected<void, ViewFailure> Model::patch(std::size_t from, std::vector<Row> rows) {
     if (from + rows.size() > rows_.size())
-        return std::unexpected(std::format("model `{}`: patch of rows {}..{} past its {} rows", name_, from, from + rows.size(), rows_.size()));
+        return std::unexpected(ViewFailure{ViewError::past_end, std::format("model `{}`: patch of rows {}..{} past its {} rows", name_, from, from + rows.size(), rows_.size()), name_});
     if (auto ok = check(rows, from, rows.size()); !ok) return ok;
     for (std::size_t i = 0; i < rows.size(); ++i) rows_[from + i] = std::move(rows[i]);
     reindex();

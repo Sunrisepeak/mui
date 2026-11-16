@@ -121,9 +121,9 @@ UTest cases{"semantic", [] {
         expect(tree.find({.under = "main", .limit = 1}).size() == 1);
         expect(sem::glob("删除*", "删除全部") && !sem::glob("删除?", "删除全部") && sem::glob("删除??", "删除全部"));
         auto bad = sem::Query::parse(parse_json(R"({"role":"buton"})").value());
-        expect(!bad && bad.error().find("buton") != std::string::npos);
+        expect(!bad && bad.error().message.contains("buton") && bad.error().code == sem::QueryError::unknown_role && bad.error().where == "role");
         auto unknown = sem::Query::parse(parse_json(R"({"colour":"red"})").value());
-        expect(!unknown && unknown.error().find("colour") != std::string::npos);
+        expect(!unknown && unknown.error().message.contains("colour") && unknown.error().code == sem::QueryError::unknown_field);
         auto rt_q = sem::Query::parse(q->to_value());
         expect(rt_q && rt_q->name == "Delete*");
     };

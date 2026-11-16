@@ -46,7 +46,7 @@ struct Page {
     }
 
     agent::CaptureFn capture() {
-        return [this](Rect) -> std::expected<std::vector<std::uint8_t>, std::string> {
+        return [this](Rect) -> std::expected<std::vector<std::uint8_t>, omui::ViewFailure> {
             ++pictures;
             return std::vector<std::uint8_t>{0x89, 'P', 'N', 'G'};
         };

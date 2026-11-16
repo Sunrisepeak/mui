@@ -7,6 +7,7 @@ export module omui.view:model;
 
 import std;
 import omui.core;
+import :error;
 
 export namespace omui {
 
@@ -28,10 +29,10 @@ public:
     [[nodiscard]] std::optional<std::size_t> find(std::string_view key) const;
 
     // Batches, checked whole: keys are explicit ids, unique in the model.
-    std::expected<void, std::string> push(std::vector<Row> rows);
-    std::expected<void, std::string> insert(std::size_t at, std::vector<Row> rows);
+    std::expected<void, ViewFailure> push(std::vector<Row> rows);
+    std::expected<void, ViewFailure> insert(std::size_t at, std::vector<Row> rows);
     // Replaces rows [from, from + rows.size()) (a row may change its key).
-    std::expected<void, std::string> patch(std::size_t from, std::vector<Row> rows);
+    std::expected<void, ViewFailure> patch(std::size_t from, std::vector<Row> rows);
     void remove(std::size_t from, std::size_t count);
     void clear();
 
@@ -42,7 +43,7 @@ public:
     [[nodiscard]] static std::string label_of(const Row& row);
 
 private:
-    std::expected<void, std::string> check(std::span<const Row> rows, std::size_t skip_from, std::size_t skip_count) const;
+    std::expected<void, ViewFailure> check(std::span<const Row> rows, std::size_t skip_from, std::size_t skip_count) const;
     void reindex();
     void changed();
 

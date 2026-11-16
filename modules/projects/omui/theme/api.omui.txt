@@ -51,22 +51,25 @@ namespace omui::theme {
   };
   [[nodiscard]] std::expected<std::vector<Style>, Diagnostics> read_styles(std::string_view source, std::string_view file);
   [[nodiscard]] std::string write_style(const Style& style);
+  enum class ThemeError : std::uint8_t { no_layers, unknown_theme, overlay_first, cycle, unknown_base, extends_overlay, unknown_overlay, not_an_overlay, unknown_token, unknown_style, style_base, bad_motion };
+  [[nodiscard]] constexpr mlibs::error::Description describe(ThemeError error) noexcept;
+  using ThemeFailure = mlibs::error::Error<ThemeError>;
   class Library {
     std::expected<void, Diagnostics> add(std::string_view source, std::string_view file);
     std::expected<void, Diagnostics> add_file(const std::filesystem::path& file);
     [[nodiscard]] std::vector<std::string> themes() const;
     [[nodiscard]] std::vector<std::string> overlays() const;
     [[nodiscard]] std::optional<Layer> find(std::string_view name) const;
-    [[nodiscard]] std::expected<Theme, std::string> compose(std::span<const std::string> layers) const;
+    [[nodiscard]] std::expected<Theme, ThemeFailure> compose(std::span<const std::string> layers) const;
     std::expected<void, Diagnostics> add_styles(std::string_view source, std::string_view file);
     [[nodiscard]] std::vector<std::string> styles() const;
     [[nodiscard]] std::optional<Style> find_style(std::string_view name) const;
-    [[nodiscard]] std::expected<Theme, std::string> compose_style(std::string_view name) const;
+    [[nodiscard]] std::expected<Theme, ThemeFailure> compose_style(std::string_view name) const;
   };
   [[nodiscard]] Library& library();
-  std::expected<void, std::string> apply(Runtime& rt, std::span<const std::string> layers);
-  std::expected<void, std::string> apply_style(Runtime& rt, std::string_view name, bool crossfade = true);
-  std::expected<void, std::string> apply_style(Runtime& rt, std::string_view name, std::string_view scope, bool crossfade = true);
+  std::expected<void, ThemeFailure> apply(Runtime& rt, std::span<const std::string> layers);
+  std::expected<void, ThemeFailure> apply_style(Runtime& rt, std::string_view name, bool crossfade = true);
+  std::expected<void, ThemeFailure> apply_style(Runtime& rt, std::string_view name, std::string_view scope, bool crossfade = true);
 }
 == omui.theme.compact
 export import :compact_theme;

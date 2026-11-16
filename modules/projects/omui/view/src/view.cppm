@@ -11,6 +11,7 @@ export import mlibs.pipeline;
 export import mlibs.text;
 export import mlibs.i18n;
 export import :element;
+export import :error;
 export import :model;
 export import :theme;
 export import :component;

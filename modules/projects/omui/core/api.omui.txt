@@ -385,18 +385,31 @@ namespace omui {
   [[nodiscard]] Envelope dry_run_answer(std::string_view outcome, Effect effect, Value more = {…});
   [[nodiscard]] Envelope dry_run_of(const Envelope& stopped, Effect effect);
   [[nodiscard]] Envelope person_only(std::string_view what);
-  using VerbResult = std::expected<Value, std::string>;
+  struct Failure {
+    mlibs::error::Kind kind = mlibs::error::Kind::failed;
+    std::string message;
+    Failure() = default;
+    Failure(std::string text) : message(std::move(text));
+    Failure(const char* text) : message(text);
+    Failure(mlibs::error::Kind of, std::string text) : kind(of), message(std::move(text));
+    template <mlibs::error::Code C, class Where> Failure(const mlibs::error::Error<C, Where>& error) : kind(error.kind()), message(error.text());
+    [[nodiscard]] std::string text() const;
+  };
+  using VerbResult = std::expected<Value, Failure>;
   using VerbFn = std::function<VerbResult(const Value& args)>;
   [[nodiscard]] bool valid_verb_name(std::string_view name) noexcept;
+  enum class VerbError : std::uint8_t { bad_verb_name, verb_taken, no_answer, no_implementation, bad_task_name, task_taken, no_summary, no_step, bad_step, unknown_verb, person_only_step, step_asks_answer };
+  [[nodiscard]] constexpr mlibs::error::Description describe(VerbError error) noexcept;
+  using VerbRegistrationFailure = mlibs::error::Error<VerbError>;
   [[nodiscard]] VerbDesc verb_of(const mlibs::control::CatalogEntry& entry, std::string answer = {…});
   class Verbs {
     void set_agent_access(std::shared_ptr<const AgentAccess> access);
     void set_invocation_context(InvocationContext* context) noexcept;
-    std::expected<void, std::string> add(VerbDesc desc, VerbFn fn);
+    std::expected<void, VerbRegistrationFailure> add(VerbDesc desc, VerbFn fn);
     bool remove(std::string_view name);
     [[nodiscard]] const VerbDesc* find(std::string_view name) const noexcept;
     [[nodiscard]] std::vector<const VerbDesc*> list() const;
-    std::expected<void, std::string> add_task(TaskDesc task);
+    std::expected<void, VerbRegistrationFailure> add_task(TaskDesc task);
     [[nodiscard]] std::span<const TaskDesc> tasks() const noexcept;
     [[nodiscard]] Envelope invoke(std::string_view name, const Invocation& call);
     struct Entry {

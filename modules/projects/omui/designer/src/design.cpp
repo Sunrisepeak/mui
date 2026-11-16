@@ -257,14 +257,14 @@ private:
         Value                 changes;  // against what the person sees now
     };
     // A twin of the application (the entry makes them), or why there is none.
-    std::expected<std::unique_ptr<Twin>, std::string> twin(bool design) {
+    std::expected<std::unique_ptr<Twin>, Failure> twin(bool design) {
         if (!player.options().twin) return std::unexpected(std::string("this host makes no twin of the application to show it in (omui dev's player does)"));
         return player.options().twin(design);
     }
 
     std::expected<Shown, std::string> stand_in(const std::map<std::string, std::string>& texts) {
         auto made = twin(false);
-        if (!made) return std::unexpected(made.error());
+        if (!made) return std::unexpected(made.error().text());
         Twin& shown = **made;
         if (auto ran = shown.player().show(texts); !ran) return std::unexpected(std::format("the stand-in: {}", ran.error()));
         shown.settle();
@@ -574,7 +574,7 @@ private:
 
         // The twin: the application again, unseen, designing as the person's does.
         auto made = twin(true);
-        if (!made) return std::unexpected(made.error());
+        if (!made) return std::unexpected(made.error().text());
         Twin& shown = **made;
         const Size window = shown.runtime().size();
         const Rect whole{0, 0, window.width, window.height};
@@ -613,7 +613,7 @@ private:
                                lerp(camera.height, target.height, eased)};
                 const bool all = std::abs(now.x) < 0.25f && std::abs(now.y) < 0.25f && std::abs(now.width - whole.width) < 0.25f && std::abs(now.height - whole.height) < 0.25f;
                 auto png = all ? shown.png() : shown.framed_png(now, "design-caption");
-                if (!png) return std::unexpected(png.error());
+                if (!png) return std::unexpected(png.error().text());
                 std::ofstream(out / "frames" / std::format("{:05}.png", frame), std::ios::binary)
                     .write(reinterpret_cast<const char*>(png->data()), static_cast<std::streamsize>(png->size()));
             }
@@ -647,9 +647,9 @@ private:
     };
     std::expected<Measured, std::string> measure(const Motion& motion) {
         auto made = twin(false);
-        if (!made) return std::unexpected(made.error());
+        if (!made) return std::unexpected(made.error().text());
         Twin& shown = **made;
-        if (auto ran = shown.player().show(design_texts()); !ran) return std::unexpected(ran.error());
+        if (auto ran = shown.player().show(design_texts()); !ran) return std::unexpected(ran.error().text());
         shown.settle();
         Runtime& there = shown.runtime();
         const auto value = [&]() -> std::optional<double> {
@@ -753,7 +753,7 @@ private:
     // A structured operation on the builder call that built `node`: the new
     // text its language's editor makes, run as design.edit runs it, and
     // answered with the lines it changed.
-    VerbResult structured(std::string_view node, const std::function<std::expected<std::string, std::string>(const Language&, std::string_view, const Place&)>& change) {
+    VerbResult structured(std::string_view node, const std::function<std::expected<std::string, Failure>(const Language&, std::string_view, const Place&)>& change) {
         auto place = place_of(node);
         if (!place) return std::unexpected(place.error());
         const Language* language = player.language_of(place->path);
@@ -761,7 +761,7 @@ private:
         const auto text = player.text(place->path);
         if (!text) return std::unexpected(std::format("{} cannot be read", place->path));
         auto changed = change(*language, *text, *place);
-        if (!changed) return std::unexpected(std::format("{}:{}: {}", place->path, place->line, changed.error()));
+        if (!changed) return std::unexpected(Failure{changed.error().kind, std::format("{}:{}: {}", place->path, place->line, changed.error().message)});
         auto done = player.edit(place->path, *changed);
         if (!done) return std::unexpected(done.error());
         done->set("path", place->path).set("source", changed_lines(*text, *changed));
@@ -848,7 +848,7 @@ private:
                 return std::unexpected(std::string("design.set takes `node` and `props`: {name: value} (null takes one out)"));
             const std::string node(args.get("node") ? args.get("node")->as_string() : "");
             return step(structured(node,
-                              [&](const Language& language, std::string_view text, const Place& place) -> std::expected<std::string, std::string> {
+                              [&](const Language& language, std::string_view text, const Place& place) -> std::expected<std::string, Failure> {
                                   if (!language.edit.set) return std::unexpected(std::format("{} has no structured edits: use design.edit", language.name));
                                   std::string now(text);
                                   for (const auto& [name, value] : *properties->map()) {
@@ -874,7 +874,7 @@ private:
             if (const Value* at = args.get("index"); at && at->is_number() && at->as_double() >= 0) index = static_cast<std::size_t>(at->as_double());
             const std::string parent(args.get("parent") ? args.get("parent")->as_string() : "");
             return step(structured(parent,
-                              [&](const Language& language, std::string_view text, const Place& place) -> std::expected<std::string, std::string> {
+                              [&](const Language& language, std::string_view text, const Place& place) -> std::expected<std::string, Failure> {
                                   if (!language.edit.insert) return std::unexpected(std::format("{} has no structured edits: use design.edit", language.name));
                                   return language.edit.insert(text, place.line, place.column, code->as_string(), index);
                               }),
@@ -883,7 +883,7 @@ private:
         add("design.remove", [this](const Value& args) -> VerbResult {
             const std::string node(args.get("node") ? args.get("node")->as_string() : "");
             return step(structured(node,
-                              [&](const Language& language, std::string_view text, const Place& place) -> std::expected<std::string, std::string> {
+                              [&](const Language& language, std::string_view text, const Place& place) -> std::expected<std::string, Failure> {
                                   if (!language.edit.remove) return std::unexpected(std::format("{} has no structured edits: use design.edit", language.name));
                                   return language.edit.remove(text, place.line, place.column);
                               }),

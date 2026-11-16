@@ -21,13 +21,28 @@ import omui.view;
 import omui.semantic;
 import xrender.vector;
 import mlibs.image;
+import mlibs.error;
 
 export namespace omui::agent {
 
 inline constexpr std::string_view interface_name = "openmui.tree@0.1";
 
+// Why the agent's endpoint, a client or a picture's hash fails (mlibs.error). A capture's failures are the view's
+// (ViewFailure); a task's work fails as a verb does (Failure).
+enum class AgentError : std::uint8_t { cannot_listen, cannot_connect, bad_picture };
+[[nodiscard]] constexpr mlibs::error::Description describe(AgentError error) noexcept {
+    using Kind = mlibs::error::Kind;
+    switch (error) {
+        case AgentError::cannot_listen: return {"omui.agent.cannot-listen", Kind::failed, "the endpoint could not listen"};
+        case AgentError::cannot_connect: return {"omui.agent.cannot-connect", Kind::not_found, "no endpoint answered"};
+        case AgentError::bad_picture: return {"omui.agent.bad-picture", Kind::invalid_argument, "not a PNG"};
+    }
+    return {"omui.agent.?", Kind::internal};
+}
+using AgentFailure = mlibs::error::Error<AgentError>;
+
 // Pixels of a region, as PNG bytes (hosts that render provide it).
-using CaptureFn = std::function<std::expected<std::vector<std::uint8_t>, std::string>(Rect window)>;
+using CaptureFn = std::function<std::expected<std::vector<std::uint8_t>, ViewFailure>(Rect window)>;
 
 // The same region as a picture of vectors: SVG with every node's drawing
 // marked by its path (data-node), and where pixels stand in for what SVG
@@ -40,18 +55,18 @@ struct VectorCapture {
     std::string               svg;
     std::vector<VectorIsland> islands;
 };
-using CaptureSvgFn = std::function<std::expected<VectorCapture, std::string>(Rect window)>;
+using CaptureSvgFn = std::function<std::expected<VectorCapture, ViewFailure>(Rect window)>;
 
 // What every rendering host gives as its CaptureSvgFn: the runtime's current
 // display list as SVG over `region` (logical pixels), each node named by its
 // path, islands drawn at `scale` device pixels per logical one.
-[[nodiscard]] std::expected<VectorCapture, std::string> vector_capture(const Runtime& runtime, const xrender::Resources& resources, Rect region,
+[[nodiscard]] std::expected<VectorCapture, ViewFailure> vector_capture(const Runtime& runtime, const xrender::Resources& resources, Rect region,
                                                                        float scale, std::optional<Color> background);
 
 // What a replay (W12) must end as: the semantic tree's hash (its snapshot,
 // bounds and all) and the pixels' (decoded RGBA: a PNG's encoding aside).
 [[nodiscard]] std::string tree_hash(semantic::Tree& tree);
-[[nodiscard]] std::expected<std::string, std::string> pixels_hash(std::span<const std::uint8_t> png);
+[[nodiscard]] std::expected<std::string, AgentFailure> pixels_hash(std::span<const std::uint8_t> png);
 
 struct ProtocolOptions {
     std::string app;              // the application id, for `describe`

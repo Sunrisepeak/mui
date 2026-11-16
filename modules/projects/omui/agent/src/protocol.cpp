@@ -1,6 +1,7 @@
 module omui.agent;
 
 import std;
+import mlibs.error;
 import omui.core;
 import omui.view;
 import omui.semantic;
@@ -525,7 +526,7 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         const Value* q = req.get("q");
         if (!q) return invalid("`find` needs a query `q`", R"({"op":"find","q":{"role":"button","name":"Save*"}})");
         auto query = semantic::Query::parse(*q);
-        if (!query) return invalid(query.error());
+        if (!query) return invalid(query.error().message);
         Value::List nodes;
         for (const spec::SemanticNode& n : tree_.find(*query)) nodes.push_back(spec::to_value(n));
         return e.data(Value{}.set("nodes", Value(std::move(nodes)))).result(spec::exit_code::success);
@@ -611,7 +612,7 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         auto picture = [&]() -> Value {
             if (!pictures) return Value{};
             auto png = options_.capture(region);
-            if (!png) return Value{}.set("error", png.error());
+            if (!png) return Value{}.set("error", png.error().message);
             return Value{}.set("format", "png").set("base64", mlibs::base64::encode(*png));
         };
         Value before = picture();
@@ -665,7 +666,7 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
             if (auto png = options_.capture(window))
                 if (auto decoded = mlibs::image::decode_png(*png)) before = std::move(*decoded);
         auto answer = runtime_.reload_sources(req);
-        if (!answer) return e.error(spec::error_code::failed, answer.error()).result(spec::exit_code::failure);
+        if (!answer) return e.error(mlibs::error::name(answer.error().kind()), answer.error().message).result(spec::exit_code::failure);
         const Value* reloaded = answer->get("reloaded");
         if (!pictures || before.empty() || !reloaded || !reloaded->list() || reloaded->list()->empty())
             return e.data(std::move(*answer)).result(spec::exit_code::success);
@@ -685,7 +686,7 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         for (std::string_view k : {"q", "absent", "settled"})
             if (const Value* v = req.get(k)) fields.set(k, *v);
         auto condition = semantic::Condition::parse(fields);
-        if (!condition) return invalid(condition.error(), R"({"op":"wait","q":{"id":"main/toast"},"settled":true,"timeout":5})");
+        if (!condition) return invalid(condition.error().message, R"({"op":"wait","q":{"id":"main/toast"},"settled":true,"timeout":5})");
         const double timeout = req.get("timeout") ? req.get("timeout")->as_double(options_.default_timeout) : options_.default_timeout;
         if (auto now = tree_.check(*condition); now.satisfied) {
             return e.data(Value{}.set("satisfied", true).set("revision", static_cast<std::int64_t>(tree_.revision())))
@@ -734,7 +735,7 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         if (format == "svg") {
             auto picture = options_.capture_svg(region);
             if (!picture) {
-                e.error(spec::error_code::internal, picture.error()).result(spec::exit_code::failure);
+                e.error(mlibs::error::name(picture.error().kind()), picture.error().message).result(spec::exit_code::failure);
                 return e;
             }
             Value::List islands;
@@ -751,7 +752,7 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         }
         auto png = options_.capture(region);
         if (!png) {
-            e.error(spec::error_code::internal, png.error()).result(spec::exit_code::failure);
+            e.error(mlibs::error::name(png.error().kind()), png.error().message).result(spec::exit_code::failure);
             return e;
         }
         Value d;
@@ -1286,9 +1287,9 @@ std::string tree_hash(semantic::Tree& tree) {
     return std::format("{:016x}", mlibs::hash::Fnv1a{}.text(tree.snapshot().to_value().json()).value());
 }
 
-std::expected<std::string, std::string> pixels_hash(std::span<const std::uint8_t> png) {
+std::expected<std::string, AgentFailure> pixels_hash(std::span<const std::uint8_t> png) {
     auto picture = mlibs::image::decode_png(png);
-    if (!picture) return std::unexpected(picture.error());
+    if (!picture) return std::unexpected(AgentFailure{AgentError::bad_picture, picture.error()});
     mlibs::hash::Fnv1a hash;
     hash.bytes(std::span<const std::uint8_t>(picture->rgba)).byte(0).text(std::format("{}x{}", picture->width, picture->height));
     return std::format("{:016x}", hash.value());
@@ -1339,7 +1340,7 @@ void Protocol::poll_reloads() {
     if (!reloads_.empty()) runtime_.request_frame();
 }
 
-std::expected<VectorCapture, std::string> vector_capture(const Runtime& runtime, const xrender::Resources& resources, Rect region, float scale,
+std::expected<VectorCapture, ViewFailure> vector_capture(const Runtime& runtime, const xrender::Resources& resources, Rect region, float scale,
                                                         std::optional<Color> background) {
     xrender::svg::Options options;
     options.view = region;
@@ -1353,7 +1354,7 @@ std::expected<VectorCapture, std::string> vector_capture(const Runtime& runtime,
         return mlibs::image::encode_png({rgba.data(), width, height, width * 4, mlibs::image::Alpha::premultiplied});
     };
     auto picture = xrender::svg::write(runtime.display_list(), resources, options);
-    if (!picture) return std::unexpected(picture.error());
+    if (!picture) return std::unexpected(ViewFailure{ViewError::capture_failed, std::format("{}", picture.error())});
     VectorCapture out{std::move(picture->text), {}};
     for (const auto& island : picture->report.islands) out.islands.push_back({std::string(xrender::svg::describe(island.why)), island.bounds});
     return out;

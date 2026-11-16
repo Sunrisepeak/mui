@@ -3,6 +3,7 @@
 module omui.view:impl;
 
 import std;
+import :error;
 import omui.core;
 import mlibs.agent;
 import mlibs.layout;
@@ -452,9 +453,9 @@ struct Runtime::Impl {
     std::vector<std::string>                opened;
     std::function<bool(const Runtime::OfferedFile&)> file_offer;
     std::deque<Runtime::OfferedFile>        offered_files;
-    std::function<std::expected<std::string, std::string>(Rect)> svg_capture;
-    std::function<std::expected<std::vector<std::uint8_t>, std::string>(Rect)> png_capture;
-    std::function<std::expected<Value, std::string>(const Value&)> source_reloader;
+    std::function<std::expected<std::string, ViewFailure>(Rect)> svg_capture;
+    std::function<std::expected<std::vector<std::uint8_t>, ViewFailure>(Rect)> png_capture;
+    std::function<std::expected<Value, ViewFailure>(const Value&)> source_reloader;
     // The person's own agent (Runtime::link_agent): the host's way to link, what it last heard.
     Runtime::AgentLinker                    agent_linker;
     AgentLink                               agent_link;

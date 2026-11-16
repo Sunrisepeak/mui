@@ -544,9 +544,10 @@ JSModuleDef* load_module(JSContext* ctx, const char* name, void*) {
         // its file, a changed one's name carrying its version): the text an
         // edit gave it, or the file's; TypeScript with its types blanked.
         const std::string file(n.substr(0, n.find('#')));
-        std::expected<std::string, std::string> code;
+        std::expected<std::string, ts::TsFailure> code;
         if (const auto edited = s.overrides.find(file); edited != s.overrides.end()) {
-            code = file.ends_with(".ts") || file.ends_with(".mts") ? ts::compile_source(edited->second, file) : edited->second;
+            if (file.ends_with(".ts") || file.ends_with(".mts")) code = ts::compile_source(edited->second, file);
+            else code = edited->second;
         } else {
             const auto path = mcpplibs::os::fs::from_utf8(file);
             std::error_code error;
@@ -555,13 +556,13 @@ JSModuleDef* load_module(JSContext* ctx, const char* name, void*) {
                 return nullptr;
             }
             const auto extension = path.extension();
-            code = extension == ".ts" || extension == ".mts" ? ts::compile(path) : [&]() -> std::expected<std::string, std::string> {
+            code = extension == ".ts" || extension == ".mts" ? ts::compile(path) : [&]() -> std::expected<std::string, ts::TsFailure> {
                 std::ifstream in(path, std::ios::binary);
                 return std::string{std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
             }();
         }
         if (!code) {
-            JS_ThrowSyntaxError(ctx, "%s", code.error().c_str());
+            JS_ThrowSyntaxError(ctx, "%s", code.error().message.c_str());
             return nullptr;
         }
         s.loaded.insert(file);

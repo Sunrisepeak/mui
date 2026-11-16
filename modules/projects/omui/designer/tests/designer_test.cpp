@@ -108,8 +108,8 @@ public:
     seconds time() override { return host_.runtime().now(); }
     void step(std::optional<seconds> at) override { (void)host_.step({}, at); }
     void settle() override { host_.settle(); }
-    std::expected<std::vector<std::uint8_t>, std::string> png() override { return host_.png(); }
-    std::expected<std::vector<std::uint8_t>, std::string> framed_png(Rect frame, std::string_view fixed) override {
+    std::expected<std::vector<std::uint8_t>, omui::ViewFailure> png() override { return host_.png(); }
+    std::expected<std::vector<std::uint8_t>, omui::ViewFailure> framed_png(Rect frame, std::string_view fixed) override {
         cameras.push_back(frame);
         return host_.framed_png(frame, fixed);
     }

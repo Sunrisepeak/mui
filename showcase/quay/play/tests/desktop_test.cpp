@@ -43,7 +43,7 @@ UTest cases{"quay.desktop", [] {
         omui::Desktop desktop(options);
         const auto opened = desktop.open();
         if (!opened || !desktop.gpu()) {
-            const std::string why = opened ? std::string("the window draws on the CPU") : opened.error();
+            const std::string why = opened ? std::string("the window draws on the CPU") : opened.error().text();
             if (mcpplibs::os::env::get("OMUI_REQUIRE_GPU") == "1") expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", why);
             else std::println("no GPU device here ({}); set OMUI_REQUIRE_GPU=1 to make that a failure", why);
             return;
@@ -61,7 +61,7 @@ UTest cases{"quay.desktop", [] {
         expect(harbour->drawn_on_device()) << "the host draws on a device: the harbour is drawn on it";
 
         const auto frame = desktop.window_pixels();
-        expect(fatal(frame.has_value())) << (frame ? "" : frame.error());
+        expect(fatal(frame.has_value())) << (frame ? "" : frame.error().text());
         // Where the harbour's node is the world shows: lamps brighter than anything the interface draws, and the
         // quay's greys — many levels, where an empty node would be one colour.
         const omui::Rect box = desktop.runtime().bounds(node);

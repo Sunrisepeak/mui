@@ -43,7 +43,7 @@ int batch(const std::filesystem::path& input,const std::filesystem::path& prefix
     spec.setup(host.runtime());
     for (const auto& v:spec.verbs) {
         const auto added=host.runtime().verbs().add(v.desc,v.fn);
-        if (!added) return fail(added.error());
+        if (!added) return fail(added.error().text());
     }
     agent::Protocol protocol(host.runtime(),{.default_actor="agent:cellular-cli",.capture=[&](Rect r){return host.png(r);}});
     Value::List receipts;
@@ -80,7 +80,7 @@ int batch(const std::filesystem::path& input,const std::filesystem::path& prefix
     for (int frame=0;frame<=frames;++frame) {
         if (frame) {const auto result=invoke("advance",Value{}.set("count",step));if (!result) return fail(result.error());host.step();}
         const auto path=output_path(std::format(".frame-{:03}.png",frame));
-        const auto written=host.save_png(path);if (!written) return fail(written.error());
+        const auto written=host.save_png(path);if (!written) return fail(written.error().text());
         outputs.emplace_back(generic_utf8(path));if (frames) host.record();
         observations.push_back(Value{}.set("index",frame).set("time_numerator",frame*step).set("time_denominator",rate)
             .set("state",session->snapshot()).set("pixel_hash",std::format("{:016x}",host.pixels().hash())).set("image",generic_utf8(path)));
@@ -88,7 +88,7 @@ int batch(const std::filesystem::path& input,const std::filesystem::path& prefix
     if (frames) {
         const auto path=output_path(".webp");
         const auto written=host.save_recording(path,{.delay_num=static_cast<std::uint16_t>(step),.delay_den=static_cast<std::uint16_t>(rate),.loops=1,.lossless=true});
-        if (!written) return fail(written.error());outputs.emplace_back(generic_utf8(path));
+        if (!written) return fail(written.error().text());outputs.emplace_back(generic_utf8(path));
     }
     const auto saved=output_path(".cellular.omui.json");
     const auto written=mcpplibs::os::fs::write_atomic(saved,session->project().json()+"\n");

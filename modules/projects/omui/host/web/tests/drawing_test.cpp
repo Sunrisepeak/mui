@@ -64,7 +64,7 @@ int main(int argc, char** argv) {
         (void)w.step();
         (void)w.step();
         auto gpu = w.read_frame();
-        expect(gpu.has_value()) << (gpu ? "" : gpu.error());
+        expect(gpu.has_value()) << (gpu ? "" : gpu.error().text());
         if (!gpu) return;
         // The CPU's reference: the same list, size and scale.
         Runtime& rt = w.runtime();

@@ -26,7 +26,7 @@ namespace omui {
   inline constexpr std::string_view omui_releases = "https://github.com/Sunrisepeak/mui/releases/latest";
   inline constexpr std::string_view omui_repository = "Sunrisepeak/mui";
   [[nodiscard]] AgentGuide agent_guide(const AppSpec& app, Runtime& runtime, const Value& snapshot);
-  std::expected<void, std::string> write_agent_guide(const AgentGuide& guide, const std::filesystem::path& dir);
+  std::expected<void, Failure> write_agent_guide(const AgentGuide& guide, const std::filesystem::path& dir);
 }
 == omui:app
 namespace omui {
@@ -96,12 +96,12 @@ namespace omui {
     std::filesystem::path present_to;
     std::filesystem::path replay;
     static void declare(mcpplibs::cmdline::App& app);
-    [[nodiscard]] static std::expected<RunOptions, std::string> from(const mcpplibs::cmdline::ParsedArgs& parsed);
-    [[nodiscard]] static std::expected<RunOptions, std::string> parse(std::span<const std::string_view> args);
+    [[nodiscard]] static std::expected<RunOptions, Failure> from(const mcpplibs::cmdline::ParsedArgs& parsed);
+    [[nodiscard]] static std::expected<RunOptions, Failure> parse(std::span<const std::string_view> args);
   };
   [[nodiscard]] std::string_view application_build_profile() noexcept;
-  [[nodiscard]] std::expected<AgentPolicy, std::string> application_agent_policy( const AppSpec& app, std::optional<AgentMode> startup_mode = {…});
-  std::expected<void, std::string> choose_renderer(std::string_view name);
+  [[nodiscard]] std::expected<AgentPolicy, Failure> application_agent_policy( const AppSpec& app, std::optional<AgentMode> startup_mode = {…});
+  std::expected<void, Failure> choose_renderer(std::string_view name);
   struct CommandLine {
     mcpplibs::cmdline::ParsedArgs args;
     RunOptions options;

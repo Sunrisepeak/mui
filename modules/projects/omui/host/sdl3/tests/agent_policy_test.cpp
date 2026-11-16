@@ -21,7 +21,7 @@ UTest cases{"host.sdl3.agent_policy", [] {
         options.renderer = DesktopOptions::Renderer::cpu;
         Desktop host(options);
         const auto opened = host.open();
-        expect(opened.has_value()) << (opened ? "" : opened.error());
+        expect(opened.has_value()) << (opened ? "" : opened.error().text());
         if (!opened) return;
         expect(host.endpoint() != nullptr) << "this test requires the real local endpoint";
         if (!host.endpoint()) return;

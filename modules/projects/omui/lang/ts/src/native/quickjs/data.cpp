@@ -117,7 +117,7 @@ JSModuleDef* load(JSContext* context, const char* name, void* opaque) {
         if (!std::filesystem::is_regular_file(candidate, error)) continue;
         auto code = compile(candidate);
         if (!code) {
-            JS_ThrowSyntaxError(context, "%s", code.error().c_str());
+            JS_ThrowSyntaxError(context, "%s", code.error().message.c_str());
             return nullptr;
         }
         return compiled(context, *code, name);
@@ -126,22 +126,22 @@ JSModuleDef* load(JSContext* context, const char* name, void* opaque) {
     return nullptr;
 }
 
-std::expected<Data, std::string> run(JSRuntime* runtime, JSContext* context, const std::string& code, const std::string& name,
+std::expected<Data, TsFailure> run(JSRuntime* runtime, JSContext* context, const std::string& code, const std::string& name,
                                      Evaluation& evaluation) {
     JSValue prepared = JS_Eval(context, setup.data(), setup.size(), "<setup>", JS_EVAL_TYPE_GLOBAL);
-    if (JS_IsException(prepared)) return std::unexpected(exception_text(context, evaluation));
+    if (JS_IsException(prepared)) return std::unexpected(TsFailure{TsError::evaluation_failed, exception_text(context, evaluation)});
     JS_FreeValue(context, prepared);
     JSValue module = JS_Eval(context, code.data(), code.size(), name.c_str(), JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
-    if (JS_IsException(module)) return std::unexpected(exception_text(context, evaluation));
+    if (JS_IsException(module)) return std::unexpected(TsFailure{TsError::evaluation_failed, exception_text(context, evaluation)});
     auto* definition = static_cast<JSModuleDef*>(JS_VALUE_GET_PTR(module));
     JSValue evaluated = JS_EvalFunction(context, module);
-    if (JS_IsException(evaluated)) return std::unexpected(exception_text(context, evaluation));
+    if (JS_IsException(evaluated)) return std::unexpected(TsFailure{TsError::evaluation_failed, exception_text(context, evaluation)});
     JSContext* job_context = nullptr;
     for (int ran = 1; ran > 0;) {
         ran = JS_ExecutePendingJob(runtime, &job_context);
         if (ran < 0) {
             JS_FreeValue(context, evaluated);
-            return std::unexpected(exception_text(job_context, evaluation));
+            return std::unexpected(TsFailure{TsError::evaluation_failed, exception_text(job_context, evaluation)});
         }
     }
     if (JS_IsPromise(evaluated)) {
@@ -149,11 +149,11 @@ std::expected<Data, std::string> run(JSRuntime* runtime, JSContext* context, con
         if (state == JS_PROMISE_REJECTED) {
             std::string out = thrown_text(context, JS_PromiseResult(context, evaluated), evaluation);
             JS_FreeValue(context, evaluated);
-            return std::unexpected(out);
+            return std::unexpected(TsFailure{TsError::evaluation_failed, std::move(out)});
         }
         if (state == JS_PROMISE_PENDING) {
             JS_FreeValue(context, evaluated);
-            return std::unexpected(std::string("the module did not finish (it waits on something that never comes)"));
+            return std::unexpected(TsFailure{TsError::unfinished, "the module did not finish (it waits on something that never comes)"});
         }
     }
     JS_FreeValue(context, evaluated);
@@ -167,7 +167,7 @@ std::expected<Data, std::string> run(JSRuntime* runtime, JSContext* context, con
     JS_FreeValue(context, check);
     if (JS_IsException(json)) {
         JS_FreeValue(context, exported);
-        return std::unexpected(exception_text(context, evaluation));
+        return std::unexpected(TsFailure{TsError::evaluation_failed, exception_text(context, evaluation)});
     }
     JSValue kind = JS_GetPropertyStr(context, exported, "kind");
     Data data{text(context, kind), text(context, json)};
@@ -179,9 +179,9 @@ std::expected<Data, std::string> run(JSRuntime* runtime, JSContext* context, con
 
 }  // namespace
 
-std::expected<Data, std::string> evaluate(const std::filesystem::path& file, const DataOptions& options) {
+std::expected<Data, TsFailure> evaluate(const std::filesystem::path& file, const DataOptions& options) {
     std::ifstream in(file, std::ios::binary);
-    if (!in) return std::unexpected(std::format("{}: cannot be read", mcpplibs::os::fs::utf8(file)));
+    if (!in) return std::unexpected(TsFailure{TsError::unreadable, {}, mcpplibs::os::fs::utf8(file)});
     const std::string source{std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
     std::error_code error;
     const auto absolute = std::filesystem::absolute(file, error);
@@ -190,7 +190,7 @@ std::expected<Data, std::string> evaluate(const std::filesystem::path& file, con
     return evaluate_source(source, mcpplibs::os::fs::generic_utf8(error ? file : absolute), options);
 }
 
-std::expected<Data, std::string> evaluate_source(std::string_view source, std::string_view name, const DataOptions& options) {
+std::expected<Data, TsFailure> evaluate_source(std::string_view source, std::string_view name, const DataOptions& options) {
     auto code = compile_source(source, name);
     if (!code) return std::unexpected(code.error());
     const auto path = mcpplibs::os::fs::from_utf8(name).lexically_normal();
@@ -215,7 +215,10 @@ std::expected<Data, std::string> evaluate_source(std::string_view source, std::s
     auto result = run(runtime, context, *code, mcpplibs::os::fs::generic_utf8(path), evaluation);  // `/`-named: see evaluate()
     JS_FreeContext(context);
     JS_FreeRuntime(runtime);
-    if (!result) return std::unexpected(std::format("{}: {}", name, result.error()));
+    if (!result) {
+        result.error().where = std::string(name);
+        return std::unexpected(std::move(result.error()));
+    }
     return result;
 }
 

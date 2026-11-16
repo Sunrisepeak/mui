@@ -370,7 +370,7 @@ struct Server::Impl {
                 if (!c) {
                     Answer a;
                     a.code = "unavailable";
-                    a.message = c.error();
+                    a.message = c.error().text();
                     return a;
                 }
                 it = clients.emplace(app, std::move(*c)).first;

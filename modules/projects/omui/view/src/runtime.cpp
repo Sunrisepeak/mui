@@ -55,15 +55,15 @@ Value default_of(const spec::DefaultValue& d) {
 
 }  // namespace
 
-std::expected<void, std::string> validate_input_attribution(const FrameInput& input) {
+std::expected<void, ViewFailure> validate_input_attribution(const FrameInput& input) {
     std::size_t previous_end = 0;
     for (const auto& range : input.attribution) {
         if (range.begin >= range.end)
-            return std::unexpected(std::format("input attribution [{},{}) must be nonempty", range.begin, range.end));
+            return std::unexpected(ViewFailure{ViewError::empty_range, std::format("input attribution [{},{}) must be nonempty", range.begin, range.end)});
         if (range.end > input.events.size())
-            return std::unexpected(std::format("input attribution [{},{}) exceeds {} events", range.begin, range.end, input.events.size()));
+            return std::unexpected(ViewFailure{ViewError::range_past_input, std::format("input attribution [{},{}) exceeds {} events", range.begin, range.end, input.events.size())});
         if (range.begin < previous_end)
-            return std::unexpected("input attribution ranges must be ordered and non-overlapping");
+            return std::unexpected(ViewFailure{ViewError::unordered_ranges, "input attribution ranges must be ordered and non-overlapping"});
         previous_end = range.end;
     }
     return {};
@@ -1081,26 +1081,26 @@ void Runtime::set_file_offer(std::function<bool(const OfferedFile&)> offer) { im
 
 const std::deque<Runtime::OfferedFile>& Runtime::offered_files() const noexcept { return impl_->offered_files; }
 
-std::expected<std::string, std::string> Runtime::capture_svg(std::optional<Rect> region) {
-    if (!impl_->svg_capture) return std::unexpected("this host does not draw in vectors");
+std::expected<std::string, ViewFailure> Runtime::capture_svg(std::optional<Rect> region) {
+    if (!impl_->svg_capture) return std::unexpected(ViewFailure{ViewError::no_vector_capture});
     return impl_->svg_capture(region.value_or(Rect{0, 0, size().width, size().height}));
 }
 
-void Runtime::set_svg_capture(std::function<std::expected<std::string, std::string>(Rect)> capture) { impl_->svg_capture = std::move(capture); }
+void Runtime::set_svg_capture(std::function<std::expected<std::string, ViewFailure>(Rect)> capture) { impl_->svg_capture = std::move(capture); }
 
-std::expected<std::vector<std::uint8_t>, std::string> Runtime::capture_png(std::optional<Rect> region) {
-    if (!impl_->png_capture) return std::unexpected("this host draws no pixels");
+std::expected<std::vector<std::uint8_t>, ViewFailure> Runtime::capture_png(std::optional<Rect> region) {
+    if (!impl_->png_capture) return std::unexpected(ViewFailure{ViewError::no_pixel_capture});
     return impl_->png_capture(region.value_or(Rect{0, 0, size().width, size().height}));
 }
 
-void Runtime::set_png_capture(std::function<std::expected<std::vector<std::uint8_t>, std::string>(Rect)> capture) { impl_->png_capture = std::move(capture); }
+void Runtime::set_png_capture(std::function<std::expected<std::vector<std::uint8_t>, ViewFailure>(Rect)> capture) { impl_->png_capture = std::move(capture); }
 
-std::expected<Value, std::string> Runtime::reload_sources(const Value& request) {
-    if (!impl_->source_reloader) return std::unexpected("nothing here reloads: the application is not run from sources (a player runs them)");
+std::expected<Value, ViewFailure> Runtime::reload_sources(const Value& request) {
+    if (!impl_->source_reloader) return std::unexpected(ViewFailure{ViewError::no_reloader, "nothing here reloads: the application is not run from sources (a player runs them)"});
     return impl_->source_reloader(request);
 }
 
-void Runtime::set_source_reloader(std::function<std::expected<Value, std::string>(const Value&)> reloader) {
+void Runtime::set_source_reloader(std::function<std::expected<Value, ViewFailure>(const Value&)> reloader) {
     impl_->source_reloader = std::move(reloader);
 }
 

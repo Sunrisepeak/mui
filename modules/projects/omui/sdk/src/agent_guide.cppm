@@ -30,6 +30,6 @@ inline constexpr std::string_view omui_repository = "Sunrisepeak/mui";
 // Writes agent.md and .well-known/openmui-agent.json into `dir`, and links
 // the page there (index.html, when there is one) to them:
 // <link rel="openmui-agent" href="agent.md">.
-std::expected<void, std::string> write_agent_guide(const AgentGuide& guide, const std::filesystem::path& dir);
+std::expected<void, Failure> write_agent_guide(const AgentGuide& guide, const std::filesystem::path& dir);
 
 }  // namespace omui

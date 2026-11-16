@@ -10,6 +10,7 @@ export module omui.core:verb;
 import std;
 import :base;
 import mlibs.control;
+import mlibs.error;
 
 export namespace omui {
 
@@ -90,12 +91,49 @@ using InvocationScope = mlibs::control::Scope<Invocation>;
 // The refusal of a person's own action asked for over the bus (S-10).
 [[nodiscard]] Envelope person_only(std::string_view what);
 
-// What a verb's implementation returns: a value for the `data` record, or a
-// failure message.
-using VerbResult = std::expected<Value, std::string>;
+// Why work an application or a plugin provides did not succeed — a verb's, a task's, a language's (the player's
+// plugins): what kind of failure (the error contract's, mlibs.error — the code an `error` record carries) and a
+// message. A message alone is a `failed` one (`return std::unexpected("…")`); `{Kind::not_found, "no note 7"}` says
+// more to an agent; a typed failure (mlibs.error) keeps its kind and its text.
+struct Failure {
+    mlibs::error::Kind kind = mlibs::error::Kind::failed;
+    std::string        message;
+    Failure() = default;
+    Failure(std::string text) : message(std::move(text)) {}
+    Failure(const char* text) : message(text) {}
+    Failure(mlibs::error::Kind of, std::string text) : kind(of), message(std::move(text)) {}
+    template <mlibs::error::Code C, class Where>
+    Failure(const mlibs::error::Error<C, Where>& error) : kind(error.kind()), message(error.text()) {}
+    [[nodiscard]] std::string text() const { return std::format("{}: {}", mlibs::error::name(kind), message); }
+};
+
+// What a verb's implementation returns: a value for the `data` record, or why it failed.
+using VerbResult = std::expected<Value, Failure>;
 using VerbFn     = std::function<VerbResult(const Value& args)>;
 
 [[nodiscard]] bool valid_verb_name(std::string_view name) noexcept;
+
+// Why a verb or a task cannot be registered (mlibs.error).
+enum class VerbError : std::uint8_t { bad_verb_name, verb_taken, no_answer, no_implementation, bad_task_name, task_taken, no_summary, no_step, bad_step, unknown_verb, person_only_step, step_asks_answer };
+[[nodiscard]] constexpr mlibs::error::Description describe(VerbError error) noexcept {
+    using Kind = mlibs::error::Kind;
+    switch (error) {
+        case VerbError::bad_verb_name: return {"omui.verb.bad-name", Kind::invalid_argument, "lower-case words joined by dots"};
+        case VerbError::verb_taken: return {"omui.verb.taken", Kind::refused, "a verb of that name is registered"};
+        case VerbError::no_answer: return {"omui.verb.no-answer", Kind::invalid_argument, "an irreversible or external verb states its answer (S-1)"};
+        case VerbError::no_implementation: return {"omui.verb.no-implementation", Kind::invalid_argument, "a verb has a function"};
+        case VerbError::bad_task_name: return {"omui.task.bad-name", Kind::invalid_argument, "lower-case words joined by hyphens"};
+        case VerbError::task_taken: return {"omui.task.taken", Kind::refused, "a task of that name is registered"};
+        case VerbError::no_summary: return {"omui.task.no-summary", Kind::invalid_argument, "a task says what it gets done"};
+        case VerbError::no_step: return {"omui.task.no-step", Kind::invalid_argument, "a task has steps"};
+        case VerbError::bad_step: return {"omui.task.bad-step", Kind::invalid_argument, "a step is a verb, or a node and one of its actions"};
+        case VerbError::unknown_verb: return {"omui.task.unknown-verb", Kind::not_found, "a step's verb is registered first"};
+        case VerbError::person_only_step: return {"omui.task.person-only-step", Kind::refused, "a person's verb is never a step"};
+        case VerbError::step_asks_answer: return {"omui.task.step-asks-answer", Kind::invalid_argument, "a step that asks for an answer is a dry run"};
+    }
+    return {"omui.verb.?", Kind::internal};
+}
+using VerbRegistrationFailure = mlibs::error::Error<VerbError>;
 // A verb declared by an operation catalog's entry (`<product>.ops.omui.toml`,
 // convergence plan §10.3): its name, summary, effect, arguments (an optional
 // one's type ends in `?`; a json one is an object) and whether it is undoable.
@@ -110,7 +148,7 @@ public:
     void set_invocation_context(InvocationContext* context) noexcept { context_ = context; }
     // Refused (with the reason) when the name is malformed, already taken, or
     // the verb needs an answer and states none (S-1).
-    std::expected<void, std::string> add(VerbDesc desc, VerbFn fn);
+    std::expected<void, VerbRegistrationFailure> add(VerbDesc desc, VerbFn fn);
     bool remove(std::string_view name);
 
     [[nodiscard]] const VerbDesc* find(std::string_view name) const noexcept;
@@ -121,7 +159,7 @@ public:
     // verb nor a node's action (or both), a step's verb is not registered or is the person's alone, or a step
     // would ask for an answer and is not a dry run: a task to begin with runs as written, and nothing in it
     // waits for a person. Removing a verb removes the tasks that invoke it.
-    std::expected<void, std::string> add_task(TaskDesc task);
+    std::expected<void, VerbRegistrationFailure> add_task(TaskDesc task);
     [[nodiscard]] std::span<const TaskDesc> tasks() const noexcept { return tasks_; }
 
     // Runs a verb and answers with an envelope: `needs-answer` (exit 2) when
@@ -159,3 +197,11 @@ private:
 [[nodiscard]] Envelope needs_answer(std::string_view what, std::string_view answer);
 
 }  // namespace omui
+
+// A failure written as its text (`std::format("{}", failure)`).
+template <>
+struct std::formatter<omui::Failure> : std::formatter<std::string_view> {
+    auto format(const omui::Failure& failure, std::format_context& context) const {
+        return std::formatter<std::string_view>::format(failure.text(), context);
+    }
+};

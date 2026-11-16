@@ -196,8 +196,8 @@ UTest cases{"player", [] {
         player::Player p(h.runtime(), m, {stub()});
         auto r = p.start();
         expect(!r);
-        expect(r.error().find("ui/missing.view.omui.json: cannot be read") != std::string::npos) << r.error();
-        expect(r.error().find("logic/main.cbl: no language `cobol`") != std::string::npos) << r.error();
+        expect(r.error().text().find("ui/missing.view.omui.json: cannot be read") != std::string::npos) << r.error().text();
+        expect(r.error().text().find("logic/main.cbl: no language `cobol`") != std::string::npos) << r.error().text();
     };
 
     "out of development mode there are no design verbs"_test = [] {
@@ -223,7 +223,7 @@ UTest cases{"player", [] {
         Headless h(HeadlessOptions{.size = {320, 240}});
         player::Player p(h.runtime(), m, {stub()}, {.design = true});
         const auto started = p.start();
-        expect(!started.has_value() && started.error().contains("no designer")) << (started ? std::string("started") : started.error());
+        expect(!started.has_value() && started.error().text().contains("no designer")) << (started ? std::string("started") : started.error().text());
         h.settle();
         expect(eq(name_of(h, "side/hello"), std::string("hi"))) << "the application runs all the same";
         expect(h.runtime().verbs().find("design.edit") == nullptr);

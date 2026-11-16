@@ -53,7 +53,7 @@ static UTest cases{"ui.base.platform_styles", [] {
             made.scale = 2;
             Headless h(made);
             const auto applied = theme::apply_style(h.runtime(), pack, false);
-            expect(applied.has_value()) << std::string(pack) << ": " << (applied ? std::string() : applied.error());
+            expect(applied.has_value()) << std::string(pack) << ": " << (applied ? std::string() : applied.error().text());
             h.mount("main", settings());
             h.settle();
             std::string tree;

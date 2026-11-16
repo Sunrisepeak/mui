@@ -92,7 +92,7 @@ Element vectors_scene(HomeScenes& state, const HomeScenesSite& site) {
         Runtime& rt = **runtime;
         const auto drawn = rt.capture_svg();
         if (!drawn) {
-            model->saved_error.set(drawn.error());
+            model->saved_error.set(drawn.error().text());
             return;
         }
         std::int64_t shapes = 0;

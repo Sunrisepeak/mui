@@ -7,6 +7,9 @@ export import :tree;
 export import :session;
 == omui.semantic:query
 namespace omui::semantic {
+  enum class QueryError : std::uint8_t { not_an_object, unknown_field, unknown_role, unknown_state, not_a_list, bad_rect, bad_point, nothing_to_wait_for };
+  [[nodiscard]] constexpr mlibs::error::Description describe(QueryError error) noexcept;
+  using QueryFailure = mlibs::error::Error<QueryError>;
   struct Query {
     std::string id;
     std::string under;
@@ -20,14 +23,14 @@ namespace omui::semantic {
     bool interactive = false;
     std::size_t limit = 0;
     [[nodiscard]] bool matches(const spec::SemanticNode& node) const;
-    [[nodiscard]] static std::expected<Query, std::string> parse(const Value& v);
+    [[nodiscard]] static std::expected<Query, QueryFailure> parse(const Value& v);
     [[nodiscard]] Value to_value() const;
   };
   struct Condition {
     std::optional<Query> query;
     bool absent = false;
     bool settled = false;
-    [[nodiscard]] static std::expected<Condition, std::string> parse(const Value& v);
+    [[nodiscard]] static std::expected<Condition, QueryFailure> parse(const Value& v);
   };
   [[nodiscard]] bool glob(std::string_view pattern, std::string_view text) noexcept;
 }

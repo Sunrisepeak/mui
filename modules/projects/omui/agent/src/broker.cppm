@@ -34,7 +34,7 @@ private:
 // What a task's work answers: the step that commits what it made, run on the
 // UI thread (its result the task's), or why it failed.
 using TaskCommit = std::function<VerbResult()>;
-using TaskWork = std::expected<TaskCommit, std::string>;
+using TaskWork = std::expected<TaskCommit, Failure>;
 
 struct TaskSpec {
     std::string name;  // what it is: "draft from code for extras"

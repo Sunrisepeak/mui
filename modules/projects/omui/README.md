@@ -43,6 +43,10 @@ The reference implementation of the [openmui](../../../spec) specification: a vi
 
 Start with [view](view/README.md).
 
+## How failure is answered
+
+A stable package's API answers why it failed with the error contract, `mlibs.error` (a code, its kind — `invalid-argument`, `not-found`, `refused`, `failed` … the codes an agent's `error` record carries —, where, a message, causes), each package with its own codes: `ThemeFailure`, `QueryFailure` (semantic queries and conditions), `ViewFailure` (a model's rows, input attribution, captures and reloads, and the hosts' windows, devices and files), `TsFailure` (reading, compiling, evaluating and editing TypeScript), `AgentFailure`, `VerbRegistrationFailure`, `CtsFailure`. Work an application, a plugin or a platform provides — a verb, a task, a language of the player, the SDK's options and renderers, an accessibility service — answers `omui::Failure`: a kind and a message, a plain string being a `failed` one, a typed failure keeping its kind. Both are written by `std::format("{}", failure)`. A native module's function answers a message (`std::expected<T, std::string>`): at the script boundary it is the message of the `Error` the script catches. Each package's surface is its `api.omui.txt` (`omui-devtools api`).
+
 ## Labels in 0.1 (release plan §2.3)
 
 Each package's manifest says its label (`maturity`); lint `maturity` holds stable to stable. Stable: kept source-compatible within 0.1.x. Preview: complete within its stated scope, its interface may change (each change in the release notes). Experimental: ships with its target and gap written.

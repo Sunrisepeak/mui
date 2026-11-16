@@ -8,9 +8,28 @@
 export module omui.semantic:query;
 
 import std;
+import mlibs.error;
 import omui.core;
 
 export namespace omui::semantic {
+
+// Why a query or a condition cannot be read (mlibs.error): its code, the field where, and what was found.
+enum class QueryError : std::uint8_t { not_an_object, unknown_field, unknown_role, unknown_state, not_a_list, bad_rect, bad_point, nothing_to_wait_for };
+[[nodiscard]] constexpr mlibs::error::Description describe(QueryError error) noexcept {
+    using Kind = mlibs::error::Kind;
+    switch (error) {
+        case QueryError::not_an_object: return {"omui.semantic.not-an-object", Kind::invalid_argument, "a query or a condition is an object"};
+        case QueryError::unknown_field: return {"omui.semantic.unknown-field", Kind::invalid_argument, "a field a query or a condition does not have"};
+        case QueryError::unknown_role: return {"omui.semantic.unknown-role", Kind::invalid_argument, "no role of that name"};
+        case QueryError::unknown_state: return {"omui.semantic.unknown-state", Kind::invalid_argument, "no state of that name"};
+        case QueryError::not_a_list: return {"omui.semantic.not-a-list", Kind::invalid_argument, "a list of state names"};
+        case QueryError::bad_rect: return {"omui.semantic.bad-rect", Kind::invalid_argument, "[x, y, width, height]"};
+        case QueryError::bad_point: return {"omui.semantic.bad-point", Kind::invalid_argument, "[x, y]"};
+        case QueryError::nothing_to_wait_for: return {"omui.semantic.nothing-to-wait-for", Kind::invalid_argument, "a condition needs `q` or `settled`"};
+    }
+    return {"omui.semantic.?", Kind::internal};
+}
+using QueryFailure = mlibs::error::Error<QueryError>;
 
 struct Query {
     std::string                id;           // exactly this node
@@ -29,7 +48,7 @@ struct Query {
 
     // {"id", "under", "role", "name", "state": [...], "not": [...], "value",
     //  "within": [x, y, w, h], "at": [x, y], "interactive", "limit"}
-    [[nodiscard]] static std::expected<Query, std::string> parse(const Value& v);
+    [[nodiscard]] static std::expected<Query, QueryFailure> parse(const Value& v);
     [[nodiscard]] Value to_value() const;
 };
 
@@ -39,7 +58,7 @@ struct Condition {
     bool                 settled = false;  // and for no node to be animating or removing
 
     // {"q": {...}, "absent": bool, "settled": bool}
-    [[nodiscard]] static std::expected<Condition, std::string> parse(const Value& v);
+    [[nodiscard]] static std::expected<Condition, QueryFailure> parse(const Value& v);
 };
 
 // `*` matches any run of characters, `?` one (UTF-8) character.

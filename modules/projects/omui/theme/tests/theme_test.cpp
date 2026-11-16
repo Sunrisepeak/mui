@@ -2,6 +2,7 @@
 // exactly; overlays change what they name and nothing else; every mistake in
 // a file is reported where it is, and every impossible composition says why.
 import std;
+import mlibs.error;
 import omui.core;
 import omui.view;
 import omui.theme;
@@ -20,7 +21,7 @@ std::filesystem::path theme_dir() { return std::filesystem::path(std::source_loc
 // A theme module as the JSON the library reads: what it evaluates to.
 std::string snapshot_of(const std::filesystem::path& file) {
     const auto data = lang::ts::evaluate(file);
-    return data ? std::format("{{\"{}\":{}}}", data->kind, data->json) : data.error();
+    return data ? std::format("{{\"{}\":{}}}", data->kind, data->json) : data.error().text();
 }
 
 bool same_color(Color a, Color b) { return a.r == b.r && a.g == b.g && a.b == b.b && a.a == b.a; }
@@ -95,10 +96,10 @@ UTest cases{"theme", [] {
         expect(added.has_value()) << (added ? "" : all(added.error()));
         expect(lib.themes() == L({"dark", "light"}) && lib.overlays() == L({"reduced_motion"}));
         auto light = lib.compose(L({"light"}));
-        expect(light.has_value()) << (light ? "" : light.error());
+        expect(light.has_value()) << (light ? "" : light.error().text());
         if (light) expect(eq(difference(*light, Theme::light()), std::string()));
         auto dark = lib.compose(L({"dark"}));
-        expect(dark.has_value()) << (dark ? "" : dark.error());
+        expect(dark.has_value()) << (dark ? "" : dark.error().text());
         if (dark) {
             expect(eq(difference(*dark, Theme::dark_theme()), std::string()));
             expect(eq(dark->name, std::string("dark")));
@@ -108,7 +109,7 @@ UTest cases{"theme", [] {
     "overlays change what they name and nothing else"_test = [&] {
         expect(lib.add(compact_snapshot, "compact.theme.omui.json").has_value());
         auto t = lib.compose(L({"dark", "compact", "reduced_motion"}));
-        expect(t.has_value()) << (t ? "" : t.error());
+        expect(t.has_value()) << (t ? "" : t.error().text());
         if (!t) return;
         expect(eq(t->name, std::string("dark+compact+reduced_motion")));
         expect(t->dark && same_color(t->color("background"), Color::hex(0x0b1120))) << "the theme's colours";
@@ -149,11 +150,11 @@ UTest cases{"theme", [] {
 
     "what cannot be composed, and why"_test = [&] {
         auto none = lib.compose(L({"sepia"}));
-        expect(!none && none.error().find("no theme is named `sepia` (themes: dark, light)") != std::string::npos) << (none ? "" : none.error());
+        expect(!none && none.error().text().find("no theme is named `sepia` (themes: dark, light)") != std::string::npos) << (none ? "" : none.error().text());
         auto overlay_first = lib.compose(L({"compact"}));
-        expect(!overlay_first && overlay_first.error().find("`compact` is an overlay") != std::string::npos);
+        expect(!overlay_first && overlay_first.error().text().find("`compact` is an overlay") != std::string::npos);
         auto theme_as_overlay = lib.compose(L({"light", "dark"}));
-        expect(!theme_as_overlay && theme_as_overlay.error().find("`dark` is a theme, not an overlay") != std::string::npos);
+        expect(!theme_as_overlay && theme_as_overlay.error().text().find("`dark` is a theme, not an overlay") != std::string::npos);
         theme::Library more;
         expect(more.add(R"t({"theme": {
   "base": {"colors": {"background": "#fff"}},
@@ -163,12 +164,15 @@ UTest cases{"theme", [] {
   "b": {"extends": "a"}
 }})t", "more.theme.omui.json").has_value());
         auto typo = more.compose(L({"typo"}));
-        expect(!typo && typo.error().find("`typo` sets the colour `backgruond`, which the theme under it does not have (did you mean `background`?)") !=
-                           std::string::npos) << (typo ? "" : typo.error());
+        expect(!typo && typo.error().text().find("`typo` sets the colour `backgruond`, which the theme under it does not have (did you mean `background`?)") !=
+                           std::string::npos) << (typo ? "" : typo.error().text());
         auto orphan = more.compose(L({"orphan"}));
-        expect(!orphan && orphan.error().find("extends `nowhere`, which no theme file declares") != std::string::npos);
+        expect(!orphan && orphan.error().text().find("extends `nowhere`, which no theme file declares") != std::string::npos);
+        if (!typo) expect(typo.error().code == theme::ThemeError::unknown_token && typo.error().where == "more.theme.omui.json") << typo.error().text();
+        if (!orphan) expect(orphan.error().code == theme::ThemeError::unknown_base && orphan.error().kind() == mlibs::error::Kind::not_found);
+        if (!none) expect(none.error().code == theme::ThemeError::unknown_theme && none.error().text().starts_with("omui.theme.unknown-theme (not-found) at sepia: "));
         auto cycle = more.compose(L({"a"}));
-        expect(!cycle && cycle.error().find("extends itself") != std::string::npos) << (cycle ? "" : cycle.error());
+        expect(!cycle && cycle.error().text().find("extends itself") != std::string::npos) << (cycle ? "" : cycle.error().text());
     };
 
     "a file added again replaces what it declared; another file may not take a name"_test = [&] {
@@ -204,7 +208,7 @@ UTest cases{"theme", [] {
         const auto st = lib.find_style("neon");
         expect(st && st->layers == L({"dark"}) && st->effects.size() == 4 && st->crossfade == 0.4);
         auto t = lib.compose_style("neon");
-        expect(t.has_value()) << (t ? "" : t.error());
+        expect(t.has_value()) << (t ? "" : t.error().text());
         if (t) {
             expect(t->dark) << "over the dark theme";
             expect(same_color(t->color("accent"), Color::hex(0x22d3ee))) << "its accent";
@@ -226,7 +230,7 @@ UTest cases{"theme", [] {
         expect(theme::library().add(default_snapshot, "default.theme.omui.json").has_value() || true);
         expect(theme::library().add_styles(neon, "neon.style.omui.json").has_value());
         auto applied = theme::apply_style(rt, "neon");
-        expect(applied.has_value()) << (applied ? "" : applied.error());
+        expect(applied.has_value()) << (applied ? "" : applied.error().text());
         rt.frame();
         // Layers with effects: the window's crt at least, and the cross-fade's layer.
         std::size_t effect_layers = 0, plain_layers = 0;
@@ -319,7 +323,7 @@ UTest cases{"theme", [] {
 
     "the defaults' finish (B4): continuous corners, shadows in two layers, controls' depth by state; dark tuned on its own"_test = [&] {
         auto t = lib.compose(L({"light"}));
-        expect(t.has_value()) << (t ? "" : t.error());
+        expect(t.has_value()) << (t ? "" : t.error().text());
         if (!t) return;
         expect(t->corner_smoothing == 0.6f);
         for (const char* name : {"sm", "md", "lg", "control", "control:hovered", "control:pressed", "control_accent", "thumb", "thumb:pressed", "switch_thumb"}) {
@@ -347,7 +351,7 @@ UTest cases{"theme", [] {
         const auto st = lib.find_style("inky");
         expect(st && st->motions.size() == 3) << "three motions read";
         auto t = lib.compose_style("inky");
-        expect(t.has_value()) << (t ? "" : t.error());
+        expect(t.has_value()) << (t ? "" : t.error().text());
         if (t) {
             const auto update = std::ranges::find_if(t->motion_rules, [](const MotionRule& r) { return r.layer == MotionRule::Layer::style && r.target == "*" && r.slot == "update"; });
             expect(update != t->motion_rules.end() && update->spec.name == "ink" && update->instead.size() == 1 && update->instead[0].name == "simple") << "the style applies ink to every node, with a simple fallback";
@@ -368,6 +372,6 @@ UTest cases{"theme", [] {
         expect(!wrong.has_value() && all(wrong.error()).contains("`updtae` is not a slot") && all(wrong.error()).contains("`later` is not a slot")) << (wrong ? "accepted" : all(wrong.error()));
         expect(lib.add_styles(R"({"style": {"v": {"theme": "light", "motions": {"update": "swirl"}}}})", "v.style.omui.json").has_value());
         auto unknown = lib.compose_style("v");
-        expect(!unknown.has_value() && unknown.error().contains("`\"swirl\"` is not a motion")) << (unknown ? "composed" : unknown.error());
+        expect(!unknown.has_value() && unknown.error().text().contains("`\"swirl\"` is not a motion")) << (unknown ? "composed" : unknown.error().text());
     };
 }};

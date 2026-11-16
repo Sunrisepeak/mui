@@ -3,6 +3,7 @@
 module omui;
 
 import std;
+import mlibs.error;
 import omui.core;
 import omui.view;
 import omui.host.web;
@@ -46,9 +47,9 @@ std::vector<std::string> host_locales() { return browser_locales(); }
 
 namespace omui {
 
-std::expected<void, std::string> choose_renderer(std::string_view name) {
+std::expected<void, Failure> choose_renderer(std::string_view name) {
     if (name != "automatic" && name != "gpu" && name != "cpu" && name != "webgpu" && name != "webgl")
-        return std::unexpected(std::format("`{}` is not a renderer (automatic, gpu, cpu, webgpu, webgl)", name));
+        return std::unexpected(Failure{mlibs::error::Kind::invalid_argument, std::format("`{}` is not a renderer (automatic, gpu, cpu, webgpu, webgl)", name)});
     if (!reload_page_with("renderer", name == "automatic" ? std::string_view{} : name)) return std::unexpected("no page to load again");
     return {};
 }

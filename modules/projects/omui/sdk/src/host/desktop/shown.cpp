@@ -2,6 +2,7 @@
 module omui;
 
 import std;
+import mlibs.error;
 import omui.core;
 import omui.view;
 import omui.host.sdl3;
@@ -48,9 +49,9 @@ std::vector<std::string> host_locales() { return preferred_locales(); }
 
 namespace omui {
 
-std::expected<void, std::string> choose_renderer(std::string_view name) {
+std::expected<void, Failure> choose_renderer(std::string_view name) {
     if (name != "automatic" && name != "gpu" && name != "cpu")
-        return std::unexpected(std::format("`{}` is not a renderer (automatic, gpu, cpu)", name));
+        return std::unexpected(Failure{mlibs::error::Kind::invalid_argument, std::format("`{}` is not a renderer (automatic, gpu, cpu)", name)});
     return std::unexpected(name == "automatic" ? std::string("the next start chooses (without --gpu or --cpu)")
                                                : std::format("the next start draws with the {} (--{})", name == "gpu" ? "GPU" : "CPU", name));
 }

@@ -23,6 +23,7 @@
 export module omui.theme;
 
 import std;
+import mlibs.error;
 import omui.core;
 import omui.view;
 
@@ -124,6 +125,28 @@ struct Style {
 // keys in order).
 [[nodiscard]] std::string write_style(const Style& style);
 
+// Why a theme or a style cannot be composed (mlibs.error): its code, the file or name where, and what was found.
+enum class ThemeError : std::uint8_t { no_layers, unknown_theme, overlay_first, cycle, unknown_base, extends_overlay, unknown_overlay, not_an_overlay, unknown_token, unknown_style, style_base, bad_motion };
+[[nodiscard]] constexpr mlibs::error::Description describe(ThemeError error) noexcept {
+    using Kind = mlibs::error::Kind;
+    switch (error) {
+        case ThemeError::no_layers: return {"omui.theme.no-layers", Kind::invalid_argument, "name a theme, then any overlays over it"};
+        case ThemeError::unknown_theme: return {"omui.theme.unknown-theme", Kind::not_found, "no theme of that name"};
+        case ThemeError::overlay_first: return {"omui.theme.overlay-first", Kind::invalid_argument, "an overlay comes after a theme"};
+        case ThemeError::cycle: return {"omui.theme.cycle", Kind::invalid_argument, "a theme extends itself"};
+        case ThemeError::unknown_base: return {"omui.theme.unknown-base", Kind::not_found, "a theme extends one no file declares"};
+        case ThemeError::extends_overlay: return {"omui.theme.extends-overlay", Kind::invalid_argument, "a theme extends a theme, not an overlay"};
+        case ThemeError::unknown_overlay: return {"omui.theme.unknown-overlay", Kind::not_found, "no overlay of that name"};
+        case ThemeError::not_an_overlay: return {"omui.theme.not-an-overlay", Kind::invalid_argument, "after the theme, only overlays"};
+        case ThemeError::unknown_token: return {"omui.theme.unknown-token", Kind::invalid_argument, "a layer sets a token the theme under it does not have"};
+        case ThemeError::unknown_style: return {"omui.theme.unknown-style", Kind::not_found, "no style of that name"};
+        case ThemeError::style_base: return {"omui.theme.style-base", Kind::failed, "a style's layers cannot be composed", true};
+        case ThemeError::bad_motion: return {"omui.theme.bad-motion", Kind::invalid_argument, "a style names a motion that is not one"};
+    }
+    return {"omui.theme.?", Kind::internal};
+}
+using ThemeFailure = mlibs::error::Error<ThemeError>;
+
 class Library {
 public:
     // Adds what a file declares. A name another file already declared is
@@ -139,14 +162,14 @@ public:
     // A theme with overlays over it, in order: {"dark", "compact"}. The first
     // is a theme (its `extends` chain applied from the root up), the rest are
     // overlays. The result is named by its layers: "dark+compact".
-    [[nodiscard]] std::expected<Theme, std::string> compose(std::span<const std::string> layers) const;
+    [[nodiscard]] std::expected<Theme, ThemeFailure> compose(std::span<const std::string> layers) const;
 
     // Style packs: added like themes (a file again replaces what it declared).
     std::expected<void, Diagnostics> add_styles(std::string_view source, std::string_view file);
     [[nodiscard]] std::vector<std::string> styles() const;
     [[nodiscard]] std::optional<Style> find_style(std::string_view name) const;
     // A style's theme: its layers composed, its tokens over them.
-    [[nodiscard]] std::expected<Theme, std::string> compose_style(std::string_view name) const;
+    [[nodiscard]] std::expected<Theme, ThemeFailure> compose_style(std::string_view name) const;
 
 private:
     mutable std::mutex         mutex_;
@@ -159,13 +182,13 @@ private:
 [[nodiscard]] Library& library();
 
 // Composes from the program's library and gives the runtime the result.
-std::expected<void, std::string> apply(Runtime& rt, std::span<const std::string> layers);
+std::expected<void, ThemeFailure> apply(Runtime& rt, std::span<const std::string> layers);
 // A style: its theme and its effects to the runtime, seen as a cross-fade
 // from what was on screen (unless `crossfade` is false: a first frame).
-std::expected<void, std::string> apply_style(Runtime& rt, std::string_view name, bool crossfade = true);
+std::expected<void, ThemeFailure> apply_style(Runtime& rt, std::string_view name, bool crossfade = true);
 // A style for a theme scope only (Runtime::set_scope): the nodes whose
 // theme_scope is `scope` take it, the cross-fade covers their area, and the
 // rest of the window keeps its own.
-std::expected<void, std::string> apply_style(Runtime& rt, std::string_view name, std::string_view scope, bool crossfade = true);
+std::expected<void, ThemeFailure> apply_style(Runtime& rt, std::string_view name, std::string_view scope, bool crossfade = true);
 
 }  // namespace omui::theme

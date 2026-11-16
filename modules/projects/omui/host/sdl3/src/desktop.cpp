@@ -216,7 +216,7 @@ struct Desktop::Impl final : WindowHost {
 
     // A device for the window, when the options and the machine say the GPU
     // draws: none for a software rasteriser unless the GPU is insisted on.
-    std::expected<void, std::string> open_gpu() {
+    std::expected<void, ViewFailure> open_gpu() {
         using R = DesktopOptions::Renderer;
         if (options.renderer == R::cpu) return {};
         xrender::rhi::sdl::Options o;
@@ -226,13 +226,13 @@ struct Desktop::Impl final : WindowHost {
         o.vulkan_library = options.vulkan_library;
         auto made = xrender::rhi::sdl::create(o);
         if (!made) {
-            if (options.renderer == R::gpu) return std::unexpected(std::format("no GPU device for the window: {}", made.error().message));
+            if (options.renderer == R::gpu) return std::unexpected(ViewFailure{ViewError::device_failed, std::format("no GPU device for the window: {}", made.error().message)});
             return {};
         }
         if ((*made)->caps().software && options.renderer == R::automatic) return {};  // the CPU renderer is faster
         auto r = xrender::GpuFrame::create(**made);
         if (!r) {
-            if (options.renderer == R::gpu) return std::unexpected(std::format("the GPU renderer: {}", r.error().message));
+            if (options.renderer == R::gpu) return std::unexpected(ViewFailure{ViewError::device_failed, std::format("the GPU renderer: {}", r.error().message)});
             return {};
         }
         device = std::move(*made);
@@ -242,14 +242,14 @@ struct Desktop::Impl final : WindowHost {
     }
 
     // The frame as shown, read back (the GPU's texture, or the CPU's surface).
-    std::expected<xrender::raster::Surface, std::string> pixels() {
+    std::expected<xrender::raster::Surface, ViewFailure> pixels() {
         if (!gpu) {
-            if (frame.width() <= 0) return std::unexpected("nothing shown yet");
+            if (frame.width() <= 0) return std::unexpected(ViewFailure{ViewError::nothing_shown});
             return frame;
         }
-        if (!gpu_frame) return std::unexpected("nothing shown yet");
+        if (!gpu_frame) return std::unexpected(ViewFailure{ViewError::nothing_shown});
         auto bytes = device->read(gpu_frame, mlibs::rhi::Region{0, 0, gpu_w, gpu_h});
-        if (!bytes) return std::unexpected(bytes.error().message);
+        if (!bytes) return std::unexpected(ViewFailure{ViewError::capture_failed, bytes.error().message});
         xrender::raster::Surface out(static_cast<int>(gpu_w), static_cast<int>(gpu_h));
         std::memcpy(out.pixels().data(), bytes->data(), bytes->size());
         return out;
@@ -407,7 +407,7 @@ Desktop::~Desktop() {
     impl_->window.reset();
 }
 
-std::expected<void, std::string> Desktop::open() {
+std::expected<void, ViewFailure> Desktop::open() {
     Impl& d = *impl_;
     if (d.window) return {};
     // A window for the GPU first (when it may draw); the CPU's otherwise.
@@ -418,7 +418,7 @@ std::expected<void, std::string> Desktop::open() {
     // Where the interface draws nothing, a frameless window shows what is behind it.
     if (d.framework) d.options.background = Color::transparent();
     auto w = platform::open(wo);
-    if (!w) return std::unexpected(w.error());
+    if (!w) return std::unexpected(ViewFailure{ViewError::window_failed, w.error()});
     d.window = std::move(*w);
     if (try_gpu) {
         if (auto g = d.open_gpu(); !g) return std::unexpected(g.error());
@@ -427,7 +427,7 @@ std::expected<void, std::string> Desktop::open() {
             d.window.reset();
             wo.gpu = false;
             auto again = platform::open(wo);
-            if (!again) return std::unexpected(again.error());
+            if (!again) return std::unexpected(ViewFailure{ViewError::window_failed, again.error()});
             d.window = std::move(*again);
         }
     }
@@ -500,14 +500,14 @@ std::expected<void, std::string> Desktop::open() {
             d.runtime->set_native_surfaces(std::move(surfaces));
         }
     }
-    d.runtime->set_svg_capture([&d](Rect region) -> std::expected<std::string, std::string> {
+    d.runtime->set_svg_capture([&d](Rect region) -> std::expected<std::string, ViewFailure> {
         const xrender::Resources resources{&d.runtime->images(), d.glyphs.get()};
         auto capture = agent::vector_capture(*d.runtime, resources, region, d.runtime->scale(), std::nullopt);
         if (!capture) return std::unexpected(capture.error());
         return std::move(capture->svg);
     });
     // The frame on screen as PNG, cut to a region: the runtime's capture_png and the agent's capture.
-    const auto shown_png = [&d](Rect region) -> std::expected<std::vector<std::uint8_t>, std::string> {
+    const auto shown_png = [&d](Rect region) -> std::expected<std::vector<std::uint8_t>, ViewFailure> {
         // The frame on screen, cut to the region (logical pixels).
         auto shown_frame = d.pixels();
         if (!shown_frame) return std::unexpected(shown_frame.error());
@@ -515,9 +515,11 @@ std::expected<void, std::string> Desktop::open() {
         const PixelRect r = mlibs::geom::snap(region, d.runtime->scale());
         const int x0 = std::clamp(r.x, 0, f.width()), y0 = std::clamp(r.y, 0, f.height());
         const int x1 = std::clamp(r.x + r.width, x0, f.width()), y1 = std::clamp(r.y + r.height, y0, f.height());
-        if (x1 <= x0 || y1 <= y0) return std::unexpected("the region is outside the window");
+        if (x1 <= x0 || y1 <= y0) return std::unexpected(ViewFailure{ViewError::empty_region, "the region is outside the window"});
         mlibs::image::View v{reinterpret_cast<const std::uint8_t*>(f.row(y0) + x0), x1 - x0, y1 - y0, f.width() * 4, mlibs::image::Alpha::premultiplied};
-        return mlibs::image::encode_png(v);
+        auto png = mlibs::image::encode_png(v);
+        if (!png) return std::unexpected(ViewFailure{ViewError::capture_failed, std::move(png.error())});
+        return std::move(*png);
     };
     d.runtime->set_png_capture(shown_png);
     if (d.options.agent) {
@@ -698,10 +700,12 @@ void Desktop::synthesize(std::span<const InputEvent> events) {
     if (impl_->window) platform::synthesize(*impl_->window, events);
 }
 
-std::expected<xrender::raster::Surface, std::string> Desktop::window_pixels() {
-    if (!impl_->window) return std::unexpected("the window is not open");
+std::expected<xrender::raster::Surface, ViewFailure> Desktop::window_pixels() {
+    if (!impl_->window) return std::unexpected(ViewFailure{ViewError::not_open});
     if (impl_->gpu) return impl_->pixels();  // the frame the swapchain was given, exactly
-    return platform::read_back(*impl_->window);
+    auto read = platform::read_back(*impl_->window);
+    if (!read) return std::unexpected(ViewFailure{ViewError::capture_failed, std::move(read.error())});
+    return std::move(*read);
 }
 
 std::vector<std::string> preferred_locales() { return platform::preferred_locales(); }

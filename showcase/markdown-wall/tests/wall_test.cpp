@@ -582,7 +582,7 @@ UTest cases{"showcase.markdown-wall", [] {
 
     "the tour in the program (TypeScript) and as an agent (Python): the same records, the same wall (§3.6)"_test = [] {
         auto ts = lang::ts::compile(scripts() / "tour.ts");
-        expect(ts.has_value()) << (ts ? std::string{} : ts.error());
+        expect(ts.has_value()) << (ts ? std::string{} : ts.error().text());
         if (!ts) return;
         const Tour t = in_process([](lang::Session& s) { return std::make_unique<lang::js::Script>(s); }, *ts, "tour.ts");
         const Tour p = as_agent();

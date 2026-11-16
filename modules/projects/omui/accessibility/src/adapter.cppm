@@ -33,7 +33,7 @@ class Adapter {
 public:
     // `window`: the HWND (Windows) or NSWindow* (macOS) the tree belongs to;
     // ignored on Linux. On Windows, before the window is first shown.
-    [[nodiscard]] static std::expected<std::unique_ptr<Adapter>, std::string> attach(Mirror& mirror, void* window,
+    [[nodiscard]] static std::expected<std::unique_ptr<Adapter>, Failure> attach(Mirror& mirror, void* window,
                                                                                     AdapterOptions options = {});
     ~Adapter();
     Adapter(const Adapter&) = delete;

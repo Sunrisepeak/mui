@@ -12,6 +12,7 @@
 export module omui.lang.ts:strip;
 
 import std;
+import :error;
 
 export namespace omui::lang::ts {
 
@@ -29,8 +30,8 @@ struct TypeScriptProblem {
 [[nodiscard]] std::string to_text(const std::vector<TypeScriptProblem>& problems);
 
 // A TypeScript file as JavaScript; its problems as `file:line:column: text`, one a line.
-[[nodiscard]] std::expected<std::string, std::string> compile(const std::filesystem::path& file);
+[[nodiscard]] std::expected<std::string, TsFailure> compile(const std::filesystem::path& file);
 // TypeScript source (an editor's text, `name` in its problems) as JavaScript.
-[[nodiscard]] std::expected<std::string, std::string> compile_source(std::string_view source, std::string_view name = "main.ts");
+[[nodiscard]] std::expected<std::string, TsFailure> compile_source(std::string_view source, std::string_view name = "main.ts");
 
 }  // namespace omui::lang::ts

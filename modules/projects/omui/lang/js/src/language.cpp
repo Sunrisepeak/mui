@@ -7,6 +7,7 @@ import omui.abi;
 import omui.lang;
 import omui.lang.ts;
 import omui.player;
+import omui.core;
 
 namespace omui::lang::js {
 
@@ -73,7 +74,7 @@ std::string describe_typescript(std::string_view catalog_json) {
 // TypeScript alike (omui.lang.ts:edit); properties as the builders write them, in camelCase.
 player::SourceEditor source_editor() {
     return {.set = [](std::string_view text, std::size_t line, std::size_t column, std::string_view property,
-                      std::optional<std::string_view> value) -> std::expected<std::string, std::string> {
+                      std::optional<std::string_view> value) -> std::expected<std::string, Failure> {
                 const std::string name = ts::camel_case(property);
                 return value ? ts::set_property(text, line, column, name, *value) : ts::remove_property(text, line, column, name);
             },
@@ -89,9 +90,9 @@ player::Language javascript() { return {"js", {".js", ".mjs"}, make, {}, {}, des
 player::Language typescript() {
     return {"ts", {".ts", ".mts"}, make, [](const std::filesystem::path& file) { return ts::compile(file); },
             [](std::string_view text, const std::filesystem::path& file) { return ts::compile_source(text, std::string(reinterpret_cast<const char*>(file.generic_u8string().c_str()))); },
-            describe_typescript, declare_typescript, source_editor(), [](const std::filesystem::path& file) -> std::expected<std::string, std::string> {
+            describe_typescript, declare_typescript, source_editor(), [](const std::filesystem::path& file) -> std::expected<std::string, Failure> {
                 auto data = ts::evaluate(file);
-                if (!data) return std::unexpected(data.error());
+                if (!data) return std::unexpected(Failure(data.error()));
                 return std::format("{{\"{}\":{}}}", data->kind, data->json);
             }};
 }

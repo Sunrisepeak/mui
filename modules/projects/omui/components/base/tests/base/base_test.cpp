@@ -793,7 +793,7 @@ static UTest cases{"ui.base", [] {
         expect(hash.value() == 0x9ebc220003683659ULL) << std::format("gallery {:016x}", hash.value());
         // The same gallery as vectors: every control named, nothing left as pixels.
         const auto vectors = h.svg();
-        expect(vectors.has_value()) << (vectors ? "" : vectors.error());
+        expect(vectors.has_value()) << (vectors ? "" : vectors.error().text());
         if (vectors) {
             std::ofstream(scratch_dir("ui-base-svg") / "gallery.svg", std::ios::binary) << vectors->svg;
             for (const auto* id : {"main/row:1/c", "main/v", "main/name", "main/filled"})

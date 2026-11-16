@@ -40,7 +40,7 @@ namespace omui {
     ~Desktop();
     Desktop(const Desktop&) = delete;
     Desktop& operator=(const Desktop&) = delete;
-    std::expected<void, std::string> open();
+    std::expected<void, ViewFailure> open();
     [[nodiscard]] bool is_open() const noexcept;
     [[nodiscard]] Runtime& runtime() noexcept;
     [[nodiscard]] semantic::Tree& tree() noexcept;
@@ -52,7 +52,7 @@ namespace omui {
     void close();
     [[nodiscard]] bool closing() const noexcept;
     void synthesize(std::span<const InputEvent> events);
-    [[nodiscard]] std::expected<xrender::raster::Surface, std::string> window_pixels();
+    [[nodiscard]] std::expected<xrender::raster::Surface, ViewFailure> window_pixels();
     [[nodiscard]] float scale() const noexcept;
     [[nodiscard]] agent::Endpoint* endpoint() noexcept;
     [[nodiscard]] accessibility::Mirror* accessibility_mirror() noexcept;

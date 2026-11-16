@@ -10,6 +10,7 @@
 // declarations of components and native modules, for every tool alike.
 export module omui.lang.ts;
 
+export import :error;
 export import :strip;
 export import :data;
 export import :declare;

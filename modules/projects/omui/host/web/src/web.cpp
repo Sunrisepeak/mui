@@ -144,7 +144,7 @@ struct Web::Impl {
         runtime->set_clipboard([] { return page::clipboard(); }, [](std::string_view t) { page::set_clipboard(t); });
         runtime->set_url_opener([](std::string_view url) { return page::open_url(url); });
         runtime->set_file_offer([](const Runtime::OfferedFile& file) { return page::offer_file(file.name, file.type, file.bytes); });
-        runtime->set_svg_capture([this](Rect region) -> std::expected<std::string, std::string> {
+        runtime->set_svg_capture([this](Rect region) -> std::expected<std::string, ViewFailure> {
             const xrender::Resources resources{&runtime->images(), glyphs.get()};
             auto capture = agent::vector_capture(*runtime, resources, region, scale, std::nullopt);
             if (!capture) return std::unexpected(capture.error());
@@ -171,17 +171,19 @@ struct Web::Impl {
             o.default_actor = "agent:page";
             o.input = options.agent_input;
             o.remote = true;  // window.omui is the bus: openas decides, never the person (S-10, S-11)
-            o.capture = [this](Rect region) -> std::expected<std::vector<std::uint8_t>, std::string> {
+            o.capture = [this](Rect region) -> std::expected<std::vector<std::uint8_t>, ViewFailure> {
                 // The frame on the canvas, cut to the region (logical pixels).
                 const xrender::raster::Surface& f = frame;
                 const int x0 = std::clamp(static_cast<int>(std::floor(region.x * scale)), 0, f.width());
                 const int y0 = std::clamp(static_cast<int>(std::floor(region.y * scale)), 0, f.height());
                 const int x1 = std::clamp(static_cast<int>(std::ceil(region.right() * scale)), x0, f.width());
                 const int y1 = std::clamp(static_cast<int>(std::ceil(region.bottom() * scale)), y0, f.height());
-                if (x1 <= x0 || y1 <= y0) return std::unexpected("the region is outside the canvas (or nothing is shown yet)");
+                if (x1 <= x0 || y1 <= y0) return std::unexpected(ViewFailure{ViewError::empty_region, "the region is outside the canvas (or nothing is shown yet)"});
                 mlibs::image::View v{reinterpret_cast<const std::uint8_t*>(f.row(y0) + x0), x1 - x0, y1 - y0, f.width() * 4,
                                 mlibs::image::Alpha::premultiplied};
-                return mlibs::image::encode_png(v);
+                auto png = mlibs::image::encode_png(v);
+                if (!png) return std::unexpected(ViewFailure{ViewError::capture_failed, std::move(png.error())});
+                return std::move(*png);
             };
             o.capture_svg = [this](Rect region) {
                 const xrender::Resources resources{&runtime->images(), glyphs.get()};
@@ -588,13 +590,13 @@ NodeId Web::mount(std::string_view slot, View view) { return impl_->runtime->mou
 const xrender::raster::Surface& Web::pixels() const noexcept { return impl_->frame; }
 std::string_view Web::renderer() const noexcept { return impl_->drawn_by; }
 
-std::expected<xrender::raster::Surface, std::string> Web::read_frame() {
+std::expected<xrender::raster::Surface, ViewFailure> Web::read_frame() {
     Impl& d = *impl_;
     if (!d.gpu) return d.frame;
-    if (!d.target.valid()) return std::unexpected(std::string("no frame shown yet"));
+    if (!d.target.valid()) return std::unexpected(ViewFailure{ViewError::nothing_shown});
     const auto w = static_cast<std::uint32_t>(d.target_w), h = static_cast<std::uint32_t>(d.target_h);
     auto bytes = d.device->read(d.target, mlibs::rhi::Region{0, 0, w, h});
-    if (!bytes) return std::unexpected(bytes.error().message);
+    if (!bytes) return std::unexpected(ViewFailure{ViewError::capture_failed, bytes.error().message});
     xrender::raster::Surface s(d.target_w, d.target_h);
     for (int y = 0; y < d.target_h; ++y)
         std::memcpy(s.row(y), bytes->data() + static_cast<std::size_t>(y) * w * 4, static_cast<std::size_t>(w) * 4);

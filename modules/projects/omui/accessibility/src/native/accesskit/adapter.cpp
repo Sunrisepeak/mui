@@ -3,6 +3,7 @@
 module omui.accessibility;
 
 import std;
+import mlibs.error;
 import omui.core;
 import mlibs.trace;
 import mcpplibs.mwrap.accesskit;
@@ -302,13 +303,13 @@ struct Adapter::Impl {
     }
 };
 
-std::expected<std::unique_ptr<Adapter>, std::string> Adapter::attach(Mirror& mirror, void* window, AdapterOptions options) {
+std::expected<std::unique_ptr<Adapter>, Failure> Adapter::attach(Mirror& mirror, void* window, AdapterOptions options) {
     mlibs::trace::Span span("accessibility.attach", "accessibility");
     auto impl = std::make_unique<Impl>(mirror, std::move(options));
     (void)mirror.refresh();  // the activation that may come at once reads it
     native::Handlers h{&Impl::on_activate, &Impl::on_action, &Impl::on_deactivate, impl.get()};
     auto service = native::open(window, h);
-    if (!service) return std::unexpected(service.error());
+    if (!service) return std::unexpected(Failure{mlibs::error::Kind::failed, std::move(service.error())});
     impl->service = *service;
     log_.info("serving {} nodes to {}", mirror.size(), native::name());
     return std::unique_ptr<Adapter>(new Adapter(std::move(impl)));

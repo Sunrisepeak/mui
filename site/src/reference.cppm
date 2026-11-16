@@ -43,7 +43,7 @@ public:
     [[nodiscard]] std::uint64_t hash(std::int32_t frame);
     // The pixels of the frame last asked for, and as a PNG.
     [[nodiscard]] const xrender::raster::Surface& pixels();
-    [[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> png();
+    [[nodiscard]] std::expected<std::vector<std::uint8_t>, ViewFailure> png();
 
 private:
     void restart();

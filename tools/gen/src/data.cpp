@@ -23,14 +23,14 @@ std::expected<mlibs::json::Document, std::string> json_document(const std::files
 
 std::expected<Snapshot, std::string> snapshot(const std::filesystem::path& file) {
     auto data = lang::ts::evaluate(file);
-    if (!data) return std::unexpected(data.error());
+    if (!data) return std::unexpected(data.error().text());
     const auto name = generic_utf8(file.filename());
     return Snapshot{name.substr(0, name.size() - std::string_view(".ts").size()) + ".json", std::format("{{\"{}\":{}}}\n", data->kind, data->json)};
 }
 
 std::expected<mlibs::json::Document, std::string> data_document(const std::filesystem::path& file, std::string_view kind) {
     auto data = lang::ts::evaluate(file);
-    if (!data) return std::unexpected(data.error());
+    if (!data) return std::unexpected(data.error().text());
     const auto name = generic_utf8(file.filename());
     const std::string function = std::format("define{}{}", static_cast<char>(kind[0] - 'a' + 'A'), kind.substr(1));
     if (data->kind != kind) return std::unexpected(std::format("{}: a {} file's default export is {}(…), not a {}", name, kind, function, data->kind));

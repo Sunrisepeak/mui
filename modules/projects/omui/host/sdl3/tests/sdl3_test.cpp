@@ -83,14 +83,14 @@ UTest cases{"host.sdl3", [] {
     "the window shows the frame, presented only when it changes"_test = [] {
         Desktop d(offscreen());
         auto opened = d.open();
-        expect(opened.has_value()) << (opened ? "" : opened.error());
+        expect(opened.has_value()) << (opened ? "" : opened.error().text());
         if (!opened) return;
         auto color = signal(std::string("#ff0000"));
         d.mount("main", column({.padding = 20}, {box({.id = "swatch", .width = 40, .height = 40, .background = Prop<Fill>(Source{std::nullopt, [color] { return Value(color.get()); }, {}})})}));
         expect(d.step());
         expect(d.frames_shown() == 1);
         auto px = d.window_pixels();
-        expect(px.has_value()) << (px ? "" : px.error());
+        expect(px.has_value()) << (px ? "" : px.error().text());
         if (!px) return;
         expect(px->width() == static_cast<int>(240 * d.scale()));
         auto at = px->at(static_cast<int>(40 * d.scale()), static_cast<int>(40 * d.scale()));
@@ -141,7 +141,7 @@ float4 invert_fs(EffectPixel px) : SV_Target {
         expect(eq(d.frames_shown(), std::size_t{1}));
         const auto pixel = [&](int x, int y) -> std::optional<xrender::raster::Rgba8> {
             auto px = d.window_pixels();
-            expect(px.has_value()) << (px ? "" : px.error());
+            expect(px.has_value()) << (px ? "" : px.error().text());
             if (!px) return std::nullopt;
             return px->at(static_cast<int>(x * d.scale()), static_cast<int>(y * d.scale()));
         };
@@ -199,7 +199,7 @@ float4 invert_fs(EffectPixel px) : SV_Target {
             expect(d.step());
             const auto pixel = [&](int x, int y) -> xrender::raster::Rgba8 {
                 auto px = d.window_pixels();
-                expect(px.has_value()) << (px ? "" : px.error());
+                expect(px.has_value()) << (px ? "" : px.error().text());
                 return px ? px->at(static_cast<int>(x * d.scale()), static_cast<int>(y * d.scale())) : xrender::raster::Rgba8{};
             };
             const auto first = pixel(40, 40), outside = pixel(5, 5);
@@ -497,7 +497,7 @@ float4 invert_fs(EffectPixel px) : SV_Target {
         o.size = {360, 240};
         Desktop d(o);
         auto opened = d.open();
-        expect(fatal(opened.has_value())) << (opened ? "" : opened.error());
+        expect(fatal(opened.has_value())) << (opened ? "" : opened.error().text());
         d.mount("main", column({.padding = 20}, {web_view({.id = "page", .label = "Example", .url = std::string("https://example.org/"), .width = 300, .height = 160})}));
         Runtime& rt = d.runtime();
         // Its address, as the view reads it back (the view sets it as the load starts; no network needed).

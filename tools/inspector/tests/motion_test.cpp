@@ -49,8 +49,9 @@ UTest cases{"inspector.motion", [] {
         // Not a count: refused with the reader's words, and the document as it was.
         const auto before = session.perform("document");
         const auto wrong = session.perform("set", Value{}.set("where", "/program/items/0/bounces").set("value", "x"));
-        expect(!wrong.has_value() && wrong.error().contains("number")) << (wrong ? "taken" : wrong.error());
-        expect(session.perform("document") == before && session.perform("snapshot")->get("undo")->as_int() == 0) << "nothing changed";
+        expect(!wrong.has_value() && wrong.error().text().contains("number")) << (wrong ? "taken" : wrong.error().text());
+        const auto after = session.perform("document");
+        expect(before && after && *after == *before && session.perform("snapshot")->get("undo")->as_int() == 0) << "nothing changed";
         // A longer drop: the animation is longer; undone and redone.
         expect(session.perform("set", Value{}.set("where", "/program/items/0/duration").set("value", 2.0)).has_value());
         const double longer = session.duration();

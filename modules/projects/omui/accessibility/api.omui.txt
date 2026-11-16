@@ -13,7 +13,7 @@ namespace omui::accessibility {
   };
   [[nodiscard]] std::string debug(const Mirror& mirror, const AdapterOptions& options = {…});
   class Adapter {
-    [[nodiscard]] static std::expected<std::unique_ptr<Adapter>, std::string> attach(Mirror& mirror, void* window, AdapterOptions options = {…});
+    [[nodiscard]] static std::expected<std::unique_ptr<Adapter>, Failure> attach(Mirror& mirror, void* window, AdapterOptions options = {…});
     ~Adapter();
     Adapter(const Adapter&) = delete;
     Adapter& operator=(const Adapter&) = delete;

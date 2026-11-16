@@ -27,3 +27,4 @@ sources = ["src/*.cppm", "src/*.cpp"]
 mlibs.cts     = { path = "../../../base/cts" }
 nlohmann.json = "3.12.0"
 mcpplibs.os   = "0.4.4"
+mlibs.utils   = { path = "../../../base/utils" }  # mlibs.error: why the scenarios cannot be read

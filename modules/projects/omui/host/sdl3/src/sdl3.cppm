@@ -88,7 +88,7 @@ public:
     Desktop& operator=(const Desktop&) = delete;
 
     // Opens the window (run() opens it when it is not open yet).
-    std::expected<void, std::string> open();
+    std::expected<void, ViewFailure> open();
     [[nodiscard]] bool is_open() const noexcept;
 
     [[nodiscard]] Runtime& runtime() noexcept;
@@ -114,7 +114,7 @@ public:
     // (automation, tests).
     void synthesize(std::span<const InputEvent> events);
     // What the window shows, read back (software rendering reads exactly).
-    [[nodiscard]] std::expected<xrender::raster::Surface, std::string> window_pixels();
+    [[nodiscard]] std::expected<xrender::raster::Surface, ViewFailure> window_pixels();
     [[nodiscard]] float scale() const noexcept;
     [[nodiscard]] agent::Endpoint* endpoint() noexcept;
     // The tree as assistive technology was last told it; the adapter

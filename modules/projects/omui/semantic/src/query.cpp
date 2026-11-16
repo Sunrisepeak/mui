@@ -1,6 +1,7 @@
 module omui.semantic;
 
 import std;
+import mlibs.error;
 import omui.core;
 
 namespace omui::semantic {
@@ -20,13 +21,13 @@ bool is_interactive(const spec::SemanticNode& n) {
     return std::ranges::any_of(n.actions, [](const spec::ActionDesc& a) { return a.effect != Effect::read; });
 }
 
-std::expected<std::vector<State>, std::string> states_of(const Value& v, std::string_view field) {
+std::expected<std::vector<State>, QueryFailure> states_of(const Value& v, std::string_view field) {
     std::vector<State> out;
     const Value::List* l = v.list();
-    if (!l) return std::unexpected(std::format("`{}` is a list of state names", field));
+    if (!l) return std::unexpected(QueryFailure{QueryError::not_a_list, std::format("`{}` is a list of state names", field), std::string(field)});
     for (const Value& s : *l) {
         auto st = spec::parse_state(s.as_string());
-        if (!st) return std::unexpected(std::format("`{}`: no state `{}`", field, s.as_string()));
+        if (!st) return std::unexpected(QueryFailure{QueryError::unknown_state, std::format("`{}`: no state `{}`", field, s.as_string()), std::string(field)});
         out.push_back(*st);
     }
     return out;
@@ -80,15 +81,15 @@ bool Query::matches(const spec::SemanticNode& n) const {
     return true;
 }
 
-std::expected<Query, std::string> Query::parse(const Value& v) {
-    if (!v.map()) return std::unexpected("a query is an object");
+std::expected<Query, QueryFailure> Query::parse(const Value& v) {
+    if (!v.map()) return std::unexpected(QueryFailure{QueryError::not_an_object, "a query is an object"});
     Query q;
     for (const auto& [k, x] : *v.map()) {
         if (k == "id") q.id = std::string(x.as_string());
         else if (k == "under") q.under = std::string(x.as_string());
         else if (k == "role") {
             auto r = spec::parse_role(x.as_string());
-            if (!r) return std::unexpected(std::format("no role `{}`", x.as_string()));
+            if (!r) return std::unexpected(QueryFailure{QueryError::unknown_role, std::format("no role `{}`", x.as_string()), "role"});
             q.role = *r;
         } else if (k == "name") q.name = std::string(x.as_string());
         else if (k == "state") {
@@ -102,16 +103,16 @@ std::expected<Query, std::string> Query::parse(const Value& v) {
         } else if (k == "value") q.value = x;
         else if (k == "within") {
             const Value::List* l = x.list();
-            if (!l || l->size() != 4) return std::unexpected("`within` is [x, y, width, height]");
+            if (!l || l->size() != 4) return std::unexpected(QueryFailure{QueryError::bad_rect, "`within` is [x, y, width, height]", "within"});
             q.within = Rect{static_cast<float>((*l)[0].as_double()), static_cast<float>((*l)[1].as_double()),
                             static_cast<float>((*l)[2].as_double()), static_cast<float>((*l)[3].as_double())};
         } else if (k == "at") {
             const Value::List* l = x.list();
-            if (!l || l->size() != 2) return std::unexpected("`at` is [x, y]");
+            if (!l || l->size() != 2) return std::unexpected(QueryFailure{QueryError::bad_point, "`at` is [x, y]", "at"});
             q.at = Point{static_cast<float>((*l)[0].as_double()), static_cast<float>((*l)[1].as_double())};
         } else if (k == "interactive") q.interactive = x.as_bool();
         else if (k == "limit") q.limit = static_cast<std::size_t>(std::max<std::int64_t>(0, x.as_int()));
-        else return std::unexpected(std::format("a query has no field `{}` (id, under, role, name, state, not, value, within, at, interactive, limit)", k));
+        else return std::unexpected(QueryFailure{QueryError::unknown_field, std::format("a query has no field `{}` (id, under, role, name, state, not, value, within, at, interactive, limit)", k), k});
     }
     return q;
 }
@@ -138,19 +139,19 @@ Value Query::to_value() const {
     return v;
 }
 
-std::expected<Condition, std::string> Condition::parse(const Value& v) {
-    if (!v.map()) return std::unexpected("a condition is an object");
+std::expected<Condition, QueryFailure> Condition::parse(const Value& v) {
+    if (!v.map()) return std::unexpected(QueryFailure{QueryError::not_an_object, "a condition is an object"});
     Condition c;
     for (const auto& [k, x] : *v.map()) {
         if (k == "q") {
             auto q = Query::parse(x);
-            if (!q) return std::unexpected(q.error());
+            if (!q) { auto failure = std::move(q.error()); failure.where = "q/" + failure.where; return std::unexpected(std::move(failure)); }
             c.query = std::move(*q);
         } else if (k == "absent") c.absent = x.as_bool();
         else if (k == "settled") c.settled = x.as_bool();
-        else if (k != "timeout") return std::unexpected(std::format("a condition has no field `{}` (q, absent, settled, timeout)", k));
+        else if (k != "timeout") return std::unexpected(QueryFailure{QueryError::unknown_field, std::format("a condition has no field `{}` (q, absent, settled, timeout)", k), k});
     }
-    if (!c.query && !c.settled) return std::unexpected("a condition needs `q` or `settled`");
+    if (!c.query && !c.settled) return std::unexpected(QueryFailure{QueryError::nothing_to_wait_for, "a condition needs `q` or `settled`"});
     return c;
 }
 

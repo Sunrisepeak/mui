@@ -19,7 +19,7 @@ UTest cases{"theme.compact", [] {
         expect(base.has_value());
         const std::vector<std::string> layers{"plain", "compact"};
         auto t = theme::library().compose(layers);
-        expect(!t && t.error().find("`compact` sets the spacing `l`, which the theme under it does not have") != std::string::npos &&
-                  t.error().find("did you mean") == std::string::npos) << (t ? "composed" : t.error());
+        expect(!t && t.error().text().find("`compact` sets the spacing `l`, which the theme under it does not have") != std::string::npos &&
+                  t.error().text().find("did you mean") == std::string::npos) << (t ? "composed" : t.error().text());
     };
 }};

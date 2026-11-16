@@ -2,6 +2,7 @@ module omui.player;
 
 import std;
 import omui.core;
+import mlibs.error;
 import omui.view;
 import omui.abi;
 import omui.theme;
@@ -144,14 +145,14 @@ struct Player::Impl {
     // A TypeScript one (`*.theme.omui.ts`) is what it evaluates to, by the
     // language of its extension; a `.json` one is read as it is.
     bool add_theme(File& f, bool again) {
-        std::expected<std::string, std::string> text = std::unexpected(std::string("cannot be read"));
+        std::expected<std::string, Failure> text = std::unexpected(Failure{mlibs::error::Kind::not_found, "cannot be read"});
         std::string named = name(f.path);
         if (named.ends_with(".omui.json")) {
             if (auto read = read_file(full(f.path))) text = std::move(*read);
         } else {
             const std::string extension = generic_utf8(f.path.extension());
             const auto language = std::ranges::find_if(languages, [&](const Language& l) { return l.data && std::ranges::contains(l.extensions, extension); });
-            if (language == languages.end()) text = std::unexpected(std::string("no language registered with the player evaluates it"));
+            if (language == languages.end()) text = std::unexpected(Failure{mlibs::error::Kind::not_found, "no language registered with the player evaluates it"});
             else text = language->data(full(f.path));
             named = named.substr(0, named.size() - extension.size()) + ".json";  // what is read: its snapshot
         }
@@ -191,9 +192,9 @@ struct Player::Impl {
     }
 
     bool run(File& f, bool again) {
-        auto code = f.lang->load ? f.lang->load(full(f.path)) : [&]() -> std::expected<std::string, std::string> {
+        auto code = f.lang->load ? f.lang->load(full(f.path)) : [&]() -> std::expected<std::string, Failure> {
             auto t = read_file(full(f.path));
-            if (!t) return std::unexpected(std::string("cannot be read"));
+            if (!t) return std::unexpected(Failure{mlibs::error::Kind::not_found, "cannot be read"});
             return *t;
         }();
         if (!code) {
@@ -243,7 +244,7 @@ struct Player::Impl {
         return read_file(full(path));
     }
 
-    std::expected<std::string, std::string> compiled(const File& f, std::string_view text) const {
+    std::expected<std::string, Failure> compiled(const File& f, std::string_view text) const {
         if (f.lang->load_text) return f.lang->load_text(text, full(f.path));
         return std::string(text);
     }
@@ -257,7 +258,7 @@ struct Player::Impl {
     // ---- Reloading at once (W2): what changed on disk, or the files named, waited for ----
     Value last_reload;  // what the last reload did, an automatic one too
 
-    std::expected<Value, std::string> reload_now(const Value& request) {
+    std::expected<Value, Failure> reload_now(const Value& request) {
         if (const Value* last = request.get("last"); last && last->as_bool())
             return last_reload.is_null() ? Value{}.set("reloaded", Value(Value::List{})).set("changes", Value{}) : last_reload;
         std::set<std::string> named;
@@ -305,18 +306,18 @@ struct Player::Impl {
             if (!ok) fail(name(f.path), problems.size() > said ? problems.back() : std::string("not reloaded"));
         }
         for (File* f : scripts) {
-            auto code = f->lang->load ? f->lang->load(full(f->path)) : [&]() -> std::expected<std::string, std::string> {
+            auto code = f->lang->load ? f->lang->load(full(f->path)) : [&]() -> std::expected<std::string, Failure> {
                 auto text = read_file(full(f->path));
-                if (!text) return std::unexpected(std::string("cannot be read"));
+                if (!text) return std::unexpected(Failure{mlibs::error::Kind::not_found, "cannot be read"});
                 return *text;
             }();
             if (!code) {
-                fail(name(f->path), code.error());
+                fail(name(f->path), code.error().text());
                 continue;
             }
             mlibs::trace::Span span("player.reload", "player");
             if (options.design) rt.present_design();  // shown as a design edit: written in, unwritten, springing
-            if (auto ran = f->engine->reload_now(std::move(*code), generic_utf8(full(f->path))); !ran) fail(name(f->path), ran.error());
+            if (auto ran = f->engine->reload_now(std::move(*code), generic_utf8(full(f->path))); !ran) fail(name(f->path), ran.error().text());
         }
         const double took = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
         Value answer;
@@ -327,10 +328,10 @@ struct Player::Impl {
     }
 
     // Runs `text` as the script, waited for; the semantic changes it made.
-    std::expected<Value, std::string> run_text(File& f, std::string_view text) {
+    std::expected<Value, Failure> run_text(File& f, std::string_view text) {
         auto code = compiled(f, text);
         if (!code) return std::unexpected(code.error());  // nothing ran
-        if (!f.engine) return std::unexpected(std::format("{} is not running", name(f.path)));
+        if (!f.engine) return std::unexpected(Failure{mlibs::error::Kind::refused, std::format("{} is not running", name(f.path))});
         semantic::Tree tree(rt);
         const auto before = tree.snapshot();
         const auto start = std::chrono::steady_clock::now();
@@ -341,21 +342,21 @@ struct Player::Impl {
             ran = f.engine->reload_now(std::move(*code), generic_utf8(full(f.path)));
         }
         const double took = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
-        if (!ran) return std::unexpected(std::format("{}: {}", name(f.path), ran.error()));
+        if (!ran) return std::unexpected(Failure{ran.error().kind, std::format("{}: {}", name(f.path), ran.error().message)});
         return Value{}.set("path", name(f.path)).set("took_ms", took).set("changes", semantic::changes_between(before, tree.snapshot()));
     }
 
     // New text for a script or a module, run at once with its state kept
     // (design.edit, and the structured operations' edits): the semantic
     // changes and the time, or its problems with what ran before running again.
-    std::expected<Value, std::string> edit_source(const std::string& path, std::string_view text) {
+    std::expected<Value, Failure> edit_source(const std::string& path, std::string_view text) {
         File* f = script_named(path);
         if (!f) {
             // A module a script imports: it alone is evaluated again, with its script.
             File* owner = owner_of(path);
-            if (!owner) return std::unexpected(std::format("no script or module `{}` (design.sources lists them)", path));
+            if (!owner) return std::unexpected(Failure{mlibs::error::Kind::not_found, std::format("no script or module `{}` (design.sources lists them)", path)});
             if (auto check = compiled(*owner, text); !check)  // its problems, before anything runs
-                return std::unexpected(std::format("{}: {}", path, check.error()));
+                return std::unexpected(Failure{check.error().kind, std::format("{}: {}", path, check.error().message)});
             const auto file = full(path);
             const auto before = edited.find(path);
             const std::optional<std::string> previous = before != edited.end() ? std::optional(before->second) : std::nullopt;
@@ -415,7 +416,7 @@ struct Player::Impl {
         for (auto it = edited.begin(); it != edited.end();) {
             if (File* f = script_named(it->first)) {
                 if (const auto file_text = read_file(full(f->path)))
-                    if (auto ran = run_text(*f, *file_text); !ran) problem(ran.error());
+                    if (auto ran = run_text(*f, *file_text); !ran) problem(ran.error().text());
             } else if (File* owner = owner_of(it->first)) {
                 owner->engine->module_changed(full(it->first), std::nullopt);
                 if (std::ranges::find(again, owner) == again.end()) again.push_back(owner);
@@ -424,12 +425,12 @@ struct Player::Impl {
             it = edited.erase(it);
         }
         for (File* owner : again)
-            if (auto ran = run_text(*owner, running_text(*owner).value_or(std::string())); !ran) problem(ran.error());
+            if (auto ran = run_text(*owner, running_text(*owner).value_or(std::string())); !ran) problem(ran.error().text());
         return Value{}.set("discarded", Value(std::move(dropped)));
     }
 
     // Every edit written to its file; each file's text before.
-    std::expected<Value, std::string> commit_edits() {
+    std::expected<Value, Failure> commit_edits() {
         Value::List written;
         for (auto it = edited.begin(); it != edited.end();) {
             File* f = script_named(it->first);
@@ -470,7 +471,11 @@ struct Player::Impl {
 Player::Player(Runtime& runtime, Manifest manifest, std::vector<Language> languages, PlayerOptions options)
     : impl_(std::make_unique<Impl>(runtime, std::move(manifest), std::move(languages), options)) {
     // The protocol's `reload` (W2) reloads through the player.
-    runtime.set_source_reloader([impl = impl_.get()](const Value& request) { return impl->reload_now(request); });
+    runtime.set_source_reloader([impl = impl_.get()](const Value& request) -> std::expected<Value, ViewFailure> {
+        auto reloaded = impl->reload_now(request);
+        if (!reloaded) return std::unexpected(ViewFailure{ViewError::reload_failed, std::move(reloaded.error().message)});
+        return std::move(*reloaded);
+    });
 }
 
 Player::~Player() { impl_->rt.set_source_reloader({}); }
@@ -533,7 +538,7 @@ Status Player::show(const std::map<std::string, std::string>& texts) {
     for (const auto& [path, text] : texts) {
         const auto now = impl_->source_text(path);
         if (now && *now == text) continue;
-        if (auto done = impl_->edit_source(path, text); !done) return std::unexpected(std::format("{}: {}", path, done.error()));
+        if (auto done = impl_->edit_source(path, text); !done) return std::unexpected(Failure{done.error().kind, std::format("{}: {}", path, done.error().message)});
     }
     return {};
 }
@@ -555,9 +560,9 @@ std::vector<Player::Source> Player::sources() const {
 
 std::optional<std::string> Player::text(std::string_view path) const { return impl_->source_text(path); }
 
-std::expected<Value, std::string> Player::edit(std::string_view path, std::string_view text) { return impl_->edit_source(std::string(path), text); }
+std::expected<Value, Failure> Player::edit(std::string_view path, std::string_view text) { return impl_->edit_source(std::string(path), text); }
 
-std::expected<Value, std::string> Player::commit_edits() { return impl_->commit_edits(); }
+std::expected<Value, Failure> Player::commit_edits() { return impl_->commit_edits(); }
 
 Value Player::discard_edits() { return impl_->discard_edits(); }
 
@@ -670,7 +675,7 @@ bool Player::idle() const {
 
 std::span<const std::string> Player::problems() const noexcept { return impl_->problems; }
 
-std::expected<std::vector<std::filesystem::path>, std::string> Player::declare(const std::filesystem::path& dir) const {
+std::expected<std::vector<std::filesystem::path>, Failure> Player::declare(const std::filesystem::path& dir) const {
     const Impl& d = *impl_;
     std::string catalog, natives;
     (void)abi::omuiCatalog(d.handle, collect, &catalog);
@@ -679,10 +684,10 @@ std::expected<std::vector<std::filesystem::path>, std::string> Player::declare(c
     for (const Language& l : d.languages) {
         if (!l.declare) continue;
         auto files = l.declare(catalog, natives, d.manifest.base, dir);
-        if (!files) return std::unexpected(std::format("{}: {}", l.name, files.error()));
+        if (!files) return std::unexpected(Failure{files.error().kind, std::format("{}: {}", l.name, files.error().message)});
         written.insert(written.end(), files->begin(), files->end());
     }
-    if (written.empty()) return std::unexpected(std::string("no language registered here declares its API for a type checker"));
+    if (written.empty()) return std::unexpected(Failure{mlibs::error::Kind::not_found, "no language registered here declares its API for a type checker"});
     return written;
 }
 const Manifest& Player::manifest() const noexcept { return impl_->manifest; }

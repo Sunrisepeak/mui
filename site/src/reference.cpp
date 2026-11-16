@@ -100,6 +100,6 @@ std::uint64_t ReferenceReplay::hash(std::int32_t frame) {
 
 const xrender::raster::Surface& ReferenceReplay::pixels() { return s_->h->pixels(); }
 
-std::expected<std::vector<std::uint8_t>, std::string> ReferenceReplay::png() { return s_->h->png(); }
+std::expected<std::vector<std::uint8_t>, ViewFailure> ReferenceReplay::png() { return s_->h->png(); }
 
 }  // namespace omui::site

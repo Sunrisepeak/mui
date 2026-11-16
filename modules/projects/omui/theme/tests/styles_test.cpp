@@ -22,7 +22,7 @@ UTest cases{"theme.styles", [] {
         for (std::string_view n : themes::style_names) {
             expect(names.contains(std::string(n))) << std::string(n);
             auto t = theme::library().compose_style(n);
-            expect(t.has_value()) << (t ? std::string{} : t.error());
+            expect(t.has_value()) << (t ? std::string{} : t.error().text());
             const auto st = theme::library().find_style(n);
             // A creative pack is known by its effects; a platform's (fluent, cupertino, material) by its tokens —
             // colours, corners, type, motion — where the platform has no material of its own to imitate.
@@ -37,7 +37,7 @@ UTest cases{"theme.styles", [] {
             const auto style = theme::library().find_style(name);
             expect(style && !style->motions.empty()) << std::format("{} says how its changes move", name);
             const auto composed = theme::library().compose_style(name);
-            expect(composed.has_value()) << (composed ? std::string{} : composed.error());
+            expect(composed.has_value()) << (composed ? std::string{} : composed.error().text());
             if (!style || !composed) continue;
             for (const auto& motion : style->motions) {
                 const auto& choices = motion.motion;

@@ -25,7 +25,7 @@ void write(const std::filesystem::path& file, std::string_view text) { std::ofst
 std::string problem_of(const std::filesystem::path& dir, std::string_view source, const ts::DataOptions& options = {}) {
     write(dir / "case.config.omui.ts", source);
     auto data = ts::evaluate(dir / "case.config.omui.ts", options);
-    return data ? std::string() : data.error();
+    return data ? std::string() : data.error().text();
 }
 
 }  // namespace
@@ -58,7 +58,7 @@ export default defineContract({
 });
 )ts");
         auto data = ts::evaluate(dir / "caption_button.contract.omui.ts");
-        expect(data.has_value()) << (data ? "" : data.error());
+        expect(data.has_value()) << (data ? "" : data.error().text());
         if (!data) return;
         expect(eq(data->kind, std::string("contract")));
         expect(eq(data->json,
@@ -79,7 +79,7 @@ export default defineContract({
             write(dir / "kind.ts", std::format("import {{ define{0} }} from \"{1}/define\";\nexport default define{0}({{ a: 1 }});\n", name,
                                                spec ? "openmui" : "omui"));
             auto data = ts::evaluate(dir / "kind.ts");
-            expect(data && data->kind == kind && data->json == R"({"a":1})") << (data ? data->kind : data.error());
+            expect(data && data->kind == kind && data->json == R"({"a":1})") << (data ? data->kind : data.error().text());
         }
     };
 
@@ -124,7 +124,7 @@ export default defineContract({
         const ts::DataOptions inner{.root = dir / "inner"};
         write(dir / "inner" / "case.ts", "import { x } from \"../outside\";\nexport default x;\n");
         auto escaped = ts::evaluate(dir / "inner" / "case.ts", inner);
-        expect(!escaped && escaped.error().contains("its own files inside its directory, not")) << (escaped ? escaped->json : escaped.error());
+        expect(!escaped && escaped.error().text().contains("its own files inside its directory, not")) << (escaped ? escaped->json : escaped.error().text());
         expect(problem_of(dir, "import fs from \"node:fs\";\nexport default fs;").contains("not `node:fs`"));
         expect(problem_of(dir, "import { y } from \"./missing\";\nexport default y;").contains("no module"));
     };

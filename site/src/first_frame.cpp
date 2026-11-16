@@ -176,7 +176,7 @@ std::expected<Value, std::string> export_first_frame(const FirstFrameOptions& op
         .set("pixel_hash", region_hash(pixels, region)).set("viewport_pixel_hash", std::format("{:016x}", frame_hash(pixels)))
         .set("nodes", Value(std::move(nodes))).set("unplaced_nodes", Value(std::move(unplaced)));
     if (options.paths) report.set("png", mcpplibs::os::fs::generic_utf8(png)).set("sidecar", mcpplibs::os::fs::generic_utf8(sidecar));
-    if (auto saved = host.save_png(png, crop); !saved) return std::unexpected("PNG export failed: " + saved.error());
+    if (auto saved = host.save_png(png, crop); !saved) return std::unexpected("PNG export failed: " + saved.error().text());
     if (auto written = mcpplibs::os::fs::write_atomic(sidecar, report.json()); !written) return std::unexpected("frame metadata export failed: " + written.error().message());
     return report;
 }

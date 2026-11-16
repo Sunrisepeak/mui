@@ -23,7 +23,7 @@ namespace omui::agent {
     [[nodiscard]] std::pair<double, std::string> get() const;
   };
   using TaskCommit = std::function<VerbResult()>;
-  using TaskWork = std::expected<TaskCommit, std::string>;
+  using TaskWork = std::expected<TaskCommit, Failure>;
   struct TaskSpec {
     std::string name;
     std::function<TaskWork(std::stop_token, Progress&)> work;
@@ -154,7 +154,7 @@ namespace omui::agent {
     ~Endpoint();
     Endpoint(const Endpoint&) = delete;
     Endpoint& operator=(const Endpoint&) = delete;
-    std::expected<void, std::string> start();
+    std::expected<void, AgentFailure> start();
     void stop();
     [[nodiscard]] bool listening() const noexcept;
     [[nodiscard]] const std::string& name() const noexcept;
@@ -167,8 +167,8 @@ namespace omui::agent {
     struct Impl;
   };
   class Client {
-    [[nodiscard]] static std::expected<Client, std::string> connect(std::string_view name, const std::filesystem::path& directory = default_directory());
-    [[nodiscard]] static std::expected<Client, std::string> connect_loopback(std::uint16_t port, std::string_view secret);
+    [[nodiscard]] static std::expected<Client, AgentFailure> connect(std::string_view name, const std::filesystem::path& directory = default_directory());
+    [[nodiscard]] static std::expected<Client, AgentFailure> connect_loopback(std::uint16_t port, std::string_view secret);
     Client(Client&&) noexcept;
     Client& operator=(Client&&) noexcept;
     ~Client();
@@ -195,7 +195,10 @@ namespace omui::agent::generate {
 == omui.agent:protocol
 namespace omui::agent {
   inline constexpr std::string_view interface_name = "openmui.tree@0.1";
-  using CaptureFn = std::function<std::expected<std::vector<std::uint8_t>, std::string>(Rect window)>;
+  enum class AgentError : std::uint8_t { cannot_listen, cannot_connect, bad_picture };
+  [[nodiscard]] constexpr mlibs::error::Description describe(AgentError error) noexcept;
+  using AgentFailure = mlibs::error::Error<AgentError>;
+  using CaptureFn = std::function<std::expected<std::vector<std::uint8_t>, ViewFailure>(Rect window)>;
   struct VectorIsland {
     std::string why;
     Rect bounds;
@@ -204,10 +207,10 @@ namespace omui::agent {
     std::string svg;
     std::vector<VectorIsland> islands;
   };
-  using CaptureSvgFn = std::function<std::expected<VectorCapture, std::string>(Rect window)>;
-  [[nodiscard]] std::expected<VectorCapture, std::string> vector_capture(const Runtime& runtime, const xrender::Resources& resources, Rect region, float scale, std::optional<Color> background);
+  using CaptureSvgFn = std::function<std::expected<VectorCapture, ViewFailure>(Rect window)>;
+  [[nodiscard]] std::expected<VectorCapture, ViewFailure> vector_capture(const Runtime& runtime, const xrender::Resources& resources, Rect region, float scale, std::optional<Color> background);
   [[nodiscard]] std::string tree_hash(semantic::Tree& tree);
-  [[nodiscard]] std::expected<std::string, std::string> pixels_hash(std::span<const std::uint8_t> png);
+  [[nodiscard]] std::expected<std::string, AgentFailure> pixels_hash(std::span<const std::uint8_t> png);
   struct ProtocolOptions {
     std::string app;
     std::string default_actor = "agent:anonymous";

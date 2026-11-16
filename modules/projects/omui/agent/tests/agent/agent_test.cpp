@@ -423,14 +423,14 @@ static UTest cases{"agent", [] {
         expect(exit_of(talk(p, R"({"op":"find"})")) == 1);
         expect(exit_of(talk(p, R"({"op":"find","q":{"role":"knob"}})")) == 1);
         expect(exit_of(talk(p, R"({"op":"capture"})")) == 1) << "no renderer: refused";
-        agent::Protocol with_capture(app.rt, {.capture = [](Rect) -> std::expected<std::vector<std::uint8_t>, std::string> {
+        agent::Protocol with_capture(app.rt, {.capture = [](Rect) -> std::expected<std::vector<std::uint8_t>, ViewFailure> {
                                                    return std::vector<std::uint8_t>{'P', 'N', 'G'};
                                                }});
         auto cap = talk(with_capture, R"({"op":"capture","node":"notes/save"})");
         expect(exit_of(cap) == 0 && cap[0].get("data")->get("base64")->as_string() == "UE5H");
         // A part of the window, to look closer: clipped to what is captured; outside, refused.
         Rect asked{};
-        agent::Protocol closer(app.rt, {.capture = [&](Rect r) -> std::expected<std::vector<std::uint8_t>, std::string> {
+        agent::Protocol closer(app.rt, {.capture = [&](Rect r) -> std::expected<std::vector<std::uint8_t>, ViewFailure> {
                                             asked = r;
                                             return std::vector<std::uint8_t>{'P', 'N', 'G'};
                                         }});
@@ -530,12 +530,12 @@ static UTest cases{"agent", [] {
         auto dir = scratch_dir("agent");
         agent::Endpoint ep(app.rt, {.name = "notes-test", .directory = dir, .protocol = {.app = "org.example.notes"}});
         auto started = ep.start();
-        if (!started && started.error().find("not supported") != std::string::npos) {
+        if (!started && started.error().text().find("not supported") != std::string::npos) {
             // Wine lacks AF_UNIX on its drives; Windows 10 and later, Linux and macOS have local endpoints.
             std::println("    skipped: local endpoints are not supported here ({})", started.error());
             return;
         }
-        expect(started.has_value()) << (started ? "" : started.error());
+        expect(started.has_value()) << (started ? "" : started.error().text());
         if (!started) return;
         auto listed = agent::list(dir);
         expect(listed.size() == 1 && listed[0].name == "notes-test" && listed[0].app == "org.example.notes");
@@ -547,7 +547,7 @@ static UTest cases{"agent", [] {
         std::jthread client([&] {
             auto c = agent::Client::connect("notes-test", dir);
             if (!c) {
-                connect_error = c.error();
+                connect_error = c.error().text();
                 done = true;
                 return;
             }
@@ -583,11 +583,11 @@ static UTest cases{"agent", [] {
         auto dir = scratch_dir("agent-loopback");
         agent::Endpoint ep(app.rt, {.name = "notes-loopback", .directory = dir, .protocol = {.app = "org.example.notes"}, .loopback = 0});
         auto started = ep.start();
-        if (!started && started.error().find("not supported") != std::string::npos) {
+        if (!started && started.error().text().find("not supported") != std::string::npos) {
             std::println("    skipped: local endpoints are not supported here ({})", started.error());
             return;
         }
-        expect(fatal(started.has_value())) << (started ? "" : started.error());
+        expect(fatal(started.has_value())) << (started ? "" : started.error().text());
         const auto descriptor = parse_json(mcpplibs::os::fs::read(dir / "notes-loopback.endpoint.omui.json").value_or("{}"));
         expect(fatal(descriptor && descriptor->get("port") && descriptor->get("port")->as_int() > 0)) << "its port in the descriptor";
         const auto port = static_cast<std::uint16_t>(descriptor->get("port")->as_int());
@@ -687,7 +687,7 @@ static UTest cases{"agent", [] {
         Notes app;
         int version = 0;
         double reloaded_at = 0;
-        app.rt.set_source_reloader([&](const Value& request) -> std::expected<Value, std::string> {
+        app.rt.set_source_reloader([&](const Value& request) -> std::expected<Value, ViewFailure> {
             if (request.get("last")) return Value{}.set("reloaded", Value(Value::List{Value("app/main.ts")})).set("changes", Value{});
             ++version;
             reloaded_at = app.rt.time_state().shown.count();
@@ -695,13 +695,15 @@ static UTest cases{"agent", [] {
         });
         // The window as a picture: its lower right quarter coloured by the version, its first pixel
         // moving with the time for 0.1 s after a reload (a motion the reload started), then still.
-        agent::Protocol p(app.rt, {.capture = [&](Rect) -> std::expected<std::vector<std::uint8_t>, std::string> {
+        agent::Protocol p(app.rt, {.capture = [&](Rect) -> std::expected<std::vector<std::uint8_t>, ViewFailure> {
             mlibs::image::Image picture{.width = 8, .height = 8, .rgba = std::vector<std::uint8_t>(8 * 8 * 4, 255)};
             for (int y = 4; y < 8; ++y)
                 for (int x = 4; x < 8; ++x) picture.row(y)[static_cast<std::size_t>(x) * 4] = static_cast<std::uint8_t>(40 * version);
             const double moving = std::clamp(app.rt.time_state().shown.count() - reloaded_at, 0.0, 0.1);
             picture.row(0)[1] = static_cast<std::uint8_t>(moving * 2000);
-            return mlibs::image::encode_png(mlibs::image::view(picture));
+            auto png = mlibs::image::encode_png(mlibs::image::view(picture));
+            if (!png) return std::unexpected(ViewFailure{ViewError::capture_failed, std::move(png.error())});
+            return std::move(*png);
         }});
         std::vector<Value> answers;
         p.request(R"({"op":"reload","every":0.025,"samples":20})", [&](std::string_view line) { answers.push_back(parse_json(line).value()); });

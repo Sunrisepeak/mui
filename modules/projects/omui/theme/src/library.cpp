@@ -2,6 +2,7 @@
 module omui.theme;
 
 import std;
+import mlibs.error;
 import omui.core;
 import omui.view;
 
@@ -54,14 +55,14 @@ inline constexpr std::array<std::string_view, 1> optional_radii{"button"};
 // Applies a layer's tokens. A layer over another (a theme that extends, an
 // overlay) changes only tokens the theme already has, or the optional ones: a
 // name it does not is a typo, not a new token.
-std::expected<void, std::string> layer_onto(const Layer& l, Theme& t, bool over) {
-    auto set = [&](auto& into, std::string_view kind, const auto& from, auto&& assign) -> std::expected<void, std::string> {
+std::expected<void, ThemeFailure> layer_onto(const Layer& l, Theme& t, bool over) {
+    auto set = [&](auto& into, std::string_view kind, const auto& from, auto&& assign) -> std::expected<void, ThemeFailure> {
         for (const auto& [k, v] : from) {
             auto it = into.find(k);
             const bool optional = kind == "radius" && std::ranges::contains(optional_radii, std::string_view(k));
             if (over && it == into.end() && !optional)
-                return std::unexpected(std::format("{}: `{}` sets the {} `{}`, which the theme under it does not have{}", l.file, l.name, kind, k,
-                                                   closest(k, into)));
+                return std::unexpected(ThemeFailure{ThemeError::unknown_token,
+                                                    std::format("`{}` sets the {} `{}`, which the theme under it does not have{}", l.name, kind, k, closest(k, into)), l.file});
             assign(into[k], v);
         }
         return {};
@@ -135,25 +136,25 @@ std::optional<Layer> Library::find(std::string_view name) const {
     return std::nullopt;
 }
 
-std::expected<Theme, std::string> Library::compose(std::span<const std::string> names) const {
+std::expected<Theme, ThemeFailure> Library::compose(std::span<const std::string> names) const {
     std::scoped_lock lock(mutex_);
     auto lookup = [&](std::string_view n) -> const Layer* {
         for (const Layer& l : layers_)
             if (l.name == n) return &l;
         return nullptr;
     };
-    if (names.empty()) return std::unexpected("compose a theme: name one, then any overlays over it");
+    if (names.empty()) return std::unexpected(ThemeFailure{ThemeError::no_layers});
     const Layer* first = lookup(names[0]);
-    if (!first) return std::unexpected(std::format("no theme is named `{}` (themes: {})", names[0], names_of(layers_, false)));
-    if (first->overlay) return std::unexpected(std::format("`{}` is an overlay: name a theme first, then it (themes: {})", names[0], names_of(layers_, false)));
+    if (!first) return std::unexpected(ThemeFailure{ThemeError::unknown_theme, std::format("no theme is named `{}` (themes: {})", names[0], names_of(layers_, false)), names[0]});
+    if (first->overlay) return std::unexpected(ThemeFailure{ThemeError::overlay_first, std::format("`{}` is an overlay: name a theme first, then it (themes: {})", names[0], names_of(layers_, false)), names[0]});
     std::vector<const Layer*> chain;
     for (const Layer* l = first;;) {
-        if (std::ranges::find(chain, l) != chain.end()) return std::unexpected(std::format("`{}` extends itself through {}", names[0], l->name));
+        if (std::ranges::find(chain, l) != chain.end()) return std::unexpected(ThemeFailure{ThemeError::cycle, std::format("`{}` extends itself through {}", names[0], l->name), names[0]});
         chain.push_back(l);
         if (l->extends.empty()) break;
         const Layer* base = lookup(l->extends);
-        if (!base) return std::unexpected(std::format("{}: `{}` extends `{}`, which no theme file declares", l->file, l->name, l->extends));
-        if (base->overlay) return std::unexpected(std::format("{}: `{}` extends the overlay `{}`; a theme extends a theme", l->file, l->name, l->extends));
+        if (!base) return std::unexpected(ThemeFailure{ThemeError::unknown_base, std::format("`{}` extends `{}`, which no theme file declares", l->name, l->extends), l->file});
+        if (base->overlay) return std::unexpected(ThemeFailure{ThemeError::extends_overlay, std::format("`{}` extends the overlay `{}`; a theme extends a theme", l->name, l->extends), l->file});
         l = base;
     }
     std::ranges::reverse(chain);
@@ -170,8 +171,8 @@ std::expected<Theme, std::string> Library::compose(std::span<const std::string> 
         if (auto r = layer_onto(*chain[i], t, i > 0); !r) return std::unexpected(r.error());
     for (std::size_t i = 1; i < names.size(); ++i) {
         const Layer* o = lookup(names[i]);
-        if (!o) return std::unexpected(std::format("no overlay is named `{}` (overlays: {})", names[i], names_of(layers_, true)));
-        if (!o->overlay) return std::unexpected(std::format("`{}` is a theme, not an overlay: compose one theme, then overlays", names[i]));
+        if (!o) return std::unexpected(ThemeFailure{ThemeError::unknown_overlay, std::format("no overlay is named `{}` (overlays: {})", names[i], names_of(layers_, true)), names[i]});
+        if (!o->overlay) return std::unexpected(ThemeFailure{ThemeError::not_an_overlay, std::format("`{}` is a theme, not an overlay: compose one theme, then overlays", names[i]), names[i]});
         if (auto r = layer_onto(*o, t, true); !r) return std::unexpected(r.error());
     }
     t.name.clear();
@@ -209,15 +210,15 @@ std::optional<Style> Library::find_style(std::string_view name) const {
     return std::nullopt;
 }
 
-std::expected<Theme, std::string> Library::compose_style(std::string_view name) const {
+std::expected<Theme, ThemeFailure> Library::compose_style(std::string_view name) const {
     const auto st = find_style(name);
     if (!st) {
         std::string all;
         for (const std::string& n : styles()) all += std::format("{}{}", all.empty() ? "" : ", ", n);
-        return std::unexpected(std::format("no style is named `{}` (styles: {})", name, all.empty() ? std::string("none") : all));
+        return std::unexpected(ThemeFailure{ThemeError::unknown_style, std::format("no style is named `{}` (styles: {})", name, all.empty() ? std::string("none") : all), std::string(name)});
     }
     auto t = compose(st->layers);
-    if (!t) return std::unexpected(std::format("{}: the style `{}` starts from what cannot be composed: {}", st->file, name, t.error()));
+    if (!t) return std::unexpected(ThemeFailure{ThemeError::style_base, std::format("the style `{}` starts from what cannot be composed", name), st->file}.because(t.error()));
     if (auto r = layer_onto(st->tokens, *t, true); !r) return std::unexpected(r.error());
     t->name = std::format("{}@{}", t->name, name);
     // Its motions over the framework's rules: the slots of every node they move first, then a type's or a role's.
@@ -226,12 +227,12 @@ std::expected<Theme, std::string> Library::compose_style(std::string_view name) 
             if (m.target.empty() == targeted) continue;
             auto specs = parse_motions(m.motion, *t);
             if (!specs || specs->empty())
-                return std::unexpected(std::format("{}: the style `{}`: `{}` is not a motion for {}{} (none, morph, {}or {{use, curve, …}})", st->file, name,
+                return std::unexpected(ThemeFailure{ThemeError::bad_motion, std::format("the style `{}`: `{}` is not a motion for {}{} (none, morph, {}or {{use, curve, …}})", name,
                                                    m.motion.json(), m.target.empty() ? "" : m.target + "'s ", m.slot, [&] {
                                                        std::string names;
                                                        for (const auto& [n, _] : t->motion_library) names += n + ", ";
                                                        return names;
-                                                   }()));
+                                                   }()), st->file});
             t->motion_rules.push_back({.target = m.target.empty() ? "*" : m.target, .slot = m.slot,
                                        .spec = specs->front(), .instead = {specs->begin() + 1, specs->end()},
                                        .layer = targeted ? MotionRule::Layer::style_targeted : MotionRule::Layer::style});
@@ -338,14 +339,14 @@ Library& library() {
     return l;
 }
 
-std::expected<void, std::string> apply(Runtime& rt, std::span<const std::string> layers) {
+std::expected<void, ThemeFailure> apply(Runtime& rt, std::span<const std::string> layers) {
     auto t = library().compose(layers);
     if (!t) return std::unexpected(t.error());
     rt.set_theme(std::move(*t));
     return {};
 }
 
-std::expected<void, std::string> apply_style(Runtime& rt, std::string_view name, bool crossfade) {
+std::expected<void, ThemeFailure> apply_style(Runtime& rt, std::string_view name, bool crossfade) {
     auto t = library().compose_style(name);
     if (!t) return std::unexpected(t.error());
     const auto st = library().find_style(name);
@@ -355,7 +356,7 @@ std::expected<void, std::string> apply_style(Runtime& rt, std::string_view name,
     return {};
 }
 
-std::expected<void, std::string> apply_style(Runtime& rt, std::string_view name, std::string_view scope, bool crossfade) {
+std::expected<void, ThemeFailure> apply_style(Runtime& rt, std::string_view name, std::string_view scope, bool crossfade) {
     auto t = library().compose_style(name);
     if (!t) return std::unexpected(t.error());
     const auto st = library().find_style(name);

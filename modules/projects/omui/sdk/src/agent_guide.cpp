@@ -212,7 +212,7 @@ AgentGuide agent_guide(const AppSpec& app, Runtime& runtime, const Value& snapsh
     return {std::move(md), v.json()};
 }
 
-std::expected<void, std::string> write_agent_guide(const AgentGuide& guide, const std::filesystem::path& dir) {
+std::expected<void, Failure> write_agent_guide(const AgentGuide& guide, const std::filesystem::path& dir) {
     namespace fs = mcpplibs::os::fs;
     std::error_code ec;
     std::filesystem::create_directories(dir / ".well-known", ec);

@@ -1,4 +1,5 @@
 import std;
+import mlibs.error;
 import omui.core;
 import mcpplibs.mtest;
 
@@ -27,13 +28,17 @@ static UTest cases{"core.verb", [] {
                    .has_value());
         expect(eq(verbs.tasks().size(), std::size_t{1}) && verbs.tasks()[0].steps[1].action == "toggle");
 
-        const auto refused = [&](omui::TaskDesc task) { return verbs.add_task(std::move(task)).error_or(""); };
+        const auto refused = [&](omui::TaskDesc task) {
+            const auto added = verbs.add_task(std::move(task));
+            return added ? std::string() : added.error().text();
+        };
         expect(refused({"Export Settings", "Write them", {{.verb = "settings.export"}}}).contains("not a task name"));
         expect(refused({"export-the-settings", "Write them", {{.verb = "settings.export"}}}).contains("already registered"));
         expect(refused({"say-nothing", "", {{.verb = "settings.export"}}}).contains("what it gets done"));
         expect(refused({"do-nothing", "Nothing", {}}).contains("no step"));
         expect(refused({"both", "A verb and a node", {{.verb = "settings.export", .node = "main/dark", .action = "toggle"}}}).contains("step 1: a step is a verb, or a node"));
         expect(refused({"half", "A node without its action", {{.node = "main/dark"}}}).contains("both the node and the action"));
+        expect(verbs.add_task({"unknown", "A verb nobody added", {{.verb = "settings.import"}}}).error().code == omui::VerbError::unknown_verb);
         expect(refused({"unknown", "A verb nobody added", {{.verb = "settings.export"}, {.verb = "settings.import"}}}).contains("step 2: verb `settings.import` is not registered"));
         expect(refused({"persons", "The person's own", {{.verb = "permission.grant"}}}).contains("the person's alone"));
         // Nothing in a task waits for a person: what asks for an answer is in it as a dry run.
@@ -51,7 +56,7 @@ static UTest cases{"core.verb", [] {
         auto r = verbs.add({.name = "note.delete", .effect = omui::Effect::irreversible},
                            [](const omui::Value&) -> omui::VerbResult { return omui::Value{}; });
         expect(!r.has_value());
-        expect(r.error().find("S-1") != std::string::npos);
+        expect(r.error().message.contains("S-1") && r.error().code == omui::VerbError::no_answer);
     };
 
     "S-2: needs-answer at once, then runs with the answer"_test = [] {
@@ -83,7 +88,11 @@ static UTest cases{"core.verb", [] {
         expect(verbs.add({.name = "x.fail"}, [](const omui::Value&) -> omui::VerbResult { return std::unexpected("disk full"); }).has_value());
         auto e = verbs.invoke("x.fail", {});
         expect(eq(e.exit_code().value_or(-1), 1));
-        expect(e.ndjson().find("disk full") != std::string::npos);
+        expect(e.ndjson().find("disk full") != std::string::npos && e.ndjson().contains(R"("code":"failed")")) << e.ndjson();
+        // A failure that says its kind: the error record carries the contract's code for it.
+        expect(verbs.add({.name = "x.find"}, [](const omui::Value&) -> omui::VerbResult { return std::unexpected(omui::Failure{mlibs::error::Kind::not_found, "no note 7"}); }).has_value());
+        const auto missing = verbs.invoke("x.find", {}).ndjson();
+        expect(missing.contains(R"("code":"not-found")") && missing.contains("no note 7")) << missing;
         expect(!verbs.add({.name = "x.fail"}, [](const omui::Value&) -> omui::VerbResult { return omui::Value{}; }).has_value()) << "a name is registered once";
         expect(verbs.remove("x.fail") && verbs.find("x.fail") == nullptr);
     };

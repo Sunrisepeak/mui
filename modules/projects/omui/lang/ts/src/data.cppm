@@ -16,6 +16,7 @@
 export module omui.lang.ts:data;
 
 import std;
+import :error;
 
 export namespace omui::lang::ts {
 
@@ -42,9 +43,9 @@ inline constexpr std::array<std::string_view, 19> data_kinds{"contract", "native
                                                              "music",    "timeline",  "subtitles", "video", "effect", "behavior", "messages", "matter", "appearance", "world"};
 
 // A data module's file (TypeScript, or JavaScript); a problem as `file:line:column: text` where it has a place.
-[[nodiscard]] std::expected<Data, std::string> evaluate(const std::filesystem::path& file, const DataOptions& options = {});
+[[nodiscard]] std::expected<Data, TsFailure> evaluate(const std::filesystem::path& file, const DataOptions& options = {});
 // A data module's source; `name` names it in problems and is where its imports by path are found from.
-[[nodiscard]] std::expected<Data, std::string> evaluate_source(std::string_view source, std::string_view name, const DataOptions& options = {});
+[[nodiscard]] std::expected<Data, TsFailure> evaluate_source(std::string_view source, std::string_view name, const DataOptions& options = {});
 
 // The module "openmui/define" (`spec = true`: the spec's formats) or
 // "omui/define" (the implementation's): a define function per kind, each

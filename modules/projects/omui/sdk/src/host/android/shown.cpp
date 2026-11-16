@@ -3,6 +3,7 @@
 module omui;
 
 import std;
+import mlibs.error;
 import omui.core;
 import omui.view;
 import omui.host.android;
@@ -27,8 +28,8 @@ std::vector<std::string> host_locales() { return {}; }
 
 namespace omui {
 
-std::expected<void, std::string> choose_renderer(std::string_view name) {
-    if (name != "automatic" && name != "cpu" && name != "gpu") return std::unexpected(std::format("`{}` is not a renderer (automatic, gpu, cpu)", name));
+std::expected<void, Failure> choose_renderer(std::string_view name) {
+    if (name != "automatic" && name != "cpu" && name != "gpu") return std::unexpected(Failure{mlibs::error::Kind::invalid_argument, std::format("`{}` is not a renderer (automatic, gpu, cpu)", name)});
     return std::unexpected(std::string("on Android the frames are drawn on the CPU"));
 }
 

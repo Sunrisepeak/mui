@@ -78,13 +78,13 @@ struct TaskBroker::Impl {
         if (task->state != TaskState::running) return;  // cancelled: what it made is not committed
         if (!outcome) {
             task->state = TaskState::failed;
-            task->error = outcome.error();
+            task->error = outcome.error().message;
         } else if (auto committed = (*outcome)()) {
             task->state = TaskState::done;
             task->result = std::move(*committed);
         } else {
             task->state = TaskState::failed;
-            task->error = committed.error();
+            task->error = committed.error().message;
         }
         task->ended = std::chrono::steady_clock::now();
     }
@@ -133,7 +133,7 @@ std::string TaskBroker::submit(TaskSpec spec) {
     const std::weak_ptr<Impl> broker = impl_;
     (void)Tasks::shared().spawn(
         [broker, task, work = std::move(spec.work)](std::stop_token) mutable {
-            TaskWork outcome = task->stop.stop_requested() ? TaskWork(std::unexpected(std::string("cancelled before it began")))
+            TaskWork outcome = task->stop.stop_requested() ? TaskWork(std::unexpected(Failure("cancelled before it began")))
                                                             : work(task->stop.get_token(), task->progress);
             const auto impl = broker.lock();
             if (!impl) return;

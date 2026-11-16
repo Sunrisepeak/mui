@@ -1,6 +1,7 @@
 module omui;
 
 import std;
+import mlibs.error;
 import mcpplibs.cmdline;
 import omui.core;
 import omui.view;
@@ -30,9 +31,9 @@ namespace omui {
 
 std::string_view application_build_profile() noexcept { return build::profile; }
 
-std::expected<AgentPolicy, std::string> application_agent_policy(const AppSpec& app, std::optional<AgentMode> startup_mode) {
+std::expected<AgentPolicy, Failure> application_agent_policy(const AppSpec& app, std::optional<AgentMode> startup_mode) {
     auto cap = parse_cap(app.agent);
-    if (!cap) return std::unexpected(std::format("AppSpec::agent `{}` is not a cap (none, read, reversible, irreversible, external)", app.agent));
+    if (!cap) return std::unexpected(Failure{mlibs::error::Kind::invalid_argument, std::format("AppSpec::agent `{}` is not a cap (none, read, reversible, irreversible, external)", app.agent)});
     auto policy = agent_policy_for_profile(application_build_profile(), startup_mode.value_or(app.agent_mode));
     policy.cap = *cap;
     policy.input = app.agent_input;
@@ -72,7 +73,7 @@ void RunOptions::declare(cmdline::App& app) {
         .option(Option("present-to").takes_value().value_name("SOCKET").help("drawn in a host's window (omui dev): its frames sent to SOCKET, its input from there"));
 }
 
-std::expected<RunOptions, std::string> RunOptions::from(const cmdline::ParsedArgs& parsed) {
+std::expected<RunOptions, Failure> RunOptions::from(const cmdline::ParsedArgs& parsed) {
     RunOptions o;
     o.headless = parsed.is_flag_set("headless");
     if (parsed.is_flag_set("serve")) o.serve = o.headless = true;
@@ -87,26 +88,26 @@ std::expected<RunOptions, std::string> RunOptions::from(const cmdline::ParsedArg
     o.reduce_transparency = parsed.is_flag_set("reduce-transparency");
     if (auto v = parsed.value("agent-mode")) {
         const auto mode = parse_agent_mode(*v);
-        if (!mode) return std::unexpected("--agent-mode is automatic, development or dual-user");
+        if (!mode) return std::unexpected(Failure{mlibs::error::Kind::invalid_argument, "--agent-mode is automatic, development or dual-user"});
         o.agent_mode = *mode;
     }
     if (auto v = parsed.value("frames")) {
         int count = 0;
-        if (std::from_chars(v->data(), v->data() + v->size(), count).ec != std::errc{} || count < 1) return std::unexpected("--frames takes a positive number");
+        if (std::from_chars(v->data(), v->data() + v->size(), count).ec != std::errc{} || count < 1) return std::unexpected(Failure{mlibs::error::Kind::invalid_argument, "--frames takes a positive number"});
         o.frames = count;
     }
     if (auto v = parsed.value("png")) o.png = std::filesystem::path(*v);
     if (auto v = parsed.value("level")) {
-        if (v->size() != 2 || (*v)[0] != 'h' || (*v)[1] < '0' || (*v)[1] > '3') return std::unexpected("--level is h0, h1, h2 or h3");
+        if (v->size() != 2 || (*v)[0] != 'h' || (*v)[1] < '0' || (*v)[1] > '3') return std::unexpected(Failure{mlibs::error::Kind::invalid_argument, "--level is h0, h1, h2 or h3"});
         o.level = (*v)[1] - '0';
     }
     if (auto v = parsed.value("agent-dir")) o.agent_dir = std::filesystem::path(*v);
     if (auto v = parsed.value("agent-name")) {
-        if (v->empty()) return std::unexpected("--agent-name takes a name");
+        if (v->empty()) return std::unexpected(Failure{mlibs::error::Kind::invalid_argument, "--agent-name takes a name"});
         o.agent_name = *v;
     }
     if (auto v = parsed.value("window")) {
-        if (*v != "native" && *v != "framework" && *v != "switchable") return std::unexpected("--window is native, framework or switchable");
+        if (*v != "native" && *v != "framework" && *v != "switchable") return std::unexpected(Failure{mlibs::error::Kind::invalid_argument, "--window is native, framework or switchable"});
         o.window = *v;
     }
     if (auto v = parsed.value("size")) {
@@ -114,7 +115,7 @@ std::expected<RunOptions, std::string> RunOptions::from(const cmdline::ParsedArg
         const auto by = v->find('x');
         if (by == std::string::npos || std::from_chars(v->data(), v->data() + by, width).ec != std::errc{} ||
             std::from_chars(v->data() + by + 1, v->data() + v->size(), height).ec != std::errc{} || width <= 0 || height <= 0)
-            return std::unexpected("--size is WxH, e.g. 800x600");
+            return std::unexpected(Failure{mlibs::error::Kind::invalid_argument, "--size is WxH, e.g. 800x600"});
         o.size = Size{width, height};
     }
     if (auto v = parsed.value("debug")) {
@@ -124,7 +125,7 @@ std::expected<RunOptions, std::string> RunOptions::from(const cmdline::ParsedArg
             else if (item == "repaints") o.debug.repaints = true;
             else if (item == "inspector") o.debug.inspector = true;
             else if (item == "hud") o.debug.hud = true;
-            else return std::unexpected(std::format("--debug: no overlay `{}` (bounds, repaints, inspector, hud)", item));
+            else return std::unexpected(Failure{mlibs::error::Kind::invalid_argument, std::format("--debug: no overlay `{}` (bounds, repaints, inspector, hud)", item)});
         }
         o.debug.slow_frame_ms = 1000.0 / 60.0;
     }
@@ -132,7 +133,7 @@ std::expected<RunOptions, std::string> RunOptions::from(const cmdline::ParsedArg
     if (auto v = parsed.value("lang")) {
         for (auto part : *v | std::views::split(',')) {
             const std::string_view item(part.begin(), part.end());
-            if (!mlibs::i18n::Locale::parse(item)) return std::unexpected(std::format("--lang: `{}` is not a language tag (zh-CN, en)", item));
+            if (!mlibs::i18n::Locale::parse(item)) return std::unexpected(Failure{mlibs::error::Kind::invalid_argument, std::format("--lang: `{}` is not a language tag (zh-CN, en)", item)});
             o.languages.emplace_back(item);
         }
     }
@@ -153,13 +154,13 @@ std::expected<RunOptions, std::string> RunOptions::from(const cmdline::ParsedArg
     return o;
 }
 
-std::expected<RunOptions, std::string> RunOptions::parse(std::span<const std::string_view> args) {
+std::expected<RunOptions, Failure> RunOptions::parse(std::span<const std::string_view> args) {
     cmdline::App app{"application"};
     declare(app);
     std::vector<std::string> argv{"application"};
     for (const std::string_view arg : args) argv.emplace_back(arg);
     auto parsed = app.parse_from(std::span<const std::string>(argv));
-    if (!parsed) return std::unexpected(parsed.error().message);
+    if (!parsed) return std::unexpected(Failure{mlibs::error::Kind::invalid_argument, parsed.error().message});
     return from(*parsed);
 }
 
@@ -331,9 +332,9 @@ int replay(Headless& host, const AppSpec& app, const std::filesystem::path& file
         std::string got;
         if (auto png = host.png()) {
             auto pixels = agent::pixels_hash(*png);
-            got = pixels ? *pixels : pixels.error();
+            got = pixels ? *pixels : pixels.error().text();
         } else {
-            got = png.error();
+            got = png.error().text();
         }
         const bool equal = expected->as_string() == got;
         report.set("pixels", Value{}.set("expected", *expected).set("got", got).set("same", equal));

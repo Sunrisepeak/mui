@@ -3,6 +3,7 @@ module omui.core;
 import std;
 import openas;
 import mlibs.control;
+import mlibs.error;
 
 namespace omui {
 
@@ -46,13 +47,13 @@ bool valid_verb_name(std::string_view name) noexcept {
     return !word_start;
 }
 
-std::expected<void, std::string> Verbs::add(VerbDesc desc, VerbFn fn) {
+std::expected<void, VerbRegistrationFailure> Verbs::add(VerbDesc desc, VerbFn fn) {
     if (!valid_verb_name(desc.name))
-        return std::unexpected(std::format("`{}` is not a verb name: lower-case words joined by dots", desc.name));
-    if (find(desc.name)) return std::unexpected(std::format("verb `{}` is already registered", desc.name));
+        return std::unexpected(VerbRegistrationFailure{VerbError::bad_verb_name, std::format("`{}` is not a verb name: lower-case words joined by dots", desc.name), desc.name});
+    if (find(desc.name)) return std::unexpected(VerbRegistrationFailure{VerbError::verb_taken, std::format("verb `{}` is already registered", desc.name), desc.name});
     if (spec::requires_answer(desc.effect) && desc.answer.empty())
-        return std::unexpected(std::format("verb `{}` is {} and states no answer (S-1)", desc.name, spec::name(desc.effect)));
-    if (!fn) return std::unexpected(std::format("verb `{}` has no implementation", desc.name));
+        return std::unexpected(VerbRegistrationFailure{VerbError::no_answer, std::format("verb `{}` is {} and states no answer (S-1)", desc.name, spec::name(desc.effect)), desc.name});
+    if (!fn) return std::unexpected(VerbRegistrationFailure{VerbError::no_implementation, std::format("verb `{}` has no implementation", desc.name), desc.name});
     verbs_.push_back({std::move(desc), std::move(fn)});
     return {};
 }
@@ -84,28 +85,28 @@ bool valid_task_name(std::string_view name) noexcept {
 
 }  // namespace
 
-std::expected<void, std::string> Verbs::add_task(TaskDesc task) {
+std::expected<void, VerbRegistrationFailure> Verbs::add_task(TaskDesc task) {
     if (!valid_task_name(task.name))
-        return std::unexpected(std::format("`{}` is not a task name: lower-case words joined by hyphens", task.name));
-    if (std::ranges::contains(tasks_, task.name, &TaskDesc::name)) return std::unexpected(std::format("task `{}` is already registered", task.name));
-    if (task.summary.empty()) return std::unexpected(std::format("task `{}` does not say what it gets done (summary)", task.name));
-    if (task.steps.empty()) return std::unexpected(std::format("task `{}` has no step", task.name));
+        return std::unexpected(VerbRegistrationFailure{VerbError::bad_task_name, std::format("`{}` is not a task name: lower-case words joined by hyphens", task.name), task.name});
+    if (std::ranges::contains(tasks_, task.name, &TaskDesc::name)) return std::unexpected(VerbRegistrationFailure{VerbError::task_taken, std::format("task `{}` is already registered", task.name), task.name});
+    if (task.summary.empty()) return std::unexpected(VerbRegistrationFailure{VerbError::no_summary, std::format("task `{}` does not say what it gets done (summary)", task.name), task.name});
+    if (task.steps.empty()) return std::unexpected(VerbRegistrationFailure{VerbError::no_step, std::format("task `{}` has no step", task.name), task.name});
     for (std::size_t index = 0; index < task.steps.size(); ++index) {
         const TaskStep& step = task.steps[index];
         const bool of_node = !step.node.empty() || !step.action.empty();
         if (step.verb.empty() == !of_node)
-            return std::unexpected(std::format("task `{}`, step {}: a step is a verb, or a node and one of its actions", task.name, index + 1));
+            return std::unexpected(VerbRegistrationFailure{VerbError::bad_step, std::format("task `{}`, step {}: a step is a verb, or a node and one of its actions", task.name, index + 1), task.name});
         if (of_node) {
             if (step.node.empty() || step.action.empty())
-                return std::unexpected(std::format("task `{}`, step {}: a node's action names both the node and the action", task.name, index + 1));
+                return std::unexpected(VerbRegistrationFailure{VerbError::bad_step, std::format("task `{}`, step {}: a node's action names both the node and the action", task.name, index + 1), task.name});
             continue;
         }
         const VerbDesc* verb = find(step.verb);
-        if (!verb) return std::unexpected(std::format("task `{}`, step {}: verb `{}` is not registered (add the verb first)", task.name, index + 1, step.verb));
-        if (verb->person) return std::unexpected(std::format("task `{}`, step {}: verb `{}` is the person's alone, never a request's", task.name, index + 1, step.verb));
+        if (!verb) return std::unexpected(VerbRegistrationFailure{VerbError::unknown_verb, std::format("task `{}`, step {}: verb `{}` is not registered (add the verb first)", task.name, index + 1, step.verb), task.name});
+        if (verb->person) return std::unexpected(VerbRegistrationFailure{VerbError::person_only_step, std::format("task `{}`, step {}: verb `{}` is the person's alone, never a request's", task.name, index + 1, step.verb), task.name});
         if (spec::requires_answer(verb->effect) && !step.dry_run)
-            return std::unexpected(std::format("task `{}`, step {}: verb `{}` is {} and asks for an answer; a task to begin with runs as written — make the step a dry run",
-                                               task.name, index + 1, step.verb, spec::name(verb->effect)));
+            return std::unexpected(VerbRegistrationFailure{VerbError::step_asks_answer, std::format("task `{}`, step {}: verb `{}` is {} and asks for an answer; a task to begin with runs as written — make the step a dry run",
+                                               task.name, index + 1, step.verb, spec::name(verb->effect)), task.name});
     }
     tasks_.push_back(std::move(task));
     return {};
@@ -205,7 +206,7 @@ Envelope Verbs::invoke(std::string_view name, const Invocation& given) {
         e.result(spec::exit_code::success);
         record(spec::exit_code::success);
     } else {
-        e.error(spec::error_code::failed, result.error()).result(spec::exit_code::failure);  // the work ran and did not succeed
+        e.error(std::string(mlibs::error::name(result.error().kind)), result.error().message).result(spec::exit_code::failure);  // the work ran and did not succeed: why, by the contract's code
         record(spec::exit_code::failure);
     }
     return e;

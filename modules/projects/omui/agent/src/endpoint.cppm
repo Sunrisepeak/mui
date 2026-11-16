@@ -52,7 +52,7 @@ public:
     Endpoint& operator=(const Endpoint&) = delete;
 
     // Starts listening (and writes the descriptor).
-    std::expected<void, std::string> start();
+    std::expected<void, AgentFailure> start();
     void stop();
     [[nodiscard]] bool listening() const noexcept;
     [[nodiscard]] const std::string& name() const noexcept;
@@ -79,11 +79,11 @@ private:
 // A connection to an endpoint (the command line, tests, other processes).
 class Client {
 public:
-    [[nodiscard]] static std::expected<Client, std::string> connect(std::string_view name,
+    [[nodiscard]] static std::expected<Client, AgentFailure> connect(std::string_view name,
                                                                     const std::filesystem::path& directory = default_directory());
     // An endpoint on this machine's loopback (EndpointOptions::loopback; a device's, forwarded
     // by adb): its secret given first.
-    [[nodiscard]] static std::expected<Client, std::string> connect_loopback(std::uint16_t port, std::string_view secret);
+    [[nodiscard]] static std::expected<Client, AgentFailure> connect_loopback(std::uint16_t port, std::string_view secret);
     Client(Client&&) noexcept;
     Client& operator=(Client&&) noexcept;
     ~Client();

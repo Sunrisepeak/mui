@@ -406,7 +406,7 @@ struct Generation::Impl {
         const auto picture = [&]() -> Value {
             auto png = options.capture ? options.capture(window) : runtime.capture_png(window);
             if (!png && !options.capture) return Value{};  // a host that draws no pixels: the changes say it
-            if (!png) return Value{}.set("error", png.error());
+            if (!png) return Value{}.set("error", png.error().text());
             return Value{}.set("format", "png").set("base64", mlibs::base64::encode(*png));
         };
         // A frame at this very time, the effects the mount scheduled run first (a verb runs inside a

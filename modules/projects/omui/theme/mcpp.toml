@@ -32,6 +32,7 @@ omui.view   = { path = "../view" }
 hanim.core          = { path = "../../hanim/core" }
 xrender.vector = { path = "../../xrender/vector" }
 mlibs.json     = { path = "../../../base/json" }
+mlibs.utils    = { path = "../../../base/utils" }  # mlibs.error: why a theme cannot be composed
 
 [build-dependencies]
 omui.build.embed = { path = "../../../../mcpp/embed", host-module = true }  # the style packs
@@ -39,4 +40,3 @@ omui.build.embed = { path = "../../../../mcpp/embed", host-module = true }  # th
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
 omui.lang.ts = { path = "../lang/ts" }  # the theme packages' modules, evaluated as the build does
-mlibs.utils = { path = "../../../base/utils" }

@@ -43,7 +43,7 @@ const std::filesystem::path& Connection::directory() const noexcept { return imp
 
 std::expected<void, std::string> Connection::open(std::string_view app) {
     auto client = agent::Client::connect(app, impl_->directory);
-    if (!client) return std::unexpected(client.error());
+    if (!client) return std::unexpected(client.error().text());
     auto s = std::make_shared<Session>(std::move(*client), std::string(app));
     std::scoped_lock g(impl_->state);
     impl_->session = std::move(s);  // requests in flight finish on the old one

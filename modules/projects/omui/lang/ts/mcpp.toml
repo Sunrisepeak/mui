@@ -35,6 +35,7 @@ sources = ["src/native/web/*.cpp"]
 
 [dependencies]
 mcpplibs.os = "0.4.4"
+mlibs.utils = { path = "../../../../base/utils" }  # mlibs.error: why a source cannot be read, run or edited
 
 [target.'cfg(not(os = "emscripten"))'.dependencies]
 mcpplibs.mwrap.quickjs_ng = "0.17.0"

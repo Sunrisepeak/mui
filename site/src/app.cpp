@@ -1145,7 +1145,7 @@ Element settings_panel(const std::shared_ptr<Site>& s) {
                            .value = s->renderer_choice,
                            .on_changed = [s](std::string v) {
                                s->renderer_choice.set(v);
-                               if (auto r = choose_renderer(v); !r) s->settings_note.set(r.error());
+                               if (auto r = choose_renderer(v); !r) s->settings_note.set(r.error().text());
                                else s->settings_note.set(std::string());
                            }}),
                    text({.id = "now",

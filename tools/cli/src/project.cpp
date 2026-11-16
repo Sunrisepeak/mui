@@ -214,7 +214,7 @@ std::expected<Config, std::string> read_config() {
                   "the defaults (no omui.config.ts)"};
     if (!std::filesystem::exists("omui.config.ts")) return config;
     auto data = lang::ts::evaluate("omui.config.ts");
-    if (!data) return std::unexpected(data.error());
+    if (!data) return std::unexpected(data.error().text());
     if (data->kind != "config") return std::unexpected(std::format("omui.config.ts's default export is defineConfig(…), not a {}", data->kind));
     const auto given = parse_json(data->json);
     if (given && given->map())
@@ -265,7 +265,7 @@ int config(bool json, std::ostream& out, std::ostream& err) {
 std::expected<std::string, std::string> data_text(const std::filesystem::path& file) {
     if (mcpplibs::os::fs::utf8(file.filename()).ends_with(".omui.ts")) {
         auto data = lang::ts::evaluate(file);
-        if (!data) return std::unexpected(data.error());
+        if (!data) return std::unexpected(data.error().text());
         return std::format("{{\"{}\":{}}}", data->kind, data->json);
     }
     auto text = mcpplibs::os::fs::read(file);

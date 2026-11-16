@@ -1764,20 +1764,20 @@ std::string to_text(const std::vector<TypeScriptProblem>& problems) {
     return out;
 }
 
-std::expected<std::string, std::string> compile(const std::filesystem::path& file) {
+std::expected<std::string, TsFailure> compile(const std::filesystem::path& file) {
     std::ifstream in(file, std::ios::binary);
-    if (!in) return std::unexpected(std::format("{}: cannot be read", mcpplibs::os::fs::utf8(file)));
+    if (!in) return std::unexpected(TsFailure{TsError::unreadable, {}, mcpplibs::os::fs::utf8(file)});
     const std::string source{std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
     return compile_source(source, mcpplibs::os::fs::utf8(file));
 }
 
-std::expected<std::string, std::string> compile_source(std::string_view source, std::string_view name) {
+std::expected<std::string, TsFailure> compile_source(std::string_view source, std::string_view name) {
     auto js = strip_types(source);
     if (js) return std::move(*js);
     std::string out;
     for (const auto& problem : js.error())
         out += std::format("{}{}:{}:{}: {}", out.empty() ? "" : "\n", name, problem.line, problem.column, problem.text);
-    return std::unexpected(std::move(out));
+    return std::unexpected(TsFailure{TsError::syntax, std::move(out), std::string(name)});
 }
 
 }  // namespace omui::lang::ts

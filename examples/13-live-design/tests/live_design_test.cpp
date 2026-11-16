@@ -54,8 +54,8 @@ public:
         }
         host_.settle();
     }
-    std::expected<std::vector<std::uint8_t>, std::string> png() override { return host_.png(); }
-    std::expected<std::vector<std::uint8_t>, std::string> framed_png(Rect frame, std::string_view fixed) override {
+    std::expected<std::vector<std::uint8_t>, omui::ViewFailure> png() override { return host_.png(); }
+    std::expected<std::vector<std::uint8_t>, omui::ViewFailure> framed_png(Rect frame, std::string_view fixed) override {
         return host_.framed_png(frame, fixed);
     }
 
@@ -209,7 +209,7 @@ UTest cases{"example.live-design", [] {
         const std::string final_text = file_text(dir / "app" / "main.ts");
         expect(final_text.contains("Your subscription") && final_text.contains("\"damping\":26") && final_text.contains("id: \"save\"")) << final_text;
         auto compiled = lang::ts::compile(dir / "app" / "main.ts");
-        expect(compiled.has_value()) << (compiled ? "" : compiled.error());
+        expect(compiled.has_value()) << (compiled ? "" : compiled.error().text());
 
         // Each edit within a frame.
         expect(took.size() >= 7) << took.size();

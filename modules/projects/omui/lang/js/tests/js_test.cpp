@@ -451,7 +451,7 @@ mount("main", column({}, [
 ]));
 )ts";
         auto js = lang::ts::compile_source(main, mcpplibs::os::fs::utf8(dir / "main.ts"));
-        expect(js.has_value()) << (js ? "" : js.error());
+        expect(js.has_value()) << (js ? "" : js.error().text());
         if (!js) return;
         Runtime r;
         Js script(r);
@@ -498,7 +498,7 @@ mount("main", column({ gap: 8 }, [
 )ts";
         const auto file = dir / "main.ts";
         auto js = lang::ts::compile_source(main, mcpplibs::os::fs::utf8(file));
-        expect(js.has_value()) << (js ? "" : js.error());
+        expect(js.has_value()) << (js ? "" : js.error().text());
         if (!js) return;
         Runtime r;
         Js script(r);
@@ -602,7 +602,7 @@ mount("main", column({ gap: 8 }, [
         expect(eq(committed, 0)) << commit_answer.json();
         expect(eq(file_text(dir / "app.ts"), text_of()));
         auto checked = lang::ts::compile(dir / "app.ts");
-        expect(checked.has_value()) << (checked ? "" : checked.error()) << " — what was written still compiles";
+        expect(checked.has_value()) << (checked ? "" : checked.error().text()) << " — what was written still compiles";
     };
 
     "a stand-in (Live Design's previews): the application again, headless, running texts it has not taken"_test = [] {
@@ -661,7 +661,7 @@ mount("main", column({ gap: 8 }, [
 ]));
 )ts";
         auto js = lang::ts::compile(dir / "main.ts");
-        expect(js.has_value()) << (js ? "" : js.error());
+        expect(js.has_value()) << (js ? "" : js.error().text());
         if (!js) return;
         expect(js->find("from \"openmui\"") != std::string::npos && js->find("interface") == std::string::npos) << *js;
         expect(eq(std::ranges::count(*js, '\n'), std::ranges::count(file_text(dir / "main.ts"), '\n'))) << "the lines are the source's";
@@ -674,7 +674,7 @@ mount("main", column({ gap: 8 }, [
         r.settle(script.host);
         expect(eq(r.name_of("main/text:1"), std::string("1 clicks")));
         auto broken = lang::ts::compile(dir / "missing.ts");
-        expect(!broken && !broken.error().empty());
+        expect(!broken && !broken.error().text().empty());
     };
 
     "TypeScript from an editor's text: transformed, its types gone, openmui an import; an error names the line"_test = [] {
@@ -683,11 +683,11 @@ import { verb } from "openmui";
 const half: number = 110;
 verb("gift.wide", { effect: "read" }, (): { half: number } => ({ half }));
 )ts", "wide.ts");
-        expect(js.has_value()) << (js ? "" : js.error());
+        expect(js.has_value()) << (js ? "" : js.error().text());
         if (!js) return;
         expect(js->find("from \"openmui\"") != std::string::npos && js->find(": number") == std::string::npos) << *js;
         auto broken = lang::ts::compile_source("const x: number = ;\n", "broken.ts");
-        expect(!broken && broken.error().starts_with("broken.ts:1:19: ")) << (broken ? *broken : broken.error());
+        expect(!broken && broken.error().message.starts_with("broken.ts:1:19: ")) << (broken ? *broken : broken.error().text());
     };
 
     "CTS level S: every scenario records its pinned trace (spec/conformance/S, tests/cts.js)"_test = [] {
@@ -716,7 +716,7 @@ verb("gift.wide", { effect: "read" }, (): { half: number } => ({ half }));
             expect(js.errors.empty()) << (js.errors.empty() ? "" : scenario.name + ": " + js.errors[0]);
             return trace;
         }, {.subject = "javascript"});
-        expect(declared.has_value() && *declared >= 3u) << (declared ? "fewer than three scenarios" : declared.error());
+        expect(declared.has_value() && *declared >= 3u) << (declared ? "fewer than three scenarios" : declared.error().text());
     };
 
     "the TypeScript API over the registered components (design.api, D-145): the module's functions and every builder with its props and handlers"_test = [] {

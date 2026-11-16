@@ -58,7 +58,10 @@ struct Endpoint::Impl {
 Endpoint::Endpoint(Runtime& runtime, EndpointOptions options) : impl_(std::make_unique<Impl>(runtime, std::move(options))) {}
 Endpoint::~Endpoint() { stop(); }
 
-std::expected<void, std::string> Endpoint::start() { return impl_->endpoint.start(); }
+std::expected<void, AgentFailure> Endpoint::start() {
+    if (auto started = impl_->endpoint.start(); !started) return std::unexpected(AgentFailure{AgentError::cannot_listen, started.error(), impl_->endpoint.name()});
+    return {};
+}
 void Endpoint::stop() { impl_->endpoint.stop(); }
 bool Endpoint::listening() const noexcept { return impl_->endpoint.listening(); }
 const std::string& Endpoint::name() const noexcept { return impl_->endpoint.name(); }
@@ -86,15 +89,15 @@ Client::Client(Client&&) noexcept = default;
 Client& Client::operator=(Client&&) noexcept = default;
 Client::~Client() = default;
 
-std::expected<Client, std::string> Client::connect(std::string_view name, const std::filesystem::path& directory) {
+std::expected<Client, AgentFailure> Client::connect(std::string_view name, const std::filesystem::path& directory) {
     auto opened = kernel::Connection::connect(name, directory);
-    if (!opened) return std::unexpected(opened.error());
+    if (!opened) return std::unexpected(AgentFailure{AgentError::cannot_connect, opened.error(), std::string(name)});
     return Client(std::make_unique<Impl>(std::move(*opened)));
 }
 
-std::expected<Client, std::string> Client::connect_loopback(std::uint16_t port, std::string_view secret) {
+std::expected<Client, AgentFailure> Client::connect_loopback(std::uint16_t port, std::string_view secret) {
     auto opened = kernel::Connection::connect_loopback(port, secret);
-    if (!opened) return std::unexpected(opened.error());
+    if (!opened) return std::unexpected(AgentFailure{AgentError::cannot_connect, opened.error(), std::format("loopback:{}", port)});
     return Client(std::make_unique<Impl>(std::move(*opened)));
 }
 

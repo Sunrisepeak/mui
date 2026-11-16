@@ -10,10 +10,10 @@ namespace {
 constexpr std::string_view not_here = "data modules are evaluated when an application is built, not in a page";
 }
 
-std::expected<Data, std::string> evaluate(const std::filesystem::path&, const DataOptions&) { return std::unexpected(std::string(not_here)); }
+std::expected<Data, TsFailure> evaluate(const std::filesystem::path&, const DataOptions&) { return std::unexpected(TsFailure{TsError::not_here, std::string(not_here)}); }
 
-std::expected<Data, std::string> evaluate_source(std::string_view, std::string_view, const DataOptions&) {
-    return std::unexpected(std::string(not_here));
+std::expected<Data, TsFailure> evaluate_source(std::string_view, std::string_view, const DataOptions&) {
+    return std::unexpected(TsFailure{TsError::not_here, std::string(not_here)});
 }
 
 }  // namespace omui::lang::ts

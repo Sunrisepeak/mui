@@ -63,7 +63,7 @@ std::expected<void, std::string> Studio::show(std::string_view name, bool crossf
     problem.set(std::string());
     accent_text.set(std::string());
     if (runtime)
-        if (auto r = scope.empty() ? theme::apply_style(*runtime, name, crossfade) : theme::apply_style(*runtime, name, scope, crossfade); !r) return r;
+        if (auto r = scope.empty() ? theme::apply_style(*runtime, name, crossfade) : theme::apply_style(*runtime, name, scope, crossfade); !r) return std::unexpected(r.error().text());
     revision.set(revision.peek() + 1);
     return {};
 }
@@ -79,7 +79,7 @@ std::expected<void, std::string> Studio::apply_draft() {
         return std::unexpected(why);
     }
     if (runtime)
-        if (auto r = scope.empty() ? theme::apply_style(*runtime, draft_.name, false) : theme::apply_style(*runtime, draft_.name, scope, false); !r) return r;
+        if (auto r = scope.empty() ? theme::apply_style(*runtime, draft_.name, false) : theme::apply_style(*runtime, draft_.name, scope, false); !r) return std::unexpected(r.error().text());
     revision.set(revision.peek() + 1);
     return {};
 }

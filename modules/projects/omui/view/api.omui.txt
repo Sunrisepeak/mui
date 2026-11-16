@@ -108,6 +108,7 @@ export import mlibs.pipeline;
 export import mlibs.text;
 export import mlibs.i18n;
 export import :element;
+export import :error;
 export import :model;
 export import :theme;
 export import :component;
@@ -537,6 +538,12 @@ namespace omui {
   [[nodiscard]] Element when(std::function<bool()> cond, std::function<View()> then, std::function<View()> otherwise = {…}, std::source_location where = std::source_location::current());
   template <class T, class KeyFn, class ItemFn> [[nodiscard]] Element each(Signal<std::vector<T>> items, KeyFn key, ItemFn item, std::source_location where = std::source_location::current());
 }
+== omui.view:error
+namespace omui {
+  enum class ViewError : std::uint8_t { bad_key, duplicate_key, key_taken, past_end, empty_range, range_past_input, unordered_ranges, no_vector_capture, no_pixel_capture, capture_failed, no_reloader, reload_failed, empty_region, nothing_shown, below_level, window_failed, device_failed, not_open, write_failed, nothing_recorded };
+  [[nodiscard]] constexpr mlibs::error::Description describe(ViewError error) noexcept;
+  using ViewFailure = mlibs::error::Error<ViewError>;
+}
 == omui.view:glyphs
 namespace omui {
   enum class GlyphDomain : std::uint8_t { glyph, grapheme, word, line };
@@ -698,9 +705,9 @@ namespace omui {
     [[nodiscard]] const Row& at(std::size_t i) const;
     [[nodiscard]] std::span<const Row> rows() const noexcept;
     [[nodiscard]] std::optional<std::size_t> find(std::string_view key) const;
-    std::expected<void, std::string> push(std::vector<Row> rows);
-    std::expected<void, std::string> insert(std::size_t at, std::vector<Row> rows);
-    std::expected<void, std::string> patch(std::size_t from, std::vector<Row> rows);
+    std::expected<void, ViewFailure> push(std::vector<Row> rows);
+    std::expected<void, ViewFailure> insert(std::size_t at, std::vector<Row> rows);
+    std::expected<void, ViewFailure> patch(std::size_t from, std::vector<Row> rows);
     void remove(std::size_t from, std::size_t count);
     void clear();
     [[nodiscard]] Value to_value(std::size_t from = 0, std::size_t count = std::numeric_limits<std::size_t>::max()) const;
@@ -903,7 +910,7 @@ namespace omui {
     double display_hz = 0;
     std::span<const InputAttribution> attribution;
   };
-  [[nodiscard]] std::expected<void, std::string> validate_input_attribution(const FrameInput& input);
+  [[nodiscard]] std::expected<void, ViewFailure> validate_input_attribution(const FrameInput& input);
 }
 namespace mlibs::pipeline {
   template <> struct resource_type<omui::FrameInput> {
@@ -1298,12 +1305,12 @@ namespace omui {
     };
     void set_native_surfaces(NativeSurfaces surfaces);
     [[nodiscard]] const NativeSurfaces& native_surfaces() const noexcept;
-    [[nodiscard]] std::expected<std::string, std::string> capture_svg(std::optional<Rect> region = {…});
-    void set_svg_capture(std::function<std::expected<std::string, std::string>(Rect)> capture);
-    [[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> capture_png(std::optional<Rect> region = {…});
-    void set_png_capture(std::function<std::expected<std::vector<std::uint8_t>, std::string>(Rect)> capture);
-    [[nodiscard]] std::expected<Value, std::string> reload_sources(const Value& request);
-    void set_source_reloader(std::function<std::expected<Value, std::string>(const Value&)> reloader);
+    [[nodiscard]] std::expected<std::string, ViewFailure> capture_svg(std::optional<Rect> region = {…});
+    void set_svg_capture(std::function<std::expected<std::string, ViewFailure>(Rect)> capture);
+    [[nodiscard]] std::expected<std::vector<std::uint8_t>, ViewFailure> capture_png(std::optional<Rect> region = {…});
+    void set_png_capture(std::function<std::expected<std::vector<std::uint8_t>, ViewFailure>(Rect)> capture);
+    [[nodiscard]] std::expected<Value, ViewFailure> reload_sources(const Value& request);
+    void set_source_reloader(std::function<std::expected<Value, ViewFailure>(const Value&)> reloader);
     std::string link_agent() override;
     void unlink_agent() override;
     [[nodiscard]] const AgentLink& agent_link() const noexcept override;

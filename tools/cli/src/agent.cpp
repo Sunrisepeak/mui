@@ -381,7 +381,7 @@ int agent(const cmd::ParsedArgs& p, std::optional<std::string> dir_option, std::
     if (p.subcommand_name() == "sweep") {
         auto client = agent::Client::connect(app_name, dir);
         if (!client) {
-            err << client.error() << "\n(omui agent ls lists the applications that listen)\n";
+            err << client.error().text() << "\n(omui agent ls lists the applications that listen)\n";
             return 1;
         }
         return sweep([&](const Value& req) { return client->call(req, std::chrono::seconds(30)); }, sub, out, err);
@@ -393,7 +393,7 @@ int agent(const cmd::ParsedArgs& p, std::optional<std::string> dir_option, std::
     }
     auto client = agent::Client::connect(app_name, dir);
     if (!client) {
-        err << client.error() << "\n(omui agent ls lists the applications that listen)\n";
+        err << client.error().text() << "\n(omui agent ls lists the applications that listen)\n";
         return 1;
     }
     std::chrono::milliseconds limit = std::chrono::seconds(30);

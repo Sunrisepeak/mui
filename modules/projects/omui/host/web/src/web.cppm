@@ -140,7 +140,7 @@ public:
     // The last frame shown, read back from whoever drew it — a GPU's texture
     // (a program linked to wait for it: rhi::webgpu::can_wait), the CPU's
     // frame: what a test compares with the reference, a screenshot keeps.
-    [[nodiscard]] std::expected<xrender::raster::Surface, std::string> read_frame();
+    [[nodiscard]] std::expected<xrender::raster::Surface, ViewFailure> read_frame();
     [[nodiscard]] std::size_t frames_shown() const noexcept;
     [[nodiscard]] bool hidden() const noexcept;
 

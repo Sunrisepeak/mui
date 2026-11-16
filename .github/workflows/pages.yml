@@ -1,7 +1,7 @@
 name: Pages
 
 # omui's website (D-84 §6.6, W3): site/ built for the Web, its places
-# pre-rendered, published to GitHub Pages (tools/ci/site.sh) at
+# pre-rendered, published to GitHub Pages (omui-devtools site build) at
 # https://sunrisepeak.github.io/mui/. A pull request that touches the site or
 # the documents it shows builds it (the built site kept as an artifact); a
 # push to main or to the design branch, or a run by hand, publishes it — where
@@ -23,7 +23,9 @@ on:
       - 'tools/gen/tests/dist_toy_test.cpp'
       - 'tools/ci/dist-toy-loading.mjs'
       - 'tools/gen/src/font_subset.*'
-      - 'tools/ci/site.sh'
+      - 'tools/devtools/src/site.*'
+      - 'tools/devtools/src/cdp.*'
+      - 'tools/devtools/src/native/gzip.cpp'
       - 'tools/ci/site-*'
       - 'tools/devtools/src/check.*'
       - 'tools/ci/visitor-path.*'
@@ -75,7 +77,7 @@ jobs:
           mcpp toolchain install gcc 16.1.0
           mcpp toolchain default gcc@16.1.0
       - name: The site, packed for the Web, pre-rendered, its program split by what its first screen runs
-        run: tools/ci/site.sh
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- site build
         env:
           # The runner has Chrome: the first screen is profiled and the program split, never skipped.
           OMUI_REQUIRE_BROWSER: '1'

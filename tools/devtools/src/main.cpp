@@ -25,6 +25,8 @@
 //         toy (Bilibili Toy), size (a page's WebAssembly bytes, held to a budget), atspi (examples 03 and 07 on a private bus).
 //   browser  a wasm test program in a real page of headless Chromium (mlibs.http's framing on the loopback).
 //   media the showcases' and the site's README media, made by their tests: copied in, or (--check) held to them.
+//   site  the website: built for the Web, pre-rendered, split by its first screen (build), checked for what it
+//         carries (verify), split alone (split), its first screen profiled (profile), a page driven (drive).
 //   lint  the repository's rules (D-206: the lint in C++, 43 rules);
 //         --self-test shows each rule catches a violation planted in a tree of its own.
 import std;
@@ -44,6 +46,7 @@ import omui.devtools.lead;
 import omui.devtools.lint;
 import omui.devtools.members;
 import omui.devtools.platforms;
+import omui.devtools.site;
 
 namespace cmd = mcpplibs::cmdline;
 namespace rec = omui::devtools::ci;
@@ -270,6 +273,31 @@ cmd::App app() {
                         .option(Option("preload").takes_value().multiple().value_name("DIR:/DEST").help("every file of DIR at /DEST before main()"))
                         .option(Option("headed").help("a window on the display there is (a real GPU's Vulkan), not headless"))
                         .arg(Arg("program").required().help("after --: PROGRAM.js and its arguments")))
+        .subcommand(cmd::App("site")
+                        .description("The website: built for the Web and pre-rendered, verified, split by what its first screen runs, profiled; a page driven")
+                        .subcommand(cmd::App("build").description("omui.site packed for the Web into target/site, its openings, places and agent guide written, split, verified"))
+                        .subcommand(cmd::App("verify")
+                                        .description("The built page carries what it must (loader, static places, fonts, canvas, the agent's files); its sizes said")
+                                        .arg(Arg("dir").help("default: target/site")))
+                        .subcommand(cmd::App("split")
+                                        .description("The program cut in two by what its first screen runs (wasm-split, a profile in each language, omui-gen dist-toy-split)")
+                                        .arg(Arg("dir").help("default: target/site")))
+                        .subcommand(cmd::App("profile")
+                                        .description("A page with wasm-split's instrumented program used at its first screen; the functions that ran written")
+                                        .option(Option("route").takes_value().value_name("R").help("the route, e.g. /zh"))
+                                        .option(Option("idle").takes_value().value_name("MS").help("idle at the end (default: 4000)"))
+                                        .arg(Arg("dir").required().help("the packed page"))
+                                        .arg(Arg("profile").required().help("the profile written")))
+                        .subcommand(cmd::App("drive")
+                                        .description("A page in a real browser in real time: left to run, a script evaluated, captured; its logs printed")
+                                        .option(Option("flag").takes_value().multiple().value_name("SWITCH").help("a switch for Chromium instead of --disable-gpu"))
+                                        .option(Option("click").takes_value().value_name("X,Y").help("a person's click there first"))
+                                        .arg(Arg("url").required())
+                                        .arg(Arg("out").required().help("the PNG"))
+                                        .arg(Arg("seconds").help("default: 6"))
+                                        .arg(Arg("width").help("default: 1280"))
+                                        .arg(Arg("height").help("default: 800"))
+                                        .arg(Arg("script").help("evaluated after the seconds (awaited; window.omui is the program's agent interface)"))))
         .subcommand(cmd::App("gpu")
                         .description("A GPU for the device tests: the variables written to $GITHUB_ENV (or printed), or a command run with them")
                         .option(Option("real").help("this machine's NVIDIA GPU (Linux), not CI's software device"))
@@ -592,6 +620,65 @@ int lint(const cmd::ParsedArgs& options, const fs::path& root) {
     return problems.empty() ? 0 : 1;
 }
 
+// A number, or nothing.
+std::optional<double> number_of(std::string_view text) {
+    double value = 0;
+    const auto [end, failed] = std::from_chars(text.data(), text.data() + text.size(), value);
+    if (failed != std::errc{} || end != text.data() + text.size()) return std::nullopt;
+    return value;
+}
+
+int site_command(const cmd::ParsedArgs& options, const fs::path& root) {
+    namespace site = omui::devtools::site;
+    if (!options.has_subcommand()) {
+        std::cerr << "usage: omui-devtools site build | verify [DIR] | split [DIR] | profile DIR PROFILE [--route R] [--idle MS] | drive URL OUT [SECONDS] [WIDTH] [HEIGHT] [SCRIPT]\n";
+        return 2;
+    }
+    const auto& given = options.subcommand()->get();
+    const auto directory = [&] { return given.positional_count() > 0 ? mcpplibs::os::fs::from_utf8(given.positional(0)) : root / "target/site"; };
+    if (options.subcommand_name() == "build") return site::build(root);
+    if (options.subcommand_name() == "verify") return site::verify(directory());
+    if (options.subcommand_name() == "split") return site::split(root, directory());
+    if (options.subcommand_name() == "profile") {
+        site::Profile asked{.site = mcpplibs::os::fs::from_utf8(given.positional(0)), .out = mcpplibs::os::fs::from_utf8(given.positional(1)),
+                            .route = given.value("route").value_or("")};
+        if (const auto idle = given.value("idle")) {
+            const auto value = number_of(*idle);
+            if (!value || *value < 0) {
+                std::cerr << "omui-devtools site profile: --idle takes milliseconds\n";
+                return 2;
+            }
+            asked.idle_ms = static_cast<int>(*value);
+        }
+        return site::profile(asked);
+    }
+    site::Drive asked{.url = given.positional(0), .out = mcpplibs::os::fs::from_utf8(given.positional(1))};
+    const std::array<std::string_view, 3> numbers{"seconds", "width", "height"};
+    for (std::size_t index = 0; index < numbers.size(); ++index) {
+        if (given.positional_count() <= index + 2) break;
+        const auto value = number_of(given.positional(index + 2));
+        if (!value || *value < 0) {
+            std::cerr << std::format("omui-devtools site drive: {} is a number\n", numbers[index]);
+            return 2;
+        }
+        if (index == 0) asked.seconds = *value;
+        else if (index == 1) asked.width = static_cast<int>(*value);
+        else asked.height = static_cast<int>(*value);
+    }
+    if (given.positional_count() > 5) asked.script = given.positional(5);
+    asked.flags = given.option_or_empty("flag").values;
+    if (const auto click = given.value("click")) {
+        const auto comma = click->find(',');
+        const auto x = number_of(click->substr(0, comma)), y = comma == std::string::npos ? std::nullopt : number_of(click->substr(comma + 1));
+        if (!x || !y) {
+            std::cerr << "omui-devtools site drive: --click takes X,Y\n";
+            return 2;
+        }
+        asked.click = std::pair{*x, *y};
+    }
+    return site::drive(asked);
+}
+
 int lead_command(const cmd::ParsedArgs& options, const fs::path& root) {
     namespace lead = omui::devtools::lead;
     if (options.subcommand_name() == "check") {
@@ -815,6 +902,7 @@ int main(int argc, char** argv) {
         }
         return step::atspi(root, profile);
     }
+    if (parsed->subcommand_name() == "site") return site_command(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "gpu") {
         namespace device = omui::devtools::gpu;
         const auto& given = parsed->subcommand()->get();

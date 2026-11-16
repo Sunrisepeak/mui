@@ -32,7 +32,7 @@
 //       a wasm32-emscripten program packaged for Bilibili Toy (openmui.gen.dist_toy;
 //       what `mcpp pack --pkg-format dist-toy` runs)
 //   omui-gen dist-toy-split <package dir> --primary <wasm> --deferred <wasm> [--lazy <route>,…]
-//       a packed page's program cut in two by wasm-split (tools/ci/site-split.sh):
+//       a packed page's program cut in two by wasm-split (omui-devtools site split):
 //       the first screen's half first, the rest compiled after it
 //   omui-gen wasm-size <file.wasm> [--json <out.json>] [--markdown <out.md>] [--top N]
 //       where a WebAssembly program's bytes go: its sections, its code by owner

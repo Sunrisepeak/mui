@@ -114,11 +114,11 @@ Current rendered structure: [Home](media/structure-home-en-desktop.png), [Docs](
 
 ```
 mcpp run omui-site -p omui.site               # in a window
-tools/ci/site.sh                                 # for the Web, into target/site/
+mcpp run omui-devtools -p tools/devtools -- site build   # for the Web, into target/site/
 python3 -m http.server -d target/site            # and look at it
 ```
 
-`tools/ci/site.sh` packs the site for wasm32-emscripten using the `site-web` profile (`-Os` for the whole program), without Toy's SDK (`dist_toy({.sdk = false})`). Native release keeps its normal optimization profile. Delivery and frame budgets remain checked in Chromium. The script then runs the native program with `--prerender target/site/index.html`, which writes every place into the page as static HTML. The Markdown is rendered by `openmui.markdown`'s `to_html`, whose output is byte-for-byte what md4c-html writes. The static page:
+`omui-devtools site build` packs the site for wasm32-emscripten using the `site-web` profile (`-Os` for the whole program), without Toy's SDK (`dist_toy({.sdk = false})`). Native release keeps its normal optimization profile. Delivery and frame budgets remain checked in Chromium. It then runs the native program with `--prerender target/site/index.html`, which writes every place into the page as static HTML. The Markdown is rendered by `openmui.markdown`'s `to_html`, whose output is byte-for-byte what md4c-html writes. The static page:
 - sits in a `<main id="omui-static">` that readers without JavaScript and search engines read;
 - uses the program's own fonts;
 - shows just the current route, in its language, including when JavaScript is disabled;
@@ -133,7 +133,7 @@ Initial Inter and later complete faces preserve the same glyph ids and contextua
 
 Static FontFaces now consume `omuiLoad.fontBytes` leases from the same decoded transfers as runtime FS installation. Body, code and Chinese faces are activated for the current static page, then released on handoff; URL faces remain in `noscript`. The [shared-font gate](../tools/ci/site-font-sharing.mjs) disables HTTP caches, observes actual requests and verifies both consumers, retry, cleanup and byte identity. Its review captures show the [Chinese phone with its actual loaded face](media/shared-font-home-zh-phone.png) and [the document's loaded body and code faces](media/shared-font-docs-en-desktop.png); only protocol publication was temporarily held for observation, while native presentation remained real. See the [shared delivery design](../.agents/docs/2026-11-04-omui-shared-font-delivery-design.md).
 
-`.github/workflows/pages.yml` publishes `target/site` to GitHub Pages. `tools/ci/drive-page.mjs` loads the page in a real browser (headless Chromium, in real time) and can drive it through `window.omui`. That is how the packed site was checked: the same tree hash as CI at three window sizes, the routes, and places reached by a page agent.
+`.github/workflows/pages.yml` publishes `target/site` to GitHub Pages. `omui-devtools site drive` loads the page in a real browser (headless Chromium, in real time) and can drive it through `window.omui`. That is how the packed site was checked: the same tree hash as CI at three window sizes, the routes, and places reached by a page agent.
 
 ## Delivery
 

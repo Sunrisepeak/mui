@@ -89,3 +89,18 @@ omui-devtools gpu                                          # CI's rows: lavapipe
 omui-devtools gpu -- mcpp test -p xrender.rhi.sdl          # CI's device on this machine
 omui-devtools gpu --real -- mcpp test -p xrender.rhi.sdl   # this machine's GPU
 ```
+
+## site
+
+The website's build steps and page tools (moved from `tools/ci/site.sh`, `site-split.sh`, `site-profile.mjs` and `drive-page.mjs`, D-206).
+
+```sh
+omui-devtools site build                       # omui.site packed for the Web into target/site: openings, places, agent guide, split, verified
+omui-devtools site verify [DIR]                # what the built page must carry (loader, static places, fonts, canvas, agent files); its sizes
+omui-devtools site split [DIR]                 # the program cut in two by what its first screen runs (wasm-split; a profile in each language)
+omui-devtools site profile DIR OUT [--route /zh] [--idle MS]   # an instrumented page's first screen used; the functions that ran written
+omui-devtools site drive URL OUT.png [SECONDS] [WIDTH] [HEIGHT] [SCRIPT] [--flag SWITCH]… [--click X,Y]
+```
+
+`split` gives up with a notice where there is no wasm-split or headless Chromium, and fails instead under `OMUI_REQUIRE_BROWSER=1` (CI).
+

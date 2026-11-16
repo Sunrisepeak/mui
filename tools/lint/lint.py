@@ -2,7 +2,8 @@
 """openmui's repository rules, checked (AGENTS.md; implementation plan §15.3).
 
 Moving to C++ (D-206, RC3.12): macros, headers, naming, legacy-import, testing, cmdline, thirdparty,
-exceptions, paths, platform, determinism and owner are `omui-devtools lint` now (tools/devtools,
+exceptions, paths, platform, determinism, owner, toml, members, manifest, layering, modules, project-dag
+and layout are `omui-devtools lint` now (tools/devtools,
 held by its lint_test in every test row); the rules below that are not among them run here.
 
     python3 tools/lint/lint.py            check the repository
@@ -82,137 +83,6 @@ from pathlib import Path, PurePosixPath
 SOURCE_SUFFIXES = {".cppm", ".cpp", ".ixx", ".cc", ".cxx", ".h", ".hpp", ".hh", ".hxx", ".inl"}
 SKIP_DIRS = {"target", ".git", ".cache", "build", "node_modules", "fixtures", ".venv", "__pycache__"}
 
-# Layers (D-80, D-82; convergence plan §9.2). A name says who owns a package,
-# a directory says which group it is in, and the layer comes from this table:
-# the longest path prefix that holds a member gives its layer, so one project
-# may span layers (hanim.core is base, hanim is gfx). A layer may depend on the
-# layers listed for it (path dependencies in [dependencies] and target
-# dependencies). The table holds today's directories and the ones M1 moves
-# them to (modules/projects/…), so a move changes no rule.
-#
-# The independent components (mlibs, hanim, xrender, xengine's kernels below
-# the UI) know nothing of omui (D-55); omui never depends on the game layer
-# (xengine/game, D-161); the
-# fighting framework's core depends on the standard library alone, so that it
-# can leave the repository unchanged, and the rest of gongfu on no UI.
-PATH_LAYERS: dict[str, str] = {
-    # mlibs: the layer groups
-    "modules/base/utils": "utils",  # the bottom: small tools, the standard library alone
-    "modules/base": "base",
-    "modules/gfx": "gfx",
-    "modules/content": "content",
-    "modules/media": "media",
-    "modules/base/mpal": "base",  # the OS's services above mcpplibs.os: no UI, used by omui's hosts
-    # the projects (plan §9.2)
-    "modules/projects/hanim/core": "base",
-    "modules/projects/hanim/timeline": "base",  # tracks of clips, their file and edits: hanim.core and mlibs alone
-    "modules/projects/hanim": "gfx",
-    "modules/projects/xrender": "gfx",
-    "modules/projects/xrender/text": "content",  # text as the renderer draws it: above mlibs.text
-    "modules/projects/xengine/kernel/dynamics": "base",  # the CPU core (hanim and omui use it, D-133)
-    "modules/projects/xengine/kernel/cellular": "base",  # its CPU part
-    "modules/projects/xengine/kernel/cellular/rhi": "gfx",
-    "modules/projects/xengine/kernel/cellular/present": "gfx",  # cells to an xrender image
-    "modules/projects/xengine/kernel/cellular/sdl": "gfx",  # the kernel's suite and field on a native device
-    "modules/projects/xengine/kernel/audio": "media",
-    "modules/projects/xengine/kernel/video": "media",
-    "modules/projects/xengine/kernel/matter": "base",  # materials, their states and laws (D-165)
-    "modules/projects/xengine/kernel/particles": "base",  # things that fly in 3D, a carrier of matter (D-166)
-    "modules/projects/xengine/kernel/field": "base",  # the air and its wind, a carrier of matter (M6.5 T5.2)
-    "modules/projects/xengine/kernel/matter/lab": "gfx",  # the material lab: the lattice's presenter and the renderer's frame
-    "modules/projects/xengine/game": "game",  # above the interface: world, input, net, ui (the bridge), runtime
-    "modules/projects/gongfu": "gongfu",
-    "modules/projects/omui": "ui",
-    "modules/projects/omui/host": "host",
-    "modules/projects/omui/components": "components",
-    "modules/projects/omui/lang": "lang",
-    "modules/projects/omui/sdk": "sdk",
-    # omui and the game layer where they are today
-    "modules/ui": "ui",
-    "modules/projects/omui/host": "host",
-    "components": "components",
-    "lang": "lang",
-    "modules/projects/gongfu": "gongfu",
-    "mgame": "game",
-    "spec": "spec",
-    # build code, tools and the consumers
-    "tools": "tools",
-    "mcpp": "mcpp",
-    "modules/projects/omui/entry": "app",  # omui's programs: the composition roots (component-binding §10.2)
-    "tests": "app",
-    "examples": "app",
-    "showcase": "app",
-    "site": "app",
-    ".": "app",  # the root package (until M1 moves it to modules/projects/omui/sdk)
-}
-# A directory that is its own layer, not the prefix of one: gongfu's core.
-EXACT_LAYERS: dict[str, str] = {"modules/projects/gongfu": "gongfu.core", "modules/projects/gongfu": "gongfu.core"}
-INDEPENDENT = {"utils", "base", "gfx", "content", "media"}
-_BELOW_UI = {"utils", "base", "gfx", "content", "media", "spec"}
-LAYERS: dict[str, set[str]] = {
-    "utils": set(),
-    "base": {"utils", "base"},
-    "gfx": {"utils", "base", "gfx"},
-    "content": {"utils", "base", "gfx", "content"},
-    "media": {"utils", "base", "gfx", "content", "media"},
-    "gongfu.core": set(),
-    "gongfu": {"utils", "base", "gfx", "gongfu.core", "gongfu"},
-    "spec": set(),
-    "ui": _BELOW_UI | {"ui"},
-    "host": _BELOW_UI | {"ui", "host"},
-    "components": _BELOW_UI | {"ui", "components"},
-    "lang": {"spec", "ui", "components", "lang"},
-    "sdk": _BELOW_UI | {"ui", "host", "components", "sdk"},
-    "game": _BELOW_UI | {"ui", "host", "components", "game", "gongfu.core", "gongfu"},
-    "tools": {"*"},
-    "mcpp": {"tools", "mcpp"},  # build code only: the plugins, their shared base and the generator they run
-    "app": {"*"},
-}
-
-# Projects (D-161): the units that may each be a repository of its own one day,
-# and the projects each may depend on. Test dependencies count: a project whose
-# tests need a project above it could not be built alone. The layers above say
-# which package may reach which; this says that no two projects need each
-# other. The longest path prefix that holds a member names its project;
-# consumers (tools, the site, showcases, examples, tests, entries) are free.
-PROJECT_PATHS: dict[str, str] = {
-    "modules": "mlibs",  # base, gfx, content
-    "spec": "spec",
-    "modules/projects/xrender": "xrender",
-    "modules/projects/xengine/kernel/dynamics": "xengine.sim",
-    "modules/projects/xengine/kernel/cellular": "xengine.sim",
-    "modules/projects/xengine/kernel/matter": "xengine.sim",
-    "modules/projects/xengine/kernel/particles": "xengine.sim",
-    "modules/projects/xengine/kernel/field": "xengine.sim",
-    "modules/projects/hanim": "hanim",
-    "modules/projects/xengine/kernel/audio": "xengine.media",
-    "modules/projects/xengine/kernel/video": "xengine.media",
-    "modules/projects/omui": "omui",
-    "modules/projects/xengine/game": "xengine.game",
-    "modules/projects/gongfu": "gongfu",
-}
-# gongfu's core alone (the standard library): a fixture the game layer's tests may take.
-EXACT_PROJECTS: dict[str, str] = {"modules/projects/gongfu": "gongfu.core"}
-_KERNELS = {"mlibs", "xrender", "xengine.sim", "hanim", "xengine.media"}
-PROJECT_DEPS: dict[str, set[str]] = {
-    "mlibs": set(),
-    "spec": set(),
-    "xrender": {"mlibs"},
-    "xengine.sim": {"mlibs", "xrender"},
-    "hanim": {"mlibs", "xrender", "xengine.sim"},
-    "xengine.media": {"mlibs", "xrender", "xengine.sim", "hanim"},
-    "omui": _KERNELS | {"spec"},
-    "gongfu.core": {"mlibs"},  # for its tests; what it is built from is the standard library alone (layering)
-    "gongfu": _KERNELS | {"gongfu.core"},
-    "xengine.game": _KERNELS | {"spec", "omui", "gongfu.core"},
-}
-# In the game layer, the one package that knows omui (D-162).
-OMUI_BRIDGE = "modules/projects/xengine/game/ui"
-
-# Members whose results are part of A-level conformance (identical bits).
-DETERMINISTIC = ["modules/base/math", "modules/base/utils", "modules/projects/omui/native", "modules/projects/xengine/kernel/audio", "modules/projects/xengine/kernel/video", "modules/projects/xengine/kernel/dynamics", "modules/projects/xengine/kernel/particles", "modules/projects/xengine/kernel/field", "showcase/widget-breakout/headless", "showcase/glade/headless", "modules/projects/hanim/core", "modules/projects/hanim", "modules/projects/xrender/raster", "modules/content/layout", "modules/base/geom", "modules/projects/xrender/graph", "modules/projects/xrender/vector", "modules/projects/xrender/text", "modules/content/text",
-                 "modules/content/i18n", "modules/projects/omui/view", "showcase/promo-video"]
-
 
 @dataclass
 class Problem:
@@ -222,23 +92,6 @@ class Problem:
 
     def __str__(self) -> str:
         return f"[{self.rule}] {self.where}: {self.message}"
-
-
-def layer_of(member: str) -> str | None:
-    """The layer of a member's directory: its own entry, else the longest path prefix in the table."""
-    if member in EXACT_LAYERS:
-        return EXACT_LAYERS[member]
-    best = None
-    for prefix in PATH_LAYERS:
-        if prefix == "." or member == prefix or member.startswith(prefix + "/"):
-            if best is None or best == "." or len(prefix) > len(best):
-                best = prefix
-    return PATH_LAYERS[best] if best is not None else None
-
-
-def rule_for(member: str) -> set[str] | None:
-    layer = layer_of(member)
-    return LAYERS.get(layer) if layer else None
 
 
 def source_files(root: Path):
@@ -306,168 +159,9 @@ def workspace_members(root: Path) -> list[str]:
     return members
 
 
-def check_manifests(root: Path) -> list[Problem]:
-    problems = []
-    members = workspace_members(root)
-    listed = set(members)
-
-    for manifest in sorted(root.rglob("mcpp.toml")):
-        rel = manifest.parent.relative_to(root).as_posix()
-        if any(part in SKIP_DIRS for part in manifest.parent.relative_to(root).parts):
-            continue
-        if rel in (".",) or rel in listed:
-            continue
-        if rel.startswith("modules/projects/omui/templates/"):
-            continue
-        problems.append(Problem("members", f"{rel}/mcpp.toml", "a package that is not a workspace member"))
-
-    for member in members:
-        manifest = root / member / "mcpp.toml"
-        if not manifest.exists():
-            problems.append(Problem("members", member, "listed as a member, but has no mcpp.toml"))
-            continue
-        try:
-            data = tomllib.loads(manifest.read_text(encoding="utf-8"))
-        except tomllib.TOMLDecodeError as e:
-            problems.append(Problem("members", member, f"mcpp.toml is not valid TOML: {e}"))
-            continue
-        # Namespaced dependencies are dotted keys of the one table
-        # (`compat.sdl3 = "3.4.18"`), never tables of their own.
-        for table in ("dependencies", "dev-dependencies"):
-            for line in manifest.read_text(encoding="utf-8").splitlines():
-                m = re.match(r"^\[" + table + r"\.([A-Za-z0-9_\-]+)\]\s*$", line)
-                if m:
-                    problems.append(Problem("manifest", member,
-                                            f"[{table}.{m.group(1)}]: write `{m.group(1)}.<name> = ...` under [{table}]"))
-        allowed = rule_for(member)
-        if allowed is None:
-            problems.append(Problem("layering", member, "a member in no known layer; add it to tools/lint/lint.py"))
-            continue
-        tables = [data.get("dependencies", {})]
-        for target in data.get("target", {}).values():
-            if isinstance(target, dict):
-                tables.append(target.get("dependencies", {}))
-        for table in tables:
-            for name, spec in flatten_deps(table):
-                if not isinstance(spec, dict) or "path" not in spec:
-                    continue
-                dep = (manifest.parent / spec["path"]).resolve()
-                try:
-                    dep_rel = dep.relative_to(root.resolve()).as_posix()
-                except ValueError:
-                    continue
-                dep_layer = layer_of(dep_rel if dep_rel != "" else ".")
-                if "*" in allowed:
-                    continue
-                if dep_layer not in allowed:
-                    problems.append(Problem("modules" if layer_of(member) in INDEPENDENT else "layering",
-                                            member, f"depends on {dep_rel} ({name}); allowed layers: {sorted(allowed) or 'std only'}"))
-
-        if member in DETERMINISTIC:
-            flags = " ".join(data.get("build", {}).get("cxxflags", []))
-            if "-ffp-contract=off" not in flags:
-                problems.append(Problem("determinism", f"{member}/mcpp.toml", "missing -ffp-contract=off in [build] cxxflags"))
-    return problems
-
-
-def project_of(member: str) -> str | None:
-    """The project of a member's directory (None: a consumer, free to depend on any)."""
-    if member in EXACT_PROJECTS:
-        return EXACT_PROJECTS[member]
-    best = None
-    for prefix in PROJECT_PATHS:
-        if member == prefix or member.startswith(prefix + "/"):
-            if best is None or len(prefix) > len(best):
-                best = prefix
-    return PROJECT_PATHS[best] if best is not None else None
-
-
-def check_projects(root: Path) -> list[Problem]:
-    """No project depends on one that is not below it, its tests included (D-161)."""
-    problems = []
-    for member in workspace_members(root):
-        own = project_of(member)
-        if own is None:
-            continue
-        try:
-            data = tomllib.loads((root / member / "mcpp.toml").read_text(encoding="utf-8"))
-        except (OSError, tomllib.TOMLDecodeError):
-            continue
-        tables = [(data.get("dependencies", {}), ""), (data.get("dev-dependencies", {}), " for its tests")]
-        tables += [(t, "") for t in data.get("feature-deps", {}).values()]
-        for target in data.get("target", {}).values():
-            if isinstance(target, dict):
-                tables += [(target.get("dependencies", {}), ""), (target.get("dev-dependencies", {}), " for its tests")]
-        for table, what in tables:
-            for name, spec in flatten_deps(table):
-                if not isinstance(spec, dict) or "path" not in spec:
-                    continue
-                try:
-                    dep = (root / member / spec["path"]).resolve().relative_to(root.resolve()).as_posix()
-                except ValueError:
-                    continue
-                other = project_of(dep)
-                if other is None:
-                    problems.append(Problem("project-dag", member, f"depends on {dep} ({name}){what}: a consumer, which no project depends on"))
-                elif other != own and other not in PROJECT_DEPS.get(own, set()):
-                    problems.append(Problem("project-dag", member, f"depends on {dep} ({name}){what}: {own} may depend on "
-                                                                   f"{sorted(PROJECT_DEPS.get(own, set())) or 'no project'}, not on {other}"))
-                elif other == "omui" and own == "xengine.game" and member != OMUI_BRIDGE:
-                    problems.append(Problem("project-dag", member, f"depends on {dep} ({name}){what}: in the game layer only "
-                                                                   f"{OMUI_BRIDGE} knows omui (D-162)"))
-    return problems
-
-
-# Where the path-is-the-name rule (D-80) holds, and the directories whose
-# README lists the packages under them.
-LIBRARY_ROOTS = ("modules", "mgame", "components", "lang", "tools", "showcase", "mcpp")
-README_ROOTS = ("modules", "mgame", "components", "lang", "tools", "tests", "examples", "showcase", "mcpp")
-
-
 def package_name(data: dict) -> str:
     p = data.get("package", {})
     return f"{p['namespace']}.{p.get('name', '')}" if p.get("namespace") else p.get("name", "")
-
-
-def check_layout(root: Path) -> list[Problem]:
-    """A path is its package's name; every directory with packages under it says what they are."""
-    problems = []
-    members = workspace_members(root)
-    names: dict[str, str] = {}
-    for m in members:
-        try:
-            names[m] = package_name(tomllib.loads((root / m / "mcpp.toml").read_text(encoding="utf-8")))
-        except (OSError, tomllib.TOMLDecodeError):
-            continue
-    for m, full in names.items():
-        if m.split("/")[0] not in LIBRARY_ROOTS:
-            continue
-        leaf = Path(m).name.replace("-", "_")
-        if leaf != full.split(".")[-1]:
-            problems.append(Problem("layout", m, f"the directory is `{Path(m).name}` but the package is {full}: "
-                                                 "a library's path is its name (D-80)"))
-        parent = Path(m).parent.as_posix()
-        if parent in names and not full.startswith(names[parent] + "."):
-            problems.append(Problem("layout", m, f"{full} lies in {parent} ({names[parent]}): a package inside another "
-                                                 f"is named after it ({names[parent]}.{Path(m).name.replace('-', '_')})"))
-    # Each directory with members below it lists its children in its README.
-    children: dict[str, set[str]] = {}
-    for m in members:
-        parts = m.split("/")
-        if parts[0] not in README_ROOTS:
-            continue
-        for i in range(1, len(parts)):
-            children.setdefault("/".join(parts[:i]), set()).add(parts[i])
-    for d, kids in sorted(children.items()):
-        readme = root / d / "README.md"
-        if not readme.exists():
-            problems.append(Problem("layout", d, "a directory with packages under it has a README.md that lists them"))
-            continue
-        text = readme.read_text(encoding="utf-8")
-        for k in sorted(kids):
-            if not re.search(r"\]\(" + re.escape(k) + r"(/[^)]*)?\)", text):
-                problems.append(Problem("layout", f"{d}/README.md", f"does not list `{k}` (a link `]({k})`)"))
-    return problems
 
 
 # Licences (D-83): GPL and AGPL never, dynamic linking included; LGPL only
@@ -1450,7 +1144,7 @@ def run(root: Path) -> list[Problem]:
     unreadable = check_readable(root)
     if unreadable:
         return unreadable  # the other rules read the manifests
-    return (check_manifests(root) + check_projects(root) + check_layout(root) + check_licences(root) + check_platforms(root) + check_pins(root)
+    return (check_licences(root) + check_platforms(root) + check_pins(root)
             + check_documents(root) + check_media(root) + check_closures(root) + check_operations(root) + check_skills(root) + check_agent_surface(root)
             + check_lead(root) + check_typescript_data(root) + check_imports(root) + check_matter(root) + check_shader_inputs(root) + check_status(root) + check_reexports(root) + check_maturity(root) + check_platform_table(root))
 
@@ -1458,15 +1152,9 @@ def run(root: Path) -> list[Problem]:
 def self_test() -> int:
     """Each rule must reject a violation planted in a copy of a minimal tree."""
     cases = {
-        "toml": ("modules/ui/core/mcpp.toml", "[package]\nnamespace = \"omui\"\nname = \"core\"\n[dependencies]\na.b = \"1\"\na.b.c = \"2\"\n"),
-        "layering": None,
-        "modules": None,
-        "layout": None,
         "licenses": None,
         "platforms": None,
         "media": ("docs/huge.png", "x" * (1024 * 1024 + 1)),
-        "manifest": None,
-        "project-dag": None,
         "agent-surface": None,
         "pins": None,
         "closure": None,

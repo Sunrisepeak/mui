@@ -5,13 +5,12 @@ module omui.devtools.lint;
 
 import std;
 import nlohmann.json;
+import :tree;
 
 namespace omui::devtools::lint {
 
 namespace fs = std::filesystem;
 using json = nlohmann::json;
-
-std::string Problem::text() const { return std::format("[{}] {}: {}", rule, where, message); }
 
 namespace {
 
@@ -24,7 +23,7 @@ constexpr char proc_chars[]{'/', 'p', 'r', 'o', 'c', '/'};
 constexpr std::string_view proc_dir{proc_chars, sizeof proc_chars};
 
 // Members whose results are part of A-level conformance (identical bits): no libm transcendental.
-constexpr std::array deterministic{
+constexpr std::string_view deterministic[]{
     "modules/base/math",         "modules/base/utils",           "modules/projects/omui/native",   "modules/projects/xengine/kernel/audio",
     "modules/projects/xengine/kernel/video", "modules/projects/xengine/kernel/dynamics", "modules/projects/xengine/kernel/particles",
     "modules/projects/xengine/kernel/field", "showcase/widget-breakout/headless", "showcase/glade/headless", "modules/projects/hanim/core",
@@ -53,6 +52,13 @@ constexpr Rule all_rules[]{
     {"paths", "no path::string() / generic_string() outside tests: utf8() / generic_utf8()"},
     {"determinism", "deterministic members call no libm transcendental"},
     {"owner", "each capability has one owner (tools/lint/capabilities.owners.omui.json)"},
+    {"toml", "every manifest is TOML (a child dependency's key beside its parent is quoted)"},
+    {"members", "every listed member has an mcpp.toml, and every mcpp.toml is listed"},
+    {"manifest", "namespaced dependencies are dotted keys of [dependencies], never tables of their own"},
+    {"layering", "a member depends only on the layers below it (D-82)"},
+    {"modules", "an independent component (mlibs, the kernels) depends on nothing above it (D-55)"},
+    {"project-dag", "no project depends on one not below it, its tests included (D-161)"},
+    {"layout", "a library's directory is its name; a directory with packages lists them in its README (D-80)"},
 };
 
 bool starts_with_any(std::string_view text, std::span<const char* const> prefixes) {
@@ -86,12 +92,6 @@ std::string_view trimmed(std::string_view line) {
     if (first == std::string_view::npos) return {};
     const auto last = line.find_last_not_of(" \t\r");
     return line.substr(first, last - first + 1);
-}
-
-std::optional<std::string> read_text(const fs::path& path) {
-    std::ifstream in(path, std::ios::binary);
-    if (!in) return std::nullopt;
-    return std::string(std::istreambuf_iterator<char>(in), {});
 }
 
 // The sources under the root, as paths from it ("/" separated), in order.
@@ -282,7 +282,7 @@ void check_source(std::string_view rel, std::string_view text, const Patterns& r
         }
     }
 
-    for (std::string_view member : deterministic) {
+    for (std::string_view member : deterministic_members()) {
         if (!rel.starts_with(std::string(member) + "/src/")) continue;
         for (std::size_t index = 0; index < lines.size(); ++index) {
             std::match_results<std::string_view::const_iterator> found;
@@ -306,7 +306,7 @@ std::vector<Problem> check_sources(const fs::path& root, std::span<const Capabil
             threads.emplace_back([&] {
                 for (std::size_t index = next++; index < files.size(); index = next++) {
                     const auto& rel = files[index];
-                    const auto text = read_text(root / fs::path(std::u8string(reinterpret_cast<const char8_t*>(rel.data()), rel.size())));
+                    const auto text = read_text(root / path_of(rel));
                     if (text) check_source(rel, *text, patterns, owners, found[index]);
                 }
             });
@@ -321,6 +321,8 @@ fs::path owners_file(const fs::path& root) { return root / "tools" / "lint" / "c
 }  // namespace
 
 std::span<const Rule> rules() noexcept { return all_rules; }
+
+std::span<const std::string_view> deterministic_members() noexcept { return deterministic; }
 
 std::string strip_comments(std::string_view text) {
     std::string out;
@@ -375,16 +377,69 @@ std::string strip_comments(std::string_view text) {
 
 std::vector<Problem> run(const fs::path& root, std::span<const std::string> only) {
     const auto owners = owners_of(owners_file(root));
-    auto problems = check_sources(root, owners);
+    const auto workspace = Workspace::read(root);
+    auto problems = check_manifests(workspace);
+    const bool readable = std::ranges::none_of(problems, [](const Problem& problem) { return problem.rule == "toml"; });
+    if (readable) {  // the other rules read the manifests
+        std::ranges::move(check_projects(workspace), std::back_inserter(problems));
+        std::ranges::move(check_layout(workspace), std::back_inserter(problems));
+    }
+    std::ranges::move(check_sources(root, owners), std::back_inserter(problems));
     if (!only.empty()) std::erase_if(problems, [&](const Problem& problem) { return !std::ranges::contains(only, problem.rule); });
     return problems;
 }
 
-int self_test(const fs::path& repository, const fs::path& scratch, std::ostream& out) {
-    struct Case {
-        std::string rule, path, text, capability;
+namespace {
+
+// The small workspace every case plants into (the script's): hanim, its core, a UI core and the specification,
+// each with a manifest and the READMEs that list them. A case may add a dependency, rename a package or
+// replace a file.
+struct Planted {
+    std::string rule, path, text, capability;
+    std::map<std::string, std::string> dependencies;  // a member's extra manifest tables
+    std::map<std::string, std::string> names;         // a member's [package] name lines, instead of its own
+    std::vector<std::string> also_unexpected;         // rules a case breaks as well (and may)
+};
+
+void plant(const fs::path& root, const Planted& planted, const fs::path& owners_table) {
+    std::error_code error;
+    fs::remove_all(root, error);
+    fs::create_directories(root / "tools" / "lint", error);
+    if (fs::exists(owners_table)) fs::copy_file(owners_table, root / "tools" / "lint" / "capabilities.owners.omui.json", fs::copy_options::overwrite_existing, error);
+    const std::vector<std::string> members{"modules/gfx/hanim", "modules/base/hanim/core", "modules/ui/core", "spec"};
+    std::map<std::string, std::string> names{{"modules/gfx/hanim", "name = \"hanim\""},
+                                             {"modules/base/hanim/core", "namespace = \"hanim\"\nname = \"core\""},
+                                             {"modules/ui/core", "namespace = \"openmui\"\nname = \"core\""},
+                                             {"spec", "namespace = \"openlifa\"\nname = \"openmui\""}};
+    for (const auto& [member, name] : planted.names) names[member] = name;
+    const auto write = [&](const fs::path& file, std::string_view text) {
+        fs::create_directories(file.parent_path(), error);
+        std::ofstream(file, std::ios::binary) << text;
     };
-    std::vector<Case> cases{
+    std::string listed;
+    for (const auto& member : members) listed += std::format("{}\"{}\"", listed.empty() ? "" : ", ", member);
+    write(root / "mcpp.toml", std::format("[workspace]\nmembers = [{}]\n", listed));
+    for (const auto& [directory, text] : std::map<std::string, std::string>{{"modules", "[base](base) [gfx](gfx) [ui](ui)"},
+                                                                           {"modules/base", "[hanim](hanim)"},
+                                                                           {"modules/base/hanim", "[core](core)"},
+                                                                           {"modules/gfx", "[hanim](hanim)"},
+                                                                           {"modules/ui", "[core](core)"}})
+        write(root / path_of(directory) / "README.md", text + "\n");
+    for (const auto& member : members) {
+        fs::create_directories(root / path_of(member) / "src", error);
+        const bool hanim = member == "modules/gfx/hanim" || member == "modules/base/hanim/core";
+        const auto extra = planted.dependencies.find(member);
+        write(root / path_of(member) / "mcpp.toml",
+              std::format("[package]\n{}\nversion = \"0.1.0\"\n{}{}\n[package.metadata.openmui]\nmaturity = \"stable\"\n", names[member],
+                          hanim ? "[build]\ncxxflags = [\"-ffp-contract=off\"]\n" : "", extra == planted.dependencies.end() ? "" : extra->second));
+    }
+    if (!planted.path.empty()) write(root / path_of(planted.path), planted.text);
+}
+
+}  // namespace
+
+int self_test(const fs::path& repository, const fs::path& scratch, std::ostream& out) {
+    std::vector<Planted> cases{
         {"macros", "modules/base/hanim/core/src/bad.cpp", "module x;\n#define BAD 1\n"},
         {"headers", "modules/ui/core/src/util.h", "int f();\n"},
         {"naming", "modules/ui/core/src/a.cpp", "namespace mui { }\n"},
@@ -397,35 +452,38 @@ int self_test(const fs::path& repository, const fs::path& scratch, std::ostream&
          "int main(int argc, char** argv) {\n    for (int i = 1; i < argc; ++i) if (std::string_view(argv[i]) == \"--json\") return 1;\n}\n"},
         {"legacy-import", "modules/ui/core/src/l.cpp", "module x;\nimport openmui.geom;\n"},
         {"thirdparty", "modules/base/hanim/core/src/w.cpp", "module x;\nimport mcpplibs.mwrap.md4c;\n"},
+        // the manifests'
+        {"toml", "modules/ui/core/mcpp.toml", "[package]\nnamespace = \"omui\"\nname = \"core\"\n[dependencies]\na.b = \"1\"\na.b.c = \"2\"\n"},
+        {"members", "modules/stray/mcpp.toml", "[package]\nname = \"stray\"\nversion = \"0.1.0\"\n"},
+        {.rule = "manifest", .dependencies = {{"modules/ui/core", "[dependencies.compat]\nsdl3 = \"3.4.18\"\n"}}},
+        // a specification that depends on a library breaks the projects' order too
+        {.rule = "layering", .dependencies = {{"spec", "[dependencies]\ncore = { path = \"../modules/ui/core\" }\n"}}, .also_unexpected = {"project-dag"}},
+        {.rule = "modules", .dependencies = {{"modules/gfx/hanim", "[dependencies]\ncore = { path = \"../../ui/core\" }\n"}}},
+        {.rule = "project-dag", .dependencies = {{"modules/base/hanim/core", "[dev-dependencies]\nopenlifa.openmui = { path = \"../../../../spec\" }\n"}}},
+        {.rule = "layout", .names = {{"modules/gfx/hanim", "name = \"anim\""}}},
     };
-    // The owners' samples come from the repository's own table, beside this tool's sources.
+    // The owners' samples come from the repository's own table.
     const fs::path table = owners_file(repository);
-    for (const auto& capability : owners_of(table))
-        cases.push_back({"owner", capability.sample_path, capability.sample_text + "\n", capability.name});
+    for (const auto& capability : owners_of(table)) cases.push_back({"owner", capability.sample_path, capability.sample_text + "\n", capability.name});
 
     int failures = 0;
+    const fs::path root = scratch / "lint-self-test";
     for (const auto& planted : cases) {
-        std::error_code error;
-        const fs::path root = scratch / "lint-self-test";
-        fs::remove_all(root, error);
-        fs::create_directories(root / "tools" / "lint", error);
-        if (fs::exists(table)) fs::copy_file(table, owners_file(root), fs::copy_options::overwrite_existing, error);
-        const fs::path file = root / planted.path;
-        fs::create_directories(file.parent_path(), error);
-        std::ofstream(file, std::ios::binary) << planted.text;
-        const auto problems = run(root);
+        plant(root, planted, table);
         std::vector<Problem> found, other;
-        for (const auto& problem : problems) {
+        for (auto& problem : run(root)) {
             const bool mine = problem.rule == planted.rule && (planted.capability.empty() || problem.message.starts_with(planted.capability + ":"));
-            (mine ? found : other).push_back(problem);
+            if (mine) found.push_back(std::move(problem));
+            else if (!std::ranges::contains(planted.also_unexpected, problem.rule)) other.push_back(std::move(problem));
         }
         const bool ok = !found.empty() && other.empty();
         const std::string name = planted.capability.empty() ? planted.rule : planted.rule + ":" + planted.capability;
         out << std::format("  {}  {}: {}\n", ok ? "ok  " : "FAIL", name, found.empty() ? std::string("not caught") : found.front().text());
         for (const auto& problem : other) out << "        unexpected: " << problem.text() << '\n';
         failures += ok ? 0 : 1;
-        fs::remove_all(root, error);
     }
+    std::error_code error;
+    fs::remove_all(root, error);
     out << std::format("lint self-test: {} of {} rules catch their violation\n", cases.size() - failures, cases.size());
     return failures;
 }

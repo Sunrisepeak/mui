@@ -9,23 +9,9 @@
 export module omui.devtools.lint;
 
 import std;
+export import :problem;
 
 export namespace omui::devtools::lint {
-
-struct Problem {
-    std::string rule;     // "macros", "layering", "owner" …
-    std::string where;    // a path from the root, with ":line" for a source
-    std::string message;  // what is wrong and what to do
-
-    [[nodiscard]] std::string text() const;  // "[rule] where: message"
-    bool operator==(const Problem&) const = default;
-};
-
-// A rule: its name and the problems it finds under a root.
-struct Rule {
-    std::string_view name;
-    std::string_view summary;  // one line, for --list
-};
 
 // The rules this module checks, in the order they run.
 [[nodiscard]] std::span<const Rule> rules() noexcept;

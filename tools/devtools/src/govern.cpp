@@ -52,6 +52,7 @@ std::vector<Process> read_table(std::string_view table) {
         if (const auto slash = line.rfind('/'); slash != std::string_view::npos && slash + 1 < line.size()) line.remove_prefix(slash + 1);
         process.name = std::string(line);
         process.ended = fields[2].starts_with('Z') || fields[2].starts_with('X');
+        process.paused = fields[2].starts_with('T');
         found.push_back(std::move(process));
     }
     return found;

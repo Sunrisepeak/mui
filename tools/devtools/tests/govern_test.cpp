@@ -84,19 +84,35 @@ UTest cases{"devtools.govern", [] {
         std::filesystem::copy_file(std::filesystem::canonical("/bin/sh"), linker);
         std::filesystem::permissions(linker, std::filesystem::perms::owner_all);
         const std::string work = std::format("'{}' -c 'i=0; while [ $i -lt 600000 ]; do i=$((i+1)); done'", linker.string());
-        const auto timed = [&](std::int32_t jobs, std::string script) {
-            const auto started = std::chrono::steady_clock::now();
-            const auto status = held::run({.jobs = jobs, .interval = std::chrono::milliseconds(20), .command = {"/bin/sh", "-c", std::move(script)}});
+        // What the governor promises, seen as it holds: the linkers among the command's descendants that run (not
+        // paused, not ended), sampled while it runs. Wall-clock ratios are not the promise: they move with the load.
+        const auto most_running = [&](std::int32_t jobs) {
+            std::atomic<bool> done{false};
+            std::vector<int> counts;
+            std::jthread sampler([&] {
+                while (!done) {
+                    int running = 0;
+                    for (const auto& process : held::processes())
+                        if (process.name == "ld" && !process.paused && !process.ended) ++running;
+                    counts.push_back(running);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+                }
+            });
+            const auto status = held::run({.jobs = jobs, .interval = std::chrono::milliseconds(20),
+                                           .command = {"/bin/sh", "-c", std::format("{0} & {0} & wait", work)}, .low_priority = false});
+            done = true;
+            sampler.join();
             expect(fatal(status.has_value()));
             expect(eq(*status, 0));
-            return std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
+            // The first look comes at most an interval after both start: allow the samples of that moment.
+            const auto both = std::ranges::count(counts, 2);
+            std::println("    jobs {}: {} samples, {} with both linkers running", jobs, counts.size(), both);
+            return std::pair{both, static_cast<std::ptrdiff_t>(counts.size())};
         };
-        const double alone = timed(1, work);
-        const double one_job = timed(1, std::format("{0} & {0} & wait", work));
-        const double two_jobs = timed(2, std::format("{0} & {0} & wait", work));
+        const auto [held_both, held_samples] = most_running(1);
+        const auto [free_both, free_samples] = most_running(2);
         std::filesystem::remove_all(directory);
-        std::println("    a linker alone {:.2f} s; two with one job {:.2f} s, with two jobs {:.2f} s", alone, one_job, two_jobs);
-        expect(ge(one_job, 1.6 * alone)) << "one ran while the other was paused";
-        expect(lt(two_jobs, one_job)) << "two jobs: both at once";
+        expect(held_samples > 20 && held_both * 10 < held_samples) << "one job: the second waits while the first runs";
+        expect(free_both * 2 > free_samples) << "two jobs: both at once";
     };
 }};

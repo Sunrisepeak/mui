@@ -18,13 +18,14 @@ import std;
 export namespace omui::devtools::govern {
 
 // A process as the process table tells it: when it was first seen (an order:
-// the governor's own look count), which, its parent, its program's name, and
-// whether it has ended (a zombie).
+// the governor's own look count), which, its parent, its program's name,
+// whether it has ended (a zombie), and whether it is paused (stopped).
 struct Process {
     std::uint64_t seen = 0;
     std::int64_t  pid = 0, parent = 0;
     std::string   name;
     bool          ended = false;
+    bool          paused = false;  // stopped (a governor's pause, or a debugger's)
 };
 
 // Whether a program by this name compiles, assembles or links.

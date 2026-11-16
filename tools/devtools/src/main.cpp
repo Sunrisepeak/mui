@@ -51,6 +51,7 @@ import omui.devtools.lint;
 import omui.devtools.members;
 import omui.devtools.platforms;
 import omui.devtools.run;
+import omui.devtools.rename;
 import omui.devtools.site;
 
 namespace cmd = mcpplibs::cmdline;
@@ -204,6 +205,11 @@ cmd::App app() {
                         .option(Option("toolchain").takes_value().value_name("T").help("default: mcpp's"))
                         .option(Option("locked").help("mcpp's --locked"))
                         .option(Option("report").takes_value().value_name("FILE").help("default: target/incremental.report.omui.json")))
+        .subcommand(cmd::App("rename")
+                        .description("An internal code name renamed everywhere it is a word (D-208): packages, modules, namespaces, programs, paths, docs; .agents/ kept")
+                        .arg(cmd::Arg("from").required().help("the code name now (xtools)"))
+                        .arg(cmd::Arg("to").required().help("the new one"))
+                        .option(Option("write").help("carry it out (else: what would change)")))
         .subcommand(cmd::App("api")
                         .description("A package's exported surface, as its interface units declare it: printed, written to api.omui.txt, or checked against it")
                         .option(Option("package").short_name('p').takes_value().multiple().value_name("MEMBER").help("the members (paths as the workspace lists them)"))
@@ -832,6 +838,29 @@ int main(int argc, char** argv) {
     if (parsed->subcommand_name() == "ci") return ci(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "llvm") return llvm(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "platforms") return platforms(parsed->subcommand()->get(), root);
+    if (parsed->subcommand_name() == "rename") {
+        const cmd::ParsedArgs& asked = parsed->subcommand()->get();
+        const std::string from(asked.positional(0)), to(asked.positional(1));
+        auto planned = omui::devtools::rename::plan(root, from, to);
+        if (!planned) {
+            std::cerr << "omui-devtools rename: " << planned.error() << '\n';
+            return 2;
+        }
+        std::size_t words = 0;
+        for (const auto& [path, count] : planned->edits) {
+            std::println("{:>5}  {}", count, path);
+            words += count;
+        }
+        for (const auto& [path, moved] : planned->moves) std::println("moves  {} → {}", path, moved);
+        std::println("{} → {}: {} words in {} files, {} paths moved{}", from, to, words, planned->edits.size(), planned->moves.size(), asked.is_flag_set("write") ? "" : " (nothing written: --write)");
+        if (!asked.is_flag_set("write")) return 0;
+        if (auto applied = omui::devtools::rename::apply(root, *planned, from, to); !applied) {
+            std::cerr << "omui-devtools rename: " << applied.error() << '\n';
+            return 1;
+        }
+        std::println("written; next: omui-devtools lint, then build what moved");
+        return 0;
+    }
     if (parsed->subcommand_name() == "api") return surface(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "eval") return omui::devtools::eval::run(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "consumer") {

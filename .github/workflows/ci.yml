@@ -70,6 +70,45 @@ jobs:
           gcc -std=c99 -Wall -Wextra -pedantic -Werror -Ispec/include -fsyntax-only tools/lint/abi_c99.c
           g++ -std=c++11 -Wall -Wextra -pedantic -Werror -Ispec/include -x c++ -fsyntax-only tools/lint/abi_c99.c
 
+  # The split drill (RC3.13, D-55): omui with only what it declares — its members and every member they reach by
+  # path, with the root's files, as a workspace of its own (omui-devtools split). Whatever omui needs and does not
+  # declare is missing there, and the build or a test says so.
+  split:
+    name: test omui split from the repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install xlings
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/openxlings/xlings/main/tools/other/quick_install.sh \
+            | bash -s "$XLINGS_VERSION"
+          echo "$HOME/.xlings/subos/current/bin" >> "$GITHUB_PATH"
+      - name: Install mcpp
+        run: |
+          MCPP_VERSION="$(sed -n 's/.*"mcpp": *"\([^"]*\)".*/\1/p' .xlings.json)"
+          for attempt in 1 2 3 4 5 6; do
+            xlings update > /dev/null 2>&1 || true
+            if xlings install "mcpp@$MCPP_VERSION" -y -g; then break; fi
+            [ "$attempt" = 6 ] && { echo "::error::mcpp could not be installed"; exit 1; }
+            sleep 60
+          done
+          mcpp --version
+          mcpp self config --mirror GLOBAL
+      - name: SDL's offscreen video driver (the desktop host's tests open windows)
+        run: echo "SDL_VIDEO_DRIVER=offscreen" >> "$GITHUB_ENV"
+      - name: A GPU for the renderer's device tests (lavapipe)
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- gpu
+      - name: omui and what it declares, alone
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- split modules/projects/omui --out "$RUNNER_TEMP/omui"
+      - name: Test every member of the split tree
+        working-directory: ${{ runner.temp }}/omui
+        run: |
+          mcpp test --workspace --profile ci --exclude omui.reflect --exclude omui.entry.devhost 2>&1 | tee tests.log
+          grep -q "workspace result ok" tests.log || { echo "::error::the split tree's tests failed"; exit 1; }
+
   # The Web row (D-84): the members that say they run on the Web, built for
   # wasm32-emscripten (emsdk and node from xlings, through mcpp) and tested
   # under node; their pinned hashes are the other rows' constants.

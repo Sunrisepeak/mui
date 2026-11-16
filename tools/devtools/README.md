@@ -51,6 +51,15 @@ omui-devtools api -p modules/projects/xrender/vector            # print
 omui-devtools api -p modules/projects/xrender/vector --write    # after a change meant to be one
 ```
 
+## split
+
+A project as a repository of its own (RC3.13, D-55): its members and every member they reach by `path` (their tests' too), with the repository's root files, copied to a tree whose root manifest lists only them. Building and testing that tree is the drill: whatever the project needs and does not declare is missing there. CI's `split` row does it for omui.
+
+```sh
+omui-devtools split modules/projects/omui --list            # the members and how many files
+omui-devtools split modules/projects/omui --out /tmp/omui   # the tree; then mcpp test --workspace there
+```
+
 ## lint
 
 The repository's rules (AGENTS.md; D-206: the lint in C++, a subcommand here rather than a script), 42 of them: the sources' text (macros, headers, platform, naming, the capability owners…), the manifests (layering, project-dag, layout, licences, platforms, pins, closures), what the sources import (imports, module-closure), and the data and documents (view documents against their schema through `mlibs.json`'s check, operations and skills, the agent surface, matter, STATUS, maturity, the platform table, the lead ledger, and declared data's container through mlibs.xdef.tool's checker, `data-format`: mlibs.xdef.tool is preview, so that rule rests on a preview package). Sources are read in parallel; the whole repository takes a few seconds. `--self-test` plants each rule's violation in a small workspace of its own and shows the rule catches it and nothing else complains. CI's lint row runs both; `devtools.lint` holds the repository to every rule in each test row.

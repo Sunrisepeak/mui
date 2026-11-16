@@ -52,6 +52,7 @@ import omui.devtools.members;
 import omui.devtools.platforms;
 import omui.devtools.run;
 import omui.devtools.rename;
+import omui.devtools.split;
 import omui.devtools.site;
 
 namespace cmd = mcpplibs::cmdline;
@@ -210,6 +211,11 @@ cmd::App app() {
                         .arg(cmd::Arg("from").required().help("the code name now (xtools)"))
                         .arg(cmd::Arg("to").required().help("the new one"))
                         .option(Option("write").help("carry it out (else: what would change)")))
+        .subcommand(cmd::App("split")
+                        .description("A project as a repository of its own (RC3.13): its members and all they reach, with the root's files, as a workspace")
+                        .arg(cmd::Arg("project").required().help("its directory (modules/projects/omui)"))
+                        .option(Option("out").takes_value().value_name("DIR").help("where the tree goes (default: target/split/<project>)"))
+                        .option(Option("list").help("only say the members and how many files")))
         .subcommand(cmd::App("api")
                         .description("A package's exported surface, as its interface units declare it: printed, written to api.omui.txt, or checked against it")
                         .option(Option("package").short_name('p').takes_value().multiple().value_name("MEMBER").help("the members (paths as the workspace lists them)"))
@@ -859,6 +865,26 @@ int main(int argc, char** argv) {
             return 1;
         }
         std::println("written; next: omui-devtools lint, then build what moved");
+        return 0;
+    }
+    if (parsed->subcommand_name() == "split") {
+        const cmd::ParsedArgs& asked = parsed->subcommand()->get();
+        const std::string project(asked.positional(0));
+        auto planned = omui::devtools::split::plan(root, project);
+        if (!planned) {
+            std::cerr << "omui-devtools split: " << planned.error() << '\n';
+            return 2;
+        }
+        for (const auto& member : planned->members) std::println("  {}", member);
+        std::println("{}: {} members, {} files", project, planned->members.size(), planned->files.size());
+        if (asked.is_flag_set("list")) return 0;
+        const auto leaf = mcpplibs::os::fs::utf8(mcpplibs::os::fs::from_utf8(project).filename());
+        const fs::path out = asked.value("out") ? mcpplibs::os::fs::from_utf8(*asked.value("out")) : root / "target" / "split" / mcpplibs::os::fs::from_utf8(leaf);
+        if (auto written = omui::devtools::split::write(root, *planned, out); !written) {
+            std::cerr << "omui-devtools split: " << written.error() << '\n';
+            return 1;
+        }
+        std::println("written to {}; next: mcpp test --workspace there", mcpplibs::os::fs::utf8(out));
         return 0;
     }
     if (parsed->subcommand_name() == "api") return surface(parsed->subcommand()->get(), root);

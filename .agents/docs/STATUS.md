@@ -121,6 +121,8 @@ Kind: R regression, E environment, F flaky or time, T test expectation.
 | 103 | macOS: `showcase/quay/picture`'s package "did not build" in the test step, no compiler message (LLVM builds it here, tests too) | macOS; run 43718991717 | E | the rebuild family of red 82 (mcpp#874, #936) on another OS; watched on the next run |
 | 104 | Web: `fighting.headless`'s agent round asked no strike ("0 strikes asked", the other's health untouched) | Web, Windows; run 43736937315 | T | fixed: the test kept a `string_view` of `text().value_or(…)`, a temporary (`std::optional<std::string>`): native read stale bytes that held, wasm read garbage and guarded every turn. Owned now; wasm and native the same round (232 turns, 34 strikes) |
 | 106 | Pages: the site's delivery without HTTP cache 4,014,668 B, over the 4,000,000 budget (3,987,879 at RC2.9) | Pages; run 43814706990 (cde991a8) | T | open: measure what grew since RC2.9 (the error codes' ways out are a candidate: text the page links) and take it out of the first visit, the budget kept |
+| 107 | Web (SwiftShader): `mesh.glass`'s pane 18 of 6,991 pixels past 6 levels (0.26%; its bound 0.2%, 0 on the RTX 4080 and lavapipe), the ball within its bound (18.78% < 19%) | Web; run 43814714283 (cde991a8) | T | open: the previous Web row held it — find what moved the pane on SwiftShader (the far sides' pass), the bound kept |
+| 108 | Android: `check android` said no APK was packed though mcpp packed one | Android; run 43814714283 (cde991a8) | T | fixed: RC3.12's port read only a JSON record's artifacts; `mcpp pack` names a package format's file on its `Packed <path>` line, as the script read it — both read now |
 
 ### Upstream issues
 

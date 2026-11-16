@@ -65,16 +65,27 @@ private:
 int android(const fs::path& root, const fs::path& out) {
     std::error_code error;
     fs::create_directories(out, error);
-    // 1. The APK, as mcpp's record names it.
+    // 1. The APK, as mcpp names it: a record's artifact when it gives one, else its `Packed <path>` line (what
+    // `mcpp pack` prints for a package format; `~` is the home directory).
     const auto packed = run::program(root, "mcpp", {"pack", "-p", "omui.example.hello-im", "--target", "x86_64-linux-android", "--pkg-format", "apk",
-                                                    "--message-format", "json"});
+                                                    "--message-format", "json"},
+                                     {.merged = true});
     std::optional<fs::path> apk;
     if (packed && packed->status == 0)
         for (auto part : std::views::split(std::string_view(packed->out), '\n')) {
-            const auto line = nlohmann::json::parse(std::string_view(part.begin(), part.end()), nullptr, false);
-            if (line.is_discarded() || !line.contains("data") || !line["data"].contains("artifacts")) continue;
-            for (const auto& artifact : line["data"]["artifacts"])
-                if (artifact.value("path", "").ends_with(".apk")) apk = fs::path(artifact.value("path", ""));
+            const std::string_view text(part.begin(), part.end());
+            const auto line = nlohmann::json::parse(text, nullptr, false);
+            if (!line.is_discarded() && line.contains("data") && line["data"].contains("artifacts")) {
+                for (const auto& artifact : line["data"]["artifacts"])
+                    if (artifact.value("path", "").ends_with(".apk")) apk = fs::path(artifact.value("path", ""));
+                continue;
+            }
+            const auto at = text.find("Packed ");
+            if (at == std::string_view::npos || !text.ends_with(".apk")) continue;
+            std::string path(text.substr(at + 7));
+            if (path.starts_with("~/"))
+                if (const auto home = mcpplibs::os::env::get("HOME")) path = *home + path.substr(1);
+            apk = fs::path(path);
         }
     if (!apk || !fs::exists(*apk)) return failed("no APK was packed");
     const auto listing = run::output(root, "unzip", {"-l", mcpplibs::os::fs::utf8(*apk)});

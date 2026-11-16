@@ -11,4 +11,5 @@ export import :endpoint;
 export import :envelope;
 export import :facts;
 export import :history;
+export import :host;
 export import :subject;

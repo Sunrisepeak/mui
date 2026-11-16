@@ -52,6 +52,14 @@ agent::Endpoint endpoint({.name = "sandbox", .session = [&] { return std::make_u
 // → {"op":"subjects"}   → {"op":"describe","subject":"world"}   → {"op":"world.observe","re":1}
 ```
 
+**The tool kernel's entries** (`:host`, T0, RC3.8, D-203): a session reached from a command line and from an MCP client as over the protocol, with nothing in between but framing. `request_from` makes the request a command line's arguments say (`counter.add --by 2` is `{"op":"counter.add","by":2}`; `describe`, `find`, `--request '{…}'`), `command_line` prints its records and returns the result's exit code, and `serve_mcp` answers JSON-RPC a line at a time: `tools/list` lists the session's four and every subject's operations with the catalog's own schemas, `tools/call` sends the same request. So an operation decides, runs, is recorded and answers alike whichever way it was asked (`tests/host_test.cpp`).
+
+```cpp
+agent::SubjectSession session({&world});
+return agent::command_line(session, arguments, std::cout, std::cerr);   // tool world.act --at '[3,4]'
+return agent::serve_mcp(session, std::cin, std::cout, {.name = "world"}); // tool mcp
+```
+
 Its own package rather than part of `mlibs.control`: control takes openas, logging and tracing alone and has no transport; this takes `mcpplibs.os`'s connections and `mlibs.json`, and control for its decisions.
 
 ```sh

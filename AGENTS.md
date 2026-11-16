@@ -102,10 +102,15 @@
 - 工程文件只有 `mcpp.toml`；构建、测试、打包都用 mcpp，工具经 xlings 安装。带命名空间的依赖写成点分键（`nlohmann.json = "3.12.0"`）；只有父包和子包同时出现时，子包的键加引号（不加引号 TOML 会把它读成父包内联表里的键，子包被忽略），其余一律不加（多余的引号 mcpp 2026.11.8.1 起会警告）。`mcpp.lock` 不提交（已在 `.gitignore`）。根 `mcpp.toml` 只有 `[workspace]` 和工作区的工具环境 `[xlings.workspace]`（工具按需声明，例如 esbuild 写成 `when = "run"`，CI 不再单独安装），SDK 伞包是 omui 的 `sdk/`（`import omui;`）；`mcpp/` 只放构建插件；omui 的程序入口（播放器、开发宿主）在 `modules/projects/omui/entry/`。
 - **按库／产品边界建包，不按文件拆包**（D-99）：内部职责放在所属包的 `src/<职责>/`，用 feature 选择。只有形成可独立复用的库、要单独发布，或确实需要依赖／平台／许可／构建阶段隔离时，才新建包，并在 README 写明理由。与领域无关的小工具放 `mlibs.utils`；与领域相关的小块放回所属包。成员之间只通过声明的 `path` 依赖引用。
 - **库已有的能力就依赖，不重写**（D-56）：先用已发布、有人在用的 `mcpplibs.*` 包（命令行 `mcpplibs.cmdline`、平台 `mcpplibs.os` 等），再用 mcpp-index 里的知名库（nlohmann/json、toml++ 等），两者都没有的才自己实现。第三方 C 库经 mwrap 使用（D-83，lint `thirdparty`）：上游先发布，再在本仓库引用；不用 GPL／AGPL（动态链接也不行），LGPL 只能作为可选插件动态链接，MPL 不修改即可用；默认选免版税的格式。
-- **本地构建、测试等任何重负载不得占用超过本机 90% 的 CPU 或内存**，避免机器卡顿、卡死：经 `tools/dev/capped.sh` 运行（`tools/dev/capped.sh mcpp test -p …`），它按核数和内存把并发编译数限制在 90% 以内（`MCPP_JOBS`），并以低 CPU／IO 优先级执行；自己启动的并行任务（多个构建、测试、后台循环）合计也不得超过这一上限。
+- **本地构建、测试等任何重负载不得占用超过本机 90% 的 CPU 或内存**，避免机器卡顿、卡死：经 `omui-devtools govern` 运行（`mcpp run omui-devtools -p tools/devtools -- govern -- mcpp test -p …`），它按核数和内存把并发编译数限制在 90% 以内（`MCPP_JOBS`，并按进程树暂停超出的编译器与链接器），并以低 CPU／IO 优先级执行；同时跑两个构建时各给 `--jobs`，合计不超过这一份额；自己启动的并行任务（多个构建、测试、后台循环）合计也不得超过这一上限。
 - **测试**统一用 mtest（D-147，mcpp 原生支持）。工作区跟随 mcpp 与 mtest 的最新发布，每个里程碑节点核对一次版本；测试用的共享物归 mtest，mtest 缺的先向上游补（`mlibs.testing` 只剩保留输出目录等三样，待 mtest 有等价物后删除）。
 - **构建配置**：日常开发用 `dev`（完整调试信息）；全量与 CI 的每次推送用 `--profile ci`（`dev` 去掉调试信息并剥离符号，测试程序约为五分之一大小）。实现写在模块实现单元里（`module X;`），接口单元只放声明，函数体的改动不让导入方重编；测试文件多的包把它们放进 `tests/<名>/` 并写 `[test] programs = "directory"`：一个目录链接成一个程序，仍然一个文件一个文件地运行和筛选（每个文件 `static UTest cases`，辅助函数放未命名的命名空间；自带 `main` 或自带 `operator new`（数分配）的留在 `tests/` 根下，各自成一个程序）；逻辑放在不依赖 UI 与渲染的成员里，依赖 UI 的测试少而集中。升级 mcpp 或工具链后执行一次 `mcpp clean --stale`。
-- **开发效率**：检查点只跑它触及的用例（`mtest plan --since` 选出，或 `mcpp test -p 包 [测试名]`）；初期不做大范围测试；全量（`mcpp test --workspace`）只在一组工作结束或改动了底层共享包时跑，并以 CI 为主。超过几分钟的任务一律后台运行，等待期间继续做不依赖它的工作，不用 `sleep` 轮询空等；后台构建未编到的包先不改，以免结果混入新旧两版。GPU 成员在本地按 CI 的环境跑（`tools/ci/gpu.sh` 加 `SDL_VIDEO_DRIVER=offscreen`）。
+- **双 worktree 并行，不空等**：
+  - 一个 worktree 专做长时间的构建与测试（全量、多包、CI 对账前的验证），一个专做代码实现和小范围测试（所属包、直接消费者）；主会话一直在推进，不因构建停下。
+  - 验证用的 worktree 在一次构建结束前不改代码，免得结果混入新旧两版；实现完成的提交再交给它验证。
+  - 编过的测试要复用，就用和编译时完全相同的选法再跑（例如都用 `--workspace --exclude omui.reflect`）：换一种 `-p` 组合，feature 的合并结果就不同，会整批重编。
+  - 改共享接口时，每改完一个包就编它和它的直接消费者，不攒到最后一次全量。
+- **开发效率**：检查点只跑它触及的用例（`mtest plan --since` 选出，或 `mcpp test -p 包 [测试名]`）；初期不做大范围测试；全量（`mcpp test --workspace`）只在一组工作结束或改动了底层共享包时跑，并以 CI 为主。超过几分钟的任务一律后台运行，等待期间继续做不依赖它的工作，不用 `sleep` 轮询空等。GPU 成员在本地按 CI 的环境跑（`tools/ci/gpu.sh` 加 `SDL_VIDEO_DRIVER=offscreen`）。
 - **功能优先，测试收敛**：
   - 时间主要给功能开发，测试与验收不超过约 1/4。
   - 每个检查点只跑它触及的最小范围（所属包、直接消费者；GPU 包加 lavapipe 与真机各一次套件）。

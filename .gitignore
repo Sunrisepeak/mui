@@ -18,3 +18,6 @@ mcpp.lock
 .omui/
 # a source directory named target (src/**/target/) is code, not a build
 !**/src/**/target/
+
+# Claude Code personal settings
+.claude/settings.local.json

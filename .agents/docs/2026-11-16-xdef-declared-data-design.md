@@ -8,7 +8,7 @@
 
 - **只写在 AGENTS 和各读取器里**，没有可检查的条文。每个读取器各自判断文件的格式和版本。
 - **名字挂在一个产品上**。2026-11-16 核对：
-  - 289 个文件、约 25 个种类都带 `.omui.` 后缀，其中 hanim 24 个、xengine 18 个、xrender 5 个；
+  - 289 个文件、33 个种类都带 `.omui.` 后缀，其中 hanim 24 个、xengine 18 个、xrender 5 个；
   - 139 个 TS 文件导入 `omui/define` 或 `openmui/define`；
   - `mlibs.control` 的操作目录约定由 `omui-gen ops` 生成。
 
@@ -66,6 +66,26 @@ xdef 不认识任何种类的字段。
 5. lint 0，全量通过。
 
 0.1 发布时，后缀与格式标识随发布冻结。
+
+### 5.1 现有种类与拟定拥有者（2026-11-16 盘点，33 个种类）
+
+拥有者按文件所在位置拟定，RC3.15 再按实际读取它的代码逐一确认。
+
+| 拟定拥有者 | 种类（文件数） |
+|---|---|
+| omui（openmui 规范层与实现层） | contract（67）、style（9）、theme（7）、native（5）、behavior（3）、view（2）、agent（1）、controls（1） |
+| mlibs.control | ops（22） |
+| mlibs.i18n | locale（4） |
+| hanim | animation（20）、timeline（2） |
+| xrender | effect（3） |
+| xengine | matter（10）、music（9）、sound（7）、appearance（2）、world（2）、subtitles（1） |
+| 仓库维护工具（devtools、eval、bench、lint） | report（38）、eval（3）、tasks（3）、compare（2）、bench（2）、budget（2）、features、ledger、metrics、batch、owners（各 1） |
+| 官网（作品自己的种类） | mark、sprite、frames（各 1） |
+
+两点待定：
+
+- 仓库维护工具的种类是否也进登记表。它们不对用户发布，但同样由检查器读取。
+- 作品自己的种类是否留在作品里登记。按四级归位，换一个作品就用不上的种类留在作品里。
 
 ## 6. 不做的
 

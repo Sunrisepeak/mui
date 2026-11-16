@@ -2,7 +2,7 @@
 # `*.theme.omui.ts` files declare themes (light, dark) and overlays
 # (density, reduced motion); a library composes layers into the runtime's
 # Theme, with every mistake reported where it is. The built-in packs are such files, embedded (packs/<name>/:
-# its .theme.omui.ts, src/ with the generated partition): default (and its staged `refined`), compact, and the
+# its .theme.omui.ts, src/ with the generated partition): default, compact, and the
 # style packs (packs/styles/styles/*.style.omui.ts: glass, neon, retro CRT, ink on paper, liquid; fluent,
 # cupertino, material). Each keeps its module (omui.theme.default_theme, omui.theme.compact, omui.theme.styles)
 # and is added by a call (`omui::themes::add_compact()` …): a program links the packs it adds. A theme of one's

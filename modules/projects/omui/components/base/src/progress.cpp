@@ -104,6 +104,11 @@ void Radio::paint(PaintContext& ctx) const {
     const Rect content = ctx.content;
     const Rect c{content.x, content.y + (content.height - circle) / 2, circle, circle};
     if (off) ctx.list.push_layer(0.5f, xrender::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
+    // The state's halo round the circle (`check_halo:hovered` / `:pressed`, in the accent), as a checkbox has it;
+    // pressed, the circle is a little smaller (its label keeps its size).
+    parts::depth(ctx, "check_halo", c, CornerRadii::all(circle / 2), hover_ > 0, ctx.state.pressed && !off, std::nullopt, th.color("accent"));
+    std::optional<parts::Pressed> pressed;
+    pressed.emplace(ctx, c, ctx.state.pressed && !off ? 1.0f : 0.0f);
     ctx.list.fill_round_rect(c, CornerRadii::all(circle / 2),
                              xrender::Paint::solid(mix(th.color("surface"), th.color("surface_variant"), static_cast<float>(hover_))));
     const Color ring = mix(th.color("border_strong"), th.color("accent"), k);
@@ -115,6 +120,7 @@ void Radio::paint(PaintContext& ctx) const {
         const Point m = c.center();
         ctx.list.fill_round_rect({m.x - r, m.y - r, 2 * r, 2 * r}, CornerRadii::all(r), xrender::Paint::solid(th.color("accent")));
     }
+    pressed.reset();
     if (!label_.text().empty()) {
         const Color lc = th.color("text");
         const Size ts = label_.measure(ctx.services, lc);

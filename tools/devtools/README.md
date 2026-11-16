@@ -49,3 +49,18 @@ A package's exported surface as text: the declarations its module interface unit
 omui-devtools api -p modules/projects/xrender/vector            # print
 omui-devtools api -p modules/projects/xrender/vector --write    # after a change meant to be one
 ```
+
+## lint
+
+The repository's rules (AGENTS.md; D-206: the lint in C++, a subcommand here rather than a script), 43 of them: the sources' text (macros, headers, platform, naming, the capability owners…), the manifests (layering, project-dag, layout, licences, platforms, pins, closures), what the sources import (imports, module-closure), and the data and documents (view documents against their schema through `mlibs.json`'s check, operations and skills, the agent surface, matter, STATUS, maturity, the platform table, the lead ledger). Sources are read in parallel; the whole repository takes a few seconds. `--self-test` plants each rule's violation in a small workspace of its own and shows the rule catches it and nothing else complains. CI's lint row runs both; `devtools.lint` holds the repository to every rule in each test row.
+
+```sh
+omui-devtools lint                 # every rule
+omui-devtools lint --rule layering # one
+omui-devtools lint --list          # the rules and what each checks
+omui-devtools lint --self-test
+```
+
+## lead
+
+The lead ledger's pages, `docs/{en,zh}/lead.md`, written from the ledger, the metrics and the features (the same ledger, the same text), and the check of the signature features against it (lint `lead`). `tools/eval/lead.py` still samples, judges and records; it moves here next.

@@ -2,10 +2,9 @@
 // lint in C++, a subcommand of the contributors' tool). Each rule reads the
 // tree as it is and answers problems: a rule's name, where, and what to do.
 // `self_test` plants each rule's violation in a small tree of its own and
-// shows the rule catches it and nothing else does.
-//
-// The rules move here from tools/lint/lint.py group by group (RC3.12); until
-// the last one has moved, the script runs the rest.
+// shows the rule catches it and nothing else does. `omui-devtools lint` runs
+// them in CI's lint row and in tools/ci/local.sh; devtools.lint holds the
+// repository to them in every test row.
 export module omui.devtools.lint;
 
 import std;

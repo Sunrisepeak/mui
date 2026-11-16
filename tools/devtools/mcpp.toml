@@ -25,6 +25,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 [dependencies]
 nlohmann.json    = "3.12.0"
 marzer.tomlplusplus = "3.4.0"  # the lint reads every manifest
+mlibs.json       = { path = "../../modules/base/json" }  # the lint holds documents to their schemas
 mcpplibs.cmdline = "0.0.3"
 mcpplibs.os      = "0.4.4"
 mpal             = { path = "../../modules/base/mpal" }  # its D-Bus: atspi speaks AT-SPI with it

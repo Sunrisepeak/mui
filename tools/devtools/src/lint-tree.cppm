@@ -62,5 +62,9 @@ std::vector<Problem> check_platforms(const Workspace& workspace);  // platforms
 std::vector<Problem> check_pins(const Workspace& workspace);       // pins
 std::vector<Problem> check_closures(const Workspace& workspace, std::span<const Closure> closures);  // closure
 std::vector<Problem> check_modules(const Workspace& workspace);    // imports, module-closure
+// documents, media, ops, skills, agent-surface, typescript, matter, shader-inputs, status, maturity, platform-table
+std::vector<Problem> check_data(const Workspace& workspace, std::span<const std::pair<std::string, std::string>> owed);
+// The packages still owing their agent surface, each with what brings it.
+std::span<const std::pair<std::string, std::string>> repository_owed();
 
 }  // namespace omui::devtools::lint

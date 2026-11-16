@@ -42,15 +42,29 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: The schema checker of view documents
-        run: python3 -m pip install jsonschema
+      - name: Install xlings
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/openxlings/xlings/main/tools/other/quick_install.sh \
+            | bash -s "$XLINGS_VERSION"
+          echo "$HOME/.xlings/subos/current/bin" >> "$GITHUB_PATH"
+      - name: Install mcpp
+        run: |
+          # The lint is a subcommand of the contributors' tool, built with the project's mcpp (.xlings.json; D-206).
+          MCPP_VERSION="$(sed -n 's/.*"mcpp": *"\([^"]*\)".*/\1/p' .xlings.json)"
+          for attempt in 1 2 3 4 5 6; do
+            xlings update > /dev/null 2>&1 || true
+            if xlings install "mcpp@$MCPP_VERSION" -y -g; then break; fi
+            [ "$attempt" = 6 ] && { echo "::error::mcpp could not be installed"; exit 1; }
+            sleep 60
+          done
+          version="$(mcpp --version)"
+          echo "$version"
+          case "$version" in *"$MCPP_VERSION"*) ;; *) echo "::error::not mcpp $MCPP_VERSION"; exit 1 ;; esac
+          mcpp self config --mirror GLOBAL
       - name: Repository rules
-        run: python3 tools/lint/lint.py
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- lint
       - name: Each rule catches a planted violation
-        run: python3 tools/lint/lint.py --self-test
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- lint --self-test
       - name: openmui.h is plain C99 and C++11
         run: |
           gcc -std=c99 -Wall -Wextra -pedantic -Werror -Ispec/include -fsyntax-only tools/lint/abi_c99.c

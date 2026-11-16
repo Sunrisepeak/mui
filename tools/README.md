@@ -7,10 +7,10 @@ Every tool has two faces that read the same records: a command line (JSON, exit 
 | [cli](cli) | `omui`: agent (ls, describe, snapshot, act, invoke, wait), check, fmt, schema, mcp |
 | [gen](gen) | `omui-gen`: the registry and contracts to the C ABI, C++ partitions, script stubs, schemas |
 | [mcp](mcp) | An MCP server for any running openmui application |
-| [devtools](devtools) | `omui-devtools`: the contributors' tool — `ci` reads a CI run row by row and sets each failure against the red list (R12) |
+| [devtools](devtools) | `omui-devtools`: the contributors' tool — `ci` reads a CI run row by row and sets each failure against the red list (R12); `lint` checks the repository's rules; `lead` writes the lead pages and checks the features |
 | [inspector](inspector) | Semantic tree, node details, frame times and time control; Reaction lab with editable cellular projects, CLI and actual process capture |
 
-[lint](lint) checks the repository's rules; [ci](ci) holds the scripts CI runs.
+`omui-devtools lint` ([devtools](devtools)) checks the repository's rules (`--list`, `--self-test`); [lint](lint) holds the tables they read (capability owners, licences, the C99 check of openmui.h); [ci](ci) holds the scripts CI runs.
 
 The [dual-user tools plan](../.agents/docs/2026-11-04-dual-user-tools-validation-design.md)
 selects six core tool families and their real validation workflows. Future

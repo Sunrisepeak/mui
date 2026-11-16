@@ -16,8 +16,8 @@ if [ $# -gt 0 ]; then select=(); for m in "$@"; do select+=(-p "$m"); done; fi
 step() { printf '\n== %s\n' "$*"; }
 
 step lint
-python3 tools/lint/lint.py
-python3 tools/lint/lint.py --self-test > /dev/null
+mcpp run omui-devtools -p tools/devtools -- lint
+mcpp run omui-devtools -p tools/devtools -- lint --self-test > /dev/null
 
 step "gcc@16.1.0 dev"
 mcpp test "${select[@]}" --toolchain gcc@16.1.0 2>&1 | grep -E 'result|FAIL' || true

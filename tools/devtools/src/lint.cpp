@@ -5,11 +5,13 @@ module omui.devtools.lint;
 
 import std;
 import nlohmann.json;
+import omui.devtools.lead;
 import :tree;
 
 namespace omui::devtools::lint {
 
 namespace fs = std::filesystem;
+namespace lead = omui::devtools::lead;
 using json = nlohmann::json;
 
 namespace {
@@ -65,6 +67,18 @@ constexpr Rule all_rules[]{
     {"closure", "the dependency closures the lint names stay small (D-55)"},
     {"imports", "a source imports only modules of packages its manifest reaches (tests: dev-dependencies too)"},
     {"module-closure", "a library's interface re-exports another package only where its manifest lists it (reexports)"},
+    {"documents", "every view document, scenario and trace is valid against its committed schema (spec/schema)"},
+    {"media", "a picture is under 1 MB; every showcase's README shows its own picture from media/"},
+    {"ops", "a package that declares operations has their catalogs (<product>.ops.omui.ts) and a skill.omui.md"},
+    {"skills", "every operation a skill names is in a catalog; a skill points at its own package's catalog (D-145)"},
+    {"agent-surface", "every package of a project says how an agent reaches what it holds (D-174)"},
+    {"typescript", "no *.omui.toml data file: data are TypeScript modules or their JSON snapshots (D-139)"},
+    {"matter", "no law of a matter definition and no kernel source names a material (D-165)"},
+    {"shader-inputs", "a vertex struct's TEXCOORD places run from 0 in order"},
+    {"status", "STATUS: at most 200 lines of at most 600 characters; a task done names its evidence (D-202)"},
+    {"maturity", "every package's label; a library depends by default only at its label or above (D-189, D-199)"},
+    {"lead", "the signature features against the lead ledger; the lead pages are the ledger's (D-135)"},
+    {"platform-table", "every cell of docs/platforms.omui.json is real, software, unverified or unsupported, with its evidence or need (D-201)"},
 };
 
 bool starts_with_any(std::string_view text, std::span<const char* const> prefixes) {
@@ -383,24 +397,30 @@ std::string strip_comments(std::string_view text) {
 
 namespace {
 
-std::vector<Problem> run_with(const fs::path& root, std::span<const std::string> only, std::span<const Closure> closures) {
+std::vector<Problem> run_with(const fs::path& root, std::span<const std::string> only, std::span<const Closure> closures,
+                              std::span<const std::pair<std::string, std::string>> owed) {
     const auto owners = owners_of(owners_file(root));
     const auto workspace = Workspace::read(root);
     auto problems = check_manifests(workspace);
     const bool readable = std::ranges::none_of(problems, [](const Problem& problem) { return problem.rule == "toml"; });
     if (readable) {  // the other rules read the manifests
         for (auto&& found : {check_projects(workspace), check_layout(workspace), check_licences(workspace), check_platforms(workspace),
-                             check_pins(workspace), check_closures(workspace, closures), check_modules(workspace)})
+                             check_pins(workspace), check_closures(workspace, closures), check_modules(workspace),
+                             check_data(workspace, owed)})
             std::ranges::move(found, std::back_inserter(problems));
     }
     std::ranges::move(check_sources(root, owners), std::back_inserter(problems));
+    if (fs::exists(root / ".agents/docs/evaluation/lead.features.omui.json"))
+        for (auto& [where, what] : lead::problems(root)) problems.push_back({"lead", std::move(where), std::move(what)});
     if (!only.empty()) std::erase_if(problems, [&](const Problem& problem) { return !std::ranges::contains(only, problem.rule); });
     return problems;
 }
 
 }  // namespace
 
-std::vector<Problem> run(const fs::path& root, std::span<const std::string> only) { return run_with(root, only, repository_closures()); }
+std::vector<Problem> run(const fs::path& root, std::span<const std::string> only) {
+    return run_with(root, only, repository_closures(), repository_owed());
+}
 
 namespace {
 
@@ -416,6 +436,9 @@ struct Planted {
     std::string licences;                             // more lines for tools/lint/licenses.toml
     std::vector<Closure> closures;                    // the closure rules the case runs with
     std::map<std::string, std::string> files;         // more files the case needs
+    std::string label = "stable";                     // the UI core's maturity
+    bool project = false;                             // a project's package that says nothing of its agent surface
+    bool view_schema = false;                         // the repository's view schema, copied in
 };
 
 void plant(const fs::path& root, const Planted& planted, const fs::path& owners_table) {
@@ -423,11 +446,13 @@ void plant(const fs::path& root, const Planted& planted, const fs::path& owners_
     fs::remove_all(root, error);
     fs::create_directories(root / "tools" / "lint", error);
     if (fs::exists(owners_table)) fs::copy_file(owners_table, root / "tools" / "lint" / "capabilities.owners.omui.json", fs::copy_options::overwrite_existing, error);
-    const std::vector<std::string> members{"modules/gfx/hanim", "modules/base/hanim/core", "modules/ui/core", "spec"};
+    std::vector<std::string> members{"modules/gfx/hanim", "modules/base/hanim/core", "modules/ui/core", "spec"};
+    if (planted.project) members.push_back("modules/projects/thing");
     std::map<std::string, std::string> names{{"modules/gfx/hanim", "name = \"hanim\""},
                                              {"modules/base/hanim/core", "namespace = \"hanim\"\nname = \"core\""},
                                              {"modules/ui/core", "namespace = \"openmui\"\nname = \"core\""},
-                                             {"spec", "namespace = \"openlifa\"\nname = \"openmui\""}};
+                                             {"spec", "namespace = \"openlifa\"\nname = \"openmui\""},
+                                             {"modules/projects/thing", "name = \"thing\""}};
     for (const auto& [member, name] : planted.names) names[member] = name;
     const auto write = [&](const fs::path& file, std::string_view text) {
         fs::create_directories(file.parent_path(), error);
@@ -438,21 +463,32 @@ void plant(const fs::path& root, const Planted& planted, const fs::path& owners_
     write(root / "mcpp.toml", std::format("{}[workspace]\nmembers = [{}]\n", planted.root_prefix, listed));
     write(root / "tools" / "lint" / "licenses.toml",
           "[packages]\n\"ns.kernel\" = [\"MIT\"]\n\"ns.os\" = [\"MIT\"]\n\"compat.sdl3\" = [\"Zlib\"]\n" + planted.licences);
-    for (const auto& [directory, text] : std::map<std::string, std::string>{{"modules", "[base](base) [gfx](gfx) [ui](ui)"},
-                                                                           {"modules/base", "[hanim](hanim)"},
-                                                                           {"modules/base/hanim", "[core](core)"},
-                                                                           {"modules/gfx", "[hanim](hanim)"},
-                                                                           {"modules/ui", "[core](core)"}})
+    std::map<std::string, std::string> readmes{{"modules", "[base](base) [gfx](gfx) [ui](ui)"},
+                                               {"modules/base", "[hanim](hanim)"},
+                                               {"modules/base/hanim", "[core](core)"},
+                                               {"modules/gfx", "[hanim](hanim)"},
+                                               {"modules/ui", "[core](core)"}};
+    if (planted.project) {
+        readmes["modules"] += " [projects](projects)";
+        readmes["modules/projects"] = "[thing](thing)";
+    }
+    for (const auto& [directory, text] : readmes)
         write(root / path_of(directory) / "README.md", text + "\n");
     for (const auto& member : members) {
         fs::create_directories(root / path_of(member) / "src", error);
         const bool hanim = member == "modules/gfx/hanim" || member == "modules/base/hanim/core";
         const auto extra = planted.dependencies.find(member);
         write(root / path_of(member) / "mcpp.toml",
-              std::format("[package]\n{}\nversion = \"0.1.0\"\n{}{}\n[package.metadata.openmui]\nmaturity = \"stable\"\n", names[member],
-                          hanim ? "[build]\ncxxflags = [\"-ffp-contract=off\"]\n" : "", extra == planted.dependencies.end() ? "" : extra->second));
+              std::format("[package]\n{}\nversion = \"0.1.0\"\n{}{}\n[package.metadata.openmui]\nmaturity = \"{}\"\n", names[member],
+                          hanim ? "[build]\ncxxflags = [\"-ffp-contract=off\"]\n" : "", extra == planted.dependencies.end() ? "" : extra->second,
+                          member == "modules/ui/core" ? planted.label : std::string("stable")));
     }
     for (const auto& [path, text] : planted.files) write(root / path_of(path), text);
+    if (planted.view_schema) {
+        fs::create_directories(root / "spec" / "schema", error);
+        fs::copy_file(owners_table.parent_path().parent_path().parent_path() / "spec" / "schema" / "view.schema.json", root / "spec" / "schema" / "view.schema.json",
+                      fs::copy_options::overwrite_existing, error);
+    }
     if (!planted.path.empty()) write(root / path_of(planted.path), planted.text);
 }
 
@@ -496,6 +532,23 @@ int self_test(const fs::path& repository, const fs::path& scratch, std::ostream&
         {.rule = "module-closure", .path = "modules/gfx/hanim/src/hanim.cppm", .text = "export module hanim;\nexport import hanim.core;\n",
          .dependencies = {{"modules/gfx/hanim", "[dependencies]\nhanim.core = { path = \"../../base/hanim/core\" }\n"}},
          .files = {{"modules/base/hanim/core/src/core.cppm", "export module hanim.core;\n"}}},
+        // the data and the documents
+        {"media", "docs/huge.png", std::string(1024 * 1024 + 1, 'x')},
+        {.rule = "agent-surface", .project = true},
+        {"typescript", "modules/ui/core/contract/x.contract.omui.toml", "[contract.x]\nrole = \"button\"\n"},
+        {"ops", "modules/ui/core/src/o.cpp", "module x;\nconstexpr auto op = mlibs::control::Operation{\"ui.wipe\", openas::Effect::irreversible};\n"},
+        {.rule = "documents", .path = "examples/x/ui/bad.view.omui.json", .text = R"({"omui": "0.1", "view": {"root": {"typ": "text"}}})", .view_schema = true},
+        {.rule = "skills", .path = "modules/ui/core/skill.omui.md", .text = "# x\n\nSee [x.ops.omui.ts](x.ops.omui.ts); then `ui.wipe`.\n",
+         .files = {{"modules/ui/core/x.ops.omui.ts", "export default defineOps({ operations: [{ name: \"ui.snapshot\" }] });\n"}}},
+        {"matter", "modules/ui/core/x.matter.omui.json",
+         R"({"matter": {"materials": {"wood": {}, "ash": {}}, "laws": [{"when": "material == wood && temperature >= 500", "become": "burnt"}]}})"},
+        {"shader-inputs", "modules/ui/core/x.slang", "struct VIn {\n    float3 position : TEXCOORD0;\n    float2 second : TEXCOORD4;\n};\n"},
+        {.rule = "maturity", .label = "experimental"},
+        {"platform-table", "docs/platforms.omui.json",
+         R"({"platforms": [{"id": "a"}], "capability": [{"id": "x", "label": "stable", "cells": {"a": {"status": "passed"}}}]})"},
+        {"status", ".agents/docs/STATUS.md", "# STATUS\n\n| Task | State | Evidence |\n|---|---|---|\n| RC0.1 push | done | pushed |\n"},
+        {"lead", ".agents/docs/evaluation/lead.features.omui.json",
+         R"({"feature": [{"id": "A", "project": "omui", "line": "use-safely", "title": "x", "status": "claimed"}]})"},
     };
     // The owners' samples come from the repository's own table.
     const fs::path table = owners_file(repository);
@@ -506,7 +559,7 @@ int self_test(const fs::path& repository, const fs::path& scratch, std::ostream&
     for (const auto& planted : cases) {
         plant(root, planted, table);
         std::vector<Problem> found, other;
-        for (auto& problem : run_with(root, {}, planted.closures)) {
+        for (auto& problem : run_with(root, {}, planted.closures, {})) {
             const bool mine = problem.rule == planted.rule && (planted.capability.empty() || problem.message.starts_with(planted.capability + ":"));
             if (mine) found.push_back(std::move(problem));
             else if (!std::ranges::contains(planted.also_unexpected, problem.rule)) other.push_back(std::move(problem));

@@ -122,4 +122,14 @@ private:
     nlohmann::ordered_json value_;
 };
 
+// A document held to a JSON Schema (draft 2020-12): each place it breaks the schema, as a problem at the
+// instance's pointer. The keywords the openmui specification's schemas use are checked — type, enum, const,
+// $ref (within the schema: "#/$defs/…"), properties, required, additionalProperties, propertyNames,
+// patternProperties, items, prefixItems, minItems, maxItems, uniqueItems, minLength, maxLength, pattern,
+// minProperties, maxProperties, minimum, maximum, exclusiveMinimum, exclusiveMaximum, multipleOf, allOf,
+// anyOf, oneOf, not, if/then/else, dependentRequired; annotations (title, description, $comment, default,
+// examples, format, $schema, $id, $defs) are read as notes. A keyword outside these is a problem of the
+// schema, not passed over.
+[[nodiscard]] std::vector<Problem> validate(const Document& schema, const Document& instance);
+
 }  // namespace mlibs::json

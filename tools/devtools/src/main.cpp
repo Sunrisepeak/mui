@@ -14,7 +14,8 @@
 //   api   a package's exported surface (api.omui.txt beside it): printed, written, or checked.
 //   atspi  examples 03 and 07 read and operated through AT-SPI, as a screen
 //         reader does (tools/ci/atspi.sh; exit 1 when a check fails).
-//   lint  the repository's rules (D-206: moving here from tools/lint/lint.py rule group by group);
+//   lead  the lead ledger's pages (docs/{en,zh}/lead.md) and its check.
+//   lint  the repository's rules (D-206: the lint in C++, 43 rules);
 //         --self-test shows each rule catches a violation planted in a tree of its own.
 import std;
 import mcpplibs.cmdline;
@@ -25,6 +26,7 @@ import omui.devtools.atspi;
 import omui.devtools.ci;
 import omui.devtools.govern;
 import omui.devtools.incremental;
+import omui.devtools.lead;
 import omui.devtools.lint;
 import omui.devtools.members;
 import omui.devtools.platforms;
@@ -205,7 +207,11 @@ cmd::App app() {
                         .description("The repository's rules, checked (exit 1 when a rule is broken)")
                         .option(Option("rule").takes_value().multiple().value_name("NAME").help("only these rules"))
                         .option(Option("list").help("the rules and what each checks"))
-                        .option(Option("self-test").help("each rule's violation planted in a tree of its own: caught, and by it alone")));
+                        .option(Option("self-test").help("each rule's violation planted in a tree of its own: caught, and by it alone")))
+        .subcommand(cmd::App("lead")
+                        .description("The lead ledger (D-135): its pages and its check")
+                        .subcommand(cmd::App("docs").description("Write docs/{en,zh}/lead.md from the ledger, the metrics and the features"))
+                        .subcommand(cmd::App("check").description("The signature features against the ledger (lint `lead`; exit 1 when one is wrong)")));
 }
 
 void conclude(std::vector<rec::Row>& rows, const json& jobs) {
@@ -494,6 +500,31 @@ int lint(const cmd::ParsedArgs& options, const fs::path& root) {
     return problems.empty() ? 0 : 1;
 }
 
+int lead_command(const cmd::ParsedArgs& options, const fs::path& root) {
+    namespace lead = omui::devtools::lead;
+    if (options.subcommand_name() == "check") {
+        const auto found = lead::problems(root);
+        for (const auto& [where, what] : found) std::cout << std::format("[lead] {}: {}\n", where, what);
+        return found.empty() ? 0 : 1;
+    }
+    if (options.subcommand_name() != "docs") {
+        std::cerr << "usage: omui-devtools lead docs | check\n";
+        return 2;
+    }
+    const auto written = lead::pages(read_file(root / "tests/bench/competitors/lead.metrics.omui.json").value_or(""),
+                                     read_file(root / ".agents/docs/evaluation/lead.features.omui.json").value_or(""),
+                                     read_file(root / ".agents/docs/evaluation/lead.ledger.omui.jsonl").value_or(""));
+    if (!written) {
+        std::cerr << "omui-devtools lead docs: " << written.error() << '\n';
+        return 2;
+    }
+    for (const auto& [language, text] : *written) {
+        std::ofstream(root / "docs" / language / "lead.md", std::ios::binary) << text;
+        std::cout << std::format("wrote docs/{}/lead.md\n", language);
+    }
+    return 0;
+}
+
 int platforms(const cmd::ParsedArgs& options, const fs::path& root) {
     const auto table = read_file(root / "docs/platforms.omui.json");
     if (!table) {
@@ -537,6 +568,7 @@ int main(int argc, char** argv) {
     if (parsed->subcommand_name() == "platforms") return platforms(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "api") return surface(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "lint") return lint(parsed->subcommand()->get(), root);
+    if (parsed->subcommand_name() == "lead") return lead_command(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "atspi") {
         const auto& sub = parsed->subcommand()->get();
         const auto report = omui::devtools::atspi::check(mcpplibs::os::fs::from_utf8(sub.positional(0)),
@@ -546,6 +578,6 @@ int main(int argc, char** argv) {
     }
     if (parsed->subcommand_name() == "govern") return govern(parsed->subcommand()->get());
     if (parsed->subcommand_name() == "incremental") return incremental(parsed->subcommand()->get());
-    std::cerr << "usage: omui-devtools [--root DIR] ci … | llvm … | platforms | govern … | incremental … | api … | atspi … | lint …  (omui-devtools --help)\n";
+    std::cerr << "usage: omui-devtools [--root DIR] ci … | llvm … | platforms | govern … | incremental … | api … | atspi … | lint … | lead …  (omui-devtools --help)\n";
     return 2;
 }

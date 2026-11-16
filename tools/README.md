@@ -1,12 +1,11 @@
 # tools
 
+The repository's own tools (plan §4.5): lint, ci, devtools, eval — and, until the composing toolchain project (RC3.10), the inspector. A project's tools live with the project: omui's command line, MCP server and generator are in [modules/projects/omui/tools](../modules/projects/omui/tools), hanim's in `modules/projects/hanim/studio`.
+
 Every tool has two faces that read the same records: a command line (JSON, exit codes) and an interface written in omui (D-61).
 
 | Package | |
 |---|---|
-| [cli](cli) | `omui`: agent (ls, describe, snapshot, act, invoke, wait), check, fmt, schema, mcp |
-| [gen](gen) | `omui-gen`: the registry and contracts to the C ABI, C++ partitions, script stubs, schemas |
-| [mcp](mcp) | An MCP server for any running openmui application |
 | [devtools](devtools) | `omui-devtools`: the contributors' tool — `ci` reads a CI run row by row and sets each failure against the red list (R12); `lint` checks the repository's rules; `lead` writes the lead pages and checks the features |
 | [inspector](inspector) | Semantic tree, node details, frame times and time control; Reaction lab with editable cellular projects, CLI and actual process capture |
 

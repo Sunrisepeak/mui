@@ -13,8 +13,15 @@ namespace gen = omui::gen;
 
 namespace {
 
+// The repository: the nearest directory above this file with the workspace's `.xlings.json` and `modules/`.
+std::filesystem::path repository() {
+    auto at = std::filesystem::path(std::source_location::current().file_name()).parent_path();
+    while (at.has_parent_path() && at != at.parent_path() && !(std::filesystem::exists(at / ".xlings.json") && std::filesystem::exists(at / "modules")))
+        at = at.parent_path();
+    return at;
+}
 std::filesystem::path here() { return std::filesystem::path(std::source_location::current().file_name()).parent_path(); }
-std::filesystem::path spec_dir() { return here() / ".." / ".." / ".." / "spec"; }
+std::filesystem::path spec_dir() { return repository() / "spec"; }
 
 std::string read(const std::filesystem::path& p) {
     std::ifstream in(p, std::ios::binary);

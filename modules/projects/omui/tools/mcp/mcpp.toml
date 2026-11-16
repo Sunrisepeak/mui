@@ -16,6 +16,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 kind = "tool"
+agent = { part = "omui.agent" }  # MCP tools that are omui.agent's catalog operations, at the application's endpoint (D-174)
 
 [targets.openmui-mcp]
 kind = "lib"
@@ -29,12 +30,12 @@ sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
 mcpplibs.cmdline = "0.0.3"
-omui.core  = { path = "../../modules/projects/omui/core" }
-omui.agent = { path = "../../modules/projects/omui/agent" }
+omui.core  = { path = "../../core" }
+omui.agent = { path = "../../agent" }
 mcpplibs.os   = "0.4.4"
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
-mlibs.utils       = { path = "../../modules/base/utils" }
-omui.host.headless = { path = "../../modules/projects/omui/host/headless" }
-omui.ui.base       = { path = "../../modules/projects/omui/components/base" }
+mlibs.utils       = { path = "../../../../base/utils" }
+omui.host.headless = { path = "../../host/headless" }
+omui.ui.base       = { path = "../../components/base" }

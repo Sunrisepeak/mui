@@ -54,6 +54,7 @@ constexpr std::pair<std::string_view, std::string_view> path_layers[]{
     {"modules/projects/omui/components", "components"},
     {"modules/projects/omui/lang", "lang"},
     {"modules/projects/omui/sdk", "sdk"},
+    {"modules/projects/omui/tools", "tools"},  // omui's toolkit: the command line, MCP, the generator (plan §4.5)
     {"modules/ui", "ui"},
     {"components", "components"},
     {"lang", "lang"},

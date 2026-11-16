@@ -14,6 +14,7 @@ license     = "Apache-2.0"
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 kind = "tool"
+agent = { part = "omui.agent" }  # the generator behind `omui` and the build plugins; reached as omui.agent's generation operations (D-174)
 
 [targets.omui-gen]
 kind = "bin"
@@ -23,13 +24,13 @@ main = "src/main.cpp"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-mlibs.utils = { path = "../../modules/base/utils" }
-omui.lang.ts = { path = "../../modules/projects/omui/lang/ts" }
-mlibs.json = { path = "../../modules/base/json" }
+mlibs.utils = { path = "../../../../base/utils" }
+omui.lang.ts = { path = "../../lang/ts" }
+mlibs.json = { path = "../../../../base/json" }
 nlohmann.json       = "3.12.0"
 mcpplibs.cmdline    = "0.0.3"
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
-xrender.text = { path = "../../modules/projects/xrender/text" }
-mlibs.text    = { path = "../../modules/content/text" }
+xrender.text = { path = "../../../xrender/text" }
+mlibs.text    = { path = "../../../../content/text" }

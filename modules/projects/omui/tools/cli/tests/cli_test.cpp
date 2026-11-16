@@ -66,6 +66,14 @@ std::pair<int, std::string> http(std::uint16_t port, std::string_view method, st
     return {status, at == std::string::npos ? std::string() : got.substr(at + 4)};
 }
 
+// The repository: the nearest directory above this file with the workspace's `.xlings.json` and `modules/`.
+std::filesystem::path repository() {
+    auto at = std::filesystem::path(std::source_location::current().file_name()).parent_path();
+    while (at.has_parent_path() && at != at.parent_path() && !(std::filesystem::exists(at / ".xlings.json") && std::filesystem::exists(at / "modules")))
+        at = at.parent_path();
+    return at;
+}
+
 }  // namespace
 
 UTest cases{"cli", [] {
@@ -268,8 +276,7 @@ UTest cases{"cli", [] {
     };
 
     "omui schema is the committed spec/schema/view.schema.json"_test = [] {
-        const auto committed = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path().parent_path().parent_path() /
-                               "spec" / "schema" / "view.schema.json";
+        const auto committed = repository() / "spec" / "schema" / "view.schema.json";
         std::ifstream in(committed, std::ios::binary);
         const std::string text{std::istreambuf_iterator<char>(in), {}};
         auto r = omui_cmd({"schema"});

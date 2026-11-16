@@ -270,7 +270,9 @@ void check_source(std::string_view rel, std::string_view text, const Patterns& r
     }
 
     const std::string_view top = parts.empty() ? std::string_view{} : parts.front();
-    if ((top == "modules" || top == "mgame") && !in_tests) {
+    // A project's toolkit (modules/projects/<project>/tools/, plan §4.5) is tool code, as the repository's tools/ is.
+    const bool in_toolkit = rel.starts_with("modules/projects/") && rel.contains("/tools/");
+    if ((top == "modules" || top == "mgame") && !in_tests && !in_toolkit) {
         // A native/ unit adapts a third-party library: it may catch what the library throws, to answer std::expected.
         const std::regex& pattern = in_native ? re.thrown : re.thrown_or_caught;
         for (std::size_t index = 0; index < lines.size(); ++index)

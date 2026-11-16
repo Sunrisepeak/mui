@@ -15,7 +15,7 @@ on:
     tags: ['omui-v*']
   pull_request:
     paths:
-      - 'tools/cli/**'
+      - 'modules/projects/omui/tools/cli/**'
       - 'modules/projects/omui/agent/**'
       - '.github/workflows/omui.yml'
   workflow_dispatch:

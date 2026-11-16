@@ -20,7 +20,7 @@ Compared with today's major UI frameworks: Qt (Widgets / QML), Flutter, SwiftUI,
 
 **Elsewhere**: no built-in agent interface; screenshots and clicks, or accessibility-API scripting, with no effect tiers and nothing stopping an agent from approving its own request.
 
-**Evidence**: `tools/mcp`'s tests and a real-process end-to-end run in CI; confirmation by MCP elicitation; S-10's protocol tests (a request claiming to be the person is refused); S-11's (beyond the cap refused, an agent in a grant's chain not asked again, any other agent asked as before).
+**Evidence**: `modules/projects/omui/tools/mcp`'s tests and a real-process end-to-end run in CI; confirmation by MCP elicitation; S-10's protocol tests (a request claiming to be the person is refused); S-11's (beyond the cap refused, an agent in a grant's chain not asked again, any other agent asked as before).
 
 ## 3. Determinism: three platforms, two compilers, the same bytes
 

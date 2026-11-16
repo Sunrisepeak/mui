@@ -7,7 +7,7 @@
       "line": "use-safely",
       "title": "先预演，再授权：Agent 的操作先在分支里执行并画出来，人同意才提交",
       "status": "evidence",
-      "scene": "tools/mcp/tests/mcp_test.cpp",
+      "scene": "modules/projects/omui/tools/mcp/tests/mcp_test.cpp",
       "competitors": [
         "webmcp",
         "playwright-mcp",
@@ -21,7 +21,7 @@
       "line": "build-reliably",
       "title": "用 AI 写 UI 最顺手：确定的像素与语义、像素到源码，写看改闭环",
       "status": "evidence",
-      "scene": "tools/mcp/tests/mcp_test.cpp",
+      "scene": "modules/projects/omui/tools/mcp/tests/mcp_test.cpp",
       "competitors": [
         "react-vite-playwright",
         "flutter"
@@ -33,7 +33,7 @@
       "line": "use-safely",
       "title": "零代码的 Agent 接口：语义树自动投影为 MCP、WebMCP 的类型化操作，授权由 openas 判定",
       "status": "evidence",
-      "scene": "tools/mcp/tests/mcp_test.cpp",
+      "scene": "modules/projects/omui/tools/mcp/tests/mcp_test.cpp",
       "competitors": [
         "webmcp",
         "playwright-mcp",

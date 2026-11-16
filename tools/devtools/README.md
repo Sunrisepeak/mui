@@ -76,7 +76,7 @@ The lead ledger (Part 2 plan §2, D-135): our side against the strongest competi
 
 ```text
 omui-devtools bench competitors --ledger --rounds 15
-omui-devtools lead capability --project omui --feature C --about "…" --test tools/mcp/tests/mcp_test.cpp --competitor webmcp=app-defined
+omui-devtools lead capability --project omui --feature C --about "…" --test modules/projects/omui/tools/mcp/tests/mcp_test.cpp --competitor webmcp=app-defined
 omui-devtools lead docs
 ```
 

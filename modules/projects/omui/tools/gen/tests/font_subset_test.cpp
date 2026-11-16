@@ -91,11 +91,18 @@ std::uint16_t glyph_id(mlibs::text::FontCollection& fonts, std::string text) {
     return static_cast<std::uint16_t>(p.lines()[0].runs[0].glyphs[0].id);
 }
 
+// The repository: the nearest directory above this file with the workspace's `.xlings.json` and `modules/`.
+std::filesystem::path repository() {
+    auto at = std::filesystem::path(std::source_location::current().file_name()).parent_path();
+    while (at.has_parent_path() && at != at.parent_path() && !(std::filesystem::exists(at / ".xlings.json") && std::filesystem::exists(at / "modules")))
+        at = at.parent_path();
+    return at;
+}
+
 }  // namespace
 
 UTest cases{"gen.font_subset", [] {
-    // The repository's, found from this file (tools/gen/tests/…).
-    const auto root = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path().parent_path().parent_path();
+    const auto root = repository();
     const auto font = read(root / "modules/content/text/fonts/NotoSansSC.ttf");
 
     "Noto Sans SC cut to two characters and the punctuation: a fraction of it, whole, the same cut the same bytes"_test = [&] {

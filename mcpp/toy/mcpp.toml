@@ -31,4 +31,4 @@ sources = ["src/*.cppm", "src/*.cpp"]
 # it is a plain library of build programs: mcpp's 08-build-rules shape).
 [dependencies]
 omui.build.plan = { path = "../plan", reexport = true }
-omui.gen        = { path = "../../tools/gen", tools = ["omui-gen"], reexport = true }
+omui.gen        = { path = "../../modules/projects/omui/tools/gen", tools = ["omui-gen"], reexport = true }

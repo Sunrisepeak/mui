@@ -1,4 +1,4 @@
-# mlibs.image.ktx2
+# mlibs.image.ktx2 (the feature `ktx2` of mlibs.image)
 
 KTX2 textures read: what a file is, its pictures as pixels, and the same pictures as a GPU's own blocks — the same bytes on every machine (the foundation plan's M6.3: KTX2 is the format textures travel in; glTF's `KHR_texture_basisu`).
 
@@ -32,7 +32,7 @@ const auto blocks = image::ktx2_blocks(bytes, image::Ktx2Blocks::bc7);   // 192 
 - A device takes the blocks of a file that has every size down to a texel and no alpha (`xrender.asset::packed_ktx2`); a file of one size, or one that hides by its alpha, goes to the device as pixels (the device makes no blocks of its own, and its picture that hides is light times cover). The reference makes the smaller sizes itself from the largest, a device takes the file's: the two differ where the file's sizes were made another way (the device suite holds them together, `mesh.blocks`).
 - HDR (UASTC HDR, ASTC HDR) is refused: an `Image` holds bytes. It restarts with a picture type of light.
 - Speed is not measured here yet (the transcoder's own; a benchmark belongs in `tests/bench` beside the other readers').
-- A package of its own beside `mlibs.image` (D-99: dependency isolation): the transcoder is one translation unit of 1.7 MB of source and several times the code of the PNG, WebP and JPEG readers together; what only shows images does not carry it.
+- `mlibs.image`'s feature `ktx2` (D-99: dependency isolation, as a feature since RC1.5): the transcoder is one translation unit of 1.7 MB of source and several times the code of the PNG, WebP and JPEG readers together; what only shows images does not carry it.
 
 ## Tests
 

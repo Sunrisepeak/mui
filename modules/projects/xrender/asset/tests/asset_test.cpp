@@ -390,8 +390,8 @@ static UTest cases{"xrender.asset", [] {
         expect(eq(model->notes.size(), std::size_t{1}) && noted(*model, "/materials/0/occlusionTexture/texCoord")) << (model->notes.empty() ? "" : model->notes.front().where);
     };
     "a KTX2 picture (KHR_texture_basisu) is read: the texture an extension names, with no other to fall back on"_test = [] {
-        // Basis Universal's own test photograph (mlibs.image.ktx2's tests/data), beside the document.
-        const std::filesystem::path beside = std::filesystem::path(std::source_location::current().file_name()).parent_path() / "../../../../base/image/ktx2/tests/data";
+        // Basis Universal's own test photograph (mlibs.image's tests/data), beside the document.
+        const std::filesystem::path beside = std::filesystem::path(std::source_location::current().file_name()).parent_path() / "../../../../base/image/tests/data";
         const auto read = [&](std::string_view name) -> std::expected<std::vector<std::uint8_t>, std::string> {
             std::ifstream in(beside / name, std::ios::binary);
             if (!in) return std::unexpected(std::format("no {}", name));

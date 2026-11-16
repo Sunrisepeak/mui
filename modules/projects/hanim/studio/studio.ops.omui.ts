@@ -1,16 +1,18 @@
 // hanim.studio's operations (convergence plan §10.3): animation documents
 // checked, sampled and rendered without a GUI, through the `hanim` command
-// (JSON out; exit 0 done, 1 the document or the work failed with its
-// problems, 2 a wrong command). omui-gen ops makes the listing
-// (media/ops/studio.ops.json for CLI and MCP bindings) and the reference
-// (media/ops/studio.ops.md); effects are openas's. Operating a host's Engine
+// (T0's entries: `hanim document.check --file F`, `hanim mcp`; records out, exit
+// 0 done, 1 the document or the work failed with its problems). omui-gen ops
+// makes the catalog (src/catalog/catalog.cppm, the subject `document`'s), the
+// listing (studio.ops.json, for the MCP entry) and the reference (studio.ops.md); effects are openas's. Operating a host's Engine
 // is hanim's own catalog (hanim.ops.omui.ts).
 import { defineOps } from "omui/define";
 
 export default defineOps({
   product: "studio",
+  module: "hanim.studio",
+  namespace: "hanim::studio",
   doc: "Check, sample, point into, vary and render hanim animation documents (<name>.animation.omui.json) headless.",
-  generated: "media/ops",
+  generated: "src/catalog",
   operations: [
     {
       name: "document.check",

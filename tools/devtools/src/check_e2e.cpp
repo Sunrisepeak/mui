@@ -93,16 +93,19 @@ int tools_e2e(const fs::path& root, const std::vector<std::string>& profile_args
 
     const std::string document = "modules/projects/hanim/studio/examples/bounce.animation.omui.json";
     const std::string hanim = bin.at("hanim");
-    expect.status(0, hanim, {"check", document}) && expect.has(R"("markers":\[\{"name":"landed")");
-    expect.status(0, hanim, {"sample", document, "--at", "0", "--at", "1.0"}) && expect.has(R"("id":"ball")");
-    expect.status(0, hanim, {"render", document, "--out", at("bounce"), "--frames", "4"}) &&
+    expect.status(0, hanim, {"document.check", "--file", document}) && expect.has(R"("markers":\[\{"name":"landed")");
+    expect.status(0, hanim, {"document.sample", "--file", document, "--at", "0", "--at", "1.0"}) && expect.has(R"("id":"ball")");
+    expect.status(0, hanim, {"document.render", "--file", document, "--out", at("bounce"), "--frames", "4"}) &&
         expect.holds(fs::file_size(dir / "bounce-003.png") > 0 && fs::file_size(dir / "bounce.strip.png") > 0 &&
                          fs::file_size(dir / "bounce.report.omui.json") > 0,
-                     "hanim render wrote its frames, strip and report");
+                     "hanim document.render wrote its frames, strip and report");
     std::ofstream(dir / "bad.animation.omui.json")
         << R"({"version": 1, "objects": [{"id": "a", "shape": {"circle": 5}, "fill": "#fff"}], "program": {"do": "twirl", "object": "a"}})" << '\n';
-    expect.status(1, hanim, {"check", at("bad.animation.omui.json")}) && expect.has(R"("where":"/program/do")");
-    expect.status(2, hanim, {"render", document});
+    expect.status(1, hanim, {"document.check", "--file", at("bad.animation.omui.json")}) && expect.has(R"("where":"/program/do")");
+    expect.status(1, hanim, {"document.render", "--file", document}) && expect.has(R"("code":"invalid-argument")");
+    // A command by its old name is no operation: the way out names the one meant.
+    expect.status(1, hanim, {"render"}) && expect.has(R"("code":"not-found")") && expect.has(R"("operation":"document.render")");
+    expect.status(2, hanim, {"--file", document});
 
     const std::string effects = "modules/projects/xrender/effect/tests/data", xrender = bin.at("xrender");
     expect.status(0, xrender, {"device"});

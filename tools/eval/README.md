@@ -42,7 +42,7 @@ omui-devtools eval cold-start matter-lab --only resin --keep
 
 ## animate
 
-The animation task without a GUI (convergence plan §10.3): a real agent — Claude Code (the default) or codex — gets only hanim's skill, the document reference and the `hanim` command, and writes an animation document for each brief in an empty directory of its own. The grader checks each document through `hanim check` and `hanim sample` (the numbers at 601 moments): where things start and end, bounces counted, overshoot, order and timing. Every trial and each run's success rate go to [`animation.eval.omui.jsonl`](../../.agents/docs/evaluation/animation.eval.omui.jsonl). `--grade DIR` grades one kept trial; each brief has a reference document that passes every check.
+The animation task without a GUI (convergence plan §10.3): a real agent — Claude Code (the default) or codex — gets only hanim's skill, the document reference and the `hanim` command, and writes an animation document for each brief in an empty directory of its own. The grader checks each document through `hanim document.check` and `hanim document.sample` (the numbers at 601 moments): where things start and end, bounces counted, overshoot, order and timing. Every trial and each run's success rate go to [`animation.eval.omui.jsonl`](../../.agents/docs/evaluation/animation.eval.omui.jsonl). `--grade DIR` grades one kept trial; each brief has a reference document that passes every check.
 
 ```text
 omui-devtools eval animate --trials 3

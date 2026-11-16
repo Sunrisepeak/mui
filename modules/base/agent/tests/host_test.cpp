@@ -61,6 +61,7 @@ static UTest cases{"agent.host", [] {
         expect(eq(request({"counter.add", "--by", "2"}), std::string(R"({"op":"counter.add","by":2})")));
         expect(eq(request({"counter.add", "--by=2", "--note", "two more", "--quiet"}), std::string(R"({"op":"counter.add","by":2,"note":"two more","quiet":true})")));
         expect(eq(request({"world.act", "--at", "[3,4]"}), std::string(R"({"op":"world.act","at":[3,4]})")));
+        expect(eq(request({"document.sample", "--at", "0", "--file", "a.json", "--at", "1.5"}), std::string(R"({"op":"document.sample","at":[0,1.5],"file":"a.json"})")));
         expect(eq(request({"describe", "counter"}), std::string(R"({"op":"describe","subject":"counter"})")));
         expect(eq(request({"describe", "counter.add"}), std::string(R"({"op":"describe","operation":"counter.add"})")));
         expect(eq(request({"find", "add", "to", "it"}), std::string(R"({"op":"find","q":"add to it"})")));
@@ -72,7 +73,7 @@ static UTest cases{"agent.host", [] {
         Counter counter;
         agent::SubjectSession session({&counter});
         // The protocol itself.
-        const agent::Answered over_protocol = agent::ask(session, R"({"op":"counter.add","by":2})");
+        const agent::Answered over_protocol = agent::answer_to(session, R"({"op":"counter.add","by":2})");
         expect(over_protocol.finished && eq(over_protocol.exit_code, 0) && over_protocol.records.front().contains(R"("count":2)"));
         // A command line.
         std::ostringstream out, errors;
@@ -93,7 +94,7 @@ static UTest cases{"agent.host", [] {
         expect(called.root()["result"]["isError"].boolean() == false && called.root()["result"]["structuredContent"]["count"].integer() == 6) << called.root().dump();
         expect(eq(counter.count, std::int64_t{6}));
         // Each was a request on the record, alike.
-        const agent::Answered log = agent::ask(session, R"({"op":"log"})");
+        const agent::Answered log = agent::answer_to(session, R"({"op":"log"})");
         const auto facts = parsed(log.records.front());
         std::size_t adds = 0;
         for (const auto& fact : facts.root()["data"]["facts"].items()) adds += fact.dump().contains("counter.add");
@@ -111,6 +112,10 @@ static UTest cases{"agent.host", [] {
         expect(eq(counter.count, std::int64_t{0}));
         const auto unknown = parsed(agent::mcp_reply(session, R"({"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"counter_take"}})"));
         expect(unknown.root()["error"]["code"].integer() == -32602);
+        // An operation named by its last part alone: the way out is the operation meant.
+        std::ostringstream short_out;
+        const std::array short_name{std::string_view("add")};
+        expect(eq(agent::command_line(session, short_name, short_out, errors), 1) && short_out.str().contains(R"("operation":"counter.add")")) << short_out.str();
         std::ostringstream none;
         expect(eq(agent::command_line(session, {}, none, errors), 2));
     };

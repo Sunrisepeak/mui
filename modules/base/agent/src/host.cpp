@@ -56,13 +56,13 @@ std::optional<json::Document> data_of(const Answered& answered) {
 std::vector<Tool> tools_of(Session& session) {
     std::vector<Tool> tools;
     for (const auto& own : session_tools) tools.push_back({std::string(own[0]), std::string(own[1]), std::string(own[2]), true});
-    const auto here = data_of(ask(session, R"({"op":"subjects"})"));
+    const auto here = data_of(answer_to(session, R"({"op":"subjects"})"));
     if (!here) return tools;
     for (const json::Node& subject : here->root()["subjects"].items()) {
         const auto name = subject["name"].text();
         if (!name) continue;
-        const auto brief = data_of(ask(session, std::format(R"({{"op":"describe","subject":{}}})", json_text(*name))));
-        const auto full = data_of(ask(session, std::format(R"({{"op":"describe","subject":{},"detail":"full"}})", json_text(*name))));
+        const auto brief = data_of(answer_to(session, std::format(R"({{"op":"describe","subject":{}}})", json_text(*name))));
+        const auto full = data_of(answer_to(session, std::format(R"({{"op":"describe","subject":{},"detail":"full"}})", json_text(*name))));
         if (!brief) continue;
         for (const json::Node& operation : brief->root()["operations"].items()) {
             Tool tool{operation["name"].text().value_or(""), operation["summary"].text().value_or(""), R"({"type":"object"})", operation["effect"].text() == "read"};
@@ -86,6 +86,7 @@ std::string rpc_error(const json::Node& id, int code, std::string_view message) 
 std::expected<std::string, std::string> request_from(std::span<const std::string_view> arguments) {
     if (arguments.empty()) return std::unexpected("say what to ask: an operation's name and its --arguments, or `subjects` to see who is here");
     const std::string_view op = arguments.front();
+    if (op == "--help" || op == "-h") return std::string(R"({"op":"help"})");
     if (op == "--request") {
         if (arguments.size() != 2) return std::unexpected("--request takes one request, whole: '{\"op\":\"subjects\"}'");
         const auto document = parsed(arguments[1]);
@@ -104,6 +105,8 @@ std::expected<std::string, std::string> request_from(std::span<const std::string
         for (; at < arguments.size() && !arguments[at].starts_with("--"); ++at) words += (words.empty() ? "" : " ") + std::string(arguments[at]);
         out += std::format(",\"q\":{}", json_text(words));
     }
+    // Each name once, in the order first given; a name given again gathers its values into an array.
+    std::vector<std::pair<std::string, std::vector<std::string>>> named;
     for (; at < arguments.size(); ++at) {
         const std::string_view argument = arguments[at];
         if (!argument.starts_with("--") || argument.size() == 2) return std::unexpected(std::format("`{}`: each argument is --name value", argument));
@@ -117,12 +120,23 @@ std::expected<std::string, std::string> request_from(std::span<const std::string
         } else {
             value = "true";
         }
+        const auto found = std::ranges::find(named, name, &std::pair<std::string, std::vector<std::string>>::first);
+        if (found != named.end()) found->second.push_back(std::move(value));
+        else named.push_back({std::string(name), {std::move(value)}});
+    }
+    for (const auto& [name, values] : named) {
+        std::string value = values.front();
+        if (values.size() > 1) {
+            value = "[";
+            for (std::size_t index = 0; index < values.size(); ++index) value += (index ? "," : "") + values[index];
+            value += "]";
+        }
         out += std::format(",{}:{}", json_text(name), value);
     }
     return out + "}";
 }
 
-Answered ask(Session& session, std::string_view request, std::chrono::milliseconds wait) {
+Answered answer_to(Session& session, std::string_view request, std::chrono::milliseconds wait) {
     auto answered = std::make_shared<Answered>();
     session.request(request, [answered](std::string_view line) {
         answered->records.emplace_back(line);
@@ -146,7 +160,7 @@ int command_line(Session& session, std::span<const std::string_view> arguments, 
         std::println(errors, "  e.g. subjects | describe <subject or operation> | find <words> | <operation> --name value | --request '{{…}}'");
         return 2;
     }
-    const Answered answered = ask(session, *request);
+    const Answered answered = answer_to(session, *request);
     for (const std::string& record : answered.records) std::println(out, "{}", record);
     if (!answered.finished) {
         std::println(errors, "no answer in time to {}", *request);
@@ -193,7 +207,7 @@ std::string mcp_reply(Session& session, std::string_view message, const McpServe
         for (const Tool& tool : tools_of(session))
             if (tool_name(tool.operation) == name) operation = tool.operation;
         if (operation.empty()) return rpc_error(id, -32602, std::format("no tool `{}` (tools/list names them)", name));
-        const Answered answered = ask(session, request_of(operation, root["params"]["arguments"]));
+        const Answered answered = answer_to(session, request_of(operation, root["params"]["arguments"]));
         std::string content;
         std::optional<std::string> structured;
         std::size_t data = 0;

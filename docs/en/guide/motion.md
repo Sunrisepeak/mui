@@ -47,9 +47,9 @@ Every component then moves alike, and reduced motion and the lowering of effects
 ```
 
 ```sh
-hanim check  toast.animation.omui.json                       # duration, tracks, markers — or every problem where it is
-hanim sample toast.animation.omui.json --at 0.2 --at 1       # where each object is at those moments, its size and colour
-hanim render toast.animation.omui.json --out toast --frames 16 --webp 30   # frames, a strip, an animated picture
+hanim document.check  --file toast.animation.omui.json                       # duration, tracks, markers — or every problem where it is
+hanim document.sample --file toast.animation.omui.json --at 0.2 --at 1       # where each object is at those moments, its size and colour
+hanim document.render --file toast.animation.omui.json --out toast --frames 16 --webp 30   # frames, a strip, an animated picture
 ```
 
 - Steps compose: `sequence`, `parallel`, `stagger`, `loop`, `wait`.

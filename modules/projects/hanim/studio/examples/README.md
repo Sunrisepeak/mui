@@ -1,6 +1,6 @@
 # hanim.studio examples
 
-Twenty animations to take away: each a document (`<name>.animation.omui.json`) composed from hanim's recipe library, checked and drawn by the tests (`studio_test`: each reads, opens, has an end and moves through it). Copy one, change its shapes and timings, check it with `hanim check`, look at it with `hanim render … --frames 8`. Each strip is that command's output.
+Twenty animations to take away: each a document (`<name>.animation.omui.json`) composed from hanim's recipe library, checked and drawn by the tests (`studio_test`: each reads, opens, has an end and moves through it). Copy one, change its shapes and timings, check it with `hanim document.check --file …`, look at it with `hanim document.render --file … --out … --frames 8`. Each strip is that command's output.
 
 ### attention-button
 

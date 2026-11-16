@@ -1,7 +1,7 @@
 // eval animate (convergence plan §10.3; moved from tools/eval/animate.py): a real LLM does animation work without a
 // GUI. Given only hanim's skill, the document reference and the `hanim` command, it writes animation.omui.json in an
 // empty directory of its own for each brief in tools/eval/animation-briefs.omui.json and verifies it with the
-// command. The grader checks each document through `hanim check` and `hanim sample` (the numbers at 601 moments,
+// command. The grader checks each document through `hanim document.check` and `hanim document.sample` (the numbers at 601 moments,
 // never the agent's word): where things start and end, bounces counted, overshoot, order and timing. Every trial,
 // and each run's success rate, go to animation.eval.omui.jsonl; an agent that cannot run is recorded as unavailable.
 module omui.devtools.eval;
@@ -23,9 +23,12 @@ using nlohmann::ordered_json;
 std::pair<int, json> hanim_says(const fs::path& hanim, std::vector<std::string> args) {
     const auto done = run::program(fs::current_path(), os::fs::utf8(hanim), std::move(args), {.timeout = std::chrono::seconds(120)});
     if (!done) return {127, json{{"ok", false}, {"raw", done.error()}}};
-    auto parsed = json::parse(done->out, nullptr, false);
-    if (parsed.is_discarded()) return {done->status, json{{"ok", false}, {"raw", done->out}}};
-    return {done->status, std::move(parsed)};
+    // Its answer's records, a line each: the first data record is what it says.
+    for (auto line : std::views::split(std::string_view(done->out), '\n')) {
+        auto record = json::parse(std::string_view(line.begin(), line.end()), nullptr, false);
+        if (!record.is_discarded() && record.value("kind", "") == "data") return {done->status, std::move(record["data"])};
+    }
+    return {done->status, json{{"ok", false}, {"raw", done->out}}};
 }
 
 // The document sampled: its plan, and each object's state at many moments.
@@ -37,13 +40,13 @@ struct Course {
     std::vector<json> samples;
 
     Course(const fs::path& hanim, const fs::path& file, int steps = 600) {
-        const auto [code, checked] = hanim_says(hanim, {"check", os::fs::utf8(file)});
+        const auto [code, checked] = hanim_says(hanim, {"document.check", "--file", os::fs::utf8(file)});
         ok = code == 0 && checked.value("ok", false);
         problems = checked.value("problems", json::array());
         if (!ok) return;
         plan = checked["plan"];
         if (plan["duration"].is_number()) duration = plan["duration"].get<double>();
-        std::vector<std::string> args{"sample", os::fs::utf8(file)};
+        std::vector<std::string> args{"document.sample", "--file", os::fs::utf8(file)};
         for (int index = 0; index <= steps; ++index) {
             times.push_back(duration * index / steps);
             args.insert(args.end(), {"--at", std::format("{:.6f}", times.back())});
@@ -330,9 +333,10 @@ std::vector<Check> grade(const Course& course, std::string_view kind) {
 std::string prompt(const fs::path& root, const json& brief, const fs::path& hanim) {
     return std::format(
         "You are making an animation without a GUI, with hanim's animation tool.\n\nWrite `animation.omui.json` in the current directory for this "
-        "brief, then verify it with the tool until it does what the brief asks. Use the tool's own answers (check, sample, render) as evidence; "
-        "look at a rendered strip if you can. Do not ask questions; finish the work.\n\nThe tool is `{}` (commands: check FILE, sample FILE --at T "
-        "…, render FILE --out PREFIX --frames N).\n\nTHE BRIEF ({}):\n{}\n\nHANIM'S SKILL:\n{}\n\nTHE DOCUMENT REFERENCE:\n{}\n\nAN EXAMPLE "
+        "brief, then verify it with the tool until it does what the brief asks. Use the tool's own answers (document.check, document.sample, "
+        "document.render) as evidence; "
+        "look at a rendered strip if you can. Do not ask questions; finish the work.\n\nThe tool is `{}` (document.check --file FILE, document.sample --file FILE --at T "
+        "…, document.render --file FILE --out PREFIX --frames N; `subjects` and `describe` say the rest).\n\nTHE BRIEF ({}):\n{}\n\nHANIM'S SKILL:\n{}\n\nTHE DOCUMENT REFERENCE:\n{}\n\nAN EXAMPLE "
         "DOCUMENT:\n{}\n\nWhen done, reply with one line: done, or what you could not do and why.",
         os::fs::utf8(hanim), brief.value("id", ""), brief.value("text", ""), os::fs::read(root / "modules/projects/hanim/skill.omui.md").value_or(""),
         os::fs::read(root / "modules/projects/hanim/studio/README.md").value_or(""), os::fs::read(root / "modules/projects/hanim/studio/examples/bounce.animation.omui.json").value_or(""));

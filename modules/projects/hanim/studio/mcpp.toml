@@ -13,7 +13,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
-reexports = ["mlibs.control", "xrender.raster"]  # what its interface re-exports (lint module-closure)
+reexports = ["mlibs.agent", "mlibs.control", "xrender.raster"]  # what its interface re-exports (lint module-closure)
 kind = "tool"
 agent = "tool"
 
@@ -25,17 +25,19 @@ kind = "bin"
 main = "src/main.cpp"
 
 [build]
-sources  = ["src/*.cppm", "src/*.cpp"]
+sources  = ["src/*.cppm", "src/*.cpp", "src/catalog/*.cppm"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-mcpplibs.cmdline = "0.0.3"
 # `agent`: the stage as an agent's subject — this package's tests hold it to the agent contract (stage_test).
 hanim          = { path = "..", features = ["render-vector", "control", "agent"] }
 # The hanim command writes frames as SVG (xrender.vector.svg).
 xrender.vector = { path = "../../xrender/vector" }
 xrender.raster = { path = "../../xrender/raster" }
 mlibs.control  = { path = "../../../base/control" }
+# The command is the subject `document` behind the tool kernel's entries (mlibs.agent:host, T0).
+mlibs.agent    = { path = "../../../base/agent" }
+mlibs.json     = { path = "../../../base/json" }
 mlibs.image    = { path = "../../../base/image" }
 mlibs.utils    = { path = "../../../base/utils" }
 openlifa.openas = "0.2.0"

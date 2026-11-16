@@ -118,7 +118,9 @@ std::string nearest(std::span<Subject* const> subjects, std::string_view wanted)
         if (wanted.starts_with(std::string(subject->name()) + ".")) owner = subject;
         for (const mlibs::control::CatalogEntry& entry : subject->operations()) {
             const std::string_view name = entry.operation.name;
-            const std::size_t distance = name.starts_with(wanted) || wanted.starts_with(name) ? 0 : apart(wanted, name);
+            // A name by its last part alone (`render` for `document.render`) is as near as a name begun.
+            const bool unqualified = !wanted.contains('.') && name.ends_with(std::string(".") + std::string(wanted));
+            const std::size_t distance = name.starts_with(wanted) || wanted.starts_with(name) || unqualified ? 0 : apart(wanted, name);
             if (distance <= 2) near.push_back({distance, name});
         }
     }

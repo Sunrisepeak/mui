@@ -150,7 +150,7 @@ int edit(const std::filesystem::path& file, std::string_view kind, const Options
         if (!parsed) return std::unexpected(std::format("`{}` is not a time (90f, 1.5s, 250ms, 123fl)", *text));
         return *parsed;
     };
-    std::expected<tl::Change, std::string> change = std::unexpected(std::string("no edit"));
+    std::expected<tl::Change, tl::EditFailure> change = std::unexpected(tl::EditFailure{tl::EditError::unknown_step, "no edit"});
     if (kind == "split") {
         const auto when = time(o.at, "at");
         if (!when) return wrong(when.error());
@@ -172,9 +172,9 @@ int edit(const std::filesystem::path& file, std::string_view kind, const Options
     } else {
         return wrong(std::format("no edit `{}` (split, trim, move, remove, ripple-remove)", kind));
     }
-    if (!change) return failed(change.error());
+    if (!change) return failed(change.error().text());
     auto undone = tl::apply(t, *change);
-    if (!undone) return failed(undone.error());
+    if (!undone) return failed(undone.error().text());
     const std::string after = tl::write_timeline(t);
     Json out{{"ok", true}, {"edit", change->what}, {"dry_run", o.dry_run}, {"timeline", summary(t)}};
     if (o.dry_run) return answer(out, 0);

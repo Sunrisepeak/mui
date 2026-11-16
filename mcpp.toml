@@ -36,6 +36,7 @@ members = [
     "modules/projects/xengine/kernel/matter",
     "modules/projects/xengine/kernel/particles",
     "modules/projects/xengine/kernel/field",
+    "modules/projects/xengine/kernel/field/cts",
     "modules/projects/xengine/kernel/matter/cts",
     "modules/projects/xengine/kernel/matter/lab",
     "modules/base/unicode",

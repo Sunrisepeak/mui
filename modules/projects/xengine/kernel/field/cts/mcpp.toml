@@ -1,0 +1,34 @@
+# xengine.field.cts — the air's conformance: the air as an agent's subject held to the agent contract (mlibs.agent.cts)
+# and a fire lit through the session; the fixture its tests and benchmarks share (air over a fire). A package of its own
+# so the carrier carries no test framework, and so its tests can take the `agent` feature (mcpp has no test features).
+[package]
+namespace   = "xengine.field"
+name        = "cts"
+version     = "0.1.0"
+description = "Conformance of xengine.field: the air held to the agent contract, and the air over a fire its tests share"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "experimental"  # release plan §2.1: stable, preview or experimental (lint maturity)
+kind = "module"
+agent = { library = "conformance suite of the air: for tests only" }
+reexports = ["xengine.matter"]  # its fixture hands out the standard definition (lint module-closure)
+
+[targets.xengine-field-cts]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-fno-fast-math", "-ffp-contract=off"]
+
+[dependencies]
+xengine.field  = { path = "..", features = ["agent"] }
+xengine.matter = { path = "../../matter" }  # with its default features: the standard definition (json)
+
+[dev-dependencies]
+mcpplibs.mtest  = "0.8.4"
+mlibs.agent     = { path = "../../../../../base/agent" }
+"mlibs.agent.cts" = { path = "../../../../../base/agent/cts" }
+mlibs.json      = { path = "../../../../../base/json" }

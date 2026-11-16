@@ -19,7 +19,5 @@
     {"pattern": "modules/projects/hanim/core/tests/data/gen_math_reference.py", "kind": "reference", "why": "the reference values hanim.core's math is held to, computed with Python's arbitrary-precision decimal arithmetic: a second implementation in another language, so a shared mistake cannot pass both"},
     {"pattern": "modules/projects/omui/lang/js/tests/*.js", "kind": "application", "why": "the conformance scenarios as an application writes them in JavaScript (tests/cts.js), run by omui.lang.js"}
   ],
-  "pending": [
-    {"pattern": "tools/eval/**/*", "until": "RC3.12 (eval): omui mcp --way, the hanim toolkit's brief grading, omui-devtools eval; eval.sh deleted with the scores (D-135)"}
-  ]
+  "pending": []
 }

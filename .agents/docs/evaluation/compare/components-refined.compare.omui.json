@@ -1,8 +1,8 @@
 {
-  "doc": "The staged `refined` overlay's switch, checkbox and slider (the state's halo, B4 second pass) against Material 3 — the three the first record found behind — before the maintainer decides whether it becomes the default. Material: tools/eval/materials/controls.sh, then the quality lab's refined/<control>.png copied to target/compare-material/omui-refined.",
+  "doc": "The staged `refined` overlay's switch, checkbox and slider (the state's halo, B4 second pass) against Material 3 — the three the first record found behind — before the maintainer decides whether it becomes the default. Material: omui-devtools eval materials controls, then the quality lab's refined/<control>.png copied to target/compare-material/omui-refined.",
   "subject": "components-refined",
   "seed": 2,
-  "material": "tools/eval/materials/controls.sh; cp <scratch>/quality-lab/refined/{toggle,checkbox,slider}.png target/compare-material/omui-refined/",
+  "material": "omui-devtools eval materials controls; cp <scratch>/quality-lab/refined/{toggle,checkbox,slider}.png target/compare-material/omui-refined/",
   "dimension": [
     {
       "id": "controls",

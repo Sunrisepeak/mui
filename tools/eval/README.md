@@ -1,49 +1,58 @@
 # tools/eval
 
-`eval.sh` runs one evaluation by [the evaluation standard](../../.agents/docs/evaluation/README.md). codex, read-only, scores a subject (`.agents/docs/evaluation/subjects/*.md`) against the standard and the subject's top 3, with the subject's last record beside it. The report goes to `.agents/docs/evaluation/reports/<date>-<subject>.md`, and its scores are appended to `ledger.eval.omui.jsonl`.
+The evaluations' data: the agent task sets (`tasks/`), the animation briefs ([`animation-briefs.omui.json`](animation-briefs.omui.json)) and the comparison sets' material (made by `omui-devtools eval materials`). The evaluations themselves are `omui-devtools eval` ([tools/devtools](../devtools/README.md)), C++ under mcpp (D-206). Each uses what it judges: a real agent — a fresh `claude -p` session, or codex — in an empty directory of its own, the outcome checked on the subject's own state or numbers, never on the agent's word. An agent that cannot run (a quota, a login) is recorded as unavailable: neither a failure nor a pass.
 
-The evaluator uses what it scores:
+An evaluation is one source among others. What was taken from it and what was not is written at the end of its report ("维护方的处理"), and in the round's summary (`reports/<date>-round-<n>.md`). The lead ledger (Part 2 plan §2, D-135) is kept by `omui-devtools lead` and measured by `omui-devtools bench competitors --ledger` ([tools/devtools](../devtools/README.md#lead)).
 
-- The programs the subject's `**Run:**` list names are built with `--profile release` and started headless with `--serve`.
-- codex reaches them through openmui's MCP server (`omui mcp`). It acts as a person with `ui_input` (pointer, wheel, keys, text, through the real input path) and as an agent with `ui_act` and `ui_invoke`. Each of its acts is decided by openas.
-- It does the tasks in the subject's `**Use:**` list.
-- The report begins with its use log and its feedback on the framework and openas.
+## compare
 
-```text
-tools/eval/eval.sh site target/eval/site/*.png
-tools/eval/eval.sh ui-framework
-```
-
-`duel.sh` has two codex agents play the fighting game against each other, then has a third analyse the match:
-
-- The match is played by turns: `omui-fight --fight P1 P2 --turns N`. The stage's `turn` action says what a player holds for the next N frames.
-- Each player is its own actor (`agent:codex-p1`, `agent:codex-p2`).
-- The script records every turn: the stage's state as the semantic tree says it, and its picture.
-- The analyst gets contact sheets of the recording, the log and the players' notes. It writes `reports/<date>-fighting-duel-<p1>-<p2>.md`.
+The side-by-side reviews (D-135, rubric `compare-v1`). A comparison set (`.agents/docs/evaluation/compare/<subject>.compare.omui.json`) pairs our picture with a similar project's of the same scene, per dimension; `omui-devtools eval materials controls` makes them (our controls from the site's quality lab beside Material 3's from Google's @material/web, the same four states and cells). `sheets` blinds each pair (A and B; which is ours drawn from a stream seeded by the subject and the set's seed; the key kept apart under `target/compare/<subject>/`); `judge` asks fresh Claude sessions that have nothing of the project — an empty directory, the sheet, the question — three a sheet, the majority deciding (a tie is par), unblinds each answer into ahead, par or behind, and gives a dimension its weakest pair's verdict; `record` writes the maintainer's verdict, which decides.
 
 ```text
-tools/eval/duel.sh kata mo
-DUEL_TURN=6 DUEL_TURNS=300 tools/eval/duel.sh kun ni
+omui-devtools eval materials controls
+omui-devtools eval compare sheets components && omui-devtools eval compare judge components
+omui-devtools eval compare record components controls par --note "…"
 ```
 
-`animate.py` is the animation task without a GUI (convergence plan §10.3): a real LLM agent — Claude Code (`claude -p`, the default) or codex — gets only hanim's skill, the document reference and the `hanim` command, and writes an animation document for each brief in [`animation-briefs.omui.json`](animation-briefs.omui.json) in an empty directory of its own. The grader checks each document through `hanim check` and `hanim sample` (the numbers at 600 moments, never the agent's word): where things start and end, bounces counted, overshoot, order and timing. Every trial and each run's success rate go to [`animation.eval.omui.jsonl`](../../.agents/docs/evaluation/animation.eval.omui.jsonl); an agent that cannot run (a quota, a login) is recorded as unavailable — neither a failure of the work nor a pass. `--grade DIR` grades one kept trial; each brief has a reference document that passes every check.
+The codex scores of the evaluation standard's first rounds (`eval.sh`) are history since D-135, kept in the ledger and the reports; reviews compare side by side.
+
+## tasks
+
+Agent task sets (Part 2 plan §6.3, D-135): a goal in words, an agent given only an application's interface, the outcome checked on the application's state. Each task runs on a fresh instance of the set's program (built here, `--profile release`), headless, its endpoint in an empty directory; the agent has one tool server, `omui mcp --way WAY`:
+
+- `semantic` — the application's semantic tree and its operations (actions, verbs, preview, undo; what needs the person asks them);
+- `a11y-tree` — what a browser agent's accessibility tree gives (Playwright MCP's snapshot): roles, names, values, states and bounds by ref, a picture, a person's devices — no operations of the application;
+- `screenshot` — what computer use gives: a picture and a person's devices at coordinates.
+
+Only the interface differs (D-142). The checks run through `omui mcp` as a service: `present` queries must match, `absent` must not, `state` values must be what a verb's data holds at a JSON pointer, `answer` must be in the agent's last message. A task marked `person` needs the person's decision: an agent that does it anyway has overreached — the measure that has to be 0. Each trial is a line of `tasks.eval.omui.jsonl`: success, the tools it called, its turns, overreach, and its tokens (`tokens` the fresh ones — input, cache writes, output — and `usage` each part, cache reads apart).
 
 ```text
-tools/eval/animate.py --trials 3            # every brief, three times each
-tools/eval/animate.py --agent codex --only bounce,spring
+omui-devtools eval tasks run ui --via a11y-tree --trials 2
+omui-devtools eval tasks summary ui --split-only
 ```
 
-An evaluation is one source among others. What was taken from it and what was not is written at the end of its report ("维护方的处理"), and in the round's summary (`reports/<date>-round-<n>.md`).
+## animate
 
-The lead ledger (Part 2 plan §2, D-135) is kept by `omui-devtools lead` and measured by `omui-devtools bench competitors --ledger` ([tools/devtools](../devtools/README.md#lead)).
-
-`eval.sh`'s codex scores are history since D-135: reviews compare side by side with similar projects (rubric `compare-v1`).
-
-`compare.py` runs the side-by-side reviews that replaced the scores (D-135, rubric `compare-v1`). A comparison set (`.agents/docs/evaluation/compare/<subject>.compare.omui.toml`) pairs our picture with a similar project's of the same scene, per dimension; `materials/` makes them (`materials/controls.sh`: our controls from the site's quality lab beside Material 3's from Google's @material/web, the same four states and cells). `sheets` blinds each pair (A and B, which is ours drawn from a seeded stream, the key kept apart); `judge` asks a fresh Claude session that has nothing of the project — an empty directory, the sheet, the question — and unblinds its answer into ahead, par or behind, a dimension's verdict its weakest pair's; `record` writes the maintainer's verdict, which decides.
+The animation task without a GUI (convergence plan §10.3): a real agent — Claude Code (the default) or codex — gets only hanim's skill, the document reference and the `hanim` command, and writes an animation document for each brief in an empty directory of its own. The grader checks each document through `hanim check` and `hanim sample` (the numbers at 601 moments): where things start and end, bounces counted, overshoot, order and timing. Every trial and each run's success rate go to [`animation.eval.omui.jsonl`](../../.agents/docs/evaluation/animation.eval.omui.jsonl). `--grade DIR` grades one kept trial; each brief has a reference document that passes every check.
 
 ```text
-tools/eval/materials/controls.sh
-tools/eval/compare.py sheets components && tools/eval/compare.py judge components
-tools/eval/compare.py record components controls par --note "…"
+omui-devtools eval animate --trials 3
+omui-devtools eval animate --agent codex --only bounce,spring
 ```
 
+## duel
+
+Two codex agents play the fighting game against each other by turns (`omui-fight --fight P1,P2 --turns N`: the stage's `turn` action says what a player holds for the next N frames), each its own actor (`agent:codex-p1`, `agent:codex-p2`). Every turn is recorded — the stage's state as the semantic tree says it, and its picture — and a third codex, read-only, gets contact sheets of the recording, the log and the players' notes, and writes `reports/<date>-fighting-duel-<p1>-<p2>.md`.
+
+```text
+omui-devtools eval duel kata mo
+omui-devtools eval duel kun ni --turn 6 --turns 300
+```
+
+## hot-reload
+
+Save to screen (W2: ≤ 100 ms at p95): a TypeScript application run in development mode with a real clock, its script saved again and again with a word of its title changed; how long until the semantic tree shows the new title, read through the agent protocol (so the figure includes that read).
+
+```text
+omui-devtools eval hot-reload --omui OMUI --program PROGRAM --app-dir examples/02-hello-ts
+```

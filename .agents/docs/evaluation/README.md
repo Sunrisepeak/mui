@@ -75,7 +75,7 @@
 
 - **对象和维度**：每个对象一份 `subjects/<对象>.md`，写明它是什么、读哪些文件、维度（每个维度下的细项）、对标的前 3 名（以及只在某些维度上参考的项目）、要附哪些图。
 - **使用**：对象文件的 `**Run:**` 列出要启动的程序（``- `程序 参数` (包)``），`**Use:**` 列出评分者要亲手做的任务。`eval.sh` 先用 `--profile release` 构建这些程序，再以 `--serve --agent-input` 在无头模式下启动它们。每个程序在一个临时目录里提供 agent 端点，codex 通过 `omui mcp` 操作它们。用框架写的应用默认就有这些能力：agent 端点，以及 agent 像人的设备那样输入（`AppSpec::agent_input`，开发者可以关掉，运行时用 `--no-agent-input` 关掉）。这些输入做的事按 openas 算作 agent 自己的（`agent:codex-evaluator;via=service:input`），按它的请求同样裁决：人自己的动作拒绝（S-10），受上限和授权约束（S-11），不可撤销的动作要人的答复。所以评分者在评一个对象的同时，也在评框架、引擎和 openas 的能力，报告里单列这部分反馈。
-- **运行**：`tools/eval/eval.sh <对象> [图…]` 把本文第 1–3 节、对象文件和上一次的台账记录拼成提示，用 codex 只读运行。报告存进 `reports/<日期>-<对象>.md`，分数追加到 `ledger.eval.omui.jsonl`，一次评估一行：
+- **运行**（2026-11-16 起为历史：D-135 之后评审改为并排对照，`omui-devtools eval compare`；打分脚本 `eval.sh` 随 D-206 删除，台账与报告保留）：`tools/eval/eval.sh <对象> [图…]` 曾把本文第 1–3 节、对象文件和上一次的台账记录拼成提示，用 codex 只读运行。报告存进 `reports/<日期>-<对象>.md`，分数追加到 `ledger.eval.omui.jsonl`，一次评估一行：
 
   ```json
   {"date":"…","subject":"…","evaluator":"codex","commit":"…","overall":…,"mean":…,"dimensions":{…},"report":"reports/…"}

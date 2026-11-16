@@ -117,3 +117,25 @@ omui-devtools check dist-toy-loading [--fixture FILE]          # omui.gen's dist
 Each check's report lands under `target/` (`site-perf.json`, `site-a11y.json`, `site-<check>.report.omui.json`, `visitor-path.json`, `dist-toy-loading.report.omui.json`; pictures in `target/site-<check>/`), and a line is said for each of its checks. `perf` holds the delivery to `site/delivery.budget.omui.json`, with and without the HTTP cache. `dist-toy-loading` runs the generated loader in a frame of its own in the page (node's vm context before), against the browser's own fetch, streams and WebAssembly. `transition` is a coverage study of input on moving painted pixels, not in the default set.
 
 `omui-devtools bench material3 OUT` captures Material 3's controls in four states from their page (`tests/bench/competitors/compare/material3`, once bundled), the competitor's side of the controls' review.
+
+## check, browser, media, ci local
+
+The CI steps that were shell scripts (D-206), each a subcommand whose verdict is what the script's was:
+
+- `check features | size | atspi | templates | reflect | sweep | toy | tools-e2e | agent-e2e | android | web | browser`: a feature chosen alone builds; a page's WebAssembly within its budget; examples read and operated as a screen reader does; the templates built from the release; the reflection canary; a sweep's agents; Toy's package and its doctor; the tools and the agent end to end; the Android row; the Web row's members; every wasm test program in Chromium.
+- `browser PROGRAM.js [--preload DIR:AT]…`: a wasm test program in a real page of headless Chromium (its server on the loopback with mlibs.http's framing, the program's lines relayed, its summary line judged); `--headed` under `gpu --real` for the full browser on this machine's GPU.
+- `media [--check] [--showcases] [SHOW…]`: the showcases' and the site's README pictures, made by their tests, copied in or held to them.
+- `ci local [MEMBER…]`: CI's matrix on this one Linux machine, for when hosted runners are unavailable.
+
+## consumer
+
+The out-of-tree consumer probes (`hanim-core`, `hanim-api`, `hanim-play`, `omui-hanim [--web]`, `hanim-features`): a fresh project outside the repository made from its fixture under `tools/ci/`, built and run through mcpp as a user's project is (its own lock, then `--locked`), and what mcpp resolved and compiled audited — the closure a product brings, the sources it compiles, nothing of the UI or the test harness where it must not be. The repository's own lock must not change. A report and the commands' logs stay under `target/probe/<name>/`.
+
+```sh
+omui-devtools consumer hanim-api
+omui-devtools consumer omui-hanim --web
+```
+
+## eval
+
+The evaluations, each using what it judges: a real agent (a fresh `claude -p` session, or codex) in an empty directory of its own, the outcome checked on the subject's own state or numbers ([tools/eval](../eval/README.md)): `compare` (side-by-side, blinded, D-135), `tasks` (goals in words through `omui mcp --way`), `animate` (briefs graded by hanim's samples), `duel` (two agents play the fighting game), `materials controls` (the comparison's pictures), `hot-reload` (save to screen).

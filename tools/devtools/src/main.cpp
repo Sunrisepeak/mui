@@ -42,6 +42,7 @@ import omui.devtools.browser;
 import omui.devtools.check;
 import omui.devtools.ci;
 import omui.devtools.consumer;
+import omui.devtools.eval;
 import omui.devtools.govern;
 import omui.devtools.gpu;
 import omui.devtools.incremental;
@@ -59,12 +60,6 @@ namespace fs = std::filesystem;
 using json = nlohmann::json;
 
 namespace {
-
-std::optional<std::string> read_file(const fs::path& path) {
-    std::ifstream in(path, std::ios::binary);
-    if (!in) return std::nullopt;
-    return std::string(std::istreambuf_iterator<char>(in), {});
-}
 
 // `gh ARGS…`'s standard output, or why not.
 std::expected<std::string, std::string> gh(std::vector<std::string> args) {
@@ -97,7 +92,7 @@ Report reconcile(std::string run, std::vector<rec::Row> rows, std::span<const re
         std::vector<Reported> members;
         for (auto& member : row.members) {
             Reported one{member};
-            if (auto manifest = read_file(root / member.path / "mcpp.toml")) one.package = rec::package_of(*manifest);
+            if (auto manifest = mcpplibs::os::fs::read(root / member.path / "mcpp.toml")) one.package = rec::package_of(*manifest);
             for (const auto& failure : member.failures) {
                 one.known.push_back(rec::known_in(rec::names_of(member, failure, one.package), reds));
                 if (one.known.back().rows.empty()) ++report.fresh;
@@ -192,6 +187,7 @@ cmd::App app() {
                         .subcommand(cmd::App("local")
                                         .description("CI's matrix on this one Linux machine, for when hosted runners are unavailable (wine for the Windows row)")
                                         .arg(Arg("member").help("these members (default: the workspace)"))))
+        .subcommand(omui::devtools::eval::command())
         .subcommand(cmd::App("govern")
                         .description("Run a command within 90% of this machine: MCPP_JOBS, at most that many of its compilers and linkers at once, fewer while memory is short, at low priority (AGENTS §5)")
                         .option(Option("jobs").takes_value().value_name("N").help("how many may run at once (default: 90% of the cores and of the memory at 2.25 GB a compile)"))
@@ -387,7 +383,7 @@ int ci(const cmd::ParsedArgs& options, const fs::path& root) {
         return omui::devtools::check::matrix(root, members);
     }
     const std::string status_name = options.value("status").value_or(".agents/docs/STATUS.md");
-    const auto status = read_file(options.value("status") ? mcpplibs::os::fs::from_utf8(status_name) : root / ".agents/docs/STATUS.md");
+    const auto status = mcpplibs::os::fs::read(options.value("status") ? mcpplibs::os::fs::from_utf8(status_name) : root / ".agents/docs/STATUS.md");
     if (!status) {
         std::cerr << std::format("omui-devtools ci: cannot read the red list at {} (--status names it)\n", status_name);
         return 2;
@@ -412,14 +408,14 @@ int ci(const cmd::ParsedArgs& options, const fs::path& root) {
         log = std::move(*failed);
     } else {
         run = sub.positional(0);
-        auto read = read_file(mcpplibs::os::fs::from_utf8(run));
+        auto read = mcpplibs::os::fs::read(mcpplibs::os::fs::from_utf8(run));
         if (!read) {
             std::cerr << std::format("omui-devtools ci: cannot read {}\n", run);
             return 2;
         }
         log = std::move(*read);
         if (auto file = sub.value("jobs")) {
-            auto text = read_file(mcpplibs::os::fs::from_utf8(*file));
+            auto text = mcpplibs::os::fs::read(mcpplibs::os::fs::from_utf8(*file));
             if (!text) {
                 std::cerr << std::format("omui-devtools ci: cannot read {}\n", *file);
                 return 2;
@@ -454,7 +450,7 @@ std::expected<std::vector<std::string>, std::string> git_lines(const fs::path& r
 
 // The LLVM CI's rows build with, as .github/workflows/ci.yml names it ("llvm@23.1.3").
 std::string ci_llvm(const fs::path& root) {
-    const auto text = read_file(root / ".github/workflows/ci.yml");
+    const auto text = mcpplibs::os::fs::read(root / ".github/workflows/ci.yml");
     if (!text) return {};
     const auto at = text->find("llvm@");
     if (at == std::string::npos) return {};
@@ -464,7 +460,7 @@ std::string ci_llvm(const fs::path& root) {
 }
 
 int llvm(const cmd::ParsedArgs& options, const fs::path& root) {
-    const auto manifest = read_file(root / "mcpp.toml");
+    const auto manifest = mcpplibs::os::fs::read(root / "mcpp.toml");
     if (!manifest) {
         std::cerr << "omui-devtools llvm: no mcpp.toml in the workspace (--root names it)\n";
         return 2;
@@ -472,7 +468,7 @@ int llvm(const cmd::ParsedArgs& options, const fs::path& root) {
     const auto paths = ws::listed(*manifest);
     std::vector<ws::Member> all;
     for (const auto& path : paths) {
-        const auto own = read_file(root / mcpplibs::os::fs::from_utf8(path) / "mcpp.toml");
+        const auto own = mcpplibs::os::fs::read(root / mcpplibs::os::fs::from_utf8(path) / "mcpp.toml");
         all.push_back({path, own ? ws::uses_of(path, *own, paths) : std::vector<std::string>{}});
     }
     std::vector<std::string> chosen = options.option_or_empty("package").values;
@@ -599,7 +595,7 @@ int surface(const cmd::ParsedArgs& options, const fs::path& root) {
     int differs = 0;
     for (const std::string& member : members) {
         const fs::path directory = root / mcpplibs::os::fs::from_utf8(member);
-        const auto manifest = read_file(directory / "mcpp.toml");
+        const auto manifest = mcpplibs::os::fs::read(directory / "mcpp.toml");
         if (!manifest) {
             std::cerr << std::format("omui-devtools api: no mcpp.toml in {}\n", member);
             return 2;
@@ -607,7 +603,7 @@ int surface(const cmd::ParsedArgs& options, const fs::path& root) {
         const std::string now = omui::devtools::api::surface(directory, omui::devtools::api::interface_globs(*manifest));
         const fs::path file = directory / "api.omui.txt";
         if (options.is_flag_set("check")) {
-            if (read_file(file) != now) {
+            if (mcpplibs::os::fs::read(file) != now) {
                 std::cerr << std::format("{}: api.omui.txt is not its surface now (omui-devtools api -p {} --write)\n", member, member);
                 ++differs;
             }
@@ -738,8 +734,8 @@ int lead_command(const cmd::ParsedArgs& options, const fs::path& root) {
     const fs::path ledger = root / lead::ledger_path;
     if (options.subcommand_name() == "verdict") {
         std::vector<std::string> skipped;
-        const auto judged = lead::verdicts(read_file(root / lead::metrics_path).value_or(""), read_file(fs::path(sub.positional(0))).value_or(""),
-                                           read_file(ledger).value_or(""), lead::context_here(root), skipped);
+        const auto judged = lead::verdicts(mcpplibs::os::fs::read(root / lead::metrics_path).value_or(""), mcpplibs::os::fs::read(fs::path(sub.positional(0))).value_or(""),
+                                           mcpplibs::os::fs::read(ledger).value_or(""), lead::context_here(root), skipped);
         if (!judged) {
             std::cerr << "omui-devtools lead verdict: " << judged.error() << '\n';
             return 2;
@@ -796,7 +792,7 @@ int lead_command(const cmd::ParsedArgs& options, const fs::path& root) {
 }
 
 int platforms(const cmd::ParsedArgs& options, const fs::path& root) {
-    const auto table = read_file(root / "docs/platforms.omui.json");
+    const auto table = mcpplibs::os::fs::read(root / "docs/platforms.omui.json");
     if (!table) {
         std::cerr << "omui-devtools platforms: cannot read docs/platforms.omui.json\n";
         return 2;
@@ -809,7 +805,7 @@ int platforms(const cmd::ParsedArgs& options, const fs::path& root) {
             return 2;
         }
         const fs::path target = root / "docs" / std::string(language) / "platforms.md";
-        if (read_file(target) == *written) continue;
+        if (mcpplibs::os::fs::read(target) == *written) continue;
         if (options.is_flag_set("check")) {
             std::cerr << std::format("omui-devtools platforms: docs/{}/platforms.md is not current (omui-devtools platforms)\n", language);
             ++stale;
@@ -837,6 +833,7 @@ int main(int argc, char** argv) {
     if (parsed->subcommand_name() == "llvm") return llvm(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "platforms") return platforms(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "api") return surface(parsed->subcommand()->get(), root);
+    if (parsed->subcommand_name() == "eval") return omui::devtools::eval::run(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "consumer") {
         const auto& given = parsed->subcommand()->get();
         omui::devtools::consumer::Options options;

@@ -293,6 +293,48 @@ UTest cases{"mcp", [] {
         expect(!c.error(5) && c.text(5).contains("\"paused\":true")) << c.text(5);
     };
 
+    "the other ways (D-142): the same application as computer use and an accessibility tree offer it — devices, a picture, refs; no operations"_test = [] {
+        expect(mcp::way_named("a11y-tree") == mcp::Way::accessibility_tree && mcp::way_named("screenshot") == mcp::Way::screenshot && !mcp::way_named("pixels"));
+        const auto dir = scratch_dir("mcp-ways");
+        int pressed = 0;
+        Headless h([&] {
+            HeadlessOptions o;
+            o.level = HeadlessLevel::session;
+            o.size = {200, 80};
+            o.app = "org.openmui.test-ways";
+            o.endpoint_directory = dir;
+            o.agent_input = true;
+            return o;
+        }());
+        if (!h.endpoint()) return;
+        h.mount("main", column({.padding = 8}, {box({.id = "go", .width = 80, .height = 24, .label = "Go", .on = {{"press", [&](const Value&) { ++pressed; }}}})}));
+        h.step();
+        const auto names = [](const Value::List& tools) {
+            std::set<std::string> out;
+            for (const Value& tool : tools) out.insert(std::string(tool.get("name")->as_string()));
+            return out;
+        };
+        const std::set<std::string> devices{"screenshot", "click", "double_click", "drag", "type", "key", "scroll"};
+        expect(names(mcp::Server({.way = mcp::Way::screenshot, .directory = dir}).tools()) == devices) << "computer use: a picture and devices";
+        mcp::Server server({.way = mcp::Way::accessibility_tree, .directory = dir});
+        auto with_tree = devices;
+        with_tree.insert({"accessibility_tree", "click_ref"});
+        expect(names(server.tools()) == with_tree) << "and the tree, by ref";
+        Client c;
+        c.in = {initialize(1, false), call(2, "accessibility_tree"), call(3, "click_ref", Value{}.set("ref", "main/go")), call(4, "screenshot"),
+                call(5, "ui_snapshot"), call(6, "click")};
+        serve(h, server, c);
+        const Value* init = c.reply(1) ? c.reply(1)->get("result") : nullptr;
+        expect(init && !init->get("instructions")) << "nothing said of the application beyond the tools";
+        expect(!c.error(2) && c.text(2).contains("\"ref\":\"main/go\"") && c.text(2).contains("\"role\":\"button\"") && c.text(2).contains("\"name\":\"Go\"") &&
+               c.text(2).contains("\"bounds\"") && !c.text(2).contains("\"actions\"")) << c.text(2);
+        expect(!c.error(3) && c.text(3) == "done" && pressed == 1) << c.text(3);
+        const Value* shot = c.reply(4) ? c.reply(4)->get("result")->get("content") : nullptr;
+        expect(shot && shot->list() && shot->list()->size() == 2 && (*shot->list())[1].get("data")->as_string().starts_with("iVBORw0KGgo")) << "a PNG";
+        expect(c.reply(5) && c.reply(5)->get("error")) << "no semantic tools on this way";
+        expect(c.error(6) && c.text(6).contains("needs `x`")) << c.text(6);
+    };
+
     "a client that can ask: the person allows — done, with the person in the actor; declines — nothing done"_test = [] {
         const auto dir = scratch_dir("mcp-elicit");
         Notes notes(dir);

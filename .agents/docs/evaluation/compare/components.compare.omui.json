@@ -1,8 +1,8 @@
 {
-  "doc": "The components' side-by-side review (compare-v1, D-135; Part 2 plan §2.4). Material: tools/eval/materials/controls.sh — ours from site's quality lab, Material 3's from Google's @material/web, the same controls in the same four states (at rest, under the pointer, pressed, keyboard-focused), the same cells and background. tools/eval/materials/controls.sh && tools/eval/compare.py sheets components && tools/eval/compare.py judge components",
+  "doc": "The components' side-by-side review (compare-v1, D-135; Part 2 plan §2.4). Material: omui-devtools eval materials controls — ours from site's quality lab, Material 3's from Google's @material/web, the same controls in the same four states (at rest, under the pointer, pressed, keyboard-focused), the same cells and background. omui-devtools eval materials controls && omui-devtools eval compare sheets components && omui-devtools eval compare judge components",
   "subject": "components",
   "seed": 1,
-  "material": "tools/eval/materials/controls.sh",
+  "material": "omui-devtools eval materials controls",
   "dimension": [
     {
       "id": "controls",

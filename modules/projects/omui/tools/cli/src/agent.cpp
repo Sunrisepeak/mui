@@ -326,7 +326,6 @@ cmd::App app() {
             "agent: the endpoint directory; connect, page: where the bridge says where it is (default: the per-user one)"));
     for (const auto name : project_commands) (void)line.subcommand(project_command(name));  // new, dev, run … in their order
     (void)line.subcommand(agent_command())
-        .subcommand(video_command())
         .subcommand(audio_command())
         .subcommand(connect_command())
         .subcommand(page_command(operations(cmd::App("page"), false)))
@@ -504,7 +503,6 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
     if (std::ranges::contains(project_commands, parsed->subcommand_name()))
         return project(parsed->subcommand_name(), parsed->subcommand()->get(), out, err);
     if (parsed->subcommand_name() == "agent") return agent(parsed->subcommand()->get(), global(*parsed, "dir"), out, err);
-    if (parsed->subcommand_name() == "video") return video(parsed->subcommand()->get(), out, err);
     if (parsed->subcommand_name() == "audio") return audio(parsed->subcommand()->get(), out, err);
     if (parsed->subcommand_name() == "connect") return connect(parsed->subcommand()->get(), global(*parsed, "dir"), out, err);
     if (parsed->subcommand_name() == "page") return page(parsed->subcommand()->get(), global(*parsed, "dir"), out, err);

@@ -386,8 +386,8 @@ int operation(std::string_view op, const mlibs::agent::Arguments& a, std::ostrea
         record(out, true, "frames", made);
         if (made.code != 0) return made.code;
         const std::string film = a.value("out").value_or("design.webm");
-        const std::vector<std::string> render{"omui", "video", "render", frames + "/design.video.omui.json", "--out", film};
-        return cli::run(render, out, err);
+        const auto rendering = mlibs::agent::parse_request(Value{}.set("op", "omui.video.render").set("file", frames + "/design.video.omui.json").set("out", film).json());
+        return rendering ? video("render", mlibs::agent::Arguments(*rendering, "file"), out, err) : 1;
     }
     if (name == "check") {
         const auto files = a.values("files");
@@ -398,6 +398,7 @@ int operation(std::string_view op, const mlibs::agent::Arguments& a, std::ostrea
     }
     if (name == "describe") return describe(a.value("llms"), out, err);
     if (name == "fmt") return fmt(a, out, err);
+    if (name.starts_with("video.")) return video(name.substr(6), a, out, err);
     if (name == "schema") return schema(a, out, err);
     if (name == "build") return launch(name, a.flag("release"), false, a.values("rest"), true, out, err);
     if (name == "deps") return deps(true, out, err);
@@ -435,7 +436,7 @@ void Project::operate(std::string_view op, const mlibs::agent::Request& request,
     std::ostringstream out, err;
     // The tools it starts write to what it writes, not to this process's terminal (the protocol may be it).
     tools_caught() = true;
-    const int code = operation(op, mlibs::agent::Arguments(request, op == "omui.check" || op == "omui.fmt" ? "files" : ""), out, err);
+    const int code = operation(op, mlibs::agent::Arguments(request, op == "omui.check" || op == "omui.fmt" ? "files" : op.starts_with("omui.video.") ? "file" : ""), out, err);
     tools_caught() = false;
     // Each record it wrote is a data record of the answer; anything else, its text.
     std::istringstream lines(out.str());

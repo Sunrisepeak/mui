@@ -84,8 +84,8 @@ int page(const mcpplibs::cmdline::ParsedArgs& p, std::optional<std::filesystem::
 int sweep(const std::function<std::vector<Value>(const Value&)>& call, const mcpplibs::cmdline::ParsedArgs& a, std::ostream& out, std::ostream& err);
 
 // omui video (video.cpp).
-[[nodiscard]] mcpplibs::cmdline::App video_command();
-int video(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
+// omui.video.render, .still, .check, .probe, .timing (`name`: the last part).
+int video(std::string_view name, const mlibs::agent::Arguments& p, std::ostream& out, std::ostream& err);
 
 // omui audio (audio.cpp): offline automation audition and visual inspection.
 [[nodiscard]] mcpplibs::cmdline::App audio_command();

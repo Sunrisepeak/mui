@@ -19,6 +19,7 @@
 module omui.cli;
 
 import std;
+import mlibs.agent;
 import mcpplibs.cmdline;
 import mcpplibs.os;
 import omui.core;
@@ -116,7 +117,7 @@ struct Loaded {
 
 // A description, or a view document taken as one; the size, rate and length
 // given on the command line over what the file says.
-std::expected<Loaded, int> load(const cmd::ParsedArgs& p, Value& report, std::ostream& out, std::ostream& err) {
+std::expected<Loaded, int> load(const mlibs::agent::Arguments& p, Value& report, std::ostream& out, std::ostream& err) {
     Loaded l;
     l.file = path_of(p.positional(0));
     l.base = l.file.parent_path();
@@ -204,18 +205,7 @@ Value describe(const vid::Description& d) {
     return v;
 }
 
-cmd::App with_file(std::string_view name, std::string_view what) {
-    using cmd::Option;
-    return cmd::App(name)
-        .description(what)
-        .arg(cmd::Arg("file").required().help("a video description (*.video.omui.ts, or its .json) or a view document (*.view.omui.json)"))
-        .option(Option("size").takes_value().value_name("WxH").help("the size (a view's default: 1280x720)"))
-        .option(Option("fps").takes_value().value_name("RATE").help("frames a second: 30, 30000/1001, 29.97 (a view's default: 30)"))
-        .option(Option("seconds").takes_value().value_name("S").help("how long (a view's default: 3)"))
-        .option(Option("frames").takes_value().value_name("N").help("how many frames"));
-}
-
-int render(const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) {
+int render(const mlibs::agent::Arguments& p, std::ostream& out, std::ostream& err) {
     Value report;
     report.set("command", "render");
     auto l = load(p, report, out, err);
@@ -248,8 +238,8 @@ int render(const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) {
                 return 2;
             }
         }
-    webm.realtime = p.is_flag_set("realtime");
-    webm.lossless = p.is_flag_set("lossless");
+    webm.realtime = p.flag("realtime");
+    webm.lossless = p.flag("lossless");
     // Where the files go, and what writes them.
     const std::filesystem::path out_path = path_of(target);
     std::filesystem::path dir = out_path.parent_path();
@@ -297,7 +287,7 @@ int render(const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) {
     return print(out, report, 0);
 }
 
-int still(const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) {
+int still(const mlibs::agent::Arguments& p, std::ostream& out, std::ostream& err) {
     Value report;
     report.set("command", "still");
     auto l = load(p, report, out, err);
@@ -331,7 +321,7 @@ int still(const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) {
     return print(out, report, 0);
 }
 
-int check_video(const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) {
+int check_video(const mlibs::agent::Arguments& p, std::ostream& out, std::ostream& err) {
     Value report;
     report.set("command", "check");
     auto l = load(p, report, out, err);
@@ -341,7 +331,7 @@ int check_video(const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) 
     return print(out, report, 0);
 }
 
-int probe(const cmd::ParsedArgs& p, std::ostream& out) {
+int probe(const mlibs::agent::Arguments& p, std::ostream& out) {
     Value report;
     const std::filesystem::path file = path_of(p.positional(0));
     report.set("command", "probe").set("file", utf8(file));
@@ -378,7 +368,7 @@ int probe(const cmd::ParsedArgs& p, std::ostream& out) {
     return failed(out, report, "neither WebM, Y4M nor WAV");
 }
 
-int timing(const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) {
+int timing(const mlibs::agent::Arguments& p, std::ostream& out, std::ostream& err) {
     const auto rate = vid::parse_rate(p.value("fps").value_or("30"));
     std::int32_t hz = 48000;
     if (auto r = p.value("rate")) std::from_chars(r->data(), r->data() + r->size(), hz);
@@ -404,47 +394,12 @@ int timing(const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) {
 
 }  // namespace
 
-cmd::App video_command() {
-    using cmd::Arg, cmd::Option;
-    return cmd::App("video")
-        .description("Videos: frames and a sound track on exact frame and sample counts (xengine.video)")
-        .subcommand(with_file("render", "Render to files: WebM (VP9 and Opus), Y4M (and a WAV beside it), a PNG sequence, or a WAV")
-                        .option(Option("out").takes_value().value_name("OUT").help("x.webm, x.y4m, x.wav, shots/{:05}.png or shots/"))
-                        .option(Option("format").takes_value().value_name("FORMAT").help("webm, y4m, png or wav (default: from --out)"))
-                        .option(Option("quality").takes_value().value_name("Q").help("WebM: VP9 at constant quality, 0 (best) … 63 (default 24)"))
-                        .option(Option("bitrate").takes_value().value_name("KBPS").help("WebM: a target bit rate instead of a quality"))
-                        .option(Option("speed").takes_value().value_name("N").help("WebM: libvpx's speed, 0 (smallest) … 9 (fastest) (default 5)"))
-                        .option(Option("realtime").help("WebM: libvpx's real-time mode (the fastest encodes)"))
-                        .option(Option("lossless").help("WebM: every Y'CbCr sample kept"))
-                        .option(Option("threads").takes_value().value_name("N").help("WebM: encoder threads (1, the default, gives the same bytes everywhere)"))
-                        .option(Option("audio-bitrate").takes_value().value_name("KBPS").help("WebM: Opus (default 128)")))
-        .subcommand(with_file("still", "One frame as a PNG")
-                        .option(Option("frame").takes_value().value_name("N").help("the frame"))
-                        .option(Option("at").takes_value().value_name("SECONDS").help("the frame shown at a time"))
-                        .option(Option("out").takes_value().value_name("FILE.png").help("where")))
-        .subcommand(with_file("check", "Whether a description reads: its problems, or its size, rate, frames and samples"))
-        .subcommand(cmd::App("probe")
-                        .description("What a WebM, Y4M or WAV file holds (a WebM decoded: its frames and samples counted)")
-                        .arg(Arg("file").required().help("a .webm, .y4m or .wav file")))
-        .subcommand(cmd::App("timing")
-                        .description("Each frame's first sample and length, and its start in nanoseconds")
-                        .option(Option("fps").takes_value().value_name("RATE").help("30, 30000/1001, 29.97"))
-                        .option(Option("rate").takes_value().value_name("HZ").help("samples a second (48000)"))
-                        .option(Option("frames").takes_value().value_name("N").help("how many (default: a second's)")));
-}
-
-int video(const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) {
-    if (!p.has_subcommand()) {
-        err << "usage: omui video <render|still|check|probe|timing> …\n";
-        return 2;
-    }
-    const cmd::ParsedArgs& sub = p.subcommand()->get();
-    const std::string_view name = p.subcommand_name();
-    if (name == "render") return render(sub, out, err);
-    if (name == "still") return still(sub, out, err);
-    if (name == "check") return check_video(sub, out, err);
-    if (name == "probe") return probe(sub, out);
-    if (name == "timing") return timing(sub, out, err);
+int video(std::string_view name, const mlibs::agent::Arguments& p, std::ostream& out, std::ostream& err) {
+    if (name == "render") return render(p, out, err);
+    if (name == "still") return still(p, out, err);
+    if (name == "check") return check_video(p, out, err);
+    if (name == "probe") return probe(p, out);
+    if (name == "timing") return timing(p, out, err);
     err << "omui video: no command `" << name << "`\n";
     return 2;
 }

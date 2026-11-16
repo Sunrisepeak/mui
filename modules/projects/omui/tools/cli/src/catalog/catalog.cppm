@@ -32,6 +32,47 @@ inline constexpr std::array<mlibs::control::Parameter, 2> parameters_omui_fmt{{
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_schema{{
     {"out", "path", "write it to this file", true},
 }};
+inline constexpr std::array<mlibs::control::Parameter, 14> parameters_omui_video_render{{
+    {"file", "path", "a video description (*.video.omui.ts, or its .json) or a view document (*.view.omui.json)", false},
+    {"out", "path", "x.webm, x.y4m, x.wav, shots/{:05}.png or shots/", false},
+    {"size", "string", "WxH (a view's default: 1280x720)", true},
+    {"fps", "string", "frames a second: 30, 30000/1001, 29.97 (a view's default: 30)", true},
+    {"seconds", "number", "how long (a view's default: 3)", true},
+    {"frames", "integer", "how many frames", true},
+    {"format", "string", "webm, y4m, png or wav (default: from out)", true},
+    {"quality", "integer", "WebM: VP9 at constant quality, 0 (best) … 63 (default 24)", true},
+    {"bitrate", "integer", "WebM: a target bit rate (kbps) instead of a quality", true},
+    {"speed", "integer", "WebM: libvpx's speed, 0 (smallest) … 9 (fastest) (default 5)", true},
+    {"realtime", "bool", "WebM: libvpx's real-time mode", true},
+    {"lossless", "bool", "WebM: every Y'CbCr sample kept", true},
+    {"threads", "integer", "WebM: encoder threads (1, the default, gives the same bytes everywhere)", true},
+    {"audio-bitrate", "integer", "WebM: Opus kbps (default 128)", true},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 8> parameters_omui_video_still{{
+    {"file", "path", "a video description (*.video.omui.ts, or its .json) or a view document (*.view.omui.json)", false},
+    {"out", "path", "the PNG", false},
+    {"frame", "integer", "the frame", true},
+    {"at", "number", "the frame shown at a time, seconds", true},
+    {"size", "string", "WxH (a view's default: 1280x720)", true},
+    {"fps", "string", "frames a second: 30, 30000/1001, 29.97 (a view's default: 30)", true},
+    {"seconds", "number", "how long (a view's default: 3)", true},
+    {"frames", "integer", "how many frames", true},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 5> parameters_omui_video_check{{
+    {"file", "path", "a video description (*.video.omui.ts, or its .json) or a view document (*.view.omui.json)", false},
+    {"size", "string", "WxH (a view's default: 1280x720)", true},
+    {"fps", "string", "frames a second: 30, 30000/1001, 29.97 (a view's default: 30)", true},
+    {"seconds", "number", "how long (a view's default: 3)", true},
+    {"frames", "integer", "how many frames", true},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_video_probe{{
+    {"file", "path", "a .webm, .y4m or .wav file", false},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 3> parameters_omui_video_timing{{
+    {"fps", "string", "30, 30000/1001, 29.97", true},
+    {"rate", "integer", "samples a second (48000)", true},
+    {"frames", "integer", "how many (default: a second's)", true},
+}};
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_add{{
     {"package", "string", "a package of mcpp-index, as name or name@version", false},
 }};
@@ -52,7 +93,7 @@ inline constexpr std::array<mlibs::control::Parameter, 4> parameters_omui_design
 }};
 
 // The project's commands: create, build, test, check, describe, package; dependencies, tools and the design's history.
-inline constexpr std::array<mlibs::control::CatalogEntry, 18> catalog{{
+inline constexpr std::array<mlibs::control::CatalogEntry, 23> catalog{{
     {{"omui.doctor", openas::Effect::read, false}, "Which tools are there and which are missing (mcpp, xlings, tsc, esbuild), and what each is for", {}, "json", mlibs::control::Cost::bounded, "", false, false, false, {}},
     {{"omui.templates", openas::Effect::read, false}, "The templates a project is made from, and what each makes", {}, "json", mlibs::control::Cost::instant, "", false, false, false, {}},
     {{"omui.new", openas::Effect::irreversible, false}, "A new project from a template (app-ts by default): a directory of files, written beside the one the server runs in", parameters_omui_new, "json", mlibs::control::Cost::heavy, "none: delete the directory it made", false, false, false, {}},
@@ -62,6 +103,11 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 18> catalog{{
     {{"omui.describe", openas::Effect::read, false}, "What writing for the project takes: every builder, native module, theme token and verb, as JSON", parameters_omui_describe, "json", mlibs::control::Cost::heavy, "", false, false, false, {}},
     {{"omui.fmt", openas::Effect::reversible, false}, "View documents written in the canonical format; with check, only which are not", parameters_omui_fmt, "json", mlibs::control::Cost::bounded, "the files as they were (version control)", false, false, false, {}},
     {{"omui.schema", openas::Effect::reversible, false}, "The JSON Schema of view documents over the official components (written to out when given)", parameters_omui_schema, "json", mlibs::control::Cost::bounded, "delete the file written", false, false, false, {}},
+    {{"omui.video.render", openas::Effect::reversible, false}, "A video rendered to files on exact frame and sample counts: WebM (VP9 and Opus), Y4M (and a WAV beside it), a PNG sequence, or a WAV", parameters_omui_video_render, "json", mlibs::control::Cost::heavy, "delete the files written", false, false, false, {}},
+    {{"omui.video.still", openas::Effect::reversible, false}, "One frame of a video as a PNG", parameters_omui_video_still, "json", mlibs::control::Cost::bounded, "delete the PNG", false, false, false, {}},
+    {{"omui.video.check", openas::Effect::read, false}, "Whether a video description reads: its problems, or its size, rate, frames and samples", parameters_omui_video_check, "json", mlibs::control::Cost::bounded, "", false, false, false, {}},
+    {{"omui.video.probe", openas::Effect::read, false}, "What a WebM, Y4M or WAV file holds (a WebM decoded: its frames and samples counted)", parameters_omui_video_probe, "json", mlibs::control::Cost::bounded, "", false, false, false, {}},
+    {{"omui.video.timing", openas::Effect::read, false}, "Each frame's first sample and length, and its start in nanoseconds", parameters_omui_video_timing, "json", mlibs::control::Cost::instant, "", false, false, false, {}},
     {{"omui.deps", openas::Effect::read, false}, "The project's dependencies as its mcpp.toml declares them", {}, "json", mlibs::control::Cost::instant, "", false, false, false, {}},
     {{"omui.tools", openas::Effect::read, false}, "The tools the project names for xlings, and whether each is installed", {}, "json", mlibs::control::Cost::bounded, "", false, false, false, {}},
     {{"omui.tools.install", openas::Effect::irreversible, false}, "Installs the tools the project names (xlings install)", {}, "json", mlibs::control::Cost::heavy, "none: xlings remove what it installed", false, false, false, {}},
@@ -100,6 +146,16 @@ inline constexpr std::string_view listing = R"listing({
      "inputSchema": {"type": "object", "properties": {"files": {"description": "the *.view.omui.json files"}, "check": {"type": "boolean", "description": "change nothing: each file not in the canonical format said, exit 1"}}, "required": ["files"]}},
     {"name": "omui.schema", "description": "The JSON Schema of view documents over the official components (written to out when given)", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "delete the file written", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"out": {"type": "string", "description": "a file or directory path: write it to this file"}}, "required": []}},
+    {"name": "omui.video.render", "description": "A video rendered to files on exact frame and sample counts: WebM (VP9 and Opus), Y4M (and a WAV beside it), a PNG sequence, or a WAV", "effect": "reversible", "person": false, "delegated": false, "cost": "heavy", "undo": "delete the files written", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"file": {"type": "string", "description": "a file or directory path: a video description (*.video.omui.ts, or its .json) or a view document (*.view.omui.json)"}, "out": {"type": "string", "description": "a file or directory path: x.webm, x.y4m, x.wav, shots/{:05}.png or shots/"}, "size": {"type": "string", "description": "WxH (a view's default: 1280x720)"}, "fps": {"type": "string", "description": "frames a second: 30, 30000/1001, 29.97 (a view's default: 30)"}, "seconds": {"type": "number", "description": "how long (a view's default: 3)"}, "frames": {"type": "integer", "description": "how many frames"}, "format": {"type": "string", "description": "webm, y4m, png or wav (default: from out)"}, "quality": {"type": "integer", "description": "WebM: VP9 at constant quality, 0 (best) … 63 (default 24)"}, "bitrate": {"type": "integer", "description": "WebM: a target bit rate (kbps) instead of a quality"}, "speed": {"type": "integer", "description": "WebM: libvpx's speed, 0 (smallest) … 9 (fastest) (default 5)"}, "realtime": {"type": "boolean", "description": "WebM: libvpx's real-time mode"}, "lossless": {"type": "boolean", "description": "WebM: every Y'CbCr sample kept"}, "threads": {"type": "integer", "description": "WebM: encoder threads (1, the default, gives the same bytes everywhere)"}, "audio-bitrate": {"type": "integer", "description": "WebM: Opus kbps (default 128)"}}, "required": ["file", "out"]}},
+    {"name": "omui.video.still", "description": "One frame of a video as a PNG", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "delete the PNG", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"file": {"type": "string", "description": "a file or directory path: a video description (*.video.omui.ts, or its .json) or a view document (*.view.omui.json)"}, "out": {"type": "string", "description": "a file or directory path: the PNG"}, "frame": {"type": "integer", "description": "the frame"}, "at": {"type": "number", "description": "the frame shown at a time, seconds"}, "size": {"type": "string", "description": "WxH (a view's default: 1280x720)"}, "fps": {"type": "string", "description": "frames a second: 30, 30000/1001, 29.97 (a view's default: 30)"}, "seconds": {"type": "number", "description": "how long (a view's default: 3)"}, "frames": {"type": "integer", "description": "how many frames"}}, "required": ["file", "out"]}},
+    {"name": "omui.video.check", "description": "Whether a video description reads: its problems, or its size, rate, frames and samples", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"file": {"type": "string", "description": "a file or directory path: a video description (*.video.omui.ts, or its .json) or a view document (*.view.omui.json)"}, "size": {"type": "string", "description": "WxH (a view's default: 1280x720)"}, "fps": {"type": "string", "description": "frames a second: 30, 30000/1001, 29.97 (a view's default: 30)"}, "seconds": {"type": "number", "description": "how long (a view's default: 3)"}, "frames": {"type": "integer", "description": "how many frames"}}, "required": ["file"]}},
+    {"name": "omui.video.probe", "description": "What a WebM, Y4M or WAV file holds (a WebM decoded: its frames and samples counted)", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"file": {"type": "string", "description": "a file or directory path: a .webm, .y4m or .wav file"}}, "required": ["file"]}},
+    {"name": "omui.video.timing", "description": "Each frame's first sample and length, and its start in nanoseconds", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"fps": {"type": "string", "description": "30, 30000/1001, 29.97"}, "rate": {"type": "integer", "description": "samples a second (48000)"}, "frames": {"type": "integer", "description": "how many (default: a second's)"}}, "required": []}},
     {"name": "omui.deps", "description": "The project's dependencies as its mcpp.toml declares them", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {}, "required": []}},
     {"name": "omui.tools", "description": "The tools the project names for xlings, and whether each is installed", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",

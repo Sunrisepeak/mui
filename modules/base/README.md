@@ -19,6 +19,7 @@ What belongs here: general-purpose libraries with no domain semantics. Small too
 | [pipeline](pipeline) | Pipelines of stage plugins over typed resources: checked, deterministic, traced, replaceable while running |
 | [json](json) | `mlibs.json`: JSON documents with their places — nodes with JSON pointers, problems at line and column, did-you-mean; how the data files' JSON snapshots are read |
 | [ts](ts) | `mlibs.ts`: TypeScript with no tool — types blanked to the JavaScript under them (lines and columns kept), declared data modules evaluated deterministically to JSON; the tool kernel's, a kind's define module its owner's (D-209) |
+| [xdef](xdef) | `mlibs.xdef`: declared data's container — file names, `$format`, the kinds' registry each owner keeps in its manifest, canonical snapshots, and `xdef`, the reference evaluator and checker (D-209) |
 | [image](image) | Image buffers, premultiplication, PNG, animated PNG, WebP and JPEG |
 | [math](math) | Deterministic mathematics: elementary functions with the same bits everywhere (`det`), splitmix64 (`random`) |
 | [mpal](mpal) | `mpal`: the services an operating system gives an application (notifications first), one contract on every platform, above `mcpplibs.os` (openkal → os → mpal); a package of its own, meant to leave the repository once its contracts settle |

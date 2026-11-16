@@ -23,6 +23,7 @@ members = [
     "modules/base/image",
     "modules/base/json",
     "modules/base/ts",
+    "modules/base/xdef",
     "modules/base/math",
     "modules/base/memory",
     "modules/base/pipeline",

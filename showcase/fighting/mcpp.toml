@@ -61,3 +61,9 @@ programs = "directory"
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
 mlibs.utils = { path = "../../modules/base/utils" }
+
+
+# The declared data kinds this package owns (mlibs.xdef registry, D-209): each kind and its major
+# version, and the define module a data module imports each from (none: only tools write it).
+[package.metadata.openmui.xdef]
+kinds = { controls = 1 }

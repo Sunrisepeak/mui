@@ -5,6 +5,7 @@ module omui.devtools.lint;
 import std;
 import tomlplusplus;
 import mlibs.json;
+import mlibs.xdef;
 import :tree;
 
 namespace omui::devtools::lint {
@@ -157,6 +158,13 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
     const fs::path& root = workspace.root;
     const auto files = every_file(root);
     const auto text_of = [&](std::string_view path) { return read_text(root / path_of(path)).value_or(""); };
+
+    // data-format (D-209): every declared data file's kind registered by one owner, every committed snapshot
+    // what its module evaluates to now (mlibs.xdef, the container's checker).
+    if (auto registry = mlibs::xdef::Registry::read(root); !registry)
+        add("data-format", "mcpp.toml", registry.error());
+    else
+        for (auto& problem : mlibs::xdef::check(root, *registry)) add("data-format", std::move(problem.file), std::move(problem.text));
 
     // documents: the data files a committed schema governs.
     struct Governed {

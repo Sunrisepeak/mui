@@ -73,3 +73,9 @@ programs = "directory"
 mcpplibs.mtest = "0.8.4"
 xrender.text = { path = "../modules/projects/xrender/text" }
 mlibs.math = { path = "../modules/base/math" }
+
+
+# The declared data kinds this package owns (mlibs.xdef registry, D-209): each kind and its major
+# version, and the define module a data module imports each from (none: only tools write it).
+[package.metadata.openmui.xdef]
+kinds = { mark = 1, sprite = 1, frames = 1 }

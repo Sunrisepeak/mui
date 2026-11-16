@@ -6,6 +6,7 @@ module omui.devtools.lint;
 import std;
 import nlohmann.json;
 import omui.devtools.lead;
+import mlibs.xdef;
 import :tree;
 
 namespace omui::devtools::lint {
@@ -72,6 +73,7 @@ constexpr Rule all_rules[]{
     {"ops", "a package that declares operations has their catalogs (<product>.ops.omui.ts) and a skill.omui.md"},
     {"skills", "every operation a skill names is in a catalog; a skill points at its own package's catalog (D-145)"},
     {"agent-surface", "every package of a project says how an agent reaches what it holds (D-174)"},
+    {"data-format", "every declared data file's kind registered by one owner; every committed snapshot current (mlibs.xdef, D-209)"},
     {"typescript", "no *.omui.toml data file: data are TypeScript modules or their JSON snapshots (D-139)"},
     {"matter", "no law of a matter definition and no kernel source names a material (D-165)"},
     {"shader-inputs", "a vertex struct's TEXCOORD places run from 0 in order"},
@@ -482,6 +484,16 @@ void plant(const fs::path& root, const Planted& planted, const fs::path& owners_
     }
     for (const auto& [directory, text] : readmes)
         write(root / path_of(directory) / "README.md", text + "\n");
+    // Every kind the repository registers, registered in the planted workspace too (data-format, D-209).
+    std::string kinds;
+    std::map<std::string, std::string> modules;  // a define module → its kinds, quoted
+    if (const auto registry = mlibs::xdef::Registry::read(owners_table.parent_path().parent_path().parent_path()))
+        for (const auto& kind : registry->kinds) {
+            kinds += std::format("{}{} = {}", kinds.empty() ? "" : ", ", kind.name, kind.major);
+            if (!kind.module.empty()) modules[kind.module] += std::format("{}\"{}\"", modules[kind.module].empty() ? "" : ", ", kind.name);
+        }
+    std::string defined;
+    for (const auto& [module, names] : modules) defined += std::format("{}\"{}\" = [{}]", defined.empty() ? "" : ", ", module, names);
     for (const auto& member : members) {
         fs::create_directories(root / path_of(member) / "src", error);
         const bool hanim = member == "modules/gfx/hanim" || member == "modules/base/hanim/core";
@@ -490,7 +502,8 @@ void plant(const fs::path& root, const Planted& planted, const fs::path& owners_
               std::format("[package]\n{}\nversion = \"0.1.0\"\n{}{}\n[package.metadata.openmui]\nmaturity = \"{}\"\n{}", names[member],
                           hanim ? "[build]\ncxxflags = [\"-ffp-contract=off\"]\n" : "", extra == planted.dependencies.end() ? "" : extra->second,
                           member == "modules/ui/core" ? planted.label : std::string("stable"),
-                          member == "modules/ui/core" && !planted.ui_kind.empty() ? std::format("kind = \"{}\"\n", planted.ui_kind) : std::string()));
+                          member == "modules/ui/core" && !planted.ui_kind.empty() ? std::format("kind = \"{}\"\n", planted.ui_kind) : std::string())
+                  + (member == "modules/ui/core" ? std::format("[package.metadata.openmui.xdef]\nkinds = {{ {} }}\nmodules = {{ {} }}\n", kinds, defined) : std::string()));
     }
     for (const auto& [path, text] : planted.files) write(root / path_of(path), text);
     if (planted.view_schema) {
@@ -504,7 +517,7 @@ void plant(const fs::path& root, const Planted& planted, const fs::path& owners_
         const std::string leaf = utf8_of(child.path().filename());
         const fs::path snapshot = child.path() / path_of(leaf + ".project.omui.json");
         if (fs::exists(snapshot, error)) continue;
-        write(child.path() / path_of(leaf + ".project.omui.ts"), std::format("export default defineProject({{ name: \"{}\", dependsOn: [\"mlibs\"] }});\n", leaf));
+        write(child.path() / path_of(leaf + ".project.omui.ts"), std::format("import {{ defineProject }} from \"omui/define\";\nexport default defineProject({{ name: \"{}\", dependsOn: [\"mlibs\"] }});\n", leaf));
         write(snapshot, std::format("{{\"project\":{{\"name\":\"{}\",\"dependsOn\":[\"mlibs\"]}}}}\n", leaf));
     }
 }
@@ -552,6 +565,7 @@ int self_test(const fs::path& repository, const fs::path& scratch, std::ostream&
         // the data and the documents
         {"media", "docs/huge.png", std::string(1024 * 1024 + 1, 'x')},
         {.rule = "agent-surface", .project = true},
+        {"data-format", "modules/ui/core/x.stray.omui.json", "{}\n"},
         {"typescript", "modules/ui/core/contract/x.contract.omui.toml", "[contract.x]\nrole = \"button\"\n"},
         {"ops", "modules/ui/core/src/o.cpp", "module x;\nconstexpr auto op = mlibs::control::Operation{\"ui.wipe\", openas::Effect::irreversible};\n"},
         {.rule = "documents", .path = "examples/x/ui/bad.view.omui.json", .text = R"({"omui": "0.1", "view": {"root": {"typ": "text"}}})", .view_schema = true},

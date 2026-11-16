@@ -573,4 +573,68 @@ void declare(const Probe& probe, mlibs::cts::Against who, std::source_location a
         at);
 }
 
+void declare_sources(const SourcesProbe& probe, mlibs::cts::Against who, std::source_location at) {
+    // Every source's texts with these put over them (an edit as Sources::apply takes it: the whole design).
+    const auto with = [](std::map<std::string, std::string> texts, const std::map<std::string, std::string>& over) {
+        for (const auto& [path, text] : over) texts[path] = text;
+        return texts;
+    };
+    mlibs::cts::against(
+        std::move(who),
+        [&probe, with, at] {
+            const std::string_view of = sources_contract;
+            mlibs::cts::declare({.id = "sources.read.stable", .contract = std::string(of), .level = Level::exact, .body = [&probe](Check& check) {
+                                     const auto sources = probe.make();
+                                     check.that(sources->texts() == sources->texts(), "its texts read the same twice");
+                                     check.equal(sources->state(), sources->state(), "its state, twice");
+                                 }},
+                                at);
+            mlibs::cts::declare({.id = "sources.apply.own", .contract = std::string(of), .level = Level::exact, .body = [&probe](Check& check) {
+                                     const auto sources = probe.make();
+                                     const auto texts = sources->texts();
+                                     const std::string state = sources->state();
+                                     check.that(sources->apply(texts, Sources::Reason::edit).has_value(), "its own texts are taken");
+                                     check.that(sources->texts() == texts, "and nothing of them changed");
+                                     check.equal(sources->state(), state, "nor its state");
+                                 }},
+                                at);
+            mlibs::cts::declare({.id = "sources.apply.change", .contract = std::string(of), .level = Level::exact, .body = [&probe, with](Check& check) {
+                                     const auto sources = probe.make();
+                                     const auto before = sources->texts();
+                                     const std::string state = sources->state();
+                                     if (!check.that(!probe.change.empty(), "the probe gives an edit that reads")) return;
+                                     const auto applied = sources->apply(with(before, probe.change), Sources::Reason::edit);
+                                     if (!check.that(applied.has_value(), applied ? "the edit is taken" : applied.error())) return;
+                                     for (const auto& [path, text] : probe.change) check.equal(sources->texts()[path], text, std::format("{} as edited", path));
+                                     if (!state.empty()) check.that(sources->state() != state, "what runs is not what ran before");
+                                     // Taken back: the texts before, the state before.
+                                     check.that(sources->apply(before, Sources::Reason::undo).has_value(), "the texts before are taken back");
+                                     check.that(sources->texts() == before, "every text as it was");
+                                     check.equal(sources->state(), state, "the state as it was");
+                                 }},
+                                at);
+            mlibs::cts::declare({.id = "sources.apply.refused", .contract = std::string(of), .level = Level::exact, .body = [&probe, with](Check& check) {
+                                     const auto sources = probe.make();
+                                     const auto before = sources->texts();
+                                     const std::string state = sources->state();
+                                     if (!check.that(!probe.refused.empty(), "the probe gives an edit that does not read")) return;
+                                     const auto applied = sources->apply(with(before, probe.refused), Sources::Reason::edit);
+                                     check.that(!applied.has_value() && !applied.error().empty(), "it is refused, saying why");
+                                     check.that(sources->texts() == before, "nothing of the texts changed");
+                                     check.equal(sources->state(), state, "nor what runs");
+                                 }},
+                                at);
+            mlibs::cts::declare({.id = "sources.deterministic", .contract = std::string(of), .level = Level::exact, .body = [&probe, with](Check& check) {
+                                     const auto first = probe.make();
+                                     const auto second = probe.make();
+                                     check.equal(first->state(), second->state(), "the same first state");
+                                     (void)first->apply(with(first->texts(), probe.change), Sources::Reason::edit);
+                                     (void)second->apply(with(second->texts(), probe.change), Sources::Reason::edit);
+                                     check.equal(first->state(), second->state(), "the same edit, the same state");
+                                 }},
+                                at);
+        },
+        at);
+}
+
 }  // namespace mlibs::agent::cts

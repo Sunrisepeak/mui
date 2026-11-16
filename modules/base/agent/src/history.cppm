@@ -118,6 +118,25 @@ public:
     [[nodiscard]] virtual std::string state() = 0;
 };
 
+// Several domains' sources designed as one (D-160's workspace, D-204's composition): each mounted under a name, its
+// paths under it ("ui/main.ts", "animation/rise.animation.omui.json"); one history over them all, so a commit holds
+// every domain's texts and a switch or an undo puts each back. It is sources itself: the history knows no domain.
+class Workspace final : public Sources {
+public:
+    // `sources` under `name` (letters, digits, '-' and '_'; each once), kept by reference: they outlive the workspace.
+    std::expected<void, std::string> mount(std::string name, Sources& sources);
+    [[nodiscard]] std::map<std::string, std::string> texts() override;
+    // Each domain whose texts differ is given its own, in the order mounted; one that refuses puts those already
+    // changed back as they were, and the refusal says whose it was. A path under no domain is refused. What changed:
+    // {"<name>": what that domain answered, …}.
+    std::expected<std::string, std::string> apply(const std::map<std::string, std::string>& texts, Reason reason) override;
+    // Each domain's state by name ("ui=…;animation=…"): what runs, whole.
+    [[nodiscard]] std::string state() override;
+
+private:
+    std::vector<std::pair<std::string, Sources*>> mounted_;
+};
+
 // A commit as an operation answers it: {id, message, actor, branch, time, state, parents, files: [paths]} —
 // or, against another commit (its parent), `changed` in place of `files`: the sources that are not the same
 // in both, those it has no longer among them.

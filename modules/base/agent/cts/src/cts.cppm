@@ -59,4 +59,19 @@ void declare(const Probe& probe, mlibs::cts::Against who = {}, std::source_locat
 // How many cases the contract has.
 [[nodiscard]] std::size_t case_count() noexcept;
 
+// A design adapter's contract (D-160's L0, D-204's adapters): what a domain's sources must do for Live Design's
+// history and a workspace to hold them — read the same twice, take their own texts back as no change, show an edit
+// and take it back, refuse what does not read with nothing changed, and be the same from the same texts.
+inline constexpr std::string_view sources_contract = "mlibs.agent.sources@1";
+
+struct SourcesProbe {
+    // New sources, in the same first state each time (two are compared).
+    std::function<std::unique_ptr<Sources>()> make;
+    // An edit that reads (path → text: among the sources, or one added), and one that does not.
+    std::map<std::string, std::string> change, refused;
+};
+
+// Every case against the probe's sources: mtest's conformance cases `<subject>/sources.<case>`.
+void declare_sources(const SourcesProbe& probe, mlibs::cts::Against who, std::source_location at = std::source_location::current());
+
 }  // namespace mlibs::agent::cts

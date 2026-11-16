@@ -41,6 +41,14 @@ expect(contract::unsupported(game.capabilities()) == std::vector<std::string>{"a
 - **A task runs on the probe's subject**: a catalog's tasks are its interface's — what any subject speaking it can be asked — so they name no node, handle or place only one application has; a step takes such a value from the answer before it (`{"$last": pointer}`).
 - **Unsupported comes from the subject alone**: a case whose needs its `capabilities()` lack does not run, and is never counted as passed. A runner may require a capability (`Policy::required`): then its absence fails.
 - **A claim not shown fails**: a subject that says it has a capability whose probe names no request for it fails that capability's cases.
+- **A design adapter's contract** (`mlibs.agent.sources@1`, `declare_sources`): what a domain's `Sources` must do for Live Design's history and a `Workspace` to hold them (D-160, D-204):
+  - read the same twice;
+  - take its own texts back as no change;
+  - show an edit, and take it back to the texts and state before;
+  - refuse what does not read, saying why, with nothing changed;
+  - give the same state from the same texts.
+
+  An adapter's probe gives how to make it, an edit that reads and one that does not. A `Workspace` keeps the contract itself.
 - **Each subject runs it in its own tests** — the suite is here with the contract's owner; a package that is a subject registers its probe (lint `agent-surface`).
 
 Its own package so that the kernel carries no test framework.

@@ -407,4 +407,54 @@ std::optional<std::string> History::common_ancestor(std::string_view first, std:
     return std::nullopt;
 }
 
+// ── a workspace: domains' sources under one history ──
+
+std::expected<void, std::string> Workspace::mount(std::string name, Sources& sources) {
+    const bool named = !name.empty() && std::ranges::all_of(name, [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '-' || c == '_'; });
+    if (!named) return std::unexpected(std::format("`{}` is no domain's name: letters, digits, '-' and '_'", name));
+    if (std::ranges::contains(mounted_, name, &std::pair<std::string, Sources*>::first)) return std::unexpected(std::format("`{}` is mounted already", name));
+    mounted_.emplace_back(std::move(name), &sources);
+    return {};
+}
+
+std::map<std::string, std::string> Workspace::texts() {
+    std::map<std::string, std::string> all;
+    for (const auto& [name, sources] : mounted_)
+        for (auto& [path, text] : sources->texts()) all.emplace(std::format("{}/{}", name, path), std::move(text));
+    return all;
+}
+
+std::expected<std::string, std::string> Workspace::apply(const std::map<std::string, std::string>& texts, Reason reason) {
+    // Each domain's share, its paths without its name; a path under none is no source here.
+    std::vector<std::map<std::string, std::string>> shares(mounted_.size());
+    for (const auto& [path, text] : texts) {
+        const auto slash = path.find('/');
+        const auto domain = slash == std::string::npos ? mounted_.end()
+                                                       : std::ranges::find(mounted_, std::string_view(path).substr(0, slash), &std::pair<std::string, Sources*>::first);
+        if (domain == mounted_.end()) return std::unexpected(std::format("`{}` is under no domain of this workspace", path));
+        shares[static_cast<std::size_t>(domain - mounted_.begin())].emplace(path.substr(slash + 1), text);
+    }
+    std::string changed = "{";
+    std::vector<std::pair<Sources*, std::map<std::string, std::string>>> done;  // what each changed one had before
+    for (std::size_t index = 0; index < mounted_.size(); ++index) {
+        auto& [name, sources] = mounted_[index];
+        auto before = sources->texts();
+        if (before == shares[index]) continue;
+        auto answered = sources->apply(shares[index], reason);
+        if (!answered) {
+            for (auto& [undone, had] : std::views::reverse(done)) (void)undone->apply(had, Reason::undo);
+            return std::unexpected(std::format("{}: {}", name, answered.error()));
+        }
+        changed += std::format("{}\"{}\":{}", done.empty() ? "" : ",", name, answered->empty() ? std::string("{}") : *answered);
+        done.emplace_back(sources, std::move(before));
+    }
+    return changed + "}";
+}
+
+std::string Workspace::state() {
+    std::string all;
+    for (const auto& [name, sources] : mounted_) all += std::format("{}{}={}", all.empty() ? "" : ";", name, sources->state());
+    return all;
+}
+
 }  // namespace mlibs::agent

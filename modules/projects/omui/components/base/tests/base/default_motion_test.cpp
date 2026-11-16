@@ -90,6 +90,13 @@ Scene scene(std::string_view type, std::string_view override_motion = {}) {
         element = tabs({.id = "subject", .selected = signal(std::string("general"))},
                        {tab({.id = "general", .text = "General"}), tab({.id = "privacy", .text = "Privacy"}), tab({.id = "advanced", .text = "Advanced"})});
         change = [](Headless& h) { act(h, "main/subject/advanced", "select"); };
+    } else if (type == "badge") {
+        auto count = signal(std::int64_t{3});
+        element = badge({.id = "subject", .count = count});
+        change = [count](Headless& h) { count.set(12); h.step(); };
+    } else if (type == "stepper") {
+        element = stepper({.id = "subject", .free = true, .steps = std::vector<std::string>{"Cart", "Address", "Payment"}});
+        change = [](Headless& h) { act(h, "main/subject", "increment"); };
     } else if (type == "progress") {
         auto value = signal(0.15);
         element = progress({.id = "subject", .label = "Upload", .value = value, .width = 300});
@@ -163,8 +170,8 @@ static UTest cases{"ui.base.default-motion", [] {
         expect(std::ranges::none_of(rules, [](const MotionRule& r) { return r.target == "*"; })) << "no blanket recipe for every drawing";
     };
 
-    "seven real control types paint distinct middle frames and reach their actual state drawings"_test = [] {
-        for (const std::string type : {"checkbox", "toggle", "segmented", "tabs", "progress", "accordion", "drawer"}) {
+    "nine real control types paint distinct middle frames and reach their actual state drawings"_test = [] {
+        for (const std::string type : {"checkbox", "toggle", "segmented", "tabs", "badge", "stepper", "progress", "accordion", "drawer"}) {
             Headless animated(options()), immediate(options());
             immediate.runtime().set_motion_level(MotionLevel::off);
             auto sample = scene(type), reference = scene(type);

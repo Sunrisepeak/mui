@@ -467,7 +467,9 @@ void DataGrid::paint(PaintContext& ctx) const {
             x += widths[c];
         }
     }
-    // The header over them, each column's name and its sort.
+    // The header over them, each column's name and its sort; once rows have gone under it, it casts the theme's
+    // small shadow on them (B6) — at the top, none.
+    if (offset_ > 0) parts::shadow(ctx, "sm", {0, 0, ctx.size.width, grid_head}, {});
     ctx.list.fill_rect({0, 0, ctx.size.width, grid_head}, th.color("surface_variant"));
     ctx.list.fill_rect({0, grid_head - 1, ctx.size.width, 1}, th.color("border_strong"));
     headers_.resize(props.fields.size());

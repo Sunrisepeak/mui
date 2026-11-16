@@ -516,6 +516,27 @@ static UTest cases{"ui.base.more", [] {
         expect(chosen.peek().size() == 2) << std::format("{} chosen", chosen.peek().size());
     };
 
+    "data grid: once rows have gone under its header, the header casts a small shadow; at the top, none (B6)"_test = [] {
+        Headless h(options({500, 300}));
+        Model& rows = h.runtime().model("many");
+        for (int index = 0; index < 40; ++index)
+            expect(rows.push({Row{std::format("r{}", index), Value{}.set("name", std::format("Row {}", index))}}).has_value());
+        h.mount("main", column({.padding = 8}, {data_grid({.id = "many", .fields = std::vector<std::string>{"name"}, .headers = std::vector<std::string>{"Name"},
+                                                           .label = "Many", .model = "many", .width = Dim(460.0f), .height = Dim(240.0f)})}));
+        h.settle();
+        auto shadows = [&] {
+            return std::ranges::count_if(h.runtime().display_list().commands(), [](const auto& command) { return std::holds_alternative<xrender::BoxShadow>(command); });
+        };
+        const auto top = shadows();
+        const auto bounds = h.runtime().screen_bounds(h.runtime().find("main/many"));
+        h.scroll(bounds.center(), {0, 120});
+        h.settle();
+        expect(shadows() > top) << std::format("scrolled: {} shadows, {} at the top", shadows(), top);
+        h.scroll(bounds.center(), {0, -500});
+        h.settle();
+        expect(shadows() == top) << "back at the top: none";
+    };
+
     "a tree view and a data grid, the same pixels on every platform"_test = [] {
         mlibs::text::FontCollection own;
         expect(own.add_defaults().has_value());

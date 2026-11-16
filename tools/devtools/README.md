@@ -115,3 +115,5 @@ omui-devtools check dist-toy-loading [--fixture FILE]          # omui.gen's dist
 ```
 
 Each check's report lands under `target/` (`site-perf.json`, `site-a11y.json`, `site-<check>.report.omui.json`, `visitor-path.json`, `dist-toy-loading.report.omui.json`; pictures in `target/site-<check>/`), and a line is said for each of its checks. `perf` holds the delivery to `site/delivery.budget.omui.json`, with and without the HTTP cache. `dist-toy-loading` runs the generated loader in a frame of its own in the page (node's vm context before), against the browser's own fetch, streams and WebAssembly. `transition` is a coverage study of input on moving painted pixels, not in the default set.
+
+`omui-devtools bench material3 OUT` captures Material 3's controls in four states from their page (`tests/bench/competitors/compare/material3`, once bundled), the competitor's side of the controls' review.

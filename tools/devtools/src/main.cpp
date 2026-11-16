@@ -319,7 +319,10 @@ cmd::App app() {
                                         .description("Build our side, install the pinned competitors, run every comparison")
                                         .option(Option("ledger").help("the lead ledger: rounds alternating, each metric judged, the ledger and its pages written"))
                                         .option(Option("rounds").takes_value().value_name("N").help("with --ledger: how many (default: 15)"))
-                                        .option(Option("dry-run").help("with --ledger: print the verdicts, write nothing"))))
+                                        .option(Option("dry-run").help("with --ledger: print the verdicts, write nothing")))
+                        .subcommand(cmd::App("material3")
+                                        .description("Material 3's controls in four states (rest, hover, pressed, focus), captured from their page as the competitor's side of the controls' review")
+                                        .arg(Arg("out").required().help("OUT/<control>-<state>.png"))))
         .subcommand(cmd::App("lead")
                         .description("The lead ledger (D-135): samples, verdicts, capabilities, its pages and its check")
                         .subcommand(cmd::App("sample")
@@ -954,8 +957,16 @@ int main(int argc, char** argv) {
     }
     if (parsed->subcommand_name() == "bench") {
         const auto& sub = parsed->subcommand()->get();
+        if (sub.subcommand_name() == "material3") {
+            const auto status = omui::devtools::bench::material3(root, mcpplibs::os::fs::from_utf8(sub.subcommand()->get().positional(0)));
+            if (!status) {
+                std::cerr << "omui-devtools bench material3: " << status.error() << '\n';
+                return 2;
+            }
+            return *status;
+        }
         if (sub.subcommand_name() != "competitors") {
-            std::cerr << "usage: omui-devtools bench competitors [--ledger [--rounds N] [--dry-run]]\n";
+            std::cerr << "usage: omui-devtools bench competitors [--ledger [--rounds N] [--dry-run]] | material3 OUT\n";
             return 2;
         }
         const auto& given = sub.subcommand()->get();

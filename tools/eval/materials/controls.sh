@@ -19,7 +19,7 @@ cp "$lab"/*.png "$out/omui/"
 
 side=tests/bench/competitors/compare/material3
 (cd "$side" && npm install --silent --no-audit --no-fund && esbuild controls.js --bundle --loader:.woff2=dataurl --loader:.woff=dataurl --outfile=controls.bundle.js --log-level=warning)
-CHROME="$chrome" node "$side/capture.mjs" "$out/material3/states"
+OMUI_CHROME="$chrome" mcpp run omui-devtools -p tools/devtools -- bench material3 "$out/material3/states"
 python3 - "$out" <<'PY'
 import os, sys
 sys.path.insert(0, os.path.join(os.getcwd(), "tools", "eval"))

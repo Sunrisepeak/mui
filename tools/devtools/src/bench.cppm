@@ -21,6 +21,12 @@ struct Options {
 // The run's exit status, or why it could not run.
 [[nodiscard]] std::expected<int, std::string> competitors(const std::filesystem::path& root, const Options& options);
 
+// Material 3's controls in four states captured from their page
+// (tests/bench/competitors/compare/material3, once its bundle is built) into
+// OUT/<control>-<state>.png: the exit status, or why it could not run.
+[[nodiscard]] std::expected<int, std::string> material3(const std::filesystem::path& root,
+                                                        const std::filesystem::path& out);
+
 // The markdown corpus: what people wrote in the repository (docs/, site/content/, each file in path order,
 // joined by a blank line), repeated until it is at least `size` bytes.
 [[nodiscard]] std::string corpus(const std::filesystem::path& root, std::size_t size = std::size_t{1} << 20);

@@ -179,3 +179,9 @@ A session the lab's tests replay, its picture kept beside it (`media/`):
 `matter.explain` asks why a cell is what it is; the answer is the law that held, what it read, and who gave it its heat. A new material is one `lab.material` (coal, here), and the world is played again at once.
 
 More: [matter](../../../modules/projects/xengine/kernel/matter/README.md), [the lattice and the world](../../../modules/projects/xengine/kernel/cellular/README.md), [the lab](../../../modules/projects/xengine/kernel/matter/lab/README.md). Two dimensions only, today.
+
+## When something goes wrong
+
+- **A rule names a material**: rules refer to properties, never to materials by name (lint `matter`); give the material the property and let the rule read it.
+- **A branch drifts from its original**: a world is a value and steps deterministically; compare `state_hash()` frame by frame, as the test above does, to find the first frame where they part.
+- **A slow machine**: the picture lowers its light and scenery ladders by itself; the world it draws is the same bit for bit.

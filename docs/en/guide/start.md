@@ -68,6 +68,13 @@ omui agent act hello main/click activate       # press that button
 
 The count in the window went up by one. The agent used the button you use, not a coordinate.
 
+## When something goes wrong
+
+- **A tool is missing**: `omui doctor` names each missing tool and what it is for; `omui tools install` installs the ones the project names (through xlings).
+- **The first build is slow**: the compiler and the libraries pinned by the project are fetched and built once; the builds after it are incremental.
+- **`omui agent ls` does not list the application**: an application is listed while it runs, by a descriptor in the per-user runtime directory (`$XDG_RUNTIME_DIR/openmui`, else a temporary one). One left behind by a crashed run is listed too; connecting tells which are alive.
+- **More detail**: `OMUI_LOG` (or `--log`) sets the log levels by category, for example `OMUI_LOG=agent=debug`.
+
 ## Next
 
 - [Interfaces](ui.md): state, layout, components, themes.

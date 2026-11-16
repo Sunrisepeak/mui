@@ -179,3 +179,9 @@ matter-lab run lab            # 一行一个请求
 `matter.explain` 问“这一格为什么是现在这样”，回答是哪条规律成立、它读到了什么、热是谁给的。加一种新材料是一条 `lab.material`（这里是煤），改完世界立刻重放。
 
 更多：[物质](../../../modules/projects/xengine/kernel/matter/README.md)、[格点与世界](../../../modules/projects/xengine/kernel/cellular/README.md)、[实验台](../../../modules/projects/xengine/kernel/matter/lab/README.md)。现在只有 2D。
+
+## 出了问题怎么办
+
+- **规则点名了材料**：规则只引用性质，不点名材料（lint `matter`）；给材料加上这个性质，让规则去读它。
+- **分支和原来的不一致**：世界是值，按步确定地推进；像上面的测试那样逐帧比较 `state_hash()`，找到第一次分开的那一帧。
+- **机器慢**：画面会自己降低光照和布景两条阶梯；它画的世界逐位不变。

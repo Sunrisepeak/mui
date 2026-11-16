@@ -70,3 +70,9 @@ Reading a person's record needs their consent in a release.
 ## An agent designing the interface
 
 While `omui dev` runs, an agent can change the running interface: it sends TypeScript or structured edits, they show within a frame, and the source is the one truth. You can take over at any moment; every step is in a history that can be committed, branched and gone back in. A whole session is [example 13](../../../examples/13-live-design).
+
+## When something goes wrong
+
+- **An action is refused**: every refusal carries its reason and a way on — the action a node does take, the range a value must keep, or the permission the session lacks. In development mode (`omui dev`) a trusted session has every declared capability; outside it, what an agent may do is what the developer allows and the user's configuration keeps (`omui.config.ts`, `--agent-mode`).
+- **What happened, and why**: `ui.timeline` lists the interactions recorded and `ui.explain` the chain from an input to its effect; ask them rather than a person's account.
+- **Nothing to connect to**: the application must be running; `omui agent ls` lists the live endpoints.

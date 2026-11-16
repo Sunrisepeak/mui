@@ -102,3 +102,9 @@ omui run -- --headless --png shot.png      # a real picture, drawn offscreen
 ```
 
 A test can ask the semantic tree (is this button there, is it disabled), perform actions, and compare pixels. [Example 07](../../../examples/07-headless-and-agent) is a whole one.
+
+## When something goes wrong
+
+- **An agent's path to a control changed**: a control without an explicit `id` is named by its place; give every interactive node an `id` that does not depend on the text it shows.
+- **A component does not animate its change**: components only draw their states; how a change moves is the node's `motion` slot and the theme's recipes (lint `motion`), so set it there.
+- **A request is refused**: the refusal says why and what to do instead (an action that is not the node's, a value out of its range, a permission the session lacks); `omui agent snapshot <app> --interactive` lists what can be operated now, and `ui.describe` with `api` every component's properties and actions.

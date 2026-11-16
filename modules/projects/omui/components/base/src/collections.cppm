@@ -89,6 +89,7 @@ public:
 
     ActResult set_sort(ActContext& ctx, const Value& sort);
     ActResult set_selected(ActContext& ctx, const Value& keys);
+    ActResult set_width(ActContext& ctx, const SetWidthArgs& args);
     ActResult next(ActContext& ctx);
     ActResult previous(ActContext& ctx);
     ActResult first(ActContext& ctx);
@@ -107,6 +108,9 @@ private:
     void bind_model();
     void dirty();
     [[nodiscard]] std::vector<float> column_widths(float width) const;
+    // The column whose right edge is under `at` in the header (within a few pixels), if any.
+    [[nodiscard]] std::optional<std::size_t> edge_at(Point at) const;
+    ActResult resize(std::size_t column, std::string width);
     [[nodiscard]] std::string header_of(std::size_t c) const;
     [[nodiscard]] bool chosen(std::string_view key) const;
     ActResult select(std::vector<std::string> keys);
@@ -127,6 +131,12 @@ private:
     float                              offset_ = 0;
     std::size_t                        focus_ = 0;  // the row gone to (its place in the order)
     int                                hover_ = -1;
+    // A column's edge under the pointer, or dragged: the column, its width when the drag began, where it began,
+    // how far past the narrowest it is drawn (rubber band), and what `widths` said before.
+    std::optional<std::size_t>         edge_;
+    bool                               resizing_ = false;
+    float                              from_width_ = 0, from_x_ = 0, past_ = 0;
+    std::vector<std::string>           from_widths_;
 };
 
 }  // namespace omui

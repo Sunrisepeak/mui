@@ -19,7 +19,12 @@ export default defineContract({
         doc: "The rows' fields shown as its columns, in order (named `fields`: `columns` is a grid layout's).",
       },
       headers: { type: "list<string>", default: [], doc: "Their headers (else the fields' names)." },
-      widths: { type: "list<string>", default: [], doc: "Each column's width in pixels; empty or * shares what is left." },
+      widths: {
+        type: "list<string>",
+        default: [],
+        bindable: true,
+        doc: "Each column's width in pixels; empty or * shares what is left. A header's edge dragged sets its column's.",
+      },
       sort: {
         type: "string",
         default: "",
@@ -31,7 +36,11 @@ export default defineContract({
       label: { type: "string", default: "" },
     },
     events: { sorted: { args: { sort: "string" } }, activated: { args: { key: "string" } } },
-    actions: { set_sort: { effect: "reversible", args: { sort: "string" } }, set_selected: { effect: "reversible", args: { keys: "any" } } },
+    actions: {
+      set_sort: { effect: "reversible", args: { sort: "string" } },
+      set_selected: { effect: "reversible", args: { keys: "any" } },
+      set_width: { effect: "reversible", args: { field: "string", width: "any" } },
+    },
     keys: { Down: "next", Up: "previous", Home: "first", End: "last", Enter: "activate", Space: "toggle" },
     commands: {
       next: { doc: "Go to the row below." },

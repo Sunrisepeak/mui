@@ -381,6 +381,7 @@ namespace omui {
     ActResult act_item(ActContext& ctx, std::string_view key, std::string_view action);
     ActResult set_sort(ActContext& ctx, const Value& sort);
     ActResult set_selected(ActContext& ctx, const Value& keys);
+    ActResult set_width(ActContext& ctx, const SetWidthArgs& args);
     ActResult next(ActContext& ctx);
     ActResult previous(ActContext& ctx);
     ActResult first(ActContext& ctx);

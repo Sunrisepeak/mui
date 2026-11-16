@@ -121,3 +121,9 @@ expect(near(take(engine.frame(played, 0)).geometry.parts[0].local.tx, 300) && ne
 ```
 
 更多：[hanim 的 README](../../../modules/projects/hanim/README.md)。动画视频的完整例子：[宣传片](../../../showcase/promo-video)。
+
+## 出了问题怎么办
+
+- **变化是跳过去的而不是动过去的**：节点的 `motion` 槽（或主题里对应的配方）没有给这个变化一条路线；组件自己从不写动画（lint `motion`）。
+- **某一帧和预期不同**：动画是时间的函数；在相同的时刻采样（测试用显式的时间推进运行时），各个平台上都一样。
+- **打断时跳了一下**：被打断的过程从当前画出的位置继续；跳动说明这次变化替换了节点而不是更新它，保持它的 `id`。

@@ -87,3 +87,8 @@ The [widget breakout](../../../showcase/widget-breakout) is another: its bricks 
 ## A game with a window
 
 The window, input and interface are omui's; the game and the interface meet at a bridge (`xengine.ui`): the game steps as it does, and the interface reads its state to draw. A HUD, menus and settings are ordinary omui interfaces.
+
+## When something goes wrong
+
+- **A replay differs**: the same input is the same result; `world.state` gives each frame's state hash, so step two runs side by side and the first frame whose hashes part is where they diverge.
+- **An agent plays too well**: it plays at the assist tier, which is shown everything; the human tier is shown what a person is and has a person's reaction time and actions a second.

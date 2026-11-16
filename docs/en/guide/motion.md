@@ -121,3 +121,9 @@ expect(near(take(engine.frame(played, 0)).geometry.parts[0].local.tx, 300) && ne
 ```
 
 More: [hanim's README](../../../modules/projects/hanim/README.md). A whole film made this way: the [promo video](../../../showcase/promo-video).
+
+## When something goes wrong
+
+- **A change jumps instead of moving**: the node's `motion` slot (or the theme's recipe for it) gives no course for that change; components themselves never animate (lint `motion`).
+- **A frame differs from the one expected**: animation is a function of time; sample it at the same times (a test steps the runtime with explicit times) and it is the same on every platform.
+- **Interrupted motion jumps**: an interrupted course goes on from where it is drawn; a jump means the change replaced the node rather than updating it, so keep its `id`.

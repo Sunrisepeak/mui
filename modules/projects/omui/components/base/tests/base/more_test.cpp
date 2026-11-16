@@ -480,6 +480,41 @@ static UTest cases{"ui.base.more", [] {
         expect(items(h, "main/files").back().name == "TODO.md") << "a new row stated";
     };
 
+    "tree view: indent guides under each level; the one holding the row under the pointer drawn darker, its whole run (B6)"_test = [] {
+        Headless h(options({300, 260}));
+        Model& files = h.runtime().model("guides");
+        for (const auto& [key, label, parent] : std::vector<std::tuple<std::string, std::string, std::string>>{
+                 {"src", "src", ""}, {"app", "app.cpp", "src"}, {"ui", "ui", "src"}, {"button", "button.cpp", "ui"}, {"slider", "slider.cpp", "ui"}, {"readme", "README.md", ""}}) {
+            Value fields = Value{}.set("label", label);
+            if (!parent.empty()) fields.set("parent", parent);
+            expect(files.push({Row{key, fields}}).has_value());
+        }
+        h.mount("main", column({.padding = 0}, {tree_view({.id = "guides", .expanded = std::vector<std::string>{"src", "ui"}, .model = "guides",
+                                                           .width = Dim(260.0f), .height = Dim(220.0f)})}));
+        h.settle();
+        const Theme theme = Theme::light();
+        // The hairlines one pixel wide, a row tall: how many in the border colour, how many darker.
+        auto same = [](Color one, Color other) { return one.r == other.r && one.g == other.g && one.b == other.b && one.a == other.a; };
+        auto guides = [&] {
+            std::pair<int, int> count{0, 0};
+            for (const auto& command : h.runtime().display_list().commands())
+                if (const auto* fill = std::get_if<xrender::FillRect>(&command); fill && fill->rect.width == 1 && fill->rect.height == 30) {
+                    if (same(fill->paint.color, theme.color("border_strong"))) ++count.second;
+                    else if (same(fill->paint.color, theme.color("border"))) ++count.first;
+                }
+            return count;
+        };
+        // app, ui: one level each; button, slider: two each.
+        expect(guides() == std::pair<int, int>{6, 0}) << std::format("at rest: {} plain, {} dark", guides().first, guides().second);
+        const auto tree = h.runtime().screen_bounds(h.runtime().find("main/guides"));
+        PointerEvent pointer;
+        pointer.kind = PointerKind::move;
+        pointer.position = {tree.x + 120, tree.y + 6 + 3 * 30 + 15};  // over button.cpp
+        h.step({pointer});
+        h.settle();
+        expect(guides() == std::pair<int, int>{4, 2}) << std::format("over button.cpp, ui's guide by both its children: {} plain, {} dark", guides().first, guides().second);
+    };
+
     "data grid: a model's rows in columns; sorted by a header (ascending, descending, none); rows chosen one or several; each row and header an item of its own"_test = [] {
         Headless h(options({480, 300}));
         Model& people = h.runtime().model("people");
@@ -537,6 +572,53 @@ static UTest cases{"ui.base.more", [] {
         expect(shadows() == top) << "back at the top: none";
     };
 
+    "data grid: a header's edge dragged sets its column's width; lit, damped past the narrowest, taken back whole; an agent sets it too (B6)"_test = [] {
+        Headless h(options({500, 300}));
+        Model& rows = h.runtime().model("cols");
+        expect(rows.push({Row{"a", Value{}.set("name", "Ada").set("city", "London")}}).has_value());
+        auto widths = signal(std::vector<std::string>{"200", "*"});
+        h.mount("main", column({.padding = 0}, {data_grid({.id = "cols", .fields = std::vector<std::string>{"name", "city"}, .headers = std::vector<std::string>{"Name", "City"},
+                                                           .label = "Cols", .model = "cols", .widths = widths, .width = Dim(460.0f), .height = Dim(200.0f)})}));
+        h.settle();
+        // The lit divider: two pixels wide; as tall as the header under the pointer, as the grid while dragged.
+        auto divider = [&]() -> std::optional<Rect> {
+            for (const auto& command : h.runtime().display_list().commands())
+                if (const auto* fill = std::get_if<xrender::FillRect>(&command); fill && fill->rect.width == 2 && fill->rect.height >= 30) return fill->rect;
+            return std::nullopt;
+        };
+        const auto grid = h.runtime().screen_bounds(h.runtime().find("main/cols"));
+        PointerEvent pointer;
+        pointer.kind = PointerKind::move;
+        pointer.position = {grid.x + 200, grid.y + 18};
+        h.step({pointer});
+        h.settle();
+        expect(divider().has_value() && divider()->height < 40) << "over the edge: the divider lit, the header's height";
+        expect(h.runtime().get(h.runtime().find("main/cols"), "cursor").as_string() == "col-resize") << "and the resize cursor";
+        pointer.kind = PointerKind::down; pointer.button = MouseButton::left; pointer.buttons = 1;
+        h.step({pointer});
+        pointer.kind = PointerKind::move;
+        pointer.position.x = grid.x + 260;
+        h.step({pointer});
+        h.settle();
+        expect(widths.peek() == std::vector<std::string>{"260", "*"}) << std::format("dragged 60 px wider: {}", widths.peek()[0]);
+        expect(divider().has_value() && divider()->height >= 199) << "while dragged, down through the rows";
+        // Far past the narrowest (48 px): kept there, drawn a damped way narrower.
+        pointer.position.x = grid.x + 2;
+        h.step({pointer});
+        h.settle();
+        expect(widths.peek()[0] == "48") << std::format("kept at the narrowest: {}", widths.peek()[0]);
+        if (const auto line = divider()) expect(line->x + 1 < 48 - 4 && line->x + 1 > 48 - 16) << std::format("past it, damped: {}", line->x + 1);
+        pointer.kind = PointerKind::up; pointer.buttons = 0;
+        h.step({pointer});
+        h.settle();
+        expect(undo(h) == 0 && widths.peek() == std::vector<std::string>{"200", "*"}) << "the drag taken back whole";
+        // An agent: pixels, a share again; not a column, not a width.
+        expect(act(h, "main/cols", "set_width", Value{}.set("field", "city").set("width", 120.0)) == 0 && widths.peek()[1] == "120") << "set by an agent";
+        expect(undo(h) == 0 && widths.peek()[1] == "*") << "taken back";
+        expect(act(h, "main/cols", "set_width", Value{}.set("field", "age").set("width", 80.0)) == 1) << "not a column";
+        expect(act(h, "main/cols", "set_width", Value{}.set("field", "name").set("width", "wide")) == 1) << "not a width";
+    };
+
     "a tree view and a data grid, the same pixels on every platform"_test = [] {
         mlibs::text::FontCollection own;
         expect(own.add_defaults().has_value());
@@ -568,7 +650,7 @@ static UTest cases{"ui.base.more", [] {
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("ui.base collections {:016x}", hash.value());
         expect(h.save_png(scratch_dir("ui-base-collections") / "collections@2x.png").has_value());
-        expect(hash.value() == 0xbdf489c318862501ULL) << std::format("collections {:016x}", hash.value());
+        expect(hash.value() == 0x9822cc69933d57d1ULL) << std::format("collections {:016x}", hash.value());
     };
 
     "combobox: typing filters the options; arrows and Enter choose; each option an item an agent chooses; free text only when free; taken back"_test = [] {

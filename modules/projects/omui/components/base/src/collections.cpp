@@ -10,6 +10,9 @@ namespace {
 
 constexpr float tree_row = 30, tree_indent = 18, tree_pad = 6;
 constexpr float grid_head = 36, grid_row = 34, grid_pad = 12;
+constexpr float grid_narrowest = 48;  // a column dragged narrower stops here
+constexpr float grid_grab = 4;        // how near a header's edge the pointer takes it
+constexpr float grid_rubber = 16;     // dragged past the narrowest, drawn at most this much narrower (rubber band)
 
 // A chevron pointing right, or down when open, centred at c.
 void tree_chevron(PaintContext& ctx, Point c, bool down, Color color) {
@@ -165,12 +168,28 @@ void TreeView::paint(PaintContext& ctx) const {
     const std::size_t from = static_cast<std::size_t>(std::max(0.0f, (offset_ - tree_pad) / tree_row));
     const std::size_t to = std::min(ls.size(), static_cast<std::size_t>((offset_ + ctx.size.height) / tree_row) + 1);
     if (labels_.size() < to - std::min(from, to)) labels_.resize(to - std::min(from, to));
+    // The indent guides: a hairline under each level's chevron down its children. The one holding the row under
+    // the pointer (else the chosen one) is drawn darker, from its first child to its last (B6).
+    const auto focus = hover_ >= 0 ? std::optional<std::size_t>(static_cast<std::size_t>(hover_)) : line_of(props.value);
+    std::size_t lit_from = 1, lit_to = 0;
+    int lit_level = 0;
+    if (focus && *focus < ls.size() && ls[*focus].depth > 0) {
+        lit_level = ls[*focus].depth - 1;
+        lit_from = lit_to = *focus;
+        while (lit_from > 0 && ls[lit_from - 1].depth > lit_level) --lit_from;
+        while (lit_to + 1 < ls.size() && ls[lit_to + 1].depth > lit_level) ++lit_to;
+    }
     for (std::size_t i = from; i < to; ++i) {
         const Line& l = ls[i];
         const Rect r{tree_pad, tree_pad + static_cast<float>(i) * tree_row - offset_, ctx.size.width - 2 * tree_pad, tree_row};
         const bool chosen = l.key == props.value;
         if (chosen) ctx.list.fill_round_rect(r, CornerRadii::all(6), xrender::Paint::solid(th.color("accent_subtle")));
         else if (hover_ == static_cast<int>(i)) ctx.list.fill_round_rect(r, CornerRadii::all(6), xrender::Paint::solid(th.color("surface_variant")));
+        for (int level = 0; level < l.depth; ++level) {
+            const bool lit = level == lit_level && i >= lit_from && i <= lit_to;
+            const float gx = std::round(r.x + 12 + static_cast<float>(level) * tree_indent);
+            ctx.list.fill_rect({gx, r.y, 1, tree_row}, th.color(lit ? "border_strong" : "border"));
+        }
         const float x = r.x + 6 + static_cast<float>(l.depth) * tree_indent;
         if (l.parent) tree_chevron(ctx, {x + 6, r.center().y}, is_open(l.key), th.color("text_muted"));
         parts::Label& label = labels_[i - from];
@@ -438,7 +457,8 @@ void DataGrid::paint(PaintContext& ctx) const {
     const CornerRadii r = CornerRadii::all(th.corner("medium", 8)).fitted(ctx.size);
     ctx.list.push_clip(box, r);
     ctx.list.fill_rect(box, th.color("surface"));
-    const auto widths = column_widths(ctx.size.width);
+    auto widths = column_widths(ctx.size.width);
+    if (resizing_ && edge_ && *edge_ < widths.size()) widths[*edge_] -= past_;
     const auto& ord = order();
     // The rows in view, under the header.
     const std::size_t from = static_cast<std::size_t>(std::max(0.0f, offset_ / grid_row));
@@ -486,6 +506,8 @@ void DataGrid::paint(PaintContext& ctx) const {
         h.paint(ctx, {x + grid_pad, (grid_head - t.height) / 2}, hc);
         if (by) triangle(ctx, {x + grid_pad + t.width + 9, grid_head / 2}, !props.sort.starts_with('-'), th.color("accent"));
         x += widths[c];
+        // The edge under the pointer or dragged: its divider, lit and thicker, through the rows while dragged.
+        if (edge_ == c) ctx.list.fill_rect({x - 1, 0, 2, resizing_ ? ctx.size.height : grid_head}, th.color("accent"));
     }
     ctx.list.pop_clip();
     ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")));
@@ -524,6 +546,53 @@ bool DataGrid::on_event(EventContext& ctx, const InputEvent& e) {
     }
     const auto* p = std::get_if<PointerEvent>(&e);
     if (!p) return false;
+    // A header's edge: dragged, its column's width (with the split view's cursor, lit divider and rubber band).
+    if (resizing_) {
+        if (p->kind == PointerKind::move) {
+            const float asked = from_width_ + ctx.local.x - from_x_;
+            const std::size_t c = *edge_;
+            std::vector<std::string> next = props.widths;
+            next.resize(std::max(next.size(), props.fields.size()));
+            next[c] = std::format("{}", std::round(std::max(grid_narrowest, asked)));
+            if (next != props.widths) write_widths(next);
+            past_ = asked < grid_narrowest ? parts::rubber_band(grid_narrowest - asked, grid_rubber) : 0;
+            ctx.repaint();
+            return true;
+        }
+        if (p->kind == PointerKind::up || p->kind == PointerKind::cancel) {
+            resizing_ = false;
+            past_ = 0;
+            services().release_pointer();
+            const std::size_t c = *edge_;
+            const std::string was = c < from_widths_.size() ? from_widths_[c] : std::string();
+            // The drag as one action of the person's (S-12).
+            if (props.widths != from_widths_)
+                services().performed(node(), "set_width", Value{}.set("field", props.fields[c]).set("width", props.widths[c]),
+                                     {{"set_width", Value{}.set("field", props.fields[c]).set("width", was)}});
+            edge_ = edge_at(ctx.local);
+            services().set(node(), "cursor", edge_ ? Value("col-resize") : Value{});
+            ctx.repaint();
+            return true;
+        }
+        return true;
+    }
+    const auto edge = p->kind == PointerKind::leave ? std::nullopt : edge_at(ctx.local);
+    if (edge != edge_) {
+        edge_ = edge;
+        services().set(node(), "cursor", edge ? Value("col-resize") : Value{});
+        ctx.repaint();
+    }
+    if (edge) {
+        if (hover_ != -1) hover_ = -1, ctx.repaint();
+        if (p->kind != PointerKind::down || (p->type == PointerType::mouse && p->button != MouseButton::left)) return p->kind == PointerKind::up;
+        resizing_ = true;
+        from_width_ = column_widths(size_.width)[*edge];
+        from_x_ = ctx.local.x;
+        from_widths_ = props.widths;
+        services().capture_pointer(node());
+        services().focus(node());
+        return true;
+    }
     int over = -1;
     const auto widths = column_widths(size_.width);
     if (ctx.local.y >= 0 && ctx.local.y < grid_head) {
@@ -594,6 +663,46 @@ ActResult DataGrid::sort_to(std::string sort) {
         services().invalidate_paint(node());
     }
     return ActResult::done(Value(props.sort)).undo_by("set_sort", Value{}.set("sort", old));
+}
+
+std::optional<std::size_t> DataGrid::edge_at(Point at) const {
+    if (at.y < 0 || at.y >= grid_head) return std::nullopt;
+    const auto widths = column_widths(size_.width);
+    float x = 0;
+    for (std::size_t c = 0; c < widths.size(); ++c) {
+        x += widths[c];
+        if (std::abs(at.x - x) <= grid_grab) return c;
+    }
+    return std::nullopt;
+}
+
+ActResult DataGrid::resize(std::size_t column, std::string width) {
+    float px = 0;
+    if (!width.empty() && width != "*") {
+        if (std::from_chars(width.data(), width.data() + width.size(), px).ec != std::errc{} || px <= 0)
+            return ActResult::fail(std::format("`{}` is not a width: pixels, or * (or empty) for a share of what is left", width));
+        width = std::format("{}", std::round(std::max(grid_narrowest, px)));
+    }
+    std::vector<std::string> next = props.widths;
+    next.resize(std::max(next.size(), props.fields.size()));
+    const std::string was = props.widths.size() > column ? props.widths[column] : std::string();
+    next[column] = width;
+    if (next != props.widths) {
+        write_widths(next);
+        services().invalidate_paint(node());
+    }
+    return ActResult::done(Value(width)).undo_by("set_width", Value{}.set("field", props.fields[column]).set("width", was));
+}
+
+ActResult DataGrid::set_width(ActContext&, const SetWidthArgs& args) {
+    const std::string field(args.field.as_string());
+    const auto at = std::ranges::find(props.fields, field);
+    if (at == props.fields.end()) return ActResult::fail(std::format("`{}` is not one of its columns", field));
+    std::string width;
+    if (args.width.is_number()) width = std::format("{}", args.width.as_double());
+    else if (args.width.type() == Value::Type::text) width = std::string(args.width.as_string());
+    else if (!args.width.is_null()) return ActResult::fail("set_width takes a field and a width: pixels, or * for a share of what is left");
+    return resize(static_cast<std::size_t>(at - props.fields.begin()), std::move(width));
 }
 
 ActResult DataGrid::set_sort(ActContext&, const Value& sort) { return sort_to(std::string(sort.as_string())); }

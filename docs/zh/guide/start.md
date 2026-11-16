@@ -68,6 +68,13 @@ omui agent act hello main/click activate       # 按那个按钮
 
 窗口里的计数加了一。Agent 用的是和你一样的按钮，不是坐标。
 
+## 出了问题怎么办
+
+- **缺工具**：`omui doctor` 逐个列出缺少的工具和它的用途；`omui tools install` 经 xlings 装上工程点名的工具。
+- **第一次构建很慢**：工程钉住的编译器和库第一次要下载并构建一遍；之后的构建是增量的。
+- **`omui agent ls` 里没有这个应用**：应用运行时才列出，靠的是每个用户的运行时目录里的描述文件（`$XDG_RUNTIME_DIR/openmui`，没有就用临时目录）。崩溃留下的也会列出；连上去才知道哪个还活着。
+- **要更多细节**：`OMUI_LOG`（或 `--log`）按类别设日志级别，例如 `OMUI_LOG=agent=debug`。
+
 ## 接下来
 
 - [写界面](ui.md)：状态、布局、组件、主题。

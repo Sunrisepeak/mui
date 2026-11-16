@@ -135,29 +135,22 @@ std::expected<Value, std::string> json_option(const cmd::ParsedArgs& p, std::str
 }  // namespace
 
 Value run_for_agent(std::string_view command, const Value& args) {
-    // omui.design.film → omui design film; a few arguments by position, the rest as options.
-    std::vector<std::string> argv{"omui"};
-    for (const auto word : std::views::split(command.substr(command.find('.') + 1), '.')) argv.emplace_back(std::string_view(word.begin(), word.end()));
-    static const std::map<std::string, std::string, std::less<>> positional{{"omui.new", "name"}, {"omui.add", "package"}, {"omui.remove", "package"}};
-    const auto by_position = positional.find(command);
-    if (by_position != positional.end())
-        if (const Value* value = args.get(by_position->second)) argv.emplace_back(value->as_string());
-    if (args.map())
-        for (const auto& [key, value] : *args.map()) {
-            if (by_position != positional.end() && key == by_position->second) continue;
-            if (value.type() == Value::Type::boolean) {
-                if (value.as_bool()) argv.push_back("--" + key);
-                continue;
-            }
-            argv.push_back("--" + key);
-            argv.push_back(value.type() == Value::Type::text ? std::string(value.as_string()) : value.json());
-        }
-    argv.emplace_back("--json");
-    std::ostringstream out, err;
-    tools_caught() = true;
-    const int code = run(argv, out, err);
-    tools_caught() = false;
-    return Value{}.set("exit", static_cast<double>(code)).set("out", out.str()).set("err", err.str());
+    // The operation asked of the subject `omui` as any entry asks it: one request, its records (what it wrote) and
+    // its exit code; what it said went wrong, from its error record.
+    Project project;
+    mlibs::agent::SubjectSession session({&project});
+    Value request = args.map() ? args : Value(Value::Map{});
+    request.set("op", std::string(command));
+    const mlibs::agent::Answered answered = mlibs::agent::answer_to(session, request.json());
+    std::string written, said;
+    for (const std::string& record : answered.records) {
+        const auto parsed = parse_json(record);
+        if (!parsed) continue;
+        const std::string kind(parsed->get("kind") ? parsed->get("kind")->as_string() : std::string_view{});
+        if (kind == "data" && parsed->get("data")) written += parsed->get("data")->json() + "\n";
+        if (kind == "error" && parsed->get("text")) said += std::string(parsed->get("text")->as_string()) + "\n";
+    }
+    return Value{}.set("exit", static_cast<double>(answered.exit_code)).set("out", written).set("err", said);
 }
 
 std::expected<std::string, std::string> agent_request(const cmd::ParsedArgs& p, std::size_t first) {
@@ -333,8 +326,6 @@ cmd::App app() {
             "agent: the endpoint directory; connect, page: where the bridge says where it is (default: the per-user one)"));
     for (const auto name : project_commands) (void)line.subcommand(project_command(name));  // new, dev, run … in their order
     (void)line.subcommand(agent_command())
-        .subcommand(check_command())
-        .subcommand(describe_command())
         .subcommand(fmt_command())
         .subcommand(schema_command())
         .subcommand(video_command())
@@ -454,6 +445,25 @@ int agent(const cmd::ParsedArgs& p, std::optional<std::string> dir_option, std::
 }  // namespace
 
 int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err) {
+    // The catalog's operations (omui build, omui design sync, omui.check …): the subject `omui` through the tool
+    // kernel's command line, the product's own names without it; a name of two words (design sync) is one.
+    if (argv.size() > 1) {
+        Project project;
+        mlibs::agent::SubjectSession session({&project});
+        std::vector<std::string> words(argv.begin() + 1, argv.end());
+        if (words.size() > 1 && !words[1].starts_with("-") && std::ranges::any_of(ops::catalog, [&](const auto& entry) {
+                return entry.operation.name == std::format("omui.{}.{}", words[0], words[1]);
+            })) {
+            words[0] += "." + words[1];
+            words.erase(words.begin() + 1);
+        }
+        const std::string first = words.front().starts_with("omui.") ? words.front() : "omui." + words.front();
+        if (std::ranges::any_of(ops::catalog, [&](const auto& entry) { return entry.operation.name == first; })) {
+            words.front() = first;  // whole: `omui describe` is the project's API (omui.describe), not the session's describe
+            const std::vector<std::string_view> viewed(words.begin(), words.end());
+            return mlibs::agent::command_line(session, viewed, out, err, {.product = "omui"});
+        }
+    }
     auto a = app();
     cmd::Argv args(argv.begin(), argv.end());
     auto parsed = a.parse_from(args);
@@ -470,18 +480,19 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
         out << "omui — the openmui command line\n\n"
                "  omui new NAME [--template app-ts]   a project from a template (--list)\n"
                "  omui dev [--headless]   the application in development mode: its own designer (person and agent, live)\n"
-               "  omui run | build | test [--release]   run, build, test (mtest) — over mcpp\n"
+               "  omui run | build | test [--release]   run, build, test (mtest) — over mcpp (after --, passed on)\n"
                "  omui replay FILE     a recording (record) played in a fresh instance, its end checked byte for byte\n"
                "  omui design sync     Live Design's history (.omui/design) carried into git as design/<branch>\n"
                "  omui design film     the design's history as a film (WebM): each step as it was presented, captioned\n"
                "  omui package [--format F]   the application packaged to give away (mcpp pack)\n"
-               "  omui add | remove PKG    a dependency; omui deps lists them; omui tools: the xlings tools it names (--install)\n"
+               "  omui add | remove PKG    a dependency; omui deps lists them; omui tools: the xlings tools it names (omui tools install)\n"
                "  omui config          omui.config.ts as the player reads it: agents' level, the recorder, the designer\n"
-               "  omui doctor          which tools are there, which are missing\n\n"
+               "  omui doctor          which tools are there, which are missing; omui templates: what a project is made from\n"
+               "  (each of these is an operation of the subject `omui`: records out, a line each)\n\n"
                "  omui agent ls | describe | snapshot | changes | find | act | wait | capture | call\n"
                "  omui agent inspect | stats | profile | logs | debug | pipeline | clock   (development: what the application is doing)\n"
-               "  omui check [FILE…]  the project here: TypeScript (erasable syntax, tsc types), view documents (--portable); or the documents given (--json)\n"
-               "  omui describe --api  what writing for the project takes: builders, natives, tokens, verbs (--json, --llms FILE)\n"
+               "  omui check [FILE…]  the project here: TypeScript (erasable syntax, tsc types), view documents (--portable); or the documents given\n"
+               "  omui describe        what writing for the project takes: builders, natives, tokens, verbs (--llms FILE)\n"
                "  omui fmt FILE…       the canonical format (--check)\n"
                "  omui schema          the JSON Schema of view documents\n"
                "  omui video render | still | check | probe | timing   videos: frames and sound on exact counts\n"
@@ -495,8 +506,6 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
     if (std::ranges::contains(project_commands, parsed->subcommand_name()))
         return project(parsed->subcommand_name(), parsed->subcommand()->get(), out, err);
     if (parsed->subcommand_name() == "agent") return agent(parsed->subcommand()->get(), global(*parsed, "dir"), out, err);
-    if (parsed->subcommand_name() == "check") return check(parsed->subcommand()->get(), out, err);
-    if (parsed->subcommand_name() == "describe") return describe(parsed->subcommand()->get(), out, err);
     if (parsed->subcommand_name() == "fmt") return fmt(parsed->subcommand()->get(), out, err);
     if (parsed->subcommand_name() == "schema") return schema(parsed->subcommand()->get(), out, err);
     if (parsed->subcommand_name() == "video") return video(parsed->subcommand()->get(), out, err);

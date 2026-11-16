@@ -332,7 +332,7 @@ int check_project(bool json, bool portable, std::ostream& out, std::ostream& err
     return report(found, typescript.size() + documents.size(), json, out, err);
 }
 
-int describe(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err) {
+int describe(const std::optional<std::string>& llms_file, std::ostream& out, std::ostream& err) {
     const fs::path root = fs::current_path();
     auto manifest = mcpplibs::os::fs::read(root / "mcpp.toml");
     if (!manifest || !manifest->contains("omui.entry.player")) {
@@ -353,14 +353,13 @@ int describe(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ost
         return 1;
     }
     const std::string llms = llms_text(*api, utf8(root.filename()));
-    if (auto file = p.value("llms")) {
+    if (const auto& file = llms_file) {
         if (auto written = mcpplibs::os::fs::write_atomic(mcpplibs::os::fs::from_utf8(*file), llms); !written) {
             err << std::format("omui describe: cannot write {}: {}\n", *file, written.error().message());
             return 1;
         }
     }
-    if (p.is_flag_set("json")) out << *text << '\n';
-    else if (!p.value("llms")) out << llms;
+    out << api->json() << '\n';  // one record: the API
     return 0;
 }
 

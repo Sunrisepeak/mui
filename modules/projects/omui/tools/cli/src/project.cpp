@@ -8,6 +8,8 @@ module omui.cli;
 
 import std;
 import mcpplibs.cmdline;
+import mlibs.agent;
+import openas;
 import mcpplibs.os;
 import tomlplusplus;
 import omui.lang.ts;
@@ -191,7 +193,7 @@ int tools(bool json, std::ostream& out, std::ostream& err) {
                 out << std::format("{:22} {:12} {:6} {}\n", tool.str(), version, when.empty() ? "always" : when, here ? "ok" : "MISSING");
         }
     }
-    if (missing && !json) err << "omui tools: `omui tools --install` installs what is missing\n";
+    if (missing && !json) err << "omui tools: `omui tools install` installs what is missing\n";
     return missing ? 1 : 0;
 }
 
@@ -278,16 +280,11 @@ bool& tools_caught() {
     return caught;
 }
 
+// dev, run and replay: they hold a window or the terminal, so they are the command line's alone (not operations
+// an agent runs through the tool kernel; omui.cli's catalog leaves them out).
 cmd::App project_command(std::string_view name) {
     using cmd::App, cmd::Arg, cmd::Option;
     const auto json = Option("json").help("one JSON record a step, then the exit code (for an agent)");
-    if (name == "new")
-        return App("new")
-            .description("A new project from a template (default app-ts): mcpp new NAME --template openmui:TEMPLATE")
-            .arg(Arg("name").required().help("the project's name and directory"))
-            .option(Option("template").takes_value().value_name("TEMPLATE").help("app-ts, app-cpp, component, native or theme"))
-            .option(Option("list").help("the templates, and what each makes"))
-            .option(json);
     if (name == "dev")
         return App("dev")
             .description("Runs the application in development mode: the application is its own designer, a person and an agent design it live (D-149); an application in C++ runs in the development host, rebuilt as its sources change (W16)")
@@ -298,129 +295,27 @@ cmd::App project_command(std::string_view name) {
             .description("Runs the application as it ships: mcpp run (after --, its own switches: --headless, --png FILE, --serve …)")
             .option(Option("release").help("an optimised build"))
             .option(json);
-    if (name == "build")
-        return App("build")
-            .description("Builds the project: mcpp build (omui's steps — contracts, embedded files — are mcpp plugins)")
-            .option(Option("release").help("an optimised build, the designer left out"))
-            .option(json);
-    if (name == "test") return App("test").description("Runs the project's tests (mtest): mcpp test (after --, which cases)").option(json);
-    if (name == "replay")
-        return App("replay")
-            .description("Plays a recording (the protocol's `record`, development mode) in a fresh instance, headless, and checks it ends "
-                         "as it did — the semantic tree's hash and the pixels' (W12): mcpp run -- --replay FILE")
-            .arg(Arg("file").required().help("the recording (JSON)"))
-            .option(json);
-    if (name == "package")
-        return App("package")
-            .description("Packages the application to give away: mcpp pack (a program's bundle; --format dist-toy: a page for Bilibili Toy)")
-            .option(Option("release").help("an optimised build (the default for a package)"))
-            .option(Option("format").takes_value().value_name("FORMAT").help("the package's format (mcpp pack --pkg-format)"))
-            .option(json);
-    if (name == "add")
-        return App("add")
-            .description("Adds a dependency to mcpp.toml: mcpp add PACKAGE@VERSION")
-            .arg(Arg("package").required().help("[namespace.]name@version, e.g. mcpplibs.os@0.4.1"))
-            .option(json);
-    if (name == "remove")
-        return App("remove").description("Removes a dependency from mcpp.toml: mcpp remove PACKAGE").arg(Arg("package").required()).option(json);
-    if (name == "design")
-        return App("design")
-            .description("Live Design's history (.omui/design: the design.history verbs keep it)")
-            .subcommand(App("sync")
-                            .description("Carries it into git: each design commit a commit on design/<branch>, tags as design/<tag>; the work tree untouched")
-                            .option(Option("dir").takes_value().value_name("DIR").help("the application's directory (here when absent)"))
-                            .option(json))
-            .subcommand(App("film")
-                            .description("The design's history as a film: each step as it was presented, under its caption (design.film), rendered to WebM")
-                            .option(Option("out").takes_value().value_name("FILE").help("the film (design.webm)"))
-                            .option(Option("branch").takes_value().value_name("NAME").help("whose commits (the one designed on)"))
-                            .option(Option("fps").takes_value().value_name("N").help("frames a second (30)"))
-                            .option(Option("seconds").takes_value().value_name("S").help("each step's time on screen (1.5)"))
-                            .option(json));
-    if (name == "deps")
-        return App("deps").description("The project's dependencies, as its mcpp.toml declares them: each package, its kind, its version or path").option(json);
-    if (name == "tools")
-        return App("tools")
-            .description("The tools the project names for xlings ([xlings.workspace]): each, its version, when it is needed, whether it is here")
-            .option(Option("install").help("install them now: xlings install"))
-            .option(json);
-    if (name == "config")
-        return App("config")
-            .description("The project's omui.config.ts as the player reads it: how far agents may go, what the recorder keeps, whether the designer is linked, in development and a release")
-            .option(json);
-    return App("doctor").description("Says which tools are there and which are missing, and what each is for").option(json);
+    return App("replay")
+        .description("Plays a recording (the protocol's `record`, development mode) in a fresh instance, headless, and checks it ends "
+                     "as it did — the semantic tree's hash and the pixels' (W12): mcpp run -- --replay FILE")
+        .arg(Arg("file").required().help("the recording (JSON)"))
+        .option(json);
 }
 
-int project(std::string_view name, const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) {
-    const bool json = p.is_flag_set("json");
-    if (name == "doctor") {
-        int missing = 0;
-        for (const auto& need : needs) {
-            const auto found = mcpplibs::os::env::find_executable(need.tool);
-            if (!found && need.required) ++missing;
-            if (json)
-                out << Value{}
-                           .set("tool", std::string(need.tool))
-                           .set("found", found ? Value(mcpplibs::os::fs::utf8(*found)) : Value{})
-                           .set("required", need.required)
-                           .set("for", std::string(need.for_what))
-                           .json()
-                    << '\n';
-            else
-                out << std::format("{:8} {:7} {}{}\n", need.tool, found ? "ok" : need.required ? "MISSING" : "absent", need.for_what,
-                                   found ? std::format(" ({})", mcpplibs::os::fs::utf8(*found)) : std::string());
-        }
-        return missing ? 1 : 0;
-    }
-    if (name == "new" && p.is_flag_set("list")) {
-        for (const auto& [template_name, what] : templates)
-            if (json)
-                out << Value{}.set("template", std::string(template_name)).set("makes", std::string(what)).json() << '\n';
-            else
-                out << std::format("{:10} {}\n", template_name, what);
-        return 0;
-    }
-    if (name == "design") {
-        if (!p.has_subcommand() || (p.subcommand_name() != "sync" && p.subcommand_name() != "film")) {
-            err << "omui design: sync or film (omui design --help)\n";
-            return 2;
-        }
-        const cmd::ParsedArgs& sub = p.subcommand()->get();
-        if (p.subcommand_name() == "sync")
-            return design_sync(mcpplibs::os::fs::from_utf8(sub.value("dir").value_or(".")), sub.is_flag_set("json"), out, err);
-        // The film: the application, with its designer, makes the frames and the description (design.film);
-        // omui video renders them.
-        const std::string branch = sub.value("branch").value_or("");
-        const std::string frames = std::format(".omui/design/film/{}", branch.empty() ? "head" : branch);
-        std::vector<std::string> args{"run", "-q", "--features", "omui.entry.player/design", "--", "--design-film", frames};
-        if (!branch.empty()) args.insert(args.end(), {"--film-branch", branch});
-        for (const std::string_view key : {"fps", "seconds"})
-            if (auto given = sub.value(key)) args.insert(args.end(), {std::format("--film-{}", key), *given});
-        Ran made = run_tool("mcpp", std::move(args), err);
-        record(out, sub.is_flag_set("json"), "frames", made);
-        if (made.code != 0) return made.code;
-        const std::string film = sub.value("out").value_or("design.webm");
-        const std::vector<std::string> render{"omui", "video", "render", frames + "/design.video.omui.json", "--out", film};
-        return cli::run(render, out, err);
-    }
+namespace {
+
+// dev, run and build: mcpp run or build, the designer linked as omui.config.ts says — in development by default,
+// left out of a release at compile time (D-149) unless the application is a design tool that ships it.
+int launch(std::string_view name, bool release, bool headless, std::vector<std::string> rest, bool json, std::ostream& out, std::ostream& err) {
     Ran ran;
-    if (name == "new") {
-        const std::string chosen = p.value("template").value_or("app-ts");
-        if (std::ranges::find(templates, chosen, &std::pair<std::string_view, std::string_view>::first) == templates.end()) {
-            err << std::format("omui new: no template `{}` (omui new --list)\n", chosen);
-            return 2;
-        }
-        ran = run_tool("mcpp", {"new", *p.value("name"), "--template", "openmui:" + chosen}, err);
-    } else if (name == "dev" && !scripted_project()) {
+    if (name == "dev" && !scripted_project()) {
         // An application in C++ (W16, D-154): the development host owns the window; mcpp builds the
         // application in the background as its sources change, each build drawn in the host's window.
         std::vector<std::string> args{"--project", "."};
-        if (p.is_flag_set("headless")) args.push_back("--serve");
-        std::ranges::move(rest_of(p, 0), std::back_inserter(args));
+        if (headless) args.push_back("--serve");
+        std::ranges::move(rest, std::back_inserter(args));
         ran = run_tool("omui-devhost", std::move(args), err);
-    } else if (name == "dev" || name == "run" || name == "build") {
-        // The designer is linked as omui.config.ts says: in development by default, left out of a
-        // release at compile time (D-149) unless the application is a design tool that ships it.
+    } else {
         const auto config = read_config();
         if (!config) {
             err << std::format("omui {}: {}\n", name, config.error());
@@ -428,39 +323,137 @@ int project(std::string_view name, const cmd::ParsedArgs& p, std::ostream& out, 
         }
         const bool development = name == "dev";
         std::vector<std::string> args{development ? "run" : std::string(name)};
-        if (!development && p.is_flag_set("release")) args.push_back("--release");
+        if (!development && release) args.push_back("--release");
         if (config->designer(development)) args.insert(args.end(), {"--features", "omui.entry.player/design"});
-        auto rest = rest_of(p, 0);
         if (development) {
             args.insert(args.end(), {"--", "--dev"});
-            if (p.is_flag_set("headless")) args.push_back("--serve");  // headless, kept running for agents
+            if (headless) args.push_back("--serve");  // headless, kept running for agents
         } else if (!rest.empty() && name == "run") {
             args.push_back("--");
         }
         std::ranges::move(rest, std::back_inserter(args));
         ran = run_tool("mcpp", std::move(args), err);
-    } else if (name == "test") {
-        std::vector<std::string> args{"test"};
-        std::ranges::move(rest_of(p, 0), std::back_inserter(args));
-        ran = run_tool("mcpp", std::move(args), err);
-    } else if (name == "replay") {
-        ran = run_tool("mcpp", {"run", "-q", "--", "--replay", p.positional(0)}, err);
-    } else if (name == "package") {
-        std::vector<std::string> args{"pack"};
-        if (auto format = p.value("format")) args.insert(args.end(), {"--pkg-format", *format});
-        ran = run_tool("mcpp", std::move(args), err);
-    } else if (name == "add" || name == "remove") {
-        ran = run_tool("mcpp", {std::string(name), p.positional(0)}, err);
-    } else if (name == "deps") {
-        return deps(json, out, err);
-    } else if (name == "tools") {
-        if (p.is_flag_set("install")) ran = run_tool("xlings", {"install", "-y"}, err);
-        else return tools(json, out, err);
-    } else if (name == "config") {
-        return config(json, out, err);
     }
     record(out, json, name, ran);
     return ran.code;
+}
+
+}  // namespace
+
+int project(std::string_view name, const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) {
+    const bool json = p.is_flag_set("json");
+    if (name == "replay") {
+        const Ran ran = run_tool("mcpp", {"run", "-q", "--", "--replay", p.positional(0)}, err);
+        record(out, json, name, ran);
+        return ran.code;
+    }
+    return launch(name, p.is_flag_set("release"), p.is_flag_set("headless"), rest_of(p, 0), json, out, err);
+}
+
+int operation(std::string_view op, const mlibs::agent::Arguments& a, std::ostream& out, std::ostream& err) {
+    const std::string_view name = op.substr(op.starts_with("omui.") ? 5 : 0);
+    if (name == "doctor") {
+        int missing = 0;
+        for (const auto& need : needs) {
+            const auto found = mcpplibs::os::env::find_executable(need.tool);
+            if (!found && need.required) ++missing;
+            out << Value{}
+                       .set("tool", std::string(need.tool))
+                       .set("found", found ? Value(mcpplibs::os::fs::utf8(*found)) : Value{})
+                       .set("required", need.required)
+                       .set("for", std::string(need.for_what))
+                       .json()
+                << '\n';
+        }
+        if (missing) err << std::format("{} required tool{} missing\n", missing, missing == 1 ? "" : "s");
+        return missing ? 1 : 0;
+    }
+    if (name == "templates") {
+        for (const auto& [template_name, what] : templates) out << Value{}.set("template", std::string(template_name)).set("makes", std::string(what)).json() << '\n';
+        return 0;
+    }
+    if (name == "design.sync") return design_sync(mcpplibs::os::fs::from_utf8(a.value("dir").value_or(".")), true, out, err);
+    if (name == "design.film") {
+        // The film: the application, with its designer, makes the frames and the description (design.film);
+        // omui video renders them.
+        const std::string branch = a.value("branch").value_or("");
+        const std::string frames = std::format(".omui/design/film/{}", branch.empty() ? "head" : branch);
+        std::vector<std::string> args{"run", "-q", "--features", "omui.entry.player/design", "--", "--design-film", frames};
+        if (!branch.empty()) args.insert(args.end(), {"--film-branch", branch});
+        for (const std::string_view key : {"fps", "seconds"})
+            if (auto given = a.value(key)) args.insert(args.end(), {std::format("--film-{}", key), *given});
+        Ran made = run_tool("mcpp", std::move(args), err);
+        record(out, true, "frames", made);
+        if (made.code != 0) return made.code;
+        const std::string film = a.value("out").value_or("design.webm");
+        const std::vector<std::string> render{"omui", "video", "render", frames + "/design.video.omui.json", "--out", film};
+        return cli::run(render, out, err);
+    }
+    if (name == "check") {
+        const auto files = a.values("files");
+        if (files.empty()) return check_project(true, a.flag("portable"), out, err);
+        auto found = check_documents(files, err);
+        if (!found) return 1;
+        return report(*found, files.size(), true, out, err);
+    }
+    if (name == "describe") return describe(a.value("llms"), out, err);
+    if (name == "build") return launch(name, a.flag("release"), false, a.values("rest"), true, out, err);
+    if (name == "deps") return deps(true, out, err);
+    if (name == "tools") return tools(true, out, err);
+    if (name == "config") return config(true, out, err);
+    Ran ran;
+    if (name == "new") {
+        const std::string chosen = a.value("template").value_or("app-ts");
+        if (std::ranges::find(templates, chosen, &std::pair<std::string_view, std::string_view>::first) == templates.end()) {
+            err << std::format("no template `{}` (omui templates)\n", chosen);
+            return 2;
+        }
+        ran = run_tool("mcpp", {"new", a.value("name").value_or(""), "--template", "openmui:" + chosen}, err);
+    } else if (name == "test") {
+        std::vector<std::string> args{"test"};
+        std::ranges::move(a.values("rest"), std::back_inserter(args));
+        ran = run_tool("mcpp", std::move(args), err);
+    } else if (name == "package") {
+        std::vector<std::string> args{"pack"};
+        if (auto format = a.value("format")) args.insert(args.end(), {"--pkg-format", *format});
+        ran = run_tool("mcpp", std::move(args), err);
+    } else if (name == "add" || name == "remove") {
+        ran = run_tool("mcpp", {std::string(name), a.value("package").value_or("")}, err);
+    } else if (name == "tools.install") {
+        ran = run_tool("xlings", {"install", "-y"}, err);
+    } else {
+        err << std::format("`{}` is no operation of omui's\n", op);
+        return 2;
+    }
+    record(out, true, name, ran);
+    return ran.code;
+}
+
+void Project::operate(std::string_view op, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) {
+    std::ostringstream out, err;
+    // The tools it starts write to what it writes, not to this process's terminal (the protocol may be it).
+    tools_caught() = true;
+    const int code = operation(op, mlibs::agent::Arguments(request, op == "omui.check" ? "files" : ""), out, err);
+    tools_caught() = false;
+    // Each record it wrote is a data record of the answer; anything else, its text.
+    std::istringstream lines(out.str());
+    std::string text;
+    for (std::string line; std::getline(lines, line);) {
+        if (line.starts_with('{')) answer.data(line);
+        else if (!line.empty()) text += line + "\n";
+    }
+    if (!text.empty()) answer.data(Value{}.set("text", text).json());
+    if (code != 0) {
+        std::string said = err.str();
+        while (!said.empty() && said.back() == '\n') said.pop_back();
+        answer.fail(code == 2 ? openas::error_code::invalid_argument : std::string_view("failed"), said.empty() ? std::format("{} ended with {}", op, code) : said);
+    }
+}
+
+mlibs::control::Guide Project::guide() const noexcept {
+    static constexpr std::array<std::string_view, 3> begin{R"({"op":"omui.doctor"})", R"({"op":"omui.new","name":"hello"})", R"({"op":"omui.build"})"};
+    static constexpr std::array<mlibs::control::Task, 1> tasks{{{"a-first-project", "What is installed, a project from a template, then built", begin}}};
+    return {"The project's commands: create, build, test, check, describe, package; dependencies, tools and the design's history.", tasks};
 }
 
 }  // namespace omui::cli

@@ -11,11 +11,19 @@ inline constexpr std::array<mlibs::control::Parameter, 2> parameters_omui_new{{
     {"name", "string", "the project's name and directory", false},
     {"template", "string", "app-ts, app-cpp, component, native or theme", true},
 }};
-inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_build{{
+inline constexpr std::array<mlibs::control::Parameter, 2> parameters_omui_build{{
     {"release", "bool", "the release profile (no designer linked)", true},
+    {"rest", "json", "words passed on to mcpp build as they are (after --)", true},
 }};
-inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_check{{
+inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_test{{
+    {"rest", "json", "words passed on to mcpp test as they are (after --: which cases)", true},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 2> parameters_omui_check{{
+    {"files", "json", "*.view.omui.json documents to check instead of the project", true},
     {"portable", "bool", "also what only this implementation offers (D-157)", true},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_describe{{
+    {"llms", "path", "also write it as llms.txt, for a model's context", true},
 }};
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_add{{
     {"package", "string", "a package of mcpp-index, as name or name@version", false},
@@ -26,6 +34,9 @@ inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_remove
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_package{{
     {"format", "string", "a format mcpp pack makes (dist-toy: a Bilibili Toy page)", true},
 }};
+inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_design_sync{{
+    {"dir", "path", "the application's directory (here when absent)", true},
+}};
 inline constexpr std::array<mlibs::control::Parameter, 4> parameters_omui_design_film{{
     {"out", "path", "the film (design.webm)", true},
     {"branch", "string", "whose commits", true},
@@ -34,20 +45,22 @@ inline constexpr std::array<mlibs::control::Parameter, 4> parameters_omui_design
 }};
 
 // The project's commands: create, build, test, check, describe, package; dependencies, tools and the design's history.
-inline constexpr std::array<mlibs::control::CatalogEntry, 14> catalog{{
+inline constexpr std::array<mlibs::control::CatalogEntry, 16> catalog{{
     {{"omui.doctor", openas::Effect::read, false}, "Which tools are there and which are missing (mcpp, xlings, tsc, esbuild), and what each is for", {}, "json", mlibs::control::Cost::bounded, "", false, false, false, {}},
+    {{"omui.templates", openas::Effect::read, false}, "The templates a project is made from, and what each makes", {}, "json", mlibs::control::Cost::instant, "", false, false, false, {}},
     {{"omui.new", openas::Effect::irreversible, false}, "A new project from a template (app-ts by default): a directory of files, written beside the one the server runs in", parameters_omui_new, "json", mlibs::control::Cost::heavy, "none: delete the directory it made", false, false, false, {}},
     {{"omui.build", openas::Effect::reversible, false}, "Builds the project (mcpp build): its outputs under target/, nothing else changed", parameters_omui_build, "json", mlibs::control::Cost::heavy, "none needed: target/ is the build's own", false, false, false, {}},
-    {{"omui.test", openas::Effect::reversible, false}, "Runs the project's tests (mtest): which passed, which failed and where", {}, "json", mlibs::control::Cost::heavy, "none needed: tests change nothing they keep", false, false, false, {}},
+    {{"omui.test", openas::Effect::reversible, false}, "Runs the project's tests (mtest): which passed, which failed and where", parameters_omui_test, "json", mlibs::control::Cost::heavy, "none needed: tests change nothing they keep", false, false, false, {}},
     {{"omui.check", openas::Effect::read, false}, "Type-checks the project's TypeScript against the API it registers (tsc), or view documents: each problem at its line", parameters_omui_check, "json", mlibs::control::Cost::heavy, "", false, false, false, {}},
-    {{"omui.describe", openas::Effect::read, false}, "What writing for the project takes: every builder, native module, theme token and verb, as JSON", {}, "json", mlibs::control::Cost::heavy, "", false, false, false, {}},
+    {{"omui.describe", openas::Effect::read, false}, "What writing for the project takes: every builder, native module, theme token and verb, as JSON", parameters_omui_describe, "json", mlibs::control::Cost::heavy, "", false, false, false, {}},
     {{"omui.deps", openas::Effect::read, false}, "The project's dependencies as its mcpp.toml declares them", {}, "json", mlibs::control::Cost::instant, "", false, false, false, {}},
     {{"omui.tools", openas::Effect::read, false}, "The tools the project names for xlings, and whether each is installed", {}, "json", mlibs::control::Cost::bounded, "", false, false, false, {}},
+    {{"omui.tools.install", openas::Effect::irreversible, false}, "Installs the tools the project names (xlings install)", {}, "json", mlibs::control::Cost::heavy, "none: xlings remove what it installed", false, false, false, {}},
     {{"omui.config", openas::Effect::read, false}, "The project's omui.config.ts over the defaults: how far agents may go, what the recorder keeps, whether the designer is linked", {}, "json", mlibs::control::Cost::bounded, "", false, false, false, {}},
     {{"omui.add", openas::Effect::reversible, false}, "Adds a dependency to mcpp.toml (mcpp add)", parameters_omui_add, "json", mlibs::control::Cost::bounded, "omui.remove", false, false, false, {}},
     {{"omui.remove", openas::Effect::reversible, false}, "Removes a dependency from mcpp.toml (mcpp remove)", parameters_omui_remove, "json", mlibs::control::Cost::bounded, "omui.add", false, false, false, {}},
     {{"omui.package", openas::Effect::irreversible, false}, "Packages the application for people to install (mcpp pack): an artifact written to keep and hand out", parameters_omui_package, "json", mlibs::control::Cost::heavy, "none: delete the package it wrote", false, false, false, {}},
-    {{"omui.design.sync", openas::Effect::irreversible, false}, "Carries Live Design's history into git: each design commit a commit on design/<branch>, tags as design/<tag> (the work tree untouched)", {}, "json", mlibs::control::Cost::bounded, "none: delete the design/* references", false, false, false, {}},
+    {{"omui.design.sync", openas::Effect::irreversible, false}, "Carries Live Design's history into git: each design commit a commit on design/<branch>, tags as design/<tag> (the work tree untouched)", parameters_omui_design_sync, "json", mlibs::control::Cost::bounded, "none: delete the design/* references", false, false, false, {}},
     {{"omui.design.film", openas::Effect::irreversible, false}, "The design's history as a film (WebM): each step as it was presented, captioned", parameters_omui_design_film, "json", mlibs::control::Cost::heavy, "none: delete the film", false, false, false, {}},
 }};
 
@@ -62,19 +75,23 @@ inline constexpr std::string_view listing = R"listing({
   "tools": [
     {"name": "omui.doctor", "description": "Which tools are there and which are missing (mcpp, xlings, tsc, esbuild), and what each is for", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "omui.templates", "description": "The templates a project is made from, and what each makes", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
     {"name": "omui.new", "description": "A new project from a template (app-ts by default): a directory of files, written beside the one the server runs in", "effect": "irreversible", "person": false, "delegated": false, "cost": "heavy", "undo": "none: delete the directory it made", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"name": {"type": "string", "description": "the project's name and directory"}, "template": {"type": "string", "description": "app-ts, app-cpp, component, native or theme"}}, "required": ["name"]}},
     {"name": "omui.build", "description": "Builds the project (mcpp build): its outputs under target/, nothing else changed", "effect": "reversible", "person": false, "delegated": false, "cost": "heavy", "undo": "none needed: target/ is the build's own", "undoable": false, "cancellable": false, "result": "json",
-     "inputSchema": {"type": "object", "properties": {"release": {"type": "boolean", "description": "the release profile (no designer linked)"}}, "required": []}},
+     "inputSchema": {"type": "object", "properties": {"release": {"type": "boolean", "description": "the release profile (no designer linked)"}, "rest": {"description": "words passed on to mcpp build as they are (after --)"}}, "required": []}},
     {"name": "omui.test", "description": "Runs the project's tests (mtest): which passed, which failed and where", "effect": "reversible", "person": false, "delegated": false, "cost": "heavy", "undo": "none needed: tests change nothing they keep", "undoable": false, "cancellable": false, "result": "json",
-     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+     "inputSchema": {"type": "object", "properties": {"rest": {"description": "words passed on to mcpp test as they are (after --: which cases)"}}, "required": []}},
     {"name": "omui.check", "description": "Type-checks the project's TypeScript against the API it registers (tsc), or view documents: each problem at its line", "effect": "read", "person": false, "delegated": false, "cost": "heavy", "undo": "", "undoable": false, "cancellable": false, "result": "json",
-     "inputSchema": {"type": "object", "properties": {"portable": {"type": "boolean", "description": "also what only this implementation offers (D-157)"}}, "required": []}},
+     "inputSchema": {"type": "object", "properties": {"files": {"description": "*.view.omui.json documents to check instead of the project"}, "portable": {"type": "boolean", "description": "also what only this implementation offers (D-157)"}}, "required": []}},
     {"name": "omui.describe", "description": "What writing for the project takes: every builder, native module, theme token and verb, as JSON", "effect": "read", "person": false, "delegated": false, "cost": "heavy", "undo": "", "undoable": false, "cancellable": false, "result": "json",
-     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+     "inputSchema": {"type": "object", "properties": {"llms": {"type": "string", "description": "a file or directory path: also write it as llms.txt, for a model's context"}}, "required": []}},
     {"name": "omui.deps", "description": "The project's dependencies as its mcpp.toml declares them", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {}, "required": []}},
     {"name": "omui.tools", "description": "The tools the project names for xlings, and whether each is installed", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "omui.tools.install", "description": "Installs the tools the project names (xlings install)", "effect": "irreversible", "person": false, "delegated": false, "cost": "heavy", "undo": "none: xlings remove what it installed", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {}, "required": []}},
     {"name": "omui.config", "description": "The project's omui.config.ts over the defaults: how far agents may go, what the recorder keeps, whether the designer is linked", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {}, "required": []}},
@@ -85,7 +102,7 @@ inline constexpr std::string_view listing = R"listing({
     {"name": "omui.package", "description": "Packages the application for people to install (mcpp pack): an artifact written to keep and hand out", "effect": "irreversible", "person": false, "delegated": false, "cost": "heavy", "undo": "none: delete the package it wrote", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"format": {"type": "string", "description": "a format mcpp pack makes (dist-toy: a Bilibili Toy page)"}}, "required": []}},
     {"name": "omui.design.sync", "description": "Carries Live Design's history into git: each design commit a commit on design/<branch>, tags as design/<tag> (the work tree untouched)", "effect": "irreversible", "person": false, "delegated": false, "cost": "bounded", "undo": "none: delete the design/* references", "undoable": false, "cancellable": false, "result": "json",
-     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+     "inputSchema": {"type": "object", "properties": {"dir": {"type": "string", "description": "a file or directory path: the application's directory (here when absent)"}}, "required": []}},
     {"name": "omui.design.film", "description": "The design's history as a film (WebM): each step as it was presented, captioned", "effect": "irreversible", "person": false, "delegated": false, "cost": "heavy", "undo": "none: delete the film", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"out": {"type": "string", "description": "a file or directory path: the film (design.webm)"}, "branch": {"type": "string", "description": "whose commits"}, "fps": {"type": "integer", "description": "frames a second (30)"}, "seconds": {"type": "number", "description": "each step's time on screen (1.5)"}}, "required": []}}
   ],

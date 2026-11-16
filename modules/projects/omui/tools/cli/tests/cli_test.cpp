@@ -237,7 +237,7 @@ UTest cases{"cli", [] {
         expect(person_actions == 0) << "a dead ordinary control still fails; a person-only control still does not run";
     };
 
-    "omui check: located diagnostics, as text and as JSON"_test = [] {
+    "omui check: located diagnostics, as records"_test = [] {
         const auto dir = scratch_dir("omui-check");
         auto write = [&](std::string_view name, std::string_view text) {
             std::ofstream(dir / name, std::ios::binary) << text;
@@ -249,14 +249,25 @@ UTest cases{"cli", [] {
             "interface": {"props": {"query": {"type": "string", "bindable": true}}},
             "root": {"type": "text_box", "id": "input", "props": {"text": {"bind": "query"}}}}})");
         const std::string user = write("page.view.omui.json", R"({"omui": "0.1", "view": {"root": {"type": "search_field", "id": "find"}}})");
+        // Records a line each (the subject `omui`'s answer): a diagnostic's data record, located.
+        const auto data_of = [](const std::string& text) {
+            std::vector<Value> found;
+            std::istringstream lines(text);
+            for (std::string line; std::getline(lines, line);)
+                if (auto value = parse_json(line); value && value->get("kind") && value->get("kind")->as_string() == "data") found.push_back(*value->get("data"));
+            return found;
+        };
         auto r = omui_cmd({"check", good});
-        expect(eq(r.code, 0));
-        expect(r.out.empty() && r.err.find("0 errors, 0 warnings in 1 file") != std::string::npos) << r.err;
+        expect(eq(r.code, 0) && data_of(r.out).empty()) << r.out + r.err;
         r = omui_cmd({"check", good, bad});
         expect(eq(r.code, 1));
-        expect(eq(r.out, bad + ":2:28: error: no component is named `buton` (did you mean `button`?) [unknown-type]\n"));
+        const auto found = data_of(r.out);
+        expect(fatal(eq(found.size(), std::size_t{1}))) << r.out;
+        expect(found[0].get("message")->as_string().contains("no component is named `buton`") && found[0].get("hint")->as_string() == "did you mean `button`?" && found[0].get("line")->as_int() == 2 &&
+               found[0].get("column")->as_int() == 28 && found[0].get("pointer")->as_string() == "/view/root/type")
+            << found[0].json();
         r = omui_cmd({"check", "--json", bad});
-        expect(r.code == 1 && parse_json(r.out).has_value() && parse_json(r.out)->get("pointer")->as_string() == "/view/root/type") << r.out;
+        expect(r.code == 1 && eq(data_of(r.out).size(), std::size_t{1})) << "a switch it does not take, then a document: " << r.out;
         // A document that uses another document's component, given in either order.
         r = omui_cmd({"check", user, component});
         expect(r.code == 0) << r.out + r.err;

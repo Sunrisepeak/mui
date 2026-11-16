@@ -21,7 +21,7 @@ omui doctor                   # 缺什么工具、各自干什么用
 ## 2. 新建并运行
 
 ```sh
-omui new hello                # 默认 TypeScript 模板；--template app-cpp 用 C++；--list 看全部
+omui new hello                # 默认 TypeScript 模板；--template app-cpp 用 C++；`omui templates` 看全部
 cd hello
 omui dev                      # 开发模式：窗口加设计器，保存即生效
 ```

@@ -127,6 +127,10 @@ static UTest cases{"agent.host", [] {
         std::ostringstream own_out;
         const std::array own{std::string_view("add"), std::string_view("4")};
         expect(eq(agent::command_line(session, own, own_out, errors, {.product = "counter"}), 0) && own_out.str().contains(R"("count":7)")) << own_out.str();
+        // A switch the operation does not take, then a word: the word is still its parameter.
+        std::ostringstream switched;
+        const std::array mixed{std::string_view("counter.add"), std::string_view("--quiet"), std::string_view("2")};
+        expect(eq(agent::command_line(session, mixed, switched, errors), 0) && switched.str().contains(R"("count":9)")) << switched.str();
         std::ostringstream none;
         expect(eq(agent::command_line(session, {}, none, errors), 2));
     };

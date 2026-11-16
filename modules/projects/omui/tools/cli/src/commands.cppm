@@ -10,6 +10,7 @@ export import :catalog;
 
 import std;
 import mcpplibs.cmdline;
+export import mlibs.agent;
 import omui.core;
 import omui.viewdoc;
 
@@ -53,10 +54,8 @@ namespace omui::cli {
 // (`*.omui.ts`) evaluated, anything else read as it is (project.cpp).
 [[nodiscard]] std::expected<std::string, std::string> data_text(const std::filesystem::path& file);
 
-[[nodiscard]] mcpplibs::cmdline::App check_command();
 [[nodiscard]] mcpplibs::cmdline::App fmt_command();
 [[nodiscard]] mcpplibs::cmdline::App schema_command();
-int check(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
 // A diagnostic and the file it is about: what `omui check` prints, whichever check found it.
 struct Found {
     std::string                   file;
@@ -68,9 +67,8 @@ struct Found {
 int report(const std::vector<Found>& found, std::size_t files, bool json, std::ostream& out, std::ostream& err);
 // `omui check` with no files: the project here (typecheck.cpp).
 int check_project(bool json, bool portable, std::ostream& out, std::ostream& err);
-// `omui describe --api`: the project's API (typecheck.cpp).
-[[nodiscard]] mcpplibs::cmdline::App describe_command();
-int describe(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
+// omui.describe: the project's API (typecheck.cpp), also written as llms.txt to `llms` when given.
+int describe(const std::optional<std::string>& llms, std::ostream& out, std::ostream& err);
 int fmt(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
 int schema(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
 // The official components, registered once (documents and views use them).
@@ -94,10 +92,25 @@ int video(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostrea
 [[nodiscard]] mcpplibs::cmdline::App audio_command();
 int audio(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
 
-// omui new, dev, run, build, test, doctor (project.cpp, D-150): a project over mcpp.
-inline constexpr std::array<std::string_view, 14> project_commands{"new", "dev", "run", "build", "test", "replay", "design", "package", "add", "remove", "deps", "tools", "config", "doctor"};
+// The project's commands (project.cpp, D-150, RC3.9): a project over mcpp. Its catalog's operations (cli.ops.omui.ts)
+// are the subject `omui` — `omui build --release` is omui.build through the tool kernel's command line, and `omui mcp`
+// serves them as tools; dev, run and replay hold a window or the terminal and are the command line's alone.
+inline constexpr std::array<std::string_view, 3> project_commands{"dev", "run", "replay"};
 [[nodiscard]] mcpplibs::cmdline::App project_command(std::string_view name);
 int project(std::string_view name, const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
+// One of the catalog's operations (omui.build …), its records to `out` and what went wrong to `err`; the exit code.
+int operation(std::string_view op, const mlibs::agent::Arguments& a, std::ostream& out, std::ostream& err);
+class Project final : public mlibs::agent::Subject {
+public:
+    [[nodiscard]] std::string_view name() const noexcept override { return "omui"; }
+    [[nodiscard]] std::string_view interface_name() const noexcept override { return "omui.cli@1"; }
+    [[nodiscard]] mlibs::agent::Capabilities capabilities() const noexcept override { return {.observation = true, .control = true}; }
+    [[nodiscard]] std::span<const mlibs::control::CatalogEntry> operations() const noexcept override { return ops::catalog; }
+    [[nodiscard]] mlibs::control::Guide guide() const noexcept override;
+    [[nodiscard]] std::string_view listing() const noexcept override { return ops::listing; }
+    [[nodiscard]] std::uint64_t state_hash() const override { return 0; }  // its state is the project's files
+    void operate(std::string_view op, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) override;
+};
 // omui design sync (design.cpp): Live Design's history (.omui/design) carried into git as design/<branch>.
 int design_sync(const std::filesystem::path& app, bool json, std::ostream& out, std::ostream& err);
 

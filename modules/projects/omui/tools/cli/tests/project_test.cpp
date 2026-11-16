@@ -27,11 +27,17 @@ Ran invoke(std::vector<std::string> args) {
     return {code, out.str(), err.str()};
 }
 
+// What a command wrote: the data records of an operation's answer (the subject `omui`), or the step records of the
+// commands that hold a terminal (dev, run, replay); an answer's error and result records are not what it wrote.
 std::vector<Value> records(const std::string& text) {
     std::vector<Value> out;
     std::istringstream lines(text);
-    for (std::string line; std::getline(lines, line);)
-        if (auto value = parse_json(line)) out.push_back(std::move(*value));
+    for (std::string line; std::getline(lines, line);) {
+        auto value = parse_json(line);
+        if (!value) continue;
+        if (!value->get("kind")) out.push_back(std::move(*value));
+        else if (value->get("kind")->as_string() == "data" && value->get("data")) out.push_back(*value->get("data"));
+    }
     return out;
 }
 
@@ -84,8 +90,10 @@ UTest cases{"cli.project", [] {
         expect(eq(git({"rev-parse", "design/first-try^{commit}"}).second, git({"rev-parse", "design/main"}).second)) << "tags too";
         expect(eq(git({"rev-parse", "HEAD"}).second, start) && eq(git({"status", "--porcelain", "--untracked-files=no"}).second, std::string()))
             << "HEAD and the work tree as they were";
+        const std::string main_before = git({"rev-parse", "design/main"}).second, loud_before = git({"rev-parse", "design/loud"}).second;
         const auto again = invoke({"omui", "design", "sync", "--dir", mcpplibs::os::fs::utf8(repository / "app")});
-        expect(eq(again.code, 0) && again.out.contains("0 design commits written")) << again.out << again.err;
+        expect(eq(again.code, 0)) << again.out << again.err;
+        expect(eq(git({"rev-parse", "design/main"}).second, main_before) && eq(git({"rev-parse", "design/loud"}).second, loud_before)) << "again: nothing new";
     };
 
     "omui mcp: the command line's commands as tools — one that reads runs, one that writes something to keep asks the user first"_test = [] {
@@ -151,11 +159,11 @@ UTest cases{"cli.project", [] {
     };
 
     "new: the templates, TypeScript first; one it has not is refused before mcpp runs"_test = [] {
-        const auto listed = records(invoke({"omui", "new", "x", "--list", "--json"}).out);
+        const auto listed = records(invoke({"omui", "templates"}).out);
         expect(!listed.empty() && listed.front().get("template")->as_string() == "app-ts");
         const auto refused = invoke({"omui", "new", "x", "--template", "app-lua"});
-        expect(eq(refused.code, 2));
-        expect(refused.err.contains("no template `app-lua`")) << refused.err;
+        expect(eq(refused.code, 1));
+        expect(refused.out.contains("no template `app-lua`") && refused.out.contains(R"("code":"invalid-argument")")) << refused.out;
     };
 
     "check in a project: TypeScript that is not erasable and a view document's mistake, where each is, as records"_test = [] {
@@ -239,7 +247,7 @@ UTest cases{"cli.project", [] {
         expect(!shipping.contains("omui.entry.player/design") && shipping.contains("build --release")) << shipping;
         expect(!plain.contains("omui.entry.player/design") && plain.contains("run -- --dev")) << plain;
         expect(tool.contains("build --release --features omui.entry.player/design")) << tool;
-        expect(eq(refused.code, 1) && refused.err.contains("designer.release is true or false")) << refused.err;
+        expect(eq(refused.code, 1) && refused.out.contains("designer.release is true or false")) << refused.out;
         // A C++ application (its own main): omui dev is the development host, which builds it and draws it in its window (W16).
         std::filesystem::current_path(root);
         std::ofstream(root / "mcpp.toml") << "[package\n";

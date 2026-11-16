@@ -1,6 +1,7 @@
-// The `omui` command line's operations (D-150, W15 step 2): what an Agent may
-// run through MCP (`omui mcp` serves them as omui_* tools) in the project the
-// server runs in. A command that writes something to keep — a project, a
+// The `omui` command line's operations (D-150, W15 step 2; RC3.9): the subject
+// `omui` (omui.cli's Project) behind the tool kernel's entries — `omui build
+// --release` is omui.build, and `omui mcp` serves them as omui_* tools in the
+// project the server runs in. A command that writes something to keep — a project, a
 // package, a film, git references — is irreversible: the person is asked first.
 // `dev` and `run` are left out (they hold a window or the terminal), so are
 // `mcp` and `agent` (an agent is already in). omui-gen ops makes the table the
@@ -16,6 +17,7 @@ export default defineOps({
   generated: "src/catalog",
   operations: [
     { name: "omui.doctor", effect: "read", summary: "Which tools are there and which are missing (mcpp, xlings, tsc, esbuild), and what each is for", result: "json", cost: "bounded" },
+    { name: "omui.templates", effect: "read", summary: "The templates a project is made from, and what each makes", result: "json", cost: "instant" },
     {
       name: "omui.new",
       effect: "irreversible",
@@ -28,19 +30,23 @@ export default defineOps({
       cost: "heavy",
       undo: "none: delete the directory it made",
     },
-    { name: "omui.build", effect: "reversible", summary: "Builds the project (mcpp build): its outputs under target/, nothing else changed", params: [{ name: "release", type: "bool", doc: "the release profile (no designer linked)", optional: true }], result: "json", cost: "heavy", undo: "none needed: target/ is the build's own" },
-    { name: "omui.test", effect: "reversible", summary: "Runs the project's tests (mtest): which passed, which failed and where", result: "json", cost: "heavy", undo: "none needed: tests change nothing they keep" },
+    { name: "omui.build", effect: "reversible", summary: "Builds the project (mcpp build): its outputs under target/, nothing else changed", params: [{ name: "release", type: "bool", doc: "the release profile (no designer linked)", optional: true }, { name: "rest", type: "json", doc: "words passed on to mcpp build as they are (after --)", optional: true }], result: "json", cost: "heavy", undo: "none needed: target/ is the build's own" },
+    { name: "omui.test", effect: "reversible", summary: "Runs the project's tests (mtest): which passed, which failed and where", params: [{ name: "rest", type: "json", doc: "words passed on to mcpp test as they are (after --: which cases)", optional: true }], result: "json", cost: "heavy", undo: "none needed: tests change nothing they keep" },
     {
       name: "omui.check",
       effect: "read",
       summary: "Type-checks the project's TypeScript against the API it registers (tsc), or view documents: each problem at its line",
-      params: [{ name: "portable", type: "bool", doc: "also what only this implementation offers (D-157)", optional: true }],
+      params: [
+        { name: "files", type: "json", doc: "*.view.omui.json documents to check instead of the project", optional: true },
+        { name: "portable", type: "bool", doc: "also what only this implementation offers (D-157)", optional: true },
+      ],
       result: "json",
       cost: "heavy",
     },
-    { name: "omui.describe", effect: "read", summary: "What writing for the project takes: every builder, native module, theme token and verb, as JSON", result: "json", cost: "heavy" },
+    { name: "omui.describe", effect: "read", summary: "What writing for the project takes: every builder, native module, theme token and verb, as JSON", params: [{ name: "llms", type: "path", doc: "also write it as llms.txt, for a model's context", optional: true }], result: "json", cost: "heavy" },
     { name: "omui.deps", effect: "read", summary: "The project's dependencies as its mcpp.toml declares them", result: "json", cost: "instant" },
     { name: "omui.tools", effect: "read", summary: "The tools the project names for xlings, and whether each is installed", result: "json", cost: "bounded" },
+    { name: "omui.tools.install", effect: "irreversible", summary: "Installs the tools the project names (xlings install)", result: "json", cost: "heavy", undo: "none: xlings remove what it installed" },
     { name: "omui.config", effect: "read", summary: "The project's omui.config.ts over the defaults: how far agents may go, what the recorder keeps, whether the designer is linked", result: "json", cost: "bounded" },
     {
       name: "omui.add",
@@ -73,6 +79,7 @@ export default defineOps({
       name: "omui.design.sync",
       effect: "irreversible",
       summary: "Carries Live Design's history into git: each design commit a commit on design/<branch>, tags as design/<tag> (the work tree untouched)",
+      params: [{ name: "dir", type: "path", doc: "the application's directory (here when absent)", optional: true }],
       result: "json",
       cost: "bounded",
       undo: "none: delete the design/* references",

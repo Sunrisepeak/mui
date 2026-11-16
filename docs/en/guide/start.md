@@ -21,7 +21,7 @@ omui doctor                   # which tools are missing, and what each is for
 ## 2. A project, running
 
 ```sh
-omui new hello                # the TypeScript template; --template app-cpp for C++; --list for all
+omui new hello                # the TypeScript template; --template app-cpp for C++; `omui templates` for all
 cd hello
 omui dev                      # development mode: the window and its designer; a save shows at once
 ```

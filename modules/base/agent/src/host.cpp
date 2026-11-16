@@ -160,30 +160,50 @@ Answered answer_to(Session& session, std::string_view request, std::chrono::mill
     return std::move(*answered);
 }
 
-// An operation's words without names (`document.check rise.json`): its parameters in its catalog's order, the
-// ones it needs first — as the session describes it. An operation the session does not know keeps only its name,
-// so that its answer is the session's: not found, and the nearest names.
+// An operation's words as its catalog has them, the session describing it: a word without a name is its next
+// parameter not named otherwise, in the catalog's order, the ones it needs first (`document.check rise.json` is
+// --file rise.json; more words than parameters go to the last: `effect.check a.json b.json`); `--name` is a switch
+// when the parameter is one (bool) or the operation has no such parameter, and takes the next word as its value
+// only when it is a parameter of another type (`--json bad`: a switch, then a word). An operation the session does
+// not know keeps only its name, so that its answer is the session's: not found, and the nearest names.
 std::vector<std::string> named_in_order(Session& session, std::span<const std::string_view> arguments) {
     std::vector<std::string> out(arguments.begin(), arguments.end());
     const std::string_view op = arguments.front();
-    std::size_t bare = 1;
-    while (bare < arguments.size() && !arguments[bare].starts_with("--")) ++bare;
     constexpr std::array own{"subjects", "help", "describe", "find", "log", "--request", "--help", "-h"};
-    if (bare == 1 || std::ranges::contains(own, op)) return out;
+    if (arguments.size() == 1 || std::ranges::contains(own, op)) return out;
     const auto described = data_of(answer_to(session, std::format(R"({{"op":"describe","operation":{}}})", json_text(op))));
     if (!described || !described->root()["parameters"].is_array()) return {std::string(op)};
-    std::vector<std::string> order;
+    std::vector<std::pair<std::string, bool>> parameters;  // name, a switch
     for (const bool optional : {false, true})
         for (const json::Node& parameter : described->root()["parameters"].items())
-            if (parameter["optional"].boolean().value_or(false) == optional) order.push_back(parameter["name"].text().value_or(""));
-    if (order.empty()) return {std::string(op)};
-    std::vector<std::string> named{std::string(op)};
-    for (std::size_t at = 1; at < bare; ++at) {
-        // More words than parameters: the last one takes them all (a list: `effect.check a.json b.json`).
-        named.push_back("--" + order[std::min(at - 1, order.size() - 1)]);
-        named.emplace_back(arguments[at]);
+            if (parameter["optional"].boolean().value_or(false) == optional)
+                parameters.emplace_back(parameter["name"].text().value_or(""), parameter["type"].text() == "bool");
+    const auto parameter = [&](std::string_view name) { return std::ranges::find(parameters, name, &std::pair<std::string, bool>::first); };
+    std::vector<std::string> named{std::string(op)}, words, given, rest;
+    for (std::size_t at = 1; at < arguments.size(); ++at) {
+        const std::string_view argument = arguments[at];
+        if (argument == "--") {  // the rest as it is, last
+            rest.assign(arguments.begin() + static_cast<std::ptrdiff_t>(at), arguments.end());
+            break;
+        }
+        if (!argument.starts_with("--")) {
+            words.emplace_back(argument);
+            continue;
+        }
+        const std::string_view name = argument.substr(2, argument.find('=') == std::string_view::npos ? std::string_view::npos : argument.find('=') - 2);
+        given.emplace_back(name);
+        named.emplace_back(argument);
+        if (argument.contains('=')) continue;
+        const auto found = parameter(name);
+        if (found != parameters.end() && !found->second && at + 1 < arguments.size() && !arguments[at + 1].starts_with("--")) named.emplace_back(arguments[++at]);
+        else named.back() += "=true";
     }
-    named.insert(named.end(), arguments.begin() + static_cast<std::ptrdiff_t>(bare), arguments.end());
+    std::vector<std::string> open;  // the parameters the words fill, in order
+    for (const auto& [name, is_switch] : parameters)
+        if (!is_switch && !std::ranges::contains(given, name)) open.push_back(name);
+    if (!words.empty() && open.empty()) open.push_back(parameters.empty() ? std::string("rest") : parameters.back().first);
+    for (std::size_t index = 0; index < words.size(); ++index) named.insert(named.end(), {"--" + open[std::min(index, open.size() - 1)], words[index]});
+    named.insert(named.end(), rest.begin(), rest.end());
     return named;
 }
 

@@ -1,15 +1,15 @@
-// Data modules evaluated by QuickJS-ng (omui.lang.ts:data): a runtime and a
+// Data modules evaluated by QuickJS-ng (mlibs.ts:data): a runtime and a
 // context of their own for each, with only what gives the same answer every
 // time (no Date, no Math.random, no WeakRef, no I/O), bounded in memory,
-// stack and time; imports are "openmui/define" and the module's own files
-// inside its root.
-module omui.lang.ts;
+// stack and time; imports are the named modules its options give (a kind's
+// define module) and the module's own files inside its root.
+module mlibs.ts;
 
 import std;
 import mcpplibs.os;
 import mcpplibs.mwrap.quickjs_ng;
 
-namespace omui::lang::ts {
+namespace mlibs::ts {
 
 using namespace mcpplibs::mwrap::quickjs_ng;          // quickjs.h's API
 using namespace mcpplibs::mwrap::quickjs_ng::macros;  // its macros (JS_UNDEFINED, JS_EVAL_TYPE_MODULE …)
@@ -19,7 +19,7 @@ namespace {
 // Run before the module: Math.random goes, and the check of what it exports.
 constexpr std::string_view setup = R"js(
 Math.random = () => { throw new Error("Math.random is not here: a data module gives the same data every time"); };
-globalThis.__omuiData = (result) => {
+globalThis.__declaredData = (result) => {
   if (result === null || typeof result !== "object" || typeof result.kind !== "string" || !("value" in result))
     throw new TypeError("the default export is not a define…() result: export default defineContract({ … })");
   const seen = new Set();
@@ -58,6 +58,7 @@ globalThis.__omuiData = (result) => {
 
 struct Evaluation {
     std::filesystem::path root;
+    const std::vector<NamedModule>* modules = nullptr;
     std::chrono::steady_clock::time_point deadline;
     bool timed_out = false;
 };
@@ -99,15 +100,19 @@ JSModuleDef* compiled(JSContext* context, const std::string& code, const char* n
     return definition;
 }
 
-// "openmui/define", or the module's own file by path inside the root.
+// A named module the options give, or the module's own file by path inside the root.
 JSModuleDef* load(JSContext* context, const char* name, void* opaque) {
     const auto& evaluation = *static_cast<Evaluation*>(opaque);
     const std::string_view module = name;
-    if (module == "openmui/define" || module == "omui/define") return compiled(context, define_module_source(module == "openmui/define"), name);
+    for (const auto& named : *evaluation.modules)
+        if (named.name == module) return compiled(context, named.source, name);
     const auto path = mcpplibs::os::fs::from_utf8(module).lexically_normal();
     const auto inside = path.lexically_relative(evaluation.root);
     if (!path.is_absolute() || inside.empty() || *inside.begin() == "..") {
-        JS_ThrowReferenceError(context, "a data module imports \"openmui/define\", \"omui/define\" and its own files inside its directory, not `%s`", name);
+        std::string named;
+        for (const auto& one : *evaluation.modules) named += std::format("{}\"{}\"", named.empty() ? "" : ", ", one.name);
+        JS_ThrowReferenceError(context, "a data module imports %s%sits own files inside its directory, not `%s`", named.c_str(), named.empty() ? "" : " and ",
+                               name);
         return nullptr;
     }
     for (const std::string_view suffix : {"", ".ts", ".mts", ".js", ".mjs", "/index.ts", "/index.js"}) {
@@ -161,7 +166,7 @@ std::expected<Data, TsFailure> run(JSRuntime* runtime, JSContext* context, const
     JSValue exported = JS_GetPropertyStr(context, exports, "default");
     JS_FreeValue(context, exports);
     JSValue global = JS_GetGlobalObject(context);
-    JSValue check = JS_GetPropertyStr(context, global, "__omuiData");
+    JSValue check = JS_GetPropertyStr(context, global, "__declaredData");
     JS_FreeValue(context, global);
     JSValue json = JS_Call(context, check, JS_UNDEFINED, 1, &exported);
     JS_FreeValue(context, check);
@@ -194,7 +199,7 @@ std::expected<Data, TsFailure> evaluate_source(std::string_view source, std::str
     auto code = compile_source(source, name);
     if (!code) return std::unexpected(code.error());
     const auto path = mcpplibs::os::fs::from_utf8(name).lexically_normal();
-    Evaluation evaluation{options.root.empty() ? path.parent_path() : options.root.lexically_normal(),
+    Evaluation evaluation{options.root.empty() ? path.parent_path() : options.root.lexically_normal(), &options.modules,
                           std::chrono::steady_clock::now() + options.time};
     JSRuntime* runtime = JS_NewRuntime();
     JS_SetMemoryLimit(runtime, options.memory_bytes);
@@ -222,4 +227,4 @@ std::expected<Data, TsFailure> evaluate_source(std::string_view source, std::str
     return result;
 }
 
-}  // namespace omui::lang::ts
+}  // namespace mlibs::ts

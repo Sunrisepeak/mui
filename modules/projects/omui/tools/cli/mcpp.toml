@@ -35,6 +35,7 @@ mlibs.agent      = { path = "../../../../base/agent" }
 omui.mcp         = { path = "../mcp" }
 omui.viewdoc     = { path = "../../viewdoc" }
 omui.lang.ts     = { path = "../../lang/ts" }
+mlibs.ts         = { path = "../../../../base/ts" }  # strip_types: a data module's syntax checked (typecheck)
 omui.ui.base     = { path = "../../components/base" }
 omui.ui.markdown = { path = "../../components/markdown" }
 xengine.video      = { path = "../../../xengine/kernel/video" }

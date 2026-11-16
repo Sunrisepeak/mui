@@ -450,7 +450,7 @@ mount("main", column({}, [
   button({ id: "inc", text: "+1", onActivated: () => count.update((v: number) => v + 1) }),
 ]));
 )ts";
-        auto js = lang::ts::compile_source(main, mcpplibs::os::fs::utf8(dir / "main.ts"));
+        auto js = mlibs::ts::compile_source(main, mcpplibs::os::fs::utf8(dir / "main.ts"));
         expect(js.has_value()) << (js ? "" : js.error().text());
         if (!js) return;
         Runtime r;
@@ -497,7 +497,7 @@ mount("main", column({ gap: 8 }, [
 ]));
 )ts";
         const auto file = dir / "main.ts";
-        auto js = lang::ts::compile_source(main, mcpplibs::os::fs::utf8(file));
+        auto js = mlibs::ts::compile_source(main, mcpplibs::os::fs::utf8(file));
         expect(js.has_value()) << (js ? "" : js.error().text());
         if (!js) return;
         Runtime r;
@@ -601,7 +601,7 @@ mount("main", column({ gap: 8 }, [
         const auto [committed, commit_answer] = invoke("design.commit", omui::Value(omui::Value::Map{}));
         expect(eq(committed, 0)) << commit_answer.json();
         expect(eq(file_text(dir / "app.ts"), text_of()));
-        auto checked = lang::ts::compile(dir / "app.ts");
+        auto checked = mlibs::ts::compile(dir / "app.ts");
         expect(checked.has_value()) << (checked ? "" : checked.error().text()) << " — what was written still compiles";
     };
 
@@ -660,7 +660,7 @@ mount("main", column({ gap: 8 }, [
   button({ id: "inc", text: "+1", onActivated: (): void => state.count.update((v: number) => v + 1) }),
 ]));
 )ts";
-        auto js = lang::ts::compile(dir / "main.ts");
+        auto js = mlibs::ts::compile(dir / "main.ts");
         expect(js.has_value()) << (js ? "" : js.error().text());
         if (!js) return;
         expect(js->find("from \"openmui\"") != std::string::npos && js->find("interface") == std::string::npos) << *js;
@@ -673,12 +673,12 @@ mount("main", column({ gap: 8 }, [
         expect(eq(r.act("main/inc", "activate"), std::int64_t{0}));
         r.settle(script.host);
         expect(eq(r.name_of("main/text:1"), std::string("1 clicks")));
-        auto broken = lang::ts::compile(dir / "missing.ts");
+        auto broken = mlibs::ts::compile(dir / "missing.ts");
         expect(!broken && !broken.error().text().empty());
     };
 
     "TypeScript from an editor's text: transformed, its types gone, openmui an import; an error names the line"_test = [] {
-        auto js = lang::ts::compile_source(R"ts(
+        auto js = mlibs::ts::compile_source(R"ts(
 import { verb } from "openmui";
 const half: number = 110;
 verb("gift.wide", { effect: "read" }, (): { half: number } => ({ half }));
@@ -686,7 +686,7 @@ verb("gift.wide", { effect: "read" }, (): { half: number } => ({ half }));
         expect(js.has_value()) << (js ? "" : js.error().text());
         if (!js) return;
         expect(js->find("from \"openmui\"") != std::string::npos && js->find(": number") == std::string::npos) << *js;
-        auto broken = lang::ts::compile_source("const x: number = ;\n", "broken.ts");
+        auto broken = mlibs::ts::compile_source("const x: number = ;\n", "broken.ts");
         expect(!broken && broken.error().message.starts_with("broken.ts:1:19: ")) << (broken ? *broken : broken.error().text());
     };
 

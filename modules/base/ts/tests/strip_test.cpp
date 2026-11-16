@@ -7,10 +7,10 @@
 import std;
 import mcpplibs.mtest;
 import mcpplibs.os;
-import omui.lang.ts;
+import mlibs.ts;
 
 using namespace mcpplibs::mtest;
-namespace ts = omui::lang::ts;
+namespace ts = mlibs::ts;
 
 namespace {
 

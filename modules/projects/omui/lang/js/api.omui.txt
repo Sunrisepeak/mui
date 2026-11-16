@@ -1,5 +1,6 @@
 == omui.lang.js
 export import omui.lang.ts;
+export import mlibs.ts;
 namespace omui::lang::js {
   class Script {
     explicit Script(Session& session);

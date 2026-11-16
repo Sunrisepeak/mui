@@ -53,9 +53,9 @@ UTest cases{"lang.ts.edit", [] {
         expect(empty.has_value() && empty->contains("row({ gap: 4 }, [")) << (empty ? *empty : empty.error().text());
         // Where nothing is built, or past the text: why, by code (what an agent's request is told).
         const auto nowhere = ts::set_property(page, 1, 1, "text", "\"x\"");
-        expect(!nowhere && nowhere.error().code == ts::TsError::no_call && nowhere.error().kind() == mlibs::error::Kind::not_found) << (nowhere ? "" : nowhere.error().text());
+        expect(!nowhere && nowhere.error().code == ts::EditError::no_call && nowhere.error().kind() == mlibs::error::Kind::not_found) << (nowhere ? "" : nowhere.error().text());
         const auto past = ts::set_property(page, 999, 1, "text", "\"x\"");
-        expect(!past && past.error().code == ts::TsError::no_place) << (past ? "" : past.error().text());
+        expect(!past && past.error().code == ts::EditError::no_place) << (past ? "" : past.error().text());
         auto quoted = ts::set_property(page, 4, 3, "aria-label", "\"t\"");
         expect(quoted.has_value() && quoted->contains(R"("aria-label": "t")")) << (quoted ? *quoted : quoted.error().text());
         // Everything else byte for byte.

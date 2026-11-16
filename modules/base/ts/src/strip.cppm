@@ -1,4 +1,4 @@
-// omui.lang.ts:strip — TypeScript to JavaScript with no tool (D-139):
+// mlibs.ts:strip — TypeScript to JavaScript with no tool (D-139):
 // what is only types becomes blank, a space for each character and every line
 // break kept, so the JavaScript has the TypeScript's lines and columns and an
 // error points at the source as written. Only erasable syntax is TypeScript
@@ -9,12 +9,12 @@
 // require(...)`, `export =`, `<T>x` — is a problem, with where it is and what
 // to write instead. The same function serves the runtime (the Web too: no
 // esbuild in a page), hot reload, Live Design and omui-gen.
-export module omui.lang.ts:strip;
+export module mlibs.ts:strip;
 
 import std;
 import :error;
 
-export namespace omui::lang::ts {
+export namespace mlibs::ts {
 
 // A place in the source (1-based line and column, in bytes) and what is wrong there.
 struct TypeScriptProblem {
@@ -34,4 +34,4 @@ struct TypeScriptProblem {
 // TypeScript source (an editor's text, `name` in its problems) as JavaScript.
 [[nodiscard]] std::expected<std::string, TsFailure> compile_source(std::string_view source, std::string_view name = "main.ts");
 
-}  // namespace omui::lang::ts
+}  // namespace mlibs::ts

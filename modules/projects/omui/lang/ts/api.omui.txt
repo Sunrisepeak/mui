@@ -1,28 +1,8 @@
 == omui.lang.ts
 export import :error;
-export import :strip;
-export import :data;
+export import :define;
 export import :declare;
 export import :edit;
-== omui.lang.ts:data
-namespace omui::lang::ts {
-  struct DataOptions {
-    std::filesystem::path root;
-    std::size_t memory_bytes = 64 * 1024 * 1024;
-    std::chrono::milliseconds time{…};
-  };
-  struct Data {
-    std::string kind;
-    std::string json;
-  };
-  inline constexpr std::array<std::string_view, 3> spec_kinds{…};
-  inline constexpr std::array<std::string_view, 17> omui_kinds{…};
-  inline constexpr std::array<std::string_view, 20> data_kinds{…};
-  [[nodiscard]] std::expected<Data, TsFailure> evaluate(const std::filesystem::path& file, const DataOptions& options = {…});
-  [[nodiscard]] std::expected<Data, TsFailure> evaluate_source(std::string_view source, std::string_view name, const DataOptions& options = {…});
-  [[nodiscard]] std::string define_module_source(bool spec);
-  [[nodiscard]] std::string_view omui_define_types();
-}
 == omui.lang.ts:declare
 namespace omui::lang::ts {
   struct PropShape {
@@ -68,6 +48,17 @@ namespace omui::lang::ts {
   [[nodiscard]] std::string camel_case(std::string_view snake);
   [[nodiscard]] std::string pascal_case(std::string_view snake);
 }
+== omui.lang.ts:define
+namespace omui::lang::ts {
+  inline constexpr std::array<std::string_view, 3> spec_kinds{…};
+  inline constexpr std::array<std::string_view, 17> omui_kinds{…};
+  inline constexpr std::array<std::string_view, 20> data_kinds{…};
+  [[nodiscard]] std::string define_module_source(bool spec);
+  [[nodiscard]] mlibs::ts::DataOptions data_options(mlibs::ts::DataOptions options = {…});
+  [[nodiscard]] std::expected<mlibs::ts::Data, mlibs::ts::TsFailure> evaluate(const std::filesystem::path& file, mlibs::ts::DataOptions options = {…});
+  [[nodiscard]] std::expected<mlibs::ts::Data, mlibs::ts::TsFailure> evaluate_source(std::string_view source, std::string_view name, mlibs::ts::DataOptions options = {…});
+  [[nodiscard]] std::string_view omui_define_types();
+}
 == omui.lang.ts:edit
 namespace omui::lang::ts {
   struct BuilderCall {
@@ -76,30 +67,19 @@ namespace omui::lang::ts {
     std::string callee;
     std::optional<std::pair<std::size_t, std::size_t>> properties, children;
   };
-  [[nodiscard]] std::expected<BuilderCall, TsFailure> builder_call_at(std::string_view source, std::size_t line, std::size_t column);
-  [[nodiscard]] std::expected<std::string, TsFailure> set_property(std::string_view source, std::size_t line, std::size_t column, std::string_view name, std::string_view value);
-  [[nodiscard]] std::expected<std::string, TsFailure> remove_property(std::string_view source, std::size_t line, std::size_t column, std::string_view name);
-  [[nodiscard]] std::expected<std::string, TsFailure> insert_child(std::string_view source, std::size_t line, std::size_t column, std::string_view code, std::optional<std::size_t> index = std::nullopt);
-  [[nodiscard]] std::expected<std::string, TsFailure> remove_call(std::string_view source, std::size_t line, std::size_t column);
+  [[nodiscard]] std::expected<BuilderCall, EditFailure> builder_call_at(std::string_view source, std::size_t line, std::size_t column);
+  [[nodiscard]] std::expected<std::string, EditFailure> set_property(std::string_view source, std::size_t line, std::size_t column, std::string_view name, std::string_view value);
+  [[nodiscard]] std::expected<std::string, EditFailure> remove_property(std::string_view source, std::size_t line, std::size_t column, std::string_view name);
+  [[nodiscard]] std::expected<std::string, EditFailure> insert_child(std::string_view source, std::size_t line, std::size_t column, std::string_view code, std::optional<std::size_t> index = std::nullopt);
+  [[nodiscard]] std::expected<std::string, EditFailure> remove_call(std::string_view source, std::size_t line, std::size_t column);
   class CallIndex {
-    [[nodiscard]] static std::expected<CallIndex, TsFailure> of(std::string_view source);
+    [[nodiscard]] static std::expected<CallIndex, EditFailure> of(std::string_view source);
     [[nodiscard]] std::optional<std::pair<std::size_t, std::size_t>> enclosing(std::size_t line, std::size_t column, std::string_view callee, std::size_t skip = 0) const;
   };
 }
 == omui.lang.ts:error
 namespace omui::lang::ts {
-  enum class TsError : std::uint8_t { unreadable, syntax, not_here, evaluation_failed, unfinished, no_place, no_call, no_property, not_in_children };
-  [[nodiscard]] constexpr mlibs::error::Description describe(TsError error) noexcept;
-  using TsFailure = mlibs::error::Error<TsError>;
-}
-== omui.lang.ts:strip
-namespace omui::lang::ts {
-  struct TypeScriptProblem {
-    std::size_t line = 0, column = 0;
-    std::string text;
-  };
-  [[nodiscard]] std::expected<std::string, std::vector<TypeScriptProblem>> strip_types(std::string_view source);
-  [[nodiscard]] std::string to_text(const std::vector<TypeScriptProblem>& problems);
-  [[nodiscard]] std::expected<std::string, TsFailure> compile(const std::filesystem::path& file);
-  [[nodiscard]] std::expected<std::string, TsFailure> compile_source(std::string_view source, std::string_view name = "main.ts");
+  enum class EditError : std::uint8_t { syntax, no_place, no_call, no_property, not_in_children };
+  [[nodiscard]] constexpr mlibs::error::Description describe(EditError error) noexcept;
+  using EditFailure = mlibs::error::Error<EditError>;
 }

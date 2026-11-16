@@ -6,6 +6,7 @@ import std;
 import omui.abi;
 import omui.lang;
 import omui.lang.ts;
+import mlibs.ts;
 import omui.player;
 import omui.core;
 
@@ -88,8 +89,8 @@ player::SourceEditor source_editor() {
 player::Language javascript() { return {"js", {".js", ".mjs"}, make, {}, {}, describe_typescript, {}, source_editor()}; }
 
 player::Language typescript() {
-    return {"ts", {".ts", ".mts"}, make, [](const std::filesystem::path& file) { return ts::compile(file); },
-            [](std::string_view text, const std::filesystem::path& file) { return ts::compile_source(text, std::string(reinterpret_cast<const char*>(file.generic_u8string().c_str()))); },
+    return {"ts", {".ts", ".mts"}, make, [](const std::filesystem::path& file) { return mlibs::ts::compile(file); },
+            [](std::string_view text, const std::filesystem::path& file) { return mlibs::ts::compile_source(text, std::string(reinterpret_cast<const char*>(file.generic_u8string().c_str()))); },
             describe_typescript, declare_typescript, source_editor(), [](const std::filesystem::path& file) -> std::expected<std::string, Failure> {
                 auto data = ts::evaluate(file);
                 if (!data) return std::unexpected(Failure(data.error()));

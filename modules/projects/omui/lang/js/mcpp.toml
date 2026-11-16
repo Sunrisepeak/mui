@@ -12,7 +12,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
-reexports = ["omui.lang.ts"]  # what its interface re-exports (lint module-closure)
+reexports = ["omui.lang.ts", "mlibs.ts"]  # what its interface re-exports (lint module-closure)
 kind = "lang"
 agent = { part = "omui.agent" }
 
@@ -33,6 +33,7 @@ sources = ["src/native/web/*.cpp"]
 [dependencies]
 omui.lang    = { path = ".." }
 "omui.lang.ts" = { path = "../ts" }
+mlibs.ts = { path = "../../../../base/ts" }  # TypeScript blanked (re-exported: what a script binding compiles with)
 omui.abi    = { path = "../../abi" }
 omui.player = { path = "../../player" }
 openlifa.openmui = { path = "../../../../../spec" }

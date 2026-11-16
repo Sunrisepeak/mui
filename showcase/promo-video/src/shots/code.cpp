@@ -73,7 +73,7 @@ Tally run_tally(std::string_view language, float scale) {
             std::future<lang::Result<void>> ran;
             std::vector<std::string> errors;
             auto keep = [&](std::string_view m) { errors.emplace_back(m); };
-            auto compiled = lang::ts::compile_source(code, name);
+            auto compiled = mlibs::ts::compile_source(code, name);
             if (!compiled) {
                 out.error = compiled.error().text();
                 abi::detach(handle);

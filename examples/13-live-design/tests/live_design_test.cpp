@@ -208,7 +208,7 @@ UTest cases{"example.live-design", [] {
         (void)done("design.commit");
         const std::string final_text = file_text(dir / "app" / "main.ts");
         expect(final_text.contains("Your subscription") && final_text.contains("\"damping\":26") && final_text.contains("id: \"save\"")) << final_text;
-        auto compiled = lang::ts::compile(dir / "app" / "main.ts");
+        auto compiled = mlibs::ts::compile(dir / "app" / "main.ts");
         expect(compiled.has_value()) << (compiled ? "" : compiled.error().text());
 
         // Each edit within a frame.

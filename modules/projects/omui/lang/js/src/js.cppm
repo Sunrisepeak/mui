@@ -19,6 +19,7 @@
 export module omui.lang.js;
 
 export import omui.lang.ts;
+export import mlibs.ts;
 import std;
 import omui.lang;
 import omui.player;

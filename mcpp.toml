@@ -3,7 +3,7 @@
 # (D-41). The umbrella package users name is modules/projects/omui/sdk; this
 # manifest declares no package (convergence plan §9.2).
 # The workspace's tools, from xlings, installed for the verbs that need them:
-# esbuild is the oracle of omui.lang.ts's type stripper (its tests); tsc
+# esbuild is the oracle of mlibs.ts's type stripper (its tests); tsc
 # (TypeScript 7, native, no node) is what `omui check` type-checks with and
 # what omui.lang.js's declaration tests run: `mcpp test` and `mcpp run`
 # install them and a plain build does not.
@@ -22,6 +22,7 @@ members = [
     "modules/projects/hanim/core",
     "modules/base/image",
     "modules/base/json",
+    "modules/base/ts",
     "modules/base/math",
     "modules/base/memory",
     "modules/base/pipeline",

@@ -6,7 +6,7 @@ The same interface is written three times:
 
 - in C++, with the builders: [`src/tally.cpp`](src/tally.cpp);
 - as a view document: [`ui/tally.view.omui.json`](ui/tally.view.omui.json) (view-data-files §3), with CEL expressions for what the text shows and `set` operations for what the buttons do;
-- in TypeScript: [`ts/tally.ts`](ts/tally.ts) ([omui.lang.js](../../modules/projects/omui/lang/js)). Its types are blanked ([omui.lang.ts](../../modules/projects/omui/lang/ts)), and QuickJS-ng runs it.
+- in TypeScript: [`ts/tally.ts`](ts/tally.ts) ([omui.lang.js](../../modules/projects/omui/lang/js)). Its types are blanked ([mlibs.ts](../../modules/base/ts)), and QuickJS-ng runs it.
 
 The three are **one semantic tree and the same pixels**, before and after every click and every agent action (the CTS S level); this example's tests check the TypeScript version and the document against the C++ view.
 

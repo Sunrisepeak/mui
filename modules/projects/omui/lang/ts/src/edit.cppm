@@ -25,24 +25,24 @@ struct BuilderCall {
 
 // The builder call at a 1-based line and column (where an element was built): the
 // call whose callee or `(` is there.
-[[nodiscard]] std::expected<BuilderCall, TsFailure> builder_call_at(std::string_view source, std::size_t line, std::size_t column);
+[[nodiscard]] std::expected<BuilderCall, EditFailure> builder_call_at(std::string_view source, std::size_t line, std::size_t column);
 
 // The text with property `name` of that call set to `value` (code: `"Save"`,
 // `12`, `{ x: 1 }`): its value replaced where it is written, else the property
 // added at the end of its object (the object written when the call has none).
-[[nodiscard]] std::expected<std::string, TsFailure> set_property(std::string_view source, std::size_t line, std::size_t column,
+[[nodiscard]] std::expected<std::string, EditFailure> set_property(std::string_view source, std::size_t line, std::size_t column,
                                                                    std::string_view name, std::string_view value);
 // The text with property `name` of that call taken out (with its comma).
-[[nodiscard]] std::expected<std::string, TsFailure> remove_property(std::string_view source, std::size_t line, std::size_t column,
+[[nodiscard]] std::expected<std::string, EditFailure> remove_property(std::string_view source, std::size_t line, std::size_t column,
                                                                       std::string_view name);
 // The text with `code` (an element: `text({ text: "Hi" })`) inserted into that
 // call's children at `index` (the end when absent or past it), indented as its
 // siblings are.
-[[nodiscard]] std::expected<std::string, TsFailure> insert_child(std::string_view source, std::size_t line, std::size_t column,
+[[nodiscard]] std::expected<std::string, EditFailure> insert_child(std::string_view source, std::size_t line, std::size_t column,
                                                                    std::string_view code, std::optional<std::size_t> index = std::nullopt);
 // The text with that call taken out of the list it is in (with its comma and,
 // when it had the line to itself, its line).
-[[nodiscard]] std::expected<std::string, TsFailure> remove_call(std::string_view source, std::size_t line, std::size_t column);
+[[nodiscard]] std::expected<std::string, EditFailure> remove_call(std::string_view source, std::size_t line, std::size_t column);
 
 // A source's calls, lexed once: where an element was built, from the
 // position QuickJS gives its call (the last its arguments recorded — inside
@@ -50,7 +50,7 @@ struct BuilderCall {
 // where every element was built with it).
 class CallIndex {
 public:
-    [[nodiscard]] static std::expected<CallIndex, TsFailure> of(std::string_view source);
+    [[nodiscard]] static std::expected<CallIndex, EditFailure> of(std::string_view source);
     // The call of `callee` (a callee's last name: `text` for `ui.text`)
     // around a 1-based line and column, the `skip`-th such outward (0: the
     // innermost): its callee's first line and column.

@@ -1,14 +1,14 @@
-// Data modules (omui.lang.ts:data): TypeScript in, JSON out — keys in the
+// Data modules (mlibs.ts:data): TypeScript in, JSON out — keys in the
 // module's order, helpers imported from its own files, computed values; and
 // what makes it data that gives the same answer every time and stops: no
 // clock, no random, data only (each problem at its JSON pointer), imports
 // inside its directory, a loop that does not end stopped by its time.
 import std;
 import mcpplibs.mtest;
-import omui.lang.ts;
+import mlibs.ts;
 
 using namespace mcpplibs::mtest;
-namespace ts = omui::lang::ts;
+namespace ts = mlibs::ts;
 
 namespace {
 
@@ -22,23 +22,30 @@ std::filesystem::path scratch(std::string_view name) {
 void write(const std::filesystem::path& file, std::string_view text) { std::ofstream(file, std::ios::binary) << text; }
 
 // The problem of evaluating `source` as a module in `dir`, or "" when it evaluated.
-std::string problem_of(const std::filesystem::path& dir, std::string_view source, const ts::DataOptions& options = {}) {
-    write(dir / "case.config.omui.ts", source);
-    auto data = ts::evaluate(dir / "case.config.omui.ts", options);
+// The kinds of the cases' define module, "test/define": an owner's, given with the options.
+constexpr std::array<std::string_view, 2> kinds{"contract", "config"};
+ts::DataOptions defined(ts::DataOptions options = {}) {
+    options.modules.push_back({"test/define", ts::define_module(kinds)});
+    return options;
+}
+
+std::string problem_of(const std::filesystem::path& dir, std::string_view source, ts::DataOptions options = {}) {
+    write(dir / "case.ts", source);
+    auto data = ts::evaluate(dir / "case.ts", defined(std::move(options)));
     return data ? std::string() : data.error().text();
 }
 
 }  // namespace
 
-UTest cases{"lang.ts data", [] {
+UTest cases{"mlibs.ts data", [] {
     "a contract in TypeScript: its JSON, keys in order, helpers and computed values"_test = [] {
         const auto dir = scratch("contract");
         write(dir / "shared.ts", R"ts(
 export const motion = (speed: "fast" | "slow"): string => `motion.${speed}`;
 export const enumOf = <T extends string>(values: readonly T[], fallback: T, doc: string) => ({ type: "enum", values, default: fallback, doc });
 )ts");
-        write(dir / "caption_button.contract.omui.ts", R"ts(
-import { defineContract } from "openmui/define";
+        write(dir / "caption_button.ts", R"ts(
+import { defineContract } from "test/define";
 import { enumOf, motion } from "./shared";
 
 const kinds = ["minimize", "maximize", "restore", "close"] as const;
@@ -57,7 +64,7 @@ export default defineContract({
   },
 });
 )ts");
-        auto data = ts::evaluate(dir / "caption_button.contract.omui.ts");
+        auto data = ts::evaluate(dir / "caption_button.ts", defined());
         expect(data.has_value()) << (data ? "" : data.error().text());
         if (!data) return;
         expect(eq(data->kind, std::string("contract")));
@@ -66,47 +73,39 @@ export default defineContract({
                               R"("props":{"kind":{"type":"enum","values":["minimize","maximize","restore","close"],"default":"close","doc":"What it does."},)"
                               R"("active":{"type":"bool","default":true,"doc":"Whether its window is active."}},"keys":{"Enter|Space":"activate"},)"
                               R"("motion":{"hover":"motion.fast"},"sizes":[16,1.5,-2]}})")));
-        const auto again = ts::evaluate(dir / "caption_button.contract.omui.ts");
+        const auto again = ts::evaluate(dir / "caption_button.ts", defined());
         expect(again && again->json == data->json) << "the same answer every time";
     };
 
-    "every define function, by kind"_test = [] {
+    "a define module: a function per kind, each giving { kind, value }"_test = [] {
         const auto dir = scratch("kinds");
-        for (const auto kind : ts::data_kinds) {
+        for (const auto kind : kinds) {
             std::string name(kind);
             name[0] = static_cast<char>(name[0] - 'a' + 'A');
-            const bool spec = std::ranges::contains(ts::spec_kinds, kind);  // D-157: the spec's formats, the implementation's
-            write(dir / "kind.ts", std::format("import {{ define{0} }} from \"{1}/define\";\nexport default define{0}({{ a: 1 }});\n", name,
-                                               spec ? "openmui" : "omui"));
-            auto data = ts::evaluate(dir / "kind.ts");
+            write(dir / "kind.ts", std::format("import {{ define{0} }} from \"test/define\";\nexport default define{0}({{ a: 1 }});\n", name));
+            auto data = ts::evaluate(dir / "kind.ts", defined());
             expect(data && data->kind == kind && data->json == R"({"a":1})") << (data ? data->kind : data.error().text());
         }
-    };
-
-    "the spec's formats from openmui/define, the implementation's from omui/define (D-157)"_test = [] {
-        const auto dir = scratch("layers");
-        const auto config = problem_of(dir, "import { defineConfig } from \"openmui/define\";\nexport default defineConfig({});\n");
-        expect(config.contains("defineConfig")) << "the spec's module has no implementation config: " << config;
-        expect(problem_of(dir, "import { defineConfig } from \"omui/define\";\nexport default defineConfig({ agent: {} });\n").empty());
-        expect(!problem_of(dir, "import { defineContract } from \"omui/define\";\nexport default defineContract({});\n").empty())
-            << "a contract is the spec's format";
+        write(dir / "other.ts", "import { defineMissing } from \"test/define\";\nexport default defineMissing({});\n");
+        const auto other = ts::evaluate(dir / "other.ts", defined());
+        expect(!other && other.error().text().contains("defineMissing")) << "a kind the module does not define is no import";
     };
 
     "data only: each problem at its JSON pointer"_test = [] {
         const auto dir = scratch("data-only");
         const std::array<std::pair<std::string_view, std::string_view>, 6> refused{{
-            {"export default defineView({ a: { b: () => 1 } });", "/a/b: a function is not data"},
-            {"export default defineView({ list: [1, undefined] });", "/list/1: undefined is not data"},
-            {"export default defineView({ x: 0 / 0 });", "/x: NaN is not a number data holds"},
-            {"const loop: any = {}; loop.self = loop; export default defineView({ loop });", "/loop/self: the value holds itself"},
-            {"export default defineView({ when: new Map() });", "/when: a Map is not plain data"},
+            {"export default defineContract({ a: { b: () => 1 } });", "/a/b: a function is not data"},
+            {"export default defineContract({ list: [1, undefined] });", "/list/1: undefined is not data"},
+            {"export default defineContract({ x: 0 / 0 });", "/x: NaN is not a number data holds"},
+            {"const loop: any = {}; loop.self = loop; export default defineContract({ loop });", "/loop/self: the value holds itself"},
+            {"export default defineContract({ when: new Map() });", "/when: a Map is not plain data"},
             {"export default { a: 1 };", "the default export is not a define…() result"},
         }};
         for (const auto& [body, says] : refused) {
-            const auto problem = problem_of(dir, std::format("import {{ defineView }} from \"openmui/define\";\n{}\n", body));
+            const auto problem = problem_of(dir, std::format("import {{ defineContract }} from \"test/define\";\n{}\n", body));
             expect(problem.contains(says)) << std::format("{} → {}", body, problem);
         }
-        const auto shared = problem_of(dir, "import { defineView } from \"openmui/define\";\nconst point = { x: 1 };\nexport default defineView({ a: point, b: point });\n");
+        const auto shared = problem_of(dir, "import { defineContract } from \"test/define\";\nconst point = { x: 1 };\nexport default defineContract({ a: point, b: point });\n");
         expect(shared.empty()) << "a value used twice is data: " << shared;
     };
 
@@ -121,7 +120,7 @@ export default defineContract({
         const auto dir = scratch("imports");
         std::filesystem::create_directories(dir / "inner");
         write(dir / "outside.ts", "export const x = 1;\n");
-        const ts::DataOptions inner{.root = dir / "inner"};
+        const ts::DataOptions inner = defined({.root = dir / "inner"});
         write(dir / "inner" / "case.ts", "import { x } from \"../outside\";\nexport default x;\n");
         auto escaped = ts::evaluate(dir / "inner" / "case.ts", inner);
         expect(!escaped && escaped.error().text().contains("its own files inside its directory, not")) << (escaped ? escaped->json : escaped.error().text());
@@ -135,9 +134,9 @@ export default defineContract({
         const auto endless = problem_of(dir, "while (true) {}\nexport default 1;", {.time = std::chrono::milliseconds(100)});
         expect(endless.contains("ran out of its time")) << endless;
         expect(std::chrono::steady_clock::now() - start < std::chrono::seconds(2));
-        const auto thrown = problem_of(dir, "import { defineView } from \"openmui/define\";\n\nthrow new Error(\"no view yet\");\n");
-        expect(thrown.contains("case.config.omui.ts") && thrown.contains("no view yet") && thrown.contains(":3")) << thrown;
+        const auto thrown = problem_of(dir, "import { defineContract } from \"test/define\";\n\nthrow new Error(\"no view yet\");\n");
+        expect(thrown.contains("case.ts") && thrown.contains("no view yet") && thrown.contains(":3")) << thrown;
         const auto typed = problem_of(dir, "enum E { A }\nexport default 1;");
-        expect(typed.contains("case.config.omui.ts:1:1: `enum` is not erasable")) << typed;
+        expect(typed.contains("case.ts:1:1: `enum` is not erasable")) << typed;
     };
 }};

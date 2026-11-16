@@ -13,6 +13,7 @@ import nlohmann.json;
 import omui.abi;
 import omui.lang;
 import omui.lang.ts;
+import mlibs.ts;
 import :prelude;
 
 namespace omui::lang::js {
@@ -544,9 +545,9 @@ JSModuleDef* load_module(JSContext* ctx, const char* name, void*) {
         // its file, a changed one's name carrying its version): the text an
         // edit gave it, or the file's; TypeScript with its types blanked.
         const std::string file(n.substr(0, n.find('#')));
-        std::expected<std::string, ts::TsFailure> code;
+        std::expected<std::string, mlibs::ts::TsFailure> code;
         if (const auto edited = s.overrides.find(file); edited != s.overrides.end()) {
-            if (file.ends_with(".ts") || file.ends_with(".mts")) code = ts::compile_source(edited->second, file);
+            if (file.ends_with(".ts") || file.ends_with(".mts")) code = mlibs::ts::compile_source(edited->second, file);
             else code = edited->second;
         } else {
             const auto path = mcpplibs::os::fs::from_utf8(file);
@@ -556,7 +557,7 @@ JSModuleDef* load_module(JSContext* ctx, const char* name, void*) {
                 return nullptr;
             }
             const auto extension = path.extension();
-            code = extension == ".ts" || extension == ".mts" ? ts::compile(path) : [&]() -> std::expected<std::string, ts::TsFailure> {
+            code = extension == ".ts" || extension == ".mts" ? mlibs::ts::compile(path) : [&]() -> std::expected<std::string, mlibs::ts::TsFailure> {
                 std::ifstream in(path, std::ios::binary);
                 return std::string{std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
             }();

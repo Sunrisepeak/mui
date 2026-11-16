@@ -10,7 +10,7 @@ using namespace mcpplibs::mtest;
 UTest cases{"omui.lang.ts.cts.errors", [] {
     "every error code says what went wrong and its way out"_test = [] {
         mlibs::cts::against({.subject = "omui.lang.ts"}, [] {
-            mlibs::cts::errors::declare("omui.lang.ts@1", omui::lang::ts::TsError::not_in_children);
+            mlibs::cts::errors::declare("omui.lang.ts@1", omui::lang::ts::EditError::not_in_children);
         });
     };
 }};

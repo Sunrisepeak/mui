@@ -30,7 +30,7 @@ The ES module `openmui` provides:
 
 For the player: `javascript()` (`*.js`, `*.mjs`) and `typescript()` (`*.ts`, `*.mts`).
 
-**TypeScript** (D-139) runs as the JavaScript left when its types are blanked, in this process and on the Web, with no tool: [omui.lang.ts](../ts/README.md).
+**TypeScript** (D-139) runs as the JavaScript left when its types are blanked, in this process and on the Web, with no tool: [mlibs.ts](../../../../base/ts/README.md).
 
 The conformance scenarios (`spec/conformance/S`, CTS level S) run in JavaScript through `tests/cts.js`. It builds each view with the builders and the expression functions and does the steps through `act`, `invoke` and the rest. It must record the trace pinned beside each scenario.
 

@@ -1,20 +1,28 @@
-// The module "openmui/define" (omui.lang.ts:data), the same everywhere.
+// omui's define modules (omui.lang.ts:define), the same everywhere, over the tool kernel's evaluator (mlibs.ts).
 module omui.lang.ts;
 
 import std;
+import mlibs.ts;
 
 namespace omui::lang::ts {
 
 std::string define_module_source(bool spec) {
-    std::string out = std::format("// {}/define: what a data module's default export is (omui.lang.ts:data, D-157).\n"
-                                  "const define = (kind) => (value) => Object.freeze({{ kind, value }});\n",
-                                  spec ? "openmui" : "omui");
-    for (const auto kind : spec ? std::span<const std::string_view>(spec_kinds) : std::span<const std::string_view>(omui_kinds)) {
-        std::string name(kind);
-        name[0] = static_cast<char>(name[0] - 'a' + 'A');
-        out += std::format("export const define{} = define(\"{}\");\n", name, kind);
-    }
-    return out;
+    return std::format("// {}/define: what a data module's default export is (omui.lang.ts:define, D-157).\n", spec ? "openmui" : "omui") +
+           mlibs::ts::define_module(spec ? std::span<const std::string_view>(spec_kinds) : std::span<const std::string_view>(omui_kinds));
+}
+
+mlibs::ts::DataOptions data_options(mlibs::ts::DataOptions options) {
+    options.modules.push_back({"openmui/define", define_module_source(true)});
+    options.modules.push_back({"omui/define", define_module_source(false)});
+    return options;
+}
+
+std::expected<mlibs::ts::Data, mlibs::ts::TsFailure> evaluate(const std::filesystem::path& file, mlibs::ts::DataOptions options) {
+    return mlibs::ts::evaluate(file, data_options(std::move(options)));
+}
+
+std::expected<mlibs::ts::Data, mlibs::ts::TsFailure> evaluate_source(std::string_view source, std::string_view name, mlibs::ts::DataOptions options) {
+    return mlibs::ts::evaluate_source(source, name, data_options(std::move(options)));
 }
 
 std::string_view omui_define_types() {

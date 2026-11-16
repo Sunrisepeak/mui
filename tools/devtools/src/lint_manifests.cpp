@@ -100,7 +100,8 @@ const std::vector<Allowed>& layer_rules() {
             {"ui", with({"ui"})},
             {"host", with({"ui", "host"})},
             {"components", with({"ui", "components"})},
-            {"lang", {"utils", "spec", "ui", "components", "lang"}},  // utils: mlibs.error, the error contract every layer answers in
+            // utils: mlibs.error, the error contract every layer answers in; base: mlibs.ts, the tool kernel's TypeScript (D-209)
+            {"lang", {"utils", "base", "spec", "ui", "components", "lang"}},
             {"sdk", with({"ui", "host", "components", "sdk"})},
             {"game", with({"ui", "host", "components", "game", "gongfu.core", "gongfu"})},
             {"tools", {"*"}},

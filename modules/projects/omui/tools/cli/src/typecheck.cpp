@@ -23,6 +23,7 @@ import mcpplibs.os;
 import omui.core;
 import omui.viewdoc;
 import omui.lang.ts;
+import mlibs.ts;
 
 namespace omui::cli {
 
@@ -292,8 +293,8 @@ int check_project(bool json, bool portable, std::ostream& out, std::ostream& err
             found.push_back({shown(file), diagnostic(vd::Diagnostic::Level::error, "read", 0, 0, text.error().message())});
             continue;
         }
-        if (auto stripped = lang::ts::strip_types(*text); !stripped)
-            for (const lang::ts::TypeScriptProblem& problem : stripped.error())
+        if (auto stripped = mlibs::ts::strip_types(*text); !stripped)
+            for (const mlibs::ts::TypeScriptProblem& problem : stripped.error())
                 found.push_back({shown(file), diagnostic(vd::Diagnostic::Level::error, "erasable", static_cast<std::uint32_t>(problem.line),
                                                                    static_cast<std::uint32_t>(problem.column), problem.text)});
     }

@@ -1,4 +1,4 @@
-// TypeScript to JavaScript by blanking the types (omui.lang.ts:strip).
+// TypeScript to JavaScript by blanking the types (mlibs.ts:strip).
 //
 // One pass of a skimming parser: it knows the JavaScript grammar well enough
 // to tell where a type begins and ends — an annotation after a parameter, the
@@ -12,12 +12,12 @@
 // at the end of a statement, a whole statement removed), and an arrow whose
 // return type spans lines has its `)` moved to the type's last column (no line
 // may come between `)` and `=>` in JavaScript).
-module omui.lang.ts;
+module mlibs.ts;
 
 import std;
 import mcpplibs.os;
 
-namespace omui::lang::ts {
+namespace mlibs::ts {
 
 namespace {
 
@@ -1780,4 +1780,4 @@ std::expected<std::string, TsFailure> compile_source(std::string_view source, st
     return std::unexpected(TsFailure{TsError::syntax, std::move(out), std::string(name)});
 }
 
-}  // namespace omui::lang::ts
+}  // namespace mlibs::ts

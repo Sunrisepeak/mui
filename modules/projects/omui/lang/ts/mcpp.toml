@@ -1,23 +1,23 @@
-# omui.lang.ts — TypeScript as code and as data (D-138, D-139): its types
-# blanked to the JavaScript under them (strip_types, here and on the Web), and
-# a data module (`export default defineContract({…})`) evaluated in a QuickJS
-# of its own, deterministic and bounded, to the JSON it stands for.
+# omui.lang.ts — omui's TypeScript over the tool kernel's (mlibs.ts, D-209):
+# omui's data formats (the kinds and the define modules "openmui/define" and
+# "omui/define", with their declarations), the declarations of components and
+# native modules, and the edits of a view's builder calls (Live Design).
 #
 # A package of its own (D-99): the runtime (omui.lang.js) and the build-time
-# generator (omui-gen) both read TypeScript, and the generator must not
+# generator (omui-gen) both read omui's TypeScript, and the generator must not
 # depend on the runtime.
 [package]
 namespace   = "omui.lang"
 name        = "ts"
 version     = "0.1.0"
-description = "TypeScript for openmui: types blanked to JavaScript, data modules evaluated to JSON"
+description = "omui's TypeScript: its data formats, declarations, and edits of builder calls (over mlibs.ts)"
 license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 kind = "lang"
-agent = { library = "TypeScript erased to JavaScript: a function of the source" }
+agent = { library = "declarations and edits of TypeScript: functions of the source" }
 
 [targets.openmui-lang-ts]
 kind = "lib"
@@ -25,28 +25,11 @@ kind = "lib"
 [build]
 sources = ["src/*.cppm", "src/*.cpp"]
 
-# Data modules are evaluated by QuickJS-ng where its wrap builds; a page
-# (wasm32) reads TypeScript, it does not generate from it (src/native/web).
-[target.'cfg(not(os = "emscripten"))'.build]
-sources = ["src/native/quickjs/*.cpp"]
-
-[target.'cfg(os = "emscripten")'.build]
-sources = ["src/native/web/*.cpp"]
-
 [dependencies]
-mcpplibs.os = "0.4.4"
-mlibs.utils = { path = "../../../../base/utils" }  # mlibs.error: why a source cannot be read, run or edited
-
-[target.'cfg(not(os = "emscripten"))'.dependencies]
-mcpplibs.mwrap.quickjs_ng = "0.17.0"
+mlibs.ts    = { path = "../../../../base/ts" }  # the tool kernel's TypeScript: blanking, evaluation
+mlibs.utils = { path = "../../../../base/utils" }  # mlibs.error: why a call cannot be edited
 
 [dev-dependencies]
 # Tests are mtest's (D-147).
 mcpplibs.mtest = "0.8.4"
 mlibs.cts = { path = "../../../../base/cts" }
-
-# esbuild is the oracle of the stripper's tests (strip_test), nothing else:
-# installed from xlings while this package is developed on its own (`dev`
-# reaches no consumer); in the workspace the root declares it for test runs.
-[xlings.workspace]
-"xim:esbuild" = { version = "0.25.12", when = "dev" }

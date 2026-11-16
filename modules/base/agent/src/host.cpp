@@ -153,8 +153,37 @@ Answered answer_to(Session& session, std::string_view request, std::chrono::mill
     return std::move(*answered);
 }
 
+// An operation's words without names (`document.check rise.json`): its parameters in its catalog's order, the
+// ones it needs first — as the session describes it. An operation the session does not know keeps only its name,
+// so that its answer is the session's: not found, and the nearest names.
+std::vector<std::string> named_in_order(Session& session, std::span<const std::string_view> arguments) {
+    std::vector<std::string> out(arguments.begin(), arguments.end());
+    const std::string_view op = arguments.front();
+    std::size_t bare = 1;
+    while (bare < arguments.size() && !arguments[bare].starts_with("--")) ++bare;
+    constexpr std::array own{"subjects", "help", "describe", "find", "log", "--request", "--help", "-h"};
+    if (bare == 1 || std::ranges::contains(own, op)) return out;
+    const auto described = data_of(answer_to(session, std::format(R"({{"op":"describe","operation":{}}})", json_text(op))));
+    if (!described || !described->root()["parameters"].is_array()) return {std::string(op)};
+    std::vector<std::string> order;
+    for (const bool optional : {false, true})
+        for (const json::Node& parameter : described->root()["parameters"].items())
+            if (parameter["optional"].boolean().value_or(false) == optional) order.push_back(parameter["name"].text().value_or(""));
+    if (order.empty()) return {std::string(op)};
+    std::vector<std::string> named{std::string(op)};
+    for (std::size_t at = 1; at < bare; ++at) {
+        // More words than parameters: the last one takes them all (a list: `effect.check a.json b.json`).
+        named.push_back("--" + order[std::min(at - 1, order.size() - 1)]);
+        named.emplace_back(arguments[at]);
+    }
+    named.insert(named.end(), arguments.begin() + static_cast<std::ptrdiff_t>(bare), arguments.end());
+    return named;
+}
+
 int command_line(Session& session, std::span<const std::string_view> arguments, std::ostream& out, std::ostream& errors) {
-    const auto request = request_from(arguments);
+    const std::vector<std::string> words = arguments.empty() ? std::vector<std::string>{} : named_in_order(session, arguments);
+    const std::vector<std::string_view> viewed(words.begin(), words.end());
+    const auto request = request_from(viewed);
     if (!request) {
         std::println(errors, "{}", request.error());
         std::println(errors, "  e.g. subjects | describe <subject or operation> | find <words> | <operation> --name value | --request '{{…}}'");

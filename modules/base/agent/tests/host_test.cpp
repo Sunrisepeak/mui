@@ -116,6 +116,11 @@ static UTest cases{"agent.host", [] {
         std::ostringstream short_out;
         const std::array short_name{std::string_view("add")};
         expect(eq(agent::command_line(session, short_name, short_out, errors), 1) && short_out.str().contains(R"("operation":"counter.add")")) << short_out.str();
+        // Words without names: the operation's parameters in its catalog's order.
+        std::ostringstream bare_out;
+        const std::array bare{std::string_view("counter.add"), std::string_view("3")};
+        expect(eq(agent::command_line(session, bare, bare_out, errors), 0) && bare_out.str().contains(R"("count":3)")) << bare_out.str();
+        expect(eq(counter.count, std::int64_t{3}));
         std::ostringstream none;
         expect(eq(agent::command_line(session, {}, none, errors), 2));
     };

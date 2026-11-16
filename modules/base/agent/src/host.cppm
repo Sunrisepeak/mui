@@ -35,7 +35,8 @@ struct Answered {
 // A request sent and its answer taken: the session pumped until the result comes, for at most `wait`.
 [[nodiscard]] Answered answer_to(Session& session, std::string_view request, std::chrono::milliseconds wait = std::chrono::seconds(30));
 
-// The command line's entry: the request the arguments make, sent; its records printed one a line on `out`; the
+// The command line's entry: the request the arguments make — an operation's words without names are its
+// parameters in its catalog's order, the ones it needs first (`document.check rise.json` is --file rise.json) — sent; its records printed one a line on `out`; the
 // result's exit code returned (2: the arguments make no request, said on `errors` with the way to write one).
 int command_line(Session& session, std::span<const std::string_view> arguments, std::ostream& out, std::ostream& errors);
 

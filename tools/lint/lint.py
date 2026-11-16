@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """openmui's repository rules, checked (AGENTS.md; implementation plan §15.3).
 
+Moving to C++ (D-206, RC3.12): macros, headers, naming, legacy-import, testing, cmdline, thirdparty,
+exceptions, paths, platform, determinism and owner are `omui-devtools lint` now (tools/devtools,
+held by its lint_test in every test row); the rules below that are not among them run here.
+
     python3 tools/lint/lint.py            check the repository
     python3 tools/lint/lint.py --self-test show that each rule catches a violation
 
@@ -76,8 +80,6 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 SOURCE_SUFFIXES = {".cppm", ".cpp", ".ixx", ".cc", ".cxx", ".h", ".hpp", ".hh", ".hxx", ".inl"}
-HEADER_SUFFIXES = {".h", ".hpp", ".hh", ".hxx", ".inl"}
-THE_HEADER = Path("spec/include/openmui.h")
 SKIP_DIRS = {"target", ".git", ".cache", "build", "node_modules", "fixtures", ".venv", "__pycache__"}
 
 # Layers (D-80, D-82; convergence plan §9.2). A name says who owns a package,
@@ -211,37 +213,6 @@ OMUI_BRIDGE = "modules/projects/xengine/game/ui"
 DETERMINISTIC = ["modules/base/math", "modules/base/utils", "modules/projects/omui/native", "modules/projects/xengine/kernel/audio", "modules/projects/xengine/kernel/video", "modules/projects/xengine/kernel/dynamics", "modules/projects/xengine/kernel/particles", "modules/projects/xengine/kernel/field", "showcase/widget-breakout/headless", "showcase/glade/headless", "modules/projects/hanim/core", "modules/projects/hanim", "modules/projects/xrender/raster", "modules/content/layout", "modules/base/geom", "modules/projects/xrender/graph", "modules/projects/xrender/vector", "modules/projects/xrender/text", "modules/content/text",
                  "modules/content/i18n", "modules/projects/omui/view", "showcase/promo-video"]
 
-# The forwarders M1 removed (D-106): the old module names and the omui::
-# namespace aliases that pointed at their owners. Code names the owner.
-LEGACY_MODULES = {'openmui.raster', 'openmui.simulation.cellular.rhi.cts', 'openmui.rhi.cts', 'openmui.memory', 'openmui.geom', 'openmui.unicode', 'openmui.rhi.webgl', 'openmui.image', 'openmui.testing', 'openmui.render.vector', 'openmui.pipeline', 'openmui.rhi', 'openmui.simulation.cellular', 'openmui.trace', 'openmui.shader', 'openmui.render', 'openmui.shader.rules', 'openmui.rhi.sdl', 'openmui.rhi.webgpu', 'openmui.log', 'openmui.markdown', 'openmui.i18n.cldr', 'openmui.layout', 'openmui.session', 'openmui.text', 'openmui.math', 'openmui.hash', 'openmui.render.effect', 'openmui.i18n', 'openmui.simulation.cellular.rhi', 'openmui.simulation'}
-# The script bindings D-138 removed: TypeScript (omui.lang.js) is the one script language.
-REMOVED_BINDINGS = re.compile(r"^omui\.(lang\.lua|lang\.python|entry\.python)(\.|:|$)")
-# A command line scanned by hand: an argument compared with a `--option`, or argv indexed by a variable.
-HAND_PARSED = re.compile(r'==\s*"--[A-Za-z]|starts_with\("--[A-Za-z]|\bargv\[[a-z_]\w*\]')
-LEGACY_ALIASES = re.compile(r"(?<![\w])omui::(cellular|effect|geom|hash|i18n|imageio|layout|math|md|pipeline|raster|render|rhi|session|shader|testing|trace|typeset|unicode)::")
-
-# Operating-system headers: platform code goes through mcpplibs.os (D-57), so
-# none of ours includes them, native units included.
-OS_HEADERS = re.compile(
-    r"#\s*include\s*[<\"](windows\.h|winsock2?\.h|unistd\.h|pthread\.h|dlfcn\.h|fcntl\.h|sys/[^>\"]+|mach/[^>\"]+|"
-    r"CoreFoundation/[^>\"]+|Cocoa/[^>\"]+|AppKit/[^>\"]+|linux/[^>\"]+)[>\"]")
-# Each capability's one owner, and the signature of a re-implementation.
-OWNERS_FILE = Path(__file__).resolve().parent / "capabilities.owners.omui.json"
-
-
-def load_owners() -> list[dict]:
-    rows = json.loads(OWNERS_FILE.read_text(encoding="utf-8"))["capability"]
-    for row in rows:
-        flags = re.IGNORECASE if row.get("ignore_case") else 0
-        row["compiled"] = [re.compile(x, flags) for x in ([row["pattern"]] if "pattern" in row else row["together"])]
-        row["mine"] = tuple(row.get("paths", [])) + tuple(a["path"] for a in row.get("allow", []))
-    return rows
-
-
-OWNERS = load_owners()
-TRANSCENDENTAL = re.compile(
-    r"\bstd::(exp|exp2|expm1|log|log2|log10|log1p|pow|sin|cos|tan|asin|acos|atan|atan2|sinh|cosh|tanh|cbrt|hypot|lerp)\s*\(")
-
 
 @dataclass
 class Problem:
@@ -333,100 +304,6 @@ def workspace_members(root: Path) -> list[str]:
         else:
             members.append(pattern)
     return members
-
-
-def check_sources(root: Path) -> list[Problem]:
-    problems = []
-    for path in source_files(root):
-        rel = path.relative_to(root)
-        rel_s = rel.as_posix()
-        text = path.read_text(encoding="utf-8", errors="replace")
-        code = strip_comments(text)
-        lines = code.splitlines()
-        is_the_header = rel == THE_HEADER
-
-        if path.suffix in HEADER_SUFFIXES and not is_the_header:
-            problems.append(Problem("headers", rel_s, "a header file; openmui has one header (openmui.h), the rest are modules"))
-
-        in_native = "native" in rel.parts
-        for no, line in enumerate(lines, 1):
-            stripped = line.strip()
-            if re.match(r"#\s*define\b", stripped) and not is_the_header:
-                problems.append(Problem("macros", f"{rel_s}:{no}", "#define; use constexpr, consteval or a module partition"))
-            if re.search(r"\bstd::(getenv|system|_Exit)\s*\(|\bgetenv\s*\(", line) or "/proc/" in text.splitlines()[no - 1]:
-                problems.append(Problem("platform", f"{rel_s}:{no}", "environment and process access go through mcpplibs.os (env, process)"))
-            if OS_HEADERS.match(stripped):
-                problems.append(Problem("platform", f"{rel_s}:{no}", "an operating-system header; use mcpplibs.os"))
-            if re.match(r"#\s*include\b", stripped) and not in_native and not is_the_header:
-                problems.append(Problem("headers", f"{rel_s}:{no}", "#include outside a native/ unit; import a module instead"))
-            if re.match(r"(export\s+)?import\s+mcpplibs\.mwrap\.", stripped) and not in_native and "tests" not in rel.parts:
-                problems.append(Problem("thirdparty", f"{rel_s}:{no}",
-                                        "a wrapped C library (mcpplibs.mwrap.*) is used only in a native/ unit (D-83)"))
-            mi = re.match(r"(export\s+)?import\s+([\w.]+)\s*;", stripped)
-            mo = re.match(r"(export\s+)?(?:module|import)\s+(openmui(?:[.:][\w.:]*)?)\s*;", stripped)
-            if mo and not mo.group(2).startswith("openmui.spec") and not rel_s.startswith("spec/"):
-                problems.append(Problem("legacy-import", f"{rel_s}:{no}", f"`{mo.group(2)}`: omui's modules are omui.* (D-107); openmui is the specification's"))
-            if mi and mi.group(2) in LEGACY_MODULES:
-                problems.append(Problem("legacy-import", f"{rel_s}:{no}", f"`{mi.group(2)}` was a forwarder (D-106): import its owner"))
-            if mi and REMOVED_BINDINGS.match(mi.group(2)):
-                problems.append(Problem("legacy-import", f"{rel_s}:{no}", f"`{mi.group(2)}`: the Lua and Python bindings are gone (D-138); write it in TypeScript"))
-            if LEGACY_ALIASES.search(line):
-                problems.append(Problem("legacy-import", f"{rel_s}:{no}", "an omui:: alias of another owner's namespace (D-106): name the owner"))
-            if (re.match(r"(export\s+)?import\s+(mlibs|openmui)\.testing\b", stripped) and "tests" not in rel.parts
-                    and not rel_s.startswith("modules/base/utils/src/testing/")):
-                problems.append(Problem("testing", f"{rel_s}:{no}", "mlibs.testing is for test programs (tests/): no artifact carries it"))
-            # Test programs (a package's tests/) are mtest's; the benchmark runners under tests/bench are programs.
-            if HAND_PARSED.search(line) and ("tests" not in rel.parts or rel_s.startswith("tests/bench/")):
-                problems.append(Problem("cmdline", f"{rel_s}:{no}", "a command line scanned by hand: declare its options with mcpplibs.cmdline "
-                                        "(a program run by omui::run adds them beside RunOptions::declare) (D-56)"))
-            if re.search(r"\bmui(::|_[a-z])|\bMUI_|\bnamespace\s+mui\b|\bmodule\s+mui\b|import\s+mui\b", line):
-                problems.append(Problem("naming", f"{rel_s}:{no}", "bare `mui`; use the owner: openmui (spec), omui (UI), a named product, mlibs or xengine"))
-
-        top = rel.parts[0] if rel.parts else ""
-        is_test = "tests" in rel.parts
-        if top in ("modules", "mgame") and not is_test:
-            # A native/ unit adapts a third-party library as it adapts its
-            # macros: it may catch what the library throws, to answer
-            # std::expected. Nothing in core code throws.
-            pattern = r"\bthrow\b" if in_native else r"\bthrow\b|\btry\s*\{|\bcatch\s*\("
-            for no, line in enumerate(lines, 1):
-                if re.search(pattern, line):
-                    problems.append(Problem("exceptions", f"{rel_s}:{no}", "exceptions in core code; return std::expected"))
-
-        # Paths are never narrowed through the code page (outside tests).
-        if "/tests/" not in rel_s and not rel_s.startswith("tests/"):
-            for no, line in enumerate(lines, 1):
-                if re.search(r"\.(generic_)?string\(\)", line) and "NARROW-OK:" not in line:
-                    problems.append(Problem("paths", f"{rel_s}:{no}",
-                                            "path::string() narrows through the code page on Windows; use utf8() / generic_utf8()"))
-
-        # One owner a capability: its signature nowhere else (plan §5.3 ①).
-        raw = text.splitlines()
-        for cap in OWNERS:
-            if rel_s.startswith(cap["mine"]) or ("within" in cap and not rel_s.startswith(tuple(cap["within"]))):
-                continue
-            if any(part in rel.parts for part in cap.get("skip", [])):
-                continue
-            exprs, window = cap["compiled"], cap.get("window", 1)
-            for no in range(1, len(lines) + 1):
-                if "marker" in cap and cap["marker"] in raw[no - 1]:
-                    continue
-                if len(exprs) == 1:
-                    hit = bool(exprs[0].search(lines[no - 1]))
-                else:
-                    span = lines[no - 1:no - 1 + window]
-                    hit = bool(exprs[0].search(lines[no - 1])) and all(any(x.search(l) for l in span) for x in exprs[1:])
-                if hit:
-                    problems.append(Problem("owner", f"{rel_s}:{no}", f"{cap['name']}: {cap['owner']} has it; use {cap['use']}"))
-
-        for member in DETERMINISTIC:
-            if rel_s.startswith(member + "/src/"):
-                for no, line in enumerate(lines, 1):
-                    m = TRANSCENDENTAL.search(line)
-                    if m:
-                        problems.append(Problem("determinism", f"{rel_s}:{no}",
-                                                f"std::{m.group(1)} differs between platforms' libm; use mlibs.math's det (hanim::dm)"))
-    return problems
 
 
 def check_manifests(root: Path) -> list[Problem]:
@@ -1573,7 +1450,7 @@ def run(root: Path) -> list[Problem]:
     unreadable = check_readable(root)
     if unreadable:
         return unreadable  # the other rules read the manifests
-    return (check_sources(root) + check_manifests(root) + check_projects(root) + check_layout(root) + check_licences(root) + check_platforms(root) + check_pins(root)
+    return (check_manifests(root) + check_projects(root) + check_layout(root) + check_licences(root) + check_platforms(root) + check_pins(root)
             + check_documents(root) + check_media(root) + check_closures(root) + check_operations(root) + check_skills(root) + check_agent_surface(root)
             + check_lead(root) + check_typescript_data(root) + check_imports(root) + check_matter(root) + check_shader_inputs(root) + check_status(root) + check_reexports(root) + check_maturity(root) + check_platform_table(root))
 
@@ -1581,23 +1458,12 @@ def run(root: Path) -> list[Problem]:
 def self_test() -> int:
     """Each rule must reject a violation planted in a copy of a minimal tree."""
     cases = {
-        "macros": ("modules/base/hanim/core/src/bad.cpp", "module x;\n#define BAD 1\n"),
         "toml": ("modules/ui/core/mcpp.toml", "[package]\nnamespace = \"omui\"\nname = \"core\"\n[dependencies]\na.b = \"1\"\na.b.c = \"2\"\n"),
-        "headers": ("modules/ui/core/src/util.h", "int f();\n"),
-        "naming": ("modules/ui/core/src/a.cpp", "namespace mui { }\n"),
-        "exceptions": ("modules/base/hanim/core/src/e.cpp", "void f() { throw 1; }\n"),
-        "paths": ("modules/ui/core/src/p.cpp", "std::string f(const std::filesystem::path& p) { return p.string(); }\n"),
-        "determinism": ("modules/base/math/src/d.cpp", "double f(double x) { return std::sin(x); }\n"),
-        "platform": ("modules/ui/core/src/native/io.cpp", "module;\n#include <unistd.h>\nmodule x;\n"),
         "layering": None,
         "modules": None,
         "layout": None,
         "licenses": None,
         "platforms": None,
-        "testing": ("modules/ui/core/src/t.cpp", "module x;\nimport mlibs.testing;\n"),
-        "cmdline": ("tools/x/src/main.cpp", "int main(int argc, char** argv) {\n    for (int i = 1; i < argc; ++i) if (std::string_view(argv[i]) == \"--json\") return 1;\n}\n"),
-        "legacy-import": ("modules/ui/core/src/l.cpp", "module x;\nimport openmui.geom;\n"),
-        "thirdparty": ("modules/base/hanim/core/src/w.cpp", "module x;\nimport mcpplibs.mwrap.md4c;\n"),
         "media": ("docs/huge.png", "x" * (1024 * 1024 + 1)),
         "manifest": None,
         "project-dag": None,
@@ -1622,8 +1488,6 @@ def self_test() -> int:
     except ImportError:
         del cases["documents"]
         print("  skip  documents: pip install jsonschema")
-    for cap in OWNERS:
-        cases[f"owner:{cap['name']}"] = (cap["sample"]["path"], cap["sample"]["text"] + "\n")
     failures = 0
     for rule, planted in cases.items():
         with tempfile.TemporaryDirectory() as tmp:

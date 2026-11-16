@@ -14,6 +14,8 @@
 //   api   a package's exported surface (api.omui.txt beside it): printed, written, or checked.
 //   atspi  examples 03 and 07 read and operated through AT-SPI, as a screen
 //         reader does (tools/ci/atspi.sh; exit 1 when a check fails).
+//   lint  the repository's rules (D-206: moving here from tools/lint/lint.py rule group by group);
+//         --self-test shows each rule catches a violation planted in a tree of its own.
 import std;
 import mcpplibs.cmdline;
 import mcpplibs.os;
@@ -23,6 +25,7 @@ import omui.devtools.atspi;
 import omui.devtools.ci;
 import omui.devtools.govern;
 import omui.devtools.incremental;
+import omui.devtools.lint;
 import omui.devtools.members;
 import omui.devtools.platforms;
 
@@ -197,7 +200,12 @@ cmd::App app() {
                         .option(Option("toolchain").takes_value().value_name("T").help("default: the LLVM of CI's rows (.github/workflows/ci.yml)"))
                         .option(Option("profile").takes_value().value_name("P").help("default: ci"))
                         .option(Option("no-consumers").help("only the members themselves"))
-                        .option(Option("dry").help("say what would be compiled, and how")));
+                        .option(Option("dry").help("say what would be compiled, and how")))
+        .subcommand(cmd::App("lint")
+                        .description("The repository's rules, checked (exit 1 when a rule is broken)")
+                        .option(Option("rule").takes_value().multiple().value_name("NAME").help("only these rules"))
+                        .option(Option("list").help("the rules and what each checks"))
+                        .option(Option("self-test").help("each rule's violation planted in a tree of its own: caught, and by it alone")));
 }
 
 void conclude(std::vector<rec::Row>& rows, const json& jobs) {
@@ -467,6 +475,25 @@ int surface(const cmd::ParsedArgs& options, const fs::path& root) {
     return differs ? 1 : 0;
 }
 
+int lint(const cmd::ParsedArgs& options, const fs::path& root) {
+    namespace lint = omui::devtools::lint;
+    if (options.is_flag_set("list")) {
+        for (const auto& rule : lint::rules()) std::cout << std::format("  {:14} {}\n", rule.name, rule.summary);
+        return 0;
+    }
+    if (options.is_flag_set("self-test")) {
+        std::error_code error;
+        const fs::path scratch = fs::temp_directory_path(error) / std::format("omui-devtools-lint-{}", std::chrono::steady_clock::now().time_since_epoch().count());
+        const int failed = lint::self_test(root, scratch, std::cout);
+        fs::remove_all(scratch, error);
+        return failed ? 1 : 0;
+    }
+    const auto problems = lint::run(root, options.option_or_empty("rule").values);
+    for (const auto& problem : problems) std::cout << problem.text() << '\n';
+    std::cout << std::format("lint: {} problem(s)\n", problems.size());
+    return problems.empty() ? 0 : 1;
+}
+
 int platforms(const cmd::ParsedArgs& options, const fs::path& root) {
     const auto table = read_file(root / "docs/platforms.omui.json");
     if (!table) {
@@ -509,6 +536,7 @@ int main(int argc, char** argv) {
     if (parsed->subcommand_name() == "llvm") return llvm(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "platforms") return platforms(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "api") return surface(parsed->subcommand()->get(), root);
+    if (parsed->subcommand_name() == "lint") return lint(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "atspi") {
         const auto& sub = parsed->subcommand()->get();
         const auto report = omui::devtools::atspi::check(mcpplibs::os::fs::from_utf8(sub.positional(0)),
@@ -518,6 +546,6 @@ int main(int argc, char** argv) {
     }
     if (parsed->subcommand_name() == "govern") return govern(parsed->subcommand()->get());
     if (parsed->subcommand_name() == "incremental") return incremental(parsed->subcommand()->get());
-    std::cerr << "usage: omui-devtools [--root DIR] ci … | llvm … | platforms | govern … | incremental … | api … | atspi …  (omui-devtools --help)\n";
+    std::cerr << "usage: omui-devtools [--root DIR] ci … | llvm … | platforms | govern … | incremental … | api … | atspi … | lint …  (omui-devtools --help)\n";
     return 2;
 }

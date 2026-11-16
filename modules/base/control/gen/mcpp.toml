@@ -15,7 +15,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 kind = "module"
-lower = ["mlibs.xdef"]  # lower-labelled parts it uses, each marked in its README
+lower = ["mlibs.xdef.tool"]  # lower-labelled parts it uses, each marked in its README
 
 [targets.mlibs-control-gen]
 kind = "lib"
@@ -29,7 +29,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
 mlibs.json = { path = "../../json" }
-mlibs.xdef = { path = "../../xdef" }  # a catalog module evaluated with its workspace's define modules
+mlibs.xdef.tool = { path = "../../xdef/tool" }  # a catalog module evaluated with its workspace's define modules
 mcpplibs.os = "0.4.4"
 mcpplibs.cmdline = "0.0.3"
 

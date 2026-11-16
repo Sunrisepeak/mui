@@ -146,7 +146,7 @@ UTest cases{"effect", [] {
             expect(eq(ok->params.size(), std::size_t{2}));
             expect(ok->params[0].name == "strength" && ok->params[0].value == 0.5f && ok->params[1].max == 16);
         }
-        auto bad = fx::read(R"({"effect": {
+        auto bad = fx::read(R"({"$format": "effect@1", "effect": {
   "name": "Scan lines",
   "reahc": 2,
   "params": [{"name": "strength", "default": 2}, {"name": "strength"}]
@@ -160,9 +160,9 @@ UTest cases{"effect", [] {
             expect(all.contains("the default 2 is outside [0, 1]")) << all;
             expect(all.contains("a second parameter named `strength`")) << all;
         }
-        auto reach = fx::read(R"({"effect": {"name": "x", "reach": "spread"}})", "x.effect.xdef.json");
+        auto reach = fx::read(R"({"$format": "effect@1", "effect": {"name": "x", "reach": "spread"}})", "x.effect.xdef.json");
         expect(!reach && problems(reach.error()).contains("`reach` names `spread`, which is not a parameter"));
-        auto broken = fx::read("{\"effect\": {\"name\": \"x\",\n  \"params\": [\n", "x.effect.xdef.json");
+        auto broken = fx::read("{\"$format\": \"effect@1\", \"effect\": {\"name\": \"x\",\n  \"params\": [\n", "x.effect.xdef.json");
         expect(!broken && broken.error().front().line == 3) << (broken ? "" : problems(broken.error()));
     };
 

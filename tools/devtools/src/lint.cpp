@@ -6,7 +6,7 @@ module omui.devtools.lint;
 import std;
 import nlohmann.json;
 import omui.devtools.lead;
-import mlibs.xdef;
+import mlibs.xdef.tool;
 import :tree;
 
 namespace omui::devtools::lint {
@@ -518,7 +518,7 @@ void plant(const fs::path& root, const Planted& planted, const fs::path& owners_
         const fs::path snapshot = child.path() / path_of(leaf + ".project.xdef.json");
         if (fs::exists(snapshot, error)) continue;
         write(child.path() / path_of(leaf + ".project.xdef.ts"), std::format("import {{ defineProject }} from \"omui/define\";\nexport default defineProject({{ name: \"{}\", dependsOn: [\"mlibs\"] }});\n", leaf));
-        write(snapshot, std::format("{{\"project\":{{\"name\":\"{}\",\"dependsOn\":[\"mlibs\"]}}}}\n", leaf));
+        write(snapshot, std::format("{{\"$format\":\"project@1\",\"project\":{{\"name\":\"{}\",\"dependsOn\":[\"mlibs\"]}}}}\n", leaf));
     }
 }
 
@@ -572,7 +572,7 @@ int self_test(const fs::path& repository, const fs::path& scratch, std::ostream&
         {.rule = "skills", .path = "modules/ui/core/skill.omui.md", .text = "# x\n\nSee [x.ops.xdef.ts](x.ops.xdef.ts); then `ui.wipe`.\n",
          .files = {{"modules/ui/core/x.ops.xdef.ts", "export default defineOps({ operations: [{ name: \"ui.snapshot\" }] });\n"}}},
         {"matter", "modules/ui/core/x.matter.xdef.json",
-         R"({"matter": {"materials": {"wood": {}, "ash": {}}, "laws": [{"when": "material == wood && temperature >= 500", "become": "burnt"}]}})"},
+         R"({"$format": "matter@1", "matter": {"materials": {"wood": {}, "ash": {}}, "laws": [{"when": "material == wood && temperature >= 500", "become": "burnt"}]}})"},
         {"shader-inputs", "modules/ui/core/x.slang", "struct VIn {\n    float3 position : TEXCOORD0;\n    float2 second : TEXCOORD4;\n};\n"},
         {.rule = "maturity", .label = "experimental"},
         {"scripts", "tools/x/run.sh", "#!/bin/sh\nmcpp build\n"},

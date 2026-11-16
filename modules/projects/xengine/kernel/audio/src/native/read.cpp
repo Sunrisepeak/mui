@@ -3,6 +3,7 @@
 module xengine.audio;
 
 import std;
+import mlibs.xdef;
 import mlibs.json;
 import mlibs.names;
 import :detail;
@@ -164,9 +165,14 @@ std::expected<std::vector<Sound>, std::vector<Problem>> read_sounds(std::string_
     if (!doc) return std::unexpected(std::vector<Problem>{detail::problem_of(doc.error())});
     Reader r{*doc, {}};
     const Node root = doc->root();
-    constexpr std::string_view shape = "{ \"sound\": { <name>: { layers: [ … ] } } }, as defineSound({ … }) evaluates";
+    constexpr std::string_view shape = "{ \"$format\": \"sound@1\", \"sound\": { <name>: { layers: [ … ] } } }, as defineSound({ … }) evaluates";
+    // A reader's first check (D-209): the snapshot names its format.
+    if (const auto wrong = mlibs::xdef::format_problem(root["$format"].text(), "sound", 1)) {
+        r.error(root["$format"] ? root["$format"] : root, *wrong, std::string(shape));
+        return std::unexpected(std::move(r.out));
+    }
     for (const auto& [key, value] : root.members())
-        if (key != "sound") r.error(value, std::format("a sound file has no key `{}`", key), std::string(shape));
+        if (key != "sound" && key != "$format") r.error(value, std::format("a sound file has no key `{}`", key), std::string(shape));
     const Node all = root["sound"];
     if (!all.is_object()) {
         r.error(all, "a sound file is an object of named sounds", std::string(shape));
@@ -204,7 +210,7 @@ std::expected<std::vector<Sound>, std::vector<Problem>> read_sounds(std::string_
 }
 
 std::string write_sounds(std::span<const Sound> sounds) {
-    std::string s = "{\"sound\": {";
+    std::string s = "{\"$format\": \"sound@1\", \"sound\": {";
     for (std::size_t index = 0; index < sounds.size(); ++index) {
         const Sound& sound = sounds[index];
         s += std::format("{}\n  {}: {{", index ? "," : "", json_text(sound.name));

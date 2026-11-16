@@ -3,6 +3,7 @@
 module omui.showcase.promo_video;
 
 import std;
+import mlibs.xdef;
 import mlibs.json;
 
 namespace omui::promo {
@@ -15,9 +16,14 @@ std::expected<Subtitles, std::vector<Problem>> read_subtitles(std::string_view t
         const auto p = doc->problem(n, std::move(message));
         out.push_back({p.file, static_cast<int>(p.line), static_cast<int>(p.column), std::format("{}: {}", p.at, p.message)});
     };
+    // A reader's first check (D-209): the snapshot names its format.
+    if (const auto wrong = mlibs::xdef::format_problem(doc->root()["$format"].text(), "subtitles", 1)) {
+        at(doc->root()["$format"] ? doc->root()["$format"] : doc->root(), *wrong);
+        return std::unexpected(std::move(out));
+    }
     const auto root = doc->root()["subtitles"];
     for (const auto& [key, value] : doc->root().members())
-        if (key != "subtitles") at(value, std::format("`{}` is not a key of a subtitles file: {{\"subtitles\": {{doc, lines}}}}", key));
+        if (key != "subtitles" && key != "$format") at(value, std::format("`{}` is not a key of a subtitles file: {{\"subtitles\": {{doc, lines}}}}", key));
     Subtitles subs;
     for (const auto& [key, value] : root.members()) {
         if (key == "doc") {

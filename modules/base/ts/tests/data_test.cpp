@@ -23,7 +23,7 @@ void write(const std::filesystem::path& file, std::string_view text) { std::ofst
 
 // The problem of evaluating `source` as a module in `dir`, or "" when it evaluated.
 // The kinds of the cases' define module, "test/define": an owner's, given with the options.
-constexpr std::array<std::string_view, 2> kinds{"contract", "config"};
+constexpr std::array<ts::DefinedKind, 2> kinds{{{"contract", 1}, {"config", 2}}};
 ts::DataOptions defined(ts::DataOptions options = {}) {
     options.modules.push_back({"test/define", ts::define_module(kinds)});
     return options;
@@ -77,14 +77,17 @@ export default defineContract({
         expect(again && again->json == data->json) << "the same answer every time";
     };
 
-    "a define module: a function per kind, each giving { kind, value }"_test = [] {
+    "a define module: a function per kind, each giving { kind, format, value }; the snapshot's canonical form"_test = [] {
         const auto dir = scratch("kinds");
-        for (const auto kind : kinds) {
-            std::string name(kind);
+        for (const auto& kind : kinds) {
+            std::string name(kind.name);
             name[0] = static_cast<char>(name[0] - 'a' + 'A');
             write(dir / "kind.ts", std::format("import {{ define{0} }} from \"test/define\";\nexport default define{0}({{ a: 1 }});\n", name));
             auto data = ts::evaluate(dir / "kind.ts", defined());
-            expect(data && data->kind == kind && data->json == R"({"a":1})") << (data ? data->kind : data.error().text());
+            expect(data && data->kind == kind.name && data->json == R"({"a":1})") << (data ? data->kind : data.error().text());
+            const auto format = std::format("{}@{}", kind.name, kind.major);
+            expect(data && data->format == format) << "the define function writes the format";
+            expect(data && data->snapshot() == std::format("{{\"$format\":\"{}\",\"{}\":{{\"a\":1}}}}\n", format, kind.name)) << (data ? data->snapshot() : "");
         }
         write(dir / "other.ts", "import { defineMissing } from \"test/define\";\nexport default defineMissing({});\n");
         const auto other = ts::evaluate(dir / "other.ts", defined());

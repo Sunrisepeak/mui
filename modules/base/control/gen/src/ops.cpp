@@ -3,7 +3,7 @@ module mlibs.control.gen;
 
 import std;
 import mlibs.json;
-import mlibs.xdef;
+import mlibs.xdef.tool;
 
 namespace mlibs::control::gen {
 namespace {
@@ -112,6 +112,7 @@ std::expected<Catalog, std::vector<std::string>> read_root(const mlibs::json::Do
         problems.push_back(std::format("{}:{}: {}", file, line, std::move(message)));
     };
     Catalog catalog;
+    if (const auto wrong = mlibs::xdef::format_problem(doc.root()["$format"].text(), "ops", 1)) problem(1, *wrong);  // a reader's first check (D-209)
     const Node head = doc.root()["ops"];
     if (!head.is_object())
         problem(1, "no `ops` object: { \"ops\": { product, module, namespace, doc, operations, tiers } }, as defineOps evaluates");
@@ -346,8 +347,6 @@ std::expected<Catalog, std::vector<std::string>> read_catalog_file(const std::fi
         if (!registry) return std::unexpected(std::vector<std::string>{registry.error()});
         auto text = mlibs::xdef::snapshot(file, *registry);
         if (!text) return std::unexpected(std::vector<std::string>{text.error().text()});
-        if (!text->starts_with("{\"ops\":"))
-            return std::unexpected(std::vector<std::string>{std::format("{}: the default export is not defineOps(…)", name)});
         auto doc = mlibs::json::Document::parse(*text, name.substr(0, name.size() - 3) + ".json");
         if (!doc) return std::unexpected(std::vector<std::string>{doc.error().text()});
         return read_root(*doc, name);

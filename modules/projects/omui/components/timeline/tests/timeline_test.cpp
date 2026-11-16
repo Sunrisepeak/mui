@@ -27,7 +27,7 @@ mlibs::text::FontCollection& fonts() {
     return f;
 }
 
-constexpr std::string_view promo = R"({"timeline": {
+constexpr std::string_view promo = R"({"$format": "timeline@1", "timeline": {
   "name": "promo", "rate": 30,
   "markers": [
     {"at": "2s", "name": "beat"}
@@ -153,7 +153,7 @@ UTest cases{"ui.timeline", [] {
     };
 
     "a document that does not read says why, at its place, to people and agents"_test = [] {
-        Editor e(R"({"timeline": {"tracks": [{"kind": "vidoe"}]}})");
+        Editor e(R"({"$format": "timeline@1", "timeline": {"tracks": [{"kind": "vidoe"}]}})");
         const Value v = e.seen();
         expect(v.get("problems") && v.get("problems")->list() && !v.get("problems")->list()->empty()) << "the problems in its value";
         expect((*v.get("problems")->list())[0].as_string().contains("did you mean `video`?")) << "with the nearest right word";

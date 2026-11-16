@@ -2,6 +2,7 @@
 module omui.theme;
 
 import std;
+import mlibs.xdef;
 import mlibs.error;
 import omui.core;
 import omui.view;
@@ -331,7 +332,8 @@ std::string write_style(const Style& st) {
         }
         style.set("motions", std::move(motions));
     }
-    return indented_json(Value(Value::Map{}).set("style", Value(Value::Map{}).set(st.name, std::move(style))));
+    // Its format first (D-209): what a reader checks before it reads.
+    return indented_json(Value(Value::Map{}).set(std::string(mlibs::xdef::format_key), Value(std::string("style@1"))).set("style", Value(Value::Map{}).set(st.name, std::move(style))));
 }
 
 Library& library() {

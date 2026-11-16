@@ -1,6 +1,7 @@
 module omui.gen.read;
 
 import std;
+import mlibs.xdef;
 import mlibs.json;
 import omui.gen.data;
 import omui.gen.model;
@@ -509,6 +510,11 @@ std::vector<Contract> read_contracts(const std::filesystem::path& file, const Re
     auto parsed = parse(file, diags);
     if (!parsed) return out;
     Reader r{*parsed, diags};
+    // A reader's first check (D-209): the snapshot names its format.
+    if (const auto wrong = mlibs::xdef::format_problem(parsed->root()["$format"].text(), "contract", 1)) {
+        diags.error(r.loc(parsed->root()), *wrong, "{ \"$format\": \"contract@1\", \"contract\": { <name>: { … } } }, as defineContract evaluates");
+        return out;
+    }
     const Node contracts = parsed->root()["contract"];
     if (!contracts.is_object()) {
         diags.error(r.loc(parsed->root()), "no `contract` object of named contracts", "{ \"contract\": { <name>: { … } } }, as defineContract evaluates");
@@ -763,6 +769,11 @@ std::vector<NativeModule> read_natives(const std::filesystem::path& file, const 
     auto parsed = parse(file, diags);
     if (!parsed) return out;
     Reader r{*parsed, diags};
+    // A reader's first check (D-209): the snapshot names its format.
+    if (const auto wrong = mlibs::xdef::format_problem(parsed->root()["$format"].text(), "native", 1)) {
+        diags.error(r.loc(parsed->root()), *wrong, "{ \"$format\": \"native@1\", \"native\": { <name>: { … } } }, as defineNative evaluates");
+        return out;
+    }
     const Node natives = parsed->root()["native"];
     if (!natives.is_object()) {
         diags.error(r.loc(parsed->root()), "no `native` object of named modules", "{ \"native\": { <name>: { … } } }, as defineNative evaluates");

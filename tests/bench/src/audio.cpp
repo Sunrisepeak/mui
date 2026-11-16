@@ -10,7 +10,7 @@ namespace omui::bench {
 
 namespace {
 
-constexpr std::string_view sounds = R"({"sound": {
+constexpr std::string_view sounds = R"({"$format": "sound@1", "sound": {
   "punch": {"layers": [
     {"wave": "noise", "length": 0.09, "envelope": {"attack": 0.001, "decay": 0.08, "sustain": 0, "release": 0.01}, "filter": {"kind": "lowpass", "cutoff": [4000, 500], "q": 0.8}, "gain": 0.6},
     {"wave": "sine", "length": 0.16, "pitch": [170, 55], "envelope": {"attack": 0.002, "decay": 0.14, "sustain": 0, "release": 0.02}, "drive": 0.3}

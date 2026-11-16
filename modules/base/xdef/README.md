@@ -1,6 +1,6 @@
 # mlibs.xdef
 
-Declared data's container, the tool kernel's: a data file's name, its format identifier, the registry of kinds that each owner keeps in its manifest, a data module's snapshot in its one canonical form, and the checker (D-209; design: `.agents/docs/2026-11-16-xdef-declared-data-design.md`). `xdef` is its thin program: the reference evaluator and checker.
+Declared data's container (D-209; design: `.agents/docs/2026-11-16-xdef-declared-data-design.md`). This package is what a reader takes: a data file's name and its format identifier, and `format_problem(text, kind, major)`, a reader's first check of a snapshot's `$format` (the standard library alone, whatever JSON the reader reads). Its [tool](tool) (`mlibs.xdef.tool`) holds the registry of kinds that each owner keeps in its manifest, a data module's snapshot in its one canonical form, the checker and the migration; `xdef` is that tool's thin program, the reference evaluator and checker. A runtime reader so carries no evaluator.
 
 It knows no kind's fields. A kind's content is its owner's: its define module, its reader, its CTS. `xdef` is an internal code name (D-208); its suffix is persisted, so a rename of it comes with a migration command.
 
@@ -13,7 +13,7 @@ xdef check .                         # every data file's kind registered, every 
 ## The container (xdef 0.1)
 
 1. **A file's name** is `<name>.<kind>.xdef.<extension>`, the extension `ts` (a data module), `json` (a snapshot, or data a tool writes) or `jsonl` (records a line each). `<kind>` is lowercase letters, digits, `-` and `_`. A file named with the earlier suffix (`.omui.`, before RC3.15) is moved by `xdef migrate [DIR] [--write]`: renamed, and every text that names it rewritten (D-208).
-2. **A format identifier** is `<kind>@<major>`, the major a whole number from 1. In a snapshot it is the top-level `"$format"` and it is the authority; the suffix is a hint (RC3.15's step 4 writes it).
+2. **A format identifier** is `<kind>@<major>`, the major a whole number from 1. In a snapshot (`{"<kind>": value}`) it is the top-level `"$format"`, first, and it is the authority; the suffix is a hint. A reader checks it before it reads (`format_problem`). A document a tool writes in its own shape (a report, an animation document, a locale pack, a view document) names its format by its owner's own field until its owner moves it to `$format`.
 3. **The registry** is data: each owner registers its kinds in its own manifest. A kind has one owner, one major version and at most one define module; a kind with two owners is a problem.
 
    ```toml
@@ -32,4 +32,5 @@ xdef check .                         # every data file's kind registered, every 
 
 - no data file keeps the earlier container's suffix (`xdef migrate` renames it);
 - every data file's kind is registered by some package;
+- every committed snapshot names its kind's format (`$format`);
 - every module with a committed snapshot beside it evaluates to that snapshot's bytes now.

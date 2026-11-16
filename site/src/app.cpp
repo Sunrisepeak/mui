@@ -54,7 +54,7 @@ Theme site_theme() {
     return Theme::light();
 }
 
-constexpr std::string_view sample = R"({"timeline": {
+constexpr std::string_view sample = R"({"$format": "timeline@1", "timeline": {
   "name": "a short", "rate": 30,
   "markers": [
     {"at": "4s", "name": "the beat"}

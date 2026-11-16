@@ -48,6 +48,7 @@ omui.lang                      = { path = "../../modules/projects/omui/lang" }
 "omui.lang.js"                   = { path = "../../modules/projects/omui/lang/js" }
 "omui.lang.ts"                   = { path = "../../modules/projects/omui/lang/ts" }  # --dir: an edited data module evaluated
 mlibs.json                       = { path = "../../modules/base/json" }
+mlibs.xdef = { path = "../../modules/base/xdef" }  # a snapshot's format checked first (D-209)
 omui.showcase.markdown_wall      = { path = "../markdown-wall" }
 omui.showcase.style_gallery      = { path = "../style-gallery" }
 omui.showcase.widget_breakout  = { path = "../widget-breakout" }

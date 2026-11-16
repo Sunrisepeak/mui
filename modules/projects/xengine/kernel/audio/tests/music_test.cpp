@@ -46,7 +46,7 @@ namespace {
 // chord, an FM bell, a pad pumping under its kick, drum lanes with a choke,
 // a gated pad, a reverb and a ping-pong echo, an intro, a loop of two
 // sections with layers by intensity, and an outro.
-constexpr std::string_view piece = R"({"music": {
+constexpr std::string_view piece = R"({"$format": "music@1", "music": {
   "doc": "A test piece: every part of the format once.",
   "name": "test", "tempo": 140, "meter": [4, 4], "gain": 0.4,
   "patches": {
@@ -102,7 +102,7 @@ std::vector<std::string> problems_of(std::string_view text) {
 
 // A one-instrument piece around `notes` (`patch`, `tempo`).
 std::string solo_piece(std::string_view patch, std::string_view notes, int tempo = 120) {
-    return std::format(R"({{"music": {{
+    return std::format(R"({{"$format": "music@1", "music": {{
   "name": "solo", "tempo": {}, "meter": [4, 4],
   "instruments": {{"x": {{"patch": "{}"}}}},
   "patterns": {{"p": {{"instrument": "x", "notes": "{}"}}}},
@@ -200,7 +200,7 @@ UTest cases{"music", [] {
     };
 
     "every problem at its place (pointer, line, column), with the nearest right word; a wrong note at its very token"_test = [] {
-        const auto bad = problems_of(R"({"music": {
+        const auto bad = problems_of(R"({"$format": "music@1", "music": {
   "name": "bad", "tempp": 120,
   "instruments": {
     "lead": {"patch": "kotto", "sends": {"rooom": 0.3}}
@@ -241,7 +241,7 @@ UTest cases{"music", [] {
                   const auto a = t.find(':') + 1, b = t.find(':', a);
                   return std::stoi(t.substr(a, b - a));
               })) << all;
-        const auto malformed = problems_of("{\"music\": {\n  \"tempo\": \n}}");
+        const auto malformed = problems_of("{\"$format\": \"music@1\", \"music\": {\n  \"tempo\": \n}}");
         expect(malformed.size() == 1 && malformed[0].starts_with("bad.music.xdef.json:3:")) << std::format("{}", malformed);
     };
 
@@ -280,7 +280,7 @@ UTest cases{"music", [] {
 
     "drums: a kick falls in pitch and dies; a closed hat is short and bright, a taiko long and low; an open hat is choked by a closed one"_test = [] {
         auto hit = [](std::string_view patch) {  // a lane: the drum at its own pitch
-            const auto m = read_piece(std::format(R"({{"music": {{
+            const auto m = read_piece(std::format(R"({{"$format": "music@1", "music": {{
   "name": "drum", "tempo": 120, "meter": [4, 4],
   "instruments": {{
     "x": {{"patch": "{}"}}
@@ -313,7 +313,7 @@ UTest cases{"music", [] {
         expect(rms(hat, 9600, 14400) < 0.01 * rms(hat, 0, 2400) && rms(taiko, 14400, 19200) > 0.05 * rms(taiko, 0, 2400)) << "the hat short, the taiko long";
         // An open hat alone rings; followed by a closed one it is cut.
         auto lanes = [](std::string_view open, std::string_view closed) {
-            return read_piece(std::format(R"({{"music": {{
+            return read_piece(std::format(R"({{"$format": "music@1", "music": {{
   "name": "hats", "tempo": 120, "meter": [4, 4],
   "instruments": {{
     "open": {{"patch": "open_hat", "choke": "hats"}},
@@ -374,7 +374,7 @@ UTest cases{"music", [] {
     };
 
     "intensity: a layer comes in at the next bar after it is asked for, and goes at the next bar after"_test = [] {
-        const auto m = read_piece(R"({"music": {
+        const auto m = read_piece(R"({"$format": "music@1", "music": {
   "name": "layers", "tempo": 120, "meter": [4, 4],
   "instruments": {
     "kick": {"patch": "woodblock"},
@@ -433,7 +433,7 @@ UTest cases{"music", [] {
         expect(eq(loop_point, std::size_t{822857}));
         // A tone held to the end of a one-bar loop and struck again as it goes round: the curve of the sound (its second
         // difference) is as smooth across the loop point as in the middle of the bar; no step, no gap.
-        const auto tone = read_piece(R"({"music": {
+        const auto tone = read_piece(R"({"$format": "music@1", "music": {
   "name": "round", "tempo": 120, "meter": [4, 4],
   "patches": {
     "sine": {"engine": "analog", "osc": {"wave": "sine"}, "amp": {"attack": 0.02, "decay": 1, "sustain": 1, "release": 0.3}}

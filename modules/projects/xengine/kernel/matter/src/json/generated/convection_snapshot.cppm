@@ -7,7 +7,7 @@ import std;
 export namespace xengine::matter {
 
 // The text of convection.matter.xdef.json.
-inline constexpr std::string_view convection_snapshot = R"omui({"matter":{"laws":[{"name":"warm is lighter","when":"phase == gas","lower":{"density":"temperature / 4096"}}]}}
+inline constexpr std::string_view convection_snapshot = R"omui({"$format":"matter@1","matter":{"laws":[{"name":"warm is lighter","when":"phase == gas","lower":{"density":"temperature / 4096"}}]}}
 )omui";
 
 }  // namespace xengine::matter

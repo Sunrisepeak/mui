@@ -3,7 +3,7 @@
 import std;
 import mcpplibs.cmdline;
 import mcpplibs.os;
-import mlibs.xdef;
+import mlibs.xdef.tool;
 
 namespace {
 

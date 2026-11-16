@@ -7,8 +7,10 @@ import mlibs.ts;
 namespace omui::lang::ts {
 
 std::string define_module_source(bool spec) {
+    std::vector<mlibs::ts::DefinedKind> kinds;  // every one of omui's kinds at its first major version
+    for (const auto kind : spec ? std::span<const std::string_view>(spec_kinds) : std::span<const std::string_view>(omui_kinds)) kinds.push_back({kind, 1});
     return std::format("// {}/define: what a data module's default export is (omui.lang.ts:define, D-157).\n", spec ? "openmui" : "omui") +
-           mlibs::ts::define_module(spec ? std::span<const std::string_view>(spec_kinds) : std::span<const std::string_view>(omui_kinds));
+           mlibs::ts::define_module(kinds);
 }
 
 mlibs::ts::DataOptions data_options(mlibs::ts::DataOptions options) {

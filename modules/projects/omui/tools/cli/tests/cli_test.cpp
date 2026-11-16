@@ -363,7 +363,7 @@ UTest cases{"cli", [] {
         r = omui_cmd({"video", "timing", "--fps", "30000/1001", "--frames", "5"});
         v = data(r.out);
         expect(r.code == 0 && v && v->get("samples")->as_int() == 8008) << r.out;
-        std::ofstream(dir / "bad.video.xdef.json", std::ios::binary) << "{\"video\": {\n  \"width\": 64,\n  \"height\": 36,\n  \"fsp\": 30,\n  \"seconds\": 1\n}}";
+        std::ofstream(dir / "bad.video.xdef.json", std::ios::binary) << "{\"$format\": \"video@1\", \"video\": {\n  \"width\": 64,\n  \"height\": 36,\n  \"fsp\": 30,\n  \"seconds\": 1\n}}";
         r = omui_cmd({"video", "check", utf8(dir / "bad.video.xdef.json")});
         v = data(r.out);
         expect(r.code == 1 && v && v->get("problems")->list()->at(0).get("line")->as_int() == 4) << r.out;

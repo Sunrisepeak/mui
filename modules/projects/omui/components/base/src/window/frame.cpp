@@ -23,9 +23,9 @@ constexpr float edge_inset = 12;       // the buttons' distance from the title b
 
 // The texts the frame shows or names, as keys with the English text in the
 // source catalog and Chinese beside it.
-constexpr std::string_view messages_en = R"({"messages": {"window": {"minimize": "Minimize", "maximize": "Maximize", "restore": "Restore", "close": "Close"}}})";
-constexpr std::string_view messages_zh_hans = R"({"messages": {"window": {"minimize": "最小化", "maximize": "最大化", "restore": "还原", "close": "关闭"}}})";
-constexpr std::string_view messages_zh_hant = R"({"messages": {"window": {"minimize": "最小化", "maximize": "最大化", "restore": "還原", "close": "關閉"}}})";
+constexpr std::string_view messages_en = R"({"$format": "messages@1", "messages": {"window": {"minimize": "Minimize", "maximize": "Maximize", "restore": "Restore", "close": "Close"}}})";
+constexpr std::string_view messages_zh_hans = R"({"$format": "messages@1", "messages": {"window": {"minimize": "最小化", "maximize": "最大化", "restore": "还原", "close": "关闭"}}})";
+constexpr std::string_view messages_zh_hant = R"({"$format": "messages@1", "messages": {"window": {"minimize": "最小化", "maximize": "最大化", "restore": "還原", "close": "關閉"}}})";
 
 std::string_view kind_name(CaptionButtonKind k) {
     switch (k) {

@@ -4,6 +4,7 @@
 module mlibs.i18n.api;
 
 import std;
+import mlibs.xdef;
 import mlibs.json;
 
 namespace mlibs::i18n {
@@ -37,8 +38,13 @@ std::expected<Catalog, std::vector<Diagnostic>> read_messages(std::string_view t
     }
     std::vector<Diagnostic> problems;
     const auto root = doc->root();
+    // A reader's first check (D-209): the snapshot names its format.
+    if (const auto wrong = mlibs::xdef::format_problem(root["$format"].text(), "messages", 1)) {
+        const auto p = doc->problem(root["$format"] ? root["$format"] : root, *wrong);
+        return std::unexpected(std::vector<Diagnostic>{{p.file, static_cast<int>(p.line), static_cast<int>(p.column), p.message}});
+    }
     for (const auto& [key, value] : root.members())
-        if (key != "messages") {
+        if (key != "messages" && key != "$format") {
             const auto p = doc->problem(value, std::format("`{}` is not a key of a catalog: {{\"messages\": {{…}}}}, as defineMessages evaluates", key));
             problems.push_back({p.file, static_cast<int>(p.line), static_cast<int>(p.column), p.message});
         }

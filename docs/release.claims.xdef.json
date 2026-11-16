@@ -1,5 +1,5 @@
 {
-  "$format": "omui.claims@1",
+  "$format": "claims@1",
   "doc": "The claims ledger (release plan §6.4, D-193): every number and every verdict (ahead, par, behind, N×) a public document states against another project, with its evidence. The document carries `claim:<id>` where it says it (an HTML comment in Markdown); lint `claims` holds both ends: every mark is here, every claim here is marked where it says, and its evidence exists — a test by its name, a benchmark by its name in a budget, a row of the lead ledger by its metric. A release candidate runs every one again. An experimental module states its goal and where it is now, and is not here.",
   "claims": [
     {

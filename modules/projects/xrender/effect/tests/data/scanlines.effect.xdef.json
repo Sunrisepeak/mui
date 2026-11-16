@@ -1,4 +1,4 @@
-{
+{"$format": "effect@1",
   "effect": {
     "name": "scanlines",
     "doc": "Every period-th row darkened by strength, as on a CRT.",

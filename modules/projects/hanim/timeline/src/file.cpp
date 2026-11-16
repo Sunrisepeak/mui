@@ -3,6 +3,7 @@
 module hanim.timeline;
 
 import std;
+import mlibs.xdef;
 import hanim.core;
 import mlibs.json;
 import mlibs.names;
@@ -158,9 +159,14 @@ std::expected<Timeline, std::vector<Problem>> read_timeline(std::string_view tex
         return std::unexpected(std::vector<Problem>{{p.file, static_cast<int>(p.line), static_cast<int>(p.column), p.message, p.hint, p.at}});
     }
     Reader r{*doc, {}, {}};
-    constexpr std::string_view shape = "{ \"timeline\": { name, rate, size, markers: […], tracks: […] } }, as defineTimeline({ … }) evaluates";
+    constexpr std::string_view shape = "{ \"$format\": \"timeline@1\", \"timeline\": { name, rate, size, markers: […], tracks: […] } }, as defineTimeline({ … }) evaluates";
+    // A reader's first check (D-209): the snapshot names its format.
+    if (const auto wrong = mlibs::xdef::format_problem(doc->root()["$format"].text(), "timeline", 1)) {
+        r.error(doc->root()["$format"] ? doc->root()["$format"] : doc->root(), *wrong, std::string(shape));
+        return std::unexpected(std::move(r.out));
+    }
     for (const auto& [key, value] : doc->root().members())
-        if (key != "timeline") r.error(value, std::format("a timeline file has no key `{}`", key), std::string(shape));
+        if (key != "timeline" && key != "$format") r.error(value, std::format("a timeline file has no key `{}`", key), std::string(shape));
     const Node t = doc->root()["timeline"];
     Timeline tl;
     if (!t.is_object()) {
@@ -228,7 +234,7 @@ std::expected<Timeline, std::vector<Problem>> read_timeline(std::string_view tex
 std::string write_timeline(const Timeline& tl) {
     const Rate rate = tl.rate;
     auto when = [&](Flicks t) { return json_text(time_text(t, rate)); };
-    std::string s = std::format("{{\"timeline\": {{\n  \"name\": {}, \"rate\": {}, \"sample_rate\": {}, \"size\": [{}, {}]", json_text(tl.name),
+    std::string s = std::format("{{\"$format\": \"timeline@1\", \"timeline\": {{\n  \"name\": {}, \"rate\": {}, \"sample_rate\": {}, \"size\": [{}, {}]", json_text(tl.name),
                                 rate.den == 1 ? std::format("{}", rate.num) : std::format("\"{}/{}\"", rate.num, rate.den), tl.sample_rate, tl.width, tl.height);
     if (!tl.markers.empty()) {
         s += ",\n  \"markers\": [";

@@ -511,7 +511,7 @@ UTest cases{"xengine.matter", [] {
     };
 
     "a definition is read from JSON, and its problems are said by pointer at their place in the text — reading's and preparing's alike"_test = [] {
-        const std::string text = R"({"matter": {
+        const std::string text = R"({"$format": "matter@1", "matter": {
   "columns": {"sticky": {"unit": "", "most": 10, "defualt": 1}},
   "channels": {"tautness": {"initial": 5, "resets": "yes"}},
   "materials": {"mud": {"phase": "liquid", "density": 1500, "sticky": 3, "tags": ["earth"]}, "clay": {"density": true}},
@@ -532,7 +532,7 @@ UTest cases{"xengine.matter", [] {
         expect(eq(said.size(), std::size_t{6})) << said;
 
         // Read, and wrong only when prepared: the same place, the same form.
-        const std::string late = R"({"matter": {
+        const std::string late = R"({"$format": "matter@1", "matter": {
   "materials": {"mud": {"phase": "liquid", "frozen": "dry_mud"}},
   "laws": []
 }})";
@@ -541,7 +541,7 @@ UTest cases{"xengine.matter", [] {
         expect(eq(plan.error().front().text(), std::string("late.matter.xdef.json:2:54: /matter/materials/mud/frozen: `frozen` of `mud` is a material's name (one of `mud`)")));
 
         // What is written reads; on the standard columns and channels.
-        const std::string good = R"({"matter": {
+        const std::string good = R"({"$format": "matter@1", "matter": {
   "columns": {"sticky": {"unit": "", "most": 8, "default": 1}},
   "channels": {"tautness": {"initial": 5, "rise": "pressed"}},
   "materials": {"mud": {"phase": "liquid", "density": 1500, "sticky": 3, "tags": ["earth"]}},

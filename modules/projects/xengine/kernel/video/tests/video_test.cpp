@@ -42,7 +42,7 @@ imageio::Image solid(int w, int h, std::uint8_t r, std::uint8_t g, std::uint8_t 
     return img;
 }
 
-constexpr std::string_view sounds_file = R"({"sound": {"click": {"layers": [
+constexpr std::string_view sounds_file = R"({"$format": "sound@1", "sound": {"click": {"layers": [
   {"wave": "square", "length": 0.02, "pitch": [2000, 2000], "envelope": {"attack": 0, "hold": 0.01, "decay": 0.01, "sustain": 0, "release": 0}}
 ]}}})";
 
@@ -233,7 +233,7 @@ UTest cases{"xengine.video", [] {
 
     "a description: read, its problems at their place, written back as itself"_test = [] {
         // As write_description writes it: an entry a line where it reads best.
-        constexpr std::string_view text = R"({"video": {
+        constexpr std::string_view text = R"({"$format": "video@1", "video": {
   "doc": "A test.",
   "width": 320, "height": 180, "fps": "30000/1001", "seconds": 3,
   "from": {"png": "shots/{:05}.png"},
@@ -256,7 +256,7 @@ UTest cases{"xengine.video", [] {
         const auto back = video::read_description(written, "t");
         expect(back.has_value() && *back == *d);
 
-        const auto bad = video::read_description("{\"video\": {\n  \"widht\": 3,\n  \"fps\": 0,\n  \"seconds\": 1,\n  \"from\": {\"card\": \"synk\"},\n  \"audio\": {\"cues\": [{\"sound\": \"x\", \"at\": 1, \"frame\": 2}]}\n}}", "bad.video.xdef.json");
+        const auto bad = video::read_description("{\"$format\": \"video@1\", \"video\": {\n  \"widht\": 3,\n  \"fps\": 0,\n  \"seconds\": 1,\n  \"from\": {\"card\": \"synk\"},\n  \"audio\": {\"cues\": [{\"sound\": \"x\", \"at\": 1, \"frame\": 2}]}\n}}", "bad.video.xdef.json");
         expect(!bad.has_value());
         if (bad) return;
         std::vector<std::string> texts;
@@ -266,13 +266,13 @@ UTest cases{"xengine.video", [] {
         expect(has("bad.video.xdef.json:3:10: /video/fps: `fps`")) << std::format("{}", texts);
         expect(has("no card `synk` (did you mean `sync`?)")) << std::format("{}", texts);
         expect(has("a cue has `at` or `frame`, not both")) << std::format("{}", texts);
-        expect(!video::read_description("{\"video\": {\n", "x").has_value());
+        expect(!video::read_description("{\"$format\": \"video@1\", \"video\": {\n", "x").has_value());
     };
 
     "a sound track: each cue on its frame's first sample, through the mixer; the bits pinned"_test = [] {
         const auto dir = scratch_dir("video-soundtrack");
         std::ofstream(dir / "ui.sound.xdef.json") << sounds_file;
-        const auto d = video::read_description(R"({"video": {
+        const auto d = video::read_description(R"({"$format": "video@1", "video": {
   "width": 64, "height": 36, "fps": 30, "seconds": 2,
   "audio": {"sounds": "ui.sound.xdef.json", "cues": [{"sound": "click", "frame": 30}, {"sound": "click", "at": 0.5, "pan": -1}]}
 }})",

@@ -3,6 +3,7 @@
 module xrender.effect.api;
 
 import std;
+import mlibs.xdef;
 import mlibs.json;
 import mlibs.names;
 
@@ -73,9 +74,14 @@ std::expected<Declaration, Diagnostics> read(std::string_view source, std::strin
         return std::unexpected(std::move(problems));
     }
     Reader r{*doc, problems};
-    constexpr std::string_view shape = "{ \"effect\": { name, doc, reach, params: [ … ] } }, as defineEffect({ … }) evaluates";
+    constexpr std::string_view shape = "{ \"$format\": \"effect@1\", \"effect\": { name, doc, reach, params: [ … ] } }, as defineEffect({ … }) evaluates";
+    // A reader's first check (D-209): the snapshot names its format.
+    if (const auto wrong = mlibs::xdef::format_problem(doc->root()["$format"].text(), "effect", 1)) {
+        r.error(doc->root()["$format"] ? doc->root()["$format"] : doc->root(), *wrong, std::string(shape));
+        return std::unexpected(std::move(problems));
+    }
     for (const auto& [key, value] : doc->root().members())
-        if (key != "effect") r.error(value, std::format("an effect file has no key `{}`", key), std::string(shape));
+        if (key != "effect" && key != "$format") r.error(value, std::format("an effect file has no key `{}`", key), std::string(shape));
     const Node root = doc->root()["effect"];
     if (!root.is_object()) {
         r.error(root, "an effect file is an effect: an object", std::string(shape));

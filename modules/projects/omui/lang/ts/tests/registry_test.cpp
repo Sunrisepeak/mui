@@ -2,7 +2,7 @@
 // mlibs.xdef): the same kinds, by the same define modules, as the define modules this package writes.
 import std;
 import mcpplibs.mtest;
-import mlibs.xdef;
+import mlibs.xdef.tool;
 import omui.lang.ts;
 
 using namespace mcpplibs::mtest;

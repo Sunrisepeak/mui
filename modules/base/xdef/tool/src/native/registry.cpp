@@ -1,10 +1,11 @@
 // The kinds' registry read from a workspace's manifests (mlibs.xdef): toml++ reports a manifest that is not
 // TOML by throwing, so it is read here, in a native unit, and the error becomes a problem.
-module mlibs.xdef;
+module mlibs.xdef.tool;
 
 import std;
 import mcpplibs.os;
 import tomlplusplus;
+import mlibs.xdef;
 
 namespace mlibs::xdef {
 

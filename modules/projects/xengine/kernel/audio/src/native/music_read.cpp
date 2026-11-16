@@ -7,6 +7,7 @@
 module xengine.audio;
 
 import std;
+import mlibs.xdef;
 import mlibs.json;
 import :detail;
 
@@ -583,9 +584,14 @@ std::expected<Music, std::vector<Problem>> read_music(std::string_view source, s
     auto doc = mlibs::json::Document::parse(source, std::string(file));
     if (!doc) return std::unexpected(std::vector<Problem>{detail::problem_of(doc.error())});
     Reader r{*doc, Text{doc->text()}, {}};
-    constexpr std::string_view shape = "{ \"music\": { name, tempo, meter, patches, instruments, … } }, as defineMusic({ … }) evaluates";
+    constexpr std::string_view shape = "{ \"$format\": \"music@1\", \"music\": { name, tempo, meter, patches, instruments, … } }, as defineMusic({ … }) evaluates";
+    // A reader's first check (D-209): the snapshot names its format.
+    if (const auto wrong = mlibs::xdef::format_problem(doc->root()["$format"].text(), "music", 1)) {
+        r.error(doc->root()["$format"] ? doc->root()["$format"] : doc->root(), *wrong, std::string(shape));
+        return std::unexpected(std::move(r.out));
+    }
     for (const auto& [key, value] : doc->root().members())
-        if (key != "music") r.error(value, std::format("a music file has no key `{}`", key), std::string(shape));
+        if (key != "music" && key != "$format") r.error(value, std::format("a music file has no key `{}`", key), std::string(shape));
     const Node root = doc->root()["music"];
     if (!root.is_object()) {
         r.error(root, "a music file is a piece: an object", std::string(shape));
@@ -840,7 +846,7 @@ std::expected<Music, std::vector<Problem>> read_music(std::string_view source, s
 }
 
 std::string write_music(const Music& m) {
-    std::string s = "{\"music\": {\n";
+    std::string s = "{\"$format\": \"music@1\", \"music\": {\n";
     if (!m.doc.empty()) s += std::format("  \"doc\": {},\n", json_text(m.doc));
     s += std::format("  \"name\": {}, \"tempo\": {}, \"meter\": [{}, {}]", json_text(m.name), num(m.tempo), m.meter[0], m.meter[1]);
     if (m.gain != 1) s += std::format(", \"gain\": {}", num(m.gain));

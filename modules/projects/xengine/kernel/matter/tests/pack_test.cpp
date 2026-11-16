@@ -22,12 +22,12 @@ matter::Definition pack_of(std::string_view text) {
     return *read;
 }
 // Three fuels no law knows of: each says its properties and nothing else.
-constexpr std::string_view fuels = R"({"matter": {"materials": {
+constexpr std::string_view fuels = R"({"$format": "matter@1", "matter": {"materials": {
     "coal": {"density": 1400, "thermal": 1, "ignition": 700, "fuel": 600, "heat": 120, "burnt": "ash"},
     "peat": {"density": 700, "thermal": 1, "porous": 6, "ignition": 520, "fuel": 250, "heat": 60, "burnt": "ash", "tags": ["plant"]},
     "tar": {"phase": "liquid", "density": 1100, "thermal": 1, "ignition": 540, "fuel": 500, "heat": 110, "burnt": "smoke"}}}})";
 // A law the world did not have: a glow that passes through what conducts it and wakes what can be woken.
-constexpr std::string_view glow = R"({"matter": {
+constexpr std::string_view glow = R"({"$format": "matter@1", "matter": {
     "columns": {"lucent": {"unit": "64ths a step", "doc": "how well it passes glow", "most": 16},
                 "wakes_at": {"doc": "the glow at which it wakes", "most": 100000},
                 "woken": {"kind": "material", "doc": "what it wakes into"}},
@@ -97,7 +97,7 @@ UTest cases{"matter.pack", [] {
     };
 
     "a pack adds and never replaces: a law, a column, a channel of a name that is there, a material said otherwise — each clash said"_test = [] {
-        const matter::Definition bad = pack_of(R"({"matter": {
+        const matter::Definition bad = pack_of(R"({"$format": "matter@1", "matter": {
             "columns": {"density": {"most": 10}},
             "channels": {"temperature": {}},
             "materials": {"wood": {"ignition": 300}, "iron": {"density": 7800}},
@@ -112,7 +112,7 @@ UTest cases{"matter.pack", [] {
         const matter::Definition coal = pack_of(fuels);
         const auto twice = matter::standard_with(std::array{coal, coal});
         expect(twice.has_value()) << "the same rows said twice the same way are not said otherwise";
-        const matter::Definition other = pack_of(R"({"matter": {"materials": {"coal": {"density": 900}}}})");
+        const matter::Definition other = pack_of(R"({"$format": "matter@1", "matter": {"materials": {"coal": {"density": 900}}}})");
         const auto clashed = matter::standard_with(std::array{coal, other});
         expect(!clashed.has_value() && clashed.error().contains("`coal` already says its `density`")) << (clashed ? "" : clashed.error());
     };

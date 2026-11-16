@@ -4,6 +4,7 @@
 module xengine.video;
 
 import std;
+import mlibs.xdef;
 import mlibs.json;
 import mlibs.names;
 import xengine.audio;
@@ -100,9 +101,14 @@ std::expected<Description, std::vector<Problem>> read_description(std::string_vi
         return std::unexpected(std::vector<Problem>{{p.file, static_cast<int>(p.line), static_cast<int>(p.column), p.message, p.hint, p.at}});
     }
     Reader r{*doc, {}};
-    constexpr std::string_view shape = "{ \"video\": { width, height, fps, seconds, from: { card: \"sync\" }, audio: { … } } }, as defineVideo({ … }) evaluates";
+    constexpr std::string_view shape = "{ \"$format\": \"video@1\", \"video\": { width, height, fps, seconds, from: { card: \"sync\" }, audio: { … } } }, as defineVideo({ … }) evaluates";
+    // A reader's first check (D-209): the snapshot names its format.
+    if (const auto wrong = mlibs::xdef::format_problem(doc->root()["$format"].text(), "video", 1)) {
+        r.error(doc->root()["$format"] ? doc->root()["$format"] : doc->root(), *wrong, std::string(shape));
+        return std::unexpected(std::move(r.out));
+    }
     for (const auto& [key, value] : doc->root().members())
-        if (key != "video") r.error(value, std::format("a video description has no key `{}`", key), std::string(shape));
+        if (key != "video" && key != "$format") r.error(value, std::format("a video description has no key `{}`", key), std::string(shape));
     const Node v = doc->root()["video"];
     Description d;
     if (!v.is_object()) {
@@ -208,7 +214,7 @@ std::expected<Description, std::vector<Problem>> read_description(std::string_vi
 }
 
 std::string write_description(const Description& d) {
-    std::string s = "{\"video\": {\n";
+    std::string s = "{\"$format\": \"video@1\", \"video\": {\n";
     if (!d.doc.empty()) s += std::format("  \"doc\": {},\n", json_text(d.doc));
     s += std::format("  \"width\": {}, \"height\": {}, \"fps\": {}, ", d.width, d.height,
                      d.fps.den == 1 ? std::format("{}", d.fps.num) : json_text(rate_text(d.fps)));

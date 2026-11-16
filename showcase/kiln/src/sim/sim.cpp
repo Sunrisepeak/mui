@@ -1,5 +1,6 @@
 module omui.showcase.kiln.sim;
 import std;
+import mlibs.xdef;
 import xengine.matter.json;
 import mlibs.hash;
 import xengine.cellular.verbs;
@@ -23,6 +24,9 @@ std::expected<Level, std::string> read(std::string_view json, std::string_view n
     if (!document) return std::unexpected(document.error().text());
     const auto world = document->root()["world"];
     const auto problem = [&](const mlibs::json::Node& at, std::string_view what) -> std::expected<Level, std::string> { return std::unexpected(document->problem(at, std::string(what)).text()); };
+    // A reader's first check (D-209): the snapshot names its format.
+    if (const auto wrong = mlibs::xdef::format_problem(document->root()["$format"].text(), "world", 1))
+        return problem(document->root()["$format"] ? document->root()["$format"] : document->root(), *wrong);
     Level made;
     if (!world["name"].text()) return problem(world["name"], "a level has a name");
     made.name = std::string(*world["name"].text());

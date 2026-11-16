@@ -14,7 +14,7 @@ UTest cases{"theme.compact", [] {
     "an overlay: smaller spacing, text and radii, over any theme"_test = [] {
         expect(themes::add_compact().has_value());
         expect(theme::library().overlays() == std::vector<std::string>{"compact"});
-        auto base = theme::library().add(R"({"theme": {"plain": {"spacing": {"s": 8}, "text": {"body": {"size": 15}}, "radius": {"medium": 8}}}})",
+        auto base = theme::library().add(R"({"$format": "theme@1", "theme": {"plain": {"spacing": {"s": 8}, "text": {"body": {"size": 15}}, "radius": {"medium": 8}}}})",
                                          "plain.theme.xdef.json");
         expect(base.has_value());
         const std::vector<std::string> layers{"plain", "compact"};

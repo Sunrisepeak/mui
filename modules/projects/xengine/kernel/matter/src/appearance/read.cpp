@@ -13,6 +13,7 @@
 module xengine.matter.appearance;
 
 import std;
+import mlibs.xdef;
 import mlibs.error;
 import mlibs.json;
 import mlibs.names;
@@ -98,6 +99,11 @@ struct Parsed {
     auto document = Document::parse(text, std::string(file));
     if (!document) return std::unexpected(std::vector<Problem>{document.error()});
     Reader reader{*document, {}};
+    // A reader's first check (D-209): the snapshot names its format.
+    if (const auto wrong = mlibs::xdef::format_problem(document->root()["$format"].text(), "appearance", 1)) {
+        reader.wrong(document->root()["$format"] ? document->root()["$format"] : document->root(), *wrong);
+        return std::unexpected(std::move(reader.problems));
+    }
     const Node root = document->root()["appearance"];
     if (!root || !root.is_object()) {
         reader.wrong(document->root(), "an appearance is {\"appearance\": {phases, materials, states}}: what `defineAppearance` evaluates to");

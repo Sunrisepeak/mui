@@ -5,7 +5,7 @@ module omui.devtools.lint;
 import std;
 import tomlplusplus;
 import mlibs.json;
-import mlibs.xdef;
+import mlibs.xdef.tool;
 import :tree;
 
 namespace omui::devtools::lint {

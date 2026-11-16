@@ -69,7 +69,7 @@ public:
 };
 
 // Two sounds, a punch and a bell, as their module evaluates to.
-constexpr std::string_view file = R"({"sound": {
+constexpr std::string_view file = R"({"$format": "sound@1", "sound": {
   "punch": {"gain": 0.9, "layers": [
     {"wave": "noise", "length": 0.09, "envelope": {"attack": 0.001, "decay": 0.08, "sustain": 0, "release": 0.01},
      "filter": {"kind": "lowpass", "cutoff": [4000, 500], "q": 0.8}, "gain": 0.7, "seed": 7},
@@ -177,7 +177,7 @@ UTest cases{"audio", [] {
         const std::string written = audio::write_sounds(*sounds);
         auto again = audio::read_sounds(written, "written.sound.xdef.json");
         expect(again && audio::write_sounds(*again) == written) << "written back as itself";
-        auto bad = audio::read_sounds("{\"sound\": {\"x\": {\"layers\": [\n  {\"wave\": \"sqaure\", \"ptich\": 3, \"length\": -1}\n]}}}", "bad.sound.xdef.json");
+        auto bad = audio::read_sounds("{\"$format\": \"sound@1\", \"sound\": {\"x\": {\"layers\": [\n  {\"wave\": \"sqaure\", \"ptich\": 3, \"length\": -1}\n]}}}", "bad.sound.xdef.json");
         expect(!bad.has_value());
         if (bad) return;
         std::vector<std::string> texts;
@@ -229,14 +229,14 @@ UTest cases{"audio", [] {
         expect(f_err < 1e-7 && i_err < 1.0 / 32768) << std::format("float off by {}, 16-bit by {}", f_err, i_err);
         expect(!audio::read_wav(std::as_bytes(std::span(std::string_view("not a wave file at all")))).has_value()) << "not a WAV";
         // The file's words for it.
-        const std::string_view text = R"({"sound": {"voice": {"layers": [{"wave": "recording", "recording": "fight", "speed": [1, 0.9], "filter": {"kind": "highpass", "cutoff": 120}}]}}})";
+        const std::string_view text = R"({"$format": "sound@1", "sound": {"voice": {"layers": [{"wave": "recording", "recording": "fight", "speed": [1, 0.9], "filter": {"kind": "highpass", "cutoff": 120}}]}}})";
         auto voice = audio::read_sounds(text, "voice.sound.xdef.json");
         expect(voice && voice->front().layers[0].recording == "fight" && voice->front().layers[0].speed[1] == 0.9f && voice->front().layers[0].length == 0) << "read";
         if (!voice) return;
         const std::string written = audio::write_sounds(*voice);
         auto again = audio::read_sounds(written, "written.sound.xdef.json");
         expect(again && audio::write_sounds(*again) == written) << written;
-        auto bad = audio::read_sounds(R"({"sound": {"x": {"layers": [{"wave": "recording"}, {"wave": "sine", "speed": 2}]}}})", "bad.sound.xdef.json");
+        auto bad = audio::read_sounds(R"({"$format": "sound@1", "sound": {"x": {"layers": [{"wave": "recording"}, {"wave": "sine", "speed": 2}]}}})", "bad.sound.xdef.json");
         expect(!bad.has_value() && bad.error().size() == 2) << "a recording's layer without its recording; speed on a sine";
     };
 

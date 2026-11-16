@@ -5,6 +5,7 @@ module omui.theme;
 
 import std;
 import mlibs.json;
+import mlibs.xdef;
 import mlibs.names;
 import omui.core;
 import omui.view;
@@ -285,14 +286,19 @@ std::optional<Value> document(std::string_view source, Reader& r, std::string_vi
         return std::nullopt;
     }
     const At root{&*parsed, ""};
-    const std::string example = std::format(R"({{ "{}": {{ "<name>": {{ … }} }} }}, as define{}{}({{ <name>: {{ … }} }}) evaluates)", kind,
+    const std::string example = std::format(R"({{ "$format": "{0}@1", "{0}": {{ "<name>": {{ … }} }} }}, as define{1}{2}({{ <name>: {{ … }} }}) evaluates)", kind,
                                             static_cast<char>(kind[0] - 'a' + 'A'), kind.substr(1));
+    // A reader's first check (D-209): the snapshot names its format.
+    if (const auto format = root[mlibs::xdef::format_key]; const auto wrong = mlibs::xdef::format_problem(format.text(), kind, 1)) {
+        r.error(format ? format : root, *wrong, example);
+        return std::nullopt;
+    }
     if (!root[kind].map()) {
         r.error(root, std::format("no `{}` object of named {}s", kind, kind), example);
         return std::nullopt;
     }
     for (const auto& [key, member] : root.members())
-        if (key != kind) r.error(member, std::format("`{}` is not a key of a {} file", key, kind), example);
+        if (key != kind && key != mlibs::xdef::format_key) r.error(member, std::format("`{}` is not a key of a {} file", key, kind), example);
     return std::move(*parsed);
 }
 

@@ -1,39 +1,27 @@
-# mlibs.xdef — declared data's container, the tool kernel's (D-209, stage 0
-# of D-205): a data file's name (<name>.<kind>.xdef.{ts,json,jsonl}), its
-# format identifier ("$format": "<kind>@<major>"), the registry of kinds that
-# each owner keeps in its manifest, a data module's snapshot in its one
-# canonical form, and the checker. It knows no kind's fields: a kind is its
-# owner's. `xdef` is its thin program, the reference evaluator and checker.
+# mlibs.xdef — declared data's container, what a reader takes (D-209): a data
+# file's name (<name>.<kind>.xdef.{ts,json,jsonl}) and its format identifier
+# ("$format": "<kind>@<major>"), checked before a reader reads a snapshot.
+# The registry, snapshots, the checker and the migration are the tool's
+# (mlibs.xdef.tool, `xdef`), so a runtime reader carries no evaluator. The
+# standard library alone: a reader passes the text whatever JSON it reads.
 [package]
 namespace   = "mlibs"
 name        = "xdef"
 version     = "0.1.0"
-description = "Declared data's container: file names, format identifiers, the kinds' registry, snapshots, the checker"
+description = "Declared data's container for readers: file names and format identifiers"
 license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
 repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
-maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 kind = "module"
-agent = { library = "a data file's container checked: functions of the files and the manifests" }
 
 [targets.mlibs-xdef]
 kind = "lib"
 
-[targets.xdef]
-kind = "bin"
-main = "src/main.cpp"
-
 [build]
-sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
-
-[dependencies]
-mlibs.ts    = { path = "../ts" }     # a data module evaluated
-mlibs.json  = { path = "../json" }   # a snapshot read
-mlibs.utils = { path = "../utils" }
-marzer.tomlplusplus = "3.4.0"        # the manifests' registries
-mcpplibs.os = "0.4.4"
-mcpplibs.cmdline = "0.0.3"
+sources = ["src/*.cppm", "src/*.cpp"]
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"

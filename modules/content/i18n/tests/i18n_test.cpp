@@ -244,7 +244,7 @@ UTest cases{"i18n", [] {
         lib.add(pack("zh"));
         lib.add(pack("zh-Hant"));
         lib.set_likely(*read_likely_subtags(read(packs() / "likely.locale.xdef.json")));
-        auto en = read_messages(R"({"messages": {
+        auto en = read_messages(R"({"$format": "messages@1", "messages": {
   "title": "Inbox",
   "inbox": {
     "count": ".input {$count :number}\n.match $count\none {{{$count} new message}}\n* {{{$count} new messages}}",
@@ -252,7 +252,7 @@ UTest cases{"i18n", [] {
   }
 }})",
                                 "app.en.messages.xdef.json");
-        auto zh = read_messages(R"({"messages": {"title": "收件箱", "inbox": {"count": "{$count :number} 条新消息"}}})", "app.zh-Hans.messages.xdef.json");
+        auto zh = read_messages(R"({"$format": "messages@1", "messages": {"title": "收件箱", "inbox": {"count": "{$count :number} 条新消息"}}})", "app.zh-Hans.messages.xdef.json");
         expect(en.has_value() && zh.has_value());
         if (!en || !zh) return;
         lib.catalog(tag("en")) = *en;
@@ -269,7 +269,7 @@ UTest cases{"i18n", [] {
         const std::array english{tag("en-GB")};
         expect(eq(Translator(lib, english, tag("en")).tr("inbox.count", {{"count", std::int64_t{1}}}), std::string("1 new message")));
         // Problems, located; a translation checked against its source.
-        auto bad = read_messages("{\"messages\": {\"a\": {\n  \"b\": \"{$x\",\n  \"c\": 3\n}}}", "bad.messages.xdef.json");
+        auto bad = read_messages("{\"$format\": \"messages@1\", \"messages\": {\"a\": {\n  \"b\": \"{$x\",\n  \"c\": 3\n}}}", "bad.messages.xdef.json");
         expect(!bad.has_value());
         if (!bad) {
             expect(eq(bad.error().size(), std::size_t{2}));

@@ -1,4 +1,4 @@
-{"native": {"Bad": {
+{"$format": "native@1", "native": {"Bad": {
   "spec": "0.1",
   "doc": "A module with every mistake.",
   "types": {

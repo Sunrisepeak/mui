@@ -25,7 +25,7 @@ std::expected<Snapshot, std::string> snapshot(const std::filesystem::path& file)
     auto data = lang::ts::evaluate(file);
     if (!data) return std::unexpected(data.error().text());
     const auto name = generic_utf8(file.filename());
-    return Snapshot{name.substr(0, name.size() - std::string_view(".ts").size()) + ".json", std::format("{{\"{}\":{}}}\n", data->kind, data->json)};
+    return Snapshot{name.substr(0, name.size() - std::string_view(".ts").size()) + ".json", data->snapshot()};
 }
 
 std::expected<mlibs::json::Document, std::string> data_document(const std::filesystem::path& file, std::string_view kind) {
@@ -43,7 +43,7 @@ std::expected<mlibs::json::Document, std::string> data_document(const std::files
             return std::unexpected(std::format("{}: a {} file holds one, named as the file: {}({{ {}: {{ … }} }})", name, kind, function, expected));
     }
     const auto path = generic_utf8(file);  // the snapshot is named as its module, .json for .ts
-    auto document = mlibs::json::Document::parse(std::format("{{\"{}\":{}}}", kind, data->json), path.substr(0, path.size() - 3) + ".json");
+    auto document = mlibs::json::Document::parse(data->snapshot(), path.substr(0, path.size() - 3) + ".json");
     if (!document) return std::unexpected(document.error().text());
     return std::move(*document);
 }

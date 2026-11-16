@@ -175,8 +175,10 @@ std::expected<Data, TsFailure> run(JSRuntime* runtime, JSContext* context, const
         return std::unexpected(TsFailure{TsError::evaluation_failed, exception_text(context, evaluation)});
     }
     JSValue kind = JS_GetPropertyStr(context, exported, "kind");
-    Data data{text(context, kind), text(context, json)};
+    JSValue format = JS_GetPropertyStr(context, exported, "format");
+    Data data{text(context, kind), text(context, json), JS_IsString(format) ? text(context, format) : std::string()};
     JS_FreeValue(context, kind);
+    JS_FreeValue(context, format);
     JS_FreeValue(context, json);
     JS_FreeValue(context, exported);
     return data;

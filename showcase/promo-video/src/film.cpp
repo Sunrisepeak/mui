@@ -60,7 +60,7 @@ std::expected<std::string, std::string> Files::read(std::string_view path) const
             if (std::filesystem::is_regular_file(module, error)) {
                 auto data = lang::ts::evaluate(module);
                 if (!data) return std::unexpected(data.error().text());
-                return std::format("{{\"{}\":{}}}", data->kind, data->json);
+                return data->snapshot();
             }
         }
     }

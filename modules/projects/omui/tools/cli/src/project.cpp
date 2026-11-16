@@ -259,7 +259,7 @@ std::expected<std::string, std::string> data_text(const std::filesystem::path& f
     if (mcpplibs::os::fs::utf8(file.filename()).ends_with(".xdef.ts")) {
         auto data = lang::ts::evaluate(file);
         if (!data) return std::unexpected(data.error().text());
-        return std::format("{{\"{}\":{}}}", data->kind, data->json);
+        return data->snapshot();
     }
     auto text = mcpplibs::os::fs::read(file);
     if (!text) return std::unexpected(std::format("{}: {}", mcpplibs::os::fs::utf8(file), text.error().message()));

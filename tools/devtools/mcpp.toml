@@ -12,7 +12,7 @@ license     = "Apache-2.0"
 
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
-lower = ["mpal", "mlibs.xdef"]  # lower-labelled parts it uses, each marked in its README
+lower = ["mpal", "mlibs.xdef.tool"]  # lower-labelled parts it uses, each marked in its README
 kind = "tool"
 
 [targets.omui-devtools]
@@ -29,7 +29,8 @@ cxxflags = ["-O2"]
 nlohmann.json    = "3.12.0"
 marzer.tomlplusplus = "3.4.0"  # the lint reads every manifest
 mlibs.json       = { path = "../../modules/base/json" }  # the lint holds documents to their schemas
-mlibs.xdef       = { path = "../../modules/base/xdef" }  # data-format: the container's checker
+"mlibs.xdef.tool" = { path = "../../modules/base/xdef/tool" }  # data-format: the container's checker
+mlibs.xdef       = { path = "../../modules/base/xdef" }  # a snapshot's format checked first (the projects' identities)
 mlibs.utils      = { path = "../../modules/base/utils" }  # mlibs.http: the test page's server
 mlibs.image      = { path = "../../modules/base/image" }  # eval compare's sheets
 mcpplibs.cmdline = "0.0.3"

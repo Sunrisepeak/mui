@@ -55,7 +55,7 @@ UTest cases{"mlibs.control.gen", [] {
 
     "a position says the form it is written in: in the listing as x-space, an unknown form refused"_test = [] {
         const auto text = [](std::string_view space) {
-            return std::format(R"({{"ops": {{
+            return std::format(R"({{"$format": "ops@1", "ops": {{
   "product": "x",
   "module": "x.control",
   "namespace": "x::control",
@@ -77,7 +77,7 @@ UTest cases{"mlibs.control.gen", [] {
     };
 
     "a catalog's tasks and examples are requests as they are sent: checked against its operations, written to the table, the listing and the reference (D-186)"_test = [] {
-        const auto catalog = gen::read_catalog(R"({"ops": {
+        const auto catalog = gen::read_catalog(R"({"$format": "ops@1", "ops": {
   "product": "x", "module": "x.control", "namespace": "x::control", "doc": "A thing to look at and move.",
   "operations": [
     {"name": "x.look", "effect": "read", "summary": "looks", "result": "json", "params": [{"name": "at", "type": "json"}],
@@ -113,7 +113,7 @@ UTest cases{"mlibs.control.gen", [] {
         expect(gen::emit_catalog_markdown(*catalog).contains("## Tasks to begin with") && gen::emit_catalog_markdown(*catalog).contains("**look-then-move** — Look at a place, move, look again"));
 
         // What a catalog shows is accepted as shown: a step that is no operation, an argument that is no parameter, one it needs left out.
-        const auto broken = gen::read_catalog(R"({"ops": {
+        const auto broken = gen::read_catalog(R"({"$format": "ops@1", "ops": {
   "product": "x",
   "operations": [
     {"name": "x.look", "effect": "read", "summary": "looks", "params": [{"name": "at", "type": "json"}], "examples": [{"near": 1}]}
@@ -131,7 +131,7 @@ UTest cases{"mlibs.control.gen", [] {
     };
 
     "a malformed catalog is reported line by line"_test = [] {
-        const auto broken = gen::read_catalog(R"({"ops": {
+        const auto broken = gen::read_catalog(R"({"$format": "ops@1", "ops": {
   "product": "x",
   "module": "x.control",
   "namespace": "x::control",

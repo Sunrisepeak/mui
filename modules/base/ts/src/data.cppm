@@ -31,11 +31,22 @@ struct DataOptions {
     std::vector<NamedModule> modules;             // what it may import by name
 };
 
-// What a data module evaluated to: the define function's kind ("contract", "ops", "matter" …) and the value as
+// What a data module evaluated to: the define function's kind ("contract", "ops", "matter" …), its format
+// identifier ("ops@1", D-209: the kind's major version, which its define function writes) and the value as
 // JSON text (keys in the module's order).
 struct Data {
     std::string kind;
     std::string json;
+    std::string format;
+
+    // The snapshot in its canonical form: `{"$format":"<kind>@<major>","<kind>":value}` and a line break.
+    [[nodiscard]] std::string snapshot() const;
+};
+
+// A kind a define module defines, and its major version.
+struct DefinedKind {
+    std::string_view name;
+    int major = 1;
 };
 
 // A data module's file (TypeScript, or JavaScript); a problem as `file:line:column: text` where it has a place.
@@ -43,7 +54,8 @@ struct Data {
 // A data module's source; `name` names it in problems and is where its imports by path are found from.
 [[nodiscard]] std::expected<Data, TsFailure> evaluate_source(std::string_view source, std::string_view name, const DataOptions& options = {});
 
-// A define module's JavaScript: `export const define<Kind> = …` for each kind, each giving `{ kind, value }`.
-[[nodiscard]] std::string define_module(std::span<const std::string_view> kinds);
+// A define module's JavaScript: `export const define<Kind> = …` for each kind, each giving
+// `{ kind, format, value }` (the format `<kind>@<major>`).
+[[nodiscard]] std::string define_module(std::span<const DefinedKind> kinds);
 
 }  // namespace mlibs::ts

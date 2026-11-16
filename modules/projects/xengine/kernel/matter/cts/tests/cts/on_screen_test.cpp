@@ -253,7 +253,7 @@ static UTest cases{"matter.on-screen", [] {
         std::println("    peat, a row of properties, alight ({} cells): {}", alight, keep(by_standard, "peat").generic_string());
 
         // Another pack: everything a shade of green on black, heat as white. The cells are not touched.
-        const std::string night = R"({"appearance": {
+        const std::string night = R"({"$format": "appearance@1", "appearance": {
             "phases": {"solid": {"color": "#0a3d1c"}, "soft": {"color": "#0d4d24"}, "granular": {"color": "#12692f", "grain": 0.05},
                        "liquid": {"color": "#18a04680"}, "gas": {"color": "#00000000"}},
             "states": [{"name": "heat", "by": "temperature", "from": 400, "to": 1100, "color": "#e8ffe8", "emits": true},

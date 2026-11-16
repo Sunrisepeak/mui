@@ -327,8 +327,8 @@ static UTest cases{"view", [] {
     "languages (D-74): tr follows the language and its arguments, in place — the same node, the same id"_test = [] {
         Languages& l = languages();
         const auto en = *mlibs::i18n::Locale::parse("en"), zh = *mlibs::i18n::Locale::parse("zh-Hans"), hant = *mlibs::i18n::Locale::parse("zh-Hant");
-        expect(l.add_messages(en, R"({"messages": {"greeting": "Hello, {$name}!", "save": "Save"}})", "en.messages.xdef.json").has_value());
-        expect(l.add_messages(zh, R"({"messages": {"greeting": "你好，{$name}！", "save": "保存"}})", "zh-Hans.messages.xdef.json").has_value());
+        expect(l.add_messages(en, R"({"$format": "messages@1", "messages": {"greeting": "Hello, {$name}!", "save": "Save"}})", "en.messages.xdef.json").has_value());
+        expect(l.add_messages(zh, R"({"$format": "messages@1", "messages": {"greeting": "你好，{$name}！", "save": "保存"}})", "zh-Hans.messages.xdef.json").has_value());
         l.request({en});
         Runtime rt(options());
         auto name = signal(std::string("Ada"));

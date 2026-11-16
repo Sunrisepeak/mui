@@ -25,6 +25,7 @@ members = [
     "modules/base/json",
     "modules/base/ts",
     "modules/base/xdef",
+    "modules/base/xdef/tool",
     "modules/base/math",
     "modules/base/memory",
     "modules/base/pipeline",

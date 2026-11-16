@@ -173,7 +173,7 @@ UTest cases{"simulation.matter.appearance", [] {
     "JSON problems are said where they are written; a problem of preparing is placed in the text too"_test = [] {
         const auto program = matter::standard();
         expect(fatal(program.has_value()));
-        const std::string text = R"({"appearance": {
+        const std::string text = R"({"$format": "appearance@1", "appearance": {
   "materials": {"wood": {"colour": "#8a5a2b"}, "ash": 3},
   "states": [
     {"by": "temperature", "to": 900, "color": "#ff0000", "glows": true},
@@ -200,9 +200,9 @@ UTest cases{"simulation.matter.appearance", [] {
         expect(eq(read.error().size(), std::size_t{8})) << all;
 
         expect(!matter::read_appearance("{\"look\": {}}", "x.json").has_value());
-        expect(!matter::read_appearance("{\"appearance\": [", "x.json").has_value());
+        expect(!matter::read_appearance("{\"$format\": \"appearance@1\", \"appearance\": [", "x.json").has_value());
 
-        const std::string late = R"({"appearance": {
+        const std::string late = R"({"$format": "appearance@1", "appearance": {
   "states": [
     {"by": "temperature", "to": 900, "color": "#ff0000"},
     {"by": "wetnes", "to": 10, "color": "#000000"}
@@ -214,7 +214,7 @@ UTest cases{"simulation.matter.appearance", [] {
         expect(problem.at == "/appearance/states/1/by" && problem.text().contains("late.appearance.xdef.json:4:") && problem.text().contains("did you mean `wetness`?"))
             << problem.at << " " << problem.text();
 
-        const std::string good = R"({"appearance": {"nothing": "#102030", "phases": {"gas": {"color": "#00000000"}},
+        const std::string good = R"({"$format": "appearance@1", "appearance": {"nothing": "#102030", "phases": {"gas": {"color": "#00000000"}},
             "states": [{"name": "wet", "by": "wetness", "to": "moist", "color": "#001040", "mix": 0.5, "of": ["soft"]}]}})";
         const auto own = matter::look_document(*program, good, "own.appearance.xdef.json");
         expect(fatal(own.has_value())) << (own ? "" : own.error().front().text());

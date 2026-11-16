@@ -59,6 +59,7 @@ mlibs.geom = { path = "../../../../base/geom" }
 mlibs.math = { path = "../../../../base/math" }
 mlibs.utils = { path = "../../../../base/utils" }
 mlibs.json = { path = "../../../../base/json" }
+mlibs.xdef = { path = "../../../../base/xdef" }  # a snapshot's format checked first (D-209)
 nlohmann.json       = "3.12.0"
 # omui-music's command line (the tool target).
 mcpplibs.cmdline    = "0.0.3"

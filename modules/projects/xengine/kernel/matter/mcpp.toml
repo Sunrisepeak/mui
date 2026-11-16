@@ -42,9 +42,11 @@ appearance = { sources = ["src/appearance/*.cppm", "src/appearance/*.cpp", "src/
 
 [feature-deps.json]
 mlibs.json = { path = "../../../../base/json" }
+mlibs.xdef = { path = "../../../../base/xdef" }  # a snapshot's format checked first (D-209)
 
 [feature-deps.appearance]
 mlibs.json = { path = "../../../../base/json" }
+mlibs.xdef = { path = "../../../../base/xdef" }  # a snapshot's format checked first (D-209)
 mlibs.math = { path = "../../../../base/math" }
 
 [dev-dependencies]

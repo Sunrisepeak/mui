@@ -33,7 +33,7 @@ mlibs.utils = { path = "../../../../base/utils" }  # mlibs.error: why a call can
 # Tests are mtest's (D-147).
 mcpplibs.mtest = "0.8.4"
 mlibs.cts = { path = "../../../../base/cts" }
-mlibs.xdef = { path = "../../../../base/xdef" }  # registry_test: the manifest registers what the define modules define
+mlibs.xdef.tool = { path = "../../../../base/xdef/tool" }  # registry_test: the manifest registers what the define modules define
 
 
 # The declared data kinds this package owns (mlibs.xdef registry, D-209): each kind and its major

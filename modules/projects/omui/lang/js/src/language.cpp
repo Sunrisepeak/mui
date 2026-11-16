@@ -94,7 +94,7 @@ player::Language typescript() {
             describe_typescript, declare_typescript, source_editor(), [](const std::filesystem::path& file) -> std::expected<std::string, Failure> {
                 auto data = ts::evaluate(file);
                 if (!data) return std::unexpected(Failure(data.error()));
-                return std::format("{{\"{}\":{}}}", data->kind, data->json);
+                return data->snapshot();
             }};
 }
 

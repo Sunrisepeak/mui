@@ -628,7 +628,7 @@ private:
                                 .set("fps", fps)
                                 .set("frames", static_cast<std::int64_t>(frame))
                                 .set("from", Value(Value::Map{}).set("png", "frames/{:05}.png"));
-        std::ofstream(description, std::ios::binary) << indented_json(Value(Value::Map{}).set("video", video));
+        std::ofstream(description, std::ios::binary) << indented_json(Value(Value::Map{}).set("$format", "video@1").set("video", video));
         return Value{}
             .set("branch", branch)
             .set("steps", static_cast<double>(steps_filmed))

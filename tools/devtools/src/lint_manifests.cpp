@@ -5,6 +5,7 @@ module omui.devtools.lint;
 import std;
 import tomlplusplus;
 import mlibs.json;
+import mlibs.xdef;
 import :tree;
 
 namespace omui::devtools::lint {
@@ -161,6 +162,10 @@ Projects read_projects(const fs::path& root) {
         }
         const auto document = mlibs::json::Document::parse(*text, snapshot);
         const auto project = document ? document->root()["project"] : mlibs::json::Node{};
+        if (const auto wrong = document ? mlibs::xdef::format_problem(document->root()["$format"].text(), "project", 1) : std::nullopt) {
+            projects.problems.push_back({"project-dag", snapshot, *wrong});
+            continue;
+        }
         if (!document || !project.is_object()) {
             projects.problems.push_back({"project-dag", snapshot, "is not a project's identity snapshot (defineProject; xdef snapshot writes it)"});
             continue;

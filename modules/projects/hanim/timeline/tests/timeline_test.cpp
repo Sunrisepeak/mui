@@ -12,7 +12,7 @@ namespace tl = hanim::timeline;
 
 namespace {
 
-constexpr std::string_view promo = R"({"timeline": {
+constexpr std::string_view promo = R"({"$format": "timeline@1", "timeline": {
   "name": "promo", "rate": 60, "sample_rate": 48000, "size": [1920, 1080],
   "markers": [
     {"at": "2s", "name": "beat"}
@@ -91,7 +91,7 @@ UTest cases{"timeline", [] {
     };
 
     "a file's problems at their place (pointer, line, column), each with the nearest right word; a timeline that breaks its rules is refused"_test = [] {
-        auto bad = tl::read_timeline("{\"timeline\": {\n  \"rate\": 11,\n  \"nmae\": \"x\",\n  \"tracks\": [{\"kind\": \"vidoe\", \"clips\": [{\"at\": \"1.5f\"}]}]\n}}", "bad.timeline.xdef.json");
+        auto bad = tl::read_timeline("{\"$format\": \"timeline@1\", \"timeline\": {\n  \"rate\": 11,\n  \"nmae\": \"x\",\n  \"tracks\": [{\"kind\": \"vidoe\", \"clips\": [{\"at\": \"1.5f\"}]}]\n}}", "bad.timeline.xdef.json");
         expect(!bad.has_value());
         if (bad) return;
         std::vector<std::string> texts;
@@ -101,7 +101,7 @@ UTest cases{"timeline", [] {
         expect(has("bad.timeline.xdef.json:4:23: /timeline/tracks/0/kind: `vidoe` is not a kind of track (did you mean `video`?)")) << std::format("{}", texts);
         expect(has("is not a whole number of flicks")) << std::format("{}", texts);
         expect(has("`1.5f` is not a clip's `at`")) << std::format("{}", texts);
-        auto overlap = tl::read_timeline(R"({"timeline": {"tracks": [{"name": "a", "clips": [{"name": "x", "length": "2s"}, {"name": "y", "at": "1s", "length": "1s"}]}]}})", "o.timeline.xdef.json");
+        auto overlap = tl::read_timeline(R"({"$format": "timeline@1", "timeline": {"tracks": [{"name": "a", "clips": [{"name": "x", "length": "2s"}, {"name": "y", "at": "1s", "length": "1s"}]}]}})", "o.timeline.xdef.json");
         expect(!overlap && overlap.error().front().message.contains("overlaps `x`")) << (overlap ? "accepted" : overlap.error().front().text());
     };
 

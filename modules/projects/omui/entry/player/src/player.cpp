@@ -246,7 +246,7 @@ int player_main(int argc, char** argv) {
     app.effect_data = [](const std::filesystem::path& file) -> std::expected<std::string, std::string> {
         auto data = lang::ts::evaluate(file);
         if (!data) return std::unexpected(data.error().text());
-        return std::format("{{\"{}\":{}}}", data->kind, data->json);
+        return data->snapshot();
     };
     app.setup = [&](Runtime& rt) {
         if (record) rt.set_record_level(*record);

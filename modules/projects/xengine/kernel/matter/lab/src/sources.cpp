@@ -169,6 +169,7 @@ std::string definition_of(const Texts& texts) {
     matter["materials"] = std::move(materials);
     matter["laws"] = value_of(texts, "laws.json", Json::array());
     Json document = Json::object();
+    document["$format"] = "matter@1";  // a snapshot names its format (D-209)
     document["matter"] = std::move(matter);
     return rows_text(document, 3);
 }
@@ -185,6 +186,7 @@ std::string appearance_of(const Texts& texts) {
     }
     if (!materials.empty()) appearance["materials"] = std::move(materials);
     Json document = Json::object();
+    document["$format"] = "appearance@1";  // a snapshot names its format (D-209)
     document["appearance"] = std::move(appearance);
     return rows_text(document, 3);
 }

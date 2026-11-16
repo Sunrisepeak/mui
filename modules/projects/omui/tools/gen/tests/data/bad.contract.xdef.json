@@ -1,4 +1,4 @@
-{"contract": {"bad_widget": {
+{"$format": "contract@1", "contract": {"bad_widget": {
   "spec": "0.1",
   "role": "spaceship",
   "props": {

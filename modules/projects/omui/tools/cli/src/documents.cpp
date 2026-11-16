@@ -3,6 +3,7 @@
 module omui.cli;
 
 import std;
+import mlibs.agent;
 import mcpplibs.cmdline;
 import mcpplibs.os;
 import omui.core;
@@ -36,26 +37,7 @@ std::optional<std::string> read_text(const std::string& file, std::ostream& err)
     return std::move(*text);
 }
 
-std::vector<std::string> files_of(const cmd::ParsedArgs& p) {
-    std::vector<std::string> out;
-    for (std::size_t i = 0; i < p.positional_count(); ++i) out.push_back(p.positional(i));
-    return out;
-}
-
 }  // namespace
-
-cmd::App fmt_command() {
-    return cmd::App("fmt")
-        .description("Writes view documents in the canonical format")
-        .arg(cmd::Arg("file").required().help("*.view.omui.json files"))
-        .option(cmd::Option("check").help("change nothing; exit 1 when a file is not in the canonical format"));
-}
-
-cmd::App schema_command() {
-    return cmd::App("schema")
-        .description("The JSON Schema of view documents over the official components")
-        .option(cmd::Option("out").takes_value().value_name("FILE").help("write it to a file"));
-}
 
 std::optional<std::vector<Found>> check_documents(const std::vector<std::string>& files, std::ostream& err) {
     register_components();
@@ -100,10 +82,10 @@ int report(const std::vector<Found>& found, std::size_t files, bool json, std::o
     return errors ? 1 : 0;
 }
 
-int fmt(const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) {
-    const bool check_only = p.is_flag_set("check");
+int fmt(const mlibs::agent::Arguments& a, std::ostream& out, std::ostream& err) {
+    const bool check_only = a.flag("check");
     int code = 0;
-    for (const std::string& f : files_of(p)) {
+    for (const std::string& f : a.values("files")) {
         auto text = read_text(f, err);
         if (!text) return 1;
         auto formatted = vd::format_document(*text);
@@ -114,27 +96,30 @@ int fmt(const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) {
         }
         if (*formatted == *text) continue;
         if (check_only) {
-            out << f << '\n';
+            out << Value{}.set("file", f).set("canonical", false).json() << '\n';
             code = 1;
         } else if (auto w = mcpplibs::os::fs::write_atomic(mcpplibs::os::fs::from_utf8(f), *formatted); !w) {
             err << std::format("omui: cannot write {}: {}\n", f, w.error().message());
             code = 1;
+        } else {
+            out << Value{}.set("file", f).set("written", true).json() << '\n';
         }
     }
     return code;
 }
 
-int schema(const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) {
+int schema(const mlibs::agent::Arguments& a, std::ostream& out, std::ostream& err) {
     register_components();
-    const std::string text = *vd::format_document(vd::view_schema(false).json());
-    if (auto file = p.value("out")) {
-        if (auto w = mcpplibs::os::fs::write_atomic(mcpplibs::os::fs::from_utf8(*file), text); !w) {
+    const Value schema = vd::view_schema(false);
+    if (auto file = a.value("out")) {
+        if (auto w = mcpplibs::os::fs::write_atomic(mcpplibs::os::fs::from_utf8(*file), *vd::format_document(schema.json())); !w) {
             err << std::format("omui: cannot write {}: {}\n", *file, w.error().message());
             return 1;
         }
+        out << Value{}.set("written", *file).json() << '\n';
         return 0;
     }
-    out << text;
+    out << schema.json() << '\n';  // one record: the schema
     return 0;
 }
 

@@ -397,6 +397,8 @@ int operation(std::string_view op, const mlibs::agent::Arguments& a, std::ostrea
         return report(*found, files.size(), true, out, err);
     }
     if (name == "describe") return describe(a.value("llms"), out, err);
+    if (name == "fmt") return fmt(a, out, err);
+    if (name == "schema") return schema(a, out, err);
     if (name == "build") return launch(name, a.flag("release"), false, a.values("rest"), true, out, err);
     if (name == "deps") return deps(true, out, err);
     if (name == "tools") return tools(true, out, err);
@@ -433,7 +435,7 @@ void Project::operate(std::string_view op, const mlibs::agent::Request& request,
     std::ostringstream out, err;
     // The tools it starts write to what it writes, not to this process's terminal (the protocol may be it).
     tools_caught() = true;
-    const int code = operation(op, mlibs::agent::Arguments(request, op == "omui.check" ? "files" : ""), out, err);
+    const int code = operation(op, mlibs::agent::Arguments(request, op == "omui.check" || op == "omui.fmt" ? "files" : ""), out, err);
     tools_caught() = false;
     // Each record it wrote is a data record of the answer; anything else, its text.
     std::istringstream lines(out.str());

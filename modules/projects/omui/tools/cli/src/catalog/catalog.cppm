@@ -25,6 +25,13 @@ inline constexpr std::array<mlibs::control::Parameter, 2> parameters_omui_check{
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_describe{{
     {"llms", "path", "also write it as llms.txt, for a model's context", true},
 }};
+inline constexpr std::array<mlibs::control::Parameter, 2> parameters_omui_fmt{{
+    {"files", "json", "the *.view.omui.json files", false},
+    {"check", "bool", "change nothing: each file not in the canonical format said, exit 1", true},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_schema{{
+    {"out", "path", "write it to this file", true},
+}};
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_add{{
     {"package", "string", "a package of mcpp-index, as name or name@version", false},
 }};
@@ -45,7 +52,7 @@ inline constexpr std::array<mlibs::control::Parameter, 4> parameters_omui_design
 }};
 
 // The project's commands: create, build, test, check, describe, package; dependencies, tools and the design's history.
-inline constexpr std::array<mlibs::control::CatalogEntry, 16> catalog{{
+inline constexpr std::array<mlibs::control::CatalogEntry, 18> catalog{{
     {{"omui.doctor", openas::Effect::read, false}, "Which tools are there and which are missing (mcpp, xlings, tsc, esbuild), and what each is for", {}, "json", mlibs::control::Cost::bounded, "", false, false, false, {}},
     {{"omui.templates", openas::Effect::read, false}, "The templates a project is made from, and what each makes", {}, "json", mlibs::control::Cost::instant, "", false, false, false, {}},
     {{"omui.new", openas::Effect::irreversible, false}, "A new project from a template (app-ts by default): a directory of files, written beside the one the server runs in", parameters_omui_new, "json", mlibs::control::Cost::heavy, "none: delete the directory it made", false, false, false, {}},
@@ -53,6 +60,8 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 16> catalog{{
     {{"omui.test", openas::Effect::reversible, false}, "Runs the project's tests (mtest): which passed, which failed and where", parameters_omui_test, "json", mlibs::control::Cost::heavy, "none needed: tests change nothing they keep", false, false, false, {}},
     {{"omui.check", openas::Effect::read, false}, "Type-checks the project's TypeScript against the API it registers (tsc), or view documents: each problem at its line", parameters_omui_check, "json", mlibs::control::Cost::heavy, "", false, false, false, {}},
     {{"omui.describe", openas::Effect::read, false}, "What writing for the project takes: every builder, native module, theme token and verb, as JSON", parameters_omui_describe, "json", mlibs::control::Cost::heavy, "", false, false, false, {}},
+    {{"omui.fmt", openas::Effect::reversible, false}, "View documents written in the canonical format; with check, only which are not", parameters_omui_fmt, "json", mlibs::control::Cost::bounded, "the files as they were (version control)", false, false, false, {}},
+    {{"omui.schema", openas::Effect::reversible, false}, "The JSON Schema of view documents over the official components (written to out when given)", parameters_omui_schema, "json", mlibs::control::Cost::bounded, "delete the file written", false, false, false, {}},
     {{"omui.deps", openas::Effect::read, false}, "The project's dependencies as its mcpp.toml declares them", {}, "json", mlibs::control::Cost::instant, "", false, false, false, {}},
     {{"omui.tools", openas::Effect::read, false}, "The tools the project names for xlings, and whether each is installed", {}, "json", mlibs::control::Cost::bounded, "", false, false, false, {}},
     {{"omui.tools.install", openas::Effect::irreversible, false}, "Installs the tools the project names (xlings install)", {}, "json", mlibs::control::Cost::heavy, "none: xlings remove what it installed", false, false, false, {}},
@@ -87,6 +96,10 @@ inline constexpr std::string_view listing = R"listing({
      "inputSchema": {"type": "object", "properties": {"files": {"description": "*.view.omui.json documents to check instead of the project"}, "portable": {"type": "boolean", "description": "also what only this implementation offers (D-157)"}}, "required": []}},
     {"name": "omui.describe", "description": "What writing for the project takes: every builder, native module, theme token and verb, as JSON", "effect": "read", "person": false, "delegated": false, "cost": "heavy", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"llms": {"type": "string", "description": "a file or directory path: also write it as llms.txt, for a model's context"}}, "required": []}},
+    {"name": "omui.fmt", "description": "View documents written in the canonical format; with check, only which are not", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "the files as they were (version control)", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"files": {"description": "the *.view.omui.json files"}, "check": {"type": "boolean", "description": "change nothing: each file not in the canonical format said, exit 1"}}, "required": ["files"]}},
+    {"name": "omui.schema", "description": "The JSON Schema of view documents over the official components (written to out when given)", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "delete the file written", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"out": {"type": "string", "description": "a file or directory path: write it to this file"}}, "required": []}},
     {"name": "omui.deps", "description": "The project's dependencies as its mcpp.toml declares them", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {}, "required": []}},
     {"name": "omui.tools", "description": "The tools the project names for xlings, and whether each is installed", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",

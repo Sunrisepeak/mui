@@ -54,8 +54,6 @@ namespace omui::cli {
 // (`*.omui.ts`) evaluated, anything else read as it is (project.cpp).
 [[nodiscard]] std::expected<std::string, std::string> data_text(const std::filesystem::path& file);
 
-[[nodiscard]] mcpplibs::cmdline::App fmt_command();
-[[nodiscard]] mcpplibs::cmdline::App schema_command();
 // A diagnostic and the file it is about: what `omui check` prints, whichever check found it.
 struct Found {
     std::string                   file;
@@ -69,8 +67,9 @@ int report(const std::vector<Found>& found, std::size_t files, bool json, std::o
 int check_project(bool json, bool portable, std::ostream& out, std::ostream& err);
 // omui.describe: the project's API (typecheck.cpp), also written as llms.txt to `llms` when given.
 int describe(const std::optional<std::string>& llms, std::ostream& out, std::ostream& err);
-int fmt(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
-int schema(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
+// omui.fmt and omui.schema: view documents in the canonical format; their JSON Schema.
+int fmt(const mlibs::agent::Arguments& a, std::ostream& out, std::ostream& err);
+int schema(const mlibs::agent::Arguments& a, std::ostream& out, std::ostream& err);
 // The official components, registered once (documents and views use them).
 void register_components();
 

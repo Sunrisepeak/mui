@@ -278,7 +278,7 @@ UTest cases{"cli", [] {
         const auto file = dir / "a.view.omui.json";
         std::ofstream(file, std::ios::binary) << R"({"view":{"root":{"type":"text"}},"omui":"0.1"})";
         auto r = omui_cmd({"fmt", "--check", utf8(file)});
-        expect(r.code == 1 && r.out == utf8(file) + "\n") << r.out;
+        expect(r.code == 1 && r.out.contains(R"("canonical":false)") && r.out.contains("a.view.omui.json")) << r.out;
         expect(eq(omui_cmd({"fmt", utf8(file)}).code, 0));
         std::ifstream in(file, std::ios::binary);
         const std::string text{std::istreambuf_iterator<char>(in), {}};
@@ -292,7 +292,10 @@ UTest cases{"cli", [] {
         const std::string text{std::istreambuf_iterator<char>(in), {}};
         auto r = omui_cmd({"schema"});
         expect(eq(r.code, 0));
-        expect(!text.empty() && r.out == text) << "regenerate it: omui schema --out spec/schema/view.schema.json";
+        // Its data record is the schema; the committed file is it in the canonical format.
+        const auto record = parse_json(r.out.substr(0, r.out.find('\n')));
+        const auto file = parse_json(text);
+        expect(record && file && record->get("data") && record->get("data")->json() == file->json()) << "regenerate it: omui schema --out spec/schema/view.schema.json";
     };
 
     "omui video: a description and a view rendered to files, a still, a probe, the timing; problems located"_test = [] {

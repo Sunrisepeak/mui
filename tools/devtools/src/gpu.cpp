@@ -68,12 +68,6 @@ bool install(const std::vector<std::string>& names, int tries) {
     return false;
 }
 
-std::optional<std::string> read_text(const fs::path& path) {
-    std::ifstream in(path, std::ios::binary);
-    if (!in) return std::nullopt;
-    return std::string(std::istreambuf_iterator<char>(in), {});
-}
-
 std::expected<Environment, std::string> software() {
     Environment out;
     const auto set = [&](std::string name, std::string value) { out.variables.emplace_back(std::move(name), std::move(value)); };
@@ -93,7 +87,7 @@ std::expected<Environment, std::string> software() {
         loader = find_in("vulkan-loader", named("vulkan-1.dll"));
         const auto driver = find_in("mesa-lavapipe", named("vulkan_lvp.dll"));
         if (!driver) return std::unexpected("lavapipe's vulkan_lvp.dll is not where xlings installs");
-        const auto manifest = nlohmann::json::parse(read_text(*icd).value_or("{}"), nullptr, false);
+        const auto manifest = nlohmann::json::parse(os::fs::read(*icd).value_or("{}"), nullptr, false);
         std::string api = "1.4.0";
         if (!manifest.is_discarded() && manifest.contains("ICD") && manifest["ICD"].contains("api_version")) api = manifest["ICD"]["api_version"].get<std::string>();
         const fs::path temporary = os::env::get("RUNNER_TEMP").transform([](const std::string& dir) { return fs::path(dir); }).value_or(fs::temp_directory_path());
@@ -132,7 +126,7 @@ std::expected<Environment, std::string> software() {
     }
     // The loader reports its own errors on stderr; the manifest is shown as the loader will read it.
     out.said.push_back(os::fs::utf8(*icd));
-    for (auto part : std::views::split(read_text(*icd).value_or("(unreadable)"), '\n'))
+    for (auto part : std::views::split(os::fs::read(*icd).value_or("(unreadable)"), '\n'))
         if (!std::string_view(part.begin(), part.end()).empty()) out.said.push_back("  " + std::string(part.begin(), part.end()));
     set("VK_LOADER_DEBUG", "error,warn");
     set("VK_DRIVER_FILES", os::fs::utf8(*icd));

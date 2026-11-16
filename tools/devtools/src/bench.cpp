@@ -11,12 +11,6 @@ namespace {
 
 namespace fs = std::filesystem;
 
-std::optional<std::string> read_text(const fs::path& path) {
-    std::ifstream in(path, std::ios::binary);
-    if (!in) return std::nullopt;
-    return std::string(std::istreambuf_iterator<char>(in), {});
-}
-
 }  // namespace
 
 std::string corpus(const fs::path& root, std::size_t size) {
@@ -31,7 +25,7 @@ std::string corpus(const fs::path& root, std::size_t size) {
         std::ranges::sort(files);
         for (const auto& file : files) {
             if (!text.empty()) text += "\n\n";
-            text += read_text(file).value_or("");
+            text += mcpplibs::os::fs::read(file).value_or("");
         }
     }
     if (text.empty()) return text;
@@ -144,8 +138,8 @@ std::expected<int, std::string> competitors(const fs::path& root, const Options&
         }
     }
     std::vector<std::string> skipped;
-    const auto judged = lead::verdicts(read_text(root / lead::metrics_path).value_or(""), read_text(samples_path).value_or(""),
-                                       read_text(root / lead::ledger_path).value_or(""), lead::context_here(root), skipped);
+    const auto judged = lead::verdicts(mcpplibs::os::fs::read(root / lead::metrics_path).value_or(""), mcpplibs::os::fs::read(samples_path).value_or(""),
+                                       mcpplibs::os::fs::read(root / lead::ledger_path).value_or(""), lead::context_here(root), skipped);
     if (!judged) return std::unexpected(judged.error());
     for (const auto& id : skipped) std::cerr << std::format("{}: no paired samples\n", id);
     std::vector<std::string> records;

@@ -16,12 +16,6 @@ using Outcome = std::expected<void, std::string>;
 
 constexpr std::array<std::string_view, 5> probe_names{"hanim-core", "hanim-api", "hanim-play", "omui-hanim", "hanim-features"};
 
-std::optional<std::string> read_text(const fs::path& path) {
-    std::ifstream in(path, std::ios::binary);
-    if (!in) return std::nullopt;
-    return std::string(std::istreambuf_iterator<char>(in), {});
-}
-
 bool write_text(const fs::path& path, std::string_view text) {
     std::error_code error;
     if (path.has_parent_path()) fs::create_directories(path.parent_path(), error);
@@ -36,7 +30,7 @@ std::string text_of(const fs::path& path) { return mcpplibs::os::fs::utf8(path);
 json digest(const fs::path& path) {
     std::error_code error;
     if (!fs::is_regular_file(path, error)) return nullptr;
-    return mlibs::hash::sha256_hex(read_text(path).value_or(""));
+    return mlibs::hash::sha256_hex(mcpplibs::os::fs::read(path).value_or(""));
 }
 
 // What a path is, resolved as the system resolves it (symbolic links followed where they exist).
@@ -144,8 +138,8 @@ std::expected<Metadata, std::string> newest_metadata(const fs::path& project) {
             if (!newest || written > when) newest = candidate, when = written;
         }
     if (!newest) return std::unexpected("mcpp did not emit resolution.json");
-    Metadata out{*newest, newest->parent_path() / "compile_commands.json", json::parse(read_text(*newest).value_or(""), nullptr, false),
-                 json::parse(read_text(newest->parent_path() / "compile_commands.json").value_or("[]"), nullptr, false)};
+    Metadata out{*newest, newest->parent_path() / "compile_commands.json", json::parse(mcpplibs::os::fs::read(*newest).value_or(""), nullptr, false),
+                 json::parse(mcpplibs::os::fs::read(newest->parent_path() / "compile_commands.json").value_or("[]"), nullptr, false)};
     if (out.data.is_discarded() || out.data.value("schema_version", 0) != 2) return std::unexpected("unrecognized mcpp resolution schema; review the graph audit");
     if (out.entries.is_discarded()) return std::unexpected("the compile database is not JSON");
     return out;
@@ -255,7 +249,7 @@ private:
 Outcome hanim_core(Probe& probe) {
     const fs::path fixture = probe.repo / "tools/ci/hanim-core-consumer";
     fs::create_directories(probe.project / "src");
-    std::string manifest = read_text(fixture / "mcpp.toml.in").value_or("");
+    std::string manifest = mcpplibs::os::fs::read(fixture / "mcpp.toml.in").value_or("");
     for (const auto& [key, path] : {std::pair{"core_path", probe.repo / "modules/projects/hanim/core"}, std::pair{"utils_path", probe.repo / "modules/base/utils"}}) {
         const std::string mark = std::format("{{{{{}}}}}", key), value = json(mcpplibs::os::fs::generic_utf8(path)).dump();
         for (std::size_t at = manifest.find(mark); at != std::string::npos; at = manifest.find(mark, at + value.size())) manifest.replace(at, mark.size(), value);
@@ -358,7 +352,7 @@ bool independent(const fs::path& source, const fs::path& repo, bool wider) {
 Outcome hanim_api(Probe& probe) {
     const fs::path fixture = probe.repo / "tools/ci/hanim-api-probe";
     fs::create_directories(probe.project / "src");
-    std::string manifest = read_text(fixture / "mcpp.toml.in").value_or("");
+    std::string manifest = mcpplibs::os::fs::read(fixture / "mcpp.toml.in").value_or("");
     const std::string mark = "{{hanim_path}}", value = json(text_of(probe.repo / "modules/projects/hanim")).dump();
     for (std::size_t at = manifest.find(mark); at != std::string::npos; at = manifest.find(mark, at + value.size())) manifest.replace(at, mark.size(), value);
     write_text(probe.project / "mcpp.toml", manifest);
@@ -491,7 +485,7 @@ std::optional<json> kind_row(std::string_view text, std::string_view kind) {
 Outcome hanim_play(Probe& probe, const fs::path& openas) {
     const fs::path fixture = probe.repo / "tools/ci/hanim-play-consumer";
     fs::create_directories(probe.project / "src");
-    std::string manifest = read_text(fixture / "mcpp.toml.in").value_or("");
+    std::string manifest = mcpplibs::os::fs::read(fixture / "mcpp.toml.in").value_or("");
     for (const auto& [key, relative] : std::initializer_list<std::pair<std::string_view, std::string_view>>{
              {"engine", "projects/hanim"}, {"raster", "projects/xrender/raster"}, {"image", "base/image"}, {"utils", "base/utils"}, {"control", "base/control"}}) {
         const std::string mark = std::format("{{{{{}_path}}}}", key), value = json(text_of(probe.repo / "modules" / relative)).dump();
@@ -509,7 +503,7 @@ Outcome hanim_play(Probe& probe, const fs::path& openas) {
     const auto run = [&](std::string label, std::vector<std::string> argv, int expected = 0, bool bootstrap = false, fs::path cwd = {}) -> std::expected<std::string, std::string> {
         auto done = probe.run(label, {.argv = std::move(argv), .bootstrap = bootstrap, .expected = expected, .cwd = std::move(cwd), .headless = true});
         if (done && !openas.empty()) {
-            const auto stderr_log = read_text(probe.artifacts / (label + ".stderr.log")).value_or("");
+            const auto stderr_log = mcpplibs::os::fs::read(probe.artifacts / (label + ".stderr.log")).value_or("");
             if (stderr_log.contains("not one of that package's public modules"))
                 return std::unexpected(label + ": a private module import remains in the artifact's configuration");
         }
@@ -562,12 +556,12 @@ Outcome hanim_play(Probe& probe, const fs::path& openas) {
             if (result["backend"] != "cpu-reference" || result["controls"]["retarget"] != shot.retarget || !result["controls"]["pause_holds"].get<bool>() ||
                 !result["controls"]["reverse_moves_backwards"].get<bool>())
                 return std::unexpected("the consumer's controls or backend disagree");
-            const auto size = png_size(read_text(png).value_or(""));
+            const auto size = png_size(mcpplibs::os::fs::read(png).value_or(""));
             if (!size || size->first != result["region"]["width"].get<std::uint32_t>() || size->second != result["region"]["height"].get<std::uint32_t>())
                 return std::unexpected("the actual PNG's header disagrees with the region's provenance");
             fs::path sidecar = png;
             sidecar += ".provenance.omui.json";
-            if (!same_json(json::parse(read_text(sidecar).value_or(""), nullptr, false), result)) return std::unexpected("the sidecar provenance differs from standard output");
+            if (!same_json(json::parse(mcpplibs::os::fs::read(sidecar).value_or(""), nullptr, false), result)) return std::unexpected("the sidecar provenance differs from standard output");
             results.push_back(result);
         }
         std::set<std::string> ends{results[0]["pixel_fnv1a"].dump(), results[1]["pixel_fnv1a"].dump(), results[2]["pixel_fnv1a"].dump()};
@@ -616,7 +610,7 @@ Outcome hanim_play(Probe& probe, const fs::path& openas) {
                     return std::unexpected("the process frame's time provenance disagrees");
                 if (frame["sample_time_seconds"].get<double>() != static_cast<double>(index) / 60.0) return std::unexpected("the rendered sample time differs from the requested rational time");
                 const fs::path image = frame.value("png", "");
-                const auto size = png_size(read_text(image).value_or(""));
+                const auto size = png_size(mcpplibs::os::fs::read(image).value_or(""));
                 if (!size || *size != std::pair<std::uint32_t, std::uint32_t>{320, 240}) return std::unexpected("a process frame is not the actual viewport PNG");
                 frame["png_sha256"] = digest(image);
             }
@@ -675,8 +669,8 @@ std::expected<Active, std::string> active_metadata(const fs::path& project, std:
         for (const auto& build : fs::directory_iterator(platform.path(), error)) {
             const fs::path resolution = build.path() / "resolution.json";
             if (!fs::is_regular_file(resolution, error)) continue;
-            const json data = json::parse(read_text(resolution).value_or(""), nullptr, false);
-            const json entries = json::parse(read_text(build.path() / "compile_commands.json").value_or("[]"), nullptr, false);
+            const json data = json::parse(mcpplibs::os::fs::read(resolution).value_or(""), nullptr, false);
+            const json entries = json::parse(mcpplibs::os::fs::read(build.path() / "compile_commands.json").value_or("[]"), nullptr, false);
             if (data.is_discarded() || entries.is_discarded()) continue;
             const auto main = std::ranges::find_if(entries, [&](const json& entry) { return real(fs::path(entry.value("file", ""))) == real(project / "src/main.cpp"); });
             if (main == entries.end()) continue;
@@ -686,7 +680,7 @@ std::expected<Active, std::string> active_metadata(const fs::path& project, std:
         }
     if (matches.size() != 1) return std::unexpected(std::format("ambiguous target/profile metadata: {}", profile));
     Active found = std::move(matches.front());
-    const auto outputs = ninja_outputs(read_text(found.ninja).value_or(""));
+    const auto outputs = ninja_outputs(mcpplibs::os::fs::read(found.ninja).value_or(""));
     const fs::path directory = found.metadata.resolution.parent_path();
     for (const auto& entry : found.metadata.entries) {
         fs::path output = entry.value("output", "");
@@ -703,7 +697,7 @@ std::expected<Active, std::string> active_metadata(const fs::path& project, std:
 Outcome omui_hanim(Probe& probe, bool web) {
     const fs::path fixture = probe.repo / "tools/ci/omui-hanim-consumer";
     fs::create_directories(probe.project / "src");
-    std::string manifest = read_text(fixture / "mcpp.toml.in").value_or("");
+    std::string manifest = mcpplibs::os::fs::read(fixture / "mcpp.toml.in").value_or("");
     for (const auto& [key, relative] : std::initializer_list<std::pair<std::string_view, std::string_view>>{
              {"view", "modules/projects/omui/view"}, {"components", "modules/projects/omui/components/base"}, {"raster", "modules/projects/xrender/raster"},
              {"image", "modules/base/image"}, {"utils", "modules/base/utils"}, {"xrender_text", "modules/projects/xrender/text"}, {"hanim", "modules/projects/hanim"}}) {
@@ -1037,7 +1031,7 @@ Outcome hanim_features(Probe& probe) {
             expected_exports.insert("export import hanim." + role + ";");
         }
         std::set<std::string> actual_exports;
-        for (auto part : std::views::split(std::string_view(read_text(exports).value_or("")), '\n')) {
+        for (auto part : std::views::split(std::string_view(mcpplibs::os::fs::read(exports).value_or("")), '\n')) {
             const std::string_view line(part.begin(), part.end());
             if (line.starts_with("export import ")) actual_exports.emplace(line);
         }

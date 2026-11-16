@@ -12,12 +12,6 @@ namespace {
 namespace fs = std::filesystem;
 namespace os = mcpplibs::os;
 
-std::optional<std::string> read_text(const fs::path& path) {
-    std::ifstream in(path, std::ios::binary);
-    if (!in) return std::nullopt;
-    return std::string(std::istreambuf_iterator<char>(in), {});
-}
-
 // The first of the answers, whoever gives it: the program's exit, the browser's, the clock's.
 class Finish {
 public:
@@ -168,12 +162,12 @@ std::expected<int, std::string> run(const Options& options) {
             std::size_t index = options.preloads.size();
             std::from_chars(rest.data(), rest.data() + std::min(slash, rest.size()), index);
             if (index < options.preloads.size() && slash != std::string::npos)
-                if (const auto bytes = read_text(options.preloads[index].first / fs::path(os::fs::from_utf8(rest.substr(slash + 1))).filename()))
+                if (const auto bytes = os::fs::read(options.preloads[index].first / fs::path(os::fs::from_utf8(rest.substr(slash + 1))).filename()))
                     return answer(200, *bytes, "application/octet-stream");
             return answer(404, "", "text/plain");
         }
         const fs::path file = directory / fs::path(os::fs::from_utf8(path)).filename();
-        if (const auto bytes = read_text(file)) return answer(200, *bytes, mlibs::http::media_type(os::fs::utf8(file.extension())));
+        if (const auto bytes = os::fs::read(file)) return answer(200, *bytes, mlibs::http::media_type(os::fs::utf8(file.extension())));
         answer(404, "", "text/plain");
     };
     std::atomic<bool> stopping{false};

@@ -9,8 +9,9 @@ import std;
 export namespace omui::devtools::run {
 
 struct Ran {
-    int status = 0;   // as a shell reports it
-    std::string out;  // standard output, when captured
+    int status = 0;          // as a shell reports it; 124 where the timeout ended it (as timeout(1) says)
+    std::string out;         // standard output, when captured
+    bool timed_out = false;  // the timeout ended it, and everything it started
 };
 
 struct How {
@@ -19,6 +20,7 @@ struct How {
     bool merged = false;                                         // standard error captured with standard output
     std::vector<std::pair<std::string, std::string>> variables;  // set for the program
     std::string input;                                           // given on its standard input (none: the null device)
+    std::chrono::seconds timeout{0};                             // more than 0: ended with what it started after so long
 };
 
 // `program args…` (a bare name is looked for on PATH); or why it did not start.
@@ -40,6 +42,12 @@ struct Artifact {
 
 // `mcpp test ARGS… --no-run --message-format json`: each test built, by its name, to its program; or why not.
 [[nodiscard]] std::expected<std::map<std::string, std::filesystem::path>, std::string> tests(const std::filesystem::path& root, std::vector<std::string> args);
+
+// The repository's commit, short (8), or "unknown".
+[[nodiscard]] std::string commit(const std::filesystem::path& root);
+
+// Today, YYYY-MM-DD (UTC): the date a record carries.
+[[nodiscard]] std::string today();
 
 // How many compiles at once keep a build within 90% of this machine; a lower MCPP_JOBS already set is kept.
 [[nodiscard]] int share_of_machine();

@@ -2,6 +2,7 @@ module omui.devtools.lead;
 
 import std;
 import mcpplibs.os;
+import omui.devtools.run;
 import nlohmann.json;
 
 namespace omui::devtools::lead {
@@ -34,12 +35,6 @@ constexpr std::pair<std::string_view, Words> words[]{
       "指标", "标志性特性", "能力对照", "| 项目 | 指标 | 我方 | 最强竞品 | 比值 [95% 区间] | 判定 |", "| 项目 | 特性 | 状态 | 判定 |",
       "| 能力 | 竞品 | 判定 |", "计划中", "待真机验证"}},
 };
-
-std::optional<std::string> read_text(const fs::path& path) {
-    std::ifstream in(path, std::ios::binary);
-    if (!in) return std::nullopt;
-    return std::string(std::istreambuf_iterator<char>(in), {});
-}
 
 std::string text_at(const json& value, std::string_view key) {
     const auto found = value.find(key);
@@ -360,19 +355,9 @@ std::expected<std::map<std::string, std::string>, std::string> pages(std::string
 
 Context context_here(const fs::path& root) {
     Context made;
-    made.date = std::format("{:%F}", std::chrono::floor<std::chrono::days>(std::chrono::system_clock::now()));
-    const auto ran = [](std::string program, std::vector<std::string> args) -> std::optional<std::string> {
-        mcpplibs::os::process::spawn_options options;
-        options.program = std::move(program);
-        options.args = std::move(args);
-        auto done = mcpplibs::os::process::run(std::move(options));
-        if (!done || done->status.shell_code() != 0) return std::nullopt;
-        std::string out = std::move(done->out);
-        std::erase_if(out, [](char c) { return c == '\n' || c == '\r'; });
-        return out;
-    };
-    made.machine = std::format("{}-{}t", ran("hostname", {}).value_or("unknown"), std::thread::hardware_concurrency());
-    made.commit = ran("git", {"-C", mcpplibs::os::fs::utf8(root), "rev-parse", "--short=8", "HEAD"}).value_or("unknown");
+    made.date = run::today();
+    made.machine = std::format("{}-{}t", run::output(root, "hostname", {}).value_or("unknown"), std::thread::hardware_concurrency());
+    made.commit = run::commit(root);
     return made;
 }
 
@@ -385,8 +370,8 @@ bool append(const fs::path& path, std::span<const std::string> lines) {
 }
 
 std::expected<std::vector<std::string>, std::string> write_pages(const fs::path& root) {
-    const auto written = pages(read_text(root / metrics_path).value_or(""), read_text(root / features_path).value_or(""),
-                               read_text(root / ledger_path).value_or(""));
+    const auto written = pages(mcpplibs::os::fs::read(root / metrics_path).value_or(""), mcpplibs::os::fs::read(root / features_path).value_or(""),
+                               mcpplibs::os::fs::read(root / ledger_path).value_or(""));
     if (!written) return std::unexpected(written.error());
     std::vector<std::string> paths;
     for (const auto& [path, text] : *written) {
@@ -399,11 +384,11 @@ std::expected<std::vector<std::string>, std::string> write_pages(const fs::path&
 std::vector<std::pair<std::string, std::string>> problems(const fs::path& root) {
     std::vector<std::pair<std::string, std::string>> out;
     const std::string where(features_path);
-    const auto features_text = read_text(root / features_path);
+    const auto features_text = mcpplibs::os::fs::read(root / features_path);
     if (!features_text) return {{where, "missing: the signature features (Part 2 plan §1.5, §4)"}};
     const auto features = json::parse(*features_text, nullptr, false);
     if (features.is_discarded()) return {{where, "not JSON"}};
-    const auto ledger_text = read_text(root / ledger_path).value_or("");
+    const auto ledger_text = mcpplibs::os::fs::read(root / ledger_path).value_or("");
     const auto ledger = read_lines(ledger_text);
     std::set<std::string> far;
     for (const auto& record : ledger.value_or(std::vector<json>{})) {
@@ -443,11 +428,11 @@ std::vector<std::pair<std::string, std::string>> problems(const fs::path& root) 
         if (count < 2 || count > 4) out.emplace_back(where, std::format("{}: {} headline features (two to four, §1.5; the rest are foundations)", project, count));
     }
     // The site's lead page is the ledger's: regenerated with it (omui-devtools lead docs).
-    const auto metrics_text = read_text(root / metrics_path);
+    const auto metrics_text = mcpplibs::os::fs::read(root / metrics_path);
     if (metrics_text && fs::exists(root / ledger_path) && fs::exists(root / "docs" / "en" / "lead.md"))
         if (const auto written = pages(*metrics_text, *features_text, ledger_text))
             for (const auto& [path, text] : *written)
-                if (read_text(root / path) != text) out.emplace_back(path, "not the ledger's: run omui-devtools lead docs");
+                if (mcpplibs::os::fs::read(root / path) != text) out.emplace_back(path, "not the ledger's: run omui-devtools lead docs");
     if (metrics_text) {
         const std::string at(metrics_path);
         const auto metrics = json::parse(*metrics_text, nullptr, false);

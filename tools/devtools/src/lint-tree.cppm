@@ -40,9 +40,20 @@ std::string resolved(std::string_view member, std::string_view relative);
 // The members whose results are part of A-level conformance (identical bits).
 std::span<const std::string_view> deterministic_members() noexcept;
 
+// A closure that stays small: `only` the packages listed, or `never` these (a name, or a name and those below it).
+struct Closure {
+    std::string package;
+    std::vector<std::string> only, never;
+};
+std::span<const Closure> repository_closures();
+
 // The groups' checks.
 std::vector<Problem> check_manifests(const Workspace& workspace);  // toml, members, manifest, layering, modules, determinism's flags
 std::vector<Problem> check_projects(const Workspace& workspace);   // project-dag
 std::vector<Problem> check_layout(const Workspace& workspace);     // layout
+std::vector<Problem> check_licences(const Workspace& workspace);   // licenses
+std::vector<Problem> check_platforms(const Workspace& workspace);  // platforms
+std::vector<Problem> check_pins(const Workspace& workspace);       // pins
+std::vector<Problem> check_closures(const Workspace& workspace, std::span<const Closure> closures);  // closure
 
 }  // namespace omui::devtools::lint

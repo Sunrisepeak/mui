@@ -59,6 +59,10 @@ constexpr Rule all_rules[]{
     {"modules", "an independent component (mlibs, the kernels) depends on nothing above it (D-55)"},
     {"project-dag", "no project depends on one not below it, its tests included (D-161)"},
     {"layout", "a library's directory is its name; a directory with packages lists them in its README (D-80)"},
+    {"licenses", "every index package is in tools/lint/licenses.toml; no GPL or AGPL; LGPL only dynamic (D-83)"},
+    {"platforms", "a package on the Web depends only on packages that say they are (D-84)"},
+    {"pins", "a root's graph-wide pin is declared, the same, by every member and template that reaches it"},
+    {"closure", "the dependency closures the lint names stay small (D-55)"},
 };
 
 bool starts_with_any(std::string_view text, std::span<const char* const> prefixes) {
@@ -375,19 +379,26 @@ std::string strip_comments(std::string_view text) {
     return out;
 }
 
-std::vector<Problem> run(const fs::path& root, std::span<const std::string> only) {
+namespace {
+
+std::vector<Problem> run_with(const fs::path& root, std::span<const std::string> only, std::span<const Closure> closures) {
     const auto owners = owners_of(owners_file(root));
     const auto workspace = Workspace::read(root);
     auto problems = check_manifests(workspace);
     const bool readable = std::ranges::none_of(problems, [](const Problem& problem) { return problem.rule == "toml"; });
     if (readable) {  // the other rules read the manifests
-        std::ranges::move(check_projects(workspace), std::back_inserter(problems));
-        std::ranges::move(check_layout(workspace), std::back_inserter(problems));
+        for (auto&& found : {check_projects(workspace), check_layout(workspace), check_licences(workspace), check_platforms(workspace),
+                             check_pins(workspace), check_closures(workspace, closures)})
+            std::ranges::move(found, std::back_inserter(problems));
     }
     std::ranges::move(check_sources(root, owners), std::back_inserter(problems));
     if (!only.empty()) std::erase_if(problems, [&](const Problem& problem) { return !std::ranges::contains(only, problem.rule); });
     return problems;
 }
+
+}  // namespace
+
+std::vector<Problem> run(const fs::path& root, std::span<const std::string> only) { return run_with(root, only, repository_closures()); }
 
 namespace {
 
@@ -399,6 +410,9 @@ struct Planted {
     std::map<std::string, std::string> dependencies;  // a member's extra manifest tables
     std::map<std::string, std::string> names;         // a member's [package] name lines, instead of its own
     std::vector<std::string> also_unexpected;         // rules a case breaks as well (and may)
+    std::string root_prefix;                          // before the root's [workspace]
+    std::string licences;                             // more lines for tools/lint/licenses.toml
+    std::vector<Closure> closures;                    // the closure rules the case runs with
 };
 
 void plant(const fs::path& root, const Planted& planted, const fs::path& owners_table) {
@@ -418,7 +432,9 @@ void plant(const fs::path& root, const Planted& planted, const fs::path& owners_
     };
     std::string listed;
     for (const auto& member : members) listed += std::format("{}\"{}\"", listed.empty() ? "" : ", ", member);
-    write(root / "mcpp.toml", std::format("[workspace]\nmembers = [{}]\n", listed));
+    write(root / "mcpp.toml", std::format("{}[workspace]\nmembers = [{}]\n", planted.root_prefix, listed));
+    write(root / "tools" / "lint" / "licenses.toml",
+          "[packages]\n\"ns.kernel\" = [\"MIT\"]\n\"ns.os\" = [\"MIT\"]\n\"compat.sdl3\" = [\"Zlib\"]\n" + planted.licences);
     for (const auto& [directory, text] : std::map<std::string, std::string>{{"modules", "[base](base) [gfx](gfx) [ui](ui)"},
                                                                            {"modules/base", "[hanim](hanim)"},
                                                                            {"modules/base/hanim", "[core](core)"},
@@ -461,6 +477,15 @@ int self_test(const fs::path& repository, const fs::path& scratch, std::ostream&
         {.rule = "modules", .dependencies = {{"modules/gfx/hanim", "[dependencies]\ncore = { path = \"../../ui/core\" }\n"}}},
         {.rule = "project-dag", .dependencies = {{"modules/base/hanim/core", "[dev-dependencies]\nopenlifa.openmui = { path = \"../../../../spec\" }\n"}}},
         {.rule = "layout", .names = {{"modules/gfx/hanim", "name = \"anim\""}}},
+        // what the manifests reach
+        {.rule = "licenses", .dependencies = {{"modules/ui/core", "[dependencies]\nacme.copyleft = \"1.0.0\"\n"}},
+         .licences = "\"acme.copyleft\" = [\"GPL-3.0-only\"]\n"},
+        {.rule = "platforms", .dependencies = {{"modules/ui/core", "[dependencies]\nhanim = { path = \"../../gfx/hanim\" }\n"}},
+         .names = {{"modules/ui/core", "namespace = \"openmui\"\nname = \"core\"\nplatforms = [\"linux\", \"emscripten\"]"}}},
+        {.rule = "pins", .dependencies = {{"modules/ui/core", "[dependencies]\nns.os = \"0.1.0\"\n"}},  // reaches ns.os, does not pin ns.kernel
+         .root_prefix = "[package]\nname = \"root\"\nversion = \"0.1.0\"\n[package.metadata.openmui.pins]\n\"ns.kernel\" = \"ns.os\"\n[dependencies]\nns.kernel = \"1.0.0\"\n"},
+        {.rule = "closure", .dependencies = {{"modules/gfx/hanim", "[dependencies]\nhanim.core = { path = \"../../base/hanim/core\" }\n"}},
+         .closures = {{"hanim", {}, {"hanim.core"}}}},  // planted: hanim may not reach its core
     };
     // The owners' samples come from the repository's own table.
     const fs::path table = owners_file(repository);
@@ -471,7 +496,7 @@ int self_test(const fs::path& repository, const fs::path& scratch, std::ostream&
     for (const auto& planted : cases) {
         plant(root, planted, table);
         std::vector<Problem> found, other;
-        for (auto& problem : run(root)) {
+        for (auto& problem : run_with(root, {}, planted.closures)) {
             const bool mine = problem.rule == planted.rule && (planted.capability.empty() || problem.message.starts_with(planted.capability + ":"));
             if (mine) found.push_back(std::move(problem));
             else if (!std::ranges::contains(planted.also_unexpected, problem.rule)) other.push_back(std::move(problem));

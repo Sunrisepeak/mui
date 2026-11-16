@@ -2,8 +2,8 @@
 """openmui's repository rules, checked (AGENTS.md; implementation plan §15.3).
 
 Moving to C++ (D-206, RC3.12): macros, headers, naming, legacy-import, testing, cmdline, thirdparty,
-exceptions, paths, platform, determinism, owner, toml, members, manifest, layering, modules, project-dag
-and layout are `omui-devtools lint` now (tools/devtools,
+exceptions, paths, platform, determinism, owner, toml, members, manifest, layering, modules, project-dag,
+layout, licenses, platforms, pins and closure are `omui-devtools lint` now (tools/devtools,
 held by its lint_test in every test row); the rules below that are not among them run here.
 
     python3 tools/lint/lint.py            check the repository
@@ -164,255 +164,12 @@ def package_name(data: dict) -> str:
     return f"{p['namespace']}.{p.get('name', '')}" if p.get("namespace") else p.get("name", "")
 
 
-# Licences (D-83): GPL and AGPL never, dynamic linking included; LGPL only
-# as an optional plugin linked dynamically. tools/lint/licenses.toml lists
-# every index package the workspace reaches.
-COPYLEFT = re.compile(r"^(A?GPL)-")
-WEAK_COPYLEFT = re.compile(r"^LGPL-")
-
-
-def index_packages(root: Path) -> set[str]:
-    """Index packages the manifests (every table, every target) and mcpp.lock name."""
-    names: set[str] = set()
-    manifests = [root / m / "mcpp.toml" for m in workspace_members(root)] + [root / "mcpp.toml"]
-    for manifest in manifests:
-        try:
-            data = tomllib.loads(manifest.read_text(encoding="utf-8"))
-        except (OSError, tomllib.TOMLDecodeError):
-            continue
-        tables = [data.get(t, {}) for t in ("dependencies", "dev-dependencies", "build-dependencies")]
-        for target in data.get("target", {}).values():
-            if isinstance(target, dict):
-                tables += [target.get(t, {}) for t in ("dependencies", "dev-dependencies", "build-dependencies")]
-        for table in tables:
-            for name, spec in flatten_deps(table):
-                if isinstance(spec, str) or (isinstance(spec, dict) and "path" not in spec):
-                    names.add(name)
-    lock = root / "mcpp.lock"
-    if lock.exists():
-        try:
-            names |= set(tomllib.loads(lock.read_text(encoding="utf-8")).get("package", {}).keys())
-        except tomllib.TOMLDecodeError:
-            pass
-    return names
-
-
-def index_licences(name: str) -> list[str] | None:
-    """The licences a local mcpp index's descriptor lists, when one is there."""
-    for pkgs in sorted(Path.home().glob(".mcpp/indices/*/pkgs")):
-        candidates = list(pkgs.glob(f"*/{name}.lua"))
-        if name.startswith("mcpplibs.mwrap."):
-            candidates.append(pkgs / "mwrap" / (name[len("mcpplibs.mwrap."):] + ".lua"))
-        if name.startswith("mcpplibs."):
-            candidates += list(pkgs.glob(f"*/{name[len('mcpplibs.'):]}.lua"))
-        for f in candidates:
-            if f.exists():
-                m = re.search(r"licenses\s*=\s*\{([^}]*)\}", f.read_text(encoding="utf-8"))
-                return re.findall(r'"([^"]+)"', m.group(1)) if m else []
-    return None
-
-
-def check_licences(root: Path) -> list[Problem]:
-    problems = []
-    table_file = root / "tools" / "lint" / "licenses.toml"
-    try:
-        table = tomllib.loads(table_file.read_text(encoding="utf-8")) if table_file.exists() else {}
-    except tomllib.TOMLDecodeError as e:
-        return [Problem("licenses", "tools/lint/licenses.toml", f"not valid TOML: {e}")]
-    listed: dict = table.get("packages", {})
-    dynamic: dict = table.get("dynamic", {})
-    for name in sorted(index_packages(root)):
-        if name not in listed:
-            problems.append(Problem("licenses", name, "not in tools/lint/licenses.toml: list it with its licences (SPDX) "
-                                                      "before depending on it"))
-            continue
-        licences = listed[name]
-        for lic in licences:
-            if COPYLEFT.match(lic):
-                problems.append(Problem("licenses", name, f"{lic}: no GPL or AGPL in openmui, dynamically linked or not (D-83)"))
-            elif WEAK_COPYLEFT.match(lic) and name not in dynamic:
-                problems.append(Problem("licenses", name, f"{lic}: an LGPL library only as an optional plugin, linked "
-                                                          "dynamically and listed under [dynamic] (D-83)"))
-        known = index_licences(name)
-        if known and sorted(known) != sorted(licences):
-            problems.append(Problem("licenses", name, f"tools/lint/licenses.toml says {licences}, the index says {known}"))
-    return problems
-
-
-# Platforms (D-84): a package that says it runs on the Web (`platforms` lists
-# "emscripten") depends — dev-dependencies included, its tests run there too —
-# only on packages of the workspace that say so as well. CI's Web row tests
-# exactly the packages that say it (tools/ci/web.sh).
-def check_platforms(root: Path) -> list[Problem]:
-    problems = []
-    members = workspace_members(root)
-    data: dict[str, dict] = {}
-    for m in members:
-        try:
-            data[m] = tomllib.loads((root / m / "mcpp.toml").read_text(encoding="utf-8"))
-        except (OSError, tomllib.TOMLDecodeError):
-            continue
-    web = {m for m, d in data.items() if "emscripten" in d.get("package", {}).get("platforms", [])}
-    for m in sorted(web):
-        d = data[m]
-        tables = [d.get(t, {}) for t in ("dependencies", "dev-dependencies")]
-        for target in d.get("target", {}).values():
-            if isinstance(target, dict):
-                tables += [target.get(t, {}) for t in ("dependencies", "dev-dependencies")]
-        for table in tables:
-            for name, spec in flatten_deps(table):
-                if not isinstance(spec, dict) or "path" not in spec:
-                    continue
-                try:
-                    dep = (root / m / spec["path"]).resolve().relative_to(root.resolve()).as_posix()
-                except ValueError:
-                    continue
-                if dep in data and dep not in web:
-                    problems.append(Problem("platforms", m, f"runs on the Web (emscripten) but depends on {dep} ({name}), which does not say it does"))
-    return problems
-
-
-def check_pins(root: Path) -> list[Problem]:
-    problems = []
-    manifest = root / "mcpp.toml"
-    if not manifest.exists():
-        return problems
-    data = tomllib.loads(manifest.read_text(encoding="utf-8"))
-    pins = data.get("package", {}).get("metadata", {}).get("openmui", {}).get("pins", {})
-    if not pins:
-        return problems
-    root_deps = dict(flatten_deps(data.get("dependencies", {})))
-    loaded: dict[str, dict] = {}
-
-    def deps_of(member: str) -> dict:
-        if member not in loaded:
-            path = root / member / "mcpp.toml"
-            try:
-                d = tomllib.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
-            except tomllib.TOMLDecodeError:
-                d = {}
-            out = {}
-            for table in ("dependencies", "dev-dependencies"):
-                out.update(dict(flatten_deps(d.get(table, {}))))
-            for target in d.get("target", {}).values():
-                if isinstance(target, dict):
-                    out.update(dict(flatten_deps(target.get("dependencies", {}))))
-            loaded[member] = out
-        return loaded[member]
-
-    def reaches(member: str, package: str, seen: set) -> bool:
-        if member in seen:
-            return False
-        seen.add(member)
-        for name, spec in deps_of(member).items():
-            if name == package:
-                return True
-            if isinstance(spec, dict) and "path" in spec:
-                dep = (root / member / spec["path"]).resolve()
-                try:
-                    rel = dep.relative_to(root.resolve()).as_posix() or "."
-                except ValueError:
-                    continue
-                if reaches(rel, package, seen):
-                    return True
-        return False
-
-    # A template's project depends on openmui itself, so it reaches every pinned package.
-    templates = {}
-    for t in sorted((root / "modules/projects/omui/templates").glob("*/mcpp.toml.in")) if (root / "modules/projects/omui/templates").exists() else []:
-        try:
-            # Placeholders as mcpp renders them (`{{project.name}}` → a name).
-            text = re.sub(r"\{\{[^}]*\}\}", "placeholder", t.read_text(encoding="utf-8"))
-            templates[t.relative_to(root).as_posix()] = dict(flatten_deps(tomllib.loads(text).get("dependencies", {})))
-        except tomllib.TOMLDecodeError as e:
-            problems.append(Problem("pins", t.relative_to(root).as_posix(), f"not valid TOML: {e}"))
-
-    for pinned, package in pins.items():
-        want = root_deps.get(pinned)
-        if want is None:
-            problems.append(Problem("pins", "mcpp.toml", f"pins `{pinned}` but does not declare it in [dependencies]"))
-            continue
-        for template, tdeps in templates.items():
-            if tdeps.get(pinned) != want:
-                problems.append(Problem("pins", template, f"an openmui project reaches {package}: declare `{pinned} = {want}`"))
-        for member in workspace_members(root):
-            if not reaches(member, package, set()):
-                continue
-            have = deps_of(member).get(pinned)
-            if have != want:
-                problems.append(Problem("pins", member, f"reaches {package}: declare `{pinned} = {want}` as the root does"
-                                        + ("" if have is None else f" (it has {have})")))
-    return problems
-
-
 def flatten_deps(table: dict, prefix: str = ""):
     for key, value in table.items():
         if isinstance(value, dict) and not any(k in value for k in ("path", "git", "version", "workspace")):
             yield from flatten_deps(value, prefix + key + ".")
         else:
             yield prefix + key, value
-
-
-# Dependency closures that stay small (D-55; plan §5.3 ⑤), by package
-# identity: a package's [dependencies], its target dependencies and the
-# feature-deps of the features it is built with (its defaults and what each
-# edge asks for), followed through path dependencies. `only`: nothing else may
-# be reached; `not`: none of these (a name, or a name and the packages below it).
-CLOSURES: dict[str, dict[str, set[str]]] = {
-    # the render graph: devices, handles and the small tools, nothing more
-    "xrender.graph": {"only": {"xrender.graph", "mlibs.rhi", "mlibs.memory", "mlibs.utils"}},
-    # drawing vectors needs no effect loader and no shader compiler
-    "xrender.vector": {"not": {"xrender.effect", "mlibs.shader"}},
-    # text lays out and gives glyphs as geometry; xrender.text draws them
-    "mlibs.text": {"not": {"xrender"}},
-    # the stepping substrate: the standard library and the small tools only,
-    # no solver (D-133)
-    "mlibs.simulation": {"only": {"mlibs.simulation", "mlibs.utils"}},
-    # simulation knows no UI, game or renderer; its CPU packages no GPU or
-    # compiler; the cellular rules do not make the clock and history mandatory
-    # every solved simulation: no UI, game, renderer, GPU or compiler in its CPU core (D-133)
-    # … and, taken alone, no agent kernel either: a body or a field as an agent's subject is their feature `agent`,
-    # so what hanim's engine and every other consumer of the kernels links stays the small tools (the out-of-tree
-    # probes tools/ci/hanim-features and hanim-play-consumer hold hanim to that).
-    # (what a body is made of — xengine.matter's table — is a feature too: with it in the core, every consumer of
-    # dynamics had the matter kernel's interface in its module graph, and showcase/fighting stopped compiling)
-    "xengine.dynamics": {"not": {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "xrender", "mlibs.rhi", "mlibs.shader", "xengine.cellular",
-                                 "mlibs.agent", "mlibs.json", "mlibs.control", "xengine.matter"}},
-    "xengine.cellular": {"not": {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "xrender", "mlibs.rhi", "mlibs.shader",
-                                 "mlibs.agent", "mlibs.json", "mlibs.control", "xengine.matter"}},
-    # hanim by default is its engine: control and the stage as an agent's subject are features a consumer asks for
-    "hanim": {"not": {"omui", "mlibs.agent", "mlibs.json", "mlibs.control", "xrender", "xengine.matter", "xengine.cellular"}},
-    # skeletal animation by default is its channels, ACL and the player: glTF (xrender.asset) and the subject are features
-    "hanim.skeleton": {"not": {"omui", "xrender", "mlibs.agent", "mlibs.json", "mlibs.control", "xengine"}},
-    "xengine.cellular.rhi": {"not": {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "xrender"}},
-    # the field on screen (its tests draw it through the frame's entry, read by an agent): the renderer's resources
-    # (and what they reach), no UI, game, animation, effect loader or shader compiler
-    "xengine.cellular.present": {"not": {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "xengine.runtime", "hanim", "mlibs.shader", "xrender.effect"}},
-    # the agent kernel: below every engine, knowing none of them (D-173)
-    "mlibs.agent": {"not": {"omui", "xengine", "hanim", "xrender", "gongfu"}},
-    # a game on its own: no interface, no bridge to one (D-162)
-    "xengine.runtime": {"not": {"omui", "xengine.ui"}},
-    # the frame's entry: the renderer and the agent kernel, no interface, game or animation (D-162; the plan's T0.6)
-    "xrender.frame": {"not": {"omui", "xengine", "hanim"}},
-    # three dimensions (M6.3): what there is to draw, the reference pass and the pass on a device reach geometry,
-    # numbers and the device's interface — eight packages for a picture on a device, no interface, animation,
-    # display list or shader compiler
-    "xrender.scene": {"only": {"xrender.scene", "mlibs.geom", "mlibs.math", "mlibs.utils"}},
-    "xrender.mesh": {"only": {"xrender.mesh", "xrender.scene", "mlibs.geom", "mlibs.math", "mlibs.utils"}},
-    "xrender.mesh.gpu": {"only": {"xrender.mesh.gpu", "xrender.mesh", "xrender.scene", "mlibs.geom", "mlibs.math", "mlibs.utils", "mlibs.rhi", "mlibs.memory"}},
-    "xrender.sprite": {"only": {"xrender.sprite", "mlibs.geom", "mlibs.math", "mlibs.utils"}},
-    # … and an application that draws in two dimensions links none of it: the SDK, the hosts and the site reach
-    # no mesh pass and no scene (a world is shown in an interface as a picture its owner drew: xengine.ui)
-    "omui.sdk": {"not": {"xrender.mesh", "xrender.scene"}},
-    "omui.host.sdl3": {"not": {"xrender.mesh", "xrender.scene"}},
-    "omui.host.web": {"not": {"xrender.mesh", "xrender.scene"}},
-    "omui.host.headless": {"not": {"xrender.mesh", "xrender.scene"}},
-    "omui.site": {"not": {"xrender.mesh", "xrender.scene"}},
-    "xengine.ui": {"not": {"xrender.mesh", "xrender.scene"}},
-    # the breakout on its own: its simulation and the runtime, nothing of omui's interface
-    "omui.showcase.widget_breakout.headless": {"not": {"omui.core", "omui.view", "omui.semantic", "omui.agent", "omui.viewdoc", "omui.player", "omui.designer",
-                                                        "omui.sdk", "omui.host", "omui.ui", "omui.theme", "omui.lang", "xengine.ui"}},
-}
 
 
 def _features(data: dict, asked: set[str], defaults: bool) -> set[str]:
@@ -430,7 +187,7 @@ def _features(data: dict, asked: set[str], defaults: bool) -> set[str]:
 
 
 def closure_of(root: Path, member: str | Path, asked: frozenset[str] = frozenset(), defaults: bool = True) -> set[str]:
-    """The identities a member reaches through path dependencies (see CLOSURES)."""
+    """The identities a member reaches through path dependencies, with the features each edge asks for."""
     seen: set[tuple[str, frozenset[str], bool]] = set()
     names: set[str] = set()
     pending = [(root / member, asked, defaults)]
@@ -450,28 +207,6 @@ def closure_of(root: Path, member: str | Path, asked: frozenset[str] = frozenset
                 if isinstance(spec, dict) and "path" in spec and (directory / spec["path"] / "mcpp.toml").is_file():
                     pending.append((directory / spec["path"], frozenset(spec.get("features", [])), spec.get("default-features", True)))
     return names
-
-
-def check_closures(root: Path) -> list[Problem]:
-    problems = []
-    by_name = {}
-    for m in workspace_members(root):
-        try:
-            by_name[package_name(tomllib.loads((root / m / "mcpp.toml").read_text(encoding="utf-8")))] = m
-        except (OSError, tomllib.TOMLDecodeError):
-            continue
-    if not set(CLOSURES) & set(by_name):
-        return problems  # a tree without these packages (the self-test's)
-    for name, rule in CLOSURES.items():
-        if name not in by_name:
-            problems.append(Problem("closure", name, "a package the closure rules name is not a member; update CLOSURES"))
-            continue
-        reached = closure_of(root, by_name[name]) - {name}
-        extra = sorted(reached - rule["only"]) if "only" in rule else \
-            sorted(n for n in reached if any(n == p or n.startswith(p + ".") for p in rule["not"]))
-        for n in extra:
-            problems.append(Problem("closure", by_name[name], f"reaches {n}, which its closure must not (tools/lint CLOSURES)"))
-    return problems
 
 
 # What a source imports, its package declares (lint `imports`). One build directory holds every member's
@@ -1144,20 +879,15 @@ def run(root: Path) -> list[Problem]:
     unreadable = check_readable(root)
     if unreadable:
         return unreadable  # the other rules read the manifests
-    return (check_licences(root) + check_platforms(root) + check_pins(root)
-            + check_documents(root) + check_media(root) + check_closures(root) + check_operations(root) + check_skills(root) + check_agent_surface(root)
+    return (check_documents(root) + check_media(root) + check_operations(root) + check_skills(root) + check_agent_surface(root)
             + check_lead(root) + check_typescript_data(root) + check_imports(root) + check_matter(root) + check_shader_inputs(root) + check_status(root) + check_reexports(root) + check_maturity(root) + check_platform_table(root))
 
 
 def self_test() -> int:
     """Each rule must reject a violation planted in a copy of a minimal tree."""
     cases = {
-        "licenses": None,
-        "platforms": None,
         "media": ("docs/huge.png", "x" * (1024 * 1024 + 1)),
         "agent-surface": None,
-        "pins": None,
-        "closure": None,
         "imports": ("modules/ui/core/tests/i_test.cpp", "import std;\nimport hanim.core;\n"),  # a module of a package its manifest does not reach
         "typescript": ("modules/ui/core/contract/x.contract.omui.toml", "[contract.x]\nrole = \"button\"\n"),
         "ops": ("modules/ui/core/src/o.cpp", "module x;\nconstexpr auto op = mlibs::control::Operation{\"ui.wipe\", openas::Effect::irreversible};\n"),
@@ -1246,16 +976,14 @@ def self_test() -> int:
                 path, text = planted
                 (root / path).parent.mkdir(parents=True, exist_ok=True)
                 (root / path).write_text(text, encoding="utf-8")
-            global CLOSURES, AGENT_SURFACE_OWED
-            saved, saved_owed = CLOSURES, AGENT_SURFACE_OWED
+            global AGENT_SURFACE_OWED
+            saved_owed = AGENT_SURFACE_OWED
             AGENT_SURFACE_OWED = {}  # the list is this repository's: the planted tree has none of its packages
-            # The rules are this repository's packages'; the planted tree has its own (one of them named hanim).
-            CLOSURES = {"hanim": {"not": {"hanim.core"}}} if rule == "closure" else {}  # planted: hanim may not reach its core
             kind, _, capability = rule.partition(":")
             found = [p for p in run(root) if p.rule == kind and (not capability or p.message.startswith(capability + ":"))]
             # A specification that depends on a library (the layering case) breaks the projects' order too.
             clean = [p for p in run(root) if p.rule != kind and not (rule == "layering" and p.rule == "project-dag")]
-            CLOSURES, AGENT_SURFACE_OWED = saved, saved_owed
+            AGENT_SURFACE_OWED = saved_owed
             ok = bool(found) and not clean
             print(f"  {'ok  ' if ok else 'FAIL'}  {rule}: {found[0] if found else 'not caught'}")
             if clean:

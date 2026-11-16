@@ -707,6 +707,89 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
                 for (const auto& entry : *entries)
                     if (!entry.used) add("scripts", std::string(where), std::format("{} names no script: remove the entry", entry.pattern));
     }
+
+    // claims (release plan §6.4, D-193): a public document's ratio against another project (N×, N times, N 倍 beside
+    // a comparison) carries `claim:<id>`; every mark is a claim of the ledger; every claim is marked where it says it,
+    // and its evidence exists — a test by its name, a benchmark by its name in a budget, a lead ledger row by its metric.
+    // The lead pages (docs/<language>/lead.md) are the lead ledger's own, checked by `omui-devtools lead`.
+    {
+        constexpr std::string_view where = "docs/claims.omui.json";
+        static const std::regex ratio(R"((\d(\.\d+)?×(?!\s?\d))|(\d+(\.\d+)?\s?倍)|(\d+(\.\d+)? times (faster|slower|smaller|larger|nearer|fewer|less|more)))");
+        static const std::regex compared(R"(\bthan\b|\bagainst\b|\bbeside\b|\bvs\.?\b|\bversus\b|\bleads?\b|\bahead\b|\bbehind\b|\bpar\b|level with|领先|持平|落后|比)");
+        static const std::regex mark(R"(claim:([a-z0-9][a-z0-9.-]*))");
+        const auto is_public = [](std::string_view file) {
+            if (!file.ends_with(".md") || file.contains("/target/") || file.contains("node_modules/")) return false;
+            if (file.starts_with("docs/")) return !file.ends_with("/lead.md");
+            return file == "README.md" || (file.starts_with("modules/projects/") && file.ends_with("/README.md")) ||
+                   (file.starts_with("showcase/") && file.ends_with("/README.md")) || (file.starts_with("examples/") && file.ends_with("/README.md"));
+        };
+        std::map<std::string, std::string> claimed;  // id → where it is said
+        const auto ledger_text = read_text(root / path_of(where));
+        const auto ledger = mlibs::json::Document::parse(ledger_text.value_or("{}"), std::string(where));
+        if (!ledger) {
+            add("claims", std::string(where), std::format("not JSON: {}", ledger.error().message));
+        } else {
+            const std::string lead_rows = text_of(".agents/docs/evaluation/lead.ledger.omui.jsonl");
+            std::string budgets;
+            for (const auto& file : files)
+                if (file.starts_with("tests/bench/") && file.ends_with(".json")) budgets += text_of(file);
+            std::string tests;
+            for (const auto& file : files)
+                if (file.contains("/tests/") && file.ends_with(".cpp")) tests += text_of(file);
+            constexpr std::array kinds{"speed", "quality", "size", "feature", "experience"};
+            for (const auto& claim : ledger->root()["claims"].items()) {
+                const std::string id = claim["id"].text().value_or("");
+                const std::string said = claim["where"].text().value_or("");
+                if (id.empty() || claimed.contains(id)) {
+                    add("claims", std::string(where), std::format("`{}`: a claim has an id of its own", id));
+                    continue;
+                }
+                claimed[id] = said;
+                const auto kind = claim["kind"].text().value_or("");
+                if (claim["says"].text().value_or("").empty() || !std::ranges::contains(kinds, kind) || claim["date"].text().value_or("").empty() ||
+                    claim["hardware"].text().value_or("").empty())
+                    add("claims", std::string(where), std::format("{}: a claim says what it claims, its kind (speed, quality, size, feature, experience), its date and the hardware", id));
+                if (!text_of(said).contains(std::format("claim:{}", id)))
+                    add("claims", std::string(where), std::format("{}: {} does not carry `claim:{}` where it says it", id, said.empty() ? std::string("(no place)") : said, id));
+                std::size_t evidence = 0;
+                for (const auto& one : claim["evidence"].items()) {
+                    ++evidence;
+                    if (const auto metric = one["ledger"].text()) {
+                        if (!lead_rows.contains(std::format("\"metric\":\"{}\"", *metric)))
+                            add("claims", std::string(where), std::format("{}: no row of the lead ledger measures `{}`", id, *metric));
+                    } else if (const auto test = one["test"].text()) {
+                        if (!tests.contains(std::format("\"{}\"_test", *test))) add("claims", std::string(where), std::format("{}: no test is named \"{}\"", id, *test));
+                    } else if (const auto bench = one["bench"].text()) {
+                        if (!budgets.contains(std::format("\"name\": \"{}\"", *bench)) && !budgets.contains(std::format("\"name\":\"{}\"", *bench)))
+                            add("claims", std::string(where), std::format("{}: no benchmark budget names `{}`", id, *bench));
+                    } else {
+                        add("claims", std::string(where), std::format("{}: evidence is a test, a bench or a ledger row", id));
+                    }
+                }
+                if (!evidence) add("claims", std::string(where), std::format("{}: a claim without evidence", id));
+            }
+        }
+        for (const auto& file : files) {
+            if (!is_public(file)) continue;
+            std::size_t number = 0;
+            for (const auto part : std::views::split(std::string_view(text_of(file)), '\n')) {
+                ++number;
+                const std::string line(part.begin(), part.end());
+                for (auto at = std::sregex_iterator(line.begin(), line.end(), mark); at != std::sregex_iterator(); ++at)
+                    if (!claimed.contains((*at)[1].str()))
+                        add("claims", std::format("{}:{}", file, number), std::format("`claim:{}` is no claim of {}", (*at)[1].str(), where));
+                // A ratio is written 3.5× (a spaced × multiplies: 64 × 50); a signed one (−5×) is a speed, not a comparison.
+                const bool any_ratio = std::ranges::any_of(std::ranges::subrange(std::sregex_iterator(line.begin(), line.end(), ratio), std::sregex_iterator()),
+                                                           [&](const std::smatch& found) {
+                                                               const std::string_view before = std::string_view(line).substr(0, found.position());
+                                                               return !before.ends_with("−") && !before.ends_with("-");
+                                                           });
+                if (any_ratio && std::regex_search(line, compared) && !line.contains("claim:"))
+                    add("claims", std::format("{}:{}", file, number),
+                        std::format("a ratio against another project with no `claim:<id>`: register it in {} with its evidence (D-193)", where));
+            }
+        }
+    }
     return problems;
 }
 

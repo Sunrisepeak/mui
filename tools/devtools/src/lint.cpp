@@ -81,6 +81,7 @@ constexpr Rule all_rules[]{
     {"tooling", "a library or engine imports no toolkit (a member of kind \"tool\"); tools sit on top (plan §4.5)"},
     {"splittable", "a project reaches nothing of the repository's tools/ by a path: it can leave as a repository (plan §4.5)"},
     {"scripts", "no script but the allowlist's kinds, each with its reason (tools/lint/scripts.allow.omui.json, D-206)"},
+    {"claims", "a public document's ratio against another project is a claim of docs/claims.omui.json, with evidence (D-193)"},
     {"platform-table", "every cell of docs/platforms.omui.json is real, software, unverified or unsupported, with its evidence or need (D-201)"},
 };
 
@@ -552,6 +553,7 @@ int self_test(const fs::path& repository, const fs::path& scratch, std::ostream&
         {"shader-inputs", "modules/ui/core/x.slang", "struct VIn {\n    float3 position : TEXCOORD0;\n    float2 second : TEXCOORD4;\n};\n"},
         {.rule = "maturity", .label = "experimental"},
         {"scripts", "tools/x/run.sh", "#!/bin/sh\nmcpp build\n"},
+        {"claims", "modules/projects/hanim/README.md", "# hanim\n\nIt plays 3.5× faster than GSAP.\n"},
         {.rule = "tooling", .dependencies = {{"modules/gfx/hanim", "[dependencies]\ncore = { path = \"../../ui/core\" }\n"}}, 
          .also_unexpected = {"layering", "modules", "project-dag"}, .ui_kind = "tool"},
         {"splittable", "modules/projects/hanim/README.md", "# hanim\n\nSee [the probe](../../../tools/ci/probe/README.md).\n"},

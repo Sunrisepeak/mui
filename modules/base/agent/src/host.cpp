@@ -216,6 +216,12 @@ int command_line(Session& session, std::span<const std::string_view> arguments, 
         prefixed = how.product + "." + std::string(given.front());
         given.front() = prefixed;
     }
+    // An operation's --help: the operation described whole (its parameters, cost, undo, examples).
+    if (given.size() > 1 && !given.front().starts_with("-") && std::ranges::any_of(given | std::views::drop(1), [](std::string_view word) { return word == "--help" || word == "-h"; })) {
+        const Answered described = answer_to(session, std::format(R"({{"op":"describe","operation":{}}})", json_text(given.front())));
+        for (const std::string& record : described.records) std::println(out, "{}", record);
+        return described.finished ? described.exit_code : 1;
+    }
     const std::vector<std::string> words = given.empty() ? std::vector<std::string>{} : named_in_order(session, given);
     const std::vector<std::string_view> viewed(words.begin(), words.end());
     const auto request = request_from(viewed);

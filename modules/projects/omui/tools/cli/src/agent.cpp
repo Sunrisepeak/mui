@@ -454,6 +454,11 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
             words.erase(words.begin() + 1);
         }
         const std::string first = words.front().starts_with("omui.") ? words.front() : "omui." + words.front();
+        // The session's own: who is here, what answers an intent, what was asked.
+        if (words.front() == "subjects" || words.front() == "find" || words.front() == "log") {
+            const std::vector<std::string_view> viewed(words.begin(), words.end());
+            return mlibs::agent::command_line(session, viewed, out, err, {.product = "omui"});
+        }
         if (std::ranges::any_of(ops::catalog, [&](const auto& entry) { return entry.operation.name == first; })) {
             words.front() = first;  // whole: `omui describe` is the project's API (omui.describe), not the session's describe
             const std::vector<std::string_view> viewed(words.begin(), words.end());
@@ -474,28 +479,24 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
     }
     if (!parsed->has_subcommand()) {
         out << "omui — the openmui command line\n\n"
-               "  omui new NAME [--template app-ts]   a project from a template (--list)\n"
+               "A project\n"
+               "  omui new NAME [--template app-ts]   a project from a template (omui templates lists them)\n"
                "  omui dev [--headless]   the application in development mode: its own designer (person and agent, live)\n"
                "  omui run | build | test [--release]   run, build, test (mtest) — over mcpp (after --, passed on)\n"
-               "  omui replay FILE     a recording (record) played in a fresh instance, its end checked byte for byte\n"
-               "  omui design sync     Live Design's history (.omui/design) carried into git as design/<branch>\n"
-               "  omui design film     the design's history as a film (WebM): each step as it was presented, captioned\n"
+               "  omui replay FILE     a recording played in a fresh instance, its end checked byte for byte\n"
                "  omui package [--format F]   the application packaged to give away (mcpp pack)\n"
-               "  omui add | remove PKG    a dependency; omui deps lists them; omui tools: the xlings tools it names (omui tools install)\n"
-               "  omui config          omui.config.ts as the player reads it: agents' level, the recorder, the designer\n"
-               "  omui doctor          which tools are there, which are missing; omui templates: what a project is made from\n"
-               "  (each of these is an operation of the subject `omui`: records out, a line each)\n\n"
+               "  omui add | remove PKG; omui deps; omui tools [install]; omui config; omui doctor\n"
+               "  omui design sync | film   Live Design's history carried into git, or made a film\n"
+               "Its documents\n"
+               "  omui check [FILE…]; omui describe [--llms FILE]; omui fmt FILE… [--check]; omui schema\n"
+               "  omui video render | still | check | probe | timing; omui audio automation FILE …\n"
+               "Running applications\n"
                "  omui agent ls | describe | snapshot | changes | find | act | wait | capture | call\n"
-               "  omui agent inspect | stats | profile | logs | debug | pipeline | clock   (development: what the application is doing)\n"
-               "  omui check [FILE…]  the project here: TypeScript (erasable syntax, tsc types), view documents (--portable); or the documents given\n"
-               "  omui describe        what writing for the project takes: builders, natives, tokens, verbs (--llms FILE)\n"
-               "  omui fmt FILE…       the canonical format (--check)\n"
-               "  omui schema          the JSON Schema of view documents\n"
-               "  omui video render | still | check | probe | timing   videos: frames and sound on exact counts\n"
-               "  omui audio automation FILE --track NAME --clip NAME --out PREFIX   audition and inspect a gain curve\n"
-               "  omui mcp             an MCP server: agents operate running applications (claude mcp add openmui -- omui mcp)\n"
-               "  omui connect --code CODE   the bridge a page in your browser pairs with (its prompt gives the code)\n"
-               "  omui page status | describe | snapshot | find | act | wait | …   operate the paired page\n\n"
+               "  omui agent inspect | stats | profile | logs | debug | pipeline | clock   (development)\n"
+               "  omui mcp             an MCP server: agents operate running applications and the project's commands\n"
+               "  omui connect --code CODE; omui page status | describe | snapshot | find | act | wait | …\n\n"
+               "Except dev, run, replay, agent, page, connect and mcp, each is an operation of the subject `omui`: its words are\n"
+               "its parameters in order, its answer records a line each (omui subjects, omui find WORDS).\n"
                "Run `omui <command> --help` for its options.\n";
         return 0;
     }

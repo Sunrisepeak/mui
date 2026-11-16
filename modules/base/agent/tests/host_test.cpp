@@ -131,6 +131,11 @@ static UTest cases{"agent.host", [] {
         std::ostringstream switched;
         const std::array mixed{std::string_view("counter.add"), std::string_view("--quiet"), std::string_view("2")};
         expect(eq(agent::command_line(session, mixed, switched, errors), 0) && switched.str().contains(R"("count":9)")) << switched.str();
+        // An operation's --help: it described whole.
+        std::ostringstream helped;
+        const std::array asking{std::string_view("counter.add"), std::string_view("--help")};
+        expect(eq(agent::command_line(session, asking, helped, errors), 0) && helped.str().contains(R"("name":"counter.add")") && helped.str().contains(R"("parameters")"))
+            << helped.str();
         std::ostringstream none;
         expect(eq(agent::command_line(session, {}, none, errors), 2));
     };

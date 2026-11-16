@@ -165,7 +165,8 @@ std::expected<void, std::string> instantiate(const fs::path& root, std::string_v
     for (auto part : std::views::split(std::string_view(*text), '\n')) {
         std::string line(part.begin(), part.end());
         for (const auto& [package, relative] : paths) {
-            std::string bare = line;
+            // What the line says, its comment aside (`omui.theme = "0.1.0"  # the default theme …`).
+            std::string bare = line.substr(0, line.find('#'));
             std::erase(bare, '"');
             std::erase_if(bare, [](char c) { return c == ' ' || c == '\t'; });
             if (bare == std::format("{}=0.1.0", package)) line = std::format("{} = {{ path = \"{}/{}\" }}", package, here, relative);
@@ -429,15 +430,8 @@ int toy(const fs::path& root, std::vector<std::string> packages) {
     int failures = 0;
     for (const auto& package : packages) {
         std::cout << "toy: " << package << '\n' << std::flush;
-        const auto packed = run::program(root, "mcpp", {"pack", "-p", package, "--target", "wasm32-emscripten", "--release", "--pkg-format", "dist-toy", "--message-format", "json"});
-        std::optional<fs::path> index;
-        if (packed && packed->status == 0)
-            for (auto part : std::views::split(std::string_view(packed->out), '\n')) {
-                const auto line = json::parse(std::string_view(part.begin(), part.end()), nullptr, false);
-                if (line.is_discarded() || !line.contains("data") || !line["data"].contains("artifacts")) continue;
-                for (const auto& artifact : line["data"]["artifacts"])
-                    if (artifact.value("format", "") == "dist-toy") index = fs::path(artifact.value("path", ""));
-            }
+        const std::optional<fs::path> index =
+            run::packed(root, {"-p", package, "--target", "wasm32-emscripten", "--release", "--pkg-format", "dist-toy"}, "index.html");
         if (!index) {
             std::cout << std::format("::error::{} did not pack for Toy\n", package);
             ++failures;

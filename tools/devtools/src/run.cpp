@@ -130,4 +130,30 @@ std::expected<std::map<std::string, fs::path>, std::string> tests(const fs::path
     return out;
 }
 
+std::optional<std::filesystem::path> packed(const std::filesystem::path& root, std::vector<std::string> args, std::string_view suffix) {
+    args.insert(args.begin(), "pack");
+    args.insert(args.end(), {"--message-format", "json"});
+    const auto ran = program(root, "mcpp", std::move(args), {.merged = true});
+    if (!ran || ran->status != 0) return std::nullopt;
+    std::optional<std::filesystem::path> found;
+    for (const auto part : std::views::split(std::string_view(ran->out), '\n')) {
+        std::string_view text(part.begin(), part.end());
+        while (!text.empty() && (text.back() == '\r' || text.back() == ' ')) text.remove_suffix(1);
+        const auto line = nlohmann::json::parse(text, nullptr, false);
+        if (!line.is_discarded() && line.contains("data") && line["data"].contains("artifacts")) {
+            for (const auto& artifact : line["data"]["artifacts"])
+                if (artifact.value("path", "").ends_with(suffix)) found = std::filesystem::path(artifact.value("path", ""));
+            continue;
+        }
+        const auto at = text.find("Packed ");
+        if (at == std::string_view::npos || !text.ends_with(suffix)) continue;
+        std::string path(text.substr(at + 7));
+        if (path.starts_with("~/"))
+            if (const auto home = mcpplibs::os::env::get("HOME")) path = *home + path.substr(1);
+        found = std::filesystem::path(path);
+    }
+    if (found && !std::filesystem::exists(*found)) return std::nullopt;
+    return found;
+}
+
 }  // namespace omui::devtools::run

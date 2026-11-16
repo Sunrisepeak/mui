@@ -40,6 +40,11 @@ struct Artifact {
 // on standard error; the products it reports, or why it failed.
 [[nodiscard]] std::expected<std::vector<Artifact>, std::string> build(const std::filesystem::path& root, std::vector<std::string> args);
 
+// `mcpp pack ARGS…`: the file it made that ends with `suffix` (".apk", "index.html") — a record's artifact when
+// `--message-format json` gives one, else its `Packed <path>` line (what it prints for a package format; `~` is
+// the home directory); nothing when it made none.
+[[nodiscard]] std::optional<std::filesystem::path> packed(const std::filesystem::path& root, std::vector<std::string> args, std::string_view suffix);
+
 // `mcpp test ARGS… --no-run --message-format json`: each test built, by its name, to its program; or why not.
 [[nodiscard]] std::expected<std::map<std::string, std::filesystem::path>, std::string> tests(const std::filesystem::path& root, std::vector<std::string> args);
 

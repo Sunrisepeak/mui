@@ -4,42 +4,13 @@ import std;
 import mcpplibs.os;
 import nlohmann.json;
 import omui.devtools.run;
+import :support;
 
 namespace omui::devtools::check {
 
-namespace {
-
+using namespace support;
 namespace fs = std::filesystem;
 using json = nlohmann::json;
-
-std::optional<std::string> read_text(const fs::path& path) {
-    std::ifstream in(path, std::ios::binary);
-    if (!in) return std::nullopt;
-    return std::string(std::istreambuf_iterator<char>(in), {});
-}
-
-int failed(std::string_view message) {
-    std::cout << "::error::" << message << '\n';
-    return 1;
-}
-
-// `mcpp ARGS…` in `cwd`, standard error with standard output: its status and what it said.
-std::pair<int, std::string> mcpp(const fs::path& root, std::vector<std::string> args, const fs::path& cwd = {}) {
-    auto done = run::program(root, "mcpp", std::move(args), {.cwd = cwd, .merged = true});
-    return done ? std::pair{done->status, std::move(done->out)} : std::pair{127, done.error()};
-}
-
-bool has_line(std::string_view text, std::string_view wanted, bool prefix) {
-    for (auto part : std::views::split(text, '\n')) {
-        const std::string_view line(part.begin(), part.end());
-        if (prefix ? line.starts_with(wanted) : line == wanted) return true;
-    }
-    return false;
-}
-
-std::string kib(std::uint64_t bytes) { return std::format("{:.0f} KiB", static_cast<double>(bytes) / 1024.0); }
-
-}  // namespace
 
 int features(const fs::path& root) {
     const auto [tested, said] = mcpp(root, {"test", "-p", "omui.features"});
@@ -209,15 +180,6 @@ std::expected<void, std::string> instantiate(const fs::path& root, std::string_v
     std::ofstream(manifest, std::ios::binary) << out;
     return {};
 }
-
-// A scratch directory removed, however the step ends.
-struct Removed {
-    fs::path path;
-    ~Removed() {
-        std::error_code error;
-        fs::remove_all(path, error);
-    }
-};
 
 // The workspace manifest put back as it was, however the step ends.
 struct Restored {

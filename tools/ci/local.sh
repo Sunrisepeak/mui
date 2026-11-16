@@ -40,7 +40,7 @@ step "templates (app-cpp, component)"
 mcpp run omui-devtools -p tools/devtools -- check templates 2>&1 | grep -E '^==|test result|FAIL|::error|templates' || true
 
 step "agent e2e (example 07 in its own process)"
-tools/ci/agent-e2e.sh 2>&1 | grep -E '^(ok|FAIL)|e2e' || true
+mcpp run omui-devtools -p tools/devtools -- check agent-e2e 2>&1 | grep -E '^(ok|FAIL)|e2e' || true
 
 if command -v wine > /dev/null; then
     step "x86_64-windows-gnu under wine"

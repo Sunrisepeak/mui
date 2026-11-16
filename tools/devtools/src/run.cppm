@@ -18,6 +18,7 @@ struct How {
     bool shown = false;                                          // standard output passed through rather than captured
     bool merged = false;                                         // standard error captured with standard output
     std::vector<std::pair<std::string, std::string>> variables;  // set for the program
+    std::string input;                                           // given on its standard input (none: the null device)
 };
 
 // `program args…` (a bare name is looked for on PATH); or why it did not start.

@@ -17,4 +17,4 @@ omui agent act org.openmui.examples.notes main/delete-all activate              
 omui agent act org.openmui.examples.notes main/delete-all activate --answer delete
 ```
 
-`tools/ci/agent-e2e.sh` runs exactly this in CI, with the app in its own process.
+`omui-devtools check agent-e2e` runs exactly this in CI, with the app in its own process.

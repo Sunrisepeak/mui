@@ -15,19 +15,26 @@ std::expected<Ran, std::string> program(const fs::path& root, std::string name, 
     options.args = std::move(args);
     options.cwd = how.cwd.empty() ? root : how.cwd;
     // spawn, not process::run: run pipes both streams whatever the options say, and these choices are the point.
-    options.in = process::stdio::null;
+    options.in = how.input.empty() ? process::stdio::null : process::stdio::pipe;
     options.out = how.shown ? process::stdio::inherit : process::stdio::pipe;
     options.err = how.merged && !how.shown ? process::stdio::output : process::stdio::inherit;
     for (const auto& [variable, value] : how.variables) options.env.emplace_back(variable, value);
     auto started = process::process::spawn(options);
     if (!started) return std::unexpected(std::format("{} did not start: {}", name, started.error().message()));
     Ran out;
+    std::jthread feeder;
+    if (!how.input.empty())
+        feeder = std::jthread([&started, &how] {
+            static_cast<void>(started->write(how.input));
+            started->close_input();
+        });
     if (!how.shown)
         for (;;) {
             auto chunk = started->read_output();
             if (!chunk || chunk->empty()) break;
             out.out += *chunk;
         }
+    if (feeder.joinable()) feeder.join();
     const auto status = started->wait();
     if (!status) return std::unexpected(std::format("{}: {}", name, status.error().message()));
     out.status = status->shell_code();

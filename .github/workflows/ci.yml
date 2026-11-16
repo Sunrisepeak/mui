@@ -311,9 +311,7 @@ jobs:
 
       - name: An agent drives example 07 in its own process (M1 acceptance ②)
         if: runner.os == 'Linux'
-        env:
-          PROFILE: ${{ matrix.profile }}
-        run: tools/ci/agent-e2e.sh
+        run: mcpp run omui-devtools -p tools/devtools --profile '${{ matrix.profile }}' -- check agent-e2e --profile '${{ matrix.profile }}'
 
       - name: omui dev for a C++ application, end to end (W16; builds example 01 several times)
         if: runner.os == 'Linux' && runner.arch == 'X64'
@@ -330,9 +328,7 @@ jobs:
 
       - name: The products' commands as an Agent uses them (hanim, xrender; plan §10.3)
         if: runner.os == 'Linux'
-        env:
-          PROFILE: ${{ matrix.profile }}
-        run: tools/ci/tools-e2e.sh
+        run: mcpp run omui-devtools -p tools/devtools --profile '${{ matrix.profile }}' -- check tools-e2e --profile '${{ matrix.profile }}'
 
       - name: The interaction sweep — every program, every action an agent can perform (D-91)
         if: runner.os == 'Linux' && matrix.profile != 'release'

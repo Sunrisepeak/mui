@@ -12,4 +12,4 @@ hanim-timeline undo short.timeline.omui.json                               # the
 
 One JSON answer on standard output; exit 0 done, 1 refused or failed (why), 2 a wrong command. An edit refused (outside its clip, an overlap) leaves the file as it was; the text before each edit is kept beside the file (`.<file>.history.omui.jsonl`, the last 64).
 
-Its operations are a catalog ([`timeline.ops.omui.ts`](timeline.ops.omui.ts), listed in [`media/ops`](media/ops)); how an Agent uses them is [`skill.omui.md`](skill.omui.md). Checked end to end by `tools/ci/tools-e2e.sh`.
+Its operations are a catalog ([`timeline.ops.omui.ts`](timeline.ops.omui.ts), listed in [`media/ops`](media/ops)); how an Agent uses them is [`skill.omui.md`](skill.omui.md). Checked end to end by `omui-devtools check tools-e2e`.

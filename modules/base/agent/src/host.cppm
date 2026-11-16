@@ -16,6 +16,7 @@ export module mlibs.agent:host;
 
 import std;
 import :endpoint;
+import :envelope;
 
 export namespace mlibs::agent {
 
@@ -44,6 +45,23 @@ struct CommandLine {
     std::string product;
 };
 int command_line(Session& session, std::span<const std::string_view> arguments, std::ostream& out, std::ostream& errors, const CommandLine& how = {});
+
+// A request read as a command's arguments: what a command written once for a command line reads to run behind
+// these entries — its named values, every value a name was given, a switch, and the values it took in a row
+// (`row`: the parameter a command line gives without names, as effect.check's `files`).
+class Arguments {
+public:
+    explicit Arguments(const Request& request, std::string_view row = {});
+    [[nodiscard]] std::optional<std::string> value(std::string_view name) const;  // as text (a number as written)
+    [[nodiscard]] std::vector<std::string> values(std::string_view name) const;   // an array's, or the one
+    [[nodiscard]] bool flag(std::string_view name) const;                         // given true
+    [[nodiscard]] std::span<const std::string> positionals() const noexcept { return positionals_; }
+    [[nodiscard]] std::string positional(std::size_t at) const { return at < positionals_.size() ? positionals_[at] : std::string(); }
+
+private:
+    const Request&           request_;
+    std::vector<std::string> positionals_;
+};
 
 // What an MCP client is told the server is.
 struct McpServer {

@@ -32,42 +32,6 @@ namespace raster = xrender::raster;
 namespace rhi = mlibs::rhi;
 using Json = nlohmann::json;
 
-// The request's arguments, read as a command's: its named values, and the values a command took in a row (`files`
-// of effect.check, `names` of fidelity.run) as its positionals.
-class Given {
-public:
-    Given(const mlibs::agent::Request& request, std::string_view row = {}) : request_(request) {
-        if (row.empty()) return;
-        const mlibs::json::Node listed = request[row];
-        for (const mlibs::json::Node& each : listed.is_array() ? listed.items() : std::vector{listed})
-            if (each) positionals.push_back(each.is_string() ? each.text().value_or("") : each.dump());
-    }
-    // A value as text (a number as it is written), when given.
-    [[nodiscard]] std::optional<std::string> value(std::string_view name) const {
-        const mlibs::json::Node node = request_[name];
-        if (!node) return std::nullopt;
-        return node.is_string() ? node.text() : std::optional<std::string>(node.dump());
-    }
-    // Every value given for it: an array's, or the one.
-    struct Values {
-        std::vector<std::string> values;
-    };
-    [[nodiscard]] Values option_or_empty(std::string_view name) const {
-        Values out;
-        const mlibs::json::Node node = request_[name];
-        for (const mlibs::json::Node& each : node.is_array() ? node.items() : std::vector{node})
-            if (each) out.values.push_back(each.is_string() ? each.text().value_or("") : each.dump());
-        return out;
-    }
-    [[nodiscard]] bool is_flag_set(std::string_view name) const { return request_[name].boolean().value_or(false); }
-    [[nodiscard]] std::size_t positional_count() const noexcept { return positionals.size(); }
-    [[nodiscard]] std::string positional(std::size_t at) const { return at < positionals.size() ? positionals[at] : std::string(); }
-    std::vector<std::string> positionals;
-
-private:
-    const mlibs::agent::Request& request_;
-};
-
 // Where what an operation says goes: the answer of the request being run (one at a time, as the session asks).
 mlibs::agent::Answer* replying = nullptr;
 
@@ -107,12 +71,12 @@ Json describe(const xrender::EffectInfo& info) {
     return {{"doc", std::string(info.doc)}, {"params", std::move(params)}};
 }
 
-int effect_check(const Given& args) {
-    if (args.positional_count() == 0) return wrong("effect check takes one file or more");
+int effect_check(const mlibs::agent::Arguments& args) {
+    if (args.positionals().size() == 0) return wrong("effect check takes one file or more");
     fx::Library library({.formats = xrender::gpu_shader_formats()});
     Json effects = Json::array();
     bool ok = true;
-    for (const std::string& name : args.positionals) {
+    for (const std::string& name : args.positionals()) {
         const auto file = path_of(name);
         Json one{{"file", utf8(file)}};
         auto loaded = library.load(file);
@@ -152,7 +116,7 @@ void test_card(xrender::DisplayList& list, float width, float height) {
         list.fill_rect({width * 0.08f, height * 0.5f + height * 0.4f * k / 12, width * 0.36f, 1}, geom::Color{1, 1, 1, 0.5f});
 }
 
-int effect_preview(const Given& args) {
+int effect_preview(const mlibs::agent::Arguments& args) {
     const auto file = path_of(args.positional(0));
     std::optional<std::filesystem::path> out, image_file;
     if (auto value = args.value("out")) out = path_of(*value);
@@ -169,7 +133,7 @@ int effect_preview(const Given& args) {
         }
     }
     std::vector<std::pair<std::string, float>> given;
-    for (const std::string& value : args.option_or_empty("param").values) {
+    for (const std::string& value : args.values("param")) {
         const auto eq = value.find('=');
         float number = 0;
         if (eq == std::string::npos || std::from_chars(value.data() + eq + 1, value.data() + value.size(), number).ec != std::errc{})
@@ -245,7 +209,7 @@ int effect_preview(const Given& args) {
                   0);
 }
 
-int cts(const Given& args) {
+int cts(const mlibs::agent::Arguments& args) {
     std::optional<std::filesystem::path> report_file;
     if (auto value = args.value("report")) report_file = path_of(*value);
     auto device = open_device();
@@ -320,12 +284,12 @@ std::optional<std::vector<float>> numbers(std::string_view text, std::size_t cou
 }
 
 // A model looked at: drawn by the CPU reference, written, and stood beside what it is asked to stand beside.
-int look(const Given& args) {
+int look(const mlibs::agent::Arguments& args) {
     namespace asset = xrender::asset;
     namespace mesh = xrender::mesh;
     namespace image = mlibs::image;
     constexpr float degree = 0.017453292f;
-    if (args.positional_count() != 1) return wrong("look takes one model");
+    if (args.positionals().size() != 1) return wrong("look takes one model");
     const auto out = args.value("out");
     if (!out) return wrong("look needs --out PNG");
     int width = 768, height = 768, samples = 2;
@@ -371,7 +335,7 @@ int look(const Given& args) {
     }
     const xrender::scene::View view = asset::view_of(orbit, box, static_cast<float>(width) / static_cast<float>(height));
     const auto begun = std::chrono::steady_clock::now();
-    const auto picture = asset::looked(*model, view, {.width = width, .height = height, .samples = samples, .surroundings = surroundings ? &*surroundings : nullptr, .behind = args.is_flag_set("behind")});
+    const auto picture = asset::looked(*model, view, {.width = width, .height = height, .samples = samples, .surroundings = surroundings ? &*surroundings : nullptr, .behind = args.flag("behind")});
     if (!picture) return failed(picture.error());
     const double drawn_in = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - begun).count();
     const image::View ours{picture->rgba.data(), width, height, width * 4, image::Alpha::straight};
@@ -557,7 +521,7 @@ std::expected<std::filesystem::path, std::string> model_fetched(std::string_view
     return model;
 }
 
-int fidelity(const Given& args, const std::filesystem::path& self) {
+int fidelity(const mlibs::agent::Arguments& args, const std::filesystem::path& self) {
     const std::filesystem::path cache = args.value("cache") ? path_of(*args.value("cache")) : path_of(mcpplibs::os::env::get("HOME").value_or(".")) / ".cache" / "omui" / "fidelity";
     const std::filesystem::path out = args.value("out") ? path_of(*args.value("out")) : cache / "drawn";
     int follow = 0;
@@ -574,7 +538,7 @@ int fidelity(const Given& args, const std::filesystem::path& self) {
     const Json config = Json::parse(listed, nullptr, false);
     if (config.is_discarded() || !config.contains("scenarios") || !config["scenarios"].is_array()) return failed("the suite's list is not one");
     std::set<std::string> asked;
-    for (std::size_t at = 0; at < args.positional_count(); ++at) {
+    for (std::size_t at = 0; at < args.positionals().size(); ++at) {
         std::string name(args.positional(at));
         if (name.starts_with("khronos-")) name = name.substr(8);
         asked.insert(name);
@@ -687,12 +651,12 @@ mlibs::control::Guide Renderer::guide() const noexcept {
 
 void Renderer::operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& reply) {
     replying = &reply;
-    if (operation == "effect.check") effect_check(Given(request, "files"));
-    else if (operation == "effect.preview") effect_preview(Given(request, "file"));
-    else if (operation == "conformance.run") cts(Given(request));
+    if (operation == "effect.check") effect_check(mlibs::agent::Arguments(request, "files"));
+    else if (operation == "effect.preview") effect_preview(mlibs::agent::Arguments(request, "file"));
+    else if (operation == "conformance.run") cts(mlibs::agent::Arguments(request));
     else if (operation == "device.describe") device_info();
-    else if (operation == "model.look") look(Given(request, "model"));
-    else if (operation == "fidelity.run") fidelity(Given(request, "names"), self_);
+    else if (operation == "model.look") look(mlibs::agent::Arguments(request, "model"));
+    else if (operation == "fidelity.run") fidelity(mlibs::agent::Arguments(request, "names"), self_);
     replying = nullptr;
 }
 

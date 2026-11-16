@@ -206,6 +206,27 @@ int command_line(Session& session, std::span<const std::string_view> arguments, 
     return answered.exit_code;
 }
 
+namespace {
+std::string text_of(const json::Node& node) { return node.is_string() ? node.text().value_or("") : node.dump(); }
+}  // namespace
+
+Arguments::Arguments(const Request& request, std::string_view row) : request_(request) {
+    if (!row.empty()) positionals_ = values(row);
+}
+std::optional<std::string> Arguments::value(std::string_view name) const {
+    const json::Node node = request_[name];
+    if (!node || node.is_null()) return std::nullopt;
+    return text_of(node);
+}
+std::vector<std::string> Arguments::values(std::string_view name) const {
+    std::vector<std::string> out;
+    const json::Node node = request_[name];
+    for (const json::Node& each : node.is_array() ? node.items() : std::vector{node})
+        if (each && !each.is_null()) out.push_back(text_of(each));
+    return out;
+}
+bool Arguments::flag(std::string_view name) const { return request_[name].boolean().value_or(false); }
+
 std::string tool_name(std::string_view operation) {
     std::string out;
     for (const char c : operation) out += std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-' ? c : '_';

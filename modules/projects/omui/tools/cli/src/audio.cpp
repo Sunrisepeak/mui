@@ -2,6 +2,7 @@
 // audio bus and a read-only visualization. No window or audio device is opened.
 module omui.cli;
 import std;
+import mlibs.agent;
 import mcpplibs.cmdline;
 import mcpplibs.os;
 import omui.core;
@@ -18,26 +19,9 @@ namespace cmd=mcpplibs::cmdline;
 namespace tl=hanim::timeline;
 namespace au=xengine::audio;
 
-cmd::App audio_command() {
-    using cmd::Arg, cmd::Option;
-    return cmd::App("audio")
-        .description("Offline audio controls and real visual inspection; no window or device")
-        .subcommand(cmd::App("automation")
-                        .description("Audition one timeline gain curve on a 220 Hz reference tone; export WAV, PNG, WebP and JSON")
-                        .arg(Arg("file").required().help("a timeline: a .timeline.omui.ts module, or its .timeline.omui.json"))
-                        .option(Option("track").takes_value().help("the exact track name"))
-                        .option(Option("clip").takes_value().help("the exact clip name"))
-                        .option(Option("property").takes_value().help("keyed gain property (default gain)"))
-                        .option(Option("out").takes_value().help("output prefix; its parent directory must exist"))
-                        .option(Option("seconds").takes_value().help("whole seconds to audition, 1..10 (default 2)"))
-                        .option(Option("fps").takes_value().help("exact timeline rate in 1..120 (default 60); does not change audio")));
-}
-
-int audio(const cmd::ParsedArgs& p, std::ostream& out, std::ostream&) {
+int audio(const mlibs::agent::Arguments& a, std::ostream& out, std::ostream& err) {
     Value report=Value{}.set("kind","audio.automation").set("ok",false);
-    const auto fail=[&](std::string message,int code=1) {report.set("ok",false).set("error",std::move(message));out<<report.json()<<'\n';return code;};
-    if(!p.has_subcommand() || p.subcommand_name()!="automation") return fail("usage: omui audio automation FILE --track NAME --clip NAME --out PREFIX",2);
-    const auto& a=p.subcommand()->get();
+    const auto fail=[&](std::string message,int code=1) {err<<message<<'\n';report.set("ok",false).set("error",std::move(message));out<<report.json()<<'\n';return code;};
     const auto track=a.value("track"), clip=a.value("clip"), prefix=a.value("out");
     if(!track || !clip || !prefix || prefix->empty())return fail("--track, --clip and --out are required",2);
     int duration=2,fps=60;

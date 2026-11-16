@@ -29,8 +29,17 @@ export default defineTimeline({
 });
 )";
 struct Result {int code;std::string out,err;};
+// The operation's answer: its exit code, its data record's text as `out` (the report), what went wrong as `err`.
 Result invoke(std::vector<std::string> args) {
-    std::ostringstream out,err;const auto code=cli::run(args,out,err);return {code,out.str(),err.str()};
+    std::ostringstream out,err;const auto code=cli::run(args,out,err);
+    std::string data,said;
+    std::istringstream lines(out.str());
+    for(std::string line;std::getline(lines,line);)
+        if(const auto record=parse_json(line);record && record->get("kind")) {
+            if(record->get("kind")->as_string()=="data" && record->get("data") && data.empty())data=record->get("data")->json();
+            if(record->get("kind")->as_string()=="error" && record->get("text"))said+=std::string(record->get("text")->as_string());
+        }
+    return {code,data,said+err.str()};
 }
 }
 
@@ -72,12 +81,13 @@ UTest cases{"cli.audio", [] {
         expect(fs::write_atomic(fs::from_utf8(prefix+".wav"),"keep").has_value());
         auto result=invoke({"omui","audio","automation",utf8(file),"--track","music","--clip","missing","--out",prefix});
         expect(result.code==1 && result.out.contains("clip not found"));
+        // An argument out of range: refused before anything is written (exit 1, its error invalid-argument).
         result=invoke({"omui","audio","automation",utf8(file),"--track","music","--clip","fade","--out",prefix,"--fps","0"});
-        expect(result.code==2 && result.out.contains("fps"));
+        expect(result.code==1 && result.out.contains("fps"));
         result=invoke({"omui","audio","automation",utf8(file),"--track","music","--clip","fade","--out",prefix,"--seconds","nan"});
-        expect(result.code==2);
+        expect(result.code==1);
         result=invoke({"omui","audio","automation",utf8(file),"--track","music","--clip","fade","--out",prefix,"--fps","11"});
-        expect(result.code==2 && result.out.contains("exact timeline rate"));
+        expect(result.code==1 && result.out.contains("exact timeline rate"));
         const auto kept=fs::read(fs::from_utf8(prefix+".wav"));expect(kept && *kept=="keep");
     };
     "report write failure returns false and identifies files already exported"_test = [] {

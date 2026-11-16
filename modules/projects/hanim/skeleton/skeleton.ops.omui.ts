@@ -1,7 +1,7 @@
 // Characters' skeletal animation as a subject of the agent kernel (D-173, D-174): what an Agent does with a crowd
 // of characters hanim.skeleton plays — read the rig and each character's state, send a character to a state or
 // set its machine's parameters, layer a clip on part of it, ask where a joint is, sample any clip at any time,
-// step, return to a frame, ask what would be. omui-gen ops makes the table (src/agent/catalog.cppm) and the
+// step, return to a frame, ask what would be. ops-gen makes the table (src/agent/catalog.cppm) and the
 // listings (src/agent/skeleton.ops.json, skeleton.ops.md); effects are openas's, admission is mlibs.control's. A
 // character is named by its index (from 0), a clip, a state and a joint by name; places are metres, [x, y, z]
 // with y up.

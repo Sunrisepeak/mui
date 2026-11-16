@@ -1,7 +1,7 @@
 // A soft body's operations as a subject of the agent kernel (D-173, D-174):
 // what an Agent does with a body the XPBD family steps — read where it is and
 // what it touches, push it, step it, return to a frame, ask what would be.
-// omui-gen ops makes the table (src/agent/catalog.cppm) and the listings
+// ops-gen makes the table (src/agent/catalog.cppm) and the listings
 // (src/agent/body.ops.json, body.ops.md); effects are openas's, admission is
 // mlibs.control's.
 import { defineOps } from "omui/define";

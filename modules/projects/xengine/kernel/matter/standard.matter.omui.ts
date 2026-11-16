@@ -3,7 +3,7 @@
 // and takes part in all of it: copy this file, add a row.
 //
 // Its JSON snapshot, standard.matter.omui.json, is what the kernel reads:
-//   omui-gen snapshot modules/projects/xengine/kernel/matter/standard.matter.omui.ts --out …/standard.matter.omui.json
+//   xdef snapshot modules/projects/xengine/kernel/matter/standard.matter.omui.ts --write
 import { defineMatter } from "omui/define";
 
 export default defineMatter({

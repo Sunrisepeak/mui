@@ -4,7 +4,7 @@
 // motion workbench's, what it does with a hanim animation document — open it,
 // show a moment, find the steps behind a moment and an object, tune one value,
 // undo, save — as the application's verbs (`invoke` with `cellular.<operation>`
-// or `motion.<operation>`). omui-gen ops makes
+// or `motion.<operation>`). ops-gen makes
 // the table (src/catalog/catalog.cppm), the verbs come from it (omui::verb_of),
 // and the listings (src/catalog/inspector.ops.json for CLI and MCP,
 // inspector.ops.md). Effects are openas's, admission is mlibs.control's.

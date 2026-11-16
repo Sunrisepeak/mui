@@ -1,7 +1,7 @@
 // hanim.studio's operations (convergence plan §10.3): animation documents
 // checked, sampled and rendered without a GUI, through the `hanim` command
 // (T0's entries: `hanim document.check --file F`, `hanim mcp`; records out, exit
-// 0 done, 1 the document or the work failed with its problems). omui-gen ops
+// 0 done, 1 the document or the work failed with its problems). ops-gen
 // makes the catalog (src/catalog/catalog.cppm, the subject `document`'s), the
 // listing (studio.ops.json, for the MCP entry) and the reference (studio.ops.md); effects are openas's. Operating a host's Engine
 // is hanim's own catalog (hanim.ops.omui.ts).

@@ -84,7 +84,7 @@ std::expected<std::vector<float>, std::vector<Problem>> soundtrack(const Descrip
         const auto file = base / path_of(name);
         if (read) return read(file);
         if (name.ends_with(".omui.ts"))
-            return std::unexpected(std::string("a TypeScript data module: `omui video` evaluates it, or name its JSON (omui-gen snapshot)"));
+            return std::unexpected(std::string("a TypeScript data module: `omui video` evaluates it, or name its JSON (xdef snapshot)"));
         auto text = read_text(file);
         if (!text) return std::unexpected(std::string("cannot be read"));
         return std::move(*text);

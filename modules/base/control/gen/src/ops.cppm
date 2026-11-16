@@ -1,4 +1,4 @@
-// omui.gen.ops — a product's operation catalog (`<product>.ops.omui.ts`,
+// mlibs.control.gen — a product's operation catalog (`<product>.ops.omui.ts`,
 // convergence plan §10.3; read as its JSON) to its generated code and listings:
 //
 //   - (when the catalog names a module) a C++ partition `<module>:catalog` holding `catalog`, an
@@ -10,11 +10,11 @@
 //   - `<product>.ops.md`: the reference a person reads.
 //
 // Every problem is reported with its line, before anything is written.
-export module omui.gen.ops;
+export module mlibs.control.gen;
 
 import std;
 
-export namespace omui::gen {
+export namespace mlibs::control::gen {
 
 struct OpParameter {
     std::string name, type, doc;
@@ -68,10 +68,11 @@ struct Catalog {
 // in messages), or every problem in it.
 [[nodiscard]] std::expected<Catalog, std::vector<std::string>> read_catalog(std::string_view text,
                                                                             std::string_view file);
-// The catalog file: <product>.ops.omui.ts (defineOps, D-139), or its JSON.
+// The catalog file: <product>.ops.omui.ts (defineOps, D-139: evaluated with the define modules its
+// workspace's registry gives, mlibs.xdef), or its JSON.
 [[nodiscard]] std::expected<Catalog, std::vector<std::string>> read_catalog_file(const std::filesystem::path& file);
 [[nodiscard]] std::string emit_catalog_cpp(const Catalog& catalog, std::string_view source);
 [[nodiscard]] std::string emit_catalog_json(const Catalog& catalog);
 [[nodiscard]] std::string emit_catalog_markdown(const Catalog& catalog);
 
-}  // namespace omui::gen
+}  // namespace mlibs::control::gen

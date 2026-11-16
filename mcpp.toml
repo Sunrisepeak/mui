@@ -15,6 +15,7 @@
 members = [
     "spec",
     "modules/base/control",
+    "modules/base/control/gen",
     "modules/base/agent",
     "modules/base/agent/cts",
     "modules/base/cts",

@@ -8,7 +8,7 @@
 // 16 K warmer is the lighter.
 //
 // Its JSON snapshot, convection.matter.omui.json, is what the kernel reads (matter::read_pack):
-//   omui-gen snapshot …/packs/convection.matter.omui.ts --out …/packs/convection.matter.omui.json
+//   xdef snapshot …/packs/convection.matter.omui.ts --write
 import { defineMatter } from "omui/define";
 
 export default defineMatter({

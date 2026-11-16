@@ -24,7 +24,7 @@
 // What a subject can do is disclosed in tiers, so that finding out costs an
 // agent as little as it needs: who is here; then names and a line each; then
 // one operation, or all of them, whole. The operations are a catalog's
-// (`<product>.ops.omui.ts`, omui-gen ops): mlibs.control's entries.
+// (`<product>.ops.omui.ts`, ops-gen): mlibs.control's entries.
 //   ← {"kind":"data","re":7,"data":{…}}
 //   ← {"kind":"result","re":7,"exitCode":0}
 //
@@ -80,7 +80,7 @@ public:
     [[nodiscard]] virtual std::string_view name() const noexcept = 0;            // "world"
     [[nodiscard]] virtual std::string_view interface_name() const noexcept = 0;  // what its operations speak: "xengine.world@0.1"
     [[nodiscard]] virtual Capabilities capabilities() const noexcept = 0;
-    // Its catalog (omui-gen ops's table): each operation by its whole name ("world.observe"), with its effect,
+    // Its catalog (ops-gen's table): each operation by its whole name ("world.observe"), with its effect,
     // parameters, cost and how it is undone.
     [[nodiscard]] virtual std::span<const mlibs::control::CatalogEntry> operations() const noexcept = 0;
     // The catalog's listing (<product>.ops.json: every operation with its input schema, the tiers), when it has one.

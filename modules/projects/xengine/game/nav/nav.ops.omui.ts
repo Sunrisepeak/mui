@@ -1,7 +1,7 @@
 // A navigation world's operations as a subject of the agent kernel (D-173, D-174): what an Agent does with the
 // mesh and the crowd xengine.nav (Recast & Detour under this package's contract) holds — build the mesh from
 // triangles, ask a path, a ray or the nearest place on it, add walkers and send them, place obstacles and links,
-// step, return to a frame, ask what would be. omui-gen ops makes the table (src/agent/catalog.cppm) and the
+// step, return to a frame, ask what would be. ops-gen makes the table (src/agent/catalog.cppm) and the
 // listings (src/agent/nav.ops.json, nav.ops.md); effects are openas's, admission is mlibs.control's. A walker, an
 // obstacle and a link are each named by its id (a number); places are the world's metres, [x, y, z] with y up.
 import { defineOps } from "omui/define";

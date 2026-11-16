@@ -6,7 +6,7 @@ The game layer's (D-161): what moves where in a game is the game's; nothing here
 
 ## Agent surface
 
-A navigation world is a `Subject` of the agent kernel ([mlibs.agent](../../../../base/agent)), module `xengine.nav.agent` — the package's feature `agent`, so a game that only asks paths links no agent kernel. Its operations are a catalog, [nav.ops.omui.ts](nav.ops.omui.ts) (the table `src/agent/catalog.cppm` and the listings `src/agent/nav.ops.json`, `.md` are `omui-gen ops`'s); how to use them, in order, is [skill.omui.md](skill.omui.md).
+A navigation world is a `Subject` of the agent kernel ([mlibs.agent](../../../../base/agent)), module `xengine.nav.agent` — the package's feature `agent`, so a game that only asks paths links no agent kernel. Its operations are a catalog, [nav.ops.omui.ts](nav.ops.omui.ts) (the table `src/agent/catalog.cppm` and the listings `src/agent/nav.ops.json`, `.md` are `ops-gen`'s); how to use them, in order, is [skill.omui.md](skill.omui.md).
 
 | | |
 |---|---|

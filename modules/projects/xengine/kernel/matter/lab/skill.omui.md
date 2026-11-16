@@ -27,4 +27,4 @@ How an Agent designs matter in a lab (`xengine.matter.lab`), with no window: mat
 
 ## Not here
 
-Time is the field's (`field.step`, `field.seek`; a seek back drops the scene's edits made after it). Definitions are JSON snapshots — what a `*.matter.omui.ts` evaluates to (`omui-gen snapshot`); the lab writes `world.matter.omui.json` and `world.appearance.omui.json` beside its sources for a world to load. Bodies (soft and rigid) are dynamics'; the lab's field is the lattice.
+Time is the field's (`field.step`, `field.seek`; a seek back drops the scene's edits made after it). Definitions are JSON snapshots — what a `*.matter.omui.ts` evaluates to (`xdef snapshot`); the lab writes `world.matter.omui.json` and `world.appearance.omui.json` beside its sources for a world to load. Bodies (soft and rigid) are dynamics'; the lab's field is the lattice.

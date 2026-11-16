@@ -2,7 +2,7 @@
 // fighters — gongfu.studio's subject `gongfu` behind the tool kernel's entries
 // (`gongfu-studio fighter.check showcase/fighting/fighters`, `gongfu-studio mcp`;
 // records out, exit 0 done / 1 failed / 2 arguments that make no request).
-// omui-gen ops makes the table the command serves them by (src/catalog), the
+// ops-gen makes the table the command serves them by (src/catalog), the
 // listing (gongfu.ops.json, for MCP) and the reference (gongfu.ops.md); effects
 // are openas's. The
 // fighters themselves are data (`<name>.fighter.gongfu.toml`, its look and

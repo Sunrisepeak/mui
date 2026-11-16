@@ -1,7 +1,7 @@
 // A frame's operations as a subject of the agent kernel (D-162, D-173): what
 // an Agent does with the picture a program draws, whoever made its content —
 // see which layers it is made of, take its pixels, and go from a pixel back to
-// the layer and the object that drew it. omui-gen ops makes the table
+// the layer and the object that drew it. ops-gen makes the table
 // (src/catalog.cppm) and the listings (src/frame.ops.json, frame.ops.md);
 // effects are openas's, admission is mlibs.control's.
 import { defineOps } from "omui/define";

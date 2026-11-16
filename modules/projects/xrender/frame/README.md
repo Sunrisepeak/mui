@@ -29,7 +29,7 @@ A layer is a display list, or a picture: `PictureLayer` — pixels of the frame'
 
 ## Agent surface
 
-The frame is a `Subject` of the agent kernel ([mlibs.agent](../../../base/agent)): `FrameSubject`, shown the compositor and the surface (`show`). Its operations are a catalog, [frame.ops.omui.ts](frame.ops.omui.ts) (the table `src/catalog.cppm` and the listings `src/frame.ops.json`, `.md` are `omui-gen ops`'s); how to use them, in order, is [skill.omui.md](skill.omui.md).
+The frame is a `Subject` of the agent kernel ([mlibs.agent](../../../base/agent)): `FrameSubject`, shown the compositor and the surface (`show`). Its operations are a catalog, [frame.ops.omui.ts](frame.ops.omui.ts) (the table `src/catalog.cppm` and the listings `src/frame.ops.json`, `.md` are `ops-gen`'s); how to use them, in order, is [skill.omui.md](skill.omui.md).
 
 | | |
 |---|---|

@@ -1008,7 +1008,7 @@ std::expected<Value, std::string> read_listing(const std::filesystem::path& file
     if (!text) return std::unexpected(std::format("cannot read {}: {}", utf8(file), text.error().message()));
     auto listing = parse_json(*text);
     if (!listing || str(*listing, "kind") != "omui.ops" || !listing->get("tools") || !listing->get("tools")->list())
-        return std::unexpected(std::format("{} is not an operation listing (omui-gen ops makes <product>.ops.json)", utf8(file)));
+        return std::unexpected(std::format("{} is not an operation listing (ops-gen makes <product>.ops.json)", utf8(file)));
     for (const Value& op : *listing->get("tools")->list())
         if (str(op, "name").starts_with("ui."))
             return std::unexpected(std::format("{}: the protocol's ui.* operations are the ui_* tools already", utf8(file)));

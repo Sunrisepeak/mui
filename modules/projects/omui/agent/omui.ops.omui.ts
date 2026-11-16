@@ -1,6 +1,6 @@
 // omui's operations (convergence plan §10.3): what an Agent may do with a
 // running application through its agent endpoint — the openmui.tree protocol's
-// operations, one request each (`{"op": "<name without ui.>", …}`). omui-gen ops
+// operations, one request each (`{"op": "<name without ui.>", …}`). ops-gen
 // makes the protocol's table (src/catalog/catalog.cppm) and the listings
 // (src/catalog/omui.ops.json for CLI and MCP, omui.ops.md) from it; effects are
 // openas's, admission is mlibs.control's. An application's own verbs and its

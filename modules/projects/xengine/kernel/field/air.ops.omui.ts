@@ -1,7 +1,7 @@
 // The air's operations as a subject of the agent kernel (D-173, D-174; the M6.5 design's T5.5): what an Agent
 // does with a field of air — read its cells' warmth, wetness and charge and the wind, apply a quantity at a place
 // (a fire's heat held, a gust of wetness once), step it, return to a frame, ask what would be, and why a cell is
-// what it is. omui-gen ops makes the table (src/agent/catalog.cppm) and the listings (src/agent/air.ops.json,
+// what it is. ops-gen makes the table (src/agent/catalog.cppm) and the listings (src/agent/air.ops.json,
 // air.ops.md); effects are openas's, admission is mlibs.control's.
 import { defineOps } from "omui/define";
 

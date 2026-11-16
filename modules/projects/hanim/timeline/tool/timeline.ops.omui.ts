@@ -3,7 +3,7 @@
 // *.timeline.omui.json) through the `hanim-timeline` command — the subject
 // `timeline` behind the tool kernel's entries (`hanim-timeline timeline.check
 // --file F`, `hanim-timeline mcp`; records out, exit 0 done, 1 refused or failed
-// with why). omui-gen ops makes the catalog (src/catalog/catalog.cppm), the
+// with why). ops-gen makes the catalog (src/catalog/catalog.cppm), the
 // listing (timeline.ops.json) and the reference (timeline.ops.md); effects are
 // openas's.
 import { defineOps } from "omui/define";
@@ -19,7 +19,7 @@ export default defineOps({
       name: "timeline.check",
       effect: "read",
       summary: "The timeline (rate, size, tracks and clips, markers, length), or every problem at its line and column",
-      params: [{ name: "file", type: "path", doc: "a *.timeline.omui.json (what a .timeline.omui.ts evaluates to: omui-gen snapshot)" }],
+      params: [{ name: "file", type: "path", doc: "a *.timeline.omui.json (what a .timeline.omui.ts evaluates to: xdef snapshot)" }],
       result: "json",
     },
     {

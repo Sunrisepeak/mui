@@ -58,7 +58,7 @@ struct ServerOptions {
     // Every tool call and its outcome, as the server sees them (a log a
     // cockpit shows, or a test reads); called on the serving thread.
     std::function<void(const Value& entry)> journal;
-    // Operation listings (`<product>.ops.json`, made by omui-gen ops from a
+    // Operation listings (`<product>.ops.json`, made by ops-gen from a
     // catalog, convergence plan §10.3) whose operations are applications'
     // verbs: each becomes a tool (cellular.paint → cellular_paint) with the
     // listing's schema and hints, invoking that verb.

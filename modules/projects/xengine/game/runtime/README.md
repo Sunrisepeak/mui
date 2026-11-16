@@ -24,7 +24,7 @@ while (!game.over()) endpoint.pump();            // or: game.step(input); endpoi
 
 ## Agent surface
 
-The game is a `Subject` of the agent kernel ([mlibs.agent](../../../../base/agent)); every operation is decided there first (openas). Its operations are a catalog, [world.ops.omui.ts](world.ops.omui.ts) (the table `src/catalog.cppm` and the listings `src/world.ops.json`, `.md` are `omui-gen ops`'s); how to use them, in order, is [skill.omui.md](skill.omui.md).
+The game is a `Subject` of the agent kernel ([mlibs.agent](../../../../base/agent)); every operation is decided there first (openas). Its operations are a catalog, [world.ops.omui.ts](world.ops.omui.ts) (the table `src/catalog.cppm` and the listings `src/world.ops.json`, `.md` are `ops-gen`'s); how to use them, in order, is [skill.omui.md](skill.omui.md).
 
 | | |
 |---|---|

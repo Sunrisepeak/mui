@@ -5,7 +5,7 @@
 // lands is made from these numbers.
 //
 // Its JSON snapshot, acoustics.matter.omui.json, is what the kernel reads (matter::read_pack):
-//   omui-gen snapshot …/audio/packs/acoustics.matter.omui.ts --out …/audio/packs/acoustics.matter.omui.json
+//   xdef snapshot …/audio/packs/acoustics.matter.omui.ts --write
 import { defineMatter } from "omui/define";
 
 export default defineMatter({

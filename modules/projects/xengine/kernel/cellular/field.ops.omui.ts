@@ -1,7 +1,7 @@
 // A cellular field's operations as a subject of the agent kernel (D-173,
 // D-174): what an Agent does with a field of cells run by a prepared program —
 // read a region as numbers, place values, step it, return to a frame, ask
-// what would be. omui-gen ops makes the table (src/agent/catalog.cppm) and the
+// what would be. ops-gen makes the table (src/agent/catalog.cppm) and the
 // listings (src/agent/field.ops.json, field.ops.md); effects are openas's,
 // admission is mlibs.control's.
 import { defineOps } from "omui/define";

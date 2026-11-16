@@ -1,7 +1,7 @@
 // A 3D rigid world's operations as a subject of the agent kernel (D-173, D-174): what an Agent does with the
 // bodies the rigid3 family (Jolt under this package's contract) steps — read where they are and what touched
 // what, cast a ray or a shape, push a body, drive a joint's motor, walk and jump a character, step, return to a
-// frame, ask what would be. omui-gen ops makes the table
+// frame, ask what would be. ops-gen makes the table
 // (src/rigid3/agent/catalog.cppm) and the listings (src/rigid3/agent/rigid3.ops.json, rigid3.ops.md);
 // effects are openas's, admission is mlibs.control's. A body, a joint and a character are each named by its id
 // (a number); places are the world's metres, [x, y, z] with y up.

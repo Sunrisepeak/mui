@@ -17,8 +17,6 @@
 //       and its TypeScript stubs (component-binding §8)
 //   omui-gen embed <file> --module <m> --name <partition> --out <dir> [--namespace ns] [--check]
 //       (a data module, <name>.<kind>.omui.ts, is carried as its JSON, <name>.<kind>.omui.json)
-//   omui-gen snapshot <file.omui.ts> [--out file.omui.json]
-//       what a data module stands for: its JSON snapshot
 //   omui-gen embed-index <file>=<partition>… --module <m> --name <partition> --out <dir> [--namespace ns] [--check]
 //       a data file (a theme) as a partition holding its text
 //   omui-gen check <file.contract.omui.ts or .native.omui.ts>... --registry <dir> [--json]
@@ -53,7 +51,6 @@ import omui.gen.unicode;
 import omui.gen.cldr;
 import omui.gen.dist_toy;
 import omui.gen.wasm_size;
-import omui.gen.ops;
 import omui.gen.data;
 
 using namespace omui::gen;
@@ -408,27 +405,6 @@ int run_contracts(const Options& o, bool emit) {
 
 }  // namespace
 
-// omui-gen snapshot: a data module's JSON, to standard output or a file.
-int snapshot_main(const mcpplibs::cmdline::ParsedArgs& args) {
-    auto evaluated = snapshot(std::filesystem::path(args.positional(0)));
-    if (!evaluated) {
-        std::println(std::cerr, "omui-gen snapshot: {}", evaluated.error());
-        return 1;
-    }
-    const auto out = args.value("out");
-    if (!out) {
-        std::print("{}", evaluated->json);
-        return 0;
-    }
-    std::ofstream file(std::filesystem::path(*out), std::ios::binary);
-    file << evaluated->json;
-    if (!file) {
-        std::println(std::cerr, "omui-gen snapshot: cannot write {}", *out);
-        return 1;
-    }
-    return 0;
-}
-
 // omui-gen wasm-size: the report on stdout (Markdown), and as files when asked.
 int wasm_size_main(const mcpplibs::cmdline::ParsedArgs& args) {
     const std::string file = args.positional(0), json = args.value("json").value_or(""), markdown = args.value("markdown").value_or("");
@@ -453,32 +429,6 @@ int wasm_size_main(const mcpplibs::cmdline::ParsedArgs& args) {
     const std::string md = omui::gen::to_markdown(*r);
     if (!markdown.empty() && !write(markdown, md)) return 1;
     std::print("{}", md);
-    return 0;
-}
-
-// omui-gen ops <file.ops.omui.ts> --out <dir> [--check]: the C++ partition
-// (<dir>/<partition>.cppm, catalog.cppm by default) and the listings (<dir>/<product>.ops.json, .ops.md).
-int ops_main(const mcpplibs::cmdline::ParsedArgs& args) {
-    const std::string file = args.positional(0), out = args.value("out").value_or("");
-    const bool check = args.is_flag_set("check");
-    const auto name = generic_utf8(std::filesystem::path(file).filename());
-    auto catalog = omui::gen::read_catalog_file(std::filesystem::path(file));
-    if (!catalog) {
-        for (const auto& problem : catalog.error()) std::println(std::cerr, "{}", problem);
-        return 1;
-    }
-    Writer w{check};
-    // Its outputs where the catalog says, beside it, unless --out says otherwise.
-    const std::filesystem::path dir = out.empty() ? std::filesystem::path(file).parent_path() / catalog->generated : std::filesystem::path(out);
-    if (!catalog->module.empty()) w.put(dir / (catalog->partition + ".cppm"), omui::gen::emit_catalog_cpp(*catalog, name));
-    w.put(dir / (catalog->product + ".ops.json"), omui::gen::emit_catalog_json(*catalog));
-    w.put(dir / (catalog->product + ".ops.md"), omui::gen::emit_catalog_markdown(*catalog));
-    if (check && w.stale) {
-        std::println(std::cerr, "{} generated file(s) are out of date; run: omui-gen ops {} --out {}", w.stale, file, out);
-        return 1;
-    }
-    std::println("omui-gen ops: {} operations, {} tiers, {} file(s) {}", catalog->operations.size(), catalog->tiers.size(), check ? 0 : w.written,
-                 check ? "checked" : "written");
     return 0;
 }
 
@@ -521,10 +471,6 @@ mcpplibs::cmdline::App command_line() {
         .subcommand(App("embed")
                         .description("a data file as a partition holding its text")
                         .arg(Arg("file").required()).option(module).option(name).option(out).option(space).option(check))
-        .subcommand(App("snapshot")
-                        .description("what a data module (*.omui.ts) stands for: its JSON snapshot, the form the readers read (D-139)")
-                        .arg(Arg("file").required().help("<name>.<kind>.omui.ts"))
-                        .option(Option("out").takes_value().value_name("FILE").help("write it there (default: standard output; <name>.<kind>.omui.json is its name)")))
         .subcommand(App("embed-index")
                         .description("a table of embedded files, by name")
                         .arg(Arg("file=partition").help("FILE=PARTITION… (none: an empty table)")).option(module).option(name).option(out).option(space).option(check))
@@ -544,9 +490,6 @@ mcpplibs::cmdline::App command_line() {
                         .arg(Arg("cldr").required().help("CLDR's JSON directory"))
                         .option(Option("locales").takes_value().value_name("ID,…").help("en,zh,zh-Hant …"))
                         .option(version).option(out).option(check))
-        .subcommand(App("ops")
-                        .description("an operation catalog's C++ partition and listings (JSON, Markdown)")
-                        .arg(Arg("file").required().help("*.ops.omui.ts")).option(out).option(check))
         .subcommand(App("dist-toy")
                         .description("a wasm32-emscripten program packaged for Bilibili Toy (what `mcpp pack --pkg-format dist-toy` runs)")
                         .arg(Arg("stage").required().help("the staged tree"))
@@ -591,8 +534,6 @@ int main(int argc, char** argv) {
     if (!parsed->has_subcommand()) return usage();
     const std::string command(parsed->subcommand_name());
     const mcpplibs::cmdline::ParsedArgs& args = parsed->subcommand()->get();
-    if (command == "ops") return ops_main(args);
-    if (command == "snapshot") return snapshot_main(args);
     if (command == "dist-toy") return dist_toy_main(args);
     if (command == "dist-toy-split") return dist_toy_split_main(args);
     if (command == "wasm-size") return wasm_size_main(args);

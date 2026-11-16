@@ -1,7 +1,7 @@
 // A field of matter's operations as a subject of the agent kernel (D-169, D-173, D-174): what an Agent does
 // with matter on the lattice in matter's own words — materials by name, channels in their units, laws by name
 // and by their place in the definition — beside the field's own operations (field.ops.omui.ts), which keep
-// time: field.step, field.seek. omui-gen ops makes the table (src/matter/agent/catalog.cppm) and the listings
+// time: field.step, field.seek. ops-gen makes the table (src/matter/agent/catalog.cppm) and the listings
 // (matter.ops.json, matter.ops.md); effects are openas's, admission is mlibs.control's.
 import { defineOps } from "omui/define";
 

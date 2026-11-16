@@ -167,7 +167,7 @@ struct Library::Impl {
         const bool module = where.ends_with(module_suffix);
         if (module && !options.data)
             return std::unexpected(Diagnostics{{where, 0, 0, "a TypeScript data module, which this program does not evaluate",
-                                                std::format("its JSON (omui-gen snapshot): {}", where.substr(0, where.size() - module_suffix.size()) + std::string(json_suffix))}});
+                                                std::format("its JSON (xdef snapshot): {}", where.substr(0, where.size() - module_suffix.size()) + std::string(json_suffix))}});
         std::expected<std::string, std::string> text = std::unexpected(std::string("the file cannot be read"));
         if (module) text = options.data(file);
         else if (auto read_ = read_text(file)) text = std::move(*read_);

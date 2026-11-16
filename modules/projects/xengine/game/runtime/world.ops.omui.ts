@@ -1,7 +1,7 @@
 // A game's operations as a subject of the agent kernel (D-162, D-173): what an
 // Agent does with a game running on its own through xengine.runtime — see what
 // a player is shown, play as a person plays, step and seek the game's time,
-// ask what would be. omui-gen ops makes the runtime's table
+// ask what would be. ops-gen makes the runtime's table
 // (src/catalog.cppm) and the listings (src/world.ops.json, world.ops.md);
 // effects are openas's, admission is mlibs.control's.
 import { defineOps } from "omui/define";

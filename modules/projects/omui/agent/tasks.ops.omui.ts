@@ -4,7 +4,7 @@
 // requests keep being answered while it runs; its progress and its end can
 // be read at any time and stay readable; a cancel is taken at once, and what
 // a cancelled task would have committed never is. omui.agent:tasks
-// implements them (TaskBroker); omui-gen ops makes the table and listings.
+// implements them (TaskBroker); ops-gen makes the table and listings.
 import { defineOps } from "omui/define";
 
 export default defineOps({

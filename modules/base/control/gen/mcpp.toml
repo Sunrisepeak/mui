@@ -1,0 +1,37 @@
+# mlibs.control.gen — an operation catalog (`<product>.ops.omui.ts`, the kind
+# `ops` of mlibs.control's entries) to its generated code and listings: the
+# C++ partition of mlibs::control::CatalogEntry rows a subject serves, the
+# tools' listing (JSON) and the reference (Markdown). The tool kernel's
+# (stage 0, D-205): a project below omui makes its catalog without omui.
+# `ops-gen` is its thin program.
+[package]
+namespace   = "mlibs.control"
+name        = "gen"
+version     = "0.1.0"
+description = "An operation catalog to its C++ table, its tools' listing and its reference"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+kind = "module"
+lower = ["mlibs.xdef"]  # lower-labelled parts it uses, each marked in its README
+
+[targets.mlibs-control-gen]
+kind = "lib"
+
+[targets.ops-gen]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+mlibs.json = { path = "../../json" }
+mlibs.xdef = { path = "../../xdef" }  # a catalog module evaluated with its workspace's define modules
+mcpplibs.os = "0.4.4"
+mcpplibs.cmdline = "0.0.3"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"

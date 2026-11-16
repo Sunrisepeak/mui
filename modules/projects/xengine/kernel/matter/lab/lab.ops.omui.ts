@@ -2,7 +2,7 @@
 // person or an Agent does to design matter — a material's row, the laws, the look, a scene it is tried in —
 // beside the field's operations (time), the matter subject's (what is there, why, what would be) and the
 // frame's (the picture), which the lab's session has too. The first design adapter that is not an interface:
-// its history and its claims are the kernel's (mlibs.agent). omui-gen ops makes the table (src/catalog.cppm)
+// its history and its claims are the kernel's (mlibs.agent). ops-gen makes the table (src/catalog.cppm)
 // and the listings (src/lab.ops.json, src/lab.ops.md).
 import { defineOps } from "omui/define";
 

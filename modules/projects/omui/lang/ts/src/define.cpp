@@ -68,7 +68,7 @@ export interface Config {
 /** `export default defineConfig({ agent: { release: "dual-user" } })`; a switch given at launch wins. */
 export declare function defineConfig(config: Config): Defined<"config">;
 
-// ── an operation catalog (`omui-gen ops`: CLI, MCP and the reference) ────
+// ── an operation catalog (`ops-gen`: CLI, MCP and the reference) ────
 
 /** How much an operation changes (openas §2.4). */
 export type Effect = "read" | "reversible" | "irreversible";

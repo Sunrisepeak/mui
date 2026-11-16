@@ -1,6 +1,6 @@
 // A cloud of particles as a subject of the agent kernel (D-173, D-174): what an Agent does with things that fly
 // in 3D as a carrier of matter — read what is in flight and what struck what, find those near a place, emit
-// more, step, return to a frame, ask what would be. omui-gen ops makes the table (src/agent/catalog.cppm) and
+// more, step, return to a frame, ask what would be. ops-gen makes the table (src/agent/catalog.cppm) and
 // the listings (src/agent/particles.ops.json, particles.ops.md); effects are openas's, admission is
 // mlibs.control's. A particle is named by its id (a number, in the order emitted); a material by its name in
 // the world's definition of matter; places are metres, [x, y, z] with y up.

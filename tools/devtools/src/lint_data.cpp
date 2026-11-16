@@ -426,7 +426,7 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
             const auto document = mlibs::json::Document::parse(text_of(file), file);
             const auto matter = document ? document->root()["matter"] : mlibs::json::Node{};
             if (!document || !document->root().is_object() || (matter && !matter.is_object())) {
-                add("matter", file, "is not a matter definition's snapshot (omui-gen snapshot writes it)");
+                add("matter", file, "is not a matter definition's snapshot (xdef snapshot writes it)");
                 continue;
             }
             std::set<std::string> materials;

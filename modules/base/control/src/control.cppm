@@ -174,7 +174,7 @@ struct Operation {
     bool person = false;
 };
 // An operation's catalog entry (convergence plan §10.3): a product's
-// `<product>.ops.omui.toml`, generated into its code by `omui-gen ops`, from
+// `<product>.ops.omui.toml`, generated into its code by `ops-gen`, from
 // which its CLI, MCP and openas bindings and its reference are made.
 struct Parameter {
     std::string_view name, type, doc;  // type: bool integer number seconds string json, or a named kind ("playback")

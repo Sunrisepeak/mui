@@ -3,7 +3,7 @@
 // sources and API, edit them live, set and check what the person expects, hand
 // the floor over and keep what they did as a test, and write the edits back to
 // the TypeScript sources. They are the application's verbs (`ui.invoke`), the
-// player implements them; omui-gen ops makes the table (src/catalog/design.cppm)
+// player implements them; ops-gen makes the table (src/catalog/design.cppm)
 // the player registers them from and MCP serves them by, and the listings
 // (src/catalog/design.ops.json, design.ops.md). Effects are openas's.
 import { defineOps } from "omui/define";

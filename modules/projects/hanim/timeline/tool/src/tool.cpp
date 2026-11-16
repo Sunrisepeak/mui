@@ -206,7 +206,7 @@ mlibs::control::Guide Timelines::guide() const noexcept {
                                                          R"({"op":"timeline.edit","file":"short.timeline.omui.json","edit":"split","track":0,"clip":0,"at":"15f","dry_run":true})",
                                                          R"({"op":"timeline.edit","file":"short.timeline.omui.json","edit":"split","track":0,"clip":0,"at":"15f"})"};
     static constexpr std::array<mlibs::control::Task, 1> tasks{{{"cut-a-clip", "See what plays, try a split, then make it (timeline.undo takes it back)", cut}}};
-    return {"A timeline every editor shares (*.timeline.omui.json; omui-gen snapshot makes one from its .ts): checked, read at a time, edited, an edit taken back.", tasks};
+    return {"A timeline every editor shares (*.timeline.omui.json; xdef snapshot makes one from its .ts): checked, read at a time, edited, an edit taken back.", tasks};
 }
 
 void Timelines::operate(std::string_view operation, const Request& request, Answer& answer) {

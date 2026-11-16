@@ -5,7 +5,7 @@
 // for and each one's state readable; a commit is a version of its surface that
 // undo takes back. How open it is (off, data, limited, all) is the developer's
 // in omui.config.ts, narrowed by the user's settings and the session (openas).
-// omui.agent:generation implements them; omui-gen ops makes the table
+// omui.agent:generation implements them; ops-gen makes the table
 // (src/catalog/generate.cppm) and the listings MCP serves.
 import { defineOps } from "omui/define";
 

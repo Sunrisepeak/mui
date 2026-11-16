@@ -11,7 +11,7 @@ Mature projects: branded engines, frameworks and modules that are complex enough
 | [xrender](xrender) | A CPU/GPU same-source, Web-first renderer whose pixels agents can review (internal code name) | `xrender.graph`, `xrender.vector`, `xrender.effect`, `xrender.raster`, `xrender.rhi.*`, `xrender.cts` (gfx) |
 | [xtools](xtools) | The toolchain whole: one command and one MCP server over every project's toolkit, each command behaving as it does on its own (internal code name; a composition, plan §4.5) | `xtools` (tools) |
 
-**Identity** (D-208): each project says who it is in `<name>/<name>.project.omui.ts` (`defineProject`), evaluated to its snapshot `<name>.project.omui.json` (`omui-gen snapshot`): its name (its directory's), display name, one sentence, whether it is a code name, its packages' prefix, programs, state directory, manifest section, the projects it may depend on and the parts of it that sit lower (xengine's kernels, gongfu's core; the bridge through which alone a part reaches a project). The lint's projects' order (`project-dag`) is read from these; a code name is renamed across the repository by one command, `omui-devtools rename FROM TO` (then lint and build what moved).
+**Identity** (D-208): each project says who it is in `<name>/<name>.project.omui.ts` (`defineProject`), evaluated to its snapshot `<name>.project.omui.json` (`xdef snapshot`): its name (its directory's), display name, one sentence, whether it is a code name, its packages' prefix, programs, state directory, manifest section, the projects it may depend on and the parts of it that sit lower (xengine's kernels, gongfu's core; the bridge through which alone a part reaches a project). The lint's projects' order (`project-dag`) is read from these; a code name is renamed across the repository by one command, `omui-devtools rename FROM TO` (then lint and build what moved).
 
 **Admission** — a project here must:
 
@@ -35,7 +35,7 @@ agent = { part = "xengine.cellular" }    # what it holds is reached through that
 agent = { library = "a function of the query and the candidates" }   # nothing an agent could reach, and why
 ```
 
-A **subject**'s package has a catalog of its own (`<product>.ops.omui.ts`; `omui-gen ops` makes the table and the listings), a `skill.omui.md` (the procedure only), a test that runs the contract suite on it ([mlibs.agent.cts](../base/agent/cts): the eight native properties — passed, failed or unsupported, the last only from what the subject says it cannot do), and this section in its README:
+A **subject**'s package has a catalog of its own (`<product>.ops.omui.ts`; `ops-gen` makes the table and the listings), a `skill.omui.md` (the procedure only), a test that runs the contract suite on it ([mlibs.agent.cts](../base/agent/cts): the eight native properties — passed, failed or unsupported, the last only from what the subject says it cannot do), and this section in its README:
 
 ```markdown
 ## Agent surface

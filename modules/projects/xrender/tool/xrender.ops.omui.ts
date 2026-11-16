@@ -1,7 +1,7 @@
 // xrender's operations (convergence plan §10.3): what an Agent does with the
 // renderer without a GUI, through the `xrender` command — the subject `xrender`
 // behind the tool kernel's entries (`xrender effect.check --files a.json`,
-// `xrender mcp`; records out, exit 0 done, 1 failed with why). omui-gen ops makes
+// `xrender mcp`; records out, exit 0 done, 1 failed with why). ops-gen makes
 // the catalog (src/catalog/catalog.cppm), the listing (xrender.ops.json) and the
 // reference (xrender.ops.md); effects are openas's. Drawing itself is the
 // library's (a display list into the CPU or GPU renderer); a running

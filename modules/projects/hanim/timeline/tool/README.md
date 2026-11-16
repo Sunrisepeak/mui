@@ -3,7 +3,7 @@
 The `hanim-timeline` command: the timeline every editor shares ([hanim.timeline](..)) without a GUI, for people, agents and CI.
 
 ```sh
-omui-gen snapshot showcase/promo-video/short.timeline.omui.ts --out short.timeline.omui.json   # the JSON it works on
+xdef snapshot showcase/promo-video/short.timeline.omui.ts --write   # the JSON it works on
 hanim-timeline timeline.check --file short.timeline.omui.json # tracks, clips, markers, length — or every problem at its pointer, line:column
 hanim-timeline timeline.at --file short.timeline.omui.json --time 1s # what plays: each clip, where in its source, at what level
 hanim-timeline timeline.edit --file short.timeline.omui.json --edit split --track 0 --clip 0 --at 15f

@@ -14,7 +14,7 @@ mixer.play(punch, /*at sample*/ 4800, /*gain*/ 0.9f, /*pan*/ -0.4f);    // from 
 mixer.render(block);                                                      // on the audio thread, or offline
 ```
 
-- **Sounds** (`*.sound.omui.ts`, `defineSound({ <name>: { layers: [ … ] } })`): the library reads the JSON the module evaluates to, `{"sound": { … }}` (D-139; `omui-gen embed` carries it in a program, `omui-gen snapshot` writes it out). Sounds are numbered in name order, whatever order the file writes them in.
+- **Sounds** (`*.sound.omui.ts`, `defineSound({ <name>: { layers: [ … ] } })`): the library reads the JSON the module evaluates to, `{"sound": { … }}` (D-139; `omui-gen embed` carries it in a program, `xdef snapshot` writes it out). Sounds are numbered in name order, whatever order the file writes them in.
   - A layer is a source: a sine (a table made with shared `openmui.math`), a triangle, a band-limited square or saw (polyBLEP), or seeded noise.
   - Its pitch glides exponentially from one value to another over its length. Its filter (low, high or band pass) has a cutoff that glides too.
   - An envelope (attack, hold, decay, sustain, release) shapes it, then soft clipping, gain and an equal-power pan.
@@ -139,7 +139,7 @@ The command line for people, agents and CI (D-61): JSON out and an exit code.
 
 ```sh
 cd modules/projects/xengine/kernel/audio
-omui-gen snapshot piece.music.omui.ts --out piece.music.omui.json      # the JSON the tool reads (the module evaluated)
+xdef snapshot piece.music.omui.ts --write      # the JSON the tool reads (the module evaluated)
 mcpp run --release omui-music -- check piece.music.omui.json           # problems, or its bars and seconds
 mcpp run --release omui-music -- render piece.music.omui.json --out piece.wav --seconds 60 --intensity 0.3@0,0.9@30 [--solo lead,bass] [--float]
 mcpp run --release omui-music -- stats piece.music.omui.json --seconds 60   # the mix and each instrument alone: loudness, bands, the limiter

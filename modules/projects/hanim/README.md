@@ -548,7 +548,7 @@ this Node-only test profile is separate from the site's publishing profile.
 
 ## Agent surface
 
-The stage is a `Subject` of the agent kernel ([mlibs.agent](../../base/agent)): `hanim::agent::Stage`, module `hanim.agent` — the feature `agent`, asked for like `control` (what a consumer of the engine alone links stays what it was); every operation is decided there first (openas). Its operations are hanim.control's catalog, [hanim.ops.omui.ts](hanim.ops.omui.ts) (the table and the listings in `src/control/` are `omui-gen ops`'s); how to use them, in order, is [skill.omui.md](skill.omui.md). The typed entrance for a native host is `hanim::control::Controller`, with the same catalog.
+The stage is a `Subject` of the agent kernel ([mlibs.agent](../../base/agent)): `hanim::agent::Stage`, module `hanim.agent` — the feature `agent`, asked for like `control` (what a consumer of the engine alone links stays what it was); every operation is decided there first (openas). Its operations are hanim.control's catalog, [hanim.ops.omui.ts](hanim.ops.omui.ts) (the table and the listings in `src/control/` are `ops-gen`'s); how to use them, in order, is [skill.omui.md](skill.omui.md). The typed entrance for a native host is `hanim::control::Controller`, with the same catalog.
 
 | | |
 |---|---|

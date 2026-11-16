@@ -155,14 +155,14 @@ Projects read_projects(const fs::path& root) {
         if (!text || !fs::exists(root / path_of(std::format("{}/{}.project.omui.ts", place, leaf)), error)) {
             projects.problems.push_back({"project-dag", place,
                                          std::format("says not who it is: {0}.project.omui.ts (defineProject) and its snapshot {0}.project.omui.json "
-                                                     "(omui-gen snapshot), D-208",
+                                                     "(xdef snapshot), D-208",
                                                      leaf)});
             continue;
         }
         const auto document = mlibs::json::Document::parse(*text, snapshot);
         const auto project = document ? document->root()["project"] : mlibs::json::Node{};
         if (!document || !project.is_object()) {
-            projects.problems.push_back({"project-dag", snapshot, "is not a project's identity snapshot (defineProject; omui-gen snapshot writes it)"});
+            projects.problems.push_back({"project-dag", snapshot, "is not a project's identity snapshot (defineProject; xdef snapshot writes it)"});
             continue;
         }
         if (project["name"].text() != leaf) {

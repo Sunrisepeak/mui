@@ -1,5 +1,5 @@
 // hanim's operations (convergence plan §10.3): what an Agent or a tool may do
-// with a host's Engine through hanim.control. omui-gen ops makes the
+// with a host's Engine through hanim.control. ops-gen makes the
 // Controller's table (src/control/catalog.cppm) and the listings
 // (src/control/hanim.ops.json for CLI and MCP, hanim.ops.md) from it; effects
 // are openas's, admission is mlibs.control's.

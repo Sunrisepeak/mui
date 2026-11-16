@@ -93,3 +93,7 @@ operation currently entered. Queries obey the same permission boundary as
 writes. Scope lifetime is synchronous, not a perpetual grant or asynchronous
 cancellation promise. The optional `hanim.control` adapter and its independent
 capture consumer now use this implementation.
+
+## Operation catalogs: [gen](gen)
+
+`mlibs.control.gen` (a package of its own: a build-time generator a runtime does not carry) reads an operation catalog (`<product>.ops.omui.ts`, `defineOps`) and writes the C++ partition of `CatalogEntry` rows a subject serves, the tools' listing (`<product>.ops.json`) and the reference (`<product>.ops.md`). `ops-gen FILE [--out DIR] [--check]` is its program. It belongs to the tool kernel (D-205): a project below omui makes its catalog without omui. It evaluates the catalog through mlibs.xdef (preview), with the define modules its workspace's registry gives.

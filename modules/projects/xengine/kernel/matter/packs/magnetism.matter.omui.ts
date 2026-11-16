@@ -4,7 +4,7 @@
 // wood stays. No kernel, carrier or work knows the word: it is a channel, two properties and four laws.
 //
 // Its JSON snapshot, magnetism.matter.omui.json, is what the kernel reads (matter::read_pack):
-//   omui-gen snapshot …/packs/magnetism.matter.omui.ts --out …/packs/magnetism.matter.omui.json
+//   xdef snapshot …/packs/magnetism.matter.omui.ts --write
 import { defineMatter } from "omui/define";
 
 export default defineMatter({

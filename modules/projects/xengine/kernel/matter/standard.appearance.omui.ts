@@ -6,7 +6,7 @@
 // 1600 K, not because anyone wrote that lava glows — and a material added tomorrow does too.
 //
 // Its JSON snapshot, standard.appearance.omui.json, is what the kernel reads:
-//   omui-gen snapshot modules/projects/xengine/kernel/matter/standard.appearance.omui.ts --out …/standard.appearance.omui.json
+//   xdef snapshot modules/projects/xengine/kernel/matter/standard.appearance.omui.ts --write
 import { defineAppearance } from "omui/define";
 
 export default defineAppearance({

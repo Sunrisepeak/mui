@@ -480,9 +480,9 @@ UTest cases{"mcp", [] {
         expect(eq(notes.h.runtime().action_journal().size(), journaled));
     };
 
-    "an application's verbs as tools from its listing (omui-gen ops): schemas, hints, invoked, confirmed by the person"_test = [] {
+    "an application's verbs as tools from its listing (ops-gen): schemas, hints, invoked, confirmed by the person"_test = [] {
         const auto dir = scratch_dir("mcp-listing");
-        // A listing as omui-gen ops writes one for the notes' verbs.
+        // A listing as ops-gen writes one for the notes' verbs.
         const auto file = dir / "notes.ops.json";
         {
             std::ofstream out(file, std::ios::binary);

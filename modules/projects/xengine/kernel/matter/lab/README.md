@@ -130,7 +130,7 @@ matter-lab serve DIR [--name NAME]                      # an endpoint Agents con
 matter-lab picture DIR --out PNG [--steps N] [--scale N]
 ```
 
-One JSON answer on standard output (`run`: the records); exit 0 done, 1 failed (said why), 2 a wrong command. A definition written as TypeScript (`*.matter.omui.ts`) is given as its snapshot (`omui-gen snapshot`); the lab's `world.matter.omui.json` is one.
+One JSON answer on standard output (`run`: the records); exit 0 done, 1 failed (said why), 2 a wrong command. A definition written as TypeScript (`*.matter.omui.ts`) is given as its snapshot (`xdef snapshot`); the lab's `world.matter.omui.json` is one.
 
 In a program:
 
@@ -141,7 +141,7 @@ mlibs::agent::SubjectSession session((*lab)->subjects());                      /
 
 ## Agent surface
 
-The lab is a `Subject` of the agent kernel and `mlibs::agent::Sources` to the kernel's history; every operation is decided there first (openas). Its operations are a catalog, [lab.ops.omui.ts](lab.ops.omui.ts) (the table `src/catalog.cppm` and the listings `src/lab.ops.json`, `.md` are `omui-gen ops`'s); the order to use them in is [skill.omui.md](skill.omui.md).
+The lab is a `Subject` of the agent kernel and `mlibs::agent::Sources` to the kernel's history; every operation is decided there first (openas). Its operations are a catalog, [lab.ops.omui.ts](lab.ops.omui.ts) (the table `src/catalog.cppm` and the listings `src/lab.ops.json`, `.md` are `ops-gen`'s); the order to use them in is [skill.omui.md](skill.omui.md).
 
 | | |
 |---|---|

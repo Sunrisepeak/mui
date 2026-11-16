@@ -1,7 +1,7 @@
 // openmui.ui.canvas.kit:declarative — behaviours as data
 // (view-data-files §5): a statechart in a *.behavior.omui.ts, run by C++. The
 // kit reads the JSON the module evaluates to (D-139; the build embeds it,
-// omui-gen snapshot writes it out).
+// xdef snapshot writes it out).
 //
 //     // group-drag.behavior.omui.ts
 //     export default defineBehavior({

@@ -1,6 +1,6 @@
 # tools/eval
 
-The evaluations' data: the agent task sets (`tasks/`), the animation briefs ([`animation-briefs.omui.json`](animation-briefs.omui.json)) and the comparison sets' material (made by `omui-devtools eval materials`). The evaluations themselves are `omui-devtools eval` ([tools/devtools](../devtools/README.md)), C++ under mcpp (D-206). Each uses what it judges: a real agent — a fresh `claude -p` session, or codex — in an empty directory of its own, the outcome checked on the subject's own state or numbers, never on the agent's word. An agent that cannot run (a quota, a login) is recorded as unavailable: neither a failure nor a pass.
+The evaluations' data: the agent task sets (`tasks/`), the cold-start sets (`coldstart/`), the animation briefs ([`animation-briefs.omui.json`](animation-briefs.omui.json)) and the comparison sets' material (made by `omui-devtools eval materials`). The evaluations themselves are `omui-devtools eval` ([tools/devtools](../devtools/README.md)), C++ under mcpp (D-206). Each uses what it judges: a real agent — a fresh `claude -p` session, or codex — in an empty directory of its own, the outcome checked on the subject's own state or numbers, never on the agent's word. An agent that cannot run (a quota, a login) is recorded as unavailable: neither a failure nor a pass.
 
 An evaluation is one source among others. What was taken from it and what was not is written at the end of its report ("维护方的处理"), and in the round's summary (`reports/<date>-round-<n>.md`). The lead ledger (Part 2 plan §2, D-135) is kept by `omui-devtools lead` and measured by `omui-devtools bench competitors --ledger` ([tools/devtools](../devtools/README.md#lead)).
 
@@ -29,6 +29,15 @@ Only the interface differs (D-142). The checks run through `omui mcp` as a servi
 ```text
 omui-devtools eval tasks run ui --via a11y-tree --trials 2
 omui-devtools eval tasks summary ui --split-only
+```
+
+## cold-start
+
+A fresh agent session that knows nothing of the project — no skill, no files to read — is given one program it may run (`./lab`, the program with its arguments) and one task in words (D-186, D-192). The program has to teach itself: `subjects`, `describe`, its tasks and examples, the ways out of every error. The outcome is checked afterwards through the same program, as requests on the state the agent left, never on its word; the last message only for what the task asks it to say. Each trial is a line of `coldstart.eval.omui.jsonl`: success, the commands it ran, its turns, its tokens (fresh apart from cache reads), how long. `coldstart/matter-lab` makes the material lab's two trials of 2026-11-14 repeatable (RC2.18).
+
+```text
+omui-devtools eval cold-start matter-lab --trials 3
+omui-devtools eval cold-start matter-lab --only resin --keep
 ```
 
 ## animate

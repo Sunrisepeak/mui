@@ -118,6 +118,14 @@ cmd::App command() {
                         .description(
                             "Ours from the site's quality lab beside Material 3's (@material/web), "
                             "four states each, under target/compare-material")))
+        .subcommand(cmd::App("cold-start")
+                        .description("A fresh agent with one program and one task in words (D-186, D-192); the outcome checked through the program")
+                        .arg(Arg("set").required().help("tools/eval/coldstart/SET.coldstart.omui.json"))
+                        .option(Option("only").takes_value().value_name("ID,…").help("these tasks"))
+                        .option(Option("agent").takes_value().value_name("NAME").help("default: claude"))
+                        .option(Option("trials").takes_value().value_name("N").help("each task N times (default: 1)"))
+                        .option(Option("keep").help("leave each trial's directory"))
+                        .option(Option("dry-run").help("print the records, append none")))
         .subcommand(
             cmd::App("hot-reload")
                 .description("Save to screen (W2 ≤ 100 ms at p95): a dev-mode application's script "
@@ -260,6 +268,24 @@ int run(const cmd::ParsedArgs& options, const fs::path& root) {
             return materials_controls(root);
         std::cerr << "omui-devtools eval materials: controls\n";
         return 2;
+    }
+    if (options.subcommand_name() == "cold-start" && options.subcommand()) {
+        const auto& given = options.subcommand()->get();
+        ColdStart cold;
+        if (const auto only = given.value("only"))
+            for (const auto part : std::views::split(std::string_view(*only), ','))
+                if (!part.empty()) cold.only.emplace_back(part.begin(), part.end());
+        cold.agent = given.value("agent").value_or("claude");
+        cold.dry_run = given.is_flag_set("dry-run");
+        cold.keep = given.is_flag_set("keep");
+        if (const auto trials = given.value("trials")) {
+            const auto [end, failed] = std::from_chars(trials->data(), trials->data() + trials->size(), cold.trials);
+            if (failed != std::errc{} || end != trials->data() + trials->size() || cold.trials < 1) {
+                std::cerr << "omui-devtools eval cold-start: --trials takes a count of at least 1\n";
+                return 2;
+            }
+        }
+        return cold_start(root, given.positional(0), cold);
     }
     if (options.subcommand_name() == "hot-reload" && options.subcommand()) {
         const auto& given = options.subcommand()->get();

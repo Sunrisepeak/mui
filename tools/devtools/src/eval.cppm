@@ -136,6 +136,18 @@ struct Duel {
 // the same four states, cells and background; both under target/compare-material/{omui,material3}/<control>.png.
 [[nodiscard]] int materials_controls(const std::filesystem::path& root);
 
+// ---- cold-start (D-186, D-192): a fresh agent, one program it may run, one task in words; checked on the state
+
+struct ColdStart {
+    std::vector<std::string> only;  // these tasks (none: every one)
+    std::string agent = "claude";
+    int trials = 1;
+    bool dry_run = false;           // the records printed, not appended to coldstart.eval.omui.jsonl
+    bool keep = false;              // leave each trial's directory (the state and the agent's)
+};
+// The set tools/eval/coldstart/SET.coldstart.omui.json.
+[[nodiscard]] int cold_start(const std::filesystem::path& root, std::string_view set, const ColdStart& options);
+
 // ---- hot-reload (W2: save to screen ≤ 100 ms at p95)
 
 struct HotReload {

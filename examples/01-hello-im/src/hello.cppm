@@ -1,5 +1,5 @@
 // The application: a greeting, a name field, and a button that counts.
-export module hello;
+export module omui.example.hello_im;
 
 import std;
 import omui;

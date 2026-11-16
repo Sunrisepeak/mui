@@ -1,4 +1,4 @@
-module omui.showcase.kiln.headless;
+module omui.showcase.kiln;
 
 import std;
 import openas;

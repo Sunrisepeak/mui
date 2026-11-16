@@ -7,6 +7,7 @@
 module omui.cli;
 
 import std;
+import mlibs.project;
 import mlibs.agent;
 import openas;
 import mcpplibs.os;
@@ -325,7 +326,24 @@ int operation(std::string_view op, const mlibs::agent::Arguments& a, std::ostrea
                 << '\n';
         }
         if (missing) err << std::format("{} required tool{} missing\n", missing, missing == 1 ? "" : "s");
-        return missing ? 1 : 0;
+        // The project's health (D-207): the general rules, the workspace's, and omui's profiles, each finding a record.
+        std::size_t findings = 0;
+        const auto dir = mcpplibs::os::fs::from_utf8(a.value("dir").value_or("."));
+        std::error_code error;
+        if (std::filesystem::exists(dir / "mcpp.toml", error)) {
+            auto project = mlibs::project::read(dir);
+            if (!project) {
+                err << std::format("omui doctor: {}\n", project.error());
+                return 1;
+            }
+            const auto all = profiles();
+            for (const auto& finding : mlibs::project::check(*project, all)) {
+                ++findings;
+                out << Value{}.set("rule", finding.rule).set("where", finding.where).set("problem", finding.text).set("fix", finding.fix).json() << '\n';
+            }
+            if (findings) err << std::format("{} finding{} in the project\n", findings, findings == 1 ? "" : "s");
+        }
+        return missing || findings ? 1 : 0;
     }
     if (name == "templates") {
         for (const auto& [template_name, what] : templates) out << Value{}.set("template", std::string(template_name)).set("makes", std::string(what)).json() << '\n';

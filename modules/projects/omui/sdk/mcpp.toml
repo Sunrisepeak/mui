@@ -13,6 +13,7 @@ license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
+primary-module = "omui"  # the SDK's umbrella: `import omui;` (D-207)
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 lower = ["omui.generate", "omui.host.android"]  # lower-labelled parts it uses, each marked in its README
 reexports = ["hanim.visual", "mlibs.i18n", "omui.agent", "omui.core", "omui.expr", "omui.generate", "omui.host.android", "omui.host.headless", "omui.host.sdl3", "omui.host.web", "omui.semantic", "omui.ui.base", "omui.view", "omui.viewdoc"]  # what its interface re-exports (lint module-closure)

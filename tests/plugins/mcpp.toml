@@ -11,6 +11,7 @@ description = "A package whose bindings and carried data files openmui's build p
 license     = "Apache-2.0"
 
 [package.metadata.openmui]
+primary-module = "acme.data"  # the fixture's module, as a third party names its own (D-207)
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 kind = "component"
 

@@ -8,7 +8,7 @@ import std;
 import mlibs.agent;
 import mlibs.json;
 import xengine.playtest;
-import omui.showcase.kiln.headless;
+import omui.showcase.kiln;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;

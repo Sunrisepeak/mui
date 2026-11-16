@@ -7,6 +7,9 @@ import mlibs.control;
 
 export namespace omui::cli::ops {
 
+inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_doctor{{
+    {"dir", "path", "the project (default: here)", true},
+}};
 inline constexpr std::array<mlibs::control::Parameter, 2> parameters_omui_new{{
     {"name", "string", "the project's name and directory", false},
     {"template", "string", "app-ts, app-cpp, component, native or theme", true},
@@ -128,7 +131,7 @@ inline constexpr std::array<mlibs::control::Parameter, 4> parameters_omui_design
 
 // The project's commands: create, build, test, check, describe, package; dependencies, tools and the design's history.
 inline constexpr std::array<mlibs::control::CatalogEntry, 29> catalog{{
-    {{"omui.doctor", openas::Effect::read, false}, "Which tools are there and which are missing (mcpp, xlings, tsc, esbuild), and what each is for", {}, "json", mlibs::control::Cost::bounded, "", false, false, false, {}},
+    {{"omui.doctor", openas::Effect::read, false}, "Which tools are there and which are missing, and the project's health: the general rules, the workspace's and omui's profiles (an app, an extension), each finding with its fix", parameters_omui_doctor, "json", mlibs::control::Cost::bounded, "", false, false, false, {}, "health rules profile conventions"},
     {{"omui.templates", openas::Effect::read, false}, "The templates a project is made from, and what each makes", {}, "json", mlibs::control::Cost::instant, "", false, false, false, {}},
     {{"omui.new", openas::Effect::irreversible, false}, "A new project from a template (app-ts by default): a directory of files, written beside the one the server runs in", parameters_omui_new, "json", mlibs::control::Cost::heavy, "none: delete the directory it made", false, false, false, {}},
     {{"omui.build", openas::Effect::reversible, false}, "Builds the project (mcpp build): its outputs under target/, nothing else changed", parameters_omui_build, "json", mlibs::control::Cost::heavy, "none needed: target/ is the build's own", false, false, false, {}},
@@ -168,8 +171,9 @@ inline constexpr std::string_view listing = R"listing({
   "product": "omui-cli",
   "doc": "The project's commands: create, build, test, check, describe, package; dependencies, tools and the design's history.",
   "tools": [
-    {"name": "omui.doctor", "description": "Which tools are there and which are missing (mcpp, xlings, tsc, esbuild), and what each is for", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
-     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "omui.doctor", "description": "Which tools are there and which are missing, and the project's health: the general rules, the workspace's and omui's profiles (an app, an extension), each finding with its fix", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "keywords": ["health", "rules", "profile", "conventions"],
+     "inputSchema": {"type": "object", "properties": {"dir": {"type": "string", "description": "a file or directory path: the project (default: here)"}}, "required": []}},
     {"name": "omui.templates", "description": "The templates a project is made from, and what each makes", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {}, "required": []}},
     {"name": "omui.new", "description": "A new project from a template (app-ts by default): a directory of files, written beside the one the server runs in", "effect": "irreversible", "person": false, "delegated": false, "cost": "heavy", "undo": "none: delete the directory it made", "undoable": false, "cancellable": false, "result": "json",

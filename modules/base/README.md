@@ -18,6 +18,7 @@ What belongs here: general-purpose libraries with no domain semantics. Small too
 | [session](session) | Recorded sessions (`*.session.xdef.jsonl`): timestamped, seekable, mergeable |
 | [pipeline](pipeline) | Pipelines of stage plugins over typed resources: checked, deterministic, traced, replaceable while running |
 | [json](json) | `mlibs.json`: JSON documents with their places — nodes with JSON pointers, problems at line and column, did-you-mean; how the data files' JSON snapshots are read |
+| [project](project) | `mlibs.project`: a project as the tools see it — its packages from their manifests — and its health: the general rules every project keeps and the profiles owners add (D-205, D-207); `omui doctor` runs them |
 | [ts](ts) | `mlibs.ts`: TypeScript with no tool — types blanked to the JavaScript under them (lines and columns kept), declared data modules evaluated deterministically to JSON; the tool kernel's, a kind's define module its owner's (D-209) |
 | [xdef](xdef) | `mlibs.xdef`: declared data's container — file names, `$format`, the kinds' registry each owner keeps in its manifest, canonical snapshots, and `xdef`, the reference evaluator and checker (D-209) |
 | [image](image) | Image buffers, premultiplication, PNG, animated PNG, WebP and JPEG |

@@ -317,7 +317,7 @@ int sweep(const fs::path& root, const std::vector<std::string>& profile_args) {
         {"omui.example.headless-and-agent", "notes-agent", "examples/07-headless-and-agent"},
         {"omui.example.markdown-viewer", "md-view", "examples/08-markdown-viewer"},
         {"omui.example.markdown-stream", "md-stream", "examples/09-markdown-stream"},
-        {"omui.example.space", "space", "examples/10-canvas-basics"},
+        {"omui.example.canvas-basics", "space", "examples/10-canvas-basics"},
         {"omui.example.notes", "notes", "examples/12-notes"},
         {"omui.showcase.style_gallery", "omui-styles", "showcase/style-gallery"},
         {"omui.showcase.widget_breakout", "omui-breakout", "showcase/widget-breakout"},

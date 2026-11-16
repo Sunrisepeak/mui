@@ -17,7 +17,7 @@ export module omui.showcase.quay.window;
 import std;
 export import omui;
 export import xengine.ui;
-export import omui.showcase.quay.headless;
+export import omui.showcase.quay;
 export import omui.showcase.quay.picture;
 export import omui.showcase.quay.sound;
 export import xengine.audio.device;

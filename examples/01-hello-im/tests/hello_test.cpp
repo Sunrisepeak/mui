@@ -3,7 +3,7 @@ import std;
 import omui;
 import mlibs.testing;
 import mcpplibs.mtest;
-import hello;
+import omui.example.hello_im;
 
 using namespace mlibs::testing;
 using namespace mcpplibs::mtest;

@@ -720,7 +720,7 @@ static UTest cases{"site", [] {
         }
         expect(greeted) << "the program ran: greeted";
         expect(counted) << "the program ran: counted";
-        expect(a.text("main/body/view/hello/page/example/code/source").contains("export module hello;")) << "its source beside it";
+        expect(a.text("main/body/view/hello/page/example/code/source").contains("export module omui.example.hello_im;")) << "its source beside it";
 
     };
 

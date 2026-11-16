@@ -1,0 +1,31 @@
+# mlibs.project — a project as the tools see it, and its health (the tool kernel's
+# project model and doctor, stage 0 of D-205; D-207): its packages read from their
+# manifests, the general rules every project keeps, and the profiles a domain's
+# owner adds (an application, an extension, a game, a film, a workspace), each a
+# set of rules over the same model. `omui doctor` runs the general rules and omui's
+# profiles; a composition runs every toolkit's.
+[package]
+namespace   = "mlibs"
+name        = "project"
+version     = "0.1.0"
+description = "A project's model and its health: the general rules every project keeps, and the profiles owners add"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+kind = "module"
+
+[targets.mlibs-project]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+
+[dependencies]
+mlibs.xdef = { path = "../xdef" }  # a data file's name
+marzer.tomlplusplus = "3.4.0"      # the manifests
+mcpplibs.os = "0.4.4"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"

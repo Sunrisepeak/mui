@@ -1,4 +1,4 @@
-module omui.showcase.quay.headless;
+module omui.showcase.quay;
 
 import std;
 import mlibs.math;

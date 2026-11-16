@@ -10,7 +10,7 @@
 import std;
 import mlibs.agent;
 import xengine.runtime.lines;
-import omui.showcase.kiln.headless;
+import omui.showcase.kiln;
 
 int main(int argc, char** argv) {
     return xengine::runtime::play_over_lines<kiln::Play>(

@@ -44,6 +44,35 @@ std::vector<Value> records(const std::string& text) {
 }  // namespace
 
 UTest cases{"cli.project", [] {
+    "omui doctor holds every example and showcase to its profile (D-207): the general rules, an app's, none found"_test = [] {
+        const auto repository = (std::filesystem::path(std::source_location::current().file_name()).parent_path() / ".." / ".." / ".." / ".." / ".." / "..").lexically_normal();
+        std::size_t checked = 0;
+        std::error_code error;
+        for (const auto* place : {"examples", "showcase"})
+            for (const auto& entry : std::filesystem::directory_iterator(repository / place, error)) {
+                if (!std::filesystem::exists(entry.path() / "mcpp.toml")) continue;
+                ++checked;
+                const auto ran = invoke({"omui", "doctor", "--dir", mcpplibs::os::fs::utf8(entry.path())});
+                for (const auto& record : records(ran.out))
+                    if (record.get("rule"))
+                        expect(false) << std::format("{}: {} {}: {}", mcpplibs::os::fs::utf8(entry.path().filename()), record.get("rule")->as_string(),
+                                                     record.get("where")->as_string(), record.get("problem")->as_string());
+            }
+        expect(checked >= 18);
+        // A project that breaks them says so, each finding with its fix.
+        const auto bad = temp_dir() / "bad-app";
+        std::filesystem::create_directories(bad);
+        std::ofstream(bad / "mcpp.toml", std::ios::binary) << "[package]\nname = \"bad\"\n[package.metadata.openmui]\nkind = \"app\"\n";
+        std::ofstream(bad / "CMakeLists.txt", std::ios::binary) << "project(bad)\n";
+        const auto ran = invoke({"omui", "doctor", "--dir", mcpplibs::os::fs::utf8(bad)});
+        std::set<std::string> rules;
+        for (const auto& record : records(ran.out))
+            if (record.get("rule") && record.get("fix")) rules.insert(std::string(record.get("rule")->as_string()));
+        expect(ran.code == 1);
+        expect(rules.contains("general.manifest") && rules.contains("app.identity") && rules.contains("app.entry") && rules.contains("app.headless-test"))
+            << ran.out;
+    };
+
     "the help names the project commands first"_test = [] {
         const auto ran = invoke({"omui"});
         expect(eq(ran.code, 0));

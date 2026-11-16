@@ -6,7 +6,7 @@ import std;
 import mlibs.agent;
 import mlibs.json;
 import openas;
-import omui.showcase.kiln.headless;
+import omui.showcase.kiln;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;

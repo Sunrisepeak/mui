@@ -15,7 +15,7 @@ import omui.ui.timeline;
 import hanim.timeline;
 import omui.theme;
 import omui.theme.styles;
-import hello;
+import omui.example.hello_im;
 import mcpplibs.os;
 import omui.semantic;
 import mlibs.trace;

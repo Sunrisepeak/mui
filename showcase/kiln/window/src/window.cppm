@@ -15,7 +15,7 @@ export module omui.showcase.kiln.window;
 import std;
 export import omui;
 export import xengine.ui;
-export import omui.showcase.kiln.headless;
+export import omui.showcase.kiln;
 export import omui.showcase.kiln.picture;
 export import omui.showcase.kiln.sound;
 export import xengine.audio.device;

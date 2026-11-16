@@ -16,7 +16,7 @@
 //   fuses    (the second night) the fuse boxes the beacon's power runs through: bearing, distance, across, whether on
 //   depth    how far the eye meets something, at waist height, across the view: what a person sees of the way ahead
 // The full view (`observe(state, true)`, the `assist` tier) adds where everything is, each warden's mind, the hash.
-export module omui.showcase.quay.headless;
+export module omui.showcase.quay;
 
 import std;
 export import xengine.runtime;

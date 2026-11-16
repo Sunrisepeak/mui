@@ -12,7 +12,7 @@ import std;
 import mlibs.agent;
 import mlibs.json;
 import xengine.playtest;
-import omui.showcase.quay.headless;
+import omui.showcase.quay;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;

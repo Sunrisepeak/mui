@@ -1,7 +1,7 @@
 // Example 01: hello, immediate mode.
 import std;
 import omui;
-import hello;
+import omui.example.hello_im;
 
 int main(int argc, char** argv) {
     hello::State state;

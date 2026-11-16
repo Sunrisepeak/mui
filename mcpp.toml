@@ -23,6 +23,7 @@ members = [
     "modules/projects/hanim/core",
     "modules/base/image",
     "modules/base/json",
+    "modules/base/project",
     "modules/base/ts",
     "modules/base/xdef",
     "modules/base/xdef/tool",

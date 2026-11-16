@@ -2,7 +2,7 @@
 // what a player is shown; an agent player's actions as Mui's.
 //
 //   kiln::Standalone game(*kiln::start(kiln::level::first()), {.keep = 600});
-export module omui.showcase.kiln.headless;
+export module omui.showcase.kiln;
 
 import std;
 import openas;

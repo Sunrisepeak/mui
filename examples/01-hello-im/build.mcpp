@@ -9,7 +9,7 @@ import mcpp.dist.apk;
 import omui.build.embed;
 
 int main() {
-    if (!omui::build::embed({.module = "hello", .ns = "hello", .dir = "src", .suffix = ".cppm", .tag = "source"})) return 1;
+    if (!omui::build::embed({.module = "omui.example.hello_im", .ns = "hello", .dir = "src", .suffix = ".cppm", .tag = "source"})) return 1;
     mcpp::dist::apk::options apk;
     apk.target = "hello-im";
     apk.application_id = "org.openmui.hello";

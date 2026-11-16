@@ -9,6 +9,7 @@ export module omui.cli;
 export import :catalog;
 
 import std;
+import mlibs.project;
 export import mlibs.agent;
 import omui.core;
 import omui.viewdoc;
@@ -103,6 +104,8 @@ int audio(const mlibs::agent::Arguments& a, std::ostream& out, std::ostream& err
 // serves them as tools; dev, run, connect and mcp hold a window or the terminal (`terminal`): a person's command line runs them.
 // One of the catalog's operations (omui.build …), its records to `out` and what went wrong to `err`; the exit code.
 int operation(std::string_view op, const mlibs::agent::Arguments& a, std::ostream& out, std::ostream& err);
+// omui's profiles over the tool kernel's project model (profiles.cpp): general, workspace, app, extension.
+std::vector<mlibs::project::Profile> profiles();
 export class Project final : public mlibs::agent::Subject {
 public:
     [[nodiscard]] std::string_view name() const noexcept override { return "omui"; }

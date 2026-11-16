@@ -1,0 +1,23 @@
+# mlibs.project
+
+A project as the tools see it, and its health: the tool kernel's project model and doctor (stage 0 of D-205; D-207). It reads a project's manifests — the root's and, in a workspace, every member's — into packages (name, profile, dependencies, own files), and runs rules over them. Every finding names its rule, its place and its fix.
+
+```cpp
+auto project = mlibs::project::read(".");
+auto findings = mlibs::project::check(*project, std::array{mlibs::project::general(), mlibs::project::workspace()});
+```
+
+## Profiles
+
+A **profile** is a set of rules over the same model. The **general** rules hold for every project; the **workspace** rules for a workspace; a domain's owner adds its own profiles with its toolkit (omui: `app`, `extension`, in `omui doctor`). A package says its profile in `[package.metadata.openmui] profile = "app"`; `kind = "app"`, as omui's templates write it, says it too. A profile's rules look only at the packages that say it.
+
+| Rule | What it holds |
+|---|---|
+| `general.manifest` | a package's one project file is `mcpp.toml` (no CMakeLists.txt, package.json, meson.build …) |
+| `general.path-name` | a member's directory is its name's last part (an ordering prefix such as `02-` aside; a submodule is its own repository's) |
+| `general.module-name` | a library's primary module is its package's name, or the manifest says which it is (`primary-module = "omui"`) or that it is a collection (`"*"`) |
+| `general.tests` | tests are in `tests/` and written with mtest |
+| `general.data-names` | a declared data file is `<name>.<kind>.xdef.<ts|json|jsonl>`; the earlier suffix is `xdef migrate`'s |
+| `workspace.members` | every member listed has a manifest; every manifest under the root is listed |
+
+The repository's examples and showcases are the corpus: its tests hold them to the general rules, and omui.cli's tests to omui's profiles (`omui doctor`).

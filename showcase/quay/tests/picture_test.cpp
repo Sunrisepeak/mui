@@ -5,7 +5,7 @@
 // than the display.
 import std;
 import omui.showcase.quay.picture;
-import omui.showcase.quay.headless;
+import omui.showcase.quay;
 import mlibs.hash;
 import mlibs.image;
 import mlibs.json;

@@ -15,6 +15,9 @@ license     = "Apache-2.0"
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 kind = "example"
+profile = "app"  # its profile (D-207): omui doctor checks it as an application
+id = "org.openmui.markdown-viewer"
+title = "Markdown viewer"
 
 [targets.md-view]
 kind = "bin"

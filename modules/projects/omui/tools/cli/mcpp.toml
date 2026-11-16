@@ -13,7 +13,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 reexports = ["mlibs.agent"]  # what its interface re-exports (lint module-closure)
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
-lower = ["xengine.audio", "xengine.audio.timeline", "xengine.video", "xengine.video.webm"]  # lower-labelled parts it uses, each marked in its README
+lower = ["mlibs.project", "xengine.audio", "xengine.audio.timeline", "xengine.video", "xengine.video.webm"]  # lower-labelled parts it uses, each marked in its README
 kind = "tool"
 agent = { part = "omui.agent" }  # the `omui` command: the agent operations of omui.agent's catalog, at the application's endpoint (D-174)
 
@@ -47,6 +47,7 @@ xrender.vector = { path = "../../../xrender/vector" }
 mlibs.image = { path = "../../../../base/image" }
 omui.host.headless = { path = "../../host/headless" }
 mcpplibs.os      = "0.4.4"
+mlibs.project = { path = "../../../../base/project" }  # omui doctor: the project's health (general rules, omui's profiles)
 marzer.tomlplusplus = "3.4.0"
 
 [dev-dependencies]

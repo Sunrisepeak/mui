@@ -9,7 +9,7 @@
 #   mcpp run -- ~/Downloads           mcpp run -- . --headless --png space.png
 [package]
 namespace   = "omui.example"
-name        = "space"
+name        = "canvas-basics"
 version     = "0.1.0"
 description = "openmui example 10: where a folder's space went, as a zoomable treemap on the infinite canvas"
 license     = "Apache-2.0"
@@ -17,6 +17,9 @@ license     = "Apache-2.0"
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 kind = "example"
+profile = "app"  # its profile (D-207): omui doctor checks it as an application
+id = "org.openmui.canvas-basics"
+title = "Canvas basics"
 
 [targets.space]
 kind = "bin"

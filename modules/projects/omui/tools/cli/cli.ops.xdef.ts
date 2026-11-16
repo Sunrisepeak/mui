@@ -17,7 +17,15 @@ export default defineOps({
   doc: "The project's commands: create, build, test, check, describe, package; dependencies, tools and the design's history.",
   generated: "src/catalog",
   operations: [
-    { name: "omui.doctor", effect: "read", summary: "Which tools are there and which are missing (mcpp, xlings, tsc, esbuild), and what each is for", result: "json", cost: "bounded" },
+    {
+      name: "omui.doctor",
+      effect: "read",
+      summary: "Which tools are there and which are missing, and the project's health: the general rules, the workspace's and omui's profiles (an app, an extension), each finding with its fix",
+      params: [{ name: "dir", type: "path", optional: true, doc: "the project (default: here)" }],
+      result: "json",
+      cost: "bounded",
+      keywords: ["health", "rules", "profile", "conventions"],
+    },
     { name: "omui.templates", effect: "read", summary: "The templates a project is made from, and what each makes", result: "json", cost: "instant" },
     {
       name: "omui.new",

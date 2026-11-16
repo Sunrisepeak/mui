@@ -23,6 +23,10 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 hanim.core = { path = "core" }
 
+[test]
+# hanim.render.vector's own checks (its error codes) run in hanim's tests (mcpp 2026.11.16.1, #941).
+features = ["render-vector"]
+
 [features]
 default = ["engine"]
 object = { sources = ["src/object/*.cppm", "src/object/*.cpp"] }

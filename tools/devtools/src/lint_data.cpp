@@ -451,7 +451,8 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
         if (!standard.empty())
             for (const auto& file : files) {
                 if (std::ranges::none_of(kernels, [&](std::string_view base) { return file.starts_with(std::string(base) + "/"); })) continue;
-                if (!extension(file).starts_with(".cpp") || file.contains("/generated/")) continue;
+                // A suite kept as its owner's feature (src/cts/) builds its cases' worlds of named materials, as tests do.
+                if (!extension(file).starts_with(".cpp") || file.contains("/generated/") || file.contains("/src/cts/")) continue;
                 for (const auto& [line, literal] : string_literals(text_of(file)))
                     if (standard.contains(literal))
                         add("matter", std::format("{}:{}", file, line),

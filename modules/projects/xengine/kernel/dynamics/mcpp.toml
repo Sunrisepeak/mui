@@ -58,6 +58,10 @@ rigid3-matter = { implies = ["rigid3", "matter"], sources = ["src/objects/*.cppm
 # Bodies and a cloud of particles in one field step (src/scene/, module xengine.dynamics.scene; M6.5 T5.7): a
 # drop on a crate is beside it, the wind carries the particles.
 rigid3-scene = { implies = ["rigid3-matter"], sources = ["src/scene/*.cppm", "src/scene/*.cpp"] }
+# The solver families' conformance suite (src/cts/, module xengine.dynamics.cts; mlibs.cts, D-133): a subject — the
+# CPU reference today, a SIMD or GPU tier later — run through each family's cases. A feature of its owner (release
+# plan §4.2 rule 2): its tests take it, as a later tier's tests will.
+cts = { implies = ["matter"], sources = ["src/cts/*.cppm", "src/cts/*.cpp"] }
 
 [feature-deps.agent]
 mlibs.simulation = { path = "../../../../base/simulation" }
@@ -90,7 +94,21 @@ mlibs.math = { path = "../../../../base/math" }
 # What a body is made of: a material's mechanical columns (material_of), the matter kernel alone.
 xengine.matter = { path = "../matter", default-features = false }
 
+[feature-deps.cts]
+mlibs.cts        = { path = "../../../../base/cts" }
+mlibs.simulation = { path = "../../../../base/simulation" }
+mlibs.utils      = { path = "../../../../base/utils" }
+# The standard table a body's material is read from (the suite's material case).
+xengine.matter   = { path = "../matter" }
+
+[test]
+# Every family, the bodies as an agent's subject and the suite (mcpp 2026.11.16.1, #941).
+features = ["agent", "matter", "rigid", "rigid3", "rigid3-agent", "rigid3-matter", "rigid3-scene", "cts"]
+
 [dev-dependencies]
 mcpplibs.mtest   = "0.8.4"
 # The solver stepped at the clock library's fixed steps (xpbd_test).
 mlibs.simulation = { path = "../../../../base/simulation" }
+# tests/agent_test.cpp: the agent contract's suite on a body (mlibs.agent.cts), then kicks, seeks and branches.
+mlibs.agent.cts  = { path = "../../../../base/agent/cts" }
+mlibs.json       = { path = "../../../../base/json" }

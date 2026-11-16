@@ -211,12 +211,16 @@ std::vector<Problem> check_modules(const Workspace& workspace) {
     for (const auto& source : sources) {
         const bool tests = source.path.starts_with(source.member + "/tests/");
         std::set<std::string> features;
-        if (!tests) {  // a package's own tests are built with its defaults
+        if (!tests) {
             std::vector<std::string> names;
             const auto globs = feature_globs(*manifests[source.member], &names);
             const std::string within = source.path.substr(source.member.size() + 1);
             for (std::size_t at = 0; at < globs.size(); ++at)
                 if (path_matches(within, globs[at])) features.insert(names[at]);
+        } else if (const auto* test = table_at(manifests[source.member], "test")) {  // a package's own tests: its defaults and [test] features
+            if (const auto* list = test->get("features") ? test->get("features")->as_array() : nullptr)
+                for (const auto& item : *list)
+                    if (auto one = item.value<std::string>()) features.insert(*one);
         }
         const auto key = std::tuple{source.member, tests, features};
         auto found = reached.find(key);

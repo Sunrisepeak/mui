@@ -309,7 +309,8 @@ void check_source(std::string_view rel, std::string_view text, const Patterns& r
     }
 
     for (std::string_view member : deterministic_members()) {
-        if (!rel.starts_with(std::string(member) + "/src/")) continue;
+        // A conformance suite kept as its owner's feature (src/cts/) is a test's code: what it measures runs elsewhere.
+        if (!rel.starts_with(std::string(member) + "/src/") || rel.starts_with(std::string(member) + "/src/cts/")) continue;
         for (std::size_t index = 0; index < lines.size(); ++index) {
             std::match_results<std::string_view::const_iterator> found;
             if (lines[index].contains("std::") && std::regex_search(lines[index].begin(), lines[index].end(), found, re.transcendental))

@@ -43,6 +43,11 @@ mlibs.control    = { path = "../../../../base/control" }
 mlibs.json       = { path = "../../../../base/json" }
 openlifa.openas  = "0.2.0"
 
+[test]
+# The air as a subject is tested by its owner (mcpp 2026.11.16.1, #941): the agent contract and a fire lit through the session.
+features = ["agent"]
+
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
 xengine.matter = { path = "../matter" }  # with its default features: the standard definition (json)
+mlibs.agent.cts = { path = "../../../../base/agent/cts" }

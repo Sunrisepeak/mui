@@ -8,7 +8,7 @@ import mlibs.agent.cts;
 import mlibs.json;
 import xengine.field;
 import xengine.field.agent;
-import xengine.field.cts;
+import xengine.matter.json;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
@@ -19,7 +19,24 @@ namespace matter = xengine::matter;
 
 namespace {
 
-const matter::Program& program() { return field::cts::standard_program(); }
+// The standard definition, prepared once.
+const matter::Program& program() {
+    static const matter::Program prepared = *matter::standard();
+    return prepared;
+}
+
+// Air covered 4 m about (0, 3, 0), a fire's cell at (0.5, 0.5, 0.5) held at 900 K (as air.set with hold does),
+// stepped `steps` times.
+std::unique_ptr<field::agent::Air> air_over_a_fire(int steps) {
+    auto made = field::Field::make(program(), {.air = *program().material("air")});
+    made->cover({0, 3, 0}, 4);
+    const std::uint32_t temperature = *program().channel("temperature");
+    const auto hot = static_cast<std::uint32_t>(std::lround(std::ldexp(900.0, static_cast<int>(program().channels()[temperature].fraction))));
+    auto air = std::make_unique<field::agent::Air>(std::move(*made));
+    air->hold({*air->state().cell_at({0.5f, 0.5f, 0.5f}), temperature, hot});
+    for (int step = 0; step < steps; ++step) air->step();
+    return air;
+}
 
 struct Answered {
     std::optional<mlibs::json::Document> data;
@@ -43,7 +60,7 @@ Answered ask(agent::SubjectSession& session, std::string_view line) {
 UTest cases{"field.air-agent", [] {
     "the agent contract on the air: what it has passes; the source of what it puts out it says it has not"_test = [] {
         const contract::Probe probe{
-            .make = []() -> std::unique_ptr<agent::Subject> { return field::cts::air_over_a_fire(20); },
+            .make = []() -> std::unique_ptr<agent::Subject> { return air_over_a_fire(20); },
             .read = R"({"op":"air.observe"})",
             .change = R"({"op":"air.step","steps":5})",
             .undo = R"({"op":"air.seek","frame":20})",

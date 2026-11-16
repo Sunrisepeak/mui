@@ -323,6 +323,78 @@ static UTest cases{"ui.base.more", [] {
         expect(std::abs(share.peek() - 0.55) < 1e-9) << std::format("a step by the arrows: {}", share.peek());
     };
 
+    "split view: dragged past a pane's least size, the handle follows a damped way and comes back when let go (B5)"_test = [] {
+        Headless h(options({600, 300}));
+        auto share = signal(0.5);
+        h.mount("main", column({.padding = 0}, {split_view({.id = "split", .label = "Panels", .ratio = share, .width = Dim(600.0f), .height = Dim(300.0f)},
+                                                           {box({.id = "list", .background = "surface_variant"}), box({.id = "detail", .background = "surface"})})}));
+        h.settle();
+        // The handle's line: lit while held, two pixels wide, as tall as the view.
+        auto line_x = [&]() -> std::optional<float> {
+            for (const auto& command : h.runtime().display_list().commands())
+                if (const auto* fill = std::get_if<xrender::FillRect>(&command); fill && fill->rect.width == 2 && fill->rect.height >= 299) return fill->rect.x;
+            return std::nullopt;
+        };
+        const auto handle = *items(h, "main/split")[0].bounds;
+        PointerEvent down;
+        down.kind = PointerKind::move;
+        down.position = middle(handle);
+        h.step({down});
+        down.kind = PointerKind::down; down.button = MouseButton::left; down.buttons = 1;
+        h.step({down});
+        // To the window's edge: far past the least share (0.15 of 592 px: 88.8 px).
+        PointerEvent move = down;
+        move.kind = PointerKind::move;
+        move.position = {2, down.position.y};
+        h.step({move});
+        h.settle();
+        expect(share.peek() == 0.15) << "the share is kept within its least";
+        const auto held = line_x();
+        const float kept = 0.15f * 592 + 4 - 1;  // the handle's middle at the least share, less half the lit line
+        expect(held.has_value()) << "the lit line is drawn";
+        if (held) expect(*held < kept - 4 && *held > kept - 24) << std::format("past its limit, damped: {} (limit {})", *held, kept);
+        PointerEvent up = move;
+        up.kind = PointerKind::up; up.buttons = 0;
+        h.step({up});
+        h.settle();
+        const auto back = *items(h, "main/split")[0].bounds;
+        expect(std::abs(middle(back).x - (0.15f * 592 + 4)) < 1) << std::format("let go, back at its limit: {}", middle(back).x);
+    };
+
+    "drawer: taken by the hand toward its edge — let go slowly near, it goes back; flung, it closes (B5)"_test = [] {
+        Headless h(options({640, 400}));
+        auto open = signal(true);
+        h.mount("main", column({.padding = 16}, {drawer({.id = "panel", .modal = false, .open = open, .size = 220.0, .title = "Filters"},
+                                                        {checkbox({.id = "mine", .label = "Only mine"})})}));
+        h.settle();
+        const auto sheet = h.runtime().screen_bounds(h.runtime().find("main/panel"));
+        expect(sheet.width > 200 && sheet.right() > 630) << std::format("at the window's end: {} … {}", sheet.x, sheet.right());
+        // Pressed low in the sheet (nothing of its own there), moved toward the edge, let go: each step a tenth of a second.
+        auto drag = [&](std::vector<float> xs) {
+            PointerEvent event;
+            event.kind = PointerKind::move;
+            event.position = {xs.front(), 330};
+            h.step({event});
+            event.kind = PointerKind::down; event.button = MouseButton::left; event.buttons = 1;
+            h.step({event});
+            for (std::size_t index = 1; index < xs.size(); ++index) {
+                h.advance(seconds(0.1));
+                event.kind = PointerKind::move;
+                event.position.x = xs[index];
+                h.step({event});
+            }
+            event.kind = PointerKind::up; event.buttons = 0;
+            h.step({event});
+            h.settle();
+        };
+        const float start = sheet.x + 60;
+        drag({start, start + 10, start + 20, start + 30});
+        expect(open.peek()) << "let go slowly a little way in: it stays open";
+        expect(std::abs(h.runtime().screen_bounds(h.runtime().find("main/panel")).x - sheet.x) < 1) << "and goes back to its place";
+        drag({start, start + 40, start + 90});
+        expect(!open.peek()) << "flung toward its edge: it closes";
+    };
+
     "drawer: along the window's edge, as tall as it, over the page; Escape, its × or an agent close it"_test = [] {
         Headless h(options({640, 400}));
         auto open = signal(false);

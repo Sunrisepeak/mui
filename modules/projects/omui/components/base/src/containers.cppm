@@ -51,6 +51,7 @@ private:
     bool          hover_ = false;
     bool          dragging_ = false;
     double        from_ = 0;  // a drag's start, taken back whole
+    float         past_ = 0;  // the handle drawn past its limit while dragged there (px, damped)
 };
 
 class Drawer : public DrawerContract<Drawer> {
@@ -70,8 +71,17 @@ public:
 private:
     [[nodiscard]] Rect close_box(Size size) const;
 
+    // Dragged toward its edge (B5): where the hand went down, last was and when, how fast it went (px/s, toward the
+    // edge), and how far the sheet is drawn toward it (past open: damped).
+    struct Drag {
+        float  from = 0, last = 0, along = 0;
+        double at = 0, velocity = 0;
+    };
+
     mutable parts::Label title_;
     bool                 was_open_ = false;
+    std::optional<Drag>  drag_;
+    bool                 dragging_ = false;  // moved past the slop: the pointer is the drawer's
 };
 
 }  // namespace omui

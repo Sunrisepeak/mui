@@ -536,6 +536,16 @@ void Runtime::Impl::place_overlays() {
         // Inside its available region, as far as it fits.
         at.x = std::clamp(at.x, area.x, std::max(area.x, area.right() - w));
         at.y = std::clamp(at.y, area.y, std::max(area.y, area.bottom() - h));
+        // Where it opens from (B5: origin-aware): beside an anchor, the anchor's middle as a fraction of the overlay
+        // — a menu below its button grows from the button's edge; at a point, the point. Over the middle or at an
+        // edge of the window it has no origin: its course's own anchor.
+        const bool beside = p.point || p.side == Placement::Side::below || p.side == Placement::Side::above ||
+                            p.side == Placement::Side::start || p.side == Placement::Side::end;
+        n.overlay_origin.reset();
+        if (beside && w > 0 && h > 0) {
+            const Point from = p.point ? *p.point : Point{anchor.x + anchor.width / 2, anchor.y + anchor.height / 2};
+            n.overlay_origin = Point{std::clamp((from.x - at.x) / w, 0.0f, 1.0f), std::clamp((from.y - at.y) / h, 0.0f, 1.0f)};
+        }
         compute_bounds(id, {0, 0}, Affine{}, Affine{}, at);
         if (p.match_width && w < anchor.width) {
             sync_style(id);  // the anchor's width became known: lay out again next frame
@@ -649,7 +659,13 @@ void Runtime::Impl::paint() {
         }
         if (n.type->placement && n.type->placement(n.instance).scrim) {
             const Color scrim = theme_of(id).color("scrim", Color::hex(0x0f172a, 0.45f));
-            list.fill_rect(bounded ? n.overlay_area : Rect{0, 0, size.width, size.height}, scrim.with_alpha(scrim.a * std::clamp(n.visual[Field::opacity], 0.0f, 1.0f)));
+            // On the overlay's own timeline (B5): as it appears the scrim darkens, as it vanishes it clears.
+            float shown = std::clamp(n.visual[Field::opacity], 0.0f, 1.0f);
+            if (n.morph && n.morph_presence != 0) {
+                const auto progress = static_cast<float>(std::clamp(n.morph->progress(n.clock.local(now().count())), 0.0, 1.0));
+                shown *= n.morph_presence > 0 ? progress : 1 - progress;
+            }
+            list.fill_rect(bounded ? n.overlay_area : Rect{0, 0, size.width, size.height}, scrim.with_alpha(scrim.a * shown));
         }
         paint_node(id);
         while (clips > 0) { list.pop_clip(); --clips; }

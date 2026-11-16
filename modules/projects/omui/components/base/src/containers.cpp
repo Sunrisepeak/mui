@@ -3,13 +3,17 @@ module omui.ui.base;
 import std;
 import omui.core;
 import omui.view;
+import hanim.core;
 
 namespace omui {
 
 namespace {
 
 constexpr float split_handle = 8, split_grip = 28;
+constexpr float split_rubber = 24;  // how far past its limit a dragged handle may be drawn, at most (rubber band)
 constexpr float drawer_pad = 20, drawer_head = 60, drawer_close = 32;
+constexpr float drawer_rubber = 24;  // dragged past open, at most this far (rubber band)
+constexpr float drawer_slop = 4;     // less than this is a press, not a drag
 constexpr double split_step = 0.05;
 
 }  // namespace
@@ -81,7 +85,10 @@ void SplitView::paint(PaintContext&) const {}  // the handle is drawn over its p
 
 void SplitView::paint_over(PaintContext& ctx) const {
     const Theme& th = ctx.theme;
-    const Rect h = handle();
+    // Dragged past a pane's least size, the handle follows the hand a damped way and comes back when let go (B5).
+    Rect h = handle();
+    if (props.vertical) h.y += past_;
+    else h.x += past_;
     if (h.width <= 0 && h.height <= 0) return;
     const bool lit = hover_ || dragging_;
     const Color line = lit ? th.color("accent") : th.color("border");
@@ -131,14 +138,23 @@ bool SplitView::on_event(EventContext& ctx, const InputEvent& e) {
             services().capture_pointer(node());
             services().focus(node());
             return true;
-        case PointerKind::move:
+        case PointerKind::move: {
             if (!dragging_) return false;
-            change(ratio_at(ctx.local));
+            const double asked = ratio_at(ctx.local);
+            change(asked);
+            const float room = (props.vertical ? me.height : me.width) - split_handle;
+            const float past = parts::rubber_band(static_cast<float>((asked - props.ratio) * room), split_rubber);
+            if (past != past_) {
+                past_ = past;
+                services().invalidate_paint(node());
+            }
             return true;
+        }
         case PointerKind::up:
         case PointerKind::cancel:
             if (!dragging_) return false;
             dragging_ = false;
+            past_ = 0;
             services().release_pointer();
             // The drag as one action of the person's (S-12).
             if (props.ratio != from_) services().performed(node(), "set_value", Value{}.set("value", props.ratio), {{"set_value", Value{}.set("value", from_)}});
@@ -253,15 +269,59 @@ void Drawer::paint(PaintContext& ctx) const {
     parts::cross(ctx, close_box(ctx.size).center() + Point{0, 4}, 11, th.color("text_muted"));
 }
 
+// Taken by the hand (B5): it follows toward its edge, past open only a damped way; let go, it closes when a fling
+// from there would come to rest past half its width (hanim's glide), else it goes back by its own motion.
 bool Drawer::on_event(EventContext& ctx, const InputEvent& e) {
     const auto* p = std::get_if<PointerEvent>(&e);
-    if (!p || p->kind != PointerKind::up) return false;
-    const Rect x = close_box(services().bounds(node()).size());
-    if (Rect{x.x - 4, x.y, x.width + 8, x.height + 8}.contains(ctx.local)) {
-        (void)services().perform(node(), "dismiss", {});
-        return true;
+    if (!p) return false;
+    const float toward = props.side == DrawerSide::start ? -1.0f : 1.0f;  // the way it closes
+    switch (p->kind) {
+        case PointerKind::down:
+            // Noted, not taken: a control inside keeps its press until the hand has clearly moved.
+            if (!props.open || (p->type == PointerType::mouse && p->button != MouseButton::left)) return false;
+            drag_ = Drag{.from = p->position.x, .last = p->position.x, .at = services().now().count()};
+            return false;
+        case PointerKind::move: {
+            if (!drag_) return false;
+            if (p->buttons == 0 && p->type == PointerType::mouse) {
+                drag_.reset();
+                return false;
+            }
+            const float along = (p->position.x - drag_->from) * toward;
+            if (!dragging_) {
+                if (std::abs(along) < drawer_slop) return false;
+                dragging_ = true;
+                services().capture_pointer(node());
+            }
+            const double now = services().now().count();
+            if (now > drag_->at) drag_->velocity = (p->position.x - drag_->last) * toward / (now - drag_->at);
+            drag_->last = p->position.x;
+            drag_->at = now;
+            drag_->along = along >= 0 ? along : -parts::rubber_band(-along, drawer_rubber);
+            services().set(node(), "translate_x", Value(static_cast<double>(drag_->along * toward)));
+            return true;
+        }
+        case PointerKind::up:
+        case PointerKind::cancel: {
+            const std::optional<Drag> drag = std::exchange(drag_, std::nullopt);
+            if (!std::exchange(dragging_, false) || !drag) {
+                // A press, not a drag: its × closes it.
+                const Rect x = close_box(services().bounds(node()).size());
+                if (p->kind == PointerKind::up && Rect{x.x - 4, x.y, x.width + 8, x.height + 8}.contains(ctx.local)) {
+                    (void)services().perform(node(), "dismiss", {});
+                    return true;
+                }
+                return false;
+            }
+            services().release_pointer();
+            services().set(node(), "translate_x", Value(0.0));
+            const double rest = hanim::Glide(drag->along, drag->velocity, {}).destination();
+            if (rest > services().bounds(node()).width / 2) (void)services().perform(node(), "dismiss", {});
+            return true;
+        }
+        default:
+            return false;
     }
-    return false;
 }
 
 void Drawer::semantics(SemanticsContext&, spec::SemanticNode& node) const {

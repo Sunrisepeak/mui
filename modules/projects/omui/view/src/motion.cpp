@@ -377,6 +377,10 @@ void Runtime::Impl::run_motion() {
                 return;
             }
             hanim::visual::Options options = options_of(spec, level, theme_of(id));
+            // An overlay beside what opened it comes from there and goes back there (B5): its course scales and
+            // turns about its origin, not its middle.
+            if (n.overlay_origin && !spec.local_presence)
+                options.appear.anchor = options.vanish.anchor = hanim::Vec2{n.overlay_origin->x, n.overlay_origin->y};
             options.proof_scale = scale;
             options.current_proof_scale = [this] { return scale; };
             if (options.minimum_text_contrast > 0) {
@@ -406,6 +410,7 @@ void Runtime::Impl::run_motion() {
                     if (alive(boundary) && (contains(boundary, id) || contains(id, boundary))) options.layout_scopes.push_back(self.path(boundary));
             const auto previous_clock = n.clock;
             const bool keep_control = external_layout && n.morph && n.clock.held;
+            n.morph_presence = !from || from->pieces().empty() ? std::int8_t{1} : to.pieces().empty() ? std::int8_t{-1} : std::int8_t{0};
             n.morph = std::make_shared<const hanim::visual::Morph>(std::move(*from), std::move(to), std::move(options), t);
             n.clock = {};  // a new content change follows runtime time again
             if (keep_control) {

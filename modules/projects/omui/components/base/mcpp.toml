@@ -41,6 +41,8 @@ mlibs.unicode = { path = "../../../../base/unicode" }
 mlibs.utils    = { path = "../../../../base/utils" }
 # agent_presence shows who holds which part: the claims are the agent kernel's (D-160, D-173).
 mlibs.agent    = { path = "../../../../base/agent" }
+# A drawer let go mid-drag stays or closes by where its fling would come to rest (hanim's glide, B5).
+hanim.core     = { path = "../../../hanim/core" }
 
 [build-dependencies]
 omui.build = { path = "../../../../../mcpp/build", host-module = true }

@@ -86,6 +86,10 @@ Scene scene(std::string_view type, std::string_view override_motion = {}) {
         element = segmented({.id = "subject", .label = "Calendar", .labels = std::vector<std::string>{"Day", "Week", "Month"},
                              .options = std::vector<std::string>{"day", "week", "month"}, .value = "day"});
         change = [](Headless& h) { act(h, "main/subject/month", "activate"); };
+    } else if (type == "tabs") {
+        element = tabs({.id = "subject", .selected = signal(std::string("general"))},
+                       {tab({.id = "general", .text = "General"}), tab({.id = "privacy", .text = "Privacy"}), tab({.id = "advanced", .text = "Advanced"})});
+        change = [](Headless& h) { act(h, "main/subject/advanced", "select"); };
     } else if (type == "progress") {
         auto value = signal(0.15);
         element = progress({.id = "subject", .label = "Upload", .value = value, .width = 300});
@@ -159,8 +163,8 @@ static UTest cases{"ui.base.default-motion", [] {
         expect(std::ranges::none_of(rules, [](const MotionRule& r) { return r.target == "*"; })) << "no blanket recipe for every drawing";
     };
 
-    "six real control types paint distinct middle frames and reach their actual state drawings"_test = [] {
-        for (const std::string type : {"checkbox", "toggle", "segmented", "progress", "accordion", "drawer"}) {
+    "seven real control types paint distinct middle frames and reach their actual state drawings"_test = [] {
+        for (const std::string type : {"checkbox", "toggle", "segmented", "tabs", "progress", "accordion", "drawer"}) {
             Headless animated(options()), immediate(options());
             immediate.runtime().set_motion_level(MotionLevel::off);
             auto sample = scene(type), reference = scene(type);
@@ -174,8 +178,8 @@ static UTest cases{"ui.base.default-motion", [] {
             if (record) {
                 expect(record->matched + record->to_only + record->from_only > 0) << "the handle contains real paint pieces";
                 if (type == "checkbox") expect(record->to_only > 0) << "the checkmark appears as a part";
-                if (type == "toggle" || type == "segmented" || type == "progress")
-                    expect(record->matched > 0) << "the existing thumb, lens or value fill is matched";
+                if (type == "toggle" || type == "segmented" || type == "tabs" || type == "progress")
+                    expect(record->matched > 0) << "the existing thumb, lens, indicator or value fill is matched";
             }
             animated.advance(seconds(0.10));
             const auto middle = pixels(animated), final = pixels(immediate);
@@ -341,5 +345,26 @@ static UTest cases{"ui.base.default-motion", [] {
         expect(pressed < .955f) << std::format("pressed in past the button's own press: {} ({} motions)", pressed, h.runtime().motions().size());
         h.advance(seconds(1));
         expect(h.runtime().motions().empty()) << "then at rest, pressed";
+    };
+
+    "a pressed tab answers the finger: deeper than hovered, before the indicator moves (B5)"_test = [] {
+        Headless h(options());
+        auto selected = signal(std::string("general"));
+        h.mount("main", column({.padding = 24}, {tabs({.id = "subject", .selected = selected},
+                                                      {tab({.id = "general", .text = "General"}), tab({.id = "privacy", .text = "Privacy"})})}));
+        h.settle();
+        const auto bounds = h.runtime().screen_bounds(h.runtime().find("main/subject/privacy"));
+        PointerEvent over;
+        over.kind = PointerKind::move;
+        over.position = bounds.center();
+        h.step({over});
+        h.settle();
+        const auto hovered = pixels(h);
+        PointerEvent down = over;
+        down.kind = PointerKind::down; down.button = MouseButton::left; down.buttons = 1;
+        h.step({down});
+        h.settle();
+        expect(pixels(h) != hovered) << "held down, the tab is drawn deeper than hovered";
+        expect(selected.peek() == "general") << "nothing selected until it is let go";
     };
 }};

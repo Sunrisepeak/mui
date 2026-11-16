@@ -166,6 +166,7 @@ struct Node {
     Rect                 overlay_area;
     Size                 overlay_measured;
     float                overlay_stacked = 0;
+    std::optional<Point> overlay_origin;  // where it opens from, a fraction of its bounds (its anchor's middle, or the point)
     std::vector<ChildSlot> slots;
     std::vector<NodeId>  children;      // the slots flattened
     mlibs::layout::NodeId       layout = mlibs::layout::no_node;
@@ -308,6 +309,9 @@ struct Node {
     double                                changed_at = -1e9;  // when its drawing last changed (runtime seconds)
     bool                                  drawn = false;
     std::shared_ptr<const hanim::visual::Morph>  morph;
+    // Its morph comes from nothing (+1: appearing) or goes to nothing (−1: vanishing), else 0: what it draws outside
+    // its own drawing on the same timeline (a modal overlay's scrim, B5).
+    std::int8_t                           morph_presence = 0;
 };
 
 // A change a node asks for, in the order the frame handles them.

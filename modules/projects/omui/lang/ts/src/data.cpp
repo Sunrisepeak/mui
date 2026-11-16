@@ -656,6 +656,46 @@ export interface World {
 }
 /** `export default defineWorld({ name: "a cavern", legend: { "#": "stone", "P": "start" }, rows: ["#####", "#P..#", "#####"] })`. */
 export declare function defineWorld(world: World): Defined<"world">;
+// ── a project's identity (<project>.project.omui.ts, D-208) ──────────────
+
+/** A part of a project that may depend on less than the whole (xengine's simulation kernels, gongfu's core). */
+export interface ProjectPart {
+    /** Its directory, under the project's (`"kernel/matter"`); `exact`: that member alone, not what is under it. */
+    path: string;
+    /** The part's name among the projects (`"xengine.sim"`). */
+    name: string;
+    exact?: boolean;
+    /** The projects it may depend on, its tests included (D-161). */
+    dependsOn: string[];
+    /** A project reached only through one member of the part (`{ omui: "game/ui" }`: the bridge, D-162). */
+    through?: { [project: string]: string };
+}
+/**
+ * Who a project is (D-208): the one place its names are written, read by the lint (the projects' order), the
+ * rename command and the tools. `name` is its directory's; a code name (x…) is internal and renamed by one command.
+ */
+export interface Project {
+    name: string;
+    /** As people read it (`"xrender"`, `"omui"`). */
+    display: string;
+    /** What it is, in one sentence (its README's first line). */
+    summary: string;
+    /** An internal code name (D-208): it reaches no protocol and no persisted data. */
+    codeName?: boolean;
+    /** Its packages' prefix (`"xrender"` → `xrender.vector`). */
+    packages: string;
+    /** Its programs (`["xrender"]`). */
+    programs?: string[];
+    /** The directory its state lives in, in a user's project (`".omui"`). */
+    stateDir?: string;
+    /** The manifest's section of its own (`"package.metadata.openmui"`). */
+    metadata?: string;
+    /** The projects it may depend on, its tests included (D-161): only ones below it. */
+    dependsOn: string[];
+    parts?: ProjectPart[];
+}
+/** `export default defineProject({ name: "xrender", display: "xrender", summary: "…", packages: "xrender", dependsOn: ["mlibs"] })`. */
+export declare function defineProject(project: Project): Defined<"project">;
 )ts";
 }
 

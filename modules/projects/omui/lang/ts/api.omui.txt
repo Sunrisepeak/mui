@@ -16,8 +16,8 @@ namespace omui::lang::ts {
     std::string json;
   };
   inline constexpr std::array<std::string_view, 3> spec_kinds{…};
-  inline constexpr std::array<std::string_view, 16> omui_kinds{…};
-  inline constexpr std::array<std::string_view, 19> data_kinds{…};
+  inline constexpr std::array<std::string_view, 17> omui_kinds{…};
+  inline constexpr std::array<std::string_view, 20> data_kinds{…};
   [[nodiscard]] std::expected<Data, TsFailure> evaluate(const std::filesystem::path& file, const DataOptions& options = {…});
   [[nodiscard]] std::expected<Data, TsFailure> evaluate_source(std::string_view source, std::string_view name, const DataOptions& options = {…});
   [[nodiscard]] std::string define_module_source(bool spec);

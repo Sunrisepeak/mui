@@ -4,6 +4,7 @@ module omui.devtools.lint;
 
 import std;
 import tomlplusplus;
+import mlibs.json;
 import :tree;
 
 namespace omui::devtools::lint {
@@ -110,57 +111,96 @@ const std::vector<Allowed>& layer_rules() {
     return table;
 }
 
-// Projects (D-161): the units that may each be a repository of their own one day, and the projects each
-// may depend on. Test dependencies count: a project whose tests need a project above it could not be
-// built alone. The longest path prefix that holds a member names its project; consumers (tools, the
-// site, showcases, examples, tests, entries) are free.
-constexpr std::pair<std::string_view, std::string_view> project_paths[]{
-    {"modules", "mlibs"},
-    {"spec", "spec"},
-    {"modules/projects/xrender", "xrender"},
-    {"modules/projects/xengine/kernel/dynamics", "xengine.sim"},
-    {"modules/projects/xengine/kernel/cellular", "xengine.sim"},
-    {"modules/projects/xengine/kernel/matter", "xengine.sim"},
-    {"modules/projects/xengine/kernel/particles", "xengine.sim"},
-    {"modules/projects/xengine/kernel/field", "xengine.sim"},
-    {"modules/projects/hanim", "hanim"},
-    {"modules/projects/xengine/kernel/audio", "xengine.media"},
-    {"modules/projects/xengine/kernel/video", "xengine.media"},
-    {"modules/projects/omui", "omui"},
-    {"modules/projects/xengine/game", "xengine.game"},
-    {"modules/projects/gongfu", "gongfu"},
-    {"modules/projects/xtools", "xtools"},
+// Projects (D-161, D-208): the units that may each be a repository of their own one day, and the projects each
+// may depend on. Test dependencies count: a project whose tests need a project above it could not be built
+// alone. mlibs (the bottom) and the specification are fixed; every project under modules/projects/ says who
+// it is in its identity (<name>.project.omui.ts, read as its snapshot): the projects it may depend on, and
+// the parts of it that sit lower (xengine's kernels, gongfu's core). The longest path prefix that holds a
+// member names its project; consumers (tools, the site, showcases, examples, tests, entries) are free.
+struct ProjectPart {
+    std::string path;  // "modules/projects/xengine/kernel/matter"
+    std::string name;  // "xengine.sim"
+    bool exact = false;  // that member alone
+    std::set<std::string> may;
+    std::map<std::string, std::string> through;  // a project reached only through one member (the bridge, D-162)
 };
-// gongfu's core alone (the standard library): a fixture the game layer's tests may take.
-constexpr std::pair<std::string_view, std::string_view> exact_projects[]{{"modules/projects/gongfu", "gongfu.core"}};
+struct Projects {
+    std::vector<ProjectPart> parts;
+    std::vector<Problem> problems;  // an identity missing or not one
+};
 
-const std::map<std::string_view, std::set<std::string_view>>& project_rules() {
-    static const std::map<std::string_view, std::set<std::string_view>> table = [] {
-        const std::set<std::string_view> kernels{"mlibs", "xrender", "xengine.sim", "hanim", "xengine.media"};
-        const auto with = [&](std::initializer_list<std::string_view> more) {
-            auto all = kernels;
-            all.insert(more);
-            return all;
-        };
-        return std::map<std::string_view, std::set<std::string_view>>{
-            {"mlibs", {}},
-            {"spec", {}},
-            {"xrender", {"mlibs"}},
-            {"xengine.sim", {"mlibs", "xrender"}},
-            {"hanim", {"mlibs", "xrender", "xengine.sim"}},
-            {"xengine.media", {"mlibs", "xrender", "xengine.sim", "hanim"}},
-            {"omui", with({"spec"})},
-            {"gongfu.core", {"mlibs"}},  // for its tests; what it is built from is the standard library alone (layering)
-            {"gongfu", with({"gongfu.core"})},
-            {"xengine.game", with({"spec", "omui", "gongfu.core"})},
-            // The toolchain whole: a composition of every project's toolkit, and nothing depends on it (plan §4.5).
-            {"xtools", with({"spec", "omui", "xengine.game", "gongfu.core", "gongfu"})},
-        };
-    }();
-    return table;
+constexpr std::string_view projects_root = "modules/projects";
+
+Projects read_projects(const fs::path& root) {
+    Projects projects;
+    projects.parts.push_back({.path = "modules", .name = "mlibs"});
+    projects.parts.push_back({.path = "spec", .name = "spec"});
+    std::error_code error;
+    std::vector<fs::path> directories;
+    for (const auto& child : fs::directory_iterator(root / path_of(projects_root), error))
+        if (child.is_directory(error)) directories.push_back(child.path());
+    std::ranges::sort(directories);
+    const auto names = [](mlibs::json::Node list) {
+        std::set<std::string> out;
+        for (const auto& item : list.items())
+            if (auto name = item.text()) out.insert(std::move(*name));
+        return out;
+    };
+    for (const auto& directory : directories) {
+        const std::string leaf = utf8_of(directory.filename());
+        const std::string place = std::format("{}/{}", projects_root, leaf);
+        const std::string snapshot = std::format("{}/{}.project.omui.json", place, leaf);
+        const auto text = read_text(root / path_of(snapshot));
+        if (!text || !fs::exists(root / path_of(std::format("{}/{}.project.omui.ts", place, leaf)), error)) {
+            projects.problems.push_back({"project-dag", place,
+                                         std::format("says not who it is: {0}.project.omui.ts (defineProject) and its snapshot {0}.project.omui.json "
+                                                     "(omui-gen snapshot), D-208",
+                                                     leaf)});
+            continue;
+        }
+        const auto document = mlibs::json::Document::parse(*text, snapshot);
+        const auto project = document ? document->root()["project"] : mlibs::json::Node{};
+        if (!document || !project.is_object()) {
+            projects.problems.push_back({"project-dag", snapshot, "is not a project's identity snapshot (defineProject; omui-gen snapshot writes it)"});
+            continue;
+        }
+        if (project["name"].text() != leaf) {
+            projects.problems.push_back({"project-dag", snapshot, std::format("names the project {}: an identity's name is its directory's ({})",
+                                                                               project["name"].text().value_or("nothing"), leaf)});
+            continue;
+        }
+        projects.parts.push_back({.path = place, .name = leaf, .may = names(project["dependsOn"])});
+        for (const auto& part : project["parts"].items()) {
+            const std::string under = part["path"].text().value_or(".");
+            ProjectPart one{.path = under == "." ? place : std::format("{}/{}", place, under),
+                            .name = part["name"].text().value_or(leaf),
+                            .exact = part["exact"].boolean().value_or(false),
+                            .may = names(part["dependsOn"])};
+            for (const auto& [other, member] : part["through"].members())
+                one.through[other] = std::format("{}/{}", place, member.text().value_or(""));
+            projects.parts.push_back(std::move(one));
+        }
+    }
+    // Every project an identity names is one of them.
+    std::set<std::string> known;
+    for (const auto& part : projects.parts) known.insert(part.name);
+    for (const auto& part : projects.parts)
+        for (const auto& other : part.may)
+            if (!known.contains(other))
+                projects.problems.push_back({"project-dag", part.path, std::format("{} may depend on {}: no project has that name", part.name, other)});
+    return projects;
 }
-// In the game layer, the one package that knows omui (D-162).
-constexpr std::string_view omui_bridge = "modules/projects/xengine/game/ui";
+
+const ProjectPart* project_of(const Projects& projects, std::string_view member) {
+    for (const auto& part : projects.parts)
+        if (part.exact && member == part.path) return &part;
+    const ProjectPart* best = nullptr;
+    for (const auto& part : projects.parts) {
+        if (part.exact || !(member == part.path || (member.starts_with(part.path) && member.substr(part.path.size()).starts_with('/')))) continue;
+        if (!best || part.path.size() > best->path.size()) best = &part;
+    }
+    return best;
+}
 
 // Where the path-is-the-name rule (D-80) holds, and the directories whose README lists the packages under them.
 constexpr std::array library_roots{"modules", "mgame", "components", "lang", "tools", "showcase", "mcpp"};
@@ -192,20 +232,6 @@ const Allowed* rule_for(std::string_view member) {
     const auto& table = layer_rules();
     const auto found = std::ranges::find(table, *layer, &Allowed::layer);
     return found == table.end() ? nullptr : &*found;
-}
-
-std::optional<std::string_view> project_of(std::string_view member) {
-    for (const auto& [path, project] : exact_projects)
-        if (member == path) return project;
-    std::optional<std::string_view> best, value;
-    for (const auto& [prefix, project] : project_paths) {
-        if (!(member == prefix || (member.starts_with(prefix) && member.substr(prefix.size()).starts_with('/')))) continue;
-        if (!best || prefix.size() > best->size()) {
-            best = prefix;
-            value = project;
-        }
-    }
-    return value;
 }
 
 std::string list_of(const auto& names) {
@@ -414,9 +440,10 @@ std::vector<Problem> check_manifests(const Workspace& workspace) {
 }
 
 std::vector<Problem> check_projects(const Workspace& workspace) {
-    std::vector<Problem> problems;
+    const Projects projects = read_projects(workspace.root);
+    std::vector<Problem> problems = projects.problems;
     for (const auto& member : workspace.members) {
-        const auto own = project_of(member.path);
+        const ProjectPart* own = project_of(projects, member.path);
         if (!own || !member.data) continue;
         std::vector<std::pair<const toml::table*, std::string_view>> tables{{table_at(*member.data, "dependencies"), ""},
                                                                              {table_at(*member.data, "dev-dependencies"), " for its tests"}};
@@ -428,7 +455,6 @@ std::vector<Problem> check_projects(const Workspace& workspace) {
                     tables.emplace_back(table_at(*one, "dependencies"), "");
                     tables.emplace_back(table_at(*one, "dev-dependencies"), " for its tests");
                 }
-        const auto& allowed = project_rules();
         for (const auto& [table, what] : tables) {
             if (!table) continue;
             for (const auto& [name, node] : flatten(*table)) {
@@ -437,18 +463,17 @@ std::vector<Problem> check_projects(const Workspace& workspace) {
                 if (!path) continue;
                 const std::string dependency = resolved(member.path, *path);
                 if (dependency.empty()) continue;
-                const auto other = project_of(dependency);
-                const auto rule = allowed.find(*own);
-                const std::set<std::string_view> may = rule == allowed.end() ? std::set<std::string_view>{} : rule->second;
+                const ProjectPart* other = project_of(projects, dependency);
                 if (!other)
                     problems.push_back({"project-dag", member.path, std::format("depends on {} ({}){}: a consumer, which no project depends on", dependency, name, what)});
-                else if (*other != *own && !may.contains(*other))
+                else if (other->name != own->name && !own->may.contains(other->name))
                     problems.push_back({"project-dag", member.path,
-                                        std::format("depends on {} ({}){}: {} may depend on {}, not on {}", dependency, name, what, *own,
-                                                    may.empty() ? std::string("no project") : list_of(may), *other)});
-                else if (*other == "omui" && *own == "xengine.game" && member.path != omui_bridge)
+                                        std::format("depends on {} ({}){}: {} may depend on {}, not on {}", dependency, name, what, own->name,
+                                                    own->may.empty() ? std::string("no project") : list_of(own->may), other->name)});
+                else if (const auto bridge = own->through.find(other->name); bridge != own->through.end() && member.path != bridge->second)
                     problems.push_back({"project-dag", member.path,
-                                        std::format("depends on {} ({}){}: in the game layer only {} knows omui (D-162)", dependency, name, what, omui_bridge)});
+                                        std::format("depends on {} ({}){}: in {} only {} knows {} (D-162)", dependency, name, what, own->name,
+                                                    bridge->second, other->name)});
             }
         }
     }

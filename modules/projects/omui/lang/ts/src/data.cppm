@@ -37,10 +37,12 @@ struct Data {
 // The kinds the define functions make (D-157): the spec's formats from
 // "openmui/define", the implementation's from "omui/define".
 inline constexpr std::array<std::string_view, 3> spec_kinds{"contract", "native", "view"};
-inline constexpr std::array<std::string_view, 16> omui_kinds{"config",   "ops",       "theme", "style",  "motion",   "sound",    "music",  "timeline",
-                                                             "subtitles", "video",    "effect", "behavior", "messages", "matter", "appearance", "world"};
-inline constexpr std::array<std::string_view, 19> data_kinds{"contract", "native",    "view",  "config", "ops",      "theme",    "style",  "motion",     "sound",
-                                                             "music",    "timeline",  "subtitles", "video", "effect", "behavior", "messages", "matter", "appearance", "world"};
+inline constexpr std::array<std::string_view, 17> omui_kinds{"config",   "ops",       "theme", "style",  "motion",   "sound",    "music",  "timeline",
+                                                             "subtitles", "video",    "effect", "behavior", "messages", "matter", "appearance", "world",
+                                                             "project"};
+inline constexpr std::array<std::string_view, 20> data_kinds{"contract", "native",    "view",  "config", "ops",      "theme",    "style",  "motion",     "sound",
+                                                             "music",    "timeline",  "subtitles", "video", "effect", "behavior", "messages", "matter", "appearance", "world",
+                                                             "project"};
 
 // A data module's file (TypeScript, or JavaScript); a problem as `file:line:column: text` where it has a place.
 [[nodiscard]] std::expected<Data, TsFailure> evaluate(const std::filesystem::path& file, const DataOptions& options = {});

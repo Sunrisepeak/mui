@@ -499,6 +499,14 @@ void plant(const fs::path& root, const Planted& planted, const fs::path& owners_
                       fs::copy_options::overwrite_existing, error);
     }
     if (!planted.path.empty()) write(root / path_of(planted.path), planted.text);
+    // Each project the case plants says who it is (D-208): one below omui alone.
+    for (const auto& child : fs::directory_iterator(root / "modules" / "projects", error)) {
+        const std::string leaf = utf8_of(child.path().filename());
+        const fs::path snapshot = child.path() / path_of(leaf + ".project.omui.json");
+        if (fs::exists(snapshot, error)) continue;
+        write(child.path() / path_of(leaf + ".project.omui.ts"), std::format("export default defineProject({{ name: \"{}\", dependsOn: [\"mlibs\"] }});\n", leaf));
+        write(snapshot, std::format("{{\"project\":{{\"name\":\"{}\",\"dependsOn\":[\"mlibs\"]}}}}\n", leaf));
+    }
 }
 
 }  // namespace

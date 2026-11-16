@@ -1,0 +1,1 @@
+{"project":{"name":"hanim","display":"hanim","summary":"A composable, agent-native animation engine: one set of capabilities for UI animation, video and game animation.","packages":"hanim","programs":["hanim","hanim-timeline"],"dependsOn":["mlibs","xrender","xengine.sim"]}}

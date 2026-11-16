@@ -1,5 +1,5 @@
 # Ke's hurtboxes, baked by gongfu.rules from its look and its moves: what its limbs
-# reach out of its stance's box, frame by frame. Not edited by hand: `gongfu-studio bake`
+# reach out of its stance's box, frame by frame. Not edited by hand: `gongfu-studio fighter.bake`
 # writes it again, and the build checks it is what the files make now.
 gongfu = "0.1"
 fighter = "Ke"

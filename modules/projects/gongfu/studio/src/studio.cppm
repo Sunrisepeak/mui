@@ -13,6 +13,8 @@ export module gongfu.studio;
 import std;
 export import gongfu.data;
 export import gongfu.present2d;
+export import :catalog;
+export import :tool;
 import xrender.vector;
 
 export namespace gongfu::studio {

@@ -1,8 +1,10 @@
 // gongfu's operations (convergence plan §10.3): what an Agent does with
-// fighters through gongfu.studio's command line (`gongfu-studio <verb> …`,
-// JSON out, exit 0 done / 1 failed / 2 wrong command). omui-gen ops makes the
-// listing (media/ops/gongfu.ops.json for CLI and MCP bindings) and the
-// reference (media/ops/gongfu.ops.md) from it; effects are openas's. The
+// fighters — gongfu.studio's subject `gongfu` behind the tool kernel's entries
+// (`gongfu-studio fighter.check showcase/fighting/fighters`, `gongfu-studio mcp`;
+// records out, exit 0 done / 1 failed / 2 arguments that make no request).
+// omui-gen ops makes the table the command serves them by (src/catalog), the
+// listing (gongfu.ops.json, for MCP) and the reference (gongfu.ops.md); effects
+// are openas's. The
 // fighters themselves are data (`<name>.fighter.gongfu.toml`, its look and
 // moves) written with any editor; a match is played through a host's stage
 // (the fighting showcase's `press`, `turn` and `inputs` actions).
@@ -10,8 +12,10 @@ import { defineOps } from "omui/define";
 
 export default defineOps({
   product: "gongfu",
+  module: "gongfu.studio",
+  namespace: "gongfu::studio::ops",
   doc: "Make and check fighters: hurtboxes baked from the animation, contact sheets, stage pictures, art cut from sheets, the roster's balance.",
-  generated: "media/ops",
+  generated: "src/catalog",
   operations: [
     {
       name: "fighter.check",
@@ -93,6 +97,7 @@ export default defineOps({
         { name: "min", type: "integer", doc: "the smallest piece's area", optional: true },
         { name: "alpha", type: "integer", optional: true },
         { name: "scale", type: "number", optional: true },
+        { name: "webp", type: "number", doc: "the atlas as lossy WebP at this quality (else PNG)", optional: true },
       ],
       result: "json",
       cost: "bounded",

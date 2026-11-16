@@ -1,6 +1,6 @@
 // gongfu.rules — a program's fighters, inside its build (G-5).
 //
-// One action runs `gongfu-studio embed <dir>`: every
+// One action runs `gongfu-studio fighter.embed <dir>`: every
 // `<name>.fighter.gongfu.toml` of the directory, with its look and baked
 // hurtboxes, becomes the partition `<module>:gongfu_fighters` the package
 // compiles. It re-runs when any file of the directory changes, and fails —
@@ -40,7 +40,7 @@ inline bool fighters(const options& o) {
     const std::string description = std::format("gongfu fighters {}/ → gongfu_fighters.cppm ({})", o.dir, o.module);
     a.description = description.c_str();
     // Kept until the action is submitted: it holds their text, not copies.
-    const std::vector<std::string> args{tool, "embed", u8(dir), "--module", o.module, "--namespace", o.ns, "--out", out};
+    const std::vector<std::string> args{tool, "fighter.embed", u8(dir), "--module", o.module, "--namespace", o.ns, "--out", out};
     for (const std::string& arg : args) a.arg(arg.c_str());
     std::vector<std::string> inputs{tool};
     std::error_code ec;

@@ -780,7 +780,7 @@ std::expected<Baked, std::vector<Diagnostic>> read_boxes(std::string_view source
 
 std::string write_boxes(const Baked& b) {
     std::string s = std::format("# {}'s hurtboxes, baked by gongfu.rules from its look and its moves: what its limbs\n"
-                                "# reach out of its stance's box, frame by frame. Not edited by hand: `gongfu-studio bake`\n"
+                                "# reach out of its stance's box, frame by frame. Not edited by hand: `gongfu-studio fighter.bake`\n"
                                 "# writes it again, and the build checks it is what the files make now.\n"
                                 "gongfu = \"{}\"\nfighter = \"{}\"\nfrom = \"{}\"\n",
                                 b.fighter, format_version, b.fighter, b.from);

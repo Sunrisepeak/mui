@@ -69,7 +69,7 @@ Each fighter is three files in `fighters/` — what they do (`*.fighter.gongfu.t
 | **Art** | Generated with the joints covered by her clothes (the lesson from 墨's parts); a 1017 × 438 parts atlas; eyes and strike cut-ins; a finishing illustration |
 | **Rig** | 16 bones; her head drawn facing left, so its part is mirrored across its axis; her fringe and her jacket's flap trail her; an open-hand drawing swaps in for the front fist |
 | **Animation** | 48 clips by 7 named poses (a boxer's guard as the stance) |
-| **Super (level 3)** | One brawl in close-up, then in the air. Her straight lands and her front hand takes the collar (a hold: the defender is wherever her hand is). She yanks them down onto a knee to the gut, then a knee to the face, and hauls them up into a headbutt; each blow is a new hold, so the body in her hand reacts to it. She heaves them overhead, turning over, leaps after them and kicks them higher four times — a snap kick, a roundhouse, a high kick, a spinning back kick (drawn turned) — her neon trail behind her. Above them, her heel comes down like an axe and drives them into the street. Ten hits, the same 4000 damage. Her effects are generated art: an effects sheet painted as light on black, its brightness made its alpha, cut by `gongfu-studio cut` into slash arcs, bursts, streaks, a heel's drop and a street shockwave (`art/ni-fx.webp`); they sit where each blow lands, and in the clinch she is drawn over the body she strikes (`in_front`) |
+| **Super (level 3)** | One brawl in close-up, then in the air. Her straight lands and her front hand takes the collar (a hold: the defender is wherever her hand is). She yanks them down onto a knee to the gut, then a knee to the face, and hauls them up into a headbutt; each blow is a new hold, so the body in her hand reacts to it. She heaves them overhead, turning over, leaps after them and kicks them higher four times — a snap kick, a roundhouse, a high kick, a spinning back kick (drawn turned) — her neon trail behind her. Above them, her heel comes down like an axe and drives them into the street. Ten hits, the same 4000 damage. Her effects are generated art: an effects sheet painted as light on black, its brightness made its alpha, cut by `gongfu-studio art.cut` into slash arcs, bursts, streaks, a heel's drop and a street shockwave (`art/ni-fx.webp`); they sit where each blow lands, and in the clinch she is drawn over the body she strikes (`in_front`) |
 | **Win pose** | Chin up, she smacks her lit knuckles into her open palm twice, flicks a thumb across her nose, and leans back on her heels, the back hand on her hip, the front fist hanging loose |
 | **Music** | The street: drum and bass in F minor, 168 BPM, 8-bar intro and 40-bar loop |
 
@@ -91,7 +91,7 @@ An original character built on an internet meme's signs — a clean centre part,
 | 104–144 | She spins up and over; he stands, his back to her, and holds a hand behind him without looking. The ball drops into it |
 | 144–180 | She crashes down behind him; his finishing illustration; he is still standing with the ball |
 
-Three hits carry the same 4000 damage as before (900, 1900, 1200). The engine pieces it needed are general and went into `gongfu.present2d` first: path keys with an ease (a body flung up and falling instead of stopping at every key), turns, hitstops for the struck, cinematic afterimages, and the taken reactions (`launched`, `slammed`) that every rebuilt look now has. His force is drawn art, generated as light on black and cut by `gongfu-studio cut` (`art/kun-fx.webp`): a burst and dust where the ball hits the floor, a spark and a push at the gut, the stamp's floor burst, 铁山靠's force wave running on past her, the crash's burst and dust; the camera pushes close on the gut and goes low for 铁山靠. What it still lacks: there is no drawing of his back, so "turned" reads as facing away rather than showing it.
+Three hits carry the same 4000 damage as before (900, 1900, 1200). The engine pieces it needed are general and went into `gongfu.present2d` first: path keys with an ease (a body flung up and falling instead of stopping at every key), turns, hitstops for the struck, cinematic afterimages, and the taken reactions (`launched`, `slammed`) that every rebuilt look now has. His force is drawn art, generated as light on black and cut by `gongfu-studio art.cut` (`art/kun-fx.webp`): a burst and dust where the ball hits the floor, a spark and a push at the gut, the stamp's floor burst, 铁山靠's force wave running on past her, the crash's burst and dust; the camera pushes close on the gut and goes low for 铁山靠. What it still lacks: there is no drawing of his back, so "turned" reads as facing away rather than showing it.
 
 **Win pose.** He straightens out of his stance, runs a thumb down his suspender and lets it go, then stands with his arms at his sides, chin up and eyes closed, turned from the fallen. No ball: it is the specials' and supers' alone.
 
@@ -157,13 +157,13 @@ Each step is a tool with a command line (JSON out, an exit code) so an agent can
 | Step | What happens | Tool |
 |---|---|---|
 | 1. Concept | A concept, a side view and a parts sheet (plain green, parts apart, joints covered by clothing), expressions, cut-ins, a finishing picture, an effects sheet (black, for light) | codex image generation, prompts kept with the art; judged against the rubric |
-| 2. Cut | Key out the green; find each piece (pixels joined across a small gap); mask it to its own pixels; scale; pack an atlas; report each piece's region and its long axis | `gongfu-studio cut sheet.png --out dir --scale 0.5 --webp 92` |
-| 3. Pictures | Cut-ins and illustrations keyed, trimmed, scaled and encoded | `gongfu-studio picture in.png --out x.webp --key 0,255,0 --trim --width 640` |
+| 2. Cut | Key out the green; find each piece (pixels joined across a small gap); mask it to its own pixels; scale; pack an atlas; report each piece's region and its long axis | `gongfu-studio art.cut sheet.png --out dir --scale 0.5 --webp 92` |
+| 3. Pictures | Cut-ins and illustrations keyed, trimmed, scaled and encoded | `gongfu-studio art.picture in.png --out x.webp --key 0,255,0 --trim --width 640` |
 | 4. Rig | In the look file: `[[picture]]`s, `[[bone]]`s (joints and lengths from the art at one `art_scale`), `[[part]]`s (a picture's region, its anchor on the joint and its tip along the bone — the long axis from step 2 gives both), meshes and bends, `[[grip]]`s for hands and feet | the look format (`gongfu.present2d`) |
 | 5. Key poses | `[pose.<name>]` tables (bones' angles to the world, rise, grips, drawings), clips keyed by them with per-key changes | the look format |
-| 6. Look at it | Any clips at any frames at any size, as a contact sheet | `gongfu-studio sheet fighters mo --clips 5MP,5HP --frames 1,8 --cell 300` |
-| 7. Bake | Hurtboxes from the poses; the build refuses a stale bake | `gongfu-studio bake fighters` |
-| 8. Balance | Bots play every pair | `gongfu-studio versus fighters --rounds 200` |
+| 6. Look at it | Any clips at any frames at any size, as a contact sheet | `gongfu-studio fighter.sheet fighters mo --clips 5MP,5HP --frames 1,8 --cell 300` |
+| 7. Bake | Hurtboxes from the poses; the build refuses a stale bake | `gongfu-studio fighter.bake fighters` |
+| 8. Balance | Bots play every pair | `gongfu-studio roster.versus fighters --rounds 200` |
 | 9. In the game | The tests draw pinned frames and the README loop headless | `mcpp test` in `showcase/fighting` |
 | 10. Grade | codex grades the frames against the rubric (one independent source); the reviewer's grade is final | — |
 
@@ -173,12 +173,12 @@ Throwaway scripts were used once — to turn world-angle key poses into tracks b
 
 | Tool | What it does | Where |
 |---|---|---|
-| `gongfu-studio cut` | Sheet → masked pieces, packed atlas (PNG or WebP), JSON manifest with regions, atlas regions, long axes and an alpha histogram | `modules/projects/gongfu/studio` |
-| `gongfu-studio picture` | Key out, trim, scale, encode a picture (PNG or WebP by its name) | same |
-| `gongfu-studio sheet` | Contact sheets of clips at chosen frames, with boxes, the look's drawn art included | same |
-| `gongfu-studio bake` / `check` | Hurtboxes from the animation; checks that bakes are current | same |
-| `gongfu-studio versus` | Every pair played by bots: win rates and where damage comes from | same |
-| `gongfu-studio stage` | A stage file's painted layers as a frame, with two fighters for scale, framed as the game frames them | same |
+| `gongfu-studio art.cut` | Sheet → masked pieces, packed atlas (PNG or WebP), JSON manifest with regions, atlas regions, long axes and an alpha histogram | `modules/projects/gongfu/studio` |
+| `gongfu-studio art.picture` | Key out, trim, scale, encode a picture (PNG or WebP by its name) | same |
+| `gongfu-studio fighter.sheet` | Contact sheets of clips at chosen frames, with boxes, the look's drawn art included | same |
+| `gongfu-studio fighter.bake` / `fighter.check` | Hurtboxes from the animation; checks that bakes are current | same |
+| `gongfu-studio roster.versus` | Every pair played by bots: win rates and where damage comes from | same |
+| `gongfu-studio stage.picture` | A stage file's painted layers as a frame, with two fighters for scale, framed as the game frames them | same |
 | `omui.build.embed` `embed(.index = true)` | Every embedded file of a tag in one generated table by name (`<tag>_files`), so a program finds its art without a list kept by hand | `mcpp/rules`, `modules/projects/omui/tools/gen` |
 | `omui-music check / render / stats / fmt` | A piece checked, rendered to WAV at an intensity, measured (loudness, bands, per instrument) | `modules/projects/xengine/kernel/audio` |
 | `omui-devtools media` | Copies what the tests drew into each showcase's `media/`; in CI, checks they match | `tools/ci` |
@@ -209,9 +209,9 @@ The tools' openmui interfaces (a rig editor, a pose editor with IK handles, a ti
   - the props at the stage's ends;
   - the foreground.
 
-  `gongfu-studio picture` keys and encodes them. A stage file places each picture region in a layer by its parallax (`[[layer.image]]`: `at`, `width`, an optional `height` to stretch a floor, `flip`, `flicker` for a lantern). The procedural layers stay over them, such as the street's rain.
+  `gongfu-studio art.picture` keys and encodes them. A stage file places each picture region in a layer by its parallax (`[[layer.image]]`: `at`, `width`, an optional `height` to stretch a floor, `flip`, `flicker` for a lantern). The procedural layers stay over them, such as the street's rain.
 
-  Three rules came from previewing with `gongfu-studio stage` at the middle, a corner and fully zoomed out:
+  Three rules came from previewing with `gongfu-studio stage.picture` at the middle, a corner and fully zoomed out:
   - keep the band where the fighters stand calm;
   - size props to the fighters (a desk at about half their height);
   - keep foreground pieces out of the fighters' zone (never over their legs at a corner).

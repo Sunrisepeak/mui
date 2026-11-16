@@ -3,14 +3,15 @@
 Making gongfu fighters (D-85 §8.5, D-61). It is a library with a command line now; the graphical studio (hanim's timeline, onion skins, box and impact editing) will be built on the same library.
 
 ```sh
-gongfu-studio bake  showcase/fighting/fighters   # writes kata.boxes.gongfu.toml …
-gongfu-studio check showcase/fighting/fighters   # JSON; exit 1 when a bake is stale
-gongfu-studio embed showcase/fighting/fighters --module omui.showcase.fighting --namespace omui::fighting::files --out gongfu_fighters.cppm
-gongfu-studio sheet showcase/fighting/fighters mo --out mo.png   # every clip with its boxes, a contact sheet
-gongfu-studio versus showcase/fighting/fighters --rounds 200     # bots play every pair: the balance report
+gongfu-studio fighter.bake  showcase/fighting/fighters   # writes kata.boxes.gongfu.toml …
+gongfu-studio fighter.check showcase/fighting/fighters   # a record; exit 1 when a bake is stale
+gongfu-studio fighter.embed showcase/fighting/fighters omui.showcase.fighting omui::fighting::files gongfu_fighters.cppm
+gongfu-studio fighter.sheet showcase/fighting/fighters mo mo.png   # every clip with its boxes, a contact sheet
+gongfu-studio roster.versus showcase/fighting/fighters --rounds 200   # bots play every pair: the balance report
+gongfu-studio mcp                                        # the same operations to an MCP client
 ```
 
-Its operations, for agents and bindings, are a catalog ([`gongfu.ops.omui.ts`](gongfu.ops.omui.ts), listed in [`media/ops`](media/ops)); how an Agent makes and checks fighters with them is [`skill.omui.md`](skill.omui.md).
+The command is the library's subject `gongfu` behind the tool kernel (mlibs.agent's T0, as `omui`, `hanim` and `xrender` are): its operations are a catalog ([`gongfu.ops.omui.ts`](gongfu.ops.omui.ts), generated into [`src/catalog`](src/catalog)), words without names are an operation's parameters in the catalog's order, `gongfu-studio <operation> --help` describes one, and each report is a record a line; how an Agent makes and checks fighters with them is [`skill.omui.md`](skill.omui.md).
 
 - **Baking hurtboxes (G-5).**
   - Every frame of every move is posed by the look's clip for it.

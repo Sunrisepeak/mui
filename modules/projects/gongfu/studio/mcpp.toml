@@ -1,10 +1,8 @@
-# gongfu.studio — making fighters (D-85 §8.5, D-61): the command line now,
-# the graphical studio on the same library later. `gongfu-studio bake` writes
-# each fighter's hurtboxes from its look's animation (`<name>.boxes.gongfu.toml`,
-# G-5); `gongfu-studio check` says, as JSON with an exit code, whether those
-# files are what the looks and moves make now; `gongfu-studio embed` gives a
-# program its fighters as a module partition, refusing stale hurtboxes (what
-# gongfu.rules runs in a build).
+# gongfu.studio — making fighters (D-85 §8.5, D-61): the library, and the command `gongfu-studio` — its subject
+# `gongfu` behind the tool kernel (T0), the operations gongfu.ops.omui.ts lists. `fighter.bake` writes each
+# fighter's hurtboxes from its look's animation (`<name>.boxes.gongfu.toml`, G-5); `fighter.check` says whether
+# those files are what the looks and moves make now; `fighter.embed` gives a program its fighters as a module
+# partition, refusing stale hurtboxes (what gongfu.rules runs in a build).
 [package]
 namespace   = "gongfu"
 name        = "studio"
@@ -15,7 +13,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "experimental"  # release plan §2.1: stable, preview or experimental (lint maturity)
-reexports = ["gongfu.data", "gongfu.present2d"]  # what its interface re-exports (lint module-closure)
+reexports = ["gongfu.data", "gongfu.present2d", "mlibs.agent"]  # what its interface re-exports (lint module-closure)
 agent = "tool"
 
 [targets.gongfu-studio-core]
@@ -26,11 +24,11 @@ kind = "bin"
 main = "src/main.cpp"
 
 [build]
-sources  = ["src/*.cppm", "src/*.cpp"]
+sources  = ["src/*.cppm", "src/*.cpp", "src/catalog/*.cppm"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-mcpplibs.cmdline = "0.0.3"
+mlibs.agent      = { path = "../../../base/agent" }  # the command is the subject `gongfu` behind the tool kernel (T0)
 gongfu           = { path = ".." }  # with its computer opponent (gongfu.ai)
 "gongfu.data"      = { path = "../data" }
 "gongfu.present2d" = { path = "../present2d" }

@@ -36,3 +36,8 @@ mcpplibs.os           = "0.4.4"
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
+# workspace_test: the interface's and hanim's design adapters in one workspace (RC3.10's bar).
+mlibs.agent.cts = { path = "../../base/agent/cts" }
+mlibs.json      = { path = "../../base/json" }
+"omui.designer" = { path = "../omui/designer" }
+"omui.ui.base"  = { path = "../omui/components/base" }

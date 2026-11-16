@@ -32,6 +32,16 @@ A sample says each object's `opacity` (a recipe's fade) beside its fill. `read` 
 
 An object whose first step is an entrance is not on the stage before that entrance begins; objects are drawn in the document's order (its z order) whatever the program's order.
 
+## As a design's sources
+
+`DocumentSources` (`:sources`, D-160's L0, D-204) is a directory's animation documents as `mlibs::agent::Sources`, so Live Design's history and a workspace hold them beside another domain's (xtools composes them with the interface's view documents).
+
+- An edit is read and opened whole before anything is written.
+- Documents may be added and removed.
+- Its state is what the documents do: each one sampled at sixteen moments, every object's drawn state hashed.
+
+It keeps the design adapter's contract (mlibs.agent.sources@1, `tests/sources_test.cpp`).
+
 ## How it runs
 
 `Studio::open` makes the objects in an Engine of its own and the steps a hanim Program, then operates it through `hanim.control` — `animation.prepare`, `animation.play`, `animation.pause`, `animation.seek` — each call admitted by `mlibs.control` and listed in the answer. Any moment can be asked for in any order and gives the same numbers and the same pixels. Frames are drawn by `hanim.render.vector` into xrender's CPU raster.

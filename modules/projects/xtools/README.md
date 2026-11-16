@@ -44,7 +44,7 @@ Nothing of its own: each toolkit's subject and catalog are its project's package
 ## Experimental (release 0.1, D-199)
 
 - **Target** (plan §4.5, RC3.10): the toolchain's whole is one entry and one workbench: each project's toolkit reached the same way alone or composed, and the cross-project tools (the inspector, Live Design's composition of the UI and animation adapters) here as compositions.
-- **Now**: the unified command and MCP server over five toolkits; the Inspector composed here.
-- **Gap**: the workbench (an omui application composing the toolkits' panels), Live Design's composition of the UI and hanim adapters.
+- **Now**: the unified command and MCP server over five toolkits; the Inspector composed here; Live Design's composition: the interface's and hanim's design adapters in one workspace under one history, headless (`tests/workspace_test.cpp`, RC3.10's bar), each adapter and the composition passing the adapter's contract (mlibs.agent.sources@1).
+- **Gap**: the workbench (an omui application composing the toolkits' panels and the workspace's history); the workspace reached through `xtools` as operations; the interface's live script sources (the player's) as an adapter beside the view documents'.
 - **Limits**: nothing of its own beyond the wiring: a toolkit not linked into it is not reachable through it.
 - **Graduation to preview**: the workbench and both compositions here, with a headless case that designs a UI and an animation in one workspace (RC3.10's bar).

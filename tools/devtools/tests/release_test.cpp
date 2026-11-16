@@ -104,4 +104,21 @@ static UTest cases{
             const auto missing = release::missing_from(index, wanted);
             expect(missing == std::vector<std::string>{"nlohmann.json@9.9.9", "mcpplibs.os@0.4.4"});
         };
+
+        "a sibling path edge gets its member's version beside it; stated ones, others and comments kept"_test = [] {
+            const std::map<std::string, std::string> versions{{"omui.core", "0.1.0"}, {"mlibs.math", "0.2.0"}};
+            const std::string manifest = "[dependencies]\n"
+                                         "omui.core = { path = \"../core\" }  # the runtime\n"
+                                         "\"mlibs.math\" = { path = \"../math\", features = [\"det\"] }\n"
+                                         "mlibs.geom = { path = \"../geom\" }\n"
+                                         "omui.view = { path = \"../view\", version = \"0.1.0\" }\n"
+                                         "nlohmann.json = \"3.12.0\"\n";
+            const std::string want = "[dependencies]\n"
+                                     "omui.core = { path = \"../core\", version = \"0.1.0\" }  # the runtime\n"
+                                     "\"mlibs.math\" = { path = \"../math\", features = [\"det\"], version = \"0.2.0\" }\n"
+                                     "mlibs.geom = { path = \"../geom\" }\n"
+                                     "omui.view = { path = \"../view\", version = \"0.1.0\" }\n"
+                                     "nlohmann.json = \"3.12.0\"\n";
+            expect(release::versioned(manifest, versions) == want) << release::versioned(manifest, versions);
+        };
     }};

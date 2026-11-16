@@ -588,4 +588,30 @@ std::map<std::string, std::string> read_sums(const fs::path& file) {
     return sums;
 }
 
+
+std::string versioned(std::string_view manifest, const std::map<std::string, std::string>& versions) {
+    static const std::regex edge(R"re(^(\s*"?([A-Za-z0-9_.\-]+)"?\s*=\s*\{)([^{}#]*\bpath\s*=\s*"[^"]*"[^{}#]*)(\}.*)$)re");
+    static const std::regex stated(R"(\bversion\s*=)");
+    std::string out;
+    out.reserve(manifest.size() + 1024);
+    std::size_t at = 0;
+    while (at < manifest.size()) {
+        const std::size_t end = manifest.find('\n', at);
+        const std::string line(manifest.substr(at, end == std::string_view::npos ? std::string_view::npos : end - at));
+        std::smatch found;
+        std::string written = line;
+        if (std::regex_match(line, found, edge) && !std::regex_search(found[3].str(), stated))
+            if (const auto version = versions.find(found[2].str()); version != versions.end()) {
+                std::string inside = found[3].str();
+                while (!inside.empty() && inside.back() == ' ') inside.pop_back();
+                written = std::format("{}{}, version = \"{}\" {}", found[1].str(), inside, version->second, found[4].str());
+            }
+        out += written;
+        if (end == std::string_view::npos) break;
+        out += '\n';
+        at = end + 1;
+    }
+    return out;
+}
+
 }  // namespace omui::devtools::release

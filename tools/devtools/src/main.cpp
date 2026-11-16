@@ -233,7 +233,10 @@ cmd::App app() {
                                         .option(Option("repo").takes_value().value_name("URL").help("where the archives are released (default: each package's repo)"))
                                         .option(Option("mirror").takes_value().value_name("URL").help("the CN mirror (default: https://gitcode.com/mcpp-res/<name>)"))
                                         .option(Option("sums").takes_value().value_name("FILE").help("SHA256SUMS of the archives, for the descriptors' sha256"))
-                                        .option(Option("index").takes_value().value_name("DIR").help("a copy of mcpp-index (default: ~/.mcpp/indices/mcpplibs)"))))
+                                        .option(Option("index").takes_value().value_name("DIR").help("a copy of mcpp-index (default: ~/.mcpp/indices/mcpplibs)")))
+                        .subcommand(cmd::App("versions")
+                                        .description("Each sibling path edge of the closure that states no version, given its member's (what mcpp publish asks while mcpp#947 is open)")
+                                        .option(Option("write").help("write the manifests (default: say what would change)"))))
         .subcommand(cmd::App("api")
                         .description("A package's exported surface, as its interface units declare it: printed, written to api.omui.txt, or checked against it")
                         .option(Option("package").short_name('p').takes_value().multiple().value_name("MEMBER").help("the members (paths as the workspace lists them)"))
@@ -883,6 +886,43 @@ int lead_command(const cmd::ParsedArgs& options, const fs::path& root) {
 }
 
 // `release index`: the templates' closure, what blocks publishing it, and its mcpp-index descriptors.
+// The closure's sibling edges given their members' versions (mcpp publish refuses an edge without one; mcpp#947).
+int release_versions(const cmd::ParsedArgs& options, const fs::path& root) {
+    namespace release = omui::devtools::release;
+    const auto made = release::closure(root);
+    if (!made) {
+        std::cerr << "omui-devtools release versions: " << made.error() << '\n';
+        return 2;
+    }
+    std::map<std::string, std::string> versions;
+    for (const auto& package : made->packages) versions[package.name] = package.version;
+    const bool write = options.is_flag_set("write");
+    std::size_t edges = 0, files = 0;
+    for (const auto& package : made->packages) {
+        if (package.unversioned.empty()) continue;
+        const fs::path manifest = root / mcpplibs::os::fs::from_utf8(package.path) / "mcpp.toml";
+        const auto text = mcpplibs::os::fs::read(manifest);
+        if (!text) {
+            std::cerr << std::format("omui-devtools release versions: cannot read {}/mcpp.toml\n", package.path);
+            return 1;
+        }
+        const std::string changed = release::versioned(*text, versions);
+        if (changed == *text) {
+            std::println("{}: {} edge(s) not on one line, left for a person: {}", package.path, package.unversioned.size(), package.unversioned.front());
+            continue;
+        }
+        ++files;
+        edges += package.unversioned.size();
+        std::println("{}: {} edge(s)", package.path, package.unversioned.size());
+        if (write && !mcpplibs::os::fs::write_atomic(manifest, changed)) {
+            std::cerr << std::format("omui-devtools release versions: cannot write {}/mcpp.toml\n", package.path);
+            return 1;
+        }
+    }
+    std::println("{} edge(s) in {} manifest(s){}", edges, files, write ? " written" : " (--write writes them)");
+    return 0;
+}
+
 int release_index(const cmd::ParsedArgs& options, const fs::path& root) {
     namespace release = omui::devtools::release;
     const auto made = release::closure(root);
@@ -1061,8 +1101,9 @@ int main(int argc, char** argv) {
     }
     if (parsed->subcommand_name() == "release") {
         const cmd::ParsedArgs& asked = parsed->subcommand()->get();
+        if (asked.subcommand_name() == "versions") return release_versions(asked.subcommand()->get(), root);
         if (asked.subcommand_name() != "index") {
-            std::cerr << "usage: omui-devtools release index [--out DIR] [--list] [--tag T] [--repo URL] [--mirror URL] [--sums FILE] [--index DIR]\n";
+            std::cerr << "usage: omui-devtools release index [--out DIR] [--list] [--tag T] [--repo URL] [--mirror URL] [--sums FILE] [--index DIR] | versions [--write]\n";
             return 2;
         }
         return release_index(asked.subcommand()->get(), root);

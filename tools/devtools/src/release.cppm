@@ -73,6 +73,11 @@ struct Options {
                                      const std::map<std::string, std::string>& members,
                                      std::string_view checkout);
 
+// A manifest with `version = "<its version>"` beside each one-line path dependency on a member (`versions`:
+// a member's package name → its version) that states none — what `mcpp publish` asks of a sibling edge
+// (mcpp#947 asks it to take the member's own instead); everything else, comments too, kept.
+[[nodiscard]] std::string versioned(std::string_view manifest, const std::map<std::string, std::string>& versions);
+
 // Read a SHA256SUMS file ("<sha256>  <file>" lines).
 [[nodiscard]] std::map<std::string, std::string> read_sums(const std::filesystem::path& file);
 

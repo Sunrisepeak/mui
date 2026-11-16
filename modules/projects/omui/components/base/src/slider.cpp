@@ -51,6 +51,16 @@ void Slider::prop_changed(SliderProp p) {
     }
 }
 
+// While dragged, the thumb is drawn where the pointer is, held to the value's step (magnetic) and, past an end,
+// a little past it (a rubber band of at most a thumb's width); the value is the step's, inside the range.
+void Slider::follow(float x, const Rect& t) {
+    const double raw = (x - t.x) / std::max(1.0f, t.width);
+    const double inside = std::clamp(raw, 0.0, 1.0);
+    const double span = std::abs(props.max - props.min);
+    thumb_ = props.step > 0 && span > 0 ? parts::magnetic(inside, fraction(props.value), props.step / span / 2) : inside;
+    stretch_ = parts::rubber_band(static_cast<float>((raw - inside) * t.width), thumb_d);
+}
+
 Size Slider::measure(MeasureContext&, std::optional<float> width, std::optional<float> h, mlibs::layout::Available aw, mlibs::layout::Available) {
     float w = width.value_or(aw.is_definite() ? std::min(aw.value, default_w) : default_w);
     return {w, h.value_or(height)};
@@ -76,7 +86,7 @@ std::size_t Slider::effect_shapes(Size size, Rect, std::span<xrender::EffectShap
     if (out.size() < 2) return 0;
     const Rect t = track(size);
     const float f = static_cast<float>(std::clamp(thumb_, 0.0, 1.0));
-    const Point c{t.x + t.width * f, size.height / 2};
+    const Point c{t.x + t.width * f + static_cast<float>(stretch_), size.height / 2};
     out[0] = {t, CornerRadii::all(track_h / 2)};
     out[1] = {{c.x - thumb_d / 2, c.y - thumb_d / 2, thumb_d, thumb_d}, CornerRadii::all(thumb_d / 2)};
     return 2;
@@ -95,7 +105,7 @@ void Slider::paint(PaintContext& ctx) const {
     const CornerRadii round = CornerRadii::all(track_h / 2);
     ctx.list.fill_round_rect(t, round, xrender::Paint::solid(th.color("track")));
     ctx.list.fill_round_rect({t.x, t.y, t.width * f, t.height}, round, xrender::Paint::solid(th.color("accent")));
-    const Point c{t.x + t.width * f, ctx.size.height / 2};
+    const Point c{t.x + t.width * f + static_cast<float>(stretch_), ctx.size.height / 2};
     const float halo = static_cast<float>(halo_) * 0.5f + static_cast<float>(hover_) * 0.25f;
     const auto declared = [&](std::string_view state) {
         const auto it = th.shadows.find(state);
@@ -135,16 +145,21 @@ bool Slider::on_event(EventContext& ctx, const InputEvent& e) {
             drag_from_ = props.value;
             services().capture_pointer(node());
             change(value_at(ctx.local.x), false);
+            follow(ctx.local.x, t);
             return true;
         case PointerKind::move:
             if (!dragging_) return false;
             change(value_at(ctx.local.x), false);
+            follow(ctx.local.x, t);
             return true;
         case PointerKind::up:
         case PointerKind::cancel:
             if (!dragging_) return false;
             dragging_ = false;
             services().release_pointer();
+            // Let go: the thumb returns to its value (its update slot moves it).
+            thumb_ = fraction(props.value);
+            stretch_ = 0;
             // The drag as one action of the person's (S-12): into the history,
             // so undo takes the whole drag back.
             if (props.value != drag_from_)

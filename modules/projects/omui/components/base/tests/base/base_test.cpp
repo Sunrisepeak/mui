@@ -192,6 +192,43 @@ static UTest cases{"ui.base", [] {
         expect(sem(h, "main/volume").value.get("value")->as_double() == 1000) << "a binding sets what it sets";
     };
 
+    "slider's drag drawn with care (B4): a rubber band past an end, a thumb held at its step between ticks"_test = [] {
+        // The rubber band: 1 : 1 at first, damped, never a whole limit, the same either way.
+        expect(parts::rubber_band(0, 18) == 0 && parts::rubber_band(5, 0) == 0);
+        expect(parts::rubber_band(1, 18) > 0.9f && parts::rubber_band(1, 18) < 1);
+        expect(parts::rubber_band(18, 18) == 9) << "a limit's drag shows half of it";
+        expect(parts::rubber_band(1000, 18) < 18 && parts::rubber_band(1000, 18) > 17);
+        expect(parts::rubber_band(-30, 18) == -parts::rubber_band(30, 18));
+        // The magnet: held at the tick, the pointer reached at half a step, continuous between.
+        expect(parts::magnetic(0.5, 0.5, 0.025) == 0.5);
+        expect(std::abs(parts::magnetic(0.5 + 0.0025, 0.5, 0.025) - 0.5) < 0.0001) << "a tenth of half a step away: held";
+        expect(std::abs(parts::magnetic(0.525, 0.5, 0.025) - 0.525) < 1e-12) << "half a step away: where the pointer is";
+        expect(parts::magnetic(0.51, 0.5, 0.025) < 0.51 && parts::magnetic(0.51, 0.5, 0.025) > 0.5);
+        expect(parts::magnetic(0.3, 0.5, 0) == 0.3) << "no steps: where the pointer is";
+
+        // Dragged past the end, the value is the end's and stays there; let go, it is still the end's.
+        Headless h(options());
+        auto volume = signal(30.0);
+        h.mount("main", column({.padding = 12}, {slider({.id = "volume", .label = "Volume", .step = 5.0, .value = volume, .width = 218})}));
+        h.step();
+        const Rect b = bounds(h, "main/volume");
+        PointerEvent down;
+        down.kind = PointerKind::down;
+        down.button = MouseButton::left;
+        down.position = {b.x + 9 + 200 * 0.9f, b.center().y};
+        PointerEvent past = down;
+        past.kind = PointerKind::move;
+        past.position.x = b.right() + 120;
+        PointerEvent up = past;
+        up.kind = PointerKind::up;
+        h.step({down});
+        h.step({past});
+        expect(volume.peek() == 100) << std::format("held at the end: {}", volume.peek());
+        h.step({up});
+        h.settle();
+        expect(volume.peek() == 100 && sem(h, "main/volume").value.get("value")->as_double() == 100);
+    };
+
     "text box: typing, editing keys, selection, clipboard, undo, submit"_test = [] {
         Headless h(options());
         auto name = signal(std::string("Ada"));

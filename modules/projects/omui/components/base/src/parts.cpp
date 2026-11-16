@@ -160,4 +160,17 @@ Pressed::~Pressed() {
     if (pushed_) ctx_.list.pop_transform();
 }
 
+float rubber_band(float past, float limit) noexcept {
+    if (limit <= 0 || past == 0) return 0;
+    const float shown = limit * (1 - 1 / (1 + std::abs(past) / limit));
+    return past < 0 ? -shown : shown;
+}
+
+double magnetic(double raw, double snapped, double half) noexcept {
+    if (half <= 0) return raw;
+    const double away = std::clamp((raw - snapped) / half, -1.0, 1.0);
+    // Cubed: flat at the tick (held), steep towards the middle (let go), reaching the pointer's half-way mark.
+    return snapped + away * away * away * half;
+}
+
 }  // namespace omui::parts

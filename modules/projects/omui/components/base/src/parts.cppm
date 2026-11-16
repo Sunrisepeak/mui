@@ -65,6 +65,16 @@ private:
     bool          pushed_ = false;
 };
 
+// How far something dragged `past` its end (signed, px) is shown past it: damped, approaching but never reaching
+// `limit` (a rubber band, as iOS draws an overscroll; the component checklist's B4). Continuous, odd, and 1 : 1 at
+// first: limit × (1 − 1 / (1 + |past| / limit)).
+[[nodiscard]] float rubber_band(float past, float limit) noexcept;
+
+// Where a dragged thumb is drawn, between steps: at `raw` (a fraction of the track), pulled to `snapped` (the step
+// the value is on) the more the nearer it is — held at a tick, following the pointer between (magnetic, B4).
+// `half` is half a step as a fraction; the value itself is always `snapped`.
+[[nodiscard]] double magnetic(double raw, double snapped, double half) noexcept;
+
 // One line (or a wrapped block) of text in a theme text style, shaped when
 // its text, style, colour or width changes and not otherwise.
 class Label {

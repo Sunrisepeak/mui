@@ -37,10 +37,12 @@ private:
     // Sets the value; `animate` glides the thumb (keys), else it follows (drags).
     // To v, snapped to its step unless exact (an undo putting back what was).
     bool change(double v, bool commit, bool exact = false);
+    void follow(float x, const Rect& track);  // where the dragged thumb is drawn
     [[nodiscard]] double fraction(double v) const noexcept;
     [[nodiscard]] Rect track(Size size) const noexcept;
 
     mutable double thumb_ = 0, hover_ = 0, halo_ = 0;
+    mutable double stretch_ = 0;  // px the thumb is drawn past an end while dragged there (rubber band)
     mutable Size   size_{};  // the last painted size: pointer positions map onto it
     bool           dragging_ = false;
     double         drag_from_ = 0;  // the value when the drag began: the drag is one step of history

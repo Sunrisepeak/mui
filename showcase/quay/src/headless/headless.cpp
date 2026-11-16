@@ -58,6 +58,7 @@ std::string observe(const State& state, bool full) {
     // What was heard lately: others' sounds, by the rule the speakers play by.
     out += R"(],"heard":[)";
     const auto yaw = static_cast<double>(keeper.yaw);
+    // docs: hearing
     const space::Listener ears{.at = eye, .forward = {static_cast<float>(det::sin(yaw)), 0, static_cast<float>(-det::cos(yaw))}, .up = {0, 1, 0}};
     bool first = true;
     for (const Noise& noise : state.recent) {
@@ -65,6 +66,7 @@ std::string observe(const State& state, bool full) {
         const space::Reach reached = space::reach(ears, noise.at, state.statics->walls);
         const float level = noise.loudness + reached.level;
         if (level < heard_from) continue;
+    // docs: end
         out += std::format(R"({}{{"what":"{}","bearing":{:.1f},"level":{:.1f},"walls":{},"ago":{:.2f}}})", first ? "" : ",", noise.what, reached.azimuth, level, reached.walls,
                            static_cast<double>(state.frame - noise.frame) / steps_per_second);
         first = false;

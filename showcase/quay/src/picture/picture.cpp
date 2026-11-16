@@ -454,6 +454,7 @@ void Picture::prepare(const State& state) {
 }
 
 const mesh::Targets& Picture::draw(const State& state, const Frame& frame) {
+    // docs: draw
     prepare(state);
     // The reference's shadows are traced through each mesh's tree: the bent bodies' made again (a device's maps need none).
     if (frame.shadows)
@@ -466,6 +467,7 @@ const mesh::Targets& Picture::draw(const State& state, const Frame& frame) {
     shown_ = targets_.colour;
     bright_ = frame.glow ? glow_.show(targets_.light, frame.width, frame.height, bloom(frame.width), shown_).bright : 0;
     return targets_;
+    // docs: end
 }
 
 scene::Id Picture::instance_at(std::size_t pixel) const noexcept {

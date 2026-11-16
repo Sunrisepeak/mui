@@ -141,6 +141,7 @@ std::optional<Level> named(std::string_view name) {
 State start(const Level& level) {
     State state;
     auto statics = std::make_shared<Statics>();
+    // docs: bodies
     auto bodies = rigid3::World::make();
     if (!bodies) return state;
     for (const Box& box : level.boxes) {
@@ -156,7 +157,9 @@ State start(const Level& level) {
     // Steel lets a tenth of a sound by, and dulls it above 800 Hz.
     statics->walls.push_back({.mesh = &statics->mesh, .tree = &statics->tree, .place = math::Mat4{}, .through = 0.15f, .bright = 800});
     const auto keeper = bodies->add(rigid3::CharacterDef{.at = level.start});
+    // docs: end
     if (!keeper) return state;
+    // docs: crowd
     auto ground = nav::World::build({.points = statics->mesh.positions, .corners = statics->mesh.indices}, {.radius = warden_radius, .height = warden_height});
     if (!ground) return state;
     for (const Patrol& round : level.wardens) {
@@ -165,9 +168,12 @@ State start(const Level& level) {
         (void)ground->target(*walker, round.to);
         state.wardens.push_back({.walker = *walker, .round = round, .at = round.from});
     }
+    // docs: end
     state.keeper = {.body = *keeper, .at = level.start, .yaw = level.facing, .rounds = level.rounds};
+    // docs: branching
     state.bodies = mlibs::simulation::Branching<rigid3::World>(std::move(*bodies));
     state.ground = mlibs::simulation::Branching<nav::World>(std::move(*ground));
+    // docs: end
     state.statics = std::move(statics);
     state.beacon = level.beacon;
     state.tide = level.tide;

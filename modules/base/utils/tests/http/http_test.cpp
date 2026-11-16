@@ -34,4 +34,48 @@ static UTest cases{"utils.http", [] {
         expect(eq(http::decoded("a%2Fb%zz%4"), std::string("a/b%zz%4")));
         expect(eq(http::media_type(".wasm"), std::string_view("application/wasm")) && eq(http::media_type(".xyz"), std::string_view("application/octet-stream")));
     };
+
+    "a client's request: its line, Host, the headers given, the body's length"_test = [] {
+        expect(eq(http::request("GET", "/json/version", "127.0.0.1:9222"),
+                  std::string("GET /json/version HTTP/1.1\r\nHost: 127.0.0.1:9222\r\n\r\n")));
+        expect(eq(http::request("POST", "/out", "localhost", {{"Origin", "null"}}, "hi"),
+                  std::string("POST /out HTTP/1.1\r\nHost: localhost\r\nOrigin: "
+                              "null\r\nContent-Length: 2\r\n\r\nhi")));
+    };
+
+    "a response's head is read once whole: status, reason, headers, the body's length or none"_test =
+        [] {
+            const std::string answer =
+                "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nSec-WebSocket-Accept: "
+                "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=\r\n\r\n\x81\x02hi";
+            expect(http::parse_response(answer.substr(0, 20)).value_or(std::nullopt) ==
+                   std::nullopt);
+            const auto parsed = http::parse_response(answer);
+            expect(parsed.has_value() && parsed->has_value());
+            if (!parsed || !*parsed)
+                return;
+            expect(eq((*parsed)->status, 101) &&
+                   eq((*parsed)->reason, std::string("Switching Protocols")));
+            expect(eq((*parsed)->header("sec-websocket-accept"),
+                      std::string_view("s3pPLMBiTxaQ9kYGzzhZRbK+xOo=")) &&
+                   !(*parsed)->body_length.has_value());
+            expect(eq(std::string_view(answer).substr((*parsed)->head_size),
+                      std::string_view("\x81\x02hi")));
+            const auto sized =
+                http::parse_response("HTTP/1.0 404 Not Found\r\nContent-Length: 12\r\n\r\n");
+            expect(sized && *sized && (*sized)->status == 404 &&
+                   (*sized)->body_length == std::optional<std::size_t>{12});
+        };
+
+    "not HTTP, a chunked body, a length that is not a count: errors; kept alive, no type"_test =
+        [] {
+            expect(!http::parse_response("SSH-2.0\r\n\r\n").has_value());
+            expect(!http::parse_response("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n")
+                        .has_value());
+            expect(!http::parse_response("HTTP/1.1 200 OK\r\nContent-Length: some\r\n\r\n")
+                        .has_value());
+            expect(eq(http::response(404, "", {.type = "", .keep_alive = true}),
+                      std::string("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: "
+                                  "keep-alive\r\n\r\n")));
+        };
 }};

@@ -32,12 +32,39 @@ struct Request {
 [[nodiscard]] std::string decoded(std::string_view text);
 
 struct Options {
-    std::string_view type = "application/json";
+    std::string_view type = "application/json";                // empty: no Content-Type
     std::vector<std::pair<std::string, std::string>> headers;  // more, as given
+    bool keep_alive = false;  // Connection: keep-alive rather than close
 };
 
-// A whole response: status line, Content-Type, Content-Length, Connection: close, the extra headers, the body.
+// A whole response: status line, Content-Type, Content-Length, Connection (close unless kept
+// alive), the extra headers, the body.
 [[nodiscard]] std::string response(int status, std::string_view body, const Options& options = {});
+
+// A request's head and body: the request line, Host, the headers given, Content-Length when there
+// is a body, the blank line. `target` is the path and query as sent.
+[[nodiscard]] std::string
+request(std::string_view method, std::string_view target, std::string_view host,
+        const std::vector<std::pair<std::string, std::string>>& headers = {},
+        std::string_view body = {});
+
+struct Response {
+    int status = 0;
+    std::string reason;
+    std::vector<std::pair<std::string, std::string>> headers;  // names in lower case, in order
+    std::size_t head_size = 0;  // the head's bytes, its blank line included
+    std::optional<std::size_t>
+        body_length;  // Content-Length; none: the body runs to the connection's end
+
+    // The first header of that (lower-case) name, or empty.
+    [[nodiscard]] std::string_view header(std::string_view name) const;
+};
+
+// The response whose head `arrived` holds whole (its body starts at head_size); nothing while the
+// head's blank line has not come; an error for a head that is not HTTP/1.x or larger than `most`,
+// or a chunked body.
+[[nodiscard]] std::expected<std::optional<Response>, std::string>
+parse_response(std::string_view arrived, std::size_t most = 64 * 1024);
 
 // The status's reason phrase ("OK", "Not Found"…; "Error" for one not listed).
 [[nodiscard]] std::string_view reason(int status);

@@ -48,6 +48,31 @@ int main() {
         std::uint32_t a = 1, b = 2;
     };
     check(Fnv1a().object(Plain{}).value() == Fnv1a().object(std::uint32_t{1}).object(std::uint32_t{2}).value(), "object: its own bytes");
+    // SHA-256 and SHA-1 against FIPS 180's examples, a message across two blocks, and the RFC 6455
+    // accept key's digest.
+    check(mlibs::hash::sha256_hex("") ==
+              "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "sha256: the empty message");
+    check(mlibs::hash::sha256_hex("abc") ==
+              "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+          "sha256: abc");
+    check(mlibs::hash::sha256_hex("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq") ==
+              "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1",
+          "sha256: 448 bits, two blocks");
+    check(mlibs::hash::sha256_hex(std::string(1000, 'a'))
+              .starts_with("41edece42d63e8d9bf515a9ba6932e1c20cbc9f5a5d134645adb5db1b9737ea3"),
+          "sha256: a thousand bytes");
+    const auto sha1_hex = [](std::string_view text) {
+        std::string out;
+        for (const std::uint8_t byte : mlibs::hash::sha1(text))
+            out += std::format("{:02x}", byte);
+        return out;
+    };
+    check(sha1_hex("abc") == "a9993e364706816aba3e25717850c26c9cd0d89d", "sha1: abc");
+    check(sha1_hex("") == "da39a3ee5e6b4b0d3255bfef95601890afd80709", "sha1: the empty message");
+    check(sha1_hex("dGhlIHNhbXBsZSBub25jZQ==258EAFA5-E914-47DA-95CA-C5AB0DC85B11") ==
+              "b37a4f2cc0624f1690f64606cf385945b2bec4ea",
+          "sha1: RFC 6455's handshake example");
     std::println("hash: {} failed", failures);
     return failures == 0 ? 0 : 1;
 }

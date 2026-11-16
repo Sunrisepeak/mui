@@ -44,6 +44,7 @@ sources = ["src/targets/web.cppm"]
 [dependencies]
 mcpplibs.cmdline = "0.0.3"
 omui.sdk         = { path = "../modules/projects/omui/sdk" }
+omui.ui.base = { path = "../modules/projects/omui/components/base" }  # liquid glass (omui.ui.liquid_glass): a signature work, glass that flows
 omui.view        = { path = "../modules/projects/omui/view", features = ["hanim"] }
 # The site also authors Hanim programs directly. Declared here as well because
 # mcpp does not yet apply omui.view's [feature-deps.hanim] when the view is
@@ -52,7 +53,6 @@ hanim               = { path = "../modules/projects/hanim", default-features = f
 omui.ui.markdown = { path = "../modules/projects/omui/components/markdown" }
 omui.ui.timeline = { path = "../modules/projects/omui/components/timeline" }
 omui.ui.canvas   = { path = "../modules/projects/omui/components/canvas" }  # the components page's wall
-omui.ui.liquid_glass = { path = "../modules/projects/omui/components/liquid-glass" }  # a signature work: glass that flows
 "hanim.timeline"    = { path = "../modules/projects/hanim/timeline" }  # the monitor: what plays at the playhead
 omui.theme      = { path = "../modules/projects/omui/theme" }
 omui.example.hello-im       = { path = "../examples/01-hello-im" }  # getting started: example 01, running beside its source

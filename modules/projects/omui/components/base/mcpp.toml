@@ -25,11 +25,15 @@ agent = { part = "omui.agent" }
 kind = "lib"
 
 [build]
-sources  = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm", "src/generated/*.cpp"]
+# Beside the base components, two libraries of their own modules (RC1.5: one package): the window frame
+# (src/window/, omui.ui.window) and liquid glass (src/liquid_glass/, omui.ui.liquid_glass).
+sources  = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm", "src/generated/*.cpp", "src/window/*.cppm", "src/window/*.cpp",
+            "src/liquid_glass/*.cppm", "src/liquid_glass/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 xrender.text = { path = "../../../xrender/text" }
+xrender.vector = { path = "../../../xrender/vector" }  # the window frame's and liquid glass's own drawing
 omui.core    = { path = "../../core" }
 omui.view    = { path = "../../view" }
 mlibs.unicode = { path = "../../../../base/unicode" }
@@ -50,3 +54,5 @@ xrender.text = { path = "../../../xrender/text" }
 omui.host.headless = { path = "../../host/headless" }
 # platform_styles_test: the platform packs (fluent, cupertino, material) over the components.
 omui.theme = { path = "../../theme" }
+# window_test: the window's strings in every language.
+mlibs.i18n.cldr = { path = "../../../../content/i18n/cldr" }

@@ -107,7 +107,7 @@ drawing.prop("motion", Source(motion));
 
 **别的框架**：自定义标题栏要按平台分别做（Electron 的 `-webkit-app-region`、Flutter 的 window_manager 插件、WinUI 的标题栏定制），跨平台很难一致，也没有把窗口操作放进 agent 能读的模型里。
 
-**证据**：`components/window` 的测试（两种风格逐字节固定、各部分的命中区域、最大化和非活动状态、按钮名称有 en / zh-Hans / zh-Hant、外框里应用的路径不变）；`modules/ui/host/sdl3` 的测试（动词、切换、溶解期间不接收输入的关闭）。
+**证据**：`components/base` 的窗口测试（两种风格逐字节固定、各部分的命中区域、最大化和非活动状态、按钮名称有 en / zh-Hans / zh-Hant、外框里应用的路径不变）；`modules/ui/host/sdl3` 的测试（动词、切换、溶解期间不接收输入的关闭）。
 
 ---
 

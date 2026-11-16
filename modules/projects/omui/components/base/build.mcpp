@@ -6,4 +6,10 @@ import std;
 import mcpp;
 import omui.build.contracts;
 
-int main() { return omui::build::components({.module = "omui.ui.base", .ns = "omui"}) ? 0 : 1; }
+// The window frame's (contract/window/) and liquid glass's (contract/liquid_glass/) are their modules' own.
+int main() {
+    const bool base = omui::build::components({.module = "omui.ui.base", .ns = "omui"});
+    const bool window = omui::build::components({.module = "omui.ui.window", .ns = "omui", .contracts = "contract/window"});
+    const bool glass = omui::build::components({.module = "omui.ui.liquid_glass", .ns = "omui", .contracts = "contract/liquid_glass"});
+    return base && window && glass ? 0 : 1;
+}

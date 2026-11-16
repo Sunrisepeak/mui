@@ -1031,6 +1031,15 @@ namespace omui::parts {
   void check_mark(PaintContext& ctx, Point c, float size, Color color, float width = 1.75f);
   void shadow(PaintContext& ctx, std::string_view token, const Rect& box, const CornerRadii& r);
   void depth(PaintContext& ctx, std::string_view token, const Rect& box, const CornerRadii& radii, bool hovered, bool pressed, std::optional<ShadowToken> fallback = std::nullopt, Color object = Color::transparent());
+  inline constexpr float press_scale = 0.03f;
+  class Pressed {
+    Pressed(PaintContext& ctx, const Rect& box, float pressed);
+    ~Pressed();
+    Pressed(const Pressed&) = delete;
+    Pressed& operator=(const Pressed&) = delete;
+  };
+  [[nodiscard]] float rubber_band(float past, float limit) noexcept;
+  [[nodiscard]] double magnetic(double raw, double snapped, double half) noexcept;
   class Label {
     void set_text(std::string text);
     void set_style(std::string token);
@@ -1933,4 +1942,73 @@ namespace omui {
     [[nodiscard]] Value get_prop(std::string_view k) const;
     ActResult act(ActContext& ctx, std::string_view action);
   };
+}
+== omui.ui.liquid_glass
+export import omui.core;
+export import omui.view;
+export import :liquid_glass_contract;
+export import :glass_group_contract;
+export import :glass;
+== omui.ui.liquid_glass:glass
+namespace omui {
+  class LiquidGlass : public LiquidGlassContract<LiquidGlass> {
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    void prop_changed(LiquidGlassProp p);
+    [[nodiscard]] bool grouped() const;
+  };
+  class GlassGroup : public GlassGroupContract<GlassGroup> {
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    void prop_changed(GlassGroupProp p);
+    [[nodiscard]] std::vector<xrender::EffectShape> shapes() const;
+  };
+  void register_liquid_glass_components();
+}
+== omui.ui.window
+export import omui.core;
+export import omui.view;
+export import :window_frame_contract;
+export import :caption_button_contract;
+export import :frame;
+== omui.ui.window:frame
+namespace omui {
+  class WindowFrame : public WindowFrameContract<WindowFrame> {
+    void mounted();
+    void prop_changed(WindowFrameProp p);
+    void restyle();
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    void paint(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    std::vector<Element> compose();
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    [[nodiscard]] std::optional<WindowArea> window_area(Point local, Size size) const;
+    ActResult minimize(ActContext& ctx);
+    ActResult toggle_maximize(ActContext& ctx);
+    ActResult close(ActContext& ctx);
+    [[nodiscard]] bool drawn() const;
+    [[nodiscard]] float inset() const;
+    [[nodiscard]] Rect title_bar() const;
+    [[nodiscard]] static Insets content_insets(const WindowFrameProps& props);
+  };
+  class CaptionButton : public CaptionButtonContract<CaptionButton> {
+    void mounted();
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult activate(ActContext& ctx);
+    [[nodiscard]] std::string_view verb() const noexcept;
+  };
+  class FramedWindow {
+    FramedWindow(Runtime& runtime, WindowFrameOptions options, std::string slot = "main");
+    ~FramedWindow();
+    FramedWindow(const FramedWindow&) = delete;
+    FramedWindow& operator=(const FramedWindow&) = delete;
+  };
+  void register_window_components();
 }

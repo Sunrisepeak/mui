@@ -128,7 +128,7 @@ Chinese typography follows CSS Text 4: autospace between Chinese and Latin text,
 
 **Elsewhere**: custom title bars are per-platform work (Electron's `-webkit-app-region`, Flutter's window_manager plugins, WinUI's title bar customisation), rarely consistent across platforms, and none of them makes the window's operations part of an agent-readable model.
 
-**Evidence**: `components/window`'s tests (both looks pinned to the byte, the parts' hit areas, maximized and inactive states, buttons named in en / zh-Hans / zh-Hant, the application's paths unchanged inside the frame); `modules/ui/host/sdl3`'s tests (the verbs, switching, the close that dissolves and takes no input).
+**Evidence**: `components/base`'s window tests (both looks pinned to the byte, the parts' hit areas, maximized and inactive states, buttons named in en / zh-Hans / zh-Hant, the application's paths unchanged inside the frame); `modules/ui/host/sdl3`'s tests (the verbs, switching, the close that dissolves and takes no input).
 
 ---
 

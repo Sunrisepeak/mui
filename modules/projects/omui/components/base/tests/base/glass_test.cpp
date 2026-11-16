@@ -54,7 +54,7 @@ std::size_t glass_layers(const xrender::DisplayList& list, std::size_t* shapes =
 
 }  // namespace
 
-UTest cases{"ui.liquid_glass", [] {
+static UTest cases{"ui.liquid_glass", [] {
     register_liquid_glass_components();
 
     "the glass bends and tints what lies under it; its semantics are an ordinary group's"_test = [] {

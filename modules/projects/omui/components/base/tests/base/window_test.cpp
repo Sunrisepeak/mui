@@ -77,7 +77,7 @@ std::uint64_t picture(Headless& h) {
 
 }  // namespace
 
-UTest cases{"ui.window", [] {
+static UTest cases{"ui.window", [] {
     register_window_components();
 
     "in a native window the frame is only its content"_test = [] {

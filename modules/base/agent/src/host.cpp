@@ -109,7 +109,14 @@ std::expected<std::string, std::string> request_from(std::span<const std::string
     std::vector<std::pair<std::string, std::vector<std::string>>> named;
     for (; at < arguments.size(); ++at) {
         const std::string_view argument = arguments[at];
-        if (!argument.starts_with("--") || argument.size() == 2) return std::unexpected(std::format("`{}`: each argument is --name value", argument));
+        // After a bare `--`, the words are passed on as they are: `rest`, a list (a program's own switches, which cases).
+        if (argument == "--") {
+            std::string rest = "[";
+            for (++at; at < arguments.size(); ++at) rest += (rest.size() > 1 ? "," : "") + json_text(arguments[at]);
+            named.push_back({"rest", {rest + "]"}});
+            break;
+        }
+        if (!argument.starts_with("--")) return std::unexpected(std::format("`{}`: each argument is --name value", argument));
         std::string_view name = argument.substr(2);
         std::string value;
         if (const auto equals = name.find('='); equals != std::string_view::npos) {

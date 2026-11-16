@@ -22,7 +22,8 @@ export namespace mlibs::agent {
 
 // The request a command line's arguments make: an operation's name and its arguments as `--name value` (a value
 // that reads as JSON is that value — a number, true, an array; else it is text; `--name` alone is true; a name given
-// again gathers its values into an array: `--at 0 --at 1` is "at":[0,1]), or one
+// again gathers its values into an array: `--at 0 --at 1` is "at":[0,1]; the words after a bare `--` are `rest`, a
+// list passed on as it is), or one
 // request whole after `--request`. The session's own: `subjects`, `describe <subject or operation>`, `find <words>`,
 // `log`. Why the arguments make none, else.
 [[nodiscard]] std::expected<std::string, std::string> request_from(std::span<const std::string_view> arguments);

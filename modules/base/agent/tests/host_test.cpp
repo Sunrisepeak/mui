@@ -66,6 +66,8 @@ static UTest cases{"agent.host", [] {
         expect(eq(request({"describe", "counter.add"}), std::string(R"({"op":"describe","operation":"counter.add"})")));
         expect(eq(request({"find", "add", "to", "it"}), std::string(R"({"op":"find","q":"add to it"})")));
         expect(eq(request({"--request", R"({"op":"subjects"})"}), std::string(R"({"op":"subjects"})")));
+        expect(eq(request({"omui.test", "--", "counter", "--fast"}), std::string(R"({"op":"omui.test","rest":["counter","--fast"]})")));
+        expect(eq(request({"omui.run", "--release", "--", "--png"}), std::string(R"({"op":"omui.run","release":true,"rest":["--png"]})")));
         expect(request({}).starts_with("error: ") && request({"--by", "2"}).starts_with("error: ") && request({"counter.add", "by"}).starts_with("error: "));
     };
 

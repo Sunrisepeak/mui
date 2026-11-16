@@ -32,13 +32,13 @@ sources = ["src/native/pool/*.cpp"]
 sources = ["src/native/web/*.cpp"]
 
 [dependencies]
-mlibs.control = { path = "../../../base/control" }
-mlibs.utils = { path = "../../../base/utils" }
-openlifa.openmui = { path = "../../../../spec" }
-hanim.core            = { path = "../../hanim/core" }
-mlibs.geom     = { path = "../../../base/geom" }
-mlibs.memory   = { path = "../../../base/memory" }
-mlibs.json     = { path = "../../../base/json" }
+mlibs.control = { path = "../../../base/control", version = "0.1.0" }
+mlibs.utils = { path = "../../../base/utils", version = "0.1.0" }
+openlifa.openmui = { path = "../../../../spec", version = "0.3.0" }
+hanim.core            = { path = "../../hanim/core", version = "0.1.0" }
+mlibs.geom     = { path = "../../../base/geom", version = "0.1.0" }
+mlibs.memory   = { path = "../../../base/memory", version = "0.1.0" }
+mlibs.json     = { path = "../../../base/json", version = "0.1.0" }
 openlifa.openas        = "0.2.0"
 nlohmann.json          = "3.12.0"
 taskflow.taskflow      = "4.1.0"
@@ -51,4 +51,4 @@ programs = "directory"
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
-mlibs.cts = { path = "../../../base/cts" }
+mlibs.cts = { path = "../../../base/cts", version = "0.1.0" }

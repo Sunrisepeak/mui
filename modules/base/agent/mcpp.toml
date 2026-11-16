@@ -38,10 +38,10 @@ session = { sources = ["src/session/*.cppm", "src/session/*.cpp"] }
 nlohmann.json = "3.12.0"
 
 [dependencies]
-mlibs.utils   = { path = "../utils" }
-mlibs.json    = { path = "../json" }
+mlibs.utils   = { path = "../utils", version = "0.1.0" }
+mlibs.json    = { path = "../json", version = "0.1.0" }
 # Authority: every request of a subject is decided there first (openas).
-mlibs.control = { path = "../control" }
+mlibs.control = { path = "../control", version = "0.1.0" }
 openlifa.openas = "0.2.0"
 mcpplibs.os   = "0.4.4"
 

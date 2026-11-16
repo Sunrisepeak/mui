@@ -32,11 +32,11 @@ sources = ["src/native/browser/*.cpp"]
 sources = ["src/native/elsewhere/*.cpp"]
 
 [dependencies]
-mlibs.rhi    = { path = "../../../../gfx/rhi" }
-mlibs.memory = { path = "../../../../base/memory" }
+mlibs.rhi    = { path = "../../../../gfx/rhi", version = "0.1.0" }
+mlibs.memory = { path = "../../../../base/memory", version = "0.1.0" }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
-mlibs.utils = { path = "../../../../base/utils" }
+mlibs.utils = { path = "../../../../base/utils", version = "0.1.0" }
 mlibs.rhi.cts = { path = "../../../../gfx/rhi/cts" }
 mcpplibs.os     = "0.4.4"

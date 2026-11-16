@@ -32,10 +32,10 @@ sources = ["src/*.cppm", "src/*.cpp"]
 "xim:slang" = ">=2026.14.1"
 
 [dependencies]
-mlibs.rhi   = { path = "../rhi" }
+mlibs.rhi   = { path = "../rhi", version = "0.1.0" }
 mcpplibs.os   = "0.4.4"
 nlohmann.json = "3.12.0"
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
-mlibs.utils = { path = "../../base/utils" }
+mlibs.utils = { path = "../../base/utils", version = "0.1.0" }

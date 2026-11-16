@@ -24,11 +24,11 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-mlibs.i18n = { path = ".." }
+mlibs.i18n = { path = "..", version = "0.1.0" }
 
 [build-dependencies]
-omui.build = { path = "../../../../mcpp/build", host-module = true }
+omui.build = { path = "../../../../mcpp/build", host-module = true, version = "0.1.0" }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
-mlibs.utils = { path = "../../../base/utils" }
+mlibs.utils = { path = "../../../base/utils", version = "0.1.0" }

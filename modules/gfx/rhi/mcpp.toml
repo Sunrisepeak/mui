@@ -23,9 +23,9 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-mlibs.memory = { path = "../../base/memory" }
-mlibs.utils   = { path = "../../base/utils" }
+mlibs.memory = { path = "../../base/memory", version = "0.1.0" }
+mlibs.utils   = { path = "../../base/utils", version = "0.1.0" }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
-mlibs.cts = { path = "../../base/cts" }
+mlibs.cts = { path = "../../base/cts", version = "0.1.0" }

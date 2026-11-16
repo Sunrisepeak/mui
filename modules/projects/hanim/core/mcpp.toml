@@ -34,11 +34,11 @@ sources = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-mlibs.math  = { path = "../../../base/math" }
-mlibs.utils  = { path = "../../../base/utils" }
-mlibs.memory = { path = "../../../base/memory" }
-mlibs.geom   = { path = "../../../base/geom" }
+mlibs.math  = { path = "../../../base/math", version = "0.1.0" }
+mlibs.utils  = { path = "../../../base/utils", version = "0.1.0" }
+mlibs.memory = { path = "../../../base/memory", version = "0.1.0" }
+mlibs.geom   = { path = "../../../base/geom", version = "0.1.0" }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
-mlibs.cts = { path = "../../../base/cts" }
+mlibs.cts = { path = "../../../base/cts", version = "0.1.0" }

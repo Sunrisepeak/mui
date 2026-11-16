@@ -26,16 +26,16 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-xrender.vector = { path = "../vector" }
-mlibs.rhi    = { path = "../../../gfx/rhi" }
-mlibs.shader = { path = "../../../gfx/shader" }
-mlibs.utils  = { path = "../../../base/utils" }
-mlibs.json   = { path = "../../../base/json" }
-mlibs.xdef = { path = "../../../base/xdef" }  # a snapshot's format checked first (D-209)
+xrender.vector = { path = "../vector", version = "0.1.0" }
+mlibs.rhi    = { path = "../../../gfx/rhi", version = "0.1.0" }
+mlibs.shader = { path = "../../../gfx/shader", version = "0.1.0" }
+mlibs.utils  = { path = "../../../base/utils", version = "0.1.0" }
+mlibs.json   = { path = "../../../base/json", version = "0.1.0" }
+mlibs.xdef = { path = "../../../base/xdef", version = "0.1.0" }  # a snapshot's format checked first (D-209)
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
-xrender.raster  = { path = "../raster" }
-mlibs.geom    = { path = "../../../base/geom" }
-xrender.rhi.sdl = { path = "../rhi/sdl" }
+xrender.raster  = { path = "../raster", version = "0.1.0" }
+mlibs.geom    = { path = "../../../base/geom", version = "0.1.0" }
+xrender.rhi.sdl = { path = "../rhi/sdl", version = "0.1.0" }
 mcpplibs.os     = "0.4.4"

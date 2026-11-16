@@ -26,12 +26,12 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-mlibs.geom     = { path = "../../../base/geom" }
-mlibs.text     = { path = "../../../content/text" }
-xrender.raster = { path = "../raster" }
-xrender.vector = { path = "../vector" }
+mlibs.geom     = { path = "../../../base/geom", version = "0.1.0" }
+mlibs.text     = { path = "../../../content/text", version = "0.1.0" }
+xrender.raster = { path = "../raster", version = "0.1.0" }
+xrender.vector = { path = "../vector", version = "0.1.0" }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
-mlibs.utils = { path = "../../../base/utils" }
-mlibs.image = { path = "../../../base/image" }
+mlibs.utils = { path = "../../../base/utils", version = "0.1.0" }
+mlibs.image = { path = "../../../base/image", version = "0.1.0" }

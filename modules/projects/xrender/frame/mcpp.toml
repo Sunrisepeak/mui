@@ -33,15 +33,15 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-xrender.vector  = { path = "../vector" }
-xrender.raster  = { path = "../raster" }
-mlibs.rhi       = { path = "../../../gfx/rhi" }
-mlibs.geom      = { path = "../../../base/geom" }
-mlibs.image     = { path = "../../../base/image" }
-mlibs.utils     = { path = "../../../base/utils" }
-mlibs.json      = { path = "../../../base/json" }
-mlibs.agent     = { path = "../../../base/agent" }
-mlibs.control   = { path = "../../../base/control" }
+xrender.vector  = { path = "../vector", version = "0.1.0" }
+xrender.raster  = { path = "../raster", version = "0.1.0" }
+mlibs.rhi       = { path = "../../../gfx/rhi", version = "0.1.0" }
+mlibs.geom      = { path = "../../../base/geom", version = "0.1.0" }
+mlibs.image     = { path = "../../../base/image", version = "0.1.0" }
+mlibs.utils     = { path = "../../../base/utils", version = "0.1.0" }
+mlibs.json      = { path = "../../../base/json", version = "0.1.0" }
+mlibs.agent     = { path = "../../../base/agent", version = "0.1.0" }
+mlibs.control   = { path = "../../../base/control", version = "0.1.0" }
 openlifa.openas = "0.2.0"
 
 [dev-dependencies]

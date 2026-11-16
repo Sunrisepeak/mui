@@ -27,38 +27,38 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp", "src/generate/*.cppm", "src/generate/*.cpp"]  # generate: runtime generation (preview), module omui.generate
 
 [dependencies]
-omui.core          = { path = "../core" }
-omui.view          = { path = "../view" }
-omui.semantic      = { path = "../semantic" }
-hanim.visual      = { path = "../../hanim/visual" }
-omui.agent         = { path = "../agent" }
-mlibs.control       = { path = "../../../base/control" }  # generate: its catalog
-omui.expr          = { path = "../expr" }
-omui.viewdoc       = { path = "../viewdoc" }
-mlibs.utils         = { path = "../../../base/utils" }
-omui.ui.base       = { path = "../components/base" }
-omui.host.headless = { path = "../host/headless" }
-mlibs.i18n        = { path = "../../../content/i18n" }
-"mlibs.i18n.cldr"   = { path = "../../../content/i18n/cldr" }
+omui.core          = { path = "../core", version = "0.1.0" }
+omui.view          = { path = "../view", version = "0.1.0" }
+omui.semantic      = { path = "../semantic", version = "0.1.0" }
+hanim.visual      = { path = "../../hanim/visual", version = "0.1.0" }
+omui.agent         = { path = "../agent", version = "0.1.0" }
+mlibs.control       = { path = "../../../base/control", version = "0.1.0" }  # generate: its catalog
+omui.expr          = { path = "../expr", version = "0.1.0" }
+omui.viewdoc       = { path = "../viewdoc", version = "0.1.0" }
+mlibs.utils         = { path = "../../../base/utils", version = "0.1.0" }
+omui.ui.base       = { path = "../components/base", version = "0.1.0" }
+omui.host.headless = { path = "../host/headless", version = "0.1.0" }
+mlibs.i18n        = { path = "../../../content/i18n", version = "0.1.0" }
+"mlibs.i18n.cldr"   = { path = "../../../content/i18n/cldr", version = "0.1.0" }
 mcpplibs.os           = "0.4.4"
 # The development host (:devhost) draws the application's frames itself, glyphs too.
-xrender.vector        = { path = "../../xrender/vector" }
-xrender.frame         = { path = "../../xrender/frame" }
-xrender.raster        = { path = "../../xrender/raster" }
-xrender.text          = { path = "../../xrender/text" }
+xrender.vector        = { path = "../../xrender/vector", version = "0.1.0" }
+xrender.frame         = { path = "../../xrender/frame", version = "0.1.0" }
+xrender.raster        = { path = "../../xrender/raster", version = "0.1.0" }
+xrender.text          = { path = "../../xrender/text", version = "0.1.0" }
 mcpplibs.cmdline      = "0.0.3"
 
 # Where `omui::run` shows an application (D-84): a desktop window, on the
 # Web the page's canvas, on Android the NativeActivity's window (W10) — the host, and the partition (openmui:host) and unit
 # (src/host/<where>/shown.cpp) that name it.
 [target.'cfg(all(not(os = "emscripten"), not(env = "android")))'.dependencies]
-omui.host.sdl3 = { path = "../host/sdl3" }
+omui.host.sdl3 = { path = "../host/sdl3", version = "0.1.0" }
 
 [target.'cfg(env = "android")'.dependencies]
-omui.host.android = { path = "../host/android" }
+omui.host.android = { path = "../host/android", version = "0.1.0" }
 
 [target.'cfg(os = "emscripten")'.dependencies]
-omui.host.web = { path = "../host/web" }
+omui.host.web = { path = "../host/web", version = "0.1.0" }
 
 [target.'cfg(all(not(os = "emscripten"), not(env = "android")))'.build]
 sources = ["src/host/desktop/*.cppm", "src/host/desktop/*.cpp"]

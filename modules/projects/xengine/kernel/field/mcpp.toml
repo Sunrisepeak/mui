@@ -29,19 +29,19 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-fno-fast-math", "-ffp-contract=off", "-O2"]
 
 [dependencies]
-xengine.matter = { path = "../matter", default-features = false }
-mlibs.math     = { path = "../../../../base/math" }
-mlibs.utils    = { path = "../../../../base/utils" }
+xengine.matter = { path = "../matter", default-features = false, version = "0.1.0" }
+mlibs.math     = { path = "../../../../base/math", version = "0.1.0" }
+mlibs.utils    = { path = "../../../../base/utils", version = "0.1.0" }
 
 [features]
 # The air as an agent's subject (xengine.field.agent): taken alone, the carrier stays the small tool it is.
 agent = { sources = ["src/agent/*.cppm", "src/agent/*.cpp"] }
 
 [feature-deps.agent]
-mlibs.simulation = { path = "../../../../base/simulation" }
-mlibs.agent      = { path = "../../../../base/agent" }
-mlibs.control    = { path = "../../../../base/control" }
-mlibs.json       = { path = "../../../../base/json" }
+mlibs.simulation = { path = "../../../../base/simulation", version = "0.1.0" }
+mlibs.agent      = { path = "../../../../base/agent", version = "0.1.0" }
+mlibs.control    = { path = "../../../../base/control", version = "0.1.0" }
+mlibs.json       = { path = "../../../../base/json", version = "0.1.0" }
 openlifa.openas  = "0.2.0"
 
 [test]
@@ -50,5 +50,5 @@ features = ["agent"]
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
-xengine.matter = { path = "../matter" }  # with its default features: the standard definition (json)
+xengine.matter = { path = "../matter", version = "0.1.0" }  # with its default features: the standard definition (json)
 mlibs.agent.cts = { path = "../../../../base/agent/cts" }

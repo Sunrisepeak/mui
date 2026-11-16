@@ -10,6 +10,7 @@ export import :catalog;
 
 import std;
 import mlibs.project;
+export import :omui_profile;  // omui's profiles as data (omui.profile.xdef.ts)
 export import mlibs.agent;
 import omui.core;
 import omui.viewdoc;

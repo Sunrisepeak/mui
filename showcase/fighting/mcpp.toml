@@ -13,6 +13,9 @@ license     = "Apache-2.0"
 maturity = "experimental"  # release plan §2.1: stable, preview or experimental (lint maturity)
 kind      = "showcase"
 contracts = ["contract/*.contract.omui.toml"]
+profile = "app"  # its profile (D-207): what omui doctor holds it to
+id = "org.openmui.fighting"
+title = "omui fighting"
 
 [targets.openmui-showcase-fighting]
 kind = "lib"

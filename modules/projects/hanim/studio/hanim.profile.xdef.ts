@@ -1,0 +1,23 @@
+// hanim's profile (D-207): an animation or a film made with hanim, beyond the general rules. The tool kernel's
+// doctor (mlibs.project) reads the snapshot.
+import { defineProfile } from "mlibs/define";
+
+export default defineProfile({
+  film: {
+    doc: "an animation or a film: its documents as data, and a test that renders it headless",
+    rules: [
+      {
+        id: "film.documents",
+        doc: "its animation documents or its timeline, as declared data",
+        anyOf: [{ file: "**.animation.xdef.json" }, { file: "**.timeline.xdef.ts" }, { file: "**.video.xdef.ts" }],
+        fix: "an animation is a document (hanim document.new), a film a timeline (*.timeline.xdef.ts) or a video description",
+      },
+      {
+        id: "film.headless-test",
+        doc: "a test in tests/ that renders it without a window and checks frames along its time",
+        file: "tests/**.cpp",
+        fix: "sample it at its ends and between, an interruption too (hanim document.render; AGENTS §6)",
+      },
+    ],
+  },
+});

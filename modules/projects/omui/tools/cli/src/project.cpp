@@ -336,7 +336,18 @@ int operation(std::string_view op, const mlibs::agent::Arguments& a, std::ostrea
                 err << std::format("omui doctor: {}\n", project.error());
                 return 1;
             }
-            const auto all = profiles();
+            // omui's, and those the project declares itself (a domain's owner's, as data): a name declared in the tree is
+            // its own.
+            auto all = profiles();
+            if (auto declared = mlibs::project::profiles_in(dir)) {
+                for (auto& profile : *declared) {
+                    std::erase_if(all, [&](const mlibs::project::Profile& known) { return known.name == profile.name; });
+                    all.push_back(std::move(profile));
+                }
+            } else {
+                err << std::format("omui doctor: {}\n", declared.error());
+                return 1;
+            }
             for (const auto& finding : mlibs::project::check(*project, all)) {
                 ++findings;
                 out << Value{}.set("rule", finding.rule).set("where", finding.where).set("problem", finding.text).set("fix", finding.fix).json() << '\n';

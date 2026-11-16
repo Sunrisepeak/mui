@@ -73,7 +73,15 @@ UTest cases{"mlibs.project", [] {
         expect(findings.size() == 1 && findings.front().where == "a");
     };
 
-    "the repository's examples and showcases keep the general rules"_test = [] {
+    "the repository's examples and showcases keep the general rules and their profiles (every owner's, as data)"_test = [] {
+        auto declared = project::profiles_in(repository());
+        expect(declared.has_value()) << (declared ? "" : declared.error());
+        if (!declared) return;
+        std::vector<project::Profile> all{project::general()};
+        std::ranges::move(*declared, std::back_inserter(all));
+        std::set<std::string> names;
+        for (const auto& profile : all) names.insert(profile.name);
+        expect(names.contains("app") && names.contains("extension") && names.contains("film") && names.contains("game")) << "omui's, hanim's and xengine's";
         std::error_code error;
         std::size_t examples = 0;
         std::vector<std::filesystem::path> corpus;
@@ -85,9 +93,25 @@ UTest cases{"mlibs.project", [] {
             const auto read = project::read(entry.path());
             expect(read.has_value()) << (read ? "" : read.error());
             if (!read) continue;
-            for (const auto& finding : project::check(*read, std::array{project::general()}))
+            for (const auto& finding : project::check(*read, all))
                 expect(false) << std::format("{}: {}: {} — {}", entry.path().filename().string(), finding.where, finding.text, finding.rule);
         }
         expect(examples >= 18);
+    };
+
+    "a declared profile: its conditions over a package (metadata, files by glob, dependencies, any of them)"_test = [] {
+        const auto profiles = project::profiles_from(R"({"$format":"profile@1","profile":{"demo":{"doc":"d","rules":[
+            {"id":"demo.who","doc":"says who","metadata":["id"],"fix":"id = …"},
+            {"id":"demo.test","doc":"a test","file":"tests/**.cpp","fix":"write one"},
+            {"id":"demo.uses","doc":"uses x","anyOf":[{"dependsOn":"x.core"},{"file":"src/*.x"}],"fix":"depend on x.core"}]}}})", "demo.profile.xdef.json");
+        expect(profiles.has_value() && profiles->size() == 1) << (profiles ? "" : profiles.error());
+        if (!profiles) return;
+        const auto root = temp_dir() / "declared";
+        write(root / "mcpp.toml", "[package]\nname = \"demo\"\n[package.metadata.openmui]\nprofile = \"demo\"\n");
+        write(root / "tests" / "deep" / "one_test.cpp", "int x;\n");
+        const auto findings = project::check(*project::read(root), *profiles);
+        expect(findings.size() == 2 && has(findings, "demo.who", "mcpp.toml") && has(findings, "demo.uses", "mcpp.toml")) << "the test is found, two hold not";
+        expect(!project::profiles_from(R"({"$format":"profile@1","profile":{"x":{"rules":[{"id":"x.y"}]}}})", "x.profile.xdef.json")) << "a rule needs a condition";
+        expect(!project::profiles_from(R"({"profile":{}})", "x.profile.xdef.json")) << "its format first";
     };
 }};

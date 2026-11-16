@@ -17,6 +17,9 @@ license     = "Apache-2.0"
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
 kind = "showcase"
+profile = "app"  # its profile (D-207): what omui doctor holds it to
+id = "org.openmui.style-gallery"
+title = "Style gallery"
 
 [targets.openmui-showcase-style-gallery]
 kind = "lib"

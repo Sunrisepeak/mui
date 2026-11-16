@@ -59,6 +59,10 @@ UTest cases{"cli.project", [] {
                                                      record.get("where")->as_string(), record.get("problem")->as_string());
             }
         expect(checked >= 18);
+        // The profile omui carries is its declaration's snapshot as it is now (omui-gen embed makes it again).
+        std::ifstream declared(repository / "modules" / "projects" / "omui" / "tools" / "cli" / "omui.profile.xdef.json", std::ios::binary);
+        expect(std::string{std::istreambuf_iterator<char>(declared), {}} == std::string(omui::cli::omui_profile))
+            << "run omui-gen embed modules/projects/omui/tools/cli/omui.profile.xdef.json --module omui.cli --name omui_profile --namespace omui::cli --out modules/projects/omui/tools/cli/src/generated";
         // A project that breaks them says so, each finding with its fix.
         const auto bad = temp_dir() / "bad-app";
         std::filesystem::create_directories(bad);

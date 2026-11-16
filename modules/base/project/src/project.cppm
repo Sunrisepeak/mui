@@ -61,6 +61,14 @@ struct Profile {
 // A workspace's: every member listed has a manifest, and every manifest under the root is listed.
 [[nodiscard]] Profile workspace();
 
+// Profiles as their owners declare them (D-207): a `*.profile.xdef.json` snapshot, `{"$format":"profile@1",
+// "profile": {<name>: {doc, rules: [{id, doc, fix, <condition>}]}}}`. A condition is `metadata: [keys]` (all said in
+// [package.metadata.openmui]), `file: "glob"` (a file of the package matches; `*` within a directory, `**` across),
+// `dependsOn: "package"`, or `anyOf: [conditions]`; a rule holds when its condition does.
+[[nodiscard]] std::expected<std::vector<Profile>, std::string> profiles_from(std::string_view json, std::string_view file);
+// The profiles a tree declares: every `*.profile.xdef.json` under `root` (build trees and submodules aside).
+[[nodiscard]] std::expected<std::vector<Profile>, std::string> profiles_in(const std::filesystem::path& root);
+
 // Every rule of every profile over the project: the general ones and workspace's over all packages, another
 // profile's over the packages that say it.
 [[nodiscard]] std::vector<Finding> check(const Project& project, std::span<const Profile> profiles);

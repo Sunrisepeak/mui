@@ -224,7 +224,7 @@ sampling can inspect poses with UI automatic motion disabled; an application's
 live driver must enforce its motion preferences and input policy. The optional
 owning `Playback` below supplies that host transport without another engine.
 
-The [independent consumer](../../../../tools/ci/omui-hanim-consumer/src/main.cpp)
+The independent consumer (the repository's `omui-devtools consumer omui-hanim`)
 uses the real button/popover, shaped text, public Hanim composition, renderer
 and Agent actions. Its runner (`omui-devtools consumer omui-hanim`)
 exports 61 explicit samples, 61 host-driven frames, 61 nested-effect frames,

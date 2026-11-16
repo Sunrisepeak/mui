@@ -107,7 +107,7 @@ effect recipes, `play`/`seek` and inspect the frame, optionally bind the vector
 adapter and capture actual offscreen pixels, compare off/mid/end and replay,
 then release playback. Check every `expected` result and adapter capability;
 preparation success alone does not guarantee rendering support. The
-[independent public API probe](../../../../../tools/ci/hanim-api-probe) runs the
+independent public API probe (`omui-devtools consumer hanim-api`) runs the
 parameter path without UI or a renderer; `hanim.render.vector` tests exercise
 the optional real-pixel path. No GUI is required in either workflow.
 

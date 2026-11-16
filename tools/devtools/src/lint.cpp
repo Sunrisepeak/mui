@@ -78,6 +78,8 @@ constexpr Rule all_rules[]{
     {"status", "STATUS: at most 200 lines of at most 600 characters; a task done names its evidence (D-202)"},
     {"maturity", "every package's label; a library depends by default only at its label or above (D-189, D-199)"},
     {"lead", "the signature features against the lead ledger; the lead pages are the ledger's (D-135)"},
+    {"tooling", "a library or engine imports no toolkit (a member of kind \"tool\"); tools sit on top (plan §4.5)"},
+    {"splittable", "a project reaches nothing of the repository's tools/ by a path: it can leave as a repository (plan §4.5)"},
     {"scripts", "no script but the allowlist's kinds, each with its reason (tools/lint/scripts.allow.omui.json, D-206)"},
     {"platform-table", "every cell of docs/platforms.omui.json is real, software, unverified or unsupported, with its evidence or need (D-201)"},
 };
@@ -438,6 +440,7 @@ struct Planted {
     std::vector<Closure> closures;                    // the closure rules the case runs with
     std::map<std::string, std::string> files;         // more files the case needs
     std::string label = "stable";                     // the UI core's maturity
+    std::string ui_kind;                              // the UI core's kind, when it is planted as one
     bool project = false;                             // a project's package that says nothing of its agent surface
     bool view_schema = false;                         // the repository's view schema, copied in
 };
@@ -480,9 +483,10 @@ void plant(const fs::path& root, const Planted& planted, const fs::path& owners_
         const bool hanim = member == "modules/gfx/hanim" || member == "modules/base/hanim/core";
         const auto extra = planted.dependencies.find(member);
         write(root / path_of(member) / "mcpp.toml",
-              std::format("[package]\n{}\nversion = \"0.1.0\"\n{}{}\n[package.metadata.openmui]\nmaturity = \"{}\"\n", names[member],
+              std::format("[package]\n{}\nversion = \"0.1.0\"\n{}{}\n[package.metadata.openmui]\nmaturity = \"{}\"\n{}", names[member],
                           hanim ? "[build]\ncxxflags = [\"-ffp-contract=off\"]\n" : "", extra == planted.dependencies.end() ? "" : extra->second,
-                          member == "modules/ui/core" ? planted.label : std::string("stable")));
+                          member == "modules/ui/core" ? planted.label : std::string("stable"),
+                          member == "modules/ui/core" && !planted.ui_kind.empty() ? std::format("kind = \"{}\"\n", planted.ui_kind) : std::string()));
     }
     for (const auto& [path, text] : planted.files) write(root / path_of(path), text);
     if (planted.view_schema) {
@@ -546,6 +550,9 @@ int self_test(const fs::path& repository, const fs::path& scratch, std::ostream&
         {"shader-inputs", "modules/ui/core/x.slang", "struct VIn {\n    float3 position : TEXCOORD0;\n    float2 second : TEXCOORD4;\n};\n"},
         {.rule = "maturity", .label = "experimental"},
         {"scripts", "tools/x/run.sh", "#!/bin/sh\nmcpp build\n"},
+        {.rule = "tooling", .dependencies = {{"modules/gfx/hanim", "[dependencies]\ncore = { path = \"../../ui/core\" }\n"}}, 
+         .also_unexpected = {"layering", "modules", "project-dag"}, .ui_kind = "tool"},
+        {"splittable", "modules/projects/hanim/README.md", "# hanim\n\nSee [the probe](../../../tools/ci/probe/README.md).\n"},
         {"platform-table", "docs/platforms.omui.json",
          R"({"platforms": [{"id": "a"}], "capability": [{"id": "x", "label": "stable", "cells": {"a": {"status": "passed"}}}]})"},
         {"status", ".agents/docs/STATUS.md", "# STATUS\n\n| Task | State | Evidence |\n|---|---|---|\n| RC0.1 push | done | pushed |\n"},

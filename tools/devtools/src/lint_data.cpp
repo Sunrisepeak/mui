@@ -606,6 +606,59 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
         }
     }
 
+    // tooling (plan §4.5): an engine or library does not import a toolkit (a member whose kind is "tool"); tools sit
+    // on top, and what more than one of them needs goes down into a library.
+    {
+        const auto kind_of = [](const Member& member) -> std::string {
+            if (!member.data) return {};
+            const auto* metadata = openmui_metadata(*member.data);
+            return metadata && metadata->get("kind") ? metadata->get("kind")->value_or(std::string{}) : std::string{};
+        };
+        std::set<std::string> tools;
+        for (const auto& member : workspace.members)
+            if (kind_of(member) == "tool") tools.insert(member.path);
+        for (const auto& member : workspace.members) {
+            if (!member.data) continue;
+            const std::string kind = kind_of(member);
+            if (kind == "tool" || kind == "rules" || kind == "app" || kind == "showcase" || kind == "example" || member.path.starts_with("tools/") || member.path.starts_with("showcase/") ||
+                member.path.starts_with("examples/") || member.path.starts_with("site"))
+                continue;  // only a library or an engine is held (build plugins, kind "rules", are the toolchain)
+            for (const std::string_view section : {"dependencies", "dev-dependencies"}) {
+                const auto* table = table_at(&*member.data, section);
+                if (!table) continue;
+                for (const auto& [name, node] : flatten(*table)) {
+                    const auto* entry = node->as_table();
+                    if (!entry || !entry->get("path")) continue;
+                    const std::string target = resolved(member.path, entry->get("path")->value_or(std::string{}));
+                    if (tools.contains(target))
+                        add("tooling", member.path + "/mcpp.toml",
+                            std::format("[{}] {} is a toolkit ({}): a library or engine does not import a tool; what both need belongs in a library below", section, name, target));
+                }
+            }
+        }
+    }
+
+    // splittable (plan §4.5, D-55): a project names nothing of the repository's own tools/ — no manifest, source or
+    // document of it reaches there by a relative path — so it can leave as a repository of its own.
+    {
+        constexpr std::array texts{".md", ".toml", ".cpp", ".cppm", ".ts", ".json", ".mcpp", ".slang"};
+        static const std::regex climbing(R"(((?:\.\./)+)tools(/[A-Za-z0-9_./-]*)?)");
+        for (const auto& file : files) {
+            if (!file.starts_with("modules/projects/") || !std::ranges::contains(texts, extension(file))) continue;
+            const std::string text = text_of(file);
+            for (std::sregex_iterator it(text.begin(), text.end(), climbing), end; it != end; ++it) {
+                // Where the path lands, from the file's directory.
+                std::vector<std::string> parts;
+                for (const auto part : std::views::split(std::string_view(parent_of(file)), '/')) parts.emplace_back(part.begin(), part.end());
+                const std::size_t ups = (*it)[1].length() / 3;
+                if (ups != parts.size()) continue;  // lands somewhere other than the root
+                const auto line = static_cast<std::size_t>(std::count(text.begin(), text.begin() + it->position(), '\n')) + 1;
+                add("splittable", std::format("{}:{}", file, line),
+                    std::format("`{}` reaches the repository's tools/: a project names only what it declares (say the tool by its command, without a path)", it->str()));
+            }
+        }
+    }
+
     // scripts (D-206): a script is one of the allowlist's four kinds (or application code), each with its reason; one
     // still being moved into C++ is `pending` with the checkpoint that removes it, and an entry naming nothing is stale.
     {

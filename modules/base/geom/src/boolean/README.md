@@ -1,4 +1,4 @@
-# mlibs.geom.boolean
+# mlibs.geom.boolean (the feature `boolean` of mlibs.geom)
 
 Solids combined: two closed meshes joined, one cut from the other, or what they share — a closed mesh again, with the normals, tangents and texture coordinates both carry, the same bytes on every machine (the foundation plan's §5.5: modelling by code; D-176).
 
@@ -23,7 +23,7 @@ const auto part = geom::united(*drilled, knob);                           // a r
 ## How it was designed (D-185)
 
 1. *From this system's own ground.* A result is a value with one form: the canonical order makes the same solid the same bytes, so it can be a key, a pinned test, a thing two machines agree on — which the library alone does not give (its order is the standard library's). Attributes ride through the cut as the library's vertex properties, so a part made by code keeps its flat faces and its texture coordinates without a pass after.
-2. *What exists, combined.* The combining is Manifold's (the one library whose booleans are guaranteed to give a solid), through its module wrap ([mcpplibs/manifold-m](https://github.com/mcpplibs/manifold-m), built on one thread with contraction off; D-56, D-83), named in one native unit. A package of its own beside `mlibs.geom`, so the geometry everything shares does not carry it (D-99).
+2. *What exists, combined.* The combining is Manifold's (the one library whose booleans are guaranteed to give a solid), through its module wrap ([mcpplibs/manifold-m](https://github.com/mcpplibs/manifold-m), built on one thread with contraction off; D-56, D-83), named in one native unit. `mlibs.geom`'s feature `boolean`, so the geometry everything shares does not carry it (D-99; a package of its own until RC1.5).
 3. *The level of the best.* Against the modellers that give solids (Manifold itself, CGAL's corefinement, OpenSCAD's and Blender's exact booleans): the robustness is Manifold's own; added here are the one byte-form of a result and the refusals that say which and why. Behind: no hulls, offsets, level sets or 2D outlines through this interface yet (the library has the first three; its 2D cross-sections need Clipper2 and are not in the wrap).
 
 ## Agent surface

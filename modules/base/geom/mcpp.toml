@@ -22,6 +22,18 @@ kind = "lib"
 sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
+[features]
+# Solids combined (src/boolean/, `import mlibs.geom.boolean;`): Manifold through its wrap
+# (mcpplibs.mwrap.manifold), asked for only by what combines solids, so the geometry everything
+# shares carries no third-party code (D-99: dependency isolation, as a feature since RC1.5).
+boolean = { sources = ["src/boolean/*.cppm", "src/boolean/native/*.cpp"] }
+
+[feature-deps.boolean]
+mcpplibs.mwrap.manifold = "3.5.5.1"
+
+[test]
+features = ["boolean"]
+
 [dependencies]
 mlibs.utils = { path = "../utils" }
 mlibs.math  = { path = "../math" }

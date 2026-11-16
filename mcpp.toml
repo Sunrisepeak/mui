@@ -19,7 +19,6 @@ members = [
     "modules/base/agent/cts",
     "modules/base/cts",
     "modules/base/geom",
-    "modules/base/geom/boolean",
     "modules/projects/hanim/core",
     "modules/base/image",
     "modules/base/json",

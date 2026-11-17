@@ -191,7 +191,7 @@ Kind: R regression, E environment, F flaky or time, T test expectation.
 
 ## Next
 
-1. N0 on the next push (red 114 and 115 fixed, RC1.5's merges, B5): its tier-1 rows by blocks (RC0.10); reconcile with `omui-devtools ci run`. Before the push: RC0.7's LLVM check on the members that moved modules into features.
-2. In flight: RC2.17 (B6 done; the stagger check, IME and bridge cells), RC3.1 (mcpp#947; then `version` beside sibling edges if upstream declines), RC2.3 (rigid3, nav, audio.space rows in the platform table from that run).
-3. RC3.3's rest (video and audio to their owners as an xtools composition), RC3.5 (install-first start after RC3.1), RC3.6 (the GPU's first frame: make the device beside the first CPU frame). RC3.3's video/audio: `xengine.video` owns descriptions of frames (omui's design film renders one), the view rendering needs omui — the split is a design decision, not a move.
+1. N0: run 44033775547 (16c3106e) reconciled when its platform rows end; the Web row waits on red 107 (SwiftShader's `mesh.glass` pane, deterministic, 18 silhouette pixels behind it) — reproducing it needs the browser build here, which the disk (≈4 GB free, shared) does not hold now.
+2. In flight: RC2.17 (B4–B6 done but hairlines by DPR, after N0; IME and bridge cells on machines; the switch's proportions with a blind comparison), RC3.1 (mcpp#947, mcpp#945 open), RC2.3 (rigid3, nav, audio.space rows in the platform table from the N0 run).
+3. RC3.5 (install-first start after RC3.1); RC3.6's sleep and resume on machines.
 4. Then N1, N2a, N2b checked on one run; RC4; RC5.

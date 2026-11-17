@@ -479,9 +479,11 @@ void DataGrid::paint(PaintContext& ctx) const {
     for (std::size_t i = from; i < to; ++i) {
         const Row& row = model_->at(ord[i]);
         const Rect rr{0, grid_head + static_cast<float>(i) * grid_row - offset_, ctx.size.width, grid_row};
+        // The row (its fill and cells) is a part by its key, so a new order moves each row from where it was to where it
+        // is (component quality B6), not its text swapped in place; the separator over it stays with the place.
+        ctx.part({.role = "row", .id = row.key, .allocation = rr}, [&] {
         if (chosen(row.key)) ctx.list.fill_rect(rr, th.color("accent_subtle"));
         else if (hover_ == static_cast<int>(i)) ctx.list.fill_rect(rr, th.color("surface_variant"));
-        ctx.list.fill_rect({0, rr.bottom() - 1, ctx.size.width, 1}, th.color("border"));
         float x = 0;
         for (std::size_t c = 0; c < props.fields.size(); ++c) {
             const Value* v = row.fields.get(props.fields[c]);
@@ -496,6 +498,8 @@ void DataGrid::paint(PaintContext& ctx) const {
             l.paint(ctx, {tx, rr.center().y - t.height / 2}, tc);
             x += widths[c];
         }
+        });
+        ctx.list.fill_rect({0, rr.bottom() - 1, ctx.size.width, 1}, th.color("border"));
     }
     // The header over them, each column's name and its sort; once rows have gone under it, it casts the theme's
     // small shadow on them (B6) — at the top, none.

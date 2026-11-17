@@ -478,7 +478,7 @@ static UTest cases{"ui.base.default-motion", [] {
         expect(rest.has_value() && std::abs(*rest - 90) < 0.5f) << "at rest, pointing down";
     };
 
-    "a grid's sort turned the other way turns its arrow about its centre, a half turn (B6)"_test = [] {
+    "a grid's sort turned the other way turns its arrow about its centre, a half turn, and moves its rows to their new places (B6)"_test = [] {
         Headless h(options());
         Model& people = h.runtime().model("people");
         for (const auto& [key, name, age] : std::vector<std::tuple<std::string, std::string, std::int64_t>>{{"ada", "Ada", 36}, {"alan", "Alan", 41}})
@@ -489,17 +489,28 @@ static UTest cases{"ui.base.default-motion", [] {
         h.settle();
         sort.set("-age");
         h.step();
-        // The transforms the arrow is drawn under: a rotation part-way (its matrix neither up's nor down's).
+        // The transforms the arrow is drawn under: a rotation part-way (its matrix neither up's nor down's). And the
+        // rows, each moved part of the way between its old place and its new one (a row is 34 px tall).
         std::vector<float> seen;
+        std::vector<float> moved;
         for (int sample = 0; sample < 12; ++sample) {
             h.advance(seconds(0.02));
-            for (const auto& command : h.runtime().display_list().commands())
+            for (const auto& command : h.runtime().display_list().commands()) {
                 if (const auto* push = std::get_if<xrender::PushTransform>(&command); push && std::abs(push->transform.b) > 0.05f)
                     seen.push_back(std::atan2(push->transform.b, push->transform.a) * 180 / std::numbers::pi_v<float>);
+                if (const auto* push = std::get_if<xrender::PushTransform>(&command); push && std::abs(push->transform.b) < 1e-3f &&
+                                                                                        std::abs(push->transform.f) > 4 && std::abs(push->transform.f) < 30)
+                    moved.push_back(push->transform.f);
+                if (const auto* run = std::get_if<xrender::DrawGlyphs>(&command))
+                    for (const auto& style : run->styles)
+                        if (std::abs(style.transform.f) > 4 && std::abs(style.transform.f) < 30) moved.push_back(style.transform.f);
+            }
             if (sample == 3) save(h, "grid-sort-turning");
         }
         expect(std::ranges::any_of(seen, [](float angle) { return std::abs(angle) > 20 && std::abs(angle) < 160; }))
             << std::format("the arrow part-way round: {}", seen);
+        expect(std::ranges::any_of(moved, [](float by) { return by > 0; }) && std::ranges::any_of(moved, [](float by) { return by < 0; }))
+            << std::format("the rows part-way to their new places, one down, one up: {}", moved);
         h.settle();
         const bool down = std::ranges::any_of(h.runtime().display_list().commands(), [](const auto& command) {
             const auto* push = std::get_if<xrender::PushTransform>(&command);
